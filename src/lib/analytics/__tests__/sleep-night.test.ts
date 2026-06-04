@@ -167,6 +167,67 @@ describe("reconstructSleepNights", () => {
     expect(nights[0].stages.CORE).toBe(240);
   });
 
+  it("does NOT double-count a bare ASLEEP aggregate against the granular stages (HIGH, v1.11.5)", () => {
+    // Apple Health writes BOTH an unspecified `ASLEEP` AGGREGATE row AND the
+    // granular CORE/DEEP/REM breakdown for the SAME night. The granular rows
+    // partition the same period the aggregate covers, so summing them would
+    // ~double the night (here: 480 granular + 480 bare = 960 ≈ 16 h, the
+    // real-data symptom). The asleep total must be the GRANULAR sum (~8 h),
+    // never the granular + bare blend.
+    const rows: SleepStageRow[] = [
+      // Granular breakdown — the canonical partition (8 h total).
+      row("2026-06-04T01:00:00.000Z", "CORE", 240), //  23:00 → 03:00
+      row("2026-06-04T03:00:00.000Z", "DEEP", 120), //  03:00 → 05:00
+      row("2026-06-04T05:00:00.000Z", "REM", 120), //   05:00 → 07:00
+      // Unspecified ASLEEP aggregate covering the SAME 8 h — must be dropped.
+      row("2026-06-04T05:00:00.000Z", "ASLEEP", 480),
+      // IN_BED + AWAKE never count toward asleep.
+      row("2026-06-04T05:00:00.000Z", "IN_BED", 510),
+      row("2026-06-04T04:30:00.000Z", "AWAKE", 30),
+    ];
+    const nights = reconstructSleepNights(rows, "UTC");
+    expect(nights).toHaveLength(1);
+    // Granular only: 240 + 120 + 120 = 480 (8 h), NOT 960 (16 h).
+    expect(nights[0].asleepMinutes).toBe(480);
+    expect(nights[0].inBedMinutes).toBe(510);
+    expect(nights[0].awakeMinutes).toBe(30);
+  });
+
+  it("falls back to the bare ASLEEP row when no granular stage exists", () => {
+    // Legacy iOS 15- writes only the unspecified aggregate — there is no
+    // granular partition, so the bare ASLEEP row IS the night's total.
+    const rows: SleepStageRow[] = [
+      row("2026-06-04T06:00:00.000Z", "ASLEEP", 465),
+      row("2026-06-04T06:00:00.000Z", "IN_BED", 500),
+    ];
+    const nights = reconstructSleepNights(rows, "UTC");
+    expect(nights).toHaveLength(1);
+    expect(nights[0].asleepMinutes).toBe(465);
+    expect(nights[0].inBedMinutes).toBe(500);
+  });
+
+  it("does not double-count bare+granular WITHIN one source on a dual-source night", () => {
+    // Both WHOOP and Apple Health report the same night, and EACH writes a
+    // bare ASLEEP aggregate alongside its granular breakdown. The night must
+    // collapse to ONE source (WHOOP by default ladder) AND count only that
+    // source's granular stages — no cross-source sum, no bare double-count.
+    const rows: SleepStageRow[] = [
+      srcRow("2026-06-04T01:00:00.000Z", "CORE", 240, "WHOOP"),
+      srcRow("2026-06-04T03:00:00.000Z", "DEEP", 90, "WHOOP"),
+      srcRow("2026-06-04T04:30:00.000Z", "REM", 90, "WHOOP"),
+      srcRow("2026-06-04T04:30:00.000Z", "ASLEEP", 420, "WHOOP"), // bare WHOOP aggregate
+      srcRow("2026-06-04T01:05:00.000Z", "CORE", 230, "APPLE_HEALTH"),
+      srcRow("2026-06-04T03:05:00.000Z", "DEEP", 85, "APPLE_HEALTH"),
+      srcRow("2026-06-04T04:35:00.000Z", "REM", 80, "APPLE_HEALTH"),
+      srcRow("2026-06-04T04:35:00.000Z", "ASLEEP", 395, "APPLE_HEALTH"), // bare Apple aggregate
+    ];
+    const nights = reconstructSleepNights(rows, "UTC");
+    expect(nights).toHaveLength(1);
+    // WHOOP granular only: 240 + 90 + 90 = 420, not 840 (bare+granular) and
+    // not the ~1660 four-way blend of both sources' bare + granular rows.
+    expect(nights[0].asleepMinutes).toBe(420);
+  });
+
   it("honours a per-user ladder that prefers Apple Health over WHOOP", () => {
     const priorityJson = { sleep: ["APPLE_HEALTH", "WHOOP"] };
     const rows: SleepStageRow[] = [
@@ -203,6 +264,34 @@ describe("summarizeSleepNights", () => {
     expect(summary.mean).toBe(360);
     expect(latestNight?.night).toBe("2026-06-04");
     expect(latestNight?.asleepMinutes).toBe(420);
+  });
+
+  it("averages ~8 h, not ~16 h, when every night carries bare+granular rows (HIGH, v1.11.5)", () => {
+    // Several consecutive nights, each written the real-data way: a bare
+    // ASLEEP aggregate PLUS the granular CORE/DEEP/REM partition for the same
+    // period. The 30-day-style average must reflect the granular ~8 h totals,
+    // not the ~16 h bare+granular blend that produced the live 16.4 h symptom.
+    const nightsInput: Array<[string, number, number, number]> = [
+      // [wake-day, core, deep, rem] — each sums to 480 min = 8 h.
+      ["2026-06-01", 240, 120, 120],
+      ["2026-06-02", 250, 110, 120],
+      ["2026-06-03", 230, 130, 120],
+      ["2026-06-04", 240, 120, 120],
+    ];
+    const rows: SleepStageRow[] = [];
+    for (const [day, core, deep, rem] of nightsInput) {
+      // Each night's stages land between 01:00 and 06:00 UTC on the wake day.
+      rows.push(row(`${day}T02:00:00.000Z`, "CORE", core));
+      rows.push(row(`${day}T04:00:00.000Z`, "DEEP", deep));
+      rows.push(row(`${day}T06:00:00.000Z`, "REM", rem));
+      // The overlapping bare ASLEEP aggregate (= core+deep+rem) — must drop.
+      rows.push(row(`${day}T06:00:00.000Z`, "ASLEEP", core + deep + rem));
+    }
+    const { summary } = summarizeSleepNights(rows, "UTC");
+    expect(summary.count).toBe(4);
+    // Mean of 480 / 480 / 480 / 480 = 480 min = 8 h, NOT 960 min = 16 h.
+    expect(summary.mean).toBe(480);
+    expect((summary.mean ?? 0) / 60).toBe(8);
   });
 
   it("drops nights with zero asleep minutes (IN_BED / AWAKE only)", () => {

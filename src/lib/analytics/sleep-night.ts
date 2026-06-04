@@ -10,10 +10,19 @@
  *
  * This helper is the one shared place that turns the raw per-stage rows
  * into per-night totals. The headline "time asleep" is light(CORE) +
- * deep + REM (+ legacy bare `ASLEEP`); IN_BED and AWAKE are excluded
- * from the asleep total, matching the AASM convention already encoded in
- * `sleep-score.ts`'s `ASLEEP_STAGES`. Bare rows with no `sleepStage`
- * (legacy / manual) count as that night's asleep total.
+ * deep + REM; IN_BED and AWAKE are excluded from the asleep total,
+ * matching the AASM convention.
+ *
+ * Granular-over-bare (v1.11.5)
+ * ----------------------------
+ * Apple Health (and some WHOOP shapes) writes BOTH an unspecified `ASLEEP`
+ * AGGREGATE row AND the granular `CORE` / `DEEP` / `REM` breakdown for the
+ * SAME sleep period. The granular rows partition the same time the aggregate
+ * covers, so summing bare-ASLEEP together with the granular rows ~doubles the
+ * night. We therefore prefer the granular partition: when ANY granular stage
+ * (CORE / DEEP / REM) is present for a night/source we count ONLY the granular
+ * stages; the bare `ASLEEP` aggregate (or a stage-less legacy / manual row) is
+ * the night's asleep total only when no granular stage exists.
  *
  * Night grouping
  * --------------
@@ -68,13 +77,48 @@ import {
   parseSourcePriority,
 } from "@/lib/validations/source-priority";
 
-/** Stages that count toward "time asleep" (excludes IN_BED + AWAKE). */
-const ASLEEP_STAGES: ReadonlySet<SleepStage> = new Set<SleepStage>([
-  "ASLEEP",
+/**
+ * The GRANULAR asleep stages (iOS 16+ `asleepCore` / `asleepDeep` /
+ * `asleepREM`). A bare `ASLEEP` row is the legacy iOS 15- `asleepUnspecified`
+ * AGGREGATE — many sources (Apple Health, some WHOOP shapes) write BOTH the
+ * unspecified aggregate AND the granular breakdown for the SAME period, so
+ * summing bare-ASLEEP together with the granular rows ~doubles the night. The
+ * granular rows partition the same time the aggregate covers, so when any
+ * granular stage is present for a night/source we count ONLY the granular
+ * stages and drop the bare aggregate; the bare row is the asleep total only
+ * when no granular stage exists.
+ */
+const GRANULAR_ASLEEP_STAGES: ReadonlySet<SleepStage> = new Set<SleepStage>([
   "REM",
   "CORE",
   "DEEP",
 ]);
+
+/**
+ * Sum a set of stage rows into time-asleep minutes WITHOUT double-counting a
+ * bare `ASLEEP` aggregate against the granular CORE/DEEP/REM rows it overlaps.
+ * IN_BED + AWAKE are never asleep; a stage-less (`null`) row is the night's
+ * total only when no granular stage is present.
+ */
+function asleepMinutesOf(rows: readonly SleepStageRow[]): number {
+  let granular = 0;
+  let fallback = 0;
+  let sawGranular = false;
+  for (const r of rows) {
+    const minutes = Number.isFinite(r.value) ? r.value : 0;
+    const stage = r.sleepStage;
+    if (stage != null && GRANULAR_ASLEEP_STAGES.has(stage)) {
+      granular += minutes;
+      sawGranular = true;
+    } else if (stage === "ASLEEP" || stage == null) {
+      // Bare unspecified aggregate (`ASLEEP`) or a stage-less legacy/manual
+      // row — only used when no granular stage carries the night.
+      fallback += minutes;
+    }
+    // IN_BED / AWAKE never count toward asleep.
+  }
+  return sawGranular ? granular : fallback;
+}
 
 /**
  * Gap (ms) between consecutive stage segments that starts a new sleep
@@ -104,7 +148,7 @@ export interface SleepNight {
   night: string;
   /** Latest stage instant in the night — the night's representative timestamp. */
   measuredAt: Date;
-  /** Time asleep in minutes = CORE + DEEP + REM (+ legacy bare ASLEEP). */
+  /** Time asleep in minutes = CORE + DEEP + REM, or bare ASLEEP when granular stages are absent. */
   asleepMinutes: number;
   /** In-bed minutes when an IN_BED row exists, else null. */
   inBedMinutes: number | null;
@@ -128,14 +172,20 @@ function pickSessionSource(
   rows: SleepStageRow[],
   sleepLadder: readonly MeasurementSource[],
 ): string {
-  const asleepBySource = new Map<string, number>();
+  // Group rows by source, then sum each source's asleep minutes with the
+  // granular-over-bare rule so a source that writes BOTH a bare ASLEEP
+  // aggregate and the granular breakdown is not over-weighted in the tiebreak.
+  const rowsBySource = new Map<string, SleepStageRow[]>();
   for (const r of rows) {
     const src = r.source ?? NO_SOURCE;
-    const stage = r.sleepStage;
-    const counts = stage == null || ASLEEP_STAGES.has(stage);
-    if (!counts) continue;
-    const minutes = Number.isFinite(r.value) ? r.value : 0;
-    asleepBySource.set(src, (asleepBySource.get(src) ?? 0) + minutes);
+    const list = rowsBySource.get(src) ?? [];
+    list.push(r);
+    rowsBySource.set(src, list);
+  }
+  const asleepBySource = new Map<string, number>();
+  for (const [src, srcRows] of rowsBySource) {
+    const minutes = asleepMinutesOf(srcRows);
+    if (minutes > 0) asleepBySource.set(src, minutes);
   }
   // No asleep minutes anywhere (IN_BED / AWAKE only) — fall back to the set
   // of all present sources so the session still resolves to a single bucket.
@@ -230,7 +280,6 @@ export function reconstructSleepNights(
 
   const nights: SleepNight[] = [];
   for (const [night, nightRows] of byNight) {
-    let asleep = 0;
     let inBed = 0;
     let awake = 0;
     let sawInBed = false;
@@ -250,13 +299,15 @@ export function reconstructSleepNights(
       } else if (stage === "AWAKE") {
         awake += minutes;
         sawAwake = true;
-      } else if (stage && ASLEEP_STAGES.has(stage)) {
-        asleep += minutes;
-      } else if (stage == null) {
-        // Bare SLEEP_DURATION row (no stage) — the night's total asleep.
-        asleep += minutes;
       }
+      // Asleep minutes are summed with the granular-over-bare rule below so a
+      // bare ASLEEP aggregate is never double-counted against the granular
+      // CORE/DEEP/REM rows it overlaps.
     }
+    // v1.11.5 — single source of truth for the asleep total: prefer the
+    // granular CORE/DEEP/REM partition; fall back to the bare ASLEEP /
+    // stage-less row only when no granular stage exists for the night.
+    const asleep = asleepMinutesOf(nightRows);
     nights.push({
       night,
       measuredAt: latest,

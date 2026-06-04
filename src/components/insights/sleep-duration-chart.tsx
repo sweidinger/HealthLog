@@ -5,20 +5,23 @@ import { useTranslations } from "@/lib/i18n/context";
 import type { ComparisonBaseline } from "@/lib/dashboard-layout";
 
 /**
- * v1.4.25 W4c — total nightly sleep duration over time.
+ * v1.4.25 W4c — nightly TIME-ASLEEP over time.
  *
  * Thin wrapper around `<HealthChartDynamic>` so the sleep sub-page gets
  * the same chart-cog parity (`chartKey="sleep"`) as the dashboard chart
- * surfaces. SLEEP_DURATION rows from Apple Health are per-stage (one
- * row per stage per night) — the analytics API aggregates per Berlin
- * day before summarising, and `HealthChart` itself relies on the
- * pre-aggregated `/api/measurements/series` payload, so we pass the
- * raw type through and let the existing chart wire do the day-rollup.
+ * surfaces.
  *
- * Unit semantics: SLEEP_DURATION is canonically stored in MINUTES
- * (v1.4.23 schema note). The chart shows the raw minutes value with a
- * "min" unit suffix — the parent sub-page renders a separate
- * "X h Y min" headline above the chart for the human-friendly read.
+ * Data path: SLEEP_DURATION rows are stored per-stage (one row per stage
+ * per night, in MINUTES). `<HealthChart>` special-cases SLEEP_DURATION to
+ * read `/api/measurements/series?kind=sleep`, which reconstructs ONE point
+ * per night carrying the night's TIME-ASLEEP in HOURS (CORE + DEEP + REM,
+ * bare-ASLEEP only when no granular stage exists, IN_BED + AWAKE excluded,
+ * dual-source nights collapsed to one source). The chart therefore renders
+ * a nightly trend in hours that matches every other sleep surface.
+ *
+ * Unit semantics: the chart plots HOURS — the same unit the series adapter
+ * returns and the `<SleepOverview>` headline shows — so the axis reads e.g.
+ * "8 h", not the inflated per-stage minutes the legacy path surfaced.
  *
  * v1.4.28 R3d (BK-F-M2) — the inline `dynamic()` call site was retired
  * in favour of the shared `<HealthChartDynamic>` re-export so the
@@ -40,8 +43,8 @@ export function SleepDurationChart({
       types={["SLEEP_DURATION"]}
       title={t("charts.sleep")}
       colors={["#8be9fd"]}
-      unit="min"
-      yAxisUnit="min"
+      unit="h"
+      yAxisUnit="h"
       compareBaseline={compareBaseline}
       userTimezone={userTimezone}
     />

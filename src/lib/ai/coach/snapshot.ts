@@ -23,6 +23,10 @@ import {
   type CoachDataCluster,
 } from "@/lib/validations/coach-prefs";
 import { DEFAULT_TIMEZONE } from "@/lib/tz/resolver";
+import {
+  reconstructSleepNights,
+  type SleepStageRow,
+} from "@/lib/analytics/sleep-night";
 import { compactSections } from "@/lib/ai/prompts/compact-sections";
 import { annotate } from "@/lib/logging/context";
 import { buildGlp1SnapshotBlock } from "./glp1-snapshot";
@@ -455,7 +459,14 @@ async function buildCoachSnapshotImpl(
   // key is absent). So the prefs read must precede `resolveScope`.
   const prefsRow = await prisma.user.findUnique({
     where: { id: userId },
-    select: { coachPrefsJson: true, timezone: true, locale: true },
+    select: {
+      coachPrefsJson: true,
+      timezone: true,
+      locale: true,
+      // v1.11.5 — needed to collapse a dual-source sleep night to one
+      // canonical source before reconstructing per-night asleep totals.
+      sourcePriorityJson: true,
+    },
   });
   const prefs = parseCoachPrefs(prefsRow?.coachPrefsJson);
   // Resolve the UI locale for the rolling-profile narrative recall. The
@@ -751,7 +762,7 @@ async function buildCoachSnapshotImpl(
           deletedAt: null,
         },
         orderBy: { measuredAt: "asc" },
-        select: { value: true, measuredAt: true, sleepStage: true },
+        select: { value: true, measuredAt: true, sleepStage: true, source: true },
       })
     : null;
   const workoutRowsPromise = sources.has("workouts")
@@ -1082,46 +1093,44 @@ async function buildCoachSnapshotImpl(
         meta: { cluster: "sleep", source: "sleep" },
       });
     } else {
-      // Per-night total minutes (sum of all stage rows that night) for
-      // the duration timeline.
-      const perNight = new Map<
-        string,
-        { date: Date; total: number; stages: Record<string, number> }
-      >();
-      for (const r of sleepRows) {
-        const key = tzDayKey(r.measuredAt, userTz);
-        const e = perNight.get(key) ?? {
-          date: r.measuredAt,
-          total: 0,
-          stages: {},
-        };
-        e.total += r.value;
-        if (r.sleepStage) {
-          const stage = String(r.sleepStage).toLowerCase();
-          e.stages[stage] = (e.stages[stage] ?? 0) + r.value;
-        }
-        perNight.set(key, e);
-      }
-      // Recent nights: duration + stage breakdown when present.
-      const recentNights = Array.from(perNight.entries())
-        .filter(([, info]) => info.date >= recentCutoff)
-        .map(([date, info]) => {
+      // v1.11.5 — reconstruct per-night TIME-ASLEEP totals through the shared
+      // helper so the Coach narrates the same nightly numbers every other
+      // sleep surface shows: stages clustered into sessions, a dual-source
+      // night collapsed to one canonical source, and the granular
+      // CORE/DEEP/REM partition counted WITHOUT double-counting the bare
+      // ASLEEP aggregate Apple Health writes alongside it. IN_BED + AWAKE are
+      // excluded from the asleep total.
+      const nights = reconstructSleepNights(
+        sleepRows as SleepStageRow[],
+        userTz,
+        prefsRow?.sourcePriorityJson ?? null,
+      ).filter((n) => n.asleepMinutes > 0);
+      // Recent nights: asleep duration + stage breakdown when present.
+      const recentNights = nights
+        .filter((n) => n.measuredAt >= recentCutoff)
+        .map((n) => {
           const row: Record<string, unknown> = {
-            date,
-            weekday: tzWeekday(info.date, userTz),
-            minutes: Math.round(info.total),
+            date: n.measuredAt,
+            weekday: tzWeekday(n.measuredAt, userTz),
+            minutes: Math.round(n.asleepMinutes),
           };
-          if (Object.keys(info.stages).length > 0) {
+          const stageEntries = Object.entries(n.stages).filter(
+            ([stage]) => stage !== "IN_BED" && stage !== "AWAKE",
+          );
+          if (stageEntries.length > 0) {
             row.stages = Object.fromEntries(
-              Object.entries(info.stages).map(([k, v]) => [k, Math.round(v)]),
+              stageEntries.map(([k, v]) => [
+                k.toLowerCase(),
+                Math.round(v as number),
+              ]),
             );
           }
           return row;
         })
         .sort((a, b) => String(a.date).localeCompare(String(b.date)));
-      const olderNights = Array.from(perNight.values())
-        .filter((info) => info.date < recentCutoff)
-        .map((info) => ({ measuredAt: info.date, value: info.total }));
+      const olderNights = nights
+        .filter((n) => n.measuredAt < recentCutoff)
+        .map((n) => ({ measuredAt: n.measuredAt, value: n.asleepMinutes }));
       snapshot.sleep = {
         timeline: {
           recent: recentNights,
