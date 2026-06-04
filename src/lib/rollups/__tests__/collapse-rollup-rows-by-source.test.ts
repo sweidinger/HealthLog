@@ -136,19 +136,21 @@ describe("collapseRollupRowsBySource", () => {
     expect(out[0].source).toBe("APPLE_HEALTH");
   });
 
-  it("falls back to max-count when no ladder source is present", () => {
-    // IMPORT is not on the restingHeartRate ladder; keep one row (most data).
+  it("falls back to the alphabetically-smallest source when none is on the ladder", () => {
+    // Neither IMPORT nor MANUAL is on the restingHeartRate ladder; keep one
+    // row deterministically by source name, matching the live-SQL paths'
+    // `ORDER BY … source` tiebreak (live/rollup parity).
     const out = collapseRollupRowsBySource(
       [
-        row(DAY1, "IMPORT", 60, 2),
         row(DAY1, "MANUAL", 58, 5),
+        row(DAY1, "IMPORT", 60, 2),
       ],
       "RESTING_HEART_RATE",
       null,
     );
     expect(out).toHaveLength(1);
-    expect(out[0].source).toBe("MANUAL");
-    expect(out[0].count).toBe(5);
+    // "IMPORT" < "MANUAL" alphabetically.
+    expect(out[0].source).toBe("IMPORT");
   });
 
   it("returns empty input untouched", () => {

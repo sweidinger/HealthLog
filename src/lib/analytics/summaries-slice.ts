@@ -415,7 +415,7 @@ async function computeFromRollups(userId: string): Promise<SummariesSlice> {
         FROM "measurement_rollups"
         WHERE "user_id" = $1
           AND "granularity" = 'DAY'
-        ORDER BY "type", "bucket_start", (${rankUnqualified}), "count" DESC, "source"
+        ORDER BY "type", "bucket_start", (${rankUnqualified}), "source"
       )
       SELECT
         "type"::text                                       AS type,

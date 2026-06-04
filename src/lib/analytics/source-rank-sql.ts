@@ -14,7 +14,7 @@
  * single-round-trip `GROUP BY type` shape (no six-figure row transfer).
  *
  * Every spliced literal is a closed-enum value (`MeasurementType` /
- * `MeasurementSource`) asserted against `/^[A-Z_]+$/`, the same whitelist
+ * `MeasurementSource`) asserted against `/^[A-Z0-9_]+$/`, the same whitelist
  * convention the rollup writer uses for its date-trunc + type-list splices.
  * The user id is always passed as a bound parameter, never spliced.
  */

@@ -174,10 +174,20 @@ export async function refreshConversationSummary(
   const priorSummary = decryptPriorSummary(conversation.summaryEncrypted);
   const foldedTurns: SummaryFoldTurn[] = turns
     .slice(0, foldHighWater)
-    .map((m) => ({
-      role: m.role === "assistant" ? "assistant" : "user",
-      content: decryptFromBytes(m.encryptedContent),
-    }));
+    .flatMap((m) => {
+      let content: string;
+      try {
+        content = decryptFromBytes(m.encryptedContent);
+      } catch {
+        // Skip an undecryptable message (e.g. a row mid key-rotation) instead
+        // of throwing and permanently stalling this conversation's summary —
+        // fail-closed like every other decrypt in the Coach stack.
+        return [];
+      }
+      return [
+        { role: m.role === "assistant" ? "assistant" : "user", content },
+      ];
+    });
 
   // 5. Run the user's provider chain. Best-effort: non-ok leaves the old
   //    summary in place.

@@ -114,13 +114,13 @@ export function collapseRollupRowsBySource<T extends SourcedBucketRow>(
       }
     }
     if (!picked) {
-      // No ladder match — keep one row deterministically (most data wins,
-      // tie-broken by source name) so the bucket neither doubles nor goes dark.
+      // No ladder match — keep one row deterministically by alphabetically
+      // smallest source name, so the bucket neither doubles nor goes dark AND
+      // the pick matches the live-SQL paths' `ORDER BY … source` tiebreak
+      // (live/rollup parity for a ranked type whose day carries only
+      // non-ladder sources).
       picked = bucketRows.reduce((best, r) =>
-        r.count > best.count ||
-        (r.count === best.count && r.source < best.source)
-          ? r
-          : best,
+        r.source < best.source ? r : best,
       );
     }
     out.push(picked);
