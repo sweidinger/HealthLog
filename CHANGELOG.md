@@ -1,5 +1,23 @@
 # Changelog
 
+## [1.11.4] — 2026-06-04 — sleep totals, trend captions, and a round of fixes
+
+### Fixed
+
+- **Sleep now shows the whole night.** The sleep tile and sleep chart previously showed a single sleep stage's minutes; they now show the night's total time asleep, grouped by sleep session so a night that crosses midnight counts as one night, with the unit shown explicitly. When two sources report the same night, the higher-priority one is used rather than adding them together.
+- **The daily briefing no longer makes the Insights overview wait.** The overview reads the existing briefing immediately and refreshes it in the background instead of blocking the page on generation.
+- **Recent achievements no longer flash in and vanish.** Cards that depend on your layout or your data now wait for that to load before appearing, so nothing shows up only to be retracted a moment later.
+- **Charts with only a day or two of data now show those points** instead of withholding them behind a "more days needed" card. A short series still notes that more days will fill out the trend.
+- **A reading logged by hand and mirrored to Apple Health no longer appears twice.** The same physical reading arriving from both sources is merged into one.
+- Long wellness-score labels (for example "Sleep score") no longer clip.
+- The mood-by-time-of-day chart no longer overflows its card.
+- The Trends row cards are now equal height and the mood card's axis labels stay inside the card.
+
+### Changed
+
+- **The Trends row now describes the actual trend.** When there is no written summary yet, each trend card states the direction and size of the change over the period (for example "rising over 30 days") drawn from your own data, instead of always showing "awaiting more data."
+- **Settings → Advanced:** the erase-data and delete-account buttons now sit beside their descriptions, matching the rest of the app.
+
 ## [1.11.3] — 2026-06-04 — WHOOP body data, quality-of-life polish, fuller translations
 
 ### Added
