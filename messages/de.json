@@ -434,6 +434,8 @@
     "previousPage": "Vorherige Seite",
     "nextPage": "Nächste Seite",
     "dailyTotalCaption": "({count} Einzelwerte)",
+    "sleepNapCaption": "+{count} Nickerchen",
+    "sleepAwakeningsCaption": "{count} Wachphasen",
     "expandDay": "Einzelwerte dieses Tages anzeigen",
     "collapseDay": "Einzelwerte dieses Tages ausblenden",
     "loadError": "Messwerte konnten nicht geladen werden.",

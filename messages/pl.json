@@ -434,6 +434,8 @@
     "previousPage": "Poprzednia strona",
     "nextPage": "Następna strona",
     "dailyTotalCaption": "({count} pomiarów)",
+    "sleepNapCaption": "+{count} drzemka/i",
+    "sleepAwakeningsCaption": "{count} przebudzenia",
     "expandDay": "Pokaż pomiary z tego dnia",
     "collapseDay": "Ukryj pomiary z tego dnia",
     "loadError": "Nie udało się załadować pomiarów.",

@@ -434,6 +434,8 @@
     "previousPage": "Page précédente",
     "nextPage": "Page suivante",
     "dailyTotalCaption": "({count} échantillons)",
+    "sleepNapCaption": "+{count} sieste(s)",
+    "sleepAwakeningsCaption": "{count} réveil(s)",
     "expandDay": "Afficher les échantillons de ce jour",
     "collapseDay": "Masquer les échantillons de ce jour",
     "loadError": "Impossible de charger les mesures.",

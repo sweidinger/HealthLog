@@ -434,6 +434,8 @@
     "previousPage": "Pagina precedente",
     "nextPage": "Pagina successiva",
     "dailyTotalCaption": "({count} campioni)",
+    "sleepNapCaption": "+{count} pisolino/i",
+    "sleepAwakeningsCaption": "{count} risveglio/i",
     "expandDay": "Mostra i campioni di questa giornata",
     "collapseDay": "Nascondi i campioni di questa giornata",
     "loadError": "Impossibile caricare le misurazioni.",

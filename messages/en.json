@@ -434,6 +434,8 @@
     "previousPage": "Previous page",
     "nextPage": "Next page",
     "dailyTotalCaption": "({count} samples)",
+    "sleepNapCaption": "+{count} nap(s)",
+    "sleepAwakeningsCaption": "{count} awakening(s)",
     "expandDay": "Show samples for this day",
     "collapseDay": "Hide samples for this day",
     "loadError": "Could not load measurements.",
