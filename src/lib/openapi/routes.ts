@@ -45,6 +45,7 @@ import {
 } from "@/lib/validations/medication";
 import { medicationExtractionSchema } from "@/lib/ai/coach/medication-extract-prompt";
 import { ACCEPTED_INSIGHTS_TILE_IDS } from "@/lib/insights-layout";
+import { COACH_FACT_CATEGORIES } from "@/lib/ai/coach/facts";
 import { exportSelectionSchema } from "@/lib/validations/health-record-export";
 import { createShareLinkSchema } from "@/lib/validations/clinician-share-link";
 import { METRIC_STATUS_IDS } from "@/lib/insights/metric-status-registry";
@@ -2010,6 +2011,49 @@ const stdResponses = {
   },
 };
 
+// ── Coach facts (v1.11.1) ────────────────────────────────────────────
+// Read + delete surface for the durable facts the Coach extracts. Facts
+// are server-extracted, not user-authored, so there is no create/update
+// shape — only list, bulk-clear, and single-delete responses.
+
+const coachFactItem = z.object({
+  id: z.string(),
+  category: z
+    .enum(COACH_FACT_CATEGORIES)
+    .describe(
+      "App-side closed category: preference | condition | goal | constraint | context.",
+    ),
+  text: z.string().describe("Decrypted fact text."),
+  confidence: z
+    .number()
+    .int()
+    .describe("0..100 server-assigned extraction confidence."),
+  createdAt: z.iso.datetime({ offset: true }),
+});
+
+const coachFactsListResponse = z.object({
+  facts: z
+    .array(coachFactItem)
+    .describe(
+      "The caller's active facts, highest-confidence then newest first. Undecryptable rows are omitted.",
+    ),
+});
+
+const coachFactsClearedResponse = z.object({
+  cleared: z
+    .number()
+    .int()
+    .describe("Number of active facts soft-deleted by the bulk clear."),
+});
+
+const coachFactDeletedResponse = z.object({
+  deleted: z
+    .boolean()
+    .describe(
+      "True when a fact owned by the caller was soft-deleted; false for an unknown / cross-user / already-deleted id (idempotent no-op).",
+    ),
+});
+
 // ── Path table ───────────────────────────────────────────────────────
 
 export const openApiPaths: NonNullable<ZodOpenApiObject["paths"]> = {
@@ -3220,6 +3264,68 @@ export const openApiPaths: NonNullable<ZodOpenApiObject["paths"]> = {
               schema: dataEnvelope(
                 insightsLayoutSchema,
                 "InsightsLayoutReset",
+              ),
+            },
+          },
+        },
+        ...stdResponses,
+      },
+    },
+  },
+  "/api/insights/coach/facts": {
+    get: {
+      tags: ["Insights"],
+      summary: "List the caller's durable Coach facts",
+      description:
+        "v1.11.1 — returns the active facts the Coach has extracted about the caller (highest-confidence then newest first), each decrypted on the fly. The GDPR 'what do you know about me' surface. Coach-gated (`requireAssistantSurface(\"coach\")`). Auth via cookie or Bearer; the owner is always narrowed from the session, never the body. Undecryptable rows are omitted rather than failing the read.",
+      responses: {
+        "200": {
+          description: "The caller's active facts.",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(coachFactsListResponse, "CoachFactsList"),
+            },
+          },
+        },
+        ...stdResponses,
+      },
+    },
+    delete: {
+      tags: ["Insights"],
+      summary: "Forget all of the caller's Coach facts",
+      description:
+        "v1.11.1 — bulk 'forget what you know about me': soft-deletes every active fact for the caller and returns the count cleared. Idempotent (a second call clears 0). Coach-gated. Auth via cookie or Bearer.",
+      responses: {
+        "200": {
+          description: "All active facts cleared; the count is returned.",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                coachFactsClearedResponse,
+                "CoachFactsCleared",
+              ),
+            },
+          },
+        },
+        ...stdResponses,
+      },
+    },
+  },
+  "/api/insights/coach/facts/{id}": {
+    delete: {
+      tags: ["Insights"],
+      summary: "Forget one Coach fact",
+      description:
+        "v1.11.1 — soft-deletes a single fact owned by the caller. An unknown / cross-user / already-deleted id is an idempotent no-op returning `{ deleted: false }`, never revealing whether the id exists under another account. Coach-gated. Auth via cookie or Bearer.",
+      responses: {
+        "200": {
+          description:
+            "The fact was soft-deleted (`deleted: true`) or the id matched nothing the caller owns (`deleted: false`).",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                coachFactDeletedResponse,
+                "CoachFactDeleted",
               ),
             },
           },

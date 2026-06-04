@@ -267,6 +267,7 @@ describe("GET /api/analytics", () => {
     vi.mocked(prisma.$queryRaw).mockResolvedValueOnce([
       { n: BigInt(0) },
     ] as never);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     vi.mocked(prisma.$queryRawUnsafe as any)
       .mockResolvedValueOnce([
         {

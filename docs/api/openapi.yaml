@@ -2407,6 +2407,59 @@ paths:
         "401": *a1
         "422": *a2
         "429": *a3
+  /api/insights/coach/facts:
+    get:
+      tags:
+        - Insights
+      summary: List the caller's durable Coach facts
+      description: v1.11.1 — returns the active facts the Coach has extracted about the caller (highest-confidence then newest
+        first), each decrypted on the fly. The GDPR 'what do you know about me' surface. Coach-gated
+        (`requireAssistantSurface("coach")`). Auth via cookie or Bearer; the owner is always narrowed from the session,
+        never the body. Undecryptable rows are omitted rather than failing the read.
+      responses:
+        "200":
+          description: The caller's active facts.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CoachFactsList"
+        "401": *a1
+        "422": *a2
+        "429": *a3
+    delete:
+      tags:
+        - Insights
+      summary: Forget all of the caller's Coach facts
+      description: "v1.11.1 — bulk 'forget what you know about me': soft-deletes every active fact for the caller and returns
+        the count cleared. Idempotent (a second call clears 0). Coach-gated. Auth via cookie or Bearer."
+      responses:
+        "200":
+          description: All active facts cleared; the count is returned.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CoachFactsCleared"
+        "401": *a1
+        "422": *a2
+        "429": *a3
+  /api/insights/coach/facts/{id}:
+    delete:
+      tags:
+        - Insights
+      summary: Forget one Coach fact
+      description: "v1.11.1 — soft-deletes a single fact owned by the caller. An unknown / cross-user / already-deleted id is
+        an idempotent no-op returning `{ deleted: false }`, never revealing whether the id exists under another account.
+        Coach-gated. Auth via cookie or Bearer."
+      responses:
+        "200":
+          description: "The fact was soft-deleted (`deleted: true`) or the id matched nothing the caller owns (`deleted: false`)."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CoachFactDeleted"
+        "401": *a1
+        "422": *a2
+        "429": *a3
   /api/insights/chat/messages/{id}/feedback:
     post:
       tags:
@@ -7749,6 +7802,114 @@ components:
       properties:
         data:
           $ref: "#/components/schemas/InsightsLayoutBodyOutput"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    CoachFactsList:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            facts:
+              type: array
+              items:
+                type: object
+                properties:
+                  id:
+                    type: string
+                  category:
+                    type: string
+                    enum:
+                      - preference
+                      - condition
+                      - goal
+                      - constraint
+                      - context
+                    description: "App-side closed category: preference | condition | goal | constraint | context."
+                  text:
+                    type: string
+                    description: Decrypted fact text.
+                  confidence:
+                    type: integer
+                    minimum: -9007199254740991
+                    maximum: 9007199254740991
+                    description: 0..100 server-assigned extraction confidence.
+                  createdAt:
+                    type: string
+                    format: date-time
+                    pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
+                required:
+                  - id
+                  - category
+                  - text
+                  - confidence
+                  - createdAt
+                additionalProperties: false
+              description: The caller's active facts, highest-confidence then newest first. Undecryptable rows are omitted.
+          required:
+            - facts
+          additionalProperties: false
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    CoachFactsCleared:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            cleared:
+              type: integer
+              minimum: -9007199254740991
+              maximum: 9007199254740991
+              description: Number of active facts soft-deleted by the bulk clear.
+          required:
+            - cleared
+          additionalProperties: false
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    CoachFactDeleted:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            deleted:
+              type: boolean
+              description: True when a fact owned by the caller was soft-deleted; false for an unknown / cross-user / already-deleted
+                id (idempotent no-op).
+          required:
+            - deleted
+          additionalProperties: false
         error:
           type: "null"
         meta:
