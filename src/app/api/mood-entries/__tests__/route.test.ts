@@ -251,6 +251,7 @@ describe("POST /api/mood-entries — entry + tag-links transaction (v1.8.5)", ()
     // arg is the rated-factor set (empty here — binary tag only).
     expect(createTagLinks).toHaveBeenCalledWith(
       "mood-1",
+      "user-1",
       ["happy"],
       txClient,
       [],
@@ -331,6 +332,7 @@ describe("POST /api/mood-entries — rated factors (v1.12.0)", () => {
     expect(res.status).toBe(201);
     expect(createTagLinks).toHaveBeenCalledWith(
       "mood-rf",
+      "user-1",
       ["happy"],
       txClient,
       [{ key: "factor_work", rating: 4 }],

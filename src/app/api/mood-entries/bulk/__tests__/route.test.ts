@@ -207,6 +207,7 @@ describe("POST /api/mood-entries/bulk — structured tagKeys (v1.12.0)", () => {
     // outside the upsert tx) and the rated-factor set (4th, empty here).
     expect(createTagLinks).toHaveBeenCalledWith(
       "entry-1",
+      "user-1",
       ["movies", "gaming"],
       prisma,
       [],
@@ -257,6 +258,7 @@ describe("POST /api/mood-entries/bulk — structured tagKeys (v1.12.0)", () => {
     expect(json.data.inserted).toBe(1);
     expect(createTagLinks).toHaveBeenCalledWith(
       "entry-1",
+      "user-1",
       ["movies"],
       prisma,
       [{ key: "factor_work", rating: 4 }],

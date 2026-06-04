@@ -21,6 +21,39 @@ import { prisma } from "@/lib/db";
 type TagLinkDb = PrismaClient | Prisma.TransactionClient;
 
 /**
+ * Raised when the acting user does not own the target mood entry. The
+ * link helpers refuse to touch links for an entry the session does not
+ * own — a structural guard so an edit route can never write a link into
+ * another user's entry by passing an attacker-supplied id.
+ */
+export class MoodEntryOwnershipError extends Error {
+  constructor(public readonly moodEntryId: string) {
+    super(`Mood entry ${moodEntryId} is not owned by the acting user`);
+    this.name = "MoodEntryOwnershipError";
+  }
+}
+
+/**
+ * Assert the target mood entry belongs to `userId`. Throws
+ * `MoodEntryOwnershipError` if it does not exist or is owned by someone
+ * else. Runs against the same client (tx or singleton) as the link write
+ * so the check and the write see one consistent snapshot.
+ */
+async function assertEntryOwnership(
+  moodEntryId: string,
+  userId: string,
+  db: TagLinkDb,
+): Promise<void> {
+  const owner = await db.moodEntry.findUnique({
+    where: { id: moodEntryId },
+    select: { userId: true },
+  });
+  if (!owner || owner.userId !== userId) {
+    throw new MoodEntryOwnershipError(moodEntryId);
+  }
+}
+
+/**
  * v1.12.0 — a rated factor as it arrives on the wire: a catalog
  * (`mood_tags.key`) + the user's score for this entry.
  */
@@ -125,14 +158,18 @@ export async function resolveTagKeysToIds(
  * `keys` and `ratedFactors` resolves to a single link carrying the
  * rating (the rated insert wins via `skipDuplicates`, which is why the
  * rated rows are written first). Throws `RatedFactorOutOfRangeError` (→
- * route 422) when a rating is out of the factor's scale.
+ * route 422) when a rating is out of the factor's scale. Asserts the
+ * entry belongs to `userId` before any write — a defensive guard against
+ * linking into an entry the acting session does not own.
  */
 export async function createTagLinks(
   moodEntryId: string,
+  userId: string,
   keys: string[],
   db: TagLinkDb = prisma,
   ratedFactors: RatedFactorInput[] = [],
 ): Promise<void> {
+  await assertEntryOwnership(moodEntryId, userId, db);
   // Resolve rated factors FIRST so an out-of-range rating aborts before
   // any write, and so the rated rows (which carry a value) take priority
   // over a bare binary row for the same tag id under `skipDuplicates`.
@@ -167,13 +204,17 @@ export async function createTagLinks(
  * Replace the full structured-tag link set for an entry. `keys` is the
  * desired set; the helper deletes links no longer present and inserts
  * the new ones, leaving unchanged links in place. Passing an empty array
- * clears every link.
+ * clears every link. Asserts the entry belongs to `userId` before
+ * touching links — a defensive guard against editing links on an entry
+ * the acting session does not own.
  */
 export async function replaceTagLinks(
   moodEntryId: string,
+  userId: string,
   keys: string[],
   db: TagLinkDb = prisma,
 ): Promise<void> {
+  await assertEntryOwnership(moodEntryId, userId, db);
   const desiredIds = new Set(await resolveTagKeysToIds(keys, db));
   const existing = await db.moodEntryTagLink.findMany({
     where: { moodEntryId },
@@ -207,12 +248,16 @@ export async function replaceTagLinks(
  *
  * Not wired into a route yet (the POST + bulk ingestion contract is the
  * v1.12.0 scope); exported for the PATCH edit path a later wave adds.
+ * Asserts the entry belongs to `userId` before any write — a defensive
+ * guard for that future edit route against touching another user's entry.
  */
 export async function replaceRatedFactorLinks(
   moodEntryId: string,
+  userId: string,
   factors: RatedFactorInput[],
   db: TagLinkDb = prisma,
 ): Promise<void> {
+  await assertEntryOwnership(moodEntryId, userId, db);
   // Resolve (and range-check) before mutating so an out-of-range rating
   // aborts the replace cleanly.
   const resolved = await resolveRatedFactors(factors, db);

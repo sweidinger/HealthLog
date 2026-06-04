@@ -10,23 +10,34 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 
 const moodTagFindMany = vi.fn();
 const linkCreateMany = vi.fn().mockResolvedValue({ count: 0 });
+const linkDeleteMany = vi.fn().mockResolvedValue({ count: 0 });
+const moodEntryFindUnique = vi.fn();
 
 vi.mock("@/lib/db", () => ({
   prisma: {
+    moodEntry: { findUnique: (...a: unknown[]) => moodEntryFindUnique(...a) },
     moodTag: { findMany: (...a: unknown[]) => moodTagFindMany(...a) },
-    moodEntryTagLink: { createMany: (...a: unknown[]) => linkCreateMany(...a) },
+    moodEntryTagLink: {
+      createMany: (...a: unknown[]) => linkCreateMany(...a),
+      deleteMany: (...a: unknown[]) => linkDeleteMany(...a),
+    },
   },
 }));
 
 import {
   resolveRatedFactors,
   createTagLinks,
+  replaceRatedFactorLinks,
   RatedFactorOutOfRangeError,
+  MoodEntryOwnershipError,
 } from "@/lib/mood/tag-links";
 
 beforeEach(() => {
   moodTagFindMany.mockReset();
   linkCreateMany.mockReset().mockResolvedValue({ count: 0 });
+  linkDeleteMany.mockReset().mockResolvedValue({ count: 0 });
+  // Default: the acting user owns the entry under test.
+  moodEntryFindUnique.mockReset().mockResolvedValue({ userId: "user-1" });
 });
 
 describe("resolveRatedFactors", () => {
@@ -81,7 +92,7 @@ describe("createTagLinks with rated factors", () => {
     moodTagFindMany.mockResolvedValue([
       { id: "mt_factor_work", key: "factor_work", scaleMin: 1, scaleMax: 5 },
     ]);
-    await createTagLinks("entry-1", [], undefined, [
+    await createTagLinks("entry-1", "user-1", [], undefined, [
       { key: "factor_work", rating: 5 },
     ]);
     expect(linkCreateMany).toHaveBeenCalledWith(
@@ -101,10 +112,47 @@ describe("createTagLinks with rated factors", () => {
       },
     ]);
     await expect(
-      createTagLinks("entry-1", [], undefined, [
+      createTagLinks("entry-1", "user-1", [], undefined, [
         { key: "factor_conflict", rating: 5 },
       ]),
     ).rejects.toBeInstanceOf(RatedFactorOutOfRangeError);
     expect(linkCreateMany).not.toHaveBeenCalled();
+  });
+});
+
+describe("entry-ownership guard", () => {
+  it("createTagLinks throws and writes nothing when the entry is owned by another user", async () => {
+    moodEntryFindUnique.mockResolvedValue({ userId: "attacker" });
+    await expect(
+      createTagLinks("entry-1", "user-1", ["happy"], undefined, []),
+    ).rejects.toBeInstanceOf(MoodEntryOwnershipError);
+    expect(moodTagFindMany).not.toHaveBeenCalled();
+    expect(linkCreateMany).not.toHaveBeenCalled();
+  });
+
+  it("createTagLinks throws when the entry does not exist", async () => {
+    moodEntryFindUnique.mockResolvedValue(null);
+    await expect(
+      createTagLinks("missing", "user-1", ["happy"], undefined, []),
+    ).rejects.toBeInstanceOf(MoodEntryOwnershipError);
+    expect(linkCreateMany).not.toHaveBeenCalled();
+  });
+
+  it("replaceRatedFactorLinks throws and touches no links for a foreign entry", async () => {
+    moodEntryFindUnique.mockResolvedValue({ userId: "attacker" });
+    await expect(
+      replaceRatedFactorLinks("entry-1", "user-1", []),
+    ).rejects.toBeInstanceOf(MoodEntryOwnershipError);
+    expect(linkDeleteMany).not.toHaveBeenCalled();
+    expect(linkCreateMany).not.toHaveBeenCalled();
+  });
+
+  it("createTagLinks proceeds for an owned entry", async () => {
+    moodTagFindMany.mockResolvedValue([]);
+    await createTagLinks("entry-1", "user-1", [], undefined, []);
+    expect(moodEntryFindUnique).toHaveBeenCalledWith({
+      where: { id: "entry-1" },
+      select: { userId: true },
+    });
   });
 });

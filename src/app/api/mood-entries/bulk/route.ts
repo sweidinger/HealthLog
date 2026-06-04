@@ -249,6 +249,7 @@ async function postBulk(request: NextRequest): Promise<Response> {
       ) {
         await createTagLinks(
           result.id,
+          user.id,
           entry.tagKeys ?? [],
           prisma,
           entry.ratedFactors ?? [],

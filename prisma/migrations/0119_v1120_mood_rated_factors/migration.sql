@@ -16,13 +16,13 @@
 -- alone.
 
 -- ─── Discriminator + scale columns on the catalog tag ────────────────
-ALTER TABLE "mood_tags" ADD COLUMN "kind"      TEXT    NOT NULL DEFAULT 'BINARY';
-ALTER TABLE "mood_tags" ADD COLUMN "scale_min" INTEGER NOT NULL DEFAULT 1;
-ALTER TABLE "mood_tags" ADD COLUMN "scale_max" INTEGER NOT NULL DEFAULT 5;
-ALTER TABLE "mood_tags" ADD COLUMN "inverse"   BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE "mood_tags" ADD COLUMN IF NOT EXISTS "kind"      TEXT    NOT NULL DEFAULT 'BINARY';
+ALTER TABLE "mood_tags" ADD COLUMN IF NOT EXISTS "scale_min" INTEGER NOT NULL DEFAULT 1;
+ALTER TABLE "mood_tags" ADD COLUMN IF NOT EXISTS "scale_max" INTEGER NOT NULL DEFAULT 5;
+ALTER TABLE "mood_tags" ADD COLUMN IF NOT EXISTS "inverse"   BOOLEAN NOT NULL DEFAULT false;
 
 -- ─── Per-entry rating on the join ────────────────────────────────────
-ALTER TABLE "mood_entry_tag_links" ADD COLUMN "rating" INTEGER;
+ALTER TABLE "mood_entry_tag_links" ADD COLUMN IF NOT EXISTS "rating" INTEGER;
 
 -- ─── New category: factors ───────────────────────────────────────────
 INSERT INTO "mood_tag_categories" ("id", "key", "label_key", "icon", "sort_order", "is_active")

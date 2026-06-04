@@ -214,6 +214,7 @@ async function postMoodEntry(request: NextRequest) {
           // throws `RatedFactorOutOfRangeError`, rolling the tx back.
           await createTagLinks(
             created.id,
+            user.id,
             tagKeys ?? [],
             tx,
             ratedFactors ?? [],
