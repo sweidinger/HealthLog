@@ -19,6 +19,8 @@ import { TrajectoryForecastCard } from "@/components/insights/derived/trajectory
 import { isTrajectoryType } from "@/lib/insights/derived/registry";
 import { MetricEmptyState } from "@/components/insights/metric-empty-state";
 import { MetricStatStrip } from "@/components/insights/metric-stat-strip";
+import { MetricPrimaryTile } from "@/components/insights/metric-primary-tile";
+import { MetricLastMeasurementCard } from "@/components/insights/metric-last-measurement-card";
 import { MeasurementDiversityNudge } from "@/components/insights/measurement-diversity-nudge";
 import { MetricTargetSummary } from "@/components/insights/metric-target-summary";
 import { MetricRangeControls } from "@/components/insights/metric-range-controls";
@@ -177,6 +179,9 @@ export function HealthKitMetricPage({
         }
       : rawSummary;
 
+  const lastSeenAt =
+    analytics?.lastSeenByType?.[measurementType]?.lastSeenAt ?? null;
+
   const title = t(`${i18nPrefix}.title`);
   const description = t(`${i18nPrefix}.description`);
 
@@ -211,6 +216,16 @@ export function HealthKitMetricPage({
       title={title}
       description={description}
       explainerMetric={explainerMetric}
+      primary={
+        <>
+          <MetricPrimaryTile
+            summary={summary}
+            unit={yAxisUnit ?? unit}
+            slug={targetSummarySlug}
+          />
+          <MetricLastMeasurementCard lastSeenAt={lastSeenAt} />
+        </>
+      }
       statStrip={<MetricStatStrip summary={summary} unit={yAxisUnit ?? unit} />}
       diversityNudge={
         <MeasurementDiversityNudge
@@ -244,13 +259,6 @@ export function HealthKitMetricPage({
       {targetSummarySlug ? (
         <MetricTargetSummary slug={targetSummarySlug} />
       ) : null}
-      {statusMetric ? (
-        <MetricStatusCard
-          metric={statusMetric}
-          icon={<Sparkles className="h-5 w-5" />}
-          enabled={!isEmpty}
-        />
-      ) : null}
       {forecast && isTrajectoryType(measurementType) ? (
         <TrajectoryForecastCard
           type={measurementType}
@@ -259,6 +267,15 @@ export function HealthKitMetricPage({
           color={color}
           enabled={!isEmpty}
           compact
+        />
+      ) : null}
+      {/* v1.12.0 — Einschätzung is the last block on the canonical
+          metric-detail spine. */}
+      {statusMetric ? (
+        <MetricStatusCard
+          metric={statusMetric}
+          icon={<Sparkles className="h-5 w-5" />}
+          enabled={!isEmpty}
         />
       ) : null}
     </SubPageShell>

@@ -87,6 +87,15 @@ export interface SubPageShellProps {
    */
   statStrip?: ReactNode;
   /**
+   * v1.12.0 — canonical "primary" zone rendered between the header and
+   * the stat strip, the top of the metric-detail spine: the primary tile
+   * (headline value + 30-Tage-Durchschnitt + "Im Zielbereich" bar) and
+   * the "Letzte Messung" card. Each child self-suppresses when its data
+   * is absent, so a sparse metric reads as a clean heading + chart. The
+   * mother page and empty-state branches omit it.
+   */
+  primary?: ReactNode;
+  /**
    * v1.8.5 W4b — measurement-diversity nudge.
    *
    * v1.8.6 — relocated from an inline block under the stat strip to a
@@ -126,6 +135,7 @@ export function SubPageShell({
   explainerMetric,
   focusOnMount = false,
   statStrip,
+  primary,
   diversityNudge,
   coachLaunch = false,
   showAllValuesType,
@@ -253,6 +263,11 @@ export function SubPageShell({
             <p className="text-muted-foreground text-sm">{description}</p>
           ) : null}
         </header>
+        {/* v1.12.0 — the canonical "primary" zone leads the spine: the
+          primary tile (headline + 30-Tage-Durchschnitt + Im-Zielbereich
+          bar) and the "Letzte Messung" card, both above the stat strip.
+          Each child self-suppresses when its data is absent. */}
+        {primary}
         {/* v1.8.5 W4b — numbers-first stat strip sits between the header
           and the chart so the page leads with data, mirroring the Apple
           Health / Withings detail layout. Self-gating (renders nothing

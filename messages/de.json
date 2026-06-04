@@ -1991,6 +1991,14 @@
         "inTargetShare": "{pct}% der erfassten Tage im Zielbereich",
         "adjustLink": "Zielbereich anpassen"
       },
+      "primary": {
+        "avg30Label": "30-Tage-Durchschnitt",
+        "inRangeLabel": "Im Zielbereich",
+        "inRangeAria": "{pct}% der erfassten Tage im Zielbereich"
+      },
+      "lastMeasurement": {
+        "label": "Letzte Messung"
+      },
       "explainer": {
         "trigger": "Was ist {title}?",
         "bloodPressureTitle": "Blutdruck",
@@ -2574,7 +2582,7 @@
         "disclaimer": "Nur Zusammenhänge, keine Ursachen. Sprich mit deiner Ärztin oder deinem Arzt, bevor du etwas änderst."
       },
       "discovery": {
-        "title": "Entdeckte Muster",
+        "title": "Was auffällt",
         "description": "Tag-zu-Tag-Zusammenhänge rund um deine Stimmung, die auch nach Korrektur für viele gleichzeitige Tests bestehen.",
         "footer": "Herausgefiltert aus {tested} Tag-zu-Tag-Paaren, die über all deine Werte getestet wurden, nach der Korrektur für Fehlentdeckungen.",
         "empty": "Bisher hat kein Stimmungszusammenhang die statistische Hürde genommen. Logge weiter.",
@@ -2749,7 +2757,7 @@
         "label": "Mehrere Vitalwerte außerhalb der Baseline",
         "summary": "{count} deiner Vitalwerte lagen heute außerhalb ihres persönlichen Bereichs.",
         "vitals": "Außerhalb des Bereichs: {list}",
-        "cardTitle": "Signal des Tages",
+        "cardTitle": "Signale des Tages",
         "allClear": "Alle deine Vitalwerte liegen heute in ihrem persönlichen Bereich.",
         "allClearMeta": "{count} deiner Vitalwerte gegen deinen eigenen typischen Bereich geprüft.",
         "watch": "Ein Vitalwert liegt heute außerhalb seines üblichen Bereichs.",
@@ -3099,7 +3107,7 @@
         "description": "Pro Metrik dein eigener Zielbereich für gesunde Werte."
       },
       "sources": {
-        "title": "Quellen",
+        "title": "Quellen-Priorität",
         "description": "Lege fest, welche Quelle führt, wenn mehrere am selben Tag dieselbe Metrik liefern.",
         "cardTitle": "Quellen-Priorität pro Metrik",
         "help": "Wenn mehrere Quellen denselben Wert am selben Tag liefern (z. B. Withings + Apple Health beide 1.200 Schritte), wird die oberste Quelle als kanonisch verwendet. Andere Quellen bleiben gespeichert für die Audit-Spur.",
@@ -3210,7 +3218,7 @@
         }
       },
       "about": {
-        "title": "Über",
+        "title": "Über diese App",
         "description": "Version, Lizenz, Links."
       },
       "sharing": {

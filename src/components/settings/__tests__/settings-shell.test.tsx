@@ -169,7 +169,9 @@ describe("<SettingsShell>", () => {
     expect(html).toContain('href="/settings/thresholds"');
     expect(html).toContain('href="/settings/sources"');
     expect(html).toContain("Targets");
-    expect(html).toContain("Sources");
+    // v1.12.0 — the source-priority entry adopts the canonical
+    // "Source priority" / "Quellen-Priorität" label (handover §5).
+    expect(html).toContain("Source priority");
   });
 
   it("resolves every section title via the i18n provider — German", () => {

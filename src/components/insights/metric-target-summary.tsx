@@ -298,20 +298,19 @@ function TargetReferencePanel({
 
   const sourceLink = getTargetSourceLink(target);
 
-  // In-target share: fraction of logged days in the green band over the
-  // last 30. Suppressed when the route flagged insufficient data so the
-  // sub-page suppresses the share line.
-  const showShare = !target.insufficientData && target.daysLogged30d > 0;
-  const sharePct = showShare
-    ? Math.round((target.daysInRange30d / target.daysLogged30d) * 100)
-    : null;
-
-  // 30-day average. BP stitches the diastolic average into the familiar
-  // `S/D` pair; everything else rounds to one decimal.
+  // v1.12.0 — the in-target share (% of logged days in band) and the
+  // 30-day average moved UP to `<MetricPrimaryTile>`, the canonical home
+  // for the headline + 30-day average + "Im Zielbereich" bar (the
+  // no-duplicate-info rule). This panel stays the band reference: the
+  // range string, the status pill, the positional range bar (where
+  // today's value sits inside the band — distinct from the % bar), the
+  // 7-day consistency strip, and the guideline source. Blood pressure is
+  // the exception: it has no `<MetricPrimaryTile>` (this richer panel IS
+  // its primary tile), so it keeps the stitched S/D 30-day average inline.
   let averageLabel: string | null = null;
-  if (target.average30 != null) {
+  if (isBp && target.average30 != null) {
     const avgValue =
-      isBp && bpDiastolic?.average30 != null
+      bpDiastolic?.average30 != null
         ? `${Math.round(target.average30)}/${Math.round(bpDiastolic.average30)}`
         : String(Math.round(target.average30 * 10) / 10);
     averageLabel = `${t("targets.average30d")} ${avgValue} ${unit}`;
@@ -383,15 +382,12 @@ function TargetReferencePanel({
         </div>
       ) : null}
 
-      {/* Row 3: in-target share + 30-day average. */}
-      {sharePct != null || averageLabel ? (
+      {/* Row 3: 30-day average (blood pressure only — every other metric
+          surfaces its 30-day average in `<MetricPrimaryTile>` above the
+          chart, so repeating it here would duplicate the figure). */}
+      {averageLabel ? (
         <div className="text-muted-foreground flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs">
-          {sharePct != null ? (
-            <span>
-              {t("insights.subPage.target.inTargetShare", { pct: sharePct })}
-            </span>
-          ) : null}
-          {averageLabel ? <span>{averageLabel}</span> : null}
+          <span>{averageLabel}</span>
         </div>
       ) : null}
 

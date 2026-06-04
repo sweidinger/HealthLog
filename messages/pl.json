@@ -1991,6 +1991,14 @@
         "inTargetShare": "{pct}% zarejestrowanych dni w zakresie celu",
         "adjustLink": "Dostosuj zakres docelowy"
       },
+      "primary": {
+        "avg30Label": "Średnia z 30 dni",
+        "inRangeLabel": "W zakresie",
+        "inRangeAria": "{pct}% zarejestrowanych dni w zakresie celu"
+      },
+      "lastMeasurement": {
+        "label": "Ostatni pomiar"
+      },
       "explainer": {
         "trigger": "Czym jest {title}?",
         "bloodPressureTitle": "Ciśnienie krwi",
@@ -2574,7 +2582,7 @@
         "disclaimer": "Tylko powiązania, nie przyczyny. Skonsultuj się z lekarzem, zanim coś zmienisz."
       },
       "discovery": {
-        "title": "Wykryte wzorce",
+        "title": "Co się wyróżnia",
         "description": "Relacje dzień po dniu dotyczące Twojego nastroju, które utrzymują się po korekcie wielokrotnych testów.",
         "footer": "Wyłonione z {tested} par dzień po dniu testowanych na wszystkich Twoich wskaźnikach, po korekcie fałszywych odkryć.",
         "empty": "Żadna relacja nastroju nie przekroczyła jeszcze progu statystycznego. Notuj dalej.",
@@ -2749,7 +2757,7 @@
         "label": "Kilka parametrów poza bazą",
         "summary": "Dziś {count} Twoich parametrów życiowych znalazło się poza osobistym zakresem.",
         "vitals": "Poza zakresem: {list}",
-        "cardTitle": "Sygnał dnia",
+        "cardTitle": "Sygnały dnia",
         "allClear": "Dziś wszystkie Twoje parametry życiowe mieszczą się w osobistym zakresie.",
         "allClearMeta": "Sprawdzono {count} Twoich parametrów względem Twojego typowego zakresu.",
         "watch": "Dziś jeden parametr jest poza swoim zwykłym zakresem.",
@@ -3099,7 +3107,7 @@
         "description": "Dla każdej metryki: własny zakres docelowy zdrowych wartości."
       },
       "sources": {
-        "title": "Źródła",
+        "title": "Priorytet źródeł",
         "description": "Wybierz, które źródło wygrywa, gdy kilka rejestruje tę samą metrykę tego samego dnia.",
         "cardTitle": "Priorytet źródeł według metryki",
         "help": "Gdy więcej niż jedno źródło dostarcza tę samą wartość tego samego dnia (np. Withings i Apple Health raportują po 1200 kroków), źródło na górze liczy się jako odczyt kanoniczny. Pozostałe źródła pozostają zapisane na potrzeby ścieżki audytu.",
@@ -3210,7 +3218,7 @@
         }
       },
       "about": {
-        "title": "O aplikacji",
+        "title": "O tej aplikacji",
         "description": "Wersja, licencja, linki."
       },
       "sharing": {

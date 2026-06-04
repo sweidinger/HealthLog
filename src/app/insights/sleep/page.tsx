@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { MeasurementDiversityNudge } from "@/components/insights/measurement-diversity-nudge";
 import { MetricStatusCard } from "@/components/insights/metric-status-card";
 import { MetricEmptyState } from "@/components/insights/metric-empty-state";
+import { MetricLastMeasurementCard } from "@/components/insights/metric-last-measurement-card";
 import { MetricRangeControls } from "@/components/insights/metric-range-controls";
 import { MetricTargetSummary } from "@/components/insights/metric-target-summary";
 import { SleepOverview } from "@/components/insights/sleep-overview";
@@ -35,7 +36,10 @@ export default function InsightsSchlafPage() {
   const { t } = useTranslations();
   const { user } = useAuth();
 
-  const { isEmpty } = useInsightsAnalytics("SLEEP_DURATION");
+  const { data: analytics, isEmpty } =
+    useInsightsAnalytics("SLEEP_DURATION");
+  const sleepLastSeenAt =
+    analytics?.lastSeenByType?.SLEEP_DURATION?.lastSeenAt ?? null;
 
   if (isEmpty) {
     return (
@@ -67,6 +71,7 @@ export default function InsightsSchlafPage() {
       description={t("insights.sleep.description")}
       explainerMetric="sleep"
       coachLaunch
+      primary={<MetricLastMeasurementCard lastSeenAt={sleepLastSeenAt} />}
       diversityNudge={
         <MeasurementDiversityNudge
           measurementType="SLEEP_DURATION"

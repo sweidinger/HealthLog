@@ -1991,6 +1991,14 @@
         "inTargetShare": "{pct}% of logged days within target",
         "adjustLink": "Adjust target range"
       },
+      "primary": {
+        "avg30Label": "30-day average",
+        "inRangeLabel": "In range",
+        "inRangeAria": "{pct}% of logged days within target"
+      },
+      "lastMeasurement": {
+        "label": "Last measurement"
+      },
       "explainer": {
         "trigger": "What is {title}?",
         "bloodPressureTitle": "Blood pressure",
@@ -2574,7 +2582,7 @@
         "disclaimer": "Associations only, not causes. Talk to your doctor before changing anything based on these."
       },
       "discovery": {
-        "title": "Discovered patterns",
+        "title": "What stands out",
         "description": "Day-to-day relationships involving your mood that hold up after correcting for testing many pairs at once.",
         "footer": "Surfaced from {tested} day-to-day pairs tested across all your metrics, after the false-discovery correction.",
         "empty": "No mood relationships cleared the statistical bar yet. Keep logging.",
@@ -2749,7 +2757,7 @@
         "label": "Several vitals off baseline",
         "summary": "{count} of your vitals sat outside their personal range today.",
         "vitals": "Outside range: {list}",
-        "cardTitle": "Today's signal",
+        "cardTitle": "Signals of the day",
         "allClear": "All your vitals are within their personal range today.",
         "allClearMeta": "Checked {count} of your vitals against your own typical range.",
         "watch": "One vital is outside its usual range today.",
@@ -3099,7 +3107,7 @@
         "description": "Per metric: your own target range for healthy values."
       },
       "sources": {
-        "title": "Sources",
+        "title": "Source priority",
         "description": "Pick which ingest source wins when more than one records the same metric for the same day.",
         "cardTitle": "Source priority by metric",
         "help": "When more than one source delivers the same value on the same day (e.g. Withings and Apple Health both report 1,200 steps), the top source counts as the canonical reading. Other sources stay stored for the audit trail.",
@@ -3210,7 +3218,7 @@
         }
       },
       "about": {
-        "title": "About",
+        "title": "About this app",
         "description": "Version, license, links."
       },
       "sharing": {

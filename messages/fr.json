@@ -1991,6 +1991,14 @@
         "inTargetShare": "{pct}% des jours enregistrés dans la cible",
         "adjustLink": "Ajuster la plage cible"
       },
+      "primary": {
+        "avg30Label": "Moyenne sur 30 jours",
+        "inRangeLabel": "Dans la cible",
+        "inRangeAria": "{pct}% des jours enregistrés dans la cible"
+      },
+      "lastMeasurement": {
+        "label": "Dernière mesure"
+      },
       "explainer": {
         "trigger": "Qu'est-ce que {title} ?",
         "bloodPressureTitle": "Tension artérielle",
@@ -2574,7 +2582,7 @@
         "disclaimer": "Des associations seulement, pas des causes. Parlez-en à votre médecin avant de changer quoi que ce soit."
       },
       "discovery": {
-        "title": "Tendances détectées",
+        "title": "Ce qui ressort",
         "description": "Des relations d'un jour à l'autre autour de votre humeur qui tiennent après correction des tests multiples.",
         "footer": "Issues de {tested} paires d'un jour à l'autre testées sur l'ensemble de vos mesures, après correction des fausses découvertes.",
         "empty": "Aucune relation d'humeur n'a encore franchi le seuil statistique. Continuez à enregistrer.",
@@ -2749,7 +2757,7 @@
         "label": "Plusieurs constantes hors référence",
         "summary": "Aujourd’hui, {count} de vos constantes sont sorties de leur plage personnelle.",
         "vitals": "Hors plage : {list}",
-        "cardTitle": "Signal du jour",
+        "cardTitle": "Signaux du jour",
         "allClear": "Aujourd’hui, toutes vos constantes sont dans leur plage personnelle.",
         "allClearMeta": "{count} de vos constantes vérifiées par rapport à votre propre plage habituelle.",
         "watch": "Aujourd’hui, une constante est hors de sa plage habituelle.",
@@ -3099,7 +3107,7 @@
         "description": "Par métrique : votre propre plage cible pour des valeurs saines."
       },
       "sources": {
-        "title": "Sources",
+        "title": "Priorité des sources",
         "description": "Choisissez quelle source prévaut quand plusieurs enregistrent la même métrique le même jour.",
         "cardTitle": "Priorité des sources par métrique",
         "help": "Lorsque plusieurs sources fournissent la même valeur le même jour (p. ex. Withings et Apple Health indiquent tous deux 1 200 pas), la source en tête compte comme la lecture canonique. Les autres sources restent enregistrées pour la piste d’audit.",
@@ -3210,7 +3218,7 @@
         }
       },
       "about": {
-        "title": "À propos",
+        "title": "À propos de cette app",
         "description": "Version, licence, liens."
       },
       "sharing": {

@@ -41,6 +41,17 @@ import type { CorrelationResult } from "@/lib/insights/correlations";
 export interface SubPageAnalyticsData {
   /** `Record<MeasurementType, DataSummary>` — sentinel value for "not loaded yet" is `undefined`. */
   summaries: Record<string, DataSummary>;
+  /**
+   * v1.12.0 — per-type freshness map, also carried on the slim
+   * `?slice=summaries` branch (`computeSummariesSlice`). The metric
+   * detail page's "Letzte Messung" card reads
+   * `lastSeenByType[type]?.lastSeenAt` to caption when the latest
+   * reading landed, without paying for the thick analytics slice.
+   */
+  lastSeenByType?: Record<
+    string,
+    { lastSeenAt: string; daysAgo: number } | null
+  >;
 }
 
 /**

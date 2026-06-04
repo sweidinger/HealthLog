@@ -13,6 +13,7 @@ import { HealthChartDynamic } from "@/components/charts/health-chart-dynamic";
 import { InsightStatusCard } from "@/components/insights/insight-status-card";
 import { MeasurementDiversityNudge } from "@/components/insights/measurement-diversity-nudge";
 import { MetricEmptyState } from "@/components/insights/metric-empty-state";
+import { MetricLastMeasurementCard } from "@/components/insights/metric-last-measurement-card";
 import { MetricRangeControls } from "@/components/insights/metric-range-controls";
 import { MetricTargetSummary } from "@/components/insights/metric-target-summary";
 import { SubPageShell } from "@/components/insights/sub-page-shell";
@@ -46,7 +47,10 @@ export default function InsightsBlutdruckPage() {
   const { data: status, isLoading: isStatusLoading } =
     useInsightStatus("blood-pressure");
 
-  const { isEmpty } = useInsightsAnalytics("BLOOD_PRESSURE_SYS");
+  const { data: analytics, isEmpty } =
+    useInsightsAnalytics("BLOOD_PRESSURE_SYS");
+  const bpLastSeenAt =
+    analytics?.lastSeenByType?.BLOOD_PRESSURE_SYS?.lastSeenAt ?? null;
 
   if (isEmpty) {
     return (
@@ -103,6 +107,15 @@ export default function InsightsBlutdruckPage() {
       description={t("insights.subPage.blutdruckDescription")}
       explainerMetric="bloodPressure"
       coachLaunch
+      primary={
+        <>
+          {/* Blood pressure's primary tile IS its richer target panel
+              (ESH classification + sys/dia band + 30-day S/D average),
+              promoted above the chart per the canonical spine. */}
+          <MetricTargetSummary slug="blood-pressure" />
+          <MetricLastMeasurementCard lastSeenAt={bpLastSeenAt} />
+        </>
+      }
       diversityNudge={
         <MeasurementDiversityNudge
           measurementType="BLOOD_PRESSURE_SYS"
@@ -132,8 +145,8 @@ export default function InsightsBlutdruckPage() {
       {/* v1.12.0 — range pills + period-over-period delta below the chart. */}
       <MetricRangeControls measurementType="BLOOD_PRESSURE_SYS" enabled={!isEmpty} />
 
-      <MetricTargetSummary slug="blood-pressure" />
-
+      {/* v1.12.0 — Einschätzung is the last block on the canonical
+          metric-detail spine. */}
       <InsightStatusCard
         title={t("insights.assessmentTitle")}
         icon={<HeartPulse className="h-5 w-5" />}

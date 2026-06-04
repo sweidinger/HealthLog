@@ -154,12 +154,15 @@ const GLUCOSE_DATA: TargetsFixture = {
 };
 
 describe("<MetricTargetSummary>", () => {
-  it("renders the numeric range + in-target share for a simple metric", () => {
+  it("renders the numeric range for a simple metric", () => {
     const html = renderWith("weight", WEIGHT_DATA);
     // Trailing `.0` trimmed, single-decimal kept.
     expect(html).toContain("Target: 60.1–80.9 kg");
-    // round(18/24*100) = 75
-    expect(html).toContain("75% of logged days within target");
+    // v1.12.0 — the in-target share moved up to `<MetricPrimaryTile>`,
+    // the canonical home for the headline + 30-day average + in-range
+    // bar. The band-reference panel no longer repeats it for non-BP
+    // metrics.
+    expect(html).not.toContain("of logged days within target");
   });
 
   it("renders the verbal status pill + the guideline source", () => {
@@ -175,21 +178,26 @@ describe("<MetricTargetSummary>", () => {
     );
   });
 
-  it("renders the range bar + the 30-day average + the consistency strip", () => {
+  it("renders the range bar + the consistency strip", () => {
     const html = renderWith("weight", WEIGHT_DATA);
     expect(html).toContain('data-slot="target-range-bar"');
     expect(html).toContain('data-slot="consistency-strip"');
-    expect(html).toContain("30-day average: 71.4 kg");
+    // v1.12.0 — the 30-day average moved up to `<MetricPrimaryTile>` for
+    // every metric except blood pressure (whose richer panel IS its
+    // primary tile and keeps the stitched S/D average inline).
+    expect(html).not.toContain("30-day average: 71.4 kg");
   });
 
   it("stitches the systolic + diastolic bands for blood pressure", () => {
     const html = renderWith("blood-pressure", BP_DATA);
     expect(html).toContain("Target: 120–129 / 70–79 mmHg");
-    expect(html).toContain("50% of logged days within target");
+    // v1.12.0 — the in-target share moved up to the primary tile; the BP
+    // panel keeps only the stitched 30-day average inline.
+    expect(html).not.toContain("of logged days within target");
     // The diastolic range bar renders alongside the systolic one.
     const barCount = (html.match(/data-slot="target-range-bar"/g) ?? []).length;
     expect(barCount).toBe(2);
-    // 30-day average stitches the diastolic pair.
+    // 30-day average stitches the diastolic pair — kept on the BP panel.
     expect(html).toContain("30-day average: 122/76 mmHg");
   });
 

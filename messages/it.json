@@ -1991,6 +1991,14 @@
         "inTargetShare": "{pct}% dei giorni registrati nell'obiettivo",
         "adjustLink": "Modifica l'intervallo obiettivo"
       },
+      "primary": {
+        "avg30Label": "Media a 30 giorni",
+        "inRangeLabel": "Nell'obiettivo",
+        "inRangeAria": "{pct}% dei giorni registrati nell'obiettivo"
+      },
+      "lastMeasurement": {
+        "label": "Ultima misurazione"
+      },
       "explainer": {
         "trigger": "Che cos'è {title}?",
         "bloodPressureTitle": "Pressione arteriosa",
@@ -2574,7 +2582,7 @@
         "disclaimer": "Solo associazioni, non cause. Parla con il tuo medico prima di cambiare qualcosa."
       },
       "discovery": {
-        "title": "Schemi rilevati",
+        "title": "Cosa risalta",
         "description": "Relazioni giorno per giorno legate al tuo umore che reggono dopo aver corretto per i test multipli.",
         "footer": "Estratte da {tested} coppie giorno per giorno testate su tutte le tue misure, dopo la correzione per le false scoperte.",
         "empty": "Nessuna relazione sull'umore ha ancora superato la soglia statistica. Continua a registrare.",
@@ -2749,7 +2757,7 @@
         "label": "Più parametri fuori dalla base",
         "summary": "Oggi {count} dei tuoi parametri vitali sono usciti dal loro intervallo personale.",
         "vitals": "Fuori intervallo: {list}",
-        "cardTitle": "Segnale di oggi",
+        "cardTitle": "Segnali del giorno",
         "allClear": "Oggi tutti i tuoi parametri vitali sono nel loro intervallo personale.",
         "allClearMeta": "Controllati {count} dei tuoi parametri rispetto al tuo intervallo abituale.",
         "watch": "Oggi un parametro è fuori dal suo intervallo abituale.",
@@ -3099,7 +3107,7 @@
         "description": "Per metrica: il tuo intervallo target per valori sani."
       },
       "sources": {
-        "title": "Sorgenti",
+        "title": "Priorità delle fonti",
         "description": "Scegli quale fonte prevale quando più di una registra la stessa metrica lo stesso giorno.",
         "cardTitle": "Priorità delle fonti per metrica",
         "help": "Quando più fonti forniscono lo stesso valore nello stesso giorno (ad es. Withings e Apple Health riportano entrambe 1.200 passi), la fonte in cima conta come lettura canonica. Le altre fonti restano memorizzate per la traccia di controllo.",
@@ -3210,7 +3218,7 @@
         }
       },
       "about": {
-        "title": "Informazioni",
+        "title": "Informazioni su questa app",
         "description": "Versione, licenza, link."
       },
       "sharing": {
