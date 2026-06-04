@@ -102,6 +102,7 @@ const GroundRulesSchema = z.object({
   ground_rule_13_dailybriefing_schema: GroundRuleBodySchema,
   ground_rule_14_apple_health_silent_absence: GroundRuleBodySchema,
   ground_rule_15_drug_level_refusal: GroundRuleBodySchema,
+  ground_rule_16_trajectory_conditional: GroundRuleBodySchema,
 });
 
 const OutOfScopeRefusalSchema = z.object({
@@ -156,6 +157,7 @@ export const GROUND_RULE_KEYS: readonly GroundRuleKey[] = [
   "ground_rule_13_dailybriefing_schema",
   "ground_rule_14_apple_health_silent_absence",
   "ground_rule_15_drug_level_refusal",
+  "ground_rule_16_trajectory_conditional",
 ] as const;
 
 const ALL_LOCALES = ["en", "de", "fr", "es", "it", "pl"] as const;

@@ -236,6 +236,22 @@ ground_rules:
       - "Settings → Advanced"
       - "EU 2017/745"
       - "MDCG 2021-24"
+  ground_rule_16_trajectory_conditional:
+    parser_critical: false
+    surface: coach
+    locale: |
+      Opisuj trajektorię TYLKO wtedy, gdy w snapshocie obecny jest blok
+      `trajectory`, i wyłącznie dla metryki, którą ten blok obejmuje.
+      Gdy to robisz, podaj kierunek i ZAKRES — "jeśli ten wzorzec się
+      utrzyma, za dwa tygodnie byłbyś mniej więcej między X a Y" —
+      odczytując prognozowaną wartość końcową wraz z pasmem wprost z
+      bloku. Zawsze pozostań warunkowy ("jeśli to się utrzyma", "jeśli
+      ten wzorzec będzie trwał"); nigdy nie przedstawiaj prognozy jako
+      pewności. Nigdy nie zamieniaj projekcji w wynik ryzyka, prognozę
+      zdrowotną, diagnozę ani datowane zdarzenie ("osiągniesz X dnia
+      <data>"). Nigdy nie wymyślaj ani nie zaokrąglaj liczby, której blok
+      nie zawiera. Gdy bloku `trajectory` BRAK, nie prognozuj w ogóle —
+      zamiast tego wróć do zaobserwowanego wzorca.
 
 sentinel_literals:
   evidence_block_open: "---KEYVALUES---"

@@ -28,6 +28,7 @@ import { annotate } from "@/lib/logging/context";
 import { buildGlp1SnapshotBlock } from "./glp1-snapshot";
 import { buildDerivedSnapshotBlock } from "./derived-snapshot";
 import { buildCoachMemoryBlock } from "./memory-snapshot";
+import { buildTrajectorySnapshotBlock } from "./trajectory-snapshot";
 import type { BaselineProfile } from "@/lib/insights/derived";
 import {
   CLUSTER_PRIORITY,
@@ -1228,6 +1229,24 @@ async function buildCoachSnapshotImpl(
       snapshot.derived = derivedBlock;
       metrics.add("hrv");
       registerBlock("derived", "hrv");
+    }
+
+    // ── v1.11.0 (Epic B, Pillar 3) — short-horizon trajectory block ──────
+    // Additive, lowest-signal block: per in-scope metric a compact
+    // direction + slope + projected horizon-end-with-band, computed by the
+    // deterministic `computeTrajectory` engine (NEVER recomputed here). The
+    // Coach narrates the range conditionally (system-prompt rule 11 /
+    // ground rule 16) only when this block is present. Registered under an
+    // `environment`-cluster source so the soft-cap degrader sheds it FIRST,
+    // before any clinical cluster, under prompt-budget pressure.
+    const trajectoryBlock = await buildTrajectorySnapshotBlock(
+      userId,
+      derivedProfile,
+      now,
+    );
+    if (trajectoryBlock) {
+      snapshot.trajectory = trajectoryBlock;
+      registerBlock("trajectory", "skin_temp");
     }
   }
 

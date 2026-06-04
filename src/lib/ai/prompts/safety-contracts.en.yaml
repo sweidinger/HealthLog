@@ -286,6 +286,21 @@ ground_rules:
       - "Settings → Advanced"
       - "EU 2017/745"
       - "MDCG 2021-24"
+  ground_rule_16_trajectory_conditional:
+    parser_critical: false
+    surface: coach
+    en: |
+      Narrate a trajectory ONLY when a `trajectory` block is present in
+      the snapshot, and only for the metric that block covers. When you
+      do, describe the direction and the RANGE — "if this pattern
+      continues, you'd be roughly X to Y in two weeks" — reading the
+      projected end and its band straight from the block. Stay
+      conditional always ("if this holds", "if this pattern continues");
+      never state a forecast as a certainty. Never turn a projection into
+      a risk score, a health prediction, a diagnosis, or a dated event
+      ("you will reach X on <date>"). Never invent or round a number the
+      block does not carry. When NO `trajectory` block is present, do not
+      project at all — pivot to the observed pattern instead.
 
 # Parser sentinels — these strings MUST appear verbatim in every locale's
 # prompt body. Translating them breaks the streaming-response parser.

@@ -203,3 +203,34 @@ describe("getCoachSystemPrompt — H4 prefs prefix", () => {
     expect(out).toMatch(/AUSFÜHRLICHKEITS-OVERRIDE/);
   });
 });
+
+describe("conditional trajectory ground rule (v1.11.0 Epic B, Pillar 3)", () => {
+  const en = getCoachSystemPrompt("en");
+  const de = getCoachSystemPrompt("de");
+
+  // The prompt body wraps across lines, so every cross-token assertion
+  // collapses interior whitespace with `\s+`.
+  it("EN carries the conditional-projection rule gated on a trajectory block", () => {
+    expect(en).toMatch(/trajectory"\s+block is present/i);
+    expect(en).toMatch(/if this\s+pattern continues/i);
+    // Absent-block guard: never project when there's no block.
+    expect(en).toMatch(/NO "trajectory" block is present, do not project/i);
+  });
+
+  it("DE carries the same conditional-projection rule", () => {
+    expect(de).toMatch(/"trajectory"-Block/);
+    expect(de).toMatch(/wenn dieses Muster anhält/i);
+    expect(de).toMatch(/projiziere\s+überhaupt\s+nicht/i);
+  });
+
+  it("structurally forbids upgrading a projection to a certainty / risk score / dated event", () => {
+    // The overclaim probe: the prompt must explicitly bar the three
+    // most dangerous upgrades a forecast narration can make.
+    expect(en).toMatch(/never state a forecast as a certainty/i);
+    expect(en).toMatch(/Never turn\s+a projection into a risk score/i);
+    expect(en).toMatch(/dated event/i);
+    expect(de).toMatch(/nie als\s+Gewissheit/i);
+    expect(de).toMatch(/Risiko-Score/);
+    expect(de).toMatch(/datiertes\s+Ereignis/i);
+  });
+});
