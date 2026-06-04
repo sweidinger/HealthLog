@@ -29,8 +29,13 @@ import { toast } from "sonner";
 import { useTranslations } from "@/lib/i18n/context";
 import { useRovingRadioGroup } from "@/hooks/use-roving-radio-group";
 import { invalidateKeys, moodDependentKeys } from "@/lib/query-keys";
-import { MoodTagPicker } from "./mood-tag-picker";
+import { MoodTagPicker, type RatedFactor } from "./mood-tag-picker";
+import { moodFaceIcon } from "./mood-tag-icons";
 
+// v1.12.0 — best-on-the-left face order for the "How are you?" hero,
+// mirroring the iOS `Mood1…Mood5` imageset order. The numeric `score`
+// is the server's 1..5 scale; the face icon resolves through
+// `moodFaceIcon`.
 const MOOD_LEVELS = [
   { value: "SUPER_GUT", score: 5, labelKey: "mood.levelSuperGut" },
   { value: "GUT", score: 4, labelKey: "mood.levelGut" },
@@ -96,6 +101,9 @@ export function MoodForm({ onSuccess, onCancel, footerSlot }: MoodFormProps) {
   const [tagsInput, setTagsInput] = useState("");
   // v1.8.5 — structured-tag keys picked from the taxonomy catalog.
   const [tagKeys, setTagKeys] = useState<string[]>([]);
+  // v1.12.0 — rated mood factors (FACTOR-kind catalog tags scored on
+  // their own 1..scaleMax scale). Sent as `ratedFactors: [{key,rating}]`.
+  const [ratedFactors, setRatedFactors] = useState<RatedFactor[]>([]);
   // v1.8.5 (C1) — first-class free-text note. The model + API already
   // accepted `note`; the web form was the only surface that couldn't
   // write it.
@@ -111,12 +119,22 @@ export function MoodForm({ onSuccess, onCancel, footerSlot }: MoodFormProps) {
     mood !== "" ||
     tagsInput.trim() !== "" ||
     tagKeys.length > 0 ||
+    ratedFactors.length > 0 ||
     note.trim() !== "";
 
   function toggleTagKey(key: string) {
     setTagKeys((prev) =>
       prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key],
     );
+  }
+
+  // v1.12.0 — set or clear a rated factor's score. `rating === null`
+  // removes the factor from the set (re-tapping the active step clears).
+  function rateFactor(key: string, rating: number | null) {
+    setRatedFactors((prev) => {
+      const rest = prev.filter((f) => f.key !== key);
+      return rating === null ? rest : [...rest, { key, rating }];
+    });
   }
 
   // v1.4.27 MB3 — error banner descriptor for the timestamp input.
@@ -132,6 +150,7 @@ export function MoodForm({ onSuccess, onCancel, footerSlot }: MoodFormProps) {
     setMood("");
     setTagsInput("");
     setTagKeys([]);
+    setRatedFactors([]);
     setNote("");
     setMoodLoggedAt(getDefaultMoodLoggedAtValue());
     setError(null);
@@ -170,6 +189,8 @@ export function MoodForm({ onSuccess, onCancel, footerSlot }: MoodFormProps) {
           mood,
           tags: tags.length > 0 ? tags : undefined,
           tagKeys: tagKeys.length > 0 ? tagKeys : undefined,
+          // v1.12.0 — rated factors as a parallel [{key,rating}] array.
+          ratedFactors: ratedFactors.length > 0 ? ratedFactors : undefined,
           note: trimmedNote.length > 0 ? trimmedNote : undefined,
           moodLoggedAt: timestamp,
         }),
@@ -243,34 +264,49 @@ export function MoodForm({ onSuccess, onCancel, footerSlot }: MoodFormProps) {
     </div>
   );
 
+  // v1.12.0 — the annotate panel (tags / factors / note / time) reveals
+  // only after a mood face is picked, so the icon-first hero is the
+  // primary input and a fast log is a single tap + Save.
+  const moodPicked = mood !== "";
+
   return (
     <form id={formId} onSubmit={handleSubmit} className="space-y-4">
-      <div className="space-y-2">
-        <Label id="mood-level-label">{t("mood.moodLevel")}</Label>
+      {/* v1.12.0 — "How are you?" 5-face hero. The five faces are a
+          radiogroup (best-on-the-left order); tapping one picks the mood
+          and reveals the annotate panel below. */}
+      <div className="space-y-2" data-slot="mood-face-hero">
+        <Label id="mood-level-label" className="text-base">
+          {t("mood.heroQuestion")}
+        </Label>
         <div
           role="radiogroup"
           aria-labelledby="mood-level-label"
-          className="grid grid-cols-5 gap-2"
+          className="grid grid-cols-5 gap-1.5 sm:gap-2"
         >
           {MOOD_LEVELS.map((level, index) => {
             const isSelected = mood === level.value;
+            const FaceIcon = moodFaceIcon(level.value);
             return (
               <button
                 key={level.value}
                 type="button"
                 role="radio"
                 aria-checked={isSelected}
+                aria-label={t(level.labelKey)}
+                data-slot="mood-face"
+                data-mood={level.value}
                 onClick={() => setMood(level.value)}
                 {...getMoodRadioProps(index)}
-                className={`flex flex-col items-center gap-1 rounded-lg border p-2 text-center transition-colors ${
+                className={`flex flex-col items-center gap-1.5 rounded-xl border p-2 text-center transition-colors sm:p-3 ${
                   isSelected
                     ? "border-primary bg-primary/10 text-primary border-2"
-                    : "border-border hover:bg-accent"
+                    : "border-border text-muted-foreground hover:bg-accent hover:text-foreground"
                 }`}
               >
-                <span className="text-lg font-semibold tabular-nums">
-                  {level.score}
-                </span>
+                <FaceIcon
+                  className="h-7 w-7 sm:h-8 sm:w-8"
+                  aria-hidden="true"
+                />
                 <span className="text-[10px] leading-tight sm:text-xs">
                   {t(level.labelKey)}
                 </span>
@@ -280,6 +316,8 @@ export function MoodForm({ onSuccess, onCancel, footerSlot }: MoodFormProps) {
         </div>
       </div>
 
+      {moodPicked && (
+        <div className="space-y-4 border-t pt-4" data-slot="mood-annotate-panel">
       <div className="space-y-2">
         <Label htmlFor="mood-logged-at">{t("mood.timestamp")}</Label>
         <DateTimeInput
@@ -363,8 +401,10 @@ export function MoodForm({ onSuccess, onCancel, footerSlot }: MoodFormProps) {
         </div>
       </div>
 
-      {/* v1.8.5 — structured-tag taxonomy picker. Additive next to the
-          free-text input above; an entry can carry both axes. */}
+      {/* v1.8.5 / v1.12.0 — structured-tag taxonomy picker. Additive next
+          to the free-text input above; an entry can carry both axes. The
+          picker also surfaces the FACTOR-kind tags as 1..scaleMax rating
+          controls, lifted here as `ratedFactors`. */}
       <div className="space-y-2">
         <Label>
           {t("mood.tagPicker")}{" "}
@@ -372,7 +412,12 @@ export function MoodForm({ onSuccess, onCancel, footerSlot }: MoodFormProps) {
             ({t("common.optional")})
           </span>
         </Label>
-        <MoodTagPicker selected={tagKeys} onToggle={toggleTagKey} />
+        <MoodTagPicker
+          selected={tagKeys}
+          onToggle={toggleTagKey}
+          ratedFactors={ratedFactors}
+          onRateFactor={rateFactor}
+        />
       </div>
 
       {/* v1.8.5 (C1) — free-text note. */}
@@ -411,6 +456,8 @@ export function MoodForm({ onSuccess, onCancel, footerSlot }: MoodFormProps) {
           rows={3}
         />
       </div>
+        </div>
+      )}
 
       {error && (
         <div
