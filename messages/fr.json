@@ -1360,6 +1360,7 @@
     "logInjectionSiteSkip": "Ignorer",
     "logInjectionSiteConfirm": "Enregistrer le site",
     "logInjectionSiteNoneAvailable": "Aucun site d'injection disponible — tous les sites sont exclus dans vos réglages.",
+    "logInjectionSiteSaveFailed": "Impossible d’enregistrer le site d’injection. Veuillez réessayer.",
     "trackInjectionSitesToggle": "Suivre les sites d'injection",
     "trackInjectionSitesHint": "Après la prise d'une dose, demander quel site a été utilisé et suggérer la prochaine rotation.",
     "allowedSitesLabel": "Sites autorisés",

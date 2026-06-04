@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 
+import { Loader2 } from "lucide-react";
+
 import {
   Dialog,
   DialogContent,
@@ -38,8 +40,13 @@ interface LogInjectionSiteDialogProps {
   globalExcludedInjectionSites: ReadonlyArray<InjectionSiteKey>;
   /** Recent rotation history (most recent first) for the dashed-ring hint. */
   history: ReadonlyArray<InjectionSiteKey>;
-  /** Submit the chosen site (the parent PATCHes it onto the intake). */
-  onConfirm: (site: InjectionSiteKey) => void;
+  /**
+   * Submit the chosen site (the parent PATCHes it onto the intake). The
+   * handler may be async; the dialog stays open with a pending state until
+   * it resolves and rejects (throws) on failure so the dialog can keep the
+   * user's selection rather than dismissing optimistically.
+   */
+  onConfirm: (site: InjectionSiteKey) => void | Promise<void>;
   /** Dismiss without recording a site (the dose stays taken). */
   onSkip: () => void;
 }
@@ -55,16 +62,35 @@ export function LogInjectionSiteDialog({
 }: LogInjectionSiteDialogProps) {
   const { t } = useTranslations();
   const [selected, setSelected] = useState<InjectionSiteKey | null>(null);
+  // v1.11.5 — the dialog used to dismiss optimistically the instant the
+  // confirm fired, before the PATCH resolved and with no pending state.
+  // It now stays open and disabled until the parent's handler settles; the
+  // parent throws on failure so a rejected PATCH keeps the dialog (and the
+  // chosen site) in place.
+  const [submitting, setSubmitting] = useState(false);
 
   const allowed = effectiveAllowedSites(
     allowedInjectionSites,
     globalExcludedInjectionSites,
   );
 
+  async function handleConfirm() {
+    if (selected === null || submitting) return;
+    setSubmitting(true);
+    try {
+      await onConfirm(selected);
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
   return (
     <Dialog
       open={open}
       onOpenChange={(next) => {
+        // Hold the dialog while the PATCH is in flight so a backdrop tap /
+        // Esc can't dismiss mid-request.
+        if (submitting) return;
         if (!next) onSkip();
       }}
     >
@@ -92,15 +118,19 @@ export function LogInjectionSiteDialog({
         )}
 
         <DialogFooter className="gap-2 sm:gap-2">
-          <Button variant="outline" onClick={onSkip}>
+          <Button variant="outline" onClick={onSkip} disabled={submitting}>
             {t("medications.logInjectionSiteSkip")}
           </Button>
           <Button
-            disabled={selected === null}
+            disabled={selected === null || submitting}
+            aria-busy={submitting || undefined}
             onClick={() => {
-              if (selected !== null) onConfirm(selected);
+              void handleConfirm();
             }}
           >
+            {submitting ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin motion-reduce:animate-none" />
+            ) : null}
             {t("medications.logInjectionSiteConfirm")}
           </Button>
         </DialogFooter>

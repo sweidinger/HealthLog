@@ -1360,6 +1360,7 @@
     "logInjectionSiteSkip": "Pomiń",
     "logInjectionSiteConfirm": "Zapisz miejsce",
     "logInjectionSiteNoneAvailable": "Brak dostępnego miejsca iniekcji — wszystkie miejsca są wykluczone w Twoich ustawieniach.",
+    "logInjectionSiteSaveFailed": "Nie udało się zapisać miejsca iniekcji. Spróbuj ponownie.",
     "trackInjectionSitesToggle": "Rejestruj miejsca iniekcji",
     "trackInjectionSitesHint": "Po przyjęciu dawki zapytaj, którego miejsca użyto, i zaproponuj kolejną rotację.",
     "allowedSitesLabel": "Dozwolone miejsca",

@@ -1360,6 +1360,7 @@
     "logInjectionSiteSkip": "Salta",
     "logInjectionSiteConfirm": "Salva il sito",
     "logInjectionSiteNoneAvailable": "Nessun sito di iniezione disponibile: tutti i siti sono esclusi nelle tue impostazioni.",
+    "logInjectionSiteSaveFailed": "Impossibile salvare il sito di iniezione. Riprova.",
     "trackInjectionSitesToggle": "Registra i siti di iniezione",
     "trackInjectionSitesHint": "Dopo l'assunzione di una dose, chiedi quale sito è stato usato e suggerisci la rotazione successiva.",
     "allowedSitesLabel": "Siti consentiti",

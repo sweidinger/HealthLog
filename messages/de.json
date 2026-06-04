@@ -1360,6 +1360,7 @@
     "logInjectionSiteSkip": "Überspringen",
     "logInjectionSiteConfirm": "Stelle speichern",
     "logInjectionSiteNoneAvailable": "Keine Injektionsstelle verfügbar — alle Stellen sind in deinen Einstellungen ausgeschlossen.",
+    "logInjectionSiteSaveFailed": "Injektionsstelle konnte nicht gespeichert werden. Bitte versuche es erneut.",
     "trackInjectionSitesToggle": "Injektionsstellen erfassen",
     "trackInjectionSitesHint": "Nach einer eingenommenen Dosis nach der verwendeten Stelle fragen und die nächste Rotation vorschlagen.",
     "allowedSitesLabel": "Erlaubte Stellen",
