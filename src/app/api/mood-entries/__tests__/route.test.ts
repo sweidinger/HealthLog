@@ -34,9 +34,17 @@ vi.mock("@/lib/db", () => ({
   },
 }));
 
-vi.mock("@/lib/mood/tag-links", () => ({
-  createTagLinks: vi.fn().mockResolvedValue(undefined),
-}));
+// v1.12.0 — keep the real `RatedFactorOutOfRangeError` so the route's
+// `instanceof` 422 branch still matches when the mock throws it.
+vi.mock("@/lib/mood/tag-links", async () => {
+  const actual = await vi.importActual<typeof import("@/lib/mood/tag-links")>(
+    "@/lib/mood/tag-links",
+  );
+  return {
+    createTagLinks: vi.fn().mockResolvedValue(undefined),
+    RatedFactorOutOfRangeError: actual.RatedFactorOutOfRangeError,
+  };
+});
 
 vi.mock("@/lib/auth/session", () => ({ getSession: vi.fn() }));
 vi.mock("@/lib/auth/audit", () => ({
@@ -239,8 +247,14 @@ describe("POST /api/mood-entries — entry + tag-links transaction (v1.8.5)", ()
     const res = await POST(postReq(VALID_BODY));
     expect(res.status).toBe(201);
     // The tag-link write runs against the same `$transaction` client that
-    // created the entry, so both commit (or roll back) together.
-    expect(createTagLinks).toHaveBeenCalledWith("mood-1", ["happy"], txClient);
+    // created the entry, so both commit (or roll back) together. The 4th
+    // arg is the rated-factor set (empty here — binary tag only).
+    expect(createTagLinks).toHaveBeenCalledWith(
+      "mood-1",
+      ["happy"],
+      txClient,
+      [],
+    );
   });
 
   it("returns the persisted tagKeys in the create response", async () => {
@@ -291,5 +305,88 @@ describe("POST /api/mood-entries — entry + tag-links transaction (v1.8.5)", ()
       "@/lib/rollups/mood-rollups"
     );
     expect(recomputeMoodBucketsForEntry).not.toHaveBeenCalled();
+  });
+});
+
+describe("POST /api/mood-entries — rated factors (v1.12.0)", () => {
+  const ENTRY = {
+    id: "mood-rf",
+    tags: null,
+    moodLoggedAt: new Date("2026-06-01T08:00:00.000Z"),
+    mood: "GUT",
+    note: null,
+    source: "MANUAL",
+    date: "2026-06-01",
+  };
+
+  it("threads ratedFactors into createTagLinks", async () => {
+    txClient.moodEntry.create.mockResolvedValue(ENTRY);
+    const body = {
+      mood: "GUT",
+      moodLoggedAt: "2026-06-01T08:00:00.000Z",
+      tagKeys: ["happy"],
+      ratedFactors: [{ key: "factor_work", rating: 4 }],
+    };
+    const res = await POST(postReq(body));
+    expect(res.status).toBe(201);
+    expect(createTagLinks).toHaveBeenCalledWith(
+      "mood-rf",
+      ["happy"],
+      txClient,
+      [{ key: "factor_work", rating: 4 }],
+    );
+  });
+
+  it("surfaces persisted rated factors split from binary tagKeys in the response", async () => {
+    txClient.moodEntry.create.mockResolvedValue(ENTRY);
+    // Read-back returns one binary link + one rated link; the route splits
+    // them by `kind`.
+    txClient.moodEntryTagLink.findMany.mockResolvedValue([
+      { rating: null, moodTag: { key: "happy", kind: "BINARY" } },
+      { rating: 4, moodTag: { key: "factor_work", kind: "RATED" } },
+    ]);
+    const res = await POST(
+      postReq({
+        mood: "GUT",
+        moodLoggedAt: "2026-06-01T08:00:00.000Z",
+        tagKeys: ["happy"],
+        ratedFactors: [{ key: "factor_work", rating: 4 }],
+      }),
+    );
+    expect(res.status).toBe(201);
+    const out = (await res.json()) as {
+      data: { tagKeys: string[]; ratedFactors: { key: string; rating: number }[] };
+    };
+    expect(out.data.tagKeys).toEqual(["happy"]);
+    expect(out.data.ratedFactors).toEqual([{ key: "factor_work", rating: 4 }]);
+  });
+
+  it("returns 422 with errorCode when a rating is out of the factor's scale", async () => {
+    txClient.moodEntry.create.mockResolvedValue(ENTRY);
+    const { RatedFactorOutOfRangeError } = await import("@/lib/mood/tag-links");
+    vi.mocked(createTagLinks).mockRejectedValueOnce(
+      new RatedFactorOutOfRangeError("factor_conflict", 5, 1, 2),
+    );
+    const res = await POST(
+      postReq({
+        mood: "GUT",
+        moodLoggedAt: "2026-06-01T08:00:00.000Z",
+        ratedFactors: [{ key: "factor_conflict", rating: 5 }],
+      }),
+    );
+    expect(res.status).toBe(422);
+    const out = (await res.json()) as { meta?: { errorCode?: string } };
+    expect(out.meta?.errorCode).toBe("mood.ratedFactor.out_of_range");
+  });
+
+  it("rejects a non-integer / out-of-envelope rating at the Zod layer (422)", async () => {
+    const res = await POST(
+      postReq({
+        mood: "GUT",
+        moodLoggedAt: "2026-06-01T08:00:00.000Z",
+        ratedFactors: [{ key: "factor_work", rating: 9 }],
+      }),
+    );
+    expect(res.status).toBe(422);
   });
 });

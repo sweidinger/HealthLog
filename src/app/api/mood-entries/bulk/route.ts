@@ -68,6 +68,20 @@ const bulkEntrySchema = z.object({
    * link set.
    */
   tagKeys: z.array(z.string().max(60)).max(30).optional(),
+  /**
+   * v1.12.0 — rated mood factors (`kind = 'RATED'` catalog tags carrying
+   * a per-entry score). Parallel to the binary `tagKeys`; persisted on
+   * `MoodEntryTagLink.rating`. The outer 1..5 here is the envelope; the
+   * server rejects a rating outside the resolved factor's own
+   * `scaleMin..scaleMax` (e.g. 1..2 for `factor_conflict`) — on the bulk
+   * path that marks the single entry `skipped`, never the whole batch.
+   */
+  ratedFactors: z
+    .array(
+      z.object({ key: z.string().max(60), rating: z.number().int().min(1).max(5) }),
+    )
+    .max(30)
+    .optional(),
   note: z.string().max(500).optional(),
   moodLoggedAt: z.iso.datetime({ offset: true }).transform((s) => new Date(s)),
   source: moodSourceEnum.optional().default("MANUAL"),
@@ -224,8 +238,21 @@ async function postBulk(request: NextRequest): Promise<Response> {
       // re-posted entry from minting duplicate links. Runs for both
       // fresh and re-posted (upserted) rows so a backfill that adds tag
       // keys on a second pass still lands them.
-      if (entry.tagKeys && entry.tagKeys.length > 0) {
-        await createTagLinks(result.id, entry.tagKeys);
+      // v1.12.0 — rated factors ride the same path; an out-of-scale
+      // rating throws `RatedFactorOutOfRangeError`, which the per-entry
+      // catch below turns into a `skipped` result (the rest of the batch
+      // still lands). The mood row itself already upserted, so a skipped
+      // factor leaves a valid entry with no rated links.
+      if (
+        (entry.tagKeys && entry.tagKeys.length > 0) ||
+        (entry.ratedFactors && entry.ratedFactors.length > 0)
+      ) {
+        await createTagLinks(
+          result.id,
+          entry.tagKeys ?? [],
+          prisma,
+          entry.ratedFactors ?? [],
+        );
       }
 
       if (existing) {

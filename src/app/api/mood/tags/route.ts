@@ -29,7 +29,19 @@ export const GET = apiHandler(async () => {
       tags: {
         where: { isActive: true },
         orderBy: { sortOrder: "asc" },
-        select: { key: true, labelKey: true, icon: true },
+        // v1.12.0 — emit the rated-factor metadata so the client can
+        // branch rendering: `kind = 'BINARY'` → a toggle chip; `'RATED'`
+        // → a 1..scaleMax segmented control (Yes/No when scaleMax = 2).
+        // `inverse` flags factors where a higher score means a worse day.
+        select: {
+          key: true,
+          labelKey: true,
+          icon: true,
+          kind: true,
+          scaleMin: true,
+          scaleMax: true,
+          inverse: true,
+        },
       },
     },
   });

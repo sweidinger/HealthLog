@@ -1993,6 +1993,22 @@ model MoodTag {
   sortOrder  Int     @default(0) @map("sort_order")
   isActive   Boolean @default(true) @map("is_active")
 
+  /// v1.12.0 — capture-kind discriminator. `BINARY` (default) is a
+  /// present/absent flag — every tag seeded by 0101 / 0118. `RATED` is a
+  /// mood *factor* the user scores per entry (e.g. work, social, sleep
+  /// quality); the score rides on `MoodEntryTagLink.rating`. Keeps one
+  /// taxonomy + one ingestion path for both flavours.
+  kind     String  @default("BINARY") @map("kind") // "BINARY" | "RATED"
+  /// v1.12.0 — inclusive lower / upper bound of a RATED factor's scale
+  /// (e.g. 1..5, or 1..2 for a Yes/No factor). Ignored for BINARY tags.
+  /// The server validates each submitted rating against this range.
+  scaleMin Int     @default(1) @map("scale_min")
+  scaleMax Int     @default(5) @map("scale_max")
+  /// v1.12.0 — inverse-scaled factor (e.g. stress / conflict) where a
+  /// HIGHER rating means a WORSE day. Capture stays literal; the (later)
+  /// analytics layer flips the sign so "up" always reads as "better".
+  inverse  Boolean @default(false) @map("inverse")
+
   category MoodTagCategory    @relation(fields: [categoryId], references: [id], onDelete: Cascade)
   links    MoodEntryTagLink[]
 
@@ -2008,6 +2024,11 @@ model MoodEntryTagLink {
   moodEntryId String   @map("mood_entry_id")
   moodTagId   String   @map("mood_tag_id")
   createdAt   DateTime @default(now()) @map("created_at")
+  /// v1.12.0 — per-entry score for a RATED `MoodTag`. NULL for BINARY
+  /// links (the present/absent flag carries the signal). Bounded to the
+  /// tag's `scaleMin..scaleMax` at ingest (server-validated, not a DB
+  /// CHECK, so a future scale change never strands historical rows).
+  rating      Int?     @map("rating")
 
   moodEntry MoodEntry @relation(fields: [moodEntryId], references: [id], onDelete: Cascade)
   moodTag   MoodTag   @relation(fields: [moodTagId], references: [id], onDelete: Cascade)

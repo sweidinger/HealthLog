@@ -15,9 +15,17 @@ vi.mock("@/lib/db", () => ({
   },
 }));
 
-vi.mock("@/lib/mood/tag-links", () => ({
-  createTagLinks: vi.fn().mockResolvedValue(undefined),
-}));
+// v1.12.0 — keep the real `RatedFactorOutOfRangeError` so the per-entry
+// catch can `instanceof`-match a thrown out-of-scale rating.
+vi.mock("@/lib/mood/tag-links", async () => {
+  const actual = await vi.importActual<typeof import("@/lib/mood/tag-links")>(
+    "@/lib/mood/tag-links",
+  );
+  return {
+    createTagLinks: vi.fn().mockResolvedValue(undefined),
+    RatedFactorOutOfRangeError: actual.RatedFactorOutOfRangeError,
+  };
+});
 
 vi.mock("@/lib/moodlog/push", () => ({
   pushMoodEntriesToMoodLog: vi.fn().mockResolvedValue(undefined),
@@ -195,7 +203,14 @@ describe("POST /api/mood-entries/bulk — structured tagKeys (v1.12.0)", () => {
     );
     expect(res.status).toBe(200);
     expect(createTagLinks).toHaveBeenCalledTimes(1);
-    expect(createTagLinks).toHaveBeenCalledWith("entry-1", ["movies", "gaming"]);
+    // v1.12.0 — the bulk path now also threads the prisma client (3rd arg,
+    // outside the upsert tx) and the rated-factor set (4th, empty here).
+    expect(createTagLinks).toHaveBeenCalledWith(
+      "entry-1",
+      ["movies", "gaming"],
+      prisma,
+      [],
+    );
   });
 
   it("skips the tag-link write when an entry sends no tagKeys", async () => {
@@ -222,5 +237,64 @@ describe("POST /api/mood-entries/bulk — structured tagKeys (v1.12.0)", () => {
     );
     expect(res.status).toBe(422);
     expect(createTagLinks).not.toHaveBeenCalled();
+  });
+
+  it("threads ratedFactors into createTagLinks for a bulk entry", async () => {
+    const res = await POST(
+      postReq({
+        entries: [
+          {
+            mood: "GUT",
+            moodLoggedAt: "2026-05-16T08:00:00.000Z",
+            tagKeys: ["movies"],
+            ratedFactors: [{ key: "factor_work", rating: 4 }],
+          },
+        ],
+      }),
+    );
+    expect(res.status).toBe(200);
+    const json = (await res.json()) as { data: { inserted: number } };
+    expect(json.data.inserted).toBe(1);
+    expect(createTagLinks).toHaveBeenCalledWith(
+      "entry-1",
+      ["movies"],
+      prisma,
+      [{ key: "factor_work", rating: 4 }],
+    );
+  });
+
+  it("marks the single entry skipped (not the batch) on an out-of-scale rating", async () => {
+    const { RatedFactorOutOfRangeError } = await import("@/lib/mood/tag-links");
+    // First entry's factor write throws; the loop catch records it skipped.
+    vi.mocked(createTagLinks).mockRejectedValueOnce(
+      new RatedFactorOutOfRangeError("factor_conflict", 5, 1, 2),
+    );
+    const res = await POST(
+      postReq({
+        entries: [
+          {
+            mood: "GUT",
+            moodLoggedAt: "2026-05-16T08:00:00.000Z",
+            ratedFactors: [{ key: "factor_conflict", rating: 5 }],
+          },
+          {
+            mood: "OKAY",
+            moodLoggedAt: "2026-05-16T09:00:00.000Z",
+          },
+        ],
+      }),
+    );
+    expect(res.status).toBe(200);
+    const json = (await res.json()) as {
+      data: {
+        processed: number;
+        inserted: number;
+        entries: Array<{ index: number; status: string }>;
+      };
+    };
+    expect(json.data.processed).toBe(2);
+    // Entry 0 skipped (bad factor), entry 1 inserted clean.
+    expect(json.data.entries[0].status).toBe("skipped");
+    expect(json.data.entries[1].status).toBe("inserted");
   });
 });

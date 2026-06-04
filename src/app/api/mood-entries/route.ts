@@ -22,7 +22,10 @@ import { moodDateKey, DEFAULT_TIMEZONE } from "@/lib/mood/date-key";
 import { invalidateUserMood } from "@/lib/cache/invalidate";
 import { recomputeMoodBucketsForEntry } from "@/lib/rollups/mood-rollups";
 import { pushMoodEntriesToMoodLog } from "@/lib/moodlog/push";
-import { createTagLinks } from "@/lib/mood/tag-links";
+import {
+  createTagLinks,
+  RatedFactorOutOfRangeError,
+} from "@/lib/mood/tag-links";
 
 function parseTags(tags: string | null): string[] {
   if (!tags) return [];
@@ -93,9 +96,14 @@ export const GET = apiHandler(async (request: NextRequest) => {
       skip: offset,
       // v1.8.5 — include the structured-tag link keys so the edit form
       // can pre-populate the taxonomy picker.
+      // v1.12.0 — also carry the per-link `rating` + the tag `kind` so
+      // the client can split binary tags from rated factors on hydrate.
       include: {
         tagLinks: {
-          select: { moodTag: { select: { key: true } } },
+          select: {
+            rating: true,
+            moodTag: { select: { key: true, kind: true } },
+          },
         },
       },
     }),
@@ -110,8 +118,16 @@ export const GET = apiHandler(async (request: NextRequest) => {
   const entriesWithParsedTags = entries.map(({ tagLinks, ...e }) => ({
     ...e,
     tags: parseTags(e.tags),
-    // v1.8.5 — flat list of structured-tag keys attached to the entry.
-    tagKeys: tagLinks.map((link) => link.moodTag.key),
+    // v1.8.5 — flat list of binary structured-tag keys attached to the
+    // entry (rated factors are surfaced separately below).
+    tagKeys: tagLinks
+      .filter((link) => link.moodTag.kind !== "RATED")
+      .map((link) => link.moodTag.key),
+    // v1.12.0 — rated factors with their per-entry score, so the edit
+    // form re-renders the sliders without a refetch.
+    ratedFactors: tagLinks
+      .filter((link) => link.moodTag.kind === "RATED" && link.rating !== null)
+      .map((link) => ({ key: link.moodTag.key, rating: link.rating as number })),
   }));
 
   return apiSuccess({
@@ -157,7 +173,8 @@ async function postMoodEntry(request: NextRequest) {
     return returnAllZodIssues(parsed.error, 422);
   }
 
-  const { mood, tags, tagKeys, note, moodLoggedAt, source } = parsed.data;
+  const { mood, tags, tagKeys, ratedFactors, note, moodLoggedAt, source } =
+    parsed.data;
   // v1.4.25 W7b (Decision A) — anchor the `date` string to the user's
   // current displayTimezone and store the resolved zone on the row.
   // Legacy rows with `tz IS NULL` continue to read as Europe/Berlin
@@ -172,8 +189,8 @@ async function postMoodEntry(request: NextRequest) {
     // tag-link failure must roll the entry back too — otherwise a client
     // retry on the 5xx mints a duplicate entry. The tx client is threaded
     // through the helper so both writes commit (or abort) together.
-    const { entry, persistedTagKeys } = await prisma.$transaction(
-      async (tx) => {
+    const { entry, persistedTagKeys, persistedRatedFactors } =
+      await prisma.$transaction(async (tx) => {
         const created = await tx.moodEntry.create({
           data: {
             userId: user.id,
@@ -188,26 +205,47 @@ async function postMoodEntry(request: NextRequest) {
           },
         });
 
-        if (tagKeys && tagKeys.length > 0) {
-          // Unknown keys are dropped inside the helper (the catalog is the
-          // source of truth).
-          await createTagLinks(created.id, tagKeys, tx);
+        if (
+          (tagKeys && tagKeys.length > 0) ||
+          (ratedFactors && ratedFactors.length > 0)
+        ) {
+          // Unknown / non-RATED keys are dropped inside the helper (the
+          // catalog is the source of truth). An out-of-scale rating
+          // throws `RatedFactorOutOfRangeError`, rolling the tx back.
+          await createTagLinks(
+            created.id,
+            tagKeys ?? [],
+            tx,
+            ratedFactors ?? [],
+          );
         }
 
-        // v1.8.5 — read the persisted link keys back so the create
-        // response mirrors the list GET shape exactly (unknown keys
-        // already filtered out).
+        // v1.8.5 / v1.12.0 — read the persisted links back so the create
+        // response mirrors the list GET shape exactly: binary keys and
+        // rated factors split by `kind` (unknown keys already filtered).
         const links = await tx.moodEntryTagLink.findMany({
           where: { moodEntryId: created.id },
-          select: { moodTag: { select: { key: true } } },
+          select: {
+            rating: true,
+            moodTag: { select: { key: true, kind: true } },
+          },
         });
 
         return {
           entry: created,
-          persistedTagKeys: links.map((link) => link.moodTag.key),
+          persistedTagKeys: links
+            .filter((link) => link.moodTag.kind !== "RATED")
+            .map((link) => link.moodTag.key),
+          persistedRatedFactors: links
+            .filter(
+              (link) => link.moodTag.kind === "RATED" && link.rating !== null,
+            )
+            .map((link) => ({
+              key: link.moodTag.key,
+              rating: link.rating as number,
+            })),
         };
-      },
-    );
+      });
 
     await auditLog("moodEntry.create", {
       userId: user.id,
@@ -271,10 +309,24 @@ async function postMoodEntry(request: NextRequest) {
         // hydrating from the create response renders the tag set without a
         // refetch (shape-matches the list GET).
         tagKeys: persistedTagKeys,
+        // v1.12.0 — rated factors with their per-entry score.
+        ratedFactors: persistedRatedFactors,
       },
       201,
     );
   } catch (err) {
+    // v1.12.0 — a factor rating outside its catalog scale is a client
+    // error, not a 5xx. The Zod schema only enforces the 1..5 envelope;
+    // the per-tag scale (e.g. 1..2 for conflict) is the real gate.
+    if (err instanceof RatedFactorOutOfRangeError) {
+      annotate({
+        action: { name: "mood-entries.create.rated-factor-out-of-range" },
+        meta: { scaleMin: err.scaleMin, scaleMax: err.scaleMax },
+      });
+      return apiError(err.message, 422, {
+        errorCode: "mood.ratedFactor.out_of_range",
+      });
+    }
     if (
       err instanceof Prisma.PrismaClientKnownRequestError &&
       err.code === "P2002"

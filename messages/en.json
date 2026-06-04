@@ -511,7 +511,8 @@
       "health": "Health",
       "social": "Social",
       "work": "Work",
-      "hobbies": "Hobbies"
+      "hobbies": "Hobbies",
+      "factors": "Factors"
     },
     "tag": {
       "happy": "happy",
@@ -551,7 +552,12 @@
       "outdoors": "outdoors",
       "fastFood": "fast food",
       "noSweets": "no sweets",
-      "bigMeal": "big meal"
+      "bigMeal": "big meal",
+      "factorWork": "work",
+      "factorSocial": "social",
+      "factorSleepQuality": "sleep quality",
+      "factorStress": "stress",
+      "factorConflict": "conflict"
     }
   },
   "medications": {
