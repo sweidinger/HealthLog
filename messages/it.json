@@ -278,6 +278,12 @@
       "emptyDescription": "Crea prima un farmaco con un orario, poi torna qui per registrarne l’assunzione.",
       "emptyCta": "Aggiungi farmaco"
     },
+    "quickEntryDiscard": {
+      "title": "Scartare questa voce?",
+      "description": "Hai dati non salvati. Chiudere il modulo e perdere ciò che hai digitato?",
+      "confirm": "Scarta",
+      "cancel": "Continua a modificare"
+    },
     "compliance7d": "Aderenza (7 giorni)",
     "mood": "Umore",
     "customizeTitle": "Layout della dashboard",

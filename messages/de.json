@@ -278,6 +278,12 @@
       "emptyDescription": "Lege zuerst ein Medikament mit Zeitfenster an, damit du die Einnahme protokollieren kannst.",
       "emptyCta": "Medikament anlegen"
     },
+    "quickEntryDiscard": {
+      "title": "Eintrag verwerfen?",
+      "description": "Du hast nicht gespeicherte Eingaben. Formular schließen und das Getippte verwerfen?",
+      "confirm": "Verwerfen",
+      "cancel": "Weiter bearbeiten"
+    },
     "compliance7d": "Einnahmetreue (7 Tage)",
     "mood": "Stimmung",
     "customizeTitle": "Dashboard-Layout",

@@ -278,6 +278,12 @@
       "emptyDescription": "Crée d’abord un médicament avec un horaire, puis reviens ici pour saisir la prise.",
       "emptyCta": "Ajouter un médicament"
     },
+    "quickEntryDiscard": {
+      "title": "Abandonner cette saisie ?",
+      "description": "Vous avez des données non enregistrées. Fermer le formulaire et perdre ce que vous avez saisi ?",
+      "confirm": "Abandonner",
+      "cancel": "Continuer la saisie"
+    },
     "compliance7d": "Observance (7 jours)",
     "mood": "Humeur",
     "customizeTitle": "Mise en page du tableau",

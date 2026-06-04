@@ -278,6 +278,12 @@
       "emptyDescription": "Create a medication with a schedule first, then come back here to log the intake.",
       "emptyCta": "Add medication"
     },
+    "quickEntryDiscard": {
+      "title": "Discard this entry?",
+      "description": "You have unsaved input. Close the form and lose what you typed?",
+      "confirm": "Discard",
+      "cancel": "Keep editing"
+    },
     "compliance7d": "Compliance (7 days)",
     "mood": "Mood",
     "customizeTitle": "Dashboard layout",

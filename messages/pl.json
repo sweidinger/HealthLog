@@ -278,6 +278,12 @@
       "emptyDescription": "Najpierw dodaj lek z harmonogramem, a potem wróć tutaj, aby zarejestrować jego przyjęcie.",
       "emptyCta": "Dodaj lek"
     },
+    "quickEntryDiscard": {
+      "title": "Odrzucić ten wpis?",
+      "description": "Masz niezapisane dane. Zamknąć formularz i utracić to, co wpisano?",
+      "confirm": "Odrzuć",
+      "cancel": "Kontynuuj edycję"
+    },
     "compliance7d": "Przestrzeganie (7 dni)",
     "mood": "Nastrój",
     "customizeTitle": "Układ panelu",

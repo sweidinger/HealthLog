@@ -278,6 +278,12 @@
       "emptyDescription": "Crea primero un medicamento con horario, después vuelve aquí para registrar la toma.",
       "emptyCta": "Añadir medicamento"
     },
+    "quickEntryDiscard": {
+      "title": "¿Descartar esta entrada?",
+      "description": "Tienes datos sin guardar. ¿Cerrar el formulario y perder lo que escribiste?",
+      "confirm": "Descartar",
+      "cancel": "Seguir editando"
+    },
     "compliance7d": "Cumplimiento (7 días)",
     "mood": "Estado de ánimo",
     "customizeTitle": "Diseño del panel",
