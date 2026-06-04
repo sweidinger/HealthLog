@@ -21,7 +21,9 @@ import {
 import { annotate } from "@/lib/logging/context";
 import { summarize, type DataPoint } from "@/lib/analytics/trends";
 import { redactSensitiveFields } from "@/lib/observability/redact-payload";
-import type { MeasurementType } from "@/generated/prisma/client";
+import type { MeasurementType, SleepStage } from "@/generated/prisma/client";
+import { reconstructSleepNights } from "@/lib/analytics/sleep-night";
+import { resolveUserTimezone } from "@/lib/tz/resolver";
 
 const kindEnum = z.enum([
   "weight",
@@ -71,11 +73,41 @@ const KIND_TO_TYPE: Record<z.infer<typeof kindEnum>, MeasurementType> = {
   vo2Max: "VO2_MAX",
 };
 
+/**
+ * v1.11.4 — explicit per-kind unit token returned at the top level so
+ * the client never has to infer the value's unit. `bloodPressure` reuses
+ * the systolic type's unit (mmHg, same for both lines). `sleep` is
+ * overridden at request time to `"h"` because the route returns per-night
+ * TIME-ASLEEP in hours rather than the canonical per-stage minutes.
+ */
+const SERIES_UNIT: Record<z.infer<typeof kindEnum>, string> = {
+  weight: "kg",
+  bloodPressure: "mmHg",
+  pulse: "bpm",
+  bodyFat: "%",
+  glucose: "mg/dL",
+  sleep: "h",
+  steps: "steps",
+  totalBodyWater: "kg",
+  boneMass: "kg",
+  oxygenSaturation: "%",
+  restingHeartRate: "bpm",
+  heartRateVariability: "ms",
+  vo2Max: "mL/(kg·min)",
+};
+
 interface SeriesPoint {
   id: string;
   at: string;
   value: number;
   secondary: number | null;
+  /**
+   * v1.11.4 — per-stage minutes for a sleep night point. `null` for
+   * every non-sleep kind. Lets a sleep detail view render the night's
+   * stage breakdown without a second fetch; the headline `value` stays
+   * the night's TIME-ASLEEP total.
+   */
+  sleepStages?: Partial<Record<SleepStage, number>> | null;
 }
 
 function stdDev(values: number[]): number {
@@ -136,8 +168,50 @@ export const GET = apiHandler(async (request: NextRequest) => {
   const { kind, days } = parsed.data;
   const since = new Date(Date.now() - days * 86_400_000);
 
+  // v1.11.4 — explicit unit token so the client never infers the unit
+  // from the kind. Sleep is special-cased below (per-night TIME-ASLEEP
+  // in HOURS); every other kind carries its canonical stored unit.
+  let unit = SERIES_UNIT[kind];
+
   let points: SeriesPoint[] = [];
-  if (kind === "bloodPressure") {
+  if (kind === "sleep") {
+    // SLEEP_DURATION is stored one row per STAGE per night (minutes).
+    // Collapse the stage rows into ONE point per night carrying the
+    // night's TIME ASLEEP (CORE + DEEP + REM, excluding IN_BED + AWAKE),
+    // converted to HOURS. The single-stage rows the legacy path returned
+    // made the chart show one fragment per stage instead of a nightly
+    // trend.
+    const tz = await resolveUserTimezone(user.id);
+    const rows = await prisma.measurement.findMany({
+      where: {
+        userId: user.id,
+        type: "SLEEP_DURATION",
+        measuredAt: { gte: since },
+        deletedAt: null,
+      },
+      orderBy: { measuredAt: "asc" },
+      select: { id: true, value: true, measuredAt: true, sleepStage: true },
+    });
+    unit = "h";
+    points = reconstructSleepNights(rows, tz)
+      .filter((n) => n.asleepMinutes > 0)
+      .map((n) => {
+        const stageHours = Object.fromEntries(
+          Object.entries(n.stages).map(([s, m]) => [
+            s,
+            Math.round((m / 60) * 100) / 100,
+          ]),
+        ) as Partial<Record<SleepStage, number>>;
+        return {
+          id: `sleep:${n.night}`,
+          at: n.measuredAt.toISOString(),
+          value: Math.round((n.asleepMinutes / 60) * 100) / 100,
+          secondary: null,
+          sleepStages:
+            Object.keys(stageHours).length > 0 ? stageHours : null,
+        };
+      });
+  } else if (kind === "bloodPressure") {
     const [sys, dia] = await Promise.all([
       prisma.measurement.findMany({
         where: {
@@ -213,6 +287,7 @@ export const GET = apiHandler(async (request: NextRequest) => {
 
   return apiSuccess({
     kind,
+    unit,
     points,
     stats: summary
       ? {

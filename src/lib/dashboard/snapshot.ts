@@ -523,6 +523,20 @@ function buildMetricStates(
     const summary = summaries[type];
     const lastSeen = lastSeenByType[type];
     if (!summary || summary.latest === null || !lastSeen) continue;
+    // v1.11.4 — `summaries.SLEEP_DURATION.latest` now carries last night's
+    // TIME-ASLEEP total in MINUTES (the slim slice collapses the per-stage
+    // rows). Emit the cold-launch seed in HOURS with an explicit `unit:
+    // "h"` so it matches the `/api/dashboard/summary` sleep tile, which
+    // already emits hours. Every other metric passes through with its
+    // canonical stored unit.
+    if (type === "SLEEP_DURATION") {
+      out[metricKindRaw] = {
+        value: Math.round((summary.latest / 60) * 100) / 100,
+        measuredAt: lastSeen.lastSeenAt,
+        unit: "h",
+      };
+      continue;
+    }
     out[metricKindRaw] = {
       value: summary.latest,
       measuredAt: lastSeen.lastSeenAt,

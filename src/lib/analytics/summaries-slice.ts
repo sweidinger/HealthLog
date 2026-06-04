@@ -72,6 +72,11 @@ import {
   probeRollupCoverage,
 } from "@/lib/rollups/measurement-coverage";
 import { readBestGranularityRollups } from "@/lib/rollups/measurement-read-wmy";
+import {
+  summarizeSleepNights,
+  type SleepStageRow,
+} from "@/lib/analytics/sleep-night";
+import { resolveUserTimezone } from "@/lib/tz/resolver";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -239,7 +244,7 @@ export async function computeSummariesSlice(
   // brand-new-type case stays correct.
   const coverage = await probeRollupCoverage(userId);
   if (isFullyCovered(coverage)) {
-    return computeFromRollups(userId);
+    return withSleepNightTotals(userId, await computeFromRollups(userId));
   }
   // v1.4.38.7 — annotate the live fallback with the per-type
   // coverage map so the operator can see WHICH type stranded the
@@ -261,7 +266,57 @@ export async function computeSummariesSlice(
       },
     },
   });
-  return computeFromLiveAggregate(userId);
+  return withSleepNightTotals(userId, await computeFromLiveAggregate(userId));
+}
+
+/**
+ * v1.11.4 — replace the per-stage `summaries.SLEEP_DURATION` with a
+ * per-NIGHT summary (iOS #1, HIGH).
+ *
+ * `SLEEP_DURATION` is stored one row per sleep STAGE per night (minutes).
+ * The slim slice's generic aggregate therefore treats each stage as an
+ * independent reading: `latest` is the most-recent STAGE (not the night),
+ * `mean` / `avg7` / `avg30` average across stage rows. For the dashboard
+ * sleep tile and the insights overview that is wrong — they want the
+ * per-night TIME-ASLEEP total.
+ *
+ * This post-pass reads the SLEEP_DURATION rows once and overwrites the
+ * summary with one computed over per-night asleep totals (one DataPoint
+ * per night). The unit stays MINUTES (canonical), so existing consumers
+ * that already treat the summary as minutes keep working — they now
+ * average nights instead of stages, which is strictly more correct. The
+ * read is bounded to a year (~5 rows/night) and is skipped entirely when
+ * the user has logged no sleep.
+ */
+async function withSleepNightTotals(
+  userId: string,
+  slice: SummariesSlice,
+): Promise<SummariesSlice> {
+  const existing = slice.summaries.SLEEP_DURATION;
+  // No sleep data at all → nothing to recompute (the empty summary stays).
+  if (!existing || existing.count === 0) return slice;
+
+  const since = new Date(Date.now() - 365 * DAY_MS);
+  const rows = (await prisma.measurement.findMany({
+    where: {
+      userId,
+      type: "SLEEP_DURATION",
+      deletedAt: null,
+      measuredAt: { gte: since },
+    },
+    orderBy: { measuredAt: "asc" },
+    select: { value: true, measuredAt: true, sleepStage: true },
+  })) as SleepStageRow[];
+  if (rows.length === 0) return slice;
+
+  const tz = await resolveUserTimezone(userId);
+  const { summary } = summarizeSleepNights(rows, tz);
+  // Preserve the slope tuples the night summary doesn't compute (the
+  // dashboard tile reads slope30); recompute them off the night series is
+  // out of scope here — the per-night `summarize()` already fills slope7 /
+  // slope30 / slope90 from the night DataPoints, so use them directly.
+  slice.summaries.SLEEP_DURATION = summary;
+  return slice;
 }
 
 /**
