@@ -315,6 +315,28 @@ export const FITBIT_DATA_TYPES = {
     filter: "daily_sleep_temperature_derivations",
     timeField: "date",
   },
+  // ── Activity bundle (W5) — daily cumulative totals ─────────────
+  // Scope: `googlehealth.activity_and_fitness.readonly`. Each is a per-day
+  // summary (`timeField: "date"`); the externalId carries the `stats:` prefix
+  // so a re-fetched day overwrites in place (mirrors the Apple-Health
+  // `stats:<HK>:<YYYY-MM-DD>` daily-total overwrite contract).
+  steps: { path: "steps", filter: "steps", timeField: "date" },
+  distance: { path: "distance", filter: "distance", timeField: "date" },
+  activeCalories: {
+    path: "active-calories",
+    filter: "active_calories",
+    timeField: "date",
+  },
+  floors: { path: "floors", filter: "floors", timeField: "date" },
+  vo2Max: { path: "vo2-max", filter: "vo2_max", timeField: "date" },
+  // ── Sleep bundle (W5) ──────────────────────────────────────────
+  // Scope: `googlehealth.sleep.readonly`. A sleep session carries a start +
+  // end + a per-stage breakdown; mapped to per-stage SLEEP_DURATION rows.
+  sleep: { path: "sleep", filter: "sleep", timeField: "sample" },
+  // ── Exercise bundle (W5) ───────────────────────────────────────
+  // Scope: `googlehealth.activity_and_fitness.readonly`. An exercise session
+  // → a `Workout` row (NOT a Measurement).
+  exercise: { path: "exercise", filter: "exercise", timeField: "sample" },
 } as const satisfies Record<string, FitbitDataType>;
 
 export type FitbitDataTypeKey = keyof typeof FITBIT_DATA_TYPES;
@@ -439,7 +461,25 @@ export interface FitbitMappedMeasurement {
   measuredAt: Date;
   /** Disambiguator appended to the per-point anchor to form the externalId. */
   fieldTag: string;
+  /** Per-stage sleep rows carry the SleepStage; everything else omits it. */
+  sleepStage?: FitbitSleepStage;
+  /**
+   * `true` when the externalId carries the `stats:` daily-total prefix (the
+   * cumulative activity metrics). The sync layer stamps the externalId; this
+   * flag lets it pick the right shape (`stats:<type-tag>:<YYYY-MM-DD>` vs the
+   * `<anchor>:<fieldTag>` spot shape) without re-deriving the grain.
+   */
+  cumulativeDaily?: boolean;
 }
+
+/** HealthLog `SleepStage` values a Fitbit sleep stage maps onto. */
+export type FitbitSleepStage =
+  | "IN_BED"
+  | "AWAKE"
+  | "ASLEEP"
+  | "REM"
+  | "CORE"
+  | "DEEP";
 
 /**
  * Pull the first finite number out of a list of candidate value paths on a
@@ -748,4 +788,538 @@ export const FITBIT_FIELD_MAP: Record<
     filter: "daily_sleep_temperature_derivations",
     note: "overnight wrist-temp; confirm absolute-vs-baseline at build",
   },
+  // ── Activity bundle (W5) — daily cumulative ─────────────────────
+  steps: {
+    type: "ACTIVITY_STEPS",
+    unit: "steps",
+    path: "steps",
+    filter: "steps",
+    note: "daily total; stats: externalId overwrites on re-fetch; 0 is a valid rest day",
+  },
+  distance: {
+    type: "WALKING_RUNNING_DISTANCE",
+    unit: "m",
+    path: "distance",
+    filter: "distance",
+    note: "daily total metres; stats: externalId overwrites on re-fetch",
+  },
+  activeCalories: {
+    type: "ACTIVE_ENERGY_BURNED",
+    unit: "kcal",
+    path: "active-calories",
+    filter: "active_calories",
+    note: "ACTIVE portion only (NOT total caloriesOut); stats: externalId overwrites on re-fetch",
+  },
+  floors: {
+    type: "FLIGHTS_CLIMBED",
+    unit: "flights",
+    path: "floors",
+    filter: "floors",
+    note: "daily total floors; stats: externalId overwrites on re-fetch",
+  },
+  vo2Max: {
+    type: "VO2_MAX",
+    unit: "mL/(kg·min)",
+    path: "vo2-max",
+    filter: "vo2_max",
+    note: "daily latest-wins; daily-anchor externalId overwrites on re-fetch",
+  },
+  sleep: {
+    type: "SLEEP_DURATION",
+    unit: "minutes",
+    path: "sleep",
+    filter: "sleep",
+    note: "per-stage rows (IN_BED/AWAKE/REM/CORE/DEEP); measuredAt = stage END",
+  },
+  exercise: {
+    type: "Workout",
+    unit: "—",
+    path: "exercise",
+    filter: "exercise",
+    note: "exercise session → Workout row (NOT a Measurement); cross-source dedup at read time",
+  },
 };
+
+// ─── W5 mappers: activity (cumulative), sleep stages, workouts ──
+
+/** Finite + non-negative guard — cumulative metrics admit a legitimate 0. */
+function nonNegative(n: unknown): n is number {
+  return typeof n === "number" && Number.isFinite(n) && n >= 0;
+}
+
+/**
+ * Pull the first finite NON-negative number out of a list of candidate value
+ * paths. Unlike `firstNumber` (strictly positive), this admits a legitimate
+ * zero — a day of rest still records 0 steps / 0 floors / 0 active kcal, and
+ * dropping the zero would leave a hole the chart misreads as missing data.
+ */
+function firstNonNegativeNumber(
+  point: FitbitDataPoint,
+  paths: string[],
+): number | null {
+  for (const path of paths) {
+    const v = readPath(point, path);
+    if (nonNegative(v)) return v;
+  }
+  return null;
+}
+
+/**
+ * Map one daily cumulative-activity data point into a single Measurement
+ * reading. The externalId is the `stats:`-prefixed daily-total shape so a
+ * re-fetched day overwrites in place rather than minting a duplicate — the same
+ * overwrite contract the Apple-Health `stats:<HK>:<YYYY-MM-DD>` daily totals
+ * use. A zero is preserved (a rest day is real data, not a gap). `latestWins`
+ * (VO2 max) carries the same daily anchor; it is daily latest-wins rather than a
+ * running sum, but the per-day overwrite key is identical.
+ */
+function mapDailyCumulative(
+  point: FitbitDataPoint,
+  dataType: FitbitDataType,
+  spec: {
+    type: string;
+    unit: string;
+    fieldTag: string;
+    valuePaths: string[];
+    factor?: number;
+    /** VO2 max is daily latest-wins, not a running total — still one row/day. */
+    latestWins?: boolean;
+  },
+): FitbitMappedMeasurement[] {
+  // VO2 max is strictly positive; the running totals admit a legitimate zero.
+  let value = spec.latestWins
+    ? firstNumber(point, spec.valuePaths)
+    : firstNonNegativeNumber(point, spec.valuePaths);
+  if (value === null) return [];
+  if (spec.factor) value = value * spec.factor;
+  const dayKey = externalAnchor(point, dataType); // YYYY-MM-DD for a daily type
+  return [
+    {
+      type: spec.type,
+      value: round2(value),
+      unit: spec.unit,
+      measuredAt: resolveMeasuredAt(point, dataType, new Date()),
+      // `stats:<type-tag>:<YYYY-MM-DD>` — the sync layer reads `cumulativeDaily`
+      // to assemble the externalId, matching the Apple-Health daily-total shape.
+      fieldTag: `${spec.fieldTag}:${dayKey}`,
+      cumulativeDaily: true,
+    },
+  ];
+}
+
+export function mapSteps(point: FitbitDataPoint): FitbitMappedMeasurement[] {
+  const dt = FITBIT_DATA_TYPES.steps;
+  return mapDailyCumulative(point, dt, {
+    type: "ACTIVITY_STEPS",
+    unit: "steps",
+    fieldTag: "steps",
+    valuePaths: [...valuePaths(dt.filter, "count"), ...valuePaths(dt.filter, "steps")],
+  });
+}
+
+export function mapDistance(point: FitbitDataPoint): FitbitMappedMeasurement[] {
+  const dt = FITBIT_DATA_TYPES.distance;
+  // Google may report metres or kilometres; prefer the explicit-metres field,
+  // else convert km → m. Both pass the non-negative guard.
+  const meters = firstNonNegativeNumber(
+    point,
+    valuePaths(dt.filter, "meters"),
+  );
+  if (meters !== null) {
+    return [
+      {
+        type: "WALKING_RUNNING_DISTANCE",
+        value: round2(meters),
+        unit: "m",
+        measuredAt: resolveMeasuredAt(point, dt, new Date()),
+        fieldTag: `distance:${externalAnchor(point, dt)}`,
+        cumulativeDaily: true,
+      },
+    ];
+  }
+  return mapDailyCumulative(point, dt, {
+    type: "WALKING_RUNNING_DISTANCE",
+    unit: "m",
+    fieldTag: "distance",
+    valuePaths: valuePaths(dt.filter, "kilometers"),
+    factor: 1000,
+  });
+}
+
+export function mapActiveCalories(
+  point: FitbitDataPoint,
+): FitbitMappedMeasurement[] {
+  const dt = FITBIT_DATA_TYPES.activeCalories;
+  // ACTIVE energy only — NOT total caloriesOut (which folds in BMR). The
+  // candidate paths target the active-portion field explicitly.
+  return mapDailyCumulative(point, dt, {
+    type: "ACTIVE_ENERGY_BURNED",
+    unit: "kcal",
+    fieldTag: "active_calories",
+    valuePaths: [
+      ...valuePaths(dt.filter, "active_kilocalories"),
+      ...valuePaths(dt.filter, "kilocalories"),
+      ...valuePaths(dt.filter, "calories"),
+    ],
+  });
+}
+
+export function mapFloors(point: FitbitDataPoint): FitbitMappedMeasurement[] {
+  const dt = FITBIT_DATA_TYPES.floors;
+  return mapDailyCumulative(point, dt, {
+    type: "FLIGHTS_CLIMBED",
+    unit: "flights",
+    fieldTag: "floors",
+    valuePaths: [...valuePaths(dt.filter, "count"), ...valuePaths(dt.filter, "floors")],
+  });
+}
+
+export function mapVo2Max(point: FitbitDataPoint): FitbitMappedMeasurement[] {
+  const dt = FITBIT_DATA_TYPES.vo2Max;
+  return mapDailyCumulative(point, dt, {
+    type: "VO2_MAX",
+    unit: "mL/(kg·min)",
+    fieldTag: "vo2_max",
+    valuePaths: [
+      ...valuePaths(dt.filter, "milliliters_per_kilogram_per_minute"),
+      ...valuePaths(dt.filter, "value"),
+    ],
+    latestWins: true, // strictly positive, one daily reading; not a running sum
+  });
+}
+
+// ── Sleep ──────────────────────────────────────────────────────
+//
+// A Google Health sleep session carries a list of per-stage segments, each
+// with a stage label + a start + end. HealthLog stores one SLEEP_DURATION row
+// per stage with `measuredAt = stage END` (so the night-total + hypnogram
+// readers consume the same enum WHOOP / Apple write). The stage labels are
+// harmonised onto the shared `SleepStage` enum.
+
+/** Google Health sleep stage label → HealthLog `SleepStage`. */
+const FITBIT_SLEEP_STAGE_MAP: Record<string, FitbitSleepStage> = {
+  // Canonical Google Health stage names (snake / lower variants accepted).
+  in_bed: "IN_BED",
+  inbed: "IN_BED",
+  awake: "AWAKE",
+  wake: "AWAKE",
+  light: "CORE", // Fitbit "light" ↔ Apple "core" (same shallow-NREM band)
+  core: "CORE",
+  rem: "REM",
+  deep: "DEEP",
+  // Fitbit's classic (non-stages) sleep log uses asleep/restless/wake.
+  asleep: "ASLEEP",
+  restless: "AWAKE",
+} as const;
+
+/**
+ * Normalise a raw Google sleep-stage label to a `SleepStage`, or null for an
+ * unknown label (skipped rather than mis-bucketed).
+ */
+export function mapFitbitSleepStage(raw: unknown): FitbitSleepStage | null {
+  if (typeof raw !== "string") return null;
+  const key = raw.trim().toLowerCase().replace(/[\s-]+/g, "_");
+  return FITBIT_SLEEP_STAGE_MAP[key] ?? FITBIT_SLEEP_STAGE_MAP[key.replace(/_/g, "")] ?? null;
+}
+
+/** One sleep-stage segment pulled defensively off a Google sleep session. */
+interface FitbitSleepSegment {
+  stage: string;
+  startTime?: string;
+  endTime?: string;
+}
+
+/** Minutes between two ISO instants, or null if either is unparseable. */
+function minutesBetween(startIso?: string, endIso?: string): number | null {
+  if (!startIso || !endIso) return null;
+  const s = new Date(startIso).getTime();
+  const e = new Date(endIso).getTime();
+  if (Number.isNaN(s) || Number.isNaN(e) || e <= s) return null;
+  return (e - s) / 60_000;
+}
+
+/**
+ * Read the per-stage segments off a Google sleep `DataPoint`, tolerating the
+ * undocumented JSON shape. Candidate locations: `sleep.segments`,
+ * `sleep.stages`, `sleep.levels.data`, or a bare top-level `segments`/`stages`.
+ */
+function readSleepSegments(point: FitbitDataPoint): FitbitSleepSegment[] {
+  const candidates = [
+    readPath(point, "sleep.segments"),
+    readPath(point, "sleep.stages"),
+    readPath(point, "sleep.levels.data"),
+    readPath(point, "segments"),
+    readPath(point, "stages"),
+    readPath(point, "levels.data"),
+  ];
+  for (const c of candidates) {
+    if (!Array.isArray(c)) continue;
+    const out: FitbitSleepSegment[] = [];
+    for (const raw of c) {
+      if (!raw || typeof raw !== "object") continue;
+      const o = raw as Record<string, unknown>;
+      const stage =
+        (typeof o.stage === "string" && o.stage) ||
+        (typeof o.level === "string" && o.level) ||
+        (typeof o.type === "string" && o.type) ||
+        "";
+      const startTime =
+        (typeof o.startTime === "string" && o.startTime) ||
+        (typeof o.start_time === "string" && o.start_time) ||
+        (typeof o.dateTime === "string" && o.dateTime) ||
+        undefined;
+      const endTime =
+        (typeof o.endTime === "string" && o.endTime) ||
+        (typeof o.end_time === "string" && o.end_time) ||
+        undefined;
+      if (stage) out.push({ stage, startTime, endTime });
+    }
+    if (out.length > 0) return out;
+  }
+  return [];
+}
+
+/**
+ * The stable session anchor for a sleep `DataPoint`'s externalId. The session
+ * end (or start) ISO instant is unique per night, so per-stage rows key as
+ * `<session-anchor>:sleep_<stage>` — a re-scored night overwrites in place.
+ */
+function sleepSessionAnchor(point: FitbitDataPoint): string {
+  const end =
+    readPath(point, "sleep.endTime") ??
+    readPath(point, "sleep.end_time") ??
+    readPath(point, "endTime") ??
+    readPath(point, "end_time");
+  if (typeof end === "string") {
+    const d = new Date(end);
+    if (!Number.isNaN(d.getTime())) return d.toISOString();
+  }
+  const start =
+    readPath(point, "sleep.startTime") ??
+    readPath(point, "sleep.start_time") ??
+    readPath(point, "startTime");
+  if (typeof start === "string") {
+    const d = new Date(start);
+    if (!Number.isNaN(d.getTime())) return d.toISOString();
+  }
+  return new Date(0).toISOString();
+}
+
+/**
+ * Map one Google sleep session into per-stage `SLEEP_DURATION` rows. Each
+ * stage's segments are summed into one row carrying the stage's `SleepStage`,
+ * `measuredAt = the latest segment END for that stage`, and a stage-scoped
+ * fieldTag so the (up to six) stage rows for one night stay distinct under the
+ * dedup key. Unknown stage labels are skipped; a session with no parseable
+ * segment yields nothing.
+ */
+export function mapSleepSession(
+  point: FitbitDataPoint,
+): FitbitMappedMeasurement[] {
+  const segments = readSleepSegments(point);
+  if (segments.length === 0) return [];
+
+  // Accumulate per-stage minutes + track the latest end instant for each stage.
+  const perStage = new Map<
+    FitbitSleepStage,
+    { minutes: number; lastEnd: Date }
+  >();
+  for (const seg of segments) {
+    const stage = mapFitbitSleepStage(seg.stage);
+    if (!stage) continue;
+    const mins = minutesBetween(seg.startTime, seg.endTime);
+    if (mins === null) continue;
+    const end = new Date(seg.endTime as string);
+    const prev = perStage.get(stage);
+    if (prev) {
+      prev.minutes += mins;
+      if (end > prev.lastEnd) prev.lastEnd = end;
+    } else {
+      perStage.set(stage, { minutes: mins, lastEnd: end });
+    }
+  }
+
+  const anchor = sleepSessionAnchor(point);
+  const out: FitbitMappedMeasurement[] = [];
+  for (const [stage, agg] of perStage) {
+    if (!(agg.minutes > 0)) continue;
+    out.push({
+      type: "SLEEP_DURATION",
+      value: round2(agg.minutes),
+      unit: "minutes",
+      measuredAt: agg.lastEnd,
+      fieldTag: `${anchor}:sleep_${stage.toLowerCase()}`,
+      sleepStage: stage,
+    });
+  }
+  return out;
+}
+
+// ── Workouts (exercise sessions) ───────────────────────────────
+
+/**
+ * Google Health exercise-activity-type → HealthLog `WorkoutSportType`. Unknown
+ * types fall through to a generic label; the column is free-text so an unmapped
+ * type still persists (just not under a canonical sport bucket).
+ */
+const FITBIT_EXERCISE_TYPE_MAP: Record<string, string> = {
+  walk: "walking",
+  walking: "walking",
+  run: "running",
+  running: "running",
+  treadmill: "running",
+  bike: "cycling",
+  biking: "cycling",
+  cycling: "cycling",
+  spinning: "cycling",
+  hike: "hiking",
+  hiking: "hiking",
+  swim: "swimming",
+  swimming: "swimming",
+  rowing: "rowing",
+  elliptical: "elliptical",
+  stairclimber: "stairClimber",
+  yoga: "yoga",
+  pilates: "mindAndBody",
+  weights: "strength",
+  strength: "strength",
+  workout: "strength",
+  hiit: "hiit",
+  interval_workout: "hiit",
+  dance: "dance",
+  golf: "golf",
+  tennis: "tennis",
+  basketball: "basketball",
+  soccer: "soccer",
+  bootcamp: "crossTraining",
+  circuit_training: "crossTraining",
+  sport: "mixedCardio",
+} as const;
+
+/** Resolve a Google exercise activity type to a canonical sport label. */
+export function mapFitbitSportType(raw: unknown): string {
+  if (typeof raw !== "string" || raw.trim() === "") return "other";
+  const key = raw.trim().toLowerCase().replace(/[\s-]+/g, "_");
+  return (
+    FITBIT_EXERCISE_TYPE_MAP[key] ??
+    FITBIT_EXERCISE_TYPE_MAP[key.replace(/_/g, "")] ??
+    "other"
+  );
+}
+
+/** One mapped Fitbit exercise session destined for a `Workout` row. */
+export interface FitbitMappedWorkout {
+  externalId: string;
+  sportType: string;
+  startedAt: Date;
+  endedAt: Date;
+  durationSec: number;
+  totalEnergyKcal: number | null;
+  totalDistanceM: number | null;
+  avgHeartRate: number | null;
+  maxHeartRate: number | null;
+  minHeartRate: number | null;
+}
+
+/** Read a finite number off a list of candidate paths (any sign), or null. */
+function readNumber(point: FitbitDataPoint, paths: string[]): number | null {
+  for (const path of paths) {
+    const v = readPath(point, path);
+    if (typeof v === "number" && Number.isFinite(v)) return v;
+  }
+  return null;
+}
+
+/** Read an ISO/string instant off a list of candidate paths, or null. */
+function readInstant(point: FitbitDataPoint, paths: string[]): Date | null {
+  for (const path of paths) {
+    const v = readPath(point, path);
+    if (typeof v === "string") {
+      const d = new Date(v);
+      if (!Number.isNaN(d.getTime())) return d;
+    }
+  }
+  return null;
+}
+
+/**
+ * Map one Google exercise session `DataPoint` into a `Workout` shape. Returns
+ * null when there is no usable start/end (a session with no time span is not a
+ * workout). The externalId anchors on the session id when present, else on the
+ * start instant, so a re-fetch overwrites the same `Workout` row in place.
+ * Energy is the active session energy in kcal; HR fields are optional.
+ */
+export function mapWorkout(point: FitbitDataPoint): FitbitMappedWorkout | null {
+  const f = FITBIT_DATA_TYPES.exercise.filter;
+  const startedAt = readInstant(point, [
+    `${f}.startTime`,
+    `${f}.start_time`,
+    `${f}.sample_time.physical_time`,
+    "startTime",
+    "start_time",
+  ]);
+  const endedAt = readInstant(point, [
+    `${f}.endTime`,
+    `${f}.end_time`,
+    "endTime",
+    "end_time",
+  ]);
+  if (!startedAt || !endedAt || endedAt <= startedAt) return null;
+
+  const durationSec = Math.round((endedAt.getTime() - startedAt.getTime()) / 1000);
+
+  const sessionId =
+    (typeof readPath(point, `${f}.session_id`) === "string" &&
+      (readPath(point, `${f}.session_id`) as string)) ||
+    (typeof readPath(point, `${f}.id`) === "string" &&
+      (readPath(point, `${f}.id`) as string)) ||
+    (typeof readPath(point, "name") === "string" &&
+      (readPath(point, "name") as string)) ||
+    null;
+  const externalId = sessionId ?? `exercise:${startedAt.toISOString()}`;
+
+  const sportRaw =
+    readPath(point, `${f}.activity_type`) ??
+    readPath(point, `${f}.exercise_type`) ??
+    readPath(point, `${f}.type`) ??
+    readPath(point, "activityType");
+
+  const energyKcal = readNumber(point, [
+    `${f}.active_kilocalories`,
+    `${f}.calories`,
+    `${f}.energy.kilocalories`,
+  ]);
+  const distanceM = readNumber(point, [
+    `${f}.distance.meters`,
+    `${f}.distance_meters`,
+    `${f}.distance`,
+  ]);
+  const avgHr = readNumber(point, [
+    `${f}.average_heart_rate.beats_per_minute`,
+    `${f}.average_heart_rate`,
+    `${f}.heart_rate.average`,
+  ]);
+  const maxHr = readNumber(point, [
+    `${f}.maximum_heart_rate.beats_per_minute`,
+    `${f}.max_heart_rate`,
+    `${f}.heart_rate.maximum`,
+  ]);
+  const minHr = readNumber(point, [
+    `${f}.minimum_heart_rate.beats_per_minute`,
+    `${f}.min_heart_rate`,
+    `${f}.heart_rate.minimum`,
+  ]);
+
+  return {
+    externalId,
+    sportType: mapFitbitSportType(sportRaw),
+    startedAt,
+    endedAt,
+    durationSec,
+    totalEnergyKcal: energyKcal !== null ? Math.round(energyKcal) : null,
+    totalDistanceM: distanceM !== null && distanceM >= 0 ? round2(distanceM) : null,
+    avgHeartRate: avgHr !== null && avgHr > 0 ? Math.round(avgHr) : null,
+    maxHeartRate: maxHr !== null && maxHr > 0 ? Math.round(maxHr) : null,
+    minHeartRate: minHr !== null && minHr > 0 ? Math.round(minHr) : null,
+  };
+}

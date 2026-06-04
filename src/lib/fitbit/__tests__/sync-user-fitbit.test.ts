@@ -16,6 +16,9 @@ const {
   recordSyncFailure,
   isReauthRequired,
   syncUserMetrics,
+  syncUserActivity,
+  syncUserSleep,
+  syncUserWorkout,
 } = vi.hoisted(() => ({
   recordSyncSuccess: vi.fn<(...a: unknown[]) => Promise<void>>(async () => {}),
   recordSyncFailure: vi.fn<(...a: unknown[]) => Promise<void>>(async () => {}),
@@ -23,6 +26,9 @@ const {
     async () => false,
   ),
   syncUserMetrics: vi.fn<(...a: unknown[]) => Promise<number>>(),
+  syncUserActivity: vi.fn<(...a: unknown[]) => Promise<number>>(),
+  syncUserSleep: vi.fn<(...a: unknown[]) => Promise<number>>(),
+  syncUserWorkout: vi.fn<(...a: unknown[]) => Promise<number>>(),
 }));
 
 vi.mock("@/lib/db", () => ({ prisma: {} }));
@@ -50,6 +56,15 @@ vi.mock("@/lib/insights/comprehensive-generate", () => ({
 vi.mock("../sync-metrics", () => ({
   syncUserMetrics: (...a: unknown[]) => syncUserMetrics(...a),
 }));
+vi.mock("../sync-activity", () => ({
+  syncUserActivity: (...a: unknown[]) => syncUserActivity(...a),
+}));
+vi.mock("../sync-sleep", () => ({
+  syncUserSleep: (...a: unknown[]) => syncUserSleep(...a),
+}));
+vi.mock("../sync-workout", () => ({
+  syncUserWorkout: (...a: unknown[]) => syncUserWorkout(...a),
+}));
 
 import { handleCollectionFetchError, syncUserFitbit } from "../sync";
 import { FitbitApiError } from "../response-classifier";
@@ -71,11 +86,22 @@ async function softSkip403(...args: unknown[]): Promise<number> {
 beforeEach(() => {
   vi.clearAllMocks();
   isReauthRequired.mockResolvedValue(false);
+  // The W5 resources default to a quiet success (nothing new) so a test that
+  // exercises only the metrics resource doesn't trip the all-soft-skipped guard.
+  syncUserActivity.mockResolvedValue(0);
+  syncUserSleep.mockResolvedValue(0);
+  syncUserWorkout.mockResolvedValue(0);
 });
 
 describe("syncUserFitbit — all-403 looks-healthy guard", () => {
-  it("does NOT stamp success when the resource soft-skipped and nothing imported", async () => {
+  it("does NOT stamp success when EVERY resource soft-skipped and nothing imported", async () => {
+    // A genuine grant-revoke 403s every Restricted bundle — each resource
+    // soft-skips. Only when ALL of them soft-skip and nothing imported does the
+    // guard refuse to stamp success.
     syncUserMetrics.mockImplementation(softSkip403);
+    syncUserActivity.mockImplementation(softSkip403);
+    syncUserSleep.mockImplementation(softSkip403);
+    syncUserWorkout.mockImplementation(softSkip403);
 
     const total = await syncUserFitbit("user1");
 
@@ -86,8 +112,22 @@ describe("syncUserFitbit — all-403 looks-healthy guard", () => {
     expect(recordSyncFailure).not.toHaveBeenCalled();
   });
 
-  it("stamps success on a cycle that imported rows", async () => {
+  it("stamps success when at least one resource synced even though others soft-skip", async () => {
+    // A partial grant: metrics imports, the rest 403 (bundles not granted).
     syncUserMetrics.mockResolvedValue(5);
+    syncUserActivity.mockImplementation(softSkip403);
+    syncUserSleep.mockImplementation(softSkip403);
+    syncUserWorkout.mockImplementation(softSkip403);
+
+    const total = await syncUserFitbit("user1");
+
+    expect(total).toBe(5);
+    expect(recordSyncSuccess).toHaveBeenCalledWith("user1", "fitbit");
+  });
+
+  it("stamps success on a cycle that imported rows", async () => {
+    syncUserMetrics.mockResolvedValue(3);
+    syncUserActivity.mockResolvedValue(2);
 
     const total = await syncUserFitbit("user1");
 

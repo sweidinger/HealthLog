@@ -8,12 +8,21 @@ import {
   fetchDataPoints,
   fetchProfile,
   getAuthorizationUrl,
+  mapActiveCalories,
   mapBodyFat,
+  mapDistance,
+  mapFitbitSleepStage,
+  mapFitbitSportType,
+  mapFloors,
   mapHeartRateVariability,
   mapHeightCm,
   mapOxygenSaturation,
   mapRestingHeartRate,
+  mapSleepSession,
+  mapSteps,
+  mapVo2Max,
   mapWeight,
+  mapWorkout,
   refreshAccessToken,
   resolveFitbitUserId,
 } from "../client";
@@ -324,5 +333,204 @@ describe("FITBIT_FIELD_MAP ↔ FITBIT_DATA_TYPES casing parity", () => {
       expect(dt.path).not.toContain("_");
       expect(dt.filter).not.toContain("-");
     }
+  });
+});
+
+describe("activity mappers (cumulative daily)", () => {
+  const day = { year: 2026, month: 5, day: 10 };
+
+  it("maps steps with a stats:-shaped daily externalId and preserves a zero", () => {
+    const out = mapSteps({ steps: { count: 8421, date: day } });
+    expect(out).toHaveLength(1);
+    expect(out[0]).toMatchObject({
+      type: "ACTIVITY_STEPS",
+      value: 8421,
+      unit: "steps",
+      cumulativeDaily: true,
+    });
+    // fieldTag carries <tag>:<YYYY-MM-DD>; the sync layer prefixes `stats:`.
+    expect(out[0]!.fieldTag).toBe("steps:2026-05-10");
+    // measuredAt anchored at the civil day (noon UTC) so it day-keys cleanly.
+    expect(out[0]!.measuredAt.toISOString()).toBe("2026-05-10T12:00:00.000Z");
+
+    // A rest day records 0 steps — that is real data, not a gap.
+    const rest = mapSteps({ steps: { count: 0, date: day } });
+    expect(rest).toHaveLength(1);
+    expect(rest[0]!.value).toBe(0);
+  });
+
+  it("maps distance in metres, converting km → m when reported in km", () => {
+    expect(mapDistance({ distance: { meters: 6200, date: day } })[0]).toMatchObject({
+      type: "WALKING_RUNNING_DISTANCE",
+      value: 6200,
+      unit: "m",
+    });
+    // km path multiplies by 1000.
+    expect(
+      mapDistance({ distance: { kilometers: 6.2, date: day } })[0]!.value,
+    ).toBe(6200);
+  });
+
+  it("maps the ACTIVE-calories portion into ACTIVE_ENERGY_BURNED", () => {
+    const out = mapActiveCalories({
+      active_calories: { active_kilocalories: 540, date: day },
+    });
+    expect(out[0]).toMatchObject({
+      type: "ACTIVE_ENERGY_BURNED",
+      value: 540,
+      unit: "kcal",
+    });
+  });
+
+  it("maps floors and preserves a zero", () => {
+    expect(mapFloors({ floors: { count: 12, date: day } })[0]).toMatchObject({
+      type: "FLIGHTS_CLIMBED",
+      value: 12,
+      unit: "flights",
+    });
+    expect(mapFloors({ floors: { count: 0, date: day } })[0]!.value).toBe(0);
+  });
+
+  it("maps VO2 max (strictly positive, daily latest-wins) and drops a zero", () => {
+    const out = mapVo2Max({
+      vo2_max: { milliliters_per_kilogram_per_minute: 47.3, date: day },
+    });
+    expect(out[0]).toMatchObject({ type: "VO2_MAX", value: 47.3 });
+    // VO2 max of 0 is garbage — dropped (unlike the running totals).
+    expect(
+      mapVo2Max({ vo2_max: { milliliters_per_kilogram_per_minute: 0, date: day } }),
+    ).toHaveLength(0);
+  });
+});
+
+describe("sleep-stage mapping", () => {
+  it("harmonises Google stage labels onto the shared SleepStage enum", () => {
+    expect(mapFitbitSleepStage("light")).toBe("CORE"); // Fitbit light ↔ Apple core
+    expect(mapFitbitSleepStage("deep")).toBe("DEEP");
+    expect(mapFitbitSleepStage("rem")).toBe("REM");
+    expect(mapFitbitSleepStage("awake")).toBe("AWAKE");
+    expect(mapFitbitSleepStage("wake")).toBe("AWAKE");
+    expect(mapFitbitSleepStage("restless")).toBe("AWAKE");
+    expect(mapFitbitSleepStage("in-bed")).toBe("IN_BED");
+    expect(mapFitbitSleepStage("asleep")).toBe("ASLEEP");
+    // Unknown / non-string → null (skipped, never mis-bucketed).
+    expect(mapFitbitSleepStage("snoring")).toBeNull();
+    expect(mapFitbitSleepStage(42)).toBeNull();
+  });
+
+  it("maps a session into per-stage SLEEP_DURATION rows with measuredAt = stage END", () => {
+    const session = {
+      sleep: {
+        startTime: "2026-05-10T22:00:00.000Z",
+        endTime: "2026-05-11T06:00:00.000Z",
+        segments: [
+          {
+            stage: "light",
+            startTime: "2026-05-10T22:00:00.000Z",
+            endTime: "2026-05-10T22:30:00.000Z",
+          },
+          {
+            stage: "deep",
+            startTime: "2026-05-10T22:30:00.000Z",
+            endTime: "2026-05-10T23:30:00.000Z",
+          },
+          {
+            stage: "light",
+            startTime: "2026-05-10T23:30:00.000Z",
+            endTime: "2026-05-11T00:15:00.000Z",
+          },
+          {
+            stage: "rem",
+            startTime: "2026-05-11T00:15:00.000Z",
+            endTime: "2026-05-11T01:00:00.000Z",
+          },
+        ],
+      },
+    };
+    const out = mapSleepSession(session);
+    const byStage = Object.fromEntries(out.map((m) => [m.sleepStage, m]));
+
+    // CORE = the two light segments summed (30 + 45 = 75 min).
+    expect(byStage.CORE!.value).toBe(75);
+    expect(byStage.CORE!.type).toBe("SLEEP_DURATION");
+    expect(byStage.CORE!.unit).toBe("minutes");
+    // measuredAt is the LATEST end for that stage (the second light segment).
+    expect(byStage.CORE!.measuredAt.toISOString()).toBe(
+      "2026-05-11T00:15:00.000Z",
+    );
+    expect(byStage.DEEP!.value).toBe(60);
+    expect(byStage.REM!.value).toBe(45);
+
+    // externalId field-tag is session-anchored so a re-score overwrites in place.
+    expect(byStage.DEEP!.fieldTag).toBe(
+      "2026-05-11T06:00:00.000Z:sleep_deep",
+    );
+  });
+
+  it("yields nothing for a session with no parseable segments", () => {
+    expect(mapSleepSession({ sleep: {} })).toHaveLength(0);
+    expect(mapSleepSession({})).toHaveLength(0);
+  });
+});
+
+describe("workout mapping", () => {
+  it("maps an exercise session into a Workout shape with a stable externalId", () => {
+    const w = mapWorkout({
+      exercise: {
+        session_id: "ex-123",
+        activity_type: "run",
+        startTime: "2026-05-10T07:00:00.000Z",
+        endTime: "2026-05-10T07:45:00.000Z",
+        active_kilocalories: 410,
+        distance: { meters: 7800 },
+        average_heart_rate: { beats_per_minute: 148 },
+        maximum_heart_rate: { beats_per_minute: 172 },
+      },
+    });
+    expect(w).not.toBeNull();
+    expect(w).toMatchObject({
+      externalId: "ex-123",
+      sportType: "running",
+      durationSec: 45 * 60,
+      totalEnergyKcal: 410,
+      totalDistanceM: 7800,
+      avgHeartRate: 148,
+      maxHeartRate: 172,
+    });
+    expect(w!.startedAt.toISOString()).toBe("2026-05-10T07:00:00.000Z");
+  });
+
+  it("falls back to a start-anchored externalId + 'other' sport when fields are absent", () => {
+    const w = mapWorkout({
+      exercise: {
+        startTime: "2026-05-10T07:00:00.000Z",
+        endTime: "2026-05-10T07:30:00.000Z",
+      },
+    });
+    expect(w!.externalId).toBe("exercise:2026-05-10T07:00:00.000Z");
+    expect(w!.sportType).toBe("other");
+    expect(w!.totalEnergyKcal).toBeNull();
+    expect(w!.avgHeartRate).toBeNull();
+  });
+
+  it("returns null for a session with no usable time span", () => {
+    expect(mapWorkout({ exercise: { startTime: "2026-05-10T07:00:00.000Z" } })).toBeNull();
+    expect(
+      mapWorkout({
+        exercise: {
+          startTime: "2026-05-10T07:30:00.000Z",
+          endTime: "2026-05-10T07:00:00.000Z", // end before start
+        },
+      }),
+    ).toBeNull();
+    expect(mapWorkout({})).toBeNull();
+  });
+
+  it("resolves Google activity types to canonical sport labels", () => {
+    expect(mapFitbitSportType("Walk")).toBe("walking");
+    expect(mapFitbitSportType("biking")).toBe("cycling");
+    expect(mapFitbitSportType("weights")).toBe("strength");
+    expect(mapFitbitSportType("unknown-sport")).toBe("other");
+    expect(mapFitbitSportType("")).toBe("other");
   });
 });

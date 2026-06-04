@@ -44,16 +44,54 @@ all positive — a zero/NaN is a garbage/empty reading and is dropped).
 `basal-body-temperature` → `BODY_TEMPERATURE`. These light up for free when
 Google ships the data types.
 
-## Later waves (W5)
+## Activity bundle (W5) — daily cumulative
 
-`steps` → `ACTIVITY_STEPS`, `distance` → `WALKING_RUNNING_DISTANCE`,
-`total-calories` → `ACTIVE_ENERGY_BURNED`, `floors` → `FLIGHTS_CLIMBED`,
-`vo2-max`/`run-vo2-max` → `VO2_MAX`, `sleep` → per-stage `SLEEP_DURATION`,
-`exercise` → `Workout` rows. `active-zone-minutes` is **skipped** at launch (no
-slot; not blocking).
+Scope: `googlehealth.activity_and_fitness.readonly`. Each is a per-day summary
+(one value per calendar day). The externalId carries the `stats:` daily-total
+prefix — `stats:<fieldTag>:<YYYY-MM-DD>` — so a re-fetched day **overwrites** in
+place rather than minting a duplicate, matching the Apple-Health
+`stats:<HK>:<YYYY-MM-DD>` daily-total overwrite contract. The running totals
+(steps/distance/floors/active-energy) **preserve a 0** (a rest day is real data,
+not a gap); VO2 max stays strictly positive (daily latest-wins).
+
+| Data type (path / filter) | MeasurementType | Unit | fieldTag | Note |
+|---|---|---|---|---|
+| `steps` / `steps` | `ACTIVITY_STEPS` | steps | `steps` | daily total; 0 valid |
+| `distance` / `distance` | `WALKING_RUNNING_DISTANCE` | m | `distance` | metres (km → m when reported in km) |
+| `active-calories` / `active_calories` | `ACTIVE_ENERGY_BURNED` | kcal | `active_calories` | **ACTIVE portion only** — NOT total caloriesOut (which folds in BMR) |
+| `floors` / `floors` | `FLIGHTS_CLIMBED` | flights | `floors` | daily total; 0 valid |
+| `vo2-max` / `vo2_max` | `VO2_MAX` | mL/(kg·min) | `vo2_max` | daily latest-wins; strictly positive |
+
+## Sleep bundle (W5)
+
+Scope: `googlehealth.sleep.readonly`. A sleep session carries per-stage segments
+(stage label + start + end). HealthLog stores one `SLEEP_DURATION` row per stage
+(summed minutes), `measuredAt = the stage's latest END instant`, harmonised onto
+the shared `SleepStage` enum the night-total + hypnogram readers consume.
+externalId = `<session-anchor>:sleep_<stage>` (session end ISO instant), so a
+re-scored night overwrites in place. Stage map: `light → CORE` (Fitbit "light" ↔
+Apple "core" shallow-NREM band), `deep → DEEP`, `rem → REM`, `awake`/`wake`/
+`restless → AWAKE`, `in_bed → IN_BED`, classic `asleep → ASLEEP`. Unknown stage
+labels are skipped, not mis-bucketed.
+
+## Exercise bundle (W5) — Workouts
+
+Scope: `googlehealth.activity_and_fitness.readonly`. Each exercise session → one
+`Workout` row (NOT a Measurement), keyed `(userId, source: "FITBIT",
+externalId)` where externalId is the session id (or `exercise:<startISO>` when
+absent). Fields: sportType (Google activity type → canonical `WorkoutSportType`,
+`other` fallback), startedAt/endedAt, durationSec, totalEnergyKcal (active
+session energy), totalDistanceM, avg/max/min HR (optional). A Fitbit run and the
+same run via Apple Health / WHOOP stay distinct rows; the read-time
+`pickCanonicalWorkoutRows` picker collapses the cross-source twin (FITBIT ranks
+just below WHOOP in the default ladder). `active-zone-minutes` is **skipped** at
+launch (no slot; not blocking).
 
 ## Idempotency
 
-`(userId, type, source: "FITBIT", externalId)` unique. `externalId =
-<anchor>:<fieldTag>` — a re-fetch of the same window (daily summaries re-roll
-after the fact, so the incremental overlap is 24 h) overwrites in place.
+`(userId, type, source: "FITBIT", externalId)` unique. Spot/daily metric rows:
+`externalId = <anchor>:<fieldTag>`. Daily cumulative activity rows:
+`externalId = stats:<fieldTag>:<YYYY-MM-DD>` (Apple-Health overwrite shape).
+Workouts: `(userId, source: "FITBIT", externalId)` on the `Workout` table. A
+re-fetch of the same window (daily summaries re-roll after the fact, so the
+incremental overlap is 24 h) overwrites in place.

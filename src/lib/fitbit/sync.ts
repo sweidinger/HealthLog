@@ -214,6 +214,12 @@ export interface FitbitMeasurementUpsert {
   unit: string;
   measuredAt: Date;
   externalId: string;
+  /**
+   * Per-stage sleep rows carry the `SleepStage` axis so the (up to six) stage
+   * rows for one night stay distinct under the dedup key; every other row omits
+   * it (null). W5 (sleep) is the only producer.
+   */
+  sleepStage?: "IN_BED" | "AWAKE" | "ASLEEP" | "REM" | "CORE" | "DEEP" | null;
 }
 
 /**
@@ -255,11 +261,13 @@ export async function upsertFitbitMeasurements(
           unit: r.unit,
           measuredAt: r.measuredAt,
           externalId: r.externalId,
+          sleepStage: r.sleepStage ?? null,
         },
         update: {
           value: r.value,
           unit: r.unit,
           measuredAt: r.measuredAt,
+          sleepStage: r.sleepStage ?? null,
           // Surface the server-side mutation to the iOS LWW reconciler.
           syncVersion: { increment: 1 },
         },
@@ -310,8 +318,9 @@ export async function markSynced(userId: string): Promise<void> {
  * Parks immediately when the connection is at `error_reauth` (the user must
  * reconnect first) — returns 0, matching the WHOOP / Withings no-op contract.
  *
- * W3 wires the health-metrics resource; activity / sleep / workout join the
- * resource list in W5.
+ * Resources: health-metrics (W3), daily-cumulative activity, per-stage sleep,
+ * and exercise workouts (W5). Each runs independently so a per-resource 403
+ * (a Restricted bundle the user did not grant) soft-skips only that resource.
  */
 export async function syncUserFitbit(
   userId: string,
@@ -324,9 +333,20 @@ export async function syncUserFitbit(
     return 0;
   }
 
-  const { syncUserMetrics } = await import("./sync-metrics");
+  const [{ syncUserMetrics }, { syncUserActivity }, { syncUserSleep }, { syncUserWorkout }] =
+    await Promise.all([
+      import("./sync-metrics"),
+      import("./sync-activity"),
+      import("./sync-sleep"),
+      import("./sync-workout"),
+    ]);
 
-  const resources = [syncUserMetrics];
+  const resources = [
+    syncUserMetrics,
+    syncUserActivity,
+    syncUserSleep,
+    syncUserWorkout,
+  ];
 
   const tracker: SoftSkipTracker = { count: 0 };
   let total = 0;
