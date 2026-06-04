@@ -1528,7 +1528,7 @@
       "feedbackThanks": "Merci pour ton retour",
       "feedbackConfirmed": "Retour enregistré",
       "feedbackAlreadyRated": "Déjà noté",
-      "feedbackError": "Impossible d’enregistrer ton retour. Réessaie.",
+      "feedbackError": "Impossible d’enregistrer votre retour. Réessayez.",
       "confidence": "Confiance",
       "confidenceAria": "Confiance : {value} sur 100",
       "confidenceHigh": "Confiance élevée",
