@@ -300,7 +300,10 @@ async function lookupIpLocationOnline(ip: string): Promise<string | null> {
           Accept: "application/json",
         },
       },
-      { timeoutMs: 3_000 },
+      // v1.11.2 — the lookup URL comes from the operator IP_GEO_LOOKUP_URL env;
+      // pin the connect-time DNS check so it can't be pointed at a private /
+      // metadata address (SSRF/rebinding).
+      { timeoutMs: 3_000, requirePublicHost: true },
     );
     if (!res.ok) return null;
 

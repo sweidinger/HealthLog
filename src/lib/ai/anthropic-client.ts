@@ -54,7 +54,9 @@ export class AnthropicClient implements AIProvider {
         }),
       },
       // 60 s ceiling — see openai-client.ts for the rationale.
-      { timeoutMs: 60_000 },
+      // v1.11.2 — base URL is user/admin-overridable; pin the connect-time DNS
+      // check so a private/metadata address is rejected (SSRF/rebinding).
+      { timeoutMs: 60_000, requirePublicHost: true },
     );
 
     if (!res.ok) {
