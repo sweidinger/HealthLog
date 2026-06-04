@@ -195,6 +195,35 @@ describe("redactSecrets", () => {
         "/api/withings/auth/callback",
       );
     });
+
+    // v1.11.0 (Epic C, C6) — the raw `hls_` clinician share token rides as
+    // the trailing path segment of `/c/<token>`. It must be scrubbed from
+    // `http.path` / `http.route` before the Wide Event leaves the process.
+    it("registers the clinician share-view prefix in PATH_SECRET_PATHS", () => {
+      expect(PATH_SECRET_PATHS.map((entry) => entry.prefix)).toContain("/c/");
+    });
+
+    it("redacts the share token in the `/c/<token>` path", () => {
+      expect(
+        redactSecrets(
+          "/c/hls_0123456789abcdef0123456789abcdef0123456789abcdef",
+        ),
+      ).toBe("/c/[REDACTED]");
+    });
+
+    it("redacts the share token in an absolute URL form", () => {
+      expect(
+        redactSecrets(
+          "https://app.healthlog.dev/c/hls_0123456789abcdef0123456789abcdef0123456789abcdef",
+        ),
+      ).toBe("https://app.healthlog.dev/c/[REDACTED]");
+    });
+
+    it("redacts the share token even with a trailing query string", () => {
+      expect(redactSecrets("/c/hls_deadbeef?print=1")).toBe(
+        "/c/[REDACTED]?print=1",
+      );
+    });
   });
 });
 

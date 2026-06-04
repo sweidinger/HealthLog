@@ -1,5 +1,21 @@
 # Changelog
 
+## [1.11.0] — 2026-06-04 — WHOOP, a longitudinal coach, and a clinician-grade record
+
+A multi-feature milestone across three fronts: a second connected provider, deeper Insights, and a shareable clinical record.
+
+### Added
+
+- **WHOOP integration.** Connect a WHOOP account with your own developer keys to bring its recovery, day- and workout-strain, sleep-performance, HRV (RMSSD), and energy readings into HealthLog alongside Apple Health and Withings — synced on a schedule and via signed webhooks, each value kept distinct by its source so it never overwrites a reading from another device.
+- **A longitudinal Insights coach.** A weekly/monthly narrative summarises what changed over the period and the likely contributing factors (descriptive, never causal); the Coach now carries a rolling profile of your recent baselines and trends; and a short-horizon trajectory projection shows where a metric is heading with an honest, widening confidence band — shown only when there is enough history to mean something.
+- **A clinician-grade health record.** A read-only FHIR REST API (`GET /api/fhir/*`) serves your data as standard FHIR R4 resources, and you can mint a scoped, time-limited, revocable share link that opens a clean read-only clinician view — no account needed. Wellness figures stay fenced off from the clinical ones with a plain "not a clinical assessment" note.
+- **More resilient AI generation.** A durable provider-health record skips a known-bad credential instead of failing every run and surfaces an expired credential proactively, with a local model as a guaranteed fallback.
+
+### Known limitations (planned follow-ups)
+
+- When two sources supply the same standard vital (e.g. WHOOP and an Apple Watch both report resting heart rate), both readings may currently appear for a day until a source-aware aggregation update resolves them to your preferred source. WHOOP's own scores are unaffected; a note explains this on the WHOOP card.
+- The coach reflects your rolling health profile and trajectory; full conversation-summary memory and saved personal facts are a later refinement.
+
 ## [1.10.4] — 2026-06-03 — Strain honesty + six-minute-walk caveat
 
 ### Changed

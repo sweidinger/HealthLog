@@ -30,6 +30,20 @@ step 2 is redundant in normal Coolify flow. It's listed explicitly for
 the manual case so an operator can verify the migration result before
 flipping traffic.
 
+### v1.11.0 notes
+
+Migrations `0110`–`0114` are additive (new tables / columns for the
+WHOOP provider hub, the longitudinal coach, and the clinician FHIR
+record). They require no special steps — `prisma migrate deploy` runs
+them in order on boot like any other.
+
+WHOOP introduces two optional instance env vars, `WHOOP_REDIRECT_URI`
+and `WHOOP_WEBHOOK_SECRET` (HMAC secret for WHOOP webhook signature
+verification). Per-user WHOOP client id/secret live in Settings, not
+in the environment. See `docs/integrations/whoop.md`. Add the two vars
+to the compose `environment:` whitelist if you set them — vars not on
+the whitelist never reach the container.
+
 ### What goes wrong if you reverse it
 
 If the new app container starts before migrations run, the legacy

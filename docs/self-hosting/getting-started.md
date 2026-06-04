@@ -151,6 +151,7 @@ NEXT_PUBLIC_DASHBOARD_SNAPSHOT=false pnpm build
 | Off-host encrypted backups to S3/R2/B2 | `docs/ops/backup-restore.md` |
 | Encryption-key rotation procedure | `docs/ops/encryption-key-rotation.md` |
 | Withings device sync | `docs/integrations/withings.md` |
+| WHOOP device sync (per-user BYO-keys) | `docs/integrations/whoop.md` |
 | Apple Health `export.zip` import | `docs/integrations/apple-health.md` |
 | AI provider setup (OpenAI / Anthropic / local / ChatGPT OAuth) | `docs/integrations/ai-providers.md` |
 

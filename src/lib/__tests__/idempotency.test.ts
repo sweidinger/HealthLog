@@ -287,6 +287,7 @@ describe("withIdempotency body-content exclusion (P12)", () => {
   it.each([
     ["hlk_ access token", '{"data":{"token":"hlk_abc123"},"error":null}'],
     ["hlr_ refresh token", '{"data":{"refresh":"hlr_xyz789"},"error":null}'],
+    ["hls_ share-link token", '{"data":{"link":"hls_def456"},"error":null}'],
     ["sk- OpenAI key", '{"data":{"echoed":"sk-1234567890"},"error":null}'],
     [
       "sk-ant- Anthropic key",

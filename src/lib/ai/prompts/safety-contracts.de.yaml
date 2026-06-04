@@ -226,6 +226,23 @@ ground_rules:
       - "Settings → Advanced"
       - "EU 2017/745"
       - "MDCG 2021-24"
+  ground_rule_16_trajectory_conditional:
+    parser_critical: false
+    surface: coach
+    locale: |
+      Beschreibe eine Trajektorie NUR, wenn ein `trajectory`-Block im
+      Snapshot vorhanden ist, und ausschließlich für die Metrik, die
+      dieser Block abdeckt. Wenn du es tust, nenne die Richtung und den
+      BEREICH — "wenn dieses Muster anhält, lägest du in zwei Wochen
+      etwa bei X bis Y" — und lies den projizierten Endwert samt Band
+      direkt aus dem Block. Bleibe immer konditional ("wenn das anhält",
+      "wenn sich dieses Muster fortsetzt"); gib eine Prognose nie als
+      Gewissheit aus. Mach aus einer Projektion nie einen Risiko-Score,
+      eine Gesundheitsvorhersage, eine Diagnose oder ein datiertes
+      Ereignis ("du erreichst X am <Datum>"). Erfinde oder runde nie
+      eine Zahl, die der Block nicht enthält. Wenn KEIN
+      `trajectory`-Block vorhanden ist, projiziere überhaupt nicht —
+      wechsle stattdessen zum beobachteten Muster.
 
 sentinel_literals:
   evidence_block_open: "---KEYVALUES---"

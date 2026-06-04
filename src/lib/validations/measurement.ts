@@ -76,6 +76,20 @@ export const measurementTypeEnum = z.enum([
   "RECOVERY_SCORE",
   "STRESS_SCORE",
   "STRAIN_SCORE",
+  // ── v1.11.0 — WHOOP-native score classes (additive) ──
+  // Native WHOOP scores ingest server-side as `source = WHOOP`. DAY_STRAIN /
+  // HRV_RMSSD are deliberately distinct from STRAIN_SCORE / SDNN
+  // HEART_RATE_VARIABILITY so a device-native value never shares a bucket
+  // with a derived proxy. See `apple-health-mapping.ts` convention block and
+  // `.planning/v1.11-build/epic-A-whoop-buildspec.md` §3.2.
+  "HRV_RMSSD",
+  "DAY_STRAIN",
+  "WORKOUT_STRAIN",
+  "SLEEP_PERFORMANCE",
+  "SLEEP_EFFICIENCY",
+  "SLEEP_CONSISTENCY",
+  "SLEEP_NEED",
+  "ENERGY_EXPENDITURE_KJ",
 ]);
 
 /**
@@ -111,6 +125,10 @@ export const measurementSourceEnum = z.enum([
   // the rows it surfaces; the client-facing write surfaces reject it — see
   // `WRITABLE_MEASUREMENT_SOURCES` and the batch route's `batchSourceEnum`.
   "COMPUTED",
+  // v1.11.0 — WHOOP integration. Native WHOOP scores ingest server-side (no
+  // client write path). Part of this enum so the read/response shapes (and
+  // the iOS decoder) can decode the rows it surfaces.
+  "WHOOP",
 ]);
 
 /**
@@ -243,6 +261,24 @@ const unitMap: Record<string, string> = {
   RECOVERY_SCORE: "score",
   STRESS_SCORE: "score",
   STRAIN_SCORE: "score",
+  // ── v1.11.0 — WHOOP-native score classes ──
+  // RMSSD HRV is in milliseconds, same canonical unit as the SDNN
+  // HEART_RATE_VARIABILITY (different estimator, same dimension).
+  HRV_RMSSD: "ms",
+  // Day / workout strain ride WHOOP's bounded 0–21 scale; the bare "score"
+  // unit reads sensibly wherever the value surfaces (distinct from the
+  // 0–100 COMPUTED STRAIN_SCORE).
+  DAY_STRAIN: "score",
+  WORKOUT_STRAIN: "score",
+  // Sleep quality percentages (0–100).
+  SLEEP_PERFORMANCE: "%",
+  SLEEP_EFFICIENCY: "%",
+  SLEEP_CONSISTENCY: "%",
+  // Recommended sleep duration in minutes (WHOOP reports ms; mapper ÷60000).
+  SLEEP_NEED: "minutes",
+  // Day energy expenditure in kilojoules (WHOOP-native; kept in kJ so the
+  // device value round-trips rather than being converted to kcal).
+  ENERGY_EXPENDITURE_KJ: "kJ",
 };
 
 export function getUnitForType(type: string): string {
@@ -392,6 +428,23 @@ const VALUE_RANGES: Record<string, { min: number; max: number }> = {
   RECOVERY_SCORE: { min: 0, max: 100 },
   STRESS_SCORE: { min: 0, max: 100 },
   STRAIN_SCORE: { min: 0, max: 100 },
+  // ── v1.11.0 — WHOOP-native score classes ──
+  // RMSSD HRV (ms). Same plausibility band as the SDNN variant: lows reach
+  // single digits in stressed samples, 200 ms is a generous upper bound for
+  // relaxed athletic windows.
+  HRV_RMSSD: { min: 1, max: 200 },
+  // Day / workout strain on WHOOP's bounded 0–21 scale.
+  DAY_STRAIN: { min: 0, max: 21 },
+  WORKOUT_STRAIN: { min: 0, max: 21 },
+  // Sleep quality percentages (0–100).
+  SLEEP_PERFORMANCE: { min: 0, max: 100 },
+  SLEEP_EFFICIENCY: { min: 0, max: 100 },
+  SLEEP_CONSISTENCY: { min: 0, max: 100 },
+  // Recommended sleep duration in minutes — 0..1440 covers the 24-hour day.
+  SLEEP_NEED: { min: 0, max: 1440 },
+  // Day energy expenditure in kJ — 50 000 kJ (~12 000 kcal) is a generous
+  // ceiling over any plausible ultra-endurance day.
+  ENERGY_EXPENDITURE_KJ: { min: 0, max: 50000 },
 };
 
 export function validateMeasurementRange(

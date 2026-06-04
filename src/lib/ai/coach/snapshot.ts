@@ -27,6 +27,8 @@ import { compactSections } from "@/lib/ai/prompts/compact-sections";
 import { annotate } from "@/lib/logging/context";
 import { buildGlp1SnapshotBlock } from "./glp1-snapshot";
 import { buildDerivedSnapshotBlock } from "./derived-snapshot";
+import { buildCoachMemoryBlock } from "./memory-snapshot";
+import { buildTrajectorySnapshotBlock } from "./trajectory-snapshot";
 import type { BaselineProfile } from "@/lib/insights/derived";
 import {
   CLUSTER_PRIORITY,
@@ -453,9 +455,13 @@ async function buildCoachSnapshotImpl(
   // key is absent). So the prefs read must precede `resolveScope`.
   const prefsRow = await prisma.user.findUnique({
     where: { id: userId },
-    select: { coachPrefsJson: true, timezone: true },
+    select: { coachPrefsJson: true, timezone: true, locale: true },
   });
   const prefs = parseCoachPrefs(prefsRow?.coachPrefsJson);
+  // Resolve the UI locale for the rolling-profile narrative recall. The
+  // narrative rows are keyed by ("de" | "en"); default to "de" (the app
+  // default locale) when the user never picked one.
+  const coachLocale: "de" | "en" = prefsRow?.locale === "en" ? "en" : "de";
   const clusterDefault = clusterSourcesFromPrefs(prefs.dataClusters);
   const { sources: scopedSources, window } = resolveScope(
     scope,
@@ -1204,16 +1210,16 @@ async function buildCoachSnapshotImpl(
     "sleep",
     "vo2_max",
   ];
+  const derivedCtx = features.context;
+  const derivedProfile: BaselineProfile = {
+    ageYears: derivedCtx?.ageYears ?? null,
+    sex:
+      derivedCtx?.gender === "MALE" || derivedCtx?.gender === "FEMALE"
+        ? (derivedCtx.gender as "MALE" | "FEMALE")
+        : null,
+    heightCm: derivedCtx?.heightCm ?? null,
+  };
   if (derivedSources.some((s) => sources.has(s))) {
-    const ctx = features.context;
-    const derivedProfile: BaselineProfile = {
-      ageYears: ctx?.ageYears ?? null,
-      sex:
-        ctx?.gender === "MALE" || ctx?.gender === "FEMALE"
-          ? (ctx.gender as "MALE" | "FEMALE")
-          : null,
-      heightCm: ctx?.heightCm ?? null,
-    };
     const derivedBlock = await buildDerivedSnapshotBlock(
       userId,
       derivedProfile,
@@ -1224,6 +1230,48 @@ async function buildCoachSnapshotImpl(
       metrics.add("hrv");
       registerBlock("derived", "hrv");
     }
+
+    // ── v1.11.0 (Epic B, Pillar 3) — short-horizon trajectory block ──────
+    // Additive, lowest-signal block: per in-scope metric a compact
+    // direction + slope + projected horizon-end-with-band, computed by the
+    // deterministic `computeTrajectory` engine (NEVER recomputed here). The
+    // Coach narrates the range conditionally (system-prompt rule 11 /
+    // ground rule 16) only when this block is present. Registered under an
+    // `environment`-cluster source so the soft-cap degrader sheds it FIRST,
+    // before any clinical cluster, under prompt-budget pressure.
+    const trajectoryBlock = await buildTrajectorySnapshotBlock(
+      userId,
+      derivedProfile,
+      now,
+    );
+    if (trajectoryBlock) {
+      snapshot.trajectory = trajectoryBlock;
+      registerBlock("trajectory", "skin_temp");
+    }
+  }
+
+  // ── v1.11.0 W5a — rolling-profile memory (Pillar P2 2a) ──────────────
+  //
+  // Zero-LLM longitudinal recall: the latest period-narrative headline +
+  // a per-metric prior-vs-current band memory, assembled from artefacts we
+  // already persist. Lets the Coach reference "as I noted at the start of
+  // the month…" instead of re-deriving cold every turn. Folded under the
+  // `memory` key and registered against the LOWEST-signal cluster
+  // (`environment`, the tail of CLUSTER_PRIORITY) so `degradeToBudget`
+  // sheds it FIRST under the char cap — before any clinical cluster. The
+  // builder is fault-isolated per sub-source and returns null when neither
+  // a narrative nor any band movement is on file.
+  const memoryBlock = await buildCoachMemoryBlock(
+    userId,
+    derivedProfile,
+    now,
+    coachLocale,
+  );
+  if (memoryBlock) {
+    snapshot.memory = memoryBlock;
+    // `skin_temp` maps to the `environment` cluster — the lowest priority
+    // in CLUSTER_PRIORITY — so this block degrades before everything else.
+    registerBlock("memory", "skin_temp");
   }
 
   if (Object.keys(snapshot).length === 0) {

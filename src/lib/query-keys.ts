@@ -101,6 +101,13 @@ export const queryKeys = {
    * without a second LLM round-trip.
    */
   insightsAdvisor: () => ["insights", "advisor"] as const,
+  /**
+   * v1.11.0 — period-narrative summary (`/api/insights/narrative?period=…`).
+   * Keyed by period + locale so the week and month summaries cache
+   * independently and a locale switch fetches the matching prose.
+   */
+  insightsNarrative: (period: string, locale: string) =>
+    ["insights", "narrative", period, locale] as const,
   insightsBpStatus: (locale: string) =>
     ["insights", "blood-pressure-status", locale] as const,
   insightsWeightStatus: (locale: string) =>
@@ -286,6 +293,10 @@ export const queryKeys = {
   researchMode: () => ["research-mode"] as const,
   moodlogStatus: () => ["moodlog-status"] as const,
   integrationsStatus: () => ["integrations", "status"] as const,
+
+  /** v1.11.0 — owner's clinician share links (Settings → Sharing). */
+  shareLinks: () => ["share-links"] as const,
+
   featureFlags: () => ["feature-flags"] as const,
   coachPrefs: () => ["coach-prefs"] as const,
 
@@ -349,6 +360,12 @@ export const queryKeys = {
    * mutation invalidates both at once.
    */
   withingsStatus: () => ["withings", "status"] as const,
+  whoop: () => ["whoop"] as const,
+  /**
+   * Per-card WHOOP status read. Shares the `["whoop"]` prefix with `whoop()`
+   * so a disconnect / credentials mutation invalidates both at once.
+   */
+  whoopStatus: () => ["whoop", "status"] as const,
 
   // v1.4.32 — workout list + detail caches. `workouts()` is the
   // root key invalidated by the batch-ingest mutation; the recent +

@@ -52,6 +52,14 @@ import {
   SNOMED_SYSTEM,
   GERMAN_ATC_DEFAULT_LOCALES,
 } from "@/lib/fhir/build-bundle";
+import {
+  FHIR_READ_SCOPE,
+  FHIR_REST_RESOURCE_TYPES,
+  FHIR_EVERYTHING_OPERATION,
+  FHIR_SEARCH_PARAMS,
+} from "@/lib/fhir/rest";
+import { SHARE_LINK_MAX_DAYS } from "@/lib/validations/clinician-share-link";
+import { exportSectionsSchema } from "@/lib/validations/health-record-export";
 
 const SESSION_OK = {
   session: { id: "sess-1", expiresAt: new Date(Date.now() + 3_600_000) },
@@ -75,6 +83,17 @@ type CapabilitiesBody = {
       atcSystem: string;
       snomedRoute: string;
       germanAtcDefaultLocales: string[];
+      restBaseUrl: string;
+      readScope: string;
+      resourceTypes: string[];
+      operations: string[];
+      searchParams: string[];
+    };
+    share: {
+      supported: boolean;
+      maxDays: number;
+      fhirApi: boolean;
+      sections: string[];
     };
   };
 };
@@ -137,6 +156,31 @@ describe("GET /api/meta/capabilities — drift guards", () => {
     expect(body.data.fhir.germanAtcDefaultLocales).toEqual([
       ...GERMAN_ATC_DEFAULT_LOCALES,
     ]);
+  });
+
+  it("fhir REST descriptor mirrors the canonical rest.ts constants", async () => {
+    const res = await call();
+    const body = (await res.json()) as CapabilitiesBody;
+    expect(body.data.fhir.restBaseUrl).toBe("/api/fhir");
+    expect(body.data.fhir.readScope).toBe(FHIR_READ_SCOPE);
+    expect(body.data.fhir.resourceTypes).toEqual([
+      ...FHIR_REST_RESOURCE_TYPES,
+    ]);
+    expect(body.data.fhir.operations).toEqual([FHIR_EVERYTHING_OPERATION]);
+    expect(body.data.fhir.searchParams).toEqual([...FHIR_SEARCH_PARAMS]);
+  });
+
+  it("share descriptor mirrors the canonical share-link + section sources", async () => {
+    const res = await call();
+    const body = (await res.json()) as CapabilitiesBody;
+    expect(body.data.share.supported).toBe(true);
+    expect(body.data.share.maxDays).toBe(SHARE_LINK_MAX_DAYS);
+    // The share serves the rendered record view only; no `/api/fhir/*` route
+    // honours a share token yet, so the share→FHIR face is advertised off.
+    expect(body.data.share.fhirApi).toBe(false);
+    expect([...body.data.share.sections].sort()).toEqual(
+      Object.keys(exportSectionsSchema.shape).sort(),
+    );
   });
 
   it("quantityTypes are sourced from the HealthKit ingest mapping", async () => {

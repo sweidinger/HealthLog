@@ -5,7 +5,22 @@ import {
 } from "./generate-insight";
 import { InsightSchemaError } from "./schema";
 import type { ProviderChainType } from "./provider-chain";
+import {
+  postgresProviderHealthLedger,
+  type ProviderHealthLedger,
+  type ProviderSkipHint,
+} from "./provider-health-ledger";
 import { annotate } from "@/lib/logging/context";
+
+/**
+ * The local model is the guaranteed floor (Epic B Pillar 4): a
+ * self-hoster running Ollama / LM-Studio must always retain a last
+ * resort. These provider types have no remote credential that can
+ * expire, so the durable negative cache must never bench them — they
+ * stay in the chain even when every keyed provider is in a backoff /
+ * auth cooldown.
+ */
+const NEVER_SKIP: ReadonlySet<ProviderChainType> = new Set(["local"]);
 
 /**
  * v1.4.16 phase B5b — multi-provider redundancy runner.
@@ -133,6 +148,15 @@ export interface RunWithFallbackParams {
   userId: string;
   providers: ProviderChainResolved[];
   params: CompletionParams;
+  /**
+   * v1.11.0 W1 — durable provider-health ledger. Defaults to the
+   * Postgres-backed implementation in production; unit tests of the pure
+   * chain pass an in-memory / no-op ledger to avoid standing up a DB.
+   * The ledger is read-through (skip-hint reorder) + write-through
+   * (record outcome); it never gates generation — a ledger error always
+   * fails open to today's behaviour.
+   */
+  ledger?: ProviderHealthLedger;
 }
 
 export interface RunWithFallbackResult extends GenerateInsightOutcome {
@@ -150,6 +174,16 @@ export interface RunWithFallbackResult extends GenerateInsightOutcome {
 export class AllProvidersFailedError extends Error {
   readonly httpStatus: number;
   readonly attempts: FallbackHop[];
+  /**
+   * v1.11.0 W1 — true when the FIRST (highest-priority) chain entry
+   * failed with an auth-class status (401/403). That is the signal a
+   * user's primary credential is dead and should be surfaced as
+   * `credential_expired` ("reconnect ChatGPT") rather than a generic
+   * "try again later". Distinct from "every entry was auth-class" so we
+   * only deep-link to reconnect when the user's preferred provider is
+   * the thing that broke.
+   */
+  readonly primaryCredentialExpired: boolean;
 
   constructor(attempts: FallbackHop[]) {
     super(
@@ -159,6 +193,10 @@ export class AllProvidersFailedError extends Error {
     );
     this.name = "AllProvidersFailedError";
     this.attempts = attempts;
+    const first = attempts[0];
+    this.primaryCredentialExpired =
+      first !== undefined &&
+      (first.httpStatus === 401 || first.httpStatus === 403);
     if (attempts.length === 0) {
       this.httpStatus = 422;
       return;
@@ -204,6 +242,64 @@ function applyLastWorkingCache(
   return reordered;
 }
 
+/**
+ * Apply the durable negative cache. Providers the ledger reports as
+ * skippable (dead credential inside its cooldown, or a sustained hard
+ * failure in backoff) are moved to the BACK of the chain rather than
+ * dropped — so generation is never lost if every healthy provider also
+ * fails, but a known-bad credential no longer costs a round-trip on the
+ * hot path. The local floor (`NEVER_SKIP`) is always left in place.
+ *
+ * Order within the "deprioritised" tail is stable, preserving the
+ * original chain order so a re-linked credential resumes its priority
+ * the moment its cooldown lifts.
+ */
+function applyHealthLedgerSkips(
+  providers: ProviderChainResolved[],
+  skips: Map<ProviderChainType, ProviderSkipHint>,
+): ProviderChainResolved[] {
+  if (skips.size === 0) return providers;
+  const preferred: ProviderChainResolved[] = [];
+  const deprioritised: ProviderChainResolved[] = [];
+  for (const p of providers) {
+    const skip = skips.get(p.providerType);
+    if (skip && !NEVER_SKIP.has(p.providerType)) {
+      deprioritised.push(p);
+    } else {
+      preferred.push(p);
+    }
+  }
+  return [...preferred, ...deprioritised];
+}
+
+/**
+ * Compute the order the chain is walked: first the durable health-ledger
+ * skips (dead-credential / backoff providers pushed to the tail), then
+ * the volatile per-worker last-working reorder on top (a provider that
+ * succeeded most recently jumps to the front of whatever survives). The
+ * ledger read fails open — on any error the chain is the input order
+ * exactly as it walked before the ledger existed.
+ */
+async function resolveChainOrder(
+  userId: string,
+  providers: ProviderChainResolved[],
+  ledger: ProviderHealthLedger,
+): Promise<ProviderChainResolved[]> {
+  const skips = await ledger.getSkipHints(userId);
+  if (skips.size > 0) {
+    annotate({
+      meta: {
+        ai_chain_skipped_count: skips.size,
+        ai_chain_credential_expired: Array.from(skips.values()).some(
+          (s) => s.reason === "credential_expired",
+        ),
+      },
+    });
+  }
+  const afterSkips = applyHealthLedgerSkips(providers, skips);
+  return applyLastWorkingCache(userId, afterSkips);
+}
+
 function summariseError(e: unknown): { reason: string; status: number | null } {
   const err = e as { message?: string; httpStatus?: number };
   const status = typeof err.httpStatus === "number" ? err.httpStatus : null;
@@ -224,12 +320,13 @@ export async function runWithFallback(
   args: RunWithFallbackParams,
 ): Promise<RunWithFallbackResult> {
   const { userId, providers, params } = args;
+  const ledger = args.ledger ?? postgresProviderHealthLedger;
 
   if (providers.length === 0) {
     throw new AllProvidersFailedError([]);
   }
 
-  const ordered = applyLastWorkingCache(userId, providers);
+  const ordered = await resolveChainOrder(userId, providers, ledger);
   const hops: FallbackHop[] = [];
 
   for (let i = 0; i < ordered.length; i += 1) {
@@ -237,6 +334,7 @@ export async function runWithFallback(
     try {
       const outcome = await generateInsight(candidate.instance, params);
       rememberWorkingProvider(userId, candidate.providerType);
+      void ledger.recordSuccess(userId, candidate.providerType);
       annotate({
         meta: {
           ai_chain_working_provider: candidate.providerType,
@@ -250,10 +348,13 @@ export async function runWithFallback(
       };
     } catch (error) {
       if (!isHardProviderFailure(error)) {
-        // Schema/validation error — bubble immediately.
+        // Schema/validation error — bubble immediately. NOT recorded in
+        // the health ledger: a malformed-JSON reply is a prompt-following
+        // issue, not a provider-availability failure.
         throw error;
       }
       const summary = summariseError(error);
+      void ledger.recordFailure(userId, candidate.providerType, summary.status);
       const hop: FallbackHop = {
         providerType: candidate.providerType,
         attempt: i + 1,
@@ -307,14 +408,17 @@ export async function runRawCompletionWithFallback(args: {
   userId: string;
   providers: ProviderChainResolved[];
   params: CompletionParams;
+  /** See `RunWithFallbackParams.ledger`. */
+  ledger?: ProviderHealthLedger;
 }): Promise<RunRawWithFallbackResult> {
   const { userId, providers, params } = args;
+  const ledger = args.ledger ?? postgresProviderHealthLedger;
 
   if (providers.length === 0) {
     throw new AllProvidersFailedError([]);
   }
 
-  const ordered = applyLastWorkingCache(userId, providers);
+  const ordered = await resolveChainOrder(userId, providers, ledger);
   const hops: FallbackHop[] = [];
 
   for (let i = 0; i < ordered.length; i += 1) {
@@ -322,6 +426,7 @@ export async function runRawCompletionWithFallback(args: {
     try {
       const result = await candidate.instance.generateCompletion(params);
       rememberWorkingProvider(userId, candidate.providerType);
+      void ledger.recordSuccess(userId, candidate.providerType);
       annotate({
         meta: {
           ai_chain_working_provider: candidate.providerType,
@@ -338,6 +443,7 @@ export async function runRawCompletionWithFallback(args: {
         throw error;
       }
       const summary = summariseError(error);
+      void ledger.recordFailure(userId, candidate.providerType, summary.status);
       const hop: FallbackHop = {
         providerType: candidate.providerType,
         attempt: i + 1,

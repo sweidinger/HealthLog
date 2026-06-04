@@ -39,6 +39,19 @@ const MEASUREMENT_TYPES_WITHOUT_HK_COUNTERPART = new Set<MeasurementType>([
   "RECOVERY_SCORE",
   "STRESS_SCORE",
   "STRAIN_SCORE",
+  // v1.11.0 — WHOOP-native score classes. These ingest server-side from the
+  // WHOOP API (source = WHOOP), never from HealthKit; Apple ships no
+  // identifier for day/workout strain, the WHOOP sleep-quality indices, sleep
+  // need, RMSSD HRV (Apple ships only the SDNN variant), or kJ energy. They
+  // have no HK mapping by design.
+  "HRV_RMSSD",
+  "DAY_STRAIN",
+  "WORKOUT_STRAIN",
+  "SLEEP_PERFORMANCE",
+  "SLEEP_EFFICIENCY",
+  "SLEEP_CONSISTENCY",
+  "SLEEP_NEED",
+  "ENERGY_EXPENDITURE_KJ",
 ]);
 
 describe("APPLE_HEALTH_TYPE_MAP", () => {

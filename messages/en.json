@@ -445,7 +445,15 @@
     "typeBreathingDisturbanceEvent": "Breathing disturbance",
     "typeRecoveryScore": "Recovery score",
     "typeStressScore": "Stress score",
-    "typeStrainScore": "Strain score"
+    "typeStrainScore": "Strain score",
+    "typeHrvRmssd": "HRV (RMSSD)",
+    "typeDayStrain": "Day strain",
+    "typeWorkoutStrain": "Workout strain",
+    "typeSleepPerformance": "Sleep performance",
+    "typeSleepEfficiency": "Sleep efficiency",
+    "typeSleepConsistency": "Sleep consistency",
+    "typeSleepNeed": "Sleep need",
+    "typeEnergyExpenditureKj": "Energy expenditure"
   },
   "mood": {
     "title": "Mood",
@@ -1532,6 +1540,16 @@
     "regenerateSuccess": "Analysis refreshed",
     "warmAssessments": "Prepare assessments",
     "warmStarted": "Assessments are being prepared in the background",
+    "narrativeTitle": "Your period in review",
+    "narrativeWeek": "This week",
+    "narrativeMonth": "This month",
+    "narrativePreparing": "Preparing your summary…",
+    "narrativeUpdating": "Updating…",
+    "narrativeUpdated": "Updated {time}",
+    "narrativeProvenanceLabel": "How this was put together",
+    "narrativeProvenanceMethod": "A plain-language summary of the period, drawn only from your logged numbers and the associations that survived statistical multiple-comparison control. Descriptive, never a cause.",
+    "narrativeProvenanceMetrics": "Based on: {metrics}",
+    "narrativeProvenanceWindow": "Window: {from} to {to}",
     "heroFallbackSubtitle": "A daily read of your trends, drawn straight from the numbers you've logged.",
     "heroGreetingMorning": "Good morning",
     "heroGreetingAfternoon": "Good afternoon",
@@ -1674,6 +1692,7 @@
       "errorBudget": "You've reached today's Coach usage limit. The budget refreshes at midnight UTC.",
       "errorProvider": "The Coach could not reach an Insights provider just now. Please try again in a moment.",
       "errorNetwork": "No internet connection — try again once you're back online.",
+      "errorCredentialExpired": "Your AI provider connection has expired. Reconnect it in Settings to keep the Coach running.",
       "tagline": "Personal health coach, grounded in your data.",
       "newChat": "New chat",
       "send": "Send",
@@ -2646,6 +2665,10 @@
         "SIX_MINUTE_WALK_BAND": {
           "method": "Your device's ESTIMATED six-minute-walk distance placed against the Enright & Sherrill reference for your age, height, weight and sex, as a percent of predicted. The distance is the device's estimate — never recomputed here. Without your age, height, weight and sex the percent is hidden and only the distance and trend are shown.",
           "caveat": "An estimate re-framed against a published reference — a functional-capacity awareness signal, not a clinical 6-minute-walk test or a diagnosis. The reference was established for ages 40–80; outside that range the predicted value is an extrapolation."
+        },
+        "TRAJECTORY": {
+          "method": "A least-squares line fitted to your recent daily values and projected forward over a short horizon, with the textbook prediction interval that widens the further it reaches. Computed only when the recent trend is strong enough and your history is long and current enough; otherwise no line is drawn.",
+          "caveat": "A projection of your own recent trend — not a prediction, a target, or a clinical forecast. It holds only if the recent pattern continues; the shaded band shows how quickly that certainty fades."
         }
       },
       "scores": {
@@ -2666,6 +2689,13 @@
         "firedHeadline": "{count} of your vitals are outside their personal range today.",
         "factors": "Possible factors — never a cause: a hard workout, poor sleep, alcohol, altitude, stress, or illness. This is awareness from your own baselines, not a diagnosis.",
         "building": "Building your personal baselines — track a few more days and this will appear."
+      },
+      "trajectory": {
+        "cardTitle": "Short-horizon projection",
+        "headline": "If this pattern continues — the next {days} days",
+        "range": "Projected around {low}–{high} {unit} in {days} days.",
+        "caveat": "A projection of your own recent trend, not a prediction. The shaded band widens to show how quickly the uncertainty grows.",
+        "insufficient": "Not enough of a clear trend to project yet — keep tracking and a projection will appear once the recent pattern is strong enough."
       }
     },
     "cardioFitness": {
@@ -3024,13 +3054,18 @@
           "spo2": "Oxygen saturation",
           "hrv": "Heart-rate variability",
           "restingHeartRate": "Resting heart rate",
-          "vo2Max": "VO2 max"
+          "vo2Max": "VO2 max",
+          "skinTemperature": "Skin temperature",
+          "respiratoryRate": "Respiratory rate",
+          "recovery": "Recovery"
         },
         "sourceLabels": {
           "WITHINGS": "Withings",
           "APPLE_HEALTH": "Apple Health",
           "MANUAL": "Manual entry",
-          "IMPORT": "Import"
+          "IMPORT": "Import",
+          "WHOOP": "WHOOP",
+          "COMPUTED": "Computed"
         },
         "deviceLabels": {
           "watch": "Watch",
@@ -3098,6 +3133,10 @@
       "about": {
         "title": "About",
         "description": "Version, license, links."
+      },
+      "sharing": {
+        "title": "Sharing",
+        "description": "Create a read-only link to share your health record with a clinician."
       }
     },
     "profile": "Profile",
@@ -3339,6 +3378,30 @@
     "withingsDisconnectDescription": "The connection to Withings will be disconnected. Previously synced data will be preserved.",
     "withingsConnect": "Connect with Withings",
     "withingsNoCredentials": "Please enter your API credentials above to connect Withings.",
+    "whoop": "WHOOP",
+    "whoopDescription": "Connect your WHOOP strap to sync recovery, sleep, strain and workouts.",
+    "whoopOverlapNote": "If WHOOP and another source both supply a vital — resting heart rate, blood oxygen, body temperature, respiratory rate or sleep stages — you may see both values until a future update settles on a single preferred source.",
+    "whoopCredentials": "API Credentials",
+    "whoopCredentialsHelp": "Register your own WHOOP developer app and paste its Client ID and Client Secret here.",
+    "whoopClientId": "Client ID",
+    "whoopClientSecret": "Client Secret",
+    "whoopCredentialsSaved": "Credentials saved",
+    "whoopCredentialsSavedPlaceholder": "Saved — enter new to replace",
+    "whoopCredentialsSavedPlaceholderSecret": "Saved — enter new to replace",
+    "whoopSaveCredentials": "Save credentials",
+    "whoopSync": "Sync now",
+    "whoopFullSync": "Sync all data",
+    "whoopFullSyncTitle": "Full synchronization?",
+    "whoopFullSyncDescription": "All available WHOOP history will be fully synchronized. This may take some time depending on your history.",
+    "whoopSyncResult": "{count} measurements synchronized",
+    "whoopSyncFailed": "Sync failed",
+    "whoopSynchronize": "Synchronize",
+    "whoopDisconnect": "Disconnect",
+    "whoopDisconnectTitle": "Disconnect WHOOP?",
+    "whoopDisconnectDescription": "The connection to WHOOP will be disconnected. Previously synced data will be preserved.",
+    "whoopConnect": "Connect with WHOOP",
+    "whoopNoCredentials": "Please enter your API credentials above to connect WHOOP.",
+    "whoopBackfillInProgress": "Importing your WHOOP history in the background…",
     "integrations": {
       "withings": {
         "reconnect": {
@@ -3532,7 +3595,37 @@
       "error": "Export failed ({code})."
     },
     "globalExcludedInjectionSitesLabel": "Globally excluded injection sites",
-    "globalExcludedInjectionSitesHint": "Sites listed here are never offered for any medication and rejected when logging a dose, even if a medication prefers them."
+    "globalExcludedInjectionSitesHint": "Sites listed here are never offered for any medication and rejected when logging a dose, even if a medication prefers them.",
+    "sharing": {
+      "createTitle": "New share link",
+      "createDescription": "The link is read-only and time-boxed. The token is shown once on creation — store it then; it cannot be recovered.",
+      "label": "Label",
+      "labelPlaceholder": "e.g. Dr. Smith — annual check-up",
+      "range": "Days of history",
+      "rangeHint": "How far back the shared window reaches.",
+      "expiry": "Expires in (days)",
+      "expiryHint": "At most {max} days.",
+      "expiryInvalid": "Expiry must be between 1 and {max} days.",
+      "fhirApi": "Allow scoped FHIR API",
+      "fhirApiHint": "Let the link serve a read-only FHIR endpoint in addition to the page view.",
+      "resourceTypes": "FHIR resource types",
+      "create": "Create link",
+      "tokenCreated": "Share link created",
+      "tokenOnce": "Copy this link now — the token is shown only once and cannot be recovered.",
+      "copy": "Copy link",
+      "copied": "Copied to clipboard.",
+      "activeTitle": "Active links",
+      "noActive": "No active share links.",
+      "created": "Created",
+      "expires": "Expires",
+      "accessCount": "Views",
+      "revoke": "Revoke",
+      "revokeDescription": "Revoke this link immediately. Anyone holding it loses access at once. This cannot be undone.",
+      "statusActive": "Active",
+      "statusRevoked": "Revoked",
+      "statusExpired": "Expired",
+      "inactiveTitle": "Revoked and expired ({count})"
+    }
   },
   "admin": {
     "title": "Administration",
@@ -4509,5 +4602,33 @@
   "moodReminders": {
     "dailyTitle": "Log your mood",
     "dailyBody": "How are you feeling today?"
+  },
+  "clinicianView": {
+    "title": "Shared health record",
+    "period": "Reporting period: {start} – {end}",
+    "expires": "This link expires on {date}.",
+    "provenance": "This is a read-only summary shared by the person it belongs to, exported from their self-tracked HealthLog data. Values are self-recorded and may include device-synced readings; treat them as patient-reported, not as a clinical examination.",
+    "vitals": "Vital signs",
+    "labs": "Lab values",
+    "medications": "Medications & adherence",
+    "bmi": "Body mass index (BMI)",
+    "statSummary": "latest {latest} (avg {avg}, range {min}–{max})",
+    "adherence": "{rate} adherence",
+    "noAdherence": "—",
+    "glucose": {
+      "FASTING": "Glucose (fasting)",
+      "POSTPRANDIAL": "Glucose (postprandial)",
+      "RANDOM": "Glucose (random)",
+      "BEDTIME": "Glucose (bedtime)"
+    },
+    "wellness": {
+      "title": "Wellness scores",
+      "disclaimer": "Descriptive scores (0–100) computed from tracked signals. These are not a clinical assessment and not a diagnosis.",
+      "recovery": "Recovery score",
+      "stress": "Stress score",
+      "strain": "Strain score",
+      "score": "Wellness score"
+    },
+    "footer": "Shared from HealthLog — a self-hosted personal health tracker."
   }
 }

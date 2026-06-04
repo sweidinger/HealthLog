@@ -163,8 +163,8 @@ describe("IntegrationsSection — single-status-display contract (A5)", () => {
     });
 
     const html = render();
-    // Exactly one pill per card → 2 pills total.
-    expect(count(html, 'data-testid="integration-status-pill"')).toBe(2);
+    // Exactly one pill per card → 3 pills total (Withings, moodLog, WHOOP).
+    expect(count(html, 'data-testid="integration-status-pill"')).toBe(3);
     // The redundant banner from v1.4.15 is gone.
     expect(html).not.toContain('data-testid="integration-status-banner"');
     // Card-body "letzter Sync" repetition is gone — no
@@ -353,8 +353,8 @@ describe("IntegrationsSection — single-status-display contract (A5)", () => {
     });
 
     const html = render();
-    // Both cards include the section divider data-testid so the
+    // Every integration card includes the section divider data-testid so the
     // header → body separation is visually consistent.
-    expect(count(html, 'data-testid="integration-card-divider"')).toBe(2);
+    expect(count(html, 'data-testid="integration-card-divider"')).toBe(3);
   });
 });

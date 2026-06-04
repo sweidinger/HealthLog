@@ -59,6 +59,13 @@ model User {
   withingsClientIdEncrypted     String? @map("withings_client_id_encrypted")
   withingsClientSecretEncrypted String? @map("withings_client_secret_encrypted")
 
+  // v1.11.0 — WHOOP OAuth credentials (per-user BYO-keys, encrypted at app
+  // level). The per-app authorized-user cap makes a single shared WHOOP app
+  // unworkable for a multi-operator product, so each self-hoster registers
+  // their own WHOOP dev app and pastes the client id/secret into Settings.
+  whoopClientIdEncrypted     String? @map("whoop_client_id_encrypted")
+  whoopClientSecretEncrypted String? @map("whoop_client_secret_encrypted")
+
   // moodLog integration (per-user, encrypted)
   moodLogUrlEncrypted    String?   @map("mood_log_url_encrypted")
   moodLogApiKeyEncrypted String?   @map("mood_log_api_key_encrypted")
@@ -329,6 +336,10 @@ model User {
   // where the legacy `${user.id}:${nonce}` shape leaked the user id
   // into request logs / network captures.
   withingsOAuthStates    WithingsOAuthState[]
+  // v1.11.0 — WHOOP integration. Mirrors the Withings connection (1:1) +
+  // OAuth-state ledger (1:N) relations.
+  whoopConnection        WhoopConnection?
+  whoopOAuthStates       WhoopOAuthState[]
   moodEntries            MoodEntry[]
   notificationChannels   NotificationChannel[]
   pushSubscriptions      PushSubscription[]
@@ -409,6 +420,17 @@ model User {
   // the 0–100 map to the user's own training load without re-integrating
   // the 42-day chronic window of HR series each night.
   strainTrimpCache            StrainTrimpCache[]
+  // v1.11.0 — owner-minted clinician share links. Each row grants a
+  // scoped, time-limited, revocable read view of the health record to a
+  // clinician holding the raw `hls_` token (stored only as an HMAC hash).
+  clinicianShareLinks         ClinicianShareLink[]
+  // v1.11.0 W1 — durable per-provider AI-health ledger (one row per
+  // provider chain entry) so a known-bad credential is negatively cached
+  // across workers instead of re-burning a 401 every generation.
+  providerHealth              ProviderHealth[]
+  // v1.11.0 W3 — one durable period-narrative row per (period, locale).
+  // Delete/regenerate-clean; the generated prose is AES-256-GCM at rest.
+  insightNarratives           InsightNarrative[]
 
   // v1.7.0 profile — optional patient-identity fields surfaced on the
   // health-record export cover (PDF) and the FHIR `Patient` resource.
@@ -570,9 +592,25 @@ enum MeasurementType {
   // RECOVERY_SCORE is computed in v1.10.0; STRESS_SCORE + STRAIN_SCORE are
   // defined now so the later engines that compute them need no schema change.
   // These are NOT clinical vitals — they never appear in the doctor-report PDF.
-  RECOVERY_SCORE // Daily recovery / readiness proxy. Higher = more recovered. Blends RHR + HRV (SDNN) + sleep + respiratory-rate deviation from the personal baseline (Plews 2013 / Buchheit 2014 lineage). Descriptive, not a clinical or training-recovery assessment.
+  RECOVERY_SCORE // Daily recovery / readiness proxy. Higher = more recovered. Blends RHR + HRV (SDNN) + sleep + respiratory-rate deviation from the personal baseline (Plews 2013 / Buchheit 2014 lineage). Descriptive, not a clinical or training-recovery assessment. v1.11.0: WHOOP ships a device-native Recovery into this SAME type, distinguished by `source = WHOOP` vs `COMPUTED` — the two unique keys keep both rows; the cross-source picker decides display.
   STRESS_SCORE // Reserved for the later strain/stress engine. Higher = more physiological stress. No engine computes it in v1.10.0.
-  STRAIN_SCORE // Reserved for the later strain/stress engine. Higher = more cardiovascular strain (workout-load lineage). No engine computes it in v1.10.0.
+  STRAIN_SCORE // Reserved for the later strain/stress engine. Higher = more cardiovascular strain (workout-load lineage). No engine computes it in v1.10.0. WHOOP day-strain does NOT reuse this — it lands in DAY_STRAIN so the WHOOP-native value and HealthLog's TRIMP proxy never share a bucket.
+  // ── v1.11.0 — WHOOP integration (additive) ──
+  // Native WHOOP scores ingest as first-class `source = WHOOP` Measurement
+  // rows. Where the concept already exists as a COMPUTED type (RECOVERY_SCORE)
+  // the WHOOP row reuses that type and is distinguished by source; where it
+  // would collide with a HealthLog engine (STRAIN_SCORE) or a different
+  // physiological measure (SDNN HEART_RATE_VARIABILITY) it gets a NEW type so
+  // the native value and the derived proxy never share a bucket. See
+  // `.planning/v1.11-build/epic-A-whoop-buildspec.md` §3.2 / §5.
+  HRV_RMSSD // ms — WHOOP `recovery.score.hrv_rmssd_milli`. The RMSSD HRV metric WHOOP reports; kept structurally distinct from the SDNN HEART_RATE_VARIABILITY (different estimator, not interchangeable).
+  DAY_STRAIN // score (0–21) — WHOOP `cycle.score.strain`. The day's cardiovascular load on WHOOP's 0–21 scale. Distinct from the COMPUTED STRAIN_SCORE (0–100 TRIMP proxy) so the two never share a bucket.
+  WORKOUT_STRAIN // score (0–21) — WHOOP `workout.score.strain`. Per-workout strain; preferentially stored in `Workout.metadata` (tied to the workout row) rather than as a free-floating Measurement, but the type exists for the rare detached case.
+  SLEEP_PERFORMANCE // % (0–100) — WHOOP `sleep.score.sleep_performance_percentage`. Sleep achieved vs sleep needed.
+  SLEEP_EFFICIENCY // % (0–100) — WHOOP `sleep.score.sleep_efficiency_percentage`. Time asleep vs time in bed.
+  SLEEP_CONSISTENCY // % (0–100) — WHOOP `sleep.score.sleep_consistency_percentage`. Night-to-night bed/wake timing regularity.
+  SLEEP_NEED // minutes — WHOOP `sleep.score.sleep_needed.baseline_milli` (+ debt / strain / nap components; ms→min). The model's recommended sleep duration for the night.
+  ENERGY_EXPENDITURE_KJ // kJ — WHOOP `cycle.score.kilojoule`. Day energy expenditure in kilojoules (WHOOP reports kJ natively; kept in kJ rather than converted to kcal so the device-native value round-trips).
 
   @@map("measurement_type")
 }
@@ -629,6 +667,10 @@ enum MeasurementSource {
   // like WITHINGS / IMPORT, but it is part of the read enum so iOS can decode
   // the rows it queries / charts.
   COMPUTED
+  // v1.11.0 — WHOOP integration. Native WHOOP scores ingest server-side
+  // (no client write path) as `source = WHOOP` rows. iOS DTO mirrors this
+  // exact spelling so the `/api/sync/changes` delta feed decodes the rows.
+  WHOOP
 
   @@map("measurement_source")
 }
@@ -1718,6 +1760,65 @@ model WithingsOAuthState {
   @@map("withings_oauth_states")
 }
 
+// ─── WHOOP ─────────────────────────────────────────────────
+//
+// v1.11.0 — structural copy of the Withings connection/oauth-state pair.
+// WHOOP ships solo on copy-of-Withings rails (no provider-adapter
+// abstraction yet). Tokens are encrypted at app level via `encrypt()` /
+// `decrypt()` — the column names mirror the Withings `access_token` /
+// `refresh_token` convention (not `*Encrypted`) so the rotation CLI's
+// column registry extends the same way.
+
+model WhoopConnection {
+  id             String    @id @default(cuid())
+  userId         String    @unique @map("user_id")
+  whoopUserId    String    @map("whoop_user_id")
+  accessToken    String    @map("access_token") // encrypted at app level
+  refreshToken   String    @map("refresh_token") // encrypted at app level
+  tokenExpiresAt DateTime  @map("token_expires_at")
+  /// Space-separated OAuth scope string granted by the WHOOP authorisation
+  /// flow (`offline read:recovery read:sleep read:workout read:cycles
+  /// read:profile read:body_measurement`). `offline` is required to receive
+  /// a refresh token. Null = legacy connection that predates scope tracking.
+  scope          String?   @map("scope")
+  lastSyncedAt   DateTime? @map("last_synced_at")
+  /// Set once the self-converging history backfill walks every collection to
+  /// completion. Null = backfill still in flight (or never started).
+  backfillCompletedAt DateTime? @map("backfill_completed_at")
+  /// Max heart rate from the WHOOP body-measurement profile — a profile
+  /// constant, not a time series, so it lives here rather than as a
+  /// Measurement row.
+  maxHeartRate   Int?      @map("max_heart_rate")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("whoop_connections")
+}
+
+/// v1.11.0 — short-lived `(nonce → userId)` ledger backing the WHOOP OAuth
+/// state check, identical in shape + lifecycle to `WithingsOAuthState`.
+///
+/// Lifecycle:
+///   * `connect` mints a row with `expiresAt = now() + 10 min` and sets the
+///     state cookie to JUST the random base64url nonce (no user id).
+///   * `callback` looks up the row, asserts `expiresAt > now()`, then DELETEs
+///     it in the same transaction — replay of the same nonce fails because
+///     the row is gone.
+///   * A daily cleanup cron sweeps abandoned rows whose `expiresAt` passed.
+model WhoopOAuthState {
+  nonce     String   @id
+  userId    String   @map("user_id")
+  createdAt DateTime @default(now()) @map("created_at")
+  expiresAt DateTime @map("expires_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([expiresAt])
+  @@map("whoop_oauth_states")
+}
+
 // ─── Mood Entries (moodLog) ───────────────────────────────────
 
 model MoodEntry {
@@ -2293,6 +2394,41 @@ model RateLimit {
   @@map("rate_limits")
 }
 
+/// v1.11.0 W1 — durable, multi-instance provider-health ledger.
+///
+/// Promotes the volatile per-worker `lastWorkingCache`
+/// (`provider-runner.ts`) to Postgres, modelled on the atomic-upsert
+/// rate-limiter pattern so every worker shares one signal. One row per
+/// (user, providerType): the runner records each outcome and reads the
+/// row to (a) deprioritise / skip a provider inside its backoff window
+/// instead of re-burning a dead round-trip every call, and (b) hold a
+/// durable negative-cache for an auth-class failure (401/403 =
+/// credential dead) far longer than the old 1h in-memory TTL, surfacing
+/// it rather than silently retrying.
+///
+/// `nextRetryAt` is the backoff gate: while `lastResult = "auth_failed"`
+/// and NOW() < `nextRetryAt`, the provider is skipped (negative cache).
+/// On a success the row clears to `ok` with a null `nextRetryAt`.
+/// Server-internal: never a Measurement, never ingested from a client.
+model ProviderHealth {
+  id                  String    @id @default(cuid())
+  userId              String    @map("user_id")
+  providerType        String    @map("provider_type") // ProviderChainType tag
+  lastResult          String    @map("last_result") // "ok" | "hard_failed" | "auth_failed"
+  lastStatus          Int?      @map("last_status") // HTTP status of the last failure; null on ok/network
+  consecutiveFailures Int       @default(0) @map("consecutive_failures")
+  lastOkAt            DateTime? @map("last_ok_at")
+  lastFailureAt       DateTime? @map("last_failure_at")
+  nextRetryAt         DateTime? @map("next_retry_at")
+  updatedAt           DateTime  @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, providerType])
+  @@index([userId, lastResult])
+  @@map("provider_health")
+}
+
 // ─── Idempotency Keys (mobile-client replay protection) ──
 
 /// Caches the response of a POST/PUT/PATCH/DELETE request keyed by
@@ -2493,6 +2629,13 @@ model CoachConversation {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
+  // v1.11.0 — rolling encrypted summary of the elided older turns, so a long
+  // conversation keeps memory of what came before without re-sending every
+  // turn to the provider. AES-256-GCM (same codec as CoachMessage.encrypted).
+  summaryEncrypted Bytes?    @map("summary_encrypted")
+  summaryUpdatedAt DateTime? @map("summary_updated_at")
+  summaryTurnCount Int       @default(0) @map("summary_turn_count")
+
   user     User           @relation(fields: [userId], references: [id], onDelete: Cascade)
   messages CoachMessage[]
 
@@ -2642,4 +2785,104 @@ model PushAttempt {
 
   @@index([userId, createdAt(sort: Desc)])
   @@map("push_attempts")
+}
+
+// ─── Clinician share links (scoped, time-limited, revocable read view) ───
+//
+// v1.11.0 — a user mints a link they hand a clinician (email, paper, QR).
+// The clinician opens it in any browser with no account and sees a
+// read-only view of the health record. The raw `hls_` token is stored
+// ONLY as an HMAC-SHA256 hash (`tokenHash`, same scheme as
+// `ApiToken.tokenHash`, keyed by `API_TOKEN_HMAC_KEY`); the plaintext is
+// returned to the owner exactly once at creation and never persisted.
+//
+// The scope is FROZEN at creation: `rangeStart`, `sectionsJson` and
+// `resourceTypes` are write-once and a share can NEVER widen later — only
+// `revokedAt`, `lastAccessAt` and `accessCount` mutate after mint. This
+// mirrors the append-only spirit of `ConsentReceipt`. `expiresAt` is
+// mandatory (capped at `SHARE_LINK_MAX_DAYS`, default 90) — there is no
+// never-expiring share. Deleting the user cascades every share away so
+// the GDPR-erasure path stays clean.
+model ClinicianShareLink {
+  id        String @id @default(cuid())
+  userId    String @map("user_id")
+  /// HMAC-SHA256 of the raw `hls_` token (same scheme as `ApiToken.tokenHash`).
+  tokenHash String @unique @map("token_hash")
+  /// Human label the owner sets (e.g. a clinic/specialty note). Plaintext, bounded.
+  label     String
+
+  // ── Frozen scope (write-once at creation; never widened) ──
+  /// Reporting-window start (absolute, not "last N days"). Frozen so a
+  /// rolling share can never reach data older than the owner chose.
+  rangeStart   DateTime @map("range_start")
+  /// Window end. Null = rolling ("up to now"); set = frozen snapshot window.
+  rangeEnd     DateTime? @map("range_end")
+  /// Section toggles (the `DoctorReportPrefs` shape the export uses). JSON.
+  sectionsJson Json @map("sections_json")
+  /// FHIR resource types this link may serve (a subset of the catalogue),
+  /// e.g. `["Observation","MedicationStatement"]`.
+  resourceTypes String[] @map("resource_types")
+  /// Whether the FHIR API is reachable via this link at all (vs the view only).
+  allowFhirApi Boolean @default(false) @map("allow_fhir_api")
+
+  /// REQUIRED — no never-expiring share (capped at `SHARE_LINK_MAX_DAYS`).
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // ── Mutable lifecycle/access counters (the only columns that change) ──
+  revokedAt    DateTime? @map("revoked_at")
+  lastAccessAt DateTime? @map("last_access_at")
+  accessCount  Int       @default(0) @map("access_count")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([expiresAt])
+  @@map("clinician_share_links")
+}
+
+// v1.11.0 W3 — period-narrative cache (Pillar P1).
+//
+// One durable, typed row per (user, period, locale) carrying the latest
+// generated period summary ("how your week/month went"). Delete +
+// regenerate clean: the unique constraint enforces a single row per slot,
+// so a regeneration upserts in place and there is never a stale duplicate
+// to disambiguate. The generated prose is held AES-256-GCM at rest in
+// `encryptedContent` (Bytes), following the `CoachMessage.encryptedContent`
+// precedent — the body is descriptive health narrative and is treated as
+// sensitive even though it carries labels-plus-numbers, not raw rows.
+//
+// `provenanceJson` is the labels-only provenance envelope the surface
+// renders as ⓘ chips (metric names + the read window + the FDR footer);
+// it carries no PII so it stays plaintext for a stable, queryable shape,
+// matching `CoachMessage.metricSourceJson`. `providerType` + `promptVersion`
+// mirror the attribution columns so the cross-feature aggregator can slice
+// quality per (provider × prompt). `period` is `week` | `month`; `dateKey`
+// is the UTC `YYYY-MM-DD` boundary the row was generated for, so the
+// stale-while-revalidate read can tell "today's" narrative from an older
+// one without decrypting.
+model InsightNarrative {
+  id               String   @id @default(cuid())
+  userId           String   @map("user_id")
+  /// "week" | "month".
+  period           String
+  /// Resolved UI locale of the prose ("de" | "en").
+  locale           String
+  /// UTC YYYY-MM-DD boundary the narrative was generated for.
+  dateKey          String   @map("date_key")
+  /// AES-256-GCM ciphertext of the generated narrative prose.
+  encryptedContent Bytes    @map("encrypted_content")
+  /// Labels-only provenance envelope (metric names, window, FDR footer).
+  provenanceJson   String?  @map("provenance_json")
+  providerType     String?  @map("provider_type")
+  promptVersion    String?  @map("prompt_version")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // One row per (user, period, locale) — regeneration upserts in place.
+  @@unique([userId, period, locale])
+  @@index([userId, updatedAt(sort: Desc)])
+  @@map("insight_narratives")
 }

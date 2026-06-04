@@ -277,6 +277,8 @@ const COACH_GROUND_RULE_ORDER: GroundRuleKey[] = [
   "ground_rule_9_glp1_dose_refusal",
   // 10: drug-level refusal (v1.4.25 W19c)
   "ground_rule_15_drug_level_refusal",
+  // 11: conditional trajectory narration (v1.11.0 Epic B, Pillar 3)
+  "ground_rule_16_trajectory_conditional",
 ];
 
 function renderGroundRules(

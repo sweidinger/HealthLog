@@ -25,6 +25,11 @@ const PUBLIC_PATHS = [
   "/auth/register",
   "/privacy",
   "/about",
+  // v1.11.0 — the public clinician view renders its own standalone chrome
+  // (no nav / coach / auth gate). Listed here so the shell hands it through
+  // bare; the route is also in `proxy.ts` PUBLIC_PATHS so it never round-trips
+  // the sign-in redirect.
+  "/c/",
 ];
 
 export function AuthShell({ children }: { children: React.ReactNode }) {
@@ -41,8 +46,12 @@ export function AuthShell({ children }: { children: React.ReactNode }) {
   // auth gate above.
   // v1.4.27 MB6 — `/about` follows the same shape (own header, own
   // footer, full-width body), so it joins the standalone list.
+  // v1.11.0 — the clinician view (`/c/*`) renders edge-to-edge with its own
+  // standalone chrome and no app shell, like the legal pages.
   const isStandalonePublicPage =
-    pathname.startsWith("/privacy") || pathname.startsWith("/about");
+    pathname.startsWith("/privacy") ||
+    pathname.startsWith("/about") ||
+    pathname.startsWith("/c/");
   const isAdminPage = pathname.startsWith("/admin");
   const isOnboardingPage = pathname === "/onboarding";
   const showUnlockNotifier = isAuthenticated && !isPublicPage && !!user?.id;

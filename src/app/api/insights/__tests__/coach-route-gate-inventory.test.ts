@@ -51,6 +51,9 @@ const NON_COACH_GATED_ROUTES: ReadonlyArray<string> = [
   // same `insightStatus` sub-flag as the seven specialised status routes.
   "src/app/api/insights/metric-status/route.ts",
   "src/app/api/insights/mood-status/route.ts",
+  // v1.11.0 — period-narrative read route. Gates on the same `insightStatus`
+  // sub-flag as the assessment routes (no Coach prose).
+  "src/app/api/insights/narrative/route.ts",
   // v1.9.0 — on-demand full assessment warm. Warms the same assessment
   // cards the status routes serve, so it gates on `insightStatus`, not
   // `coach`: a user with assessments enabled but Coach disabled can warm.

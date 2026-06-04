@@ -88,6 +88,11 @@ export function errorCodeToI18nKey(code: string): string {
       // than a provider failure ("try again in a moment"). Split out
       // so the user sees the actionable copy in the offline branch.
       return "insights.coach.errorNetwork";
+    case "coach.provider.credential_expired":
+      // v1.11.0 W1 — the user's primary AI provider credential is dead
+      // (auth-class failure). The next action is "reconnect", not "try
+      // again later", so it carries its own copy pointing at Settings.
+      return "insights.coach.errorCredentialExpired";
     case "coach.provider.unavailable":
     case "coach.provider.empty":
     case "coach.provider.none":

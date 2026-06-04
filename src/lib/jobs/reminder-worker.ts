@@ -20,6 +20,18 @@ import {
 import { syncUserMeasurements } from "@/lib/withings/sync";
 import { syncUserActivity } from "@/lib/withings/sync-activity";
 import { syncUserSleep } from "@/lib/withings/sync-sleep";
+import { syncUserRecovery } from "@/lib/whoop/sync-recovery";
+import { syncUserSleep as syncWhoopSleep } from "@/lib/whoop/sync-sleep";
+import { syncUserCycle } from "@/lib/whoop/sync-cycle";
+import { syncUserWorkout } from "@/lib/whoop/sync-workout";
+import {
+  WHOOP_BACKFILL_QUEUE,
+  WHOOP_BACKFILL_CONCURRENCY,
+  runWhoopBackfillForUser,
+  enqueueBootTimeWhoopBackfill,
+  type WhoopBackfillPayload,
+} from "@/lib/jobs/whoop-backfill";
+import { cleanupExpiredWhoopOAuthStates } from "@/lib/jobs/whoop-oauth-state-cleanup";
 import { generateGeneralStatusForUser } from "@/lib/insights/general-status";
 import { generateBloodPressureStatusForUser } from "@/lib/insights/blood-pressure-status";
 import { generateWeightStatusForUser } from "@/lib/insights/weight-status";
@@ -83,6 +95,13 @@ import {
   STRAIN_SCORE_CRON,
   runStrainScore,
 } from "@/lib/jobs/strain-score";
+import {
+  PERIOD_NARRATIVE_QUEUE,
+  PERIOD_NARRATIVE_CRON,
+  runPeriodNarrativeWarm,
+  warmOneNarrative,
+  type PeriodNarrativePayload,
+} from "@/lib/jobs/period-narrative-warm";
 import {
   DENSE_INTRADAY_RETENTION_QUEUE,
   DENSE_INTRADAY_RETENTION_CONCURRENCY,
@@ -259,6 +278,24 @@ const AUDIT_LOG_CLEANUP_CRON = "15 3 * * *"; // daily at 03:15 (Europe/Berlin)
 // Withings approval tab without bouncing back to the callback URL.
 const WITHINGS_OAUTH_STATE_CLEANUP_QUEUE = "withings-oauth-state-cleanup";
 const WITHINGS_OAUTH_STATE_CLEANUP_CRON = "20 3 * * *";
+// v1.11.0 — WHOOP sync queues. Webhook-primary + cron-safety-net, mirroring
+// the Withings activity/sleep crons. Recovery / sleep / workout each have a
+// WHOOP webhook (`*.updated`) that enqueues the matching per-resource job; the
+// crons below are the catch-net for dropped deliveries. Cycle has NO webhook,
+// so its cron is the only driver. Minutes are staggered off the Withings crons
+// (:00/:15) to spread DB load.
+const WHOOP_RECOVERY_SYNC_QUEUE = "whoop-recovery-sync";
+const WHOOP_RECOVERY_SYNC_CRON = "5 * * * *"; // every hour at :05
+const WHOOP_SLEEP_SYNC_QUEUE = "whoop-sleep-sync";
+const WHOOP_SLEEP_SYNC_CRON = "20 * * * *"; // every hour at :20
+const WHOOP_WORKOUT_SYNC_QUEUE = "whoop-workout-sync";
+const WHOOP_WORKOUT_SYNC_CRON = "35 * * * *"; // every hour at :35
+const WHOOP_CYCLE_SYNC_QUEUE = "whoop-cycle-sync";
+const WHOOP_CYCLE_SYNC_CRON = "50 * * * *"; // every hour at :50 (poll-only)
+// v1.11.0 — daily sweep for the WHOOP OAuth state ledger. Slots at 03:22,
+// next to the Withings sweep (03:20), inside the maintenance window.
+const WHOOP_OAUTH_STATE_CLEANUP_QUEUE = "whoop-oauth-state-cleanup";
+const WHOOP_OAUTH_STATE_CLEANUP_CRON = "22 3 * * *";
 const OFFHOST_BACKUP_QUEUE = "data-backup-offhost";
 // 02:30 Europe/Berlin — runs after audit-log/idempotency cleanups so old
 // rows are gone before they're snapshotted, but before the existing
@@ -1070,6 +1107,89 @@ async function handleWithingsSleepSync(jobs: Job<WithingsSleepSyncPayload>[]) {
   });
 }
 
+/**
+ * v1.11.0 — WHOOP per-resource sync payload. Two enqueue paths feed each
+ * WHOOP sync queue:
+ *
+ *   1. Webhook (`recovery.updated` / `sleep.updated` / `workout.updated`) —
+ *      payload carries `userId`, the handler syncs that one user.
+ *   2. Cron — payload has no `userId`; the handler iterates every WHOOP
+ *      connection and re-syncs each, catching dropped webhook deliveries.
+ *      Cycle has no webhook, so its cron is the sole driver.
+ */
+interface WhoopSyncPayload {
+  userId?: string;
+}
+
+/**
+ * Shared driver for the per-resource WHOOP sync handlers. Resolves the target
+ * set (per-user from the webhook payload, or every connection on the cron
+ * tick) and runs `syncFn` per user. One user's parked-at-reauth state never
+ * starves the rest of the cohort on the cron path.
+ */
+async function runWhoopResourceSync(
+  taskName: string,
+  jobs: Job<WhoopSyncPayload>[],
+  syncFn: (userId: string) => Promise<number>,
+): Promise<void> {
+  await withBackgroundEvent(taskName, async (evt) => {
+    const prisma = getWorkerPrisma();
+    try {
+      const targets: Array<{ userId: string }> = [];
+      for (const job of jobs) {
+        if (job.data?.userId) targets.push({ userId: job.data.userId });
+      }
+      if (targets.length === 0) {
+        const connections = await prisma.whoopConnection.findMany({
+          select: { userId: true },
+        });
+        targets.push(...connections);
+      }
+      if (targets.length === 0) return;
+
+      let usersSynced = 0;
+      let measurementsImported = 0;
+      for (const { userId } of targets) {
+        try {
+          measurementsImported += await syncFn(userId);
+          usersSynced++;
+        } catch (err) {
+          evt.addWarning(`${taskName} failed for user ${userId}: ${err}`);
+        }
+      }
+
+      evt.setBackground({
+        task_name: taskName,
+        result: {
+          users_synced: usersSynced,
+          total: targets.length,
+          measurements_imported: measurementsImported,
+        },
+      });
+    } catch (err) {
+      evt.setError(err);
+      recordError();
+      throw err;
+    }
+  });
+}
+
+function handleWhoopRecoverySync(jobs: Job<WhoopSyncPayload>[]) {
+  return runWhoopResourceSync("job.whoop_recovery_sync", jobs, syncUserRecovery);
+}
+
+function handleWhoopSleepSync(jobs: Job<WhoopSyncPayload>[]) {
+  return runWhoopResourceSync("job.whoop_sleep_sync", jobs, syncWhoopSleep);
+}
+
+function handleWhoopWorkoutSync(jobs: Job<WhoopSyncPayload>[]) {
+  return runWhoopResourceSync("job.whoop_workout_sync", jobs, syncUserWorkout);
+}
+
+function handleWhoopCycleSync(jobs: Job<WhoopSyncPayload>[]) {
+  return runWhoopResourceSync("job.whoop_cycle_sync", jobs, syncUserCycle);
+}
+
 async function handleGeneralStatusGenerate(jobs: Job<GeneralStatusPayload>[]) {
   void jobs;
   await withBackgroundEvent("job.insights.general", async (evt) => {
@@ -1558,6 +1678,25 @@ async function handleWithingsOAuthStateCleanup(
       // The OAuth flow tolerates a stale row sticking around for an
       // extra day — log + carry on so the boss queue doesn't retry-loop.
       evt.addWarning(`withings-oauth-state-cleanup failed: ${err}`);
+    }
+  });
+}
+
+interface WhoopOAuthStateCleanupPayload {
+  triggeredAt?: string;
+}
+
+async function handleWhoopOAuthStateCleanup(
+  jobs: Job<WhoopOAuthStateCleanupPayload>[],
+) {
+  void jobs;
+  await withBackgroundEvent("job.whoop_oauth_state_cleanup", async (evt) => {
+    const p = getWorkerPrisma();
+    try {
+      const deleted = await cleanupExpiredWhoopOAuthStates(p);
+      evt.addMeta("whoop_oauth_state_cleanup_deleted", deleted);
+    } catch (err) {
+      evt.addWarning(`whoop-oauth-state-cleanup failed: ${err}`);
     }
   });
 }
@@ -2065,6 +2204,21 @@ export async function startReminderWorker() {
     // crons; without this entry the schedule below silently no-ops
     // and abandoned rows pile up.
     WITHINGS_OAUTH_STATE_CLEANUP_QUEUE,
+    // v1.11.0 — WHOOP sync queues. Webhook-primary + cron-safety-net for
+    // recovery / sleep / workout; cycle is poll-only (no WHOOP webhook).
+    // Every queue MUST be registered here or pg-boss never provisions it and
+    // both the webhook enqueue AND the cron schedule below silently no-op (the
+    // v1.4.37 dead-queue class).
+    WHOOP_RECOVERY_SYNC_QUEUE,
+    WHOOP_SLEEP_SYNC_QUEUE,
+    WHOOP_WORKOUT_SYNC_QUEUE,
+    WHOOP_CYCLE_SYNC_QUEUE,
+    // v1.11.0 — self-converging boot backfill for newly connected WHOOP
+    // accounts. Discovery enqueues one full-history sync per un-backfilled
+    // connection; idempotent across reboots.
+    WHOOP_BACKFILL_QUEUE,
+    // v1.11.0 — daily sweep for the WHOOP OAuth state ledger.
+    WHOOP_OAUTH_STATE_CLEANUP_QUEUE,
     OFFHOST_BACKUP_QUEUE,
     HOST_METRIC_QUEUE,
     FEEDBACK_AGGREGATOR_QUEUE,
@@ -2171,6 +2325,10 @@ export async function startReminderWorker() {
     // onto the drain-cumulative tick). The queue MUST be registered here or
     // the boot enqueue silently never drains.
     DENSE_INTRADAY_RETENTION_QUEUE,
+    // v1.11.0 — nightly period-narrative warm + single-user warm enqueued by
+    // the read-only narrative GET. The queue MUST be registered here or the
+    // GET-miss enqueue silently never warms.
+    PERIOD_NARRATIVE_QUEUE,
   ];
 
   for (const q of allQueues) {
@@ -2219,6 +2377,15 @@ export async function startReminderWorker() {
     [IDEMPOTENCY_CLEANUP_QUEUE, IDEMPOTENCY_CLEANUP_CRON],
     [AUDIT_LOG_CLEANUP_QUEUE, AUDIT_LOG_CLEANUP_CRON],
     [WITHINGS_OAUTH_STATE_CLEANUP_QUEUE, WITHINGS_OAUTH_STATE_CLEANUP_CRON],
+    // v1.11.0 — WHOOP poll-fallback crons. Recovery/sleep/workout catch
+    // dropped webhooks; cycle is the sole driver (no webhook). Staggered off
+    // the Withings crons so the hourly ticks don't pile up on one boss poll.
+    [WHOOP_RECOVERY_SYNC_QUEUE, WHOOP_RECOVERY_SYNC_CRON],
+    [WHOOP_SLEEP_SYNC_QUEUE, WHOOP_SLEEP_SYNC_CRON],
+    [WHOOP_WORKOUT_SYNC_QUEUE, WHOOP_WORKOUT_SYNC_CRON],
+    [WHOOP_CYCLE_SYNC_QUEUE, WHOOP_CYCLE_SYNC_CRON],
+    // v1.11.0 — daily 03:22 Europe/Berlin prune for expired WHOOP OAuth states.
+    [WHOOP_OAUTH_STATE_CLEANUP_QUEUE, WHOOP_OAUTH_STATE_CLEANUP_CRON],
     [OFFHOST_BACKUP_QUEUE, OFFHOST_BACKUP_CRON],
     [HOST_METRIC_QUEUE, HOST_METRIC_CRON],
     [FEEDBACK_AGGREGATOR_QUEUE, FEEDBACK_AGGREGATOR_CRON],
@@ -2273,6 +2440,10 @@ export async function startReminderWorker() {
     // Strain-score compute + store, after the recovery + stress passes so
     // the nightly score writes stay ordered.
     [STRAIN_SCORE_QUEUE, STRAIN_SCORE_CRON],
+    // v1.11.0 — nightly 05:05 Europe/Berlin period-narrative warm. The
+    // handler only fans out on a week (Mon) / month (1st) boundary; every
+    // other night is a cheap no-op. Budget-gated per user inside the runner.
+    [PERIOD_NARRATIVE_QUEUE, PERIOD_NARRATIVE_CRON],
   ];
 
   for (const [name, cron] of schedules) {
@@ -2299,6 +2470,51 @@ export async function startReminderWorker() {
     WITHINGS_SLEEP_QUEUE,
     { localConcurrency: 1 },
     handleWithingsSleepSync,
+  );
+  // v1.11.0 — WHOOP per-resource sync handlers. Webhook-driven per-user +
+  // cron full-iteration. Serial concurrency so a backfill-heavy tick never
+  // crowds the request pool and stays inside WHOOP's 100 req/min app cap.
+  await boss.work<WhoopSyncPayload>(
+    WHOOP_RECOVERY_SYNC_QUEUE,
+    { localConcurrency: 1 },
+    handleWhoopRecoverySync,
+  );
+  await boss.work<WhoopSyncPayload>(
+    WHOOP_SLEEP_SYNC_QUEUE,
+    { localConcurrency: 1 },
+    handleWhoopSleepSync,
+  );
+  await boss.work<WhoopSyncPayload>(
+    WHOOP_WORKOUT_SYNC_QUEUE,
+    { localConcurrency: 1 },
+    handleWhoopWorkoutSync,
+  );
+  await boss.work<WhoopSyncPayload>(
+    WHOOP_CYCLE_SYNC_QUEUE,
+    { localConcurrency: 1 },
+    handleWhoopCycleSync,
+  );
+  // v1.11.0 — self-converging WHOOP backfill. The boot enqueue below sends one
+  // full-history sync per un-backfilled connection; this handler runs it and
+  // stamps `backfillCompletedAt` so the discovery query drops the account.
+  await boss.work<WhoopBackfillPayload>(
+    WHOOP_BACKFILL_QUEUE,
+    { localConcurrency: WHOOP_BACKFILL_CONCURRENCY },
+    async (jobs) => {
+      for (const job of jobs) {
+        const { userId } = job.data;
+        const { imported } = await runWhoopBackfillForUser(userId);
+        workerLog(
+          "info",
+          `[whoop-backfill] user=${userId} imported=${imported}`,
+        );
+      }
+    },
+  );
+  await boss.work<WhoopOAuthStateCleanupPayload>(
+    WHOOP_OAUTH_STATE_CLEANUP_QUEUE,
+    { localConcurrency: 1 },
+    handleWhoopOAuthStateCleanup,
   );
   await boss.work<GeneralStatusPayload>(
     GENERAL_STATUS_QUEUE,
@@ -2490,6 +2706,34 @@ export async function startReminderWorker() {
         recordError();
         workerLog("error", "[strain-score] pass failed", err);
         throw err;
+      }
+    },
+  );
+  // v1.11.0 — period-narrative warm. A scheduled tick (no `userId`) runs the
+  // boundary-gated nightly fan-out; a `userId` payload runs a single-user warm
+  // enqueued by the read-only GET on a cold/stale read. Single-flight so two
+  // ticks never double-walk the cohort; the per-user budget gate covers the
+  // fan-out and the enqueue `singletonKey` covers the single-user path.
+  await boss.work<PeriodNarrativePayload>(
+    PERIOD_NARRATIVE_QUEUE,
+    { localConcurrency: 1 },
+    async (jobs) => {
+      for (const job of jobs) {
+        try {
+          if (job.data?.userId) {
+            await warmOneNarrative(job.data);
+          } else {
+            const summary = await runPeriodNarrativeWarm(getWorkerPrisma());
+            workerLog(
+              "info",
+              `[period-narrative] periods=${summary.periods.join(",") || "none"} total=${summary.total} generated=${summary.generated} cached=${summary.cached} skipped=${summary.skipped} insufficient=${summary.insufficient} failed=${summary.failed} budget=${summary.budgetBlocked}`,
+            );
+          }
+        } catch (err) {
+          recordError();
+          workerLog("error", "[period-narrative] warm failed", err);
+          throw err;
+        }
       }
     },
   );
@@ -2911,6 +3155,30 @@ export async function startReminderWorker() {
     workerLog(
       "error",
       "[step-consolidation] boot discovery threw an unexpected error",
+      err,
+    );
+  }
+
+  // v1.11.0 — fire-and-forget boot discovery for the WHOOP backfill. Finds
+  // every WHOOP connection not yet backfilled and enqueues one full-history
+  // sync per account. Idempotent across reboots: a completed backfill stamps
+  // `backfillCompletedAt`, dropping the connection from the discovery set.
+  // Errors come back through the helper's result value — the worker boot never
+  // fails because of a backfill miss.
+  try {
+    const { enqueued, skipped, error } = await enqueueBootTimeWhoopBackfill();
+    if (error) {
+      workerLog("error", `[whoop-backfill] boot discovery failed: ${error}`);
+    } else {
+      workerLog(
+        "info",
+        `[whoop-backfill] boot discovery: enqueued=${enqueued} skipped=${skipped}`,
+      );
+    }
+  } catch (err) {
+    workerLog(
+      "error",
+      "[whoop-backfill] boot discovery threw an unexpected error",
       err,
     );
   }

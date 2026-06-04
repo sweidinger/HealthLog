@@ -188,21 +188,40 @@ describe("DEFAULT_SOURCE_PRIORITY", () => {
     }
   });
 
-  it("places APPLE_HEALTH first for cumulative metrics + HRV/sleep/RHR", () => {
+  it("places APPLE_HEALTH first for cumulative metrics", () => {
     // HealthKit aggregates ScanWatch + iPhone sensors into a single
     // canonical stream and has higher resolution than Withings' nightly
-    // summary for sleep stages / HRV / RHR.
+    // summary for the cumulative activity metrics.
     for (const key of [
       "steps",
       "activeEnergy",
       "walkingRunningDistance",
       "flightsClimbed",
-      "sleep",
-      "hrv",
-      "restingHeartRate",
     ] as const) {
       expect(DEFAULT_SOURCE_PRIORITY[key][0]).toBe("APPLE_HEALTH");
     }
+  });
+
+  it("places WHOOP first for the recovery-input ladders (v1.11)", () => {
+    // v1.11.0 — a worn-all-night WHOOP strap has higher-resolution
+    // overnight sampling than the iPhone-relayed HealthKit summary or the
+    // Withings nightly summary for sleep / HRV / RHR / respiratory rate;
+    // it leads those ladders ahead of APPLE_HEALTH.
+    for (const key of [
+      "sleep",
+      "hrv",
+      "restingHeartRate",
+      "respiratoryRate",
+    ] as const) {
+      expect(DEFAULT_SOURCE_PRIORITY[key][0]).toBe("WHOOP");
+    }
+  });
+
+  it("ranks WHOOP native recovery above the COMPUTED proxy (v1.11)", () => {
+    // v1.11.0 — native-vs-derived: the device-native Recovery outranks
+    // HealthLog's COMPUTED proxy when both exist, with the proxy as the
+    // fallback for users without a strap.
+    expect(DEFAULT_SOURCE_PRIORITY.recovery).toEqual(["WHOOP", "COMPUTED"]);
   });
 });
 

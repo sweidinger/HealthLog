@@ -203,6 +203,8 @@ export type FhirResource =
 export interface FhirBundleEntry {
   fullUrl?: string;
   resource: FhirResource;
+  /** v1.11.0 — `searchset` per-entry search metadata (`mode: "match"`). */
+  search?: { mode: "match" | "include" | "outcome" };
 }
 
 export interface FhirBundle {
@@ -210,4 +212,37 @@ export interface FhirBundle {
   type: "document";
   timestamp: string;
   entry: FhirBundleEntry[];
+}
+
+/** v1.11.0 — `Bundle.link` relation (self / next paging). */
+export interface FhirBundleLink {
+  relation: "self" | "next";
+  url: string;
+}
+
+/**
+ * v1.11.0 — a `searchset` Bundle, the wire shape the FHIR REST search routes
+ * return. `total` is the unpaged match count; `link` carries the self + next
+ * relations for offset paging; each `entry.search.mode` is `"match"`.
+ */
+export interface FhirSearchsetBundle {
+  resourceType: "Bundle";
+  type: "searchset";
+  timestamp: string;
+  total: number;
+  link?: FhirBundleLink[];
+  entry: FhirBundleEntry[];
+}
+
+/** v1.11.0 — `OperationOutcome.issue` element. */
+export interface FhirOperationOutcomeIssue {
+  severity: "fatal" | "error" | "warning" | "information";
+  code: string;
+  diagnostics?: string;
+}
+
+/** v1.11.0 — `OperationOutcome`, the FHIR error envelope. */
+export interface FhirOperationOutcome {
+  resourceType: "OperationOutcome";
+  issue: FhirOperationOutcomeIssue[];
 }

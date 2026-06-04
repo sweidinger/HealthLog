@@ -6,7 +6,7 @@ interface RowFixture {
   id: string;
   startedAt: Date;
   sportType: string;
-  source: "APPLE_HEALTH" | "WITHINGS" | "MANUAL" | "IMPORT";
+  source: "APPLE_HEALTH" | "WHOOP" | "WITHINGS" | "MANUAL" | "IMPORT";
 }
 
 describe("pickCanonicalWorkoutRows", () => {
@@ -42,6 +42,41 @@ describe("pickCanonicalWorkoutRows", () => {
       },
     ];
     expect(pickCanonicalWorkoutRows(rows).map((r) => r.id)).toEqual(["apple"]);
+  });
+
+  it("collapses a WHOOP run and the same Apple-Health run to APPLE_HEALTH", () => {
+    // The E-slice oracle for workouts (v1.11.0): a WHOOP strap and an Apple
+    // Watch both log the same run within the 5-min clustering window. Apple
+    // Watch GPS + HR is the richer record, so it leads the default workout
+    // ladder; WHOOP ranks second. WHOOP's `start` typically differs from the
+    // HealthKit `startDate` by seconds — well inside the window.
+    const rows: RowFixture[] = [
+      {
+        id: "whoop",
+        startedAt: new Date("2026-06-03T06:30:00Z"),
+        sportType: "running",
+        source: "WHOOP",
+      },
+      {
+        id: "apple",
+        startedAt: new Date("2026-06-03T06:30:40Z"), // 40 s apart — same slot
+        sportType: "running",
+        source: "APPLE_HEALTH",
+      },
+    ];
+    expect(pickCanonicalWorkoutRows(rows).map((r) => r.id)).toEqual(["apple"]);
+  });
+
+  it("keeps the WHOOP run when no richer source logged the same session", () => {
+    const rows: RowFixture[] = [
+      {
+        id: "whoop",
+        startedAt: new Date("2026-06-03T06:30:00Z"),
+        sportType: "running",
+        source: "WHOOP",
+      },
+    ];
+    expect(pickCanonicalWorkoutRows(rows).map((r) => r.id)).toEqual(["whoop"]);
   });
 
   it("does NOT collapse two distinct runs whose starts are > 5 min apart", () => {

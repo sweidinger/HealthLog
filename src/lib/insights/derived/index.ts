@@ -39,9 +39,11 @@ export type { DeriveCoverageArgs } from "./coverage";
 export {
   DERIVED_METRIC_IDS,
   VITALS_BASELINE_TYPES,
+  TRAJECTORY_TYPES,
   isDerivedMetricId,
   getDerivedMetricMeta,
   isVitalsBaselineType,
+  isTrajectoryType,
 } from "./registry";
 export type {
   DerivedMetricId,
@@ -157,3 +159,18 @@ export type {
   WellnessScoreType,
   WellnessScoreOpts,
 } from "./wellness-scores";
+
+// ── v1.11.0 (Epic B, Pillar 3) forecasting engine (server-only) ──────
+export {
+  computeTrajectory,
+  fitOls,
+  predictionIntervalHalfWidth,
+  TRAJECTORY_MIN_R2,
+  TRAJECTORY_MIN_HISTORY_DAYS,
+} from "./trajectory";
+export type {
+  TrajectoryValue,
+  TrajectoryPoint,
+  TrajectoryOpts,
+  OlsFit,
+} from "./trajectory";

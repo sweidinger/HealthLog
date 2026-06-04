@@ -21,6 +21,14 @@ vi.mock("@/lib/insights/features", () => ({
   extractFeatures: vi.fn(),
 }));
 
+// The rolling-profile memory block reads its own persisted sources
+// (period narrative + band transitions); stub it out here so the
+// query-count + cache assertions below stay scoped to the core snapshot
+// reads. Its own assembly is covered in memory-snapshot.test.ts.
+vi.mock("../memory-snapshot", () => ({
+  buildCoachMemoryBlock: vi.fn().mockResolvedValue(null),
+}));
+
 import { prisma } from "@/lib/db";
 import { extractFeatures } from "@/lib/insights/features";
 

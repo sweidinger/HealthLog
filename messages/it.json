@@ -445,7 +445,15 @@
     "typeBreathingDisturbanceEvent": "Breathing disturbance",
     "typeRecoveryScore": "Recovery score",
     "typeStressScore": "Stress score",
-    "typeStrainScore": "Strain score"
+    "typeStrainScore": "Strain score",
+    "typeHrvRmssd": "HRV (RMSSD)",
+    "typeDayStrain": "Sforzo giornaliero",
+    "typeWorkoutStrain": "Sforzo dell'allenamento",
+    "typeSleepPerformance": "Prestazione del sonno",
+    "typeSleepEfficiency": "Efficienza del sonno",
+    "typeSleepConsistency": "Costanza del sonno",
+    "typeSleepNeed": "Fabbisogno di sonno",
+    "typeEnergyExpenditureKj": "Dispendio energetico"
   },
   "mood": {
     "title": "Umore",
@@ -1532,6 +1540,16 @@
     "regenerateSuccess": "Analisi rigenerata",
     "warmAssessments": "Prepara le valutazioni",
     "warmStarted": "Le valutazioni vengono preparate in background",
+    "narrativeTitle": "Il tuo periodo in sintesi",
+    "narrativeWeek": "Questa settimana",
+    "narrativeMonth": "Questo mese",
+    "narrativePreparing": "Preparazione del riepilogo…",
+    "narrativeUpdating": "Aggiornamento…",
+    "narrativeUpdated": "Aggiornato {time}",
+    "narrativeProvenanceLabel": "Come è stato realizzato",
+    "narrativeProvenanceMethod": "Un riepilogo del periodo in linguaggio semplice, basato esclusivamente sui valori registrati e sulle associazioni che hanno superato il controllo statistico dei confronti multipli. Descrittivo, mai una causa.",
+    "narrativeProvenanceMetrics": "Basato su: {metrics}",
+    "narrativeProvenanceWindow": "Finestra: dal {from} al {to}",
     "heroFallbackSubtitle": "Uno sguardo quotidiano ai tuoi trend — direttamente dai numeri che registri.",
     "heroGreetingMorning": "Buongiorno",
     "heroGreetingAfternoon": "Buon pomeriggio",
@@ -1674,6 +1692,7 @@
       "errorBudget": "Hai raggiunto il limite giornaliero del coach. Il budget si reimposta a mezzanotte (UTC).",
       "errorProvider": "Il coach non è riuscito a contattare un provider di analisi ora. Riprova fra poco.",
       "errorNetwork": "Nessuna connessione Internet — riprova quando sei di nuovo online.",
+      "errorCredentialExpired": "La connessione al provider di IA è scaduta. Riconnettila nelle Impostazioni per mantenere attivo il Coach.",
       "tagline": "Coach personale di salute, basato sui tuoi dati.",
       "newChat": "Nuova chat",
       "send": "Invia",
@@ -2646,6 +2665,10 @@
         "SIX_MINUTE_WALK_BAND": {
           "method": "La distanza di cammino di sei minuti STIMATA dal tuo dispositivo, collocata rispetto al riferimento di Enright e Sherrill per la tua età, altezza, peso e sesso, come percentuale del previsto. La distanza è la stima del dispositivo — mai ricalcolata qui. Senza età, altezza, peso e sesso la percentuale è nascosta e vengono mostrate solo distanza e tendenza.",
           "caveat": "Una stima riformulata rispetto a un riferimento pubblicato — un segnale di capacità funzionale, non un test del cammino di sei minuti clinico né una diagnosi. Il riferimento è stato stabilito per le età 40–80; al di fuori di questo intervallo il valore previsto è un’estrapolazione."
+        },
+        "TRAJECTORY": {
+          "method": "Una retta ai minimi quadrati adattata ai tuoi valori giornalieri recenti e proiettata in avanti su un breve orizzonte, con l’intervallo di previsione classico che si allarga man mano che si estende. Calcolata solo quando la tendenza recente è abbastanza marcata e la tua cronologia è abbastanza lunga e aggiornata; altrimenti non viene tracciata alcuna linea.",
+          "caveat": "Una proiezione della tua tendenza recente — non una previsione, un obiettivo o una prognosi clinica. Vale solo se lo schema recente continua; la banda ombreggiata mostra quanto rapidamente quella certezza svanisce."
         }
       },
       "scores": {
@@ -2666,6 +2689,13 @@
         "firedHeadline": "Oggi {count} dei tuoi parametri vitali sono fuori dal loro intervallo personale.",
         "factors": "Possibili fattori — mai una causa: un allenamento intenso, poco sonno, alcol, altitudine, stress o una malattia. È un avviso basato sui tuoi parametri, non una diagnosi.",
         "building": "Stiamo costruendo i tuoi riferimenti personali — registra ancora qualche giorno e comparirà."
+      },
+      "trajectory": {
+        "cardTitle": "Proiezione a breve termine",
+        "headline": "Se questo schema continua — i prossimi {days} giorni",
+        "range": "Proiettato intorno a {low}–{high} {unit} tra {days} giorni.",
+        "caveat": "Una proiezione della tua tendenza recente, non una previsione. La banda ombreggiata si allarga per mostrare quanto rapidamente cresce l’incertezza.",
+        "insufficient": "Non c’è ancora una tendenza abbastanza chiara da proiettare — continua a registrare e comparirà una proiezione quando lo schema recente sarà abbastanza marcato."
       }
     },
     "cardioFitness": {
@@ -3024,13 +3054,18 @@
           "spo2": "Saturazione di ossigeno",
           "hrv": "Variabilità della frequenza cardiaca",
           "restingHeartRate": "Frequenza cardiaca a riposo",
-          "vo2Max": "VO2 max"
+          "vo2Max": "VO2 max",
+          "skinTemperature": "Temperatura cutanea",
+          "respiratoryRate": "Frequenza respiratoria",
+          "recovery": "Recupero"
         },
         "sourceLabels": {
           "WITHINGS": "Withings",
           "APPLE_HEALTH": "Apple Health",
           "MANUAL": "Inserimento manuale",
-          "IMPORT": "Importa"
+          "IMPORT": "Importa",
+          "WHOOP": "WHOOP",
+          "COMPUTED": "Calcolato"
         },
         "deviceLabels": {
           "watch": "Orologio",
@@ -3098,6 +3133,10 @@
       "about": {
         "title": "About",
         "description": "Version, license, links."
+      },
+      "sharing": {
+        "title": "Condivisione",
+        "description": "Crea un link di sola lettura per condividere la tua cartella clinica con un medico."
       }
     },
     "profile": "Profilo",
@@ -3339,6 +3378,30 @@
     "withingsDisconnectDescription": "The connection to Withings will be disconnected. Previously synced data will be preserved.",
     "withingsConnect": "Connect with Withings",
     "withingsNoCredentials": "Please enter your API credentials above to connect Withings.",
+    "whoop": "WHOOP",
+    "whoopDescription": "Collega la tua fascia WHOOP per sincronizzare recupero, sonno, sforzo e allenamenti.",
+    "whoopOverlapNote": "Se WHOOP e un'altra fonte forniscono lo stesso valore vitale — frequenza cardiaca a riposo, ossigeno nel sangue, temperatura corporea, frequenza respiratoria o fasi del sonno —, potresti vedere entrambi i valori finché un futuro aggiornamento non sceglierà un'unica fonte preferita.",
+    "whoopCredentials": "Credenziali API",
+    "whoopCredentialsHelp": "Registra la tua app sviluppatore WHOOP e incolla qui il suo Client ID e Client Secret.",
+    "whoopClientId": "Client ID",
+    "whoopClientSecret": "Client Secret",
+    "whoopCredentialsSaved": "Credenziali salvate",
+    "whoopCredentialsSavedPlaceholder": "Salvato — inserisci nuove per sostituire",
+    "whoopCredentialsSavedPlaceholderSecret": "Salvato — inserisci nuove per sostituire",
+    "whoopSaveCredentials": "Salva credenziali",
+    "whoopSync": "Sincronizza ora",
+    "whoopFullSync": "Sincronizza tutti i dati",
+    "whoopFullSyncTitle": "Sincronizzazione completa?",
+    "whoopFullSyncDescription": "Verrà sincronizzato tutto lo storico WHOOP disponibile. Potrebbe richiedere tempo a seconda del tuo storico.",
+    "whoopSyncResult": "{count} misurazioni sincronizzate",
+    "whoopSyncFailed": "Sincronizzazione non riuscita",
+    "whoopSynchronize": "Sincronizza",
+    "whoopDisconnect": "Disconnetti",
+    "whoopDisconnectTitle": "Disconnettere WHOOP?",
+    "whoopDisconnectDescription": "La connessione a WHOOP verrà disconnessa. I dati già sincronizzati saranno conservati.",
+    "whoopConnect": "Connetti con WHOOP",
+    "whoopNoCredentials": "Inserisci le tue credenziali API qui sopra per connettere WHOOP.",
+    "whoopBackfillInProgress": "Importazione dello storico WHOOP in background…",
     "integrations": {
       "withings": {
         "reconnect": {
@@ -3532,7 +3595,37 @@
       "error": "Esportazione non riuscita ({code})."
     },
     "globalExcludedInjectionSitesLabel": "Siti di iniezione esclusi globalmente",
-    "globalExcludedInjectionSitesHint": "I siti elencati qui non vengono proposti per alcun farmaco e vengono rifiutati al momento della registrazione di una dose, anche se un farmaco li preferisce."
+    "globalExcludedInjectionSitesHint": "I siti elencati qui non vengono proposti per alcun farmaco e vengono rifiutati al momento della registrazione di una dose, anche se un farmaco li preferisce.",
+    "sharing": {
+      "createTitle": "Nuovo link di condivisione",
+      "createDescription": "Il link è di sola lettura e a tempo. Il token viene mostrato una sola volta alla creazione — salvalo subito; non può essere recuperato.",
+      "label": "Etichetta",
+      "labelPlaceholder": "es. Dott. Rossi — controllo annuale",
+      "range": "Giorni di cronologia",
+      "rangeHint": "Fin dove si estende la finestra condivisa.",
+      "expiry": "Scade tra (giorni)",
+      "expiryHint": "Al massimo {max} giorni.",
+      "expiryInvalid": "La scadenza deve essere tra 1 e {max} giorni.",
+      "fhirApi": "Consenti API FHIR limitata",
+      "fhirApiHint": "Lascia che il link offra un endpoint FHIR di sola lettura oltre alla vista della pagina.",
+      "resourceTypes": "Tipi di risorsa FHIR",
+      "create": "Crea link",
+      "tokenCreated": "Link di condivisione creato",
+      "tokenOnce": "Copia ora questo link — il token viene mostrato una sola volta e non può essere recuperato.",
+      "copy": "Copia link",
+      "copied": "Copiato negli appunti.",
+      "activeTitle": "Link attivi",
+      "noActive": "Nessun link di condivisione attivo.",
+      "created": "Creato",
+      "expires": "Scade",
+      "accessCount": "Visualizzazioni",
+      "revoke": "Revoca",
+      "revokeDescription": "Revoca subito questo link. Chiunque lo possieda perde immediatamente l'accesso. L'operazione è irreversibile.",
+      "statusActive": "Attivo",
+      "statusRevoked": "Revocato",
+      "statusExpired": "Scaduto",
+      "inactiveTitle": "Revocati e scaduti ({count})"
+    }
   },
   "admin": {
     "title": "Administration",
@@ -4509,5 +4602,33 @@
   "moodReminders": {
     "dailyTitle": "Registra il tuo umore",
     "dailyBody": "Come ti senti oggi?"
+  },
+  "clinicianView": {
+    "title": "Cartella sanitaria condivisa",
+    "period": "Periodo del report: {start} – {end}",
+    "expires": "Questo link scade il {date}.",
+    "provenance": "Questo è un riepilogo di sola lettura condiviso dalla persona a cui appartiene, esportato dai suoi dati HealthLog autoregistrati. I valori sono autodichiarati e possono includere letture sincronizzate da dispositivi; vanno considerati come riferiti dal paziente, non come un esame clinico.",
+    "vitals": "Parametri vitali",
+    "labs": "Valori di laboratorio",
+    "medications": "Farmaci e aderenza",
+    "bmi": "Indice di massa corporea (IMC)",
+    "statSummary": "ultimo {latest} (media {avg}, intervallo {min}–{max})",
+    "adherence": "{rate} di aderenza",
+    "noAdherence": "—",
+    "glucose": {
+      "FASTING": "Glicemia (a digiuno)",
+      "POSTPRANDIAL": "Glicemia (postprandiale)",
+      "RANDOM": "Glicemia (casuale)",
+      "BEDTIME": "Glicemia (prima di dormire)"
+    },
+    "wellness": {
+      "title": "Punteggi di benessere",
+      "disclaimer": "Punteggi descrittivi (0–100) calcolati dai segnali monitorati. Non sono una valutazione clinica né una diagnosi.",
+      "recovery": "Punteggio di recupero",
+      "stress": "Punteggio di stress",
+      "strain": "Punteggio di sforzo",
+      "score": "Punteggio di benessere"
+    },
+    "footer": "Condiviso da HealthLog — un tracker della salute self-hosted."
   }
 }

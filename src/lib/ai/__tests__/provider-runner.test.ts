@@ -1,5 +1,26 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { AIProvider, CompletionParams, CompletionResult } from "../types";
+
+// v1.11.0 W1 — the runner now defaults to the Postgres-backed
+// provider-health ledger. These pure chain tests do not stand up a DB,
+// so swap the default for a no-op; the dedicated ledger-aware cases
+// below inject an in-memory ledger explicitly.
+vi.mock("../provider-health-ledger", async () => {
+  const actual = await vi.importActual<
+    typeof import("../provider-health-ledger")
+  >("../provider-health-ledger");
+  return {
+    ...actual,
+    postgresProviderHealthLedger: {
+      async getSkipHints() {
+        return new Map();
+      },
+      async recordSuccess() {},
+      async recordFailure() {},
+    },
+  };
+});
+
 import {
   AllProvidersFailedError,
   clearLastWorkingProviderCache,
@@ -8,6 +29,10 @@ import {
   runRawCompletionWithFallback,
   runWithFallback,
 } from "../provider-runner";
+import {
+  AUTH_FAILURE_COOLDOWN_MS,
+  createInMemoryProviderHealthLedger,
+} from "../provider-health-ledger";
 
 const VALID_RESPONSE = JSON.stringify({
   summary: "ok",
@@ -431,5 +456,208 @@ describe("runWithFallback — empty input", () => {
     }
     expect(caught).toBeInstanceOf(AllProvidersFailedError);
     expect((caught as AllProvidersFailedError).httpStatus).toBe(422);
+  });
+});
+
+// ── v1.11.0 W1 — durable provider-health ledger integration ──────────
+
+describe("provider-health ledger — auth-failure negative cache", () => {
+  it("records the auth failure and deprioritises the dead provider on the next call", async () => {
+    const ledger = createInMemoryProviderHealthLedger();
+    const codex = new ScriptedProvider({
+      type: "codex",
+      // First call 401, then (if ever re-tried) it would succeed — but
+      // the negative cache must keep it benched.
+      script: [{ ok: false, error: err(401, "OAuth expired") }, { ok: true }],
+    });
+    const openai = new ScriptedProvider({
+      type: "admin-key",
+      script: [{ ok: true, content: '{ "ok": true }' }, { ok: true }],
+    });
+    const providers = [
+      { providerType: "codex" as const, instance: codex },
+      { providerType: "openai" as const, instance: openai },
+    ];
+
+    // First call: codex 401 → openai succeeds. Ledger now benches codex.
+    await runRawCompletionWithFallback({
+      userId: "u-neg",
+      providers,
+      params: { systemPrompt: "s", userPrompt: "u" },
+      ledger,
+    });
+    expect((await ledger.getSkipHints("u-neg")).get("codex")?.reason).toBe(
+      "credential_expired",
+    );
+
+    // Reset the per-worker last-working cache so the ONLY thing steering
+    // order on the second call is the durable ledger.
+    clearLastWorkingProviderCache();
+
+    // Second call: codex is benched to the tail by the negative cache,
+    // so openai is tried first and codex is never re-invoked.
+    const codexCallsBefore = codex.callCount;
+    await runRawCompletionWithFallback({
+      userId: "u-neg",
+      providers,
+      params: { systemPrompt: "s", userPrompt: "u" },
+      ledger,
+    });
+    expect(codex.callCount).toBe(codexCallsBefore); // not re-burned
+  });
+
+  it("clears the negative cache after a provider succeeds again", async () => {
+    const ledger = createInMemoryProviderHealthLedger();
+    await ledger.recordFailure("u-clear-neg", "codex", 401);
+    expect((await ledger.getSkipHints("u-clear-neg")).size).toBe(1);
+
+    const codex = new ScriptedProvider({
+      type: "codex",
+      script: [{ ok: true }],
+    });
+    // A direct success on codex (e.g. user re-linked) clears the row.
+    await runRawCompletionWithFallback({
+      userId: "u-clear-neg",
+      providers: [{ providerType: "codex", instance: codex }],
+      params: { systemPrompt: "s", userPrompt: "u" },
+      ledger,
+    });
+    expect((await ledger.getSkipHints("u-clear-neg")).size).toBe(0);
+  });
+
+  it("lets the benched provider back to the front once the cooldown lapses", async () => {
+    vi.useFakeTimers();
+    const ledger = createInMemoryProviderHealthLedger();
+    await ledger.recordFailure("u-lapse", "codex", 401);
+    expect((await ledger.getSkipHints("u-lapse")).has("codex")).toBe(true);
+
+    vi.advanceTimersByTime(AUTH_FAILURE_COOLDOWN_MS + 1);
+    expect((await ledger.getSkipHints("u-lapse")).has("codex")).toBe(false);
+  });
+});
+
+describe("provider-health ledger — local model as guaranteed floor", () => {
+  it("still reaches the local provider even when every keyed provider is benched", async () => {
+    const ledger = createInMemoryProviderHealthLedger();
+    // Pre-bench every remote provider with an auth failure.
+    await ledger.recordFailure("u-floor", "codex", 401);
+    await ledger.recordFailure("u-floor", "openai", 401);
+    await ledger.recordFailure("u-floor", "anthropic", 401);
+
+    const dead = (type: AIProvider["type"]) =>
+      new ScriptedProvider({ type, script: [{ ok: false, error: err(401) }] });
+    const local = new ScriptedProvider({
+      type: "local",
+      script: [{ ok: true, content: '{ "floor": true }' }],
+    });
+
+    const result = await runRawCompletionWithFallback({
+      userId: "u-floor",
+      providers: [
+        { providerType: "codex", instance: dead("codex") },
+        { providerType: "openai", instance: dead("admin-key") },
+        { providerType: "anthropic", instance: dead("anthropic") },
+        { providerType: "local", instance: local },
+      ],
+      params: { systemPrompt: "s", userPrompt: "u" },
+      ledger,
+    });
+
+    // The local floor is never benched by the negative cache and is
+    // reached even though every other provider is in an auth cooldown.
+    expect(result.result.content).toBe('{ "floor": true }');
+    expect(result.workingProvider.providerType).toBe("local");
+    expect(local.callCount).toBe(1);
+  });
+
+  it("never benches the local provider in the ledger even on a hard failure", async () => {
+    const ledger = createInMemoryProviderHealthLedger();
+    const local = new ScriptedProvider({
+      type: "local",
+      script: [{ ok: false, error: err(503) }, { ok: true }],
+    });
+    // A 503 on local records a hard failure but the runner must keep it
+    // in the chain — there is no remote credential to "expire".
+    let caught: unknown;
+    try {
+      await runRawCompletionWithFallback({
+        userId: "u-local-hard",
+        providers: [{ providerType: "local", instance: local }],
+        params: { systemPrompt: "s", userPrompt: "u" },
+        ledger,
+      });
+    } catch (e) {
+      caught = e;
+    }
+    expect(caught).toBeInstanceOf(AllProvidersFailedError);
+
+    // Even after a recorded hard failure, the next call still tries
+    // local (NEVER_SKIP) and this time it succeeds.
+    clearLastWorkingProviderCache();
+    const result = await runRawCompletionWithFallback({
+      userId: "u-local-hard",
+      providers: [{ providerType: "local", instance: local }],
+      params: { systemPrompt: "s", userPrompt: "u" },
+      ledger,
+    });
+    expect(result.workingProvider.providerType).toBe("local");
+  });
+});
+
+describe("AllProvidersFailedError — primaryCredentialExpired", () => {
+  it("flags primaryCredentialExpired when the first hop is auth-class", async () => {
+    const ledger = createInMemoryProviderHealthLedger();
+    const codex = new ScriptedProvider({
+      type: "codex",
+      script: [{ ok: false, error: err(401) }],
+    });
+    const openai = new ScriptedProvider({
+      type: "admin-key",
+      script: [{ ok: false, error: err(503) }],
+    });
+    let caught: unknown;
+    try {
+      await runRawCompletionWithFallback({
+        userId: "u-primary-auth",
+        providers: [
+          { providerType: "codex", instance: codex },
+          { providerType: "admin-openai", instance: openai },
+        ],
+        params: { systemPrompt: "s", userPrompt: "u" },
+        ledger,
+      });
+    } catch (e) {
+      caught = e;
+    }
+    const e = caught as AllProvidersFailedError;
+    expect(e.primaryCredentialExpired).toBe(true);
+  });
+
+  it("does NOT flag primaryCredentialExpired when the first hop is a 5xx", async () => {
+    const ledger = createInMemoryProviderHealthLedger();
+    const codex = new ScriptedProvider({
+      type: "codex",
+      script: [{ ok: false, error: err(503) }],
+    });
+    const openai = new ScriptedProvider({
+      type: "admin-key",
+      script: [{ ok: false, error: err(401) }],
+    });
+    let caught: unknown;
+    try {
+      await runRawCompletionWithFallback({
+        userId: "u-primary-5xx",
+        providers: [
+          { providerType: "codex", instance: codex },
+          { providerType: "admin-openai", instance: openai },
+        ],
+        params: { systemPrompt: "s", userPrompt: "u" },
+        ledger,
+      });
+    } catch (e) {
+      caught = e;
+    }
+    const e = caught as AllProvidersFailedError;
+    expect(e.primaryCredentialExpired).toBe(false);
   });
 });

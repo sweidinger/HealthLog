@@ -55,6 +55,16 @@ services:
       # an operator override in .env actually reaches the container (the
       # `environment:` block is a whitelist).
       FHIR_MAX_MEDICATION_ADMINISTRATIONS: "${FHIR_MAX_MEDICATION_ADMINISTRATIONS:-}"
+      # WHOOP integration (optional). The app client id/secret are per-user
+      # BYO-keys stored encrypted in the DB, so there is no
+      # WHOOP_CLIENT_ID/SECRET env. WHOOP_WEBHOOK_SECRET is the instance-level
+      # path-segment + HMAC-verification secret for the webhook;
+      # WHOOP_REDIRECT_URI overrides the derived
+      # `${NEXT_PUBLIC_APP_URL}/api/whoop/callback` when the public URL
+      # differs. Listed here so an operator override in .env reaches the
+      # container (the `environment:` block is a whitelist).
+      WHOOP_WEBHOOK_SECRET: "${WHOOP_WEBHOOK_SECRET:-}"
+      WHOOP_REDIRECT_URI: "${WHOOP_REDIRECT_URI:-}"
     depends_on:
       db:
         condition: service_healthy

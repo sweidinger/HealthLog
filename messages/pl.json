@@ -445,7 +445,15 @@
     "typeBreathingDisturbanceEvent": "Breathing disturbance",
     "typeRecoveryScore": "Recovery score",
     "typeStressScore": "Stress score",
-    "typeStrainScore": "Strain score"
+    "typeStrainScore": "Strain score",
+    "typeHrvRmssd": "HRV (RMSSD)",
+    "typeDayStrain": "Obciążenie dzienne",
+    "typeWorkoutStrain": "Obciążenie treningowe",
+    "typeSleepPerformance": "Wydajność snu",
+    "typeSleepEfficiency": "Efektywność snu",
+    "typeSleepConsistency": "Regularność snu",
+    "typeSleepNeed": "Zapotrzebowanie na sen",
+    "typeEnergyExpenditureKj": "Wydatek energetyczny"
   },
   "mood": {
     "title": "Nastrój",
@@ -1532,6 +1540,16 @@
     "regenerateSuccess": "Analiza wygenerowana ponownie",
     "warmAssessments": "Przygotuj analizy",
     "warmStarted": "Analizy są przygotowywane w tle",
+    "narrativeTitle": "Twój okres w skrócie",
+    "narrativeWeek": "Ten tydzień",
+    "narrativeMonth": "Ten miesiąc",
+    "narrativePreparing": "Przygotowywanie podsumowania…",
+    "narrativeUpdating": "Aktualizowanie…",
+    "narrativeUpdated": "Zaktualizowano {time}",
+    "narrativeProvenanceLabel": "Jak to powstało",
+    "narrativeProvenanceMethod": "Podsumowanie okresu w prostym języku, oparte wyłącznie na zarejestrowanych wartościach i powiązaniach, które przeszły statystyczną korektę dla porównań wielokrotnych. Opisowe, nigdy nie przyczynowe.",
+    "narrativeProvenanceMetrics": "Na podstawie: {metrics}",
+    "narrativeProvenanceWindow": "Okno: od {from} do {to}",
     "heroFallbackSubtitle": "Codzienne spojrzenie na twoje trendy — prosto z liczb, które rejestrujesz.",
     "heroGreetingMorning": "Dzień dobry",
     "heroGreetingAfternoon": "Dzień dobry",
@@ -1674,6 +1692,7 @@
       "errorBudget": "Osiągnięto dzienny limit coacha. Limit resetuje się o północy (UTC).",
       "errorProvider": "Coach nie mógł teraz skontaktować się z dostawcą analizy. Spróbuj za chwilę.",
       "errorNetwork": "Brak połączenia z Internetem — spróbuj ponownie, gdy wrócisz online.",
+      "errorCredentialExpired": "Połączenie z dostawcą AI wygasło. Połącz je ponownie w Ustawieniach, aby Coach działał dalej.",
       "tagline": "Osobisty coach zdrowia, oparty na twoich danych.",
       "newChat": "Nowa rozmowa",
       "send": "Wyślij",
@@ -2646,6 +2665,10 @@
         "SIX_MINUTE_WALK_BAND": {
           "method": "SZACOWANY przez Twoje urządzenie dystans sześciominutowego marszu odniesiony do wzorca Enrighta i Sherrilla dla Twojego wieku, wzrostu, wagi i płci, jako procent wartości przewidywanej. Dystans to szacunek urządzenia — nigdy nie jest tu przeliczany. Bez Twojego wieku, wzrostu, wagi i płci procent jest ukryty i pokazywane są tylko dystans i trend.",
           "caveat": "Szacunek odniesiony do opublikowanego wzorca — sygnał wydolności funkcjonalnej, nie kliniczny test sześciominutowego marszu ani diagnoza. Wzorzec opracowano dla wieku 40–80 lat; poza tym zakresem wartość przewidywana jest ekstrapolacją."
+        },
+        "TRAJECTORY": {
+          "method": "Prosta dopasowana metodą najmniejszych kwadratów do Twoich ostatnich wartości dziennych i rzutowana w przód na krótki horyzont, z klasycznym przedziałem predykcji, który poszerza się tym bardziej, im dalej sięga. Obliczana tylko wtedy, gdy ostatni trend jest dość wyraźny, a Twoja historia wystarczająco długa i aktualna; w przeciwnym razie linia nie jest rysowana.",
+          "caveat": "Rzut Twojego własnego ostatniego trendu — nie prognoza, cel ani kliniczne przewidywanie. Sprawdza się tylko, jeśli ostatni wzorzec się utrzyma; zacieniony pas pokazuje, jak szybko ta pewność maleje."
         }
       },
       "scores": {
@@ -2666,6 +2689,13 @@
         "firedHeadline": "Dziś {count} Twoich parametrów życiowych jest poza osobistym zakresem.",
         "factors": "Możliwe czynniki — nigdy przyczyna: intensywny trening, słaby sen, alkohol, wysokość, stres lub choroba. To wskazówka z Twoich własnych baz, nie diagnoza.",
         "building": "Budujemy Twoje osobiste bazy — zarejestruj jeszcze kilka dni, a to się pojawi."
+      },
+      "trajectory": {
+        "cardTitle": "Krótkoterminowy rzut",
+        "headline": "Jeśli ten wzorzec się utrzyma — następne {days} dni",
+        "range": "Rzutowane na około {low}–{high} {unit} za {days} dni.",
+        "caveat": "Rzut Twojego własnego ostatniego trendu, nie prognoza. Zacieniony pas poszerza się, pokazując, jak szybko rośnie niepewność.",
+        "insufficient": "Jeszcze brak wystarczająco wyraźnego trendu do rzutowania — rejestruj dalej, a rzut pojawi się, gdy ostatni wzorzec będzie dość wyraźny."
       }
     },
     "cardioFitness": {
@@ -3024,13 +3054,18 @@
           "spo2": "Saturacja tlenem",
           "hrv": "Zmienność rytmu serca",
           "restingHeartRate": "Tętno spoczynkowe",
-          "vo2Max": "VO2 max"
+          "vo2Max": "VO2 max",
+          "skinTemperature": "Temperatura skóry",
+          "respiratoryRate": "Częstość oddechów",
+          "recovery": "Regeneracja"
         },
         "sourceLabels": {
           "WITHINGS": "Withings",
           "APPLE_HEALTH": "Apple Health",
           "MANUAL": "Wpis ręczny",
-          "IMPORT": "Importuj"
+          "IMPORT": "Importuj",
+          "WHOOP": "WHOOP",
+          "COMPUTED": "Obliczone"
         },
         "deviceLabels": {
           "watch": "Zegarek",
@@ -3098,6 +3133,10 @@
       "about": {
         "title": "About",
         "description": "Version, license, links."
+      },
+      "sharing": {
+        "title": "Udostępnianie",
+        "description": "Utwórz link tylko do odczytu, aby udostępnić swoją dokumentację zdrowotną lekarzowi."
       }
     },
     "profile": "Profil",
@@ -3339,6 +3378,30 @@
     "withingsDisconnectDescription": "The connection to Withings will be disconnected. Previously synced data will be preserved.",
     "withingsConnect": "Connect with Withings",
     "withingsNoCredentials": "Please enter your API credentials above to connect Withings.",
+    "whoop": "WHOOP",
+    "whoopDescription": "Połącz opaskę WHOOP, aby synchronizować regenerację, sen, obciążenie i treningi.",
+    "whoopOverlapNote": "Jeśli WHOOP i inne źródło dostarczają tę samą wartość życiową — tętno spoczynkowe, saturację, temperaturę ciała, częstość oddechów lub fazy snu — możesz widzieć obie wartości, dopóki przyszła aktualizacja nie wybierze jednego preferowanego źródła.",
+    "whoopCredentials": "Dane API",
+    "whoopCredentialsHelp": "Zarejestruj własną aplikację deweloperską WHOOP i wklej tutaj jej Client ID oraz Client Secret.",
+    "whoopClientId": "Client ID",
+    "whoopClientSecret": "Client Secret",
+    "whoopCredentialsSaved": "Dane zapisane",
+    "whoopCredentialsSavedPlaceholder": "Zapisano — wpisz nowe, aby zastąpić",
+    "whoopCredentialsSavedPlaceholderSecret": "Zapisano — wpisz nowe, aby zastąpić",
+    "whoopSaveCredentials": "Zapisz dane",
+    "whoopSync": "Synchronizuj teraz",
+    "whoopFullSync": "Synchronizuj wszystkie dane",
+    "whoopFullSyncTitle": "Pełna synchronizacja?",
+    "whoopFullSyncDescription": "Cała dostępna historia WHOOP zostanie w pełni zsynchronizowana. Może to chwilę potrwać w zależności od historii.",
+    "whoopSyncResult": "Zsynchronizowano {count} pomiarów",
+    "whoopSyncFailed": "Synchronizacja nie powiodła się",
+    "whoopSynchronize": "Synchronizuj",
+    "whoopDisconnect": "Odłącz",
+    "whoopDisconnectTitle": "Odłączyć WHOOP?",
+    "whoopDisconnectDescription": "Połączenie z WHOOP zostanie zakończone. Wcześniej zsynchronizowane dane zostaną zachowane.",
+    "whoopConnect": "Połącz z WHOOP",
+    "whoopNoCredentials": "Wprowadź powyżej swoje dane API, aby połączyć WHOOP.",
+    "whoopBackfillInProgress": "Importowanie historii WHOOP w tle…",
     "integrations": {
       "withings": {
         "reconnect": {
@@ -3532,7 +3595,37 @@
       "error": "Eksport nie powiódł się ({code})."
     },
     "globalExcludedInjectionSitesLabel": "Globalnie wykluczone miejsca iniekcji",
-    "globalExcludedInjectionSitesHint": "Miejsca wymienione tutaj nie są proponowane dla żadnego leku i są odrzucane przy rejestrowaniu dawki, nawet jeśli lek je preferuje."
+    "globalExcludedInjectionSitesHint": "Miejsca wymienione tutaj nie są proponowane dla żadnego leku i są odrzucane przy rejestrowaniu dawki, nawet jeśli lek je preferuje.",
+    "sharing": {
+      "createTitle": "Nowy link udostępniania",
+      "createDescription": "Link jest tylko do odczytu i ograniczony czasowo. Token jest pokazywany tylko raz przy tworzeniu — zapisz go wtedy; nie można go odzyskać.",
+      "label": "Etykieta",
+      "labelPlaceholder": "np. dr Kowalski — kontrola roczna",
+      "range": "Dni historii",
+      "rangeHint": "Jak daleko wstecz sięga udostępnione okno.",
+      "expiry": "Wygasa za (dni)",
+      "expiryHint": "Najwyżej {max} dni.",
+      "expiryInvalid": "Wygaśnięcie musi mieścić się między 1 a {max} dniami.",
+      "fhirApi": "Zezwól na ograniczone API FHIR",
+      "fhirApiHint": "Pozwól, aby link udostępniał punkt końcowy FHIR tylko do odczytu obok widoku strony.",
+      "resourceTypes": "Typy zasobów FHIR",
+      "create": "Utwórz link",
+      "tokenCreated": "Link udostępniania utworzony",
+      "tokenOnce": "Skopiuj ten link teraz — token jest pokazywany tylko raz i nie można go odzyskać.",
+      "copy": "Kopiuj link",
+      "copied": "Skopiowano do schowka.",
+      "activeTitle": "Aktywne linki",
+      "noActive": "Brak aktywnych linków udostępniania.",
+      "created": "Utworzono",
+      "expires": "Wygasa",
+      "accessCount": "Wyświetlenia",
+      "revoke": "Unieważnij",
+      "revokeDescription": "Unieważnij ten link natychmiast. Każdy, kto go ma, traci dostęp od razu. Tej operacji nie można cofnąć.",
+      "statusActive": "Aktywny",
+      "statusRevoked": "Unieważniony",
+      "statusExpired": "Wygasły",
+      "inactiveTitle": "Unieważnione i wygasłe ({count})"
+    }
   },
   "admin": {
     "title": "Administration",
@@ -4509,5 +4602,33 @@
   "moodReminders": {
     "dailyTitle": "Zapisz nastrój",
     "dailyBody": "Jak się dzisiaj czujesz?"
+  },
+  "clinicianView": {
+    "title": "Udostępniona dokumentacja zdrowotna",
+    "period": "Okres raportu: {start} – {end}",
+    "expires": "Ten link wygasa dnia {date}.",
+    "provenance": "To jest tylko do odczytu podsumowanie udostępnione przez osobę, do której należy, wyeksportowane z jej samodzielnie rejestrowanych danych HealthLog. Wartości są zgłaszane samodzielnie i mogą obejmować odczyty zsynchronizowane z urządzeń; należy je traktować jako zgłoszone przez pacjenta, a nie jako badanie kliniczne.",
+    "vitals": "Parametry życiowe",
+    "labs": "Wyniki laboratoryjne",
+    "medications": "Leki i przestrzeganie zaleceń",
+    "bmi": "Wskaźnik masy ciała (BMI)",
+    "statSummary": "ostatnio {latest} (śr. {avg}, zakres {min}–{max})",
+    "adherence": "{rate} przestrzegania",
+    "noAdherence": "—",
+    "glucose": {
+      "FASTING": "Glukoza (na czczo)",
+      "POSTPRANDIAL": "Glukoza (poposiłkowa)",
+      "RANDOM": "Glukoza (losowa)",
+      "BEDTIME": "Glukoza (przed snem)"
+    },
+    "wellness": {
+      "title": "Wyniki dobrostanu",
+      "disclaimer": "Opisowe wyniki (0–100) obliczone na podstawie śledzonych sygnałów. Nie są one oceną kliniczną ani diagnozą.",
+      "recovery": "Wynik regeneracji",
+      "stress": "Wynik stresu",
+      "strain": "Wynik obciążenia",
+      "score": "Wynik dobrostanu"
+    },
+    "footer": "Udostępnione z HealthLog — samodzielnie hostowanego trackera zdrowia."
   }
 }

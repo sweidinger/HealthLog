@@ -21,6 +21,11 @@ const PUBLIC_PATHS = [
   "/api/monitoring/",
   "/api/send",
   "/api/withings/webhook",
+  // v1.11.0 — WHOOP webhook (`recovery.updated` / `sleep.updated` /
+  // `workout.updated`, + `*.deleted`). Authenticated by the path-segment
+  // secret + the HMAC body signature, never by a session cookie, so it
+  // must bypass the auth gate (mirrors the Withings webhook entry).
+  "/api/whoop/webhook",
   "/api/telegram/webhook",
   "/api/integrations/moodlog/webhook",
   "/api/ingest/",
@@ -32,6 +37,11 @@ const PUBLIC_PATHS = [
   // alongside the project credits. The CC licence requires the
   // attribution to be reachable without a sign-in.
   "/about",
+  // v1.11.0 — `/c/<token>` is the public clinician view (Epic C). It is
+  // authenticated solely by the unguessable `hls_` token in the path, NOT
+  // by a session cookie, so it must reach the page without an auth gate.
+  // The page renders a flat 404 for any unknown / revoked / expired token.
+  "/c/",
   // `/onboarding` itself + its subroutes are matched exactly via
   // `isPublicPath()` so we don't admit `/onboarding-export` etc.
   "/robots.txt",
@@ -232,6 +242,26 @@ export function proxy(request: NextRequest) {
     "Permissions-Policy",
     "camera=(), microphone=(), geolocation=()",
   );
+
+  // v1.11.0 (Epic C, C6) — the public clinician share view at `/c/<token>`
+  // is a scoped health record authenticated by an unguessable bearer token
+  // in the path. Defend it at the edge regardless of what the RSC emits:
+  //   - `Cache-Control: no-store` so no shared proxy / CDN ever retains a
+  //     scoped record (the page is `force-dynamic`, but that governs Next's
+  //     cache, not a downstream intermediary).
+  //   - `X-Robots-Tag: noindex, nofollow` as the header peer of the page's
+  //     `robots` meta — a crawler that never parses the document still obeys
+  //     the header, and the token must never reach a search index.
+  //   - `Referrer-Policy: no-referrer` so the token-bearing URL is not
+  //     leaked in the `Referer` of any outbound navigation from the page.
+  if (pathname.startsWith("/c/")) {
+    response.headers.set(
+      "Cache-Control",
+      "no-store, no-cache, must-revalidate",
+    );
+    response.headers.set("X-Robots-Tag", "noindex, nofollow");
+    response.headers.set("Referrer-Policy", "no-referrer");
+  }
   // COOP isolates this BrowsingContextGroup from cross-origin popups,
   // closing the Spectre-class side-channel surface a stray
   // `window.opener` reference would otherwise carry. CORP narrows the
@@ -264,6 +294,17 @@ export function proxy(request: NextRequest) {
   const withingsConnectSrc = isWithingsRoute
     ? " https://wbsapi.withings.net"
     : "";
+  // v1.11.0 — `api.prod.whoop.com` gated to the WHOOP settings surface +
+  // `/api/whoop/*`, mirroring the Withings gating shape. The WHOOP data
+  // client lives server-side and the OAuth handshake is a browser
+  // redirect (not a fetch), so this is belt-and-suspenders parity — no
+  // other surface ever needs to reach the WHOOP host from the browser.
+  const isWhoopRoute =
+    pathname.startsWith("/settings/integrations/whoop") ||
+    pathname.startsWith("/api/whoop/");
+  const whoopConnectSrc = isWhoopRoute
+    ? " https://api.prod.whoop.com"
+    : "";
   // v1.5.5 — Gravatar host removed from `img-src`. The /me payload
   // used to return `gravatarUrl: https://www.gravatar.com/avatar/<sha256(email)>`,
   // which leaked the email digest to Automattic on every authenticated
@@ -272,7 +313,7 @@ export function proxy(request: NextRequest) {
   // them.
   const csp = isDev
     ? `default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; font-src 'self';`
-    : `default-src 'self'; script-src 'self' 'nonce-${nonce}'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'${aiConnectSrc}${withingsConnectSrc}; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; worker-src 'self'; report-uri ${cspReportEndpoint}; report-to csp-endpoint;`;
+    : `default-src 'self'; script-src 'self' 'nonce-${nonce}'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'${aiConnectSrc}${withingsConnectSrc}${whoopConnectSrc}; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; worker-src 'self'; report-uri ${cspReportEndpoint}; report-to csp-endpoint;`;
   response.headers.set("Content-Security-Policy", csp);
 
   // Production-only headers. HSTS carries `preload` so the domain stays

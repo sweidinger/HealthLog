@@ -165,6 +165,21 @@ export const MEASUREMENT_CATEGORIES: ReadonlyMap<
   ["RECOVERY_SCORE", "scores"],
   ["STRESS_SCORE", "scores"],
   ["STRAIN_SCORE", "scores"],
+
+  // ── v1.11.0 — WHOOP-native score classes ──
+  // Day/workout strain are composite indices alongside the other scores.
+  ["DAY_STRAIN", "scores"],
+  ["WORKOUT_STRAIN", "scores"],
+  // RMSSD HRV joins the derived cardiac surface alongside the SDNN variant.
+  ["HRV_RMSSD", "cardiovascular"],
+  // Sleep-quality indices + recommended sleep need sit in the sleep cluster.
+  ["SLEEP_PERFORMANCE", "sleep"],
+  ["SLEEP_EFFICIENCY", "sleep"],
+  ["SLEEP_CONSISTENCY", "sleep"],
+  ["SLEEP_NEED", "sleep"],
+  // Day energy expenditure is a cumulative activity metric (kJ analogue of
+  // ACTIVE_ENERGY_BURNED).
+  ["ENERGY_EXPENDITURE_KJ", "activity"],
 ]);
 
 /**

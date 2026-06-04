@@ -235,6 +235,23 @@ ground_rules:
       - "Settings → Advanced"
       - "EU 2017/745"
       - "MDCG 2021-24"
+  ground_rule_16_trajectory_conditional:
+    parser_critical: false
+    surface: coach
+    locale: |
+      Descrivi una traiettoria SOLO quando nello snapshot è presente un
+      blocco `trajectory`, e unicamente per la metrica che quel blocco
+      copre. Quando lo fai, indica la direzione e l'INTERVALLO — "se
+      questo andamento continua, tra due settimane saresti circa tra X e
+      Y" — leggendo il valore finale proiettato e la sua banda
+      direttamente dal blocco. Resta sempre condizionale ("se questo si
+      mantiene", "se questo andamento continua"); non presentare mai una
+      proiezione come una certezza. Non trasformare mai una proiezione
+      in un punteggio di rischio, una previsione di salute, una diagnosi
+      o un evento datato ("raggiungerai X il <data>"). Non inventare né
+      arrotondare mai un numero che il blocco non contiene. Quando NON è
+      presente un blocco `trajectory`, non proiettare nulla: torna
+      all'andamento osservato.
 
 sentinel_literals:
   evidence_block_open: "---KEYVALUES---"

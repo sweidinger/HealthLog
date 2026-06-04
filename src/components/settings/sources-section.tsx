@@ -79,6 +79,10 @@ const METRIC_LABEL_KEYS: Record<SourcePriorityMetricKey, string> = {
   hrv: "settings.sections.sources.metrics.hrv",
   restingHeartRate: "settings.sections.sources.metrics.restingHeartRate",
   vo2Max: "settings.sections.sources.metrics.vo2Max",
+  // v1.11.0 — WHOOP-overlapping metric classes + native-vs-derived recovery.
+  skinTemperature: "settings.sections.sources.metrics.skinTemperature",
+  respiratoryRate: "settings.sections.sources.metrics.respiratoryRate",
+  recovery: "settings.sections.sources.metrics.recovery",
 };
 
 const SOURCE_LABEL_KEYS: Record<string, string> = {
@@ -86,6 +90,10 @@ const SOURCE_LABEL_KEYS: Record<string, string> = {
   APPLE_HEALTH: "settings.sections.sources.sourceLabels.APPLE_HEALTH",
   MANUAL: "settings.sections.sources.sourceLabels.MANUAL",
   IMPORT: "settings.sections.sources.sourceLabels.IMPORT",
+  // v1.11.0 — WHOOP native source + the COMPUTED proxy (surfaces in the
+  // `recovery` ladder for native-vs-derived ordering).
+  WHOOP: "settings.sections.sources.sourceLabels.WHOOP",
+  COMPUTED: "settings.sections.sources.sourceLabels.COMPUTED",
 };
 
 const DEVICE_TYPE_LABEL_KEYS: Record<DeviceType, string> = {

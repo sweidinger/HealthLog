@@ -19,10 +19,10 @@
  *     log them on purpose, but a misconfigured client error or a
  *     dump of the request body could carry one. Scrub before egress.
  *   - path-segment secrets — routes like `/api/withings/webhook/<secret>`
- *     carry the shared secret as a positional path segment. The Wide
- *     Event `http.path` and `http.route` fields would otherwise leak
- *     the secret into stdout, the in-memory ring buffer, and Loki.
- *     See `PATH_SECRET_PATHS`.
+ *     and the clinician share view `/c/<hls_…>` carry a bearer secret as
+ *     a positional path segment. The Wide Event `http.path` and
+ *     `http.route` fields would otherwise leak the secret into stdout,
+ *     the in-memory ring buffer, and Loki. See `PATH_SECRET_PATHS`.
  *
  * The substitution is intentionally generic ([REDACTED]) — we don't
  * want partial revelation of token entropy.
@@ -42,6 +42,15 @@ export const PATH_SECRET_PATHS: ReadonlyArray<{ prefix: string }> = [
   // the trailing path segment (v1.4.25 W17a). Without this rule the
   // secret lands in every Wide Event's `http.path` / `http.route`.
   { prefix: "/api/withings/webhook/" },
+  // v1.11.0 — clinician share view (Epic C). The raw `hls_` share token
+  // rides as the trailing path segment of `/c/<token>`; it is a bearer
+  // credential for the share surface, so scrub it from `http.path` /
+  // `http.route` the same way the Withings webhook secret is scrubbed.
+  { prefix: "/c/" },
+  // v1.11.0 — WHOOP webhook entrypoint: `WHOOP_WEBHOOK_SECRET` travels as
+  // the trailing path segment (mirrors Withings). Without this rule the
+  // secret lands in every Wide Event's `http.path` / `http.route`.
+  { prefix: "/api/whoop/webhook/" },
 ];
 
 function redactPathSegments(input: string): string {

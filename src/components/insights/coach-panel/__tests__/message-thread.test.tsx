@@ -543,6 +543,14 @@ describe("errorCodeToI18nKey", () => {
     );
   });
 
+  // v1.11.0 W1 — a dead primary credential gets the reconnect copy, not
+  // the generic provider-unavailable copy.
+  it("maps coach.provider.credential_expired to the reconnect key", () => {
+    expect(errorCodeToI18nKey("coach.provider.credential_expired")).toBe(
+      "insights.coach.errorCredentialExpired",
+    );
+  });
+
   it("forward-compats unknown codes with the namespaced key", () => {
     expect(errorCodeToI18nKey("errorProvider")).toBe(
       "insights.coach.errorProvider",

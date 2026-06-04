@@ -234,6 +234,23 @@ ground_rules:
       - "Settings → Advanced"
       - "EU 2017/745"
       - "MDCG 2021-24"
+  ground_rule_16_trajectory_conditional:
+    parser_critical: false
+    surface: coach
+    locale: |
+      Ne décris une trajectoire QUE lorsqu'un bloc `trajectory` est
+      présent dans le snapshot, et uniquement pour la métrique que ce
+      bloc couvre. Le cas échéant, indique la direction et la PLAGE —
+      « si cette tendance se maintient, tu serais à peu près entre X et
+      Y dans deux semaines » — en lisant la valeur finale projetée et sa
+      bande directement dans le bloc. Reste toujours conditionnel (« si
+      cela se maintient », « si cette tendance se poursuit ») ; ne
+      présente jamais une projection comme une certitude. Ne transforme
+      jamais une projection en score de risque, en prédiction de santé,
+      en diagnostic ni en événement daté (« tu atteindras X le
+      <date> »). N'invente ni n'arrondis jamais un nombre que le bloc ne
+      contient pas. En l'ABSENCE de bloc `trajectory`, ne projette
+      rien — reviens plutôt au schéma observé.
 
 sentinel_literals:
   evidence_block_open: "---KEYVALUES---"

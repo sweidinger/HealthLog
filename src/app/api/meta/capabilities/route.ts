@@ -40,6 +40,14 @@ import {
   SNOMED_SYSTEM,
   GERMAN_ATC_DEFAULT_LOCALES,
 } from "@/lib/fhir/build-bundle";
+import {
+  FHIR_READ_SCOPE,
+  FHIR_REST_RESOURCE_TYPES,
+  FHIR_EVERYTHING_OPERATION,
+  FHIR_SEARCH_PARAMS,
+} from "@/lib/fhir/rest";
+import { SHARE_LINK_MAX_DAYS } from "@/lib/validations/clinician-share-link";
+import { exportSectionsSchema } from "@/lib/validations/health-record-export";
 
 export const dynamic = "force-dynamic";
 
@@ -96,6 +104,26 @@ export const GET = apiHandler(async () => {
       atcSystem: ATC_SYSTEM,
       snomedRoute: SNOMED_SYSTEM,
       germanAtcDefaultLocales: GERMAN_ATC_DEFAULT_LOCALES,
+      // Read-only REST face (v1.11): the resource types served, the
+      // whole-record operation, the honoured search params and the narrow
+      // Bearer scope. All sourced from the canonical `rest.ts` constants.
+      restBaseUrl: "/api/fhir",
+      readScope: FHIR_READ_SCOPE,
+      resourceTypes: FHIR_REST_RESOURCE_TYPES,
+      operations: [FHIR_EVERYTHING_OPERATION],
+      searchParams: FHIR_SEARCH_PARAMS,
+    },
+    // Clinician share-link surface (v1.11): a scoped, time-boxed, revocable
+    // read-only link to the owner's record. Descriptor sourced from the
+    // canonical share validation + export-section constants. The share serves
+    // the rendered record view only; no `/api/fhir/*` route honours a share
+    // token yet (they require an authenticated `fhir:read` Bearer), so the
+    // share→FHIR face is not advertised as live.
+    share: {
+      supported: true,
+      maxDays: SHARE_LINK_MAX_DAYS,
+      fhirApi: false,
+      sections: Object.keys(exportSectionsSchema.shape),
     },
   });
 });

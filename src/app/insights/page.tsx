@@ -120,6 +120,27 @@ const CoincidentDeviationCard = dynamic(
   },
 );
 
+// v1.11.0 — period-narrative card (Pillar P1). The calm "your week/month in
+// review" summary, drawn from the read-only stale-while-revalidate narrative
+// route. Deferred behind `next/dynamic` like the other below-the-hero blocks;
+// it owns its own query and un-mounts when no narrative exists. The loader
+// skeleton shares the card's `min-h-40` footprint so the page does not shift.
+const PeriodNarrativeCard = dynamic(
+  () =>
+    import("@/components/insights/period-narrative-card").then((mod) => ({
+      default: mod.PeriodNarrativeCard,
+    })),
+  {
+    ssr: false,
+    loading: () => (
+      <div
+        aria-hidden="true"
+        className="bg-card border-border min-h-40 animate-pulse rounded-xl border motion-reduce:animate-none"
+      />
+    ),
+  },
+);
+
 /**
  * v1.4.25 W4d — Insights mother page.
  *
@@ -269,6 +290,8 @@ export default function InsightsPage() {
       />
 
       <CoincidentDeviationCard enabled={isAuthenticated} />
+
+      {flags.briefing && <PeriodNarrativeCard enabled={isAuthenticated} />}
 
       <div className="flex justify-end">
         <Button

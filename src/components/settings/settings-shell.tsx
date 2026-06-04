@@ -25,6 +25,7 @@ import {
   LayoutDashboard,
   Link2,
   Settings2,
+  Share2,
   SlidersHorizontal,
   Sparkles,
   User,
@@ -109,6 +110,11 @@ export const SETTINGS_SECTIONS: readonly SettingsSection[] = [
   },
   { slug: "ai", titleKey: "settings.sections.ai.title", icon: Sparkles },
   { slug: "api", titleKey: "settings.sections.api.title", icon: KeyRound },
+  {
+    slug: "sharing",
+    titleKey: "settings.sections.sharing.title",
+    icon: Share2,
+  },
   {
     slug: "export",
     titleKey: "settings.sections.export.title",
