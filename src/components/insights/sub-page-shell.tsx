@@ -8,6 +8,8 @@ import { ListOrdered } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { CoachLaunchButton } from "@/components/insights/coach-launch-button";
+import { TargetAdjustButton } from "@/components/insights/target-adjust-button";
+import { TargetAdjustProvider } from "@/lib/insights/target-adjust-context";
 import { useScrollResetOnRoute } from "@/hooks/use-scroll-reset-on-route";
 import { useTranslations } from "@/lib/i18n/context";
 import { cn } from "@/lib/utils";
@@ -157,11 +159,17 @@ export function SubPageShell({
   }, [focusOnMount]);
 
   return (
-    <div data-slot="insights-subpage" className="space-y-4 md:space-y-5">
-      {/* v1.8.7.1 — back-nav leads the page, above the heading. */}
-      {backLink}
-      <header className="space-y-1.5">
-        {/* v1.8.6 — the heading row pins the Coach icon top-right while the
+    // The target-adjust provider bridges the header gear (rendered just
+    // below) to the per-metric `<TargetEditSheet>` opened from the
+    // `<MetricTargetSummary>` card in the page body. It owns the sheet
+    // state + renders the sheet, so the gear and the card don't have to
+    // share a parent beyond this shell.
+    <TargetAdjustProvider>
+      <div data-slot="insights-subpage" className="space-y-4 md:space-y-5">
+        {/* v1.8.7.1 — back-nav leads the page, above the heading. */}
+        {backLink}
+        <header className="space-y-1.5">
+          {/* v1.8.6 — the heading row pins the Coach icon top-right while the
             title / nudge / badge wrap together on the left.
 
             Design M2 fix: the Coach icon is a `shrink-0` sibling of the
@@ -176,100 +184,107 @@ export function SubPageShell({
             with and without a nudge now align. `items-start` keeps the
             Coach icon at the top of the row when the title wraps to two
             lines. */}
-        <div className="flex min-h-10 items-start justify-between gap-2">
-          <div className="flex min-w-0 flex-wrap items-center gap-2">
-            <h1
-              ref={headingRef}
-              id="insights-subpage-title"
-              tabIndex={-1}
-              className={cn(
-                "text-xl font-semibold sm:text-2xl",
-                // a11y: sighted-keyboard users (e.g. "Skip to content")
-                // need a visible focus indicator on the programmatic
-                // `headingRef.focus()` call below. Match the focus ring
-                // vocabulary used on insights pills + Coach affordances.
-                "rounded-sm focus-visible:ring-ring/50 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none",
-              )}
-            >
-              {title}
-            </h1>
-            {/* v1.8.6 — the diversity nudge rides the heading as a
+          <div className="flex min-h-10 items-start justify-between gap-2">
+            <div className="flex min-w-0 flex-wrap items-center gap-2">
+              <h1
+                ref={headingRef}
+                id="insights-subpage-title"
+                tabIndex={-1}
+                className={cn(
+                  "text-xl font-semibold sm:text-2xl",
+                  // a11y: sighted-keyboard users (e.g. "Skip to content")
+                  // need a visible focus indicator on the programmatic
+                  // `headingRef.focus()` call below. Match the focus ring
+                  // vocabulary used on insights pills + Coach affordances.
+                  "focus-visible:ring-ring/50 rounded-sm focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none",
+                )}
+              >
+                {title}
+              </h1>
+              {/* v1.8.6 — the diversity nudge rides the heading as a
                 `Lightbulb` glyph (the node self-gates to nothing when the
                 spread is healthy), replacing the old inline block. */}
-            {diversityNudge}
-            {badge ? (
-              <Badge variant="outline" className="border text-xs">
-                {badge}
-              </Badge>
-            ) : null}
+              {diversityNudge}
+              {badge ? (
+                <Badge variant="outline" className="border text-xs">
+                  {badge}
+                </Badge>
+              ) : null}
+            </div>
+            {/* Header action cluster, pinned top-right at heading height by
+              the row's `justify-between` so it aligns with the title
+              regardless of badge / glyph presence or a wrapped title.
+
+              The target-adjust gear sits to the LEFT of the Coach icon.
+              It self-gates on a registered editable target (a metric with
+              no numeric band registers nothing, so the gear stays hidden),
+              and the Coach icon self-gates on the Coach flag + per-user
+              opt-out — so the cluster collapses cleanly to one, both, or
+              neither control. */}
+            <div className="flex shrink-0 items-center gap-0.5">
+              <TargetAdjustButton />
+              {coachLaunch ? <CoachLaunchButton variant="icon" /> : null}
+            </div>
           </div>
-          {/* v1.8.6 — Coach launch sits top-right at heading height as an
-              icon, pinned by the row's `justify-between` so it aligns with
-              the title regardless of badge / glyph presence or a wrapped
-              title. The button self-gates on the Coach flag + per-user
-              opt-out. */}
-          {coachLaunch ? (
-            <CoachLaunchButton variant="icon" className="shrink-0" />
+          {explainerMetric ? (
+            // v1.8.4 — surface the metric's static definition inline,
+            // directly beneath the heading.
+            //
+            // v1.8.5 W4a — render the explainer body as the *single* caption
+            // under the heading. Pre-v1.8.5 both this paragraph and the
+            // `description` below it stacked, so every metric page opened
+            // with two near-duplicative muted captions before any data — the
+            // root of the "airy / static under the heading" feel. The
+            // explainer body is the definition, so it wins; the description
+            // only renders when no explainer is set (the mother page and any
+            // future explainer-less sub-page).
+            //
+            // v1.8.6 — this caption is now the only surface for the
+            // definition; the round `?` popover that used to read the same
+            // string was removed.
+            <p
+              data-slot="metric-explainer-inline"
+              className="text-muted-foreground text-sm leading-relaxed"
+            >
+              {t(`insights.subPage.explainer.${explainerMetric}Body`)}
+            </p>
           ) : null}
-        </div>
-        {explainerMetric ? (
-          // v1.8.4 — surface the metric's static definition inline,
-          // directly beneath the heading.
-          //
-          // v1.8.5 W4a — render the explainer body as the *single* caption
-          // under the heading. Pre-v1.8.5 both this paragraph and the
-          // `description` below it stacked, so every metric page opened
-          // with two near-duplicative muted captions before any data — the
-          // root of the "airy / static under the heading" feel. The
-          // explainer body is the definition, so it wins; the description
-          // only renders when no explainer is set (the mother page and any
-          // future explainer-less sub-page).
-          //
-          // v1.8.6 — this caption is now the only surface for the
-          // definition; the round `?` popover that used to read the same
-          // string was removed.
-          <p
-            data-slot="metric-explainer-inline"
-            className="text-muted-foreground text-sm leading-relaxed"
-          >
-            {t(`insights.subPage.explainer.${explainerMetric}Body`)}
-          </p>
-        ) : null}
-        {description && !explainerMetric ? (
-          <p className="text-muted-foreground text-sm">{description}</p>
-        ) : null}
-      </header>
-      {/* v1.8.5 W4b — numbers-first stat strip sits between the header
+          {description && !explainerMetric ? (
+            <p className="text-muted-foreground text-sm">{description}</p>
+          ) : null}
+        </header>
+        {/* v1.8.5 W4b — numbers-first stat strip sits between the header
           and the chart so the page leads with data, mirroring the Apple
           Health / Withings detail layout. Self-gating (renders nothing
           without data), so the spacing rhythm holds on the empty-state
           and brand-new-metric paths.
           v1.8.6 — the diversity nudge moved up to the heading row. */}
-      {statStrip}
-      {children}
-      {/* v1.8.5 W4b — "show all readings" entry at the foot, linking to
+        {statStrip}
+        {children}
+        {/* v1.8.5 W4b — "show all readings" entry at the foot, linking to
           the dedicated per-metric values subpage.
           v1.8.6 — normalised to the `h-10` secondary-button height so it
           reads as a consistent control now that the foot-of-page Coach
           button (which set the old visual baseline) has moved to the
           header. */}
-      {showAllValuesType ? (
-        <Button
-          asChild
-          variant="outline"
-          data-slot="metric-show-all-values"
-          className="h-10 w-full sm:w-auto"
-        >
-          <Link
-            href={`/insights/values/${showAllValuesType}${
-              pathname ? `?from=${encodeURIComponent(pathname)}` : ""
-            }`}
+        {showAllValuesType ? (
+          <Button
+            asChild
+            variant="outline"
+            data-slot="metric-show-all-values"
+            className="h-10 w-full sm:w-auto"
           >
-            <ListOrdered className="mr-1.5 size-4" aria-hidden="true" />
-            {t("insights.subPage.showAllValues")}
-          </Link>
-        </Button>
-      ) : null}
-    </div>
+            <Link
+              href={`/insights/values/${showAllValuesType}${
+                pathname ? `?from=${encodeURIComponent(pathname)}` : ""
+              }`}
+            >
+              <ListOrdered className="mr-1.5 size-4" aria-hidden="true" />
+              {t("insights.subPage.showAllValues")}
+            </Link>
+          </Button>
+        ) : null}
+      </div>
+    </TargetAdjustProvider>
   );
 }

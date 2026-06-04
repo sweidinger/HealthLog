@@ -75,11 +75,15 @@ export const GET = apiHandler(async () => {
   const tz = profile?.timezone ?? "Europe/Berlin";
   const since = new Date(Date.now() - WINDOW_DAYS * MS_PER_DAY);
 
-  // Behaviour channels are measurement-backed except MOOD (mood entries).
+  // MOOD is backed by mood entries, not measurements — it appears as both a
+  // behaviour and (v1.11.5 F3) an outcome channel, so filter it out of the
+  // measurement type list on either side.
   const behaviourTypes = DISCOVERY_BEHAVIOURS.filter(
     (k) => k !== "MOOD",
   ) as MeasurementType[];
-  const outcomeTypes = [...DISCOVERY_OUTCOMES] as MeasurementType[];
+  const outcomeTypes = DISCOVERY_OUTCOMES.filter(
+    (k) => k !== "MOOD",
+  ) as MeasurementType[];
 
   const [measurements, moodEntries] = await Promise.all([
     prisma.measurement.findMany({
@@ -108,23 +112,23 @@ export const GET = apiHandler(async () => {
     measurementsByType.set(m.type, list);
   }
 
+  // MOOD's daily-mean series is shared between its behaviour and outcome
+  // roles (computed once).
+  const moodDaily = toDailyMeans(
+    moodEntries.map((e) => ({ value: e.score, at: e.moodLoggedAt })),
+    tz,
+  );
+
   const series: NamedSeries[] = [];
   for (const key of DISCOVERY_BEHAVIOURS) {
     const points =
-      key === "MOOD"
-        ? toDailyMeans(
-            moodEntries.map((e) => ({ value: e.score, at: e.moodLoggedAt })),
-            tz,
-          )
-        : toDailyMeans(measurementsByType.get(key) ?? [], tz);
+      key === "MOOD" ? moodDaily : toDailyMeans(measurementsByType.get(key) ?? [], tz);
     series.push({ key, role: "behaviour", points });
   }
   for (const key of DISCOVERY_OUTCOMES) {
-    series.push({
-      key,
-      role: "outcome",
-      points: toDailyMeans(measurementsByType.get(key) ?? [], tz),
-    });
+    const points =
+      key === "MOOD" ? moodDaily : toDailyMeans(measurementsByType.get(key) ?? [], tz);
+    series.push({ key, role: "outcome", points });
   }
 
   const result = discoverCorrelations(series);

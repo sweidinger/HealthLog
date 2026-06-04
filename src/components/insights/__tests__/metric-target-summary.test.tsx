@@ -193,41 +193,21 @@ describe("<MetricTargetSummary>", () => {
     expect(html).toContain("30-day average: 122/76 mmHg");
   });
 
-  it("renders the inline adjust-target button instead of a /targets link", () => {
+  it("keeps the adjust-target affordance out of the card body", () => {
+    // The "Adjust target range" affordance moved to the page-header gear
+    // (`<TargetAdjustButton>` via `TargetAdjustProvider`); the card is now
+    // a read surface, so neither the old in-card button nor a /targets
+    // route link appears in its markup.
     const html = renderWith("weight", WEIGHT_DATA);
-    // v1.8.6 — the /targets page is deprecated; the editor moved inline,
-    // so the footer is a button that opens the sheet, not a route link.
-    expect(html).toContain('data-slot="metric-target-adjust"');
-    expect(html).toContain("Adjust target range");
+    expect(html).not.toContain('data-slot="metric-target-adjust"');
     expect(html).not.toContain('href="/targets"');
   });
 
-  it("keeps the inline editor lazy-mounted while the panel is closed", () => {
-    // The panel mounts <TargetEditSheet open={false}> alongside itself;
-    // the sheet body (and its TanStack Query hooks) only instantiate once
-    // the button flips the open flag, so a closed panel paints no editor.
+  it("does not mount the target editor inside the card", () => {
+    // The editor sheet is owned by the provider, opened from the header
+    // gear — never mounted by the card itself.
     const html = renderWith("weight", WEIGHT_DATA);
     expect(html).not.toContain('data-slot="target-edit-sheet"');
-  });
-
-  it("renders the adjust-target affordance as a button, not a navigation link", () => {
-    // The migration's load-bearing change: the affordance is a local
-    // button (opens the inline sheet) rather than an <a>/<Link> routing to
-    // the deprecated /targets page.
-    const html = renderWith("weight", WEIGHT_DATA);
-    const button = html.match(/<button[^>]*data-slot="metric-target-adjust"[^>]*/)?.[0] ?? "";
-    expect(button).toContain('type="button"');
-    expect(html).not.toContain('href="/targets"');
-  });
-
-  it("threads the diastolic range into the editor for blood pressure", () => {
-    // The panel passes `bpDiastolic.range` as the sheet's
-    // `initialDiastolicRange`. Render the panel for BP and confirm the
-    // adjust button is present so the BP editor is reachable inline (the
-    // sheet body itself portals, so it isn't part of the static markup).
-    const html = renderWith("blood-pressure", BP_DATA);
-    expect(html).toContain('data-slot="metric-target-adjust"');
-    expect(html).not.toContain('href="/targets"');
   });
 
   it("suppresses the share + strip when the route flags insufficient data", () => {

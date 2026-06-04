@@ -5,6 +5,16 @@ import { createPortal } from "react-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -28,6 +38,11 @@ const MOOD_LEVELS = [
   { value: "SCHLECHT", score: 2, labelKey: "mood.levelSchlecht" },
   { value: "LAUSIG", score: 1, labelKey: "mood.levelLausig" },
 ] as const;
+
+// v1.8.5 (C1) — note free-text limit. Mirrors the `maxLength` on the
+// textarea and the server-side Zod bound; surfaced as a character counter
+// so the truncation at the cap is no longer silent.
+const NOTE_MAX_LENGTH = 500;
 
 /**
  * v1.4.25 W4d — curated GLP-1 side-effect chip strip. Tapping a chip
@@ -88,6 +103,15 @@ export function MoodForm({ onSuccess, onCancel, footerSlot }: MoodFormProps) {
   const [moodLoggedAt, setMoodLoggedAt] = useState(getDefaultMoodLoggedAtValue);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // v1.11.5 — confirm before Reset wipes typed input. Only the content
+  // fields the user actively fills count toward "dirty"; the timestamp
+  // always carries an auto-populated default, so it is excluded.
+  const [resetConfirmOpen, setResetConfirmOpen] = useState(false);
+  const isDirty =
+    mood !== "" ||
+    tagsInput.trim() !== "" ||
+    tagKeys.length > 0 ||
+    note.trim() !== "";
 
   function toggleTagKey(key: string) {
     setTagKeys((prev) =>
@@ -111,6 +135,17 @@ export function MoodForm({ onSuccess, onCancel, footerSlot }: MoodFormProps) {
     setNote("");
     setMoodLoggedAt(getDefaultMoodLoggedAtValue());
     setError(null);
+  }
+
+  // v1.11.5 — Reset confirms first when the form holds typed input, so a
+  // mis-tap can't silently discard a half-written entry. A pristine form
+  // resets immediately (nothing to lose).
+  function requestReset() {
+    if (isDirty) {
+      setResetConfirmOpen(true);
+    } else {
+      resetForm();
+    }
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -174,7 +209,7 @@ export function MoodForm({ onSuccess, onCancel, footerSlot }: MoodFormProps) {
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start">
-          <DropdownMenuItem onClick={resetForm}>
+          <DropdownMenuItem onClick={requestReset}>
             <RotateCcw className="mr-2 h-4 w-4" />
             {t("mood.formReset")}
           </DropdownMenuItem>
@@ -342,18 +377,37 @@ export function MoodForm({ onSuccess, onCancel, footerSlot }: MoodFormProps) {
 
       {/* v1.8.5 (C1) — free-text note. */}
       <div className="space-y-2">
-        <Label htmlFor="mood-note">
-          {t("mood.note")}{" "}
-          <span className="text-muted-foreground font-normal">
-            ({t("common.optional")})
+        <div className="flex items-center justify-between gap-3">
+          <Label htmlFor="mood-note">
+            {t("mood.note")}{" "}
+            <span className="text-muted-foreground font-normal">
+              ({t("common.optional")})
+            </span>
+          </Label>
+          {/* v1.11.5 — character counter so the `maxLength` cap no longer
+              truncates silently. Turns destructive (warns) as the input
+              approaches the limit. */}
+          <span
+            data-testid="mood-note-counter"
+            className={`text-xs tabular-nums ${
+              note.length >= NOTE_MAX_LENGTH
+                ? "text-destructive"
+                : "text-muted-foreground"
+            }`}
+            aria-live="polite"
+          >
+            {t("mood.noteCharCount", {
+              count: String(note.length),
+              max: String(NOTE_MAX_LENGTH),
+            })}
           </span>
-        </Label>
+        </div>
         <Textarea
           id="mood-note"
           value={note}
           onChange={(e) => setNote(e.target.value)}
           placeholder={t("mood.notePlaceholder")}
-          maxLength={500}
+          maxLength={NOTE_MAX_LENGTH}
           rows={3}
         />
       </div>
@@ -370,6 +424,30 @@ export function MoodForm({ onSuccess, onCancel, footerSlot }: MoodFormProps) {
       )}
 
       {footerSlot ? createPortal(footerNode, footerSlot) : footerNode}
+
+      {/* v1.11.5 — Reset confirmation. Only opened by `requestReset` when
+          the form is dirty; a pristine form skips it entirely. */}
+      <AlertDialog open={resetConfirmOpen} onOpenChange={setResetConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {t("mood.formResetConfirmTitle")}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {t("mood.formResetConfirmBody")}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={resetForm}
+            >
+              {t("mood.formResetConfirmAction")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </form>
   );
 }

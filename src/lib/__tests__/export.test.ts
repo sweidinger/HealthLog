@@ -143,6 +143,108 @@ describe("formatMeasurementsForExport", () => {
     const result = formatMeasurementsForExport(measurements);
     expect(result[0].measuredAt).toBe("2026-05-15T09:00:00.000Z");
   });
+
+  // v1.11.5 — sleep collapses to one row per night by default.
+  it("collapses SLEEP_DURATION stage rows to one row per night", () => {
+    const measurements = [
+      {
+        type: "SLEEP_DURATION",
+        value: 240,
+        unit: "minutes",
+        measuredAt: new Date("2026-06-04T03:00:00Z"),
+        source: "APPLE_HEALTH",
+        notes: null,
+        sleepStage: "CORE" as const,
+      },
+      {
+        type: "SLEEP_DURATION",
+        value: 120,
+        unit: "minutes",
+        measuredAt: new Date("2026-06-04T05:00:00Z"),
+        source: "APPLE_HEALTH",
+        notes: null,
+        sleepStage: "DEEP" as const,
+      },
+      {
+        type: "SLEEP_DURATION",
+        value: 120,
+        unit: "minutes",
+        measuredAt: new Date("2026-06-04T07:00:00Z"),
+        source: "APPLE_HEALTH",
+        notes: null,
+        sleepStage: "REM" as const,
+      },
+    ];
+    const result = formatMeasurementsForExport(measurements, "UTC", {
+      sleepTz: "UTC",
+    });
+    // One night row, not three stage rows.
+    expect(result).toHaveLength(1);
+    expect(result[0].type).toBe("SLEEP_DURATION");
+    // TIME ASLEEP = 240 + 120 + 120 = 480 min.
+    expect(result[0].value).toBe(480);
+    // Stage breakdown carried in notes.
+    expect(String(result[0].notes)).toContain("CORE=240m");
+    expect(String(result[0].notes)).toContain("DEEP=120m");
+    expect(String(result[0].notes)).toContain("REM=120m");
+  });
+
+  it("keeps per-stage sleep rows when granularity is raw", () => {
+    const measurements = [
+      {
+        type: "SLEEP_DURATION",
+        value: 240,
+        unit: "minutes",
+        measuredAt: new Date("2026-06-04T03:00:00Z"),
+        source: "APPLE_HEALTH",
+        notes: null,
+        sleepStage: "CORE" as const,
+      },
+      {
+        type: "SLEEP_DURATION",
+        value: 120,
+        unit: "minutes",
+        measuredAt: new Date("2026-06-04T05:00:00Z"),
+        source: "APPLE_HEALTH",
+        notes: null,
+        sleepStage: "DEEP" as const,
+      },
+    ];
+    const result = formatMeasurementsForExport(measurements, "UTC", {
+      granularity: "raw",
+    });
+    expect(result).toHaveLength(2);
+  });
+
+  it("does not collapse non-sleep rows alongside a sleep night", () => {
+    const measurements = [
+      {
+        type: "WEIGHT",
+        value: 80,
+        unit: "kg",
+        measuredAt: new Date("2026-06-04T08:00:00Z"),
+        source: "MANUAL",
+        notes: null,
+      },
+      {
+        type: "SLEEP_DURATION",
+        value: 480,
+        unit: "minutes",
+        measuredAt: new Date("2026-06-04T06:00:00Z"),
+        source: "APPLE_HEALTH",
+        notes: null,
+        sleepStage: "ASLEEP" as const,
+      },
+    ];
+    const result = formatMeasurementsForExport(measurements, "UTC", {
+      sleepTz: "UTC",
+    });
+    expect(result).toHaveLength(2);
+    // Sorted descending by time → WEIGHT (08:00) first, then the sleep night.
+    expect(result[0].type).toBe("WEIGHT");
+    expect(result[1].type).toBe("SLEEP_DURATION");
+    expect(result[1].value).toBe(480);
+  });
 });
 
 describe("formatIntakeEventsForExport with userTz", () => {

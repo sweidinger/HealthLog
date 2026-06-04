@@ -17,6 +17,10 @@ import {
   lastNonSkippedTakenAt,
 } from "@/lib/analytics/compliance";
 import { pairByTimestamp } from "@/lib/analytics/correlations";
+import {
+  reconstructSleepNights,
+  type SleepStageRow,
+} from "@/lib/analytics/sleep-night";
 import { isBpReadingInTarget } from "@/lib/analytics/bp-in-target";
 import { userDayKey, DEFAULT_TIMEZONE } from "@/lib/tz/resolver";
 import {
@@ -161,6 +165,9 @@ async function buildTargetsResponse(user: AuthedUser) {
       gender: true,
       glucoseUnit: true,
       thresholdsJson: true,
+      // v1.11.5 — needed to collapse a dual-source sleep night to one
+      // canonical source before reconstructing per-night asleep totals.
+      sourcePriorityJson: true,
     },
   });
 
@@ -169,12 +176,15 @@ async function buildTargetsResponse(user: AuthedUser) {
   const heightCm = dbUser?.heightCm ?? null;
 
   // Fetch latest measurements for each type
+  // v1.11.5 — SLEEP_DURATION is handled by a dedicated per-night
+  // reconstruction read below (the generic per-type average treats each
+  // stage row as an independent reading and would inflate the night total),
+  // so it is intentionally excluded from this generic set.
   const types: MeasurementType[] = [
     "WEIGHT",
     "BLOOD_PRESSURE_SYS",
     "BLOOD_PRESSURE_DIA",
     "PULSE",
-    "SLEEP_DURATION",
     "BODY_FAT",
     "ACTIVITY_STEPS",
   ];
@@ -729,23 +739,91 @@ async function buildTargetsResponse(user: AuthedUser) {
   }
 
   // 4. Sleep Duration
+  //
+  // v1.11.5 (deferred v1.11.4 QA L3) — SLEEP_DURATION is stored one row per
+  // STAGE per night in MINUTES. The generic per-type path treated every stage
+  // row as an independent reading, summing IN_BED + AWAKE + the bare ASLEEP
+  // aggregate + the granular CORE/DEEP/REM rows over 30 days and dividing by
+  // the row count — and then fed those MINUTES straight into a target range
+  // expressed in HOURS. The result was a bogus ~16 h/day average. Reconstruct
+  // per-night TIME-ASLEEP through the shared helper (which dedups dual-source
+  // nights, excludes IN_BED/AWAKE, and counts only the granular partition when
+  // present), convert to HOURS, then classify and roll up consistency on the
+  // per-night hour totals so this surface matches the dashboard / series /
+  // overview headline.
   const sleepRange = getSleepDurationRange();
-  let sleepClassification: { category: string; color: string } | null = null;
-  if (latestByType.SLEEP_DURATION != null) {
-    const cls = classifySleepDuration(latestByType.SLEEP_DURATION);
-    sleepClassification = { category: cls.category, color: cls.color };
-  }
   {
+    const sleepStageRows = await prisma.measurement.findMany({
+      where: {
+        userId,
+        type: "SLEEP_DURATION",
+        measuredAt: { gte: thirtyDaysAgo },
+        deletedAt: null,
+      },
+      orderBy: { measuredAt: "asc" },
+      select: { value: true, measuredAt: true, sleepStage: true, source: true },
+    });
+    const nights = reconstructSleepNights(
+      sleepStageRows as SleepStageRow[],
+      userTz,
+      dbUser?.sourcePriorityJson ?? null,
+    )
+      .filter((n) => n.asleepMinutes > 0)
+      .sort((a, b) => a.measuredAt.getTime() - b.measuredAt.getTime());
+
+    const round1 = (n: number): number => Math.round(n * 100) / 100;
+    // One event per night carrying the night's asleep HOURS — the right unit
+    // for the 7–9 h target band and for the per-day consistency bucketing.
+    const sleepEvents = nights.map((n) => ({
+      measuredAt: n.measuredAt,
+      value: round1(n.asleepMinutes / 60),
+    }));
+
+    const latestNight = nights.length > 0 ? nights[nights.length - 1] : null;
+    const currentSleepHours = latestNight
+      ? round1(latestNight.asleepMinutes / 60)
+      : null;
+    const avgSleepHours =
+      sleepEvents.length > 0
+        ? round1(
+            sleepEvents.reduce((s, e) => s + e.value, 0) / sleepEvents.length,
+          )
+        : null;
+
+    let sleepClassification: { category: string; color: string } | null = null;
+    if (currentSleepHours != null) {
+      const cls = classifySleepDuration(currentSleepHours);
+      sleepClassification = { category: cls.category, color: cls.color };
+    }
+
+    // Trend over the per-night hour series (first vs second half), mirroring
+    // `computeTrend` but on reconstructed nights rather than raw stage rows.
+    let sleepTrend: "up" | "down" | "stable" | null = null;
+    if (sleepEvents.length >= 4) {
+      const mid = Math.floor(sleepEvents.length / 2);
+      const firstHalf = sleepEvents.slice(0, mid);
+      const secondHalf = sleepEvents.slice(mid);
+      const avgFirst =
+        firstHalf.reduce((s, e) => s + e.value, 0) / firstHalf.length;
+      const avgSecond =
+        secondHalf.reduce((s, e) => s + e.value, 0) / secondHalf.length;
+      const diff = avgSecond - avgFirst;
+      const threshold = avgFirst * 0.02;
+      if (diff > threshold) sleepTrend = "up";
+      else if (diff < -threshold) sleepTrend = "down";
+      else sleepTrend = "stable";
+    }
+
     const consistency = rollupConsistency(
-      recentMeasurements.filter((m) => m.type === "SLEEP_DURATION"),
+      sleepEvents,
       makeRangeClassifier(sleepRange),
     );
     targets.push({
       type: "SLEEP_DURATION",
       label: "Sleep duration",
-      current: latestByType.SLEEP_DURATION ?? null,
-      average30: avg30ByType.SLEEP_DURATION ?? null,
-      trend: computeTrend("SLEEP_DURATION"),
+      current: currentSleepHours,
+      average30: avgSleepHours,
+      trend: sleepTrend,
       unit: "h",
       range: sleepRange,
       classification: sleepClassification,

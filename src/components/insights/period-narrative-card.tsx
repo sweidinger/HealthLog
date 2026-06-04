@@ -22,10 +22,10 @@ import {
  * fresh one out of band, so this card never blocks on the provider.
  *
  * Restraint guarantees: plain React text children (NO markdown — the whole
- * tree forbids a markdown library for XSS reasons), no score, no chart, a
- * single ⓘ provenance disclosure, and a fixed `min-h` footprint shared across
- * the loading / preparing / resolved states so the card — and everything below
- * it on the overview — never shifts (no CLS).
+ * tree forbids a markdown library for XSS reasons), no score, no chart, and a
+ * single ⓘ provenance disclosure. The in-flight skeleton reserves a `min-h`
+ * footprint so the first paint holds the row open (CLS-safe); the resolved card
+ * then sizes to its content so a short narrative leaves no empty tail.
  */
 
 type NarrativePeriod = "week" | "month";
@@ -98,7 +98,12 @@ function ProvenanceDisclosure({
 }
 
 const SHELL =
-  "bg-card border-border flex min-h-40 w-full min-w-0 flex-col gap-3 rounded-xl border p-4 md:p-6";
+  "bg-card border-border flex w-full min-w-0 flex-col gap-3 rounded-xl border p-4 md:p-6";
+// The in-flight skeleton keeps a `min-h` floor so the initial paint reserves the
+// row (CLS-safe). The resolved card drops the floor and sizes to its content —
+// a short narrative used to leave a large empty tail under the prose, widened by
+// the footer's `mt-auto` pinning it to the bottom of the floored height.
+const SKELETON_SHELL = `${SHELL} min-h-40`;
 
 export function PeriodNarrativeCard({
   enabled = true,
@@ -123,7 +128,7 @@ export function PeriodNarrativeCard({
       <div
         data-slot="period-narrative-card-skeleton"
         aria-hidden="true"
-        className={cn(SHELL, className)}
+        className={cn(SKELETON_SHELL, className)}
       >
         <div className="flex h-7 items-center justify-between gap-2">
           <div className="bg-muted/40 h-3 w-32 rounded" />
@@ -199,7 +204,7 @@ export function PeriodNarrativeCard({
       )}
 
       {narrative ? (
-        <p className="text-muted-foreground mt-auto text-[11px]">
+        <p className="text-muted-foreground text-[11px]">
           {data?.revalidating
             ? t("insights.narrativeUpdating")
             : t("insights.narrativeUpdated", {

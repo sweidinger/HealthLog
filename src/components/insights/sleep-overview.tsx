@@ -2,11 +2,13 @@
 
 import Link from "next/link";
 import { Moon } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 
 import { useAuth } from "@/hooks/use-auth";
 import { useTranslations } from "@/lib/i18n/context";
 import { useInsightsLayoutPrefs } from "@/hooks/use-insights-layout-prefs";
 import { useAnalyticsQuery } from "@/lib/queries/use-analytics-query";
+import { queryKeys } from "@/lib/query-keys";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -14,6 +16,10 @@ import {
   SleepStageStackedBar,
   type SleepStageBreakdown,
 } from "./sleep-stage-stacked-bar";
+import {
+  SleepHypnogram,
+  type SleepHypnogramSession,
+} from "./sleep-hypnogram";
 import { SleepDurationChart } from "./sleep-duration-chart";
 
 /**
@@ -80,6 +86,24 @@ export function SleepOverview() {
   const sleepStages = data?.sleepStages ?? null;
   const totalCount = sleepSummary?.count ?? 0;
 
+  // v1.11.5 — last-night hypnogram. Read-only over existing per-stage rows;
+  // gated on the same data-bearing branch so a source-less account never
+  // fetches. Shares the measurement-write invalidation prefix.
+  const nightQuery = useQuery({
+    queryKey: queryKeys.sleepNight(),
+    queryFn: async () => {
+      const res = await fetch("/api/sleep/night");
+      if (!res.ok) throw new Error("Failed to fetch sleep night");
+      return (await res.json()).data as {
+        night: string | null;
+        main: SleepHypnogramSession | null;
+      };
+    },
+    enabled: isAuthenticated && totalCount > 0,
+    staleTime: 60 * 1000,
+  });
+  const lastNight = nightQuery.data?.main ?? null;
+
   if (!isLoading && totalCount === 0) {
     return (
       <EmptyState
@@ -129,6 +153,8 @@ export function SleepOverview() {
           </div>
         </CardContent>
       </Card>
+
+      {lastNight && <SleepHypnogram session={lastNight} />}
 
       {sleepStages ? (
         <SleepStageStackedBar breakdown={sleepStages} />

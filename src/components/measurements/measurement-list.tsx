@@ -92,6 +92,51 @@ interface Measurement {
    */
   dayKey?: string;
   sampleCount?: number;
+  /**
+   * v1.11.5 — present only on per-night SLEEP_DURATION rows. `value` is
+   * the night's TIME ASLEEP in minutes; these fields carry the night's
+   * context so the row reads as one night, not many stage values.
+   */
+  sleepStage?: string | null;
+  napCount?: number;
+  napAsleepMinutes?: number;
+  awakenings?: number;
+}
+
+/**
+ * v1.11.5 — format a minutes total as an "8h 12m" / "8 Std. 12 Min."
+ * sleep headline.
+ */
+function formatSleepMinutes(total: number, locale: string): string {
+  const hours = Math.floor(total / 60);
+  const mins = Math.round(total - hours * 60);
+  if (locale === "de") {
+    return hours > 0 ? `${hours} Std. ${mins} Min.` : `${mins} Min.`;
+  }
+  return hours > 0 ? `${hours}h ${mins}m` : `${mins}m`;
+}
+
+/** v1.11.5 — i18n labels for the sleep stages shown in the drill-down. */
+function sleepStageLabel(
+  stage: string | null | undefined,
+  t: ReturnType<typeof useTranslations>["t"],
+): string {
+  switch (stage) {
+    case "DEEP":
+      return t("insights.sleep.stages.deep");
+    case "REM":
+      return t("insights.sleep.stages.rem");
+    case "CORE":
+      return t("insights.sleep.stages.core");
+    case "ASLEEP":
+      return t("insights.sleep.stages.asleep");
+    case "AWAKE":
+      return t("insights.sleep.stages.awake");
+    case "IN_BED":
+      return t("insights.sleep.stages.inBed");
+    default:
+      return stage ?? "";
+  }
 }
 
 interface MeasurementListProps {
@@ -166,7 +211,7 @@ export function MeasurementList({
   onAddFirst,
   lockedType,
 }: MeasurementListProps) {
-  const { t } = useTranslations();
+  const { t, locale } = useTranslations();
   const fmt = useFormatters();
   const { isAuthenticated } = useAuth();
   const queryClient = useQueryClient();
@@ -235,6 +280,12 @@ export function MeasurementList({
   // `.planning/research/v1437-step-aggregation.md` §"How the leaders
   // do it" — never list per-sample chunks as the default view.
   const isCumulativeFilter = CUMULATIVE_TYPES.has(typeFilter);
+  // v1.11.5 — SLEEP_DURATION is collapsed server-side to one row per
+  // night (TIME ASLEEP), so the list paints per-night rows with a
+  // chevron drilling into the night's stage segments. Like the
+  // cumulative branch it returns a single page of synthesised rows.
+  const isSleepFilter = typeFilter === "SLEEP_DURATION";
+  const isDayGroupedFilter = isCumulativeFilter || isSleepFilter;
 
   const { data, isLoading } = useQuery({
     queryKey: [
@@ -243,7 +294,7 @@ export function MeasurementList({
       page,
       sortBy,
       sortDir,
-      isCumulativeFilter ? "groupBy=day" : "raw",
+      isSleepFilter ? "sleep-night" : isCumulativeFilter ? "groupBy=day" : "raw",
     ],
     queryFn: async () => {
       const params = new URLSearchParams();
@@ -266,6 +317,14 @@ export function MeasurementList({
         // — pagination/offset don't apply on the server side. Reset
         // the offset so a sort-direction flip doesn't paginate into
         // an empty slice.
+        params.set("offset", "0");
+      } else if (isSleepFilter) {
+        // v1.11.5 — the route auto-collapses SLEEP_DURATION to one row
+        // per night (no `groupBy` param needed). Request a wide limit
+        // so the per-night list spans the trailing year the route
+        // bounds the read to; offset doesn't apply to the synthesised
+        // rows.
+        params.set("limit", "366");
         params.set("offset", "0");
       }
       const res = await fetch(`/api/measurements?${params}`);
@@ -357,7 +416,7 @@ export function MeasurementList({
   // path collapses to a single page. Per-sample lists continue to
   // paginate at PAGE_SIZE = 25.
   const totalPages =
-    data && !isCumulativeFilter
+    data && !isDayGroupedFilter
       ? Math.ceil(data.meta.total / PAGE_SIZE)
       : 0;
 
@@ -554,6 +613,11 @@ export function MeasurementList({
                   {data.measurements.map((m) => {
                     const isGrouped =
                       m.dayKey !== undefined && m.sampleCount !== undefined;
+                    // v1.11.5 — sleep night rows are grouped (chevron
+                    // drills into the stage segments) but render a
+                    // sleep-aware headline + nap caption, not the
+                    // cumulative "daily total" caption.
+                    const isSleep = m.type === "SLEEP_DURATION";
                     const isExpanded = isGrouped
                       ? expandedDayKeys.has(m.dayKey as string)
                       : false;
@@ -585,19 +649,30 @@ export function MeasurementList({
                                 cumulative-type day aggregates (steps,
                                 distance, etc.) and stay on `fmt.integer`
                                 because the underlying readings are
-                                integer-only by definition. */}
-                            {isGrouped
-                              ? fmt.integer(m.value)
-                              : fmt.number(m.value)}{" "}
-                            {m.unit}
-                            {isGrouped && (
-                              <span className="text-muted-foreground ml-2 text-xs font-normal">
-                                {t("measurements.dailyTotalCaption", {
-                                  count: fmt.integer(
-                                    m.sampleCount as number,
-                                  ),
-                                })}
-                              </span>
+                                integer-only by definition.
+                                v1.11.5 — sleep rows render the night's
+                                TIME ASLEEP as "8h 12m" + a nap caption. */}
+                            {isSleep ? (
+                              <>
+                                {formatSleepMinutes(m.value, locale)}
+                                <SleepNightCaption m={m} />
+                              </>
+                            ) : (
+                              <>
+                                {isGrouped
+                                  ? fmt.integer(m.value)
+                                  : fmt.number(m.value)}{" "}
+                                {m.unit}
+                                {isGrouped && (
+                                  <span className="text-muted-foreground ml-2 text-xs font-normal">
+                                    {t("measurements.dailyTotalCaption", {
+                                      count: fmt.integer(
+                                        m.sampleCount as number,
+                                      ),
+                                    })}
+                                  </span>
+                                )}
+                              </>
                             )}
                           </TableCell>
                           {/*
@@ -700,6 +775,7 @@ export function MeasurementList({
                 const Icon = TYPE_ICONS[m.type];
                 const isGrouped =
                   m.dayKey !== undefined && m.sampleCount !== undefined;
+                const isSleep = m.type === "SLEEP_DURATION";
                 const isExpanded = isGrouped
                   ? expandedDayKeys.has(m.dayKey as string)
                   : false;
@@ -740,18 +816,29 @@ export function MeasurementList({
                                 grouped daily aggregates stay integer,
                                 non-grouped single readings render with
                                 their native decimal precision so
-                                "78.4 kg" no longer truncates to "78". */}
-                            {isGrouped
-                              ? fmt.integer(m.value)
-                              : fmt.number(m.value)}{" "}
-                            {m.unit}
+                                "78.4 kg" no longer truncates to "78".
+                                v1.11.5 — sleep rows render TIME ASLEEP. */}
+                            {isSleep ? (
+                              formatSleepMinutes(m.value, locale)
+                            ) : (
+                              <>
+                                {isGrouped
+                                  ? fmt.integer(m.value)
+                                  : fmt.number(m.value)}{" "}
+                                {m.unit}
+                              </>
+                            )}
                           </span>
-                          {isGrouped && (
-                            <span className="text-muted-foreground ml-1.5 text-[11px]">
-                              {t("measurements.dailyTotalCaption", {
-                                count: fmt.integer(m.sampleCount as number),
-                              })}
-                            </span>
+                          {isSleep ? (
+                            <SleepNightCaption m={m} />
+                          ) : (
+                            isGrouped && (
+                              <span className="text-muted-foreground ml-1.5 text-[11px]">
+                                {t("measurements.dailyTotalCaption", {
+                                  count: fmt.integer(m.sampleCount as number),
+                                })}
+                              </span>
+                            )
                           )}
                           <p className="text-muted-foreground truncate text-xs">
                             {/*
@@ -1080,7 +1167,7 @@ function DayDrillDown({
   unit: string;
   layout: "desktop" | "mobile";
 }) {
-  const { t } = useTranslations();
+  const { t, locale } = useTranslations();
   const { isAuthenticated } = useAuth();
   const { data, isLoading, error } = useQuery({
     queryKey: ["measurement-drilldown", type, dayKey],
@@ -1125,6 +1212,9 @@ function DayDrillDown({
       </div>
     );
   }
+  // v1.11.5 — for SLEEP_DURATION the drill-down rows are stage segments;
+  // render the stage label + minutes instead of a bare value + unit.
+  const isSleep = type === "SLEEP_DURATION";
   if (layout === "desktop") {
     return (
       <div className="bg-muted/40 space-y-1 p-2">
@@ -1134,10 +1224,10 @@ function DayDrillDown({
             className="flex items-center justify-between gap-3 px-2 py-1 text-xs"
           >
             <span className="text-muted-foreground tabular-nums">
-              {formatDateTime(s.measuredAt)}
+              {isSleep ? sleepStageLabel(s.sleepStage, t) : formatDateTime(s.measuredAt)}
             </span>
             <span className="font-medium tabular-nums">
-              {s.value} {unit}
+              {isSleep ? formatSleepMinutes(s.value, locale) : `${s.value} ${unit}`}
             </span>
           </div>
         ))}
@@ -1152,14 +1242,40 @@ function DayDrillDown({
           className="flex items-center justify-between gap-2 px-1 py-1 text-xs"
         >
           <span className="text-muted-foreground tabular-nums">
-            {formatDateTime(s.measuredAt)}
+            {isSleep ? sleepStageLabel(s.sleepStage, t) : formatDateTime(s.measuredAt)}
           </span>
           <span className="font-medium tabular-nums">
-            {s.value} {unit}
+            {isSleep ? formatSleepMinutes(s.value, locale) : `${s.value} ${unit}`}
           </span>
         </div>
       ))}
     </div>
+  );
+}
+
+/**
+ * v1.11.5 — sub-caption for a per-night sleep row: surfaces the nap count
+ * (naps are separate from the main night per the nap convention) and the
+ * night's mid-sleep awakenings when present.
+ */
+function SleepNightCaption({ m }: { m: Measurement }) {
+  const { t } = useTranslations();
+  const napCount = m.napCount ?? 0;
+  const awakenings = m.awakenings ?? 0;
+  const parts: string[] = [];
+  if (napCount > 0) {
+    parts.push(t("measurements.sleepNapCaption", { count: String(napCount) }));
+  }
+  if (awakenings > 0) {
+    parts.push(
+      t("measurements.sleepAwakeningsCaption", { count: String(awakenings) }),
+    );
+  }
+  if (parts.length === 0) return null;
+  return (
+    <span className="text-muted-foreground ml-2 text-xs font-normal">
+      {parts.join(" · ")}
+    </span>
   );
 }
 

@@ -434,6 +434,8 @@
     "previousPage": "Vorherige Seite",
     "nextPage": "Nächste Seite",
     "dailyTotalCaption": "({count} Einzelwerte)",
+    "sleepNapCaption": "+{count} Nickerchen",
+    "sleepAwakeningsCaption": "{count} Wachphasen",
     "expandDay": "Einzelwerte dieses Tages anzeigen",
     "collapseDay": "Einzelwerte dieses Tages ausblenden",
     "loadError": "Messwerte konnten nicht geladen werden.",
@@ -489,6 +491,10 @@
     "emptyResetFilter": "Alle Stimmungen anzeigen",
     "actions": "Aktionen",
     "formReset": "Formular zurücksetzen",
+    "noteCharCount": "{count}/{max}",
+    "formResetConfirmTitle": "Formular zurücksetzen?",
+    "formResetConfirmBody": "Damit werden die eingegebene Stimmung, Tags und Notiz gelöscht. Das lässt sich nicht rückgängig machen.",
+    "formResetConfirmAction": "Zurücksetzen",
     "saveError": "Fehler beim Speichern",
     "deleteError": "Fehler beim Löschen",
     "invalidTimestamp": "Bitte einen gültigen Zeitpunkt wählen.",
@@ -1356,6 +1362,7 @@
     "logInjectionSiteSkip": "Überspringen",
     "logInjectionSiteConfirm": "Stelle speichern",
     "logInjectionSiteNoneAvailable": "Keine Injektionsstelle verfügbar — alle Stellen sind in deinen Einstellungen ausgeschlossen.",
+    "logInjectionSiteSaveFailed": "Injektionsstelle konnte nicht gespeichert werden. Bitte versuche es erneut.",
     "trackInjectionSitesToggle": "Injektionsstellen erfassen",
     "trackInjectionSitesHint": "Nach einer eingenommenen Dosis nach der verwendeten Stelle fragen und die nächste Rotation vorschlagen.",
     "allowedSitesLabel": "Erlaubte Stellen",
@@ -2093,6 +2100,14 @@
       "compositionTitle": "Phasen-Verteilung",
       "compositionSubtitle": "Letzte {nights} Nächte",
       "compositionAriaLabel": "Schlafphasen-Verteilung über {nights} Nächte",
+      "hypnogram": {
+        "title": "Letzte Nacht",
+        "subtitle": "{asleep} geschlafen",
+        "ariaLabel": "Schlafphasen-Verlauf der letzten Nacht: {asleep} geschlafen, {awakenings} Wachphasen",
+        "asleepTotal": "Geschlafen {value}",
+        "inBedTotal": "Im Bett {value}",
+        "awakenings": "{count} Wachphasen"
+      },
       "stages": {
         "deep": "Tief",
         "rem": "REM",
@@ -2122,6 +2137,8 @@
       "critical": "Kritisch"
     },
     "assessmentTitle": "Einschätzung",
+    "assessmentShowMore": "Mehr anzeigen",
+    "assessmentShowLess": "Weniger anzeigen",
     "bloodPressureSectionTitle": "Blutdruck",
     "weightSectionTitle": "Gewicht",
     "pulseSectionTitle": "Puls",
@@ -2530,6 +2547,31 @@
         "bandSteady": "Deine Stimmung war recht gleichmäßig",
         "bandVariable": "Deine Stimmung war merklich schwankend",
         "bandVeryVariable": "Deine Stimmung hat zuletzt stark geschwankt"
+      },
+      "influence": {
+        "title": "Einfluss auf die Stimmung",
+        "detail": "Durchschnitt {withAvg} an den {withDays} Tagen mit diesem Tag, {withoutAvg} ohne.",
+        "confidenceLow": "Geringe Sicherheit",
+        "confidenceMedium": "Mittlere Sicherheit",
+        "confidenceHigh": "Hohe Sicherheit",
+        "disclaimer": "Das sind Zusammenhänge in deinen eigenen Daten, kein Beweis für eine Ursache. Muster, die einen Blick wert sind."
+      },
+      "betterDays": {
+        "title": "Was zu deinen besseren Tagen passt",
+        "description": "Tags und Werte, die mit deinen Tagen besserer und schlechterer Stimmung einhergehen, sortiert danach, wie stark sie sich zusammen bewegen.",
+        "disclaimer": "Nur Zusammenhänge, keine Ursachen. Sprich mit deiner Ärztin oder deinem Arzt, bevor du etwas änderst."
+      },
+      "discovery": {
+        "title": "Entdeckte Muster",
+        "description": "Tag-zu-Tag-Zusammenhänge rund um deine Stimmung, die auch nach Korrektur für viele gleichzeitige Tests bestehen.",
+        "footer": "Herausgefiltert aus {tested} Tag-zu-Tag-Paaren, die über all deine Werte getestet wurden, nach der Korrektur für Fehlentdeckungen.",
+        "empty": "Bisher hat kein Stimmungszusammenhang die statistische Hürde genommen. Logge weiter.",
+        "disclaimer": "Statistisch gefiltert, aber weiterhin beobachtend – ein Muster, das einen Blick wert ist, keine Ursache.",
+        "moodUp": "Höheres {factor} geht in deinen Daten tendenziell mit besserer Stimmung am Folgetag einher.",
+        "moodDown": "Höheres {factor} geht in deinen Daten tendenziell mit schlechterer Stimmung am Folgetag einher.",
+        "outcomeUp": "Bessere Stimmung geht in deinen Daten tendenziell mit höherem {factor} am Folgetag einher.",
+        "outcomeDown": "Bessere Stimmung geht in deinen Daten tendenziell mit niedrigerem {factor} am Folgetag einher.",
+        "stat": "{n} gepaarte Tage · r = {r} · q = {q}"
       }
     },
     "derived": {
@@ -3479,6 +3521,10 @@
     "apiTokensDescription": "Erstelle API-Tokens für die externe Medikamenten-Einnahme (z.B. Shortcuts, Automationen).",
     "tokenNamePlaceholder": "Token-Name (z.B. iPhone Shortcut)",
     "tokenCreated": "Token erstellt — kopiere ihn jetzt! Er wird nicht erneut angezeigt.",
+    "tokenCopy": "Token kopieren",
+    "tokenCopied": "Token in die Zwischenablage kopiert",
+    "tokenCopyFailed": "Token konnte nicht kopiert werden",
+    "tokenRevokeFailed": "Token konnte nicht widerrufen werden. Bitte erneut versuchen.",
     "tokenRevoke": "Token widerrufen?",
     "tokenRevokeAction": "Token widerrufen",
     "tokenRevokeDescription": "Der Token wird unwiderruflich deaktiviert. Anwendungen, die ihn nutzen, verlieren den Zugriff.",

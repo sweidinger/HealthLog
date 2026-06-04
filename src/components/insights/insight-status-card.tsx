@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useTranslations, useFormatters } from "@/lib/i18n/context";
@@ -15,7 +15,6 @@ interface InsightStatusCardProps {
   icon: React.ReactNode;
   text: string | null;
   hasProvider: boolean;
-  cached: boolean;
   updatedAt: string | null;
   loading?: boolean;
   /**
@@ -34,7 +33,6 @@ export function InsightStatusCard({
   icon,
   text,
   hasProvider,
-  cached,
   updatedAt,
   loading = false,
   preparing = false,
@@ -171,16 +169,12 @@ export function InsightStatusCard({
       className="animate-insight-in gap-2 py-4 md:gap-3 md:py-5"
     >
       <CardHeader className="pb-2">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            {icon}
-            <CardTitle className="text-base">{title}</CardTitle>
-          </div>
-          {cached && (
-            <span className="text-muted-foreground text-xs">
-              {t("insights.cached")}
-            </span>
-          )}
+        {/* v1.11.5 — the top-right "cached" label was removed: it surfaced
+            an implementation detail and devalued the assessment. The card
+            still consumes the warm cache; it just no longer announces it. */}
+        <div className="flex items-center gap-2">
+          {icon}
+          <CardTitle className="text-base">{title}</CardTitle>
         </div>
       </CardHeader>
       <CardContent className="space-y-2">
@@ -202,35 +196,51 @@ export function InsightStatusCard({
  * v1.4.27 MB7 / CF-39 — collapsible status copy. The assessment text
  * routinely lands at 3-5 paragraphs of dense narrative which dominates
  * the surface on phones. The default collapses to 3 lines via
- * `line-clamp-3`; a "Show more" toggle reveals the full body. Desktop
- * users see the full text immediately because the clamp + toggle only
- * mount when the source string is long enough to actually clip.
+ * `line-clamp-3`; a "Show more" toggle reveals the full body.
+ *
+ * v1.11.5 — the toggle now mounts only when the clamped prose actually
+ * overflows three lines, measured against the live layout rather than a
+ * character-count guess. The previous ~220-character heuristic painted a
+ * "Show more" affordance on text that already fit (and could miss text
+ * that wrapped past three lines on a narrow column), so a tap revealed
+ * nothing. We compare the paragraph's `scrollHeight` against its
+ * `clientHeight` while clamped; the toggle renders only on a true
+ * overflow, and re-measures on resize / font load via `ResizeObserver`.
  */
 function StatusBody({ text }: { text: string }) {
-  const { locale } = useTranslations();
+  const { t } = useTranslations();
   const [expanded, setExpanded] = useState(false);
-  // Cheap heuristic — only mount the toggle when the text is long
-  // enough that the 3-line clamp will hide content. ~220 characters
-  // covers the worst-case sm-viewport line at typical insights text
-  // density; below that we render plain so the user never sees a
-  // useless "Show more" affordance.
-  const isLong = text.length > 220;
-  if (!isLong) {
-    return (
-      <p className="text-muted-foreground text-sm leading-relaxed">{text}</p>
-    );
-  }
-  // v1.4.27 MB7 / CF-39 — toggle copy is two short strings; rather
-  // than reach into the catalogue (which this bucket cannot edit per
-  // the dispatch brief), the labels resolve against the locale prefix
-  // inline. The translation catalogue can claim these strings in a
-  // later cycle without breaking the contract.
-  const isDe = locale.startsWith("de");
-  const showMoreLabel = isDe ? "Mehr anzeigen" : "Show more";
-  const showLessLabel = isDe ? "Weniger anzeigen" : "Show less";
+  const [overflows, setOverflows] = useState(false);
+  const paragraphRef = useRef<HTMLParagraphElement | null>(null);
+
+  // Measure the clamped paragraph against its scroll height. When the
+  // text fits inside the three-line clamp `scrollHeight` equals
+  // `clientHeight`; an overflow means the clamp is hiding content and the
+  // toggle earns its place. We measure against the *clamped* element, so
+  // the check is gated on `!expanded` — once expanded the paragraph is no
+  // longer clamped and the comparison would always read "fits".
+  useEffect(() => {
+    if (expanded) return;
+    const node = paragraphRef.current;
+    if (!node) return;
+
+    const measure = () => {
+      setOverflows(node.scrollHeight > node.clientHeight + 1);
+    };
+    measure();
+
+    if (typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(measure);
+    observer.observe(node);
+    return () => observer.disconnect();
+    // Re-measure whenever the source text changes (a fresh assessment) or
+    // the user collapses the card again.
+  }, [text, expanded]);
+
   return (
     <div className="space-y-1">
       <p
+        ref={paragraphRef}
         className={cn(
           "text-muted-foreground text-sm leading-relaxed",
           !expanded && "line-clamp-3",
@@ -238,17 +248,25 @@ function StatusBody({ text }: { text: string }) {
       >
         {text}
       </p>
-      <button
-        type="button"
-        onClick={() => setExpanded((prev) => !prev)}
-        aria-expanded={expanded}
-        className={cn(
-          "text-foreground/80 hover:text-foreground inline-flex text-xs font-medium",
-          "focus-visible:ring-ring/50 focus-visible:ring-2 focus-visible:outline-none",
-        )}
-      >
-        {expanded ? showLessLabel : showMoreLabel}
-      </button>
+      {/* Only render the toggle on a genuine overflow. When the full text
+          fits inside three lines there is nothing more to show, so no
+          affordance is painted. */}
+      {(overflows || expanded) && (
+        <button
+          type="button"
+          onClick={() => setExpanded((prev) => !prev)}
+          aria-expanded={expanded}
+          data-slot="assessment-show-more"
+          className={cn(
+            "text-foreground/80 hover:text-foreground inline-flex text-xs font-medium",
+            "focus-visible:ring-ring/50 focus-visible:ring-2 focus-visible:outline-none",
+          )}
+        >
+          {expanded
+            ? t("insights.assessmentShowLess")
+            : t("insights.assessmentShowMore")}
+        </button>
+      )}
     </div>
   );
 }
@@ -258,7 +276,9 @@ function LastUpdatedFooter({ updatedAt }: { updatedAt: string | null }) {
   const fmt = useFormatters();
   if (!updatedAt) return null;
   return (
-    <p className="text-muted-foreground text-xs">
+    // v1.11.5 — right-aligned so the timestamp tucks to the trailing edge
+    // of the card for a tidier read against the left-aligned prose above.
+    <p className="text-muted-foreground text-right text-xs">
       {t("insights.lastUpdated")}: {fmt.dateTime(updatedAt)}
     </p>
   );

@@ -10,10 +10,24 @@
  *
  * This helper is the one shared place that turns the raw per-stage rows
  * into per-night totals. The headline "time asleep" is light(CORE) +
- * deep + REM (+ legacy bare `ASLEEP`); IN_BED and AWAKE are excluded
- * from the asleep total, matching the AASM convention already encoded in
- * `sleep-score.ts`'s `ASLEEP_STAGES`. Bare rows with no `sleepStage`
- * (legacy / manual) count as that night's asleep total.
+ * deep + REM; IN_BED and AWAKE are excluded from the asleep total,
+ * matching the AASM convention.
+ *
+ * Granular-over-bare (v1.11.5)
+ * ----------------------------
+ * Apple Health writes BOTH an unspecified `ASLEEP` AGGREGATE row AND the
+ * granular `CORE` / `DEEP` / `REM` breakdown for the SAME sleep period. The
+ * granular rows partition the same time the aggregate covers, so counting
+ * bare-ASLEEP together with the granular rows ~doubles the night. We therefore
+ * prefer the granular partition: when ANY granular stage (CORE / DEEP / REM)
+ * is present for a session we drop the redundant bare `ASLEEP` aggregate (and
+ * any stage-less row) EVERYWHERE — the asleep total, the per-stage `stages`
+ * breakdown, and the hypnogram `segments` list — so none of those views holds
+ * the granular set plus its ~equal bare twin. The bare `ASLEEP` aggregate (or
+ * a stage-less legacy / manual row) is the session's only asleep signal when
+ * no granular stage exists. WHOOP never emits a bare `ASLEEP` aggregate (its
+ * stage map writes CORE / DEEP / REM / AWAKE / IN_BED only — see
+ * `whoop/client.ts`), so this gate is Apple-Health-only in practice.
  *
  * Night grouping
  * --------------
@@ -38,6 +52,16 @@
  * Apple Health convention (a sleep session is attributed to the date you wake
  * up) and keeps the keying tz/DST-correct because it runs on the real instant.
  *
+ * Naps vs the main night
+ * ----------------------
+ * `reconstructSleepNights` MERGES every session that lands on the same wake
+ * day under one key so the headline "time asleep" for a day is the day's
+ * total. `reconstructSleepSessions` keeps each session SEPARATE, and
+ * `pickMainNightAndNaps` applies the convention the UI needs: the MAIN night
+ * is the session with the most asleep minutes (normally the overnight block),
+ * and every other session on the same wake day is a NAP, surfaced separately
+ * and never folded into the main night's headline.
+ *
  * Source de-dup
  * -------------
  * A user paired to more than one sleep source (e.g. WHOOP + Apple Health)
@@ -61,20 +85,84 @@
  * correct. Callers that want hours convert at the edge (`/ 60`).
  */
 import type { MeasurementSource, SleepStage } from "@/generated/prisma/client";
-import { userDayKey } from "@/lib/tz/resolver";
+import { userDayKey } from "@/lib/tz/format";
 import { summarize, type DataSummary } from "@/lib/analytics/trends";
 import {
   getSourceLadder,
   parseSourcePriority,
 } from "@/lib/validations/source-priority";
 
-/** Stages that count toward "time asleep" (excludes IN_BED + AWAKE). */
-const ASLEEP_STAGES: ReadonlySet<SleepStage> = new Set<SleepStage>([
-  "ASLEEP",
+/**
+ * The GRANULAR asleep stages (iOS 16+ `asleepCore` / `asleepDeep` /
+ * `asleepREM`). A bare `ASLEEP` row is the iOS 15- `asleepUnspecified`
+ * AGGREGATE — Apple Health writes BOTH the unspecified aggregate AND the
+ * granular breakdown for the SAME period, so keeping bare-ASLEEP alongside the
+ * granular rows ~doubles the night. The granular rows partition the same time
+ * the aggregate covers, so when any granular stage is present for a session we
+ * keep ONLY the granular stages and drop the bare aggregate; the bare row is
+ * the asleep signal only when no granular stage exists. WHOOP never writes a
+ * bare `ASLEEP` aggregate (see `whoop/client.ts` `SLEEP_STAGE_MAP`).
+ */
+const GRANULAR_ASLEEP_STAGES: ReadonlySet<SleepStage> = new Set<SleepStage>([
   "REM",
   "CORE",
   "DEEP",
 ]);
+
+/**
+ * True when any row in the set carries a GRANULAR asleep stage
+ * (CORE / DEEP / REM). When this holds, the bare `ASLEEP` aggregate (and any
+ * stage-less row) is the redundant unspecified twin of the granular partition
+ * and must be dropped from EVERY downstream view — the asleep total, the
+ * per-stage `stages` map, and the hypnogram `segments` list — so none of them
+ * double-counts the same period.
+ */
+function sawGranularStage(rows: readonly SleepStageRow[]): boolean {
+  for (const r of rows) {
+    const stage = r.sleepStage;
+    if (stage != null && GRANULAR_ASLEEP_STAGES.has(stage)) return true;
+  }
+  return false;
+}
+
+/**
+ * A stage row is a redundant bare-asleep aggregate (must be dropped) when the
+ * session/night ALSO carries a granular CORE/DEEP/REM partition. Only the bare
+ * `ASLEEP` aggregate and stage-less (`null`) rows are redundant — IN_BED /
+ * AWAKE and the granular stages themselves are always kept.
+ */
+function isRedundantBareAsleep(
+  stage: SleepStage | null,
+  sawGranular: boolean,
+): boolean {
+  return sawGranular && (stage === "ASLEEP" || stage == null);
+}
+
+/**
+ * Sum a set of stage rows into time-asleep minutes WITHOUT double-counting a
+ * bare `ASLEEP` aggregate against the granular CORE/DEEP/REM rows it overlaps.
+ * IN_BED + AWAKE are never asleep; a stage-less (`null`) row is the night's
+ * total only when no granular stage is present.
+ */
+function asleepMinutesOf(rows: readonly SleepStageRow[]): number {
+  let granular = 0;
+  let fallback = 0;
+  let sawGranular = false;
+  for (const r of rows) {
+    const minutes = Number.isFinite(r.value) ? r.value : 0;
+    const stage = r.sleepStage;
+    if (stage != null && GRANULAR_ASLEEP_STAGES.has(stage)) {
+      granular += minutes;
+      sawGranular = true;
+    } else if (stage === "ASLEEP" || stage == null) {
+      // Bare unspecified aggregate (`ASLEEP`) or a stage-less legacy/manual
+      // row — only used when no granular stage carries the night.
+      fallback += minutes;
+    }
+    // IN_BED / AWAKE never count toward asleep.
+  }
+  return sawGranular ? granular : fallback;
+}
 
 /**
  * Gap (ms) between consecutive stage segments that starts a new sleep
@@ -104,7 +192,7 @@ export interface SleepNight {
   night: string;
   /** Latest stage instant in the night — the night's representative timestamp. */
   measuredAt: Date;
-  /** Time asleep in minutes = CORE + DEEP + REM (+ legacy bare ASLEEP). */
+  /** Time asleep in minutes = CORE + DEEP + REM, or bare ASLEEP when granular stages are absent. */
   asleepMinutes: number;
   /** In-bed minutes when an IN_BED row exists, else null. */
   inBedMinutes: number | null;
@@ -128,14 +216,20 @@ function pickSessionSource(
   rows: SleepStageRow[],
   sleepLadder: readonly MeasurementSource[],
 ): string {
-  const asleepBySource = new Map<string, number>();
+  // Group rows by source, then sum each source's asleep minutes with the
+  // granular-over-bare rule so a source that writes BOTH a bare ASLEEP
+  // aggregate and the granular breakdown is not over-weighted in the tiebreak.
+  const rowsBySource = new Map<string, SleepStageRow[]>();
   for (const r of rows) {
     const src = r.source ?? NO_SOURCE;
-    const stage = r.sleepStage;
-    const counts = stage == null || ASLEEP_STAGES.has(stage);
-    if (!counts) continue;
-    const minutes = Number.isFinite(r.value) ? r.value : 0;
-    asleepBySource.set(src, (asleepBySource.get(src) ?? 0) + minutes);
+    const list = rowsBySource.get(src) ?? [];
+    list.push(r);
+    rowsBySource.set(src, list);
+  }
+  const asleepBySource = new Map<string, number>();
+  for (const [src, srcRows] of rowsBySource) {
+    const minutes = asleepMinutesOf(srcRows);
+    if (minutes > 0) asleepBySource.set(src, minutes);
   }
   // No asleep minutes anywhere (IN_BED / AWAKE only) — fall back to the set
   // of all present sources so the session still resolves to a single bucket.
@@ -208,10 +302,13 @@ export function reconstructSleepNights(
   }
   if (current.length > 0) sessions.push(current);
 
-  // Two sessions can land on the same wake day (e.g. a genuine second sleep);
-  // merge their rows under one key after the source-collapse so the night key
-  // stays unique. Collapse each session to its canonical source first.
-  const byNight = new Map<string, SleepStageRow[]>();
+  // Two sessions can land on the same wake day (e.g. a genuine overnight plus
+  // a same-day nap); collect each session's canonical-source rows under one
+  // wake-day key. The rows are grouped PER SESSION (not flattened) so the
+  // granular-over-bare gate and the asleep total are decided per session — a
+  // bare-only nap keeps its minutes even when the overnight session is
+  // granular (the v1.11.5 merged-night nap under-count fix).
+  const byNight = new Map<string, SleepStageRow[][]>();
   for (const session of sessions) {
     const canonical = pickSessionSource(session, sleepLadder);
     const kept = session.filter((r) => (r.source ?? NO_SOURCE) === canonical);
@@ -224,37 +321,46 @@ export function reconstructSleepNights(
     );
     const key = userDayKey(wakeInstant, tz);
     const list = byNight.get(key) ?? [];
-    list.push(...kept);
+    list.push(pool);
     byNight.set(key, list);
   }
 
   const nights: SleepNight[] = [];
-  for (const [night, nightRows] of byNight) {
-    let asleep = 0;
+  for (const [night, nightSessions] of byNight) {
     let inBed = 0;
     let awake = 0;
     let sawInBed = false;
     let sawAwake = false;
-    let latest = nightRows[0].measuredAt;
+    let asleep = 0;
+    let latest = nightSessions[0][0].measuredAt;
     const stages: Partial<Record<SleepStage, number>> = {};
-    for (const r of nightRows) {
-      const minutes = Number.isFinite(r.value) ? r.value : 0;
-      if (r.measuredAt.getTime() > latest.getTime()) latest = r.measuredAt;
-      const stage = r.sleepStage;
-      if (stage) {
-        stages[stage] = (stages[stage] ?? 0) + minutes;
-      }
-      if (stage === "IN_BED") {
-        inBed += minutes;
-        sawInBed = true;
-      } else if (stage === "AWAKE") {
-        awake += minutes;
-        sawAwake = true;
-      } else if (stage && ASLEEP_STAGES.has(stage)) {
-        asleep += minutes;
-      } else if (stage == null) {
-        // Bare SLEEP_DURATION row (no stage) — the night's total asleep.
-        asleep += minutes;
+    for (const sessionRows of nightSessions) {
+      // v1.11.5 — decide the granular-over-bare gate PER SESSION. A granular
+      // overnight does not strip a bare-only nap's minutes, and the per-stage
+      // `stages` map drops the redundant bare ASLEEP aggregate only for the
+      // session that also carries the granular partition.
+      const sawGranular = sawGranularStage(sessionRows);
+      // Asleep total: sum per session so a granular overnight + a bare-only
+      // nap both contribute (the merged-night nap under-count fix).
+      asleep += asleepMinutesOf(sessionRows);
+      for (const r of sessionRows) {
+        const minutes = Number.isFinite(r.value) ? r.value : 0;
+        if (r.measuredAt.getTime() > latest.getTime()) latest = r.measuredAt;
+        const stage = r.sleepStage;
+        // Drop the redundant bare ASLEEP aggregate (and stage-less rows) from
+        // the per-stage breakdown when this session has the granular partition,
+        // so `stages` is never the granular set PLUS its ~equal bare twin.
+        if (isRedundantBareAsleep(stage, sawGranular)) continue;
+        if (stage) {
+          stages[stage] = (stages[stage] ?? 0) + minutes;
+        }
+        if (stage === "IN_BED") {
+          inBed += minutes;
+          sawInBed = true;
+        } else if (stage === "AWAKE") {
+          awake += minutes;
+          sawAwake = true;
+        }
       }
     }
     nights.push({
@@ -267,6 +373,220 @@ export function reconstructSleepNights(
     });
   }
   return nights.sort((a, b) => (a.night < b.night ? -1 : 1));
+}
+
+/**
+ * One reconstructed sleep SEGMENT — a single stage row resolved to its
+ * absolute start / end span. `start = measuredAt − value·60_000` because
+ * `measuredAt` is the segment END instant (`apple-health-mapping.ts` sets
+ * `takenAt = endDate`). Used by the hypnogram view to lay each stage onto
+ * a clock-time lane.
+ */
+export interface SleepSegment {
+  stage: SleepStage | null;
+  /** Absolute segment start instant (end − duration). */
+  start: Date;
+  /** Absolute segment end instant (= the stored `measuredAt`). */
+  end: Date;
+  /** Duration in minutes (= the stored `value`). */
+  minutes: number;
+}
+
+/**
+ * One reconstructed sleep SESSION — a contiguous block of segments (no
+ * gap > `SESSION_GAP_MS`) collapsed to ONE canonical source. This is the
+ * unit the hypnogram renders and the nap convention separates (main night
+ * vs nap). Distinct from `SleepNight`, which merges same-wake-day sessions
+ * under one key for the headline number.
+ */
+export interface SleepSession {
+  /** Wake-day key (YYYY-MM-DD) of the session's last segment, in user tz. */
+  night: string;
+  /** The canonical ingest source whose segments were kept (null = none). */
+  source: MeasurementSource | null;
+  /** Session start instant — earliest segment start. */
+  start: Date;
+  /** Session end instant — latest segment end (the wake instant). */
+  end: Date;
+  /** Time asleep in minutes (granular-over-bare rule). */
+  asleepMinutes: number;
+  /** In-bed minutes when an IN_BED segment exists, else null. */
+  inBedMinutes: number | null;
+  /** Awake-in-bed minutes when an AWAKE segment exists, else null. */
+  awakeMinutes: number | null;
+  /** Per-stage minutes for the session (only stages the device reported). */
+  stages: Partial<Record<SleepStage, number>>;
+  /**
+   * Count of AWAKE segments between the first and last asleep segment —
+   * the mid-sleep awakenings (a leading / trailing AWAKE before sleep
+   * onset or after final wake is not an awakening). Computed from the
+   * canonical source's segments only.
+   */
+  awakenings: number;
+  /** The canonical source's segments, sorted by start, for the hypnogram. */
+  segments: SleepSegment[];
+}
+
+/** Resolve a stage row to its absolute span (start = end − duration). */
+function segmentOf(r: SleepStageRow): SleepSegment {
+  const minutes = Number.isFinite(r.value) ? r.value : 0;
+  const end = r.measuredAt;
+  const start = new Date(end.getTime() - minutes * 60_000);
+  return { stage: r.sleepStage, start, end, minutes };
+}
+
+/**
+ * Count mid-sleep awakenings from a session's segments. An AWAKE segment
+ * counts only when it sits BETWEEN the first and last asleep segment — a
+ * leading AWAKE before sleep onset or a trailing AWAKE after the final
+ * wake is settling-in / lie-in, not a fragmentation event. IN_BED is
+ * ignored entirely.
+ */
+function countAwakenings(segments: readonly SleepSegment[]): number {
+  const sorted = [...segments].sort(
+    (a, b) => a.start.getTime() - b.start.getTime(),
+  );
+  const isAsleep = (s: SleepSegment): boolean =>
+    s.stage != null &&
+    (GRANULAR_ASLEEP_STAGES.has(s.stage) || s.stage === "ASLEEP");
+  let firstAsleep = -1;
+  let lastAsleep = -1;
+  for (let i = 0; i < sorted.length; i++) {
+    if (isAsleep(sorted[i])) {
+      if (firstAsleep === -1) firstAsleep = i;
+      lastAsleep = i;
+    }
+  }
+  if (firstAsleep === -1 || lastAsleep <= firstAsleep) return 0;
+  let count = 0;
+  for (let i = firstAsleep + 1; i < lastAsleep; i++) {
+    if (sorted[i].stage === "AWAKE") count += 1;
+  }
+  return count;
+}
+
+/**
+ * Reconstruct per-SESSION sleep blocks from raw per-stage rows. Unlike
+ * `reconstructSleepNights` (which merges same-wake-day sessions under one
+ * key for the single headline number), this returns EACH session
+ * separately so a caller can render the night's hypnogram and surface a
+ * daytime nap as its own block. Every session is collapsed to ONE
+ * canonical source via the user's `sleep` priority ladder, so two sources'
+ * timelines never overlay.
+ *
+ * Pure — the caller does the bounded DB read. Sessions are returned sorted
+ * ascending by start, so the last element is the most recent session.
+ */
+export function reconstructSleepSessions(
+  rows: SleepStageRow[],
+  tz: string,
+  priorityJson: unknown = null,
+): SleepSession[] {
+  if (rows.length === 0) return [];
+  const sleepLadder = getSourceLadder(parseSourcePriority(priorityJson), "sleep");
+
+  const startOf = (r: SleepStageRow): number =>
+    r.measuredAt.getTime() -
+    (Number.isFinite(r.value) ? r.value : 0) * 60_000;
+  const sorted = [...rows].sort((a, b) => startOf(a) - startOf(b));
+  const rawSessions: SleepStageRow[][] = [];
+  let current: SleepStageRow[] = [];
+  let sessionEnd = Number.NEGATIVE_INFINITY;
+  for (const r of sorted) {
+    const start = startOf(r);
+    const end = r.measuredAt.getTime();
+    if (current.length > 0 && start - sessionEnd > SESSION_GAP_MS) {
+      rawSessions.push(current);
+      current = [];
+      sessionEnd = Number.NEGATIVE_INFINITY;
+    }
+    current.push(r);
+    if (end > sessionEnd) sessionEnd = end;
+  }
+  if (current.length > 0) rawSessions.push(current);
+
+  const sessions: SleepSession[] = [];
+  for (const session of rawSessions) {
+    const canonical = pickSessionSource(session, sleepLadder);
+    const kept = session.filter((r) => (r.source ?? NO_SOURCE) === canonical);
+    const pool = kept.length > 0 ? kept : session;
+    // v1.11.5 — drop the redundant bare ASLEEP aggregate (and stage-less
+    // rows) from the hypnogram segments AND the per-stage breakdown when the
+    // session also carries the granular CORE/DEEP/REM partition, so the
+    // hypnogram never draws a double-height ASLEEP lane on top of the
+    // granular stages and the `stages` map is the granular set OR the bare
+    // aggregate, never both.
+    const sawGranular = sawGranularStage(pool);
+    const segments = pool
+      .filter((r) => !isRedundantBareAsleep(r.sleepStage, sawGranular))
+      .map(segmentOf)
+      .sort((a, b) => a.start.getTime() - b.start.getTime());
+
+    let inBed = 0;
+    let awake = 0;
+    let sawInBed = false;
+    let sawAwake = false;
+    const stages: Partial<Record<SleepStage, number>> = {};
+    let earliest = segments[0].start;
+    let latest = segments[0].end;
+    for (const seg of segments) {
+      if (seg.start.getTime() < earliest.getTime()) earliest = seg.start;
+      if (seg.end.getTime() > latest.getTime()) latest = seg.end;
+      const stage = seg.stage;
+      if (stage) stages[stage] = (stages[stage] ?? 0) + seg.minutes;
+      if (stage === "IN_BED") {
+        inBed += seg.minutes;
+        sawInBed = true;
+      } else if (stage === "AWAKE") {
+        awake += seg.minutes;
+        sawAwake = true;
+      }
+    }
+    const asleep = asleepMinutesOf(pool);
+    sessions.push({
+      night: userDayKey(latest, tz),
+      source:
+        canonical === NO_SOURCE ? null : (canonical as MeasurementSource),
+      start: earliest,
+      end: latest,
+      asleepMinutes: asleep,
+      inBedMinutes: sawInBed ? inBed : null,
+      awakeMinutes: sawAwake ? awake : null,
+      stages,
+      awakenings: countAwakenings(segments),
+      segments,
+    });
+  }
+  return sessions.sort((a, b) => a.start.getTime() - b.start.getTime());
+}
+
+/**
+ * Apply the NAP convention to a wake-day's sessions: the MAIN night is the
+ * session with the most asleep minutes (normally the overnight block); every
+ * other session on the same wake day is a nap, surfaced separately and never
+ * folded into the main night's headline.
+ *
+ * Returns the main session plus the naps (sorted by start). When the input
+ * holds sessions across multiple wake days, only the sessions matching the
+ * main session's wake day are considered naps — call once per wake day, or
+ * pass a single wake day's sessions.
+ */
+export function pickMainNightAndNaps(sessions: readonly SleepSession[]): {
+  main: SleepSession | null;
+  naps: SleepSession[];
+} {
+  const scorable = sessions.filter((s) => s.asleepMinutes > 0);
+  if (scorable.length === 0) return { main: null, naps: [] };
+  // Main = most asleep minutes; tie-break on the later end (overnight wins).
+  const main = [...scorable].sort((a, b) => {
+    if (b.asleepMinutes !== a.asleepMinutes)
+      return b.asleepMinutes - a.asleepMinutes;
+    return b.end.getTime() - a.end.getTime();
+  })[0];
+  const naps = scorable
+    .filter((s) => s !== main && s.night === main.night)
+    .sort((a, b) => a.start.getTime() - b.start.getTime());
+  return { main, naps };
 }
 
 export interface SleepNightSummary {

@@ -20,6 +20,7 @@
  * the re-score lag — `WHOOP_RECOVERY_SLEEP_OVERLAP_MS` is 24 h; workout/cycle
  * use the smaller `WHOOP_DEFAULT_OVERLAP_MS`.
  */
+import { AsyncLocalStorage } from "node:async_hooks";
 import { prisma } from "@/lib/db";
 import type { MeasurementType } from "@/generated/prisma/client";
 import { encrypt, decrypt } from "@/lib/crypto";
@@ -56,11 +57,28 @@ export function isCollectionForbidden(err: unknown): boolean {
 }
 
 /**
+ * Per-`syncUserWhoop`-cycle counter for collection-403 soft-skips. Set up by
+ * `syncUserWhoop` around the resource loop so the per-resource catch blocks —
+ * which return a bare 0 on a soft-skip, indistinguishable from a genuine
+ * "no new records" — can be told apart from the orchestrator. AsyncLocalStorage
+ * keeps the count scoped to one user's sync, never bleeding across concurrent
+ * per-user pg-boss jobs.
+ */
+interface SoftSkipTracker {
+  count: number;
+}
+const softSkipStorage = new AsyncLocalStorage<SoftSkipTracker>();
+
+/**
  * Single-source the per-resource collection-fetch error handling. A 403 on one
  * data class soft-skips it (warn + return 0) so sibling resources still sync;
  * anything else records a classified sync failure and rethrows. Call as
  * `return handleCollectionFetchError("recovery", userId, err)` from a resource
  * sync's catch block.
+ *
+ * A soft-skip increments the ambient `softSkipStorage` tracker (when present)
+ * so `syncUserWhoop` can refuse to stamp success on an all-403 grant-revoke
+ * cycle that imported nothing.
  */
 export async function handleCollectionFetchError(
   resource: string,
@@ -71,6 +89,8 @@ export async function handleCollectionFetchError(
     getEvent()?.addWarning(
       `whoop ${resource} sync skipped for ${userId}: collection 403 (soft-skip)`,
     );
+    const tracker = softSkipStorage.getStore();
+    if (tracker) tracker.count += 1;
     return 0;
   }
   await recordWhoopSyncFailure(userId, err);
@@ -314,24 +334,39 @@ export async function syncUserWhoop(
   const { syncUserWorkout } = await import("./sync-workout");
   const { syncUserBody } = await import("./sync-body");
 
-  let total = 0;
-  let anyFailed = false;
-  for (const fn of [
+  const resources = [
     syncUserRecovery,
     syncUserSleep,
     syncUserCycle,
     syncUserWorkout,
     syncUserBody,
-  ]) {
-    try {
-      total += await fn(userId, opts);
-    } catch (err) {
-      anyFailed = true;
-      getEvent()?.addWarning(`whoop ${fn.name} failed for ${userId}: ${err}`);
-    }
-  }
+  ];
 
-  if (!anyFailed) {
+  const tracker: SoftSkipTracker = { count: 0 };
+  let total = 0;
+  let anyFailed = false;
+  await softSkipStorage.run(tracker, async () => {
+    for (const fn of resources) {
+      try {
+        total += await fn(userId, opts);
+      } catch (err) {
+        anyFailed = true;
+        getEvent()?.addWarning(`whoop ${fn.name} failed for ${userId}: ${err}`);
+      }
+    }
+  });
+
+  // A genuine grant-revoke 403s EVERY collection: each resource soft-skips
+  // (returns 0, records no failure), so `anyFailed` stays false and `total` is
+  // 0 — yet the connection is dead until the token-refresh path next catches
+  // the 401 (up to ~1 h later). Don't stamp success when the whole cycle was
+  // soft-skipped and nothing imported; leave the status as-is so the
+  // "looks-healthy" window closes. A partial cycle (some rows imported, or at
+  // least one resource that did not soft-skip) stamps success as normal.
+  const allSoftSkipped =
+    tracker.count >= resources.length && total === 0;
+
+  if (!anyFailed && !allSoftSkipped) {
     await recordSyncSuccess(userId, "whoop");
   }
   return total;

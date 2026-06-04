@@ -1,0 +1,142 @@
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { NextRequest } from "next/server";
+
+vi.mock("@/lib/db", () => ({
+  prisma: {
+    measurement: { findMany: vi.fn() },
+    auditLog: { create: vi.fn() },
+  },
+}));
+
+vi.mock("@/lib/auth/session", () => ({ getSession: vi.fn() }));
+
+vi.mock("@/lib/tz/resolver", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/tz/resolver")>();
+  return { ...actual, resolveUserTimezone: vi.fn(async () => "UTC") };
+});
+
+vi.mock("@/lib/logging/transports", () => ({ emitIfSampled: vi.fn() }));
+
+vi.mock("@/lib/rollups/measurement-read", () => ({
+  loadUserSourcePriority: vi.fn(async () => null),
+}));
+
+vi.mock("@/lib/db-compat", () => ({
+  ensureDbCompatibility: vi.fn().mockResolvedValue(undefined),
+}));
+
+vi.mock("@/lib/logging/context", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@/lib/logging/context")>();
+  return { ...actual, annotate: vi.fn() };
+});
+
+vi.mock("next/headers", () => ({
+  headers: vi.fn(async () => ({ get: () => null })),
+  cookies: vi.fn(async () => ({
+    get: () => undefined,
+    set: () => {},
+    delete: () => {},
+  })),
+}));
+
+import { GET } from "../route";
+import { prisma } from "@/lib/db";
+import { getSession } from "@/lib/auth/session";
+
+const SESSION_OK = {
+  session: { id: "sess-1", expiresAt: new Date(Date.now() + 3_600_000) },
+  user: { id: "user-1", username: "marc", role: "USER" as const },
+};
+
+function req(query: string): NextRequest {
+  return new NextRequest(`http://localhost/api/sleep/night?${query}`);
+}
+
+function stage(iso: string, s: string, minutes: number, source = "APPLE_HEALTH") {
+  return {
+    value: minutes,
+    measuredAt: new Date(iso),
+    sleepStage: s,
+    source,
+  };
+}
+
+beforeEach(() => {
+  vi.resetAllMocks();
+  vi.mocked(prisma.measurement.findMany).mockResolvedValue([] as never);
+  vi.mocked(prisma.auditLog.create).mockResolvedValue({} as never);
+});
+
+describe("GET /api/sleep/night", () => {
+  it("returns 401 when unauthenticated", async () => {
+    vi.mocked(getSession).mockResolvedValue(null);
+    const res = await GET(req(""));
+    expect(res.status).toBe(401);
+  });
+
+  it("422s on a malformed date", async () => {
+    vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
+    const res = await GET(req("date=2026-13-40"));
+    expect(res.status).toBe(422);
+  });
+
+  it("returns the requested night's hypnogram segments", async () => {
+    vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
+    vi.mocked(prisma.measurement.findMany).mockResolvedValue([
+      stage("2026-06-04T01:00:00.000Z", "CORE", 240),
+      stage("2026-06-04T03:00:00.000Z", "DEEP", 120),
+      stage("2026-06-04T05:00:00.000Z", "REM", 120),
+      stage("2026-06-04T05:00:00.000Z", "IN_BED", 510),
+    ] as never);
+    const res = await GET(req("date=2026-06-04"));
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.data.night).toBe("2026-06-04");
+    expect(body.data.main.asleepMinutes).toBe(480);
+    expect(body.data.main.inBedMinutes).toBe(510);
+    // Segments carry absolute start/end spans (start = end − duration).
+    const core = body.data.main.segments.find(
+      (seg: { stage: string }) => seg.stage === "CORE",
+    );
+    expect(core.start).toBe("2026-06-03T21:00:00.000Z");
+    expect(core.end).toBe("2026-06-04T01:00:00.000Z");
+  });
+
+  it("defaults to the most recent scorable night when date omitted", async () => {
+    vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
+    vi.mocked(prisma.measurement.findMany).mockResolvedValue([
+      stage("2026-06-02T03:00:00.000Z", "CORE", 200),
+      stage("2026-06-04T03:00:00.000Z", "CORE", 300),
+    ] as never);
+    const res = await GET(req(""));
+    const body = await res.json();
+    expect(body.data.night).toBe("2026-06-04");
+    expect(body.data.main.asleepMinutes).toBe(300);
+  });
+
+  it("surfaces a daytime nap separately from the main night", async () => {
+    vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
+    vi.mocked(prisma.measurement.findMany).mockResolvedValue([
+      // Nap on Jun 4 (12:00 → 12:40 UTC).
+      stage("2026-06-04T12:40:00.000Z", "CORE", 40),
+      // Overnight ending Jun 4 morning.
+      stage("2026-06-04T01:00:00.000Z", "CORE", 240),
+      stage("2026-06-04T05:00:00.000Z", "DEEP", 240),
+    ] as never);
+    const res = await GET(req("date=2026-06-04"));
+    const body = await res.json();
+    expect(body.data.main.asleepMinutes).toBe(480);
+    expect(body.data.naps).toHaveLength(1);
+    expect(body.data.naps[0].asleepMinutes).toBe(40);
+  });
+
+  it("returns a null main when the night has no asleep minutes", async () => {
+    vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
+    vi.mocked(prisma.measurement.findMany).mockResolvedValue([] as never);
+    const res = await GET(req("date=2026-06-04"));
+    const body = await res.json();
+    expect(body.data.main).toBeNull();
+    expect(body.data.naps).toEqual([]);
+  });
+});

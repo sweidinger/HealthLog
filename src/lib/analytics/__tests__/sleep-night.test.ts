@@ -5,6 +5,8 @@ import type {
 } from "@/generated/prisma/client";
 import {
   reconstructSleepNights,
+  reconstructSleepSessions,
+  pickMainNightAndNaps,
   summarizeSleepNights,
   type SleepStageRow,
 } from "@/lib/analytics/sleep-night";
@@ -167,6 +169,104 @@ describe("reconstructSleepNights", () => {
     expect(nights[0].stages.CORE).toBe(240);
   });
 
+  it("does NOT double-count a bare ASLEEP aggregate against the granular stages (HIGH, v1.11.5)", () => {
+    // Apple Health writes BOTH an unspecified `ASLEEP` AGGREGATE row AND the
+    // granular CORE/DEEP/REM breakdown for the SAME night. The granular rows
+    // partition the same period the aggregate covers, so summing them would
+    // ~double the night (here: 480 granular + 480 bare = 960 ≈ 16 h, the
+    // real-data symptom). The asleep total must be the GRANULAR sum (~8 h),
+    // never the granular + bare blend.
+    const rows: SleepStageRow[] = [
+      // Granular breakdown — the canonical partition (8 h total).
+      row("2026-06-04T01:00:00.000Z", "CORE", 240), //  23:00 → 03:00
+      row("2026-06-04T03:00:00.000Z", "DEEP", 120), //  03:00 → 05:00
+      row("2026-06-04T05:00:00.000Z", "REM", 120), //   05:00 → 07:00
+      // Unspecified ASLEEP aggregate covering the SAME 8 h — must be dropped.
+      row("2026-06-04T05:00:00.000Z", "ASLEEP", 480),
+      // IN_BED + AWAKE never count toward asleep.
+      row("2026-06-04T05:00:00.000Z", "IN_BED", 510),
+      row("2026-06-04T04:30:00.000Z", "AWAKE", 30),
+    ];
+    const nights = reconstructSleepNights(rows, "UTC");
+    expect(nights).toHaveLength(1);
+    // Granular only: 240 + 120 + 120 = 480 (8 h), NOT 960 (16 h).
+    expect(nights[0].asleepMinutes).toBe(480);
+    expect(nights[0].inBedMinutes).toBe(510);
+    expect(nights[0].awakeMinutes).toBe(30);
+    // HIGH (H1): the per-stage `stages` map must NOT carry the bare ASLEEP
+    // aggregate alongside the granular partition — it would render a
+    // double-height green ASLEEP segment on top of CORE+DEEP+REM. Only the
+    // granular stages + IN_BED + AWAKE survive.
+    expect(nights[0].stages.ASLEEP).toBeUndefined();
+    expect(nights[0].stages.CORE).toBe(240);
+    expect(nights[0].stages.DEEP).toBe(120);
+    expect(nights[0].stages.REM).toBe(120);
+    expect(nights[0].stages.IN_BED).toBe(510);
+    expect(nights[0].stages.AWAKE).toBe(30);
+  });
+
+  it("includes a bare-only nap in the night total when the overnight is granular (MEDIUM-1, v1.11.5)", () => {
+    // Same wake day: a granular WHOOP overnight (8 h) plus a bare-ASLEEP-only
+    // Apple nap (45 min) more than 3 h later. Reconstructing over the MERGED
+    // pool would set sawGranular from the overnight and wrongly drop the
+    // nap's bare ASLEEP. The per-session asleep total must keep the nap.
+    const rows: SleepStageRow[] = [
+      // Overnight (WHOOP, granular): 23:00 → 07:00 = 8 h asleep.
+      srcRow("2026-06-04T01:00:00.000Z", "CORE", 240, "WHOOP"),
+      srcRow("2026-06-04T03:00:00.000Z", "DEEP", 120, "WHOOP"),
+      srcRow("2026-06-04T07:00:00.000Z", "REM", 120, "WHOOP"),
+      // Afternoon nap (Apple, bare ASLEEP only): 14:00 → 14:45 = 45 min,
+      // well beyond the 3 h session gap from the overnight.
+      srcRow("2026-06-04T14:45:00.000Z", "ASLEEP", 45, "APPLE_HEALTH"),
+    ];
+    const nights = reconstructSleepNights(rows, "UTC");
+    expect(nights).toHaveLength(1);
+    // 480 (granular overnight) + 45 (bare nap) = 525, NOT 480 (nap dropped).
+    expect(nights[0].asleepMinutes).toBe(525);
+    // The night's stages carry the granular overnight AND the nap's bare
+    // ASLEEP — the nap was a separate session with no granular partition, so
+    // its bare aggregate is its only asleep signal and survives.
+    expect(nights[0].stages.CORE).toBe(240);
+    expect(nights[0].stages.DEEP).toBe(120);
+    expect(nights[0].stages.REM).toBe(120);
+    expect(nights[0].stages.ASLEEP).toBe(45);
+  });
+
+  it("falls back to the bare ASLEEP row when no granular stage exists", () => {
+    // Legacy iOS 15- writes only the unspecified aggregate — there is no
+    // granular partition, so the bare ASLEEP row IS the night's total.
+    const rows: SleepStageRow[] = [
+      row("2026-06-04T06:00:00.000Z", "ASLEEP", 465),
+      row("2026-06-04T06:00:00.000Z", "IN_BED", 500),
+    ];
+    const nights = reconstructSleepNights(rows, "UTC");
+    expect(nights).toHaveLength(1);
+    expect(nights[0].asleepMinutes).toBe(465);
+    expect(nights[0].inBedMinutes).toBe(500);
+  });
+
+  it("does not double-count bare+granular WITHIN one source on a dual-source night", () => {
+    // Both WHOOP and Apple Health report the same night, and EACH writes a
+    // bare ASLEEP aggregate alongside its granular breakdown. The night must
+    // collapse to ONE source (WHOOP by default ladder) AND count only that
+    // source's granular stages — no cross-source sum, no bare double-count.
+    const rows: SleepStageRow[] = [
+      srcRow("2026-06-04T01:00:00.000Z", "CORE", 240, "WHOOP"),
+      srcRow("2026-06-04T03:00:00.000Z", "DEEP", 90, "WHOOP"),
+      srcRow("2026-06-04T04:30:00.000Z", "REM", 90, "WHOOP"),
+      srcRow("2026-06-04T04:30:00.000Z", "ASLEEP", 420, "WHOOP"), // bare WHOOP aggregate
+      srcRow("2026-06-04T01:05:00.000Z", "CORE", 230, "APPLE_HEALTH"),
+      srcRow("2026-06-04T03:05:00.000Z", "DEEP", 85, "APPLE_HEALTH"),
+      srcRow("2026-06-04T04:35:00.000Z", "REM", 80, "APPLE_HEALTH"),
+      srcRow("2026-06-04T04:35:00.000Z", "ASLEEP", 395, "APPLE_HEALTH"), // bare Apple aggregate
+    ];
+    const nights = reconstructSleepNights(rows, "UTC");
+    expect(nights).toHaveLength(1);
+    // WHOOP granular only: 240 + 90 + 90 = 420, not 840 (bare+granular) and
+    // not the ~1660 four-way blend of both sources' bare + granular rows.
+    expect(nights[0].asleepMinutes).toBe(420);
+  });
+
   it("honours a per-user ladder that prefers Apple Health over WHOOP", () => {
     const priorityJson = { sleep: ["APPLE_HEALTH", "WHOOP"] };
     const rows: SleepStageRow[] = [
@@ -179,6 +279,169 @@ describe("reconstructSleepNights", () => {
     expect(nights).toHaveLength(1);
     // Apple Health wins under the override: 230 + 80 = 310.
     expect(nights[0].asleepMinutes).toBe(310);
+  });
+});
+
+describe("reconstructSleepSessions", () => {
+  it("resolves each stage row to start = end − duration", () => {
+    const rows: SleepStageRow[] = [
+      // 240-min CORE ending 03:00 UTC → starts 23:00 the previous instant.
+      row("2026-06-04T03:00:00.000Z", "CORE", 240),
+      row("2026-06-04T04:30:00.000Z", "REM", 90), // 03:00 → 04:30
+    ];
+    const sessions = reconstructSleepSessions(rows, "UTC");
+    expect(sessions).toHaveLength(1);
+    const s = sessions[0];
+    expect(s.start.toISOString()).toBe("2026-06-03T23:00:00.000Z");
+    expect(s.end.toISOString()).toBe("2026-06-04T04:30:00.000Z");
+    // Segments carry their own start/end span.
+    const core = s.segments.find((seg) => seg.stage === "CORE");
+    expect(core?.start.toISOString()).toBe("2026-06-03T23:00:00.000Z");
+    expect(core?.end.toISOString()).toBe("2026-06-04T03:00:00.000Z");
+    expect(s.asleepMinutes).toBe(330);
+  });
+
+  it("splits a daytime nap into its own session, separate from the night", () => {
+    const rows: SleepStageRow[] = [
+      row("2026-06-03T13:00:00.000Z", "CORE", 45), //  14:15 → 15:00 nap
+      // Overnight contiguous block.
+      row("2026-06-03T21:00:00.000Z", "CORE", 200),
+      row("2026-06-03T23:00:00.000Z", "DEEP", 120),
+      row("2026-06-04T01:00:00.000Z", "REM", 120),
+      row("2026-06-04T04:00:00.000Z", "CORE", 180),
+    ];
+    const sessions = reconstructSleepSessions(rows, "Europe/Berlin");
+    expect(sessions).toHaveLength(2);
+    // Sorted ascending by start: nap first, overnight second.
+    expect(sessions[0].asleepMinutes).toBe(45);
+    expect(sessions[1].asleepMinutes).toBe(620);
+  });
+
+  it("keeps only the canonical source's segments on a dual-source night", () => {
+    const rows: SleepStageRow[] = [
+      srcRow("2026-06-04T01:00:00.000Z", "CORE", 240, "WHOOP"),
+      srcRow("2026-06-04T03:00:00.000Z", "DEEP", 90, "WHOOP"),
+      srcRow("2026-06-04T04:30:00.000Z", "REM", 90, "WHOOP"),
+      srcRow("2026-06-04T01:05:00.000Z", "CORE", 230, "APPLE_HEALTH"),
+      srcRow("2026-06-04T03:05:00.000Z", "DEEP", 85, "APPLE_HEALTH"),
+    ];
+    const sessions = reconstructSleepSessions(rows, "UTC");
+    expect(sessions).toHaveLength(1);
+    expect(sessions[0].source).toBe("WHOOP");
+    // Only WHOOP's 3 segments survive; Apple Health's are dropped.
+    expect(sessions[0].segments).toHaveLength(3);
+    expect(sessions[0].asleepMinutes).toBe(420);
+  });
+
+  it("drops the bare ASLEEP aggregate from segments + stages when granular exists (HIGH H1, v1.11.5)", () => {
+    // Apple-Health shape: granular CORE/DEEP/REM PLUS the unspecified ASLEEP
+    // aggregate covering the same period, plus IN_BED. The hypnogram must not
+    // draw a double-height ASLEEP lane on top of the granular stages, so the
+    // bare ASLEEP segment is dropped and `stages.ASLEEP` is absent.
+    const rows: SleepStageRow[] = [
+      row("2026-06-04T01:00:00.000Z", "CORE", 240),
+      row("2026-06-04T03:00:00.000Z", "DEEP", 120),
+      row("2026-06-04T05:00:00.000Z", "REM", 120),
+      row("2026-06-04T05:00:00.000Z", "ASLEEP", 480), // redundant aggregate
+      row("2026-06-04T05:00:00.000Z", "IN_BED", 510),
+    ];
+    const sessions = reconstructSleepSessions(rows, "UTC");
+    expect(sessions).toHaveLength(1);
+    const s = sessions[0];
+    // No ASLEEP segment survives; CORE + DEEP + REM + IN_BED do (4 segments).
+    expect(s.segments.some((seg) => seg.stage === "ASLEEP")).toBe(false);
+    expect(s.segments).toHaveLength(4);
+    expect(s.stages.ASLEEP).toBeUndefined();
+    expect(s.asleepMinutes).toBe(480); // granular sum, not 960
+    expect(s.inBedMinutes).toBe(510);
+  });
+
+  it("keeps the bare ASLEEP segment when NO granular stage exists", () => {
+    // Legacy ASLEEP-only night — the bare aggregate IS the timeline, so it
+    // must survive as a segment (otherwise the hypnogram would have nothing).
+    const rows: SleepStageRow[] = [
+      row("2026-06-04T06:00:00.000Z", "ASLEEP", 450),
+      row("2026-06-04T06:00:00.000Z", "IN_BED", 480),
+    ];
+    const sessions = reconstructSleepSessions(rows, "UTC");
+    expect(sessions).toHaveLength(1);
+    expect(sessions[0].segments.some((seg) => seg.stage === "ASLEEP")).toBe(
+      true,
+    );
+    expect(sessions[0].stages.ASLEEP).toBe(450);
+    expect(sessions[0].asleepMinutes).toBe(450);
+  });
+
+  it("counts only MID-sleep AWAKE bouts as awakenings", () => {
+    const rows: SleepStageRow[] = [
+      // Leading AWAKE before sleep onset — NOT an awakening.
+      row("2026-06-04T00:10:00.000Z", "AWAKE", 10),
+      row("2026-06-04T02:00:00.000Z", "CORE", 110),
+      // Mid-sleep AWAKE bout — counts.
+      row("2026-06-04T02:15:00.000Z", "AWAKE", 15),
+      row("2026-06-04T04:00:00.000Z", "DEEP", 105),
+      // Another mid-sleep AWAKE bout — counts.
+      row("2026-06-04T04:10:00.000Z", "AWAKE", 10),
+      row("2026-06-04T06:00:00.000Z", "REM", 110),
+      // Trailing AWAKE after final wake — NOT an awakening.
+      row("2026-06-04T06:05:00.000Z", "AWAKE", 5),
+    ];
+    const sessions = reconstructSleepSessions(rows, "UTC");
+    expect(sessions).toHaveLength(1);
+    expect(sessions[0].awakenings).toBe(2);
+  });
+
+  it("returns no sessions for empty input", () => {
+    expect(reconstructSleepSessions([], "UTC")).toEqual([]);
+  });
+});
+
+describe("pickMainNightAndNaps", () => {
+  it("picks the longest-asleep session as the main night, rest as naps", () => {
+    // Same wake day (Berlin): a short nap + the overnight block.
+    const rows: SleepStageRow[] = [
+      row("2026-06-04T11:00:00.000Z", "CORE", 40), // 12:00 → 12:40 nap (Jun 4)
+      // Overnight ~22:00 Jun 3 → 06:00 Jun 4.
+      row("2026-06-03T21:00:00.000Z", "CORE", 180),
+      row("2026-06-04T00:00:00.000Z", "DEEP", 120),
+      row("2026-06-04T04:00:00.000Z", "REM", 180),
+    ];
+    const sessions = reconstructSleepSessions(rows, "Europe/Berlin");
+    const { main, naps } = pickMainNightAndNaps(sessions);
+    expect(main?.asleepMinutes).toBe(480);
+    expect(naps).toHaveLength(1);
+    expect(naps[0].asleepMinutes).toBe(40);
+    // Nap shares the main night's wake day.
+    expect(naps[0].night).toBe(main?.night);
+  });
+
+  it("returns no main when every session is IN_BED/AWAKE only", () => {
+    const rows: SleepStageRow[] = [
+      row("2026-06-04T06:00:00.000Z", "IN_BED", 60),
+      row("2026-06-04T06:00:00.000Z", "AWAKE", 60),
+    ];
+    const sessions = reconstructSleepSessions(rows, "UTC");
+    const { main, naps } = pickMainNightAndNaps(sessions);
+    expect(main).toBeNull();
+    expect(naps).toEqual([]);
+  });
+
+  it("does not surface a different wake day's session as a nap", () => {
+    // Two overnight blocks on consecutive wake days — neither is the
+    // other's nap even though both land in the same input array.
+    const rows: SleepStageRow[] = [
+      // Wake day Jun 3.
+      row("2026-06-03T01:00:00.000Z", "CORE", 240),
+      row("2026-06-03T05:00:00.000Z", "DEEP", 120),
+      // Wake day Jun 4.
+      row("2026-06-04T01:00:00.000Z", "CORE", 300),
+      row("2026-06-04T05:00:00.000Z", "DEEP", 120),
+    ];
+    const sessions = reconstructSleepSessions(rows, "UTC");
+    const { main, naps } = pickMainNightAndNaps(sessions);
+    // Jun 4 is the longer night.
+    expect(main?.night).toBe("2026-06-04");
+    expect(naps).toEqual([]);
   });
 });
 
@@ -203,6 +466,34 @@ describe("summarizeSleepNights", () => {
     expect(summary.mean).toBe(360);
     expect(latestNight?.night).toBe("2026-06-04");
     expect(latestNight?.asleepMinutes).toBe(420);
+  });
+
+  it("averages ~8 h, not ~16 h, when every night carries bare+granular rows (HIGH, v1.11.5)", () => {
+    // Several consecutive nights, each written the real-data way: a bare
+    // ASLEEP aggregate PLUS the granular CORE/DEEP/REM partition for the same
+    // period. The 30-day-style average must reflect the granular ~8 h totals,
+    // not the ~16 h bare+granular blend that produced the live 16.4 h symptom.
+    const nightsInput: Array<[string, number, number, number]> = [
+      // [wake-day, core, deep, rem] — each sums to 480 min = 8 h.
+      ["2026-06-01", 240, 120, 120],
+      ["2026-06-02", 250, 110, 120],
+      ["2026-06-03", 230, 130, 120],
+      ["2026-06-04", 240, 120, 120],
+    ];
+    const rows: SleepStageRow[] = [];
+    for (const [day, core, deep, rem] of nightsInput) {
+      // Each night's stages land between 01:00 and 06:00 UTC on the wake day.
+      rows.push(row(`${day}T02:00:00.000Z`, "CORE", core));
+      rows.push(row(`${day}T04:00:00.000Z`, "DEEP", deep));
+      rows.push(row(`${day}T06:00:00.000Z`, "REM", rem));
+      // The overlapping bare ASLEEP aggregate (= core+deep+rem) — must drop.
+      rows.push(row(`${day}T06:00:00.000Z`, "ASLEEP", core + deep + rem));
+    }
+    const { summary } = summarizeSleepNights(rows, "UTC");
+    expect(summary.count).toBe(4);
+    // Mean of 480 / 480 / 480 / 480 = 480 min = 8 h, NOT 960 min = 16 h.
+    expect(summary.mean).toBe(480);
+    expect((summary.mean ?? 0) / 60).toBe(8);
   });
 
   it("drops nights with zero asleep minutes (IN_BED / AWAKE only)", () => {

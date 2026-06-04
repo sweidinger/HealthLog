@@ -15,6 +15,12 @@
  * the old contract. Production routes always pass `userTz`.
  */
 import { formatInUserTz } from "./tz/format";
+import {
+  reconstructSleepSessions,
+  pickMainNightAndNaps,
+  type SleepStageRow,
+} from "./analytics/sleep-night";
+import type { SleepStage } from "@/generated/prisma/client";
 
 export interface ExportableRecord {
   [key: string]: unknown;
@@ -80,6 +86,17 @@ function formatTimestamp(date: Date, userTz?: string): string {
   return date.toISOString();
 }
 
+interface ExportMeasurement {
+  type: string;
+  value: number;
+  unit: string;
+  measuredAt: Date;
+  source: string;
+  notes: string | null;
+  glucoseContext?: string | null;
+  sleepStage?: SleepStage | null;
+}
+
 /**
  * Format measurements for export.
  *
@@ -87,20 +104,32 @@ function formatTimestamp(date: Date, userTz?: string): string {
  * ISO-8601 with the user's UTC offset (e.g. `+02:00` in Berlin in
  * May) instead of the bare `Z` suffix. See module-level docstring
  * for the rationale (issue #167).
+ *
+ * v1.11.5 — SLEEP_DURATION is stored one row per STAGE per night. A flat
+ * export emitted a wall of per-stage minutes with no night attribution.
+ * By default sleep rows are now COLLAPSED to one record per night (the
+ * main session's TIME ASLEEP per the nap convention) carrying the stage
+ * breakdown in `notes` so the single uniform CSV reads as one night, not
+ * many stages. Pass `granularity: "raw"` to keep the per-stage rows for
+ * power users. Storage is untouched either way.
  */
 export function formatMeasurementsForExport(
-  measurements: Array<{
-    type: string;
-    value: number;
-    unit: string;
-    measuredAt: Date;
-    source: string;
-    notes: string | null;
-    glucoseContext?: string | null;
-  }>,
+  measurements: ExportMeasurement[],
   userTz?: string,
+  opts: {
+    granularity?: "night" | "raw";
+    sleepTz?: string;
+    /**
+     * The user's persisted `sourcePriorityJson` (or null for the defaults).
+     * Threaded into `reconstructSleepSessions` so the CSV's per-night sleep
+     * dedup picks the SAME canonical source the UI shows on a multi-source
+     * night — without it the export silently fell back to the default ladder.
+     */
+    sourcePriorityJson?: unknown;
+  } = {},
 ): ExportableRecord[] {
-  return measurements.map((m) => ({
+  const granularity = opts.granularity ?? "night";
+  const toRecord = (m: ExportMeasurement): ExportableRecord => ({
     type: m.type,
     value: m.value,
     unit: m.unit,
@@ -108,7 +137,77 @@ export function formatMeasurementsForExport(
     source: m.source,
     notes: m.notes ?? "",
     glucoseContext: m.glucoseContext ?? "",
+  });
+
+  if (granularity === "raw") {
+    return measurements.map(toRecord);
+  }
+
+  // Split sleep stage rows out, collapse them per night, and merge back
+  // in chronological order with the non-sleep rows.
+  const sleepRows = measurements.filter((m) => m.type === "SLEEP_DURATION");
+  if (sleepRows.length === 0) {
+    return measurements.map(toRecord);
+  }
+  const other = measurements.filter((m) => m.type !== "SLEEP_DURATION");
+  // `reconstructSleepSessions` clusters by wake-day using the user's tz;
+  // fall back to UTC when no tz is threaded (admin / on-disk shape).
+  const tz = opts.sleepTz ?? userTz ?? "UTC";
+  const stageRows: SleepStageRow[] = sleepRows.map((m) => ({
+    value: m.value,
+    measuredAt: m.measuredAt,
+    sleepStage: m.sleepStage ?? null,
+    source: m.source as SleepStageRow["source"],
   }));
+  const sessions = reconstructSleepSessions(
+    stageRows,
+    tz,
+    opts.sourcePriorityJson ?? null,
+  );
+  const byDay = new Map<string, typeof sessions>();
+  for (const s of sessions) {
+    const list = byDay.get(s.night) ?? [];
+    list.push(s);
+    byDay.set(s.night, list);
+  }
+  const nightRecords: Array<{ at: Date; rec: ExportableRecord }> = [];
+  for (const daySessions of byDay.values()) {
+    const { main, naps } = pickMainNightAndNaps(daySessions);
+    if (!main) continue;
+    const stageParts = (Object.entries(main.stages) as Array<[string, number]>)
+      .filter(([, mins]) => mins > 0)
+      .map(([stage, mins]) => `${stage}=${Math.round(mins)}m`)
+      .join(" ");
+    const napNote =
+      naps.length > 0
+        ? ` naps=${naps.length}(${Math.round(
+            naps.reduce((sum, n) => sum + n.asleepMinutes, 0),
+          )}m)`
+        : "";
+    const awakeningNote =
+      main.awakenings > 0 ? ` awakenings=${main.awakenings}` : "";
+    nightRecords.push({
+      at: main.end,
+      rec: {
+        type: "SLEEP_DURATION",
+        // Headline value = the main night's TIME ASLEEP in minutes.
+        value: Math.round(main.asleepMinutes),
+        unit: "minutes",
+        measuredAt: formatTimestamp(main.end, userTz),
+        source: main.source ?? "",
+        notes: `${stageParts}${napNote}${awakeningNote}`.trim(),
+        glucoseContext: "",
+      },
+    });
+  }
+
+  // Merge: keep the same descending-by-time order the route reads in.
+  const merged: Array<{ at: Date; rec: ExportableRecord }> = [
+    ...other.map((m) => ({ at: m.measuredAt, rec: toRecord(m) })),
+    ...nightRecords,
+  ];
+  merged.sort((a, b) => b.at.getTime() - a.at.getTime());
+  return merged.map((x) => x.rec);
 }
 
 /**

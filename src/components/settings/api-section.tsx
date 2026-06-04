@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ChevronDown, Key, Loader2, Trash2 } from "lucide-react";
+import { Check, ChevronDown, Copy, Key, Loader2, Trash2 } from "lucide-react";
+import { toast } from "sonner";
 
 import {
   AlertDialog,
@@ -165,6 +166,7 @@ function ApiTokensCard() {
   const [creating, setCreating] = useState(false);
   const [tokenMsg, setTokenMsg] = useState<string | null>(null);
   const [showRevokedTokens, setShowRevokedTokens] = useState(false);
+  const [tokenCopied, setTokenCopied] = useState(false);
 
   const { data: tokens } = useQuery({
     queryKey: queryKeys.tokens(),
@@ -203,10 +205,30 @@ function ApiTokensCard() {
     }
   }
 
+  async function handleCopyToken() {
+    if (!newToken) return;
+    try {
+      await navigator.clipboard.writeText(newToken);
+      setTokenCopied(true);
+      toast.success(t("settings.tokenCopied"));
+      // Revert the inline check affordance after a short beat so a
+      // second copy reads as a fresh action.
+      setTimeout(() => setTokenCopied(false), 2_000);
+    } catch {
+      toast.error(t("settings.tokenCopyFailed"));
+    }
+  }
+
   async function handleRevoke(tokenId: string) {
-    const res = await fetch(`/api/tokens/${tokenId}`, { method: "DELETE" });
-    if (res.ok) {
+    try {
+      const res = await fetch(`/api/tokens/${tokenId}`, { method: "DELETE" });
+      if (!res.ok) {
+        toast.error(t("settings.tokenRevokeFailed"));
+        return;
+      }
       queryClient.invalidateQueries({ queryKey: queryKeys.tokens() });
+    } catch {
+      toast.error(t("settings.tokenRevokeFailed"));
     }
   }
 
@@ -266,13 +288,33 @@ function ApiTokensCard() {
         </form>
 
         {newToken && (
-          <div className="bg-dracula-green/10 rounded-lg p-3 text-sm">
+          <div
+            className="bg-dracula-green/10 rounded-lg p-3 text-sm"
+            data-slot="settings-api-token-created"
+          >
             <p className="text-dracula-green mb-1 font-medium">
               {t("settings.tokenCreated")}
             </p>
-            <code className="bg-muted block rounded p-2 font-mono text-xs break-all">
-              {newToken}
-            </code>
+            <div className="flex items-start gap-2">
+              <code className="bg-muted block flex-1 rounded p-2 font-mono text-xs break-all">
+                {newToken}
+              </code>
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                className="min-h-11 min-w-11 shrink-0 sm:h-9 sm:w-9"
+                onClick={() => void handleCopyToken()}
+                aria-label={t("settings.tokenCopy")}
+                data-slot="settings-api-token-copy"
+              >
+                {tokenCopied ? (
+                  <Check className="text-dracula-green h-3.5 w-3.5" />
+                ) : (
+                  <Copy className="h-3.5 w-3.5" />
+                )}
+              </Button>
+            </div>
           </div>
         )}
 

@@ -250,18 +250,21 @@ export function MedicationCard({
 
   async function confirmInjectionSite(site: InjectionSiteKey) {
     const intakeId = siteIntakeId;
-    setSiteIntakeId(null);
     if (!intakeId) return;
+    // v1.11.5 — keep the dialog open until the PATCH resolves. On failure
+    // surface a toast and re-throw so the dialog stays mounted with the
+    // chosen site instead of dismissing as though the site had been saved.
     const res = await fetch("/api/medications/intake", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ intakeId, status: "taken", injectionSite: site }),
     });
-    if (res.ok) {
-      await invalidateKeys(queryClient, medicationDependentKeys);
-    } else {
-      toast.error(t("medications.logInjectionSiteNoneAvailable"));
+    if (!res.ok) {
+      toast.error(t("medications.logInjectionSiteSaveFailed"));
+      throw new Error("injection-site PATCH failed");
     }
+    await invalidateKeys(queryClient, medicationDependentKeys);
+    setSiteIntakeId(null);
   }
 
   // v1.8.6 — the two compliance windows scale with the dosing cadence. When

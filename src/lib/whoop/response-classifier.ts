@@ -100,6 +100,12 @@ export class WhoopApiError extends Error {
   readonly httpStatus: number | undefined;
   readonly reason: string;
   readonly verb: string;
+  /**
+   * The OAuth `error` code from a token-endpoint failure body (e.g.
+   * `invalid_grant` when a refresh token is revoked). Undefined for the
+   * collection endpoints, which signal failure through the status code alone.
+   */
+  readonly upstreamError: string | undefined;
 
   constructor(opts: {
     verb: string;
@@ -121,7 +127,32 @@ export class WhoopApiError extends Error {
     this.classification = opts.classification;
     this.httpStatus = opts.httpStatus;
     this.reason = opts.reason;
+    this.upstreamError = opts.upstreamError;
   }
+}
+
+/**
+ * True when a caught error is an OAuth `invalid_grant` on a 400 from the token
+ * endpoint — the canonical signal that the stored refresh token was revoked
+ * (the user disconnected the app, or WHOOP expired the grant). A plain
+ * `classifyWhoopResponse(400)` buckets this as `persistent`, which never
+ * prompts a reconnect; lifting it to `reauth_required` makes the connection
+ * surface the reauth prompt. Scoped tightly to a 400 carrying `invalid_grant`
+ * so other 400s (a malformed request, a bad client_secret → `invalid_client`)
+ * stay persistent.
+ *
+ * Robust to a lost prototype across a pg-boss retry: it reads the dedicated
+ * `upstreamError` field when present, else falls back to the
+ * `"... error: 400 - invalid_grant"` message segment.
+ */
+export function isInvalidGrant(err: unknown): boolean {
+  if (err instanceof WhoopApiError) {
+    if (err.httpStatus !== 400) return false;
+    if (err.upstreamError === "invalid_grant") return true;
+    return /\binvalid_grant\b/.test(err.message);
+  }
+  const msg = err instanceof Error ? err.message : String(err);
+  return /WHOOP\s+\w+\s+error:\s*400\b[\s\S]*\binvalid_grant\b/.test(msg);
 }
 
 /**
@@ -130,8 +161,14 @@ export class WhoopApiError extends Error {
  * rather than permanently disabling the integration. Falls back to parsing the
  * HTTP status out of the legacy `"WHOOP <verb> error: <status>"` message shape
  * for callers that lose the original prototype across a pg-boss retry.
+ *
+ * A 400 `invalid_grant` from the token endpoint is the one 4xx that is NOT
+ * persistent: the refresh token was revoked, so the verdict is
+ * `reauth_required` and the user is prompted to reconnect.
  */
 export function classifyWhoopError(err: unknown): WhoopClassification {
+  if (isInvalidGrant(err)) return "reauth_required";
+
   if (err instanceof WhoopApiError) return err.classification;
 
   const msg = err instanceof Error ? err.message : String(err);

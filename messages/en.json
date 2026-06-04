@@ -434,6 +434,8 @@
     "previousPage": "Previous page",
     "nextPage": "Next page",
     "dailyTotalCaption": "({count} samples)",
+    "sleepNapCaption": "+{count} nap(s)",
+    "sleepAwakeningsCaption": "{count} awakening(s)",
     "expandDay": "Show samples for this day",
     "collapseDay": "Hide samples for this day",
     "loadError": "Could not load measurements.",
@@ -489,6 +491,10 @@
     "emptyResetFilter": "Show all moods",
     "actions": "Actions",
     "formReset": "Reset form",
+    "noteCharCount": "{count}/{max}",
+    "formResetConfirmTitle": "Reset this form?",
+    "formResetConfirmBody": "This clears the mood, tags and note you have entered. This cannot be undone.",
+    "formResetConfirmAction": "Reset",
     "saveError": "Error saving",
     "deleteError": "Error deleting",
     "invalidTimestamp": "Please select a valid time.",
@@ -1356,6 +1362,7 @@
     "logInjectionSiteSkip": "Skip",
     "logInjectionSiteConfirm": "Save site",
     "logInjectionSiteNoneAvailable": "No injection site is available — every site is excluded in your settings.",
+    "logInjectionSiteSaveFailed": "Could not save the injection site. Please try again.",
     "trackInjectionSitesToggle": "Track injection sites",
     "trackInjectionSitesHint": "After a dose is taken, ask which site was used and suggest the next rotation.",
     "allowedSitesLabel": "Allowed sites",
@@ -2093,6 +2100,14 @@
       "compositionTitle": "Stage composition",
       "compositionSubtitle": "Last {nights} nights",
       "compositionAriaLabel": "Sleep stage composition over {nights} nights",
+      "hypnogram": {
+        "title": "Last night",
+        "subtitle": "{asleep} asleep",
+        "ariaLabel": "Sleep stage progression for last night: {asleep} asleep, {awakenings} awakenings",
+        "asleepTotal": "Asleep {value}",
+        "inBedTotal": "In bed {value}",
+        "awakenings": "{count} awakenings"
+      },
       "stages": {
         "deep": "Deep",
         "rem": "REM",
@@ -2122,6 +2137,8 @@
       "critical": "Critical"
     },
     "assessmentTitle": "Assessment",
+    "assessmentShowMore": "Show more",
+    "assessmentShowLess": "Show less",
     "bloodPressureSectionTitle": "Blood Pressure",
     "weightSectionTitle": "Weight",
     "pulseSectionTitle": "Pulse",
@@ -2530,6 +2547,31 @@
         "bandSteady": "Your mood has been fairly steady",
         "bandVariable": "Your mood has been noticeably variable",
         "bandVeryVariable": "Your mood has swung a lot lately"
+      },
+      "influence": {
+        "title": "Influence on mood",
+        "detail": "Averages {withAvg} on the {withDays} days you tagged this vs {withoutAvg} without it.",
+        "confidenceLow": "Low confidence",
+        "confidenceMedium": "Medium confidence",
+        "confidenceHigh": "High confidence",
+        "disclaimer": "These are associations in your own data, not proof of cause. Patterns worth watching."
+      },
+      "betterDays": {
+        "title": "What goes with your better days",
+        "description": "Tags and metrics that line up with your higher- and lower-mood days, ranked by how strongly they move together.",
+        "disclaimer": "Associations only, not causes. Talk to your doctor before changing anything based on these."
+      },
+      "discovery": {
+        "title": "Discovered patterns",
+        "description": "Day-to-day relationships involving your mood that hold up after correcting for testing many pairs at once.",
+        "footer": "Surfaced from {tested} day-to-day pairs tested across all your metrics, after the false-discovery correction.",
+        "empty": "No mood relationships cleared the statistical bar yet. Keep logging.",
+        "disclaimer": "Statistically filtered, but still observational — a pattern worth watching, not a cause.",
+        "moodUp": "Higher {factor} tends to go with higher next-day mood in your data.",
+        "moodDown": "Higher {factor} tends to go with lower next-day mood in your data.",
+        "outcomeUp": "Higher mood tends to go with higher next-day {factor} in your data.",
+        "outcomeDown": "Higher mood tends to go with lower next-day {factor} in your data.",
+        "stat": "{n} paired days · r = {r} · q = {q}"
       }
     },
     "derived": {
@@ -3479,6 +3521,10 @@
     "apiTokensDescription": "Create API tokens for external medication intake (e.g., Shortcuts, automations).",
     "tokenNamePlaceholder": "Token name (e.g., iPhone Shortcut)",
     "tokenCreated": "Token created — copy it now! It won't be shown again.",
+    "tokenCopy": "Copy token",
+    "tokenCopied": "Token copied to clipboard",
+    "tokenCopyFailed": "Could not copy the token",
+    "tokenRevokeFailed": "Could not revoke the token. Please try again.",
     "tokenRevoke": "Revoke token?",
     "tokenRevokeAction": "Revoke token",
     "tokenRevokeDescription": "The token will be permanently deactivated. Applications using it will lose access.",

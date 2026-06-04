@@ -30,6 +30,7 @@ import {
   computeMoodNarratives,
   type MoodNarrative,
 } from "@/lib/insights/mood-narratives";
+import { welchTTest } from "@/lib/insights/correlations";
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
@@ -264,6 +265,427 @@ export function computeStructuredTagSummary(
       avgScore: round(stats.scoreSum / stats.count, 2),
     }))
     .sort((a, b) => b.count - a.count || a.labelKey.localeCompare(b.labelKey));
+}
+
+// --- Tag "Influence on Mood" — with-vs-without daily-mean delta (F1) ---
+
+/**
+ * Minimum days a tag must be PRESENT on, and minimum days it must be
+ * ABSENT on, before its with/without influence surfaces. Both floors
+ * apply: a tag seen on 4 days has no defensible "with" average, and a
+ * tag present on all-but-2 days has no defensible "without" baseline.
+ * Five days per side is the same order as the stability floor (7 daily
+ * points) but per-group — enough for a mean of daily means to mean
+ * something without surfacing a two-day fluke as a "factor".
+ */
+export const INFLUENCE_MIN_PRESENT_DAYS = 5;
+export const INFLUENCE_MIN_ABSENT_DAYS = 5;
+
+/**
+ * Maximum influence rows surfaced per axis (flat / structured). Ranked by
+ * absolute delta so the strongest associations lead; the cap keeps the
+ * multiple-comparison surface bounded (the confidence band downgrades the
+ * rest honestly).
+ */
+export const INFLUENCE_MAX_ROWS = 8;
+
+/** Discrete confidence the UI chip renders for an influence row. */
+export type InfluenceConfidence = "low" | "medium" | "high";
+
+export interface TagInfluenceRow {
+  /** Stable tag key. For flat tags this is the free-text string. */
+  tag: string;
+  /**
+   * For structured tags, the i18n label key + parent category so the UI
+   * can render the localized label with its icon. `null` for flat tags
+   * (rendered verbatim).
+   */
+  labelKey: string | null;
+  categoryKey: string | null;
+  icon: string | null;
+  /** Days the tag was present (daily-mean convention). */
+  withDays: number;
+  /** Days the tag was absent over the same window. */
+  withoutDays: number;
+  /** Mean of daily means on days the tag was present. */
+  withAvg: number;
+  /** Mean of daily means on days the tag was absent (the counterfactual). */
+  withoutAvg: number;
+  /** withAvg − withoutAvg, rounded. Positive = higher mood with the tag. */
+  delta: number;
+  /**
+   * Pooled mood SD across the with/without groups (Cohen's-d denominator).
+   * `null` when neither group has testable spread (both constant). Lets the
+   * board standardize the raw delta into a unitless effect comparable to a
+   * Pearson |r|. Not surfaced in the UI — ranking only.
+   */
+  pooledSd: number | null;
+  /** Welch two-sided p-value for the difference of means. */
+  pValue: number;
+  /** Discrete confidence band derived from p-value + per-group sample size. */
+  confidence: InfluenceConfidence;
+}
+
+/**
+ * Map a Welch p-value + the smaller per-group day count to a discrete
+ * confidence band. Both inputs matter: a small p on tiny groups is still
+ * fragile, and a comfortable sample with a borderline p is only suggestive.
+ *
+ * - high   : p < 0.01 AND both groups ≥ 12 days
+ * - medium : p < 0.05 AND both groups ≥ 8 days
+ * - low    : everything else that cleared the surfacing floors
+ *
+ * The deterministic "no_variance" case (both groups perfectly constant but
+ * with a non-zero delta) is treated as `low` — a real but un-tested
+ * difference should never read as confident.
+ */
+export function influenceConfidence(
+  pValue: number,
+  minGroupDays: number,
+): InfluenceConfidence {
+  if (pValue < 0.01 && minGroupDays >= 12) return "high";
+  if (pValue < 0.05 && minGroupDays >= 8) return "medium";
+  return "low";
+}
+
+/**
+ * Collapse raw mood rows to one observation per tz-anchored day: the
+ * day's mean score plus the union of every flat + structured tag key
+ * present on any entry that day. Daily-mean convention so a multi-entry
+ * day never over-weights an influence comparison (it matches the heatmap,
+ * distribution, and weekday axes).
+ */
+interface TaggedDay {
+  /** Day's mean mood (mean of the day's entry scores). */
+  mean: number;
+  /** Flat free-text tag keys present that day. */
+  flatTags: Set<string>;
+  /** Structured tag refs present that day, keyed for de-dup. */
+  structuredTags: Map<string, StructuredTagRef>;
+}
+
+function collapseToTaggedDays(
+  entries: MoodAggregateEntry[],
+  now: Date,
+  windowDays: number,
+): Map<string, TaggedDay> {
+  const cutoff = now.getTime() - windowDays * MS_PER_DAY;
+  const byDay = new Map<
+    string,
+    { sum: number; count: number; flat: Set<string>; structured: Map<string, StructuredTagRef> }
+  >();
+  for (const entry of entries) {
+    if (entry.moodLoggedAt.getTime() < cutoff) continue;
+    const day = byDay.get(entry.date) ?? {
+      sum: 0,
+      count: 0,
+      flat: new Set<string>(),
+      structured: new Map<string, StructuredTagRef>(),
+    };
+    day.sum += entry.score;
+    day.count += 1;
+    if (entry.tags && Array.isArray(entry.tags)) {
+      for (const tag of entry.tags as string[]) day.flat.add(tag);
+    }
+    if (entry.structuredTags) {
+      for (const ref of entry.structuredTags) day.structured.set(ref.key, ref);
+    }
+    byDay.set(entry.date, day);
+  }
+  const out = new Map<string, TaggedDay>();
+  for (const [date, agg] of byDay) {
+    out.set(date, {
+      mean: agg.sum / agg.count,
+      flatTags: agg.flat,
+      structuredTags: agg.structured,
+    });
+  }
+  return out;
+}
+
+/**
+ * Compute the with-vs-without influence row for ONE candidate tag over a
+ * pre-collapsed day map. `presentOn(day)` decides membership. Returns null
+ * when either group is below its day floor (so the caller drops the tag)
+ * or when Welch reports no testable spread AND the means are equal.
+ */
+function influenceForTag(
+  days: TaggedDay[],
+  presentOn: (day: TaggedDay) => boolean,
+  meta: { tag: string; labelKey: string | null; categoryKey: string | null; icon: string | null },
+): TagInfluenceRow | null {
+  const withVals: number[] = [];
+  const withoutVals: number[] = [];
+  for (const day of days) {
+    if (presentOn(day)) withVals.push(day.mean);
+    else withoutVals.push(day.mean);
+  }
+  if (
+    withVals.length < INFLUENCE_MIN_PRESENT_DAYS ||
+    withoutVals.length < INFLUENCE_MIN_ABSENT_DAYS
+  ) {
+    return null;
+  }
+
+  const welch = welchTTest(withVals, withoutVals);
+
+  // Deterministic means even when Welch declines (no_variance) — the
+  // delta is still meaningful, we just cannot attach a p-value, so the
+  // band falls to `low`.
+  const withAvg = withVals.reduce((s, v) => s + v, 0) / withVals.length;
+  const withoutAvg =
+    withoutVals.reduce((s, v) => s + v, 0) / withoutVals.length;
+  const delta = withAvg - withoutAvg;
+  const minGroupDays = Math.min(withVals.length, withoutVals.length);
+
+  // Pooled SD (Cohen's-d denominator) so the board can standardize this raw
+  // mood-point delta into a unitless effect comparable to a Pearson |r|.
+  // Unbiased (n−1) per-group variances pooled on (nWith + nWithout − 2) df;
+  // null when there is no testable spread (both groups perfectly constant).
+  const nWith = withVals.length;
+  const nWithout = withoutVals.length;
+  const varWith =
+    withVals.reduce((s, v) => s + (v - withAvg) ** 2, 0) / (nWith - 1);
+  const varWithout =
+    withoutVals.reduce((s, v) => s + (v - withoutAvg) ** 2, 0) /
+    (nWithout - 1);
+  const pooledVar =
+    ((nWith - 1) * varWith + (nWithout - 1) * varWithout) /
+    (nWith + nWithout - 2);
+  const pooledSd = pooledVar > 0 ? Math.sqrt(pooledVar) : null;
+
+  const pValue = welch.status === "ok" ? welch.pValue : 1;
+  // A zero delta with no spread is not an "influence" — drop it so the
+  // board never shows a 0.0 row.
+  if (delta === 0) return null;
+
+  return {
+    tag: meta.tag,
+    labelKey: meta.labelKey,
+    categoryKey: meta.categoryKey,
+    icon: meta.icon,
+    withDays: withVals.length,
+    withoutDays: withoutVals.length,
+    withAvg: round(withAvg, 2),
+    withoutAvg: round(withoutAvg, 2),
+    delta: round(delta, 2),
+    pooledSd: pooledSd === null ? null : round(pooledSd, 3),
+    pValue,
+    confidence: influenceConfidence(pValue, minGroupDays),
+  };
+}
+
+export interface TagInfluence {
+  /** Flat free-text tag influence rows, ranked by |delta| desc. */
+  flat: TagInfluenceRow[];
+  /** Structured taxonomy tag influence rows, ranked by |delta| desc. */
+  structured: TagInfluenceRow[];
+}
+
+/**
+ * Tag "Influence on Mood" (Daylio's flagship): for each frequent flat and
+ * structured tag, the average daily mood on days the tag is PRESENT vs the
+ * counterfactual baseline of days it is ABSENT, the delta, and a confidence
+ * band from a Welch two-sample t-test.
+ *
+ * Gating: both groups must clear `INFLUENCE_MIN_PRESENT_DAYS` /
+ * `INFLUENCE_MIN_ABSENT_DAYS`; rows are ranked by absolute delta and capped
+ * at `INFLUENCE_MAX_ROWS` per axis. Observational only — the UI applies the
+ * standing "association, not cause" caption. Sparse tags, single-day tags,
+ * all-same-value days, and divide-by-zero are all handled cleanly (the row
+ * is dropped, never NaN).
+ */
+export function computeTagInfluence(
+  entries: MoodAggregateEntry[],
+  now: Date,
+  windowDays = 90,
+): TagInfluence {
+  const dayMap = collapseToTaggedDays(entries, now, windowDays);
+  const days = Array.from(dayMap.values());
+
+  // Need at least one day per side to even attempt — the per-tag floor
+  // catches the real gate, this just short-circuits an empty history.
+  if (days.length < INFLUENCE_MIN_PRESENT_DAYS + INFLUENCE_MIN_ABSENT_DAYS) {
+    return { flat: [], structured: [] };
+  }
+
+  // Candidate flat tags: every distinct flat key seen in the window.
+  const flatKeys = new Set<string>();
+  for (const day of days) for (const k of day.flatTags) flatKeys.add(k);
+
+  const flat: TagInfluenceRow[] = [];
+  for (const key of flatKeys) {
+    const row = influenceForTag(days, (d) => d.flatTags.has(key), {
+      tag: key,
+      labelKey: null,
+      categoryKey: null,
+      icon: null,
+    });
+    if (row) flat.push(row);
+  }
+
+  // Candidate structured tags: every distinct structured key + its meta.
+  const structuredMeta = new Map<string, StructuredTagRef>();
+  for (const day of days) {
+    for (const [key, ref] of day.structuredTags) {
+      if (!structuredMeta.has(key)) structuredMeta.set(key, ref);
+    }
+  }
+
+  const structured: TagInfluenceRow[] = [];
+  for (const [key, ref] of structuredMeta) {
+    const row = influenceForTag(days, (d) => d.structuredTags.has(key), {
+      tag: key,
+      labelKey: ref.labelKey,
+      categoryKey: ref.categoryKey,
+      icon: ref.icon,
+    });
+    if (row) structured.push(row);
+  }
+
+  const rank = (a: TagInfluenceRow, b: TagInfluenceRow) =>
+    Math.abs(b.delta) - Math.abs(a.delta) || a.tag.localeCompare(b.tag);
+
+  return {
+    flat: flat.sort(rank).slice(0, INFLUENCE_MAX_ROWS),
+    structured: structured.sort(rank).slice(0, INFLUENCE_MAX_ROWS),
+  };
+}
+
+// --- "What's associated with your better days" board (F2) ---
+
+/**
+ * One ranked factor on the unified board. Either a tag (`source: "tag"`,
+ * effect = the mood-point delta) or a health-metric correlation
+ * (`source: "metric"`, effect = Pearson r). Direction tells the UI whether
+ * the factor goes with higher or lower mood; the standing "association, not
+ * cause" caption is rendered once for the whole board.
+ */
+export interface BetterDayFactor {
+  source: "tag" | "metric";
+  /** Tag key OR correlation channel key (sleep/steps/pulse/weight/bp). */
+  key: string;
+  /** Flat tags / metrics: null. Structured tags: the i18n label key. */
+  labelKey: string | null;
+  categoryKey: string | null;
+  icon: string | null;
+  /** "up" = associated with higher mood; "down" = with lower mood. */
+  direction: "up" | "down";
+  /** Sample count behind the factor (tag: smaller group; metric: paired n). */
+  n: number;
+  /** Discrete confidence band. */
+  confidence: InfluenceConfidence;
+  /**
+   * Unified ranking strength in [0,1]. For metrics this is |r|; for tags it
+   * is min(1, |delta| / 2) — a two-point mood swing reads as full strength.
+   * Ranking only; the UI surfaces the raw delta / r, not this number.
+   */
+  effectSize: number;
+  /** Raw mood-point delta for a tag factor; null for a metric factor. */
+  delta: number | null;
+  /** Raw Pearson r for a metric factor; null for a tag factor. */
+  r: number | null;
+}
+
+/** Max factors on the board so the headline surface stays scannable. */
+export const BETTER_DAYS_MAX_FACTORS = 8;
+
+/** Map a metric correlation strength label to the shared confidence band. */
+function metricConfidence(
+  strength: CorrelationResult["strength"],
+): InfluenceConfidence {
+  if (strength === "stark") return "high";
+  if (strength === "moderat") return "medium";
+  return "low";
+}
+
+/**
+ * Merge the F1 tag influence rows and the mood × health-metric
+ * correlations into one effect-size-ranked, confidence-gated board.
+ *
+ * Inclusion gates (multiple-comparison aware):
+ *  - Tag rows: already gated by `computeTagInfluence` (sample floors +
+ *    Welch); included as-is.
+ *  - Metric rows: only correlations that reached `n ≥ 5` AND carry a
+ *    non-"keine" strength (|r| ≥ 0.2) are folded in — a near-zero r is not
+ *    an association.
+ *
+ * Ranking is by `effectSize` desc, then confidence, then key for stability.
+ * The two sources are put on one comparable scale: metric rows use |r|
+ * (already unitless in [0,1]); tag rows use a standardized effect — the raw
+ * mood-point `delta` divided by the pooled with/without mood SD (Cohen's d),
+ * clamped to [0,1]. A |d| ≥ 1 (a mean shift of one full SD) saturates the
+ * scale, mirroring an |r| near its ceiling, so neither source dominates the
+ * board for scale reasons alone. When a tag has no pooled SD (both groups
+ * perfectly constant), it falls back to the legacy |delta|/2 heuristic — a
+ * rare degenerate case that can't be standardized. The raw delta / r the UI
+ * shows is unchanged; this only governs the sort order. Observational only.
+ */
+export function computeBetterDays(
+  tagInfluence: TagInfluence,
+  correlations: Record<CorrelationKey, MoodMetricCorrelation>,
+): BetterDayFactor[] {
+  const factors: BetterDayFactor[] = [];
+
+  // Tag factors (both axes). Structured tags carry their label meta.
+  for (const row of [...tagInfluence.structured, ...tagInfluence.flat]) {
+    factors.push({
+      source: "tag",
+      key: row.tag,
+      labelKey: row.labelKey,
+      categoryKey: row.categoryKey,
+      icon: row.icon,
+      direction: row.delta >= 0 ? "up" : "down",
+      n: Math.min(row.withDays, row.withoutDays),
+      confidence: row.confidence,
+      // Cohen's-d standardization so the tag effect is commensurable with a
+      // metric |r|; fall back to the legacy |delta|/2 only when the pooled
+      // SD is unavailable (both groups perfectly constant).
+      effectSize:
+        row.pooledSd && row.pooledSd > 0
+          ? Math.min(1, Math.abs(row.delta) / row.pooledSd)
+          : Math.min(1, Math.abs(row.delta) / 2),
+      delta: row.delta,
+      r: null,
+    });
+  }
+
+  // Metric factors — only meaningful, sufficiently-sampled correlations.
+  for (const [key, corr] of Object.entries(correlations)) {
+    const result = corr.result;
+    if (!result || corr.n < 5) continue;
+    if (result.strength === "keine") continue;
+    factors.push({
+      source: "metric",
+      key,
+      labelKey: null,
+      categoryKey: null,
+      icon: null,
+      // Mood is the x-axis: positive r = higher metric on higher-mood days,
+      // i.e. the metric is associated with higher mood.
+      direction: result.r >= 0 ? "up" : "down",
+      n: corr.n,
+      confidence: metricConfidence(result.strength),
+      effectSize: Math.min(1, Math.abs(result.r)),
+      delta: null,
+      r: result.r,
+    });
+  }
+
+  const confidenceRank: Record<InfluenceConfidence, number> = {
+    high: 3,
+    medium: 2,
+    low: 1,
+  };
+
+  return factors
+    .sort(
+      (a, b) =>
+        b.effectSize - a.effectSize ||
+        confidenceRank[b.confidence] - confidenceRank[a.confidence] ||
+        a.key.localeCompare(b.key),
+    )
+    .slice(0, BETTER_DAYS_MAX_FACTORS);
 }
 
 // --- In-target % over the last 30 daily points (lifted from mood-status) ---
@@ -692,6 +1114,17 @@ export interface MoodAggregates {
   /** v1.8.5 — structured-tag breakdown from the taxonomy join. */
   structuredTags: StructuredTagRow[];
   /**
+   * v1.11.5 (F1) — tag "Influence on Mood": with-vs-without daily-mean
+   * delta + Welch confidence band for each frequent flat / structured tag.
+   */
+  tagInfluence: TagInfluence;
+  /**
+   * v1.11.5 (F2) — unified "what's associated with your better days" board
+   * folding the F1 tag deltas and the mood × health-metric correlations
+   * into one effect-size-ranked, confidence-gated, observational list.
+   */
+  betterDays: BetterDayFactor[];
+  /**
    * v1.8.6 — ranked, threshold-gated narrative takeaways. The "read
    * this first" layer above the charts; the same array feeds the LLM
    * snapshot so prose and feed never drift.
@@ -753,7 +1186,17 @@ export function computeMoodAggregates(args: {
   const stability = computeMoodStability(moodDaily);
   const tags = computeTagSummary(entries, now);
   const structuredTags = computeStructuredTagSummary(entries, now);
+  const tagInfluence = computeTagInfluence(entries, now);
   const inTargetPct = computeInTargetPct(moodDaily);
+
+  const correlations = Object.fromEntries(
+    Object.entries(CORRELATION_METRICS).map(([key, type]) => [
+      key,
+      computeMoodMetricCorrelation(moodDaily, metricDaily(type), now),
+    ]),
+  ) as MoodAggregates["correlations"];
+
+  const betterDays = computeBetterDays(tagInfluence, correlations);
 
   // Distinct day keys the user logged on — drives the streak takeaway.
   const loggedDayKeys = Array.from(new Set(entries.map((entry) => entry.date)));
@@ -782,6 +1225,8 @@ export function computeMoodAggregates(args: {
     stability,
     tags,
     structuredTags,
+    tagInfluence,
+    betterDays,
     narratives: computeMoodNarratives({
       daily: moodDaily,
       weekday,
@@ -792,12 +1237,7 @@ export function computeMoodAggregates(args: {
       loggedDayKeys,
       now,
     }),
-    correlations: Object.fromEntries(
-      Object.entries(CORRELATION_METRICS).map(([key, type]) => [
-        key,
-        computeMoodMetricCorrelation(moodDaily, metricDaily(type), now),
-      ]),
-    ) as MoodAggregates["correlations"],
+    correlations,
   };
 }
 

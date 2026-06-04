@@ -24,6 +24,7 @@ import { apiError, getClientIp } from "@/lib/api-response";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { toCSV, formatMeasurementsForExport } from "@/lib/export";
 import { resolveUserTimezone } from "@/lib/tz/resolver";
+import { loadUserSourcePriority } from "@/lib/rollups/measurement-read";
 import { NextRequest, NextResponse } from "next/server";
 
 export const GET = apiHandler(async (request: NextRequest) => {
@@ -37,16 +38,29 @@ export const GET = apiHandler(async (request: NextRequest) => {
 
   const { since, until } = parseRange(request.url);
   const where = buildWhere(user.id, { since, until });
+  // v1.11.5 — sleep export defaults to one row per night; `granularity=raw`
+  // keeps the per-stage rows for power users.
+  const granularity =
+    new URL(request.url).searchParams.get("granularity") === "raw"
+      ? "raw"
+      : "night";
 
-  const [measurements, userTz] = await Promise.all([
+  const [measurements, userTz, sourcePriorityJson] = await Promise.all([
     prisma.measurement.findMany({
       where,
       orderBy: { measuredAt: "desc" },
     }),
     resolveUserTimezone(user.id),
+    loadUserSourcePriority(user.id),
   ]);
 
-  const csv = toCSV(formatMeasurementsForExport(measurements, userTz));
+  const csv = toCSV(
+    formatMeasurementsForExport(measurements, userTz, {
+      granularity,
+      sleepTz: userTz,
+      sourcePriorityJson,
+    }),
+  );
 
   await auditLog("user.export.measurements", {
     userId: user.id,

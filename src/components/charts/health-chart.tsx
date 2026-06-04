@@ -622,7 +622,59 @@ export function HealthChart({
         }
       >();
 
+      // v1.11.5 — SLEEP_DURATION is stored one row per sleep STAGE per night
+      // (minutes). The generic `/api/measurements` daily-aggregate path
+      // averages those stage rows, which neither sums a night nor isolates
+      // the asleep stages — it surfaced a ~2× inflated, mislabeled chart. The
+      // `/api/measurements/series?kind=sleep` adapter reconstructs ONE point
+      // per night carrying the night's TIME-ASLEEP in HOURS (CORE + DEEP + REM,
+      // bare-ASLEEP only when no granular stage exists, IN_BED + AWAKE
+      // excluded, dual-source nights collapsed to one source). Routing the
+      // sleep chart through it keeps every sleep surface on the same
+      // reconstruction. One point per night → `sum/count` yields the night's
+      // hours unchanged.
+      async function fetchSleepNights() {
+        const sleepParams = new URLSearchParams();
+        sleepParams.set("kind", "sleep");
+        // The series route caps sleep at 365 days regardless; clamp the
+        // request so a longer comparison window still resolves.
+        sleepParams.set(
+          "days",
+          String(Math.max(1, Math.min(3650, Math.ceil(fetchWindow.windowDays)))),
+        );
+        const res = await fetch(`/api/measurements/series?${sleepParams}`);
+        if (!res.ok) return;
+        const json = await res.json();
+        const points = (json.data?.points ?? []) as Array<{
+          at: string;
+          value: number;
+        }>;
+        for (const point of points) {
+          const value = point.value * valueScale;
+          if (value == null || !Number.isFinite(value)) continue;
+          const dayKey = toDayKey(point.at, dayKeyFormatter);
+          const bucket = dailyAggregates.get(dayKey) ?? {
+            timestamp: dayKeyToTimestamp(dayKey),
+            values: {},
+          };
+          const current = bucket.values["SLEEP_DURATION"] ?? {
+            sum: 0,
+            count: 0,
+            min: null,
+            max: null,
+          };
+          current.sum += value;
+          current.count += 1;
+          bucket.values["SLEEP_DURATION"] = current;
+          dailyAggregates.set(dayKey, bucket);
+        }
+      }
+
       async function fetchMeasurementsByType(type: string) {
+        if (type === "SLEEP_DURATION") {
+          await fetchSleepNights();
+          return;
+        }
         const typeParams = new URLSearchParams();
         typeParams.set("type", type);
         typeParams.set("sortBy", "measuredAt");

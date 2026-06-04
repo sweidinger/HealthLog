@@ -38,6 +38,11 @@ import {
   collapseRollupRowsBySource,
   loadUserSourcePriority,
 } from "@/lib/rollups/measurement-read";
+import {
+  reconstructSleepSessions,
+  pickMainNightAndNaps,
+} from "@/lib/analytics/sleep-night";
+import { resolveUserTimezone } from "@/lib/tz/resolver";
 import { buildSourceRankCase } from "@/lib/analytics/source-rank-sql";
 import { NextRequest } from "next/server";
 import type {
@@ -114,6 +119,27 @@ export const GET = apiHandler(async (request: NextRequest) => {
         }
       : {}),
   };
+
+  // v1.11.5 — sleep is read row-per-STAGE (≈5 rows/night × source-count),
+  // not a spot sample and not a cumulative day-sum. A plain list query for
+  // SLEEP_DURATION would leak every stage segment as its own "value" — the
+  // "many small numbers that stand for themselves" complaint. Route it
+  // through the canonical per-night aggregation (the same helper the chart
+  // series + dashboard tile use) so a sleep list returns one row per night
+  // carrying the night's TIME ASLEEP, with a `dayKey` drill-down to that
+  // night's stage segments. Storage is untouched; only the display
+  // collapses. Runs ahead of the cumulative branches because sleep is in
+  // neither CUMULATIVE_HK_TYPES nor the spot-sample set.
+  if (type === "SLEEP_DURATION") {
+    return sleepListResponse(user, {
+      from,
+      to,
+      limit,
+      offset,
+      sortDir,
+      dayKey,
+    });
+  }
 
   // v1.4.37 W7c — list-view drill-down to per-sample rows for a single
   // calendar day in the user's IANA timezone. Resolves the day's UTC
@@ -625,6 +651,191 @@ export const GET = apiHandler(async (request: NextRequest) => {
     meta: { total, limit, offset },
   });
 });
+
+/**
+ * v1.11.5 — per-night collapse for the SLEEP_DURATION list. Sleep is
+ * stored one row per STAGE per night (minutes); a plain list leaks every
+ * stage segment. This collapses the raw rows into the canonical per-night
+ * shape used by the chart series + dashboard tile.
+ *
+ * Two modes:
+ *  - `dayKey` set → drill-down: return the night's stage SEGMENTS (the
+ *    canonical source's per-stage spans) so the list row can reveal the
+ *    hypnogram's underlying rows, mirroring the cumulative-type drill-down.
+ *  - no `dayKey` → one synthetic row per night, value = TIME ASLEEP in
+ *    minutes (the canonical unit), with the per-night stage breakdown,
+ *    nap count, and awakenings in the row so the UI can caption the night
+ *    without a second fetch.
+ *
+ * The read is bounded to the last year (matching the series route's sleep
+ * read) so an unbounded list never walks a multi-year per-stage row set.
+ */
+const SLEEP_LIST_MAX_DAYS = 365;
+
+async function sleepListResponse(
+  user: { id: string },
+  opts: {
+    from?: Date;
+    to?: Date;
+    limit: number;
+    offset: number;
+    sortDir: "asc" | "desc";
+    dayKey?: string;
+  },
+) {
+  const { from, to, limit, offset, sortDir, dayKey } = opts;
+  const [tz, priorityJson] = await Promise.all([
+    resolveUserTimezone(user.id),
+    loadUserSourcePriority(user.id),
+  ]);
+
+  // Bound the read window: honour an explicit from/to, otherwise cap to
+  // the last year so the per-stage scan stays small.
+  const since = from ?? new Date(Date.now() - SLEEP_LIST_MAX_DAYS * 86_400_000);
+  const rows = await prisma.measurement.findMany({
+    where: {
+      userId: user.id,
+      type: "SLEEP_DURATION",
+      deletedAt: null,
+      measuredAt: {
+        gte: since,
+        ...(to ? { lte: to } : {}),
+      },
+    },
+    orderBy: { measuredAt: "asc" },
+    select: {
+      id: true,
+      value: true,
+      measuredAt: true,
+      sleepStage: true,
+      source: true,
+    },
+  });
+
+  // Drill-down — return the requested night's canonical stage segments.
+  if (dayKey) {
+    const sessions = reconstructSleepSessions(rows, tz, priorityJson).filter(
+      (s) => s.night === dayKey,
+    );
+    const { main, naps } = pickMainNightAndNaps(sessions);
+    const dayUnit = getUnitForType("SLEEP_DURATION");
+    // One row per stage segment of the main night + each nap, so the
+    // drill-down reveals exactly the rows that summed into the headline.
+    const segments = [main, ...naps]
+      .filter((s): s is NonNullable<typeof s> => s != null)
+      .flatMap((s) => s.segments);
+    const measurements = segments
+      .sort((a, b) =>
+        sortDir === "asc"
+          ? a.start.getTime() - b.start.getTime()
+          : b.start.getTime() - a.start.getTime(),
+      )
+      .map((seg, i) => ({
+        id: `sleep-seg:${dayKey}:${i}`,
+        type: "SLEEP_DURATION",
+        value: Math.round(seg.minutes),
+        unit: dayUnit,
+        source: main?.source ?? naps[0]?.source ?? "MANUAL",
+        measuredAt: seg.end.toISOString(),
+        sleepStage: seg.stage,
+        notes: null,
+      }));
+    annotate({
+      action: { name: "measurement.list" },
+      meta: {
+        total: measurements.length,
+        type: "SLEEP_DURATION",
+        dayKey,
+        mode: "sleep-drill-down",
+      },
+    });
+    return apiSuccess({
+      measurements,
+      meta: { total: measurements.length, limit, offset: 0, dayKey },
+    });
+  }
+
+  // Per-night collapse — one synthetic row per wake day. The headline
+  // value is the MAIN night's TIME ASLEEP (the longest session that day),
+  // per the nap convention: naps are surfaced as a count, never folded
+  // into the main night's headline. Reconstruct sessions and pick the
+  // main + naps per wake day.
+  const sessions = reconstructSleepSessions(rows, tz, priorityJson);
+  const byDay = new Map<string, typeof sessions>();
+  for (const s of sessions) {
+    const list = byDay.get(s.night) ?? [];
+    list.push(s);
+    byDay.set(s.night, list);
+  }
+
+  const dayUnit = getUnitForType("SLEEP_DURATION");
+  const nightRows: Array<{
+    id: string;
+    type: string;
+    value: number;
+    unit: string;
+    source: string;
+    measuredAt: string;
+    notes: null;
+    dayKey: string;
+    sampleCount: number;
+    sleepStages: Record<string, number>;
+    inBedMinutes: number | null;
+    awakeMinutes: number | null;
+    napCount: number;
+    napAsleepMinutes: number;
+    awakenings: number;
+  }> = [];
+  for (const [day, daySessions] of byDay) {
+    const { main, naps } = pickMainNightAndNaps(daySessions);
+    if (!main) continue;
+    nightRows.push({
+      // Synthetic id mirrors the series route's `sleep:<night>` shape.
+      id: `sleep:${day}`,
+      type: "SLEEP_DURATION",
+      value: Math.round(main.asleepMinutes),
+      unit: dayUnit,
+      source: main.source ?? "MANUAL",
+      measuredAt: main.end.toISOString(),
+      notes: null,
+      dayKey: day,
+      // Drives the drill-down chevron — number of stage segments behind
+      // the night, matching the cumulative-type `sampleCount` contract.
+      sampleCount: main.segments.length,
+      sleepStages: main.stages as Record<string, number>,
+      inBedMinutes: main.inBedMinutes,
+      awakeMinutes: main.awakeMinutes,
+      napCount: naps.length,
+      napAsleepMinutes: naps.reduce((sum, n) => sum + n.asleepMinutes, 0),
+      awakenings: main.awakenings,
+    });
+  }
+
+  // Honour offset + limit against the full night set, and report the true
+  // pre-slice night count as `meta.total` — matching the non-sleep list
+  // branch's pagination contract so a client can page through nights.
+  const totalNights = nightRows.length;
+  const measurements = nightRows
+    .sort((a, b) => {
+      const cmp = a.dayKey < b.dayKey ? -1 : a.dayKey > b.dayKey ? 1 : 0;
+      return sortDir === "asc" ? cmp : -cmp;
+    })
+    .slice(offset, offset + limit);
+
+  annotate({
+    action: { name: "measurement.list" },
+    meta: {
+      total: totalNights,
+      type: "SLEEP_DURATION",
+      mode: "sleep-per-night",
+      rowsScanned: rows.length,
+    },
+  });
+  return apiSuccess({
+    measurements,
+    meta: { total: totalNights, limit, offset, groupBy: "night" },
+  });
+}
 
 export const POST = apiHandler(withIdempotency<[NextRequest]>(postMeasurement));
 

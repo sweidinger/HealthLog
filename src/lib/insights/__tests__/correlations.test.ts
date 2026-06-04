@@ -391,3 +391,60 @@ describe("correlateWeightWeekday", () => {
     }
   });
 });
+
+// ── welchTTest() ─────────────────────────────────────────────────────
+
+import { welchTTest } from "../correlations";
+
+describe("welchTTest", () => {
+  it("flags too_few_samples below the per-group floor", () => {
+    const result = welchTTest([3], [2, 2, 2], { minPerGroup: 2 });
+    expect(result.status).toBe("insufficient");
+    if (result.status === "insufficient") {
+      expect(result.reason).toBe("too_few_samples");
+    }
+  });
+
+  it("flags no_variance when both groups are perfectly constant", () => {
+    const result = welchTTest([4, 4, 4], [3, 3, 3]);
+    expect(result.status).toBe("insufficient");
+    if (result.status === "insufficient") {
+      expect(result.reason).toBe("no_variance");
+    }
+  });
+
+  it("computes the difference of means with the right sign", () => {
+    const withVals = [4, 5, 4, 5, 4, 5];
+    const withoutVals = [2, 3, 2, 3, 2, 3];
+    const result = welchTTest(withVals, withoutVals);
+    expect(result.status).toBe("ok");
+    if (result.status === "ok") {
+      expect(result.meanA).toBeCloseTo(4.5, 5);
+      expect(result.meanB).toBeCloseTo(2.5, 5);
+      expect(result.meanDiff).toBeCloseTo(2, 5);
+      // A clean 2-point separation on tight groups is highly significant.
+      expect(result.pValue).toBeLessThan(0.001);
+    }
+  });
+
+  it("returns a high p-value for two indistinguishable groups", () => {
+    const a = [3, 4, 3, 4, 3, 4, 3, 4];
+    const b = [4, 3, 4, 3, 4, 3, 4, 3];
+    const result = welchTTest(a, b);
+    expect(result.status).toBe("ok");
+    if (result.status === "ok") {
+      expect(Math.abs(result.meanDiff)).toBeLessThan(0.001);
+      expect(result.pValue).toBeGreaterThan(0.5);
+    }
+  });
+
+  it("never returns NaN/Infinity on a one-sided constant group", () => {
+    const result = welchTTest([5, 5, 5, 5], [3, 4, 3, 4]);
+    expect(result.status).toBe("ok");
+    if (result.status === "ok") {
+      expect(Number.isFinite(result.tStat)).toBe(true);
+      expect(Number.isFinite(result.df)).toBe(true);
+      expect(Number.isFinite(result.pValue)).toBe(true);
+    }
+  });
+});

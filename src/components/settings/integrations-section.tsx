@@ -464,7 +464,7 @@ function WithingsCard({
               onClick={() => resume.mutate()}
               disabled={resume.isPending}
               data-testid="withings-resume-button"
-              className="min-h-[44px] sm:min-h-0"
+              className="min-h-11"
             >
               {resume.isPending ? (
                 <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
@@ -749,6 +749,30 @@ function WhoopCard({
     },
   });
 
+  // Clear a parked integration via the resume endpoint. The CTA is
+  // rendered inside the parked banner below; success invalidates both
+  // the per-card status (so the pill flips back to connected
+  // immediately) and the cross-integration envelope (so any other view
+  // picks up the change on its next focus).
+  const resume = useMutation({
+    mutationFn: async () => {
+      const res = await fetch("/api/integrations/whoop/resume", {
+        method: "POST",
+      });
+      if (!res.ok) throw new Error("Failed");
+      return (await res.json()).data as {
+        resumed: boolean;
+        wasParked: boolean;
+      };
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.whoop() });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.integrationsStatus(),
+      });
+    },
+  });
+
   async function handleSync(fullSync = false) {
     setSyncing(true);
     setSyncMsg(null);
@@ -851,6 +875,57 @@ function WhoopCard({
 
       <div className="mt-4 space-y-4">
         {errorMessage && <IntegrationErrorMessage message={errorMessage} />}
+        {/* Parked-integration resume CTA. Surfaces only when the row
+            state is `parked` (>24h of persistent failures). The button
+            POSTs to /api/integrations/whoop/resume which calls
+            `resumeIntegrationFromPark`; on success the per-card status
+            invalidates and the pill flips back to connected without a
+            page refresh. Wider tap target than the inline action row so
+            it stays reachable on a Pixel 5 viewport. */}
+        {pillState === "parked" && (
+          <div
+            data-testid="whoop-parked-banner"
+            className="border-dracula-orange/30 bg-dracula-orange/10 flex flex-wrap items-center justify-between gap-2 rounded-md border px-3 py-2 text-sm"
+          >
+            <span className="text-dracula-orange min-w-0 break-words text-xs">
+              {t("settings.integrationPill.parkedReconnect")}
+            </span>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => resume.mutate()}
+              disabled={resume.isPending}
+              data-testid="whoop-resume-button"
+              className="min-h-11"
+            >
+              {resume.isPending ? (
+                <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
+              ) : (
+                <Link2 className="mr-1 h-3.5 w-3.5" />
+              )}
+              {t("settings.integrationPill.resumeCta")}
+            </Button>
+          </div>
+        )}
+        {resume.isError && (
+          <p
+            role="alert"
+            className="text-destructive text-xs"
+            data-testid="whoop-resume-error"
+          >
+            {t("settings.integrationPill.resumeError")}
+          </p>
+        )}
+        {resume.isSuccess && resume.data?.wasParked && (
+          <p
+            role="status"
+            className="text-dracula-green text-xs"
+            data-testid="whoop-resume-success"
+          >
+            {t("settings.integrationPill.resumeSuccess")}
+          </p>
+        )}
 
         <div className="space-y-3">
           <h3 className="text-sm font-semibold">
@@ -952,7 +1027,11 @@ function WhoopCard({
               <AlertDialog>
                 <AlertDialogTrigger asChild>
                   <Button variant="outline" size="sm" disabled={syncing}>
-                    <Download className="mr-1 h-3.5 w-3.5" />
+                    {syncing ? (
+                      <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
+                    ) : (
+                      <RefreshCw className="mr-1 h-3.5 w-3.5" />
+                    )}
                     {t("settings.whoopFullSync")}
                   </Button>
                 </AlertDialogTrigger>
@@ -973,6 +1052,10 @@ function WhoopCard({
                   </AlertDialogFooter>
                 </AlertDialogContent>
               </AlertDialog>
+              <TestConnectionButton
+                endpoint="/api/integrations/whoop/test"
+                disabled={!status?.connected}
+              />
               <AlertDialog>
                 <AlertDialogTrigger asChild>
                   <Button

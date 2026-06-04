@@ -235,10 +235,12 @@ function DataResetCard() {
   const { t } = useTranslations();
   const queryClient = useQueryClient();
   const [deleting, setDeleting] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const [msgType, setMsgType] = useState<"success" | "error" | null>(null);
 
   async function handleDeleteAllData() {
+    if (deleting) return;
     setDeleting(true);
     setMsg(null);
     setMsgType(null);
@@ -258,6 +260,7 @@ function DataResetCard() {
       await queryClient.invalidateQueries();
       setMsg(t("settings.dangerZoneSuccess"));
       setMsgType("success");
+      setConfirmOpen(false);
     } catch {
       setMsg(t("settings.dangerZoneDeleteFailed"));
       setMsgType("error");
@@ -285,7 +288,16 @@ function DataResetCard() {
             {t("settings.dangerZoneDescription")}
           </p>
         </div>
-        <AlertDialog>
+        <AlertDialog
+          open={confirmOpen}
+          onOpenChange={(open) => {
+            // Hold the dialog open while the destructive mutation is in
+            // flight so the in-dialog pending state stays visible and a
+            // stray backdrop tap can't dismiss it mid-request.
+            if (deleting) return;
+            setConfirmOpen(open);
+          }}
+        >
           <AlertDialogTrigger asChild>
             <Button
               variant="destructive"
@@ -311,11 +323,22 @@ function DataResetCard() {
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-              <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
+              <AlertDialogCancel disabled={deleting}>
+                {t("common.cancel")}
+              </AlertDialogCancel>
               <AlertDialogAction
                 className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                onClick={handleDeleteAllData}
+                onClick={(e) => {
+                  e.preventDefault();
+                  void handleDeleteAllData();
+                }}
+                disabled={deleting}
+                aria-busy={deleting || undefined}
+                data-slot="settings-data-reset-confirm"
               >
+                {deleting && (
+                  <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
+                )}
                 {t("settings.finalDelete")}
               </AlertDialogAction>
             </AlertDialogFooter>
@@ -352,10 +375,12 @@ function DataResetCard() {
 function AccountDeleteCard() {
   const { t } = useTranslations();
   const [deleting, setDeleting] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const [msgType, setMsgType] = useState<"success" | "error" | null>(null);
 
   async function handleDeleteAccount() {
+    if (deleting) return;
     setDeleting(true);
     setMsg(null);
     setMsgType(null);
@@ -373,19 +398,21 @@ function AccountDeleteCard() {
           setMsg(t("settings.deleteAccountFailed"));
         }
         setMsgType("error");
+        setDeleting(false);
         return;
       }
       setMsg(t("settings.deleteAccountSuccess"));
       setMsgType("success");
       // The route destroyed every session before deleting the row;
       // give the toast a beat to paint, then bounce to the login page.
+      // Leave `deleting` set so the confirm button keeps its pending
+      // state through the redirect — the row is gone, nothing to undo.
       setTimeout(() => {
         window.location.href = "/auth/login";
       }, 1_500);
     } catch {
       setMsg(t("settings.deleteAccountFailed"));
       setMsgType("error");
-    } finally {
       setDeleting(false);
     }
   }
@@ -404,7 +431,16 @@ function AccountDeleteCard() {
             {t("settings.deleteAccountCardDescription")}
           </p>
         </div>
-        <AlertDialog>
+        <AlertDialog
+          open={confirmOpen}
+          onOpenChange={(open) => {
+            // Hold the dialog open while the irreversible delete runs so
+            // the pending state stays on screen and a stray dismissal
+            // can't fire a second request.
+            if (deleting) return;
+            setConfirmOpen(open);
+          }}
+        >
           <AlertDialogTrigger asChild>
             <Button
               variant="destructive"
@@ -431,12 +467,22 @@ function AccountDeleteCard() {
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-              <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
+              <AlertDialogCancel disabled={deleting}>
+                {t("common.cancel")}
+              </AlertDialogCancel>
               <AlertDialogAction
                 className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                onClick={handleDeleteAccount}
+                onClick={(e) => {
+                  e.preventDefault();
+                  void handleDeleteAccount();
+                }}
+                disabled={deleting}
+                aria-busy={deleting || undefined}
                 data-slot="settings-account-delete-confirm"
               >
+                {deleting && (
+                  <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
+                )}
                 {t("settings.deleteAccountFinal")}
               </AlertDialogAction>
             </AlertDialogFooter>

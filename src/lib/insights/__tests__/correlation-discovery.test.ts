@@ -95,3 +95,48 @@ describe("discoverCorrelations", () => {
     expect(result.discovered).toHaveLength(0);
   });
 });
+
+// ── F3 — MOOD as a discoverable OUTCOME channel ─────────────────────
+
+import { DISCOVERY_OUTCOMES } from "../correlation-discovery";
+
+describe("MOOD as outcome (F3)", () => {
+  it("registers MOOD in the outcome matrix", () => {
+    expect(DISCOVERY_OUTCOMES).toContain("MOOD");
+  });
+
+  it("surfaces a behaviour → next-day MOOD relation", () => {
+    // 30 contiguous days; daylight on day D drives mood on day D+1.
+    const n = 30;
+    const daylight = Array.from({ length: n }, (_, i) => 60 + (i % 10) * 5);
+    // mood[D+1] tracks daylight[D] with light noise → strong lagged r.
+    const mood = Array.from({ length: n }, (_, i) => {
+      const driver = i === 0 ? 60 : 60 + ((i - 1) % 10) * 5;
+      return 1 + (driver - 60) / 45 + (i % 2 === 0 ? 0.02 : -0.02);
+    });
+    const result = discoverCorrelations([
+      { key: "TIME_IN_DAYLIGHT", role: "behaviour", points: series(daylight) },
+      { key: "MOOD", role: "outcome", points: series(mood) },
+    ]);
+    const pair = result.discovered.find(
+      (p) => p.behaviour === "TIME_IN_DAYLIGHT" && p.outcome === "MOOD",
+    );
+    expect(pair).toBeDefined();
+    expect(pair!.r).toBeGreaterThan(0.5);
+  });
+
+  it("never tests the MOOD → MOOD self-pair", () => {
+    const n = 30;
+    const mood = Array.from({ length: n }, (_, i) => 3 + (i % 3));
+    const result = discoverCorrelations([
+      { key: "MOOD", role: "behaviour", points: series(mood) },
+      { key: "MOOD", role: "outcome", points: series(mood) },
+    ]);
+    expect(
+      result.discovered.find(
+        (p) => p.behaviour === "MOOD" && p.outcome === "MOOD",
+      ),
+    ).toBeUndefined();
+    expect(result.pairsTested).toBe(0);
+  });
+});

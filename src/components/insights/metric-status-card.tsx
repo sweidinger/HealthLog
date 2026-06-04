@@ -43,7 +43,6 @@ export function MetricStatusCard({
       icon={icon}
       text={status?.text ?? null}
       hasProvider={status?.hasProvider ?? false}
-      cached={status?.cached ?? false}
       updatedAt={status?.updatedAt ?? null}
       loading={isLoading}
       preparing={status?.preparing ?? false}

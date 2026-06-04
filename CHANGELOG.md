@@ -1,5 +1,29 @@
 # Changelog
 
+## [1.11.5] — 2026-06-04 — mood relations, sleep depth, and a clear-the-decks polish pass
+
+### Added
+
+- **What lifts your mood, and what your better days have in common.** Insights now learns from your own logs: it compares your average mood on days with a given activity or tag against days without it, surfaces a ranked "what's associated with your better days" board across both your tags and your tracked metrics, and lists the day-to-day relationships that survive a statistical filter. Every result shows its strength and is framed as an association in your own data — a pattern worth watching, not a cause.
+- **Last night, stage by stage.** The sleep section now draws a hypnogram of the most recent night — the progression through deep, core, REM, and awake — colour-coded by stage, alongside the per-stage breakdown.
+- **WHOOP: test the connection and reconnect, just like Withings.** The WHOOP card now has a "Test connection" button that checks the link live, and — if the connection was paused after repeated errors — a one-tap reconnect.
+
+### Changed
+
+- **Adjust your targets from the header.** The target-range editor now opens from a gear next to the Coach button instead of a link buried in the tile.
+- **Account settings gather the personal preferences.** The unit system (metric or imperial) and your globally excluded injection sites now live under Account rather than Dashboard.
+- **Sleep reads as one value per night everywhere.** The measurements list, the per-metric sleep view, and the CSV export now collapse a night's individual stages into the night's total, with naps surfaced separately, matching what the tile and chart already showed.
+- Full Spanish, French, Italian, and Polish coverage for the remaining Insights, admin, and HealthKit-label copy that previously fell back to English.
+
+### Fixed
+
+- **Sleep no longer double-counts an Apple Health night.** When Apple Health writes both an overall "asleep" figure and the deep/core/REM breakdown for the same night, the per-stage view and hypnogram now use one or the other rather than adding them together, and a nap on the same day no longer falls out of the night's total.
+- **The Insights assessment reads cleaner.** The "cached" tag is gone, "show more" appears only when there is more to show, and the last-updated time is right-aligned.
+- The "Signal of the day" and "Period at a glance" cards no longer leave a tall band of empty space below their content.
+- A revoked WHOOP authorization is now recognised as needing reconnection instead of being retried as a transient error, and a WHOOP plan that shares none of a sync cycle's data no longer looks like a successful sync.
+- The quick-entry sheet now asks before discarding mood ratings and dropdown changes, not only typed text.
+- Settings: copying an API token confirms the copy, the destructive-action dialog shows progress while it works, and a failed token revoke surfaces an error.
+
 ## [1.11.4] — 2026-06-04 — sleep totals, trend captions, and a round of fixes
 
 ### Fixed

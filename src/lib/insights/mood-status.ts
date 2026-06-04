@@ -8,13 +8,17 @@ import {
 import { pearsonCorrelation } from "@/lib/analytics/correlations";
 import { applyPayloadBudget } from "@/lib/insights/bucket-series";
 import {
+  type TagInfluenceRow,
   MOOD_GREEN_MAX,
   MOOD_GREEN_MIN,
   MOOD_ORANGE_MAX,
   MOOD_ORANGE_MIN,
+  computeBetterDays,
   computeInTargetPct,
+  computeMoodMetricCorrelation,
   computeMoodStability,
   computeStructuredTagSummary,
+  computeTagInfluence,
   computeTagSummary,
   computeTimeOfDayAverages,
   computeWeekdayAverages,
@@ -43,6 +47,17 @@ import {
 import { returnTimeoutFallback } from "@/lib/insights/timeout-fallback";
 import { annotate } from "@/lib/logging/context";
 import { toBerlinDayKey } from "@/lib/tz/resolver";
+
+/**
+ * Drop the ranking-only `pooledSd` before a tag-influence row enters the
+ * snapshot payload — it exists solely to standardize the better-days sort
+ * and has no place in the model prompt or the UI.
+ */
+function stripRankingOnly(row: TagInfluenceRow): Omit<TagInfluenceRow, "pooledSd"> {
+  const { pooledSd: _pooledSd, ...rest } = row;
+  void _pooledSd;
+  return rest;
+}
 
 export async function generateMoodStatusForUser(
   userId: string,
@@ -268,6 +283,30 @@ export async function generateMoodStatusForUser(
   const tagSummary = computeTagSummary(entries, now);
   const structuredTagSummary = computeStructuredTagSummary(entries, now);
 
+  // v1.11.5 (F1/F2) — tag "Influence on Mood" + the unified "better days"
+  // board, computed from the same aggregates the visible mood page shows so
+  // the model's prose never contradicts the on-screen relations. The
+  // snapshot fetches only weight / systolic / pulse cross-metrics, so the
+  // board's metric factors are limited to those three channels (sleep /
+  // steps are absent here by design — the model sees only what it fetched).
+  const tagInfluence = computeTagInfluence(entries, now);
+  const emptyCorrelation = computeMoodMetricCorrelation([], [], now);
+  const betterDays = computeBetterDays(tagInfluence, {
+    sleep: emptyCorrelation,
+    steps: emptyCorrelation,
+    pulse: computeMoodMetricCorrelation(moodSeries.daily, pulseSeries.daily, now),
+    weight: computeMoodMetricCorrelation(
+      moodSeries.daily,
+      weightSeries.daily,
+      now,
+    ),
+    bloodPressureSystolic: computeMoodMetricCorrelation(
+      moodSeries.daily,
+      sysSeries.daily,
+      now,
+    ),
+  });
+
   // v1.8.6 — the same threshold-gated narrative feed the user sees on
   // the mood page, computed from the same aggregates so the prose the
   // model writes never contradicts the takeaways on screen (shown ==
@@ -320,6 +359,24 @@ export async function generateMoodStatusForUser(
         inTargetPctLast30DailyPoints,
       },
       tags: tagSummary.length > 0 ? tagSummary : null,
+      // v1.11.5 (F1) — with-vs-without tag influence (only the populated
+      // axes are emitted so the prompt stays compact).
+      tagInfluence:
+        tagInfluence.flat.length > 0 || tagInfluence.structured.length > 0
+          ? {
+              flat:
+                tagInfluence.flat.length > 0
+                  ? tagInfluence.flat.map(stripRankingOnly)
+                  : null,
+              structured:
+                tagInfluence.structured.length > 0
+                  ? tagInfluence.structured.map(stripRankingOnly)
+                  : null,
+            }
+          : null,
+      // v1.11.5 (F2) — the ranked "better days" board the user sees, so the
+      // model's relations prose matches the on-screen list (shown == sent).
+      betterDays: betterDays.length > 0 ? betterDays : null,
       narratives: narratives.length > 0 ? narratives : null,
       // v1.9.0 — only emit the daypart pattern when it cleared its
       // spread/sample floors, so the model never reasons over a once-a-day
