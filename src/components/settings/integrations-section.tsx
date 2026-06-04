@@ -1302,7 +1302,7 @@ function FitbitCard({
         <div className="flex flex-wrap items-center gap-2">
           <HeartPulse className="text-primary h-5 w-5" />
           <h2 className="text-lg font-semibold">{t("settings.fitbit")}</h2>
-          <span className="bg-muted text-muted-foreground rounded-full px-2 py-0.5 text-[0.6875rem] font-medium">
+          <span className="bg-muted text-foreground rounded-full px-2 py-0.5 text-[0.6875rem] font-medium">
             {t("settings.fitbitTag")}
           </span>
           <Badge
