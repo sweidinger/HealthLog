@@ -437,6 +437,16 @@ async function runRollupAggregate(input: {
  * with `ON CONFLICT DO UPDATE` so the round-trip count is bounded
  * regardless of fan-out width.
  */
+/** Narrow a thrown Prisma error to the P2002 unique-constraint code. */
+function isP2002(err: unknown): boolean {
+  return (
+    typeof err === "object" &&
+    err !== null &&
+    "code" in err &&
+    (err as { code: unknown }).code === "P2002"
+  );
+}
+
 async function persistRollupRows(
   userId: string,
   granularity: RollupGranularity,
@@ -494,12 +504,35 @@ async function persistRollupRows(
   // Common path — the entire write fits one chunk (every incremental hook
   // and most bucket-span recomputes). Atomic delete-then-insert so a
   // concurrent read never sees a half-rewritten partition.
+  //
+  // The synchronous DAY hook carries no pg-boss singleton, so two writes
+  // landing on the same (user, type, day) can interleave: T1.delete,
+  // T2.delete, T1.create, T2.create — and T2's createMany then trips the
+  // (userId, type, granularity, bucketStart, source) unique index. Treat
+  // that P2002 as benign: the peer rewrote the identical source-collapsed
+  // partition (the aggregate is a pure function of the same underlying
+  // rows), so the rollup is already correct. Annotate and return 0 written
+  // rather than bubbling a recompute failure.
   if (rows.length <= CHUNK) {
-    const [, created] = await prisma.$transaction([
-      prisma.measurementRollup.deleteMany({ where: deleteWhere }),
-      prisma.measurementRollup.createMany({ data: rows.map(toData) }),
-    ]);
-    return created.count;
+    try {
+      const [, created] = await prisma.$transaction([
+        prisma.measurementRollup.deleteMany({ where: deleteWhere }),
+        prisma.measurementRollup.createMany({ data: rows.map(toData) }),
+      ]);
+      return created.count;
+    } catch (err) {
+      if (isP2002(err)) {
+        annotate({
+          meta: {
+            rollup_persist_race: true,
+            rollup_persist_granularity: granularity,
+            rollup_persist_types: types.length,
+          },
+        });
+        return 0;
+      }
+      throw err;
+    }
   }
 
   // Large backfill — delete the partition range once, then insert in chunks.
