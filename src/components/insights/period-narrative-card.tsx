@@ -163,26 +163,28 @@ export function PeriodNarrativeCard({
       </div>
 
       {/* Week / month toggle. Calm segmented control, no chart. */}
-      <div className="flex gap-1 self-start" role="tablist">
-        {(["week", "month"] as const).map((p) => (
-          <button
-            key={p}
-            type="button"
-            role="tab"
-            aria-selected={period === p}
-            onClick={() => setPeriod(p)}
-            className={cn(
-              "rounded-md px-2.5 py-1 text-xs font-medium transition-colors",
-              period === p
-                ? "bg-muted text-foreground"
-                : "text-muted-foreground hover:text-foreground",
-            )}
-          >
-            {p === "week"
-              ? t("insights.narrativeWeek")
-              : t("insights.narrativeMonth")}
-          </button>
-        ))}
+      <div className="flex gap-1 self-start">
+        {(["week", "month"] as const).map((p) => {
+          const active = period === p;
+          return (
+            <button
+              key={p}
+              type="button"
+              aria-pressed={active}
+              onClick={() => setPeriod(p)}
+              className={cn(
+                "focus-visible:ring-ring inline-flex min-h-11 items-center rounded-md px-2.5 py-1 text-xs font-medium transition-colors focus-visible:ring-2 focus-visible:outline-none",
+                active
+                  ? "bg-muted text-foreground"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              {p === "week"
+                ? t("insights.narrativeWeek")
+                : t("insights.narrativeMonth")}
+            </button>
+          );
+        })}
       </div>
 
       {preparing ? (
