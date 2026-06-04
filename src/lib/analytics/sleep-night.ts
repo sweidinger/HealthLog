@@ -85,7 +85,7 @@
  * correct. Callers that want hours convert at the edge (`/ 60`).
  */
 import type { MeasurementSource, SleepStage } from "@/generated/prisma/client";
-import { userDayKey } from "@/lib/tz/resolver";
+import { userDayKey } from "@/lib/tz/format";
 import { summarize, type DataSummary } from "@/lib/analytics/trends";
 import {
   getSourceLadder,
