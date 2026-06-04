@@ -275,6 +275,7 @@
     "quickAddMeasurement": "Registra misurazione",
     "quickAddMood": "Registra umore",
     "quickAddMedicationIntake": "Registra assunzione",
+    "customizeDashboard": "Personalizza dashboard",
     "medicationIntakeQuickAdd": {
       "sheetTitle": "Registra assunzione del farmaco",
       "sheetDescription": "Registra dose, orario e farmaco con pochi tap.",

@@ -275,6 +275,7 @@
     "quickAddMeasurement": "Registrar medición",
     "quickAddMood": "Registrar estado de ánimo",
     "quickAddMedicationIntake": "Registrar toma",
+    "customizeDashboard": "Personalizar panel",
     "medicationIntakeQuickAdd": {
       "sheetTitle": "Registrar toma de medicación",
       "sheetDescription": "Registra dosis, hora y medicamento en unos pocos toques.",

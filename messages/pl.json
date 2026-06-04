@@ -275,6 +275,7 @@
     "quickAddMeasurement": "Zarejestruj pomiar",
     "quickAddMood": "Zarejestruj nastrój",
     "quickAddMedicationIntake": "Zarejestruj przyjęcie",
+    "customizeDashboard": "Dostosuj pulpit",
     "medicationIntakeQuickAdd": {
       "sheetTitle": "Zarejestruj przyjęcie leku",
       "sheetDescription": "Zapisz dawkę, godzinę i lek w kilku stuknięciach.",

@@ -275,6 +275,7 @@
     "quickAddMeasurement": "Saisir une mesure",
     "quickAddMood": "Saisir une humeur",
     "quickAddMedicationIntake": "Saisir une prise",
+    "customizeDashboard": "Personnaliser le tableau de bord",
     "medicationIntakeQuickAdd": {
       "sheetTitle": "Saisir une prise de médicament",
       "sheetDescription": "Enregistre la dose, l’heure et le médicament en quelques touches.",

@@ -275,6 +275,7 @@
     "quickAddMeasurement": "Log measurement",
     "quickAddMood": "Log mood",
     "quickAddMedicationIntake": "Log medication intake",
+    "customizeDashboard": "Customize dashboard",
     "medicationIntakeQuickAdd": {
       "sheetTitle": "Log medication intake",
       "sheetDescription": "Record dose, time, and medication in a few taps.",

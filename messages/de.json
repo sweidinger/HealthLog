@@ -275,6 +275,7 @@
     "quickAddMeasurement": "Messung erfassen",
     "quickAddMood": "Stimmung erfassen",
     "quickAddMedicationIntake": "Einnahme erfassen",
+    "customizeDashboard": "Dashboard anpassen",
     "medicationIntakeQuickAdd": {
       "sheetTitle": "Medikamenteneinnahme erfassen",
       "sheetDescription": "Dosis, Zeitpunkt und Medikament in wenigen Tipps protokollieren.",

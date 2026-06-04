@@ -17,6 +17,7 @@ import {
   Target,
   TrendingUp,
   Waves,
+  Wrench,
 } from "lucide-react";
 import { convertGlucose, resolveGlucoseUnit } from "@/lib/glucose";
 import { cn } from "@/lib/utils";
@@ -27,6 +28,7 @@ import {
 } from "@/lib/dashboard-layout";
 import type { DashboardAnalyticsData as AnalyticsData } from "@/types/analytics";
 import dynamic from "next/dynamic";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ChartSkeleton } from "@/components/charts/chart-skeleton";
@@ -809,6 +811,27 @@ export default function DashboardPage() {
           <p className="text-muted-foreground mt-1 text-sm">{welcomeText}</p>
         </div>
         <div className="flex items-center gap-2">
+          {/* Wrench shortcut to the dashboard-customization settings
+              (the tile/layout editor at /settings/dashboard). Sits to
+              the left of the add button as a monochrome ghost icon, with
+              a `min-h-11 min-w-11` mobile floor so it meets the 44 px
+              touch-target contract the add button also honours, shrinking
+              back to the 40 px icon footprint on sm+. */}
+          <Button
+            asChild
+            variant="ghost"
+            size="icon"
+            className="min-h-11 min-w-11 sm:min-h-9 sm:min-w-9"
+            data-testid="dashboard-customize-shortcut"
+          >
+            <Link
+              href="/settings/dashboard"
+              aria-label={t("dashboard.customizeDashboard")}
+              title={t("dashboard.customizeDashboard")}
+            >
+              <Wrench className="h-4 w-4" aria-hidden="true" />
+            </Link>
+          </Button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               {/* v1.4.33 maintainer-item-7 — restore proportional sizing
