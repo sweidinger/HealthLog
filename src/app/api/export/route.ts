@@ -61,10 +61,15 @@ export const GET = apiHandler(async (request: NextRequest) => {
       where: { userId, deletedAt: null },
       orderBy: { measuredAt: "desc" },
     });
+    // v1.11.5 — sleep collapses to one row per night by default (the
+    // formatter's `night` granularity), matching the per-type CSV route.
+    const measurementRecords = formatMeasurementsForExport(
+      measurements,
+      userTz,
+      { sleepTz: userTz },
+    );
     data.measurements =
-      format === "csv"
-        ? toCSV(formatMeasurementsForExport(measurements, userTz))
-        : formatMeasurementsForExport(measurements, userTz);
+      format === "csv" ? toCSV(measurementRecords) : measurementRecords;
   }
 
   if (type === "medications" || type === "all") {

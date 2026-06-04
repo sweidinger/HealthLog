@@ -37,6 +37,12 @@ export const GET = apiHandler(async (request: NextRequest) => {
 
   const { since, until } = parseRange(request.url);
   const where = buildWhere(user.id, { since, until });
+  // v1.11.5 — sleep export defaults to one row per night; `granularity=raw`
+  // keeps the per-stage rows for power users.
+  const granularity =
+    new URL(request.url).searchParams.get("granularity") === "raw"
+      ? "raw"
+      : "night";
 
   const [measurements, userTz] = await Promise.all([
     prisma.measurement.findMany({
@@ -46,7 +52,12 @@ export const GET = apiHandler(async (request: NextRequest) => {
     resolveUserTimezone(user.id),
   ]);
 
-  const csv = toCSV(formatMeasurementsForExport(measurements, userTz));
+  const csv = toCSV(
+    formatMeasurementsForExport(measurements, userTz, {
+      granularity,
+      sleepTz: userTz,
+    }),
+  );
 
   await auditLog("user.export.measurements", {
     userId: user.id,
