@@ -1,5 +1,21 @@
 # Changelog
 
+## [1.11.2] — 2026-06-04 — Coach-memory controls, privacy hardening, more pinnable metrics
+
+### Added
+
+- **Review and clear what the Coach remembers.** A new "What the Coach remembers" settings section lists the durable facts the assistant has learned about you, grouped by category, and lets you forget a single one or clear all of them. Encrypted at rest; available wherever the Coach is enabled.
+- **More dashboard metrics you can pin.** Cardio recovery, six-minute walk distance, stair ascent/descent speed, breathing disturbances, wrist temperature, fall count, and walking steadiness can now be pinned to your Home layout.
+
+### Security
+
+- **Outbound request hardening.** The AI provider clients (when pointed at a custom base URL) and the optional IP-geo lookup now reject any address that resolves to a private or internal host, closing a server-side request-forgery / DNS-rebinding gap.
+
+### Fixed
+
+- A rare write race when two updates recompute the same day's rollup at once is now handled cleanly instead of surfacing a transient error.
+- Analytics fast paths resolve your source-priority preference once per request instead of repeatedly.
+
 ## [1.11.1] — 2026-06-04 — source-aware vitals + Coach long-term memory
 
 Closes the three follow-ups left open by v1.11.0: cross-source vital de-duplication, the Coach's conversation memory, and durable personal facts.
