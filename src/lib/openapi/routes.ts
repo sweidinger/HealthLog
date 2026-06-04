@@ -578,6 +578,49 @@ const measurementResource = z
     description: "Server-shaped measurement row returned by GET endpoints.",
   });
 
+// ── Sleep night (v1.11.5 hypnogram source) ──────────────────────────
+
+const sleepStageEnum = z.enum([
+  "IN_BED",
+  "AWAKE",
+  "ASLEEP",
+  "REM",
+  "CORE",
+  "DEEP",
+]);
+
+const sleepSegmentResource = z.object({
+  stage: sleepStageEnum.nullable(),
+  start: z.iso.datetime({ offset: true }),
+  end: z.iso.datetime({ offset: true }),
+  minutes: z.number().int().nonnegative(),
+});
+
+const sleepSessionResource = z.object({
+  night: z.string().describe("Wake-day key (YYYY-MM-DD)."),
+  source: measurementSourceEnum.nullable(),
+  start: z.iso.datetime({ offset: true }),
+  end: z.iso.datetime({ offset: true }),
+  asleepMinutes: z.number().int().nonnegative(),
+  inBedMinutes: z.number().int().nonnegative().nullable(),
+  awakeMinutes: z.number().int().nonnegative().nullable(),
+  awakenings: z.number().int().nonnegative(),
+  stages: z.record(sleepStageEnum, z.number()),
+  segments: z.array(sleepSegmentResource),
+});
+
+const sleepNightResponse = z
+  .object({
+    night: z.string().nullable(),
+    main: sleepSessionResource.nullable(),
+    naps: z.array(sleepSessionResource),
+  })
+  .meta({
+    id: "SleepNightResource",
+    description:
+      "One reconstructed sleep night: the main session's hypnogram segments + breakdown, plus same-wake-day naps surfaced separately.",
+  });
+
 // ── Sync (v1.7.0 offline / server-optional) ─────────────────────────
 
 const syncStateResponse = z
@@ -2530,6 +2573,36 @@ export const openApiPaths: NonNullable<ZodOpenApiObject["paths"]> = {
                 deleteByExternalIdsResponse,
                 "MeasurementsDeleteByExternalIdsResponse",
               ),
+            },
+          },
+        },
+        ...stdResponses,
+      },
+    },
+  },
+  "/api/sleep/night": {
+    get: {
+      tags: ["Measurements"],
+      summary: "Reconstructed sleep night (hypnogram source, v1.11.5)",
+      description:
+        "Returns one night's reconstructed sleep session for the phase-progression (hypnogram) view: the canonical source's stage segments (each with an absolute start/end), the per-stage breakdown, asleep/in-bed/awake totals, the mid-sleep awakenings count, and same-wake-day naps surfaced separately. Session-clustered, keyed by the local wake day, collapsed to one source via the sleep priority ladder so two sources never overlay. `date` omitted returns the most recent night. A read-only view over existing per-stage SLEEP_DURATION rows — no schema, no new measurement type.",
+      requestParams: {
+        query: z.object({
+          date: z
+            .string()
+            .regex(/^\d{4}-\d{2}-\d{2}$/)
+            .optional()
+            .describe(
+              "Wake-day key (YYYY-MM-DD). Omit for the most recent night.",
+            ),
+        }),
+      },
+      responses: {
+        "200": {
+          description: "Reconstructed night.",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(sleepNightResponse, "SleepNightResponse"),
             },
           },
         },

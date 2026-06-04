@@ -42,6 +42,13 @@ export const queryKeys = {
   moodEntries: () => ["mood-entries"] as const,
 
   /**
+   * v1.11.5 — last-night hypnogram (`GET /api/sleep/night`). The `date`
+   * discriminator lets the night-picker step back through recent nights
+   * without colliding caches; `undefined` is the most-recent night.
+   */
+  sleepNight: (date?: string) => ["sleep-night", date ?? "latest"] as const,
+
+  /**
    * v1.4.33 IW2 — the analytics queryKey now optionally carries a
    * `slice` discriminator so the dashboard tile-strip can subscribe to
    * the slim `?slice=summaries` server slice (IW1 / C1) without
@@ -510,6 +517,8 @@ export const measurementDependentKeys = [
   // v1.11.4 item J — refresh the Trends-row deterministic caption series
   // when a reading changes, in lockstep with the chart row above it.
   ["trend-series"] as const,
+  // v1.11.5 — refresh the last-night hypnogram when sleep rows change.
+  ["sleep-night"] as const,
 ];
 
 /**

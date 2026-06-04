@@ -1,0 +1,140 @@
+/**
+ * GET /api/sleep/night?date=YYYY-MM-DD
+ *
+ * v1.11.5 — read-only hypnogram source. Returns ONE night's reconstructed
+ * sleep session: the canonical source's stage SEGMENTS (each with an
+ * absolute start / end), the per-stage breakdown, the asleep / in-bed /
+ * awake totals, the mid-sleep awakenings count, and the same-wake-day naps
+ * surfaced separately (the nap convention).
+ *
+ * The night is the canonical per-night reconstruction — session-clustered,
+ * keyed by the LOCAL WAKE DAY, collapsed to one source via the user's sleep
+ * priority ladder — so two sources' timelines never overlay. A view over the
+ * existing per-stage `SLEEP_DURATION` rows; no schema, no new type.
+ *
+ * `date` omitted → the most recent night in the trailing-year window.
+ *
+ * Auth: cookie session OR Bearer token (`requireAuth`). Soft-delete-filtered.
+ */
+import { NextRequest } from "next/server";
+import { z } from "zod/v4";
+import { prisma } from "@/lib/db";
+import { apiHandler, requireAuth } from "@/lib/api-handler";
+import {
+  apiSuccess,
+  returnAllZodIssues,
+  sanitiseZodIssues,
+} from "@/lib/api-response";
+import { annotate } from "@/lib/logging/context";
+import {
+  reconstructSleepSessions,
+  pickMainNightAndNaps,
+  type SleepSession,
+} from "@/lib/analytics/sleep-night";
+import { loadUserSourcePriority } from "@/lib/rollups/measurement-read";
+import { resolveUserTimezone } from "@/lib/tz/resolver";
+
+/** Sleep is read row-per-stage, so the window is bounded to one year. */
+const SLEEP_NIGHT_MAX_DAYS = 365;
+
+const querySchema = z.object({
+  // Optional wake-day key; when omitted the latest night is returned.
+  date: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, "date must be YYYY-MM-DD")
+    .refine((s) => {
+      const parsed = new Date(`${s}T00:00:00Z`);
+      if (Number.isNaN(parsed.getTime())) return false;
+      return s === parsed.toISOString().slice(0, 10);
+    }, "date must be a real calendar date (YYYY-MM-DD)")
+    .optional(),
+});
+
+function serializeSession(s: SleepSession) {
+  return {
+    night: s.night,
+    source: s.source,
+    start: s.start.toISOString(),
+    end: s.end.toISOString(),
+    asleepMinutes: s.asleepMinutes,
+    inBedMinutes: s.inBedMinutes,
+    awakeMinutes: s.awakeMinutes,
+    awakenings: s.awakenings,
+    stages: s.stages,
+    segments: s.segments.map((seg) => ({
+      stage: seg.stage,
+      start: seg.start.toISOString(),
+      end: seg.end.toISOString(),
+      minutes: Math.round(seg.minutes),
+    })),
+  };
+}
+
+export const GET = apiHandler(async (request: NextRequest) => {
+  const { user } = await requireAuth();
+
+  const parsed = querySchema.safeParse(
+    Object.fromEntries(request.nextUrl.searchParams),
+  );
+  if (!parsed.success) {
+    const issues = sanitiseZodIssues(parsed.error.issues);
+    annotate({
+      action: { name: "sleep.night.validation-failed" },
+      meta: { issue_count: issues.length },
+    });
+    return returnAllZodIssues(parsed.error, 422);
+  }
+
+  const { date } = parsed.data;
+  const [tz, priorityJson] = await Promise.all([
+    resolveUserTimezone(user.id),
+    loadUserSourcePriority(user.id),
+  ]);
+
+  const since = new Date(Date.now() - SLEEP_NIGHT_MAX_DAYS * 86_400_000);
+  const rows = await prisma.measurement.findMany({
+    where: {
+      userId: user.id,
+      type: "SLEEP_DURATION",
+      deletedAt: null,
+      measuredAt: { gte: since },
+    },
+    orderBy: { measuredAt: "asc" },
+    select: {
+      value: true,
+      measuredAt: true,
+      sleepStage: true,
+      source: true,
+    },
+  });
+
+  const sessions = reconstructSleepSessions(rows, tz, priorityJson);
+  // Resolve the target wake day: the requested `date`, else the most
+  // recent wake day that has a scorable session.
+  const scorable = sessions.filter((s) => s.asleepMinutes > 0);
+  const targetDay =
+    date ??
+    (scorable.length > 0 ? scorable[scorable.length - 1].night : undefined);
+
+  const daySessions = sessions.filter((s) => s.night === targetDay);
+  const { main, naps } = pickMainNightAndNaps(daySessions);
+
+  annotate({
+    action: { name: "sleep.night" },
+    meta: {
+      night: targetDay ?? null,
+      has_main: main != null,
+      nap_count: naps.length,
+    },
+  });
+
+  if (!main) {
+    return apiSuccess({ night: targetDay ?? null, main: null, naps: [] });
+  }
+
+  return apiSuccess({
+    night: main.night,
+    main: serializeSession(main),
+    naps: naps.map(serializeSession),
+  });
+});

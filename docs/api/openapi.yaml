@@ -984,6 +984,35 @@ paths:
         "401": *a1
         "422": *a2
         "429": *a3
+  /api/sleep/night:
+    get:
+      tags:
+        - Measurements
+      summary: Reconstructed sleep night (hypnogram source, v1.11.5)
+      description: "Returns one night's reconstructed sleep session for the phase-progression (hypnogram) view: the canonical
+        source's stage segments (each with an absolute start/end), the per-stage breakdown, asleep/in-bed/awake totals,
+        the mid-sleep awakenings count, and same-wake-day naps surfaced separately. Session-clustered, keyed by the
+        local wake day, collapsed to one source via the sleep priority ladder so two sources never overlay. `date`
+        omitted returns the most recent night. A read-only view over existing per-stage SLEEP_DURATION rows — no schema,
+        no new measurement type."
+      parameters:
+        - in: query
+          name: date
+          schema:
+            description: Wake-day key (YYYY-MM-DD). Omit for the most recent night.
+            type: string
+            pattern: ^\d{4}-\d{2}-\d{2}$
+          description: Wake-day key (YYYY-MM-DD). Omit for the most recent night.
+      responses:
+        "200":
+          description: Reconstructed night.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SleepNightResponse"
+        "401": *a1
+        "422": *a2
+        "429": *a3
   /api/workouts:
     get:
       tags:
@@ -5182,6 +5211,263 @@ components:
       required:
         - deletedCount
       additionalProperties: false
+    SleepNightResponse:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/SleepNightResource"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    SleepNightResource:
+      type: object
+      properties:
+        night:
+          anyOf:
+            - type: string
+            - type: "null"
+        main:
+          anyOf:
+            - type: object
+              properties:
+                night:
+                  type: string
+                  description: Wake-day key (YYYY-MM-DD).
+                source:
+                  anyOf:
+                    - type: string
+                      enum:
+                        - MANUAL
+                        - WITHINGS
+                        - IMPORT
+                        - APPLE_HEALTH
+                        - COMPUTED
+                        - WHOOP
+                    - type: "null"
+                start:
+                  type: string
+                  format: date-time
+                  pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
+                end:
+                  type: string
+                  format: date-time
+                  pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
+                asleepMinutes:
+                  type: integer
+                  minimum: 0
+                  maximum: 9007199254740991
+                inBedMinutes:
+                  anyOf:
+                    - type: integer
+                      minimum: 0
+                      maximum: 9007199254740991
+                    - type: "null"
+                awakeMinutes:
+                  anyOf:
+                    - type: integer
+                      minimum: 0
+                      maximum: 9007199254740991
+                    - type: "null"
+                awakenings:
+                  type: integer
+                  minimum: 0
+                  maximum: 9007199254740991
+                stages:
+                  type: object
+                  propertyNames:
+                    type: string
+                    enum:
+                      - IN_BED
+                      - AWAKE
+                      - ASLEEP
+                      - REM
+                      - CORE
+                      - DEEP
+                  additionalProperties:
+                    type: number
+                  required:
+                    - IN_BED
+                    - AWAKE
+                    - ASLEEP
+                    - REM
+                    - CORE
+                    - DEEP
+                segments:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      stage:
+                        anyOf:
+                          - type: string
+                            enum:
+                              - IN_BED
+                              - AWAKE
+                              - ASLEEP
+                              - REM
+                              - CORE
+                              - DEEP
+                          - type: "null"
+                      start:
+                        type: string
+                        format: date-time
+                        pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
+                      end:
+                        type: string
+                        format: date-time
+                        pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
+                      minutes:
+                        type: integer
+                        minimum: 0
+                        maximum: 9007199254740991
+                    required:
+                      - stage
+                      - start
+                      - end
+                      - minutes
+                    additionalProperties: false
+              required:
+                - night
+                - source
+                - start
+                - end
+                - asleepMinutes
+                - inBedMinutes
+                - awakeMinutes
+                - awakenings
+                - stages
+                - segments
+              additionalProperties: false
+            - type: "null"
+        naps:
+          type: array
+          items:
+            type: object
+            properties:
+              night:
+                type: string
+                description: Wake-day key (YYYY-MM-DD).
+              source:
+                anyOf:
+                  - type: string
+                    enum:
+                      - MANUAL
+                      - WITHINGS
+                      - IMPORT
+                      - APPLE_HEALTH
+                      - COMPUTED
+                      - WHOOP
+                  - type: "null"
+              start:
+                type: string
+                format: date-time
+                pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
+              end:
+                type: string
+                format: date-time
+                pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
+              asleepMinutes:
+                type: integer
+                minimum: 0
+                maximum: 9007199254740991
+              inBedMinutes:
+                anyOf:
+                  - type: integer
+                    minimum: 0
+                    maximum: 9007199254740991
+                  - type: "null"
+              awakeMinutes:
+                anyOf:
+                  - type: integer
+                    minimum: 0
+                    maximum: 9007199254740991
+                  - type: "null"
+              awakenings:
+                type: integer
+                minimum: 0
+                maximum: 9007199254740991
+              stages:
+                type: object
+                propertyNames:
+                  type: string
+                  enum:
+                    - IN_BED
+                    - AWAKE
+                    - ASLEEP
+                    - REM
+                    - CORE
+                    - DEEP
+                additionalProperties:
+                  type: number
+                required:
+                  - IN_BED
+                  - AWAKE
+                  - ASLEEP
+                  - REM
+                  - CORE
+                  - DEEP
+              segments:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    stage:
+                      anyOf:
+                        - type: string
+                          enum:
+                            - IN_BED
+                            - AWAKE
+                            - ASLEEP
+                            - REM
+                            - CORE
+                            - DEEP
+                        - type: "null"
+                    start:
+                      type: string
+                      format: date-time
+                      pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
+                    end:
+                      type: string
+                      format: date-time
+                      pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
+                    minutes:
+                      type: integer
+                      minimum: 0
+                      maximum: 9007199254740991
+                  required:
+                    - stage
+                    - start
+                    - end
+                    - minutes
+                  additionalProperties: false
+            required:
+              - night
+              - source
+              - start
+              - end
+              - asleepMinutes
+              - inBedMinutes
+              - awakeMinutes
+              - awakenings
+              - stages
+              - segments
+            additionalProperties: false
+      required:
+        - night
+        - main
+        - naps
+      additionalProperties: false
+      description: "One reconstructed sleep night: the main session's hypnogram segments + breakdown, plus same-wake-day naps
+        surfaced separately."
     ListWorkoutsResponse:
       type: object
       properties:
