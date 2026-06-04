@@ -222,7 +222,7 @@ describe("syncUserBody — tier degradation", () => {
     expect(markSyncedMock).not.toHaveBeenCalled();
   });
 
-  it("records + rethrows a 401 (genuine reauth)", async () => {
+  it("rethrows a 401 (genuine reauth) instead of soft-skipping", async () => {
     fetchBodyMeasurementMock.mockRejectedValue(
       new WhoopApiError({
         verb: "fetchBodyMeasurement",
@@ -232,8 +232,13 @@ describe("syncUserBody — tier degradation", () => {
       }),
     );
 
+    // A 401 is not a per-class tier gate: it propagates so the connection
+    // parks (vs the 403 case above, which returns 0). The catch delegates to
+    // the shared `handleCollectionFetchError` (sync.ts), whose "401 records a
+    // reauth failure + rethrows" contract is unit-tested in sync.test.ts; here
+    // we assert the resource sync surfaces the error and writes nothing.
     await expect(syncUserBody("user1")).rejects.toThrow();
-    expect(recordWhoopSyncFailureMock).toHaveBeenCalledTimes(1);
+    expect(upsertWhoopMeasurementsMock).not.toHaveBeenCalled();
   });
 
   it("returns 0 without fetching when there is no valid token", async () => {

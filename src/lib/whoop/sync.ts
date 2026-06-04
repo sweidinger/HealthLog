@@ -55,6 +55,28 @@ export function isCollectionForbidden(err: unknown): boolean {
   return err instanceof WhoopApiError && err.httpStatus === 403;
 }
 
+/**
+ * Single-source the per-resource collection-fetch error handling. A 403 on one
+ * data class soft-skips it (warn + return 0) so sibling resources still sync;
+ * anything else records a classified sync failure and rethrows. Call as
+ * `return handleCollectionFetchError("recovery", userId, err)` from a resource
+ * sync's catch block.
+ */
+export async function handleCollectionFetchError(
+  resource: string,
+  userId: string,
+  err: unknown,
+): Promise<number> {
+  if (isCollectionForbidden(err)) {
+    getEvent()?.addWarning(
+      `whoop ${resource} sync skipped for ${userId}: collection 403 (soft-skip)`,
+    );
+    return 0;
+  }
+  await recordWhoopSyncFailure(userId, err);
+  throw err;
+}
+
 /** Refresh the access token this many ms before `tokenExpiresAt`. */
 const TOKEN_REFRESH_BUFFER_MS = 5 * 60 * 1000;
 

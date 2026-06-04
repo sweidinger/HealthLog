@@ -23,9 +23,8 @@
 import { fetchBodyMeasurement, mapBody } from "./client";
 import {
   getValidToken,
-  isCollectionForbidden,
+  handleCollectionFetchError,
   markSynced,
-  recordWhoopSyncFailure,
   upsertWhoopMeasurements,
   type WhoopMeasurementUpsert,
 } from "./sync";
@@ -54,18 +53,7 @@ export async function syncUserBody(
   try {
     body = await fetchBodyMeasurement(tokenInfo.accessToken);
   } catch (err) {
-    // A per-resource collection 403 soft-skips this data class: log + skip +
-    // return 0, leaving the connection connected so sibling resources still
-    // sync. A 401 (or any other failure) still records + rethrows so a genuine
-    // grant revoke parks the connection.
-    if (isCollectionForbidden(err)) {
-      getEvent()?.addWarning(
-        `whoop body sync skipped for ${userId}: collection 403 (soft-skip)`,
-      );
-      return 0;
-    }
-    await recordWhoopSyncFailure(userId, err);
-    throw err;
+    return handleCollectionFetchError("body", userId, err);
   }
 
   const mapped = mapBody(body);
