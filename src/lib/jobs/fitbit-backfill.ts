@@ -6,17 +6,14 @@
  * across reboots (the predicate `backfill_completed_at IS NULL` drops a
  * connection once its backfill finishes).
  *
- * The per-user backfill handler (`runFitbitBackfillForUser`) and the
- * reminder-worker registration land in the data-sync wave; this module exports
- * the queue contract + the discovery enqueue so the OAuth callback can request
- * a backfill on connect.
- *
  * The queue name MUST be registered in `allQueues` in
  * `src/lib/jobs/reminder-worker.ts` or pg-boss never provisions it and the boot
  * enqueue silently never drains (the v1.4.37 dead-queue class).
  */
 import { prisma } from "@/lib/db";
+import { annotate } from "@/lib/logging/context";
 import { getGlobalBoss } from "@/lib/jobs/boss-instance";
+import { syncUserFitbit } from "@/lib/fitbit/sync";
 
 export const FITBIT_BACKFILL_QUEUE = "fitbit-backfill";
 
@@ -30,6 +27,31 @@ export const FITBIT_BACKFILL_CONCURRENCY = 1;
 export interface FitbitBackfillPayload {
   userId: string;
   enqueuedAt: string;
+}
+
+/**
+ * Per-user backfill handler. Runs a full-history sync for one account and stamps
+ * `backfillCompletedAt` so the discovery query drops it. Idempotent: the
+ * per-resource upserts are key-stable, so a re-run (e.g. a reboot mid-walk)
+ * overwrites rather than duplicating. Mirrors `runWhoopBackfillForUser`.
+ */
+export async function runFitbitBackfillForUser(
+  userId: string,
+): Promise<{ imported: number }> {
+  const imported = await syncUserFitbit(userId, { fullSync: true });
+
+  await prisma.fitbitConnection.update({
+    where: { userId },
+    data: { backfillCompletedAt: new Date() },
+  });
+
+  annotate({
+    action: {
+      name: "fitbit.backfill.complete",
+      details: { imported },
+    },
+  });
+  return { imported };
 }
 
 /**

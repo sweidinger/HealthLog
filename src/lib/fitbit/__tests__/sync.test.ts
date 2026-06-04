@@ -14,6 +14,11 @@ const { prismaMock, refreshAccessTokenMock, recordSyncFailure } = vi.hoisted(
         findUnique: vi.fn(),
         update: vi.fn(),
       },
+      measurement: {
+        upsert: vi.fn<(arg: Record<string, unknown>) => Promise<unknown>>(
+          async () => ({}),
+        ),
+      },
     },
     refreshAccessTokenMock: vi.fn(),
     recordSyncFailure: vi.fn<(...a: unknown[]) => Promise<void>>(async () => {}),
@@ -21,6 +26,15 @@ const { prismaMock, refreshAccessTokenMock, recordSyncFailure } = vi.hoisted(
 );
 
 vi.mock("@/lib/db", () => ({ prisma: prismaMock }));
+
+vi.mock("@/lib/rollups/measurement-rollups", () => ({
+  collapseToTypeDayKeys: () => [],
+  recomputeBucketsForMeasurement: vi.fn(async () => {}),
+}));
+
+vi.mock("@/lib/insights/comprehensive-generate", () => ({
+  invalidateStatusInsightsForTypes: vi.fn(async () => {}),
+}));
 
 vi.mock("@/lib/crypto", () => ({
   encrypt: (s: string) => `enc(${s})`,
@@ -49,6 +63,7 @@ vi.mock("@/lib/integrations/status", () => ({
 import {
   classificationToFailureKind,
   getValidToken,
+  upsertFitbitMeasurements,
 } from "../sync";
 
 beforeEach(() => {
@@ -177,6 +192,52 @@ describe("getValidToken — non-rotating refresh", () => {
         kind: "reauth_required",
       }),
     );
+  });
+});
+
+describe("upsertFitbitMeasurements — idempotent FITBIT upsert", () => {
+  it("upserts each reading on the (userId, type, source=FITBIT, externalId) key with field-by-field data", async () => {
+    const measuredAt = new Date("2026-05-10T07:00:00.000Z");
+    const imported = await upsertFitbitMeasurements("user1", [
+      {
+        type: "WEIGHT",
+        value: 80.5,
+        unit: "kg",
+        measuredAt,
+        externalId: "2026-05-10T07:00:00.000Z:weight",
+      },
+    ]);
+
+    expect(imported).toBe(1);
+    const arg = prismaMock.measurement.upsert.mock.calls[0]![0] as {
+      where: { userId_type_source_externalId: Record<string, unknown> };
+      create: Record<string, unknown>;
+      update: { syncVersion: unknown };
+    };
+    // The composite unique key pins source = FITBIT — a re-post overwrites in
+    // place rather than minting a duplicate.
+    expect(arg.where.userId_type_source_externalId).toEqual({
+      userId: "user1",
+      type: "WEIGHT",
+      source: "FITBIT",
+      externalId: "2026-05-10T07:00:00.000Z:weight",
+    });
+    // create builds the data field-by-field (no mass-assignment spread).
+    expect(arg.create).toMatchObject({
+      userId: "user1",
+      type: "WEIGHT",
+      source: "FITBIT",
+      value: 80.5,
+      unit: "kg",
+    });
+    // update bumps syncVersion for the iOS LWW reconciler.
+    expect(arg.update.syncVersion).toEqual({ increment: 1 });
+  });
+
+  it("returns 0 without touching prisma for an empty batch", async () => {
+    const imported = await upsertFitbitMeasurements("user1", []);
+    expect(imported).toBe(0);
+    expect(prismaMock.measurement.upsert).not.toHaveBeenCalled();
   });
 });
 
