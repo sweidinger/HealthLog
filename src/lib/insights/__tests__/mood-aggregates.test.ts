@@ -13,12 +13,20 @@ import {
   computeMoodStability,
   computeStructuredTagSummary,
   computeTagSummary,
+  computeTagInfluence,
+  computeBetterDays,
+  influenceConfidence,
   computeTimeOfDayAverages,
   computeWeekdayAverages,
   selectHeatmapWindow,
+  INFLUENCE_MIN_PRESENT_DAYS,
+  INFLUENCE_MIN_ABSENT_DAYS,
+  BETTER_DAYS_MAX_FACTORS,
   type CrossMetricMeasurement,
   type MoodAggregateEntry,
+  type MoodMetricCorrelation,
   type StructuredTagRef,
+  type TagInfluence,
 } from "../mood-aggregates";
 
 const dayMs = 24 * 60 * 60 * 1000;
@@ -460,5 +468,274 @@ describe("computeMoodStability", () => {
     expect(stability?.stdDev).toBe(halfFull);
     expect(stability?.score).toBe(50);
     expect(stability?.band).toBe("variable");
+  });
+});
+
+// ── F1 — computeTagInfluence (with-vs-without delta) ─────────────────
+
+describe("computeTagInfluence", () => {
+  function flatEntry(offset: number, score: number, tags: string[]): MoodAggregateEntry {
+    return entry(offset, score, tags);
+  }
+
+  it("computes the with-vs-without daily-mean delta and direction", () => {
+    // 14 days WITH "exercise" averaging ~4.5, 14 days WITHOUT averaging ~2.5
+    // — enough per group (>= 12) for a strong clean separation to read high.
+    const entries: MoodAggregateEntry[] = [];
+    for (let i = 0; i < 14; i++) entries.push(flatEntry(i, i % 2 === 0 ? 5 : 4, ["exercise"]));
+    for (let i = 14; i < 28; i++) entries.push(flatEntry(i, i % 2 === 0 ? 3 : 2, []));
+    const result = computeTagInfluence(entries, NOW, 365);
+    const ex = result.flat.find((r) => r.tag === "exercise");
+    expect(ex).toBeDefined();
+    expect(ex!.withDays).toBe(14);
+    expect(ex!.withoutDays).toBe(14);
+    expect(ex!.withAvg).toBeCloseTo(4.5, 1);
+    expect(ex!.withoutAvg).toBeCloseTo(2.5, 1);
+    expect(ex!.delta).toBeCloseTo(2, 1);
+    expect(ex!.delta).toBeGreaterThan(0);
+    // strong clean separation on enough days → high confidence
+    expect(ex!.confidence).toBe("high");
+  });
+
+  it("downgrades confidence to low on a small (but sufficient) sample", () => {
+    // exactly at the floor — 5 present / 5 absent — never reads high.
+    const entries: MoodAggregateEntry[] = [];
+    for (let i = 0; i < 5; i++) entries.push(flatEntry(i, 5, ["small"]));
+    for (let i = 5; i < 10; i++) entries.push(flatEntry(i, 2, []));
+    const result = computeTagInfluence(entries, NOW);
+    const row = result.flat.find((r) => r.tag === "small");
+    expect(row).toBeDefined();
+    expect(row!.confidence).toBe("low");
+  });
+
+  it("drops a tag below the present-days floor", () => {
+    const entries: MoodAggregateEntry[] = [];
+    // only 3 present days < INFLUENCE_MIN_PRESENT_DAYS
+    for (let i = 0; i < 3; i++) entries.push(flatEntry(i, 5, ["rare"]));
+    for (let i = 3; i < 15; i++) entries.push(flatEntry(i, 3, []));
+    expect(INFLUENCE_MIN_PRESENT_DAYS).toBeGreaterThan(3);
+    const result = computeTagInfluence(entries, NOW);
+    expect(result.flat.find((r) => r.tag === "rare")).toBeUndefined();
+  });
+
+  it("drops a tag below the absent-days floor", () => {
+    const entries: MoodAggregateEntry[] = [];
+    // tag present on 12 days, absent on only 3 < INFLUENCE_MIN_ABSENT_DAYS
+    for (let i = 0; i < 12; i++) entries.push(flatEntry(i, 4, ["ubiquitous"]));
+    for (let i = 12; i < 15; i++) entries.push(flatEntry(i, 3, []));
+    expect(INFLUENCE_MIN_ABSENT_DAYS).toBeGreaterThan(3);
+    const result = computeTagInfluence(entries, NOW);
+    expect(result.flat.find((r) => r.tag === "ubiquitous")).toBeUndefined();
+  });
+
+  it("uses the daily-mean convention (multi-entry days collapse to one observation)", () => {
+    const entries: MoodAggregateEntry[] = [];
+    // day 0 has two "calm" entries (5 and 3 → mean 4); make 5 more present days
+    entries.push(flatEntry(0, 5, ["calm"]));
+    entries.push(flatEntry(0, 3, ["calm"]));
+    for (let i = 1; i < 6; i++) entries.push(flatEntry(i, 4, ["calm"]));
+    for (let i = 6; i < 12; i++) entries.push(flatEntry(i, 2, []));
+    const result = computeTagInfluence(entries, NOW);
+    const calm = result.flat.find((r) => r.tag === "calm");
+    expect(calm).toBeDefined();
+    // 6 distinct present days, not 7 entries
+    expect(calm!.withDays).toBe(6);
+  });
+
+  it("never returns NaN and drops a zero-delta tag", () => {
+    const entries: MoodAggregateEntry[] = [];
+    // identical means with and without → delta 0 → dropped
+    for (let i = 0; i < 6; i++) entries.push(flatEntry(i, 3, ["neutral"]));
+    for (let i = 6; i < 12; i++) entries.push(flatEntry(i, 3, []));
+    const result = computeTagInfluence(entries, NOW);
+    expect(result.flat.find((r) => r.tag === "neutral")).toBeUndefined();
+    for (const row of [...result.flat, ...result.structured]) {
+      expect(Number.isFinite(row.delta)).toBe(true);
+      expect(Number.isFinite(row.withAvg)).toBe(true);
+      expect(Number.isFinite(row.withoutAvg)).toBe(true);
+      expect(Number.isFinite(row.pValue)).toBe(true);
+    }
+  });
+
+  it("returns empty axes for a sparse history", () => {
+    const entries: MoodAggregateEntry[] = [flatEntry(0, 5, ["a"]), flatEntry(1, 4, ["b"])];
+    const result = computeTagInfluence(entries, NOW);
+    expect(result.flat).toEqual([]);
+    expect(result.structured).toEqual([]);
+  });
+
+  it("handles structured tags with label metadata and ranks by |delta|", () => {
+    const tag = (key: string): StructuredTagRef => ({
+      key,
+      categoryKey: "feelings",
+      labelKey: `mood.tag.${key}`,
+      icon: "Smile",
+    });
+    const e = (offset: number, score: number, keys: string[]): MoodAggregateEntry => ({
+      ...entry(offset, score, null),
+      structuredTags: keys.map(tag),
+    });
+    const entries: MoodAggregateEntry[] = [];
+    // "social" lifts strongly, "chores" lifts mildly
+    for (let i = 0; i < 6; i++) entries.push(e(i, 5, ["social"]));
+    for (let i = 6; i < 12; i++) entries.push(e(i, 4, ["chores"]));
+    for (let i = 12; i < 18; i++) entries.push(e(i, 2, []));
+    const result = computeTagInfluence(entries, NOW);
+    expect(result.structured[0].tag).toBe("social");
+    expect(result.structured[0].labelKey).toBe("mood.tag.social");
+    expect(result.structured[0].categoryKey).toBe("feelings");
+    // ranked by absolute delta desc
+    expect(Math.abs(result.structured[0].delta)).toBeGreaterThanOrEqual(
+      Math.abs(result.structured[1].delta),
+    );
+  });
+
+  it("caps each axis at the max-rows limit", () => {
+    const entries: MoodAggregateEntry[] = [];
+    // 12 distinct tags each present on 6 days, with a shared absent pool
+    for (let tagIdx = 0; tagIdx < 12; tagIdx++) {
+      for (let d = 0; d < 6; d++) {
+        entries.push(flatEntry(tagIdx * 6 + d, 5 - (tagIdx % 4), [`tag${tagIdx}`]));
+      }
+    }
+    const result = computeTagInfluence(entries, NOW, 365);
+    expect(result.flat.length).toBeLessThanOrEqual(8);
+  });
+});
+
+describe("influenceConfidence", () => {
+  it("requires both a small p and a comfortable sample for high", () => {
+    expect(influenceConfidence(0.005, 12)).toBe("high");
+    expect(influenceConfidence(0.005, 11)).toBe("medium"); // sample too small for high
+    expect(influenceConfidence(0.04, 10)).toBe("medium");
+    expect(influenceConfidence(0.04, 7)).toBe("low"); // sample too small for medium
+    expect(influenceConfidence(0.2, 50)).toBe("low"); // p too high
+  });
+});
+
+// ── F2 — computeBetterDays (unified board) ──────────────────────────
+
+describe("computeBetterDays", () => {
+  function corr(
+    n: number,
+    r: number,
+    strength: "stark" | "moderat" | "schwach" | "keine",
+  ): MoodMetricCorrelation {
+    return { result: { r, strength, n }, points: [], n };
+  }
+
+  const emptyCorr: MoodMetricCorrelation = { result: null, points: [], n: 0 };
+
+  it("merges tag influence and metric correlations, ranked by effect size", () => {
+    const tagInfluence: TagInfluence = {
+      flat: [
+        {
+          tag: "exercise",
+          labelKey: null,
+          categoryKey: null,
+          icon: null,
+          withDays: 10,
+          withoutDays: 10,
+          withAvg: 4.4,
+          withoutAvg: 2.4,
+          delta: 2, // effect 1.0 (capped)
+          pValue: 0.001,
+          confidence: "high",
+        },
+      ],
+      structured: [],
+    };
+    const correlations = {
+      sleep: corr(40, 0.6, "moderat"), // effect 0.6
+      steps: corr(40, 0.15, "keine"), // excluded (keine)
+      pulse: emptyCorr, // excluded (null)
+      weight: corr(3, 0.9, "stark"), // excluded (n < 5)
+      bloodPressureSystolic: corr(40, -0.45, "moderat"), // effect 0.45, down
+    };
+    const board = computeBetterDays(tagInfluence, correlations);
+    expect(board.map((f) => f.key)).toEqual([
+      "exercise",
+      "sleep",
+      "bloodPressureSystolic",
+    ]);
+    expect(board[0].source).toBe("tag");
+    expect(board[0].direction).toBe("up");
+    expect(board[2].direction).toBe("down");
+    // excluded ones are absent
+    expect(board.find((f) => f.key === "steps")).toBeUndefined();
+    expect(board.find((f) => f.key === "pulse")).toBeUndefined();
+    expect(board.find((f) => f.key === "weight")).toBeUndefined();
+  });
+
+  it("flags a negative tag delta as a down factor", () => {
+    const tagInfluence: TagInfluence = {
+      flat: [
+        {
+          tag: "poor_sleep",
+          labelKey: null,
+          categoryKey: null,
+          icon: null,
+          withDays: 8,
+          withoutDays: 8,
+          withAvg: 2.2,
+          withoutAvg: 3.8,
+          delta: -1.6,
+          pValue: 0.01,
+          confidence: "medium",
+        },
+      ],
+      structured: [],
+    };
+    const board = computeBetterDays(tagInfluence, {
+      sleep: emptyCorr,
+      steps: emptyCorr,
+      pulse: emptyCorr,
+      weight: emptyCorr,
+      bloodPressureSystolic: emptyCorr,
+    });
+    expect(board).toHaveLength(1);
+    expect(board[0].direction).toBe("down");
+    expect(board[0].delta).toBe(-1.6);
+  });
+
+  it("returns an empty board when nothing clears the gates", () => {
+    const board = computeBetterDays(
+      { flat: [], structured: [] },
+      {
+        sleep: corr(40, 0.1, "keine"),
+        steps: emptyCorr,
+        pulse: emptyCorr,
+        weight: emptyCorr,
+        bloodPressureSystolic: emptyCorr,
+      },
+    );
+    expect(board).toEqual([]);
+  });
+
+  it("caps the board length", () => {
+    const flat = Array.from({ length: 20 }, (_, i) => ({
+      tag: `t${i}`,
+      labelKey: null,
+      categoryKey: null,
+      icon: null,
+      withDays: 6,
+      withoutDays: 6,
+      withAvg: 4,
+      withoutAvg: 3,
+      delta: 1 - i * 0.01,
+      pValue: 0.02,
+      confidence: "low" as const,
+    }));
+    const board = computeBetterDays(
+      { flat, structured: [] },
+      {
+        sleep: emptyCorr,
+        steps: emptyCorr,
+        pulse: emptyCorr,
+        weight: emptyCorr,
+        bloodPressureSystolic: emptyCorr,
+      },
+    );
+    expect(board.length).toBe(BETTER_DAYS_MAX_FACTORS);
   });
 });

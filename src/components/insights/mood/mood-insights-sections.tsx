@@ -42,6 +42,14 @@ import {
   MoodStabilityTile,
   type MoodStabilityData,
 } from "./mood-stability-tile";
+import {
+  MoodTagInfluence,
+  type MoodTagInfluenceRow,
+} from "./mood-tag-influence";
+import {
+  MoodBetterDays,
+  type MoodBetterDayFactor,
+} from "./mood-better-days";
 
 /**
  * v1.8.5 — additional Mood Insights sections.
@@ -68,6 +76,13 @@ interface MoodInsightsResponse {
   stability: MoodStabilityData | null;
   tags: MoodTagRow[];
   structuredTags: MoodStructuredTagRow[];
+  // Optional only to tolerate a stale pre-v1.11.5 cached payload during a
+  // rollout; the live endpoint always populates both.
+  tagInfluence?: {
+    flat: MoodTagInfluenceRow[];
+    structured: MoodTagInfluenceRow[];
+  };
+  betterDays?: MoodBetterDayFactor[];
   narratives: MoodNarrativeItem[];
   correlations: {
     sleep: MoodMetricCorrelationData;
@@ -138,6 +153,19 @@ export function MoodInsightsSections() {
   const hasStabilityTile = data.stability != null;
   const hasInTargetTile = data.summary.inTargetPct != null;
 
+  // F1 — fold the structured + flat influence axes into one list ranked by
+  // absolute delta, so the strongest "this tag moves my mood" rows lead
+  // regardless of which axis they came from. Defensive against a stale
+  // server-cache payload minted before the v1.11.5 shape landed (the
+  // aggregate is cached up to 60 s; a rollout can serve one old read).
+  const influenceRows = [
+    ...(data.tagInfluence?.structured ?? []),
+    ...(data.tagInfluence?.flat ?? []),
+  ].sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta));
+  const hasInfluence = influenceRows.length > 0;
+  const betterDays = data.betterDays ?? [];
+  const hasBetterDays = betterDays.length > 0;
+
   return (
     <div className="space-y-4">
       {(hasInTargetTile || hasStabilityTile) && (
@@ -159,6 +187,12 @@ export function MoodInsightsSections() {
       )}
 
       <MoodNarrativeFeed items={narratives} />
+
+      {hasBetterDays && (
+        <SectionCard title={t("insights.mood.betterDays.title")}>
+          <MoodBetterDays factors={betterDays} />
+        </SectionCard>
+      )}
 
       <SectionCard title={t("insights.mood.heatmapTitle")}>
         <MoodHeatmap
@@ -192,6 +226,12 @@ export function MoodInsightsSections() {
       {hasTags && (
         <SectionCard title={t("insights.mood.tagsTitle")}>
           <MoodTagBreakdown tags={data.tags} />
+        </SectionCard>
+      )}
+
+      {hasInfluence && (
+        <SectionCard title={t("insights.mood.influence.title")}>
+          <MoodTagInfluence rows={influenceRows} />
         </SectionCard>
       )}
 

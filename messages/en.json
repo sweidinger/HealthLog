@@ -2530,6 +2530,31 @@
         "bandSteady": "Your mood has been fairly steady",
         "bandVariable": "Your mood has been noticeably variable",
         "bandVeryVariable": "Your mood has swung a lot lately"
+      },
+      "influence": {
+        "title": "Influence on mood",
+        "detail": "Averages {withAvg} on the {withDays} days you tagged this vs {withoutAvg} without it.",
+        "confidenceLow": "Low confidence",
+        "confidenceMedium": "Medium confidence",
+        "confidenceHigh": "High confidence",
+        "disclaimer": "These are associations in your own data, not proof of cause. Patterns worth watching."
+      },
+      "betterDays": {
+        "title": "What goes with your better days",
+        "description": "Tags and metrics that line up with your higher- and lower-mood days, ranked by how strongly they move together.",
+        "disclaimer": "Associations only, not causes. Talk to your doctor before changing anything based on these."
+      },
+      "discovery": {
+        "title": "Discovered patterns",
+        "description": "Day-to-day relationships involving your mood that hold up after correcting for testing many pairs at once.",
+        "footer": "{discovered} of {tested} relationships tested survived the false-discovery correction.",
+        "empty": "No mood relationships cleared the statistical bar yet. Keep logging.",
+        "disclaimer": "Statistically filtered, but still observational — a pattern worth watching, not a cause.",
+        "moodUp": "Higher {factor} tends to go with higher next-day mood in your data.",
+        "moodDown": "Higher {factor} tends to go with lower next-day mood in your data.",
+        "outcomeUp": "Higher mood tends to go with higher next-day {factor} in your data.",
+        "outcomeDown": "Higher mood tends to go with lower next-day {factor} in your data.",
+        "stat": "{n} paired days · r = {r} · q = {q}"
       }
     },
     "derived": {

@@ -2530,6 +2530,31 @@
         "bandSteady": "Il tuo umore è stato abbastanza stabile",
         "bandVariable": "Il tuo umore è stato notevolmente variabile",
         "bandVeryVariable": "Il tuo umore ha oscillato molto di recente"
+      },
+      "influence": {
+        "title": "Influenza sull'umore",
+        "detail": "Media di {withAvg} nei {withDays} giorni in cui l'hai indicato, contro {withoutAvg} senza.",
+        "confidenceLow": "Affidabilità bassa",
+        "confidenceMedium": "Affidabilità media",
+        "confidenceHigh": "Affidabilità alta",
+        "disclaimer": "Sono associazioni nei tuoi dati, non una prova di causa. Schemi da tenere d'occhio."
+      },
+      "betterDays": {
+        "title": "Cosa accompagna le tue giornate migliori",
+        "description": "Tag e parametri che coincidono con le tue giornate di umore migliore e peggiore, ordinati per quanto si muovono insieme.",
+        "disclaimer": "Solo associazioni, non cause. Parla con il tuo medico prima di cambiare qualcosa."
+      },
+      "discovery": {
+        "title": "Schemi rilevati",
+        "description": "Relazioni giorno per giorno legate al tuo umore che reggono dopo aver corretto per i test multipli.",
+        "footer": "{discovered} relazioni su {tested} testate hanno superato la correzione per le false scoperte.",
+        "empty": "Nessuna relazione sull'umore ha ancora superato la soglia statistica. Continua a registrare.",
+        "disclaimer": "Filtrato statisticamente, ma sempre osservazionale: uno schema da tenere d'occhio, non una causa.",
+        "moodUp": "Un {factor} più alto tende a coincidere con un umore migliore il giorno dopo nei tuoi dati.",
+        "moodDown": "Un {factor} più alto tende a coincidere con un umore peggiore il giorno dopo nei tuoi dati.",
+        "outcomeUp": "Un umore migliore tende a coincidere con un {factor} più alto il giorno dopo nei tuoi dati.",
+        "outcomeDown": "Un umore migliore tende a coincidere con un {factor} più basso il giorno dopo nei tuoi dati.",
+        "stat": "{n} giorni appaiati · r = {r} · q = {q}"
       }
     },
     "derived": {

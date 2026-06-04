@@ -2530,6 +2530,31 @@
         "bandSteady": "Votre humeur a été plutôt stable",
         "bandVariable": "Votre humeur a été nettement variable",
         "bandVeryVariable": "Votre humeur a beaucoup fluctué récemment"
+      },
+      "influence": {
+        "title": "Influence sur l'humeur",
+        "detail": "Moyenne de {withAvg} les {withDays} jours où vous l'avez indiqué, contre {withoutAvg} sans.",
+        "confidenceLow": "Confiance faible",
+        "confidenceMedium": "Confiance moyenne",
+        "confidenceHigh": "Confiance élevée",
+        "disclaimer": "Ce sont des associations dans vos propres données, pas une preuve de cause. Des tendances à surveiller."
+      },
+      "betterDays": {
+        "title": "Ce qui accompagne vos meilleurs jours",
+        "description": "Les tags et mesures qui coïncident avec vos jours de meilleure et de moins bonne humeur, classés selon la force du lien.",
+        "disclaimer": "Des associations seulement, pas des causes. Parlez-en à votre médecin avant de changer quoi que ce soit."
+      },
+      "discovery": {
+        "title": "Tendances détectées",
+        "description": "Des relations d'un jour à l'autre autour de votre humeur qui tiennent après correction des tests multiples.",
+        "footer": "{discovered} relations sur {tested} testées ont passé la correction des fausses découvertes.",
+        "empty": "Aucune relation d'humeur n'a encore franchi le seuil statistique. Continuez à enregistrer.",
+        "disclaimer": "Filtré statistiquement, mais toujours observationnel : une tendance à surveiller, pas une cause.",
+        "moodUp": "Un {factor} plus élevé tend à coïncider avec une meilleure humeur le lendemain dans vos données.",
+        "moodDown": "Un {factor} plus élevé tend à coïncider avec une moins bonne humeur le lendemain dans vos données.",
+        "outcomeUp": "Une meilleure humeur tend à coïncider avec un {factor} plus élevé le lendemain dans vos données.",
+        "outcomeDown": "Une meilleure humeur tend à coïncider avec un {factor} plus bas le lendemain dans vos données.",
+        "stat": "{n} jours appariés · r = {r} · q = {q}"
       }
     },
     "derived": {

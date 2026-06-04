@@ -233,6 +233,104 @@ function twoSidedPFromT(absT: number, df: number): number {
   return regularizedIncompleteBeta(x, df / 2, 0.5);
 }
 
+// ── Welch two-sample t-test (unequal variances) ────────────────────
+
+export interface WelchOk {
+  status: "ok";
+  /** Mean of the first sample ("with"). */
+  meanA: number;
+  /** Mean of the second sample ("without"). */
+  meanB: number;
+  /** meanA − meanB. */
+  meanDiff: number;
+  /** Welch t-statistic for the difference of means. */
+  tStat: number;
+  /** Welch–Satterthwaite degrees of freedom. */
+  df: number;
+  /** Exact two-sided p-value via the incomplete beta. */
+  pValue: number;
+  nA: number;
+  nB: number;
+}
+
+export interface WelchInsufficient {
+  status: "insufficient";
+  reason: "too_few_samples" | "no_variance";
+  nA: number;
+  nB: number;
+}
+
+export type WelchResult = WelchOk | WelchInsufficient;
+
+/**
+ * Welch's two-sample t-test for the difference of two group means under
+ * unequal variances (the correct test when the "with-tag" and
+ * "without-tag" day counts and spreads differ, which they almost always
+ * do). Reuses the exact Student-t survival (`twoSidedPFromT`) so the
+ * p-value is accurate at the small df the mood surface produces — the
+ * same rigour the Pearson cards use, not a normal approximation.
+ *
+ * Returns `insufficient` when either group is below `minPerGroup`, or
+ * when both groups are constant (zero pooled variance → no testable
+ * difference). Guards divide-by-zero and the all-equal degenerate case
+ * so callers never see NaN/Infinity.
+ *
+ * Formula (Welch 1947):
+ *   t  = (x̄_A − x̄_B) / sqrt(s²_A/n_A + s²_B/n_B)
+ *   df = (s²_A/n_A + s²_B/n_B)² /
+ *        ( (s²_A/n_A)²/(n_A−1) + (s²_B/n_B)²/(n_B−1) )
+ * with s² the unbiased (n−1) sample variance.
+ */
+export function welchTTest(
+  groupA: readonly number[],
+  groupB: readonly number[],
+  options: { minPerGroup?: number } = {},
+): WelchResult {
+  const minPerGroup = options.minPerGroup ?? 2;
+  const nA = groupA.length;
+  const nB = groupB.length;
+  if (nA < minPerGroup || nB < minPerGroup) {
+    return { status: "insufficient", reason: "too_few_samples", nA, nB };
+  }
+
+  const meanA = groupA.reduce((s, v) => s + v, 0) / nA;
+  const meanB = groupB.reduce((s, v) => s + v, 0) / nB;
+  // Unbiased (n−1) sample variances.
+  const varA = groupA.reduce((s, v) => s + (v - meanA) ** 2, 0) / (nA - 1);
+  const varB = groupB.reduce((s, v) => s + (v - meanB) ** 2, 0) / (nB - 1);
+
+  const seA = varA / nA;
+  const seB = varB / nB;
+  const seSum = seA + seB;
+  if (seSum === 0) {
+    // Both groups are perfectly constant — no testable spread. If their
+    // means differ the difference is real but has no variance estimate;
+    // we surface it as "no_variance" so the caller renders a deterministic
+    // band rather than a t-test that would divide by zero.
+    return { status: "insufficient", reason: "no_variance", nA, nB };
+  }
+
+  const meanDiff = meanA - meanB;
+  const tStat = meanDiff / Math.sqrt(seSum);
+  const dfDenomA = nA > 1 ? seA ** 2 / (nA - 1) : 0;
+  const dfDenomB = nB > 1 ? seB ** 2 / (nB - 1) : 0;
+  const dfDenom = dfDenomA + dfDenomB;
+  const df = dfDenom === 0 ? nA + nB - 2 : seSum ** 2 / dfDenom;
+  const pValue = twoSidedPFromT(Math.abs(tStat), df);
+
+  return {
+    status: "ok",
+    meanA: roundTo(meanA, 3),
+    meanB: roundTo(meanB, 3),
+    meanDiff: roundTo(meanDiff, 3),
+    tStat: roundTo(tStat, 3),
+    df: roundTo(df, 2),
+    pValue,
+    nA,
+    nB,
+  };
+}
+
 /**
  * Regularised incomplete beta function I_x(a, b).
  *

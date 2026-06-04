@@ -2530,6 +2530,31 @@
         "bandSteady": "Deine Stimmung war recht gleichmäßig",
         "bandVariable": "Deine Stimmung war merklich schwankend",
         "bandVeryVariable": "Deine Stimmung hat zuletzt stark geschwankt"
+      },
+      "influence": {
+        "title": "Einfluss auf die Stimmung",
+        "detail": "Durchschnitt {withAvg} an den {withDays} Tagen mit diesem Tag, {withoutAvg} ohne.",
+        "confidenceLow": "Geringe Sicherheit",
+        "confidenceMedium": "Mittlere Sicherheit",
+        "confidenceHigh": "Hohe Sicherheit",
+        "disclaimer": "Das sind Zusammenhänge in deinen eigenen Daten, kein Beweis für eine Ursache. Muster, die einen Blick wert sind."
+      },
+      "betterDays": {
+        "title": "Was zu deinen besseren Tagen passt",
+        "description": "Tags und Werte, die mit deinen Tagen besserer und schlechterer Stimmung einhergehen, sortiert danach, wie stark sie sich zusammen bewegen.",
+        "disclaimer": "Nur Zusammenhänge, keine Ursachen. Sprich mit deiner Ärztin oder deinem Arzt, bevor du etwas änderst."
+      },
+      "discovery": {
+        "title": "Entdeckte Muster",
+        "description": "Tag-zu-Tag-Zusammenhänge rund um deine Stimmung, die auch nach Korrektur für viele gleichzeitige Tests bestehen.",
+        "footer": "{discovered} von {tested} getesteten Zusammenhängen haben die Korrektur für Fehlentdeckungen überstanden.",
+        "empty": "Bisher hat kein Stimmungszusammenhang die statistische Hürde genommen. Logge weiter.",
+        "disclaimer": "Statistisch gefiltert, aber weiterhin beobachtend – ein Muster, das einen Blick wert ist, keine Ursache.",
+        "moodUp": "Höheres {factor} geht in deinen Daten tendenziell mit besserer Stimmung am Folgetag einher.",
+        "moodDown": "Höheres {factor} geht in deinen Daten tendenziell mit schlechterer Stimmung am Folgetag einher.",
+        "outcomeUp": "Bessere Stimmung geht in deinen Daten tendenziell mit höherem {factor} am Folgetag einher.",
+        "outcomeDown": "Bessere Stimmung geht in deinen Daten tendenziell mit niedrigerem {factor} am Folgetag einher.",
+        "stat": "{n} gepaarte Tage · r = {r} · q = {q}"
       }
     },
     "derived": {

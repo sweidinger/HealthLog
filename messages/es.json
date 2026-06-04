@@ -2530,6 +2530,31 @@
         "bandSteady": "Tu estado de ánimo ha sido bastante estable",
         "bandVariable": "Tu estado de ánimo ha sido notablemente variable",
         "bandVeryVariable": "Tu estado de ánimo ha fluctuado mucho últimamente"
+      },
+      "influence": {
+        "title": "Influencia en el estado de ánimo",
+        "detail": "Promedio de {withAvg} en los {withDays} días que lo etiquetaste, frente a {withoutAvg} sin él.",
+        "confidenceLow": "Confianza baja",
+        "confidenceMedium": "Confianza media",
+        "confidenceHigh": "Confianza alta",
+        "disclaimer": "Son asociaciones en tus propios datos, no una prueba de causa. Patrones que vale la pena observar."
+      },
+      "betterDays": {
+        "title": "Qué acompaña a tus mejores días",
+        "description": "Etiquetas y métricas que coinciden con tus días de mejor y peor ánimo, ordenadas por la fuerza con que se mueven juntas.",
+        "disclaimer": "Solo asociaciones, no causas. Consulta a tu médico antes de cambiar nada por esto."
+      },
+      "discovery": {
+        "title": "Patrones descubiertos",
+        "description": "Relaciones de un día a otro con tu estado de ánimo que se mantienen tras corregir el haber probado muchos pares a la vez.",
+        "footer": "{discovered} de {tested} relaciones probadas superaron la corrección de falsos descubrimientos.",
+        "empty": "Todavía ninguna relación de ánimo superó el umbral estadístico. Sigue registrando.",
+        "disclaimer": "Filtrado estadísticamente, pero aún observacional: un patrón que vale la pena observar, no una causa.",
+        "moodUp": "Un mayor {factor} suele coincidir con mejor ánimo al día siguiente en tus datos.",
+        "moodDown": "Un mayor {factor} suele coincidir con peor ánimo al día siguiente en tus datos.",
+        "outcomeUp": "Mejor ánimo suele coincidir con un {factor} más alto al día siguiente en tus datos.",
+        "outcomeDown": "Mejor ánimo suele coincidir con un {factor} más bajo al día siguiente en tus datos.",
+        "stat": "{n} días emparejados · r = {r} · q = {q}"
       }
     },
     "derived": {
