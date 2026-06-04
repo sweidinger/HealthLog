@@ -89,10 +89,12 @@ describe("<SourcesRail>", () => {
     expect(html).toContain('data-source="medication"');
   });
 
-  it("renders the medical disclaimer in the footer", () => {
+  it("no longer carries its own medical disclaimer footer", () => {
+    // v1.12.0 — the clinical-decisions disclaimer is consolidated to a
+    // single line above the composer; the rail used to duplicate it in
+    // its footer.
     const html = render(<SourcesRail />);
-    expect(html).toContain('data-slot="coach-sources-disclaimer"');
-    expect(html).toContain("Clinical decisions belong with your doctor");
+    expect(html).not.toContain('data-slot="coach-sources-disclaimer"');
   });
 
   it("renders a toggle per cluster + the window selector trigger", () => {

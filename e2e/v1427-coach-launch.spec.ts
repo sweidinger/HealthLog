@@ -181,4 +181,43 @@ test.describe("v1.4.27 — Coach reachability on insights sub-pages", () => {
     await expect(drawer).toBeVisible({ timeout: 10_000 });
     await expect(drawer).toHaveAttribute("data-variant", "side-sheet");
   });
+
+  test("conversation history is collapsed behind a toggle that opens the tray on Desktop Chrome", async ({
+    page,
+  }, testInfo) => {
+    // v1.12.0 — the history rail is no longer an always-on left column;
+    // it lives behind the "Conversations" toggle on every viewport and
+    // opens as a tray on demand so the thread keeps the full width.
+    test.skip(
+      testInfo.project.name !== "chromium-desktop",
+      "exercises the desktop drawer layout",
+    );
+
+    await page.goto("/insights/blutdruck", { waitUntil: "domcontentloaded" });
+
+    const icon = page.locator('[data-slot="coach-launch-icon"]').first();
+    await expect(icon).toBeVisible({ timeout: 10_000 });
+    await icon.click();
+
+    const drawer = page.locator('[data-slot="coach-drawer"]');
+    await expect(drawer).toBeVisible({ timeout: 10_000 });
+
+    // No inline history column — only the toggle.
+    await expect(
+      page.locator('[data-slot="coach-drawer-history"]'),
+    ).toHaveCount(0);
+    const historyToggle = page.locator(
+      '[data-slot="coach-drawer-history-tray-trigger"]',
+    );
+    await expect(historyToggle).toBeVisible({ timeout: 10_000 });
+
+    // The history rail surfaces only after the toggle is pressed.
+    await expect(
+      page.locator('[data-slot="coach-drawer-history-tray"]'),
+    ).toHaveCount(0);
+    await historyToggle.click();
+    await expect(
+      page.locator('[data-slot="coach-drawer-history-tray"]'),
+    ).toBeVisible({ timeout: 10_000 });
+  });
 });

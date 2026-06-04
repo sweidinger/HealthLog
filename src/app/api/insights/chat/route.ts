@@ -100,6 +100,20 @@ function tokeniseForStreaming(content: string): string[] {
   return matches ?? [content];
 }
 
+/**
+ * v1.12.0 — yield control back to the event loop for one tick so the
+ * stream controller flushes the just-enqueued frame before the next one
+ * is produced. `setTimeout(0)` (rather than a bare `Promise.resolve()`
+ * microtask) hands the turn back to the platform's stream pump so each
+ * SSE frame lands in its own network chunk; a microtask would drain
+ * before the runtime gets a chance to flush. The delay is intentionally
+ * zero — we want incremental delivery, not an artificial typewriter
+ * pause.
+ */
+function flushTick(): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, 0));
+}
+
 interface CoachTurn {
   role: "user" | "assistant";
   content: string;
@@ -485,9 +499,20 @@ Reply now as the assistant, in ${locale === "de" ? "German" : "English"}.`;
   });
 
   // ── Stream the body to the client ────────────────────────────
-  const stream = createSseStream((controller) => {
+  // v1.12.0 — yield to the event loop between token frames so each one
+  // flushes as its own network chunk. The provider clients return the
+  // full reply in one shot; without the yield the whole tokenised body
+  // was enqueued synchronously inside `start()` and the runtime
+  // coalesced every frame into a single read, so the client painted the
+  // answer all at once despite the per-token render path in `use-coach`.
+  // A zero-delay yield is enough to land each frame on its own tick —
+  // the visible cadence reads ChatGPT/Claude-style without a contrived
+  // sleep. The refusal + error paths stay single-frame (nothing to
+  // pace).
+  const stream = createSseStream(async (controller) => {
     for (const tok of tokeniseForStreaming(replyText)) {
       controller.enqueue(encodeFrame({ type: "token", token: tok }));
+      await flushTick();
     }
     controller.enqueue(
       encodeFrame({

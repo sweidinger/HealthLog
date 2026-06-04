@@ -333,14 +333,6 @@ export function CoachDrawer({
             harness can pin the mobile rail-tray triggers without
             rendering the Sheet portal. */}
         <CoachDrawerBody
-          historyRail={
-            historyRail ?? (
-              <HistoryRail
-                activeId={currentConversationId}
-                onSelect={(id) => setCurrentConversationId(id)}
-              />
-            )
-          }
           sourcesRail={sourcesRail ?? <SourcesRail />}
           thread={
             <MessageThread
@@ -348,6 +340,14 @@ export function CoachDrawer({
               streaming={send.streaming}
               optimisticUser={send.optimisticUser}
             />
+          }
+          disclaimer={
+            <p
+              data-slot="coach-composer-disclaimer"
+              className="text-muted-foreground text-xs leading-relaxed"
+            >
+              {t("insights.coach.composerDisclaimer")}
+            </p>
           }
           composer={
             composer ?? (

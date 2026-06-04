@@ -68,14 +68,16 @@ describe("<MobileRailTray>", () => {
     expect(html).toContain("sources-content");
   });
 
-  it("hides the history tray on lg+ and the sources tray on xl+", () => {
-    // Matches the breakpoints documented inline: the history rail
-    // mounts inline at lg+, so the tray is `lg:hidden`. The sources
-    // rail mounts inline at xl+ only, so the tray is `xl:hidden`.
+  it("keeps the history tray on every breakpoint and hides the sources tray on xl+", () => {
+    // v1.12.0 — the history rail is tray-only now (no inline column on
+    // any viewport), so the history tray drops its `lg:hidden` cap and
+    // is available at every breakpoint. The sources rail still mounts
+    // inline at xl+, so its tray keeps `xl:hidden`.
     const html = render(<MobileRailTray {...baseProps} />);
-    expect(html).toMatch(
-      /data-slot="coach-drawer-history-tray"[^>]*class="[^"]*lg:hidden/,
+    const historyTray = html.match(
+      /data-slot="coach-drawer-history-tray"[^>]*class="([^"]*)"/,
     );
+    expect(historyTray?.[1]).not.toContain("lg:hidden");
     expect(html).toMatch(
       /data-slot="coach-drawer-sources-tray"[^>]*class="[^"]*xl:hidden/,
     );

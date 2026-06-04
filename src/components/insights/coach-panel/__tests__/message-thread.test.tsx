@@ -381,13 +381,40 @@ describe("<MessageThread>", () => {
     expect(html).toMatch(/<strong[^>]*>\s*96\s*<\/strong>/);
   });
 
-  it("hides the disclosure entirely when keyValues is empty or absent", () => {
-    // baseConversation.messages[1].metricSource has no `keyValues`
-    // field — the source chips still render but the disclosure does
-    // not appear at all.
+  it("folds the source chips into the collapsed disclosure (no key-values)", () => {
+    // v1.12.0 — the provenance block is now a single collapsed
+    // disclosure. baseConversation.messages[1].metricSource carries
+    // metrics + windows but no `keyValues`, so the disclosure renders
+    // (collapsed, with the chips inside) but the key-value list does
+    // not. The chips no longer paint outside / above the disclosure.
     const html = render(<MessageThread conversation={baseConversation} />);
+    expect(html).toContain('data-slot="coach-evidence"');
+    expect(html).toContain('data-slot="coach-source-chips"');
+    expect(html).not.toContain('data-slot="coach-evidence-list"');
+    // Collapsed by default.
+    expect(html).not.toMatch(/<details[^>]*\bopen\b/);
+    // The chips render inside the `<details>` shell, not as a sibling
+    // above it.
+    const detailsIdx = html.indexOf('data-slot="coach-evidence"');
+    const chipsIdx = html.indexOf('data-slot="coach-source-chips"');
+    expect(detailsIdx).toBeGreaterThanOrEqual(0);
+    expect(chipsIdx).toBeGreaterThan(detailsIdx);
+  });
+
+  it("renders no disclosure when there is no provenance at all", () => {
+    const noProvenance: CoachConversationDetailDTO = {
+      ...baseConversation,
+      messages: [
+        baseConversation.messages[0],
+        {
+          ...baseConversation.messages[1],
+          metricSource: { windows: [], metrics: [] },
+        },
+      ],
+    };
+    const html = render(<MessageThread conversation={noProvenance} />);
     expect(html).not.toContain('data-slot="coach-evidence"');
-    expect(html).not.toContain("What I&#x27;m looking at");
+    expect(html).not.toContain('data-slot="coach-source-chips"');
   });
 
   it("renders the user bubble with the self-hosted avatar when one is set (v1.5.5)", () => {
