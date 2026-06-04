@@ -39,6 +39,7 @@ import {
   COMPARISON_BASELINES,
   DEFAULT_DASHBOARD_LAYOUT,
   DASHBOARD_WIDGET_IDS,
+  IOS_PIN_ONLY_WIDGET_IDS,
 } from "@/lib/dashboard-layout";
 import {
   Select,
@@ -132,6 +133,16 @@ const WIDGET_LABEL_KEYS: Record<DashboardWidgetId, string> = {
   vo2Max: "dashboard.vo2Max",
   // v1.4.32 — Recent workouts tile (default-on).
   recentWorkouts: "dashboard.recentWorkouts.title",
+  // v1.11.2 B5 — v1.10 additive HealthKit signals, now pinnable. Each
+  // reuses the existing measurement-type label key.
+  cardioRecovery: "measurements.typeCardioRecovery",
+  sixMinuteWalk: "measurements.typeSixMinuteWalkDistance",
+  stairAscentSpeed: "measurements.typeStairAscentSpeed",
+  stairDescentSpeed: "measurements.typeStairDescentSpeed",
+  breathingDisturbances: "measurements.typeBreathingDisturbances",
+  wristTemperature: "measurements.typeWristTemperature",
+  falls: "measurements.typeFallCount",
+  walkingSteadiness: "measurements.typeWalkingSteadiness",
 };
 
 export function DashboardLayoutSection({ id }: { id: string }) {
@@ -412,12 +423,21 @@ export function DashboardLayoutSection({ id }: { id: string }) {
             // v1.7.0 — the stored layout now round-trips the 11 iOS-only
             // widget ids so the native client can drop its local merge
             // workarounds. The web Settings list has no tile/chart
-            // surface for them, so skip any id outside the 16 web-known
+            // surface for them, so skip any id outside the web-known
             // ids rather than render an unlabelled row with dead toggles.
             // The skipped ids stay untouched in the persisted layout
             // because the Save mutation PUTs `layout.widgets` whole and
             // the server retains every catalogue id.
-            const webWidgetIds = new Set<string>(DASHBOARD_WIDGET_IDS);
+            //
+            // v1.11.2 HIGH-1 — the 8 B5 ids are WRITABLE (in
+            // `DASHBOARD_WIDGET_IDS` so the iOS pin PUT validates) but
+            // have no web render path either, so exclude
+            // `IOS_PIN_ONLY_WIDGET_IDS` too: a web toggle for them would
+            // be a silent no-op on the web dashboard.
+            const iosPinOnly = new Set<string>(IOS_PIN_ONLY_WIDGET_IDS);
+            const webWidgetIds = new Set<string>(
+              DASHBOARD_WIDGET_IDS.filter((wid) => !iosPinOnly.has(wid)),
+            );
             const sortedWidgets = [...layout.widgets]
               .filter((w): w is typeof w & { id: DashboardWidgetId } =>
                 webWidgetIds.has(w.id),

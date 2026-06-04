@@ -58,7 +58,6 @@ type RunCompletionFn = typeof runStatusCompletion;
 type PrismaLike = Pick<typeof prisma, "coachFact" | "coachConversation">;
 
 interface ExtractOpts {
-  now?: Date;
   runCompletion?: RunCompletionFn;
   prisma?: PrismaLike;
   locale?: string;

@@ -299,6 +299,7 @@ export const queryKeys = {
 
   featureFlags: () => ["feature-flags"] as const,
   coachPrefs: () => ["coach-prefs"] as const,
+  coachFacts: () => ["coach-facts"] as const,
 
   /**
    * v1.4.41 — admin surfaces. Pre-fix every admin section declared its

@@ -212,6 +212,74 @@ describe("recomputeBucketsForMeasurement", () => {
     }
   });
 
+  it("swallows a P2002 from a concurrent same-partition recompute", async () => {
+    // Two writes on the same (user, type, day) can interleave the
+    // delete-then-insert (no pg-boss singleton on the sync DAY hook), so
+    // the losing createMany trips the per-source unique index. The peer
+    // wrote the identical source-collapsed partition, so the rollup is
+    // already correct — persistRollupRows must treat the P2002 as benign
+    // rather than failing the recompute.
+    queryRawUnsafe.mockResolvedValueOnce([
+      {
+        type: "WEIGHT",
+        source: "MANUAL",
+        bucket_start: new Date("2026-05-10T00:00:00.000Z"),
+        count: BigInt(1),
+        mean: 80.0,
+        min_value: 80.0,
+        max_value: 80.0,
+        sum_value: 80.0,
+        sd: 0,
+        slope: 0,
+        r2: 0,
+      },
+    ]);
+    getGlobalBossMock.mockReturnValue({ send: bossSend });
+    bossSend.mockResolvedValue("job-id");
+    // The DAY transaction loses the race and throws a unique violation.
+    transaction.mockRejectedValueOnce({ code: "P2002" });
+
+    await expect(
+      recomputeBucketsForMeasurement(
+        "user-1",
+        "WEIGHT",
+        new Date("2026-05-10T14:30:00.000Z"),
+      ),
+    ).resolves.not.toThrow();
+
+    // The downstream WEEK/MONTH/YEAR enqueues still fire — the benign DAY
+    // race does not abort the rest of the recompute.
+    expect(bossSend).toHaveBeenCalledTimes(3);
+  });
+
+  it("rethrows a non-P2002 transaction error", async () => {
+    queryRawUnsafe.mockResolvedValueOnce([
+      {
+        type: "WEIGHT",
+        source: "MANUAL",
+        bucket_start: new Date("2026-05-10T00:00:00.000Z"),
+        count: BigInt(1),
+        mean: 80.0,
+        min_value: 80.0,
+        max_value: 80.0,
+        sum_value: 80.0,
+        sd: 0,
+        slope: 0,
+        r2: 0,
+      },
+    ]);
+    getGlobalBossMock.mockReturnValue({ send: bossSend });
+    transaction.mockRejectedValueOnce({ code: "P2010" });
+
+    await expect(
+      recomputeBucketsForMeasurement(
+        "user-1",
+        "WEIGHT",
+        new Date("2026-05-10T14:30:00.000Z"),
+      ),
+    ).rejects.toMatchObject({ code: "P2010" });
+  });
+
   it("writes sum_value for cumulative ACTIVITY_STEPS buckets", async () => {
     // 5 step samples in a day summing to 12480: emulates an iOS
     // batch of HealthKit slices reaching the rollup aggregator.

@@ -6,6 +6,7 @@ import {
   DASHBOARD_WIDGET_IDS,
   DASHBOARD_IOS_ONLY_WIDGET_IDS,
   DASHBOARD_WIDGET_CATALOGUE_IDS,
+  IOS_PIN_ONLY_WIDGET_IDS,
   type DashboardLayout,
 } from "@/lib/dashboard-layout";
 
@@ -382,11 +383,13 @@ describe("resolveDashboardLayout() — chartOverlayPrefs (v1.4.18)", () => {
  * iOS-only ids extend it without touching the writable PUT enum.
  */
 describe("DASHBOARD_WIDGET_CATALOGUE_IDS — 27-id catalogue", () => {
-  it("carries exactly 27 distinct ids (16 server-known + 11 iOS-only)", () => {
-    expect(DASHBOARD_WIDGET_IDS).toHaveLength(16);
+  it("carries exactly 35 distinct ids (24 server-known + 11 iOS-only)", () => {
+    // v1.11.2 B5 — the 8 v1.10 additive metrics became web-writable, so
+    // the server-known set grew 16 → 24 and the catalogue 27 → 35.
+    expect(DASHBOARD_WIDGET_IDS).toHaveLength(24);
     expect(DASHBOARD_IOS_ONLY_WIDGET_IDS).toHaveLength(11);
-    expect(DASHBOARD_WIDGET_CATALOGUE_IDS).toHaveLength(27);
-    expect(new Set(DASHBOARD_WIDGET_CATALOGUE_IDS).size).toBe(27);
+    expect(DASHBOARD_WIDGET_CATALOGUE_IDS).toHaveLength(35);
+    expect(new Set(DASHBOARD_WIDGET_CATALOGUE_IDS).size).toBe(35);
   });
 
   it("is a superset of the server-known ids in declaration order", () => {
@@ -416,6 +419,50 @@ describe("DASHBOARD_WIDGET_CATALOGUE_IDS — 27-id catalogue", () => {
       "audioExposureEnvironment",
       "audioExposureHeadphone",
     ]);
+  });
+});
+
+/**
+ * v1.11.2 HIGH-1 — the 8 B5 metrics are WRITABLE (members of
+ * `DASHBOARD_WIDGET_IDS`, so the widgets PUT enum — derived from the
+ * catalogue — accepts them, which the iOS Home-pin request requires) but
+ * have NO web render path. `IOS_PIN_ONLY_WIDGET_IDS` names exactly that
+ * set so the web Settings list can filter them out (asserted in
+ * `dashboard-layout-section.test.tsx`).
+ */
+describe("IOS_PIN_ONLY_WIDGET_IDS — writable but not web-rendered", () => {
+  it("is the 8 B5 ids verbatim", () => {
+    expect([...IOS_PIN_ONLY_WIDGET_IDS]).toEqual([
+      "cardioRecovery",
+      "sixMinuteWalk",
+      "stairAscentSpeed",
+      "stairDescentSpeed",
+      "breathingDisturbances",
+      "wristTemperature",
+      "falls",
+      "walkingSteadiness",
+    ]);
+  });
+
+  it("every pin-only id is WRITABLE (in DASHBOARD_WIDGET_IDS so the PUT enum accepts it)", () => {
+    const writable = new Set<string>(DASHBOARD_WIDGET_IDS);
+    for (const id of IOS_PIN_ONLY_WIDGET_IDS) {
+      expect(writable.has(id)).toBe(true);
+    }
+  });
+
+  it("every pin-only id is in the catalogue the widgets PUT Zod enum derives from", () => {
+    const catalogue = new Set<string>(DASHBOARD_WIDGET_CATALOGUE_IDS);
+    for (const id of IOS_PIN_ONLY_WIDGET_IDS) {
+      expect(catalogue.has(id)).toBe(true);
+    }
+  });
+
+  it("does not overlap the iOS-only (non-writable) catalogue ids", () => {
+    const iosOnly = new Set<string>(DASHBOARD_IOS_ONLY_WIDGET_IDS);
+    for (const id of IOS_PIN_ONLY_WIDGET_IDS) {
+      expect(iosOnly.has(id)).toBe(false);
+    }
   });
 });
 
@@ -483,17 +530,17 @@ describe("resolveDashboardLayout() — iOS-only id retention (v1.7.0)", () => {
     expect(ids).not.toContain("totally-made-up");
   });
 
-  it("keeps the default layout at the 16 web tiles (no iOS-only seeded)", () => {
+  it("keeps the default layout at the 24 web tiles (no iOS-only seeded)", () => {
     const ids = DEFAULT_DASHBOARD_LAYOUT.widgets.map((w) => w.id);
-    expect(ids).toHaveLength(16);
+    expect(ids).toHaveLength(24);
     for (const iosId of DASHBOARD_IOS_ONLY_WIDGET_IDS) {
       expect(ids).not.toContain(iosId);
     }
   });
 
   it("does NOT auto-append iOS-only ids when a web-only layout is read", () => {
-    // A web account that saved only `weight` must auto-upgrade to the 16
-    // web defaults — never to the 27 catalogue. iOS-only ids appear only
+    // A web account that saved only `weight` must auto-upgrade to the 24
+    // web defaults — never to the 35 catalogue. iOS-only ids appear only
     // once a native client has explicitly sent them.
     const partial = {
       version: 1,
@@ -501,7 +548,7 @@ describe("resolveDashboardLayout() — iOS-only id retention (v1.7.0)", () => {
     };
     const resolved = resolveDashboardLayout(partial);
     const ids = resolved.widgets.map((w) => w.id);
-    expect(ids).toHaveLength(16);
+    expect(ids).toHaveLength(24);
     for (const iosId of DASHBOARD_IOS_ONLY_WIDGET_IDS) {
       expect(ids).not.toContain(iosId);
     }

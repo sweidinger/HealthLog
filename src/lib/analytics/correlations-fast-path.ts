@@ -46,6 +46,7 @@
 import { prisma } from "@/lib/db";
 import { annotate } from "@/lib/logging/context";
 import { readRollupBuckets } from "@/lib/rollups/measurement-rollups";
+import { loadUserSourcePriority } from "@/lib/rollups/measurement-read";
 import {
   probeRollupCoverage,
   type RollupCoverageMap,
@@ -168,10 +169,13 @@ export async function computeCorrelationHypothesesFastPath(
     // could mint per-user-tz buckets if the discrepancy materialises
     // on a non-Berlin account; the n >= 20 surface gate absorbs the
     // single-day phase shift either way.
+    // v1.11.2 — load the source-priority blob once and thread it into every
+    // reader so the per-type fan-out doesn't re-query the user 3×.
+    const priority = await loadUserSourcePriority(userId);
     const [sysBuckets, pulseBuckets, weightBuckets] = await Promise.all([
-      readRollupBuckets(userId, "BLOOD_PRESSURE_SYS", "DAY", since, now),
-      readRollupBuckets(userId, "PULSE", "DAY", since, now),
-      readRollupBuckets(userId, "WEIGHT", "DAY", since, now),
+      readRollupBuckets(userId, "BLOOD_PRESSURE_SYS", "DAY", since, now, priority),
+      readRollupBuckets(userId, "PULSE", "DAY", since, now, priority),
+      readRollupBuckets(userId, "WEIGHT", "DAY", since, now, priority),
     ]);
     dailySysMean = new Map();
     for (const b of sysBuckets) {

@@ -348,27 +348,7 @@ async function computeFromRollups(userId: string): Promise<SummariesSlice> {
         ) FILTER (
           WHERE m."measured_at" >= NOW() - INTERVAL '90 days'
         )::double precision                                           AS r2_90
-      FROM (
-        SELECT mm.*
-        FROM measurements mm
-        JOIN (
-          SELECT DISTINCT ON ("type", date_trunc('day', "measured_at"))
-            "type"                              AS t,
-            date_trunc('day', "measured_at")    AS d,
-            "source"                            AS canon
-          FROM measurements
-          WHERE "user_id" = $1
-            AND "deleted_at" IS NULL
-            AND "measured_at" >= NOW() - INTERVAL '90 days'
-          ORDER BY "type", date_trunc('day', "measured_at"), (${rankUnqualified}), "source"
-        ) c
-          ON c.t = mm."type"
-          AND c.d = date_trunc('day', mm."measured_at")
-          AND c.canon = mm."source"
-        WHERE mm."user_id" = $1
-          AND mm."deleted_at" IS NULL
-          AND mm."measured_at" >= NOW() - INTERVAL '90 days'
-      ) m
+      FROM ${canonicalMeasurementsFrom(rankUnqualified, "90 days")}
       GROUP BY m."type"
     `,
       userId,

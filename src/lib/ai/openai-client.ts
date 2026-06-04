@@ -52,7 +52,10 @@ export class OpenAIClient implements AIProvider {
       },
       // 60 s ceiling so a tar-pit upstream cannot pin a worker
       // indefinitely. Real completions land well inside this budget.
-      { timeoutMs: 60_000 },
+      // v1.11.2 — the base URL is user/admin-overridable (BYO gateway), so pin
+      // the connect-time DNS check: a base URL resolving to a private/metadata
+      // address is rejected, closing the SSRF/rebinding surface.
+      { timeoutMs: 60_000, requirePublicHost: true },
     );
 
     if (!res.ok) {

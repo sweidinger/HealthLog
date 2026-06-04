@@ -34,6 +34,7 @@ import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
 import { Switch } from "@/components/ui/switch";
 import { PasswordInput } from "@/components/ui/password-input";
+import { CoachMemorySection } from "@/components/settings/coach-memory-section";
 import { useAuth } from "@/hooks/use-auth";
 import { formatDateTime } from "@/lib/format";
 import { useTranslations } from "@/lib/i18n/context";
@@ -170,7 +171,11 @@ function localiseTestReason(
 
 export function AiSection() {
   const { t } = useTranslations();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
+  // v1.11.2 — the Coach-memory panel rides the same gate as the rest of
+  // the Coach surface: when the user has hidden the Coach there is no
+  // assistant to remember anything, so the memory controls hide too.
+  const coachEnabled = !user?.disableCoach;
 
   return (
     <section aria-labelledby="settings-section-ai-title" className="space-y-6">
@@ -192,6 +197,12 @@ export function AiSection() {
           card so users who want the surface gone never have to scroll
           through provider configuration before finding the toggle. */}
       <DisableCoachCard isAuthenticated={isAuthenticated} />
+
+      {/* v1.11.2 — "What the Coach remembers": durable-fact review +
+          forget controls. Gated on the Coach being enabled. */}
+      {coachEnabled && (
+        <CoachMemorySection isAuthenticated={isAuthenticated} />
+      )}
     </section>
   );
 }
