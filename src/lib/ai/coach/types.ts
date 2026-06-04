@@ -299,6 +299,11 @@ export interface CoachMessageDTO {
 
 export interface CoachConversationDetailDTO extends CoachConversationDTO {
   messages: CoachMessageDTO[];
+  /**
+   * v1.11.1 — decrypted rolling summary of the turns elided past the history
+   * window, or null when none is on file / it could not be decrypted.
+   */
+  summary?: string | null;
 }
 
 /**

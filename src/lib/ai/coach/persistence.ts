@@ -218,6 +218,18 @@ export async function fetchConversationWithMessages(
     promptVersion: m.promptVersion,
   }));
 
+  // v1.11.1 — decrypt the rolling conversation summary (fail-closed: an
+  // undecryptable row is treated as absent so the chat turn never throws and
+  // simply falls back to the placeholder).
+  let summary: string | null = null;
+  if (row.summaryEncrypted && row.summaryEncrypted.byteLength > 0) {
+    try {
+      summary = decryptFromBytes(row.summaryEncrypted);
+    } catch {
+      summary = null;
+    }
+  }
+
   return {
     id: row.id,
     title: row.title,
@@ -225,6 +237,7 @@ export async function fetchConversationWithMessages(
     updatedAt: row.updatedAt.toISOString(),
     messageCount: messages.length,
     messages,
+    summary,
   };
 }
 
