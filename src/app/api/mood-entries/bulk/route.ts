@@ -47,6 +47,7 @@ import { moodDateKey, DEFAULT_TIMEZONE } from "@/lib/mood/date-key";
 import { invalidateUserMood } from "@/lib/cache/invalidate";
 import { recomputeMoodBucketsForEntry } from "@/lib/rollups/mood-rollups";
 import { pushMoodEntriesToMoodLog } from "@/lib/moodlog/push";
+import { createTagLinks } from "@/lib/mood/tag-links";
 
 const MAX_ENTRIES_PER_BATCH = 500;
 const BATCH_RATE_LIMIT_MAX = 60;
@@ -55,6 +56,18 @@ const BATCH_RATE_LIMIT_WINDOW_MS = 60 * 1000;
 const bulkEntrySchema = z.object({
   mood: moodLevelEnum,
   tags: z.array(z.string().max(50)).max(20).optional(),
+  /**
+   * v1.12.0 — structured-tag keys from the catalog (`mood_tags.key`),
+   * mirroring the single-entry `POST /api/mood-entries` contract.
+   * Without this the bulk path Zod-stripped the field, so iOS-sent
+   * taxonomy links were silently dropped on the adopt-on-pair backfill.
+   * The server resolves each key to a `MoodTag` row and writes the
+   * `MoodEntryTagLink` join; unknown keys are dropped silently (the
+   * catalog is the source of truth). Bounds match the single-entry
+   * `structuredTagKeys` schema so one entry can't fan out an unbounded
+   * link set.
+   */
+  tagKeys: z.array(z.string().max(60)).max(30).optional(),
   note: z.string().max(500).optional(),
   moodLoggedAt: z.iso.datetime({ offset: true }).transform((s) => new Date(s)),
   source: moodSourceEnum.optional().default("MANUAL"),
@@ -203,6 +216,17 @@ async function postBulk(request: NextRequest): Promise<Response> {
           note: entry.note ?? null,
         },
       });
+
+      // v1.12.0 — persist structured-tag links, mirroring the
+      // single-entry `createTagLinks` path. Additive + idempotent:
+      // `createTagLinks` resolves keys against the catalog (dropping
+      // unknown keys) and `skipDuplicates` on the join insert keeps a
+      // re-posted entry from minting duplicate links. Runs for both
+      // fresh and re-posted (upserted) rows so a backfill that adds tag
+      // keys on a second pass still lands them.
+      if (entry.tagKeys && entry.tagKeys.length > 0) {
+        await createTagLinks(result.id, entry.tagKeys);
+      }
 
       if (existing) {
         duplicates += 1;

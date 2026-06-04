@@ -510,7 +510,8 @@
       "sleep": "Sommeil",
       "health": "Santé",
       "social": "Social",
-      "work": "Travail"
+      "work": "Travail",
+      "hobbies": "Loisirs"
     },
     "tag": {
       "happy": "heureux",
@@ -542,7 +543,15 @@
       "overtime": "heures sup",
       "dayOff": "jour de repos",
       "travel": "voyage",
-      "sickDay": "jour de maladie"
+      "sickDay": "jour de maladie",
+      "movies": "films",
+      "reading": "lecture",
+      "gaming": "jeux vidéo",
+      "music": "musique",
+      "outdoors": "plein air",
+      "fastFood": "fast-food",
+      "noSweets": "sans sucreries",
+      "bigMeal": "gros repas"
     }
   },
   "medications": {

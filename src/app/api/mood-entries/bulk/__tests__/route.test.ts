@@ -15,6 +15,14 @@ vi.mock("@/lib/db", () => ({
   },
 }));
 
+vi.mock("@/lib/mood/tag-links", () => ({
+  createTagLinks: vi.fn().mockResolvedValue(undefined),
+}));
+
+vi.mock("@/lib/moodlog/push", () => ({
+  pushMoodEntriesToMoodLog: vi.fn().mockResolvedValue(undefined),
+}));
+
 vi.mock("@/lib/auth/session", () => ({ getSession: vi.fn() }));
 vi.mock("@/lib/auth/audit", () => ({
   auditLog: vi.fn().mockResolvedValue(undefined),
@@ -52,6 +60,8 @@ import { POST } from "../route";
 import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/auth/session";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { createTagLinks } from "@/lib/mood/tag-links";
+import { pushMoodEntriesToMoodLog } from "@/lib/moodlog/push";
 
 const SESSION_OK = {
   session: { id: "sess-1", expiresAt: new Date(Date.now() + 3_600_000) },
@@ -71,6 +81,15 @@ beforeEach(() => {
   vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
   vi.mocked(prisma.auditLog.create).mockResolvedValue({} as never);
   vi.mocked(checkRateLimit).mockResolvedValue({ allowed: true } as never);
+  vi.mocked(createTagLinks).mockResolvedValue(undefined);
+  // `vi.resetAllMocks()` above wipes the factory default, so the
+  // best-effort reverse-sync push must be re-stubbed to a resolved
+  // promise — the route calls `.catch()` on its return value.
+  vi.mocked(pushMoodEntriesToMoodLog).mockResolvedValue({
+    pushed: 0,
+    skipped: 0,
+    status: "skipped",
+  });
 });
 
 describe("POST /api/mood-entries/bulk — 422 multi-issue (v1.4.43 W6)", () => {
@@ -151,5 +170,57 @@ describe("POST /api/mood-entries/bulk — 422 multi-issue (v1.4.43 W6)", () => {
       }),
     );
     expect(res.status).toBe(422);
+  });
+});
+
+describe("POST /api/mood-entries/bulk — structured tagKeys (v1.12.0)", () => {
+  beforeEach(() => {
+    vi.mocked(prisma.moodEntry.findUnique).mockResolvedValue(null as never);
+    vi.mocked(prisma.moodEntry.upsert).mockResolvedValue({
+      id: "entry-1",
+    } as never);
+  });
+
+  it("persists structured tag links for an entry carrying tagKeys", async () => {
+    const res = await POST(
+      postReq({
+        entries: [
+          {
+            mood: "GUT",
+            moodLoggedAt: "2026-05-16T08:00:00.000Z",
+            tagKeys: ["movies", "gaming"],
+          },
+        ],
+      }),
+    );
+    expect(res.status).toBe(200);
+    expect(createTagLinks).toHaveBeenCalledTimes(1);
+    expect(createTagLinks).toHaveBeenCalledWith("entry-1", ["movies", "gaming"]);
+  });
+
+  it("skips the tag-link write when an entry sends no tagKeys", async () => {
+    const res = await POST(
+      postReq({
+        entries: [{ mood: "OKAY", moodLoggedAt: "2026-05-16T08:00:00.000Z" }],
+      }),
+    );
+    expect(res.status).toBe(200);
+    expect(createTagLinks).not.toHaveBeenCalled();
+  });
+
+  it("strips an over-long tagKeys array at the schema boundary (422)", async () => {
+    const res = await POST(
+      postReq({
+        entries: [
+          {
+            mood: "OKAY",
+            moodLoggedAt: "2026-05-16T08:00:00.000Z",
+            tagKeys: Array.from({ length: 31 }, (_, i) => `k${i}`),
+          },
+        ],
+      }),
+    );
+    expect(res.status).toBe(422);
+    expect(createTagLinks).not.toHaveBeenCalled();
   });
 });

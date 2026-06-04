@@ -510,7 +510,8 @@
       "sleep": "Sleep",
       "health": "Health",
       "social": "Social",
-      "work": "Work"
+      "work": "Work",
+      "hobbies": "Hobbies"
     },
     "tag": {
       "happy": "happy",
@@ -542,7 +543,15 @@
       "overtime": "overtime",
       "dayOff": "day off",
       "travel": "travel",
-      "sickDay": "sick day"
+      "sickDay": "sick day",
+      "movies": "movies",
+      "reading": "reading",
+      "gaming": "gaming",
+      "music": "music",
+      "outdoors": "outdoors",
+      "fastFood": "fast food",
+      "noSweets": "no sweets",
+      "bigMeal": "big meal"
     }
   },
   "medications": {

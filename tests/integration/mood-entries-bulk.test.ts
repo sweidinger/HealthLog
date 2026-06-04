@@ -153,6 +153,61 @@ describe("POST /api/mood-entries/bulk (real Postgres)", () => {
     expect(stored[0].score).toBe(5);
   });
 
+  it("persists structured tagKeys as MoodEntryTagLink rows (v1.12.0)", async () => {
+    const { POST } = await import("@/app/api/mood-entries/bulk/route");
+    const res = await POST(
+      makeRequest({
+        entries: [
+          {
+            mood: "GUT",
+            moodLoggedAt: "2026-05-16T08:00:00.000Z",
+            // Two valid catalog keys (one from the new hobbies category,
+            // one nutrition-detail key) plus one unknown key that must be
+            // dropped silently.
+            tagKeys: ["movies", "fast_food", "not_a_real_tag"],
+          },
+        ],
+      }),
+    );
+    expect(res.status).toBe(200);
+    const json = (await res.json()) as { data: { inserted: number } };
+    expect(json.data.inserted).toBe(1);
+
+    const entry = await getPrismaClient().moodEntry.findFirstOrThrow({
+      where: { userId: TEST_USER_ID },
+    });
+    const links = await getPrismaClient().moodEntryTagLink.findMany({
+      where: { moodEntryId: entry.id },
+      select: { moodTag: { select: { key: true } } },
+    });
+    const keys = links.map((l) => l.moodTag.key).sort();
+    // The unknown key is dropped; the two catalog keys round-trip.
+    expect(keys).toEqual(["fast_food", "movies"]);
+  });
+
+  it("ignores tagKeys that resolve to no catalog rows", async () => {
+    const { POST } = await import("@/app/api/mood-entries/bulk/route");
+    const res = await POST(
+      makeRequest({
+        entries: [
+          {
+            mood: "OKAY",
+            moodLoggedAt: "2026-05-16T09:00:00.000Z",
+            tagKeys: ["totally_unknown_key"],
+          },
+        ],
+      }),
+    );
+    expect(res.status).toBe(200);
+    const entry = await getPrismaClient().moodEntry.findFirstOrThrow({
+      where: { userId: TEST_USER_ID },
+    });
+    const linkCount = await getPrismaClient().moodEntryTagLink.count({
+      where: { moodEntryId: entry.id },
+    });
+    expect(linkCount).toBe(0);
+  });
+
   it("rejects an over-cap batch with 422 and the documented error code", async () => {
     const { POST } = await import("@/app/api/mood-entries/bulk/route");
     const entries = Array.from({ length: 501 }, (_, i) => ({
