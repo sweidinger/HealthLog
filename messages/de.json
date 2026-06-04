@@ -1736,6 +1736,8 @@
       "errorCredentialExpired": "Deine Verbindung zum KI-Anbieter ist abgelaufen. Stelle sie in den Einstellungen wieder her, damit der Coach weiterläuft.",
       "tagline": "Persönlicher Gesundheitscoach, auf deine Daten gestützt.",
       "newChat": "Neuer Chat",
+      "maximizeAriaLabel": "Im Vollbild öffnen",
+      "minimizeAriaLabel": "Zurück zum Seitenfenster",
       "send": "Senden",
       "stop": "Stopp",
       "thinking": "Denke nach…",

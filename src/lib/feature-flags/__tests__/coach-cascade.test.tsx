@@ -283,6 +283,9 @@ describe("Coach disable cascade invariant", () => {
     "src/components/insights/layout-coach-fab.tsx",
     "src/components/insights/layout-coach-mount.tsx",
     "src/components/insights/suggested-prompts.tsx",
+    // v1.12.0 — the full-page Coach route gates on `flags.coach` and
+    // redirects to `/insights` when the operator master flag is off.
+    "src/app/insights/coach/page.tsx",
   ];
 
   /**

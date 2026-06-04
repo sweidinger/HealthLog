@@ -1736,6 +1736,8 @@
       "errorCredentialExpired": "Ta connexion au fournisseur d'IA a expiré. Reconnecte-la dans les Réglages pour que le Coach continue de fonctionner.",
       "tagline": "Coach personnel de santé, ancré sur tes données.",
       "newChat": "Nouvelle conversation",
+      "maximizeAriaLabel": "Ouvrir en pleine page",
+      "minimizeAriaLabel": "Revenir au panneau",
       "send": "Envoyer",
       "stop": "Arrêter",
       "thinking": "Réflexion en cours…",
