@@ -63,6 +63,7 @@ import {
 } from "lucide-react";
 import { useId, useState } from "react";
 import { createPortal } from "react-dom";
+import { toast } from "sonner";
 import { formatDateTime } from "@/lib/format";
 import { useTranslations, useFormatters } from "@/lib/i18n/context";
 import {
@@ -205,6 +206,13 @@ export function MoodList({ onAddFirst }: MoodListProps = {}) {
     },
     onSuccess: () => {
       void invalidateKeys(queryClient, moodDependentKeys);
+    },
+    // v1.11.5 — a failed delete used to fail silently (no onError handler),
+    // leaving the row in place with no signal that the request was rejected.
+    // Surface the failure so the user knows to retry. Mirrors the v1.11.3
+    // medication-card silent-failure fix.
+    onError: () => {
+      toast.error(t("mood.deleteError"));
     },
   });
 
