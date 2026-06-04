@@ -571,15 +571,30 @@ export default function DashboardPage() {
   const showSleepChart = isChartVisible("sleep") && hasSleep;
   const showStepsChart = isChartVisible("steps") && hasSteps;
   const showMedicationsCard = isChartVisible("medications");
+  // `layoutData` is undefined until the real layout (snapshot or legacy
+  // widgets) resolves; `resolveDashboardLayout(undefined)` falls back to
+  // DEFAULT_DASHBOARD_LAYOUT, where `achievements` is visible by default.
+  // Gating layout-toggle-only cards on that fallback flashed them in for
+  // the load window and then retracted them for any user who had turned
+  // the widget OFF (their real layout arriving after first paint). The
+  // data-driven tiles tolerate the fallback because they also gate on a
+  // data floor; the achievements + recent-workouts cards have no floor,
+  // so wait for the real layout before committing them.
+  const layoutResolved = layoutData != null;
   // v1.4.15 phase-B4 — recent unlocks dashboard surface. The card itself
-  // self-handles the empty state (CTA → /achievements), so we only need
-  // the layout-toggle gate here. No data-floor check (the empty card is
-  // intentional — the maintainer wants the user to discover the feature).
-  const showAchievementsCard = isChartVisible("achievements");
+  // self-handles the loading skeleton + empty state (CTA → /achievements),
+  // so we only need the layout-toggle gate here. No data-floor check (the
+  // empty card is intentional — the maintainer wants the user to discover
+  // the feature).
+  const showAchievementsCard = layoutResolved && isChartVisible("achievements");
   // v1.4.32 — recent workouts dashboard tile. Self-gates on the
   // workouts query response so we only need the layout toggle here;
-  // the tile renders an Apple-Health-onboarding hint when empty.
-  const showRecentWorkoutsTile = isChartVisible("recentWorkouts");
+  // the tile renders an Apple-Health-onboarding hint when empty. Same
+  // layout-resolved gate as the achievements card — default-visible with
+  // no data floor, so it would otherwise flash in then retract for a user
+  // who hid it.
+  const showRecentWorkoutsTile =
+    layoutResolved && isChartVisible("recentWorkouts");
 
   // Glucose widget — visible iff layout enables it AND at least one reading exists.
   // Glucose has no separate chart slot today, so the tile flag is the

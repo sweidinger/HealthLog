@@ -18,21 +18,24 @@ vi.mock("@/hooks/use-auth", () => ({
   useAuth: () => ({ isAuthenticated: true }),
 }));
 
-let mockData: {
-  summary: unknown;
-  achievements: AchievementProgress[];
-  metrics: unknown;
-} = {
+let mockData:
+  | {
+      summary: unknown;
+      achievements: AchievementProgress[];
+      metrics: unknown;
+    }
+  | undefined = {
   summary: {},
   achievements: [],
   metrics: {},
 };
+let mockIsPending = false;
 
 // v1.4.34 IW-F-Perf — the card now reads through the shared
 // `useAchievementsQuery` hook; the test mocks the hook directly so the
 // network layer + TanStack provider scaffolding stays out of scope.
 vi.mock("@/lib/queries/use-achievements-query", () => ({
-  useAchievementsQuery: () => ({ data: mockData }),
+  useAchievementsQuery: () => ({ data: mockData, isPending: mockIsPending }),
 }));
 
 import {
@@ -50,6 +53,7 @@ function render() {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  mockIsPending = false;
 });
 
 const baseAchievement: AchievementProgress = {
@@ -127,6 +131,22 @@ describe("pickRecentUnlocks", () => {
 });
 
 describe("<RecentAchievementsCard>", () => {
+  it("renders a skeleton (no content, no empty state) while the query is pending", () => {
+    // The flash this guards against: before the query settles the card
+    // used to paint the empty / content branch and then retract it once
+    // the real payload arrived. The skeleton commits to neither.
+    mockIsPending = true;
+    mockData = undefined;
+    const html = render();
+    expect(html).toContain('data-slot="recent-achievements-skeleton"');
+    // Neither the empty-state copy nor any content item paints while
+    // pending — nothing to retract.
+    expect(html).not.toContain("No achievements yet");
+    expect(html).not.toContain('data-slot="recent-achievement-item"');
+    // The card header still anchors the footprint.
+    expect(html).toContain("Recent unlocks");
+  });
+
   it("shows the empty-state CTA when no unlocks exist", () => {
     mockData = { summary: {}, achievements: [], metrics: {} };
     const html = render();

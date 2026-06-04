@@ -81,7 +81,14 @@ const RECENT_LIMIT = 3;
 export function RecentAchievementsCard() {
   const { t } = useTranslations();
 
-  const { data } = useAchievementsQuery();
+  // `isPending` (no data yet, fetch in flight or gated) drives the
+  // loading branch. Rendering the empty / content branch before the
+  // query settles caused an appear-then-retract flash on a cold load:
+  // the card painted its "no achievements yet" empty state (or stale
+  // content) for the fetch window, then swapped once the real payload
+  // landed. A skeleton holds the card's footprint without committing to
+  // a content shape it may have to retract.
+  const { data, isPending } = useAchievementsQuery();
 
   const recent = pickRecentUnlocks(data?.achievements ?? [], RECENT_LIMIT);
 
@@ -105,7 +112,26 @@ export function RecentAchievementsCard() {
         </Link>
       </div>
 
-      {recent.length === 0 ? (
+      {isPending ? (
+        <ul
+          data-slot="recent-achievements-skeleton"
+          aria-hidden="true"
+          className="space-y-2 motion-reduce:animate-none"
+        >
+          {Array.from({ length: RECENT_LIMIT }).map((_, idx) => (
+            <li
+              key={`achievement-skeleton-${idx}`}
+              className="border-border bg-background/40 flex items-center gap-3 rounded-md border p-2"
+            >
+              <div className="bg-muted/60 h-7 w-7 shrink-0 animate-pulse rounded-md motion-reduce:animate-none" />
+              <div className="min-w-0 flex-1 space-y-1.5">
+                <div className="bg-muted/60 h-3 w-1/2 animate-pulse rounded motion-reduce:animate-none" />
+                <div className="bg-muted/60 h-2.5 w-3/4 animate-pulse rounded motion-reduce:animate-none" />
+              </div>
+            </li>
+          ))}
+        </ul>
+      ) : recent.length === 0 ? (
         <p className="text-muted-foreground py-2 text-sm">
           {t("achievements.dashboardCard.empty")}
         </p>
