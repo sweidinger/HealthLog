@@ -100,6 +100,8 @@ async function main() {
       moodLogApiKeyEncrypted: true,
       withingsClientIdEncrypted: true,
       withingsClientSecretEncrypted: true,
+      whoopClientIdEncrypted: true,
+      whoopClientSecretEncrypted: true,
     },
   });
 
@@ -115,6 +117,8 @@ async function main() {
     "moodLogApiKeyEncrypted",
     "withingsClientIdEncrypted",
     "withingsClientSecretEncrypted",
+    "whoopClientIdEncrypted",
+    "whoopClientSecretEncrypted",
   ];
   for (const field of userFields) {
     const r = await rotateField(
@@ -144,6 +148,26 @@ async function main() {
       (w) => w[field],
       async (id, ciphertext) => {
         await prisma.withingsConnection.update({
+          where: { id },
+          data: { [field]: ciphertext } as Record<string, string>,
+        });
+      },
+    );
+    results.push(r);
+  }
+
+  // ───── WhoopConnection table (accessToken / refreshToken) ─────
+  const whoop = await prisma.whoopConnection.findMany({
+    select: { id: true, accessToken: true, refreshToken: true },
+  });
+  for (const field of ["accessToken", "refreshToken"] as const) {
+    const r = await rotateField(
+      "WhoopConnection",
+      field,
+      whoop,
+      (w) => w[field],
+      async (id, ciphertext) => {
+        await prisma.whoopConnection.update({
           where: { id },
           data: { [field]: ciphertext } as Record<string, string>,
         });
