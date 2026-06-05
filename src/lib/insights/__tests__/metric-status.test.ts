@@ -135,6 +135,68 @@ describe("generateMetricStatus — SLEEP_DURATION night reconstruction (iOS E2)"
     expect(prompt).not.toContain('"value": 75');
     expect(prompt).not.toContain('"value": 90');
   });
+
+  it("the snapshot graded series is the deduped night total, never the ~20 h raw-stage sum (A4)", async () => {
+    // The ~20.3 h symptom: a source writes BOTH a bare ASLEEP aggregate AND the
+    // granular CORE/DEEP/REM partition for the same span. Pre-fix the graded
+    // `series` came from `buildGradedSeriesWithRollups`, which folds bare + each
+    // granular stage + IN_BED + AWAKE into one day bucket (~1490 min ≈ 24.8 h).
+    // Post-fix the graded series is built from the deduped per-night points, so
+    // every recent bucket mean is the night total (480 min = 8 h).
+    vi.mocked(prisma.auditLog.findFirst).mockResolvedValue(null as never);
+    vi.mocked(prisma.user.findUnique).mockResolvedValue({
+      dateOfBirth: null,
+      gender: null,
+    } as never);
+    vi.mocked(prisma.auditLog.create).mockResolvedValue({
+      createdAt: new Date(),
+    } as never);
+
+    // A recent night (last 24 h) so it lands in `graded.recent`.
+    const wake = new Date(Date.now() - 6 * 60 * 60 * 1000);
+    const m = 60 * 1000;
+    const stageRows = [
+      { value: 480, measuredAt: wake, sleepStage: "ASLEEP", source: "APPLE_HEALTH" }, // bare aggregate
+      { value: 240, measuredAt: new Date(wake.getTime() - 240 * m), sleepStage: "CORE", source: "APPLE_HEALTH" },
+      { value: 120, measuredAt: new Date(wake.getTime() - 120 * m), sleepStage: "DEEP", source: "APPLE_HEALTH" },
+      { value: 120, measuredAt: wake, sleepStage: "REM", source: "APPLE_HEALTH" },
+      { value: 470, measuredAt: wake, sleepStage: "IN_BED", source: "APPLE_HEALTH" },
+      { value: 20, measuredAt: new Date(wake.getTime() - 200 * m), sleepStage: "AWAKE", source: "APPLE_HEALTH" },
+    ];
+    vi.mocked(prisma.measurement.count).mockResolvedValue(
+      stageRows.length as never,
+    );
+    vi.mocked(prisma.measurement.findMany).mockResolvedValue(
+      stageRows as never,
+    );
+
+    const capture = { systemPrompt: null, userPrompt: null } as {
+      systemPrompt: string | null;
+      userPrompt: string | null;
+    };
+    stubCompletion("Summary: solide Nacht.", capture);
+
+    await generateMetricStatus({
+      metric: "SLEEP_DURATION",
+      userId: "u1",
+      locale: "de",
+      force: true,
+    });
+
+    const prompt = capture.userPrompt as string;
+    const match = prompt.match(/\{[\s\S]*\}/);
+    expect(match).toBeTruthy();
+    const snapshot = JSON.parse(match![0]);
+    const recent = snapshot.SLEEP_DURATION.series.recent as Array<{
+      mean: number;
+    }>;
+    expect(recent.length).toBeGreaterThan(0);
+    for (const bucket of recent) {
+      // Night total (480 min = 8 h), never the impossible ~1490-min stage sum.
+      expect(bucket.mean).toBeLessThanOrEqual(960); // ≤ 16 h
+    }
+    expect(recent.at(-1)?.mean).toBe(480);
+  });
 });
 
 describe("metric-status registry", () => {

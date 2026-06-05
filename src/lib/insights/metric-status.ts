@@ -47,6 +47,7 @@ import { lookupNormalRange } from "@/lib/insights/derived/norms";
 import { getNoKeyGeneralStatusText } from "@/lib/insights/no-key-fallbacks";
 import { applyPayloadBudget } from "@/lib/insights/bucket-series";
 import {
+  buildGradedSeriesFromPoints,
   buildGradedSeriesWithRollups,
   degradeStatusSnapshotToBudget,
 } from "@/lib/insights/graded-series";
@@ -271,11 +272,20 @@ export async function generateMetricStatus(args: {
     measurements = rows.map((m) => ({ measuredAt: m.measuredAt }));
   }
   const series = applyPayloadBudget(points, { now });
-  const graded = await buildGradedSeriesWithRollups(
-    args.userId,
-    meta.measurementType,
-    now,
-  );
+  // SLEEP_DURATION must never go through `buildGradedSeriesWithRollups`: that
+  // path reads RAW per-stage rows (and the stage-summed `measurement_rollups`
+  // tier) and folds IN_BED + AWAKE + bare ASLEEP + CORE/DEEP/REM into one
+  // bucket, double-counting the bare aggregate against its granular partition —
+  // it produces an impossible ~20 h "average sleep". Build the graded series
+  // straight from the deduped per-night TIME-ASLEEP `points` instead, so every
+  // recent/weekly/monthly/yearly bucket is a night total, not a stage sum.
+  const graded = isSleep
+    ? buildGradedSeriesFromPoints(points, now)
+    : await buildGradedSeriesWithRollups(
+        args.userId,
+        meta.measurementType,
+        now,
+      );
   const summary = summarizeSeries(
     series.daily.map((bucket) => ({ value: bucket.value })),
   );

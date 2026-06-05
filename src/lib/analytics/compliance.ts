@@ -27,6 +27,8 @@ import {
 } from "@/lib/medications/scheduling/cadence";
 import { streaksFromTimeline } from "@/lib/medications/scheduling/compliance";
 import {
+  expandRollingRetrospective,
+  nextOccurrenceAfter,
   occurrencesBetween,
   type CanonicalSchedule,
   type Occurrence,
@@ -254,6 +256,28 @@ export function lastNonSkippedTakenAt(
 }
 
 /**
+ * v1.13.x — the non-skipped `takenAt` instants at or before `now`, ascending.
+ * These anchor the retrospective rolling expected-dose grid (each logged dose
+ * is one satisfied expected slot). The full history is passed — not just the
+ * compliance window — so the gap-walk between consecutive intakes (which
+ * synthesizes skipped-cycle misses) and the forward next-due anchor stay
+ * correct across the window boundary; `expandRollingRetrospective` clamps the
+ * emitted slots to its own `[from, to]`.
+ */
+function rollingIntakeInstants(
+  events: { takenAt: Date | null; skipped: boolean }[],
+  now: Date,
+): Date[] {
+  return events
+    .filter(
+      (e): e is { takenAt: Date; skipped: boolean } =>
+        !e.skipped && e.takenAt !== null && e.takenAt.getTime() <= now.getTime(),
+    )
+    .map((e) => e.takenAt)
+    .sort((a, b) => a.getTime() - b.getTime());
+}
+
+/**
  * v1.8.5 — adapt a compliance medication context to the canonical engine's
  * {@link RecurrenceContext}. The synthetic medication `id` only labels the
  * row for the engine's internal logging; the `idTag` keeps the two callers'
@@ -301,29 +325,95 @@ function toCanonicalSchedule(
 }
 
 /**
+ * v1.13.x — non-skipped intake instants for the retrospective rolling grid,
+ * mirroring {@link rollingIntakeInstants} but reading the public
+ * `{ takenAt, skipped }[]` shape the `expectedSlots*` callers pass. The
+ * `expectedSlots*` helpers accept this so their rolling denominator uses the
+ * SAME expansion as the displayed-rate numerator in {@link calculateCompliance}.
+ */
+export interface ComplianceIntakeInstant {
+  takenAt: Date | null;
+  skipped: boolean;
+}
+
+function intakeInstantsAtOrBefore(
+  intakes: ComplianceIntakeInstant[],
+  now: Date,
+): Date[] {
+  return intakes
+    .filter(
+      (e): e is { takenAt: Date; skipped: boolean } =>
+        !e.skipped && e.takenAt !== null && e.takenAt.getTime() <= now.getTime(),
+    )
+    .map((e) => e.takenAt)
+    .sort((a, b) => a.getTime() - b.getTime());
+}
+
+/**
+ * v1.13.x — expand one schedule's expected occurrences over `[from, to]`,
+ * routing a ROLLING schedule through the retrospective builder when intake
+ * history is supplied (`intakeInstants` + `now`) and the forward-only engine
+ * path for every other shape. This is the single expansion the slot-count
+ * helpers and the displayed-rate timeline both delegate to, so the heatmap
+ * `due` flags, the window-selection denominator, and the percentage agree.
+ */
+function expandComplianceOccurrences(
+  canonical: CanonicalSchedule,
+  recurrenceCtx: RecurrenceContext,
+  from: Date,
+  to: Date,
+  retro: { intakeInstants: Date[]; now: Date } | undefined,
+): Occurrence[] {
+  if (retro && canonical.rollingIntervalDays !== null) {
+    return expandRollingRetrospective(
+      canonical,
+      recurrenceCtx,
+      from,
+      to,
+      retro.intakeInstants,
+      retro.now,
+    );
+  }
+  return occurrencesBetween(canonical, from, to, recurrenceCtx);
+}
+
+/**
  * v1.7.0 item 5 — count the expected dose slots a medication's schedules
  * emit inside `[dayStart, dayEnd)`, routed through the canonical engine.
  * Powers the per-day `due` / `expectedCount` fields on the per-med
  * compliance payload so iOS history renders a "missed" mark only on days
  * the schedule actually expected a dose (not off-weeks / non-matching
  * weekdays / PRN days).
+ *
+ * v1.13.x — pass `intakes` so a ROLLING schedule routes through the
+ * retrospective grid (each logged dose is a `due` day, plus skipped-cycle
+ * misses + a past-due forward slot) instead of the engine's single forward
+ * slot. Omitting `intakes` keeps the forward-only behaviour for callers that
+ * don't have the intake history at hand.
  */
 export function expectedSlotCountForDay(
   schedules: ComplianceSchedule[],
   dayStart: Date,
   dayEnd: Date,
   ctx: ComplianceMedicationContext,
+  intakes?: ComplianceIntakeInstant[],
 ): number {
   let count = 0;
   const recurrenceCtx = toRecurrenceCtx(ctx, "compliance-daily");
+  const now = new Date();
+  const retro =
+    intakes && schedules.some((s) => s.rollingIntervalDays != null)
+      ? { intakeInstants: intakeInstantsAtOrBefore(intakes, now), now }
+      : undefined;
   for (let i = 0; i < schedules.length; i++) {
-    count += occurrencesBetween(
+    count += expandComplianceOccurrences(
       toCanonicalSchedule(schedules[i], `compliance-daily-${i}`),
+      recurrenceCtx,
       dayStart,
       // occurrencesBetween is inclusive of both ends; subtract 1 ms so a
       // slot exactly at the next day's midnight doesn't double-count.
       new Date(dayEnd.getTime() - 1),
-      recurrenceCtx,
+      retro,
     ).length;
   }
   return count;
@@ -356,18 +446,29 @@ export function expectedSlotsBetween(
   from: Date,
   to: Date,
   ctx: ComplianceMedicationContext,
+  intakes?: ComplianceIntakeInstant[],
 ): Occurrence[] {
   const recurrenceCtx = toRecurrenceCtx(ctx, "compliance-slots");
   const effectiveFrom =
     ctx.createdAt.getTime() > from.getTime() ? ctx.createdAt : from;
+  // v1.13.x — for a ROLLING schedule the expected grid is reconstructed from
+  // the intake history (each logged dose is one satisfied expected slot) so
+  // the window-selection denominator matches the displayed rate. The forward
+  // next-due slot counts only when past-due relative to `to` (the window's
+  // upper bound), so a not-yet-due open cycle never inflates the count.
+  const retro =
+    intakes && schedules.some((s) => s.rollingIntervalDays != null)
+      ? { intakeInstants: intakeInstantsAtOrBefore(intakes, to), now: to }
+      : undefined;
   const all: Occurrence[] = [];
   for (let i = 0; i < schedules.length; i++) {
     all.push(
-      ...occurrencesBetween(
+      ...expandComplianceOccurrences(
         toCanonicalSchedule(schedules[i], `compliance-slots-${i}`),
+        recurrenceCtx,
         effectiveFrom,
         to,
-        recurrenceCtx,
+        retro,
       ),
     );
   }
@@ -432,7 +533,7 @@ export interface ComplianceWindowSelection {
 export function selectComplianceWindows(
   schedules: ComplianceSchedule[],
   ctx: ComplianceMedicationContext,
-  options?: { now?: Date },
+  options?: { now?: Date; intakes?: ComplianceIntakeInstant[] },
 ): ComplianceWindowSelection {
   const now = options?.now ?? new Date();
   const DAY_MS = 24 * 60 * 60 * 1000;
@@ -443,6 +544,7 @@ export function selectComplianceWindows(
       new Date(now.getTime() - days * DAY_MS),
       now,
       ctx,
+      options?.intakes,
     ).length;
 
   // Memoise per distinct window so a shared rung boundary (e.g. 30 / 90)
@@ -488,6 +590,43 @@ export function selectComplianceWindows(
  * steps both windows up so each row covers enough expected doses to be
  * meaningful.
  */
+/**
+ * v1.13.x Fix 4 — the current-cycle descriptor. SEPARATE from the
+ * percentage rows: a sparse med (weekly+ injection) whose current cycle is
+ * not yet due must NOT render a scary red 0%. The percentage rows reflect
+ * only CLOSED cycles (the open forward cycle is `upcoming`, excluded from
+ * the denominator); this descriptor carries the open-cycle state so the
+ * card can render a neutral "next dose in N days" / "due today" / "overdue"
+ * line decoupled from the rate.
+ *
+ * States:
+ *   - `on_track`: `now < nextDueAt`. The next dose simply hasn't come round.
+ *   - `due`: `nextDueAt ≤ now ≤ graceUntil`. A neutral / amber call-to-action.
+ *   - `missed`: `now > graceUntil` and the cycle has no logged intake. The
+ *     only state that should tint red.
+ *   - `none`: no schedule projects a next dose (PRN, paused, ended). The
+ *     card shows no current-cycle line.
+ *
+ * `hasClosedCycles` is false for a brand-new sparse med with zero closed
+ * dose cycles — the card then surfaces a neutral "no closed dose cycles
+ * yet" state instead of a misleading 100% / 0%.
+ */
+export type CurrentCycleState = "on_track" | "due" | "missed" | "none";
+
+export interface CurrentCycle {
+  state: CurrentCycleState;
+  /** The open cycle's due instant (ISO via JSON). Null when `state === "none"`. */
+  nextDueAt: Date | null;
+  /** End of the due slot's grace window. Null when `state === "none"`. */
+  graceUntil: Date | null;
+  /**
+   * Whether the trailing window holds at least one CLOSED dose cycle. When
+   * false the percentage rows are vacuous (no closed cycle to score) and the
+   * card should show a neutral "not enough data yet" state.
+   */
+  hasClosedCycles: boolean;
+}
+
 export interface ComplianceDisplay {
   shortDays: number;
   longDays: number;
@@ -501,6 +640,102 @@ export interface ComplianceDisplay {
   short: { rate: number; streak: number };
   /** Compliance percentage over the long window. */
   long: { rate: number };
+  /**
+   * v1.13.x Fix 4 — the open-cycle state, decoupled from the percentage
+   * rows so a between-doses sparse med never renders a scary red number.
+   */
+  currentCycle: CurrentCycle;
+}
+
+/**
+ * v1.13.x Fix 4 — classify the medication's open (current) dose cycle.
+ *
+ * Uses the canonical engine's {@link nextOccurrenceAfter} to find the
+ * earliest projected dose at or after the start of the search (one ms before
+ * `now` so a slot landing exactly now is captured). The rolling branch of
+ * `nextOccurrenceAfter` floors to the start of the user's current day, so an
+ * overdue rolling dose still surfaces as the next slot — that lets us tell a
+ * not-yet-due (`on_track`) cycle apart from an overdue one (`due` / `missed`).
+ *
+ * `hasClosedCycles` reads `expectedShort` from the already-computed window
+ * selection: a window holding zero expected (closed) doses means the
+ * percentage rows are vacuous and the card should show a neutral state.
+ */
+export function buildCurrentCycle(
+  schedules: ComplianceSchedule[],
+  ctx: ComplianceMedicationContext,
+  now: Date,
+  expectedShort: number,
+  intakes?: ComplianceIntakeInstant[],
+): CurrentCycle {
+  const recurrenceCtx = toRecurrenceCtx(ctx, "compliance-cycle");
+  const DAY_MS = 24 * 60 * 60 * 1000;
+  const lastIntakeAt =
+    lastNonSkippedTakenAt(intakes ?? []) ?? ctx.lastIntakeAt;
+
+  // The open cycle's due instant + grace, picked as the SOONEST across every
+  // schedule. Two paths:
+  //   - ROLLING: the engine's `nextOccurrenceAfter` deliberately rolls an
+  //     overdue re-anchored dose forward (it floors to the start of the
+  //     user's current day), so it cannot surface an open cycle that is more
+  //     than a day overdue. For the current-cycle descriptor we instead
+  //     compute the due instant directly: `(lastNonSkippedIntake) + N` (or
+  //     `startsOn ?? createdAt` with no intake). This is what lets `due` /
+  //     `missed` be distinguished from `on_track`.
+  //   - NON-ROLLING: `nextOccurrenceAfter` already surfaces the next due
+  //     slot (RRULE / legacy / one-shot / cyclic).
+  let dueAt: Date | null = null;
+  let graceUntil: Date | null = null;
+  const consider = (at: Date, grace: Date): void => {
+    if (dueAt === null || at.getTime() < dueAt.getTime()) {
+      dueAt = at;
+      graceUntil = grace;
+    }
+  };
+
+  for (let i = 0; i < schedules.length; i++) {
+    const s = schedules[i];
+    const canonical = toCanonicalSchedule(s, `compliance-cycle-${i}`);
+    if (canonical.scheduleType === "PRN") continue;
+    const n = canonical.rollingIntervalDays;
+    if (n !== null && n > 0) {
+      const anchor =
+        lastIntakeAt !== null
+          ? new Date(lastIntakeAt.getTime() + n * DAY_MS)
+          : ctx.startsOn ?? ctx.createdAt;
+      if (ctx.endsOn && anchor.getTime() > ctx.endsOn.getTime()) continue;
+      const graceMs =
+        (canonical.reminderGraceMinutes ?? 60) * 60 * 1000;
+      consider(anchor, new Date(anchor.getTime() + graceMs));
+      continue;
+    }
+    const occ = nextOccurrenceAfter(
+      canonical,
+      new Date(now.getTime() - 1),
+      recurrenceCtx,
+    );
+    if (occ) consider(occ.at, occ.graceUntil);
+  }
+
+  const hasClosedCycles = expectedShort > 0;
+
+  if (dueAt === null || graceUntil === null) {
+    return { state: "none", nextDueAt: null, graceUntil: null, hasClosedCycles };
+  }
+
+  // Narrow the union-mutated locals for the comparisons below.
+  const due: Date = dueAt;
+  const grace: Date = graceUntil;
+  let state: CurrentCycleState;
+  if (now.getTime() < due.getTime()) {
+    state = "on_track";
+  } else if (now.getTime() <= grace.getTime()) {
+    state = "due";
+  } else {
+    state = "missed";
+  }
+
+  return { state, nextDueAt: due, graceUntil: grace, hasClosedCycles };
 }
 
 /**
@@ -519,8 +754,12 @@ export function buildComplianceDisplay(
   options?: { now?: Date },
 ): ComplianceDisplay {
   const now = options?.now ?? new Date();
+  // v1.13.x — thread the intake history so a ROLLING cadence's window
+  // selection scores the retrospective grid (each logged dose is a closed
+  // cycle) rather than the engine's single forward slot. Without this a
+  // weekly rolling med always falls through to the widest `[90, 365]` rung.
   const { shortDays, longDays, expectedShort, expectedLong } =
-    selectComplianceWindows(schedules, ctx, { now });
+    selectComplianceWindows(schedules, ctx, { now, intakes: events });
 
   const short = calculateCompliance(events, schedules, shortDays, ctx.createdAt, {
     now,
@@ -531,6 +770,15 @@ export function buildComplianceDisplay(
     medicationContext: ctx,
   });
 
+  // v1.13.x Fix 4 — the open-cycle descriptor, separable from the rates.
+  const currentCycle = buildCurrentCycle(
+    schedules,
+    ctx,
+    now,
+    expectedShort,
+    events,
+  );
+
   return {
     shortDays,
     longDays,
@@ -539,6 +787,7 @@ export function buildComplianceDisplay(
     minStableDoses: MIN_STABLE_DOSES,
     short: { rate: short.rate, streak: short.streak },
     long: { rate: long.rate },
+    currentCycle,
   };
 }
 
@@ -665,6 +914,26 @@ export function calculateCompliance(
       skipped: e.skipped,
     }));
 
+  // v1.13.x — ROLLING retrospective expansion. A rolling cadence
+  // (`rollingIntervalDays`, the canonical GLP-1 "every N days" shape) is
+  // forward-only in the engine: `expandRolling` emits at most the single
+  // immediately-next slot, so a historical compliance window saw either
+  // zero expected slots (vacuous 100%) or one overdue slot (hard 0%) —
+  // never the true multi-dose adherence over the trailing window. When a
+  // medication context is threaded AND any schedule is rolling, route the
+  // rolling schedules through the retrospective builder so each logged dose
+  // is one satisfied expected slot (plus synthesized misses for skipped
+  // whole cycles + a past-due forward slot). Non-rolling schedules keep the
+  // forward-only engine path; both share `buildCadenceTimeline` so the
+  // numerator and denominator agree (the v1.7.3 B15 convergence rule).
+  const hasRolling = schedules.some(
+    (s) => s.rollingIntervalDays != null && s.rollingIntervalDays > 0,
+  );
+  const retro =
+    engineCtx && hasRolling
+      ? { intakeInstants: rollingIntakeInstants(events, now), now }
+      : undefined;
+
   const timeline = buildCadenceTimeline(
     normalisedSchedules,
     normalisedEvents,
@@ -673,6 +942,7 @@ export function calculateCompliance(
     medicationCreatedAt ?? effectiveStart,
     engineCtx?.timeZone,
     engineCtx,
+    retro,
   );
 
   let taken = 0;

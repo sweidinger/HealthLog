@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { useTranslations } from "@/lib/i18n/context";
 import { TileHeader } from "@/components/insights/tile-header";
 import { ScoreRing } from "./score-ring";
+import { TILE_HUE, type RingHue } from "./ring-hues";
 import type { DerivedBatchRead } from "./use-derived-metric";
 import type { ScoreBand } from "./band-tokens";
 // Type-only — the compute payloads never drag the server graph into the bundle.
@@ -57,6 +58,7 @@ function RingTile({
   bandWord,
   href,
   metricSlot,
+  hue,
   icon,
 }: {
   score: number;
@@ -65,6 +67,7 @@ function RingTile({
   bandWord: string;
   href: string;
   metricSlot: string;
+  hue: RingHue;
   icon: ComponentType<{ className?: string }>;
 }) {
   const Icon = icon;
@@ -73,19 +76,17 @@ function RingTile({
       href={href}
       data-slot="wellness-score-tile"
       data-metric={metricSlot}
-      // v1.12.8 — the wellness tile adopts the saturated purple→pink
-      // `.score-tile-gradient` so the dial strip echoes the hero card. The
-      // gradient is dark in BOTH themes (mixed over the fixed
-      // `--dracula-bg`, not the theme `--card`), so the white ring + white
-      // copy clear WCAG AA either way (white on the purple endpoint ≈ 5.0:1,
-      // on the pink endpoint ≈ 6.1:1). The icon + heading + band word are
-      // pinned white to match (TileHeader's `text-foreground` would go
-      // near-black on the Alucard light card and disappear into the
-      // gradient), so this tile renders its own white header inline rather
-      // than the shared TileHeader.
-      className="score-tile-gradient hover:border-white/35 focus-visible:ring-ring flex flex-col gap-3 rounded-xl p-4 transition-colors focus-visible:ring-2 focus-visible:outline-none"
+      // v1.13.x — the wellness tile drops the saturated `.score-tile-gradient`
+      // dark slab for the gentle, hero-family `.wellness-tile`: a low-opacity
+      // mix of the metric's `--tile-hue` over the theme `--card`. The surface
+      // is luminous in both themes, so the header/number ride `--foreground`
+      // (no pinned white) and the per-metric `hue` arc is the only saturated
+      // thing on the tile — calm, like the greeting tile. The band stays
+      // conveyed by the word label below + the ring's `data-band` + aria-label.
+      style={{ "--tile-hue": TILE_HUE[hue] } as React.CSSProperties}
+      className="wellness-tile focus-visible:ring-ring flex flex-col gap-4 rounded-xl p-5 transition-colors focus-visible:ring-2 focus-visible:outline-none"
     >
-      <div className="flex items-center gap-2 text-white">
+      <div className="text-foreground flex items-center gap-2">
         <Icon className="h-5 w-5 shrink-0" aria-hidden="true" />
         <span className="truncate text-base leading-none font-semibold">
           {label}
@@ -93,15 +94,13 @@ function RingTile({
       </div>
       <div className="flex flex-col items-center gap-1.5">
         {/* The ring keeps just the number centred; the metric name lives in
-            the header above (a long localised title would overflow the
-            small ring's centred SVG text and clip under recharts'
-            `overflow:hidden`). The white-arc `onGradient` variant reads
-            cleanly on the gradient; the band stays conveyed by the word
-            label below + the ring's `data-band` + aria-label. */}
-        <ScoreRing score={score} band={band} size="sm" variant="onGradient" />
+            the header above. The per-metric `hue` gradient leans the arc
+            colour; the band stays conveyed by the word label below + the
+            ring's `data-band` + aria-label. */}
+        <ScoreRing score={score} band={band} size="sm" hue={hue} />
         <span
           data-slot="wellness-score-band-word"
-          className="text-center text-xs text-white/80"
+          className="text-muted-foreground text-center text-xs"
         >
           {bandWord}
         </span>
@@ -176,6 +175,7 @@ export function WellnessScores({
         bandWord={bandWord(readiness.value.band)}
         href="/insights/scores/readiness"
         metricSlot="READINESS"
+        hue="readiness"
         icon={Gauge}
       />,
     );
@@ -190,6 +190,7 @@ export function WellnessScores({
         bandWord={bandWord(recovery.value.band)}
         href="/insights/scores/recovery"
         metricSlot="RECOVERY_SCORE"
+        hue="recovery"
         icon={HeartPulse}
       />,
     );
@@ -204,6 +205,7 @@ export function WellnessScores({
         bandWord={bandWord(sleep.value.band)}
         href="/insights/scores/sleep"
         metricSlot="SLEEP_SCORE"
+        hue="sleep"
         icon={Moon}
       />,
     );
@@ -218,6 +220,7 @@ export function WellnessScores({
         bandWord={bandWord(stress.value.band)}
         href="/insights/scores/stress"
         metricSlot="STRESS_SCORE"
+        hue="stress"
         icon={Activity}
       />,
     );
@@ -232,6 +235,7 @@ export function WellnessScores({
         bandWord={bandWord(strain.value.band)}
         href="/insights/scores/strain"
         metricSlot="STRAIN_SCORE"
+        hue="strain"
         icon={Flame}
       />,
     );

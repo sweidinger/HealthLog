@@ -32,9 +32,30 @@ import {
   type CanonicalSchedule,
   type RecurrenceContext,
   type ScheduleType,
+  expandRollingRetrospective,
   occurrencesBetween,
 } from "@/lib/medications/scheduling/recurrence";
 import { wallClockInTz } from "@/lib/tz/wall-clock";
+
+/**
+ * v1.13.x compliance — opt-in retrospective-rolling expansion.
+ *
+ * The canonical engine's `expandRolling` is forward-only (correct for the
+ * projector / next-due surfaces). For the compliance + detail-page
+ * timeline a ROLLING cadence must instead reconstruct its historical
+ * expected-dose grid from the logged intakes. When a caller threads this
+ * option, rolling schedules route through `expandRollingRetrospective`
+ * (each logged intake is one satisfied slot, plus synthesized misses for
+ * skipped whole cycles + a past-due forward slot). Every non-rolling
+ * shape and every caller that omits the option keeps the forward-only
+ * engine path byte-for-byte.
+ */
+export interface RetrospectiveRollingOptions {
+  /** Non-skipped intake instants for the medication (the slot anchors). */
+  intakeInstants: Date[];
+  /** Wall-clock "now" — decides whether the forward next-due slot is past-due. */
+  now: Date;
+}
 
 export interface ScheduleLike {
   /** "HH:mm" 24h, user-tz reference (per existing schema). */
@@ -307,6 +328,7 @@ export function expandScheduleSlots(
   anchor: Date = from,
   timeZone?: string,
   engineCtx?: CadenceEngineContext,
+  retro?: RetrospectiveRollingOptions,
 ): ExpectedDose[] {
   if (to <= from) return [];
 
@@ -337,12 +359,22 @@ export function expandScheduleSlots(
     // landing exactly at the window boundary isn't counted by the engine
     // path but dropped by the legacy path — the two branches stay
     // denominator-equivalent at the edge.
-    const occurrences = occurrencesBetween(
-      canonical,
-      from,
-      new Date(to.getTime() - 1),
-      recurrenceCtx,
-    );
+    const inclusiveTo = new Date(to.getTime() - 1);
+    // v1.13.x — ROLLING + retrospective opt-in: reconstruct the historical
+    // expected-dose grid from the logged intakes rather than the engine's
+    // single forward slot. Only rolling schedules take this branch; every
+    // other shape still routes through `occurrencesBetween`.
+    const occurrences =
+      retro && canonical.rollingIntervalDays !== null
+        ? expandRollingRetrospective(
+            canonical,
+            recurrenceCtx,
+            from,
+            inclusiveTo,
+            retro.intakeInstants,
+            retro.now,
+          )
+        : occurrencesBetween(canonical, from, inclusiveTo, recurrenceCtx);
     return occurrences.map((occ) => ({
       day: startOfLocalDay(occ.at, timeZone),
       windowStart: occ.at,
@@ -594,6 +626,7 @@ export function buildCadenceTimeline(
   anchor?: Date,
   timeZone?: string,
   engineCtx?: CadenceEngineContext,
+  retro?: RetrospectiveRollingOptions,
 ): PairedDose[] {
   const from = new Date(asOf.getTime() - windowDays * DAY_MS);
   const slots: ExpectedDose[] = [];
@@ -607,6 +640,7 @@ export function buildCadenceTimeline(
         anchor ?? from,
         timeZone,
         engineCtx,
+        retro,
       ),
     );
   }
@@ -622,6 +656,7 @@ export function buildCadenceTimeline(
     anchor,
     timeZone,
     engineCtx,
+    retro,
   );
   return pairDoses(slots, events, asOf, { radiusFloorMs });
 }
@@ -649,6 +684,7 @@ function cadenceRadiusFloor(
   anchor: Date | undefined,
   timeZone: string | undefined,
   engineCtx: CadenceEngineContext | undefined,
+  retro?: RetrospectiveRollingOptions,
 ): number {
   const probeDays = Math.max(windowDays, 16 * 7);
   const probeFrom = new Date(asOf.getTime() - probeDays * DAY_MS);
@@ -662,6 +698,7 @@ function cadenceRadiusFloor(
       anchor ?? probeFrom,
       timeZone,
       engineCtx,
+      retro,
     );
     for (const slot of probeSlots) {
       centres.push((slot.windowStart.getTime() + slot.windowEnd.getTime()) / 2);

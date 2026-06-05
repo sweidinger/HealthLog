@@ -24,6 +24,12 @@ import { buildSystemPromptWithReferences } from "@/lib/ai/prompts/insight-genera
 import { metricsFromPresentSections } from "@/lib/ai/medical-references";
 import { summarize, type DataPoint } from "@/lib/analytics/trends";
 import {
+  reconstructSleepNights,
+  type SleepStageRow,
+} from "@/lib/analytics/sleep-night";
+import { loadUserSourcePriority } from "@/lib/rollups/measurement-read";
+import { resolveUserTimezone } from "@/lib/tz/resolver";
+import {
   resolveDashboardLayout,
   type ComparisonBaseline,
 } from "@/lib/dashboard-layout";
@@ -153,16 +159,45 @@ async function buildComparisonSnapshotForUser(
   const types = Object.keys(typeToSnapshotKey) as MeasurementType[];
   const rows = await Promise.all(
     types.map(async (type) => {
-      const measurements = await prisma.measurement.findMany({
-        where: { userId, type, deletedAt: null },
-        orderBy: { measuredAt: "asc" },
-        select: { measuredAt: true, value: true },
-      });
-      const summary = summarize(
-        measurements.map(
+      // SLEEP_DURATION is stored ONE ROW PER STAGE per night; summarising the
+      // raw stage rows mislabels a per-stage average as a night total (and
+      // double-counts a bare ASLEEP aggregate against its granular twin). Route
+      // the comparison through the per-night dedup reconstruction so the
+      // current/baseline averages are per-night TIME-ASLEEP totals in minutes.
+      let dataPoints: DataPoint[];
+      if (type === "SLEEP_DURATION") {
+        const [sleepRows, sleepTz, sleepPriority] = await Promise.all([
+          prisma.measurement.findMany({
+            where: { userId, type, deletedAt: null },
+            orderBy: { measuredAt: "asc" },
+            select: {
+              measuredAt: true,
+              value: true,
+              sleepStage: true,
+              source: true,
+            },
+          }),
+          resolveUserTimezone(userId),
+          loadUserSourcePriority(userId),
+        ]);
+        dataPoints = reconstructSleepNights(
+          sleepRows as SleepStageRow[],
+          sleepTz,
+          sleepPriority,
+        )
+          .filter((n) => n.asleepMinutes > 0)
+          .map((n) => ({ date: n.measuredAt, value: n.asleepMinutes }));
+      } else {
+        const measurements = await prisma.measurement.findMany({
+          where: { userId, type, deletedAt: null },
+          orderBy: { measuredAt: "asc" },
+          select: { measuredAt: true, value: true },
+        });
+        dataPoints = measurements.map(
           (m): DataPoint => ({ date: m.measuredAt, value: m.value }),
-        ),
-      );
+        );
+      }
+      const summary = summarize(dataPoints);
       const baselineAvg =
         baseline === "lastMonth"
           ? (summary.avg30LastMonth ?? null)

@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: HealthLog API
-  version: 1.13.1
+  version: 1.13.2
   description: >-
     Self-hosted personal-health-tracking PWA — public API surface for the iOS native client and external ingest.
 
@@ -6761,6 +6761,46 @@ components:
           required:
             - rate
           additionalProperties: false
+        currentCycle:
+          type: object
+          properties:
+            state:
+              type: string
+              enum:
+                - on_track
+                - due
+                - missed
+                - none
+              description: "Open-cycle state, decoupled from the percentage rows: `on_track` = next dose not yet due; `due` = due now
+                / in grace; `missed` = past grace with no logged intake (the only red state); `none` = no projected next
+                dose (PRN / paused / ended)."
+            nextDueAt:
+              anyOf:
+                - type: string
+                  format: date-time
+                  pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
+                - type: "null"
+              description: The open cycle's due instant. Null when `state` is `none`.
+            graceUntil:
+              anyOf:
+                - type: string
+                  format: date-time
+                  pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
+                - type: "null"
+              description: End of the due slot's grace window. Null when `state` is `none`.
+            hasClosedCycles:
+              type: boolean
+              description: False for a brand-new sparse med with zero closed dose cycles — the percentage rows are vacuous and the
+                card should show a neutral 'not enough data yet' state.
+          required:
+            - state
+            - nextDueAt
+            - graceUntil
+            - hasClosedCycles
+          additionalProperties: false
+          description: v1.13.x — the current (open) dose cycle, surfaced so a between-doses sparse med renders a neutral 'next
+            dose in N days' line instead of a scary red 0%. The percentage rows above already exclude the open forward
+            cycle from their denominator.
       required:
         - shortDays
         - longDays
@@ -6769,6 +6809,7 @@ components:
         - minStableDoses
         - short
         - long
+        - currentCycle
       additionalProperties: false
       description: The two-row card block whose windows scale with dosing cadence (dense meds keep 7 / 30 days, sparse meds
         step both windows up). NOT the 30-day denominator — read `compliance30.totalExpected` for that.

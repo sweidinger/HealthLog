@@ -510,7 +510,7 @@ describe("calculateCompliance — engine-routed (medicationContext)", () => {
     expect(result.totalExpected).toBeLessThanOrEqual(3);
   });
 
-  it("rolling rollingIntervalDays=7 — only the next-due slot counts", () => {
+  it("rolling rollingIntervalDays=7 — the open forward cycle is upcoming, not a slot (no events → empty)", () => {
     const schedules: ComplianceSchedule[] = [
       {
         windowStart: "08:00",
@@ -520,14 +520,141 @@ describe("calculateCompliance — engine-routed (medicationContext)", () => {
         timesOfDay: ["08:00"],
       },
     ];
-    // Last intake 5 days ago → next due in 2 days (future) → no past
-    // expected slot inside the window → empty-window contract → 100.
+    // v1.13.x — this test previously asserted the OLD forward-only behaviour
+    // ("only the next-due slot counts"). With the retrospective rolling
+    // expansion the grid is built from the LOGGED intakes — here there are
+    // none, and `lastIntakeAt` is 5 days ago so the forward next-due slot is
+    // 2 days out (future, > now) → excluded as upcoming. With no logged
+    // intakes in the window and no past-due slot the window is empty →
+    // empty-window contract → 100 / totalExpected 0. (A faithful history now
+    // reads its true rate — see the dedicated 12-shot test below.)
     const result = calculateCompliance([], schedules, 30, undefined, {
       medicationContext: ctx({
         lastIntakeAt: new Date(NOW.getTime() - 5 * DAY_MS),
       }),
     });
     expect(result.totalExpected).toBe(0);
+    expect(result.rate).toBe(100);
+  });
+
+  // ──────────────────────────────────────────────────────────────────
+  // v1.13.x — ROLLING retrospective expansion. The canonical engine's
+  // `expandRolling` is forward-only: it emits at most the single
+  // immediately-next slot, so a historical compliance window over a
+  // rolling weekly injection (the GLP-1 default) saw either zero expected
+  // slots (vacuous 100%) or one overdue slot (hard 0%) — never the true
+  // multi-dose adherence. The compliance layer now reconstructs the
+  // historical grid from the logged intakes (each dose is one satisfied
+  // expected slot, with synthesized misses for skipped whole cycles + a
+  // past-due forward slot). These tests pin that the live "0% despite many
+  // recorded intakes" defect is fixed.
+  // ──────────────────────────────────────────────────────────────────
+
+  it("rolling rollingIntervalDays=7 — 12 weekly shots logged → high rate, not 0%/100%-vacuous", () => {
+    const schedules: ComplianceSchedule[] = [
+      {
+        windowStart: "08:00",
+        windowEnd: "09:00",
+        daysOfWeek: null,
+        rollingIntervalDays: 7,
+        timesOfDay: ["08:00"],
+      },
+    ];
+    // 12 consecutive weekly shots, each ~7 days apart, taken at varying
+    // times of day (the real-world off-HH:mm pattern). Most recent 3 days ago.
+    const lastShot = new Date(NOW.getTime() - 3 * DAY_MS);
+    const intakes = Array.from({ length: 12 }, (_, i) => {
+      const at = new Date(lastShot.getTime() - i * 7 * DAY_MS);
+      at.setUTCHours(19 + (i % 3), 0, 0, 0); // 19:00/20:00/21:00 — off the 08:00 slot
+      return { scheduledFor: at, takenAt: at, skipped: false };
+    });
+    const lastIntakeAt = intakes[0].takenAt;
+    for (const days of [30, 90]) {
+      const result = calculateCompliance(intakes, schedules, days, undefined, {
+        medicationContext: ctx({ lastIntakeAt, startsOn: intakes[11].takenAt }),
+      });
+      // Each logged shot is a satisfied expected slot → taken tracks the
+      // number of shots in the window; rate is high; not the broken 0%.
+      expect(result.taken).toBeGreaterThanOrEqual(days === 30 ? 4 : 12);
+      expect(result.rate).toBeGreaterThanOrEqual(90);
+      expect(result.missed).toBe(0);
+    }
+  });
+
+  it("rolling weekly — a shot logged a day late from its cycle still pairs (2 of 2, no phantom miss)", () => {
+    const schedules: ComplianceSchedule[] = [
+      {
+        windowStart: "08:00",
+        windowEnd: "09:00",
+        daysOfWeek: null,
+        rollingIntervalDays: 7,
+        timesOfDay: ["08:00"],
+      },
+    ];
+    // Two shots: cycle anchor + a second shot logged ~8 days later (1 day
+    // late, inside the 1.5·N tolerance), then nothing — both count taken,
+    // none missed (the late dose must NOT synthesize a phantom missed cycle).
+    const first = new Date(NOW.getTime() - 16 * DAY_MS);
+    const second = new Date(first.getTime() + 8 * DAY_MS); // 1 day late
+    const intakes = [
+      { scheduledFor: second, takenAt: second, skipped: false },
+      { scheduledFor: first, takenAt: first, skipped: false },
+    ];
+    const result = calculateCompliance(intakes, schedules, 30, undefined, {
+      medicationContext: ctx({ lastIntakeAt: second, startsOn: first }),
+    });
+    expect(result.taken).toBe(2);
+    expect(result.missed).toBe(0);
+    expect(result.rate).toBe(100);
+  });
+
+  it("rolling weekly — a 3-week gap between shots synthesizes the skipped cycles as missed", () => {
+    const schedules: ComplianceSchedule[] = [
+      {
+        windowStart: "08:00",
+        windowEnd: "09:00",
+        daysOfWeek: null,
+        rollingIntervalDays: 7,
+        timesOfDay: ["08:00"],
+      },
+    ];
+    // Shot A, then a 21-day gap (2 missed cycles), then shot B.
+    const a = new Date(NOW.getTime() - 28 * DAY_MS);
+    const b = new Date(a.getTime() + 21 * DAY_MS);
+    const intakes = [
+      { scheduledFor: b, takenAt: b, skipped: false },
+      { scheduledFor: a, takenAt: a, skipped: false },
+    ];
+    const result = calculateCompliance(intakes, schedules, 30, undefined, {
+      medicationContext: ctx({ lastIntakeAt: b, startsOn: a }),
+    });
+    // 2 taken (A, B) + ~2 synthesized missed cycles in the gap → ~50%.
+    expect(result.taken).toBe(2);
+    expect(result.missed).toBeGreaterThanOrEqual(1);
+    expect(result.rate).toBeLessThan(100);
+  });
+
+  it("rolling weekly — last shot 3 days ago, next due in 4 days → upcoming, excluded from denominator", () => {
+    const schedules: ComplianceSchedule[] = [
+      {
+        windowStart: "08:00",
+        windowEnd: "09:00",
+        daysOfWeek: null,
+        rollingIntervalDays: 7,
+        timesOfDay: ["08:00"],
+      },
+    ];
+    const lastShot = new Date(NOW.getTime() - 3 * DAY_MS);
+    const intakes = [
+      { scheduledFor: lastShot, takenAt: lastShot, skipped: false },
+    ];
+    const result = calculateCompliance(intakes, schedules, 30, undefined, {
+      medicationContext: ctx({ lastIntakeAt: lastShot, startsOn: lastShot }),
+    });
+    // The one closed cycle (the logged shot) is taken; the open forward
+    // cycle is upcoming and must NOT count as missed → 100%, missed 0.
+    expect(result.missed).toBe(0);
+    expect(result.taken).toBe(1);
     expect(result.rate).toBe(100);
   });
 
@@ -1374,6 +1501,130 @@ describe("buildComplianceDisplay — two rows, cadence-scaled windows", () => {
     expect(display).not.toHaveProperty("doseTimeline");
     expect(display.short).toBeDefined();
     expect(display.long).toBeDefined();
+  });
+
+  it("7-day rolling injection with history → [30, 90] windows (not the widest fallback)", () => {
+    // v1.13.x Fix 3B — after the retrospective rolling expansion,
+    // `expectedSlotsBetween` returns the real per-cycle grid for rolling, so
+    // a 7-day rolling injection with a faithful history clears the floor on
+    // the [30, 90] rung instead of falling through to the widest [90, 365]
+    // fallback (the pre-fix behaviour, where rolling emitted ≤ 1 slot).
+    const schedules: ComplianceSchedule[] = [
+      {
+        windowStart: "08:00",
+        windowEnd: "09:00",
+        daysOfWeek: null,
+        rollingIntervalDays: 7,
+        timesOfDay: ["08:00"],
+      },
+    ];
+    // ~16 weekly shots back from a most-recent shot 3 days ago.
+    const lastShot = new Date(NOW.getTime() - 3 * DAY_MS);
+    const events = Array.from({ length: 16 }, (_, i) => {
+      const at = new Date(lastShot.getTime() - i * 7 * DAY_MS);
+      at.setUTCHours(20, 0, 0, 0);
+      return { scheduledFor: at, takenAt: at, skipped: false };
+    });
+    const display = buildComplianceDisplay(
+      events,
+      schedules,
+      ctx({
+        startsOn: events[events.length - 1].takenAt,
+        lastIntakeAt: events[0].takenAt,
+      }),
+      { now: NOW },
+    );
+    expect(display.shortDays).toBe(30);
+    expect(display.longDays).toBe(90);
+    expect(display.expectedShort).toBeGreaterThanOrEqual(MIN_STABLE_DOSES);
+    expect(display.expectedLong).toBeGreaterThanOrEqual(MIN_STABLE_DOSES);
+  });
+
+  it("currentCycle — rolling weekly, last shot 3 days ago → on_track (not a red miss)", () => {
+    // v1.13.x Fix 4 — a between-doses sparse med must NOT render a scary
+    // state. Last shot 3 days ago → next due in 4 days → the open cycle is
+    // on_track with a future nextDueAt.
+    const schedules: ComplianceSchedule[] = [
+      {
+        windowStart: "08:00",
+        windowEnd: "09:00",
+        daysOfWeek: null,
+        rollingIntervalDays: 7,
+        timesOfDay: ["08:00"],
+      },
+    ];
+    const lastShot = new Date(NOW.getTime() - 3 * DAY_MS);
+    const events = [
+      { scheduledFor: lastShot, takenAt: lastShot, skipped: false },
+    ];
+    const display = buildComplianceDisplay(
+      events,
+      schedules,
+      ctx({ startsOn: lastShot, lastIntakeAt: lastShot }),
+      { now: NOW },
+    );
+    expect(display.currentCycle.state).toBe("on_track");
+    expect(display.currentCycle.nextDueAt).not.toBeNull();
+    expect(display.currentCycle.nextDueAt!.getTime()).toBeGreaterThan(
+      NOW.getTime(),
+    );
+    expect(display.currentCycle.hasClosedCycles).toBe(true);
+  });
+
+  it("currentCycle — rolling weekly overdue past grace → missed", () => {
+    // v1.13.x Fix 4 — last shot ~10 days ago (cadence 7) → next due was 3
+    // days ago, well past grace → the open cycle is `missed` (the only red
+    // state). nextDueAt is in the past.
+    const schedules: ComplianceSchedule[] = [
+      {
+        windowStart: "08:00",
+        windowEnd: "09:00",
+        daysOfWeek: null,
+        rollingIntervalDays: 7,
+        timesOfDay: ["08:00"],
+      },
+    ];
+    const lastShot = new Date(NOW.getTime() - 10 * DAY_MS);
+    const events = [
+      { scheduledFor: lastShot, takenAt: lastShot, skipped: false },
+    ];
+    const display = buildComplianceDisplay(
+      events,
+      schedules,
+      ctx({ startsOn: lastShot, lastIntakeAt: lastShot }),
+      { now: NOW },
+    );
+    expect(display.currentCycle.state).toBe("missed");
+    expect(display.currentCycle.nextDueAt).not.toBeNull();
+    expect(display.currentCycle.nextDueAt!.getTime()).toBeLessThan(
+      NOW.getTime(),
+    );
+  });
+
+  it("currentCycle — brand-new sparse med with zero closed cycles → hasClosedCycles false", () => {
+    // v1.13.x Fix 4 — a med created today with no logged intake has no
+    // closed dose cycle; the percentage rows are vacuous and the card should
+    // show a neutral state rather than a misleading 100% / 0%.
+    const schedules: ComplianceSchedule[] = [
+      {
+        windowStart: "08:00",
+        windowEnd: "09:00",
+        daysOfWeek: null,
+        rollingIntervalDays: 7,
+        timesOfDay: ["08:00"],
+      },
+    ];
+    const display = buildComplianceDisplay(
+      [],
+      schedules,
+      ctx({
+        startsOn: new Date(NOW.getTime() + 4 * DAY_MS), // first dose in the future
+        createdAt: NOW,
+      }),
+      { now: NOW },
+    );
+    expect(display.currentCycle.hasClosedCycles).toBe(false);
+    expect(display.currentCycle.state).toBe("on_track");
   });
 
   it("a 2-day-old daily med's expected counts reflect its real age", () => {

@@ -2782,7 +2782,7 @@
         }
       },
       "scores": {
-        "sectionTitle": "Wyniki dobrostanu",
+        "sectionTitle": "Twoje wskaźniki zdrowia",
         "loadError": "Nie udało się teraz wczytać Twoich wyników dobrostanu.",
         "recovery": "Regeneracja",
         "stress": "Stres",

@@ -2782,7 +2782,7 @@
         }
       },
       "scores": {
-        "sectionTitle": "Puntuaciones de bienestar",
+        "sectionTitle": "Tus indicadores de salud",
         "loadError": "No se pudieron cargar tus puntuaciones de bienestar en este momento.",
         "recovery": "Recuperación",
         "stress": "Estrés",

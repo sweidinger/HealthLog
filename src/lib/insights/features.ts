@@ -12,6 +12,11 @@ import {
   lastNonSkippedTakenAt,
 } from "@/lib/analytics/compliance";
 import { resolveUserTimezone } from "@/lib/tz/resolver";
+import {
+  reconstructSleepNights,
+  type SleepStageRow,
+} from "@/lib/analytics/sleep-night";
+import { loadUserSourcePriority } from "@/lib/rollups/measurement-read";
 import { getBpTargets } from "@/lib/analytics/bp-targets";
 import { isBpReadingInTarget } from "@/lib/analytics/bp-in-target";
 import {
@@ -568,14 +573,35 @@ export async function extractFeatures(
   }
 
   // Sleep Duration
+  //
+  // SLEEP_DURATION is stored ONE ROW PER STAGE per night, so summarising the
+  // raw stage rows would average individual stages (and double-count a bare
+  // ASLEEP aggregate against its granular CORE/DEEP/REM twin). Route the
+  // feature block through the per-night dedup reconstruction — the same helper
+  // the dashboard / series / status path use — so `avg7` / `avg30` / `latest`
+  // are per-night TIME-ASLEEP totals in minutes, never stage averages.
   const sleepData = byType("SLEEP_DURATION");
   if (sleepData.length > 0) {
-    const summary = summarize(toDataPoints(sleepData));
+    const [sleepTz, sleepPriority] = await Promise.all([
+      resolveUserTimezone(userId),
+      loadUserSourcePriority(userId),
+    ]);
+    const sleepNights = reconstructSleepNights(
+      sleepData as unknown as SleepStageRow[],
+      sleepTz,
+      sleepPriority,
+    ).filter((n) => n.asleepMinutes > 0);
+    const summary = summarize(
+      sleepNights.map((n) => ({ date: n.measuredAt, value: n.asleepMinutes })),
+    );
     features.sleep = {
       avg7: summary.avg7,
       avg30: summary.avg30,
       latest: summary.latest,
-      coverage: computeCoverage(sleepData, now),
+      coverage: computeCoverage(
+        sleepNights.map((n) => ({ measuredAt: n.measuredAt })),
+        now,
+      ),
     };
   }
 

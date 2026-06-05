@@ -382,27 +382,34 @@
 }
 
 /*
- * `.score-tile-gradient` — the saturated purple→pink wellness-tile
- * background that echoes the hero band while staying dark enough for a
- * WHITE score ring + white centre number to clear WCAG AA in BOTH themes.
+ * `.wellness-tile` — the v1.13.x premium-redesign wellness-tile surface.
  *
- * Unlike `.hero-gradient` (which mixes over the theme-dependent
- * `var(--card)` — near-white in Alucard light, so a white ring would
- * vanish), this variant mixes purple/pink over the *fixed* dark
- * `var(--dracula-bg)` (#282a36). That keeps the surface identical and
- * dark in light + dark mode, so white text/ring read ≥ 4.5:1 either way:
- * white on the purple endpoint ≈ 5.0:1, on the pink endpoint ≈ 6.1:1.
- * A subtler glow than the hero's keeps a row of five tiles from
- * overwhelming the page.
+ * Replaces the old saturated `.score-tile-gradient` dark slab. Mirrors the
+ * gentle, calm `.hero-gradient` the maintainer loves: a LOW-opacity mix of
+ * the metric's `--tile-hue` over the *theme* `var(--card)` (not the fixed
+ * dark bg), so the surface stays luminous in both Dracula dark + Alucard
+ * light. The mix is even softer than the hero's 18/12 (14/7) so a *row* of
+ * five tinted tiles never overwhelms the page. Each `RingTile` sets
+ * `--tile-hue` inline per metric; the per-metric `hue` arc on the ring is
+ * the only saturated element, letting the dial be the hero.
+ *
+ * Text rides the theme `--foreground` (dark in light mode, light in dark
+ * mode), so AA is trivial over the `--card`-based surface in both themes —
+ * the old white-pinned copy + white arc are gone.
  */
-.score-tile-gradient {
+.wellness-tile {
+  --tile-hue: var(--dracula-purple);
   background: linear-gradient(
     140deg,
-    color-mix(in srgb, var(--dracula-purple) 55%, var(--dracula-bg)) 0%,
-    color-mix(in srgb, var(--dracula-pink) 45%, var(--dracula-bg)) 100%
+    color-mix(in srgb, var(--tile-hue) 14%, var(--card)) 0%,
+    color-mix(in srgb, var(--tile-hue) 7%, var(--card)) 100%
   );
-  border: 1px solid color-mix(in srgb, var(--dracula-purple) 28%, transparent);
-  box-shadow: 0 12px 32px -24px color-mix(in srgb, var(--dracula-purple) 45%, transparent);
+  border: 1px solid color-mix(in srgb, var(--tile-hue) 22%, transparent);
+  box-shadow: 0 10px 30px -26px color-mix(in srgb, var(--tile-hue) 40%, transparent);
+}
+
+.wellness-tile:hover {
+  border-color: color-mix(in srgb, var(--tile-hue) 38%, transparent);
 }
 
 /*

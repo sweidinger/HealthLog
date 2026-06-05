@@ -1243,6 +1243,32 @@ const complianceDisplay = z
       streak: z.number().int().nonnegative(),
     }),
     long: z.object({ rate: z.number().int().min(0).max(100) }),
+    currentCycle: z
+      .object({
+        state: z
+          .enum(["on_track", "due", "missed", "none"])
+          .describe(
+            "Open-cycle state, decoupled from the percentage rows: `on_track` = next dose not yet due; `due` = due now / in grace; `missed` = past grace with no logged intake (the only red state); `none` = no projected next dose (PRN / paused / ended).",
+          ),
+        nextDueAt: z.iso
+          .datetime({ offset: true })
+          .nullable()
+          .describe("The open cycle's due instant. Null when `state` is `none`."),
+        graceUntil: z.iso
+          .datetime({ offset: true })
+          .nullable()
+          .describe(
+            "End of the due slot's grace window. Null when `state` is `none`.",
+          ),
+        hasClosedCycles: z
+          .boolean()
+          .describe(
+            "False for a brand-new sparse med with zero closed dose cycles — the percentage rows are vacuous and the card should show a neutral 'not enough data yet' state.",
+          ),
+      })
+      .describe(
+        "v1.13.x — the current (open) dose cycle, surfaced so a between-doses sparse med renders a neutral 'next dose in N days' line instead of a scary red 0%. The percentage rows above already exclude the open forward cycle from their denominator.",
+      ),
   })
   .meta({
     id: "ComplianceDisplay",

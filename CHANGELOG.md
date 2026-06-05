@@ -2,6 +2,17 @@
 
 ## [Unreleased]
 
+## [1.13.2] — 2026-06-05 — honest weekly-med compliance, correct sleep average, calmer wellness scores
+
+### Fixed
+
+- **Weekly injections (and other "every N days" medications) report honest adherence.** A rolling-cadence medication — the typical weekly GLP-1 injection — only ever counted its single next-due dose, so the rate flipped between a meaningless 100% and a hard 0% on a single dose and ignored a faithful history of shots. Compliance now reconstructs the full per-cycle history across the window: every logged dose counts, a genuinely skipped cycle reads as one miss, and the current cycle that simply hasn't come due yet no longer drags the number to zero. A new per-medication "current cycle" state (on track / due today / overdue / no cycles yet) lets the card show "next dose in N days" instead of a scary 0%.
+- **The sleep average is correct again.** When a device wrote both a combined "asleep" block and the detailed light/deep/REM breakdown for the same night, the average double-counted them and could show an impossible figure (e.g. ~20 h). The average now reads from the de-duplicated per-night totals. The night-detail reconstruction is also hardened so it never errors on an unusual night.
+
+### Changed
+
+- **The wellness scores look calmer and clearer.** The "Your health scores" tiles (renamed from the old label) now use a gentle, card-toned surface instead of a heavy saturated slab, and each score draws a larger, thinner ring with a soft single-colour gradient tuned per score (readiness greener, sleep bluer, recovery and strain turquoise). The number and band stay fully legible in both light and dark themes.
+
 ## [1.13.1] — 2026-06-05 — wellness rings show the real score
 
 ### Fixed

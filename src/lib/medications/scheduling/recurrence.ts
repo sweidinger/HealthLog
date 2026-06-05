@@ -423,6 +423,138 @@ function expandRolling(
   return [buildOccurrence(at, time, schedule)];
 }
 
+/**
+ * v1.13.x compliance — RETROSPECTIVE rolling expansion.
+ *
+ * `expandRolling` is forward-only by contract (the projector + reminder
+ * worker depend on it emitting ONLY the immediately-next slot). That is
+ * correct for "what's next" surfaces but wrong for the compliance grid,
+ * which must reconstruct the *historical* expected-dose slots a rolling
+ * cadence implies over a trailing window so a faithfully-adherent weekly
+ * injection reads its true rate instead of the vacuous 100%-or-0% flip
+ * the forward-only path produced.
+ *
+ * Medically-correct reading: a rolling "every N days from last dose"
+ * cadence re-anchors on each intake, so the retrospective expected grid
+ * *is* the observed intake history (each logged dose is exactly one
+ * satisfied expected slot) PLUS:
+ *
+ *   - back-filled `missed` slots for genuinely skipped whole cycles: when
+ *     two consecutive intakes are more than `1.5 · N` apart the user
+ *     skipped one or more cycles → emit a slot at `prevIntake + k·N` for
+ *     each whole cycle the gap spans (the `1.5·N` tolerance gate means a
+ *     dose logged a day late never synthesizes a phantom miss); and
+ *   - the single forward next-due slot, emitted ONLY when it is past-due
+ *     (`nextDue ≤ now`). A not-yet-due forward slot is `upcoming` and is
+ *     excluded so the open current cycle never counts against the
+ *     denominator.
+ *
+ * Because the back-filled / forward slots carry no nearby intake, they
+ * pair to nothing in `pairDoses` and read `missed`; the per-intake slots
+ * are anchored AT the intake instant so they pair (distance 0) and read
+ * `taken`. The same grid feeds the count-only callers
+ * (`expectedSlotsBetween` / `expectedSlotCountForDay`) so numerator,
+ * denominator, and the heatmap `due` flags route through ONE expansion
+ * (the v1.7.3 B15 numerator/denominator-convergence rule).
+ *
+ * Kept here (not folded into `expandRolling`) so the engine's forward
+ * contract is untouched; compliance opts in explicitly via
+ * `expandRollingRetrospective`.
+ *
+ * @param intakeInstants Non-skipped intake instants for THIS medication
+ *   (ascending or unsorted — sorted internally). The compliance layer
+ *   supplies these; the engine has no DB access.
+ * @param now The wall-clock anchor (the compliance window's `to`-side
+ *   "now"), used to decide whether the forward next-due slot is past-due.
+ */
+export function expandRollingRetrospective(
+  schedule: CanonicalSchedule,
+  ctx: RecurrenceContext,
+  from: Date,
+  to: Date,
+  intakeInstants: Date[],
+  now: Date,
+): Occurrence[] {
+  const n = schedule.rollingIntervalDays;
+  if (n === null || n <= 0) return [];
+
+  const time = schedule.timesOfDay[0] ?? schedule.windowStart;
+  const cycleMs = n * DAY_MS;
+  // Tolerance: a gap up to 1.5·N is "on time" (a dose logged a little
+  // late). Only a gap strictly beyond this synthesizes skipped cycles.
+  const gapToleranceMs = 1.5 * cycleMs;
+  const endsCap = ctx.medication.endsOn
+    ? endOfUtcDay(ctx.medication.endsOn).getTime()
+    : Infinity;
+
+  const inWindow = (at: Date): boolean =>
+    at.getTime() >= from.getTime() &&
+    at.getTime() <= to.getTime() &&
+    at.getTime() <= endsCap;
+
+  const slots: Occurrence[] = [];
+
+  // Each logged intake is a satisfied expected slot at its own instant.
+  // Sort ascending so the gap walk between consecutive intakes is correct.
+  const sorted = [...intakeInstants].sort((a, b) => a.getTime() - b.getTime());
+  for (const instant of sorted) {
+    if (inWindow(instant)) {
+      slots.push(buildOccurrence(instant, time, schedule));
+    }
+  }
+
+  // Back-fill missed slots for genuinely skipped whole cycles between
+  // consecutive intakes (gap > 1.5·N). The synthesized slots land at the
+  // schedule's time-of-day on each skipped cycle's day so they read as a
+  // real expected dose in the user's timezone.
+  for (let i = 1; i < sorted.length; i++) {
+    const prev = sorted[i - 1];
+    const next = sorted[i];
+    const gap = next.getTime() - prev.getTime();
+    if (gap <= gapToleranceMs) continue;
+    // Number of whole cycles the user skipped: floor(gap/N) − 1 missed
+    // cycles sit strictly between the two intakes.
+    const cyclesInGap = Math.floor(gap / cycleMs);
+    for (let k = 1; k < cyclesInGap; k++) {
+      const anchor = new Date(prev.getTime() + k * cycleMs);
+      const at = applyTimeOfDayToDate(anchor, time, ctx.timeZone);
+      if (inWindow(at)) {
+        slots.push(buildOccurrence(at, time, schedule));
+      }
+    }
+  }
+
+  // The single forward next-due slot — emitted as a missed slot ONLY when
+  // the open cycle is GENUINELY overdue, i.e. `now` is more than half a
+  // cycle past `nextDue`. A dose merely a little late (within `0.5·N`) is
+  // the current open cycle still in its window — it must NOT synthesize a
+  // phantom miss (the N-tolerance gate). A not-yet-due forward slot
+  // (`nextDue > now`) is excluded entirely (upcoming → out of the
+  // denominator). This keeps the open current cycle off the percentage rows
+  // until it is unambiguously missed; the `currentCycle` descriptor carries
+  // the softer on_track / due / missed state for the card.
+  const forwardToleranceMs = cycleMs / 2;
+  const lastInstant =
+    sorted.length > 0 ? sorted[sorted.length - 1] : ctx.lastIntakeAt;
+  const nextDue =
+    lastInstant !== null
+      ? new Date(lastInstant.getTime() + cycleMs)
+      : ctx.medication.startsOn ?? ctx.medication.createdAt;
+  if (now.getTime() - nextDue.getTime() > forwardToleranceMs) {
+    const at = applyTimeOfDayToDate(nextDue, time, ctx.timeZone);
+    // Dedupe: a forward slot already represented by a logged intake (the
+    // intake re-anchored exactly N days out) must not double-count.
+    const alreadyPresent = slots.some(
+      (s) => Math.abs(s.at.getTime() - at.getTime()) < cycleMs / 2,
+    );
+    if (inWindow(at) && !alreadyPresent) {
+      slots.push(buildOccurrence(at, time, schedule));
+    }
+  }
+
+  return slots.sort((a, b) => a.at.getTime() - b.at.getTime());
+}
+
 // ────────────────────────────────────────────────────────────────────
 // Dispatch — RRULE
 // ────────────────────────────────────────────────────────────────────
