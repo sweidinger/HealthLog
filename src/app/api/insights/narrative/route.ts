@@ -18,7 +18,6 @@ import { apiHandler, requireAuth } from "@/lib/api-handler";
 import { annotate } from "@/lib/logging/context";
 import { resolveServerLocale } from "@/lib/i18n/server-locale";
 import { requireAssistantSurface } from "@/lib/feature-flags";
-import { hasUsableStatusProvider } from "@/lib/insights/status-provider";
 import { readPeriodNarrative } from "@/lib/insights/narrative/period-narrative-generate";
 import { PERIOD_DAYS, type NarrativePeriod } from "@/lib/insights/narrative/period-narrative";
 import { enqueueNarrativeWarm } from "@/lib/jobs/period-narrative-shared";
@@ -66,11 +65,14 @@ export const GET = apiHandler(async (request: NextRequest) => {
     existing !== null &&
     Date.now() - new Date(existing.updatedAt).getTime() < NARRATIVE_FRESH_MS;
 
-  // Read-only: never block on the provider. Warm out of band only when stale
-  // / missing AND a provider is configured (a provider-less account costs one
-  // cheap chain-resolve and shows the no-key state instead).
+  // Read-only: never block on the provider. Warm out of band whenever the row
+  // is stale / missing. The generator produces AI prose when a provider is
+  // configured and a deterministic, non-causal fallback otherwise, so even a
+  // provider-less account (incl. the no-key demo) gets a non-empty
+  // retrospective on the next read. The enqueue's singletonKey + the 20 h
+  // freshness window bound this to at most one warm per period per ~day.
   let revalidating = false;
-  if (!isFresh && (await hasUsableStatusProvider(user.id))) {
+  if (!isFresh) {
     void enqueueNarrativeWarm({ userId: user.id, period, locale });
     revalidating = true;
   }

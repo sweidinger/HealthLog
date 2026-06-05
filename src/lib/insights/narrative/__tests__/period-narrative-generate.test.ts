@@ -191,7 +191,7 @@ describe("generatePeriodNarrative — honesty floor", () => {
     expect(prisma.insightNarrative.upsert).not.toHaveBeenCalled();
   });
 
-  it("no-ops without a provider and never fabricates a story", async () => {
+  it("composes a deterministic, non-causal fallback when no provider is configured", async () => {
     const prisma = makePrisma();
     const outcome = await generatePeriodNarrative("u1", {
       period: "week",
@@ -201,8 +201,19 @@ describe("generatePeriodNarrative — honesty floor", () => {
       buildContext: async () => readyContext() as PeriodNarrativeResult,
       runCompletion: async () => ({ kind: "none" as const }),
     });
-    expect(outcome).toEqual({ status: "skipped", reason: "no-provider" });
-    expect(prisma.insightNarrative.upsert).not.toHaveBeenCalled();
+    expect(outcome).toEqual({
+      status: "generated",
+      providerType: "deterministic",
+    });
+    expect(prisma.insightNarrative.upsert).toHaveBeenCalledTimes(1);
+    // The persisted row carries the deterministic marker + non-empty prose.
+    const stored = prisma._get();
+    expect(stored?.providerType).toBe("deterministic");
+    const text = Buffer.from(stored!.encryptedContent)
+      .toString("utf8")
+      .replace(/^enc:/, "");
+    expect(text).toContain("your weight");
+    expect(text.toLowerCase()).toContain("not causal");
   });
 });
 
