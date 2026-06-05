@@ -1592,8 +1592,6 @@
     "heroRegenerating": "Regenerating",
     "regenerateAnalysis": "Re-run assessment",
     "regenerateSuccess": "Assessment refreshed",
-    "warmAssessments": "Prepare assessments",
-    "warmAssessmentsHint": "Assessments refresh overnight automatically. Prepare them now to read the latest.",
     "warmStarted": "Assessments are being prepared in the background",
     "narrativeTitle": "Your period in review",
     "narrativeWeek": "This week",
@@ -1647,9 +1645,6 @@
     },
     "suggestedPrompts": {
       "label": "Try asking",
-      "whyMonday": "Why was BP higher on Monday?",
-      "weightVsPulse": "How did weight loss affect my pulse?",
-      "weekVsMonth": "Compare this week to last month",
       "tellMyDoctor": "What should I tell my doctor?",
       "medicationWorking": "Is my medication working?"
     },

@@ -1592,8 +1592,6 @@
     "heroRegenerating": "Generazione in corso",
     "regenerateAnalysis": "Rigenera la valutazione",
     "regenerateSuccess": "Valutazione rigenerata",
-    "warmAssessments": "Prepara le valutazioni",
-    "warmAssessmentsHint": "Le valutazioni si aggiornano automaticamente durante la notte. Preparale ora per vedere i dati più recenti.",
     "warmStarted": "Le valutazioni vengono preparate in background",
     "narrativeTitle": "Il tuo periodo in sintesi",
     "narrativeWeek": "Questa settimana",
@@ -1647,9 +1645,6 @@
     },
     "suggestedPrompts": {
       "label": "Chiedimi",
-      "whyMonday": "Perché la mia pressione era più alta lunedì?",
-      "weightVsPulse": "Come ha inciso il calo di peso sulle mie pulsazioni?",
-      "weekVsMonth": "Confronta questa settimana con il mese scorso",
       "tellMyDoctor": "Cosa dovrei dire al mio medico?",
       "medicationWorking": "Il mio farmaco sta funzionando?"
     },

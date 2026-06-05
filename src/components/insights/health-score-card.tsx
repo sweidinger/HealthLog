@@ -106,10 +106,16 @@ const SOURCE_PILL_CLASS: Record<HealthScoreComponentSource, string> = {
   none: "border-muted-foreground/30 text-muted-foreground",
 };
 
+// v1.12.4 — the headline score number used the raw `--dracula-*` primitives,
+// which carry no light-mode override and render illegibly on the Alucard
+// light theme (the band-tokens helper documents the same trap). Route through
+// the semantic `--success` / `--warning` / `--destructive` tokens, which both
+// themes override to an AA-safe tone — same mapping the wellness-score rings
+// already use.
 const BAND_NUMBER_CLASS: Record<HealthScoreBand, string> = {
-  green: "text-dracula-green",
-  yellow: "text-dracula-orange",
-  red: "text-dracula-red",
+  green: "text-success",
+  yellow: "text-warning",
+  red: "text-destructive",
 };
 
 const BAND_BORDER_CLASS: Record<HealthScoreBand, string> = {

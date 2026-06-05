@@ -55,8 +55,9 @@ describe("<HealthScoreCard>", () => {
     expect(html).toMatch(/data-slot="health-score-card-number"/);
     expect(html).toContain(">86<");
     expect(html).toContain("/ 100");
-    // Green band uses the dracula-green token.
-    expect(html).toContain("text-dracula-green");
+    // v1.12.4 — the headline number paints through the semantic `--success`
+    // token (AA-safe on both themes) rather than the raw dracula primitive.
+    expect(html).toContain("text-success");
   });
 
   it("paints the yellow band correctly", () => {
@@ -69,7 +70,7 @@ describe("<HealthScoreCard>", () => {
       />,
     );
     expect(html).toMatch(/data-band="yellow"/);
-    expect(html).toContain("text-dracula-orange");
+    expect(html).toContain("text-warning");
   });
 
   it("paints the red band correctly", () => {
@@ -82,7 +83,7 @@ describe("<HealthScoreCard>", () => {
       />,
     );
     expect(html).toMatch(/data-band="red"/);
-    expect(html).toContain("text-dracula-red");
+    expect(html).toContain("text-destructive");
   });
 
   it("renders the unavailable-delta caption when delta is null", () => {

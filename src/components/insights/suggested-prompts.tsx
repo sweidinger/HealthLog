@@ -25,7 +25,7 @@ import { cn } from "@/lib/utils";
 export interface SuggestedPromptsProps {
   /**
    * Override the default prompt list. When omitted, the component
-   * resolves the 5 defaults from `insights.suggestedPrompts.*`.
+   * resolves the two defaults from `insights.suggestedPrompts.*`.
    * Useful for tests + future per-user prompt sets.
    */
   prompts?: string[];
@@ -35,13 +35,11 @@ export interface SuggestedPromptsProps {
   className?: string;
 }
 
-const DEFAULT_PROMPT_KEYS = [
-  "whyMonday",
-  "weightVsPulse",
-  "weekVsMonth",
-  "tellMyDoctor",
-  "medicationWorking",
-] as const;
+// v1.12.4 — trimmed from five speculative prompts to the two that read as a
+// clear next step: ask what to tell the doctor, and whether the medication is
+// working. The data-specific openers ("why was Monday higher", weight × pulse,
+// week vs month) were guesses that did not always match the user's own log.
+const DEFAULT_PROMPT_KEYS = ["tellMyDoctor", "medicationWorking"] as const;
 
 export function SuggestedPrompts({
   prompts,
@@ -89,7 +87,7 @@ export function SuggestedPrompts({
           data-slot="insights-suggested-prompts-chip"
           // v1.8.5 W4a — denser chips. The tap target stays comfortable
           // (`min-h-9` ≈ 36 px, the WCAG/iOS floor) but the horizontal
-          // padding + type size drop a notch so five prompts pack into
+          // padding + type size drop a notch so the two prompts pack into
           // fewer rows and the left column stops towering over the
           // Health-Score card.
           className={cn(

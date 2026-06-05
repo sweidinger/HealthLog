@@ -1592,8 +1592,6 @@
     "heroRegenerating": "Wird generiert",
     "regenerateAnalysis": "Einschätzung neu erstellen",
     "regenerateSuccess": "Einschätzung wurde neu erstellt",
-    "warmAssessments": "Einschätzungen vorbereiten",
-    "warmAssessmentsHint": "Einschätzungen werden über Nacht automatisch aktualisiert. Bereite sie jetzt vor, um den neuesten Stand zu sehen.",
     "warmStarted": "Einschätzungen werden im Hintergrund erstellt",
     "narrativeTitle": "Dein Zeitraum im Rückblick",
     "narrativeWeek": "Diese Woche",
@@ -1647,9 +1645,6 @@
     },
     "suggestedPrompts": {
       "label": "Frag mich",
-      "whyMonday": "Warum war der Blutdruck am Montag höher?",
-      "weightVsPulse": "Wie hat sich die Gewichtsabnahme auf meinen Puls ausgewirkt?",
-      "weekVsMonth": "Vergleich diese Woche mit letztem Monat",
       "tellMyDoctor": "Was sollte ich meinem Arzt sagen?",
       "medicationWorking": "Wirkt mein Medikament?"
     },
