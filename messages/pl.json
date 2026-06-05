@@ -577,7 +577,8 @@
       "factorSleepQuality": "jakość snu",
       "factorStress": "stres",
       "factorConflict": "konflikt",
-      "factorFamily": "rodzina"
+      "factorFamily": "rodzina",
+      "factorSadness": "smutek"
     }
   },
   "medications": {
