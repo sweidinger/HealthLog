@@ -92,17 +92,19 @@ const SOURCE_LABEL_KEY: Record<HealthScoreComponentSource, string> = {
 
 /**
  * Per-source pill colour vocabulary — mirrors the Coach provenance
- * `<SourceChips>` accent for `withings` (dracula-cyan) so the user
- * reads "same provenance grammar across surfaces". Manual rides on
- * dracula-purple, Apple Health on dracula-pink, mixed on dracula-yellow.
- * `none` is a muted slate so the empty-state row reads as dimmed
- * without losing the pill affordance entirely.
+ * `<SourceChips>` accent for `withings` (info/cyan) so the user reads
+ * "same provenance grammar across surfaces". Routed through the
+ * theme-aware semantic tokens (dose-accent / info / warning) which carry
+ * an AA-safe override in light mode; the raw `--dracula-*` text primitives
+ * read illegibly there. The pill always renders its source label, so the
+ * label — not the hue — is the disambiguator. `none` is a muted slate so
+ * the empty-state row reads as dimmed without losing the pill affordance.
  */
 const SOURCE_PILL_CLASS: Record<HealthScoreComponentSource, string> = {
-  manual: "border-dracula-purple/30 text-dracula-purple/90",
-  withings: "border-dracula-cyan/30 text-dracula-cyan/90",
-  appleHealth: "border-dracula-pink/30 text-dracula-pink/90",
-  mixed: "border-dracula-yellow/30 text-dracula-yellow/90",
+  manual: "border-dose-accent/30 text-dose-accent/90",
+  withings: "border-info/30 text-info/90",
+  appleHealth: "border-dose-accent/30 text-dose-accent/90",
+  mixed: "border-warning/30 text-warning/90",
   none: "border-muted-foreground/30 text-muted-foreground",
 };
 
@@ -119,15 +121,15 @@ const BAND_NUMBER_CLASS: Record<HealthScoreBand, string> = {
 };
 
 const BAND_BORDER_CLASS: Record<HealthScoreBand, string> = {
-  green: "border-dracula-green/40",
-  yellow: "border-dracula-orange/40",
-  red: "border-dracula-red/40",
+  green: "border-success/40",
+  yellow: "border-warning/40",
+  red: "border-destructive/40",
 };
 
 const BAND_PROGRESS_CLASS: Record<HealthScoreBand, string> = {
-  green: "bg-dracula-green",
-  yellow: "bg-dracula-orange",
-  red: "bg-dracula-red",
+  green: "bg-success",
+  yellow: "bg-warning",
+  red: "bg-destructive",
 };
 
 const COMPONENT_LABEL_KEY: Record<
@@ -296,7 +298,7 @@ export function HealthScoreCard({
           {delta !== null && delta > 0 && (
             <span
               data-slot="health-score-card-delta-chip"
-              className="bg-dracula-green/15 text-dracula-green rounded-full px-2 py-0.5 text-[10px] font-semibold"
+              className="bg-success/15 text-success rounded-full px-2 py-0.5 text-[10px] font-semibold"
             >
               +{delta}
             </span>
@@ -357,13 +359,13 @@ export function HealthScoreCard({
             <>
               {delta > 0 && (
                 <ArrowUp
-                  className="text-dracula-green h-3 w-3"
+                  className="text-success h-3 w-3"
                   aria-hidden="true"
                 />
               )}
               {delta < 0 && (
                 <ArrowDown
-                  className="text-dracula-red h-3 w-3"
+                  className="text-destructive h-3 w-3"
                   aria-hidden="true"
                 />
               )}
@@ -478,7 +480,7 @@ export function HealthScoreCard({
                 <p
                   data-slot="health-score-card-provenance-mixed-banner"
                   role="status"
-                  className="border-dracula-yellow/30 text-dracula-yellow/90 bg-dracula-yellow/5 rounded border px-2 py-1 text-[10px] leading-snug"
+                  className="border-warning/30 text-warning/90 bg-warning/5 rounded border px-2 py-1 text-[10px] leading-snug"
                 >
                   {t("insights.healthScore.provenance.mixedBanner")}
                 </p>
@@ -534,8 +536,8 @@ export function HealthScoreCard({
                       >
                         {row.value === null ? "—" : Math.round(row.value)}
                       </span>
-                      {/* weight share — second, narrower bar tinted
-                          dracula-cyan to read "provenance grammar"
+                      {/* weight share — second, narrower bar tinted with
+                          the `info` token to read "provenance grammar"
                           alongside the Coach <SourceChips> accent */}
                       <div
                         className="bg-muted/40 h-1 w-10 shrink-0 overflow-hidden rounded-full"
@@ -546,7 +548,7 @@ export function HealthScoreCard({
                             "h-full",
                             isEmpty
                               ? "bg-muted"
-                              : "bg-dracula-cyan/60",
+                              : "bg-info/60",
                           )}
                           style={{
                             width: isEmpty

@@ -248,7 +248,7 @@ function ApiTokensCard() {
         status={
           <>
             {activeTokens.length > 0 && (
-              <Badge className="border-dracula-green/30 bg-dracula-green/15 text-dracula-green">
+              <Badge className="border-success/30 bg-success/15 text-success">
                 {t("settings.configured")}
               </Badge>
             )}
@@ -284,10 +284,10 @@ function ApiTokensCard() {
 
         {newToken && (
           <div
-            className="bg-dracula-green/10 rounded-lg p-3 text-sm"
+            className="bg-success/10 rounded-lg p-3 text-sm"
             data-slot="settings-api-token-created"
           >
-            <p className="text-dracula-green mb-1 font-medium">
+            <p className="text-success mb-1 font-medium">
               {t("settings.tokenCreated")}
             </p>
             <div className="flex items-start gap-2">
@@ -304,7 +304,7 @@ function ApiTokensCard() {
                 data-slot="settings-api-token-copy"
               >
                 {tokenCopied ? (
-                  <Check className="text-dracula-green h-3.5 w-3.5" />
+                  <Check className="text-success h-3.5 w-3.5" />
                 ) : (
                   <Copy className="h-3.5 w-3.5" />
                 )}
@@ -377,7 +377,7 @@ function ApiTokensCard() {
                             {t("settings.tokenExpired")}
                           </Badge>
                         ) : (
-                          <Badge className="bg-dracula-green/15 text-dracula-green text-xs">
+                          <Badge className="bg-success/15 text-success text-xs">
                             {t("settings.tokenActive")}
                           </Badge>
                         )}
@@ -465,7 +465,7 @@ function ApiTokensCard() {
                           {t("settings.tokenExpired")}
                         </Badge>
                       ) : (
-                        <Badge className="bg-dracula-green/15 text-dracula-green text-[10px]">
+                        <Badge className="bg-success/15 text-success text-[10px]">
                           {t("settings.tokenActive")}
                         </Badge>
                       )}

@@ -336,10 +336,10 @@ function ShareLinksCard() {
 
       {newToken && (
         <div
-          className="bg-dracula-green/10 space-y-2 rounded-lg p-3 text-sm"
+          className="bg-success/10 space-y-2 rounded-lg p-3 text-sm"
           data-testid="share-token-reveal"
         >
-          <p className="text-dracula-green font-medium">
+          <p className="text-success font-medium">
             {t("settings.sharing.tokenCreated")}
           </p>
           <p className="text-muted-foreground text-[11px]">
@@ -360,7 +360,7 @@ function ShareLinksCard() {
             </Button>
           </div>
           {copied && (
-            <p className="text-dracula-green text-[11px]">
+            <p className="text-success text-[11px]">
               {t("settings.sharing.copied")}
             </p>
           )}
@@ -390,7 +390,7 @@ function ShareLinksCard() {
                     {link.label}
                   </p>
                   <div className="flex flex-wrap items-center gap-1.5">
-                    <Badge className="bg-dracula-green/15 text-dracula-green text-[10px]">
+                    <Badge className="bg-success/15 text-success text-[10px]">
                       {t("settings.sharing.statusActive")}
                     </Badge>
                     {link.allowFhirApi && (

@@ -122,8 +122,8 @@ export default function BugReportPage() {
             {t("bugreport.subtitle")}
           </p>
         </div>
-        <div className="bg-card border-border border-l-dracula-orange flex gap-2 rounded-lg border-l-4 p-3 text-sm">
-          <Info className="text-dracula-orange mt-0.5 h-4 w-4 shrink-0" />
+        <div className="bg-card border-border border-l-warning flex gap-2 rounded-lg border-l-4 p-3 text-sm">
+          <Info className="text-warning mt-0.5 h-4 w-4 shrink-0" />
           <div>
             <p className="text-foreground font-medium">
               {t("bugreport.disabledTitle")}
@@ -149,16 +149,16 @@ export default function BugReportPage() {
       </div>
 
       {status?.configured && (
-        <div className="bg-card border-border border-l-dracula-cyan flex gap-2 rounded-lg border-l-4 p-3 text-sm">
-          <GitPullRequest className="text-dracula-cyan mt-0.5 h-4 w-4 shrink-0" />
+        <div className="bg-card border-border border-l-info flex gap-2 rounded-lg border-l-4 p-3 text-sm">
+          <GitPullRequest className="text-info mt-0.5 h-4 w-4 shrink-0" />
           <p className="text-muted-foreground">
             {t("bugreport.githubEscalationNote")}
           </p>
         </div>
       )}
       {!status?.configured && (
-        <div className="bg-card border-border border-l-dracula-purple flex gap-2 rounded-lg border-l-4 p-3 text-sm">
-          <Info className="text-dracula-purple mt-0.5 h-4 w-4 shrink-0" />
+        <div className="bg-card border-border border-l-dose-accent flex gap-2 rounded-lg border-l-4 p-3 text-sm">
+          <Info className="text-dose-accent mt-0.5 h-4 w-4 shrink-0" />
           <p className="text-muted-foreground">
             {t("bugreport.internalOnlyNote")}
           </p>
@@ -215,7 +215,7 @@ export default function BugReportPage() {
             <div
               className={`rounded-lg p-3 text-sm ${
                 result.type === "success"
-                  ? "bg-dracula-green/10 text-dracula-green"
+                  ? "bg-success/10 text-success"
                   : "bg-destructive/10 text-destructive"
               }`}
             >

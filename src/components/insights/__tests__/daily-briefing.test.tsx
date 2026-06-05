@@ -112,9 +112,11 @@ describe("<DailyBriefing>", () => {
 
   it("uses tone-specific colour classes per finding", () => {
     const html = render(<DailyBriefing briefing={baseBriefing} />);
-    expect(html).toContain("bg-dracula-green"); // tone=good bar
-    expect(html).toContain("bg-dracula-orange"); // tone=watch bar
-    expect(html).toContain("bg-dracula-cyan"); // tone=info bar
+    // Routed through the semantic feedback tokens (AA-safe in light mode);
+    // raw `--dracula-*` text primitives have no light-mode override.
+    expect(html).toContain("bg-success"); // tone=good bar
+    expect(html).toContain("bg-warning"); // tone=watch bar
+    expect(html).toContain("bg-info"); // tone=info bar
   });
 
   it("renders the 'Generated <time>' caption when updatedAt is supplied", () => {

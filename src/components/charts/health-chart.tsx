@@ -1407,7 +1407,7 @@ export function HealthChart({
                 v1.4.19 A2 — hidden on mobile to free up the title row. */}
             {effectiveCompareBaseline !== "none" && hasComparisonData && (
               <span
-                className="text-dracula-purple bg-dracula-purple/10 hidden rounded-md border border-current/30 px-1.5 py-0.5 text-[10px] font-medium tracking-wide uppercase sm:inline-flex"
+                className="text-dose-accent bg-dose-accent/10 hidden rounded-md border border-current/30 px-1.5 py-0.5 text-[10px] font-medium tracking-wide uppercase sm:inline-flex"
                 data-slot="chart-compare-caption"
               >
                 {t(

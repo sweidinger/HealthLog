@@ -216,7 +216,7 @@ export function WebPushCard() {
         {msg && (
           <p
             role="alert"
-            className={`text-sm ${msgType === "success" ? "text-dracula-green" : "text-destructive"}`}
+            className={`text-sm ${msgType === "success" ? "text-success" : "text-destructive"}`}
           >
             {msg}
           </p>

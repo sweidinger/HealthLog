@@ -362,7 +362,7 @@ function ChatBubble({
       >
         <div
           className={cn(
-            "border-dracula-purple/30 bg-dracula-purple/12 text-foreground",
+            "border-dose-accent/30 bg-dose-accent/12 text-foreground",
             // Budget the avatar column (size-8 + gap-2.5 ≈ 2.625rem) out
             // of the 80% cap so the bubble + avatar together never
             // overflow a comfortable width on a narrow phone.
@@ -460,7 +460,7 @@ function ChatBubble({
               : ""}
         </div>
         {safeError && (
-          <p className="text-dracula-orange/90 text-xs">{safeError}</p>
+          <p className="text-warning/90 text-xs">{safeError}</p>
         )}
         {/* v1.12.0 — collapse the whole provenance block ("what was
             included") behind one disclosure, collapsed by default. The
@@ -620,7 +620,7 @@ function CoachMessageFeedback({ messageId }: CoachMessageFeedbackProps) {
         data-slot="coach-message-feedback-helpful"
         onClick={() => submit.mutate("helpful")}
         disabled={submit.isPending}
-        className="text-muted-foreground hover:text-dracula-green focus-visible:ring-ring/50 inline-flex min-h-11 items-center gap-1 rounded px-2 py-1.5 text-xs outline-none focus-visible:ring-2 disabled:opacity-50"
+        className="text-muted-foreground hover:text-success focus-visible:ring-ring/50 inline-flex min-h-11 items-center gap-1 rounded px-2 py-1.5 text-xs outline-none focus-visible:ring-2 disabled:opacity-50"
       >
         <ThumbsUp className="size-3" aria-hidden="true" />
         {t("insights.coach.feedbackHelpful")}
@@ -630,7 +630,7 @@ function CoachMessageFeedback({ messageId }: CoachMessageFeedbackProps) {
         data-slot="coach-message-feedback-unhelpful"
         onClick={() => submit.mutate("unhelpful")}
         disabled={submit.isPending}
-        className="text-muted-foreground hover:text-dracula-orange focus-visible:ring-ring/50 inline-flex min-h-11 items-center gap-1 rounded px-2 py-1.5 text-xs outline-none focus-visible:ring-2 disabled:opacity-50"
+        className="text-muted-foreground hover:text-warning focus-visible:ring-ring/50 inline-flex min-h-11 items-center gap-1 rounded px-2 py-1.5 text-xs outline-none focus-visible:ring-2 disabled:opacity-50"
       >
         <ThumbsDown className="size-3" aria-hidden="true" />
         {t("insights.coach.feedbackUnhelpful")}
