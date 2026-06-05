@@ -14,7 +14,8 @@ import type { MoodInfluenceConfidence } from "./mood-tag-influence";
  * pre-computed in `mood-aggregates.ts` (`computeTagMetricCrosstab`) — the
  * same Welch t-test + day floors + Benjamini-Hochberg FDR the rest of the
  * relations surface uses; only FDR-surviving rows reach here. Observational
- * only: the "association, not cause" caption renders once below the list.
+ * only: the generic "associations, not causes" caveat lives once in the
+ * page-level Insights footer, so this card no longer repeats it.
  */
 
 export type MoodCrosstabDisplay = "hours" | "kcal" | "score";
@@ -150,9 +151,6 @@ export function MoodTagMetricCrosstab({
           );
         })}
       </ul>
-      <p className="text-muted-foreground mt-3 text-[11px]">
-        {t("insights.mood.crosstab.disclaimer")}
-      </p>
     </div>
   );
 }

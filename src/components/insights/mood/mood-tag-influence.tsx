@@ -12,7 +12,8 @@ import { cn } from "@/lib/utils";
  * the delta, and a confidence chip. The math is pre-computed in
  * `mood-aggregates.ts` (shared with the LLM snapshot), gated on per-group
  * sample floors — sparse tags never reach here. Observational only: the
- * "association, not cause" caption is rendered once below the list.
+ * generic "associations, not causes" caveat lives once in the page-level
+ * Insights footer, so this list no longer repeats it.
  */
 
 export type MoodInfluenceConfidence = "low" | "medium" | "high";
@@ -110,9 +111,6 @@ export function MoodTagInfluence({
           );
         })}
       </ul>
-      <p className="text-muted-foreground mt-3 text-[11px]">
-        {t("insights.mood.influence.disclaimer")}
-      </p>
     </div>
   );
 }
