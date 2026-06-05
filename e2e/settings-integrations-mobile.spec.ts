@@ -70,6 +70,18 @@ test.describe("/settings/integrations Pixel-5 layout", () => {
                 lastAttemptAt: recent,
                 lastError: null,
                 consecutiveFailures: 0,
+                // v1.12.1 — the cards read connection state from this
+                // consolidated envelope (the per-provider routes were
+                // dropped from the section). The Withings pill keys on
+                // `connected`; the moodLog pill keys on `configured`.
+                configured: true,
+                connected: true,
+                connectedAt: "2026-04-01T12:00:00Z",
+                legacyLastSyncedAt: recent,
+                tokenExpiresAt: "2026-12-01T12:00:00Z",
+                tokenExpired: false,
+                scope: "user.info,user.metrics,user.activity",
+                hasActivityScope: true,
               },
               {
                 integration: "moodlog",
@@ -78,6 +90,11 @@ test.describe("/settings/integrations Pixel-5 layout", () => {
                 lastAttemptAt: recent,
                 lastError: null,
                 consecutiveFailures: 0,
+                configured: true,
+                enabled: true,
+                legacyLastSyncedAt: recent,
+                webhookSecret: "ml_xxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+                entryCount: 42,
               },
             ],
           },

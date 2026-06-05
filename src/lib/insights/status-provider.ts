@@ -4,6 +4,11 @@ import {
   runRawCompletionWithFallback,
   type ProviderChainResolved,
 } from "@/lib/ai/provider-runner";
+import {
+  chainRequiresServerManagedConsent,
+  hasActiveConsentForSurface,
+  type ConsentSurface,
+} from "@/lib/ai/consent-guard";
 import { annotate } from "@/lib/logging/context";
 import { STATUS_PROVIDER_TIMEOUT_MS, withTimeout } from "./with-timeout";
 
@@ -45,6 +50,16 @@ interface RunStatusCompletionArgs {
   userPrompt: string;
   temperature?: number;
   maxTokens?: number;
+  /**
+   * v1.12.1 — which AI surface this generation serves, for the consent gate.
+   * `insights` for the per-metric status cards + period narrative; `coach`
+   * for the off-budget Coach memory workers (rolling summary + fact
+   * extraction). When the resolved chain would egress via the operator's
+   * server-managed key and no active receipt of the matching kind exists,
+   * the run short-circuits to `{ kind: "none" }` (the no-key fallback) so no
+   * PHI leaves the server. BYOK / local / ChatGPT-OAuth chains are ungated.
+   */
+  consentSurface: ConsentSurface;
 }
 
 /**
@@ -94,6 +109,24 @@ export async function runStatusCompletion(
 
   const chain = await resolveStatusChain(userId);
   if (chain === null) {
+    return { kind: "none" };
+  }
+
+  // v1.12.1 — consent gate before server-managed external egress. A chain
+  // that could egress via the operator's global key requires an active
+  // receipt of the surface's mapped kind (or master `ai_full`). Without one,
+  // surface the no-key fallback (`none`) rather than egress the snapshot —
+  // identical to a missing provider from the caller's perspective, so no
+  // generator branch needs to change. BYOK / local / ChatGPT-OAuth chains
+  // never trip this.
+  if (
+    chainRequiresServerManagedConsent(chain) &&
+    !(await hasActiveConsentForSurface(userId, args.consentSurface))
+  ) {
+    annotate({
+      action: { name: "insights.status.consent_required" },
+      meta: { cacheAction, surface: args.consentSurface },
+    });
     return { kind: "none" };
   }
 

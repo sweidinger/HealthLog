@@ -33,7 +33,12 @@ import {
 import { welchTTest } from "@/lib/insights/correlations";
 import { benjaminiHochberg as fdrAdjust } from "@/lib/insights/correlation-discovery";
 import { toBerlinYmd } from "@/lib/tz/resolver";
+import { annotate } from "@/lib/logging/context";
+import { pickCanonicalSourceRows } from "@/lib/analytics/source-priority";
+import { metricKeyForType } from "@/lib/measurements/cumulative-day-sum";
+import { loadUserSourcePriority } from "@/lib/rollups/measurement-read";
 import type { MeasurementType } from "@/generated/prisma/enums";
+import type { MeasurementSource } from "@/generated/prisma/client";
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
@@ -106,12 +111,39 @@ export interface MoodAggregateEntry {
   structuredTags?: StructuredTagRef[];
 }
 
-/** Cross-metric row shape (WEIGHT / BLOOD_PRESSURE_SYS / PULSE / …). */
+/**
+ * Cross-metric row shape (WEIGHT / BLOOD_PRESSURE_SYS / PULSE / …).
+ *
+ * `source` / `deviceType` are optional so the correlation fixtures and
+ * legacy single-source tests keep their narrow shape, but when present
+ * they feed the crosstab's canonical-source pick: a cumulative metric
+ * (steps / active energy / sleep) that two sources both report for the
+ * same day must resolve to ONE source before summing, or the per-day
+ * total double-counts (see `metricDayMap`). The picker keys off
+ * `source` (the ladder axis) and `deviceType` (the watch>phone>scale
+ * axis) exactly like the analytics steps/sleep path.
+ */
 export interface CrossMetricMeasurement {
   type: string;
   value: number;
   measuredAt: Date;
+  source?: MeasurementSource | null;
+  deviceType?: string | null;
 }
+
+/**
+ * v1.12.1 — cap on the cross-metric measurement read in
+ * `fetchMoodAggregates`. Sized to keep a full data-rich 365-day window
+ * intact rather than the old flat 5,000 which silently dropped the
+ * oldest months (the read is `measuredAt desc`) once a multi-source,
+ * high-frequency user (per-stage sleep + per-sample pulse/HRV across
+ * Apple + Fitbit + WHOOP) blew past it. The crosstab/correlation only
+ * need per-day values, but the read stays raw because the DAY rollup
+ * buckets on UTC midnight while these aggregates key on the user's
+ * Berlin calendar day — see the read comment. Exported so the read's
+ * `take` and the truncation-annotation threshold share one constant.
+ */
+export const MOOD_CROSS_METRIC_ROW_CAP = 50_000;
 
 // --- Target bands (mirror mood-chart VALUE_BANDS + mood-status) ---
 
@@ -795,6 +827,18 @@ export interface TagMetricCrosstabRow {
   confidence: InfluenceConfidence;
 }
 
+const CROSSTAB_SUM_TYPES = new Set<string>([
+  "ACTIVE_ENERGY_BURNED",
+  "SLEEP_DURATION",
+  "ACTIVITY_STEPS",
+]);
+
+/** Berlin-calendar day key (`YYYY-MM-DD`) for a row's `measuredAt`. */
+function berlinDayKey(measuredAt: Date): string {
+  const { year, month, day } = toBerlinYmd(measuredAt);
+  return `${year}-${month}-${day}`;
+}
+
 /**
  * Build a Berlin-day-keyed metric map with the right aggregation. Energy
  * and step totals are SUMMED per day (HealthKit `stats:` rows are already
@@ -802,22 +846,53 @@ export interface TagMetricCrosstabRow {
  * is SUMMED across per-stage rows to get the night total; everything else
  * (a once-daily score) is MEANED. Returns minutes/kcal/raw — the display
  * conversion happens at row-build time.
+ *
+ * Cross-source de-dup: before bucketing, the rows for this metric run
+ * through the SAME canonical-source picker the analytics steps/sleep path
+ * uses (`pickCanonicalSourceRows`, keyed by `metricKeyForType` + the
+ * Berlin day key). Without it, the moment two sources report the same day
+ * (Fitbit + Apple steps, Fitbit + WHOOP sleep) the SUM channels would
+ * double-count and bias the Welch delta. The picker collapses each day to
+ * one source (and one device-type within it), so the sum reflects one
+ * stream. MEAN channels (a once-daily score like recovery) gain the same
+ * single-source guarantee for free. Rows without a `source` (the legacy
+ * test fixtures, or a metric whose source isn't in the ladder) fall
+ * through the picker's pass-through branch unchanged.
  */
 function metricDayMap(
   measurements: CrossMetricMeasurement[],
   type: string,
+  userPriorityJson: unknown,
 ): Map<string, number> {
-  const SUM_TYPES = new Set([
-    "ACTIVE_ENERGY_BURNED",
-    "SLEEP_DURATION",
-    "ACTIVITY_STEPS",
-  ]);
-  const summed = SUM_TYPES.has(type);
+  const summed = CROSSTAB_SUM_TYPES.has(type);
+
+  const typeRows = measurements.filter((m) => m.type === type);
+  if (typeRows.length === 0) return new Map();
+
+  // Resolve the canonical source per day. `metricKeyForType` maps the
+  // crosstab's MeasurementType to its priority ladder; a metric with no
+  // ladder (or rows without a source) keeps every row via the picker's
+  // documented pass-through fallback, so behaviour is identical to the
+  // pre-fix sum for single-source data.
+  const metricKey = metricKeyForType(type as MeasurementType);
+  const canonicalRows = metricKey
+    ? pickCanonicalSourceRows(
+        typeRows.map((m) => ({
+          measuredAt: m.measuredAt,
+          source: (m.source ?? "MANUAL") as MeasurementSource,
+          deviceType: m.deviceType ?? null,
+          type: type as MeasurementType,
+          value: m.value,
+        })),
+        metricKey,
+        userPriorityJson,
+        berlinDayKey,
+      ).canonicalRows
+    : typeRows;
+
   const byDay = new Map<string, { sum: number; count: number }>();
-  for (const m of measurements) {
-    if (m.type !== type) continue;
-    const { year, month, day } = toBerlinYmd(m.measuredAt);
-    const key = `${year}-${month}-${day}`;
+  for (const m of canonicalRows) {
+    const key = berlinDayKey(m.measuredAt);
     const cur = byDay.get(key) ?? { sum: 0, count: 0 };
     cur.sum += m.value;
     cur.count += 1;
@@ -867,9 +942,16 @@ export function computeTagMetricCrosstab(args: {
   measurements: CrossMetricMeasurement[];
   now: Date;
   windowDays?: number;
+  /**
+   * The user's source-priority blob. Threaded into `metricDayMap` so the
+   * per-day canonical-source pick honours the user's ladder. `null` (the
+   * test default) resolves to the default ladders.
+   */
+  userPriorityJson?: unknown;
 }): TagMetricCrosstabRow[] {
   const { entries, measurements, now } = args;
   const windowDays = args.windowDays ?? 365;
+  const userPriorityJson = args.userPriorityJson ?? null;
 
   const dayMap = collapseToTaggedDays(entries, now, windowDays);
   if (dayMap.size === 0) return [];
@@ -888,7 +970,7 @@ export function computeTagMetricCrosstab(args: {
   for (const [metricKey, cfg] of Object.entries(CROSSTAB_METRICS) as Array<
     [CrosstabMetricKey, (typeof CROSSTAB_METRICS)[CrosstabMetricKey]]
   >) {
-    const metricByDay = metricDayMap(measurements, cfg.type);
+    const metricByDay = metricDayMap(measurements, cfg.type, userPriorityJson);
     if (metricByDay.size === 0) continue;
 
     for (const [tagKey, ref] of structuredMeta) {
@@ -1422,8 +1504,15 @@ export function computeMoodAggregates(args: {
   entries: MoodAggregateEntry[];
   measurements: CrossMetricMeasurement[];
   now: Date;
+  /**
+   * The user's source-priority blob, threaded into the crosstab's
+   * per-day canonical-source pick. `null` (the test default) resolves to
+   * the default ladders.
+   */
+  userPriorityJson?: unknown;
 }): MoodAggregates {
   const { entries, measurements, now } = args;
+  const userPriorityJson = args.userPriorityJson ?? null;
 
   const moodPoints = entries.map((entry) => ({
     measuredAt: entry.moodLoggedAt,
@@ -1481,6 +1570,7 @@ export function computeMoodAggregates(args: {
     entries,
     measurements,
     now,
+    userPriorityJson,
   });
 
   // Distinct day keys the user logged on — drives the streak takeaway.
@@ -1606,10 +1696,52 @@ export async function fetchMoodAggregates(
         },
       },
       orderBy: { measuredAt: "desc" },
-      take: 5000,
-      select: { type: true, value: true, measuredAt: true },
+      // v1.12.1 — scope the cap to the worst-case row count over the
+      // 365-day window instead of the old flat 5,000. The crosstab +
+      // correlation channels are per-day aggregates, but the read is raw
+      // because the DAY rollup buckets on UTC midnight while the crosstab
+      // / correlations key on the user's Berlin calendar day — feeding a
+      // UTC-bucketed metric series against a Berlin-bucketed mood series
+      // would skew the day pairing by up to a few hours at the boundary.
+      // So we stay on raw rows but lift the cap above the realistic worst
+      // case: SLEEP_DURATION (~6 stage rows/night) and PULSE / HRV ingest
+      // the most rows/day, and a user syncing several sources multiplies
+      // that — a flat 5,000 silently dropped the oldest months (the order
+      // is `measuredAt desc`). The cap is the floor that keeps a full
+      // data-rich year intact; if it is ever hit we annotate `truncated`
+      // so the drop is observable rather than silently recency-biased.
+      take: MOOD_CROSS_METRIC_ROW_CAP,
+      select: {
+        type: true,
+        value: true,
+        measuredAt: true,
+        // v1.12.1 — source + deviceType drive the crosstab's canonical
+        // per-day pick so a cumulative metric reported by two sources on
+        // the same day (Fitbit + Apple steps, Fitbit + WHOOP sleep) is
+        // summed once, not double-counted.
+        source: true,
+        deviceType: true,
+      },
     })
     .then((rows) => rows.reverse());
 
-  return computeMoodAggregates({ entries, measurements, now });
+  if (measurements.length >= MOOD_CROSS_METRIC_ROW_CAP) {
+    // The read hit the cap — the oldest rows in the 365-day window were
+    // dropped (order is `measuredAt desc`). Surface it on the wide event
+    // so a silently-truncated, recency-biased crosstab/correlation is at
+    // least observable instead of looking like clean data.
+    annotate({
+      action: { name: "mood.insights.cross_metric.truncated" },
+      meta: { rows: measurements.length, cap: MOOD_CROSS_METRIC_ROW_CAP },
+    });
+  }
+
+  const userPriorityJson = await loadUserSourcePriority(userId);
+
+  return computeMoodAggregates({
+    entries,
+    measurements,
+    now,
+    userPriorityJson,
+  });
 }

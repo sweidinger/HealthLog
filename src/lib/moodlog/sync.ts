@@ -211,6 +211,7 @@ export async function syncMoodLogEntries(
   let echoSkipped = 0;
   for (const e of entries) {
     const entry = e as {
+      id?: string;
       time: string;
       date: string;
       mood: string;
@@ -225,31 +226,69 @@ export async function syncMoodLogEntries(
     try {
       const moodLoggedAt = new Date(entry.time);
       const date = entry.date;
+      // v1.12.1 — when the upstream supplies a stable id, upsert on
+      // `(userId, source, externalId)` so a re-pull with a re-rounded /
+      // re-zoned `time` is idempotent; otherwise the legacy wall-clock
+      // key. The id is bounded to the column size to match the webhook.
+      const externalId =
+        typeof entry.id === "string" && entry.id.length > 0
+          ? entry.id.slice(0, 120)
+          : null;
 
-      await prisma.moodEntry.upsert({
-        where: {
-          userId_date_moodLoggedAt: {
-            userId,
+      if (externalId) {
+        await prisma.moodEntry.upsert({
+          where: {
+            userId_source_externalId: {
+              userId,
+              source: "MOODLOG",
+              externalId,
+            },
+          },
+          update: {
+            mood: entry.mood,
+            score: entry.score,
+            tags: entry.tags ? JSON.stringify(entry.tags) : null,
+            source: "MOODLOG",
             date,
             moodLoggedAt,
           },
-        },
-        update: {
-          mood: entry.mood,
-          score: entry.score,
-          tags: entry.tags ? JSON.stringify(entry.tags) : null,
-          source: "MOODLOG",
-        },
-        create: {
-          userId,
-          date,
-          mood: entry.mood,
-          score: entry.score,
-          tags: entry.tags ? JSON.stringify(entry.tags) : null,
-          source: "MOODLOG",
-          moodLoggedAt,
-        },
-      });
+          create: {
+            userId,
+            date,
+            mood: entry.mood,
+            score: entry.score,
+            tags: entry.tags ? JSON.stringify(entry.tags) : null,
+            source: "MOODLOG",
+            externalId,
+            moodLoggedAt,
+          },
+        });
+      } else {
+        await prisma.moodEntry.upsert({
+          where: {
+            userId_date_moodLoggedAt: {
+              userId,
+              date,
+              moodLoggedAt,
+            },
+          },
+          update: {
+            mood: entry.mood,
+            score: entry.score,
+            tags: entry.tags ? JSON.stringify(entry.tags) : null,
+            source: "MOODLOG",
+          },
+          create: {
+            userId,
+            date,
+            mood: entry.mood,
+            score: entry.score,
+            tags: entry.tags ? JSON.stringify(entry.tags) : null,
+            source: "MOODLOG",
+            moodLoggedAt,
+          },
+        });
+      }
       imported++;
     } catch (err) {
       getEvent()?.addWarning(`Failed to upsert entry: ${err}`);

@@ -46,6 +46,7 @@ import {
   AllProvidersFailedError,
   runRawCompletionWithFallback,
 } from "@/lib/ai/provider-runner";
+import { chainRequiresServerManagedConsent, hasActiveConsentForSurface } from "@/lib/ai/consent-guard";
 import { invalidateUserInsights } from "@/lib/cache/invalidate";
 import {
   enqueueStatusGeneration,
@@ -100,7 +101,7 @@ const MAX_DOWNGRADE_TOKENS: ReadonlyArray<string> = [
 export type GenerateOutcome =
   | { status: "cached" }
   | { status: "generated"; providerType: string }
-  | { status: "skipped"; reason: "no-provider" }
+  | { status: "skipped"; reason: "no-provider" | "no-consent" }
   | { status: "failed"; reason: string };
 
 /**
@@ -462,6 +463,18 @@ export async function generateComprehensiveInsight(
       return { status: "skipped", reason: "no-provider" };
     }
     chain.push({ providerType: "admin-openai", instance: legacy });
+  }
+
+  // v1.12.1 — consent gate before any server-managed external egress. This
+  // pipeline runs off-request (nightly cron + on-demand force-warm), so a
+  // missing receipt is a typed `skipped` outcome rather than a throw — the
+  // cron batch continues to the next user. BYOK / local / ChatGPT-OAuth
+  // chains never trip the check.
+  if (
+    chainRequiresServerManagedConsent(chain) &&
+    !(await hasActiveConsentForSurface(userId, "insights"))
+  ) {
+    return { status: "skipped", reason: "no-consent" };
   }
 
   const includeRaw = dbUser?.insightsPrivacyMode === "raw";

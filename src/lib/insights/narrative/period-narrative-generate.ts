@@ -254,6 +254,7 @@ export async function generatePeriodNarrative(
   const completion = await runCompletion({
     userId,
     cacheAction: `insights.narrative.${period}.${locale}`,
+    consentSurface: "insights",
     systemPrompt: locale === "de" ? SYSTEM_PROMPT_DE : SYSTEM_PROMPT_EN,
     userPrompt: buildNarrativeUserPrompt(context, locale),
     temperature: 0.3,

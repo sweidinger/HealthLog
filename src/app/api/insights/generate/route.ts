@@ -33,6 +33,7 @@ import {
   AllProvidersFailedError,
   runRawCompletionWithFallback,
 } from "@/lib/ai/provider-runner";
+import { assertConsentForChain } from "@/lib/ai/consent-guard";
 import { isLegacyInsightPayload } from "@/lib/ai/legacy-payload";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { NextRequest } from "next/server";
@@ -371,6 +372,12 @@ export const POST = apiHandler(async (request: NextRequest) => {
     }
     chain.push({ providerType: "admin-openai", instance: legacy });
   }
+
+  // v1.12.1 — consent gate before any server-managed external egress.
+  // Required for the operator's global key (`admin-openai`); BYOK / local /
+  // ChatGPT-OAuth chains stay ungated. Throws ConsentRequiredError →
+  // apiHandler returns 403 + `consent.ai.required`.
+  await assertConsentForChain({ userId, chain, surface: "insights" });
 
   const includeRaw = dbUser?.insightsPrivacyMode === "raw";
   // v1.4.36 W3 T1 — `extractFeatures` enforces a 5 MB ceiling on the

@@ -135,7 +135,11 @@ export async function syncUserMetrics(
         });
       }
     }
-    imported += await upsertFitbitMeasurements(userId, readings);
+    imported += (
+      await upsertFitbitMeasurements(userId, readings, {
+        deferRollup: opts.deferRollup,
+      })
+    ).imported;
   }
 
   // Height → User.heightCm, only when the user has no height yet. Never mint a

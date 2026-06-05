@@ -59,6 +59,10 @@ async function primeAllCaches(): Promise<void> {
   await cached(caches.moodAnalytics, USER_A, async () => ({ mood: 1 }));
   await cached(caches.moodAnalytics, USER_B, async () => ({ mood: 2 }));
 
+  // v1.12.1 — mood-insights aggregate cache (SWR bucket).
+  await cached(caches.moodInsights, USER_A, async () => ({ mi: 1 }));
+  await cached(caches.moodInsights, USER_B, async () => ({ mi: 2 }));
+
   await cached(caches.dashboardWidgets, USER_A, async () => ({ d: 1 }));
   await cached(caches.dashboardWidgets, USER_B, async () => ({ d: 2 }));
 
@@ -114,6 +118,20 @@ describe("invalidateUserMood", () => {
     expect(caches.analytics.get(dashboardSnapshotCacheKey(USER_A))).toBeNull();
     expect(caches.moodAnalytics.get(USER_B)).not.toBeNull();
     expect(caches.analytics.get(`${USER_B}|default`)).not.toBeNull();
+
+    // v1.12.1 — mood-insights is marked stale, not hard-evicted: the
+    // prior value is still serveable within the SWR window so the next
+    // reader pays no cold compute. (A plain `get()` would treat the
+    // collapsed TTL as expired and drop it, so assert via getAllowStale
+    // first — it must not consume the entry.) User B stays fresh.
+    expect(caches.moodInsights.getAllowStale(USER_A)).toEqual({
+      value: { mi: 1 },
+      stale: true,
+    });
+    expect(caches.moodInsights.getAllowStale(USER_B)).toEqual({
+      value: { mi: 2 },
+      stale: false,
+    });
   });
 });
 

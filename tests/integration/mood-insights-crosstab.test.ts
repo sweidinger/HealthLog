@@ -100,4 +100,72 @@ describe("mood-insights tag × metric crosstab (DB read path)", () => {
     expect(row!.confidence).toBe("high");
     expect(row!.qValue).toBeLessThanOrEqual(0.1);
   });
+
+  // v1.12.1 — cross-source double-count guard over the real read path. Two
+  // sources (Apple + Fitbit) report the same active-energy total each present
+  // day; the read's canonical-source pick must keep one (Apple, per the
+  // activeEnergy ladder) so the per-day sum is ~600, not ~1200.
+  it("counts active energy once when Apple + Fitbit report the same day", async () => {
+    const prisma = getPrismaClient();
+    const tag = await prisma.moodTag.findFirst({
+      include: { category: true },
+      orderBy: { key: "asc" },
+    });
+    expect(tag).toBeTruthy();
+
+    for (let i = 0; i < 24; i++) {
+      const present = i < 12;
+      const ts = new Date(NOW.getTime() - i * dayMs);
+      await prisma.moodEntry.create({
+        data: {
+          userId: TEST_USER_ID,
+          date: dayKey(i),
+          mood: "GUT",
+          score: present ? 4 : 3,
+          source: "WEB",
+          moodLoggedAt: ts,
+          ...(present ? { tagLinks: { create: [{ moodTagId: tag!.id }] } } : {}),
+        },
+      });
+      const value = present
+        ? 600 + (i % 2 === 0 ? 20 : -20)
+        : 350 + (i % 2 === 0 ? 20 : -20);
+      // Apple stream every day.
+      await prisma.measurement.create({
+        data: {
+          userId: TEST_USER_ID,
+          type: "ACTIVE_ENERGY_BURNED",
+          value,
+          unit: "kcal",
+          source: "APPLE_HEALTH",
+          measuredAt: ts,
+          externalId: `apple:${dayKey(i)}`,
+        },
+      });
+      // Fitbit twin on the present days — must NOT add on top of Apple's total.
+      if (present) {
+        await prisma.measurement.create({
+          data: {
+            userId: TEST_USER_ID,
+            type: "ACTIVE_ENERGY_BURNED",
+            value,
+            unit: "kcal",
+            source: "FITBIT",
+            measuredAt: ts,
+            externalId: `fitbit:${dayKey(i)}`,
+          },
+        });
+      }
+    }
+
+    const aggregates = await fetchMoodAggregates(TEST_USER_ID, NOW);
+    const row = aggregates.tagMetricCrosstab.find(
+      (r) => r.tag === tag!.key && r.metricKey === "activeEnergy",
+    );
+    expect(row).toBeDefined();
+    // ~600 (Apple wins), NOT ~1200 (Apple + Fitbit double-counted).
+    expect(row!.withAvg).toBeCloseTo(600, 0);
+    expect(row!.withoutAvg).toBeCloseTo(350, 0);
+    expect(row!.delta).toBeCloseTo(250, 0);
+  });
 });

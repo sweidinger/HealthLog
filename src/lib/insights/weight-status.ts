@@ -436,6 +436,7 @@ export async function generateWeightStatusForUser(
   const outcome = await runStatusCompletion({
     userId,
     cacheAction,
+    consentSurface: "insights",
     systemPrompt: getWeightSystemPrompt(locale),
     userPrompt: getWeightUserPrompt(
       snapshotJson,

@@ -106,6 +106,10 @@ interface EntryResult {
   status: EntryStatus;
   reason?: string;
   id?: string;
+  // v1.12.1 — echo the client-supplied source-stable id back on each
+  // result so iOS can map a server row id onto its local SwiftData row
+  // without re-deriving it. Omitted when the entry sent no externalId.
+  externalId?: string;
 }
 
 export const POST = apiHandler(withIdempotency<[NextRequest]>(postBulk));
@@ -185,30 +189,43 @@ async function postBulk(request: NextRequest): Promise<Response> {
     const score = getScoreForMood(entry.mood);
 
     try {
+      // v1.12.1 — when the entry carries a source-stable `externalId`,
+      // dedup on the NULL-distinct `(userId, source, externalId)` key so a
+      // re-post with the same id (an iOS retry after a network hiccup, or a
+      // second adopt-on-pair backfill) updates the existing row in place
+      // instead of minting a duplicate when `moodLoggedAt` re-rounds /
+      // re-zones. Absent → the legacy `(userId, date, moodLoggedAt)` key.
+      // `source` carries a schema default of "MANUAL"; resolve it once so
+      // the probe, upsert key, and create write all agree on the value.
+      const resolvedSource = entry.source;
+      const probeWhere = entry.externalId
+        ? {
+            userId_source_externalId: {
+              userId: user.id,
+              source: resolvedSource,
+              externalId: entry.externalId,
+            },
+          }
+        : {
+            userId_date_moodLoggedAt: {
+              userId: user.id,
+              date,
+              moodLoggedAt: entry.moodLoggedAt,
+            },
+          };
+
       // Probe-then-upsert so the response reliably distinguishes
       // "inserted" from "duplicate". Two round-trips per entry is
       // acceptable given the 500-entry cap; a more cache-friendly
       // shape (batched probe) is a v1.4.31 optimisation if the cap
       // grows.
       const existing = await prisma.moodEntry.findUnique({
-        where: {
-          userId_date_moodLoggedAt: {
-            userId: user.id,
-            date,
-            moodLoggedAt: entry.moodLoggedAt,
-          },
-        },
+        where: probeWhere,
         select: { id: true },
       });
 
       const result = await prisma.moodEntry.upsert({
-        where: {
-          userId_date_moodLoggedAt: {
-            userId: user.id,
-            date,
-            moodLoggedAt: entry.moodLoggedAt,
-          },
-        },
+        where: probeWhere,
         create: {
           userId: user.id,
           date,
@@ -217,17 +234,24 @@ async function postBulk(request: NextRequest): Promise<Response> {
           score,
           tags: entry.tags ? JSON.stringify(entry.tags) : null,
           note: entry.note ?? null,
-          source: entry.source,
+          source: resolvedSource,
+          externalId: entry.externalId ?? null,
           moodLoggedAt: entry.moodLoggedAt,
         },
         update: {
           // Last-writer-wins on the mood + tags + note triple. The
           // iOS client only re-posts an existing entry when it has
-          // new data; the server trusts that decision.
+          // new data; the server trusts that decision. When the dedup
+          // key is `externalId`, also refresh `date` / `moodLoggedAt`
+          // so a re-zoned re-import lands the corrected wall-clock on
+          // the same row.
           mood: entry.mood,
           score,
           tags: entry.tags ? JSON.stringify(entry.tags) : null,
           note: entry.note ?? null,
+          ...(entry.externalId
+            ? { date, moodLoggedAt: entry.moodLoggedAt }
+            : {}),
         },
       });
 
@@ -258,16 +282,31 @@ async function postBulk(request: NextRequest): Promise<Response> {
 
       if (existing) {
         duplicates += 1;
-        results.push({ index: i, status: "duplicate", id: result.id });
+        results.push({
+          index: i,
+          status: "duplicate",
+          id: result.id,
+          ...(entry.externalId ? { externalId: entry.externalId } : {}),
+        });
       } else {
         inserted += 1;
-        results.push({ index: i, status: "inserted", id: result.id });
+        results.push({
+          index: i,
+          status: "inserted",
+          id: result.id,
+          ...(entry.externalId ? { externalId: entry.externalId } : {}),
+        });
       }
     } catch (err: unknown) {
       const reason =
         err instanceof Error ? err.message.slice(0, 120) : "upsert_failed";
       skipped.push({ index: i, reason });
-      results.push({ index: i, status: "skipped", reason });
+      results.push({
+        index: i,
+        status: "skipped",
+        reason,
+        ...(entry.externalId ? { externalId: entry.externalId } : {}),
+      });
     }
   }
 

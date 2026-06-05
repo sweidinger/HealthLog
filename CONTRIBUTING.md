@@ -4,7 +4,7 @@ Contributions are welcome. This guide covers how to set up the project and submi
 
 ## Prerequisites
 
-- Node.js 20+
+- Node.js 22+
 - pnpm
 - PostgreSQL 16+ (or Docker)
 - Git

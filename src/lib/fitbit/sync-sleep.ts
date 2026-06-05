@@ -68,7 +68,11 @@ export async function syncUserSleep(
     }
   }
 
-  const imported = await upsertFitbitMeasurements(userId, readings);
+  const imported = (
+    await upsertFitbitMeasurements(userId, readings, {
+      deferRollup: opts.deferRollup,
+    })
+  ).imported;
   // `markSynced` is owned by the orchestrator (`syncUserFitbit`).
   annotate({ action: { name: "fitbit.sleep.sync", details: { imported } } });
   return imported;

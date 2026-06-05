@@ -113,7 +113,11 @@ export async function syncUserActivity(
         });
       }
     }
-    imported += await upsertFitbitMeasurements(userId, readings);
+    imported += (
+      await upsertFitbitMeasurements(userId, readings, {
+        deferRollup: opts.deferRollup,
+      })
+    ).imported;
   }
 
   // `markSynced` is owned by the orchestrator (`syncUserFitbit`).

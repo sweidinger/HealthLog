@@ -5,7 +5,6 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Activity,
   AlertCircle,
-  Download,
   HeartPulse,
   Link2,
   Loader2,
@@ -32,6 +31,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PasswordInput } from "@/components/ui/password-input";
 import { TestConnectionButton } from "@/components/settings/test-connection-button";
+import { SettingsCardHeader } from "@/components/settings/_card-header";
 import { IntegrationStatusPill } from "@/components/settings/integration-status-pill";
 import type { IntegrationPillState } from "@/components/settings/integration-status-pill";
 import { useAuth } from "@/hooks/use-auth";
@@ -41,14 +41,6 @@ import {
   measurementDependentKeys,
   queryKeys,
 } from "@/lib/query-keys";
-
-interface MoodLogStatus {
-  configured: boolean;
-  enabled: boolean;
-  lastSyncedAt: string | null;
-  entryCount: number;
-  webhookSecret: string | null;
-}
 
 interface GlobalServiceAvailability {
   telegramGlobal: boolean;
@@ -88,6 +80,14 @@ interface IntegrationStatusViewModel {
   tokenExpiresAt?: string | null;
   tokenExpired?: boolean | null;
   enabled?: boolean;
+  // Withings activity-scope reconnect banner.
+  scope?: string | null;
+  hasActivityScope?: boolean;
+  // WHOOP / Fitbit backfill-in-progress note.
+  backfillCompleted?: boolean | null;
+  // moodLog webhook secret + entry count.
+  webhookSecret?: string | null;
+  entryCount?: number;
 }
 
 interface IntegrationStatusEnvelope {
@@ -218,25 +218,17 @@ export function IntegrationsSection() {
         </p>
       </header>
 
-      <WithingsCard
-        isAuthenticated={isAuthenticated}
-        viewModel={withingsViewModel}
-      />
-      <WhoopCard isAuthenticated={isAuthenticated} viewModel={whoopViewModel} />
-      <FitbitCard
-        isAuthenticated={isAuthenticated}
-        viewModel={fitbitViewModel}
-      />
+      <WithingsCard viewModel={withingsViewModel} />
+      <WhoopCard viewModel={whoopViewModel} />
+      <FitbitCard viewModel={fitbitViewModel} />
       {moodLogEnabled && <MoodLogCard viewModel={moodLogViewModel} />}
     </section>
   );
 }
 
 function WithingsCard({
-  isAuthenticated,
   viewModel,
 }: {
-  isAuthenticated: boolean;
   viewModel: IntegrationStatusViewModel | undefined;
 }) {
   const { t } = useTranslations();
@@ -254,28 +246,12 @@ function WithingsCard({
   );
   const queryClient = useQueryClient();
 
-  const { data: status } = useQuery({
-    queryKey: queryKeys.withingsStatus(),
-    queryFn: async () => {
-      const res = await fetch("/api/withings/status");
-      if (!res.ok) throw new Error("Failed");
-      const json = await res.json();
-      return json.data as {
-        connected: boolean;
-        configured: boolean;
-        lastSyncedAt?: string | null;
-        connectedAt?: string;
-        tokenExpired?: boolean;
-        // v1.4.25 W5d — reconnect banner conditional. `null` =
-        // legacy v1.4.24 connection without `user.activity`; the
-        // user needs to re-auth before steps / active energy /
-        // distance / floors ingest unlocks.
-        scope?: string | null;
-        hasActivityScope?: boolean;
-      };
-    },
-    enabled: isAuthenticated,
-  });
+  // v1.12.1 — the Withings status is read off the consolidated
+  // /api/integrations/status envelope (the `viewModel` prop). The
+  // per-card /api/withings/status round-trip is gone; the envelope
+  // carries every field this card renders (connected / configured /
+  // last-sync / activity scope).
+  const status = viewModel;
 
   const disconnect = useMutation({
     mutationFn: async () => {
@@ -383,16 +359,16 @@ function WithingsCard({
   }
 
   // The pill state derives from the cross-integration status
-  // envelope, but the per-card `lastSyncedAt` is sourced from the
-  // Withings-specific endpoint so it stays accurate immediately
-  // after a manual "Sync now" (which only invalidates the per-card
-  // query). When neither endpoint has answered yet we fall back to
-  // "disconnected" so the card never renders a status-less header.
+  // envelope. `legacyLastSyncedAt` is the connection row's own
+  // last-sync timestamp (carried in the same envelope) so the pill
+  // still paints a fresh "X min ago" right after a manual sync once
+  // the envelope refetches. When the envelope hasn't answered yet we
+  // fall back to "disconnected" so the card never renders status-less.
   const pillState: IntegrationPillState = status?.connected
     ? pillStateFor(viewModel)
     : "disconnected";
   const pillLastSyncAt =
-    status?.lastSyncedAt ?? viewModel?.lastSuccessAt ?? null;
+    status?.legacyLastSyncedAt ?? viewModel?.lastSuccessAt ?? null;
   // v1.4.43 W14 — `parked` and `error` both want the underlying error
   // message surfaced under the pill (the pill says "what" — the
   // message says "why"). Other states leave the inline line off.
@@ -403,16 +379,14 @@ function WithingsCard({
 
   return (
     <div className="bg-card border-border rounded-xl border p-6">
-      <div className="flex flex-wrap items-start justify-between gap-2">
-        <div className="flex items-center gap-2">
-          <Link2 className="text-primary h-5 w-5" />
-          <h2 className="text-lg font-semibold">{t("settings.withings")}</h2>
-        </div>
-        <IntegrationStatusPill state={pillState} lastSyncAt={pillLastSyncAt} />
-      </div>
-      <p className="text-muted-foreground mt-1 text-xs">
-        {t("settings.withingsDescription")}
-      </p>
+      <SettingsCardHeader
+        icon={Link2}
+        title={t("settings.withings")}
+        description={t("settings.withingsDescription")}
+        status={
+          <IntegrationStatusPill state={pillState} lastSyncAt={pillLastSyncAt} />
+        }
+      />
 
       <hr
         data-testid="integration-card-divider"
@@ -563,7 +537,7 @@ function WithingsCard({
                 type="submit"
                 variant="outline"
                 size="sm"
-                className="w-full sm:w-auto"
+                className="min-h-11 w-full sm:w-auto"
                 disabled={
                   credsSaving || !clientId.trim() || !clientSecret.trim()
                 }
@@ -599,6 +573,7 @@ function WithingsCard({
               <Button
                 variant="outline"
                 size="sm"
+                className="min-h-11"
                 onClick={() => handleSync(false)}
                 disabled={syncing}
               >
@@ -611,7 +586,12 @@ function WithingsCard({
               </Button>
               <AlertDialog>
                 <AlertDialogTrigger asChild>
-                  <Button variant="outline" size="sm" disabled={syncing}>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="min-h-11"
+                    disabled={syncing}
+                  >
                     {syncing ? (
                       <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
                     ) : (
@@ -646,7 +626,7 @@ function WithingsCard({
                   <Button
                     variant="outline"
                     size="sm"
-                    className="text-destructive"
+                    className="text-destructive min-h-11"
                   >
                     <Unlink className="mr-1 h-3.5 w-3.5" />
                     {t("settings.withingsDisconnect")}
@@ -703,10 +683,8 @@ function WithingsCard({
 }
 
 function WhoopCard({
-  isAuthenticated,
   viewModel,
 }: {
-  isAuthenticated: boolean;
   viewModel: IntegrationStatusViewModel | undefined;
 }) {
   const { t } = useTranslations();
@@ -724,24 +702,9 @@ function WhoopCard({
   );
   const queryClient = useQueryClient();
 
-  const { data: status } = useQuery({
-    queryKey: queryKeys.whoopStatus(),
-    queryFn: async () => {
-      const res = await fetch("/api/whoop/status");
-      if (!res.ok) throw new Error("Failed");
-      const json = await res.json();
-      return json.data as {
-        connected: boolean;
-        configured: boolean;
-        lastSyncedAt?: string | null;
-        connectedAt?: string;
-        tokenExpired?: boolean;
-        backfillCompleted?: boolean;
-        scope?: string | null;
-      };
-    },
-    enabled: isAuthenticated,
-  });
+  // v1.12.1 — read off the consolidated /api/integrations/status
+  // envelope; the per-card /api/whoop/status round-trip is gone.
+  const status = viewModel;
 
   const disconnect = useMutation({
     mutationFn: async () => {
@@ -853,7 +816,7 @@ function WhoopCard({
     ? pillStateFor(viewModel)
     : "disconnected";
   const pillLastSyncAt =
-    status?.lastSyncedAt ?? viewModel?.lastSuccessAt ?? null;
+    status?.legacyLastSyncedAt ?? viewModel?.lastSuccessAt ?? null;
   const errorMessage =
     (pillState === "error" || pillState === "parked") && viewModel?.lastError
       ? viewModel.lastError
@@ -861,19 +824,21 @@ function WhoopCard({
 
   return (
     <div className="bg-card border-border rounded-xl border p-6">
-      <div className="flex flex-wrap items-start justify-between gap-2">
-        <div className="flex items-center gap-2">
-          <Activity className="text-primary h-5 w-5" />
-          <h2 className="text-lg font-semibold">{t("settings.whoop")}</h2>
-        </div>
-        <IntegrationStatusPill state={pillState} lastSyncAt={pillLastSyncAt} />
-      </div>
-      <p className="text-muted-foreground mt-1 text-xs">
-        {t("settings.whoopDescription")}
-      </p>
-      <p className="text-muted-foreground/80 mt-2 text-xs">
-        {t("settings.whoopOverlapNote")}
-      </p>
+      <SettingsCardHeader
+        icon={Activity}
+        title={t("settings.whoop")}
+        description={
+          <>
+            <p>{t("settings.whoopDescription")}</p>
+            <p className="text-muted-foreground/80">
+              {t("settings.whoopOverlapNote")}
+            </p>
+          </>
+        }
+        status={
+          <IntegrationStatusPill state={pillState} lastSyncAt={pillLastSyncAt} />
+        }
+      />
 
       <hr
         data-testid="integration-card-divider"
@@ -991,7 +956,7 @@ function WhoopCard({
                 type="submit"
                 variant="outline"
                 size="sm"
-                className="w-full sm:w-auto"
+                className="min-h-11 w-full sm:w-auto"
                 disabled={
                   credsSaving || !clientId.trim() || !clientSecret.trim()
                 }
@@ -1021,6 +986,7 @@ function WhoopCard({
               <Button
                 variant="outline"
                 size="sm"
+                className="min-h-11"
                 onClick={() => handleSync(false)}
                 disabled={syncing}
               >
@@ -1033,7 +999,12 @@ function WhoopCard({
               </Button>
               <AlertDialog>
                 <AlertDialogTrigger asChild>
-                  <Button variant="outline" size="sm" disabled={syncing}>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="min-h-11"
+                    disabled={syncing}
+                  >
                     {syncing ? (
                       <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
                     ) : (
@@ -1068,7 +1039,7 @@ function WhoopCard({
                   <Button
                     variant="outline"
                     size="sm"
-                    className="text-destructive"
+                    className="text-destructive min-h-11"
                   >
                     <Unlink className="mr-1 h-3.5 w-3.5" />
                     {t("settings.whoopDisconnect")}
@@ -1131,14 +1102,13 @@ function WhoopCard({
 
 // v1.12.0 — Google Health (Fitbit & Pixel) card. Mirrors the WHOOP card: a
 // BYO-key credentials form first, then an OAuth connect, then the
-// sync/test/disconnect action row + parked-resume banner. Status reads from the
-// dedicated /api/fitbit/status (queryKeys.fitbitStatus); the pill/error/parked
-// state comes off the cross-integration envelope view-model like WHOOP.
+// sync/test/disconnect action row + parked-resume banner. v1.12.1 — status
+// reads off the consolidated /api/integrations/status envelope (the per-card
+// /api/fitbit/status round-trip is gone); the pill/error/parked state comes off
+// the same view-model like WHOOP.
 function FitbitCard({
-  isAuthenticated,
   viewModel,
 }: {
-  isAuthenticated: boolean;
   viewModel: IntegrationStatusViewModel | undefined;
 }) {
   const { t } = useTranslations();
@@ -1156,24 +1126,7 @@ function FitbitCard({
   );
   const queryClient = useQueryClient();
 
-  const { data: status } = useQuery({
-    queryKey: queryKeys.fitbitStatus(),
-    queryFn: async () => {
-      const res = await fetch("/api/fitbit/status");
-      if (!res.ok) throw new Error("Failed");
-      const json = await res.json();
-      return json.data as {
-        connected: boolean;
-        configured: boolean;
-        lastSyncedAt?: string | null;
-        connectedAt?: string;
-        tokenExpired?: boolean;
-        backfillCompleted?: boolean;
-        scope?: string | null;
-      };
-    },
-    enabled: isAuthenticated,
-  });
+  const status = viewModel;
 
   const disconnect = useMutation({
     mutationFn: async () => {
@@ -1287,7 +1240,7 @@ function FitbitCard({
     ? pillStateFor(viewModel)
     : "disconnected";
   const pillLastSyncAt =
-    status?.lastSyncedAt ?? viewModel?.lastSuccessAt ?? null;
+    status?.legacyLastSyncedAt ?? viewModel?.lastSuccessAt ?? null;
   const errorMessage =
     (pillState === "error" || pillState === "parked") && viewModel?.lastError
       ? viewModel.lastError
@@ -1298,35 +1251,41 @@ function FitbitCard({
       data-testid="fitbit-card"
       className="bg-card border-border rounded-xl border p-6"
     >
-      <div className="flex flex-wrap items-start justify-between gap-2">
-        <div className="flex flex-wrap items-center gap-2">
-          <HeartPulse className="text-primary h-5 w-5" />
-          <h2 className="text-lg font-semibold">{t("settings.fitbit")}</h2>
-          <span className="bg-muted text-foreground rounded-full px-2 py-0.5 text-[0.6875rem] font-medium">
-            {t("settings.fitbitTag")}
-          </span>
-          <Badge
-            variant="outline"
-            data-testid="fitbit-experimental-badge"
-            className="border-amber-500/50 text-amber-600 dark:text-amber-400"
-          >
-            {t("settings.fitbitExperimentalBadge")}
-          </Badge>
-        </div>
-        <IntegrationStatusPill state={pillState} lastSyncAt={pillLastSyncAt} />
-      </div>
-      <p className="text-muted-foreground mt-1 text-xs">
-        {t("settings.fitbitDescription")}
-      </p>
-      <p
-        data-testid="fitbit-experimental-note"
-        className="text-muted-foreground/80 mt-2 text-xs"
-      >
-        {t("settings.fitbitExperimentalNote")}
-      </p>
-      <p className="text-muted-foreground/80 mt-2 text-xs">
-        {t("settings.fitbitOverlapNote")}
-      </p>
+      <SettingsCardHeader
+        icon={HeartPulse}
+        title={t("settings.fitbit")}
+        titleAccessory={
+          <>
+            <span className="bg-muted text-foreground rounded-full px-2 py-0.5 text-[0.6875rem] font-medium">
+              {t("settings.fitbitTag")}
+            </span>
+            <Badge
+              variant="outline"
+              data-testid="fitbit-experimental-badge"
+              className="border-amber-500/50 text-amber-600 dark:text-amber-400"
+            >
+              {t("settings.fitbitExperimentalBadge")}
+            </Badge>
+          </>
+        }
+        description={
+          <>
+            <p>{t("settings.fitbitDescription")}</p>
+            <p
+              data-testid="fitbit-experimental-note"
+              className="text-muted-foreground/80"
+            >
+              {t("settings.fitbitExperimentalNote")}
+            </p>
+            <p className="text-muted-foreground/80">
+              {t("settings.fitbitOverlapNote")}
+            </p>
+          </>
+        }
+        status={
+          <IntegrationStatusPill state={pillState} lastSyncAt={pillLastSyncAt} />
+        }
+      />
 
       <hr
         data-testid="integration-card-divider"
@@ -1443,7 +1402,7 @@ function FitbitCard({
                 type="submit"
                 variant="outline"
                 size="sm"
-                className="w-full sm:w-auto"
+                className="min-h-11 w-full sm:w-auto"
                 disabled={
                   credsSaving || !clientId.trim() || !clientSecret.trim()
                 }
@@ -1473,6 +1432,7 @@ function FitbitCard({
               <Button
                 variant="outline"
                 size="sm"
+                className="min-h-11"
                 onClick={() => handleSync(false)}
                 disabled={syncing}
               >
@@ -1485,7 +1445,12 @@ function FitbitCard({
               </Button>
               <AlertDialog>
                 <AlertDialogTrigger asChild>
-                  <Button variant="outline" size="sm" disabled={syncing}>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="min-h-11"
+                    disabled={syncing}
+                  >
                     {syncing ? (
                       <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
                     ) : (
@@ -1520,7 +1485,7 @@ function FitbitCard({
                   <Button
                     variant="outline"
                     size="sm"
-                    className="text-destructive"
+                    className="text-destructive min-h-11"
                   >
                     <Unlink className="mr-1 h-3.5 w-3.5" />
                     {t("settings.fitbitDisconnect")}
@@ -1595,14 +1560,15 @@ function MoodLogCard({
   const [msg, setMsg] = useState<string | null>(null);
   const [msgType, setMsgType] = useState<"success" | "error" | null>(null);
 
-  const { data: status, refetch: refetchStatus } = useQuery({
-    queryKey: queryKeys.moodlogStatus(),
-    queryFn: async () => {
-      const res = await fetch("/api/integrations/moodlog/status");
-      if (!res.ok) throw new Error("Failed");
-      return (await res.json()).data as MoodLogStatus;
-    },
-  });
+  // v1.12.1 — read off the consolidated /api/integrations/status
+  // envelope; the per-card /api/integrations/moodlog/status round-trip
+  // is gone. Mutations invalidate the envelope so the card's webhook
+  // secret / entry-count / last-sync repaint on the next refetch.
+  const status = viewModel;
+  const refreshStatus = () =>
+    queryClient.invalidateQueries({
+      queryKey: queryKeys.integrationsStatus(),
+    });
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
@@ -1614,12 +1580,11 @@ function MoodLogCard({
       body: JSON.stringify({ url: url.trim(), apiKey: apiKey.trim() }),
     });
     if (res.ok) {
-      setMsg(t("settings.moodLogSaved"));
+      setMsg(t("settings.saved"));
       setMsgType("success");
       setUrl("");
       setApiKey("");
-      await refetchStatus();
-      queryClient.invalidateQueries({ queryKey: queryKeys.integrationsStatus() });
+      void refreshStatus();
     } else {
       const json = await res.json();
       setMsg(json.error || t("settings.savingError"));
@@ -1640,14 +1605,10 @@ function MoodLogCard({
       if (res.ok) {
         const json = await res.json();
         setMsg(
-          t("settings.moodLogSyncResult").replace(
-            "{count}",
-            String(json.data.imported),
-          ),
+          t("settings.moodLogSyncResult", { count: json.data.imported }),
         );
         setMsgType("success");
-        await refetchStatus();
-        queryClient.invalidateQueries({ queryKey: queryKeys.integrationsStatus() });
+        void refreshStatus();
       } else {
         setMsg(t("settings.moodLogSyncFailed"));
         setMsgType("error");
@@ -1664,47 +1625,48 @@ function MoodLogCard({
     if (res.ok) {
       setMsg(t("settings.moodLogDisconnected"));
       setMsgType("success");
-      await refetchStatus();
-      queryClient.invalidateQueries({ queryKey: queryKeys.integrationsStatus() });
+      void refreshStatus();
     }
   }
 
   // Mirror Withings logic: the pill state comes from the cross-
-  // integration envelope; per-card `lastSyncedAt` from the Mood Log
-  // endpoint so a manual sync paints fresh "X min ago" without
-  // waiting for the envelope to refetch.
+  // integration envelope, which also carries `legacyLastSyncedAt`
+  // (the user's moodLog last-sync timestamp) so a manual sync paints
+  // a fresh "X min ago" once the envelope refetches.
   const pillState: IntegrationPillState = status?.configured
     ? pillStateFor(viewModel)
     : "disconnected";
   const pillLastSyncAt =
-    status?.lastSyncedAt ?? viewModel?.lastSuccessAt ?? null;
+    status?.legacyLastSyncedAt ?? viewModel?.lastSuccessAt ?? null;
   const errorMessage =
     pillState === "error" && viewModel?.lastError ? viewModel.lastError : null;
 
   return (
     <div className="bg-card border-border rounded-xl border p-6">
-      <div className="flex flex-wrap items-start justify-between gap-2">
-        <div className="flex items-center gap-2">
-          <Smile className="text-primary h-5 w-5" />
-          <h2 className="text-lg font-semibold">
-            <a
-              href="https://moodlog.onback.io"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="hover:underline"
-            >
-              {t("settings.moodLogTitle")}
-            </a>
-          </h2>
-        </div>
-        <IntegrationStatusPill state={pillState} lastSyncAt={pillLastSyncAt} />
-      </div>
-      <p className="text-muted-foreground mt-1 text-xs">
-        {t("settings.moodLogDescription")}
-      </p>
-      <p className="text-muted-foreground/80 mt-1 text-[11px] italic">
-        {t("settings.moodLogDeprecated")}
-      </p>
+      <SettingsCardHeader
+        icon={Smile}
+        title={
+          <a
+            href="https://moodlog.onback.io"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hover:underline"
+          >
+            {t("settings.moodLogTitle")}
+          </a>
+        }
+        description={
+          <>
+            <p>{t("settings.moodLogDescription")}</p>
+            <p className="text-muted-foreground/80">
+              {t("settings.moodLogDeprecated")}
+            </p>
+          </>
+        }
+        status={
+          <IntegrationStatusPill state={pillState} lastSyncAt={pillLastSyncAt} />
+        }
+      />
 
       {/* v1.4.19 A5 — visual divider matches Withings for consistency
           (the maintainer explicitly called the asymmetry out). */}
@@ -1765,9 +1727,13 @@ function MoodLogCard({
               type="submit"
               disabled={saving || (!url.trim() && !apiKey.trim())}
               size="sm"
+              className="min-h-11"
             >
-              {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin motion-reduce:animate-none" />}
-              <Save className="mr-2 h-4 w-4" />
+              {saving ? (
+                <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
+              ) : (
+                <Save className="mr-1 h-3.5 w-3.5" />
+              )}
               {t("common.save")}
             </Button>
           </div>
@@ -1801,7 +1767,7 @@ function MoodLogCard({
                       setMsg(t("common.copied"));
                       setMsgType("success");
                     }}
-                    className="w-full sm:w-auto"
+                    className="min-h-11 w-full sm:w-auto"
                   >
                     {/* v1.4.22 D / D-DSGN-M-04 — use the proper
                         common.copy key instead of stripping the
@@ -1839,18 +1805,27 @@ function MoodLogCard({
               <Button
                 variant="outline"
                 size="sm"
+                className="min-h-11"
                 disabled={syncing}
                 onClick={() => handleSync(false)}
               >
-                {syncing && <Loader2 className="mr-2 h-4 w-4 animate-spin motion-reduce:animate-none" />}
-                <RefreshCw className="mr-2 h-4 w-4" />
+                {syncing ? (
+                  <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
+                ) : (
+                  <RefreshCw className="mr-1 h-3.5 w-3.5" />
+                )}
                 {t("settings.moodLogSync")}
               </Button>
 
               <AlertDialog>
                 <AlertDialogTrigger asChild>
-                  <Button variant="outline" size="sm" disabled={syncing}>
-                    <Download className="mr-2 h-4 w-4" />
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="min-h-11"
+                    disabled={syncing}
+                  >
+                    <RefreshCw className="mr-1 h-3.5 w-3.5" />
                     {t("settings.moodLogFullSync")}
                   </Button>
                 </AlertDialogTrigger>
@@ -1882,9 +1857,9 @@ function MoodLogCard({
                   <Button
                     variant="outline"
                     size="sm"
-                    className="text-destructive"
+                    className="text-destructive min-h-11"
                   >
-                    <Unlink className="mr-2 h-4 w-4" />
+                    <Unlink className="mr-1 h-3.5 w-3.5" />
                     {t("settings.moodLogDisconnect")}
                   </Button>
                 </AlertDialogTrigger>

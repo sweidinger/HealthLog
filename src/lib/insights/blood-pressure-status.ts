@@ -537,6 +537,7 @@ export async function generateBloodPressureStatusForUser(
   const outcome = await runStatusCompletion({
     userId,
     cacheAction,
+    consentSurface: "insights",
     systemPrompt: getBloodPressureSystemPrompt(locale),
     userPrompt: getBloodPressureUserPrompt(
       snapshotJson,

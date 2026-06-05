@@ -21,6 +21,7 @@ const {
   syncUserWorkout,
   findUnique,
   update,
+  recomputeUserRollups,
 } = vi.hoisted(() => ({
   recordSyncSuccess: vi.fn<(...a: unknown[]) => Promise<void>>(async () => {}),
   recordSyncFailure: vi.fn<(...a: unknown[]) => Promise<void>>(async () => {}),
@@ -33,10 +34,22 @@ const {
   syncUserWorkout: vi.fn<(...a: unknown[]) => Promise<number>>(),
   findUnique: vi.fn<(...a: unknown[]) => Promise<unknown>>(),
   update: vi.fn<(...a: unknown[]) => Promise<unknown>>(async () => ({})),
+  recomputeUserRollups: vi.fn<(...a: unknown[]) => Promise<unknown>>(
+    async () => ({ rowsUpserted: 0, durationMs: 0 }),
+  ),
 }));
 
 vi.mock("@/lib/db", () => ({
-  prisma: { fitbitConnection: { findUnique, update } },
+  prisma: {
+    fitbitConnection: { findUnique, update },
+    measurement: {
+      findMany: vi.fn(async () => []),
+      createMany: vi.fn(async (arg: { data: unknown[] }) => ({
+        count: arg.data.length,
+      })),
+      update: vi.fn(async () => ({})),
+    },
+  },
 }));
 vi.mock("@/lib/crypto", () => ({
   encrypt: (s: string) => s,
@@ -52,8 +65,10 @@ vi.mock("@/lib/integrations/status", () => ({
   isReauthRequired: (...a: unknown[]) => isReauthRequired(...a),
 }));
 vi.mock("@/lib/rollups/measurement-rollups", () => ({
-  collapseToTypeDayKeys: () => [],
+  collapseToTypeDayKeys: (rows: Array<{ type: string; measuredAt: Date }>) =>
+    rows,
   recomputeBucketsForMeasurement: vi.fn(async () => {}),
+  recomputeUserRollups: (...a: unknown[]) => recomputeUserRollups(...a),
 }));
 vi.mock("@/lib/insights/comprehensive-generate", () => ({
   invalidateStatusInsightsForTypes: vi.fn(async () => {}),
@@ -72,7 +87,11 @@ vi.mock("../sync-workout", () => ({
   syncUserWorkout: (...a: unknown[]) => syncUserWorkout(...a),
 }));
 
-import { handleCollectionFetchError, syncUserFitbit } from "../sync";
+import {
+  handleCollectionFetchError,
+  syncUserFitbit,
+  upsertFitbitMeasurements,
+} from "../sync";
 import { FitbitApiError } from "../response-classifier";
 
 /** A resource sync that 403s its collection and soft-skips, like the real one. */
@@ -224,7 +243,7 @@ describe("syncUserFitbit — single cycle-wide watermark", () => {
     expect(recordSyncSuccess).not.toHaveBeenCalled();
   });
 
-  it("passes fullSync through with an undefined start on a backfill cycle", async () => {
+  it("passes fullSync + deferRollup through with an undefined start on a backfill cycle", async () => {
     syncUserMetrics.mockResolvedValue(2);
 
     await syncUserFitbit("user1", { fullSync: true });
@@ -232,10 +251,79 @@ describe("syncUserFitbit — single cycle-wide watermark", () => {
     const opts = syncUserMetrics.mock.calls[0]![1] as {
       start?: Date;
       fullSync?: boolean;
+      deferRollup?: boolean;
     };
     expect(opts.fullSync).toBe(true);
     // Full sync walks deep history with no lower bound.
     expect(opts.start).toBeUndefined();
+    // The backfill defers the per-write rollup hook to one end-of-cycle pass.
+    expect(opts.deferRollup).toBe(true);
+  });
+
+  it("does NOT thread deferRollup on an incremental cycle", async () => {
+    syncUserMetrics.mockResolvedValue(1);
+
+    await syncUserFitbit("user1");
+
+    const opts = syncUserMetrics.mock.calls[0]![1] as { deferRollup?: boolean };
+    expect(opts.deferRollup).not.toBe(true);
+  });
+});
+
+describe("syncUserFitbit — backfill collapses rollup recompute to one pass", () => {
+  it("runs ONE recomputeUserRollups spanning the touched days, not a per-day loop", async () => {
+    // A resource that actually writes (via the real deferRollup-aware
+    // upsert) so the orchestrator's defer tracker accumulates touched keys.
+    syncUserActivity.mockImplementation(async (...args: unknown[]) => {
+      const opts = args[1] as { deferRollup?: boolean };
+      const { imported } = await upsertFitbitMeasurements(
+        String(args[0]),
+        [
+          {
+            type: "ACTIVITY_STEPS",
+            value: 1000,
+            unit: "count",
+            measuredAt: new Date("2026-05-01T00:00:00.000Z"),
+            externalId: "stats:steps:2026-05-01",
+          },
+          {
+            type: "ACTIVITY_STEPS",
+            value: 2000,
+            unit: "count",
+            measuredAt: new Date("2026-05-03T00:00:00.000Z"),
+            externalId: "stats:steps:2026-05-03",
+          },
+        ],
+        { deferRollup: opts.deferRollup },
+      );
+      return imported;
+    });
+
+    await syncUserFitbit("user1", { fullSync: true });
+
+    // Exactly one collapsed recompute for the whole backfill cycle.
+    expect(recomputeUserRollups).toHaveBeenCalledTimes(1);
+    const arg = recomputeUserRollups.mock.calls[0]![1] as {
+      types: string[];
+      from: Date;
+      to: Date;
+    };
+    expect(arg.types).toEqual(["ACTIVITY_STEPS"]);
+    // Range spans the first touched day through just past the last.
+    expect(arg.from.getTime()).toBe(
+      new Date("2026-05-01T00:00:00.000Z").getTime(),
+    );
+    expect(arg.to.getTime()).toBe(
+      new Date("2026-05-03T00:00:00.000Z").getTime() + 24 * 60 * 60 * 1000,
+    );
+  });
+
+  it("does NOT run the collapsed recompute on an incremental cycle", async () => {
+    syncUserMetrics.mockResolvedValue(3);
+
+    await syncUserFitbit("user1");
+
+    expect(recomputeUserRollups).not.toHaveBeenCalled();
   });
 
   it("returns 0 without running resources when the connection is gone", async () => {

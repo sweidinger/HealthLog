@@ -78,7 +78,12 @@ export function invalidateUserMood(userId: string): void {
   caches.insightsTargets.deleteByPrefix(userId);
   // v1.8.5 — mood writes dirty every dimension of the mood-insights
   // aggregate (heatmap cell, distribution, weekday, tag breakdown).
-  caches.moodInsights.deleteByPrefix(userId);
+  // v1.12.1 — mark stale rather than hard-evict: the mood-insights read
+  // is a multi-second cold compute, so an active logger writing back to
+  // back used to re-pay it on every entry. Marking stale keeps serving
+  // the prior aggregate (within the SWR window) while a single
+  // background recompute warms a fresh one.
+  caches.moodInsights.markStaleByPrefix(userId);
 }
 
 /**

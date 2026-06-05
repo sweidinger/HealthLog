@@ -362,6 +362,7 @@ export async function generateGeneralStatusForUser(
   const outcome = await runStatusCompletion({
     userId,
     cacheAction,
+    consentSurface: "insights",
     systemPrompt: getGeneralStatusSystemPrompt(locale),
     userPrompt: getGeneralStatusUserPrompt(
       snapshotJson,

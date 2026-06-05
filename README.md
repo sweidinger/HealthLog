@@ -11,6 +11,7 @@
 <p align="center">
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-AGPL--3.0-blue.svg" alt="License: AGPL-3.0" /></a>
   <a href="https://github.com/MBombeck/HealthLog/releases"><img src="https://img.shields.io/github/v/release/MBombeck/HealthLog?sort=semver&color=success&cacheSeconds=60" alt="Latest release" /></a>
+  <a href="https://github.com/MBombeck/HealthLog/actions/workflows/integration.yml"><img src="https://img.shields.io/github/actions/workflow/status/MBombeck/HealthLog/integration.yml?branch=main&label=CI" alt="CI status" /></a>
   <a href="https://testflight.apple.com/join/bucuTBpa"><img src="https://img.shields.io/badge/iOS-TestFlight-007AFF?logo=apple&logoColor=white" alt="iOS app on TestFlight" /></a>
   <img src="https://img.shields.io/badge/Self--Hosted-yes-success" alt="Self-Hosted" />
   <img src="https://img.shields.io/badge/Next.js-16-black?logo=next.js" alt="Next.js 16" />
@@ -34,6 +35,28 @@
 
 ---
 
+## Contents
+
+- [What it is](#what-it-is)
+- [Why HealthLog?](#why-healthlog)
+- [How it compares](#how-it-compares)
+- [Key Features](#key-features)
+- [Quick Start](#quick-start)
+- [Tech Stack](#tech-stack)
+- [Security and Privacy](#security-and-privacy)
+- [Environment Variables](#environment-variables)
+- [Architecture](#architecture)
+- [API Reference](#api-reference)
+- [Integrations](#integrations)
+- [Local Development](#local-development)
+- [Deployment](#deployment)
+- [Roadmap](#roadmap)
+- [Native iOS client](#native-ios-client)
+- [Contributing](#contributing)
+- [License](#license)
+
+---
+
 ## What it is
 
 HealthLog is a self-hosted personal health tracker that runs from a single `docker compose up`. It covers the metrics most people actually log -- weight, blood pressure, pulse, body composition, blood glucose, sleep, mood, and medication compliance -- and brings them together in one dashboard with reference ranges from ESH 2023, ADA 2024, and NICE NG115. Withings, WHOOP, and Google Health/Fitbit devices sync automatically over OAuth2; an `export.zip` import folds your full Apple Health history into the same timeline; a native SwiftUI iOS client (public-beta via [TestFlight](https://testflight.apple.com/join/bucuTBpa)) streams HealthKit live; multi-provider AI insights (BYOK or local) explain what the numbers mean; a doctor-report PDF generates client-side. EN/DE end-to-end. AGPL-3.0.
@@ -54,20 +77,25 @@ Most health apps lock your data behind proprietary clouds, push subscriptions, a
 
 ## How it compares
 
-|                          | HealthLog            | Withings web    | Apple Health  | Oura web    | Generic CSV |
-| ------------------------ | -------------------- | --------------- | ------------- | ----------- | ----------- |
-| Self-hosted              | Yes                  | No              | No            | No          | Yes         |
-| Open source              | AGPL-3.0             | No              | No            | No          | n/a         |
-| Withings device sync     | Yes (OAuth2)         | Yes (native)    | Via shortcut  | No          | No          |
-| Apple Health import      | Yes (`export.zip`)   | No              | Native        | No          | Manual      |
-| Blood pressure + glucose | First-class          | BP only         | Manual        | No          | Manual      |
-| Medication compliance    | Cadence-aware        | No              | No            | No          | Manual      |
-| Derived wellness metrics | Yes (transparent)    | Limited         | Limited       | Yes (closed)| No          |
-| Custom clinician targets | Yes (audit-logged)   | Limited         | No            | No          | n/a         |
-| Doctor-report PDF + FHIR | Yes (client-side)    | No              | No            | No          | n/a         |
-| AI Insights              | Multi-provider BYOK  | No              | Limited       | Subscription| n/a         |
-| Subscription required    | No                   | For some metrics| No            | Yes         | No          |
-| Your data leaves device  | Never                | Withings cloud  | Apple cloud   | Oura cloud  | Depends     |
+|                            | HealthLog            | Withings web    | Apple Health  | Oura web    | WHOOP web   | Fitbit web   | Generic CSV |
+| -------------------------- | -------------------- | --------------- | ------------- | ----------- | ----------- | ------------ | ----------- |
+| Self-hosted                | Yes                  | No              | No            | No          | No          | No           | Yes         |
+| Open source                | AGPL-3.0             | No              | No            | No          | No          | No           | n/a         |
+| Withings device sync       | Yes (OAuth2)         | Yes (native)    | Via shortcut  | No          | No          | No           | No          |
+| WHOOP device sync          | Yes (OAuth2, BYO-keys)| No             | No            | No          | Native      | No           | No          |
+| Google Health / Fitbit sync| Yes (experimental)   | No              | No            | No          | No          | Native       | No          |
+| Apple Health import        | Yes (`export.zip`)   | No              | Native        | No          | No          | No           | Manual      |
+| Aggregates many providers  | Yes                  | No              | Partial       | No          | No          | No           | Manual      |
+| Multi-source dedup + priority| Yes (per-metric)   | n/a             | Limited       | n/a         | n/a         | n/a          | No          |
+| Blood pressure + glucose   | First-class          | BP only         | Manual        | No          | No          | Limited      | Manual      |
+| Medication compliance      | Cadence-aware        | No              | No            | No          | No          | No           | Manual      |
+| Derived wellness metrics   | Yes (transparent)    | Limited         | Limited       | Yes (closed)| Yes (closed)| Limited      | No          |
+| Custom clinician targets   | Yes (audit-logged)   | Limited         | No            | No          | No          | No           | n/a         |
+| Doctor-report PDF + FHIR   | Yes (client-side)    | No              | No            | No          | No          | No           | n/a         |
+| AI Insights                | Multi-provider BYOK  | No              | Limited       | Subscription| Subscription| Limited      | n/a         |
+| Encrypted at rest (AES-256-GCM)| Yes (your host)  | Vendor cloud    | Vendor cloud  | Vendor cloud| Vendor cloud| Vendor cloud | Depends     |
+| Subscription required      | No                   | For some metrics| No            | Yes         | Yes         | For some metrics| No       |
+| Your data leaves device    | Never                | Withings cloud  | Apple cloud   | Oura cloud  | WHOOP cloud | Fitbit cloud | Depends     |
 
 ### Versus WHOOP / Oura / Fitbit ecosystems
 
@@ -166,7 +194,7 @@ Open **http://localhost:3000**. The first registered user becomes admin.
 | ------------- | ------------------------------------------------- |
 | Framework     | Next.js 16 (App Router, React Server Components)  |
 | Language      | TypeScript (strict mode)                          |
-| Database      | PostgreSQL 16 + Prisma 7 (47 models)              |
+| Database      | PostgreSQL 16 + Prisma 7 (60 models)              |
 | Job Queue     | pg-boss 12 (reminders, insights, backups)         |
 | UI            | shadcn/ui, Tailwind CSS 4, Radix UI, Lucide Icons |
 | Charts        | Recharts 3                                        |
@@ -187,6 +215,7 @@ HealthLog is designed for people who take data ownership seriously.
 
 - **Self-hosted** -- Your data never leaves your server. No telemetry, no third-party tracking.
 - **AES-256-GCM encryption** -- All stored secrets (OAuth tokens, API keys, VAPID keys, notification credentials, off-host backup payloads) are encrypted at rest.
+- **Your AI, your keys** -- AI insights run on a provider you choose: bring your own OpenAI / Anthropic key, sign in to ChatGPT via Codex device-OAuth, or point at a local OpenAI-compatible endpoint (Ollama, LM Studio, vLLM) so your health data never leaves your network. No model calls are made without a key you supply.
 - **Key versioning + zero-downtime rotation** -- Multiple encryption keys can coexist (`ENCRYPTION_KEYS` map + `ENCRYPTION_ACTIVE_KEY_ID`) and a CLI (`pnpm dlx tsx scripts/rotate-encryption-key.ts`) re-wraps every encrypted column from the old key to the new one without taking the app offline.
 - **Passkey authentication** -- WebAuthn as primary auth with password fallback (Argon2id + zxcvbn strength validation).
 - **Server-side sessions** -- PostgreSQL-backed with 30-day sliding expiry, HttpOnly/SameSite=Strict cookies.
@@ -263,7 +292,7 @@ src/
 │   ├── notifications/      # Dispatcher + channel senders
 │   ├── jobs/               # pg-boss worker (reminders, insights, backups)
 │   ├── analytics/          # Trend calculations, compliance, correlations
-│   ├── ai/                 # Multi-provider client (OpenAI, Anthropic, local)
+│   ├── ai/                 # Multi-provider client (OpenAI, Anthropic, Codex, local)
 │   ├── insights/           # Insight pipeline + medical prompts
 │   ├── gamification/       # Achievement definitions
 │   ├── feedback/           # Built-in feedback + GitHub escalation

@@ -265,6 +265,112 @@ describe("POST /api/mood-entries/bulk — structured tagKeys (v1.12.0)", () => {
     );
   });
 
+  it("dedups on (userId, source, externalId) when an entry carries externalId", async () => {
+    vi.mocked(prisma.moodEntry.findUnique).mockResolvedValue(null as never);
+    vi.mocked(prisma.moodEntry.upsert).mockResolvedValue({
+      id: "entry-ext",
+    } as never);
+    const res = await POST(
+      postReq({
+        entries: [
+          {
+            mood: "GUT",
+            moodLoggedAt: "2026-05-16T08:00:00.000Z",
+            externalId: "ios-uuid-1",
+          },
+        ],
+      }),
+    );
+    expect(res.status).toBe(200);
+    const json = (await res.json()) as {
+      data: { inserted: number; entries: Array<{ externalId?: string }> };
+    };
+    expect(json.data.inserted).toBe(1);
+    // The probe + upsert both key on the externalId compound, not the
+    // legacy wall-clock tuple.
+    const probeWhere = vi.mocked(prisma.moodEntry.findUnique).mock.calls[0]?.[0]
+      ?.where as Record<string, unknown>;
+    expect(probeWhere).toHaveProperty("userId_source_externalId");
+    const upsertArg = vi.mocked(prisma.moodEntry.upsert).mock.calls[0]?.[0] as {
+      where: Record<string, unknown>;
+      create: { externalId: string | null; source: string };
+    };
+    expect(upsertArg.where).toHaveProperty("userId_source_externalId");
+    expect(upsertArg.create.externalId).toBe("ios-uuid-1");
+    // The per-entry result echoes the externalId back for iOS hydration.
+    expect(json.data.entries[0].externalId).toBe("ios-uuid-1");
+  });
+
+  it("uses the legacy wall-clock key and omits externalId when none is sent", async () => {
+    vi.mocked(prisma.moodEntry.findUnique).mockResolvedValue(null as never);
+    vi.mocked(prisma.moodEntry.upsert).mockResolvedValue({
+      id: "entry-legacy",
+    } as never);
+    const res = await POST(
+      postReq({
+        entries: [{ mood: "OKAY", moodLoggedAt: "2026-05-16T08:00:00.000Z" }],
+      }),
+    );
+    expect(res.status).toBe(200);
+    const json = (await res.json()) as {
+      data: { entries: Array<{ externalId?: string }> };
+    };
+    const probeWhere = vi.mocked(prisma.moodEntry.findUnique).mock.calls[0]?.[0]
+      ?.where as Record<string, unknown>;
+    expect(probeWhere).toHaveProperty("userId_date_moodLoggedAt");
+    expect(json.data.entries[0].externalId).toBeUndefined();
+  });
+
+  it("reports a re-posted externalId entry as a duplicate (idempotent)", async () => {
+    // Probe finds the row → the response classifies it duplicate, not
+    // inserted, and the upsert update branch refreshes it in place.
+    vi.mocked(prisma.moodEntry.findUnique).mockResolvedValue({
+      id: "entry-ext",
+    } as never);
+    vi.mocked(prisma.moodEntry.upsert).mockResolvedValue({
+      id: "entry-ext",
+    } as never);
+    const res = await POST(
+      postReq({
+        entries: [
+          {
+            mood: "SUPER_GUT",
+            moodLoggedAt: "2026-05-16T08:00:00.000Z",
+            externalId: "ios-uuid-1",
+          },
+        ],
+      }),
+    );
+    expect(res.status).toBe(200);
+    const json = (await res.json()) as {
+      data: { inserted: number; duplicates: number };
+    };
+    expect(json.data.inserted).toBe(0);
+    expect(json.data.duplicates).toBe(1);
+    const upsertArg = vi.mocked(prisma.moodEntry.upsert).mock.calls[0]?.[0] as {
+      update: Record<string, unknown>;
+    };
+    // The externalId update branch also refreshes date + moodLoggedAt.
+    expect(upsertArg.update).toHaveProperty("date");
+    expect(upsertArg.update).toHaveProperty("moodLoggedAt");
+  });
+
+  it("rejects an over-long externalId at the Zod boundary (422)", async () => {
+    const res = await POST(
+      postReq({
+        entries: [
+          {
+            mood: "OKAY",
+            moodLoggedAt: "2026-05-16T08:00:00.000Z",
+            externalId: "x".repeat(121),
+          },
+        ],
+      }),
+    );
+    expect(res.status).toBe(422);
+    expect(prisma.moodEntry.upsert).not.toHaveBeenCalled();
+  });
+
   it("marks the single entry skipped (not the batch) on an out-of-scale rating", async () => {
     const { RatedFactorOutOfRangeError } = await import("@/lib/mood/tag-links");
     // First entry's factor write throws; the loop catch records it skipped.

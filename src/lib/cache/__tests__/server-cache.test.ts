@@ -10,6 +10,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   __resetAllCachesForTests,
   cached,
+  cachedSwr,
   caches,
   hashCacheKey,
   ServerCache,
@@ -219,6 +220,183 @@ describe("cached() observability wrapper", () => {
     const cache = new ServerCache<string>({ maxEntries: 4, ttlMs: 60_000 });
     const value = await cached(cache, "k", async () => "v");
     expect(value).toBe("v");
+  });
+});
+
+describe("ServerCache stale-while-revalidate (wrapSwr / cachedSwr)", () => {
+  it("serves a fresh hit without rebuilding", async () => {
+    const cache = new ServerCache<string>({
+      maxEntries: 4,
+      ttlMs: 60_000,
+      staleTtlMs: 600_000,
+    });
+    const builder = vi.fn(async () => "v");
+    const first = await cache.wrapSwr("k", builder);
+    expect(first.outcome).toBe("miss");
+    const second = await cache.wrapSwr("k", builder);
+    expect(second.outcome).toBe("hit");
+    expect(builder).toHaveBeenCalledTimes(1);
+  });
+
+  it("serves the stale value immediately and revalidates in the background", async () => {
+    vi.useFakeTimers();
+    const cache = new ServerCache<string>({
+      maxEntries: 4,
+      ttlMs: 1000,
+      staleTtlMs: 600_000,
+    });
+    let calls = 0;
+    const builder = vi.fn(async () => `v${++calls}`);
+
+    // Cold compute → v1.
+    const cold = await cache.wrapSwr("k", builder);
+    expect(cold.value).toBe("v1");
+    expect(cold.outcome).toBe("miss");
+
+    // Past the fresh TTL but inside the stale window.
+    vi.advanceTimersByTime(1500);
+    const stale = await cache.wrapSwr("k", builder);
+    // The active caller gets the prior value immediately — it did NOT
+    // pay the cold compute.
+    expect(stale.value).toBe("v1");
+    expect(stale.outcome).toBe("stale");
+
+    // The background recompute settles to a fresh value.
+    await vi.runAllTimersAsync();
+    expect(builder).toHaveBeenCalledTimes(2);
+    const warm = await cache.wrapSwr("k", builder);
+    expect(warm.value).toBe("v2");
+    expect(warm.outcome).toBe("hit");
+  });
+
+  it("coalesces a burst of stale reads into a single background rebuild", async () => {
+    vi.useFakeTimers();
+    const cache = new ServerCache<string>({
+      maxEntries: 4,
+      ttlMs: 1000,
+      staleTtlMs: 600_000,
+    });
+    // The cold build resolves immediately; the rebuild is gated on a
+    // manual promise so all three stale reads fire before it settles —
+    // proving they coalesce onto one in-flight rebuild.
+    let releaseRebuild: (() => void) | null = null;
+    let calls = 0;
+    const builder = vi.fn(async () => {
+      calls += 1;
+      if (calls === 1) return "v1";
+      await new Promise<void>((r) => {
+        releaseRebuild = r;
+      });
+      return "v2";
+    });
+    await cache.wrapSwr("k", builder);
+    vi.advanceTimersByTime(1500);
+
+    const a = await cache.wrapSwr("k", builder);
+    const b = await cache.wrapSwr("k", builder);
+    const c = await cache.wrapSwr("k", builder);
+    expect([a.outcome, b.outcome, c.outcome]).toEqual([
+      "stale",
+      "stale",
+      "stale",
+    ]);
+    // The single in-flight rebuild is still pending across the burst.
+    expect(builder).toHaveBeenCalledTimes(2);
+    releaseRebuild!();
+    await vi.runAllTimersAsync();
+    // Still exactly one cold build + one background rebuild.
+    expect(builder).toHaveBeenCalledTimes(2);
+  });
+
+  it("treats an entry past the stale window as a hard miss", async () => {
+    vi.useFakeTimers();
+    const cache = new ServerCache<string>({
+      maxEntries: 4,
+      ttlMs: 1000,
+      staleTtlMs: 2000,
+    });
+    let calls = 0;
+    const builder = vi.fn(async () => `v${++calls}`);
+    await cache.wrapSwr("k", builder);
+    // Past ttl + staleTtl → the stale window is closed.
+    vi.advanceTimersByTime(3500);
+    const miss = await cache.wrapSwr("k", builder);
+    expect(miss.outcome).toBe("miss");
+    expect(miss.value).toBe("v2");
+  });
+
+  it("markStaleByPrefix keeps serving the prior value under SWR (no cold re-pay)", async () => {
+    const cache = new ServerCache<string>({
+      maxEntries: 4,
+      ttlMs: 60_000,
+      staleTtlMs: 600_000,
+    });
+    let calls = 0;
+    const builder = vi.fn(async () => `v${++calls}`);
+    await cache.wrapSwr("u1|k", builder);
+
+    // Simulate a mood write marking the bucket stale rather than evicting.
+    expect(cache.markStaleByPrefix("u1|")).toBe(1);
+
+    // The next read still serves the prior value immediately (stale),
+    // not a hard miss — so the active logger doesn't re-pay the compute.
+    const afterMark = await cache.wrapSwr("u1|k", builder);
+    expect(afterMark.outcome).toBe("stale");
+    expect(afterMark.value).toBe("v1");
+  });
+
+  it("a rejected background rebuild keeps the stale value and retries next read", async () => {
+    vi.useFakeTimers();
+    const cache = new ServerCache<string>({
+      maxEntries: 4,
+      ttlMs: 1000,
+      staleTtlMs: 600_000,
+    });
+    let calls = 0;
+    const builder = vi.fn(async () => {
+      calls += 1;
+      if (calls === 2) throw new Error("transient");
+      return `v${calls}`;
+    });
+    await cache.wrapSwr("k", builder);
+    vi.advanceTimersByTime(1500);
+
+    // Stale read triggers a background rebuild that rejects.
+    const stale = await cache.wrapSwr("k", builder);
+    expect(stale.value).toBe("v1");
+    await vi.runAllTimersAsync();
+
+    // The prior value still serves; the next read retries the build.
+    const retry = await cache.wrapSwr("k", builder);
+    expect(retry.outcome).toBe("stale");
+    expect(retry.value).toBe("v1");
+    await vi.runAllTimersAsync();
+    const warm = await cache.wrapSwr("k", builder);
+    expect(warm.value).toBe("v3");
+  });
+
+  it("cachedSwr annotates the outcome (hit / stale / miss)", async () => {
+    vi.useFakeTimers();
+    const cache = new ServerCache<string>({
+      name: "moodInsights",
+      maxEntries: 4,
+      ttlMs: 1000,
+      staleTtlMs: 600_000,
+    });
+    const annotate = vi.fn();
+    const builder = vi.fn(async () => "v");
+
+    await cachedSwr(cache, "u1", builder, annotate);
+    expect(annotate).toHaveBeenLastCalledWith({
+      meta: expect.objectContaining({ "cache.moodInsights.outcome": "miss" }),
+    });
+
+    vi.advanceTimersByTime(1500);
+    annotate.mockClear();
+    await cachedSwr(cache, "u1", builder, annotate);
+    expect(annotate).toHaveBeenLastCalledWith({
+      meta: expect.objectContaining({ "cache.moodInsights.outcome": "stale" }),
+    });
   });
 });
 

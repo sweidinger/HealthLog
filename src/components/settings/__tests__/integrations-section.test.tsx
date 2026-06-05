@@ -41,23 +41,12 @@ vi.mock("@/hooks/use-auth", () => ({
   }),
 }));
 
+// v1.12.1 — the four cards now read every field off the single
+// /api/integrations/status envelope; the per-card /api/<provider>/status
+// queries are gone. The test mock only needs the consolidated payload.
 let integrationStatusPayload: unknown = null;
-let withingsStatusPayload: unknown = { connected: false, configured: false };
-let moodLogStatusPayload: unknown = {
-  configured: false,
-  enabled: false,
-  lastSyncedAt: null,
-  entryCount: 0,
-  webhookSecret: null,
-};
 function setIntegrationStatus(payload: unknown) {
   integrationStatusPayload = payload;
-}
-function setWithingsStatus(payload: unknown) {
-  withingsStatusPayload = payload;
-}
-function setMoodLogStatus(payload: unknown) {
-  moodLogStatusPayload = payload;
 }
 
 vi.mock("@tanstack/react-query", () => ({
@@ -76,16 +65,6 @@ vi.mock("@tanstack/react-query", () => ({
           moodLogGlobal: true,
         },
         isLoading: false,
-      };
-    }
-    if (key === "withings/status") {
-      return { data: withingsStatusPayload, isLoading: false };
-    }
-    if (key === "moodlog-status") {
-      return {
-        data: moodLogStatusPayload,
-        isLoading: false,
-        refetch: vi.fn(),
       };
     }
     return { data: null, isLoading: false, refetch: vi.fn() };
@@ -119,14 +98,6 @@ function count(html: string, needle: string): number {
 describe("IntegrationsSection — single-status-display contract (A5)", () => {
   beforeEach(() => {
     integrationStatusPayload = null;
-    withingsStatusPayload = { connected: false, configured: false };
-    moodLogStatusPayload = {
-      configured: false,
-      enabled: false,
-      lastSyncedAt: null,
-      entryCount: 0,
-      webhookSecret: null,
-    };
   });
 
   it("renders exactly ONE status pill per card when both integrations are healthy", () => {
@@ -139,6 +110,10 @@ describe("IntegrationsSection — single-status-display contract (A5)", () => {
           lastSuccessAt: "2026-05-09T18:00:00.000Z",
           lastAttemptAt: "2026-05-09T18:00:00.000Z",
           lastError: null,
+          connected: true,
+          configured: true,
+          legacyLastSyncedAt: "2026-05-09T18:00:00.000Z",
+          hasActivityScope: true,
         },
         {
           integration: "moodlog",
@@ -146,20 +121,13 @@ describe("IntegrationsSection — single-status-display contract (A5)", () => {
           lastSuccessAt: "2026-05-09T17:00:00.000Z",
           lastAttemptAt: "2026-05-09T17:00:00.000Z",
           lastError: null,
+          configured: true,
+          enabled: true,
+          legacyLastSyncedAt: "2026-05-09T17:00:00.000Z",
+          entryCount: 42,
+          webhookSecret: "secret123",
         },
       ],
-    });
-    setWithingsStatus({
-      connected: true,
-      configured: true,
-      lastSyncedAt: "2026-05-09T18:00:00.000Z",
-    });
-    setMoodLogStatus({
-      configured: true,
-      enabled: true,
-      lastSyncedAt: "2026-05-09T17:00:00.000Z",
-      entryCount: 42,
-      webhookSecret: "secret123",
     });
 
     const html = render();
@@ -186,6 +154,10 @@ describe("IntegrationsSection — single-status-display contract (A5)", () => {
           lastSuccessAt: "2026-05-09T08:00:00.000Z",
           lastAttemptAt: "2026-05-09T18:00:00.000Z",
           lastError: "Withings refresh error: 503 - upstream",
+          connected: true,
+          configured: true,
+          legacyLastSyncedAt: "2026-05-09T08:00:00.000Z",
+          hasActivityScope: true,
         },
         {
           integration: "moodlog",
@@ -195,11 +167,6 @@ describe("IntegrationsSection — single-status-display contract (A5)", () => {
           lastError: null,
         },
       ],
-    });
-    setWithingsStatus({
-      connected: true,
-      configured: true,
-      lastSyncedAt: "2026-05-09T08:00:00.000Z",
     });
 
     const html = render();
@@ -226,6 +193,11 @@ describe("IntegrationsSection — single-status-display contract (A5)", () => {
           lastSuccessAt: "2026-05-08T12:00:00.000Z",
           lastAttemptAt: "2026-05-09T18:00:00.000Z",
           lastError: "Withings refresh error: 100 - invalid_grant",
+          connected: true,
+          configured: true,
+          legacyLastSyncedAt: "2026-05-08T12:00:00.000Z",
+          tokenExpired: true,
+          hasActivityScope: true,
         },
         {
           integration: "moodlog",
@@ -235,12 +207,6 @@ describe("IntegrationsSection — single-status-display contract (A5)", () => {
           lastError: null,
         },
       ],
-    });
-    setWithingsStatus({
-      connected: true,
-      configured: true,
-      lastSyncedAt: "2026-05-08T12:00:00.000Z",
-      tokenExpired: true,
     });
 
     const html = render();
@@ -293,6 +259,10 @@ describe("IntegrationsSection — single-status-display contract (A5)", () => {
           lastSuccessAt: "2026-05-08T12:00:00.000Z",
           lastAttemptAt: "2026-05-09T18:00:00.000Z",
           lastError: "Withings activity error: 293",
+          connected: true,
+          configured: true,
+          legacyLastSyncedAt: "2026-05-08T12:00:00.000Z",
+          hasActivityScope: true,
         },
         {
           integration: "moodlog",
@@ -302,11 +272,6 @@ describe("IntegrationsSection — single-status-display contract (A5)", () => {
           lastError: null,
         },
       ],
-    });
-    setWithingsStatus({
-      connected: true,
-      configured: true,
-      lastSyncedAt: "2026-05-08T12:00:00.000Z",
     });
 
     const html = render();
@@ -330,6 +295,10 @@ describe("IntegrationsSection — single-status-display contract (A5)", () => {
           lastSuccessAt: "2026-05-09T18:00:00.000Z",
           lastAttemptAt: "2026-05-09T18:00:00.000Z",
           lastError: null,
+          connected: true,
+          configured: true,
+          legacyLastSyncedAt: "2026-05-09T18:00:00.000Z",
+          hasActivityScope: true,
         },
         {
           integration: "moodlog",
@@ -337,20 +306,13 @@ describe("IntegrationsSection — single-status-display contract (A5)", () => {
           lastSuccessAt: "2026-05-09T17:00:00.000Z",
           lastAttemptAt: "2026-05-09T17:00:00.000Z",
           lastError: null,
+          configured: true,
+          enabled: true,
+          legacyLastSyncedAt: "2026-05-09T17:00:00.000Z",
+          entryCount: 42,
+          webhookSecret: "secret123",
         },
       ],
-    });
-    setWithingsStatus({
-      connected: true,
-      configured: true,
-      lastSyncedAt: "2026-05-09T18:00:00.000Z",
-    });
-    setMoodLogStatus({
-      configured: true,
-      enabled: true,
-      lastSyncedAt: "2026-05-09T17:00:00.000Z",
-      entryCount: 42,
-      webhookSecret: "secret123",
     });
 
     const html = render();

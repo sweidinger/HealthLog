@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { SettingsCardHeader } from "@/components/settings/_card-header";
 import { useAuth } from "@/hooks/use-auth";
 import { useFormatters, useTranslations } from "@/lib/i18n/context";
 import { restartOnboardingTour } from "@/lib/onboarding/tour-restart";
@@ -251,10 +252,7 @@ export function AboutSection() {
           which read as a separate field even though the two values belong
           on the same row. */}
       <div className="bg-card border-border rounded-xl border p-6">
-        <div className="mb-4 flex items-center gap-2">
-          <Info className="text-primary h-5 w-5" />
-          <h2 className="text-lg font-semibold">HealthLog</h2>
-        </div>
+        <SettingsCardHeader icon={Info} title="HealthLog" className="mb-4" />
 
         {isLoading || !version ? (
           <div className="flex items-center gap-2">
@@ -324,12 +322,11 @@ export function AboutSection() {
           telling the user what the section was for. */}
       {version && (
         <div className="bg-card border-border rounded-xl border p-6">
-          <div className="mb-4 flex items-center gap-2">
-            <BookOpen className="text-primary h-5 w-5" />
-            <h2 className="text-lg font-semibold">
-              {t("settings.about.linksHeading")}
-            </h2>
-          </div>
+          <SettingsCardHeader
+            icon={BookOpen}
+            title={t("settings.about.linksHeading")}
+            className="mb-4"
+          />
           <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
             <Button asChild variant="outline" size="sm">
               <a

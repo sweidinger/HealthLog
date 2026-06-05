@@ -35,14 +35,19 @@ import { cn } from "@/lib/utils";
 export interface SettingsCardHeaderProps {
   /** Lucide icon component; rendered as `text-primary h-5 w-5`. */
   icon: LucideIcon;
-  /** Card title — rendered as `<h2 class="text-lg font-semibold">`. */
-  title: string;
+  /** Card title — rendered as `<h2 class="text-lg font-semibold">`.
+   *  Accepts a node so a card can wrap the title in a link. */
+  title: React.ReactNode;
   /** Optional id for the `<h2>` so an outer `aria-labelledby`
    *  attribute on the card itself can reference it. */
   titleId?: string;
+  /** Optional inline accessory rendered in the title row, immediately
+   *  after the title (e.g. a tag chip + experimental badge). The title
+   *  row wraps so the accessories reflow below on a narrow viewport. */
+  titleAccessory?: React.ReactNode;
   /** Optional short description rendered as muted text below the
    *  title row. Either a string (paragraph) or arbitrary node
-   *  (links, badges, etc.). */
+   *  (links, badges, extra sub-notes, etc.). */
   description?: React.ReactNode;
   /** Optional right-aligned status surface — typically an
    *  `<IntegrationStatusPill>` or a wrapper around badges. */
@@ -55,6 +60,7 @@ export function SettingsCardHeader({
   icon: Icon,
   title,
   titleId,
+  titleAccessory,
   description,
   status,
   className,
@@ -62,16 +68,19 @@ export function SettingsCardHeader({
   return (
     <header className={cn("space-y-1", className)}>
       <div className="flex flex-wrap items-start justify-between gap-2">
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Icon className="text-primary h-5 w-5 shrink-0" aria-hidden="true" />
           <h2 id={titleId} className="text-lg font-semibold">
             {title}
           </h2>
+          {titleAccessory}
         </div>
         {status ? <div className="flex shrink-0 items-center gap-2">{status}</div> : null}
       </div>
       {description ? (
-        <p className="text-muted-foreground text-xs">{description}</p>
+        <div className="text-muted-foreground space-y-1 text-xs">
+          {description}
+        </div>
       ) : null}
     </header>
   );

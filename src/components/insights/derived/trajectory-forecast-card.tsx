@@ -1,15 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
-import {
-  ResponsiveContainer,
-  ComposedChart,
-  Area,
-  Line,
-  XAxis,
-  YAxis,
-  ReferenceLine,
-} from "recharts";
+import dynamic from "next/dynamic";
 import { TrendingUp, TrendingDown, Minus } from "lucide-react";
 
 import { useTranslations } from "@/lib/i18n/context";
@@ -18,6 +10,22 @@ import { CoverageMeter } from "@/components/insights/derived/coverage-meter";
 import { ProvenanceExplainer } from "@/components/insights/derived/provenance-explainer";
 import { METRIC_PROVENANCE } from "@/components/insights/derived/standards";
 import { useDerivedMetric } from "@/components/insights/derived/use-derived-metric";
+
+// v1.12.1 — defer the Recharts fan band so the card chrome (and the whole
+// HealthKit metric page that always mounts this card on a trajectory-
+// eligible type) no longer pulls Recharts into the initial chunk. The
+// loading shell is a plain box that fills the same fixed-height band the
+// chart paints, so there is no layout shift when the chunk arrives.
+const TrajectoryFanDynamic = dynamic(
+  () =>
+    import("@/components/insights/derived/trajectory-fan").then((mod) => ({
+      default: mod.TrajectoryFan,
+    })),
+  {
+    ssr: false,
+    loading: () => <div className="bg-muted/20 h-full w-full rounded" />,
+  },
+);
 // Type-only — the compute payload never drags the server graph into the
 // client bundle (the v1.9.0 lesson, mirrored across the derived surfaces).
 import type { TrajectoryValue } from "@/lib/insights/derived/trajectory";
@@ -303,44 +311,7 @@ export function TrajectoryForecastCard({
           className={cn("w-full", compact ? "h-20" : "h-28")}
           data-slot="trajectory-chart"
         >
-          <ResponsiveContainer width="100%" height="100%">
-            <ComposedChart
-              data={chart.points}
-              margin={{ top: 4, right: 4, bottom: 0, left: 0 }}
-            >
-              <XAxis dataKey="date" hide />
-              <YAxis domain={["auto", "auto"]} hide />
-              <Area
-                dataKey="base"
-                stackId="band"
-                stroke="none"
-                fill="none"
-                isAnimationActive={false}
-              />
-              <Area
-                dataKey="range"
-                stackId="band"
-                stroke="none"
-                fill={color}
-                fillOpacity={0.15}
-                isAnimationActive={false}
-              />
-              <Line
-                dataKey="projected"
-                type="monotone"
-                stroke={color}
-                strokeWidth={2}
-                strokeDasharray="4 3"
-                dot={false}
-                isAnimationActive={false}
-              />
-              <ReferenceLine
-                x="now"
-                stroke="var(--border)"
-                strokeDasharray="2 2"
-              />
-            </ComposedChart>
-          </ResponsiveContainer>
+          <TrajectoryFanDynamic points={chart.points} color={color} />
         </div>
 
         {/* The mandatory conditional caveat — never a certainty, never a

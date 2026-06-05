@@ -3,6 +3,7 @@ import {
   classifyClient,
   resolveTokenPolicy,
   shouldIssueBearerToken,
+  isCookielessNativeCaller,
 } from "../native-client";
 
 function h(pairs: Record<string, string>): Headers {
@@ -81,5 +82,53 @@ describe("shouldIssueBearerToken", () => {
       shouldIssueBearerToken(h({ "user-agent": "Mozilla/5.0 Safari" })),
     ).toBe(false);
     expect(shouldIssueBearerToken(h({}))).toBe(false);
+  });
+});
+
+describe("isCookielessNativeCaller (M-3 refresh-token issuance gate)", () => {
+  it("true for a genuine native caller (native UA, no cookie)", () => {
+    expect(
+      isCookielessNativeCaller(h({ "user-agent": "HealthLog-iOS/1.4" })),
+    ).toBe(true);
+    expect(isCookielessNativeCaller(h({ "x-client-type": "native" }))).toBe(
+      true,
+    );
+    // Blank UA classifies native and carries no cookie.
+    expect(isCookielessNativeCaller(h({}))).toBe(true);
+  });
+
+  it("false for a plain web browser (not native)", () => {
+    expect(
+      isCookielessNativeCaller(h({ "user-agent": "Mozilla/5.0 Safari" })),
+    ).toBe(false);
+  });
+
+  it("false for a browser spoofing X-Client-Type:native via Mozilla UA", () => {
+    // classifyClient honours the header (native), but the Mozilla UA is the
+    // browser tell that suppresses refresh-token issuance.
+    expect(
+      isCookielessNativeCaller(
+        h({ "x-client-type": "native", "user-agent": "Mozilla/5.0 Chrome" }),
+      ),
+    ).toBe(false);
+  });
+
+  it("false when an inbound session cookie is present (browser round-trip)", () => {
+    expect(
+      isCookielessNativeCaller(
+        h({
+          "x-client-type": "native",
+          cookie: "foo=bar; healthlog_session=abc123; baz=qux",
+        }),
+      ),
+    ).toBe(false);
+  });
+
+  it("true for a native caller whose cookie header lacks the session cookie", () => {
+    expect(
+      isCookielessNativeCaller(
+        h({ "x-client-type": "native", cookie: "other=1; hl_onboarding=pending" }),
+      ),
+    ).toBe(true);
   });
 });

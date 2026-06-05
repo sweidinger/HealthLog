@@ -126,9 +126,23 @@ export async function rotateRefreshToken(input: {
     // refresh, so the legitimate path always carries a deviceId. A
     // missing deviceId on a replay is itself a suspicious signal, hence
     // the fall-through to the wider revoke.
+    //
+    // M-4 hardening: a legitimate device never changes its id mid-family.
+    // If the *presented* deviceId is present but differs from the stored
+    // row's deviceId, the device-scoped key is client-asserted and would
+    // confine the revoke to the attacker's own fabricated id, leaving the
+    // victim's family live. Escalate to the user-wide revoke in that case
+    // so a stolen token replayed under a spoofed id can't dodge
+    // containment.
+    const presentedDeviceId = input.deviceId ?? null;
+    const storedDeviceId = row.deviceId ?? null;
+    const deviceMismatch =
+      presentedDeviceId !== null &&
+      storedDeviceId !== null &&
+      presentedDeviceId !== storedDeviceId;
     const where: { userId: string; revokedAt: null; deviceId?: string } =
-      row.deviceId !== null && row.deviceId !== undefined
-        ? { userId: row.userId, revokedAt: null, deviceId: row.deviceId }
+      storedDeviceId !== null && !deviceMismatch
+        ? { userId: row.userId, revokedAt: null, deviceId: storedDeviceId }
         : { userId: row.userId, revokedAt: null };
     const compromised = await prisma.refreshToken.findMany({ where });
     await prisma.refreshToken.updateMany({
@@ -200,6 +214,38 @@ export async function rotateRefreshToken(input: {
   }
 
   return { ok: true, bundle };
+}
+
+/**
+ * Revoke a bearer access token presented at logout (M-2 hardening).
+ *
+ * `destroySession()` only clears the cookie; for a native/bearer transport
+ * that does not round-trip the refresh endpoint, `/api/auth/logout` would
+ * otherwise leave the access token valid until expiry. This hashes the raw
+ * `hlk_<…>` token, flips the matching `ApiToken.revoked = true`, and
+ * revokes its paired `RefreshToken` sibling (matched by `accessTokenHash`)
+ * so the whole credential pair dies with the logout.
+ *
+ * Returns true when a matching live ApiToken row was revoked.
+ */
+export async function revokeBearerAccessToken(
+  rawAccessToken: string,
+): Promise<boolean> {
+  const accessHash = hashToken(rawAccessToken);
+
+  const apiResult = await prisma.apiToken.updateMany({
+    where: { tokenHash: accessHash, revoked: false },
+    data: { revoked: true },
+  });
+
+  // Revoke the paired refresh sibling so a native logout kills both halves
+  // of the pair, mirroring the rotation-time access-token revoke.
+  await prisma.refreshToken.updateMany({
+    where: { accessTokenHash: accessHash, revokedAt: null },
+    data: { revokedAt: new Date() },
+  });
+
+  return apiResult.count > 0;
 }
 
 /** Revoke a specific refresh token (logout-on-device).

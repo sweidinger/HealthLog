@@ -34,11 +34,76 @@ export interface FitbitCredentials {
   clientSecret: string;
 }
 
+/**
+ * Resolve the OAuth `redirect_uri`, then assert it against an allowlist
+ * (v1.12.1 — M-5, defence-in-depth).
+ *
+ * The value is operator-controlled config (`FITBIT_REDIRECT_URI`, else derived
+ * from `NEXT_PUBLIC_APP_URL`), not user input, so Google's registered-redirect
+ * check is the real backstop. But a misconfigured or `Host`-coerced
+ * `NEXT_PUBLIC_APP_URL` (a mis-deployed reverse proxy reflecting a forwarded
+ * Host) would otherwise send the authorization code's landing URL off-origin.
+ * Pin the target here so a malformed origin fails fast at the handshake rather
+ * than silently redirecting elsewhere:
+ *   - must be an absolute, parseable URL,
+ *   - must be https (the one exception is a localhost/loopback dev host, which
+ *     Google itself permits over http),
+ *   - must land on the fixed `/api/fitbit/callback` path,
+ *   - when derived from `NEXT_PUBLIC_APP_URL`, must stay same-origin with it.
+ */
 function getRedirectUri(): string {
-  return (
-    process.env.FITBIT_REDIRECT_URI ??
-    `${process.env.NEXT_PUBLIC_APP_URL}/api/fitbit/callback`
-  );
+  const explicit = process.env.FITBIT_REDIRECT_URI;
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL;
+  const raw = explicit ?? (appUrl ? `${appUrl}/api/fitbit/callback` : undefined);
+
+  if (!raw) {
+    throw new Error(
+      "Fitbit redirect_uri is not configured — set FITBIT_REDIRECT_URI or NEXT_PUBLIC_APP_URL",
+    );
+  }
+
+  let parsed: URL;
+  try {
+    parsed = new URL(raw);
+  } catch {
+    throw new Error(`Fitbit redirect_uri is not an absolute URL: ${raw}`);
+  }
+
+  const isLoopback =
+    parsed.hostname === "localhost" ||
+    parsed.hostname === "127.0.0.1" ||
+    parsed.hostname === "[::1]" ||
+    parsed.hostname === "::1";
+  if (parsed.protocol !== "https:" && !(parsed.protocol === "http:" && isLoopback)) {
+    throw new Error(
+      `Fitbit redirect_uri must be https (or http on localhost): ${parsed.origin}`,
+    );
+  }
+
+  if (parsed.pathname !== "/api/fitbit/callback") {
+    throw new Error(
+      `Fitbit redirect_uri must target /api/fitbit/callback, got ${parsed.pathname}`,
+    );
+  }
+
+  // When an explicit FITBIT_REDIRECT_URI is set alongside NEXT_PUBLIC_APP_URL,
+  // require them to share an origin so the pinned value can't drift to an
+  // unexpected host relative to the app's own base URL.
+  if (explicit && appUrl) {
+    let appOrigin: string;
+    try {
+      appOrigin = new URL(appUrl).origin;
+    } catch {
+      throw new Error(`NEXT_PUBLIC_APP_URL is not an absolute URL: ${appUrl}`);
+    }
+    if (parsed.origin !== appOrigin) {
+      throw new Error(
+        `Fitbit redirect_uri origin ${parsed.origin} does not match NEXT_PUBLIC_APP_URL origin ${appOrigin}`,
+      );
+    }
+  }
+
+  return parsed.toString();
 }
 
 /**

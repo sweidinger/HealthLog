@@ -18,6 +18,7 @@ import { issueApiToken, isNativeClientRequest } from "@/lib/auth/issue-token";
 import {
   resolveTokenPolicy,
   shouldIssueBearerToken,
+  isCookielessNativeCaller,
 } from "@/lib/auth/native-client";
 import { issueAccessAndRefresh } from "@/lib/auth/refresh-token";
 
@@ -120,7 +121,15 @@ export const POST = apiHandler(async (request: NextRequest) => {
     const policy = resolveTokenPolicy(request.headers);
     const deviceId = request.headers.get("x-device-id");
 
-    if (policy.refreshTokenDays !== null) {
+    // M-3 hardening: a 60-day refresh token is only ever delivered to a
+    // genuinely cookie-less native caller. A browser spoofing
+    // `X-Client-Type: native` (Mozilla UA or an inbound session cookie)
+    // falls through to the plain access-token path below — never handed a
+    // long-lived secret into a DOM/XSS-reachable context.
+    if (
+      policy.refreshTokenDays !== null &&
+      isCookielessNativeCaller(request.headers)
+    ) {
       const bundle = await issueAccessAndRefresh({
         userId: user.id,
         policy,

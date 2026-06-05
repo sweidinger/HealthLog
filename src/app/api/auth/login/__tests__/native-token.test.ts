@@ -151,6 +151,71 @@ describe("POST /api/auth/login — native token issuance", () => {
     expect(prisma.apiToken.create).not.toHaveBeenCalled();
   });
 
+  it("issues a refreshToken for a genuine cookie-less native caller", async () => {
+    const original = process.env.API_TOKEN_HMAC_KEY;
+    process.env.API_TOKEN_HMAC_KEY = "test-key";
+    try {
+      const res = await POST(
+        makeRequest({ "user-agent": "HealthLog-iOS/1.0 (iPhone)" }),
+      );
+      const body = (await res.json()) as {
+        data: { token?: string; refreshToken?: string };
+      };
+      expect(res.status).toBe(200);
+      expect(body.data.token).toMatch(/^hlk_/);
+      expect(body.data.refreshToken).toMatch(/^hlr_/);
+      // refresh-token row persisted for the native path.
+      expect(prisma.refreshToken.create).toHaveBeenCalledTimes(1);
+    } finally {
+      process.env.API_TOKEN_HMAC_KEY = original;
+    }
+  });
+
+  it("M-3 — a browser spoofing X-Client-Type:native gets NO refreshToken", async () => {
+    const original = process.env.API_TOKEN_HMAC_KEY;
+    process.env.API_TOKEN_HMAC_KEY = "test-key";
+    try {
+      const res = await POST(
+        makeRequest({
+          "x-client-type": "native",
+          "user-agent": "Mozilla/5.0 (Macintosh) Chrome/142",
+        }),
+      );
+      const body = (await res.json()) as {
+        data: { token?: string; refreshToken?: string };
+      };
+      expect(res.status).toBe(200);
+      // It still gets a short-lived access token, but NEVER a 60-day
+      // refresh secret delivered into a browser context.
+      expect(body.data.token).toMatch(/^hlk_/);
+      expect(body.data.refreshToken).toBeUndefined();
+      expect(prisma.refreshToken.create).not.toHaveBeenCalled();
+    } finally {
+      process.env.API_TOKEN_HMAC_KEY = original;
+    }
+  });
+
+  it("M-3 — an inbound session cookie suppresses the refreshToken even with native UA", async () => {
+    const original = process.env.API_TOKEN_HMAC_KEY;
+    process.env.API_TOKEN_HMAC_KEY = "test-key";
+    try {
+      const res = await POST(
+        makeRequest({
+          "x-client-type": "native",
+          cookie: "healthlog_session=existing-session-id",
+        }),
+      );
+      const body = (await res.json()) as {
+        data: { token?: string; refreshToken?: string };
+      };
+      expect(res.status).toBe(200);
+      expect(body.data.refreshToken).toBeUndefined();
+      expect(prisma.refreshToken.create).not.toHaveBeenCalled();
+    } finally {
+      process.env.API_TOKEN_HMAC_KEY = original;
+    }
+  });
+
   it("issues a token when User-Agent starts with HealthLog-iOS", async () => {
     const original = process.env.API_TOKEN_HMAC_KEY;
     process.env.API_TOKEN_HMAC_KEY = "test-key";

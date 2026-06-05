@@ -2,6 +2,23 @@
 
 ## [Unreleased]
 
+## [1.12.1] — 2026-06-05 — security, data-integrity, and insight-quality hardening
+
+### Changed
+
+- **Consent is now enforced on the server before any health data reaches a server-managed AI provider.** When the app uses an operator-provided AI key to generate insights, the assistant, or medication extraction, it first requires an active consent receipt — consent no longer depends on the client asking nicely. Bring-your-own-key and local providers are unaffected (the key is your own).
+- **Assessments read less repetitively and more relationally.** A per-metric card can now bring in a genuine correlation from your own data (shown as an association, never a cause), varies its wording instead of repeating a near-identical paragraph when a metric has been steady for weeks, and hedges honestly when there is little data rather than over-claiming.
+- **Settings feel like one surface.** The integration, account, sharing, and API cards share one header, the same button names and behaviour (so "Sync now" / "Sync all data" / "Test connection" mean the same thing everywhere), consistent tap-target sizes, and consistent spacing.
+- **Faster settings and insights.** The integrations screen now loads its status in a single request instead of one per provider, the mood insights stay warm instead of recomputing from cold on every entry, and below-the-fold charts load on demand.
+- **Sturdier Google Health / Fitbit sync.** A reading you delete stays deleted instead of reappearing on the next sync, large backfills write in batches, and the hourly poll no longer lets one slow account stall the rest.
+
+### Fixed
+
+- **Re-taking a dose after deleting it works again.** The medication intake history no longer blocks a legitimate re-entry against a deleted row.
+- **Mood entries can round-trip without duplicating.** Mood entries now carry a stable identifier, so re-importing the same entry updates it in place instead of creating a second copy.
+- **Tag-to-metric comparisons no longer double-count.** When the same day's steps, energy, or sleep arrive from more than one source, the mood tag comparison counts them once.
+- Logging out now revokes a native session's token immediately, a long-lived refresh token is never handed to a browser, and a few authentication edge cases were tightened.
+
 ## [1.12.0] — 2026-06-05 — Google Health sync, rated mood factors, and a Coach and insights overhaul
 
 ### Added
