@@ -100,7 +100,7 @@ export function TestConnectionButton({
       {result?.kind === "ok" && (
         <p
           role="status"
-          className="text-dracula-green flex items-center gap-1.5 text-xs"
+          className="text-success flex items-center gap-1.5 text-xs"
         >
           <CheckCircle2 className="h-3.5 w-3.5" />
           {t("settings.testConnection.ok", { latency: result.latency })}

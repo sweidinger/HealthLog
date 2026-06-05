@@ -201,7 +201,7 @@ export function HealthRecordExportPanel() {
     >
       <div className="mb-2 flex items-center gap-2">
         <FileText
-          className="text-dracula-purple h-5 w-5 shrink-0"
+          className="text-primary h-5 w-5 shrink-0"
           aria-hidden="true"
         />
         <h2
