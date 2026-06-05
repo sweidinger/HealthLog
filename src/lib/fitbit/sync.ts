@@ -14,6 +14,7 @@
  * wave and extends this file.
  */
 import { AsyncLocalStorage } from "node:async_hooks";
+import pLimit from "p-limit";
 import { prisma } from "@/lib/db";
 import type { MeasurementType } from "@/generated/prisma/client";
 import { encrypt, decrypt } from "@/lib/crypto";
@@ -27,6 +28,7 @@ import {
 import {
   collapseToTypeDayKeys,
   recomputeBucketsForMeasurement,
+  recomputeUserRollups,
 } from "@/lib/rollups/measurement-rollups";
 import { invalidateStatusInsightsForTypes } from "@/lib/insights/comprehensive-generate";
 import { refreshAccessToken } from "./client";
@@ -163,6 +165,19 @@ interface SoftSkipTracker {
 const softSkipStorage = new AsyncLocalStorage<SoftSkipTracker>();
 
 /**
+ * Per-`syncUserFitbit`-cycle accumulator of the `(type, day)` keys every
+ * resource's writes touched. Only populated on a `fullSync` backfill (when the
+ * inline per-day rollup hook is deferred); the orchestrator drains it into ONE
+ * `recomputeUserRollups(from, to)` pass at the end of the cycle. Scoped by
+ * AsyncLocalStorage so concurrent per-user jobs never cross-pollinate, mirroring
+ * the soft-skip tracker.
+ */
+interface RollupDeferTracker {
+  keys: Array<{ type: MeasurementType; measuredAt: Date }>;
+}
+const rollupDeferStorage = new AsyncLocalStorage<RollupDeferTracker>();
+
+/**
  * Single-source the per-resource collection-fetch error handling. A 403 on one
  * data class soft-skips it (warn + return 0) so sibling resources still sync;
  * anything else records a classified sync failure and rethrows. A soft-skip
@@ -198,6 +213,17 @@ export interface FitbitResourceSyncOptions {
   fullSync?: boolean;
   /** The incremental lower bound, snapshotted once by the orchestrator. */
   start?: Date;
+  /**
+   * When true, `upsertFitbitMeasurements` writes the rows but SKIPS the inline
+   * per-(type,day) DAY-rollup recompute + status-insight invalidate, returning
+   * the touched type-days to the caller instead. The orchestrator collapses
+   * them into ONE `recomputeUserRollups(from, to)` pass at the end of a
+   * `fullSync` cycle, so a multi-year backfill pays a single range-recompute
+   * rather than thousands of per-day round-trips. The incremental path leaves
+   * this unset and keeps the inline per-day hook (small touched set, warm read
+   * on the next tick).
+   */
+  deferRollup?: boolean;
 }
 
 /**
@@ -236,12 +262,30 @@ export interface FitbitMeasurementUpsert {
   sleepStage?: "IN_BED" | "AWAKE" | "ASLEEP" | "REM" | "CORE" | "DEEP" | null;
 }
 
+/** Chunk size for the batched `createMany` insert of fresh readings. */
+const FITBIT_CREATE_CHUNK = 500;
+
 /**
- * Upsert a batch of mapped Fitbit readings for one user and fold the rollup tier
- * + invalidate status-insight caches once at the end (mirrors the WHOOP / Withings
- * sync tail). Idempotent: the `(userId, type, source, externalId)` unique key
- * makes a re-post (a re-fetched daily summary) overwrite in place rather than
- * minting a duplicate. Returns the count of rows written.
+ * Write a batch of mapped Fitbit readings for one user and (unless deferred)
+ * fold the rollup tier + invalidate status-insight caches once at the end
+ * (mirrors the WHOOP / Withings sync tail). Returns the count of rows written
+ * plus the distinct `(type, day)` keys the write touched.
+ *
+ * TOMBSTONE-SAFE: the live-row probe filters `deletedAt: null`, so a row the
+ * user soft-deleted (iOS LWW reconciler) is NOT matched — a fresh insert is
+ * created instead of resurrecting the tombstone on the next hourly sync. The
+ * partial unique index (`Measurement … WHERE deleted_at IS NULL`) keeps the
+ * fresh insert from colliding with the live set; the tombstone sits outside it.
+ *
+ * OVERWRITE CONTRACT preserved: a re-fetched daily summary (`stats:`-keyed and
+ * every other stable per-point anchor) maps to the SAME live `externalId`, so
+ * the probe finds the existing live row and takes the in-place update branch
+ * (bumping `syncVersion` for the iOS LWW reconciler) — never a duplicate.
+ *
+ * BATCHING: the existence probe is a single `findMany` over the batch's
+ * externalIds; fresh rows go through chunked `createMany` (collapsing the N+1
+ * insert round-trips a deep backfill used to pay), and only the (bounded)
+ * already-live rows take a per-row `update` for their differing values.
  *
  * Best-effort on the rollup fold + insight invalidate — a populator hiccup never
  * fails the user's sync.
@@ -249,35 +293,126 @@ export interface FitbitMeasurementUpsert {
 export async function upsertFitbitMeasurements(
   userId: string,
   readings: FitbitMeasurementUpsert[],
-): Promise<number> {
-  if (readings.length === 0) return 0;
+  opts: { deferRollup?: boolean } = {},
+): Promise<{
+  imported: number;
+  touched: Array<{ type: MeasurementType; measuredAt: Date }>;
+}> {
+  if (readings.length === 0) return { imported: 0, touched: [] };
 
-  let imported = 0;
+  // Probe the LIVE rows (deletedAt: null) for every externalId in the batch in
+  // a single query. A tombstoned row deliberately does NOT appear here, so it is
+  // treated as absent → a fresh insert, not a resurrecting update.
+  const externalIds = readings.map((r) => r.externalId);
+  let liveByKey = new Map<string, { id: string }>();
+  try {
+    const existing = await prisma.measurement.findMany({
+      where: {
+        userId,
+        source: "FITBIT",
+        deletedAt: null,
+        externalId: { in: externalIds },
+      },
+      select: { id: true, type: true, externalId: true },
+    });
+    liveByKey = new Map(
+      existing
+        .filter((e) => e.externalId !== null)
+        .map((e) => [`${e.type} ${e.externalId}`, { id: e.id }]),
+    );
+  } catch (err) {
+    // A probe failure must not strand the whole batch; fall back to treating
+    // every row as fresh (the partial unique index still rejects a genuine
+    // live-row collision, which the per-create catch swallows).
+    getEvent()?.addWarning(`Fitbit: live-row probe failed: ${err}`);
+  }
+
+  const toCreate: Array<{
+    type: MeasurementType;
+    value: number;
+    unit: string;
+    measuredAt: Date;
+    externalId: string;
+    sleepStage: FitbitMeasurementUpsert["sleepStage"];
+  }> = [];
+  const toUpdate: Array<{ id: string; r: FitbitMeasurementUpsert }> = [];
   const touched: Array<{ type: MeasurementType; measuredAt: Date }> = [];
 
+  // A batch can carry the same (type, externalId) twice (an overlap re-fetch);
+  // collapse to last-write-wins so we never emit two creates for one live key.
+  const plannedCreateKeys = new Set<string>();
   for (const r of readings) {
     const type = r.type as MeasurementType;
-    try {
-      await prisma.measurement.upsert({
-        where: {
-          userId_type_source_externalId: {
-            userId,
-            type,
-            source: "FITBIT",
-            externalId: r.externalId,
-          },
-        },
-        create: {
-          userId,
+    const key = `${type} ${r.externalId}`;
+    const live = liveByKey.get(key);
+    if (live) {
+      toUpdate.push({ id: live.id, r });
+    } else if (!plannedCreateKeys.has(key)) {
+      plannedCreateKeys.add(key);
+      toCreate.push({
+        type,
+        value: r.value,
+        unit: r.unit,
+        measuredAt: r.measuredAt,
+        externalId: r.externalId,
+        sleepStage: r.sleepStage ?? null,
+      });
+    } else {
+      // A duplicate fresh key inside the same batch — overwrite the planned
+      // create's payload so last-write-wins, matching the prior upsert loop.
+      const idx = toCreate.findIndex(
+        (c) => `${c.type} ${c.externalId}` === key,
+      );
+      if (idx >= 0) {
+        toCreate[idx] = {
           type,
-          source: "FITBIT",
           value: r.value,
           unit: r.unit,
           measuredAt: r.measuredAt,
           externalId: r.externalId,
           sleepStage: r.sleepStage ?? null,
-        },
-        update: {
+        };
+      }
+    }
+  }
+
+  let imported = 0;
+
+  // Fresh inserts: chunked `createMany` (server-owned rows, field-by-field).
+  // `skipDuplicates` guards the partial-unique index in the rare race where a
+  // concurrent run inserted the same live key between the probe and the write.
+  for (let i = 0; i < toCreate.length; i += FITBIT_CREATE_CHUNK) {
+    const chunk = toCreate.slice(i, i + FITBIT_CREATE_CHUNK);
+    try {
+      const res = await prisma.measurement.createMany({
+        data: chunk.map((c) => ({
+          userId,
+          type: c.type,
+          source: "FITBIT" as const,
+          value: c.value,
+          unit: c.unit,
+          measuredAt: c.measuredAt,
+          externalId: c.externalId,
+          sleepStage: c.sleepStage,
+        })),
+        skipDuplicates: true,
+      });
+      imported += res.count;
+      for (const c of chunk) {
+        touched.push({ type: c.type, measuredAt: c.measuredAt });
+      }
+    } catch (err) {
+      getEvent()?.addWarning(`Fitbit: failed to create measurements: ${err}`);
+    }
+  }
+
+  // Live-row overwrites: per-row update (differing values) on the live id, so
+  // the re-fetched daily summary overwrites in place and bumps `syncVersion`.
+  for (const { id, r } of toUpdate) {
+    try {
+      await prisma.measurement.update({
+        where: { id },
+        data: {
           value: r.value,
           unit: r.unit,
           measuredAt: r.measuredAt,
@@ -286,11 +421,21 @@ export async function upsertFitbitMeasurements(
           syncVersion: { increment: 1 },
         },
       });
-      touched.push({ type, measuredAt: r.measuredAt });
+      touched.push({ type: r.type as MeasurementType, measuredAt: r.measuredAt });
       imported++;
     } catch (err) {
-      getEvent()?.addWarning(`Fitbit: failed to upsert measurement: ${err}`);
+      getEvent()?.addWarning(`Fitbit: failed to update measurement: ${err}`);
     }
+  }
+
+  // On a `fullSync` backfill the caller defers the rollup fold: it collapses
+  // every resource's touched type-days into a SINGLE range-recompute at the end
+  // of the cycle (thousands of per-day round-trips → one pass). The incremental
+  // path keeps the inline per-day hook here (small touched set, warm next read).
+  if (opts.deferRollup) {
+    const tracker = rollupDeferStorage.getStore();
+    if (tracker) tracker.keys.push(...touched);
+    return { imported, touched };
   }
 
   try {
@@ -312,7 +457,7 @@ export async function upsertFitbitMeasurements(
     );
   }
 
-  return imported;
+  return { imported, touched };
 }
 
 /**
@@ -375,6 +520,10 @@ export async function syncUserFitbit(
   const resourceOpts: FitbitResourceSyncOptions = {
     fullSync: opts.fullSync,
     start,
+    // A backfill walks years of daily summaries — defer the per-(type,day)
+    // rollup hook on every write and run ONE range-recompute at the end of the
+    // cycle. The hourly incremental keeps the inline hook (small touched set).
+    deferRollup: opts.fullSync === true,
   };
 
   const [{ syncUserMetrics }, { syncUserActivity }, { syncUserSleep }, { syncUserWorkout }] =
@@ -393,18 +542,52 @@ export async function syncUserFitbit(
   ];
 
   const tracker: SoftSkipTracker = { count: 0 };
+  const deferTracker: RollupDeferTracker = { keys: [] };
   let total = 0;
   let anyFailed = false;
   await softSkipStorage.run(tracker, async () => {
-    for (const fn of resources) {
-      try {
-        total += await fn(userId, resourceOpts);
-      } catch (err) {
-        anyFailed = true;
-        getEvent()?.addWarning(`fitbit ${fn.name} failed for ${userId}: ${err}`);
+    await rollupDeferStorage.run(deferTracker, async () => {
+      for (const fn of resources) {
+        try {
+          total += await fn(userId, resourceOpts);
+        } catch (err) {
+          anyFailed = true;
+          getEvent()?.addWarning(
+            `fitbit ${fn.name} failed for ${userId}: ${err}`,
+          );
+        }
       }
-    }
+    });
   });
+
+  // On a `fullSync` backfill the per-write inline rollup hook was deferred; the
+  // accumulated touched type-days collapse into ONE range-recompute spanning the
+  // touched days. One pass replaces the thousands of per-(type,day) round-trips a
+  // deep backfill would otherwise pay (each = an aggregate SELECT + rollup upsert
+  // + 3 queue sends). Best-effort: a populator hiccup never fails the backfill.
+  if (opts.fullSync && deferTracker.keys.length > 0) {
+    try {
+      const days = collapseToTypeDayKeys(deferTracker.keys);
+      const types = Array.from(new Set(days.map((k) => k.type)));
+      const sorted = days
+        .map((k) => k.measuredAt.getTime())
+        .sort((a, b) => a - b);
+      const from = new Date(sorted[0]!);
+      // The keys are UTC day-starts; extend `to` past the last touched day so
+      // the aggregator's `< to` upper bound covers it.
+      const to = new Date(sorted[sorted.length - 1]! + 24 * 60 * 60 * 1000);
+      await recomputeUserRollups(userId, { types, from, to });
+      invalidateStatusInsightsForTypes(userId, types).catch((err) => {
+        getEvent()?.addWarning(
+          `fitbit: status-insight invalidate failed for ${userId}: ${err}`,
+        );
+      });
+    } catch (err) {
+      getEvent()?.addWarning(
+        `fitbit: backfill rollup recompute failed for ${userId}: ${err}`,
+      );
+    }
+  }
 
   // A genuine grant-revoke 403s EVERY collection: each resource soft-skips
   // (returns 0, records no failure), so `anyFailed` stays false and `total` is
@@ -463,4 +646,55 @@ export function classificationToFailureKind(
       // surface it as transient so the audit log still records the anomaly.
       return "transient";
   }
+}
+
+/**
+ * Bounded fan-out width for the hourly Fitbit cohort poll. The cron tick carries
+ * no `userId`, so the worker resolves every connection and hands the cohort here.
+ * A small pool (rather than a strict serial loop) means one slow Google response
+ * can't stall the whole cohort, while the cap keeps the burst of per-user
+ * resource fetches + rollup writes from crowding the worker's DB pool — matching
+ * the `p-limit` ceilings the analytics fan-out + insight warm pass use elsewhere.
+ */
+export const FITBIT_POLL_CONCURRENCY = 4;
+
+/**
+ * Run a Fitbit hourly-poll cohort with bounded concurrency + per-user error
+ * isolation. Each user's `syncUserFitbit` runs inside the pool; a single user's
+ * failure (or a slow Google response) is captured through `onUserError` and never
+ * aborts the rest of the pass. Returns the per-cohort totals for the wide-event
+ * envelope. Extracted from the worker handler so the concurrency contract is unit
+ * testable without exporting worker internals.
+ */
+export async function runFitbitPollCohort(
+  userIds: string[],
+  opts: {
+    concurrency?: number;
+    sync?: (userId: string) => Promise<number>;
+    onUserError?: (userId: string, err: unknown) => void;
+  } = {},
+): Promise<{ usersSynced: number; measurementsImported: number }> {
+  const sync = opts.sync ?? ((userId: string) => syncUserFitbit(userId));
+  const limit = pLimit(opts.concurrency ?? FITBIT_POLL_CONCURRENCY);
+
+  let usersSynced = 0;
+  let measurementsImported = 0;
+  await Promise.all(
+    userIds.map((userId) =>
+      limit(async () => {
+        try {
+          // Read the accumulators AFTER the await resolves. A compound
+          // assignment (`x += await f()`) captures the left value BEFORE the
+          // await and would lose increments under overlapping pool tasks.
+          const n = await sync(userId);
+          measurementsImported = measurementsImported + n;
+          usersSynced = usersSynced + 1;
+        } catch (err) {
+          opts.onUserError?.(userId, err);
+        }
+      }),
+    ),
+  );
+
+  return { usersSynced, measurementsImported };
 }

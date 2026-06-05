@@ -32,7 +32,7 @@ import {
   type WhoopBackfillPayload,
 } from "@/lib/jobs/whoop-backfill";
 import { cleanupExpiredWhoopOAuthStates } from "@/lib/jobs/whoop-oauth-state-cleanup";
-import { syncUserFitbit } from "@/lib/fitbit/sync";
+import { runFitbitPollCohort } from "@/lib/fitbit/sync";
 import {
   FITBIT_BACKFILL_QUEUE,
   FITBIT_BACKFILL_CONCURRENCY,
@@ -1752,16 +1752,16 @@ async function handleFitbitSync(jobs: Job<FitbitSyncPayload>[]) {
       }
       if (targets.length === 0) return;
 
-      let usersSynced = 0;
-      let measurementsImported = 0;
-      for (const { userId } of targets) {
-        try {
-          measurementsImported += await syncUserFitbit(userId);
-          usersSynced++;
-        } catch (err) {
-          evt.addWarning(`job.fitbit_sync failed for user ${userId}: ${err}`);
-        }
-      }
+      // Fan the cohort out with bounded concurrency + per-user error isolation:
+      // one slow Google response can't stall the whole cohort, and a single
+      // user's failure is warned without aborting the pass.
+      const { usersSynced, measurementsImported } = await runFitbitPollCohort(
+        targets.map((t) => t.userId),
+        {
+          onUserError: (userId, err) =>
+            evt.addWarning(`job.fitbit_sync failed for user ${userId}: ${err}`),
+        },
+      );
 
       evt.setBackground({
         task_name: "job.fitbit_sync",
