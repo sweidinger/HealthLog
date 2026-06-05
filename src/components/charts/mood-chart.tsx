@@ -122,15 +122,24 @@ const TIME_RANGES_KEYS = [
 
 // MOOD_LABELS built dynamically via t() in the component
 
+// v1.12.6 — mood-level bands ride the same Dracula good→bad ramp the mood
+// heatmap and distribution chart already use (red → orange → yellow →
+// green), so the three mood surfaces read as one palette instead of the
+// chart's former three-band red/orange/green that skipped the yellow rung.
+// Tokens, not raw hex, so a theme change flows through one source.
 const VALUE_BANDS = [
-  { min: 1, max: 2, color: "#ff5555", opacity: 0.16 },
-  { min: 2, max: 3, color: "#ffb86c", opacity: 0.18 },
-  { min: 3, max: 5, color: "#50fa7b", opacity: 0.2 },
+  { min: 1, max: 2, color: "var(--dracula-red)", opacity: 0.16 },
+  { min: 2, max: 3, color: "var(--dracula-orange)", opacity: 0.18 },
+  { min: 3, max: 3.5, color: "var(--dracula-yellow)", opacity: 0.18 },
+  { min: 3.5, max: 5, color: "var(--dracula-green)", opacity: 0.2 },
 ] as const;
 
-const COLOR_MAIN = "#d6acff";
-const COLOR_MA = "#ff79c6";
-const COLOR_TREND = "#8be9fd";
+// The mood line + overlays use the same hues the rest of the Insights
+// charts do — purple primary (matching HealthChart), pink moving average,
+// cyan trend — as tokens rather than the former hand-picked hex.
+const COLOR_MAIN = "var(--dracula-purple)";
+const COLOR_MA = "var(--dracula-pink)";
+const COLOR_TREND = "var(--dracula-cyan)";
 
 // --- Helpers ---
 
