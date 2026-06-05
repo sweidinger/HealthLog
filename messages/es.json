@@ -2772,6 +2772,7 @@
       },
       "scores": {
         "sectionTitle": "Puntuaciones de bienestar",
+        "loadError": "No se pudieron cargar tus puntuaciones de bienestar en este momento.",
         "recovery": "Recuperación",
         "stress": "Estrés",
         "strain": "Esfuerzo"

@@ -326,6 +326,8 @@ export default function InsightsPage() {
       <WellnessScores
         read={dashboardDerived.read}
         isLoading={dashboardDerived.isLoading}
+        isError={dashboardDerived.isError}
+        refetch={dashboardDerived.refetch}
       />
 
       {flags.briefing && (

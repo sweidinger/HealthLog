@@ -2772,6 +2772,7 @@
       },
       "scores": {
         "sectionTitle": "Wellness scores",
+        "loadError": "Could not load your wellness scores right now.",
         "recovery": "Recovery",
         "stress": "Stress",
         "strain": "Strain"

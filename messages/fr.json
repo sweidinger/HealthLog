@@ -2772,6 +2772,7 @@
       },
       "scores": {
         "sectionTitle": "Scores de bien-être",
+        "loadError": "Impossible de charger vos scores de bien-être pour le moment.",
         "recovery": "Récupération",
         "stress": "Stress",
         "strain": "Effort"

@@ -2,8 +2,9 @@
 
 import type { ComponentType } from "react";
 import Link from "next/link";
-import { Activity, Flame, Gauge, HeartPulse, Moon } from "lucide-react";
+import { Activity, Flame, Gauge, HeartPulse, Moon, RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 import { useTranslations } from "@/lib/i18n/context";
 import { TileHeader } from "@/components/insights/tile-header";
 import { ScoreRing } from "./score-ring";
@@ -36,6 +37,15 @@ interface ScoreStripProps {
   /** The batched-read selector from the parent dashboard's one query. */
   read: DerivedBatchRead;
   isLoading: boolean;
+  /**
+   * The shared derived-batch error flag. On a failed batch the strip renders
+   * a compact error + Retry in place instead of vanishing silently (the strip
+   * is now top-of-page, so its only Retry must live here, not far below in the
+   * Vitals slot).
+   */
+  isError?: boolean;
+  /** Refetch the one shared batch query. Recovers both strips at once. */
+  refetch?: () => void;
   className?: string;
 }
 
@@ -86,8 +96,50 @@ function RingTile({
   );
 }
 
-export function WellnessScores({ read, isLoading, className }: ScoreStripProps) {
+export function WellnessScores({
+  read,
+  isLoading,
+  isError = false,
+  refetch,
+  className,
+}: ScoreStripProps) {
   const { t } = useTranslations();
+
+  // A failed shared batch must read as an error, not as "no scores" — the
+  // strip is top-of-page, so the only Retry lives here (mirrors the Vitals
+  // error card styling; one Retry recovers both strips).
+  if (isError) {
+    return (
+      <section
+        data-slot="wellness-scores"
+        aria-label={t("insights.derived.scores.sectionTitle")}
+        className={cn("space-y-3", className)}
+      >
+        <TileHeader
+          icon={Activity}
+          title={t("insights.derived.scores.sectionTitle")}
+        />
+        <div
+          data-slot="wellness-scores-error"
+          role="alert"
+          className="bg-card border-border text-muted-foreground flex flex-col items-start gap-3 rounded-xl border p-4 text-sm sm:flex-row sm:items-center sm:justify-between"
+        >
+          <span>{t("insights.derived.scores.loadError")}</span>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={() => refetch?.()}
+            data-slot="wellness-scores-retry"
+            className="gap-1.5"
+          >
+            <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />
+            <span>{t("common.retry")}</span>
+          </Button>
+        </div>
+      </section>
+    );
+  }
 
   const readiness = read<ReadinessValue>({ metric: "READINESS" });
   const sleep = read<SleepScoreValue>({ metric: "SLEEP_SCORE" });

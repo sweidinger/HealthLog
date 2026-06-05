@@ -2772,6 +2772,7 @@
       },
       "scores": {
         "sectionTitle": "Wellness-Werte",
+        "loadError": "Deine Wellness-Werte konnten gerade nicht geladen werden.",
         "recovery": "Erholung",
         "stress": "Stress",
         "strain": "Belastung"
