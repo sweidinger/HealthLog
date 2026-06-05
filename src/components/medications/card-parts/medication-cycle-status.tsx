@@ -78,8 +78,12 @@ export function MedicationCycleStatus({ cycle }: MedicationCycleStatusProps) {
     tone = "text-success";
     icon = <CircleCheck className="size-3.5 shrink-0" aria-hidden="true" />;
     const now = new Date();
+    // `nextDueAt` is typed `Date` but arrives as an ISO string over the wire;
+    // re-hydrate it so the Berlin day-bucketing (toLocaleString with a
+    // timeZone) actually applies — a raw string would silently skip it and
+    // drift the count by a day near midnight / off Berlin.
     const days = cycle.nextDueAt
-      ? calendarDayDelta(cycle.nextDueAt, now)
+      ? calendarDayDelta(new Date(cycle.nextDueAt), now)
       : null;
     if (days === null || days <= 0) {
       // on_track with the slot today (now < dueAt but same calendar day).

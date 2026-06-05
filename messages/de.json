@@ -605,7 +605,8 @@
       "skippedLabel": "Als ausgelassen erfassen",
       "noMedications": "Lege zuerst ein Medikament an, dann kannst du Einnahmen dafür erfassen.",
       "cancel": "Abbrechen",
-      "submit": "Einnahme erfassen"
+      "submit": "Einnahme erfassen",
+      "slotError": "Der gewählte Slot konnte keiner Uhrzeit zugeordnet werden. Bitte wähle einen anderen Slot oder „Kein bestimmter Slot“."
     },
     "emptyTitle": "Noch keine Medikamente",
     "emptyDescription": "Lege Medikamente, Dosierungen und Einnahmefenster an, um Compliance zu erfassen.",

@@ -605,7 +605,8 @@
       "skippedLabel": "Logged as skipped",
       "noMedications": "Add a medication first, then you can log intakes against it.",
       "cancel": "Cancel",
-      "submit": "Log intake"
+      "submit": "Log intake",
+      "slotError": "The selected slot couldn’t be matched to a time. Pick another slot or “No specific slot”."
     },
     "emptyTitle": "No medications yet",
     "emptyDescription": "Add medications, dosages, and reminder windows to track compliance.",

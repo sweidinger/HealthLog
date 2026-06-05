@@ -605,7 +605,8 @@
       "skippedLabel": "Enregistrer comme ignorée",
       "noMedications": "Ajoutez d’abord un médicament, puis vous pourrez enregistrer des prises pour celui-ci.",
       "cancel": "Annuler",
-      "submit": "Enregistrer la prise"
+      "submit": "Enregistrer la prise",
+      "slotError": "Le créneau sélectionné n’a pas pu être associé à une heure. Choisissez un autre créneau ou « Aucun créneau précis »."
     },
     "emptyTitle": "Aucun médicament pour l’instant",
     "emptyDescription": "Crée des médicaments, des doses et des fenêtres horaires pour suivre l’observance.",

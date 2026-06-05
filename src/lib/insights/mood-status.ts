@@ -53,6 +53,7 @@ import {
 } from "@/lib/insights/status-cache";
 import { returnTimeoutFallback } from "@/lib/insights/timeout-fallback";
 import { annotate } from "@/lib/logging/context";
+import { loadUserSourcePriority } from "@/lib/rollups/measurement-read";
 import { toBerlinDayKey } from "@/lib/tz/resolver";
 
 /**
@@ -271,10 +272,23 @@ export async function generateMoodStatusForUser(
   // has its measurements; cap lifted to 365 d × 8 channels. `source` /
   // `deviceType` ride along so the crosstab's per-day canonical-source pick
   // de-dups a cumulative metric reported by two sources on the same day.
+  // The crosstab + correlations only pair against the ~365-day window, so
+  // bound the read to that window: it lets Postgres use the (userId,
+  // measuredAt) index, caps memory to rows that can actually pair, and stops a
+  // data-rich Apple-Health account from spending the 50k cap on a recency-
+  // biased all-recent slice. `deletedAt: null` keeps soft-deleted rows (common
+  // on HRV/RHR/steps re-sync) out of the FDR-gated factor deltas the model
+  // cites as fact — matching the visible `/api/mood/insights` board exactly.
+  const crossMetricWindowStart = new Date(
+    now.getTime() - 365 * 24 * 60 * 60 * 1000,
+  );
+  const CROSS_METRIC_ROW_CAP = 50_000;
   const measurements = await prisma.measurement
     .findMany({
       where: {
         userId,
+        deletedAt: null,
+        measuredAt: { gte: crossMetricWindowStart },
         type: {
           in: [
             "WEIGHT",
@@ -288,7 +302,7 @@ export async function generateMoodStatusForUser(
         },
       },
       orderBy: { measuredAt: "desc" },
-      take: 50_000,
+      take: CROSS_METRIC_ROW_CAP,
       select: {
         type: true,
         value: true,
@@ -298,6 +312,9 @@ export async function generateMoodStatusForUser(
       },
     })
     .then((rows) => rows.reverse());
+  if (measurements.length >= CROSS_METRIC_ROW_CAP) {
+    annotate({ meta: { cross_metric_truncated: true } });
+  }
 
   const weightSeries = applyPayloadBudget(
     measurements
@@ -379,10 +396,15 @@ export async function generateMoodStatusForUser(
   // measurements the snapshot already holds so the model's prose matches the
   // visible factor board (shown == sent). FDR-controlled + min-N-gated inside
   // `computeFactorMetricCrosstab` — never fabricated on thin data.
+  // Thread the user's real source priority so the snapshot's per-day canonical
+  // pick matches the visible factor board (a user who prefers WHOOP over Apple
+  // for sleep collapses a SUM channel to the same source on screen + in prose).
+  const userPriorityJson = await loadUserSourcePriority(userId);
   const factorCrosstab = computeFactorMetricCrosstab({
     entries,
     measurements,
     now,
+    userPriorityJson,
   });
 
   // v1.8.6 — the same threshold-gated narrative feed the user sees on

@@ -22,6 +22,7 @@
 import { useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
+import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -144,10 +145,20 @@ export function LogIntakeDialog({
     if (!medicationId || busy) return;
     const med = medications.find((m) => m.id === medicationId);
     if (!med) return;
+    // A pinned slot must resolve to a real instant; if it can't, surface an
+    // error rather than silently logging the dose through the unscheduled path
+    // (which would miss the canonical slot upsert and could duplicate the row).
+    let scheduledFor: string | undefined;
+    if (slot !== NO_SLOT) {
+      const iso = slotInstantIso(takenAt, slot);
+      if (!iso) {
+        toast.error(t("medications.logIntake.slotError"));
+        return;
+      }
+      scheduledFor = iso;
+    }
     setBusy(true);
     try {
-      const scheduledFor =
-        slot !== NO_SLOT ? (slotInstantIso(takenAt, slot) ?? undefined) : undefined;
       const ok = await runLogIntake({
         medication: { id: med.id, name: med.name },
         skipped,

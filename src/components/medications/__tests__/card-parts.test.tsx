@@ -213,6 +213,19 @@ describe("medication cycle status — open-cycle line", () => {
     expect(html).toContain("lucide-circle-check");
   });
 
+  it("on_track reads the same day count when nextDueAt arrives as an ISO string", () => {
+    // Over the wire `nextDueAt` is JSON, so it reaches the card as a string
+    // even though the type says `Date`. The component must re-hydrate it for
+    // the Berlin day-bucketing — a raw string would silently drift the count.
+    const iso = inDays(4).toISOString() as unknown as Date;
+    const html = render(
+      <MedicationCycleStatus
+        cycle={{ ...baseCycle, state: "on_track", nextDueAt: iso }}
+      />,
+    );
+    expect(html).toContain("Next dose in 4 days");
+  });
+
   it("on_track one day out reads tomorrow", () => {
     const html = render(
       <MedicationCycleStatus

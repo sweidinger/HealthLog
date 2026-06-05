@@ -605,7 +605,8 @@
       "skippedLabel": "Zarejestruj jako pominięte",
       "noMedications": "Najpierw dodaj lek, a potem będziesz mógł rejestrować jego przyjęcia.",
       "cancel": "Anuluj",
-      "submit": "Zarejestruj przyjęcie"
+      "submit": "Zarejestruj przyjęcie",
+      "slotError": "Nie udało się przypisać godziny do wybranego slotu. Wybierz inny slot lub „Brak konkretnego slotu”."
     },
     "emptyTitle": "Brak leków",
     "emptyDescription": "Utwórz leki, dawki i okna czasowe, aby śledzić przestrzeganie.",

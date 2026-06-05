@@ -326,6 +326,15 @@ export function WellnessScores({
     5: "lg:grid-cols-5",
   };
   const lgCols = LG_COLS[Math.min(tiles.length, 5)] ?? "lg:grid-cols-5";
+  // The sm/md row caps at 3 columns; track the actual tile count there too so
+  // two or four active scores don't leave an empty cell that reads as a
+  // missing tile (the same fill rule the lg row already follows).
+  const SM_COLS: Record<number, string> = {
+    1: "sm:grid-cols-1",
+    2: "sm:grid-cols-2",
+    3: "sm:grid-cols-3",
+  };
+  const smCols = SM_COLS[Math.min(tiles.length, 3)] ?? "sm:grid-cols-3";
 
   return (
     <section
@@ -342,7 +351,7 @@ export function WellnessScores({
         // `data-revealed` triggers the CSS tile-rise + sheen keyframes on the
         // fresh-session reveal; absent on subsequent mounts (paint final).
         data-revealed={play ? "true" : undefined}
-        className={cn("grid grid-cols-2 gap-3 sm:grid-cols-3", lgCols)}
+        className={cn("grid grid-cols-2 gap-3", smCols, lgCols)}
       >
         {tiles}
       </div>

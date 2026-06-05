@@ -5,6 +5,7 @@ vi.mock("@/lib/db", () => ({
     auditLog: { findFirst: vi.fn(), create: vi.fn() },
     moodEntry: { findMany: vi.fn() },
     measurement: { findMany: vi.fn() },
+    user: { findUnique: vi.fn() },
   },
 }));
 
@@ -43,6 +44,11 @@ function stubCompletion(
 
 beforeEach(() => {
   vi.resetAllMocks();
+  // The snapshot threads the user's source priority into the factor crosstab;
+  // default to "no custom priority" so every test resolves it without stubbing.
+  vi.mocked(prisma.user.findUnique).mockResolvedValue({
+    sourcePriorityJson: null,
+  } as never);
 });
 
 describe("generateMoodStatusForUser — graded payload", () => {

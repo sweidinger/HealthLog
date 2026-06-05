@@ -106,11 +106,14 @@ export function MoodFactorMetricCrosstab({
             METRIC_LABEL_KEY[row.metricKey] ?? row.metricKey,
           );
           const unit = t(UNIT_KEY[row.display]);
-          // `delta` = lowAvg − highAvg: negative = vital runs lower on the
-          // low-factor (worse) days. The read-out is colored by sign.
+          // `delta` = lowAvg − highAvg: positive = the vital runs higher on the
+          // low-factor (worse) days. The number stays NEUTRAL — a higher value
+          // is good for steps but bad for resting HR, and this board is
+          // observational ("associations, not causes"), so colouring it
+          // green/red would imply a health verdict the data doesn't support.
+          // The sign prefix + `data-direction` carry the direction.
           const up = row.delta >= 0;
           const deltaText = `${up ? "+" : ""}${fmt(row.delta, row.display)} ${unit}`;
-          const deltaColor = up ? "var(--success)" : "var(--destructive)";
           return (
             <li
               key={`${row.metricKey}:${row.factor}`}
@@ -136,10 +139,7 @@ export function MoodFactorMetricCrosstab({
                     metric: metricLabel,
                   })}
                 </span>
-                <span
-                  className="shrink-0 text-sm font-semibold tabular-nums"
-                  style={{ color: deltaColor }}
-                >
+                <span className="text-foreground shrink-0 text-sm font-semibold tabular-nums">
                   {deltaText}
                 </span>
                 <span

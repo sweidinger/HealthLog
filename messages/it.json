@@ -605,7 +605,8 @@
       "skippedLabel": "Registra come saltata",
       "noMedications": "Aggiungi prima un farmaco, poi potrai registrarne le assunzioni.",
       "cancel": "Annulla",
-      "submit": "Registra assunzione"
+      "submit": "Registra assunzione",
+      "slotError": "Non è stato possibile associare un orario alla fascia selezionata. Scegli un’altra fascia o «Nessuna fascia specifica»."
     },
     "emptyTitle": "Ancora nessun farmaco",
     "emptyDescription": "Crea farmaci, dosi e fasce orarie per registrare l’aderenza.",

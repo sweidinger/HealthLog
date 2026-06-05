@@ -294,13 +294,13 @@
   --ring-readiness-to: #18a34e;
   --tile-readiness: #14720a;
   --ring-recovery-from: #07857c;
-  --ring-recovery-to: #12b3a3;
+  --ring-recovery-to: #0e9c8f;
   --tile-recovery: #0a8f86;
   --ring-sleep-from: #2d5fc4;
   --ring-sleep-to: #4f7ae0;
   --tile-sleep: #2d5fc4;
   --ring-stress-from: #b06a16;
-  --ring-stress-to: #d68a2a;
+  --ring-stress-to: #c47a1e;
   --tile-stress: #a34d14;
   --ring-strain-from: #6b4fd0;
   --ring-strain-to: #8a6ff0;
@@ -503,6 +503,10 @@
 .wellness-tile:active {
   transform: translateY(0) scale(0.985);
 }
+/* So the ring scales smoothly with the tile lift instead of snapping. */
+.wellness-tile [data-slot="score-ring"] {
+  transition: transform 200ms var(--ring-ease);
+}
 
 /*
  * v1.14.0 — the wellness-strip "signature reveal" motion system.
@@ -554,9 +558,12 @@
   inset: 6%;
   border-radius: 50%;
   opacity: 0;
+  /* A specular highlight must always LIGHTEN. Under mix-blend overlay a
+     near-black light-mode `--card-foreground` would darken the tile into a
+     grey band, so the sheen rides a fixed white in both themes. */
   background: radial-gradient(
     circle at 50% 50%,
-    color-mix(in srgb, var(--card-foreground) 70%, transparent) 0%,
+    rgba(255, 255, 255, 0.72) 0%,
     transparent 70%
   );
   mix-blend-mode: overlay;
@@ -606,7 +613,10 @@
   filter: drop-shadow(0 0 3px color-mix(in srgb, var(--ring-glow) 45%, transparent));
 }
 .wellness-ring-arc--pulse {
-  animation: ringGlow 3.4s ease-in-out 2s infinite;
+  /* Breathe a few times to celebrate a strong score, then settle — an
+     infinite loop would repaint the (non-compositable) drop-shadow filter
+     forever. Motion happens, then the surface goes calm. */
+  animation: ringGlow 3.4s ease-in-out 2s 3;
 }
 @keyframes ringGlow {
   0%,
@@ -622,6 +632,7 @@
   .wellness-tile,
   .wellness-tile:hover,
   .wellness-tile:active,
+  .wellness-tile [data-slot="score-ring"],
   .wellness-tile:hover [data-slot="score-ring"] {
     transform: none;
     transition: none;

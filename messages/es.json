@@ -605,7 +605,8 @@
       "skippedLabel": "Registrar como omitida",
       "noMedications": "Añade primero un medicamento y luego podrás registrar tomas para él.",
       "cancel": "Cancelar",
-      "submit": "Registrar toma"
+      "submit": "Registrar toma",
+      "slotError": "No se pudo asignar una hora al intervalo seleccionado. Elige otro intervalo o «Sin intervalo específico»."
     },
     "emptyTitle": "Aún no hay medicamentos",
     "emptyDescription": "Crea medicamentos, dosis y franjas horarias para registrar el cumplimiento.",
