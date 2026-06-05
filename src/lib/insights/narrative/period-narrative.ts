@@ -481,7 +481,7 @@ export async function buildPeriodNarrativeContext(
       ...DELTA_METRICS.map((m) => m.type),
       ...VITALS_BASELINE_TYPES,
       ...DISCOVERY_BEHAVIOURS.filter((k) => k !== "MOOD"),
-      ...DISCOVERY_OUTCOMES,
+      ...DISCOVERY_OUTCOMES.filter((k) => k !== "MOOD"),
     ]),
   ) as MeasurementType[];
 
