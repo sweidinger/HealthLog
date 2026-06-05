@@ -314,6 +314,14 @@ export interface ResolveSlotForWriteInput {
    * client omitted `scheduledFor`.
    */
   incoming: Date;
+  /**
+   * Whether the client sent an explicit `scheduledFor`. `false` means
+   * `incoming` is a defaulted `now` / `takenAt` — the resolver then only
+   * snaps inside the tight dose-grace window and otherwise returns `null`
+   * (PRN), so a slot-less midday "taken now" cannot back-fill a far slot.
+   * Defaults to `true` to keep the legacy snap for callers that omit it.
+   */
+  instantIsExplicit?: boolean;
   /** Inject a Prisma client/tx in tests; defaults to the app client. */
   client?: PrismaLike;
 }
@@ -366,5 +374,6 @@ export async function resolveSlotInstantForWrite(
     userTz: input.userTz,
     incoming: input.incoming,
     lastIntakeAt,
+    instantIsExplicit: input.instantIsExplicit ?? true,
   });
 }

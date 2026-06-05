@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [1.12.10] — 2026-06-05 — a "taken" tap no longer back-fills the wrong dose
+
+### Fixed
+
+- **Logging a dose "taken now" no longer marks a far-away scheduled dose.** For a medication taken more than once a day, a quick "taken" log without a specific time (including a synced record) was snapping onto the nearest scheduled slot up to six hours away — so a midday log could mark the morning dose taken. A timeless "taken" log now records as its own entry and never back-fills a distant slot; logging a specific dose by its time is unchanged.
+
 ## [1.12.9] — 2026-06-05 — a tighter mood catalogue, clearer cards, and a fixed retrospective
 
 ### Changed

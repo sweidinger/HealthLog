@@ -234,6 +234,10 @@ async function postBulk(request: NextRequest): Promise<Response> {
         medicationId: entry.medicationId,
         userTz: user.timezone,
         incoming: incomingScheduledFor,
+        // Only a client-supplied `scheduledFor` names a real slot. A
+        // `takenAt`-only / defaulted-now write must not snap across the
+        // wide ±halfGap window onto a far slot (phantom morning dose).
+        instantIsExplicit: entry.scheduledFor !== undefined,
       });
 
       const scheduledFor = canonicalSlot ?? incomingScheduledFor;
