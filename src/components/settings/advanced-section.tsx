@@ -156,7 +156,7 @@ function ResearchModeCard() {
       data-slot="settings-research-mode-card"
     >
       <div className="flex items-center gap-2">
-        <BookOpenCheck className="text-dracula-purple h-5 w-5" />
+        <BookOpenCheck className="text-primary h-5 w-5" />
         <h2 className="text-lg font-semibold">
           {t("settings.researchMode.sectionTitle")}
         </h2>
@@ -349,7 +349,7 @@ function DataResetCard() {
       {msg && (
         <p
           role="alert"
-          className={`mt-3 text-sm ${msgType === "success" ? "text-dracula-green" : "text-destructive"}`}
+          className={`mt-3 text-sm ${msgType === "success" ? "text-success" : "text-destructive"}`}
         >
           {msg}
         </p>
@@ -493,7 +493,7 @@ function AccountDeleteCard() {
       {msg && (
         <p
           role="alert"
-          className={`mt-3 text-sm ${msgType === "success" ? "text-dracula-green" : "text-destructive"}`}
+          className={`mt-3 text-sm ${msgType === "success" ? "text-success" : "text-destructive"}`}
         >
           {msg}
         </p>

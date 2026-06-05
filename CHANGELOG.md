@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [1.12.11] — 2026-06-05 — settings notices read the same everywhere
+
+### Changed
+
+- **Settings notices and status colours are unified.** Every callout, badge and status note in Settings now draws from the same set of meaning-based colours — success, caution, info — so a green "connected" or an amber "needs attention" looks identical from one card to the next and stays legible in both light and dark themes. Caution notes share one consistent boxed style with a leading icon.
+
 ## [1.12.10] — 2026-06-05 — a "taken" tap no longer back-fills the wrong dose
 
 ### Fixed

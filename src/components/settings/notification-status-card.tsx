@@ -324,7 +324,7 @@ function stateBadgeFor(
         label: t("settings.notificationStatus.stateActive"),
         variant: "default",
         className:
-          "border-dracula-green/30 bg-dracula-green/15 text-dracula-green",
+          "border-success/30 bg-success/15 text-success",
         icon: <CheckCircle2 className="h-3 w-3" aria-hidden />,
       };
     case "auto_disabled":
@@ -338,7 +338,7 @@ function stateBadgeFor(
       return {
         label: t("settings.notificationStatus.stateSendingPaused"),
         variant: "outline",
-        className: "border-dracula-orange/40 text-dracula-orange",
+        className: "border-warning/40 text-warning",
         icon: <Clock className="h-3 w-3" aria-hidden />,
       };
     case "manually_disabled":

@@ -520,7 +520,7 @@ function ProviderStatusBadges({
       {settings?.codexStatus !== "connected" &&
         settings?.hasAdminKey &&
         activeProvider !== "codex" && (
-          <Badge className="border-dracula-purple/30 bg-dracula-purple/15 text-dracula-purple">
+          <Badge className="border-primary/30 bg-primary/15 text-primary">
             {t("settings.ai.adminAiActiveBadge")}
           </Badge>
         )}
@@ -837,7 +837,7 @@ function CodexProviderForm({
           {t("settings.ai.codex.disconnectButton")}
         </Button>
       ) : deviceCode ? (
-        <div className="border-dracula-purple bg-dracula-purple/5 space-y-3 rounded-lg border-l-4 p-4">
+        <div className="border-primary bg-primary/5 space-y-3 rounded-lg border-l-4 p-4">
           <p className="text-sm font-medium">
             {t("settings.ai.deviceCodeHeading")}
           </p>
@@ -848,7 +848,7 @@ function CodexProviderForm({
                 href={deviceCode.verificationUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-dracula-purple font-medium underline"
+                className="text-primary font-medium underline"
               >
                 {deviceCode.verificationUrl}
               </a>

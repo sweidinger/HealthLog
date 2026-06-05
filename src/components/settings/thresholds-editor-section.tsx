@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
+import { SettingsInfoTile } from "./_info-tile";
 import { useTranslations, useFormatters } from "@/lib/i18n/context";
 import { queryKeys } from "@/lib/query-keys";
 import {
@@ -350,10 +351,9 @@ function MetricRow({
             defaultRange &&
             (override!.min < defaultRange.greenMin * 0.7 ||
               override!.max > defaultRange.greenMax * 1.3) && (
-              <div className="border-dracula-orange/50 bg-dracula-orange/5 flex items-start gap-2 rounded-md border-l-2 p-2 text-xs">
-                <AlertTriangle className="text-dracula-orange mt-0.5 h-3 w-3 shrink-0" />
-                <span>{t("thresholds.overrideWarning")}</span>
-              </div>
+              <SettingsInfoTile tone="warning" icon={AlertTriangle}>
+                {t("thresholds.overrideWarning")}
+              </SettingsInfoTile>
             )}
         </>
       )}
