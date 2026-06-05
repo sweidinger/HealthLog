@@ -23,10 +23,15 @@ import {
 
 export const POST = apiHandler(async (request: NextRequest) => {
   // v1.4.43 W13 M-4 — tighter shared bucket on trust-chain misconfig.
+  // Refresh is a high-value rotation endpoint; align it with the
+  // passkey-verify tier (10/15min) rather than the looser 60/15min. A
+  // legitimate device rotates well under this — the 24h access token only
+  // forces a refresh roughly daily — while reuse-detection still caps
+  // genuine abuse.
   const rl = await checkAuthSurfaceRateLimit(
     request,
     "auth:refresh",
-    60,
+    10,
     15 * 60 * 1000,
   );
   const ip = rl.ip ?? "unknown";

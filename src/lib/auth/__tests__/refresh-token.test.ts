@@ -135,6 +135,7 @@ import {
   issueAccessAndRefresh,
   rotateRefreshToken,
   revokeRefreshToken,
+  revokeBearerAccessToken,
 } from "../refresh-token";
 import type { TokenPolicyDecision } from "../native-client";
 
@@ -317,6 +318,83 @@ describe("rotateRefreshToken", () => {
     expect(live).toHaveLength(0);
   });
 
+  it("M-4 — present-but-mismatched deviceId on replay escalates to a USER-WIDE revoke", async () => {
+    // Attacker steals dev-1's token and replays it under a fabricated
+    // X-Device-Id. The stored row's deviceId (dev-1) must NOT confine the
+    // revoke to the attacker's id — escalate to the whole user family so a
+    // victim's other device (dev-2) is also revoked.
+    const dev1 = await issueAccessAndRefresh({
+      userId: "u1",
+      policy: NATIVE_POLICY,
+      source: "login.password",
+      deviceId: "dev-1",
+    });
+    const dev2 = await issueAccessAndRefresh({
+      userId: "u1",
+      policy: NATIVE_POLICY,
+      source: "login.password",
+      deviceId: "dev-2",
+    });
+
+    // dev-1 rotates legitimately (same deviceId), then the stale token is
+    // replayed under a spoofed deviceId.
+    await rotateRefreshToken({
+      refreshToken: dev1.refreshToken,
+      policy: NATIVE_POLICY,
+      deviceId: "dev-1",
+    });
+    const replay = await rotateRefreshToken({
+      refreshToken: dev1.refreshToken,
+      policy: NATIVE_POLICY,
+      deviceId: "attacker-fabricated-id",
+    });
+    expect(replay.ok).toBe(false);
+    if (replay.ok) return;
+    expect(replay.reason).toBe("already_used");
+
+    void dev2;
+    // Mismatch → wide revoke: NO live refresh row survives for the user.
+    const live = dbState.refreshTokens.filter((r) => r.revokedAt === null);
+    expect(live).toHaveLength(0);
+  });
+
+  it("M-4 — matching presented deviceId keeps the per-device scope (dev-2 survives)", async () => {
+    const dev1 = await issueAccessAndRefresh({
+      userId: "u1",
+      policy: NATIVE_POLICY,
+      source: "login.password",
+      deviceId: "dev-1",
+    });
+    const dev2 = await issueAccessAndRefresh({
+      userId: "u1",
+      policy: NATIVE_POLICY,
+      source: "login.password",
+      deviceId: "dev-2",
+    });
+
+    await rotateRefreshToken({
+      refreshToken: dev1.refreshToken,
+      policy: NATIVE_POLICY,
+      deviceId: "dev-1",
+    });
+    const replay = await rotateRefreshToken({
+      refreshToken: dev1.refreshToken,
+      policy: NATIVE_POLICY,
+      deviceId: "dev-1",
+    });
+    expect(replay.ok).toBe(false);
+
+    // dev-2 still live — matched deviceId keeps the narrow scope.
+    const dev2Row = dbState.refreshTokens.find(
+      (r) => r.tokenHash === `hash:${dev2.refreshToken}`,
+    );
+    expect(dev2Row?.revokedAt).toBeNull();
+    const liveDev1 = dbState.refreshTokens.filter(
+      (r) => r.revokedAt === null && r.deviceId === "dev-1",
+    );
+    expect(liveDev1).toHaveLength(0);
+  });
+
   it("rejects expired refresh tokens", async () => {
     await issueAccessAndRefresh({
       userId: "u1",
@@ -348,5 +426,40 @@ describe("rotateRefreshToken", () => {
     expect(result.ok).toBe(false);
     if (result.ok) return;
     expect(result.reason).toBe("revoked");
+  });
+});
+
+describe("revokeBearerAccessToken (M-2 logout bearer revoke)", () => {
+  it("revokes the ApiToken and its paired refresh sibling", async () => {
+    const bundle = await issueAccessAndRefresh({
+      userId: "u1",
+      policy: NATIVE_POLICY,
+      source: "login.password",
+      deviceId: "dev-1",
+    });
+    const accessHash = `hash:${bundle.accessToken}`;
+    expect(
+      dbState.apiTokens.find((a) => a.tokenHash === accessHash)?.revoked,
+    ).toBe(false);
+    const refreshRow = dbState.refreshTokens.find(
+      (r) => r.accessTokenHash === accessHash,
+    );
+    expect(refreshRow?.revokedAt).toBeNull();
+
+    const ok = await revokeBearerAccessToken(bundle.accessToken);
+    expect(ok).toBe(true);
+
+    expect(
+      dbState.apiTokens.find((a) => a.tokenHash === accessHash)?.revoked,
+    ).toBe(true);
+    expect(
+      dbState.refreshTokens.find((r) => r.accessTokenHash === accessHash)
+        ?.revokedAt,
+    ).not.toBeNull();
+  });
+
+  it("returns false when no live ApiToken matches the token", async () => {
+    const ok = await revokeBearerAccessToken("hlk_unknown_token");
+    expect(ok).toBe(false);
   });
 });
