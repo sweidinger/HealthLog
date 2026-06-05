@@ -2,6 +2,20 @@
 
 ## [Unreleased]
 
+## [1.14.0] — 2026-06-06 — animated health scores, score explanations, mood-factor correlations, log past doses
+
+### Added
+
+- **Each health score now explains itself.** The Readiness, Sleep, Recovery, Strain and Stress score sheets carry a short, plain-language read of why the score landed where it did, drawn from the inputs that moved it. It fills even without an AI provider configured, so the explanation is always there.
+- **See how your rated factors track your body.** When you rate factors like work, sleep quality or stress on a mood entry, HealthLog now relates those ratings to your vitals — for example how your sleep or resting heart rate differs on the days you rate work low versus high — as a new card that the assistant can also cite. Associations only: each is shown with a confidence level, computed over a stable window, and never presented as cause.
+- **Log a dose you took earlier.** The medications "Add" button now offers a choice — create a new medication, or log an intake — and the intake path accepts a backdated date and time against an existing medication.
+
+### Changed
+
+- **The health scores got a signature redesign.** The score strip reveals with a calm, staggered animation — each ring springs to its value while the number counts up — with a distinct colour per score (readiness green, recovery teal, sleep blue, stress amber, strain violet), a soft glow, and a faint "vs your normal" reference arc on the scores that carry a history. The motion plays once per visit and fully respects reduced-motion; the colours hold their contrast in both light and dark themes.
+- **Sparse medications show where you stand at a glance.** A weekly injection or other "every N days" medication now shows its open-cycle status on the card — "next dose in N days", "due today", "overdue", or "no cycles yet" — instead of leaning on a percentage that says little between doses.
+- **Smaller refinements across Insights.** The three trend cards (mood, weight, blood pressure) are now exactly the same height; the daily-briefing heading sits above its card; and the assistant tone and length controls sit side by side to cut scrolling.
+
 ## [1.13.3] — 2026-06-05 — health score scores blood pressure again, steps in Insights
 
 ### Fixed
