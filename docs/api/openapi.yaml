@@ -738,6 +738,9 @@ paths:
               - SLEEP_CONSISTENCY
               - SLEEP_NEED
               - ENERGY_EXPENDITURE_KJ
+              - AVERAGE_HEART_RATE
+              - MAX_HEART_RATE
+              - SLEEP_DISTURBANCE_COUNT
         - in: query
           name: from
           schema:
@@ -894,6 +897,9 @@ paths:
                     - SLEEP_CONSISTENCY
                     - SLEEP_NEED
                     - ENERGY_EXPENDITURE_KJ
+                    - AVERAGE_HEART_RATE
+                    - MAX_HEART_RATE
+                    - SLEEP_DISTURBANCE_COUNT
                 value:
                   type: number
                 measuredAt:
@@ -2722,6 +2728,9 @@ paths:
               - SLEEP_CONSISTENCY
               - SLEEP_NEED
               - ENERGY_EXPENDITURE_KJ
+              - AVERAGE_HEART_RATE
+              - MAX_HEART_RATE
+              - SLEEP_DISTURBANCE_COUNT
             description: "The measurement type to read (single metric — no fan-out). Closed enum: an unknown type 422s."
           required: true
           description: "The measurement type to read (single metric — no fan-out). Closed enum: an unknown type 422s."
@@ -4796,6 +4805,9 @@ components:
             - SLEEP_CONSISTENCY
             - SLEEP_NEED
             - ENERGY_EXPENDITURE_KJ
+            - AVERAGE_HEART_RATE
+            - MAX_HEART_RATE
+            - SLEEP_DISTURBANCE_COUNT
         value:
           type: number
         unit:
@@ -5112,6 +5124,9 @@ components:
             - SLEEP_CONSISTENCY
             - SLEEP_NEED
             - ENERGY_EXPENDITURE_KJ
+            - AVERAGE_HEART_RATE
+            - MAX_HEART_RATE
+            - SLEEP_DISTURBANCE_COUNT
         value:
           type: number
         unit:
