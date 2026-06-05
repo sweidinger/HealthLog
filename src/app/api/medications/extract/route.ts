@@ -57,6 +57,7 @@ import {
   runRawCompletionWithFallback,
 } from "@/lib/ai/provider-runner";
 import { resolveProvider, resolveProviderChain } from "@/lib/ai/provider";
+import { assertConsentForChain } from "@/lib/ai/consent-guard";
 
 import {
   buildDateKey,
@@ -166,6 +167,11 @@ async function handleExtract(request: NextRequest): Promise<Response> {
     }
     chain.push({ providerType: "admin-openai", instance: legacy });
   }
+
+  // Free-text medication input is PHI. If the resolved chain could egress
+  // via the operator's server-managed key, an active consent receipt is
+  // required first — same gate as the Coach (which shares this chain).
+  await assertConsentForChain({ userId, chain, surface: "coach" });
 
   const today = todayOverride ?? buildDateKey();
   const { systemPrompt, userPrompt } = buildMedicationExtractionPrompt({

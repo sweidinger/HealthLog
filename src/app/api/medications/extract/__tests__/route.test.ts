@@ -43,6 +43,14 @@ vi.mock("@/lib/ai/provider", () => ({
   resolveProviderChain: vi.fn(async () => []),
 }));
 
+// v1.12.1 — free-text medication extraction egresses PHI to the operator's
+// server-managed key, so it now passes through the consent gate. Mock it to a
+// no-op here; the gate's own fail-closed behaviour is covered by
+// `consent-guard.test.ts`.
+vi.mock("@/lib/ai/consent-guard", () => ({
+  assertConsentForChain: vi.fn(async () => undefined),
+}));
+
 vi.mock("@/lib/ai/provider-runner", async () => {
   const actual =
     await vi.importActual<typeof import("@/lib/ai/provider-runner")>(
@@ -69,6 +77,7 @@ import {
   resolveProviderChain,
 } from "@/lib/ai/provider";
 import { runRawCompletionWithFallback } from "@/lib/ai/provider-runner";
+import { assertConsentForChain } from "@/lib/ai/consent-guard";
 
 function postReq(body: unknown): NextRequest {
   return new NextRequest("http://localhost/api/medications/extract", {
@@ -175,6 +184,11 @@ describe("POST /api/medications/extract — happy path", () => {
       doseUnit: "mg",
       cadenceKind: "everyNWeeks",
     });
+    // The PHI free-text egress is gated on an active consent receipt for the
+    // coach surface before the provider chain runs.
+    expect(assertConsentForChain).toHaveBeenCalledWith(
+      expect.objectContaining({ surface: "coach" }),
+    );
   });
 
   it("strips a hallucinated name that is absent from the user's text", async () => {
