@@ -1656,14 +1656,6 @@
       "emptyAction": "Generate briefing",
       "loadingLabel": "Synthesising today's briefing"
     },
-    "therapyTimeline": {
-      "title": "GLP-1 therapy timeline",
-      "description": "Chronological log of dose changes, injections, inventory events, and side-effect days.",
-      "empty": "No GLP-1 therapy events logged in the last 90 days.",
-      "doseTo": "dose set to",
-      "pens": "pens",
-      "sideEffects": "Side effects"
-    },
     "trendsRow": {
       "title": "Trends",
       "subtitle": "Last 30 days at a glance",
@@ -2002,7 +1994,6 @@
       "medikamenteEmptyTitle": "Add your first medication",
       "medikamenteEmptyDescription": "Compliance insights need at least one tracked medication.",
       "medikamenteEmptyAction": "Open medications",
-      "therapyTimelineDescription": "Chronological GLP-1 therapy log — dose changes, injections, inventory, side effects.",
       "bmiDescription": "BMI derived from your weight and height, with a written assessment.",
       "target": {
         "adjustLink": "Adjust target range"

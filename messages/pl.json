@@ -1656,14 +1656,6 @@
       "emptyAction": "Wygeneruj briefing",
       "loadingLabel": "Przygotowanie briefingu"
     },
-    "therapyTimeline": {
-      "title": "Historia terapii GLP-1",
-      "description": "Chronologiczna lista: zmiany dawki, iniekcje, zapasy i dni z działaniami niepożądanymi.",
-      "empty": "Brak zdarzeń GLP-1 w ostatnich 90 dniach.",
-      "doseTo": "Dawka na",
-      "pens": "Peny",
-      "sideEffects": "Działania niepożądane"
-    },
     "trendsRow": {
       "title": "Trendy",
       "subtitle": "Ostatnie 30 dni w skrócie",
@@ -2002,7 +1994,6 @@
       "medikamenteEmptyTitle": "Dodaj pierwszy lek",
       "medikamenteEmptyDescription": "Insights przestrzegania wymagają przynajmniej jednego zarejestrowanego leku.",
       "medikamenteEmptyAction": "Otwórz leki",
-      "therapyTimelineDescription": "Chronologiczny protokół terapii GLP-1 — zmiany dawki, iniekcje, stan, działania niepożądane.",
       "bmiDescription": "BMI obliczone z twojej wagi i wzrostu, z oceną.",
       "target": {
         "adjustLink": "Dostosuj zakres docelowy"

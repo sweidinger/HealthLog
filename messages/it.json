@@ -1656,14 +1656,6 @@
       "emptyAction": "Genera briefing",
       "loadingLabel": "Preparazione del briefing"
     },
-    "therapyTimeline": {
-      "title": "Cronologia terapia GLP-1",
-      "description": "Elenco cronologico: cambi di dose, iniezioni, scorte e giorni con effetti collaterali.",
-      "empty": "Nessun evento GLP-1 negli ultimi 90 giorni.",
-      "doseTo": "Dose a",
-      "pens": "Penne",
-      "sideEffects": "Effetti collaterali"
-    },
     "trendsRow": {
       "title": "Tendenze",
       "subtitle": "Gli ultimi 30 giorni a colpo d’occhio",
@@ -2002,7 +1994,6 @@
       "medikamenteEmptyTitle": "Aggiungi il primo farmaco",
       "medikamenteEmptyDescription": "Gli insights di aderenza richiedono almeno un farmaco registrato.",
       "medikamenteEmptyAction": "Apri farmaci",
-      "therapyTimelineDescription": "Protocollo cronologico della terapia GLP-1 — cambi di dose, iniezioni, scorte, effetti collaterali.",
       "bmiDescription": "BMI derivato dal tuo peso e dalla tua altezza, con valutazione.",
       "target": {
         "adjustLink": "Modifica l'intervallo obiettivo"

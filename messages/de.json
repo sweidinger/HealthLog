@@ -1656,14 +1656,6 @@
       "emptyAction": "Briefing erstellen",
       "loadingLabel": "Briefing wird zusammengestellt"
     },
-    "therapyTimeline": {
-      "title": "GLP-1-Therapieverlauf",
-      "description": "Chronologische Liste: Dosis-Änderungen, Injektionen, Bestand und Nebenwirkungstage.",
-      "empty": "Keine GLP-1-Ereignisse in den letzten 90 Tagen.",
-      "doseTo": "Dosis auf",
-      "pens": "Pens",
-      "sideEffects": "Nebenwirkungen"
-    },
     "trendsRow": {
       "title": "Trends",
       "subtitle": "Die letzten 30 Tage auf einen Blick",
@@ -2002,7 +1994,6 @@
       "medikamenteEmptyTitle": "Erstes Medikament hinzufügen",
       "medikamenteEmptyDescription": "Adhärenz-Insights brauchen mindestens ein erfasstes Medikament.",
       "medikamenteEmptyAction": "Medikamente öffnen",
-      "therapyTimelineDescription": "Chronologisches GLP-1-Therapieprotokoll — Dosis-Änderungen, Injektionen, Bestand, Nebenwirkungen.",
       "bmiDescription": "BMI aus deinem Gewicht und deiner Größe abgeleitet, mit Einschätzung.",
       "target": {
         "adjustLink": "Zielbereich anpassen"

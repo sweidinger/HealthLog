@@ -1656,14 +1656,6 @@
       "emptyAction": "Generar resumen",
       "loadingLabel": "Preparando el resumen"
     },
-    "therapyTimeline": {
-      "title": "Historial de terapia GLP-1",
-      "description": "Lista cronológica: cambios de dosis, inyecciones, existencias y días con efectos secundarios.",
-      "empty": "Sin eventos GLP-1 en los últimos 90 días.",
-      "doseTo": "Dosis a",
-      "pens": "Plumas",
-      "sideEffects": "Efectos secundarios"
-    },
     "trendsRow": {
       "title": "Tendencias",
       "subtitle": "Los últimos 30 días de un vistazo",
@@ -2002,7 +1994,6 @@
       "medikamenteEmptyTitle": "Añadir primer medicamento",
       "medikamenteEmptyDescription": "Los insights de adherencia necesitan al menos un medicamento registrado.",
       "medikamenteEmptyAction": "Abrir medicamentos",
-      "therapyTimelineDescription": "Protocolo cronológico de terapia GLP-1 — cambios de dosis, inyecciones, existencias, efectos secundarios.",
       "bmiDescription": "IMC derivado de tu peso y altura, con valoración.",
       "target": {
         "adjustLink": "Ajustar el rango objetivo"

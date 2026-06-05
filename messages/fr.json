@@ -1656,14 +1656,6 @@
       "emptyAction": "Générer le briefing",
       "loadingLabel": "Préparation du briefing"
     },
-    "therapyTimeline": {
-      "title": "Historique du traitement GLP-1",
-      "description": "Liste chronologique : changements de dose, injections, stock et jours d’effets secondaires.",
-      "empty": "Aucun événement GLP-1 sur les 90 derniers jours.",
-      "doseTo": "Dose à",
-      "pens": "Stylos",
-      "sideEffects": "Effets secondaires"
-    },
     "trendsRow": {
       "title": "Tendances",
       "subtitle": "Les 30 derniers jours en un coup d’œil",
@@ -2002,7 +1994,6 @@
       "medikamenteEmptyTitle": "Ajouter le premier médicament",
       "medikamenteEmptyDescription": "Les insights d’observance ont besoin d’au moins un médicament enregistré.",
       "medikamenteEmptyAction": "Ouvrir les médicaments",
-      "therapyTimelineDescription": "Journal chronologique de la thérapie GLP-1 — changements de dose, injections, stock, effets secondaires.",
       "bmiDescription": "IMC dérivé de ton poids et de ta taille, avec évaluation.",
       "target": {
         "adjustLink": "Ajuster la plage cible"
