@@ -167,7 +167,28 @@ function SectionCard({
   );
 }
 
-export function MoodInsightsSections() {
+/**
+ * v1.12.7 — the mood spine is split into three render regions so the page can
+ * thread the operator's exact top-to-bottom order without prop-drilling the
+ * whole aggregate payload:
+ *
+ *   - "heatmap"    — the Stimmungskalender, lifted above the line chart.
+ *   - "assessment" — the better-days Einschätzung, placed right after the
+ *                    Ziel card.
+ *   - "rest"       — the Einordnung classification tiles, the "what stands
+ *                    out" card, and every deep-dive breakdown.
+ *
+ * All three regions read the SAME `queryKeys.moodInsights()` query, so
+ * TanStack Query dedups the fetch (single network read, 60 s staleTime); the
+ * regions are pure JSX slices of one resolved payload.
+ */
+export type MoodInsightsRegion = "heatmap" | "assessment" | "rest";
+
+export function MoodInsightsSections({
+  region = "rest",
+}: {
+  region?: MoodInsightsRegion;
+} = {}) {
   const { isAuthenticated } = useAuth();
   const { t } = useTranslations();
 
@@ -184,7 +205,12 @@ export function MoodInsightsSections() {
   });
 
   if (isLoading) {
-    return <Skeleton className="h-48 w-full rounded-lg" />;
+    // Only the "rest" region carries the page-level loading skeleton; the
+    // heatmap / assessment regions stay invisible while loading so they don't
+    // stack three skeletons down the page.
+    return region === "rest" ? (
+      <Skeleton className="h-48 w-full rounded-lg" />
+    ) : null;
   }
 
   if (!data || data.summary.totalEntries === 0) {
@@ -225,13 +251,50 @@ export function MoodInsightsSections() {
   const crosstabRows = data.tagMetricCrosstab ?? [];
   const hasCrosstab = crosstabRows.length > 0;
 
+  // v1.12.7 — the Stimmungskalender is lifted above the line chart on the page,
+  // so it renders as its own region here.
+  if (region === "heatmap") {
+    return (
+      <SectionCard title={t("insights.mood.heatmapTitle")} icon={CalendarDays}>
+        <MoodHeatmap cells={heatmapCells} days={data.heatmap.windowDays} stretch />
+      </SectionCard>
+    );
+  }
+
+  // v1.12.7 — the better-days Einschätzung is placed right after the Ziel card
+  // on the page, ahead of the classification tiles, so it renders as its own
+  // region. It carries the same assessment-card weight the per-metric
+  // `<InsightStatusCard>` uses on the other subpages (tighter `gap`/`py`, the
+  // `insight-in` entry, and the `insight-assessment` hook) so it reads as THE
+  // mood assessment, consistent across the app.
+  if (region === "assessment") {
+    if (!hasBetterDays) return null;
+    return (
+      <Card
+        aria-live="polite"
+        data-slot="insight-assessment"
+        className="animate-insight-in gap-2 py-4 md:gap-3 md:py-5"
+      >
+        <CardHeader className="pb-2">
+          <TileHeader
+            icon={Sparkles}
+            title={t("insights.mood.betterDays.title")}
+          />
+        </CardHeader>
+        <CardContent>
+          <MoodBetterDays factors={betterDays} />
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
-    // v1.12.6 — the mood spine is ordered as: Einordnung (the classification
-    // tiles: in-target share + stability band) FIRST, then the "what goes with
-    // your better days" assessment read, then the descriptive breakdown
-    // sections. The classification answers "where do I stand", the better-days
-    // board answers "what associates with my good days", and the rest is the
-    // supporting detail.
+    // v1.12.7 — "rest" region. The Stimmungskalender (now above the chart) and
+    // the better-days Einschätzung (now right after the Ziel card) render in
+    // their own regions above; this region carries the Einordnung classification
+    // tiles (in-target share + stability band) FIRST, then the "what stands
+    // out" card, then the descriptive breakdown sections. The classification
+    // answers "where do I stand", and the rest is the supporting detail.
     <div className="space-y-4">
       {/* Einordnung — the classification tiles. */}
       {(hasInTargetTile || hasStabilityTile) && (
@@ -252,44 +315,11 @@ export function MoodInsightsSections() {
         </div>
       )}
 
-      {/* "Was zu deinen besseren Tagen passt" — the better-days assessment,
-          ranked by effect size. The substance of the Einschätzung sits here,
-          directly under the classification. v1.12.7 — it now carries the same
-          assessment-card weight the per-metric `<InsightStatusCard>` uses on
-          the other subpages (tighter `gap`/`py`, the `insight-in` entry, and
-          the `insight-assessment` hook) so it reads as THE mood assessment,
-          consistent across the app. */}
-      {hasBetterDays && (
-        <Card
-          aria-live="polite"
-          data-slot="insight-assessment"
-          className="animate-insight-in gap-2 py-4 md:gap-3 md:py-5"
-        >
-          <CardHeader className="pb-2">
-            <TileHeader
-              icon={Sparkles}
-              title={t("insights.mood.betterDays.title")}
-            />
-          </CardHeader>
-          <CardContent>
-            <MoodBetterDays factors={betterDays} />
-          </CardContent>
-        </Card>
-      )}
-
       {/* v1.12.7 — the single "What stands out" card folds the narrative
           one-liners AND the FDR-controlled discovered relations into one tile
           (was two separate cards). Self-fetches the discovery surface and
           renders nothing when both halves are empty. */}
       <MoodWhatStandsOut narratives={narratives} />
-
-      <SectionCard title={t("insights.mood.heatmapTitle")} icon={CalendarDays}>
-        <MoodHeatmap
-          cells={heatmapCells}
-          days={data.heatmap.windowDays}
-          stretch
-        />
-      </SectionCard>
 
       <div className="grid gap-4 lg:grid-cols-2">
         <SectionCard
