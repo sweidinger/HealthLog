@@ -8,6 +8,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { queryKeys } from "@/lib/query-keys";
 import { useTranslations } from "@/lib/i18n/context";
 import { convertGlucose, resolveGlucoseUnit } from "@/lib/glucose";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { RangeBar } from "@/components/targets/range-bar";
 import { ConsistencyStrip } from "@/components/targets/consistency-strip";
 import { TargetStatusPill } from "@/components/targets/target-status-pill";
@@ -297,10 +298,14 @@ function TargetReferencePanel({
     target.consistency7d.length > 0;
 
   return (
-    <div
+    // Card-wrapped so the header-to-body offset matches the `<CardHeader
+    // pb-2>` tiles on the same subpage spine rather than the old bare-div
+    // `space-y-3`. The body keeps its inter-row `space-y-3` inside
+    // `CardContent`; every data-slot is preserved.
+    <Card
       data-slot="metric-target-summary"
       data-target-type={target.type}
-      className="bg-card border-border space-y-3 rounded-xl border p-4"
+      className="gap-2 py-4 md:gap-3 md:py-5"
     >
       {/* Row 1: the canonical tile header — a single-word "Ziel" / "Target"
           heading (the range numbers live on the range bar below, so the
@@ -309,27 +314,29 @@ function TargetReferencePanel({
           per-context label (Fasting / Postprandial / …) carries real,
           non-duplicative info, so it stays as a sub-caption under the
           header. */}
-      <TileHeader
-        icon={Target}
-        title={t("insights.target.heading")}
-        right={
-          target.classification ? (
-            <TargetStatusPill
-              classification={target.classification}
-              range={range}
-              unit={unit}
-              source={target.source}
-            />
-          ) : null
-        }
-      />
-      {heading ? (
-        <p className="text-muted-foreground text-[0.6875rem] font-medium tracking-[0.06em] uppercase">
-          {heading}
-        </p>
-      ) : null}
-
-      {/* Row 2: range bar — where today's value sits inside the band. */}
+      <CardHeader className="pb-2">
+        <TileHeader
+          icon={Target}
+          title={t("insights.target.heading")}
+          right={
+            target.classification ? (
+              <TargetStatusPill
+                classification={target.classification}
+                range={range}
+                unit={unit}
+                source={target.source}
+              />
+            ) : null
+          }
+        />
+        {heading ? (
+          <p className="text-muted-foreground text-[0.6875rem] font-medium tracking-[0.06em] uppercase">
+            {heading}
+          </p>
+        ) : null}
+      </CardHeader>
+      <CardContent className="space-y-3">
+        {/* Row 2: range bar — where today's value sits inside the band. */}
       {target.current != null ? (
         <RangeBar
           value={target.current}
@@ -393,7 +400,8 @@ function TargetReferencePanel({
             {t("targets.sourceLabel", { source: target.source })}
           </span>
         )}
-      </div>
-    </div>
+        </div>
+      </CardContent>
+    </Card>
   );
 }

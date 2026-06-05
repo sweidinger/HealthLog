@@ -4,6 +4,7 @@ import type { ComponentType } from "react";
 import { Sigma } from "lucide-react";
 
 import { useFormatters, useTranslations } from "@/lib/i18n/context";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { TileHeader } from "@/components/insights/tile-header";
 import type { DataSummary } from "@/lib/analytics/trends";
 
@@ -100,35 +101,44 @@ export function MetricStatStrip({
   ];
 
   return (
-    <section
+    // Card-wrapped so the header-to-body offset matches the `<CardHeader
+    // pb-2>` tiles on the same subpage spine (assessment, mood, medication)
+    // rather than the old bare-div `space-y-3`. The grid keeps its own
+    // data-slots; the section semantics ride on `role` + `aria-label`.
+    <Card
       data-slot="metric-stat-strip"
+      role="group"
       aria-label={
         seriesLabel
           ? `${t("insights.subPage.stats.label")} — ${seriesLabel}`
           : t("insights.subPage.stats.label")
       }
-      className="bg-card border-border space-y-3 rounded-xl border p-4"
+      className="gap-2 py-4 md:gap-3 md:py-5"
     >
       {seriesLabel ? (
-        <TileHeader icon={icon ?? Sigma} title={seriesLabel} />
+        <CardHeader className="pb-2">
+          <TileHeader icon={icon ?? Sigma} title={seriesLabel} />
+        </CardHeader>
       ) : null}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 [&>div]:min-h-[56px]">
-        {cells.map((cell) => (
-        <div
-          key={cell.key}
-          data-slot="metric-stat"
-          data-stat={cell.key}
-          className="space-y-1"
-        >
-          <p className="text-muted-foreground text-[10px] tracking-wide uppercase">
-            {cell.label}
-          </p>
-          <p className="text-lg font-semibold tabular-nums">
-            {format(cell.value)}
-          </p>
+      <CardContent>
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 [&>div]:min-h-[56px]">
+          {cells.map((cell) => (
+            <div
+              key={cell.key}
+              data-slot="metric-stat"
+              data-stat={cell.key}
+              className="space-y-1"
+            >
+              <p className="text-muted-foreground text-[10px] tracking-wide uppercase">
+                {cell.label}
+              </p>
+              <p className="text-lg font-semibold tabular-nums">
+                {format(cell.value)}
+              </p>
+            </div>
+          ))}
         </div>
-        ))}
-      </div>
-    </section>
+      </CardContent>
+    </Card>
   );
 }
