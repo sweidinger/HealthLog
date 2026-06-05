@@ -37,7 +37,7 @@ describe("getStrictInsightsSystemPrompt — EN", () => {
   const prompt = getStrictInsightsSystemPrompt("en");
 
   it("carries the Apple Health silent-fallback contract (rule 11)", () => {
-    expect(prompt).toMatch(/11\. v1\.4\.23/);
+    expect(prompt).toMatch(/11\. Optional Apple Health metric categories/);
     expect(prompt).toMatch(/Apple Health metric categories/);
     expect(prompt).toMatch(/HRV/);
     expect(prompt).toMatch(/sleep duration/);
@@ -49,11 +49,12 @@ describe("getStrictInsightsSystemPrompt — EN", () => {
   it("does not bake live tenant figures into the new rule", () => {
     // PII rule: the Apple Health rule frames in terms of metric
     // categories, never a specific number / email / username. The block
-    // starts at "11. v1.4.23" (renumbered when v1.4.28 dropped the
-    // weekly-report rule) and ends at the GUIDELINE TARGETS heading
-    // that closes the ground-rules section.
+    // starts at "11. Optional Apple Health metric categories" and ends at
+    // the GUIDELINE TARGETS heading that closes the ground-rules section.
     const ruleAppleHealth =
-      prompt.split("11. v1.4.23")[1]?.split("GUIDELINE TARGETS")[0] ?? "";
+      prompt
+        .split("11. Optional Apple Health metric categories")[1]
+        ?.split("GUIDELINE TARGETS")[0] ?? "";
     expect(ruleAppleHealth.length).toBeGreaterThan(0);
     expect(ruleAppleHealth).not.toMatch(/@.+\.(com|net|org|de|test)/);
     // The rule mentions metric category names but no concrete sample
@@ -72,7 +73,7 @@ describe("getStrictInsightsSystemPrompt — DE", () => {
   const prompt = getStrictInsightsSystemPrompt("de");
 
   it("carries the German silent-fallback wording (rule 11)", () => {
-    expect(prompt).toMatch(/11\. v1\.4\.23/);
+    expect(prompt).toMatch(/11\. Optionale Apple-Health-Metrik-Kategorien/);
     expect(prompt).toMatch(/Apple-Health-Metrik-Kategorien/);
     expect(prompt).toMatch(/HRV/);
     expect(prompt).toMatch(/Schlafdauer/);
@@ -100,7 +101,7 @@ describe("getStrictInsightsSystemPrompt — DE", () => {
 describe("getStrictInsightsSystemPrompt — enum-identifier ban (no enum names in prose, rule 12)", () => {
   it("EN prompt carries the rule and enumerates the banned identifiers", () => {
     const prompt = getStrictInsightsSystemPrompt("en");
-    expect(prompt).toMatch(/12\. v1\.4\.25/);
+    expect(prompt).toMatch(/12\. Internal metric identifiers/);
     expect(prompt).toMatch(/Internal metric identifiers/);
     // The banned-list is enumerated verbatim so the model has no
     // ambiguity about which strings are off-limits in prose.
@@ -122,7 +123,7 @@ describe("getStrictInsightsSystemPrompt — enum-identifier ban (no enum names i
 
   it("DE prompt carries the rule with the same banned list", () => {
     const prompt = getStrictInsightsSystemPrompt("de");
-    expect(prompt).toMatch(/12\. v1\.4\.25/);
+    expect(prompt).toMatch(/12\. Interne Metrik-Identifier/);
     expect(prompt).toMatch(/Interne Metrik-Identifier/);
     expect(prompt).toMatch(/"Pressure_Sys"/);
     expect(prompt).toMatch(/"BLOOD_PRESSURE_SYS"/);
