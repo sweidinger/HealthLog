@@ -1445,6 +1445,26 @@ const derivedProvenance = z
   })
   .meta({ id: "DerivedProvenance" });
 
+// v1.13.2 — per-derived-SCORE assessment text. Additive, non-breaking field
+// on the derived response; the iOS field-name contract is LOCKED.
+const derivedAssessment = z
+  .object({
+    text: z
+      .string()
+      .describe(
+        "Short, non-empty explanation of why the score sits where it does, referencing the score's contributors.",
+      ),
+    source: z
+      .string()
+      .describe(
+        "'deterministic' for the always-on template text, or 'ai' when warmer provider prose has been cached.",
+      ),
+    updatedAt: z.iso
+      .datetime({ offset: true })
+      .describe("When the text was produced / last warmed."),
+  })
+  .meta({ id: "DerivedAssessment" });
+
 const derivedMetricResponse = z
   .object({
     metric: z
@@ -1470,6 +1490,11 @@ const derivedMetricResponse = z
       .string()
       .nullable()
       .describe("Why the value could not be produced; null when status is 'ok'."),
+    assessment: derivedAssessment
+      .nullable()
+      .describe(
+        "v1.13.2 — short 'why is this score what it is' explanation, keyed to the SAME requested id (only for the per-score ids READINESS, SLEEP_SCORE, RECOVERY_SCORE, STRAIN_SCORE, STRESS_SCORE). Null for any other metric and whenever status !== 'ok'. Always non-empty when present: a deterministic text fills it (so provider-less accounts + the demo always get one) and warmer AI prose overrides it once cached.",
+      ),
   })
   .meta({
     id: "DerivedMetricResponse",

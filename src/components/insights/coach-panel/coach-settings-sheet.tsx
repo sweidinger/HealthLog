@@ -240,72 +240,80 @@ export function CoachSettingsSheet({
           </div>
         ) : (
           <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto p-4">
-            {/* Tone */}
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="coach-prefs-tone" className="text-xs font-medium">
-                {t("insights.coach.settingsToneLabel")}
-              </Label>
-              <Select
-                value={draft.tone}
-                onValueChange={(value) =>
-                  setDraft((prev) => ({ ...prev, tone: value as CoachTone }))
-                }
-              >
-                <SelectTrigger
-                  id="coach-prefs-tone"
-                  data-slot="coach-prefs-tone"
+            {/* v1.13.1 — Tone + Verbosity side by side (2-col on ≥sm,
+                stacked on mobile) so the two short selects don't add a
+                full extra scroll length to the sheet. */}
+            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+              {/* Tone */}
+              <div className="flex flex-col gap-2">
+                <Label
+                  htmlFor="coach-prefs-tone"
+                  className="text-xs font-medium"
                 >
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="warm">
-                    {t("insights.coach.settingsToneWarm")}
-                  </SelectItem>
-                  <SelectItem value="neutral">
-                    {t("insights.coach.settingsToneNeutral")}
-                  </SelectItem>
-                  <SelectItem value="concise">
-                    {t("insights.coach.settingsToneConcise")}
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+                  {t("insights.coach.settingsToneLabel")}
+                </Label>
+                <Select
+                  value={draft.tone}
+                  onValueChange={(value) =>
+                    setDraft((prev) => ({ ...prev, tone: value as CoachTone }))
+                  }
+                >
+                  <SelectTrigger
+                    id="coach-prefs-tone"
+                    data-slot="coach-prefs-tone"
+                  >
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="warm">
+                      {t("insights.coach.settingsToneWarm")}
+                    </SelectItem>
+                    <SelectItem value="neutral">
+                      {t("insights.coach.settingsToneNeutral")}
+                    </SelectItem>
+                    <SelectItem value="concise">
+                      {t("insights.coach.settingsToneConcise")}
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
 
-            {/* Verbosity */}
-            <div className="flex flex-col gap-2">
-              <Label
-                htmlFor="coach-prefs-verbosity"
-                className="text-xs font-medium"
-              >
-                {t("insights.coach.settingsVerbosityLabel")}
-              </Label>
-              <Select
-                value={draft.verbosity}
-                onValueChange={(value) =>
-                  setDraft((prev) => ({
-                    ...prev,
-                    verbosity: value as CoachVerbosity,
-                  }))
-                }
-              >
-                <SelectTrigger
-                  id="coach-prefs-verbosity"
-                  data-slot="coach-prefs-verbosity"
+              {/* Verbosity */}
+              <div className="flex flex-col gap-2">
+                <Label
+                  htmlFor="coach-prefs-verbosity"
+                  className="text-xs font-medium"
                 >
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="brief">
-                    {t("insights.coach.settingsVerbosityBrief")}
-                  </SelectItem>
-                  <SelectItem value="default">
-                    {t("insights.coach.settingsVerbosityDefault")}
-                  </SelectItem>
-                  <SelectItem value="detailed">
-                    {t("insights.coach.settingsVerbosityDetailed")}
-                  </SelectItem>
-                </SelectContent>
-              </Select>
+                  {t("insights.coach.settingsVerbosityLabel")}
+                </Label>
+                <Select
+                  value={draft.verbosity}
+                  onValueChange={(value) =>
+                    setDraft((prev) => ({
+                      ...prev,
+                      verbosity: value as CoachVerbosity,
+                    }))
+                  }
+                >
+                  <SelectTrigger
+                    id="coach-prefs-verbosity"
+                    data-slot="coach-prefs-verbosity"
+                  >
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="brief">
+                      {t("insights.coach.settingsVerbosityBrief")}
+                    </SelectItem>
+                    <SelectItem value="default">
+                      {t("insights.coach.settingsVerbosityDefault")}
+                    </SelectItem>
+                    <SelectItem value="detailed">
+                      {t("insights.coach.settingsVerbosityDetailed")}
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
 
             {/* v1.4.25 W5 — default analysis window. Sets the snapshot
@@ -496,7 +504,10 @@ export function CoachSettingsSheet({
             data-slot="coach-prefs-save"
           >
             {save.isPending ? (
-              <Loader2 className="size-3.5 animate-spin motion-reduce:animate-none" aria-hidden="true" />
+              <Loader2
+                className="size-3.5 animate-spin motion-reduce:animate-none"
+                aria-hidden="true"
+              />
             ) : null}
             {t("insights.coach.settingsSave")}
           </Button>

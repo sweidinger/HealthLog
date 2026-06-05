@@ -44,6 +44,8 @@ import {
 import { getRelevantCorrelationsForMetric } from "@/lib/insights/metric-correlation-context";
 import { getAgeFromDateOfBirth } from "@/lib/analytics/pulse-targets";
 import { lookupNormalRange } from "@/lib/insights/derived/norms";
+import { buildMetricSignal } from "@/lib/insights/metric-signal";
+import { PROMPT_VERSION } from "@/lib/ai/prompts/base-system";
 import { getNoKeyGeneralStatusText } from "@/lib/insights/no-key-fallbacks";
 import { applyPayloadBudget } from "@/lib/insights/bucket-series";
 import {
@@ -320,8 +322,24 @@ export async function generateMetricStatus(args: {
   const sharpenedRange = lookupNormalRange(meta.id, ageYears, sex);
   const normalRange = sharpenedRange ?? meta.normalRange;
 
+  // v1.13.x — the SIGNAL block: the recent-vs-baseline comparison + the
+  // normal-swing verdict, computed server-side so the model states it rather
+  // than re-deriving it from the raw buckets (research-ai-quality.md §4/§5C).
+  // Built from the same graded series the snapshot already carries; null only
+  // when the recent window is empty, in which case it is omitted.
+  const signal = buildMetricSignal({
+    metric: meta.displayName,
+    unit: meta.unit,
+    direction: meta.direction,
+    graded,
+    normalRange: normalRange ?? null,
+    normalRangeSource: sharpenedRange ? "age-sex-adjusted" : undefined,
+    newestDaysAgo,
+  });
+
   const snapshot = {
     locale,
+    promptVersion: PROMPT_VERSION,
     generatedForDay: todayKey,
     focus: meta.id,
     metric: {
@@ -345,6 +363,7 @@ export async function generateMetricStatus(args: {
       newestMeasurementDaysAgo: newestDaysAgo,
     },
     [meta.id]: {
+      ...(signal ? { signal } : {}),
       summary,
       series: graded,
       latestDayFocus: latest

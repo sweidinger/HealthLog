@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, beforeEach, afterEach, vi } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
@@ -12,6 +12,8 @@ import { MedicationComplianceBars } from "@/components/medications/card-parts/me
 import { MedicationStatusPill } from "@/components/medications/card-parts/medication-status-pill";
 import { MedicationIntakeActions } from "@/components/medications/card-parts/medication-intake-actions";
 import { MedicationStateBadges } from "@/components/medications/card-parts/medication-state-badges";
+import { MedicationCycleStatus } from "@/components/medications/card-parts/medication-cycle-status";
+import type { CurrentCycle } from "@/lib/analytics/compliance";
 
 /**
  * v1.7.2 — the medication-card status pill, compliance bars, intake-action
@@ -143,6 +145,143 @@ describe("medication card-parts — shared presentational components", () => {
     );
     expect(html).toContain("Without notification");
     expect(html).toContain("Paused since");
+  });
+});
+
+/**
+ * v1.14.0 — the open-cycle status line. A calm, rate-decoupled status driven
+ * by `currentCycle.state` so a sparse weekly / rolling med between doses
+ * surfaces "next dose in N days" / "due today" / "overdue" rather than leaning
+ * on a percentage that misreads an on-schedule med as a scary 0%.
+ */
+describe("medication cycle status — open-cycle line", () => {
+  const baseCycle: CurrentCycle = {
+    state: "on_track",
+    nextDueAt: null,
+    graceUntil: null,
+    hasClosedCycles: true,
+  };
+
+  const DAY_MS = 24 * 60 * 60 * 1000;
+
+  // Pin the clock to a stable Berlin-noon instant (12:00 CEST) so the
+  // component's Berlin day-bucketing is deterministic regardless of the CI
+  // runner's timezone — a UTC runner near midnight would otherwise read
+  // "now" as the next Berlin day and drift every count by one.
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-06-15T10:00:00Z"));
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  // A future instant exactly N×24 h from the pinned noon, so every offset lands
+  // mid-Berlin-day and the whole-day delta is exactly N in any runtime tz.
+  function inDays(n: number): Date {
+    return new Date(Date.now() + n * DAY_MS);
+  }
+
+  it("renders nothing when state is none (PRN / paused / ended)", () => {
+    const html = render(
+      <MedicationCycleStatus cycle={{ ...baseCycle, state: "none" }} />,
+    );
+    expect(html).toBe("");
+  });
+
+  it("renders the neutral no-closed-cycles state with the dashed glyph", () => {
+    const html = render(
+      <MedicationCycleStatus
+        cycle={{
+          ...baseCycle,
+          state: "on_track",
+          nextDueAt: inDays(3),
+          hasClosedCycles: false,
+        }}
+      />,
+    );
+    expect(html).toContain("No closed dose cycles yet");
+    expect(html).toContain("lucide-circle-dashed");
+    expect(html).toContain("text-muted-foreground");
+    // never leaks a relative count when there's no closed cycle to anchor.
+    expect(html).not.toContain("Next dose in");
+  });
+
+  it("on_track several days out reads the relative-day phrasing in success tone", () => {
+    const html = render(
+      <MedicationCycleStatus
+        cycle={{ ...baseCycle, state: "on_track", nextDueAt: inDays(4) }}
+      />,
+    );
+    expect(html).toContain("Next dose in 4 days");
+    expect(html).toContain("text-success");
+    expect(html).toContain("lucide-circle-check");
+  });
+
+  it("on_track reads the same day count when nextDueAt arrives as an ISO string", () => {
+    // Over the wire `nextDueAt` is JSON, so it reaches the card as a string
+    // even though the type says `Date`. The component must re-hydrate it for
+    // the Berlin day-bucketing — a raw string would silently drift the count.
+    const iso = inDays(4).toISOString() as unknown as Date;
+    const html = render(
+      <MedicationCycleStatus
+        cycle={{ ...baseCycle, state: "on_track", nextDueAt: iso }}
+      />,
+    );
+    expect(html).toContain("Next dose in 4 days");
+  });
+
+  it("on_track one day out reads tomorrow", () => {
+    const html = render(
+      <MedicationCycleStatus
+        cycle={{ ...baseCycle, state: "on_track", nextDueAt: inDays(1) }}
+      />,
+    );
+    expect(html).toContain("Next dose tomorrow");
+    expect(html).not.toContain("in 1 days");
+  });
+
+  it("on_track later today reads today", () => {
+    // Six hours past the pinned noon — still the same Berlin calendar day.
+    const later = new Date(Date.now() + 6 * 60 * 60 * 1000);
+    const html = render(
+      <MedicationCycleStatus
+        cycle={{ ...baseCycle, state: "on_track", nextDueAt: later }}
+      />,
+    );
+    expect(html).toContain("Next dose today");
+  });
+
+  it("due reads the amber due-today line", () => {
+    const html = render(
+      <MedicationCycleStatus
+        cycle={{
+          ...baseCycle,
+          state: "due",
+          nextDueAt: new Date(),
+          graceUntil: inDays(0),
+        }}
+      />,
+    );
+    expect(html).toContain("Due today");
+    expect(html).toContain("text-warning");
+    expect(html).toContain("lucide-calendar-clock");
+  });
+
+  it("missed reads the destructive overdue line", () => {
+    const html = render(
+      <MedicationCycleStatus
+        cycle={{
+          ...baseCycle,
+          state: "missed",
+          nextDueAt: inDays(-3),
+          graceUntil: inDays(-3),
+        }}
+      />,
+    );
+    expect(html).toContain("Overdue");
+    expect(html).toContain("text-destructive");
+    expect(html).toContain("lucide-triangle-alert");
   });
 });
 

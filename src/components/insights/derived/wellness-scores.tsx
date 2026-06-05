@@ -1,6 +1,6 @@
 "use client";
 
-import type { ComponentType } from "react";
+import { useState, type ComponentType } from "react";
 import Link from "next/link";
 import { Activity, Flame, Gauge, HeartPulse, Moon, RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -50,6 +50,15 @@ interface ScoreStripProps {
   className?: string;
 }
 
+/** Mean of the trailing series excluding the newest point = "your normal". */
+function baselineOf(series: number[] | undefined): number | null {
+  if (!series || series.length < 3) return null;
+  const past = series.slice(0, -1); // exclude today (newest)
+  if (past.length === 0) return null;
+  const mean = past.reduce((sum, v) => sum + v, 0) / past.length;
+  return Number.isFinite(mean) ? mean : null;
+}
+
 /** A score ring wrapped in a link to its anatomy detail page. */
 function RingTile({
   score,
@@ -60,6 +69,9 @@ function RingTile({
   metricSlot,
   hue,
   icon,
+  index,
+  animate,
+  baseline,
 }: {
   score: number;
   band: ScoreBand;
@@ -69,22 +81,37 @@ function RingTile({
   metricSlot: string;
   hue: RingHue;
   icon: ComponentType<{ className?: string }>;
+  /** Position in the rendered strip — drives the left-to-right stagger. */
+  index: number;
+  /** Whether the once-per-session reveal plays (false = paint final). */
+  animate: boolean;
+  /** "Your normal" reference for the ghost arc, or null when no series. */
+  baseline: number | null;
 }) {
   const Icon = icon;
+  const delayMs = index * 75;
   return (
     <Link
       href={href}
       data-slot="wellness-score-tile"
       data-metric={metricSlot}
-      // v1.13.x — the wellness tile drops the saturated `.score-tile-gradient`
-      // dark slab for the gentle, hero-family `.wellness-tile`: a low-opacity
-      // mix of the metric's `--tile-hue` over the theme `--card`. The surface
-      // is luminous in both themes, so the header/number ride `--foreground`
-      // (no pinned white) and the per-metric `hue` arc is the only saturated
-      // thing on the tile — calm, like the greeting tile. The band stays
-      // conveyed by the word label below + the ring's `data-band` + aria-label.
-      style={{ "--tile-hue": TILE_HUE[hue] } as React.CSSProperties}
-      className="wellness-tile focus-visible:ring-ring flex flex-col gap-4 rounded-xl p-5 transition-colors focus-visible:ring-2 focus-visible:outline-none"
+      // v1.14.0 — gentle, hero-family `.wellness-tile`: a low-opacity mix of
+      // the metric's `--tile-hue` over the theme `--card`, with a faint film
+      // grain (::after) for material depth. The per-metric `hue` arc is the
+      // only saturated thing on the tile. On a fresh session the tile rises +
+      // fades in staggered (`wellness-tile-rise` + `--reveal-delay`), gated by
+      // the strip's `data-revealed`; the band stays conveyed by the word below
+      // + the ring's `data-band` + aria-label.
+      style={
+        {
+          "--tile-hue": TILE_HUE[hue],
+          "--reveal-delay": `${delayMs}ms`,
+        } as React.CSSProperties
+      }
+      className={cn(
+        "wellness-tile focus-visible:ring-ring flex flex-col gap-4 rounded-xl p-5 focus-visible:ring-2 focus-visible:outline-none",
+        animate && "wellness-tile-rise",
+      )}
     >
       <div className="text-foreground flex items-center gap-2">
         <Icon className="h-5 w-5 shrink-0" aria-hidden="true" />
@@ -97,7 +124,15 @@ function RingTile({
             the header above. The per-metric `hue` gradient leans the arc
             colour; the band stays conveyed by the word label below + the
             ring's `data-band` + aria-label. */}
-        <ScoreRing score={score} band={band} size="sm" hue={hue} />
+        <ScoreRing
+          score={score}
+          band={band}
+          size="sm"
+          hue={hue}
+          animate={animate}
+          delayMs={delayMs}
+          baseline={baseline}
+        />
         <span
           data-slot="wellness-score-band-word"
           className="text-muted-foreground text-center text-xs"
@@ -117,6 +152,25 @@ export function WellnessScores({
   className,
 }: ScoreStripProps) {
   const { t } = useTranslations();
+
+  // The signature reveal plays ONCE per browser session. A background
+  // Apple-Health-sync refetch re-renders this strip repeatedly (the v1.8.7
+  // lesson — sync evicted the derived cache all day); replaying the cascade on
+  // every refetch would read as cheap + janky. The sessionStorage flag is set
+  // on the first Insights visit; subsequent mounts paint the final state with
+  // no stagger/sweep/sheen. Lazily computed once on the client (the strip only
+  // renders after the client-side batch resolves, so there is no SSR tile to
+  // mismatch).
+  const [play] = useState(() => {
+    if (typeof window === "undefined") return false;
+    try {
+      if (sessionStorage.getItem("wellness-strip-revealed")) return false;
+      sessionStorage.setItem("wellness-strip-revealed", "1");
+      return true;
+    } catch {
+      return true;
+    }
+  });
 
   // A failed shared batch must read as an error, not as "no scores" — the
   // strip is top-of-page, so the only Retry lives here (mirrors the Vitals
@@ -177,6 +231,9 @@ export function WellnessScores({
         metricSlot="READINESS"
         hue="readiness"
         icon={Gauge}
+        index={tiles.length}
+        animate={play}
+        baseline={null}
       />,
     );
   }
@@ -192,6 +249,9 @@ export function WellnessScores({
         metricSlot="RECOVERY_SCORE"
         hue="recovery"
         icon={HeartPulse}
+        index={tiles.length}
+        animate={play}
+        baseline={baselineOf(recovery.value.series)}
       />,
     );
   }
@@ -207,6 +267,9 @@ export function WellnessScores({
         metricSlot="SLEEP_SCORE"
         hue="sleep"
         icon={Moon}
+        index={tiles.length}
+        animate={play}
+        baseline={null}
       />,
     );
   }
@@ -222,6 +285,9 @@ export function WellnessScores({
         metricSlot="STRESS_SCORE"
         hue="stress"
         icon={Activity}
+        index={tiles.length}
+        animate={play}
+        baseline={baselineOf(stress.value.series)}
       />,
     );
   }
@@ -237,6 +303,9 @@ export function WellnessScores({
         metricSlot="STRAIN_SCORE"
         hue="strain"
         icon={Flame}
+        index={tiles.length}
+        animate={play}
+        baseline={baselineOf(strain.value.series)}
       />,
     );
   }
@@ -257,6 +326,15 @@ export function WellnessScores({
     5: "lg:grid-cols-5",
   };
   const lgCols = LG_COLS[Math.min(tiles.length, 5)] ?? "lg:grid-cols-5";
+  // The sm/md row caps at 3 columns; track the actual tile count there too so
+  // two or four active scores don't leave an empty cell that reads as a
+  // missing tile (the same fill rule the lg row already follows).
+  const SM_COLS: Record<number, string> = {
+    1: "sm:grid-cols-1",
+    2: "sm:grid-cols-2",
+    3: "sm:grid-cols-3",
+  };
+  const smCols = SM_COLS[Math.min(tiles.length, 3)] ?? "sm:grid-cols-3";
 
   return (
     <section
@@ -270,7 +348,10 @@ export function WellnessScores({
       />
       <div
         data-slot="wellness-scores-grid"
-        className={cn("grid grid-cols-2 gap-3 sm:grid-cols-3", lgCols)}
+        // `data-revealed` triggers the CSS tile-rise + sheen keyframes on the
+        // fresh-session reveal; absent on subsequent mounts (paint final).
+        data-revealed={play ? "true" : undefined}
+        className={cn("grid grid-cols-2 gap-3", smCols, lgCols)}
       >
         {tiles}
       </div>

@@ -358,7 +358,8 @@ export function MoodChart({
   const rawCount = useMemo<number>(() => {
     if (!data?.entries?.length) return 0;
     return data.entries.reduce(
-      (acc, entry) => acc + (Number.isFinite(entry.samples) ? entry.samples : 0),
+      (acc, entry) =>
+        acc + (Number.isFinite(entry.samples) ? entry.samples : 0),
       0,
     );
   }, [data]);
@@ -566,58 +567,353 @@ export function MoodChart({
 
   if (!isLoading && !data?.entries?.length) return null;
 
-  return (
-    <Card
-      data-slot={mini ? "chart-mini" : undefined}
-      // v1.4.28 R3c-Insights — collapse the Card envelope in mini
-      // mode (FB-K1). The default `<Card>` paints `py-6 gap-6` —
-      // ~48 px of vertical chrome that pulled the mood mini chart
-      // band ~52 px lower than the `<HealthChart mini>` siblings
-      // in the trends row. The mini override gives mood the same
-      // `~p-2` shell HealthChart uses so the chart series anchor
-      // at the same top edge across BP / weight / mood tiles.
-      //
-      // D-H5 follow-up — the Card primitive carries `rounded-xl
-      // border bg-card shadow-sm` by default. HealthChart mini
-      // paints `rounded-md border bg-card` (no shadow). Without an
-      // explicit `rounded-md` override the mood tile painted a
-      // visibly heavier corner radius than BP / weight in the same
-      // row. Align to the `rounded-md` shell so the three trend
-      // tiles share one corner radius.
-      //
-      // v1.4.37 W4a item 5 — collapse the Card's inter-row gap to
-      // 0 so the only space between the title and the chart strip
-      // is the CardHeader's own `pb-1` (4 px), matching the
-      // `mb-1` HealthChart paints below its plain `<div>` title.
-      // Pre-fix Mood's `gap-1` (4 px) on top of the header `pb-1`
-      // stacked an extra 4 px below the title, which read as a
-      // ~12-16 px taller card than the BP/weight siblings inside
-      // the trends row.
-      className={
-        mini ? "gap-0 rounded-md py-2 shadow-none" : undefined
-      }
+  // v1.13.1 — TRENDS-ROW MOOD CARD HEIGHT. In mini mode the title +
+  // chart body render inside the exact same flat shell `<HealthChart
+  // mini>` uses (`bg-card border-border rounded-md border p-2` with a
+  // plain `<div>` title), instead of the `<Card>/<CardHeader>/
+  // <CardTitle>` chrome that stacked extra vertical space above and
+  // below the "Stimmung" heading. Aligning the STRUCTURE — not just
+  // the padding values — makes the three trend cards share one title
+  // baseline and one height. Full (non-mini) mode keeps the Card path.
+  const chartBody = isLoading ? (
+    <div className="flex h-48 items-center justify-center">
+      <Loader2 className="text-primary h-6 w-6 animate-spin motion-reduce:animate-none" />
+    </div>
+  ) : !chartData?.length ? (
+    <div className="text-muted-foreground flex h-48 items-center justify-center text-sm">
+      {t("charts.noData")}
+    </div>
+  ) : chartData.length < 3 ? (
+    // v1.4.16 B1a — sparse-data placeholder consistent with the
+    // BP/weight/pulse charts. Height tracks the chart strip's
+    // shared CHART_HEIGHT_PX so the empty state preserves the
+    // trend-row rhythm (v1.4.27 — was 280, now 240 to match every
+    // other dashboard chart card).
+    //
+    // v1.4.43 W2-CHART-GATE — split the copy on the raw mood-entry
+    // count. A user with 50 mood entries across 2 calendar days
+    // sees `chartData.length = 2` (daily-aggregated) but the raw
+    // count (sum of `samples`) is 50. Surface "need more days"
+    // in that scenario so the call-to-action matches reality.
+    rawCount >= 3 ? (
+      <ChartEmptyState
+        title={t("charts.needMoreDistinctDaysTitle")}
+        description={t("charts.needMoreDistinctDaysDescription")}
+        height={CHART_HEIGHT_PX}
+      />
+    ) : (
+      <ChartEmptyState
+        title={t("charts.emptyStateTitle")}
+        description={t("charts.emptyStateDescription")}
+        height={CHART_HEIGHT_PX}
+      />
+    )
+  ) : (
+    <div
+      // v1.12.7 — the mood line plots a 1–5 score band; the former
+      // 240/280 px full-mode height left a tall dead strip below the
+      // line on the mood subpage. Tighten the default to 200/220 px so
+      // the chart fits its content without the empty gap. A per-mount
+      // `--chart-height` override (trends-row mini, etc.) still wins, so
+      // only the unoverridden full-mode mount shrinks.
+      className={`${
+        mini
+          ? "h-[var(--chart-height,140px)]"
+          : "h-[var(--chart-height,200px)] md:h-[var(--chart-height-md,220px)]"
+      } touch-pan-y`}
     >
-      <CardHeader
-        className={
-          mini ? "px-2 pb-1 [&]:gap-0" : "pb-2"
-        }
+      <ResponsiveContainer width="100%" height="100%">
+        <ComposedChart
+          data={chartDataWithCompare ?? chartData}
+          margin={{ top: 10, right: 8, bottom: 8, left: 8 }}
+        >
+          {/* v1.4.25 W3 — the mood chart's YAxis is pinned to
+                    five mood-score ticks ([1,2,3,4,5]), which Recharts
+                    syncs with CartesianGrid by default. That left the
+                    mini variant painting five horizontal lines while
+                    the BP / Weight / Pulse minis painted six (their
+                    auto-generated YAxis ticks land on six bands in
+                    typical health ranges). The explicit coordinates
+                    generator below produces six evenly-spaced lines
+                    so the trends row reads as a single rhythm. */}
+          <CartesianGrid
+            strokeDasharray="3 3"
+            stroke="var(--border)"
+            opacity={0.5}
+            horizontalCoordinatesGenerator={({ offset }) => {
+              // `offset` carries the chart's plot-area metrics.
+              // Six evenly-spaced y-coordinates inside the plot
+              // area (top + 4 intermediate + bottom) match the
+              // density of the BP/Weight/Pulse minis.
+              const top = offset.top ?? 0;
+              const height = offset.height ?? 0;
+              if (height <= 0) return [];
+              const lines = 6;
+              return Array.from({ length: lines }, (_, i) =>
+                Math.round(top + (height * i) / (lines - 1)),
+              );
+            }}
+          />
+          {showBands &&
+            VALUE_BANDS.map((band) => (
+              <ReferenceArea
+                key={`band-${band.min}-${band.max}`}
+                y1={band.min}
+                y2={band.max}
+                fill={band.color}
+                fillOpacity={band.opacity}
+                strokeOpacity={0}
+                ifOverflow="discard"
+              />
+            ))}
+          {/* v1.4.18 — personal-baseline gated behind the
+                    Trend toggle (maintainer: "only when a trend is being
+                    displayed"). Default OFF. */}
+          {showTrend && personalBaseline != null && (
+            <ReferenceLine
+              y={personalBaseline}
+              stroke={COLOR_MAIN}
+              strokeDasharray="2 4"
+              strokeOpacity={0.4}
+              strokeWidth={1}
+              ifOverflow="discard"
+              label={{
+                value: t("charts.personalBaseline"),
+                position: "insideTopLeft",
+                fill: "var(--muted-foreground)",
+                fontSize: 10,
+                opacity: 0.7,
+              }}
+            />
+          )}
+          <XAxis
+            type="number"
+            dataKey="pointIndex"
+            domain={[0, maxPointIndex]}
+            allowDecimals={false}
+            tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
+            tickLine={false}
+            axisLine={false}
+            tickFormatter={(value: number) =>
+              tzFmt.date(
+                new Date(chartData[Math.round(value)]?.timestamp ?? Date.now()),
+              )
+            }
+            // v1.4.29 — Recharts ignores `interval` on numeric
+            // axes; pass explicit tick positions instead.
+            ticks={computeTickPositions(chartData ?? [], viewportWidth)}
+            padding={{ left: 10, right: 10 }}
+            tickMargin={10}
+          />
+          <YAxis
+            domain={[1, 5]}
+            ticks={[1, 2, 3, 4, 5]}
+            tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
+            tickLine={false}
+            axisLine={false}
+            width={65}
+            tickMargin={10}
+            tickFormatter={formatMoodTick}
+          />
+          <Tooltip
+            cursor={{
+              stroke: "var(--muted-foreground)",
+              strokeOpacity: 0.3,
+              strokeDasharray: "3 3",
+            }}
+            content={(props) => {
+              const {
+                active,
+                payload,
+                label: rechartsLabel,
+              } = props as unknown as {
+                active?: boolean;
+                payload?: Array<{
+                  name?: string;
+                  value?: number;
+                  color?: string;
+                  dataKey?: string;
+                  payload?: ChartDataPoint;
+                }>;
+                label?: number;
+              };
+              if (!active || !payload?.length) return null;
+              const ts =
+                payload[0]?.payload?.timestamp ??
+                (typeof rechartsLabel === "number"
+                  ? chartData?.[Math.round(rechartsLabel)]?.timestamp
+                  : undefined);
+              const dateLabel = ts ? tzFmt.date(new Date(ts)) : "";
+              const rows: RichTooltipRow[] = [];
+              const hoverPoint = payload[0]?.payload as
+                | ChartDataPoint
+                | undefined;
+              for (const item of payload) {
+                if (typeof item.value !== "number") continue;
+                const dataKey = String(item.dataKey ?? "");
+                // Skip auxiliary lines (`ma`, `trend`,
+                // `scoreCompare`). Comparison value rendered as
+                // delta on the primary row + own row below.
+                if (
+                  dataKey === "ma" ||
+                  dataKey === "trend" ||
+                  dataKey === "scoreCompare"
+                )
+                  continue;
+                let delta: string | undefined;
+                const compareValue =
+                  effectiveCompareBaseline !== "none" && hoverPoint
+                    ? hoverPoint.scoreCompare
+                    : undefined;
+                if (
+                  effectiveCompareBaseline !== "none" &&
+                  typeof compareValue === "number" &&
+                  Number.isFinite(compareValue)
+                ) {
+                  const diff = item.value - compareValue;
+                  if (Math.abs(diff) < 0.05) {
+                    delta = t("charts.deltaUnchanged");
+                  } else {
+                    const sign = diff > 0 ? "+" : "−";
+                    const formatted = `${sign}${Math.abs(diff).toFixed(1)}`;
+                    delta = t(
+                      effectiveCompareBaseline === "lastMonth"
+                        ? "comparison.deltaVs.lastMonth"
+                        : "comparison.deltaVs.lastYear",
+                    ).replace("{delta}", formatted);
+                  }
+                } else if (personalBaseline != null) {
+                  const diff = item.value - personalBaseline;
+                  if (Math.abs(diff) < 0.05) {
+                    delta = t("charts.deltaUnchanged");
+                  } else {
+                    const sign = diff > 0 ? "+" : "−";
+                    const formatted = `${sign}${Math.abs(diff).toFixed(1)}`;
+                    delta = t("charts.deltaVsBaseline").replace(
+                      "{delta}",
+                      formatted,
+                    );
+                  }
+                }
+                rows.push({
+                  name: t("charts.moodScore"),
+                  value: formatTooltipValue(item.value),
+                  color: item.color ?? COLOR_MAIN,
+                  delta,
+                });
+                if (
+                  effectiveCompareBaseline !== "none" &&
+                  typeof compareValue === "number" &&
+                  Number.isFinite(compareValue)
+                ) {
+                  rows.push({
+                    name: `${t("charts.moodScore")} · ${t(
+                      "comparison.tooltipPrior",
+                    )}`,
+                    value: formatTooltipValue(compareValue),
+                    color: item.color ?? COLOR_MAIN,
+                  });
+                }
+              }
+              if (rows.length === 0) return null;
+              return <RichChartTooltip active label={dateLabel} rows={rows} />;
+            }}
+          />
+          <Line
+            type="monotone"
+            dataKey="score"
+            name="score"
+            stroke={COLOR_MAIN}
+            strokeWidth={2}
+            dot={{ r: 3, fill: COLOR_MAIN }}
+            activeDot={{ r: 5 }}
+            connectNulls
+            isAnimationActive={animationsEnabled}
+            animationDuration={animationsEnabled ? 600 : 0}
+            animationEasing="ease-out"
+          />
+          {showMA && (
+            <Line
+              type="monotone"
+              dataKey="ma"
+              name="ma"
+              stroke={COLOR_MA}
+              strokeWidth={1.5}
+              strokeDasharray="5 5"
+              dot={false}
+              connectNulls
+            />
+          )}
+          {showTrend && (
+            <Line
+              type="linear"
+              dataKey="trend"
+              name="trend"
+              stroke={COLOR_TREND}
+              strokeWidth={1}
+              strokeDasharray="8 4"
+              dot={false}
+              connectNulls
+            />
+          )}
+          {/* v1.4.16 B8 — comparison overlay (mood). Same
+                    dimmed dashed treatment the BP/weight/pulse chart
+                    uses; mood is a single metric so we only render
+                    one overlay line. Suppressed when there's no prior
+                    data via hasComparisonData. */}
+          {effectiveCompareBaseline !== "none" && hasComparisonData && (
+            <Line
+              type="monotone"
+              dataKey="scoreCompare"
+              name="scoreCompare"
+              stroke={COLOR_MAIN}
+              strokeWidth={1.25}
+              strokeDasharray="4 3"
+              strokeOpacity={0.45}
+              dot={false}
+              connectNulls
+              isAnimationActive={animationsEnabled}
+              animationDuration={animationsEnabled ? 600 : 0}
+              animationEasing="ease-out"
+              legendType="none"
+              data-slot="chart-compare-line-mood"
+            />
+          )}
+        </ComposedChart>
+      </ResponsiveContainer>
+    </div>
+  );
+
+  // v1.13.1 — mini mode: flat shell that exactly mirrors `<HealthChart
+  // mini>` (bg-card border rounded-md p-2 + plain `<div>` title), so the
+  // three trend cards share one title baseline and one height.
+  if (mini) {
+    return (
+      <div
+        data-slot="chart-mini"
+        className="bg-card border-border rounded-md border p-2"
       >
+        <div className="text-muted-foreground mb-1 text-[10px] font-medium tracking-wider uppercase">
+          {displayTitle}
+        </div>
+        {chartBody}
+      </div>
+    );
+  }
+
+  return (
+    <Card>
+      <CardHeader className="pb-2">
         {/* v1.4.19 A2 — mobile-first header: stack title row above
             controls row on small viewports so the bucket / comparison
             chips never push the range tabs into a 2nd line. ≥sm goes
             back to side-by-side. */}
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex flex-wrap items-center gap-2">
-            <CardTitle
-              className={
-                mini
-                  ? "text-muted-foreground text-[10px] font-medium tracking-wider uppercase"
-                  : "text-base font-medium"
-              }
-            >
+            <CardTitle className="text-base font-medium">
               {displayTitle}
             </CardTitle>
-            {activeBucket !== "day" && !mini && (
+            {activeBucket !== "day" && (
               <span className="bg-muted/40 text-muted-foreground hidden rounded-md px-1.5 py-0.5 text-[10px] font-medium tracking-wide uppercase sm:inline-flex">
                 {t(
                   activeBucket === "week"
@@ -628,389 +924,63 @@ export function MoodChart({
             )}
             {/* v1.4.16 B8 — comparison caption (mood).
                 v1.4.19 A2 — hidden on mobile to free up the title row. */}
-            {!mini &&
-              effectiveCompareBaseline !== "none" &&
-              hasComparisonData && (
-                <span
-                  className="text-dose-accent bg-dose-accent/10 hidden rounded-md border border-current/30 px-1.5 py-0.5 text-[10px] font-medium tracking-wide uppercase sm:inline-flex"
-                  data-slot="chart-compare-caption"
-                >
-                  {t(
-                    effectiveCompareBaseline === "lastMonth"
-                      ? "comparison.captionLastMonth"
-                      : "comparison.captionLastYear",
-                  )}
-                </span>
-              )}
-            {!mini &&
-              effectiveCompareBaseline !== "none" &&
-              !hasComparisonData && (
-                <span
-                  className="text-muted-foreground bg-muted/40 hidden rounded-md px-1.5 py-0.5 text-[10px] font-medium tracking-wide sm:inline-flex"
-                  data-slot="chart-compare-unavailable"
-                >
-                  {t(
-                    effectiveCompareBaseline === "lastMonth"
-                      ? "comparison.unavailable.lastMonth"
-                      : "comparison.unavailable.lastYear",
-                  )}
-                </span>
-              )}
+            {effectiveCompareBaseline !== "none" && hasComparisonData && (
+              <span
+                className="text-dose-accent bg-dose-accent/10 hidden rounded-md border border-current/30 px-1.5 py-0.5 text-[10px] font-medium tracking-wide uppercase sm:inline-flex"
+                data-slot="chart-compare-caption"
+              >
+                {t(
+                  effectiveCompareBaseline === "lastMonth"
+                    ? "comparison.captionLastMonth"
+                    : "comparison.captionLastYear",
+                )}
+              </span>
+            )}
+            {effectiveCompareBaseline !== "none" && !hasComparisonData && (
+              <span
+                className="text-muted-foreground bg-muted/40 hidden rounded-md px-1.5 py-0.5 text-[10px] font-medium tracking-wide sm:inline-flex"
+                data-slot="chart-compare-unavailable"
+              >
+                {t(
+                  effectiveCompareBaseline === "lastMonth"
+                    ? "comparison.unavailable.lastMonth"
+                    : "comparison.unavailable.lastYear",
+                )}
+              </span>
+            )}
           </div>
-          {!mini && (
-            <div
-              className="flex flex-nowrap items-center justify-end gap-1 self-end sm:self-auto"
-              data-slot="chart-header-controls"
-            >
-              {TIME_RANGES_KEYS.map((r) => (
-                <Button
-                  key={r.labelKey}
-                  variant={rangePoints === r.points ? "default" : "ghost"}
-                  size="sm"
-                  className="min-h-11 px-2 text-xs sm:px-3"
-                  onClick={() => setRangePoints(r.points)}
-                  title={t(r.titleKey)}
-                  data-slot="chart-range-tab"
-                >
-                  {t(r.labelKey)}
-                </Button>
-              ))}
-              {/* v1.4.18 — overlay-controls dropdown next to the
-                  range tabs. Only painted when the chart is bound to
-                  a persistent chartKey; ad-hoc usages (/insights mood
-                  preview, recommendation card) stay clean. */}
-              {chartKey ? (
-                <ChartOverlayControls
-                  prefs={overlayPrefs.prefs}
-                  onChange={overlayPrefs.setPrefs}
-                  hasComparisonData={hasComparisonData}
-                />
-              ) : null}
-            </div>
-          )}
+          <div
+            className="flex flex-nowrap items-center justify-end gap-1 self-end sm:self-auto"
+            data-slot="chart-header-controls"
+          >
+            {TIME_RANGES_KEYS.map((r) => (
+              <Button
+                key={r.labelKey}
+                variant={rangePoints === r.points ? "default" : "ghost"}
+                size="sm"
+                className="min-h-11 px-2 text-xs sm:px-3"
+                onClick={() => setRangePoints(r.points)}
+                title={t(r.titleKey)}
+                data-slot="chart-range-tab"
+              >
+                {t(r.labelKey)}
+              </Button>
+            ))}
+            {/* v1.4.18 — overlay-controls dropdown next to the
+                range tabs. Only painted when the chart is bound to
+                a persistent chartKey; ad-hoc usages (/insights mood
+                preview, recommendation card) stay clean. */}
+            {chartKey ? (
+              <ChartOverlayControls
+                prefs={overlayPrefs.prefs}
+                onChange={overlayPrefs.setPrefs}
+                hasComparisonData={hasComparisonData}
+              />
+            ) : null}
+          </div>
         </div>
       </CardHeader>
-      <CardContent className={mini ? "px-2" : undefined}>
-        {isLoading ? (
-          <div className="flex h-48 items-center justify-center">
-            <Loader2 className="text-primary h-6 w-6 animate-spin motion-reduce:animate-none" />
-          </div>
-        ) : !chartData?.length ? (
-          <div className="text-muted-foreground flex h-48 items-center justify-center text-sm">
-            {t("charts.noData")}
-          </div>
-        ) : chartData.length < 3 ? (
-          // v1.4.16 B1a — sparse-data placeholder consistent with the
-          // BP/weight/pulse charts. Height tracks the chart strip's
-          // shared CHART_HEIGHT_PX so the empty state preserves the
-          // trend-row rhythm (v1.4.27 — was 280, now 240 to match every
-          // other dashboard chart card).
-          //
-          // v1.4.43 W2-CHART-GATE — split the copy on the raw mood-entry
-          // count. A user with 50 mood entries across 2 calendar days
-          // sees `chartData.length = 2` (daily-aggregated) but the raw
-          // count (sum of `samples`) is 50. Surface "need more days"
-          // in that scenario so the call-to-action matches reality.
-          rawCount >= 3 ? (
-            <ChartEmptyState
-              title={t("charts.needMoreDistinctDaysTitle")}
-              description={t("charts.needMoreDistinctDaysDescription")}
-              height={CHART_HEIGHT_PX}
-            />
-          ) : (
-            <ChartEmptyState
-              title={t("charts.emptyStateTitle")}
-              description={t("charts.emptyStateDescription")}
-              height={CHART_HEIGHT_PX}
-            />
-          )
-        ) : (
-          <div
-            // v1.12.7 — the mood line plots a 1–5 score band; the former
-            // 240/280 px full-mode height left a tall dead strip below the
-            // line on the mood subpage. Tighten the default to 200/220 px so
-            // the chart fits its content without the empty gap. A per-mount
-            // `--chart-height` override (trends-row mini, etc.) still wins, so
-            // only the unoverridden full-mode mount shrinks.
-            className={`${
-              mini
-                ? "h-[var(--chart-height,140px)]"
-                : "h-[var(--chart-height,200px)] md:h-[var(--chart-height-md,220px)]"
-            } touch-pan-y`}
-          >
-            <ResponsiveContainer width="100%" height="100%">
-              <ComposedChart
-                data={chartDataWithCompare ?? chartData}
-                margin={{ top: 10, right: 8, bottom: 8, left: 8 }}
-              >
-                {/* v1.4.25 W3 — the mood chart's YAxis is pinned to
-                    five mood-score ticks ([1,2,3,4,5]), which Recharts
-                    syncs with CartesianGrid by default. That left the
-                    mini variant painting five horizontal lines while
-                    the BP / Weight / Pulse minis painted six (their
-                    auto-generated YAxis ticks land on six bands in
-                    typical health ranges). The explicit coordinates
-                    generator below produces six evenly-spaced lines
-                    so the trends row reads as a single rhythm. */}
-                <CartesianGrid
-                  strokeDasharray="3 3"
-                  stroke="var(--border)"
-                  opacity={0.5}
-                  horizontalCoordinatesGenerator={({ offset }) => {
-                    // `offset` carries the chart's plot-area metrics.
-                    // Six evenly-spaced y-coordinates inside the plot
-                    // area (top + 4 intermediate + bottom) match the
-                    // density of the BP/Weight/Pulse minis.
-                    const top = offset.top ?? 0;
-                    const height = offset.height ?? 0;
-                    if (height <= 0) return [];
-                    const lines = 6;
-                    return Array.from({ length: lines }, (_, i) =>
-                      Math.round(top + (height * i) / (lines - 1)),
-                    );
-                  }}
-                />
-                {showBands &&
-                  VALUE_BANDS.map((band) => (
-                    <ReferenceArea
-                      key={`band-${band.min}-${band.max}`}
-                      y1={band.min}
-                      y2={band.max}
-                      fill={band.color}
-                      fillOpacity={band.opacity}
-                      strokeOpacity={0}
-                      ifOverflow="discard"
-                    />
-                  ))}
-                {/* v1.4.18 — personal-baseline gated behind the
-                    Trend toggle (maintainer: "only when a trend is being
-                    displayed"). Default OFF. */}
-                {showTrend && personalBaseline != null && (
-                  <ReferenceLine
-                    y={personalBaseline}
-                    stroke={COLOR_MAIN}
-                    strokeDasharray="2 4"
-                    strokeOpacity={0.4}
-                    strokeWidth={1}
-                    ifOverflow="discard"
-                    label={{
-                      value: t("charts.personalBaseline"),
-                      position: "insideTopLeft",
-                      fill: "var(--muted-foreground)",
-                      fontSize: 10,
-                      opacity: 0.7,
-                    }}
-                  />
-                )}
-                <XAxis
-                  type="number"
-                  dataKey="pointIndex"
-                  domain={[0, maxPointIndex]}
-                  allowDecimals={false}
-                  tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
-                  tickLine={false}
-                  axisLine={false}
-                  tickFormatter={(value: number) =>
-                    tzFmt.date(
-                      new Date(
-                        chartData[Math.round(value)]?.timestamp ?? Date.now(),
-                      ),
-                    )
-                  }
-                  // v1.4.29 — Recharts ignores `interval` on numeric
-                  // axes; pass explicit tick positions instead.
-                  ticks={computeTickPositions(
-                    chartData ?? [],
-                    viewportWidth,
-                  )}
-                  padding={{ left: 10, right: 10 }}
-                  tickMargin={10}
-                />
-                <YAxis
-                  domain={[1, 5]}
-                  ticks={[1, 2, 3, 4, 5]}
-                  tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
-                  tickLine={false}
-                  axisLine={false}
-                  width={65}
-                  tickMargin={10}
-                  tickFormatter={formatMoodTick}
-                />
-                <Tooltip
-                  cursor={{
-                    stroke: "var(--muted-foreground)",
-                    strokeOpacity: 0.3,
-                    strokeDasharray: "3 3",
-                  }}
-                  content={(props) => {
-                    const {
-                      active,
-                      payload,
-                      label: rechartsLabel,
-                    } = props as unknown as {
-                      active?: boolean;
-                      payload?: Array<{
-                        name?: string;
-                        value?: number;
-                        color?: string;
-                        dataKey?: string;
-                        payload?: ChartDataPoint;
-                      }>;
-                      label?: number;
-                    };
-                    if (!active || !payload?.length) return null;
-                    const ts =
-                      payload[0]?.payload?.timestamp ??
-                      (typeof rechartsLabel === "number"
-                        ? chartData?.[Math.round(rechartsLabel)]?.timestamp
-                        : undefined);
-                    const dateLabel = ts ? tzFmt.date(new Date(ts)) : "";
-                    const rows: RichTooltipRow[] = [];
-                    const hoverPoint = payload[0]?.payload as
-                      | ChartDataPoint
-                      | undefined;
-                    for (const item of payload) {
-                      if (typeof item.value !== "number") continue;
-                      const dataKey = String(item.dataKey ?? "");
-                      // Skip auxiliary lines (`ma`, `trend`,
-                      // `scoreCompare`). Comparison value rendered as
-                      // delta on the primary row + own row below.
-                      if (
-                        dataKey === "ma" ||
-                        dataKey === "trend" ||
-                        dataKey === "scoreCompare"
-                      )
-                        continue;
-                      let delta: string | undefined;
-                      const compareValue =
-                        effectiveCompareBaseline !== "none" && hoverPoint
-                          ? hoverPoint.scoreCompare
-                          : undefined;
-                      if (
-                        effectiveCompareBaseline !== "none" &&
-                        typeof compareValue === "number" &&
-                        Number.isFinite(compareValue)
-                      ) {
-                        const diff = item.value - compareValue;
-                        if (Math.abs(diff) < 0.05) {
-                          delta = t("charts.deltaUnchanged");
-                        } else {
-                          const sign = diff > 0 ? "+" : "−";
-                          const formatted = `${sign}${Math.abs(diff).toFixed(
-                            1,
-                          )}`;
-                          delta = t(
-                            effectiveCompareBaseline === "lastMonth"
-                              ? "comparison.deltaVs.lastMonth"
-                              : "comparison.deltaVs.lastYear",
-                          ).replace("{delta}", formatted);
-                        }
-                      } else if (personalBaseline != null) {
-                        const diff = item.value - personalBaseline;
-                        if (Math.abs(diff) < 0.05) {
-                          delta = t("charts.deltaUnchanged");
-                        } else {
-                          const sign = diff > 0 ? "+" : "−";
-                          const formatted = `${sign}${Math.abs(diff).toFixed(
-                            1,
-                          )}`;
-                          delta = t("charts.deltaVsBaseline").replace(
-                            "{delta}",
-                            formatted,
-                          );
-                        }
-                      }
-                      rows.push({
-                        name: t("charts.moodScore"),
-                        value: formatTooltipValue(item.value),
-                        color: item.color ?? COLOR_MAIN,
-                        delta,
-                      });
-                      if (
-                        effectiveCompareBaseline !== "none" &&
-                        typeof compareValue === "number" &&
-                        Number.isFinite(compareValue)
-                      ) {
-                        rows.push({
-                          name: `${t("charts.moodScore")} · ${t(
-                            "comparison.tooltipPrior",
-                          )}`,
-                          value: formatTooltipValue(compareValue),
-                          color: item.color ?? COLOR_MAIN,
-                        });
-                      }
-                    }
-                    if (rows.length === 0) return null;
-                    return (
-                      <RichChartTooltip active label={dateLabel} rows={rows} />
-                    );
-                  }}
-                />
-                <Line
-                  type="monotone"
-                  dataKey="score"
-                  name="score"
-                  stroke={COLOR_MAIN}
-                  strokeWidth={2}
-                  dot={{ r: 3, fill: COLOR_MAIN }}
-                  activeDot={{ r: 5 }}
-                  connectNulls
-                  isAnimationActive={animationsEnabled}
-                  animationDuration={animationsEnabled ? 600 : 0}
-                  animationEasing="ease-out"
-                />
-                {showMA && (
-                  <Line
-                    type="monotone"
-                    dataKey="ma"
-                    name="ma"
-                    stroke={COLOR_MA}
-                    strokeWidth={1.5}
-                    strokeDasharray="5 5"
-                    dot={false}
-                    connectNulls
-                  />
-                )}
-                {showTrend && (
-                  <Line
-                    type="linear"
-                    dataKey="trend"
-                    name="trend"
-                    stroke={COLOR_TREND}
-                    strokeWidth={1}
-                    strokeDasharray="8 4"
-                    dot={false}
-                    connectNulls
-                  />
-                )}
-                {/* v1.4.16 B8 — comparison overlay (mood). Same
-                    dimmed dashed treatment the BP/weight/pulse chart
-                    uses; mood is a single metric so we only render
-                    one overlay line. Suppressed when there's no prior
-                    data via hasComparisonData. */}
-                {effectiveCompareBaseline !== "none" && hasComparisonData && (
-                  <Line
-                    type="monotone"
-                    dataKey="scoreCompare"
-                    name="scoreCompare"
-                    stroke={COLOR_MAIN}
-                    strokeWidth={1.25}
-                    strokeDasharray="4 3"
-                    strokeOpacity={0.45}
-                    dot={false}
-                    connectNulls
-                    isAnimationActive={animationsEnabled}
-                    animationDuration={animationsEnabled ? 600 : 0}
-                    animationEasing="ease-out"
-                    legendType="none"
-                    data-slot="chart-compare-line-mood"
-                  />
-                )}
-              </ComposedChart>
-            </ResponsiveContainer>
-          </div>
-        )}
-      </CardContent>
+      <CardContent>{chartBody}</CardContent>
     </Card>
   );
 }

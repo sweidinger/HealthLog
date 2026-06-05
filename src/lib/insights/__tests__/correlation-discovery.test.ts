@@ -94,6 +94,28 @@ describe("discoverCorrelations", () => {
     expect(result.pairsTested).toBe(1);
     expect(result.discovered).toHaveLength(0);
   });
+
+  it("surfaces a RATED-factor channel and humanises its namespace prefix", () => {
+    // A `FACTOR:work` behaviour whose next-day sleep tracks it linearly.
+    const n = 30;
+    const factorVals = Array.from({ length: n }, (_, i) => (i % 5) + 1);
+    const sleepVals = [400, ...factorVals.slice(0, n - 1).map((v) => v * 30 + 300)];
+    const result = discoverCorrelations(
+      [
+        { key: "FACTOR:work", role: "behaviour", points: series(factorVals) },
+        { key: "SLEEP_DURATION", role: "outcome", points: series(sleepVals) },
+      ],
+      { fdrQ: 0.1 },
+    );
+    expect(result.discovered).toHaveLength(1);
+    const pair = result.discovered[0];
+    expect(pair.behaviour).toBe("FACTOR:work");
+    // The interpretation strips the namespace and reads "rated work", never
+    // the raw key, and stays causation-banned.
+    expect(pair.interpretation).toContain("rated work");
+    expect(pair.interpretation).not.toContain("FACTOR:");
+    expect(pair.interpretation).toMatch(/not a cause/);
+  });
 });
 
 // ── F3 — MOOD as a discoverable OUTCOME channel ─────────────────────

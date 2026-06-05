@@ -167,6 +167,11 @@ export const GET = apiHandler(async (request: NextRequest) => {
             provenance: derived.provenance,
             reason:
               derived.status === "insufficient" ? derived.reason : null,
+            // The batch backs the dashboard GRID; per-score assessment text is
+            // a detail-sheet concern served by the single-metric route. Always
+            // null here so the wire shape matches `DerivedMetricResponse`
+            // without paying the assessment cost on a 17-item grid read.
+            assessment: null,
           },
         };
       }),

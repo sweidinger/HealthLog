@@ -36,6 +36,16 @@ import { generateMoodStatusForUser } from "@/lib/insights/mood-status";
 import { generateMedicationComplianceStatusForUser } from "@/lib/insights/medication-compliance-status";
 import { generateMetricStatus } from "@/lib/insights/metric-status";
 import { isMetricStatusId } from "@/lib/insights/metric-status-registry";
+import { prisma } from "@/lib/db";
+import {
+  computeDerivedMetric,
+  loadBaselineProfile,
+} from "@/lib/insights/derived";
+import {
+  generateDerivedScoreAssessment,
+  parseDerivedScoreScope,
+} from "@/lib/insights/derived/derived-assessment-ai";
+import { isDerivedMetricId } from "@/lib/insights/derived/registry";
 import {
   INSIGHT_STATUS_GENERATE_QUEUE,
   INSIGHT_STATUS_GENERATE_CONCURRENCY,
@@ -101,6 +111,36 @@ export async function runInsightStatusGenerate(
       userId: payload.userId,
       locale: payload.locale,
       force: true,
+    });
+    return;
+  }
+
+  // v1.13.2 — a `derived-score:<ID>` scope warms the per-score assessment AI
+  // prose. The route already filled the deterministic text synchronously; this
+  // recomputes the derived value and persists the warmer prose so the next
+  // read upgrades. A score that lost its data resolves to insufficient and the
+  // generator no-ops without an LLM call.
+  if (payload.metric.startsWith("derived-score:")) {
+    const metricId = parseDerivedScoreScope(payload.metric);
+    if (!metricId || !isDerivedMetricId(metricId)) {
+      annotate({
+        action: { name: "insights.status.generate.unknown_metric" },
+        meta: { metric: payload.metric },
+      });
+      return;
+    }
+    const profile = await loadBaselineProfile(prisma, payload.userId);
+    const derived = await computeDerivedMetric({
+      metric: metricId,
+      userId: payload.userId,
+      profile,
+      type: null,
+    });
+    await generateDerivedScoreAssessment({
+      metric: metricId,
+      userId: payload.userId,
+      derived,
+      locale: payload.locale,
     });
     return;
   }

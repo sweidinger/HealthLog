@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: HealthLog API
-  version: 1.13.3
+  version: 1.14.0
   description: >-
     Self-hosted personal-health-tracking PWA — public API surface for the iOS native client and external ingest.
 
@@ -9306,6 +9306,14 @@ components:
             - type: string
             - type: "null"
           description: Why the value could not be produced; null when status is 'ok'.
+        assessment:
+          anyOf:
+            - $ref: "#/components/schemas/DerivedAssessment"
+            - type: "null"
+          description: "v1.13.2 — short 'why is this score what it is' explanation, keyed to the SAME requested id (only for the
+            per-score ids READINESS, SLEEP_SCORE, RECOVERY_SCORE, STRAIN_SCORE, STRESS_SCORE). Null for any other metric
+            and whenever status !== 'ok'. Always non-empty when present: a deterministic text fills it (so provider-less
+            accounts + the demo always get one) and warmer AI prose overrides it once cached."
       required:
         - metric
         - status
@@ -9314,6 +9322,7 @@ components:
         - confidence
         - provenance
         - reason
+        - assessment
       additionalProperties: false
       description: Flat `Derived<T>` envelope for one derived wellness metric. Pure compute over the rollup tier (no LLM, no
         narrative). iOS decodes one stable shape and combines values across metrics; coverage/confidence/provenance let
@@ -9399,6 +9408,25 @@ components:
         - source
         - windowDays
         - computedAt
+      additionalProperties: false
+    DerivedAssessment:
+      type: object
+      properties:
+        text:
+          type: string
+          description: Short, non-empty explanation of why the score sits where it does, referencing the score's contributors.
+        source:
+          type: string
+          description: "'deterministic' for the always-on template text, or 'ai' when warmer provider prose has been cached."
+        updatedAt:
+          type: string
+          format: date-time
+          pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
+          description: When the text was produced / last warmed.
+      required:
+        - text
+        - source
+        - updatedAt
       additionalProperties: false
     DerivedBatchResponseEnvelope:
       type: object

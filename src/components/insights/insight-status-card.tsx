@@ -118,9 +118,13 @@ export function InsightStatusCard({
         aria-busy="true"
         aria-live="polite"
         data-testid="insight-status-card-loading"
-        className="gap-2 py-4 md:gap-3 md:py-5"
+        // v1.13.1 — match the canonical `gap-1.5` + `pb-1` heading-to-body
+        // rhythm the populated / preparing / empty states use, so the
+        // heading and the first skeleton line sit on the same tight
+        // baseline across every assessment-card state.
+        className="gap-1.5 py-4 md:py-5"
       >
-        <CardHeader className="pb-2">
+        <CardHeader className="pb-1">
           <div className="flex items-center gap-2">
             <div className="bg-muted h-5 w-5 animate-pulse rounded motion-reduce:animate-none" />
             <div className="bg-muted h-4 w-32 animate-pulse rounded motion-reduce:animate-none" />

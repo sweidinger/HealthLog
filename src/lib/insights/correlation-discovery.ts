@@ -161,10 +161,23 @@ function interpret(behaviour: string, outcome: string, r: number): string {
   return `${b} and next-day ${o} move together only weakly in this window.`;
 }
 
-/** Lower-case, space-separated label from a channel key. */
+/**
+ * Lower-case, space-separated label from a channel key.
+ *
+ * v1.14.0 — a `FACTOR:<key>` channel (a RATED mood factor folded into the
+ * matrix) strips its namespace prefix so the phrasing reads "rated <factor>"
+ * rather than leaking the raw key. The prefix exists only to keep a factor
+ * key from colliding with a `MeasurementType` in the channel set.
+ */
 function humanise(key: string): string {
+  if (key.startsWith("FACTOR:")) {
+    return `rated ${key.slice("FACTOR:".length).replace(/[_-]/g, " ").toLowerCase()}`;
+  }
   return key.replace(/_/g, " ").toLowerCase();
 }
+
+/** Namespace prefix for a RATED-mood-factor discovery channel (v1.14.0). */
+export const FACTOR_CHANNEL_PREFIX = "FACTOR:";
 
 /**
  * Run the FDR-controlled discovery over the behaviour × outcome matrix.

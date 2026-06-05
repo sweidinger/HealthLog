@@ -1,6 +1,23 @@
 import type { Locale } from "@/lib/i18n/config";
 
 /**
+ * Version of the per-metric assessment base prompt + its signal contract.
+ *
+ * Bump this whenever the base-system sections, the signal-block instruction,
+ * or the shared snapshot shape change, so the cross-feature quality
+ * attribution (and the per-score assessment provenance) can slice prose
+ * before/after a prompt edit. The other AI surfaces already carry their own
+ * (`insight-generator.ts` `PROMPT_VERSION`, `period-narrative`
+ * `NARRATIVE_PROMPT_VERSION`); the base system had none — this is it.
+ *
+ * 5.0.0 — the SIGNAL block lands: the snapshot now carries a pre-computed
+ * `current · baseline · signed delta · spread · outsideNormalSwing`
+ * descriptor and the prompt leads from it instead of asking the model to
+ * derive the comparison from raw buckets.
+ */
+export const PROMPT_VERSION = "5.0.0" as const;
+
+/**
  * Base system prompt for the per-metric Insights *assessment* cards.
  *
  * The seven status generators under `src/lib/insights/*-status.ts` each
@@ -67,33 +84,33 @@ const ASSESSMENT_SECTIONS: readonly AssessmentSection[] = [
   {
     id: "data",
     en: `YOUR DATA (graded snapshot):
+- signal: the finished comparison — { metric, unit, current, currentWindowDays, baseline, baselineLabel, delta, deltaPct, spread, outsideNormalSwing, direction, normalRange?, placement?, n, newestDaysAgo, contributors? }. \`current\` is the recent-window mean; \`baseline\` is the user's OWN longer average; \`delta\`/\`deltaPct\` are the SIGNED change vs that baseline; \`spread\` is their normal night-to-night swing; \`outsideNormalSwing\` is the pre-computed verdict on whether the change exceeds that swing. These are already computed — state them, do NOT recompute them. \`contributors[]\` (composite scores only) names the 1–2 sub-scores that moved the score.
 - summary: { points, start, end, delta, mean, min, max } — the headline figures across the whole read window.
 - series.recent[]: the last ~21 days, one row per day ({ date, min, max, mean, n }).
 - series.weekly[]: the ~10 weeks before that, one ISO-week aggregate each.
 - series.monthly[]: the ~12 months before that, one calendar-month aggregate each.
 - series.yearly[]: everything older, one row per year ({ year, mean, min, max, n, slope }).
-- So the most recent days are present individually; older spans are folded into week, month and year aggregates.
-- Read the personal baseline from the weekly/monthly/yearly means; the short window is the recent days.
-- A slice can be empty when the history is short — do not pretend it exists.`,
+- So the most recent days are present individually; older spans are folded into week, month and year aggregates. Consult the series only for a specific day; lead from the signal block.
+- A slice can be empty when the history is short — do not pretend it exists. When \`signal.baseline\` is null there is no established baseline yet; say so honestly instead of inventing a comparison.`,
     de: `DEINE DATENGRUNDLAGE (graded snapshot):
+- signal: der fertige Vergleich — { metric, unit, current, currentWindowDays, baseline, baselineLabel, delta, deltaPct, spread, outsideNormalSwing, direction, normalRange?, placement?, n, newestDaysAgo, contributors? }. \`current\` ist das recent-Mittel; \`baseline\` ist der EIGENE längere Durchschnitt; \`delta\`/\`deltaPct\` sind die VORZEICHENBEHAFTETE Änderung gegenüber dieser Baseline; \`spread\` ist die normale Schwankung; \`outsideNormalSwing\` ist das vorab berechnete Urteil, ob die Änderung diese Schwankung übersteigt. Diese Werte sind bereits berechnet — nenne sie, rechne sie NICHT neu. \`contributors[]\` (nur Score-Komposite) benennt die 1–2 Teil-Scores, die den Score bewegt haben.
 - summary: { points, start, end, delta, mean, min, max } — die Eckwerte des gesamten Lesefensters.
 - series.recent[]: die jüngsten ~21 Tage, je ein Eintrag pro Tag ({ date, min, max, mean, n }).
 - series.weekly[]: die ~10 Wochen davor, je ein ISO-Wochen-Aggregat.
 - series.monthly[]: die ~12 Monate davor, je ein Monatsaggregat.
 - series.yearly[]: alles ältere, je ein Jahr ({ year, mean, min, max, n, slope }).
-- Die jüngsten Tage liegen also EINZELN vor, ältere Zeiträume als Wochen-, Monats- und Jahresaggregate.
-- Lies die persönliche Baseline aus den weekly/monthly/yearly-Mitteln; das kurze Fenster sind die recent-Tage.
-- Ein Slice kann leer sein, wenn die Historie kurz ist. Dann nicht so tun, als gäbe es ihn.`,
+- Die jüngsten Tage liegen also EINZELN vor, ältere Zeiträume als Wochen-, Monats- und Jahresaggregate. Ziehe die series nur für einen konkreten Tag heran; führe sonst mit dem signal-Block.
+- Ein Slice kann leer sein, wenn die Historie kurz ist. Dann nicht so tun, als gäbe es ihn. Ist \`signal.baseline\` null, gibt es noch keine etablierte Baseline; sage das ehrlich, statt einen Vergleich zu erfinden.`,
   },
   {
     id: "build",
     en: `HOW TO BUILD THE ASSESSMENT (as flowing prose):
-1. NAME the current finding with a concrete number from the snapshot (e.g. the recent mean or the latest daily value).
-2. PLACE it against the user's OWN baseline: compare the short window (recent, ~week) to the long baseline (monthly/yearly mean). Report only SIGNIFICANT deviations — a value inside the user's normal swing is NOT a finding.
+1. NAME the current finding with a concrete number — the signal block's \`current\` (or, for a day-level question, a value from series.recent).
+2. PLACE it against the user's OWN baseline using the signal block's pre-computed \`delta\` vs \`baselineLabel\`: state the signed change, not a re-derived one. Treat \`outsideNormalSwing: false\` as "inside your usual range — not a finding" and do NOT manufacture a trend; treat \`outsideNormalSwing: true\` as the real, reportable change. When a \`normalRange\`/\`placement\` is present, use it only as a coarse secondary anchor — the personal delta leads.
 3. ONE step — ONLY IF IT IS REAL: close with EXACTLY ONE concrete, doable suggestion WHEN the finding genuinely implies an action. One message = one behaviour, no list. If the value is steady and in a good place and there is nothing useful to do, do NOT manufacture a step — affirm briefly and name one thing worth keeping an eye on instead. A fabricated step is exactly the platitude we ban.`,
     de: `SO BAUST DU DIE EINSCHÄTZUNG (als fließender Text):
-1. BENENNEN: Nenne den aktuellen Befund mit einer konkreten Zahl aus dem Snapshot (z.B. das recent-Mittel oder den letzten Tageswert).
-2. EINORDNEN gegen die EIGENE Baseline: Vergleiche das kurze Fenster (recent, ~Woche) mit der langen Baseline (monthly/yearly-Mittel). Melde nur SIGNIFIKANTE Abweichungen — eine Zahl, die innerhalb der normalen Schwankung des Nutzers liegt, ist KEIN Befund.
+1. BENENNEN: Nenne den aktuellen Befund mit einer konkreten Zahl — dem \`current\` aus dem signal-Block (oder, für eine Tagesfrage, einem Wert aus series.recent).
+2. EINORDNEN gegen die EIGENE Baseline mit dem vorab berechneten \`delta\` gegenüber \`baselineLabel\`: nenne die vorzeichenbehaftete Änderung, leite sie nicht neu her. Behandle \`outsideNormalSwing: false\` als "innerhalb der üblichen Schwankung — kein Befund" und ERFINDE KEINEN Trend; behandle \`outsideNormalSwing: true\` als die echte, meldenswerte Änderung. Liegt ein \`normalRange\`/\`placement\` vor, nutze es nur als groben sekundären Anker — das persönliche delta führt.
 3. EIN SCHRITT — NUR WENN ER ECHT IST: Schließe mit GENAU EINER konkreten, machbaren Empfehlung, WENN aus dem Befund wirklich etwas Umsetzbares folgt. Eine Botschaft = ein Verhalten, keine Liste. Ist der Wert stabil und im grünen Bereich und gibt es nichts sinnvoll zu tun, dann ERZWINGE KEINEN Schritt — bestätige kurz und nenne stattdessen einen Punkt, den man im Auge behalten kann. Ein erfundener Schritt ist genau die Floskel, die wir vermeiden.`,
   },
   {

@@ -3,6 +3,7 @@ import type { QueryClient } from "@tanstack/react-query";
 
 import { toast } from "sonner";
 import {
+  runLogIntake,
   runRecordIntake,
   runUndoIntake,
 } from "@/components/medications/use-medication-intake";
@@ -252,6 +253,99 @@ describe("runRecordIntake — shared C1 failure toast + C2 Undo", () => {
 
     const [, opts] = vi.mocked(toast.success).mock.calls[0];
     expect(opts).toBeUndefined();
+  });
+});
+
+describe("runLogIntake — manual backdated intake from the Add choice", () => {
+  it("posts a backdated takenAt against the medication's intake route and returns true", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: vi.fn() });
+    vi.stubGlobal("fetch", fetchMock);
+    const queryClient = fakeQueryClient();
+
+    const ok = await runLogIntake({
+      medication,
+      skipped: false,
+      takenAt: "2026-06-01T08:30:00.000Z",
+      t,
+      queryClient,
+    });
+
+    expect(ok).toBe(true);
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe("/api/medications/med-1/intake");
+    const body = JSON.parse((init as RequestInit).body as string);
+    // Backdated instant is carried verbatim; no slot → no scheduledFor.
+    expect(body).toEqual({ skipped: false, takenAt: "2026-06-01T08:30:00.000Z" });
+    expect(body).not.toHaveProperty("scheduledFor");
+    expect(queryClient.invalidateQueries).toHaveBeenCalled();
+    expect(toast.success).toHaveBeenCalledWith(
+      "medications.intakeToastTaken:Mounjaro",
+    );
+  });
+
+  it("threads scheduledFor (the chosen slot) so the write routes through the canonical slot upsert", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: vi.fn() });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await runLogIntake({
+      medication,
+      skipped: false,
+      takenAt: "2026-06-01T05:10:00.000Z",
+      scheduledFor: "2026-06-01T05:00:00.000Z",
+      t,
+      queryClient: fakeQueryClient(),
+    });
+
+    const body = JSON.parse(
+      (fetchMock.mock.calls[0][1] as RequestInit).body as string,
+    );
+    expect(body).toEqual({
+      skipped: false,
+      takenAt: "2026-06-01T05:10:00.000Z",
+      scheduledFor: "2026-06-01T05:00:00.000Z",
+    });
+  });
+
+  it("omits takenAt on a skipped log and shows the skipped toast", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: vi.fn() });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await runLogIntake({
+      medication,
+      skipped: true,
+      takenAt: "2026-06-01T08:30:00.000Z",
+      t,
+      queryClient: fakeQueryClient(),
+    });
+
+    const body = JSON.parse(
+      (fetchMock.mock.calls[0][1] as RequestInit).body as string,
+    );
+    expect(body).toEqual({ skipped: true });
+    expect(body).not.toHaveProperty("takenAt");
+    expect(toast.success).toHaveBeenCalledWith(
+      "medications.intakeToastSkipped:Mounjaro",
+    );
+  });
+
+  it("surfaces the failure toast and returns false on a non-ok POST", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false, json: vi.fn() }));
+    const queryClient = fakeQueryClient();
+
+    const ok = await runLogIntake({
+      medication,
+      skipped: false,
+      takenAt: "2026-06-01T08:30:00.000Z",
+      t,
+      queryClient,
+    });
+
+    expect(ok).toBe(false);
+    expect(toast.error).toHaveBeenCalledWith(
+      "medications.intakeToastFailed:Mounjaro",
+    );
+    expect(toast.success).not.toHaveBeenCalled();
+    expect(queryClient.invalidateQueries).not.toHaveBeenCalled();
   });
 });
 

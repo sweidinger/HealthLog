@@ -1,18 +1,25 @@
 /**
- * v1.13.x — per-metric ring hues for the wellness-score strip.
+ * v1.14.0 — per-metric ring hues for the wellness-score strip.
  *
- * The premium-redesign signature is Apple's: a SINGLE-hue, TWO-stop
- * gradient per ring (dark→light tones of the *same* colour), never a
- * multi-hue rainbow. Each metric leans toward an intentional hue (Oura's
- * per-metric move): readiness greener, sleep bluer/indigo, recovery +
- * strain turquoise, stress amber.
+ * The premium signature is a SINGLE-hue, TWO-stop gradient per ring
+ * (dark → light tones of the *same* colour), never a multi-hue rainbow.
+ * Each metric leans toward one intentional, distinct hue (Oura's per-metric
+ * move): readiness green, recovery teal/turquoise, sleep indigo-blue, stress
+ * amber, strain violet — five clearly different hues so the strip never reads
+ * as "a wash of green/cyan".
  *
- * Every stop rides the SEMANTIC / `--dracula-*` tokens (not raw hex), so
- * the Alucard light-mode overrides (`--success #14720a`, `--info #036a96`,
- * `--warning #a34d14`, `--destructive #cb3a2a`) apply automatically and the
- * arc holds contrast in both themes. The band semantic is never carried by
- * the hue: it still rides `data-band` + the band word + the aria-label, so
- * a red-band readiness still reads "low" in copy while its ring leans green.
+ * The actual colours live as CSS custom properties in `globals.css`
+ * (`--ring-<key>-from` / `--ring-<key>-to` / `--tile-<key>`) with a Dracula
+ * dark set on `:root` and an Alucard light set on `:root.light`, so each hue
+ * is HAND-TUNED per theme — deep + saturated enough to hold contrast on the
+ * white Alucard card, vivid on the dark Dracula card. (The v1.13.x version
+ * mixed through ambiguous semantic tokens — `--info` == `--dracula-cyan` —
+ * which collapsed three of the five rings to cyan in the dark theme and
+ * washed recovery/strain out on white. Dedicated per-theme vars fix that.)
+ *
+ * The band semantic is never carried by the hue: it still rides `data-band`
+ * + the band word + the aria-label, so a red-band readiness still reads "low"
+ * in copy while its ring leans green.
  */
 
 import type { ScoreBand } from "./band-tokens";
@@ -21,32 +28,37 @@ import type { ScoreBand } from "./band-tokens";
 export type RingHue = "readiness" | "sleep" | "recovery" | "stress" | "strain";
 
 /**
- * Single-hue two-stop gradient `[from, to]` (dark → light) per metric, plus
- * a band fallback for the anatomy detail view (which passes no `hue`, so the
- * ring keeps its green/yellow/red band semantics there). Values are CSS
- * colour strings consumed straight by the SVG `<linearGradient>` stops.
+ * Single-hue two-stop gradient `[from, to]` (dark → light) per metric, plus a
+ * band fallback for the anatomy detail view (which passes no `hue`, so the
+ * ring keeps its green/yellow/red band semantics there). Values are CSS var
+ * references resolved per theme — consumed straight by the SVG
+ * `<linearGradient>` stops.
  */
 export const RING_GRADIENT: Record<RingHue | ScoreBand, [string, string]> = {
-  // Readiness / Tagesform — a touch greener.
-  readiness: ["color-mix(in srgb, var(--success) 88%, #000)", "var(--success)"],
-  // Sleep score — bluer, leaning indigo via `--primary`.
-  sleep: ["color-mix(in srgb, var(--info) 65%, var(--primary))", "var(--info)"],
-  // Recovery — turquoise (cyan↔green).
-  recovery: [
-    "color-mix(in srgb, var(--dracula-cyan) 78%, var(--dracula-green))",
-    "var(--dracula-cyan)",
-  ],
-  // Stress — amber (the "tension" metric; keeps the green/amber/red vocab honest).
-  stress: ["color-mix(in srgb, var(--warning) 88%, #000)", "var(--warning)"],
-  // Strain — turquoise leaning slightly violet to distinguish from Recovery.
-  strain: [
-    "color-mix(in srgb, var(--dracula-cyan) 80%, var(--dracula-purple))",
-    "var(--dracula-cyan)",
-  ],
+  readiness: ["var(--ring-readiness-from)", "var(--ring-readiness-to)"],
+  recovery: ["var(--ring-recovery-from)", "var(--ring-recovery-to)"],
+  sleep: ["var(--ring-sleep-from)", "var(--ring-sleep-to)"],
+  stress: ["var(--ring-stress-from)", "var(--ring-stress-to)"],
+  strain: ["var(--ring-strain-from)", "var(--ring-strain-to)"],
   // Band fallback for the anatomy detail view (no per-metric hue passed):
-  green: ["color-mix(in srgb, var(--success) 88%, #000)", "var(--success)"],
-  yellow: ["color-mix(in srgb, var(--warning) 88%, #000)", "var(--warning)"],
-  red: ["color-mix(in srgb, var(--destructive) 88%, #000)", "var(--destructive)"],
+  green: ["var(--ring-green-from)", "var(--ring-green-to)"],
+  yellow: ["var(--ring-yellow-from)", "var(--ring-yellow-to)"],
+  red: ["var(--ring-red-from)", "var(--ring-red-to)"],
+};
+
+/**
+ * The `to` (light) stop per key — used as the ring's glow colour
+ * (`--ring-glow`) so the bloom matches the brighter end of the arc.
+ */
+export const RING_GLOW: Record<RingHue | ScoreBand, string> = {
+  readiness: "var(--ring-readiness-to)",
+  recovery: "var(--ring-recovery-to)",
+  sleep: "var(--ring-sleep-to)",
+  stress: "var(--ring-stress-to)",
+  strain: "var(--ring-strain-to)",
+  green: "var(--ring-green-to)",
+  yellow: "var(--ring-yellow-to)",
+  red: "var(--ring-red-to)",
 };
 
 /**
@@ -54,9 +66,9 @@ export const RING_GRADIENT: Record<RingHue | ScoreBand, [string, string]> = {
  * mixes (gently) over the theme `--card`. Set inline by each `RingTile`.
  */
 export const TILE_HUE: Record<RingHue, string> = {
-  readiness: "var(--success)",
-  sleep: "var(--info)",
-  recovery: "var(--dracula-cyan)",
-  stress: "var(--warning)",
-  strain: "var(--dracula-cyan)",
+  readiness: "var(--tile-readiness)",
+  sleep: "var(--tile-sleep)",
+  recovery: "var(--tile-recovery)",
+  stress: "var(--tile-stress)",
+  strain: "var(--tile-strain)",
 };
