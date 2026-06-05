@@ -456,7 +456,7 @@ export async function resolveProviderForTest(
       // shared column.
       return new AnthropicClient({
         apiKey,
-        model: model || "claude-3-5-sonnet-latest",
+        model: model || "claude-sonnet-4-6",
       });
     }
     case "LOCAL": {
