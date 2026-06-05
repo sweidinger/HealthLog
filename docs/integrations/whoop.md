@@ -21,8 +21,16 @@ grant scoped to credentials they control.
 2. **Redirect URI:** `https://your-instance.example.com/api/whoop/callback`
    (matches `WHOOP_REDIRECT_URI`, below). Add one entry per
    environment you connect from.
-3. Request the scopes for recovery, cycle/strain, sleep, and the
-   workout/heart-rate reads the sync uses.
+3. Request these scopes (the exact set HealthLog asks for):
+
+   ```
+   offline read:recovery read:sleep read:workout read:cycles read:profile read:body_measurement
+   ```
+
+   `offline` is **mandatory** — without it WHOOP issues no refresh token
+   and the connection dies when the first access token expires (~1 hour).
+   The remaining `read:*` scopes are read-only; request all of them so the
+   user grants once and every sync resource is covered.
 4. Save the app. WHOOP issues a **Client ID** and **Client Secret** —
    keep the secret out of any chat log; it grants read access to the
    linked account's full WHOOP history.
@@ -59,10 +67,22 @@ WHOOP_WEBHOOK_SECRET="$(openssl rand -hex 32)"
 
 - `WHOOP_REDIRECT_URI` — the OAuth callback URL handed to WHOOP. Must
   match a redirect URI registered in the WHOOP developer app.
-- `WHOOP_WEBHOOK_SECRET` — the secret HealthLog verifies the WHOOP
-  webhook HMAC signature against. WHOOP signs each webhook body; the
-  handler validates the signature before processing. Generate a fresh
-  random value and restart the `app` container after setting it.
+- `WHOOP_WEBHOOK_SECRET` — used twice: as the **trailing path segment**
+  of the webhook URL you register in the WHOOP console, and as the key
+  HealthLog verifies the WHOOP HMAC body signature against. Set the
+  webhook URL in the WHOOP console to:
+
+  ```
+  https://your-instance.example.com/api/whoop/webhook/<WHOOP_WEBHOOK_SECRET>
+  ```
+
+  WHOOP signs each body (`X-WHOOP-Signature` + `X-WHOOP-Signature-Timestamp`,
+  HMAC-SHA256); the handler rejects deliveries older than five minutes and
+  validates the signature before processing. The body signing key on WHOOP's
+  side must equal `WHOOP_WEBHOOK_SECRET`. Generate a fresh random value and
+  restart the `app` container after setting it. Without a webhook, WHOOP
+  still syncs on the safety-net cron pull — only the near-real-time push is
+  lost.
 
 ## Disconnect
 

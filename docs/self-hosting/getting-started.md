@@ -152,6 +152,7 @@ NEXT_PUBLIC_DASHBOARD_SNAPSHOT=false pnpm build
 | Encryption-key rotation procedure | `docs/ops/encryption-key-rotation.md` |
 | Withings device sync | `docs/integrations/withings.md` |
 | WHOOP device sync (per-user BYO-keys) | `docs/integrations/whoop.md` |
+| Google Health sync — Fitbit & Pixel (per-user BYO-keys) | `docs/integrations/google-health.md` |
 | Apple Health `export.zip` import | `docs/integrations/apple-health.md` |
 | AI provider setup (OpenAI / Anthropic / local / ChatGPT OAuth) | `docs/integrations/ai-providers.md` |
 
