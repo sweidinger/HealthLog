@@ -193,7 +193,13 @@ export function Vo2MaxChartRow({
 
       {/* Trend chart. The chartKey isolates per-chart overlay prefs from
           the dashboard VO2 tile and from the pulse chart sitting above
-          it on the same page. */}
+          it on the same page.
+
+          The chart mounts as soon as there is at least one reading. VO₂ max
+          arrives from Apple Health at most every few days, so the series is
+          inherently sparse; the line carries a visible dot per point
+          (`dot r=3`), so a one- or two-sample series still reads as a real
+          chart. A zero-reading account keeps the short onboarding note. */}
       {hasData ? (
         <HealthChartDynamic
           chartKey="vo2Max"

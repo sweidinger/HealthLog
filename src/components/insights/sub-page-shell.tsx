@@ -168,7 +168,7 @@ export function SubPageShell({
     // state + renders the sheet, so the gear and the card don't have to
     // share a parent beyond this shell.
     <TargetAdjustProvider>
-      <div data-slot="insights-subpage" className="space-y-4 md:space-y-5">
+      <div data-slot="insights-subpage" className="space-y-3 md:space-y-4">
         {/* v1.8.7.1 — back-nav leads the page, above the heading. */}
         {backLink}
         <header className="space-y-1.5">
@@ -262,13 +262,11 @@ export function SubPageShell({
           brand-new-metric paths. Numbers-first is the Apple-Health /
           Withings / Oura detail-screen convention.
 
-          The stats describe the full range. Recomputing them for a window
-          the user brushes / selects in the chart below would mean lifting the
-          chart's domain into this shell so both the chart and the strip read
-          it — but the shared `<HealthChart>` (also driving the dashboard) has
-          no Recharts `<Brush>` or domain-change callback and keeps its range
-          state internal, so that wiring is left for a later release to avoid
-          destabilising the chart. */}
+          v1.12.7 — the stats are chart-reactive: when the user brushes a
+          window in the chart below, the page lifts the chart's per-type
+          windowed Min / Max / Median / Mean and threads it back into the
+          strip, which swaps the header to a "selected range" pill. No
+          selection falls back to the cheap full-range summary. */}
         {statStrip}
         {/* v1.12.6 — the canonical spine body: intro (header) → stat strip
           (above) → chart → target card → assessment. The page renders
