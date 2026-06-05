@@ -4,7 +4,7 @@ import type { ComponentType } from "react";
 import { Sigma } from "lucide-react";
 
 import { useFormatters, useTranslations } from "@/lib/i18n/context";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { TileHeader } from "@/components/insights/tile-header";
 import type { DataSummary } from "@/lib/analytics/trends";
 import type { MetricWindowStats } from "@/lib/charts/window-stats";
@@ -27,18 +27,36 @@ import type { MetricWindowStats } from "@/lib/charts/window-stats";
  * The thin HealthKit pages (`HealthkitMetricPage`) mount this too so they
  * reach parity with the bespoke pages — a rich numeric header even where
  * there is no target band or AI assessment.
+ *
+ * v1.12.7 follow-up — two render modes:
+ *   - single-series (default): one Card, one `<TileHeader>` + 4-stat grid.
+ *   - multi-series (`series=[…]`): ONE Card with the series side by side
+ *     (two columns on desktop, stacking on narrow mobile). Blood pressure
+ *     uses this so systolic + diastolic share a single card rather than
+ *     stacking two. Each column keeps its own header, its own four stats,
+ *     and its own brushed-window behaviour.
+ *
+ * The card chrome is tightened from the earlier `py-5 / gap-3 / min-h-56px`
+ * to a denser rhythm so the numbers-first header gives away less vertical
+ * space on every subpage without dropping below a readable value size or
+ * the AA-contrast micro-labels.
  */
 
-interface MetricStatStripProps {
+/**
+ * One series rendered inside the strip — its header (label + icon), the
+ * full-range `summary`, and the optional brushed-window stats. Single-series
+ * callers pass these props at the top level; multi-series callers pass an
+ * array of these via `series`.
+ */
+export interface MetricStatSeries {
   /**
-   * Analytics summary for the page's `MeasurementType`. Null is allowed
-   * so the parent doesn't have to gate on the network read finishing —
-   * the strip simply doesn't paint until the data lands. A zero-count
-   * summary (brand-new metric) also renders nothing; the page's
-   * empty-state owns that surface.
+   * Analytics summary for the series' `MeasurementType`. Null is allowed
+   * so the parent doesn't have to gate on the network read finishing — the
+   * series simply doesn't paint until the data lands. A zero-count summary
+   * (brand-new metric) also renders nothing.
    */
   summary: DataSummary | null;
-  /** Unit suffix rendered next to each value (e.g. `bpm`, `kg`). */
+  /** Unit suffix rendered next to each value (e.g. `bpm`, `kg`, `mmHg`). */
   unit: string;
   /**
    * Decimal precision for the formatted values. Defaults to 1 — enough
@@ -47,58 +65,81 @@ interface MetricStatStripProps {
    */
   fractionDigits?: number;
   /**
-   * v1.12.4 — series caption rendered above the grid. Single-series metrics
-   * pass the metric name (e.g. "Gewicht"); blood pressure stacks two strips
-   * (systolic / diastolic) and labels each so the unified strip covers both
-   * halves rather than silently dropping one. Also feeds the `aria-label`
-   * for the section.
-   *
-   * v1.12.6 — the caption is now rendered through the canonical
-   * `<TileHeader>` (white heading + white icon, matching the Einschätzung
-   * card) rather than a small muted uppercase line, so every series block
-   * leads with the same header language as the rest of the surface.
+   * Series caption rendered through the canonical `<TileHeader>` (white
+   * heading + white icon). Single-series metrics pass the metric name;
+   * blood pressure labels each half (systolic / diastolic).
    */
   seriesLabel?: string;
   /**
-   * v1.12.6 — leading glyph for the series `<TileHeader>`. Pass the metric's
-   * icon component (e.g. `Scale`, `Heart`); blood pressure passes a
-   * directional glyph per series. Defaults to a generic stats glyph so a
-   * caller that supplies a `seriesLabel` without an icon still renders a
-   * complete header.
+   * Leading glyph for the series `<TileHeader>`. Defaults to a generic
+   * stats glyph so a caller that supplies a `seriesLabel` without an icon
+   * still renders a complete header.
    */
   icon?: ComponentType<{ className?: string }>;
   /**
    * v1.12.7 — chart-reactive metric statistics. When the user brushes a
    * window in the metric's chart, the sub-page lifts the chart's per-series
    * Min / Max / Median / Mean for that window and threads it here. When
-   * present (non-null), the strip renders these windowed numbers in place of
-   * the full-range `summary` and swaps the header copy to "selected range" so
-   * the user reads the stats as describing their selection. Null (no
-   * selection) falls back to the cheap precomputed `summary` — the default,
-   * unchanged.
+   * present (non-null) it renders in place of the full-range `summary` and
+   * the header pins a "selected range" pill. Null falls back to the
+   * precomputed `summary`.
    */
   windowStats?: MetricWindowStats | null;
+  /**
+   * Stable suffix for the per-cell `data-slot`s. Multi-series mode passes a
+   * distinct token per column (e.g. the unit or label slug) so the two
+   * columns' cells don't collide on `[data-stat="min"]` in e2e. Optional;
+   * single-series mode omits it.
+   */
+  dataKey?: string;
 }
 
-export function MetricStatStrip({
+type MetricStatStripProps = Partial<MetricStatSeries> & {
+  /**
+   * v1.12.7 — multi-series mode. When supplied, the strip renders ONE Card
+   * with each entry as a side-by-side column (two columns on desktop,
+   * stacking on narrow mobile). The top-level `summary` / `unit` /
+   * `seriesLabel` / … props are ignored. `aria-label` then describes the
+   * group; pass `groupLabel` for the accessible name.
+   *
+   * Single-series callers MUST still pass `summary` + `unit` at the top
+   * level (the contract the ~30 HealthKit pages + the weight/pulse/… pages
+   * rely on); they are optional in the type only so multi-series callers can
+   * omit them, and the single-series branch self-gates on a missing
+   * `summary` by rendering nothing.
+   */
+  series?: MetricStatSeries[];
+  /**
+   * Accessible name for the multi-series group (e.g. "Blood pressure").
+   * Single-series mode derives the label from `seriesLabel` instead.
+   */
+  groupLabel?: string;
+};
+
+/**
+ * Render one series' four stats. Self-gates: returns null while the
+ * summary is in flight or for a zero-count metric. The brushed-window
+ * source wins over the full-range summary when a selection is active.
+ */
+function SeriesBlock({
   summary,
   unit,
   fractionDigits = 1,
   seriesLabel,
   icon,
   windowStats,
-}: MetricStatStripProps) {
+  dataKey,
+}: MetricStatSeries) {
   const { t } = useTranslations();
   const fmt = useFormatters();
 
   // Nothing to show until the summary lands or for a metric with no
-  // readings — the page's empty-state covers the zero-data case. The gate
-  // rides the full-range summary even when a window is active, so a brush
-  // never resurrects the strip on a metric that has no data at all.
+  // readings. The gate rides the full-range summary even when a window is
+  // active, so a brush never resurrects a series that has no data at all.
   if (!summary || summary.count <= 0) return null;
 
-  // v1.12.7 — a window selection with at least one reading wins over the
-  // full-range summary; otherwise the strip reads the precomputed numbers.
+  // A window selection with at least one reading wins over the full-range
+  // summary; otherwise the block reads the precomputed numbers.
   const windowed = windowStats != null && windowStats.count > 0;
   const source = windowed ? windowStats : summary;
 
@@ -121,61 +162,119 @@ export function MetricStatStrip({
   ];
 
   return (
-    // Card-wrapped so the header-to-body offset matches the `<CardHeader
-    // pb-2>` tiles on the same subpage spine (assessment, mood, medication)
-    // rather than the old bare-div `space-y-3`. The grid keeps its own
-    // data-slots; the section semantics ride on `role` + `aria-label`.
+    <div
+      data-slot="metric-stat-series"
+      data-series={dataKey}
+      data-windowed={windowed ? "true" : undefined}
+      className="space-y-2"
+    >
+      {seriesLabel ? (
+        <TileHeader
+          icon={icon ?? Sigma}
+          title={seriesLabel}
+          right={
+            windowed ? (
+              <span
+                data-slot="metric-stat-window-badge"
+                className="bg-dracula-purple/10 text-dracula-purple rounded-md border border-current/30 px-1.5 py-0.5 text-[10px] font-medium tracking-wide uppercase"
+              >
+                {t("insights.subPage.stats.selectedRange")}
+              </span>
+            ) : undefined
+          }
+        />
+      ) : null}
+      <div className="grid grid-cols-2 gap-x-3 gap-y-2 sm:grid-cols-4 [&>div]:min-h-[44px]">
+        {cells.map((cell) => (
+          <div
+            key={cell.key}
+            data-slot="metric-stat"
+            data-stat={cell.key}
+            className="space-y-0.5"
+          >
+            <p className="text-muted-foreground text-[10px] tracking-wide uppercase">
+              {cell.label}
+            </p>
+            <p className="text-base font-semibold tabular-nums">
+              {format(cell.value)}
+            </p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+export function MetricStatStrip({
+  summary,
+  unit,
+  fractionDigits,
+  seriesLabel,
+  icon,
+  windowStats,
+  dataKey,
+  series,
+  groupLabel,
+}: MetricStatStripProps) {
+  const { t } = useTranslations();
+
+  // v1.12.7 — multi-series mode: ONE Card, columns side by side. The card
+  // self-gates to nothing only when EVERY series is empty so a one-sided
+  // metric (e.g. only systolic logged) still paints its half.
+  if (series && series.length > 0) {
+    const anyData = series.some((s) => s.summary && s.summary.count > 0);
+    if (!anyData) return null;
+    return (
+      <Card
+        data-slot="metric-stat-strip"
+        data-multi-series="true"
+        role="group"
+        aria-label={groupLabel ?? t("insights.subPage.stats.label")}
+        className="gap-2 py-3 md:py-4"
+      >
+        <CardContent>
+          <div className="grid grid-cols-1 gap-x-6 gap-y-4 md:grid-cols-2">
+            {series.map((s, i) => (
+              <SeriesBlock key={s.dataKey ?? s.seriesLabel ?? i} {...s} />
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // Single-series mode (default, unchanged contract). Gate on the one
+  // series' summary so a null / zero-count read paints nothing.
+  if (!summary || summary.count <= 0) return null;
+
+  return (
+    // Card-wrapped so the header-to-body offset matches the sibling tiles
+    // on the same subpage spine (assessment, mood, medication). The series
+    // header now lives inside `SeriesBlock`, so the Card carries body chrome
+    // only.
     <Card
       data-slot="metric-stat-strip"
-      data-windowed={windowed ? "true" : undefined}
+      data-windowed={
+        windowStats != null && windowStats.count > 0 ? "true" : undefined
+      }
       role="group"
       aria-label={
         seriesLabel
           ? `${t("insights.subPage.stats.label")} — ${seriesLabel}`
           : t("insights.subPage.stats.label")
       }
-      className="gap-2 py-4 md:gap-3 md:py-5"
+      className="gap-2 py-3 md:py-4"
     >
-      {seriesLabel ? (
-        <CardHeader className="pb-2">
-          <TileHeader
-            icon={icon ?? Sigma}
-            title={seriesLabel}
-            // v1.12.7 — when the stats describe a brushed chart window rather
-            // than the full range, pin a "selected range" pill to the header
-            // so the user reads the numbers as their selection. Falls away the
-            // moment the selection clears.
-            right={
-              windowed ? (
-                <span
-                  data-slot="metric-stat-window-badge"
-                  className="bg-dracula-purple/10 text-dracula-purple rounded-md border border-current/30 px-1.5 py-0.5 text-[10px] font-medium tracking-wide uppercase"
-                >
-                  {t("insights.subPage.stats.selectedRange")}
-                </span>
-              ) : undefined
-            }
-          />
-        </CardHeader>
-      ) : null}
       <CardContent>
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 [&>div]:min-h-[56px]">
-          {cells.map((cell) => (
-            <div
-              key={cell.key}
-              data-slot="metric-stat"
-              data-stat={cell.key}
-              className="space-y-1"
-            >
-              <p className="text-muted-foreground text-[10px] tracking-wide uppercase">
-                {cell.label}
-              </p>
-              <p className="text-lg font-semibold tabular-nums">
-                {format(cell.value)}
-              </p>
-            </div>
-          ))}
-        </div>
+        <SeriesBlock
+          summary={summary}
+          unit={unit ?? ""}
+          fractionDigits={fractionDigits}
+          seriesLabel={seriesLabel}
+          icon={icon}
+          windowStats={windowStats}
+          dataKey={dataKey}
+        />
       </CardContent>
     </Card>
   );
