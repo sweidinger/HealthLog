@@ -1914,6 +1914,7 @@
     "navRestingHr": "FC reposo",
     "navOxygenSaturation": "Oxígeno",
     "navBodyTemperature": "Temperatura",
+    "navSteps": "Pasos",
     "navActiveEnergy": "Energía activa",
     "navAriaLabel": "Saltar a sección",
     "tabStrip": {
@@ -1981,6 +1982,15 @@
         "title": "Aún no hay temperatura corporal",
         "description": "Registra una lectura o deja que tu wearable sincronice una — la tendencia aparecerá aquí.",
         "cta": "Registrar temperatura corporal"
+      }
+    },
+    "steps": {
+      "title": "Pasos",
+      "description": "Recuento diario de pasos — una fila por día, desde Apple Salud o un dispositivo de actividad conectado.",
+      "chartTitle": "Pasos por día",
+      "emptyState": {
+        "title": "Aún no hay datos de pasos",
+        "description": "Los totales diarios de pasos aparecerán aquí en cuanto Apple Salud o un dispositivo de actividad sincronice un día completo."
       }
     },
     "activeEnergy": {

@@ -1914,6 +1914,7 @@
     "navRestingHr": "Resting HR",
     "navOxygenSaturation": "Oxygen",
     "navBodyTemperature": "Temperature",
+    "navSteps": "Steps",
     "navActiveEnergy": "Active energy",
     "navAriaLabel": "Skip to section",
     "tabStrip": {
@@ -1981,6 +1982,15 @@
         "title": "No body temperature yet",
         "description": "Log a body-temperature reading or let your wearable sync one, and the trend will appear here.",
         "cta": "Log body temperature"
+      }
+    },
+    "steps": {
+      "title": "Steps",
+      "description": "Daily step count — one row per day, sourced from Apple Health or a connected activity device.",
+      "chartTitle": "Steps per day",
+      "emptyState": {
+        "title": "No step data yet",
+        "description": "Daily step totals appear here once Apple Health or an activity device syncs a day's worth of movement."
       }
     },
     "activeEnergy": {

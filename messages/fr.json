@@ -1914,6 +1914,7 @@
     "navRestingHr": "FC repos",
     "navOxygenSaturation": "Oxygène",
     "navBodyTemperature": "Température",
+    "navSteps": "Pas",
     "navActiveEnergy": "Énergie active",
     "navAriaLabel": "Aller à la section",
     "tabStrip": {
@@ -1981,6 +1982,15 @@
         "title": "Aucune température corporelle",
         "description": "Enregistre une mesure ou laisse ton wearable en synchroniser une — la tendance apparaîtra ici.",
         "cta": "Enregistrer la température"
+      }
+    },
+    "steps": {
+      "title": "Pas",
+      "description": "Nombre de pas quotidien — une ligne par jour, depuis Apple Santé ou un appareil d'activité connecté.",
+      "chartTitle": "Pas par jour",
+      "emptyState": {
+        "title": "Aucune donnée de pas",
+        "description": "Les totaux de pas quotidiens apparaîtront ici dès qu'Apple Santé ou un appareil d'activité synchronise une journée complète."
       }
     },
     "activeEnergy": {

@@ -1914,6 +1914,7 @@
     "navRestingHr": "Ruhepuls",
     "navOxygenSaturation": "Sauerstoff",
     "navBodyTemperature": "Temperatur",
+    "navSteps": "Schritte",
     "navActiveEnergy": "Aktive Energie",
     "navAriaLabel": "Zu Abschnitt springen",
     "tabStrip": {
@@ -1981,6 +1982,15 @@
         "title": "Noch keine Körpertemperatur",
         "description": "Erfasse eine Körpertemperatur oder lass dein Wearable einen Wert synchronisieren — der Verlauf erscheint dann hier.",
         "cta": "Körpertemperatur erfassen"
+      }
+    },
+    "steps": {
+      "title": "Schritte",
+      "description": "Tägliche Schrittzahl — eine Zeile pro Tag, aus Apple Health oder einem verbundenen Aktivitätsgerät.",
+      "chartTitle": "Schritte pro Tag",
+      "emptyState": {
+        "title": "Noch keine Schrittdaten",
+        "description": "Tägliche Schritt-Summen erscheinen hier, sobald Apple Health oder ein Aktivitätsgerät einen Tagesumfang synchronisiert."
       }
     },
     "activeEnergy": {

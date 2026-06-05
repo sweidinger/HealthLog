@@ -1914,6 +1914,7 @@
     "navRestingHr": "FC riposo",
     "navOxygenSaturation": "Ossigeno",
     "navBodyTemperature": "Temperatura",
+    "navSteps": "Passi",
     "navActiveEnergy": "Energia attiva",
     "navAriaLabel": "Vai alla sezione",
     "tabStrip": {
@@ -1981,6 +1982,15 @@
         "title": "Ancora nessuna temperatura corporea",
         "description": "Registra una misura o lascia che il tuo wearable ne sincronizzi una — l'andamento apparirà qui.",
         "cta": "Registra temperatura corporea"
+      }
+    },
+    "steps": {
+      "title": "Passi",
+      "description": "Conteggio giornaliero dei passi — una riga al giorno, da Apple Salute o da un dispositivo di attività collegato.",
+      "chartTitle": "Passi al giorno",
+      "emptyState": {
+        "title": "Ancora nessun dato sui passi",
+        "description": "I totali giornalieri dei passi appariranno qui non appena Apple Salute o un dispositivo di attività sincronizza un'intera giornata."
       }
     },
     "activeEnergy": {

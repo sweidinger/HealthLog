@@ -51,6 +51,14 @@ export type InsightMetric =
   | "SLEEP_DURATION"
   | "VO2_MAX"
   | "STEPS"
+  // The analytics `summaries` map is keyed by `MeasurementType`, so the
+  // gating helper reads `summaries[metric].count`. Steps are stored as
+  // `ACTIVITY_STEPS`; the routed sub-page + tab strip pass this key so
+  // the count resolves on the real DB key (mirrors how the active-energy
+  // surface uses `ACTIVE_ENERGY_BURNED` rather than the `ACTIVE_ENERGY`
+  // alias). The legacy `STEPS` / `ACTIVE_ENERGY` aliases stay for the
+  // metric-status registry's separate id vocabulary.
+  | "ACTIVITY_STEPS"
   | "ACTIVE_ENERGY"
   // v1.4.32 — wave-A HealthKit metrics promoted to first-class sub-pages.
   | "HEART_RATE_VARIABILITY"
