@@ -163,7 +163,7 @@ export function WebPushCard() {
         description={t("settings.webPushDescription")}
       />
 
-      <div className="mt-4 space-y-3">
+      <div className="mt-4 space-y-4">
         {loading ? (
           <div className="flex items-center gap-2">
             <Loader2 className="text-muted-foreground h-4 w-4 animate-spin motion-reduce:animate-none" />
@@ -182,6 +182,7 @@ export function WebPushCard() {
               <Button
                 variant="outline"
                 size="sm"
+                className="min-h-11"
                 onClick={handleUnsubscribe}
                 disabled={actionLoading}
               >
@@ -194,6 +195,7 @@ export function WebPushCard() {
               <Button
                 variant="outline"
                 size="sm"
+                className="min-h-11"
                 onClick={handleSubscribe}
                 disabled={actionLoading}
               >

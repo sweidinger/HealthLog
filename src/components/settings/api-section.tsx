@@ -19,6 +19,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { SettingsCardHeader } from "@/components/settings/_card-header";
 import { useAuth } from "@/hooks/use-auth";
 import { formatDate, formatDateTime } from "@/lib/format";
 import { useTranslations } from "@/lib/i18n/context";
@@ -77,15 +78,11 @@ function ApiEndpointsCard() {
 
   return (
     <div className="bg-card border-border rounded-xl border p-6">
-      <div className="flex items-center gap-2">
-        <Key className="text-primary h-5 w-5" />
-        <h2 className="text-lg font-semibold">
-          {t("settings.apiEndpointsTitle")}
-        </h2>
-      </div>
-      <p className="text-muted-foreground mt-1 text-xs">
-        {t("settings.apiEndpointsDescription")}
-      </p>
+      <SettingsCardHeader
+        icon={Key}
+        title={t("settings.apiEndpointsTitle")}
+        description={t("settings.apiEndpointsDescription")}
+      />
 
       {/* Desktop table — verbatim layout for md+. */}
       <div className="border-border mt-4 hidden overflow-x-auto rounded-lg border md:block">
@@ -244,28 +241,26 @@ function ApiTokensCard() {
 
   return (
     <div className="bg-card border-border rounded-xl border p-6">
-      <div className="flex flex-wrap items-start justify-between gap-2">
-        <div className="flex items-center gap-2">
-          <Key className="text-primary h-5 w-5" />
-          <h2 className="text-lg font-semibold">{t("settings.apiTokens")}</h2>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          {activeTokens.length > 0 && (
-            <Badge className="border-dracula-green/30 bg-dracula-green/15 text-dracula-green">
-              {t("settings.configured")}
-            </Badge>
-          )}
-          {latestActiveUse && (
-            <Badge variant="outline" className="text-xs">
-              {t("settings.tokenTableLastUsed")}:{" "}
-              {formatDateTime(latestActiveUse)}
-            </Badge>
-          )}
-        </div>
-      </div>
-      <p className="text-muted-foreground mt-1 text-xs">
-        {t("settings.apiTokensDescription")}
-      </p>
+      <SettingsCardHeader
+        icon={Key}
+        title={t("settings.apiTokens")}
+        description={t("settings.apiTokensDescription")}
+        status={
+          <>
+            {activeTokens.length > 0 && (
+              <Badge className="border-dracula-green/30 bg-dracula-green/15 text-dracula-green">
+                {t("settings.configured")}
+              </Badge>
+            )}
+            {latestActiveUse && (
+              <Badge variant="outline" className="text-xs">
+                {t("settings.tokenTableLastUsed")}:{" "}
+                {formatDateTime(latestActiveUse)}
+              </Badge>
+            )}
+          </>
+        }
+      />
 
       <div className="mt-4 space-y-4">
         <form onSubmit={handleCreate} className="flex gap-2">

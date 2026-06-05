@@ -227,7 +227,7 @@ function SourceCardItem({
         <h2 className="text-base font-semibold tracking-tight">{titleLabel}</h2>
         {badgeLabel ? (
           <span
-            className="bg-muted text-muted-foreground mt-1 inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide"
+            className="bg-muted text-foreground mt-1 inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide"
             data-testid={`source-badge-${card.slug}`}
           >
             {badgeLabel}

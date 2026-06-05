@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Bell, Loader2, Send } from "lucide-react";
+import { Bell, Loader2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { PasswordInput } from "@/components/ui/password-input";
 import { SettingsCardHeader } from "@/components/settings/_card-header";
+import { TestConnectionButton } from "@/components/settings/test-connection-button";
 import { useTranslations } from "@/lib/i18n/context";
 import { queryKeys } from "@/lib/query-keys";
 
@@ -82,24 +83,6 @@ export function NtfyCard({ isAuthenticated }: { isAuthenticated: boolean }) {
     },
   });
 
-  const test = useMutation({
-    mutationFn: async () => {
-      const res = await fetch("/api/settings/ntfy/test", { method: "POST" });
-      if (!res.ok) {
-        const json = await res.json();
-        throw new Error(json.error || t("common.error"));
-      }
-    },
-    onSuccess: () => {
-      setSaveMsg(t("settings.testSent"));
-      setSaveMsgType("success");
-    },
-    onError: (err: Error) => {
-      setSaveMsg(err.message);
-      setSaveMsgType("error");
-    },
-  });
-
   return (
     <div className="bg-card border-border rounded-xl border p-6">
       <SettingsCardHeader
@@ -151,7 +134,7 @@ export function NtfyCard({ isAuthenticated }: { isAuthenticated: boolean }) {
                 id="ntfy-auth"
                 placeholder={
                   settings?.hasAuthToken
-                    ? t("settings.saved")
+                    ? t("settings.withingsCredentialsSavedPlaceholder")
                     : t("common.optional")
                 }
                 value={authToken}
@@ -172,21 +155,16 @@ export function NtfyCard({ isAuthenticated }: { isAuthenticated: boolean }) {
             </p>
           )}
 
-          <div className="flex justify-end gap-2">
+          <div className="flex flex-wrap items-start justify-end gap-2">
+            <TestConnectionButton
+              endpoint="/api/settings/ntfy/test"
+              disabled={!settings?.enabled}
+            />
             <Button
-              type="button"
-              variant="outline"
-              disabled={test.isPending || !settings?.enabled}
-              onClick={() => test.mutate()}
+              type="submit"
+              disabled={save.isPending}
+              className="min-h-11"
             >
-              {test.isPending ? (
-                <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
-              ) : (
-                <Send className="mr-1 h-3.5 w-3.5" />
-              )}
-              {t("settings.testMessage")}
-            </Button>
-            <Button type="submit" disabled={save.isPending}>
               {save.isPending && (
                 <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
               )}

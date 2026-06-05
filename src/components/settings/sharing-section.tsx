@@ -37,6 +37,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { SettingsCardHeader } from "@/components/settings/_card-header";
 import { useAuth } from "@/hooks/use-auth";
 import { formatDate, formatDateTime } from "@/lib/format";
 import { useTranslations } from "@/lib/i18n/context";
@@ -214,15 +215,11 @@ function ShareLinksCard() {
 
   return (
     <div className="bg-card border-border space-y-6 rounded-xl border p-6">
-      <div className="flex items-center gap-2">
-        <Share2 className="text-primary h-5 w-5" />
-        <h2 className="text-lg font-semibold">
-          {t("settings.sharing.createTitle")}
-        </h2>
-      </div>
-      <p className="text-muted-foreground -mt-4 text-xs">
-        {t("settings.sharing.createDescription")}
-      </p>
+      <SettingsCardHeader
+        icon={Share2}
+        title={t("settings.sharing.createTitle")}
+        description={t("settings.sharing.createDescription")}
+      />
 
       <form
         className="space-y-4"

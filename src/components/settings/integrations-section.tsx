@@ -5,7 +5,6 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Activity,
   AlertCircle,
-  Download,
   HeartPulse,
   Link2,
   Loader2,
@@ -32,6 +31,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PasswordInput } from "@/components/ui/password-input";
 import { TestConnectionButton } from "@/components/settings/test-connection-button";
+import { SettingsCardHeader } from "@/components/settings/_card-header";
 import { IntegrationStatusPill } from "@/components/settings/integration-status-pill";
 import type { IntegrationPillState } from "@/components/settings/integration-status-pill";
 import { useAuth } from "@/hooks/use-auth";
@@ -379,16 +379,14 @@ function WithingsCard({
 
   return (
     <div className="bg-card border-border rounded-xl border p-6">
-      <div className="flex flex-wrap items-start justify-between gap-2">
-        <div className="flex items-center gap-2">
-          <Link2 className="text-primary h-5 w-5" />
-          <h2 className="text-lg font-semibold">{t("settings.withings")}</h2>
-        </div>
-        <IntegrationStatusPill state={pillState} lastSyncAt={pillLastSyncAt} />
-      </div>
-      <p className="text-muted-foreground mt-1 text-xs">
-        {t("settings.withingsDescription")}
-      </p>
+      <SettingsCardHeader
+        icon={Link2}
+        title={t("settings.withings")}
+        description={t("settings.withingsDescription")}
+        status={
+          <IntegrationStatusPill state={pillState} lastSyncAt={pillLastSyncAt} />
+        }
+      />
 
       <hr
         data-testid="integration-card-divider"
@@ -539,7 +537,7 @@ function WithingsCard({
                 type="submit"
                 variant="outline"
                 size="sm"
-                className="w-full sm:w-auto"
+                className="min-h-11 w-full sm:w-auto"
                 disabled={
                   credsSaving || !clientId.trim() || !clientSecret.trim()
                 }
@@ -575,6 +573,7 @@ function WithingsCard({
               <Button
                 variant="outline"
                 size="sm"
+                className="min-h-11"
                 onClick={() => handleSync(false)}
                 disabled={syncing}
               >
@@ -587,7 +586,12 @@ function WithingsCard({
               </Button>
               <AlertDialog>
                 <AlertDialogTrigger asChild>
-                  <Button variant="outline" size="sm" disabled={syncing}>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="min-h-11"
+                    disabled={syncing}
+                  >
                     {syncing ? (
                       <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
                     ) : (
@@ -622,7 +626,7 @@ function WithingsCard({
                   <Button
                     variant="outline"
                     size="sm"
-                    className="text-destructive"
+                    className="text-destructive min-h-11"
                   >
                     <Unlink className="mr-1 h-3.5 w-3.5" />
                     {t("settings.withingsDisconnect")}
@@ -820,19 +824,21 @@ function WhoopCard({
 
   return (
     <div className="bg-card border-border rounded-xl border p-6">
-      <div className="flex flex-wrap items-start justify-between gap-2">
-        <div className="flex items-center gap-2">
-          <Activity className="text-primary h-5 w-5" />
-          <h2 className="text-lg font-semibold">{t("settings.whoop")}</h2>
-        </div>
-        <IntegrationStatusPill state={pillState} lastSyncAt={pillLastSyncAt} />
-      </div>
-      <p className="text-muted-foreground mt-1 text-xs">
-        {t("settings.whoopDescription")}
-      </p>
-      <p className="text-muted-foreground/80 mt-2 text-xs">
-        {t("settings.whoopOverlapNote")}
-      </p>
+      <SettingsCardHeader
+        icon={Activity}
+        title={t("settings.whoop")}
+        description={
+          <>
+            <p>{t("settings.whoopDescription")}</p>
+            <p className="text-muted-foreground/80">
+              {t("settings.whoopOverlapNote")}
+            </p>
+          </>
+        }
+        status={
+          <IntegrationStatusPill state={pillState} lastSyncAt={pillLastSyncAt} />
+        }
+      />
 
       <hr
         data-testid="integration-card-divider"
@@ -950,7 +956,7 @@ function WhoopCard({
                 type="submit"
                 variant="outline"
                 size="sm"
-                className="w-full sm:w-auto"
+                className="min-h-11 w-full sm:w-auto"
                 disabled={
                   credsSaving || !clientId.trim() || !clientSecret.trim()
                 }
@@ -980,6 +986,7 @@ function WhoopCard({
               <Button
                 variant="outline"
                 size="sm"
+                className="min-h-11"
                 onClick={() => handleSync(false)}
                 disabled={syncing}
               >
@@ -992,7 +999,12 @@ function WhoopCard({
               </Button>
               <AlertDialog>
                 <AlertDialogTrigger asChild>
-                  <Button variant="outline" size="sm" disabled={syncing}>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="min-h-11"
+                    disabled={syncing}
+                  >
                     {syncing ? (
                       <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
                     ) : (
@@ -1027,7 +1039,7 @@ function WhoopCard({
                   <Button
                     variant="outline"
                     size="sm"
-                    className="text-destructive"
+                    className="text-destructive min-h-11"
                   >
                     <Unlink className="mr-1 h-3.5 w-3.5" />
                     {t("settings.whoopDisconnect")}
@@ -1239,35 +1251,41 @@ function FitbitCard({
       data-testid="fitbit-card"
       className="bg-card border-border rounded-xl border p-6"
     >
-      <div className="flex flex-wrap items-start justify-between gap-2">
-        <div className="flex flex-wrap items-center gap-2">
-          <HeartPulse className="text-primary h-5 w-5" />
-          <h2 className="text-lg font-semibold">{t("settings.fitbit")}</h2>
-          <span className="bg-muted text-foreground rounded-full px-2 py-0.5 text-[0.6875rem] font-medium">
-            {t("settings.fitbitTag")}
-          </span>
-          <Badge
-            variant="outline"
-            data-testid="fitbit-experimental-badge"
-            className="border-amber-500/50 text-amber-600 dark:text-amber-400"
-          >
-            {t("settings.fitbitExperimentalBadge")}
-          </Badge>
-        </div>
-        <IntegrationStatusPill state={pillState} lastSyncAt={pillLastSyncAt} />
-      </div>
-      <p className="text-muted-foreground mt-1 text-xs">
-        {t("settings.fitbitDescription")}
-      </p>
-      <p
-        data-testid="fitbit-experimental-note"
-        className="text-muted-foreground/80 mt-2 text-xs"
-      >
-        {t("settings.fitbitExperimentalNote")}
-      </p>
-      <p className="text-muted-foreground/80 mt-2 text-xs">
-        {t("settings.fitbitOverlapNote")}
-      </p>
+      <SettingsCardHeader
+        icon={HeartPulse}
+        title={t("settings.fitbit")}
+        titleAccessory={
+          <>
+            <span className="bg-muted text-foreground rounded-full px-2 py-0.5 text-[0.6875rem] font-medium">
+              {t("settings.fitbitTag")}
+            </span>
+            <Badge
+              variant="outline"
+              data-testid="fitbit-experimental-badge"
+              className="border-amber-500/50 text-amber-600 dark:text-amber-400"
+            >
+              {t("settings.fitbitExperimentalBadge")}
+            </Badge>
+          </>
+        }
+        description={
+          <>
+            <p>{t("settings.fitbitDescription")}</p>
+            <p
+              data-testid="fitbit-experimental-note"
+              className="text-muted-foreground/80"
+            >
+              {t("settings.fitbitExperimentalNote")}
+            </p>
+            <p className="text-muted-foreground/80">
+              {t("settings.fitbitOverlapNote")}
+            </p>
+          </>
+        }
+        status={
+          <IntegrationStatusPill state={pillState} lastSyncAt={pillLastSyncAt} />
+        }
+      />
 
       <hr
         data-testid="integration-card-divider"
@@ -1384,7 +1402,7 @@ function FitbitCard({
                 type="submit"
                 variant="outline"
                 size="sm"
-                className="w-full sm:w-auto"
+                className="min-h-11 w-full sm:w-auto"
                 disabled={
                   credsSaving || !clientId.trim() || !clientSecret.trim()
                 }
@@ -1414,6 +1432,7 @@ function FitbitCard({
               <Button
                 variant="outline"
                 size="sm"
+                className="min-h-11"
                 onClick={() => handleSync(false)}
                 disabled={syncing}
               >
@@ -1426,7 +1445,12 @@ function FitbitCard({
               </Button>
               <AlertDialog>
                 <AlertDialogTrigger asChild>
-                  <Button variant="outline" size="sm" disabled={syncing}>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="min-h-11"
+                    disabled={syncing}
+                  >
                     {syncing ? (
                       <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
                     ) : (
@@ -1461,7 +1485,7 @@ function FitbitCard({
                   <Button
                     variant="outline"
                     size="sm"
-                    className="text-destructive"
+                    className="text-destructive min-h-11"
                   >
                     <Unlink className="mr-1 h-3.5 w-3.5" />
                     {t("settings.fitbitDisconnect")}
@@ -1556,7 +1580,7 @@ function MoodLogCard({
       body: JSON.stringify({ url: url.trim(), apiKey: apiKey.trim() }),
     });
     if (res.ok) {
-      setMsg(t("settings.moodLogSaved"));
+      setMsg(t("settings.saved"));
       setMsgType("success");
       setUrl("");
       setApiKey("");
@@ -1581,10 +1605,7 @@ function MoodLogCard({
       if (res.ok) {
         const json = await res.json();
         setMsg(
-          t("settings.moodLogSyncResult").replace(
-            "{count}",
-            String(json.data.imported),
-          ),
+          t("settings.moodLogSyncResult", { count: json.data.imported }),
         );
         setMsgType("success");
         void refreshStatus();
@@ -1622,28 +1643,30 @@ function MoodLogCard({
 
   return (
     <div className="bg-card border-border rounded-xl border p-6">
-      <div className="flex flex-wrap items-start justify-between gap-2">
-        <div className="flex items-center gap-2">
-          <Smile className="text-primary h-5 w-5" />
-          <h2 className="text-lg font-semibold">
-            <a
-              href="https://moodlog.onback.io"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="hover:underline"
-            >
-              {t("settings.moodLogTitle")}
-            </a>
-          </h2>
-        </div>
-        <IntegrationStatusPill state={pillState} lastSyncAt={pillLastSyncAt} />
-      </div>
-      <p className="text-muted-foreground mt-1 text-xs">
-        {t("settings.moodLogDescription")}
-      </p>
-      <p className="text-muted-foreground/80 mt-1 text-[11px] italic">
-        {t("settings.moodLogDeprecated")}
-      </p>
+      <SettingsCardHeader
+        icon={Smile}
+        title={
+          <a
+            href="https://moodlog.onback.io"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hover:underline"
+          >
+            {t("settings.moodLogTitle")}
+          </a>
+        }
+        description={
+          <>
+            <p>{t("settings.moodLogDescription")}</p>
+            <p className="text-muted-foreground/80">
+              {t("settings.moodLogDeprecated")}
+            </p>
+          </>
+        }
+        status={
+          <IntegrationStatusPill state={pillState} lastSyncAt={pillLastSyncAt} />
+        }
+      />
 
       {/* v1.4.19 A5 — visual divider matches Withings for consistency
           (the maintainer explicitly called the asymmetry out). */}
@@ -1704,9 +1727,13 @@ function MoodLogCard({
               type="submit"
               disabled={saving || (!url.trim() && !apiKey.trim())}
               size="sm"
+              className="min-h-11"
             >
-              {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin motion-reduce:animate-none" />}
-              <Save className="mr-2 h-4 w-4" />
+              {saving ? (
+                <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
+              ) : (
+                <Save className="mr-1 h-3.5 w-3.5" />
+              )}
               {t("common.save")}
             </Button>
           </div>
@@ -1740,7 +1767,7 @@ function MoodLogCard({
                       setMsg(t("common.copied"));
                       setMsgType("success");
                     }}
-                    className="w-full sm:w-auto"
+                    className="min-h-11 w-full sm:w-auto"
                   >
                     {/* v1.4.22 D / D-DSGN-M-04 — use the proper
                         common.copy key instead of stripping the
@@ -1778,18 +1805,27 @@ function MoodLogCard({
               <Button
                 variant="outline"
                 size="sm"
+                className="min-h-11"
                 disabled={syncing}
                 onClick={() => handleSync(false)}
               >
-                {syncing && <Loader2 className="mr-2 h-4 w-4 animate-spin motion-reduce:animate-none" />}
-                <RefreshCw className="mr-2 h-4 w-4" />
+                {syncing ? (
+                  <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
+                ) : (
+                  <RefreshCw className="mr-1 h-3.5 w-3.5" />
+                )}
                 {t("settings.moodLogSync")}
               </Button>
 
               <AlertDialog>
                 <AlertDialogTrigger asChild>
-                  <Button variant="outline" size="sm" disabled={syncing}>
-                    <Download className="mr-2 h-4 w-4" />
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="min-h-11"
+                    disabled={syncing}
+                  >
+                    <RefreshCw className="mr-1 h-3.5 w-3.5" />
                     {t("settings.moodLogFullSync")}
                   </Button>
                 </AlertDialogTrigger>
@@ -1821,9 +1857,9 @@ function MoodLogCard({
                   <Button
                     variant="outline"
                     size="sm"
-                    className="text-destructive"
+                    className="text-destructive min-h-11"
                   >
-                    <Unlink className="mr-2 h-4 w-4" />
+                    <Unlink className="mr-1 h-3.5 w-3.5" />
                     {t("settings.moodLogDisconnect")}
                   </Button>
                 </AlertDialogTrigger>

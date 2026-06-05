@@ -52,6 +52,7 @@ import { useTranslations } from "@/lib/i18n/context";
 import { restartOnboardingTour } from "@/lib/onboarding/tour-restart";
 import { describePasskeyError } from "@/lib/passkey-errors";
 import { queryKeys } from "@/lib/query-keys";
+import { SettingsCardHeader } from "@/components/settings/_card-header";
 import { TimezonePicker } from "@/components/settings/timezone-picker";
 import { UnitPreferenceSelect } from "@/components/settings/unit-preference-select";
 import { InjectionSitesCard } from "@/components/settings/injection-sites-card";
@@ -398,10 +399,11 @@ export function AccountSection() {
       <AvatarSection />
 
       <div className="bg-card border-border rounded-xl border p-6">
-        <div className="mb-4 flex items-center gap-2">
-          <User className="text-primary h-5 w-5" />
-          <h2 className="text-lg font-semibold">{t("settings.profile")}</h2>
-        </div>
+        <SettingsCardHeader
+          icon={User}
+          title={t("settings.profile")}
+          className="mb-4"
+        />
         <form onSubmit={handleSaveProfile} className="space-y-4">
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
@@ -600,10 +602,11 @@ export function AccountSection() {
 
       {/* Passkeys card */}
       <div className="bg-card border-border rounded-xl border p-6">
-        <div className="mb-4 flex items-center gap-2">
-          <Shield className="text-primary h-5 w-5" />
-          <h2 className="text-lg font-semibold">{t("settings.passkeys")}</h2>
-        </div>
+        <SettingsCardHeader
+          icon={Shield}
+          title={t("settings.passkeys")}
+          className="mb-4"
+        />
         <PasskeyListSection isAuthenticated={isAuthenticated} />
         <div className="mt-4 flex justify-end">
           <Button
@@ -1131,10 +1134,11 @@ function AvatarSection() {
 
   return (
     <div className="bg-card border-border rounded-xl border p-6">
-      <div className="mb-4 flex items-center gap-2">
-        <ImageUp className="text-primary h-5 w-5" />
-        <h2 className="text-lg font-semibold">{t("settings.avatar.title")}</h2>
-      </div>
+      <SettingsCardHeader
+        icon={ImageUp}
+        title={t("settings.avatar.title")}
+        className="mb-4"
+      />
       <p className="text-muted-foreground mb-4 text-sm">
         {t("settings.avatar.description")}
       </p>

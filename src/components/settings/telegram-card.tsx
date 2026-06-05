@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Loader2, MessageCircle, Save, Send } from "lucide-react";
+import { Loader2, MessageCircle, Save } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { PasswordInput } from "@/components/ui/password-input";
 import { SettingsCardHeader } from "@/components/settings/_card-header";
+import { TestConnectionButton } from "@/components/settings/test-connection-button";
 import { useTranslations } from "@/lib/i18n/context";
 import { queryKeys } from "@/lib/query-keys";
 
@@ -30,7 +31,6 @@ export function TelegramCard({
   const [chatId, setChatId] = useState("");
   const [enabled, setEnabled] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [testing, setTesting] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const [msgType, setMsgType] = useState<"success" | "error" | null>(null);
 
@@ -76,7 +76,7 @@ export function TelegramCard({
     });
 
     if (res.ok) {
-      setMsg(t("settings.telegramSaved"));
+      setMsg(t("settings.saved"));
       setMsgType("success");
       setBotToken("");
       queryClient.invalidateQueries({ queryKey: queryKeys.telegram() });
@@ -86,23 +86,6 @@ export function TelegramCard({
       setMsgType("error");
     }
     setSaving(false);
-  }
-
-  async function handleTest() {
-    setTesting(true);
-    setMsg(null);
-    setMsgType(null);
-
-    const res = await fetch("/api/settings/telegram/test", { method: "POST" });
-    if (res.ok) {
-      setMsg(t("settings.testSent"));
-      setMsgType("success");
-    } else {
-      const json = await res.json();
-      setMsg(json.error || t("common.error"));
-      setMsgType("error");
-    }
-    setTesting(false);
   }
 
   return (
@@ -182,25 +165,16 @@ export function TelegramCard({
             </p>
           )}
 
-          <div className="flex justify-end gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              disabled={testing || !settings?.hasBotToken}
-              onClick={handleTest}
-            >
-              {testing ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin motion-reduce:animate-none" />
-              ) : (
-                <Send className="mr-2 h-4 w-4" />
-              )}
-              {t("settings.testMessage")}
-            </Button>
-            <Button type="submit" disabled={saving}>
+          <div className="flex flex-wrap items-start justify-end gap-2">
+            <TestConnectionButton
+              endpoint="/api/settings/telegram/test"
+              disabled={!settings?.hasBotToken}
+            />
+            <Button type="submit" disabled={saving} className="min-h-11">
               {saving ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin motion-reduce:animate-none" />
+                <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
               ) : (
-                <Save className="mr-2 h-4 w-4" />
+                <Save className="mr-1 h-3.5 w-3.5" />
               )}
               {t("common.save")}
             </Button>
