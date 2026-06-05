@@ -6,18 +6,7 @@ import type {
   DerivedMetricResponse,
   DerivedBatchToken,
 } from "../use-derived-metric";
-
-// The dashboard now reads the whole grid through ONE batched query. Drive it
-// by stubbing `useDerivedBatch` and returning a `read(token)` selector that
-// resolves each (metric, type) pair from a scenario map.
-const useDerivedBatch = vi.fn();
-vi.mock("../use-derived-metric", () => ({
-  useDerivedBatch: (...a: unknown[]) => useDerivedBatch(...a),
-}));
-// The auth hook gates the (mocked-away) query — stub it authenticated.
-vi.mock("@/hooks/use-auth", () => ({
-  useAuth: () => ({ isAuthenticated: true }),
-}));
+import type { DashboardDerived } from "../use-dashboard-derived";
 
 import { VitalsDashboard } from "../vitals-dashboard";
 
@@ -58,33 +47,36 @@ function insufficient(reason: string, historyDays = 0): Resp {
 }
 
 /**
- * Install a batch mock that resolves each requested token from `resolve`,
- * defaulting unmatched tokens to the absent state so a scenario only has to
- * name the tiles it cares about.
+ * Build a shared-batch handle that resolves each requested token from
+ * `resolve`, defaulting unmatched tokens to the absent state so a scenario
+ * only has to name the tiles it cares about. The page owns this batch in
+ * production; the dashboard now receives it via the `batch` prop, so the test
+ * passes a stub handle directly instead of mocking the query hook.
  */
 function mockBatch(
   resolve: (token: DerivedBatchToken) => Resp,
   extra: { isLoading?: boolean; isError?: boolean; refetch?: () => void } = {},
-) {
-  useDerivedBatch.mockReturnValue({
+): DashboardDerived {
+  return {
     isLoading: extra.isLoading ?? false,
     isError: extra.isError ?? false,
     refetch: extra.refetch ?? (() => {}),
-    read: <T,>(token: DerivedBatchToken) => resolve(token) as unknown as DerivedMetricResponse<T>,
-  });
+    read: <T,>(token: DerivedBatchToken) =>
+      resolve(token) as unknown as DerivedMetricResponse<T>,
+  } as unknown as DashboardDerived;
 }
 
 beforeEach(() => vi.clearAllMocks());
 
 describe("<VitalsDashboard>", () => {
   it("renders an available baseline vital as an ok tile", () => {
-    mockBatch((token) => {
+    const batch = mockBatch((token) => {
       if (token.metric === "VITALS_BASELINE" && token.type === "RESTING_HEART_RATE") {
         return ok({ type: "RESTING_HEART_RATE", center: 55, low: 48, high: 62, spread: 7, sampleDays: 30, k: 3 });
       }
       return insufficient("no_readings_in_window");
     });
-    const html = render(<VitalsDashboard />);
+    const html = render(<VitalsDashboard batch={batch} />);
     expect(html).toContain('data-slot="vitals-dashboard"');
     expect(html).toContain('data-metric="RESTING_HEART_RATE"');
     expect(html).toContain('data-state="ok"');
@@ -93,8 +85,8 @@ describe("<VitalsDashboard>", () => {
   });
 
   it("hides the whole section (heading + grid) when no vital has content", () => {
-    mockBatch(() => insufficient("no_readings_in_window"));
-    const html = render(<VitalsDashboard />);
+    const batch = mockBatch(() => insufficient("no_readings_in_window"));
+    const html = render(<VitalsDashboard batch={batch} />);
     // No content under the heading → the heading must not strand over blank
     // space. The whole section un-mounts.
     expect(html).not.toContain('data-slot="vitals-dashboard"');
@@ -104,8 +96,8 @@ describe("<VitalsDashboard>", () => {
   });
 
   it("renders a skeleton row (no tiles, no heading strand) while loading", () => {
-    mockBatch(() => insufficient("no_readings_in_window"), { isLoading: true });
-    const html = render(<VitalsDashboard />);
+    const batch = mockBatch(() => insufficient("no_readings_in_window"), { isLoading: true });
+    const html = render(<VitalsDashboard batch={batch} />);
     // Heading + grid present so the section reserves its final height, with a
     // busy/live region and skeleton placeholders — but no real tiles yet.
     expect(html).toContain('data-slot="vitals-dashboard"');
@@ -116,8 +108,8 @@ describe("<VitalsDashboard>", () => {
   });
 
   it("shows an inline error + retry when the batch fails", () => {
-    mockBatch(() => insufficient("no_readings_in_window"), { isError: true });
-    const html = render(<VitalsDashboard />);
+    const batch = mockBatch(() => insufficient("no_readings_in_window"), { isError: true });
+    const html = render(<VitalsDashboard batch={batch} />);
     // The surface must not silently vanish — a compact error + a Retry button.
     expect(html).toContain('data-slot="vitals-dashboard-error"');
     expect(html).toContain('role="alert"');
@@ -127,13 +119,13 @@ describe("<VitalsDashboard>", () => {
   });
 
   it("shows a provisional baseline tile with the coverage meter, not a headline", () => {
-    mockBatch((token) => {
+    const batch = mockBatch((token) => {
       if (token.metric === "VITALS_BASELINE" && token.type === "WEIGHT") {
         return insufficient("insufficient_history_for_band", 4);
       }
       return insufficient("no_readings_in_window");
     });
-    const html = render(<VitalsDashboard />);
+    const html = render(<VitalsDashboard batch={batch} />);
     expect(html).toContain('data-metric="WEIGHT"');
     expect(html).toContain('data-state="provisional"');
     expect(html).toContain('data-slot="coverage-meter"');
@@ -141,40 +133,40 @@ describe("<VitalsDashboard>", () => {
   });
 
   it("renders the fitness-age tile with its age framing", () => {
-    mockBatch((token) => {
+    const batch = mockBatch((token) => {
       if (token.metric === "FITNESS_AGE") {
         return ok({ vo2Max: 46, band: "green", fitnessAgeDeltaYears: -6, referenceBand: { low: 35, high: 45 }, trendDelta: 2, readingCount: 4 });
       }
       return insufficient("no_readings_in_window");
     });
-    const html = render(<VitalsDashboard />);
+    const html = render(<VitalsDashboard batch={batch} />);
     expect(html).toContain('data-metric="FITNESS_AGE"');
     expect(html).toContain("yr younger");
   });
 
   it("renders the BMI tile with its WHO category", () => {
-    mockBatch((token) => {
+    const batch = mockBatch((token) => {
       if (token.metric === "BMI") {
         return ok({ bmi: 24.7, category: "normal", band: "green", weightKg: 80, heightCm: 180 });
       }
       return insufficient("no_readings_in_window");
     });
-    const html = render(<VitalsDashboard />);
+    const html = render(<VitalsDashboard batch={batch} />);
     expect(html).toContain('data-metric="BMI"');
     expect(html).toContain("Normal range (WHO)");
   });
 
   it("hides BMI when there is no height/weight", () => {
-    mockBatch((token) => {
+    const batch = mockBatch((token) => {
       if (token.metric === "BMI") return insufficient("no_height_on_profile");
       return insufficient("no_readings_in_window");
     });
-    const html = render(<VitalsDashboard />);
+    const html = render(<VitalsDashboard batch={batch} />);
     expect(html).not.toContain('data-metric="BMI"');
   });
 
   it("renders the estimated 6-minute-walk band tile with its percent framing", () => {
-    mockBatch((token) => {
+    const batch = mockBatch((token) => {
       if (token.metric === "SIX_MINUTE_WALK_BAND") {
         return ok({
           distanceM: 540,
@@ -188,14 +180,14 @@ describe("<VitalsDashboard>", () => {
       }
       return insufficient("no_readings_in_window");
     });
-    const html = render(<VitalsDashboard />);
+    const html = render(<VitalsDashboard batch={batch} />);
     expect(html).toContain('data-slot="vitals-mobility"');
     expect(html).toContain('data-metric="SIX_MINUTE_WALK_BAND"');
     expect(html).toContain("90% of predicted");
   });
 
   it("renders the 6-minute-walk tile distance-only when demographics are absent", () => {
-    mockBatch((token) => {
+    const batch = mockBatch((token) => {
       if (token.metric === "SIX_MINUTE_WALK_BAND") {
         return ok({
           distanceM: 540,
@@ -209,28 +201,28 @@ describe("<VitalsDashboard>", () => {
       }
       return insufficient("no_readings_in_window");
     });
-    const html = render(<VitalsDashboard />);
+    const html = render(<VitalsDashboard batch={batch} />);
     expect(html).toContain('data-metric="SIX_MINUTE_WALK_BAND"');
     // Honest prompt, never a fabricated placement.
     expect(html).toContain("Add your age, height, weight and sex");
   });
 
   it("renders a stair-ascent-speed baseline band tile under Mobility & body", () => {
-    mockBatch((token) => {
+    const batch = mockBatch((token) => {
       if (token.metric === "STAIR_ASCENT_SPEED_BASELINE") {
         return ok({ type: "STAIR_ASCENT_SPEED", center: 0.4, low: 0.3, high: 0.5, spread: 0.05, sampleDays: 21, k: 3, series: [0.38, 0.4, 0.42] });
       }
       return insufficient("no_readings_in_window");
     });
-    const html = render(<VitalsDashboard />);
+    const html = render(<VitalsDashboard batch={batch} />);
     expect(html).toContain('data-slot="vitals-mobility"');
     expect(html).toContain('data-metric="STAIR_ASCENT_SPEED_BASELINE"');
     expect(html).toContain("Mobility &amp; body");
   });
 
   it("hides the whole Mobility & body section when no mobility metric has content", () => {
-    mockBatch(() => insufficient("no_readings_in_window"));
-    const html = render(<VitalsDashboard />);
+    const batch = mockBatch(() => insufficient("no_readings_in_window"));
+    const html = render(<VitalsDashboard batch={batch} />);
     expect(html).not.toContain('data-slot="vitals-mobility"');
     expect(html).not.toContain("Mobility &amp; body");
     expect(html).not.toContain('data-metric="SIX_MINUTE_WALK_BAND"');
@@ -241,11 +233,11 @@ describe("<VitalsDashboard>", () => {
     // The flag moved to the dedicated `CoincidentDeviationCard`; the dashboard
     // batch no longer requests it and the grid never paints it.
     let requestedCoincident = false;
-    mockBatch((token) => {
+    const batch = mockBatch((token) => {
       if (token.metric === "COINCIDENT_DEVIATION") requestedCoincident = true;
       return insufficient("no_readings_in_window");
     });
-    const html = render(<VitalsDashboard />);
+    const html = render(<VitalsDashboard batch={batch} />);
     expect(requestedCoincident).toBe(false);
     expect(html).not.toContain('data-metric="COINCIDENT_DEVIATION"');
   });

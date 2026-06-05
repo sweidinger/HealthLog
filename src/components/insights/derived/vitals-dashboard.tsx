@@ -5,7 +5,6 @@ import { Footprints, Gauge, HeartPulse, RefreshCw, Scale } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useAuth } from "@/hooks/use-auth";
 import { useTranslations, useFormatters } from "@/lib/i18n/context";
 import { getUnitForType } from "@/lib/validations/measurement";
 import {
@@ -14,14 +13,14 @@ import {
 } from "@/components/measurements/measurement-list-meta";
 import { SparklineDeltaTile } from "./sparkline-delta-tile";
 import { CoverageMeter } from "./coverage-meter";
-import { WellnessScores } from "./wellness-scores";
 import { ProvenanceExplainer } from "./provenance-explainer";
 import { METRIC_PROVENANCE } from "./standards";
+import { type DerivedBatchRead } from "./use-derived-metric";
 import {
-  useDerivedBatch,
-  type DerivedBatchRead,
-  type DerivedBatchToken,
-} from "./use-derived-metric";
+  SECTION_VITALS,
+  SECTION_MOBILITY,
+  type DashboardDerived,
+} from "./use-dashboard-derived";
 import type { TrendDirectionSentiment } from "@/lib/insights/trend-sentiment";
 // Type-only — the compute payloads never drag the server graph into the bundle.
 import type { VitalsBaselineValue } from "@/lib/insights/derived/baseline";
@@ -53,29 +52,9 @@ import type { DerivedProvenance } from "@/lib/insights/derived/types";
  * the "app hangs then recovers" symptom (v1.9.1 / v1.4.49.1).
  */
 
-const SECTION_VITALS: string[] = [
-  "RESTING_HEART_RATE",
-  "HEART_RATE_VARIABILITY",
-  "RESPIRATORY_RATE",
-  "OXYGEN_SATURATION",
-  "BODY_TEMPERATURE",
-  "BLOOD_GLUCOSE",
-  "WEIGHT",
-];
-
-/**
- * v1.10.3 — the any-user HealthKit baseline bands, each pinning one input and
- * framing as a personal typical range (median ± k·MAD). The `metric` is the
- * batch token + provenance key; `type` drives icon/label/unit. The estimated
- * 6-minute-walk re-frame rides the same Mobility section but reads its own
- * value shape (`SixMinuteWalkTile`). Most users carry none of these, so the
- * tiles simply do not appear (the per-tile absent gate).
- */
-const SECTION_MOBILITY: { metric: keyof typeof METRIC_PROVENANCE; type: string }[] = [
-  { metric: "STAIR_ASCENT_SPEED_BASELINE", type: "STAIR_ASCENT_SPEED" },
-  { metric: "STAIR_DESCENT_SPEED_BASELINE", type: "STAIR_DESCENT_SPEED" },
-  { metric: "WRIST_TEMPERATURE_BASELINE", type: "WRIST_TEMPERATURE" },
-];
+// v1.12.6 — `SECTION_VITALS`, `SECTION_MOBILITY` and the batch token list
+// moved to `use-dashboard-derived.ts` so the page can own the one shared batch
+// and feed it to both the wellness strip and this grid. Imported above.
 
 /** Up-is-bad for the vitals where a rise is unfavourable. */
 const UP_BAD_VITALS = new Set([
@@ -111,7 +90,13 @@ function vitalSentiment(type: string): TrendDirectionSentiment {
 }
 
 interface DashboardProps {
-  enabled?: boolean;
+  /**
+   * The shared overview derived batch (owned by the page so the wellness
+   * strip and this vitals grid read the same one request). Lifted out of
+   * this component in v1.12.6 — the wellness strip now renders as its own
+   * full-width section above the daily briefing.
+   */
+  batch: DashboardDerived;
   className?: string;
 }
 
@@ -521,47 +506,10 @@ function hasRenderableMobility(read: DerivedBatchRead): boolean {
   return false;
 }
 
-/**
- * The full set of tokens the dashboard reads in one batch — the five
- * wellness scores + the four derived re-frames + one baseline per vital
- * (minus HRV, which has its own balance tile) + the four v1.10.3 mobility/body
- * metrics (estimated 6-minute-walk band + the three HealthKit baseline bands).
- * The coincident-deviation flag is no longer read here: it is now the
- * dedicated "Today's signal" card at the top of the overview
- * (`CoincidentDeviationCard`).
- */
-function dashboardTokens(): DerivedBatchToken[] {
-  const tokens: DerivedBatchToken[] = [
-    { metric: "READINESS" },
-    { metric: "SLEEP_SCORE" },
-    { metric: "RECOVERY_SCORE" },
-    { metric: "STRESS_SCORE" },
-    { metric: "STRAIN_SCORE" },
-    { metric: "FITNESS_AGE" },
-    { metric: "VASCULAR_AGE_DELTA" },
-    { metric: "HRV_BALANCE" },
-    { metric: "BMI" },
-    { metric: "SIX_MINUTE_WALK_BAND" },
-  ];
-  for (const type of SECTION_VITALS) {
-    if (type === "HEART_RATE_VARIABILITY") continue;
-    tokens.push({ metric: "VITALS_BASELINE", type });
-  }
-  for (const { metric } of SECTION_MOBILITY) {
-    tokens.push({ metric });
-  }
-  return tokens;
-}
-
-export function VitalsDashboard({ enabled = true, className }: DashboardProps) {
+export function VitalsDashboard({ batch, className }: DashboardProps) {
   const { t } = useTranslations();
-  const { isAuthenticated } = useAuth();
   const vitals = useMemo(() => SECTION_VITALS, []);
-  const tokens = useMemo(() => dashboardTokens(), []);
 
-  const batch = useDerivedBatch(tokens, {
-    enabled: enabled && isAuthenticated,
-  });
   const read = batch.read;
   const isLoading = batch.isLoading;
   const isError = batch.isError;
@@ -618,7 +566,6 @@ export function VitalsDashboard({ enabled = true, className }: DashboardProps) {
 
   return (
     <div data-slot="vitals-dashboard-wrap" className={cn("space-y-6", className)}>
-      <WellnessScores read={read} isLoading={isLoading} />
       {showSection && (
         <section
           data-slot="vitals-dashboard"

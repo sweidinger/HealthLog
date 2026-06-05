@@ -18,6 +18,7 @@ import { HeroStrip } from "@/components/insights/hero-strip";
 import { useInsightsAdvisorQuery } from "@/components/insights/use-insights-advisor";
 import { useCoachLaunch } from "@/lib/insights/coach-launch-context";
 import { useAnalyticsQuery } from "@/lib/queries/use-analytics-query";
+import { useDashboardDerived } from "@/components/insights/derived/use-dashboard-derived";
 // v1.4.41 W-ORG — shared shape lives in `src/types/analytics.ts` as
 // `InsightsAnalyticsData`; aliased back to the local name to keep the
 // rest of this file readable.
@@ -76,6 +77,20 @@ const TrendsRow = dynamic(
   {
     ssr: false,
     loading: () => <BlockSkeleton minHeight="min-h-80" />,
+  },
+);
+// v1.12.6 — the wellness-score strip, lifted OUT of the vitals dashboard so
+// it renders as its own full-width section directly above the daily briefing.
+// Both this strip and the vitals grid read the ONE shared derived batch the
+// page owns (passed in via `batch`), so the lift adds no second request.
+const WellnessScores = dynamic(
+  () =>
+    import("@/components/insights/derived").then((mod) => ({
+      default: mod.WellnessScores,
+    })),
+  {
+    ssr: false,
+    loading: () => <BlockSkeleton minHeight="min-h-40" decorative />,
   },
 );
 // v1.10.0 — the Vitals dashboard (Apple-Health-Highlights grid of
@@ -224,6 +239,11 @@ export default function InsightsPage() {
   const analyticsQuery = useAnalyticsQuery();
   const analytics = analyticsQuery.data as AnalyticsData | undefined;
 
+  // v1.12.6 — the page owns the ONE overview derived batch. The wellness
+  // strip (above the briefing) and the vitals grid (below it) both read this
+  // single query instance, so the wellness lift adds no second request.
+  const dashboardDerived = useDashboardDerived(isAuthenticated);
+
   // Empty-state shortcut — only paint once the comprehensive query has
   // resolved AND reported zero measurements. While it's in-flight we
   // fall through to the streamed shell so the user gets the hero +
@@ -265,22 +285,25 @@ export default function InsightsPage() {
   // server children would require a Server-Component refactor; that's
   // a v1.5.x track.
 
-  // v1.12.4 — overview section order, top → bottom:
-  //   1. "Guten Morgen" Hero + Coach questions (HeroStrip) + the detailed
-  //      "Heute auf einen Blick" briefing right below it (same briefing
-  //      cluster, stays at the top).
-  //   2. Wellnesswerte  ┐ both live inside <VitalsDashboard>, which renders
-  //   3. Vitalwerte      ┘ the wellness-score strip first, then the vitals
-  //      grid — so a single mount already gives the 2 → 3 sequence.
-  //   4. Trends (TrendsRow).
-  //   5. "Dein Zeitraum im Rückblick" retrospective (PeriodNarrativeCard).
-  //   6. "Signale des Tages" — today's signal (CoincidentDeviationCard) plus
+  // v1.12.6 — overview section order, top → bottom:
+  //   1. "Guten Morgen" Hero + Coach questions (HeroStrip).
+  //   2. Wellnesswerte — the wellness-score strip (lifted OUT of
+  //      <VitalsDashboard> so it sits ABOVE the briefing as its own
+  //      full-width section).
+  //   3. "Heute auf einen Blick" briefing (DailyBriefing).
+  //   4. Vitalwerte — the vitals grid (+ mobility) inside <VitalsDashboard>,
+  //      which no longer renders the wellness strip.
+  //   5. Trends (TrendsRow).
+  //   6. "Dein Zeitraum im Rückblick" retrospective (PeriodNarrativeCard).
+  //   7. "Signale des Tages" — today's signal (CoincidentDeviationCard) plus
   //      the rhythm-events alert timeline, kept out of the AI gate so a
   //      health alert is never hidden.
-  // The per-metric correlation cards moved onto the metric pages, so the
-  // overview renders no correlation row. The duplicate footer "prepare
-  // assessments" control was removed in v1.12.4 — the tab-strip regenerate
-  // button is the single affordance.
+  // The wellness strip and the vitals grid share the ONE `dashboardDerived`
+  // batch the page owns — one request, two sections. The per-metric
+  // correlation cards moved onto the metric pages, so the overview renders no
+  // correlation row. The duplicate footer "prepare assessments" control was
+  // removed in v1.12.4 — the tab-strip regenerate button is the single
+  // affordance. The generic disclaimer lives once in the layout-shell footer.
   return (
     <div className="space-y-8">
       <HeroStrip
@@ -300,6 +323,11 @@ export default function InsightsPage() {
         healthScore={analytics?.healthScore ?? undefined}
       />
 
+      <WellnessScores
+        read={dashboardDerived.read}
+        isLoading={dashboardDerived.isLoading}
+      />
+
       {flags.briefing && (
         <DailyBriefing
           briefing={briefingPayload}
@@ -310,7 +338,7 @@ export default function InsightsPage() {
         />
       )}
 
-      <VitalsDashboard enabled={isAuthenticated} />
+      <VitalsDashboard batch={dashboardDerived} />
 
       <TrendsRow
         briefing={briefingPayload}
