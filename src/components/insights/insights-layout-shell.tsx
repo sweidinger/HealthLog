@@ -3,6 +3,7 @@
 import { useMemo, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 
+import { useTranslations } from "@/lib/i18n/context";
 import { useAuth } from "@/hooks/use-auth";
 import { useFeatureFlags } from "@/hooks/use-feature-flags";
 import { useWorkouts } from "@/hooks/use-workouts";
@@ -39,6 +40,7 @@ interface ComprehensivePayload {
 }
 
 export function InsightsLayoutShell({ children }: { children: ReactNode }) {
+  const { t } = useTranslations();
   const { isAuthenticated } = useAuth();
   // v1.4.33 F18 — gate the advisor POST on the operator's assistant
   // feature flag. Pre-fix, every /insights mount fired POST
@@ -108,6 +110,21 @@ export function InsightsLayoutShell({ children }: { children: ReactNode }) {
         availability={availability}
       />
       {children}
+      {/* v1.12.6 — SINGLE SOURCE of the generic Insights disclaimer.
+          The "describes your own data, not a clinical assessment / diagnosis"
+          sentence used to repeat across the overview, the metric tiles, the
+          mood page, and the medications page. It now lives here once, as a
+          page-level footer under every `/insights/*` route. Metric-SPECIFIC
+          caveats (health score, correlations, mood relations, derived cards,
+          rhythm events) stay on their own cards — those convey real,
+          non-generic information. Other waves remove the generic line from the
+          overview / mood / medications pages; this footer is where it lives. */}
+      <p
+        data-slot="insights-disclaimer-footer"
+        className="text-muted-foreground border-border/60 border-t pt-4 text-center text-xs leading-relaxed"
+      >
+        {t("insights.disclaimer.footer")}
+      </p>
     </div>
   );
 }
