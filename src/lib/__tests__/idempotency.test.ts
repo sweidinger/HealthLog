@@ -6,7 +6,10 @@ vi.mock("@/lib/db", () => ({
     idempotencyKey: {
       findUnique: vi.fn(),
       create: vi.fn(),
+      update: vi.fn(),
+      updateMany: vi.fn(),
       delete: vi.fn(),
+      deleteMany: vi.fn(),
     },
     apiToken: {
       findUnique: vi.fn(),
@@ -54,6 +57,12 @@ beforeEach(() => {
   vi.resetAllMocks();
   vi.mocked(prisma.idempotencyKey.findUnique).mockResolvedValue(null);
   vi.mocked(prisma.idempotencyKey.create).mockResolvedValue({} as never);
+  vi.mocked(prisma.idempotencyKey.updateMany).mockResolvedValue({
+    count: 1,
+  } as never);
+  vi.mocked(prisma.idempotencyKey.deleteMany).mockResolvedValue({
+    count: 1,
+  } as never);
 });
 
 describe("withIdempotency", () => {
@@ -80,18 +89,29 @@ describe("withIdempotency", () => {
     });
     const wrapped = withIdempotency<[NextRequest]>(handler, async () => "u-1");
 
-    // First call: nothing cached → handler runs → response stored.
+    // First call: nothing cached → key claimed (create) → handler runs →
+    // claim promoted to the completed response (updateMany).
     const req1 = makeRequest("POST", { "idempotency-key": "abc-12345678" });
     const res1 = await wrapped(req1);
     const body1 = await res1.json();
     expect(res1.status).toBe(201);
     expect(body1).toEqual({ data: { result: 1 }, error: null });
     expect(handler).toHaveBeenCalledTimes(1);
+    // Claim inserted before the handler ran (pending sentinel).
     expect(prisma.idempotencyKey.create).toHaveBeenCalledTimes(1);
+    const claim = (
+      vi.mocked(prisma.idempotencyKey.create).mock.calls[0][0] as {
+        data: { responseStatus: number; responseBody: string };
+      }
+    ).data;
+    expect(claim.responseStatus).toBe(0);
+    expect(claim.responseBody).toBe("");
+    // Completed response promoted via updateMany.
+    expect(prisma.idempotencyKey.updateMany).toHaveBeenCalledTimes(1);
 
     // Capture the persisted body for replay.
     const persistedBody = (
-      vi.mocked(prisma.idempotencyKey.create).mock.calls[0][0] as {
+      vi.mocked(prisma.idempotencyKey.updateMany).mock.calls[0][0] as {
         data: { responseBody: string; responseStatus: number };
       }
     ).data;
@@ -199,6 +219,89 @@ describe("withIdempotency", () => {
   });
 });
 
+// A3 — concurrent same-key requests must not both run the side-effect.
+// The key is claimed (pending row) before the handler runs; a racing
+// request either sees the pending row or loses the insert race, and
+// must be refused with 409 instead of executing a second time.
+describe("withIdempotency concurrency claim (A3)", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    vi.mocked(prisma.idempotencyKey.findUnique).mockResolvedValue(null);
+    vi.mocked(prisma.idempotencyKey.create).mockResolvedValue({} as never);
+    vi.mocked(prisma.idempotencyKey.updateMany).mockResolvedValue({
+      count: 1,
+    } as never);
+    vi.mocked(prisma.idempotencyKey.deleteMany).mockResolvedValue({
+      count: 1,
+    } as never);
+  });
+
+  it("returns 409 without running the handler when a pending claim exists", async () => {
+    // A concurrent request already claimed the key — findUnique returns
+    // the pending sentinel row (responseStatus 0, not yet expired).
+    vi.mocked(prisma.idempotencyKey.findUnique).mockResolvedValueOnce({
+      id: "idem-pending",
+      userId: "u-1",
+      key: "abc-12345678",
+      method: "POST",
+      path: "/api/example",
+      responseStatus: 0,
+      responseBody: "",
+      expiresAt: new Date(Date.now() + 60_000),
+      createdAt: new Date(),
+    } as never);
+
+    const handler = vi.fn(async () =>
+      NextResponse.json({ data: "ok", error: null }, { status: 201 }),
+    );
+    const wrapped = withIdempotency<[NextRequest]>(handler, async () => "u-1");
+    const res = await wrapped(
+      makeRequest("POST", { "idempotency-key": "abc-12345678" }),
+    );
+
+    expect(res.status).toBe(409);
+    expect(handler).not.toHaveBeenCalled();
+    expect(prisma.idempotencyKey.create).not.toHaveBeenCalled();
+  });
+
+  it("returns 409 when a racing request wins the claim insert (P2002)", async () => {
+    // No row at lookup time, but the claim insert collides with a
+    // concurrent insert under the unique constraint.
+    vi.mocked(prisma.idempotencyKey.create).mockRejectedValueOnce(
+      Object.assign(new Error("unique"), { code: "P2002" }),
+    );
+
+    const handler = vi.fn(async () =>
+      NextResponse.json({ data: "ok", error: null }, { status: 201 }),
+    );
+    const wrapped = withIdempotency<[NextRequest]>(handler, async () => "u-1");
+    const res = await wrapped(
+      makeRequest("POST", { "idempotency-key": "abc-12345678" }),
+    );
+
+    expect(res.status).toBe(409);
+    expect(handler).not.toHaveBeenCalled();
+    expect(prisma.idempotencyKey.updateMany).not.toHaveBeenCalled();
+  });
+
+  it("releases the claim and re-throws when the handler throws", async () => {
+    const boom = new Error("handler exploded");
+    const handler = vi.fn(async () => {
+      throw boom;
+    });
+    const wrapped = withIdempotency<[NextRequest]>(handler, async () => "u-1");
+
+    await expect(
+      wrapped(makeRequest("POST", { "idempotency-key": "abc-12345678" })),
+    ).rejects.toBe(boom);
+
+    expect(prisma.idempotencyKey.create).toHaveBeenCalledTimes(1);
+    // Claim released so a retry isn't locked out for the pending window.
+    expect(prisma.idempotencyKey.deleteMany).toHaveBeenCalledTimes(1);
+    expect(prisma.idempotencyKey.updateMany).not.toHaveBeenCalled();
+  });
+});
+
 // Audit C-4 / phase P2: defaultUserIdResolver must support both cookie
 // sessions AND Bearer tokens. Without the Bearer fallback, idempotency
 // silently turned off for the iOS / external-ingest paths it was built for.
@@ -282,6 +385,12 @@ describe("withIdempotency body-content exclusion (P12)", () => {
     vi.resetAllMocks();
     vi.mocked(prisma.idempotencyKey.findUnique).mockResolvedValue(null);
     vi.mocked(prisma.idempotencyKey.create).mockResolvedValue({} as never);
+    vi.mocked(prisma.idempotencyKey.updateMany).mockResolvedValue({
+      count: 1,
+    } as never);
+    vi.mocked(prisma.idempotencyKey.deleteMany).mockResolvedValue({
+      count: 1,
+    } as never);
   });
 
   it.each([
@@ -293,12 +402,15 @@ describe("withIdempotency body-content exclusion (P12)", () => {
       "sk-ant- Anthropic key",
       '{"data":{"echoed":"sk-ant-api03-xyz"},"error":null}',
     ],
-  ])("does NOT cache responses containing %s", async (_label, body) => {
+  ])("does NOT persist responses containing %s", async (_label, body) => {
     const handler = vi.fn(async () => new NextResponse(body, { status: 201 }));
     const wrapped = withIdempotency<[NextRequest]>(handler, async () => "u-1");
     await wrapped(makeRequest("POST", { "idempotency-key": "abc-12345678" }));
     expect(handler).toHaveBeenCalledTimes(1);
-    expect(prisma.idempotencyKey.create).not.toHaveBeenCalled();
+    // The claim row is still inserted, but the secret-shaped body must
+    // never be promoted into it — the claim is released instead.
+    expect(prisma.idempotencyKey.updateMany).not.toHaveBeenCalled();
+    expect(prisma.idempotencyKey.deleteMany).toHaveBeenCalledTimes(1);
   });
 
   it.each([
@@ -316,7 +428,7 @@ describe("withIdempotency body-content exclusion (P12)", () => {
         async () => "u-1",
       );
       await wrapped(makeRequest("POST", { "idempotency-key": "key-12345678" }));
-      expect(prisma.idempotencyKey.create).toHaveBeenCalledTimes(1);
+      expect(prisma.idempotencyKey.updateMany).toHaveBeenCalledTimes(1);
     },
   );
 
@@ -327,7 +439,7 @@ describe("withIdempotency body-content exclusion (P12)", () => {
     );
     const wrapped = withIdempotency<[NextRequest]>(handler, async () => "u-1");
     await wrapped(makeRequest("POST", { "idempotency-key": "abc-12345678" }));
-    expect(prisma.idempotencyKey.create).toHaveBeenCalledTimes(1);
+    expect(prisma.idempotencyKey.updateMany).toHaveBeenCalledTimes(1);
   });
 });
 
