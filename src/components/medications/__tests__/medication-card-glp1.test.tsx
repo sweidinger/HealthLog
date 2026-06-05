@@ -320,13 +320,13 @@ describe("<Glp1MedicationCard> — GLP-1 variant rendering", () => {
       client,
     );
 
-    // The with-site copy reads "Last: <label> · <site>"; both halves
-    // must show up in the SSR string.
+    // The last-line renders the "Last:" label in its own left column and
+    // the value (label · site) flush right; both halves show in the SSR.
     expect(html).toContain("Last:");
     expect(html).toContain("Abdomen, lower left");
-    // The next-injection helper produces one of three strings — today,
-    // tomorrow, or "in N days". All three contain the localised "Next:"
-    // prefix from `glp1NextInjection*` keys.
+    // The next-line carries the "Next:" label in its left column,
+    // independent of which of the three value variants (today / tomorrow /
+    // "in N days") the helper produced.
     expect(html).toMatch(/Next:/);
   });
 

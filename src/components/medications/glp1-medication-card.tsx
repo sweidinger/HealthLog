@@ -410,13 +410,14 @@ export function Glp1MedicationCard({
 
         {/* Injection state — next + last, rendered through the SAME shared
             <MedicationNextLastSlot> the generic card uses, so the order
-            (next-then-last), colour, spacing, gating and reserved
-            min-height are identical across the two card types. The GLP-1
-            phrasing carries its own "Next / Last injection" wording (and
-            the rotation nudge), so it opts out of the part's bold label
-            prefix and supplies the full line content. */}
+            (next-then-last), colour, spacing, gating, reserved min-height
+            and the label-left / value-right two-column layout are identical
+            across the two card types. The GLP-1 card overrides only the
+            left-column label with its appointment-phrased wording; the value
+            column carries the time (plus the optional rotation nudge). */}
         <MedicationNextLastSlot
-          labelled={false}
+          nextLabel={t("medications.glp1NextLabel")}
+          lastLabel={t("medications.glp1LastLabel")}
           next={
             next && currentWindowStatus.status !== "in_window" ? (
               <>

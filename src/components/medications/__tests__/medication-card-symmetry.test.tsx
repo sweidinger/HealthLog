@@ -448,11 +448,19 @@ describe("medication card symmetry — Ramipril vs Mounjaro", () => {
       expect(html).not.toContain("text-foreground/85");
       // No literal em-dash placeholder for an absent next-injection.
       expect(html).not.toContain(">—<");
-      // Both lines present (next + last), so two muted <p> in the slot.
+      // Both lines present (next + last). Each line is a two-column
+      // label-left / value-right row (`flex … justify-between`) so the
+      // label and the time read as distinct columns rather than crammed
+      // onto one run of text. Two such rows in the slot.
       const slotStart = html.indexOf("min-h-[2.75rem]");
-      const slot = html.slice(slotStart, slotStart + 800);
-      const lines = slot.match(/<p class="text-muted-foreground">/g) ?? [];
-      expect(lines.length).toBe(2);
+      const slot = html.slice(slotStart, slotStart + 1200);
+      const rows =
+        slot.match(
+          /<div class="text-muted-foreground flex items-baseline justify-between gap-3">/g,
+        ) ?? [];
+      expect(rows.length).toBe(2);
+      // The value is pinned flush-right in its own column.
+      expect(slot).toContain('<span class="text-right">');
     }
   });
 
