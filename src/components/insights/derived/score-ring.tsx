@@ -2,6 +2,7 @@
 
 import {
   Label,
+  PolarAngleAxis,
   PolarRadiusAxis,
   RadialBar,
   RadialBarChart,
@@ -114,9 +115,12 @@ export function ScoreRing({
       })
     : t("insights.derived.scoreRing.ariaProvisional");
 
-  // RadialBar fills the arc proportionally to the bar's value against the
-  // PolarRadiusAxis [0,100] domain; the track spans a full clockwise circle
-  // from 12 o'clock, so a value of 74 fills 74% of the ring.
+  // The RadialBar's angular sweep is governed by the `<PolarAngleAxis>` number
+  // domain [0,100] below — NOT the PolarRadiusAxis (which positions the bar
+  // radially + anchors the centred number). Without the angle axis Recharts
+  // auto-scales the angular domain to the single datum, so every ring filled a
+  // full circle regardless of its score; pinning the domain makes a value of
+  // 74 sweep 74% of the track (full clockwise circle from 12 o'clock).
   const data = [{ name: "score", value: hasScore ? clamped : 0, fill }];
   const startAngle = 90;
   const endAngle = -270;
@@ -144,6 +148,14 @@ export function ScoreRing({
           outerRadius={outerRadius}
           barSize={dims.barSize}
         >
+          {/* Pins the value→angle scale so the bar sweeps `value`% of the
+              track instead of always filling the full circle. */}
+          <PolarAngleAxis
+            type="number"
+            domain={[0, 100]}
+            tick={false}
+            axisLine={false}
+          />
           <RadialBar
             dataKey="value"
             background={

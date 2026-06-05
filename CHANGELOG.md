@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [1.13.1] — 2026-06-05 — wellness rings show the real score
+
+### Fixed
+
+- **The wellness-score rings now fill to the actual score.** Each ring was sweeping a full circle regardless of its value, so every score looked like 100%. The ring now fills proportionally — a 74 fills roughly three-quarters of the circle — across the overview tiles and the score detail view.
+
 ## [1.13.0] — 2026-06-05 — your own mood tags
 
 ### Added
