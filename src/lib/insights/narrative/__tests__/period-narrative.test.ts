@@ -213,6 +213,41 @@ describe("assemblePeriodNarrativeContext — drivers (FDR-controlled)", () => {
     const ctx = assertReady(assemblePeriodNarrativeContext(monthInput(m)));
     expect(ctx.drivers).toEqual([]);
   });
+
+  it("surfaces a RATED-factor channel as a driver with humanised prose", () => {
+    // A `FACTOR:work` daily score whose next-day sleep tracks it linearly.
+    const fVals = Array.from({ length: 31 }, (_, i) => (i % 5) + 1);
+    const sVals = Array.from({ length: 31 }, (_, i) =>
+      i === 0 ? 400 : ((i - 1) % 5) * 40 + 360 + (i % 2 === 0 ? 1 : -1),
+    );
+    const factor = seriesEndingAt(fVals, "2026-04-30");
+    const sleep = seriesEndingAt(sVals, "2026-04-30");
+    // Two real vitals with current-period coverage so the availability gate
+    // (≥ 2 DELTA metrics covered) is satisfied — a factor channel is not a
+    // vital delta and does not count toward coverage by design.
+    const weight = seriesEndingAt(Array.from({ length: 31 }, () => 80), "2026-04-30");
+    const steps = seriesEndingAt(Array.from({ length: 31 }, (_, i) => 8000 + i), "2026-04-30");
+    const discoverySeries: NamedSeries[] = [
+      { key: "FACTOR:work", role: "behaviour", points: factor },
+      { key: "SLEEP_DURATION", role: "outcome", points: sleep },
+    ];
+    const m = new Map<string, DailySeriesPoint[]>();
+    m.set("FACTOR:work", factor);
+    m.set("SLEEP_DURATION", sleep);
+    m.set("WEIGHT", weight);
+    m.set("ACTIVITY_STEPS", steps);
+
+    const ctx = assertReady(
+      assemblePeriodNarrativeContext(monthInput(m, discoverySeries)),
+    );
+    const driver = ctx.drivers.find((d) => d.behaviour === "FACTOR:work");
+    expect(driver).toBeDefined();
+    // The prose strips the namespace prefix and reads "rated work", stays
+    // causation-banned.
+    expect(driver!.interpretation).toContain("rated work");
+    expect(driver!.interpretation).not.toContain("FACTOR:");
+    expect(driver!.interpretation.toLowerCase()).toContain("not a cause");
+  });
 });
 
 describe("assemblePeriodNarrativeContext — coincident flags", () => {

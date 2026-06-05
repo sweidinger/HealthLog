@@ -2645,6 +2645,26 @@
         "detailSameDay": "Averages {withAvg} {unit} on the {withDays} days you tagged this vs {withoutAvg} {unit} without it.",
         "detailNextDay": "Averages {withAvg} {unit} the day after the {withDays} days you tagged this vs {withoutAvg} {unit} otherwise."
       },
+      "factorCrosstab": {
+        "title": "Your rated factors and your vitals",
+        "description": "How a vital differs on the days you rated each factor low compared with the days you rated it high.",
+        "pairLabel": "{factor} · {metric}",
+        "metricSleepDuration": "Sleep",
+        "metricSteps": "Steps",
+        "metricRestingHeartRate": "Resting heart rate",
+        "metricHrv": "Heart-rate variability",
+        "metricWeight": "Weight",
+        "metricBloodPressureSys": "Systolic",
+        "unitHours": "h",
+        "unitScore": "pts",
+        "unitSteps": "steps",
+        "unitBpm": "bpm",
+        "unitMs": "ms",
+        "unitKg": "kg",
+        "unitMmHg": "mmHg",
+        "detail": "Averages {lowAvg} {unit} on the {lowDays} days you rated {factor} low vs {highAvg} {unit} on the days you rated it high.",
+        "detailInverse": "Averages {lowAvg} {unit} on your {lowDays} worse {factor} days vs {highAvg} {unit} on your better ones."
+      },
       "discovery": {
         "title": "What stands out",
         "subheading": "Discovered relationships",

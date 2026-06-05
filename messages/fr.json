@@ -2645,6 +2645,26 @@
         "detailSameDay": "En moyenne {withAvg} {unit} les {withDays} jours avec ce tag contre {withoutAvg} {unit} sans.",
         "detailNextDay": "En moyenne {withAvg} {unit} le lendemain des {withDays} jours avec ce tag contre {withoutAvg} {unit} sinon."
       },
+      "factorCrosstab": {
+        "title": "Vos facteurs notés et vos constantes",
+        "description": "Comment une constante diffère les jours où vous avez noté un facteur bas par rapport aux jours où vous l'avez noté haut.",
+        "pairLabel": "{factor} · {metric}",
+        "metricSleepDuration": "Sommeil",
+        "metricSteps": "Pas",
+        "metricRestingHeartRate": "Fréquence cardiaque au repos",
+        "metricHrv": "Variabilité de la fréquence cardiaque",
+        "metricWeight": "Poids",
+        "metricBloodPressureSys": "Systolique",
+        "unitHours": "h",
+        "unitScore": "pts",
+        "unitSteps": "pas",
+        "unitBpm": "bpm",
+        "unitMs": "ms",
+        "unitKg": "kg",
+        "unitMmHg": "mmHg",
+        "detail": "En moyenne {lowAvg} {unit} les {lowDays} jours où vous avez noté {factor} bas contre {highAvg} {unit} les jours où vous l'avez noté haut.",
+        "detailInverse": "En moyenne {lowAvg} {unit} sur vos {lowDays} pires jours de {factor} contre {highAvg} {unit} sur les meilleurs."
+      },
       "discovery": {
         "title": "Ce qui ressort",
         "subheading": "Relations découvertes",

@@ -2645,6 +2645,26 @@
         "detailSameDay": "Średnio {withAvg} {unit} w {withDays} dniach z tym tagiem wobec {withoutAvg} {unit} bez niego.",
         "detailNextDay": "Średnio {withAvg} {unit} dzień po {withDays} dniach z tym tagiem wobec {withoutAvg} {unit} w pozostałe dni."
       },
+      "factorCrosstab": {
+        "title": "Twoje ocenione czynniki i parametry życiowe",
+        "description": "Jak parametr życiowy różni się w dniach, w których oceniłeś dany czynnik nisko, w porównaniu z dniami, w których oceniłeś go wysoko.",
+        "pairLabel": "{factor} · {metric}",
+        "metricSleepDuration": "Sen",
+        "metricSteps": "Kroki",
+        "metricRestingHeartRate": "Tętno spoczynkowe",
+        "metricHrv": "Zmienność rytmu serca",
+        "metricWeight": "Waga",
+        "metricBloodPressureSys": "Skurczowe",
+        "unitHours": "godz.",
+        "unitScore": "pkt",
+        "unitSteps": "kroki",
+        "unitBpm": "bpm",
+        "unitMs": "ms",
+        "unitKg": "kg",
+        "unitMmHg": "mmHg",
+        "detail": "Średnio {lowAvg} {unit} w {lowDays} dniach z niską oceną {factor} wobec {highAvg} {unit} w dniach z wysoką oceną.",
+        "detailInverse": "Średnio {lowAvg} {unit} w Twoich {lowDays} gorszych dniach {factor} wobec {highAvg} {unit} w lepszych."
+      },
       "discovery": {
         "title": "Co się wyróżnia",
         "subheading": "Wykryte relacje",

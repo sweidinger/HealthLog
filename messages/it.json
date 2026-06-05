@@ -2645,6 +2645,26 @@
         "detailSameDay": "In media {withAvg} {unit} nei {withDays} giorni con questo tag contro {withoutAvg} {unit} senza.",
         "detailNextDay": "In media {withAvg} {unit} il giorno dopo i {withDays} giorni con questo tag contro {withoutAvg} {unit} altrimenti."
       },
+      "factorCrosstab": {
+        "title": "I tuoi fattori valutati e i tuoi parametri vitali",
+        "description": "Come cambia un parametro vitale nei giorni in cui hai valutato basso un fattore rispetto ai giorni in cui lo hai valutato alto.",
+        "pairLabel": "{factor} · {metric}",
+        "metricSleepDuration": "Sonno",
+        "metricSteps": "Passi",
+        "metricRestingHeartRate": "Frequenza cardiaca a riposo",
+        "metricHrv": "Variabilità della frequenza cardiaca",
+        "metricWeight": "Peso",
+        "metricBloodPressureSys": "Sistolica",
+        "unitHours": "h",
+        "unitScore": "pti",
+        "unitSteps": "passi",
+        "unitBpm": "bpm",
+        "unitMs": "ms",
+        "unitKg": "kg",
+        "unitMmHg": "mmHg",
+        "detail": "In media {lowAvg} {unit} nei {lowDays} giorni in cui hai valutato basso {factor} contro {highAvg} {unit} nei giorni in cui lo hai valutato alto.",
+        "detailInverse": "In media {lowAvg} {unit} nei tuoi {lowDays} giorni peggiori di {factor} contro {highAvg} {unit} in quelli migliori."
+      },
       "discovery": {
         "title": "Cosa risalta",
         "subheading": "Relazioni scoperte",

@@ -2645,6 +2645,26 @@
         "detailSameDay": "Durchschnittlich {withAvg} {unit} an den {withDays} Tagen mit diesem Tag gegenüber {withoutAvg} {unit} ohne.",
         "detailNextDay": "Durchschnittlich {withAvg} {unit} am Tag nach den {withDays} Tagen mit diesem Tag gegenüber {withoutAvg} {unit} sonst."
       },
+      "factorCrosstab": {
+        "title": "Deine bewerteten Faktoren und deine Vitalwerte",
+        "description": "Wie sich ein Vitalwert an den Tagen unterscheidet, an denen du einen Faktor niedrig bewertet hast, verglichen mit den Tagen mit hoher Bewertung.",
+        "pairLabel": "{factor} · {metric}",
+        "metricSleepDuration": "Schlaf",
+        "metricSteps": "Schritte",
+        "metricRestingHeartRate": "Ruhepuls",
+        "metricHrv": "Herzfrequenzvariabilität",
+        "metricWeight": "Gewicht",
+        "metricBloodPressureSys": "Systolisch",
+        "unitHours": "Std.",
+        "unitScore": "Pkt.",
+        "unitSteps": "Schritte",
+        "unitBpm": "bpm",
+        "unitMs": "ms",
+        "unitKg": "kg",
+        "unitMmHg": "mmHg",
+        "detail": "Durchschnittlich {lowAvg} {unit} an den {lowDays} Tagen mit niedriger {factor}-Bewertung gegenüber {highAvg} {unit} an den Tagen mit hoher Bewertung.",
+        "detailInverse": "Durchschnittlich {lowAvg} {unit} an deinen {lowDays} schlechteren {factor}-Tagen gegenüber {highAvg} {unit} an deinen besseren."
+      },
       "discovery": {
         "title": "Was auffällt",
         "subheading": "Entdeckte Zusammenhänge",

@@ -109,6 +109,44 @@ export interface MoodAggregateEntry {
    * aggregate tests (flat tags only) keep their narrow fixtures.
    */
   structuredTags?: StructuredTagRef[];
+  /**
+   * v1.14.0 — per-entry RATED factor scores (work / sleep-quality /
+   * stress …) from the same `mood_entry_tag_links` join, but carrying the
+   * numeric `rating` instead of a present/absent flag. Optional so legacy
+   * fixtures keep their narrow shape. A RATED factor is a *continuous*
+   * daily signal, fed into the factor crosstab (low-vs-high-day vital
+   * deviation) and the discovery matrix — distinct from BINARY structured
+   * tags, which carry no `rating`.
+   */
+  ratedFactors?: RatedFactorScore[];
+}
+
+/**
+ * A RATED mood factor's score on a single entry, resolved from the
+ * catalog. Carries the scale + `inverse` flag so the analytics layer can
+ * apply the documented sign-flip ("higher rating = worse day" → flip so
+ * "up" always reads as better) once, at the series boundary.
+ */
+export interface RatedFactorScore {
+  /** Stable factor key (e.g. `work`). */
+  key: string;
+  /** Parent category key. */
+  categoryKey: string;
+  /** i18n message key for the factor label. */
+  labelKey: string;
+  /** Lucide icon name, or null. */
+  icon: string | null;
+  /** The per-entry rating, bounded to `scaleMin..scaleMax` at ingest. */
+  rating: number;
+  /** Inclusive scale bounds (default 1..5). */
+  scaleMin: number;
+  scaleMax: number;
+  /**
+   * `true` when a higher rating means a WORSE day (stress / conflict).
+   * The series builder flips an inverse factor's rating to
+   * `(scaleMin + scaleMax) - rating` so "up" always reads as better.
+   */
+  inverse: boolean;
 }
 
 /**
@@ -1043,6 +1081,313 @@ export function computeTagMetricCrosstab(args: {
     .slice(0, CROSSTAB_MAX_ROWS);
 }
 
+// --- RATED factor × health-metric crosstab (low- vs high-factor days) ---
+
+/**
+ * v1.14.0 — the flagship cross-domain insight: "on days you rated <factor>
+ * low, your <vital> ran X below baseline".
+ *
+ * A RATED mood factor (work / sleep-quality / stress …) is a CONTINUOUS
+ * per-day score, unlike the BINARY structured tags `computeTagMetricCrosstab`
+ * handles. To reuse the EXACT same Welch + FDR engine, this thresholds the
+ * factor's daily mean into a binary membership — a day is "low" when its
+ * factor mean sits BELOW the factor's own median over the window, "high" at
+ * or above. The median split is robust + self-calibrating (always two
+ * non-empty groups when the factor has spread), and invents no fixed cutoff.
+ *
+ * `inverse` is applied at the SERIES boundary (the factor's per-day mean is
+ * flipped to `(scaleMin + scaleMax) - raw` for an inverse factor like
+ * stress), so the median split — and therefore the "low day" label — always
+ * means "a worse day for this factor", honestly, without per-call casing.
+ *
+ * Same honesty discipline as the tag crosstab: both sides need
+ * `CROSSTAB_MIN_PRESENT_DAYS` / `CROSSTAB_MIN_ABSENT_DAYS` paired metric
+ * days, the family is BH-FDR corrected as one (across every factor × metric
+ * × direction pair), survivors clear p < 0.05 AND q ≤ `CROSSTAB_FDR_Q`, and
+ * the surface is capped + ranked. Observational only — the card renders the
+ * standing "association, not cause" caption.
+ */
+
+/**
+ * The metric channels the factor crosstab pairs each RATED factor against.
+ * Broader than the tag crosstab (which is activity-focused) because the
+ * value of a RATED factor is its bridge from a SUBJECTIVE score to an
+ * OBJECTIVE vital. `sameDay` for same-night/same-day metrics (sleep,
+ * steps); `nextDay` (D → D+1) for overnight-recovery metrics (RHR / HRV),
+ * matching the plausible "today's factor → tomorrow's body" direction.
+ */
+export const FACTOR_CROSSTAB_METRICS: Record<
+  string,
+  {
+    type: MeasurementType;
+    mode: CrosstabMode;
+    display: "hours" | "score" | "steps" | "bpm" | "ms" | "kg" | "mmHg";
+  }
+> = {
+  sleepDuration: { type: "SLEEP_DURATION", mode: "sameDay", display: "hours" },
+  steps: { type: "ACTIVITY_STEPS", mode: "sameDay", display: "steps" },
+  restingHeartRate: {
+    type: "RESTING_HEART_RATE",
+    mode: "nextDay",
+    display: "bpm",
+  },
+  heartRateVariability: {
+    type: "HEART_RATE_VARIABILITY",
+    mode: "nextDay",
+    display: "ms",
+  },
+  weight: { type: "WEIGHT", mode: "sameDay", display: "kg" },
+  bloodPressureSystolic: {
+    type: "BLOOD_PRESSURE_SYS",
+    mode: "sameDay",
+    display: "mmHg",
+  },
+} as const;
+
+export type FactorCrosstabMetricKey = keyof typeof FACTOR_CROSSTAB_METRICS;
+
+/** Distinct measurement types the factor crosstab reads — single-sourced. */
+export const FACTOR_CROSSTAB_METRIC_TYPES: MeasurementType[] = Array.from(
+  new Set(Object.values(FACTOR_CROSSTAB_METRICS).map((m) => m.type)),
+);
+
+export interface FactorMetricCrosstabRow {
+  /** Stable RATED-factor key. */
+  factor: string;
+  /** i18n label key for the factor. */
+  labelKey: string;
+  /** Parent category key, for grouping/icon. */
+  categoryKey: string;
+  /** Lucide icon name, or null. */
+  icon: string | null;
+  /**
+   * `true` when the factor is inverse-scaled (stress / conflict). The
+   * UI flips the phrasing — "your worse <factor> days" — but the split
+   * itself already runs on the flipped series, so a "low" row always
+   * means a worse day regardless.
+   */
+  inverse: boolean;
+  /** Which metric channel this row compares against. */
+  metricKey: FactorCrosstabMetricKey;
+  /** Display unit hint for the client formatter. */
+  display: FactorMetricDisplay;
+  /** Pairing mode used (echoed so the UI can caption "next-day"). */
+  mode: CrosstabMode;
+  /** Days the factor was rated LOW (below its median) with a paired metric. */
+  lowDays: number;
+  /** Days the factor was rated HIGH (at/above its median) with a paired metric. */
+  highDays: number;
+  /** Mean metric on low-factor days (display unit). */
+  lowAvg: number;
+  /** Mean metric on high-factor days (display unit). */
+  highAvg: number;
+  /** lowAvg − highAvg (display unit). Negative = vital runs lower on low days. */
+  delta: number;
+  /** Welch two-sided p-value for the difference of means. */
+  pValue: number;
+  /** Benjamini-Hochberg adjusted q-value across the tested family. */
+  qValue: number;
+  /** Discrete confidence band (p + min per-group day count). */
+  confidence: InfluenceConfidence;
+}
+
+type FactorMetricDisplay = (typeof FACTOR_CROSSTAB_METRICS)[FactorCrosstabMetricKey]["display"];
+
+/** Convert a raw metric value to its factor-crosstab display unit. */
+function toFactorDisplayUnit(value: number, display: FactorMetricDisplay): number {
+  return display === "hours" ? value / 60 : value;
+}
+
+/** Median of a numeric array (sorted-copy, mean-of-two for even length). */
+function median(values: number[]): number {
+  if (values.length === 0) return Number.NaN;
+  const sorted = [...values].sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  return sorted.length % 2 === 0
+    ? (sorted[mid - 1] + sorted[mid]) / 2
+    : sorted[mid];
+}
+
+/** Reference data for one RATED factor's daily series + its meta. */
+interface FactorDailySeries {
+  ref: Pick<RatedFactorScore, "key" | "labelKey" | "categoryKey" | "icon" | "inverse">;
+  /** Day key → factor's daily-mean score, inverse-flipped if needed. */
+  byDay: Map<string, number>;
+}
+
+/**
+ * Build a per-factor daily-mean series, applying the `inverse` sign-flip
+ * once. For each tz-anchored day, the mean of the factor's ratings across
+ * the day's entries; an inverse factor's rating `r` maps to
+ * `(scaleMin + scaleMax) - r` BEFORE averaging so "up" always reads as a
+ * better day. Pure. Exported for the discovery-channel path (period
+ * narrative) so the two consumers can never diverge on the flip.
+ */
+export function buildFactorDailySeries(
+  entries: MoodAggregateEntry[],
+  now: Date,
+  windowDays: number,
+): Map<string, FactorDailySeries> {
+  const cutoff = now.getTime() - windowDays * MS_PER_DAY;
+  const acc = new Map<
+    string,
+    {
+      ref: FactorDailySeries["ref"];
+      byDay: Map<string, { sum: number; count: number }>;
+    }
+  >();
+  for (const entry of entries) {
+    if (entry.moodLoggedAt.getTime() < cutoff) continue;
+    if (!entry.ratedFactors) continue;
+    for (const f of entry.ratedFactors) {
+      if (!Number.isFinite(f.rating)) continue;
+      // The documented sign-flip: an inverse factor's rating is mirrored
+      // across its scale midpoint so a higher series value always means a
+      // better day. Done here, once, at the series boundary.
+      const value = f.inverse
+        ? f.scaleMin + f.scaleMax - f.rating
+        : f.rating;
+      const slot =
+        acc.get(f.key) ??
+        {
+          ref: {
+            key: f.key,
+            labelKey: f.labelKey,
+            categoryKey: f.categoryKey,
+            icon: f.icon,
+            inverse: f.inverse,
+          },
+          byDay: new Map<string, { sum: number; count: number }>(),
+        };
+      const cur = slot.byDay.get(entry.date) ?? { sum: 0, count: 0 };
+      cur.sum += value;
+      cur.count += 1;
+      slot.byDay.set(entry.date, cur);
+      acc.set(f.key, slot);
+    }
+  }
+  const out = new Map<string, FactorDailySeries>();
+  for (const [key, slot] of acc) {
+    const byDay = new Map<string, number>();
+    for (const [day, agg] of slot.byDay) byDay.set(day, agg.sum / agg.count);
+    out.set(key, { ref: slot.ref, byDay });
+  }
+  return out;
+}
+
+interface FactorCrosstabCandidate {
+  row: Omit<FactorMetricCrosstabRow, "qValue">;
+}
+
+/**
+ * Compute the RATED-factor × metric crosstab. Pure over already-fetched
+ * rows. Mirrors `computeTagMetricCrosstab` but splits each factor's
+ * continuous daily score into low/high by its own median, then runs the
+ * same Welch + FDR engine.
+ */
+export function computeFactorMetricCrosstab(args: {
+  entries: MoodAggregateEntry[];
+  measurements: CrossMetricMeasurement[];
+  now: Date;
+  windowDays?: number;
+  userPriorityJson?: unknown;
+}): FactorMetricCrosstabRow[] {
+  const { entries, measurements, now } = args;
+  const windowDays = args.windowDays ?? 365;
+  const userPriorityJson = args.userPriorityJson ?? null;
+
+  const factorSeries = buildFactorDailySeries(entries, now, windowDays);
+  if (factorSeries.size === 0) return [];
+
+  const candidates: FactorCrosstabCandidate[] = [];
+
+  for (const [metricKey, cfg] of Object.entries(FACTOR_CROSSTAB_METRICS) as Array<
+    [FactorCrosstabMetricKey, (typeof FACTOR_CROSSTAB_METRICS)[FactorCrosstabMetricKey]]
+  >) {
+    const metricByDay = metricDayMap(measurements, cfg.type, userPriorityJson);
+    if (metricByDay.size === 0) continue;
+
+    for (const [factorKey, series] of factorSeries) {
+      // The median split is over the factor's own rated days only, so a
+      // sparse factor never borrows another's threshold.
+      const ratedDays = [...series.byDay.values()];
+      if (ratedDays.length < CROSSTAB_MIN_PRESENT_DAYS + CROSSTAB_MIN_ABSENT_DAYS) {
+        continue;
+      }
+      const split = median(ratedDays);
+
+      const lowVals: number[] = [];
+      const highVals: number[] = [];
+      for (const [dayKey, score] of series.byDay) {
+        const metricDayKey =
+          cfg.mode === "nextDay" ? shiftDayKey(dayKey, 1) : dayKey;
+        const metricValue = metricByDay.get(metricDayKey);
+        if (metricValue == null || !Number.isFinite(metricValue)) continue;
+        const display = toFactorDisplayUnit(metricValue, cfg.display);
+        // Below the median is a "low" (worse, after the inverse flip) day;
+        // at or above is "high". A perfectly bimodal factor with all days
+        // exactly on the median falls entirely into "high" and fails the
+        // low-side floor below — honest: no contrast, no row.
+        if (score < split) lowVals.push(display);
+        else highVals.push(display);
+      }
+
+      if (
+        lowVals.length < CROSSTAB_MIN_PRESENT_DAYS ||
+        highVals.length < CROSSTAB_MIN_ABSENT_DAYS
+      ) {
+        continue;
+      }
+
+      const welch = welchTTest(lowVals, highVals);
+      const lowAvg = lowVals.reduce((s, v) => s + v, 0) / lowVals.length;
+      const highAvg = highVals.reduce((s, v) => s + v, 0) / highVals.length;
+      const delta = lowAvg - highAvg;
+      if (delta === 0) continue;
+
+      const pValue = welch.status === "ok" ? welch.pValue : 1;
+      const minGroupDays = Math.min(lowVals.length, highVals.length);
+
+      candidates.push({
+        row: {
+          factor: factorKey,
+          labelKey: series.ref.labelKey,
+          categoryKey: series.ref.categoryKey,
+          icon: series.ref.icon,
+          inverse: series.ref.inverse,
+          metricKey,
+          display: cfg.display,
+          mode: cfg.mode,
+          lowDays: lowVals.length,
+          highDays: highVals.length,
+          lowAvg: round(lowAvg, 2),
+          highAvg: round(highAvg, 2),
+          delta: round(delta, 2),
+          pValue,
+          confidence: influenceConfidence(pValue, minGroupDays),
+        },
+      });
+    }
+  }
+
+  if (candidates.length === 0) return [];
+
+  // One BH family across every factor × metric pair tested — the same
+  // step-up the tag crosstab + discovery engine run.
+  const qValues = fdrAdjust(candidates.map((c) => c.row.pValue));
+
+  return candidates
+    .map((c, i) => ({ ...c.row, qValue: Math.round(qValues[i] * 1000) / 1000 }))
+    .filter((row) => row.pValue < 0.05 && row.qValue <= CROSSTAB_FDR_Q)
+    .sort(
+      (a, b) =>
+        a.qValue - b.qValue ||
+        Math.abs(b.delta) - Math.abs(a.delta) ||
+        a.factor.localeCompare(b.factor),
+    )
+    .slice(0, CROSSTAB_MAX_ROWS);
+}
+
 // --- In-target % over the last 30 daily points (lifted from mood-status) ---
 
 /**
@@ -1487,6 +1832,15 @@ export interface MoodAggregates {
    */
   tagMetricCrosstab: TagMetricCrosstabRow[];
   /**
+   * v1.14.0 — per-RATED-factor × health-metric crosstab: for each factor
+   * the user scores per entry (work / sleep-quality / stress …), a vital's
+   * mean on the days the factor was rated LOW vs HIGH (median split, same-day
+   * or D→D+1), Welch-tested + FDR-corrected. The cross-domain bridge from a
+   * subjective score to an objective vital. Observational; the card renders
+   * the standing "association, not cause" caption.
+   */
+  factorCrosstab: FactorMetricCrosstabRow[];
+  /**
    * v1.8.6 — ranked, threshold-gated narrative takeaways. The "read
    * this first" layer above the charts; the same array feeds the LLM
    * snapshot so prose and feed never drift.
@@ -1572,6 +1926,12 @@ export function computeMoodAggregates(args: {
     now,
     userPriorityJson,
   });
+  const factorCrosstab = computeFactorMetricCrosstab({
+    entries,
+    measurements,
+    now,
+    userPriorityJson,
+  });
 
   // Distinct day keys the user logged on — drives the streak takeaway.
   const loggedDayKeys = Array.from(new Set(entries.map((entry) => entry.date)));
@@ -1603,6 +1963,7 @@ export function computeMoodAggregates(args: {
     tagInfluence,
     betterDays,
     tagMetricCrosstab,
+    factorCrosstab,
     narratives: computeMoodNarratives({
       daily: moodDaily,
       weekday,
@@ -1646,13 +2007,20 @@ export async function fetchMoodAggregates(
         tz: true,
         // v1.8.5 — pull the structured-tag links + their catalog rows so
         // the breakdown can fold structured tags next to the flat ones.
+        // v1.14.0 — also pull the per-link `rating` + the factor's
+        // kind/scale/inverse so RATED factors feed the factor crosstab.
         tagLinks: {
           select: {
+            rating: true,
             moodTag: {
               select: {
                 key: true,
                 labelKey: true,
                 icon: true,
+                kind: true,
+                scaleMin: true,
+                scaleMax: true,
+                inverse: true,
                 category: { select: { key: true } },
               },
             },
@@ -1667,12 +2035,31 @@ export async function fetchMoodAggregates(
         tags: parseTags(row.tags),
         moodLoggedAt: row.moodLoggedAt,
         tz: row.tz,
-        structuredTags: row.tagLinks.map((link) => ({
-          key: link.moodTag.key,
-          categoryKey: link.moodTag.category.key,
-          labelKey: link.moodTag.labelKey,
-          icon: link.moodTag.icon,
-        })),
+        // BINARY links carry the structured-tag breakdown; RATED links
+        // (a non-null `rating`) carry the factor score. One join, two axes.
+        structuredTags: row.tagLinks
+          .filter((link) => link.moodTag.kind !== "RATED")
+          .map((link) => ({
+            key: link.moodTag.key,
+            categoryKey: link.moodTag.category.key,
+            labelKey: link.moodTag.labelKey,
+            icon: link.moodTag.icon,
+          })),
+        ratedFactors: row.tagLinks
+          .filter(
+            (link): link is typeof link & { rating: number } =>
+              link.moodTag.kind === "RATED" && link.rating != null,
+          )
+          .map((link) => ({
+            key: link.moodTag.key,
+            categoryKey: link.moodTag.category.key,
+            labelKey: link.moodTag.labelKey,
+            icon: link.moodTag.icon,
+            rating: link.rating,
+            scaleMin: link.moodTag.scaleMin,
+            scaleMax: link.moodTag.scaleMax,
+            inverse: link.moodTag.inverse,
+          })),
       })),
     );
 
@@ -1691,6 +2078,10 @@ export async function fetchMoodAggregates(
             new Set<MeasurementType>([
               ...(Object.values(CORRELATION_METRICS) as MeasurementType[]),
               ...CROSSTAB_METRIC_TYPES,
+              // v1.14.0 — union the factor-crosstab vital channels (RHR /
+              // HRV / steps / sleep / weight / BP-sys) so the factor board
+              // has its measurements without a second query.
+              ...FACTOR_CROSSTAB_METRIC_TYPES,
             ]),
           ),
         },

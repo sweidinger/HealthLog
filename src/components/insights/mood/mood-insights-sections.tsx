@@ -9,6 +9,7 @@ import {
   CalendarDays,
   CalendarRange,
   Clock,
+  Gauge,
   Grid3x3,
   Link2,
   Sparkles,
@@ -94,6 +95,10 @@ import {
   MoodTagMetricCrosstab,
   type MoodTagMetricCrosstabRow,
 } from "./mood-tag-metric-crosstab";
+import {
+  MoodFactorMetricCrosstab,
+  type MoodFactorMetricCrosstabRow,
+} from "./mood-factor-metric-crosstab";
 
 /**
  * v1.8.5 — additional Mood Insights sections.
@@ -130,6 +135,9 @@ interface MoodInsightsResponse {
   // Optional only to tolerate a stale pre-v1.12.0 cached payload during a
   // rollout; the live endpoint always populates it.
   tagMetricCrosstab?: MoodTagMetricCrosstabRow[];
+  // Optional only to tolerate a stale pre-v1.14.0 cached payload during a
+  // rollout; the live endpoint always populates it.
+  factorCrosstab?: MoodFactorMetricCrosstabRow[];
   narratives: MoodNarrativeItem[];
   correlations: {
     sleep: MoodMetricCorrelationData;
@@ -244,6 +252,8 @@ export function MoodInsightsSections({
   const hasBetterDays = betterDays.length > 0;
   const crosstabRows = data.tagMetricCrosstab ?? [];
   const hasCrosstab = crosstabRows.length > 0;
+  const factorCrosstabRows = data.factorCrosstab ?? [];
+  const hasFactorCrosstab = factorCrosstabRows.length > 0;
 
   // v1.12.7 — the Stimmungskalender is lifted above the line chart on the page,
   // so it renders as its own region here.
@@ -368,7 +378,17 @@ export function MoodInsightsSections({
         </SectionCard>
       )}
 
+      {hasFactorCrosstab && (
+        <SectionCard
+          title={t("insights.mood.factorCrosstab.title")}
+          icon={Gauge}
+        >
+          <MoodFactorMetricCrosstab rows={factorCrosstabRows} />
+        </SectionCard>
+      )}
+
       <SectionCard title={t("insights.mood.correlationsTitle")} icon={Link2}>
+
         <p className="text-muted-foreground mb-2 text-sm">
           {t("insights.mood.correlationsDescription")}
         </p>

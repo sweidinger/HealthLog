@@ -36,6 +36,7 @@ import {
   discoverCorrelations,
   DISCOVERY_BEHAVIOURS,
   DISCOVERY_OUTCOMES,
+  FACTOR_CHANNEL_PREFIX,
   type DailySeriesPoint,
   type NamedSeries,
 } from "@/lib/insights/correlation-discovery";
@@ -197,6 +198,57 @@ function toDailyMeans(
   return [...byDay.entries()]
     .map(([day, acc]) => ({ day, value: acc.sum / acc.count }))
     .sort((a, b) => (a.day < b.day ? -1 : 1));
+}
+
+/**
+ * A RATED mood factor link the period read pulls alongside the score.
+ * Carries the scale + `inverse` so the series build can apply the
+ * documented sign-flip once, at the boundary.
+ */
+interface FactorLink {
+  key: string;
+  rating: number;
+  scaleMin: number;
+  scaleMax: number;
+  inverse: boolean;
+  at: Date;
+}
+
+/**
+ * v1.14.0 — collapse RATED-factor links to one inverse-flipped daily-mean
+ * series per factor, tz-day-keyed exactly like `toDailyMeans` so a factor
+ * channel joins the discovery matrix on the same day grid as every vital.
+ * An inverse factor's rating `r` maps to `(scaleMin + scaleMax) - r` BEFORE
+ * averaging so "up" always reads as a better day — the same flip the mood
+ * aggregates apply, kept in lock-step. Returns one `FACTOR:<key>` series per
+ * factor the user actually rated. Pure.
+ */
+function factorDailyMeans(
+  links: FactorLink[],
+  tz: string,
+): Map<string, DailySeriesPoint[]> {
+  const byFactor = new Map<string, Map<string, { sum: number; count: number }>>();
+  for (const l of links) {
+    if (!Number.isFinite(l.rating)) continue;
+    const value = l.inverse ? l.scaleMin + l.scaleMax - l.rating : l.rating;
+    const day = tzDayKey(l.at, tz);
+    const days = byFactor.get(l.key) ?? new Map<string, { sum: number; count: number }>();
+    const acc = days.get(day) ?? { sum: 0, count: 0 };
+    acc.sum += value;
+    acc.count += 1;
+    days.set(day, acc);
+    byFactor.set(l.key, days);
+  }
+  const out = new Map<string, DailySeriesPoint[]>();
+  for (const [key, days] of byFactor) {
+    out.set(
+      `${FACTOR_CHANNEL_PREFIX}${key}`,
+      [...days.entries()]
+        .map(([day, acc]) => ({ day, value: acc.sum / acc.count }))
+        .sort((a, b) => (a.day < b.day ? -1 : 1)),
+    );
+  }
+  return out;
 }
 
 /** Round to 2 decimals. */
@@ -501,7 +553,29 @@ export async function buildPeriodNarrativeContext(
       where: { userId, deletedAt: null, moodLoggedAt: { gte: since } },
       orderBy: { moodLoggedAt: "asc" },
       take: 5000,
-      select: { score: true, moodLoggedAt: true },
+      select: {
+        score: true,
+        moodLoggedAt: true,
+        // v1.14.0 — pull RATED-factor links so each factor the user scores
+        // (work / sleep-quality / stress …) joins the discovery matrix as a
+        // `FACTOR:<key>` channel. One extra select on the existing mood read
+        // — no new round-trip. BINARY links carry a null `rating` and are
+        // dropped below.
+        tagLinks: {
+          where: { moodTag: { kind: "RATED" }, rating: { not: null } },
+          select: {
+            rating: true,
+            moodTag: {
+              select: {
+                key: true,
+                scaleMin: true,
+                scaleMax: true,
+                inverse: true,
+              },
+            },
+          },
+        },
+      },
     }),
   ]);
 
@@ -522,6 +596,25 @@ export async function buildPeriodNarrativeContext(
   );
   if (moodPoints.length > 0) seriesByMetric.set("MOOD", moodPoints);
 
+  // v1.14.0 — RATED-factor channels. Flatten every entry's RATED links into
+  // one inverse-flipped daily-mean series per factor, keyed `FACTOR:<key>`.
+  const factorLinks: FactorLink[] = [];
+  for (const e of moodEntries) {
+    for (const link of e.tagLinks) {
+      if (link.rating == null) continue;
+      factorLinks.push({
+        key: link.moodTag.key,
+        rating: link.rating,
+        scaleMin: link.moodTag.scaleMin,
+        scaleMax: link.moodTag.scaleMax,
+        inverse: link.moodTag.inverse,
+        at: e.moodLoggedAt,
+      });
+    }
+  }
+  const factorSeries = factorDailyMeans(factorLinks, tz);
+  for (const [key, points] of factorSeries) seriesByMetric.set(key, points);
+
   // Discovery matrix over the same window.
   const discoverySeries: NamedSeries[] = [];
   for (const key of DISCOVERY_BEHAVIOURS) {
@@ -537,6 +630,15 @@ export async function buildPeriodNarrativeContext(
       role: "outcome",
       points: seriesByMetric.get(key) ?? [],
     });
+  }
+  // A factor is plausibly both a lag source ("rated work today → next-day
+  // sleep") and a lag target ("steps today → next-day rated energy"), so it
+  // enters as both roles. The engine skips self-pairs and BH-FDR-controls the
+  // wider family this opens. Factors the user rated on < the paired-day floor
+  // simply never get tested — no new statistical machinery, same honesty.
+  for (const [key, points] of factorSeries) {
+    discoverySeries.push({ key, role: "behaviour", points });
+    discoverySeries.push({ key, role: "outcome", points });
   }
 
   return assemblePeriodNarrativeContext({

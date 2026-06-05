@@ -18,7 +18,9 @@ import {
   MOOD_GREEN_MIN,
   MOOD_ORANGE_MAX,
   MOOD_ORANGE_MIN,
+  type FactorMetricCrosstabRow,
   computeBetterDays,
+  computeFactorMetricCrosstab,
   computeInTargetPct,
   computeMoodMetricCorrelation,
   computeMoodStability,
@@ -61,6 +63,21 @@ import { toBerlinDayKey } from "@/lib/tz/resolver";
 function stripRankingOnly(row: TagInfluenceRow): Omit<TagInfluenceRow, "pooledSd"> {
   const { pooledSd: _pooledSd, ...rest } = row;
   void _pooledSd;
+  return rest;
+}
+
+/**
+ * Trim a factor-crosstab row to the load-bearing stats for the prompt — drop
+ * the UI-only `icon`. The factor key + metric + low/high averages + delta + n
+ * + confidence + inverse flag are what the model reasons over; the Lucide icon
+ * is chrome and has no place in the prompt payload (shown == sent for the
+ * statistics, not the glyph).
+ */
+function stripFactorCrosstab(
+  row: FactorMetricCrosstabRow,
+): Omit<FactorMetricCrosstabRow, "icon"> {
+  const { icon: _icon, ...rest } = row;
+  void _icon;
   return rest;
 }
 
@@ -151,13 +168,20 @@ export async function generateMoodStatusForUser(
         // v1.8.6 — pull the structured-tag links so the snapshot feeds
         // `computeMoodNarratives` the same structured-tag pool the visible
         // mood page does (shown == sent for the tag→mood takeaways).
+        // v1.14.0 — also pull the per-link `rating` + factor kind/scale/inverse
+        // so RATED factors feed the factor crosstab in the snapshot.
         tagLinks: {
           select: {
+            rating: true,
             moodTag: {
               select: {
                 key: true,
                 labelKey: true,
                 icon: true,
+                kind: true,
+                scaleMin: true,
+                scaleMax: true,
+                inverse: true,
                 category: { select: { key: true } },
               },
             },
@@ -172,12 +196,29 @@ export async function generateMoodStatusForUser(
         tags: row.tags,
         moodLoggedAt: row.moodLoggedAt,
         tz: row.tz,
-        structuredTags: (row.tagLinks ?? []).map((link) => ({
-          key: link.moodTag.key,
-          categoryKey: link.moodTag.category.key,
-          labelKey: link.moodTag.labelKey,
-          icon: link.moodTag.icon,
-        })),
+        structuredTags: (row.tagLinks ?? [])
+          .filter((link) => link.moodTag.kind !== "RATED")
+          .map((link) => ({
+            key: link.moodTag.key,
+            categoryKey: link.moodTag.category.key,
+            labelKey: link.moodTag.labelKey,
+            icon: link.moodTag.icon,
+          })),
+        ratedFactors: (row.tagLinks ?? [])
+          .filter(
+            (link): link is typeof link & { rating: number } =>
+              link.moodTag.kind === "RATED" && link.rating != null,
+          )
+          .map((link) => ({
+            key: link.moodTag.key,
+            categoryKey: link.moodTag.category.key,
+            labelKey: link.moodTag.labelKey,
+            icon: link.moodTag.icon,
+            rating: link.rating,
+            scaleMin: link.moodTag.scaleMin,
+            scaleMax: link.moodTag.scaleMax,
+            inverse: link.moodTag.inverse,
+          })),
       })),
     );
 
@@ -225,15 +266,36 @@ export async function generateMoodStatusForUser(
   // 1095 = 365 d × 3 channels so power users do not pull unbounded
   // rows. Order desc + reverse so the downstream filters see oldest-
   // first as before.
+  // v1.14.0 — union the factor-crosstab vital channels (RHR / HRV / steps /
+  // sleep, on top of weight / BP-sys) so the factor board the snapshot carries
+  // has its measurements; cap lifted to 365 d × 8 channels. `source` /
+  // `deviceType` ride along so the crosstab's per-day canonical-source pick
+  // de-dups a cumulative metric reported by two sources on the same day.
   const measurements = await prisma.measurement
     .findMany({
       where: {
         userId,
-        type: { in: ["WEIGHT", "BLOOD_PRESSURE_SYS", "PULSE"] },
+        type: {
+          in: [
+            "WEIGHT",
+            "BLOOD_PRESSURE_SYS",
+            "PULSE",
+            "RESTING_HEART_RATE",
+            "HEART_RATE_VARIABILITY",
+            "ACTIVITY_STEPS",
+            "SLEEP_DURATION",
+          ],
+        },
       },
       orderBy: { measuredAt: "desc" },
-      take: 1095,
-      select: { type: true, value: true, measuredAt: true },
+      take: 50_000,
+      select: {
+        type: true,
+        value: true,
+        measuredAt: true,
+        source: true,
+        deviceType: true,
+      },
     })
     .then((rows) => rows.reverse());
 
@@ -312,6 +374,17 @@ export async function generateMoodStatusForUser(
     ),
   });
 
+  // v1.14.0 — RATED-factor × vital crosstab: "on days you rated <factor> low,
+  // your <vital> ran X below baseline". Computed from the same entries +
+  // measurements the snapshot already holds so the model's prose matches the
+  // visible factor board (shown == sent). FDR-controlled + min-N-gated inside
+  // `computeFactorMetricCrosstab` — never fabricated on thin data.
+  const factorCrosstab = computeFactorMetricCrosstab({
+    entries,
+    measurements,
+    now,
+  });
+
   // v1.8.6 — the same threshold-gated narrative feed the user sees on
   // the mood page, computed from the same aggregates so the prose the
   // model writes never contradicts the takeaways on screen (shown ==
@@ -382,6 +455,13 @@ export async function generateMoodStatusForUser(
       // v1.11.5 (F2) — the ranked "better days" board the user sees, so the
       // model's relations prose matches the on-screen list (shown == sent).
       betterDays: betterDays.length > 0 ? betterDays : null,
+      // v1.14.0 — RATED-factor → vital deviation rows (low-vs-high-day Welch
+      // delta, FDR-gated). Lets the model say "your data shows sleep runs ~X
+      // shorter on days you rate work low (n=N, association not cause)". Only
+      // the surviving rows reach the prompt; an empty board emits null.
+      factorCrosstab: factorCrosstab.length > 0
+        ? factorCrosstab.map(stripFactorCrosstab)
+        : null,
       narratives: narratives.length > 0 ? narratives : null,
       // v1.9.0 — only emit the daypart pattern when it cleared its
       // spread/sample floors, so the model never reasons over a once-a-day

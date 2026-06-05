@@ -2645,6 +2645,26 @@
         "detailSameDay": "Promedia {withAvg} {unit} en los {withDays} días que lo etiquetaste frente a {withoutAvg} {unit} sin él.",
         "detailNextDay": "Promedia {withAvg} {unit} el día después de los {withDays} días que lo etiquetaste frente a {withoutAvg} {unit} el resto."
       },
+      "factorCrosstab": {
+        "title": "Tus factores valorados y tus constantes",
+        "description": "Cómo difiere una constante en los días en que valoraste bajo cada factor frente a los días en que lo valoraste alto.",
+        "pairLabel": "{factor} · {metric}",
+        "metricSleepDuration": "Sueño",
+        "metricSteps": "Pasos",
+        "metricRestingHeartRate": "Frecuencia cardíaca en reposo",
+        "metricHrv": "Variabilidad de la frecuencia cardíaca",
+        "metricWeight": "Peso",
+        "metricBloodPressureSys": "Sistólica",
+        "unitHours": "h",
+        "unitScore": "pts",
+        "unitSteps": "pasos",
+        "unitBpm": "ppm",
+        "unitMs": "ms",
+        "unitKg": "kg",
+        "unitMmHg": "mmHg",
+        "detail": "Promedia {lowAvg} {unit} en los {lowDays} días que valoraste {factor} bajo frente a {highAvg} {unit} en los días que lo valoraste alto.",
+        "detailInverse": "Promedia {lowAvg} {unit} en tus {lowDays} peores días de {factor} frente a {highAvg} {unit} en los mejores."
+      },
       "discovery": {
         "title": "Lo que destaca",
         "subheading": "Relaciones descubiertas",

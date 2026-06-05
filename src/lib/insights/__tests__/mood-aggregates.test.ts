@@ -16,6 +16,8 @@ import {
   computeTagInfluence,
   computeBetterDays,
   computeTagMetricCrosstab,
+  computeFactorMetricCrosstab,
+  buildFactorDailySeries,
   CROSSTAB_MIN_PRESENT_DAYS,
   CROSSTAB_MIN_ABSENT_DAYS,
   CROSSTAB_MAX_ROWS,
@@ -29,6 +31,7 @@ import {
   type CrossMetricMeasurement,
   type MoodAggregateEntry,
   type MoodMetricCorrelation,
+  type RatedFactorScore,
   type StructuredTagRef,
   type TagInfluence,
 } from "../mood-aggregates";
@@ -1092,5 +1095,160 @@ describe("computeTagMetricCrosstab", () => {
     expect(row).toBeDefined();
     expect(row!.withAvg).toBeCloseTo(8, 1); // 3 × 160 = 480 min = 8 h
     expect(row!.withoutAvg).toBeCloseTo(6, 1); // 3 × 120 = 360 min = 6 h
+  });
+});
+
+describe("buildFactorDailySeries", () => {
+  function factorEntry(
+    offset: number,
+    score: number,
+    factors: RatedFactorScore[],
+  ): MoodAggregateEntry {
+    return { ...entry(offset, score, null), ratedFactors: factors };
+  }
+
+  const WORK = (rating: number, inverse = false): RatedFactorScore => ({
+    key: "work",
+    categoryKey: "life",
+    labelKey: "mood.tag.work",
+    icon: "Briefcase",
+    rating,
+    scaleMin: 1,
+    scaleMax: 5,
+    inverse,
+  });
+
+  it("means a factor's ratings per day", () => {
+    const entries = [
+      // two entries same day → mean of (4, 2) = 3.
+      { ...factorEntry(0, 4, [WORK(4)]) },
+      { ...factorEntry(0, 2, [WORK(2)]) },
+      factorEntry(1, 3, [WORK(5)]),
+    ];
+    const series = buildFactorDailySeries(entries, NOW, 365);
+    const work = series.get("work");
+    expect(work).toBeDefined();
+    expect(work!.byDay.get(dayKey(0))).toBeCloseTo(3, 5);
+    expect(work!.byDay.get(dayKey(1))).toBeCloseTo(5, 5);
+    expect(work!.ref.inverse).toBe(false);
+  });
+
+  it("flips an inverse factor across its scale midpoint so up = better", () => {
+    // inverse stress rated 5 (worst) maps to (1+5)-5 = 1 (worst on the
+    // flipped axis); rated 1 (best) maps to 5.
+    const entries = [
+      factorEntry(0, 2, [WORK(5, true)]),
+      factorEntry(1, 4, [WORK(1, true)]),
+    ];
+    const series = buildFactorDailySeries(entries, NOW, 365);
+    const work = series.get("work")!;
+    expect(work.byDay.get(dayKey(0))).toBeCloseTo(1, 5);
+    expect(work.byDay.get(dayKey(1))).toBeCloseTo(5, 5);
+    expect(work.ref.inverse).toBe(true);
+  });
+});
+
+describe("computeFactorMetricCrosstab", () => {
+  function factorEntry(
+    offset: number,
+    score: number,
+    factors: RatedFactorScore[],
+  ): MoodAggregateEntry {
+    return { ...entry(offset, score, null), ratedFactors: factors };
+  }
+
+  function meas(offset: number, type: string, value: number): CrossMetricMeasurement {
+    return { type, value, measuredAt: new Date(NOW.getTime() - offset * dayMs) };
+  }
+
+  const work = (rating: number, inverse = false): RatedFactorScore => ({
+    key: "work",
+    categoryKey: "life",
+    labelKey: "mood.tag.work",
+    icon: "Briefcase",
+    rating,
+    scaleMin: 1,
+    scaleMax: 5,
+    inverse,
+  });
+
+  it("surfaces a low-factor-day vital deviation via the median split", () => {
+    const entries: MoodAggregateEntry[] = [];
+    const measurements: CrossMetricMeasurement[] = [];
+    // 12 LOW-work days (rating 2, below the median of 3.5) with short sleep
+    // (~6 h = 360 min); 12 HIGH-work days (rating 5) with long sleep (~8 h).
+    for (let i = 0; i < 12; i++) {
+      entries.push(factorEntry(i, 3, [work(2)]));
+      measurements.push(meas(i, "SLEEP_DURATION", 360 + (i % 2 === 0 ? 6 : -6)));
+    }
+    for (let i = 12; i < 24; i++) {
+      entries.push(factorEntry(i, 4, [work(5)]));
+      measurements.push(meas(i, "SLEEP_DURATION", 480 + (i % 2 === 0 ? 6 : -6)));
+    }
+    const rows = computeFactorMetricCrosstab({ entries, measurements, now: NOW });
+    const row = rows.find((r) => r.factor === "work" && r.metricKey === "sleepDuration");
+    expect(row).toBeDefined();
+    expect(row!.display).toBe("hours");
+    expect(row!.lowDays).toBe(12);
+    expect(row!.highDays).toBe(12);
+    expect(row!.lowAvg).toBeCloseTo(6, 1);
+    expect(row!.highAvg).toBeCloseTo(8, 1);
+    // delta = lowAvg − highAvg → negative: sleep runs lower on low-work days.
+    expect(row!.delta).toBeLessThan(0);
+    expect(row!.delta).toBeCloseTo(-2, 1);
+    expect(row!.confidence).toBe("high");
+    expect(row!.qValue).toBeLessThanOrEqual(0.1);
+    expect(row!.inverse).toBe(false);
+  });
+
+  it("carries the inverse flag through and still splits worse-vs-better on the flipped axis", () => {
+    const entries: MoodAggregateEntry[] = [];
+    const measurements: CrossMetricMeasurement[] = [];
+    // stress is inverse: rating 5 = worst day. On the flipped axis it becomes
+    // 1 (low/worse). Worse-stress days carry higher next-day RHR (D → D+1).
+    for (let i = 1; i <= 12; i++) {
+      entries.push(factorEntry(i, 3, [work(5, true)])); // worse → flipped low
+      measurements.push(meas(i - 1, "RESTING_HEART_RATE", 64 + (i % 2 === 0 ? 1 : -1)));
+    }
+    for (let i = 13; i <= 24; i++) {
+      entries.push(factorEntry(i, 4, [work(1, true)])); // better → flipped high
+      measurements.push(meas(i - 1, "RESTING_HEART_RATE", 56 + (i % 2 === 0 ? 1 : -1)));
+    }
+    const rows = computeFactorMetricCrosstab({ entries, measurements, now: NOW });
+    const row = rows.find((r) => r.metricKey === "restingHeartRate");
+    expect(row).toBeDefined();
+    expect(row!.mode).toBe("nextDay");
+    expect(row!.inverse).toBe(true);
+    // worse-stress (low flipped) days → higher RHR; delta = low − high > 0.
+    expect(row!.lowAvg).toBeCloseTo(64, 0);
+    expect(row!.highAvg).toBeCloseTo(56, 0);
+    expect(row!.delta).toBeGreaterThan(0);
+  });
+
+  it("drops a factor with too few rated days to split defensibly", () => {
+    const entries: MoodAggregateEntry[] = [];
+    const measurements: CrossMetricMeasurement[] = [];
+    // only 6 rated days < 5 + 5 floor for a clean median split.
+    for (let i = 0; i < 6; i++) {
+      entries.push(factorEntry(i, 3, [work(i < 3 ? 2 : 5)]));
+      measurements.push(meas(i, "SLEEP_DURATION", i < 3 ? 360 : 480));
+    }
+    expect(CROSSTAB_MIN_PRESENT_DAYS + CROSSTAB_MIN_ABSENT_DAYS).toBeGreaterThan(6);
+    const rows = computeFactorMetricCrosstab({ entries, measurements, now: NOW });
+    expect(rows.find((r) => r.factor === "work")).toBeUndefined();
+  });
+
+  it("returns nothing when there are no rated factors at all", () => {
+    const entries: MoodAggregateEntry[] = [];
+    const measurements: CrossMetricMeasurement[] = [];
+    for (let i = 0; i < 24; i++) {
+      entries.push(entry(i, 3, null));
+      measurements.push(meas(i, "SLEEP_DURATION", 420));
+    }
+    expect(computeFactorMetricCrosstab({ entries, measurements, now: NOW })).toEqual([]);
+  });
+
+  it("caps the surface at CROSSTAB_MAX_ROWS", () => {
+    expect(CROSSTAB_MAX_ROWS).toBeGreaterThan(0);
   });
 });
