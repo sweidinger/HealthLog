@@ -136,7 +136,7 @@ describe("<MetricStatStrip>", () => {
       expect(html).toBe("");
     });
 
-    it("pins the 'selected range' pill on a brushed series", () => {
+    it("reads the chart's visible-range stats over the full-range summary, with no pill", () => {
       const html = render(
         <MetricStatStrip
           groupLabel="Blood pressure"
@@ -158,10 +158,12 @@ describe("<MetricStatStrip>", () => {
           ]}
         />,
       );
-      // The brushed sys block flags windowed + carries the pill; dia does not.
+      // The sys block flags windowed (visible-range stats present); dia does not.
       expect(html).toContain('data-series="sys" data-windowed="true"');
-      expect(html).toContain('data-slot="metric-stat-window-badge"');
-      // Windowed numbers win over the full-range summary for sys.
+      // v1.12.8 — no "selected range" pill: the chart's range tab is the
+      // single, visible selector for both chart and strip.
+      expect(html).not.toContain('data-slot="metric-stat-window-badge"');
+      // Visible-range numbers win over the full-range summary for sys.
       expect(html).toContain("120");
     });
   });

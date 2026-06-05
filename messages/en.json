@@ -1497,8 +1497,7 @@
       "sat": "Saturday",
       "sun": "Sunday"
     },
-    "rangeBand": "Range",
-    "selectRange": "Select a range"
+    "rangeBand": "Range"
   },
   "chart": {
     "overlay": {
@@ -2112,8 +2111,7 @@
         "min": "Min",
         "max": "Max",
         "median": "Median",
-        "mean": "Mean",
-        "selectedRange": "Selected range"
+        "mean": "Mean"
       },
       "showAllValues": "Show all readings",
       "valuesPageTitle": "{metric} — all readings",

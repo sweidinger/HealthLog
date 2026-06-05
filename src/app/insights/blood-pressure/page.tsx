@@ -51,10 +51,10 @@ export default function InsightsBlutdruckPage() {
   const sysSummary = analytics?.summaries?.BLOOD_PRESSURE_SYS ?? null;
   const diaSummary = analytics?.summaries?.BLOOD_PRESSURE_DIA ?? null;
 
-  // v1.12.7 — chart-reactive metric statistics. Blood pressure brushes BOTH
-  // series at once: the single chart reports per-type windowed stats and each
-  // strip reads its own half.
-  const { statsByType, onDomainStats } = useChartDomainStats();
+  // v1.12.8 — chart-reactive metric statistics. Blood pressure tracks BOTH
+  // series at once: the single chart reports per-type visible-range stats and
+  // each strip column reads its own half.
+  const { statsByType, onVisibleStats } = useChartDomainStats();
 
   if (isEmpty) {
     return (
@@ -155,14 +155,14 @@ export default function InsightsBlutdruckPage() {
         chartKey="bp"
         types={["BLOOD_PRESSURE_SYS", "BLOOD_PRESSURE_DIA"]}
         title={t("charts.bloodPressure")}
+        titleIcon={HeartPulse}
         colors={["#ff79c6", "#8be9fd"]}
         unit="mmHg"
         yAxisUnit="mmHg"
         targetZones={bpTargetZones}
         compareBaseline={compareBaseline}
         userTimezone={user?.timezone}
-        selectableDomain
-        onDomainStats={onDomainStats}
+        onVisibleStats={onVisibleStats}
       />
 
       {/* v1.12.4 — target card sits between the chart and the assessment on
