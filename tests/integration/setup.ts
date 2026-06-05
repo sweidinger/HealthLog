@@ -26,6 +26,11 @@ export function getPrismaClient(): PrismaClient {
   return prisma;
 }
 
+/** Lazily-captured global mood-tag catalogue (NULL user_id rows). */
+let catalogueSnapshot:
+  | Awaited<ReturnType<PrismaClient["moodTag"]["findMany"]>>
+  | null = null;
+
 /**
  * Truncate every user-facing table in dependency-safe order using
  * `TRUNCATE … RESTART IDENTITY CASCADE`. Call from beforeEach() to make
@@ -74,8 +79,29 @@ export async function truncateAllTables(client: PrismaClient): Promise<void> {
     "workouts",
   ];
 
+  // v1.13.0 — the mood-tag catalogue (`mood_tags` rows with NULL user_id) is
+  // global reference data seeded by migrations and is intentionally NOT in the
+  // truncate list, so tests can rely on it. But `mood_tags.user_id` now FKs to
+  // `users`, so `TRUNCATE users CASCADE` cascades into `mood_tags` and wipes
+  // the catalogue too (TRUNCATE CASCADE truncates dependent tables wholesale,
+  // regardless of the ON DELETE action). Snapshot the catalogue once (before
+  // the first truncate clears it) and restore it after each truncate so the
+  // migration-seeded catalogue persists across tests as it did before the FK.
+  if (catalogueSnapshot === null) {
+    catalogueSnapshot = await client.moodTag.findMany({
+      where: { userId: null },
+    });
+  }
+
   const quoted = tables.map((t) => `"${t}"`).join(", ");
   await client.$executeRawUnsafe(
     `TRUNCATE TABLE ${quoted} RESTART IDENTITY CASCADE;`,
   );
+
+  if (catalogueSnapshot.length > 0) {
+    await client.moodTag.createMany({
+      data: catalogueSnapshot,
+      skipDuplicates: true,
+    });
+  }
 }

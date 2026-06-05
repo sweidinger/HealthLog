@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [1.13.0] — 2026-06-05 — your own mood tags
+
+### Added
+
+- **Make the mood-tag list your own.** You can now create your own custom mood tags, give each a label and an icon, and hide any of the built-in tags you don't use — so the tag picker shows exactly the set that fits you. Custom tags work everywhere a built-in tag does: logging, history, and the analysis. Custom tag names are encrypted at rest like the rest of your personal content. Deleting a custom tag keeps it on your past entries by default; a separate purge removes it from history too.
+
 ## [1.12.12] — 2026-06-05 — the period retrospective is never empty
 
 ### Added

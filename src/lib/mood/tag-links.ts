@@ -110,7 +110,14 @@ export async function resolveRatedFactors(
   for (const f of factors) byKey.set(f.key, f.rating);
 
   const rows = await db.moodTag.findMany({
-    where: { key: { in: [...byKey.keys()] }, isActive: true, kind: "RATED" },
+    // Rated factors are catalogue-only (v1 customs are BINARY); pin to
+    // `user_id IS NULL` so a custom row can never be resolved as a factor.
+    where: {
+      key: { in: [...byKey.keys()] },
+      isActive: true,
+      kind: "RATED",
+      userId: null,
+    },
     select: { id: true, key: true, scaleMin: true, scaleMax: true },
   });
 
@@ -132,17 +139,30 @@ export async function resolveRatedFactors(
 }
 
 /**
- * Resolve catalog tag keys to ids, dropping unknown / inactive keys.
- * Returns the ids in catalog order (deduped).
+ * Resolve tag keys to ids, dropping unknown / inactive keys. Returns the ids
+ * (deduped).
+ *
+ * v1.13.0 — when `ownerUserId` is given, a `custom:`-prefixed key resolves
+ * ONLY against that user's own custom tags; a bare catalogue key resolves
+ * against the global catalogue. A custom key owned by someone else simply
+ * does not match (dropped silently — the same posture as an unknown key), so
+ * a caller can never link another user's custom tag. Without `ownerUserId`
+ * the resolution is catalogue-only (`user_id IS NULL`), never matching any
+ * custom row — the safe default, since `{ userId: undefined }` in a Prisma
+ * filter would otherwise match every row.
  */
 export async function resolveTagKeysToIds(
   keys: string[],
   db: TagLinkDb = prisma,
+  ownerUserId?: string,
 ): Promise<string[]> {
   const unique = Array.from(new Set(keys));
   if (unique.length === 0) return [];
+  const ownerClause = ownerUserId
+    ? { OR: [{ userId: null }, { userId: ownerUserId }] }
+    : { userId: null };
   const rows = await db.moodTag.findMany({
-    where: { key: { in: unique }, isActive: true },
+    where: { key: { in: unique }, isActive: true, ...ownerClause },
     select: { id: true },
   });
   return rows.map((row) => row.id);
@@ -188,7 +208,7 @@ export async function createTagLinks(
     });
   }
 
-  const tagIds = (await resolveTagKeysToIds(keys, db)).filter(
+  const tagIds = (await resolveTagKeysToIds(keys, db, userId)).filter(
     // A key already written as a rated link is not re-inserted as a
     // bare binary row (that would lose the rating to `skipDuplicates`).
     (id) => !ratedTagIds.has(id),
@@ -215,7 +235,7 @@ export async function replaceTagLinks(
   db: TagLinkDb = prisma,
 ): Promise<void> {
   await assertEntryOwnership(moodEntryId, userId, db);
-  const desiredIds = new Set(await resolveTagKeysToIds(keys, db));
+  const desiredIds = new Set(await resolveTagKeysToIds(keys, db, userId));
   const existing = await db.moodEntryTagLink.findMany({
     where: { moodEntryId },
     select: { moodTagId: true },
