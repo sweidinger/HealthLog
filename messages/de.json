@@ -590,6 +590,23 @@
     "editMedication": "Medikament bearbeiten",
     "newMedication": "Neues Medikament",
     "firstMedication": "Erstes Medikament anlegen",
+    "addChoice": {
+      "logIntake": "Einnahme erfassen",
+      "newMedication": "Neues Medikament"
+    },
+    "logIntake": {
+      "dialogTitle": "Einnahme erfassen",
+      "dialogDescription": "Erfasse eine Dosis für ein vorhandenes Medikament. Du kannst sie auf ein vergangenes Datum und eine vergangene Uhrzeit zurückdatieren.",
+      "medicationLabel": "Medikament",
+      "slotLabel": "Einnahmeslot",
+      "slotNone": "Kein bestimmter Slot",
+      "takenAtLabel": "Datum und Uhrzeit",
+      "takenAtHint": "Standard ist jetzt; wähle ein früheres Datum und eine frühere Uhrzeit, um eine vergangene Dosis zu erfassen.",
+      "skippedLabel": "Als ausgelassen erfassen",
+      "noMedications": "Lege zuerst ein Medikament an, dann kannst du Einnahmen dafür erfassen.",
+      "cancel": "Abbrechen",
+      "submit": "Einnahme erfassen"
+    },
     "emptyTitle": "Noch keine Medikamente",
     "emptyDescription": "Lege Medikamente, Dosierungen und Einnahmefenster an, um Compliance zu erfassen.",
     "loadFailed": "Medikamente konnten nicht geladen werden",

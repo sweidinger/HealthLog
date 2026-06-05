@@ -590,6 +590,23 @@
     "editMedication": "Modifier le médicament",
     "newMedication": "Nouveau médicament",
     "firstMedication": "Ajouter le premier médicament",
+    "addChoice": {
+      "logIntake": "Enregistrer une prise",
+      "newMedication": "Nouveau médicament"
+    },
+    "logIntake": {
+      "dialogTitle": "Enregistrer une prise",
+      "dialogDescription": "Enregistrez une dose pour un médicament existant. Vous pouvez l’antidater à une date et une heure passées.",
+      "medicationLabel": "Médicament",
+      "slotLabel": "Créneau du planning",
+      "slotNone": "Aucun créneau précis",
+      "takenAtLabel": "Date et heure",
+      "takenAtHint": "Par défaut maintenant ; choisissez une date et une heure antérieures pour enregistrer une dose passée.",
+      "skippedLabel": "Enregistrer comme ignorée",
+      "noMedications": "Ajoutez d’abord un médicament, puis vous pourrez enregistrer des prises pour celui-ci.",
+      "cancel": "Annuler",
+      "submit": "Enregistrer la prise"
+    },
     "emptyTitle": "Aucun médicament pour l’instant",
     "emptyDescription": "Crée des médicaments, des doses et des fenêtres horaires pour suivre l’observance.",
     "loadFailed": "Impossible de charger les médicaments",

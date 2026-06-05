@@ -590,6 +590,23 @@
     "editMedication": "Edytuj lek",
     "newMedication": "Nowy lek",
     "firstMedication": "Dodaj pierwszy lek",
+    "addChoice": {
+      "logIntake": "Zarejestruj przyjęcie",
+      "newMedication": "Nowy lek"
+    },
+    "logIntake": {
+      "dialogTitle": "Zarejestruj przyjęcie",
+      "dialogDescription": "Zarejestruj dawkę istniejącego leku. Możesz wstawić ją wstecznie na przeszłą datę i godzinę.",
+      "medicationLabel": "Lek",
+      "slotLabel": "Przedział harmonogramu",
+      "slotNone": "Bez konkretnego przedziału",
+      "takenAtLabel": "Data i godzina",
+      "takenAtHint": "Domyślnie teraz; wybierz wcześniejszą datę i godzinę, aby zarejestrować przeszłą dawkę.",
+      "skippedLabel": "Zarejestruj jako pominięte",
+      "noMedications": "Najpierw dodaj lek, a potem będziesz mógł rejestrować jego przyjęcia.",
+      "cancel": "Anuluj",
+      "submit": "Zarejestruj przyjęcie"
+    },
     "emptyTitle": "Brak leków",
     "emptyDescription": "Utwórz leki, dawki i okna czasowe, aby śledzić przestrzeganie.",
     "loadFailed": "Nie udało się załadować leków",

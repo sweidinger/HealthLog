@@ -590,6 +590,23 @@
     "editMedication": "Modifica farmaco",
     "newMedication": "Nuovo farmaco",
     "firstMedication": "Aggiungi il primo farmaco",
+    "addChoice": {
+      "logIntake": "Registra un'assunzione",
+      "newMedication": "Nuovo farmaco"
+    },
+    "logIntake": {
+      "dialogTitle": "Registra un'assunzione",
+      "dialogDescription": "Registra una dose per un farmaco esistente. Puoi retrodatarla a una data e un'ora passate.",
+      "medicationLabel": "Farmaco",
+      "slotLabel": "Fascia della pianificazione",
+      "slotNone": "Nessuna fascia specifica",
+      "takenAtLabel": "Data e ora",
+      "takenAtHint": "Per impostazione predefinita è adesso; scegli una data e un'ora precedenti per registrare una dose passata.",
+      "skippedLabel": "Registra come saltata",
+      "noMedications": "Aggiungi prima un farmaco, poi potrai registrarne le assunzioni.",
+      "cancel": "Annulla",
+      "submit": "Registra assunzione"
+    },
     "emptyTitle": "Ancora nessun farmaco",
     "emptyDescription": "Crea farmaci, dosi e fasce orarie per registrare l’aderenza.",
     "loadFailed": "Impossibile caricare i farmaci",

@@ -12,11 +12,18 @@ import { MedicationWizardDialog } from "@/components/medications/wizard/Medicati
 import type { MedicationPayload } from "@/components/medications/wizard/wizard-payload";
 import { MedicationCard } from "@/components/medications/medication-card";
 import { Glp1MedicationCard } from "@/components/medications/glp1-medication-card";
+import { LogIntakeDialog } from "@/components/medications/log-intake-dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Loader2, Pill, Plus } from "lucide-react";
+import { CheckCircle2, Loader2, Pill, Plus } from "lucide-react";
 
 interface Schedule {
   id: string;
@@ -129,6 +136,10 @@ export default function MedicationsPage() {
   // `<AdvancedSettingsSheet>` mounted below, keyed to the selected
   // medication (reused, not duplicated per card).
   const [advancedMed, setAdvancedMed] = useState<Medication | null>(null);
+  // v1.14.0 — the medications-page "Add" choice. The top button now offers
+  // two paths: log an intake (incl. a backdated one) against an existing
+  // medication, or create a new medication (the existing wizard).
+  const [logIntakeOpen, setLogIntakeOpen] = useState(false);
 
   useEffect(() => {
     if (shouldOpenFromUrl) {
@@ -256,13 +267,33 @@ export default function MedicationsPage() {
             {t("medications.subtitle")}
           </p>
         </div>
-        {/* v1.12.2 — match the dashboard Add button's responsive tap-target
-            floor (`min-h-11 sm:min-h-9`) so both primary "add" entry points
-            clear the WCAG 2.5.5 44px mobile minimum identically. */}
-        <Button className="min-h-11 sm:min-h-9" onClick={openCreate}>
-          <Plus className="mr-2 h-4 w-4" />
-          {t("medications.addMedication")}
-        </Button>
+        {/* v1.14.0 — the "Add" button is now a choice: log an intake
+            (incl. a backdated one) against an existing medication, or
+            create a new medication. v1.12.2 — match the dashboard Add
+            button's responsive tap-target floor (`min-h-11 sm:min-h-9`) so
+            both primary "add" entry points clear the WCAG 2.5.5 44px mobile
+            minimum identically. */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button className="min-h-11 sm:min-h-9">
+              <Plus className="mr-2 h-4 w-4" />
+              {t("medications.addMedication")}
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem
+              onSelect={() => setLogIntakeOpen(true)}
+              disabled={activeMeds.length === 0}
+            >
+              <CheckCircle2 className="mr-2 h-4 w-4" />
+              {t("medications.addChoice.logIntake")}
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={openCreate}>
+              <Pill className="mr-2 h-4 w-4" />
+              {t("medications.addChoice.newMedication")}
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
       {isLoading ? (
@@ -392,6 +423,29 @@ export default function MedicationsPage() {
         initial={editingMed ? medicationToPayload(editingMed) : undefined}
         onSuccess={closeDialog}
       />
+
+      {/* v1.14.0 — log-intake path of the "Add" choice. Lists the active
+          medications, lets the user pin a schedule slot, and picks a
+          date+time that supports backdating. Submits to the existing
+          per-medication intake route (same slot upsert as a live "Taken"
+          tap) so the one-row-per-dose-slot invariant holds. */}
+      {logIntakeOpen && (
+        <LogIntakeDialog
+          open={logIntakeOpen}
+          onOpenChange={setLogIntakeOpen}
+          medications={activeMeds.map((m) => ({
+            id: m.id,
+            name: m.name,
+            dose: m.dose,
+            schedules: m.schedules.map((s) => ({
+              windowStart: s.windowStart,
+              label: s.label,
+              dose: s.dose,
+              timesOfDay: s.timesOfDay,
+            })),
+          }))}
+        />
+      )}
 
       {/* v1.7.1 — one shared advanced-settings sheet for every card.
           Reuses the exact component the detail page mounts (Data /

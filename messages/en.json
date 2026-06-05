@@ -590,6 +590,23 @@
     "editMedication": "Edit medication",
     "newMedication": "New medication",
     "firstMedication": "Add first medication",
+    "addChoice": {
+      "logIntake": "Log an intake",
+      "newMedication": "New medication"
+    },
+    "logIntake": {
+      "dialogTitle": "Log an intake",
+      "dialogDescription": "Record a dose against an existing medication. You can backdate it to a past date and time.",
+      "medicationLabel": "Medication",
+      "slotLabel": "Schedule slot",
+      "slotNone": "No specific slot",
+      "takenAtLabel": "Date and time",
+      "takenAtHint": "Defaults to now; pick an earlier date and time to log a past dose.",
+      "skippedLabel": "Logged as skipped",
+      "noMedications": "Add a medication first, then you can log intakes against it.",
+      "cancel": "Cancel",
+      "submit": "Log intake"
+    },
     "emptyTitle": "No medications yet",
     "emptyDescription": "Add medications, dosages, and reminder windows to track compliance.",
     "loadFailed": "Could not load medications",

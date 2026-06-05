@@ -156,6 +156,65 @@ export async function runRecordIntake(deps: {
 }
 
 /**
+ * v1.14.0 — pure orchestration for a manual, possibly BACKDATED intake
+ * logged against an existing medication from the medications-page "Add"
+ * choice (the "log an intake" branch). Mirrors {@link runRecordIntake}'s
+ * dependency-injected shape so it is unit-testable without a React render.
+ *
+ * Backdating: the dialog carries a user-picked `takenAt` (local time
+ * converted to ISO) which the per-medication intake route accepts with no
+ * future/past restriction. When the user also names a schedule slot the
+ * dialog supplies `scheduledFor` (the slot instant on the chosen day), so
+ * the write routes through the server's canonical slot upsert — the same
+ * snap/upsert path a normal "Taken" tap uses — preserving the
+ * one-row-per-dose-slot medical invariant. With no slot the route follows
+ * its unscheduled/PRN insert path.
+ */
+export async function runLogIntake(deps: {
+  medication: MedicationIntakeIdentity;
+  /** True logs a skipped slot; false records a taken dose. */
+  skipped: boolean;
+  /** ISO instant the dose was actually taken; ignored when skipped. */
+  takenAt: string;
+  /**
+   * ISO slot instant on the chosen day when the user pinned a schedule
+   * slot. Omit/undefined to route through the unscheduled/PRN path.
+   */
+  scheduledFor?: string;
+  t: Translator;
+  queryClient: QueryClient;
+}): Promise<boolean> {
+  const { medication, skipped, takenAt, scheduledFor, t, queryClient } = deps;
+  try {
+    const body: Record<string, unknown> = { skipped };
+    if (!skipped) body.takenAt = takenAt;
+    if (scheduledFor) body.scheduledFor = scheduledFor;
+    const res = await fetch(`/api/medications/${medication.id}/intake`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) {
+      toast.error(t("medications.intakeToastFailed", { name: medication.name }));
+      return false;
+    }
+    await invalidateKeys(queryClient, medicationDependentKeys);
+    toast.success(
+      t(
+        skipped
+          ? "medications.intakeToastSkipped"
+          : "medications.intakeToastTaken",
+        { name: medication.name },
+      ),
+    );
+    return true;
+  } catch {
+    toast.error(t("medications.intakeToastFailed", { name: medication.name }));
+    return false;
+  }
+}
+
+/**
  * Pure soft-delete undo for a just-recorded intake, dependencies injected
  * for the same testability reason as {@link runRecordIntake}.
  */

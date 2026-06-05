@@ -590,6 +590,23 @@
     "editMedication": "Editar medicamento",
     "newMedication": "Nuevo medicamento",
     "firstMedication": "Añadir el primer medicamento",
+    "addChoice": {
+      "logIntake": "Registrar una toma",
+      "newMedication": "Nuevo medicamento"
+    },
+    "logIntake": {
+      "dialogTitle": "Registrar una toma",
+      "dialogDescription": "Registra una dosis de un medicamento existente. Puedes posfecharla a una fecha y hora pasadas.",
+      "medicationLabel": "Medicamento",
+      "slotLabel": "Franja del horario",
+      "slotNone": "Sin franja concreta",
+      "takenAtLabel": "Fecha y hora",
+      "takenAtHint": "Por defecto es ahora; elige una fecha y hora anteriores para registrar una dosis pasada.",
+      "skippedLabel": "Registrar como omitida",
+      "noMedications": "Añade primero un medicamento y luego podrás registrar tomas para él.",
+      "cancel": "Cancelar",
+      "submit": "Registrar toma"
+    },
     "emptyTitle": "Aún no hay medicamentos",
     "emptyDescription": "Crea medicamentos, dosis y franjas horarias para registrar el cumplimiento.",
     "loadFailed": "No se han podido cargar los medicamentos",
