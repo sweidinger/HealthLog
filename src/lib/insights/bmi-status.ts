@@ -241,6 +241,7 @@ export async function generateBmiStatusForUser(
   const outcome = await runStatusCompletion({
     userId,
     cacheAction,
+    consentSurface: "insights",
     systemPrompt: getBmiSystemPrompt(locale),
     userPrompt: getBmiUserPrompt(
       snapshotJson,

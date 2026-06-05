@@ -353,6 +353,7 @@ export async function generateMedicationComplianceStatusForUser(
   const outcome = await runStatusCompletion({
     userId,
     cacheAction,
+    consentSurface: "insights",
     systemPrompt: getMedicationComplianceSystemPrompt(locale),
     userPrompt: getMedicationComplianceUserPrompt(
       snapshotJson,

@@ -49,6 +49,14 @@ vi.mock("@/lib/db", () => ({
       // the cache-invalidation test can assert against it.
       deleteMany: vi.fn(async () => ({ count: 0 })),
     },
+    // v1.12.1 — the server-managed consent gate reads the latest active
+    // receipt before egress. These fixtures resolve to an admin-openai
+    // chain, so the gate runs; return an active receipt so the generation
+    // path under test proceeds. The gate's own behaviour is covered in
+    // `consent-guard.test.ts`.
+    consentReceipt: {
+      findFirst: vi.fn(async () => ({ id: "receipt-1" })),
+    },
   },
 }));
 

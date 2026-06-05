@@ -10,6 +10,7 @@ import { hashToken } from "./auth/hmac";
 import { prisma } from "./db";
 import { auditLog } from "./auth/audit";
 import { AssistantDisabledError } from "./feature-flags";
+import { ConsentRequiredError } from "./ai/consent-guard";
 
 /**
  * Custom error class for HTTP errors with status codes.
@@ -171,6 +172,21 @@ export function apiHandler<T extends (...args: any[]) => Promise<Response>>(
           // Older iOS clients that don't know the errorCode surface
           // this as a generic 403; v1.4.31+ clients can branch on the
           // errorCode to render an inline operator-disabled notice.
+          evt.setError(error);
+          response = NextResponse.json(
+            {
+              data: null,
+              error: error.message,
+              meta: { errorCode: error.errorCode },
+            },
+            { status: 403 },
+          );
+        } else if (error instanceof ConsentRequiredError) {
+          // v1.12.1 — server-side consent gate before external-LLM PHI
+          // egress on the operator's server-managed key. Mirrors the
+          // AssistantDisabledError envelope (403 + meta.errorCode) so the
+          // iOS client renders an inline "grant consent" notice instead of
+          // a generic failure.
           evt.setError(error);
           response = NextResponse.json(
             {

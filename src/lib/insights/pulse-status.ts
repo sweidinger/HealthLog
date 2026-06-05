@@ -284,6 +284,7 @@ export async function generatePulseStatusForUser(
   const outcome = await runStatusCompletion({
     userId,
     cacheAction,
+    consentSurface: "insights",
     systemPrompt: getPulseSystemPrompt(locale),
     userPrompt: getPulseUserPrompt(
       snapshotJson,

@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   FITBIT_API_BASE,
   FITBIT_DATA_TYPES,
@@ -44,7 +44,16 @@ function installFetchMock(pages: Array<{ status: number; body: unknown }>) {
   return fetchMock;
 }
 
+// v1.12.1 — the redirect_uri allowlist (M-5) requires a configured, absolute
+// https app origin. Pin one for the OAuth-handshake cases.
+const PRIOR_APP_URL = process.env.NEXT_PUBLIC_APP_URL;
+beforeEach(() => {
+  process.env.NEXT_PUBLIC_APP_URL = "https://app.example.test";
+});
+
 afterEach(() => {
+  if (PRIOR_APP_URL === undefined) delete process.env.NEXT_PUBLIC_APP_URL;
+  else process.env.NEXT_PUBLIC_APP_URL = PRIOR_APP_URL;
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
 });
@@ -81,6 +90,57 @@ describe("getAuthorizationUrl", () => {
     expect(FITBIT_OAUTH_SCOPE).not.toContain("ecg");
     expect(FITBIT_OAUTH_SCOPE).not.toContain("nutrition");
     expect(FITBIT_OAUTH_SCOPE).not.toContain("location");
+  });
+
+  it("carries the configured app origin in the redirect_uri", () => {
+    const url = getAuthorizationUrl("nonce123", CREDS);
+    const redirect = new URL(url).searchParams.get("redirect_uri");
+    expect(redirect).toBe("https://app.example.test/api/fitbit/callback");
+  });
+});
+
+describe("redirect_uri allowlist (M-5)", () => {
+  const PRIOR_REDIRECT = process.env.FITBIT_REDIRECT_URI;
+  afterEach(() => {
+    if (PRIOR_REDIRECT === undefined) delete process.env.FITBIT_REDIRECT_URI;
+    else process.env.FITBIT_REDIRECT_URI = PRIOR_REDIRECT;
+  });
+
+  it("rejects a non-https app origin", () => {
+    process.env.NEXT_PUBLIC_APP_URL = "http://app.example.test";
+    expect(() => getAuthorizationUrl("n", CREDS)).toThrow(/must be https/);
+  });
+
+  it("allows http on localhost (dev)", () => {
+    process.env.NEXT_PUBLIC_APP_URL = "http://localhost:3000";
+    const url = getAuthorizationUrl("n", CREDS);
+    expect(new URL(url).searchParams.get("redirect_uri")).toBe(
+      "http://localhost:3000/api/fitbit/callback",
+    );
+  });
+
+  it("rejects an explicit redirect that targets the wrong path", () => {
+    process.env.FITBIT_REDIRECT_URI = "https://app.example.test/evil";
+    expect(() => getAuthorizationUrl("n", CREDS)).toThrow(
+      /must target \/api\/fitbit\/callback/,
+    );
+  });
+
+  it("rejects an explicit redirect whose origin differs from NEXT_PUBLIC_APP_URL", () => {
+    process.env.NEXT_PUBLIC_APP_URL = "https://app.example.test";
+    process.env.FITBIT_REDIRECT_URI =
+      "https://attacker.example.test/api/fitbit/callback";
+    expect(() => getAuthorizationUrl("n", CREDS)).toThrow(/does not match/);
+  });
+
+  it("accepts an explicit same-origin redirect", () => {
+    process.env.NEXT_PUBLIC_APP_URL = "https://app.example.test";
+    process.env.FITBIT_REDIRECT_URI =
+      "https://app.example.test/api/fitbit/callback";
+    const url = getAuthorizationUrl("n", CREDS);
+    expect(new URL(url).searchParams.get("redirect_uri")).toBe(
+      "https://app.example.test/api/fitbit/callback",
+    );
   });
 });
 

@@ -318,6 +318,7 @@ export async function generateMetricStatus(args: {
   const outcome = await runStatusCompletion({
     userId: args.userId,
     cacheAction,
+    consentSurface: "insights",
     systemPrompt: getMetricArchetypeSystemPrompt(meta, locale),
     userPrompt: getMetricArchetypeUserPrompt(
       meta,

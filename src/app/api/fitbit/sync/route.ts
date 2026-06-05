@@ -1,5 +1,6 @@
 import { apiHandler, requireAuth } from "@/lib/api-handler";
-import { apiSuccess } from "@/lib/api-response";
+import { apiSuccess, apiError } from "@/lib/api-response";
+import { checkRateLimit } from "@/lib/rate-limit";
 import { annotate } from "@/lib/logging/context";
 import { syncUserFitbit } from "@/lib/fitbit/sync";
 import { NextRequest } from "next/server";
@@ -9,10 +10,24 @@ import { NextRequest } from "next/server";
  *
  * Mirrors the WHOOP manual-sync route: incremental by default, full history when
  * `{ fullSync: true }` is posted.
+ *
+ * v1.12.1 — rate-limited (M-1). Every sibling Fitbit route (connect / test /
+ * resume) is limited; this one was the outlier, while `{ fullSync: true }`
+ * drives four paginated Google walkers (each capped at 1000 pages). A tight
+ * loop or a stolen native token could pin Prisma + the Google Health quota.
+ * A baseline 5/60s bucket (matching the test route) gates the route, and the
+ * expensive `fullSync` path carries a tighter 1/hour bucket of its own.
  */
 export const POST = apiHandler(async (request: NextRequest) => {
   const { user } = await requireAuth();
   annotate({ action: { name: "fitbit.sync" } });
+
+  const rl = await checkRateLimit(`fitbit-sync:${user.id}`, 5, 60_000);
+  if (!rl.allowed) {
+    return apiError("Too many sync requests", 429, {
+      errorCode: "rate_limited_self",
+    });
+  }
 
   let fullSync = false;
   try {
@@ -20,6 +35,22 @@ export const POST = apiHandler(async (request: NextRequest) => {
     fullSync = body?.fullSync === true;
   } catch {
     // no body provided -> default incremental sync
+  }
+
+  // The full-history walk is the expensive path (four paginated resource
+  // walkers); cap it well below the incremental bucket so a re-trigger loop
+  // cannot churn the Google quota.
+  if (fullSync) {
+    const fullRl = await checkRateLimit(
+      `fitbit-sync-full:${user.id}`,
+      1,
+      60 * 60_000,
+    );
+    if (!fullRl.allowed) {
+      return apiError("Full sync is limited to once per hour", 429, {
+        errorCode: "rate_limited_self",
+      });
+    }
   }
 
   const imported = await syncUserFitbit(user.id, { fullSync });

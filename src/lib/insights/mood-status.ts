@@ -459,6 +459,7 @@ export async function generateMoodStatusForUser(
   const outcome = await runStatusCompletion({
     userId,
     cacheAction,
+    consentSurface: "insights",
     systemPrompt: getMoodSystemPrompt(locale),
     userPrompt: getMoodUserPrompt(
       snapshotJson,

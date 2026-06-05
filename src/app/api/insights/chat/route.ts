@@ -42,6 +42,7 @@ import {
   runRawCompletionWithFallback,
 } from "@/lib/ai/provider-runner";
 import { resolveProviderChain, resolveProvider } from "@/lib/ai/provider";
+import { assertConsentForChain } from "@/lib/ai/consent-guard";
 import type { CompletionResult } from "@/lib/ai/types";
 import { PROMPT_VERSION } from "@/lib/ai/prompts/insight-generator";
 
@@ -349,6 +350,13 @@ Reply now as the assistant, in ${locale === "de" ? "German" : "English"}.`;
     }
     chain.push({ providerType: "admin-openai", instance: legacy });
   }
+
+  // v1.12.1 — consent gate before any server-managed external egress. When
+  // the chain could egress via the operator's global key, require an active
+  // `ai_coach` (or master `ai_full`) receipt. BYOK / local / ChatGPT-OAuth
+  // chains are the user's own egress and stay ungated. Throws
+  // ConsentRequiredError → apiHandler returns 403 + `consent.ai.required`.
+  await assertConsentForChain({ userId, chain, surface: "coach" });
 
   let result: CompletionResult;
   let workingProviderType: string;
