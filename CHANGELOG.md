@@ -2,6 +2,26 @@
 
 ## [Unreleased]
 
+## [1.12.7] — 2026-06-05 — Insights that react, read clean, and stay legible
+
+### Added
+
+- **The stats above a chart now follow your selection.** Brush a window on a metric chart and the min / max / median / average recompute for just that span; clear the selection to return to the full range. Works the same on every metric page, and blood pressure now shows systolic and diastolic in one card, side by side.
+
+### Changed
+
+- **The mood page reads top to bottom the way you'd walk it.** Summary, then the mood calendar, then the chart, then the target, then the assessment — followed by the breakdowns. The two "what stands out" sections are merged into one card, the statistical footnote is gone (the detail lives in a small info tooltip), and the mood colours are aligned to the rest of the charts.
+- **VO₂max opens its full chart.** The compact row on the pulse page now links to the dedicated cardio-fitness page instead of showing a chart-less summary.
+- **AI assessments vary more across your metrics.** The anti-repetition context now reaches the main cards (blood pressure, weight, pulse, mood, BMI, medication, overall), a step is only suggested when the finding implies one, and the default models were refreshed so the shared-key fallback isn't a quality drop.
+
+### Fixed
+
+- **Status colours stay legible on the light theme.** Connection states, recommendation badges, score provenance, and the settings success messages now use tokens that meet contrast in both themes.
+- **A late device sync no longer shrinks a day's step or energy total.** Trailing samples are folded into the existing daily total instead of replacing it.
+- **The medication streak is correct across time zones**, and the dashboard now serves its snapshot instantly after a sync while refreshing in the background.
+- **Metric pages and the Insights overview show a retry on error** instead of a blank or a false "no data yet".
+- **Account profile:** the timezone selector fills its row, and the "globally excluded injection sites" card matches the other cards.
+
 ## [1.12.6] — 2026-06-05 — one consistent Insights surface
 
 ### Changed
