@@ -52,7 +52,7 @@ function buildUserProvider(row: UserAIRow): AIProvider | null {
       // the SDK default is correct.
       return new AnthropicClient({
         apiKey: decrypt(row.aiAnthropicKeyEncrypted),
-        model: row.aiModel ?? "claude-3-5-sonnet-latest",
+        model: row.aiModel ?? "claude-sonnet-4-6",
       });
     }
     case "LOCAL": {

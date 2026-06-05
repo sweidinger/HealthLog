@@ -18,7 +18,7 @@ export const GET = apiHandler(async () => {
   });
 
   const hasKey = Boolean(settings?.adminAiKeyEncrypted);
-  const model = settings?.adminAiModel ?? "gpt-4o-mini";
+  const model = settings?.adminAiModel ?? "gpt-4o";
   const baseUrl = settings?.adminAiBaseUrl ?? "https://api.openai.com/v1";
 
   return apiSuccess({
