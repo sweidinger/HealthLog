@@ -11,8 +11,8 @@ Ollama endpoint can fall back from one to the other automatically.
 
 | Provider | Key acquisition | Default model | Endpoint | Privacy stance |
 | -------- | ---------------- | ------------- | -------- | -------------- |
-| `OPENAI` | <https://platform.openai.com/api-keys> | `gpt-4o-mini` | `https://api.openai.com/v1` | Measurement context sent to OpenAI |
-| `ANTHROPIC` | <https://console.anthropic.com/settings/keys> | `claude-3-5-sonnet-latest` | Anthropic SDK default | Measurement context sent to Anthropic |
+| `OPENAI` | <https://platform.openai.com/api-keys> | `gpt-4o` | `https://api.openai.com/v1` | Measurement context sent to OpenAI |
+| `ANTHROPIC` | <https://console.anthropic.com/settings/keys> | `claude-sonnet-4-6` | Anthropic SDK default | Measurement context sent to Anthropic |
 | `LOCAL` | None (your endpoint) | `local-model` | OpenAI-compatible URL you control | Stays on your network |
 | `CHATGPT_OAUTH` | Sign in with your ChatGPT account | Codex-routed | `chatgpt.com/backend-api/codex/responses` | Routed via your ChatGPT subscription |
 
@@ -71,16 +71,17 @@ the default rather than 500-ing.
 4. In HealthLog, open `/settings/ai`. Set provider to **OpenAI**,
    paste the key, optionally override the model.
 
-The default model is `gpt-4o-mini` (`src/lib/ai/provider.ts:80`) —
-cheap, fast, and grounded enough for the structured-output Coach
-prompts. Override to `gpt-4o` or `gpt-4.1` if you want more reasoning
-headroom and accept the per-token cost.
+The default model is `gpt-4o` (`src/lib/ai/provider.ts:80`) — a
+full-size model that keeps the headline Insights assessments grounded
+and well-reasoned out of the box. Override to a lighter model such as
+`gpt-4o-mini` if you want to trade some reasoning headroom for a lower
+per-token cost.
 
 **Cost expectation.** A daily briefing for an active account runs at
-roughly 4–8k input tokens + ~1k output. At gpt-4o-mini's published
-rates that is well under a US cent per briefing; a heavy user
-generating multiple Coach turns plus a weekly report typically spends
-a few dollars per month.
+roughly 4–8k input tokens + ~1k output. At gpt-4o's published rates
+that is a fraction of a US cent per briefing; a heavy user generating
+multiple Coach turns plus a weekly report typically spends a few
+dollars per month. A lighter override drops this further.
 
 ## Anthropic setup
 
@@ -91,16 +92,16 @@ a few dollars per month.
 4. In HealthLog, open `/settings/ai`. Set provider to **Anthropic**,
    paste the key, optionally override the model.
 
-The default model is `claude-3-5-sonnet-latest` (`src/lib/ai/provider.ts:55`).
+The default model is `claude-sonnet-4-6` (`src/lib/ai/provider.ts`).
 The Anthropic client refuses to forward an Anthropic key to a stale
 `aiBaseUrl` even if one is parked in the shared column — Anthropic
 has no per-tenant base URL the UI exposes; the SDK default is the
 only correct endpoint.
 
-**Cost expectation.** Claude 3.5 Sonnet runs roughly 5x the per-token
-cost of `gpt-4o-mini` but produces noticeably stronger reasoning on
-the more structured Coach prompts. Most BYOK users on Claude spend
-in the low single digits per month.
+**Cost expectation.** A current Sonnet runs at a higher per-token
+cost than a lightweight OpenAI model but produces noticeably stronger
+reasoning on the more structured Coach prompts. Most BYOK users on
+Claude spend in the low single digits per month.
 
 ## Local endpoints (Ollama, LM Studio, vLLM)
 

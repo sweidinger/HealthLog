@@ -70,14 +70,14 @@ function buildUserProvider(row: UserAIRow): AIProvider | null {
       // to the admin key if the user hasn't supplied their own. The
       // model-default mirrors the admin path for consistency so a saved
       // user "OPENAI" without an explicit model still produces an
-      // OpenAIClient with `gpt-4o-mini`.
+      // OpenAIClient with the current full-size default `gpt-4o`.
       // Belt-and-braces: ignore any persisted `aiBaseUrl`. The column is
       // shared with LOCAL, so a stale LAN URL there would otherwise
       // redirect the user's OpenAI key to a private host.
       if (!row.aiOpenaiKeyEncrypted) return null;
       return new OpenAIClient({
         apiKey: decrypt(row.aiOpenaiKeyEncrypted),
-        model: row.aiModel ?? "gpt-4o-mini",
+        model: row.aiModel ?? "gpt-4o",
         baseUrl: "https://api.openai.com/v1",
       });
     }
@@ -97,7 +97,7 @@ async function resolveAdminProvider(): Promise<AIProvider> {
   if (settings?.adminAiKeyEncrypted) {
     return new OpenAIClient({
       apiKey: decrypt(settings.adminAiKeyEncrypted),
-      model: settings.adminAiModel ?? "gpt-4o-mini",
+      model: settings.adminAiModel ?? "gpt-4o",
       baseUrl: settings.adminAiBaseUrl ?? "https://api.openai.com/v1",
     });
   }
@@ -339,7 +339,7 @@ async function resolveProviderForType(
       if (!enc) return null;
       return new OpenAIClient({
         apiKey: decrypt(enc),
-        model: ctx.userRow?.aiModel ?? "gpt-4o-mini",
+        model: ctx.userRow?.aiModel ?? "gpt-4o",
         baseUrl: "https://api.openai.com/v1",
       });
     }
@@ -348,7 +348,7 @@ async function resolveProviderForType(
       if (!enc) return null;
       return new AnthropicClient({
         apiKey: decrypt(enc),
-        model: ctx.userRow?.aiModel ?? "claude-3-5-sonnet-latest",
+        model: ctx.userRow?.aiModel ?? "claude-sonnet-4-6",
       });
     }
     case "local": {
@@ -501,7 +501,7 @@ export async function resolveProviderForTest(
       if (userKey) {
         return new OpenAIClient({
           apiKey: userKey,
-          model: model || "gpt-4o-mini",
+          model: model || "gpt-4o",
           baseUrl: "https://api.openai.com/v1",
         });
       }
