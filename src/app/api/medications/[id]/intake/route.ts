@@ -155,6 +155,10 @@ async function postIntake(request: NextRequest, { params }: RouteParams) {
     medicationId: id,
     userTz: user.timezone,
     incoming: incomingScheduledFor,
+    // Only a client-supplied `scheduledFor` names a real slot. A
+    // `takenAt`-only / defaulted-now write must not snap across the wide
+    // ±halfGap window onto a far slot (phantom morning dose).
+    instantIsExplicit: scheduledFor !== undefined,
   });
 
   // Idempotency check (explicit key or server-side dedup window)

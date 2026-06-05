@@ -419,6 +419,74 @@ describe("intake write path — multi-dose wide window does not collapse", () =>
   });
 });
 
+describe("intake write path — defaulted-now midday does not back-fill the morning slot", () => {
+  // The phantom morning-dose regression, end-to-end through the DB-backed
+  // resolver: a bulk/sync entry that carries ONLY `takenAt` (no client
+  // `scheduledFor`) around midday must NOT snap onto the 07:00 slot of a
+  // 07:00 / 19:00 med and stamp it taken. With `instantIsExplicit:false`
+  // the resolver returns null (PRN) so the morning slot stays untouched.
+  it("a takenAt-only 12:30 write resolves to null and leaves the 07:00 slot untaken", async () => {
+    const prisma = getPrismaClient();
+    const medId = await createTwiceDailyMed();
+
+    const slot0700 = localHmAsUtc(DAY, "Europe/Berlin", 7, 0);
+
+    // Server-minted pending 07:00 reminder row — the row the phantom take
+    // would have stamped.
+    const pending = await prisma.medicationIntakeEvent.create({
+      data: {
+        userId: TEST_USER_ID,
+        medicationId: medId,
+        scheduledFor: slot0700,
+        takenAt: null,
+        skipped: false,
+        source: "REMINDER",
+      },
+    });
+
+    // Bulk/sync entry: no `scheduledFor`, only `takenAt` at 12:30 local
+    // (10:30Z in CET). This mirrors `intake/bulk` defaulting the instant
+    // to `takenAt` with `instantIsExplicit: entry.scheduledFor !== undefined`.
+    const middayTakenAt = new Date("2026-03-10T11:30:00.000Z"); // 12:30 CET
+    const canonicalSlot = await resolveSlotInstantForWrite({
+      userId: TEST_USER_ID,
+      medicationId: medId,
+      userTz: "Europe/Berlin",
+      incoming: middayTakenAt,
+      instantIsExplicit: false,
+      client: prisma,
+    });
+
+    // The defaulted-now write does NOT snap onto the far 07:00 slot.
+    expect(canonicalSlot).toBeNull();
+
+    // The 07:00 reminder row stays untaken — no phantom morning dose.
+    const morning = await prisma.medicationIntakeEvent.findUniqueOrThrow({
+      where: { id: pending.id },
+    });
+    expect(morning.takenAt).toBeNull();
+    expect(morning.skipped).toBe(false);
+    expect(morning.deletedAt).toBeNull();
+  });
+
+  it("an EXPLICIT scheduledFor:07:00 write still snaps onto the 07:00 slot", async () => {
+    const prisma = getPrismaClient();
+    const medId = await createTwiceDailyMed();
+    const slot0700 = localHmAsUtc(DAY, "Europe/Berlin", 7, 0);
+
+    const explicitWrite = new Date("2026-03-10T06:00:00.000Z"); // 07:00 CET
+    const canonicalSlot = await resolveSlotInstantForWrite({
+      userId: TEST_USER_ID,
+      medicationId: medId,
+      userTz: "Europe/Berlin",
+      incoming: explicitWrite,
+      instantIsExplicit: true,
+      client: prisma,
+    });
+    expect(canonicalSlot?.toISOString()).toBe(slot0700.toISOString());
+  });
+});
+
 describe("intake-slot-dedup — boot discovery scoping", () => {
   it("returns 0 when no user holds a duplicate pair", async () => {
     const prisma = getPrismaClient();

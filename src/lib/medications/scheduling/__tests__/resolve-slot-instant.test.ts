@@ -87,6 +87,62 @@ describe("resolveCanonicalSlotInstant — multi-time", () => {
   });
 });
 
+describe("resolveCanonicalSlotInstant — defaulted-now midday (phantom morning dose)", () => {
+  // The phantom morning-dose bug: a 07:00 / 19:00 med whose 07:00 slot got
+  // auto-marked taken because a slot-less midday "taken now" write
+  // (no client `scheduledFor`) snapped across the ±6h half-gap window onto
+  // the 07:00 slot. A DEFAULTED-now write (`instantIsExplicit: false`)
+  // must NOT reach a far slot — only the tight dose-grace window snaps,
+  // and 11:00 / 12:00 / 13:00 are well outside it, so the result is `null`
+  // (PRN standalone row).
+  const med = makeMedication([
+    makeSchedule({ timesOfDay: ["07:00", "19:00"], windowEnd: "07:00" }),
+  ]);
+
+  for (const [label, hourUtc] of [
+    ["11:00", 9],
+    ["12:00", 10],
+    ["13:00", 11],
+  ] as const) {
+    it(`returns null for a defaulted-now ${label}-local write`, () => {
+      // CEST = UTC+2, so 11:00 local = 09:00Z, etc.
+      const incoming = new Date(
+        `2026-06-15T${String(hourUtc).padStart(2, "0")}:00:00.000Z`,
+      );
+      const result = resolveCanonicalSlotInstant({
+        medication: med,
+        userTz: TZ,
+        incoming,
+        instantIsExplicit: false,
+      });
+      expect(result).toBeNull();
+    });
+  }
+
+  it("still snaps an EXPLICIT scheduledFor:07:00 write to the 07:00 slot", () => {
+    const incoming = new Date("2026-06-15T05:00:00.000Z"); // 07:00 CEST
+    const result = resolveCanonicalSlotInstant({
+      medication: med,
+      userTz: TZ,
+      incoming,
+      instantIsExplicit: true,
+    });
+    const canonical = localHmAsUtc(incoming, TZ, 7, 0);
+    expect(result?.toISOString()).toBe(canonical.toISOString());
+  });
+
+  it("defaults to explicit snap when the flag is omitted (legacy behaviour)", () => {
+    const incoming = new Date("2026-06-15T05:00:00.000Z"); // 07:00 CEST
+    const result = resolveCanonicalSlotInstant({
+      medication: med,
+      userTz: TZ,
+      incoming,
+    });
+    const canonical = localHmAsUtc(incoming, TZ, 7, 0);
+    expect(result?.toISOString()).toBe(canonical.toISOString());
+  });
+});
+
 describe("resolveCanonicalSlotInstant — multi-time wide window", () => {
   // The LIVE twice-daily-Ramipril regression: 08:00 / 20:00 doses with a
   // WIDE schedule window (08:00–22:00 = 14h span → ±7h half-span). The

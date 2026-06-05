@@ -72,6 +72,24 @@ export interface ResolveSlotInput {
    * rolling schedules; pass `null` when unknown / not loaded.
    */
   lastIntakeAt?: Date | null;
+  /**
+   * Whether the client sent an explicit `scheduledFor` for this write.
+   *
+   * `true` — the instant names a real dose slot; keep the full ±halfGap
+   * snap so iOS-vs-server minute drift still collapses onto one row.
+   *
+   * `false` — the instant is a DEFAULTED `now` / `takenAt` (the client
+   * sent no `scheduledFor`). A slot-less "taken now" write must NOT snap
+   * across the wide ±halfGap window onto a far-away slot (the phantom
+   * morning-dose bug: a midday write capturing the 07:00 slot of a
+   * 07:00 / 19:00 med). Resolve only when the instant falls inside the
+   * tight dose-grace window of a slot; otherwise return `null` (PRN) so
+   * it records as a standalone "taken now" row.
+   *
+   * Defaults to `true` (explicit) so callers that don't thread the flag
+   * keep the legacy snap behaviour unchanged.
+   */
+  instantIsExplicit?: boolean;
 }
 
 /**
@@ -88,6 +106,7 @@ export function resolveCanonicalSlotInstant(
   input: ResolveSlotInput,
 ): Date | null {
   const { medication, userTz, incoming } = input;
+  const instantIsExplicit = input.instantIsExplicit ?? true;
   const schedules = medication.schedules ?? [];
   if (schedules.length === 0) return null;
 
@@ -117,7 +136,13 @@ export function resolveCanonicalSlotInstant(
       windowEnd,
       ctx,
     );
-    const tolerance = snapToleranceMs(canonical);
+    // Explicit `scheduledFor` writes keep the full ±halfGap snap. A
+    // defaulted-`now` write (no client `scheduledFor`) uses only the tight
+    // dose-grace window, so a slot-less midday "taken now" cannot reach a
+    // far-away morning/evening slot — it falls through to `null` (PRN).
+    const tolerance = instantIsExplicit
+      ? snapToleranceMs(canonical)
+      : graceToleranceMs(canonical);
 
     for (const occ of occurrences) {
       // Only consider slots that land on the SAME local calendar day as
@@ -232,6 +257,44 @@ function snapToleranceMs(schedule: CanonicalSchedule): number {
 
   // Never go below the minute-drift floor: even a tight window must absorb
   // the iOS-vs-server sub-minute `scheduledFor` drift.
+  return Math.max(toleranceMs, ONE_MINUTE_MS);
+}
+
+/**
+ * Tight snap tolerance for a DEFAULTED-`now` write (client sent no
+ * `scheduledFor`). Only a write that lands inside the slot's dose-grace
+ * window may collapse onto that slot; anything further out is treated as
+ * unscheduled (PRN) and keeps its own "taken now" row.
+ *
+ * Uses the schedule's `reminderGraceMinutes` when set, capped at half the
+ * minimum inter-slot gap so two distinct same-day doses can never share a
+ * capture zone (mirrors `snapToleranceMs`). Floors at the minute-drift
+ * floor so a tight window still absorbs sub-minute drift, but never widens
+ * to the ±halfGap window the explicit path uses.
+ */
+function graceToleranceMs(schedule: CanonicalSchedule): number {
+  const graceMin = schedule.reminderGraceMinutes;
+  let toleranceMs =
+    graceMin !== null && Number.isFinite(graceMin) && graceMin > 0
+      ? graceMin * ONE_MINUTE_MS
+      : ONE_MINUTE_MS;
+
+  const slots = effectiveTimesOfDay(schedule)
+    .map(hhmmToMinutes)
+    .filter((m): m is number => m !== null)
+    .sort((a, b) => a - b);
+  if (slots.length > 1) {
+    let minGapMin = Infinity;
+    for (let i = 1; i < slots.length; i++) {
+      minGapMin = Math.min(minGapMin, slots[i] - slots[i - 1]);
+    }
+    const wrapGap = slots[0] + 24 * 60 - slots[slots.length - 1];
+    minGapMin = Math.min(minGapMin, wrapGap);
+    if (Number.isFinite(minGapMin) && minGapMin > 0) {
+      toleranceMs = Math.min(toleranceMs, (minGapMin / 2) * ONE_MINUTE_MS);
+    }
+  }
+
   return Math.max(toleranceMs, ONE_MINUTE_MS);
 }
 
