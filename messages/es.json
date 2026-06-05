@@ -2558,7 +2558,8 @@
         "weightTitle": "Ánimo vs. peso",
         "bloodPressureTitle": "Ánimo vs. presión arterial",
         "weightAxis": "Peso",
-        "bloodPressureAxis": "Sistólica (mmHg)"
+        "bloodPressureAxis": "Sistólica (mmHg)",
+        "sourceLabel": "Cómo se calculó esto"
       },
       "structuredTagsTitle": "Desglose de etiquetas",
       "inTargetValue": "{pct} %",
@@ -2629,7 +2630,9 @@
         "moodDown": "Un mayor {factor} suele coincidir con peor ánimo al día siguiente en tus datos.",
         "outcomeUp": "Mejor ánimo suele coincidir con un {factor} más alto al día siguiente en tus datos.",
         "outcomeDown": "Mejor ánimo suele coincidir con un {factor} más bajo al día siguiente en tus datos.",
-        "stat": "{n} días emparejados · r = {r} · q = {q}"
+        "stat": "{n} días emparejados · r = {r} · q = {q}",
+        "statLabel": "Cómo se calculó esto",
+        "explainerLabel": "Cómo se calculó esto"
       }
     },
     "derived": {

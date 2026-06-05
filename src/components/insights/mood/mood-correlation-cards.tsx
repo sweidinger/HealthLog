@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { useTranslations } from "@/lib/i18n/context";
 import type { CorrelationResult } from "@/lib/analytics/correlations";
+import { MoodExplainerIcon } from "./mood-explainer-icon";
 
 /**
  * v1.8.5 — mood × metric correlation cards (Apple "Life Factors" parity).
@@ -96,9 +97,21 @@ function MoodCorrelationCard({
             {t(TITLE_KEY[kind])}
           </CardTitle>
           {hasResult && data.result && (
-            <Badge variant="outline" className="shrink-0 text-[10px]">
-              {t(STRENGTH_KEY[data.result.strength])}
-            </Badge>
+            <div className="flex shrink-0 items-center gap-1.5">
+              <Badge variant="outline" className="text-[10px]">
+                {t(STRENGTH_KEY[data.result.strength])}
+              </Badge>
+              {/* v1.12.4 (C4) — the "{n} paired days · r" line sat under the
+                  scatter as a half-empty row. Move it into an explainer icon
+                  in the header so the card footprint stays tight. */}
+              <MoodExplainerIcon
+                label={t("insights.mood.correlation.sourceLabel")}
+                detail={t("insights.mood.correlation.source", {
+                  n: data.n,
+                  r: data.result.r.toFixed(2),
+                })}
+              />
+            </div>
           )}
         </div>
       </CardHeader>
@@ -117,12 +130,6 @@ function MoodCorrelationCard({
               yAxis={{ dataKey: "y", name: t(Y_LABEL_KEY[kind]) }}
               height={180}
             />
-            <p className="text-muted-foreground text-[11px]">
-              {t("insights.mood.correlation.source", {
-                n: data.n,
-                r: data.result.r.toFixed(2),
-              })}
-            </p>
           </>
         ) : (
           <EmptyState

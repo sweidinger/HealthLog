@@ -2558,7 +2558,8 @@
         "weightTitle": "Stimmung vs. Gewicht",
         "bloodPressureTitle": "Stimmung vs. Blutdruck",
         "weightAxis": "Gewicht",
-        "bloodPressureAxis": "Systolisch (mmHg)"
+        "bloodPressureAxis": "Systolisch (mmHg)",
+        "sourceLabel": "Wie das berechnet wurde"
       },
       "structuredTagsTitle": "Tag-Auswertung",
       "inTargetValue": "{pct} %",
@@ -2629,7 +2630,9 @@
         "moodDown": "Höheres {factor} geht in deinen Daten tendenziell mit schlechterer Stimmung am Folgetag einher.",
         "outcomeUp": "Bessere Stimmung geht in deinen Daten tendenziell mit höherem {factor} am Folgetag einher.",
         "outcomeDown": "Bessere Stimmung geht in deinen Daten tendenziell mit niedrigerem {factor} am Folgetag einher.",
-        "stat": "{n} gepaarte Tage · r = {r} · q = {q}"
+        "stat": "{n} gepaarte Tage · r = {r} · q = {q}",
+        "statLabel": "Wie das berechnet wurde",
+        "explainerLabel": "Wie das berechnet wurde"
       }
     },
     "derived": {

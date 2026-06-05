@@ -2558,7 +2558,8 @@
         "weightTitle": "Nastrój vs. waga",
         "bloodPressureTitle": "Nastrój vs. ciśnienie krwi",
         "weightAxis": "Waga",
-        "bloodPressureAxis": "Skurczowe (mmHg)"
+        "bloodPressureAxis": "Skurczowe (mmHg)",
+        "sourceLabel": "Jak to obliczono"
       },
       "structuredTagsTitle": "Podział tagów",
       "inTargetValue": "{pct}%",
@@ -2629,7 +2630,9 @@
         "moodDown": "Wyższy {factor} zwykle wiąże się z gorszym nastrojem następnego dnia w Twoich danych.",
         "outcomeUp": "Lepszy nastrój zwykle wiąże się z wyższym {factor} następnego dnia w Twoich danych.",
         "outcomeDown": "Lepszy nastrój zwykle wiąże się z niższym {factor} następnego dnia w Twoich danych.",
-        "stat": "{n} sparowanych dni · r = {r} · q = {q}"
+        "stat": "{n} sparowanych dni · r = {r} · q = {q}",
+        "statLabel": "Jak to obliczono",
+        "explainerLabel": "Jak to obliczono"
       }
     },
     "derived": {

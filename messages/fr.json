@@ -2558,7 +2558,8 @@
         "weightTitle": "Humeur vs. poids",
         "bloodPressureTitle": "Humeur vs. tension artérielle",
         "weightAxis": "Poids",
-        "bloodPressureAxis": "Systolique (mmHg)"
+        "bloodPressureAxis": "Systolique (mmHg)",
+        "sourceLabel": "Comment ceci est calculé"
       },
       "structuredTagsTitle": "Répartition des étiquettes",
       "inTargetValue": "{pct} %",
@@ -2629,7 +2630,9 @@
         "moodDown": "Un {factor} plus élevé tend à coïncider avec une moins bonne humeur le lendemain dans vos données.",
         "outcomeUp": "Une meilleure humeur tend à coïncider avec un {factor} plus élevé le lendemain dans vos données.",
         "outcomeDown": "Une meilleure humeur tend à coïncider avec un {factor} plus bas le lendemain dans vos données.",
-        "stat": "{n} jours appariés · r = {r} · q = {q}"
+        "stat": "{n} jours appariés · r = {r} · q = {q}",
+        "statLabel": "Comment ceci est calculé",
+        "explainerLabel": "Comment ceci est calculé"
       }
     },
     "derived": {
