@@ -112,24 +112,35 @@ export default function InsightsBlutdruckPage() {
       explainerMetric="bloodPressure"
       coachLaunch
       statStrip={
-        <div className="space-y-3" data-slot="bp-stat-strips">
-          <MetricStatStrip
-            summary={sysSummary}
-            unit="mmHg"
-            fractionDigits={0}
-            seriesLabel={t("charts.systolic")}
-            icon={ArrowUpRight}
-            windowStats={statsByType?.BLOOD_PRESSURE_SYS ?? null}
-          />
-          <MetricStatStrip
-            summary={diaSummary}
-            unit="mmHg"
-            fractionDigits={0}
-            seriesLabel={t("charts.diastolic")}
-            icon={ArrowDownRight}
-            windowStats={statsByType?.BLOOD_PRESSURE_DIA ?? null}
-          />
-        </div>
+        // v1.12.7 — blood pressure is two series, but they share ONE card
+        // with the systolic / diastolic columns side by side (stacking only
+        // on narrow mobile) rather than two stacked cards. Each column keeps
+        // its header, its four stats, and its own brushed-window behaviour:
+        // brushing the single chart reports per-type windowed stats and each
+        // column reads its own half.
+        <MetricStatStrip
+          groupLabel={t("insights.bloodPressureSectionTitle")}
+          series={[
+            {
+              dataKey: "sys",
+              summary: sysSummary,
+              unit: "mmHg",
+              fractionDigits: 0,
+              seriesLabel: t("charts.systolic"),
+              icon: ArrowUpRight,
+              windowStats: statsByType?.BLOOD_PRESSURE_SYS ?? null,
+            },
+            {
+              dataKey: "dia",
+              summary: diaSummary,
+              unit: "mmHg",
+              fractionDigits: 0,
+              seriesLabel: t("charts.diastolic"),
+              icon: ArrowDownRight,
+              windowStats: statsByType?.BLOOD_PRESSURE_DIA ?? null,
+            },
+          ]}
+        />
       }
       diversityNudge={
         <MeasurementDiversityNudge
