@@ -80,10 +80,11 @@ export interface SubPageShellProps {
    */
   focusOnMount?: boolean;
   /**
-   * v1.12.4 — the Min / Max / Median / Mittelwert stat strip. It now sits
-   * at the FOOT of the canonical spine, below the assessment, so every
-   * metric subpage reads the same: intro → chart → target → assessment →
-   * stat strip. Sub-pages pass `<MetricStatStrip metric=… />`; the strip
+   * v1.12.6 — the Min / Max / Median / Mittelwert stat strip. It now leads
+   * the canonical spine, directly ABOVE the chart, so every metric subpage
+   * reads the same: intro → stat strip → chart → target → assessment.
+   * Numbers-first matches how Apple Health / Withings / Oura lead a detail
+   * screen. Sub-pages pass `<MetricStatStrip metric=… />`; the strip
    * self-gates (renders nothing without data), so the empty-state and
    * brand-new-metric paths stay clean. Omitted on the empty-state branch.
    */
@@ -255,17 +256,26 @@ export function SubPageShell({
             <p className="text-muted-foreground text-sm">{description}</p>
           ) : null}
         </header>
-        {/* v1.12.4 — the canonical spine body: intro (header, above) →
-          chart → target card → assessment, all rendered by the page as
-          `children`. */}
-        {children}
-        {/* v1.12.4 — the Min / Max / Median / Mittelwert stat strip closes
-          the spine, below the assessment. Self-gating (renders nothing
+        {/* v1.12.6 — the Min / Max / Median / Mittelwert stat strip LEADS
+          the spine, directly above the chart. Self-gating (renders nothing
           without data), so the spacing rhythm holds on the empty-state and
-          brand-new-metric paths. The diversity nudge rides the heading row;
-          the headline tile and the "Letzte Messung" card are retired so the
-          subpage is identical by construction across every metric. */}
+          brand-new-metric paths. Numbers-first is the Apple-Health /
+          Withings / Oura detail-screen convention.
+
+          TODO(v1.12.7): chart-brush-reactive stats. When the user brushes /
+          selects a window in the chart below, recompute the stat strip's
+          Min/Max/Median/Mean for the visible domain. Deferred: the shared
+          `<HealthChart>` (~1900 LOC, also driving the dashboard) has no
+          Recharts `<Brush>` or lifted domain-change callback today, and its
+          range state lives internally; wiring a stable brush + lifting the
+          selected domain into this shell so both the chart and the strip read
+          it is a larger change than this release's scope warrants without
+          destabilising the chart. */}
         {statStrip}
+        {/* v1.12.6 — the canonical spine body: intro (header) → stat strip
+          (above) → chart → target card → assessment. The page renders
+          chart → target → assessment as `children`. */}
+        {children}
         {/* v1.8.5 W4b — "show all readings" entry at the foot, linking to
           the dedicated per-metric values subpage.
           v1.8.6 — normalised to the `h-10` secondary-button height so it
