@@ -145,6 +145,28 @@ describe("buildDashboardSnapshot — envelope shape", () => {
     expect(snap.layout).toBeDefined();
     expect(typeof snap.generatedAt).toBe("string");
   });
+
+  it("probes rollup coverage once and threads it into the summaries slice (A5)", async () => {
+    const coverageMap = new Map([["WEIGHT", true]]);
+    probeRollupCoverage.mockResolvedValue(coverageMap);
+    isFullyCovered.mockReturnValue(true);
+    computeBpInTargetFastPath.mockResolvedValue({
+      last7Days: { pct: 70 },
+      last30Days: { pct: 80 },
+      allTime: { pct: 75 },
+      priorMonth: { pct: 60 },
+      priorYear: { pct: 50 },
+    });
+
+    await buildDashboardSnapshot(fakePrisma, baseUser());
+
+    // The snapshot probes coverage exactly once up front — the slice no
+    // longer re-runs the identical probe internally.
+    expect(probeRollupCoverage).toHaveBeenCalledTimes(1);
+    // The already-probed map is passed as the slice's second argument so
+    // it reuses it instead of probing again.
+    expect(computeSummariesSlice).toHaveBeenCalledWith("user-1", coverageMap);
+  });
 });
 
 describe("buildDashboardSnapshot — two-phase null extras", () => {

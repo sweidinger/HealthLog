@@ -609,7 +609,9 @@ export async function buildDashboardSnapshot(
   const warm = isFullyCovered(coverage);
 
   const [slim, mood, extras, flags] = await Promise.all([
-    time("summaries", () => computeSummariesSlice(user.id)),
+    // A5 — reuse the coverage map already probed above so the slice
+    // doesn't re-run the identical `probeRollupCoverage` query.
+    time("summaries", () => computeSummariesSlice(user.id, coverage)),
     time("mood", () => buildMoodBlock(prisma, user.id)),
     warm
       ? time("extras", () => buildExtras(prisma, user, userTz, coverage))
