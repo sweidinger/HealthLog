@@ -3,7 +3,7 @@
 import Link from "next/link";
 import type { ComponentProps, ComponentType, ReactNode } from "react";
 
-import { Sparkles } from "lucide-react";
+import { RefreshCw, Sparkles } from "lucide-react";
 
 import { useAuth } from "@/hooks/use-auth";
 import { useInsightsAnalytics } from "@/hooks/use-insights-analytics";
@@ -14,6 +14,9 @@ import type { InsightMetric } from "@/lib/insights/metric-availability";
 import type { MetricStatusMetricId } from "@/lib/insights/metric-status-registry";
 import type { ChartOverlayKey } from "@/lib/dashboard-layout";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
+import { ChartSkeleton } from "@/components/charts/chart-skeleton";
 import { HealthChartDynamic } from "@/components/charts/health-chart-dynamic";
 import { MetricStatusCard } from "@/components/insights/metric-status-card";
 import { TrajectoryForecastCard } from "@/components/insights/derived/trajectory-forecast-card";
@@ -164,7 +167,13 @@ export function HealthKitMetricPage({
   const { t } = useTranslations();
   const { compareBaseline } = useInsightsLayoutPrefs(isAuthenticated);
 
-  const { data: analytics, isEmpty } = useInsightsAnalytics(insightMetric);
+  const {
+    data: analytics,
+    isEmpty,
+    isLoading,
+    error,
+    refetch,
+  } = useInsightsAnalytics(insightMetric);
 
   // v1.12.7 — shared brushed-window state. The chart reports the per-type
   // Min / Max / Median / Mean for the selected domain; the stat strip reads
@@ -194,6 +203,57 @@ export function HealthKitMetricPage({
 
   const title = t(`${i18nPrefix}.title`);
   const description = t(`${i18nPrefix}.description`);
+
+  // v1.12.7 — in-flight skeleton. The page consumed only `{data, isEmpty}`
+  // before, so the ~30 HealthKit sub-pages painted nothing until the
+  // analytics read landed, then popped the content in. Branch on the hook's
+  // `isLoading` to reserve the stat-strip + chart height with the same
+  // skeletons the rest of the surface uses, so the layout holds.
+  if (isLoading) {
+    return (
+      <SubPageShell
+        title={title}
+        description={description}
+        explainerMetric={explainerMetric}
+        statStrip={<StatStripSkeleton />}
+      >
+        <ChartSkeleton />
+      </SubPageShell>
+    );
+  }
+
+  // v1.12.7 — error + retry. A failed analytics read used to fall through to
+  // the empty-state (or a blank surface); surface a compact message + a
+  // Retry that re-issues the query, mirroring the `<VitalsDashboard>`
+  // pattern.
+  if (error) {
+    return (
+      <SubPageShell
+        title={title}
+        description={description}
+        explainerMetric={explainerMetric}
+      >
+        <div
+          data-slot="healthkit-metric-error"
+          role="alert"
+          className="bg-card border-border text-muted-foreground flex flex-col items-start gap-3 rounded-xl border p-4 text-sm sm:flex-row sm:items-center sm:justify-between"
+        >
+          <span>{t("insights.subPage.loadError")}</span>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={() => refetch()}
+            data-slot="healthkit-metric-retry"
+            className="gap-1.5"
+          >
+            <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />
+            <span>{t("common.retry")}</span>
+          </Button>
+        </div>
+      </SubPageShell>
+    );
+  }
 
   if (isEmpty) {
     const ctaNode =
@@ -282,5 +342,34 @@ export function HealthKitMetricPage({
         />
       ) : null}
     </SubPageShell>
+  );
+}
+
+/**
+ * v1.12.7 — layout-stable loading shell for the stat strip slot. Mirrors
+ * the loaded `<MetricStatStrip>` card chrome (denser `py-3` rhythm, one
+ * header row + a four-up grid) so the page does not jump when the analytics
+ * read lands. Decorative — hidden from assistive tech; the chart skeleton
+ * below it carries the `aria-busy` announcement.
+ */
+function StatStripSkeleton() {
+  return (
+    <Card
+      data-slot="metric-stat-strip-skeleton"
+      aria-hidden="true"
+      className="gap-2 py-3 md:py-4"
+    >
+      <CardContent className="space-y-3">
+        <Skeleton className="h-5 w-32" />
+        <div className="grid grid-cols-2 gap-x-3 gap-y-2 sm:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="min-h-[44px] space-y-1">
+              <Skeleton className="h-3 w-12" />
+              <Skeleton className="h-5 w-16" />
+            </div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
   );
 }

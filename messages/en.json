@@ -1984,6 +1984,7 @@
       }
     },
     "subPage": {
+      "loadError": "Could not load this metric right now.",
       "blutdruckDescription": "Your systolic / diastolic trend with age-personalised target zones and a written assessment.",
       "gewichtDescription": "Weight trend mapped against your height-derived healthy band, plus a written assessment.",
       "pulsDescription": "Pulse trend against the personalised Karvonen target band, plus a written assessment.",

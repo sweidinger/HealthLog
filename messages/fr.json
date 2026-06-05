@@ -1984,6 +1984,7 @@
       }
     },
     "subPage": {
+      "loadError": "Impossible de charger cette mesure pour le moment.",
       "blutdruckDescription": "Ton évolution systolique/diastolique avec des plages cibles adaptées à l’âge et une évaluation textuelle.",
       "gewichtDescription": "Évolution du poids face à la bande saine dérivée de ta taille, avec évaluation.",
       "pulsDescription": "Resting pulse vs. the personalised Karvonen target band, plus a written assessment.",

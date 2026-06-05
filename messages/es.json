@@ -1984,6 +1984,7 @@
       }
     },
     "subPage": {
+      "loadError": "No se pudo cargar esta métrica ahora mismo.",
       "blutdruckDescription": "Tu evolución sistólica/diastólica con rangos objetivo ajustados a la edad y una valoración en texto.",
       "gewichtDescription": "Evolución del peso frente a la banda saludable derivada de tu altura, con valoración.",
       "pulsDescription": "Resting pulse vs. the personalised Karvonen target band, plus a written assessment.",

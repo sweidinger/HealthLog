@@ -1984,6 +1984,7 @@
       }
     },
     "subPage": {
+      "loadError": "Impossibile caricare questa metrica al momento.",
       "blutdruckDescription": "Il tuo andamento sistolico/diastolico con range obiettivo adattati all’età e una valutazione testuale.",
       "gewichtDescription": "Andamento del peso rispetto alla fascia sana derivata dalla tua altezza, con valutazione.",
       "pulsDescription": "Resting pulse vs. the personalised Karvonen target band, plus a written assessment.",

@@ -1984,6 +1984,7 @@
       }
     },
     "subPage": {
+      "loadError": "Nie udało się teraz wczytać tej metryki.",
       "blutdruckDescription": "Twój przebieg skurczowego/rozkurczowego z zakresami docelowymi dopasowanymi do wieku i oceną tekstową.",
       "gewichtDescription": "Przebieg wagi na tle zdrowego pasma wyliczonego z twojego wzrostu, z oceną.",
       "pulsDescription": "Resting pulse vs. the personalised Karvonen target band, plus a written assessment.",
