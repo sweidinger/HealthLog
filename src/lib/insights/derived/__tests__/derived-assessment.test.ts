@@ -1,0 +1,149 @@
+import { describe, it, expect } from "vitest";
+import {
+  resolveDeterministicAssessment,
+  buildScoreSignal,
+  isAssessableDerivedScore,
+  ASSESSABLE_DERIVED_SCORES,
+} from "@/lib/insights/derived/derived-assessment";
+import type { Derived } from "@/lib/insights/derived/types";
+import type { ReadinessValue } from "@/lib/insights/derived/readiness";
+import type { SleepScoreValue } from "@/lib/insights/derived/sleep-score";
+import type { WellnessScoreValue } from "@/lib/insights/derived/wellness-scores";
+
+const NOW = new Date("2026-06-05T12:00:00Z");
+
+function okDerived<T>(value: T): Derived<T> {
+  return {
+    status: "ok",
+    value,
+    coverage: { requiredInputs: 1, presentInputs: 1, historyDays: 30, missing: [] },
+    confidence: { score: 90, band: "high" },
+    provenance: { inputs: ["X"], source: "DAY", windowDays: 30, computedAt: NOW.toISOString() },
+  };
+}
+
+const insufficient: Derived<unknown> = {
+  status: "insufficient",
+  coverage: { requiredInputs: 1, presentInputs: 0, historyDays: 0, missing: ["X"] },
+  provenance: { inputs: ["X"], source: "none", windowDays: 0, computedAt: NOW.toISOString() },
+  reason: "no_score_in_window",
+};
+
+const readiness: ReadinessValue = {
+  score: 64,
+  band: "yellow",
+  components: [
+    { key: "rhr", value: 40, weight: 0.3 },
+    { key: "hrv", value: 80, weight: 0.3 },
+    { key: "sleep", value: 70, weight: 0.25 },
+    { key: "respiratory", value: null, weight: 0 },
+    { key: "mood", value: 60, weight: 0.15 },
+  ],
+};
+
+const sleepScore: SleepScoreValue = {
+  score: 82,
+  band: "green",
+  night: "2026-06-04",
+  asleepMinutes: 440,
+  inBedMinutes: 470,
+  subScores: [
+    { key: "sufficiency", value: 95, weight: 0.3 },
+    { key: "efficiency", value: 90, weight: 0.25 },
+    { key: "consistency", value: 70, weight: 0.2 },
+    { key: "timing", value: 80, weight: 0.1 },
+    { key: "composition", value: 88, weight: 0.15 },
+  ],
+  windowNights: 20,
+};
+
+const recovery: WellnessScoreValue = {
+  score: 55,
+  band: "yellow",
+  trendDelta: -8,
+  daysInWindow: 12,
+  asOf: NOW.toISOString(),
+  series: [60, 58, 55],
+};
+
+describe("assessable derived scores", () => {
+  it("is exactly the five iOS ids", () => {
+    expect([...ASSESSABLE_DERIVED_SCORES].sort()).toEqual([
+      "READINESS",
+      "RECOVERY_SCORE",
+      "SLEEP_SCORE",
+      "STRAIN_SCORE",
+      "STRESS_SCORE",
+    ]);
+    expect(isAssessableDerivedScore("READINESS")).toBe(true);
+    expect(isAssessableDerivedScore("BMI")).toBe(false);
+  });
+});
+
+describe("resolveDeterministicAssessment", () => {
+  it("returns null for a non-assessable metric", () => {
+    expect(
+      resolveDeterministicAssessment("BMI", okDerived({ score: 50, band: "green" }), "en", NOW),
+    ).toBeNull();
+  });
+
+  it("returns null when status !== ok (the locked contract)", () => {
+    expect(
+      resolveDeterministicAssessment("READINESS", insufficient, "en", NOW),
+    ).toBeNull();
+  });
+
+  it("always fills a non-empty deterministic text for an ok score", () => {
+    const a = resolveDeterministicAssessment("READINESS", okDerived(readiness), "en", NOW);
+    expect(a).not.toBeNull();
+    expect(a!.source).toBe("deterministic");
+    expect(a!.text.length).toBeGreaterThan(0);
+    expect(a!.updatedAt).toBe(NOW.toISOString());
+  });
+
+  it("names the score and the weakest contributors for a yellow readiness (en)", () => {
+    const a = resolveDeterministicAssessment("READINESS", okDerived(readiness), "en", NOW);
+    expect(a!.text).toContain("64 out of 100");
+    // rhr (40) is the lowest present contributor → mentioned.
+    expect(a!.text.toLowerCase()).toContain("resting heart rate");
+    // never references the null (respiratory) contributor.
+    expect(a!.text.toLowerCase()).not.toContain("respiratory");
+  });
+
+  it("affirms the strongest contributor for a green sleep score (de)", () => {
+    const a = resolveDeterministicAssessment("SLEEP_SCORE", okDerived(sleepScore), "de", NOW);
+    expect(a!.text).toContain("82 von 100");
+    expect(a!.text).toContain("im guten Bereich");
+    // sufficiency (95) is the strongest → affirmed for a green band.
+    expect(a!.text).toContain("Schlafmenge");
+  });
+
+  it("uses the trend for a contributor-less recovery score (en)", () => {
+    const a = resolveDeterministicAssessment("RECOVERY_SCORE", okDerived(recovery), "en", NOW);
+    expect(a!.text).toContain("55 out of 100");
+    // trendDelta -8 → "8 points lower".
+    expect(a!.text).toContain("−8 points lower");
+  });
+});
+
+describe("buildScoreSignal", () => {
+  it("carries contributors for READINESS", () => {
+    const signal = buildScoreSignal("READINESS", readiness, "en");
+    expect(signal!.current).toBe(64);
+    expect(signal!.contributors).toHaveLength(5);
+    expect(signal!.metric).toBe("your readiness");
+  });
+
+  it("derives a signed delta from trendDelta for RECOVERY", () => {
+    const signal = buildScoreSignal("RECOVERY_SCORE", recovery, "en");
+    expect(signal!.current).toBe(55);
+    expect(signal!.baseline).toBe(63); // 55 - (-8)
+    expect(signal!.delta).toBe(-8);
+    expect(signal!.direction).toBe("higher-better");
+  });
+
+  it("frames stress/strain as lower-better", () => {
+    const strain = buildScoreSignal("STRAIN_SCORE", recovery, "en");
+    expect(strain!.direction).toBe("lower-better");
+  });
+});

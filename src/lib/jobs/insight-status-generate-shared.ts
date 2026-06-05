@@ -56,7 +56,18 @@ export const INSIGHT_STATUS_METRICS: ReadonlyArray<InsightStatusMetric> = [
  * specialised one. A specialised scope is one of `InsightStatusMetric`;
  * a generic scope is any `metric:`-prefixed string.
  */
-export type InsightStatusScope = InsightStatusMetric | `metric:${string}`;
+export type InsightStatusScope =
+  | InsightStatusMetric
+  | `metric:${string}`
+  /**
+   * v1.13.2 — per-derived-SCORE assessment scopes (READINESS, SLEEP_SCORE,
+   * RECOVERY_SCORE, STRAIN_SCORE, STRESS_SCORE) ride the same on-demand queue.
+   * Their scope id is `derived-score:<DERIVED_METRIC_ID>`; the worker routes
+   * the prefix to the per-score assessment generator. The deterministic text
+   * always fills the field synchronously — this queue only warms the AI prose
+   * that overrides it on the next read.
+   */
+  | `derived-score:${string}`;
 
 export interface InsightStatusGeneratePayload {
   userId: string;

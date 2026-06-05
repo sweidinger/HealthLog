@@ -21,10 +21,14 @@ describe("base-system assessment prompt — grounding floor preserved", () => {
       if (locale === "en") {
         expect(p).toMatch(/own baseline/i);
         expect(p).toMatch(/never against a population norm/i);
-        expect(p).toMatch(/a value inside the user's normal swing is NOT a finding/i);
+        // v1.13.x — the normal-swing verdict is now a pre-computed boolean the
+        // prompt leads from; the grounding floor is that an in-swing value is
+        // explicitly NOT a finding (phrased against `outsideNormalSwing`).
+        expect(p).toMatch(/outsideNormalSwing: false.*not a finding/i);
       } else {
         expect(p).toMatch(/EIGENE Baseline/);
         expect(p).toMatch(/nicht gegen Bevölkerungsnormen/i);
+        expect(p).toMatch(/outsideNormalSwing: false.*kein Befund/i);
       }
     });
 

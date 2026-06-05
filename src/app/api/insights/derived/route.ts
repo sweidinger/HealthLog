@@ -31,6 +31,8 @@ import {
   DERIVED_METRIC_IDS,
   type DerivedMetricId,
 } from "@/lib/insights/derived";
+import { resolveDerivedAssessment } from "@/lib/insights/derived/derived-assessment-ai";
+import { resolveServerLocale } from "@/lib/i18n/server-locale";
 
 export const dynamic = "force-dynamic";
 
@@ -80,6 +82,26 @@ export const GET = apiHandler(async (request: NextRequest) => {
     meta: { metric, status: derived.status },
   });
 
+  // v1.13.2 — additive per-score assessment: a short "why is this score what
+  // it is" explanation, keyed to the SAME id the caller passed (READINESS,
+  // SLEEP_SCORE, RECOVERY_SCORE, STRAIN_SCORE, STRESS_SCORE). Null for any
+  // other id, and null when status !== "ok". Always a non-empty deterministic
+  // text when present (the demo + provider-less accounts fill); warmer AI
+  // prose overrides it once cached. The warm enqueue is fire-and-forget — this
+  // never blocks on an LLM round-trip.
+  const localeParam = request.nextUrl.searchParams.get("locale");
+  const resolvedLocale = await resolveServerLocale({
+    request,
+    userLocale: user.locale ?? null,
+    override: localeParam,
+  });
+  const assessment = await resolveDerivedAssessment({
+    metric,
+    userId: user.id,
+    derived,
+    locale: resolvedLocale,
+  });
+
   // Flatten the discriminated union for the wire: `metric` tags it,
   // `value`/`reason` are nullable so iOS decodes one stable shape.
   return apiSuccess({
@@ -90,5 +112,6 @@ export const GET = apiHandler(async (request: NextRequest) => {
     confidence: derived.status === "ok" ? derived.confidence : null,
     provenance: derived.provenance,
     reason: derived.status === "insufficient" ? derived.reason : null,
+    assessment,
   });
 });
