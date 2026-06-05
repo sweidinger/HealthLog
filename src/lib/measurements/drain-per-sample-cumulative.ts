@@ -228,6 +228,40 @@ export async function drainPerSampleCumulative(
     }): Promise<DayWriteOutcome> => {
       let removed = 0;
       await pc.$transaction(async (tx) => {
+        // Fold late per-sample rows INTO an existing collapsed daily
+        // total rather than overwriting it. `bucketRowsByDay` strips
+        // already-collapsed `stats:` rows from the bucket, so when a day
+        // was collapsed on an earlier run and fresh per-sample rows
+        // arrive late (a trailing watch sync after the day's total was
+        // already minted), this bucket holds ONLY those late samples.
+        // A blind `update: { value: reducedValue }` would replace the
+        // full day total with just the partial late sum — and the
+        // original contributing samples were already hard-deleted, so
+        // the lost count is unrecoverable.
+        //
+        // The probe runs inside the same transaction as the upsert +
+        // delete so the read-modify-write of the total is atomic against
+        // a concurrent drain. The late samples are genuine additional
+        // readings (unlike the legacy-step pass, where the existing
+        // total is HealthKit's own aggregate and the legacy rows would
+        // double-count — so that sibling deliberately does NOT fold),
+        // therefore the correct merge is `existing + late sum`. The
+        // per-sample rows are hard-deleted either way so a re-run cannot
+        // re-accumulate them.
+        const existing = await tx.measurement.findUnique({
+          where: {
+            userId_type_source_externalId: {
+              userId,
+              type,
+              source: "APPLE_HEALTH",
+              externalId,
+            },
+          },
+          select: { value: true },
+        });
+        const mergedValue =
+          existing !== null ? existing.value + reducedValue : reducedValue;
+
         // Upsert the daily-aggregated row first, then drop the
         // per-sample rows. The unique index
         // (userId, type, source, externalId) makes the upsert
@@ -257,7 +291,7 @@ export async function drainPerSampleCumulative(
             externalId,
           },
           update: {
-            value: reducedValue,
+            value: mergedValue,
             measuredAt: canonicalTimestamp,
           },
         });
