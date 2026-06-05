@@ -91,6 +91,17 @@
       ]
     },
     {
+      "name": "TLS leaf pin monitor",
+      "description": "Baseline for the TLS leaf SPKI-change alarm. The native client pins the served leaf certificate; without this the monitor logs the served pin but cannot alarm on a rotation. See docs/ops/tls-cert-pin.md.",
+      "required": false,
+      "variables": [
+        {
+          "name": "TLS_LEAF_SPKI_PINS",
+          "purpose": "Comma-separated known-good leaf SPKI pins, base64(sha256(DER subjectPublicKeyInfo)) — the same value the native client pins. Hold both the current and the next pin during a dual-pin renewal window."
+        }
+      ]
+    },
+    {
       "name": "Off-host backups",
       "description": "Required ALL-OR-NONE: any of these without the rest disables backups silently.",
       "required": false,

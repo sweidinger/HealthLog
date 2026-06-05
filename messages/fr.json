@@ -4583,7 +4583,9 @@
       "reminderCheckOverdueTitle": "Prise en retard : {medication}",
       "reminderCheckOverdueBody": "{medication} ({dose}) dans la fenêtre {window} est en retard de {minutes} minutes.",
       "offlineGeoUnavailableTitle": "Bases de géolocalisation hors ligne non chargées",
-      "offlineGeoUnavailableBody": "HealthLog résout les localisations de connexion via le fallback en ligne ipwho.is. Pour activer les bases hors ligne GeoLite2-City et GeoLite2-ASN, définissez MAXMIND_LICENSE_KEY dans les secrets GitHub Actions à {secretsUrl} puis redéployez. En attendant, la colonne opérateur dans l'aperçu des connexions reste vide."
+      "offlineGeoUnavailableBody": "HealthLog résout les localisations de connexion via le fallback en ligne ipwho.is. Pour activer les bases hors ligne GeoLite2-City et GeoLite2-ASN, définissez MAXMIND_LICENSE_KEY dans les secrets GitHub Actions à {secretsUrl} puis redéployez. En attendant, la colonne opérateur dans l'aperçu des connexions reste vide.",
+      "tlsPinChangedTitle": "Certificat feuille TLS modifié : {host}",
+      "tlsPinChangedBody": "La feuille TLS servie par {host} a maintenant le pin SPKI {servedPin}, qui ne figure pas dans l'ensemble de pins connus. Les clients épinglés (l'app native) ne pourront plus se connecter une fois l'ancien pin disparu. Réextrayez le nouveau pin de la feuille, ajoutez-le à TLS_LEAF_SPKI_PINS et à l'ensemble de pins du client natif, et publiez une version avant l'expiration de ce certificat le {validTo}. Voir docs/ops/tls-cert-pin.md."
     },
     "user": {
       "telegramTestBody": "HealthLog: connexion réussie. Les notifications Telegram sont actives."
