@@ -1592,8 +1592,6 @@
     "heroRegenerating": "Wird generiert",
     "regenerateAnalysis": "Einschätzung neu erstellen",
     "regenerateSuccess": "Einschätzung wurde neu erstellt",
-    "warmAssessments": "Einschätzungen vorbereiten",
-    "warmAssessmentsHint": "Einschätzungen werden über Nacht automatisch aktualisiert. Bereite sie jetzt vor, um den neuesten Stand zu sehen.",
     "warmStarted": "Einschätzungen werden im Hintergrund erstellt",
     "narrativeTitle": "Dein Zeitraum im Rückblick",
     "narrativeWeek": "Diese Woche",
@@ -1647,9 +1645,6 @@
     },
     "suggestedPrompts": {
       "label": "Frag mich",
-      "whyMonday": "Warum war der Blutdruck am Montag höher?",
-      "weightVsPulse": "Wie hat sich die Gewichtsabnahme auf meinen Puls ausgewirkt?",
-      "weekVsMonth": "Vergleich diese Woche mit letztem Monat",
       "tellMyDoctor": "Was sollte ich meinem Arzt sagen?",
       "medicationWorking": "Wirkt mein Medikament?"
     },
@@ -2558,7 +2553,8 @@
         "weightTitle": "Stimmung vs. Gewicht",
         "bloodPressureTitle": "Stimmung vs. Blutdruck",
         "weightAxis": "Gewicht",
-        "bloodPressureAxis": "Systolisch (mmHg)"
+        "bloodPressureAxis": "Systolisch (mmHg)",
+        "sourceLabel": "Wie das berechnet wurde"
       },
       "structuredTagsTitle": "Tag-Auswertung",
       "inTargetValue": "{pct} %",
@@ -2629,7 +2625,9 @@
         "moodDown": "Höheres {factor} geht in deinen Daten tendenziell mit schlechterer Stimmung am Folgetag einher.",
         "outcomeUp": "Bessere Stimmung geht in deinen Daten tendenziell mit höherem {factor} am Folgetag einher.",
         "outcomeDown": "Bessere Stimmung geht in deinen Daten tendenziell mit niedrigerem {factor} am Folgetag einher.",
-        "stat": "{n} gepaarte Tage · r = {r} · q = {q}"
+        "stat": "{n} gepaarte Tage · r = {r} · q = {q}",
+        "statLabel": "Wie das berechnet wurde",
+        "explainerLabel": "Wie das berechnet wurde"
       }
     },
     "derived": {

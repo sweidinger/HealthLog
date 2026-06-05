@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import { queryKeys } from "@/lib/query-keys";
 import { useTranslations } from "@/lib/i18n/context";
+import { MoodExplainerIcon } from "./mood-explainer-icon";
 
 /**
  * v1.11.5 (F3) — FDR-controlled discovered mood relations.
@@ -81,9 +82,21 @@ export function MoodDiscoveredRelations() {
 
   return (
     <div className="space-y-2" data-slot="mood-discovered-relations">
-      <h3 className="text-base font-semibold">
-        {t("insights.mood.discovery.title")}
-      </h3>
+      <div className="flex items-center gap-1.5">
+        <h3 className="text-base font-semibold">
+          {t("insights.mood.discovery.title")}
+        </h3>
+        {/* v1.12.4 (C3) — the false-discovery footer + observational
+            disclaimer were two full-width footnote rows. Fold both into a
+            single explainer icon so the explanation is one hover/focus away
+            instead of a low-density block under the list. */}
+        <MoodExplainerIcon
+          label={t("insights.mood.discovery.explainerLabel")}
+          detail={`${t("insights.mood.discovery.footer", {
+            tested: data.pairsTested,
+          })} ${t("insights.mood.discovery.disclaimer")}`}
+        />
+      </div>
       <p className="text-muted-foreground text-sm">
         {t("insights.mood.discovery.description")}
       </p>
@@ -108,28 +121,25 @@ export function MoodDiscoveredRelations() {
               data-mood-role={moodIsOutcome ? "outcome" : "behaviour"}
               data-direction={up ? "up" : "down"}
             >
-              <span className="text-foreground">
-                {t(sentenceKey, { factor: factorLabel })}
-              </span>
-              <span className="text-muted-foreground text-[11px] tabular-nums">
-                {t("insights.mood.discovery.stat", {
-                  n: pair.n,
-                  r: pair.r.toFixed(2),
-                  q: pair.qValue.toFixed(3),
-                })}
+              {/* v1.12.4 (C4) — the {n} paired days · r · q line was a
+                  low-density sub-row under each sentence. Move the numeric
+                  detail behind an explainer icon on the same line as the
+                  finding so the list stays one row per pair. */}
+              <span className="text-foreground flex items-center gap-1.5">
+                <span>{t(sentenceKey, { factor: factorLabel })}</span>
+                <MoodExplainerIcon
+                  label={t("insights.mood.discovery.statLabel")}
+                  detail={t("insights.mood.discovery.stat", {
+                    n: pair.n,
+                    r: pair.r.toFixed(2),
+                    q: pair.qValue.toFixed(3),
+                  })}
+                />
               </span>
             </li>
           );
         })}
       </ul>
-      <p className="text-muted-foreground text-[11px]">
-        {t("insights.mood.discovery.footer", {
-          tested: data.pairsTested,
-        })}
-      </p>
-      <p className="text-muted-foreground text-[11px]">
-        {t("insights.mood.discovery.disclaimer")}
-      </p>
     </div>
   );
 }

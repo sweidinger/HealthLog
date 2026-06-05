@@ -80,21 +80,14 @@ export interface SubPageShellProps {
    */
   focusOnMount?: boolean;
   /**
-   * v1.8.5 W4b — numbers-first stat strip rendered directly beneath the
-   * header, above the chart. Sub-pages pass `<MetricStatStrip metric=… />`
-   * so every metric (including the thin HealthKit pages) leads with
-   * min / max / median / mean. Omitted on the empty-state branch.
+   * v1.12.4 — the Min / Max / Median / Mittelwert stat strip. It now sits
+   * at the FOOT of the canonical spine, below the assessment, so every
+   * metric subpage reads the same: intro → chart → target → assessment →
+   * stat strip. Sub-pages pass `<MetricStatStrip metric=… />`; the strip
+   * self-gates (renders nothing without data), so the empty-state and
+   * brand-new-metric paths stay clean. Omitted on the empty-state branch.
    */
   statStrip?: ReactNode;
-  /**
-   * v1.12.0 — canonical "primary" zone rendered between the header and
-   * the stat strip, the top of the metric-detail spine: the primary tile
-   * (headline value + 30-Tage-Durchschnitt + "Im Zielbereich" bar) and
-   * the "Letzte Messung" card. Each child self-suppresses when its data
-   * is absent, so a sparse metric reads as a clean heading + chart. The
-   * mother page and empty-state branches omit it.
-   */
-  primary?: ReactNode;
   /**
    * v1.8.5 W4b — measurement-diversity nudge.
    *
@@ -135,7 +128,6 @@ export function SubPageShell({
   explainerMetric,
   focusOnMount = false,
   statStrip,
-  primary,
   diversityNudge,
   coachLaunch = false,
   showAllValuesType,
@@ -263,19 +255,17 @@ export function SubPageShell({
             <p className="text-muted-foreground text-sm">{description}</p>
           ) : null}
         </header>
-        {/* v1.12.0 — the canonical "primary" zone leads the spine: the
-          primary tile (headline + 30-Tage-Durchschnitt + Im-Zielbereich
-          bar) and the "Letzte Messung" card, both above the stat strip.
-          Each child self-suppresses when its data is absent. */}
-        {primary}
-        {/* v1.8.5 W4b — numbers-first stat strip sits between the header
-          and the chart so the page leads with data, mirroring the Apple
-          Health / Withings detail layout. Self-gating (renders nothing
-          without data), so the spacing rhythm holds on the empty-state
-          and brand-new-metric paths.
-          v1.8.6 — the diversity nudge moved up to the heading row. */}
-        {statStrip}
+        {/* v1.12.4 — the canonical spine body: intro (header, above) →
+          chart → target card → assessment, all rendered by the page as
+          `children`. */}
         {children}
+        {/* v1.12.4 — the Min / Max / Median / Mittelwert stat strip closes
+          the spine, below the assessment. Self-gating (renders nothing
+          without data), so the spacing rhythm holds on the empty-state and
+          brand-new-metric paths. The diversity nudge rides the heading row;
+          the headline tile and the "Letzte Messung" card are retired so the
+          subpage is identical by construction across every metric. */}
+        {statStrip}
         {/* v1.8.5 W4b — "show all readings" entry at the foot, linking to
           the dedicated per-metric values subpage.
           v1.8.6 — normalised to the `h-10` secondary-button height so it

@@ -1592,8 +1592,6 @@
     "heroRegenerating": "Generowanie",
     "regenerateAnalysis": "Uruchom ocenę ponownie",
     "regenerateSuccess": "Ocena wygenerowana ponownie",
-    "warmAssessments": "Przygotuj oceny",
-    "warmAssessmentsHint": "Oceny odświeżają się automatycznie w nocy. Przygotuj je teraz, aby zobaczyć najnowsze dane.",
     "warmStarted": "Oceny są przygotowywane w tle",
     "narrativeTitle": "Twój okres w skrócie",
     "narrativeWeek": "Ten tydzień",
@@ -1647,9 +1645,6 @@
     },
     "suggestedPrompts": {
       "label": "Zapytaj mnie",
-      "whyMonday": "Dlaczego moje ciśnienie było wyższe w poniedziałek?",
-      "weightVsPulse": "Jak spadek wagi wpłynął na moje tętno?",
-      "weekVsMonth": "Porównaj ten tydzień z poprzednim miesiącem",
       "tellMyDoctor": "Co powinienem powiedzieć lekarzowi?",
       "medicationWorking": "Czy mój lek działa?"
     },
@@ -2558,7 +2553,8 @@
         "weightTitle": "Nastrój vs. waga",
         "bloodPressureTitle": "Nastrój vs. ciśnienie krwi",
         "weightAxis": "Waga",
-        "bloodPressureAxis": "Skurczowe (mmHg)"
+        "bloodPressureAxis": "Skurczowe (mmHg)",
+        "sourceLabel": "Jak to obliczono"
       },
       "structuredTagsTitle": "Podział tagów",
       "inTargetValue": "{pct}%",
@@ -2629,7 +2625,9 @@
         "moodDown": "Wyższy {factor} zwykle wiąże się z gorszym nastrojem następnego dnia w Twoich danych.",
         "outcomeUp": "Lepszy nastrój zwykle wiąże się z wyższym {factor} następnego dnia w Twoich danych.",
         "outcomeDown": "Lepszy nastrój zwykle wiąże się z niższym {factor} następnego dnia w Twoich danych.",
-        "stat": "{n} sparowanych dni · r = {r} · q = {q}"
+        "stat": "{n} sparowanych dni · r = {r} · q = {q}",
+        "statLabel": "Jak to obliczono",
+        "explainerLabel": "Jak to obliczono"
       }
     },
     "derived": {

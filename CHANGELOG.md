@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+## [1.12.4] — 2026-06-05 — a calmer, more consistent Insights
+
+### Changed
+
+- **The Insights overview is reordered and easier to read.** Top to bottom: the morning greeting + Coach, then your wellness scores (now filling the row), vital values, trends, the period retrospective, and the signals of the day. The wellness numbers are legible on the dark theme, the steps figure in the daily briefing now opens its readings, the Coach suggests two focused questions, and the duplicate "prepare assessment" button at the foot of the page is gone.
+- **Every metric page now follows one layout.** Intro → chart → target → assessment → the min / max / median / average stats below it. The target tile matches the other cards, blood pressure gains the same stat strip the other metrics have, the redundant range / "vs. previous" row is removed, and the "last measurement" card no longer clutters the page.
+- **The mood page is tighter.** The little insight one-liners now sit side by side instead of each taking a full row, and the statistical explainers collapse into a small info icon you can hover or focus for the detail.
+
 ## [1.12.3] — 2026-06-05 — mark the dose you're looking at
 
 ### Fixed

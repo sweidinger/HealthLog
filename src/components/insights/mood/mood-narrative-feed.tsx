@@ -64,8 +64,12 @@ export function MoodNarrativeFeed({ items }: { items: MoodNarrativeItem[] }) {
   if (items.length === 0) return null;
 
   return (
+    // v1.12.4 (C2) — the takeaways are short one-liners, so a single
+    // full-width column wasted horizontal space and stacked into a long
+    // ladder. Lay them two-up on anything wider than a phone; a lone
+    // takeaway still spans the row rather than orphaning half of it.
     <ul
-      className="space-y-2"
+      className="grid gap-2 sm:grid-cols-2"
       data-slot="mood-narrative-feed"
       aria-label={t("insights.mood.narrative.title")}
     >
@@ -82,7 +86,7 @@ export function MoodNarrativeFeed({ items }: { items: MoodNarrativeItem[] }) {
         return (
           <li
             key={`${item.kind}-${index}`}
-            className="bg-card border-border flex items-start gap-3 rounded-lg border p-3"
+            className="bg-card border-border flex h-full items-start gap-3 rounded-lg border p-3"
           >
             <Icon className="text-muted-foreground mt-0.5 size-4 shrink-0" />
             <p className="text-foreground/90 text-sm leading-snug">

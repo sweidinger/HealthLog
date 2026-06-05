@@ -1592,8 +1592,6 @@
     "heroRegenerating": "Generazione in corso",
     "regenerateAnalysis": "Rigenera la valutazione",
     "regenerateSuccess": "Valutazione rigenerata",
-    "warmAssessments": "Prepara le valutazioni",
-    "warmAssessmentsHint": "Le valutazioni si aggiornano automaticamente durante la notte. Preparale ora per vedere i dati più recenti.",
     "warmStarted": "Le valutazioni vengono preparate in background",
     "narrativeTitle": "Il tuo periodo in sintesi",
     "narrativeWeek": "Questa settimana",
@@ -1647,9 +1645,6 @@
     },
     "suggestedPrompts": {
       "label": "Chiedimi",
-      "whyMonday": "Perché la mia pressione era più alta lunedì?",
-      "weightVsPulse": "Come ha inciso il calo di peso sulle mie pulsazioni?",
-      "weekVsMonth": "Confronta questa settimana con il mese scorso",
       "tellMyDoctor": "Cosa dovrei dire al mio medico?",
       "medicationWorking": "Il mio farmaco sta funzionando?"
     },
@@ -2558,7 +2553,8 @@
         "weightTitle": "Umore vs. peso",
         "bloodPressureTitle": "Umore vs. pressione sanguigna",
         "weightAxis": "Peso",
-        "bloodPressureAxis": "Sistolica (mmHg)"
+        "bloodPressureAxis": "Sistolica (mmHg)",
+        "sourceLabel": "Come è stato calcolato"
       },
       "structuredTagsTitle": "Analisi etichette",
       "inTargetValue": "{pct} %",
@@ -2629,7 +2625,9 @@
         "moodDown": "Un {factor} più alto tende a coincidere con un umore peggiore il giorno dopo nei tuoi dati.",
         "outcomeUp": "Un umore migliore tende a coincidere con un {factor} più alto il giorno dopo nei tuoi dati.",
         "outcomeDown": "Un umore migliore tende a coincidere con un {factor} più basso il giorno dopo nei tuoi dati.",
-        "stat": "{n} giorni appaiati · r = {r} · q = {q}"
+        "stat": "{n} giorni appaiati · r = {r} · q = {q}",
+        "statLabel": "Come è stato calcolato",
+        "explainerLabel": "Come è stato calcolato"
       }
     },
     "derived": {

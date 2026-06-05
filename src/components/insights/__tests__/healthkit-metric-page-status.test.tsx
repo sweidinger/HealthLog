@@ -33,13 +33,6 @@ vi.mock("@/hooks/use-auth", () => ({
 
 vi.mock("@/hooks/use-insights-layout-prefs", () => ({
   useInsightsLayoutPrefs: () => ({ layout: null, compareBaseline: false }),
-  useInsightsRangePref: () => ({ range: "30d", setRange: () => {} }),
-}));
-
-// v1.9.0 — the page reads the period-over-period range delta; mock the hook
-// so the test stays deterministic and never touches `fetch`.
-vi.mock("@/hooks/use-analytics-range", () => ({
-  useAnalyticsRange: () => ({ data: undefined, isLoading: false }),
 }));
 
 const analyticsMock = vi.fn();

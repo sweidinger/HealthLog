@@ -1592,8 +1592,6 @@
     "heroRegenerating": "Génération en cours",
     "regenerateAnalysis": "Relancer l’évaluation",
     "regenerateSuccess": "Évaluation regénérée",
-    "warmAssessments": "Préparer les évaluations",
-    "warmAssessmentsHint": "Les évaluations sont actualisées automatiquement pendant la nuit. Préparez-les maintenant pour voir les dernières données.",
     "warmStarted": "Les évaluations sont en cours de préparation en arrière-plan",
     "narrativeTitle": "Votre période en revue",
     "narrativeWeek": "Cette semaine",
@@ -1647,9 +1645,6 @@
     },
     "suggestedPrompts": {
       "label": "Demande-moi",
-      "whyMonday": "Pourquoi ma tension était-elle plus haute lundi ?",
-      "weightVsPulse": "Comment la perte de poids a-t-elle influé sur mon pouls ?",
-      "weekVsMonth": "Compare cette semaine avec le mois dernier",
       "tellMyDoctor": "Que devrais-je dire à mon médecin ?",
       "medicationWorking": "Mon médicament fonctionne-t-il ?"
     },
@@ -2558,7 +2553,8 @@
         "weightTitle": "Humeur vs. poids",
         "bloodPressureTitle": "Humeur vs. tension artérielle",
         "weightAxis": "Poids",
-        "bloodPressureAxis": "Systolique (mmHg)"
+        "bloodPressureAxis": "Systolique (mmHg)",
+        "sourceLabel": "Comment ceci est calculé"
       },
       "structuredTagsTitle": "Répartition des étiquettes",
       "inTargetValue": "{pct} %",
@@ -2629,7 +2625,9 @@
         "moodDown": "Un {factor} plus élevé tend à coïncider avec une moins bonne humeur le lendemain dans vos données.",
         "outcomeUp": "Une meilleure humeur tend à coïncider avec un {factor} plus élevé le lendemain dans vos données.",
         "outcomeDown": "Une meilleure humeur tend à coïncider avec un {factor} plus bas le lendemain dans vos données.",
-        "stat": "{n} jours appariés · r = {r} · q = {q}"
+        "stat": "{n} jours appariés · r = {r} · q = {q}",
+        "statLabel": "Comment ceci est calculé",
+        "explainerLabel": "Comment ceci est calculé"
       }
     },
     "derived": {

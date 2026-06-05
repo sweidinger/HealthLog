@@ -13,7 +13,6 @@ import { HealthChartDynamic } from "@/components/charts/health-chart-dynamic";
 import { CoachLaunchButton } from "@/components/insights/coach-launch-button";
 import { SlugInsightStatusCard } from "@/components/insights/slug-insight-status-card";
 import { MetricEmptyState } from "@/components/insights/metric-empty-state";
-import { MetricRangeControls } from "@/components/insights/metric-range-controls";
 import { MetricTargetSummary } from "@/components/insights/metric-target-summary";
 import { SubPageShell } from "@/components/insights/sub-page-shell";
 
@@ -115,9 +114,7 @@ export default function InsightsBmiPage() {
           so it has no first-class summary or raw-reading rows of its own. A
           stat strip would have nothing to read, and a diversity nudge / "show
           all values" entry would point at WEIGHT and duplicate the weight
-          page's controls.
-          BMI is derived from WEIGHT, so the period-over-period delta keys on
-          the underlying weight series the chart reuses. */}
+          page's controls. */}
       <HealthChartDynamic
         chartKey="bmi"
         types={["WEIGHT"]}
@@ -129,8 +126,6 @@ export default function InsightsBmiPage() {
         compareBaseline={compareBaseline}
         userTimezone={user?.timezone}
       />
-      {/* v1.12.0 — range pills + period-over-period delta below the chart. */}
-      <MetricRangeControls measurementType="WEIGHT" enabled={!isEmpty} />
 
       <MetricTargetSummary slug="bmi" />
 

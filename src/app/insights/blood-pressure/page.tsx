@@ -12,8 +12,7 @@ import { HealthChartDynamic } from "@/components/charts/health-chart-dynamic";
 import { SlugInsightStatusCard } from "@/components/insights/slug-insight-status-card";
 import { MeasurementDiversityNudge } from "@/components/insights/measurement-diversity-nudge";
 import { MetricEmptyState } from "@/components/insights/metric-empty-state";
-import { MetricLastMeasurementCard } from "@/components/insights/metric-last-measurement-card";
-import { MetricRangeControls } from "@/components/insights/metric-range-controls";
+import { MetricStatStrip } from "@/components/insights/metric-stat-strip";
 import { MetricTargetSummary } from "@/components/insights/metric-target-summary";
 import { SubPageShell } from "@/components/insights/sub-page-shell";
 import { getBpTargets } from "@/lib/analytics/bp-targets";
@@ -45,8 +44,11 @@ export default function InsightsBlutdruckPage() {
 
   const { data: analytics, isEmpty } =
     useInsightsAnalytics("BLOOD_PRESSURE_SYS");
-  const bpLastSeenAt =
-    analytics?.lastSeenByType?.BLOOD_PRESSURE_SYS?.lastSeenAt ?? null;
+  // v1.12.4 — blood pressure is two series, so it stacks two stat strips
+  // (systolic / diastolic) rather than the single-series strip the other
+  // metrics carry. Both summaries ride the same `summaries` slice.
+  const sysSummary = analytics?.summaries?.BLOOD_PRESSURE_SYS ?? null;
+  const diaSummary = analytics?.summaries?.BLOOD_PRESSURE_DIA ?? null;
 
   if (isEmpty) {
     return (
@@ -103,14 +105,21 @@ export default function InsightsBlutdruckPage() {
       description={t("insights.subPage.blutdruckDescription")}
       explainerMetric="bloodPressure"
       coachLaunch
-      primary={
-        <>
-          {/* Blood pressure's primary tile IS its richer target panel
-              (ESH classification + sys/dia band + 30-day S/D average),
-              promoted above the chart per the canonical spine. */}
-          <MetricTargetSummary slug="blood-pressure" />
-          <MetricLastMeasurementCard lastSeenAt={bpLastSeenAt} />
-        </>
+      statStrip={
+        <div className="space-y-3" data-slot="bp-stat-strips">
+          <MetricStatStrip
+            summary={sysSummary}
+            unit="mmHg"
+            fractionDigits={0}
+            seriesLabel={t("charts.systolic")}
+          />
+          <MetricStatStrip
+            summary={diaSummary}
+            unit="mmHg"
+            fractionDigits={0}
+            seriesLabel={t("charts.diastolic")}
+          />
+        </div>
       }
       diversityNudge={
         <MeasurementDiversityNudge
@@ -120,13 +129,7 @@ export default function InsightsBlutdruckPage() {
         />
       }
       showAllValuesType="BLOOD_PRESSURE_SYS"
-      /* No `statStrip`: `<MetricStatStrip>` is single-series, but blood
-         pressure is two series (systolic + diastolic). A single min / max /
-         median / mean strip would silently drop the diastolic half, so the
-         page omits it rather than mislead. */
     >
-      {/* The period-over-period delta keys on the systolic series — the
-          canonical BP figure the targets + status surfaces lead with. */}
       <HealthChartDynamic
         chartKey="bp"
         types={["BLOOD_PRESSURE_SYS", "BLOOD_PRESSURE_DIA"]}
@@ -138,11 +141,14 @@ export default function InsightsBlutdruckPage() {
         compareBaseline={compareBaseline}
         userTimezone={user?.timezone}
       />
-      {/* v1.12.0 — range pills + period-over-period delta below the chart. */}
-      <MetricRangeControls measurementType="BLOOD_PRESSURE_SYS" enabled={!isEmpty} />
 
-      {/* v1.12.0 — Einschätzung is the last block on the canonical
-          metric-detail spine. */}
+      {/* v1.12.4 — target card sits between the chart and the assessment on
+          the canonical spine (ESH classification + sys/dia band + 30-day S/D
+          average). */}
+      <MetricTargetSummary slug="blood-pressure" />
+
+      {/* v1.12.4 — Einschätzung is the last content block; the stat strip
+          (rendered by the shell) closes the spine below it. */}
       <SlugInsightStatusCard
         slug="blood-pressure"
         icon={<HeartPulse className="h-5 w-5" />}

@@ -7,7 +7,7 @@ import { SuggestedPrompts } from "../suggested-prompts";
  * v1.4.20 phase B1 — "Try asking" prompt-chip strip.
  *
  * Renders a horizontal row of clickable prompts below the hero action
- * band. Tests cover: default 5-chip rendering, custom prompt list,
+ * band. Tests cover: default two-chip rendering, custom prompt list,
  * onPick wiring, locale-aware label.
  */
 
@@ -18,20 +18,21 @@ function render(node: React.ReactNode, locale: "en" | "de" = "en") {
 }
 
 describe("<SuggestedPrompts>", () => {
-  it("renders the 5 default prompt chips in English", () => {
+  it("renders the two default prompt chips in English", () => {
     const html = render(<SuggestedPrompts onPick={() => {}} />);
-    expect(html).toContain("Why was BP higher on Monday?");
-    expect(html).toContain("How did weight loss affect my pulse?");
-    expect(html).toContain("Compare this week to last month");
     expect(html).toContain("What should I tell my doctor?");
     expect(html).toContain("Is my medication working?");
+    // The speculative data-specific openers were dropped in v1.12.4.
+    expect(html).not.toContain("Why was BP higher on Monday?");
+    expect(html).not.toContain("How did weight loss affect my pulse?");
+    expect(html).not.toContain("Compare this week to last month");
   });
 
-  it("renders the 5 default prompt chips in German", () => {
+  it("renders the two default prompt chips in German", () => {
     const html = render(<SuggestedPrompts onPick={() => {}} />, "de");
-    expect(html).toContain("Warum war der Blutdruck am Montag höher?");
     expect(html).toContain("Wirkt mein Medikament?");
     expect(html).toContain("Was sollte ich meinem Arzt sagen?");
+    expect(html).not.toContain("Warum war der Blutdruck am Montag höher?");
   });
 
   it("renders the 'Try asking' label in English", () => {
@@ -49,7 +50,7 @@ describe("<SuggestedPrompts>", () => {
     const html = render(<SuggestedPrompts onPick={() => {}} />);
     const matches =
       html.match(/data-slot="insights-suggested-prompts-chip"/g) ?? [];
-    expect(matches.length).toBe(5);
+    expect(matches.length).toBe(2);
   });
 
   it("accepts a custom prompts array and renders only those", () => {
@@ -80,10 +81,10 @@ describe("<SuggestedPrompts>", () => {
     // Render to ensure no throw + capture the prompt strings the
     // component would forward.
     const html = render(<SuggestedPrompts onPick={handler} />);
-    expect(html).toContain("Why was BP higher on Monday?");
+    expect(html).toContain("What should I tell my doctor?");
     // Direct call — SSR can't drive a click; smoke-check the contract.
-    handler("Why was BP higher on Monday?");
-    expect(handler).toHaveBeenCalledWith("Why was BP higher on Monday?");
+    handler("What should I tell my doctor?");
+    expect(handler).toHaveBeenCalledWith("What should I tell my doctor?");
   });
 
   it("forwards a custom className for layout overrides", () => {

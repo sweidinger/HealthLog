@@ -96,9 +96,11 @@ describe("<MoodDiscoveredRelations>", () => {
     // factor label resolves to the localized measurement name
     expect(html).toContain("Time in Daylight");
     expect(html).toContain("higher next-day mood");
-    // stat line carries n, r, q
-    expect(html).toContain("r = 0.50");
-    expect(html).toContain("q = 0.020");
+    // v1.12.4 (C4) — the n/r/q detail moved off the visible sub-row into a
+    // focusable explainer icon (its tooltip content is portalled on open, so
+    // it is absent from the static markup). Assert the icon is wired per pair
+    // instead of the inline stat string.
+    expect(html).toContain('aria-label="How this was computed"');
   });
 
   it("phrases a mood → next-day outcome pair", () => {
@@ -111,7 +113,7 @@ describe("<MoodDiscoveredRelations>", () => {
     expect(html).toContain("lower next-day");
   });
 
-  it("filters to mood pairs and shows the honest full-family footer", () => {
+  it("filters to mood pairs and folds the full-family footer into the header explainer", () => {
     const html = renderWith(
       [
         pair({ behaviour: "TIME_IN_DAYLIGHT", outcome: "MOOD" }),
@@ -122,8 +124,16 @@ describe("<MoodDiscoveredRelations>", () => {
     expect((html.match(/data-slot="mood-discovered-pair"/g) ?? []).length).toBe(
       1,
     );
-    // Footer's denominator is the full behaviour×outcome family the engine
-    // tested, not the mood-only subset — so it must report 12, not 1 of 1.
-    expect(html).toContain("from 12 day-to-day pairs");
+    // v1.12.4 (C3) — the false-discovery footer (denominator = the full
+    // behaviour×outcome family the engine tested, i.e. 12, not the mood-only
+    // subset) + the observational disclaimer were two full-width footnote
+    // rows; both fold into a single header explainer icon now. Its tooltip
+    // content is portalled on open, so assert the trigger exists rather than
+    // the (now hidden) footer string.
+    expect(
+      (html.match(/aria-label="How this was computed"/g) ?? []).length,
+    ).toBeGreaterThanOrEqual(1);
+    // The two old inline footnote rows are gone from the static markup.
+    expect(html).not.toContain("day-to-day pairs tested");
   });
 });

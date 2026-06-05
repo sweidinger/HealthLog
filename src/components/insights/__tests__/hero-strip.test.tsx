@@ -157,7 +157,7 @@ describe("<HeroStrip>", () => {
     expect(html).toMatch(/data-slot="insights-hero-strip-prompts"/);
     expect(html).toMatch(/data-slot="insights-suggested-prompts"/);
     expect(html).toContain("Try asking");
-    expect(html).toContain("Why was BP higher on Monday?");
+    expect(html).toContain("What should I tell my doctor?");
   });
 
   it("forwards onPickPrompt down to the prompt strip without throwing", () => {

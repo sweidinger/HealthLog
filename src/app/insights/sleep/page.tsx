@@ -10,8 +10,6 @@ import { Button } from "@/components/ui/button";
 import { MeasurementDiversityNudge } from "@/components/insights/measurement-diversity-nudge";
 import { MetricStatusCard } from "@/components/insights/metric-status-card";
 import { MetricEmptyState } from "@/components/insights/metric-empty-state";
-import { MetricLastMeasurementCard } from "@/components/insights/metric-last-measurement-card";
-import { MetricRangeControls } from "@/components/insights/metric-range-controls";
 import { MetricTargetSummary } from "@/components/insights/metric-target-summary";
 import { SleepOverview } from "@/components/insights/sleep-overview";
 import { SubPageShell } from "@/components/insights/sub-page-shell";
@@ -36,10 +34,7 @@ export default function InsightsSchlafPage() {
   const { t } = useTranslations();
   const { user } = useAuth();
 
-  const { data: analytics, isEmpty } =
-    useInsightsAnalytics("SLEEP_DURATION");
-  const sleepLastSeenAt =
-    analytics?.lastSeenByType?.SLEEP_DURATION?.lastSeenAt ?? null;
+  const { isEmpty } = useInsightsAnalytics("SLEEP_DURATION");
 
   if (isEmpty) {
     return (
@@ -71,7 +66,6 @@ export default function InsightsSchlafPage() {
       description={t("insights.sleep.description")}
       explainerMetric="sleep"
       coachLaunch
-      primary={<MetricLastMeasurementCard lastSeenAt={sleepLastSeenAt} />}
       diversityNudge={
         <MeasurementDiversityNudge
           measurementType="SLEEP_DURATION"
@@ -86,9 +80,6 @@ export default function InsightsSchlafPage() {
          awkward unit. */
     >
       <SleepOverview />
-
-      {/* v1.12.0 — range pills + period-over-period delta below the chart. */}
-      <MetricRangeControls measurementType="SLEEP_DURATION" enabled={!isEmpty} />
 
       <MetricTargetSummary slug="sleep" />
 

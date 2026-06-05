@@ -167,6 +167,20 @@ export function WellnessScores({ read, isLoading, className }: ScoreStripProps) 
   // Whole strip un-mounts when no score has data — never an empty section.
   if (tiles.length === 0) return null;
 
+  // v1.12.4 — the strip used a fixed `lg:grid-cols-5`, so the common case of
+  // four active scores left one empty cell on the right and read as "a tile
+  // is missing". Track the desktop column count to the actual number of tiles
+  // (capped at 5) so the row always fills its full width. The static class
+  // map keeps every variant in the Tailwind output (no purge surprise).
+  const LG_COLS: Record<number, string> = {
+    1: "lg:grid-cols-1",
+    2: "lg:grid-cols-2",
+    3: "lg:grid-cols-3",
+    4: "lg:grid-cols-4",
+    5: "lg:grid-cols-5",
+  };
+  const lgCols = LG_COLS[Math.min(tiles.length, 5)] ?? "lg:grid-cols-5";
+
   return (
     <section
       data-slot="wellness-scores"
@@ -178,7 +192,7 @@ export function WellnessScores({ read, isLoading, className }: ScoreStripProps) 
       </h2>
       <div
         data-slot="wellness-scores-grid"
-        className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5"
+        className={cn("grid grid-cols-2 gap-3 sm:grid-cols-3", lgCols)}
       >
         {tiles}
       </div>

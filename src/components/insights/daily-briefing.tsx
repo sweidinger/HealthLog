@@ -49,7 +49,12 @@ const METRIC_HREF: Record<DailyBriefingKeyFinding["sourceMetric"], string | null
   hrv: null,
   sleep: "/insights/sleep",
   resting_hr: null,
-  steps: null,
+  // v1.12.4 — steps has no dedicated metric sub-page, so it routes to the
+  // generic readings view keyed to its `MeasurementType` (the same target
+  // the category pages use to drill into a single type). Every other
+  // briefing finding with a real destination is already tappable; steps
+  // was the lone static row.
+  steps: "/insights/values/ACTIVITY_STEPS",
   active_energy: null,
   flights: null,
   distance: null,

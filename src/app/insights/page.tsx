@@ -3,7 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import { TrendingUp, Sparkles } from "lucide-react";
+import { TrendingUp } from "lucide-react";
 
 import { useAuth } from "@/hooks/use-auth";
 import { queryKeys } from "@/lib/query-keys";
@@ -16,7 +16,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { HeroStrip } from "@/components/insights/hero-strip";
 import { useInsightsAdvisorQuery } from "@/components/insights/use-insights-advisor";
-import { useInsightsWarm } from "@/components/insights/use-insights-warm";
 import { useCoachLaunch } from "@/lib/insights/coach-launch-context";
 import { useAnalyticsQuery } from "@/lib/queries/use-analytics-query";
 // v1.4.41 W-ORG — shared shape lives in `src/types/analytics.ts` as
@@ -225,13 +224,6 @@ export default function InsightsPage() {
   const analyticsQuery = useAnalyticsQuery();
   const analytics = analyticsQuery.data as AnalyticsData | undefined;
 
-  // The "prepare assessments" button below re-warms every assessment on
-  // demand. There is no warm-on-mount: the nightly cron (04:30) keeps the
-  // caches warm and the per-metric status GETs revalidate gently on their
-  // own (stale-while-revalidate), so opening the overview only reads cached
-  // text — it never fans out a full provider warm on a page visit.
-  const { warm, isWarming } = useInsightsWarm();
-
   // Empty-state shortcut — only paint once the comprehensive query has
   // resolved AND reported zero measurements. While it's in-flight we
   // fall through to the streamed shell so the user gets the hero +
@@ -273,15 +265,22 @@ export default function InsightsPage() {
   // server children would require a Server-Component refactor; that's
   // a v1.5.x track.
 
-  // v1.12.0 — section order mirrors the iOS Insights overview
-  // (`v0.14` app-structure handover §2c): Coach hero + briefing + chips
-  // (the HeroStrip bundles all three) → detailed "Heute auf einen Blick"
-  // briefing → dynamics / alerts zone (today's signal + rhythm events,
-  // out of the AI gate so a health alert is never hidden) → vitals
-  // dashboard → trends row → "Zeitraum im Rückblick" retrospective →
-  // footer (the warm-assessments utility control, no iOS equivalent —
-  // iOS auto-warms). The per-metric correlation cards moved onto the
-  // metric pages, so the overview renders no correlation row.
+  // v1.12.4 — overview section order, top → bottom:
+  //   1. "Guten Morgen" Hero + Coach questions (HeroStrip) + the detailed
+  //      "Heute auf einen Blick" briefing right below it (same briefing
+  //      cluster, stays at the top).
+  //   2. Wellnesswerte  ┐ both live inside <VitalsDashboard>, which renders
+  //   3. Vitalwerte      ┘ the wellness-score strip first, then the vitals
+  //      grid — so a single mount already gives the 2 → 3 sequence.
+  //   4. Trends (TrendsRow).
+  //   5. "Dein Zeitraum im Rückblick" retrospective (PeriodNarrativeCard).
+  //   6. "Signale des Tages" — today's signal (CoincidentDeviationCard) plus
+  //      the rhythm-events alert timeline, kept out of the AI gate so a
+  //      health alert is never hidden.
+  // The per-metric correlation cards moved onto the metric pages, so the
+  // overview renders no correlation row. The duplicate footer "prepare
+  // assessments" control was removed in v1.12.4 — the tab-strip regenerate
+  // button is the single affordance.
   return (
     <div className="space-y-8">
       <HeroStrip
@@ -311,10 +310,6 @@ export default function InsightsPage() {
         />
       )}
 
-      <CoincidentDeviationCard enabled={isAuthenticated} />
-
-      <RhythmEventsCard enabled={isAuthenticated} />
-
       <VitalsDashboard enabled={isAuthenticated} />
 
       <TrendsRow
@@ -325,25 +320,9 @@ export default function InsightsPage() {
 
       {flags.briefing && <PeriodNarrativeCard enabled={isAuthenticated} />}
 
-      {/* v1.11.3 — anchor the warm-assessments control. It used to float
-          right-aligned with no label, reading as an orphan affordance. The
-          left-aligned caption explains the nightly-refresh model and gives the
-          button context. */}
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <p className="text-muted-foreground text-xs">
-          {t("insights.warmAssessmentsHint")}
-        </p>
-        <Button
-          size="sm"
-          variant="outline"
-          className="self-start sm:self-auto"
-          onClick={warm}
-          disabled={isWarming}
-        >
-          <Sparkles className="size-4" />
-          {t("insights.warmAssessments")}
-        </Button>
-      </div>
+      <CoincidentDeviationCard enabled={isAuthenticated} />
+
+      <RhythmEventsCard enabled={isAuthenticated} />
     </div>
   );
 }
