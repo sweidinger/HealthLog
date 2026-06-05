@@ -7,6 +7,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { useInsightsAnalytics } from "@/hooks/use-insights-analytics";
 import { useTranslations } from "@/lib/i18n/context";
 import { useInsightsLayoutPrefs } from "@/hooks/use-insights-layout-prefs";
+import { useChartDomainStats } from "@/hooks/use-chart-domain-stats";
 import { Button } from "@/components/ui/button";
 import { HealthChartDynamic } from "@/components/charts/health-chart-dynamic";
 import { SlugInsightStatusCard } from "@/components/insights/slug-insight-status-card";
@@ -49,6 +50,10 @@ export default function InsightsPulsPage() {
   const { data: analytics, isEmpty } = useInsightsAnalytics("PULSE");
   const vo2Summary = analytics?.summaries?.VO2_MAX ?? null;
   const pulseSummary = analytics?.summaries?.PULSE ?? null;
+
+  // v1.12.7 — brushed-window stats shared between the pulse chart and the
+  // strip (the VO2 chart-row below keeps its own full-range read).
+  const { statsByType, onDomainStats } = useChartDomainStats();
 
   // v1.4.27 F17 — gate the sub-page on at least one pulse observation.
   // Brand-new accounts (no manual logs, no Apple-Health upload yet)
@@ -119,6 +124,7 @@ export default function InsightsPulsPage() {
           unit="bpm"
           seriesLabel={t("insights.pulseSectionTitle")}
           icon={Heart}
+          windowStats={statsByType?.PULSE ?? null}
         />
       }
       diversityNudge={
@@ -140,6 +146,8 @@ export default function InsightsPulsPage() {
         valueBands={pulseBands}
         compareBaseline={compareBaseline}
         userTimezone={user?.timezone}
+        selectableDomain
+        onDomainStats={onDomainStats}
       />
 
       <MetricTargetSummary slug="pulse" />

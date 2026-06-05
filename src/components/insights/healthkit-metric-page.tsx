@@ -8,6 +8,7 @@ import { Sparkles } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { useInsightsAnalytics } from "@/hooks/use-insights-analytics";
 import { useInsightsLayoutPrefs } from "@/hooks/use-insights-layout-prefs";
+import { useChartDomainStats } from "@/hooks/use-chart-domain-stats";
 import { useTranslations } from "@/lib/i18n/context";
 import type { InsightMetric } from "@/lib/insights/metric-availability";
 import type { MetricStatusMetricId } from "@/lib/insights/metric-status-registry";
@@ -165,6 +166,12 @@ export function HealthKitMetricPage({
 
   const { data: analytics, isEmpty } = useInsightsAnalytics(insightMetric);
 
+  // v1.12.7 — shared brushed-window state. The chart reports the per-type
+  // Min / Max / Median / Mean for the selected domain; the stat strip reads
+  // it back for this page's single series. No selection → null → the strip
+  // keeps the full-range summary.
+  const { statsByType, onDomainStats } = useChartDomainStats();
+
   const rawSummary = analytics?.summaries?.[measurementType] ?? null;
   // The stat strip renders display-unit values. The summary holds stored
   // values, so when the page renders a scaled unit (e.g. WALKING_SPEED
@@ -225,6 +232,7 @@ export function HealthKitMetricPage({
           unit={yAxisUnit ?? unit}
           seriesLabel={title}
           icon={statIcon}
+          windowStats={statsByType?.[measurementType] ?? null}
         />
       }
       diversityNudge={
@@ -248,6 +256,8 @@ export function HealthKitMetricPage({
         compareBaseline={compareBaseline}
         userTimezone={user?.timezone}
         valueScale={valueScale}
+        selectableDomain
+        onDomainStats={onDomainStats}
       />
       {targetSummarySlug ? (
         <MetricTargetSummary slug={targetSummarySlug} />

@@ -7,6 +7,7 @@ import { useFormatters, useTranslations } from "@/lib/i18n/context";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { TileHeader } from "@/components/insights/tile-header";
 import type { DataSummary } from "@/lib/analytics/trends";
+import type { MetricWindowStats } from "@/lib/charts/window-stats";
 
 /**
  * v1.8.5 — at-a-glance stat strip for the insights category pages.
@@ -66,6 +67,17 @@ interface MetricStatStripProps {
    * complete header.
    */
   icon?: ComponentType<{ className?: string }>;
+  /**
+   * v1.12.7 — chart-reactive metric statistics. When the user brushes a
+   * window in the metric's chart, the sub-page lifts the chart's per-series
+   * Min / Max / Median / Mean for that window and threads it here. When
+   * present (non-null), the strip renders these windowed numbers in place of
+   * the full-range `summary` and swaps the header copy to "selected range" so
+   * the user reads the stats as describing their selection. Null (no
+   * selection) falls back to the cheap precomputed `summary` — the default,
+   * unchanged.
+   */
+  windowStats?: MetricWindowStats | null;
 }
 
 export function MetricStatStrip({
@@ -74,29 +86,37 @@ export function MetricStatStrip({
   fractionDigits = 1,
   seriesLabel,
   icon,
+  windowStats,
 }: MetricStatStripProps) {
   const { t } = useTranslations();
   const fmt = useFormatters();
 
   // Nothing to show until the summary lands or for a metric with no
-  // readings — the page's empty-state covers the zero-data case.
+  // readings — the page's empty-state covers the zero-data case. The gate
+  // rides the full-range summary even when a window is active, so a brush
+  // never resurrects the strip on a metric that has no data at all.
   if (!summary || summary.count <= 0) return null;
+
+  // v1.12.7 — a window selection with at least one reading wins over the
+  // full-range summary; otherwise the strip reads the precomputed numbers.
+  const windowed = windowStats != null && windowStats.count > 0;
+  const source = windowed ? windowStats : summary;
 
   const format = (value: number | null): string =>
     value === null ? "—" : `${fmt.number(value, fractionDigits)} ${unit}`;
 
   const cells: Array<{ key: string; label: string; value: number | null }> = [
-    { key: "min", label: t("insights.subPage.stats.min"), value: summary.min },
-    { key: "max", label: t("insights.subPage.stats.max"), value: summary.max },
+    { key: "min", label: t("insights.subPage.stats.min"), value: source.min },
+    { key: "max", label: t("insights.subPage.stats.max"), value: source.max },
     {
       key: "median",
       label: t("insights.subPage.stats.median"),
-      value: summary.median,
+      value: source.median,
     },
     {
       key: "mean",
       label: t("insights.subPage.stats.mean"),
-      value: summary.mean,
+      value: source.mean,
     },
   ];
 
@@ -107,6 +127,7 @@ export function MetricStatStrip({
     // data-slots; the section semantics ride on `role` + `aria-label`.
     <Card
       data-slot="metric-stat-strip"
+      data-windowed={windowed ? "true" : undefined}
       role="group"
       aria-label={
         seriesLabel
@@ -117,7 +138,24 @@ export function MetricStatStrip({
     >
       {seriesLabel ? (
         <CardHeader className="pb-2">
-          <TileHeader icon={icon ?? Sigma} title={seriesLabel} />
+          <TileHeader
+            icon={icon ?? Sigma}
+            title={seriesLabel}
+            // v1.12.7 — when the stats describe a brushed chart window rather
+            // than the full range, pin a "selected range" pill to the header
+            // so the user reads the numbers as their selection. Falls away the
+            // moment the selection clears.
+            right={
+              windowed ? (
+                <span
+                  data-slot="metric-stat-window-badge"
+                  className="bg-dracula-purple/10 text-dracula-purple rounded-md border border-current/30 px-1.5 py-0.5 text-[10px] font-medium tracking-wide uppercase"
+                >
+                  {t("insights.subPage.stats.selectedRange")}
+                </span>
+              ) : undefined
+            }
+          />
         </CardHeader>
       ) : null}
       <CardContent>

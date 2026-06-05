@@ -1494,7 +1494,8 @@
       "sat": "Sobota",
       "sun": "Niedziela"
     },
-    "rangeBand": "Zakres"
+    "rangeBand": "Zakres",
+    "selectRange": "Wybierz zakres"
   },
   "chart": {
     "overlay": {
@@ -2104,7 +2105,8 @@
         "min": "Min",
         "max": "Maks",
         "median": "Mediana",
-        "mean": "Średnia"
+        "mean": "Średnia",
+        "selectedRange": "Wybrany zakres"
       },
       "showAllValues": "Pokaż wszystkie pomiary",
       "valuesPageTitle": "{metric} — wszystkie pomiary",

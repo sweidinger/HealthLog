@@ -7,6 +7,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { useInsightsAnalytics } from "@/hooks/use-insights-analytics";
 import { useTranslations } from "@/lib/i18n/context";
 import { useInsightsLayoutPrefs } from "@/hooks/use-insights-layout-prefs";
+import { useChartDomainStats } from "@/hooks/use-chart-domain-stats";
 import { Button } from "@/components/ui/button";
 import { HealthChartDynamic } from "@/components/charts/health-chart-dynamic";
 import { SlugInsightStatusCard } from "@/components/insights/slug-insight-status-card";
@@ -49,6 +50,11 @@ export default function InsightsBlutdruckPage() {
   // metrics carry. Both summaries ride the same `summaries` slice.
   const sysSummary = analytics?.summaries?.BLOOD_PRESSURE_SYS ?? null;
   const diaSummary = analytics?.summaries?.BLOOD_PRESSURE_DIA ?? null;
+
+  // v1.12.7 — chart-reactive metric statistics. Blood pressure brushes BOTH
+  // series at once: the single chart reports per-type windowed stats and each
+  // strip reads its own half.
+  const { statsByType, onDomainStats } = useChartDomainStats();
 
   if (isEmpty) {
     return (
@@ -113,6 +119,7 @@ export default function InsightsBlutdruckPage() {
             fractionDigits={0}
             seriesLabel={t("charts.systolic")}
             icon={ArrowUpRight}
+            windowStats={statsByType?.BLOOD_PRESSURE_SYS ?? null}
           />
           <MetricStatStrip
             summary={diaSummary}
@@ -120,6 +127,7 @@ export default function InsightsBlutdruckPage() {
             fractionDigits={0}
             seriesLabel={t("charts.diastolic")}
             icon={ArrowDownRight}
+            windowStats={statsByType?.BLOOD_PRESSURE_DIA ?? null}
           />
         </div>
       }
@@ -142,6 +150,8 @@ export default function InsightsBlutdruckPage() {
         targetZones={bpTargetZones}
         compareBaseline={compareBaseline}
         userTimezone={user?.timezone}
+        selectableDomain
+        onDomainStats={onDomainStats}
       />
 
       {/* v1.12.4 — target card sits between the chart and the assessment on
