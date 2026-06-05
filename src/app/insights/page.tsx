@@ -3,7 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import { TrendingUp } from "lucide-react";
+import { RefreshCw, TrendingUp } from "lucide-react";
 
 import { useAuth } from "@/hooks/use-auth";
 import { queryKeys } from "@/lib/query-keys";
@@ -214,7 +214,7 @@ export default function InsightsPage() {
   // empty-state branch only fires once the query has resolved AND
   // reported zero measurements; while it's in-flight the page paints
   // the regular shell and the tiles fill in as their data lands.
-  const { data, isLoading, isFetched } = useQuery({
+  const { data, isLoading, isFetched, isError, refetch } = useQuery({
     queryKey: queryKeys.insightsComprehensive(),
     queryFn: async () => {
       const res = await fetch("/api/insights/comprehensive");
@@ -243,6 +243,35 @@ export default function InsightsPage() {
   // strip (above the briefing) and the vitals grid (below it) both read this
   // single query instance, so the wellness lift adds no second request.
   const dashboardDerived = useDashboardDerived(isAuthenticated);
+
+  // Error branch — a transient 500 / network drop (after the query's
+  // retries are exhausted) settles the comprehensive query with no data.
+  // Without this gate the page would fall through to the "no data yet —
+  // add a measurement" empty-state, which reads false for a user with
+  // history. Surface an error + a Retry that refetches the one query,
+  // mirroring the <VitalsDashboard> error pattern.
+  if (isError) {
+    return (
+      <div
+        data-slot="insights-overview-error"
+        role="alert"
+        className="bg-card border-border text-muted-foreground flex flex-col items-start gap-3 rounded-xl border p-4 text-sm sm:flex-row sm:items-center sm:justify-between"
+      >
+        <span>{t("insights.loadError")}</span>
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          onClick={() => refetch()}
+          data-slot="insights-overview-retry"
+          className="gap-1.5"
+        >
+          <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />
+          <span>{t("common.retry")}</span>
+        </Button>
+      </div>
+    );
+  }
 
   // Empty-state shortcut — only paint once the comprehensive query has
   // resolved AND reported zero measurements. While it's in-flight we
