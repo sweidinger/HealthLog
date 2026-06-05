@@ -473,7 +473,10 @@
     "typeSleepEfficiency": "Eficiencia del sueño",
     "typeSleepConsistency": "Consistencia del sueño",
     "typeSleepNeed": "Necesidad de sueño",
-    "typeEnergyExpenditureKj": "Gasto energético"
+    "typeEnergyExpenditureKj": "Gasto energético",
+    "typeAverageHeartRate": "Frecuencia cardíaca media",
+    "typeMaxHeartRate": "Frecuencia cardíaca máxima",
+    "typeSleepDisturbanceCount": "Interrupciones del sueño"
   },
   "mood": {
     "title": "Estado de ánimo",

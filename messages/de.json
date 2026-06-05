@@ -473,7 +473,10 @@
     "typeSleepEfficiency": "Schlafeffizienz",
     "typeSleepConsistency": "Schlafkonsistenz",
     "typeSleepNeed": "Schlafbedarf",
-    "typeEnergyExpenditureKj": "Energieverbrauch"
+    "typeEnergyExpenditureKj": "Energieverbrauch",
+    "typeAverageHeartRate": "Durchschnittlicher Puls",
+    "typeMaxHeartRate": "Maximaler Puls",
+    "typeSleepDisturbanceCount": "Schlafstörungen"
   },
   "mood": {
     "title": "Stimmung",

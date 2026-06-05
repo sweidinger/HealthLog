@@ -86,10 +86,14 @@ const EXPECTED_TYPES = [
   "SLEEP_CONSISTENCY",
   "SLEEP_NEED",
   "ENERGY_EXPENDITURE_KJ",
+  // ── v1.12.8 — WHOOP cycle + sleep coverage completion ──
+  "AVERAGE_HEART_RATE",
+  "MAX_HEART_RATE",
+  "SLEEP_DISTURBANCE_COUNT",
 ] as const;
 
 describe("measurementTypeEnum coverage", () => {
-  it("exposes the 60 canonical measurement types", () => {
+  it("exposes the 63 canonical measurement types", () => {
     expect([...measurementTypeEnum.options].sort()).toEqual(
       [...EXPECTED_TYPES].sort(),
     );
@@ -202,6 +206,15 @@ describe("measurementTypeEnum coverage", () => {
     "SLEEP_CONSISTENCY",
     "SLEEP_NEED",
     "ENERGY_EXPENDITURE_KJ",
+    // v1.12.8 — WHOOP cycle + sleep coverage completion. The daily-aggregate
+    // heart-rate pair and the per-night disturbance count are device-derived
+    // WHOOP signals, not measured clinical vitals; they surface on the
+    // measurement list + Insights chart surfaces with a "descriptive, not
+    // clinical" framing and never belong in the clinical vitals PDF. See
+    // doctor-report-pdf-core.ts for the matching exclusion rationale.
+    "AVERAGE_HEART_RATE",
+    "MAX_HEART_RATE",
+    "SLEEP_DISTURBANCE_COUNT",
   ]);
 
   it("doctor-report PDF vital types cover the canonical enum minus documented exclusions", () => {

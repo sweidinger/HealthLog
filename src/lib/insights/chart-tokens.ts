@@ -109,6 +109,12 @@ export const ALLOWED_CHART_TOKENS = [
   "metric:SLEEP_CONSISTENCY",
   "metric:SLEEP_NEED",
   "metric:ENERGY_EXPENDITURE_KJ",
+  // v1.12.8 — WHOOP cycle + sleep coverage completion. Continuous daily
+  // series, so each carries a `metric:<TYPE>` token and renders through the
+  // generic chart renderer.
+  "metric:AVERAGE_HEART_RATE",
+  "metric:MAX_HEART_RATE",
+  "metric:SLEEP_DISTURBANCE_COUNT",
 ] as const;
 
 export type ChartToken = (typeof ALLOWED_CHART_TOKENS)[number];
@@ -219,6 +225,11 @@ const ORPHAN_ENUMS = [
   "SLEEP_CONSISTENCY",
   "SLEEP_NEED",
   "ENERGY_EXPENDITURE_KJ",
+  // v1.12.8 — WHOOP cycle + sleep coverage completion, same shape: strip the
+  // bare enum name if the model drops it into prose.
+  "AVERAGE_HEART_RATE",
+  "MAX_HEART_RATE",
+  "SLEEP_DISTURBANCE_COUNT",
 ] as const;
 
 // `\b` boundaries keep ordinary English prose untouched — "weight"

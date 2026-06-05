@@ -90,6 +90,15 @@ export const measurementTypeEnum = z.enum([
   "SLEEP_CONSISTENCY",
   "SLEEP_NEED",
   "ENERGY_EXPENDITURE_KJ",
+  // ── v1.12.8 — WHOOP cycle + sleep coverage completion (additive) ──
+  // Daily average / max heart rate ride WHOOP's cycle score (previously
+  // fetched but dropped). Kept distinct from spot PULSE / RESTING_HEART_RATE /
+  // WALKING_HEART_RATE_AVERAGE: these are the day's whole-cycle aggregates,
+  // not a point-in-time or context-specific reading. Sleep disturbance count
+  // is the per-night WHOOP `stage_summary.disturbance_count`.
+  "AVERAGE_HEART_RATE",
+  "MAX_HEART_RATE",
+  "SLEEP_DISTURBANCE_COUNT",
 ]);
 
 /**
@@ -283,6 +292,13 @@ const unitMap: Record<string, string> = {
   // Day energy expenditure in kilojoules (WHOOP-native; kept in kJ so the
   // device value round-trips rather than being converted to kcal).
   ENERGY_EXPENDITURE_KJ: "kJ",
+  // ── v1.12.8 — WHOOP cycle + sleep coverage completion ──
+  // Daily average / max heart rate bpm — whole-cycle aggregates, distinct
+  // from the spot PULSE / RESTING_HEART_RATE / WALKING_HEART_RATE_AVERAGE.
+  AVERAGE_HEART_RATE: "bpm",
+  MAX_HEART_RATE: "bpm",
+  // Per-night sleep disturbance tally — a plain integer count.
+  SLEEP_DISTURBANCE_COUNT: "count",
 };
 
 export function getUnitForType(type: string): string {
@@ -449,6 +465,15 @@ const VALUE_RANGES: Record<string, { min: number; max: number }> = {
   // Day energy expenditure in kJ — 50 000 kJ (~12 000 kcal) is a generous
   // ceiling over any plausible ultra-endurance day.
   ENERGY_EXPENDITURE_KJ: { min: 0, max: 50000 },
+  // ── v1.12.8 — WHOOP cycle + sleep coverage completion ──
+  // Daily average / max heart rate bpm — same plausibility band as the
+  // spot PULSE: endurance athletes touch the 30s at rest, severe
+  // tachycardia caps below 300.
+  AVERAGE_HEART_RATE: { min: 20, max: 300 },
+  MAX_HEART_RATE: { min: 20, max: 300 },
+  // Per-night sleep disturbance count — 0 is an undisturbed night; 200 is a
+  // generous ceiling over any plausible severely-fragmented night.
+  SLEEP_DISTURBANCE_COUNT: { min: 0, max: 200 },
 };
 
 export function validateMeasurementRange(

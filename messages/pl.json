@@ -473,7 +473,10 @@
     "typeSleepEfficiency": "Efektywność snu",
     "typeSleepConsistency": "Regularność snu",
     "typeSleepNeed": "Zapotrzebowanie na sen",
-    "typeEnergyExpenditureKj": "Wydatek energetyczny"
+    "typeEnergyExpenditureKj": "Wydatek energetyczny",
+    "typeAverageHeartRate": "Średnie tętno",
+    "typeMaxHeartRate": "Maksymalne tętno",
+    "typeSleepDisturbanceCount": "Zakłócenia snu"
   },
   "mood": {
     "title": "Nastrój",

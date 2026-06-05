@@ -34,6 +34,7 @@ import {
   Headphones,
   Sun,
   PersonStanding,
+  Waves,
   type LucideIcon,
 } from "lucide-react";
 
@@ -109,6 +110,10 @@ export const MEASUREMENT_TYPE_LABEL_KEYS: Record<string, string> = {
   SLEEP_CONSISTENCY: "measurements.typeSleepConsistency",
   SLEEP_NEED: "measurements.typeSleepNeed",
   ENERGY_EXPENDITURE_KJ: "measurements.typeEnergyExpenditureKj",
+  // ── v1.12.8 — WHOOP cycle + sleep coverage completion ──
+  AVERAGE_HEART_RATE: "measurements.typeAverageHeartRate",
+  MAX_HEART_RATE: "measurements.typeMaxHeartRate",
+  SLEEP_DISTURBANCE_COUNT: "measurements.typeSleepDisturbanceCount",
 };
 
 export const MEASUREMENT_TYPE_ICONS: Record<string, LucideIcon> = {
@@ -213,6 +218,13 @@ export const MEASUREMENT_TYPE_ICONS: Record<string, LucideIcon> = {
   SLEEP_CONSISTENCY: Moon,
   SLEEP_NEED: Moon,
   ENERGY_EXPENDITURE_KJ: Flame,
+  // ── v1.12.8 — WHOOP cycle + sleep coverage completion ──
+  // HeartPulse + Heart carry the daily-aggregate cardiac pair (same family
+  // as the other heart-rate signals); Waves reads as the per-night
+  // sleep-disturbance signal.
+  AVERAGE_HEART_RATE: HeartPulse,
+  MAX_HEART_RATE: Heart,
+  SLEEP_DISTURBANCE_COUNT: Waves,
 };
 
 export const MEASUREMENT_TYPE_COLORS: Record<string, string> = {
@@ -308,4 +320,10 @@ export const MEASUREMENT_TYPE_COLORS: Record<string, string> = {
   SLEEP_CONSISTENCY: "bg-chart-2/20 text-chart-2",
   SLEEP_NEED: "bg-chart-2/20 text-chart-2",
   ENERGY_EXPENDITURE_KJ: "bg-chart-4/20 text-chart-4",
+  // ── v1.12.8 — WHOOP cycle + sleep coverage completion ──
+  // chart-3 (cardio family) for the daily-aggregate heart-rate pair;
+  // chart-2 (sleep/activity family) for the per-night disturbance count.
+  AVERAGE_HEART_RATE: "bg-chart-3/20 text-chart-3",
+  MAX_HEART_RATE: "bg-chart-3/20 text-chart-3",
+  SLEEP_DISTURBANCE_COUNT: "bg-chart-2/20 text-chart-2",
 };

@@ -98,6 +98,10 @@ export function getPRDirection(
     // events, and fewer is unambiguously the goal.
     case "FALL_COUNT":
     case "BREATHING_DISTURBANCES":
+    // v1.12.8 — the per-night sleep disturbance count reads MIN: the
+    // "record" is the night with the fewest disturbances, and fewer is
+    // unambiguously the goal (mirrors BREATHING_DISTURBANCES).
+    case "SLEEP_DISTURBANCE_COUNT":
       return PersonalRecordDirection.MIN;
 
     // Explicitly no PersonalRecord — see comment block above.
@@ -166,6 +170,12 @@ export function getPRDirection(
     case "SLEEP_CONSISTENCY":
     case "SLEEP_NEED":
     case "ENERGY_EXPENDITURE_KJ":
+    // v1.12.8 — the daily average / max heart rate are whole-cycle
+    // aggregates without a clean goal axis: a higher value can mean either
+    // a harder-effort day or an ailing one, exactly like the
+    // WALKING_HEART_RATE_AVERAGE case above. Defer to a null PR direction.
+    case "AVERAGE_HEART_RATE":
+    case "MAX_HEART_RATE":
       return null;
   }
 }

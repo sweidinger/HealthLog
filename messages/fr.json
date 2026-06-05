@@ -473,7 +473,10 @@
     "typeSleepEfficiency": "Efficacité du sommeil",
     "typeSleepConsistency": "Régularité du sommeil",
     "typeSleepNeed": "Besoin de sommeil",
-    "typeEnergyExpenditureKj": "Dépense énergétique"
+    "typeEnergyExpenditureKj": "Dépense énergétique",
+    "typeAverageHeartRate": "Fréquence cardiaque moyenne",
+    "typeMaxHeartRate": "Fréquence cardiaque maximale",
+    "typeSleepDisturbanceCount": "Perturbations du sommeil"
   },
   "mood": {
     "title": "Humeur",
