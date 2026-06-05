@@ -25,6 +25,7 @@ import {
   type IntakeEventLike,
   type ScheduleLike,
 } from "@/lib/medications/scheduling/cadence";
+import { streaksFromTimeline } from "@/lib/medications/scheduling/compliance";
 import {
   occurrencesBetween,
   type CanonicalSchedule,
@@ -694,33 +695,24 @@ export function calculateCompliance(
 
   // Streak: consecutive days, ending today, where every expected dose
   // was taken or skipped. Days with no expected dose advance the
-  // streak — out-of-cadence days are not failures. Walks from today
-  // backwards through the timeline grouped by local day.
-  const dayKey = (d: Date): string => {
-    const y = d.getFullYear();
-    const m = String(d.getMonth() + 1).padStart(2, "0");
-    const day = String(d.getDate()).padStart(2, "0");
-    return `${y}-${m}-${day}`;
-  };
-  const byDay = new Map<string, "all-good" | "bad">();
-  for (const slot of timeline) {
-    const key = dayKey(slot.day);
-    const existing = byDay.get(key);
-    if (slot.status === "missed") {
-      byDay.set(key, "bad");
-    } else if (existing !== "bad") {
-      byDay.set(key, "all-good");
-    }
-  }
-  let streak = 0;
-  for (let d = 0; d < effectiveDays; d++) {
-    const cursor = new Date(now.getTime() - d * DAY_MS);
-    if (medicationCreatedAt && cursor <= medicationCreatedAt) break;
-    const state = byDay.get(dayKey(cursor));
-    if (state === "bad") break;
-    if (state === "all-good") streak++;
-    // No state = no expected dose that day → streak advances silently.
-  }
+  // streak — out-of-cadence days are not failures. Delegated to the
+  // shared `streaksFromTimeline` so the analytics streak and the
+  // detail-page chip streak agree on every dose AND so the day keys are
+  // computed in the USER's IANA timezone, not the host's. The prior
+  // host-tz `getFullYear/getMonth/getDate` walk drifted off by a day
+  // whenever the server clock's zone differed from the user's — the
+  // timeline `slot.day` is already minted in the user zone, so the
+  // walk has to match it. The window is `effectiveDays` ending at
+  // `now`, which starts no earlier than `effectiveStart` (= the later
+  // of the period start and the medication's creation) — so days
+  // before the medication existed are never iterated, preserving the
+  // old `cursor <= medicationCreatedAt` break by construction.
+  const { current: streak } = streaksFromTimeline(
+    timeline,
+    now,
+    effectiveDays,
+    engineCtx?.timeZone,
+  );
 
   return { totalExpected, taken, skipped, missed, rate, streak };
 }

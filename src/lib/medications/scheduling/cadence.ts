@@ -274,7 +274,7 @@ function hhmmToMinutes(hhmm: string): number | null {
 }
 
 /** Snap a Date down to the user-local midnight. */
-function startOfLocalDay(d: Date, tz: string | undefined): Date {
+export function startOfLocalDay(d: Date, tz: string | undefined): Date {
   const parts = wallClockInTz(d, tz);
   return instantInTz(parts.year, parts.month, parts.day, 0, 0, tz);
 }
