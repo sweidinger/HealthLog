@@ -42,6 +42,15 @@ export interface ServerCacheOptions {
   /** Time-to-live in milliseconds. Expired entries miss on read. */
   readonly ttlMs: number;
   /**
+   * v1.12.1 — stale-while-revalidate window in milliseconds. When set,
+   * an entry whose `ttlMs` has lapsed but is still inside
+   * `ttlMs + staleTtlMs` is served immediately (stale) by `wrapSwr()`,
+   * which kicks off a single background recompute to refresh it. Past
+   * the stale window the entry is a hard miss like any other. Leave
+   * unset for the legacy hard-TTL behaviour.
+   */
+  readonly staleTtlMs?: number;
+  /**
    * Optional name for observability — surfaced in `stats().name` so the
    * wide-event meta keys can carry the cache identity without the
    * caller having to remember which `caches.*` instance it pulled.
@@ -59,7 +68,10 @@ export interface ServerCacheStats {
 }
 
 export class ServerCache<T> {
-  private readonly map = new Map<string, { expiresAt: number; value: T }>();
+  private readonly map = new Map<
+    string,
+    { expiresAt: number; staleUntil: number; value: T }
+  >();
   private readonly pending = new Map<string, Promise<T>>();
   private hits = 0;
   private misses = 0;
@@ -114,10 +126,59 @@ export class ServerCache<T> {
         this.evictions += 1;
       }
     }
+    const now = Date.now();
+    const expiresAt = now + (ttlMsOverride ?? this.opts.ttlMs);
     this.map.set(key, {
-      expiresAt: Date.now() + (ttlMsOverride ?? this.opts.ttlMs),
+      expiresAt,
+      // The stale window extends past the fresh TTL only when the
+      // bucket opted into SWR; otherwise `staleUntil === expiresAt`
+      // so `getAllowStale` behaves exactly like `get`.
+      staleUntil: expiresAt + (this.opts.staleTtlMs ?? 0),
       value,
     });
+  }
+
+  /**
+   * v1.12.1 — read a key allowing a stale entry inside the SWR window.
+   * Returns the value plus a `stale` flag (true when the fresh TTL has
+   * lapsed but the entry is still inside `staleTtlMs`). Past the stale
+   * window the entry is removed and `null` is returned. LRU-touches a
+   * live or stale entry so a hot key never falls out under pressure.
+   */
+  getAllowStale(key: string): { value: T; stale: boolean } | null {
+    const entry = this.map.get(key);
+    if (!entry) return null;
+    const now = Date.now();
+    if (entry.staleUntil <= now) {
+      this.map.delete(key);
+      return null;
+    }
+    // LRU touch.
+    this.map.delete(key);
+    this.map.set(key, entry);
+    return { value: entry.value, stale: entry.expiresAt <= now };
+  }
+
+  /**
+   * v1.12.1 — mark every entry under `prefix` stale without dropping it.
+   * Collapses the fresh TTL to "now" so the next `wrapSwr` read serves
+   * the prior value immediately (within the stale window) while a single
+   * coalesced recompute warms a fresh value. This replaces the
+   * hard-evict on a mood write so an active logger no longer re-pays the
+   * cold compute on every entry. No-op for buckets without `staleTtlMs`
+   * (the entry is already at/over its hard TTL after this, so the next
+   * read is a clean miss — identical to the old evict behaviour).
+   */
+  markStaleByPrefix(prefix: string): number {
+    let marked = 0;
+    const now = Date.now();
+    for (const [key, entry] of this.map) {
+      if (key.startsWith(prefix)) {
+        entry.expiresAt = now;
+        marked += 1;
+      }
+    }
+    return marked;
   }
 
   /** Single-key eviction. Returns true when the key was present. */
@@ -185,6 +246,64 @@ export class ServerCache<T> {
     this.pending.set(key, promise);
     const value = await promise;
     return { value, outcome: "miss" };
+  }
+
+  /**
+   * v1.12.1 — stale-while-revalidate read. On a fresh hit it returns the
+   * cached value like `wrap`. On a stale hit (entry past its fresh TTL
+   * but inside the SWR window) it returns the prior value IMMEDIATELY
+   * and kicks off a single background recompute — the active caller
+   * never pays the cold compute. On a hard miss / cold key it falls back
+   * to `wrap`'s single-flight builder and awaits it.
+   *
+   * Background revalidation reuses the `pending` single-flight slot so a
+   * burst of stale reads coalesces into one recompute. A rejected
+   * background build is swallowed (the stale value already served) and
+   * clears `pending` so the next read retries.
+   */
+  async wrapSwr(
+    key: string,
+    builder: () => Promise<T>,
+    ttlMsOverride?: number,
+  ): Promise<{
+    value: T;
+    outcome: "hit" | "stale" | "miss" | "stampede";
+  }> {
+    const cachedEntry = this.getAllowStale(key);
+    if (cachedEntry && !cachedEntry.stale) {
+      this.hits += 1;
+      return { value: cachedEntry.value, outcome: "hit" };
+    }
+
+    if (cachedEntry && cachedEntry.stale) {
+      // Serve stale now; revalidate in the background under the
+      // single-flight slot so concurrent stale reads share one rebuild.
+      this.hits += 1;
+      if (!this.pending.has(key)) {
+        const refresh = builder()
+          .then((value) => {
+            this.set(key, value, ttlMsOverride);
+            return value;
+          })
+          .catch((err) => {
+            // The stale value already went out; don't crash the worker.
+            // Re-throw so the join path of any awaiting caller sees it.
+            throw err;
+          })
+          .finally(() => {
+            this.pending.delete(key);
+          });
+        this.pending.set(key, refresh);
+        // Detach: the foreground caller does not await the rebuild.
+        // Swallow the rejection on the detached handle so an
+        // unhandled-rejection warning never fires.
+        refresh.catch(() => {});
+      }
+      return { value: cachedEntry.value, outcome: "stale" };
+    }
+
+    // Hard miss / cold key — fall back to the awaited single-flight path.
+    return this.wrap(key, builder, ttlMsOverride);
   }
 
   /** Snapshot of per-instance counters for the wide-event annotation. */
@@ -264,13 +383,22 @@ export const caches = {
    * v1.8.5 — pre-computed mood-insights aggregates (heatmap, distribution,
    * weekday, tags, cross-metric correlations) for the Mood Insights page.
    * Read on every `/insights/mood` mount; bounded 365-day live read behind
-   * the cache. 60 s TTL matches `moodAnalytics`; invalidated alongside it
-   * on a mood write via `invalidateUserMood`.
+   * the cache. 60 s fresh TTL matches `moodAnalytics`.
+   *
+   * v1.12.1 — stale-while-revalidate. The read route uses `cachedSwr` and
+   * a mood write marks the bucket stale (not a hard evict) via
+   * `invalidateUserMood`. An active logger now serves the prior aggregate
+   * immediately while a single background recompute warms a fresh one,
+   * instead of re-paying the multi-second cold compute on every entry
+   * (the v1.8.7 "sync evicting the cache all day" class, on mood). The
+   * 10-minute stale window bounds how old a served aggregate can be when
+   * no reader has triggered a revalidation.
    */
   moodInsights: new ServerCache<unknown>({
     name: "moodInsights",
     maxEntries: 1000,
     ttlMs: 60_000,
+    staleTtlMs: 600_000,
   }),
   /**
    * v1.4.36 W1 — `/api/insights/targets` is read on every Insights
@@ -330,6 +458,34 @@ export async function cached<T>(
   ttlMsOverride?: number,
 ): Promise<T> {
   const { value, outcome } = await cache.wrap(key, builder, ttlMsOverride);
+  if (annotateFn) {
+    const name = cache.stats().name;
+    annotateFn({
+      meta: {
+        [`cache.${name}.outcome`]: outcome,
+        [`cache.${name}.key_hash`]: hashCacheKey(key),
+      },
+    });
+  }
+  return value;
+}
+
+/**
+ * v1.12.1 — stale-while-revalidate read-through. Same observability
+ * contract as `cached` (annotates the wide-event with the outcome +
+ * key hash) but routes through `wrapSwr`: a stale entry inside the
+ * bucket's `staleTtlMs` window is served immediately while a single
+ * background recompute refreshes it, so an active caller never pays
+ * the cold compute on an expired or freshly-marked-stale bucket.
+ */
+export async function cachedSwr<T>(
+  cache: ServerCache<T>,
+  key: string,
+  builder: () => Promise<T>,
+  annotateFn?: (fields: { meta: Record<string, unknown> }) => void,
+  ttlMsOverride?: number,
+): Promise<T> {
+  const { value, outcome } = await cache.wrapSwr(key, builder, ttlMsOverride);
   if (annotateFn) {
     const name = cache.stats().name;
     annotateFn({

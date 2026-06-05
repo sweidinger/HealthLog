@@ -8,10 +8,12 @@
  *     credentials configured, token expiry, OAuth-connected; moodLog:
  *     credentials configured, enabled flag)
  *
- * Combining both into one fetch removes a third round-trip from the
- * Settings page. The legacy /api/withings/status and
- * /api/integrations/moodlog/status remain for the existing UI/tests
- * — we add this in addition rather than rewriting them.
+ * This is the single fetch the Settings → Integrations cards read off
+ * — it carries every field the four cards render (Withings activity
+ * scope, WHOOP/Fitbit backfill state, moodLog webhook secret + entry
+ * count) so the per-card /api/<provider>/status round-trips are gone
+ * from the web. The legacy per-provider routes stay for the iOS/test
+ * callers; the web cards no longer hit them.
  */
 import { prisma } from "@/lib/db";
 import { apiHandler, requireAuth } from "@/lib/api-handler";
@@ -22,6 +24,8 @@ import {
   getPersistentFailureThreshold,
   type IntegrationKey,
 } from "@/lib/integrations/status";
+import { hasActivityScope } from "@/lib/withings/client";
+import { readMoodLogSecret } from "@/lib/moodlog-secret";
 
 export const dynamic = "force-dynamic";
 
@@ -38,6 +42,7 @@ export const GET = apiHandler(async () => {
     withingsConn,
     whoopConn,
     fitbitConn,
+    moodLogEntryCount,
   ] = await Promise.all([
     getIntegrationStatus(user.id, "withings"),
     getIntegrationStatus(user.id, "moodlog"),
@@ -56,6 +61,7 @@ export const GET = apiHandler(async () => {
         moodLogApiKeyEncrypted: true,
         moodLogEnabled: true,
         moodLogLastSyncedAt: true,
+        moodLogWebhookSecret: true,
       },
     }),
     prisma.withingsConnection.findUnique({
@@ -64,6 +70,7 @@ export const GET = apiHandler(async () => {
         tokenExpiresAt: true,
         lastSyncedAt: true,
         createdAt: true,
+        scope: true,
       },
     }),
     prisma.whoopConnection.findUnique({
@@ -72,6 +79,7 @@ export const GET = apiHandler(async () => {
         tokenExpiresAt: true,
         lastSyncedAt: true,
         createdAt: true,
+        backfillCompletedAt: true,
       },
     }),
     prisma.fitbitConnection.findUnique({
@@ -80,7 +88,12 @@ export const GET = apiHandler(async () => {
         tokenExpiresAt: true,
         lastSyncedAt: true,
         createdAt: true,
+        backfillCompletedAt: true,
       },
+    }),
+    // v1.7.0 sync — exclude tombstoned rows from the entry count.
+    prisma.moodEntry.count({
+      where: { userId: user.id, deletedAt: null },
     }),
   ]);
 
@@ -104,13 +117,24 @@ export const GET = apiHandler(async () => {
         tokenExpired: withingsConn
           ? withingsConn.tokenExpiresAt.getTime() <= now
           : null,
+        // v1.4.25 W5d — `scope` is the comma-separated OAuth scope string;
+        // `hasActivityScope` is the derived flag the reconnect banner reads.
+        // Null `scope` = legacy connection that predates activity-scope reads.
+        scope: withingsConn?.scope ?? null,
+        hasActivityScope: hasActivityScope(withingsConn?.scope ?? null),
       } satisfies IntegrationViewModel & WithingsExtras,
       {
         ...moodLogStatus,
-        configured:
-          !!dbUser?.moodLogUrlEncrypted && !!dbUser?.moodLogApiKeyEncrypted,
+        // moodLog "configured" tracks the URL alone (the API key is
+        // optional for the webhook-only path), matching the legacy
+        // /api/integrations/moodlog/status contract the card relied on.
+        configured: !!dbUser?.moodLogUrlEncrypted,
         enabled: dbUser?.moodLogEnabled ?? false,
         legacyLastSyncedAt: dbUser?.moodLogLastSyncedAt?.toISOString() ?? null,
+        // V3 audit STILL-V2-C-2: stored secret is AES-GCM encrypted at rest;
+        // decrypt for the settings page (legacy plaintext is also handled).
+        webhookSecret: readMoodLogSecret(dbUser?.moodLogWebhookSecret ?? null),
+        entryCount: moodLogEntryCount,
       } satisfies IntegrationViewModel & MoodLogExtras,
       {
         ...whoopStatus,
@@ -124,6 +148,7 @@ export const GET = apiHandler(async () => {
         tokenExpired: whoopConn
           ? whoopConn.tokenExpiresAt.getTime() <= now
           : null,
+        backfillCompleted: whoopConn ? !!whoopConn.backfillCompletedAt : null,
       } satisfies IntegrationViewModel & WhoopExtras,
       {
         ...fitbitStatus,
@@ -137,6 +162,7 @@ export const GET = apiHandler(async () => {
         tokenExpired: fitbitConn
           ? fitbitConn.tokenExpiresAt.getTime() <= now
           : null,
+        backfillCompleted: fitbitConn ? !!fitbitConn.backfillCompletedAt : null,
       } satisfies IntegrationViewModel & FitbitExtras,
     ],
   });
@@ -157,12 +183,16 @@ interface WithingsExtras {
   legacyLastSyncedAt: string | null;
   tokenExpiresAt: string | null;
   tokenExpired: boolean | null;
+  scope: string | null;
+  hasActivityScope: boolean;
 }
 
 interface MoodLogExtras {
   configured: boolean;
   enabled: boolean;
   legacyLastSyncedAt: string | null;
+  webhookSecret: string | null;
+  entryCount: number;
 }
 
 interface WhoopExtras {
@@ -172,6 +202,7 @@ interface WhoopExtras {
   legacyLastSyncedAt: string | null;
   tokenExpiresAt: string | null;
   tokenExpired: boolean | null;
+  backfillCompleted: boolean | null;
 }
 
 interface FitbitExtras {
@@ -181,4 +212,5 @@ interface FitbitExtras {
   legacyLastSyncedAt: string | null;
   tokenExpiresAt: string | null;
   tokenExpired: boolean | null;
+  backfillCompleted: boolean | null;
 }

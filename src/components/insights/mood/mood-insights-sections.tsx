@@ -1,5 +1,6 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useQuery } from "@tanstack/react-query";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,14 +10,50 @@ import { queryKeys } from "@/lib/query-keys";
 import { cn } from "@/lib/utils";
 import { useTranslations } from "@/lib/i18n/context";
 import { MoodHeatmap } from "@/components/charts/mood-heatmap";
-import {
-  MoodDistributionChart,
-  type MoodDistributionRow,
-} from "./mood-distribution-chart";
-import {
-  MoodWeekdayChart,
-  type MoodWeekdayRow,
-} from "./mood-weekday-chart";
+// v1.12.1 — the three Recharts mini-charts on this below-fold cluster are
+// deferred via `next/dynamic`. The mood hero line chart above them is
+// already dynamic on the page, so static-importing these pulled Recharts
+// into the initial chunk for no first-paint benefit. Each loader paints a
+// skeleton sized to the chart's own band so the deferred chunk arrives
+// without a layout shift (charts stay Recharts, visually identical). Types
+// stay value-free imports so they don't drag the chunk back in.
+import type { MoodDistributionRow } from "./mood-distribution-chart";
+import type { MoodWeekdayRow } from "./mood-weekday-chart";
+import type { MoodTimeOfDayPattern } from "./mood-time-of-day-chart";
+const MoodDistributionChart = dynamic(
+  () =>
+    import("./mood-distribution-chart").then((mod) => ({
+      default: mod.MoodDistributionChart,
+    })),
+  {
+    ssr: false,
+    loading: () => (
+      <Skeleton className="aspect-[3/2] min-h-[180px] w-full rounded-md" />
+    ),
+  },
+);
+const MoodWeekdayChart = dynamic(
+  () =>
+    import("./mood-weekday-chart").then((mod) => ({
+      default: mod.MoodWeekdayChart,
+    })),
+  {
+    ssr: false,
+    loading: () => (
+      <Skeleton className="aspect-[3/2] min-h-[160px] w-full rounded-md" />
+    ),
+  },
+);
+const MoodTimeOfDayChart = dynamic(
+  () =>
+    import("./mood-time-of-day-chart").then((mod) => ({
+      default: mod.MoodTimeOfDayChart,
+    })),
+  {
+    ssr: false,
+    loading: () => <Skeleton className="h-[220px] w-full rounded-md" />,
+  },
+);
 import {
   MoodTagBreakdown,
   type MoodTagRow,
@@ -34,10 +71,6 @@ import {
   type MoodNarrativeItem,
 } from "./mood-narrative-feed";
 import { MoodInTargetTile } from "./mood-in-target-tile";
-import {
-  MoodTimeOfDayChart,
-  type MoodTimeOfDayPattern,
-} from "./mood-time-of-day-chart";
 import {
   MoodStabilityTile,
   type MoodStabilityData,

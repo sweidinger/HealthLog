@@ -42,14 +42,6 @@ import {
   queryKeys,
 } from "@/lib/query-keys";
 
-interface MoodLogStatus {
-  configured: boolean;
-  enabled: boolean;
-  lastSyncedAt: string | null;
-  entryCount: number;
-  webhookSecret: string | null;
-}
-
 interface GlobalServiceAvailability {
   telegramGlobal: boolean;
   ntfyGlobal: boolean;
@@ -88,6 +80,14 @@ interface IntegrationStatusViewModel {
   tokenExpiresAt?: string | null;
   tokenExpired?: boolean | null;
   enabled?: boolean;
+  // Withings activity-scope reconnect banner.
+  scope?: string | null;
+  hasActivityScope?: boolean;
+  // WHOOP / Fitbit backfill-in-progress note.
+  backfillCompleted?: boolean | null;
+  // moodLog webhook secret + entry count.
+  webhookSecret?: string | null;
+  entryCount?: number;
 }
 
 interface IntegrationStatusEnvelope {
@@ -218,25 +218,17 @@ export function IntegrationsSection() {
         </p>
       </header>
 
-      <WithingsCard
-        isAuthenticated={isAuthenticated}
-        viewModel={withingsViewModel}
-      />
-      <WhoopCard isAuthenticated={isAuthenticated} viewModel={whoopViewModel} />
-      <FitbitCard
-        isAuthenticated={isAuthenticated}
-        viewModel={fitbitViewModel}
-      />
+      <WithingsCard viewModel={withingsViewModel} />
+      <WhoopCard viewModel={whoopViewModel} />
+      <FitbitCard viewModel={fitbitViewModel} />
       {moodLogEnabled && <MoodLogCard viewModel={moodLogViewModel} />}
     </section>
   );
 }
 
 function WithingsCard({
-  isAuthenticated,
   viewModel,
 }: {
-  isAuthenticated: boolean;
   viewModel: IntegrationStatusViewModel | undefined;
 }) {
   const { t } = useTranslations();
@@ -254,28 +246,12 @@ function WithingsCard({
   );
   const queryClient = useQueryClient();
 
-  const { data: status } = useQuery({
-    queryKey: queryKeys.withingsStatus(),
-    queryFn: async () => {
-      const res = await fetch("/api/withings/status");
-      if (!res.ok) throw new Error("Failed");
-      const json = await res.json();
-      return json.data as {
-        connected: boolean;
-        configured: boolean;
-        lastSyncedAt?: string | null;
-        connectedAt?: string;
-        tokenExpired?: boolean;
-        // v1.4.25 W5d — reconnect banner conditional. `null` =
-        // legacy v1.4.24 connection without `user.activity`; the
-        // user needs to re-auth before steps / active energy /
-        // distance / floors ingest unlocks.
-        scope?: string | null;
-        hasActivityScope?: boolean;
-      };
-    },
-    enabled: isAuthenticated,
-  });
+  // v1.12.1 — the Withings status is read off the consolidated
+  // /api/integrations/status envelope (the `viewModel` prop). The
+  // per-card /api/withings/status round-trip is gone; the envelope
+  // carries every field this card renders (connected / configured /
+  // last-sync / activity scope).
+  const status = viewModel;
 
   const disconnect = useMutation({
     mutationFn: async () => {
@@ -383,16 +359,16 @@ function WithingsCard({
   }
 
   // The pill state derives from the cross-integration status
-  // envelope, but the per-card `lastSyncedAt` is sourced from the
-  // Withings-specific endpoint so it stays accurate immediately
-  // after a manual "Sync now" (which only invalidates the per-card
-  // query). When neither endpoint has answered yet we fall back to
-  // "disconnected" so the card never renders a status-less header.
+  // envelope. `legacyLastSyncedAt` is the connection row's own
+  // last-sync timestamp (carried in the same envelope) so the pill
+  // still paints a fresh "X min ago" right after a manual sync once
+  // the envelope refetches. When the envelope hasn't answered yet we
+  // fall back to "disconnected" so the card never renders status-less.
   const pillState: IntegrationPillState = status?.connected
     ? pillStateFor(viewModel)
     : "disconnected";
   const pillLastSyncAt =
-    status?.lastSyncedAt ?? viewModel?.lastSuccessAt ?? null;
+    status?.legacyLastSyncedAt ?? viewModel?.lastSuccessAt ?? null;
   // v1.4.43 W14 — `parked` and `error` both want the underlying error
   // message surfaced under the pill (the pill says "what" — the
   // message says "why"). Other states leave the inline line off.
@@ -703,10 +679,8 @@ function WithingsCard({
 }
 
 function WhoopCard({
-  isAuthenticated,
   viewModel,
 }: {
-  isAuthenticated: boolean;
   viewModel: IntegrationStatusViewModel | undefined;
 }) {
   const { t } = useTranslations();
@@ -724,24 +698,9 @@ function WhoopCard({
   );
   const queryClient = useQueryClient();
 
-  const { data: status } = useQuery({
-    queryKey: queryKeys.whoopStatus(),
-    queryFn: async () => {
-      const res = await fetch("/api/whoop/status");
-      if (!res.ok) throw new Error("Failed");
-      const json = await res.json();
-      return json.data as {
-        connected: boolean;
-        configured: boolean;
-        lastSyncedAt?: string | null;
-        connectedAt?: string;
-        tokenExpired?: boolean;
-        backfillCompleted?: boolean;
-        scope?: string | null;
-      };
-    },
-    enabled: isAuthenticated,
-  });
+  // v1.12.1 — read off the consolidated /api/integrations/status
+  // envelope; the per-card /api/whoop/status round-trip is gone.
+  const status = viewModel;
 
   const disconnect = useMutation({
     mutationFn: async () => {
@@ -853,7 +812,7 @@ function WhoopCard({
     ? pillStateFor(viewModel)
     : "disconnected";
   const pillLastSyncAt =
-    status?.lastSyncedAt ?? viewModel?.lastSuccessAt ?? null;
+    status?.legacyLastSyncedAt ?? viewModel?.lastSuccessAt ?? null;
   const errorMessage =
     (pillState === "error" || pillState === "parked") && viewModel?.lastError
       ? viewModel.lastError
@@ -1131,14 +1090,13 @@ function WhoopCard({
 
 // v1.12.0 — Google Health (Fitbit & Pixel) card. Mirrors the WHOOP card: a
 // BYO-key credentials form first, then an OAuth connect, then the
-// sync/test/disconnect action row + parked-resume banner. Status reads from the
-// dedicated /api/fitbit/status (queryKeys.fitbitStatus); the pill/error/parked
-// state comes off the cross-integration envelope view-model like WHOOP.
+// sync/test/disconnect action row + parked-resume banner. v1.12.1 — status
+// reads off the consolidated /api/integrations/status envelope (the per-card
+// /api/fitbit/status round-trip is gone); the pill/error/parked state comes off
+// the same view-model like WHOOP.
 function FitbitCard({
-  isAuthenticated,
   viewModel,
 }: {
-  isAuthenticated: boolean;
   viewModel: IntegrationStatusViewModel | undefined;
 }) {
   const { t } = useTranslations();
@@ -1156,24 +1114,7 @@ function FitbitCard({
   );
   const queryClient = useQueryClient();
 
-  const { data: status } = useQuery({
-    queryKey: queryKeys.fitbitStatus(),
-    queryFn: async () => {
-      const res = await fetch("/api/fitbit/status");
-      if (!res.ok) throw new Error("Failed");
-      const json = await res.json();
-      return json.data as {
-        connected: boolean;
-        configured: boolean;
-        lastSyncedAt?: string | null;
-        connectedAt?: string;
-        tokenExpired?: boolean;
-        backfillCompleted?: boolean;
-        scope?: string | null;
-      };
-    },
-    enabled: isAuthenticated,
-  });
+  const status = viewModel;
 
   const disconnect = useMutation({
     mutationFn: async () => {
@@ -1287,7 +1228,7 @@ function FitbitCard({
     ? pillStateFor(viewModel)
     : "disconnected";
   const pillLastSyncAt =
-    status?.lastSyncedAt ?? viewModel?.lastSuccessAt ?? null;
+    status?.legacyLastSyncedAt ?? viewModel?.lastSuccessAt ?? null;
   const errorMessage =
     (pillState === "error" || pillState === "parked") && viewModel?.lastError
       ? viewModel.lastError
@@ -1595,14 +1536,15 @@ function MoodLogCard({
   const [msg, setMsg] = useState<string | null>(null);
   const [msgType, setMsgType] = useState<"success" | "error" | null>(null);
 
-  const { data: status, refetch: refetchStatus } = useQuery({
-    queryKey: queryKeys.moodlogStatus(),
-    queryFn: async () => {
-      const res = await fetch("/api/integrations/moodlog/status");
-      if (!res.ok) throw new Error("Failed");
-      return (await res.json()).data as MoodLogStatus;
-    },
-  });
+  // v1.12.1 — read off the consolidated /api/integrations/status
+  // envelope; the per-card /api/integrations/moodlog/status round-trip
+  // is gone. Mutations invalidate the envelope so the card's webhook
+  // secret / entry-count / last-sync repaint on the next refetch.
+  const status = viewModel;
+  const refreshStatus = () =>
+    queryClient.invalidateQueries({
+      queryKey: queryKeys.integrationsStatus(),
+    });
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
@@ -1618,8 +1560,7 @@ function MoodLogCard({
       setMsgType("success");
       setUrl("");
       setApiKey("");
-      await refetchStatus();
-      queryClient.invalidateQueries({ queryKey: queryKeys.integrationsStatus() });
+      void refreshStatus();
     } else {
       const json = await res.json();
       setMsg(json.error || t("settings.savingError"));
@@ -1646,8 +1587,7 @@ function MoodLogCard({
           ),
         );
         setMsgType("success");
-        await refetchStatus();
-        queryClient.invalidateQueries({ queryKey: queryKeys.integrationsStatus() });
+        void refreshStatus();
       } else {
         setMsg(t("settings.moodLogSyncFailed"));
         setMsgType("error");
@@ -1664,20 +1604,19 @@ function MoodLogCard({
     if (res.ok) {
       setMsg(t("settings.moodLogDisconnected"));
       setMsgType("success");
-      await refetchStatus();
-      queryClient.invalidateQueries({ queryKey: queryKeys.integrationsStatus() });
+      void refreshStatus();
     }
   }
 
   // Mirror Withings logic: the pill state comes from the cross-
-  // integration envelope; per-card `lastSyncedAt` from the Mood Log
-  // endpoint so a manual sync paints fresh "X min ago" without
-  // waiting for the envelope to refetch.
+  // integration envelope, which also carries `legacyLastSyncedAt`
+  // (the user's moodLog last-sync timestamp) so a manual sync paints
+  // a fresh "X min ago" once the envelope refetches.
   const pillState: IntegrationPillState = status?.configured
     ? pillStateFor(viewModel)
     : "disconnected";
   const pillLastSyncAt =
-    status?.lastSyncedAt ?? viewModel?.lastSuccessAt ?? null;
+    status?.legacyLastSyncedAt ?? viewModel?.lastSuccessAt ?? null;
   const errorMessage =
     pillState === "error" && viewModel?.lastError ? viewModel.lastError : null;
 
