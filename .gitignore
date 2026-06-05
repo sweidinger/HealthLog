@@ -67,22 +67,11 @@ next-env.d.ts
 .codex/
 .aider*
 
-# Planning scratch — per-release reports, QA findings, ad-hoc backlog
-# files. These accumulate during a release and aren't useful to anyone
-# outside the immediate work. The curated planning docs (PROJECT.md,
-# ROADMAP.md, STATE.md, ios-coord/, research/, v15-*, sb-*, feature-*)
-# stay tracked.
-/.planning/phase-*
-/.planning/QA-*
-/.planning/round-*
-/.planning/v14*-*
-/.planning/v15*-*
-/.planning/V0*-*
-/.planning/ios-coord/V*-QA-*
-/.planning/research/v14*-*
-/.planning/marathon-*
-/.planning/security-audit-*
-/.planning/session-*
+# Planning scratch — all internal per-release reports, QA findings, ad-hoc
+# backlog, and the iOS coordination channel. These are internal working
+# notes; everything user-facing lives in the public surfaces (README,
+# CHANGELOG, docs/). Kept on disk for the working session, never tracked.
+/.planning/
 
 # Docs scratch — temporary spec drafts that live in the repo only
 # while a release is in flight.
