@@ -305,7 +305,12 @@ export default function InsightsPage() {
   // removed in v1.12.4 — the tab-strip regenerate button is the single
   // affordance. The generic disclaimer lives once in the layout-shell footer.
   return (
-    <div className="space-y-8">
+    // v1.12.7 (L3) — one consistent vertical rhythm down the overview. The
+    // page used `space-y-8` (32 px) between top-level blocks while the vitals
+    // wrap used `space-y-6` (24 px), so the overview read as two tiers. Unify
+    // to `space-y-6` — it matches the vitals wrap and tightens the overview in
+    // line with the "Insights gives away too much space" direction.
+    <div className="space-y-6">
       <HeroStrip
         briefing={briefingPayload}
         updatedAt={heroStripUpdatedAt}
