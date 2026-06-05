@@ -87,16 +87,60 @@ export function summarizeSeries(
 }
 
 /**
+ * Strip a Markdown code fence and isolate the JSON object body.
+ *
+ * The Anthropic and local providers have no native JSON mode (only the
+ * OpenAI-family clients send `response_format: json_object`), so a
+ * compliant model still routinely wraps its `{ "summary": … }` reply in a
+ * ```json … ``` fence or prefixes it with a sentence. `JSON.parse` then
+ * throws and the caller would surface the raw fenced string as the
+ * user-facing assessment. This helper removes a leading/trailing fence and
+ * narrows to the first `{` … last `}` span so the parse sees clean JSON.
+ *
+ * It is a no-op on already-clean JSON and on genuinely fence-free prose
+ * with no braces — in both cases the original (trimmed) string is returned,
+ * so the bare-prose fallback below still works.
+ */
+export function stripJsonFences(content: string): string {
+  let text = content.trim();
+  // Drop a leading ```json / ``` fence and a trailing ``` fence if present.
+  const fenced = text.match(/^```(?:json)?\s*\n?([\s\S]*?)\n?```$/i);
+  if (fenced) {
+    text = fenced[1].trim();
+  }
+  // Narrow to the first `{` … last `}` so a leading/trailing sentence the
+  // model added around the object does not break the parse.
+  const first = text.indexOf("{");
+  const last = text.lastIndexOf("}");
+  if (first !== -1 && last !== -1 && last > first) {
+    return text.slice(first, last + 1);
+  }
+  return text;
+}
+
+/**
  * Pull the `summary` string out of a model completion. The status
  * prompts return a `{ "summary": "…" }` envelope; a model that ignores
  * the contract and returns bare prose falls back to the raw content.
+ *
+ * Tries the content as-is first (the common, fence-free case), then a
+ * fence-stripped retry for providers without a native JSON mode.
  */
 export function parseSummaryFromContent(content: string): string {
   try {
     const parsed = JSON.parse(content) as { summary?: string };
     if (typeof parsed.summary === "string") return parsed.summary;
   } catch {
-    // not JSON — fall through to the raw content
+    // not directly parseable — try a fence-stripped retry below
+  }
+  try {
+    const stripped = stripJsonFences(content);
+    if (stripped !== content) {
+      const parsed = JSON.parse(stripped) as { summary?: string };
+      if (typeof parsed.summary === "string") return parsed.summary;
+    }
+  } catch {
+    // still not JSON — fall through to the raw content
   }
   return content;
 }
