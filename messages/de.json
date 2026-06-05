@@ -2605,7 +2605,7 @@
       },
       "discovery": {
         "title": "Was auffällt",
-        "description": "Tag-zu-Tag-Zusammenhänge rund um deine Stimmung, die auch nach Korrektur für viele gleichzeitige Tests bestehen.",
+        "subheading": "Entdeckte Zusammenhänge",
         "footer": "Herausgefiltert aus {tested} Tag-zu-Tag-Paaren, die über all deine Werte getestet wurden, nach der Korrektur für Fehlentdeckungen.",
         "empty": "Bisher hat kein Stimmungszusammenhang die statistische Hürde genommen. Logge weiter.",
         "disclaimer": "Statistisch gefiltert, aber weiterhin beobachtend – ein Muster, das einen Blick wert ist, keine Ursache.",

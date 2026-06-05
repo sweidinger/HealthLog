@@ -2605,7 +2605,7 @@
       },
       "discovery": {
         "title": "Co się wyróżnia",
-        "description": "Relacje dzień po dniu dotyczące Twojego nastroju, które utrzymują się po korekcie wielokrotnych testów.",
+        "subheading": "Wykryte relacje",
         "footer": "Wyłonione z {tested} par dzień po dniu testowanych na wszystkich Twoich wskaźnikach, po korekcie fałszywych odkryć.",
         "empty": "Żadna relacja nastroju nie przekroczyła jeszcze progu statystycznego. Notuj dalej.",
         "disclaimer": "Przefiltrowane statystycznie, ale wciąż obserwacyjne — wzorzec warty uwagi, nie przyczyna.",

@@ -81,10 +81,8 @@ import {
   MoodStructuredTagBreakdown,
   type MoodStructuredTagRow,
 } from "./mood-structured-tag-breakdown";
-import {
-  MoodNarrativeFeed,
-  type MoodNarrativeItem,
-} from "./mood-narrative-feed";
+import { type MoodNarrativeItem } from "./mood-narrative-feed";
+import { MoodWhatStandsOut } from "./mood-what-stands-out";
 import { MoodInTargetTile } from "./mood-in-target-tile";
 import {
   MoodStabilityTile,
@@ -102,7 +100,6 @@ import {
   MoodTagMetricCrosstab,
   type MoodTagMetricCrosstabRow,
 } from "./mood-tag-metric-crosstab";
-import { MoodDiscoveredRelations } from "./mood-discovered-relations";
 
 /**
  * v1.8.5 — additional Mood Insights sections.
@@ -257,21 +254,34 @@ export function MoodInsightsSections() {
 
       {/* "Was zu deinen besseren Tagen passt" — the better-days assessment,
           ranked by effect size. The substance of the Einschätzung sits here,
-          directly under the classification. */}
+          directly under the classification. v1.12.7 — it now carries the same
+          assessment-card weight the per-metric `<InsightStatusCard>` uses on
+          the other subpages (tighter `gap`/`py`, the `insight-in` entry, and
+          the `insight-assessment` hook) so it reads as THE mood assessment,
+          consistent across the app. */}
       {hasBetterDays && (
-        <SectionCard
-          title={t("insights.mood.betterDays.title")}
-          icon={Sparkles}
+        <Card
+          aria-live="polite"
+          data-slot="insight-assessment"
+          className="animate-insight-in gap-2 py-4 md:gap-3 md:py-5"
         >
-          <MoodBetterDays factors={betterDays} />
-        </SectionCard>
+          <CardHeader className="pb-2">
+            <TileHeader
+              icon={Sparkles}
+              title={t("insights.mood.betterDays.title")}
+            />
+          </CardHeader>
+          <CardContent>
+            <MoodBetterDays factors={betterDays} />
+          </CardContent>
+        </Card>
       )}
 
-      {narratives.length > 0 && (
-        <SectionCard title={t("insights.mood.narrative.title")} icon={TrendingUp}>
-          <MoodNarrativeFeed items={narratives} />
-        </SectionCard>
-      )}
+      {/* v1.12.7 — the single "What stands out" card folds the narrative
+          one-liners AND the FDR-controlled discovered relations into one tile
+          (was two separate cards). Self-fetches the discovery surface and
+          renders nothing when both halves are empty. */}
+      <MoodWhatStandsOut narratives={narratives} />
 
       <SectionCard title={t("insights.mood.heatmapTitle")} icon={CalendarDays}>
         <MoodHeatmap
@@ -344,11 +354,6 @@ export function MoodInsightsSections() {
           bloodPressureSystolic={data.correlations.bloodPressureSystolic}
         />
       </SectionCard>
-
-      {/* F3 — the FDR-controlled discovered mood relations. Self-fetches the
-          correlation-discovery surface and renders nothing when the operator
-          disabled it, while loading, or when no mood pair cleared the bar. */}
-      <MoodDiscoveredRelations />
     </div>
   );
 }

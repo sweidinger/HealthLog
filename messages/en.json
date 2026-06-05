@@ -2605,7 +2605,7 @@
       },
       "discovery": {
         "title": "What stands out",
-        "description": "Day-to-day relationships involving your mood that hold up after correcting for testing many pairs at once.",
+        "subheading": "Discovered relationships",
         "footer": "Surfaced from {tested} day-to-day pairs tested across all your metrics, after the false-discovery correction.",
         "empty": "No mood relationships cleared the statistical bar yet. Keep logging.",
         "disclaimer": "Statistically filtered, but still observational — a pattern worth watching, not a cause.",

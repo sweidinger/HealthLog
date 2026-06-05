@@ -36,8 +36,20 @@ describe("mood notes timeline removal", () => {
       join(COMPONENT_DIR, "mood-insights-sections.tsx"),
       "utf8",
     );
-    expect(src).toContain("MoodNarrativeFeed");
+    // v1.12.7 — the narrative one-liners now ride the merged "What stands out"
+    // card (`MoodWhatStandsOut`), which renders `MoodNarrativeFeed` internally.
+    // The structural guard tracks the mount point on the sections surface.
+    expect(src).toContain("MoodWhatStandsOut");
     expect(src).toContain("MoodInTargetTile");
+  });
+
+  it("renders the narrative feed inside the merged what-stands-out card", () => {
+    const src = readFileSync(
+      join(COMPONENT_DIR, "mood-what-stands-out.tsx"),
+      "utf8",
+    );
+    expect(src).toContain("MoodNarrativeFeed");
+    expect(src).toContain("MoodDiscoveredRelations");
   });
 });
 

@@ -2605,7 +2605,7 @@
       },
       "discovery": {
         "title": "Cosa risalta",
-        "description": "Relazioni giorno per giorno legate al tuo umore che reggono dopo aver corretto per i test multipli.",
+        "subheading": "Relazioni scoperte",
         "footer": "Estratte da {tested} coppie giorno per giorno testate su tutte le tue misure, dopo la correzione per le false scoperte.",
         "empty": "Nessuna relazione sull'umore ha ancora superato la soglia statistica. Continua a registrare.",
         "disclaimer": "Filtrato statisticamente, ma sempre osservazionale: uno schema da tenere d'occhio, non una causa.",

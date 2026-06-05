@@ -2605,7 +2605,7 @@
       },
       "discovery": {
         "title": "Lo que destaca",
-        "description": "Relaciones de un día a otro con tu estado de ánimo que se mantienen tras corregir el haber probado muchos pares a la vez.",
+        "subheading": "Relaciones descubiertas",
         "footer": "Extraídas de {tested} pares de un día a otro probados en todas tus métricas, tras la corrección de falsos descubrimientos.",
         "empty": "Todavía ninguna relación de ánimo superó el umbral estadístico. Sigue registrando.",
         "disclaimer": "Filtrado estadísticamente, pero aún observacional: un patrón que vale la pena observar, no una causa.",

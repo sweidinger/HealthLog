@@ -2605,7 +2605,7 @@
       },
       "discovery": {
         "title": "Ce qui ressort",
-        "description": "Des relations d'un jour à l'autre autour de votre humeur qui tiennent après correction des tests multiples.",
+        "subheading": "Relations découvertes",
         "footer": "Issues de {tested} paires d'un jour à l'autre testées sur l'ensemble de vos mesures, après correction des fausses découvertes.",
         "empty": "Aucune relation d'humeur n'a encore franchi le seuil statistique. Continuez à enregistrer.",
         "disclaimer": "Filtré statistiquement, mais toujours observationnel : une tendance à surveiller, pas une cause.",
