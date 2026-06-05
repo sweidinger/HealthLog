@@ -139,4 +139,37 @@ describe("GET /api/sleep/night", () => {
     expect(body.data.main).toBeNull();
     expect(body.data.naps).toEqual([]);
   });
+
+  // A5 — a reconstruction edge (a session of only bare ASLEEP / stage-less rows
+  // alongside a granular partition for the same span) must return a valid empty
+  // night, NEVER a 500 from the unguarded `segments[0]` access.
+  it("returns 200 + empty night on an IN_BED/AWAKE-only reconstruction, never 500", async () => {
+    vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
+    vi.mocked(prisma.measurement.findMany).mockResolvedValue([
+      stage("2026-06-04T06:00:00.000Z", "IN_BED", 60),
+      stage("2026-06-04T06:00:00.000Z", "AWAKE", 60),
+    ] as never);
+    const res = await GET(req("date=2026-06-04"));
+    expect(res.status).toBe(200); // not 500
+    const body = await res.json();
+    expect(body.data.main).toBeNull();
+    expect(body.data.naps).toEqual([]);
+  });
+
+  it("returns 200 on a bare ASLEEP + stage-less + granular mix, never 500", async () => {
+    vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
+    vi.mocked(prisma.measurement.findMany).mockResolvedValue([
+      stage("2026-06-04T02:00:00.000Z", "DEEP", 1),
+      stage("2026-06-04T06:00:00.000Z", "ASLEEP", 480),
+      // stage-less twin (sleepStage: null) for the same span.
+      {
+        value: 480,
+        measuredAt: new Date("2026-06-04T06:00:00.000Z"),
+        sleepStage: null,
+        source: "APPLE_HEALTH",
+      },
+    ] as never);
+    const res = await GET(req("date=2026-06-04"));
+    expect(res.status).toBe(200); // never 500 on the reconstruction edge
+  });
 });

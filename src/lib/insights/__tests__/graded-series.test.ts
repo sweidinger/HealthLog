@@ -4,6 +4,10 @@ import {
   buildGradedSeriesFromPoints,
   type GradedSeries,
 } from "../graded-series";
+import {
+  reconstructSleepNights,
+  type SleepStageRow,
+} from "@/lib/analytics/sleep-night";
 
 const dayMs = 24 * 60 * 60 * 1000;
 
@@ -110,5 +114,32 @@ describe("buildGradedSeriesFromPoints", () => {
     expect(s.recent[0].max).toBe(90);
     expect(s.recent[0].mean).toBe(80);
     expect(s.recent[0].n).toBe(3);
+  });
+
+  // A4 — the sleep AVERAGE the Insights assessment ships is the graded series
+  // built from DEDUPED per-night totals, never the raw per-stage sum that
+  // double-counts a bare ASLEEP aggregate against its granular twin (the
+  // impossible ~20.3 h symptom). This pins the path metric-status now uses:
+  // reconstruct nights → per-night points → buildGradedSeriesFromPoints.
+  it("sleep graded series uses the deduped night total, never the ~20 h stage sum (A4)", () => {
+    const sleepNow = new Date("2026-06-04T12:00:00.000Z");
+    // One overnight session, Apple-Health-style double write: bare ASLEEP
+    // aggregate (480) + granular CORE/DEEP/REM (also 480) + IN_BED + AWAKE.
+    // Raw-summed this is ~1490 min (~24.8 h); deduped it is 480 min (8 h).
+    const rows: SleepStageRow[] = [
+      { measuredAt: new Date("2026-06-04T06:00:00.000Z"), sleepStage: "ASLEEP", value: 480, source: "APPLE_HEALTH" },
+      { measuredAt: new Date("2026-06-04T02:00:00.000Z"), sleepStage: "CORE", value: 240, source: "APPLE_HEALTH" },
+      { measuredAt: new Date("2026-06-04T04:00:00.000Z"), sleepStage: "DEEP", value: 120, source: "APPLE_HEALTH" },
+      { measuredAt: new Date("2026-06-04T06:00:00.000Z"), sleepStage: "REM", value: 120, source: "APPLE_HEALTH" },
+      { measuredAt: new Date("2026-06-04T06:30:00.000Z"), sleepStage: "IN_BED", value: 470, source: "APPLE_HEALTH" },
+      { measuredAt: new Date("2026-06-04T03:00:00.000Z"), sleepStage: "AWAKE", value: 20, source: "APPLE_HEALTH" },
+    ];
+    const points = reconstructSleepNights(rows, "UTC")
+      .filter((n) => n.asleepMinutes > 0)
+      .map((n) => ({ measuredAt: n.measuredAt, value: n.asleepMinutes }));
+    const graded = buildGradedSeriesFromPoints(points, sleepNow);
+    const recentMean = graded.recent.at(-1)?.mean ?? 0;
+    expect(recentMean).toBe(480); // night total, not ~1218 (stage sum)
+    expect(recentMean).toBeLessThan(960); // < 16 h — never impossible
   });
 });

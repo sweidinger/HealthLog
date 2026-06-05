@@ -332,6 +332,12 @@ export function reconstructSleepNights(
     let sawInBed = false;
     let sawAwake = false;
     let asleep = 0;
+    // `nightSessions` and each session pool are non-empty by construction: a
+    // key is only added with a `pool` that has ≥ 1 row (the source-filter falls
+    // back to the full session when the canonical filter empties it), so
+    // `nightSessions[0][0]` is safe. Unlike `reconstructSleepSessions`, this
+    // function never applies the granular-over-bare filter to the indexed pool,
+    // so it cannot empty the array here. Keep that invariant on future edits.
     let latest = nightSessions[0][0].measuredAt;
     const stages: Partial<Record<SleepStage, number>> = {};
     for (const sessionRows of nightSessions) {
@@ -521,6 +527,15 @@ export function reconstructSleepSessions(
       .filter((r) => !isRedundantBareAsleep(r.sleepStage, sawGranular))
       .map(segmentOf)
       .sort((a, b) => a.start.getTime() - b.start.getTime());
+
+    // The granular-over-bare filter can empty a non-empty pool (a session whose
+    // only rows are the redundant bare ASLEEP aggregate / stage-less twins of a
+    // granular partition that did not survive into this pool). A session with no
+    // renderable/scorable segment contributes nothing — skip it before indexing
+    // `segments[0]`. This keeps `reconstructSleepSessions` total: it must NEVER
+    // throw on a shape the dedup empties, so `GET /api/sleep/night` (and every
+    // other consumer) returns a valid empty night, never a 500.
+    if (segments.length === 0) continue;
 
     let inBed = 0;
     let awake = 0;

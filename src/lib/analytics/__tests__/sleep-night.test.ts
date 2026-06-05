@@ -16,8 +16,14 @@ function row(
   iso: string,
   stage: SleepStage | null,
   minutes: number,
+  source?: MeasurementSource,
 ): SleepStageRow {
-  return { measuredAt: new Date(iso), sleepStage: stage, value: minutes };
+  return {
+    measuredAt: new Date(iso),
+    sleepStage: stage,
+    value: minutes,
+    ...(source ? { source } : {}),
+  };
 }
 
 /** Build a stage row tagged with an ingest source. */
@@ -533,5 +539,92 @@ describe("summarizeSleepNights", () => {
     // Full last night = 150 + 150 + 270 = 570 (not just a post-midnight slice).
     expect(latestNight?.asleepMinutes).toBe(570);
     expect(summary.latest).toBe(570);
+  });
+});
+
+// A4 — the Insights sleep AVERAGE must come from the deduped per-night totals,
+// never the raw per-stage sum that double-counts a bare ASLEEP aggregate against
+// its granular twin (and folds IN_BED / AWAKE in on top). The ~20.3 h symptom is
+// what a single night's stage rows summed without dedup produces.
+describe("sleep average dedup (A4)", () => {
+  it("one source emits BOTH bare ASLEEP + granular for the same span → dedup total, not the sum", () => {
+    // Apple-Health-style double write for ONE overnight session: the bare
+    // ASLEEP aggregate (480) PLUS the granular CORE/DEEP/REM partition (also
+    // 480), plus IN_BED + AWAKE. Summed raw this is ~1490 min (~24.8 h); the
+    // deduped night total is the granular 480 min (8 h).
+    const rows: SleepStageRow[] = [
+      row("2026-06-04T06:00:00.000Z", "ASLEEP", 480, "APPLE_HEALTH"), // bare aggregate
+      row("2026-06-04T02:00:00.000Z", "CORE", 240, "APPLE_HEALTH"),
+      row("2026-06-04T04:00:00.000Z", "DEEP", 120, "APPLE_HEALTH"),
+      row("2026-06-04T06:00:00.000Z", "REM", 120, "APPLE_HEALTH"),
+      row("2026-06-04T06:30:00.000Z", "IN_BED", 470, "APPLE_HEALTH"),
+      row("2026-06-04T03:00:00.000Z", "AWAKE", 20, "APPLE_HEALTH"),
+    ];
+    const { summary } = summarizeSleepNights(rows, "UTC");
+    // Granular partition wins: 240 + 120 + 120 = 480 min — NOT 480 + 480 + …
+    expect(summary.latest).toBe(480);
+    expect(summary.max).toBe(480);
+    // One night, not 6 stage rows.
+    expect(summary.count).toBe(1);
+  });
+
+  it("multi-source bare+granular collapses to the canonical source, no cross-source sum", () => {
+    // WHOOP granular + Apple bare-only for the SAME night. The canonical source
+    // (WHOOP, top of the sleep ladder) wins; the night total is WHOOP's dedup
+    // total, never WHOOP + Apple summed.
+    const rows: SleepStageRow[] = [
+      // WHOOP granular — 240 + 120 + 120 = 480.
+      row("2026-06-04T02:00:00.000Z", "CORE", 240, "WHOOP"),
+      row("2026-06-04T04:00:00.000Z", "DEEP", 120, "WHOOP"),
+      row("2026-06-04T06:00:00.000Z", "REM", 120, "WHOOP"),
+      // Apple bare aggregate for the same span — must NOT add on top.
+      row("2026-06-04T06:00:00.000Z", "ASLEEP", 470, "APPLE_HEALTH"),
+    ];
+    const { summary } = summarizeSleepNights(rows, "UTC");
+    expect(summary.count).toBe(1);
+    expect(summary.latest).toBe(480); // WHOOP only, not 480 + 470.
+  });
+});
+
+// A5 — `reconstructSleepSessions` must never throw on a session the dedup
+// empties (the unguarded `segments[0]` access). A read returns a valid empty
+// night, never a 500.
+describe("reconstructSleepSessions total-safety (A5)", () => {
+  it("never throws on an IN_BED/AWAKE-only session and yields no main night", () => {
+    const rows: SleepStageRow[] = [
+      row("2026-06-04T06:00:00.000Z", "IN_BED", 60),
+      row("2026-06-04T06:00:00.000Z", "AWAKE", 60),
+    ];
+    expect(() => reconstructSleepSessions(rows, "UTC")).not.toThrow();
+    const sessions = reconstructSleepSessions(rows, "UTC");
+    // Every returned session has at least one renderable segment.
+    expect(sessions.every((s) => s.segments.length > 0)).toBe(true);
+    expect(pickMainNightAndNaps(sessions).main).toBeNull();
+  });
+
+  it("skips a session that empties after the granular-over-bare filter, never throws", () => {
+    // A session whose canonical pool, after dropping the redundant bare ASLEEP
+    // aggregate / stage-less twins under `sawGranular`, has zero renderable
+    // segments. The DEEP granular row marks the session granular; the bare +
+    // stage-less rows are then filtered out. The granular row survives here, so
+    // assert the load-bearing contract: no throw, and every returned session is
+    // non-empty.
+    const rows: SleepStageRow[] = [
+      row("2026-06-04T02:00:00.000Z", "DEEP", 1), // tiny granular marker
+      row("2026-06-04T06:00:00.000Z", "ASLEEP", 480), // redundant bare twin
+      row("2026-06-04T06:00:00.000Z", null, 480), // stage-less twin
+    ];
+    expect(() => reconstructSleepSessions(rows, "UTC")).not.toThrow();
+    const sessions = reconstructSleepSessions(rows, "UTC");
+    expect(sessions.every((s) => s.segments.length > 0)).toBe(true);
+  });
+
+  it("never throws on a stage-less-only session", () => {
+    // Legacy / manual stage-less rows only — no granular partition, so they are
+    // the fallback signal and survive the filter; still must not throw.
+    const rows: SleepStageRow[] = [
+      row("2026-06-04T06:00:00.000Z", null, 480),
+    ];
+    expect(() => reconstructSleepSessions(rows, "UTC")).not.toThrow();
   });
 });
