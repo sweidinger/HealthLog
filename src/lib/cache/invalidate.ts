@@ -22,12 +22,12 @@ import { caches } from "./server-cache";
 
 /**
  * v1.7.0 W6 — server cache key for the unified dashboard first-paint
- * snapshot. Lives under the analytics cache bucket so the existing
- * `caches.analytics.deleteByPrefix(`${userId}|`)` sweep on a
- * measurement / mood / medication write already covers it; the widget
- * + insight invalidators that DON'T touch the analytics bucket call
- * `invalidateUserDashboardSnapshot` explicitly. Exported so the cache
- * key stays single-source-of-truth across the route and the tests.
+ * snapshot. Lives under the analytics cache bucket so the `${userId}|`
+ * sweep on a measurement / mood / medication write already covers it
+ * (measurement writes mark it stale; mood / medication writes hard-evict
+ * it); the widget + insight invalidators that DON'T touch the analytics
+ * bucket call `invalidateUserDashboardSnapshot` explicitly. Exported so
+ * the cache key stays single-source-of-truth across route and tests.
  */
 export function dashboardSnapshotCacheKey(userId: string): string {
   return `${userId}|dashboard-snapshot`;
@@ -49,10 +49,20 @@ export function invalidateUserDashboardSnapshot(userId: string): void {
  * because mood writes don't change measurement rows.
  */
 export function invalidateUserMeasurements(userId: string): void {
-  // The `${userId}|` prefix sweep covers the slim / thick analytics
-  // cells, the iOS summary cell, AND the v1.7.0 dashboard snapshot
+  // The `${userId}|` prefix covers the slim / thick analytics cells, the
+  // iOS summary cell, AND the v1.7.0 dashboard snapshot
   // (`${userId}|dashboard-snapshot`) in one pass.
-  caches.analytics.deleteByPrefix(`${userId}|`);
+  //
+  // v1.12.7 — mark stale rather than hard-evict. Measurement writes are
+  // the highest-frequency dirty signal (every iOS Apple-Health sync
+  // posts a batch), and a hard evict busts the snapshot into a cold
+  // rebuild on the next read all day long. Marking stale lets the
+  // `cachedSwr` snapshot read serve the prior value immediately while a
+  // single background recompute warms a fresh one. The slim / thick /
+  // summary cells read via plain `cached` are unaffected: a marked-stale
+  // entry has `expiresAt === now`, so their next read is a clean miss and
+  // rebuilds fresh — identical to the old evict for those keys.
+  caches.analytics.markStaleByPrefix(`${userId}|`);
   caches.achievements.deleteByPrefix(userId);
   caches.workouts.deleteByPrefix(`${userId}|`);
   // v1.4.36 W1 — measurement writes change the per-target consistency
