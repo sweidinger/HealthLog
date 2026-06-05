@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+## [1.12.5] — 2026-06-05 — correct sleep summary and readiness contributors
+
+### Fixed
+
+- **The sleep summary now reflects the whole night, not a single stage.** The Insights sleep figure and prose were reading one sleep stage (~16 minutes) instead of the reconstructed night total; they now use the night's time-asleep, the same number the dashboard and charts already show.
+- **Readiness contributors no longer read a misleading 0.** Resting heart rate, heart-rate variability, and respiratory rate are hidden (rather than shown as 0) when there isn't yet enough history to establish a baseline; a genuine low sub-score still shows.
+
 ## [1.12.4] — 2026-06-05 — a calmer, more consistent Insights
 
 ### Changed
