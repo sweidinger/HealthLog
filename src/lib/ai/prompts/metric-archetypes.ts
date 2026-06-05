@@ -127,19 +127,29 @@ export function getMetricArchetypeUserPrompt(
   todayKey: string,
   locale: Locale,
   previousContextBlock?: string,
+  /**
+   * v1.12.1 — diversity / anti-repetition context (variety lead, data
+   * strength, steady-run repetition signal, cross-metric relations). All
+   * grounded in already-computed data; optional and may be empty.
+   */
+  assessmentContextBlock?: string,
 ): string {
   const ctxBlock =
     previousContextBlock && previousContextBlock.trim().length > 0
       ? `\n\n${previousContextBlock}\n`
       : "";
+  const extraBlock =
+    assessmentContextBlock && assessmentContextBlock.trim().length > 0
+      ? `\n\n${assessmentContextBlock}\n`
+      : "";
   if (locale === "en") {
     return `Date: ${todayKey} (Europe/Berlin)
-Write one short assessment of this person's ${meta.displayName.toLowerCase()}: name the current level with a concrete number from the snapshot, place the recent window against their own weekly/monthly baseline, and close with one doable step. Judge confidence from the measurement count and recency.${ctxBlock}
+Write one short assessment of this person's ${meta.displayName.toLowerCase()}: name the current level with a concrete number from the snapshot, place the recent window against their own weekly/monthly baseline, and — when something is genuinely actionable — close with one doable step; when nothing is, skip the step rather than manufacture filler. Judge confidence from the measurement count and recency.${ctxBlock}${extraBlock}
 
 ${snapshotJson}`;
   }
   return `Datum: ${todayKey} (Europe/Berlin)
-Schreibe eine kurze Einschätzung zu ${meta.displayName} dieser Person: benenne das aktuelle Niveau mit einer konkreten Zahl aus dem Snapshot, ordne das recent-Fenster gegen die eigene Wochen-/Monats-Baseline ein und schließe mit einem machbaren Schritt. Konfidenz aus Messanzahl und Aktualität ableiten.${ctxBlock}
+Schreibe eine kurze Einschätzung zu ${meta.displayName} dieser Person: benenne das aktuelle Niveau mit einer konkreten Zahl aus dem Snapshot, ordne das recent-Fenster gegen die eigene Wochen-/Monats-Baseline ein und schließe — wenn etwas wirklich umsetzbar ist — mit einem machbaren Schritt; ist nichts umsetzbar, lass den Schritt weg statt Fülltext zu erfinden. Konfidenz aus Messanzahl und Aktualität ableiten.${ctxBlock}${extraBlock}
 
 ${snapshotJson}`;
 }

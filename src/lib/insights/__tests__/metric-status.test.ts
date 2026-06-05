@@ -18,8 +18,14 @@ vi.mock("@/lib/insights/memory", () => ({
   formatPreviousContextForPrompt: vi.fn().mockReturnValue(""),
 }));
 
+vi.mock("@/lib/insights/metric-correlation-context", () => ({
+  getRelevantCorrelationsForMetric: vi.fn().mockResolvedValue([]),
+}));
+
 import { prisma } from "@/lib/db";
 import { runStatusCompletion } from "@/lib/insights/status-provider";
+import { getRelevantCorrelationsForMetric } from "@/lib/insights/metric-correlation-context";
+import { formatPreviousContextForPrompt } from "@/lib/insights/memory";
 import { generateMetricStatus } from "../metric-status";
 import {
   getMetricArchetypeSystemPrompt,
@@ -57,6 +63,11 @@ function stubCompletion(
 beforeEach(() => {
   vi.resetAllMocks();
   vi.mocked(prisma.measurementRollup.findMany).mockResolvedValue([] as never);
+  // resetAllMocks clears the module-mock default impls too — restore the
+  // benign defaults so the relations fetch and the previous-context format
+  // are no-ops unless a test overrides them.
+  vi.mocked(getRelevantCorrelationsForMetric).mockResolvedValue([]);
+  vi.mocked(formatPreviousContextForPrompt).mockReturnValue("");
 });
 
 describe("metric-status registry", () => {
@@ -211,6 +222,64 @@ describe("generateMetricStatus — generation path", () => {
     expect(createCall.data.action).toBe(
       "insights.metric:RESTING_HEART_RATE-status.en",
     );
+
+    // v1.12.1 — the diversity context (variety lead + explicit data strength)
+    // reaches the user prompt, and the relations fetch is keyed by this
+    // metric's DB measurement type.
+    expect(captured.userPrompt).toContain("VARIETY");
+    expect(captured.userPrompt).toContain("DATA STRENGTH");
+    expect(getRelevantCorrelationsForMetric).toHaveBeenCalledWith(
+      "user-1",
+      "RESTING_HEART_RATE",
+    );
+  });
+
+  it("weaves a returned correlation into the prompt as a descriptive relation", async () => {
+    const now = new Date();
+    const records: Array<{ value: number; measuredAt: Date }> = [];
+    for (let day = 0; day < 60; day++) {
+      records.push({
+        value: 60,
+        measuredAt: new Date(now.getTime() - day * dayMs),
+      });
+    }
+    vi.mocked(prisma.auditLog.findFirst).mockResolvedValue(null);
+    vi.mocked(prisma.measurement.count).mockResolvedValue(60 as never);
+    vi.mocked(prisma.measurement.findMany).mockResolvedValue(records as never);
+    vi.mocked(prisma.user.findUnique).mockResolvedValue({
+      dateOfBirth: null,
+      gender: null,
+    } as never);
+    vi.mocked(prisma.auditLog.create).mockResolvedValue({
+      createdAt: now,
+    } as never);
+    vi.mocked(getRelevantCorrelationsForMetric).mockResolvedValueOnce([
+      {
+        interpretation:
+          "Higher time in daylight tends to go with lower next-day resting heart rate in your data — a pattern worth watching, not a cause.",
+        n: 35,
+        r: -0.46,
+      },
+    ]);
+
+    const captured = { systemPrompt: null, userPrompt: null } as {
+      systemPrompt: string | null;
+      userPrompt: string | null;
+    };
+    stubCompletion('{"summary":"Steady RHR."}', captured);
+
+    await generateMetricStatus({
+      metric: "RESTING_HEART_RATE",
+      userId: "user-1",
+      locale: "en",
+    });
+
+    expect(captured.userPrompt).toContain("RELATIONS");
+    expect(captured.userPrompt).toContain(
+      "Higher time in daylight tends to go with",
+    );
+    // Descriptive framing preserved verbatim — never recast as cause.
+    expect(captured.userPrompt).toMatch(/NEVER causal/);
   });
 
   it("strips chart tokens from the persisted text", async () => {

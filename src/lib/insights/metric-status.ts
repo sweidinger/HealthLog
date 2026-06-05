@@ -36,6 +36,12 @@ import {
   formatPreviousContextForPrompt,
   getPreviousInsightContext,
 } from "@/lib/insights/memory";
+import {
+  buildAssessmentContextBlock,
+  computeSteadyRun,
+  pickVarietyLead,
+} from "@/lib/insights/assessment-context";
+import { getRelevantCorrelationsForMetric } from "@/lib/insights/metric-correlation-context";
 import { getAgeFromDateOfBirth } from "@/lib/analytics/pulse-targets";
 import { lookupNormalRange } from "@/lib/insights/derived/norms";
 import { getNoKeyGeneralStatusText } from "@/lib/insights/no-key-fallbacks";
@@ -315,6 +321,32 @@ export async function generateMetricStatus(args: {
     locale,
   );
 
+  // v1.12.1 — diversity / anti-repetition context, all from already-computed
+  // data (no new statistics, no new persistence). Grounding is untouched:
+  // these blocks add a rotating opening angle, an explicit data-strength
+  // line, a steady-run repetition signal, and the FDR-surviving cross-metric
+  // correlations that involve THIS metric. The correlation fetch is
+  // best-effort and decorative — a failure resolves to no block, never a
+  // generation failure.
+  const varietyLead = pickVarietyLead(args.userId, meta.id, todayKey);
+  const steadyRun = computeSteadyRun(graded.weekly, graded.monthly);
+  const relations = await getRelevantCorrelationsForMetric(
+    args.userId,
+    meta.measurementType,
+  );
+  const contextBlock = buildAssessmentContextBlock(
+    {
+      varietyLead,
+      dataStrength: {
+        points: summary?.points ?? series.daily.length,
+        newestDaysAgo,
+      },
+      repeatCount: steadyRun,
+      relations,
+    },
+    locale,
+  );
+
   const outcome = await runStatusCompletion({
     userId: args.userId,
     cacheAction,
@@ -326,8 +358,13 @@ export async function generateMetricStatus(args: {
       todayKey,
       locale,
       previousContextBlock,
+      contextBlock,
     ),
-    temperature: 0.3,
+    // v1.12.1 (D1) — the phrasing task benefits from a touch more sampling
+    // entropy while the FACTS stay pinned by the snapshot + the
+    // forbidden-phrase guards. 0.3 was conservative for a 2-4 sentence prose
+    // task; 0.45 varies cadence without loosening grounding.
+    temperature: 0.45,
     maxTokens: 1000,
   });
 
