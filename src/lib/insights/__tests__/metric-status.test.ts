@@ -22,7 +22,20 @@ vi.mock("@/lib/insights/metric-correlation-context", () => ({
   getRelevantCorrelationsForMetric: vi.fn().mockResolvedValue([]),
 }));
 
+vi.mock("@/lib/tz/resolver", async () => {
+  const actual = await vi.importActual<typeof import("@/lib/tz/resolver")>(
+    "@/lib/tz/resolver",
+  );
+  return { ...actual, resolveUserTimezone: vi.fn() };
+});
+
+vi.mock("@/lib/rollups/measurement-read", () => ({
+  loadUserSourcePriority: vi.fn(),
+}));
+
 import { prisma } from "@/lib/db";
+import { resolveUserTimezone } from "@/lib/tz/resolver";
+import { loadUserSourcePriority } from "@/lib/rollups/measurement-read";
 import { runStatusCompletion } from "@/lib/insights/status-provider";
 import { getRelevantCorrelationsForMetric } from "@/lib/insights/metric-correlation-context";
 import { formatPreviousContextForPrompt } from "@/lib/insights/memory";
@@ -68,6 +81,60 @@ beforeEach(() => {
   // are no-ops unless a test overrides them.
   vi.mocked(getRelevantCorrelationsForMetric).mockResolvedValue([]);
   vi.mocked(formatPreviousContextForPrompt).mockReturnValue("");
+  vi.mocked(resolveUserTimezone).mockResolvedValue("Europe/Berlin");
+  vi.mocked(loadUserSourcePriority).mockResolvedValue(null as never);
+});
+
+describe("generateMetricStatus — SLEEP_DURATION night reconstruction (iOS E2)", () => {
+  it("feeds the snapshot the per-night time-asleep total, not a single stage", async () => {
+    vi.mocked(prisma.auditLog.findFirst).mockResolvedValue(null as never);
+    vi.mocked(prisma.user.findUnique).mockResolvedValue({
+      dateOfBirth: null,
+      gender: null,
+    } as never);
+    vi.mocked(prisma.auditLog.create).mockResolvedValue({
+      createdAt: new Date("2026-06-04T07:00:00.000Z"),
+    } as never);
+
+    // One overnight session of granular stages, each row ONE stage (minutes).
+    // Total time asleep = CORE + DEEP + REM = 300 + 90 + 75 = 465 min (7.75 h).
+    // A single stage (DEEP, 90 min) is the largest, and an old per-row read
+    // would have surfaced the LATEST stage (~75 min REM) as "current sleep".
+    const wake = new Date("2026-06-04T06:30:00.000Z");
+    const m = 60 * 1000;
+    const stageRows = [
+      { value: 300, measuredAt: new Date(wake.getTime() - 90 * m), sleepStage: "CORE", source: "APPLE_HEALTH" },
+      { value: 90, measuredAt: new Date(wake.getTime() - 30 * m), sleepStage: "DEEP", source: "APPLE_HEALTH" },
+      { value: 75, measuredAt: wake, sleepStage: "REM", source: "APPLE_HEALTH" },
+    ];
+    vi.mocked(prisma.measurement.count).mockResolvedValue(
+      stageRows.length as never,
+    );
+    vi.mocked(prisma.measurement.findMany).mockResolvedValue(
+      stageRows as never,
+    );
+
+    const capture = { systemPrompt: null, userPrompt: null } as {
+      systemPrompt: string | null;
+      userPrompt: string | null;
+    };
+    stubCompletion("Summary: solide Nacht.", capture);
+
+    const res = await generateMetricStatus({
+      metric: "SLEEP_DURATION",
+      userId: "u1",
+      locale: "de",
+      force: true,
+    });
+
+    expect(res.text).toBeTruthy();
+    expect(capture.userPrompt).toBeTruthy();
+    const prompt = capture.userPrompt as string;
+    // The snapshot must carry the NIGHT total (465 min), never a lone stage.
+    expect(prompt).toContain("465");
+    expect(prompt).not.toContain('"value": 75');
+    expect(prompt).not.toContain('"value": 90');
+  });
 });
 
 describe("metric-status registry", () => {

@@ -168,6 +168,52 @@ describe("computeReadiness gating", () => {
     }
   });
 
+  it("emits null (not 0) for a vital with readings below the baseline floor (iOS F2)", async () => {
+    // The user HAS recorded RHR + HRV + respiratory, but only on 2 distinct
+    // days each — below the baseline-band history floor. The contributor must
+    // be NULL (dropped → iOS hides it), never 0 (which would read as a real
+    // worst-case sub-score). Mood + sleep carry the headline so the blend
+    // still reaches the minimum-components floor.
+    const DAY_MS = 24 * 60 * 60 * 1000;
+    const sparse = (type: string, base: number) =>
+      Array.from({ length: 2 }, (_, i) => ({
+        value: base,
+        measuredAt: new Date(NOW.getTime() - (i + 1) * DAY_MS),
+        type,
+      }));
+    moodFindMany.mockResolvedValue(
+      Array.from({ length: 8 }, (_, i) => ({
+        score: 4,
+        moodLoggedAt: new Date(`2026-05-${String(20 + i).padStart(2, "0")}T20:00:00Z`),
+      })),
+    );
+    measurementFindMany.mockImplementation(
+      async (args: { where: { type: string } }) => {
+        const type = args.where.type;
+        if (type === "RESTING_HEART_RATE") return sparse(type, 58);
+        if (type === "HEART_RATE_VARIABILITY") return sparse(type, 65);
+        if (type === "RESPIRATORY_RATE") return sparse(type, 14);
+        if (type === "SLEEP_DURATION") {
+          return [
+            { value: 420, measuredAt: new Date("2026-05-31T06:00:00Z"), sleepStage: "ASLEEP" },
+            { value: 430, measuredAt: new Date("2026-06-01T06:10:00Z"), sleepStage: "ASLEEP" },
+            { value: 410, measuredAt: new Date("2026-06-02T06:05:00Z"), sleepStage: "ASLEEP" },
+          ];
+        }
+        return [];
+      },
+    );
+    const result = await computeReadiness("u1", PROFILE, { now: NOW });
+    expect(result.status).toBe("ok");
+    if (result.status === "ok") {
+      for (const key of ["rhr", "hrv", "respiratory"] as const) {
+        const c = result.value.components.find((x) => x.key === key)!;
+        expect(c.value).toBeNull();
+        expect(c.value).not.toBe(0);
+      }
+    }
+  });
+
   it("provenance source is 'live' for a blend backed only by sleep + mood", async () => {
     // No vital readings (RHR/HRV/resp all gate). Mood entries present + a
     // scorable sleep night → the two present components are both live reads,
