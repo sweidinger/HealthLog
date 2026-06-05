@@ -2583,20 +2583,19 @@
         "bandVerySteady": "Votre humeur a été très stable",
         "bandSteady": "Votre humeur a été plutôt stable",
         "bandVariable": "Votre humeur a été nettement variable",
-        "bandVeryVariable": "Votre humeur a beaucoup fluctué récemment"
+        "bandVeryVariable": "Votre humeur a beaucoup fluctué récemment",
+        "title": "Stabilité"
       },
       "influence": {
         "title": "Influence sur l'humeur",
         "detail": "Moyenne de {withAvg} les {withDays} jours où vous l'avez indiqué, contre {withoutAvg} sans.",
         "confidenceLow": "Confiance faible",
         "confidenceMedium": "Confiance moyenne",
-        "confidenceHigh": "Confiance élevée",
-        "disclaimer": "Ce sont des associations dans vos propres données, pas une preuve de cause. Des tendances à surveiller."
+        "confidenceHigh": "Confiance élevée"
       },
       "betterDays": {
         "title": "Ce qui accompagne vos meilleurs jours",
-        "description": "Les tags et mesures qui coïncident avec vos jours de meilleure et de moins bonne humeur, classés selon la force du lien.",
-        "disclaimer": "Des associations seulement, pas des causes. Parlez-en à votre médecin avant de changer quoi que ce soit."
+        "description": "Les tags et mesures qui coïncident avec vos jours de meilleure et de moins bonne humeur, classés selon la force du lien."
       },
       "crosstab": {
         "title": "Tags et vos métriques de santé",
@@ -2609,8 +2608,7 @@
         "unitKcal": "kcal",
         "unitScore": "pts",
         "detailSameDay": "En moyenne {withAvg} {unit} les {withDays} jours avec ce tag contre {withoutAvg} {unit} sans.",
-        "detailNextDay": "En moyenne {withAvg} {unit} le lendemain des {withDays} jours avec ce tag contre {withoutAvg} {unit} sinon.",
-        "disclaimer": "Ce sont des associations dans vos propres données, pas une preuve de cause. Des tendances à surveiller."
+        "detailNextDay": "En moyenne {withAvg} {unit} le lendemain des {withDays} jours avec ce tag contre {withoutAvg} {unit} sinon."
       },
       "discovery": {
         "title": "Ce qui ressort",
@@ -2625,7 +2623,8 @@
         "stat": "{n} jours appariés · r = {r} · q = {q}",
         "statLabel": "Comment ceci est calculé",
         "explainerLabel": "Comment ceci est calculé"
-      }
+      },
+      "inTargetTitle": "Dans votre plage"
     },
     "derived": {
       "coverage": {

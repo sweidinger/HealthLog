@@ -2583,20 +2583,19 @@
         "bandVerySteady": "Twój nastrój był bardzo stabilny",
         "bandSteady": "Twój nastrój był dość stabilny",
         "bandVariable": "Twój nastrój był zauważalnie zmienny",
-        "bandVeryVariable": "Twój nastrój ostatnio mocno się wahał"
+        "bandVeryVariable": "Twój nastrój ostatnio mocno się wahał",
+        "title": "Stabilność"
       },
       "influence": {
         "title": "Wpływ na nastrój",
         "detail": "Średnia {withAvg} w {withDays} dniach z tym tagiem wobec {withoutAvg} bez niego.",
         "confidenceLow": "Niska pewność",
         "confidenceMedium": "Średnia pewność",
-        "confidenceHigh": "Wysoka pewność",
-        "disclaimer": "To powiązania w Twoich danych, a nie dowód przyczyny. Wzorce warte obserwacji."
+        "confidenceHigh": "Wysoka pewność"
       },
       "betterDays": {
         "title": "Co towarzyszy Twoim lepszym dniom",
-        "description": "Tagi i wskaźniki, które pokrywają się z dniami lepszego i gorszego nastroju, uszeregowane według siły powiązania.",
-        "disclaimer": "Tylko powiązania, nie przyczyny. Skonsultuj się z lekarzem, zanim coś zmienisz."
+        "description": "Tagi i wskaźniki, które pokrywają się z dniami lepszego i gorszego nastroju, uszeregowane według siły powiązania."
       },
       "crosstab": {
         "title": "Tagi a Twoje wskaźniki zdrowia",
@@ -2609,8 +2608,7 @@
         "unitKcal": "kcal",
         "unitScore": "pkt",
         "detailSameDay": "Średnio {withAvg} {unit} w {withDays} dniach z tym tagiem wobec {withoutAvg} {unit} bez niego.",
-        "detailNextDay": "Średnio {withAvg} {unit} dzień po {withDays} dniach z tym tagiem wobec {withoutAvg} {unit} w pozostałe dni.",
-        "disclaimer": "To powiązania w Twoich danych, nie dowód przyczyny. Wzorce warte obserwacji."
+        "detailNextDay": "Średnio {withAvg} {unit} dzień po {withDays} dniach z tym tagiem wobec {withoutAvg} {unit} w pozostałe dni."
       },
       "discovery": {
         "title": "Co się wyróżnia",
@@ -2625,7 +2623,8 @@
         "stat": "{n} sparowanych dni · r = {r} · q = {q}",
         "statLabel": "Jak to obliczono",
         "explainerLabel": "Jak to obliczono"
-      }
+      },
+      "inTargetTitle": "W Twoim zakresie"
     },
     "derived": {
       "coverage": {

@@ -1,7 +1,10 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
+import { Compass } from "lucide-react";
 
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { TileHeader } from "@/components/insights/tile-header";
 import { useAuth } from "@/hooks/use-auth";
 import { queryKeys } from "@/lib/query-keys";
 import { useTranslations } from "@/lib/i18n/context";
@@ -81,26 +84,32 @@ export function MoodDiscoveredRelations() {
   if (moodPairs.length === 0) return null;
 
   return (
-    <div className="space-y-2" data-slot="mood-discovered-relations">
-      <div className="flex items-center gap-1.5">
-        <h3 className="text-base font-semibold">
-          {t("insights.mood.discovery.title")}
-        </h3>
+    <Card data-slot="mood-discovered-relations">
+      <CardHeader className="pb-2">
         {/* v1.12.4 (C3) — the false-discovery footer + observational
             disclaimer were two full-width footnote rows. Fold both into a
             single explainer icon so the explanation is one hover/focus away
-            instead of a low-density block under the list. */}
-        <MoodExplainerIcon
-          label={t("insights.mood.discovery.explainerLabel")}
-          detail={`${t("insights.mood.discovery.footer", {
-            tested: data.pairsTested,
-          })} ${t("insights.mood.discovery.disclaimer")}`}
+            instead of a low-density block under the list. v1.12.6 — the
+            heading now rides the canonical `TileHeader`, with the explainer
+            icon pinned to its trailing slot. */}
+        <TileHeader
+          icon={Compass}
+          title={t("insights.mood.discovery.title")}
+          right={
+            <MoodExplainerIcon
+              label={t("insights.mood.discovery.explainerLabel")}
+              detail={`${t("insights.mood.discovery.footer", {
+                tested: data.pairsTested,
+              })} ${t("insights.mood.discovery.disclaimer")}`}
+            />
+          }
         />
-      </div>
-      <p className="text-muted-foreground text-sm">
-        {t("insights.mood.discovery.description")}
-      </p>
-      <ul className="divide-border divide-y">
+      </CardHeader>
+      <CardContent>
+        <p className="text-muted-foreground mb-2 text-sm">
+          {t("insights.mood.discovery.description")}
+        </p>
+        <ul className="divide-border divide-y">
         {moodPairs.map((pair) => {
           const moodIsOutcome = pair.outcome === "MOOD";
           const channelKey = moodIsOutcome ? pair.behaviour : pair.outcome;
@@ -139,7 +148,8 @@ export function MoodDiscoveredRelations() {
             </li>
           );
         })}
-      </ul>
-    </div>
+        </ul>
+      </CardContent>
+    </Card>
   );
 }

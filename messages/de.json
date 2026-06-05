@@ -2583,20 +2583,19 @@
         "bandVerySteady": "Deine Stimmung war sehr gleichmäßig",
         "bandSteady": "Deine Stimmung war recht gleichmäßig",
         "bandVariable": "Deine Stimmung war merklich schwankend",
-        "bandVeryVariable": "Deine Stimmung hat zuletzt stark geschwankt"
+        "bandVeryVariable": "Deine Stimmung hat zuletzt stark geschwankt",
+        "title": "Stabilität"
       },
       "influence": {
         "title": "Einfluss auf die Stimmung",
         "detail": "Durchschnitt {withAvg} an den {withDays} Tagen mit diesem Tag, {withoutAvg} ohne.",
         "confidenceLow": "Geringe Sicherheit",
         "confidenceMedium": "Mittlere Sicherheit",
-        "confidenceHigh": "Hohe Sicherheit",
-        "disclaimer": "Das sind Zusammenhänge in deinen eigenen Daten, kein Beweis für eine Ursache. Muster, die einen Blick wert sind."
+        "confidenceHigh": "Hohe Sicherheit"
       },
       "betterDays": {
         "title": "Was zu deinen besseren Tagen passt",
-        "description": "Tags und Werte, die mit deinen Tagen besserer und schlechterer Stimmung einhergehen, sortiert danach, wie stark sie sich zusammen bewegen.",
-        "disclaimer": "Nur Zusammenhänge, keine Ursachen. Sprich mit deiner Ärztin oder deinem Arzt, bevor du etwas änderst."
+        "description": "Tags und Werte, die mit deinen Tagen besserer und schlechterer Stimmung einhergehen, sortiert danach, wie stark sie sich zusammen bewegen."
       },
       "crosstab": {
         "title": "Tags und deine Gesundheitswerte",
@@ -2609,8 +2608,7 @@
         "unitKcal": "kcal",
         "unitScore": "Pkt.",
         "detailSameDay": "Durchschnittlich {withAvg} {unit} an den {withDays} Tagen mit diesem Tag gegenüber {withoutAvg} {unit} ohne.",
-        "detailNextDay": "Durchschnittlich {withAvg} {unit} am Tag nach den {withDays} Tagen mit diesem Tag gegenüber {withoutAvg} {unit} sonst.",
-        "disclaimer": "Das sind Zusammenhänge in deinen eigenen Daten, kein Beweis für Ursachen. Muster, die einen Blick wert sind."
+        "detailNextDay": "Durchschnittlich {withAvg} {unit} am Tag nach den {withDays} Tagen mit diesem Tag gegenüber {withoutAvg} {unit} sonst."
       },
       "discovery": {
         "title": "Was auffällt",
@@ -2625,7 +2623,8 @@
         "stat": "{n} gepaarte Tage · r = {r} · q = {q}",
         "statLabel": "Wie das berechnet wurde",
         "explainerLabel": "Wie das berechnet wurde"
-      }
+      },
+      "inTargetTitle": "Im Zielbereich"
     },
     "derived": {
       "coverage": {

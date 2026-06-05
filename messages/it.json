@@ -2583,20 +2583,19 @@
         "bandVerySteady": "Il tuo umore è stato molto stabile",
         "bandSteady": "Il tuo umore è stato abbastanza stabile",
         "bandVariable": "Il tuo umore è stato notevolmente variabile",
-        "bandVeryVariable": "Il tuo umore ha oscillato molto di recente"
+        "bandVeryVariable": "Il tuo umore ha oscillato molto di recente",
+        "title": "Stabilità"
       },
       "influence": {
         "title": "Influenza sull'umore",
         "detail": "Media di {withAvg} nei {withDays} giorni in cui l'hai indicato, contro {withoutAvg} senza.",
         "confidenceLow": "Affidabilità bassa",
         "confidenceMedium": "Affidabilità media",
-        "confidenceHigh": "Affidabilità alta",
-        "disclaimer": "Sono associazioni nei tuoi dati, non una prova di causa. Schemi da tenere d'occhio."
+        "confidenceHigh": "Affidabilità alta"
       },
       "betterDays": {
         "title": "Cosa accompagna le tue giornate migliori",
-        "description": "Tag e parametri che coincidono con le tue giornate di umore migliore e peggiore, ordinati per quanto si muovono insieme.",
-        "disclaimer": "Solo associazioni, non cause. Parla con il tuo medico prima di cambiare qualcosa."
+        "description": "Tag e parametri che coincidono con le tue giornate di umore migliore e peggiore, ordinati per quanto si muovono insieme."
       },
       "crosstab": {
         "title": "Tag e le tue metriche di salute",
@@ -2609,8 +2608,7 @@
         "unitKcal": "kcal",
         "unitScore": "pt",
         "detailSameDay": "In media {withAvg} {unit} nei {withDays} giorni con questo tag contro {withoutAvg} {unit} senza.",
-        "detailNextDay": "In media {withAvg} {unit} il giorno dopo i {withDays} giorni con questo tag contro {withoutAvg} {unit} altrimenti.",
-        "disclaimer": "Sono associazioni nei tuoi dati, non prova di causa. Schemi che vale la pena osservare."
+        "detailNextDay": "In media {withAvg} {unit} il giorno dopo i {withDays} giorni con questo tag contro {withoutAvg} {unit} altrimenti."
       },
       "discovery": {
         "title": "Cosa risalta",
@@ -2625,7 +2623,8 @@
         "stat": "{n} giorni appaiati · r = {r} · q = {q}",
         "statLabel": "Come è stato calcolato",
         "explainerLabel": "Come è stato calcolato"
-      }
+      },
+      "inTargetTitle": "Nel tuo intervallo"
     },
     "derived": {
       "coverage": {

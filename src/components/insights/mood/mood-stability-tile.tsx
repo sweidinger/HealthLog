@@ -2,7 +2,8 @@
 
 import { Activity } from "lucide-react";
 
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { TileHeader } from "@/components/insights/tile-header";
 import { useTranslations } from "@/lib/i18n/context";
 
 /**
@@ -46,20 +47,21 @@ export function MoodStabilityTile({
 
   return (
     <Card>
-      <CardContent className="flex items-center gap-4 py-4">
-        <div className="bg-muted text-muted-foreground flex size-10 shrink-0 items-center justify-center rounded-full">
-          <Activity className="size-5" />
-        </div>
-        <div className="min-w-0">
-          <p className="text-foreground text-2xl font-semibold tabular-nums">
-            {t("insights.mood.stability.value", {
-              score: String(stability.score),
-            })}
-          </p>
-          <p className="text-muted-foreground text-sm">
-            {t(BAND_KEY[stability.band])}
-          </p>
-        </div>
+      <CardHeader className="pb-2">
+        <TileHeader
+          icon={Activity}
+          title={t("insights.mood.stability.title")}
+        />
+      </CardHeader>
+      <CardContent>
+        <p className="text-foreground text-2xl font-semibold tabular-nums">
+          {t("insights.mood.stability.value", {
+            score: String(stability.score),
+          })}
+        </p>
+        <p className="text-muted-foreground text-sm">
+          {t(BAND_KEY[stability.band])}
+        </p>
       </CardContent>
     </Card>
   );

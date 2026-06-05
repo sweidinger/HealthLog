@@ -2583,20 +2583,19 @@
         "bandVerySteady": "Your mood has been very steady",
         "bandSteady": "Your mood has been fairly steady",
         "bandVariable": "Your mood has been noticeably variable",
-        "bandVeryVariable": "Your mood has swung a lot lately"
+        "bandVeryVariable": "Your mood has swung a lot lately",
+        "title": "Stability"
       },
       "influence": {
         "title": "Influence on mood",
         "detail": "Averages {withAvg} on the {withDays} days you tagged this vs {withoutAvg} without it.",
         "confidenceLow": "Low confidence",
         "confidenceMedium": "Medium confidence",
-        "confidenceHigh": "High confidence",
-        "disclaimer": "These are associations in your own data, not proof of cause. Patterns worth watching."
+        "confidenceHigh": "High confidence"
       },
       "betterDays": {
         "title": "What goes with your better days",
-        "description": "Tags and metrics that line up with your higher- and lower-mood days, ranked by how strongly they move together.",
-        "disclaimer": "Associations only, not causes. Talk to your doctor before changing anything based on these."
+        "description": "Tags and metrics that line up with your higher- and lower-mood days, ranked by how strongly they move together."
       },
       "crosstab": {
         "title": "Tags and your health metrics",
@@ -2609,8 +2608,7 @@
         "unitKcal": "kcal",
         "unitScore": "pts",
         "detailSameDay": "Averages {withAvg} {unit} on the {withDays} days you tagged this vs {withoutAvg} {unit} without it.",
-        "detailNextDay": "Averages {withAvg} {unit} the day after the {withDays} days you tagged this vs {withoutAvg} {unit} otherwise.",
-        "disclaimer": "These are associations in your own data, not proof of cause. Patterns worth watching."
+        "detailNextDay": "Averages {withAvg} {unit} the day after the {withDays} days you tagged this vs {withoutAvg} {unit} otherwise."
       },
       "discovery": {
         "title": "What stands out",
@@ -2625,7 +2623,8 @@
         "stat": "{n} paired days · r = {r} · q = {q}",
         "statLabel": "How this was computed",
         "explainerLabel": "How this was computed"
-      }
+      },
+      "inTargetTitle": "In your range"
     },
     "derived": {
       "coverage": {

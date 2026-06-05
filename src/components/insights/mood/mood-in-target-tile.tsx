@@ -2,7 +2,8 @@
 
 import { Target } from "lucide-react";
 
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { TileHeader } from "@/components/insights/tile-header";
 import { useTranslations } from "@/lib/i18n/context";
 
 /**
@@ -12,6 +13,10 @@ import { useTranslations } from "@/lib/i18n/context";
  * the LLM snapshot) to a visible stat: the share of recent days that
  * landed in the good-mood band. Renders nothing when the number is
  * unavailable (no recent data) so the page degrades gracefully.
+ *
+ * v1.12.6 — the tile now leads with the canonical `TileHeader`
+ * (icon + white heading) so it speaks the same card language as every
+ * other Insights tile; the icon-in-a-circle headline glyph is dropped.
  */
 export function MoodInTargetTile({ pct }: { pct: number | null }) {
   const { t } = useTranslations();
@@ -22,18 +27,16 @@ export function MoodInTargetTile({ pct }: { pct: number | null }) {
 
   return (
     <Card>
-      <CardContent className="flex items-center gap-4 py-4">
-        <div className="bg-muted text-muted-foreground flex size-10 shrink-0 items-center justify-center rounded-full">
-          <Target className="size-5" />
-        </div>
-        <div className="min-w-0">
-          <p className="text-foreground text-2xl font-semibold tabular-nums">
-            {t("insights.mood.inTargetValue", { pct: String(rounded) })}
-          </p>
-          <p className="text-muted-foreground text-sm">
-            {t("insights.mood.inTargetCaption")}
-          </p>
-        </div>
+      <CardHeader className="pb-2">
+        <TileHeader icon={Target} title={t("insights.mood.inTargetTitle")} />
+      </CardHeader>
+      <CardContent>
+        <p className="text-foreground text-2xl font-semibold tabular-nums">
+          {t("insights.mood.inTargetValue", { pct: String(rounded) })}
+        </p>
+        <p className="text-muted-foreground text-sm">
+          {t("insights.mood.inTargetCaption")}
+        </p>
       </CardContent>
     </Card>
   );
