@@ -378,6 +378,8 @@ model User {
   fitbitConnection       FitbitConnection?
   fitbitOAuthStates      FitbitOAuthState[]
   moodEntries            MoodEntry[]
+  moodTagsCustom         MoodTag[]             @relation("UserMoodTags")
+  moodTagsHidden         MoodTagHidden[]
   notificationChannels   NotificationChannel[]
   pushSubscriptions      PushSubscription[]
   dataBackups            DataBackup[]
@@ -2131,11 +2133,40 @@ model MoodTag {
   /// analytics layer flips the sign so "up" always reads as "better".
   inverse  Boolean @default(false) @map("inverse")
 
+  /// v1.13.0 — owner of a per-user custom tag. NULL = the global catalogue
+  /// (every row seeded by migration; resolves `labelKey` against the locale).
+  /// Set = a user's own custom tag, carrying a `custom:<cuid>` key and a
+  /// free-text label held in `labelEncrypted`.
+  userId         String? @map("user_id")
+  /// v1.13.0 — AES-256-GCM ciphertext of a custom tag's free-text label
+  /// (user prose, possibly health-adjacent — e.g. "Migräne", "Therapie").
+  /// NULL for catalogue rows. Decrypted server-side for the effective read.
+  labelEncrypted String? @map("label_encrypted")
+
   category MoodTagCategory    @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  user     User?              @relation("UserMoodTags", fields: [userId], references: [id], onDelete: Cascade)
   links    MoodEntryTagLink[]
+  hiddenBy MoodTagHidden[]
 
   @@index([categoryId, sortOrder])
+  @@index([userId])
   @@map("mood_tags")
+}
+
+/// v1.13.0 — per-user hide of a CATALOGUE tag. Present = hidden from that
+/// user's effective picker; absent = visible. A custom tag is hidden by
+/// flipping its own `MoodTag.isActive` instead, never via this table.
+model MoodTagHidden {
+  userId    String   @map("user_id")
+  moodTagId String   @map("mood_tag_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  moodTag MoodTag @relation(fields: [moodTagId], references: [id], onDelete: Cascade)
+
+  @@id([userId, moodTagId])
+  @@index([moodTagId])
+  @@map("mood_tag_hidden")
 }
 
 // Join: which structured tags a mood entry carries. Composite PK keeps

@@ -1,16 +1,29 @@
 /**
- * v1.12.0 — `GET /api/mood/tags` must expose the rated-factor metadata
- * (`kind` / `scaleMin` / `scaleMax` / `inverse`) so the client can branch
- * between binary toggle chips and rated segmented controls.
+ * v1.12.0 / v1.13.0 — `GET /api/mood/tags` exposes the rated-factor metadata
+ * (`kind` / `scaleMin` / `scaleMax` / `inverse`) AND the v1.13.0 effective
+ * per-user set: own custom tags merged in (label decrypted, `custom: true`),
+ * hidden catalogue tags omitted by default and surfaced under
+ * `?include=hidden`.
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { NextRequest } from "next/server";
 
 const categoryFindMany = vi.fn();
+const tagFindMany = vi.fn();
+const hiddenFindMany = vi.fn();
 
 vi.mock("@/lib/db", () => ({
   prisma: {
     moodTagCategory: { findMany: (...a: unknown[]) => categoryFindMany(...a) },
+    moodTag: { findMany: (...a: unknown[]) => tagFindMany(...a) },
+    moodTagHidden: { findMany: (...a: unknown[]) => hiddenFindMany(...a) },
   },
+}));
+
+// Identity-ish crypto so the decrypted custom label is asserted in plaintext.
+vi.mock("@/lib/crypto", () => ({
+  encrypt: (s: string) => `enc:${s}`,
+  decrypt: (s: string) => s.replace(/^enc:/, ""),
 }));
 
 vi.mock("@/lib/auth/session", () => ({ getSession: vi.fn() }));
@@ -38,77 +51,89 @@ const SESSION_OK = {
   user: { id: "user-1", username: "tester", role: "USER" as const },
 };
 
+const CATEGORIES = [
+  { id: "c1", key: "feelings", labelKey: "mood.tagCategory.feelings", icon: "Smile" },
+  { id: "mtc_custom", key: "custom", labelKey: "mood.tagCategory.custom", icon: "Tag" },
+];
+
+const TAGS = [
+  { id: "t_happy", categoryId: "c1", key: "happy", labelKey: "mood.tag.happy", icon: "Smile", kind: "BINARY", scaleMin: 1, scaleMax: 5, inverse: false, userId: null, labelEncrypted: null },
+  { id: "t_sad", categoryId: "c1", key: "sad", labelKey: "mood.tag.sad", icon: "Frown", kind: "BINARY", scaleMin: 1, scaleMax: 5, inverse: false, userId: null, labelEncrypted: null },
+  { id: "t_custom", categoryId: "mtc_custom", key: "custom:abc", labelKey: "custom:abc", icon: "Heart", kind: "BINARY", scaleMin: 1, scaleMax: 5, inverse: false, userId: "user-1", labelEncrypted: "enc:Migräne" },
+];
+
+interface TagOut {
+  key: string;
+  labelKey: string | null;
+  label: string | null;
+  custom: boolean;
+  kind: string;
+  scaleMin: number;
+  scaleMax: number;
+  inverse: boolean;
+  hidden?: boolean;
+}
+interface Body {
+  data: { categories: Array<{ key: string; tags: TagOut[] }> };
+}
+
+function req(url = "http://localhost/api/mood/tags") {
+  return new NextRequest(url);
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
   vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
+  categoryFindMany.mockResolvedValue(CATEGORIES);
+  tagFindMany.mockResolvedValue(TAGS);
+  hiddenFindMany.mockResolvedValue([{ moodTagId: "t_sad" }]);
 });
 
-describe("GET /api/mood/tags — rated-factor catalog metadata (v1.12.0)", () => {
-  it("selects + emits kind / scaleMin / scaleMax / inverse per tag", async () => {
-    categoryFindMany.mockResolvedValue([
-      {
-        key: "factors",
-        labelKey: "mood.tagCategory.factors",
-        icon: "SlidersHorizontal",
-        tags: [
-          {
-            key: "factor_work",
-            labelKey: "mood.tag.factorWork",
-            icon: "Briefcase",
-            kind: "RATED",
-            scaleMin: 1,
-            scaleMax: 5,
-            inverse: false,
-          },
-          {
-            key: "factor_conflict",
-            labelKey: "mood.tag.factorConflict",
-            icon: "Swords",
-            kind: "RATED",
-            scaleMin: 1,
-            scaleMax: 2,
-            inverse: true,
-          },
-        ],
-      },
-    ]);
+function flat(body: Body): Record<string, TagOut> {
+  const out: Record<string, TagOut> = {};
+  for (const c of body.data.categories) for (const t of c.tags) out[t.key] = t;
+  return out;
+}
 
-    const res = await GET();
+describe("GET /api/mood/tags — effective per-user set (v1.13.0)", () => {
+  it("emits rated-factor metadata + custom/label fields and omits hidden by default", async () => {
+    const res = await GET(req());
     expect(res.status).toBe(200);
-    const body = (await res.json()) as {
-      data: {
-        categories: Array<{
-          key: string;
-          tags: Array<{
-            key: string;
-            kind: string;
-            scaleMin: number;
-            scaleMax: number;
-            inverse: boolean;
-          }>;
-        }>;
-      };
-    };
+    const tags = flat((await res.json()) as Body);
 
-    // The Prisma select must request the new columns.
-    const selectArg = categoryFindMany.mock.calls[0]?.[0] as {
-      select: { tags: { select: Record<string, boolean> } };
-    };
-    expect(selectArg.select.tags.select).toMatchObject({
-      kind: true,
-      scaleMin: true,
-      scaleMax: true,
-      inverse: true,
+    // Catalogue tag: custom=false, label=null, labelKey kept, metadata present.
+    expect(tags.happy).toMatchObject({
+      custom: false,
+      label: null,
+      labelKey: "mood.tag.happy",
+      kind: "BINARY",
+      scaleMin: 1,
+      scaleMax: 5,
+      inverse: false,
+    });
+    expect(tags.happy.hidden).toBeUndefined();
+
+    // Custom tag merged in: custom=true, decrypted label, labelKey null.
+    expect(tags["custom:abc"]).toMatchObject({
+      custom: true,
+      label: "Migräne",
+      labelKey: null,
     });
 
-    const factor = body.data.categories[0].tags[0];
-    expect(factor.kind).toBe("RATED");
-    expect(factor.scaleMin).toBe(1);
-    expect(factor.scaleMax).toBe(5);
-    expect(factor.inverse).toBe(false);
+    // Hidden catalogue tag omitted by default.
+    expect(tags.sad).toBeUndefined();
 
-    const conflict = body.data.categories[0].tags[1];
-    expect(conflict.scaleMax).toBe(2);
-    expect(conflict.inverse).toBe(true);
+    // Tag query scopes to catalogue OR the caller's own customs.
+    const tagWhere = tagFindMany.mock.calls[0]?.[0]?.where;
+    expect(tagWhere.OR).toEqual([{ userId: null }, { userId: "user-1" }]);
+  });
+
+  it("surfaces hidden catalogue tags with hidden:true under ?include=hidden", async () => {
+    const res = await GET(req("http://localhost/api/mood/tags?include=hidden"));
+    const tags = flat((await res.json()) as Body);
+    expect(tags.sad).toMatchObject({ hidden: true, custom: false });
+    expect(tags.happy).toMatchObject({ hidden: false });
+    // Custom tags never carry a hidden flag.
+    expect(tags["custom:abc"].hidden).toBeUndefined();
   });
 });

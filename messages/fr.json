@@ -531,7 +531,8 @@
       "social": "Social",
       "work": "Travail",
       "hobbies": "Loisirs",
-      "factors": "Facteurs"
+      "factors": "Facteurs",
+      "custom": "Personnalisées"
     },
     "tag": {
       "happy": "heureux",
