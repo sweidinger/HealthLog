@@ -262,14 +262,12 @@ export function SubPageShell({
           brand-new-metric paths. Numbers-first is the Apple-Health /
           Withings / Oura detail-screen convention.
 
-          TODO(v1.12.7): chart-brush-reactive stats. When the user brushes /
-          selects a window in the chart below, recompute the stat strip's
-          Min/Max/Median/Mean for the visible domain. Deferred: the shared
-          `<HealthChart>` (~1900 LOC, also driving the dashboard) has no
-          Recharts `<Brush>` or lifted domain-change callback today, and its
-          range state lives internally; wiring a stable brush + lifting the
-          selected domain into this shell so both the chart and the strip read
-          it is a larger change than this release's scope warrants without
+          The stats describe the full range. Recomputing them for a window
+          the user brushes / selects in the chart below would mean lifting the
+          chart's domain into this shell so both the chart and the strip read
+          it — but the shared `<HealthChart>` (also driving the dashboard) has
+          no Recharts `<Brush>` or domain-change callback and keeps its range
+          state internal, so that wiring is left for a later release to avoid
           destabilising the chart. */}
         {statStrip}
         {/* v1.12.6 — the canonical spine body: intro (header) → stat strip
