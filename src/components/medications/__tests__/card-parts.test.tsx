@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, beforeEach, afterEach, vi } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
@@ -162,19 +162,24 @@ describe("medication cycle status — open-cycle line", () => {
     hasClosedCycles: true,
   };
 
-  // A future instant N whole calendar days from now (noon-anchored so the
-  // Berlin-day rounding is stable regardless of the test clock's time of day).
+  const DAY_MS = 24 * 60 * 60 * 1000;
+
+  // Pin the clock to a stable Berlin-noon instant (12:00 CEST) so the
+  // component's Berlin day-bucketing is deterministic regardless of the CI
+  // runner's timezone — a UTC runner near midnight would otherwise read
+  // "now" as the next Berlin day and drift every count by one.
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-06-15T10:00:00Z"));
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  // A future instant exactly N×24 h from the pinned noon, so every offset lands
+  // mid-Berlin-day and the whole-day delta is exactly N in any runtime tz.
   function inDays(n: number): Date {
-    const now = new Date();
-    const d = new Date(
-      now.getFullYear(),
-      now.getMonth(),
-      now.getDate() + n,
-      12,
-      0,
-      0,
-    );
-    return d;
+    return new Date(Date.now() + n * DAY_MS);
   }
 
   it("renders nothing when state is none (PRN / paused / ended)", () => {
@@ -237,8 +242,8 @@ describe("medication cycle status — open-cycle line", () => {
   });
 
   it("on_track later today reads today", () => {
-    const later = new Date();
-    later.setHours(23, 59, 0, 0);
+    // Six hours past the pinned noon — still the same Berlin calendar day.
+    const later = new Date(Date.now() + 6 * 60 * 60 * 1000);
     const html = render(
       <MedicationCycleStatus
         cycle={{ ...baseCycle, state: "on_track", nextDueAt: later }}
