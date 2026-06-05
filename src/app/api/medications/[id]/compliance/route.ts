@@ -265,6 +265,11 @@ export const GET = apiHandler(
         dayStart,
         dayEnd,
         medicationContext,
+        // v1.13.x — pass the intake history so a ROLLING schedule's per-day
+        // `due` flags come from the retrospective grid (each logged dose is a
+        // due day) instead of the engine's single forward slot — keeping the
+        // heatmap, the denominator, and the displayed rate in agreement.
+        mapped,
       );
 
       dailyCompliance[dateKey] = {
