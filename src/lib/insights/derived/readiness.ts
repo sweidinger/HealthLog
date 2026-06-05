@@ -194,8 +194,19 @@ async function readLatestDayMean(
 
 /**
  * Score one baseline-deviation vital component (RHR / HRV / respiratory).
- * Returns null when the baseline is insufficient or there is no recent
- * reading — the component then drops from the blend.
+ *
+ * null-vs-0 contract (iOS v0.14.3 F2)
+ * -----------------------------------
+ * A contributor is `null` ONLY when there is no usable signal: the baseline
+ * is not established (insufficient history / band failed), there is no recent
+ * reading, or the inputs are non-finite. A `null` contributor drops from the
+ * blend and the client hides it. A FINITE number — including a genuine `0` —
+ * means the baseline IS established and the latest reading really does deviate
+ * that far (≥ 2 spreads in the unfavourable direction maps to 0; see
+ * `scoreDeviation`). We deliberately never emit `0` as a "missing data"
+ * sentinel: the previous behaviour of letting a non-finite `today`/`center`
+ * fall through `clamp100` could surface a misleading 0 for an account that had
+ * the metric but no scorable baseline — that case is now `null`.
  */
 async function scoreVitalDeviation(
   userId: string,
@@ -225,7 +236,15 @@ async function scoreVitalDeviation(
     };
   }
   const today = await readLatestDayMean(userId, type, windowDays, now);
-  if (today == null) {
+  // No recent reading, or a non-finite baseline center / today value: there
+  // is no scorable deviation. Return null (hidden) rather than letting a NaN
+  // fall through `scoreDeviation` → `clamp100`, which would surface a
+  // misleading 0 for an account that actually has the metric (iOS F2).
+  if (
+    today == null ||
+    !Number.isFinite(today) ||
+    !Number.isFinite(baseline.value.center)
+  ) {
     return {
       value: null,
       source: baseline.provenance.source,

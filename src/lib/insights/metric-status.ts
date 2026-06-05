@@ -60,6 +60,12 @@ import {
 } from "@/lib/insights/status-shared";
 import { runStatusCompletion } from "@/lib/insights/status-provider";
 import {
+  reconstructSleepNights,
+  type SleepStageRow,
+} from "@/lib/analytics/sleep-night";
+import { loadUserSourcePriority } from "@/lib/rollups/measurement-read";
+import { resolveUserTimezone } from "@/lib/tz/resolver";
+import {
   readFreshStatusText,
   resolveReadOnlyStatusMiss,
   statusCacheAction,
@@ -206,19 +212,64 @@ export async function generateMetricStatus(args: {
   // Bounded raw read for the derived recent stats; the monthly/yearly
   // tail comes from the rollup tier (full-history fallback on a miss),
   // exactly as the specialised cards do.
-  const measurements = await prisma.measurement
-    .findMany({
-      where: { userId: args.userId, type: meta.measurementType, deletedAt: null },
-      orderBy: { measuredAt: "desc" },
-      take: 365,
-      select: { value: true, measuredAt: true },
-    })
-    .then((rows) => rows.reverse());
+  //
+  // SLEEP_DURATION is the one type stored ONE ROW PER STAGE per night
+  // (IN_BED / AWAKE / CORE / DEEP / REM, minutes each), so a raw per-row
+  // read would feed the status prose a single ~16 min stage as the
+  // "current sleep" instead of the night total. Route it through
+  // `reconstructSleepNights` (the same helper the dashboard / series /
+  // targets use) so every derived value here — `series`, `summary`,
+  // `latest` — is a per-night TIME-ASLEEP total in minutes (the registry
+  // unit + normalRange are already minutes). The night reconstruction
+  // clusters stages into sessions, dedups multi-source nights via the
+  // user's `sleep` priority ladder, and handles the midnight split. Gated
+  // to SLEEP_DURATION only so no other metric's status path changes.
+  const isSleep = meta.measurementType === "SLEEP_DURATION";
 
-  const points = measurements.map((m) => ({
-    measuredAt: m.measuredAt,
-    value: m.value,
-  }));
+  const points: Array<{ measuredAt: Date; value: number }> = [];
+  let measurements: Array<{ measuredAt: Date }> = [];
+  if (isSleep) {
+    const [tz, priorityJson, sleepRows] = await Promise.all([
+      resolveUserTimezone(args.userId),
+      loadUserSourcePriority(args.userId),
+      prisma.measurement.findMany({
+        where: {
+          userId: args.userId,
+          type: "SLEEP_DURATION",
+          deletedAt: null,
+        },
+        orderBy: { measuredAt: "desc" },
+        take: 365 * 6, // ≈ 5 stage rows/night × source-count for a year
+        select: { value: true, measuredAt: true, sleepStage: true, source: true },
+      }),
+    ]);
+    const nights = reconstructSleepNights(
+      sleepRows as SleepStageRow[],
+      tz,
+      priorityJson,
+    ).filter((n) => n.asleepMinutes > 0);
+    for (const n of nights) {
+      points.push({ measuredAt: n.measuredAt, value: n.asleepMinutes });
+    }
+    measurements = nights.map((n) => ({ measuredAt: n.measuredAt }));
+  } else {
+    const rows = await prisma.measurement
+      .findMany({
+        where: {
+          userId: args.userId,
+          type: meta.measurementType,
+          deletedAt: null,
+        },
+        orderBy: { measuredAt: "desc" },
+        take: 365,
+        select: { value: true, measuredAt: true },
+      })
+      .then((r) => r.reverse());
+    for (const m of rows) {
+      points.push({ measuredAt: m.measuredAt, value: m.value });
+    }
+    measurements = rows.map((m) => ({ measuredAt: m.measuredAt }));
+  }
   const series = applyPayloadBudget(points, { now });
   const graded = await buildGradedSeriesWithRollups(
     args.userId,
