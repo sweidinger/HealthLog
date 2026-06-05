@@ -19,11 +19,8 @@ import { TrajectoryForecastCard } from "@/components/insights/derived/trajectory
 import { isTrajectoryType } from "@/lib/insights/derived/registry";
 import { MetricEmptyState } from "@/components/insights/metric-empty-state";
 import { MetricStatStrip } from "@/components/insights/metric-stat-strip";
-import { MetricPrimaryTile } from "@/components/insights/metric-primary-tile";
-import { MetricLastMeasurementCard } from "@/components/insights/metric-last-measurement-card";
 import { MeasurementDiversityNudge } from "@/components/insights/measurement-diversity-nudge";
 import { MetricTargetSummary } from "@/components/insights/metric-target-summary";
-import { MetricRangeControls } from "@/components/insights/metric-range-controls";
 import { SubPageShell } from "@/components/insights/sub-page-shell";
 
 /**
@@ -179,9 +176,6 @@ export function HealthKitMetricPage({
         }
       : rawSummary;
 
-  const lastSeenAt =
-    analytics?.lastSeenByType?.[measurementType]?.lastSeenAt ?? null;
-
   const title = t(`${i18nPrefix}.title`);
   const description = t(`${i18nPrefix}.description`);
 
@@ -216,16 +210,6 @@ export function HealthKitMetricPage({
       title={title}
       description={description}
       explainerMetric={explainerMetric}
-      primary={
-        <>
-          <MetricPrimaryTile
-            summary={summary}
-            unit={yAxisUnit ?? unit}
-            slug={targetSummarySlug}
-          />
-          <MetricLastMeasurementCard lastSeenAt={lastSeenAt} />
-        </>
-      }
       statStrip={<MetricStatStrip summary={summary} unit={yAxisUnit ?? unit} />}
       diversityNudge={
         <MeasurementDiversityNudge
@@ -249,13 +233,6 @@ export function HealthKitMetricPage({
         userTimezone={user?.timezone}
         valueScale={valueScale}
       />
-      {/* v1.12.0 — time-range pills + period-over-period delta, relocated
-          BELOW the chart (iOS-parity). The pills drive the period-over-period
-          delta read and persist across metrics via `useInsightsRangePref`;
-          the chart owns its own window via its in-card range tabs, so this
-          block sits as a clean bottom-of-card row rather than between the
-          stat strip and the chart. */}
-      <MetricRangeControls measurementType={measurementType} enabled={!isEmpty} />
       {targetSummarySlug ? (
         <MetricTargetSummary slug={targetSummarySlug} />
       ) : null}

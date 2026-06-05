@@ -40,12 +40,20 @@ interface MetricStatStripProps {
    * metrics, which `Intl.NumberFormat` drops anyway.
    */
   fractionDigits?: number;
+  /**
+   * v1.12.4 — optional series caption rendered above the grid. Single-series
+   * metrics omit it; blood pressure stacks two strips (systolic / diastolic)
+   * and labels each so the unified strip covers both halves rather than
+   * silently dropping one. Also feeds the `aria-label` for the section.
+   */
+  seriesLabel?: string;
 }
 
 export function MetricStatStrip({
   summary,
   unit,
   fractionDigits = 1,
+  seriesLabel,
 }: MetricStatStripProps) {
   const { t } = useTranslations();
   const fmt = useFormatters();
@@ -75,10 +83,23 @@ export function MetricStatStrip({
   return (
     <section
       data-slot="metric-stat-strip"
-      aria-label={t("insights.subPage.stats.label")}
-      className="bg-card border-border grid grid-cols-2 gap-3 rounded-xl border p-4 sm:grid-cols-4 [&>div]:min-h-[56px]"
+      aria-label={
+        seriesLabel
+          ? `${t("insights.subPage.stats.label")} — ${seriesLabel}`
+          : t("insights.subPage.stats.label")
+      }
+      className="bg-card border-border space-y-2 rounded-xl border p-4"
     >
-      {cells.map((cell) => (
+      {seriesLabel ? (
+        <p
+          data-slot="metric-stat-strip-series"
+          className="text-muted-foreground text-[10px] font-medium tracking-wide uppercase"
+        >
+          {seriesLabel}
+        </p>
+      ) : null}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 [&>div]:min-h-[56px]">
+        {cells.map((cell) => (
         <div
           key={cell.key}
           data-slot="metric-stat"
@@ -92,7 +113,8 @@ export function MetricStatStrip({
             {format(cell.value)}
           </p>
         </div>
-      ))}
+        ))}
+      </div>
     </section>
   );
 }

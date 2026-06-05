@@ -53,18 +53,3 @@ export function sentimentColorClass(
   return "text-muted-foreground";
 }
 
-/**
- * v1.9.0 — map a `MetricDirection` (the metric-status registry's
- * `higher-better` / `lower-better` / `target-band`) onto a
- * `TrendDirectionSentiment` for the range-delta caption. `target-band`
- * metrics (body temperature, respiratory rate, …) have no single good
- * direction, so a period-over-period delta carries no sentiment colour —
- * `neutral`, matching Oura's deviation framing for baseline metrics.
- */
-export function sentimentFromMetricDirection(
-  direction: "higher-better" | "lower-better" | "target-band",
-): TrendDirectionSentiment {
-  if (direction === "higher-better") return "up-good";
-  if (direction === "lower-better") return "up-bad";
-  return "neutral";
-}

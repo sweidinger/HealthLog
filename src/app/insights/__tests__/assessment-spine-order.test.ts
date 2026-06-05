@@ -3,21 +3,25 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
 /**
- * v1.12.2 — canonical metric-detail spine guard.
+ * v1.12.4 — canonical metric-detail spine guard.
  *
- * v1.12.0 made the AI assessment the LAST content block on every metric
- * sub-page (primary → stat strip → chart → range → target → forecast →
- * assessment). The generic `HealthKitMetricPage` scaffold enforces this for
- * the ~29 HealthKit pages structurally; the six bespoke pages each hand-write
- * their body, so a future edit can silently slot a card after the assessment
- * (as `mood` and `medications` did before this release).
+ * The unified subpage spine is: intro → chart → target card → assessment →
+ * stat strip. The assessment is the LAST content block the page hands to
+ * `<SubPageShell>` as `children`; the shell appends the Min/Max/Median/Mean
+ * stat strip below it. The generic `HealthKitMetricPage` scaffold enforces
+ * this for the ~29 HealthKit pages structurally; the bespoke pages each
+ * hand-write their body, so a future edit can silently slot a card after the
+ * assessment (as `mood` and `medications` did before).
  *
- * This is a source-level structural guard: the assessment card element must be
- * the last JSX child of the page's `<SubPageShell>`. Asserting on the source
- * (rather than rendered markup) keeps the test deterministic — the preceding
- * blocks (`MetricTargetSummary`, `MoodInsightsSections`, `TherapyTimeline`)
- * all self-suppress on a data miss, so a render-order assertion would depend
- * on mocking the whole data layer.
+ * This is a source-level structural guard:
+ *   1. the assessment card element is the last JSX child of `<SubPageShell>`;
+ *   2. the target card (`MetricTargetSummary`) precedes the assessment;
+ *   3. the retired range row (`MetricRangeControls`) and the retired
+ *      "Letzte Messung" card (`MetricLastMeasurementCard`) appear nowhere.
+ *
+ * Asserting on the source (rather than rendered markup) keeps the test
+ * deterministic — the preceding blocks all self-suppress on a data miss, so a
+ * render-order assertion would depend on mocking the whole data layer.
  */
 
 const PAGES_DIR = join(process.cwd(), "src", "app", "insights");
@@ -80,6 +84,36 @@ describe("bespoke metric-detail spine — assessment is the last block", () => {
         `${slug}: "${trailing.slice(0, 40)}" renders AFTER the assessment card — ` +
           `the assessment must be the last block on the canonical spine`,
       ).toBe("");
+
+      // v1.12.4 — the target card precedes the assessment when present.
+      const targetIndex = body.indexOf("<MetricTargetSummary");
+      if (targetIndex > -1) {
+        expect(
+          targetIndex,
+          `${slug}: target card must render before the assessment`,
+        ).toBeLessThan(assessmentIndex);
+      }
+    });
+  }
+});
+
+describe("metric subpages — retired range row + Letzte-Messung are gone", () => {
+  // The whole insights subpage tree (bespoke + the values/scores detail pages).
+  for (const { slug } of BESPOKE_PAGES) {
+    it(`/insights/${slug} carries no range row and no last-measurement card`, () => {
+      const source = readFileSync(join(PAGES_DIR, slug, "page.tsx"), "utf8");
+      // Match a real JSX element start (`<Name ` or `<Name\n` or `<Name/>`),
+      // not the back-ticked references inside explanatory comments
+      // (`<MetricRangeControls>`) that mood / medications keep to document
+      // why the row is intentionally absent.
+      expect(
+        /<MetricRangeControls[\s/]/.test(source),
+        `${slug}: the 7T/30T/90T/1J range row was removed in v1.12.4`,
+      ).toBe(false);
+      expect(
+        /<MetricLastMeasurementCard[\s/]/.test(source),
+        `${slug}: the "Letzte Messung" card was removed from subpages in v1.12.4`,
+      ).toBe(false);
     });
   }
 });

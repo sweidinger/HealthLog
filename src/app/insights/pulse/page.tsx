@@ -12,11 +12,8 @@ import { HealthChartDynamic } from "@/components/charts/health-chart-dynamic";
 import { SlugInsightStatusCard } from "@/components/insights/slug-insight-status-card";
 import { MetricEmptyState } from "@/components/insights/metric-empty-state";
 import { MetricStatStrip } from "@/components/insights/metric-stat-strip";
-import { MetricPrimaryTile } from "@/components/insights/metric-primary-tile";
-import { MetricLastMeasurementCard } from "@/components/insights/metric-last-measurement-card";
 import { MetricCorrelationCard } from "@/components/insights/metric-correlation-card";
 import { MeasurementDiversityNudge } from "@/components/insights/measurement-diversity-nudge";
-import { MetricRangeControls } from "@/components/insights/metric-range-controls";
 import { MetricTargetSummary } from "@/components/insights/metric-target-summary";
 import { SubPageShell } from "@/components/insights/sub-page-shell";
 import { Vo2MaxChartRow } from "@/components/insights/vo2-max-chart-row";
@@ -52,7 +49,6 @@ export default function InsightsPulsPage() {
   const { data: analytics, isEmpty } = useInsightsAnalytics("PULSE");
   const vo2Summary = analytics?.summaries?.VO2_MAX ?? null;
   const pulseSummary = analytics?.summaries?.PULSE ?? null;
-  const pulseLastSeenAt = analytics?.lastSeenByType?.PULSE?.lastSeenAt ?? null;
 
   // v1.4.27 F17 — gate the sub-page on at least one pulse observation.
   // Brand-new accounts (no manual logs, no Apple-Health upload yet)
@@ -117,12 +113,6 @@ export default function InsightsPulsPage() {
       title={t("insights.pulseSectionTitle")}
       description={t("insights.subPage.pulsDescription")}
       explainerMetric="pulse"
-      primary={
-        <>
-          <MetricPrimaryTile summary={pulseSummary} unit="bpm" slug="pulse" />
-          <MetricLastMeasurementCard lastSeenAt={pulseLastSeenAt} />
-        </>
-      }
       statStrip={<MetricStatStrip summary={pulseSummary} unit="bpm" />}
       diversityNudge={
         <MeasurementDiversityNudge
@@ -144,8 +134,6 @@ export default function InsightsPulsPage() {
         compareBaseline={compareBaseline}
         userTimezone={user?.timezone}
       />
-      {/* v1.12.0 — range pills + period-over-period delta below the chart. */}
-      <MetricRangeControls measurementType="PULSE" enabled={!isEmpty} />
 
       <MetricTargetSummary slug="pulse" />
 
