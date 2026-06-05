@@ -139,6 +139,99 @@ describe("runRecordIntake — shared C1 failure toast + C2 Undo", () => {
     expect(onRecorded).toHaveBeenCalledWith("evt-99", false);
   });
 
+  it("sends the displayed dose's scheduledFor on the POST so the server marks THAT slot (v1.12.3)", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: vi.fn().mockResolvedValue({ data: { id: "evt-am" } }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    // The morning (07:00) slot the card is showing — Berlin 07:00 = 05:00 UTC.
+    const morningSlot = new Date("2026-06-05T05:00:00.000Z");
+
+    await runRecordIntake({
+      medication,
+      skipped: false,
+      scheduledFor: morningSlot,
+      t,
+      queryClient: fakeQueryClient(),
+      setIntakeLoading: vi.fn(),
+      undoIntake: vi.fn(),
+    });
+
+    const [, init] = fetchMock.mock.calls[0];
+    const body = JSON.parse((init as RequestInit).body as string);
+    expect(body).toEqual({
+      skipped: false,
+      scheduledFor: "2026-06-05T05:00:00.000Z",
+    });
+  });
+
+  it("targets the morning vs evening slot purely from the supplied scheduledFor, not the wall-clock", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: vi.fn().mockResolvedValue({ data: { id: "evt" } }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const morningSlot = new Date("2026-06-05T05:00:00.000Z"); // 07:00 Berlin
+    const eveningSlot = new Date("2026-06-05T17:00:00.000Z"); // 19:00 Berlin
+
+    await runRecordIntake({
+      medication,
+      skipped: false,
+      scheduledFor: morningSlot,
+      t,
+      queryClient: fakeQueryClient(),
+      setIntakeLoading: vi.fn(),
+      undoIntake: vi.fn(),
+    });
+    await runRecordIntake({
+      medication,
+      skipped: false,
+      scheduledFor: eveningSlot,
+      t,
+      queryClient: fakeQueryClient(),
+      setIntakeLoading: vi.fn(),
+      undoIntake: vi.fn(),
+    });
+
+    const firstBody = JSON.parse(
+      (fetchMock.mock.calls[0][1] as RequestInit).body as string,
+    );
+    const secondBody = JSON.parse(
+      (fetchMock.mock.calls[1][1] as RequestInit).body as string,
+    );
+    // Each call carries its OWN slot — marking one dose never targets the
+    // other.
+    expect(firstBody.scheduledFor).toBe("2026-06-05T05:00:00.000Z");
+    expect(secondBody.scheduledFor).toBe("2026-06-05T17:00:00.000Z");
+  });
+
+  it("omits scheduledFor entirely on a PRN / unscheduled dose (null), preserving the server now-snap path", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: vi.fn().mockResolvedValue({ data: { id: "evt-prn" } }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    await runRecordIntake({
+      medication,
+      skipped: false,
+      scheduledFor: null,
+      t,
+      queryClient: fakeQueryClient(),
+      setIntakeLoading: vi.fn(),
+      undoIntake: vi.fn(),
+    });
+
+    const body = JSON.parse(
+      (fetchMock.mock.calls[0][1] as RequestInit).body as string,
+    );
+    expect(body).toEqual({ skipped: false });
+    expect(body).not.toHaveProperty("scheduledFor");
+  });
+
   it("omits the Undo action when the POST body carries no event id", async () => {
     vi.stubGlobal(
       "fetch",

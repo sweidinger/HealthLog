@@ -38,6 +38,7 @@ import {
   reduceCurrentWindowStatus,
   toBerlinDate,
 } from "@/lib/medications/window-status";
+import { resolveDisplayedSlotInstant } from "@/components/medications/card-parts/displayed-slot-instant";
 import type { ComplianceDisplay } from "@/lib/analytics/compliance";
 
 /**
@@ -309,6 +310,16 @@ export function Glp1MedicationCard({
     todayEventCount: medication.todayEventCount ?? 0,
   });
 
+  // v1.12.3 — slot instant of the injection this card is showing (the
+  // open/overdue window, else the server's next-due). Threaded onto the
+  // take / skip POST so the server records THIS dose deterministically
+  // rather than snapping "now" to the nearest slot.
+  const displayedSlot = resolveDisplayedSlotInstant({
+    currentWindowStatus,
+    nextDueAt: medication.nextDueAt,
+    now,
+  });
+
   const recentInjections = details?.recentIntakes ?? [];
   const lastSite =
     recentInjections.find((i) => i.injectionSite)?.injectionSite ?? null;
@@ -490,7 +501,7 @@ export function Glp1MedicationCard({
           <div className="mt-auto pt-0">
             <MedicationIntakeActions
               intakeLoading={intakeLoading}
-              onRecordIntake={recordIntake}
+              onRecordIntake={(skipped) => recordIntake(skipped, displayedSlot)}
             />
           </div>
         )}

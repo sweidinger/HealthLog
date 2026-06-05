@@ -6,6 +6,11 @@ import { useTranslations } from "@/lib/i18n/context";
 interface MedicationIntakeActionsProps {
   /** "take" | "skip" while the matching request is in flight, else null. */
   intakeLoading: string | null;
+  /**
+   * Record the displayed dose. The card binds the second `scheduledFor`
+   * argument to the slot it is currently showing (v1.12.3), so the buttons
+   * here just forward the skip flag.
+   */
   onRecordIntake: (skipped: boolean) => void;
 }
 

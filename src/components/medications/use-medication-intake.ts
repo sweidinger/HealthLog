@@ -48,8 +48,14 @@ interface UseMedicationIntakeParams {
 interface UseMedicationIntakeResult {
   /** "take" | "skip" while the matching request is in flight, else null. */
   intakeLoading: string | null;
-  /** Record a take (skipped=false) or skip (skipped=true). */
-  recordIntake: (skipped: boolean) => Promise<void>;
+  /**
+   * Record a take (skipped=false) or skip (skipped=true). The optional
+   * `scheduledFor` is the slot instant of the dose the card is displaying;
+   * when supplied the server marks THAT slot instead of snapping "now" to
+   * the nearest one (v1.12.3). Omit it (or pass null) for an unscheduled /
+   * PRN dose to keep the legacy now-snap path.
+   */
+  recordIntake: (skipped: boolean, scheduledFor?: Date | null) => Promise<void>;
   /** Reverse a just-recorded intake via the soft-delete route. */
   undoIntake: (eventId: string) => Promise<void>;
 }
@@ -64,6 +70,14 @@ interface UseMedicationIntakeResult {
 export async function runRecordIntake(deps: {
   medication: MedicationIntakeIdentity;
   skipped: boolean;
+  /**
+   * v1.12.3 — slot instant of the dose the card is showing. Threaded onto
+   * the POST so the server marks the displayed dose deterministically
+   * instead of snapping "now" to the nearest slot (a morning tap on a
+   * 07:00 / 19:00 med no longer mis-records the 07:00 dose). `null` /
+   * undefined keeps the legacy now-snap (unscheduled / PRN doses).
+   */
+  scheduledFor?: Date | null;
   t: Translator;
   queryClient: QueryClient;
   setIntakeLoading: (value: string | null) => void;
@@ -73,6 +87,7 @@ export async function runRecordIntake(deps: {
   const {
     medication,
     skipped,
+    scheduledFor,
     t,
     queryClient,
     setIntakeLoading,
@@ -85,7 +100,15 @@ export async function runRecordIntake(deps: {
     const res = await fetch(`/api/medications/${medication.id}/intake`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ skipped }),
+      // The route's Zod schema accepts an ISO `scheduledFor`; the server
+      // snaps it to the canonical slot. Only send it when the card
+      // identified the displayed dose's slot — otherwise omit so the
+      // PRN / unscheduled now-snap path is preserved.
+      body: JSON.stringify(
+        scheduledFor
+          ? { skipped, scheduledFor: scheduledFor.toISOString() }
+          : { skipped },
+      ),
     });
     // v1.11.3 C1 — a failed POST used to clear the spinner silently, so the
     // user believed the dose was logged when it was not. Surface the failure
@@ -170,10 +193,11 @@ export function useMedicationIntake({
   const undoIntake = (eventId: string) =>
     runUndoIntake({ medication, eventId, t, queryClient });
 
-  const recordIntake = (skipped: boolean) =>
+  const recordIntake = (skipped: boolean, scheduledFor?: Date | null) =>
     runRecordIntake({
       medication,
       skipped,
+      scheduledFor,
       t,
       queryClient,
       setIntakeLoading,
