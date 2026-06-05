@@ -2,6 +2,21 @@
 
 ## [Unreleased]
 
+## [1.12.9] — 2026-06-05 — a tighter mood catalogue, clearer cards, and a fixed retrospective
+
+### Changed
+
+- **The mood factors are down to three sliders** — work, sleep quality, and a new sadness slider — and the day-tag list is trimmed to a tighter, higher-signal set. Tags you've already used stay on your past entries; they just no longer clutter the picker.
+- **Medication cards read cleaner.** The next-dose and last-dose lines are now their own rows: the label on the left, the time flush to the right.
+
+### Fixed
+
+- **The period retrospective generates again.** A non-measurement metric was leaking into a measurement query and failing the background job; it's now filtered out.
+
+### Documentation
+
+- **Every code directory has a README**, the main README embeds the architecture diagrams and a documentation index, and the contributor guide reflects the current trunk-based release model.
+
 ## [1.12.8] — 2026-06-05 — fuller WHOOP data, charts that follow your selection
 
 ### Added
@@ -18,6 +33,26 @@
 ### Fixed
 
 - **AI insights use the current default models consistently** across every path, so the shared-key experience matches the rest.
+
+### Added
+
+- **The stats above a chart now follow your selection.** Brush a window on a metric chart and the min / max / median / average recompute for just that span; clear the selection to return to the full range. Works the same on every metric page, and blood pressure now shows systolic and diastolic in one card, side by side.
+
+### Changed
+
+- **The mood page reads top to bottom the way you'd walk it.** Summary, then the mood calendar, then the chart, then the target, then the assessment — followed by the breakdowns. The two "what stands out" sections are merged into one card, the statistical footnote is gone (the detail lives in a small info tooltip), and the mood colours are aligned to the rest of the charts.
+- **VO₂max opens its full chart.** The compact row on the pulse page now links to the dedicated cardio-fitness page instead of showing a chart-less summary.
+- **AI assessments vary more across your metrics.** The anti-repetition context now reaches the main cards (blood pressure, weight, pulse, mood, BMI, medication, overall), a step is only suggested when the finding implies one, and the default models were refreshed so the shared-key fallback isn't a quality drop.
+
+### Fixed
+
+- **Status colours stay legible on the light theme.** Connection states, recommendation badges, score provenance, and the settings success messages now use tokens that meet contrast in both themes.
+- **A late device sync no longer shrinks a day's step or energy total.** Trailing samples are folded into the existing daily total instead of replacing it.
+- **The medication streak is correct across time zones**, and the dashboard now serves its snapshot instantly after a sync while refreshing in the background.
+- **Metric pages and the Insights overview show a retry on error** instead of a blank or a false "no data yet".
+- **Account profile:** the timezone selector fills its row, and the "globally excluded injection sites" card matches the other cards.
+
+## [1.12.7] — 2026-06-05 — Insights that react, read clean, and stay legible
 
 ### Added
 

@@ -577,7 +577,8 @@
       "factorSleepQuality": "sleep quality",
       "factorStress": "stress",
       "factorConflict": "conflict",
-      "factorFamily": "family"
+      "factorFamily": "family",
+      "factorSadness": "sadness"
     }
   },
   "medications": {
@@ -701,11 +702,13 @@
     "glp1DosesPerUnit": "Doses per pen / vial",
     "glp1DosesPerUnitPlaceholder": "e.g. 4 for a Mounjaro KwikPen",
     "glp1DosesPerUnitHelp": "Optional — Mounjaro KwikPen = 4, Ozempic 0.25/0.5 mg = 4, Wegovy single-dose pen = 1. Leave blank if you don't track per-pen dosing.",
-    "glp1LastInjection": "Last: {label}",
-    "glp1LastInjectionWithSite": "Last: {label} · {site}",
-    "glp1NextInjectionDays": "Next: {label} (in {days} days)",
-    "glp1NextInjectionToday": "Next: today",
-    "glp1NextInjectionTomorrow": "Next: tomorrow",
+    "glp1NextLabel": "Next:",
+    "glp1LastLabel": "Last:",
+    "glp1LastInjection": "{label}",
+    "glp1LastInjectionWithSite": "{label} · {site}",
+    "glp1NextInjectionDays": "{label} (in {days} days)",
+    "glp1NextInjectionToday": "today",
+    "glp1NextInjectionTomorrow": "tomorrow",
     "glp1RotationLast": "Last site: {site}",
     "glp1RotationSuggested": "Recommended next: {site}",
     "glp1LogSideEffect": "Log side effect",

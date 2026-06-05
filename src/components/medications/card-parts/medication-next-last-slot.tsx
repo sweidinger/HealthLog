@@ -21,10 +21,17 @@ import { useTranslations } from "@/lib/i18n/context";
  * whose last-dose line is absent the same vertical footprint as a sibling
  * that renders both lines, so the dose rows line up across the grid.
  *
- * Each card still builds the line *content* itself (the generic card emits a
- * day-label + window-range; the GLP-1 card emits a weekly-cadence prose
- * string), because the two cadences read differently — but the wrapper,
- * order, colour, and gating are now guaranteed identical.
+ * Each card still builds the value *content* itself (the generic card emits a
+ * day-label + window-range; the GLP-1 card emits a weekly-cadence string),
+ * because the two cadences read differently — but the wrapper, order, colour,
+ * label/value layout, and gating are now guaranteed identical. The GLP-1 card
+ * overrides the left-column label with its appointment-phrased wording.
+ *
+ * Layout: when `labelled`, each line is a `flex justify-between` row with the
+ * bold label pinned left and the value flush right (`text-right`), so the
+ * label and the time read as two distinct columns rather than crammed onto
+ * one run of text. The label truncates first on a narrow viewport; the value
+ * (the time / cadence) never truncates.
  */
 interface MedicationNextLastSlotProps {
   /**
@@ -36,45 +43,56 @@ interface MedicationNextLastSlotProps {
   /** The last-intake line content, or null when the med has never been taken. */
   last: React.ReactNode | null;
   /**
-   * When true (the generic card) the part prepends the bold
-   * "Next intake" / "Last intake" labels. The GLP-1 card passes its own
-   * site-aware prose (whose i18n strings already read "Next injection …" /
-   * "Last injection …"), so it opts out and supplies the full line content.
-   * Either way the wrapper, order, colour, spacing, gating and reserved
-   * min-height are identical.
+   * When true the part renders each line as a two-column row: a bold label
+   * pinned left and the value flush right. The generic card uses the default
+   * oral "Next intake" / "Last intake" labels; the GLP-1 card overrides them
+   * with its appointment-phrased labels (see `nextLabel` / `lastLabel`).
+   * When false the line renders as a single full-width run of text.
    */
   labelled?: boolean;
+  /**
+   * Override for the left-column label on the next-line. Defaults to the
+   * oral `medications.nextIntake` string. The GLP-1 card passes its own
+   * "next appointment" wording so the value column carries only the time.
+   */
+  nextLabel?: React.ReactNode;
+  /** Override for the left-column label on the last-line. */
+  lastLabel?: React.ReactNode;
 }
 
 export function MedicationNextLastSlot({
   next,
   last,
   labelled = true,
+  nextLabel,
+  lastLabel,
 }: MedicationNextLastSlotProps) {
   const { t } = useTranslations();
 
   return (
     <div className="min-h-[2.75rem] space-y-3.5 text-sm">
-      {next && (
-        <p className="text-muted-foreground">
-          {labelled && (
-            <>
-              <span className="font-medium">{t("medications.nextIntake")}</span>{" "}
-            </>
-          )}
-          {next}
-        </p>
-      )}
-      {last && (
-        <p className="text-muted-foreground">
-          {labelled && (
-            <>
-              <span className="font-medium">{t("medications.lastIntake")}</span>{" "}
-            </>
-          )}
-          {last}
-        </p>
-      )}
+      {next &&
+        (labelled ? (
+          <div className="text-muted-foreground flex items-baseline justify-between gap-3">
+            <span className="min-w-0 flex-shrink truncate font-medium">
+              {nextLabel ?? t("medications.nextIntake")}
+            </span>
+            <span className="text-right">{next}</span>
+          </div>
+        ) : (
+          <p className="text-muted-foreground">{next}</p>
+        ))}
+      {last &&
+        (labelled ? (
+          <div className="text-muted-foreground flex items-baseline justify-between gap-3">
+            <span className="min-w-0 flex-shrink truncate font-medium">
+              {lastLabel ?? t("medications.lastIntake")}
+            </span>
+            <span className="text-right">{last}</span>
+          </div>
+        ) : (
+          <p className="text-muted-foreground">{last}</p>
+        ))}
     </div>
   );
 }

@@ -4,7 +4,7 @@ Working notes for anyone (human or otherwise) editing this repository. Skim befo
 
 ## What HealthLog is
 
-Self-hosted personal-health-tracking PWA: weight, blood pressure, pulse, body composition, glucose, sleep, mood, medication compliance. Withings + Apple Health sync, multi-provider AI Insights (BYOK or local), doctor-report PDF, native iOS client in public beta. Single `docker compose up`, Postgres-backed, AES-256-GCM at rest. AGPL-3.0. Current line: v1.5.x.
+Self-hosted personal-health-tracking PWA: weight, blood pressure, pulse, body composition, glucose, sleep, mood, medication compliance. Withings + Apple Health sync, multi-provider AI Insights (BYOK or local), doctor-report PDF, native iOS client in public beta. Single `docker compose up`, Postgres-backed, AES-256-GCM at rest. AGPL-3.0. Current line: v1.12.x.
 
 ## Voice and privacy
 
@@ -38,7 +38,7 @@ Prefer patch bumps. A release dominated by bug fixes plus additive features with
 | Framework | Next.js 16.2.6 — App Router, `output: "standalone"` | SWC strips `console.*` in prod except `error/warn`. |
 | Language | TypeScript 6, `strict: true`, `moduleResolution: "bundler"` | Path alias `@/*` → `./src/*`. `scripts/` excluded from typecheck. |
 | UI | React 19.2.5 (exact), Tailwind 4, shadcn/ui (new-york style, zinc base), Radix, Lucide | Recharts 3 for charts — stays; replacement requires explicit approval. |
-| Persistence | PostgreSQL 16 + Prisma 7.8 — 47 models | Generated client at `src/generated/prisma`. Production image ships a separate `/opt/prisma-cli` install + `/opt/pg-boss` runtime install (see `Dockerfile:74-83`). |
+| Persistence | PostgreSQL 16 + Prisma 7.8 — 61 models | Generated client at `src/generated/prisma`. Production image ships a separate `/opt/prisma-cli` install + `/opt/pg-boss` runtime install (see `Dockerfile:74-83`). |
 | Queue | pg-boss 12.18 | Cron + retry semantics live in Postgres tables; workers under `src/lib/jobs/`. |
 | Auth | `@simplewebauthn/server` 13, `@node-rs/argon2` 2 | Passkey + Argon2id password, server-side sessions in Postgres. |
 | Notifications | `@parse/node-apn` 8 (APNs), `web-push` 3 (VAPID), raw fetch for Telegram + ntfy | Per-channel `recordPushAttempt` row, hard-reject classification. |
@@ -124,7 +124,7 @@ The architecture map in `.planning/codebase/arch.md` walks each layer with file:
 | Notification dispatcher | `src/lib/notifications/dispatcher.ts` + `src/lib/notifications/senders/` | APNs → Telegram → ntfy → Web Push cascade, hard-reject classification, `push_attempts` ledger with 90-day retention. |
 | Coach | `src/app/api/insights/chat/route.ts` + `src/lib/ai/coach/` | SSE stream, budget gate + per-user rate gate, refusal detector, snapshot builder, message persistence with `encryptedContent` Bytes column. |
 | OpenAPI | `src/lib/openapi/registry.ts` + `src/lib/openapi/routes.ts` | Source of truth for `docs/api/openapi.yaml`. |
-| Schema | `prisma/schema.prisma` (47 models) | `cuid()` PKs, `snake_case` columns via `@map`, encrypted columns mostly under `*Encrypted` (search the file). |
+| Schema | `prisma/schema.prisma` (61 models) | `cuid()` PKs, `snake_case` columns via `@map`, encrypted columns mostly under `*Encrypted` (search the file). |
 | Compose | `docker-compose.yml` | `app` + `db`. Env-var whitelist under `environment:` — vars not listed never reach the container. `pull_policy: always` is load-bearing. |
 
 `.planning/codebase/arch.md` carries the full annotated walk for every section.

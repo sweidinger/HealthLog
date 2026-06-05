@@ -50,6 +50,7 @@
 - [Integrations](#integrations)
 - [Local Development](#local-development)
 - [Deployment](#deployment)
+- [Documentation](#documentation)
 - [Roadmap](#roadmap)
 - [Native iOS client](#native-ios-client)
 - [Contributing](#contributing)
@@ -132,6 +133,10 @@ HealthLog is the right fit when you want your wearable and clinical numbers in o
 
 **AI Coach + Insights** -- Multi-provider, evidence-grounded health insights: per-metric assessments that read each vital against its reference range, correlations across your metrics, a daily briefing, a weekly report, a Health Score tile, and a conversational Coach grounded in your own data. Pick OpenAI, Anthropic Claude, ChatGPT via Codex device-OAuth (no API key needed), or any OpenAI-compatible local endpoint (Ollama, LM Studio, vLLM). BYOK or admin-shared. Feed the Coach a chosen set of data clusters (cardiovascular, body composition, activity, workouts, sleep, mood, glucose, medication, mobility, environment) with a soft budget cap that degrades the lowest-signal clusters first. Every claim links back to the measurements that produced it. The Coach now reads your history longitudinally — a narrative of how a metric has moved and a per-metric trajectory framing — so an answer reflects the direction of travel rather than only the latest reading. Local endpoints keep all data on your network.
 
+<p align="center">
+  <img src="docs/diagrams/02-coach-pipeline.svg" alt="Coach pipeline: a user question through the snapshot builder and prompt assembler, into the provider chain (ChatGPT OAuth, OpenAI, Anthropic, local, admin-shared), through the response parser, out to a cited reply with mini-charts" width="900" />
+</p>
+
 **Derived wellness metrics** -- A transparent metrics tier computed from your own measurements: a fitness-age band from VO₂max, a vascular-age delta, an HRV-balance band, a sleep score, a daily readiness and a stored recovery score, plus a coincident-deviation early-strain flag. Each one re-frames or blends signals you already recorded against age/sex norms or your personal baseline, cites the inputs and the published method behind it, and returns "not enough data" rather than a fabricated value when its minimum inputs are missing. The recovery score persists as a daily 0–100 series the dashboard, charts, and native client read without recomputing. These are descriptive wellness framings — not clinical or training-grade assessments.
 
 **Doctor Report PDF Export** -- Generate professional medical reports client-side. Locale-aware (English/German), with vital sign summaries, BP/BMI/glucose classification, compliance rates, custom-threshold badges, and optional AI analysis.
@@ -194,7 +199,7 @@ Open **http://localhost:3000**. The first registered user becomes admin.
 | ------------- | ------------------------------------------------- |
 | Framework     | Next.js 16 (App Router, React Server Components)  |
 | Language      | TypeScript (strict mode)                          |
-| Database      | PostgreSQL 16 + Prisma 7 (60 models)              |
+| Database      | PostgreSQL 16 + Prisma 7 (61 models)              |
 | Job Queue     | pg-boss 12 (reminders, insights, backups)         |
 | UI            | shadcn/ui, Tailwind CSS 4, Radix UI, Lucide Icons |
 | Charts        | Recharts 3                                        |
@@ -225,6 +230,10 @@ HealthLog is designed for people who take data ownership seriously.
 - **Offline IP geolocation** -- Bundled MaxMind GeoLite2 City + ASN databases resolve admin login-overview IPs without round-tripping to a third party. Public `ipwho.is` is only consulted when the local lookup misses.
 - **Wide-event structured logging** -- Every API route emits a single envelope with `action`, latency, request id, sampled payload (with secret redaction), and an optional Loki transport for self-hosted log aggregation.
 - **Audit logging** -- All sensitive operations tracked with IP addresses, dedup-windowed to keep the ledger compact under bursty writes.
+
+<p align="center">
+  <img src="docs/diagrams/05-security-model.svg" alt="Security model: concentric layers — auth perimeter (passkey plus password fallback), session perimeter (HttpOnly cookie plus Postgres sessions), encrypted core (AES-256-GCM versioned keys), with side rails for the rate limiter, audit log, HMAC tokens, CSP/HSTS, and SSRF guard" width="900" />
+</p>
 
 ---
 
@@ -258,6 +267,12 @@ Telegram bot token, ntfy settings, Web Push VAPID keys, Umami, and GlitchTip URL
 ---
 
 ## Architecture
+
+Data flows from every source — Withings, an Apple Health `export.zip`, the iPhone's live HealthKit, manual entry, moodLog — through the ingest endpoints into a single `Measurement` table and its pre-aggregated rollups, then back out to the dashboard, insights, Coach, and the doctor-report PDF.
+
+<p align="center">
+  <img src="docs/diagrams/01-data-flow.svg" alt="Data flow: sources (Withings, Apple Health export, iPhone HealthKit, manual, moodLog) into ingest endpoints, into Measurement plus MeasurementRollup, out to dashboard, insights, Coach, and doctor PDF" width="900" />
+</p>
 
 ```
 src/
@@ -524,6 +539,10 @@ Clinician share-link lifecycle — create a scoped, time-limited link, hand a cl
 
 When two providers report the same metric — a Withings scale and an Apple Watch both logging weight, or HealthKit and Fitbit both reporting steps — HealthLog keeps every row as an audit trail but applies a per-metric source priority to decide which reading is canonical. Cumulative metrics (steps, distance, active energy, floors) pick exactly one source per day so they are never double-counted; point measurements (weight, blood pressure, HRV) pick a display-preferred source. The default ladder reflects measurement reliability for each metric class: a dedicated scale outranks a wrist estimate for weight, a recovery strap leads the sleep and HRV ladders, and a cuff leads blood pressure. The ladder is per-user adjustable, and an optional device-type tie-break decides between two devices on the same source. The underlying idea is [data fusion](https://en.wikipedia.org/wiki/Data_fusion) — combining several imperfect sensors into a single, more reliable estimate rather than averaging them blindly.
 
+<p align="center">
+  <img src="docs/diagrams/04-source-priority.svg" alt="Source priority: three sources for the same metric on the same day, the resolver picking one canonical row per cumulative-versus-point ladder while the losing rows stay in the audit trail" width="900" />
+</p>
+
 ---
 
 ## Local Development
@@ -570,6 +589,23 @@ For a single-process default the same container hosts both the web and worker (`
 
 ---
 
+## Documentation
+
+The full documentation set lives under [`docs/`](docs/) (also published at [docs.healthlog.dev](https://docs.healthlog.dev)). A technical visitor browsing the source will also find a navigational `README.md` in each key code directory (`src/`, `src/lib/`, `src/app/`, `src/components/`, `prisma/`, `scripts/`, `e2e/`).
+
+| Area | Where | What it covers |
+| ---- | ----- | -------------- |
+| Self-hosting | [`docs/self-hosting/`](docs/self-hosting/) | Getting started, reverse-proxy setup, horizontal scaling |
+| Operator runbooks | [`docs/ops/`](docs/ops/) | Deploy, encryption-key rotation, backup/restore, env check, migrations, TLS pinning |
+| API contract | [`docs/api/`](docs/api/) | OpenAPI 3.1 spec (`openapi.yaml`) for the native client subset |
+| Integrations | [`docs/integrations/`](docs/integrations/) | Withings, WHOOP, Google Health/Fitbit, Apple Health, AI providers |
+| Architecture diagrams | [`docs/diagrams/`](docs/diagrams/) | The five SVG diagrams embedded above |
+| Migration notes | [`docs/migration/`](docs/migration/) | Cross-version upgrade notes |
+| Design records | [`docs/adr/`](docs/adr/), [`docs/ui-guidelines.md`](docs/ui-guidelines.md) | Architecture decision records + UI conventions |
+| Contributor manual | [`CLAUDE.md`](CLAUDE.md), [`CONTRIBUTING.md`](CONTRIBUTING.md) | Conventions, branch/release model, the critical-files map |
+
+---
+
 ## Roadmap
 
 | Release line | Focus |
@@ -591,13 +627,6 @@ The detailed changelog lives in [`CHANGELOG.md`](CHANGELOG.md).
 
 <p align="center">
   <a href="https://testflight.apple.com/join/bucuTBpa"><strong>Join the TestFlight public beta &rarr;</strong></a>
-</p>
-
-<p align="center">
-  <img src="docs/ios/ios-dashboard.png" alt="Dashboard with Health Score ring, medication compliance, vital-sign tiles" width="220" />
-  <img src="docs/ios/ios-insights.png" alt="Insights tab with Frag-den-Coach CTA, BMI and blood-pressure reference ranges" width="220" />
-  <img src="docs/ios/ios-medication-detail.png" alt="Medication detail with 30-day compliance ring and 14-day intake-status glyph track" width="220" />
-  <img src="docs/ios/ios-mood-entry.png" alt="Mood entry sheet with five mood faces" width="220" />
 </p>
 
 A SwiftUI iOS companion that lives on the same `/api` surfaces as the web client — same server, same data, same source of truth. The phone is a view + a write-ahead log; your server is the database. Code lives in a separate repo: [github.com/MBombeck/healthlog-iOS](https://github.com/MBombeck/healthlog-iOS).

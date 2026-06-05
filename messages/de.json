@@ -577,7 +577,8 @@
       "factorSleepQuality": "Schlafqualität",
       "factorStress": "Stress",
       "factorConflict": "Konflikt",
-      "factorFamily": "Familie"
+      "factorFamily": "Familie",
+      "factorSadness": "Traurigkeit"
     }
   },
   "medications": {
@@ -701,11 +702,13 @@
     "glp1DosesPerUnit": "Dosen pro Pen / Ampulle",
     "glp1DosesPerUnitPlaceholder": "z. B. 4 für einen Mounjaro KwikPen",
     "glp1DosesPerUnitHelp": "Optional — Mounjaro KwikPen = 4, Ozempic 0,25/0,5 mg = 4, Wegovy Einmal-Pen = 1. Leer lassen, wenn keine Dosis-pro-Pen-Verfolgung gewünscht ist.",
-    "glp1LastInjection": "Letzter Termin: {label}",
-    "glp1LastInjectionWithSite": "Letzter Termin: {label} · {site}",
-    "glp1NextInjectionDays": "Nächster Termin: {label} (in {days} Tagen)",
-    "glp1NextInjectionToday": "Nächster Termin: heute",
-    "glp1NextInjectionTomorrow": "Nächster Termin: morgen",
+    "glp1NextLabel": "Nächster Termin:",
+    "glp1LastLabel": "Letzter Termin:",
+    "glp1LastInjection": "{label}",
+    "glp1LastInjectionWithSite": "{label} · {site}",
+    "glp1NextInjectionDays": "{label} (in {days} Tagen)",
+    "glp1NextInjectionToday": "heute",
+    "glp1NextInjectionTomorrow": "morgen",
     "glp1RotationLast": "Letzte Stelle: {site}",
     "glp1RotationSuggested": "Empfohlen: {site}",
     "glp1LogSideEffect": "Nebenwirkung loggen",

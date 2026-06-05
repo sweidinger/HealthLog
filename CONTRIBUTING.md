@@ -90,37 +90,34 @@ Always include the migration file in your PR.
 
 ## Branch Model
 
-HealthLog uses a long-lived `develop` branch for daily work and reserves `main` for releases.
+HealthLog is trunk-based: `main` is the single long-lived branch and is always releasable. There is no `develop` branch.
 
 ```
    feature/* ──┐
-               ├──► develop ──► (release-merge) ──► main ──► tag vX.Y.Z ──► GHCR build ──► Coolify deploy
-   fix/*    ──┘                                        │
-                                                       └──► hotfix/* ──► main + tag, then merge back to develop
+   fix/*    ──┼──► PR ──► main ──► tag vX.Y.Z ──► GHCR build ──► deploy
+              │
+   release/vX.Y.Z ──► PR (merge-commit) ──► main ──► tag vX.Y.Z ──► GHCR build ──► deploy
 ```
 
-Two simple rules:
+The rules:
 
-- **`develop` is the daily target.** Open feature, fix, test, and docs PRs against `develop`. Builds do not run on `develop` pushes — the branch is free of release ceremony.
-- **`main` is release-only.** It receives a single release-merge per version, gets tagged (`v1.4.20`, etc.), and that tag is what triggers the Docker image build, the GHCR push, and the Coolify deploy. Pushes to `main` outside a release are reserved for hotfixes that cannot wait for the next cycle.
-
-If a critical bug needs a hotfix:
-
-1. Branch from `main`: `git checkout -b hotfix/something main`
-2. Land the fix; tag a patch release on `main`
-3. Merge `main` back into `develop` so the next release inherits the fix
+- **`main` always builds, passes CI, and is deployable.** Every commit on it is a release commit (`chore(release): vX.Y.Z`), a release-branch merge, or a maintenance commit (docs, gitignore, audit findings) applied directly.
+- **A release** is built on a short-lived `release/vX.Y.Z` branch cut off `main`, then opened as a PR `release/vX.Y.Z` → `main` with green CI, merged as a merge-commit, and tagged `vX.Y.Z`. The tag push triggers the GHCR multi-arch image build (and `:latest`). Deploy is manual. Delete the release branch after merge.
+- **Small standalone changes** (a single fix, a docs touch) go through a short-lived `fix/X` / `feat/X` branch + PR targeting `main`.
+- **Hotfixes** branch from `main` and merge straight back to `main`. There is no second long-lived line to forward-port to.
+- Never force-push `main` or any release branch.
 
 End users: track the latest `v*` tag (or `:latest` on GHCR). The `main` branch always equals the latest release.
 
-Contributors: track `develop`. PRs target `develop`.
+Contributors: branch off `main`; PRs target `main`.
 
 ## Pull Requests
 
 1. Fork the repository
-2. Create a feature branch off `develop` (`git checkout -b feature/your-feature develop`)
+2. Create a feature branch off `main` (`git checkout -b feat/your-feature main`)
 3. Make your changes
 4. Ensure all checks pass (`pnpm typecheck && pnpm lint && pnpm test && pnpm format:check && pnpm build`)
-5. Submit a PR against `develop` with a clear description of the changes
+5. Submit a PR against `main` with a clear description of the changes
 
 ## Translations
 
