@@ -984,4 +984,113 @@ describe("computeTagMetricCrosstab", () => {
     expect(CROSSTAB_MAX_ROWS).toBeGreaterThan(0);
     expect(CROSSTAB_MIN_ABSENT_DAYS).toBeGreaterThan(0);
   });
+
+  // v1.12.1 — cross-source double-count guard. A cumulative metric reported
+  // by two sources on the same day must be summed once (canonical source),
+  // not double-counted, or the with/without averages and the Welch delta
+  // are inflated.
+  function sourcedMeas(
+    offset: number,
+    type: string,
+    value: number,
+    source: CrossMetricMeasurement["source"],
+  ): CrossMetricMeasurement {
+    return {
+      type,
+      value,
+      measuredAt: new Date(NOW.getTime() - offset * dayMs),
+      source,
+    };
+  }
+
+  it("counts a cumulative metric once when two sources report the same day (Fitbit + Apple)", () => {
+    const entries: MoodAggregateEntry[] = [];
+    const measurements: CrossMetricMeasurement[] = [];
+    // 12 present days: BOTH Apple and Fitbit report ~600 kcal active energy.
+    // A naïve per-day sum would double this to ~1200; the canonical pick
+    // keeps only Apple (activeEnergy ladder: APPLE_HEALTH > … > FITBIT).
+    for (let i = 0; i < 12; i++) {
+      entries.push(structuredEntry(i, 4, [WORKOUT]));
+      const v = 600 + (i % 2 === 0 ? 20 : -20);
+      measurements.push(sourcedMeas(i, "ACTIVE_ENERGY_BURNED", v, "APPLE_HEALTH"));
+      measurements.push(sourcedMeas(i, "ACTIVE_ENERGY_BURNED", v, "FITBIT"));
+    }
+    // 12 absent days: single source ~350.
+    for (let i = 12; i < 24; i++) {
+      entries.push(structuredEntry(i, 3, []));
+      measurements.push(
+        sourcedMeas(i, "ACTIVE_ENERGY_BURNED", 350 + (i % 2 === 0 ? 20 : -20), "APPLE_HEALTH"),
+      );
+    }
+    const rows = computeTagMetricCrosstab({ entries, measurements, now: NOW });
+    const row = rows.find((r) => r.tag === "worked_out" && r.metricKey === "activeEnergy");
+    expect(row).toBeDefined();
+    // ~600, NOT ~1200 — the Fitbit twin is dropped by the canonical pick.
+    expect(row!.withAvg).toBeCloseTo(600, 0);
+    expect(row!.withoutAvg).toBeCloseTo(350, 0);
+    expect(row!.delta).toBeCloseTo(250, 0);
+  });
+
+  it("counts sleep once when WHOOP and Fitbit both report the same night", () => {
+    const SLEEP: StructuredTagRef = {
+      key: "slept_well",
+      categoryKey: "health",
+      labelKey: "mood.tag.sleptWell",
+      icon: "Moon",
+    };
+    const entries: MoodAggregateEntry[] = [];
+    const measurements: CrossMetricMeasurement[] = [];
+    // Present nights: WHOOP + Fitbit both report 480 min (8 h). Sleep ladder
+    // is WHOOP > FITBIT > … so WHOOP wins; the night total stays 8 h.
+    for (let i = 0; i < 12; i++) {
+      entries.push(structuredEntry(i, 4, [SLEEP]));
+      const v = 480 + (i % 2 === 0 ? 6 : -6);
+      measurements.push(sourcedMeas(i, "SLEEP_DURATION", v, "WHOOP"));
+      measurements.push(sourcedMeas(i, "SLEEP_DURATION", v, "FITBIT"));
+    }
+    for (let i = 12; i < 24; i++) {
+      entries.push(structuredEntry(i, 3, []));
+      measurements.push(sourcedMeas(i, "SLEEP_DURATION", 360 + (i % 2 === 0 ? 6 : -6), "WHOOP"));
+    }
+    const rows = computeTagMetricCrosstab({ entries, measurements, now: NOW });
+    const row = rows.find((r) => r.metricKey === "sleepDuration");
+    expect(row).toBeDefined();
+    // 8 h, not 16 h — the Fitbit twin is dropped, not summed on top.
+    expect(row!.withAvg).toBeCloseTo(8, 1);
+    expect(row!.withoutAvg).toBeCloseTo(6, 1);
+  });
+
+  it("sums per-stage rows from the SAME source into the night total (no over-collapse)", () => {
+    const SLEEP: StructuredTagRef = {
+      key: "slept_well",
+      categoryKey: "health",
+      labelKey: "mood.tag.sleptWell",
+      icon: "Moon",
+    };
+    const entries: MoodAggregateEntry[] = [];
+    const measurements: CrossMetricMeasurement[] = [];
+    // Present nights: WHOOP reports the night as 3 stage rows (160 each =
+    // 480 min = 8 h). The canonical pick must keep ALL three same-source
+    // stage rows so the sum is the night total — it only drops cross-source
+    // duplicates, never same-source stages.
+    for (let i = 0; i < 12; i++) {
+      entries.push(structuredEntry(i, 4, [SLEEP]));
+      const j = i % 2 === 0 ? 2 : -2;
+      measurements.push(sourcedMeas(i, "SLEEP_DURATION", 160 + j, "WHOOP"));
+      measurements.push(sourcedMeas(i, "SLEEP_DURATION", 160 + j, "WHOOP"));
+      measurements.push(sourcedMeas(i, "SLEEP_DURATION", 160 + j, "WHOOP"));
+    }
+    for (let i = 12; i < 24; i++) {
+      entries.push(structuredEntry(i, 3, []));
+      const j = i % 2 === 0 ? 2 : -2;
+      measurements.push(sourcedMeas(i, "SLEEP_DURATION", 120 + j, "WHOOP"));
+      measurements.push(sourcedMeas(i, "SLEEP_DURATION", 120 + j, "WHOOP"));
+      measurements.push(sourcedMeas(i, "SLEEP_DURATION", 120 + j, "WHOOP"));
+    }
+    const rows = computeTagMetricCrosstab({ entries, measurements, now: NOW });
+    const row = rows.find((r) => r.metricKey === "sleepDuration");
+    expect(row).toBeDefined();
+    expect(row!.withAvg).toBeCloseTo(8, 1); // 3 × 160 = 480 min = 8 h
+    expect(row!.withoutAvg).toBeCloseTo(6, 1); // 3 × 120 = 360 min = 6 h
+  });
 });
