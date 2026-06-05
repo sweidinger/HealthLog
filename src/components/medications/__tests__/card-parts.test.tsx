@@ -51,9 +51,11 @@ describe("medication card-parts — shared presentational components", () => {
     expect(html).toContain("90%");
     expect(html).toContain("88%");
     expect(html).toContain("lucide-flame");
-    // Canonical streak/warning token — NOT the Tailwind-stock drift.
-    expect(html).toContain("text-dracula-orange");
+    // v1.12.2 — semantic warning token, NOT the Tailwind-stock drift nor the
+    // raw Dracula palette token.
+    expect(html).toContain("text-warning");
     expect(html).not.toContain("text-orange-400");
+    expect(html).not.toContain("text-dracula-orange");
   });
 
   it("compliance bars scale the row labels to the chosen windows", () => {
@@ -93,7 +95,24 @@ describe("medication card-parts — shared presentational components", () => {
     expect(html).toContain("lucide-circle-check");
   });
 
-  it("status pill stamps the warning token + glyph when very late", () => {
+  it("status pill stamps the warning token + glyph when late (semantic, not Dracula yellow)", () => {
+    // v1.12.2 — the middle "late" tier converged off the lone
+    // `text-dracula-yellow` stray onto the semantic warning token.
+    const html = render(
+      <MedicationStatusPill
+        status="late"
+        windowStart="08:00"
+        windowEnd="20:00"
+      />,
+    );
+    expect(html).toContain("text-warning");
+    expect(html).not.toContain("text-dracula-yellow");
+    expect(html).toContain("lucide-circle-alert");
+  });
+
+  it("status pill stamps the destructive token + glyph when very late", () => {
+    // v1.12.2 — very-late is the most-urgent tier; it reads as destructive
+    // (red) so the pill is a clean success → warning → destructive ramp.
     const html = render(
       <MedicationStatusPill
         status="very_late"
@@ -101,7 +120,7 @@ describe("medication card-parts — shared presentational components", () => {
         windowEnd="20:00"
       />,
     );
-    expect(html).toContain("text-warning");
+    expect(html).toContain("text-destructive");
     expect(html).toContain("lucide-triangle-alert");
   });
 
@@ -129,8 +148,9 @@ describe("medication card-parts — shared presentational components", () => {
 
 /**
  * Cross-variant streak-token parity: with a positive streak seeded, the
- * flame on BOTH the generic and the GLP-1 card resolves to the canonical
- * `text-dracula-orange`, and neither carries the legacy `text-orange-400`.
+ * flame on BOTH the generic and the GLP-1 card resolves to the semantic
+ * `text-warning` token (v1.12.2), and neither carries the legacy
+ * `text-orange-400` nor the raw `text-dracula-orange`.
  */
 describe("streak-token parity — generic vs GLP-1 card", () => {
   const ramipril = {
@@ -218,8 +238,9 @@ describe("streak-token parity — generic vs GLP-1 card", () => {
 
     for (const html of [ramiprilHtml, mounjaroHtml]) {
       expect(html).toContain("lucide-flame");
-      expect(html).toContain("text-dracula-orange");
+      expect(html).toContain("text-warning");
       expect(html).not.toContain("text-orange-400");
+      expect(html).not.toContain("text-dracula-orange");
     }
   });
 });

@@ -256,7 +256,10 @@ export default function MedicationsPage() {
             {t("medications.subtitle")}
           </p>
         </div>
-        <Button onClick={openCreate}>
+        {/* v1.12.2 — match the dashboard Add button's responsive tap-target
+            floor (`min-h-11 sm:min-h-9`) so both primary "add" entry points
+            clear the WCAG 2.5.5 44px mobile minimum identically. */}
+        <Button className="min-h-11 sm:min-h-9" onClick={openCreate}>
           <Plus className="mr-2 h-4 w-4" />
           {t("medications.addMedication")}
         </Button>

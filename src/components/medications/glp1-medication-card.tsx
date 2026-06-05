@@ -15,6 +15,7 @@ import {
   MedicationComplianceSkeleton,
 } from "@/components/medications/card-parts/medication-compliance-bars";
 import { MedicationIntakeActions } from "@/components/medications/card-parts/medication-intake-actions";
+import { useMedicationIntake } from "@/components/medications/use-medication-intake";
 import {
   MedicationNextLastSlot,
   useWeekdayLabel,
@@ -186,7 +187,6 @@ export function Glp1MedicationCard({
   const { t } = useTranslations();
   const fmt = useFormatters();
   const weekdayLabel = useWeekdayLabel();
-  const [intakeLoading, setIntakeLoading] = useState<string | null>(null);
   const [, forceUpdate] = useReducer((x: number) => x + 1, 0);
   // v1.8.5 — post-dose injection-site prompt (see medication-card.tsx).
   const [siteIntakeId, setSiteIntakeId] = useState<string | null>(null);
@@ -194,6 +194,19 @@ export function Glp1MedicationCard({
   const tracksInjection =
     medication.deliveryForm === "INJECTION" &&
     medication.trackInjectionSites === true;
+
+  // v1.12.2 — take / skip + failure-toast (C1) + Undo (C2) come from the
+  // SAME shared hook the generic card uses, closing the robustness gap
+  // where a failed GLP-1 POST was swallowed silently and the success toast
+  // carried no Undo. The card keeps its post-success injection-site prompt.
+  const { intakeLoading, recordIntake } = useMedicationIntake({
+    medication,
+    onRecorded: (eventId, skipped) => {
+      if (!skipped && tracksInjection && eventId) {
+        setSiteIntakeId(eventId);
+      }
+    },
+  });
 
   const { data: compliance } = useQuery({
     queryKey: queryKeys.medicationCompliance(medication.id),
@@ -241,42 +254,6 @@ export function Glp1MedicationCard({
     const interval = setInterval(forceUpdate, 60_000);
     return () => clearInterval(interval);
   }, []);
-
-  async function recordIntake(skipped: boolean) {
-    const key = skipped ? "skip" : "take";
-    setIntakeLoading(key);
-    try {
-      const res = await fetch(`/api/medications/${medication.id}/intake`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ skipped }),
-      });
-      if (res.ok) {
-        toast.success(
-          t(
-            skipped
-              ? "medications.intakeToastSkipped"
-              : "medications.intakeToastTaken",
-            { name: medication.name },
-          ),
-        );
-        await invalidateKeys(queryClient, medicationDependentKeys);
-        // v1.8.5 — prompt (skippably) for the injection site on a taken
-        // dose when tracking is enabled.
-        if (!skipped && tracksInjection) {
-          try {
-            const json = await res.json();
-            const eventId = json?.data?.id as string | undefined;
-            if (eventId) setSiteIntakeId(eventId);
-          } catch {
-            /* dose recorded; the site prompt is best-effort */
-          }
-        }
-      }
-    } finally {
-      setIntakeLoading(null);
-    }
-  }
 
   async function confirmInjectionSite(site: InjectionSiteKey) {
     const intakeId = siteIntakeId;
