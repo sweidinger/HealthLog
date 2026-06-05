@@ -97,6 +97,14 @@ export default function InsightsStimmungPage() {
       explainerMetric="mood"
       coachLaunch
     >
+      {/* v1.12.7 — operator spine: heading + summary (the shell above), then
+          the Stimmungskalender, then the line chart, then the Ziel card, then
+          the better-days Einschätzung, then the classification + breakdowns.
+          The heatmap and the assessment are lifted out of `MoodInsightsSections`
+          into their own regions so they land in this exact order; all three
+          regions share one `moodInsights` query (TanStack dedups the fetch). */}
+      <MoodInsightsSections region="heatmap" />
+
       {/* No `<MetricRangeControls>` here: mood is event-driven, not a
           MeasurementType series, so the period-over-period range read
           (`/api/analytics/range`, keyed on a MeasurementType enum) has
@@ -109,7 +117,11 @@ export default function InsightsStimmungPage() {
 
       <MetricTargetSummary slug="mood" />
 
-      <MoodInsightsSections />
+      {/* The better-days Einschätzung sits directly under the Ziel card,
+          ahead of the classification tiles and breakdowns. */}
+      <MoodInsightsSections region="assessment" />
+
+      <MoodInsightsSections region="rest" />
 
       {/* v1.12.2 — the assessment is the LAST block on every bespoke
           metric-detail page, matching the canonical spine the generic

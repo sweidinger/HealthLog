@@ -186,10 +186,13 @@ export function formatRepetitionSignal(
  * mean that still counts as "no material change" (default 8 %).
  */
 export function computeSteadyRun(
-  weekly: ReadonlyArray<{ mean: number }>,
-  monthly: ReadonlyArray<{ mean: number }>,
+  weekly: ReadonlyArray<{ mean: number }> | undefined,
+  monthly: ReadonlyArray<{ mean: number }> | undefined,
   bandFraction = 0.08,
 ): number {
+  // Defensive: a graded slice can be absent on a degraded / stubbed series.
+  // Treat a missing slice as no signal so the repetition block stays silent.
+  if (!weekly || !monthly) return 0;
   if (weekly.length < 2) return 0;
 
   // Baseline: the longer-horizon mean the recent weeks are placed against.

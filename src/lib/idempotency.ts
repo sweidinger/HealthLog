@@ -14,9 +14,25 @@ import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/auth/session";
 import { hashToken } from "@/lib/auth/hmac";
 import { annotate } from "@/lib/logging/context";
+import { isP2002 } from "@/lib/prisma-errors";
 
 const TTL_MS = 24 * 60 * 60 * 1000;
+/**
+ * Claim TTL — how long an in-flight "pending" row is honoured before a
+ * retry is allowed to re-run the handler. Bounds the blast radius of a
+ * crashed handler that never wrote its result: the key self-heals after
+ * this window instead of being locked for the full 24h response TTL.
+ * Sized above the longest realistic write-handler latency.
+ */
+const PENDING_TTL_MS = 2 * 60 * 1000;
 const SUPPORTED_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
+
+/**
+ * Sentinel `responseStatus` for a claimed-but-not-yet-completed row. A
+ * real HTTP status is never 0, so `findCached` can distinguish an
+ * in-flight claim from a cached response without a schema change.
+ */
+const PENDING_STATUS = 0;
 
 const KEY_REGEX = /^[A-Za-z0-9_\-:.]{8,128}$/;
 
@@ -36,12 +52,21 @@ function getIdempotencyKey(request: Request | NextRequest): string | null {
 }
 
 /**
- * Look up a cached response for a (userId, key, method, path) tuple.
- * Returns the cached NextResponse or null.
+ * Outcome of a key lookup:
+ *   - `{ kind: "replay" }`  — a completed response is cached; replay it.
+ *   - `{ kind: "pending" }` — another request holds an in-flight claim
+ *                             for this key; the caller must NOT run the
+ *                             handler again.
+ *   - `null`                — no live row; the caller may claim + run.
  */
-async function findCached(
-  ctx: IdempotencyContext,
-): Promise<NextResponse | null> {
+type CacheLookup = { kind: "replay"; response: NextResponse } | { kind: "pending" } | null;
+
+/**
+ * Look up the state of a (userId, key, method, path) tuple. Distinguishes
+ * a completed cached response (replay) from an in-flight claim (pending)
+ * via the `PENDING_STATUS` sentinel.
+ */
+async function findCached(ctx: IdempotencyContext): Promise<CacheLookup> {
   const row = await prisma.idempotencyKey.findUnique({
     where: {
       userId_key_method_path: {
@@ -55,11 +80,18 @@ async function findCached(
 
   if (!row) return null;
   if (row.expiresAt <= new Date()) {
-    // Stale — purge and fall through.
+    // Stale (completed row past its TTL, or a crashed claim past the
+    // pending window) — purge and fall through so the retry re-runs.
     await prisma.idempotencyKey
       .delete({ where: { id: row.id } })
       .catch(() => {});
     return null;
+  }
+
+  if (row.responseStatus === PENDING_STATUS) {
+    // A concurrent request claimed this key and is still running its
+    // side-effect. Signal the caller to refuse rather than double-execute.
+    return { kind: "pending" };
   }
 
   let parsed: unknown = null;
@@ -75,12 +107,63 @@ async function findCached(
   });
 
   // Replay original status to keep client behaviour byte-identical.
-  return NextResponse.json(parsed, {
-    status: row.responseStatus,
-    headers: {
-      "X-Idempotent-Replay": "true",
-    },
-  });
+  return {
+    kind: "replay",
+    response: NextResponse.json(parsed, {
+      status: row.responseStatus,
+      headers: {
+        "X-Idempotent-Replay": "true",
+      },
+    }),
+  };
+}
+
+/**
+ * Atomically claim a key by inserting a `PENDING_STATUS` row under the
+ * `(userId, key, method, path)` unique constraint BEFORE the handler
+ * runs. Returns `true` when this caller won the claim, `false` when a
+ * concurrent request already holds it (unique-constraint collision) so
+ * the wrapper can refuse with 409 instead of double-executing the
+ * side-effect. The claim carries a short `PENDING_TTL_MS` so a crashed
+ * handler self-heals.
+ */
+async function claimKey(ctx: IdempotencyContext): Promise<boolean> {
+  try {
+    await prisma.idempotencyKey.create({
+      data: {
+        userId: ctx.userId,
+        key: ctx.key,
+        method: ctx.method,
+        path: ctx.path,
+        responseStatus: PENDING_STATUS,
+        responseBody: "",
+        expiresAt: new Date(Date.now() + PENDING_TTL_MS),
+      },
+    });
+    return true;
+  } catch (err) {
+    // Another request inserted the claim first — refuse this one.
+    if (isP2002(err)) return false;
+    throw err;
+  }
+}
+
+/**
+ * Release a claim that produced a non-cachable result (or threw) so a
+ * later retry gets a fresh attempt rather than a stuck pending row.
+ */
+async function releaseClaim(ctx: IdempotencyContext): Promise<void> {
+  await prisma.idempotencyKey
+    .deleteMany({
+      where: {
+        userId: ctx.userId,
+        key: ctx.key,
+        method: ctx.method,
+        path: ctx.path,
+        responseStatus: PENDING_STATUS,
+      },
+    })
+    .catch(() => {});
 }
 
 async function persistCached(
@@ -95,21 +178,27 @@ async function persistCached(
       .text()
       .catch(() => ""));
 
+  // Promote the claimed pending row to the completed response, extending
+  // the TTL from the short claim window to the full 24h replay window.
+  // The claim is held under the unique constraint, so this caller owns
+  // the row — a plain update, not an upsert.
   await prisma.idempotencyKey
-    .create({
-      data: {
+    .updateMany({
+      where: {
         userId: ctx.userId,
         key: ctx.key,
         method: ctx.method,
         path: ctx.path,
+      },
+      data: {
         responseStatus: response.status,
         responseBody: body,
         expiresAt: new Date(Date.now() + TTL_MS),
       },
     })
     .catch(() => {
-      // Concurrent insert with the same key — the other writer wins.
-      // Ignore because a future replay will hit their cached value.
+      // The claim row vanished (e.g. purged as stale) — a future replay
+      // will simply miss and re-run; never throw out of the cache path.
     });
 }
 
@@ -213,9 +302,52 @@ export function withIdempotency<
     };
 
     const cached = await findCached(ctx);
-    if (cached) return cached;
+    if (cached?.kind === "replay") return cached.response;
+    if (cached?.kind === "pending") {
+      // A concurrent request is mid-flight on this exact key. Refuse
+      // rather than run the side-effect a second time. The client should
+      // retry after the in-flight request lands, at which point the
+      // completed row replays.
+      annotate({
+        action: { name: "idempotency.inflight_conflict" },
+        meta: { method: ctx.method, path: ctx.path },
+      });
+      return NextResponse.json(
+        {
+          data: null,
+          error: { message: "A request with this Idempotency-Key is already in progress" },
+        },
+        { status: 409, headers: { "X-Idempotent-Replay": "false" } },
+      );
+    }
 
-    const response = await handler(...args);
+    // Claim the key before running the handler. If a racing request beats
+    // us to the insert, treat it as the in-flight conflict above — only
+    // one caller may execute the side-effect for a given key.
+    const won = await claimKey(ctx);
+    if (!won) {
+      annotate({
+        action: { name: "idempotency.inflight_conflict" },
+        meta: { method: ctx.method, path: ctx.path },
+      });
+      return NextResponse.json(
+        {
+          data: null,
+          error: { message: "A request with this Idempotency-Key is already in progress" },
+        },
+        { status: 409, headers: { "X-Idempotent-Replay": "false" } },
+      );
+    }
+
+    let response: Response;
+    try {
+      response = await handler(...args);
+    } catch (err) {
+      // Handler threw — release the claim so a retry isn't locked out for
+      // the full pending window, then re-throw to the error envelope.
+      await releaseClaim(ctx);
+      throw err;
+    }
 
     if (isCachableStatus(response.status)) {
       // Defence-in-depth: never persist a body that carries a freshly-issued
@@ -235,7 +367,15 @@ export function withIdempotency<
       const text = await cloned.text();
       if (!SECRET_PATTERN.test(text)) {
         await persistCached(ctx, response, text);
+      } else {
+        // Secret-shaped body — drop the claim so the key isn't left
+        // pending (it was never going to cache).
+        await releaseClaim(ctx);
       }
+    } else {
+      // Non-cachable status (401/403/408/429/5xx) — release the claim so a
+      // retry gets a fresh attempt rather than a stuck pending row.
+      await releaseClaim(ctx);
     }
 
     return response;

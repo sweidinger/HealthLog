@@ -145,15 +145,45 @@ describe("GET /api/dashboard/snapshot", () => {
     vi.useRealTimers();
   });
 
-  it("evicts the snapshot on a measurement-write invalidation", async () => {
+  it("rebuilds after a measurement write once the stale entry is gone", async () => {
     vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
     await callGet(makeReq());
     expect(buildDashboardSnapshot).toHaveBeenCalledTimes(1);
-    // A measurement write sweeps the `${userId}|` prefix, which covers
-    // the longer-TTL snapshot key.
+    // v1.12.7 — a measurement write now marks the `${userId}|` prefix
+    // stale rather than hard-evicting. A plain `get()` treats a
+    // marked-stale entry (expiresAt === now) as a miss and removes it.
     invalidateUserMeasurements("user-1");
     expect(caches.analytics.get("user-1|dashboard-snapshot")).toBeNull();
     await callGet(makeReq());
     expect(buildDashboardSnapshot).toHaveBeenCalledTimes(2);
+  });
+
+  it("serves the prior snapshot stale + warms a background rebuild on a measurement write (A4)", async () => {
+    vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
+    // Warm the snapshot.
+    const first = await callGet(makeReq());
+    expect((await first.json()).data.briefingState).toBe("preparing");
+    expect(buildDashboardSnapshot).toHaveBeenCalledTimes(1);
+
+    // The next rebuild would produce a different body.
+    const FRESH_BODY = { ...SNAPSHOT_BODY, briefingState: "ready" };
+    buildDashboardSnapshot.mockResolvedValue(FRESH_BODY);
+
+    // A measurement write marks the bucket stale (no hard evict, no
+    // intervening get()). The entry stays servable inside the SWR window.
+    invalidateUserMeasurements("user-1");
+
+    // The next read serves the PRIOR (stale) body immediately and kicks
+    // off a single background recompute — the foreground request does not
+    // pay the cold rebuild.
+    const stale = await callGet(makeReq());
+    expect((await stale.json()).data.briefingState).toBe("preparing");
+
+    // Let the detached background rebuild settle, then a follow-up read
+    // sees the freshly-warmed body.
+    await new Promise((r) => setTimeout(r, 0));
+    expect(buildDashboardSnapshot).toHaveBeenCalledTimes(2);
+    const fresh = await callGet(makeReq());
+    expect((await fresh.json()).data.briefingState).toBe("ready");
   });
 });

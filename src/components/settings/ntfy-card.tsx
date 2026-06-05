@@ -149,7 +149,7 @@ export function NtfyCard({ isAuthenticated }: { isAuthenticated: boolean }) {
           {saveMsg && (
             <p
               role="alert"
-              className={`text-sm ${saveMsgType === "success" ? "text-dracula-green" : "text-destructive"}`}
+              className={`text-sm ${saveMsgType === "success" ? "text-success" : "text-destructive"}`}
             >
               {saveMsg}
             </p>

@@ -7,6 +7,12 @@ import {
   formatPreviousContextForPrompt,
   getPreviousInsightContext,
 } from "@/lib/insights/memory";
+import {
+  buildAssessmentContextBlock,
+  computeSteadyRun,
+  pickVarietyLead,
+} from "@/lib/insights/assessment-context";
+import { getRelevantCorrelationsForMetric } from "@/lib/insights/metric-correlation-context";
 import { getBpTargets } from "@/lib/analytics/bp-targets";
 import { isBpReadingInTarget } from "@/lib/analytics/bp-in-target";
 import {
@@ -276,6 +282,12 @@ export async function generateBloodPressureStatusForUser(
             userId,
             // v1.7.0 sync — exclude tombstoned rows.
             deletedAt: null,
+            // v1.12.7 — bound to the ~365-day window the continuity series
+            // and the 7/30-day compliance gate consume; this read was
+            // otherwise unbounded over all intake history.
+            scheduledFor: {
+              gte: new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000),
+            },
             medicationId: {
               in: bpMedications.map((medication) => medication.id),
             },
@@ -534,6 +546,29 @@ export async function generateBloodPressureStatusForUser(
     locale,
   );
 
+  // v1.12.7 — same diversity / anti-repetition block the archetype cards
+  // carry, now threaded into this headline card. Pure formatting of
+  // already-computed data; the correlation fetch is best-effort and resolves
+  // to no block on failure, never a generation failure.
+  const varietyLead = pickVarietyLead(userId, "blood-pressure", todayKey);
+  const steadyRun = computeSteadyRun(sysGraded.weekly, sysGraded.monthly);
+  const relations = await getRelevantCorrelationsForMetric(
+    userId,
+    "BLOOD_PRESSURE_SYS",
+  );
+  const assessmentContextBlock = buildAssessmentContextBlock(
+    {
+      varietyLead,
+      dataStrength: {
+        points: sysSeries.daily.length,
+        newestDaysAgo: newestMeasurementDaysAgo,
+      },
+      repeatCount: steadyRun,
+      relations,
+    },
+    locale,
+  );
+
   const outcome = await runStatusCompletion({
     userId,
     cacheAction,
@@ -544,8 +579,11 @@ export async function generateBloodPressureStatusForUser(
       todayKey,
       locale,
       previousContextBlock,
+      assessmentContextBlock,
     ),
-    temperature: 0.3,
+    // v1.12.7 — match the archetype cards' 0.45: more cadence entropy while
+    // FACTS stay pinned by the snapshot + the forbidden-phrase guards.
+    temperature: 0.45,
     maxTokens: 1000,
   });
 

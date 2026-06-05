@@ -24,6 +24,7 @@ export default function InsightsCardioFitnessPage() {
       color="#bd93f9"
       unit="mL/(kg·min)"
       yAxisUnit="mL/(kg·min)"
+      statIcon={Gauge}
       emptyStateIcon={<Gauge className="size-6" />}
       emptyStateCtaType={null}
       coachPrefill="I haven't logged any cardio-fitness (VO₂ max) data yet — what does this metric tell me about my health, and how do I improve it?"

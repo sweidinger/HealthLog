@@ -6,6 +6,11 @@ import {
   formatPreviousContextForPrompt,
   getPreviousInsightContext,
 } from "@/lib/insights/memory";
+import {
+  buildAssessmentContextBlock,
+  computeSteadyRun,
+  pickVarietyLead,
+} from "@/lib/insights/assessment-context";
 import { applyPayloadBudget } from "@/lib/insights/bucket-series";
 import {
   buildGradedSeriesWithRollups,
@@ -238,6 +243,25 @@ export async function generateBmiStatusForUser(
     locale,
   );
 
+  // v1.12.7 — diversity / anti-repetition block (see blood-pressure-status).
+  // BMI is a per-user height transform of WEIGHT (no discovery channel of its
+  // own), so the RELATIONS sub-block stays empty; the variety / data-strength
+  // / repetition signals carry the rotation.
+  const varietyLead = pickVarietyLead(userId, "bmi", todayKey);
+  const steadyRun = computeSteadyRun(bmiGraded.weekly, bmiGraded.monthly);
+  const assessmentContextBlock = buildAssessmentContextBlock(
+    {
+      varietyLead,
+      dataStrength: {
+        points: bmiSeries.daily.length,
+        newestDaysAgo: newestMeasurementDaysAgo,
+      },
+      repeatCount: steadyRun,
+      relations: [],
+    },
+    locale,
+  );
+
   const outcome = await runStatusCompletion({
     userId,
     cacheAction,
@@ -248,8 +272,10 @@ export async function generateBmiStatusForUser(
       todayKey,
       locale,
       previousContextBlock,
+      assessmentContextBlock,
     ),
-    temperature: 0.3,
+    // v1.12.7 — match the archetype cards' 0.45.
+    temperature: 0.45,
     maxTokens: 1000,
   });
 

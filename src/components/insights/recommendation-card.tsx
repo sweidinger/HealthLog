@@ -29,12 +29,12 @@ import { ConfidenceMeter } from "./confidence-meter";
  */
 
 const SEVERITY_BADGE_STYLES: Record<string, string> = {
-  info: "bg-dracula-cyan/10 text-dracula-cyan border border-dracula-cyan/25",
+  info: "bg-info/10 text-info border border-info/25",
   suggestion:
-    "bg-dracula-purple/10 text-dracula-purple border border-dracula-purple/25",
+    "bg-dose-accent/10 text-dose-accent border border-dose-accent/25",
   important:
-    "bg-dracula-orange/10 text-dracula-orange border border-dracula-orange/25",
-  urgent: "bg-dracula-red/10 text-dracula-red border border-dracula-red/25",
+    "bg-warning/10 text-warning border border-warning/25",
+  urgent: "bg-destructive/10 text-destructive border border-destructive/25",
 };
 
 interface RecommendationCardProps {

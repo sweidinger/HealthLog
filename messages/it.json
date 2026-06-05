@@ -1494,7 +1494,8 @@
       "sat": "Sabato",
       "sun": "Domenica"
     },
-    "rangeBand": "Intervallo"
+    "rangeBand": "Intervallo",
+    "selectRange": "Seleziona un intervallo"
   },
   "chart": {
     "overlay": {
@@ -1679,7 +1680,10 @@
       "statLatest": "Attuale",
       "statMin": "Min",
       "statMax": "Max",
-      "empty": "Ancora nessun dato VO₂ max — sincronizza Apple Health per riempire questa vista."
+      "empty": "Ancora nessun dato VO₂ max — sincronizza Apple Health per riempire questa vista.",
+      "cardioLinkTitle": "Forma cardio (VO₂ max)",
+      "cardioLinkBody": "Il VO₂ max è la misura principale della forma aerobica. Il grafico completo e la valutazione sono nella loro pagina dedicata.",
+      "cardioLinkCta": "Apri forma cardio"
     },
     "trendAnnotation": {
       "emptyBp": "Servono più dati per commentare questo trend.",
@@ -1983,6 +1987,7 @@
       }
     },
     "subPage": {
+      "loadError": "Impossibile caricare questa metrica al momento.",
       "blutdruckDescription": "Il tuo andamento sistolico/diastolico con range obiettivo adattati all’età e una valutazione testuale.",
       "gewichtDescription": "Andamento del peso rispetto alla fascia sana derivata dalla tua altezza, con valutazione.",
       "pulsDescription": "Resting pulse vs. the personalised Karvonen target band, plus a written assessment.",
@@ -2104,7 +2109,8 @@
         "min": "Min",
         "max": "Max",
         "median": "Mediana",
-        "mean": "Media"
+        "mean": "Media",
+        "selectedRange": "Intervallo selezionato"
       },
       "showAllValues": "Mostra tutte le misurazioni",
       "valuesPageTitle": "{metric} — tutte le misurazioni",
@@ -2603,7 +2609,7 @@
       },
       "discovery": {
         "title": "Cosa risalta",
-        "description": "Relazioni giorno per giorno legate al tuo umore che reggono dopo aver corretto per i test multipli.",
+        "subheading": "Relazioni scoperte",
         "footer": "Estratte da {tested} coppie giorno per giorno testate su tutte le tue misure, dopo la correzione per le false scoperte.",
         "empty": "Nessuna relazione sull'umore ha ancora superato la soglia statistica. Continua a registrare.",
         "disclaimer": "Filtrato statisticamente, ma sempre osservazionale: uno schema da tenere d'occhio, non una causa.",

@@ -46,6 +46,12 @@ export interface UseInsightsAnalyticsResult {
    */
   isEmpty: boolean;
   error: Error | null;
+  /**
+   * Re-issue the underlying `/api/analytics?slice=summaries` query. Wired
+   * to the error+retry control on the HealthKit sub-pages so a failed load
+   * recovers without a full reload.
+   */
+  refetch: () => void;
 }
 
 export function useInsightsAnalytics(
@@ -78,5 +84,8 @@ export function useInsightsAnalytics(
     isLoading: query.isLoading,
     isEmpty,
     error: query.error as Error | null,
+    refetch: () => {
+      void query.refetch();
+    },
   };
 }

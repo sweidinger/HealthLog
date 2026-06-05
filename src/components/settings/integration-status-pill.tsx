@@ -99,20 +99,19 @@ export function IntegrationStatusPill({
 
   // chipClass only applies to the `connected`, `warning`, and `parked`
   // branches — `error` falls back to `variant="destructive"` and
-  // `disconnected` to `variant="outline"`. The warning chip uses amber
-  // tokens to signal "connected, but the upstream just returned a
-  // contract-level error a reauth won't fix" — distinct from the red
-  // reconnect pill. The parked chip uses the orange tokens to signal
-  // "we tried to keep going for 24h but the contract mismatch persists
-  // — manual intervention required" — visually heavier than warning
-  // (sustained problem), lighter than error (still recoverable without
-  // re-auth).
+  // `disconnected` to `variant="outline"`. The warning and parked chips
+  // both carry the semantic `warning` tone (an AA-safe amber that clears
+  // contrast in light mode); their distinct labels + icons carry the
+  // meaning — "connected, but the upstream returned a contract-level error
+  // a reauth won't fix" vs "tried to keep going for 24h but the mismatch
+  // persists, manual intervention required" — distinct from the red
+  // reconnect pill (`error`).
   const connectedChipClass =
-    "border-dracula-green/30 bg-dracula-green/15 text-dracula-green";
+    "border-success/30 bg-success/15 text-success";
   const warningChipClass =
-    "border-dracula-yellow/30 bg-dracula-yellow/15 text-dracula-yellow";
+    "border-warning/30 bg-warning/15 text-warning";
   const parkedChipClass =
-    "border-dracula-orange/30 bg-dracula-orange/15 text-dracula-orange";
+    "border-warning/30 bg-warning/15 text-warning";
 
   let label: string;
   let icon: React.ReactNode;

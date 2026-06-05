@@ -404,7 +404,7 @@ export function AboutSection() {
             role="alert"
             className={`mt-2 text-xs ${
               tourFeedback.type === "success"
-                ? "text-dracula-green"
+                ? "text-success"
                 : "text-destructive"
             }`}
           >

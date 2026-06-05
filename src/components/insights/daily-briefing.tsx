@@ -135,15 +135,15 @@ const METRIC_ICON: Record<
 };
 
 const TONE_BAR_CLASSNAME: Record<DailyBriefingKeyFinding["tone"], string> = {
-  good: "bg-dracula-green",
-  watch: "bg-dracula-orange",
-  info: "bg-dracula-cyan",
+  good: "bg-success",
+  watch: "bg-warning",
+  info: "bg-info",
 };
 
 const TONE_TEXT_CLASSNAME: Record<DailyBriefingKeyFinding["tone"], string> = {
-  good: "text-dracula-green",
-  watch: "text-dracula-orange",
-  info: "text-dracula-cyan",
+  good: "text-success",
+  watch: "text-warning",
+  info: "text-info",
 };
 
 function DeltaBadge({
@@ -275,7 +275,7 @@ export function DailyBriefing({
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-2">
             <Sparkles
-              className="text-dracula-purple h-4 w-4 shrink-0"
+              className="text-dose-accent h-4 w-4 shrink-0"
               aria-hidden="true"
             />
             <CardTitle className="text-base font-semibold">

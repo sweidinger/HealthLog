@@ -1494,7 +1494,8 @@
       "sat": "Samstag",
       "sun": "Sonntag"
     },
-    "rangeBand": "Bereich"
+    "rangeBand": "Bereich",
+    "selectRange": "Zeitraum auswählen"
   },
   "chart": {
     "overlay": {
@@ -1679,7 +1680,10 @@
       "statLatest": "Aktuell",
       "statMin": "Min",
       "statMax": "Max",
-      "empty": "Noch keine VO₂-Max-Daten — synchronisiere Apple Health, um diese Ansicht zu füllen."
+      "empty": "Noch keine VO₂-Max-Daten — synchronisiere Apple Health, um diese Ansicht zu füllen.",
+      "cardioLinkTitle": "Cardio-Fitness (VO₂ max)",
+      "cardioLinkBody": "VO₂ max ist das zentrale Maß für die aerobe Fitness. Das vollständige Diagramm und die Einschätzung findest du auf der eigenen Seite.",
+      "cardioLinkCta": "Cardio-Fitness öffnen"
     },
     "trendAnnotation": {
       "emptyBp": "Mehr Daten nötig, um diesen Trend zu kommentieren.",
@@ -1983,6 +1987,7 @@
       }
     },
     "subPage": {
+      "loadError": "Diese Messgröße konnte gerade nicht geladen werden.",
       "blutdruckDescription": "Dein systolisch-/diastolisch-Verlauf mit altersangepassten Zielbereichen und einer textbasierten Einschätzung.",
       "gewichtDescription": "Gewichtsverlauf gegen das aus deiner Größe abgeleitete gesunde Band, mit Einschätzung.",
       "pulsDescription": "Pulsverlauf gegenüber dem persönlichen Karvonen-Zielband, mit Einschätzung.",
@@ -2104,7 +2109,8 @@
         "min": "Min",
         "max": "Max",
         "median": "Median",
-        "mean": "Mittelwert"
+        "mean": "Mittelwert",
+        "selectedRange": "Ausgewählter Bereich"
       },
       "showAllValues": "Alle Werte anzeigen",
       "valuesPageTitle": "{metric} — alle Werte",
@@ -2603,7 +2609,7 @@
       },
       "discovery": {
         "title": "Was auffällt",
-        "description": "Tag-zu-Tag-Zusammenhänge rund um deine Stimmung, die auch nach Korrektur für viele gleichzeitige Tests bestehen.",
+        "subheading": "Entdeckte Zusammenhänge",
         "footer": "Herausgefiltert aus {tested} Tag-zu-Tag-Paaren, die über all deine Werte getestet wurden, nach der Korrektur für Fehlentdeckungen.",
         "empty": "Bisher hat kein Stimmungszusammenhang die statistische Hürde genommen. Logge weiter.",
         "disclaimer": "Statistisch gefiltert, aber weiterhin beobachtend – ein Muster, das einen Blick wert ist, keine Ursache.",

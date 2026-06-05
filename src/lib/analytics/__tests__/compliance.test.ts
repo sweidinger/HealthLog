@@ -785,6 +785,44 @@ describe("calculateCompliance — engine-routed (medicationContext)", () => {
     expect(result.taken).toBe(2);
     expect(result.rate).toBe(100);
   });
+
+  it("streak is computed in the USER's timezone, not the host's", () => {
+    // The timeline `slot.day` is minted in the user's IANA zone. The
+    // streak walk must key days in the SAME zone — the prior host-tz
+    // `getFullYear/getMonth/getDate` walk drifted off by a day whenever
+    // the server clock's zone differed from the user's. Use a far-east
+    // user zone (UTC+13) so the user-local day for a near-UTC-midnight
+    // intake clearly differs from the host/UTC day; a daily-taken stream
+    // must still yield an unbroken streak.
+    const tz = "Pacific/Auckland";
+    vi.setSystemTime(new Date("2025-06-10T11:00:00Z")); // ~23:00 NZST.
+    const schedules: ComplianceSchedule[] = [
+      {
+        windowStart: "08:00",
+        windowEnd: "09:00",
+        daysOfWeek: null,
+        timesOfDay: ["08:00"],
+      },
+    ];
+    // Taken near 08:00 Auckland (= ~20:00 UTC previous day) for each of
+    // the past 7 user-local days.
+    const events = Array.from({ length: 7 }, (_, i) => {
+      const sched = new Date(
+        new Date("2025-06-09T20:00:00Z").getTime() - i * DAY_MS,
+      );
+      return { scheduledFor: sched, takenAt: sched, skipped: false };
+    });
+    const result = calculateCompliance(events, schedules, 7, undefined, {
+      medicationContext: ctx({
+        timeZone: tz,
+        createdAt: new Date("2025-05-01T00:00:00Z"),
+      }),
+    });
+    // Every user-local day in the window was taken → a multi-day streak.
+    // The host-tz walk would have mis-keyed the boundary days and broken
+    // the streak early; the user-tz walk counts them all.
+    expect(result.streak).toBeGreaterThanOrEqual(6);
+  });
 });
 
 // ────────────────────────────────────────────────────────────────────

@@ -157,7 +157,7 @@ export function TelegramCard({
               role="alert"
               className={`text-sm ${
                 msgType === "success"
-                  ? "text-dracula-green"
+                  ? "text-success"
                   : "text-destructive"
               }`}
             >

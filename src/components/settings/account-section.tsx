@@ -573,7 +573,7 @@ export function AccountSection() {
               role="alert"
               className={`text-sm ${
                 saveMsgType === "success"
-                  ? "text-dracula-green"
+                  ? "text-success"
                   : "text-destructive"
               }`}
             >
@@ -627,7 +627,7 @@ export function AccountSection() {
             role="alert"
             className={`mt-2 text-right text-sm ${
               passkeyMsgType === "success"
-                ? "text-dracula-green"
+                ? "text-success"
                 : "text-destructive"
             }`}
           >
@@ -709,7 +709,7 @@ export function AccountSection() {
             role="alert"
             className={`mt-2 text-xs ${
               tourFeedback.type === "success"
-                ? "text-dracula-green"
+                ? "text-success"
                 : "text-destructive"
             }`}
           >
@@ -778,7 +778,7 @@ export function AccountSection() {
                 role="alert"
                 className={`text-sm ${
                   passwordMsgType === "success"
-                    ? "text-dracula-green"
+                    ? "text-success"
                     : "text-destructive"
                 }`}
               >
@@ -1199,7 +1199,7 @@ function AvatarSection() {
         <p
           role="alert"
           className={`mt-3 text-sm ${
-            msgType === "success" ? "text-dracula-green" : "text-destructive"
+            msgType === "success" ? "text-success" : "text-destructive"
           }`}
         >
           {msg}

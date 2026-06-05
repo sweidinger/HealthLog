@@ -38,14 +38,20 @@ const CONFIDENCE_KEY: Record<MoodInfluenceConfidence, string> = {
   high: "insights.mood.influence.confidenceHigh",
 };
 
+// Confidence chips carry COLORED TEXT, so they ride the semantic feedback
+// tokens (`--info` / `--success`) — these carry the Alucard light-mode
+// overrides that clear AA on the white card. Raw `--dracula-*` stays bright
+// green/cyan in light mode and fails AA for text.
 const CONFIDENCE_CLASS: Record<MoodInfluenceConfidence, string> = {
   low: "bg-secondary text-muted-foreground",
-  medium: "bg-[color:var(--dracula-cyan)]/15 text-[color:var(--dracula-cyan)]",
-  high: "bg-[color:var(--dracula-green)]/15 text-[color:var(--dracula-green)]",
+  medium: "bg-info/15 text-info",
+  high: "bg-success/15 text-success",
 };
 
+// Semantic feedback tokens (not raw `--dracula-*`): the delta read-out is
+// COLORED TEXT, so it needs the Alucard light-mode override to clear AA.
 function deltaColor(delta: number): string {
-  return delta >= 0 ? "var(--dracula-green)" : "var(--dracula-red)";
+  return delta >= 0 ? "var(--success)" : "var(--destructive)";
 }
 
 export function MoodTagInfluence({

@@ -128,7 +128,7 @@ function MoodCorrelationCard({
                 ticks: [1, 2, 3, 4, 5],
               }}
               yAxis={{ dataKey: "y", name: t(Y_LABEL_KEY[kind]) }}
-              height={180}
+              height={160}
             />
           </>
         ) : (

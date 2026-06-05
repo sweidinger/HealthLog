@@ -16,6 +16,10 @@ import {
   formatPreviousContextForPrompt,
   getPreviousInsightContext,
 } from "@/lib/insights/memory";
+import {
+  buildAssessmentContextBlock,
+  pickVarietyLead,
+} from "@/lib/insights/assessment-context";
 import { applyPayloadBudget } from "@/lib/insights/bucket-series";
 import { buildGradedSeriesFromPoints } from "@/lib/insights/graded-series";
 import { degradeStatusSnapshotToBudget } from "@/lib/insights/graded-series";
@@ -350,6 +354,29 @@ export async function generateMedicationComplianceStatusForUser(
     locale,
   );
 
+  // v1.12.7 — diversity / anti-repetition block (see blood-pressure-status).
+  // Adherence spans multiple medications with no single card-level graded
+  // mean to band, so the steady-run signal is left to the previous-context
+  // comparison (repeatCount 0) and there is no measurement discovery channel
+  // (relations empty); the variety lead + data-strength carry the rotation.
+  const varietyLead = pickVarietyLead(
+    userId,
+    "medication-compliance",
+    todayKey,
+  );
+  const assessmentContextBlock = buildAssessmentContextBlock(
+    {
+      varietyLead,
+      dataStrength: {
+        points: medicationEvents.length,
+        newestDaysAgo: newestMeasurementDaysAgo,
+      },
+      repeatCount: 0,
+      relations: [],
+    },
+    locale,
+  );
+
   const outcome = await runStatusCompletion({
     userId,
     cacheAction,
@@ -360,8 +387,10 @@ export async function generateMedicationComplianceStatusForUser(
       todayKey,
       locale,
       previousContextBlock,
+      assessmentContextBlock,
     ),
-    temperature: 0.3,
+    // v1.12.7 — match the archetype cards' 0.45.
+    temperature: 0.45,
     maxTokens: 1000,
   });
 

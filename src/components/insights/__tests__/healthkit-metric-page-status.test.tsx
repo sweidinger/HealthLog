@@ -142,6 +142,48 @@ describe("<HealthKitMetricPage> status mount", () => {
     expect(metricStatusMock).not.toHaveBeenCalled();
   });
 
+  it("renders the loading skeleton while the analytics read is in flight", () => {
+    analyticsMock.mockReturnValue({
+      data: undefined,
+      isEmpty: false,
+      isLoading: true,
+    });
+    metricStatusMock.mockReturnValue({ data: undefined, isLoading: false });
+
+    const html = render(
+      <HealthKitMetricPage {...baseProps} statusMetric="HEART_RATE_VARIABILITY" />,
+    );
+
+    // Stat-strip skeleton + chart skeleton paint; the assessment card never
+    // mounts in flight.
+    expect(html).toContain('data-slot="metric-stat-strip-skeleton"');
+    expect(html).toContain('data-slot="chart-skeleton"');
+    expect(metricStatusMock).not.toHaveBeenCalled();
+  });
+
+  it("renders an error message + retry control when the analytics read fails", () => {
+    const refetch = vi.fn();
+    analyticsMock.mockReturnValue({
+      data: undefined,
+      isEmpty: false,
+      isLoading: false,
+      error: new Error("boom"),
+      refetch,
+    });
+    metricStatusMock.mockReturnValue({ data: undefined, isLoading: false });
+
+    const html = render(
+      <HealthKitMetricPage {...baseProps} statusMetric="HEART_RATE_VARIABILITY" />,
+    );
+
+    expect(html).toContain('data-slot="healthkit-metric-error"');
+    expect(html).toContain('data-slot="healthkit-metric-retry"');
+    expect(html).toContain('role="alert"');
+    // The error branch wins over the data / empty branches, so the
+    // assessment fetch never fires.
+    expect(metricStatusMock).not.toHaveBeenCalled();
+  });
+
   it("wires the active-energy page to an accepted registry id (not the MeasurementType remap)", () => {
     // v1.8.7.1 (Design H1) — the active-energy page formerly passed
     // `ACTIVE_ENERGY_BURNED` (the DB MeasurementType), which the route's

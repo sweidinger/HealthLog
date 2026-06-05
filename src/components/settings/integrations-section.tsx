@@ -433,9 +433,9 @@ function WithingsCard({
         {pillState === "parked" && (
           <div
             data-testid="withings-parked-banner"
-            className="border-dracula-orange/30 bg-dracula-orange/10 flex flex-wrap items-center justify-between gap-2 rounded-md border px-3 py-2 text-sm"
+            className="border-warning/30 bg-warning/10 flex flex-wrap items-center justify-between gap-2 rounded-md border px-3 py-2 text-sm"
           >
-            <span className="text-dracula-orange min-w-0 break-words text-xs">
+            <span className="text-warning min-w-0 break-words text-xs">
               {t("settings.integrationPill.parkedReconnect")}
             </span>
             <Button
@@ -468,7 +468,7 @@ function WithingsCard({
         {resume.isSuccess && resume.data?.wasParked && (
           <p
             role="status"
-            className="text-dracula-green text-xs"
+            className="text-success text-xs"
             data-testid="withings-resume-success"
           >
             {t("settings.integrationPill.resumeSuccess")}
@@ -553,7 +553,7 @@ function WithingsCard({
             {credsMsg && (
               <p
                 role="alert"
-                className={`text-sm ${credsMsgType === "success" ? "text-dracula-green" : "text-destructive"}`}
+                className={`text-sm ${credsMsgType === "success" ? "text-success" : "text-destructive"}`}
               >
                 {credsMsg}
               </p>
@@ -656,7 +656,7 @@ function WithingsCard({
             {syncMsg && (
               <p
                 role="alert"
-                className={`text-sm ${syncMsgType === "success" ? "text-dracula-green" : "text-destructive"}`}
+                className={`text-sm ${syncMsgType === "success" ? "text-success" : "text-destructive"}`}
               >
                 {syncMsg}
               </p>
@@ -857,9 +857,9 @@ function WhoopCard({
         {pillState === "parked" && (
           <div
             data-testid="whoop-parked-banner"
-            className="border-dracula-orange/30 bg-dracula-orange/10 flex flex-wrap items-center justify-between gap-2 rounded-md border px-3 py-2 text-sm"
+            className="border-warning/30 bg-warning/10 flex flex-wrap items-center justify-between gap-2 rounded-md border px-3 py-2 text-sm"
           >
-            <span className="text-dracula-orange min-w-0 break-words text-xs">
+            <span className="text-warning min-w-0 break-words text-xs">
               {t("settings.integrationPill.parkedReconnect")}
             </span>
             <Button
@@ -892,7 +892,7 @@ function WhoopCard({
         {resume.isSuccess && resume.data?.wasParked && (
           <p
             role="status"
-            className="text-dracula-green text-xs"
+            className="text-success text-xs"
             data-testid="whoop-resume-success"
           >
             {t("settings.integrationPill.resumeSuccess")}
@@ -972,7 +972,7 @@ function WhoopCard({
             {credsMsg && (
               <p
                 role="alert"
-                className={`text-sm ${credsMsgType === "success" ? "text-dracula-green" : "text-destructive"}`}
+                className={`text-sm ${credsMsgType === "success" ? "text-success" : "text-destructive"}`}
               >
                 {credsMsg}
               </p>
@@ -1074,7 +1074,7 @@ function WhoopCard({
             {syncMsg && (
               <p
                 role="alert"
-                className={`text-sm ${syncMsgType === "success" ? "text-dracula-green" : "text-destructive"}`}
+                className={`text-sm ${syncMsgType === "success" ? "text-success" : "text-destructive"}`}
               >
                 {syncMsg}
               </p>
@@ -1303,9 +1303,9 @@ function FitbitCard({
         {pillState === "parked" && (
           <div
             data-testid="fitbit-parked-banner"
-            className="border-dracula-orange/30 bg-dracula-orange/10 flex flex-wrap items-center justify-between gap-2 rounded-md border px-3 py-2 text-sm"
+            className="border-warning/30 bg-warning/10 flex flex-wrap items-center justify-between gap-2 rounded-md border px-3 py-2 text-sm"
           >
-            <span className="text-dracula-orange min-w-0 break-words text-xs">
+            <span className="text-warning min-w-0 break-words text-xs">
               {t("settings.integrationPill.parkedReconnect")}
             </span>
             <Button
@@ -1338,7 +1338,7 @@ function FitbitCard({
         {resume.isSuccess && resume.data?.wasParked && (
           <p
             role="status"
-            className="text-dracula-green text-xs"
+            className="text-success text-xs"
             data-testid="fitbit-resume-success"
           >
             {t("settings.integrationPill.resumeSuccess")}
@@ -1418,7 +1418,7 @@ function FitbitCard({
             {credsMsg && (
               <p
                 role="alert"
-                className={`text-sm ${credsMsgType === "success" ? "text-dracula-green" : "text-destructive"}`}
+                className={`text-sm ${credsMsgType === "success" ? "text-success" : "text-destructive"}`}
               >
                 {credsMsg}
               </p>
@@ -1520,7 +1520,7 @@ function FitbitCard({
             {syncMsg && (
               <p
                 role="alert"
-                className={`text-sm ${syncMsgType === "success" ? "text-dracula-green" : "text-destructive"}`}
+                className={`text-sm ${syncMsgType === "success" ? "text-success" : "text-destructive"}`}
               >
                 {syncMsg}
               </p>
@@ -1887,7 +1887,7 @@ function MoodLogCard({
         {msg && (
           <p
             role="alert"
-            className={`text-sm ${msgType === "error" ? "text-destructive" : "text-dracula-green"}`}
+            className={`text-sm ${msgType === "error" ? "text-destructive" : "text-success"}`}
           >
             {msg}
           </p>

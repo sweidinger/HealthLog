@@ -96,7 +96,7 @@ export function ErrorDetails({
         )}
         <Button onClick={handleCopy} variant="outline">
           {copied ? (
-            <CheckCircle2 className="text-dracula-green mr-2 h-4 w-4" />
+            <CheckCircle2 className="text-success mr-2 h-4 w-4" />
           ) : (
             <Copy className="mr-2 h-4 w-4" />
           )}

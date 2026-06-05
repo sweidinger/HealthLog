@@ -17,14 +17,26 @@ import { useFeatureFlags } from "@/hooks/use-feature-flags";
  * `<TileHeader>`. Callers still pass a pre-sized icon NODE (e.g.
  * `<HeartPulse className="h-5 w-5" />`) because the bespoke metric pages
  * own that prop; `<TileHeader>` drives its icon off a component, so wrap
- * the node in a thin component that renders it verbatim. The node already
- * carries the `h-5 w-5` foreground sizing `<TileHeader>` would apply, so
- * the rendered row is byte-identical to the previous hand-rolled `flex
- * items-center gap-2` header.
+ * the node in a thin component that renders it.
+ *
+ * v1.12.7 (M2) — `<TileHeader>` owns the canonical `h-5 w-5 text-foreground`
+ * sizing and passes it through as `className` to its icon component. The
+ * previous wrapper rendered the node verbatim and dropped that class, so a
+ * caller passing an unsized (or mis-sized) node could drift off the contract.
+ * The wrapper now forwards `<TileHeader>`'s className onto a sizing span that
+ * normalizes the glyph — the `[&>svg]:size-5` rule pins any child SVG to the
+ * canonical box regardless of what the caller passed. Callers that already
+ * pass `<Icon className="h-5 w-5" />` stay visually identical.
  */
-function nodeIcon(icon: React.ReactNode): React.ComponentType {
-  return function StatusIcon() {
-    return <>{icon}</>;
+function nodeIcon(icon: React.ReactNode): React.ComponentType<{
+  className?: string;
+}> {
+  return function StatusIcon({ className }: { className?: string }) {
+    return (
+      <span className={cn("inline-flex [&>svg]:size-5", className)}>
+        {icon}
+      </span>
+    );
   };
 }
 

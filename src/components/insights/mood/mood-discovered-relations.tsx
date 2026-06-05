@@ -1,12 +1,5 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
-import { Compass } from "lucide-react";
-
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { TileHeader } from "@/components/insights/tile-header";
-import { useAuth } from "@/hooks/use-auth";
-import { queryKeys } from "@/lib/query-keys";
 import { useTranslations } from "@/lib/i18n/context";
 import { MoodExplainerIcon } from "./mood-explainer-icon";
 
@@ -21,13 +14,17 @@ import { MoodExplainerIcon } from "./mood-explainer-icon";
  * applies are returned, so this is the statistically-defensible complement
  * to the descriptive influence / better-days surfaces.
  *
- * Renders nothing when the operator has disabled the correlations surface
- * (the route 403s — we degrade silently), while loading, or when no mood
- * pair cleared the bar. Observational only; the standing disclaimer rides
- * the card.
+ * v1.12.7 — the surface is now a header-less subsection rendered INSIDE the
+ * merged "What stands out" card (see `mood-insights-sections.tsx`). The owning
+ * card runs the correlation-discovery fetch once and passes the mood pairs in;
+ * this component is a pure renderer that paints the list (or returns nothing
+ * when no pair cleared the bar). The former muted explainer paragraph is gone:
+ * the statistical caveat rides a single info-icon tooltip beside the
+ * subsection heading, and every finding renders in the standard foreground
+ * text colour. Observational only.
  */
 
-interface DiscoveredCorrelation {
+export interface DiscoveredCorrelation {
   behaviour: string;
   outcome: string;
   n: number;
@@ -38,7 +35,7 @@ interface DiscoveredCorrelation {
   lagDays: number;
 }
 
-interface CorrelationDiscoveryResponse {
+export interface CorrelationDiscoveryResponse {
   discovered: DiscoveredCorrelation[];
   pairsTested: number;
   fdrQ: number;
@@ -57,60 +54,44 @@ const CHANNEL_LABEL_KEY: Record<string, string> = {
   WEIGHT: "measurements.typeWeight",
 };
 
-export function MoodDiscoveredRelations() {
-  const { isAuthenticated } = useAuth();
-  const { t } = useTranslations();
-
-  const { data, isLoading, isError } = useQuery({
-    queryKey: queryKeys.insightsCorrelations(),
-    queryFn: async () => {
-      const res = await fetch("/api/insights/correlations");
-      // 403 = operator disabled the surface; any non-OK degrades to nothing.
-      if (!res.ok) throw new Error("unavailable");
-      const json = await res.json();
-      return json.data as CorrelationDiscoveryResponse;
-    },
-    enabled: isAuthenticated,
-    staleTime: 60_000,
-    // The surface is optional — don't retry a deliberate 403 into noise.
-    retry: false,
-  });
-
-  if (isLoading || isError || !data) return null;
-
-  const moodPairs = data.discovered.filter(
+/** Keep only the discovered pairs that involve the mood channel. */
+export function moodPairsOf(
+  discovered: DiscoveredCorrelation[],
+): DiscoveredCorrelation[] {
+  return discovered.filter(
     (pair) => pair.behaviour === "MOOD" || pair.outcome === "MOOD",
   );
-  if (moodPairs.length === 0) return null;
+}
+
+export function MoodDiscoveredRelations({
+  pairs,
+  pairsTested,
+}: {
+  pairs: DiscoveredCorrelation[];
+  pairsTested: number;
+}) {
+  const { t } = useTranslations();
+
+  if (pairs.length === 0) return null;
 
   return (
-    <Card data-slot="mood-discovered-relations">
-      <CardHeader className="pb-2">
-        {/* v1.12.4 (C3) — the false-discovery footer + observational
-            disclaimer were two full-width footnote rows. Fold both into a
-            single explainer icon so the explanation is one hover/focus away
-            instead of a low-density block under the list. v1.12.6 — the
-            heading now rides the canonical `TileHeader`, with the explainer
-            icon pinned to its trailing slot. */}
-        <TileHeader
-          icon={Compass}
-          title={t("insights.mood.discovery.title")}
-          right={
-            <MoodExplainerIcon
-              label={t("insights.mood.discovery.explainerLabel")}
-              detail={`${t("insights.mood.discovery.footer", {
-                tested: data.pairsTested,
-              })} ${t("insights.mood.discovery.disclaimer")}`}
-            />
-          }
+    // v1.12.7 — header-less subsection. The merged "What stands out" card owns
+    // the single TileHeader; this block leads with a compact subsection label
+    // plus the statistical-caveat explainer icon (the false-discovery footer +
+    // observational disclaimer fold into the one tooltip) so the surface stops
+    // spending a muted paragraph on a footnote.
+    <div data-slot="mood-discovered-relations" className="space-y-1">
+      <div className="text-foreground flex items-center gap-1.5 text-sm font-medium">
+        <span>{t("insights.mood.discovery.subheading")}</span>
+        <MoodExplainerIcon
+          label={t("insights.mood.discovery.explainerLabel")}
+          detail={`${t("insights.mood.discovery.footer", {
+            tested: pairsTested,
+          })} ${t("insights.mood.discovery.disclaimer")}`}
         />
-      </CardHeader>
-      <CardContent>
-        <p className="text-muted-foreground mb-2 text-sm">
-          {t("insights.mood.discovery.description")}
-        </p>
-        <ul className="divide-border divide-y">
-        {moodPairs.map((pair) => {
+      </div>
+      <ul className="divide-border divide-y">
+        {pairs.map((pair) => {
           const moodIsOutcome = pair.outcome === "MOOD";
           const channelKey = moodIsOutcome ? pair.behaviour : pair.outcome;
           const factorLabel = t(CHANNEL_LABEL_KEY[channelKey] ?? channelKey);
@@ -130,10 +111,10 @@ export function MoodDiscoveredRelations() {
               data-mood-role={moodIsOutcome ? "outcome" : "behaviour"}
               data-direction={up ? "up" : "down"}
             >
-              {/* v1.12.4 (C4) — the {n} paired days · r · q line was a
-                  low-density sub-row under each sentence. Move the numeric
-                  detail behind an explainer icon on the same line as the
-                  finding so the list stays one row per pair. */}
+              {/* The {n} paired days · r · q numeric detail rides an explainer
+                  icon on the same line as the finding so the list stays one
+                  row per pair. The finding itself reads in the standard
+                  foreground colour. */}
               <span className="text-foreground flex items-center gap-1.5">
                 <span>{t(sentenceKey, { factor: factorLabel })}</span>
                 <MoodExplainerIcon
@@ -148,8 +129,7 @@ export function MoodDiscoveredRelations() {
             </li>
           );
         })}
-        </ul>
-      </CardContent>
-    </Card>
+      </ul>
+    </div>
   );
 }

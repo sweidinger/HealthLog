@@ -13,6 +13,12 @@ import {
   getPreviousInsightContext,
 } from "@/lib/insights/memory";
 import {
+  buildAssessmentContextBlock,
+  computeSteadyRun,
+  pickVarietyLead,
+} from "@/lib/insights/assessment-context";
+import { getRelevantCorrelationsForMetric } from "@/lib/insights/metric-correlation-context";
+import {
   applyPayloadBudget,
   dayOffsetToBerlinDayKey,
   type DailyBucket,
@@ -429,6 +435,23 @@ export async function generateWeightStatusForUser(
     locale,
   );
 
+  // v1.12.7 — diversity / anti-repetition block (see blood-pressure-status).
+  const varietyLead = pickVarietyLead(userId, "weight", todayKey);
+  const steadyRun = computeSteadyRun(weightGraded.weekly, weightGraded.monthly);
+  const relations = await getRelevantCorrelationsForMetric(userId, "WEIGHT");
+  const assessmentContextBlock = buildAssessmentContextBlock(
+    {
+      varietyLead,
+      dataStrength: {
+        points: weightSeries.daily.length,
+        newestDaysAgo: newestMeasurementDaysAgo,
+      },
+      repeatCount: steadyRun,
+      relations,
+    },
+    locale,
+  );
+
   // Run the provider chain bounded by the aligned 60 s budget. A
   // timeout / error / empty content is a transient miss — serve the
   // fallback for this render without persisting it, so the next mount
@@ -443,8 +466,10 @@ export async function generateWeightStatusForUser(
       todayKey,
       locale,
       previousContextBlock,
+      assessmentContextBlock,
     ),
-    temperature: 0.3,
+    // v1.12.7 — match the archetype cards' 0.45.
+    temperature: 0.45,
     maxTokens: 1000,
   });
 

@@ -68,7 +68,7 @@ export function InjectionSitesCard({
   }
 
   return (
-    <div className="rounded-lg border p-4">
+    <div className="bg-card border-border rounded-lg border p-4">
       <SettingsCardHeader
         icon={Syringe}
         title={t("settings.globalExcludedInjectionSitesLabel")}

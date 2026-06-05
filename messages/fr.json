@@ -1494,7 +1494,8 @@
       "sat": "Samedi",
       "sun": "Dimanche"
     },
-    "rangeBand": "Plage"
+    "rangeBand": "Plage",
+    "selectRange": "Sélectionner une plage"
   },
   "chart": {
     "overlay": {
@@ -1679,7 +1680,10 @@
       "statLatest": "Actuel",
       "statMin": "Min",
       "statMax": "Max",
-      "empty": "Pas encore de données VO₂ max — synchronise Apple Health pour remplir cette vue."
+      "empty": "Pas encore de données VO₂ max — synchronise Apple Health pour remplir cette vue.",
+      "cardioLinkTitle": "Condition cardio (VO₂ max)",
+      "cardioLinkBody": "Le VO₂ max est la mesure de référence de la condition aérobie. Le graphique complet et l’évaluation se trouvent sur leur propre page.",
+      "cardioLinkCta": "Ouvrir la condition cardio"
     },
     "trendAnnotation": {
       "emptyBp": "Il faut plus de données pour commenter cette tendance.",
@@ -1983,6 +1987,7 @@
       }
     },
     "subPage": {
+      "loadError": "Impossible de charger cette mesure pour le moment.",
       "blutdruckDescription": "Ton évolution systolique/diastolique avec des plages cibles adaptées à l’âge et une évaluation textuelle.",
       "gewichtDescription": "Évolution du poids face à la bande saine dérivée de ta taille, avec évaluation.",
       "pulsDescription": "Resting pulse vs. the personalised Karvonen target band, plus a written assessment.",
@@ -2104,7 +2109,8 @@
         "min": "Min",
         "max": "Max",
         "median": "Médiane",
-        "mean": "Moyenne"
+        "mean": "Moyenne",
+        "selectedRange": "Plage sélectionnée"
       },
       "showAllValues": "Afficher toutes les mesures",
       "valuesPageTitle": "{metric} — toutes les mesures",
@@ -2603,7 +2609,7 @@
       },
       "discovery": {
         "title": "Ce qui ressort",
-        "description": "Des relations d'un jour à l'autre autour de votre humeur qui tiennent après correction des tests multiples.",
+        "subheading": "Relations découvertes",
         "footer": "Issues de {tested} paires d'un jour à l'autre testées sur l'ensemble de vos mesures, après correction des fausses découvertes.",
         "empty": "Aucune relation d'humeur n'a encore franchi le seuil statistique. Continuez à enregistrer.",
         "disclaimer": "Filtré statistiquement, mais toujours observationnel : une tendance à surveiller, pas une cause.",

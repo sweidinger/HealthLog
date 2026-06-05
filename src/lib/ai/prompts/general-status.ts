@@ -8,7 +8,7 @@ const GENERAL_SECTION_DE = `METRIK — GESAMTBEWERTUNG:
 - Pro Metrik dieselbe Logik: das recent-Mittel gegen das weekly/monthly-Mittel der Person stellen und nur signifikante Abweichungen von der eigenen Baseline melden.
 - Positives ausdrücklich anerkennen — ein stabiler oder sich verbessernder Wert ist eine echte Botschaft, kein Lückenfüller.
 - Zusammenhänge nur erwähnen, wenn ein r-Wert im Snapshot vorhanden und |r| > 0.4 ist — als Zusammenhang, nie als Ursache. Stimmung als Kontext einbeziehen, nicht übergewichten.
-- Eine Botschaft: Auch über alle Metriken hinweg endet die Einschätzung mit GENAU EINER wichtigsten, machbaren Empfehlung ("eine Sache").`;
+- Eine Botschaft: Auch über alle Metriken hinweg endet die Einschätzung NUR DANN mit GENAU EINER wichtigsten, machbaren Empfehlung ("eine Sache"), wenn das Gesamtbild eine nahelegt. Ist alles stabil und gibt es nichts Sinnvolles zu tun, sage das ehrlich und nenne stattdessen einen Punkt, den man im Auge behalten kann, statt eine Empfehlung zu erzwingen.`;
 
 const GENERAL_SECTION_EN = `METRIC — OVERALL ASSESSMENT:
 - The snapshot carries measurementSeries (a map per metric type with summary + graded series), medicationAdherence (summary + series), bloodPressureTargets (when present) and moodContext (when ≥ 3 days). dataCoverage.avgDaysBetweenMeasurements shows the measurement density.
@@ -17,7 +17,7 @@ const GENERAL_SECTION_EN = `METRIC — OVERALL ASSESSMENT:
 - Same logic per metric: place the recent mean against the person's weekly/monthly mean and report only significant deviations from their own baseline.
 - Acknowledge the positive explicitly — a stable or improving value is a real message, not filler.
 - Mention associations only when an r-value is present in the snapshot and |r| > 0.4 — as an association, never a cause. Include mood as context, do not over-weight it.
-- One message: even across all metrics, close with EXACTLY ONE most-important, doable suggestion ("one thing").`;
+- One message: even across all metrics, close with EXACTLY ONE most-important, doable suggestion ("one thing") ONLY when the overall picture implies one. When everything is steady and there is nothing useful to do, say so honestly and name one thing worth keeping an eye on instead of forcing a recommendation.`;
 
 export function getGeneralStatusSystemPrompt(locale: Locale): string {
   const section = locale === "en" ? GENERAL_SECTION_EN : GENERAL_SECTION_DE;
@@ -31,6 +31,8 @@ export function getGeneralStatusUserPrompt(
   todayKey: string,
   locale: Locale,
   previousContextBlock?: string,
+  /** v1.12.7 — diversity / anti-repetition context; see blood-pressure.ts. */
+  assessmentContextBlock?: string,
 ): string {
   // v1.4: when the previous-analysis context block is supplied, the
   // model is instructed to call out improvements / regressions
@@ -40,14 +42,18 @@ export function getGeneralStatusUserPrompt(
     previousContextBlock && previousContextBlock.trim().length > 0
       ? `\n\n${previousContextBlock}\n`
       : "";
+  const extraBlock =
+    assessmentContextBlock && assessmentContextBlock.trim().length > 0
+      ? `\n\n${assessmentContextBlock}\n`
+      : "";
   if (locale === "en") {
     return `Date: ${todayKey} (Europe/Berlin)
-Write one short overall assessment across the available health metrics: name what stands out, place the recent days against the person's own weekly/monthly baseline, and close with the single most important doable step. Judge confidence from the measurement count, density and recency.${ctxBlock}
+Write one short overall assessment across the available health metrics: name what stands out, place the recent days against the person's own weekly/monthly baseline, and — when something is genuinely actionable — close with the single most important doable step; when nothing is, skip the step rather than manufacture filler. Judge confidence from the measurement count, density and recency.${ctxBlock}${extraBlock}
 
 ${snapshotJson}`;
   }
   return `Datum: ${todayKey} (Europe/Berlin)
-Schreibe eine kurze Gesamteinschätzung über die verfügbaren Gesundheitsdaten: benenne das Auffälligste, ordne die jüngsten Tage gegen die eigene Wochen-/Monats-Baseline ein und schließe mit dem einen wichtigsten machbaren Schritt. Konfidenz aus Messanzahl, Dichte und Aktualität ableiten.${ctxBlock}
+Schreibe eine kurze Gesamteinschätzung über die verfügbaren Gesundheitsdaten: benenne das Auffälligste, ordne die jüngsten Tage gegen die eigene Wochen-/Monats-Baseline ein und schließe — wenn etwas wirklich umsetzbar ist — mit dem einen wichtigsten machbaren Schritt; ist nichts umsetzbar, lass den Schritt weg statt Fülltext zu erfinden. Konfidenz aus Messanzahl, Dichte und Aktualität ableiten.${ctxBlock}${extraBlock}
 
 ${snapshotJson}`;
 }

@@ -12,14 +12,16 @@
  * cookie-session surface but the route does not gate on it. `userId`
  * is narrowed from the resolved session — never a body field.
  *
- * The body is read-through `caches.analytics` keyed
- * `${userId}|dashboard-snapshot`, but with a per-key TTL of
- * `SNAPSHOT_CACHE_TTL_MS` (>= the client's 120 s refetch interval) so a
- * scheduled refetch lands on a warm entry instead of re-running the
- * full builder on every tick. It still rides the analytics bucket so
- * the `${userId}|` eviction sweep on a measurement / mood / medication
- * write covers it (see `src/lib/cache/invalidate.ts`) — correctness on
- * writes is unchanged; only the idle-poll TTL is longer. Per-sub-query
+ * The body is read-through `caches.analytics` (stale-while-revalidate
+ * via `cachedSwr`) keyed `${userId}|dashboard-snapshot`, with a per-key
+ * TTL of `SNAPSHOT_CACHE_TTL_MS` (>= the client's 120 s refetch
+ * interval) so a scheduled refetch lands on a warm entry instead of
+ * re-running the full builder on every tick. It still rides the
+ * analytics bucket so a measurement / mood / medication write covers it
+ * (see `src/lib/cache/invalidate.ts`): a measurement write marks the
+ * bucket stale (the high-frequency iOS-sync path serves the prior
+ * snapshot + warms a background recompute), while a widget reorder still
+ * hard-evicts so the layout change paints synchronously. Per-sub-query
  * timings surface under `meta.snapshot.sub_*_ms` on the cache-miss path
  * so a regression is attributable without re-instrumenting.
  *
@@ -32,7 +34,7 @@ import { apiHandler, requireAuth } from "@/lib/api-handler";
 import { annotate } from "@/lib/logging/context";
 import { apiSuccess } from "@/lib/api-response";
 import { NO_STORE_BUT_BFCACHE } from "@/lib/http/cache-headers";
-import { cached, caches, type ServerCache } from "@/lib/cache/server-cache";
+import { cachedSwr, caches, type ServerCache } from "@/lib/cache/server-cache";
 import { DASHBOARD_REFETCH_INTERVAL_MS } from "@/lib/queries/refetch-interval";
 import {
   buildDashboardSnapshot,
@@ -87,7 +89,14 @@ export const GET = apiHandler(async () => {
     dashboardWidgetsJson: user.dashboardWidgetsJson,
   };
 
-  const body = await cached(
+  // Stale-while-revalidate: a measurement write marks the analytics
+  // bucket stale rather than hard-evicting the snapshot, so a busy iOS
+  // sync serves the prior snapshot immediately (within the bucket's
+  // stale window) while a single background recompute warms a fresh one
+  // — the foreground request never pays the cold rebuild. Hard-evicting
+  // writes (widget reorder) still drop the key outright, forcing a clean
+  // miss + synchronous rebuild here.
+  const body = await cachedSwr(
     caches.analytics as ServerCache<DashboardSnapshot>,
     `${user.id}|dashboard-snapshot`,
     () => buildDashboardSnapshot(prisma, snapshotUser, { time }),

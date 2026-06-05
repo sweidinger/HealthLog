@@ -632,7 +632,7 @@ export function MoodChart({
               effectiveCompareBaseline !== "none" &&
               hasComparisonData && (
                 <span
-                  className="text-dracula-purple bg-dracula-purple/10 hidden rounded-md border border-current/30 px-1.5 py-0.5 text-[10px] font-medium tracking-wide uppercase sm:inline-flex"
+                  className="text-dose-accent bg-dose-accent/10 hidden rounded-md border border-current/30 px-1.5 py-0.5 text-[10px] font-medium tracking-wide uppercase sm:inline-flex"
                   data-slot="chart-compare-caption"
                 >
                   {t(
@@ -726,10 +726,16 @@ export function MoodChart({
           )
         ) : (
           <div
+            // v1.12.7 — the mood line plots a 1–5 score band; the former
+            // 240/280 px full-mode height left a tall dead strip below the
+            // line on the mood subpage. Tighten the default to 200/220 px so
+            // the chart fits its content without the empty gap. A per-mount
+            // `--chart-height` override (trends-row mini, etc.) still wins, so
+            // only the unoverridden full-mode mount shrinks.
             className={`${
               mini
                 ? "h-[var(--chart-height,140px)]"
-                : "h-[var(--chart-height,240px)] md:h-[var(--chart-height-md,280px)]"
+                : "h-[var(--chart-height,200px)] md:h-[var(--chart-height-md,220px)]"
             } touch-pan-y`}
           >
             <ResponsiveContainer width="100%" height="100%">

@@ -78,4 +78,91 @@ describe("<MetricStatStrip>", () => {
     expect(html).toContain('data-stat="median"');
     expect(html).toContain('data-stat="mean"');
   });
+
+  describe("multi-series mode (blood pressure — one card, two columns)", () => {
+    const sys: DataSummary = { ...populated, min: 118, max: 142, median: 128 };
+    const dia: DataSummary = { ...populated, min: 72, max: 91, median: 80 };
+
+    it("renders ONE card with both series as side-by-side columns", () => {
+      const html = render(
+        <MetricStatStrip
+          groupLabel="Blood pressure"
+          series={[
+            { dataKey: "sys", summary: sys, unit: "mmHg", seriesLabel: "Sys" },
+            { dataKey: "dia", summary: dia, unit: "mmHg", seriesLabel: "Dia" },
+          ]}
+        />,
+      );
+      // Exactly one strip card, flagged multi-series.
+      expect(html.match(/data-slot="metric-stat-strip"/g)?.length).toBe(1);
+      expect(html).toContain('data-multi-series="true"');
+      // Both series blocks present with their own data-series tokens.
+      expect(html).toContain('data-series="sys"');
+      expect(html).toContain('data-series="dia"');
+      // Both headers + both values render in the single card.
+      expect(html).toContain("Sys");
+      expect(html).toContain("Dia");
+      expect(html).toContain("118");
+      expect(html).toContain("72");
+    });
+
+    it("still paints the populated half when one series has no data", () => {
+      const html = render(
+        <MetricStatStrip
+          groupLabel="Blood pressure"
+          series={[
+            { dataKey: "sys", summary: sys, unit: "mmHg", seriesLabel: "Sys" },
+            { dataKey: "dia", summary: null, unit: "mmHg", seriesLabel: "Dia" },
+          ]}
+        />,
+      );
+      // The populated half paints; the empty half self-gates to nothing
+      // (no wrapper, no cells) so the card shows just the one column.
+      expect(html).toContain('data-series="sys"');
+      expect(html).not.toContain('data-series="dia"');
+      expect(html).not.toContain("72");
+    });
+
+    it("renders nothing when every series is empty", () => {
+      const html = render(
+        <MetricStatStrip
+          groupLabel="Blood pressure"
+          series={[
+            { dataKey: "sys", summary: null, unit: "mmHg" },
+            { dataKey: "dia", summary: null, unit: "mmHg" },
+          ]}
+        />,
+      );
+      expect(html).toBe("");
+    });
+
+    it("pins the 'selected range' pill on a brushed series", () => {
+      const html = render(
+        <MetricStatStrip
+          groupLabel="Blood pressure"
+          series={[
+            {
+              dataKey: "sys",
+              summary: sys,
+              unit: "mmHg",
+              seriesLabel: "Sys",
+              windowStats: {
+                count: 5,
+                min: 120,
+                max: 130,
+                median: 125,
+                mean: 124,
+              },
+            },
+            { dataKey: "dia", summary: dia, unit: "mmHg", seriesLabel: "Dia" },
+          ]}
+        />,
+      );
+      // The brushed sys block flags windowed + carries the pill; dia does not.
+      expect(html).toContain('data-series="sys" data-windowed="true"');
+      expect(html).toContain('data-slot="metric-stat-window-badge"');
+      // Windowed numbers win over the full-range summary for sys.
+      expect(html).toContain("120");
+    });
+  });
 });

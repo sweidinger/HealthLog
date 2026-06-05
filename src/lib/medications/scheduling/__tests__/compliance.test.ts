@@ -6,7 +6,7 @@
  */
 
 import { describe, expect, it } from "vitest";
-import { complianceChips } from "../compliance";
+import { complianceChips, streaksFromTimeline } from "../compliance";
 import { buildCadenceTimeline } from "../cadence";
 import type {
   CadenceEngineContext,
@@ -356,4 +356,77 @@ describe("complianceChips — canonical-engine delegation (v1.7.0 SB-SCHED-2)", 
     expect(timeline.length).toBe(2);
   });
 
+});
+
+describe("streaksFromTimeline — DST-correct day walk", () => {
+  const DAILY_8AM: ScheduleLike = {
+    windowStart: "08:00",
+    windowEnd: "09:00",
+    daysOfWeek: null,
+  };
+
+  it("does not drop a day across a spring-forward (23h) boundary", () => {
+    // Europe/Berlin spring-forward is 2025-03-30 (23h-wide local day).
+    // Take every dose for a window spanning the transition; the streak
+    // must count every local calendar day, not skip the 23h day. The
+    // prior fixed +24h step landed past the 23h day and the windowDays
+    // iteration ran short.
+    const tz = "Europe/Berlin";
+    // NOW = local noon on 2025-04-02 (CEST, UTC+2 → 10:00 UTC).
+    const NOW = new Date("2025-04-02T10:00:00Z");
+    const windowDays = 7; // covers 2025-03-27 .. 2025-04-02 inclusive.
+    const events: IntakeEventLike[] = [];
+    for (
+      let day = new Date("2025-03-27T06:30:00Z");
+      day.getTime() <= NOW.getTime();
+      day = new Date(day.getTime() + 24 * 60 * 60 * 1000)
+    ) {
+      events.push({
+        scheduledFor: new Date(day),
+        takenAt: new Date(day.getTime() + 30 * 60_000),
+        skipped: false,
+      });
+    }
+    const timeline = buildCadenceTimeline(
+      [DAILY_8AM],
+      events,
+      NOW,
+      windowDays,
+      undefined,
+      tz,
+    );
+    const { current } = streaksFromTimeline(timeline, NOW, windowDays, tz);
+    // Every one of the 7 local days (including the 23h spring-forward
+    // day) was taken → an unbroken 7-day streak.
+    expect(current).toBe(7);
+  });
+
+  it("visits each local day once across a fall-back (25h) boundary", () => {
+    // Europe/Berlin fall-back is 2025-10-26 (25h-wide local day).
+    const tz = "Europe/Berlin";
+    const NOW = new Date("2025-10-29T11:00:00Z"); // local noon CET.
+    const windowDays = 7;
+    const events: IntakeEventLike[] = [];
+    for (
+      let day = new Date("2025-10-23T07:30:00Z");
+      day.getTime() <= NOW.getTime();
+      day = new Date(day.getTime() + 24 * 60 * 60 * 1000)
+    ) {
+      events.push({
+        scheduledFor: new Date(day),
+        takenAt: new Date(day.getTime() + 30 * 60_000),
+        skipped: false,
+      });
+    }
+    const timeline = buildCadenceTimeline(
+      [DAILY_8AM],
+      events,
+      NOW,
+      windowDays,
+      undefined,
+      tz,
+    );
+    const { current } = streaksFromTimeline(timeline, NOW, windowDays, tz);
+    expect(current).toBe(7);
+  });
 });

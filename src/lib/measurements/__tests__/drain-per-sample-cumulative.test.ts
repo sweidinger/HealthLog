@@ -324,3 +324,95 @@ describe("drainPerSampleCumulative — cutoffHours", () => {
     expect(call.where.measuredAt).toBeUndefined();
   });
 });
+
+// A1 — a late watch sync after a day's total was already collapsed must
+// FOLD the new per-sample rows into the existing total, never overwrite
+// it with just the partial late sum (the original samples are gone).
+describe("drainPerSampleCumulative — late-sync fold into existing total", () => {
+  function buildFoldMock(existingValue: number | null) {
+    const findManyUser = vi.fn().mockResolvedValue([
+      { id: "user-1", timezone: "Europe/Berlin" },
+    ]);
+
+    // Only ACTIVITY_STEPS yields the late per-sample rows; every other
+    // cumulative type returns an empty scan so the run stays a single
+    // bucket.
+    const findManyMeasurement = vi.fn(
+      async (args: { where: { type: string } }) => {
+        if (args.where.type === "ACTIVITY_STEPS") {
+          return [
+            {
+              id: "late-1",
+              type: "ACTIVITY_STEPS",
+              value: 300,
+              measuredAt: new Date("2026-05-16T20:00:00.000Z"),
+              externalId: "hk-uuid-late-1",
+            },
+            {
+              id: "late-2",
+              type: "ACTIVITY_STEPS",
+              value: 200,
+              measuredAt: new Date("2026-05-16T21:00:00.000Z"),
+              externalId: "hk-uuid-late-2",
+            },
+          ];
+        }
+        return [];
+      },
+    );
+
+    const upsert = vi.fn().mockResolvedValue({});
+    const deleteMany = vi.fn().mockResolvedValue({ count: 2 });
+    const findUnique = vi.fn().mockResolvedValue(
+      existingValue === null ? null : { value: existingValue },
+    );
+    const findFirst = vi.fn().mockResolvedValue({ unit: "count" });
+
+    const tx = {
+      measurement: { upsert, deleteMany, findUnique, findFirst },
+    };
+
+    return {
+      prisma: {
+        user: { findMany: findManyUser },
+        measurement: { findMany: findManyMeasurement },
+        $transaction: vi.fn(async (cb: (t: typeof tx) => Promise<unknown>) =>
+          cb(tx),
+        ),
+      } as unknown as PrismaClient,
+      upsert,
+      findUnique,
+    };
+  }
+
+  it("folds late samples into a pre-existing collapsed total (no shrink)", async () => {
+    // Day already collapsed to 9000 on an earlier run; a late sync of
+    // 300 + 200 = 500 must take the row to 9500, not down to 500.
+    const { prisma, upsert, findUnique } = buildFoldMock(9000);
+
+    await drainPerSampleCumulative(prisma, { log: () => {} });
+
+    expect(findUnique).toHaveBeenCalledTimes(1);
+    expect(upsert).toHaveBeenCalledTimes(1);
+    const upsertArg = upsert.mock.calls[0]?.[0] as {
+      update: { value: number };
+    };
+    expect(upsertArg.update.value).toBe(9500);
+  });
+
+  it("mints the partial sum when no collapsed total exists yet", async () => {
+    const { prisma, upsert } = buildFoldMock(null);
+
+    await drainPerSampleCumulative(prisma, { log: () => {} });
+
+    const upsertArg = upsert.mock.calls[0]?.[0] as {
+      create: { value: number };
+      update: { value: number };
+    };
+    // Fresh day: create branch carries the raw sum; update branch (taken
+    // on an idempotent re-run with no prior total) also resolves to the
+    // raw sum since `existing` was null.
+    expect(upsertArg.create.value).toBe(500);
+    expect(upsertArg.update.value).toBe(500);
+  });
+});

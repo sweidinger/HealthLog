@@ -223,7 +223,7 @@ export function RecommendationFeedback({
         className="text-muted-foreground flex items-center gap-1.5 text-xs"
         data-slot="rec-feedback-confirmation"
       >
-        <Check className="text-dracula-green h-3.5 w-3.5" aria-hidden="true" />
+        <Check className="text-success h-3.5 w-3.5" aria-hidden="true" />
         <span data-feedback-confirmed={verdict}>
           {t("insights.recommendation.feedbackThanks")}
         </span>
@@ -240,12 +240,12 @@ export function RecommendationFeedback({
       >
         {verdict === "up" ? (
           <ThumbsUp
-            className="text-dracula-green h-3.5 w-3.5"
+            className="text-success h-3.5 w-3.5"
             aria-hidden="true"
           />
         ) : (
           <ThumbsDown
-            className="text-dracula-orange h-3.5 w-3.5"
+            className="text-warning h-3.5 w-3.5"
             aria-hidden="true"
           />
         )}
@@ -269,7 +269,7 @@ export function RecommendationFeedback({
         title={t("insights.recommendation.feedbackHelpful")}
         disabled={disabled}
         onClick={() => submit(true)}
-        className="text-muted-foreground hover:text-dracula-green disabled:hover:text-muted-foreground focus-visible:ring-ring/50 inline-flex min-h-11 min-w-11 items-center justify-center rounded-md transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none disabled:opacity-60"
+        className="text-muted-foreground hover:text-success disabled:hover:text-muted-foreground focus-visible:ring-ring/50 inline-flex min-h-11 min-w-11 items-center justify-center rounded-md transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none disabled:opacity-60"
       >
         {submittingUp ? (
           <Loader2 className="h-3.5 w-3.5 animate-spin motion-reduce:animate-none" aria-hidden="true" />
@@ -284,7 +284,7 @@ export function RecommendationFeedback({
         title={t("insights.recommendation.feedbackNotHelpful")}
         disabled={disabled}
         onClick={() => submit(false)}
-        className="text-muted-foreground hover:text-dracula-orange disabled:hover:text-muted-foreground focus-visible:ring-ring/50 inline-flex min-h-11 min-w-11 items-center justify-center rounded-md transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none disabled:opacity-60"
+        className="text-muted-foreground hover:text-warning disabled:hover:text-muted-foreground focus-visible:ring-ring/50 inline-flex min-h-11 min-w-11 items-center justify-center rounded-md transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none disabled:opacity-60"
       >
         {submittingDown ? (
           <Loader2 className="h-3.5 w-3.5 animate-spin motion-reduce:animate-none" aria-hidden="true" />

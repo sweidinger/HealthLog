@@ -5,6 +5,11 @@ import {
   formatPreviousContextForPrompt,
   getPreviousInsightContext,
 } from "@/lib/insights/memory";
+import {
+  buildAssessmentContextBlock,
+  computeSteadyRun,
+  pickVarietyLead,
+} from "@/lib/insights/assessment-context";
 import { pearsonCorrelation } from "@/lib/analytics/correlations";
 import { applyPayloadBudget } from "@/lib/insights/bucket-series";
 import {
@@ -456,6 +461,26 @@ export async function generateMoodStatusForUser(
     locale,
   );
 
+  // v1.12.7 — diversity / anti-repetition block (see blood-pressure-status).
+  // MOOD is mood-entry backed (not a MeasurementType), so the cross-metric
+  // RELATIONS sub-block is sourced from the snapshot's own crossMetricContext
+  // rather than the measurement discovery engine; relations stays empty here
+  // and the variety / data-strength / repetition signals carry the rotation.
+  const varietyLead = pickVarietyLead(userId, "mood", todayKey);
+  const steadyRun = computeSteadyRun(moodGraded.weekly, moodGraded.monthly);
+  const assessmentContextBlock = buildAssessmentContextBlock(
+    {
+      varietyLead,
+      dataStrength: {
+        points: moodSeries.daily.length,
+        newestDaysAgo: newestEntryDaysAgo,
+      },
+      repeatCount: steadyRun,
+      relations: [],
+    },
+    locale,
+  );
+
   const outcome = await runStatusCompletion({
     userId,
     cacheAction,
@@ -466,8 +491,10 @@ export async function generateMoodStatusForUser(
       todayKey,
       locale,
       previousContextBlock,
+      assessmentContextBlock,
     ),
-    temperature: 0.3,
+    // v1.12.7 — match the archetype cards' 0.45.
+    temperature: 0.45,
     maxTokens: 1000,
   });
 

@@ -1494,7 +1494,8 @@
       "sat": "Saturday",
       "sun": "Sunday"
     },
-    "rangeBand": "Range"
+    "rangeBand": "Range",
+    "selectRange": "Select a range"
   },
   "chart": {
     "overlay": {
@@ -1679,7 +1680,10 @@
       "statLatest": "Latest",
       "statMin": "Min",
       "statMax": "Max",
-      "empty": "No VO₂ max data yet — sync Apple Health to populate this view."
+      "empty": "No VO₂ max data yet — sync Apple Health to populate this view.",
+      "cardioLinkTitle": "Cardio fitness (VO₂ max)",
+      "cardioLinkBody": "VO₂ max is the headline measure of aerobic fitness. The full chart and assessment live on its own page.",
+      "cardioLinkCta": "Open cardio fitness"
     },
     "trendAnnotation": {
       "emptyBp": "Awaiting more data to annotate this trend.",
@@ -1983,6 +1987,7 @@
       }
     },
     "subPage": {
+      "loadError": "Could not load this metric right now.",
       "blutdruckDescription": "Your systolic / diastolic trend with age-personalised target zones and a written assessment.",
       "gewichtDescription": "Weight trend mapped against your height-derived healthy band, plus a written assessment.",
       "pulsDescription": "Pulse trend against the personalised Karvonen target band, plus a written assessment.",
@@ -2104,7 +2109,8 @@
         "min": "Min",
         "max": "Max",
         "median": "Median",
-        "mean": "Mean"
+        "mean": "Mean",
+        "selectedRange": "Selected range"
       },
       "showAllValues": "Show all readings",
       "valuesPageTitle": "{metric} — all readings",
@@ -2603,7 +2609,7 @@
       },
       "discovery": {
         "title": "What stands out",
-        "description": "Day-to-day relationships involving your mood that hold up after correcting for testing many pairs at once.",
+        "subheading": "Discovered relationships",
         "footer": "Surfaced from {tested} day-to-day pairs tested across all your metrics, after the false-discovery correction.",
         "empty": "No mood relationships cleared the statistical bar yet. Keep logging.",
         "disclaimer": "Statistically filtered, but still observational — a pattern worth watching, not a cause.",

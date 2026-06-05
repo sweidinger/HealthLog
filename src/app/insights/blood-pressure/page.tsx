@@ -7,6 +7,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { useInsightsAnalytics } from "@/hooks/use-insights-analytics";
 import { useTranslations } from "@/lib/i18n/context";
 import { useInsightsLayoutPrefs } from "@/hooks/use-insights-layout-prefs";
+import { useChartDomainStats } from "@/hooks/use-chart-domain-stats";
 import { Button } from "@/components/ui/button";
 import { HealthChartDynamic } from "@/components/charts/health-chart-dynamic";
 import { SlugInsightStatusCard } from "@/components/insights/slug-insight-status-card";
@@ -49,6 +50,11 @@ export default function InsightsBlutdruckPage() {
   // metrics carry. Both summaries ride the same `summaries` slice.
   const sysSummary = analytics?.summaries?.BLOOD_PRESSURE_SYS ?? null;
   const diaSummary = analytics?.summaries?.BLOOD_PRESSURE_DIA ?? null;
+
+  // v1.12.7 — chart-reactive metric statistics. Blood pressure brushes BOTH
+  // series at once: the single chart reports per-type windowed stats and each
+  // strip reads its own half.
+  const { statsByType, onDomainStats } = useChartDomainStats();
 
   if (isEmpty) {
     return (
@@ -106,22 +112,35 @@ export default function InsightsBlutdruckPage() {
       explainerMetric="bloodPressure"
       coachLaunch
       statStrip={
-        <div className="space-y-3" data-slot="bp-stat-strips">
-          <MetricStatStrip
-            summary={sysSummary}
-            unit="mmHg"
-            fractionDigits={0}
-            seriesLabel={t("charts.systolic")}
-            icon={ArrowUpRight}
-          />
-          <MetricStatStrip
-            summary={diaSummary}
-            unit="mmHg"
-            fractionDigits={0}
-            seriesLabel={t("charts.diastolic")}
-            icon={ArrowDownRight}
-          />
-        </div>
+        // v1.12.7 — blood pressure is two series, but they share ONE card
+        // with the systolic / diastolic columns side by side (stacking only
+        // on narrow mobile) rather than two stacked cards. Each column keeps
+        // its header, its four stats, and its own brushed-window behaviour:
+        // brushing the single chart reports per-type windowed stats and each
+        // column reads its own half.
+        <MetricStatStrip
+          groupLabel={t("insights.bloodPressureSectionTitle")}
+          series={[
+            {
+              dataKey: "sys",
+              summary: sysSummary,
+              unit: "mmHg",
+              fractionDigits: 0,
+              seriesLabel: t("charts.systolic"),
+              icon: ArrowUpRight,
+              windowStats: statsByType?.BLOOD_PRESSURE_SYS ?? null,
+            },
+            {
+              dataKey: "dia",
+              summary: diaSummary,
+              unit: "mmHg",
+              fractionDigits: 0,
+              seriesLabel: t("charts.diastolic"),
+              icon: ArrowDownRight,
+              windowStats: statsByType?.BLOOD_PRESSURE_DIA ?? null,
+            },
+          ]}
+        />
       }
       diversityNudge={
         <MeasurementDiversityNudge
@@ -142,6 +161,8 @@ export default function InsightsBlutdruckPage() {
         targetZones={bpTargetZones}
         compareBaseline={compareBaseline}
         userTimezone={user?.timezone}
+        selectableDomain
+        onDomainStats={onDomainStats}
       />
 
       {/* v1.12.4 — target card sits between the chart and the assessment on

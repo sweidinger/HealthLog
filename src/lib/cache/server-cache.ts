@@ -339,10 +339,29 @@ export class ServerCache<T> {
  * `/api/mood/analytics`) without churning the helper module.
  */
 export const caches = {
+  /**
+   * Slim / thick analytics cells, the iOS summary cell, the dashboard
+   * summary, AND the unified dashboard first-paint snapshot (per-key TTL
+   * override). 60 s fresh TTL keeps multiple sub-page mounts inside a
+   * minute on a warm entry.
+   *
+   * v1.12.7 — stale-while-revalidate window. The snapshot read uses
+   * `cachedSwr` and a measurement write marks the bucket stale (not a
+   * hard evict) via `invalidateUserMeasurements`, so a high-frequency
+   * iOS Apple-Health sync no longer busts the snapshot into a cold
+   * rebuild on every batch (the v1.8.7 "sync evicting the cache all day"
+   * class, on the dashboard snapshot). Slim / thick / summary cells read
+   * via plain `cached` are unaffected: a marked-stale entry has
+   * `expiresAt === now`, so their next `cached` read is a clean miss and
+   * rebuilds fresh — only the `cachedSwr` snapshot serves stale + warms a
+   * background recompute. The 10-minute stale window bounds how old a
+   * served snapshot can be when no reader triggers a revalidation.
+   */
   analytics: new ServerCache<unknown>({
     name: "analytics",
     maxEntries: 1000,
     ttlMs: 60_000,
+    staleTtlMs: 600_000,
   }),
   medications: new ServerCache<unknown>({
     name: "medications",

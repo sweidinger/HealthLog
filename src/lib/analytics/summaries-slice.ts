@@ -70,6 +70,7 @@ import {
 import {
   isFullyCovered,
   probeRollupCoverage,
+  type RollupCoverageMap,
 } from "@/lib/rollups/measurement-coverage";
 import { readBestGranularityRollups } from "@/lib/rollups/measurement-read-wmy";
 import {
@@ -220,6 +221,16 @@ export interface SummariesSlice {
 
 export async function computeSummariesSlice(
   userId: string,
+  /**
+   * v1.12.7 A5 — optional pre-probed coverage map. The dashboard
+   * snapshot already calls `probeRollupCoverage` up front to decide
+   * whether to run the thick `extras` phase, then called this slice
+   * which re-probed the identical query. Threading the map in lets the
+   * slice reuse it and saves one round-trip on the snapshot's hot path.
+   * Omit it (every other caller) to keep the internal probe as the
+   * fallback — byte-stable for those callers.
+   */
+  precomputedCoverage?: RollupCoverageMap,
 ): Promise<SummariesSlice> {
   // v1.4.37.1 hotfix — fire-and-forget. See `src/app/api/analytics/route.ts`
   // for the full rationale: awaiting this on the read path can stall
@@ -242,7 +253,7 @@ export async function computeSummariesSlice(
   // only take the rollup path when EVERY type the user has logged is
   // covered. Partial coverage falls back to the live aggregate so the
   // brand-new-type case stays correct.
-  const coverage = await probeRollupCoverage(userId);
+  const coverage = precomputedCoverage ?? (await probeRollupCoverage(userId));
   if (isFullyCovered(coverage)) {
     return withSleepNightTotals(userId, await computeFromRollups(userId));
   }

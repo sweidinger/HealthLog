@@ -7,6 +7,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { useInsightsAnalytics } from "@/hooks/use-insights-analytics";
 import { useTranslations } from "@/lib/i18n/context";
 import { useInsightsLayoutPrefs } from "@/hooks/use-insights-layout-prefs";
+import { useChartDomainStats } from "@/hooks/use-chart-domain-stats";
 import { Button } from "@/components/ui/button";
 import { HealthChartDynamic } from "@/components/charts/health-chart-dynamic";
 import { SlugInsightStatusCard } from "@/components/insights/slug-insight-status-card";
@@ -38,6 +39,9 @@ export default function InsightsGewichtPage() {
 
   const { data: analytics, isEmpty } = useInsightsAnalytics("WEIGHT");
   const weightSummary = analytics?.summaries?.WEIGHT ?? null;
+
+  // v1.12.7 — brushed-window stats shared between the chart and the strip.
+  const { statsByType, onDomainStats } = useChartDomainStats();
 
   if (isEmpty) {
     return (
@@ -81,6 +85,7 @@ export default function InsightsGewichtPage() {
           unit="kg"
           seriesLabel={t("insights.weightSectionTitle")}
           icon={Scale}
+          windowStats={statsByType?.WEIGHT ?? null}
         />
       }
       diversityNudge={
@@ -102,6 +107,8 @@ export default function InsightsGewichtPage() {
         valueBands={weightBands}
         compareBaseline={compareBaseline}
         userTimezone={user?.timezone}
+        selectableDomain
+        onDomainStats={onDomainStats}
       />
 
       <MetricTargetSummary slug="weight" />

@@ -8,7 +8,7 @@ const MOOD_SECTION_DE = `METRIK — STIMMUNG / WOHLBEFINDEN:
 - Bei anhaltend sehr niedriger Stimmung (mehrere Tage deutlich unter ~2.5): biete ruhig und autonomie-wahrend einen Unterstützungs-Pfad an — etwa "bei anhaltender Belastung kann ein Gespräch mit einer Vertrauensperson oder einer Fachperson helfen". Nie alarmierend, nie als Diagnose, kein Notfall-Ton; eine sanfte Option, kein Imperativ.
 - Tags: Falls mood.tags vorhanden, kannst du ein wiederkehrendes Tag als möglichen Kontext nennen, ohne einen Zusammenhang zu behaupten.
 - Cross-Metrik: crossMetricContext trägt Korrelationen zu Gewicht, Blutdruck und Puls; nur erwähnen, wenn vorhanden und |r| > 0.4 — als Zusammenhang, nie als Ursache. Erzwinge keinen Querverweis ohne klares Muster.
-- Eine Botschaft: Schließe mit EINEM machbaren, freundlichen Schritt (z.B. an guten Tagen kurz festhalten, was geholfen hat). Bei stabil guter Stimmung das ehrlich anerkennen.`;
+- Eine Botschaft: Schließe NUR DANN mit EINEM machbaren, freundlichen Schritt, wenn der Befund einen nahelegt (z.B. an guten Tagen kurz festhalten, was geholfen hat). Bei stabil guter Stimmung das ehrlich anerkennen und stattdessen einen Punkt nennen, den man im Auge behalten kann, statt einen Schritt zu erzwingen.`;
 
 const MOOD_SECTION_EN = `METRIC — MOOD / WELL-BEING:
 - Scale 1 (very bad) to 5 (very good). The snapshot carries mood.summary + mood.series (graded daily means), mood.target (green/orange band), mood.latestDayFocus and, where present, mood.tags (most frequent mood tags).
@@ -17,7 +17,7 @@ const MOOD_SECTION_EN = `METRIC — MOOD / WELL-BEING:
 - When mood stays very low for several days (clearly below ~2.5), offer a support pathway calmly and in an autonomy-preserving way — e.g. "if the strain persists, talking it through with someone you trust or a professional can help". Never alarming, never a diagnosis, no emergency tone; a gentle option, not an imperative.
 - Tags: if mood.tags is present, you may name a recurring tag as possible context, without claiming a link.
 - Cross-metric: crossMetricContext carries correlations to weight, blood pressure and pulse; mention only when present and |r| > 0.4 — as an association, never a cause. Do not force a cross-link without a clear pattern.
-- One message: close with ONE doable, kind step (e.g. on good days, briefly note what helped). When mood is steadily good, acknowledge that honestly.`;
+- One message: close with ONE doable, kind step ONLY when the finding implies one (e.g. on good days, briefly note what helped). When mood is steadily good, acknowledge that honestly and name one thing worth keeping an eye on instead of manufacturing a step.`;
 
 export function getMoodSystemPrompt(locale: Locale): string {
   const section = locale === "en" ? MOOD_SECTION_EN : MOOD_SECTION_DE;
@@ -31,19 +31,25 @@ export function getMoodUserPrompt(
   todayKey: string,
   locale: Locale,
   previousContextBlock?: string,
+  /** v1.12.7 — diversity / anti-repetition context; see blood-pressure.ts. */
+  assessmentContextBlock?: string,
 ): string {
   const ctxBlock =
     previousContextBlock && previousContextBlock.trim().length > 0
       ? `\n\n${previousContextBlock}\n`
       : "";
+  const extraBlock =
+    assessmentContextBlock && assessmentContextBlock.trim().length > 0
+      ? `\n\n${assessmentContextBlock}\n`
+      : "";
   if (locale === "en") {
     return `Date: ${todayKey} (Europe/Berlin)
-Write one short assessment of this person's mood: name the recent level, place it against their own weekly/monthly baseline, and close with one kind, doable step. Judge confidence from the entry count and recency.${ctxBlock}
+Write one short assessment of this person's mood: name the recent level, place it against their own weekly/monthly baseline, and — when something is genuinely actionable — close with one kind, doable step; when nothing is, skip the step rather than manufacture filler. Judge confidence from the entry count and recency.${ctxBlock}${extraBlock}
 
 ${snapshotJson}`;
   }
   return `Datum: ${todayKey} (Europe/Berlin)
-Schreibe eine kurze Einschätzung zur Stimmung dieser Person: benenne das jüngste Niveau, ordne es gegen die eigene Wochen-/Monats-Baseline ein und schließe mit einem freundlichen, machbaren Schritt. Konfidenz aus Eintragsanzahl und Aktualität ableiten.${ctxBlock}
+Schreibe eine kurze Einschätzung zur Stimmung dieser Person: benenne das jüngste Niveau, ordne es gegen die eigene Wochen-/Monats-Baseline ein und schließe — wenn etwas wirklich umsetzbar ist — mit einem freundlichen, machbaren Schritt; ist nichts umsetzbar, lass den Schritt weg statt Fülltext zu erfinden. Konfidenz aus Eintragsanzahl und Aktualität ableiten.${ctxBlock}${extraBlock}
 
 ${snapshotJson}`;
 }

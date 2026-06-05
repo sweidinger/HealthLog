@@ -31,8 +31,8 @@ import { useTranslations } from "@/lib/i18n/context";
 
 // v1.4.27 MB7 / CF-52 — the in-file `NATIVE_SELECT_CLASS` constant
 // retired; the shared `<NativeSelect>` primitive owns the visual
-// contract now. The `sm:max-w-sm` modifier still composes via the
-// `className` prop below so the picker keeps its narrow desktop width.
+// contract now. The select spans the full width of its grid cell so it
+// lines up with the fields above it rather than sitting narrower.
 
 export interface TimezonePickerProps {
   /** The user's current stored timezone. */
@@ -82,7 +82,7 @@ export function TimezonePicker({
         id={id}
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="sm:max-w-sm"
+        className="w-full"
       >
         {/* Preserve the stored value even if the runtime's IANA
             list changed across engines or tzdata rolls. */}

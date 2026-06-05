@@ -1494,7 +1494,8 @@
       "sat": "Sábado",
       "sun": "Domingo"
     },
-    "rangeBand": "Rango"
+    "rangeBand": "Rango",
+    "selectRange": "Seleccionar un intervalo"
   },
   "chart": {
     "overlay": {
@@ -1679,7 +1680,10 @@
       "statLatest": "Actual",
       "statMin": "Mín",
       "statMax": "Máx",
-      "empty": "Aún no hay datos de VO₂ máx — sincroniza Apple Health para llenar esta vista."
+      "empty": "Aún no hay datos de VO₂ máx — sincroniza Apple Health para llenar esta vista.",
+      "cardioLinkTitle": "Forma cardiovascular (VO₂ máx)",
+      "cardioLinkBody": "El VO₂ máx es la medida principal de la forma aeróbica. El gráfico completo y la evaluación están en su propia página.",
+      "cardioLinkCta": "Abrir forma cardiovascular"
     },
     "trendAnnotation": {
       "emptyBp": "Necesitamos más datos para comentar esta tendencia.",
@@ -1983,6 +1987,7 @@
       }
     },
     "subPage": {
+      "loadError": "No se pudo cargar esta métrica ahora mismo.",
       "blutdruckDescription": "Tu evolución sistólica/diastólica con rangos objetivo ajustados a la edad y una valoración en texto.",
       "gewichtDescription": "Evolución del peso frente a la banda saludable derivada de tu altura, con valoración.",
       "pulsDescription": "Resting pulse vs. the personalised Karvonen target band, plus a written assessment.",
@@ -2104,7 +2109,8 @@
         "min": "Mín",
         "max": "Máx",
         "median": "Mediana",
-        "mean": "Media"
+        "mean": "Media",
+        "selectedRange": "Intervalo seleccionado"
       },
       "showAllValues": "Mostrar todas las mediciones",
       "valuesPageTitle": "{metric} — todas las mediciones",
@@ -2603,7 +2609,7 @@
       },
       "discovery": {
         "title": "Lo que destaca",
-        "description": "Relaciones de un día a otro con tu estado de ánimo que se mantienen tras corregir el haber probado muchos pares a la vez.",
+        "subheading": "Relaciones descubiertas",
         "footer": "Extraídas de {tested} pares de un día a otro probados en todas tus métricas, tras la corrección de falsos descubrimientos.",
         "empty": "Todavía ninguna relación de ánimo superó el umbral estadístico. Sigue registrando.",
         "disclaimer": "Filtrado estadísticamente, pero aún observacional: un patrón que vale la pena observar, no una causa.",

@@ -21,6 +21,7 @@
 
 import {
   buildCadenceTimeline,
+  startOfLocalDay,
   type CadenceEngineContext,
   type IntakeEventLike,
   type PairedDose,
@@ -77,8 +78,13 @@ function localDayKey(d: Date, tz: string | undefined): string {
  * (inclusive of today). The streak does not reset on a day that had
  * no expected doses — the user gets credit for not breaking on
  * non-scheduled days.
+ *
+ * Exported so `src/lib/analytics/compliance.ts` can share this exact
+ * timezone-aware streak math instead of duplicating it with host-tz
+ * day keys — the two call sites stay byte-for-byte identical on the
+ * streak rule.
  */
-function streaksFromTimeline(
+export function streaksFromTimeline(
   timeline: PairedDose[],
   asOf: Date,
   windowDays: number,
@@ -100,26 +106,35 @@ function streaksFromTimeline(
   let longest = 0;
   let run = 0;
 
-  // Walk the window day-by-day from oldest to newest. Stepping by
-  // 25 h then re-keying via `localDayKey` keeps the cursor inside
-  // the right calendar day across DST boundaries — the absolute
-  // distance between two consecutive local midnights is 23/24/25 h
-  // around spring-forward / fall-back.
-  let cursor = new Date(asOf.getTime() - (windowDays - 1) * DAY_MS);
-  let lastKey = "";
-  for (let i = 0; i < windowDays; i++) {
-    const key = localDayKey(cursor, timeZone);
-    if (key !== lastKey) {
-      const state = byDay.get(key);
-      if (state === "bad") {
-        if (run > longest) longest = run;
-        run = 0;
-      } else {
-        run++;
-      }
-      lastKey = key;
+  // Walk the window day-by-day from oldest to newest. Snap each cursor
+  // to the user-local midnight and advance by +25 h then re-snap — the
+  // distance between two consecutive local midnights is 23 / 24 / 25 h
+  // around spring-forward / fall-back, and +25 h always clears the
+  // shortest (23 h) day while the re-snap collapses the longest (25 h)
+  // day back to its own midnight. This visits every local calendar day
+  // in the window exactly once instead of the prior fixed +24 h step
+  // that could skip a day on a 23 h spring-forward boundary (its
+  // comment already claimed 25 h while the code stepped 24 h).
+  const startDay = startOfLocalDay(
+    new Date(asOf.getTime() - (windowDays - 1) * DAY_MS),
+    timeZone,
+  );
+  const endDay = startOfLocalDay(asOf, timeZone);
+  for (
+    let cursor = startDay;
+    cursor.getTime() <= endDay.getTime();
+    cursor = startOfLocalDay(
+      new Date(cursor.getTime() + 25 * 60 * 60 * 1000),
+      timeZone,
+    )
+  ) {
+    const state = byDay.get(localDayKey(cursor, timeZone));
+    if (state === "bad") {
+      if (run > longest) longest = run;
+      run = 0;
+    } else {
+      run++;
     }
-    cursor = new Date(cursor.getTime() + DAY_MS);
   }
   if (run > longest) longest = run;
   current = run;
