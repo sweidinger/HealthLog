@@ -2,7 +2,22 @@
 
 ## [Unreleased]
 
-## [1.12.7] — 2026-06-05 — Insights that react, read clean, and stay legible
+## [1.12.8] — 2026-06-05 — fuller WHOOP data, charts that follow your selection
+
+### Added
+
+- **WHOOP now records more of what it measures.** Daily average heart rate, daily max heart rate, and per-night sleep disturbances are imported alongside the recovery, sleep, cycle and workout data already synced.
+
+### Changed
+
+- **The stats above a chart follow the range you pick.** Choosing 7 / 30 / 90 days or a year now recomputes the min / max / median / average for exactly that span — the numbers always match what the chart shows. The separate draggable range slider is removed.
+- **Every chart leads with the same titled header** as the rest of the Insights tiles, for one consistent layout.
+- **The wellness dials are refreshed** — a white ring on a gradient tile, matching the greeting card.
+- **On the pulse page, the assessment sits above the cardio-fitness link**, and the assessment card's heading sits closer to its text.
+
+### Fixed
+
+- **AI insights use the current default models consistently** across every path, so the shared-key experience matches the rest.
 
 ### Added
 
