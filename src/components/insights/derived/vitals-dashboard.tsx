@@ -11,6 +11,7 @@ import {
   MEASUREMENT_TYPE_ICONS,
   MEASUREMENT_TYPE_LABEL_KEYS,
 } from "@/components/measurements/measurement-list-meta";
+import { TileHeader } from "@/components/insights/tile-header";
 import { SparklineDeltaTile } from "./sparkline-delta-tile";
 import { CoverageMeter } from "./coverage-meter";
 import { ProvenanceExplainer } from "./provenance-explainer";
@@ -182,12 +183,7 @@ function BaselineTile({
         data-state="provisional"
         className="bg-card border-border flex h-full w-full min-w-0 flex-col gap-3 rounded-xl border p-4 md:p-6"
       >
-        <div className="flex items-center justify-between gap-2">
-          <span className="text-muted-foreground truncate text-xs font-medium tracking-wide uppercase">
-            {label}
-          </span>
-          <Icon className="text-muted-foreground h-4 w-4 shrink-0" />
-        </div>
+        <TileHeader icon={Icon} title={label} titleClassName="truncate" />
         <p className="text-muted-foreground text-sm" data-slot="vitals-tile-building">
           {t("insights.derived.vitals.building", {
             count: data.coverage.historyDays,
@@ -352,12 +348,11 @@ function HrvBalanceTile({ read, isLoading }: TileProps) {
         data-state="provisional"
         className="bg-card border-border flex h-full w-full min-w-0 flex-col gap-3 rounded-xl border p-4 md:p-6"
       >
-        <div className="flex items-center justify-between gap-2">
-          <span className="text-muted-foreground truncate text-xs font-medium tracking-wide uppercase">
-            {t("measurements.typeHeartRateVariability")}
-          </span>
-          <HeartPulse className="text-muted-foreground h-4 w-4 shrink-0" />
-        </div>
+        <TileHeader
+          icon={HeartPulse}
+          title={t("measurements.typeHeartRateVariability")}
+          titleClassName="truncate"
+        />
         <p className="text-muted-foreground text-sm">
           {t("insights.derived.vitals.building", {
             count: data.coverage.historyDays,
@@ -531,9 +526,10 @@ export function VitalsDashboard({ batch, className }: DashboardProps) {
           aria-label={t("insights.derived.vitals.sectionTitle")}
           className="space-y-3"
         >
-          <h2 className="text-foreground text-sm font-semibold tracking-tight">
-            {t("insights.derived.vitals.sectionTitle")}
-          </h2>
+          <TileHeader
+            icon={HeartPulse}
+            title={t("insights.derived.vitals.sectionTitle")}
+          />
           <div
             data-slot="vitals-dashboard-error"
             role="alert"
@@ -572,9 +568,10 @@ export function VitalsDashboard({ batch, className }: DashboardProps) {
           aria-label={t("insights.derived.vitals.sectionTitle")}
           className="space-y-3"
         >
-          <h2 className="text-foreground text-sm font-semibold tracking-tight">
-            {t("insights.derived.vitals.sectionTitle")}
-          </h2>
+          <TileHeader
+            icon={HeartPulse}
+            title={t("insights.derived.vitals.sectionTitle")}
+          />
           <div
             data-slot="vitals-dashboard-grid"
             aria-busy={isLoading}
@@ -615,9 +612,10 @@ export function VitalsDashboard({ batch, className }: DashboardProps) {
           aria-label={t("insights.derived.vitals.mobilitySectionTitle")}
           className="space-y-3"
         >
-          <h2 className="text-foreground text-sm font-semibold tracking-tight">
-            {t("insights.derived.vitals.mobilitySectionTitle")}
-          </h2>
+          <TileHeader
+            icon={Footprints}
+            title={t("insights.derived.vitals.mobilitySectionTitle")}
+          />
           <div
             data-slot="vitals-mobility-grid"
             className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3"
