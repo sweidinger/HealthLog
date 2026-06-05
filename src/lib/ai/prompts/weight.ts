@@ -10,7 +10,7 @@ const WEIGHT_SECTION_DE = `METRIK — GEWICHT:
 - Meilensteine gegen das eigene Maximum: ~5 % Verlust vom höchsten Wert (series-Max) bringt bereits metabolischen Nutzen, ~10 % einen deutlichen — wenn erreicht, ausdrücklich anerkennen.
 - BMI-Bezug nur als knapper Nebensatz, wenn die Größe im Profil vorliegt (sonst nicht behaupten); die WHO-Band-Einordnung selbst gehört auf die BMI-Karte, nicht hierher.
 - Zusammenhänge: weightVsSystolic.correlation / weightVsMeanBloodPressure.correlation und moodContext.moodVsWeightCorrelation nur erwähnen, wenn vorhanden und |r| > 0.4 — als Zusammenhang, nie als Ursache.
-- Eine Botschaft: Schließe mit EINEM machbaren Schritt, der zur Richtung passt (z.B. bei einem Plateau zur selben Tageszeit wiegen, um den echten Trend zu sehen, statt am Tagesrauschen zu hängen).`;
+- Eine Botschaft: Schließe NUR DANN mit EINEM machbaren Schritt, wenn der Befund einen nahelegt (z.B. bei einem Plateau zur selben Tageszeit wiegen, um den echten Trend zu sehen, statt am Tagesrauschen zu hängen). Ist der Trend stabil und gibt es nichts Sinnvolles zu tun, erkenne das ehrlich an und nenne stattdessen einen Punkt, den man im Auge behalten kann, statt einen Schritt zu erzwingen.`;
 
 const WEIGHT_SECTION_EN = `METRIC — WEIGHT:
 - The snapshot carries weight.summary + weight.series (graded). weight.latestDayFocus shows the latest daily value, the step from the previous measured day and, where present, the same-day blood pressure.
@@ -21,7 +21,7 @@ const WEIGHT_SECTION_EN = `METRIC — WEIGHT:
 - Milestones against their own maximum: ~5% loss from the highest value (series max) already brings metabolic benefit, ~10% a substantial one — acknowledge explicitly when reached.
 - BMI reference only as a brief aside when height is in the profile (do not claim it otherwise); the WHO-band placement itself belongs on the BMI card, not here.
 - Associations: mention weightVsSystolic.correlation / weightVsMeanBloodPressure.correlation and moodContext.moodVsWeightCorrelation only when present and |r| > 0.4 — as an association, never a cause.
-- One message: close with ONE doable step that fits the direction (e.g. on a plateau, weigh at the same time of day to see the real trend rather than the daily noise).`;
+- One message: close with ONE doable step that fits the direction ONLY when the finding implies one (e.g. on a plateau, weigh at the same time of day to see the real trend rather than the daily noise). When the trend is steady and there is nothing useful to do, affirm it honestly and name one thing worth keeping an eye on instead of manufacturing a step.`;
 
 export function getWeightSystemPrompt(locale: Locale): string {
   const section = locale === "en" ? WEIGHT_SECTION_EN : WEIGHT_SECTION_DE;
@@ -35,19 +35,25 @@ export function getWeightUserPrompt(
   todayKey: string,
   locale: Locale,
   previousContextBlock?: string,
+  /** v1.12.7 — diversity / anti-repetition context; see blood-pressure.ts. */
+  assessmentContextBlock?: string,
 ): string {
   const ctxBlock =
     previousContextBlock && previousContextBlock.trim().length > 0
       ? `\n\n${previousContextBlock}\n`
       : "";
+  const extraBlock =
+    assessmentContextBlock && assessmentContextBlock.trim().length > 0
+      ? `\n\n${assessmentContextBlock}\n`
+      : "";
   if (locale === "en") {
     return `Date: ${todayKey} (Europe/Berlin)
-Write one short assessment of this person's weight: name the current level and direction, place the recent days against their own weekly/monthly baseline as a continuous trend and pace (kg/week, plateau, milestone — not the single value, and not the WHO band, which the BMI card covers), and close with one doable step. Judge confidence from the measurement count and recency.${ctxBlock}
+Write one short assessment of this person's weight: name the current level and direction, place the recent days against their own weekly/monthly baseline as a continuous trend and pace (kg/week, plateau, milestone — not the single value, and not the WHO band, which the BMI card covers), and — when something is genuinely actionable — close with one doable step; when nothing is, skip the step rather than manufacture filler. Judge confidence from the measurement count and recency.${ctxBlock}${extraBlock}
 
 ${snapshotJson}`;
   }
   return `Datum: ${todayKey} (Europe/Berlin)
-Schreibe eine kurze Einschätzung zum Gewicht dieser Person: benenne Niveau und Richtung, ordne die jüngsten Tage gegen die eigene Wochen-/Monats-Baseline als kontinuierlichen Trend und Tempo ein (kg/Woche, Plateau, Meilenstein — nicht der Einzelwert und nicht das WHO-Band, das die BMI-Karte trägt) und schließe mit einem machbaren Schritt. Konfidenz aus Messanzahl und Aktualität ableiten.${ctxBlock}
+Schreibe eine kurze Einschätzung zum Gewicht dieser Person: benenne Niveau und Richtung, ordne die jüngsten Tage gegen die eigene Wochen-/Monats-Baseline als kontinuierlichen Trend und Tempo ein (kg/Woche, Plateau, Meilenstein — nicht der Einzelwert und nicht das WHO-Band, das die BMI-Karte trägt) und schließe — wenn etwas wirklich umsetzbar ist — mit einem machbaren Schritt; ist nichts umsetzbar, lass den Schritt weg statt Fülltext zu erfinden. Konfidenz aus Messanzahl und Aktualität ableiten.${ctxBlock}${extraBlock}
 
 ${snapshotJson}`;
 }

@@ -8,6 +8,12 @@ import {
   getPreviousInsightContext,
 } from "@/lib/insights/memory";
 import {
+  buildAssessmentContextBlock,
+  computeSteadyRun,
+  pickVarietyLead,
+} from "@/lib/insights/assessment-context";
+import { getRelevantCorrelationsForMetric } from "@/lib/insights/metric-correlation-context";
+import {
   getAgeFromDateOfBirth,
   getPersonalizedPulseTarget,
 } from "@/lib/analytics/pulse-targets";
@@ -281,6 +287,23 @@ export async function generatePulseStatusForUser(
     locale,
   );
 
+  // v1.12.7 — diversity / anti-repetition block (see blood-pressure-status).
+  const varietyLead = pickVarietyLead(userId, "pulse", todayKey);
+  const steadyRun = computeSteadyRun(pulseGraded.weekly, pulseGraded.monthly);
+  const relations = await getRelevantCorrelationsForMetric(userId, "PULSE");
+  const assessmentContextBlock = buildAssessmentContextBlock(
+    {
+      varietyLead,
+      dataStrength: {
+        points: pulseSeries.daily.length,
+        newestDaysAgo: newestMeasurementDaysAgo,
+      },
+      repeatCount: steadyRun,
+      relations,
+    },
+    locale,
+  );
+
   const outcome = await runStatusCompletion({
     userId,
     cacheAction,
@@ -291,8 +314,10 @@ export async function generatePulseStatusForUser(
       todayKey,
       locale,
       previousContextBlock,
+      assessmentContextBlock,
     ),
-    temperature: 0.3,
+    // v1.12.7 — match the archetype cards' 0.45.
+    temperature: 0.45,
     maxTokens: 1000,
   });
 

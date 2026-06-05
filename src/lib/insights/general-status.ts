@@ -11,6 +11,10 @@ import {
   formatPreviousContextForPrompt,
   getPreviousInsightContext,
 } from "@/lib/insights/memory";
+import {
+  buildAssessmentContextBlock,
+  pickVarietyLead,
+} from "@/lib/insights/assessment-context";
 import { applyPayloadBudget } from "@/lib/insights/bucket-series";
 import {
   buildGradedSeriesFromPoints,
@@ -369,6 +373,25 @@ export async function generateGeneralStatusForUser(
     locale,
   );
 
+  // v1.12.7 — diversity / anti-repetition block (see blood-pressure-status).
+  // The overview spans many metrics with no single graded mean to band, so
+  // the steady-run signal is left to the previous-context comparison
+  // (repeatCount 0) and there is no single discovery channel (relations
+  // empty); the variety lead + overall data-strength carry the rotation.
+  const varietyLead = pickVarietyLead(userId, "general", todayKey);
+  const assessmentContextBlock = buildAssessmentContextBlock(
+    {
+      varietyLead,
+      dataStrength: {
+        points: measurements.length,
+        newestDaysAgo,
+      },
+      repeatCount: 0,
+      relations: [],
+    },
+    locale,
+  );
+
   const outcome = await runStatusCompletion({
     userId,
     cacheAction,
@@ -379,8 +402,10 @@ export async function generateGeneralStatusForUser(
       todayKey,
       locale,
       previousContextBlock,
+      assessmentContextBlock,
     ),
-    temperature: 0.3,
+    // v1.12.7 — match the archetype cards' 0.45.
+    temperature: 0.45,
     maxTokens: 1000,
   });
 

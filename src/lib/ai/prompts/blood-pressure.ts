@@ -11,7 +11,7 @@ const BP_SECTION_DE = `METRIK — BLUTDRUCK:
 - targets: Falls bloodPressure.targets vorhanden, ordne gegen das persönliche Zielband ein; inTargetPctLast30DailyPoints ist der Anteil der letzten Tage im Ziel.
 - Medikamenten-Bezug: bpMedications trägt compliance7/compliance30. bpMedicationContinuityVsSystolic.correlation und weightVsSystolic.correlation nur erwähnen, wenn vorhanden und |r| > 0.4 — als Zusammenhang, nie als Ursache.
 - Stimmung: moodContext.moodVsSystolicCorrelation nur erwähnen, wenn vorhanden und |r| > 0.4.
-- Eine Botschaft: Wenn die Werte über der Baseline liegen, schließe mit EINEM machbaren Schritt (z.B. ein paar Tage zur selben Uhrzeit nachmessen, oder — bei lückenhafter Einnahmetreue — die Einnahme verlässlicher machen). Bei stabilen Werten im Ziel: das ehrlich anerkennen.`;
+- Eine Botschaft: Wenn die Werte über der Baseline liegen, schließe NUR DANN mit EINEM machbaren Schritt, wenn der Befund einen nahelegt (z.B. ein paar Tage zur selben Uhrzeit nachmessen, oder — bei lückenhafter Einnahmetreue — die Einnahme verlässlicher machen). Bei stabilen Werten im Ziel: das ehrlich anerkennen und stattdessen einen Punkt nennen, den man im Auge behalten kann, statt einen Schritt zu erzwingen.`;
 
 const BP_SECTION_EN = `METRIC — BLOOD PRESSURE:
 - The snapshot carries systolic (bloodPressure.systolic) and diastolic (bloodPressure.diastolic), each with a summary + graded series; judge both components TOGETHER, never in isolation.
@@ -23,7 +23,7 @@ const BP_SECTION_EN = `METRIC — BLOOD PRESSURE:
 - targets: if bloodPressure.targets is present, place values against the personal target band; inTargetPctLast30DailyPoints is the share of recent days in target.
 - Medication link: bpMedications carries compliance7/compliance30. Mention bpMedicationContinuityVsSystolic.correlation and weightVsSystolic.correlation only when present and |r| > 0.4 — as an association, never a cause.
 - Mood: mention moodContext.moodVsSystolicCorrelation only when present and |r| > 0.4.
-- One message: if the values sit above the person's baseline, close with ONE doable step (e.g. take a few readings at the same time of day for a few days, or — when adherence is patchy — make the medication routine more reliable). When values are stable and in target, say so honestly.`;
+- One message: if the values sit above the person's baseline, close with ONE doable step ONLY when the finding implies one (e.g. take a few readings at the same time of day for a few days, or — when adherence is patchy — make the medication routine more reliable). When values are stable and in target, say so honestly and name one thing worth keeping an eye on instead of manufacturing a step.`;
 
 export function getBloodPressureSystemPrompt(locale: Locale): string {
   const section = locale === "en" ? BP_SECTION_EN : BP_SECTION_DE;
@@ -37,19 +37,30 @@ export function getBloodPressureUserPrompt(
   todayKey: string,
   locale: Locale,
   previousContextBlock?: string,
+  /**
+   * v1.12.7 — diversity / anti-repetition context (variety lead, data
+   * strength, steady-run repetition signal, cross-metric relations), the
+   * same block the archetype cards carry. Grounded in already-computed
+   * data; optional and may be empty.
+   */
+  assessmentContextBlock?: string,
 ): string {
   const ctxBlock =
     previousContextBlock && previousContextBlock.trim().length > 0
       ? `\n\n${previousContextBlock}\n`
       : "";
+  const extraBlock =
+    assessmentContextBlock && assessmentContextBlock.trim().length > 0
+      ? `\n\n${assessmentContextBlock}\n`
+      : "";
   if (locale === "en") {
     return `Date: ${todayKey} (Europe/Berlin)
-Write one short assessment of this person's blood pressure: name the current systolic/diastolic level, place the recent days against their own weekly/monthly baseline, and close with one doable step. Judge confidence from the measurement count and recency.${ctxBlock}
+Write one short assessment of this person's blood pressure: name the current systolic/diastolic level, place the recent days against their own weekly/monthly baseline, and — when something is genuinely actionable — close with one doable step; when nothing is, skip the step rather than manufacture filler. Judge confidence from the measurement count and recency.${ctxBlock}${extraBlock}
 
 ${snapshotJson}`;
   }
   return `Datum: ${todayKey} (Europe/Berlin)
-Schreibe eine kurze Einschätzung zum Blutdruck dieser Person: benenne das aktuelle systolisch/diastolisch-Niveau, ordne die jüngsten Tage gegen die eigene Wochen-/Monats-Baseline ein und schließe mit einem machbaren Schritt. Konfidenz aus Messanzahl und Aktualität ableiten.${ctxBlock}
+Schreibe eine kurze Einschätzung zum Blutdruck dieser Person: benenne das aktuelle systolisch/diastolisch-Niveau, ordne die jüngsten Tage gegen die eigene Wochen-/Monats-Baseline ein und schließe — wenn etwas wirklich umsetzbar ist — mit einem machbaren Schritt; ist nichts umsetzbar, lass den Schritt weg statt Fülltext zu erfinden. Konfidenz aus Messanzahl und Aktualität ableiten.${ctxBlock}${extraBlock}
 
 ${snapshotJson}`;
 }
