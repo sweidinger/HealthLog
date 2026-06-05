@@ -161,10 +161,10 @@ describe("POST /api/mood-entries/bulk (real Postgres)", () => {
           {
             mood: "GUT",
             moodLoggedAt: "2026-05-16T08:00:00.000Z",
-            // Two valid catalog keys (one from the new hobbies category,
-            // one nutrition-detail key) plus one unknown key that must be
-            // dropped silently.
-            tagKeys: ["movies", "fast_food", "not_a_real_tag"],
+            // Two valid catalog keys (one from the hobbies category, one
+            // health key) plus one unknown key that must be dropped
+            // silently.
+            tagKeys: ["movies", "alcohol", "not_a_real_tag"],
           },
         ],
       }),
@@ -182,7 +182,7 @@ describe("POST /api/mood-entries/bulk (real Postgres)", () => {
     });
     const keys = links.map((l) => l.moodTag.key).sort();
     // The unknown key is dropped; the two catalog keys round-trip.
-    expect(keys).toEqual(["fast_food", "movies"]);
+    expect(keys).toEqual(["alcohol", "movies"]);
   });
 
   it("persists a rated factor with its score on the link (v1.12.0)", async () => {
@@ -195,7 +195,7 @@ describe("POST /api/mood-entries/bulk (real Postgres)", () => {
             moodLoggedAt: "2026-05-16T08:00:00.000Z",
             ratedFactors: [
               { key: "factor_work", rating: 4 },
-              { key: "factor_conflict", rating: 2 },
+              { key: "factor_sleep_quality", rating: 2 },
             ],
           },
         ],
@@ -220,12 +220,18 @@ describe("POST /api/mood-entries/bulk (real Postgres)", () => {
         rating: l.rating,
       })),
     ).toEqual([
-      { key: "factor_conflict", kind: "RATED", rating: 2 },
+      { key: "factor_sleep_quality", kind: "RATED", rating: 2 },
       { key: "factor_work", kind: "RATED", rating: 4 },
     ]);
   });
 
-  it("marks the entry skipped when a rated factor is out of scale (v1.12.0)", async () => {
+  it("rejects the batch when a rated factor falls outside the 1..5 envelope (v1.12.0)", async () => {
+    // Every seeded RATED factor uses the full 1..5 slider scale, so the
+    // outer Zod envelope (1..5) is the binding out-of-range gate — a
+    // rating above it fails parse and 422s the whole batch before any
+    // row lands. The narrower per-tag-scale path (a factor with a tighter
+    // `scaleMin..scaleMax`) is covered by the `resolveRatedFactors` unit
+    // tests.
     const { POST } = await import("@/app/api/mood-entries/bulk/route");
     const res = await POST(
       makeRequest({
@@ -233,26 +239,19 @@ describe("POST /api/mood-entries/bulk (real Postgres)", () => {
           {
             mood: "GUT",
             moodLoggedAt: "2026-05-16T08:00:00.000Z",
-            // factor_conflict scale is 1..2; rating 5 is out of range.
-            ratedFactors: [{ key: "factor_conflict", rating: 5 }],
+            // factor_sleep_quality scale is 1..5; rating 9 is out of range.
+            ratedFactors: [{ key: "factor_sleep_quality", rating: 9 }],
           },
         ],
       }),
     );
-    expect(res.status).toBe(200);
-    const json = (await res.json()) as {
-      data: { entries: Array<{ status: string }> };
-    };
-    expect(json.data.entries[0].status).toBe("skipped");
+    expect(res.status).toBe(422);
 
-    // The mood row upserted, but no rated link landed.
-    const entry = await getPrismaClient().moodEntry.findFirstOrThrow({
+    // Nothing persisted — the batch was rejected at parse time.
+    const entryCount = await getPrismaClient().moodEntry.count({
       where: { userId: TEST_USER_ID },
     });
-    const ratedCount = await getPrismaClient().moodEntryTagLink.count({
-      where: { moodEntryId: entry.id, rating: { not: null } },
-    });
-    expect(ratedCount).toBe(0);
+    expect(entryCount).toBe(0);
   });
 
   it("ignores tagKeys that resolve to no catalog rows", async () => {

@@ -109,8 +109,9 @@ const structuredTagKeys = z.array(z.string().max(60)).max(30);
 // The Zod `rating` bound here is the OUTER envelope (1..5 covers every
 // seeded factor's scale). The REAL gate is per-tag: after resolving each
 // key to its `MoodTag`, the server rejects a rating outside the tag's own
-// `scaleMin..scaleMax` (e.g. 1..2 for `factor_conflict`). See
-// `resolveRatedFactors` in `src/lib/mood/tag-links.ts`.
+// `scaleMin..scaleMax` (every seeded factor is 1..5 today, but a factor
+// with a tighter scale is rejected here too). See `resolveRatedFactors`
+// in `src/lib/mood/tag-links.ts`.
 const ratedFactor = z.object({
   key: z.string().max(60),
   rating: z.number().int().min(1).max(5),
