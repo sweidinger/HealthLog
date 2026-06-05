@@ -2782,7 +2782,7 @@
         }
       },
       "scores": {
-        "sectionTitle": "Scores de bien-être",
+        "sectionTitle": "Tes indicateurs de santé",
         "loadError": "Impossible de charger vos scores de bien-être pour le moment.",
         "recovery": "Récupération",
         "stress": "Stress",

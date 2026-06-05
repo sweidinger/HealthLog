@@ -2782,7 +2782,7 @@
         }
       },
       "scores": {
-        "sectionTitle": "Wellness-Werte",
+        "sectionTitle": "Deine Gesundheitswerte",
         "loadError": "Deine Wellness-Werte konnten gerade nicht geladen werden.",
         "recovery": "Erholung",
         "stress": "Stress",

@@ -66,7 +66,7 @@ describe("<WellnessScores>", () => {
     expect(html).toBe("");
   });
 
-  it("renders a ring tile with an icon + heading and a gradient surface", () => {
+  it("renders a ring tile with an icon + heading on the gentle wellness surface", () => {
     const html = render(
       <WellnessScores
         read={readFrom({ READINESS: ok({ score: 82, band: "green" }) })}
@@ -74,14 +74,14 @@ describe("<WellnessScores>", () => {
       />,
     );
     expect(html).toContain('data-slot="wellness-scores"');
+    expect(html).toContain('data-slot="wellness-score-tile"');
     expect(html).toContain('data-metric="READINESS"');
-    // The tile carries the metric heading and rides the saturated
-    // purple→pink gradient that echoes the hero card.
-    expect(html).toContain("Readiness");
-    expect(html).toContain("score-tile-gradient");
-    // The ring carries its band on the arc + data-attribute (not the number).
+    // The tile rides the gentle, hero-family `.wellness-tile` surface
+    // (asserted by the stable class, not viewport text).
+    expect(html).toContain("wellness-tile");
+    // The ring carries its band on the data-attribute.
     expect(html).toContain('data-band="green"');
-    // The band word renders under the ring (semantic kept off the white arc).
+    // The band word renders under the ring (semantic kept off the arc hue).
     expect(html).toContain('data-slot="wellness-score-band-word"');
   });
 

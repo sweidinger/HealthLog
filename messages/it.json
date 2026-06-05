@@ -2782,7 +2782,7 @@
         }
       },
       "scores": {
-        "sectionTitle": "Punteggi di benessere",
+        "sectionTitle": "I tuoi indicatori di salute",
         "loadError": "Al momento non è stato possibile caricare i tuoi punteggi di benessere.",
         "recovery": "Recupero",
         "stress": "Stress",
