@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [1.12.3] — 2026-06-05 — mark the dose you're looking at
+
+### Fixed
+
+- **Marking a dose "taken" now records the dose on screen, not the one nearest the clock.** For a medication taken more than once a day (e.g. morning and evening), the "Taken" button now targets the specific dose the card is showing, instead of snapping to whichever slot is closest to the current time — so a morning tap can no longer land on the wrong dose.
+
 ## [1.12.2] — 2026-06-05 — WHOOP connect from the app, consistent assessments and medications
 
 ### Added
