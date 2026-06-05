@@ -180,6 +180,14 @@ export const MEASUREMENT_CATEGORIES: ReadonlyMap<
   // Day energy expenditure is a cumulative activity metric (kJ analogue of
   // ACTIVE_ENERGY_BURNED).
   ["ENERGY_EXPENDITURE_KJ", "activity"],
+
+  // ── v1.12.8 — WHOOP cycle + sleep coverage completion ──
+  // Daily average / max heart rate join the derived cardiac surface
+  // alongside RESTING_HEART_RATE + HRV (whole-cycle aggregates, not spot
+  // readings). The per-night disturbance count sits in the sleep cluster.
+  ["AVERAGE_HEART_RATE", "cardiovascular"],
+  ["MAX_HEART_RATE", "cardiovascular"],
+  ["SLEEP_DISTURBANCE_COUNT", "sleep"],
 ]);
 
 /**

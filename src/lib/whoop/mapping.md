@@ -35,9 +35,12 @@ A recovery record with `score === null` (WHOOP still scoring) maps to nothing.
 | `sleep_efficiency_percentage` | `SLEEP_EFFICIENCY` | % | `sleep_eff` | — |
 | `sleep_consistency_percentage` | `SLEEP_CONSISTENCY` | % | `sleep_consistency` | — |
 | `respiratory_rate` | `RESPIRATORY_RATE` | breaths/min | `resp_rate` | — |
+| `stage_summary.disturbance_count` | `SLEEP_DISTURBANCE_COUNT` | count | `disturbances` | — |
 
 Stage durations are ms→minutes (`÷ 60000`). One row per stage per night
-(same pattern as Apple Health). Percentage / respiratory fields are optional.
+(same pattern as Apple Health). Percentage / respiratory / disturbance-count
+fields are optional. `disturbance_count` (v1.12.8) is a per-night tally — a
+plain integer, stored as-is.
 
 ## Cycle (`/v2/cycle`) — record `start` is `measuredAt`
 
@@ -45,6 +48,8 @@ Stage durations are ms→minutes (`÷ 60000`). One row per stage per night
 |---|---|---|---|---|
 | `cycle.score.strain` | `DAY_STRAIN` | score | `day_strain` | 0–21 WHOOP scale. Distinct from the COMPUTED `STRAIN_SCORE` (0–100 TRIMP proxy). |
 | `cycle.score.kilojoule` | `ENERGY_EXPENDITURE_KJ` | kJ | `energy_kj` | Native kJ — NOT converted to kcal (the workout path converts). |
+| `cycle.score.average_heart_rate` | `AVERAGE_HEART_RATE` | bpm | `avg_hr` | v1.12.8 — the day's whole-cycle average HR. Fetched but dropped before v1.12.8; now mapped. Distinct from spot `PULSE` / `RESTING_HEART_RATE` / `WALKING_HEART_RATE_AVERAGE`. |
+| `cycle.score.max_heart_rate` | `MAX_HEART_RATE` | bpm | `max_hr` | v1.12.8 — the day's whole-cycle peak HR. Fetched but dropped before v1.12.8; now mapped. |
 
 ## Workout (`/v2/activity/workout`) — into `Workout`, not `Measurement`
 

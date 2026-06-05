@@ -40,8 +40,8 @@ export default function InsightsGewichtPage() {
   const { data: analytics, isEmpty } = useInsightsAnalytics("WEIGHT");
   const weightSummary = analytics?.summaries?.WEIGHT ?? null;
 
-  // v1.12.7 — brushed-window stats shared between the chart and the strip.
-  const { statsByType, onDomainStats } = useChartDomainStats();
+  // v1.12.8 — visible-range stats shared between the chart and the strip.
+  const { statsByType, onVisibleStats } = useChartDomainStats();
 
   if (isEmpty) {
     return (
@@ -102,13 +102,13 @@ export default function InsightsGewichtPage() {
         chartKey="weight"
         types={["WEIGHT"]}
         title={t("charts.weight")}
+        titleIcon={Scale}
         colors={["#bd93f9"]}
         unit="kg"
         valueBands={weightBands}
         compareBaseline={compareBaseline}
         userTimezone={user?.timezone}
-        selectableDomain
-        onDomainStats={onDomainStats}
+        onVisibleStats={onVisibleStats}
       />
 
       <MetricTargetSummary slug="weight" />

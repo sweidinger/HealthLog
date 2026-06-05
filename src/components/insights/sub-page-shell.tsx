@@ -262,11 +262,11 @@ export function SubPageShell({
           brand-new-metric paths. Numbers-first is the Apple-Health /
           Withings / Oura detail-screen convention.
 
-          v1.12.7 — the stats are chart-reactive: when the user brushes a
-          window in the chart below, the page lifts the chart's per-type
-          windowed Min / Max / Median / Mean and threads it back into the
-          strip, which swaps the header to a "selected range" pill. No
-          selection falls back to the cheap full-range summary. */}
+          v1.12.8 — the stats are chart-reactive: the chart reports the
+          per-type Min / Max / Median / Mean for the data under its active
+          range tab (7 / 30 / 90 / All), and the page threads it back into the
+          strip so the numbers always reflect the range the chart paints. No
+          drag, no pill — the range tab is the single selector. */}
         {statStrip}
         {/* v1.12.6 — the canonical spine body: intro (header) → stat strip
           (above) → chart → target card → assessment. The page renders

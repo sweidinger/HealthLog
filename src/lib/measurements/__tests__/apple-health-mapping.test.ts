@@ -52,6 +52,14 @@ const MEASUREMENT_TYPES_WITHOUT_HK_COUNTERPART = new Set<MeasurementType>([
   "SLEEP_CONSISTENCY",
   "SLEEP_NEED",
   "ENERGY_EXPENDITURE_KJ",
+  // v1.12.8 — WHOOP cycle + sleep coverage completion. These ingest
+  // server-side from the WHOOP API (source = WHOOP), never from HealthKit:
+  // Apple ships no first-class daily-aggregate average / max heart-rate
+  // quantity, and the per-night disturbance count is WHOOP-specific (Apple
+  // ships sleep stages, not a disturbance tally). No HK mapping by design.
+  "AVERAGE_HEART_RATE",
+  "MAX_HEART_RATE",
+  "SLEEP_DISTURBANCE_COUNT",
 ]);
 
 describe("APPLE_HEALTH_TYPE_MAP", () => {

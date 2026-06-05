@@ -473,7 +473,10 @@
     "typeSleepEfficiency": "Sleep efficiency",
     "typeSleepConsistency": "Sleep consistency",
     "typeSleepNeed": "Sleep need",
-    "typeEnergyExpenditureKj": "Energy expenditure"
+    "typeEnergyExpenditureKj": "Energy expenditure",
+    "typeAverageHeartRate": "Average heart rate",
+    "typeMaxHeartRate": "Maximum heart rate",
+    "typeSleepDisturbanceCount": "Sleep disturbances"
   },
   "mood": {
     "title": "Mood",
@@ -1494,8 +1497,7 @@
       "sat": "Saturday",
       "sun": "Sunday"
     },
-    "rangeBand": "Range",
-    "selectRange": "Select a range"
+    "rangeBand": "Range"
   },
   "chart": {
     "overlay": {
@@ -2109,8 +2111,7 @@
         "min": "Min",
         "max": "Max",
         "median": "Median",
-        "mean": "Mean",
-        "selectedRange": "Selected range"
+        "mean": "Mean"
       },
       "showAllValues": "Show all readings",
       "valuesPageTitle": "{metric} — all readings",

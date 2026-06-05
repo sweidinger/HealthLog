@@ -134,12 +134,15 @@ function SeriesBlock({
   const fmt = useFormatters();
 
   // Nothing to show until the summary lands or for a metric with no
-  // readings. The gate rides the full-range summary even when a window is
-  // active, so a brush never resurrects a series that has no data at all.
+  // readings. The gate rides the full-range summary even when the chart
+  // reports a narrower visible range, so a range change never resurrects a
+  // series that has no data at all.
   if (!summary || summary.count <= 0) return null;
 
-  // A window selection with at least one reading wins over the full-range
-  // summary; otherwise the block reads the precomputed numbers.
+  // v1.12.8 — the chart reports stats for the data under its active range tab;
+  // when present those visible-range numbers win over the full-range summary
+  // so the strip always reads the same window the chart paints. No pill — the
+  // chart's range tab is the single, visible selector for both.
   const windowed = windowStats != null && windowStats.count > 0;
   const source = windowed ? windowStats : summary;
 
@@ -169,20 +172,7 @@ function SeriesBlock({
       className="space-y-2"
     >
       {seriesLabel ? (
-        <TileHeader
-          icon={icon ?? Sigma}
-          title={seriesLabel}
-          right={
-            windowed ? (
-              <span
-                data-slot="metric-stat-window-badge"
-                className="bg-dracula-purple/10 text-dracula-purple rounded-md border border-current/30 px-1.5 py-0.5 text-[10px] font-medium tracking-wide uppercase"
-              >
-                {t("insights.subPage.stats.selectedRange")}
-              </span>
-            ) : undefined
-          }
-        />
+        <TileHeader icon={icon ?? Sigma} title={seriesLabel} />
       ) : null}
       <div className="grid grid-cols-2 gap-x-3 gap-y-2 sm:grid-cols-4 [&>div]:min-h-[44px]">
         {cells.map((cell) => (

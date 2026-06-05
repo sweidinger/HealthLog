@@ -85,9 +85,9 @@ export function InsightStatusCard({
         aria-busy="true"
         aria-live="polite"
         data-testid="insight-status-card-preparing"
-        className="gap-2 py-4 md:gap-3 md:py-5"
+        className="gap-1.5 py-4 md:py-5"
       >
-        <CardHeader className="pb-2">
+        <CardHeader className="pb-1">
           <TileHeader icon={nodeIcon(icon)} title={title} />
         </CardHeader>
         <CardContent className="space-y-2">
@@ -139,8 +139,8 @@ export function InsightStatusCard({
 
   if (!hasProvider) {
     return (
-      <Card className="gap-2 py-4 opacity-60 md:gap-3 md:py-5">
-        <CardHeader className="pb-2">
+      <Card className="gap-1.5 py-4 opacity-60 md:py-5">
+        <CardHeader className="pb-1">
           <TileHeader icon={nodeIcon(icon)} title={title} />
         </CardHeader>
         <CardContent>
@@ -154,8 +154,8 @@ export function InsightStatusCard({
 
   if (!text) {
     return (
-      <Card className="gap-2 py-4 md:gap-3 md:py-5">
-        <CardHeader className="pb-2">
+      <Card className="gap-1.5 py-4 md:py-5">
+        <CardHeader className="pb-1">
           <TileHeader icon={nodeIcon(icon)} title={title} />
         </CardHeader>
         <CardContent>
@@ -190,9 +190,15 @@ export function InsightStatusCard({
       // border-l-2`). The coloured rule made the assessment card read as
       // restless against the calmer surrounding cards; the plain card
       // border carries enough separation on its own.
-      className="animate-insight-in gap-2 py-4 md:gap-3 md:py-5"
+      //
+      // v1.12.8 — tighten the header-to-prose gap. The card flex gap is
+      // `gap-1.5` (was `gap-2 md:gap-3`) and the `CardHeader` trims its
+      // bottom padding to `pb-1` (was `pb-2`), so the `<TileHeader>` sits
+      // close to the prose and matches the header-to-body rhythm of the
+      // sibling tiles. The loading skeleton keeps its own spacing.
+      className="animate-insight-in gap-1.5 py-4 md:py-5"
     >
-      <CardHeader className="pb-2">
+      <CardHeader className="pb-1">
         {/* v1.11.5 — the top-right "cached" label was removed: it surfaced
             an implementation detail and devalued the assessment. The card
             still consumes the warm cache; it just no longer announces it.

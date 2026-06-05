@@ -175,11 +175,10 @@ export function HealthKitMetricPage({
     refetch,
   } = useInsightsAnalytics(insightMetric);
 
-  // v1.12.7 — shared brushed-window state. The chart reports the per-type
-  // Min / Max / Median / Mean for the selected domain; the stat strip reads
-  // it back for this page's single series. No selection → null → the strip
-  // keeps the full-range summary.
-  const { statsByType, onDomainStats } = useChartDomainStats();
+  // v1.12.8 — shared visible-range state. The chart reports the per-type
+  // Min / Max / Median / Mean for the data under its active range tab; the
+  // stat strip reads it back for this page's single series.
+  const { statsByType, onVisibleStats } = useChartDomainStats();
 
   const rawSummary = analytics?.summaries?.[measurementType] ?? null;
   // The stat strip renders display-unit values. The summary holds stored
@@ -309,6 +308,7 @@ export function HealthKitMetricPage({
         chartKey={chartKey}
         types={[measurementType]}
         title={t(`${i18nPrefix}.chartTitle`)}
+        titleIcon={statIcon}
         colors={[color]}
         unit={unit}
         yAxisUnit={yAxisUnit}
@@ -316,8 +316,7 @@ export function HealthKitMetricPage({
         compareBaseline={compareBaseline}
         userTimezone={user?.timezone}
         valueScale={valueScale}
-        selectableDomain
-        onDomainStats={onDomainStats}
+        onVisibleStats={onVisibleStats}
       />
       {targetSummarySlug ? (
         <MetricTargetSummary slug={targetSummarySlug} />

@@ -190,6 +190,9 @@ export interface WhoopSleep {
       total_light_sleep_time_milli: number;
       total_slow_wave_sleep_time_milli: number;
       total_rem_sleep_time_milli: number;
+      // v1.12.8 — per-night sleep disturbance tally. Optional: older / still-
+      // scoring records may omit it.
+      disturbance_count?: number;
     };
     sleep_needed: {
       baseline_milli: number;
@@ -581,18 +584,29 @@ export function mapSleep(s: WhoopSleep): MappedMeasurement[] {
     });
   }
 
+  if (typeof stages.disturbance_count === "number") {
+    out.push({
+      type: "SLEEP_DISTURBANCE_COUNT",
+      value: stages.disturbance_count,
+      unit: "count",
+      measuredAt,
+      fieldTag: "disturbances",
+    });
+  }
+
   return out;
 }
 
 /**
  * Map one WHOOP cycle (day) record: `DAY_STRAIN` (distinct from the COMPUTED
- * `STRAIN_SCORE`) and `ENERGY_EXPENDITURE_KJ` (kept in native kJ). Energy is
- * NOT converted to kcal here — that conversion is for the workout path only.
+ * `STRAIN_SCORE`), `ENERGY_EXPENDITURE_KJ` (kept in native kJ), and the day's
+ * whole-cycle `AVERAGE_HEART_RATE` / `MAX_HEART_RATE`. Energy is NOT converted
+ * to kcal here — that conversion is for the workout path only.
  */
 export function mapCycle(c: WhoopCycle): MappedMeasurement[] {
   if (!c.score) return [];
   const measuredAt = new Date(c.start);
-  return [
+  const out: MappedMeasurement[] = [
     {
       type: "DAY_STRAIN",
       value: round2(c.score.strain),
@@ -608,6 +622,30 @@ export function mapCycle(c: WhoopCycle): MappedMeasurement[] {
       fieldTag: "energy_kj",
     },
   ];
+
+  // v1.12.8 — the cycle score's average / max heart rate were fetched but
+  // dropped before this release. Distinct fieldTags keep them from colliding
+  // with the strain / energy rows under the shared cycle `externalId`.
+  if (typeof c.score.average_heart_rate === "number") {
+    out.push({
+      type: "AVERAGE_HEART_RATE",
+      value: Math.round(c.score.average_heart_rate),
+      unit: "bpm",
+      measuredAt,
+      fieldTag: "avg_hr",
+    });
+  }
+  if (typeof c.score.max_heart_rate === "number") {
+    out.push({
+      type: "MAX_HEART_RATE",
+      value: Math.round(c.score.max_heart_rate),
+      unit: "bpm",
+      measuredAt,
+      fieldTag: "max_hr",
+    });
+  }
+
+  return out;
 }
 
 /** Metres → centimetres (WHOOP `height_meter` → `User.heightCm`). */

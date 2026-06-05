@@ -473,7 +473,10 @@
     "typeSleepEfficiency": "Efficienza del sonno",
     "typeSleepConsistency": "Costanza del sonno",
     "typeSleepNeed": "Fabbisogno di sonno",
-    "typeEnergyExpenditureKj": "Dispendio energetico"
+    "typeEnergyExpenditureKj": "Dispendio energetico",
+    "typeAverageHeartRate": "Frequenza cardiaca media",
+    "typeMaxHeartRate": "Frequenza cardiaca massima",
+    "typeSleepDisturbanceCount": "Disturbi del sonno"
   },
   "mood": {
     "title": "Umore",
@@ -1494,8 +1497,7 @@
       "sat": "Sabato",
       "sun": "Domenica"
     },
-    "rangeBand": "Intervallo",
-    "selectRange": "Seleziona un intervallo"
+    "rangeBand": "Intervallo"
   },
   "chart": {
     "overlay": {
@@ -2109,8 +2111,7 @@
         "min": "Min",
         "max": "Max",
         "median": "Mediana",
-        "mean": "Media",
-        "selectedRange": "Intervallo selezionato"
+        "mean": "Media"
       },
       "showAllValues": "Mostra tutte le misurazioni",
       "valuesPageTitle": "{metric} — tutte le misurazioni",

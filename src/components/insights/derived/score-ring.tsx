@@ -37,6 +37,16 @@ import {
  * a11y: `role="img"` + an aria-label restating the number and band, so the
  * ring is never colour-only. `prefers-reduced-motion` disables the sweep
  * (Recharts `isAnimationActive`) and the count-up.
+ *
+ * `variant` picks the arc palette. `"band"` (default) paints the filled
+ * arc in the score's band token (green/yellow/red) over a muted track —
+ * the legible treatment on a plain `bg-card` surface (the score-anatomy
+ * detail view). `"onGradient"` paints a WHITE arc over a translucent-white
+ * track for use on the saturated `.score-tile-gradient` wellness cards,
+ * where a band tint would muddy against the purple/pink and white reads at
+ * high contrast. The band semantic is never lost to the white arc: it
+ * still rides the `data-band` attribute, the aria-label, and the band-word
+ * label the wellness tile renders beneath the ring.
  */
 
 const SIZE: Record<
@@ -59,6 +69,14 @@ export interface ScoreRingProps {
   size?: "sm" | "md" | "lg";
   /** Disable the sweep + count-up (e.g. when already animated by a parent). */
   animate?: boolean;
+  /**
+   * Arc palette. `"band"` (default) tints the arc by score band over a
+   * muted track — legible on a plain card. `"onGradient"` paints a white
+   * arc over a translucent-white track, for the saturated gradient
+   * wellness tiles. See the component doc for why the band semantic is not
+   * lost to the white arc.
+   */
+  variant?: "band" | "onGradient";
   className?: string;
 }
 
@@ -68,15 +86,21 @@ export function ScoreRing({
   label,
   size = "md",
   animate = true,
+  variant = "band",
   className,
 }: ScoreRingProps) {
   const { t } = useTranslations();
   const dims = SIZE[size];
+  const onGradient = variant === "onGradient";
 
   const hasScore = score != null && Number.isFinite(score);
   const clamped = hasScore ? clampScore(score) : 0;
   const resolvedBand: ScoreBand = band ?? bandForScore(clamped);
-  const fill = hasScore ? BAND_VAR[resolvedBand] : "var(--muted-foreground)";
+  const fill = onGradient
+    ? "#ffffff"
+    : hasScore
+      ? BAND_VAR[resolvedBand]
+      : "var(--muted-foreground)";
 
   // Count-up only feeds the centred number; the ring arc reads the final
   // value (Recharts owns its own sweep via isAnimationActive).
@@ -122,7 +146,11 @@ export function ScoreRing({
         >
           <RadialBar
             dataKey="value"
-            background={{ fill: "var(--muted)", opacity: 0.4 }}
+            background={
+              onGradient
+                ? { fill: "#ffffff", opacity: 0.18 }
+                : { fill: "var(--muted)", opacity: 0.4 }
+            }
             cornerRadius={dims.barSize}
             isAnimationActive={animate && hasScore}
             animationDuration={600}
@@ -164,7 +192,15 @@ export function ScoreRing({
                         // (`fill` = BAND_VAR) + the `data-band` attribute +
                         // the aria-label, so dropping it from the number
                         // costs no information while clearing AA.
-                        hasScore ? "fill-foreground" : "fill-muted-foreground",
+                        // On the saturated gradient tile the number is
+                        // pinned white in both themes (the dark gradient
+                        // clears AA either way); `fill-foreground` would go
+                        // near-black on the Alucard light card and vanish.
+                        onGradient
+                          ? "fill-white"
+                          : hasScore
+                            ? "fill-foreground"
+                            : "fill-muted-foreground",
                       )}
                     >
                       {hasScore ? displayedRounded : "—"}
@@ -174,7 +210,12 @@ export function ScoreRing({
                         x={cx}
                         y={cy + (size === "lg" ? 30 : size === "md" ? 22 : 16)}
                         className={cn(
-                          "fill-muted-foreground",
+                          // On the gradient tile a translucent white reads
+                          // cleanly; on a plain card the muted-foreground
+                          // token keeps the sub-label quiet.
+                          onGradient
+                            ? "fill-white/80"
+                            : "fill-muted-foreground",
                           dims.labelClass,
                         )}
                       >

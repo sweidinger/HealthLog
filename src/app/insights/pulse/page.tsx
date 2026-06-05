@@ -17,6 +17,7 @@ import { MetricCorrelationCard } from "@/components/insights/metric-correlation-
 import { MeasurementDiversityNudge } from "@/components/insights/measurement-diversity-nudge";
 import { MetricTargetSummary } from "@/components/insights/metric-target-summary";
 import { SubPageShell } from "@/components/insights/sub-page-shell";
+import { TileHeader } from "@/components/insights/tile-header";
 import {
   getAgeFromDateOfBirth,
   getPersonalizedPulseTarget,
@@ -49,9 +50,9 @@ export default function InsightsPulsPage() {
   const hasVo2 = (analytics?.summaries?.VO2_MAX?.count ?? 0) > 0;
   const pulseSummary = analytics?.summaries?.PULSE ?? null;
 
-  // v1.12.7 — brushed-window stats shared between the pulse chart and the
+  // v1.12.8 — visible-range stats shared between the pulse chart and the
   // strip (the VO2 chart-row below keeps its own full-range read).
-  const { statsByType, onDomainStats } = useChartDomainStats();
+  const { statsByType, onVisibleStats } = useChartDomainStats();
 
   // v1.4.27 F17 — gate the sub-page on at least one pulse observation.
   // Brand-new accounts (no manual logs, no Apple-Health upload yet)
@@ -139,41 +140,44 @@ export default function InsightsPulsPage() {
         chartKey="pulse"
         types={["PULSE"]}
         title={t("charts.pulse")}
+        titleIcon={Heart}
         colors={["#50fa7b"]}
         unit="bpm"
         valueBands={pulseBands}
         compareBaseline={compareBaseline}
         userTimezone={user?.timezone}
-        selectableDomain
-        onDomainStats={onDomainStats}
+        onVisibleStats={onVisibleStats}
       />
 
       <MetricTargetSummary slug="pulse" />
+
+      {/* v1.12.0 — Pulse owns the mood × pulse correlation (relocated off
+          the overview onto its metric page). */}
+      <MetricCorrelationCard slug="pulse" />
+
+      {/* v1.12.8 — the Einschätzung (assessment) sits ABOVE the cardio-fitness
+          CTA so the plain-language read of the pulse data leads, and the
+          cross-link to the dedicated VO₂ max page trails it. */}
+      <SlugInsightStatusCard slug="pulse" icon={<Heart className="h-5 w-5" />} />
 
       {/* VO₂ max is a cardio-fitness metric (Apple's Health app surfaces it
           under "Heart"), so the pulse page links across to its dedicated
           `/insights/cardio-fitness` page — the single surface that carries
           the full chart plus the plain-language assessment — rather than
-          duplicating a second, divergent VO₂ max view here. */}
+          duplicating a second, divergent VO₂ max view here.
+
+          v1.12.8 — the card now leads with the canonical `<TileHeader>` so the
+          `Gauge` glyph reads in the foreground colour at the same size and
+          position as every other tile header, with the body + CTA beneath. */}
       {hasVo2 ? (
         <Link
           href="/insights/cardio-fitness"
           data-slot="vo2-cardio-link"
-          className="bg-card hover:bg-accent/40 focus-visible:ring-ring/50 flex items-center justify-between gap-3 rounded-xl border p-4 transition-colors focus-visible:ring-2 focus-visible:outline-none"
+          className="bg-card hover:bg-accent/40 focus-visible:ring-ring/50 block space-y-1.5 rounded-xl border p-4 transition-colors focus-visible:ring-2 focus-visible:outline-none"
         >
-          <span className="flex items-start gap-3">
-            <Gauge
-              className="text-muted-foreground mt-0.5 h-5 w-5 shrink-0"
-              aria-hidden="true"
-            />
-            <span className="space-y-1">
-              <span className="block text-sm font-semibold">
-                {t("insights.vo2Max.cardioLinkTitle")}
-              </span>
-              <span className="text-muted-foreground block text-xs leading-snug">
-                {t("insights.vo2Max.cardioLinkBody")}
-              </span>
-            </span>
+          <TileHeader icon={Gauge} title={t("insights.vo2Max.cardioLinkTitle")} />
+          <span className="text-muted-foreground block text-xs leading-snug">
+            {t("insights.vo2Max.cardioLinkBody")}
           </span>
           <span className="text-primary inline-flex shrink-0 items-center gap-1 text-xs font-medium">
             {t("insights.vo2Max.cardioLinkCta")}
@@ -181,14 +185,6 @@ export default function InsightsPulsPage() {
           </span>
         </Link>
       ) : null}
-
-      {/* v1.12.0 — Pulse owns the mood × pulse correlation (relocated off
-          the overview onto its metric page). */}
-      <MetricCorrelationCard slug="pulse" />
-
-      {/* v1.12.0 — Einschätzung is the last block on the canonical
-          metric-detail spine. */}
-      <SlugInsightStatusCard slug="pulse" icon={<Heart className="h-5 w-5" />} />
     </SubPageShell>
   );
 }

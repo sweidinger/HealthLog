@@ -650,6 +650,16 @@ enum MeasurementType {
   SLEEP_NEED // minutes — WHOOP `sleep.score.sleep_needed.baseline_milli` (+ debt / strain / nap components; ms→min). The model's recommended sleep duration for the night.
   ENERGY_EXPENDITURE_KJ // kJ — WHOOP `cycle.score.kilojoule`. Day energy expenditure in kilojoules (WHOOP reports kJ natively; kept in kJ rather than converted to kcal so the device-native value round-trips).
 
+  // ── v1.12.8 — WHOOP cycle + sleep coverage completion (additive) ──
+  // Three previously-uncaptured WHOOP fields. AVERAGE_HEART_RATE / MAX_HEART_RATE
+  // ride the cycle score (already fetched, previously dropped); kept distinct
+  // from spot PULSE / RESTING_HEART_RATE / WALKING_HEART_RATE_AVERAGE because
+  // they are the day's whole-cycle aggregates. SLEEP_DISTURBANCE_COUNT is the
+  // per-night `stage_summary.disturbance_count`.
+  AVERAGE_HEART_RATE // bpm — WHOOP `cycle.score.average_heart_rate`. The day's whole-cycle average heart rate.
+  MAX_HEART_RATE // bpm — WHOOP `cycle.score.max_heart_rate`. The day's whole-cycle peak heart rate.
+  SLEEP_DISTURBANCE_COUNT // count — WHOOP `sleep.score.stage_summary.disturbance_count`. Per-night tally of sleep disturbances.
+
   @@map("measurement_type")
 }
 

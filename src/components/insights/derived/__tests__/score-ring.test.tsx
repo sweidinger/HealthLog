@@ -52,4 +52,15 @@ describe("<ScoreRing>", () => {
     expect(html).toContain('role="img"');
     expect(html).toContain("aria-label");
   });
+
+  it("keeps the band semantic on the white-arc onGradient variant", () => {
+    // The white arc drops the band colour, so the band must still ride the
+    // data attribute + aria-label for the colour-blind/non-visual read.
+    const html = render(
+      <ScoreRing score={82} variant="onGradient" label="/100" />,
+    );
+    expect(html).toContain('data-band="green"');
+    expect(html).toContain('role="img"');
+    expect(html).toContain("aria-label");
+  });
 });
