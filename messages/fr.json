@@ -2005,9 +2005,6 @@
       "therapyTimelineDescription": "Journal chronologique de la thérapie GLP-1 — changements de dose, injections, stock, effets secondaires.",
       "bmiDescription": "IMC dérivé de ton poids et de ta taille, avec évaluation.",
       "target": {
-        "range": "Cible : {min}–{max} {unit}",
-        "bpRange": "Cible : {sysMin}–{sysMax} / {diaMin}–{diaMax} {unit}",
-        "inTargetShare": "{pct}% des jours enregistrés dans la cible",
         "adjustLink": "Ajuster la plage cible"
       },
       "primary": {
@@ -2919,6 +2916,12 @@
       "moodImproved": "Humeur en légère hausse sur 30 jours.",
       "moodDeclined": "Humeur en légère baisse sur 30 jours.",
       "moodStable": "Humeur stable sur les 30 derniers jours."
+    },
+    "target": {
+      "heading": "Objectif"
+    },
+    "disclaimer": {
+      "footer": "HealthLog décrit vos propres données suivies — il ne s'agit pas d'une évaluation clinique ni d'un diagnostic. Parlez à votre médecin de tout ce qui vous préoccupe."
     }
   },
   "thresholds": {

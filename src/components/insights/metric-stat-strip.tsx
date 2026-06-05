@@ -1,6 +1,10 @@
 "use client";
 
+import type { ComponentType } from "react";
+import { Sigma } from "lucide-react";
+
 import { useFormatters, useTranslations } from "@/lib/i18n/context";
+import { TileHeader } from "@/components/insights/tile-header";
 import type { DataSummary } from "@/lib/analytics/trends";
 
 /**
@@ -41,12 +45,26 @@ interface MetricStatStripProps {
    */
   fractionDigits?: number;
   /**
-   * v1.12.4 — optional series caption rendered above the grid. Single-series
-   * metrics omit it; blood pressure stacks two strips (systolic / diastolic)
-   * and labels each so the unified strip covers both halves rather than
-   * silently dropping one. Also feeds the `aria-label` for the section.
+   * v1.12.4 — series caption rendered above the grid. Single-series metrics
+   * pass the metric name (e.g. "Gewicht"); blood pressure stacks two strips
+   * (systolic / diastolic) and labels each so the unified strip covers both
+   * halves rather than silently dropping one. Also feeds the `aria-label`
+   * for the section.
+   *
+   * v1.12.6 — the caption is now rendered through the canonical
+   * `<TileHeader>` (white heading + white icon, matching the Einschätzung
+   * card) rather than a small muted uppercase line, so every series block
+   * leads with the same header language as the rest of the surface.
    */
   seriesLabel?: string;
+  /**
+   * v1.12.6 — leading glyph for the series `<TileHeader>`. Pass the metric's
+   * icon component (e.g. `Scale`, `Heart`); blood pressure passes a
+   * directional glyph per series. Defaults to a generic stats glyph so a
+   * caller that supplies a `seriesLabel` without an icon still renders a
+   * complete header.
+   */
+  icon?: ComponentType<{ className?: string }>;
 }
 
 export function MetricStatStrip({
@@ -54,6 +72,7 @@ export function MetricStatStrip({
   unit,
   fractionDigits = 1,
   seriesLabel,
+  icon,
 }: MetricStatStripProps) {
   const { t } = useTranslations();
   const fmt = useFormatters();
@@ -88,15 +107,10 @@ export function MetricStatStrip({
           ? `${t("insights.subPage.stats.label")} — ${seriesLabel}`
           : t("insights.subPage.stats.label")
       }
-      className="bg-card border-border space-y-2 rounded-xl border p-4"
+      className="bg-card border-border space-y-3 rounded-xl border p-4"
     >
       {seriesLabel ? (
-        <p
-          data-slot="metric-stat-strip-series"
-          className="text-muted-foreground text-[10px] font-medium tracking-wide uppercase"
-        >
-          {seriesLabel}
-        </p>
+        <TileHeader icon={icon ?? Sigma} title={seriesLabel} />
       ) : null}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 [&>div]:min-h-[56px]">
         {cells.map((cell) => (

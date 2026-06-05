@@ -2005,9 +2005,6 @@
       "therapyTimelineDescription": "Protocolo cronológico de terapia GLP-1 — cambios de dosis, inyecciones, existencias, efectos secundarios.",
       "bmiDescription": "IMC derivado de tu peso y altura, con valoración.",
       "target": {
-        "range": "Objetivo: {min}–{max} {unit}",
-        "bpRange": "Objetivo: {sysMin}–{sysMax} / {diaMin}–{diaMax} {unit}",
-        "inTargetShare": "{pct}% de los días registrados dentro del objetivo",
         "adjustLink": "Ajustar el rango objetivo"
       },
       "primary": {
@@ -2919,6 +2916,12 @@
       "moodImproved": "El estado de ánimo mejoró ligeramente en 30 días.",
       "moodDeclined": "El estado de ánimo bajó ligeramente en 30 días.",
       "moodStable": "El estado de ánimo se mantuvo estable en los últimos 30 días."
+    },
+    "target": {
+      "heading": "Objetivo"
+    },
+    "disclaimer": {
+      "footer": "HealthLog describe tus propios datos registrados — no es una evaluación clínica ni un diagnóstico. Habla con tu médico sobre cualquier cosa que te preocupe."
     }
   },
   "thresholds": {

@@ -2005,9 +2005,6 @@
       "therapyTimelineDescription": "Chronologisches GLP-1-Therapieprotokoll — Dosis-Änderungen, Injektionen, Bestand, Nebenwirkungen.",
       "bmiDescription": "BMI aus deinem Gewicht und deiner Größe abgeleitet, mit Einschätzung.",
       "target": {
-        "range": "Ziel: {min}–{max} {unit}",
-        "bpRange": "Ziel: {sysMin}–{sysMax} / {diaMin}–{diaMax} {unit}",
-        "inTargetShare": "{pct}% der erfassten Tage im Zielbereich",
         "adjustLink": "Zielbereich anpassen"
       },
       "primary": {
@@ -2919,6 +2916,12 @@
       "moodImproved": "Stimmung über 30 Tage leicht verbessert.",
       "moodDeclined": "Stimmung über 30 Tage leicht verschlechtert.",
       "moodStable": "Stimmung über die letzten 30 Tage stabil."
+    },
+    "target": {
+      "heading": "Ziel"
+    },
+    "disclaimer": {
+      "footer": "HealthLog beschreibt deine eigenen erfassten Daten — es ist keine klinische Bewertung und keine Diagnose. Sprich mit deiner Ärztin oder deinem Arzt über alles, was dich beunruhigt."
     }
   },
   "thresholds": {

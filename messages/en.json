@@ -2005,9 +2005,6 @@
       "therapyTimelineDescription": "Chronological GLP-1 therapy log — dose changes, injections, inventory, side effects.",
       "bmiDescription": "BMI derived from your weight and height, with a written assessment.",
       "target": {
-        "range": "Target: {min}–{max} {unit}",
-        "bpRange": "Target: {sysMin}–{sysMax} / {diaMin}–{diaMax} {unit}",
-        "inTargetShare": "{pct}% of logged days within target",
         "adjustLink": "Adjust target range"
       },
       "primary": {
@@ -2919,6 +2916,12 @@
       "moodImproved": "Mood trended slightly higher over 30 days.",
       "moodDeclined": "Mood trended slightly lower over 30 days.",
       "moodStable": "Mood held steady over the last 30 days."
+    },
+    "target": {
+      "heading": "Target"
+    },
+    "disclaimer": {
+      "footer": "HealthLog describes your own tracked data — it is not a clinical assessment or diagnosis. Talk to your doctor about anything that concerns you."
     }
   },
   "thresholds": {

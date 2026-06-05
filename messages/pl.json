@@ -2005,9 +2005,6 @@
       "therapyTimelineDescription": "Chronologiczny protokół terapii GLP-1 — zmiany dawki, iniekcje, stan, działania niepożądane.",
       "bmiDescription": "BMI obliczone z twojej wagi i wzrostu, z oceną.",
       "target": {
-        "range": "Cel: {min}–{max} {unit}",
-        "bpRange": "Cel: {sysMin}–{sysMax} / {diaMin}–{diaMax} {unit}",
-        "inTargetShare": "{pct}% zarejestrowanych dni w zakresie celu",
         "adjustLink": "Dostosuj zakres docelowy"
       },
       "primary": {
@@ -2919,6 +2916,12 @@
       "moodImproved": "Nastrój nieco się poprawił w ciągu 30 dni.",
       "moodDeclined": "Nastrój nieco się pogorszył w ciągu 30 dni.",
       "moodStable": "Nastrój pozostał stabilny przez ostatnie 30 dni."
+    },
+    "target": {
+      "heading": "Cel"
+    },
+    "disclaimer": {
+      "footer": "HealthLog opisuje Twoje własne zarejestrowane dane — nie jest oceną kliniczną ani diagnozą. Porozmawiaj z lekarzem o wszystkim, co Cię niepokoi."
     }
   },
   "thresholds": {

@@ -2005,9 +2005,6 @@
       "therapyTimelineDescription": "Protocollo cronologico della terapia GLP-1 — cambi di dose, iniezioni, scorte, effetti collaterali.",
       "bmiDescription": "BMI derivato dal tuo peso e dalla tua altezza, con valutazione.",
       "target": {
-        "range": "Obiettivo: {min}–{max} {unit}",
-        "bpRange": "Obiettivo: {sysMin}–{sysMax} / {diaMin}–{diaMax} {unit}",
-        "inTargetShare": "{pct}% dei giorni registrati nell'obiettivo",
         "adjustLink": "Modifica l'intervallo obiettivo"
       },
       "primary": {
@@ -2919,6 +2916,12 @@
       "moodImproved": "Umore in lieve miglioramento su 30 giorni.",
       "moodDeclined": "Umore in lieve calo su 30 giorni.",
       "moodStable": "Umore stabile negli ultimi 30 giorni."
+    },
+    "target": {
+      "heading": "Obiettivo"
+    },
+    "disclaimer": {
+      "footer": "HealthLog descrive i tuoi dati registrati — non è una valutazione clinica né una diagnosi. Parla con il tuo medico di qualsiasi cosa ti preoccupi."
     }
   },
   "thresholds": {
