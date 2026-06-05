@@ -258,17 +258,15 @@ export default function InsightsMedikamentePage() {
                 </div>
                 <div className="text-muted-foreground flex justify-between text-xs">
                   <span>
-                    <span className="text-dracula-green">{med.taken7}</span>{" "}
+                    <span className="text-success">{med.taken7}</span>{" "}
                     {t("insights.taken")}
                   </span>
                   <span>
-                    <span className="text-dracula-orange">
-                      {med.skipped7}
-                    </span>{" "}
+                    <span className="text-warning">{med.skipped7}</span>{" "}
                     {t("insights.skipped")}
                   </span>
                   <span>
-                    <span className="text-dracula-red">{med.missed7}</span>{" "}
+                    <span className="text-destructive">{med.missed7}</span>{" "}
                     {t("insights.missed")}
                   </span>
                 </div>
