@@ -382,6 +382,30 @@
 }
 
 /*
+ * `.score-tile-gradient` — the saturated purple→pink wellness-tile
+ * background that echoes the hero band while staying dark enough for a
+ * WHITE score ring + white centre number to clear WCAG AA in BOTH themes.
+ *
+ * Unlike `.hero-gradient` (which mixes over the theme-dependent
+ * `var(--card)` — near-white in Alucard light, so a white ring would
+ * vanish), this variant mixes purple/pink over the *fixed* dark
+ * `var(--dracula-bg)` (#282a36). That keeps the surface identical and
+ * dark in light + dark mode, so white text/ring read ≥ 4.5:1 either way:
+ * white on the purple endpoint ≈ 5.0:1, on the pink endpoint ≈ 6.1:1.
+ * A subtler glow than the hero's keeps a row of five tiles from
+ * overwhelming the page.
+ */
+.score-tile-gradient {
+  background: linear-gradient(
+    140deg,
+    color-mix(in srgb, var(--dracula-purple) 55%, var(--dracula-bg)) 0%,
+    color-mix(in srgb, var(--dracula-pink) 45%, var(--dracula-bg)) 100%
+  );
+  border: 1px solid color-mix(in srgb, var(--dracula-purple) 28%, transparent);
+  box-shadow: 0 12px 32px -24px color-mix(in srgb, var(--dracula-purple) 45%, transparent);
+}
+
+/*
  * `pulseDot` keyframes — the "live, refreshed N min ago" green dot in
  * the hero meta row. Used as `.pulse-dot { animation: pulseDot ... }`.
  * Reduced-motion users get a static dot via the prefers-reduced-motion
