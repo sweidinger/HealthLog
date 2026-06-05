@@ -1,8 +1,12 @@
 "use client";
 
+import type { ComponentType } from "react";
 import Link from "next/link";
+import { Activity, Flame, Gauge, HeartPulse, Moon, RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 import { useTranslations } from "@/lib/i18n/context";
+import { TileHeader } from "@/components/insights/tile-header";
 import { ScoreRing } from "./score-ring";
 import type { DerivedBatchRead } from "./use-derived-metric";
 import type { ScoreBand } from "./band-tokens";
@@ -33,6 +37,15 @@ interface ScoreStripProps {
   /** The batched-read selector from the parent dashboard's one query. */
   read: DerivedBatchRead;
   isLoading: boolean;
+  /**
+   * The shared derived-batch error flag. On a failed batch the strip renders
+   * a compact error + Retry in place instead of vanishing silently (the strip
+   * is now top-of-page, so its only Retry must live here, not far below in the
+   * Vitals slot).
+   */
+  isError?: boolean;
+  /** Refetch the one shared batch query. Recovers both strips at once. */
+  refetch?: () => void;
   className?: string;
 }
 
@@ -44,6 +57,7 @@ function RingTile({
   bandWord,
   href,
   metricSlot,
+  icon,
 }: {
   score: number;
   band: ScoreBand;
@@ -51,28 +65,26 @@ function RingTile({
   bandWord: string;
   href: string;
   metricSlot: string;
+  icon: ComponentType<{ className?: string }>;
 }) {
   return (
     <Link
       href={href}
       data-slot="wellness-score-tile"
       data-metric={metricSlot}
-      className="bg-card border-border hover:border-foreground/20 focus-visible:ring-ring flex items-center justify-center rounded-xl border p-4 transition-colors focus-visible:ring-2 focus-visible:outline-none"
+      className="bg-card border-border hover:border-foreground/20 focus-visible:ring-ring flex flex-col gap-3 rounded-xl border p-4 transition-colors focus-visible:ring-2 focus-visible:outline-none"
     >
-      <div className="flex min-w-0 flex-col items-center gap-1.5">
-        {/* The metric title rides an HTML caption below the ring, not the
-            in-SVG `label` slot: a long localised title ("Schlaf-Score",
-            "Bereitschaft") overflowed the small ring's centred SVG text and
-            the recharts `overflow:hidden` clipped its leading glyph. As HTML
-            it wraps within the tile and never truncates. The ring keeps just
-            the number centred. */}
+      {/* v1.12.6 — every tile leads with the canonical icon + heading
+          (foreground colour, matching the Einschätzung reference) so the
+          wellness strip reads as the same card language as the rest of
+          Insights. The metric name no longer rides an under-ring caption. */}
+      <TileHeader icon={icon} title={label} titleClassName="truncate" />
+      <div className="flex flex-col items-center gap-1.5">
+        {/* The ring keeps just the number centred; the metric name lives in
+            the TileHeader above (a long localised title would overflow the
+            small ring's centred SVG text and clip under recharts'
+            `overflow:hidden`). */}
         <ScoreRing score={score} band={band} size="sm" />
-        <span
-          data-slot="wellness-score-label"
-          className="text-foreground max-w-full text-center text-xs font-medium text-balance"
-        >
-          {label}
-        </span>
         <span
           data-slot="wellness-score-band-word"
           className="text-muted-foreground text-center text-xs"
@@ -84,8 +96,50 @@ function RingTile({
   );
 }
 
-export function WellnessScores({ read, isLoading, className }: ScoreStripProps) {
+export function WellnessScores({
+  read,
+  isLoading,
+  isError = false,
+  refetch,
+  className,
+}: ScoreStripProps) {
   const { t } = useTranslations();
+
+  // A failed shared batch must read as an error, not as "no scores" — the
+  // strip is top-of-page, so the only Retry lives here (mirrors the Vitals
+  // error card styling; one Retry recovers both strips).
+  if (isError) {
+    return (
+      <section
+        data-slot="wellness-scores"
+        aria-label={t("insights.derived.scores.sectionTitle")}
+        className={cn("space-y-3", className)}
+      >
+        <TileHeader
+          icon={Activity}
+          title={t("insights.derived.scores.sectionTitle")}
+        />
+        <div
+          data-slot="wellness-scores-error"
+          role="alert"
+          className="bg-card border-border text-muted-foreground flex flex-col items-start gap-3 rounded-xl border p-4 text-sm sm:flex-row sm:items-center sm:justify-between"
+        >
+          <span>{t("insights.derived.scores.loadError")}</span>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={() => refetch?.()}
+            data-slot="wellness-scores-retry"
+            className="gap-1.5"
+          >
+            <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />
+            <span>{t("common.retry")}</span>
+          </Button>
+        </div>
+      </section>
+    );
+  }
 
   const readiness = read<ReadinessValue>({ metric: "READINESS" });
   const sleep = read<SleepScoreValue>({ metric: "SLEEP_SCORE" });
@@ -108,6 +162,7 @@ export function WellnessScores({ read, isLoading, className }: ScoreStripProps) 
         bandWord={bandWord(readiness.value.band)}
         href="/insights/scores/readiness"
         metricSlot="READINESS"
+        icon={Gauge}
       />,
     );
   }
@@ -121,6 +176,7 @@ export function WellnessScores({ read, isLoading, className }: ScoreStripProps) 
         bandWord={bandWord(recovery.value.band)}
         href="/insights/scores/recovery"
         metricSlot="RECOVERY_SCORE"
+        icon={HeartPulse}
       />,
     );
   }
@@ -134,6 +190,7 @@ export function WellnessScores({ read, isLoading, className }: ScoreStripProps) 
         bandWord={bandWord(sleep.value.band)}
         href="/insights/scores/sleep"
         metricSlot="SLEEP_SCORE"
+        icon={Moon}
       />,
     );
   }
@@ -147,6 +204,7 @@ export function WellnessScores({ read, isLoading, className }: ScoreStripProps) 
         bandWord={bandWord(stress.value.band)}
         href="/insights/scores/stress"
         metricSlot="STRESS_SCORE"
+        icon={Activity}
       />,
     );
   }
@@ -160,6 +218,7 @@ export function WellnessScores({ read, isLoading, className }: ScoreStripProps) 
         bandWord={bandWord(strain.value.band)}
         href="/insights/scores/strain"
         metricSlot="STRAIN_SCORE"
+        icon={Flame}
       />,
     );
   }
@@ -187,9 +246,10 @@ export function WellnessScores({ read, isLoading, className }: ScoreStripProps) 
       aria-label={t("insights.derived.scores.sectionTitle")}
       className={cn("space-y-3", className)}
     >
-      <h2 className="text-foreground text-sm font-semibold tracking-tight">
-        {t("insights.derived.scores.sectionTitle")}
-      </h2>
+      <TileHeader
+        icon={Activity}
+        title={t("insights.derived.scores.sectionTitle")}
+      />
       <div
         data-slot="wellness-scores-grid"
         className={cn("grid grid-cols-2 gap-3 sm:grid-cols-3", lgCols)}

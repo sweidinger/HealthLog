@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { HeartPulse } from "lucide-react";
+import { ArrowDownRight, ArrowUpRight, HeartPulse } from "lucide-react";
 
 import { useAuth } from "@/hooks/use-auth";
 import { useInsightsAnalytics } from "@/hooks/use-insights-analytics";
@@ -112,12 +112,14 @@ export default function InsightsBlutdruckPage() {
             unit="mmHg"
             fractionDigits={0}
             seriesLabel={t("charts.systolic")}
+            icon={ArrowUpRight}
           />
           <MetricStatStrip
             summary={diaSummary}
             unit="mmHg"
             fractionDigits={0}
             seriesLabel={t("charts.diastolic")}
+            icon={ArrowDownRight}
           />
         </div>
       }

@@ -1656,14 +1656,6 @@
       "emptyAction": "Genera briefing",
       "loadingLabel": "Preparazione del briefing"
     },
-    "therapyTimeline": {
-      "title": "Cronologia terapia GLP-1",
-      "description": "Elenco cronologico: cambi di dose, iniezioni, scorte e giorni con effetti collaterali.",
-      "empty": "Nessun evento GLP-1 negli ultimi 90 giorni.",
-      "doseTo": "Dose a",
-      "pens": "Penne",
-      "sideEffects": "Effetti collaterali"
-    },
     "trendsRow": {
       "title": "Tendenze",
       "subtitle": "Gli ultimi 30 giorni a colpo d’occhio",
@@ -2002,12 +1994,8 @@
       "medikamenteEmptyTitle": "Aggiungi il primo farmaco",
       "medikamenteEmptyDescription": "Gli insights di aderenza richiedono almeno un farmaco registrato.",
       "medikamenteEmptyAction": "Apri farmaci",
-      "therapyTimelineDescription": "Protocollo cronologico della terapia GLP-1 — cambi di dose, iniezioni, scorte, effetti collaterali.",
       "bmiDescription": "BMI derivato dal tuo peso e dalla tua altezza, con valutazione.",
       "target": {
-        "range": "Obiettivo: {min}–{max} {unit}",
-        "bpRange": "Obiettivo: {sysMin}–{sysMax} / {diaMin}–{diaMax} {unit}",
-        "inTargetShare": "{pct}% dei giorni registrati nell'obiettivo",
         "adjustLink": "Modifica l'intervallo obiettivo"
       },
       "primary": {
@@ -2586,20 +2574,19 @@
         "bandVerySteady": "Il tuo umore è stato molto stabile",
         "bandSteady": "Il tuo umore è stato abbastanza stabile",
         "bandVariable": "Il tuo umore è stato notevolmente variabile",
-        "bandVeryVariable": "Il tuo umore ha oscillato molto di recente"
+        "bandVeryVariable": "Il tuo umore ha oscillato molto di recente",
+        "title": "Stabilità"
       },
       "influence": {
         "title": "Influenza sull'umore",
         "detail": "Media di {withAvg} nei {withDays} giorni in cui l'hai indicato, contro {withoutAvg} senza.",
         "confidenceLow": "Affidabilità bassa",
         "confidenceMedium": "Affidabilità media",
-        "confidenceHigh": "Affidabilità alta",
-        "disclaimer": "Sono associazioni nei tuoi dati, non una prova di causa. Schemi da tenere d'occhio."
+        "confidenceHigh": "Affidabilità alta"
       },
       "betterDays": {
         "title": "Cosa accompagna le tue giornate migliori",
-        "description": "Tag e parametri che coincidono con le tue giornate di umore migliore e peggiore, ordinati per quanto si muovono insieme.",
-        "disclaimer": "Solo associazioni, non cause. Parla con il tuo medico prima di cambiare qualcosa."
+        "description": "Tag e parametri che coincidono con le tue giornate di umore migliore e peggiore, ordinati per quanto si muovono insieme."
       },
       "crosstab": {
         "title": "Tag e le tue metriche di salute",
@@ -2612,8 +2599,7 @@
         "unitKcal": "kcal",
         "unitScore": "pt",
         "detailSameDay": "In media {withAvg} {unit} nei {withDays} giorni con questo tag contro {withoutAvg} {unit} senza.",
-        "detailNextDay": "In media {withAvg} {unit} il giorno dopo i {withDays} giorni con questo tag contro {withoutAvg} {unit} altrimenti.",
-        "disclaimer": "Sono associazioni nei tuoi dati, non prova di causa. Schemi che vale la pena osservare."
+        "detailNextDay": "In media {withAvg} {unit} il giorno dopo i {withDays} giorni con questo tag contro {withoutAvg} {unit} altrimenti."
       },
       "discovery": {
         "title": "Cosa risalta",
@@ -2628,7 +2614,8 @@
         "stat": "{n} giorni appaiati · r = {r} · q = {q}",
         "statLabel": "Come è stato calcolato",
         "explainerLabel": "Come è stato calcolato"
-      }
+      },
+      "inTargetTitle": "Nel tuo intervallo"
     },
     "derived": {
       "coverage": {
@@ -2785,6 +2772,7 @@
       },
       "scores": {
         "sectionTitle": "Punteggi di benessere",
+        "loadError": "Al momento non è stato possibile caricare i tuoi punteggi di benessere.",
         "recovery": "Recupero",
         "stress": "Stress",
         "strain": "Sforzo"
@@ -2919,6 +2907,12 @@
       "moodImproved": "Umore in lieve miglioramento su 30 giorni.",
       "moodDeclined": "Umore in lieve calo su 30 giorni.",
       "moodStable": "Umore stabile negli ultimi 30 giorni."
+    },
+    "target": {
+      "heading": "Obiettivo"
+    },
+    "disclaimer": {
+      "footer": "HealthLog descrive i tuoi dati registrati — non è una valutazione clinica né una diagnosi. Parla con il tuo medico di qualsiasi cosa ti preoccupi."
     }
   },
   "thresholds": {

@@ -125,9 +125,17 @@ export function SparklineDeltaTile({
         className,
       )}
     >
-      <div className="flex h-5 min-w-0 items-center justify-between gap-2">
+      {/* Header row matches the canonical TileHeader language: a leading
+          foreground icon + a foreground `CardTitle`-weight heading — never
+          the old muted-uppercase caption. Kept on one line for the dense
+          grid; provenance trails to the right edge. */}
+      <div className="flex min-w-0 items-center gap-2">
+        <Icon
+          className="text-foreground h-5 w-5 shrink-0"
+          aria-hidden="true"
+        />
         <span
-          className="text-muted-foreground min-w-0 flex-1 truncate text-xs leading-5 font-medium tracking-wide whitespace-nowrap uppercase"
+          className="text-foreground min-w-0 flex-1 truncate text-base leading-none font-semibold whitespace-nowrap"
           data-slot="sparkline-delta-tile-label"
         >
           {label}
@@ -135,12 +143,11 @@ export function SparklineDeltaTile({
         {provenance ? (
           <span
             data-slot="sparkline-delta-tile-provenance"
-            className="shrink-0"
+            className="ml-auto shrink-0"
           >
             {provenance}
           </span>
         ) : null}
-        <Icon className="text-muted-foreground h-4 w-4 shrink-0" />
       </div>
 
       <div

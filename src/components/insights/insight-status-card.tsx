@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { TileHeader } from "@/components/insights/tile-header";
 import { useTranslations } from "@/lib/i18n/context";
 import { formatRelativeTime } from "@/lib/i18n/relative-time";
 import { stripChartTokens } from "@/lib/insights/chart-tokens";
@@ -10,6 +11,22 @@ import { cn } from "@/lib/utils";
 import { useFeatureFlags } from "@/hooks/use-feature-flags";
 
 // ─── Types ────────────────────────────────────────────────
+
+/**
+ * v1.12.6 — route the icon + title row through the canonical
+ * `<TileHeader>`. Callers still pass a pre-sized icon NODE (e.g.
+ * `<HeartPulse className="h-5 w-5" />`) because the bespoke metric pages
+ * own that prop; `<TileHeader>` drives its icon off a component, so wrap
+ * the node in a thin component that renders it verbatim. The node already
+ * carries the `h-5 w-5` foreground sizing `<TileHeader>` would apply, so
+ * the rendered row is byte-identical to the previous hand-rolled `flex
+ * items-center gap-2` header.
+ */
+function nodeIcon(icon: React.ReactNode): React.ComponentType {
+  return function StatusIcon() {
+    return <>{icon}</>;
+  };
+}
 
 interface InsightStatusCardProps {
   title: string;
@@ -59,10 +76,7 @@ export function InsightStatusCard({
         className="gap-2 py-4 md:gap-3 md:py-5"
       >
         <CardHeader className="pb-2">
-          <div className="flex items-center gap-2">
-            {icon}
-            <CardTitle className="text-base">{title}</CardTitle>
-          </div>
+          <TileHeader icon={nodeIcon(icon)} title={title} />
         </CardHeader>
         <CardContent className="space-y-2">
           <div className="bg-muted h-3.5 w-full animate-pulse rounded motion-reduce:animate-none" />
@@ -115,10 +129,7 @@ export function InsightStatusCard({
     return (
       <Card className="gap-2 py-4 opacity-60 md:gap-3 md:py-5">
         <CardHeader className="pb-2">
-          <div className="flex items-center gap-2">
-            {icon}
-            <CardTitle className="text-base">{title}</CardTitle>
-          </div>
+          <TileHeader icon={nodeIcon(icon)} title={title} />
         </CardHeader>
         <CardContent>
           <p className="text-muted-foreground text-sm">
@@ -133,10 +144,7 @@ export function InsightStatusCard({
     return (
       <Card className="gap-2 py-4 md:gap-3 md:py-5">
         <CardHeader className="pb-2">
-          <div className="flex items-center gap-2">
-            {icon}
-            <CardTitle className="text-base">{title}</CardTitle>
-          </div>
+          <TileHeader icon={nodeIcon(icon)} title={title} />
         </CardHeader>
         <CardContent>
           <p className="text-muted-foreground text-sm">
@@ -175,11 +183,9 @@ export function InsightStatusCard({
       <CardHeader className="pb-2">
         {/* v1.11.5 — the top-right "cached" label was removed: it surfaced
             an implementation detail and devalued the assessment. The card
-            still consumes the warm cache; it just no longer announces it. */}
-        <div className="flex items-center gap-2">
-          {icon}
-          <CardTitle className="text-base">{title}</CardTitle>
-        </div>
+            still consumes the warm cache; it just no longer announces it.
+            v1.12.6 — the icon + title row is the canonical `<TileHeader>`. */}
+        <TileHeader icon={nodeIcon(icon)} title={title} />
       </CardHeader>
       <CardContent className="space-y-2">
         {/* v1.4.27 — defence-in-depth strip. Cached status text from

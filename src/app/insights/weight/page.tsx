@@ -75,7 +75,14 @@ export default function InsightsGewichtPage() {
       title={t("insights.weightSectionTitle")}
       description={t("insights.subPage.gewichtDescription")}
       explainerMetric="weight"
-      statStrip={<MetricStatStrip summary={weightSummary} unit="kg" />}
+      statStrip={
+        <MetricStatStrip
+          summary={weightSummary}
+          unit="kg"
+          seriesLabel={t("insights.weightSectionTitle")}
+          icon={Scale}
+        />
+      }
       diversityNudge={
         <MeasurementDiversityNudge
           measurementType="WEIGHT"

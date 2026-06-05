@@ -5,10 +5,13 @@ import { join } from "node:path";
 /**
  * v1.12.4 — canonical metric-detail spine guard.
  *
- * The unified subpage spine is: intro → chart → target card → assessment →
- * stat strip. The assessment is the LAST content block the page hands to
- * `<SubPageShell>` as `children`; the shell appends the Min/Max/Median/Mean
- * stat strip below it. The generic `HealthKitMetricPage` scaffold enforces
+ * v1.12.6 — the unified subpage spine is: intro → stat strip → chart →
+ * target card → assessment. The stat strip moved ABOVE the chart (the
+ * shell renders the `statStrip` prop before `children`); the assessment
+ * stays the LAST content block the page hands to `<SubPageShell>` as
+ * `children`. This source-order guard is unaffected by the render-position
+ * move because `statStrip` is a prop on the opening tag and the assessment
+ * is still the final child element. The generic `HealthKitMetricPage` scaffold enforces
  * this for the ~29 HealthKit pages structurally; the bespoke pages each
  * hand-write their body, so a future edit can silently slot a card after the
  * assessment (as `mood` and `medications` did before).

@@ -8,9 +8,11 @@ import { useAuth } from "@/hooks/use-auth";
 import { queryKeys } from "@/lib/query-keys";
 import { useTranslations } from "@/lib/i18n/context";
 import { convertGlucose, resolveGlucoseUnit } from "@/lib/glucose";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { RangeBar } from "@/components/targets/range-bar";
 import { ConsistencyStrip } from "@/components/targets/consistency-strip";
 import { TargetStatusPill } from "@/components/targets/target-status-pill";
+import { TileHeader } from "@/components/insights/tile-header";
 import { useTargetAdjust } from "@/lib/insights/target-adjust-context";
 import { getTargetSourceLink } from "@/lib/targets/source-link";
 
@@ -119,11 +121,6 @@ const GLUCOSE_TARGET_TYPES = [
 interface MetricTargetSummaryProps {
   /** Insights category slug, e.g. `"blood-pressure"`. */
   slug: string;
-}
-
-/** Trim a trailing `.0` so whole-number bands read `120` not `120.0`. */
-function fmt(value: number): string {
-  return Number.isInteger(value) ? String(value) : value.toFixed(1);
 }
 
 export function MetricTargetSummary({ slug }: MetricTargetSummaryProps) {
@@ -275,27 +272,6 @@ function TargetReferencePanel({
   const isBp = target.type === "BLOOD_PRESSURE";
   const isMedicationCompliance = target.type === "MEDICATION_COMPLIANCE";
 
-  // Compose the range string. Blood pressure stitches the systolic band
-  // (on this target) with the diastolic band (on `bpDiastolic`) so the
-  // user reads the familiar `S/D` pair.
-  let rangeLabel: string;
-  if (isBp && bpDiastolic?.range) {
-    const dia = bpDiastolic.range;
-    rangeLabel = t("insights.subPage.target.bpRange", {
-      sysMin: fmt(range.min),
-      sysMax: fmt(range.max),
-      diaMin: fmt(dia.min),
-      diaMax: fmt(dia.max),
-      unit,
-    });
-  } else {
-    rangeLabel = t("insights.subPage.target.range", {
-      min: fmt(range.min),
-      max: fmt(range.max),
-      unit,
-    });
-  }
-
   const sourceLink = getTargetSourceLink(target);
 
   // v1.12.0 — the in-target share (% of logged days in band) and the
@@ -322,40 +298,45 @@ function TargetReferencePanel({
     target.consistency7d.length > 0;
 
   return (
-    <div
+    // Card-wrapped so the header-to-body offset matches the `<CardHeader
+    // pb-2>` tiles on the same subpage spine rather than the old bare-div
+    // `space-y-3`. The body keeps its inter-row `space-y-3` inside
+    // `CardContent`; every data-slot is preserved.
+    <Card
       data-slot="metric-target-summary"
       data-target-type={target.type}
-      className="bg-card border-border space-y-3 rounded-xl border p-4"
+      className="gap-2 py-4 md:gap-3 md:py-5"
     >
-      {/* Row 1: target range string + status pill + source link. */}
-      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1.5">
-        <div className="flex items-center gap-2.5">
-          <Target
-            className="text-dracula-green size-4 shrink-0"
-            aria-hidden="true"
-          />
-          <div className="space-y-0.5">
-            {heading ? (
-              <p className="text-muted-foreground text-[0.6875rem] font-medium tracking-[0.06em] uppercase">
-                {heading}
-              </p>
-            ) : null}
-            <p className="text-sm font-medium">{rangeLabel}</p>
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          {target.classification ? (
-            <TargetStatusPill
-              classification={target.classification}
-              range={range}
-              unit={unit}
-              source={target.source}
-            />
-          ) : null}
-        </div>
-      </div>
-
-      {/* Row 2: range bar — where today's value sits inside the band. */}
+      {/* Row 1: the canonical tile header — a single-word "Ziel" / "Target"
+          heading (the range numbers live on the range bar below, so the
+          old "Target: 120–129 mmHg" string would just duplicate them) with
+          the status pill pinned to the trailing edge. For glucose the
+          per-context label (Fasting / Postprandial / …) carries real,
+          non-duplicative info, so it stays as a sub-caption under the
+          header. */}
+      <CardHeader className="pb-2">
+        <TileHeader
+          icon={Target}
+          title={t("insights.target.heading")}
+          right={
+            target.classification ? (
+              <TargetStatusPill
+                classification={target.classification}
+                range={range}
+                unit={unit}
+                source={target.source}
+              />
+            ) : null
+          }
+        />
+        {heading ? (
+          <p className="text-muted-foreground text-[0.6875rem] font-medium tracking-[0.06em] uppercase">
+            {heading}
+          </p>
+        ) : null}
+      </CardHeader>
+      <CardContent className="space-y-3">
+        {/* Row 2: range bar — where today's value sits inside the band. */}
       {target.current != null ? (
         <RangeBar
           value={target.current}
@@ -419,7 +400,8 @@ function TargetReferencePanel({
             {t("targets.sourceLabel", { source: target.source })}
           </span>
         )}
-      </div>
-    </div>
+        </div>
+      </CardContent>
+    </Card>
   );
 }

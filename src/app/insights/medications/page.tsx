@@ -10,7 +10,7 @@ import { queryKeys } from "@/lib/query-keys";
 import { useTranslations } from "@/lib/i18n/context";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Progress } from "@/components/ui/progress";
 import { ComplianceHeatmap } from "@/components/charts/compliance-heatmap";
@@ -18,8 +18,7 @@ import { CoachLaunchButton } from "@/components/insights/coach-launch-button";
 import { InsightStatusCard } from "@/components/insights/insight-status-card";
 import { MetricTargetSummary } from "@/components/insights/metric-target-summary";
 import { SubPageShell } from "@/components/insights/sub-page-shell";
-import { TherapyTimeline } from "@/components/insights/therapy-timeline";
-import { MedicationCardHeader } from "@/components/medications/MedicationCardHeader";
+import { TileHeader } from "@/components/insights/tile-header";
 
 /**
  * v1.4.25 W4 — `/insights/medications`.
@@ -203,33 +202,37 @@ export default function InsightsMedikamentePage() {
       >
         {medications.map((med) => {
           const medicationSummary = medicationSummaryById.get(med.id);
-          // UI-H3 — route every medication-list row (medications page
-          // + insights/medications) through `<MedicationCardHeader>`
-          // so the surface stays one shape: `{name} {dose}` on line 1
-          // + outline category badge on line 2. The streak chip rides
-          // the `stateBadges` slot so a strong streak still surfaces.
+          // v1.12.6 — the per-medication compliance card harmonises with
+          // the rest of the Insights tiles: its header runs through the
+          // canonical `<TileHeader>` (Pill glyph + med name as the white
+          // heading), and the dose + category + streak fold into one
+          // compact muted line below it. Every datum the previous, taller
+          // card carried (7d/30d bars, taken/skipped/missed, heatmap,
+          // per-med assistant sentence) stays — only the vertical rhythm
+          // tightens.
           const categoryLabel =
             med.category === "BLOOD_PRESSURE"
               ? t("medications.categoryBloodPressure")
               : med.category === "VITAMIN"
                 ? t("medications.categoryVitamin")
                 : t("medications.categoryOther");
-          const streakBadge =
-            med.streak > 0 ? (
-              <Badge variant="outline" className="shrink-0 text-xs">
-                {t("insights.dayStreak", { count: med.streak })}
-              </Badge>
-            ) : null;
           return (
-            <Card key={med.id}>
-              <MedicationCardHeader
-                name={med.name}
-                dose={med.dose}
-                categoryLabel={categoryLabel}
-                stateBadges={streakBadge}
-              />
-              <CardContent className="space-y-3">
-                <div className="space-y-1.5">
+            <Card key={med.id} className="gap-2 py-4 md:gap-3 md:py-5">
+              <CardHeader className="pb-0">
+                <TileHeader icon={Pill} title={med.name} />
+                <div className="text-muted-foreground mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
+                  <span className="font-medium tabular-nums">{med.dose}</span>
+                  <span aria-hidden="true">·</span>
+                  <span>{categoryLabel}</span>
+                  {med.streak > 0 ? (
+                    <Badge variant="outline" className="ml-auto shrink-0 text-xs">
+                      {t("insights.dayStreak", { count: med.streak })}
+                    </Badge>
+                  ) : null}
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-2.5">
+                <div className="space-y-1">
                   <div className="flex justify-between text-xs">
                     <span>{t("insights.compliance7d")}</span>
                     <span className="font-medium">{med.compliance7}%</span>
@@ -238,34 +241,32 @@ export default function InsightsMedikamentePage() {
                       accessible name (Lighthouse a11y 91/94). */}
                   <Progress
                     value={med.compliance7}
-                    className="h-2"
+                    className="h-1.5"
                     aria-label={t("insights.compliance7d")}
                   />
                 </div>
-                <div className="space-y-1.5">
+                <div className="space-y-1">
                   <div className="flex justify-between text-xs">
                     <span>{t("insights.compliance30d")}</span>
                     <span className="font-medium">{med.compliance30}%</span>
                   </div>
                   <Progress
                     value={med.compliance30}
-                    className="h-2"
+                    className="h-1.5"
                     aria-label={t("insights.compliance30d")}
                   />
                 </div>
                 <div className="text-muted-foreground flex justify-between text-xs">
                   <span>
-                    <span className="text-dracula-green">{med.taken7}</span>{" "}
+                    <span className="text-success">{med.taken7}</span>{" "}
                     {t("insights.taken")}
                   </span>
                   <span>
-                    <span className="text-dracula-orange">
-                      {med.skipped7}
-                    </span>{" "}
+                    <span className="text-warning">{med.skipped7}</span>{" "}
                     {t("insights.skipped")}
                   </span>
                   <span>
-                    <span className="text-dracula-red">{med.missed7}</span>{" "}
+                    <span className="text-destructive">{med.missed7}</span>{" "}
                     {t("insights.missed")}
                   </span>
                 </div>
@@ -282,11 +283,6 @@ export default function InsightsMedikamentePage() {
       </div>
 
       <MetricTargetSummary slug="medications" />
-
-      {/* v1.4.25 W4d — GLP-1 therapy timeline. Self-hides for users
-          without an active GLP-1 medication, so the page collapses
-          back to the compliance grid for everyone else. */}
-      <TherapyTimeline />
 
       {/* v1.12.2 — the assessment is the LAST block on every bespoke
           metric-detail page, matching the canonical spine the generic

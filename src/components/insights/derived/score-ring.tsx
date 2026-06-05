@@ -12,7 +12,6 @@ import { cn } from "@/lib/utils";
 import { useCountUp } from "@/hooks/use-count-up";
 import {
   bandForScore,
-  BAND_NUMBER_CLASS,
   BAND_VAR,
   clampScore,
   type ScoreBand,
@@ -156,12 +155,16 @@ export function ScoreRing({
                       className={cn(
                         "font-semibold tabular-nums",
                         dims.numberClass,
-                        hasScore
-                          ? BAND_NUMBER_CLASS[resolvedBand].replace(
-                              "text-",
-                              "fill-",
-                            )
-                          : "fill-muted-foreground",
+                        // v1.12.6 — the centred number reads in the
+                        // foreground colour (white on the dark wellness
+                        // card, near-black on the light card), never the
+                        // band tint. The band-coloured number cleared only
+                        // ~1.5:1 on `--card` and read as illegible. The
+                        // band semantic is carried by the ring arc
+                        // (`fill` = BAND_VAR) + the `data-band` attribute +
+                        // the aria-label, so dropping it from the number
+                        // costs no information while clearing AA.
+                        hasScore ? "fill-foreground" : "fill-muted-foreground",
                       )}
                     >
                       {hasScore ? displayedRounded : "—"}

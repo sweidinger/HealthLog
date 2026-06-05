@@ -2,6 +2,25 @@
 
 ## [Unreleased]
 
+## [1.12.6] — 2026-06-05 — one consistent Insights surface
+
+### Changed
+
+- **Every Insights card now reads the same way: an icon, a title, then the content.** Targets, the systolic and diastolic stats, the wellness and vital tiles, mood, and medications all lead with the same titled header in the same weight, so the surface is easier to scan and find your place in. The target tile is simply titled "Target".
+- **The wellness scores sit above the daily briefing, with legible numbers.** The score numbers now render in the foreground colour against the dark cards (the band still shows on the ring), and the strip leads the overview above the briefing.
+- **The min / max / median / average stats moved above each chart.** They now lead the metric page rather than trailing it, and blood pressure shows the full stat strip for both systolic and diastolic.
+- **The mood page leads with where you stand, then what fits your better days.** The classification (in-range share and stability) comes first, followed by the better-days read; the mood colours are aligned to the rest of the charts.
+- **The medications page is tighter.** The dose-by-dose therapy list is gone, the per-medication compliance tiles are denser, and the assessment sits directly under the target.
+
+### Fixed
+
+- **The medical disclaimer appears once.** The "describes your own data, not a clinical assessment" line was repeated across many tiles; it now shows once as a single page footer (and no longer doubles up on the Coach page, which carries its own note).
+- **Medication status counts meet contrast on the light theme.** The taken / skipped / missed figures now use the semantic colour tokens, which stay legible in both themes.
+
+### Documentation
+
+- **Provider setup is documented end to end.** The WHOOP guide now pins the exact OAuth scopes and the webhook URL format, and a new Google Health (Fitbit & Pixel) guide covers the Google Cloud OAuth client, scopes, and redirect URI. See `docs/integrations/`.
+
 ## [1.12.5] — 2026-06-05 — correct sleep summary and readiness contributors
 
 ### Fixed

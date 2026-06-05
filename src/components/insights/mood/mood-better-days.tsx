@@ -15,7 +15,8 @@ import type { MoodInfluenceConfidence } from "./mood-tag-influence";
  * surface — the headline "relations" answer to "what goes with my good
  * days?". The merge + ranking is pre-computed in `mood-aggregates.ts`
  * (`computeBetterDays`); this component only paints. Observational only;
- * the standing disclaimer is rendered once below the board.
+ * the standing "describes your own data, not a diagnosis" disclaimer lives
+ * once in the page-level Insights footer, not on this board.
  */
 
 export interface MoodBetterDayFactor {
@@ -138,9 +139,6 @@ export function MoodBetterDays({
           );
         })}
       </ul>
-      <p className="text-muted-foreground mt-3 text-[11px]">
-        {t("insights.mood.betterDays.disclaimer")}
-      </p>
     </div>
   );
 }

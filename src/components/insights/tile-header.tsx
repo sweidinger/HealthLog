@@ -1,0 +1,68 @@
+import type { ComponentType, ReactNode } from "react";
+
+import { CardTitle } from "@/components/ui/card";
+import { cn } from "@/lib/utils";
+
+/**
+ * v1.12.6 — the one canonical tile header used by every Insights tile.
+ *
+ * Pre-v1.12.6 each tile hand-rolled its own `icon + heading` row at a
+ * slightly different size, weight, and colour: the "Einschätzung" card
+ * led with a foreground-colour icon + `CardTitle`, the target panel led
+ * with a small muted `Target` glyph + a range string, and the stat strip
+ * led with a tiny uppercase muted caption. Side-by-side on the same
+ * subpage they read as three different card languages.
+ *
+ * `TileHeader` pins the single header contract to the "Einschätzung"
+ * reference (the calmest, most legible of the three): a `flex
+ * items-center gap-2` row with the icon and the `CardTitle` BOTH in the
+ * foreground colour (white in dark mode) — never `text-muted-foreground`
+ * — at `text-base`, icon `h-5 w-5 shrink-0`. An optional `right` slot
+ * carries a trailing affordance (a provenance / tooltip glyph, a status
+ * pill) without breaking the row's alignment.
+ *
+ * RSC-safe: no hooks, no browser API, so it renders on the server inside
+ * any client or server tile.
+ */
+
+interface TileHeaderProps {
+  /**
+   * Leading glyph. Accepts a Lucide icon component (or any component that
+   * takes a `className`) so the caller passes the component itself
+   * (`icon={Target}`), not a pre-sized node — `TileHeader` owns the size
+   * and colour so every tile header matches.
+   */
+  icon: ComponentType<{ className?: string }>;
+  /** Heading text (or node). Rendered inside a `CardTitle` at `text-base`. */
+  title: ReactNode;
+  /** Optional trailing affordance pinned to the right edge of the row. */
+  right?: ReactNode;
+  className?: string;
+  titleClassName?: string;
+  /** Optional id on the `CardTitle`, e.g. for an `aria-labelledby` link. */
+  id?: string;
+}
+
+export function TileHeader({
+  icon: Icon,
+  title,
+  right,
+  className,
+  titleClassName,
+  id,
+}: TileHeaderProps) {
+  return (
+    <div
+      data-slot="tile-header"
+      className={cn("flex items-center gap-2", className)}
+    >
+      {/* Icon and heading share the foreground colour — the calm,
+          high-contrast read the "Einschätzung" card established. */}
+      <Icon className="text-foreground h-5 w-5 shrink-0" aria-hidden="true" />
+      <CardTitle id={id} className={cn("text-base", titleClassName)}>
+        {title}
+      </CardTitle>
+      {right ? <div className="ml-auto flex items-center">{right}</div> : null}
+    </div>
+  );
+}

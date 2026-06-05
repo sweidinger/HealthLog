@@ -79,10 +79,12 @@ describe("<MoodTagInfluence>", () => {
     expect(html).not.toContain("charts.weekdaysFull.mon");
   });
 
-  it("renders the observational disclaimer once", () => {
+  it("does not render a local generic disclaimer", () => {
     const html = render(
       <MoodTagInfluence rows={[flatRow(), flatRow({ tag: "social" })]} />,
     );
-    expect((html.match(/not proof of cause/g) ?? []).length).toBe(1);
+    // The generic "associations, not causes" caveat now lives once in the
+    // page-level Insights footer, not on this list.
+    expect(html).not.toContain("not proof of cause");
   });
 });

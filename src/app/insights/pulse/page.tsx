@@ -113,7 +113,14 @@ export default function InsightsPulsPage() {
       title={t("insights.pulseSectionTitle")}
       description={t("insights.subPage.pulsDescription")}
       explainerMetric="pulse"
-      statStrip={<MetricStatStrip summary={pulseSummary} unit="bpm" />}
+      statStrip={
+        <MetricStatStrip
+          summary={pulseSummary}
+          unit="bpm"
+          seriesLabel={t("insights.pulseSectionTitle")}
+          icon={Heart}
+        />
+      }
       diversityNudge={
         <MeasurementDiversityNudge
           measurementType="PULSE"

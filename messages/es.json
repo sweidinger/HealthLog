@@ -1656,14 +1656,6 @@
       "emptyAction": "Generar resumen",
       "loadingLabel": "Preparando el resumen"
     },
-    "therapyTimeline": {
-      "title": "Historial de terapia GLP-1",
-      "description": "Lista cronológica: cambios de dosis, inyecciones, existencias y días con efectos secundarios.",
-      "empty": "Sin eventos GLP-1 en los últimos 90 días.",
-      "doseTo": "Dosis a",
-      "pens": "Plumas",
-      "sideEffects": "Efectos secundarios"
-    },
     "trendsRow": {
       "title": "Tendencias",
       "subtitle": "Los últimos 30 días de un vistazo",
@@ -2002,12 +1994,8 @@
       "medikamenteEmptyTitle": "Añadir primer medicamento",
       "medikamenteEmptyDescription": "Los insights de adherencia necesitan al menos un medicamento registrado.",
       "medikamenteEmptyAction": "Abrir medicamentos",
-      "therapyTimelineDescription": "Protocolo cronológico de terapia GLP-1 — cambios de dosis, inyecciones, existencias, efectos secundarios.",
       "bmiDescription": "IMC derivado de tu peso y altura, con valoración.",
       "target": {
-        "range": "Objetivo: {min}–{max} {unit}",
-        "bpRange": "Objetivo: {sysMin}–{sysMax} / {diaMin}–{diaMax} {unit}",
-        "inTargetShare": "{pct}% de los días registrados dentro del objetivo",
         "adjustLink": "Ajustar el rango objetivo"
       },
       "primary": {
@@ -2586,20 +2574,19 @@
         "bandVerySteady": "Tu estado de ánimo ha sido muy estable",
         "bandSteady": "Tu estado de ánimo ha sido bastante estable",
         "bandVariable": "Tu estado de ánimo ha sido notablemente variable",
-        "bandVeryVariable": "Tu estado de ánimo ha fluctuado mucho últimamente"
+        "bandVeryVariable": "Tu estado de ánimo ha fluctuado mucho últimamente",
+        "title": "Estabilidad"
       },
       "influence": {
         "title": "Influencia en el estado de ánimo",
         "detail": "Promedio de {withAvg} en los {withDays} días que lo etiquetaste, frente a {withoutAvg} sin él.",
         "confidenceLow": "Confianza baja",
         "confidenceMedium": "Confianza media",
-        "confidenceHigh": "Confianza alta",
-        "disclaimer": "Son asociaciones en tus propios datos, no una prueba de causa. Patrones que vale la pena observar."
+        "confidenceHigh": "Confianza alta"
       },
       "betterDays": {
         "title": "Qué acompaña a tus mejores días",
-        "description": "Etiquetas y métricas que coinciden con tus días de mejor y peor ánimo, ordenadas por la fuerza con que se mueven juntas.",
-        "disclaimer": "Solo asociaciones, no causas. Consulta a tu médico antes de cambiar nada por esto."
+        "description": "Etiquetas y métricas que coinciden con tus días de mejor y peor ánimo, ordenadas por la fuerza con que se mueven juntas."
       },
       "crosstab": {
         "title": "Etiquetas y tus métricas de salud",
@@ -2612,8 +2599,7 @@
         "unitKcal": "kcal",
         "unitScore": "pts",
         "detailSameDay": "Promedia {withAvg} {unit} en los {withDays} días que lo etiquetaste frente a {withoutAvg} {unit} sin él.",
-        "detailNextDay": "Promedia {withAvg} {unit} el día después de los {withDays} días que lo etiquetaste frente a {withoutAvg} {unit} el resto.",
-        "disclaimer": "Son asociaciones en tus propios datos, no prueba de causa. Patrones que vale la pena observar."
+        "detailNextDay": "Promedia {withAvg} {unit} el día después de los {withDays} días que lo etiquetaste frente a {withoutAvg} {unit} el resto."
       },
       "discovery": {
         "title": "Lo que destaca",
@@ -2628,7 +2614,8 @@
         "stat": "{n} días emparejados · r = {r} · q = {q}",
         "statLabel": "Cómo se calculó esto",
         "explainerLabel": "Cómo se calculó esto"
-      }
+      },
+      "inTargetTitle": "En tu rango"
     },
     "derived": {
       "coverage": {
@@ -2785,6 +2772,7 @@
       },
       "scores": {
         "sectionTitle": "Puntuaciones de bienestar",
+        "loadError": "No se pudieron cargar tus puntuaciones de bienestar en este momento.",
         "recovery": "Recuperación",
         "stress": "Estrés",
         "strain": "Esfuerzo"
@@ -2919,6 +2907,12 @@
       "moodImproved": "El estado de ánimo mejoró ligeramente en 30 días.",
       "moodDeclined": "El estado de ánimo bajó ligeramente en 30 días.",
       "moodStable": "El estado de ánimo se mantuvo estable en los últimos 30 días."
+    },
+    "target": {
+      "heading": "Objetivo"
+    },
+    "disclaimer": {
+      "footer": "HealthLog describe tus propios datos registrados — no es una evaluación clínica ni un diagnóstico. Habla con tu médico sobre cualquier cosa que te preocupe."
     }
   },
   "thresholds": {

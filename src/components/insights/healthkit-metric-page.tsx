@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import type { ComponentProps, ReactNode } from "react";
+import type { ComponentProps, ComponentType, ReactNode } from "react";
 
 import { Sparkles } from "lucide-react";
 
@@ -78,6 +78,14 @@ export interface HealthKitMetricPageProps {
   /** Icon node mounted in the empty-state card. */
   emptyStateIcon: ReactNode;
   /**
+   * v1.12.6 — leading glyph for the stat strip's `<TileHeader>` (the
+   * numbers-first block above the chart). Pass the metric's icon component
+   * (e.g. `Activity`, `Droplet`); when omitted the strip falls back to a
+   * generic stats glyph so every HealthKit page still leads with a complete
+   * header carrying the metric name.
+   */
+  statIcon?: ComponentType<{ className?: string }>;
+  /**
    * Optional Coach prefill for the empty-state launch. Falls back to a
    * generic onboarding prompt threaded through `<CoachLaunchButton>`'s
    * default.
@@ -148,6 +156,7 @@ export function HealthKitMetricPage({
   explainerMetric,
   targetSummarySlug,
   statusMetric,
+  statIcon,
   forecast = false,
 }: HealthKitMetricPageProps) {
   const { user, isAuthenticated } = useAuth();
@@ -210,7 +219,14 @@ export function HealthKitMetricPage({
       title={title}
       description={description}
       explainerMetric={explainerMetric}
-      statStrip={<MetricStatStrip summary={summary} unit={yAxisUnit ?? unit} />}
+      statStrip={
+        <MetricStatStrip
+          summary={summary}
+          unit={yAxisUnit ?? unit}
+          seriesLabel={title}
+          icon={statIcon}
+        />
+      }
       diversityNudge={
         <MeasurementDiversityNudge
           measurementType={measurementType}

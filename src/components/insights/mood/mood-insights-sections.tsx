@@ -3,7 +3,22 @@
 import dynamic from "next/dynamic";
 import { useQuery } from "@tanstack/react-query";
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import type { ComponentType } from "react";
+import {
+  BarChart3,
+  CalendarDays,
+  CalendarRange,
+  Clock,
+  Grid3x3,
+  Link2,
+  Sparkles,
+  Tag,
+  Tags,
+  TrendingUp,
+} from "lucide-react";
+
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { TileHeader } from "@/components/insights/tile-header";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/hooks/use-auth";
 import { queryKeys } from "@/lib/query-keys";
@@ -136,15 +151,19 @@ interface MoodInsightsResponse {
 
 function SectionCard({
   title,
+  icon,
   children,
 }: {
   title: string;
+  // v1.12.6 — every mood section header now routes through `TileHeader`
+  // (icon + white heading) so the subpage reads as one card language.
+  icon: ComponentType<{ className?: string }>;
   children: React.ReactNode;
 }) {
   return (
     <Card>
       <CardHeader className="pb-2">
-        <CardTitle className="text-base">{title}</CardTitle>
+        <TileHeader icon={icon} title={title} />
       </CardHeader>
       <CardContent>{children}</CardContent>
     </Card>
@@ -210,7 +229,14 @@ export function MoodInsightsSections() {
   const hasCrosstab = crosstabRows.length > 0;
 
   return (
+    // v1.12.6 — the mood spine is ordered as: Einordnung (the classification
+    // tiles: in-target share + stability band) FIRST, then the "what goes with
+    // your better days" assessment read, then the descriptive breakdown
+    // sections. The classification answers "where do I stand", the better-days
+    // board answers "what associates with my good days", and the rest is the
+    // supporting detail.
     <div className="space-y-4">
+      {/* Einordnung — the classification tiles. */}
       {(hasInTargetTile || hasStabilityTile) && (
         // Two-up only when BOTH tiles render; a lone tile spans full width so
         // it never leaves a half-width orphan with dead space beside it.
@@ -229,15 +255,25 @@ export function MoodInsightsSections() {
         </div>
       )}
 
-      <MoodNarrativeFeed items={narratives} />
-
+      {/* "Was zu deinen besseren Tagen passt" — the better-days assessment,
+          ranked by effect size. The substance of the Einschätzung sits here,
+          directly under the classification. */}
       {hasBetterDays && (
-        <SectionCard title={t("insights.mood.betterDays.title")}>
+        <SectionCard
+          title={t("insights.mood.betterDays.title")}
+          icon={Sparkles}
+        >
           <MoodBetterDays factors={betterDays} />
         </SectionCard>
       )}
 
-      <SectionCard title={t("insights.mood.heatmapTitle")}>
+      {narratives.length > 0 && (
+        <SectionCard title={t("insights.mood.narrative.title")} icon={TrendingUp}>
+          <MoodNarrativeFeed items={narratives} />
+        </SectionCard>
+      )}
+
+      <SectionCard title={t("insights.mood.heatmapTitle")} icon={CalendarDays}>
         <MoodHeatmap
           cells={heatmapCells}
           days={data.heatmap.windowDays}
@@ -246,49 +282,58 @@ export function MoodInsightsSections() {
       </SectionCard>
 
       <div className="grid gap-4 lg:grid-cols-2">
-        <SectionCard title={t("insights.mood.distributionTitle")}>
+        <SectionCard
+          title={t("insights.mood.distributionTitle")}
+          icon={BarChart3}
+        >
           <MoodDistributionChart distribution={data.distribution} />
         </SectionCard>
-        <SectionCard title={t("insights.mood.weekdayTitle")}>
+        <SectionCard
+          title={t("insights.mood.weekdayTitle")}
+          icon={CalendarRange}
+        >
           <MoodWeekdayChart weekday={data.weekday} />
         </SectionCard>
       </div>
 
       {data.timeOfDay.reliable && (
-        <SectionCard title={t("insights.mood.timeOfDay.title")}>
+        <SectionCard title={t("insights.mood.timeOfDay.title")} icon={Clock}>
           <MoodTimeOfDayChart pattern={data.timeOfDay} />
         </SectionCard>
       )}
 
       {hasStructuredTags && (
-        <SectionCard title={t("insights.mood.structuredTagsTitle")}>
+        <SectionCard
+          title={t("insights.mood.structuredTagsTitle")}
+          icon={Tags}
+        >
           <MoodStructuredTagBreakdown tags={data.structuredTags} />
         </SectionCard>
       )}
 
       {hasTags && (
-        <SectionCard title={t("insights.mood.tagsTitle")}>
+        <SectionCard title={t("insights.mood.tagsTitle")} icon={Tag}>
           <MoodTagBreakdown tags={data.tags} />
         </SectionCard>
       )}
 
       {hasInfluence && (
-        <SectionCard title={t("insights.mood.influence.title")}>
+        <SectionCard title={t("insights.mood.influence.title")} icon={TrendingUp}>
           <MoodTagInfluence rows={influenceRows} />
         </SectionCard>
       )}
 
       {hasCrosstab && (
-        <SectionCard title={t("insights.mood.crosstab.title")}>
+        <SectionCard title={t("insights.mood.crosstab.title")} icon={Grid3x3}>
           <MoodTagMetricCrosstab rows={crosstabRows} />
         </SectionCard>
       )}
 
-      <div className="space-y-2">
-        <h3 className="text-base font-semibold">
-          {t("insights.mood.correlationsTitle")}
-        </h3>
-        <p className="text-muted-foreground text-sm">
+      <SectionCard
+        title={t("insights.mood.correlationsTitle")}
+        icon={Link2}
+      >
+        <p className="text-muted-foreground mb-2 text-sm">
           {t("insights.mood.correlationsDescription")}
         </p>
         <MoodCorrelationCards
@@ -298,7 +343,7 @@ export function MoodInsightsSections() {
           weight={data.correlations.weight}
           bloodPressureSystolic={data.correlations.bloodPressureSystolic}
         />
-      </div>
+      </SectionCard>
 
       {/* F3 — the FDR-controlled discovered mood relations. Self-fetches the
           correlation-discovery surface and renders nothing when the operator

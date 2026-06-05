@@ -6,16 +6,16 @@ import { I18nProvider } from "@/lib/i18n/context";
 /**
  * v1.8.0 → v1.8.5 — `<MetricTargetSummary>` unit tests.
  *
- * The panel surfaces the numeric target range, the verbal status pill,
- * the guideline source, the in-target share, the 30-day average, the
- * range bar and the 7-day consistency strip on each insights category
- * page, reading the same `/api/insights/targets` payload that powers
- * `/targets`. The component depends on `useAuth` (gate) and TanStack
- * Query (`useQuery`) for the payload, so both are mocked here and the
- * assertions run through SSR — the load-bearing behaviour is the
- * range/share/source rendering + the slug→type mapping (including the
- * blood-glucose per-context split + unit conversion), not the live
- * fetch.
+ * The panel surfaces the canonical "Target" tile header, the verbal
+ * status pill, the guideline source, the 30-day average (BP only), the
+ * range bar (whose axis labels carry the band endpoints) and the 7-day
+ * consistency strip on each insights category page, reading the same
+ * `/api/insights/targets` payload that powers `/targets`. The component
+ * depends on `useAuth` (gate) and TanStack Query (`useQuery`) for the
+ * payload, so both are mocked here and the assertions run through SSR —
+ * the load-bearing behaviour is the header/bar/source rendering + the
+ * slug→type mapping (including the blood-glucose per-context split + unit
+ * conversion), not the live fetch.
  */
 
 vi.mock("@/hooks/use-auth", () => ({
@@ -154,10 +154,17 @@ const GLUCOSE_DATA: TargetsFixture = {
 };
 
 describe("<MetricTargetSummary>", () => {
-  it("renders the numeric range for a simple metric", () => {
+  it("renders the canonical Target tile header and the band endpoints on the bar", () => {
     const html = renderWith("weight", WEIGHT_DATA);
-    // Trailing `.0` trimmed, single-decimal kept.
-    expect(html).toContain("Target: 60.1–80.9 kg");
+    // v1.12.6 — the heading is the single-word canonical `<TileHeader>`;
+    // the band numbers live on the range bar's axis labels rather than a
+    // redundant "Target: 60.1–80.9 kg" string above it.
+    expect(html).toContain('data-slot="tile-header"');
+    expect(html).toContain("Target");
+    expect(html).not.toContain("Target: 60.1–80.9 kg");
+    // The min / max endpoints surface as the range-bar axis labels.
+    expect(html).toContain("60.1 kg");
+    expect(html).toContain("80.9 kg");
     // v1.12.0 — the in-target share moved up to `<MetricPrimaryTile>`,
     // the canonical home for the headline + 30-day average + in-range
     // bar. The band-reference panel no longer repeats it for non-BP
@@ -188,9 +195,13 @@ describe("<MetricTargetSummary>", () => {
     expect(html).not.toContain("30-day average: 71.4 kg");
   });
 
-  it("stitches the systolic + diastolic bands for blood pressure", () => {
+  it("renders the systolic + diastolic bands for blood pressure", () => {
     const html = renderWith("blood-pressure", BP_DATA);
-    expect(html).toContain("Target: 120–129 / 70–79 mmHg");
+    // v1.12.6 — the stitched "Target: 120–129 / 70–79 mmHg" string is gone;
+    // the canonical "Target" header leads and each band's endpoints surface
+    // on its own range bar.
+    expect(html).toContain('data-slot="tile-header"');
+    expect(html).not.toContain("Target: 120–129 / 70–79 mmHg");
     // v1.12.0 — the in-target share moved up to the primary tile; the BP
     // panel keeps only the stitched 30-day average inline.
     expect(html).not.toContain("of logged days within target");
@@ -223,7 +234,9 @@ describe("<MetricTargetSummary>", () => {
       ...WEIGHT_DATA,
       targets: [{ ...WEIGHT_ITEM, insufficientData: true }],
     });
-    expect(html).toContain("Target: 60.1–80.9 kg");
+    // v1.12.6 — the canonical Target header still renders; the share +
+    // consistency strip suppress on insufficient data.
+    expect(html).toContain('data-slot="tile-header"');
     expect(html).not.toContain("of logged days within target");
     expect(html).not.toContain('data-slot="consistency-strip"');
   });
@@ -253,9 +266,12 @@ describe("<MetricTargetSummary>", () => {
         html.match(/data-slot="metric-target-summary"/g) ?? []
       ).length;
       expect(panelCount).toBe(2);
+      // v1.12.6 — the per-context band numbers live on each panel's range
+      // bar (the redundant "Target: 70–100 mg/dL" string was removed). The
       // mg/dL display unit keeps the canonical values unchanged.
-      expect(html).toContain("Target: 70–100 mg/dL");
-      expect(html).toContain("Target: 70–140 mg/dL");
+      expect(html).toContain("70 mg/dL");
+      expect(html).toContain("100 mg/dL");
+      expect(html).toContain("140 mg/dL");
       // ADA / DDG source surfaces for each panel.
       expect(html).toContain("Source: ADA 2024 / DDG");
       // The i18n label keys resolve to EN context headings (rendered
@@ -270,10 +286,12 @@ describe("<MetricTargetSummary>", () => {
         profile: { glucoseUnit: "mmol/L" },
       });
       // 70 mg/dL → 3.9, 100 mg/dL → 5.5, 140 mg/dL → 7.8 mmol/L
-      // (the /targets converter rounds to one decimal).
-      expect(html).toContain("Target: 3.9–5.5 mmol/L");
-      expect(html).toContain("Target: 3.9–7.8 mmol/L");
-      expect(html).toContain("mmol/L");
+      // (the /targets converter rounds to one decimal). v1.12.6 — the
+      // converted endpoints surface on the range bar, not a "Target: …"
+      // string.
+      expect(html).toContain("3.9 mmol/L");
+      expect(html).toContain("5.5 mmol/L");
+      expect(html).toContain("7.8 mmol/L");
     });
 
     it("renders nothing when no glucose context has a band", () => {
