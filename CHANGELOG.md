@@ -2,6 +2,21 @@
 
 ## [Unreleased]
 
+## [1.12.9] — 2026-06-05 — a tighter mood catalogue, clearer cards, and a fixed retrospective
+
+### Changed
+
+- **The mood factors are down to three sliders** — work, sleep quality, and a new sadness slider — and the day-tag list is trimmed to a tighter, higher-signal set. Tags you've already used stay on your past entries; they just no longer clutter the picker.
+- **Medication cards read cleaner.** The next-dose and last-dose lines are now their own rows: the label on the left, the time flush to the right.
+
+### Fixed
+
+- **The period retrospective generates again.** A non-measurement metric was leaking into a measurement query and failing the background job; it's now filtered out.
+
+### Documentation
+
+- **Every code directory has a README**, the main README embeds the architecture diagrams and a documentation index, and the contributor guide reflects the current trunk-based release model.
+
 ## [1.12.8] — 2026-06-05 — fuller WHOOP data, charts that follow your selection
 
 ### Added
