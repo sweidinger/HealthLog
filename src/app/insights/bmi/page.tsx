@@ -4,7 +4,6 @@ import Link from "next/link";
 import { Ruler } from "lucide-react";
 
 import { useAuth } from "@/hooks/use-auth";
-import { useInsightStatus } from "@/hooks/use-insight-status";
 import { useInsightsAnalytics } from "@/hooks/use-insights-analytics";
 import { useTranslations } from "@/lib/i18n/context";
 import { useInsightsLayoutPrefs } from "@/hooks/use-insights-layout-prefs";
@@ -12,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { HealthChartDynamic } from "@/components/charts/health-chart-dynamic";
 import { CoachLaunchButton } from "@/components/insights/coach-launch-button";
-import { InsightStatusCard } from "@/components/insights/insight-status-card";
+import { SlugInsightStatusCard } from "@/components/insights/slug-insight-status-card";
 import { MetricEmptyState } from "@/components/insights/metric-empty-state";
 import { MetricRangeControls } from "@/components/insights/metric-range-controls";
 import { MetricTargetSummary } from "@/components/insights/metric-target-summary";
@@ -44,8 +43,6 @@ export default function InsightsBmiPage() {
   const { isAuthenticated, user } = useAuth();
   const { t } = useTranslations();
   const { compareBaseline } = useInsightsLayoutPrefs(isAuthenticated);
-
-  const { data: status, isLoading: isStatusLoading } = useInsightStatus("bmi");
 
   const { isEmpty } = useInsightsAnalytics("BMI");
 
@@ -137,15 +134,7 @@ export default function InsightsBmiPage() {
 
       <MetricTargetSummary slug="bmi" />
 
-      <InsightStatusCard
-        title={t("insights.assessmentTitle")}
-        icon={<Ruler className="h-5 w-5" />}
-        text={status?.text ?? null}
-        hasProvider={status?.hasProvider ?? false}
-        updatedAt={status?.updatedAt ?? null}
-        loading={isStatusLoading}
-        preparing={status?.preparing ?? false}
-      />
+      <SlugInsightStatusCard slug="bmi" icon={<Ruler className="h-5 w-5" />} />
     </SubPageShell>
   );
 }

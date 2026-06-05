@@ -30,12 +30,18 @@ export function MedicationStatusPill({
     <p className="text-sm">
       <span
         className={
+          // v1.12.2 — converge the three tiers onto the semantic feedback
+          // vocabulary (success / warning / destructive) so the medication
+          // status surface stops mixing semantic + Dracula tokens. The pill
+          // reads as the standard urgency ramp: in-window = success (green),
+          // late = warning (amber), very-late = destructive (red). This drops
+          // the lone `text-dracula-yellow` middle-tier stray.
           "inline-flex items-center gap-1 font-medium " +
           (status === "in_window"
             ? "text-success"
             : status === "late"
-              ? "text-dracula-yellow"
-              : "text-warning")
+              ? "text-warning"
+              : "text-destructive")
         }
       >
         {status === "in_window" ? (

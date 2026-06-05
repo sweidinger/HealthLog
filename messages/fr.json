@@ -1533,7 +1533,7 @@
     "notAvailableForCompliance": "Comparaison indisponible pour l’observance"
   },
   "insights": {
-    "noAnalysisYet": "Pas encore d’analyse.",
+    "noAnalysisYet": "Pas encore d’évaluation.",
     "assessmentPreparing": "Préparation de votre évaluation…",
     "emptyTitle": "Pas encore assez de données",
     "emptyDescription": "Les insights apparaissent dès que tu auras saisi quelques mesures. Commence par le poids ou la tension.",
@@ -1541,9 +1541,9 @@
     "bmiEmptyTitle": "Ajoute ta taille pour l’IMC",
     "bmiEmptyDescription": "L’IMC nécessite ta taille. Renseigne-la dans Paramètres → Compte.",
     "bmiEmptyAction": "Ouvrir les paramètres du compte",
-    "noProviderConfigured": "Analyse indisponible.",
-    "startAnalysis": "Lancer l’analyse",
-    "refreshAnalysis": "Actualiser l’analyse",
+    "noProviderConfigured": "Évaluation indisponible.",
+    "startAnalysis": "Lancer l’évaluation",
+    "refreshAnalysis": "Actualiser l’évaluation",
     "keyTakeaway": "L’essentiel",
     "findingsTitle": "Constats",
     "heroFindingPositive": "Constat principal",
@@ -1590,8 +1590,8 @@
     "heroPersonalBaseline": "Basé sur tes 90 derniers jours",
     "heroRegenerate": "Régénérer",
     "heroRegenerating": "Génération en cours",
-    "regenerateAnalysis": "Relancer l’analyse",
-    "regenerateSuccess": "Analyse regénérée",
+    "regenerateAnalysis": "Relancer l’évaluation",
+    "regenerateSuccess": "Évaluation regénérée",
     "warmAssessments": "Préparer les évaluations",
     "warmAssessmentsHint": "Les évaluations sont actualisées automatiquement pendant la nuit. Préparez-les maintenant pour voir les dernières données.",
     "warmStarted": "Les évaluations sont en cours de préparation en arrière-plan",
@@ -4583,7 +4583,9 @@
       "reminderCheckOverdueTitle": "Prise en retard : {medication}",
       "reminderCheckOverdueBody": "{medication} ({dose}) dans la fenêtre {window} est en retard de {minutes} minutes.",
       "offlineGeoUnavailableTitle": "Bases de géolocalisation hors ligne non chargées",
-      "offlineGeoUnavailableBody": "HealthLog résout les localisations de connexion via le fallback en ligne ipwho.is. Pour activer les bases hors ligne GeoLite2-City et GeoLite2-ASN, définissez MAXMIND_LICENSE_KEY dans les secrets GitHub Actions à {secretsUrl} puis redéployez. En attendant, la colonne opérateur dans l'aperçu des connexions reste vide."
+      "offlineGeoUnavailableBody": "HealthLog résout les localisations de connexion via le fallback en ligne ipwho.is. Pour activer les bases hors ligne GeoLite2-City et GeoLite2-ASN, définissez MAXMIND_LICENSE_KEY dans les secrets GitHub Actions à {secretsUrl} puis redéployez. En attendant, la colonne opérateur dans l'aperçu des connexions reste vide.",
+      "tlsPinChangedTitle": "Certificat feuille TLS modifié : {host}",
+      "tlsPinChangedBody": "La feuille TLS servie par {host} a maintenant le pin SPKI {servedPin}, qui ne figure pas dans l'ensemble de pins connus. Les clients épinglés (l'app native) ne pourront plus se connecter une fois l'ancien pin disparu. Réextrayez le nouveau pin de la feuille, ajoutez-le à TLS_LEAF_SPKI_PINS et à l'ensemble de pins du client natif, et publiez une version avant l'expiration de ce certificat le {validTo}. Voir docs/ops/tls-cert-pin.md."
     },
     "user": {
       "telegramTestBody": "HealthLog: connexion réussie. Les notifications Telegram sont actives."

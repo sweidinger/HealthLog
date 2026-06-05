@@ -4,13 +4,12 @@ import Link from "next/link";
 import { Heart } from "lucide-react";
 
 import { useAuth } from "@/hooks/use-auth";
-import { useInsightStatus } from "@/hooks/use-insight-status";
 import { useInsightsAnalytics } from "@/hooks/use-insights-analytics";
 import { useTranslations } from "@/lib/i18n/context";
 import { useInsightsLayoutPrefs } from "@/hooks/use-insights-layout-prefs";
 import { Button } from "@/components/ui/button";
 import { HealthChartDynamic } from "@/components/charts/health-chart-dynamic";
-import { InsightStatusCard } from "@/components/insights/insight-status-card";
+import { SlugInsightStatusCard } from "@/components/insights/slug-insight-status-card";
 import { MetricEmptyState } from "@/components/insights/metric-empty-state";
 import { MetricStatStrip } from "@/components/insights/metric-stat-strip";
 import { MetricPrimaryTile } from "@/components/insights/metric-primary-tile";
@@ -45,9 +44,6 @@ export default function InsightsPulsPage() {
   const { isAuthenticated, user } = useAuth();
   const { t } = useTranslations();
   const { compareBaseline } = useInsightsLayoutPrefs(isAuthenticated);
-
-  const { data: status, isLoading: isStatusLoading } =
-    useInsightStatus("pulse");
 
   // v1.4.25 W16a — VO2 max chart-row consumes the same `/api/analytics`
   // bundle the mother page reads. Sharing the cache key keeps the
@@ -171,15 +167,7 @@ export default function InsightsPulsPage() {
 
       {/* v1.12.0 — Einschätzung is the last block on the canonical
           metric-detail spine. */}
-      <InsightStatusCard
-        title={t("insights.assessmentTitle")}
-        icon={<Heart className="h-5 w-5" />}
-        text={status?.text ?? null}
-        hasProvider={status?.hasProvider ?? false}
-        updatedAt={status?.updatedAt ?? null}
-        loading={isStatusLoading}
-        preparing={status?.preparing ?? false}
-      />
+      <SlugInsightStatusCard slug="pulse" icon={<Heart className="h-5 w-5" />} />
     </SubPageShell>
   );
 }

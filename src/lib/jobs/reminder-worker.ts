@@ -31,7 +31,10 @@ import {
   enqueueBootTimeWhoopBackfill,
   type WhoopBackfillPayload,
 } from "@/lib/jobs/whoop-backfill";
-import { cleanupExpiredWhoopOAuthStates } from "@/lib/jobs/whoop-oauth-state-cleanup";
+import {
+  cleanupExpiredWhoopConnectTickets,
+  cleanupExpiredWhoopOAuthStates,
+} from "@/lib/jobs/whoop-oauth-state-cleanup";
 import { runFitbitPollCohort } from "@/lib/fitbit/sync";
 import {
   FITBIT_BACKFILL_QUEUE,
@@ -70,6 +73,11 @@ import {
   GEO_BACKFILL_QUEUE,
   GEO_BACKFILL_CRON,
 } from "@/lib/jobs/geo-backfill";
+import {
+  runTlsPinMonitor,
+  TLS_PIN_MONITOR_QUEUE,
+  TLS_PIN_MONITOR_CRON,
+} from "@/lib/jobs/tls-pin-monitor";
 import {
   PR_DETECTION_QUEUE,
   PR_DETECTION_CONCURRENCY,
@@ -486,6 +494,10 @@ interface GeoBackfillPayload {
 }
 
 interface MoodReminderPayload {
+  triggeredAt: string;
+}
+
+interface TlsPinMonitorPayload {
   triggeredAt: string;
 }
 
@@ -1720,6 +1732,8 @@ async function handleWhoopOAuthStateCleanup(
     try {
       const deleted = await cleanupExpiredWhoopOAuthStates(p);
       evt.addMeta("whoop_oauth_state_cleanup_deleted", deleted);
+      const ticketsDeleted = await cleanupExpiredWhoopConnectTickets(p);
+      evt.addMeta("whoop_connect_ticket_cleanup_deleted", ticketsDeleted);
     } catch (err) {
       evt.addWarning(`whoop-oauth-state-cleanup failed: ${err}`);
     }
@@ -1882,6 +1896,24 @@ async function handleGeoBackfill(jobs: Job<GeoBackfillPayload>[]) {
       evt.addWarning(`geo-backfill failed: ${err}`);
     } finally {
       geoBackfillRunning = false;
+    }
+  });
+}
+
+async function handleTlsPinMonitor(jobs: Job<TlsPinMonitorPayload>[]) {
+  void jobs;
+  await withBackgroundEvent("job.tls_pin_monitor", async (evt) => {
+    const p = getWorkerPrisma();
+    try {
+      const summary = await runTlsPinMonitor(p);
+      evt.addMeta("tls_pin_monitor_outcome", summary.outcome);
+      evt.addMeta("tls_pin_monitor_host", summary.host);
+      evt.addMeta("tls_pin_monitor_known_count", summary.knownPinCount);
+    } catch (err) {
+      // runTlsPinMonitor swallows probe failures internally; anything that
+      // escapes is unexpected. Log and move on so a one-off failure does not
+      // poison the queue and block the next tick.
+      evt.addWarning(`tls-pin-monitor failed: ${err}`);
     }
   });
 }
@@ -2327,6 +2359,12 @@ export async function startReminderWorker() {
     HOST_METRIC_QUEUE,
     FEEDBACK_AGGREGATOR_QUEUE,
     GEO_BACKFILL_QUEUE,
+    // v1.12.2 ios-coord — TLS leaf SPKI-change monitor. The iOS client
+    // pins the served leaf certificate; this queue probes it every 6 h and
+    // alarms when the served SPKI leaves the operator's known-good set. The
+    // queue MUST be registered here or pg-boss never provisions it and the
+    // schedule below silently no-ops (the v1.4.37 dead-queue class).
+    TLS_PIN_MONITOR_QUEUE,
     PR_DETECTION_QUEUE,
     MEDICATION_INVENTORY_EXPIRE_QUEUE,
     // v1.4.46 — hourly auto-skip pass for stale unmarked intakes.
@@ -2507,6 +2545,10 @@ export async function startReminderWorker() {
     // long tail of audit rows that landed with the offline MMDB
     // missing or the online provider unreachable.
     [GEO_BACKFILL_QUEUE, GEO_BACKFILL_CRON],
+    // v1.12.2 ios-coord — every-6-hour TLS leaf SPKI probe (:07 off the
+    // hourly sync crons). Surfaces a pinned-leaf rotation well inside the
+    // ≥11-day re-pin window the iOS release owner needs.
+    [TLS_PIN_MONITOR_QUEUE, TLS_PIN_MONITOR_CRON],
     // Fallback rescan every 30 minutes — protects against ingest paths
     // that ship measurements without enqueueing a per-user job. The
     // cron payload deliberately omits a `userId` so the handler iterates
@@ -2737,6 +2779,13 @@ export async function startReminderWorker() {
     GEO_BACKFILL_QUEUE,
     { localConcurrency: 1 },
     handleGeoBackfill,
+  );
+  // v1.12.2 ios-coord — TLS leaf SPKI-change monitor. Single-flight: one
+  // short outbound TLS handshake per tick, no benefit to overlapping ticks.
+  await boss.work<TlsPinMonitorPayload>(
+    TLS_PIN_MONITOR_QUEUE,
+    { localConcurrency: 1 },
+    handleTlsPinMonitor,
   );
   // v0.5.4 ios-coord — single-flight worker. localConcurrency=1 keeps
   // two reminder ticks from interleaving against the same user row;

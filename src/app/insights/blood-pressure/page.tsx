@@ -4,13 +4,12 @@ import Link from "next/link";
 import { HeartPulse } from "lucide-react";
 
 import { useAuth } from "@/hooks/use-auth";
-import { useInsightStatus } from "@/hooks/use-insight-status";
 import { useInsightsAnalytics } from "@/hooks/use-insights-analytics";
 import { useTranslations } from "@/lib/i18n/context";
 import { useInsightsLayoutPrefs } from "@/hooks/use-insights-layout-prefs";
 import { Button } from "@/components/ui/button";
 import { HealthChartDynamic } from "@/components/charts/health-chart-dynamic";
-import { InsightStatusCard } from "@/components/insights/insight-status-card";
+import { SlugInsightStatusCard } from "@/components/insights/slug-insight-status-card";
 import { MeasurementDiversityNudge } from "@/components/insights/measurement-diversity-nudge";
 import { MetricEmptyState } from "@/components/insights/metric-empty-state";
 import { MetricLastMeasurementCard } from "@/components/insights/metric-last-measurement-card";
@@ -43,9 +42,6 @@ export default function InsightsBlutdruckPage() {
   const { user } = useAuth();
   const { t } = useTranslations();
   const { compareBaseline } = useInsightsLayoutPrefs(user != null);
-
-  const { data: status, isLoading: isStatusLoading } =
-    useInsightStatus("blood-pressure");
 
   const { data: analytics, isEmpty } =
     useInsightsAnalytics("BLOOD_PRESSURE_SYS");
@@ -147,14 +143,9 @@ export default function InsightsBlutdruckPage() {
 
       {/* v1.12.0 — Einschätzung is the last block on the canonical
           metric-detail spine. */}
-      <InsightStatusCard
-        title={t("insights.assessmentTitle")}
+      <SlugInsightStatusCard
+        slug="blood-pressure"
         icon={<HeartPulse className="h-5 w-5" />}
-        text={status?.text ?? null}
-        hasProvider={status?.hasProvider ?? false}
-        updatedAt={status?.updatedAt ?? null}
-        loading={isStatusLoading}
-        preparing={status?.preparing ?? false}
       />
     </SubPageShell>
   );

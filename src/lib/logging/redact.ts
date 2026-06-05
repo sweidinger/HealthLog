@@ -93,8 +93,11 @@ export function redactSecrets(input: string): string {
       // insurance number) added as defence-in-depth: the value is
       // encrypted at rest and never deliberately logged, but a stray
       // query-string leak (`?kvnr=…`) is scrubbed at the egress boundary.
+      // v1.12.2 — `ticket` (the one-time WHOOP connect ticket rides in the
+      // `GET /api/whoop/connect?ticket=…` URL): scrub it so the opaque value
+      // never lands in `http.path`/error strings reaching Loki/Glitchtip.
       .replace(
-        /([?&])(secret|code|token|api[_-]?key|insurance(?:number)?|kvnr)=[^&\s]+/gi,
+        /([?&])(secret|code|token|ticket|api[_-]?key|insurance(?:number)?|kvnr)=[^&\s]+/gi,
         "$1$2=[REDACTED]",
       )
   );

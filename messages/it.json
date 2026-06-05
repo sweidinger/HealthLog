@@ -1533,7 +1533,7 @@
     "notAvailableForCompliance": "Confronto non disponibile per l’aderenza"
   },
   "insights": {
-    "noAnalysisYet": "Ancora nessuna analisi.",
+    "noAnalysisYet": "Ancora nessuna valutazione.",
     "assessmentPreparing": "Preparazione della valutazione…",
     "emptyTitle": "Dati ancora insufficienti",
     "emptyDescription": "Gli insights compaiono appena registri qualche misurazione. Inizia da peso o pressione.",
@@ -1541,9 +1541,9 @@
     "bmiEmptyTitle": "Aggiungi l’altezza per il BMI",
     "bmiEmptyDescription": "Per il BMI serve la tua altezza. Salvala in Impostazioni → Account.",
     "bmiEmptyAction": "Apri impostazioni account",
-    "noProviderConfigured": "Analisi non disponibile.",
-    "startAnalysis": "Avvia analisi",
-    "refreshAnalysis": "Aggiorna analisi",
+    "noProviderConfigured": "Valutazione non disponibile.",
+    "startAnalysis": "Avvia valutazione",
+    "refreshAnalysis": "Aggiorna valutazione",
     "keyTakeaway": "Ciò che conta",
     "findingsTitle": "Riscontri",
     "heroFindingPositive": "Riscontro principale",
@@ -1590,8 +1590,8 @@
     "heroPersonalBaseline": "Basato sugli ultimi 90 giorni",
     "heroRegenerate": "Rigenera",
     "heroRegenerating": "Generazione in corso",
-    "regenerateAnalysis": "Riavvia l’analisi",
-    "regenerateSuccess": "Analisi rigenerata",
+    "regenerateAnalysis": "Rigenera la valutazione",
+    "regenerateSuccess": "Valutazione rigenerata",
     "warmAssessments": "Prepara le valutazioni",
     "warmAssessmentsHint": "Le valutazioni si aggiornano automaticamente durante la notte. Preparale ora per vedere i dati più recenti.",
     "warmStarted": "Le valutazioni vengono preparate in background",
@@ -4583,7 +4583,9 @@
       "reminderCheckOverdueTitle": "Dose in ritardo: {medication}",
       "reminderCheckOverdueBody": "{medication} ({dose}) nella finestra {window} è in ritardo di {minutes} minuti.",
       "offlineGeoUnavailableTitle": "Database di geolocalizzazione offline non caricati",
-      "offlineGeoUnavailableBody": "HealthLog sta risolvendo le posizioni di accesso tramite il fallback online ipwho.is. Per abilitare i database offline GeoLite2-City e GeoLite2-ASN, imposta MAXMIND_LICENSE_KEY nei secret di GitHub Actions su {secretsUrl} e ridistribuisci. Fino ad allora la colonna operatore nella panoramica degli accessi rimane vuota."
+      "offlineGeoUnavailableBody": "HealthLog sta risolvendo le posizioni di accesso tramite il fallback online ipwho.is. Per abilitare i database offline GeoLite2-City e GeoLite2-ASN, imposta MAXMIND_LICENSE_KEY nei secret di GitHub Actions su {secretsUrl} e ridistribuisci. Fino ad allora la colonna operatore nella panoramica degli accessi rimane vuota.",
+      "tlsPinChangedTitle": "Certificato foglia TLS modificato: {host}",
+      "tlsPinChangedBody": "La foglia TLS servita da {host} ora ha il pin SPKI {servedPin}, che non è nell'insieme dei pin noti. I client con pin fisso (l'app nativa) non potranno più connettersi una volta scomparso il vecchio pin. Riestrai il nuovo pin della foglia, aggiungilo a TLS_LEAF_SPKI_PINS e all'insieme dei pin del client nativo, e pubblica una build prima che questo certificato scada il {validTo}. Vedi docs/ops/tls-cert-pin.md."
     },
     "user": {
       "telegramTestBody": "HealthLog: connessione riuscita. Le notifiche Telegram sono attive."

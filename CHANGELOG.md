@@ -2,6 +2,21 @@
 
 ## [Unreleased]
 
+## [1.12.2] — 2026-06-05 — WHOOP connect from the app, consistent assessments and medications
+
+### Added
+
+- **WHOOP can be connected from the native app.** The OAuth handshake now works for an app that holds no web session: the client obtains a short-lived one-time connect token and opens the WHOOP authorization in an in-app browser that returns straight to the app. (No change for the web flow.)
+
+### Changed
+
+- **One word for "assessment", everywhere.** The AI assessment was labelled four different ways across the app; it now reads consistently in every language, and the assessment is always the final block on a metric page.
+- **Every medication behaves the same when you log a dose.** Marking a GLP-1 dose taken now shows the same failure notice and one-tap undo that the other medication types already had, and medication status colours, the compliance percentage, and tap-target sizes are consistent across the cards.
+
+### Operations
+
+- **An alarm when the TLS certificate's public key changes.** Self-hosters whose native clients pin the server certificate now get a loud, logged alert (and an admin notification) when the served leaf key rotates, so the pin can be refreshed before it lapses. Set the expected pin(s) via `TLS_LEAF_SPKI_PINS`; see `docs/ops/tls-cert-pin.md`.
+
 ## [1.12.1] — 2026-06-05 — security, data-integrity, and insight-quality hardening
 
 ### Changed

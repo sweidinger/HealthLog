@@ -1,7 +1,7 @@
 import { Flame } from "lucide-react";
 
 import { Progress } from "@/components/ui/progress";
-import { useTranslations } from "@/lib/i18n/context";
+import { useTranslations, useFormatters } from "@/lib/i18n/context";
 
 interface MedicationComplianceBarsProps {
   rate7: number;
@@ -29,9 +29,11 @@ interface MedicationComplianceBarsProps {
  * 365-day long window. The labels are parametrised on the chosen day-counts
  * so each row names the window it actually covers.
  *
- * The streak flame uses the canonical `text-dracula-orange` warning/streak
- * token (globals.css). The generic card historically drifted onto Tailwind
- * stock `text-orange-400`; unifying here closes that token gap.
+ * The streak flame uses the semantic `text-warning` token (an alias over
+ * Dracula orange in dark mode, AA-safe on the light card). The generic card
+ * historically drifted onto Tailwind stock `text-orange-400`, and the flame
+ * later carried the raw `text-dracula-orange` palette token; v1.12.2 routes
+ * it through the semantic vocabulary the rest of the status surface uses.
  */
 export function MedicationComplianceBars({
   rate7,
@@ -41,16 +43,23 @@ export function MedicationComplianceBars({
   longDays = 30,
 }: MedicationComplianceBarsProps) {
   const { t } = useTranslations();
+  const fmt = useFormatters();
 
   const shortLabel = t("medications.complianceWindow", { days: shortDays });
   const longLabel = t("medications.complianceWindow", { days: longDays });
+
+  // v1.12.2 — route the rate through the locale number formatter and round
+  // so a non-integer rate (e.g. 33.333) never leaks raw into the caption,
+  // matching how every other percentage renders.
+  const shortPct = fmt.number(Math.round(rate7));
+  const longPct = fmt.number(Math.round(rate30));
 
   return (
     <div className="space-y-2.5">
       <div className="space-y-1.5">
         <div className="flex items-center justify-between text-sm">
           <span className="text-muted-foreground">{shortLabel}</span>
-          <span className="font-medium">{rate7}%</span>
+          <span className="font-medium">{shortPct}%</span>
         </div>
         {/* aria-label so the bar has an accessible name. */}
         <Progress value={rate7} className="h-2" aria-label={shortLabel} />
@@ -59,7 +68,7 @@ export function MedicationComplianceBars({
       <div className="space-y-1.5">
         <div className="flex items-center justify-between text-sm">
           <span className="text-muted-foreground">{longLabel}</span>
-          <span className="font-medium">{rate30}%</span>
+          <span className="font-medium">{longPct}%</span>
         </div>
         <Progress value={rate30} className="h-2" aria-label={longLabel} />
       </div>
@@ -68,7 +77,7 @@ export function MedicationComplianceBars({
           row doesn't leave a residual gap below the bars. */}
       {streak > 0 && (
         <div className="flex items-center gap-4 text-xs">
-          <span className="text-dracula-orange flex items-center gap-1 font-medium">
+          <span className="text-warning flex items-center gap-1 font-medium">
             <Flame className="h-3.5 w-3.5" />
             {streak} {t("medications.dayStreak")}
           </span>

@@ -191,7 +191,7 @@ export function IntakeImportDialog({
           />
           {result && (
             <p
-              className={`text-sm ${resultType === "success" ? "text-dracula-green" : "text-destructive"}`}
+              className={`text-sm ${resultType === "success" ? "text-success" : "text-destructive"}`}
               role="status"
               aria-live="polite"
             >

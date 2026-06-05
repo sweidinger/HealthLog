@@ -6,16 +6,15 @@ import Link from "next/link";
 import { Smile } from "lucide-react";
 
 import { useAuth } from "@/hooks/use-auth";
-import { useInsightStatus } from "@/hooks/use-insight-status";
 import { queryKeys } from "@/lib/query-keys";
 import { useTranslations } from "@/lib/i18n/context";
 import { useInsightsLayoutPrefs } from "@/hooks/use-insights-layout-prefs";
 import { Button } from "@/components/ui/button";
 import { ChartSkeleton } from "@/components/charts/chart-skeleton";
-import { InsightStatusCard } from "@/components/insights/insight-status-card";
 import { MetricEmptyState } from "@/components/insights/metric-empty-state";
 import { MetricTargetSummary } from "@/components/insights/metric-target-summary";
 import { MoodInsightsSections } from "@/components/insights/mood/mood-insights-sections";
+import { SlugInsightStatusCard } from "@/components/insights/slug-insight-status-card";
 import { SubPageShell } from "@/components/insights/sub-page-shell";
 
 /**
@@ -44,8 +43,6 @@ export default function InsightsStimmungPage() {
   const { isAuthenticated, user } = useAuth();
   const { t } = useTranslations();
   const { compareBaseline } = useInsightsLayoutPrefs(isAuthenticated);
-
-  const { data: status, isLoading: isStatusLoading } = useInsightStatus("mood");
 
   // Reuse the mother-page comprehensive query — TanStack Query
   // dedups so this is a free cache read for the common case.
@@ -110,22 +107,16 @@ export default function InsightsStimmungPage() {
         userTimezone={user?.timezone}
       />
 
-      {/* v1.8.7 — the AI assessment reads best directly under the first
-          chart: the reader sees the trend, then the narration of it,
-          before the calendar / distribution / correlation breakdowns. */}
-      <InsightStatusCard
-        title={t("insights.assessmentTitle")}
-        icon={<Smile className="h-5 w-5" />}
-        text={status?.text ?? null}
-        hasProvider={status?.hasProvider ?? false}
-        updatedAt={status?.updatedAt ?? null}
-        loading={isStatusLoading}
-        preparing={status?.preparing ?? false}
-      />
-
       <MetricTargetSummary slug="mood" />
 
       <MoodInsightsSections />
+
+      {/* v1.12.2 — the assessment is the LAST block on every bespoke
+          metric-detail page, matching the canonical spine the generic
+          scaffold (weight / bmi / pulse / blood-pressure) renders. The
+          reader sees the trend and the breakdown sections first, then the
+          narration of them at the foot. */}
+      <SlugInsightStatusCard slug="mood" icon={<Smile className="h-5 w-5" />} />
     </SubPageShell>
   );
 }

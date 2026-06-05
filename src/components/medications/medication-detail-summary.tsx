@@ -66,11 +66,15 @@ export function MedicationDetailSummary({
         ? t("medications.detail.status.paused")
         : t("medications.detail.status.ended");
 
+  // v1.12.2 — use the semantic `bg-success` / `bg-warning` utilities (each a
+  // straight alias over the same colour the raw `hsl(var(--…))` resolved to)
+  // so the detail status dot speaks the same token vocabulary as the card
+  // status pill and streak instead of the raw HSL var form.
   const dotClass =
     status === "active"
-      ? "bg-[hsl(var(--success))]"
+      ? "bg-success"
       : status === "paused"
-        ? "bg-[hsl(var(--warning))]"
+        ? "bg-warning"
         : "bg-muted-foreground";
 
   const cadenceLine = oneShot
