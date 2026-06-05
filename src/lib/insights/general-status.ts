@@ -178,9 +178,19 @@ export async function generateGeneralStatusForUser(
     }),
   );
 
+  // v1.12.7 — bound the intake read to the ~365-day window the adherence
+  // series renders. Without a `scheduledFor` floor this scanned all intake
+  // history; the adherence fold below only consumes the trailing year.
+  const intakeWindowStart = new Date(
+    now.getTime() - 365 * 24 * 60 * 60 * 1000,
+  );
   const intakeEvents = await prisma.medicationIntakeEvent.findMany({
     // v1.7.0 sync — exclude tombstoned rows.
-    where: { userId, deletedAt: null },
+    where: {
+      userId,
+      deletedAt: null,
+      scheduledFor: { gte: intakeWindowStart },
+    },
     orderBy: { scheduledFor: "asc" },
     select: {
       scheduledFor: true,

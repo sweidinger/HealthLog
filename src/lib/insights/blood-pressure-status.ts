@@ -276,6 +276,12 @@ export async function generateBloodPressureStatusForUser(
             userId,
             // v1.7.0 sync — exclude tombstoned rows.
             deletedAt: null,
+            // v1.12.7 — bound to the ~365-day window the continuity series
+            // and the 7/30-day compliance gate consume; this read was
+            // otherwise unbounded over all intake history.
+            scheduledFor: {
+              gte: new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000),
+            },
             medicationId: {
               in: bpMedications.map((medication) => medication.id),
             },
