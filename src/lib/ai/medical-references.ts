@@ -164,6 +164,31 @@ export function getMedicalReferenceById(
 }
 
 /**
+ * Map the set of feature/snapshot sections present for a generation onto
+ * the reference metric buckets. Lets the insight consumers pick the
+ * applicable curated SOURCES without re-encoding the bucket names.
+ *
+ * `present` carries one boolean per high-level section the snapshot
+ * actually contains; absent / false sections drop their bucket so a
+ * weight-only generation never lists ESH BP guidance.
+ */
+export function metricsFromPresentSections(present: {
+  bloodPressure?: boolean;
+  weight?: boolean;
+  pulse?: boolean;
+  mood?: boolean;
+  medication?: boolean;
+}): MedicalReferenceMetric[] {
+  const out: MedicalReferenceMetric[] = [];
+  if (present.bloodPressure) out.push("bp");
+  if (present.weight) out.push("weight");
+  if (present.pulse) out.push("pulse");
+  if (present.mood) out.push("mood");
+  if (present.medication) out.push("medication");
+  return out;
+}
+
+/**
  * Pick the references whose `metricApplicability` overlaps any of the
  * supplied metric buckets. Order preserved from the canonical bundle
  * for stable prompt rendering.

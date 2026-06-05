@@ -20,7 +20,8 @@ import {
   buildUserPrompt,
   type ComparisonSnapshot,
 } from "@/lib/ai/prompts/insight-system-prompt";
-import { getStrictInsightsSystemPrompt } from "@/lib/ai/prompts/insight-generator";
+import { buildSystemPromptWithReferences } from "@/lib/ai/prompts/insight-generator";
+import { metricsFromPresentSections } from "@/lib/ai/medical-references";
 import { summarize, type DataPoint } from "@/lib/analytics/trends";
 import {
   resolveDashboardLayout,
@@ -517,6 +518,18 @@ export const POST = apiHandler(async (request: NextRequest) => {
     userPrompt += buildDerivedBriefingPrompt(derivedBriefing, locale);
   }
 
+  // v1.12.7 (B5) — inject the curated SOURCES block for the metric sections
+  // this briefing actually carries, so a normative claim can cite a real
+  // `referenceId` the schema + UI footnote already support. Returns the plain
+  // prompt unchanged when no applicable metric section is present.
+  const referenceMetrics = metricsFromPresentSections({
+    bloodPressure: features.bloodPressure != null,
+    weight: features.weight != null,
+    pulse: features.pulse != null,
+    mood: features.mood != null,
+    medication: (features.medications?.length ?? 0) > 0,
+  });
+
   let result;
   let workingProviderType: string;
   let fallbackHopCount = 0;
@@ -536,7 +549,7 @@ export const POST = apiHandler(async (request: NextRequest) => {
         // tolerates the strict shape via `insightResultSchema.safeParse`'s
         // soft fallback to `parsed` and `passthrough()` on the strict
         // schema, so switching the prompt does not break legacy callers.
-        systemPrompt: getStrictInsightsSystemPrompt(locale),
+        systemPrompt: buildSystemPromptWithReferences(locale, referenceMetrics),
         userPrompt,
         temperature: 0.3,
         maxTokens: 1500,

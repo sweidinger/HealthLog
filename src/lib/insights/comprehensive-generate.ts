@@ -33,7 +33,8 @@ import {
   buildUserPrompt,
   type ComparisonSnapshot,
 } from "@/lib/ai/prompts/insight-system-prompt";
-import { getStrictInsightsSystemPrompt } from "@/lib/ai/prompts/insight-generator";
+import { buildSystemPromptWithReferences } from "@/lib/ai/prompts/insight-generator";
+import { metricsFromPresentSections } from "@/lib/ai/medical-references";
 import { summarize, type DataPoint } from "@/lib/analytics/trends";
 import {
   resolveDashboardLayout,
@@ -52,7 +53,10 @@ import {
   enqueueStatusGeneration,
   type InsightStatusScope,
 } from "@/lib/jobs/insight-status-generate-shared";
-import { normalizeLocale } from "@/lib/insights/status-shared";
+import {
+  normalizeLocale,
+  stripJsonFences,
+} from "@/lib/insights/status-shared";
 import {
   isTimeoutStub,
   statusCacheAction,
@@ -524,6 +528,18 @@ export async function generateComprehensiveInsight(
     userPrompt += buildGlp1PlateauPrompt(plateauContext, locale);
   }
 
+  // v1.12.7 (B5) — inject the curated SOURCES block for the metric sections
+  // this generation actually carries, so a normative claim ("target < 140/90")
+  // can cite a real `referenceId` the schema + UI footnote already support.
+  // Returns the plain prompt unchanged when no applicable metric is present.
+  const referenceMetrics = metricsFromPresentSections({
+    bloodPressure: features.bloodPressure != null,
+    weight: features.weight != null,
+    pulse: features.pulse != null,
+    mood: features.mood != null,
+    medication: (features.medications?.length ?? 0) > 0,
+  });
+
   let result;
   let workingProviderType: string;
   try {
@@ -531,7 +547,7 @@ export async function generateComprehensiveInsight(
       userId,
       providers: chain,
       params: {
-        systemPrompt: getStrictInsightsSystemPrompt(locale),
+        systemPrompt: buildSystemPromptWithReferences(locale, referenceMetrics),
         userPrompt,
         temperature: 0.3,
         maxTokens: 1500,
@@ -548,7 +564,10 @@ export async function generateComprehensiveInsight(
 
   let insights: InsightResult | Record<string, unknown>;
   try {
-    const parsed = JSON.parse(result.content);
+    // Anthropic + local have no native JSON mode, so a ```json-fenced or
+    // sentence-prefixed reply would otherwise fail the whole generation.
+    // Strip the fence before parsing; clean JSON passes through unchanged.
+    const parsed = JSON.parse(stripJsonFences(result.content));
     const validated = insightResultSchema.safeParse(parsed);
     insights = validated.success ? validated.data : parsed;
   } catch {
