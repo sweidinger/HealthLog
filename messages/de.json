@@ -1680,7 +1680,10 @@
       "statLatest": "Aktuell",
       "statMin": "Min",
       "statMax": "Max",
-      "empty": "Noch keine VO₂-Max-Daten — synchronisiere Apple Health, um diese Ansicht zu füllen."
+      "empty": "Noch keine VO₂-Max-Daten — synchronisiere Apple Health, um diese Ansicht zu füllen.",
+      "cardioLinkTitle": "Cardio-Fitness (VO₂ max)",
+      "cardioLinkBody": "VO₂ max ist das zentrale Maß für die aerobe Fitness. Das vollständige Diagramm und die Einschätzung findest du auf der eigenen Seite.",
+      "cardioLinkCta": "Cardio-Fitness öffnen"
     },
     "trendAnnotation": {
       "emptyBp": "Mehr Daten nötig, um diesen Trend zu kommentieren.",

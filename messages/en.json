@@ -1680,7 +1680,10 @@
       "statLatest": "Latest",
       "statMin": "Min",
       "statMax": "Max",
-      "empty": "No VO₂ max data yet — sync Apple Health to populate this view."
+      "empty": "No VO₂ max data yet — sync Apple Health to populate this view.",
+      "cardioLinkTitle": "Cardio fitness (VO₂ max)",
+      "cardioLinkBody": "VO₂ max is the headline measure of aerobic fitness. The full chart and assessment live on its own page.",
+      "cardioLinkCta": "Open cardio fitness"
     },
     "trendAnnotation": {
       "emptyBp": "Awaiting more data to annotate this trend.",

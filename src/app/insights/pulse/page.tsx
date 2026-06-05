@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Heart } from "lucide-react";
+import { ArrowRight, Gauge, Heart } from "lucide-react";
 
 import { useAuth } from "@/hooks/use-auth";
 import { useInsightsAnalytics } from "@/hooks/use-insights-analytics";
@@ -17,7 +17,6 @@ import { MetricCorrelationCard } from "@/components/insights/metric-correlation-
 import { MeasurementDiversityNudge } from "@/components/insights/measurement-diversity-nudge";
 import { MetricTargetSummary } from "@/components/insights/metric-target-summary";
 import { SubPageShell } from "@/components/insights/sub-page-shell";
-import { Vo2MaxChartRow } from "@/components/insights/vo2-max-chart-row";
 import {
   getAgeFromDateOfBirth,
   getPersonalizedPulseTarget,
@@ -33,22 +32,21 @@ import {
  * MeasurementType filter is `PULSE` (the same field used elsewhere
  * in the codebase).
  *
- * v1.4.28 R3d (BK-F-H1 + BK-F-M1) — analytics fetch + empty-state
- * branch consume `useInsightsAnalytics()` + `<MetricEmptyState>`. The
- * VO2 max chart-row still reads `data.summaries.VO2_MAX` directly so
- * the hook exposes the unwrapped payload alongside `isEmpty`.
+ * Analytics fetch + empty-state branch consume `useInsightsAnalytics()`
+ * + `<MetricEmptyState>`. VO₂ max is a cardio-fitness metric, so the page
+ * links across to the dedicated `/insights/cardio-fitness` surface (which
+ * owns the full chart + assessment) rather than rendering a second view.
  */
 export default function InsightsPulsPage() {
   const { isAuthenticated, user } = useAuth();
   const { t } = useTranslations();
   const { compareBaseline } = useInsightsLayoutPrefs(isAuthenticated);
 
-  // v1.4.25 W16a — VO2 max chart-row consumes the same `/api/analytics`
-  // bundle the mother page reads. Sharing the cache key keeps the
-  // payload single-fetch on tab navigation (React-Query unwraps from
-  // the same key).
   const { data: analytics, isEmpty } = useInsightsAnalytics("PULSE");
-  const vo2Summary = analytics?.summaries?.VO2_MAX ?? null;
+  // VO₂ max rides on the same `/api/analytics` bundle; we only need the
+  // sample count to decide whether to surface the cross-link to the
+  // dedicated cardio-fitness page.
+  const hasVo2 = (analytics?.summaries?.VO2_MAX?.count ?? 0) > 0;
   const pulseSummary = analytics?.summaries?.PULSE ?? null;
 
   // v1.12.7 — brushed-window stats shared between the pulse chart and the
@@ -152,17 +150,37 @@ export default function InsightsPulsPage() {
 
       <MetricTargetSummary slug="pulse" />
 
-      {/* v1.4.25 W16a — VO2 max sits on the cardio sub-page because it
-          is a cardio-fitness metric (Apple's Health app surfaces it
-          under "Heart"). The chart-row stays mounted even at zero
-          samples so a brand-new account sees the "no data yet" hint
-          rather than a missing surface — same pattern the dashboard
-          tile uses (opt-in via Settings → Dashboard). */}
-      <Vo2MaxChartRow
-        summary={vo2Summary}
-        compareBaseline={compareBaseline}
-        userTimezone={user?.timezone}
-      />
+      {/* VO₂ max is a cardio-fitness metric (Apple's Health app surfaces it
+          under "Heart"), so the pulse page links across to its dedicated
+          `/insights/cardio-fitness` page — the single surface that carries
+          the full chart plus the plain-language assessment — rather than
+          duplicating a second, divergent VO₂ max view here. */}
+      {hasVo2 ? (
+        <Link
+          href="/insights/cardio-fitness"
+          data-slot="vo2-cardio-link"
+          className="bg-card hover:bg-accent/40 focus-visible:ring-ring/50 flex items-center justify-between gap-3 rounded-xl border p-4 transition-colors focus-visible:ring-2 focus-visible:outline-none"
+        >
+          <span className="flex items-start gap-3">
+            <Gauge
+              className="text-muted-foreground mt-0.5 h-5 w-5 shrink-0"
+              aria-hidden="true"
+            />
+            <span className="space-y-1">
+              <span className="block text-sm font-semibold">
+                {t("insights.vo2Max.cardioLinkTitle")}
+              </span>
+              <span className="text-muted-foreground block text-xs leading-snug">
+                {t("insights.vo2Max.cardioLinkBody")}
+              </span>
+            </span>
+          </span>
+          <span className="text-primary inline-flex shrink-0 items-center gap-1 text-xs font-medium">
+            {t("insights.vo2Max.cardioLinkCta")}
+            <ArrowRight className="h-4 w-4" aria-hidden="true" />
+          </span>
+        </Link>
+      ) : null}
 
       {/* v1.12.0 — Pulse owns the mood × pulse correlation (relocated off
           the overview onto its metric page). */}

@@ -1680,7 +1680,10 @@
       "statLatest": "Actuel",
       "statMin": "Min",
       "statMax": "Max",
-      "empty": "Pas encore de données VO₂ max — synchronise Apple Health pour remplir cette vue."
+      "empty": "Pas encore de données VO₂ max — synchronise Apple Health pour remplir cette vue.",
+      "cardioLinkTitle": "Condition cardio (VO₂ max)",
+      "cardioLinkBody": "Le VO₂ max est la mesure de référence de la condition aérobie. Le graphique complet et l’évaluation se trouvent sur leur propre page.",
+      "cardioLinkCta": "Ouvrir la condition cardio"
     },
     "trendAnnotation": {
       "emptyBp": "Il faut plus de données pour commenter cette tendance.",

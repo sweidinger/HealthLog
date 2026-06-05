@@ -1680,7 +1680,10 @@
       "statLatest": "Aktualne",
       "statMin": "Min",
       "statMax": "Maks",
-      "empty": "Brak danych VO₂ max — zsynchronizuj Apple Health, aby uzupełnić ten widok."
+      "empty": "Brak danych VO₂ max — zsynchronizuj Apple Health, aby uzupełnić ten widok.",
+      "cardioLinkTitle": "Wydolność krążeniowa (VO₂ max)",
+      "cardioLinkBody": "VO₂ max to główna miara wydolności tlenowej. Pełny wykres i ocenę znajdziesz na osobnej stronie.",
+      "cardioLinkCta": "Otwórz wydolność krążeniową"
     },
     "trendAnnotation": {
       "emptyBp": "Potrzeba więcej danych, aby skomentować ten trend.",

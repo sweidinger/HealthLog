@@ -1680,7 +1680,10 @@
       "statLatest": "Actual",
       "statMin": "Mín",
       "statMax": "Máx",
-      "empty": "Aún no hay datos de VO₂ máx — sincroniza Apple Health para llenar esta vista."
+      "empty": "Aún no hay datos de VO₂ máx — sincroniza Apple Health para llenar esta vista.",
+      "cardioLinkTitle": "Forma cardiovascular (VO₂ máx)",
+      "cardioLinkBody": "El VO₂ máx es la medida principal de la forma aeróbica. El gráfico completo y la evaluación están en su propia página.",
+      "cardioLinkCta": "Abrir forma cardiovascular"
     },
     "trendAnnotation": {
       "emptyBp": "Necesitamos más datos para comentar esta tendencia.",
