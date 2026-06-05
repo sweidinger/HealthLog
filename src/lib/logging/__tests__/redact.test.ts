@@ -34,6 +34,10 @@ describe("redactSecrets", () => {
     expect(redactSecrets("export ?insuranceNumber=A123456780&days=30")).toBe(
       "export ?insuranceNumber=[REDACTED]&days=30",
     );
+    // v1.12.2 — one-time WHOOP connect ticket in the connect URL.
+    expect(
+      redactSecrets("GET /api/whoop/connect?ticket=abc_DEF-123&return_scheme=x"),
+    ).toBe("GET /api/whoop/connect?ticket=[REDACTED]&return_scheme=x");
   });
 
   it("redacts OpenAI and Anthropic API keys", () => {

@@ -21,3 +21,20 @@ export async function cleanupExpiredWhoopOAuthStates(
   });
   return count;
 }
+
+/**
+ * v1.12.2 — sweep expired (or already-consumed-and-now-stale)
+ * `whoop_connect_tickets`. The tickets are single-use + ~60s-lived, so the
+ * connect route consumes the live ones; this only reaps rows whose `expiresAt`
+ * has passed (covers both never-used and consumed-then-expired). Same daily
+ * cadence as the OAuth-state sweep above.
+ */
+export async function cleanupExpiredWhoopConnectTickets(
+  prisma: PrismaClient,
+  now: Date = new Date(),
+): Promise<number> {
+  const { count } = await prisma.whoopConnectTicket.deleteMany({
+    where: { expiresAt: { lt: now } },
+  });
+  return count;
+}

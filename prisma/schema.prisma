@@ -372,6 +372,7 @@ model User {
   // OAuth-state ledger (1:N) relations.
   whoopConnection        WhoopConnection?
   whoopOAuthStates       WhoopOAuthState[]
+  whoopConnectTickets    WhoopConnectTicket[]
   // v1.12.0 — Fitbit/Pixel integration. Mirrors the WHOOP connection (1:1) +
   // OAuth-state ledger (1:N) relations.
   fitbitConnection       FitbitConnection?
@@ -1892,11 +1893,49 @@ model WhoopOAuthState {
   userId    String   @map("user_id")
   createdAt DateTime @default(now()) @map("created_at")
   expiresAt DateTime @map("expires_at")
+  /// v1.12.2 — optional native custom-scheme (e.g. `dev.healthlog.app`) the
+  /// connect route validated against the strict allowlist. Carried here so it
+  /// survives the OAuth round-trip server-side (never in the URL/cookie); the
+  /// callback reads it off the consumed row to drive its FINAL redirect to
+  /// `<scheme>://whoop?…` instead of the web settings URL. Null = web redirect.
+  returnScheme String? @map("return_scheme")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([expiresAt])
   @@map("whoop_oauth_states")
+}
+
+/// v1.12.2 — one-time, Bearer-mintable WHOOP connect ticket. Lets a purely
+/// Bearer-authenticated native client (no web-session cookie) start the WHOOP
+/// OAuth handshake: it mints a ticket via `POST /api/whoop/connect/ticket`,
+/// then opens `GET /api/whoop/connect?ticket=<opaque>` in an in-app web
+/// session. The connect route resolves the user from the unconsumed/unexpired
+/// ticket IN LIEU of a session cookie.
+///
+/// Security shape (mirrors the Bearer-token storage pattern):
+///   * The raw ticket is returned to the client exactly once and NEVER stored;
+///     only its HMAC-SHA256 hash (`tokenHash`, keyed by `API_TOKEN_HMAC_KEY`)
+///     lands in the table — a DB read cannot recover a usable ticket.
+///   * Single-use: `consumedAt` is stamped by an atomic conditional update at
+///     the connect route; a second presentation finds the row already consumed
+///     and is rejected.
+///   * Short-lived (~60s `expiresAt`); the daily WHOOP OAuth-state cleanup
+///     cron also sweeps expired/consumed ticket rows.
+model WhoopConnectTicket {
+  id         String    @id @default(cuid())
+  userId     String    @map("user_id")
+  /// HMAC-SHA256 of the opaque raw ticket. The raw value never persists.
+  tokenHash  String    @unique @map("token_hash")
+  createdAt  DateTime  @default(now()) @map("created_at")
+  expiresAt  DateTime  @map("expires_at")
+  /// Stamped on first (and only) successful consumption. Null = still usable.
+  consumedAt DateTime? @map("consumed_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([expiresAt])
+  @@map("whoop_connect_tickets")
 }
 
 /// v1.12.0 — Fitbit/Pixel connection over the Google Health API. Mirrors

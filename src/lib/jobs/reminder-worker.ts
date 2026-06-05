@@ -31,7 +31,10 @@ import {
   enqueueBootTimeWhoopBackfill,
   type WhoopBackfillPayload,
 } from "@/lib/jobs/whoop-backfill";
-import { cleanupExpiredWhoopOAuthStates } from "@/lib/jobs/whoop-oauth-state-cleanup";
+import {
+  cleanupExpiredWhoopConnectTickets,
+  cleanupExpiredWhoopOAuthStates,
+} from "@/lib/jobs/whoop-oauth-state-cleanup";
 import { runFitbitPollCohort } from "@/lib/fitbit/sync";
 import {
   FITBIT_BACKFILL_QUEUE,
@@ -1729,6 +1732,8 @@ async function handleWhoopOAuthStateCleanup(
     try {
       const deleted = await cleanupExpiredWhoopOAuthStates(p);
       evt.addMeta("whoop_oauth_state_cleanup_deleted", deleted);
+      const ticketsDeleted = await cleanupExpiredWhoopConnectTickets(p);
+      evt.addMeta("whoop_connect_ticket_cleanup_deleted", ticketsDeleted);
     } catch (err) {
       evt.addWarning(`whoop-oauth-state-cleanup failed: ${err}`);
     }
