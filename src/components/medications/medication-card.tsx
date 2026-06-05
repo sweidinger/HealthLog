@@ -26,6 +26,7 @@ import {
   reduceCurrentWindowStatus,
   toBerlinDate,
 } from "@/lib/medications/window-status";
+import { resolveDisplayedSlotInstant } from "@/components/medications/card-parts/displayed-slot-instant";
 import { useTranslations, useFormatters } from "@/lib/i18n/context";
 import {
   invalidateKeys,
@@ -242,6 +243,17 @@ export function MedicationCard({
     todayEventCount: medication.todayEventCount ?? 0,
   });
 
+  // v1.12.3 — the slot instant of the dose this card is currently showing
+  // (the open/overdue window, else the server's next-due). Threaded onto
+  // the take / skip POST so the server records THIS dose rather than
+  // snapping "now" to the nearest slot — a morning tap on a 07:00 / 19:00
+  // medication used to mis-record the 07:00 dose.
+  const displayedSlot = resolveDisplayedSlotInstant({
+    currentWindowStatus,
+    nextDueAt: medication.nextDueAt,
+    now: new Date(),
+  });
+
   function formatLastTakenAt(value: string): string {
     // Intentionally en-CA: gives YYYY-MM-DD which is locale-independent and
     // string-comparable for the today / yesterday / older bucketing below.
@@ -399,7 +411,7 @@ export function MedicationCard({
           <div className="mt-auto pt-0">
             <MedicationIntakeActions
               intakeLoading={intakeLoading}
-              onRecordIntake={recordIntake}
+              onRecordIntake={(skipped) => recordIntake(skipped, displayedSlot)}
             />
           </div>
         )}
