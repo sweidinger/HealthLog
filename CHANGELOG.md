@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+## [1.13.3] — 2026-06-05 — health score scores blood pressure again, steps in Insights
+
+### Fixed
+
+- **The health score rates your blood pressure again.** The score was reading your blood-pressure-in-range rate from the trailing 30 days, but the score is meant to use your full history — so an account with blood-pressure history but no readings in the last month lost the whole blood-pressure pillar and showed "no rating". The score now reads the all-time rate (the at-a-glance tile headline still shows the last 30 days). If your blood pressure or weight still shows no rating, check that your date of birth (needed for the blood-pressure target) and height + target weight are set in your profile — those are required for the respective pillars.
+
+### Added
+
+- **Steps now have their own Insights page.** "Activity / Steps" was tracked and shown on the dashboard but never appeared in the Insights metric navigation; it now has its own Insights sub-page like the other activity metrics, surfaced whenever you have step data.
+
 ## [1.13.2] — 2026-06-05 — honest weekly-med compliance, correct sleep average, calmer wellness scores
 
 ### Fixed
