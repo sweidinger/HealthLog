@@ -254,6 +254,10 @@ async function buildAnalyticsResponse(user: AuthedUser) {
    * the resulting `last30Days.pct`.
    */
   let bpInTargetPctPriorWeek: number | null = null;
+  // All-time prior-week BP pct — feeds the Health-Score delta so its BP
+  // pillar compares the same window on both ends (the tile headline keeps
+  // its 30-day scope; the score reads all-time per its documented contract).
+  let windowsPriorWeekAllTime: number | null = null;
   const bpTargets = getBpTargets(user.dateOfBirth);
   if (bpTargets) {
     const now = new Date();
@@ -305,6 +309,11 @@ async function buildAnalyticsResponse(user: AuthedUser) {
     bpInTargetPctPriorMonth = windows.priorMonth?.pct ?? null;
     bpInTargetPctPriorYear = windows.priorYear?.pct ?? null;
     bpInTargetPctPriorWeek = windowsPriorWeek.last30Days?.pct ?? null;
+    // The Health-Score BP pillar reads the all-time window (see the
+    // `bpInTargetPctForScore` derivation below). Capture the prior-week
+    // run's all-time pct too so the week-over-week delta compares the
+    // same window on both ends.
+    windowsPriorWeekAllTime = windowsPriorWeek.allTime?.pct ?? null;
   }
 
   // Per-context glucose summaries (canonical mg/dL).
@@ -362,15 +371,30 @@ async function buildAnalyticsResponse(user: AuthedUser) {
   // 2-column projection from `measurements` for the ingest-path
   // pills. Falls back to the legacy 37-day raw read on partial /
   // missing coverage. Path annotate sits on `meta.healthScore.path`.
+  // The Health-Score BP pillar reads the **all-time** in-target rate, not
+  // the BD-Zielbereich tile headline (which v1.4.x deliberately scopes to
+  // the trailing 30 days). Feeding the tile's `bpInTargetPct` (last-30d)
+  // here regressed the pillar to null for any account with BP history but
+  // no readings inside the trailing month — the score then dropped the
+  // 0.30-weight BP pillar entirely and rendered "no rating" despite the
+  // user having BP data. `health-score.ts` documents the field as the
+  // all-time rate, so route the all-time window through; fall back to the
+  // 30-day window only when the all-time window is itself null (it never
+  // is when 30-day has data), so a brand-new account is unaffected.
+  const bpInTargetPctForScore = bpInTargetPctAllTime ?? bpInTargetPct;
+  const bpInTargetPctPriorWeekForScore =
+    windowsPriorWeekAllTime ?? bpInTargetPctPriorWeek;
   const healthScore = await computeUserHealthScoreFastPath({
     userId: user.id,
-    bpInTargetPct,
+    bpInTargetPct: bpInTargetPctForScore,
     // v1.4.38 — feed the prior-week BP pct into the Health-Score
     // helper's previous-window snapshot so the week-over-week delta
     // reflects BP movement instead of zeroing out of the BP pillar.
     // Computed alongside the current windows via a second
-    // `computeBpInTargetFastPath` run anchored at `now - 7d`.
-    bpInTargetPctPriorWeek,
+    // `computeBpInTargetFastPath` run anchored at `now - 7d`. Uses the
+    // same all-time window as the current snapshot so the delta is
+    // apples-to-apples.
+    bpInTargetPctPriorWeek: bpInTargetPctPriorWeekForScore,
     heightCm: user.heightCm ?? null,
     now: new Date(),
     coverage,

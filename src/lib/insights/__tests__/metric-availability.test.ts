@@ -169,4 +169,26 @@ describe("hasMetricData", () => {
       }),
     ).toBe(false);
   });
+
+  // Steps are stored as `ACTIVITY_STEPS`; the Insights tab strip + the
+  // routed sub-page gate on that key. A regression had Steps absent from
+  // the metric registry entirely, so the pill / sub-page never surfaced
+  // despite the dashboard tile already reading `summaries.ACTIVITY_STEPS`.
+  it("returns true for ACTIVITY_STEPS when the summary count is positive", () => {
+    expect(
+      hasMetricData("ACTIVITY_STEPS", {
+        ...emptyInputs,
+        summaries: { ACTIVITY_STEPS: fakeSummary(4200) },
+      }),
+    ).toBe(true);
+  });
+
+  it("returns false for ACTIVITY_STEPS when the summary count is zero", () => {
+    expect(
+      hasMetricData("ACTIVITY_STEPS", {
+        ...emptyInputs,
+        summaries: { ACTIVITY_STEPS: fakeSummary(0) },
+      }),
+    ).toBe(false);
+  });
 });

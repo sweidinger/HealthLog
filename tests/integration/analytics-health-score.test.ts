@@ -190,6 +190,63 @@ describe("GET /api/analytics — Health Score", () => {
     expect(hs.components.compliance.value).toBeGreaterThanOrEqual(95);
   });
 
+  it("scores the BP pillar from all-time history even with no readings in the trailing 30 days", async () => {
+    // Regression pin: the BD-Zielbereich tile headline reads the trailing
+    // 30 days, but the Health-Score BP pillar must read the all-time
+    // window. A prior change fed the 30-day value into the score, so an
+    // account whose BP readings predate the trailing month lost the
+    // 0.30-weight BP pillar entirely and rendered "no rating" despite
+    // having BP data. This pins the all-time feed.
+    const prisma = getPrismaClient();
+    const user = await seedSession("hs-bp-old");
+
+    const now = Date.now();
+    const DAY = 24 * 60 * 60 * 1000;
+
+    // 20 paired in-target readings, all ~60–80 days ago (outside the
+    // trailing-30-day window the tile headline uses, inside the all-time
+    // window the score should use).
+    for (let i = 0; i < 20; i++) {
+      const at = new Date(now - (60 + i) * DAY);
+      await prisma.measurement.create({
+        data: {
+          userId: user.id,
+          type: "BLOOD_PRESSURE_SYS",
+          value: 122,
+          unit: "mmHg",
+          measuredAt: at,
+        },
+      });
+      await prisma.measurement.create({
+        data: {
+          userId: user.id,
+          type: "BLOOD_PRESSURE_DIA",
+          value: 78,
+          unit: "mmHg",
+          measuredAt: at,
+        },
+      });
+    }
+
+    const { GET } = await import("@/app/api/analytics/route");
+    const res = await (GET as (req: Request) => Promise<Response>)(
+      new Request("http://localhost/api/analytics"),
+    );
+    expect(res.status).toBe(200);
+    const env = (await res.json()) as AnalyticsEnvelope & {
+      data: { bpInTargetPct: number | null } | null;
+    };
+    expect(env.data!.healthScore).not.toBeNull();
+    const hs = env.data!.healthScore!;
+    // The BP pillar must score from the all-time window…
+    expect(hs.components.bp.value).not.toBeNull();
+    expect(hs.components.bp.value).toBeGreaterThanOrEqual(90);
+    expect(hs.components.bp.weight).toBeGreaterThan(0);
+    // …while the tile headline stays scoped to the trailing 30 days
+    // (no readings there → null), proving the two are decoupled.
+    expect(env.data!.bpInTargetPct).toBeNull();
+  });
+
   it("returns null healthScore for a user with no data", async () => {
     await seedSession("hs-empty");
     const { GET } = await import("@/app/api/analytics/route");

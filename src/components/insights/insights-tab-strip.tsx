@@ -156,6 +156,10 @@ const SUB_PAGE_TABS: Record<
     metric: "LEAN_BODY_MASS",
   },
   // ── activity ──
+  steps: {
+    labelKey: "insights.navSteps",
+    metric: "ACTIVITY_STEPS",
+  },
   "active-energy": {
     labelKey: "insights.navActiveEnergy",
     metric: "ACTIVE_ENERGY_BURNED",

@@ -3874,6 +3874,7 @@ components:
                   - muscle-mass
                   - visceral-fat
                   - lean-body-mass
+                  - steps
                   - active-energy
                   - workouts
                   - flights-climbed
@@ -9663,6 +9664,7 @@ components:
                   - muscle-mass
                   - visceral-fat
                   - lean-body-mass
+                  - steps
                   - active-energy
                   - workouts
                   - flights-climbed

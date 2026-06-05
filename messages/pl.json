@@ -1914,6 +1914,7 @@
     "navRestingHr": "Tętno spoczynkowe",
     "navOxygenSaturation": "Tlen",
     "navBodyTemperature": "Temperatura",
+    "navSteps": "Kroki",
     "navActiveEnergy": "Energia czynna",
     "navAriaLabel": "Przejdź do sekcji",
     "tabStrip": {
@@ -1981,6 +1982,15 @@
         "title": "Brak temperatury ciała",
         "description": "Zarejestruj pomiar lub pozwól wearable zsynchronizować jeden — trend pojawi się tutaj.",
         "cta": "Zarejestruj temperaturę ciała"
+      }
+    },
+    "steps": {
+      "title": "Kroki",
+      "description": "Dzienna liczba kroków — jeden wiersz na dobę, z Apple Zdrowie lub podłączonego urządzenia aktywności.",
+      "chartTitle": "Kroki dziennie",
+      "emptyState": {
+        "title": "Brak danych o krokach",
+        "description": "Dzienne sumy kroków pojawią się tutaj, gdy Apple Zdrowie lub urządzenie aktywności zsynchronizuje pełny dzień."
       }
     },
     "activeEnergy": {

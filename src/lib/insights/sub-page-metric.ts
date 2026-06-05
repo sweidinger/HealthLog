@@ -66,6 +66,11 @@ const SUB_PAGE_METRIC = {
   "visceral-fat": ["VISCERAL_FAT"],
   "lean-body-mass": ["LEAN_BODY_MASS"],
   // ── activity ──
+  // v1.12 — Steps gains a routed sub-page. Stored as `ACTIVITY_STEPS`;
+  // the tile already surfaced on the dashboard but the metric was never
+  // listed here, so it never appeared in the Insights tab strip / sub-page
+  // nav despite the user having step data.
+  steps: ["ACTIVITY_STEPS"],
   "active-energy": ["ACTIVE_ENERGY_BURNED"],
   // v1.4.32 — workouts surface; the page reads `Workout` rows directly
   // through `useWorkouts()` rather than the `summaries` map, so the
@@ -161,6 +166,7 @@ export const SUB_PAGE_GROUP: Partial<Record<SubPageSlug, SubPageGroup>> = {
   "visceral-fat": "body",
   "lean-body-mass": "body",
   // activity / mobility (v1.7.0)
+  steps: "activity",
   "flights-climbed": "activity",
   "walking-distance": "activity",
   "walking-steadiness": "activity",

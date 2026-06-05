@@ -177,6 +177,22 @@ describe("<InsightsTabStrip> — vitals group collapse (v1.4.34 IW-D)", () => {
     expect(html).not.toContain(">Active energy<");
   });
 
+  // Steps live behind the "Activity" parent pill (the activity cluster).
+  // A regression had Steps absent from the metric registry entirely, so
+  // step data never surfaced the Activity group in Insights nav even
+  // though the dashboard tile read `summaries.ACTIVITY_STEPS`. This pins
+  // that ACTIVITY_STEPS data lights up the Activity parent pill.
+  it("surfaces the Activity parent pill when only ACTIVITY_STEPS has data", () => {
+    const availability: InsightInputs = {
+      summaries: { ACTIVITY_STEPS: fakeSummary(4200) },
+      hasMood: false,
+      hasMedication: false,
+    };
+    const html = render(<InsightsTabStrip availability={availability} />);
+    expect(html).toContain('data-group="activity"');
+    expect(html).toContain(">Activity<");
+  });
+
   it("hides the parent pill when no wave-A metric has data", () => {
     const availability: InsightInputs = {
       summaries: { WEIGHT: fakeSummary(2) },
