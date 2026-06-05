@@ -17,9 +17,9 @@ import { useEffect, useRef, useState } from "react";
  */
 export function useCountUp(
   target: number,
-  options: { durationMs?: number; enabled?: boolean } = {},
+  options: { durationMs?: number; enabled?: boolean; startDelayMs?: number } = {},
 ): number {
-  const { durationMs = 600, enabled = true } = options;
+  const { durationMs = 600, enabled = true, startDelayMs = 0 } = options;
   // Seed at the final value so the reduced-motion / SSR path is already
   // correct without any setState; only the animated path drives frames,
   // and those setState calls all happen inside the rAF callback (async).
@@ -60,7 +60,7 @@ export function useCountUp(
       return;
     }
 
-    const start = performance.now();
+    let start = 0;
 
     const tick = (now: number) => {
       const elapsed = now - start;
@@ -76,20 +76,36 @@ export function useCountUp(
       }
     };
 
-    // First frame (and every subsequent one) runs inside the rAF callback,
-    // so the initial 0-state set is asynchronous — no cascading render.
-    frameRef.current = window.requestAnimationFrame((now) => {
+    // Hold the number at 0 during the stagger delay so it matches the empty
+    // ring, then start the rAF loop. Every setState runs inside a rAF/timeout
+    // callback (async) — never synchronously in the effect body — so there is
+    // no cascading render. `startDelayMs` lets the strip stagger each tile's
+    // count-up so the number trails its arc, left-to-right.
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
+    const begin = () => {
+      frameRef.current = window.requestAnimationFrame((now) => {
+        start = now;
+        tick(now);
+      });
+    };
+    const arm = window.requestAnimationFrame(() => {
       setValue(0);
-      tick(now);
+      if (startDelayMs > 0) {
+        timeoutId = setTimeout(begin, startDelayMs);
+      } else {
+        begin();
+      }
     });
 
     return () => {
+      window.cancelAnimationFrame(arm);
+      if (timeoutId != null) clearTimeout(timeoutId);
       if (frameRef.current != null) {
         window.cancelAnimationFrame(frameRef.current);
         frameRef.current = null;
       }
     };
-  }, [target, durationMs, enabled]);
+  }, [target, durationMs, enabled, startDelayMs]);
 
   return value;
 }
