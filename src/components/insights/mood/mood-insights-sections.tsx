@@ -69,10 +69,7 @@ const MoodTimeOfDayChart = dynamic(
     loading: () => <Skeleton className="h-[220px] w-full rounded-md" />,
   },
 );
-import {
-  MoodTagBreakdown,
-  type MoodTagRow,
-} from "./mood-tag-breakdown";
+import { MoodTagBreakdown, type MoodTagRow } from "./mood-tag-breakdown";
 import {
   MoodCorrelationCards,
   type MoodMetricCorrelationData,
@@ -92,10 +89,7 @@ import {
   MoodTagInfluence,
   type MoodTagInfluenceRow,
 } from "./mood-tag-influence";
-import {
-  MoodBetterDays,
-  type MoodBetterDayFactor,
-} from "./mood-better-days";
+import { MoodBetterDays, type MoodBetterDayFactor } from "./mood-better-days";
 import {
   MoodTagMetricCrosstab,
   type MoodTagMetricCrosstabRow,
@@ -256,7 +250,11 @@ export function MoodInsightsSections({
   if (region === "heatmap") {
     return (
       <SectionCard title={t("insights.mood.heatmapTitle")} icon={CalendarDays}>
-        <MoodHeatmap cells={heatmapCells} days={data.heatmap.windowDays} stretch />
+        <MoodHeatmap
+          cells={heatmapCells}
+          days={data.heatmap.windowDays}
+          stretch
+        />
       </SectionCard>
     );
   }
@@ -273,9 +271,12 @@ export function MoodInsightsSections({
       <Card
         aria-live="polite"
         data-slot="insight-assessment"
-        className="animate-insight-in gap-2 py-4 md:gap-3 md:py-5"
+        // v1.13.1 — match the canonical `gap-1.5` + `pb-1` heading-to-body
+        // rhythm the other assessment cards use, so the heading sits tight
+        // above its body instead of floating ~16-24 px above it.
+        className="animate-insight-in gap-1.5 py-4 md:py-5"
       >
-        <CardHeader className="pb-2">
+        <CardHeader className="pb-1">
           <TileHeader
             icon={Sparkles}
             title={t("insights.mood.betterDays.title")}
@@ -309,9 +310,7 @@ export function MoodInsightsSections({
           {hasInTargetTile && (
             <MoodInTargetTile pct={data.summary.inTargetPct} />
           )}
-          {hasStabilityTile && (
-            <MoodStabilityTile stability={data.stability} />
-          )}
+          {hasStabilityTile && <MoodStabilityTile stability={data.stability} />}
         </div>
       )}
 
@@ -343,10 +342,7 @@ export function MoodInsightsSections({
       )}
 
       {hasStructuredTags && (
-        <SectionCard
-          title={t("insights.mood.structuredTagsTitle")}
-          icon={Tags}
-        >
+        <SectionCard title={t("insights.mood.structuredTagsTitle")} icon={Tags}>
           <MoodStructuredTagBreakdown tags={data.structuredTags} />
         </SectionCard>
       )}
@@ -358,7 +354,10 @@ export function MoodInsightsSections({
       )}
 
       {hasInfluence && (
-        <SectionCard title={t("insights.mood.influence.title")} icon={TrendingUp}>
+        <SectionCard
+          title={t("insights.mood.influence.title")}
+          icon={TrendingUp}
+        >
           <MoodTagInfluence rows={influenceRows} />
         </SectionCard>
       )}
@@ -369,10 +368,7 @@ export function MoodInsightsSections({
         </SectionCard>
       )}
 
-      <SectionCard
-        title={t("insights.mood.correlationsTitle")}
-        icon={Link2}
-      >
+      <SectionCard title={t("insights.mood.correlationsTitle")} icon={Link2}>
         <p className="text-muted-foreground mb-2 text-sm">
           {t("insights.mood.correlationsDescription")}
         </p>

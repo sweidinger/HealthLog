@@ -20,7 +20,7 @@ import {
   Zap,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { useTranslations } from "@/lib/i18n/context";
 import { formatRelativeTime } from "@/lib/i18n/relative-time";
@@ -38,7 +38,10 @@ import type {
  * dedicated routed sub-page yet (hrv, resting_hr, steps, …) fall
  * through to `null` and render as a plain row (no link wrap).
  */
-const METRIC_HREF: Record<DailyBriefingKeyFinding["sourceMetric"], string | null> = {
+const METRIC_HREF: Record<
+  DailyBriefingKeyFinding["sourceMetric"],
+  string | null
+> = {
   bp: "/insights/blood-pressure",
   weight: "/insights/weight",
   pulse: "/insights/pulse",
@@ -240,10 +243,10 @@ function BriefingSkeleton() {
       aria-hidden="true"
     >
       <div className="space-y-2">
-        <div className="bg-muted/60 h-3 w-11/12 animate-pulse motion-reduce:animate-none rounded" />
-        <div className="bg-muted/60 h-3 w-10/12 animate-pulse motion-reduce:animate-none rounded" />
-        <div className="bg-muted/60 h-3 w-9/12 animate-pulse motion-reduce:animate-none rounded" />
-        <div className="bg-muted/60 h-3 w-8/12 animate-pulse motion-reduce:animate-none rounded" />
+        <div className="bg-muted/60 h-3 w-11/12 animate-pulse rounded motion-reduce:animate-none" />
+        <div className="bg-muted/60 h-3 w-10/12 animate-pulse rounded motion-reduce:animate-none" />
+        <div className="bg-muted/60 h-3 w-9/12 animate-pulse rounded motion-reduce:animate-none" />
+        <div className="bg-muted/60 h-3 w-8/12 animate-pulse rounded motion-reduce:animate-none" />
       </div>
       <div className="space-y-2">
         {[0, 1, 2].map((i) => (
@@ -251,7 +254,7 @@ function BriefingSkeleton() {
             key={i}
             className="border-border/40 bg-card/30 flex h-16 items-center rounded-md border p-3"
           >
-            <div className="bg-muted/60 h-3 w-1/3 animate-pulse motion-reduce:animate-none rounded" />
+            <div className="bg-muted/60 h-3 w-1/3 animate-pulse rounded motion-reduce:animate-none" />
           </div>
         ))}
       </div>
@@ -270,109 +273,121 @@ export function DailyBriefing({
   const { t } = useTranslations();
 
   return (
-    <Card data-slot="daily-briefing" className="overflow-hidden">
-      <CardHeader className="pb-3">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
-            <Sparkles
-              className="text-dose-accent h-4 w-4 shrink-0"
-              aria-hidden="true"
-            />
-            <CardTitle className="text-base font-semibold">
-              {t("insights.dailyBriefing.title")}
-            </CardTitle>
-          </div>
-          {metaSlot && (
-            <div
-              data-slot="daily-briefing-meta-slot"
-              className="flex items-center gap-2"
-            >
-              {metaSlot}
-            </div>
-          )}
+    // v1.13.1 — heading-above-card pattern. The "Tagesbriefing" title
+    // moves OUT of the card into an `<h2>` above it (mirroring the
+    // TrendsRow / wellness-strip section headers) so the card opens
+    // straight on its content and the surface reclaims the vertical
+    // space the in-card header used to occupy.
+    <section
+      data-slot="daily-briefing-section"
+      aria-label={t("insights.dailyBriefing.title")}
+      className="space-y-3"
+    >
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <Sparkles
+            className="text-dose-accent h-4 w-4 shrink-0"
+            aria-hidden="true"
+          />
+          <h2 className="text-lg font-semibold">
+            {t("insights.dailyBriefing.title")}
+          </h2>
         </div>
-      </CardHeader>
-      <CardContent>
-        {loading ? (
-          <>
-            <span className="sr-only" aria-live="polite">
-              {t("insights.dailyBriefing.loadingLabel")}
-            </span>
-            <BriefingSkeleton />
-          </>
-        ) : briefing ? (
-          <div className="space-y-4">
-            {/* v1.4.27 B1 — the leading narrative paragraph dropped.
+        {metaSlot && (
+          <div
+            data-slot="daily-briefing-meta-slot"
+            className="flex items-center gap-2"
+          >
+            {metaSlot}
+          </div>
+        )}
+      </div>
+      <Card data-slot="daily-briefing" className="overflow-hidden">
+        <CardContent>
+          {loading ? (
+            <>
+              <span className="sr-only" aria-live="polite">
+                {t("insights.dailyBriefing.loadingLabel")}
+              </span>
+              <BriefingSkeleton />
+            </>
+          ) : briefing ? (
+            <div className="space-y-4">
+              {/* v1.4.27 B1 — the leading narrative paragraph dropped.
                 The hero strip subtitle on `/insights` already renders
                 the same `briefing.paragraph` text directly above this
                 card, so the user used to read the same string twice
                 within 200 px. The card now opens straight on the
                 structured key-findings list, which is the part the
                 hero subtitle cannot surface. */}
-            {briefing.keyFindings.length > 0 && (
-              <div className="space-y-2">
-                <p
-                  data-slot="daily-briefing-findings-title"
-                  className="text-muted-foreground text-[11px] font-semibold tracking-wide uppercase"
-                >
-                  {t("insights.dailyBriefing.keyFindingsTitle")}
-                </p>
-                <div data-slot="daily-briefing-findings" className="space-y-2">
-                  {briefing.keyFindings.map((finding, index) => (
-                    <KeyFindingRow
-                      key={`${finding.sourceMetric}-${index}`}
-                      finding={finding}
-                    />
-                  ))}
+              {briefing.keyFindings.length > 0 && (
+                <div className="space-y-2">
+                  <p
+                    data-slot="daily-briefing-findings-title"
+                    className="text-muted-foreground text-[11px] font-semibold tracking-wide uppercase"
+                  >
+                    {t("insights.dailyBriefing.keyFindingsTitle")}
+                  </p>
+                  <div
+                    data-slot="daily-briefing-findings"
+                    className="space-y-2"
+                  >
+                    {briefing.keyFindings.map((finding, index) => (
+                      <KeyFindingRow
+                        key={`${finding.sourceMetric}-${index}`}
+                        finding={finding}
+                      />
+                    ))}
+                  </div>
                 </div>
-              </div>
-            )}
-            {updatedAt && (
-              <p
-                data-slot="daily-briefing-updated"
-                className="text-muted-foreground border-border/60 border-t pt-3 text-right text-xs"
-              >
-                {t("insights.heroGenerated", {
-                  time: formatRelativeTime(updatedAt, t),
-                })}
-              </p>
-            )}
-          </div>
-        ) : (
-          <EmptyState
-            data-slot="daily-briefing-empty"
-            variant="plain"
-            icon={<FileText className="size-5" />}
-            title={t("insights.dailyBriefing.emptyTitle")}
-            description={t("insights.dailyBriefing.emptyDescription")}
-            action={
-              onRegenerate ? (
-                // v1.4.28 BK-M2 — switch the empty-state CTA from
-                // `variant="outline"` to the default (filled) variant
-                // so the briefing card matches the dashboard
-                // empty-state CTA shape. Empty-state actions on a card
-                // surface read as the single primary affordance and
-                // earn the filled chip across surfaces in v1.4.28.
-                <Button
-                  type="button"
-                  size="sm"
-                  onClick={onRegenerate}
-                  disabled={regenerating}
-                  data-slot="daily-briefing-empty-cta"
-                  className="gap-1.5"
+              )}
+              {updatedAt && (
+                <p
+                  data-slot="daily-briefing-updated"
+                  className="text-muted-foreground border-border/60 border-t pt-3 text-right text-xs"
                 >
-                  <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
-                  <span>
-                    {regenerating
-                      ? t("insights.heroRegenerating")
-                      : t("insights.dailyBriefing.emptyAction")}
-                  </span>
-                </Button>
-              ) : null
-            }
-          />
-        )}
-      </CardContent>
-    </Card>
+                  {t("insights.heroGenerated", {
+                    time: formatRelativeTime(updatedAt, t),
+                  })}
+                </p>
+              )}
+            </div>
+          ) : (
+            <EmptyState
+              data-slot="daily-briefing-empty"
+              variant="plain"
+              icon={<FileText className="size-5" />}
+              title={t("insights.dailyBriefing.emptyTitle")}
+              description={t("insights.dailyBriefing.emptyDescription")}
+              action={
+                onRegenerate ? (
+                  // v1.4.28 BK-M2 — switch the empty-state CTA from
+                  // `variant="outline"` to the default (filled) variant
+                  // so the briefing card matches the dashboard
+                  // empty-state CTA shape. Empty-state actions on a card
+                  // surface read as the single primary affordance and
+                  // earn the filled chip across surfaces in v1.4.28.
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={onRegenerate}
+                    disabled={regenerating}
+                    data-slot="daily-briefing-empty-cta"
+                    className="gap-1.5"
+                  >
+                    <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
+                    <span>
+                      {regenerating
+                        ? t("insights.heroRegenerating")
+                        : t("insights.dailyBriefing.emptyAction")}
+                    </span>
+                  </Button>
+                ) : null
+              }
+            />
+          )}
+        </CardContent>
+      </Card>
+    </section>
   );
 }
