@@ -3,7 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { useTranslations, useFormatters } from "@/lib/i18n/context";
+import { useTranslations } from "@/lib/i18n/context";
+import { formatRelativeTime } from "@/lib/i18n/relative-time";
 import { stripChartTokens } from "@/lib/insights/chart-tokens";
 import { cn } from "@/lib/utils";
 import { useFeatureFlags } from "@/hooks/use-feature-flags";
@@ -154,6 +155,9 @@ export function InsightStatusCard({
     // on the success card closes the load→loaded transition signal.
     <Card
       aria-live="polite"
+      // v1.12.2 — stable hook for the spine guard test, which asserts the
+      // assessment is the LAST content block on every bespoke metric page.
+      data-slot="insight-assessment"
       // v1.8.5 W4a — the `Card` primitive ships `gap-4 md:gap-6` as the flex
       // gap between header and content, which floated the "Einschätzung"
       // heading ~16-24 px above its prose. Override to `gap-2 md:gap-3` (the
@@ -273,13 +277,17 @@ function StatusBody({ text }: { text: string }) {
 
 function LastUpdatedFooter({ updatedAt }: { updatedAt: string | null }) {
   const { t } = useTranslations();
-  const fmt = useFormatters();
   if (!updatedAt) return null;
   return (
     // v1.11.5 — right-aligned so the timestamp tucks to the trailing edge
     // of the card for a tidier read against the left-aligned prose above.
+    //
+    // v1.12.2 — the freshness caption is a relative read ("2 hours ago") via
+    // the shared `formatRelativeTime`, matching the briefing / hero /
+    // last-measurement / coach-history captions so two adjacent cards on the
+    // same page no longer read one relative and one absolute.
     <p className="text-muted-foreground text-right text-xs">
-      {t("insights.lastUpdated")}: {fmt.dateTime(updatedAt)}
+      {t("insights.lastUpdated")}: {formatRelativeTime(updatedAt, t)}
     </p>
   );
 }

@@ -86,7 +86,8 @@ describe("<InsightStatusCard>", () => {
 
   it("renders the empty-text state without crashing on null", () => {
     const html = render(<InsightStatusCard {...baseProps} text={null} />);
-    expect(html).toContain("No analysis yet.");
+    // v1.12.2 — the empty state shares the canonical assessment noun.
+    expect(html).toContain("No assessment yet.");
   });
 
   it("never surfaces a cached badge — the card has no cached affordance", () => {

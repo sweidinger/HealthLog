@@ -283,6 +283,18 @@ export default function InsightsMedikamentePage() {
 
       <MetricTargetSummary slug="medications" />
 
+      {/* v1.4.25 W4d — GLP-1 therapy timeline. Self-hides for users
+          without an active GLP-1 medication, so the page collapses
+          back to the compliance grid for everyone else. */}
+      <TherapyTimeline />
+
+      {/* v1.12.2 — the assessment is the LAST block on every bespoke
+          metric-detail page, matching the canonical spine the generic
+          scaffold renders. This card reads the medication-compliance
+          status route, which carries a richer envelope (`summary` +
+          per-medication `text`) than the standard `text`-only generators,
+          so it keeps its inline wiring rather than the shared
+          `<SlugInsightStatusCard>` seam. */}
       <InsightStatusCard
         title={t("insights.assessmentTitle")}
         icon={<Pill className="h-5 w-5" />}
@@ -292,11 +304,6 @@ export default function InsightsMedikamentePage() {
         loading={isStatusLoading}
         preparing={status?.preparing ?? false}
       />
-
-      {/* v1.4.25 W4d — GLP-1 therapy timeline. Self-hides for users
-          without an active GLP-1 medication, so the page collapses
-          back to the compliance grid for everyone else. */}
-      <TherapyTimeline />
     </SubPageShell>
   );
 }

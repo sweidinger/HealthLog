@@ -102,7 +102,7 @@ export function nextStatusPollInterval(
  * `["insights", "weight-status", locale]` array typoed once is exactly
  * the class of bug `queryKeys` was introduced to defend against.
  */
-type InsightStatusMetric =
+export type InsightStatusMetric =
   | "blood-pressure"
   | "weight"
   | "pulse"

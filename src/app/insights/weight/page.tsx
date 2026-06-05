@@ -4,13 +4,12 @@ import Link from "next/link";
 import { Scale } from "lucide-react";
 
 import { useAuth } from "@/hooks/use-auth";
-import { useInsightStatus } from "@/hooks/use-insight-status";
 import { useInsightsAnalytics } from "@/hooks/use-insights-analytics";
 import { useTranslations } from "@/lib/i18n/context";
 import { useInsightsLayoutPrefs } from "@/hooks/use-insights-layout-prefs";
 import { Button } from "@/components/ui/button";
 import { HealthChartDynamic } from "@/components/charts/health-chart-dynamic";
-import { InsightStatusCard } from "@/components/insights/insight-status-card";
+import { SlugInsightStatusCard } from "@/components/insights/slug-insight-status-card";
 import { MetricEmptyState } from "@/components/insights/metric-empty-state";
 import { MetricStatStrip } from "@/components/insights/metric-stat-strip";
 import { MetricPrimaryTile } from "@/components/insights/metric-primary-tile";
@@ -39,9 +38,6 @@ export default function InsightsGewichtPage() {
   const { isAuthenticated, user } = useAuth();
   const { t } = useTranslations();
   const { compareBaseline } = useInsightsLayoutPrefs(isAuthenticated);
-
-  const { data: status, isLoading: isStatusLoading } =
-    useInsightStatus("weight");
 
   const { data: analytics, isEmpty } = useInsightsAnalytics("WEIGHT");
   const weightSummary = analytics?.summaries?.WEIGHT ?? null;
@@ -128,15 +124,7 @@ export default function InsightsGewichtPage() {
           off the overview onto its metric page). */}
       <MetricCorrelationCard slug="weight" />
 
-      <InsightStatusCard
-        title={t("insights.assessmentTitle")}
-        icon={<Scale className="h-5 w-5" />}
-        text={status?.text ?? null}
-        hasProvider={status?.hasProvider ?? false}
-        updatedAt={status?.updatedAt ?? null}
-        loading={isStatusLoading}
-        preparing={status?.preparing ?? false}
-      />
+      <SlugInsightStatusCard slug="weight" icon={<Scale className="h-5 w-5" />} />
     </SubPageShell>
   );
 }
