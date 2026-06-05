@@ -173,8 +173,16 @@ async function postMoodEntry(request: NextRequest) {
     return returnAllZodIssues(parsed.error, 422);
   }
 
-  const { mood, tags, tagKeys, ratedFactors, note, moodLoggedAt, source } =
-    parsed.data;
+  const {
+    mood,
+    tags,
+    tagKeys,
+    ratedFactors,
+    note,
+    moodLoggedAt,
+    source,
+    externalId,
+  } = parsed.data;
   // v1.4.25 W7b (Decision A) — anchor the `date` string to the user's
   // current displayTimezone and store the resolved zone on the row.
   // Legacy rows with `tz IS NULL` continue to read as Europe/Berlin
@@ -182,6 +190,10 @@ async function postMoodEntry(request: NextRequest) {
   const tz = user.timezone ?? DEFAULT_TIMEZONE;
   const date = moodDateKey(moodLoggedAt, tz);
   const score = getScoreForMood(mood);
+  // v1.12.1 — `source` carries a schema default of "MANUAL"; resolve it
+  // once so the externalId upsert key (`(userId, source, externalId)`)
+  // and the row write agree on the exact value.
+  const resolvedSource = source ?? "MANUAL";
 
   try {
     // v1.8.5 — write the entry and its structured-tag links in one
@@ -191,19 +203,57 @@ async function postMoodEntry(request: NextRequest) {
     // through the helper so both writes commit (or abort) together.
     const { entry, persistedTagKeys, persistedRatedFactors } =
       await prisma.$transaction(async (tx) => {
-        const created = await tx.moodEntry.create({
-          data: {
-            userId: user.id,
-            date,
-            tz,
-            mood,
-            score,
-            tags: tags ? JSON.stringify(tags) : null,
-            note: note ?? null,
-            source: source ?? "MANUAL",
-            moodLoggedAt,
-          },
-        });
+        // v1.12.1 — when the client supplies a source-stable `externalId`,
+        // upsert on the NULL-distinct `(userId, source, externalId)` key so
+        // a re-post with the same id updates the existing row in place
+        // (idempotent re-import) instead of minting a duplicate or 409-ing.
+        // Without an `externalId`, fall back to the legacy first-write
+        // `create` exactly as before — a same-tuple re-post then trips the
+        // `(userId, date, moodLoggedAt)` unique and surfaces as a 409 below.
+        const created = externalId
+          ? await tx.moodEntry.upsert({
+              where: {
+                userId_source_externalId: {
+                  userId: user.id,
+                  source: resolvedSource,
+                  externalId,
+                },
+              },
+              create: {
+                userId: user.id,
+                date,
+                tz,
+                mood,
+                score,
+                tags: tags ? JSON.stringify(tags) : null,
+                note: note ?? null,
+                source: resolvedSource,
+                externalId,
+                moodLoggedAt,
+              },
+              update: {
+                date,
+                tz,
+                mood,
+                score,
+                tags: tags ? JSON.stringify(tags) : null,
+                note: note ?? null,
+                moodLoggedAt,
+              },
+            })
+          : await tx.moodEntry.create({
+              data: {
+                userId: user.id,
+                date,
+                tz,
+                mood,
+                score,
+                tags: tags ? JSON.stringify(tags) : null,
+                note: note ?? null,
+                source: resolvedSource,
+                moodLoggedAt,
+              },
+            });
 
         if (
           (tagKeys && tagKeys.length > 0) ||

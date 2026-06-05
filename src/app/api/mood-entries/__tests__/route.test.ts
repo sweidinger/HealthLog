@@ -11,6 +11,10 @@ import { NextRequest } from "next/server";
 const txClient = {
   moodEntry: {
     create: vi.fn(),
+    // v1.12.1 — the create path upserts on `(userId, source, externalId)`
+    // when the body carries a source-stable id, so the tx client must
+    // expose `upsert` too.
+    upsert: vi.fn(),
   },
   moodEntryTagLink: {
     findMany: vi.fn().mockResolvedValue([]),
@@ -390,5 +394,129 @@ describe("POST /api/mood-entries — rated factors (v1.12.0)", () => {
       }),
     );
     expect(res.status).toBe(422);
+  });
+});
+
+describe("POST /api/mood-entries — externalId idempotent re-import (v1.12.1)", () => {
+  it("upserts on (userId, source, externalId) when externalId is present", async () => {
+    txClient.moodEntry.upsert.mockResolvedValue({
+      id: "mood-ext",
+      tags: null,
+      moodLoggedAt: new Date("2026-06-01T08:00:00.000Z"),
+      mood: "GUT",
+      note: null,
+      source: "MANUAL",
+      externalId: "ios-uuid-1",
+      date: "2026-06-01",
+    });
+
+    const res = await POST(
+      postReq({
+        mood: "GUT",
+        moodLoggedAt: "2026-06-01T08:00:00.000Z",
+        externalId: "ios-uuid-1",
+      }),
+    );
+    expect(res.status).toBe(201);
+    // The legacy `create` path is NOT taken when externalId is present.
+    expect(txClient.moodEntry.create).not.toHaveBeenCalled();
+    expect(txClient.moodEntry.upsert).toHaveBeenCalledTimes(1);
+    const call = txClient.moodEntry.upsert.mock.calls[0]?.[0] as {
+      where: {
+        userId_source_externalId: {
+          userId: string;
+          source: string;
+          externalId: string;
+        };
+      };
+      create: { externalId: string; source: string };
+    };
+    expect(call.where.userId_source_externalId).toEqual({
+      userId: "user-1",
+      source: "MANUAL",
+      externalId: "ios-uuid-1",
+    });
+    expect(call.create.externalId).toBe("ios-uuid-1");
+  });
+
+  it("echoes externalId back in the create response", async () => {
+    txClient.moodEntry.upsert.mockResolvedValue({
+      id: "mood-ext",
+      tags: null,
+      moodLoggedAt: new Date("2026-06-01T08:00:00.000Z"),
+      mood: "GUT",
+      note: null,
+      source: "MANUAL",
+      externalId: "ios-uuid-2",
+      date: "2026-06-01",
+    });
+    const res = await POST(
+      postReq({
+        mood: "GUT",
+        moodLoggedAt: "2026-06-01T08:00:00.000Z",
+        externalId: "ios-uuid-2",
+      }),
+    );
+    expect(res.status).toBe(201);
+    const out = (await res.json()) as { data: { externalId: string } };
+    expect(out.data.externalId).toBe("ios-uuid-2");
+  });
+
+  it("threads the upserted source into the dedup key for a non-MANUAL source", async () => {
+    txClient.moodEntry.upsert.mockResolvedValue({
+      id: "mood-ext",
+      tags: null,
+      moodLoggedAt: new Date("2026-06-01T08:00:00.000Z"),
+      mood: "GUT",
+      note: null,
+      source: "DAYLIO",
+      externalId: "daylio-7",
+      date: "2026-06-01",
+    });
+    const res = await POST(
+      postReq({
+        mood: "GUT",
+        moodLoggedAt: "2026-06-01T08:00:00.000Z",
+        source: "DAYLIO",
+        externalId: "daylio-7",
+      }),
+    );
+    expect(res.status).toBe(201);
+    const call = txClient.moodEntry.upsert.mock.calls[0]?.[0] as {
+      where: { userId_source_externalId: { source: string } };
+    };
+    expect(call.where.userId_source_externalId.source).toBe("DAYLIO");
+  });
+
+  it("falls back to the legacy create when externalId is absent", async () => {
+    txClient.moodEntry.create.mockResolvedValue({
+      id: "mood-legacy",
+      tags: null,
+      moodLoggedAt: new Date("2026-06-01T08:00:00.000Z"),
+      mood: "GUT",
+      note: null,
+      source: "MANUAL",
+      externalId: null,
+      date: "2026-06-01",
+    });
+    const res = await POST(
+      postReq({ mood: "GUT", moodLoggedAt: "2026-06-01T08:00:00.000Z" }),
+    );
+    expect(res.status).toBe(201);
+    expect(txClient.moodEntry.create).toHaveBeenCalledTimes(1);
+    expect(txClient.moodEntry.upsert).not.toHaveBeenCalled();
+  });
+
+  it("rejects an over-long externalId at the Zod layer (422)", async () => {
+    const res = await POST(
+      postReq({
+        mood: "GUT",
+        moodLoggedAt: "2026-06-01T08:00:00.000Z",
+        externalId: "x".repeat(121),
+      }),
+    );
+    expect(res.status).toBe(422);
+    expect(txClient.moodEntry.upsert).not.toHaveBeenCalled();
+    expect(txClient.moodEntry.create).not.toHaveBeenCalled();
   });
 });

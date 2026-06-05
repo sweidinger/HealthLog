@@ -136,6 +136,14 @@ export const createMoodEntrySchema = z.object({
   note: z.string().max(500).optional(),
   moodLoggedAt: z.iso.datetime({ offset: true }).transform((s) => new Date(s)),
   source: moodSourceEnum.optional().default("MANUAL"),
+  // v1.12.1 — optional source-stable id (e.g. an iOS SwiftData row UUID).
+  // When present, the create upserts on `(userId, source, externalId)`
+  // so a re-post with the same id updates the existing row in place
+  // instead of either 409-ing or minting a duplicate — the idempotent
+  // re-import iOS drives over Bearer. NULL keeps the legacy
+  // `(userId, date, moodLoggedAt)` behaviour. Bound matches the bulk
+  // `externalId` so one path can't accept an id the other rejects.
+  externalId: z.string().min(1).max(120).optional(),
 });
 
 export const updateMoodEntrySchema = z.object({
