@@ -29,6 +29,12 @@ export const moodLogWebhookPayloadSchema = z.object({
   event: z.enum(["mood.created", "mood.updated", "mood.deleted"]),
   timestamp: z.string().datetime(),
   entry: z.object({
+    // v1.12.1 — optional source-stable entry id. When present, the
+    // webhook dedups on `(userId, source, externalId)` so a re-emit with
+    // a re-rounded / re-zoned `time` is idempotent instead of minting a
+    // second row. Absent → the legacy `(userId, date, moodLoggedAt)`
+    // path. Bounded so a malformed upstream id can't bloat the column.
+    id: z.string().min(1).max(120).optional(),
     date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
     time: z.string().datetime(),
     mood: z.enum(["SUPER_GUT", "GUT", "OKAY", "SCHLECHT", "LAUSIG"]),
@@ -42,6 +48,9 @@ export const moodLogSyncResponseSchema = z.object({
   version: z.string(),
   entries: z.array(
     z.object({
+      // v1.12.1 — optional source-stable id, mirrors the webhook entry.
+      // Carried into `externalId` for idempotent re-import.
+      id: z.string().min(1).max(120).optional(),
       date: z.string(),
       time: z.string(),
       mood: z.string(),

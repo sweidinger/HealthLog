@@ -1,5 +1,29 @@
 // v1.4.34 web-freeze. Schema is locked additive-only until iOS launch
 // + v1.5.0 marker. See .planning/v15-strategic-plan.md §2.
+//
+// ─── Timezone storage convention (UTC-only invariant) ───────────────
+//
+// The database is UTC-only. Almost every `DateTime` column is the
+// Prisma default `timestamp(3)` WITHOUT time zone; a handful of rollup
+// columns (`MeasurementRollup.bucketStart` / `computedAt`, and the mood
+// rollup buckets) carry `@db.Timestamptz(3)`. This is NOT a live bug:
+// Prisma always reads and writes UTC over the wire, so both types
+// round-trip the same instant. The invariant every reader, writer, and
+// raw-SQL query MUST hold is:
+//
+//   * The application server and the Postgres session run in UTC.
+//   * Wall-clock / calendar-local anchoring lives in an explicit `tz`
+//     string column (e.g. `MoodEntry.tz`) or the user's `timezone`, NOT
+//     in the column type.
+//   * Raw SQL that does date math on a `timestamp` column treats the
+//     stored value as UTC; never compare a bare `timestamp` against
+//     `now()`/`current_timestamp` with the expectation of a zone offset.
+//
+// Do NOT do a `timestamp` → `timestamptz` type sweep ad hoc — the mixed
+// types are harmless under the UTC invariant, and a partial sweep is
+// riskier than the documented convention. If a server-region move is
+// ever on the table, convert the whole schema in one audited migration
+// (`ALTER ... TYPE timestamptz USING ... AT TIME ZONE 'UTC'`).
 
 generator client {
   provider = "prisma-client"
@@ -783,6 +807,19 @@ model Measurement {
   // for every meastype other than SLEEP_DURATION. Future regenerations
   // must preserve the NULLS NOT DISTINCT clause (Prisma 7 still emits
   // NULLS DISTINCT by default).
+  // v1.12.1 — these stay FULL uniques (not partial live-row uniques).
+  // The compound-key write paths (consolidate-daily-mean,
+  // drain-per-sample-cumulative, the Fitbit / WHOOP / Apple sync +
+  // import) use `prisma.upsert`, which Prisma 7 compiles to native
+  // `INSERT ... ON CONFLICT (cols)`; Postgres cannot arbiter an
+  // `ON CONFLICT` against a partial unique without the predicate (which
+  // Prisma does not emit), and consolidate-daily-mean deliberately
+  // RESURRECTS a tombstoned canonical row via `update: { deletedAt:
+  // null }`, which needs the unique to cover tombstones. So a partial
+  // unique is unsafe here. The batch-ingest resurrection gap is closed
+  // instead at the application layer (the existence probe filters
+  // `deletedAt: null`). Contrast MedicationIntakeEvent, whose write path
+  // is `create`-only and DID get the partial-unique treatment (0121).
   @@unique([userId, type, measuredAt, source, sleepStage])
   // v1.4.23 — Apple Health batch dedup key. NULL externalId is distinct
   // (Postgres semantics) so manual entries don't collide here.
@@ -937,6 +974,10 @@ model Workout {
   ///     batch + the other's from Tuesday's backfill) so the dashboard
   ///     "recent workouts" tile shows one row per logical workout.
   /// Both pickers resolve the user's `sourcePriorityJson` ladder.
+  /// Note (v1.12.1): unlike Measurement / MedicationIntakeEvent, Workout
+  /// has no `deletedAt` (workout deletes are hard deletes), so this stays
+  /// a full unique — there is no tombstone to collide with and no
+  /// resurrection gap to close.
   @@unique([userId, source, externalId])
   /// Dashboard "recent workouts" query path.
   @@index([userId, startedAt])
@@ -1262,10 +1303,18 @@ model MedicationSchedule {
   label        String? // e.g. "Morning", "Evening"
   dose         String? // Per-schedule dose override; null = use Medication.dose
   /// Legacy string encoding of the cadence ("null | 1,3,5 | i2;1,3,5").
-  /// Kept for reads of pre-v1.5 rows. v1.5 writes go to `rrule` or
-  /// `rollingIntervalDays`; the migration backfills `rrule` for every
-  /// existing row and v1.5.1 flips the readers to consult the new
-  /// fields first. v1.6.0 drops this column.
+  /// v1.5 writes go to `rrule` / `rollingIntervalDays` and v1.5.1 flipped
+  /// the readers to consult the new fields first.
+  ///
+  /// v1.12.1 — RETAINED, not dropped. The "v1.6.0 drops this column"
+  /// note here was never executed and is now corrected: the column is
+  /// still DUAL-WRITTEN on every create/update (the medications POST /
+  /// PATCH routes serialise the legacy `(daysOfWeek, intervalWeeks)`
+  /// pair via `serializeScheduleRecurrence`) AND still read by live paths
+  /// (`gamification/achievements`, `admin/notifications/reminder-check`,
+  /// the medications list/detail pages parse it through
+  /// `parseScheduleRecurrence`). Dropping it would break those callers,
+  /// so it stays until those readers are migrated off the legacy pair.
   daysOfWeek   String? @map("days_of_week")
   /// v1.5 — one or more `HH:mm` strings naming the times the dose is
   /// taken (in the user's timezone). Replaces the legacy single
@@ -1403,6 +1452,13 @@ model MedicationIntakeEvent {
   /// existence probe and the insert. `source` is in the key so the
   /// reminder worker (REMINDER) doesn't collide with manual user
   /// inserts (WEB / TELEGRAM / IMPORT) on the same slot.
+  /// v1.12.1 — this is a partial live-row unique in the DB (`WHERE
+  /// deleted_at IS NULL`, migration 0121, replacing the 0073 table
+  /// constraint). A slot the user previously deleted (tombstoned) no
+  /// longer blocks a re-take: `applyCanonicalSlotWrite` can re-create the
+  /// row instead of P2002-ing against the tombstone. Schema keeps the
+  /// full `@@unique` for the `userId_medicationId_scheduledFor_source`
+  /// compound where-key.
   @@unique([userId, medicationId, scheduledFor, source])
   @@index([userId, medicationId, scheduledFor])
   // v1.7.0 sync — keyset support for the `/api/sync/changes` intake feed
@@ -1902,6 +1958,15 @@ model MoodEntry {
   /// rows into this column via the migration script.
   note         String?  @db.Text
   source       String   @default("MOODLOG") // WEB, TELEGRAM, DAYLIO
+  // v1.12.1 — stable per-source dedup id. NULL for native / MANUAL
+  // entries (those dedup on the legacy `(userId, date, moodLoggedAt)`
+  // key). When an importer receives a source-stable id (the moodLog
+  // upstream entry id, a Daylio row id) it writes it here and upserts on
+  // `@@unique([userId, source, externalId])`, so a re-import is
+  // idempotent even when `moodLoggedAt` re-rounds / re-zones. Postgres
+  // treats NULLs as distinct in that unique, so MANUAL rows never
+  // collide on it. See migration 0122.
+  externalId   String?  @map("external_id")
   moodLoggedAt DateTime @map("mood_logged_at")
   /// v1.4.25 W7b — per-row IANA timezone that the `date` string is
   /// anchored to. Nullable for backward compatibility: legacy rows
@@ -1937,7 +2002,15 @@ model MoodEntry {
   tagLinks MoodEntryTagLink[]
 
   @@unique([userId, date, moodLoggedAt])
+  // v1.12.1 — NULL-distinct external dedup key (migration 0122). Importers
+  // that carry a source-stable id upsert on this; native/MANUAL entries
+  // (NULL externalId) are distinct here and stay on the legacy key above.
+  @@unique([userId, source, externalId])
   @@index([userId, date])
+  // v1.12.1 (P1-3) — mood-insights reads filter `{ userId, deletedAt:
+  // null, moodLoggedAt: { gte } }` ordered by `moodLoggedAt desc`; this
+  // index turns that into a range scan. See migration 0123.
+  @@index([userId, moodLoggedAt])
   // v1.7.0 sync — keyset support for the `/api/sync/changes` mood feed
   // (`where userId` ordered by `(updatedAt asc, id asc)`).
   @@index([userId, updatedAt, id])
@@ -2330,6 +2403,11 @@ model AuditLog {
 
   @@index([userId, createdAt])
   @@index([action, createdAt])
+  // v1.12.1 (P1-2) — status-cache reads filter `{ userId, action }`
+  // ordered by `createdAt desc` on every insight-status card mount;
+  // this three-column index serves both the findFirst and the take:5 as
+  // an index range scan over the highest-churn table. See migration 0123.
+  @@index([userId, action, createdAt(sort: Desc)])
   @@map("audit_logs")
 }
 

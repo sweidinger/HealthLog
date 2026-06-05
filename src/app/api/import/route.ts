@@ -48,6 +48,11 @@ const moodEntrySchema = z.object({
   score: z.number().int().min(1).max(5),
   tags: z.string().optional(),
   loggedAt: z.string().datetime().optional(),
+  // v1.12.1 — optional source-stable id (e.g. a Daylio row id). When
+  // present, the import upserts on `(userId, source, externalId)` so a
+  // re-import of the same export is idempotent rather than minting a
+  // duplicate; absent → the legacy first-write-wins create path.
+  externalId: z.string().min(1).max(120).optional(),
 });
 
 const importSchema = z.object({
@@ -129,17 +134,50 @@ export const POST = apiHandler(async (request: NextRequest) => {
     for (const e of data.moodEntries) {
       try {
         const loggedAt = e.loggedAt ? new Date(e.loggedAt) : new Date();
-        await prisma.moodEntry.create({
-          data: {
-            userId,
-            date: e.date,
-            mood: e.mood,
-            score: e.score,
-            tags: e.tags || null,
-            source: "IMPORT",
-            moodLoggedAt: loggedAt,
-          },
-        });
+        if (e.externalId) {
+          // v1.12.1 — idempotent re-import keyed on the source-stable id.
+          // A second import of the same export updates the row in place
+          // rather than skipping it as a duplicate, so an upstream edit
+          // (re-scored mood, added tag) is reflected.
+          await prisma.moodEntry.upsert({
+            where: {
+              userId_source_externalId: {
+                userId,
+                source: "IMPORT",
+                externalId: e.externalId,
+              },
+            },
+            update: {
+              date: e.date,
+              mood: e.mood,
+              score: e.score,
+              tags: e.tags || null,
+              moodLoggedAt: loggedAt,
+            },
+            create: {
+              userId,
+              date: e.date,
+              mood: e.mood,
+              score: e.score,
+              tags: e.tags || null,
+              source: "IMPORT",
+              externalId: e.externalId,
+              moodLoggedAt: loggedAt,
+            },
+          });
+        } else {
+          await prisma.moodEntry.create({
+            data: {
+              userId,
+              date: e.date,
+              mood: e.mood,
+              score: e.score,
+              tags: e.tags || null,
+              source: "IMPORT",
+              moodLoggedAt: loggedAt,
+            },
+          });
+        }
         stats.moodEntries++;
       } catch {
         // Unique constraint violation — skip duplicate

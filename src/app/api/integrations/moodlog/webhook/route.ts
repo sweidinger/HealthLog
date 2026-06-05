@@ -95,18 +95,54 @@ export const POST = apiHandler(async (request: NextRequest) => {
 
   // 5. Process event (non-blocking — fire and forget with error logging)
   const moodLoggedAt = new Date(entry.time);
+  // v1.12.1 — when the upstream supplies a stable entry id, dedup on
+  // `(userId, source, externalId)` so a re-emit with a re-rounded /
+  // re-zoned `time` updates the same row instead of minting a duplicate.
+  // Absent → the legacy `(userId, date, moodLoggedAt)` key. MOODLOG is
+  // the fixed source here, matching the create/update writes below.
+  const externalId = entry.id ?? null;
 
   try {
     if (event === "mood.deleted") {
       await prisma.moodEntry.deleteMany({
         where: {
           userId: user.id,
+          ...(externalId
+            ? { source: "MOODLOG", externalId }
+            : { date: entry.date, moodLoggedAt }),
+        },
+      });
+    } else if (externalId) {
+      // mood.created or mood.updated, keyed on the stable external id.
+      await prisma.moodEntry.upsert({
+        where: {
+          userId_source_externalId: {
+            userId: user.id,
+            source: "MOODLOG",
+            externalId,
+          },
+        },
+        update: {
+          mood: entry.mood,
+          score: entry.score,
+          tags: entry.tags ? JSON.stringify(entry.tags) : null,
+          source: "MOODLOG",
           date: entry.date,
+          moodLoggedAt,
+        },
+        create: {
+          userId: user.id,
+          date: entry.date,
+          mood: entry.mood,
+          score: entry.score,
+          tags: entry.tags ? JSON.stringify(entry.tags) : null,
+          source: "MOODLOG",
+          externalId,
           moodLoggedAt,
         },
       });
     } else {
-      // mood.created or mood.updated
+      // mood.created or mood.updated, legacy wall-clock key.
       await prisma.moodEntry.upsert({
         where: {
           userId_date_moodLoggedAt: {
