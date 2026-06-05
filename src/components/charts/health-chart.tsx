@@ -16,9 +16,10 @@ import {
   ReferenceLine,
   ReferenceArea,
   ReferenceDot,
+  Brush,
 } from "recharts";
 import { Loader2 } from "lucide-react";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { RichChartTooltip, type RichTooltipRow } from "./chart-tooltip";
 import { ChartEmptyState } from "./chart-empty-state";
 import { prefersReducedMotion } from "@/lib/charts/reduced-motion";
@@ -46,6 +47,10 @@ import { ChartOverlayControls } from "./chart-overlay-controls";
 import { useChartOverlayPrefs } from "@/hooks/use-chart-overlay-prefs";
 import { useViewportWidth } from "@/hooks/use-viewport-width";
 import { computeTickPositions } from "@/lib/charts/x-axis-density";
+import {
+  computeWindowStats,
+  type MetricWindowStats,
+} from "@/lib/charts/window-stats";
 
 const TIME_RANGES_KEYS = [
   {
@@ -188,6 +193,27 @@ interface HealthChartProps {
    * uniformly.
    */
   valueScale?: number;
+  /**
+   * v1.12.7 — chart-reactive metric statistics (opt-in).
+   *
+   * When `true`, the chart mounts a Recharts `<Brush>` beneath the plot so
+   * the user can drag a window over the visible range. The dashboard and the
+   * mini / rationale mounts do NOT pass it, so they render byte-identical to
+   * the pre-v1.12.7 chart — the feature is fully isolated behind this flag.
+   *
+   * Mini mode ignores the flag (the rationale card pins its own window and
+   * has no room for a brush).
+   */
+  selectableDomain?: boolean;
+  /**
+   * v1.12.7 — companion to `selectableDomain`. Receives the per-type
+   * Min / Max / Median / Mean computed over the brushed window, keyed by
+   * `MeasurementType`, or `null` when the selection spans the whole range
+   * (or collapses to under one point). A metric sub-page lifts this into a
+   * shared state the `<MetricStatStrip>` reads, so the strip recomputes for
+   * the visible domain while the default stays the cheap full-range summary.
+   */
+  onDomainStats?: (stats: Record<string, MetricWindowStats> | null) => void;
 }
 
 interface ChartDataPoint {
@@ -489,6 +515,8 @@ export function HealthChart({
   verticalMarkers,
   userTimezone = "Europe/Berlin",
   valueScale = 1,
+  selectableDomain = false,
+  onDomainStats,
 }: HealthChartProps) {
   const { isAuthenticated, user } = useAuth();
   const { t, locale } = useTranslations();
@@ -515,6 +543,18 @@ export function HealthChart({
     ? resolveMiniRangePoints(windowOverride)
     : 30;
   const [rangePoints, setRangePoints] = useState(initialRangePoints);
+
+  // v1.12.7 — chart-reactive metric statistics. The brush reports a
+  // `[startIndex, endIndex]` window into the rendered `chartData`; `null`
+  // means the full range is selected. Gated behind `selectableDomain` and
+  // suppressed in mini mode, so the dashboard + rationale charts never mount
+  // the brush and stay byte-identical. The range-tab change below clears the
+  // selection so the brush window can't outlive the data it indexed into.
+  const brushEnabled = selectableDomain && !mini;
+  const [brushWindow, setBrushWindow] = useState<{
+    startIndex: number;
+    endIndex: number;
+  } | null>(null);
 
   // v1.4.18 — three overlay toggles (showTrendIndicator / showTrendArrow
   // / showTargetRange) are persisted per chart via the new
@@ -899,6 +939,60 @@ export function HealthChart({
 
     return enriched;
   }, [data, rangePoints, showMA, showTrend, types, tzFmt]);
+
+  // v1.12.7 — chart-reactive metric statistics.
+  //
+  // When a brush window is active, compute the per-type Min / Max / Median /
+  // Mean over just the selected slice of `chartData` (the array the chart
+  // already holds — no re-fetch). A selection that spans the whole range, or
+  // collapses to under one point, reports `null` so the strip falls back to
+  // the cheap full-range summary. Only runs when `brushEnabled`; the
+  // dashboard / mini mounts compute nothing.
+  const windowStatsByType = useMemo<Record<string, MetricWindowStats> | null>(
+    () => {
+      if (!brushEnabled || !brushWindow || !chartData?.length) return null;
+      const last = chartData.length - 1;
+      const start = Math.max(0, Math.min(brushWindow.startIndex, last));
+      const end = Math.max(0, Math.min(brushWindow.endIndex, last));
+      const lo = Math.min(start, end);
+      const hi = Math.max(start, end);
+      // A full-range selection is the default; reporting `null` keeps the
+      // strip on its precomputed summary rather than a redundant recompute.
+      if (lo <= 0 && hi >= last) return null;
+      const slice = chartData.slice(lo, hi + 1);
+      // Fewer than one data point in the window is not a meaningful summary;
+      // fall back to the full range.
+      if (slice.length < 1) return null;
+      const out: Record<string, MetricWindowStats> = {};
+      for (const type of types) {
+        const stats = computeWindowStats(
+          slice.map((point) => point[type] as number | undefined),
+        );
+        if (stats.count > 0) out[type] = stats;
+      }
+      return Object.keys(out).length > 0 ? out : null;
+    },
+    [brushEnabled, brushWindow, chartData, types],
+  );
+
+  // Report the windowed stats up to the sub-page so the shared
+  // `<MetricStatStrip>` can read them. Effect (not render-time call) so the
+  // parent state update never fires during this component's render.
+  useEffect(() => {
+    if (!brushEnabled) return;
+    onDomainStats?.(windowStatsByType);
+  }, [brushEnabled, windowStatsByType, onDomainStats]);
+
+  // Clamp a stale brush window in render (never via setState-in-effect) so the
+  // controlled `<Brush>` never points past the end of `chartData` after a
+  // refetch shrinks the series. A window whose end falls past the new last
+  // index is treated as "no selection" — the stats memo above already ignores
+  // it, and the brush re-seeds to the full range.
+  const chartLength = chartData?.length ?? 0;
+  const effectiveBrushWindow =
+    brushWindow && brushWindow.endIndex <= Math.max(0, chartLength - 1)
+      ? brushWindow
+      : null;
 
   // v1.4.16 phase B8 — comparison overlay.
   //
@@ -1346,7 +1440,14 @@ export function HealthChart({
                 variant={rangePoints === r.points ? "default" : "ghost"}
                 size="sm"
                 className="min-h-11 px-2 text-xs sm:px-3"
-                onClick={() => setRangePoints(r.points)}
+                onClick={() => {
+                  // v1.12.7 — a range-tab change re-slices `chartData`, so
+                  // any active brush window would now index into a different
+                  // array. Clear it so the stat strip falls back to the new
+                  // full range rather than a stale selection.
+                  setBrushWindow(null);
+                  setRangePoints(r.points);
+                }}
                 title={t(r.titleKey)}
                 data-slot="chart-range-tab"
               >
@@ -1888,6 +1989,55 @@ export function HealthChart({
                       data-slot={`chart-compare-line-${type}`}
                     />
                   ))}
+                {/* v1.12.7 — chart-reactive metric statistics. The brush
+                    lets the user drag a window over the visible range; the
+                    `onChange` handler stores the `[startIndex, endIndex]`
+                    pair, and the windowed-stats memo above recomputes the
+                    stat strip's Min / Max / Median / Mean from the brushed
+                    slice. Only mounts when `brushEnabled` (sub-pages opt in
+                    via `selectableDomain`); the dashboard / mini mounts skip
+                    it entirely so their render stays unchanged. `gap={1}`
+                    reports every index so a one-day drag still resolves; the
+                    travellers carry an `ariaLabel` so the brush announces
+                    itself to assistive tech. */}
+                {brushEnabled ? (
+                  <Brush
+                    dataKey="pointIndex"
+                    height={24}
+                    travellerWidth={8}
+                    gap={1}
+                    stroke="var(--dracula-purple)"
+                    fill="var(--muted)"
+                    fillOpacity={0.3}
+                    ariaLabel={t("charts.selectRange")}
+                    startIndex={effectiveBrushWindow?.startIndex}
+                    endIndex={effectiveBrushWindow?.endIndex}
+                    onChange={(next) => {
+                      const range = next as {
+                        startIndex?: number;
+                        endIndex?: number;
+                      };
+                      if (
+                        typeof range.startIndex !== "number" ||
+                        typeof range.endIndex !== "number"
+                      ) {
+                        return;
+                      }
+                      setBrushWindow({
+                        startIndex: range.startIndex,
+                        endIndex: range.endIndex,
+                      });
+                    }}
+                    tickFormatter={(value) =>
+                      tzFmt.date(
+                        new Date(
+                          chartData?.[Math.round(Number(value))]?.timestamp ??
+                            Date.now(),
+                        ),
+                      )
+                    }
+                  />
+                ) : null}
               </ComposedChart>
             </ResponsiveContainer>
           </div>
