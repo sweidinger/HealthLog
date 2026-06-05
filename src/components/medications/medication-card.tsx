@@ -14,6 +14,7 @@ import {
   MedicationComplianceBars,
   MedicationComplianceSkeleton,
 } from "@/components/medications/card-parts/medication-compliance-bars";
+import { MedicationCycleStatus } from "@/components/medications/card-parts/medication-cycle-status";
 import { MedicationIntakeActions } from "@/components/medications/card-parts/medication-intake-actions";
 import {
   MedicationNextLastSlot,
@@ -401,6 +402,16 @@ export function MedicationCard({
           ) : (
             <MedicationComplianceSkeleton />
           ))}
+
+        {/* Open-cycle status line — calm, rate-decoupled. A sparse weekly /
+            rolling med between doses reports "next dose in N days" / "due
+            today" / "overdue" (or a neutral "no closed cycles yet") instead of
+            leaning on a percentage that reads as a scary 0% for a med that is
+            actually on schedule. Rendered only when the server supplies the
+            descriptor; `state: "none"` collapses to nothing inside the part. */}
+        {medication.active && display?.currentCycle && (
+          <MedicationCycleStatus cycle={display.currentCycle} />
+        )}
 
         {/* Quick actions — primary buttons of the medication card. The
             content above reserves constant-height slots, so the card bodies

@@ -14,6 +14,7 @@ import {
   MedicationComplianceBars,
   MedicationComplianceSkeleton,
 } from "@/components/medications/card-parts/medication-compliance-bars";
+import { MedicationCycleStatus } from "@/components/medications/card-parts/medication-cycle-status";
 import { MedicationIntakeActions } from "@/components/medications/card-parts/medication-intake-actions";
 import { useMedicationIntake } from "@/components/medications/use-medication-intake";
 import {
@@ -490,6 +491,16 @@ export function Glp1MedicationCard({
           ) : (
             <MedicationComplianceSkeleton />
           ))}
+
+        {/* Open-cycle status line — the real win for a weekly GLP-1: between
+            injections the percentage rows are vacuous, so this calm,
+            rate-decoupled line reports "next dose in N days" / "due today" /
+            "overdue" (or a neutral "no closed cycles yet") instead of a 0%
+            that misreads a perfectly on-schedule med. `state: "none"`
+            collapses to nothing inside the part. */}
+        {medication.active && display?.currentCycle && (
+          <MedicationCycleStatus cycle={display.currentCycle} />
+        )}
 
         {/* Primary actions row — shared with the generic medication card.
             The GLP-1-specific side-effect quick-log lives in the

@@ -12,6 +12,8 @@ import { MedicationComplianceBars } from "@/components/medications/card-parts/me
 import { MedicationStatusPill } from "@/components/medications/card-parts/medication-status-pill";
 import { MedicationIntakeActions } from "@/components/medications/card-parts/medication-intake-actions";
 import { MedicationStateBadges } from "@/components/medications/card-parts/medication-state-badges";
+import { MedicationCycleStatus } from "@/components/medications/card-parts/medication-cycle-status";
+import type { CurrentCycle } from "@/lib/analytics/compliance";
 
 /**
  * v1.7.2 — the medication-card status pill, compliance bars, intake-action
@@ -143,6 +145,125 @@ describe("medication card-parts — shared presentational components", () => {
     );
     expect(html).toContain("Without notification");
     expect(html).toContain("Paused since");
+  });
+});
+
+/**
+ * v1.14.0 — the open-cycle status line. A calm, rate-decoupled status driven
+ * by `currentCycle.state` so a sparse weekly / rolling med between doses
+ * surfaces "next dose in N days" / "due today" / "overdue" rather than leaning
+ * on a percentage that misreads an on-schedule med as a scary 0%.
+ */
+describe("medication cycle status — open-cycle line", () => {
+  const baseCycle: CurrentCycle = {
+    state: "on_track",
+    nextDueAt: null,
+    graceUntil: null,
+    hasClosedCycles: true,
+  };
+
+  // A future instant N whole calendar days from now (noon-anchored so the
+  // Berlin-day rounding is stable regardless of the test clock's time of day).
+  function inDays(n: number): Date {
+    const now = new Date();
+    const d = new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate() + n,
+      12,
+      0,
+      0,
+    );
+    return d;
+  }
+
+  it("renders nothing when state is none (PRN / paused / ended)", () => {
+    const html = render(
+      <MedicationCycleStatus cycle={{ ...baseCycle, state: "none" }} />,
+    );
+    expect(html).toBe("");
+  });
+
+  it("renders the neutral no-closed-cycles state with the dashed glyph", () => {
+    const html = render(
+      <MedicationCycleStatus
+        cycle={{
+          ...baseCycle,
+          state: "on_track",
+          nextDueAt: inDays(3),
+          hasClosedCycles: false,
+        }}
+      />,
+    );
+    expect(html).toContain("No closed dose cycles yet");
+    expect(html).toContain("lucide-circle-dashed");
+    expect(html).toContain("text-muted-foreground");
+    // never leaks a relative count when there's no closed cycle to anchor.
+    expect(html).not.toContain("Next dose in");
+  });
+
+  it("on_track several days out reads the relative-day phrasing in success tone", () => {
+    const html = render(
+      <MedicationCycleStatus
+        cycle={{ ...baseCycle, state: "on_track", nextDueAt: inDays(4) }}
+      />,
+    );
+    expect(html).toContain("Next dose in 4 days");
+    expect(html).toContain("text-success");
+    expect(html).toContain("lucide-circle-check");
+  });
+
+  it("on_track one day out reads tomorrow", () => {
+    const html = render(
+      <MedicationCycleStatus
+        cycle={{ ...baseCycle, state: "on_track", nextDueAt: inDays(1) }}
+      />,
+    );
+    expect(html).toContain("Next dose tomorrow");
+    expect(html).not.toContain("in 1 days");
+  });
+
+  it("on_track later today reads today", () => {
+    const later = new Date();
+    later.setHours(23, 59, 0, 0);
+    const html = render(
+      <MedicationCycleStatus
+        cycle={{ ...baseCycle, state: "on_track", nextDueAt: later }}
+      />,
+    );
+    expect(html).toContain("Next dose today");
+  });
+
+  it("due reads the amber due-today line", () => {
+    const html = render(
+      <MedicationCycleStatus
+        cycle={{
+          ...baseCycle,
+          state: "due",
+          nextDueAt: new Date(),
+          graceUntil: inDays(0),
+        }}
+      />,
+    );
+    expect(html).toContain("Due today");
+    expect(html).toContain("text-warning");
+    expect(html).toContain("lucide-calendar-clock");
+  });
+
+  it("missed reads the destructive overdue line", () => {
+    const html = render(
+      <MedicationCycleStatus
+        cycle={{
+          ...baseCycle,
+          state: "missed",
+          nextDueAt: inDays(-3),
+          graceUntil: inDays(-3),
+        }}
+      />,
+    );
+    expect(html).toContain("Overdue");
+    expect(html).toContain("text-destructive");
+    expect(html).toContain("lucide-triangle-alert");
   });
 });
 
