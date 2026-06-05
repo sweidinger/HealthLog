@@ -35,6 +35,10 @@ import {
   type NarrativePeriod,
   type PeriodNarrativeContext,
 } from "@/lib/insights/narrative/period-narrative";
+import {
+  buildDeterministicNarrative,
+  DETERMINISTIC_PROVIDER_TYPE,
+} from "@/lib/insights/narrative/period-narrative-deterministic";
 
 /**
  * Stable identifier for the narrative prompt revision. Bumped whenever the
@@ -261,9 +265,10 @@ export async function generatePeriodNarrative(
     maxTokens: 400,
   });
 
-  if (completion.kind === "none") {
-    return { status: "skipped", reason: "no-provider" };
-  }
+  // A provider error / timeout is non-fatal — the last good row stays as-is
+  // and the next read re-tries. We do NOT fall back to deterministic prose
+  // here: a configured provider that briefly fails should not overwrite (or
+  // shadow) its own richer narrative with the terse fallback.
   if (completion.kind === "timeout") {
     annotate({
       action: { name: "insights.narrative.timeout" },
@@ -275,11 +280,6 @@ export async function generatePeriodNarrative(
     return { status: "failed", reason: "provider-error" };
   }
 
-  const text = completion.content.trim();
-  if (text.length === 0) {
-    return { status: "failed", reason: "empty" };
-  }
-
   const provenance: NarrativeProvenancePayload = {
     metrics: context.provenance.metrics,
     window: context.provenance.window,
@@ -287,36 +287,52 @@ export async function generatePeriodNarrative(
     fdrQ: context.fdrQ,
     computedAt: context.provenance.computedAt,
   };
+  const dateKey = dateKeyFor(now, tz);
 
   // Upsert the single (user, period, locale) row in place — delete/regenerate
   // clean by construction. The prose is held AES-256-GCM at rest.
-  const encryptedContent = encryptToBytes(text);
-  const dateKey = dateKeyFor(now, tz);
-  await prisma.insightNarrative.upsert({
-    where: { userId_period_locale: { userId, period, locale } },
-    create: {
-      userId,
-      period,
-      locale,
-      dateKey,
-      encryptedContent,
-      provenanceJson: JSON.stringify(provenance),
-      providerType: completion.providerType,
-      promptVersion: NARRATIVE_PROMPT_VERSION,
-    },
-    update: {
-      dateKey,
-      encryptedContent,
-      provenanceJson: JSON.stringify(provenance),
-      providerType: completion.providerType,
-      promptVersion: NARRATIVE_PROMPT_VERSION,
-    },
-  });
+  const persist = async (text: string, providerType: string) => {
+    const encryptedContent = encryptToBytes(text);
+    await prisma.insightNarrative.upsert({
+      where: { userId_period_locale: { userId, period, locale } },
+      create: {
+        userId,
+        period,
+        locale,
+        dateKey,
+        encryptedContent,
+        provenanceJson: JSON.stringify(provenance),
+        providerType,
+        promptVersion: NARRATIVE_PROMPT_VERSION,
+      },
+      update: {
+        dateKey,
+        encryptedContent,
+        provenanceJson: JSON.stringify(provenance),
+        providerType,
+        promptVersion: NARRATIVE_PROMPT_VERSION,
+      },
+    });
+    annotate({
+      action: { name: "insights.narrative.generated" },
+      meta: { period, locale, provider: providerType },
+    });
+  };
 
-  annotate({
-    action: { name: "insights.narrative.generated" },
-    meta: { period, locale, provider: completion.providerType },
-  });
+  // No usable provider → compose the deterministic, non-causal fallback from
+  // the same structured context, so the retrospective card is never empty for
+  // an active account (iOS H2). A later AI warm overwrites this row in place.
+  if (completion.kind === "none") {
+    const text = buildDeterministicNarrative(context, locale);
+    await persist(text, DETERMINISTIC_PROVIDER_TYPE);
+    return { status: "generated", providerType: DETERMINISTIC_PROVIDER_TYPE };
+  }
+
+  const text = completion.content.trim();
+  if (text.length === 0) {
+    return { status: "failed", reason: "empty" };
+  }
+  await persist(text, completion.providerType);
   return { status: "generated", providerType: completion.providerType };
 }
 

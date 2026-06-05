@@ -11,9 +11,10 @@
  *
  * Budget gate (mirrors `insight-pregenerate`): a per-user rate-limit bucket
  * (`period-narrative:<userId>`, one warm / 20 h) bounds nightly LLM cost, and
- * a per-run batch cap bounds a single tick. The generator no-ops cleanly
- * without a provider (one cheap chain-resolve, no LLM) and writes nothing on
- * an insufficient context, so a provider-less / sparse account is near-free.
+ * a per-run batch cap bounds a single tick. Without a provider the generator
+ * makes no LLM call — it composes the deterministic, non-causal fallback from
+ * the same context instead — and writes nothing on an insufficient context,
+ * so a provider-less / sparse account costs only the context build.
  *
  * Recurring pg-boss task — never runs inside an HTTP request, never shells out
  * to `tsx` (CLAUDE.md DO-NOTs).
@@ -219,8 +220,8 @@ function tally(
  * Single-user warm enqueued by the read-only GET on a cold/stale read. Runs
  * the generator directly for one (user, period, locale) WITHOUT the nightly
  * budget bucket (the enqueue's `singletonKey` is the anti-spam layer). The
- * generator no-ops cleanly without a provider and writes nothing on an
- * insufficient context, so this is bounded by construction.
+ * generator composes the deterministic fallback without a provider and writes
+ * nothing on an insufficient context, so this is bounded by construction.
  */
 export async function warmOneNarrative(
   payload: PeriodNarrativePayload,

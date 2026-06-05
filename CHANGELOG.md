@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [1.12.12] — 2026-06-05 — the period retrospective is never empty
+
+### Added
+
+- **The period retrospective fills in even without an AI provider.** When no AI provider is configured (or before the first AI summary has been written), the "period in review" card now shows a concise, factual summary built from your own data — the biggest changes versus the prior period, any vitals that moved outside your typical range, and an honest, strictly non-causal count of statistical associations. It reads in German or English and is replaced in place the moment an AI summary is generated.
+
 ## [1.12.11] — 2026-06-05 — settings notices read the same everywhere
 
 ### Changed
