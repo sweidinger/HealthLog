@@ -5061,7 +5061,12 @@
       "empty": "Empieza a registrar para ver tu calendario.",
       "today": "Hoy",
       "dayAria": "{date}",
-      "legendSymptom": "Síntomas"
+      "legendSymptom": "Síntomas",
+      "legendOvulationConfirmed": "Ovulación confirmada",
+      "flowSpotting": "manchado",
+      "flowLight": "ligero",
+      "flowMedium": "medio",
+      "flowHeavy": "abundante"
     },
     "predictions": {
       "title": "Qué viene después",
@@ -5096,7 +5101,12 @@
       "recentCycles": "Ciclos recientes",
       "ongoing": "en curso",
       "periodDays": "período {count} d",
-      "ovulationChip": "Ovulación"
+      "ovulationChip": "Ovulación",
+      "chartTitle": "Duración del ciclo en el tiempo",
+      "chartCaption": "Cada barra es un ciclo: la base rosa es tu periodo, el resto es la duración del ciclo.",
+      "chartAria": "Gráfico de duración de tus últimos {count} ciclos, con una media de {avg} días, clasificado como {regularity}.",
+      "legendPeriodSegment": "Días de periodo",
+      "legendRestSegment": "Resto del ciclo"
     },
     "sheet": {
       "title": "Registrar tu día",

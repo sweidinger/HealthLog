@@ -5061,7 +5061,12 @@
       "empty": "Start logging to see your calendar fill in.",
       "today": "Today",
       "dayAria": "{date}",
-      "legendSymptom": "Symptoms"
+      "legendSymptom": "Symptoms",
+      "legendOvulationConfirmed": "Confirmed ovulation",
+      "flowSpotting": "spotting",
+      "flowLight": "light",
+      "flowMedium": "medium",
+      "flowHeavy": "heavy"
     },
     "predictions": {
       "title": "What comes next",
@@ -5096,7 +5101,12 @@
       "recentCycles": "Recent cycles",
       "ongoing": "ongoing",
       "periodDays": "period {count} d",
-      "ovulationChip": "Ovulation"
+      "ovulationChip": "Ovulation",
+      "chartTitle": "Cycle length over time",
+      "chartCaption": "Each bar is one cycle: the rose base is your period, the rest is the cycle length.",
+      "chartAria": "Cycle-length chart of your last {count} cycles, averaging {avg} days, classified as {regularity}.",
+      "legendPeriodSegment": "Period days",
+      "legendRestSegment": "Rest of cycle"
     },
     "sheet": {
       "title": "Log your day",

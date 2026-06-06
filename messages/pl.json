@@ -5061,7 +5061,12 @@
       "empty": "Zacznij zapisywać, aby wypełnić kalendarz.",
       "today": "Dziś",
       "dayAria": "{date}",
-      "legendSymptom": "Objawy"
+      "legendSymptom": "Objawy",
+      "legendOvulationConfirmed": "Potwierdzona owulacja",
+      "flowSpotting": "plamienie",
+      "flowLight": "lekkie",
+      "flowMedium": "średnie",
+      "flowHeavy": "obfite"
     },
     "predictions": {
       "title": "Co dalej",
@@ -5096,7 +5101,12 @@
       "recentCycles": "Ostatnie cykle",
       "ongoing": "w toku",
       "periodDays": "okres {count} d",
-      "ovulationChip": "Owulacja"
+      "ovulationChip": "Owulacja",
+      "chartTitle": "Długość cyklu w czasie",
+      "chartCaption": "Każdy słupek to jeden cykl: różowa podstawa to miesiączka, reszta to długość cyklu.",
+      "chartAria": "Wykres długości {count} ostatnich cykli, średnio {avg} dni, sklasyfikowany jako {regularity}.",
+      "legendPeriodSegment": "Dni miesiączki",
+      "legendRestSegment": "Pozostała część cyklu"
     },
     "sheet": {
       "title": "Zapisz swój dzień",

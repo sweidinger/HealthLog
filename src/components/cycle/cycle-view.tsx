@@ -12,6 +12,7 @@ import { CycleRing } from "./cycle-ring";
 import { BbtChart } from "./bbt-chart";
 import { CycleCalendar } from "./cycle-calendar";
 import { CycleDisclaimer } from "./cycle-disclaimer";
+import { CycleHistoryChart } from "./cycle-history-chart";
 import { LogDaySheet } from "./log-day-sheet";
 import { PhaseEducationCard } from "./phase-education-card";
 import { PredictionsPanel } from "./predictions-panel";
@@ -244,6 +245,11 @@ export function CycleView() {
                   <CycleCalendar
                     days={calendar.data?.days ?? []}
                     today={today}
+                    confirmedOvulation={
+                      calendar.data?.prediction?.ovulationConfirmed
+                        ? (calendar.data.prediction.predictedOvulation ?? null)
+                        : null
+                    }
                     onSelectDay={openSheet}
                   />
                 )}
@@ -269,6 +275,7 @@ export function CycleView() {
                   history={history.data}
                   fallbackDisclaimer={disclaimerText}
                 />
+                <CycleHistoryChart history={history.data} animate={play} />
                 <BbtChart
                   days={calendar.data?.days ?? []}
                   today={today}

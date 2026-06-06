@@ -5061,7 +5061,12 @@
       "empty": "Commence à enregistrer pour remplir ton calendrier.",
       "today": "Aujourd'hui",
       "dayAria": "{date}",
-      "legendSymptom": "Symptômes"
+      "legendSymptom": "Symptômes",
+      "legendOvulationConfirmed": "Ovulation confirmée",
+      "flowSpotting": "spotting",
+      "flowLight": "léger",
+      "flowMedium": "moyen",
+      "flowHeavy": "abondant"
     },
     "predictions": {
       "title": "Ce qui arrive ensuite",
@@ -5096,7 +5101,12 @@
       "recentCycles": "Cycles récents",
       "ongoing": "en cours",
       "periodDays": "règles {count} j",
-      "ovulationChip": "Ovulation"
+      "ovulationChip": "Ovulation",
+      "chartTitle": "Durée du cycle au fil du temps",
+      "chartCaption": "Chaque barre est un cycle : la base rose est vos règles, le reste est la durée du cycle.",
+      "chartAria": "Graphique de durée de vos {count} derniers cycles, d'une moyenne de {avg} jours, classé comme {regularity}.",
+      "legendPeriodSegment": "Jours de règles",
+      "legendRestSegment": "Reste du cycle"
     },
     "sheet": {
       "title": "Enregistrer ta journée",

@@ -7,7 +7,12 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useTranslations } from "@/lib/i18n/context";
 import type { CalendarDay } from "./types";
-import { FERTILE_HUE, FLOW_HUE, OVULATION_HUE } from "./phase-tokens";
+import {
+  FERTILE_HUE,
+  FLOW_HUE,
+  OVULATION_HUE,
+  flowOpacity,
+} from "./phase-tokens";
 
 /**
  * v1.15.0 — the month calendar.
@@ -49,6 +54,12 @@ export interface CycleCalendarProps {
   days: CalendarDay[];
   /** YYYY-MM-DD of today (server tz-anchored) for the "today" ring. */
   today: string;
+  /**
+   * YYYY-MM-DD of the CONFIRMED (retrospective) ovulation estimate, or null.
+   * Set only when the prediction carries `ovulationConfirmed` — that day then
+   * renders as the distinct light oval instead of the predicted dot.
+   */
+  confirmedOvulation?: string | null;
   onSelectDay: (date: string) => void;
   className?: string;
 }
@@ -56,6 +67,7 @@ export interface CycleCalendarProps {
 export function CycleCalendar({
   days,
   today,
+  confirmedOvulation,
   onSelectDay,
   className,
 }: CycleCalendarProps) {
@@ -143,19 +155,48 @@ export function CycleCalendar({
           const date = ymd(cell);
           const info = byDate.get(date);
           const isToday = date === today;
+          // A CONFIRMED-ovulation day is the predicted-ovulation day that also
+          // matches the prediction's retrospective estimate. It supersedes the
+          // predicted dot with the distinct light oval (Apple's idiom).
+          const isConfirmedOvulation =
+            !!info?.isPredictedOvulation &&
+            confirmedOvulation != null &&
+            date === confirmedOvulation;
+          const isPredictedOvulationDot =
+            !!info?.isPredictedOvulation && !isConfirmedOvulation;
+
           const markers: string[] = [];
-          if (info?.isPeriodLogged)
-            markers.push(t("cycle.calendar.legendPeriod"));
+          if (info?.isPeriodLogged) {
+            // Restate the flow grade in the aria text so the shading is never
+            // colour-only (the legend covers it; the cell names it too).
+            const flowKey =
+              info.flow && info.flow !== "NONE"
+                ? `cycle.calendar.flow${info.flow.charAt(0)}${info.flow.slice(1).toLowerCase()}`
+                : null;
+            markers.push(
+              flowKey
+                ? `${t("cycle.calendar.legendPeriod")} (${t(flowKey)})`
+                : t("cycle.calendar.legendPeriod"),
+            );
+          }
           if (info?.isPredictedPeriod)
             markers.push(t("cycle.calendar.legendPredicted"));
           if (info?.isFertileWindow)
             markers.push(t("cycle.calendar.legendFertile"));
-          if (info?.isPredictedOvulation)
+          if (isConfirmedOvulation)
+            markers.push(t("cycle.calendar.legendOvulationConfirmed"));
+          else if (isPredictedOvulationDot)
             markers.push(t("cycle.calendar.legendOvulation"));
           if (info?.hasSymptoms)
             markers.push(t("cycle.calendar.legendSymptoms"));
 
           const aria = `${date}${markers.length ? `, ${markers.join(", ")}` : ""}`;
+          const flowLevel =
+            info?.isPeriodLogged && info.flow && info.flow !== "NONE"
+              ? info.flow
+              : info?.isPeriodLogged
+                ? "UNGRADED"
+                : undefined;
 
           return (
             <button
@@ -164,32 +205,71 @@ export function CycleCalendar({
               role="gridcell"
               aria-label={aria}
               aria-current={isToday ? "date" : undefined}
+              data-flow-level={flowLevel}
+              data-fertile={info?.isFertileWindow ? "true" : undefined}
+              data-predicted={
+                info?.isPredictedPeriod && !info?.isPeriodLogged
+                  ? "true"
+                  : undefined
+              }
+              data-ovulation={
+                isConfirmedOvulation
+                  ? "confirmed"
+                  : isPredictedOvulationDot
+                    ? "predicted"
+                    : undefined
+              }
               onClick={() => onSelectDay(date)}
               className={cn(
                 "relative flex aspect-square min-h-10 flex-col items-center justify-center rounded-lg text-sm transition-colors",
                 "hover:bg-accent focus-visible:ring-ring/50 focus-visible:ring-2 focus-visible:outline-none",
-                info?.isFertileWindow && "ring-1 ring-inset",
                 isToday && "font-semibold",
               )}
-              style={
-                info?.isFertileWindow
-                  ? ({ "--tw-ring-color": FERTILE_HUE } as React.CSSProperties)
-                  : undefined
-              }
             >
-              {/* Logged-period filled pip behind the number. */}
+              {/* Fertile window: a soft full-cell band (calm fill, not a hard
+                  ring) so the window reads as a continuous range across days. */}
+              {info?.isFertileWindow ? (
+                <span
+                  aria-hidden="true"
+                  className="absolute inset-0.5 rounded-md opacity-15"
+                  style={{ backgroundColor: FERTILE_HUE }}
+                />
+              ) : null}
+
+              {/* Logged-period filled pip behind the number — shaded by flow on
+                  the single-hue opacity ladder (SPOTTING→HEAVY). */}
               {info?.isPeriodLogged ? (
                 <span
                   aria-hidden="true"
-                  className="absolute inset-1 rounded-md opacity-20"
-                  style={{ backgroundColor: FLOW_HUE }}
+                  className="absolute inset-1 rounded-md"
+                  style={{
+                    backgroundColor: FLOW_HUE,
+                    opacity: flowOpacity(info.flow),
+                  }}
                 />
               ) : null}
+
+              {/* Confirmed-ovulation oval: a restrained light oval ringed in the
+                  ovulatory hue, deliberately distinct from the predicted dot. */}
+              {isConfirmedOvulation ? (
+                <span
+                  aria-hidden="true"
+                  className="absolute inset-x-1 inset-y-2 rounded-full ring-[1.5px] ring-inset"
+                  style={
+                    {
+                      backgroundColor: OVULATION_HUE,
+                      opacity: 0.16,
+                      "--tw-ring-color": OVULATION_HUE,
+                    } as React.CSSProperties
+                  }
+                />
+              ) : null}
+
               <span className={cn("relative z-10", isToday && "text-primary")}>
                 {cell.getDate()}
               </span>
 
-              {/* Predicted-period band: a soft underline, never a dot. */}
+              {/* Predicted-period band: a soft hatched underline, never a dot. */}
               {info?.isPredictedPeriod && !info?.isPeriodLogged ? (
                 <span
                   aria-hidden="true"
@@ -201,12 +281,13 @@ export function CycleCalendar({
                 />
               ) : null}
 
-              {/* Marker row: ovulation + symptom dots. */}
+              {/* Marker row: predicted-ovulation + symptom dots. The confirmed
+                  oval lives behind the number, so it needs no row dot. */}
               <span
                 aria-hidden="true"
                 className="relative z-10 mt-0.5 flex h-1.5 items-center gap-0.5"
               >
-                {info?.isPredictedOvulation ? (
+                {isPredictedOvulationDot ? (
                   <span
                     className="h-1.5 w-1.5 rounded-full"
                     style={{ backgroundColor: OVULATION_HUE }}
@@ -229,12 +310,13 @@ export function CycleCalendar({
 function CalendarLegend() {
   const { t } = useTranslations();
   // Each swatch mirrors its grid affordance: period = filled, predicted =
-  // dashed, fertile = a ring (not a filled dot), ovulation = filled, symptom =
-  // the small grey marker dot the grid draws (QA M4).
+  // dashed, fertile = a soft band fill, predicted-ovulation = a filled dot,
+  // confirmed-ovulation = a ringed light oval (distinct from the dot), symptom
+  // = the small grey marker dot the grid draws (QA M4).
   const items: {
     hue: string;
     labelKey: string;
-    variant: "fill" | "dashed" | "ring" | "dot";
+    variant: "fill" | "dashed" | "band" | "oval" | "dot";
   }[] = [
     { hue: FLOW_HUE, labelKey: "cycle.calendar.legendPeriod", variant: "fill" },
     {
@@ -245,12 +327,17 @@ function CalendarLegend() {
     {
       hue: FERTILE_HUE,
       labelKey: "cycle.calendar.legendFertile",
-      variant: "ring",
+      variant: "band",
     },
     {
       hue: OVULATION_HUE,
       labelKey: "cycle.calendar.legendOvulation",
-      variant: "fill",
+      variant: "dot",
+    },
+    {
+      hue: OVULATION_HUE,
+      labelKey: "cycle.calendar.legendOvulationConfirmed",
+      variant: "oval",
     },
     {
       hue: "var(--muted-foreground)",
@@ -261,17 +348,32 @@ function CalendarLegend() {
   return (
     <ul className="text-muted-foreground flex flex-wrap gap-x-4 gap-y-1.5 text-xs">
       {items.map((it) => (
-        <li key={it.labelKey} className="flex items-center gap-1.5">
+        <li
+          key={it.labelKey}
+          data-legend={it.labelKey}
+          className="flex items-center gap-1.5"
+        >
           <span
             aria-hidden="true"
             className={cn(
-              "rounded-full",
-              it.variant === "dot" ? "h-1 w-1" : "h-2.5 w-2.5",
+              it.variant === "oval"
+                ? "h-2.5 w-3.5 rounded-full ring-[1.5px] ring-inset"
+                : "rounded-full",
+              it.variant === "dot" && it.hue === "var(--muted-foreground)"
+                ? "h-1 w-1"
+                : it.variant === "oval"
+                  ? ""
+                  : "h-2.5 w-2.5",
               it.variant === "dashed" && "opacity-60",
+              it.variant === "band" && "opacity-30",
             )}
             style={
-              it.variant === "ring"
-                ? { border: `1.5px solid ${it.hue}` }
+              it.variant === "oval"
+                ? ({
+                    backgroundColor: it.hue,
+                    opacity: 0.3,
+                    "--tw-ring-color": it.hue,
+                  } as React.CSSProperties)
                 : { backgroundColor: it.hue }
             }
           />

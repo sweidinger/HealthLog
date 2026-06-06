@@ -5061,7 +5061,12 @@
       "empty": "Erfasse Daten, damit sich dein Kalender füllt.",
       "today": "Heute",
       "dayAria": "{date}",
-      "legendSymptom": "Symptome"
+      "legendSymptom": "Symptome",
+      "legendOvulationConfirmed": "Bestätigter Eisprung",
+      "flowSpotting": "Schmierblutung",
+      "flowLight": "leicht",
+      "flowMedium": "mittel",
+      "flowHeavy": "stark"
     },
     "predictions": {
       "title": "Was als Nächstes kommt",
@@ -5096,7 +5101,12 @@
       "recentCycles": "Letzte Zyklen",
       "ongoing": "laufend",
       "periodDays": "Periode {count} T",
-      "ovulationChip": "Eisprung"
+      "ovulationChip": "Eisprung",
+      "chartTitle": "Zykluslänge im Verlauf",
+      "chartCaption": "Jeder Balken ist ein Zyklus: die rosa Basis ist deine Periode, der Rest die Zykluslänge.",
+      "chartAria": "Zykluslängen-Diagramm deiner letzten {count} Zyklen, Durchschnitt {avg} Tage, eingestuft als {regularity}.",
+      "legendPeriodSegment": "Periodentage",
+      "legendRestSegment": "Rest des Zyklus"
     },
     "sheet": {
       "title": "Tag erfassen",

@@ -73,4 +73,56 @@ describe("<CycleCalendar>", () => {
     );
     expect(html).toContain('role="columnheader"');
   });
+
+  it("exposes the flow level on a logged period day as a stable data-attr", () => {
+    const days = [
+      { ...dayBase("2026-06-10"), isPeriodLogged: true, flow: "HEAVY" },
+    ];
+    const html = render(
+      <CycleCalendar days={days} today={today} onSelectDay={() => {}} />,
+    );
+    expect(html).toContain('data-flow-level="HEAVY"');
+    // The flow grade is named in the aria text (never colour-only).
+    expect(html).toContain("heavy");
+  });
+
+  it("marks a logged period day with no flow grade as UNGRADED", () => {
+    const days = [{ ...dayBase("2026-06-10"), isPeriodLogged: true }];
+    const html = render(
+      <CycleCalendar days={days} today={today} onSelectDay={() => {}} />,
+    );
+    expect(html).toContain('data-flow-level="UNGRADED"');
+  });
+
+  it("renders a predicted-ovulation day as a predicted dot", () => {
+    const days = [{ ...dayBase("2026-06-14"), isPredictedOvulation: true }];
+    const html = render(
+      <CycleCalendar days={days} today={today} onSelectDay={() => {}} />,
+    );
+    expect(html).toContain('data-ovulation="predicted"');
+    expect(html).toContain("Ovulation");
+  });
+
+  it("renders a CONFIRMED-ovulation day as the distinct oval, not the dot", () => {
+    const days = [{ ...dayBase("2026-06-14"), isPredictedOvulation: true }];
+    const html = render(
+      <CycleCalendar
+        days={days}
+        today={today}
+        confirmedOvulation="2026-06-14"
+        onSelectDay={() => {}}
+      />,
+    );
+    expect(html).toContain('data-ovulation="confirmed"');
+    expect(html).not.toContain('data-ovulation="predicted"');
+    expect(html).toContain("Confirmed ovulation");
+  });
+
+  it("renders the fertile window as a data-attr-tagged soft band", () => {
+    const days = [{ ...dayBase("2026-06-12"), isFertileWindow: true }];
+    const html = render(
+      <CycleCalendar days={days} today={today} onSelectDay={() => {}} />,
+    );
+    expect(html).toContain('data-fertile="true"');
+  });
 });
