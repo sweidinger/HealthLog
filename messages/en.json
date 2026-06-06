@@ -3289,8 +3289,8 @@
         "description": "Opt-in Research Mode toggle plus the account-wide danger zone for wiping every health record."
       },
       "export": {
-        "title": "Export",
-        "description": "Download your health data as PDF, CSV, or a full JSON backup.",
+        "title": "Export & Import",
+        "description": "Download your health data as PDF, CSV, or a full JSON backup — or bring data in from Apple Health or a JSON file.",
         "otherOptionsHeading": "Other export options",
         "downloadFailed": "Couldn't download the export. Please try again.",
         "hero": {
@@ -3327,6 +3327,53 @@
           "fullBackup": {
             "title": "Full backup",
             "description": "Single JSON file with everything — same shape as the weekly auto-backup. Useful for self-restore via admin upload."
+          },
+          "cycle": {
+            "title": "Cycle",
+            "description": "Cycle and reproductive-health data as a FHIR document — last period, average cycle and period length, current phase."
+          }
+        },
+        "import": {
+          "heading": "Import",
+          "description": "Bring data into HealthLog from an Apple Health export or a JSON file. Imports skip rows that already exist, so re-running one is safe.",
+          "appleHealth": {
+            "title": "Apple Health",
+            "description": "Upload the export.zip from the Health app on iPhone (Profile → Export All Health Data).",
+            "dropLabel": "Drop export.zip here",
+            "dropHint": "or click to choose a file",
+            "fileInputLabel": "Choose an Apple Health export.zip file",
+            "choose": "Choose file",
+            "idempotencyNote": "Re-uploading the same archive merges — it won't create duplicates. Large archives are processed in the background.",
+            "uploading": "Uploading…",
+            "uploadFailed": "Upload failed. Please try again.",
+            "rateLimited": "Too many uploads. Please wait a moment and try again.",
+            "tooLarge": "That file is too large (limit 1.5 GB).",
+            "failed": "The import failed.",
+            "rowsImported": "{count} rows imported so far",
+            "doneSummary": "Done — {imported} of {read} records imported, {skipped} clinical records skipped.",
+            "phase": {
+              "queued": "Queued…",
+              "unpacking": "Unpacking the archive…",
+              "parsing": "Reading the export…",
+              "upserting": "Importing records…"
+            }
+          },
+          "json": {
+            "title": "JSON file",
+            "description": "Paste JSON or upload a .json file with measurements and mood entries.",
+            "pasteLabel": "Paste JSON",
+            "fileInputLabel": "Choose a JSON file to import",
+            "schemaHint": "Two arrays: measurements and moodEntries.",
+            "docsLink": "See the schema and an example.",
+            "uploadFile": "Upload file",
+            "downloadExample": "Download example",
+            "import": "Import",
+            "invalidJson": "That isn't valid JSON. Check the syntax and try again.",
+            "invalidPayload": "The data doesn't match the import schema.",
+            "rateLimited": "Too many imports this hour (limit 5). Please try again later.",
+            "failed": "The import failed. Please try again.",
+            "readFailed": "Couldn't read that file.",
+            "resultSummary": "Imported {measurements} measurements and {moods} mood entries, {skipped} skipped."
           }
         }
       },

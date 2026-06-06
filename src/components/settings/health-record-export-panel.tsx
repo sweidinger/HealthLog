@@ -196,66 +196,70 @@ export function HealthRecordExportPanel() {
         // `isolate` traps the purple glow inside the hero so the shadow
         // doesn't leak through the cards below — same trick the Insights
         // `<HeroStrip>` uses.
-        "relative isolate overflow-hidden rounded-xl p-5 sm:p-6",
+        "relative isolate overflow-hidden rounded-xl p-4 sm:p-5",
       )}
     >
-      <div className="mb-2 flex items-center gap-2">
+      <div className="mb-1 flex items-center gap-2">
         <FileText
           className="text-primary h-5 w-5 shrink-0"
           aria-hidden="true"
         />
         <h2
           id="health-record-export-title"
-          className="text-xl font-semibold tracking-tight sm:text-2xl"
+          className="text-lg font-semibold tracking-tight sm:text-xl"
         >
           {t("settings.healthRecord.title")}
         </h2>
       </div>
-      <p className="text-muted-foreground mb-5 max-w-2xl text-sm leading-relaxed">
+      <p className="text-muted-foreground mb-4 max-w-2xl text-sm leading-snug">
         {t("settings.healthRecord.description")}
       </p>
 
-      <div className="space-y-5">
-        {/* Format toggle */}
-        <fieldset className="space-y-2">
-          <legend className="text-sm font-medium">
-            {t("settings.healthRecord.format")}
-          </legend>
-          <div className="flex flex-wrap gap-2" role="radiogroup">
-            {EXPORT_FORMATS.map((f, index) => (
-              <Button
-                key={f}
-                type="button"
-                role="radio"
-                aria-checked={format === f}
-                variant={format === f ? "default" : "outline"}
-                className="min-h-11 sm:min-h-9"
-                onClick={() => setFormat(f)}
-                {...getFormatRadioProps(index)}
-              >
-                {t(`settings.healthRecord.format_${f}`)}
-              </Button>
-            ))}
-          </div>
-        </fieldset>
+      <div className="space-y-4">
+        {/* Format + range share a row on desktop so the panel opens
+            denser; on mobile they stack. */}
+        <div className="grid gap-4 sm:grid-cols-2">
+          <fieldset className="space-y-1.5">
+            <legend className="mb-1 text-sm font-medium">
+              {t("settings.healthRecord.format")}
+            </legend>
+            <div className="flex flex-wrap gap-2" role="radiogroup">
+              {EXPORT_FORMATS.map((f, index) => (
+                <Button
+                  key={f}
+                  type="button"
+                  role="radio"
+                  aria-checked={format === f}
+                  variant={format === f ? "default" : "outline"}
+                  size="sm"
+                  className="min-h-11 sm:min-h-9"
+                  onClick={() => setFormat(f)}
+                  {...getFormatRadioProps(index)}
+                >
+                  {t(`settings.healthRecord.format_${f}`)}
+                </Button>
+              ))}
+            </div>
+          </fieldset>
 
-        {/* Date range */}
-        <div className="space-y-2">
-          <Label htmlFor="hr-range">{t("settings.healthRecord.range")}</Label>
-          <NativeSelect
-            id="hr-range"
-            value={String(days)}
-            onChange={(e) => setDays(Number(e.target.value))}
-          >
-            <option value="90">{t("settings.healthRecord.range90")}</option>
-            <option value="180">{t("settings.healthRecord.range180")}</option>
-            <option value="365">{t("settings.healthRecord.range365")}</option>
-          </NativeSelect>
+          {/* Date range */}
+          <div className="space-y-1.5">
+            <Label htmlFor="hr-range">{t("settings.healthRecord.range")}</Label>
+            <NativeSelect
+              id="hr-range"
+              value={String(days)}
+              onChange={(e) => setDays(Number(e.target.value))}
+            >
+              <option value="90">{t("settings.healthRecord.range90")}</option>
+              <option value="180">{t("settings.healthRecord.range180")}</option>
+              <option value="365">{t("settings.healthRecord.range365")}</option>
+            </NativeSelect>
+          </div>
         </div>
 
         {/* Practice name — PDF only */}
         {isPdfLike && (
-          <div className="space-y-2">
+          <div className="space-y-1.5">
             <Label htmlFor="hr-practice">
               {t("settings.healthRecord.practiceName")}
             </Label>
@@ -427,18 +431,22 @@ export function HealthRecordExportPanel() {
           )}
         </fieldset>
 
-        {isFhirLike && (
-          <p className="text-muted-foreground text-xs">
-            {t("settings.healthRecord.fhirNote")}
-          </p>
-        )}
-
-        <div className="flex flex-wrap items-center justify-end gap-3">
+        {/* The FHIR note and the generate action share the footer row so
+            the panel ends compact instead of stacking a note above a
+            right-aligned button. */}
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          {isFhirLike ? (
+            <p className="text-muted-foreground max-w-md text-xs">
+              {t("settings.healthRecord.fhirNote")}
+            </p>
+          ) : (
+            <span />
+          )}
           <Button
             type="button"
             onClick={handleGenerate}
             disabled={busy}
-            className="min-h-11 sm:min-h-9"
+            className="ml-auto min-h-11 sm:min-h-9"
           >
             {busy ? (
               <Loader2 className="mr-2 h-4 w-4 animate-spin motion-reduce:animate-none" />
