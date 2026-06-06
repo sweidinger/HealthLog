@@ -24,6 +24,23 @@ vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
 }));
 
+// `<BottomNav>` reads `cycleTrackingEnabled` from `useAuth()` to gate the
+// cycle hub entry. Each test mutates `mockUserRef.value` before rendering.
+const mockUserRef = {
+  value: { id: "u1", cycleTrackingEnabled: false } as {
+    id: string;
+    cycleTrackingEnabled: boolean;
+  } | null,
+};
+vi.mock("@/hooks/use-auth", () => ({
+  useAuth: () => ({
+    user: mockUserRef.value,
+    isAuthenticated: true,
+    isLoading: false,
+    refetch: vi.fn(),
+  }),
+}));
+
 import { I18nProvider } from "@/lib/i18n/context";
 import { BottomNav } from "../bottom-nav";
 
@@ -107,5 +124,21 @@ describe("<BottomNav> iOS-parity layout", () => {
     const hasTestidFirst =
       /data-testid="bottom-nav-more"[^>]*aria-label="More"/.test(html);
     expect(hasLabelFirst || hasTestidFirst).toBe(true);
+  });
+
+  it("keeps the cycle hub entry out of the closed-hub strip when the gate is off", () => {
+    mockUserRef.value = { id: "u1", cycleTrackingEnabled: false };
+    const html = render();
+    // Like Measurements / Mood, the cycle entry lives in the More hub
+    // (rendered on open — exercised in e2e), never an always-visible strip.
+    expect(html).not.toContain('href="/cycle"');
+  });
+
+  it("renders without error when the cycle gate is on (entry rides the More hub)", () => {
+    mockUserRef.value = { id: "u1", cycleTrackingEnabled: true };
+    // The closed-hub SSR markup carries no hub items either way; this guards
+    // that gating on the flag never throws.
+    expect(() => render()).not.toThrow();
+    mockUserRef.value = { id: "u1", cycleTrackingEnabled: false };
   });
 });

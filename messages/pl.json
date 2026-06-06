@@ -216,7 +216,8 @@
       "medicationDescription": "Oznacz dawkę jako przyjętą",
       "mood": "Nastrój",
       "moodDescription": "Zapisz nastrój i tagi"
-    }
+    },
+    "cycle": "Cykl"
   },
   "auth": {
     "login": "Zaloguj się",
@@ -4926,9 +4927,161 @@
         "confidenceLow": "Niska pewność",
         "confidenceMedium": "Średnia pewność",
         "confidenceHigh": "Wysoka pewność"
-      }
+      },
+      "title": "Analizy cyklu",
+      "empty": "Analizy faz pojawią się tutaj, gdy zapiszesz wystarczająco wiele cykli. Porównują twoje wskaźniki między fazami cyklu, z otwarcie pokazaną statystyką.",
+      "sampleSize": "n = {n}",
+      "effectSize": "Wielkość efektu {value}",
+      "qValue": "q = {value}"
     },
-    "disclaimer": "Te prognozy to opisowe szacunki na podstawie zapisanych danych, a nie metoda antykoncepcji ani porada medyczna. Nigdy nie oznaczają, że współżycie bez zabezpieczenia jest bezpieczne. W sprawach antykoncepcji lub decyzji medycznych skonsultuj się z pracownikiem ochrony zdrowia."
+    "disclaimer": "Te prognozy to opisowe szacunki na podstawie zapisanych danych, a nie metoda antykoncepcji ani porada medyczna. Nigdy nie oznaczają, że współżycie bez zabezpieczenia jest bezpieczne. W sprawach antykoncepcji lub decyzji medycznych skonsultuj się z pracownikiem ochrony zdrowia.",
+    "title": "Twój cykl",
+    "subtitle": "Zapisuj miesiączkę i objawy oraz sprawdzaj, co dalej.",
+    "tabs": {
+      "calendar": "Kalendarz",
+      "predictions": "Prognozy",
+      "insights": "Analizy",
+      "settings": "Ustawienia"
+    },
+    "logToday": "Zapisz dziś",
+    "startedPeriod": "Miesiączka zaczęła się dzisiaj",
+    "endedPeriod": "Miesiączka skończyła się dzisiaj",
+    "phase": {
+      "MENSTRUAL": "Miesiączkowa",
+      "FOLLICULAR": "Folikularna",
+      "OVULATORY": "Owulacyjna",
+      "LUTEAL": "Lutealna",
+      "none": "Brak fazy",
+      "label": "Faza"
+    },
+    "flow": {
+      "NONE": "Brak",
+      "SPOTTING": "Plamienie",
+      "LIGHT": "Słaby",
+      "MEDIUM": "Średni",
+      "HEAVY": "Obfity",
+      "label": "Krwawienie"
+    },
+    "ovulationTest": {
+      "NEGATIVE": "Negatywny",
+      "POSITIVE_LH_SURGE": "Skok LH",
+      "ESTROGEN_SURGE": "Skok estrogenu",
+      "INDETERMINATE": "Nieokreślony",
+      "label": "Test owulacyjny"
+    },
+    "mucus": {
+      "DRY": "Suchy",
+      "STICKY": "Lepki",
+      "CREAMY": "Kremowy",
+      "WATERY": "Wodnisty",
+      "EGG_WHITE": "Jak białko jaja",
+      "label": "Śluz szyjkowy"
+    },
+    "goal": {
+      "GENERAL_HEALTH": "Ogólne zdrowie",
+      "AVOID_PREGNANCY": "Unikanie ciąży",
+      "TRYING_TO_CONCEIVE": "Staranie o dziecko",
+      "PERIMENOPAUSE": "Perimenopauza",
+      "OFF": "Śledzenie wyłączone",
+      "label": "W jakim celu śledzisz?",
+      "description": "To dostosowuje język i widoczne prognozy. Wskazówki dotyczące okna płodnego pojawiają się tylko przy staraniu o dziecko."
+    },
+    "ring": {
+      "dayOfCycle": "Dzień {day}",
+      "dayUnknown": "—",
+      "ariaPhase": "Dzień {day} cyklu, faza {phase}",
+      "ariaUnknown": "Brak aktywnego cyklu",
+      "caption": "twojego cyklu"
+    },
+    "calendar": {
+      "legendPeriod": "Zapisana miesiączka",
+      "legendPredicted": "Prognozowana miesiączka",
+      "legendFertile": "Okno płodne",
+      "legendOvulation": "Owulacja",
+      "legendSymptoms": "Zapisane objawy",
+      "prevMonth": "Poprzedni miesiąc",
+      "nextMonth": "Następny miesiąc",
+      "loading": "Ładowanie kalendarza…",
+      "empty": "Zacznij zapisywać, aby wypełnić kalendarz.",
+      "today": "Dziś",
+      "dayAria": "{date}"
+    },
+    "predictions": {
+      "title": "Co dalej",
+      "nextPeriod": "Następna miesiączka",
+      "nextPeriodRange": "Około {date}",
+      "nextPeriodWindow": "{low} – {high}",
+      "fertileWindow": "Okno płodne",
+      "ovulation": "Szacowana owulacja",
+      "confidence": "Pewność",
+      "confidenceHigh": "Wysoka",
+      "confidenceMedium": "Średnia",
+      "confidenceLow": "Niska",
+      "stillLearning": "Wciąż się uczę",
+      "stillLearningBody": "Zapisz co najmniej trzy pełne cykle, a prognozy się wyostrzą. Do tego czasu to zgrubne oszacowanie.",
+      "rawMode": "Prognoza wyłączona",
+      "rawModeBody": "Wyłączyłaś prognozy — pokazywane są tylko zapisane dane, bez przewidywań.",
+      "none": "Brak prognozy. Zapisz miesiączkę, aby zacząć."
+    },
+    "history": {
+      "title": "Twoje cykle",
+      "avgLength": "Średnia długość",
+      "variability": "Zmienność",
+      "avgPeriodLength": "Średnia miesiączka",
+      "regularity": "Regularność",
+      "regularityREGULAR": "Regularny",
+      "regularityIRREGULAR": "Nieregularny",
+      "regularityLEARNING": "Uczenie",
+      "days": "{count} dni",
+      "daysPlusMinus": "± {count} dni",
+      "none": "Brak zapisanych cykli."
+    },
+    "sheet": {
+      "title": "Zapisz swój dzień",
+      "description": "Zapisz dzisiejsze krwawienie, objawy i notatki.",
+      "date": "Data",
+      "flow": "Krwawienie",
+      "symptoms": "Objawy",
+      "temperature": "Podstawowa temperatura ciała",
+      "temperaturePlaceholder": "°C",
+      "ovulationTest": "Test owulacyjny",
+      "mucus": "Śluz szyjkowy",
+      "intercourse": "Współżycie",
+      "protected": "Zabezpieczone",
+      "note": "Notatka",
+      "notePlaceholder": "Cokolwiek chcesz zapamiętać z dzisiaj…",
+      "save": "Zapisz",
+      "saving": "Zapisywanie…",
+      "cancel": "Anuluj",
+      "saved": "Dzień zapisany",
+      "saveError": "Nie udało się zapisać. Spróbuj ponownie.",
+      "periodStarted": "Zapisano początek miesiączki",
+      "clear": "Brak"
+    },
+    "settings": {
+      "title": "Ustawienia cyklu",
+      "enable": "Śledzenie cyklu",
+      "enableDescription": "Włącz lub wyłącz zakładkę cyklu dla swojego konta.",
+      "typicalCycleLength": "Typowa długość cyklu (dni)",
+      "typicalPeriodLength": "Typowa długość miesiączki (dni)",
+      "lutealPhaseLength": "Długość fazy lutealnej (dni)",
+      "priorsDescription": "Te wartości pomagają prognozom, zanim zapiszesz wiele cykli. Zostaw puste, aby użyć wartości domyślnych.",
+      "rawChartMode": "Tryb surowego wykresu",
+      "rawChartModeDescription": "Pokazuj tylko zapisane dane, bez prognoz i interpretacji.",
+      "prediction": "Prognozy",
+      "predictionDescription": "Prognozuj następną miesiączkę oraz, gdy to istotne, okno płodne.",
+      "encryption": "Szyfruj wrażliwe wpisy",
+      "encryptionDescription": "Szyfruj w spoczynku pola ujawniające intencje (testy ciążowe, antykoncepcja, współżycie), obok zawsze szyfrowanych notatek.",
+      "discreet": "Dyskretne powiadomienia",
+      "discreetDescription": "Ukryj szczegóły cyklu w treści powiadomień na ekranie blokady.",
+      "dataTitle": "Twoje dane",
+      "dataDescription": "Twoje dane cyklu istnieją tylko na tym serwerze. Eksportuj je w każdej chwili lub usuń na zawsze.",
+      "export": "Eksportuj moje dane cyklu",
+      "deleteData": "Usuń moje dane cyklu",
+      "saved": "Ustawienia zapisane",
+      "saveError": "Nie udało się zapisać. Spróbuj ponownie.",
+      "save": "Zapisz"
+    }
   },
   "cycleReminders": {
     "periodSoonTitle": "Miesiączka prawdopodobnie wkrótce",

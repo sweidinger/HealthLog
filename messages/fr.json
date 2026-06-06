@@ -216,7 +216,8 @@
       "medicationDescription": "Marquer une dose comme prise",
       "mood": "Humeur",
       "moodDescription": "Enregistrer l'humeur et les tags"
-    }
+    },
+    "cycle": "Cycle"
   },
   "auth": {
     "login": "Se connecter",
@@ -4926,9 +4927,161 @@
         "confidenceLow": "Confiance faible",
         "confidenceMedium": "Confiance moyenne",
         "confidenceHigh": "Confiance élevée"
-      }
+      },
+      "title": "Analyses du cycle",
+      "empty": "Les analyses par phase apparaissent ici une fois assez de cycles enregistrés. Elles comparent tes mesures entre les phases du cycle, avec les statistiques affichées ouvertement.",
+      "sampleSize": "n = {n}",
+      "effectSize": "Taille d'effet {value}",
+      "qValue": "q = {value}"
     },
-    "disclaimer": "Ces prévisions sont des estimations descriptives issues de vos données enregistrées, ni une méthode de contraception ni un avis médical. Elles n'indiquent jamais qu'il est sûr d'avoir des rapports non protégés. Pour la contraception ou toute décision médicale, consultez un professionnel de santé."
+    "disclaimer": "Ces prévisions sont des estimations descriptives issues de vos données enregistrées, ni une méthode de contraception ni un avis médical. Elles n'indiquent jamais qu'il est sûr d'avoir des rapports non protégés. Pour la contraception ou toute décision médicale, consultez un professionnel de santé.",
+    "title": "Ton cycle",
+    "subtitle": "Enregistre tes règles et symptômes, et vois ce qui arrive ensuite.",
+    "tabs": {
+      "calendar": "Calendrier",
+      "predictions": "Prévisions",
+      "insights": "Analyses",
+      "settings": "Réglages"
+    },
+    "logToday": "Enregistrer aujourd'hui",
+    "startedPeriod": "Mes règles ont commencé aujourd'hui",
+    "endedPeriod": "Mes règles se sont terminées aujourd'hui",
+    "phase": {
+      "MENSTRUAL": "Menstruelle",
+      "FOLLICULAR": "Folliculaire",
+      "OVULATORY": "Ovulatoire",
+      "LUTEAL": "Lutéale",
+      "none": "Aucune phase",
+      "label": "Phase"
+    },
+    "flow": {
+      "NONE": "Aucun",
+      "SPOTTING": "Spotting",
+      "LIGHT": "Léger",
+      "MEDIUM": "Moyen",
+      "HEAVY": "Abondant",
+      "label": "Flux"
+    },
+    "ovulationTest": {
+      "NEGATIVE": "Négatif",
+      "POSITIVE_LH_SURGE": "Pic de LH",
+      "ESTROGEN_SURGE": "Pic d'œstrogène",
+      "INDETERMINATE": "Indéterminé",
+      "label": "Test d'ovulation"
+    },
+    "mucus": {
+      "DRY": "Sec",
+      "STICKY": "Collant",
+      "CREAMY": "Crémeux",
+      "WATERY": "Aqueux",
+      "EGG_WHITE": "Blanc d'œuf",
+      "label": "Glaire cervicale"
+    },
+    "goal": {
+      "GENERAL_HEALTH": "Santé générale",
+      "AVOID_PREGNANCY": "Éviter une grossesse",
+      "TRYING_TO_CONCEIVE": "Désir d'enfant",
+      "PERIMENOPAUSE": "Périménopause",
+      "OFF": "Suivi désactivé",
+      "label": "Pourquoi fais-tu ce suivi ?",
+      "description": "Cela adapte le langage et les prévisions affichées. Les conseils sur la fenêtre fertile n'apparaissent qu'en cas de désir d'enfant."
+    },
+    "ring": {
+      "dayOfCycle": "Jour {day}",
+      "dayUnknown": "—",
+      "ariaPhase": "Jour {day} du cycle, phase {phase}",
+      "ariaUnknown": "Pas encore de cycle actif",
+      "caption": "de ton cycle"
+    },
+    "calendar": {
+      "legendPeriod": "Règles enregistrées",
+      "legendPredicted": "Règles prévues",
+      "legendFertile": "Fenêtre fertile",
+      "legendOvulation": "Ovulation",
+      "legendSymptoms": "Symptômes enregistrés",
+      "prevMonth": "Mois précédent",
+      "nextMonth": "Mois suivant",
+      "loading": "Chargement de ton calendrier…",
+      "empty": "Commence à enregistrer pour remplir ton calendrier.",
+      "today": "Aujourd'hui",
+      "dayAria": "{date}"
+    },
+    "predictions": {
+      "title": "Ce qui arrive ensuite",
+      "nextPeriod": "Prochaines règles",
+      "nextPeriodRange": "Vers le {date}",
+      "nextPeriodWindow": "{low} – {high}",
+      "fertileWindow": "Fenêtre fertile",
+      "ovulation": "Ovulation estimée",
+      "confidence": "Confiance",
+      "confidenceHigh": "Élevée",
+      "confidenceMedium": "Moyenne",
+      "confidenceLow": "Faible",
+      "stillLearning": "Encore en apprentissage",
+      "stillLearningBody": "Enregistre au moins trois cycles complets et tes prévisions s'affineront. D'ici là, ceci reste une estimation approximative.",
+      "rawMode": "Prévision désactivée",
+      "rawModeBody": "Tu as désactivé les prévisions — seules tes données enregistrées sont affichées, sans prévision.",
+      "none": "Pas encore de prévision. Enregistre des règles pour commencer."
+    },
+    "history": {
+      "title": "Tes cycles",
+      "avgLength": "Durée moyenne",
+      "variability": "Variabilité",
+      "avgPeriodLength": "Règles moyennes",
+      "regularity": "Régularité",
+      "regularityREGULAR": "Régulier",
+      "regularityIRREGULAR": "Irrégulier",
+      "regularityLEARNING": "En apprentissage",
+      "days": "{count} jours",
+      "daysPlusMinus": "± {count} jours",
+      "none": "Aucun cycle enregistré pour l'instant."
+    },
+    "sheet": {
+      "title": "Enregistrer ta journée",
+      "description": "Saisis le flux, les symptômes et les notes du jour.",
+      "date": "Date",
+      "flow": "Flux",
+      "symptoms": "Symptômes",
+      "temperature": "Température basale",
+      "temperaturePlaceholder": "°C",
+      "ovulationTest": "Test d'ovulation",
+      "mucus": "Glaire cervicale",
+      "intercourse": "Rapports",
+      "protected": "Protégés",
+      "note": "Note",
+      "notePlaceholder": "Ce que tu veux retenir d'aujourd'hui…",
+      "save": "Enregistrer",
+      "saving": "Enregistrement…",
+      "cancel": "Annuler",
+      "saved": "Journée enregistrée",
+      "saveError": "Enregistrement impossible. Réessaie.",
+      "periodStarted": "Début des règles enregistré",
+      "clear": "Aucun"
+    },
+    "settings": {
+      "title": "Réglages du cycle",
+      "enable": "Suivi du cycle",
+      "enableDescription": "Active ou désactive l'onglet cycle pour ton compte.",
+      "typicalCycleLength": "Durée typique du cycle (jours)",
+      "typicalPeriodLength": "Durée typique des règles (jours)",
+      "lutealPhaseLength": "Durée de la phase lutéale (jours)",
+      "priorsDescription": "Ces valeurs aident tes prévisions avant d'avoir enregistré beaucoup de cycles. Laisse vide pour utiliser les valeurs par défaut.",
+      "rawChartMode": "Mode graphique brut",
+      "rawChartModeDescription": "Affiche uniquement tes données enregistrées, sans prévision ni interprétation.",
+      "prediction": "Prévisions",
+      "predictionDescription": "Prévois tes prochaines règles et, le cas échéant, ta fenêtre fertile.",
+      "encryption": "Chiffrer les entrées sensibles",
+      "encryptionDescription": "Chiffre au repos les champs révélant l'intention (tests de grossesse, contraception, rapports), en plus des notes toujours chiffrées.",
+      "discreet": "Notifications discrètes",
+      "discreetDescription": "Masque les détails du cycle dans le texte des notifications sur ton écran verrouillé.",
+      "dataTitle": "Tes données",
+      "dataDescription": "Tes données de cycle ne vivent que sur ce serveur. Exporte-les quand tu veux, ou supprime-les définitivement.",
+      "export": "Exporter mes données de cycle",
+      "deleteData": "Supprimer mes données de cycle",
+      "saved": "Réglages enregistrés",
+      "saveError": "Enregistrement impossible. Réessaie.",
+      "save": "Enregistrer"
+    }
   },
   "cycleReminders": {
     "periodSoonTitle": "Règles probablement bientôt",

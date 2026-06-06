@@ -216,7 +216,8 @@
       "medicationDescription": "Marcar una dosis como tomada",
       "mood": "Estado de ánimo",
       "moodDescription": "Registrar estado de ánimo y etiquetas"
-    }
+    },
+    "cycle": "Ciclo"
   },
   "auth": {
     "login": "Iniciar sesión",
@@ -4926,9 +4927,161 @@
         "confidenceLow": "Confianza baja",
         "confidenceMedium": "Confianza media",
         "confidenceHigh": "Confianza alta"
-      }
+      },
+      "title": "Análisis del ciclo",
+      "empty": "Los análisis por fase aparecen aquí cuando tienes suficientes ciclos registrados. Comparan tus métricas entre fases del ciclo, mostrando la estadística abiertamente.",
+      "sampleSize": "n = {n}",
+      "effectSize": "Tamaño del efecto {value}",
+      "qValue": "q = {value}"
     },
-    "disclaimer": "Estas predicciones son estimaciones descriptivas a partir de tus datos registrados, no un método anticonceptivo ni un consejo médico. Nunca indican que sea seguro tener relaciones sin protección. Para anticoncepción o cualquier decisión médica, consulta a un profesional sanitario."
+    "disclaimer": "Estas predicciones son estimaciones descriptivas a partir de tus datos registrados, no un método anticonceptivo ni un consejo médico. Nunca indican que sea seguro tener relaciones sin protección. Para anticoncepción o cualquier decisión médica, consulta a un profesional sanitario.",
+    "title": "Tu ciclo",
+    "subtitle": "Registra tu periodo y síntomas, y mira qué viene después.",
+    "tabs": {
+      "calendar": "Calendario",
+      "predictions": "Predicciones",
+      "insights": "Análisis",
+      "settings": "Ajustes"
+    },
+    "logToday": "Registrar hoy",
+    "startedPeriod": "Mi periodo empezó hoy",
+    "endedPeriod": "Mi periodo terminó hoy",
+    "phase": {
+      "MENSTRUAL": "Menstrual",
+      "FOLLICULAR": "Folicular",
+      "OVULATORY": "Ovulatoria",
+      "LUTEAL": "Lútea",
+      "none": "Sin fase",
+      "label": "Fase"
+    },
+    "flow": {
+      "NONE": "Ninguno",
+      "SPOTTING": "Manchado",
+      "LIGHT": "Ligero",
+      "MEDIUM": "Medio",
+      "HEAVY": "Abundante",
+      "label": "Flujo"
+    },
+    "ovulationTest": {
+      "NEGATIVE": "Negativo",
+      "POSITIVE_LH_SURGE": "Pico de LH",
+      "ESTROGEN_SURGE": "Pico de estrógeno",
+      "INDETERMINATE": "Indeterminado",
+      "label": "Test de ovulación"
+    },
+    "mucus": {
+      "DRY": "Seco",
+      "STICKY": "Pegajoso",
+      "CREAMY": "Cremoso",
+      "WATERY": "Acuoso",
+      "EGG_WHITE": "Clara de huevo",
+      "label": "Moco cervical"
+    },
+    "goal": {
+      "GENERAL_HEALTH": "Salud general",
+      "AVOID_PREGNANCY": "Evitar el embarazo",
+      "TRYING_TO_CONCEIVE": "Buscando embarazo",
+      "PERIMENOPAUSE": "Perimenopausia",
+      "OFF": "Seguimiento desactivado",
+      "label": "¿Para qué haces seguimiento?",
+      "description": "Esto define el lenguaje y qué predicciones ves. La guía de ventana fértil solo aparece si buscas embarazo."
+    },
+    "ring": {
+      "dayOfCycle": "Día {day}",
+      "dayUnknown": "—",
+      "ariaPhase": "Día {day} del ciclo, fase {phase}",
+      "ariaUnknown": "Aún no hay ciclo activo",
+      "caption": "de tu ciclo"
+    },
+    "calendar": {
+      "legendPeriod": "Periodo registrado",
+      "legendPredicted": "Periodo previsto",
+      "legendFertile": "Ventana fértil",
+      "legendOvulation": "Ovulación",
+      "legendSymptoms": "Síntomas registrados",
+      "prevMonth": "Mes anterior",
+      "nextMonth": "Mes siguiente",
+      "loading": "Cargando tu calendario…",
+      "empty": "Empieza a registrar para ver tu calendario.",
+      "today": "Hoy",
+      "dayAria": "{date}"
+    },
+    "predictions": {
+      "title": "Qué viene después",
+      "nextPeriod": "Próximo periodo",
+      "nextPeriodRange": "Alrededor del {date}",
+      "nextPeriodWindow": "{low} – {high}",
+      "fertileWindow": "Ventana fértil",
+      "ovulation": "Ovulación estimada",
+      "confidence": "Confianza",
+      "confidenceHigh": "Alta",
+      "confidenceMedium": "Media",
+      "confidenceLow": "Baja",
+      "stillLearning": "Aún aprendiendo",
+      "stillLearningBody": "Registra al menos tres ciclos completos y tus predicciones mejorarán. Hasta entonces es una estimación aproximada.",
+      "rawMode": "Predicción desactivada",
+      "rawModeBody": "Has desactivado las predicciones — solo se muestran tus datos registrados, sin pronóstico.",
+      "none": "Aún no hay predicción. Registra un periodo para empezar."
+    },
+    "history": {
+      "title": "Tus ciclos",
+      "avgLength": "Duración media",
+      "variability": "Variabilidad",
+      "avgPeriodLength": "Periodo medio",
+      "regularity": "Regularidad",
+      "regularityREGULAR": "Regular",
+      "regularityIRREGULAR": "Irregular",
+      "regularityLEARNING": "Aprendiendo",
+      "days": "{count} días",
+      "daysPlusMinus": "± {count} días",
+      "none": "Aún no hay ciclos registrados."
+    },
+    "sheet": {
+      "title": "Registrar tu día",
+      "description": "Captura el flujo, los síntomas y las notas de hoy.",
+      "date": "Fecha",
+      "flow": "Flujo",
+      "symptoms": "Síntomas",
+      "temperature": "Temperatura basal",
+      "temperaturePlaceholder": "°C",
+      "ovulationTest": "Test de ovulación",
+      "mucus": "Moco cervical",
+      "intercourse": "Relaciones",
+      "protected": "Protegidas",
+      "note": "Nota",
+      "notePlaceholder": "Algo que quieras recordar de hoy…",
+      "save": "Guardar",
+      "saving": "Guardando…",
+      "cancel": "Cancelar",
+      "saved": "Día guardado",
+      "saveError": "No se pudo guardar. Inténtalo de nuevo.",
+      "periodStarted": "Inicio del periodo registrado",
+      "clear": "Ninguno"
+    },
+    "settings": {
+      "title": "Ajustes del ciclo",
+      "enable": "Seguimiento del ciclo",
+      "enableDescription": "Activa o desactiva la pestaña del ciclo en tu cuenta.",
+      "typicalCycleLength": "Duración típica del ciclo (días)",
+      "typicalPeriodLength": "Duración típica del periodo (días)",
+      "lutealPhaseLength": "Duración de la fase lútea (días)",
+      "priorsDescription": "Estos valores ayudan a tus predicciones antes de registrar muchos ciclos. Déjalos en blanco para usar los predeterminados.",
+      "rawChartMode": "Modo de gráfico en bruto",
+      "rawChartModeDescription": "Muestra solo tus datos registrados, sin predicciones ni interpretación.",
+      "prediction": "Predicciones",
+      "predictionDescription": "Pronostica tu próximo periodo y, cuando corresponda, tu ventana fértil.",
+      "encryption": "Cifrar entradas sensibles",
+      "encryptionDescription": "Cifra en reposo los campos que revelan intención (test de embarazo, anticoncepción, relaciones), además de las notas siempre cifradas.",
+      "discreet": "Notificaciones discretas",
+      "discreetDescription": "Oculta los detalles del ciclo en el texto de las notificaciones de tu pantalla de bloqueo.",
+      "dataTitle": "Tus datos",
+      "dataDescription": "Tus datos del ciclo viven solo en este servidor. Expórtalos cuando quieras o elimínalos para siempre.",
+      "export": "Exportar mis datos del ciclo",
+      "deleteData": "Eliminar mis datos del ciclo",
+      "saved": "Ajustes guardados",
+      "saveError": "No se pudo guardar. Inténtalo de nuevo.",
+      "save": "Guardar"
+    }
   },
   "cycleReminders": {
     "periodSoonTitle": "El periodo llegará pronto",

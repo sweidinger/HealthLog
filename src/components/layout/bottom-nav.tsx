@@ -3,6 +3,7 @@
 import {
   Activity,
   Bell,
+  Droplets,
   Dumbbell,
   Home,
   Lightbulb,
@@ -16,6 +17,7 @@ import {
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
+import { useAuth } from "@/hooks/use-auth";
 import {
   Sheet,
   SheetContent,
@@ -70,11 +72,26 @@ const MORE_HUB: ReadonlyArray<NavLink> = [
   { href: "/settings/account", tKey: "nav.settings", icon: Settings },
 ];
 
+// v1.15.0 — the cycle entry, spliced into the More hub only when the
+// account's `cycleTrackingEnabled` gate is true. Hidden for everyone else.
+const CYCLE_HUB_ITEM: NavLink = {
+  href: "/cycle",
+  tKey: "nav.cycle",
+  icon: Droplets,
+};
+
 export function BottomNav() {
   const pathname = usePathname();
   const { t } = useTranslations();
+  const { user } = useAuth();
   const [moreOpen, setMoreOpen] = useState(false);
   const [captureOpen, setCaptureOpen] = useState(false);
+
+  // v1.15.0 — splice the cycle entry into the More hub after Mood when the
+  // account's gate is on, so it never appears for accounts without it.
+  const moreHub: ReadonlyArray<NavLink> = user?.cycleTrackingEnabled
+    ? [MORE_HUB[0], MORE_HUB[1], CYCLE_HUB_ITEM, ...MORE_HUB.slice(2)]
+    : MORE_HUB;
 
   function isActiveLink(href: string) {
     return href === "/" ? pathname === "/" : pathname.startsWith(href);
@@ -83,7 +100,7 @@ export function BottomNav() {
   // The "More" entry is treated as active when any of its children
   // is the current page — gives the user a clue that they've drilled
   // into a sub-route via the hub.
-  const moreActive = MORE_HUB.some((item) => isActiveLink(item.href));
+  const moreActive = moreHub.some((item) => isActiveLink(item.href));
 
   function renderPrimary(item: NavLink) {
     const isActive = isActiveLink(item.href);
@@ -190,7 +207,7 @@ export function BottomNav() {
             <SheetDescription>{t("nav.moreSheetDescription")}</SheetDescription>
           </SheetHeader>
           <div className="grid grid-cols-2 gap-2 px-4 pb-4">
-            {MORE_HUB.map((item) => {
+            {moreHub.map((item) => {
               const isActive = isActiveLink(item.href);
               return (
                 <Link

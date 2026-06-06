@@ -238,6 +238,17 @@
   --ring-red-from: #c93a2a;
   --ring-red-to: #ff7a6b;
 
+  /*
+   * v1.15.0 — cycle-phase ring hues (Dracula dark). Four calm, distinct
+   * tones for the cycle wheel: menstrual rose · follicular green · ovulatory
+   * amber-gold · luteal violet. Tuned to read as a soft instrument, never a
+   * gaudy rainbow — the same restraint as the wellness rings above.
+   */
+  --cycle-phase-menstrual: #ff6e9c;
+  --cycle-phase-follicular: #5cf08f;
+  --cycle-phase-ovulatory: #ffce6b;
+  --cycle-phase-luteal: #bd93f9;
+
   color-scheme: dark;
 }
 
@@ -311,6 +322,17 @@
   --ring-yellow-to: #d68a2a;
   --ring-red-from: #a3271a;
   --ring-red-to: #cb3a2a;
+
+  /*
+   * v1.15.0 — cycle-phase ring hues (Alucard light). Deeper + more
+   * saturated than the dark set so each phase holds AA-grade presence on the
+   * white card. Same four distinct hues: menstrual rose · follicular green ·
+   * ovulatory amber · luteal violet.
+   */
+  --cycle-phase-menstrual: #c8295e;
+  --cycle-phase-follicular: #0f7a3a;
+  --cycle-phase-ovulatory: #a34d14;
+  --cycle-phase-luteal: #644ac9;
 
   /*
    * Status-pill text in light mode (Alucard). The bright Dracula

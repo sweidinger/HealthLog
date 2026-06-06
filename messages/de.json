@@ -216,7 +216,8 @@
       "medicationDescription": "Eine Dosis als genommen markieren",
       "mood": "Stimmung",
       "moodDescription": "Stimmung und Tags erfassen"
-    }
+    },
+    "cycle": "Zyklus"
   },
   "auth": {
     "login": "Anmelden",
@@ -4926,9 +4927,161 @@
         "confidenceLow": "Geringe Sicherheit",
         "confidenceMedium": "Mittlere Sicherheit",
         "confidenceHigh": "Hohe Sicherheit"
-      }
+      },
+      "title": "Zyklus-Erkenntnisse",
+      "empty": "Phasen-Erkenntnisse erscheinen hier, sobald du genug Zyklen erfasst hast. Sie vergleichen deine Werte über die Zyklusphasen hinweg, mit offen gezeigter Statistik.",
+      "sampleSize": "n = {n}",
+      "effectSize": "Effektstärke {value}",
+      "qValue": "q = {value}"
     },
-    "disclaimer": "Diese Vorhersagen sind beschreibende Schätzungen aus deinen erfassten Daten, keine Verhütungsmethode und keine medizinische Beratung. Sie zeigen nie an, dass ungeschützter Geschlechtsverkehr sicher ist. Wende dich für Verhütung oder medizinische Entscheidungen an eine medizinische Fachperson."
+    "disclaimer": "Diese Vorhersagen sind beschreibende Schätzungen aus deinen erfassten Daten, keine Verhütungsmethode und keine medizinische Beratung. Sie zeigen nie an, dass ungeschützter Geschlechtsverkehr sicher ist. Wende dich für Verhütung oder medizinische Entscheidungen an eine medizinische Fachperson.",
+    "title": "Dein Zyklus",
+    "subtitle": "Erfasse deine Periode und Symptome und sieh, was als Nächstes kommt.",
+    "tabs": {
+      "calendar": "Kalender",
+      "predictions": "Prognosen",
+      "insights": "Erkenntnisse",
+      "settings": "Einstellungen"
+    },
+    "logToday": "Heute erfassen",
+    "startedPeriod": "Periode hat heute begonnen",
+    "endedPeriod": "Periode heute beendet",
+    "phase": {
+      "MENSTRUAL": "Menstruation",
+      "FOLLICULAR": "Follikelphase",
+      "OVULATORY": "Ovulation",
+      "LUTEAL": "Lutealphase",
+      "none": "Keine Phase",
+      "label": "Phase"
+    },
+    "flow": {
+      "NONE": "Keine",
+      "SPOTTING": "Schmierblutung",
+      "LIGHT": "Leicht",
+      "MEDIUM": "Mittel",
+      "HEAVY": "Stark",
+      "label": "Stärke"
+    },
+    "ovulationTest": {
+      "NEGATIVE": "Negativ",
+      "POSITIVE_LH_SURGE": "LH-Anstieg",
+      "ESTROGEN_SURGE": "Östrogen-Anstieg",
+      "INDETERMINATE": "Unklar",
+      "label": "Ovulationstest"
+    },
+    "mucus": {
+      "DRY": "Trocken",
+      "STICKY": "Klebrig",
+      "CREAMY": "Cremig",
+      "WATERY": "Wässrig",
+      "EGG_WHITE": "Eiweißartig",
+      "label": "Zervixschleim"
+    },
+    "goal": {
+      "GENERAL_HEALTH": "Allgemeine Gesundheit",
+      "AVOID_PREGNANCY": "Verhütung",
+      "TRYING_TO_CONCEIVE": "Kinderwunsch",
+      "PERIMENOPAUSE": "Perimenopause",
+      "OFF": "Tracking aus",
+      "label": "Wofür trackst du?",
+      "description": "Das bestimmt die Sprache und welche Prognosen du siehst. Hinweise zum fruchtbaren Fenster erscheinen nur bei Kinderwunsch."
+    },
+    "ring": {
+      "dayOfCycle": "Tag {day}",
+      "dayUnknown": "—",
+      "ariaPhase": "Zyklustag {day}, {phase}-Phase",
+      "ariaUnknown": "Noch kein aktiver Zyklus",
+      "caption": "deines Zyklus"
+    },
+    "calendar": {
+      "legendPeriod": "Erfasste Periode",
+      "legendPredicted": "Prognostizierte Periode",
+      "legendFertile": "Fruchtbares Fenster",
+      "legendOvulation": "Ovulation",
+      "legendSymptoms": "Symptome erfasst",
+      "prevMonth": "Vorheriger Monat",
+      "nextMonth": "Nächster Monat",
+      "loading": "Kalender wird geladen…",
+      "empty": "Erfasse Daten, damit sich dein Kalender füllt.",
+      "today": "Heute",
+      "dayAria": "{date}"
+    },
+    "predictions": {
+      "title": "Was als Nächstes kommt",
+      "nextPeriod": "Nächste Periode",
+      "nextPeriodRange": "Etwa am {date}",
+      "nextPeriodWindow": "{low} – {high}",
+      "fertileWindow": "Fruchtbares Fenster",
+      "ovulation": "Geschätzter Eisprung",
+      "confidence": "Sicherheit",
+      "confidenceHigh": "Hoch",
+      "confidenceMedium": "Mittel",
+      "confidenceLow": "Niedrig",
+      "stillLearning": "Noch am Lernen",
+      "stillLearningBody": "Erfasse mindestens drei vollständige Zyklen, dann werden deine Prognosen genauer. Bis dahin ist dies eine grobe Schätzung.",
+      "rawMode": "Prognose ist aus",
+      "rawModeBody": "Du hast Prognosen ausgeschaltet — es werden nur deine erfassten Daten gezeigt, ohne Vorhersage.",
+      "none": "Noch keine Prognose. Erfasse eine Periode, um zu starten."
+    },
+    "history": {
+      "title": "Deine Zyklen",
+      "avgLength": "Durchschnittliche Länge",
+      "variability": "Schwankung",
+      "avgPeriodLength": "Durchschnittliche Periode",
+      "regularity": "Regelmäßigkeit",
+      "regularityREGULAR": "Regelmäßig",
+      "regularityIRREGULAR": "Unregelmäßig",
+      "regularityLEARNING": "Lernend",
+      "days": "{count} Tage",
+      "daysPlusMinus": "± {count} Tage",
+      "none": "Noch keine Zyklen erfasst."
+    },
+    "sheet": {
+      "title": "Tag erfassen",
+      "description": "Erfasse Stärke, Symptome und Notizen von heute.",
+      "date": "Datum",
+      "flow": "Stärke",
+      "symptoms": "Symptome",
+      "temperature": "Basaltemperatur",
+      "temperaturePlaceholder": "°C",
+      "ovulationTest": "Ovulationstest",
+      "mucus": "Zervixschleim",
+      "intercourse": "Geschlechtsverkehr",
+      "protected": "Geschützt",
+      "note": "Notiz",
+      "notePlaceholder": "Was du dir über heute merken möchtest…",
+      "save": "Speichern",
+      "saving": "Speichern…",
+      "cancel": "Abbrechen",
+      "saved": "Tag gespeichert",
+      "saveError": "Konnte nicht gespeichert werden. Versuch es erneut.",
+      "periodStarted": "Periodenbeginn erfasst",
+      "clear": "Keine"
+    },
+    "settings": {
+      "title": "Zyklus-Einstellungen",
+      "enable": "Zyklus-Tracking",
+      "enableDescription": "Schalte den Zyklus-Tab für dein Konto ein oder aus.",
+      "typicalCycleLength": "Typische Zykluslänge (Tage)",
+      "typicalPeriodLength": "Typische Periodenlänge (Tage)",
+      "lutealPhaseLength": "Länge der Lutealphase (Tage)",
+      "priorsDescription": "Diese Vorgaben helfen deinen Prognosen, bevor du viele Zyklen erfasst hast. Leer lassen, um die Standardwerte zu nutzen.",
+      "rawChartMode": "Roh-Diagramm-Modus",
+      "rawChartModeDescription": "Zeige nur deine erfassten Daten, ohne Prognosen oder Deutung.",
+      "prediction": "Prognosen",
+      "predictionDescription": "Prognostiziere deine nächste Periode und, wenn relevant, dein fruchtbares Fenster.",
+      "encryption": "Sensible Einträge verschlüsseln",
+      "encryptionDescription": "Verschlüssele absichtsverratende Felder (Schwangerschaftstests, Verhütung, Geschlechtsverkehr) ruhend, zusätzlich zu den stets verschlüsselten Notizen.",
+      "discreet": "Diskrete Benachrichtigungen",
+      "discreetDescription": "Verbirg Zyklusdetails im Benachrichtigungstext auf deinem Sperrbildschirm.",
+      "dataTitle": "Deine Daten",
+      "dataDescription": "Deine Zyklusdaten liegen nur auf diesem Server. Exportiere sie jederzeit oder lösche sie endgültig.",
+      "export": "Meine Zyklusdaten exportieren",
+      "deleteData": "Meine Zyklusdaten löschen",
+      "saved": "Einstellungen gespeichert",
+      "saveError": "Konnte nicht gespeichert werden. Versuch es erneut.",
+      "save": "Speichern"
+    }
   },
   "cycleReminders": {
     "periodSoonTitle": "Periode steht wahrscheinlich bevor",

@@ -499,6 +499,21 @@ export const queryKeys = {
    */
   insightsTrendSeries: (types: string) =>
     ["trend-series", types] as const,
+
+  /**
+   * v1.15.0 — cycle-tracking surfaces. `cycle()` is the root prefix every
+   * cycle write invalidates through (`cycleDependentKeys` below). The
+   * calendar read is keyed by `(from, to)` so paging the month strip caches
+   * each window independently; the history + profile reads each get their
+   * own slot. A day-log / period write evicts the whole `["cycle"]` prefix
+   * so the calendar, the wheel, the predictions panel, and the history
+   * stats repaint in lockstep.
+   */
+  cycle: () => ["cycle"] as const,
+  cycleCalendar: (from: string, to: string) =>
+    ["cycle", "calendar", from, to] as const,
+  cycleHistory: (limit: number) => ["cycle", "history", limit] as const,
+  cycleProfile: () => ["cycle", "profile"] as const,
 };
 
 /**
@@ -571,6 +586,19 @@ export const medicationDependentKeys = [
   queryKeys.gamificationAchievements(),
   ["dashboard-medication-compliance"] as const,
   ["compliance-chart-inline"] as const,
+];
+
+/**
+ * Keys invalidated when cycle data changes (a day-log capture, a period
+ * boundary, a day-log delete). The `["cycle"]` prefix catches the calendar
+ * windows, the history stats, and the profile read in one tick so the
+ * calendar/wheel and predictions panel never read stale rows after a quick
+ * log. `insightsRoot()` rides along because phase-correlation cards depend
+ * on the same rows.
+ */
+export const cycleDependentKeys = [
+  queryKeys.cycle(),
+  queryKeys.insightsRoot(),
 ];
 
 /**

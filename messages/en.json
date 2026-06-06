@@ -216,7 +216,8 @@
       "medicationDescription": "Mark a dose as taken",
       "mood": "Mood",
       "moodDescription": "Log your mood and tags"
-    }
+    },
+    "cycle": "Cycle"
   },
   "auth": {
     "login": "Sign in",
@@ -4926,9 +4927,161 @@
         "confidenceLow": "Low confidence",
         "confidenceMedium": "Medium confidence",
         "confidenceHigh": "High confidence"
-      }
+      },
+      "title": "Cycle insights",
+      "empty": "Phase insights appear here once you have enough logged cycles. They compare your metrics across cycle phases, with the statistics shown openly.",
+      "sampleSize": "n = {n}",
+      "effectSize": "Effect size {value}",
+      "qValue": "q = {value}"
     },
-    "disclaimer": "These predictions are descriptive estimates from your logged data, not a contraceptive method and not medical advice. They never indicate that it is safe to have unprotected sex. For contraception or any medical decision, consult a healthcare professional."
+    "disclaimer": "These predictions are descriptive estimates from your logged data, not a contraceptive method and not medical advice. They never indicate that it is safe to have unprotected sex. For contraception or any medical decision, consult a healthcare professional.",
+    "title": "Your cycle",
+    "subtitle": "Log your period and symptoms, see what comes next.",
+    "tabs": {
+      "calendar": "Calendar",
+      "predictions": "Predictions",
+      "insights": "Insights",
+      "settings": "Settings"
+    },
+    "logToday": "Log today",
+    "startedPeriod": "Started my period today",
+    "endedPeriod": "Ended my period today",
+    "phase": {
+      "MENSTRUAL": "Menstrual",
+      "FOLLICULAR": "Follicular",
+      "OVULATORY": "Ovulatory",
+      "LUTEAL": "Luteal",
+      "none": "No phase",
+      "label": "Phase"
+    },
+    "flow": {
+      "NONE": "None",
+      "SPOTTING": "Spotting",
+      "LIGHT": "Light",
+      "MEDIUM": "Medium",
+      "HEAVY": "Heavy",
+      "label": "Flow"
+    },
+    "ovulationTest": {
+      "NEGATIVE": "Negative",
+      "POSITIVE_LH_SURGE": "LH surge",
+      "ESTROGEN_SURGE": "Estrogen surge",
+      "INDETERMINATE": "Indeterminate",
+      "label": "Ovulation test"
+    },
+    "mucus": {
+      "DRY": "Dry",
+      "STICKY": "Sticky",
+      "CREAMY": "Creamy",
+      "WATERY": "Watery",
+      "EGG_WHITE": "Egg white",
+      "label": "Cervical mucus"
+    },
+    "goal": {
+      "GENERAL_HEALTH": "General health",
+      "AVOID_PREGNANCY": "Avoiding pregnancy",
+      "TRYING_TO_CONCEIVE": "Trying to conceive",
+      "PERIMENOPAUSE": "Perimenopause",
+      "OFF": "Tracking off",
+      "label": "What are you tracking for?",
+      "description": "This shapes the language and which predictions you see. Fertile-window guidance shows only when you are trying to conceive."
+    },
+    "ring": {
+      "dayOfCycle": "Day {day}",
+      "dayUnknown": "—",
+      "ariaPhase": "Cycle day {day}, {phase} phase",
+      "ariaUnknown": "No active cycle yet",
+      "caption": "of your cycle"
+    },
+    "calendar": {
+      "legendPeriod": "Logged period",
+      "legendPredicted": "Predicted period",
+      "legendFertile": "Fertile window",
+      "legendOvulation": "Ovulation",
+      "legendSymptoms": "Symptoms logged",
+      "prevMonth": "Previous month",
+      "nextMonth": "Next month",
+      "loading": "Loading your calendar…",
+      "empty": "Start logging to see your calendar fill in.",
+      "today": "Today",
+      "dayAria": "{date}"
+    },
+    "predictions": {
+      "title": "What comes next",
+      "nextPeriod": "Next period",
+      "nextPeriodRange": "Around {date}",
+      "nextPeriodWindow": "{low} – {high}",
+      "fertileWindow": "Fertile window",
+      "ovulation": "Estimated ovulation",
+      "confidence": "Confidence",
+      "confidenceHigh": "High",
+      "confidenceMedium": "Medium",
+      "confidenceLow": "Low",
+      "stillLearning": "Still learning",
+      "stillLearningBody": "Log at least three full cycles and your predictions sharpen. Until then this is a rough estimate.",
+      "rawMode": "Prediction is off",
+      "rawModeBody": "You turned predictions off — only your logged data is shown, with no forecast.",
+      "none": "No prediction yet. Log a period to get started."
+    },
+    "history": {
+      "title": "Your cycles",
+      "avgLength": "Average length",
+      "variability": "Variability",
+      "avgPeriodLength": "Average period",
+      "regularity": "Regularity",
+      "regularityREGULAR": "Regular",
+      "regularityIRREGULAR": "Irregular",
+      "regularityLEARNING": "Learning",
+      "days": "{count} days",
+      "daysPlusMinus": "± {count} days",
+      "none": "No cycles recorded yet."
+    },
+    "sheet": {
+      "title": "Log your day",
+      "description": "Capture today's flow, symptoms, and notes.",
+      "date": "Date",
+      "flow": "Flow",
+      "symptoms": "Symptoms",
+      "temperature": "Basal body temperature",
+      "temperaturePlaceholder": "°C",
+      "ovulationTest": "Ovulation test",
+      "mucus": "Cervical mucus",
+      "intercourse": "Intercourse",
+      "protected": "Protected",
+      "note": "Note",
+      "notePlaceholder": "Anything you want to remember about today…",
+      "save": "Save",
+      "saving": "Saving…",
+      "cancel": "Cancel",
+      "saved": "Day saved",
+      "saveError": "Could not save. Try again.",
+      "periodStarted": "Period start logged",
+      "clear": "None"
+    },
+    "settings": {
+      "title": "Cycle settings",
+      "enable": "Cycle tracking",
+      "enableDescription": "Turn the cycle tab on or off for your account.",
+      "typicalCycleLength": "Typical cycle length (days)",
+      "typicalPeriodLength": "Typical period length (days)",
+      "lutealPhaseLength": "Luteal phase length (days)",
+      "priorsDescription": "These priors help your predictions before you have logged many cycles. Leave blank to use the defaults.",
+      "rawChartMode": "Raw chart mode",
+      "rawChartModeDescription": "Show only your logged data with no predictions or interpretation.",
+      "prediction": "Predictions",
+      "predictionDescription": "Forecast your next period and, when relevant, your fertile window.",
+      "encryption": "Encrypt sensitive entries",
+      "encryptionDescription": "Encrypt intent-revealing fields (pregnancy tests, contraception, intercourse) at rest, on top of the always-encrypted notes.",
+      "discreet": "Discreet notifications",
+      "discreetDescription": "Hide cycle details from notification text on your lock screen.",
+      "dataTitle": "Your data",
+      "dataDescription": "Your cycle data lives only on this server. Export it any time, or delete it for good.",
+      "export": "Export my cycle data",
+      "deleteData": "Delete my cycle data",
+      "saved": "Settings saved",
+      "saveError": "Could not save. Try again.",
+      "save": "Save"
+    }
   },
   "cycleReminders": {
     "periodSoonTitle": "Period likely soon",
