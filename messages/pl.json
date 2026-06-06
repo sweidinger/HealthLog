@@ -4927,6 +4927,15 @@
         "confidenceMedium": "Średnia pewność",
         "confidenceHigh": "Wysoka pewność"
       }
-    }
+    },
+    "disclaimer": "Te prognozy to opisowe szacunki na podstawie zapisanych danych, a nie metoda antykoncepcji ani porada medyczna. Nigdy nie oznaczają, że współżycie bez zabezpieczenia jest bezpieczne. W sprawach antykoncepcji lub decyzji medycznych skonsultuj się z pracownikiem ochrony zdrowia."
+  },
+  "cycleReminders": {
+    "periodSoonTitle": "Miesiączka prawdopodobnie wkrótce",
+    "periodSoonBody": "Twoja następna miesiączka jest przewidywana za około dwa dni.",
+    "periodConfirmTitle": "Czy miesiączka się zaczęła?",
+    "periodConfirmBody": "Twoja miesiączka była przewidywana mniej więcej teraz. Zapisz ją, aby prognozy pozostały dokładne.",
+    "discreetTitle": "Przypomnienie HealthLog",
+    "discreetBody": "Masz przypomnienie w HealthLog."
   }
 }

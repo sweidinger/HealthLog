@@ -90,6 +90,7 @@ describe("GET /api/auth/me/notification-prefs", () => {
     expect(env.data).toEqual({
       medication: { clientManaged: false, deliveryDefault: "server" },
       mood: { reminderHour: 22 },
+      cycle: { clientManaged: false },
     });
   });
 
@@ -109,6 +110,7 @@ describe("GET /api/auth/me/notification-prefs", () => {
     expect(env.data).toEqual({
       medication: { clientManaged: true, deliveryDefault: "server" },
       mood: { reminderHour: 22 },
+      cycle: { clientManaged: false },
     });
   });
 
@@ -130,6 +132,7 @@ describe("GET /api/auth/me/notification-prefs", () => {
     expect(env.data).toEqual({
       medication: { clientManaged: false, deliveryDefault: "server" },
       mood: { reminderHour: 22 },
+      cycle: { clientManaged: false },
     });
   });
 });
@@ -162,6 +165,7 @@ describe("PATCH /api/auth/me/notification-prefs", () => {
     expect(env.data).toEqual({
       medication: { clientManaged: true, deliveryDefault: "server" },
       mood: { reminderHour: 22 },
+      cycle: { clientManaged: false },
     });
 
     expect(prisma.user.update).toHaveBeenCalledWith({
@@ -170,6 +174,7 @@ describe("PATCH /api/auth/me/notification-prefs", () => {
         notificationPrefs: {
           medication: { clientManaged: true, deliveryDefault: "server" },
           mood: { reminderHour: 22 },
+          cycle: { clientManaged: false },
         },
       },
     });
@@ -182,10 +187,12 @@ describe("PATCH /api/auth/me/notification-prefs", () => {
           previous: {
             medication: { clientManaged: false, deliveryDefault: "server" },
             mood: { reminderHour: 22 },
+            cycle: { clientManaged: false },
           },
           next: {
             medication: { clientManaged: true, deliveryDefault: "server" },
             mood: { reminderHour: 22 },
+            cycle: { clientManaged: false },
           },
           changed: ["medication"],
         }),
@@ -246,6 +253,7 @@ describe("PATCH /api/auth/me/notification-prefs", () => {
         notificationPrefs: {
           medication: { clientManaged: true, deliveryDefault: "server" },
           mood: { reminderHour: 22 },
+          cycle: { clientManaged: false },
         },
       },
     });
@@ -270,6 +278,7 @@ describe("PATCH /api/auth/me/notification-prefs", () => {
     expect(env.data).toEqual({
       medication: { clientManaged: true, deliveryDefault: "server" },
       mood: { reminderHour: 22 },
+      cycle: { clientManaged: false },
     });
 
     expect(prisma.user.update).toHaveBeenCalledWith({
@@ -278,6 +287,7 @@ describe("PATCH /api/auth/me/notification-prefs", () => {
         notificationPrefs: {
           medication: { clientManaged: true, deliveryDefault: "server" },
           mood: { reminderHour: 22 },
+          cycle: { clientManaged: false },
         },
       },
     });
@@ -305,6 +315,7 @@ describe("PATCH /api/auth/me/notification-prefs", () => {
         notificationPrefs: {
           medication: { clientManaged: false, deliveryDefault: "server" },
           mood: { reminderHour: 9 },
+          cycle: { clientManaged: false },
         },
       },
     });

@@ -4927,6 +4927,15 @@
         "confidenceMedium": "Confiance moyenne",
         "confidenceHigh": "Confiance élevée"
       }
-    }
+    },
+    "disclaimer": "Ces prévisions sont des estimations descriptives issues de vos données enregistrées, ni une méthode de contraception ni un avis médical. Elles n'indiquent jamais qu'il est sûr d'avoir des rapports non protégés. Pour la contraception ou toute décision médicale, consultez un professionnel de santé."
+  },
+  "cycleReminders": {
+    "periodSoonTitle": "Règles probablement bientôt",
+    "periodSoonBody": "Vos prochaines règles sont prévues dans environ deux jours.",
+    "periodConfirmTitle": "Vos règles ont-elles commencé ?",
+    "periodConfirmBody": "Vos règles étaient prévues pour maintenant. Enregistrez-les pour garder des prévisions précises.",
+    "discreetTitle": "Rappel HealthLog",
+    "discreetBody": "Vous avez un rappel dans HealthLog."
   }
 }

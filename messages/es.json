@@ -4927,6 +4927,15 @@
         "confidenceMedium": "Confianza media",
         "confidenceHigh": "Confianza alta"
       }
-    }
+    },
+    "disclaimer": "Estas predicciones son estimaciones descriptivas a partir de tus datos registrados, no un método anticonceptivo ni un consejo médico. Nunca indican que sea seguro tener relaciones sin protección. Para anticoncepción o cualquier decisión médica, consulta a un profesional sanitario."
+  },
+  "cycleReminders": {
+    "periodSoonTitle": "El periodo llegará pronto",
+    "periodSoonBody": "Se prevé tu próximo periodo en unos dos días.",
+    "periodConfirmTitle": "¿Ha comenzado tu periodo?",
+    "periodConfirmBody": "Tu periodo estaba previsto para ahora. Regístralo para mantener las predicciones precisas.",
+    "discreetTitle": "Recordatorio de HealthLog",
+    "discreetBody": "Tienes un recordatorio en HealthLog."
   }
 }

@@ -595,7 +595,8 @@ The full documentation set lives under [`docs/`](docs/) (also published at [docs
 
 | Area | Where | What it covers |
 | ---- | ----- | -------------- |
-| Self-hosting | [`docs/self-hosting/`](docs/self-hosting/) | Getting started, reverse-proxy setup, horizontal scaling |
+| Self-hosting | [`docs/self-hosting/`](docs/self-hosting/) | Getting started, reverse-proxy setup, horizontal scaling, [reproductive-health data on your own server](docs/self-hosting/reproductive-health-data.md) |
+| Threat model | [`docs/security/cycle-data-threat-model.md`](docs/security/cycle-data-threat-model.md) | What self-hosting cycle data does and does not protect against |
 | Operator runbooks | [`docs/ops/`](docs/ops/) | Deploy, encryption-key rotation, backup/restore, env check, migrations, TLS pinning |
 | API contract | [`docs/api/`](docs/api/) | OpenAPI 3.1 spec (`openapi.yaml`) for the native client subset |
 | Integrations | [`docs/integrations/`](docs/integrations/) | Withings, WHOOP, Google Health/Fitbit, Apple Health, AI providers |

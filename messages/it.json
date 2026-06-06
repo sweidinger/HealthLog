@@ -4927,6 +4927,15 @@
         "confidenceMedium": "Affidabilità media",
         "confidenceHigh": "Affidabilità alta"
       }
-    }
+    },
+    "disclaimer": "Queste previsioni sono stime descrittive basate sui tuoi dati registrati, non un metodo contraccettivo né un parere medico. Non indicano mai che sia sicuro avere rapporti non protetti. Per la contraccezione o qualsiasi decisione medica, consulta un professionista sanitario."
+  },
+  "cycleReminders": {
+    "periodSoonTitle": "Ciclo probabilmente in arrivo",
+    "periodSoonBody": "Il tuo prossimo ciclo è previsto tra circa due giorni.",
+    "periodConfirmTitle": "Il ciclo è iniziato?",
+    "periodConfirmBody": "Il tuo ciclo era previsto per adesso. Registralo per mantenere accurate le previsioni.",
+    "discreetTitle": "Promemoria HealthLog",
+    "discreetBody": "Hai un promemoria in HealthLog."
   }
 }

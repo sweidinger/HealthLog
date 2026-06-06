@@ -4927,6 +4927,15 @@
         "confidenceMedium": "Medium confidence",
         "confidenceHigh": "High confidence"
       }
-    }
+    },
+    "disclaimer": "These predictions are descriptive estimates from your logged data, not a contraceptive method and not medical advice. They never indicate that it is safe to have unprotected sex. For contraception or any medical decision, consult a healthcare professional."
+  },
+  "cycleReminders": {
+    "periodSoonTitle": "Period likely soon",
+    "periodSoonBody": "Your next period is predicted in about two days.",
+    "periodConfirmTitle": "Did your period start?",
+    "periodConfirmBody": "Your period was predicted around now. Log it to keep predictions accurate.",
+    "discreetTitle": "HealthLog reminder",
+    "discreetBody": "You have a reminder in HealthLog."
   }
 }

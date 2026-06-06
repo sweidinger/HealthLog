@@ -223,6 +223,7 @@ import {
   getPhaseKeyboard,
 } from "@/lib/jobs/reminder-phases";
 import { runMoodReminderTick } from "@/lib/jobs/mood-reminder";
+import { runCycleReminderTick } from "@/lib/jobs/cycle-reminder";
 import { isMedicationReminderClientManaged } from "@/lib/validations/notification-prefs";
 import { withBackgroundEvent } from "@/lib/logging/background";
 import { assertSubsystemEnabled } from "@/lib/process-type";
@@ -393,6 +394,16 @@ const PUSH_ATTEMPT_RETENTION_DAYS = 90;
 // and the drain (03:45) inside the existing 03:xx maintenance window.
 const MEASUREMENT_TOMBSTONE_CLEANUP_QUEUE = "measurement-tombstone-cleanup";
 const MEASUREMENT_TOMBSTONE_CLEANUP_CRON = "40 3 * * *";
+// v1.15 — daily cycle reminder cron (period-soon + period-start-confirm).
+//
+// Runs every 15 minutes for the same reason as the mood reminder: the
+// handler short-circuits unless the candidate user's local time is the
+// cycle-reminder hour (09:00), so the 15-min cadence picks up every IANA
+// timezone crossing that hour without one cron entry per zone. At most one
+// push per event per user per local day — the `push_attempts` ledger is the
+// idempotency anchor inside the handler.
+const CYCLE_REMINDER_QUEUE = "cycle-reminder-check";
+const CYCLE_REMINDER_CRON = "*/15 * * * *";
 // v1.4.38 — the per-sample cutoff hours constant now lives on the
 // helper module so the worker, the admin route, and the CLI all read
 // the same source of truth. Re-export pulled in alongside
@@ -494,6 +505,10 @@ interface GeoBackfillPayload {
 }
 
 interface MoodReminderPayload {
+  triggeredAt: string;
+}
+
+interface CycleReminderPayload {
   triggeredAt: string;
 }
 
@@ -1659,6 +1674,39 @@ async function handleMoodReminderCheck(jobs: Job<MoodReminderPayload>[]) {
   });
 }
 
+/**
+ * v1.15 — daily cycle-reminder dispatcher (period-soon + period-start-confirm).
+ *
+ * Thin shim around `runCycleReminderTick` in `cycle-reminder.ts` so the
+ * unit tests exercise the windowing + suppression logic without pg-boss.
+ */
+async function handleCycleReminderCheck(jobs: Job<CycleReminderPayload>[]) {
+  void jobs;
+  await withBackgroundEvent("job.cycle_reminder", async (evt) => {
+    const prisma = getWorkerPrisma();
+    try {
+      const summary = await runCycleReminderTick(prisma, new Date());
+      evt.setBackground({
+        task_name: "job.cycle_reminder",
+        result: {
+          candidates_scanned: summary.candidatesScanned,
+          in_window: summary.inWindow,
+          dispatched_period_soon: summary.dispatchedPeriodSoon,
+          dispatched_period_confirm: summary.dispatchedPeriodConfirm,
+          suppressed_client_managed: summary.suppressedClientManaged,
+          suppressed_discreet: summary.suppressedDiscreet,
+          skipped_already_notified: summary.skippedAlreadyNotified,
+          skipped_outside_window: summary.skippedOutsideWindow,
+        },
+      });
+    } catch (err) {
+      evt.setError(err);
+      recordError();
+      throw err;
+    }
+  });
+}
+
 async function handleRateLimitCleanup(jobs: Job<RateLimitCleanupPayload>[]) {
   void jobs;
   await withBackgroundEvent("job.rate_limit_cleanup", async (evt) => {
@@ -2427,6 +2475,11 @@ export async function startReminderWorker() {
     // dispatcher never fires.
     MOOD_REMINDER_QUEUE,
     MOOD_REMINDER_CLEANUP_QUEUE,
+    // v1.15 — cycle-reminder cron tick (period-soon + period-start-confirm).
+    // Same pg-boss v12 createQueue contract as the mood-reminder queue;
+    // without this entry the every-15-min schedule silently no-ops and the
+    // cycle dispatcher never fires (the v1.4.37 dead-queue class).
+    CYCLE_REMINDER_QUEUE,
     // v1.4.49 — push-attempt ledger cleanup. Same createQueue contract
     // as the other cleanup jobs; the daily schedule below would
     // silently no-op without this entry.
@@ -2575,6 +2628,11 @@ export async function startReminderWorker() {
     // per tick for the entire opted-in cohort.
     [MOOD_REMINDER_QUEUE, MOOD_REMINDER_CRON],
     [MOOD_REMINDER_CLEANUP_QUEUE, MOOD_REMINDER_CLEANUP_CRON],
+    // v1.15 — every-15-min tick for the daily cycle reminder. The handler
+    // short-circuits unless the candidate user's local time is the 09:00
+    // hour, so the cron costs ~one prediction-row scan per tick for the
+    // opted-in cohort.
+    [CYCLE_REMINDER_QUEUE, CYCLE_REMINDER_CRON],
     // v1.4.49 — daily 03:35 Europe/Berlin prune for push_attempts.
     [PUSH_ATTEMPT_CLEANUP_QUEUE, PUSH_ATTEMPT_CLEANUP_CRON],
     // v1.7.0 — nightly 04:30 Europe/Berlin comprehensive-insight
@@ -2800,6 +2858,14 @@ export async function startReminderWorker() {
     MOOD_REMINDER_CLEANUP_QUEUE,
     { localConcurrency: 1 },
     handleMoodReminderCleanup,
+  );
+  // v1.15 — single-flight cycle-reminder worker. localConcurrency=1 keeps
+  // two ticks from racing the fire-and-forget `push_attempts` ledger that
+  // anchors the per-day idempotency, exactly like the mood-reminder worker.
+  await boss.work<CycleReminderPayload>(
+    CYCLE_REMINDER_QUEUE,
+    { localConcurrency: 1 },
+    handleCycleReminderCheck,
   );
   // v1.4.49 — daily prune of the push-attempt ledger. Single-flight
   // matches every other cleanup queue; two ticks racing on the same

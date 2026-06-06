@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   DEFAULT_MOOD_REMINDER_HOUR,
   DEFAULT_NOTIFICATION_PREFS,
+  isCycleReminderClientManaged,
   isMedicationReminderClientManaged,
   notificationPrefsSchema,
   parseNotificationPrefs,
@@ -89,6 +90,7 @@ describe("parseNotificationPrefs", () => {
     ).toEqual({
       medication: { clientManaged: true, deliveryDefault: "server" },
       mood: { reminderHour: DEFAULT_MOOD_REMINDER_HOUR },
+      cycle: { clientManaged: false },
     });
   });
 
@@ -96,6 +98,7 @@ describe("parseNotificationPrefs", () => {
     expect(parseNotificationPrefs({ medication: {} })).toEqual({
       medication: { clientManaged: false, deliveryDefault: "server" },
       mood: { reminderHour: DEFAULT_MOOD_REMINDER_HOUR },
+      cycle: { clientManaged: false },
     });
   });
 
@@ -105,6 +108,7 @@ describe("parseNotificationPrefs", () => {
     ).toEqual({
       medication: { clientManaged: true, deliveryDefault: "client" },
       mood: { reminderHour: DEFAULT_MOOD_REMINDER_HOUR },
+      cycle: { clientManaged: false },
     });
   });
 
@@ -130,6 +134,7 @@ describe("resolveNotificationPrefs (deep-merge)", () => {
     expect(out).toEqual({
       medication: { clientManaged: true, deliveryDefault: "server" },
       mood: { reminderHour: DEFAULT_MOOD_REMINDER_HOUR },
+      cycle: { clientManaged: false },
     });
   });
 
@@ -143,6 +148,7 @@ describe("resolveNotificationPrefs (deep-merge)", () => {
     expect(out).toEqual({
       medication: { clientManaged: true, deliveryDefault: "server" },
       mood: { reminderHour: DEFAULT_MOOD_REMINDER_HOUR },
+      cycle: { clientManaged: false },
     });
   });
 
@@ -153,6 +159,7 @@ describe("resolveNotificationPrefs (deep-merge)", () => {
     expect(out).toEqual({
       medication: { clientManaged: true, deliveryDefault: "server" },
       mood: { reminderHour: DEFAULT_MOOD_REMINDER_HOUR },
+      cycle: { clientManaged: false },
     });
   });
 
@@ -163,6 +170,7 @@ describe("resolveNotificationPrefs (deep-merge)", () => {
     expect(out).toEqual({
       medication: { clientManaged: true, deliveryDefault: "client" },
       mood: { reminderHour: DEFAULT_MOOD_REMINDER_HOUR },
+      cycle: { clientManaged: false },
     });
   });
 
@@ -174,6 +182,7 @@ describe("resolveNotificationPrefs (deep-merge)", () => {
     expect(out).toEqual({
       medication: { clientManaged: true, deliveryDefault: "server" },
       mood: { reminderHour: 8 },
+      cycle: { clientManaged: false },
     });
   });
 
@@ -214,6 +223,34 @@ describe("isMedicationReminderClientManaged — cron-skip gate", () => {
         medication: { deliveryDefault: "client" },
       }),
     ).toBe(true);
+  });
+});
+
+describe("isCycleReminderClientManaged — cron-skip gate", () => {
+  it("returns false for a null / undefined row (server-managed default)", () => {
+    expect(isCycleReminderClientManaged(null)).toBe(false);
+    expect(isCycleReminderClientManaged(undefined)).toBe(false);
+  });
+
+  it("returns false when the user has not opted in", () => {
+    expect(
+      isCycleReminderClientManaged({ cycle: { clientManaged: false } }),
+    ).toBe(false);
+  });
+
+  it("returns true when the iOS app owns local cycle reminders", () => {
+    expect(
+      isCycleReminderClientManaged({ cycle: { clientManaged: true } }),
+    ).toBe(true);
+  });
+
+  it("is independent of the medication delivery default", () => {
+    // The medication `deliveryDefault: client` must NOT suppress cycle pushes.
+    expect(
+      isCycleReminderClientManaged({
+        medication: { deliveryDefault: "client" },
+      }),
+    ).toBe(false);
   });
 });
 
