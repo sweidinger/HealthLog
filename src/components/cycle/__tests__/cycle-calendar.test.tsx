@@ -49,14 +49,16 @@ describe("<CycleCalendar>", () => {
     expect(html).toContain("Logged period");
   });
 
-  it("renders the predicted period as a band, not a logged pip", () => {
+  it("renders the predicted period as a dashed soft fill, distinct from a logged pip", () => {
     const days = [{ ...dayBase("2026-06-20"), isPredictedPeriod: true }];
     const html = render(
       <CycleCalendar days={days} today={today} onSelectDay={() => {}} />,
     );
-    // The predicted band uses a dashed gradient underline + the aria marker.
+    // Predicted days are a soft FILL with a dashed outline (not the old
+    // underline), tagged data-predicted; the solid logged pip has no dashes.
     expect(html).toContain("Predicted period");
-    expect(html).toContain("repeating-linear-gradient");
+    expect(html).toContain('data-predicted="true"');
+    expect(html).toContain("border-dashed");
   });
 
   it("labels a fertile-window day (only present when goal-gated server allows it)", () => {

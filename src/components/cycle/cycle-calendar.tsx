@@ -269,14 +269,18 @@ export function CycleCalendar({
                 {cell.getDate()}
               </span>
 
-              {/* Predicted-period band: a soft hatched underline, never a dot. */}
+              {/* Predicted-period day: a soft FILL behind the number (like a
+                  logged period day, but lighter) with a dashed outline so it
+                  still reads as predicted, not confirmed — replaces the old
+                  hatched underline, which looked unfinished. */}
               {info?.isPredictedPeriod && !info?.isPeriodLogged ? (
                 <span
                   aria-hidden="true"
-                  className="absolute inset-x-1.5 bottom-1 h-0.5 rounded-full opacity-70"
+                  className="absolute inset-1 rounded-md border border-dashed"
                   style={{
                     backgroundColor: FLOW_HUE,
-                    backgroundImage: `repeating-linear-gradient(90deg, ${FLOW_HUE} 0 3px, transparent 3px 5px)`,
+                    opacity: 0.3,
+                    borderColor: FLOW_HUE,
                   }}
                 />
               ) : null}

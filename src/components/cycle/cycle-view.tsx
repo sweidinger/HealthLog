@@ -219,7 +219,6 @@ export function CycleView() {
               predictionEnabled={calProfile?.predictionEnabled ?? false}
               rawChartMode={calProfile?.rawChartMode ?? false}
               cyclesObserved={calProfile?.cyclesObserved ?? 0}
-              onLogToday={() => openSheet(today)}
             />
           ) : null}
         </div>

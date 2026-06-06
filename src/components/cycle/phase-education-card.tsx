@@ -1,9 +1,8 @@
 "use client";
 
 import { useMemo } from "react";
-import { Sparkles, Plus } from "lucide-react";
+import { Sparkles } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
 import { useTranslations } from "@/lib/i18n/context";
 import { cn } from "@/lib/utils";
 import { PHASE_WHATS_HAPPENING_KEY } from "@/lib/cycle/phase-copy";
@@ -23,8 +22,8 @@ import type { SymptomPhaseRow } from "./use-cycle";
  *      never clinical advice / a medical claim),
  *   3. a "you often notice this here" chip row sourced from the user's OWN
  *      symptom-by-phase history (`symptomPatterns`), filtered to symptoms that
- *      cluster in THIS phase — never a generic population claim — plus a
- *      "log today" nudge into the existing day-log sheet.
+ *      cluster in THIS phase — never a generic population claim. Logging lives
+ *      on the top-level log entry, so the card carries no own log button.
  *
  * Honesty gate (Clue precedent): when prediction is disabled / raw-chart mode
  * or fewer than three observed cycles, the predictive framing is suppressed and
@@ -47,8 +46,6 @@ export interface PhaseEducationCardProps {
   predictionEnabled: boolean;
   rawChartMode: boolean;
   cyclesObserved: number;
-  /** Open the day-log sheet for today (the "log today" nudge). */
-  onLogToday: () => void;
   /** Ride the wheel's once-per-session reveal — no independent animation. */
   animate?: boolean;
   className?: string;
@@ -60,7 +57,6 @@ export function PhaseEducationCard({
   predictionEnabled,
   rawChartMode,
   cyclesObserved,
-  onLogToday,
   animate = false,
   className,
 }: PhaseEducationCardProps) {
@@ -189,18 +185,6 @@ export function PhaseEducationCard({
               </ul>
             </div>
           ) : null}
-
-          {/* The "log today" nudge — opens the existing day-log sheet. */}
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={onLogToday}
-            className="bg-background/55 mt-4 gap-1.5"
-          >
-            <Plus className="h-3.5 w-3.5" aria-hidden="true" />
-            {t("cycle.phaseEducation.trackNudge")}
-          </Button>
         </>
       )}
     </section>
