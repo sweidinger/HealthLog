@@ -4993,6 +4993,12 @@
       "trackNudge": "Log today",
       "stillLearning": "Still learning your cycle. Keep logging and this fills in with patterns from your own days."
     },
+    "insightsSummary": {
+      "title": "Your cycle",
+      "currentDay": "Day {day} of your cycle",
+      "noActiveCycle": "No active cycle yet",
+      "viewDetails": "View cycle insights"
+    },
     "disclaimer": "These predictions are descriptive estimates from your logged data, not a contraceptive method and not medical advice. They never indicate that it is safe to have unprotected sex. For contraception or any medical decision, consult a healthcare professional.",
     "title": "Your cycle",
     "subtitle": "Log your period and symptoms, see what comes next.",

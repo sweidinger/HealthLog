@@ -153,6 +153,20 @@ const PeriodNarrativeCard = dynamic(
   },
 );
 
+// v1.15.2 — the gated cycle-insights summary teaser. Mounted ONLY when
+// `user.cycleTrackingEnabled` is true (the same /api/auth/me signal the
+// sidebar nav entry gates on), so the cycle reads never fire for an account
+// without the feature. Deferred behind `next/dynamic` like the other
+// below-the-hero blocks; it owns its own calendar + insights reads and renders
+// nothing while resolving / on error, so it carries no loading placeholder.
+const CycleInsightSummaryCard = dynamic(
+  () =>
+    import("@/components/cycle/cycle-insight-summary-card").then((mod) => ({
+      default: mod.CycleInsightSummaryCard,
+    })),
+  { ssr: false },
+);
+
 /**
  * v1.4.25 W4d — Insights mother page.
  *
@@ -383,6 +397,11 @@ export default function InsightsPage() {
       />
 
       {flags.briefing && <PeriodNarrativeCard enabled={isAuthenticated} />}
+
+      {/* v1.15.2 — gated cycle teaser. Render only for a cycle-tracking
+          account; for everyone else this is nothing (no card, no layout gap).
+          The card itself stays silent until its reads resolve. */}
+      {user?.cycleTrackingEnabled ? <CycleInsightSummaryCard /> : null}
 
       <CoincidentDeviationCard enabled={isAuthenticated} />
 

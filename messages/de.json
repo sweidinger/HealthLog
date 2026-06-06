@@ -4993,6 +4993,12 @@
       "trackNudge": "Heute eintragen",
       "stillLearning": "Lerne deinen Zyklus noch kennen. Trage weiter ein, dann füllt sich das mit Mustern aus deinen eigenen Tagen."
     },
+    "insightsSummary": {
+      "title": "Dein Zyklus",
+      "currentDay": "Tag {day} deines Zyklus",
+      "noActiveCycle": "Noch kein aktiver Zyklus",
+      "viewDetails": "Zyklus-Erkenntnisse ansehen"
+    },
     "disclaimer": "Diese Vorhersagen sind beschreibende Schätzungen aus deinen erfassten Daten, keine Verhütungsmethode und keine medizinische Beratung. Sie zeigen nie an, dass ungeschützter Geschlechtsverkehr sicher ist. Wende dich für Verhütung oder medizinische Entscheidungen an eine medizinische Fachperson.",
     "title": "Dein Zyklus",
     "subtitle": "Erfasse deine Periode und Symptome und sieh, was als Nächstes kommt.",

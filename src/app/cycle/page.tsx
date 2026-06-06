@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { Suspense, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 
@@ -40,5 +40,18 @@ export default function CyclePage() {
     );
   }
 
-  return <CycleView />;
+  // `<CycleView>` reads `useSearchParams` for the `?tab=` deep-link; wrap it in
+  // a Suspense boundary so the client-search-params bailout never de-opts the
+  // build (Next's `missing-suspense-with-csr-bailout`).
+  return (
+    <Suspense
+      fallback={
+        <div className="flex h-64 items-center justify-center">
+          <Loader2 className="text-primary h-8 w-8 animate-spin motion-reduce:animate-none" />
+        </div>
+      }
+    >
+      <CycleView />
+    </Suspense>
+  );
 }
