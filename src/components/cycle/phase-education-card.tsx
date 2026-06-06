@@ -51,8 +51,6 @@ export interface PhaseEducationCardProps {
   onLogToday: () => void;
   /** Ride the wheel's once-per-session reveal — no independent animation. */
   animate?: boolean;
-  /** Compact variant beneath the wheel (tighter padding, no chip row). */
-  compact?: boolean;
   className?: string;
 }
 
@@ -64,7 +62,6 @@ export function PhaseEducationCard({
   cyclesObserved,
   onLogToday,
   animate = false,
-  compact = false,
   className,
 }: PhaseEducationCardProps) {
   const { t } = useTranslations();
@@ -118,8 +115,7 @@ export function PhaseEducationCard({
       aria-label={t("cycle.phaseEducation.title")}
       style={{ "--tile-hue": hue } as React.CSSProperties}
       className={cn(
-        "wellness-tile rounded-xl",
-        compact ? "px-4 py-4" : "px-5 py-5",
+        "wellness-tile rounded-xl px-5 py-5",
         animate && "wellness-tile-rise",
         className,
       )}
@@ -159,10 +155,9 @@ export function PhaseEducationCard({
             {t(PHASE_WHATS_HAPPENING_KEY[phase as CyclePhase])}
           </p>
 
-          {/* Zone 3 — the user's OWN clustered symptoms for this phase. The
-              compact variant under the wheel omits the chip row to stay light;
-              the calendar-tab variant shows it. */}
-          {!compact && chips.length > 0 ? (
+          {/* Zone 3 — the user's OWN clustered symptoms for this phase
+              ("you often notice this here"). */}
+          {chips.length > 0 ? (
             <div className="mt-4">
               <p className="text-muted-foreground text-xs font-medium">
                 {t("cycle.phaseEducation.commonHere")}

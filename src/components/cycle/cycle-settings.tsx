@@ -18,7 +18,7 @@ import { NativeSelect } from "@/components/ui/native-select";
 import { Separator } from "@/components/ui/separator";
 import { useTranslations } from "@/lib/i18n/context";
 import type { CycleGoal, CycleProfileDTO } from "./types";
-import { useUpdateCyclePrefs, useDeleteAllCycleData } from "./use-cycle";
+import { useUpdateCyclePrefs } from "./use-cycle";
 
 /**
  * v1.15.0 — the single-page cycle settings form.
@@ -50,8 +50,6 @@ function numOrEmpty(v: number | null): string {
 export function CycleSettings({ profile }: { profile: CycleProfileDTO }) {
   const { t } = useTranslations();
   const update = useUpdateCyclePrefs();
-  const purge = useDeleteAllCycleData();
-  const [confirmingPurge, setConfirmingPurge] = useState(false);
 
   const [goal, setGoal] = useState<CycleGoal>(profile.goal);
   const [rawChartMode, setRawChartMode] = useState(profile.rawChartMode);
@@ -228,87 +226,10 @@ export function CycleSettings({ profile }: { profile: CycleProfileDTO }) {
           </div>
         ) : null}
 
-        <Separator />
-
-        {/* Data export / delete */}
-        <div className="space-y-2">
-          <p className="text-sm font-medium">{t("cycle.settings.dataTitle")}</p>
-          <p className="text-muted-foreground text-sm">
-            {t("cycle.settings.dataDescription")}
-          </p>
-          <div className="flex flex-wrap gap-2 pt-1">
-            <Button variant="outline" size="sm" asChild>
-              <a href="/api/export/health-record" download>
-                {t("cycle.settings.export")}
-              </a>
-            </Button>
-            <Button variant="outline" size="sm" asChild>
-              <Link href="/settings/account">
-                {t("cycle.settings.deleteData")}
-              </Link>
-            </Button>
-          </div>
-
-          {/* Cycle-only hard purge (post-Dobbs threat model): removes every
-              cycle row + the cycle audit trail + reminder ledger, distinct
-              from the account-level delete. Two-step confirm — no accidental
-              destructive tap. */}
-          <div className="border-destructive/30 mt-3 space-y-2 rounded-md border p-3">
-            <p className="text-muted-foreground text-xs">
-              {t("cycle.settings.purgeDescription")}
-            </p>
-            {confirmingPurge ? (
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="text-sm font-medium" role="alert">
-                  {t("cycle.settings.purgeConfirm")}
-                </span>
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  disabled={purge.isPending}
-                  onClick={async () => {
-                    try {
-                      await purge.mutateAsync();
-                    } finally {
-                      setConfirmingPurge(false);
-                    }
-                  }}
-                >
-                  {purge.isPending ? (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin motion-reduce:animate-none" />
-                  ) : null}
-                  {t("cycle.settings.purgeConfirmAction")}
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setConfirmingPurge(false)}
-                >
-                  {t("cycle.settings.purgeCancel")}
-                </Button>
-              </div>
-            ) : (
-              <Button
-                variant="outline"
-                size="sm"
-                className="text-destructive border-destructive/40 hover:bg-destructive/10"
-                onClick={() => setConfirmingPurge(true)}
-              >
-                {t("cycle.settings.purgeData")}
-              </Button>
-            )}
-            {purge.isSuccess ? (
-              <span className="text-muted-foreground text-sm" role="status">
-                {t("cycle.settings.purgeDone")}
-              </span>
-            ) : null}
-            {purge.isError ? (
-              <span className="text-destructive text-sm" role="alert">
-                {t("cycle.settings.purgeError")}
-              </span>
-            ) : null}
-          </div>
-        </div>
+        {/* Cycle data export + delete live with the main Settings → Export and
+            Account surfaces (cycle rows ride the full-backup export and the
+            account-level delete), so the standalone affordances are not
+            duplicated here. */}
 
         <div className="flex items-center justify-end gap-3 pt-2">
           {update.isSuccess ? (

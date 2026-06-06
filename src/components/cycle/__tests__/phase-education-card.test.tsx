@@ -103,18 +103,16 @@ describe("<PhaseEducationCard>", () => {
     expect(off).toContain("Still learning your cycle");
   });
 
-  it("omits the chip row in the compact variant", () => {
+  it("renders the chip row when the user has symptoms clustering in this phase", () => {
     const html = render(
       <PhaseEducationCard
-        compact
         phase="LUTEAL"
         symptomPatterns={[lutealCramps]}
         {...okGate}
       />,
     );
     expect(html).toContain("progesterone");
-    expect(html).not.toContain("cycle-phase-education-chips");
-    // The compact variant still carries the log nudge.
+    expect(html).toContain("cycle-phase-education-chips");
     expect(html).toContain("Log today");
   });
 });

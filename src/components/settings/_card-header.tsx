@@ -66,22 +66,32 @@ export function SettingsCardHeader({
   className,
 }: SettingsCardHeaderProps) {
   return (
-    <header className={cn("space-y-1", className)}>
-      <div className="flex flex-wrap items-start justify-between gap-2">
-        <div className="flex flex-wrap items-center gap-2">
-          <Icon className="text-primary h-5 w-5 shrink-0" aria-hidden="true" />
-          <h2 id={titleId} className="text-lg font-semibold">
-            {title}
-          </h2>
-          {titleAccessory}
+    <header className={cn("flex items-start gap-2", className)}>
+      <Icon
+        className="text-primary mt-0.5 h-5 w-5 shrink-0"
+        aria-hidden="true"
+      />
+      {/* Title + description share one column to the RIGHT of the icon, so the
+          description left-aligns with the title rather than slipping back under
+          the icon gutter. */}
+      <div className="min-w-0 flex-1 space-y-1">
+        <div className="flex flex-wrap items-start justify-between gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <h2 id={titleId} className="text-lg font-semibold">
+              {title}
+            </h2>
+            {titleAccessory}
+          </div>
+          {status ? (
+            <div className="flex shrink-0 items-center gap-2">{status}</div>
+          ) : null}
         </div>
-        {status ? <div className="flex shrink-0 items-center gap-2">{status}</div> : null}
+        {description ? (
+          <div className="text-muted-foreground space-y-1 text-xs">
+            {description}
+          </div>
+        ) : null}
       </div>
-      {description ? (
-        <div className="text-muted-foreground space-y-1 text-xs">
-          {description}
-        </div>
-      ) : null}
     </header>
   );
 }
