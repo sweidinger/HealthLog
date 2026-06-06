@@ -322,6 +322,14 @@ export interface ResolveSlotForWriteInput {
    * Defaults to `true` to keep the legacy snap for callers that omit it.
    */
   instantIsExplicit?: boolean;
+  /**
+   * Whether this write records a TAKEN dose. When `true`, the snap never
+   * targets a future slot (dose-safety: a taken dose can't be attributed to
+   * a slot the user hasn't reached). Defaults to `false`.
+   */
+  isTakenWrite?: boolean;
+  /** Reference "now" for the taken future-slot guard; defaults to current time. */
+  now?: Date;
   /** Inject a Prisma client/tx in tests; defaults to the app client. */
   client?: PrismaLike;
 }
@@ -375,5 +383,7 @@ export async function resolveSlotInstantForWrite(
     incoming: input.incoming,
     lastIntakeAt,
     instantIsExplicit: input.instantIsExplicit ?? true,
+    isTakenWrite: input.isTakenWrite ?? false,
+    now: input.now,
   });
 }

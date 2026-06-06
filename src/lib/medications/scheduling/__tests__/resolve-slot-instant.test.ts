@@ -87,6 +87,70 @@ describe("resolveCanonicalSlotInstant — multi-time", () => {
   });
 });
 
+describe("resolveCanonicalSlotInstant — taken write never snaps to a future slot (dose-safety)", () => {
+  // Daily 07:00 / 19:00 med. A late morning dose taken at 15:00 CEST must
+  // not snap forward onto the 19:00 slot (which is still in the future) and
+  // render as "taken" before its time — the iOS v0.13 dose-safety report.
+  const med = makeMedication([
+    makeSchedule({ timesOfDay: ["07:00", "19:00"], windowEnd: "07:00" }),
+  ]);
+  // iOS posts the reminder-action write carrying the slot's `scheduledFor`
+  // (19:00) while the dose is actually actioned earlier (17:00) — the
+  // explicit instant names the future evening slot exactly.
+  const slot1900Instant = new Date("2026-06-15T17:00:00.000Z"); // 19:00 CEST
+  const beforeEvening = new Date("2026-06-15T15:00:00.000Z"); // 17:00 CEST
+
+  it("LEGACY (no flag): an explicit 19:00 write snaps to the 19:00 slot", () => {
+    const result = resolveCanonicalSlotInstant({
+      medication: med,
+      userTz: TZ,
+      incoming: slot1900Instant,
+    });
+    const slot1900 = localHmAsUtc(slot1900Instant, TZ, 19, 0);
+    expect(result?.toISOString()).toBe(slot1900.toISOString());
+  });
+
+  it("taken write naming the 19:00 slot, but actioned at 17:00, does NOT snap onto the future slot", () => {
+    const result = resolveCanonicalSlotInstant({
+      medication: med,
+      userTz: TZ,
+      incoming: slot1900Instant,
+      isTakenWrite: true,
+      now: beforeEvening,
+    });
+    // 19:00 is still in the future relative to now (17:00) → excluded;
+    // 07:00 is 12h from the incoming instant → beyond tolerance → null.
+    expect(result).toBeNull();
+  });
+
+  it("taken write AT the 19:00 slot still snaps (slot is not in the future)", () => {
+    const evening = new Date("2026-06-15T17:02:00.000Z"); // 19:02 CEST
+    const result = resolveCanonicalSlotInstant({
+      medication: med,
+      userTz: TZ,
+      incoming: evening,
+      isTakenWrite: true,
+      now: evening,
+    });
+    const slot1900 = localHmAsUtc(evening, TZ, 19, 0);
+    expect(result?.toISOString()).toBe(slot1900.toISOString());
+  });
+
+  it("taken write a few minutes early still snaps onto its slot (skew grace)", () => {
+    // 06:57 CEST, slot 07:00 — within the 5-minute forward grace.
+    const earlyTake = new Date("2026-06-15T04:57:00.000Z");
+    const result = resolveCanonicalSlotInstant({
+      medication: med,
+      userTz: TZ,
+      incoming: earlyTake,
+      isTakenWrite: true,
+      now: earlyTake,
+    });
+    const slot0700 = localHmAsUtc(earlyTake, TZ, 7, 0);
+    expect(result?.toISOString()).toBe(slot0700.toISOString());
+  });
+});
+
 describe("resolveCanonicalSlotInstant — defaulted-now midday (phantom morning dose)", () => {
   // The phantom morning-dose bug: a 07:00 / 19:00 med whose 07:00 slot got
   // auto-marked taken because a slot-less midday "taken now" write

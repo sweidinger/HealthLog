@@ -238,6 +238,10 @@ async function postBulk(request: NextRequest): Promise<Response> {
         // `takenAt`-only / defaulted-now write must not snap across the
         // wide ±halfGap window onto a far slot (phantom morning dose).
         instantIsExplicit: entry.scheduledFor !== undefined,
+        // Dose-safety: a taken write (has `takenAt`, not skipped) must never
+        // snap forward onto a future slot. A pending sync echo (no `takenAt`)
+        // legitimately maps to a future slot, so the guard stays off for it.
+        isTakenWrite: !entry.skipped && entry.takenAt !== undefined,
       });
 
       const scheduledFor = canonicalSlot ?? incomingScheduledFor;

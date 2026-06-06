@@ -19,7 +19,7 @@
  * cares about the Prisma `where` fragment derived from the new knob.
  */
 
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { NextRequest } from "next/server";
 
 vi.mock("@/lib/db", () => ({
@@ -390,6 +390,19 @@ describe("POST /api/medications/[id]/intake — v1.8.2 reconcile (M2 inventory)"
       },
     ],
   };
+
+  beforeEach(() => {
+    // Pin the clock past the 07:00 / 19:00 CEST slots of 2026-06-15 so the
+    // dose-safety future-slot guard treats these taken writes as landing on
+    // a current/past slot. Otherwise the fixtures sit days ahead of the
+    // real test clock and the guard refuses to snap a taken write forward.
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-06-15T18:00:00.000Z"));
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
 
   it("does NOT decrement inventory on a re-post of an already-taken slot (M2)", async () => {
     const { consumeOneDose } = await import(
