@@ -2,7 +2,21 @@
 
 ## [Unreleased]
 
-## [1.15.3] — 2026-06-06 — cycle summary on the insights page
+## [1.15.4] — 2026-06-06 — cycle and insights polish
+
+### Added
+
+- **Your cycle ring in the health-scores strip.** With cycle tracking on, the Insights health-scores row now includes your cycle ring — current phase and day — alongside the other scores. It shows only when cycle tracking is enabled.
+
+### Changed
+
+- **A calmer cycle calendar and cards.** Predicted-period days are now a soft filled marker instead of a thin underline; the "what's happening now" card sits only under the ring (no duplicate above the calendar) and drops its own log button since logging is one tap away at the top; and the predictions and insights tabs lost their repeated "estimates / associations" footers (the caveat is stated once, where it matters).
+- **Tidier settings.** Section descriptions line up under their headings; the web-push enable action sits in the card header; and the standalone cycle-data export/delete actions are gone from the cycle settings (cycle data is already in the full export).
+- **Calendar tiles keep their size.** The mood and medication calendar tiles no longer balloon to several times the height of their neighbours when only a short window or a single medication is shown.
+
+### Fixed
+
+- **Per-score explanations load faster.** The dashboard's batch read now carries each score's deterministic explanation, so the score sheets show their "why" without an extra request.
 
 ### Added
 
