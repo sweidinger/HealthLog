@@ -462,3 +462,47 @@ describe("runCycleReminderTick", () => {
     expect(summary.dispatchedPeriodSoon).toBe(1); // u2 still processed
   });
 });
+
+describe("runCycleReminderTick — windowing query", () => {
+  it("pushes the cohort gate into the findMany where-clause", async () => {
+    const findMany = vi.fn().mockResolvedValue([]);
+    const prisma = {
+      cyclePrediction: { findMany },
+      pushAttempt: { findFirst: vi.fn(async () => null) },
+      menstrualCycle: { findMany: vi.fn(async () => []) },
+    };
+    const dispatch = vi.fn<DispatchFn>(async () => OK);
+    await runCycleReminderTick(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      prisma as any,
+      AT_0900_BERLIN,
+      {
+        dispatch:
+          dispatch as typeof import("@/lib/notifications/dispatcher").dispatchNotification,
+      },
+    );
+
+    expect(findMany).toHaveBeenCalledTimes(1);
+    const arg = findMany.mock.calls[0][0] as unknown as {
+      where: {
+        nextPeriodStart: { gte: string; lte: string };
+        user: {
+          cycleProfile: {
+            cycleTrackingEnabled: boolean;
+            NOT: { predictionEnabled: boolean };
+          };
+        };
+      };
+    };
+    // Tracking + prediction gate is in the query, not JS.
+    expect(arg.where.user.cycleProfile.cycleTrackingEnabled).toBe(true);
+    expect(arg.where.user.cycleProfile.NOT.predictionEnabled).toBe(false);
+    // The window is a YYYY-MM-DD string range straddling "now". At
+    // 2026-05-17 it spans [today-grace-1 .. today+lead+1] in UTC.
+    expect(arg.where.nextPeriodStart.gte).toBe("2026-05-13");
+    expect(arg.where.nextPeriodStart.lte).toBe("2026-05-20");
+    expect(arg.where.nextPeriodStart.gte < arg.where.nextPeriodStart.lte).toBe(
+      true,
+    );
+  });
+});

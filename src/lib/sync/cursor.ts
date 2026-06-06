@@ -14,9 +14,16 @@
  * token back verbatim and never parses it (iOS-coord §7.6), so the
  * server is free to change this format without a client release. The
  * current encoding is base64url-of-JSON; nothing depends on that choice.
- * A device on the old single-domain token simply decodes to null (the
- * shape no longer matches) and re-inits cleanly — acceptable because no
- * live consumer cursors exist yet.
+ *
+ * Version compatibility is additive, not breaking. The iOS client has
+ * been in public beta since v1.5 and the delta feed shipped in v1.7.0, so
+ * live v1 cursors DO exist in the field. A v1 token (which only carried
+ * the measurements / mood / intakes domains) decodes normally: its known
+ * domain watermarks are preserved and the two domains added in v2
+ * (`cycleDays`, `cycles`) are simply absent → a fresh scan of just those
+ * two domains on the next sync, with no re-download of the measurement /
+ * mood / intake history. Only a genuinely malformed / unparseable token
+ * re-inits from scratch.
  */
 
 /** The sync domains the feed serves. */
@@ -50,10 +57,15 @@ export interface DomainWatermark {
 export type SyncCursor = Partial<Record<SyncDomain, DomainWatermark>>;
 
 // v1.15.0 — bumped to 2 when the `cycleDays` + `cycles` domains were
-// added. An in-flight v1 token decodes to null (wrong version) → clean
-// re-init, which is acceptable because the cursor is opaque and the
-// client re-syncs from scratch.
+// added. New tokens are stamped v2; decoding accepts both v1 and v2
+// envelopes (see `decodeCursor`) so live beta v1 cursors keep their
+// measurement / mood / intake watermarks and only fresh-scan the two new
+// domains rather than re-initialising the whole feed.
 const CURSOR_VERSION = 2;
+
+/** Versions whose envelope shape `decodeCursor` accepts. v1 lacked the
+ *  `cycleDays`/`cycles` domains; they decode as absent (fresh scan). */
+const SUPPORTED_CURSOR_VERSIONS: readonly number[] = [1, 2];
 
 /** Encode a per-domain keyset map into an opaque token. */
 export function encodeCursor(cursor: SyncCursor): string {
@@ -87,10 +99,12 @@ export function decodeCursor(token: string): SyncCursor | null {
   try {
     const json = Buffer.from(token, "base64url").toString("utf-8");
     const parsed = JSON.parse(json) as unknown;
+    const version = (parsed as { v?: unknown }).v;
     if (
       typeof parsed !== "object" ||
       parsed === null ||
-      (parsed as { v?: unknown }).v !== CURSOR_VERSION ||
+      typeof version !== "number" ||
+      !SUPPORTED_CURSOR_VERSIONS.includes(version) ||
       typeof (parsed as { d?: unknown }).d !== "object" ||
       (parsed as { d: unknown }).d === null
     ) {

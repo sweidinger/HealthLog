@@ -233,6 +233,103 @@ describe("cycle period shortcut", () => {
     expect(json.data.cycle.startDate).toBe("2026-03-10");
     expect(json.data.dayLog.flow).toBe("MEDIUM");
   });
+
+  it("closes the prior cycle atomically when a new start is inserted", async () => {
+    await loginAs(FEMALE_USER_ID);
+    const prisma = getPrismaClient();
+    const { POST } = await import("@/app/api/cycle/period/route");
+
+    await POST(
+      jsonRequest("/api/cycle/period", "POST", {
+        action: "start",
+        date: "2026-04-01",
+        loggedAt: "2026-04-01T08:00:00.000Z",
+      }),
+    );
+    await POST(
+      jsonRequest("/api/cycle/period", "POST", {
+        action: "start",
+        date: "2026-04-29",
+        loggedAt: "2026-04-29T08:00:00.000Z",
+      }),
+    );
+
+    const prior = await prisma.menstrualCycle.findFirstOrThrow({
+      where: { userId: FEMALE_USER_ID, startDate: "2026-04-01" },
+    });
+    // Close-prior + open-new ran as one unit: the prior cycle is stamped.
+    expect(prior.endDate).toBe("2026-04-28");
+    expect(prior.lengthDays).toBe(28);
+  });
+
+  it("replays the same idempotency key without a second mutation", async () => {
+    await loginAs(FEMALE_USER_ID);
+    const prisma = getPrismaClient();
+    const { POST } = await import("@/app/api/cycle/period/route");
+    const key = `period-${Date.now()}`;
+
+    const first = await POST(
+      jsonRequest(
+        "/api/cycle/period",
+        "POST",
+        {
+          action: "start",
+          date: "2026-05-10",
+          loggedAt: "2026-05-10T08:00:00.000Z",
+        },
+        { idempotencyKey: key },
+      ),
+    );
+    expect(first.status).toBe(200);
+
+    const replay = await POST(
+      jsonRequest(
+        "/api/cycle/period",
+        "POST",
+        {
+          action: "start",
+          date: "2026-05-10",
+          loggedAt: "2026-05-10T08:00:00.000Z",
+        },
+        { idempotencyKey: key },
+      ),
+    );
+    expect(replay.status).toBe(200);
+
+    const cycles = await prisma.menstrualCycle.count({
+      where: { userId: FEMALE_USER_ID, startDate: "2026-05-10", deletedAt: null },
+    });
+    expect(cycles).toBe(1);
+  });
+
+  it("never downgrades a richer same-day flow on the boundary write", async () => {
+    await loginAs(FEMALE_USER_ID);
+    const prisma = getPrismaClient();
+    const dayLogs = await import("@/app/api/cycle/day-logs/route");
+    const period = await import("@/app/api/cycle/period/route");
+
+    // A manual HEAVY entry exists for the day…
+    await dayLogs.POST(
+      jsonRequest("/api/cycle/day-logs", "POST", {
+        date: "2026-06-01",
+        flow: "HEAVY",
+        loggedAt: "2026-06-01T07:00:00.000Z",
+      }),
+    );
+    // …a one-tap "start" (boundary flow MEDIUM) must not downgrade it.
+    await period.POST(
+      jsonRequest("/api/cycle/period", "POST", {
+        action: "start",
+        date: "2026-06-01",
+        loggedAt: "2026-06-01T08:00:00.000Z",
+      }),
+    );
+
+    const row = await prisma.cycleDayLog.findFirstOrThrow({
+      where: { userId: FEMALE_USER_ID, date: "2026-06-01", deletedAt: null },
+    });
+    expect(row.flow).toBe("HEAVY");
+  });
 });
 
 describe("cycle calendar", () => {

@@ -126,6 +126,7 @@ export async function buildCycleSnapshotBlock(
   userId: string,
   gender: string | null | undefined,
   now: Date = new Date(),
+  timezone: string | null | undefined = DEFAULT_TIMEZONE,
 ): Promise<CycleSnapshotBlock | null> {
   // Test environments may mock only part of prisma — bow out silently if the
   // cycle models are absent (matches "no cycle data" production behaviour).
@@ -154,7 +155,11 @@ export async function buildCycleSnapshotBlock(
     rawChartMode: profile.rawChartMode,
   };
 
-  const tz = DEFAULT_TIMEZONE;
+  // Derive "today" from the user's timezone — matches how the calendar
+  // (calendar/route.ts) and insights routes resolve it, so the Coach's
+  // "you are on day N / period in M days" never disagrees with the calendar
+  // near local midnight.
+  const tz = timezone ?? DEFAULT_TIMEZONE;
   const today = moodDateKey(now, tz);
   const from = addDays(today, -WINDOW_DAYS);
 

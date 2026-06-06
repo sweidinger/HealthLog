@@ -3,8 +3,10 @@
  *
  * Mirrors `mood-reminder.ts` and the medication-reminder cron: a cron tick
  * fires every 15 minutes, and when it lands inside the user's reminder hour
- * in their local timezone this module scans every cycle-enabled user with a
- * cached `CyclePrediction`, decides who is in-window, and dispatches at most
+ * in their local timezone this module loads only the in-window cohort —
+ * cycle-tracking-enabled users whose cached `CyclePrediction.nextPeriodStart`
+ * falls inside the reminder window — decides who is in-window, and dispatches
+ * at most
  * one push per event per local day through the existing
  * APNs → Telegram → ntfy → Web-Push cascade (`dispatchNotification`), which
  * records every attempt in `push_attempts`.
@@ -79,6 +81,20 @@ export interface CycleReminderSummary {
   skippedPredictionDisabled: number;
   skippedAlreadyLogged: number;
   failed: number;
+}
+
+/**
+ * `YYYY-MM-DD` for `now + offsetDays` in UTC. Used only to bound the
+ * `nextPeriodStart` query window generously across timezones; the exact
+ * per-user-local window is applied by `evaluateCycleReminder`.
+ */
+function utcDateString(now: Date, offsetDays: number): string {
+  const d = new Date(now.getTime() + offsetDays * 86_400_000);
+  return `${d.getUTCFullYear().toString().padStart(4, "0")}-${(
+    d.getUTCMonth() + 1
+  )
+    .toString()
+    .padStart(2, "0")}-${d.getUTCDate().toString().padStart(2, "0")}`;
 }
 
 function resolveLocale(locale: string | null | undefined): Locale {
@@ -244,9 +260,35 @@ export async function runCycleReminderTick(
   const dispatchImpl = options.dispatch ?? dispatchNotification;
   const summary = emptySummary();
 
-  // Only users with a cached forecast can be in-window; the join also
-  // narrows to the cohort that has logged enough to predict.
+  // Push the gating into the query so the per-tick cost scales with the
+  // in-window cohort, not the whole `CyclePrediction` table. Three filters
+  // run server-side:
+  //
+  //   1. the user's `cycleProfile` must have `cycleTrackingEnabled` (an
+  //      account that never opted in can never receive a cycle push), and
+  //      `predictionEnabled` must not be explicitly off,
+  //   2. `nextPeriodStart` (a `YYYY-MM-DD` string) must fall inside the
+  //      reminder window [today − grace, today + lead]. The string range is
+  //      computed against a tz-generous span (±1 day past the exact
+  //      lead/grace) so a user whose local date differs from UTC by a day is
+  //      never excluded at the query layer — `evaluateCycleReminder` still
+  //      applies the exact per-user-timezone window below.
+  //
+  // The pure-string `gte`/`lte` range is correct because `YYYY-MM-DD`
+  // ordering is lexicographic-equals-chronological.
+  const windowFloor = utcDateString(now, -(PERIOD_CONFIRM_GRACE_DAYS + 1));
+  const windowCeil = utcDateString(now, PERIOD_SOON_LEAD_DAYS + 1);
+
   const predictions = await prisma.cyclePrediction.findMany({
+    where: {
+      nextPeriodStart: { gte: windowFloor, lte: windowCeil },
+      user: {
+        cycleProfile: {
+          cycleTrackingEnabled: true,
+          NOT: { predictionEnabled: false },
+        },
+      },
+    },
     select: {
       userId: true,
       nextPeriodStart: true,

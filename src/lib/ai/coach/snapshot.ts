@@ -812,7 +812,7 @@ async function buildCoachSnapshotImpl(
     prefsRow?.cycleProfile ?? null,
   );
   const cycleBlockPromise = cycleEnabled
-    ? buildCycleSnapshotBlock(userId, prefsRow?.gender, now)
+    ? buildCycleSnapshotBlock(userId, prefsRow?.gender, now, userTz)
     : null;
 
   const [

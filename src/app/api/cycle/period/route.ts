@@ -22,8 +22,10 @@ import {
   safeJson,
 } from "@/lib/api-response";
 import { requireCycleEnabled } from "@/lib/cycle/gate";
+import { withIdempotency } from "@/lib/idempotency";
 import { cyclePeriodSchema } from "@/lib/validations/cycle";
 import { upsertCycleDayLog } from "@/lib/cycle/day-log-write";
+import type { FlowLevel } from "@/lib/cycle/types";
 import {
   toCycleDayLogDTO,
   toMenstrualCycleDTO,
@@ -32,7 +34,9 @@ import {
 import { DEFAULT_TIMEZONE } from "@/lib/mood/date-key";
 import { addDays, dayDiff } from "@/lib/cycle/day-math";
 
-export const POST = apiHandler(async (request: NextRequest) => {
+export const POST = apiHandler(withIdempotency<[NextRequest]>(postPeriod));
+
+async function postPeriod(request: NextRequest): Promise<Response> {
   const { user } = await requireAuth();
 
   const gate = await requireCycleEnabled(user.id, user.gender);
@@ -55,59 +59,85 @@ export const POST = apiHandler(async (request: NextRequest) => {
   const { action, date, externalId, loggedAt } = parsed.data;
   const tz = user.timezone ?? DEFAULT_TIMEZONE;
 
-  let cycleId: string;
+  // The close-prior + open-new (start) or stamp-current (end) mutation set
+  // is run inside a single transaction so two concurrent taps can never
+  // double-close a prior cycle or compute the new cycle's length against a
+  // stale read. `withIdempotency` on the route additionally collapses an
+  // exact-key replay; the transaction guards the interleaving case.
+  const txResult = await prisma.$transaction(async (db) => {
+    if (action === "start") {
+      // Close the prior open cycle (its end is the day before this start)
+      // and record its observed length.
+      const prior = await db.menstrualCycle.findFirst({
+        where: { userId: user.id, deletedAt: null, startDate: { lt: date } },
+        orderBy: { startDate: "desc" },
+        select: { id: true, startDate: true },
+      });
+      if (prior) {
+        await db.menstrualCycle.update({
+          where: { id: prior.id },
+          data: {
+            endDate: addDays(date, -1),
+            lengthDays: dayDiff(date, prior.startDate),
+            syncVersion: { increment: 1 },
+          },
+        });
+      }
 
-  if (action === "start") {
-    // Close the prior open cycle (its end is the day before this start)
-    // and record its observed length.
-    const prior = await prisma.menstrualCycle.findFirst({
-      where: { userId: user.id, deletedAt: null, startDate: { lt: date } },
-      orderBy: { startDate: "desc" },
-      select: { id: true, startDate: true },
-    });
-    if (prior) {
-      await prisma.menstrualCycle.update({
-        where: { id: prior.id },
-        data: {
-          endDate: addDays(date, -1),
-          lengthDays: dayDiff(date, prior.startDate),
+      // Upsert the new cycle on the `(userId, startDate)` unique so a
+      // re-tap on the same day is idempotent.
+      const cycle = await db.menstrualCycle.upsert({
+        where: { userId_startDate: { userId: user.id, startDate: date } },
+        create: { userId: user.id, startDate: date, tz, isPredicted: false },
+        update: {
+          deletedAt: null,
+          isPredicted: false,
           syncVersion: { increment: 1 },
         },
       });
+      return { cycleId: cycle.id as string | null };
     }
 
-    // Upsert the new cycle on the `(userId, startDate)` unique so a
-    // re-tap on the same day is idempotent.
-    const cycle = await prisma.menstrualCycle.upsert({
-      where: { userId_startDate: { userId: user.id, startDate: date } },
-      create: { userId: user.id, startDate: date, tz, isPredicted: false },
-      update: { deletedAt: null, isPredicted: false, syncVersion: { increment: 1 } },
-    });
-    cycleId = cycle.id;
-  } else {
     // `end`: stamp the current cycle's periodEndDate.
-    const current = await prisma.menstrualCycle.findFirst({
+    const current = await db.menstrualCycle.findFirst({
       where: { userId: user.id, deletedAt: null, startDate: { lte: date } },
       orderBy: { startDate: "desc" },
       select: { id: true },
     });
     if (!current) {
-      return apiSuccessNoCycle();
+      return { cycleId: null };
     }
-    await prisma.menstrualCycle.update({
+    await db.menstrualCycle.update({
       where: { id: current.id },
       data: { periodEndDate: date, syncVersion: { increment: 1 } },
     });
-    cycleId = current.id;
-  }
+    return { cycleId: current.id as string | null };
+  });
 
-  // Boundary day-log. Start → MEDIUM flow opens the bleed; end → SPOTTING
-  // tail (the last logged bleeding day).
+  if (txResult.cycleId === null) {
+    return apiSuccessNoCycle();
+  }
+  const cycleId: string = txResult.cycleId;
+
+  // Boundary flow. Start → MEDIUM opens the bleed; end → SPOTTING tail.
+  // Never downgrade a richer flow already logged for the same day (e.g. a
+  // manual HEAVY entry must survive a later one-tap "start") — only set the
+  // boundary flow when it ranks at or above what's stored.
+  const boundaryFlow: FlowLevel = action === "start" ? "MEDIUM" : "SPOTTING";
+  const existingDay = await prisma.cycleDayLog.findFirst({
+    where: { userId: user.id, date, deletedAt: null },
+    select: { flow: true },
+  });
+  const flow =
+    flowRank(boundaryFlow) >= flowRank(existingDay?.flow ?? null)
+      ? boundaryFlow
+      : undefined;
+
   await upsertCycleDayLog(
     user.id,
     {
       date,
-      flow: action === "start" ? "MEDIUM" : "SPOTTING",
+      ...(flow !== undefined ? { flow } : {}),
       loggedAt,
       source: "MANUAL",
       ...(externalId ? { externalId } : {}),
@@ -143,9 +173,31 @@ export const POST = apiHandler(async (request: NextRequest) => {
     cycle: toMenstrualCycleDTO(cycleRow),
     dayLog: toCycleDayLogDTO(dayLogRow),
   });
-});
+}
 
 /** `end` with no preceding cycle is a no-op the client should not hit. */
 function apiSuccessNoCycle(): Response {
   return apiSuccess({ cycle: null, dayLog: null });
+}
+
+/**
+ * Ordinal rank of a flow level (NONE = 0 … HEAVY = 5; a missing flow ranks
+ * below NONE). Used to keep the one-tap boundary flow from downgrading a
+ * richer same-day entry.
+ */
+function flowRank(flow: FlowLevel | string | null): number {
+  switch (flow) {
+    case "NONE":
+      return 1;
+    case "SPOTTING":
+      return 2;
+    case "LIGHT":
+      return 3;
+    case "MEDIUM":
+      return 4;
+    case "HEAVY":
+      return 5;
+    default:
+      return 0;
+  }
 }

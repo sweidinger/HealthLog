@@ -139,6 +139,32 @@ describe("buildCycleSnapshotBlock", () => {
     ).toBe(true);
   });
 
+  it("derives 'today' from the threaded user timezone, not wall-clock", async () => {
+    prismaMock.cycleProfile.findUnique.mockResolvedValue(profile());
+    prismaMock.menstrualCycle.findMany.mockResolvedValue(cycles());
+
+    // NOW is 2026-03-22T12:00Z. In Berlin (UTC+1) the local day is the
+    // 22nd → day-of-cycle 21 (cycle started 2026-03-02). In Kiritimati
+    // (UTC+14) the local day has already rolled to the 23rd → day 22.
+    const berlin = await buildCycleSnapshotBlock(
+      "u1",
+      "FEMALE",
+      NOW,
+      "Europe/Berlin",
+    );
+    prismaMock.cycleProfile.findUnique.mockResolvedValue(profile());
+    prismaMock.menstrualCycle.findMany.mockResolvedValue(cycles());
+    const kiritimati = await buildCycleSnapshotBlock(
+      "u1",
+      "FEMALE",
+      NOW,
+      "Pacific/Kiritimati",
+    );
+
+    expect(berlin!.dayOfCycle).toBe(21);
+    expect(kiritimati!.dayOfCycle).toBe(22);
+  });
+
   it("includes the headline phase insight when a contrast clears FDR", async () => {
     prismaMock.cycleProfile.findUnique.mockResolvedValue(profile());
     prismaMock.menstrualCycle.findMany.mockResolvedValue(cycles());
