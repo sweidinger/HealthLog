@@ -203,28 +203,35 @@ export function ApiTokensRow({
       <p className="text-muted-foreground text-xs">
         {t("medications.detail.api.caption", { name: medicationName })}
       </p>
-      {/* The raw endpoint URL is redundant with the copy button below, so
-          it is rendered muted + single-line-truncated rather than as a
-          full-width block — the long absolute URL was pure visual noise. */}
-      <code
-        className="text-muted-foreground bg-muted/60 block truncate rounded px-2 py-1 font-mono text-xs"
-        title={endpoint}
+      {/* R26 — the endpoint URL is an inline read-only field with a copy
+          icon on the right rather than a separate "URL kopieren" button.
+          The `<code>` carries the value; the icon button copies it. */}
+      <div
+        className="border-input bg-muted/60 flex items-center gap-2 rounded-md border px-2 py-1"
         data-slot="api-endpoint-url"
       >
-        POST {endpoint}
-      </code>
+        <code
+          className="text-muted-foreground min-w-0 flex-1 truncate font-mono text-xs"
+          title={endpoint}
+        >
+          POST {endpoint}
+        </code>
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() =>
+            void copy(endpoint, t("medications.detail.api.urlCopied"))
+          }
+          className="h-7 w-7 shrink-0"
+          aria-label={t("medications.detail.api.copyUrl")}
+          data-slot="api-tokens-copy-url"
+        >
+          <Copy aria-hidden="true" className="h-3.5 w-3.5" />
+        </Button>
+      </div>
       <div className="flex flex-wrap gap-2">
         <Button
           variant="outline"
-          size="sm"
-          onClick={() => void copy(endpoint, t("medications.detail.api.urlCopied"))}
-          className="min-h-11 sm:min-h-9"
-          data-slot="api-tokens-copy-url"
-        >
-          <Copy aria-hidden="true" className="h-4 w-4" />
-          {t("medications.detail.api.copyUrl")}
-        </Button>
-        <Button
           size="sm"
           onClick={() => void mintToken()}
           disabled={busy}

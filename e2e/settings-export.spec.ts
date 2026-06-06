@@ -24,16 +24,16 @@ test.describe("Settings → Export", () => {
 
   test("renders all export surfaces with stable testids", async ({ page }) => {
     await page.goto("/settings/export", { waitUntil: "domcontentloaded" });
-    // v1.12 — the health-record export is the page hero; the
-    // doctor-report card (`export-hero-*` prefix) is demoted to the
-    // bottom; the four CSV/backup tiles keep the `export-card-*` shape.
+    // The health-record export is the page hero; the four CSV/backup
+    // tiles keep the `export-card-*` shape. The doctor report lives
+    // under the health-record export, so it is no longer a separate
+    // surface here.
     for (const id of [
       "health-record-export-panel",
       "export-card-measurements-csv",
       "export-card-medications-csv",
       "export-card-mood-csv",
       "export-card-full-backup",
-      "export-hero-doctor-report",
     ]) {
       await expect(page.getByTestId(id)).toBeVisible({ timeout: 10_000 });
     }

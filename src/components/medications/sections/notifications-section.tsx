@@ -201,7 +201,7 @@ export function NotificationsBody({
         </label>
       )}
 
-      {status && status.channels.length > 0 && (
+      {Array.isArray(status?.channels) && status.channels.length > 0 && (
         <div
           className="flex flex-wrap gap-1.5"
           aria-hidden="true"

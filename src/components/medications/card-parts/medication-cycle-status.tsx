@@ -1,28 +1,11 @@
-import { AlertTriangle, CalendarClock, CircleCheck, CircleDashed } from "lucide-react";
+import { AlertTriangle, CalendarClock, CircleDashed } from "lucide-react";
 
 import type { CurrentCycle } from "@/lib/analytics/compliance";
 import { useTranslations } from "@/lib/i18n/context";
-import { toBerlinDate } from "@/lib/medications/window-status";
 
 interface MedicationCycleStatusProps {
   /** The open-cycle descriptor from `complianceDisplay.currentCycle`. */
   cycle: CurrentCycle;
-}
-
-const DAY_MS = 24 * 60 * 60 * 1000;
-
-/**
- * Whole-day delta between two instants, measured on the user's calendar
- * (Europe/Berlin) so "in 2 days" lines up with the day a sparse dose lands on
- * rather than a raw 48-hour count. Positive = future, 0 = today, negative =
- * past. Mirrors the day-bucketing the card already does for its next/last slot.
- */
-function calendarDayDelta(target: Date, now: Date): number {
-  const a = toBerlinDate(target);
-  const b = toBerlinDate(now);
-  const targetMidnight = new Date(a.getFullYear(), a.getMonth(), a.getDate());
-  const nowMidnight = new Date(b.getFullYear(), b.getMonth(), b.getDate());
-  return Math.round((targetMidnight.getTime() - nowMidnight.getTime()) / DAY_MS);
 }
 
 /**
@@ -32,15 +15,20 @@ function calendarDayDelta(target: Date, now: Date): number {
  * rolling med (a GLP-1 injection) that is simply between doses has no scored
  * cycle in flight, so the percentage alone reads as a scary 0% / 100% that
  * says nothing about whether the user is actually on schedule. This line is
- * decoupled from the rate: it reports the open cycle's calm status — when the
- * next dose lands, whether it's due or overdue, or that there's not enough
- * history to score yet.
+ * decoupled from the rate: it reports the open cycle's calm status — whether
+ * the dose is due or overdue, or that there's not enough history to score yet.
+ *
+ * The calm `on_track` "next dose in N days" phrasing is intentionally NOT
+ * rendered here: the upcoming-dose timing already reads on the card's
+ * next-intake slot at the top, so repeating it would be a duplicate. Only the
+ * actionable due / overdue tiers (and the neutral no-closed-cycles note) earn
+ * this line.
  *
  * Driven by `currentCycle.state` (`on_track` / `due` / `missed` / `none`) plus
  * `hasClosedCycles`. Colour follows the same semantic ramp the status pill
- * uses (success / warning / destructive) and pairs every tier with a Lucide
- * glyph so colour-blind users can disambiguate — WCAG 1.4.1 (Use of Color).
- * It complements the compliance number; it does not replace it.
+ * uses (warning / destructive) and pairs every tier with a Lucide glyph so
+ * colour-blind users can disambiguate — WCAG 1.4.1 (Use of Color). It
+ * complements the compliance number; it does not replace it.
  */
 export function MedicationCycleStatus({ cycle }: MedicationCycleStatusProps) {
   const { t } = useTranslations();
@@ -61,6 +49,12 @@ export function MedicationCycleStatus({ cycle }: MedicationCycleStatusProps) {
     );
   }
 
+  // on_track — the next dose simply hasn't come round yet. The upcoming-dose
+  // timing already reads on the card's next-intake slot at the top, so a second
+  // "next dose in N days" line here is a duplicate. Render nothing for the
+  // on-track case; only the actionable due / overdue tiers earn this line.
+  if (cycle.state !== "missed" && cycle.state !== "due") return null;
+
   let tone: string;
   let icon: React.ReactNode;
   let label: string;
@@ -69,30 +63,11 @@ export function MedicationCycleStatus({ cycle }: MedicationCycleStatusProps) {
     tone = "text-destructive";
     icon = <AlertTriangle className="size-3.5 shrink-0" aria-hidden="true" />;
     label = t("medications.cycleOverdue");
-  } else if (cycle.state === "due") {
+  } else {
+    // due
     tone = "text-warning";
     icon = <CalendarClock className="size-3.5 shrink-0" aria-hidden="true" />;
     label = t("medications.cycleDueToday");
-  } else {
-    // on_track — the next dose simply hasn't come round yet.
-    tone = "text-success";
-    icon = <CircleCheck className="size-3.5 shrink-0" aria-hidden="true" />;
-    const now = new Date();
-    // `nextDueAt` is typed `Date` but arrives as an ISO string over the wire;
-    // re-hydrate it so the Berlin day-bucketing (toLocaleString with a
-    // timeZone) actually applies — a raw string would silently skip it and
-    // drift the count by a day near midnight / off Berlin.
-    const days = cycle.nextDueAt
-      ? calendarDayDelta(new Date(cycle.nextDueAt), now)
-      : null;
-    if (days === null || days <= 0) {
-      // on_track with the slot today (now < dueAt but same calendar day).
-      label = t("medications.cycleNextDoseToday");
-    } else if (days === 1) {
-      label = t("medications.cycleNextDoseTomorrow");
-    } else {
-      label = t("medications.cycleNextDoseInDays", { days });
-    }
   }
 
   return (

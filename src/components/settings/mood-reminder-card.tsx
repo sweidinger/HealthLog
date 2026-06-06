@@ -84,7 +84,7 @@ export function MoodReminderCard({
   });
 
   const enabled = optimistic ?? profile?.moodReminderEnabled ?? false;
-  const reminderHour = optimisticHour ?? prefs?.mood.reminderHour ?? 22;
+  const reminderHour = optimisticHour ?? prefs?.mood?.reminderHour ?? 22;
 
   async function handleToggle(next: boolean) {
     setOptimistic(next);

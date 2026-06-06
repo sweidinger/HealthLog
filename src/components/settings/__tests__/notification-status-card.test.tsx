@@ -71,6 +71,20 @@ describe("<NotificationStatusCard />", () => {
     expect(html).not.toContain('data-testid="notification-status-list"');
   });
 
+  it("renders empty state instead of crashing when data is not an array", () => {
+    // Regression: the status endpoint returns `{ channels, events }` where
+    // `events` is an object map. A shape-drifted / poisoned cache read that
+    // hands the whole object to the card must not reach `.map` on a
+    // non-array and white-screen the notifications panel.
+    useQueryMock.mockReturnValue({
+      data: { channels: [], events: {} } as unknown as MockChannel[],
+      isLoading: false,
+    });
+    const html = render(<NotificationStatusCard />);
+    expect(html).toContain("No channels configured yet");
+    expect(html).not.toContain('data-testid="notification-status-list"');
+  });
+
   it("paints Active badge for a healthy channel", () => {
     setChannels([
       {

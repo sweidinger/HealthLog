@@ -119,7 +119,12 @@ export function NotificationStatusCard() {
     );
   }
 
-  const channels = data ?? [];
+  // Defensive: the status endpoint returns `{ channels, events }` where
+  // `events` is an object map, not an array. A stale or shape-drifted
+  // payload (or a cache read that kept the whole object instead of the
+  // `.channels` slice) must never reach `.map` on a non-array — guard the
+  // type here rather than white-screening the whole notifications panel.
+  const channels = Array.isArray(data) ? data : [];
   if (channels.length === 0) {
     return (
       <div

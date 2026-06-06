@@ -115,18 +115,14 @@ describe("<CoincidentDeviationCard>", () => {
     expect(fired).toContain("min-h-48");
   });
 
-  it("renders the insufficient (building baselines) state, never an alarm", () => {
+  it("renders nothing in the insufficient (building baselines) state", () => {
     mock(insufficient());
     const html = render(<CoincidentDeviationCard />);
-    expect(html).toContain('data-state="insufficient"');
-    expect(html).toContain('data-slot="coincident-building"');
-    expect(html).toContain('data-slot="coverage-meter"');
-    // Calm, not amber/red.
-    expect(html).not.toContain("border-warning");
-    expect(html).not.toContain("text-destructive");
+    // No signal yet → the section stays absent rather than an empty husk.
+    expect(html).toBe("");
   });
 
-  it("renders the all-clear state with the count checked", () => {
+  it("renders nothing in the all-clear state (no signal to show)", () => {
     mock(
       ok({
         fired: false,
@@ -136,12 +132,8 @@ describe("<CoincidentDeviationCard>", () => {
       }),
     );
     const html = render(<CoincidentDeviationCard />);
-    expect(html).toContain('data-state="all-clear"');
-    expect(html).toContain("All your vitals are within their personal range");
-    expect(html).toContain("text-success");
-    // No alarm tone.
-    expect(html).not.toContain("border-warning");
-    expect(html).not.toContain("text-destructive");
+    // Every vital inside its personal range → hide the whole card.
+    expect(html).toBe("");
   });
 
   it("renders the watch state for a single out-of-band vital, not the fired tone", () => {

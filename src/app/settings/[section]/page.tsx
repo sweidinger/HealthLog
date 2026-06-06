@@ -11,7 +11,6 @@ import { ExportSection } from "@/components/settings/export-section";
 import { IntegrationsSection } from "@/components/settings/integrations-section";
 import { NotificationsSection } from "@/components/settings/notifications-section";
 import { SectionPlaceholder } from "@/components/settings/section-placeholder";
-import { SharingSection } from "@/components/settings/sharing-section";
 // v1.8.7.1 — `thresholds` (Targets) and `sources` (Sources) are two
 // separate sections again. `ThresholdsSection` renders the target-range
 // editor; `SourcesSection` (standalone mode) renders the source-priority
@@ -53,7 +52,6 @@ const SECTION_COMPONENTS: Record<
   thresholds: ThresholdsSection,
   sources: () => <SourcesSection />,
   api: ApiSection,
-  sharing: SharingSection,
   export: ExportSection,
   advanced: AdvancedSection,
 };

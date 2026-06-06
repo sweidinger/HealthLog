@@ -131,9 +131,9 @@ describe("IntegrationsSection — single-status-display contract (A5)", () => {
     });
 
     const html = render();
-    // Exactly one pill per card → 4 pills total (Withings, moodLog, WHOOP,
-    // Fitbit / Google Health).
-    expect(count(html, 'data-testid="integration-status-pill"')).toBe(4);
+    // Exactly one pill per card → 3 pills total (Withings, WHOOP,
+    // Fitbit / Google Health). The moodLog integration was removed.
+    expect(count(html, 'data-testid="integration-status-pill"')).toBe(3);
     // The redundant banner from v1.4.15 is gone.
     expect(html).not.toContain('data-testid="integration-status-banner"');
     // Card-body "letzter Sync" repetition is gone — no
@@ -216,19 +216,12 @@ describe("IntegrationsSection — single-status-display contract (A5)", () => {
     expect(html).not.toContain('data-testid="integration-status-banner"');
   });
 
-  it("Mood Log disconnected state shows 'Not connected' on the pill, no extra status surfaces", () => {
+  it("disconnected state shows 'Not connected' on the pill, no extra status surfaces", () => {
     setIntegrationStatus({
       threshold: 3,
       integrations: [
         {
           integration: "withings",
-          state: "connected",
-          lastSuccessAt: null,
-          lastAttemptAt: null,
-          lastError: null,
-        },
-        {
-          integration: "moodlog",
           state: "disconnected",
           lastSuccessAt: "2026-05-08T10:00:00.000Z",
           lastAttemptAt: "2026-05-08T10:00:00.000Z",
@@ -240,7 +233,7 @@ describe("IntegrationsSection — single-status-display contract (A5)", () => {
     const html = render();
     expect(html).toContain("Not connected");
     expect(html).not.toContain('data-testid="integration-status-banner"');
-    // Mood Log card no longer has a trailing "letzter Sync" line.
+    // No trailing "letzter Sync" line outside the pill.
     expect(html).not.toContain("Last sync:");
   });
 
@@ -285,7 +278,7 @@ describe("IntegrationsSection — single-status-display contract (A5)", () => {
     expect(html).toContain("Withings activity error: 293");
   });
 
-  it("Mood Log card carries the visual divider Withings has (consistency)", () => {
+  it("every integration card carries the visual divider (consistency)", () => {
     setIntegrationStatus({
       threshold: 3,
       integrations: [
@@ -300,25 +293,13 @@ describe("IntegrationsSection — single-status-display contract (A5)", () => {
           legacyLastSyncedAt: "2026-05-09T18:00:00.000Z",
           hasActivityScope: true,
         },
-        {
-          integration: "moodlog",
-          state: "connected",
-          lastSuccessAt: "2026-05-09T17:00:00.000Z",
-          lastAttemptAt: "2026-05-09T17:00:00.000Z",
-          lastError: null,
-          configured: true,
-          enabled: true,
-          legacyLastSyncedAt: "2026-05-09T17:00:00.000Z",
-          entryCount: 42,
-          webhookSecret: "secret123",
-        },
       ],
     });
 
     const html = render();
     // Every integration card includes the section divider data-testid so the
-    // header → body separation is visually consistent (Withings, moodLog,
-    // WHOOP, Fitbit / Google Health).
-    expect(count(html, 'data-testid="integration-card-divider"')).toBe(4);
+    // header → body separation is visually consistent (Withings, WHOOP,
+    // Fitbit / Google Health). The moodLog integration was removed.
+    expect(count(html, 'data-testid="integration-card-divider"')).toBe(3);
   });
 });

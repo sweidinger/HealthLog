@@ -159,9 +159,9 @@ export function PeriodNarrativeCard({
       className={cn(SHELL, className)}
     >
       <div className="flex items-center justify-between gap-2">
-        <span className="text-muted-foreground truncate text-xs font-medium tracking-wide uppercase">
+        <h2 className="text-foreground truncate text-base font-semibold">
           {t("insights.narrativeTitle")}
-        </span>
+        </h2>
         {narrative?.provenance ? (
           <ProvenanceDisclosure provenance={narrative.provenance} />
         ) : null}

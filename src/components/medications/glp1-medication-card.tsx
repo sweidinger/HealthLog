@@ -29,10 +29,7 @@ import {
 } from "@/lib/query-keys";
 import { formatDateTime, formatTime } from "@/lib/format";
 import { getMedicationCategoryLabel } from "@/lib/medications/category-label";
-import {
-  nextInjectionSite,
-  type InjectionSiteKey,
-} from "@/lib/medications/injection-sites";
+import { type InjectionSiteKey } from "@/lib/medications/injection-sites";
 import { LogInjectionSiteDialog } from "@/components/medications/log-injection-site-dialog";
 import { useGlobalExcludedInjectionSites } from "@/lib/medications/use-injection-site-prefs";
 import {
@@ -324,11 +321,6 @@ export function Glp1MedicationCard({
   const recentInjections = details?.recentIntakes ?? [];
   const lastSite =
     recentInjections.find((i) => i.injectionSite)?.injectionSite ?? null;
-  const recommendedNextSite = nextInjectionSite(
-    recentInjections
-      .map((r) => r.injectionSite)
-      .filter(Boolean) as InjectionSiteKey[],
-  );
 
   function lastInjectionLabel(): string | null {
     if (!medication.lastTakenAt) return null;
@@ -433,23 +425,6 @@ export function Glp1MedicationCard({
                     — {schedule.dose}
                   </span>
                 )}
-                {/* Rotation nudge — folded into the upcoming-injection line
-                    instead of a separate bordered block, so the GLP-1 card
-                    keeps the same row inventory (and height) as the generic
-                    card. Only when we have a last + recommended site that
-                    differs from it. */}
-                {lastSite &&
-                  recommendedNextSite &&
-                  recommendedNextSite !== lastSite && (
-                    <span className="hidden sm:inline">
-                      {" · "}
-                      {t("medications.glp1RotationSuggested", {
-                        site: t(
-                          `medications.site${siteSuffix(recommendedNextSite)}`,
-                        ),
-                      })}
-                    </span>
-                  )}
               </>
             ) : null
           }

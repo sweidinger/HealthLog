@@ -15,11 +15,10 @@ import { STORAGE_STATE_PATH } from "./setup/global-setup";
  *      verifies neither path leaks into a horizontal scrollbar on the
  *      <html> element.
  *
- *   2. Render exactly one pill per integration card (Withings + Mood
- *      Log when both are configured). Belt-and-braces guard for the
- *      consolidation Marc requested — the Vitest spec covers this on
- *      the SSR markup level, but the Pixel-5 layout is what matters
- *      to him in practice.
+ *   2. Render exactly one pill per integration card. Belt-and-braces
+ *      guard for the card consolidation — the Vitest spec covers this
+ *      on the SSR markup level, but the Pixel-5 layout is what matters
+ *      in practice.
  *
  * Mobile-only spec — desktop project skips it.
  */
@@ -144,18 +143,18 @@ test.describe("/settings/integrations Pixel-5 layout", () => {
 
     // Wait for the pills to mount (queries resolve after first paint).
     const pills = page.locator('[data-testid="integration-status-pill"]');
-    // Four integration cards now (Withings, moodLog, WHOOP, Google Health) →
-    // four pills.
-    await expect(pills).toHaveCount(4, { timeout: 10_000 });
+    // Three integration cards now (Withings, WHOOP, Google Health) → three
+    // pills.
+    await expect(pills).toHaveCount(3, { timeout: 10_000 });
 
-    // Withings + moodLog are connected in this fixture; WHOOP is a BYO-keys
-    // card that stays dormant until an operator adds credentials, so assert
-    // the two connected pills order-independently.
+    // Withings is connected in this fixture; WHOOP is a BYO-keys card that
+    // stays dormant until an operator adds credentials, so assert the one
+    // connected pill.
     await expect(
       page.locator(
         '[data-testid="integration-status-pill"][data-state="connected"]',
       ),
-    ).toHaveCount(2);
+    ).toHaveCount(1);
 
     // The redundant v1.4.18 banner must be gone.
     await expect(

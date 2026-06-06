@@ -22,10 +22,6 @@ export const SETTINGS_SECTION_SLUGS = [
   "sources",
   "ai",
   "api",
-  // v1.11.0 — `sharing` owns clinician share links: a time-boxed, scope-
-  // frozen read-only view of the owner's record, optionally a scoped FHIR
-  // face. Sits next to `api` (the other "hand a credential out" surface).
-  "sharing",
   "export",
   "advanced",
   "about",

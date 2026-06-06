@@ -370,15 +370,11 @@ describe("<Glp1MedicationCard> — GLP-1 variant rendering", () => {
     expect(html).not.toContain("Dosis-Historie");
   });
 
-  it("renders the injection-site rotation nudge folded into the upcoming line", () => {
-    // The rotation nudge surfaces only when `lastSite` and the recommender
-    // disagree. We feed a left-cluster history → the recommender lands on a
-    // right-side or thigh/arm site. The nudge is no longer a separate
-    // bordered block (which made the GLP-1 card taller than the generic card
-    // in a grid row); it is folded into the upcoming-injection line as a
-    // "· Recommended next: …" suffix, so the card keeps the same row
-    // inventory as the generic card. The last site stays visible on the
-    // last-injection line.
+  it("does not render an injection-site recommendation on the card", () => {
+    // The card no longer carries a "recommended next site" nudge — the
+    // recommendation is noise on the at-a-glance surface. Site TRACKING stays
+    // (the last site reads on the last-injection line; the post-dose picker
+    // still captures the next site), only the recommendation copy is gone.
     const client = makeClient();
     seedCompliance(client, med7p5.id);
     seedGlp1Details(client, med7p5.id, {
@@ -401,11 +397,9 @@ describe("<Glp1MedicationCard> — GLP-1 variant rendering", () => {
       client,
     );
 
-    // The recommended-next nudge renders in the upcoming line.
-    expect(html).toContain("Recommended next:");
-    // The standalone bordered rotation block is gone (height-neutral fold).
-    expect(html).not.toContain("bg-muted/40 rounded-md border");
-    // Last site stays visible on the last-injection line.
+    // No recommendation copy anywhere on the card.
+    expect(html).not.toContain("Recommended next:");
+    // Last site stays visible on the last-injection line (tracking preserved).
     expect(html).toContain("Abdomen, lower left");
   });
 

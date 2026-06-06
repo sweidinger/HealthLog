@@ -2,6 +2,28 @@
 
 ## [Unreleased]
 
+## [1.15.6] — 2026-06-06 — settings, insights, and medication-card polish
+
+### Fixed
+
+- **The notifications settings panel no longer crashes.** Opening Settings → Notifications could throw a client-side error on some accounts; the panel now renders safely whatever shape the data arrives in.
+- **Even chevron in dropdowns.** The arrow on the right of selects (timezone, language, units, and everywhere else) now sits with the same inset from the right edge as the label has from the left, instead of pushing against the edge.
+
+### Changed
+
+- **Clearer Insights overview.** The period-in-review card now carries a proper heading, and the "signals of the day" section only appears when there's an actual anomaly to flag — when every vital is within your personal range it stays hidden rather than showing an empty header.
+- **Tidier medication cards.** The next-dose line no longer appears twice on a card, and the injection-site suggestion text has been dropped from the card surface (site tracking and the post-dose picker are unchanged).
+- **The avatar menu lands in Account.** Clicking your avatar now opens the Account settings directly.
+- **Shorter integration save button.** The integrations credential form's button now simply reads "Save".
+- **Tidier API-tokens panel.** The token endpoint URL is shown inline with a copy button, and the "generate another token" button matches the rest of the page rather than standing out in a different colour.
+- **The export panel's create button is right-aligned**, consistent with other primary actions.
+
+### Removed
+
+- **The moodLog integration** has been removed from the Integrations page; it is no longer used.
+- **The standalone sharing (create-link) feature** has been removed from the Export area.
+- **The doctor report is no longer offered twice** — it has been removed from the main Export page, where it duplicated the health-record export's own doctor report.
+
 ## [1.15.5] — 2026-06-06 — insights layout, navigation, password-reset CLI
 
 ### Added

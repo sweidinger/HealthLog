@@ -48,8 +48,6 @@ describe("SETTINGS_SECTION_SLUGS", () => {
     // IW-D merged it into `thresholds`.
     // v1.8.7.1 — `sources` (Sources) is its own slug again, sitting
     // between `thresholds` (Targets) and `ai`.
-    // v1.11.0 — `sharing` (clinician share links) added between `api` and
-    // `export`. Section count: 12.
     expect([...SETTINGS_SECTION_SLUGS]).toEqual([
       "account",
       "integrations",
@@ -59,7 +57,6 @@ describe("SETTINGS_SECTION_SLUGS", () => {
       "sources",
       "ai",
       "api",
-      "sharing",
       "export",
       "advanced",
       "about",
