@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [1.15.3] — 2026-06-06 — cycle summary on the insights page
+
+### Added
+
+- **Your cycle at a glance on Insights.** If you track your cycle, the Insights page now shows a compact card with your current phase and cycle day plus the one standout phase relation, with a tap-through to the full cycle insights. It appears only when cycle tracking is on, and the detailed phase analysis stays in the cycle section.
+
 ## [1.15.2] — 2026-06-06 — cycle insights crash fix
 
 ### Fixed
