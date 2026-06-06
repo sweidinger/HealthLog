@@ -98,6 +98,19 @@ describe("<SidebarNav> cycle entry gate (v1.15.0)", () => {
     const html = render({ cycleTrackingEnabled: false });
     expect(html).not.toContain('href="/cycle"');
   });
+
+  it("places the Cycle entry between Medications and Insights when enabled", () => {
+    const html = render({ cycleTrackingEnabled: true });
+    const med = html.indexOf('href="/medications"');
+    const cycle = html.indexOf('href="/cycle"');
+    const insights = html.indexOf('href="/insights"');
+    expect(med).toBeGreaterThan(-1);
+    expect(cycle).toBeGreaterThan(-1);
+    expect(insights).toBeGreaterThan(-1);
+    // Cycle sits after Medications and before Insights in document order.
+    expect(med).toBeLessThan(cycle);
+    expect(cycle).toBeLessThan(insights);
+  });
 });
 
 describe("<SidebarNav> targets deprecation (v1.8.6)", () => {

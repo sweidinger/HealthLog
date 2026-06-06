@@ -77,65 +77,75 @@ export function CycleInsightSummaryCard() {
       : t("cycle.ring.ariaUnknown");
 
   return (
-    <section
-      data-slot="cycle-insight-summary"
-      data-revealed="true"
-      data-phase={phase ?? "none"}
-      aria-label={t("cycle.insightsSummary.title")}
-      style={{ "--tile-hue": hue } as React.CSSProperties}
-      className="wellness-tile wellness-tile-rise rounded-xl px-5 py-5"
-    >
-      <div className="flex items-start justify-between gap-3">
-        {/* Zone 1 — eyebrow + the current phase / cycle-day read. */}
-        <div className="min-w-0">
-          <div className="flex items-center gap-2">
-            <Sparkles
-              className="h-4 w-4 shrink-0"
-              style={{ color: hue }}
+    // `data-revealed` must sit on an ANCESTOR of the `.wellness-tile-rise`
+    // element — the keyframe selector is `[data-revealed="true"]
+    // .wellness-tile-rise` (descendant combinator). Putting both on the same
+    // node never matched, so the tile stayed stuck at the rise rule's
+    // `opacity: 0` — invisible but still occupying its box, which read as an
+    // oversized gap on the overview. The wrapper restores the entrance.
+    <div data-revealed="true" className="contents">
+      <section
+        data-slot="cycle-insight-summary"
+        data-phase={phase ?? "none"}
+        aria-label={t("cycle.insightsSummary.title")}
+        style={{ "--tile-hue": hue } as React.CSSProperties}
+        className="wellness-tile wellness-tile-rise rounded-xl px-5 py-5"
+      >
+        <div className="flex items-start justify-between gap-3">
+          {/* Zone 1 — eyebrow + the current phase / cycle-day read. */}
+          <div className="min-w-0">
+            <div className="flex items-center gap-2">
+              <Sparkles
+                className="h-4 w-4 shrink-0"
+                style={{ color: hue }}
+                aria-hidden="true"
+              />
+              <span className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
+                {t("cycle.insightsSummary.title")}
+              </span>
+            </div>
+
+            <h3
+              className="text-foreground mt-2 flex items-center gap-2 text-base font-semibold"
+              aria-label={ariaLabel}
+            >
+              <span
+                aria-hidden="true"
+                className="inline-block h-2.5 w-2.5 shrink-0 rounded-full"
+                style={{ backgroundColor: hue }}
+              />
+              <span>{phaseName}</span>
+            </h3>
+
+            <p
+              className="text-muted-foreground mt-1 text-sm"
               aria-hidden="true"
-            />
-            <span className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
-              {t("cycle.insightsSummary.title")}
-            </span>
+            >
+              {dayOfCycle != null
+                ? t("cycle.insightsSummary.currentDay", { day: dayOfCycle })
+                : t("cycle.insightsSummary.noActiveCycle")}
+            </p>
           </div>
-
-          <h3
-            className="text-foreground mt-2 flex items-center gap-2 text-base font-semibold"
-            aria-label={ariaLabel}
-          >
-            <span
-              aria-hidden="true"
-              className="inline-block h-2.5 w-2.5 shrink-0 rounded-full"
-              style={{ backgroundColor: hue }}
-            />
-            <span>{phaseName}</span>
-          </h3>
-
-          <p className="text-muted-foreground mt-1 text-sm" aria-hidden="true">
-            {dayOfCycle != null
-              ? t("cycle.insightsSummary.currentDay", { day: dayOfCycle })
-              : t("cycle.insightsSummary.noActiveCycle")}
-          </p>
         </div>
-      </div>
 
-      {/* Zone 2 — the one headline phase finding (shared component owns the
+        {/* Zone 2 — the one headline phase finding (shared component owns the
           FDR-gated copy AND the honest "not enough cycles yet" empty line, so
           this can never show a broken state). */}
-      <div className="mt-3">
-        <CyclePhaseHeadline headline={insights.data?.headline ?? null} />
-      </div>
+        <div className="mt-3">
+          <CyclePhaseHeadline headline={insights.data?.headline ?? null} />
+        </div>
 
-      {/* Zone 3 — the deep-link into the single source of truth: the cycle
+        {/* Zone 3 — the deep-link into the single source of truth: the cycle
           insights tab. The cycle page reads `?tab=insights` and opens that tab. */}
-      <Link
-        href="/cycle?tab=insights"
-        data-slot="cycle-insight-summary-link"
-        className="text-foreground bg-background/55 border-foreground/15 hover:bg-background/80 focus-visible:ring-ring/50 mt-4 inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm font-medium transition-colors focus:outline-none focus-visible:ring-[3px]"
-      >
-        {t("cycle.insightsSummary.viewDetails")}
-        <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
-      </Link>
-    </section>
+        <Link
+          href="/cycle?tab=insights"
+          data-slot="cycle-insight-summary-link"
+          className="text-foreground bg-background/55 border-foreground/15 hover:bg-background/80 focus-visible:ring-ring/50 mt-4 inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm font-medium transition-colors focus:outline-none focus-visible:ring-[3px]"
+        >
+          {t("cycle.insightsSummary.viewDetails")}
+          <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
+        </Link>
+      </section>
+    </div>
   );
 }

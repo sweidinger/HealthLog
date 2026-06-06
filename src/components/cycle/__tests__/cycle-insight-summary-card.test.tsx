@@ -142,6 +142,16 @@ describe("<CycleInsightSummaryCard>", () => {
     expect(html).toContain('href="/cycle?tab=insights"');
     expect(html).toContain("View cycle insights");
     expect(html).toContain('data-phase="LUTEAL"');
+    // Regression: the entrance-animation element (`.wellness-tile-rise`, which
+    // is `opacity: 0` until revealed) must sit UNDER a `data-revealed` ancestor
+    // — the CSS selector is a descendant combinator. With both on the same node
+    // the card stayed permanently invisible but still occupied its box, which
+    // read as an oversized gap on the overview. Assert the wrapper precedes the
+    // rise element so the descendant selector matches.
+    const revealedIdx = html.indexOf('data-revealed="true"');
+    const riseIdx = html.indexOf("wellness-tile-rise");
+    expect(revealedIdx).toBeGreaterThan(-1);
+    expect(riseIdx).toBeGreaterThan(revealedIdx);
   });
 
   it("shows the honest empty headline line when nothing cleared the FDR gate", () => {

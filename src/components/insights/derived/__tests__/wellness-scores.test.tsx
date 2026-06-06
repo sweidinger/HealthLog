@@ -101,4 +101,23 @@ describe("<WellnessScores>", () => {
     expect(html).not.toContain('data-metric="STRESS_SCORE"');
     expect(html).not.toContain('data-metric="STRAIN_SCORE"');
   });
+
+  it("drops the Strain tile when hideStrain is set (cycle ring takes its slot)", () => {
+    const scores = {
+      READINESS: ok({ score: 80, band: "green" }),
+      STRAIN_SCORE: ok({ score: 40, band: "yellow" }),
+    };
+    // Without the flag Strain renders.
+    const withStrain = render(
+      <WellnessScores read={readFrom(scores)} isLoading={false} />,
+    );
+    expect(withStrain).toContain('data-metric="STRAIN_SCORE"');
+
+    // With the flag Strain is suppressed while the other score stays.
+    const hidden = render(
+      <WellnessScores read={readFrom(scores)} isLoading={false} hideStrain />,
+    );
+    expect(hidden).not.toContain('data-metric="STRAIN_SCORE"');
+    expect(hidden).toContain('data-metric="READINESS"');
+  });
 });

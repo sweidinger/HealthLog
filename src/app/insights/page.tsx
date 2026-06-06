@@ -395,6 +395,10 @@ export default function InsightsPage() {
         extraTile={
           user?.cycleTrackingEnabled ? <CycleRingTile /> : undefined
         }
+        // v1.15.5 — when the cycle ring is shown it TAKES the Strain slot:
+        // hide Strain so the strip stays compact instead of growing a sixth
+        // tile. Strain stays visible for non-cycle accounts.
+        hideStrain={user?.cycleTrackingEnabled === true}
       />
 
       {flags.briefing && (

@@ -57,6 +57,13 @@ interface ScoreStripProps {
    * show, so the strip subtracts it from the count in that case.
    */
   extraTile?: React.ReactNode;
+  /**
+   * Drop the Strain score tile from the rendered strip. Set when the cycle ring
+   * takes Strain's slot (cycle-tracking accounts) so the row stays compact at
+   * the same column count instead of growing a sixth tile. Strain stays
+   * available for non-cycle accounts; it is only hidden, never removed.
+   */
+  hideStrain?: boolean;
   className?: string;
 }
 
@@ -160,6 +167,7 @@ export function WellnessScores({
   isError = false,
   refetch,
   extraTile,
+  hideStrain = false,
   className,
 }: ScoreStripProps) {
   const { t } = useTranslations();
@@ -302,7 +310,10 @@ export function WellnessScores({
       />,
     );
   }
-  if (!isLoading && strain?.status === "ok" && strain.value) {
+  // When the cycle ring takes the slot (cycle-tracking accounts), the Strain
+  // tile is dropped so the row stays compact rather than growing a sixth tile.
+  // Strain renders normally for everyone else.
+  if (!hideStrain && !isLoading && strain?.status === "ok" && strain.value) {
     tiles.push(
       <RingTile
         key="STRAIN_SCORE"
