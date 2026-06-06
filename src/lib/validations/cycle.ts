@@ -176,7 +176,9 @@ export const cyclePrefsSchema = z
     sensitiveCategoryEncryption: z.boolean().optional(),
     typicalCycleLength: z.number().int().min(15).max(60).nullable().optional(),
     typicalPeriodLength: z.number().int().min(1).max(15).nullable().optional(),
-    lutealPhaseLength: z.number().int().min(8).max(20).nullable().optional(),
+    // Bound matches the engine clamp [LUTEAL_MIN, LUTEAL_MAX] (§4) so the
+    // stored value never silently snaps in the predictor (QA HIGH).
+    lutealPhaseLength: z.number().int().min(10).max(16).nullable().optional(),
   })
   .refine((v) => Object.keys(v).length > 0, {
     message: "At least one preference field is required",

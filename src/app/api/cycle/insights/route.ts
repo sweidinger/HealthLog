@@ -35,6 +35,7 @@ import {
   discoverPhaseCorrelations,
   selectHeadlinePhaseRow,
   PHASE_CROSSTAB_METRIC_TYPES,
+  MOOD_CHANNEL_KEY,
 } from "@/lib/cycle/phase-crosstab";
 import type { CrossMetricMeasurement } from "@/lib/insights/mood-aggregates";
 import { addDays } from "@/lib/cycle/day-math";
@@ -56,14 +57,24 @@ export const GET = apiHandler(async () => {
   const today = moodDateKey(new Date(), tz);
   const from = addDays(today, -WINDOW_DAYS);
 
-  const [cycles, dayLogRows, nightlyTempRows, measurementRows, prefsRow] =
-    await Promise.all([
+  const [
+    cycles,
+    dayLogRows,
+    nightlyTempRows,
+    measurementRows,
+    prefsRow,
+    moodRows,
+  ] = await Promise.all([
       prisma.menstrualCycle.findMany({
         where: { userId: user.id, deletedAt: null },
         orderBy: { startDate: "asc" },
       }),
+      // Bound the day-log read to the rendered window (`from` = today − 365d),
+      // which is already earlier than the symptothermal lookback. Cycle-length
+      // stats run off MenstrualCycle rows so the day-logs can be windowed (QA:
+      // perf — unbounded full-history read).
       prisma.cycleDayLog.findMany({
-        where: { userId: user.id, deletedAt: null },
+        where: { userId: user.id, deletedAt: null, date: { gte: from } },
         orderBy: { date: "asc" },
         select: {
           date: true,
@@ -112,6 +123,18 @@ export const GET = apiHandler(async () => {
         where: { id: user.id },
         select: { sourcePriorityJson: true },
       }),
+      // MOOD outcome (QA HIGH): mood lives in MoodEntry (1–5 score), not a
+      // Measurement row, so read it here and inject it into the crosstab as a
+      // synthetic MOOD_CHANNEL_KEY measurement (same FDR / day-floor guards).
+      prisma.moodEntry.findMany({
+        where: {
+          userId: user.id,
+          deletedAt: null,
+          moodLoggedAt: { gte: new Date(Date.parse(`${from}T00:00:00Z`)) },
+        },
+        orderBy: { moodLoggedAt: "asc" },
+        select: { score: true, moodLoggedAt: true },
+      }),
     ]);
 
   // The latest open cycle runs to the predicted next-period start so the
@@ -146,6 +169,18 @@ export const GET = apiHandler(async () => {
     source: m.source,
     deviceType: m.deviceType,
   }));
+  // Inject mood as a synthetic MOOD_CHANNEL_KEY series (no source ladder — the
+  // metricDayMap pass-through keeps every row, averaging multiple same-day
+  // entries like every other channel).
+  for (const m of moodRows) {
+    measurements.push({
+      type: MOOD_CHANNEL_KEY,
+      value: m.score,
+      measuredAt: m.moodLoggedAt,
+      source: null,
+      deviceType: null,
+    });
+  }
 
   const userPriorityJson = prefsRow?.sourcePriorityJson ?? null;
 

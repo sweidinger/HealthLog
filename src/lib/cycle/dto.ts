@@ -236,11 +236,15 @@ type MenstrualCycleProfileRow = {
 };
 
 /**
- * Whether a goal surfaces the fertile window. Per the v1.15 contract the
- * window is gated to the conception goal only — GENERAL_HEALTH /
- * AVOID_PREGNANCY / PERIMENOPAUSE / OFF suppress it (the suppression is
- * always server-side, never iOS).
+ * Whether a goal surfaces the fertile window. Per algorithm.md §4 the window is
+ * shown for TRYING_TO_CONCEIVE and AVOID_PREGNANCY (AVOID_PREGNANCY carries a
+ * stronger "estimate, not a contraceptive method" caveat in the copy), and
+ * suppressed for GENERAL_HEALTH / PERIMENOPAUSE / OFF (the suppression is always
+ * server-side, never iOS).
  */
 export function goalAllowsFertileWindow(goal: string): boolean {
-  return goal === "TRYING_TO_CONCEIVE";
+  // algorithm.md §4: shown for TRYING_TO_CONCEIVE AND AVOID_PREGNANCY (the
+  // latter carries a stronger "not a contraceptive method" caveat in copy),
+  // hidden for GENERAL_HEALTH / PERIMENOPAUSE / OFF.
+  return goal === "TRYING_TO_CONCEIVE" || goal === "AVOID_PREGNANCY";
 }

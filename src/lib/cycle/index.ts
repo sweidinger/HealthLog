@@ -19,5 +19,7 @@ export {
   detectTemperatureTrend,
   median,
   mad,
+  resolveLuteal,
+  clampLuteal,
 } from "./prediction";
 export { phaseForDay, phaseSeries, type PhaseCycle } from "./phase";

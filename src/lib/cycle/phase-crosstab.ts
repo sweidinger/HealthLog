@@ -75,7 +75,20 @@ export type PhaseCrosstabDisplay =
   | "bpm"
   | "ms"
   | "kg"
-  | "celsius";
+  | "celsius"
+  | "glucose"
+  | "mood";
+
+/**
+ * Synthetic non-MeasurementType channel key for the MOOD outcome. Mood lives in
+ * the separate `MoodEntry` model (1–5 score), not a Measurement row, so the
+ * caller injects it into the crosstab `measurements` array tagged with this key
+ * and `metricDayMap` groups it like any other type (its pass-through fallback
+ * keeps every row — there is no source ladder for mood). It is deliberately NOT
+ * a member of `PHASE_CROSSTAB_METRIC_TYPES`, so it never enters the Measurement
+ * read query.
+ */
+export const MOOD_CHANNEL_KEY = "MOOD";
 
 /**
  * The outcome metric grid the phase contrast walks. Mirrors
@@ -86,7 +99,7 @@ export type PhaseCrosstabDisplay =
  */
 export const PHASE_CROSSTAB_METRICS: Record<
   string,
-  { type: MeasurementType; display: PhaseCrosstabDisplay }
+  { type: MeasurementType | typeof MOOD_CHANNEL_KEY; display: PhaseCrosstabDisplay }
 > = {
   restingHeartRate: { type: "RESTING_HEART_RATE", display: "bpm" },
   heartRateVariability: { type: "HEART_RATE_VARIABILITY", display: "ms" },
@@ -96,13 +109,26 @@ export const PHASE_CROSSTAB_METRICS: Record<
   basalBodyTemp: { type: "BODY_TEMPERATURE", display: "celsius" },
   wristTemperature: { type: "WRIST_TEMPERATURE", display: "celsius" },
   skinTemperature: { type: "SKIN_TEMPERATURE", display: "celsius" },
+  // QA HIGH (features): the crosstab must cover MOOD + GLUCOSE as outcomes,
+  // under the identical FDR / day-floor guards. Glucose is a MeasurementType;
+  // mood is the synthetic MOOD_CHANNEL_KEY the route injects (see above).
+  bloodGlucose: { type: "BLOOD_GLUCOSE", display: "glucose" },
+  mood: { type: MOOD_CHANNEL_KEY, display: "mood" },
 } as const;
 
 export type PhaseCrosstabMetricKey = keyof typeof PHASE_CROSSTAB_METRICS;
 
-/** Distinct measurement types the phase crosstab reads — single-sourced. */
+/**
+ * Distinct MeasurementType values the phase crosstab reads — single-sourced.
+ * MOOD_CHANNEL_KEY is excluded: it is not a Measurement row (the route reads it
+ * from MoodEntry and injects it), so it must never enter the Measurement query.
+ */
 export const PHASE_CROSSTAB_METRIC_TYPES: MeasurementType[] = Array.from(
-  new Set(Object.values(PHASE_CROSSTAB_METRICS).map((m) => m.type)),
+  new Set(
+    Object.values(PHASE_CROSSTAB_METRICS)
+      .map((m) => m.type)
+      .filter((t): t is MeasurementType => t !== MOOD_CHANNEL_KEY),
+  ),
 );
 
 /** The two phases the categorical contrast compares (largest contrast). */

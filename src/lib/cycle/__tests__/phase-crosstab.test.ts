@@ -7,7 +7,9 @@ import {
   selectHeadlinePhaseRow,
   PHASE_ORDINAL,
   PHASE_CROSSTAB_METRIC_TYPES,
+  PHASE_CROSSTAB_METRICS,
   CYCLE_PHASE_CHANNEL_KEY,
+  MOOD_CHANNEL_KEY,
   type PhaseMetricCrosstabRow,
 } from "../phase-crosstab";
 import type { CrossMetricMeasurement } from "@/lib/insights/mood-aggregates";
@@ -80,6 +82,76 @@ describe("PHASE_CROSSTAB_METRIC_TYPES", () => {
     expect(PHASE_CROSSTAB_METRIC_TYPES).toContain("SKIN_TEMPERATURE");
     expect(PHASE_CROSSTAB_METRIC_TYPES).toContain("BODY_TEMPERATURE");
     expect(PHASE_CROSSTAB_METRIC_TYPES).toContain("RESTING_HEART_RATE");
+  });
+
+  it("includes GLUCOSE but NOT mood (mood is not a Measurement row)", () => {
+    expect(PHASE_CROSSTAB_METRIC_TYPES).toContain("BLOOD_GLUCOSE");
+    expect(PHASE_CROSSTAB_METRIC_TYPES).not.toContain(MOOD_CHANNEL_KEY);
+  });
+
+  it("declares mood + glucose as outcome metrics (QA HIGH)", () => {
+    expect(PHASE_CROSSTAB_METRICS.mood.type).toBe(MOOD_CHANNEL_KEY);
+    expect(PHASE_CROSSTAB_METRICS.bloodGlucose.type).toBe("BLOOD_GLUCOSE");
+  });
+});
+
+describe("computePhaseMetricCrosstab — MOOD + GLUCOSE outcomes (QA HIGH)", () => {
+  /** Build a luteal-vs-follicular contrast for an arbitrary outcome `type`. */
+  function contrastFor(type: string, lutealVal: number, follicularVal: number) {
+    const phaseByDay = new Map<string, CyclePhase>();
+    const measurements: CrossMetricMeasurement[] = [];
+    let idx = 0;
+    const dayKey = (i: number) => {
+      const d = new Date(Date.UTC(2026, 2, 1));
+      d.setUTCDate(d.getUTCDate() + i);
+      return d.toISOString().slice(0, 10);
+    };
+    for (let i = 0; i < 14; i++) {
+      const k = dayKey(idx++);
+      phaseByDay.set(k, "LUTEAL");
+      measurements.push(m(type, k, lutealVal + (i % 3) * 0.5));
+    }
+    for (let i = 0; i < 14; i++) {
+      const k = dayKey(idx++);
+      phaseByDay.set(k, "FOLLICULAR");
+      measurements.push(m(type, k, follicularVal + (i % 3) * 0.5));
+    }
+    return { phaseByDay, measurements };
+  }
+
+  it("surfaces a luteal-vs-follicular GLUCOSE contrast", () => {
+    const { phaseByDay, measurements } = contrastFor("BLOOD_GLUCOSE", 105, 92);
+    const rows = computePhaseMetricCrosstab({ phaseByDay, measurements });
+    const glucose = rows.find((r) => r.metricKey === "bloodGlucose");
+    expect(glucose).toBeDefined();
+    expect(glucose!.display).toBe("glucose");
+    expect(glucose!.delta).toBeGreaterThan(0);
+    expect(glucose!.pValue).toBeLessThan(0.05);
+  });
+
+  it("surfaces a luteal-vs-follicular MOOD contrast (injected synthetic channel)", () => {
+    const { phaseByDay, measurements } = contrastFor(MOOD_CHANNEL_KEY, 4.4, 2.6);
+    const rows = computePhaseMetricCrosstab({ phaseByDay, measurements });
+    const mood = rows.find((r) => r.metricKey === "mood");
+    expect(mood).toBeDefined();
+    expect(mood!.display).toBe("mood");
+    expect(mood!.delta).toBeGreaterThan(0);
+    expect(mood!.pValue).toBeLessThan(0.05);
+  });
+});
+
+describe("goalAllowsFertileWindow (QA MEDIUM)", () => {
+  it("shows the fertile window for TRYING_TO_CONCEIVE and AVOID_PREGNANCY", async () => {
+    const { goalAllowsFertileWindow } = await import("../dto");
+    expect(goalAllowsFertileWindow("TRYING_TO_CONCEIVE")).toBe(true);
+    expect(goalAllowsFertileWindow("AVOID_PREGNANCY")).toBe(true);
+  });
+
+  it("hides it for GENERAL_HEALTH / PERIMENOPAUSE / OFF", async () => {
+    const { goalAllowsFertileWindow } = await import("../dto");
+    expect(goalAllowsFertileWindow("GENERAL_HEALTH")).toBe(false);
+    expect(goalAllowsFertileWindow("PERIMENOPAUSE")).toBe(false);
+    expect(goalAllowsFertileWindow("OFF")).toBe(false);
   });
 });
 

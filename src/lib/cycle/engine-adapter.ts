@@ -17,7 +17,7 @@ import {
   type CyclePredictionResult,
   type CyclePhase,
   type PhaseCycle,
-  LUTEAL_DEFAULT,
+  resolveLuteal,
 } from "@/lib/cycle";
 import type {
   CycleProfile,
@@ -219,7 +219,10 @@ export function buildCalendar(
   today: string,
   goalAllowsFertile: boolean,
 ): CalendarBuildResult {
-  const lutealLength = profile.lutealPhaseLength ?? LUTEAL_DEFAULT;
+  // Clamp identically to the engine's resolveLuteal so the predicted-ovulation
+  // dot (engine-clamped) and the OVULATORY phase band (this value) never
+  // diverge for an out-of-clamp stored luteal length (QA HIGH).
+  const lutealLength = resolveLuteal(profile);
 
   // Forecast (only when prediction is on + not raw-chart mode).
   let prediction: CyclePredictionResult | null = null;

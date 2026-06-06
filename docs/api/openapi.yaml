@@ -703,8 +703,8 @@ paths:
                 lutealPhaseLength:
                   anyOf:
                     - type: integer
-                      minimum: 8
-                      maximum: 20
+                      minimum: 10
+                      maximum: 16
                     - type: "null"
       responses:
         "200":

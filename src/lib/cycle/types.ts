@@ -120,6 +120,15 @@ export const HALF_WIDTH_MULT_TEMP_TREND = 0.75;
 /** §4 — symptothermal agreement tolerance between temp-shift and mucus peak (days). */
 export const SYMPTOTHERMAL_AGREE_DAYS = 2;
 
+/**
+ * §4 — trailing lookback (days) for the symptothermal / temperature-trend
+ * detectors. The 3-over-6 BBT rule needs 6 baseline readings before the rise,
+ * so a current-cycle scan starting at lastConfirmedStart must reach back this
+ * far to keep the baseline window intact when the cycle is still young. Also
+ * the floor for windowing the day-log read on the hot calendar/insights routes.
+ */
+export const BBT_WINDOW = 40;
+
 /** §3 — confidence scalar clamp (never certain, never zero). */
 export const CONFIDENCE_MIN = 0.05;
 export const CONFIDENCE_MAX = 0.98;

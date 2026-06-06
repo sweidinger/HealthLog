@@ -16,6 +16,7 @@ import { addDays, dayDiff, roundHalf } from "./day-math";
 import {
   ADHERENCE_FLOOR,
   ADHERENCE_SLOPE,
+  BBT_WINDOW,
   COLD_START_BAND_BONUS,
   CONFIDENCE_LABEL_HIGH_MIN,
   CONFIDENCE_LABEL_LOW_MAX,
@@ -272,8 +273,11 @@ export function detectTempShift(
     .map((l) => ({ date: l.date, t: l.basalBodyTempC as number }))
     .sort((a, b) => dayDiff(a.date, b.date));
 
-  // Need 6 baseline + 3 elevated = 9 readings minimum.
-  for (let i = 6; i + 2 < temps.length; i++) {
+  // Need 6 baseline + 3 elevated = 9 readings minimum. Scan from the END and
+  // return the LATEST qualifying shift — for a multi-cycle BBT series the most
+  // recent rise is the one that belongs to the current cycle; the earliest
+  // match would confirm a months-old ovulation (QA: window scoping).
+  for (let i = temps.length - 3; i >= 6; i--) {
     const baseline = temps.slice(i - 6, i);
     const sixMax = Math.max(...baseline.map((x) => x.t));
     const rise = [temps[i], temps[i + 1], temps[i + 2]];
@@ -413,9 +417,19 @@ function clamp(x: number, lo: number, hi: number): number {
   return Math.min(hi, Math.max(lo, x));
 }
 
-function resolveLuteal(profile: CycleProfileInput): number {
-  const raw = profile.lutealPhaseLength ?? LUTEAL_DEFAULT;
+/**
+ * Clamp a raw luteal length to the physiological range [LUTEAL_MIN, LUTEAL_MAX]
+ * (§4). The ONE source of truth for resolving luteal length — the engine,
+ * calendar adapter, and phase mapper all route through this so the
+ * predicted-ovulation dot and the OVULATORY band can never diverge for a user
+ * whose stored value is out of clamp (QA HIGH: luteal clamp divergence).
+ */
+export function clampLuteal(raw: number): number {
   return clamp(raw, LUTEAL_MIN, LUTEAL_MAX);
+}
+
+export function resolveLuteal(profile: Pick<CycleProfileInput, "lutealPhaseLength">): number {
+  return clampLuteal(profile.lutealPhaseLength ?? LUTEAL_DEFAULT);
 }
 
 /* ------------------------------------------------------------------ */
@@ -490,21 +504,43 @@ export function predictCycle(
   // Precedence: confirmed-symptothermal > temperature-trend > calendar. A
   // confirmed signal overrides the CURRENT cycle's ovulation/next-start; the
   // calendar predictor still fills all FUTURE cycles (BLENDED records that mix).
-  const symptoOvulation = confirmSymptothermal(dayLogs);
-  const trendOvulation = symptoOvulation ? null : detectTemperatureTrend(nights);
+  //
+  // Window scoping (QA HIGH): the symptothermal/temperature-trend detectors
+  // must only see the CURRENT cycle's signal, otherwise a multi-cycle user's
+  // stale prior-cycle BBT/mucus confirms a months-old ovulation and lands
+  // nextPeriodStart in the past. Scope to [lastConfirmedStart − BBT_WINDOW,
+  // today]; the BBT_WINDOW reach-back keeps the 6-reading baseline intact for a
+  // young current cycle. detectTempShift returns the LATEST qualifying shift.
+  const windowStart = addDays(lastConfirmedStart, -BBT_WINDOW);
+  const isInCurrentWindow = (date: string) =>
+    dayDiff(date, windowStart) >= 0 && dayDiff(today, date) >= 0;
+  const currentDayLogs = dayLogs.filter((l) => isInCurrentWindow(l.date));
+  const currentNights = nights.filter((n) => isInCurrentWindow(n.date));
+  const symptoOvulation = confirmSymptothermal(currentDayLogs);
+  const trendOvulation = symptoOvulation
+    ? null
+    : detectTemperatureTrend(currentNights);
 
   if (symptoOvulation) {
-    predictedOvulation = symptoOvulation;
-    nextStart = addDays(symptoOvulation, lutealLength);
-    ovulationConfirmed = true;
-    confirmMultiplier = HALF_WIDTH_MULT_SYMPTOTHERMAL;
-    method = lengths.length > 0 ? "BLENDED" : "SYMPTOTHERMAL";
+    const confirmedNextStart = addDays(symptoOvulation, lutealLength);
+    // Reject a confirmation whose next-start is already in the past (a stale
+    // signal that slipped through the window) — fall back to the calendar.
+    if (dayDiff(confirmedNextStart, today) >= 0) {
+      predictedOvulation = symptoOvulation;
+      nextStart = confirmedNextStart;
+      ovulationConfirmed = true;
+      confirmMultiplier = HALF_WIDTH_MULT_SYMPTOTHERMAL;
+      method = lengths.length > 0 ? "BLENDED" : "SYMPTOTHERMAL";
+    }
   } else if (trendOvulation) {
-    predictedOvulation = trendOvulation;
-    nextStart = addDays(trendOvulation, lutealLength);
-    ovulationConfirmed = true;
-    confirmMultiplier = HALF_WIDTH_MULT_TEMP_TREND;
-    method = lengths.length > 0 ? "BLENDED" : "TEMPERATURE_TREND";
+    const confirmedNextStart = addDays(trendOvulation, lutealLength);
+    if (dayDiff(confirmedNextStart, today) >= 0) {
+      predictedOvulation = trendOvulation;
+      nextStart = confirmedNextStart;
+      ovulationConfirmed = true;
+      confirmMultiplier = HALF_WIDTH_MULT_TEMP_TREND;
+      method = lengths.length > 0 ? "BLENDED" : "TEMPERATURE_TREND";
+    }
   }
 
   // -------- §3 band half-width --------

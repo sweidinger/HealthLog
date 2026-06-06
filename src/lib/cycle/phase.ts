@@ -18,6 +18,7 @@
  */
 
 import { addDays, dayDiff } from "./day-math";
+import { clampLuteal } from "./prediction";
 import { LUTEAL_DEFAULT, POPULATION_DEFAULT_PERIOD, type CyclePhase } from "./types";
 
 /** A resolved cycle window the phase mapper needs. */
@@ -54,7 +55,8 @@ export function phaseForDay(
   const dayOfCycle = offsetFromStart + 1; // 1-based
 
   const periodLength = cycle.periodLength ?? POPULATION_DEFAULT_PERIOD;
-  const lutealLength = cycle.lutealLength ?? LUTEAL_DEFAULT;
+  // Clamp identically to the prediction engine (QA HIGH: one source of truth).
+  const lutealLength = clampLuteal(cycle.lutealLength ?? LUTEAL_DEFAULT);
 
   // Ovulation: confirmed/estimated date, or back-calculated from length.
   const ovulationDate =

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { addDays } from "../day-math";
 import {
+  clampLuteal,
   confirmSymptothermal,
   detectTempShift,
   detectTemperatureTrend,
@@ -10,6 +11,7 @@ import {
   median,
   observedPeriodLength,
   predictCycle,
+  resolveLuteal,
 } from "../prediction";
 import type {
   CycleInput,
@@ -399,5 +401,116 @@ describe("cycle/prediction — temperature-trend retrospective ovulation (§4.3)
     expect(result.ovulationConfirmed).toBe(true);
     expect(result.method).toBe("BLENDED");
     expect(result.predictedOvulation).toBe(addDays(start, 5));
+  });
+});
+
+describe("cycle/prediction — multi-cycle window scoping (QA HIGH)", () => {
+  function bbtDay(date: string, t: number, mucus: DayLogInput["cervicalMucus"] = null): DayLogInput {
+    return { date, flow: null, basalBodyTempC: t, ovulationTest: null, cervicalMucus: mucus };
+  }
+
+  /** Build a confirmable symptothermal shift (temp + agreeing mucus) on `ovDay`. */
+  function symptothermalAround(ovDay: string): DayLogInput[] {
+    const logs: DayLogInput[] = [];
+    const riseStart = addDays(ovDay, 1);
+    const baselineStart = addDays(riseStart, -6);
+    [36.4, 36.41, 36.39, 36.4, 36.42, 36.4].forEach((t, i) =>
+      logs.push(bbtDay(addDays(baselineStart, i), t)),
+    );
+    logs.push(bbtDay(riseStart, 36.6));
+    logs.push(bbtDay(addDays(riseStart, 1), 36.62));
+    logs.push(bbtDay(addDays(riseStart, 2), 36.63));
+    logs.push({
+      date: ovDay,
+      flow: null,
+      basalBodyTempC: null,
+      ovulationTest: null,
+      cervicalMucus: "EGG_WHITE",
+    });
+    return logs;
+  }
+
+  it("does not confirm a STALE prior-cycle ovulation for a multi-cycle user", () => {
+    // Three confirmed cycles; last start 2024-03-25, today well into the
+    // current cycle. The ONLY BBT/mucus data is a complete shift back in the
+    // FIRST cycle (months ago). Pre-fix, detectTempShift returned that stale
+    // shift and nextPeriodStart landed in the past.
+    const cycles = cyclesFromGaps("2024-01-01", [28, 28, 28]);
+    const lastStart = cycles[cycles.length - 1].startDate;
+    expect(lastStart).toBe("2024-03-25");
+
+    const staleOv = addDays("2024-01-01", 13); // 2024-01-14, two cycles back
+    const logs = symptothermalAround(staleOv);
+
+    const today = addDays(lastStart, 16);
+    const result = predictCycle(cycles, logs, BASE_PROFILE, today);
+
+    // Stale signal is outside [lastStart − BBT_WINDOW, today] → ignored.
+    expect(result.ovulationConfirmed).toBe(false);
+    expect(result.method).toBe("CALENDAR");
+    // Calendar next-start is in the future, never in the past.
+    expect(result.nextPeriodStart >= today).toBe(true);
+  });
+
+  it("confirms the CURRENT-cycle shift even when a prior-cycle shift also exists", () => {
+    const cycles = cyclesFromGaps("2024-01-01", [28, 28, 28]);
+    const lastStart = cycles[cycles.length - 1].startDate; // 2024-03-25
+
+    const staleOv = addDays("2024-01-01", 13); // months ago
+    const currentOv = addDays(lastStart, 13); // current cycle
+    const logs = [...symptothermalAround(staleOv), ...symptothermalAround(currentOv)];
+
+    const result = predictCycle(cycles, logs, BASE_PROFILE, addDays(lastStart, 16));
+    expect(result.ovulationConfirmed).toBe(true);
+    expect(result.predictedOvulation).toBe(currentOv);
+    expect(result.nextPeriodStart).toBe(addDays(currentOv, 14));
+  });
+
+  it("detectTempShift returns the LATEST qualifying shift, not the earliest", () => {
+    const logs: DayLogInput[] = [];
+    // First shift around 2024-01-07.
+    const start = "2024-01-01";
+    [36.4, 36.42, 36.38, 36.41, 36.4, 36.39].forEach((t, i) =>
+      logs.push(bbtDay(addDays(start, i), t)),
+    );
+    logs.push(bbtDay(addDays(start, 6), 36.6));
+    logs.push(bbtDay(addDays(start, 7), 36.61));
+    logs.push(bbtDay(addDays(start, 8), 36.62));
+    // Drop back to baseline, then a SECOND shift a month later.
+    const start2 = "2024-02-01";
+    [36.4, 36.42, 36.38, 36.41, 36.4, 36.39].forEach((t, i) =>
+      logs.push(bbtDay(addDays(start2, i), t)),
+    );
+    logs.push(bbtDay(addDays(start2, 6), 36.6));
+    logs.push(bbtDay(addDays(start2, 7), 36.61));
+    logs.push(bbtDay(addDays(start2, 8), 36.62));
+
+    const shift = detectTempShift(logs, 0.2);
+    // Latest match → day before the second rise onset (2024-02-07 → 2024-02-06).
+    expect(shift?.ovulationDate).toBe(addDays(start2, 5));
+  });
+});
+
+describe("cycle/prediction — luteal clamp single source of truth (QA HIGH)", () => {
+  it("clampLuteal pins a raw value to [10, 16]", () => {
+    expect(clampLuteal(8)).toBe(10);
+    expect(clampLuteal(20)).toBe(16);
+    expect(clampLuteal(13)).toBe(13);
+  });
+
+  it("resolveLuteal applies the default then the clamp", () => {
+    expect(resolveLuteal({ lutealPhaseLength: null })).toBe(14);
+    expect(resolveLuteal({ lutealPhaseLength: 8 })).toBe(10);
+    expect(resolveLuteal({ lutealPhaseLength: 19 })).toBe(16);
+  });
+
+  it("predictCycle ovulation uses the CLAMPED luteal for an out-of-clamp profile", () => {
+    const cycles = cyclesFromGaps("2024-01-01", [28, 28, 28]);
+    const lastStart = cycles[cycles.length - 1].startDate;
+    // Profile asks for luteal 8 → engine clamps to 10.
+    const profile: CycleProfileInput = { ...BASE_PROFILE, lutealPhaseLength: 8 };
+    const result = predictCycle(cycles, [], profile, addDays(lastStart, 5));
+    // predictedOvulation = nextStart − clampedLuteal(10).
+    expect(result.predictedOvulation).toBe(addDays(result.nextPeriodStart, -10));
   });
 });

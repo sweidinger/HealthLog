@@ -28,7 +28,8 @@ import {
   goalAllowsFertileWindow,
 } from "@/lib/cycle/dto";
 import { persistPredictionCache } from "@/lib/cycle/prediction-cache";
-import { addDays } from "@/lib/cycle/day-math";
+import { addDays, dayDiff } from "@/lib/cycle/day-math";
+import { BBT_WINDOW } from "@/lib/cycle/types";
 import { DEFAULT_TIMEZONE, moodDateKey } from "@/lib/mood/date-key";
 import { getServerTranslator } from "@/lib/i18n/server-translator";
 import { resolveServerLocale } from "@/lib/i18n/server-locale";
@@ -75,8 +76,21 @@ export const GET = apiHandler(async (request: NextRequest) => {
       where: { userId: user.id, deletedAt: null },
       orderBy: { startDate: "asc" },
     }),
+    // Bound the day-log read to the rendered span plus the symptothermal
+    // lookback — the earlier of `from` and (today − BBT_WINDOW). Cycle-length
+    // stats run off MenstrualCycle rows, so day-logs can be windowed (QA: perf
+    // — unbounded full-history read on a hot, per-navigation route).
     prisma.cycleDayLog.findMany({
-      where: { userId: user.id, deletedAt: null },
+      where: {
+        userId: user.id,
+        deletedAt: null,
+        date: {
+          gte:
+            dayDiff(from, addDays(today, -BBT_WINDOW)) <= 0
+              ? from
+              : addDays(today, -BBT_WINDOW),
+        },
+      },
       orderBy: { date: "asc" },
       select: {
         date: true,
