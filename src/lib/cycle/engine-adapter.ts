@@ -53,7 +53,11 @@ export type CalendarDayLogRow = Pick<
 export function toCycleInputs(
   cycles: readonly Pick<
     MenstrualCycle,
-    "startDate" | "endDate" | "periodEndDate" | "ovulationDate" | "ovulationConfirmed"
+    | "startDate"
+    | "endDate"
+    | "periodEndDate"
+    | "ovulationDate"
+    | "ovulationConfirmed"
   >[],
 ): CycleInput[] {
   return cycles.map((c) => ({
@@ -160,7 +164,11 @@ export function phaseForDate(
   predictedNextStart: string | null,
   lutealLength: number,
 ): { phase: CyclePhase | null; dayOfCycle: number | null } {
-  const phaseCycles = buildPhaseCycles(cycles, predictedNextStart, lutealLength);
+  const phaseCycles = buildPhaseCycles(
+    cycles,
+    predictedNextStart,
+    lutealLength,
+  );
   for (const pc of phaseCycles) {
     const r = phaseForDay(date, pc);
     if (r.phase !== null) return r;
@@ -189,7 +197,11 @@ export function buildPhaseDayMap(
   from: string,
   to: string,
 ): Map<string, CyclePhase> {
-  const phaseCycles = buildPhaseCycles(cycles, predictedNextStart, lutealLength);
+  const phaseCycles = buildPhaseCycles(
+    cycles,
+    predictedNextStart,
+    lutealLength,
+  );
   const out = new Map<string, CyclePhase>();
   const span = dayDiff(to, from);
   for (let i = 0; i <= span; i++) {
@@ -276,7 +288,11 @@ export function buildCalendar(
       goalAllowsFertile &&
       prediction?.fertileWindowStart != null &&
       prediction.fertileWindowEnd != null &&
-      isWithin(date, prediction.fertileWindowStart, prediction.fertileWindowEnd);
+      isWithin(
+        date,
+        prediction.fertileWindowStart,
+        prediction.fertileWindowEnd,
+      );
 
     const isPredictedOvulation =
       goalAllowsFertile &&
@@ -289,8 +305,7 @@ export function buildCalendar(
       isPredictedPeriod,
       isFertileWindow,
       isPredictedOvulation,
-      isPeriodLogged:
-        log?.flow != null && log.flow !== "NONE",
+      isPeriodLogged: log?.flow != null && log.flow !== "NONE",
       flow: log?.flow ?? null,
       hasSymptoms: log?.hasSymptoms ?? false,
       confidence: prediction?.confidence ?? 0,

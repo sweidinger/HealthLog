@@ -241,6 +241,9 @@ export function CycleView() {
                   predictedOvulation={
                     calendar.data?.prediction?.predictedOvulation ?? null
                   }
+                  ovulationConfirmed={
+                    calendar.data?.prediction?.ovulationConfirmed ?? false
+                  }
                   rawChartMode={calendar.data?.profile.rawChartMode ?? false}
                 />
               </>
@@ -290,6 +293,7 @@ export function CycleView() {
         onOpenChange={setSheetOpen}
         date={selectedDate}
         today={today}
+        activePeriod={wheel.phase === "MENSTRUAL"}
       />
     </div>
   );

@@ -5,11 +5,7 @@
  * type the unwrapped `(await res.json()).data`.
  */
 
-export type CyclePhase =
-  | "MENSTRUAL"
-  | "FOLLICULAR"
-  | "OVULATORY"
-  | "LUTEAL";
+export type CyclePhase = "MENSTRUAL" | "FOLLICULAR" | "OVULATORY" | "LUTEAL";
 
 export type FlowLevel = "NONE" | "SPOTTING" | "LIGHT" | "MEDIUM" | "HEAVY";
 
@@ -57,6 +53,7 @@ export interface CyclePrediction {
   fertileWindowStart: string | null;
   fertileWindowEnd: string | null;
   predictedOvulation: string | null;
+  ovulationConfirmed: boolean;
   confidence: number;
   cyclesObserved: number;
   stillLearning: boolean;

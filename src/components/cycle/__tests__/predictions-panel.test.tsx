@@ -19,6 +19,7 @@ const basePrediction: CyclePrediction = {
   fertileWindowStart: null,
   fertileWindowEnd: null,
   predictedOvulation: null,
+  ovulationConfirmed: false,
   confidence: 0.8,
   cyclesObserved: 6,
   stillLearning: false,

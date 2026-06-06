@@ -109,13 +109,19 @@ export function toCycleDayLogDTO(row: DayLogWithLinks): CycleDayLogDTO {
     basalBodyTempC: row.basalBodyTempC,
     ovulationTest: row.ovulationTest,
     cervicalMucus: row.cervicalMucus,
-    sexualActivity: hasEnvelope ? (enc.sexualActivity ?? false) : row.sexualActivity,
+    sexualActivity: hasEnvelope
+      ? (enc.sexualActivity ?? false)
+      : row.sexualActivity,
     protectedSex: hasEnvelope ? (enc.protectedSex ?? null) : row.protectedSex,
-    pregnancyTest: hasEnvelope ? (enc.pregnancyTest ?? null) : row.pregnancyTest,
+    pregnancyTest: hasEnvelope
+      ? (enc.pregnancyTest ?? null)
+      : row.pregnancyTest,
     progesteroneTest: hasEnvelope
       ? (enc.progesteroneTest ?? null)
       : row.progesteroneTest,
-    contraceptive: hasEnvelope ? (enc.contraceptive ?? null) : row.contraceptive,
+    contraceptive: hasEnvelope
+      ? (enc.contraceptive ?? null)
+      : row.contraceptive,
     symptoms: (row.symptomLinks ?? []).map((l) => ({
       key: l.symptom.key,
       severity: l.severity ?? null,
@@ -157,6 +163,8 @@ export interface CyclePredictionDTO {
   fertileWindowStart: string | null;
   fertileWindowEnd: string | null;
   predictedOvulation: string | null;
+  /** Whether `predictedOvulation` was confirmed by a signal layer (BBT / symptothermal). */
+  ovulationConfirmed: boolean;
   confidence: number;
   cyclesObserved: number;
   stillLearning: boolean;
@@ -183,6 +191,7 @@ export function toCyclePredictionDTO(
     fertileWindowStart: goalAllowsFertile ? result.fertileWindowStart : null,
     fertileWindowEnd: goalAllowsFertile ? result.fertileWindowEnd : null,
     predictedOvulation: goalAllowsFertile ? result.predictedOvulation : null,
+    ovulationConfirmed: goalAllowsFertile ? result.ovulationConfirmed : false,
     confidence: result.confidence,
     cyclesObserved: result.cyclesObserved,
     stillLearning: result.stillLearning,

@@ -25,20 +25,14 @@ export interface WheelState {
 }
 
 /**
- * The first day (`YYYY-MM-DD`) of the current cycle: the start of the most
- * recent MENSTRUAL-anchored run at/before `today` with no phase gap. Shares
- * the exact backward-walk `deriveWheelState` uses so the BBT chart scopes to
- * the same cycle the wheel shows. Returns null when today has no phase (no
- * active cycle).
+ * Walk back from `todayIdx` to the start of the current MENSTRUAL-anchored run:
+ * the first day of the most recent MENSTRUAL block at/before today with no phase
+ * gap. The ONE source of truth both `currentCycleStartDate` and
+ * `deriveWheelState` use, so the BBT chart, the day-of-cycle count, and the ring
+ * spans can never disagree on where the current cycle begins. Assumes
+ * `sorted[todayIdx].phase != null` (the callers check first).
  */
-export function currentCycleStartDate(
-  days: CalendarDay[],
-  today: string,
-): string | null {
-  const sorted = [...days].sort((a, b) => a.date.localeCompare(b.date));
-  const todayIdx = sorted.findIndex((d) => d.date === today);
-  if (todayIdx < 0 || sorted[todayIdx].phase == null) return null;
-
+function findCycleStartIndex(sorted: CalendarDay[], todayIdx: number): number {
   let startIdx = todayIdx;
   for (let i = todayIdx; i >= 0; i--) {
     const d = sorted[i];
@@ -51,7 +45,22 @@ export function currentCycleStartDate(
       break;
     }
   }
-  return sorted[startIdx].date;
+  return startIdx;
+}
+
+/**
+ * The first day (`YYYY-MM-DD`) of the current cycle, or null when today has no
+ * phase (no active cycle). Scopes the BBT chart to the same cycle the wheel
+ * shows.
+ */
+export function currentCycleStartDate(
+  days: CalendarDay[],
+  today: string,
+): string | null {
+  const sorted = [...days].sort((a, b) => a.date.localeCompare(b.date));
+  const todayIdx = sorted.findIndex((d) => d.date === today);
+  if (todayIdx < 0 || sorted[todayIdx].phase == null) return null;
+  return sorted[findCycleStartIndex(sorted, todayIdx)].date;
 }
 
 export function deriveWheelState(
@@ -71,21 +80,7 @@ export function deriveWheelState(
     return { dayOfCycle: null, cycleLength: null, phase: null, spans: [] };
   }
 
-  // Walk back to the start of the current MENSTRUAL-anchored run: the first
-  // day of the most recent MENSTRUAL block at/before today with no gap.
-  let startIdx = todayIdx;
-  for (let i = todayIdx; i >= 0; i--) {
-    const d = sorted[i];
-    if (d.phase == null) break;
-    startIdx = i;
-    if (
-      d.phase === "MENSTRUAL" &&
-      (i === 0 || sorted[i - 1].phase !== "MENSTRUAL")
-    ) {
-      break;
-    }
-  }
-
+  const startIdx = findCycleStartIndex(sorted, todayIdx);
   const run = sorted.slice(startIdx, todayIdx + 1);
   const dayOfCycle = run.length;
 

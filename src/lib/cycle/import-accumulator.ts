@@ -271,7 +271,11 @@ export class CycleImportAccumulator {
         // invisible — record it on the audit trail.
         await auditLog("cycle.profile.goal-nudged", {
           userId: this.userId,
-          details: { from: "GENERAL_HEALTH", to: "AVOID_PREGNANCY", via: "apple-health-import" },
+          details: {
+            from: "GENERAL_HEALTH",
+            to: "AVOID_PREGNANCY",
+            via: "apple-health-import",
+          },
         });
       }
     }

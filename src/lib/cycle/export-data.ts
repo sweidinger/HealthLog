@@ -82,8 +82,7 @@ export async function buildCycleExportSummary(
   const observed: CycleExportCycle[] = cycles.map((c, i) => {
     const next = cycles[i + 1];
     const lengthDays =
-      c.lengthDays ??
-      (next ? dayDiff(next.startDate, c.startDate) : null);
+      c.lengthDays ?? (next ? dayDiff(next.startDate, c.startDate) : null);
     const periodLengthDays =
       c.periodEndDate !== null
         ? dayDiff(c.periodEndDate, c.startDate) + 1
@@ -134,9 +133,7 @@ export async function buildCycleExportSummary(
 
   return {
     lastPeriodStart,
-    recentCycles: observed
-      .slice(-RECENT_CYCLES_CAP)
-      .reverse(),
+    recentCycles: observed.slice(-RECENT_CYCLES_CAP).reverse(),
     observedCycleCount: observed.length,
     averageCycleLengthDays,
     cycleLengthVariabilityDays,

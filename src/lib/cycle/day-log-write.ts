@@ -238,8 +238,16 @@ interface WriteArgs {
 }
 
 async function writeDayLog(args: WriteArgs): Promise<DayLogWriteResult> {
-  const { userId, entry, tz, cycleId, source, where, existing, encryptSensitive } =
-    args;
+  const {
+    userId,
+    entry,
+    tz,
+    cycleId,
+    source,
+    where,
+    existing,
+    encryptSensitive,
+  } = args;
 
   // Decrypt the existing note (fail-soft) for the change/duplicate split —
   // re-encrypting the same plaintext yields a different ciphertext (random
@@ -285,11 +293,14 @@ async function writeDayLog(args: WriteArgs): Promise<DayLogWriteResult> {
   // Note resolution with partial merge: an omitted `note` keeps the stored
   // value; an explicit null clears it.
   const incomingNote =
-    entry.note !== undefined ? (entry.note ?? null) : decryptNoteSoft(existing?.notesEncrypted ?? null);
+    entry.note !== undefined
+      ? (entry.note ?? null)
+      : decryptNoteSoft(existing?.notesEncrypted ?? null);
   const notesEncrypted = incomingNote ? encrypt(incomingNote) : null;
 
   // Non-sensitive fields, partial-merged against the stored row.
-  const flow = entry.flow !== undefined ? (entry.flow ?? null) : (existing?.flow ?? null);
+  const flow =
+    entry.flow !== undefined ? (entry.flow ?? null) : (existing?.flow ?? null);
   const intermenstrualBleeding =
     entry.intermenstrualBleeding !== undefined
       ? entry.intermenstrualBleeding

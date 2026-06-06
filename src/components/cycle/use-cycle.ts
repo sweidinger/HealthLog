@@ -18,10 +18,16 @@ import {
 } from "@/lib/query-keys";
 import type {
   CalendarResponse,
+  CervicalMucus,
+  ContraceptiveKind,
   CycleDayLogDTO,
   CycleDayLogInput,
   CycleHistoryResponse,
   CycleProfileDTO,
+  CycleSymptomSelection,
+  FlowLevel,
+  HomeTestResult,
+  OvulationTest,
 } from "./types";
 import type { CyclePhaseCrosstabRow } from "./cycle-phase-crosstab";
 
@@ -137,6 +143,49 @@ export function useLogDay() {
   });
 }
 
+/**
+ * The PATCH body for editing an existing day-log. Every field nullable so the
+ * web sheet can CLEAR a previously-set value (the POST merge can only add or
+ * keep — it never nulls an omitted field, so an edit that deselects a chip must
+ * route through PATCH with an explicit null).
+ */
+export interface CycleDayLogPatch {
+  flow?: FlowLevel | null;
+  intermenstrualBleeding?: boolean;
+  basalBodyTempC?: number | null;
+  ovulationTest?: OvulationTest | null;
+  cervicalMucus?: CervicalMucus | null;
+  sexualActivity?: boolean;
+  protectedSex?: boolean | null;
+  pregnancyTest?: HomeTestResult | null;
+  progesteroneTest?: HomeTestResult | null;
+  contraceptive?: ContraceptiveKind | null;
+  symptoms?: CycleSymptomSelection[];
+  note?: string | null;
+}
+
+/** Edit an existing day-log by id (PATCH — accepts explicit null to clear). */
+export function usePatchDayLog() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      id,
+      patch,
+    }: {
+      id: string;
+      patch: CycleDayLogPatch;
+    }) => {
+      const res = await fetch(`/api/cycle/day-logs/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(patch),
+      });
+      return unwrap<CycleDayLogDTO>(res);
+    },
+    onSuccess: () => invalidateKeys(qc, cycleDependentKeys),
+  });
+}
+
 export function useStartPeriod() {
   const qc = useQueryClient();
   return useMutation({
@@ -189,6 +238,27 @@ export function useDeleteDayLog() {
       }
     },
     onSuccess: () => invalidateKeys(qc, cycleDependentKeys),
+  });
+}
+
+/**
+ * Hard-delete EVERY cycle row the user owns (day-logs, cycles, predictions,
+ * the cycle audit trail, and the cycle reminder-delivery ledger rows). The
+ * privacy "purge" the post-Dobbs threat model promises — distinct from the
+ * per-row soft-delete. Invalidates the whole cycle prefix + the nav gate.
+ */
+export function useDeleteAllCycleData() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async () => {
+      const res = await fetch("/api/cycle/all", { method: "DELETE" });
+      if (!res.ok) throw new Error(`Request failed: ${res.status}`);
+      return unwrap<{ purged: boolean }>(res);
+    },
+    onSuccess: () => {
+      void invalidateKeys(qc, cycleDependentKeys);
+      void qc.invalidateQueries({ queryKey: queryKeys.authMe() });
+    },
   });
 }
 

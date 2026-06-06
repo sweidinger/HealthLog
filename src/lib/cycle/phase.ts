@@ -19,7 +19,11 @@
 
 import { addDays, dayDiff } from "./day-math";
 import { clampLuteal } from "./prediction";
-import { LUTEAL_DEFAULT, POPULATION_DEFAULT_PERIOD, type CyclePhase } from "./types";
+import {
+  LUTEAL_DEFAULT,
+  POPULATION_DEFAULT_PERIOD,
+  type CyclePhase,
+} from "./types";
 
 /** A resolved cycle window the phase mapper needs. */
 export interface PhaseCycle {
@@ -95,7 +99,11 @@ export function phaseSeries(
   cycle: PhaseCycle,
 ): { date: string; phase: CyclePhase | null; dayOfCycle: number | null }[] {
   const span = dayDiff(to, from);
-  const out: { date: string; phase: CyclePhase | null; dayOfCycle: number | null }[] = [];
+  const out: {
+    date: string;
+    phase: CyclePhase | null;
+    dayOfCycle: number | null;
+  }[] = [];
   for (let i = 0; i <= span; i++) {
     const date = addDays(from, i);
     out.push({ date, ...phaseForDay(date, cycle) });

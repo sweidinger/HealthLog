@@ -58,7 +58,7 @@ export const queryKeys = {
    * lists below stay byte-identical.
    */
   analytics: (slice?: "summaries") =>
-    (slice ? (["analytics", slice] as const) : (["analytics"] as const)),
+    slice ? (["analytics", slice] as const) : (["analytics"] as const),
   /**
    * v1.9.0 — single-metric period-over-period range read
    * (`GET /api/analytics/range`). A dedicated cache slot per `(type, range)`
@@ -319,8 +319,7 @@ export const queryKeys = {
     action: string | undefined,
     level: string | undefined,
     range: string | undefined,
-  ) =>
-    ["admin", "app-logs", traceId, action, level, range] as const,
+  ) => ["admin", "app-logs", traceId, action, level, range] as const,
   adminAssistantFlags: () => ["admin", "settings", "assistant-flags"] as const,
   adminBackups: () => ["admin", "backups"] as const,
   adminCoachFeedback: () => ["admin", "coach-feedback"] as const,
@@ -497,8 +496,7 @@ export const queryKeys = {
    * `["trend-series"]` invalidation prefix below so a measurement write
    * refreshes the caption in lockstep with the chart.
    */
-  insightsTrendSeries: (types: string) =>
-    ["trend-series", types] as const,
+  insightsTrendSeries: (types: string) => ["trend-series", types] as const,
 
   /**
    * v1.15.0 — cycle-tracking surfaces. `cycle()` is the root prefix every
@@ -514,6 +512,10 @@ export const queryKeys = {
     ["cycle", "calendar", from, to] as const,
   cycleHistory: (limit: number) => ["cycle", "history", limit] as const,
   cycleProfile: () => ["cycle", "profile"] as const,
+  /** The UNGATED enable/prefs read (`/api/auth/me/cycle-prefs`) — the settings
+   * on-ramp reads this so a non-FEMALE account can opt in before the gated
+   * cycle page is reachable. */
+  cyclePrefs: () => ["cycle", "prefs"] as const,
   cycleInsights: () => ["cycle", "insights"] as const,
   cycleDayLog: (date: string) => ["cycle", "day-log", date] as const,
 };
@@ -598,10 +600,7 @@ export const medicationDependentKeys = [
  * log. `insightsRoot()` rides along because phase-correlation cards depend
  * on the same rows.
  */
-export const cycleDependentKeys = [
-  queryKeys.cycle(),
-  queryKeys.insightsRoot(),
-];
+export const cycleDependentKeys = [queryKeys.cycle(), queryKeys.insightsRoot()];
 
 /**
  * Invalidate every key in the bundle in parallel. Use this from mutation

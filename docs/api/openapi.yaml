@@ -648,6 +648,25 @@ paths:
                 $ref: "#/components/schemas/ErrorEnvelope"
         "422": *a3
         "429": *a4
+  /api/cycle/all:
+    delete:
+      tags:
+        - Cycle
+      summary: Hard-purge all cycle data (v1.15.0)
+      description: "One-click privacy purge: HARD-deletes every cycle day-log (+ symptom links by cascade), menstrual cycle,
+        prediction, the cycle audit trail, and the cycle reminder rows in the push-attempts ledger — no dated
+        reproductive trace survives. The CycleProfile row is left in place. Gated + owner-scoped + audited."
+      responses:
+        "200":
+          description: Purge counts.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CyclePurgeEnvelope"
+        "401": *a1
+        "403": *a2
+        "422": *a3
+        "429": *a4
   /api/cycle/profile:
     get:
       tags:
@@ -5287,6 +5306,8 @@ components:
           anyOf:
             - type: string
             - type: "null"
+        ovulationConfirmed:
+          type: boolean
         confidence:
           type: number
         cyclesObserved:
@@ -5305,13 +5326,14 @@ components:
         - fertileWindowStart
         - fertileWindowEnd
         - predictedOvulation
+        - ovulationConfirmed
         - confidence
         - cyclesObserved
         - stillLearning
         - disclaimer
       additionalProperties: false
-      description: The materialised forecast. Fertile-window fields are server-suppressed (null) unless the goal is
-        TRYING_TO_CONCEIVE.
+      description: The materialised forecast. Fertile-window fields (and predictedOvulation/ovulationConfirmed) are
+        server-suppressed (null/false) unless the goal is TRYING_TO_CONCEIVE or AVOID_PREGNANCY.
     CyclePredictionMethod:
       type: string
       enum:
@@ -5557,6 +5579,54 @@ components:
       additionalProperties: false
       description: One FDR-surviving lagged-Pearson pair from the continuous CYCLE_PHASE ordinal × outcome matrix (mechanism
         B). Descriptive, never causal.
+    CyclePurgeEnvelope:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            purged:
+              type: boolean
+            dayLogs:
+              type: integer
+              minimum: -9007199254740991
+              maximum: 9007199254740991
+            predictions:
+              type: integer
+              minimum: -9007199254740991
+              maximum: 9007199254740991
+            cycles:
+              type: integer
+              minimum: -9007199254740991
+              maximum: 9007199254740991
+            auditRows:
+              type: integer
+              minimum: -9007199254740991
+              maximum: 9007199254740991
+            pushRows:
+              type: integer
+              minimum: -9007199254740991
+              maximum: 9007199254740991
+          required:
+            - purged
+            - dayLogs
+            - predictions
+            - cycles
+            - auditRows
+            - pushRows
+          additionalProperties: false
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
     CycleProfileEnvelope:
       type: object
       properties:

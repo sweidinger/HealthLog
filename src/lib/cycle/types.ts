@@ -27,7 +27,12 @@ export type OvulationTest =
   | "ESTROGEN_SURGE"
   | "INDETERMINATE";
 
-export type CervicalMucus = "DRY" | "STICKY" | "CREAMY" | "WATERY" | "EGG_WHITE";
+export type CervicalMucus =
+  | "DRY"
+  | "STICKY"
+  | "CREAMY"
+  | "WATERY"
+  | "EGG_WHITE";
 
 export type CyclePhase = "MENSTRUAL" | "FOLLICULAR" | "OVULATORY" | "LUTEAL";
 

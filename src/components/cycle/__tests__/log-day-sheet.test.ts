@@ -1,0 +1,93 @@
+import { describe, it, expect } from "vitest";
+
+import {
+  buildDayLogPatch,
+  buildDayLogInput,
+  type DayLogFormState,
+} from "../log-day-sheet";
+
+function blank(): DayLogFormState {
+  return {
+    flow: null,
+    intermenstrual: false,
+    bbt: "",
+    opk: null,
+    mucus: null,
+    intercourse: false,
+    protectedSex: false,
+    pregnancyTest: null,
+    progesteroneTest: null,
+    contraceptive: null,
+    note: "",
+    symptoms: new Map(),
+  };
+}
+
+describe("buildDayLogPatch (edit → clear semantics, QA W-2)", () => {
+  it("sends explicit null for every deselected enum so an edit clears it", () => {
+    const patch = buildDayLogPatch(blank());
+    // A blank form on an EXISTING row must null every field, not omit it —
+    // omission would leave the stored value behind (the bug this fixes).
+    expect(patch.flow).toBeNull();
+    expect(patch.ovulationTest).toBeNull();
+    expect(patch.cervicalMucus).toBeNull();
+    expect(patch.pregnancyTest).toBeNull();
+    expect(patch.progesteroneTest).toBeNull();
+    expect(patch.contraceptive).toBeNull();
+    expect(patch.basalBodyTempC).toBeNull();
+    expect(patch.note).toBeNull();
+    // Keys are PRESENT (not omitted) so the server actually applies the clear.
+    expect("flow" in patch).toBe(true);
+    expect("cervicalMucus" in patch).toBe(true);
+  });
+
+  it("carries the set values through and gates protection on intercourse", () => {
+    const patch = buildDayLogPatch({
+      ...blank(),
+      flow: "MEDIUM",
+      opk: "POSITIVE_LH_SURGE",
+      bbt: "36.62",
+      intercourse: true,
+      protectedSex: true,
+      note: "  hello  ",
+      symptoms: new Map([["cramps", 3]]),
+    });
+    expect(patch.flow).toBe("MEDIUM");
+    expect(patch.ovulationTest).toBe("POSITIVE_LH_SURGE");
+    expect(patch.basalBodyTempC).toBe(36.62);
+    expect(patch.protectedSex).toBe(true);
+    expect(patch.note).toBe("hello");
+    expect(patch.symptoms).toEqual([{ key: "cramps", severity: 3 }]);
+  });
+
+  it("nulls protection when no intercourse is logged", () => {
+    const patch = buildDayLogPatch({
+      ...blank(),
+      intercourse: false,
+      protectedSex: true,
+    });
+    expect(patch.sexualActivity).toBe(false);
+    expect(patch.protectedSex).toBeNull();
+  });
+});
+
+describe("buildDayLogInput (new row → omit empties)", () => {
+  it("omits unset enums but posts an explicit empty note", () => {
+    const input = buildDayLogInput(blank(), "2026-06-06");
+    expect("flow" in input).toBe(false);
+    expect("ovulationTest" in input).toBe(false);
+    expect("basalBodyTempC" in input).toBe(false);
+    expect(input.note).toBe("");
+    expect(input.date).toBe("2026-06-06");
+    expect(input.source).toBe("MANUAL");
+  });
+
+  it("includes set values for a new row", () => {
+    const input = buildDayLogInput(
+      { ...blank(), flow: "LIGHT", bbt: "36.5" },
+      "2026-06-06",
+    );
+    expect(input.flow).toBe("LIGHT");
+    expect(input.basalBodyTempC).toBe(36.5);
+  });
+});

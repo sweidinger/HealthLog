@@ -3878,7 +3878,14 @@
       "statusExpired": "Wygasły",
       "inactiveTitle": "Unieważnione i wygasłe ({count})"
     },
-    "genderOther": "Inna"
+    "genderOther": "Inna",
+    "cycleTracking": {
+      "title": "Śledzenie cyklu",
+      "description": "Śledź swój cykl menstruacyjny, prognozy, objawy i analizy faz. Domyślnie włączone dla kont ustawionych jako kobiece; dostępne dla wszystkich.",
+      "enable": "Włącz śledzenie cyklu",
+      "manage": "Otwórz śledzenie cyklu",
+      "error": "Nie udało się zaktualizować śledzenia cyklu."
+    }
   },
   "admin": {
     "title": "Administracja",
@@ -4691,7 +4698,11 @@
     "eventPersonalRecord": "Rekord osobisty",
     "eventPersonalRecordDesc": "Wysyłane, gdy odczyt pobije Twój dotychczasowy rekord.",
     "eventMoodReminder": "Przypomnienie o nastroju",
-    "eventMoodReminderDesc": "Codzienne przypomnienie, aby zapisać swój aktualny nastrój."
+    "eventMoodReminderDesc": "Codzienne przypomnienie, aby zapisać swój aktualny nastrój.",
+    "eventCyclePeriodSoon": "Zbliża się okres",
+    "eventCyclePeriodSoonDesc": "Wysyłane kilka dni przed przewidywanym okresem.",
+    "eventCyclePeriodConfirm": "Czy okres się zaczął?",
+    "eventCyclePeriodConfirmDesc": "Delikatne przypomnienie w dniu przewidywanego początku lub później, gdy nie zarejestrowano okresu."
   },
   "i18n": {
     "maintainershipBanner": {
@@ -5022,7 +5033,8 @@
       "loading": "Ładowanie kalendarza…",
       "empty": "Zacznij zapisywać, aby wypełnić kalendarz.",
       "today": "Dziś",
-      "dayAria": "{date}"
+      "dayAria": "{date}",
+      "legendSymptom": "Objawy"
     },
     "predictions": {
       "title": "Co dalej",
@@ -5039,7 +5051,8 @@
       "stillLearningBody": "Zapisz co najmniej trzy pełne cykle, a prognozy się wyostrzą. Do tego czasu to zgrubne oszacowanie.",
       "rawMode": "Prognoza wyłączona",
       "rawModeBody": "Wyłączyłaś prognozy — pokazywane są tylko zapisane dane, bez przewidywań.",
-      "none": "Brak prognozy. Zapisz miesiączkę, aby zacząć."
+      "none": "Brak prognozy. Zapisz miesiączkę, aby zacząć.",
+      "ovulationConfirmed": "Owulacja (potwierdzona)"
     },
     "history": {
       "title": "Twoje cykle",
@@ -5052,7 +5065,11 @@
       "regularityLEARNING": "Uczenie",
       "days": "{count} dni",
       "daysPlusMinus": "± {count} dni",
-      "none": "Brak zapisanych cykli."
+      "none": "Brak zapisanych cykli.",
+      "recentCycles": "Ostatnie cykle",
+      "ongoing": "w toku",
+      "periodDays": "okres {count} d",
+      "ovulationChip": "Owulacja"
     },
     "sheet": {
       "title": "Zapisz swój dzień",
@@ -5107,14 +5124,20 @@
       "saveError": "Nie udało się zapisać. Spróbuj ponownie.",
       "save": "Zapisz",
       "purgeTitle": "Usuń wszystkie dane cyklu",
-      "purgeDescription": "Trwale usuwa każdą miesiączkę, wpis dzienny i prognozę z tego konta. Tej operacji nie można cofnąć.",
+      "purgeDescription": "Trwale usuwa każdy zapisany dzień, cykl, prognozę i przypomnienie. Tej operacji nie można cofnąć.",
       "purgeButton": "Usuń wszystkie dane cyklu",
       "purgeConfirmTitle": "Usunąć wszystkie dane cyklu?",
       "purgeConfirmBody": "Spowoduje to trwałe usunięcie każdej miesiączki, wpisu dziennego, objawu i prognozy. Tej operacji nie można cofnąć.",
-      "purgeConfirm": "Usuń wszystko",
+      "purgeConfirm": "Trwale usunąć wszystkie dane cyklu?",
       "purgeCancel": "Anuluj",
       "purgeSuccess": "Usunięto wszystkie dane cyklu.",
-      "purgeError": "Nie udało się usunąć danych cyklu. Spróbuj ponownie."
+      "purgeError": "Nie udało się usunąć danych cyklu.",
+      "reminders": "Przypomnienia",
+      "remindersDescription": "Włącz przypomnienia o okresie dla każdego kanału w ustawieniach powiadomień.",
+      "remindersLink": "Ustawienia powiadomień",
+      "purgeData": "Usuń dane cyklu",
+      "purgeConfirmAction": "Tak, usuń wszystko",
+      "purgeDone": "Dane cyklu usunięte."
     },
     "testResult": {
       "POSITIVE": "Pozytywny",
@@ -5139,7 +5162,8 @@
       "empty": "Brak pomiarów temperatury",
       "emptyHint": "Zapisuj podstawową temperaturę ciała każdego ranka, aby zobaczyć przesunięcie temperatury w cyklu.",
       "ovulationEstimate": "Szac. owulacja",
-      "tooltipTemp": "{temp} °C"
+      "tooltipTemp": "{temp} °C",
+      "ovulationConfirmed": "Potwierdzona owulacja"
     }
   },
   "cycleReminders": {

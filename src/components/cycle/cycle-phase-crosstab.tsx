@@ -104,11 +104,15 @@ export function CyclePhaseHeadline({
       </p>
     );
   }
-  const metricLabel = t(METRIC_LABEL_KEY[headline.metricKey] ?? headline.metricKey);
+  const metricLabel = t(
+    METRIC_LABEL_KEY[headline.metricKey] ?? headline.metricKey,
+  );
   const unit = t(UNIT_KEY[headline.display]);
   const up = headline.delta >= 0;
   const dir = t(
-    up ? "cycle.insights.headline.dirHigher" : "cycle.insights.headline.dirLower",
+    up
+      ? "cycle.insights.headline.dirHigher"
+      : "cycle.insights.headline.dirLower",
   );
   const params = {
     metric: metricLabel,
@@ -116,7 +120,8 @@ export function CyclePhaseHeadline({
     unit,
     dir,
   };
-  const key = HEADLINE_KEY[headline.metricKey] ?? "cycle.insights.headline.generic";
+  const key =
+    HEADLINE_KEY[headline.metricKey] ?? "cycle.insights.headline.generic";
   return (
     <p
       data-slot="cycle-phase-headline"
@@ -143,7 +148,9 @@ export function CyclePhaseCrosstab({
       </p>
       <ul className="divide-border divide-y">
         {rows.map((row) => {
-          const metricLabel = t(METRIC_LABEL_KEY[row.metricKey] ?? row.metricKey);
+          const metricLabel = t(
+            METRIC_LABEL_KEY[row.metricKey] ?? row.metricKey,
+          );
           const unit = t(UNIT_KEY[row.display]);
           // `delta` = lutealAvg − follicularAvg: positive = the vital runs
           // higher in the luteal phase. The number stays NEUTRAL — higher is
@@ -166,7 +173,9 @@ export function CyclePhaseCrosstab({
                   className="text-foreground min-w-0 flex-1 truncate"
                   title={metricLabel}
                 >
-                  {t("cycle.insights.crosstab.pairLabel", { metric: metricLabel })}
+                  {t("cycle.insights.crosstab.pairLabel", {
+                    metric: metricLabel,
+                  })}
                 </span>
                 <span className="text-foreground shrink-0 text-sm font-semibold tabular-nums">
                   {deltaText}

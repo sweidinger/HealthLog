@@ -3878,7 +3878,14 @@
       "statusExpired": "Expiré",
       "inactiveTitle": "Révoqués et expirés ({count})"
     },
-    "genderOther": "Autre"
+    "genderOther": "Autre",
+    "cycleTracking": {
+      "title": "Suivi du cycle",
+      "description": "Suivez votre cycle menstruel, les prédictions, les symptômes et les analyses de phases. Activé par défaut pour les comptes définis comme féminins ; disponible pour tous.",
+      "enable": "Activer le suivi du cycle",
+      "manage": "Ouvrir le suivi du cycle",
+      "error": "Impossible de mettre à jour le suivi du cycle."
+    }
   },
   "admin": {
     "title": "Administration",
@@ -4691,7 +4698,11 @@
     "eventPersonalRecord": "Record personnel",
     "eventPersonalRecordDesc": "Envoyé quand une valeur dépasse votre meilleur précédent.",
     "eventMoodReminder": "Rappel d'humeur",
-    "eventMoodReminderDesc": "Rappel quotidien pour noter votre humeur du moment."
+    "eventMoodReminderDesc": "Rappel quotidien pour noter votre humeur du moment.",
+    "eventCyclePeriodSoon": "Règles à venir",
+    "eventCyclePeriodSoonDesc": "Envoyé quelques jours avant vos prochaines règles prévues.",
+    "eventCyclePeriodConfirm": "Vos règles ont-elles commencé ?",
+    "eventCyclePeriodConfirmDesc": "Un rappel discret le jour prévu ou après, tant qu'aucune règle n'est enregistrée."
   },
   "i18n": {
     "maintainershipBanner": {
@@ -5022,7 +5033,8 @@
       "loading": "Chargement de ton calendrier…",
       "empty": "Commence à enregistrer pour remplir ton calendrier.",
       "today": "Aujourd'hui",
-      "dayAria": "{date}"
+      "dayAria": "{date}",
+      "legendSymptom": "Symptômes"
     },
     "predictions": {
       "title": "Ce qui arrive ensuite",
@@ -5039,7 +5051,8 @@
       "stillLearningBody": "Enregistre au moins trois cycles complets et tes prévisions s'affineront. D'ici là, ceci reste une estimation approximative.",
       "rawMode": "Prévision désactivée",
       "rawModeBody": "Tu as désactivé les prévisions — seules tes données enregistrées sont affichées, sans prévision.",
-      "none": "Pas encore de prévision. Enregistre des règles pour commencer."
+      "none": "Pas encore de prévision. Enregistre des règles pour commencer.",
+      "ovulationConfirmed": "Ovulation (confirmée)"
     },
     "history": {
       "title": "Tes cycles",
@@ -5052,7 +5065,11 @@
       "regularityLEARNING": "En apprentissage",
       "days": "{count} jours",
       "daysPlusMinus": "± {count} jours",
-      "none": "Aucun cycle enregistré pour l'instant."
+      "none": "Aucun cycle enregistré pour l'instant.",
+      "recentCycles": "Cycles récents",
+      "ongoing": "en cours",
+      "periodDays": "règles {count} j",
+      "ovulationChip": "Ovulation"
     },
     "sheet": {
       "title": "Enregistrer ta journée",
@@ -5107,14 +5124,20 @@
       "saveError": "Enregistrement impossible. Réessaie.",
       "save": "Enregistrer",
       "purgeTitle": "Supprimer toutes les données de cycle",
-      "purgeDescription": "Supprime définitivement chaque règle, journal quotidien et prédiction de ce compte. Cette action est irréversible.",
+      "purgeDescription": "Supprime définitivement chaque jour enregistré, cycle, prédiction et rappel. Action irréversible.",
       "purgeButton": "Supprimer toutes les données de cycle",
       "purgeConfirmTitle": "Supprimer toutes les données de cycle ?",
       "purgeConfirmBody": "Cela supprime définitivement chaque règle, journal quotidien, symptôme et prédiction. Cette action est irréversible.",
-      "purgeConfirm": "Tout supprimer",
+      "purgeConfirm": "Supprimer définitivement toutes les données de cycle ?",
       "purgeCancel": "Annuler",
       "purgeSuccess": "Toutes les données de cycle ont été supprimées.",
-      "purgeError": "Impossible de supprimer les données de cycle. Réessayez."
+      "purgeError": "Impossible de supprimer les données de cycle.",
+      "reminders": "Rappels",
+      "remindersDescription": "Activez les rappels de règles par canal dans les paramètres de notification.",
+      "remindersLink": "Paramètres de notification",
+      "purgeData": "Supprimer les données de cycle",
+      "purgeConfirmAction": "Oui, tout supprimer",
+      "purgeDone": "Données de cycle supprimées."
     },
     "testResult": {
       "POSITIVE": "Positif",
@@ -5139,7 +5162,8 @@
       "empty": "Pas encore de relevés de température",
       "emptyHint": "Notez votre température basale chaque matin pour voir le décalage de température de votre cycle.",
       "ovulationEstimate": "Ovulation est.",
-      "tooltipTemp": "{temp} °C"
+      "tooltipTemp": "{temp} °C",
+      "ovulationConfirmed": "Ovulation confirmée"
     }
   },
   "cycleReminders": {

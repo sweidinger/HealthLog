@@ -3878,7 +3878,14 @@
       "statusExpired": "Expired",
       "inactiveTitle": "Revoked and expired ({count})"
     },
-    "genderOther": "Other"
+    "genderOther": "Other",
+    "cycleTracking": {
+      "title": "Cycle tracking",
+      "description": "Track your menstrual cycle, predictions, symptoms, and phase insights. On by default for accounts set to female; available to everyone.",
+      "enable": "Enable cycle tracking",
+      "manage": "Open cycle tracking",
+      "error": "Couldn't update cycle tracking."
+    }
   },
   "admin": {
     "title": "Administration",
@@ -4691,7 +4698,11 @@
     "eventPersonalRecord": "Personal record",
     "eventPersonalRecordDesc": "Sent when a reading beats your previous best.",
     "eventMoodReminder": "Mood reminder",
-    "eventMoodReminderDesc": "Daily nudge to log your current mood."
+    "eventMoodReminderDesc": "Daily nudge to log your current mood.",
+    "eventCyclePeriodSoon": "Period coming up",
+    "eventCyclePeriodSoonDesc": "Sent a couple of days before your predicted next period.",
+    "eventCyclePeriodConfirm": "Did your period start?",
+    "eventCyclePeriodConfirmDesc": "A gentle check-in on or after the predicted start while no period is logged."
   },
   "i18n": {
     "maintainershipBanner": {
@@ -5022,7 +5033,8 @@
       "loading": "Loading your calendar…",
       "empty": "Start logging to see your calendar fill in.",
       "today": "Today",
-      "dayAria": "{date}"
+      "dayAria": "{date}",
+      "legendSymptom": "Symptoms"
     },
     "predictions": {
       "title": "What comes next",
@@ -5039,7 +5051,8 @@
       "stillLearningBody": "Log at least three full cycles and your predictions sharpen. Until then this is a rough estimate.",
       "rawMode": "Prediction is off",
       "rawModeBody": "You turned predictions off — only your logged data is shown, with no forecast.",
-      "none": "No prediction yet. Log a period to get started."
+      "none": "No prediction yet. Log a period to get started.",
+      "ovulationConfirmed": "Ovulation (confirmed)"
     },
     "history": {
       "title": "Your cycles",
@@ -5052,7 +5065,11 @@
       "regularityLEARNING": "Learning",
       "days": "{count} days",
       "daysPlusMinus": "± {count} days",
-      "none": "No cycles recorded yet."
+      "none": "No cycles recorded yet.",
+      "recentCycles": "Recent cycles",
+      "ongoing": "ongoing",
+      "periodDays": "period {count} d",
+      "ovulationChip": "Ovulation"
     },
     "sheet": {
       "title": "Log your day",
@@ -5112,14 +5129,20 @@
       "saveError": "Could not save. Try again.",
       "save": "Save",
       "purgeTitle": "Delete all cycle data",
-      "purgeDescription": "Permanently remove every period, day-log, and prediction from this account. This cannot be undone.",
+      "purgeDescription": "Permanently removes every logged day, cycle, prediction, and reminder record. This cannot be undone.",
       "purgeButton": "Delete all cycle data",
       "purgeConfirmTitle": "Delete all cycle data?",
       "purgeConfirmBody": "This permanently deletes every period, day-log, symptom, and prediction. This cannot be undone.",
-      "purgeConfirm": "Delete everything",
+      "purgeConfirm": "Delete all cycle data permanently?",
       "purgeCancel": "Cancel",
       "purgeSuccess": "All cycle data deleted.",
-      "purgeError": "Could not delete cycle data. Try again."
+      "purgeError": "Couldn't delete cycle data.",
+      "reminders": "Reminders",
+      "remindersDescription": "Turn period reminders on per channel in notification settings.",
+      "remindersLink": "Notification settings",
+      "purgeData": "Delete cycle data",
+      "purgeConfirmAction": "Yes, delete everything",
+      "purgeDone": "Cycle data deleted."
     },
     "contraceptive": {
       "NONE": "None",
@@ -5139,7 +5162,8 @@
       "empty": "No temperature readings yet",
       "emptyHint": "Log your basal body temperature each morning to see your cycle's temperature shift.",
       "ovulationEstimate": "Est. ovulation",
-      "tooltipTemp": "{temp} °C"
+      "tooltipTemp": "{temp} °C",
+      "ovulationConfirmed": "Confirmed ovulation"
     }
   },
   "cycleReminders": {

@@ -17,7 +17,9 @@ import {
   useDeleteDayLog,
   useEndPeriod,
   useLogDay,
+  usePatchDayLog,
   useStartPeriod,
+  type CycleDayLogPatch,
 } from "./use-cycle";
 import type {
   CervicalMucus,
@@ -73,13 +75,99 @@ const CONTRACEPTIVE_KINDS: ContraceptiveKind[] = [
 ];
 const SEVERITY_LEVELS = [1, 2, 3, 4] as const;
 
+/** The sheet's editable form state, lifted out so the two save-payload builders
+ * are pure + unit-testable (the clear-on-edit semantics are the QA W-2 fix). */
+export interface DayLogFormState {
+  flow: FlowLevel | null;
+  intermenstrual: boolean;
+  /** Raw text from the BBT input; "" / non-finite resolves to null. */
+  bbt: string;
+  opk: OvulationTest | null;
+  mucus: CervicalMucus | null;
+  intercourse: boolean;
+  protectedSex: boolean;
+  pregnancyTest: HomeTestResult | null;
+  progesteroneTest: HomeTestResult | null;
+  contraceptive: ContraceptiveKind | null;
+  note: string;
+  symptoms: Map<string, number | null>;
+}
+
+function resolveBbt(bbt: string): number | null {
+  const n = bbt.trim() === "" ? null : Number(bbt);
+  return n != null && Number.isFinite(n) ? n : null;
+}
+
+function symptomList(
+  symptoms: Map<string, number | null>,
+): CycleSymptomSelection[] {
+  return Array.from(symptoms.entries()).map(([key, severity]) => ({
+    key,
+    severity,
+  }));
+}
+
+/**
+ * The PATCH payload for an EDIT: every enum carries an explicit `null` when
+ * deselected so the server clears it (the POST merge can only add/keep — QA
+ * W-2). Pure + exported for the unit test.
+ */
+export function buildDayLogPatch(s: DayLogFormState): CycleDayLogPatch {
+  return {
+    flow: s.flow ?? null,
+    intermenstrualBleeding: s.intermenstrual,
+    basalBodyTempC: resolveBbt(s.bbt),
+    ovulationTest: s.opk ?? null,
+    cervicalMucus: s.mucus ?? null,
+    sexualActivity: s.intercourse,
+    protectedSex: s.intercourse ? s.protectedSex : null,
+    pregnancyTest: s.pregnancyTest ?? null,
+    progesteroneTest: s.progesteroneTest ?? null,
+    contraceptive: s.contraceptive ?? null,
+    symptoms: symptomList(s.symptoms),
+    note: s.note.trim() ? s.note.trim() : null,
+  };
+}
+
+/** The POST payload for a NEW row: omit empty enums (a fresh row has nothing to
+ * clear); `note` posts an explicit "" so an emptied note never persists. */
+export function buildDayLogInput(
+  s: DayLogFormState,
+  date: string,
+): CycleDayLogInput {
+  const bbtVal = resolveBbt(s.bbt);
+  return {
+    date,
+    loggedAt: new Date().toISOString(),
+    source: "MANUAL",
+    ...(s.flow ? { flow: s.flow } : {}),
+    intermenstrualBleeding: s.intermenstrual,
+    ...(bbtVal != null ? { basalBodyTempC: bbtVal } : {}),
+    ...(s.opk ? { ovulationTest: s.opk } : {}),
+    ...(s.mucus ? { cervicalMucus: s.mucus } : {}),
+    sexualActivity: s.intercourse,
+    protectedSex: s.intercourse ? s.protectedSex : null,
+    ...(s.pregnancyTest ? { pregnancyTest: s.pregnancyTest } : {}),
+    ...(s.progesteroneTest ? { progesteroneTest: s.progesteroneTest } : {}),
+    ...(s.contraceptive ? { contraceptive: s.contraceptive } : {}),
+    symptoms: symptomList(s.symptoms),
+    ...(s.note.trim() ? { note: s.note.trim() } : { note: "" }),
+  };
+}
+
 export interface LogDaySheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   /** The date being logged (YYYY-MM-DD). */
   date: string;
-  /** Today (YYYY-MM-DD) — gates the one-tap period-start affordance. */
+  /** Today (YYYY-MM-DD). */
   today: string;
+  /**
+   * Whether a period is currently open (today is in the MENSTRUAL phase) — gates
+   * the one-tap "end period" affordance so it never shows when no period is in
+   * progress (QA M2).
+   */
+  activePeriod?: boolean;
 }
 
 function Chip({
@@ -97,7 +185,7 @@ function Chip({
       aria-pressed={active}
       onClick={onClick}
       className={cn(
-        "focus-visible:ring-ring/50 rounded-full border px-3 py-1.5 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2",
+        "focus-visible:ring-ring/50 rounded-full border px-3 py-1.5 text-sm transition-colors focus-visible:ring-2 focus-visible:outline-none",
         active
           ? "border-primary bg-primary/10 text-primary"
           : "border-border text-foreground hover:bg-accent",
@@ -112,10 +200,11 @@ export function LogDaySheet({
   open,
   onOpenChange,
   date,
-  today,
+  activePeriod = false,
 }: LogDaySheetProps) {
   const { t } = useTranslations();
   const logDay = useLogDay();
+  const patchDay = usePatchDayLog();
   const startPeriod = useStartPeriod();
   const endPeriod = useEndPeriod();
   const deleteDay = useDeleteDayLog();
@@ -150,16 +239,16 @@ export function LogDaySheet({
   // open+date+row-identity, so a re-open or a late-arriving fetch repaints the
   // controls exactly once. `dto === null` (nothing logged) resets to blank.
   const dto = open ? (dayLog.data ?? null) : undefined;
-  const formKey = open ? `${date}:${dayLog.isSuccess ? "loaded" : "loading"}` : null;
+  const formKey = open
+    ? `${date}:${dayLog.isSuccess ? "loaded" : "loading"}`
+    : null;
   const [lastFormKey, setLastFormKey] = useState<string | null>(null);
   if (open && formKey !== lastFormKey && !dayLog.isLoading) {
     setLastFormKey(formKey);
     setRowId(dto?.id ?? null);
     setFlow((dto?.flow ?? null) as FlowLevel | null);
     setIntermenstrual(dto?.intermenstrualBleeding ?? false);
-    setSymptoms(
-      new Map((dto?.symptoms ?? []).map((s) => [s.key, s.severity])),
-    );
+    setSymptoms(new Map((dto?.symptoms ?? []).map((s) => [s.key, s.severity])));
     setBbt(dto?.basalBodyTempC != null ? String(dto.basalBodyTempC) : "");
     setOpk((dto?.ovulationTest ?? null) as OvulationTest | null);
     setMucus((dto?.cervicalMucus ?? null) as CervicalMucus | null);
@@ -192,35 +281,35 @@ export function LogDaySheet({
   }
 
   async function handleSave() {
-    const bbtNum = bbt.trim() === "" ? undefined : Number(bbt);
-    const symptomList: CycleSymptomSelection[] = Array.from(
-      symptoms.entries(),
-    ).map(([key, severity]) => ({ key, severity }));
-    const input: CycleDayLogInput = {
-      date,
-      loggedAt: new Date().toISOString(),
-      source: "MANUAL",
-      ...(flow ? { flow } : {}),
-      intermenstrualBleeding: intermenstrual,
-      ...(bbtNum != null && Number.isFinite(bbtNum)
-        ? { basalBodyTempC: bbtNum }
-        : {}),
-      ...(opk ? { ovulationTest: opk } : {}),
-      ...(mucus ? { cervicalMucus: mucus } : {}),
-      sexualActivity: intercourse,
-      protectedSex: intercourse ? protectedSex : null,
-      ...(pregnancyTest ? { pregnancyTest } : {}),
-      ...(progesteroneTest ? { progesteroneTest } : {}),
-      ...(contraceptive ? { contraceptive } : {}),
-      symptoms: symptomList,
-      ...(note.trim() ? { note: note.trim() } : { note: "" }),
+    const state: DayLogFormState = {
+      flow,
+      intermenstrual,
+      bbt,
+      opk,
+      mucus,
+      intercourse,
+      protectedSex,
+      pregnancyTest,
+      progesteroneTest,
+      contraceptive,
+      note,
+      symptoms,
     };
-    await logDay.mutateAsync(input);
+    if (rowId) {
+      // Editing an existing row → PATCH with explicit nulls so a deselected
+      // chip actually CLEARS (the POST merge can only add/keep — QA W-2).
+      await patchDay.mutateAsync({ id: rowId, patch: buildDayLogPatch(state) });
+      onOpenChange(false);
+      return;
+    }
+    await logDay.mutateAsync(buildDayLogInput(state, date));
     onOpenChange(false);
   }
 
+  // Period boundaries operate on the SELECTED date, so a forgotten day-1 can be
+  // corrected from the calendar retroactively (QA M3) — not today-only.
   async function handleStartPeriod() {
-    await startPeriod.mutateAsync(today);
+    await startPeriod.mutateAsync(date);
     onOpenChange(false);
   }
 
@@ -237,9 +326,11 @@ export function LogDaySheet({
 
   const busy =
     logDay.isPending ||
+    patchDay.isPending ||
     startPeriod.isPending ||
     endPeriod.isPending ||
     deleteDay.isPending;
+  const saving = logDay.isPending || patchDay.isPending;
 
   return (
     <ResponsiveSheet
@@ -273,31 +364,33 @@ export function LogDaySheet({
             {t("cycle.sheet.cancel")}
           </Button>
           <Button onClick={handleSave} disabled={busy}>
-            {logDay.isPending ? (
+            {saving ? (
               <Loader2 className="mr-2 h-4 w-4 animate-spin motion-reduce:animate-none" />
             ) : null}
-            {logDay.isPending ? t("cycle.sheet.saving") : t("cycle.sheet.save")}
+            {saving ? t("cycle.sheet.saving") : t("cycle.sheet.save")}
           </Button>
         </>
       }
     >
-      {/* One-tap period boundaries. */}
-      {date === today ? (
-        <div className="flex flex-wrap gap-2">
-          <Button
-            variant="outline"
-            className="flex-1 justify-start gap-2"
-            onClick={handleStartPeriod}
-            disabled={busy}
-            style={{ borderColor: FLOW_HUE }}
-          >
-            {startPeriod.isPending ? (
-              <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" />
-            ) : (
-              <Droplets className="h-4 w-4" style={{ color: FLOW_HUE }} />
-            )}
-            {t("cycle.startedPeriod")}
-          </Button>
+      {/* One-tap period boundaries — available on any selected date so a
+          forgotten day-1 can be corrected retroactively (M3). "End period"
+          shows only while a period is actually open (M2). */}
+      <div className="flex flex-wrap gap-2">
+        <Button
+          variant="outline"
+          className="flex-1 justify-start gap-2"
+          onClick={handleStartPeriod}
+          disabled={busy}
+          style={{ borderColor: FLOW_HUE }}
+        >
+          {startPeriod.isPending ? (
+            <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" />
+          ) : (
+            <Droplets className="h-4 w-4" style={{ color: FLOW_HUE }} />
+          )}
+          {t("cycle.startedPeriod")}
+        </Button>
+        {activePeriod ? (
           <Button
             variant="outline"
             className="flex-1 justify-start gap-2"
@@ -309,8 +402,8 @@ export function LogDaySheet({
             ) : null}
             {t("cycle.endedPeriod")}
           </Button>
-        </div>
-      ) : null}
+        ) : null}
+      </div>
 
       {/* Flow */}
       <Field label={t("cycle.sheet.flow")}>
@@ -326,10 +419,7 @@ export function LogDaySheet({
           ))}
         </div>
         <div className="mt-2 flex items-center justify-between">
-          <Label
-            htmlFor="cycle-intermenstrual"
-            className="text-sm font-normal"
-          >
+          <Label htmlFor="cycle-intermenstrual" className="text-sm font-normal">
             {t("cycle.sheet.intermenstrualBleeding")}
           </Label>
           <Switch
@@ -355,12 +445,12 @@ export function LogDaySheet({
                   const sev = symptoms.get(s.key) ?? null;
                   return (
                     <div key={s.key} className="flex items-center gap-1">
-                      <Chip active={active} onClick={() => toggleSymptom(s.key)}>
+                      <Chip
+                        active={active}
+                        onClick={() => toggleSymptom(s.key)}
+                      >
                         <span className="flex items-center gap-1.5">
-                          <s.icon
-                            className="h-3.5 w-3.5"
-                            aria-hidden="true"
-                          />
+                          <s.icon className="h-3.5 w-3.5" aria-hidden="true" />
                           {t(s.labelKey)}
                         </span>
                       </Chip>
@@ -380,7 +470,7 @@ export function LogDaySheet({
                               })}
                               onClick={() => setSymptomSeverity(s.key, lvl)}
                               className={cn(
-                                "focus-visible:ring-ring/50 size-6 rounded-full border text-xs tabular-nums transition-colors focus-visible:outline-none focus-visible:ring-2",
+                                "focus-visible:ring-ring/50 size-6 rounded-full border text-xs tabular-nums transition-colors focus-visible:ring-2 focus-visible:outline-none",
                                 sev === lvl
                                   ? "border-primary bg-primary/15 text-primary font-semibold"
                                   : "border-border text-muted-foreground hover:bg-accent",
@@ -411,7 +501,7 @@ export function LogDaySheet({
           value={bbt}
           onChange={(e) => setBbt(e.target.value)}
           placeholder={t("cycle.sheet.temperaturePlaceholder")}
-          className="border-input bg-background focus-visible:ring-ring/50 w-32 rounded-md border px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2"
+          className="border-input bg-background focus-visible:ring-ring/50 w-32 rounded-md border px-3 py-2 text-sm focus-visible:ring-2 focus-visible:outline-none"
           aria-label={t("cycle.sheet.temperature")}
         />
       </Field>
@@ -484,9 +574,7 @@ export function LogDaySheet({
             <Chip
               key={v}
               active={pregnancyTest === v}
-              onClick={() =>
-                setPregnancyTest((cur) => (cur === v ? null : v))
-              }
+              onClick={() => setPregnancyTest((cur) => (cur === v ? null : v))}
             >
               {t(`cycle.testResult.${v}`)}
             </Chip>
@@ -518,9 +606,7 @@ export function LogDaySheet({
             <Chip
               key={v}
               active={contraceptive === v}
-              onClick={() =>
-                setContraceptive((cur) => (cur === v ? null : v))
-              }
+              onClick={() => setContraceptive((cur) => (cur === v ? null : v))}
             >
               {t(`cycle.contraceptive.${v}`)}
             </Chip>
@@ -540,7 +626,7 @@ export function LogDaySheet({
         />
       </Field>
 
-      {logDay.isError ? (
+      {logDay.isError || patchDay.isError ? (
         <p className="text-destructive text-sm" role="alert">
           {t("cycle.sheet.saveError")}
         </p>

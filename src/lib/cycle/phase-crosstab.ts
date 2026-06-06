@@ -99,7 +99,10 @@ export const MOOD_CHANNEL_KEY = "MOOD";
  */
 export const PHASE_CROSSTAB_METRICS: Record<
   string,
-  { type: MeasurementType | typeof MOOD_CHANNEL_KEY; display: PhaseCrosstabDisplay }
+  {
+    type: MeasurementType | typeof MOOD_CHANNEL_KEY;
+    display: PhaseCrosstabDisplay;
+  }
 > = {
   restingHeartRate: { type: "RESTING_HEART_RATE", display: "bpm" },
   heartRateVariability: { type: "HEART_RATE_VARIABILITY", display: "ms" },
@@ -193,8 +196,13 @@ export function computePhaseMetricCrosstab(args: {
 
   const candidates: PhaseCrosstabCandidate[] = [];
 
-  for (const [metricKey, cfg] of Object.entries(PHASE_CROSSTAB_METRICS) as Array<
-    [PhaseCrosstabMetricKey, (typeof PHASE_CROSSTAB_METRICS)[PhaseCrosstabMetricKey]]
+  for (const [metricKey, cfg] of Object.entries(
+    PHASE_CROSSTAB_METRICS,
+  ) as Array<
+    [
+      PhaseCrosstabMetricKey,
+      (typeof PHASE_CROSSTAB_METRICS)[PhaseCrosstabMetricKey],
+    ]
   >) {
     const metricByDay = metricDayMap(measurements, cfg.type, userPriorityJson);
     if (metricByDay.size === 0) continue;

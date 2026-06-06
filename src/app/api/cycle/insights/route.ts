@@ -19,10 +19,7 @@ import { apiHandler, requireAuth } from "@/lib/api-handler";
 import { annotate } from "@/lib/logging/context";
 import { apiSuccess } from "@/lib/api-response";
 import { requireCycleEnabled } from "@/lib/cycle/gate";
-import {
-  predictCycle,
-  type NightlyTempInput,
-} from "@/lib/cycle";
+import { predictCycle, type NightlyTempInput } from "@/lib/cycle";
 import { LUTEAL_DEFAULT } from "@/lib/cycle/types";
 import {
   buildPhaseDayMap,
@@ -65,77 +62,77 @@ export const GET = apiHandler(async () => {
     prefsRow,
     moodRows,
   ] = await Promise.all([
-      prisma.menstrualCycle.findMany({
-        where: { userId: user.id, deletedAt: null },
-        orderBy: { startDate: "asc" },
-      }),
-      // Bound the day-log read to the rendered window (`from` = today − 365d),
-      // which is already earlier than the symptothermal lookback. Cycle-length
-      // stats run off MenstrualCycle rows so the day-logs can be windowed (QA:
-      // perf — unbounded full-history read).
-      prisma.cycleDayLog.findMany({
-        where: { userId: user.id, deletedAt: null, date: { gte: from } },
-        orderBy: { date: "asc" },
-        select: {
-          date: true,
-          flow: true,
-          basalBodyTempC: true,
-          ovulationTest: true,
-          cervicalMucus: true,
+    prisma.menstrualCycle.findMany({
+      where: { userId: user.id, deletedAt: null },
+      orderBy: { startDate: "asc" },
+    }),
+    // Bound the day-log read to the rendered window (`from` = today − 365d),
+    // which is already earlier than the symptothermal lookback. Cycle-length
+    // stats run off MenstrualCycle rows so the day-logs can be windowed (QA:
+    // perf — unbounded full-history read).
+    prisma.cycleDayLog.findMany({
+      where: { userId: user.id, deletedAt: null, date: { gte: from } },
+      orderBy: { date: "asc" },
+      select: {
+        date: true,
+        flow: true,
+        basalBodyTempC: true,
+        ovulationTest: true,
+        cervicalMucus: true,
+      },
+    }),
+    // Passive wrist temperature feeds the temperature-trend ovulation layer
+    // (used only to sharpen the prediction's next-start the phase-day map
+    // extends to). Not a crosstab input.
+    prisma.measurement.findMany({
+      where: {
+        userId: user.id,
+        deletedAt: null,
+        type: "WRIST_TEMPERATURE",
+        measuredAt: {
+          gte: new Date(Date.parse(`${addDays(today, -90)}T00:00:00Z`)),
         },
-      }),
-      // Passive wrist temperature feeds the temperature-trend ovulation layer
-      // (used only to sharpen the prediction's next-start the phase-day map
-      // extends to). Not a crosstab input.
-      prisma.measurement.findMany({
-        where: {
-          userId: user.id,
-          deletedAt: null,
-          type: "WRIST_TEMPERATURE",
-          measuredAt: {
-            gte: new Date(Date.parse(`${addDays(today, -90)}T00:00:00Z`)),
-          },
+      },
+      orderBy: { measuredAt: "asc" },
+      select: { measuredAt: true, value: true },
+    }),
+    // The outcome metrics the phase contrast compares — soft-delete-scoped,
+    // canonical-source deduped per day inside `metricDayMap`.
+    prisma.measurement.findMany({
+      where: {
+        userId: user.id,
+        deletedAt: null,
+        type: { in: PHASE_CROSSTAB_METRIC_TYPES },
+        measuredAt: {
+          gte: new Date(Date.parse(`${from}T00:00:00Z`)),
         },
-        orderBy: { measuredAt: "asc" },
-        select: { measuredAt: true, value: true },
-      }),
-      // The outcome metrics the phase contrast compares — soft-delete-scoped,
-      // canonical-source deduped per day inside `metricDayMap`.
-      prisma.measurement.findMany({
-        where: {
-          userId: user.id,
-          deletedAt: null,
-          type: { in: PHASE_CROSSTAB_METRIC_TYPES },
-          measuredAt: {
-            gte: new Date(Date.parse(`${from}T00:00:00Z`)),
-          },
-        },
-        orderBy: { measuredAt: "asc" },
-        select: {
-          type: true,
-          value: true,
-          measuredAt: true,
-          source: true,
-          deviceType: true,
-        },
-      }),
-      prisma.user.findUnique({
-        where: { id: user.id },
-        select: { sourcePriorityJson: true },
-      }),
-      // MOOD outcome (QA HIGH): mood lives in MoodEntry (1–5 score), not a
-      // Measurement row, so read it here and inject it into the crosstab as a
-      // synthetic MOOD_CHANNEL_KEY measurement (same FDR / day-floor guards).
-      prisma.moodEntry.findMany({
-        where: {
-          userId: user.id,
-          deletedAt: null,
-          moodLoggedAt: { gte: new Date(Date.parse(`${from}T00:00:00Z`)) },
-        },
-        orderBy: { moodLoggedAt: "asc" },
-        select: { score: true, moodLoggedAt: true },
-      }),
-    ]);
+      },
+      orderBy: { measuredAt: "asc" },
+      select: {
+        type: true,
+        value: true,
+        measuredAt: true,
+        source: true,
+        deviceType: true,
+      },
+    }),
+    prisma.user.findUnique({
+      where: { id: user.id },
+      select: { sourcePriorityJson: true },
+    }),
+    // MOOD outcome (QA HIGH): mood lives in MoodEntry (1–5 score), not a
+    // Measurement row, so read it here and inject it into the crosstab as a
+    // synthetic MOOD_CHANNEL_KEY measurement (same FDR / day-floor guards).
+    prisma.moodEntry.findMany({
+      where: {
+        userId: user.id,
+        deletedAt: null,
+        moodLoggedAt: { gte: new Date(Date.parse(`${from}T00:00:00Z`)) },
+      },
+      orderBy: { moodLoggedAt: "asc" },
+      select: { score: true, moodLoggedAt: true },
+    }),
+  ]);
 
   // The latest open cycle runs to the predicted next-period start so the
   // trailing window is phase-labelled even before the next period is logged.

@@ -61,6 +61,8 @@ export interface BbtChartProps {
   today: string;
   /** Estimated ovulation day (`YYYY-MM-DD`), or null when goal-gated off. */
   predictedOvulation: string | null;
+  /** Whether the ovulation day was confirmed by a signal layer (solid marker). */
+  ovulationConfirmed?: boolean;
   /** Read-Your-Body mode: suppress phase tint + ovulation marker. */
   rawChartMode: boolean;
 }
@@ -74,6 +76,7 @@ export function BbtChart({
   days,
   today,
   predictedOvulation,
+  ovulationConfirmed = false,
   rawChartMode,
 }: BbtChartProps) {
   const { t } = useTranslations();
@@ -215,13 +218,19 @@ export function BbtChart({
                     <ReferenceLine
                       x={ovulationMs}
                       stroke={OVULATION_HUE}
-                      strokeDasharray="4 3"
+                      // Solid line for a confirmed ovulation (signal-detected),
+                      // dashed for the calendar estimate (QA M1).
+                      strokeDasharray={ovulationConfirmed ? undefined : "4 3"}
                       strokeWidth={1.5}
                       label={{
-                        value: t("cycle.bbt.ovulationEstimate"),
+                        value: ovulationConfirmed
+                          ? t("cycle.bbt.ovulationConfirmed")
+                          : t("cycle.bbt.ovulationEstimate"),
                         position: "insideTopRight",
                         fontSize: 10,
-                        fill: OVULATION_HUE,
+                        // Muted text (not the amber hue) so the tiny label keeps
+                        // AA contrast on the card; the line carries the colour (L1).
+                        fill: "var(--muted-foreground)",
                       }}
                     />
                   ) : null}

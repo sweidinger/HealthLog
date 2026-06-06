@@ -75,7 +75,9 @@ export const GET = apiHandler(async (request: NextRequest) => {
       regularity = "LEARNING";
     } else {
       regularity =
-        lengthVariabilityDays <= REGULAR_MAD_THRESHOLD ? "REGULAR" : "IRREGULAR";
+        lengthVariabilityDays <= REGULAR_MAD_THRESHOLD
+          ? "REGULAR"
+          : "IRREGULAR";
     }
   }
   if (periodLengths.length > 0) {

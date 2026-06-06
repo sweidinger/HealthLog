@@ -33,7 +33,9 @@ const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
  */
 export function parseDayMs(date: string): number {
   if (!ISO_DATE_RE.test(date)) {
-    throw new Error(`cycle/day-math: malformed date "${date}" (expected YYYY-MM-DD)`);
+    throw new Error(
+      `cycle/day-math: malformed date "${date}" (expected YYYY-MM-DD)`,
+    );
   }
   const ms = Date.parse(`${date}T12:00:00Z`);
   if (Number.isNaN(ms)) {
@@ -73,7 +75,9 @@ export function roundHalf(x: number, k = 0): number {
   const factor = 10 ** k;
   // Math.round is round-half-up toward +Infinity; mirror it away-from-zero for
   // negatives so the rule matches Swift's .toNearestOrAwayFromZero exactly.
-  return x < 0 ? -Math.round(-x * factor) / factor : Math.round(x * factor) / factor;
+  return x < 0
+    ? -Math.round(-x * factor) / factor
+    : Math.round(x * factor) / factor;
 }
 
 /** `true` when `date` is on or before `other` (string compare is safe for ISO). */

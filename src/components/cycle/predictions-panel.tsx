@@ -1,6 +1,6 @@
 "use client";
 
-import { Sparkles } from "lucide-react";
+import { Check, Sparkles } from "lucide-react";
 
 import {
   Card,
@@ -107,7 +107,11 @@ export function PredictionsPanel({
               {prediction.predictedOvulation ? (
                 <Row
                   hue={OVULATION_HUE}
-                  label={t("cycle.predictions.ovulation")}
+                  label={
+                    prediction.ovulationConfirmed
+                      ? t("cycle.predictions.ovulationConfirmed")
+                      : t("cycle.predictions.ovulation")
+                  }
                   value={formatDate(prediction.predictedOvulation)}
                 />
               ) : null}
@@ -178,6 +182,13 @@ function Learning({ title, body }: { title: string; body: string }) {
   );
 }
 
+/** Inclusive day span between two `YYYY-MM-DD` dates (noon-UTC anchored). */
+function daySpan(from: string, to: string): number {
+  const a = Date.parse(`${from}T12:00:00Z`);
+  const b = Date.parse(`${to}T12:00:00Z`);
+  return Math.round((b - a) / 86_400_000) + 1;
+}
+
 function HistoryCard({
   history,
 }: {
@@ -185,6 +196,11 @@ function HistoryCard({
 }) {
   const { t } = useTranslations();
   const stats = history?.stats;
+  // Most-recent observed cycles (the spread the regularity number summarises —
+  // seeing it builds trust; the data was already on the wire). QA H2.
+  const observed = (history?.cycles ?? [])
+    .filter((c) => !c.isPredicted)
+    .slice(0, 6);
 
   return (
     <Card>
@@ -196,7 +212,7 @@ function HistoryCard({
           </CardDescription>
         ) : null}
       </CardHeader>
-      <CardContent>
+      <CardContent className="space-y-4">
         {!stats || stats.avgLengthDays == null ? (
           <p className="text-muted-foreground text-sm">
             {t("cycle.history.none")}
@@ -225,6 +241,55 @@ function HistoryCard({
             ) : null}
           </dl>
         )}
+
+        {observed.length > 0 ? (
+          <div className="space-y-2">
+            <p className="text-muted-foreground text-xs font-medium">
+              {t("cycle.history.recentCycles")}
+            </p>
+            <ul
+              className="divide-border divide-y"
+              data-slot="cycle-history-list"
+            >
+              {observed.map((c) => {
+                const periodLen =
+                  c.periodEndDate != null
+                    ? daySpan(c.startDate, c.periodEndDate)
+                    : null;
+                return (
+                  <li
+                    key={c.id}
+                    className="flex items-center justify-between gap-3 py-2 text-sm"
+                  >
+                    <span className="text-foreground tabular-nums">
+                      {formatDate(c.startDate)}
+                      {" – "}
+                      {c.endDate
+                        ? formatDate(c.endDate)
+                        : t("cycle.history.ongoing")}
+                    </span>
+                    <span className="text-muted-foreground flex items-center gap-2 tabular-nums">
+                      {c.lengthDays != null
+                        ? t("cycle.history.days", { count: c.lengthDays })
+                        : "—"}
+                      {periodLen != null ? (
+                        <span className="text-xs">
+                          {t("cycle.history.periodDays", { count: periodLen })}
+                        </span>
+                      ) : null}
+                      {c.ovulationConfirmed ? (
+                        <Badge variant="secondary" className="gap-1 text-xs">
+                          <Check className="h-3 w-3" aria-hidden="true" />
+                          {t("cycle.history.ovulationChip")}
+                        </Badge>
+                      ) : null}
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        ) : null}
       </CardContent>
     </Card>
   );

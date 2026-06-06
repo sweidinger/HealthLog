@@ -612,41 +612,41 @@ export async function sendViaApns(
     let workingEnv: "production" | "sandbox" | null = null;
     for (const attemptEnv of envSequence) {
       result = await sendApnsPush({
-      deviceToken: device.apnsToken,
-      environment: attemptEnv,
-      payload: {
-        alert: { title: payload.title, body: stripHtml(payload.message) },
-        data: {
-          eventType: routingEvent,
-          // In discreet mode also drop cycle-semantic metadata (e.g. `phase`)
-          // so a future cycle push can't name a cycle concept on the wire even
-          // though the allowlist permits `phase` (QA LOW).
-          ...pickIosMetadata(
-            payload.discreet
-              ? stripCycleMetadata(payload.metadata)
-              : payload.metadata,
-          ),
+        deviceToken: device.apnsToken,
+        environment: attemptEnv,
+        payload: {
+          alert: { title: payload.title, body: stripHtml(payload.message) },
+          data: {
+            eventType: routingEvent,
+            // In discreet mode also drop cycle-semantic metadata (e.g. `phase`)
+            // so a future cycle push can't name a cycle concept on the wire even
+            // though the allowlist permits `phase` (QA LOW).
+            ...pickIosMetadata(
+              payload.discreet
+                ? stripCycleMetadata(payload.metadata)
+                : payload.metadata,
+            ),
+          },
+          threadId: routingEvent,
+          // The iOS app registers a `UNNotificationCategory` per event-type
+          // so the same string doubles as the category identifier. iOS
+          // ignores categories it doesn't know about, so adding the key
+          // here is safe for event-types that don't have an actionable
+          // category registered yet — they fall back to a plain alert.
+          category: routingEvent,
+          // Future-proof for an iOS Notification Service Extension. iOS
+          // ignores the flag when no extension is registered, so it's a
+          // no-op on today's binary but unblocks NSE work without a
+          // server-side change.
+          mutableContent: true,
+          ...(isTimeSensitive
+            ? {
+                interruptionLevel: "time-sensitive" as const,
+                priority: 10 as const,
+              }
+            : {}),
         },
-        threadId: routingEvent,
-        // The iOS app registers a `UNNotificationCategory` per event-type
-        // so the same string doubles as the category identifier. iOS
-        // ignores categories it doesn't know about, so adding the key
-        // here is safe for event-types that don't have an actionable
-        // category registered yet — they fall back to a plain alert.
-        category: routingEvent,
-        // Future-proof for an iOS Notification Service Extension. iOS
-        // ignores the flag when no extension is registered, so it's a
-        // no-op on today's binary but unblocks NSE work without a
-        // server-side change.
-        mutableContent: true,
-        ...(isTimeSensitive
-          ? {
-              interruptionLevel: "time-sensitive" as const,
-              priority: 10 as const,
-            }
-          : {}),
-      },
-      collapseId: routingEvent,
+        collapseId: routingEvent,
       });
 
       if (result.ok) {

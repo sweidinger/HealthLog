@@ -62,10 +62,7 @@ export interface CycleBackupSection {
  * client) so both writers share one read.
  */
 export async function buildCycleBackupSection(
-  prisma: Pick<
-    PrismaClient,
-    "cycleProfile" | "menstrualCycle" | "cycleDayLog"
-  >,
+  prisma: Pick<PrismaClient, "cycleProfile" | "menstrualCycle" | "cycleDayLog">,
   userId: string,
 ): Promise<CycleBackupSection> {
   const [profile, cycles, dayLogs] = await Promise.all([
@@ -77,7 +74,9 @@ export async function buildCycleBackupSection(
     prisma.cycleDayLog.findMany({
       where: { userId, deletedAt: null },
       orderBy: { date: "asc" },
-      include: { symptomLinks: { include: { symptom: { select: { key: true } } } } },
+      include: {
+        symptomLinks: { include: { symptom: { select: { key: true } } } },
+      },
     }),
   ]);
 
@@ -199,9 +198,15 @@ export async function restoreCycleData(
   payload: BackupPayload,
 ): Promise<CycleRestoreCleared> {
   // Wipe (child links cascade off the day-log delete).
-  const dayLogs = await tx.cycleDayLog.deleteMany({ where: { userId: ownerId } });
-  const cycles = await tx.menstrualCycle.deleteMany({ where: { userId: ownerId } });
-  const profile = await tx.cycleProfile.deleteMany({ where: { userId: ownerId } });
+  const dayLogs = await tx.cycleDayLog.deleteMany({
+    where: { userId: ownerId },
+  });
+  const cycles = await tx.menstrualCycle.deleteMany({
+    where: { userId: ownerId },
+  });
+  const profile = await tx.cycleProfile.deleteMany({
+    where: { userId: ownerId },
+  });
 
   // Recreate the profile (one row / user).
   if (payload.cycleProfile) {
@@ -249,7 +254,10 @@ export async function restoreCycleData(
   const symptomIdByKey = new Map<string, string>();
   if (allKeys.length > 0) {
     const rows = await tx.cycleSymptom.findMany({
-      where: { key: { in: allKeys }, OR: [{ userId: null }, { userId: ownerId }] },
+      where: {
+        key: { in: allKeys },
+        OR: [{ userId: null }, { userId: ownerId }],
+      },
       select: { id: true, key: true },
     });
     for (const r of rows) symptomIdByKey.set(r.key, r.id);

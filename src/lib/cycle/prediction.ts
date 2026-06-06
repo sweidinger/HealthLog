@@ -91,9 +91,7 @@ export function mad(values: readonly number[], centre: number): number {
 function completedLengths(cycles: readonly CycleInput[]): number[] {
   // Sort by startDate ascending (the canonical order), then diff consecutive
   // starts. A cycle is completed iff a later start exists.
-  const starts = cycles
-    .map((c) => c.startDate)
-    .sort((a, b) => dayDiff(a, b));
+  const starts = cycles.map((c) => c.startDate).sort((a, b) => dayDiff(a, b));
   const lengths: number[] = [];
   for (let i = 0; i < starts.length - 1; i++) {
     lengths.push(dayDiff(starts[i + 1], starts[i]));
@@ -297,9 +295,13 @@ export function detectTempShift(
  * Infertile phase confirmed on peak+3; ovulation is taken at the peak day for
  * the agreement check.
  */
-export function detectMucusPeak(dayLogs: readonly DayLogInput[]): string | null {
+export function detectMucusPeak(
+  dayLogs: readonly DayLogInput[],
+): string | null {
   const peakDays = dayLogs
-    .filter((l) => l.cervicalMucus === "EGG_WHITE" || l.cervicalMucus === "WATERY")
+    .filter(
+      (l) => l.cervicalMucus === "EGG_WHITE" || l.cervicalMucus === "WATERY",
+    )
     .map((l) => l.date)
     .sort((a, b) => dayDiff(a, b));
   return peakDays.length > 0 ? peakDays[peakDays.length - 1] : null;
@@ -317,7 +319,9 @@ export function confirmSymptothermal(
   if (!shift) return null;
   const peak = detectMucusPeak(dayLogs);
   if (!peak) return null;
-  if (Math.abs(dayDiff(shift.ovulationDate, peak)) <= SYMPTOTHERMAL_AGREE_DAYS) {
+  if (
+    Math.abs(dayDiff(shift.ovulationDate, peak)) <= SYMPTOTHERMAL_AGREE_DAYS
+  ) {
     return shift.ovulationDate;
   }
   return null;
@@ -383,7 +387,10 @@ function adherenceFactors(
 ): { cAdherence: number; logSparsity: number } {
   // expectedDays = days since the most recent cycle start, capped at length.
   const sinceStart = Math.max(0, dayDiff(today, lastStart));
-  const expectedDays = Math.min(sinceStart, Math.max(1, Math.round(estimatedLength)));
+  const expectedDays = Math.min(
+    sinceStart,
+    Math.max(1, Math.round(estimatedLength)),
+  );
   // loggedDays = day logs with any non-null observation in that span.
   let loggedDays = 0;
   for (const log of dayLogs) {
@@ -428,7 +435,9 @@ export function clampLuteal(raw: number): number {
   return clamp(raw, LUTEAL_MIN, LUTEAL_MAX);
 }
 
-export function resolveLuteal(profile: Pick<CycleProfileInput, "lutealPhaseLength">): number {
+export function resolveLuteal(
+  profile: Pick<CycleProfileInput, "lutealPhaseLength">,
+): number {
   return clampLuteal(profile.lutealPhaseLength ?? LUTEAL_DEFAULT);
 }
 
@@ -551,7 +560,8 @@ export function predictCycle(
     today,
   );
   const adherencePenalty = 1 + logSparsity;
-  let halfWidth = roundHalf(Z_BAND * est.sigma * adherencePenalty) * confirmMultiplier;
+  let halfWidth =
+    roundHalf(Z_BAND * est.sigma * adherencePenalty) * confirmMultiplier;
   // Single-cycle cold-start gets a fixed band bonus (§5).
   if (est.cyclesObserved === 1) halfWidth += COLD_START_BAND_BONUS;
   halfWidth = clamp(Math.round(halfWidth), HALF_WIDTH_MIN, HALF_WIDTH_MAX);
@@ -598,7 +608,11 @@ interface FinalizeArgs {
 
 /** Assemble the result struct, deriving the band + fertile window. */
 function finalize(a: FinalizeArgs): CyclePredictionResult {
-  const halfWidth = clamp(Math.round(a.halfWidth), HALF_WIDTH_MIN, HALF_WIDTH_MAX);
+  const halfWidth = clamp(
+    Math.round(a.halfWidth),
+    HALF_WIDTH_MIN,
+    HALF_WIDTH_MAX,
+  );
   const confidence = roundHalf(a.confidence, 2);
   return {
     method: a.method,

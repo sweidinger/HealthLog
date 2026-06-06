@@ -3878,7 +3878,14 @@
       "statusExpired": "Abgelaufen",
       "inactiveTitle": "Widerrufen und abgelaufen ({count})"
     },
-    "genderOther": "Divers"
+    "genderOther": "Divers",
+    "cycleTracking": {
+      "title": "Zyklus-Tracking",
+      "description": "Verfolge deinen Menstruationszyklus, Vorhersagen, Symptome und Phasen-Insights. Standardmäßig an für als weiblich eingestellte Konten; für alle verfügbar.",
+      "enable": "Zyklus-Tracking aktivieren",
+      "manage": "Zyklus-Tracking öffnen",
+      "error": "Zyklus-Tracking konnte nicht aktualisiert werden."
+    }
   },
   "admin": {
     "title": "Administration",
@@ -4691,7 +4698,11 @@
     "eventPersonalRecord": "Persönlicher Rekord",
     "eventPersonalRecordDesc": "Wird gesendet, wenn ein Messwert deine bisherige Bestmarke übertrifft.",
     "eventMoodReminder": "Stimmungs-Erinnerung",
-    "eventMoodReminderDesc": "Tägliche Erinnerung, deine aktuelle Stimmung zu protokollieren."
+    "eventMoodReminderDesc": "Tägliche Erinnerung, deine aktuelle Stimmung zu protokollieren.",
+    "eventCyclePeriodSoon": "Periode steht bevor",
+    "eventCyclePeriodSoonDesc": "Ein paar Tage vor deiner vorhergesagten nächsten Periode.",
+    "eventCyclePeriodConfirm": "Hat deine Periode begonnen?",
+    "eventCyclePeriodConfirmDesc": "Eine sanfte Nachfrage am oder nach dem vorhergesagten Beginn, solange keine Periode erfasst ist."
   },
   "i18n": {
     "maintainershipBanner": {
@@ -5022,7 +5033,8 @@
       "loading": "Kalender wird geladen…",
       "empty": "Erfasse Daten, damit sich dein Kalender füllt.",
       "today": "Heute",
-      "dayAria": "{date}"
+      "dayAria": "{date}",
+      "legendSymptom": "Symptome"
     },
     "predictions": {
       "title": "Was als Nächstes kommt",
@@ -5039,7 +5051,8 @@
       "stillLearningBody": "Erfasse mindestens drei vollständige Zyklen, dann werden deine Prognosen genauer. Bis dahin ist dies eine grobe Schätzung.",
       "rawMode": "Prognose ist aus",
       "rawModeBody": "Du hast Prognosen ausgeschaltet — es werden nur deine erfassten Daten gezeigt, ohne Vorhersage.",
-      "none": "Noch keine Prognose. Erfasse eine Periode, um zu starten."
+      "none": "Noch keine Prognose. Erfasse eine Periode, um zu starten.",
+      "ovulationConfirmed": "Eisprung (bestätigt)"
     },
     "history": {
       "title": "Deine Zyklen",
@@ -5052,7 +5065,11 @@
       "regularityLEARNING": "Lernend",
       "days": "{count} Tage",
       "daysPlusMinus": "± {count} Tage",
-      "none": "Noch keine Zyklen erfasst."
+      "none": "Noch keine Zyklen erfasst.",
+      "recentCycles": "Letzte Zyklen",
+      "ongoing": "laufend",
+      "periodDays": "Periode {count} T",
+      "ovulationChip": "Eisprung"
     },
     "sheet": {
       "title": "Tag erfassen",
@@ -5107,14 +5124,20 @@
       "saveError": "Konnte nicht gespeichert werden. Versuch es erneut.",
       "save": "Speichern",
       "purgeTitle": "Alle Zyklusdaten löschen",
-      "purgeDescription": "Entfernt dauerhaft jede Periode, jeden Tageseintrag und jede Vorhersage von diesem Konto. Dies kann nicht rückgängig gemacht werden.",
+      "purgeDescription": "Entfernt dauerhaft jeden erfassten Tag, Zyklus, jede Vorhersage und jeden Erinnerungseintrag. Kann nicht rückgängig gemacht werden.",
       "purgeButton": "Alle Zyklusdaten löschen",
       "purgeConfirmTitle": "Alle Zyklusdaten löschen?",
       "purgeConfirmBody": "Dies löscht dauerhaft jede Periode, jeden Tageseintrag, jedes Symptom und jede Vorhersage. Dies kann nicht rückgängig gemacht werden.",
-      "purgeConfirm": "Alles löschen",
+      "purgeConfirm": "Alle Zyklusdaten dauerhaft löschen?",
       "purgeCancel": "Abbrechen",
       "purgeSuccess": "Alle Zyklusdaten gelöscht.",
-      "purgeError": "Zyklusdaten konnten nicht gelöscht werden. Bitte erneut versuchen."
+      "purgeError": "Zyklusdaten konnten nicht gelöscht werden.",
+      "reminders": "Erinnerungen",
+      "remindersDescription": "Perioden-Erinnerungen pro Kanal in den Benachrichtigungseinstellungen aktivieren.",
+      "remindersLink": "Benachrichtigungseinstellungen",
+      "purgeData": "Zyklusdaten löschen",
+      "purgeConfirmAction": "Ja, alles löschen",
+      "purgeDone": "Zyklusdaten gelöscht."
     },
     "testResult": {
       "POSITIVE": "Positiv",
@@ -5139,7 +5162,8 @@
       "empty": "Noch keine Temperaturwerte",
       "emptyHint": "Miss deine Basaltemperatur jeden Morgen, um den Temperaturanstieg deines Zyklus zu sehen.",
       "ovulationEstimate": "Gesch. Eisprung",
-      "tooltipTemp": "{temp} °C"
+      "tooltipTemp": "{temp} °C",
+      "ovulationConfirmed": "Bestätigter Eisprung"
     }
   },
   "cycleReminders": {

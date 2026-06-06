@@ -362,7 +362,7 @@ const deviceRegisterRequest = z
       .nullable()
       .optional()
       .describe(
-        "v1.7.0 per-device medication-delivery override. NULL / omitted = inherit the user-level roaming default. \"server\" forces server APNs for this device; \"client\" forces local. Stored + echoed; cron suppression stays user-level.",
+        'v1.7.0 per-device medication-delivery override. NULL / omitted = inherit the user-level roaming default. "server" forces server APNs for this device; "client" forces local. Stored + echoed; cron suppression stays user-level.',
       ),
   })
   .meta({
@@ -692,7 +692,9 @@ const syncMeasurementUpsert = measurementResource
       .number()
       .int()
       .positive()
-      .describe("LWW reconciliation counter; echo to keep the mirror monotonic."),
+      .describe(
+        "LWW reconciliation counter; echo to keep the mirror monotonic.",
+      ),
     updatedAt: z.iso.datetime({ offset: true }),
   })
   .meta({ id: "SyncMeasurementUpsert" });
@@ -735,7 +737,9 @@ const syncMoodUpsert = z
 
 const syncMoodTombstone = z
   .object({
-    id: z.string().describe("Server id — the identity key the client dedups on for mood."),
+    id: z
+      .string()
+      .describe("Server id — the identity key the client dedups on for mood."),
     syncVersion: z.number().int().nonnegative(),
     deletedAt: z.iso.datetime({ offset: true }),
     updatedAt: z.iso.datetime({ offset: true }),
@@ -767,7 +771,11 @@ const syncIntakeUpsert = z
 
 const syncIntakeTombstone = z
   .object({
-    id: z.string().describe("Server id — the identity key the client dedups on for intakes."),
+    id: z
+      .string()
+      .describe(
+        "Server id — the identity key the client dedups on for intakes.",
+      ),
     syncVersion: z.number().int().nonnegative(),
     deletedAt: z.iso.datetime({ offset: true }),
     updatedAt: z.iso.datetime({ offset: true }),
@@ -909,13 +917,11 @@ const adminDiagnosticData = z
 // schema description AND enforced by the route + a DB CHECK constraint
 // so iOS code-gen surfaces the mutual exclusion.
 
-const medicationCategoryEnum = z
-  .enum(MEDICATION_CATEGORY_VALUES)
-  .meta({
-    id: "MedicationCategory",
-    description:
-      "Clinical taxonomy stored in the `medication_categories` side-table. Orthogonal to `MedicationTreatmentClass`.",
-  });
+const medicationCategoryEnum = z.enum(MEDICATION_CATEGORY_VALUES).meta({
+  id: "MedicationCategory",
+  description:
+    "Clinical taxonomy stored in the `medication_categories` side-table. Orthogonal to `MedicationTreatmentClass`.",
+});
 
 const medicationTreatmentClassEnum = z
   .enum(MEDICATION_TREATMENT_CLASS_VALUES)
@@ -987,14 +993,14 @@ const medicationScheduleResource = z
       .int()
       .nullable()
       .describe(
-        "v1.7.0 cyclic \"on\" weeks. Only meaningful when `scheduleType` is CYCLIC; null otherwise.",
+        'v1.7.0 cyclic "on" weeks. Only meaningful when `scheduleType` is CYCLIC; null otherwise.',
       ),
     cyclicOffWeeks: z
       .number()
       .int()
       .nullable()
       .describe(
-        "v1.7.0 cyclic \"off\" weeks. Only meaningful when `scheduleType` is CYCLIC; null otherwise.",
+        'v1.7.0 cyclic "off" weeks. Only meaningful when `scheduleType` is CYCLIC; null otherwise.',
       ),
   })
   .meta({
@@ -1048,15 +1054,13 @@ const medicationResource = z
       .describe(
         "v1.7.0 server-computed next due instant across all the medication's schedules (earliest `nextOccurrenceAfter`). Read-only — computed, not stored. NULL when no schedule has an upcoming slot (paused, one-shot in the past, `endsOn` crossed, every schedule PRN). The list GET is cached 60 s, so a 60 s staleness is accepted.",
       ),
-    startsOn: z
-      .iso
+    startsOn: z.iso
       .datetime({ offset: true })
       .nullable()
       .describe(
         "v1.5 course start (ISO date). Anchors RRULE BYDAY / BYMONTHDAY patterns and the rolling-interval countdown's first window. NULL means active from creation.",
       ),
-    endsOn: z
-      .iso
+    endsOn: z.iso
       .datetime({ offset: true })
       .nullable()
       .describe(
@@ -1181,20 +1185,26 @@ const complianceResult = z
       .number()
       .int()
       .nonnegative()
-      .describe("Full denominator over the window: `taken + skipped + missed`. Cadence-aware and clamped to the medication's `createdAt`."),
+      .describe(
+        "Full denominator over the window: `taken + skipped + missed`. Cadence-aware and clamped to the medication's `createdAt`.",
+      ),
     taken: z.number().int().nonnegative(),
     skipped: z
       .number()
       .int()
       .nonnegative()
-      .describe("Doses the user explicitly skipped — excluded from the `rate` denominator."),
+      .describe(
+        "Doses the user explicitly skipped — excluded from the `rate` denominator.",
+      ),
     missed: z.number().int().nonnegative(),
     rate: z
       .number()
       .int()
       .min(0)
       .max(100)
-      .describe("Adherence percentage `round(taken / (taken + missed) * 100)` — `skipped` is excluded from the denominator."),
+      .describe(
+        "Adherence percentage `round(taken / (taken + missed) * 100)` — `skipped` is excluded from the denominator.",
+      ),
     streak: z
       .number()
       .int()
@@ -1213,22 +1223,30 @@ const dailyComplianceEntry = z
       .number()
       .int()
       .nonnegative()
-      .describe("Engine-computed due-slot count for the day. Equals `expectedCount`; kept for existing consumers."),
+      .describe(
+        "Engine-computed due-slot count for the day. Equals `expectedCount`; kept for existing consumers.",
+      ),
     expectedCount: z
       .number()
       .int()
       .nonnegative()
-      .describe("True due-slot count for the day (additive field clients key off so they don't infer due-ness from `expected`)."),
+      .describe(
+        "True due-slot count for the day (additive field clients key off so they don't infer due-ness from `expected`).",
+      ),
     due: z
       .boolean()
-      .describe("`expectedCount > 0`. Paint a per-day glyph as expected/missed ONLY when `due === true`; off-cadence / pre-creation / PRN days are not misses."),
+      .describe(
+        "`expectedCount > 0`. Paint a per-day glyph as expected/missed ONLY when `due === true`; off-cadence / pre-creation / PRN days are not misses.",
+      ),
     taken: z.number().int().nonnegative(),
     skipped: z.number().int().nonnegative(),
     onTime: z
       .number()
       .int()
       .nonnegative()
-      .describe("Doses taken in the on-time band, including the `early` bucket (early counts as compliant)."),
+      .describe(
+        "Doses taken in the on-time band, including the `early` bucket (early counts as compliant).",
+      ),
     late: z.number().int().nonnegative(),
     veryLate: z.number().int().nonnegative(),
     early: z
@@ -1236,7 +1254,9 @@ const dailyComplianceEntry = z
       .int()
       .nonnegative()
       .optional()
-      .describe("Doses taken before the on-time band's grace start; already folded into `onTime`, surfaced separately for consumers that differentiate."),
+      .describe(
+        "Doses taken before the on-time band's grace start; already folded into `onTime`, surfaced separately for consumers that differentiate.",
+      ),
   })
   .meta({
     id: "DailyComplianceEntry",
@@ -1266,7 +1286,9 @@ const complianceDisplay = z
         nextDueAt: z.iso
           .datetime({ offset: true })
           .nullable()
-          .describe("The open cycle's due instant. Null when `state` is `none`."),
+          .describe(
+            "The open cycle's due instant. Null when `state` is `none`.",
+          ),
         graceUntil: z.iso
           .datetime({ offset: true })
           .nullable()
@@ -1295,7 +1317,9 @@ const medicationComplianceResponse = z
     compliance30: complianceResult,
     dailyCompliance: z
       .record(z.string(), dailyComplianceEntry)
-      .describe("Flat per-day map keyed `YYYY-MM-DD` in the user timezone, one entry per day for up to 90 days back, clamped to the medication's `createdAt` (so a recently-created med has fewer entries). No weekly/monthly collapse — this is the raw daily grid."),
+      .describe(
+        "Flat per-day map keyed `YYYY-MM-DD` in the user timezone, one entry per day for up to 90 days back, clamped to the medication's `createdAt` (so a recently-created med has fewer entries). No weekly/monthly collapse — this is the raw daily grid.",
+      ),
     complianceDisplay,
   })
   .meta({
@@ -1420,10 +1444,14 @@ const derivedCoverage = z
     historyDays: z
       .number()
       .int()
-      .describe("Distinct days of history backing the value (the gating floor)."),
+      .describe(
+        "Distinct days of history backing the value (the gating floor).",
+      ),
     missing: z
       .array(z.string())
-      .describe("Named inputs still missing — drives the 'track N more' nudge."),
+      .describe(
+        "Named inputs still missing — drives the 'track N more' nudge.",
+      ),
   })
   .meta({ id: "DerivedCoverage" });
 
@@ -1431,7 +1459,9 @@ const derivedConfidence = z
   .object({
     score: z
       .number()
-      .describe("0..100 confidence; feeds the shared coverage meter unchanged."),
+      .describe(
+        "0..100 confidence; feeds the shared coverage meter unchanged.",
+      ),
     band: z
       .enum(["high", "medium", "low", "draft"])
       .describe("Confidence band the meter renders."),
@@ -1502,7 +1532,9 @@ const derivedMetricResponse = z
     reason: z
       .string()
       .nullable()
-      .describe("Why the value could not be produced; null when status is 'ok'."),
+      .describe(
+        "Why the value could not be produced; null when status is 'ok'.",
+      ),
     assessment: derivedAssessment
       .nullable()
       .describe(
@@ -1554,13 +1586,20 @@ const discoveredCorrelation = z
       .describe("Behaviour channel (lag source), e.g. TIME_IN_DAYLIGHT, MOOD."),
     outcome: z
       .string()
-      .describe("Outcome channel (lag target), e.g. SLEEP_DURATION, HEART_RATE_VARIABILITY."),
-    n: z.number().int().describe("Paired-day count after the day+1 lag join (≥ 20)."),
+      .describe(
+        "Outcome channel (lag target), e.g. SLEEP_DURATION, HEART_RATE_VARIABILITY.",
+      ),
+    n: z
+      .number()
+      .int()
+      .describe("Paired-day count after the day+1 lag join (≥ 20)."),
     r: z.number().describe("Pearson r over the lag-joined daily series."),
     pValue: z.number().describe("Two-sided exact Student-t p-value (< 0.05)."),
     qValue: z
       .number()
-      .describe("Benjamini-Hochberg FDR-adjusted q-value (≤ the surface threshold)."),
+      .describe(
+        "Benjamini-Hochberg FDR-adjusted q-value (≤ the surface threshold).",
+      ),
     interpretation: z
       .string()
       .describe("Conservative, descriptive interpretation — never causal."),
@@ -1578,7 +1617,10 @@ const correlationDiscoveryResponse = z
       .int()
       .describe("Behaviour × outcome pairs assessed (for the honest footer)."),
     fdrQ: z.number().describe("The FDR target the surface used."),
-    minPairs: z.number().int().describe("Minimum paired-day count enforced per pair."),
+    minPairs: z
+      .number()
+      .int()
+      .describe("Minimum paired-day count enforced per pair."),
   })
   .meta({
     id: "CorrelationDiscoveryResponse",
@@ -1675,7 +1717,9 @@ const medicationComplianceStatusResponse = z
       ),
     cached: z
       .boolean()
-      .describe("True when the envelope is served from cache (incl. last-good)."),
+      .describe(
+        "True when the envelope is served from cache (incl. last-good).",
+      ),
     updatedAt: z.iso
       .datetime({ offset: true })
       .nullable()
@@ -1769,13 +1813,11 @@ const analyticsRangeResponse = z
       "Single-metric period-over-period aggregate. Reads the current and previous comparable windows from the WMY rollup tier and composes a count-weighted-mean delta. `count/min/max/mean/sum` are linearly composable across buckets; SD/slope/r² are intentionally excluded (not composable).",
   });
 
-const insightsPregenerateRequest = z
-  .object({})
-  .meta({
-    id: "InsightsPregenerateRequest",
-    description:
-      "No body fields. The user is taken from the session / Bearer and the locale from the session; the warm covers every assessment for that user.",
-  });
+const insightsPregenerateRequest = z.object({}).meta({
+  id: "InsightsPregenerateRequest",
+  description:
+    "No body fields. The user is taken from the session / Bearer and the locale from the session; the warm covers every assessment for that user.",
+});
 
 const insightsPregenerateResponse = z
   .object({
@@ -1905,7 +1947,7 @@ const medicationExtractRequest = z
       .regex(/^\d{4}-\d{2}-\d{2}$/)
       .optional()
       .describe(
-        "Optional override of the reference date used to resolve relative phrases (\"tomorrow\", \"next Monday\"). Format: `YYYY-MM-DD`. Defaults to the server's UTC day.",
+        'Optional override of the reference date used to resolve relative phrases ("tomorrow", "next Monday"). Format: `YYYY-MM-DD`. Defaults to the server\'s UTC day.',
       ),
   })
   .meta({
@@ -2059,7 +2101,9 @@ const capabilitiesResponse = z
         snomedRoute: z.string().describe("SNOMED CT CodeSystem URI."),
         germanAtcDefaultLocales: z
           .array(z.string())
-          .describe("App locales that default the additive BfArM ATC coding on."),
+          .describe(
+            "App locales that default the additive BfArM ATC coding on.",
+          ),
         restBaseUrl: z
           .string()
           .describe("Base path of the read-only FHIR R4 REST face."),
@@ -2068,24 +2112,32 @@ const capabilitiesResponse = z
           .describe("Bearer scope a narrow token needs to read the FHIR face."),
         resourceTypes: z
           .array(z.string())
-          .describe("FHIR resource types the REST face serves (read + search)."),
+          .describe(
+            "FHIR resource types the REST face serves (read + search).",
+          ),
         operations: z
           .array(z.string())
           .describe("Whole-record operations exposed (e.g. $everything)."),
         searchParams: z
           .array(z.string())
-          .describe("Search parameters honoured uniformly across the search routes."),
+          .describe(
+            "Search parameters honoured uniformly across the search routes.",
+          ),
       })
       .describe(
         "FHIR coding constants + the read-only REST face descriptor (v1.11).",
       ),
     share: z
       .object({
-        supported: z.boolean().describe("Whether clinician share links are served."),
+        supported: z
+          .boolean()
+          .describe("Whether clinician share links are served."),
         maxDays: z
           .number()
           .int()
-          .describe("Maximum lifetime of a share link, in days. No never-expiring share."),
+          .describe(
+            "Maximum lifetime of a share link, in days. No never-expiring share.",
+          ),
         resourceTypes: z
           .array(z.string())
           .describe("FHIR resource types a share link may be scoped to serve."),
@@ -2176,12 +2228,18 @@ const cyclePhaseEnumOpenapi = z
   .enum(["MENSTRUAL", "FOLLICULAR", "OVULATORY", "LUTEAL"])
   .meta({ id: "CyclePhase" });
 
-flowLevelEnum.meta({ id: "FlowLevel", description: "Menstrual-flow intensity." });
+flowLevelEnum.meta({
+  id: "FlowLevel",
+  description: "Menstrual-flow intensity.",
+});
 ovulationTestEnum.meta({
   id: "OvulationTest",
   description: "Ovulation predictor-kit (OPK) reading.",
 });
-cervicalMucusEnum.meta({ id: "CervicalMucus", description: "Cervical-mucus quality." });
+cervicalMucusEnum.meta({
+  id: "CervicalMucus",
+  description: "Cervical-mucus quality.",
+});
 homeTestResultEnum.meta({
   id: "HomeTestResult",
   description: "At-home test result (pregnancy / progesterone).",
@@ -2282,6 +2340,7 @@ const cyclePredictionDto = z
     fertileWindowStart: z.string().nullable(),
     fertileWindowEnd: z.string().nullable(),
     predictedOvulation: z.string().nullable(),
+    ovulationConfirmed: z.boolean(),
     confidence: z.number(),
     cyclesObserved: z.number().int(),
     stillLearning: z.boolean(),
@@ -2290,7 +2349,7 @@ const cyclePredictionDto = z
   .meta({
     id: "CyclePredictionDTO",
     description:
-      "The materialised forecast. Fertile-window fields are server-suppressed (null) unless the goal is TRYING_TO_CONCEIVE.",
+      "The materialised forecast. Fertile-window fields (and predictedOvulation/ovulationConfirmed) are server-suppressed (null/false) unless the goal is TRYING_TO_CONCEIVE or AVOID_PREGNANCY.",
   });
 
 const cycleCalendarDayDto = z.object({
@@ -2492,7 +2551,10 @@ export const openApiPaths: NonNullable<ZodOpenApiObject["paths"]> = {
           description: "New day-log created.",
           content: {
             "application/json": {
-              schema: dataEnvelope(cycleDayLogDto, "CycleDayLogCreatedEnvelope"),
+              schema: dataEnvelope(
+                cycleDayLogDto,
+                "CycleDayLogCreatedEnvelope",
+              ),
             },
           },
         },
@@ -2611,7 +2673,10 @@ export const openApiPaths: NonNullable<ZodOpenApiObject["paths"]> = {
           description: "Calendar grid + forecast.",
           content: {
             "application/json": {
-              schema: dataEnvelope(cycleCalendarResponse, "CycleCalendarEnvelope"),
+              schema: dataEnvelope(
+                cycleCalendarResponse,
+                "CycleCalendarEnvelope",
+              ),
             },
           },
         },
@@ -2636,7 +2701,10 @@ export const openApiPaths: NonNullable<ZodOpenApiObject["paths"]> = {
           description: "Cycle history.",
           content: {
             "application/json": {
-              schema: dataEnvelope(cycleHistoryResponse, "CycleHistoryEnvelope"),
+              schema: dataEnvelope(
+                cycleHistoryResponse,
+                "CycleHistoryEnvelope",
+              ),
             },
           },
         },
@@ -2656,7 +2724,10 @@ export const openApiPaths: NonNullable<ZodOpenApiObject["paths"]> = {
           description: "Phase-correlation rows + headline.",
           content: {
             "application/json": {
-              schema: dataEnvelope(cycleInsightsResponse, "CycleInsightsEnvelope"),
+              schema: dataEnvelope(
+                cycleInsightsResponse,
+                "CycleInsightsEnvelope",
+              ),
             },
           },
         },
@@ -2677,6 +2748,36 @@ export const openApiPaths: NonNullable<ZodOpenApiObject["paths"]> = {
         "404": {
           description: "Cycle not found / not owned.",
           content: { "application/json": { schema: errorEnvelope } },
+        },
+        ...cycleDisabledResponse,
+        ...stdResponses,
+      },
+    },
+  },
+  "/api/cycle/all": {
+    delete: {
+      tags: ["Cycle"],
+      summary: "Hard-purge all cycle data (v1.15.0)",
+      description:
+        "One-click privacy purge: HARD-deletes every cycle day-log (+ symptom links by cascade), menstrual cycle, prediction, the cycle audit trail, and the cycle reminder rows in the push-attempts ledger — no dated reproductive trace survives. The CycleProfile row is left in place. Gated + owner-scoped + audited.",
+      responses: {
+        "200": {
+          description: "Purge counts.",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                z.object({
+                  purged: z.boolean(),
+                  dayLogs: z.number().int(),
+                  predictions: z.number().int(),
+                  cycles: z.number().int(),
+                  auditRows: z.number().int(),
+                  pushRows: z.number().int(),
+                }),
+                "CyclePurgeEnvelope",
+              ),
+            },
+          },
         },
         ...cycleDisabledResponse,
         ...stdResponses,
@@ -2814,7 +2915,10 @@ export const openApiPaths: NonNullable<ZodOpenApiObject["paths"]> = {
             "Share link created. `token` carries the raw `hls_` value and is unrecoverable after this response.",
           content: {
             "application/json": {
-              schema: dataEnvelope(shareLinkCreatedResponse, "ShareLinkCreated"),
+              schema: dataEnvelope(
+                shareLinkCreatedResponse,
+                "ShareLinkCreated",
+              ),
             },
           },
         },
@@ -2851,7 +2955,10 @@ export const openApiPaths: NonNullable<ZodOpenApiObject["paths"]> = {
           description: "Link revoked.",
           content: {
             "application/json": {
-              schema: dataEnvelope(shareLinkRevokedResponse, "ShareLinkRevoked"),
+              schema: dataEnvelope(
+                shareLinkRevokedResponse,
+                "ShareLinkRevoked",
+              ),
             },
           },
         },
@@ -3553,7 +3660,8 @@ export const openApiPaths: NonNullable<ZodOpenApiObject["paths"]> = {
   "/api/medications/extract": {
     post: {
       tags: ["Medications"],
-      summary: "Extract scheduling fields from a free-text medication description",
+      summary:
+        "Extract scheduling fields from a free-text medication description",
       description:
         "Runs the user's free-text description through the Coach provider chain and returns a citation-guarded partial payload the wizard merges onto whatever the user already typed. `name` and `dose` are dropped when not substring-matched in the original text so the wizard cannot land a hallucinated brand or dose. `cadenceKind` / `doseUnit` / `weekdays` are closed enums; numeric fields are clamped. Rate-limited 10 requests / 5 minutes / user, gated against the daily Coach token budget.",
       requestBody: {
@@ -3597,8 +3705,7 @@ export const openApiPaths: NonNullable<ZodOpenApiObject["paths"]> = {
       requestParams: {
         path: z.object({ id: z.string() }),
         query: z.object({
-          days: z
-            .coerce
+          days: z.coerce
             .number()
             .int()
             .min(1)
@@ -3701,7 +3808,7 @@ export const openApiPaths: NonNullable<ZodOpenApiObject["paths"]> = {
       tags: ["Auth"],
       summary: "Read per-user Coach opt-out flag",
       description:
-        "Returns the user's per-account Coach opt-out flag. Default `false` (Coach visible). Powers the Settings → Insights \"Hide Coach\" Switch and the layout FAB short-circuit.",
+        'Returns the user\'s per-account Coach opt-out flag. Default `false` (Coach visible). Powers the Settings → Insights "Hide Coach" Switch and the layout FAB short-circuit.',
       responses: {
         "200": {
           description: "Resolved flag.",
@@ -3815,7 +3922,11 @@ export const openApiPaths: NonNullable<ZodOpenApiObject["paths"]> = {
               schema: dataEnvelope(
                 z.object({
                   avatarUrl: z.string(),
-                  contentType: z.enum(["image/jpeg", "image/png", "image/webp"]),
+                  contentType: z.enum([
+                    "image/jpeg",
+                    "image/png",
+                    "image/webp",
+                  ]),
                   updatedAt: z.iso.datetime({ offset: true }),
                 }),
                 "UploadAvatarResponse",
@@ -3976,10 +4087,7 @@ export const openApiPaths: NonNullable<ZodOpenApiObject["paths"]> = {
           description: "Layout reset; the default layout is returned.",
           content: {
             "application/json": {
-              schema: dataEnvelope(
-                insightsLayoutSchema,
-                "InsightsLayoutReset",
-              ),
+              schema: dataEnvelope(insightsLayoutSchema, "InsightsLayoutReset"),
             },
           },
         },

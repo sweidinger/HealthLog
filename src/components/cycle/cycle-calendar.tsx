@@ -61,10 +61,7 @@ export function CycleCalendar({
 }: CycleCalendarProps) {
   const { t } = useTranslations();
   const weekdays = useMemo(() => shortWeekdays(), []);
-  const byDate = useMemo(
-    () => new Map(days.map((d) => [d.date, d])),
-    [days],
-  );
+  const byDate = useMemo(() => new Map(days.map((d) => [d.date, d])), [days]);
 
   // Anchor the visible month on today's month.
   const [monthAnchor, setMonthAnchor] = useState(() => {
@@ -101,9 +98,7 @@ export function CycleCalendar({
   });
 
   function shiftMonth(delta: number) {
-    setMonthAnchor(
-      (a) => new Date(a.getFullYear(), a.getMonth() + delta, 1),
-    );
+    setMonthAnchor((a) => new Date(a.getFullYear(), a.getMonth() + delta, 1));
   }
 
   return (
@@ -149,7 +144,8 @@ export function CycleCalendar({
           const info = byDate.get(date);
           const isToday = date === today;
           const markers: string[] = [];
-          if (info?.isPeriodLogged) markers.push(t("cycle.calendar.legendPeriod"));
+          if (info?.isPeriodLogged)
+            markers.push(t("cycle.calendar.legendPeriod"));
           if (info?.isPredictedPeriod)
             markers.push(t("cycle.calendar.legendPredicted"));
           if (info?.isFertileWindow)
@@ -171,7 +167,7 @@ export function CycleCalendar({
               onClick={() => onSelectDay(date)}
               className={cn(
                 "relative flex aspect-square min-h-10 flex-col items-center justify-center rounded-lg text-sm transition-colors",
-                "hover:bg-accent focus-visible:ring-ring/50 focus-visible:outline-none focus-visible:ring-2",
+                "hover:bg-accent focus-visible:ring-ring/50 focus-visible:ring-2 focus-visible:outline-none",
                 info?.isFertileWindow && "ring-1 ring-inset",
                 isToday && "font-semibold",
               )}
@@ -189,12 +185,7 @@ export function CycleCalendar({
                   style={{ backgroundColor: FLOW_HUE }}
                 />
               ) : null}
-              <span
-                className={cn(
-                  "relative z-10",
-                  isToday && "text-primary",
-                )}
-              >
+              <span className={cn("relative z-10", isToday && "text-primary")}>
                 {cell.getDate()}
               </span>
 
@@ -237,11 +228,35 @@ export function CycleCalendar({
 
 function CalendarLegend() {
   const { t } = useTranslations();
-  const items: { hue: string; labelKey: string; dashed?: boolean }[] = [
-    { hue: FLOW_HUE, labelKey: "cycle.calendar.legendPeriod" },
-    { hue: FLOW_HUE, labelKey: "cycle.calendar.legendPredicted", dashed: true },
-    { hue: FERTILE_HUE, labelKey: "cycle.calendar.legendFertile" },
-    { hue: OVULATION_HUE, labelKey: "cycle.calendar.legendOvulation" },
+  // Each swatch mirrors its grid affordance: period = filled, predicted =
+  // dashed, fertile = a ring (not a filled dot), ovulation = filled, symptom =
+  // the small grey marker dot the grid draws (QA M4).
+  const items: {
+    hue: string;
+    labelKey: string;
+    variant: "fill" | "dashed" | "ring" | "dot";
+  }[] = [
+    { hue: FLOW_HUE, labelKey: "cycle.calendar.legendPeriod", variant: "fill" },
+    {
+      hue: FLOW_HUE,
+      labelKey: "cycle.calendar.legendPredicted",
+      variant: "dashed",
+    },
+    {
+      hue: FERTILE_HUE,
+      labelKey: "cycle.calendar.legendFertile",
+      variant: "ring",
+    },
+    {
+      hue: OVULATION_HUE,
+      labelKey: "cycle.calendar.legendOvulation",
+      variant: "fill",
+    },
+    {
+      hue: "var(--muted-foreground)",
+      labelKey: "cycle.calendar.legendSymptom",
+      variant: "dot",
+    },
   ];
   return (
     <ul className="text-muted-foreground flex flex-wrap gap-x-4 gap-y-1.5 text-xs">
@@ -249,8 +264,16 @@ function CalendarLegend() {
         <li key={it.labelKey} className="flex items-center gap-1.5">
           <span
             aria-hidden="true"
-            className={cn("h-2.5 w-2.5 rounded-full", it.dashed && "opacity-60")}
-            style={{ backgroundColor: it.hue }}
+            className={cn(
+              "rounded-full",
+              it.variant === "dot" ? "h-1 w-1" : "h-2.5 w-2.5",
+              it.variant === "dashed" && "opacity-60",
+            )}
+            style={
+              it.variant === "ring"
+                ? { border: `1.5px solid ${it.hue}` }
+                : { backgroundColor: it.hue }
+            }
           />
           {t(it.labelKey)}
         </li>

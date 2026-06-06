@@ -122,11 +122,15 @@ export const PATCH = apiHandler(
         }),
         sexualActivity: encryptSensitive ? false : merged.sexualActivity,
         protectedSex: encryptSensitive ? null : merged.protectedSex,
-        pregnancyTest: (encryptSensitive ? null : merged.pregnancyTest) as never,
+        pregnancyTest: (encryptSensitive
+          ? null
+          : merged.pregnancyTest) as never,
         progesteroneTest: (encryptSensitive
           ? null
           : merged.progesteroneTest) as never,
-        contraceptive: (encryptSensitive ? null : merged.contraceptive) as never,
+        contraceptive: (encryptSensitive
+          ? null
+          : merged.contraceptive) as never,
         sensitiveEncrypted: encryptSensitive
           ? encrypt(JSON.stringify(merged))
           : null,

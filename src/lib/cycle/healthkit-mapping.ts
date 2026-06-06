@@ -91,7 +91,8 @@ export const HK_OVULATION_TEST_VALUES: Record<string, OvulationTest> = {
   "1": "NEGATIVE",
   HKCategoryValueOvulationTestResultNegative: "NEGATIVE",
   "2": "POSITIVE_LH_SURGE",
-  HKCategoryValueOvulationTestResultLuteinizingHormoneSurge: "POSITIVE_LH_SURGE",
+  HKCategoryValueOvulationTestResultLuteinizingHormoneSurge:
+    "POSITIVE_LH_SURGE",
   "3": "INDETERMINATE",
   HKCategoryValueOvulationTestResultIndeterminate: "INDETERMINATE",
   "4": "ESTROGEN_SURGE",
@@ -241,7 +242,11 @@ export type HkCycleRoute =
    * nudge the CycleProfile goal. Carries both payloads so the importer
    * applies them in one pass.
    */
-  | { kind: "day-log+profile"; fields: CycleDayLogFields; profile: CycleProfileFields }
+  | {
+      kind: "day-log+profile";
+      fields: CycleDayLogFields;
+      profile: CycleProfileFields;
+    }
   /** No cycle destination (unrecognised value, or deferred pregnancy-mode). */
   | { kind: "skip" };
 
