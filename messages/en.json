@@ -4967,6 +4967,18 @@
       "symptomPatternsEmpty": "Log symptoms across a cycle to see which phase they cluster in.",
       "symptomMostlyIn": "Mostly in {phase} ({count}/{total} days)"
     },
+    "phaseEducation": {
+      "title": "What's happening now",
+      "whatsHappening": {
+        "MENSTRUAL": "Your period is the start of a new cycle, as the uterine lining sheds. Energy and mood often feel lower in these first days.",
+        "FOLLICULAR": "After your period, oestrogen gradually rises as the body prepares an egg. Many people notice steadier energy through this stretch.",
+        "OVULATORY": "Around mid-cycle an egg is released and fertility peaks for a short window. This phase is the briefest of the four.",
+        "LUTEAL": "After ovulation, progesterone rises and the body settles in. In the days before your next period some people notice premenstrual changes."
+      },
+      "commonHere": "You often notice this here",
+      "trackNudge": "Log today",
+      "stillLearning": "Still learning your cycle. Keep logging and this fills in with patterns from your own days."
+    },
     "disclaimer": "These predictions are descriptive estimates from your logged data, not a contraceptive method and not medical advice. They never indicate that it is safe to have unprotected sex. For contraception or any medical decision, consult a healthcare professional.",
     "title": "Your cycle",
     "subtitle": "Log your period and symptoms, see what comes next.",

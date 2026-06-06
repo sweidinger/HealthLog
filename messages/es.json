@@ -4967,6 +4967,18 @@
       "symptomPatternsEmpty": "Registra síntomas a lo largo de un ciclo para ver en qué fase se concentran.",
       "symptomMostlyIn": "Sobre todo en {phase} ({count}/{total} días)"
     },
+    "phaseEducation": {
+      "title": "Qué está pasando ahora",
+      "whatsHappening": {
+        "MENSTRUAL": "Tu menstruación es el inicio de un nuevo ciclo, mientras el revestimiento uterino se desprende. La energía y el ánimo suelen sentirse más bajos en estos primeros días.",
+        "FOLLICULAR": "Tras la menstruación, el estrógeno sube de forma gradual mientras el cuerpo prepara un óvulo. Muchas personas notan una energía más estable durante esta etapa.",
+        "OVULATORY": "Hacia la mitad del ciclo se libera un óvulo y la fertilidad alcanza su punto máximo durante una ventana corta. Esta fase es la más breve de las cuatro.",
+        "LUTEAL": "Después de la ovulación, la progesterona sube y el cuerpo se asienta. En los días previos a la siguiente menstruación, algunas personas notan cambios premenstruales."
+      },
+      "commonHere": "Esto lo notas a menudo aquí",
+      "trackNudge": "Registrar hoy",
+      "stillLearning": "Aún estamos conociendo tu ciclo. Sigue registrando y esto se irá completando con patrones de tus propios días."
+    },
     "disclaimer": "Estas predicciones son estimaciones descriptivas a partir de tus datos registrados, no un método anticonceptivo ni un consejo médico. Nunca indican que sea seguro tener relaciones sin protección. Para anticoncepción o cualquier decisión médica, consulta a un profesional sanitario.",
     "title": "Tu ciclo",
     "subtitle": "Registra tu periodo y síntomas, y mira qué viene después.",

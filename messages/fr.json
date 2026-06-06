@@ -4967,6 +4967,18 @@
       "symptomPatternsEmpty": "Notez vos symptômes sur un cycle pour voir dans quelle phase ils se regroupent.",
       "symptomMostlyIn": "Surtout en {phase} ({count}/{total} jours)"
     },
+    "phaseEducation": {
+      "title": "Ce qui se passe maintenant",
+      "whatsHappening": {
+        "MENSTRUAL": "Tes règles marquent le début d'un nouveau cycle, lorsque la muqueuse utérine se détache. L'énergie et l'humeur semblent souvent plus basses durant ces premiers jours.",
+        "FOLLICULAR": "Après les règles, l'œstrogène augmente progressivement pendant que le corps prépare un ovule. Beaucoup ressentent une énergie plus stable durant cette période.",
+        "OVULATORY": "Vers le milieu du cycle, un ovule est libéré et la fertilité culmine sur une courte fenêtre. Cette phase est la plus brève des quatre.",
+        "LUTEAL": "Après l'ovulation, la progestérone augmente et le corps se pose. Dans les jours précédant les prochaines règles, certaines personnes remarquent des changements prémenstruels."
+      },
+      "commonHere": "Tu le remarques souvent ici",
+      "trackNudge": "Noter aujourd'hui",
+      "stillLearning": "On apprend encore ton cycle. Continue à noter et cela se remplira avec les tendances de tes propres journées."
+    },
     "disclaimer": "Ces prévisions sont des estimations descriptives issues de vos données enregistrées, ni une méthode de contraception ni un avis médical. Elles n'indiquent jamais qu'il est sûr d'avoir des rapports non protégés. Pour la contraception ou toute décision médicale, consultez un professionnel de santé.",
     "title": "Ton cycle",
     "subtitle": "Enregistre tes règles et symptômes, et vois ce qui arrive ensuite.",

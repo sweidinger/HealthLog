@@ -4967,6 +4967,18 @@
       "symptomPatternsEmpty": "Erfasse Symptome über einen Zyklus, um zu sehen, in welcher Phase sie sich häufen.",
       "symptomMostlyIn": "Meist in {phase} ({count}/{total} Tage)"
     },
+    "phaseEducation": {
+      "title": "Was gerade passiert",
+      "whatsHappening": {
+        "MENSTRUAL": "Deine Periode ist der Beginn eines neuen Zyklus, während sich die Gebärmutterschleimhaut löst. Energie und Stimmung fühlen sich in diesen ersten Tagen oft niedriger an.",
+        "FOLLICULAR": "Nach der Periode steigt der Östrogenspiegel allmählich, während der Körper eine Eizelle vorbereitet. Viele bemerken in dieser Phase eine gleichmäßigere Energie.",
+        "OVULATORY": "Etwa zur Zyklusmitte wird eine Eizelle freigesetzt und die Fruchtbarkeit erreicht für ein kurzes Fenster ihren Höhepunkt. Diese Phase ist die kürzeste der vier.",
+        "LUTEAL": "Nach dem Eisprung steigt das Progesteron und der Körper kommt zur Ruhe. In den Tagen vor der nächsten Periode bemerken manche prämenstruelle Veränderungen."
+      },
+      "commonHere": "Das bemerkst du hier oft",
+      "trackNudge": "Heute eintragen",
+      "stillLearning": "Lerne deinen Zyklus noch kennen. Trage weiter ein, dann füllt sich das mit Mustern aus deinen eigenen Tagen."
+    },
     "disclaimer": "Diese Vorhersagen sind beschreibende Schätzungen aus deinen erfassten Daten, keine Verhütungsmethode und keine medizinische Beratung. Sie zeigen nie an, dass ungeschützter Geschlechtsverkehr sicher ist. Wende dich für Verhütung oder medizinische Entscheidungen an eine medizinische Fachperson.",
     "title": "Dein Zyklus",
     "subtitle": "Erfasse deine Periode und Symptome und sieh, was als Nächstes kommt.",

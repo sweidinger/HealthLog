@@ -13,6 +13,7 @@ import { BbtChart } from "./bbt-chart";
 import { CycleCalendar } from "./cycle-calendar";
 import { CycleDisclaimer } from "./cycle-disclaimer";
 import { LogDaySheet } from "./log-day-sheet";
+import { PhaseEducationCard } from "./phase-education-card";
 import { PredictionsPanel } from "./predictions-panel";
 import { CyclePhaseHeadline, CyclePhaseCrosstab } from "./cycle-phase-crosstab";
 import { CycleSymptomPatterns } from "./cycle-symptom-patterns";
@@ -96,6 +97,10 @@ export function CycleView() {
   // prediction.disclaimer (already goal-correct); fall back to the goal-derived
   // key for the no-prediction calendar tab (QA H-1).
   const goal = calendar.data?.profile.goal;
+  // Honesty-gate inputs for the phase-education card (Clue precedent): the
+  // predictive phase framing only shows when prediction is on, not in
+  // raw-chart mode, and at least three cycles are observed.
+  const calProfile = calendar.data?.profile;
   const disclaimerText =
     calendar.data?.prediction?.disclaimer ??
     t(
@@ -123,6 +128,8 @@ export function CycleView() {
 
       {/* Desktop: ring (left) + tabs (right). Single column below lg. */}
       <div className="grid gap-6 lg:grid-cols-[minmax(0,22rem)_minmax(0,1fr)] lg:items-start">
+        {/* Wheel + compact phase card — grouped so they stick together. */}
+        <div className="flex flex-col gap-4 lg:sticky lg:top-6">
         {/* Wheel — the signature ring on the premium wellness-tile surface. */}
         <div
           data-slot="cycle-wheel-tile"
@@ -133,7 +140,7 @@ export function CycleView() {
               : undefined
           }
           className={cn(
-            "wellness-tile flex flex-col items-center gap-3 rounded-xl px-6 py-6 lg:sticky lg:top-6",
+            "wellness-tile flex flex-col items-center gap-3 rounded-xl px-6 py-6",
             play && "wellness-tile-rise",
           )}
         >
@@ -182,6 +189,22 @@ export function CycleView() {
           ) : null}
         </div>
 
+          {/* Compact phase-education card beneath the wheel — chip row omitted
+              here (compact); the full card lives on the calendar tab. */}
+          {!loading && !calendarError ? (
+            <PhaseEducationCard
+              compact
+              animate={play}
+              phase={wheel.phase}
+              symptomPatterns={insights.data?.symptomPatterns ?? []}
+              predictionEnabled={calProfile?.predictionEnabled ?? false}
+              rawChartMode={calProfile?.rawChartMode ?? false}
+              cyclesObserved={calProfile?.cyclesObserved ?? 0}
+              onLogToday={() => openSheet(today)}
+            />
+          ) : null}
+        </div>
+
         <Tabs defaultValue="calendar">
           <TabsList className="w-full">
             <TabsTrigger value="calendar" className="flex-1">
@@ -199,6 +222,16 @@ export function CycleView() {
           </TabsList>
 
           <TabsContent value="calendar" className="mt-4 space-y-4">
+            {!loading && !calendarError ? (
+              <PhaseEducationCard
+                phase={wheel.phase}
+                symptomPatterns={insights.data?.symptomPatterns ?? []}
+                predictionEnabled={calProfile?.predictionEnabled ?? false}
+                rawChartMode={calProfile?.rawChartMode ?? false}
+                cyclesObserved={calProfile?.cyclesObserved ?? 0}
+                onLogToday={() => openSheet(today)}
+              />
+            ) : null}
             <Card>
               <CardContent className="py-4">
                 {loading ? (

@@ -4967,6 +4967,18 @@
       "symptomPatternsEmpty": "Registra i sintomi durante un ciclo per vedere in quale fase si concentrano.",
       "symptomMostlyIn": "Soprattutto in {phase} ({count}/{total} giorni)"
     },
+    "phaseEducation": {
+      "title": "Cosa sta succedendo ora",
+      "whatsHappening": {
+        "MENSTRUAL": "Le mestruazioni sono l'inizio di un nuovo ciclo, mentre il rivestimento uterino si sfalda. In questi primi giorni energia e umore spesso si sentono più bassi.",
+        "FOLLICULAR": "Dopo le mestruazioni gli estrogeni salgono gradualmente mentre il corpo prepara un ovulo. Molte persone notano un'energia più stabile in questa fase.",
+        "OVULATORY": "Verso metà ciclo viene rilasciato un ovulo e la fertilità raggiunge il picco per una breve finestra. Questa fase è la più breve delle quattro.",
+        "LUTEAL": "Dopo l'ovulazione il progesterone sale e il corpo si assesta. Nei giorni prima del ciclo successivo alcune persone notano cambiamenti premestruali."
+      },
+      "commonHere": "Questo lo noti spesso qui",
+      "trackNudge": "Registra oggi",
+      "stillLearning": "Stiamo ancora imparando il tuo ciclo. Continua a registrare e questo si completerà con gli schemi delle tue giornate."
+    },
     "disclaimer": "Queste previsioni sono stime descrittive basate sui tuoi dati registrati, non un metodo contraccettivo né un parere medico. Non indicano mai che sia sicuro avere rapporti non protetti. Per la contraccezione o qualsiasi decisione medica, consulta un professionista sanitario.",
     "title": "Il tuo ciclo",
     "subtitle": "Registra il ciclo e i sintomi e scopri cosa arriva dopo.",
