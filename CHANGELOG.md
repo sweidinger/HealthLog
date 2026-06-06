@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [1.15.2] — 2026-06-06 — cycle insights crash fix
+
+### Fixed
+
+- **Cycle insights no longer crash on mood or blood-glucose relations.** The insights tab could throw and fail to render when a mood or blood-glucose pattern cleared the significance check, because those two metrics were missing their on-screen labels and units. They now render correctly, and an unrecognised metric can never crash the tab again.
+
 ## [1.15.1] — 2026-06-06 — cycle premium parity, reminder polish, fixes
 
 ### Added
