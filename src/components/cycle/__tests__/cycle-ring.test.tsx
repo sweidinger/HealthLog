@@ -46,6 +46,18 @@ describe("<CycleRing>", () => {
     expect(html).toContain("3");
   });
 
+  it("parks the day-1 marker at the 12-o'clock origin (no double-rotate)", () => {
+    // The <svg> carries `-rotate-90`, so day 1 (progress 0, angle 0) must
+    // land at the un-rotated 3-o'clock SVG point (cx ≈ CX + R, cy ≈ CX) which
+    // renders at the top. The prior `-π/2` bug parked it at cx ≈ CX (9 o'clock
+    // after rotation). R = (100 - 8) / 2 = 46, CX = 50.
+    const html = render(
+      <CycleRing dayOfCycle={1} cycleLength={28} phase="MENSTRUAL" />,
+    );
+    // The marker circle's cx is the last <circle> with a stroke-width of 2.
+    expect(html).toMatch(/cx="9[0-9](\.\d+)?"/);
+  });
+
   it("renders the no-cycle state for a null day with a fallback aria-label", () => {
     const html = render(
       <CycleRing dayOfCycle={null} cycleLength={null} phase={null} />,

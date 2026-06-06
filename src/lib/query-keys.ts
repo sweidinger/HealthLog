@@ -515,6 +515,7 @@ export const queryKeys = {
   cycleHistory: (limit: number) => ["cycle", "history", limit] as const,
   cycleProfile: () => ["cycle", "profile"] as const,
   cycleInsights: () => ["cycle", "insights"] as const,
+  cycleDayLog: (date: string) => ["cycle", "day-log", date] as const,
 };
 
 /**

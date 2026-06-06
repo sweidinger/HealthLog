@@ -5008,7 +5008,8 @@
       "dayUnknown": "—",
       "ariaPhase": "Zyklustag {day}, {phase}-Phase",
       "ariaUnknown": "Noch kein aktiver Zyklus",
-      "caption": "deines Zyklus"
+      "caption": "deines Zyklus",
+      "firstPeriodCta": "Erste Periode erfassen"
     },
     "calendar": {
       "legendPeriod": "Erfasste Periode",
@@ -5073,7 +5074,14 @@
       "saved": "Tag gespeichert",
       "saveError": "Konnte nicht gespeichert werden. Versuch es erneut.",
       "periodStarted": "Periodenbeginn erfasst",
-      "clear": "Keine"
+      "clear": "Keine",
+      "intermenstrualBleeding": "Schmierblutung zwischen Perioden",
+      "pregnancyTest": "Schwangerschaftstest",
+      "progesteroneTest": "Progesterontest",
+      "contraceptive": "Verhütung",
+      "severity": "Schweregrad",
+      "severityLevel": "Schweregrad {level} von 4",
+      "delete": "Löschen"
     },
     "settings": {
       "title": "Zyklus-Einstellungen",
@@ -5107,6 +5115,22 @@
       "purgeCancel": "Abbrechen",
       "purgeSuccess": "Alle Zyklusdaten gelöscht.",
       "purgeError": "Zyklusdaten konnten nicht gelöscht werden. Bitte erneut versuchen."
+    },
+    "testResult": {
+      "POSITIVE": "Positiv",
+      "NEGATIVE": "Negativ",
+      "INDETERMINATE": "Unklar"
+    },
+    "contraceptive": {
+      "NONE": "Keine",
+      "UNSPECIFIED": "Andere",
+      "IMPLANT": "Implantat",
+      "INJECTION": "Spritze",
+      "IUD": "Spirale",
+      "INTRAVAGINAL_RING": "Ring",
+      "ORAL": "Pille",
+      "PATCH": "Pflaster",
+      "EMERGENCY": "Notfall"
     }
   },
   "cycleReminders": {

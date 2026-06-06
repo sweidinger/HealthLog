@@ -108,16 +108,62 @@ export interface CycleProfileDTO {
 }
 
 /** The day-log capture payload (subset of the API input we send from web). */
+export type HomeTestResult = "NEGATIVE" | "POSITIVE" | "INDETERMINATE";
+
+export type ContraceptiveKind =
+  | "NONE"
+  | "UNSPECIFIED"
+  | "IMPLANT"
+  | "INJECTION"
+  | "IUD"
+  | "INTRAVAGINAL_RING"
+  | "ORAL"
+  | "PATCH"
+  | "EMERGENCY";
+
+export interface CycleSymptomSelection {
+  key: string;
+  severity?: number | null;
+}
+
 export interface CycleDayLogInput {
   date: string;
   flow?: FlowLevel;
+  intermenstrualBleeding?: boolean;
   basalBodyTempC?: number;
   ovulationTest?: OvulationTest;
   cervicalMucus?: CervicalMucus;
   sexualActivity?: boolean;
   protectedSex?: boolean | null;
-  symptoms?: { key: string }[];
+  pregnancyTest?: HomeTestResult;
+  progesteroneTest?: HomeTestResult;
+  contraceptive?: ContraceptiveKind;
+  symptoms?: CycleSymptomSelection[];
   note?: string;
   loggedAt: string;
   source?: "MANUAL";
+}
+
+/** The full day-log row read back from `GET /api/cycle/day-logs?date=`. */
+export interface CycleDayLogDTO {
+  id: string;
+  date: string;
+  cycleId: string | null;
+  flow: FlowLevel | null;
+  intermenstrualBleeding: boolean;
+  basalBodyTempC: number | null;
+  ovulationTest: OvulationTest | null;
+  cervicalMucus: CervicalMucus | null;
+  sexualActivity: boolean;
+  protectedSex: boolean | null;
+  pregnancyTest: HomeTestResult | null;
+  progesteroneTest: HomeTestResult | null;
+  contraceptive: ContraceptiveKind | null;
+  symptoms: { key: string; severity: number | null }[];
+  note: string | null;
+  source: string;
+  externalId: string | null;
+  syncVersion: number;
+  updatedAt: string;
+  deletedAt: string | null;
 }

@@ -5,9 +5,8 @@
  * client mirrors. `notesEncrypted` is decrypted fail-soft on read (a
  * key-rotation gap on one row reads `null`, never 500s the whole page).
  * Symptom links are flattened to `[{ key, severity }]` using the catalog
- * key (severity is not yet persisted per-link in v1.15.0 — the join is a
- * presence link; severity rides the input but the catalog link carries
- * presence only, so it reads back `null`).
+ * key; `severity` carries the persisted per-link 1-4 Likert intensity
+ * (NULL = a plain presence link).
  */
 import { decrypt } from "@/lib/crypto";
 import type { CyclePredictionResult } from "@/lib/cycle/types";
@@ -119,7 +118,7 @@ export function toCycleDayLogDTO(row: DayLogWithLinks): CycleDayLogDTO {
     contraceptive: hasEnvelope ? (enc.contraceptive ?? null) : row.contraceptive,
     symptoms: (row.symptomLinks ?? []).map((l) => ({
       key: l.symptom.key,
-      severity: null,
+      severity: l.severity ?? null,
     })),
     note: decryptNote(row.notesEncrypted),
     source: row.source,

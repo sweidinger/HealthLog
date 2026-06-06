@@ -42,6 +42,50 @@ tags:
   - name: Meta
 paths:
   /api/cycle/day-logs:
+    get:
+      tags:
+        - Cycle
+      summary: Read a single day's cycle day-log (v1.15.0)
+      description: Returns the full `CycleDayLogDTO` for the tz-anchored `date`, or `null` when nothing is logged that day.
+        Lets a client pre-fill an edit sheet. Gated; owner-scoped; soft-deleted rows excluded.
+      parameters:
+        - in: query
+          name: date
+          schema:
+            type: string
+            pattern: ^\d{4}-\d{2}-\d{2}$
+          required: true
+      responses:
+        "200":
+          description: The day-log for that date, or null.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CycleDayLogReadEnvelope"
+        "401": &a1
+          description: Authentication required or invalid credentials.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "403": &a2
+          description: Cycle tracking is not enabled for this account (errorCode `cycle.disabled`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "422": &a3
+          description: Request validation failed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "429": &a4
+          description: Rate limit exceeded.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
     post:
       tags:
         - Cycle
@@ -166,30 +210,10 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/CycleDayLogCreatedEnvelope"
-        "401": &a1
-          description: Authentication required or invalid credentials.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorEnvelope"
-        "403": &a2
-          description: Cycle tracking is not enabled for this account (errorCode `cycle.disabled`).
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorEnvelope"
-        "422": &a3
-          description: Request validation failed.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorEnvelope"
-        "429": &a4
-          description: Rate limit exceeded.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorEnvelope"
+        "401": *a1
+        "403": *a2
+        "422": *a3
+        "429": *a4
   /api/cycle/day-logs/{id}:
     patch:
       tags:
@@ -4728,11 +4752,13 @@ components:
         primitives are mutually exclusive — enforced by the Zod refine on writes, the route layer, and a DB CHECK
         constraint (`medication_schedules_rrule_xor_rolling`). v1.7.0 adds `scheduleType` (SCHEDULED / PRN / CYCLIC) and
         the cyclic on/off-week fields.
-    CycleDayLogEnvelope:
+    CycleDayLogReadEnvelope:
       type: object
       properties:
         data:
-          $ref: "#/components/schemas/CycleDayLogDTO"
+          anyOf:
+            - $ref: "#/components/schemas/CycleDayLogDTO"
+            - type: "null"
         error:
           type: "null"
         meta:
@@ -4882,23 +4908,6 @@ components:
       additionalProperties: false
       description: The canonical day-log row iOS mirrors. `note` is decrypted on read. Soft-deleted rows ride
         `/api/sync/changes` as tombstones.
-    CycleDayLogCreatedEnvelope:
-      type: object
-      properties:
-        data:
-          $ref: "#/components/schemas/CycleDayLogDTO"
-        error:
-          type: "null"
-        meta:
-          type: object
-          properties:
-            requestId:
-              type: string
-          additionalProperties: false
-      required:
-        - data
-        - error
-      additionalProperties: false
     ErrorEnvelope:
       type: object
       properties:
@@ -4919,6 +4928,40 @@ components:
         - error
       additionalProperties: false
       description: "Standard error response: data is null, error is human prose."
+    CycleDayLogEnvelope:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/CycleDayLogDTO"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    CycleDayLogCreatedEnvelope:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/CycleDayLogDTO"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
     CycleDayLogPatchEnvelope:
       type: object
       properties:

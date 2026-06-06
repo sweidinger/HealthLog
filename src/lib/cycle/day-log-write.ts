@@ -50,11 +50,21 @@ interface SensitiveFields {
   contraceptive: string | null;
 }
 
-/** Resolve catalog symptom keys → ids, dropping unknown keys silently. */
+/** A symptom selection carrying its catalog key + optional 1-4 severity. */
+export interface SymptomSelection {
+  key: string;
+  severity?: number | null;
+}
+
+/**
+ * Resolve catalog symptom keys → `{ key, id }`, dropping unknown keys
+ * silently. Returns the pairs (not bare ids) so the caller can carry the
+ * per-link severity through to the join write.
+ */
 export async function resolveSymptomIds(
   userId: string,
   keys: readonly string[],
-): Promise<string[]> {
+): Promise<{ key: string; id: string }[]> {
   if (keys.length === 0) return [];
   const unique = Array.from(new Set(keys));
   // Catalog rows (userId null) plus this user's own custom symptoms.
@@ -64,25 +74,41 @@ export async function resolveSymptomIds(
       isActive: true,
       OR: [{ userId: null }, { userId }],
     },
-    select: { id: true },
+    select: { id: true, key: true },
   });
-  return rows.map((r) => r.id);
+  return rows.map((r) => ({ key: r.key, id: r.id }));
 }
 
 /**
  * Replace the symptom-link set for a day-log. Shared by the upsert helper
- * and the PATCH route so both resolve + write the join identically.
+ * and the PATCH route so both resolve + write the join identically. Each
+ * selection's optional 1-4 severity is persisted on the link (NULL = a
+ * plain presence link).
  */
 export async function replaceSymptomLinks(
   userId: string,
   dayLogId: string,
-  keys: readonly string[],
+  selections: readonly SymptomSelection[],
 ): Promise<void> {
-  const ids = await resolveSymptomIds(userId, keys);
+  const resolved = await resolveSymptomIds(
+    userId,
+    selections.map((s) => s.key),
+  );
+  // Map each resolved id back to its requested severity by key.
+  const severityByKey = new Map(
+    selections.map((s) => [
+      s.key,
+      typeof s.severity === "number" ? s.severity : null,
+    ]),
+  );
   await prisma.cycleSymptomLink.deleteMany({ where: { dayLogId } });
-  if (ids.length > 0) {
+  if (resolved.length > 0) {
     await prisma.cycleSymptomLink.createMany({
-      data: ids.map((symptomId) => ({ dayLogId, symptomId })),
+      data: resolved.map(({ key, id }) => ({
+        dayLogId,
+        symptomId: id,
+        severity: severityByKey.get(key) ?? null,
+      })),
       skipDuplicates: true,
     });
   }
@@ -394,11 +420,7 @@ async function writeDayLog(args: WriteArgs): Promise<DayLogWriteResult> {
   // Replace the symptom-link set when symptoms were supplied. Absent
   // `symptoms` leaves existing links untouched.
   if (entry.symptoms !== undefined) {
-    await replaceSymptomLinks(
-      userId,
-      rowId,
-      entry.symptoms.map((s) => s.key),
-    );
+    await replaceSymptomLinks(userId, rowId, entry.symptoms);
   }
 
   return { id: rowId, existed, changed };

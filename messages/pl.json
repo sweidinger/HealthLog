@@ -5008,7 +5008,8 @@
       "dayUnknown": "—",
       "ariaPhase": "Dzień {day} cyklu, faza {phase}",
       "ariaUnknown": "Brak aktywnego cyklu",
-      "caption": "twojego cyklu"
+      "caption": "twojego cyklu",
+      "firstPeriodCta": "Zapisz pierwszą miesiączkę"
     },
     "calendar": {
       "legendPeriod": "Zapisana miesiączka",
@@ -5073,7 +5074,14 @@
       "saved": "Dzień zapisany",
       "saveError": "Nie udało się zapisać. Spróbuj ponownie.",
       "periodStarted": "Zapisano początek miesiączki",
-      "clear": "Brak"
+      "clear": "Brak",
+      "intermenstrualBleeding": "Plamienie między okresami",
+      "pregnancyTest": "Test ciążowy",
+      "progesteroneTest": "Test progesteronu",
+      "contraceptive": "Antykoncepcja",
+      "severity": "Nasilenie",
+      "severityLevel": "Nasilenie {level} z 4",
+      "delete": "Usuń"
     },
     "settings": {
       "title": "Ustawienia cyklu",
@@ -5107,6 +5115,22 @@
       "purgeCancel": "Anuluj",
       "purgeSuccess": "Usunięto wszystkie dane cyklu.",
       "purgeError": "Nie udało się usunąć danych cyklu. Spróbuj ponownie."
+    },
+    "testResult": {
+      "POSITIVE": "Pozytywny",
+      "NEGATIVE": "Negatywny",
+      "INDETERMINATE": "Niejasny"
+    },
+    "contraceptive": {
+      "NONE": "Brak",
+      "UNSPECIFIED": "Inne",
+      "IMPLANT": "Implant",
+      "INJECTION": "Zastrzyk",
+      "IUD": "Wkładka",
+      "INTRAVAGINAL_RING": "Krążek",
+      "ORAL": "Tabletka",
+      "PATCH": "Plaster",
+      "EMERGENCY": "Awaryjna"
     }
   },
   "cycleReminders": {

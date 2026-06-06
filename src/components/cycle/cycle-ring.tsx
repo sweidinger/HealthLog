@@ -109,13 +109,16 @@ export function CycleRing({
     [resolvedSpans, phase],
   );
 
-  // The marker sits at the cycle-day proportion around the circle.
+  // The marker sits at the cycle-day proportion around the circle. The
+  // surrounding <svg> already carries `-rotate-90`, so 0 rad here maps to
+  // 12 o'clock — day 0 must NOT subtract another π/2 (the prior double-rotate
+  // bug parked the marker at 9 o'clock). Day 1 is treated as the 12-o'clock
+  // origin (1-based dayOfCycle → 0-based progress).
   const markerProgress =
     dayOfCycle != null && cycleLength != null && cycleLength > 0
-      ? Math.min(dayOfCycle / cycleLength, 1)
+      ? Math.min((dayOfCycle - 1) / cycleLength, 1)
       : null;
-  const markerAngle =
-    markerProgress != null ? markerProgress * 2 * Math.PI - Math.PI / 2 : null;
+  const markerAngle = markerProgress != null ? markerProgress * 2 * Math.PI : null;
   const markerX = markerAngle != null ? CX + R * Math.cos(markerAngle) : 0;
   const markerY = markerAngle != null ? CX + R * Math.sin(markerAngle) : 0;
 

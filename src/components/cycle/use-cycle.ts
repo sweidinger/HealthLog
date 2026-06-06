@@ -18,6 +18,7 @@ import {
 } from "@/lib/query-keys";
 import type {
   CalendarResponse,
+  CycleDayLogDTO,
   CycleDayLogInput,
   CycleHistoryResponse,
   CycleProfileDTO,
@@ -34,6 +35,36 @@ async function unwrap<T>(res: Response): Promise<T> {
   if (!res.ok) throw new Error(`Request failed: ${res.status}`);
   const json = await res.json();
   return json.data as T;
+}
+
+/**
+ * The local-timezone `YYYY-MM-DD` for a Date (default: now). Cycle day-keys
+ * are tz-anchored on the server; the client must derive the key from the
+ * user's wall-clock day, never from `toISOString()` (which is UTC and rolls
+ * the date over near midnight).
+ */
+export function localYmd(d: Date = new Date()): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+/**
+ * Read the full day-log for one date so the log-day sheet pre-fills (no
+ * blank-sheet data loss) and Delete can resolve the row id. `null` when
+ * nothing is logged that day. Enabled only when a date is supplied.
+ */
+export function useCycleDayLog(date: string | null) {
+  return useQuery({
+    queryKey: queryKeys.cycleDayLog(date ?? ""),
+    enabled: date !== null,
+    queryFn: () =>
+      fetch(`/api/cycle/day-logs?date=${date}`).then((r) =>
+        unwrap<CycleDayLogDTO | null>(r),
+      ),
+    staleTime: 30_000,
+  });
 }
 
 export function useCycleCalendar(from: string, to: string) {
@@ -120,6 +151,42 @@ export function useStartPeriod() {
         }),
       });
       return unwrap<unknown>(res);
+    },
+    onSuccess: () => invalidateKeys(qc, cycleDependentKeys),
+  });
+}
+
+/** The one-tap "end period" boundary (`action:"end"`). */
+export function useEndPeriod() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (date: string) => {
+      const res = await fetch("/api/cycle/period", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "end",
+          date,
+          loggedAt: new Date().toISOString(),
+        }),
+      });
+      return unwrap<unknown>(res);
+    },
+    onSuccess: () => invalidateKeys(qc, cycleDependentKeys),
+  });
+}
+
+/** Soft-delete a logged day by its row id (the GET supplies the id). */
+export function useDeleteDayLog() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const res = await fetch(`/api/cycle/day-logs/${id}`, {
+        method: "DELETE",
+      });
+      if (!res.ok && res.status !== 204) {
+        throw new Error(`Request failed: ${res.status}`);
+      }
     },
     onSuccess: () => invalidateKeys(qc, cycleDependentKeys),
   });

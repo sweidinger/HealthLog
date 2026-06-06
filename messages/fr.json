@@ -5008,7 +5008,8 @@
       "dayUnknown": "—",
       "ariaPhase": "Jour {day} du cycle, phase {phase}",
       "ariaUnknown": "Pas encore de cycle actif",
-      "caption": "de ton cycle"
+      "caption": "de ton cycle",
+      "firstPeriodCta": "Enregistrer mes premières règles"
     },
     "calendar": {
       "legendPeriod": "Règles enregistrées",
@@ -5073,7 +5074,14 @@
       "saved": "Journée enregistrée",
       "saveError": "Enregistrement impossible. Réessaie.",
       "periodStarted": "Début des règles enregistré",
-      "clear": "Aucun"
+      "clear": "Aucun",
+      "intermenstrualBleeding": "Saignements entre les règles",
+      "pregnancyTest": "Test de grossesse",
+      "progesteroneTest": "Test de progestérone",
+      "contraceptive": "Contraception",
+      "severity": "Intensité",
+      "severityLevel": "Intensité {level} sur 4",
+      "delete": "Supprimer"
     },
     "settings": {
       "title": "Réglages du cycle",
@@ -5107,6 +5115,22 @@
       "purgeCancel": "Annuler",
       "purgeSuccess": "Toutes les données de cycle ont été supprimées.",
       "purgeError": "Impossible de supprimer les données de cycle. Réessayez."
+    },
+    "testResult": {
+      "POSITIVE": "Positif",
+      "NEGATIVE": "Négatif",
+      "INDETERMINATE": "Incertain"
+    },
+    "contraceptive": {
+      "NONE": "Aucune",
+      "UNSPECIFIED": "Autre",
+      "IMPLANT": "Implant",
+      "INJECTION": "Injection",
+      "IUD": "DIU",
+      "INTRAVAGINAL_RING": "Anneau",
+      "ORAL": "Pilule",
+      "PATCH": "Patch",
+      "EMERGENCY": "Urgence"
     }
   },
   "cycleReminders": {

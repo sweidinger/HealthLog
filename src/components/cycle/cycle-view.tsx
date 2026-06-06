@@ -21,6 +21,7 @@ import {
 import { CycleSettings } from "./cycle-settings";
 import { deriveWheelState } from "./wheel-state";
 import {
+  localYmd,
   useCycleCalendar,
   useCycleHistory,
   useCycleInsights,
@@ -37,13 +38,11 @@ import {
  * RSC has already gated on `cycleTrackingEnabled`.
  */
 
-/** YYYY-MM-DD for `n` days from now in the local tz. */
+/** YYYY-MM-DD for `n` days from now in the local tz (shares `localYmd`). */
 function shiftToday(days: number): string {
   const d = new Date();
   d.setDate(d.getDate() + days);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(
-    d.getDate(),
-  ).padStart(2, "0")}`;
+  return localYmd(d);
 }
 
 export function CycleView() {
@@ -90,8 +89,10 @@ export function CycleView() {
         </Button>
       </div>
 
-      {/* Wheel — the signature ring above the tabs. */}
-      <Card>
+      {/* Desktop: ring (left) + tabs (right). Single column below lg. */}
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,22rem)_minmax(0,1fr)] lg:items-start">
+      {/* Wheel — the signature ring. */}
+      <Card className="lg:sticky lg:top-6">
         <CardContent className="flex flex-col items-center gap-3 py-6">
           {loading ? (
             <div className="flex h-[220px] items-center justify-center">
@@ -108,6 +109,16 @@ export function CycleView() {
           <p className="text-muted-foreground text-xs">
             {t("cycle.ring.caption")}
           </p>
+          {/* First-period CTA — only when no cycle is active yet. */}
+          {!loading && wheel.dayOfCycle == null ? (
+            <Button
+              variant="outline"
+              className="mt-1 w-full"
+              onClick={() => openSheet(today)}
+            >
+              {t("cycle.ring.firstPeriodCta")}
+            </Button>
+          ) : null}
         </CardContent>
       </Card>
 
@@ -171,6 +182,7 @@ export function CycleView() {
           )}
         </TabsContent>
       </Tabs>
+      </div>
 
       <LogDaySheet
         open={sheetOpen}

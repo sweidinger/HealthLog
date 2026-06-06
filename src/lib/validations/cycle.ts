@@ -73,6 +73,9 @@ const dateString = z
   .string()
   .regex(/^\d{4}-\d{2}-\d{2}$/, "Expected a YYYY-MM-DD date");
 
+/** The single-day read query: `GET /api/cycle/day-logs?date=YYYY-MM-DD`. */
+export const cycleDayLogQuerySchema = z.object({ date: dateString });
+
 /* ── day-log capture (single + bulk shared input) ────────────────── */
 
 /**

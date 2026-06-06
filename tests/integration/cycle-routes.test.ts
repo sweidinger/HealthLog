@@ -167,6 +167,90 @@ describe("cycle day-logs — single capture", () => {
   });
 });
 
+describe("cycle day-logs — single read (GET)", () => {
+  it("returns the full DTO for a logged day and null for an empty one", async () => {
+    await loginAs(FEMALE_USER_ID);
+    const route = await import("@/app/api/cycle/day-logs/route");
+
+    await route.POST(
+      jsonRequest("/api/cycle/day-logs", "POST", {
+        date: "2026-04-01",
+        flow: "MEDIUM",
+        loggedAt: "2026-04-01T08:00:00.000Z",
+      }),
+    );
+
+    const hit = await route.GET(
+      jsonRequest("/api/cycle/day-logs?date=2026-04-01", "GET"),
+    );
+    expect(hit.status).toBe(200);
+    const hitJson = await hit.json();
+    expect(hitJson.data).not.toBeNull();
+    expect(hitJson.data.flow).toBe("MEDIUM");
+    expect(typeof hitJson.data.id).toBe("string");
+
+    const miss = await route.GET(
+      jsonRequest("/api/cycle/day-logs?date=2026-04-09", "GET"),
+    );
+    expect(miss.status).toBe(200);
+    expect((await miss.json()).data).toBeNull();
+  });
+
+  it("422s a malformed date query", async () => {
+    await loginAs(FEMALE_USER_ID);
+    const { GET } = await import("@/app/api/cycle/day-logs/route");
+    const res = await GET(jsonRequest("/api/cycle/day-logs?date=nope", "GET"));
+    expect(res.status).toBe(422);
+  });
+});
+
+describe("cycle day-logs — symptom severity", () => {
+  it("persists a 1-4 severity per link and reads it back in the DTO", async () => {
+    await loginAs(FEMALE_USER_ID);
+    // Ensure a catalog category + symptom exist so the link resolves
+    // (idempotent — the seed migration may already provide them).
+    const cat = await getPrismaClient().cycleSymptomCategory.upsert({
+      where: { key: "physical" },
+      create: { key: "physical", labelKey: "cycle.symptomCategory.physical" },
+      update: {},
+    });
+    await getPrismaClient().cycleSymptom.upsert({
+      where: { key: "cramps" },
+      create: {
+        key: "cramps",
+        categoryId: cat.id,
+        labelKey: "cycle.symptom.cramps",
+        isActive: true,
+      },
+      update: { isActive: true },
+    });
+    const route = await import("@/app/api/cycle/day-logs/route");
+
+    const insert = await route.POST(
+      jsonRequest("/api/cycle/day-logs", "POST", {
+        date: "2026-04-15",
+        symptoms: [{ key: "cramps", severity: 3 }],
+        loggedAt: "2026-04-15T08:00:00.000Z",
+      }),
+    );
+    expect(insert.status).toBe(201);
+    const insertJson = await insert.json();
+    expect(insertJson.data.symptoms).toEqual([{ key: "cramps", severity: 3 }]);
+
+    const link = await getPrismaClient().cycleSymptomLink.findFirstOrThrow({
+      where: { dayLog: { date: "2026-04-15" } },
+    });
+    expect(link.severity).toBe(3);
+
+    const read = await route.GET(
+      jsonRequest("/api/cycle/day-logs?date=2026-04-15", "GET"),
+    );
+    expect((await read.json()).data.symptoms).toEqual([
+      { key: "cramps", severity: 3 },
+    ]);
+  });
+});
+
 describe("cycle day-logs — bulk drain", () => {
   it("returns per-entry inserted / updated / duplicate", async () => {
     await loginAs(FEMALE_USER_ID);

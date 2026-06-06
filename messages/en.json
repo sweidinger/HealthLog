@@ -5008,7 +5008,8 @@
       "dayUnknown": "—",
       "ariaPhase": "Cycle day {day}, {phase} phase",
       "ariaUnknown": "No active cycle yet",
-      "caption": "of your cycle"
+      "caption": "of your cycle",
+      "firstPeriodCta": "Log my first period"
     },
     "calendar": {
       "legendPeriod": "Logged period",
@@ -5065,6 +5066,13 @@
       "mucus": "Cervical mucus",
       "intercourse": "Intercourse",
       "protected": "Protected",
+      "intermenstrualBleeding": "Spotting between periods",
+      "pregnancyTest": "Pregnancy test",
+      "progesteroneTest": "Progesterone test",
+      "contraceptive": "Contraceptive",
+      "severity": "Severity",
+      "severityLevel": "Severity {level} of 4",
+      "delete": "Delete",
       "note": "Note",
       "notePlaceholder": "Anything you want to remember about today…",
       "save": "Save",
@@ -5074,6 +5082,11 @@
       "saveError": "Could not save. Try again.",
       "periodStarted": "Period start logged",
       "clear": "None"
+    },
+    "testResult": {
+      "POSITIVE": "Positive",
+      "NEGATIVE": "Negative",
+      "INDETERMINATE": "Unclear"
     },
     "settings": {
       "title": "Cycle settings",
@@ -5107,6 +5120,17 @@
       "purgeCancel": "Cancel",
       "purgeSuccess": "All cycle data deleted.",
       "purgeError": "Could not delete cycle data. Try again."
+    },
+    "contraceptive": {
+      "NONE": "None",
+      "UNSPECIFIED": "Other",
+      "IMPLANT": "Implant",
+      "INJECTION": "Injection",
+      "IUD": "IUD",
+      "INTRAVAGINAL_RING": "Ring",
+      "ORAL": "Pill",
+      "PATCH": "Patch",
+      "EMERGENCY": "Emergency"
     }
   },
   "cycleReminders": {

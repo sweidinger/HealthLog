@@ -5008,7 +5008,8 @@
       "dayUnknown": "—",
       "ariaPhase": "Giorno {day} del ciclo, fase {phase}",
       "ariaUnknown": "Nessun ciclo attivo ancora",
-      "caption": "del tuo ciclo"
+      "caption": "del tuo ciclo",
+      "firstPeriodCta": "Registra il mio primo ciclo"
     },
     "calendar": {
       "legendPeriod": "Ciclo registrato",
@@ -5073,7 +5074,14 @@
       "saved": "Giornata salvata",
       "saveError": "Impossibile salvare. Riprova.",
       "periodStarted": "Inizio del ciclo registrato",
-      "clear": "Nessuno"
+      "clear": "Nessuno",
+      "intermenstrualBleeding": "Spotting tra i cicli",
+      "pregnancyTest": "Test di gravidanza",
+      "progesteroneTest": "Test del progesterone",
+      "contraceptive": "Contraccettivo",
+      "severity": "Intensità",
+      "severityLevel": "Intensità {level} su 4",
+      "delete": "Elimina"
     },
     "settings": {
       "title": "Impostazioni del ciclo",
@@ -5107,6 +5115,22 @@
       "purgeCancel": "Annulla",
       "purgeSuccess": "Tutti i dati del ciclo eliminati.",
       "purgeError": "Impossibile eliminare i dati del ciclo. Riprova."
+    },
+    "testResult": {
+      "POSITIVE": "Positivo",
+      "NEGATIVE": "Negativo",
+      "INDETERMINATE": "Non chiaro"
+    },
+    "contraceptive": {
+      "NONE": "Nessuno",
+      "UNSPECIFIED": "Altro",
+      "IMPLANT": "Impianto",
+      "INJECTION": "Iniezione",
+      "IUD": "IUD",
+      "INTRAVAGINAL_RING": "Anello",
+      "ORAL": "Pillola",
+      "PATCH": "Cerotto",
+      "EMERGENCY": "Emergenza"
     }
   },
   "cycleReminders": {

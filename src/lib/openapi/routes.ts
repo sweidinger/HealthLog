@@ -62,6 +62,7 @@ import {
   cycleTrackingGoalEnum,
   cycleDayLogInputSchema,
   cycleDayLogPatchSchema,
+  cycleDayLogQuerySchema,
   cycleBulkSchema,
   cyclePeriodSchema,
   cyclePrefsSchema,
@@ -2441,6 +2442,28 @@ const cycleDisabledResponse = {
 
 export const openApiPaths: NonNullable<ZodOpenApiObject["paths"]> = {
   "/api/cycle/day-logs": {
+    get: {
+      tags: ["Cycle"],
+      summary: "Read a single day's cycle day-log (v1.15.0)",
+      description:
+        "Returns the full `CycleDayLogDTO` for the tz-anchored `date`, or `null` when nothing is logged that day. Lets a client pre-fill an edit sheet. Gated; owner-scoped; soft-deleted rows excluded.",
+      requestParams: { query: cycleDayLogQuerySchema },
+      responses: {
+        "200": {
+          description: "The day-log for that date, or null.",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                cycleDayLogDto.nullable(),
+                "CycleDayLogReadEnvelope",
+              ),
+            },
+          },
+        },
+        ...cycleDisabledResponse,
+        ...stdResponses,
+      },
+    },
     post: {
       tags: ["Cycle"],
       summary: "Capture a single cycle day-log (v1.15.0)",

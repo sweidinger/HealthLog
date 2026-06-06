@@ -26,13 +26,50 @@ import {
 } from "@/lib/api-response";
 import { withIdempotency } from "@/lib/idempotency";
 import { requireCycleEnabled } from "@/lib/cycle/gate";
-import { cycleDayLogInputSchema } from "@/lib/validations/cycle";
+import {
+  cycleDayLogInputSchema,
+  cycleDayLogQuerySchema,
+} from "@/lib/validations/cycle";
 import { upsertCycleDayLog } from "@/lib/cycle/day-log-write";
 import { findOwningCycleId } from "@/lib/cycle/cycle-attribution";
 import { toCycleDayLogDTO, dayLogSymptomInclude } from "@/lib/cycle/dto";
 import { DEFAULT_TIMEZONE } from "@/lib/mood/date-key";
 
 export const POST = apiHandler(withIdempotency<[NextRequest]>(postDayLog));
+
+/**
+ * `GET /api/cycle/day-logs?date=YYYY-MM-DD` — the full `CycleDayLogDTO`
+ * for one tz-anchored day, or `null` when nothing is logged. Lets the
+ * log-day sheet pre-fill (no blank-sheet data loss) and Delete resolve the
+ * row id. Gated + owner-scoped + `deletedAt:null`.
+ */
+export const GET = apiHandler(async (request: NextRequest) => {
+  const { user } = await requireAuth();
+
+  const gate = await requireCycleEnabled(user.id, user.gender);
+  if (!gate.enabled) return gate.response;
+
+  const parsed = cycleDayLogQuerySchema.safeParse({
+    date: new URL(request.url).searchParams.get("date"),
+  });
+  if (!parsed.success) {
+    return returnAllZodIssues(parsed.error, 422, {
+      errorCode: "cycle.day-log.invalid",
+    });
+  }
+
+  const row = await prisma.cycleDayLog.findFirst({
+    where: { userId: user.id, date: parsed.data.date, deletedAt: null },
+    include: dayLogSymptomInclude,
+  });
+
+  annotate({
+    action: { name: "cycle.day-log.read", entity_type: "cycle_day_log" },
+    meta: { found: row !== null },
+  });
+
+  return apiSuccess(row ? toCycleDayLogDTO(row) : null);
+});
 
 async function postDayLog(request: NextRequest): Promise<Response> {
   const { user } = await requireAuth();

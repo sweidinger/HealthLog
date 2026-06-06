@@ -3539,6 +3539,10 @@ model CycleSymptom {
 model CycleSymptomLink {
   dayLogId  String   @map("day_log_id")
   symptomId String   @map("symptom_id")
+  /// Optional 1-4 Likert intensity for this symptom on this day. NULL = a
+  /// plain presence link (the pre-severity contract). Surfaced in
+  /// CycleDayLogDTO so the log-day sheet can pre-fill the severity chips.
+  severity  Int?     @map("severity")
   createdAt DateTime @default(now()) @map("created_at")
 
   dayLog  CycleDayLog  @relation(fields: [dayLogId], references: [id], onDelete: Cascade)

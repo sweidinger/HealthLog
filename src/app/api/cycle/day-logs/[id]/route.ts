@@ -139,11 +139,7 @@ export const PATCH = apiHandler(
 
     // Replace symptom links only when `symptoms` was supplied.
     if (body.symptoms !== undefined) {
-      await replaceSymptomLinks(
-        user.id,
-        id,
-        body.symptoms.map((s) => s.key),
-      );
+      await replaceSymptomLinks(user.id, id, body.symptoms);
     }
 
     const row = await prisma.cycleDayLog.findUniqueOrThrow({
