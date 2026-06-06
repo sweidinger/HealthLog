@@ -43,7 +43,7 @@ import {
 } from "@/components/ui/popover";
 import { ResponsiveSheet } from "@/components/ui/responsive-sheet";
 import { useTranslations } from "@/lib/i18n/context";
-import { CUSTOM_SYMPTOM_ICON_ALLOWLIST } from "@/lib/cycle/custom-symptoms";
+import { CUSTOM_SYMPTOM_ICON_ALLOWLIST } from "@/lib/cycle/custom-symptoms-shared";
 import { CYCLE_SYMPTOM_CATALOG } from "./symptom-catalog";
 import { FLOW_HUE } from "./phase-tokens";
 import {
