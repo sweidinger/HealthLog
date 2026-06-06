@@ -2,7 +2,20 @@
 
 ## [Unreleased]
 
-## [1.15.4] — 2026-06-06 — cycle and insights polish
+## [1.15.5] — 2026-06-06 — insights layout, navigation, password-reset CLI
+
+### Added
+
+- **Reset a password from the command line.** Operators can reset a user's password from inside the container — useful when someone is locked out — via `docker compose exec app node scripts/reset-password.mjs <username-or-email>`. See `docs/ops/password-reset.md`.
+
+### Changed
+
+- **A tidier health-scores row.** With cycle tracking on, your cycle ring takes the place of the strain ring in the Insights health-scores row, so the row stays compact rather than growing an extra tile.
+- **Cycle sits with your other trackers.** The Cycle entry in the sidebar now appears between Medications and Insights, rather than at the very bottom.
+
+### Fixed
+
+- **No more empty gap on the Insights overview.** The cycle summary card on the Insights page was held invisible by a style rule yet still took up space, leaving an odd gap above and below it; it now appears as intended and the spacing is even.
 
 ### Added
 
