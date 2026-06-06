@@ -48,7 +48,7 @@ model User {
   // Profile
   heightCm    Float?    @map("height_cm")
   dateOfBirth DateTime? @map("date_of_birth")
-  gender      String?   @map("gender") // "MALE" | "FEMALE" | null = keine Angabe
+  gender      String?   @map("gender") // "MALE" | "FEMALE" | "OTHER" | null = keine Angabe
   timezone    String    @default("Europe/Berlin")
 
   // Codex OAuth (ChatGPT subscription)

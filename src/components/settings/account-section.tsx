@@ -448,6 +448,7 @@ export function AccountSection() {
                 <option value="">{t("settings.genderNone")}</option>
                 <option value="MALE">{t("settings.genderMale")}</option>
                 <option value="FEMALE">{t("settings.genderFemale")}</option>
+                <option value="OTHER">{t("settings.genderOther")}</option>
               </NativeSelect>
               <p className="text-muted-foreground text-xs">
                 {t("settings.genderHint")}

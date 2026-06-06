@@ -38,7 +38,7 @@ export const profileSchema = z.object({
   email: z.email("Invalid email address").nullable().optional(),
   heightCm: z.number().min(50).max(300).nullable().optional(),
   dateOfBirth: z.string().nullable().optional(), // ISO date string
-  gender: z.enum(["MALE", "FEMALE"]).nullable().optional(),
+  gender: z.enum(["MALE", "FEMALE", "OTHER"]).nullable().optional(),
   // v1.7.0 — optional patient-identity fields for the health-record
   // export cover + FHIR Patient resource. All optional, never required.
   fullName: z.string().trim().max(120).nullable().optional(),

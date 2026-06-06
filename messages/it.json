@@ -3877,7 +3877,8 @@
       "statusRevoked": "Revocato",
       "statusExpired": "Scaduto",
       "inactiveTitle": "Revocati e scaduti ({count})"
-    }
+    },
+    "genderOther": "Altro"
   },
   "admin": {
     "title": "Administration",

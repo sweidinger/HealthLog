@@ -3877,7 +3877,8 @@
       "statusRevoked": "Unieważniony",
       "statusExpired": "Wygasły",
       "inactiveTitle": "Unieważnione i wygasłe ({count})"
-    }
+    },
+    "genderOther": "Inna"
   },
   "admin": {
     "title": "Administracja",

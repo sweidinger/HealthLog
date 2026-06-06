@@ -3877,7 +3877,8 @@
       "statusRevoked": "Widerrufen",
       "statusExpired": "Abgelaufen",
       "inactiveTitle": "Widerrufen und abgelaufen ({count})"
-    }
+    },
+    "genderOther": "Divers"
   },
   "admin": {
     "title": "Administration",
