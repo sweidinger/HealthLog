@@ -24,7 +24,9 @@ export type CyclePhaseCrosstabDisplay =
   | "bpm"
   | "ms"
   | "kg"
-  | "celsius";
+  | "celsius"
+  | "glucose"
+  | "mood";
 
 export type CyclePhaseCrosstabConfidence = "low" | "medium" | "high";
 
@@ -50,6 +52,8 @@ const METRIC_LABEL_KEY: Record<string, string> = {
   basalBodyTemp: "cycle.insights.crosstab.metricBasalBodyTemp",
   wristTemperature: "cycle.insights.crosstab.metricWristTemperature",
   skinTemperature: "cycle.insights.crosstab.metricSkinTemperature",
+  bloodGlucose: "cycle.insights.crosstab.metricBloodGlucose",
+  mood: "cycle.insights.crosstab.metricMood",
 };
 
 const UNIT_KEY: Record<CyclePhaseCrosstabDisplay, string> = {
@@ -59,6 +63,8 @@ const UNIT_KEY: Record<CyclePhaseCrosstabDisplay, string> = {
   ms: "cycle.insights.crosstab.unitMs",
   kg: "cycle.insights.crosstab.unitKg",
   celsius: "cycle.insights.crosstab.unitCelsius",
+  glucose: "cycle.insights.crosstab.unitGlucose",
+  mood: "cycle.insights.crosstab.unitMood",
 };
 
 const CONFIDENCE_KEY: Record<CyclePhaseCrosstabConfidence, string> = {
@@ -107,7 +113,10 @@ export function CyclePhaseHeadline({
   const metricLabel = t(
     METRIC_LABEL_KEY[headline.metricKey] ?? headline.metricKey,
   );
-  const unit = t(UNIT_KEY[headline.display]);
+  // Defensive: an unmapped display must never pass undefined to `t` (whose
+  // resolver does `key.split(".")`). An empty unit is the honest degrade.
+  const unitKey = UNIT_KEY[headline.display];
+  const unit = unitKey ? t(unitKey) : "";
   const up = headline.delta >= 0;
   const dir = t(
     up
@@ -151,7 +160,10 @@ export function CyclePhaseCrosstab({
           const metricLabel = t(
             METRIC_LABEL_KEY[row.metricKey] ?? row.metricKey,
           );
-          const unit = t(UNIT_KEY[row.display]);
+          // Defensive: an unmapped display must never pass undefined to `t`
+          // (whose resolver does `key.split(".")`). Empty unit on a miss.
+          const unitKey = UNIT_KEY[row.display];
+          const unit = unitKey ? t(unitKey) : "";
           // `delta` = lutealAvg − follicularAvg: positive = the vital runs
           // higher in the luteal phase. The number stays NEUTRAL — higher is
           // good for steps but bad for resting HR, and this board is
