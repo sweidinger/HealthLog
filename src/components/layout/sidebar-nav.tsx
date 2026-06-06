@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   Activity,
   Bell,
@@ -260,10 +260,21 @@ export function SidebarNav() {
   // with no sub-item expansion in the global sidebar — `<AdminShell>`
   // renders its own per-section nav inside the page itself.
   const onAdminPage = pathname === "/admin" || pathname.startsWith("/admin/");
-  // v1.15.0 — append the cycle entry only when the gate resolves true.
-  const visibleNavItems = user?.cycleTrackingEnabled
-    ? [...navItems, cycleNavItem]
-    : navItems;
+  // v1.15.5 — surface the cycle entry directly after Medications (before
+  // Insights) when the gate resolves true, instead of tacking it on at the
+  // end. Splice by the Medications index so the position survives a reorder
+  // of the static list; fall back to append if the anchor ever moves.
+  const visibleNavItems = useMemo(() => {
+    if (!user?.cycleTrackingEnabled) return navItems;
+    const afterMedications =
+      navItems.findIndex((item) => item.href === "/medications") + 1;
+    if (afterMedications <= 0) return [...navItems, cycleNavItem];
+    return [
+      ...navItems.slice(0, afterMedications),
+      cycleNavItem,
+      ...navItems.slice(afterMedications),
+    ];
+  }, [user?.cycleTrackingEnabled]);
   const [collapsed, setCollapsed] = useState(() => {
     if (typeof window === "undefined") return false;
     try {
