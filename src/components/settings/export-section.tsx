@@ -16,13 +16,11 @@
  *   3. Medications CSV            — optional intake-history toggle
  *   4. Mood CSV                   — optional `since`/`until`
  *   5. Full JSON Backup           — single-file user-scoped dump
- *   6. Doctor Report (PDF)        — small secondary card at the bottom
- *                                   (`<ArztberichtHeroCard>`)
  *
  * v1.12 — the health-record export is the headline "data out" path; it
- * takes the page hero. The doctor-report PDF is demoted to a small
- * secondary card at the bottom of the page — fully functional, just no
- * longer the flagship surface it was in v1.4.37 W7a.
+ * takes the page hero. The doctor-report PDF lives under the
+ * health-record export now and is no longer offered as a separate card
+ * here (it used to be a small secondary card at the bottom).
  *
  * Mobile-first: cards stack on `<md`, two-column grid on `>=md`.
  */
@@ -42,7 +40,6 @@ import { Button } from "@/components/ui/button";
 import { DateInput } from "@/components/ui/date-input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { ArztberichtHeroCard } from "@/components/settings/arztbericht-hero-card";
 import { HealthRecordExportPanel } from "@/components/settings/health-record-export-panel";
 import { useTranslations } from "@/lib/i18n/context";
 
@@ -114,11 +111,6 @@ export function ExportSection() {
           <FullBackupCard />
         </div>
       </section>
-
-      {/* v1.12 — doctor-report PDF, demoted from the former page hero to a
-          small secondary card at the bottom. Fully functional — the same
-          `<DoctorReportDialog>` + `/api/doctor-report` flow runs from here. */}
-      <ArztberichtHeroCard />
     </section>
   );
 }

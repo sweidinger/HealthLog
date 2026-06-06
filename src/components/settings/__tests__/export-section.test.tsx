@@ -7,18 +7,16 @@
  *   - Medications CSV (with optional intake-history toggle)
  *   - Mood CSV
  *   - Full JSON Backup
- *   - Doctor Report (PDF) — small secondary card at the bottom (v1.12)
  *
  * Each card must surface a title, a 1-line description, and a
  * download/generate button. SSR-only smoke test — interaction is
  * exercised by the e2e suite.
  *
- * v1.12 — the health-record export takes the page hero; the
- * doctor-report card (`<ArztberichtHeroCard>`) is demoted to a small
- * secondary card at the bottom of the page. The four CSV/JSON tiles
- * stay under a "Weitere Export-Optionen" / "Other export options"
- * sub-heading. Each component owns its own contract test; this suite
- * pins the page-level shape.
+ * The health-record export takes the page hero. The doctor-report PDF
+ * now lives under the health-record export and is no longer offered as
+ * a separate card here. The four CSV/JSON tiles stay under a "Weitere
+ * Export-Optionen" / "Other export options" sub-heading. Each component
+ * owns its own contract test; this suite pins the page-level shape.
  */
 import { describe, expect, it, vi } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
@@ -68,12 +66,11 @@ describe("<ExportSection> — SSR smoke", () => {
     expect(html).toContain("glow-purple");
   });
 
-  it("mounts the demoted doctor-report card", () => {
+  it("no longer mounts a separate doctor-report card", () => {
     const html = render(<ExportSection />);
-    // The card owns its own contract suite; here we pin that the page
-    // mounts it, and that the legacy in-grid doctor-report card is
-    // gone. The card no longer carries the hero gradient/glow (v1.12).
-    expect(html).toContain('data-testid="export-hero-doctor-report"');
+    // The doctor-report PDF now lives under the health-record export;
+    // the Export page no longer offers it as a separate surface.
+    expect(html).not.toContain('data-testid="export-hero-doctor-report"');
     expect(html).not.toContain('data-testid="export-card-doctor-report"');
   });
 
@@ -107,19 +104,16 @@ describe("<ExportSection> — SSR smoke", () => {
     expect(html).toContain('data-testid="export-medications-include-intake"');
   });
 
-  it("renders a download/generate button per secondary card + the hero CTA", () => {
+  it("renders a download/generate button per secondary card", () => {
     const html = render(<ExportSection />);
-    // Four secondary cards each carry an `export-action-*` testid; the
-    // hero owns the `export-hero-doctor-report-action` slot.
+    // Four secondary cards each carry an `export-action-*` testid.
     const buttonMatches = html.match(/data-testid="export-action-/g);
     expect(buttonMatches?.length ?? 0).toBe(4);
-    expect(html).toContain('data-testid="export-hero-doctor-report-action"');
   });
 
   it("German locale renders the DE heading + hero copy", () => {
     const html = render(<ExportSection />, "de");
     expect(html).toContain("Export");
-    expect(html).toContain("Arztbericht");
     expect(html).toContain("Weitere Export-Optionen");
     expect(html).not.toContain("settings.sections.export.");
   });
