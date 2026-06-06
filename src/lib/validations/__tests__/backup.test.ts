@@ -84,3 +84,67 @@ describe("moodEntrySchema.tags strict validation", () => {
     expect(r.success).toBe(true);
   });
 });
+
+describe("backupPayloadSchema — v1.15.0 cycle round-trip", () => {
+  it("defaults the cycle fields when a pre-v1.15 blob omits them", () => {
+    const r = backupPayloadSchema.safeParse({
+      schemaVersion: "1",
+      exportedAt: "2026-05-08T07:00:00.000Z",
+      userId: "u1",
+    });
+    expect(r.success).toBe(true);
+    if (r.success) {
+      expect(r.data.cycleProfile).toBeNull();
+      expect(r.data.cycles).toEqual([]);
+      expect(r.data.cycleDayLogs).toEqual([]);
+    }
+  });
+
+  it("round-trips a cycle profile, observed span, and day-log with notes ciphertext", () => {
+    const r = backupPayloadSchema.safeParse({
+      schemaVersion: "1",
+      exportedAt: "2026-05-08T07:00:00.000Z",
+      userId: "u1",
+      cycleProfile: {
+        goal: "TRYING_TO_CONCEIVE",
+        cycleTrackingEnabled: true,
+        typicalCycleLength: 28,
+        lutealPhaseLength: 14,
+        sensitiveCategoryEncryption: true,
+      },
+      cycles: [
+        {
+          startDate: "2026-04-20",
+          endDate: "2026-05-17",
+          periodEndDate: "2026-04-24",
+          lengthDays: 28,
+          ovulationDate: "2026-05-04",
+          ovulationConfirmed: true,
+          tz: "Europe/Berlin",
+        },
+      ],
+      cycleDayLogs: [
+        {
+          date: "2026-04-20",
+          flow: "MEDIUM",
+          intermenstrualBleeding: false,
+          sexualActivity: true,
+          protectedSex: false,
+          contraceptive: "NONE",
+          // The note must round-trip as the opaque ciphertext envelope.
+          notesEncrypted: "v1:deadbeef:cipher",
+          source: "APPLE_HEALTH",
+          externalId: "hkcycle:2026-04-20",
+          symptomKeys: ["cramps", "fatigue"],
+        },
+      ],
+    });
+    expect(r.success).toBe(true);
+    if (r.success) {
+      expect(r.data.cycleProfile?.goal).toBe("TRYING_TO_CONCEIVE");
+      expect(r.data.cycles[0].lengthDays).toBe(28);
+      expect(r.data.cycleDayLogs[0].notesEncrypted).toBe("v1:deadbeef:cipher");
+      expect(r.data.cycleDayLogs[0].symptomKeys).toEqual(["cramps", "fatigue"]);
+    }
+  });
+});

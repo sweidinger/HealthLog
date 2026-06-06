@@ -146,6 +146,7 @@
       "moodSensitive": "Wrażliwe — domyślnie wyłączone.",
       "compliance": "Przestrzeganie leków",
       "sleep": "Czas snu",
+      "cycle": "Cykl menstruacyjny",
       "empty": "Brak danych dla wybranego okresu. Raport zachowa stronę tytułową.",
       "unavailableHint": "Brak danych w tym okresie"
     },
@@ -163,7 +164,22 @@
     "wellnessDisclaimer": "To opisowe wyniki dobrostanu obliczone na podstawie śledzonych sygnałów (0–100). Nie są to oceny kliniczne ani diagnozy.",
     "wellnessRecovery": "Regeneracja",
     "wellnessStress": "Stres",
-    "wellnessStrain": "Obciążenie"
+    "wellnessStrain": "Obciążenie",
+    "cycleTitle": "Cykl menstruacyjny",
+    "cycleLmp": "Ostatnia miesiączka",
+    "cycleAvgLength": "Średnia długość cyklu",
+    "cycleAvgPeriod": "Średnia długość miesiączki",
+    "cyclePhase": "Bieżąca faza",
+    "cycleDays": "dni",
+    "cycleColStart": "Początek miesiączki",
+    "cycleColLength": "Długość cyklu (dni)",
+    "cycleColPeriod": "Długość miesiączki (dni)",
+    "cyclePhases": {
+      "MENSTRUAL": "Menstruacyjna",
+      "FOLLICULAR": "Folikularna",
+      "OVULATORY": "Owulacyjna",
+      "LUTEAL": "Lutealna"
+    }
   },
   "errorBoundary": {
     "title": "Coś poszło nie tak",

@@ -79,6 +79,9 @@ export interface FhirObservation {
   valueQuantity?: FhirQuantity;
   valueInteger?: number;
   valueString?: string;
+  /** v1.15.0 — date-typed value (e.g. the LMP start date). */
+  valueDateTime?: string;
+  valueCodeableConcept?: FhirCodeableConcept;
   component?: FhirObservationComponent[];
   /** v1.10.0 — descriptive note (e.g. the wellness-score disclaimer). */
   note?: FhirAnnotation[];

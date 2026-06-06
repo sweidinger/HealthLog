@@ -146,6 +146,7 @@
       "moodSensitive": "Sensibel — standardmäßig aus.",
       "compliance": "Medikamenten-Compliance",
       "sleep": "Schlafdauer",
+      "cycle": "Menstruationszyklus",
       "empty": "Für den gewählten Zeitraum liegen noch keine Daten vor. Der Bericht enthält dennoch das Deckblatt.",
       "unavailableHint": "Keine Daten in diesem Zeitraum"
     },
@@ -163,7 +164,22 @@
     "wellnessDisclaimer": "Dies sind beschreibende Wellness-Werte, die aus deinen erfassten Signalen berechnet werden (0–100). Sie sind keine klinischen Beurteilungen oder Diagnosen.",
     "wellnessRecovery": "Erholung",
     "wellnessStress": "Stress",
-    "wellnessStrain": "Belastung"
+    "wellnessStrain": "Belastung",
+    "cycleTitle": "Menstruationszyklus",
+    "cycleLmp": "Letzte Periode",
+    "cycleAvgLength": "Durchschnittliche Zykluslänge",
+    "cycleAvgPeriod": "Durchschnittliche Periodendauer",
+    "cyclePhase": "Aktuelle Phase",
+    "cycleDays": "Tage",
+    "cycleColStart": "Periodenbeginn",
+    "cycleColLength": "Zykluslänge (Tage)",
+    "cycleColPeriod": "Periodendauer (Tage)",
+    "cyclePhases": {
+      "MENSTRUAL": "Menstruation",
+      "FOLLICULAR": "Follikelphase",
+      "OVULATORY": "Ovulation",
+      "LUTEAL": "Lutealphase"
+    }
   },
   "errorBoundary": {
     "title": "Da ist etwas schiefgelaufen",

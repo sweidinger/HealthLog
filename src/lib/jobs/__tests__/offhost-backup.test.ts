@@ -111,6 +111,9 @@ describe("runOffhostBackup", () => {
       medication: { findMany: vi.fn().mockResolvedValue([]) },
       medicationIntakeEvent: { findMany: vi.fn().mockResolvedValue([]) },
       moodEntry: { findMany: vi.fn().mockResolvedValue([]) },
+      cycleProfile: { findUnique: vi.fn().mockResolvedValue(null) },
+      menstrualCycle: { findMany: vi.fn().mockResolvedValue([]) },
+      cycleDayLog: { findMany: vi.fn().mockResolvedValue([]) },
     };
 
     const now = new Date("2026-05-08T03:00:00Z");
@@ -150,6 +153,9 @@ describe("runOffhostBackup", () => {
       medication: { findMany: vi.fn().mockResolvedValue([]) },
       medicationIntakeEvent: { findMany: vi.fn().mockResolvedValue([]) },
       moodEntry: { findMany: vi.fn().mockResolvedValue([]) },
+      cycleProfile: { findUnique: vi.fn().mockResolvedValue(null) },
+      menstrualCycle: { findMany: vi.fn().mockResolvedValue([]) },
+      cycleDayLog: { findMany: vi.fn().mockResolvedValue([]) },
     };
     const report = await runOffhostBackup(
       // eslint-disable-next-line @typescript-eslint/no-explicit-any

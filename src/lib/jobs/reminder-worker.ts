@@ -11,6 +11,7 @@ import type { Job } from "pg-boss";
 import { PrismaClient } from "@/generated/prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { dispatchNotification } from "@/lib/notifications/dispatcher";
+import { buildCycleBackupSection } from "@/lib/cycle/backup";
 import {
   buildCanonicalSchedule,
   buildRecurrenceContext,
@@ -2169,7 +2170,7 @@ async function handleDataBackup(jobs: Job<DataBackupPayload>[]) {
       let backed = 0;
       for (const user of users) {
         try {
-          const [measurements, medications, intakeEvents, moodEntries] =
+          const [measurements, medications, intakeEvents, moodEntries, cycle] =
             await Promise.all([
               prisma.measurement.findMany({
                 where: { userId: user.id },
@@ -2188,6 +2189,8 @@ async function handleDataBackup(jobs: Job<DataBackupPayload>[]) {
                 where: { userId: user.id },
                 orderBy: { moodLoggedAt: "desc" },
               }),
+              // v1.15.0 — cycle slice (shared helper, notesEncrypted verbatim).
+              buildCycleBackupSection(prisma, user.id),
             ]);
 
           const backupJson = JSON.stringify({
@@ -2231,6 +2234,10 @@ async function handleDataBackup(jobs: Job<DataBackupPayload>[]) {
               source: e.source,
               loggedAt: e.moodLoggedAt.toISOString(),
             })),
+            // v1.15.0 — cycle slice (profile + observed spans + day-logs).
+            cycleProfile: cycle.cycleProfile,
+            cycles: cycle.cycles,
+            cycleDayLogs: cycle.cycleDayLogs,
           });
 
           // Encrypt the backup data (contains sensitive health information)

@@ -85,6 +85,7 @@ describe("resolveDoctorReportPrefs", () => {
       mood: true,
       compliance: false,
       sleep: false,
+      cycle: false,
     };
     const out = resolveDoctorReportPrefs(current, { mood: false });
     expect(out).toEqual({ ...current, mood: false });

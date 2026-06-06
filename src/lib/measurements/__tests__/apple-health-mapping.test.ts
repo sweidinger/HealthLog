@@ -202,19 +202,39 @@ describe("HK_QUANTITY_TYPE_DEFERRED", () => {
       // Behavioural / habit
       "HKCategoryTypeIdentifierHandwashingEvent",
       "HKCategoryTypeIdentifierToothbrushingEvent",
-      // Reproductive / fertility / pregnancy
-      "HKCategoryTypeIdentifierContraceptive",
+      // Reproductive / fertility — v1.15.0 promoted MenstrualFlow,
+      // IntermenstrualBleeding, CervicalMucusQuality, OvulationTestResult,
+      // Contraceptive, PregnancyTestResult, ProgesteroneTestResult,
+      // SexualActivity and SleepChanges OUT of the deferred list (they route
+      // into CYCLE day-logs via the cycle accumulator). Pregnancy +
+      // Lactation STATUS and the four awareness types stay deferred (no
+      // v1.15.0 schema destination / server-derived).
       "HKCategoryTypeIdentifierLactation",
       "HKCategoryTypeIdentifierPregnancy",
-      "HKCategoryTypeIdentifierPregnancyTestResult",
-      "HKCategoryTypeIdentifierProgesteroneTestResult",
-      "HKCategoryTypeIdentifierSexualActivity",
-      "HKCategoryTypeIdentifierSleepChanges",
+      "HKCategoryTypeIdentifierBleedingAfterPregnancy",
+      "HKCategoryTypeIdentifierBleedingDuringPregnancy",
       "HKCategoryTypeIdentifierPersistentIntermenstrualBleeding",
       "HKCategoryTypeIdentifierProlongedMenstrualPeriods",
       "HKCategoryTypeIdentifierIrregularMenstrualCycles",
       "HKCategoryTypeIdentifierInfrequentMenstrualCycles",
     ];
+
+    // v1.15.0 — these are NO LONGER deferred (promoted into cycle day-logs).
+    for (const id of [
+      "HKCategoryTypeIdentifierMenstrualFlow",
+      "HKCategoryTypeIdentifierIntermenstrualBleeding",
+      "HKCategoryTypeIdentifierCervicalMucusQuality",
+      "HKCategoryTypeIdentifierOvulationTestResult",
+      "HKCategoryTypeIdentifierContraceptive",
+      "HKCategoryTypeIdentifierPregnancyTestResult",
+      "HKCategoryTypeIdentifierProgesteroneTestResult",
+      "HKCategoryTypeIdentifierSexualActivity",
+    ]) {
+      expect(
+        HK_QUANTITY_TYPE_DEFERRED.has(id),
+        `${id} should NOT be deferred (promoted to cycle in v1.15.0)`,
+      ).toBe(false);
+    }
     for (const id of expectedLongTail) {
       expect(
         HK_QUANTITY_TYPE_DEFERRED.has(id),

@@ -146,6 +146,7 @@
       "moodSensitive": "Sensibile — disattivato per default.",
       "compliance": "Aderenza ai farmaci",
       "sleep": "Durata del sonno",
+      "cycle": "Ciclo mestruale",
       "empty": "Nessun dato per il periodo selezionato. Il referto manterrà comunque la copertina.",
       "unavailableHint": "Nessun dato in questo periodo"
     },
@@ -163,7 +164,22 @@
     "wellnessDisclaimer": "Sono punteggi di benessere descrittivi calcolati dai tuoi segnali registrati (0–100). Non sono valutazioni cliniche né diagnosi.",
     "wellnessRecovery": "Recupero",
     "wellnessStress": "Stress",
-    "wellnessStrain": "Sforzo"
+    "wellnessStrain": "Sforzo",
+    "cycleTitle": "Ciclo mestruale",
+    "cycleLmp": "Ultime mestruazioni",
+    "cycleAvgLength": "Durata media del ciclo",
+    "cycleAvgPeriod": "Durata media delle mestruazioni",
+    "cyclePhase": "Fase attuale",
+    "cycleDays": "giorni",
+    "cycleColStart": "Inizio mestruazioni",
+    "cycleColLength": "Durata del ciclo (giorni)",
+    "cycleColPeriod": "Durata mestruazioni (giorni)",
+    "cyclePhases": {
+      "MENSTRUAL": "Mestruale",
+      "FOLLICULAR": "Follicolare",
+      "OVULATORY": "Ovulatoria",
+      "LUTEAL": "Luteale"
+    }
   },
   "errorBoundary": {
     "title": "Qualcosa è andato storto",

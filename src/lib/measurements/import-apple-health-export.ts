@@ -44,6 +44,11 @@ import {
 } from "@/lib/measurements/drain-per-sample-cumulative";
 import { resolveHkWorkoutSportType } from "@/lib/measurements/hk-workout-activity-type-map";
 import { validateMeasurementRange } from "@/lib/validations/measurement";
+import {
+  CycleImportAccumulator,
+  type CycleImportStats,
+} from "@/lib/cycle/import-accumulator";
+import { HK_SEXUAL_ACTIVITY_PROTECTION_META } from "@/lib/cycle/healthkit-mapping";
 
 /**
  * Reverse-lookup for the symbolic `HKCategoryValueSleepAnalysis*`
@@ -103,6 +108,13 @@ export interface ImportJobResult {
     durationMs: number;
   };
   clinical: { skipped: number };
+  /**
+   * v1.15.0 — reproductive HealthKit samples routed into CYCLE day-logs
+   * (NOT Measurement). Absent / zeroed when the account has no cycle
+   * tracking enabled (the fold is gated) or the export carried no
+   * reproductive records.
+   */
+  cycle: CycleImportStats;
   deferred: Record<string, number>;
   unknown: Record<string, number>;
   totals: {
@@ -280,6 +292,16 @@ export async function streamParseExportXml(
   const clinical = { skipped: 0 };
   const deferred: Record<string, number> = {};
   const unknown: Record<string, number> = {};
+
+  // v1.15.0 — reproductive HK samples fold into one CycleDayLog per day.
+  // The accumulator buckets in memory; the flush at end of parse upserts.
+  const cycleAccumulator = new CycleImportAccumulator(userId, userTimezone);
+  // Context for a reproductive `<Record>` whose protection metadata
+  // arrives as a following `<MetadataEntry>` child (SexualActivity). Held
+  // between the Record open-tag and its close-tag so the child can attach.
+  let currentCycleRecord:
+    | { hkType: string; dayKey: string; rawValue: string | undefined; protectionUsed?: boolean }
+    | null = null;
 
   // Cumulative-type fold: type -> dayKey -> running sum.
   const cumulativeBucket = new Map<MeasurementType, Map<string, number>>();
@@ -520,6 +542,22 @@ export async function streamParseExportXml(
       if (!hkType) return;
       recordsRead += 1;
 
+      // v1.15.0 — reproductive HK identifiers route into CYCLE day-logs,
+      // not Measurement. Defer the fold until the Record's close-tag so a
+      // child `<MetadataEntry>` (SexualActivity protection flag) can
+      // attach. The accumulator's per-day bucketing handles same-day
+      // merges + idempotent re-import.
+      if (CycleImportAccumulator.handles(hkType)) {
+        const dayKey = dayKeyForUserTz(
+          new Date(attrs.endDate ?? attrs.startDate ?? ""),
+          userTimezone,
+        );
+        currentCycleRecord = Number.isNaN(Date.parse(attrs.endDate ?? attrs.startDate ?? ""))
+          ? null
+          : { hkType, dayKey, rawValue: attrs.value };
+        return;
+      }
+
       if (HK_QUANTITY_TYPE_DEFERRED.has(hkType)) {
         deferred[hkType] = (deferred[hkType] ?? 0) + 1;
         return;
@@ -666,8 +704,19 @@ export async function streamParseExportXml(
       return;
     }
 
+    if (name === "MetadataEntry") {
+      // Attach the SexualActivity protection flag to the open cycle record.
+      // Apple writes `HKMetadataKeySexualActivityProtectionUsed` with a
+      // `"0"`/`"1"` (or `"true"`/`"false"`) value.
+      if (currentCycleRecord && attrs.key === HK_SEXUAL_ACTIVITY_PROTECTION_META) {
+        const v = (attrs.value ?? "").toLowerCase();
+        currentCycleRecord.protectionUsed = v === "1" || v === "true" || v === "yes";
+      }
+      return;
+    }
+
     if (name === "ExportDate" || name === "Me" || name === "Correlation"
-        || name === "ActivitySummary" || name === "MetadataEntry"
+        || name === "ActivitySummary"
         || name === "WorkoutEvent" || name === "WorkoutRoute"
         || name === "FileReference" || name === "HealthData") {
       // Known elements we intentionally ignore at the open-tag stage.
@@ -685,6 +734,22 @@ export async function streamParseExportXml(
     if (tagName === "Workout" && currentWorkout) {
       workoutBatch.push(currentWorkout);
       currentWorkout = null;
+    }
+    if (tagName === "Record" && currentCycleRecord) {
+      const rec = currentCycleRecord;
+      currentCycleRecord = null;
+      const consumed = cycleAccumulator.consume(
+        rec.hkType,
+        rec.dayKey,
+        rec.rawValue,
+        rec.protectionUsed,
+      );
+      if (!consumed) {
+        // Recognised identifier but unrecognised value — count it under
+        // `unknown` with the reason tag so operators can spot it.
+        unknown[`${rec.hkType}::cycle_unmapped`] =
+          (unknown[`${rec.hkType}::cycle_unmapped`] ?? 0) + 1;
+      }
     }
   };
 
@@ -747,12 +812,31 @@ export async function streamParseExportXml(
   await flushWorkoutBatch();
   await flushCumulativeBuckets();
 
+  // v1.15.0 — fold the accumulated reproductive samples into CYCLE
+  // day-logs. Gated on cycle-tracking being enabled for the account so a
+  // non-cycle Apple Health export never silently provisions cycle rows.
+  let cycle: CycleImportStats = {
+    samplesConsumed: 0,
+    daysUpserted: 0,
+    daysInserted: 0,
+    goalNudged: false,
+  };
+  // Only touch the cycle tables when the export actually carried
+  // reproductive samples AND the account has cycle tracking enabled. The
+  // empty-accumulator short-circuit also keeps the no-cycle import path
+  // (and its unit tests) free of any cycle DB round-trip.
+  if (cycleAccumulator.hasSamples() && (await cycleAccumulator.isEnabled())) {
+    cycle = await cycleAccumulator.flush();
+    rowsUpserted += cycle.daysUpserted;
+  }
+
   await emitProgress("upserting");
 
   return {
     perType,
     workouts,
     clinical,
+    cycle,
     deferred,
     unknown,
     totals: {

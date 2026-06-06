@@ -234,6 +234,8 @@ export function BackupsSection() {
           medications: number;
           intakeEvents: number;
           moodEntries: number;
+          cycles?: number;
+          cycleDayLogs?: number;
         };
       };
     },
@@ -242,7 +244,9 @@ export function BackupsSection() {
         data.summary.measurements +
         data.summary.medications +
         data.summary.intakeEvents +
-        data.summary.moodEntries;
+        data.summary.moodEntries +
+        (data.summary.cycles ?? 0) +
+        (data.summary.cycleDayLogs ?? 0);
       toast.success(
         t("admin.section.backups.uploadSuccess", { count: String(total) }),
       );

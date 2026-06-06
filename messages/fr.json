@@ -146,6 +146,7 @@
       "moodSensitive": "Sensible — désactivé par défaut.",
       "compliance": "Observance des médicaments",
       "sleep": "Durée du sommeil",
+      "cycle": "Cycle menstruel",
       "empty": "Pas de données sur la période sélectionnée. Le rapport conservera la page de garde.",
       "unavailableHint": "Pas de données sur cette période"
     },
@@ -163,7 +164,22 @@
     "wellnessDisclaimer": "Ce sont des scores de bien-être descriptifs calculés à partir de vos signaux suivis (0–100). Ce ne sont pas des évaluations cliniques ni des diagnostics.",
     "wellnessRecovery": "Récupération",
     "wellnessStress": "Stress",
-    "wellnessStrain": "Effort"
+    "wellnessStrain": "Effort",
+    "cycleTitle": "Cycle menstruel",
+    "cycleLmp": "Dernières règles",
+    "cycleAvgLength": "Durée moyenne du cycle",
+    "cycleAvgPeriod": "Durée moyenne des règles",
+    "cyclePhase": "Phase actuelle",
+    "cycleDays": "jours",
+    "cycleColStart": "Début des règles",
+    "cycleColLength": "Durée du cycle (jours)",
+    "cycleColPeriod": "Durée des règles (jours)",
+    "cyclePhases": {
+      "MENSTRUAL": "Menstruelle",
+      "FOLLICULAR": "Folliculaire",
+      "OVULATORY": "Ovulatoire",
+      "LUTEAL": "Lutéale"
+    }
   },
   "errorBoundary": {
     "title": "Une erreur est survenue",

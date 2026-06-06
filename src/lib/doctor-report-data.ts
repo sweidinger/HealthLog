@@ -23,6 +23,7 @@ import {
   DEFAULT_DOCTOR_REPORT_PREFS,
   type DoctorReportPrefs,
 } from "@/lib/validations/doctor-report-prefs";
+import { buildCycleExportSummary } from "@/lib/cycle/export-data";
 
 export interface DoctorReportStats {
   avg: number;
@@ -192,6 +193,17 @@ export interface DoctorReportData {
     /** ISO timestamp of the latest score. */
     latestAt: string;
   }> | null;
+  /**
+   * v1.15.0 — concise menstrual-cycle summary (LMP, recent cycles, avg
+   * length + variability, current phase). Populated ONLY when the `cycle`
+   * section toggle is explicitly ON (privacy default OFF — a user sharing a
+   * BP report with a cardiologist must not auto-leak reproductive data) AND
+   * the user has at least one observed cycle. Statistics only — no free-text
+   * notes ever reach this surface. Null/absent otherwise; both the PDF and
+   * FHIR builders then skip the section. Optional so pre-v1.15 fixtures
+   * still typecheck.
+   */
+  cycle?: import("@/lib/cycle/export-data").CycleExportSummary | null;
 }
 
 /** The three persisted score types surfaced in the wellness summary. */
@@ -801,6 +813,18 @@ export async function collectDoctorReportData(
   const wellnessScores =
     wellnessScoreSummaries.length > 0 ? wellnessScoreSummaries : null;
 
+  // v1.15.0 — cycle summary. Privacy default OFF: only read + assemble when
+  // the `cycle` section toggle is explicitly ON. Statistics only — the
+  // helper never touches `notesEncrypted`, so no plaintext free-text can
+  // leak through this surface. `null` when disabled or no observed cycle.
+  let cycle: DoctorReportData["cycle"] = null;
+  if (sections.cycle) {
+    cycle = await buildCycleExportSummary(
+      userId,
+      end.toISOString().slice(0, 10),
+    );
+  }
+
   return {
     period: {
       days,
@@ -848,6 +872,7 @@ export async function collectDoctorReportData(
     mood,
     glp1,
     wellnessScores,
+    cycle,
   };
 }
 

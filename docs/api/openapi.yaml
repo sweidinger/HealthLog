@@ -829,6 +829,8 @@ paths:
                       type: boolean
                     bmi:
                       type: boolean
+                    cycle:
+                      type: boolean
                 locale:
                   type: string
                   enum:
@@ -954,6 +956,8 @@ paths:
                     mood:
                       type: boolean
                     bmi:
+                      type: boolean
+                    cycle:
                       type: boolean
                 resourceTypes:
                   maxItems: 8

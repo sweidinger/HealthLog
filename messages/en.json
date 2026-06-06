@@ -146,6 +146,7 @@
       "moodSensitive": "Sensitive — off by default.",
       "compliance": "Medication compliance",
       "sleep": "Sleep duration",
+      "cycle": "Menstrual cycle",
       "empty": "No data was recorded in this date range yet. The report will still include the cover page.",
       "unavailableHint": "No data in this period"
     },
@@ -163,7 +164,22 @@
     "wellnessDisclaimer": "These are descriptive wellness scores computed from your tracked signals (0–100). They are not clinical assessments or diagnoses.",
     "wellnessRecovery": "Recovery",
     "wellnessStress": "Stress",
-    "wellnessStrain": "Strain"
+    "wellnessStrain": "Strain",
+    "cycleTitle": "Menstrual cycle",
+    "cycleLmp": "Last period",
+    "cycleAvgLength": "Average cycle length",
+    "cycleAvgPeriod": "Average period length",
+    "cyclePhase": "Current phase",
+    "cycleDays": "days",
+    "cycleColStart": "Period start",
+    "cycleColLength": "Cycle length (days)",
+    "cycleColPeriod": "Period length (days)",
+    "cyclePhases": {
+      "MENSTRUAL": "Menstrual",
+      "FOLLICULAR": "Follicular",
+      "OVULATORY": "Ovulatory",
+      "LUTEAL": "Luteal"
+    }
   },
   "errorBoundary": {
     "title": "Something went wrong",

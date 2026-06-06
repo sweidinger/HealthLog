@@ -80,6 +80,11 @@ interface SectionAvailability {
   mood: boolean;
   compliance: boolean;
   sleep: boolean;
+  // v1.15.0 — cycle section. Not rendered by this legacy dialog
+  // (SECTION_ORDER omits it); the flagship health-record export surfaces
+  // the cycle toggle. Present so `keyof DoctorReportPrefs` indexing
+  // typechecks. Optional — the availability endpoint may not provide it.
+  cycle?: boolean;
 }
 
 export interface DoctorReportSubmitPayload {
@@ -541,6 +546,9 @@ const SECTION_LABEL_KEYS: Record<keyof DoctorReportPrefs, string> = {
   mood: "doctorReport.sections.mood",
   compliance: "doctorReport.sections.compliance",
   sleep: "doctorReport.sections.sleep",
+  // v1.15.0 — not rendered by this legacy dialog (SECTION_ORDER omits it);
+  // present so the `keyof DoctorReportPrefs` record stays exhaustive.
+  cycle: "doctorReport.sections.cycle",
 };
 
 /**

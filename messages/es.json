@@ -146,6 +146,7 @@
       "moodSensitive": "Sensible — desactivado por defecto.",
       "compliance": "Cumplimiento de medicación",
       "sleep": "Duración del sueño",
+      "cycle": "Ciclo menstrual",
       "empty": "No hay datos para el periodo seleccionado. El informe se generará con la portada.",
       "unavailableHint": "Sin datos en este periodo"
     },
@@ -163,7 +164,22 @@
     "wellnessDisclaimer": "Son puntuaciones de bienestar descriptivas calculadas a partir de tus señales registradas (0–100). No son evaluaciones clínicas ni diagnósticos.",
     "wellnessRecovery": "Recuperación",
     "wellnessStress": "Estrés",
-    "wellnessStrain": "Esfuerzo"
+    "wellnessStrain": "Esfuerzo",
+    "cycleTitle": "Ciclo menstrual",
+    "cycleLmp": "Última menstruación",
+    "cycleAvgLength": "Duración media del ciclo",
+    "cycleAvgPeriod": "Duración media del periodo",
+    "cyclePhase": "Fase actual",
+    "cycleDays": "días",
+    "cycleColStart": "Inicio del periodo",
+    "cycleColLength": "Duración del ciclo (días)",
+    "cycleColPeriod": "Duración del periodo (días)",
+    "cyclePhases": {
+      "MENSTRUAL": "Menstrual",
+      "FOLLICULAR": "Folicular",
+      "OVULATORY": "Ovulatoria",
+      "LUTEAL": "Lútea"
+    }
   },
   "errorBoundary": {
     "title": "Algo ha salido mal",
