@@ -1,0 +1,248 @@
+/**
+ * Plain TypeScript input/output contracts for the cycle prediction + phase
+ * engine.
+ *
+ * These interfaces deliberately do NOT depend on Prisma row types. The engine
+ * is a pure, deterministic, DB-free function set: it takes the canonical inputs
+ * the iOS device also holds in its local mirror and returns the same struct iOS
+ * computes offline. Keeping the inputs as plain shapes (a) makes the engine
+ * unit-testable without a database and (b) makes the parity contract with the
+ * Swift re-implementation explicit — these fixtures are what iOS reuses.
+ *
+ * The literal union types below mirror the Prisma enums (FlowLevel,
+ * OvulationTest, CervicalMucus, CyclePhase, PredictionMethod, CycleTrackingGoal)
+ * named in data-model-ux.md, but are declared locally so the engine never
+ * imports the generated client.
+ */
+
+/* ------------------------------------------------------------------ */
+/* Literal union types (mirror the Prisma enums)                      */
+/* ------------------------------------------------------------------ */
+
+export type FlowLevel = "NONE" | "SPOTTING" | "LIGHT" | "MEDIUM" | "HEAVY";
+
+export type OvulationTest =
+  | "NEGATIVE"
+  | "POSITIVE_LH_SURGE"
+  | "ESTROGEN_SURGE"
+  | "INDETERMINATE";
+
+export type CervicalMucus = "DRY" | "STICKY" | "CREAMY" | "WATERY" | "EGG_WHITE";
+
+export type CyclePhase = "MENSTRUAL" | "FOLLICULAR" | "OVULATORY" | "LUTEAL";
+
+export type PredictionMethod =
+  | "CALENDAR"
+  | "SYMPTOTHERMAL"
+  | "TEMPERATURE_TREND"
+  | "BLENDED";
+
+export type CycleTrackingGoal =
+  | "GENERAL_HEALTH"
+  | "AVOID_PREGNANCY"
+  | "TRYING_TO_CONCEIVE"
+  | "PERIMENOPAUSE"
+  | "OFF";
+
+/** Coarse confidence label derived from the scalar (for badge/copy). */
+export type ConfidenceLabel = "low" | "medium" | "high";
+
+/* ------------------------------------------------------------------ */
+/* Pinned constants (algorithm.md §1–§5, the parity substrate)        */
+/* ------------------------------------------------------------------ */
+
+/** §1 — at most the 12 most recent COMPLETED cycles feed the length estimator. */
+export const HISTORY_WINDOW_N = 12;
+
+/** §1 — need ≥2 completed cycles for a real (non-priors) prediction. */
+export const MIN_CYCLES_TO_PREDICT = 2;
+
+/** §1 — optional recency half-life (cycles). OFF in MVP (see below). */
+export const RECENCY_HALF_LIFE = 6;
+
+/**
+ * §1 — recency weighting is OFF in the v1.15 MVP (plain median) so the TS and
+ * Swift engines stay trivially identical. Flip in lockstep later.
+ */
+export const RECENCY_WEIGHTING_ENABLED = false;
+
+/** §1 — floor on the robust SD so the band is never zero-width (false precision). */
+export const SIGMA_FLOOR = 1.0;
+
+/** §1 — normal-consistency constant for MAD → SD (sigma = 1.4826 * MAD). */
+export const MAD_NORMAL_CONST = 1.4826;
+
+/** §3 — one-sigma (~68%) band multiplier. Deliberately NOT 1.96. */
+export const Z_BAND = 1.0;
+
+/** §3 — date-band half-width clamp (days); never zero, never absurd. */
+export const HALF_WIDTH_MIN = 1;
+export const HALF_WIDTH_MAX = 14;
+
+/** §5 — fixed half-width (days) for the 0-cycle priors-only path. */
+export const PRIORS_ONLY_HALF_WIDTH = 4;
+
+/** §5 — extra half-width (days) added on the single-cycle cold-start path. */
+export const COLD_START_BAND_BONUS = 3;
+
+/** §2 — last 6 cycles feed the period-length estimator. */
+export const PERIOD_WINDOW_N = 6;
+
+/** §5 — population fallbacks when the user has no data and no prior. */
+export const POPULATION_DEFAULT_CYCLE = 28;
+export const POPULATION_DEFAULT_PERIOD = 5;
+
+/** §2 — period-length clamp (days). */
+export const PERIOD_MIN = 1;
+export const PERIOD_MAX = 10;
+
+/** §4 — luteal-phase length default + physiological clamp. */
+export const LUTEAL_DEFAULT = 14;
+export const LUTEAL_MIN = 10;
+export const LUTEAL_MAX = 16;
+
+/** §4 — six-day fertile window: ovulation − 5 … ovulation + 1. */
+export const FERTILE_PRE = 5;
+export const FERTILE_POST = 1;
+
+/** §5 — robust MAD-fence multiplier (3-MAD normal, 4-MAD perimenopause). */
+export const OUTLIER_K = 3.0;
+export const OUTLIER_K_PERIMENOPAUSE = 4.0;
+
+/** §5 — hard physiological cycle-length bounds (always outlier candidates). */
+export const HARD_CYCLE_MIN = 21;
+export const HARD_CYCLE_MAX = 45;
+
+/** §5 — a single length ≥ this × median is treated as a probable missed-log. */
+export const MISSED_LOG_FACTOR = 1.75;
+
+/** §4 — symptothermal (manual BBT) "third measurement" rise threshold (°C). */
+export const TEMP_SHIFT_C_MANUAL = 0.2;
+
+/** §4 — passive wrist/skin temperature-trend deviation threshold (°C). */
+export const TEMP_SHIFT_C_PASSIVE = 0.15;
+
+/** §4 — half-width multipliers when ovulation is confirmed by each layer. */
+export const HALF_WIDTH_MULT_SYMPTOTHERMAL = 0.6;
+export const HALF_WIDTH_MULT_TEMP_TREND = 0.75;
+
+/** §4 — symptothermal agreement tolerance between temp-shift and mucus peak (days). */
+export const SYMPTOTHERMAL_AGREE_DAYS = 2;
+
+/** §3 — confidence scalar clamp (never certain, never zero). */
+export const CONFIDENCE_MIN = 0.05;
+export const CONFIDENCE_MAX = 0.98;
+
+/** §3 — confidence → label cut points. */
+export const CONFIDENCE_LABEL_LOW_MAX = 0.4; // < 0.40 → low
+export const CONFIDENCE_LABEL_HIGH_MIN = 0.7; // > 0.70 → high
+
+/** §3 — c_adherence floor + slope (0.4 + 0.6 * density). */
+export const ADHERENCE_FLOOR = 0.4;
+export const ADHERENCE_SLOPE = 0.6;
+
+/** §3 — max band widening from sparse logging (LOG_SPARSITY scale). */
+export const LOG_SPARSITY_SCALE = 0.5;
+
+/* ------------------------------------------------------------------ */
+/* Input contracts                                                    */
+/* ------------------------------------------------------------------ */
+
+/**
+ * One confirmed (or predicted) cycle. `startDate` is the first bleeding day.
+ * The engine treats a cycle as COMPLETED only when a later cycle's `startDate`
+ * exists, giving it a known length.
+ */
+export interface CycleInput {
+  /** First bleeding day of the menstruation, `YYYY-MM-DD`. */
+  startDate: string;
+  /** First bleeding day of the NEXT cycle, or null if this is the latest. */
+  endDate: string | null;
+  /** Last bleeding day of THIS cycle's period run, or null if unknown. */
+  periodEndDate: string | null;
+  /** Confirmed/estimated ovulation day, or null. */
+  ovulationDate: string | null;
+  /** Whether `ovulationDate` was confirmed (symptothermal/temp), not estimated. */
+  ovulationConfirmed: boolean;
+}
+
+/** One day's observations (the HealthKit / manual sync unit). */
+export interface DayLogInput {
+  /** The logged day, `YYYY-MM-DD`. */
+  date: string;
+  flow: FlowLevel | null;
+  /** Basal body temperature in °C, already rounded to 2 dp before input. */
+  basalBodyTempC: number | null;
+  ovulationTest: OvulationTest | null;
+  cervicalMucus: CervicalMucus | null;
+}
+
+/**
+ * One nightly passive-temperature deviation reading (Apple Watch wrist /
+ * skin temperature), used by the TEMPERATURE_TREND layer. `deviationC` is the
+ * nightly value's deviation from the user's own baseline in °C (the engine also
+ * accepts a raw nightly value and derives the trailing-mean deviation itself —
+ * see prediction.ts).
+ */
+export interface NightlyTempInput {
+  date: string;
+  /** Nightly temperature value in °C (raw; baseline derived internally). */
+  valueC: number;
+}
+
+/** User-set priors + mode flags. All optional; the engine applies defaults. */
+export interface CycleProfileInput {
+  goal: CycleTrackingGoal;
+  typicalCycleLength: number | null;
+  typicalPeriodLength: number | null;
+  lutealPhaseLength: number | null;
+  /** When false the engine emits no prediction (caller checks before calling). */
+  predictionEnabled: boolean;
+  /** Read-Your-Body mode: suppress all interpretation. */
+  rawChartMode: boolean;
+}
+
+/* ------------------------------------------------------------------ */
+/* Output contracts                                                   */
+/* ------------------------------------------------------------------ */
+
+/** The materialised forecast (mirrors the CyclePrediction row). */
+export interface CyclePredictionResult {
+  method: PredictionMethod;
+  /** Point estimate of the next period's first day, `YYYY-MM-DD`. */
+  nextPeriodStart: string;
+  /** Low end of the one-sigma date band, `YYYY-MM-DD`. */
+  nextPeriodStartLow: string;
+  /** High end of the one-sigma date band, `YYYY-MM-DD`. */
+  nextPeriodStartHigh: string;
+  /** Predicted length of the next period bar (days), clamped [1,10]. */
+  predictedPeriodLength: number;
+  /** Fertile window start (ovulation − 5), or null when goal-gated off upstream. */
+  fertileWindowStart: string | null;
+  /** Fertile window end (ovulation + 1), or null. */
+  fertileWindowEnd: string | null;
+  /** Estimated/confirmed ovulation day for the upcoming cycle. */
+  predictedOvulation: string | null;
+  /** Whether `predictedOvulation` was confirmed by a signal layer. */
+  ovulationConfirmed: boolean;
+  /** Confidence scalar in [0.05, 0.98]. */
+  confidence: number;
+  /** Coarse label for the badge/copy. */
+  confidenceLabel: ConfidenceLabel;
+  /** Completed cycle lengths used (post outlier-exclusion). */
+  cyclesObserved: number;
+  /** <3 observed cycles → "still learning" UI state, independent of score. */
+  stillLearning: boolean;
+  /** Estimated typical cycle length (days, rounded). */
+  estimatedCycleLength: number;
+  /** Robust SD of cycle length (days), >= SIGMA_FLOOR. */
+  estimatedCycleSd: number;
+}
+
+/** The phase of a single calendar date relative to its containing cycle. */
+export interface PhaseResult {
+  date: string;
+  phase: CyclePhase | null;
+  /** 1-based day-of-cycle (1 = startDate), or null if the date is outside any cycle. */
+  dayOfCycle: number | null;
+}
