@@ -124,22 +124,31 @@ function SidebarUserSection({ collapsed }: { collapsed: boolean }) {
       className="w-60"
       sideOffset={8}
     >
-      <div className="flex items-center gap-3 px-2 py-2">
-        <Avatar className="h-9 w-9 shrink-0">
-          {avatarUrl && <AvatarImage src={avatarUrl} alt={user.username} />}
-          <AvatarFallback className="bg-primary/15 text-primary text-xs font-medium">
-            {getInitials(user.username)}
-          </AvatarFallback>
-        </Avatar>
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-semibold">{user.username}</p>
-          {user.email && (
-            <p className="text-muted-foreground truncate text-xs">
-              {user.email}
-            </p>
-          )}
-        </div>
-      </div>
+      {/* R20 — the user header is the direct route into the account
+          settings. Clicking the avatar / name jumps straight to
+          `/settings/account` rather than making the user hunt for a
+          separate "Settings" entry. */}
+      <DropdownMenuItem asChild>
+        <Link
+          href="/settings/account"
+          className="flex cursor-pointer items-center gap-3 px-2 py-2"
+        >
+          <Avatar className="h-9 w-9 shrink-0">
+            {avatarUrl && <AvatarImage src={avatarUrl} alt={user.username} />}
+            <AvatarFallback className="bg-primary/15 text-primary text-xs font-medium">
+              {getInitials(user.username)}
+            </AvatarFallback>
+          </Avatar>
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-sm font-semibold">{user.username}</p>
+            {user.email && (
+              <p className="text-muted-foreground truncate text-xs">
+                {user.email}
+              </p>
+            )}
+          </div>
+        </Link>
+      </DropdownMenuItem>
       <DropdownMenuSeparator />
       <DropdownMenuItem asChild>
         <Link href="/notifications" className="cursor-pointer">
@@ -219,20 +228,29 @@ function SidebarUserSection({ collapsed }: { collapsed: boolean }) {
   return (
     <div className="border-sidebar-border border-t p-3">
       <div className="flex items-center gap-3 px-2 py-1">
-        <Avatar className="h-8 w-8 shrink-0">
-          {avatarUrl && <AvatarImage src={avatarUrl} alt={user.username} />}
-          <AvatarFallback className="bg-primary/15 text-primary text-xs font-medium">
-            {getInitials(user.username)}
-          </AvatarFallback>
-        </Avatar>
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-medium">{user.username}</p>
-          {user.email && (
-            <p className="text-muted-foreground truncate text-xs">
-              {user.email}
-            </p>
-          )}
-        </div>
+        {/* R20 — the avatar + name in the expanded footer routes straight
+            into the account settings; the kebab to the right still opens
+            the rest of the user menu. */}
+        <Link
+          href="/settings/account"
+          aria-label={t("nav.accountSettings")}
+          className="hover:bg-accent flex min-w-0 flex-1 items-center gap-3 rounded-md transition-colors"
+        >
+          <Avatar className="h-8 w-8 shrink-0">
+            {avatarUrl && <AvatarImage src={avatarUrl} alt={user.username} />}
+            <AvatarFallback className="bg-primary/15 text-primary text-xs font-medium">
+              {getInitials(user.username)}
+            </AvatarFallback>
+          </Avatar>
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-sm font-medium">{user.username}</p>
+            {user.email && (
+              <p className="text-muted-foreground truncate text-xs">
+                {user.email}
+              </p>
+            )}
+          </div>
+        </Link>
         <DropdownMenu>
           <DropdownMenuTrigger
             aria-label={t("nav.userMenu")}
