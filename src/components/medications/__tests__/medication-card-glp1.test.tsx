@@ -320,14 +320,16 @@ describe("<Glp1MedicationCard> — GLP-1 variant rendering", () => {
       client,
     );
 
-    // The last-line renders the "Last:" label in its own left column and
+    // v1.15.8 — the GLP-1 card unified onto the generic "Next intake" /
+    // "Last intake" labels (the appointment-phrased override is gone). The
+    // last-line renders the "Last intake:" label in its own left column and
     // the value (label · site) flush right; both halves show in the SSR.
-    expect(html).toContain("Last:");
+    expect(html).toContain("Last intake:");
     expect(html).toContain("Abdomen, lower left");
-    // The next-line carries the "Next:" label in its left column,
+    // The next-line carries the "Next intake:" label in its left column,
     // independent of which of the three value variants (today / tomorrow /
     // "in N days") the helper produced.
-    expect(html).toMatch(/Next:/);
+    expect(html).toMatch(/Next intake:/);
   });
 
   it("no longer renders the inline dose-history disclosure (retired v1.4.28)", () => {
@@ -606,7 +608,9 @@ describe("<Glp1MedicationCard> — GLP-1 variant rendering", () => {
     // visually symmetric with the generic card on the medications list.
     expect(html).toContain("Sonstiges");
     expect(html).not.toContain("GLP-1-Injektion");
-    expect(html).toContain("Letzter Termin:");
+    // v1.15.8 — unified onto the generic "Letzte Einnahme:" label (the
+    // appointment-phrased "Letzter Termin:" override is gone).
+    expect(html).toContain("Letzte Einnahme:");
     expect(html).toContain("Bauch, unten links");
     // v1.4.28 retired the "Dosis-Historie" disclosure on the GLP-1 card.
     expect(html).not.toContain("Dosis-Historie");

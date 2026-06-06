@@ -285,6 +285,13 @@ export function Glp1MedicationCard({
   const rate7 = display?.short.rate ?? compliance?.compliance7?.rate ?? 0;
   const rate30 = display?.long.rate ?? compliance?.compliance30?.rate ?? 0;
   const streak = display?.short.streak ?? compliance?.compliance7?.streak ?? 0;
+  // v1.15.8 — taken-of-expected counts, shown after each percentage so two
+  // identical rates stay distinguishable (a weekly GLP-1 reading 100% on
+  // both windows shows e.g. `100% · 4 / 4` vs `100% · 13 / 13`).
+  const takenShort = display?.short.taken;
+  const expectedShort = display?.expectedShort;
+  const takenLong = display?.long.taken;
+  const expectedLong = display?.expectedLong;
 
   // v1.4.37 W4b — symmetric take-now / overdue pill with the generic
   // card. Sort schedules by `windowStart` so the most-actionable
@@ -403,14 +410,14 @@ export function Glp1MedicationCard({
 
         {/* Injection state — next + last, rendered through the SAME shared
             <MedicationNextLastSlot> the generic card uses, so the order
-            (next-then-last), colour, spacing, gating, reserved min-height
-            and the label-left / value-right two-column layout are identical
-            across the two card types. The GLP-1 card overrides only the
-            left-column label with its appointment-phrased wording; the value
-            column carries the time (plus the optional rotation nudge). */}
+            (next-then-last), labels ("Next intake" / "Last intake"), colour,
+            spacing, gating, reserved min-height and the label-left /
+            value-right two-column layout are identical across the two card
+            types. v1.15.8 dropped the GLP-1-specific appointment-phrased
+            label override so both cards name the concept identically; the
+            relative-day value phrasing ("in N days" / "today") stays the
+            GLP-1 card's own and is preserved. */}
         <MedicationNextLastSlot
-          nextLabel={t("medications.glp1NextLabel")}
-          lastLabel={t("medications.glp1LastLabel")}
           next={
             next && currentWindowStatus.status !== "in_window" ? (
               <>
@@ -462,6 +469,10 @@ export function Glp1MedicationCard({
               streak={streak}
               shortDays={shortDays}
               longDays={longDays}
+              takenShort={takenShort}
+              expectedShort={expectedShort}
+              takenLong={takenLong}
+              expectedLong={expectedLong}
             />
           ) : (
             <MedicationComplianceSkeleton />
