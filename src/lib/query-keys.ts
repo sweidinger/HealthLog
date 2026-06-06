@@ -518,6 +518,9 @@ export const queryKeys = {
   cyclePrefs: () => ["cycle", "prefs"] as const,
   cycleInsights: () => ["cycle", "insights"] as const,
   cycleDayLog: (date: string) => ["cycle", "day-log", date] as const,
+  /** The caller's own custom symptoms (decrypted labels) the log-day sheet
+   * merges into the seeded chip grid. */
+  cycleCustomSymptoms: () => ["cycle", "custom-symptoms"] as const,
 };
 
 /**

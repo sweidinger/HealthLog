@@ -4903,7 +4903,8 @@
     "symptomCategory": {
       "physical": "Fisico",
       "emotional": "Emotivo",
-      "digestive": "Digestivo"
+      "digestive": "Digestivo",
+      "custom": "Personalizzato"
     },
     "symptom": {
       "cramps": "Crampi",
@@ -4920,7 +4921,16 @@
       "foodCravings": "Voglie alimentari",
       "nausea": "Nausea",
       "diarrhea": "Diarrea",
-      "constipation": "Stitichezza"
+      "constipation": "Stitichezza",
+      "custom": {
+        "add": "Aggiungi sintomo",
+        "label": "Nome",
+        "labelPlaceholder": "es. Vertigini",
+        "icon": "Icona",
+        "limitReached": "Limite di sintomi personalizzati raggiunto.",
+        "remove": "Rimuovi {label}",
+        "fallbackLabel": "Sintomo personalizzato"
+      }
     },
     "prediction": {
       "disclaimer": "Le previsioni sono stime basate sui dati registrati, non sono un consiglio medico né un metodo contraccettivo. La precisione migliora man mano che registri più cicli."

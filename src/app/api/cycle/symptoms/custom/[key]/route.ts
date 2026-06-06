@@ -1,0 +1,127 @@
+/**
+ * v1.15.1 — update / delete a per-user custom cycle-symptom.
+ *
+ * Both handlers resolve the `custom:`-prefixed key against the CALLER's own
+ * rows only — another user's key (or a catalogue key) is a 404, so a symptom
+ * can never be edited or removed across the ownership boundary. Gated
+ * (`cycle.disabled` 403). The decrypted label is NEVER logged.
+ */
+import { NextRequest } from "next/server";
+
+import { prisma } from "@/lib/db";
+import {
+  apiSuccess,
+  apiError,
+  getClientIp,
+  returnAllZodIssues,
+} from "@/lib/api-response";
+import { apiHandler, requireAuth } from "@/lib/api-handler";
+import { annotate } from "@/lib/logging/context";
+import { auditLog } from "@/lib/auth/audit";
+import { requireCycleEnabled } from "@/lib/cycle/gate";
+import {
+  updateCustomSymptomSchema,
+  decryptCustomLabel,
+  encryptCustomLabel,
+  isCustomSymptomKey,
+} from "@/lib/cycle/custom-symptoms";
+
+export const dynamic = "force-dynamic";
+
+type RouteParams = { params: Promise<{ key: string }> };
+
+/** `PATCH /api/cycle/symptoms/custom/:key` — rename / recolour / (de)activate. */
+export const PATCH = apiHandler(
+  async (request: NextRequest, { params }: RouteParams) => {
+    const { user } = await requireAuth();
+
+    const gate = await requireCycleEnabled(user.id, user.gender);
+    if (!gate.enabled) return gate.response;
+
+    const { key } = await params;
+    if (!isCustomSymptomKey(key)) return apiError("Not a custom symptom", 404);
+
+    const parsed = updateCustomSymptomSchema.safeParse(await request.json());
+    if (!parsed.success) {
+      return returnAllZodIssues(parsed.error, 422, {
+        errorCode: "cycle.symptom.custom.invalid",
+      });
+    }
+
+    const owned = await prisma.cycleSymptom.findFirst({
+      where: { key, userId: user.id },
+      select: { id: true },
+    });
+    if (!owned) return apiError("Custom symptom not found", 404);
+
+    const updated = await prisma.cycleSymptom.update({
+      where: { id: owned.id },
+      data: {
+        ...(parsed.data.label !== undefined
+          ? { labelEncrypted: encryptCustomLabel(parsed.data.label) }
+          : {}),
+        ...(parsed.data.icon !== undefined ? { icon: parsed.data.icon } : {}),
+        ...(parsed.data.isActive !== undefined
+          ? { isActive: parsed.data.isActive }
+          : {}),
+      },
+      select: { key: true, icon: true, isActive: true, labelEncrypted: true },
+    });
+
+    annotate({ action: { name: "cycle.symptom.custom.update" } });
+
+    return apiSuccess({
+      key: updated.key,
+      label: decryptCustomLabel(updated.labelEncrypted),
+      icon: updated.icon,
+      isActive: updated.isActive,
+      custom: true,
+    });
+  },
+);
+
+/**
+ * `DELETE /api/cycle/symptoms/custom/:key` — soft-deactivate by default
+ * (history intact); `?purge=true` hard-deletes the row and cascades its links.
+ */
+export const DELETE = apiHandler(
+  async (request: NextRequest, { params }: RouteParams) => {
+    const { user } = await requireAuth();
+
+    const gate = await requireCycleEnabled(user.id, user.gender);
+    if (!gate.enabled) return gate.response;
+
+    const { key } = await params;
+    if (!isCustomSymptomKey(key)) return apiError("Not a custom symptom", 404);
+
+    const owned = await prisma.cycleSymptom.findFirst({
+      where: { key, userId: user.id },
+      select: { id: true },
+    });
+    if (!owned) return apiError("Custom symptom not found", 404);
+
+    const purge = request.nextUrl.searchParams.get("purge") === "true";
+    if (purge) {
+      // FK cascade removes the `cycle_symptom_links` rows too.
+      await prisma.cycleSymptom.delete({ where: { id: owned.id } });
+    } else {
+      await prisma.cycleSymptom.update({
+        where: { id: owned.id },
+        data: { isActive: false },
+      });
+    }
+
+    await auditLog("cycle.symptom.custom.delete", {
+      userId: user.id,
+      ipAddress: getClientIp(request),
+      details: { purge },
+    });
+
+    annotate({
+      action: { name: "cycle.symptom.custom.delete" },
+      meta: { purge },
+    });
+
+    return apiSuccess({ key, purged: purge });
+  },
+);

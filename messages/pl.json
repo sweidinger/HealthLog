@@ -4903,7 +4903,8 @@
     "symptomCategory": {
       "physical": "Fizyczne",
       "emotional": "Emocjonalne",
-      "digestive": "Trawienne"
+      "digestive": "Trawienne",
+      "custom": "Własne"
     },
     "symptom": {
       "cramps": "Skurcze",
@@ -4920,7 +4921,16 @@
       "foodCravings": "Zachcianki",
       "nausea": "Nudności",
       "diarrhea": "Biegunka",
-      "constipation": "Zaparcia"
+      "constipation": "Zaparcia",
+      "custom": {
+        "add": "Dodaj objaw",
+        "label": "Nazwa",
+        "labelPlaceholder": "np. Zawroty głowy",
+        "icon": "Ikona",
+        "limitReached": "Osiągnięto limit własnych objawów.",
+        "remove": "Usuń {label}",
+        "fallbackLabel": "Objaw własny"
+      }
     },
     "prediction": {
       "disclaimer": "Prognozy to szacunki na podstawie zapisanych danych, a nie porada medyczna ani metoda antykoncepcji. Dokładność rośnie wraz z liczbą zapisanych cykli."

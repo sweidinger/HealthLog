@@ -4903,7 +4903,8 @@
     "symptomCategory": {
       "physical": "Físico",
       "emotional": "Emocional",
-      "digestive": "Digestivo"
+      "digestive": "Digestivo",
+      "custom": "Personalizado"
     },
     "symptom": {
       "cramps": "Calambres",
@@ -4920,7 +4921,16 @@
       "foodCravings": "Antojos",
       "nausea": "Náuseas",
       "diarrhea": "Diarrea",
-      "constipation": "Estreñimiento"
+      "constipation": "Estreñimiento",
+      "custom": {
+        "add": "Añadir síntoma",
+        "label": "Nombre",
+        "labelPlaceholder": "p. ej. Mareo",
+        "icon": "Icono",
+        "limitReached": "Se alcanzó el límite de síntomas personalizados.",
+        "remove": "Eliminar {label}",
+        "fallbackLabel": "Síntoma personalizado"
+      }
     },
     "prediction": {
       "disclaimer": "Las predicciones son estimaciones basadas en tus datos registrados, no son consejo médico ni un método anticonceptivo. La precisión mejora a medida que registras más ciclos."

@@ -1,24 +1,62 @@
 "use client";
 
 import { useState } from "react";
-import { Droplets, Loader2, Trash2 } from "lucide-react";
+import {
+  Activity,
+  BatteryLow,
+  Brain,
+  CircleDot,
+  Cookie,
+  Drama,
+  Droplet,
+  Droplets,
+  Flame,
+  Frown,
+  Heart,
+  HeartPulse,
+  Loader2,
+  MoonStar,
+  PersonStanding,
+  Pill,
+  Plus,
+  Snowflake,
+  Soup,
+  Stethoscope,
+  Tag,
+  Thermometer,
+  Trash2,
+  X,
+  Zap,
+  type LucideIcon,
+} from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { ResponsiveSheet } from "@/components/ui/responsive-sheet";
 import { useTranslations } from "@/lib/i18n/context";
+import { CUSTOM_SYMPTOM_ICON_ALLOWLIST } from "@/lib/cycle/custom-symptoms";
 import { CYCLE_SYMPTOM_CATALOG } from "./symptom-catalog";
 import { FLOW_HUE } from "./phase-tokens";
 import {
+  useCreateCustomSymptom,
+  useCustomSymptoms,
   useCycleDayLog,
+  useDeleteCustomSymptom,
   useDeleteDayLog,
   useEndPeriod,
   useLogDay,
   usePatchDayLog,
   useStartPeriod,
+  type CustomSymptomDTO,
   type CycleDayLogPatch,
 } from "./use-cycle";
 import type {
@@ -74,6 +112,38 @@ const CONTRACEPTIVE_KINDS: ContraceptiveKind[] = [
   "NONE",
 ];
 const SEVERITY_LEVELS = [1, 2, 3, 4] as const;
+
+/**
+ * Resolve a custom symptom's stored Lucide icon NAME to its component. Scoped
+ * to the `CUSTOM_SYMPTOM_ICON_ALLOWLIST` (server-validated on create) so the
+ * import set stays tight; an unknown / null name falls back to `Tag`.
+ */
+const CUSTOM_ICON_BY_NAME: Record<string, LucideIcon> = {
+  Tag,
+  Activity,
+  Heart,
+  HeartPulse,
+  Brain,
+  Zap,
+  Flame,
+  Snowflake,
+  Droplet,
+  CircleDot,
+  BatteryLow,
+  MoonStar,
+  PersonStanding,
+  Drama,
+  Frown,
+  Cookie,
+  Soup,
+  Pill,
+  Thermometer,
+  Stethoscope,
+};
+
+function customIcon(name: string | null): LucideIcon {
+  return (name && CUSTOM_ICON_BY_NAME[name]) || Tag;
+}
 
 /** The sheet's editable form state, lifted out so the two save-payload builders
  * are pure + unit-testable (the clear-on-edit semantics are the QA W-2 fix). */
@@ -211,6 +281,8 @@ export function LogDaySheet({
   // Pre-fill from the persisted day-log so a re-log never nulls untouched
   // (or HealthKit-sourced) fields — the v1.15 web data-loss fix.
   const dayLog = useCycleDayLog(open ? date : null);
+  // The caller's custom symptoms, merged into the seeded chip grid.
+  const customSymptoms = useCustomSymptoms();
 
   const [flow, setFlow] = useState<FlowLevel | null>(null);
   const [intermenstrual, setIntermenstrual] = useState(false);
@@ -440,53 +512,53 @@ export function LogDaySheet({
                 {t(cat.labelKey)}
               </div>
               <div className="flex flex-wrap gap-2">
-                {cat.symptoms.map((s) => {
-                  const active = symptoms.has(s.key);
-                  const sev = symptoms.get(s.key) ?? null;
-                  return (
-                    <div key={s.key} className="flex items-center gap-1">
-                      <Chip
-                        active={active}
-                        onClick={() => toggleSymptom(s.key)}
-                      >
-                        <span className="flex items-center gap-1.5">
-                          <s.icon className="h-3.5 w-3.5" aria-hidden="true" />
-                          {t(s.labelKey)}
-                        </span>
-                      </Chip>
-                      {active ? (
-                        <div
-                          className="flex gap-0.5"
-                          role="group"
-                          aria-label={t("cycle.sheet.severity")}
-                        >
-                          {SEVERITY_LEVELS.map((lvl) => (
-                            <button
-                              key={lvl}
-                              type="button"
-                              aria-pressed={sev === lvl}
-                              aria-label={t("cycle.sheet.severityLevel", {
-                                level: lvl,
-                              })}
-                              onClick={() => setSymptomSeverity(s.key, lvl)}
-                              className={cn(
-                                "focus-visible:ring-ring/50 size-6 rounded-full border text-xs tabular-nums transition-colors focus-visible:ring-2 focus-visible:outline-none",
-                                sev === lvl
-                                  ? "border-primary bg-primary/15 text-primary font-semibold"
-                                  : "border-border text-muted-foreground hover:bg-accent",
-                              )}
-                            >
-                              {lvl}
-                            </button>
-                          ))}
-                        </div>
-                      ) : null}
-                    </div>
-                  );
-                })}
+                {cat.symptoms.map((s) => (
+                  <SymptomChip
+                    key={s.key}
+                    symptomKey={s.key}
+                    icon={s.icon}
+                    label={t(s.labelKey)}
+                    active={symptoms.has(s.key)}
+                    severity={symptoms.get(s.key) ?? null}
+                    onToggle={toggleSymptom}
+                    onSeverity={setSymptomSeverity}
+                  />
+                ))}
               </div>
             </div>
           ))}
+
+          {/* Custom symptoms — the user's own, under a `custom` category,
+              plus the dashed ghost-chip that mints a new one. */}
+          <div className="space-y-1.5">
+            <div className="text-muted-foreground flex items-center gap-1.5 text-xs font-medium">
+              <Tag className="h-3.5 w-3.5" aria-hidden="true" />
+              {t("cycle.symptomCategory.custom")}
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {(customSymptoms.data?.symptoms ?? []).map((s) => (
+                <SymptomChip
+                  key={s.key}
+                  symptomKey={s.key}
+                  icon={customIcon(s.icon)}
+                  label={s.label ?? t("cycle.symptom.custom.fallbackLabel")}
+                  active={symptoms.has(s.key)}
+                  severity={symptoms.get(s.key) ?? null}
+                  custom={s}
+                  onToggle={toggleSymptom}
+                  onSeverity={setSymptomSeverity}
+                  onClear={(key) => {
+                    setSymptoms((prev) => {
+                      const next = new Map(prev);
+                      next.delete(key);
+                      return next;
+                    });
+                  }}
+                />
+              ))}
+              <AddSymptomChip />
+            </div>
+          </div>
         </div>
       </Field>
 
@@ -647,5 +719,220 @@ function Field({
       <p className="text-sm font-medium">{label}</p>
       {children}
     </div>
+  );
+}
+
+/**
+ * One symptom chip + its inline 1-4 severity selector (shared by the seeded
+ * catalogue chips and the custom chips so both render identically). A custom
+ * chip additionally carries a tiny remove (×) affordance that soft-hides the
+ * symptom from the catalogue.
+ */
+function SymptomChip({
+  symptomKey,
+  icon: Icon,
+  label,
+  active,
+  severity,
+  custom,
+  onToggle,
+  onSeverity,
+  onClear,
+}: {
+  symptomKey: string;
+  icon: LucideIcon;
+  label: string;
+  active: boolean;
+  severity: number | null;
+  custom?: CustomSymptomDTO;
+  onToggle: (key: string) => void;
+  onSeverity: (key: string, severity: number) => void;
+  onClear?: (key: string) => void;
+}) {
+  const { t } = useTranslations();
+  const deleteCustom = useDeleteCustomSymptom();
+
+  async function handleRemove() {
+    if (!custom) return;
+    onClear?.(custom.key);
+    await deleteCustom.mutateAsync(custom.key);
+  }
+
+  return (
+    <div className="flex items-center gap-1">
+      <span className="relative inline-flex items-center">
+        <Chip active={active} onClick={() => onToggle(symptomKey)}>
+          <span className="flex items-center gap-1.5">
+            <Icon className="h-3.5 w-3.5" aria-hidden="true" />
+            {label}
+          </span>
+        </Chip>
+        {custom ? (
+          <button
+            type="button"
+            onClick={handleRemove}
+            disabled={deleteCustom.isPending}
+            aria-label={t("cycle.symptom.custom.remove", { label })}
+            className="border-border bg-background text-muted-foreground hover:text-destructive hover:border-destructive focus-visible:ring-ring/50 -ml-1.5 grid size-4 shrink-0 place-items-center rounded-full border transition-colors focus-visible:ring-2 focus-visible:outline-none"
+          >
+            <X className="size-2.5" aria-hidden="true" />
+          </button>
+        ) : null}
+      </span>
+      {active ? (
+        <div
+          className="flex gap-0.5"
+          role="group"
+          aria-label={t("cycle.sheet.severity")}
+        >
+          {SEVERITY_LEVELS.map((lvl) => (
+            <button
+              key={lvl}
+              type="button"
+              aria-pressed={severity === lvl}
+              aria-label={t("cycle.sheet.severityLevel", { level: lvl })}
+              onClick={() => onSeverity(symptomKey, lvl)}
+              className={cn(
+                "focus-visible:ring-ring/50 size-6 rounded-full border text-xs tabular-nums transition-colors focus-visible:ring-2 focus-visible:outline-none",
+                severity === lvl
+                  ? "border-primary bg-primary/15 text-primary font-semibold"
+                  : "border-border text-muted-foreground hover:bg-accent",
+              )}
+            >
+              {lvl}
+            </button>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+/**
+ * The dashed ghost-chip in the symptom grid that opens a compact label + icon
+ * popover to mint a new custom symptom. Matches the chip grid (same rounded-
+ * full pill, same size) so it reads as part of the grid, not a foreign button.
+ */
+function AddSymptomChip() {
+  const { t } = useTranslations();
+  const create = useCreateCustomSymptom();
+  const [openForm, setOpenForm] = useState(false);
+  const [label, setLabel] = useState("");
+  const [icon, setIcon] = useState<string>("Tag");
+
+  function reset() {
+    setLabel("");
+    setIcon("Tag");
+  }
+
+  async function handleCreate() {
+    const trimmed = label.trim();
+    if (!trimmed) return;
+    await create.mutateAsync({ label: trimmed, icon });
+    reset();
+    setOpenForm(false);
+  }
+
+  const limitReached = create.isError;
+
+  return (
+    <Popover
+      open={openForm}
+      onOpenChange={(o) => {
+        setOpenForm(o);
+        if (!o) reset();
+      }}
+    >
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          className="border-border text-muted-foreground hover:border-primary hover:text-primary focus-visible:ring-ring/50 inline-flex items-center gap-1.5 rounded-full border border-dashed px-3 py-1.5 text-sm transition-colors focus-visible:ring-2 focus-visible:outline-none"
+        >
+          <Plus className="h-3.5 w-3.5" aria-hidden="true" />
+          {t("cycle.symptom.custom.add")}
+        </button>
+      </PopoverTrigger>
+      <PopoverContent align="start" className="w-64 space-y-3">
+        <div className="space-y-1.5">
+          <Label htmlFor="custom-symptom-label" className="text-xs font-medium">
+            {t("cycle.symptom.custom.label")}
+          </Label>
+          <Input
+            id="custom-symptom-label"
+            value={label}
+            maxLength={40}
+            autoFocus
+            placeholder={t("cycle.symptom.custom.labelPlaceholder")}
+            onChange={(e) => setLabel(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                void handleCreate();
+              }
+            }}
+          />
+        </div>
+        <div className="space-y-1.5">
+          <p className="text-xs font-medium">
+            {t("cycle.symptom.custom.icon")}
+          </p>
+          <div
+            className="flex flex-wrap gap-1.5"
+            role="radiogroup"
+            aria-label={t("cycle.symptom.custom.icon")}
+          >
+            {CUSTOM_SYMPTOM_ICON_ALLOWLIST.map((name) => {
+              const IconC = customIcon(name);
+              const selected = icon === name;
+              return (
+                <button
+                  key={name}
+                  type="button"
+                  role="radio"
+                  aria-checked={selected}
+                  aria-label={name}
+                  onClick={() => setIcon(name)}
+                  className={cn(
+                    "focus-visible:ring-ring/50 grid size-7 place-items-center rounded-md border transition-colors focus-visible:ring-2 focus-visible:outline-none",
+                    selected
+                      ? "border-primary bg-primary/10 text-primary"
+                      : "border-border text-muted-foreground hover:bg-accent",
+                  )}
+                >
+                  <IconC className="size-4" aria-hidden="true" />
+                </button>
+              );
+            })}
+          </div>
+        </div>
+        {limitReached ? (
+          <p className="text-destructive text-xs" role="alert">
+            {t("cycle.symptom.custom.limitReached")}
+          </p>
+        ) : null}
+        <div className="flex justify-end gap-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              reset();
+              setOpenForm(false);
+            }}
+          >
+            {t("cycle.sheet.cancel")}
+          </Button>
+          <Button
+            size="sm"
+            onClick={handleCreate}
+            disabled={!label.trim() || create.isPending}
+          >
+            {create.isPending ? (
+              <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
+            ) : null}
+            {t("cycle.symptom.custom.add")}
+          </Button>
+        </div>
+      </PopoverContent>
+    </Popover>
   );
 }

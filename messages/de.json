@@ -4903,7 +4903,8 @@
     "symptomCategory": {
       "physical": "Körperlich",
       "emotional": "Emotional",
-      "digestive": "Verdauung"
+      "digestive": "Verdauung",
+      "custom": "Eigene"
     },
     "symptom": {
       "cramps": "Krämpfe",
@@ -4920,7 +4921,16 @@
       "foodCravings": "Heißhunger",
       "nausea": "Übelkeit",
       "diarrhea": "Durchfall",
-      "constipation": "Verstopfung"
+      "constipation": "Verstopfung",
+      "custom": {
+        "add": "Symptom hinzufügen",
+        "label": "Name",
+        "labelPlaceholder": "z. B. Schwindel",
+        "icon": "Symbol",
+        "limitReached": "Höchstzahl an eigenen Symptomen erreicht.",
+        "remove": "{label} entfernen",
+        "fallbackLabel": "Eigenes Symptom"
+      }
     },
     "prediction": {
       "disclaimer": "Vorhersagen sind Schätzungen aus deinen erfassten Daten, keine medizinische Beratung und keine Verhütung. Die Genauigkeit steigt, je mehr Zyklen du erfasst."

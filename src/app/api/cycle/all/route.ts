@@ -37,6 +37,12 @@ export const DELETE = apiHandler(async (request: NextRequest) => {
     const dayLogs = await tx.cycleDayLog.deleteMany({
       where: { userId: user.id },
     });
+    // Per-user custom symptoms carry an intent-revealing free-text label
+    // (encrypted at rest). A purge that promises "nothing reproductive
+    // persists" must drop them too; their links cascade off the row delete.
+    const customSymptoms = await tx.cycleSymptom.deleteMany({
+      where: { userId: user.id },
+    });
     const predictions = await tx.cyclePrediction.deleteMany({
       where: { userId: user.id },
     });
@@ -79,6 +85,7 @@ export const DELETE = apiHandler(async (request: NextRequest) => {
     });
     return {
       dayLogs: dayLogs.count,
+      customSymptoms: customSymptoms.count,
       predictions: predictions.count,
       cycles: cycles.count,
       auditRows: auditRows.count,

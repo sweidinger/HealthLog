@@ -4903,7 +4903,8 @@
     "symptomCategory": {
       "physical": "Physical",
       "emotional": "Emotional",
-      "digestive": "Digestive"
+      "digestive": "Digestive",
+      "custom": "Custom"
     },
     "symptom": {
       "cramps": "Cramps",
@@ -4920,7 +4921,16 @@
       "foodCravings": "Food cravings",
       "nausea": "Nausea",
       "diarrhea": "Diarrhea",
-      "constipation": "Constipation"
+      "constipation": "Constipation",
+      "custom": {
+        "add": "Add symptom",
+        "label": "Name",
+        "labelPlaceholder": "e.g. Dizziness",
+        "icon": "Icon",
+        "limitReached": "Custom symptom limit reached.",
+        "remove": "Remove {label}",
+        "fallbackLabel": "Custom symptom"
+      }
     },
     "prediction": {
       "disclaimer": "Predictions are estimates from your logged data, not medical advice or contraception. Accuracy improves as you log more cycles."
