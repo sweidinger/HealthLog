@@ -22,7 +22,9 @@ import {
   safeJson,
 } from "@/lib/api-response";
 import { requireCycleEnabled } from "@/lib/cycle/gate";
-import { encrypt } from "@/lib/crypto";
+import { encrypt, decrypt } from "@/lib/crypto";
+import { getOrCreateCycleProfile } from "@/lib/cycle/profile";
+import { replaceSymptomLinks } from "@/lib/cycle/day-log-write";
 import { cycleDayLogPatchSchema } from "@/lib/validations/cycle";
 import { toCycleDayLogDTO, dayLogSymptomInclude } from "@/lib/cycle/dto";
 
@@ -39,7 +41,16 @@ export const PATCH = apiHandler(
 
     const existing = await prisma.cycleDayLog.findFirst({
       where: { id, deletedAt: null },
-      select: { id: true, userId: true },
+      select: {
+        id: true,
+        userId: true,
+        sexualActivity: true,
+        protectedSex: true,
+        pregnancyTest: true,
+        progesteroneTest: true,
+        contraceptive: true,
+        sensitiveEncrypted: true,
+      },
     });
     if (!existing || existing.userId !== user.id) {
       return apiError("Day-log not found", 404);
@@ -61,9 +72,38 @@ export const PATCH = apiHandler(
 
     const body = parsed.data;
 
-    // Field-by-field update (no mass assignment). Every field is
-    // optional; an omitted field is left untouched. `note` re-encrypts;
-    // an explicit null clears it.
+    // Resolve the stored plaintext sensitive fields (from the envelope when
+    // the row was encrypted, else the columns) so a partial patch merges
+    // against the true current value.
+    const encryptSensitive = (await getOrCreateCycleProfile(user.id))
+      .sensitiveCategoryEncryption;
+    const stored = readStoredSensitive(existing);
+    const merged = {
+      sexualActivity:
+        body.sexualActivity !== undefined
+          ? body.sexualActivity
+          : stored.sexualActivity,
+      protectedSex:
+        body.protectedSex !== undefined
+          ? (body.protectedSex ?? null)
+          : stored.protectedSex,
+      pregnancyTest:
+        body.pregnancyTest !== undefined
+          ? (body.pregnancyTest ?? null)
+          : stored.pregnancyTest,
+      progesteroneTest:
+        body.progesteroneTest !== undefined
+          ? (body.progesteroneTest ?? null)
+          : stored.progesteroneTest,
+      contraceptive:
+        body.contraceptive !== undefined
+          ? (body.contraceptive ?? null)
+          : stored.contraceptive,
+    };
+
+    // Field-by-field update (no mass assignment). Non-sensitive fields are
+    // written only when present; the sensitive set is re-resolved and split
+    // between plaintext columns and the envelope per the flag.
     await prisma.cycleDayLog.update({
       where: { id },
       data: {
@@ -80,21 +120,16 @@ export const PATCH = apiHandler(
         ...(body.cervicalMucus !== undefined && {
           cervicalMucus: body.cervicalMucus,
         }),
-        ...(body.sexualActivity !== undefined && {
-          sexualActivity: body.sexualActivity,
-        }),
-        ...(body.protectedSex !== undefined && {
-          protectedSex: body.protectedSex,
-        }),
-        ...(body.pregnancyTest !== undefined && {
-          pregnancyTest: body.pregnancyTest,
-        }),
-        ...(body.progesteroneTest !== undefined && {
-          progesteroneTest: body.progesteroneTest,
-        }),
-        ...(body.contraceptive !== undefined && {
-          contraceptive: body.contraceptive,
-        }),
+        sexualActivity: encryptSensitive ? false : merged.sexualActivity,
+        protectedSex: encryptSensitive ? null : merged.protectedSex,
+        pregnancyTest: (encryptSensitive ? null : merged.pregnancyTest) as never,
+        progesteroneTest: (encryptSensitive
+          ? null
+          : merged.progesteroneTest) as never,
+        contraceptive: (encryptSensitive ? null : merged.contraceptive) as never,
+        sensitiveEncrypted: encryptSensitive
+          ? encrypt(JSON.stringify(merged))
+          : null,
         ...(body.note !== undefined && {
           notesEncrypted: body.note ? encrypt(body.note) : null,
         }),
@@ -104,25 +139,11 @@ export const PATCH = apiHandler(
 
     // Replace symptom links only when `symptoms` was supplied.
     if (body.symptoms !== undefined) {
-      const keys = Array.from(new Set(body.symptoms.map((s) => s.key)));
-      const symptoms =
-        keys.length > 0
-          ? await prisma.cycleSymptom.findMany({
-              where: {
-                key: { in: keys },
-                isActive: true,
-                OR: [{ userId: null }, { userId: user.id }],
-              },
-              select: { id: true },
-            })
-          : [];
-      await prisma.cycleSymptomLink.deleteMany({ where: { dayLogId: id } });
-      if (symptoms.length > 0) {
-        await prisma.cycleSymptomLink.createMany({
-          data: symptoms.map((s) => ({ dayLogId: id, symptomId: s.id })),
-          skipDuplicates: true,
-        });
-      }
+      await replaceSymptomLinks(
+        user.id,
+        id,
+        body.symptoms.map((s) => s.key),
+      );
     }
 
     const row = await prisma.cycleDayLog.findUniqueOrThrow({
@@ -190,3 +211,51 @@ export const DELETE = apiHandler(
     return new Response(null, { status: 204 });
   },
 );
+
+/** The stored plaintext sensitive fields (envelope when encrypted, else columns). */
+function readStoredSensitive(row: {
+  sexualActivity: boolean;
+  protectedSex: boolean | null;
+  pregnancyTest: string | null;
+  progesteroneTest: string | null;
+  contraceptive: string | null;
+  sensitiveEncrypted: string | null;
+}): {
+  sexualActivity: boolean;
+  protectedSex: boolean | null;
+  pregnancyTest: string | null;
+  progesteroneTest: string | null;
+  contraceptive: string | null;
+} {
+  if (row.sensitiveEncrypted) {
+    try {
+      const dec = JSON.parse(decrypt(row.sensitiveEncrypted)) as Record<
+        string,
+        unknown
+      >;
+      return {
+        sexualActivity: (dec.sexualActivity as boolean) ?? false,
+        protectedSex: (dec.protectedSex as boolean | null) ?? null,
+        pregnancyTest: (dec.pregnancyTest as string | null) ?? null,
+        progesteroneTest: (dec.progesteroneTest as string | null) ?? null,
+        contraceptive: (dec.contraceptive as string | null) ?? null,
+      };
+    } catch {
+      // Fail-soft: an undecryptable envelope reads as cleared.
+      return {
+        sexualActivity: false,
+        protectedSex: null,
+        pregnancyTest: null,
+        progesteroneTest: null,
+        contraceptive: null,
+      };
+    }
+  }
+  return {
+    sexualActivity: row.sexualActivity,
+    protectedSex: row.protectedSex,
+    pregnancyTest: row.pregnancyTest,
+    progesteroneTest: row.progesteroneTest,
+    contraceptive: row.contraceptive,
+  };
+}

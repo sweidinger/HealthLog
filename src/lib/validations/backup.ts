@@ -148,6 +148,7 @@ const cycleDayLogSchema = z
     pregnancyTest: z.string().nullable().optional(),
     progesteroneTest: z.string().nullable().optional(),
     contraceptive: z.string().nullable().optional(),
+    sensitiveEncrypted: z.string().nullable().optional(),
     notesEncrypted: z.string().nullable().optional(),
     source: z.string().min(1).optional(),
     externalId: z.string().nullable().optional(),

@@ -19,6 +19,7 @@ import { annotate } from "@/lib/logging/context";
 import { auditLog } from "@/lib/auth/audit";
 import {
   apiSuccess,
+  apiError,
   getClientIp,
   returnAllZodIssues,
   safeJson,
@@ -57,7 +58,29 @@ async function postDayLog(request: NextRequest): Promise<Response> {
   const tz = user.timezone ?? DEFAULT_TIMEZONE;
 
   const cycleId = await findOwningCycleId(user.id, entry.date);
-  const result = await upsertCycleDayLog(user.id, entry, tz, cycleId);
+  let result;
+  try {
+    result = await upsertCycleDayLog(user.id, entry, tz, cycleId);
+  } catch (err: unknown) {
+    // A residual unique-constraint collision (the helper adopts the
+    // canonical row on the common case) surfaces as a clean 409, never a
+    // 500 (the MoodEntry conflict precedent).
+    if (
+      typeof err === "object" &&
+      err !== null &&
+      "code" in err &&
+      (err as { code?: unknown }).code === "P2002"
+    ) {
+      annotate({
+        action: { name: "cycle.day-log.conflict" },
+        meta: { date: entry.date },
+      });
+      return apiError("Day-log already exists for this date", 409, {
+        errorCode: "cycle.day-log.conflict",
+      });
+    }
+    throw err;
+  }
 
   const row = await prisma.cycleDayLog.findUniqueOrThrow({
     where: { id: result.id },

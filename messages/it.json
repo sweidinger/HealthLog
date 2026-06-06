@@ -5097,7 +5097,16 @@
       "deleteData": "Elimina i miei dati del ciclo",
       "saved": "Impostazioni salvate",
       "saveError": "Impossibile salvare. Riprova.",
-      "save": "Salva"
+      "save": "Salva",
+      "purgeTitle": "Elimina tutti i dati del ciclo",
+      "purgeDescription": "Rimuove definitivamente ogni mestruazione, registro giornaliero e previsione da questo account. L'operazione è irreversibile.",
+      "purgeButton": "Elimina tutti i dati del ciclo",
+      "purgeConfirmTitle": "Eliminare tutti i dati del ciclo?",
+      "purgeConfirmBody": "Questo elimina definitivamente ogni mestruazione, registro giornaliero, sintomo e previsione. L'operazione è irreversibile.",
+      "purgeConfirm": "Elimina tutto",
+      "purgeCancel": "Annulla",
+      "purgeSuccess": "Tutti i dati del ciclo eliminati.",
+      "purgeError": "Impossibile eliminare i dati del ciclo. Riprova."
     }
   },
   "cycleReminders": {

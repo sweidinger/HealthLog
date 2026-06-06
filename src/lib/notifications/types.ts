@@ -96,4 +96,12 @@ export interface NotificationPayload {
   message: string;
   /** Channel-specific extras (e.g. medicationId for Telegram inline buttons) */
   metadata?: Record<string, unknown>;
+  /**
+   * Discreet mode (cycle privacy). When true, the lock-screen-visible
+   * routing metadata the senders would otherwise derive from `eventType`
+   * (APNs category / threadId / collapseId, ntfy Tags) is replaced with a
+   * generic value so the cycle event name never appears on the lock screen
+   * — the title/body are already masked upstream.
+   */
+  discreet?: boolean;
 }

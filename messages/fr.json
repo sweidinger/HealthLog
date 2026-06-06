@@ -5097,7 +5097,16 @@
       "deleteData": "Supprimer mes données de cycle",
       "saved": "Réglages enregistrés",
       "saveError": "Enregistrement impossible. Réessaie.",
-      "save": "Enregistrer"
+      "save": "Enregistrer",
+      "purgeTitle": "Supprimer toutes les données de cycle",
+      "purgeDescription": "Supprime définitivement chaque règle, journal quotidien et prédiction de ce compte. Cette action est irréversible.",
+      "purgeButton": "Supprimer toutes les données de cycle",
+      "purgeConfirmTitle": "Supprimer toutes les données de cycle ?",
+      "purgeConfirmBody": "Cela supprime définitivement chaque règle, journal quotidien, symptôme et prédiction. Cette action est irréversible.",
+      "purgeConfirm": "Tout supprimer",
+      "purgeCancel": "Annuler",
+      "purgeSuccess": "Toutes les données de cycle ont été supprimées.",
+      "purgeError": "Impossible de supprimer les données de cycle. Réessayez."
     }
   },
   "cycleReminders": {

@@ -5097,7 +5097,16 @@
       "deleteData": "Meine Zyklusdaten löschen",
       "saved": "Einstellungen gespeichert",
       "saveError": "Konnte nicht gespeichert werden. Versuch es erneut.",
-      "save": "Speichern"
+      "save": "Speichern",
+      "purgeTitle": "Alle Zyklusdaten löschen",
+      "purgeDescription": "Entfernt dauerhaft jede Periode, jeden Tageseintrag und jede Vorhersage von diesem Konto. Dies kann nicht rückgängig gemacht werden.",
+      "purgeButton": "Alle Zyklusdaten löschen",
+      "purgeConfirmTitle": "Alle Zyklusdaten löschen?",
+      "purgeConfirmBody": "Dies löscht dauerhaft jede Periode, jeden Tageseintrag, jedes Symptom und jede Vorhersage. Dies kann nicht rückgängig gemacht werden.",
+      "purgeConfirm": "Alles löschen",
+      "purgeCancel": "Abbrechen",
+      "purgeSuccess": "Alle Zyklusdaten gelöscht.",
+      "purgeError": "Zyklusdaten konnten nicht gelöscht werden. Bitte erneut versuchen."
     }
   },
   "cycleReminders": {

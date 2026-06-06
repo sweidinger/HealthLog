@@ -3432,6 +3432,16 @@ model CycleDayLog {
   progesteroneTest HomeTestResult?    @map("progesterone_test")
   contraceptive    ContraceptiveKind? @map("contraceptive")
 
+  /// AES-256-GCM ciphertext envelope of the intent-revealing fields
+  /// (sexualActivity / protectedSex / pregnancyTest / progesteroneTest /
+  /// contraceptive). Populated INSTEAD of the plaintext columns above when
+  /// CycleProfile.sensitiveCategoryEncryption is ON: the plaintext columns
+  /// are NULLed and this carries the JSON envelope, so the most sensitive
+  /// reproductive data is encrypted at rest. Those five fields then drop
+  /// out of the rollup / correlation tier (queryable plaintext is the
+  /// trade for at-rest secrecy). Decrypted fail-soft on read.
+  sensitiveEncrypted String? @map("sensitive_encrypted")
+
   /// AES-256-GCM ciphertext envelope of the day's free-text note (always
   /// encrypted — the `*Encrypted` String? convention, matching
   /// MoodTag.labelEncrypted + InsightNarrative).

@@ -523,6 +523,7 @@ export async function sendViaApns(
     message: string;
     eventType: string;
     metadata?: Record<string, unknown>;
+    discreet?: boolean;
   },
 ): Promise<SendOutcome> {
   const config = loadApnsConfig();
@@ -602,6 +603,12 @@ export async function sendViaApns(
     const isTimeSensitive = payload.eventType === "MEDICATION_REMINDER";
 
     let result: Awaited<ReturnType<typeof sendApnsPush>> | null = null;
+    // Discreet mode (cycle privacy): the lock-screen-visible routing
+    // metadata must not carry the event name. Collapse the category /
+    // threadId / collapseId and the data eventType to a generic value so
+    // CYCLE_PERIOD_SOON never surfaces on the lock screen.
+    const GENERIC_EVENT = "REMINDER";
+    const routingEvent = payload.discreet ? GENERIC_EVENT : payload.eventType;
     let workingEnv: "production" | "sandbox" | null = null;
     for (const attemptEnv of envSequence) {
       result = await sendApnsPush({
@@ -610,16 +617,16 @@ export async function sendViaApns(
       payload: {
         alert: { title: payload.title, body: stripHtml(payload.message) },
         data: {
-          eventType: payload.eventType,
+          eventType: routingEvent,
           ...pickIosMetadata(payload.metadata),
         },
-        threadId: payload.eventType,
+        threadId: routingEvent,
         // The iOS app registers a `UNNotificationCategory` per event-type
         // so the same string doubles as the category identifier. iOS
         // ignores categories it doesn't know about, so adding the key
         // here is safe for event-types that don't have an actionable
         // category registered yet — they fall back to a plain alert.
-        category: payload.eventType,
+        category: routingEvent,
         // Future-proof for an iOS Notification Service Extension. iOS
         // ignores the flag when no extension is registered, so it's a
         // no-op on today's binary but unblocks NSE work without a
@@ -632,7 +639,7 @@ export async function sendViaApns(
             }
           : {}),
       },
-      collapseId: payload.eventType,
+      collapseId: routingEvent,
       });
 
       if (result.ok) {

@@ -123,8 +123,28 @@ async function postBulk(request: NextRequest): Promise<Response> {
         ...(entry.externalId ? { externalId: entry.externalId } : {}),
       });
     } catch (err: unknown) {
+      // Map to a stable closed set of reason codes — never echo the raw
+      // driver message (it can carry column / constraint / value fragments
+      // and bypasses the central redaction boundary). The full message is
+      // logged through the WideEvent path where redaction applies.
+      const code =
+        typeof err === "object" && err !== null && "code" in err
+          ? (err as { code?: unknown }).code
+          : undefined;
       const reason =
-        err instanceof Error ? err.message.slice(0, 120) : "upsert_failed";
+        code === "P2002"
+          ? "constraint"
+          : code === "P2003"
+            ? "constraint"
+            : "upsert_failed";
+      annotate({
+        action: { name: "cycle.bulk.entry-failed" },
+        meta: {
+          index: i,
+          reason,
+          error: err instanceof Error ? err.message : String(err),
+        },
+      });
       skipped += 1;
       results.push({
         index: i,

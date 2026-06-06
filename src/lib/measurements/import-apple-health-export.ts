@@ -46,6 +46,7 @@ import { resolveHkWorkoutSportType } from "@/lib/measurements/hk-workout-activit
 import { validateMeasurementRange } from "@/lib/validations/measurement";
 import {
   CycleImportAccumulator,
+  EMPTY_CYCLE_IMPORT_STATS,
   type CycleImportStats,
 } from "@/lib/cycle/import-accumulator";
 import { HK_SEXUAL_ACTIVITY_PROTECTION_META } from "@/lib/cycle/healthkit-mapping";
@@ -815,19 +816,23 @@ export async function streamParseExportXml(
   // v1.15.0 — fold the accumulated reproductive samples into CYCLE
   // day-logs. Gated on cycle-tracking being enabled for the account so a
   // non-cycle Apple Health export never silently provisions cycle rows.
-  let cycle: CycleImportStats = {
-    samplesConsumed: 0,
-    daysUpserted: 0,
-    daysInserted: 0,
-    goalNudged: false,
-  };
+  let cycle: CycleImportStats = { ...EMPTY_CYCLE_IMPORT_STATS };
   // Only touch the cycle tables when the export actually carried
   // reproductive samples AND the account has cycle tracking enabled. The
   // empty-accumulator short-circuit also keeps the no-cycle import path
-  // (and its unit tests) free of any cycle DB round-trip.
+  // (and its unit tests) free of any cycle DB round-trip. A flush failure
+  // (e.g. a single colliding day) must never abort the whole import — fold
+  // the error into zeroed cycle stats and continue.
   if (cycleAccumulator.hasSamples() && (await cycleAccumulator.isEnabled())) {
-    cycle = await cycleAccumulator.flush();
-    rowsUpserted += cycle.daysUpserted;
+    try {
+      cycle = await cycleAccumulator.flush();
+      rowsUpserted += cycle.daysUpserted;
+    } catch (err: unknown) {
+      cycle = { ...EMPTY_CYCLE_IMPORT_STATS };
+      console.warn(
+        `cycle import flush failed: ${err instanceof Error ? err.message : String(err)}`,
+      );
+    }
   }
 
   await emitProgress("upserting");

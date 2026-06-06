@@ -47,6 +47,7 @@ export interface CycleBackupSection {
     pregnancyTest: string | null;
     progesteroneTest: string | null;
     contraceptive: string | null;
+    sensitiveEncrypted: string | null;
     notesEncrypted: string | null;
     source: string;
     externalId: string | null;
@@ -115,7 +116,8 @@ export async function buildCycleBackupSection(
       pregnancyTest: d.pregnancyTest,
       progesteroneTest: d.progesteroneTest,
       contraceptive: d.contraceptive,
-      // Ciphertext envelope carried verbatim — never decrypted here.
+      // Both ciphertext envelopes carried verbatim — never decrypted here.
+      sensitiveEncrypted: d.sensitiveEncrypted,
       notesEncrypted: d.notesEncrypted,
       source: d.source,
       externalId: d.externalId,
@@ -286,7 +288,8 @@ export async function restoreCycleData(
         pregnancyTest: enumOrNull(d.pregnancyTest, HOME_TESTS) as never,
         progesteroneTest: enumOrNull(d.progesteroneTest, HOME_TESTS) as never,
         contraceptive: enumOrNull(d.contraceptive, CONTRACEPTIVES) as never,
-        // Ciphertext envelope written back verbatim — never re-encrypted.
+        // Both ciphertext envelopes written back verbatim — never re-encrypted.
+        sensitiveEncrypted: d.sensitiveEncrypted ?? null,
         notesEncrypted: d.notesEncrypted ?? null,
         source: (enumOrNull(d.source, CYCLE_SOURCES) ?? "MANUAL") as never,
         externalId: d.externalId ?? null,

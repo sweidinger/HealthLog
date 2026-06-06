@@ -21,7 +21,8 @@
  */
 import { prisma } from "@/lib/db";
 import { upsertCycleDayLog } from "@/lib/cycle/day-log-write";
-import { findOwningCycleId } from "@/lib/cycle/cycle-attribution";
+import { isCycleEnabled } from "@/lib/cycle/gate";
+import { auditLog } from "@/lib/auth/audit";
 import {
   mapHkCycleSample,
   isCycleHkIdentifier,
@@ -32,6 +33,14 @@ import type { ContraceptiveKind } from "@/generated/prisma/client";
 
 /** Synthetic per-day externalId prefix for HealthKit-imported cycle rows. */
 export const HK_CYCLE_DAY_EXTERNAL_PREFIX = "hkcycle:";
+
+/** A zeroed cycle-import result — the no-cycle / aborted-flush fallback. */
+export const EMPTY_CYCLE_IMPORT_STATS: CycleImportStats = {
+  samplesConsumed: 0,
+  daysUpserted: 0,
+  daysInserted: 0,
+  goalNudged: false,
+};
 
 /** Per-day merge state held during the parse. */
 interface DayBucket {
@@ -162,14 +171,8 @@ export class CycleImportAccumulator {
         select: { cycleTrackingEnabled: true },
       }),
     ]);
-    // Inline the gate logic (no profile auto-create on the import path).
-    const toggle = profile?.cycleTrackingEnabled;
-    this.gated =
-      toggle === true
-        ? true
-        : toggle === false
-          ? false
-          : user?.gender === "FEMALE";
+    // The single source-of-truth gate (no profile auto-create on import).
+    this.gated = isCycleEnabled(user?.gender, profile);
     return this.gated;
   }
 
@@ -187,6 +190,23 @@ export class CycleImportAccumulator {
     if (this.byDay.size === 0) return stats;
 
     let contraceptiveNudge: ContraceptiveKind | null = null;
+
+    // Hoist cycle attribution out of the per-day loop: load the user's
+    // (non-deleted) cycle start dates once and resolve the owning span in
+    // memory (latest start <= date) rather than a query per day.
+    const cycleRows = await prisma.menstrualCycle.findMany({
+      where: { userId: this.userId, deletedAt: null },
+      orderBy: { startDate: "asc" },
+      select: { id: true, startDate: true },
+    });
+    const owningCycleId = (date: string): string | null => {
+      let id: string | null = null;
+      for (const c of cycleRows) {
+        if (c.startDate <= date) id = c.id;
+        else break;
+      }
+      return id;
+    };
 
     for (const [dayKey, bucket] of this.byDay.entries()) {
       const symptoms =
@@ -206,7 +226,7 @@ export class CycleImportAccumulator {
         loggedAt: `${dayKey}T12:00:00.000Z`,
       };
 
-      const cycleId = await findOwningCycleId(this.userId, dayKey);
+      const cycleId = owningCycleId(dayKey);
       const result = await upsertCycleDayLog(
         this.userId,
         entry,
@@ -235,7 +255,15 @@ export class CycleImportAccumulator {
         where: { userId: this.userId, goal: "GENERAL_HEALTH" },
         data: { goal: "AVOID_PREGNANCY" },
       });
-      if (updated.count > 0) stats.goalNudged = true;
+      if (updated.count > 0) {
+        stats.goalNudged = true;
+        // A server-side mutation of an intent-revealing setting must not be
+        // invisible — record it on the audit trail.
+        await auditLog("cycle.profile.goal-nudged", {
+          userId: this.userId,
+          details: { from: "GENERAL_HEALTH", to: "AVOID_PREGNANCY", via: "apple-health-import" },
+        });
+      }
     }
 
     return stats;

@@ -5097,7 +5097,16 @@
       "deleteData": "Delete my cycle data",
       "saved": "Settings saved",
       "saveError": "Could not save. Try again.",
-      "save": "Save"
+      "save": "Save",
+      "purgeTitle": "Delete all cycle data",
+      "purgeDescription": "Permanently remove every period, day-log, and prediction from this account. This cannot be undone.",
+      "purgeButton": "Delete all cycle data",
+      "purgeConfirmTitle": "Delete all cycle data?",
+      "purgeConfirmBody": "This permanently deletes every period, day-log, symptom, and prediction. This cannot be undone.",
+      "purgeConfirm": "Delete everything",
+      "purgeCancel": "Cancel",
+      "purgeSuccess": "All cycle data deleted.",
+      "purgeError": "Could not delete cycle data. Try again."
     }
   },
   "cycleReminders": {

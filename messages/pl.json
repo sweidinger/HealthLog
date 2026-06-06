@@ -5097,7 +5097,16 @@
       "deleteData": "Usuń moje dane cyklu",
       "saved": "Ustawienia zapisane",
       "saveError": "Nie udało się zapisać. Spróbuj ponownie.",
-      "save": "Zapisz"
+      "save": "Zapisz",
+      "purgeTitle": "Usuń wszystkie dane cyklu",
+      "purgeDescription": "Trwale usuwa każdą miesiączkę, wpis dzienny i prognozę z tego konta. Tej operacji nie można cofnąć.",
+      "purgeButton": "Usuń wszystkie dane cyklu",
+      "purgeConfirmTitle": "Usunąć wszystkie dane cyklu?",
+      "purgeConfirmBody": "Spowoduje to trwałe usunięcie każdej miesiączki, wpisu dziennego, objawu i prognozy. Tej operacji nie można cofnąć.",
+      "purgeConfirm": "Usuń wszystko",
+      "purgeCancel": "Anuluj",
+      "purgeSuccess": "Usunięto wszystkie dane cyklu.",
+      "purgeError": "Nie udało się usunąć danych cyklu. Spróbuj ponownie."
     }
   },
   "cycleReminders": {

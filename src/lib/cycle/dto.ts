@@ -73,7 +73,34 @@ function decryptNote(notesEncrypted: string | null): string | null {
   }
 }
 
+interface SensitiveEnvelope {
+  sexualActivity?: boolean;
+  protectedSex?: boolean | null;
+  pregnancyTest?: string | null;
+  progesteroneTest?: string | null;
+  contraceptive?: string | null;
+}
+
+/**
+ * Decrypt the sensitive-category envelope fail-soft. When
+ * `sensitiveCategoryEncryption` was ON at write the five intent fields live
+ * here instead of the plaintext columns; an undecryptable envelope reads as
+ * an empty object so the page never 500s.
+ */
+function decryptSensitive(envelope: string | null): SensitiveEnvelope {
+  if (!envelope) return {};
+  try {
+    return JSON.parse(decrypt(envelope)) as SensitiveEnvelope;
+  } catch {
+    return {};
+  }
+}
+
 export function toCycleDayLogDTO(row: DayLogWithLinks): CycleDayLogDTO {
+  // Prefer the encryption envelope when present; else read the plaintext
+  // columns (the flag-OFF path).
+  const enc = decryptSensitive(row.sensitiveEncrypted);
+  const hasEnvelope = row.sensitiveEncrypted != null;
   return {
     id: row.id,
     date: row.date,
@@ -83,11 +110,13 @@ export function toCycleDayLogDTO(row: DayLogWithLinks): CycleDayLogDTO {
     basalBodyTempC: row.basalBodyTempC,
     ovulationTest: row.ovulationTest,
     cervicalMucus: row.cervicalMucus,
-    sexualActivity: row.sexualActivity,
-    protectedSex: row.protectedSex,
-    pregnancyTest: row.pregnancyTest,
-    progesteroneTest: row.progesteroneTest,
-    contraceptive: row.contraceptive,
+    sexualActivity: hasEnvelope ? (enc.sexualActivity ?? false) : row.sexualActivity,
+    protectedSex: hasEnvelope ? (enc.protectedSex ?? null) : row.protectedSex,
+    pregnancyTest: hasEnvelope ? (enc.pregnancyTest ?? null) : row.pregnancyTest,
+    progesteroneTest: hasEnvelope
+      ? (enc.progesteroneTest ?? null)
+      : row.progesteroneTest,
+    contraceptive: hasEnvelope ? (enc.contraceptive ?? null) : row.contraceptive,
     symptoms: (row.symptomLinks ?? []).map((l) => ({
       key: l.symptom.key,
       severity: null,

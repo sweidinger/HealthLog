@@ -5097,7 +5097,16 @@
       "deleteData": "Eliminar mis datos del ciclo",
       "saved": "Ajustes guardados",
       "saveError": "No se pudo guardar. Inténtalo de nuevo.",
-      "save": "Guardar"
+      "save": "Guardar",
+      "purgeTitle": "Eliminar todos los datos del ciclo",
+      "purgeDescription": "Elimina de forma permanente todos los periodos, registros diarios y predicciones de esta cuenta. No se puede deshacer.",
+      "purgeButton": "Eliminar todos los datos del ciclo",
+      "purgeConfirmTitle": "¿Eliminar todos los datos del ciclo?",
+      "purgeConfirmBody": "Esto elimina de forma permanente todos los periodos, registros diarios, síntomas y predicciones. No se puede deshacer.",
+      "purgeConfirm": "Eliminar todo",
+      "purgeCancel": "Cancelar",
+      "purgeSuccess": "Todos los datos del ciclo eliminados.",
+      "purgeError": "No se pudieron eliminar los datos del ciclo. Inténtalo de nuevo."
     }
   },
   "cycleReminders": {

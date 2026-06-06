@@ -368,6 +368,9 @@ export async function runCycleReminderTick(
         userId: user.id,
         title,
         message: body,
+        // In discreet mode the senders mask the lock-screen routing
+        // metadata so no cycle event is named on the lock screen.
+        discreet,
         metadata: {
           scheduledAt: now.toISOString(),
           localDate: today,
