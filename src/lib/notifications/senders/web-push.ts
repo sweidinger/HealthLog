@@ -7,6 +7,7 @@ import { getVapidConfig } from "@/lib/notifications/vapid-config";
 import { getEvent } from "@/lib/logging/context";
 import { recordPushAttempt } from "@/lib/notifications/senders/push-attempt-record";
 import { isPublicUrl } from "@/lib/validations/notifications";
+import { plainPushText } from "@/lib/notifications/strip-emoji";
 
 /**
  * Send Web Push notification to all subscribed devices of a user.
@@ -78,8 +79,11 @@ export async function sendViaWebPush(
     }
 
     const pushPayload = JSON.stringify({
-      title: payload.title,
-      body: payload.message.replace(/<[^>]*>/g, ""),
+      title: plainPushText(payload.title, payload.eventType),
+      body: plainPushText(
+        payload.message.replace(/<[^>]*>/g, ""),
+        payload.eventType,
+      ),
       // Discreet mode (cycle privacy): the coalescing `tag` must not name the
       // event. Web-Push payloads are VAPID-encrypted (only the SW sees this),
       // but the discreet contract still requires no event name on the wire —

@@ -7,6 +7,7 @@ import { classifyHttpStatus } from "@/lib/notifications/retry-policy";
 import { getEvent } from "@/lib/logging/context";
 import { recordPushAttempt } from "@/lib/notifications/senders/push-attempt-record";
 import { safeFetch } from "@/lib/safe-fetch";
+import { plainPushText } from "@/lib/notifications/strip-emoji";
 
 /**
  * Send notification via ntfy (simple HTTP POST).
@@ -26,7 +27,7 @@ export async function sendViaNtfy(
     const url = `${config.serverUrl.replace(/\/$/, "")}/${encodeURIComponent(config.topic)}`;
 
     const headers: Record<string, string> = {
-      Title: payload.title,
+      Title: plainPushText(payload.title, payload.eventType),
       Priority:
         payload.eventType === "MEDICATION_REMINDER" ? "high" : "default",
       // Discreet mode (cycle privacy): the X-Tags header is visible on the
@@ -41,8 +42,11 @@ export async function sendViaNtfy(
       headers["Authorization"] = `Bearer ${config.authToken}`;
     }
 
-    // Strip HTML tags for ntfy (plain text only)
-    const body = payload.message.replace(/<[^>]*>/g, "");
+    // Strip HTML tags for ntfy (plain text only) + emoji on routine reminders
+    const body = plainPushText(
+      payload.message.replace(/<[^>]*>/g, ""),
+      payload.eventType,
+    );
 
     // requirePublicHost adds the DNS-rebinding pin (issue #217) on top
     // of the input-time isPublicUrl guard already enforced when the
