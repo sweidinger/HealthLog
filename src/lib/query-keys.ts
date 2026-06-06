@@ -521,6 +521,18 @@ export const queryKeys = {
   /** The caller's own custom symptoms (decrypted labels) the log-day sheet
    * merges into the seeded chip grid. */
   cycleCustomSymptoms: () => ["cycle", "custom-symptoms"] as const,
+
+  /**
+   * v1.15.7 — in-flight Apple Health `export.zip` import. Keyed by the
+   * `jobId` returned from `POST /api/import/apple-health-export` so the
+   * Export & Import settings area can poll
+   * `GET /api/import/apple-health-export/[jobId]/status` with a
+   * `refetchInterval` while the job is running and stop on a terminal
+   * state. Each upload mints its own key, so a re-upload (or a second
+   * archive) never collides with a previous job's cached status.
+   */
+  importJobStatus: (jobId: string) =>
+    ["import", "apple-health", "status", jobId] as const,
 };
 
 /**
