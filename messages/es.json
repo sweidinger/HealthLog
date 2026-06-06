@@ -4867,5 +4867,29 @@
       "score": "Puntuación de bienestar"
     },
     "footer": "Compartido desde HealthLog — un registro de salud autoalojado."
+  },
+  "cycle": {
+    "symptomCategory": {
+      "physical": "Físico",
+      "emotional": "Emocional",
+      "digestive": "Digestivo"
+    },
+    "symptom": {
+      "cramps": "Calambres",
+      "headache": "Dolor de cabeza",
+      "bloating": "Hinchazón",
+      "acne": "Acné",
+      "breastTenderness": "Sensibilidad en los senos",
+      "fatigue": "Fatiga",
+      "backPain": "Dolor de espalda",
+      "insomnia": "Insomnio",
+      "libidoHigh": "Libido alta",
+      "libidoLow": "Libido baja",
+      "moodSwings": "Cambios de humor",
+      "foodCravings": "Antojos",
+      "nausea": "Náuseas",
+      "diarrhea": "Diarrea",
+      "constipation": "Estreñimiento"
+    }
   }
 }

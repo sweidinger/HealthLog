@@ -495,6 +495,18 @@ model User {
   // unset `insurerName` collapses its name.
   insurerIkNumber          String? @map("insurer_ik_number")
 
+  // v1.15.0 — cycle tracking. The CycleProfile is a 1:1 settings row
+  // (lazily upserted on first cycle-surface access); MenstrualCycle +
+  // CycleDayLog are the soft-deleted, sync-feed-bearing capture rows;
+  // CyclePrediction is a 1:1 cached forecast (debounced regenerate).
+  cycleProfile     CycleProfile?
+  menstrualCycles  MenstrualCycle[]
+  cycleDayLogs     CycleDayLog[]
+  cyclePrediction  CyclePrediction?
+  // v1.15.0 — owner of a per-user custom CycleSymptom (NULL = the global
+  // seeded catalogue).
+  cycleSymptomsCustom CycleSymptom[] @relation("UserCycleSymptoms")
+
   @@map("users")
 }
 
@@ -3160,4 +3172,401 @@ model InsightNarrative {
   @@unique([userId, period, locale])
   @@index([userId, updatedAt(sort: Desc)])
   @@map("insight_narratives")
+}
+
+// ─── Cycle Tracking (v1.15.0) ─────────────────────────────────
+//
+// Self-hosted reproductive-health tracking: period + flow, symptom
+// taxonomy, BBT / OPK / cervical-mucus capture, ranged-confidence
+// prediction. The capture rows (MenstrualCycle, CycleDayLog) carry the
+// same soft-delete + syncVersion shape as MoodEntry so they ride the
+// `/api/sync/changes` delta feed. CycleProfile + CyclePrediction are
+// settings / derived rows and do NOT tombstone.
+//
+// Sensitivity: free-text notes are always AES-256-GCM at rest
+// (`notesEncrypted`, the `*Encrypted` convention). The default-ON
+// `sensitiveCategoryEncryption` flag drives whether the intent-revealing
+// fields (pregnancy / contraception / sexual activity) also encrypt at
+// the application layer — those stay queryable-plaintext-physiology
+// (flow, BBT, OPK, mucus, dates, phase) untouched so the rollup +
+// correlation tier keeps working.
+
+/// Per-user goal that gates every cycle copy + the fertile-window
+/// surfacing. `OFF` disables the category entirely; `GENERAL_HEALTH` /
+/// `PERIMENOPAUSE` hide conception framing; only `TRYING_TO_CONCEIVE`
+/// (and, with a stronger caveat, `AVOID_PREGNANCY`) surface fertile-window
+/// language.
+enum CycleTrackingGoal {
+  GENERAL_HEALTH
+  AVOID_PREGNANCY
+  TRYING_TO_CONCEIVE
+  PERIMENOPAUSE
+  OFF
+
+  @@map("cycle_tracking_goal")
+}
+
+/// Menstrual-flow intensity for a logged day. Mirrors the HealthKit
+/// `HKCategoryValueMenstrualFlow` ladder (unspecified collapses to the
+/// presence of a row; `NONE` is an explicit no-flow marker).
+enum FlowLevel {
+  NONE
+  SPOTTING
+  LIGHT
+  MEDIUM
+  HEAVY
+
+  @@map("flow_level")
+}
+
+/// Ovulation predictor-kit (OPK) reading. `POSITIVE_LH_SURGE` is the
+/// LH-surge positive; `ESTROGEN_SURGE` is the estrogen-rise pre-peak
+/// some dual-hormone kits report. Mirrors HealthKit
+/// `HKCategoryValueOvulationTestResult`.
+enum OvulationTest {
+  NEGATIVE
+  POSITIVE_LH_SURGE
+  ESTROGEN_SURGE
+  INDETERMINATE
+
+  @@map("ovulation_test")
+}
+
+/// Cervical-mucus quality, fertility-awareness ladder (dry → egg-white
+/// peak). Mirrors HealthKit `HKCategoryValueCervicalMucusQuality`.
+enum CervicalMucus {
+  DRY
+  STICKY
+  CREAMY
+  WATERY
+  EGG_WHITE
+
+  @@map("cervical_mucus")
+}
+
+/// Generic home-test result for the pregnancy / progesterone test
+/// fields. Mirrors HealthKit `HKCategoryValuePregnancyTestResult` /
+/// `HKCategoryValueProgesteroneTestResult`.
+enum HomeTestResult {
+  NEGATIVE
+  POSITIVE
+  INDETERMINATE
+
+  @@map("home_test_result")
+}
+
+/// Contraceptive method logged for a day. `UNSPECIFIED` mirrors the
+/// HealthKit `unspecified` member distinct from `NONE` (an explicit
+/// no-method marker). Mirrors HealthKit `HKCategoryValueContraceptive`.
+enum ContraceptiveKind {
+  NONE
+  UNSPECIFIED
+  IMPLANT
+  INJECTION
+  IUD
+  INTRAVAGINAL_RING
+  ORAL
+  PATCH
+  EMERGENCY
+
+  @@map("contraceptive_kind")
+}
+
+/// Derived cycle phase used by the prediction engine + the CYCLE_PHASE
+/// correlation channel. Computed from day-of-cycle + the back-calculated
+/// luteal length, never stored on the capture rows.
+enum CyclePhase {
+  MENSTRUAL
+  FOLLICULAR
+  OVULATORY
+  LUTEAL
+
+  @@map("cycle_phase")
+}
+
+/// Which method produced a cached CyclePrediction. `CALENDAR` is the
+/// median+MAD variability predictor; `SYMPTOTHERMAL` folds the
+/// sensiplan BBT + mucus confirmation; `TEMPERATURE_TREND` is the
+/// retrospective wrist/skin-temperature ovulation; `BLENDED` combines
+/// them.
+enum PredictionMethod {
+  CALENDAR
+  SYMPTOTHERMAL
+  TEMPERATURE_TREND
+  BLENDED
+
+  @@map("prediction_method")
+}
+
+/// One settings row per user, lazily upserted on first cycle-surface
+/// access (goal defaults to GENERAL_HEALTH). Not soft-deleted — it is a
+/// profile row, like the other per-user settings columns on User.
+model CycleProfile {
+  id     String @id @default(cuid())
+  userId String @map("user_id")
+
+  /// Drives all cycle copy + fertile-window gating (see CycleTrackingGoal).
+  goal CycleTrackingGoal @default(GENERAL_HEALTH)
+
+  /// Optional user-supplied priors. The engine applies a luteal default
+  /// of 14 days in code (NOT a DB default) when `lutealPhaseLength` is
+  /// NULL, so a future constant change never strands historical rows.
+  typicalCycleLength  Int? @map("typical_cycle_length")
+  typicalPeriodLength Int? @map("typical_period_length")
+  lutealPhaseLength   Int? @map("luteal_phase_length")
+
+  /// When false, the app computes / stores NO predictions — pure logging
+  /// (the Read-Your-Body posture for users who distrust algorithmic
+  /// interpretation).
+  predictionEnabled Boolean @default(true) @map("prediction_enabled")
+  /// Raw-chart mode — surfaces logged values without the interpreted
+  /// prediction overlays.
+  rawChartMode      Boolean @default(false) @map("raw_chart_mode")
+
+  /// When true, every cycle push body is generic ("HealthLog reminder")
+  /// so no cycle-event naming reaches the lock screen.
+  discreetNotifications        Boolean @default(false) @map("discreet_notifications")
+  /// Default-ON for this category (post-Dobbs threat model): drives
+  /// whether the intent-revealing day-log fields encrypt at the
+  /// application layer in addition to the always-encrypted notes.
+  sensitiveCategoryEncryption  Boolean @default(true) @map("sensitive_category_encryption")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId])
+  @@map("cycle_profiles")
+}
+
+/// One row per menstrual cycle (a period-start anchor + derived span).
+/// `isPredicted` rows are forward-minted forecasts; observed rows are
+/// confirmed from logged flow. Soft-deleted + syncVersion-bumped so the
+/// row rides the `/api/sync/changes` feed as a tombstone.
+model MenstrualCycle {
+  id     String @id @default(cuid())
+  userId String @map("user_id")
+
+  /// YYYY-MM-DD — period start, anchored to `tz` when non-null, else the
+  /// legacy Europe/Berlin assumption (the MoodEntry.date convention).
+  startDate     String  @map("start_date")
+  /// YYYY-MM-DD — cycle end (= day before the next cycle's start).
+  endDate       String? @map("end_date")
+  /// YYYY-MM-DD — last bleeding day of this cycle's period.
+  periodEndDate String? @map("period_end_date")
+
+  /// Observed cycle length in days (start→next start). NULL until the
+  /// next cycle anchors it.
+  lengthDays         Int?     @map("length_days")
+  /// YYYY-MM-DD — confirmed or estimated ovulation day.
+  ovulationDate      String?  @map("ovulation_date")
+  /// True once ovulation is confirmed (symptothermal / temperature-trend),
+  /// as opposed to a calendar estimate.
+  ovulationConfirmed Boolean  @default(false) @map("ovulation_confirmed")
+  /// Forward-minted forecast row vs an observed cycle.
+  isPredicted        Boolean  @default(false) @map("is_predicted")
+
+  /// Per-row IANA timezone the date strings are anchored to (NULL =
+  /// legacy Europe/Berlin), mirroring MoodEntry.tz.
+  tz          String?
+  syncVersion Int       @default(0) @map("sync_version")
+  deletedAt   DateTime? @map("deleted_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user    User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  dayLogs CycleDayLog[]
+
+  @@unique([userId, startDate])
+  @@index([userId, startDate])
+  // Keyset support for the `/api/sync/changes` cycle feed
+  // (`where userId` ordered by `(updatedAt asc, id asc)`).
+  @@index([userId, updatedAt, id])
+  @@map("menstrual_cycles")
+}
+
+/// One canonical row per (user, day): the HealthKit sync unit + the
+/// manual log-day surface. Dual-unique exactly like MoodEntry — the
+/// canonical-day key plus the NULL-distinct external-dedup key for
+/// HealthKit re-ingest. Soft-deleted + syncVersion-bumped.
+model CycleDayLog {
+  id     String  @id @default(cuid())
+  userId String  @map("user_id")
+  /// YYYY-MM-DD — anchored to `tz` when non-null, else legacy
+  /// Europe/Berlin (the MoodEntry.date convention).
+  date    String
+  /// Optional link to the owning MenstrualCycle (set once the day is
+  /// attributed to a cycle span).
+  cycleId String? @map("cycle_id")
+
+  /// Menstrual-flow intensity (NULL = not logged this day).
+  flow                  FlowLevel?
+  /// Spotting / bleeding outside the period window.
+  intermenstrualBleeding Boolean   @default(false) @map("intermenstrual_bleeding")
+
+  /// Basal body temperature in Celsius. Queryable-plaintext — feeds the
+  /// symptothermal confirmation. BBT also lands in Measurement
+  /// (BODY_TEMPERATURE) for charting; this column is the cycle-local copy.
+  basalBodyTempC Float?         @map("basal_body_temp_c")
+  /// Ovulation predictor-kit (OPK) reading.
+  ovulationTest  OvulationTest? @map("ovulation_test")
+  /// Cervical-mucus quality.
+  cervicalMucus  CervicalMucus? @map("cervical_mucus")
+
+  /// Intent-revealing fields. When CycleProfile.sensitiveCategoryEncryption
+  /// is ON these are encrypted at the application layer (the dispatch
+  /// envelope), default-ON for this category.
+  sexualActivity Boolean            @default(false) @map("sexual_activity")
+  protectedSex   Boolean?           @map("protected_sex")
+  pregnancyTest    HomeTestResult?    @map("pregnancy_test")
+  progesteroneTest HomeTestResult?    @map("progesterone_test")
+  contraceptive    ContraceptiveKind? @map("contraceptive")
+
+  /// AES-256-GCM ciphertext envelope of the day's free-text note (always
+  /// encrypted — the `*Encrypted` String? convention, matching
+  /// MoodTag.labelEncrypted + InsightNarrative).
+  notesEncrypted String? @map("notes_encrypted")
+
+  /// Provenance. MANUAL (web / single POST) or APPLE_HEALTH (the batch
+  /// ingest); mirrors MoodEntry.source. The wire spelling is APPLE_HEALTH.
+  source     MeasurementSource @default(MANUAL)
+  /// Stable per-source dedup id. NULL for native / MANUAL entries (those
+  /// dedup on the canonical `(userId, date)` key); a HealthKit re-ingest
+  /// upserts on `(userId, source, externalId)`. Postgres treats NULLs as
+  /// distinct so MANUAL rows never collide on it.
+  externalId String?           @map("external_id")
+
+  tz          String?
+  syncVersion Int       @default(0) @map("sync_version")
+  deletedAt   DateTime? @map("deleted_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user         User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  cycle        MenstrualCycle?    @relation(fields: [cycleId], references: [id], onDelete: SetNull)
+  symptomLinks CycleSymptomLink[]
+
+  @@unique([userId, date])
+  // NULL-distinct external dedup key for HealthKit re-ingest (the
+  // MoodEntry dual-unique precedent).
+  @@unique([userId, source, externalId])
+  @@index([userId, date])
+  // Keyset support for the `/api/sync/changes` cycle-day feed.
+  @@index([userId, updatedAt, id])
+  @@map("cycle_day_logs")
+}
+
+// ─── Cycle Symptom Taxonomy (v1.15.0) ─────────────────────────
+//
+// Clones the MoodTagCategory → MoodTag → MoodEntryTagLink trio: a global,
+// icon-bearing, labelKey-i18n, isActive/sortOrder catalog plus a per-day
+// join. `CycleSymptom` additionally carries `userId?` + `labelEncrypted?`
+// so a future release can mint per-user custom symptoms (the MoodTag
+// custom-tag precedent); v1.15.0 ships seeded-catalogue-only.
+
+model CycleSymptomCategory {
+  id        String  @id @default(cuid())
+  /// Stable machine key (e.g. `physical`). Unique so the seed migration
+  /// can upsert idempotently.
+  key       String  @unique
+  /// i18n message key for the category label (`cycle.symptomCategory.<key>`).
+  labelKey  String  @map("label_key")
+  /// Lucide icon name for the category header.
+  icon      String?
+  sortOrder Int     @default(0) @map("sort_order")
+  /// Soft-hide a category without deleting its historical links.
+  isActive  Boolean @default(true) @map("is_active")
+
+  symptoms CycleSymptom[]
+
+  @@map("cycle_symptom_categories")
+}
+
+model CycleSymptom {
+  id         String  @id @default(cuid())
+  categoryId String  @map("category_id")
+  /// Stable machine key (e.g. `cramps`). Unique across the catalog.
+  key        String  @unique
+  /// i18n message key for the symptom label (`cycle.symptom.<key>`).
+  labelKey   String  @map("label_key")
+  /// Lucide icon name for the symptom chip.
+  icon       String?
+  sortOrder  Int     @default(0) @map("sort_order")
+  isActive   Boolean @default(true) @map("is_active")
+
+  /// Owner of a per-user custom symptom. NULL = the global seeded
+  /// catalogue (resolves `labelKey` against the locale). Set = a user's
+  /// own custom symptom carrying a `custom:<cuid>` key and a free-text
+  /// label held in `labelEncrypted` (the MoodTag custom-tag precedent).
+  userId         String? @map("user_id")
+  /// AES-256-GCM ciphertext of a custom symptom's free-text label. NULL
+  /// for catalogue rows. Decrypted server-side for the effective read.
+  labelEncrypted String? @map("label_encrypted")
+
+  category CycleSymptomCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  user     User?                @relation("UserCycleSymptoms", fields: [userId], references: [id], onDelete: Cascade)
+  links    CycleSymptomLink[]
+
+  @@index([categoryId, sortOrder])
+  @@index([userId])
+  @@map("cycle_symptoms")
+}
+
+/// Join: which symptoms a cycle day-log carries. Composite PK keeps the
+/// pairing unique; cascade on both sides so deleting a day-log (or a
+/// catalog symptom) cleans up its links.
+model CycleSymptomLink {
+  dayLogId  String   @map("day_log_id")
+  symptomId String   @map("symptom_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  dayLog  CycleDayLog  @relation(fields: [dayLogId], references: [id], onDelete: Cascade)
+  symptom CycleSymptom @relation(fields: [symptomId], references: [id], onDelete: Cascade)
+
+  @@id([dayLogId, symptomId])
+  @@index([symptomId])
+  @@map("cycle_symptom_links")
+}
+
+/// One cached forecast per user, regenerated debounced /
+/// stale-while-revalidate (the InsightNarrative + v1.8.7 assessment
+/// cache pattern), NOT per-read. Derived — not soft-deleted.
+model CyclePrediction {
+  id     String @id @default(cuid())
+  userId String @map("user_id")
+
+  /// Which method produced this forecast.
+  method PredictionMethod
+
+  /// YYYY-MM-DD — predicted next period start (point estimate) plus the
+  /// ranged Low / High band (rendered as a band, never a single date).
+  nextPeriodStart     String  @map("next_period_start")
+  nextPeriodStartLow  String  @map("next_period_start_low")
+  nextPeriodStartHigh String  @map("next_period_start_high")
+
+  /// YYYY-MM-DD — fertile-window bounds (goal-gated at the read surface).
+  fertileWindowStart String? @map("fertile_window_start")
+  fertileWindowEnd   String? @map("fertile_window_end")
+  /// YYYY-MM-DD — predicted ovulation day.
+  predictedOvulation String? @map("predicted_ovulation")
+
+  /// 0..1 confidence, shrinking with cycle-length variance + sparse
+  /// logging + < MIN_CYCLES observed.
+  confidence     Float
+  /// How many observed cycles the forecast was computed from.
+  cyclesObserved Int      @map("cycles_observed")
+  /// When the forecast was generated (drives the stale-while-revalidate
+  /// debounce).
+  generatedAt    DateTime @map("generated_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId])
+  @@map("cycle_predictions")
 }

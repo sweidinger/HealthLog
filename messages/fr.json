@@ -4867,5 +4867,29 @@
       "score": "Score de bien-être"
     },
     "footer": "Partagé depuis HealthLog — un suivi de santé auto-hébergé."
+  },
+  "cycle": {
+    "symptomCategory": {
+      "physical": "Physique",
+      "emotional": "Émotionnel",
+      "digestive": "Digestif"
+    },
+    "symptom": {
+      "cramps": "Crampes",
+      "headache": "Mal de tête",
+      "bloating": "Ballonnements",
+      "acne": "Acné",
+      "breastTenderness": "Sensibilité des seins",
+      "fatigue": "Fatigue",
+      "backPain": "Mal de dos",
+      "insomnia": "Insomnie",
+      "libidoHigh": "Libido élevée",
+      "libidoLow": "Libido faible",
+      "moodSwings": "Sautes d'humeur",
+      "foodCravings": "Fringales",
+      "nausea": "Nausées",
+      "diarrhea": "Diarrhée",
+      "constipation": "Constipation"
+    }
   }
 }

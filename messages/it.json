@@ -4867,5 +4867,29 @@
       "score": "Punteggio di benessere"
     },
     "footer": "Condiviso da HealthLog — un tracker della salute self-hosted."
+  },
+  "cycle": {
+    "symptomCategory": {
+      "physical": "Fisico",
+      "emotional": "Emotivo",
+      "digestive": "Digestivo"
+    },
+    "symptom": {
+      "cramps": "Crampi",
+      "headache": "Mal di testa",
+      "bloating": "Gonfiore",
+      "acne": "Acne",
+      "breastTenderness": "Tensione al seno",
+      "fatigue": "Affaticamento",
+      "backPain": "Mal di schiena",
+      "insomnia": "Insonnia",
+      "libidoHigh": "Libido alta",
+      "libidoLow": "Libido bassa",
+      "moodSwings": "Sbalzi d'umore",
+      "foodCravings": "Voglie alimentari",
+      "nausea": "Nausea",
+      "diarrhea": "Diarrea",
+      "constipation": "Stitichezza"
+    }
   }
 }

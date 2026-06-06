@@ -4867,5 +4867,29 @@
       "score": "Wellness score"
     },
     "footer": "Shared from HealthLog — a self-hosted personal health tracker."
+  },
+  "cycle": {
+    "symptomCategory": {
+      "physical": "Physical",
+      "emotional": "Emotional",
+      "digestive": "Digestive"
+    },
+    "symptom": {
+      "cramps": "Cramps",
+      "headache": "Headache",
+      "bloating": "Bloating",
+      "acne": "Acne",
+      "breastTenderness": "Breast tenderness",
+      "fatigue": "Fatigue",
+      "backPain": "Back pain",
+      "insomnia": "Insomnia",
+      "libidoHigh": "High libido",
+      "libidoLow": "Low libido",
+      "moodSwings": "Mood swings",
+      "foodCravings": "Food cravings",
+      "nausea": "Nausea",
+      "diarrhea": "Diarrhea",
+      "constipation": "Constipation"
+    }
   }
 }

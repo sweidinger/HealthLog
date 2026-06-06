@@ -4867,5 +4867,29 @@
       "score": "Wellness-Wert"
     },
     "footer": "Geteilt aus HealthLog — einem selbst gehosteten Gesundheits-Tracker."
+  },
+  "cycle": {
+    "symptomCategory": {
+      "physical": "Körperlich",
+      "emotional": "Emotional",
+      "digestive": "Verdauung"
+    },
+    "symptom": {
+      "cramps": "Krämpfe",
+      "headache": "Kopfschmerzen",
+      "bloating": "Blähbauch",
+      "acne": "Akne",
+      "breastTenderness": "Brustspannen",
+      "fatigue": "Müdigkeit",
+      "backPain": "Rückenschmerzen",
+      "insomnia": "Schlaflosigkeit",
+      "libidoHigh": "Hohe Libido",
+      "libidoLow": "Niedrige Libido",
+      "moodSwings": "Stimmungsschwankungen",
+      "foodCravings": "Heißhunger",
+      "nausea": "Übelkeit",
+      "diarrhea": "Durchfall",
+      "constipation": "Verstopfung"
+    }
   }
 }

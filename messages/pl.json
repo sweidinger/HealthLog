@@ -4867,5 +4867,29 @@
       "score": "Wynik dobrostanu"
     },
     "footer": "Udostępnione z HealthLog — samodzielnie hostowanego trackera zdrowia."
+  },
+  "cycle": {
+    "symptomCategory": {
+      "physical": "Fizyczne",
+      "emotional": "Emocjonalne",
+      "digestive": "Trawienne"
+    },
+    "symptom": {
+      "cramps": "Skurcze",
+      "headache": "Ból głowy",
+      "bloating": "Wzdęcia",
+      "acne": "Trądzik",
+      "breastTenderness": "Tkliwość piersi",
+      "fatigue": "Zmęczenie",
+      "backPain": "Ból pleców",
+      "insomnia": "Bezsenność",
+      "libidoHigh": "Wysokie libido",
+      "libidoLow": "Niskie libido",
+      "moodSwings": "Wahania nastroju",
+      "foodCravings": "Zachcianki",
+      "nausea": "Nudności",
+      "diarrhea": "Biegunka",
+      "constipation": "Zaparcia"
+    }
   }
 }
