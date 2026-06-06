@@ -890,13 +890,17 @@ export const HK_QUANTITY_TYPE_DEFERRED = new Set<string>([
   // Mental-state / mindfulness — v1.5 (route to existing mood model)
   "HKCategoryTypeIdentifierMindfulSession",
   "HKDataTypeIdentifierStateOfMind",
-  // Pregnancy / cycle — explicit hold (privacy stance)
+  // Pregnancy bleeding — stays deferred (pregnancy-mode is a later
+  // release). v1.15.0 promoted the cycle-tracking reproductive types
+  // (MenstrualFlow / IntermenstrualBleeding / CervicalMucusQuality /
+  // OvulationTestResult and the symptom + test-result + contraceptive
+  // identifiers) OUT of this deferred list — they route into CYCLE
+  // day-logs via the importer's cycle accumulator (see
+  // `src/lib/cycle/healthkit-mapping.ts`), NOT into Measurement, so they
+  // must NOT appear here or the importer would skip them before the cycle
+  // branch runs.
   "HKCategoryTypeIdentifierBleedingAfterPregnancy",
   "HKCategoryTypeIdentifierBleedingDuringPregnancy",
-  "HKCategoryTypeIdentifierMenstrualFlow",
-  "HKCategoryTypeIdentifierIntermenstrualBleeding",
-  "HKCategoryTypeIdentifierCervicalMucusQuality",
-  "HKCategoryTypeIdentifierOvulationTestResult",
   // Clinical (FHIR) — v1.6+
   "HKClinicalTypeIdentifierAllergyRecord",
   "HKClinicalTypeIdentifierConditionRecord",
@@ -950,15 +954,16 @@ export const HK_QUANTITY_TYPE_DEFERRED = new Set<string>([
   // Behavioural / habit category-types — not in HealthLog scope yet.
   "HKCategoryTypeIdentifierHandwashingEvent",
   "HKCategoryTypeIdentifierToothbrushingEvent",
-  // Reproductive / fertility / pregnancy — explicit privacy hold
-  // (matches the menstrual-flow stance already encoded above).
-  "HKCategoryTypeIdentifierContraceptive",
+  // Reproductive / fertility — v1.15.0 promoted Contraceptive,
+  // PregnancyTestResult, ProgesteroneTestResult and SexualActivity OUT of
+  // this list (they route into CYCLE day-logs via the cycle accumulator).
+  // Pregnancy + Lactation STATUS stay deferred: the v1.15.0 CycleProfile
+  // has no pregnant/lactating column (pregnancy-mode is a later release),
+  // so there is no destination yet — promoting them would only grow the
+  // importer's skip tally. The four awareness types are server-DERIVED
+  // from the cycle engine, never ingested.
   "HKCategoryTypeIdentifierLactation",
   "HKCategoryTypeIdentifierPregnancy",
-  "HKCategoryTypeIdentifierPregnancyTestResult",
-  "HKCategoryTypeIdentifierProgesteroneTestResult",
-  "HKCategoryTypeIdentifierSexualActivity",
-  "HKCategoryTypeIdentifierSleepChanges",
   "HKCategoryTypeIdentifierPersistentIntermenstrualBleeding",
   "HKCategoryTypeIdentifierProlongedMenstrualPeriods",
   "HKCategoryTypeIdentifierIrregularMenstrualCycles",

@@ -59,6 +59,13 @@ export interface AuthUser {
    */
   insurerIkNumber: string | null;
   insuranceNumber: string | null;
+  /**
+   * v1.15.0 — cycle-tracking feature gate, resolved server-side from gender
+   * + the per-user opt-in. The cycle nav entry + page hide when false; every
+   * `/api/cycle/*` route also enforces the gate. Coerced to `false` against a
+   * stale /me payload (older server image without the field) in `fetchMe`.
+   */
+  cycleTrackingEnabled: boolean;
 }
 
 async function fetchMe(): Promise<AuthUser> {
@@ -80,6 +87,9 @@ async function fetchMe(): Promise<AuthUser> {
     // v1.7.0 — coerce against a stale /me payload (older server image
     // without the field) so the display defaults to metric.
     unitPreference: data.unitPreference === "imperial" ? "imperial" : "metric",
+    // v1.15.0 — coerce against a stale /me payload so the cycle nav entry
+    // stays hidden by default when the field is absent.
+    cycleTrackingEnabled: data.cycleTrackingEnabled === true,
   };
 }
 

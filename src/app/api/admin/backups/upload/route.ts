@@ -216,6 +216,8 @@ export const POST = apiHandler(async (request: NextRequest) => {
         medications: summary.medications,
         intakeEvents: summary.intakeEvents,
         moodEntries: summary.moodEntries,
+        cycles: summary.cycles,
+        cycleDayLogs: summary.cycleDayLogs,
       },
     },
   });

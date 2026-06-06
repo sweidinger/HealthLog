@@ -214,19 +214,35 @@ export async function runOffhostBackup(
   const evt = getEvent();
   for (const user of users) {
     try {
-      const [measurements, medications, intakeEvents, moodEntries] =
-        await Promise.all([
-          // includes soft-deleted rows because this is the DR snapshot,
-          // not a user-facing export — see
-          // `/api/export/full-backup/route.ts` for the symmetric exclusion.
-          prisma.measurement.findMany({ where: { userId: user.id } }),
-          prisma.medication.findMany({
-            where: { userId: user.id },
-            include: { schedules: true },
-          }),
-          prisma.medicationIntakeEvent.findMany({ where: { userId: user.id } }),
-          prisma.moodEntry.findMany({ where: { userId: user.id } }),
-        ]);
+      const [
+        measurements,
+        medications,
+        intakeEvents,
+        moodEntries,
+        cycleProfile,
+        cycles,
+        cycleDayLogs,
+      ] = await Promise.all([
+        // includes soft-deleted rows because this is the DR snapshot,
+        // not a user-facing export — see
+        // `/api/export/full-backup/route.ts` for the symmetric exclusion.
+        prisma.measurement.findMany({ where: { userId: user.id } }),
+        prisma.medication.findMany({
+          where: { userId: user.id },
+          include: { schedules: true },
+        }),
+        prisma.medicationIntakeEvent.findMany({ where: { userId: user.id } }),
+        prisma.moodEntry.findMany({ where: { userId: user.id } }),
+        // v1.15.0 — cycle tables in the DR snapshot. Raw rows (this is a
+        // disaster-recovery dump, not the canonical user-facing backup);
+        // `notesEncrypted` stays ciphertext.
+        prisma.cycleProfile.findUnique({ where: { userId: user.id } }),
+        prisma.menstrualCycle.findMany({ where: { userId: user.id } }),
+        prisma.cycleDayLog.findMany({
+          where: { userId: user.id },
+          include: { symptomLinks: true },
+        }),
+      ]);
 
       const payload = JSON.stringify({
         exportedAt: now.toISOString(),
@@ -235,6 +251,9 @@ export async function runOffhostBackup(
         medications,
         intakeEvents,
         moodEntries,
+        cycleProfile,
+        cycles,
+        cycleDayLogs,
       });
 
       const ciphertext = encryptBackup(payload, cfg.encryptionKey);

@@ -4,6 +4,8 @@ import { annotate } from "@/lib/logging/context";
 import { setOnboardingPendingCookie } from "@/lib/auth/session";
 import { buildAvatarUrl } from "@/lib/avatar";
 import { decrypt } from "@/lib/crypto";
+import { prisma } from "@/lib/db";
+import { isCycleEnabled } from "@/lib/cycle/gate";
 
 export const dynamic = "force-dynamic";
 
@@ -18,6 +20,15 @@ export const GET = apiHandler(async () => {
   await setOnboardingPendingCookie(user.onboardingCompletedAt == null);
 
   annotate({ action: { name: "auth.me" } });
+
+  // v1.15.0 — resolved cycle-tracking gate. Read the profile without
+  // forcing a row (a NULL toggle derives from gender); the resolver
+  // collapses both gates into the single boolean iOS hides the tab on.
+  const cycleProfile = await prisma.cycleProfile.findUnique({
+    where: { userId: user.id },
+    select: { cycleTrackingEnabled: true },
+  });
+  const cycleTrackingEnabled = isCycleEnabled(user.gender, cycleProfile);
 
   // v1.7.0 — patient-identity fields for the health-record export. The
   // KVNR is stored encrypted; decrypt fail-soft so a key-rotation gap on
@@ -68,5 +79,8 @@ export const GET = apiHandler(async () => {
     insurerName: user.insurerName ?? null,
     insurerIkNumber: user.insurerIkNumber ?? null,
     insuranceNumber,
+    // v1.15.0 — cycle-tracking feature gate, resolved server-side. iOS
+    // hides the whole cycle tab when this is false.
+    cycleTrackingEnabled,
   });
 });

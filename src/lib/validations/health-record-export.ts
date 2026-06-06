@@ -72,6 +72,8 @@ export const exportSectionsSchema = z
     medications: medicationsGroupSchema,
     mood: z.boolean(),
     bmi: z.boolean(),
+    // Cycle / reproductive health — opt-in (privacy default OFF, like mood).
+    cycle: z.boolean(),
   })
   .partial();
 
@@ -131,5 +133,7 @@ export function toDoctorReportPrefs(
     mood: s.mood === true,
     compliance: m.compliance ?? m.list ?? fallback.compliance,
     sleep: a.sleep ?? fallback.sleep,
+    // Cycle is opt-in: only true when explicitly requested (privacy).
+    cycle: s.cycle === true,
   };
 }

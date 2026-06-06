@@ -67,6 +67,7 @@ const openApiBase: Pick<
     { name: "Devices" },
     { name: "Export" },
     { name: "Sync" },
+    { name: "Cycle" },
     { name: "Admin" },
     { name: "Meta" },
   ],

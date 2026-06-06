@@ -33,6 +33,8 @@ import { buildGlp1SnapshotBlock } from "./glp1-snapshot";
 import { buildDerivedSnapshotBlock } from "./derived-snapshot";
 import { buildCoachMemoryBlock } from "./memory-snapshot";
 import { buildTrajectorySnapshotBlock } from "./trajectory-snapshot";
+import { buildCycleSnapshotBlock } from "./cycle-snapshot";
+import { isCycleEnabled } from "@/lib/cycle/gate";
 import type { BaselineProfile } from "@/lib/insights/derived";
 import {
   CLUSTER_PRIORITY,
@@ -466,6 +468,11 @@ async function buildCoachSnapshotImpl(
       // v1.11.5 — needed to collapse a dual-source sleep night to one
       // canonical source before reconstructing per-night asleep totals.
       sourcePriorityJson: true,
+      // v1.15 — the cycle snapshot block is gated on the resolved cycle
+      // toggle (an explicit opt-in/out overrides the gender default). Read
+      // both columns here so a non-cycle account pays no extra round-trip.
+      gender: true,
+      cycleProfile: { select: { cycleTrackingEnabled: true } },
     },
   });
   const prefs = parseCoachPrefs(prefsRow?.coachPrefsJson);
@@ -795,6 +802,18 @@ async function buildCoachSnapshotImpl(
     now,
     coachLocale,
   );
+  // v1.15 — cycle/phase block, gated on the resolved cycle toggle so a
+  // non-cycle account issues no query (the helper short-circuits to null
+  // before any read for a disabled account). The block is descriptive only —
+  // current phase + day-of-cycle, the next predicted event (period range,
+  // fertile window goal-gated), and the headline phase-correlation finding.
+  const cycleEnabled = isCycleEnabled(
+    prefsRow?.gender,
+    prefsRow?.cycleProfile ?? null,
+  );
+  const cycleBlockPromise = cycleEnabled
+    ? buildCycleSnapshotBlock(userId, prefsRow?.gender, now, userTz)
+    : null;
 
   const [
     moodRows,
@@ -805,6 +824,7 @@ async function buildCoachSnapshotImpl(
     derivedBlock,
     trajectoryBlock,
     memoryBlock,
+    cycleBlock,
   ] = await Promise.all([
     moodRowsPromise,
     intakeRowsPromise,
@@ -814,6 +834,7 @@ async function buildCoachSnapshotImpl(
     derivedBlockPromise,
     trajectoryBlockPromise,
     memoryBlockPromise,
+    cycleBlockPromise,
   ]);
 
   const byType = (t: string) =>
@@ -1345,6 +1366,22 @@ async function buildCoachSnapshotImpl(
     // `skin_temp` maps to the `environment` cluster — the lowest priority
     // in CLUSTER_PRIORITY — so this block degrades before everything else.
     registerBlock("memory", "skin_temp");
+  }
+
+  // ── v1.15 — cycle/phase block ────────────────────────────────────────
+  //
+  // Present only for a cycle-enabled account (the promise is null otherwise,
+  // so this is byte-for-byte unchanged for everyone else). The block names the
+  // current phase + day-of-cycle, the next predicted event (period range +
+  // confidence + method; fertile window goal-gated), and the headline
+  // phase-correlation finding — all from the same deterministic engine the
+  // calendar + insights surface use, never re-derived. The Coach's cycle
+  // ground rule keeps replies descriptive: never contraception-grade, never a
+  // "safe day" claim. Registered against the lowest-priority `skin_temp`
+  // source so the soft-cap degrader sheds it before any clinical cluster.
+  if (cycleBlock) {
+    snapshot.cycle = cycleBlock;
+    registerBlock("cycle", "skin_temp");
   }
 
   if (Object.keys(snapshot).length === 0) {

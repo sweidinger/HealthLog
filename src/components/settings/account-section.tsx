@@ -26,11 +26,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import {
-  Avatar,
-  AvatarFallback,
-  AvatarImage,
-} from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -56,6 +52,7 @@ import { SettingsCardHeader } from "@/components/settings/_card-header";
 import { TimezonePicker } from "@/components/settings/timezone-picker";
 import { UnitPreferenceSelect } from "@/components/settings/unit-preference-select";
 import { InjectionSitesCard } from "@/components/settings/injection-sites-card";
+import { CycleTrackingCard } from "@/components/settings/cycle-tracking-card";
 import { detectBrowserTimezone, DEFAULT_TIMEZONE } from "@/lib/tz/format";
 
 interface PasskeyInfo {
@@ -448,6 +445,7 @@ export function AccountSection() {
                 <option value="">{t("settings.genderNone")}</option>
                 <option value="MALE">{t("settings.genderMale")}</option>
                 <option value="FEMALE">{t("settings.genderFemale")}</option>
+                <option value="OTHER">{t("settings.genderOther")}</option>
               </NativeSelect>
               <p className="text-muted-foreground text-xs">
                 {t("settings.genderHint")}
@@ -525,7 +523,9 @@ export function AccountSection() {
               {t("settings.identity.description")}
             </p>
             <div className="space-y-2">
-              <Label htmlFor="full-name">{t("settings.identity.fullName")}</Label>
+              <Label htmlFor="full-name">
+                {t("settings.identity.fullName")}
+              </Label>
               <Input
                 id="full-name"
                 value={fullName}
@@ -537,7 +537,9 @@ export function AccountSection() {
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
-                <Label htmlFor="insurer">{t("settings.identity.insurer")}</Label>
+                <Label htmlFor="insurer">
+                  {t("settings.identity.insurer")}
+                </Label>
                 <Input
                   id="insurer"
                   value={insurerName}
@@ -572,9 +574,7 @@ export function AccountSection() {
             <p
               role="alert"
               className={`text-sm ${
-                saveMsgType === "success"
-                  ? "text-success"
-                  : "text-destructive"
+                saveMsgType === "success" ? "text-success" : "text-destructive"
               }`}
             >
               {saveMsg}
@@ -599,6 +599,11 @@ export function AccountSection() {
           unit system moved into the profile form above, beside the
           timezone dropdown. */}
       <InjectionSitesCard isAuthenticated={isAuthenticated} />
+
+      {/* Cycle-tracking enable on-ramp — auto-on for female accounts, but this
+          lets any account opt in (or opt out) before the gated /cycle page is
+          reachable. */}
+      <CycleTrackingCard isAuthenticated={isAuthenticated} />
 
       {/* Passkeys card */}
       <div className="bg-card border-border rounded-xl border p-6">
@@ -626,9 +631,7 @@ export function AccountSection() {
           <p
             role="alert"
             className={`mt-2 text-right text-sm ${
-              passkeyMsgType === "success"
-                ? "text-success"
-                : "text-destructive"
+              passkeyMsgType === "success" ? "text-success" : "text-destructive"
             }`}
           >
             {passkeyMsg}
@@ -1073,7 +1076,8 @@ function AvatarSection() {
       const res = await fetch("/api/user/avatar", { method: "POST", body });
       const json = await res.json().catch(() => ({}));
       if (!res.ok) {
-        if (res.status === 415) throw new Error(t("settings.avatar.invalidType"));
+        if (res.status === 415)
+          throw new Error(t("settings.avatar.invalidType"));
         if (res.status === 413) throw new Error(t("settings.avatar.tooLarge"));
         throw new Error(json.error || t("settings.avatar.error"));
       }

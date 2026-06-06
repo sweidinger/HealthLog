@@ -29,7 +29,12 @@ export async function sendViaNtfy(
       Title: payload.title,
       Priority:
         payload.eventType === "MEDICATION_REMINDER" ? "high" : "default",
-      Tags: payload.eventType.toLowerCase().replace(/_/g, "-"),
+      // Discreet mode (cycle privacy): the X-Tags header is visible on the
+      // lock screen, so collapse it to a generic tag instead of leaking the
+      // cycle event name.
+      Tags: payload.discreet
+        ? "reminder"
+        : payload.eventType.toLowerCase().replace(/_/g, "-"),
     };
 
     if (config.authToken) {

@@ -42,21 +42,65 @@ describe("sync cursor codec", () => {
     expect(decodeCursor("")).toBeNull();
     // valid base64url but not the expected JSON shape
     expect(decodeCursor(Buffer.from("[]").toString("base64url"))).toBeNull();
-    // wrong version
+    // unsupported version (v3 is not yet a thing) → clean re-init.
     expect(
-      decodeCursor(Buffer.from('{"v":2,"d":{}}').toString("base64url")),
+      decodeCursor(Buffer.from('{"v":3,"d":{}}').toString("base64url")),
+    ).toBeNull();
+    // a non-numeric version is garbage too.
+    expect(
+      decodeCursor(Buffer.from('{"v":"1","d":{}}').toString("base64url")),
     ).toBeNull();
     // missing the `d` envelope
     expect(
-      decodeCursor(Buffer.from('{"v":1}').toString("base64url")),
+      decodeCursor(Buffer.from('{"v":2}').toString("base64url")),
     ).toBeNull();
+  });
+
+  it("decodes a live v1 beta token additively — keeps known domains, fresh-scans the two new ones", () => {
+    // A pre-cycle v1 cursor only ever carried measurements/mood/intakes.
+    // It must NOT force a full re-init now that v2 added cycleDays/cycles;
+    // the known watermarks survive and the new domains decode as absent
+    // (a fresh scan of just those two).
+    const v1Token = Buffer.from(
+      JSON.stringify({
+        v: 1,
+        d: {
+          measurements: { u: 1_717_000_000_000, i: "clx0meas" },
+          mood: { u: 1_717_000_500_000, i: "clx0mood" },
+          intakes: { u: 1_717_000_900_000, i: "clx0intk" },
+        },
+      }),
+    ).toString("base64url");
+    const decoded = decodeCursor(v1Token);
+    expect(decoded).toEqual({
+      measurements: { updatedAtMs: 1_717_000_000_000, id: "clx0meas" },
+      mood: { updatedAtMs: 1_717_000_500_000, id: "clx0mood" },
+      intakes: { updatedAtMs: 1_717_000_900_000, id: "clx0intk" },
+    });
+    // cycleDays + cycles absent → caller fresh-scans only those domains.
+    expect(decoded?.cycleDays).toBeUndefined();
+    expect(decoded?.cycles).toBeUndefined();
+  });
+
+  it("decodes a current-version empty envelope to a fresh-scan map", () => {
+    expect(
+      decodeCursor(Buffer.from('{"v":2,"d":{}}').toString("base64url")),
+    ).toEqual({});
+  });
+
+  it("round-trips the v1.15.0 cycle domains", () => {
+    const cursor: SyncCursor = {
+      cycleDays: { updatedAtMs: 1_717_001_000_000, id: "clx0cday" },
+      cycles: { updatedAtMs: 1_717_001_500_000, id: "clx0cyc" },
+    };
+    expect(decodeCursor(encodeCursor(cursor))).toEqual(cursor);
   });
 
   it("drops a domain whose watermark is malformed but keeps valid ones", () => {
     // measurements has a string `u` (invalid); mood is well-formed.
     const token = Buffer.from(
       JSON.stringify({
-        v: 1,
+        v: 2,
         d: {
           measurements: { u: "x", i: "z" },
           mood: { u: 5, i: "clx0mood" },

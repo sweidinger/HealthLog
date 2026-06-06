@@ -19,6 +19,7 @@ const mockUserRef = {
     email: "marc@example.com",
     role: "USER" as "USER" | "ADMIN",
     avatarUrl: null,
+    cycleTrackingEnabled: false,
   },
 };
 vi.mock("@/hooks/use-auth", () => ({
@@ -54,14 +55,16 @@ function render({
   pathname = "/",
   bugReportEnabled = true,
   role = "USER" as "USER" | "ADMIN",
+  cycleTrackingEnabled = false,
 }: {
   pathname?: string;
   bugReportEnabled?: boolean;
   role?: "USER" | "ADMIN";
+  cycleTrackingEnabled?: boolean;
 } = {}) {
   mockPathnameRef.value = pathname;
   mockSettingsRef.value = { bugReportEnabled };
-  mockUserRef.value = { ...mockUserRef.value, role };
+  mockUserRef.value = { ...mockUserRef.value, role, cycleTrackingEnabled };
   return renderToStaticMarkup(
     <I18nProvider initialLocale="en">
       <SidebarNav />
@@ -81,6 +84,19 @@ describe("<SidebarNav> bug-report toggle", () => {
   it("hides the Bug Report entry when the admin flag is disabled", () => {
     const html = render({ bugReportEnabled: false });
     expect(html).not.toContain('href="/bugreport"');
+  });
+});
+
+describe("<SidebarNav> cycle entry gate (v1.15.0)", () => {
+  it("renders the Cycle entry when cycle tracking is enabled", () => {
+    const html = render({ cycleTrackingEnabled: true });
+    expect(html).toContain('href="/cycle"');
+    expect(html).toContain("Cycle");
+  });
+
+  it("hides the Cycle entry when cycle tracking is disabled", () => {
+    const html = render({ cycleTrackingEnabled: false });
+    expect(html).not.toContain('href="/cycle"');
   });
 });
 

@@ -16,6 +16,10 @@ vi.mock("@/lib/db", () => ({
     medication: { findMany: vi.fn() },
     medicationIntakeEvent: { findMany: vi.fn() },
     moodEntry: { findMany: vi.fn() },
+    // v1.15.0 — cycle tables read by the full-backup helper.
+    cycleProfile: { findUnique: vi.fn() },
+    menstrualCycle: { findMany: vi.fn() },
+    cycleDayLog: { findMany: vi.fn() },
     user: { findUnique: vi.fn() },
     auditLog: { create: vi.fn() },
   },
@@ -318,6 +322,9 @@ describe("GET /api/export/full-backup", () => {
       [] as never,
     );
     vi.mocked(prisma.moodEntry.findMany).mockResolvedValue([] as never);
+    vi.mocked(prisma.cycleProfile.findUnique).mockResolvedValue(null as never);
+    vi.mocked(prisma.menstrualCycle.findMany).mockResolvedValue([] as never);
+    vi.mocked(prisma.cycleDayLog.findMany).mockResolvedValue([] as never);
 
     const { GET } = await import("../full-backup/route");
     const res = await GET(mkReq("http://localhost/api/export/full-backup"));

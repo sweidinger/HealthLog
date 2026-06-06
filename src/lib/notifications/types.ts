@@ -23,6 +23,17 @@ export const EVENT_TYPES = [
   // in twice before the server starts nudging them about an
   // emotionally-loaded surface.
   "MOOD_REMINDER",
+  // v1.15 — cycle reminders. Both default OFF (see EVENT_DEFAULT_ENABLED)
+  // and are gated again on `CycleProfile.cycleTrackingEnabled`, so a user
+  // opts in twice before the server nudges about an intent-revealing,
+  // privacy-sensitive surface. `CYCLE_PERIOD_SOON` fires a couple of days
+  // before the predicted next-period start; `CYCLE_PERIOD_CONFIRM` is a
+  // gentle "did your period start?" on/after the predicted start while no
+  // period is logged. When `CycleProfile.discreetNotifications` is true the
+  // push body is the generic "HealthLog reminder" so no cycle event is
+  // named on the lock screen.
+  "CYCLE_PERIOD_SOON",
+  "CYCLE_PERIOD_CONFIRM",
 ] as const;
 export type EventType = (typeof EVENT_TYPES)[number];
 
@@ -49,6 +60,11 @@ export const EVENT_DEFAULT_ENABLED: Record<EventType, boolean> = {
   // `User.moodReminderEnabled`, this per-event default also has to be
   // flipped on before the dispatcher will surface the channel.
   MOOD_REMINDER: false,
+  // v1.15 — cycle reminders default OFF. Even if a future surface forgets
+  // to gate on `CycleProfile.cycleTrackingEnabled`, this per-event default
+  // also has to be flipped on before the dispatcher surfaces the channel.
+  CYCLE_PERIOD_SOON: false,
+  CYCLE_PERIOD_CONFIRM: false,
 };
 
 export const CHANNEL_TYPE_LABELS: Record<ChannelType, string> = {
@@ -80,4 +96,12 @@ export interface NotificationPayload {
   message: string;
   /** Channel-specific extras (e.g. medicationId for Telegram inline buttons) */
   metadata?: Record<string, unknown>;
+  /**
+   * Discreet mode (cycle privacy). When true, the lock-screen-visible
+   * routing metadata the senders would otherwise derive from `eventType`
+   * (APNs category / threadId / collapseId, ntfy Tags) is replaced with a
+   * generic value so the cycle event name never appears on the lock screen
+   * — the title/body are already masked upstream.
+   */
+  discreet?: boolean;
 }

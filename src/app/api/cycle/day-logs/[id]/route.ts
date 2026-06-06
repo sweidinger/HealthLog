@@ -1,0 +1,261 @@
+/**
+ * `PATCH /api/cycle/day-logs/{id}` — edit a single day-log
+ * (ios-contract §2.A).
+ * `DELETE /api/cycle/day-logs/{id}` — soft-delete (ios-contract §2.F):
+ *   set `deletedAt` + bump `syncVersion`, emit a tombstone on the next
+ *   sync page. 204. Idempotent.
+ *
+ * Both are gated (`cycle.disabled` 403) and owner-scoped (a row owned by
+ * another user 404s).
+ */
+import { NextRequest } from "next/server";
+
+import { prisma } from "@/lib/db";
+import { apiHandler, requireAuth } from "@/lib/api-handler";
+import { annotate } from "@/lib/logging/context";
+import { auditLog } from "@/lib/auth/audit";
+import {
+  apiSuccess,
+  apiError,
+  getClientIp,
+  returnAllZodIssues,
+  safeJson,
+} from "@/lib/api-response";
+import { requireCycleEnabled } from "@/lib/cycle/gate";
+import { encrypt, decrypt } from "@/lib/crypto";
+import { getOrCreateCycleProfile } from "@/lib/cycle/profile";
+import { replaceSymptomLinks } from "@/lib/cycle/day-log-write";
+import { cycleDayLogPatchSchema } from "@/lib/validations/cycle";
+import { toCycleDayLogDTO, dayLogSymptomInclude } from "@/lib/cycle/dto";
+
+type RouteParams = { params: Promise<{ id: string }> };
+
+export const PATCH = apiHandler(
+  async (request: NextRequest, { params }: RouteParams) => {
+    const { user } = await requireAuth();
+
+    const gate = await requireCycleEnabled(user.id, user.gender);
+    if (!gate.enabled) return gate.response;
+
+    const { id } = await params;
+
+    const existing = await prisma.cycleDayLog.findFirst({
+      where: { id, deletedAt: null },
+      select: {
+        id: true,
+        userId: true,
+        sexualActivity: true,
+        protectedSex: true,
+        pregnancyTest: true,
+        progesteroneTest: true,
+        contraceptive: true,
+        sensitiveEncrypted: true,
+      },
+    });
+    if (!existing || existing.userId !== user.id) {
+      return apiError("Day-log not found", 404);
+    }
+
+    const { data: rawBody, error: jsonError } = await safeJson(request);
+    if (jsonError) return jsonError;
+
+    const parsed = cycleDayLogPatchSchema.safeParse(rawBody);
+    if (!parsed.success) {
+      annotate({
+        action: { name: "cycle.day-log.patch.validation-failed" },
+        meta: { issue_count: parsed.error.issues.length },
+      });
+      return returnAllZodIssues(parsed.error, 422, {
+        errorCode: "cycle.day-log.invalid",
+      });
+    }
+
+    const body = parsed.data;
+
+    // Resolve the stored plaintext sensitive fields (from the envelope when
+    // the row was encrypted, else the columns) so a partial patch merges
+    // against the true current value.
+    const encryptSensitive = (await getOrCreateCycleProfile(user.id))
+      .sensitiveCategoryEncryption;
+    const stored = readStoredSensitive(existing);
+    const merged = {
+      sexualActivity:
+        body.sexualActivity !== undefined
+          ? body.sexualActivity
+          : stored.sexualActivity,
+      protectedSex:
+        body.protectedSex !== undefined
+          ? (body.protectedSex ?? null)
+          : stored.protectedSex,
+      pregnancyTest:
+        body.pregnancyTest !== undefined
+          ? (body.pregnancyTest ?? null)
+          : stored.pregnancyTest,
+      progesteroneTest:
+        body.progesteroneTest !== undefined
+          ? (body.progesteroneTest ?? null)
+          : stored.progesteroneTest,
+      contraceptive:
+        body.contraceptive !== undefined
+          ? (body.contraceptive ?? null)
+          : stored.contraceptive,
+    };
+
+    // Field-by-field update (no mass assignment). Non-sensitive fields are
+    // written only when present; the sensitive set is re-resolved and split
+    // between plaintext columns and the envelope per the flag.
+    await prisma.cycleDayLog.update({
+      where: { id },
+      data: {
+        ...(body.flow !== undefined && { flow: body.flow }),
+        ...(body.intermenstrualBleeding !== undefined && {
+          intermenstrualBleeding: body.intermenstrualBleeding,
+        }),
+        ...(body.basalBodyTempC !== undefined && {
+          basalBodyTempC: body.basalBodyTempC,
+        }),
+        ...(body.ovulationTest !== undefined && {
+          ovulationTest: body.ovulationTest,
+        }),
+        ...(body.cervicalMucus !== undefined && {
+          cervicalMucus: body.cervicalMucus,
+        }),
+        sexualActivity: encryptSensitive ? false : merged.sexualActivity,
+        protectedSex: encryptSensitive ? null : merged.protectedSex,
+        pregnancyTest: (encryptSensitive
+          ? null
+          : merged.pregnancyTest) as never,
+        progesteroneTest: (encryptSensitive
+          ? null
+          : merged.progesteroneTest) as never,
+        contraceptive: (encryptSensitive
+          ? null
+          : merged.contraceptive) as never,
+        sensitiveEncrypted: encryptSensitive
+          ? encrypt(JSON.stringify(merged))
+          : null,
+        ...(body.note !== undefined && {
+          notesEncrypted: body.note ? encrypt(body.note) : null,
+        }),
+        syncVersion: { increment: 1 },
+      },
+    });
+
+    // Replace symptom links only when `symptoms` was supplied.
+    if (body.symptoms !== undefined) {
+      await replaceSymptomLinks(user.id, id, body.symptoms);
+    }
+
+    const row = await prisma.cycleDayLog.findUniqueOrThrow({
+      where: { id },
+      include: dayLogSymptomInclude,
+    });
+
+    await auditLog("cycle.day-log.update", {
+      userId: user.id,
+      ipAddress: getClientIp(request),
+      details: { dayLogId: id },
+    });
+
+    annotate({
+      action: {
+        name: "cycle.day-log.update",
+        entity_type: "cycle_day_log",
+        entity_id: id,
+      },
+    });
+
+    return apiSuccess(toCycleDayLogDTO(row));
+  },
+);
+
+export const DELETE = apiHandler(
+  async (request: NextRequest, { params }: RouteParams) => {
+    const { user } = await requireAuth();
+
+    const gate = await requireCycleEnabled(user.id, user.gender);
+    if (!gate.enabled) return gate.response;
+
+    const { id } = await params;
+
+    const existing = await prisma.cycleDayLog.findUnique({
+      where: { id },
+      select: { id: true, userId: true },
+    });
+    if (!existing || existing.userId !== user.id) {
+      return apiError("Day-log not found", 404);
+    }
+
+    // Soft-delete: leave the row in place so the `/api/sync/changes`
+    // delta feed surfaces it as a tombstone. A re-delete re-bumps
+    // `syncVersion` harmlessly (idempotent).
+    await prisma.cycleDayLog.update({
+      where: { id },
+      data: { deletedAt: new Date(), syncVersion: { increment: 1 } },
+    });
+
+    await auditLog("cycle.day-log.delete", {
+      userId: user.id,
+      ipAddress: getClientIp(request),
+      details: { dayLogId: id },
+    });
+
+    annotate({
+      action: {
+        name: "cycle.day-log.delete",
+        entity_type: "cycle_day_log",
+        entity_id: id,
+      },
+    });
+
+    return new Response(null, { status: 204 });
+  },
+);
+
+/** The stored plaintext sensitive fields (envelope when encrypted, else columns). */
+function readStoredSensitive(row: {
+  sexualActivity: boolean;
+  protectedSex: boolean | null;
+  pregnancyTest: string | null;
+  progesteroneTest: string | null;
+  contraceptive: string | null;
+  sensitiveEncrypted: string | null;
+}): {
+  sexualActivity: boolean;
+  protectedSex: boolean | null;
+  pregnancyTest: string | null;
+  progesteroneTest: string | null;
+  contraceptive: string | null;
+} {
+  if (row.sensitiveEncrypted) {
+    try {
+      const dec = JSON.parse(decrypt(row.sensitiveEncrypted)) as Record<
+        string,
+        unknown
+      >;
+      return {
+        sexualActivity: (dec.sexualActivity as boolean) ?? false,
+        protectedSex: (dec.protectedSex as boolean | null) ?? null,
+        pregnancyTest: (dec.pregnancyTest as string | null) ?? null,
+        progesteroneTest: (dec.progesteroneTest as string | null) ?? null,
+        contraceptive: (dec.contraceptive as string | null) ?? null,
+      };
+    } catch {
+      // Fail-soft: an undecryptable envelope reads as cleared.
+      return {
+        sexualActivity: false,
+        protectedSex: null,
+        pregnancyTest: null,
+        progesteroneTest: null,
+        contraceptive: null,
+      };
+    }
+  }
+  return {
+    sexualActivity: row.sexualActivity,
+    protectedSex: row.protectedSex,
+    pregnancyTest: row.pregnancyTest,
+    progesteroneTest: row.progesteroneTest,
+    contraceptive: row.contraceptive,
+  };
+}

@@ -108,6 +108,70 @@ const moodEntrySchema = z
   })
   .passthrough();
 
+/* ── v1.15.0 cycle-tracking backup shapes ──────────────────────────── */
+
+/**
+ * One menstrual-cycle span. `startDate` is the natural per-user key
+ * (matching the `(userId, startDate)` unique), so a restore upserts on it.
+ * Predicted (forecast) rows are excluded from the backup — only observed
+ * history round-trips.
+ */
+const cycleSpanSchema = z
+  .object({
+    startDate: z.string().min(1),
+    endDate: z.string().nullable().optional(),
+    periodEndDate: z.string().nullable().optional(),
+    lengthDays: z.number().int().nullable().optional(),
+    ovulationDate: z.string().nullable().optional(),
+    ovulationConfirmed: z.boolean().optional(),
+    tz: z.string().nullable().optional(),
+  })
+  .passthrough();
+
+/**
+ * One cycle day-log. `notesEncrypted` is carried as the AES-256-GCM
+ * ciphertext envelope verbatim — the backup never decrypts it, so the
+ * owner's free-text note round-trips encrypted (and a wrong-surface leak is
+ * impossible). `symptomKeys` carries the seeded catalogue keys so the
+ * restore can re-link without exporting internal join ids.
+ */
+const cycleDayLogSchema = z
+  .object({
+    date: z.string().min(1),
+    flow: z.string().nullable().optional(),
+    intermenstrualBleeding: z.boolean().optional(),
+    basalBodyTempC: z.number().nullable().optional(),
+    ovulationTest: z.string().nullable().optional(),
+    cervicalMucus: z.string().nullable().optional(),
+    sexualActivity: z.boolean().optional(),
+    protectedSex: z.boolean().nullable().optional(),
+    pregnancyTest: z.string().nullable().optional(),
+    progesteroneTest: z.string().nullable().optional(),
+    contraceptive: z.string().nullable().optional(),
+    sensitiveEncrypted: z.string().nullable().optional(),
+    notesEncrypted: z.string().nullable().optional(),
+    source: z.string().min(1).optional(),
+    externalId: z.string().nullable().optional(),
+    tz: z.string().nullable().optional(),
+    symptomKeys: z.array(z.string()).default([]),
+  })
+  .passthrough();
+
+/** Cycle-tracking preferences (one row per user). */
+const cycleProfileSchema = z
+  .object({
+    goal: z.string().min(1).optional(),
+    cycleTrackingEnabled: z.boolean().nullable().optional(),
+    typicalCycleLength: z.number().int().nullable().optional(),
+    typicalPeriodLength: z.number().int().nullable().optional(),
+    lutealPhaseLength: z.number().int().nullable().optional(),
+    predictionEnabled: z.boolean().optional(),
+    rawChartMode: z.boolean().optional(),
+    discreetNotifications: z.boolean().optional(),
+    sensitiveCategoryEncryption: z.boolean().optional(),
+  })
+  .passthrough();
+
 /**
  * Wire shape — exactly what the pg-boss worker writes today, plus a
  * `schemaVersion` field that newer writers stamp explicitly. Older blobs
@@ -122,6 +186,11 @@ export const backupPayloadSchema = z
     medications: z.array(medicationSchema).default([]),
     intakeEvents: z.array(intakeEventSchema).default([]),
     moodEntries: z.array(moodEntrySchema).default([]),
+    // v1.15.0 — cycle-tracking tables. Default to empty arrays / null so a
+    // pre-v1.15 backup (no cycle keys) still round-trips unchanged.
+    cycleProfile: cycleProfileSchema.nullable().default(null),
+    cycles: z.array(cycleSpanSchema).default([]),
+    cycleDayLogs: z.array(cycleDayLogSchema).default([]),
   })
   .passthrough();
 
@@ -140,6 +209,10 @@ export interface BackupSummary {
   medications: number;
   intakeEvents: number;
   moodEntries: number;
+  /** v1.15.0 — observed cycle spans in the backup. */
+  cycles: number;
+  /** v1.15.0 — cycle day-logs in the backup. */
+  cycleDayLogs: number;
 }
 
 export function summarizeBackup(payload: BackupPayload): BackupSummary {
@@ -151,6 +224,8 @@ export function summarizeBackup(payload: BackupPayload): BackupSummary {
     medications: payload.medications.length,
     intakeEvents: payload.intakeEvents.length,
     moodEntries: payload.moodEntries.length,
+    cycles: payload.cycles.length,
+    cycleDayLogs: payload.cycleDayLogs.length,
   };
 }
 

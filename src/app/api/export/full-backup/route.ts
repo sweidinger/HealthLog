@@ -22,6 +22,7 @@ import { auditLog } from "@/lib/auth/audit";
 import { apiError, getClientIp } from "@/lib/api-response";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { BACKUP_SCHEMA_VERSION } from "@/lib/validations/backup";
+import { buildCycleBackupSection } from "@/lib/cycle/backup";
 import { NextRequest, NextResponse } from "next/server";
 
 export const GET = apiHandler(async (request: NextRequest) => {
@@ -33,7 +34,7 @@ export const GET = apiHandler(async (request: NextRequest) => {
     return apiError("Maximum 10 exports per hour", 429);
   }
 
-  const [measurements, medications, intakeEvents, moodEntries] =
+  const [measurements, medications, intakeEvents, moodEntries, cycle] =
     await Promise.all([
       prisma.measurement.findMany({
         // v1.4.41 W-DELETED-2 — soft-deleted rows are excluded from the
@@ -74,6 +75,9 @@ export const GET = apiHandler(async (request: NextRequest) => {
         where: { userId: user.id, deletedAt: null },
         orderBy: { moodLoggedAt: "desc" },
       }),
+      // v1.15.0 — cycle tables (profile + observed spans + day-logs). The
+      // shared helper carries `notesEncrypted` verbatim (never decrypted).
+      buildCycleBackupSection(prisma, user.id),
     ]);
 
   // Shape mirrors the pg-boss `data-backup` worker exactly so the same
@@ -118,6 +122,10 @@ export const GET = apiHandler(async (request: NextRequest) => {
       source: e.source,
       loggedAt: e.moodLoggedAt.toISOString(),
     })),
+    // v1.15.0 — cycle slice (profile + observed spans + day-logs).
+    cycleProfile: cycle.cycleProfile,
+    cycles: cycle.cycles,
+    cycleDayLogs: cycle.cycleDayLogs,
   };
 
   await auditLog("user.export.full-backup", {
@@ -129,6 +137,8 @@ export const GET = apiHandler(async (request: NextRequest) => {
         medications: medications.length,
         intakeEvents: intakeEvents.length,
         moodEntries: moodEntries.length,
+        cycles: cycle.cycles.length,
+        cycleDayLogs: cycle.cycleDayLogs.length,
       },
     },
   });
@@ -139,6 +149,8 @@ export const GET = apiHandler(async (request: NextRequest) => {
       export_medications_count: medications.length,
       export_intake_count: intakeEvents.length,
       export_mood_count: moodEntries.length,
+      export_cycle_count: cycle.cycles.length,
+      export_cycle_day_log_count: cycle.cycleDayLogs.length,
     },
   });
 

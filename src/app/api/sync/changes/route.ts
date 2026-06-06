@@ -8,7 +8,9 @@
  * domain now soft-delete (set `deletedAt` + bump `syncVersion`) rather
  * than hard-delete.
  *
- * Domains served: `measurements`, `mood`, `intakes`. The iOS consumer
+ * Domains served: `measurements`, `mood`, `intakes`, `cycleDays`,
+ * `cycles` (the last two added v1.15.0; `cycleDays` tombstones key on
+ * `externalId` when present else `id`, `cycles` on `id`). The iOS consumer
  * is measurements-only this cycle (iOS-coord
  * `v1.7.0-ios-offline-sync-answers.md` §7.1); mood + intakes are
  * forward-prep so the contract is complete + tested before the
@@ -57,6 +59,13 @@ import {
   type SyncCursor,
   type SyncDomain,
 } from "@/lib/sync/cursor";
+import {
+  toCycleDayLogDTO,
+  toMenstrualCycleDTO,
+  dayLogSymptomInclude,
+  type CycleDayLogDTO,
+  type MenstrualCycleDTO,
+} from "@/lib/cycle/dto";
 
 const DEFAULT_LIMIT = 200;
 const MAX_LIMIT = 500;
@@ -120,6 +129,25 @@ interface IntakeUpsert {
 }
 
 interface IntakeTombstone {
+  id: string;
+  syncVersion: number;
+  deletedAt: string;
+  updatedAt: string;
+}
+
+// v1.15.0 — cycle domains. cycleDays key tombstones on `externalId` when
+// present (HealthKit-origin rows are externalId-keyed cross-device, like
+// measurements) else the server `id`; cycles key on the server `id`
+// (computed rows carry no externalId).
+interface CycleDayTombstone {
+  id: string;
+  externalId: string | null;
+  syncVersion: number;
+  deletedAt: string;
+  updatedAt: string;
+}
+
+interface CycleTombstone {
   id: string;
   syncVersion: number;
   deletedAt: string;
@@ -196,6 +224,8 @@ export const GET = apiHandler(async (request: NextRequest) => {
         measurements: { upserts: [], tombstones: [] },
         mood: { upserts: [], tombstones: [] },
         intakes: { upserts: [], tombstones: [] },
+        cycleDays: { upserts: [], tombstones: [] },
+        cycles: { upserts: [], tombstones: [] },
       },
     });
   }
@@ -204,7 +234,8 @@ export const GET = apiHandler(async (request: NextRequest) => {
   // same scan — a soft-delete bumps `updatedAt`, so a tombstone is just a
   // row whose `deletedAt` is non-null. Fetch limit+1 to detect `hasMore`
   // without a count query.
-  const [measurementRows, moodRows, intakeRows] = await Promise.all([
+  const [measurementRows, moodRows, intakeRows, cycleDayRows, cycleRows] =
+    await Promise.all([
     prisma.measurement.findMany({
       where: { userId: user.id, ...keysetFilter(cursor.measurements) },
       orderBy: [{ updatedAt: "asc" }, { id: "asc" }],
@@ -256,6 +287,17 @@ export const GET = apiHandler(async (request: NextRequest) => {
         deletedAt: true,
         updatedAt: true,
       },
+    }),
+    prisma.cycleDayLog.findMany({
+      where: { userId: user.id, ...keysetFilter(cursor.cycleDays) },
+      orderBy: [{ updatedAt: "asc" }, { id: "asc" }],
+      take: limit + 1,
+      include: dayLogSymptomInclude,
+    }),
+    prisma.menstrualCycle.findMany({
+      where: { userId: user.id, ...keysetFilter(cursor.cycles) },
+      orderBy: [{ updatedAt: "asc" }, { id: "asc" }],
+      take: limit + 1,
     }),
   ]);
 
@@ -354,6 +396,49 @@ export const GET = apiHandler(async (request: NextRequest) => {
   advanceCursor(nextCursor, "intakes", intakePage);
   hasMore = hasMore || intakeHasMore;
 
+  // ── cycleDays ─────────────────────────────────────────────
+  const cycleDayHasMore = cycleDayRows.length > limit;
+  const cycleDayPage = cycleDayHasMore
+    ? cycleDayRows.slice(0, limit)
+    : cycleDayRows;
+  const cycleDayUpserts: CycleDayLogDTO[] = [];
+  const cycleDayTombstones: CycleDayTombstone[] = [];
+  for (const row of cycleDayPage) {
+    if (row.deletedAt) {
+      cycleDayTombstones.push({
+        id: row.id,
+        externalId: row.externalId,
+        syncVersion: row.syncVersion,
+        deletedAt: row.deletedAt.toISOString(),
+        updatedAt: row.updatedAt.toISOString(),
+      });
+    } else {
+      cycleDayUpserts.push(toCycleDayLogDTO(row));
+    }
+  }
+  advanceCursor(nextCursor, "cycleDays", cycleDayPage);
+  hasMore = hasMore || cycleDayHasMore;
+
+  // ── cycles ────────────────────────────────────────────────
+  const cycleHasMore = cycleRows.length > limit;
+  const cyclePage = cycleHasMore ? cycleRows.slice(0, limit) : cycleRows;
+  const cycleUpserts: MenstrualCycleDTO[] = [];
+  const cycleTombstones: CycleTombstone[] = [];
+  for (const row of cyclePage) {
+    if (row.deletedAt) {
+      cycleTombstones.push({
+        id: row.id,
+        syncVersion: row.syncVersion,
+        deletedAt: row.deletedAt.toISOString(),
+        updatedAt: row.updatedAt.toISOString(),
+      });
+    } else {
+      cycleUpserts.push(toMenstrualCycleDTO(row));
+    }
+  }
+  advanceCursor(nextCursor, "cycles", cyclePage);
+  hasMore = hasMore || cycleHasMore;
+
   annotate({
     action: { name: "sync.changes.pull" },
     meta: {
@@ -363,6 +448,10 @@ export const GET = apiHandler(async (request: NextRequest) => {
       mood_tombstones: moodTombstones.length,
       intake_upserts: intakeUpserts.length,
       intake_tombstones: intakeTombstones.length,
+      cycle_day_upserts: cycleDayUpserts.length,
+      cycle_day_tombstones: cycleDayTombstones.length,
+      cycle_upserts: cycleUpserts.length,
+      cycle_tombstones: cycleTombstones.length,
       has_more: hasMore,
       cursor_present: Boolean(parsed.data.cursor),
     },
@@ -380,6 +469,11 @@ export const GET = apiHandler(async (request: NextRequest) => {
       },
       mood: { upserts: moodUpserts, tombstones: moodTombstones },
       intakes: { upserts: intakeUpserts, tombstones: intakeTombstones },
+      cycleDays: {
+        upserts: cycleDayUpserts,
+        tombstones: cycleDayTombstones,
+      },
+      cycles: { upserts: cycleUpserts, tombstones: cycleTombstones },
     },
   });
 });

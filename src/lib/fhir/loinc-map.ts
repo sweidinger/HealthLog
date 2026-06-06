@@ -308,3 +308,11 @@ export const GLUCOSE_LOINC: Record<string, { loinc: string; display: string }> =
 export const MEDICATION_ADHERENCE_LOINC = "71799-1";
 /** Mood Observation LOINC (opt-in only). */
 export const MOOD_LOINC = "76542-6";
+
+/* ── Cycle / reproductive-health LOINCs (v1.15.0, opt-in only) ──────── */
+/** Last menstrual period (LMP) start date. */
+export const LMP_LOINC = "8665-2";
+/** Menstrual cycle length [time]. */
+export const CYCLE_LENGTH_LOINC = "64700-8";
+/** Length of menses (period / bleeding duration). */
+export const PERIOD_LENGTH_LOINC = "64698-4";

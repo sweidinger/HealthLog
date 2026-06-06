@@ -523,6 +523,7 @@ export async function sendViaApns(
     message: string;
     eventType: string;
     metadata?: Record<string, unknown>;
+    discreet?: boolean;
   },
 ): Promise<SendOutcome> {
   const config = loadApnsConfig();
@@ -602,37 +603,50 @@ export async function sendViaApns(
     const isTimeSensitive = payload.eventType === "MEDICATION_REMINDER";
 
     let result: Awaited<ReturnType<typeof sendApnsPush>> | null = null;
+    // Discreet mode (cycle privacy): the lock-screen-visible routing
+    // metadata must not carry the event name. Collapse the category /
+    // threadId / collapseId and the data eventType to a generic value so
+    // CYCLE_PERIOD_SOON never surfaces on the lock screen.
+    const GENERIC_EVENT = "REMINDER";
+    const routingEvent = payload.discreet ? GENERIC_EVENT : payload.eventType;
     let workingEnv: "production" | "sandbox" | null = null;
     for (const attemptEnv of envSequence) {
       result = await sendApnsPush({
-      deviceToken: device.apnsToken,
-      environment: attemptEnv,
-      payload: {
-        alert: { title: payload.title, body: stripHtml(payload.message) },
-        data: {
-          eventType: payload.eventType,
-          ...pickIosMetadata(payload.metadata),
+        deviceToken: device.apnsToken,
+        environment: attemptEnv,
+        payload: {
+          alert: { title: payload.title, body: stripHtml(payload.message) },
+          data: {
+            eventType: routingEvent,
+            // In discreet mode also drop cycle-semantic metadata (e.g. `phase`)
+            // so a future cycle push can't name a cycle concept on the wire even
+            // though the allowlist permits `phase` (QA LOW).
+            ...pickIosMetadata(
+              payload.discreet
+                ? stripCycleMetadata(payload.metadata)
+                : payload.metadata,
+            ),
+          },
+          threadId: routingEvent,
+          // The iOS app registers a `UNNotificationCategory` per event-type
+          // so the same string doubles as the category identifier. iOS
+          // ignores categories it doesn't know about, so adding the key
+          // here is safe for event-types that don't have an actionable
+          // category registered yet — they fall back to a plain alert.
+          category: routingEvent,
+          // Future-proof for an iOS Notification Service Extension. iOS
+          // ignores the flag when no extension is registered, so it's a
+          // no-op on today's binary but unblocks NSE work without a
+          // server-side change.
+          mutableContent: true,
+          ...(isTimeSensitive
+            ? {
+                interruptionLevel: "time-sensitive" as const,
+                priority: 10 as const,
+              }
+            : {}),
         },
-        threadId: payload.eventType,
-        // The iOS app registers a `UNNotificationCategory` per event-type
-        // so the same string doubles as the category identifier. iOS
-        // ignores categories it doesn't know about, so adding the key
-        // here is safe for event-types that don't have an actionable
-        // category registered yet — they fall back to a plain alert.
-        category: payload.eventType,
-        // Future-proof for an iOS Notification Service Extension. iOS
-        // ignores the flag when no extension is registered, so it's a
-        // no-op on today's binary but unblocks NSE work without a
-        // server-side change.
-        mutableContent: true,
-        ...(isTimeSensitive
-          ? {
-              interruptionLevel: "time-sensitive" as const,
-              priority: 10 as const,
-            }
-          : {}),
-      },
-      collapseId: payload.eventType,
+        collapseId: routingEvent,
       });
 
       if (result.ok) {
@@ -759,6 +773,24 @@ function pickIosMetadata(
     if (IOS_METADATA_ALLOWLIST.has(key)) {
       out[key] = metadata[key];
     }
+  }
+  return out;
+}
+
+/** Cycle-semantic metadata keys that must never ride a discreet payload. */
+const CYCLE_METADATA_KEYS = new Set(["phase"]);
+
+/**
+ * Drop cycle-semantic metadata (e.g. `phase`) so a discreet cycle push can't
+ * name a cycle concept on the wire even though the allowlist permits the key.
+ */
+function stripCycleMetadata(
+  metadata: Record<string, unknown> | undefined,
+): Record<string, unknown> | undefined {
+  if (!metadata) return metadata;
+  const out: Record<string, unknown> = {};
+  for (const key of Object.keys(metadata)) {
+    if (!CYCLE_METADATA_KEYS.has(key)) out[key] = metadata[key];
   }
   return out;
 }

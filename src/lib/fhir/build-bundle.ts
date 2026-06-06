@@ -32,6 +32,7 @@ import {
   patientResource,
   coverageResource,
   observationsFromReportData,
+  cycleObservationsFromReportData,
   medicationStatementsFromReportData,
   medicationAdministrationsFromReportData,
 } from "@/lib/fhir/resources";
@@ -80,6 +81,7 @@ export function buildFhirDocumentBundle(
   };
   const entries: FhirBundleEntry[] = [];
   const observationRefs: FhirReference[] = [];
+  const cycleObservationRefs: FhirReference[] = [];
   const medicationRefs: FhirReference[] = [];
   const administrationRefs: FhirReference[] = [];
 
@@ -97,6 +99,15 @@ export function buildFhirDocumentBundle(
   for (const obs of observationsFromReportData(data, identity, options)) {
     entries.push({ fullUrl: `urn:uuid:${obs.id}`, resource: obs });
     observationRefs.push({ reference: `Observation/${obs.id}` });
+  }
+
+  // --- Cycle / reproductive-health Observations (opt-in only) -----------
+  // v1.15.0 — grouped into their own "Menstrual cycle" Composition section
+  // so a reproductive-health finding is never mixed into the vital-signs
+  // panel. Absent unless the user toggled the cycle section AND has data.
+  for (const obs of cycleObservationsFromReportData(data)) {
+    entries.push({ fullUrl: `urn:uuid:${obs.id}`, resource: obs });
+    cycleObservationRefs.push({ reference: `Observation/${obs.id}` });
   }
 
   // --- MedicationStatement per active medication -------------------------
@@ -172,6 +183,16 @@ export function buildFhirDocumentBundle(
             {
               title: "Medications",
               entry: [...medicationRefs, ...administrationRefs],
+            },
+          ]
+        : []),
+      // v1.15.0 — opt-in reproductive-health section. Only present when the
+      // cycle toggle surfaced cycle Observations.
+      ...(cycleObservationRefs.length > 0
+        ? [
+            {
+              title: "Menstrual cycle",
+              entry: cycleObservationRefs,
             },
           ]
         : []),

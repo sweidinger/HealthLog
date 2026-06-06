@@ -10,7 +10,8 @@
  * Shape (additive — future categories slot in next to `medication`):
  *   {
  *     "medication": { "clientManaged": boolean },
- *     "mood": { "reminderHour": 0..23 }
+ *     "mood": { "reminderHour": 0..23 },
+ *     "cycle": { "clientManaged": boolean }
  *   }
  *
  * The schema is intentionally additive — every new category grows the
@@ -56,6 +57,20 @@ const moodPrefsSchema = z
   .partial();
 
 /**
+ * v1.15 — cycle category schema. `clientManaged` mirrors the medication
+ * gate: when the iOS app owns local cycle reminders (period-soon /
+ * period-start-confirm), it flips this to `true` and the server-side
+ * cycle cron suppresses its APNs send for that user, exactly as the
+ * medication path does. Sub-object form keeps the layout open for future
+ * cycle-notification knobs.
+ */
+const cyclePrefsSchema = z
+  .object({
+    clientManaged: z.boolean(),
+  })
+  .partial();
+
+/**
  * v1.7.0 — per-device delivery override schema for the device PATCH.
  * NULL clears the override (the device inherits the user-level roaming
  * default).
@@ -72,6 +87,7 @@ export const notificationPrefsSchema = z
   .object({
     medication: medicationPrefsSchema,
     mood: moodPrefsSchema,
+    cycle: cyclePrefsSchema,
   })
   .partial();
 
@@ -91,6 +107,14 @@ export interface NotificationPrefs {
   mood: {
     /** v1.7.0 — local-time hour (0–23) for the daily mood reminder. */
     reminderHour: number;
+  };
+  cycle: {
+    /**
+     * v1.15 — when true the iOS app owns local cycle reminders and the
+     * server-side cycle cron suppresses its APNs send (the medication
+     * `clientManaged` precedent).
+     */
+    clientManaged: boolean;
   };
 }
 
@@ -113,6 +137,9 @@ export const DEFAULT_NOTIFICATION_PREFS: NotificationPrefs = {
   },
   mood: {
     reminderHour: DEFAULT_MOOD_REMINDER_HOUR,
+  },
+  cycle: {
+    clientManaged: false,
   },
 };
 
@@ -150,6 +177,10 @@ export function resolveNotificationPrefs(
       ...base.mood,
       ...(incoming.mood ?? {}),
     },
+    cycle: {
+      ...base.cycle,
+      ...(incoming.cycle ?? {}),
+    },
   });
 }
 
@@ -174,6 +205,7 @@ function applyDeliveryDefaultMapping(prefs: NotificationPrefs): NotificationPref
       clientManaged,
     },
     mood: { ...prefs.mood },
+    cycle: { ...prefs.cycle },
   };
 }
 
@@ -189,6 +221,17 @@ export function isMedicationReminderClientManaged(raw: unknown): boolean {
     prefs.medication.clientManaged === true ||
     prefs.medication.deliveryDefault === "client"
   );
+}
+
+/**
+ * Cron-side helper. Returns `true` when the user has opted in to
+ * client-managed CYCLE reminders (iOS owns the local period-soon /
+ * period-start-confirm nudges) and the server-side push should be
+ * suppressed. Tolerates a null / missing prefs row. Mirrors
+ * `isMedicationReminderClientManaged`.
+ */
+export function isCycleReminderClientManaged(raw: unknown): boolean {
+  return parseNotificationPrefs(raw).cycle.clientManaged === true;
 }
 
 /**
@@ -223,6 +266,7 @@ function cloneDefaults(): NotificationPrefs {
   return {
     medication: { ...DEFAULT_NOTIFICATION_PREFS.medication },
     mood: { ...DEFAULT_NOTIFICATION_PREFS.mood },
+    cycle: { ...DEFAULT_NOTIFICATION_PREFS.cycle },
   };
 }
 
@@ -237,6 +281,10 @@ function mergeOverDefaults(
     mood: {
       ...DEFAULT_NOTIFICATION_PREFS.mood,
       ...(input.mood ?? {}),
+    },
+    cycle: {
+      ...DEFAULT_NOTIFICATION_PREFS.cycle,
+      ...(input.cycle ?? {}),
     },
   });
 }

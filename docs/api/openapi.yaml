@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: HealthLog API
-  version: 1.14.0
+  version: 1.15.0
   description: >-
     Self-hosted personal-health-tracking PWA — public API surface for the iOS native client and external ingest.
 
@@ -37,9 +37,728 @@ tags:
   - name: Devices
   - name: Export
   - name: Sync
+  - name: Cycle
   - name: Admin
   - name: Meta
 paths:
+  /api/cycle/day-logs:
+    get:
+      tags:
+        - Cycle
+      summary: Read a single day's cycle day-log (v1.15.0)
+      description: Returns the full `CycleDayLogDTO` for the tz-anchored `date`, or `null` when nothing is logged that day.
+        Lets a client pre-fill an edit sheet. Gated; owner-scoped; soft-deleted rows excluded.
+      parameters:
+        - in: query
+          name: date
+          schema:
+            type: string
+            pattern: ^\d{4}-\d{2}-\d{2}$
+          required: true
+      responses:
+        "200":
+          description: The day-log for that date, or null.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CycleDayLogReadEnvelope"
+        "401": &a1
+          description: Authentication required or invalid credentials.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "403": &a2
+          description: Cycle tracking is not enabled for this account (errorCode `cycle.disabled`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "422": &a3
+          description: Request validation failed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "429": &a4
+          description: Rate limit exceeded.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+    post:
+      tags:
+        - Cycle
+      summary: Capture a single cycle day-log (v1.15.0)
+      description: "Upserts on `(userId, source, externalId)` when externalId present, else `(userId, date)`. `note` encrypts
+        at rest. 201 on insert, 200 on update. Gated: `cycle.disabled` 403 when the feature is off."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                date:
+                  type: string
+                  pattern: ^\d{4}-\d{2}-\d{2}$
+                flow:
+                  type: string
+                  enum:
+                    - NONE
+                    - SPOTTING
+                    - LIGHT
+                    - MEDIUM
+                    - HEAVY
+                intermenstrualBleeding:
+                  type: boolean
+                basalBodyTempC:
+                  type: number
+                  minimum: 30
+                  maximum: 45
+                ovulationTest:
+                  type: string
+                  enum:
+                    - NEGATIVE
+                    - POSITIVE_LH_SURGE
+                    - ESTROGEN_SURGE
+                    - INDETERMINATE
+                cervicalMucus:
+                  type: string
+                  enum:
+                    - DRY
+                    - STICKY
+                    - CREAMY
+                    - WATERY
+                    - EGG_WHITE
+                sexualActivity:
+                  type: boolean
+                protectedSex:
+                  anyOf:
+                    - type: boolean
+                    - type: "null"
+                pregnancyTest:
+                  type: string
+                  enum:
+                    - NEGATIVE
+                    - POSITIVE
+                    - INDETERMINATE
+                progesteroneTest:
+                  type: string
+                  enum:
+                    - NEGATIVE
+                    - POSITIVE
+                    - INDETERMINATE
+                contraceptive:
+                  type: string
+                  enum:
+                    - NONE
+                    - UNSPECIFIED
+                    - IMPLANT
+                    - INJECTION
+                    - IUD
+                    - INTRAVAGINAL_RING
+                    - ORAL
+                    - PATCH
+                    - EMERGENCY
+                symptoms:
+                  maxItems: 40
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      key:
+                        type: string
+                        minLength: 1
+                        maxLength: 80
+                      severity:
+                        type: integer
+                        minimum: 1
+                        maximum: 4
+                    required:
+                      - key
+                note:
+                  type: string
+                  maxLength: 500
+                loggedAt:
+                  type: string
+                  format: date-time
+                  pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
+                source:
+                  default: MANUAL
+                  type: string
+                  enum:
+                    - MANUAL
+                    - APPLE_HEALTH
+                externalId:
+                  type: string
+                  minLength: 1
+                  maxLength: 120
+              required:
+                - date
+                - loggedAt
+      responses:
+        "200":
+          description: Existing day-log updated.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CycleDayLogEnvelope"
+        "201":
+          description: New day-log created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CycleDayLogCreatedEnvelope"
+        "401": *a1
+        "403": *a2
+        "422": *a3
+        "429": *a4
+  /api/cycle/day-logs/{id}:
+    patch:
+      tags:
+        - Cycle
+      summary: Edit a single cycle day-log (v1.15.0)
+      description: Partial edit; an omitted field is left untouched. Owner-scoped (a cross-user id 404s). Gated.
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+          required: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                flow:
+                  anyOf:
+                    - type: string
+                      enum:
+                        - NONE
+                        - SPOTTING
+                        - LIGHT
+                        - MEDIUM
+                        - HEAVY
+                    - type: "null"
+                intermenstrualBleeding:
+                  type: boolean
+                basalBodyTempC:
+                  anyOf:
+                    - type: number
+                      minimum: 30
+                      maximum: 45
+                    - type: "null"
+                ovulationTest:
+                  anyOf:
+                    - type: string
+                      enum:
+                        - NEGATIVE
+                        - POSITIVE_LH_SURGE
+                        - ESTROGEN_SURGE
+                        - INDETERMINATE
+                    - type: "null"
+                cervicalMucus:
+                  anyOf:
+                    - type: string
+                      enum:
+                        - DRY
+                        - STICKY
+                        - CREAMY
+                        - WATERY
+                        - EGG_WHITE
+                    - type: "null"
+                sexualActivity:
+                  type: boolean
+                protectedSex:
+                  anyOf:
+                    - type: boolean
+                    - type: "null"
+                pregnancyTest:
+                  anyOf:
+                    - type: string
+                      enum:
+                        - NEGATIVE
+                        - POSITIVE
+                        - INDETERMINATE
+                    - type: "null"
+                progesteroneTest:
+                  anyOf:
+                    - type: string
+                      enum:
+                        - NEGATIVE
+                        - POSITIVE
+                        - INDETERMINATE
+                    - type: "null"
+                contraceptive:
+                  anyOf:
+                    - type: string
+                      enum:
+                        - NONE
+                        - UNSPECIFIED
+                        - IMPLANT
+                        - INJECTION
+                        - IUD
+                        - INTRAVAGINAL_RING
+                        - ORAL
+                        - PATCH
+                        - EMERGENCY
+                    - type: "null"
+                symptoms:
+                  maxItems: 40
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      key:
+                        type: string
+                        minLength: 1
+                        maxLength: 80
+                      severity:
+                        type: integer
+                        minimum: 1
+                        maximum: 4
+                    required:
+                      - key
+                note:
+                  anyOf:
+                    - type: string
+                      maxLength: 500
+                    - type: "null"
+                loggedAt:
+                  type: string
+                  format: date-time
+                  pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
+      responses:
+        "200":
+          description: Day-log updated.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CycleDayLogPatchEnvelope"
+        "401": *a1
+        "403": *a2
+        "404":
+          description: Day-log not found / not owned.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "422": *a3
+        "429": *a4
+    delete:
+      tags:
+        - Cycle
+      summary: Soft-delete a cycle day-log (v1.15.0)
+      description: Sets `deletedAt` + bumps `syncVersion`; surfaces as a tombstone on the next `/api/sync/changes` page. 204.
+        Idempotent.
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+          required: true
+      responses:
+        "204":
+          description: Soft-deleted (no body).
+        "401": *a1
+        "403": *a2
+        "404":
+          description: Day-log not found / not owned.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "422": *a3
+        "429": *a4
+  /api/cycle/day-logs/bulk:
+    post:
+      tags:
+        - Cycle
+      summary: Bulk drain cycle day-logs (Outbox / HealthKit) (v1.15.0)
+      description: "Up to 500 entries; `withIdempotency`; rate-limited `cycle:day-logs:bulk:<userId>` 60/min. Per-entry
+        status: inserted | duplicate | updated | skipped. Always 200."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                entries:
+                  minItems: 1
+                  maxItems: 500
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      date:
+                        type: string
+                        pattern: ^\d{4}-\d{2}-\d{2}$
+                      flow:
+                        type: string
+                        enum:
+                          - NONE
+                          - SPOTTING
+                          - LIGHT
+                          - MEDIUM
+                          - HEAVY
+                      intermenstrualBleeding:
+                        type: boolean
+                      basalBodyTempC:
+                        type: number
+                        minimum: 30
+                        maximum: 45
+                      ovulationTest:
+                        type: string
+                        enum:
+                          - NEGATIVE
+                          - POSITIVE_LH_SURGE
+                          - ESTROGEN_SURGE
+                          - INDETERMINATE
+                      cervicalMucus:
+                        type: string
+                        enum:
+                          - DRY
+                          - STICKY
+                          - CREAMY
+                          - WATERY
+                          - EGG_WHITE
+                      sexualActivity:
+                        type: boolean
+                      protectedSex:
+                        anyOf:
+                          - type: boolean
+                          - type: "null"
+                      pregnancyTest:
+                        type: string
+                        enum:
+                          - NEGATIVE
+                          - POSITIVE
+                          - INDETERMINATE
+                      progesteroneTest:
+                        type: string
+                        enum:
+                          - NEGATIVE
+                          - POSITIVE
+                          - INDETERMINATE
+                      contraceptive:
+                        type: string
+                        enum:
+                          - NONE
+                          - UNSPECIFIED
+                          - IMPLANT
+                          - INJECTION
+                          - IUD
+                          - INTRAVAGINAL_RING
+                          - ORAL
+                          - PATCH
+                          - EMERGENCY
+                      symptoms:
+                        maxItems: 40
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            key:
+                              type: string
+                              minLength: 1
+                              maxLength: 80
+                            severity:
+                              type: integer
+                              minimum: 1
+                              maximum: 4
+                          required:
+                            - key
+                      note:
+                        type: string
+                        maxLength: 500
+                      loggedAt:
+                        type: string
+                        format: date-time
+                        pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
+                      source:
+                        default: MANUAL
+                        type: string
+                        enum:
+                          - MANUAL
+                          - APPLE_HEALTH
+                      externalId:
+                        type: string
+                        minLength: 1
+                        maxLength: 120
+                    required:
+                      - date
+                      - loggedAt
+              required:
+                - entries
+      responses:
+        "200":
+          description: Batch processed (per-entry results).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CycleBulkEnvelope"
+        "401": *a1
+        "403": *a2
+        "422": *a3
+        "429": *a4
+  /api/cycle/period:
+    post:
+      tags:
+        - Cycle
+      summary: Period-boundary shortcut (v1.15.0)
+      description: One-tap started/ended period. `start` opens a new cycle (closing the prior); `end` stamps periodEndDate.
+        Writes the boundary day-log. Gated.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                action:
+                  type: string
+                  enum:
+                    - start
+                    - end
+                date:
+                  type: string
+                  pattern: ^\d{4}-\d{2}-\d{2}$
+                externalId:
+                  type: string
+                  minLength: 1
+                  maxLength: 120
+                loggedAt:
+                  type: string
+                  format: date-time
+                  pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
+              required:
+                - action
+                - date
+                - loggedAt
+      responses:
+        "200":
+          description: Cycle + boundary day-log.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CyclePeriodEnvelope"
+        "401": *a1
+        "403": *a2
+        "422": *a3
+        "429": *a4
+  /api/cycle/calendar:
+    get:
+      tags:
+        - Cycle
+      summary: Predicted cycle calendar (v1.15.0)
+      description: "Runs the deterministic engine to build `{ profile, prediction, days }`. Fertile-window fields are
+        server-suppressed unless goal is TRYING_TO_CONCEIVE. Default range: today − 90d … +180d. Gated."
+      parameters:
+        - in: query
+          name: from
+          schema:
+            type: string
+        - in: query
+          name: to
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Calendar grid + forecast.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CycleCalendarEnvelope"
+        "401": *a1
+        "403": *a2
+        "422": *a3
+        "429": *a4
+  /api/cycle/cycles:
+    get:
+      tags:
+        - Cycle
+      summary: Cycle history + stats (v1.15.0)
+      description: Most-recent cycles (newest first) + `{ avgLengthDays, lengthVariabilityDays (MAD), avgPeriodLengthDays,
+        regularity }`. `limit` default 24. Gated.
+      parameters:
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 60
+      responses:
+        "200":
+          description: Cycle history.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CycleHistoryEnvelope"
+        "401": *a1
+        "403": *a2
+        "422": *a3
+        "429": *a4
+  /api/cycle/insights:
+    get:
+      tags:
+        - Cycle
+      summary: Cycle-phase correlation insights (v1.15.0)
+      description: "FDR-guarded luteal-vs-follicular phase contrast per outcome metric (RHR / HRV / sleep / steps / weight /
+        temperatures), plus the single headline finding (resting-heart-rate-by-phase, falling back to HRV). The same
+        Welch t-test + Benjamini-Hochberg machinery the mood-factor crosstab runs; only rows with p < 0.05 AND q ≤ 0.10
+        surface. Strictly gender-gated — phase never appears on the general `/api/insights/correlations` route.
+        Observational only, never causal. Gated: `cycle.disabled` 403 when the feature is off."
+      responses:
+        "200":
+          description: Phase-correlation rows + headline.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CycleInsightsEnvelope"
+        "401": *a1
+        "403": *a2
+        "422": *a3
+        "429": *a4
+  /api/cycle/cycles/{id}:
+    delete:
+      tags:
+        - Cycle
+      summary: Soft-delete a menstrual cycle (v1.15.0)
+      description: Sets `deletedAt` + bumps `syncVersion`; tombstones on the next sync page. 204. Idempotent.
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+          required: true
+      responses:
+        "204":
+          description: Soft-deleted (no body).
+        "401": *a1
+        "403": *a2
+        "404":
+          description: Cycle not found / not owned.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "422": *a3
+        "429": *a4
+  /api/cycle/all:
+    delete:
+      tags:
+        - Cycle
+      summary: Hard-purge all cycle data (v1.15.0)
+      description: "One-click privacy purge: HARD-deletes every cycle day-log (+ symptom links by cascade), menstrual cycle,
+        prediction, the cycle audit trail, and the cycle reminder rows in the push-attempts ledger — no dated
+        reproductive trace survives. The CycleProfile row is left in place. Gated + owner-scoped + audited."
+      responses:
+        "200":
+          description: Purge counts.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CyclePurgeEnvelope"
+        "401": *a1
+        "403": *a2
+        "422": *a3
+        "429": *a4
+  /api/cycle/profile:
+    get:
+      tags:
+        - Cycle
+      summary: Read the full cycle profile (v1.15.0)
+      description: Returns the resolved CycleProfileDTO. Gated.
+      responses:
+        "200":
+          description: Cycle profile.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CycleProfileEnvelope"
+        "401": *a1
+        "403": *a2
+        "422": *a3
+        "429": *a4
+  /api/auth/me/cycle-prefs:
+    get:
+      tags:
+        - Cycle
+      summary: Read cycle preferences (v1.15.0)
+      description: Returns the resolved CycleProfileDTO. NOT gated — this is the surface that flips the gate.
+      responses:
+        "200":
+          description: Cycle preferences.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CyclePrefsGetEnvelope"
+        "401": *a1
+        "422": *a3
+        "429": *a4
+    patch:
+      tags:
+        - Cycle
+      summary: Update cycle preferences (v1.15.0)
+      description: Deep-merges the supplied fields. `enabled` flips `cycleTrackingEnabled`. Returns the merged
+        CycleProfileDTO. NOT gated.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                enabled:
+                  type: boolean
+                goal:
+                  type: string
+                  enum:
+                    - GENERAL_HEALTH
+                    - AVOID_PREGNANCY
+                    - TRYING_TO_CONCEIVE
+                    - PERIMENOPAUSE
+                    - OFF
+                rawChartMode:
+                  type: boolean
+                predictionEnabled:
+                  type: boolean
+                discreetNotifications:
+                  type: boolean
+                sensitiveCategoryEncryption:
+                  type: boolean
+                typicalCycleLength:
+                  anyOf:
+                    - type: integer
+                      minimum: 15
+                      maximum: 60
+                    - type: "null"
+                typicalPeriodLength:
+                  anyOf:
+                    - type: integer
+                      minimum: 1
+                      maximum: 15
+                    - type: "null"
+                lutealPhaseLength:
+                  anyOf:
+                    - type: integer
+                      minimum: 10
+                      maximum: 16
+                    - type: "null"
+      responses:
+        "200":
+          description: Merged cycle preferences.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CyclePrefsPatchEnvelope"
+        "401": *a1
+        "422": *a3
+        "429": *a4
   /api/meta/capabilities:
     get:
       tags:
@@ -57,24 +776,9 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/CapabilitiesEnvelope"
-        "401": &a1
-          description: Authentication required or invalid credentials.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorEnvelope"
-        "422": &a2
-          description: Request validation failed.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorEnvelope"
-        "429": &a3
-          description: Rate limit exceeded.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ErrorEnvelope"
+        "401": *a1
+        "422": *a3
+        "429": *a4
   /api/export/health-record:
     post:
       tags:
@@ -168,6 +872,8 @@ paths:
                       type: boolean
                     bmi:
                       type: boolean
+                    cycle:
+                      type: boolean
                 locale:
                   type: string
                   enum:
@@ -207,8 +913,8 @@ paths:
                 type: string
                 format: binary
         "401": *a1
-        "422": *a2
-        "429": *a3
+        "422": *a3
+        "429": *a4
   /api/share-links:
     post:
       tags:
@@ -294,6 +1000,8 @@ paths:
                       type: boolean
                     bmi:
                       type: boolean
+                    cycle:
+                      type: boolean
                 resourceTypes:
                   maxItems: 8
                   type: array
@@ -323,8 +1031,8 @@ paths:
               schema:
                 $ref: "#/components/schemas/ShareLinkCreated"
         "401": *a1
-        "422": *a2
-        "429": *a3
+        "422": *a3
+        "429": *a4
     get:
       tags:
         - Export
@@ -339,8 +1047,8 @@ paths:
               schema:
                 $ref: "#/components/schemas/ShareLinkList"
         "401": *a1
-        "422": *a2
-        "429": *a3
+        "422": *a3
+        "429": *a4
   /api/share-links/{id}:
     delete:
       tags:
@@ -368,8 +1076,8 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorEnvelope"
-        "422": *a2
-        "429": *a3
+        "422": *a3
+        "429": *a4
   /api/fhir/metadata:
     get:
       tags:
@@ -387,8 +1095,8 @@ paths:
                 type: string
                 format: binary
         "401": *a1
-        "422": *a2
-        "429": *a3
+        "422": *a3
+        "429": *a4
   /api/fhir/Patient:
     get:
       tags:
@@ -414,8 +1122,8 @@ paths:
                 type: string
                 format: binary
         "401": *a1
-        "422": *a2
-        "429": *a3
+        "422": *a3
+        "429": *a4
   /api/fhir/Observation:
     get:
       tags:
@@ -441,8 +1149,8 @@ paths:
                 type: string
                 format: binary
         "401": *a1
-        "422": *a2
-        "429": *a3
+        "422": *a3
+        "429": *a4
   /api/fhir/MedicationStatement:
     get:
       tags:
@@ -468,8 +1176,8 @@ paths:
                 type: string
                 format: binary
         "401": *a1
-        "422": *a2
-        "429": *a3
+        "422": *a3
+        "429": *a4
   /api/fhir/MedicationAdministration:
     get:
       tags:
@@ -495,8 +1203,8 @@ paths:
                 type: string
                 format: binary
         "401": *a1
-        "422": *a2
-        "429": *a3
+        "422": *a3
+        "429": *a4
   /api/fhir/$everything:
     get:
       tags:
@@ -523,8 +1231,8 @@ paths:
                 type: string
                 format: binary
         "401": *a1
-        "422": *a2
-        "429": *a3
+        "422": *a3
+        "429": *a4
   /api/auth/login:
     post:
       tags:
@@ -556,8 +1264,8 @@ paths:
               schema:
                 $ref: "#/components/schemas/LoginResponse"
         "401": *a1
-        "422": *a2
-        "429": *a3
+        "422": *a3
+        "429": *a4
   /api/auth/passkey/login-verify:
     post:
       tags:
@@ -577,8 +1285,8 @@ paths:
               schema:
                 $ref: "#/components/schemas/PasskeyLoginVerifyResponse"
         "401": *a1
-        "422": *a2
-        "429": *a3
+        "422": *a3
+        "429": *a4
   /api/auth/refresh:
     post:
       tags:
@@ -608,8 +1316,8 @@ paths:
               schema:
                 $ref: "#/components/schemas/RefreshResponse"
         "401": *a1
-        "422": *a2
-        "429": *a3
+        "422": *a3
+        "429": *a4
   /api/sync/state:
     get:
       tags:
@@ -626,8 +1334,8 @@ paths:
               schema:
                 $ref: "#/components/schemas/SyncStateEnvelope"
         "401": *a1
-        "422": *a2
-        "429": *a3
+        "422": *a3
+        "429": *a4
   /api/sync/changes:
     get:
       tags:
@@ -663,8 +1371,8 @@ paths:
               schema:
                 $ref: "#/components/schemas/SyncChangesEnvelope"
         "401": *a1
-        "422": *a2
-        "429": *a3
+        "422": *a3
+        "429": *a4
   /api/measurements:
     get:
       tags:
@@ -819,8 +1527,8 @@ paths:
               schema:
                 $ref: "#/components/schemas/ListMeasurementsResponse"
         "401": *a1
-        "422": *a2
-        "429": *a3
+        "422": *a3
+        "429": *a4
     post:
       tags:
         - Measurements
@@ -940,8 +1648,8 @@ paths:
               schema:
                 $ref: "#/components/schemas/CreateMeasurementResponse"
         "401": *a1
-        "422": *a2
-        "429": *a3
+        "422": *a3
+        "429": *a4
   /api/measurements/batch:
     post:
       tags:
@@ -965,8 +1673,8 @@ paths:
               schema:
                 $ref: "#/components/schemas/BatchMeasurementsResponse"
         "401": *a1
-        "422": *a2
-        "429": *a3
+        "422": *a3
+        "429": *a4
   /api/measurements/by-external-ids:
     delete:
       tags:
@@ -988,8 +1696,8 @@ paths:
               schema:
                 $ref: "#/components/schemas/MeasurementsDeleteByExternalIdsResponse"
         "401": *a1
-        "422": *a2
-        "429": *a3
+        "422": *a3
+        "429": *a4
   /api/sleep/night:
     get:
       tags:
@@ -1017,8 +1725,8 @@ paths:
               schema:
                 $ref: "#/components/schemas/SleepNightResponse"
         "401": *a1
-        "422": *a2
-        "429": *a3
+        "422": *a3
+        "429": *a4
   /api/workouts:
     get:
       tags:
@@ -1065,8 +1773,8 @@ paths:
               schema:
                 $ref: "#/components/schemas/ListWorkoutsResponse"
         "401": *a1
-        "422": *a2
-        "429": *a3
+        "422": *a3
+        "429": *a4
   /api/workouts/{id}:
     get:
       tags:
@@ -1095,8 +1803,8 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorEnvelope"
-        "422": *a2
-        "429": *a3
+        "422": *a3
+        "429": *a4
   /api/workouts/batch:
     post:
       tags:
@@ -1310,8 +2018,8 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorEnvelope"
-        "422": *a2
-        "429": *a3
+        "422": *a3
+        "429": *a4
   /api/devices:
     post:
       tags:
@@ -1339,8 +2047,8 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorEnvelope"
-        "422": *a2
-        "429": *a3
+        "422": *a3
+        "429": *a4
   /api/medications:
     get:
       tags:
@@ -1358,8 +2066,8 @@ paths:
               schema:
                 $ref: "#/components/schemas/ListMedicationsResponse"
         "401": *a1
-        "422": *a2
-        "429": *a3
+        "422": *a3
+        "429": *a4
     post:
       tags:
         - Medications
@@ -1381,8 +2089,8 @@ paths:
               schema:
                 $ref: "#/components/schemas/CreateMedicationResponse"
         "401": *a1
-        "422": *a2
-        "429": *a3
+        "422": *a3
+        "429": *a4
   /api/medications/{id}:
     get:
       tags:
@@ -1410,8 +2118,8 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorEnvelope"
-        "422": *a2
-        "429": *a3
+        "422": *a3
+        "429": *a4
     put:
       tags:
         - Medications
@@ -1446,8 +2154,8 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorEnvelope"
-        "422": *a2
-        "429": *a3
+        "422": *a3
+        "429": *a4
     delete:
       tags:
         - Medications
@@ -1474,8 +2182,8 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorEnvelope"
-        "422": *a2
-        "429": *a3
+        "422": *a3
+        "429": *a4
   /api/medications/{id}/intake:
     post:
       tags:
@@ -1517,8 +2225,8 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorEnvelope"
-        "422": *a2
-        "429": *a3
+        "422": *a3
+        "429": *a4
   /api/medications/extract:
     post:
       tags:
@@ -1543,8 +2251,8 @@ paths:
               schema:
                 $ref: "#/components/schemas/MedicationExtractResponse"
         "401": *a1
-        "422": *a2
-        "429": *a3
+        "422": *a3
+        "429": *a4
         "502":
           description: Upstream provider returned an empty, unparseable, or off-schema reply.
           content:
@@ -1594,8 +2302,8 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorEnvelope"
-        "422": *a2
-        "429": *a3
+        "422": *a3
+        "429": *a4
   /api/medications/{id}/compliance:
     get:
       tags:
@@ -1626,8 +2334,8 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorEnvelope"
-        "422": *a2
-        "429": *a3
+        "422": *a3
+        "429": *a4
   /api/auth/me/coach-prefs:
     get:
       tags:
@@ -1643,8 +2351,8 @@ paths:
               schema:
                 $ref: "#/components/schemas/GetCoachPrefsResponse"
         "401": *a1
-        "422": *a2
-        "429": *a3
+        "422": *a3
+        "429": *a4
     put:
       tags:
         - Auth
@@ -1725,8 +2433,8 @@ paths:
               schema:
                 $ref: "#/components/schemas/PutCoachPrefsResponse"
         "401": *a1
-        "422": *a2
-        "429": *a3
+        "422": *a3
+        "429": *a4
   /api/auth/me/disable-coach:
     get:
       tags:
@@ -1742,8 +2450,8 @@ paths:
               schema:
                 $ref: "#/components/schemas/GetDisableCoachResponse"
         "401": *a1
-        "422": *a2
-        "429": *a3
+        "422": *a3
+        "429": *a4
     patch:
       tags:
         - Auth
@@ -1764,8 +2472,8 @@ paths:
               schema:
                 $ref: "#/components/schemas/PatchDisableCoachResponse"
         "401": *a1
-        "422": *a2
-        "429": *a3
+        "422": *a3
+        "429": *a4
   /api/auth/me/source-priority:
     get:
       tags:
@@ -1781,8 +2489,8 @@ paths:
               schema:
                 $ref: "#/components/schemas/GetSourcePriorityResponse"
         "401": *a1
-        "422": *a2
-        "429": *a3
+        "422": *a3
+        "429": *a4
     put:
       tags:
         - Auth
@@ -2278,8 +2986,8 @@ paths:
               schema:
                 $ref: "#/components/schemas/PutSourcePriorityResponse"
         "401": *a1
-        "422": *a2
-        "429": *a3
+        "422": *a3
+        "429": *a4
   /api/user/avatar:
     post:
       tags:
@@ -2322,8 +3030,8 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorEnvelope"
-        "422": *a2
-        "429": *a3
+        "422": *a3
+        "429": *a4
     delete:
       tags:
         - Auth
@@ -2334,8 +3042,8 @@ paths:
         "204":
           description: Avatar cleared (or already empty).
         "401": *a1
-        "422": *a2
-        "429": *a3
+        "422": *a3
+        "429": *a4
   /api/user/avatar/{id}:
     get:
       tags:
@@ -2381,8 +3089,8 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorEnvelope"
-        "422": *a2
-        "429": *a3
+        "422": *a3
+        "429": *a4
   /api/user/profile:
     get:
       tags:
@@ -2398,8 +3106,8 @@ paths:
               schema:
                 $ref: "#/components/schemas/GetProfileResponse"
         "401": *a1
-        "422": *a2
-        "429": *a3
+        "422": *a3
+        "429": *a4
     patch:
       tags:
         - Auth
@@ -2421,8 +3129,8 @@ paths:
               schema:
                 $ref: "#/components/schemas/PatchProfileResponse"
         "401": *a1
-        "422": *a2
-        "429": *a3
+        "422": *a3
+        "429": *a4
   /api/insights/layout:
     get:
       tags:
@@ -2438,8 +3146,8 @@ paths:
               schema:
                 $ref: "#/components/schemas/InsightsLayout"
         "401": *a1
-        "422": *a2
-        "429": *a3
+        "422": *a3
+        "429": *a4
     put:
       tags:
         - Insights
@@ -2460,8 +3168,8 @@ paths:
               schema:
                 $ref: "#/components/schemas/InsightsLayoutSaved"
         "401": *a1
-        "422": *a2
-        "429": *a3
+        "422": *a3
+        "429": *a4
     delete:
       tags:
         - Insights
@@ -2475,8 +3183,8 @@ paths:
               schema:
                 $ref: "#/components/schemas/InsightsLayoutReset"
         "401": *a1
-        "422": *a2
-        "429": *a3
+        "422": *a3
+        "429": *a4
   /api/insights/coach/facts:
     get:
       tags:
@@ -2494,8 +3202,8 @@ paths:
               schema:
                 $ref: "#/components/schemas/CoachFactsList"
         "401": *a1
-        "422": *a2
-        "429": *a3
+        "422": *a3
+        "429": *a4
     delete:
       tags:
         - Insights
@@ -2510,8 +3218,8 @@ paths:
               schema:
                 $ref: "#/components/schemas/CoachFactsCleared"
         "401": *a1
-        "422": *a2
-        "429": *a3
+        "422": *a3
+        "429": *a4
   /api/insights/coach/facts/{id}:
     delete:
       tags:
@@ -2528,8 +3236,8 @@ paths:
               schema:
                 $ref: "#/components/schemas/CoachFactDeleted"
         "401": *a1
-        "422": *a2
-        "429": *a3
+        "422": *a3
+        "429": *a4
   /api/insights/chat/messages/{id}/feedback:
     post:
       tags:
@@ -2564,8 +3272,8 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorEnvelope"
-        "422": *a2
-        "429": *a3
+        "422": *a3
+        "429": *a4
   /api/admin/notifications/diagnostic:
     get:
       tags:
@@ -2588,8 +3296,8 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorEnvelope"
-        "422": *a2
-        "429": *a3
+        "422": *a3
+        "429": *a4
   /api/dashboard/snapshot:
     get:
       tags:
@@ -2606,8 +3314,8 @@ paths:
               schema:
                 $ref: "#/components/schemas/DashboardSnapshotResponseEnvelope"
         "401": *a1
-        "422": *a2
-        "429": *a3
+        "422": *a3
+        "429": *a4
   /api/insights/comprehensive:
     get:
       tags:
@@ -2623,8 +3331,8 @@ paths:
               schema:
                 $ref: "#/components/schemas/InsightsComprehensiveResponseEnvelope"
         "401": *a1
-        "422": *a2
-        "429": *a3
+        "422": *a3
+        "429": *a4
   /api/insights/pregenerate:
     post:
       tags:
@@ -2650,8 +3358,8 @@ paths:
               schema:
                 $ref: "#/components/schemas/InsightsPregenerateResponseEnvelope"
         "401": *a1
-        "422": *a2
-        "429": *a3
+        "422": *a3
+        "429": *a4
   /api/analytics/range:
     get:
       tags:
@@ -2756,8 +3464,8 @@ paths:
               schema:
                 $ref: "#/components/schemas/AnalyticsRangeResponseEnvelope"
         "401": *a1
-        "422": *a2
-        "429": *a3
+        "422": *a3
+        "429": *a4
   /api/insights/blood-pressure-status:
     get:
       tags:
@@ -2784,8 +3492,8 @@ paths:
               schema:
                 $ref: "#/components/schemas/BloodPressureStatusResponseEnvelope"
         "401": *a1
-        "422": *a2
-        "429": *a3
+        "422": *a3
+        "429": *a4
   /api/insights/pulse-status:
     get:
       tags:
@@ -2812,8 +3520,8 @@ paths:
               schema:
                 $ref: "#/components/schemas/PulseStatusResponseEnvelope"
         "401": *a1
-        "422": *a2
-        "429": *a3
+        "422": *a3
+        "429": *a4
   /api/insights/weight-status:
     get:
       tags:
@@ -2840,8 +3548,8 @@ paths:
               schema:
                 $ref: "#/components/schemas/WeightStatusResponseEnvelope"
         "401": *a1
-        "422": *a2
-        "429": *a3
+        "422": *a3
+        "429": *a4
   /api/insights/bmi-status:
     get:
       tags:
@@ -2868,8 +3576,8 @@ paths:
               schema:
                 $ref: "#/components/schemas/BmiStatusResponseEnvelope"
         "401": *a1
-        "422": *a2
-        "429": *a3
+        "422": *a3
+        "429": *a4
   /api/insights/mood-status:
     get:
       tags:
@@ -2896,8 +3604,8 @@ paths:
               schema:
                 $ref: "#/components/schemas/MoodStatusResponseEnvelope"
         "401": *a1
-        "422": *a2
-        "429": *a3
+        "422": *a3
+        "429": *a4
   /api/insights/medication-compliance-status:
     get:
       tags:
@@ -2924,8 +3632,8 @@ paths:
               schema:
                 $ref: "#/components/schemas/MedicationComplianceStatusResponseEnvelope"
         "401": *a1
-        "422": *a2
-        "429": *a3
+        "422": *a3
+        "429": *a4
   /api/insights/metric-status:
     get:
       tags:
@@ -3003,8 +3711,8 @@ paths:
               schema:
                 $ref: "#/components/schemas/MetricStatusResponseEnvelope"
         "401": *a1
-        "422": *a2
-        "429": *a3
+        "422": *a3
+        "429": *a4
   /api/insights/derived:
     get:
       tags:
@@ -3075,8 +3783,8 @@ paths:
               schema:
                 $ref: "#/components/schemas/DerivedMetricResponseEnvelope"
         "401": *a1
-        "422": *a2
-        "429": *a3
+        "422": *a3
+        "429": *a4
   /api/insights/derived/batch:
     get:
       tags:
@@ -3109,8 +3817,8 @@ paths:
               schema:
                 $ref: "#/components/schemas/DerivedBatchResponseEnvelope"
         "401": *a1
-        "422": *a2
-        "429": *a3
+        "422": *a3
+        "429": *a4
   /api/insights/correlations:
     get:
       tags:
@@ -3129,8 +3837,8 @@ paths:
               schema:
                 $ref: "#/components/schemas/CorrelationDiscoveryResponseEnvelope"
         "401": *a1
-        "422": *a2
-        "429": *a3
+        "422": *a3
+        "429": *a4
 components:
   schemas:
     PasskeyLoginVerifyRequest:
@@ -4063,6 +4771,1030 @@ components:
         primitives are mutually exclusive — enforced by the Zod refine on writes, the route layer, and a DB CHECK
         constraint (`medication_schedules_rrule_xor_rolling`). v1.7.0 adds `scheduleType` (SCHEDULED / PRN / CYCLIC) and
         the cyclic on/off-week fields.
+    CycleDayLogReadEnvelope:
+      type: object
+      properties:
+        data:
+          anyOf:
+            - $ref: "#/components/schemas/CycleDayLogDTO"
+            - type: "null"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    CycleDayLogDTO:
+      type: object
+      properties:
+        id:
+          type: string
+        date:
+          type: string
+        cycleId:
+          anyOf:
+            - type: string
+            - type: "null"
+        flow:
+          anyOf:
+            - type: string
+              enum:
+                - NONE
+                - SPOTTING
+                - LIGHT
+                - MEDIUM
+                - HEAVY
+            - type: "null"
+        intermenstrualBleeding:
+          type: boolean
+        basalBodyTempC:
+          anyOf:
+            - type: number
+            - type: "null"
+        ovulationTest:
+          anyOf:
+            - type: string
+              enum:
+                - NEGATIVE
+                - POSITIVE_LH_SURGE
+                - ESTROGEN_SURGE
+                - INDETERMINATE
+            - type: "null"
+        cervicalMucus:
+          anyOf:
+            - type: string
+              enum:
+                - DRY
+                - STICKY
+                - CREAMY
+                - WATERY
+                - EGG_WHITE
+            - type: "null"
+        sexualActivity:
+          type: boolean
+        protectedSex:
+          anyOf:
+            - type: boolean
+            - type: "null"
+        pregnancyTest:
+          anyOf:
+            - type: string
+              enum:
+                - NEGATIVE
+                - POSITIVE
+                - INDETERMINATE
+            - type: "null"
+        progesteroneTest:
+          anyOf:
+            - type: string
+              enum:
+                - NEGATIVE
+                - POSITIVE
+                - INDETERMINATE
+            - type: "null"
+        contraceptive:
+          anyOf:
+            - type: string
+            - type: "null"
+        symptoms:
+          type: array
+          items:
+            type: object
+            properties:
+              key:
+                type: string
+              severity:
+                anyOf:
+                  - type: integer
+                    minimum: 1
+                    maximum: 4
+                  - type: "null"
+            required:
+              - key
+              - severity
+            additionalProperties: false
+        note:
+          anyOf:
+            - type: string
+            - type: "null"
+        source:
+          type: string
+        externalId:
+          anyOf:
+            - type: string
+            - type: "null"
+        syncVersion:
+          type: integer
+          minimum: -9007199254740991
+          maximum: 9007199254740991
+        updatedAt:
+          type: string
+          format: date-time
+          pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
+        deletedAt:
+          anyOf:
+            - type: string
+              format: date-time
+              pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
+            - type: "null"
+      required:
+        - id
+        - date
+        - cycleId
+        - flow
+        - intermenstrualBleeding
+        - basalBodyTempC
+        - ovulationTest
+        - cervicalMucus
+        - sexualActivity
+        - protectedSex
+        - pregnancyTest
+        - progesteroneTest
+        - contraceptive
+        - symptoms
+        - note
+        - source
+        - externalId
+        - syncVersion
+        - updatedAt
+        - deletedAt
+      additionalProperties: false
+      description: The canonical day-log row iOS mirrors. `note` is decrypted on read. Soft-deleted rows ride
+        `/api/sync/changes` as tombstones.
+    ErrorEnvelope:
+      type: object
+      properties:
+        data:
+          type: "null"
+        error:
+          type: string
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+            errorCode:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+      description: "Standard error response: data is null, error is human prose."
+    CycleDayLogEnvelope:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/CycleDayLogDTO"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    CycleDayLogCreatedEnvelope:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/CycleDayLogDTO"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    CycleDayLogPatchEnvelope:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/CycleDayLogDTO"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    CycleBulkEnvelope:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            processed:
+              type: integer
+              minimum: -9007199254740991
+              maximum: 9007199254740991
+            inserted:
+              type: integer
+              minimum: -9007199254740991
+              maximum: 9007199254740991
+            updated:
+              type: integer
+              minimum: -9007199254740991
+              maximum: 9007199254740991
+            duplicates:
+              type: integer
+              minimum: -9007199254740991
+              maximum: 9007199254740991
+            skipped:
+              type: integer
+              minimum: -9007199254740991
+              maximum: 9007199254740991
+            entries:
+              type: array
+              items:
+                type: object
+                properties:
+                  index:
+                    type: integer
+                    minimum: -9007199254740991
+                    maximum: 9007199254740991
+                  status:
+                    type: string
+                    enum:
+                      - inserted
+                      - duplicate
+                      - updated
+                      - skipped
+                  id:
+                    type: string
+                  externalId:
+                    type: string
+                  reason:
+                    type: string
+                required:
+                  - index
+                  - status
+                additionalProperties: false
+          required:
+            - processed
+            - inserted
+            - updated
+            - duplicates
+            - skipped
+            - entries
+          additionalProperties: false
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    CyclePeriodEnvelope:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            cycle:
+              anyOf:
+                - $ref: "#/components/schemas/MenstrualCycleDTO"
+                - type: "null"
+            dayLog:
+              anyOf:
+                - $ref: "#/components/schemas/CycleDayLogDTO"
+                - type: "null"
+          required:
+            - cycle
+            - dayLog
+          additionalProperties: false
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    MenstrualCycleDTO:
+      type: object
+      properties:
+        id:
+          type: string
+        startDate:
+          type: string
+        endDate:
+          anyOf:
+            - type: string
+            - type: "null"
+        periodEndDate:
+          anyOf:
+            - type: string
+            - type: "null"
+        lengthDays:
+          anyOf:
+            - type: integer
+              minimum: -9007199254740991
+              maximum: 9007199254740991
+            - type: "null"
+        ovulationDate:
+          anyOf:
+            - type: string
+            - type: "null"
+        ovulationConfirmed:
+          type: boolean
+        isPredicted:
+          type: boolean
+        syncVersion:
+          type: integer
+          minimum: -9007199254740991
+          maximum: 9007199254740991
+        updatedAt:
+          type: string
+          format: date-time
+          pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
+      required:
+        - id
+        - startDate
+        - endDate
+        - periodEndDate
+        - lengthDays
+        - ovulationDate
+        - ovulationConfirmed
+        - isPredicted
+        - syncVersion
+        - updatedAt
+      additionalProperties: false
+      description: One menstrual cycle (observed or forward-predicted).
+    CycleCalendarEnvelope:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            profile:
+              type: object
+              properties:
+                goal:
+                  type: string
+                  enum:
+                    - GENERAL_HEALTH
+                    - AVOID_PREGNANCY
+                    - TRYING_TO_CONCEIVE
+                    - PERIMENOPAUSE
+                    - OFF
+                rawChartMode:
+                  type: boolean
+                predictionEnabled:
+                  type: boolean
+                cyclesObserved:
+                  type: integer
+                  minimum: -9007199254740991
+                  maximum: 9007199254740991
+              required:
+                - goal
+                - rawChartMode
+                - predictionEnabled
+                - cyclesObserved
+              additionalProperties: false
+            prediction:
+              anyOf:
+                - $ref: "#/components/schemas/CyclePredictionDTO"
+                - type: "null"
+            days:
+              type: array
+              items:
+                type: object
+                properties:
+                  date:
+                    type: string
+                  phase:
+                    anyOf:
+                      - $ref: "#/components/schemas/CyclePhase"
+                      - type: "null"
+                  isPredictedPeriod:
+                    type: boolean
+                  isFertileWindow:
+                    type: boolean
+                  isPredictedOvulation:
+                    type: boolean
+                  isPeriodLogged:
+                    type: boolean
+                  flow:
+                    anyOf:
+                      - type: string
+                        enum:
+                          - NONE
+                          - SPOTTING
+                          - LIGHT
+                          - MEDIUM
+                          - HEAVY
+                      - type: "null"
+                  hasSymptoms:
+                    type: boolean
+                  confidence:
+                    type: number
+                  basalBodyTempC:
+                    anyOf:
+                      - type: number
+                      - type: "null"
+                  ovulationTest:
+                    anyOf:
+                      - type: string
+                        enum:
+                          - NEGATIVE
+                          - POSITIVE_LH_SURGE
+                          - ESTROGEN_SURGE
+                          - INDETERMINATE
+                      - type: "null"
+                  cervicalMucus:
+                    anyOf:
+                      - type: string
+                        enum:
+                          - DRY
+                          - STICKY
+                          - CREAMY
+                          - WATERY
+                          - EGG_WHITE
+                      - type: "null"
+                required:
+                  - date
+                  - phase
+                  - isPredictedPeriod
+                  - isFertileWindow
+                  - isPredictedOvulation
+                  - isPeriodLogged
+                  - flow
+                  - hasSymptoms
+                  - confidence
+                  - basalBodyTempC
+                  - ovulationTest
+                  - cervicalMucus
+                additionalProperties: false
+            meta:
+              type: object
+              properties:
+                generatedAt:
+                  type: string
+                  format: date-time
+                  pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
+              required:
+                - generatedAt
+              additionalProperties: false
+          required:
+            - profile
+            - prediction
+            - days
+            - meta
+          additionalProperties: false
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    CyclePredictionDTO:
+      type: object
+      properties:
+        method:
+          $ref: "#/components/schemas/CyclePredictionMethod"
+        nextPeriodStart:
+          type: string
+        nextPeriodStartLow:
+          type: string
+        nextPeriodStartHigh:
+          type: string
+        fertileWindowStart:
+          anyOf:
+            - type: string
+            - type: "null"
+        fertileWindowEnd:
+          anyOf:
+            - type: string
+            - type: "null"
+        predictedOvulation:
+          anyOf:
+            - type: string
+            - type: "null"
+        ovulationConfirmed:
+          type: boolean
+        confidence:
+          type: number
+        cyclesObserved:
+          type: integer
+          minimum: -9007199254740991
+          maximum: 9007199254740991
+        stillLearning:
+          type: boolean
+        disclaimer:
+          type: string
+      required:
+        - method
+        - nextPeriodStart
+        - nextPeriodStartLow
+        - nextPeriodStartHigh
+        - fertileWindowStart
+        - fertileWindowEnd
+        - predictedOvulation
+        - ovulationConfirmed
+        - confidence
+        - cyclesObserved
+        - stillLearning
+        - disclaimer
+      additionalProperties: false
+      description: The materialised forecast. Fertile-window fields (and predictedOvulation/ovulationConfirmed) are
+        server-suppressed (null/false) unless the goal is TRYING_TO_CONCEIVE or AVOID_PREGNANCY.
+    CyclePredictionMethod:
+      type: string
+      enum:
+        - CALENDAR
+        - SYMPTOTHERMAL
+        - TEMPERATURE_TREND
+        - BLENDED
+    CyclePhase:
+      type: string
+      enum:
+        - MENSTRUAL
+        - FOLLICULAR
+        - OVULATORY
+        - LUTEAL
+    CycleHistoryEnvelope:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            cycles:
+              type: array
+              items:
+                $ref: "#/components/schemas/MenstrualCycleDTO"
+            stats:
+              type: object
+              properties:
+                avgLengthDays:
+                  anyOf:
+                    - type: integer
+                      minimum: -9007199254740991
+                      maximum: 9007199254740991
+                    - type: "null"
+                lengthVariabilityDays:
+                  anyOf:
+                    - type: number
+                    - type: "null"
+                avgPeriodLengthDays:
+                  anyOf:
+                    - type: integer
+                      minimum: -9007199254740991
+                      maximum: 9007199254740991
+                    - type: "null"
+                regularity:
+                  type: string
+                  enum:
+                    - REGULAR
+                    - IRREGULAR
+                    - LEARNING
+              required:
+                - avgLengthDays
+                - lengthVariabilityDays
+                - avgPeriodLengthDays
+                - regularity
+              additionalProperties: false
+          required:
+            - cycles
+            - stats
+          additionalProperties: false
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    CycleInsightsEnvelope:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            rows:
+              type: array
+              items:
+                $ref: "#/components/schemas/CyclePhaseCrosstabRow"
+            headline:
+              anyOf:
+                - $ref: "#/components/schemas/CyclePhaseCrosstabRow"
+                - type: "null"
+            lagged:
+              type: object
+              properties:
+                discovered:
+                  type: array
+                  items:
+                    $ref: "#/components/schemas/CyclePhaseLaggedPair"
+                pairsTested:
+                  type: integer
+                  minimum: -9007199254740991
+                  maximum: 9007199254740991
+                fdrQ:
+                  type: number
+                minPairs:
+                  type: integer
+                  minimum: -9007199254740991
+                  maximum: 9007199254740991
+              required:
+                - discovered
+                - pairsTested
+                - fdrQ
+                - minPairs
+              additionalProperties: false
+            symptomPatterns:
+              type: array
+              items:
+                $ref: "#/components/schemas/CycleSymptomPhaseRow"
+            contrast:
+              type: object
+              properties:
+                high:
+                  type: string
+                  const: LUTEAL
+                low:
+                  type: string
+                  const: FOLLICULAR
+              required:
+                - high
+                - low
+              additionalProperties: false
+            windowDays:
+              type: integer
+              minimum: -9007199254740991
+              maximum: 9007199254740991
+            cyclesObserved:
+              type: integer
+              minimum: -9007199254740991
+              maximum: 9007199254740991
+          required:
+            - rows
+            - headline
+            - lagged
+            - symptomPatterns
+            - contrast
+            - windowDays
+            - cyclesObserved
+          additionalProperties: false
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    CyclePhaseCrosstabRow:
+      type: object
+      properties:
+        metricKey:
+          type: string
+          enum:
+            - restingHeartRate
+            - heartRateVariability
+            - sleepDuration
+            - steps
+            - weight
+            - basalBodyTemp
+            - wristTemperature
+            - skinTemperature
+            - bloodGlucose
+            - mood
+        display:
+          type: string
+          enum:
+            - hours
+            - steps
+            - bpm
+            - ms
+            - kg
+            - celsius
+            - glucose
+            - mood
+        lutealDays:
+          type: integer
+          minimum: -9007199254740991
+          maximum: 9007199254740991
+        follicularDays:
+          type: integer
+          minimum: -9007199254740991
+          maximum: 9007199254740991
+        lutealAvg:
+          type: number
+        follicularAvg:
+          type: number
+        delta:
+          type: number
+        pValue:
+          type: number
+        qValue:
+          type: number
+        confidence:
+          type: string
+          enum:
+            - low
+            - medium
+            - high
+      required:
+        - metricKey
+        - display
+        - lutealDays
+        - follicularDays
+        - lutealAvg
+        - follicularAvg
+        - delta
+        - pValue
+        - qValue
+        - confidence
+      additionalProperties: false
+      description: One FDR-surviving luteal-vs-follicular contrast for an outcome metric. `delta = lutealAvg − follicularAvg`.
+        Observational, never causal.
+    CyclePhaseLaggedPair:
+      type: object
+      properties:
+        behaviour:
+          type: string
+        outcome:
+          type: string
+        n:
+          type: integer
+          minimum: -9007199254740991
+          maximum: 9007199254740991
+        r:
+          type: number
+        pValue:
+          type: number
+        qValue:
+          type: number
+        interpretation:
+          type: string
+        lagDays:
+          type: integer
+          minimum: -9007199254740991
+          maximum: 9007199254740991
+      required:
+        - behaviour
+        - outcome
+        - n
+        - r
+        - pValue
+        - qValue
+        - interpretation
+        - lagDays
+      additionalProperties: false
+      description: One FDR-surviving lagged-Pearson pair from the continuous CYCLE_PHASE ordinal × outcome matrix (mechanism
+        B). Descriptive, never causal.
+    CycleSymptomPhaseRow:
+      type: object
+      properties:
+        symptomKey:
+          type: string
+        counts:
+          type: object
+          properties:
+            MENSTRUAL:
+              type: integer
+              minimum: -9007199254740991
+              maximum: 9007199254740991
+            FOLLICULAR:
+              type: integer
+              minimum: -9007199254740991
+              maximum: 9007199254740991
+            OVULATORY:
+              type: integer
+              minimum: -9007199254740991
+              maximum: 9007199254740991
+            LUTEAL:
+              type: integer
+              minimum: -9007199254740991
+              maximum: 9007199254740991
+          required:
+            - MENSTRUAL
+            - FOLLICULAR
+            - OVULATORY
+            - LUTEAL
+          additionalProperties: false
+        total:
+          type: integer
+          minimum: -9007199254740991
+          maximum: 9007199254740991
+        topPhase:
+          type: string
+          enum:
+            - MENSTRUAL
+            - FOLLICULAR
+            - OVULATORY
+            - LUTEAL
+        topShare:
+          type: number
+      required:
+        - symptomKey
+        - counts
+        - total
+        - topPhase
+        - topShare
+      additionalProperties: false
+      description: Where a logged symptom clusters across the cycle phases. Surfaced only once logged on ≥3 phase-labelled
+        days. Observational, never causal.
+    CyclePurgeEnvelope:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            purged:
+              type: boolean
+            dayLogs:
+              type: integer
+              minimum: -9007199254740991
+              maximum: 9007199254740991
+            predictions:
+              type: integer
+              minimum: -9007199254740991
+              maximum: 9007199254740991
+            cycles:
+              type: integer
+              minimum: -9007199254740991
+              maximum: 9007199254740991
+            auditRows:
+              type: integer
+              minimum: -9007199254740991
+              maximum: 9007199254740991
+            pushRows:
+              type: integer
+              minimum: -9007199254740991
+              maximum: 9007199254740991
+          required:
+            - purged
+            - dayLogs
+            - predictions
+            - cycles
+            - auditRows
+            - pushRows
+          additionalProperties: false
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    CycleProfileEnvelope:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/CycleProfileDTO"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    CycleProfileDTO:
+      type: object
+      properties:
+        goal:
+          type: string
+          enum:
+            - GENERAL_HEALTH
+            - AVOID_PREGNANCY
+            - TRYING_TO_CONCEIVE
+            - PERIMENOPAUSE
+            - OFF
+        cycleTrackingEnabled:
+          type: boolean
+        rawChartMode:
+          type: boolean
+        predictionEnabled:
+          type: boolean
+        discreetNotifications:
+          type: boolean
+        sensitiveCategoryEncryption:
+          type: boolean
+        typicalCycleLength:
+          anyOf:
+            - type: integer
+              minimum: -9007199254740991
+              maximum: 9007199254740991
+            - type: "null"
+        typicalPeriodLength:
+          anyOf:
+            - type: integer
+              minimum: -9007199254740991
+              maximum: 9007199254740991
+            - type: "null"
+        lutealPhaseLength:
+          anyOf:
+            - type: integer
+              minimum: -9007199254740991
+              maximum: 9007199254740991
+            - type: "null"
+        updatedAt:
+          type: string
+          format: date-time
+          pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
+      required:
+        - goal
+        - cycleTrackingEnabled
+        - rawChartMode
+        - predictionEnabled
+        - discreetNotifications
+        - sensitiveCategoryEncryption
+        - typicalCycleLength
+        - typicalPeriodLength
+        - lutealPhaseLength
+        - updatedAt
+      additionalProperties: false
+      description: The full per-user cycle settings row.
+    CyclePrefsGetEnvelope:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/CycleProfileDTO"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    CyclePrefsPatchEnvelope:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/CycleProfileDTO"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
     CapabilitiesEnvelope:
       type: object
       properties:
@@ -4237,26 +5969,6 @@ components:
       additionalProperties: false
       description: Live id vocabularies + contract version. Every list is derived server-side from the canonical registry it
         documents, so it cannot drift from the values the routes actually accept/emit.
-    ErrorEnvelope:
-      type: object
-      properties:
-        data:
-          type: "null"
-        error:
-          type: string
-        meta:
-          type: object
-          properties:
-            requestId:
-              type: string
-            errorCode:
-              type: string
-          additionalProperties: false
-      required:
-        - data
-        - error
-      additionalProperties: false
-      description: "Standard error response: data is null, error is human prose."
     ShareLinkCreated:
       type: object
       properties:

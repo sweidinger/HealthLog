@@ -7,6 +7,7 @@ import {
   Bug,
   ChevronsLeft,
   ChevronsRight,
+  Droplets,
   Home,
   Lightbulb,
   LogOut,
@@ -79,6 +80,16 @@ const navItems = [
     tourId: "nav-achievements",
   },
 ];
+
+// v1.15.0 — the cycle nav entry, appended to the main list only when the
+// account's `cycleTrackingEnabled` gate is true (resolved on `/api/auth/me`).
+// Hidden by construction for accounts without the feature.
+const cycleNavItem = {
+  href: "/cycle",
+  tKey: "nav.cycle",
+  icon: Droplets,
+  tourId: "nav-cycle",
+} as const;
 
 function getInitials(name: string): string {
   return name
@@ -249,6 +260,10 @@ export function SidebarNav() {
   // with no sub-item expansion in the global sidebar — `<AdminShell>`
   // renders its own per-section nav inside the page itself.
   const onAdminPage = pathname === "/admin" || pathname.startsWith("/admin/");
+  // v1.15.0 — append the cycle entry only when the gate resolves true.
+  const visibleNavItems = user?.cycleTrackingEnabled
+    ? [...navItems, cycleNavItem]
+    : navItems;
   const [collapsed, setCollapsed] = useState(() => {
     if (typeof window === "undefined") return false;
     try {
@@ -350,7 +365,7 @@ export function SidebarNav() {
             </div>
           )}
           <div className="space-y-1">
-            {navItems.map((item) => {
+            {visibleNavItems.map((item) => {
               const isActive =
                 item.href === "/"
                   ? pathname === "/"

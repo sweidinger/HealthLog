@@ -31,6 +31,7 @@ export const doctorReportPrefsSchema = z
     mood: z.boolean(),
     compliance: z.boolean(),
     sleep: z.boolean(),
+    cycle: z.boolean(),
   })
   .partial();
 
@@ -49,6 +50,7 @@ export interface DoctorReportPrefs {
   mood: boolean;
   compliance: boolean;
   sleep: boolean;
+  cycle: boolean;
 }
 
 /**
@@ -65,6 +67,9 @@ export const DEFAULT_DOCTOR_REPORT_PREFS: DoctorReportPrefs = {
   mood: false, // privacy default per Marc
   compliance: true,
   sleep: true,
+  // Cycle data is opt-in: a user sharing a BP report with a cardiologist
+  // should not auto-leak reproductive data. Same privacy stance as mood.
+  cycle: false,
 };
 
 /**

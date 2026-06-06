@@ -1222,6 +1222,98 @@ export function buildDoctorReportPdfDocument(
         .finalY + 8;
   }
 
+  // v1.15.0 — cycle / reproductive-health section. Privacy default OFF: the
+  // aggregator only populates `data.cycle` when the cycle section toggle is
+  // explicitly ON AND the user has an observed cycle. Statistics only (no
+  // free-text notes). Skipped entirely otherwise.
+  if (data.cycle) {
+    const cyc = data.cycle;
+    y = ensureSpace(y, 6 + 6 + estimateTableHeight(1));
+
+    doc.setFontSize(14);
+    doc.setFont("helvetica", "bold");
+    doc.text(t("doctorReport.cycleTitle"), margin, y);
+    y += 6;
+
+    // Summary line: LMP, avg length ± variability, avg period, phase.
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "normal");
+    const summaryBits: string[] = [];
+    if (cyc.lastPeriodStart) {
+      summaryBits.push(
+        `${t("doctorReport.cycleLmp")}: ${fmtDate(`${cyc.lastPeriodStart}T12:00:00.000Z`)}`,
+      );
+    }
+    if (cyc.averageCycleLengthDays !== null) {
+      const varSuffix =
+        cyc.cycleLengthVariabilityDays !== null
+          ? ` (± ${num(cyc.cycleLengthVariabilityDays, 1)})`
+          : "";
+      summaryBits.push(
+        `${t("doctorReport.cycleAvgLength")}: ${num(cyc.averageCycleLengthDays, 1)} ${t("doctorReport.cycleDays")}${varSuffix}`,
+      );
+    }
+    if (cyc.averagePeriodLengthDays !== null) {
+      summaryBits.push(
+        `${t("doctorReport.cycleAvgPeriod")}: ${num(cyc.averagePeriodLengthDays, 1)} ${t("doctorReport.cycleDays")}`,
+      );
+    }
+    if (cyc.currentPhase) {
+      summaryBits.push(
+        `${t("doctorReport.cyclePhase")}: ${t(`doctorReport.cyclePhases.${cyc.currentPhase}`)}`,
+      );
+    }
+    for (const line of doc.splitTextToSize(
+      summaryBits.join("  •  "),
+      pageWidth - margin * 2,
+    )) {
+      doc.text(line, margin, y);
+      y += 4.5;
+    }
+    y += 2;
+
+    if (cyc.recentCycles.length > 0) {
+      const cycleRows = cyc.recentCycles.map((c) => [
+        fmtDate(`${c.startDate}T12:00:00.000Z`),
+        c.lengthDays !== null ? String(c.lengthDays) : "—",
+        c.periodLengthDays !== null ? String(c.periodLengthDays) : "—",
+      ]);
+      autoTable(doc, {
+        startY: y,
+        head: [
+          [
+            t("doctorReport.cycleColStart"),
+            t("doctorReport.cycleColLength"),
+            t("doctorReport.cycleColPeriod"),
+          ],
+        ],
+        body: cycleRows,
+        theme: "grid",
+        styles: {
+          fontSize: 9,
+          cellPadding: 3,
+          textColor: [30, 30, 30],
+          lineColor: [200, 200, 200],
+          lineWidth: 0.3,
+        },
+        headStyles: {
+          fillColor: [245, 245, 245],
+          textColor: [30, 30, 30],
+          fontStyle: "bold",
+        },
+        margin: {
+          left: margin,
+          right: margin,
+          top: margin,
+          bottom: tableBottomMargin,
+        },
+      });
+      y =
+        (doc as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable
+          .finalY + 8;
+    }
+  }
+
   // v1.7.0 — optional AI summary. OUT of the clinical PDF by default;
   // rendered ONLY when the user explicitly opted in. Clearly labelled and
   // flagged as not clinically validated so a physician never mistakes it

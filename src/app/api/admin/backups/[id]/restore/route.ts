@@ -49,6 +49,7 @@ import {
   MEDICATION_COMPLIANCE_BACKFILL_DAYS,
 } from "@/lib/rollups/medication-compliance-rollups";
 import { recomputeUserRollups } from "@/lib/rollups/measurement-rollups";
+import { restoreCycleData } from "@/lib/cycle/backup";
 
 export const dynamic = "force-dynamic";
 
@@ -63,6 +64,10 @@ interface RestoreResponse {
     notificationChannels: number;
     pushSubscriptions: number;
     telegramScheduledDeletions: number;
+    // v1.15.0 — cycle tables wiped before recreate.
+    cycles: number;
+    cycleDayLogs: number;
+    cycleProfile: number;
   };
 }
 
@@ -397,6 +402,11 @@ const handler = apiHandler(
           });
         }
 
+        // v1.15.0 — cycle tables (profile + observed spans + day-logs +
+        // symptom links). Delete-then-recreate, mirroring the contract
+        // above. `notesEncrypted` is restored as ciphertext verbatim.
+        const cycleCleared = await restoreCycleData(tx, ownerId, payload);
+
         return {
           measurements: measurements.count,
           medications: meds.count,
@@ -405,6 +415,9 @@ const handler = apiHandler(
           notificationChannels: channels.count,
           pushSubscriptions: subs.count,
           telegramScheduledDeletions: tgDel.count,
+          cycles: cycleCleared.cycles,
+          cycleDayLogs: cycleCleared.cycleDayLogs,
+          cycleProfile: cycleCleared.cycleProfile,
         };
       });
     } catch (err) {
@@ -513,6 +526,8 @@ const handler = apiHandler(
           medications: summary.medications,
           intakeEvents: summary.intakeEvents,
           moodEntries: summary.moodEntries,
+          cycles: summary.cycles,
+          cycleDayLogs: summary.cycleDayLogs,
         },
       },
     });

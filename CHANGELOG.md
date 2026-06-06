@@ -2,6 +2,17 @@
 
 ## [Unreleased]
 
+## [1.15.0] — 2026-06-06 — cycle tracking
+
+### Added
+
+- **Cycle tracking.** A new, private menstrual-cycle vertical. Log your period (flow and intermenstrual spotting), basal body temperature, cervical mucus, ovulation and pregnancy/progesterone tests, contraception, intercourse, and graded symptoms — all from one quick-entry sheet. A month calendar marks logged days, the predicted period window, the fertile window, and ovulation; the cycle wheel shows your current day and phase at a glance, and a logged day can be edited or deleted.
+- **Honest predictions.** Next-period and fertile-window forecasts are always shown as a range with a confidence level — never a single certain date — and carry a clear, non-medical caveat (with a stronger one when you track to avoid pregnancy). A "read your body" mode suppresses every interpretation if you prefer to see only your raw data. The forecast is computed from your own data so the iOS client produces the identical result offline.
+- **Basal-body-temperature chart** for the current cycle, with your fertility signs in the tooltip and the estimated — or confirmed — ovulation marked.
+- **Phase insights.** An insights tab relates your cycle phase to your vitals — resting heart rate, HRV, sleep, steps, weight, blood glucose, mood — showing where each differs between phases with statistical significance, and which of your logged symptoms cluster in which phase. Associations only, never cause. A per-cycle history lists your recent cycle and period lengths.
+- **Privacy first.** Cycle tracking is off by default except for accounts set to female, and anyone can turn it on or off from settings. The intent-revealing fields are encrypted at rest behind a default-on toggle; a discreet-notifications mode keeps any reminder generic on the lock screen; period reminders are opt-in per channel; and a one-tap purge hard-deletes every cycle row, the cycle audit trail, and reminder records, and clears your tracking intent.
+- **Apple Health import.** Reproductive-health categories from an Apple Health export fold into your cycle log, and cycle data is included in the health-record export (PDF and FHIR).
+
 ## [1.14.0] — 2026-06-06 — animated health scores, score explanations, mood-factor correlations, log past doses
 
 ### Added
