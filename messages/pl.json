@@ -4999,6 +4999,9 @@
       "noActiveCycle": "Brak aktywnego cyklu",
       "viewDetails": "Zobacz analizy cyklu"
     },
+    "wellnessRing": {
+      "label": "Cykl"
+    },
     "disclaimer": "Te prognozy to opisowe szacunki na podstawie zapisanych danych, a nie metoda antykoncepcji ani porada medyczna. Nigdy nie oznaczają, że współżycie bez zabezpieczenia jest bezpieczne. W sprawach antykoncepcji lub decyzji medycznych skonsultuj się z pracownikiem ochrony zdrowia.",
     "title": "Twój cykl",
     "subtitle": "Zapisuj miesiączkę i objawy oraz sprawdzaj, co dalej.",

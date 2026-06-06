@@ -4999,6 +4999,9 @@
       "noActiveCycle": "No active cycle yet",
       "viewDetails": "View cycle insights"
     },
+    "wellnessRing": {
+      "label": "Cycle"
+    },
     "disclaimer": "These predictions are descriptive estimates from your logged data, not a contraceptive method and not medical advice. They never indicate that it is safe to have unprotected sex. For contraception or any medical decision, consult a healthcare professional.",
     "title": "Your cycle",
     "subtitle": "Log your period and symptoms, see what comes next.",

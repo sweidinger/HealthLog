@@ -24,6 +24,14 @@ const GAP = 3;
 // below the touch-friendly 14 px square on narrow viewports. The
 // stretch branch computes an adaptive size; both branches clamp here.
 const CELL_FLOOR_PX = 14;
+// v1.15.3 — cell-ceiling for the stretch branch. With a short window (a
+// single medication / few covered weeks → only ~5 columns) the adaptive
+// `containerWidth / weeks` cell ballooned to fill a wide card, and since the
+// grid is square the SVG height (`7 * cellSize + 6 * GAP`) blew up to ~3× the
+// neighbouring tiles. Capping the cell keeps the grid dense + left-aligned
+// (extra width is whitespace) so the heatmap holds the tile-height rhythm:
+// height ≈ 18 + 7·22 + 6·3 = 190 px, in line with the surrounding tiles.
+const CELL_CEIL_PX = 22;
 
 function getColor(data: DailyData): string {
   if (data.expected === 0) return "var(--secondary)";
@@ -229,10 +237,13 @@ export function ComplianceHeatmap({
   // narrows. Static (non-stretch) instances use the canonical 18 px.
   const cellSize =
     stretch && containerWidth > 0
-      ? Math.max(
-          CELL_FLOOR_PX,
-          (containerWidth - labelWidth - Math.max(0, weeks - 1) * GAP) /
-            Math.max(weeks, 1),
+      ? Math.min(
+          CELL_CEIL_PX,
+          Math.max(
+            CELL_FLOOR_PX,
+            (containerWidth - labelWidth - Math.max(0, weeks - 1) * GAP) /
+              Math.max(weeks, 1),
+          ),
         )
       : CELL_SIZE;
   const step = cellSize + GAP;
@@ -253,7 +264,11 @@ export function ComplianceHeatmap({
         <svg
           width={svgWidth}
           height={svgHeight}
-          className={stretch ? "block w-full" : "block"}
+          // v1.15.3 — `max-w-full` (not `w-full`) so a short window keeps its
+          // natural, square, left-aligned grid (the capped cells already size
+          // off `containerWidth`, so a full window still fills the row) rather
+          // than CSS-stretching ~5 columns of capped cells into wide rectangles.
+          className={stretch ? "block max-w-full" : "block"}
           onMouseLeave={() => setTooltip((prev) => (prev?.pinned ? prev : null))}
         >
           {/* Month labels */}

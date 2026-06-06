@@ -4999,6 +4999,9 @@
       "noActiveCycle": "Aucun cycle actif pour l'instant",
       "viewDetails": "Voir les analyses du cycle"
     },
+    "wellnessRing": {
+      "label": "Cycle"
+    },
     "disclaimer": "Ces prévisions sont des estimations descriptives issues de vos données enregistrées, ni une méthode de contraception ni un avis médical. Elles n'indiquent jamais qu'il est sûr d'avoir des rapports non protégés. Pour la contraception ou toute décision médicale, consultez un professionnel de santé.",
     "title": "Ton cycle",
     "subtitle": "Enregistre tes règles et symptômes, et vois ce qui arrive ensuite.",
