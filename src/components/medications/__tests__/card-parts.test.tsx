@@ -84,6 +84,51 @@ describe("medication card-parts — shared presentational components", () => {
     expect(html).not.toContain("lucide-flame");
   });
 
+  it("compliance bars show taken / expected counts next to each rate", () => {
+    // v1.15.8 — two identical percentages with no context read as a stuck
+    // display; the count after each rate makes them distinguishable. A
+    // rolling weekly med reading 100% on both windows now shows
+    // `100% · 4 / 4` and `100% · 52 / 52`.
+    const html = render(
+      <MedicationComplianceBars
+        rate7={100}
+        rate30={100}
+        streak={3}
+        takenShort={4}
+        expectedShort={4}
+        takenLong={52}
+        expectedLong={52}
+      />,
+    );
+    expect(html).toContain("4 / 4");
+    expect(html).toContain("52 / 52");
+    // The middle-dot separator joins the percentage and the count.
+    expect(html).toContain("·");
+  });
+
+  it("compliance bars fall back to the bare expected count when no taken count is on the wire", () => {
+    const html = render(
+      <MedicationComplianceBars
+        rate7={80}
+        rate30={75}
+        streak={0}
+        expectedShort={12}
+        expectedLong={52}
+      />,
+    );
+    expect(html).toContain("12 doses");
+    expect(html).toContain("52 doses");
+  });
+
+  it("compliance bars render no count line when neither count is available", () => {
+    // Older mocks / the pre-display fallback path pass only the rates.
+    const html = render(
+      <MedicationComplianceBars rate7={90} rate30={88} streak={0} />,
+    );
+    expect(html).not.toContain("·");
+    expect(html).not.toContain("doses");
+  });
+
   it("status pill stamps the success token + take-now glyph in window", () => {
     const html = render(
       <MedicationStatusPill

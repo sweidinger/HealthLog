@@ -3,6 +3,30 @@ import { Flame } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { useTranslations, useFormatters } from "@/lib/i18n/context";
 
+type Translate = ReturnType<typeof useTranslations>["t"];
+type Formatters = ReturnType<typeof useFormatters>;
+
+/**
+ * v1.15.8 — build the dose-count caption shown after the percentage.
+ *
+ * Returns `taken / expected` (`4 / 12`) when both counts are known, the
+ * pluralised `<expected> doses` string when only the denominator is on the
+ * wire, and `null` when neither is available (older mocks / pre-display
+ * fallback) so the caller renders nothing rather than an empty separator.
+ */
+function doseCount(
+  t: Translate,
+  fmt: Formatters,
+  taken: number | undefined,
+  expected: number | undefined,
+): string | null {
+  if (typeof expected !== "number") return null;
+  if (typeof taken === "number") {
+    return `${fmt.number(taken)} / ${fmt.number(expected)}`;
+  }
+  return t("medications.complianceDoses", { count: expected });
+}
+
 interface MedicationComplianceBarsProps {
   rate7: number;
   rate30: number;
@@ -17,6 +41,20 @@ interface MedicationComplianceBarsProps {
   shortDays?: number;
   /** v1.8.6 — the span of the long row in days. */
   longDays?: number;
+  /**
+   * v1.15.8 — taken-dose count over the short window (numerator). Rendered
+   * after the percentage as a `taken / expected` count so two identical
+   * percentages stay distinguishable: a rolling weekly med reading 100% on
+   * every window now shows `100% · 4 / 4` vs `100% · 52 / 52` instead of two
+   * bare identical numbers that read as a stuck display.
+   */
+  takenShort?: number;
+  /** v1.15.8 — expected-dose count over the short window (denominator). */
+  expectedShort?: number;
+  /** v1.15.8 — taken-dose count over the long window (numerator). */
+  takenLong?: number;
+  /** v1.15.8 — expected-dose count over the long window (denominator). */
+  expectedLong?: number;
 }
 
 /**
@@ -41,6 +79,10 @@ export function MedicationComplianceBars({
   streak,
   shortDays = 7,
   longDays = 30,
+  takenShort,
+  expectedShort,
+  takenLong,
+  expectedLong,
 }: MedicationComplianceBarsProps) {
   const { t } = useTranslations();
   const fmt = useFormatters();
@@ -54,12 +96,27 @@ export function MedicationComplianceBars({
   const shortPct = fmt.number(Math.round(rate7));
   const longPct = fmt.number(Math.round(rate30));
 
+  // v1.15.8 — the dose-count line rendered after each percentage. Shows the
+  // taken-of-expected count when both are known (`4 / 12`), else the bare
+  // expected count when only the denominator is on the wire (`12 Dosen`).
+  // Two windows reading the same percentage stay distinguishable by their
+  // counts, which is what an operator needs to trust the number.
+  const shortCount = doseCount(t, fmt, takenShort, expectedShort);
+  const longCount = doseCount(t, fmt, takenLong, expectedLong);
+
   return (
     <div className="space-y-2.5">
       <div className="space-y-1.5">
         <div className="flex items-center justify-between text-sm">
           <span className="text-muted-foreground">{shortLabel}</span>
-          <span className="font-medium">{shortPct}%</span>
+          <span className="font-medium">
+            {shortPct}%
+            {shortCount && (
+              <span className="text-muted-foreground ml-1.5 font-normal">
+                · {shortCount}
+              </span>
+            )}
+          </span>
         </div>
         {/* aria-label so the bar has an accessible name. */}
         <Progress value={rate7} className="h-2" aria-label={shortLabel} />
@@ -68,7 +125,14 @@ export function MedicationComplianceBars({
       <div className="space-y-1.5">
         <div className="flex items-center justify-between text-sm">
           <span className="text-muted-foreground">{longLabel}</span>
-          <span className="font-medium">{longPct}%</span>
+          <span className="font-medium">
+            {longPct}%
+            {longCount && (
+              <span className="text-muted-foreground ml-1.5 font-normal">
+                · {longCount}
+              </span>
+            )}
+          </span>
         </div>
         <Progress value={rate30} className="h-2" aria-label={longLabel} />
       </div>

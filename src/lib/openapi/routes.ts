@@ -1273,9 +1273,13 @@ const complianceDisplay = z
     minStableDoses: z.number().int().nonnegative(),
     short: z.object({
       rate: z.number().int().min(0).max(100),
+      taken: z.number().int().nonnegative(),
       streak: z.number().int().nonnegative(),
     }),
-    long: z.object({ rate: z.number().int().min(0).max(100) }),
+    long: z.object({
+      rate: z.number().int().min(0).max(100),
+      taken: z.number().int().nonnegative(),
+    }),
     currentCycle: z
       .object({
         state: z

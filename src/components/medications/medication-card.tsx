@@ -211,6 +211,14 @@ export function MedicationCard({
   const rate7 = display?.short.rate ?? compliance?.compliance7?.rate ?? 0;
   const rate30 = display?.long.rate ?? compliance?.compliance30?.rate ?? 0;
   const streak = display?.short.streak ?? compliance?.compliance7?.streak ?? 0;
+  // v1.15.8 — taken-of-expected counts, shown after each percentage so two
+  // identical rates stay distinguishable. Falls back to the static 7-day
+  // `taken` when the cadence-scaled display block is absent.
+  const takenShort = display?.short.taken ?? compliance?.compliance7?.taken;
+  const expectedShort =
+    display?.expectedShort ?? compliance?.compliance7?.totalExpected;
+  const takenLong = display?.long.taken;
+  const expectedLong = display?.expectedLong;
   const categoryLabel = getMedicationCategoryLabel(medication.category, t);
   const sortedSchedules = [...medication.schedules].sort(
     (a, b) =>
@@ -398,6 +406,10 @@ export function MedicationCard({
               streak={streak}
               shortDays={shortDays}
               longDays={longDays}
+              takenShort={takenShort}
+              expectedShort={expectedShort}
+              takenLong={takenLong}
+              expectedLong={expectedLong}
             />
           ) : (
             <MedicationComplianceSkeleton />

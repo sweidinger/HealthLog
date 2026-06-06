@@ -1653,6 +1653,118 @@ describe("buildComplianceDisplay — two rows, cadence-scaled windows", () => {
     expect(display.shortDays).toBe(90);
     expect(display.longDays).toBe(365);
   });
+
+  // v1.15.8 — the card renders the taken-of-expected count next to each rate
+  // so two identical percentages stay distinguishable. These pin the count
+  // numerators onto the display block and guard against a future regression
+  // where every window collapses to the same rate AND the same count (which
+  // would read as a stuck display rather than a real, trustworthy number).
+  it("carries a taken-dose count on each window row", () => {
+    const schedules: ComplianceSchedule[] = [
+      {
+        windowStart: "08:00",
+        windowEnd: "09:00",
+        daysOfWeek: null,
+        rrule: "FREQ=DAILY",
+        timesOfDay: ["08:00"],
+      },
+    ];
+    // Daily med, perfect adherence over the trailing 30 days.
+    const events = [];
+    for (let d = 1; d <= 30; d++) {
+      const at = new Date(NOW.getTime() - d * DAY_MS);
+      at.setUTCHours(8, 10, 0, 0);
+      events.push({ scheduledFor: at, takenAt: at, skipped: false });
+    }
+    const display = buildComplianceDisplay(events, schedules, ctx(), {
+      now: NOW,
+    });
+    // Both rows ~100% — but the COUNTS differ (7-day window has fewer taken
+    // doses than the 30-day window), so the two rows are distinguishable even
+    // when the percentages are identical.
+    expect(display.short.taken).toBeGreaterThan(0);
+    expect(display.long.taken).toBeGreaterThan(0);
+    expect(display.long.taken).toBeGreaterThan(display.short.taken);
+    // The taken count never exceeds its window's expected denominator.
+    expect(display.short.taken).toBeLessThanOrEqual(display.expectedShort);
+    expect(display.long.taken).toBeLessThanOrEqual(display.expectedLong);
+  });
+
+  it("a daily med with misses concentrated outside the 7-day window → 7d ≠ 30d rate", () => {
+    // Guards the "looks broken" report from the other direction: the windows
+    // must NOT collapse to one value. A daily med taken every day inside the
+    // last 7 days but with a cluster of misses in the 8–30-day range yields a
+    // perfect short window and a degraded long window, so the two rows
+    // genuinely differ.
+    const schedules: ComplianceSchedule[] = [
+      {
+        windowStart: "08:00",
+        windowEnd: "09:00",
+        daysOfWeek: null,
+        rrule: "FREQ=DAILY",
+        timesOfDay: ["08:00"],
+      },
+    ];
+    const events = [];
+    for (let d = 1; d <= 30; d++) {
+      // Days 1–7: every dose taken. Days 10–20: missed (no event row).
+      if (d >= 10 && d <= 20) continue;
+      const at = new Date(NOW.getTime() - d * DAY_MS);
+      at.setUTCHours(8, 10, 0, 0);
+      events.push({ scheduledFor: at, takenAt: at, skipped: false });
+    }
+    const display = buildComplianceDisplay(events, schedules, ctx(), {
+      now: NOW,
+    });
+    // Daily med stays on the 7 / 30-day rung.
+    expect(display.shortDays).toBe(7);
+    expect(display.longDays).toBe(30);
+    // The recent week is clean; the month carries the 10–20-day miss cluster.
+    // The windows MUST diverge — the short window outscores the long one,
+    // which is the whole point of showing two rows rather than one number.
+    expect(display.short.rate).toBeGreaterThan(display.long.rate);
+    expect(display.long.rate).toBeLessThan(100);
+    expect(display.short.rate).not.toBe(display.long.rate);
+  });
+
+  it("a rolling weekly med with a partial-adherence history → short and long rates CAN differ", () => {
+    // The operator's "every window is 100%" suspicion is real ONLY for a
+    // faithfully-on-cadence med; once doses are missed the windows MUST be
+    // able to diverge. A weekly rolling injection with recent perfect weeks
+    // but missed shots further back drives the short rate above the long rate
+    // — proving the metric does not structurally collapse to one value.
+    const schedules: ComplianceSchedule[] = [
+      {
+        windowStart: "08:00",
+        windowEnd: "09:00",
+        daysOfWeek: null,
+        rollingIntervalDays: 7,
+        timesOfDay: ["08:00"],
+      },
+    ];
+    const lastShot = new Date(NOW.getTime() - 3 * DAY_MS);
+    // 16 weekly slots back; drop a cluster of older shots (weeks 8–12) so the
+    // long window scores a real miss while the recent weeks stay perfect.
+    const events = Array.from({ length: 16 }, (_, i) => i)
+      .filter((i) => i < 6 || i > 11)
+      .map((i) => {
+        const at = new Date(lastShot.getTime() - i * 7 * DAY_MS);
+        at.setUTCHours(20, 0, 0, 0);
+        return { scheduledFor: at, takenAt: at, skipped: false };
+      });
+    const display = buildComplianceDisplay(
+      events,
+      schedules,
+      ctx({
+        startsOn: new Date(lastShot.getTime() - 15 * 7 * DAY_MS),
+        lastIntakeAt: lastShot,
+      }),
+      { now: NOW },
+    );
+    // The windows are NOT forced equal: the recent short window outscores the
+    // longer one that carries the dropped cluster.
+    expect(display.short.rate).toBeGreaterThan(display.long.rate);
+  });
 });
 
 describe("expectedSlotsBetween", () => {
