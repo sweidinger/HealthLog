@@ -4702,7 +4702,9 @@
     "eventCyclePeriodSoon": "Ciclo in arrivo",
     "eventCyclePeriodSoonDesc": "Inviato un paio di giorni prima del ciclo previsto.",
     "eventCyclePeriodConfirm": "Il ciclo è iniziato?",
-    "eventCyclePeriodConfirmDesc": "Un promemoria discreto dal giorno previsto in poi finché non registri il ciclo."
+    "eventCyclePeriodConfirmDesc": "Un promemoria discreto dal giorno previsto in poi finché non registri il ciclo.",
+    "eventCycleFertileSoon": "Finestra fertile in arrivo",
+    "eventCycleFertileSoonDesc": "Inviato alcuni giorni prima della finestra fertile stimata quando il tuo obiettivo è il concepimento."
   },
   "i18n": {
     "maintainershipBanner": {
@@ -5138,6 +5140,8 @@
       "reminders": "Promemoria",
       "remindersDescription": "Attiva i promemoria del ciclo per canale nelle impostazioni di notifica.",
       "remindersLink": "Impostazioni di notifica",
+      "fertileReminder": "Promemoria finestra fertile",
+      "fertileReminderDescription": "Ricevi un avviso alcuni giorni prima della tua finestra fertile stimata. Disattivato per impostazione predefinita: attivalo per canale nelle impostazioni di notifica.",
       "purgeData": "Elimina i dati del ciclo",
       "purgeConfirmAction": "Sì, elimina tutto",
       "purgeDone": "Dati del ciclo eliminati."
@@ -5174,6 +5178,8 @@
     "periodSoonBody": "Il tuo prossimo ciclo è previsto tra circa due giorni.",
     "periodConfirmTitle": "Il ciclo è iniziato?",
     "periodConfirmBody": "Il tuo ciclo era previsto per adesso. Registralo per mantenere accurate le previsioni.",
+    "fertileSoonTitle": "Finestra fertile in arrivo",
+    "fertileSoonBody": "La tua finestra fertile stimata dovrebbe iniziare tra circa due giorni. È una stima, non una garanzia medica o contraccettiva.",
     "discreetTitle": "Promemoria HealthLog",
     "discreetBody": "Hai un promemoria in HealthLog."
   }

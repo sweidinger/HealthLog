@@ -4702,7 +4702,9 @@
     "eventCyclePeriodSoon": "Règles à venir",
     "eventCyclePeriodSoonDesc": "Envoyé quelques jours avant vos prochaines règles prévues.",
     "eventCyclePeriodConfirm": "Vos règles ont-elles commencé ?",
-    "eventCyclePeriodConfirmDesc": "Un rappel discret le jour prévu ou après, tant qu'aucune règle n'est enregistrée."
+    "eventCyclePeriodConfirmDesc": "Un rappel discret le jour prévu ou après, tant qu'aucune règle n'est enregistrée.",
+    "eventCycleFertileSoon": "Fenêtre fertile à venir",
+    "eventCycleFertileSoonDesc": "Envoyé quelques jours avant votre fenêtre fertile estimée lorsque votre objectif est de concevoir."
   },
   "i18n": {
     "maintainershipBanner": {
@@ -5138,6 +5140,8 @@
       "reminders": "Rappels",
       "remindersDescription": "Activez les rappels de règles par canal dans les paramètres de notification.",
       "remindersLink": "Paramètres de notification",
+      "fertileReminder": "Rappel de fenêtre fertile",
+      "fertileReminderDescription": "Recevez un avertissement quelques jours avant votre fenêtre fertile estimée. Désactivé par défaut : activez-le par canal dans les paramètres de notification.",
       "purgeData": "Supprimer les données de cycle",
       "purgeConfirmAction": "Oui, tout supprimer",
       "purgeDone": "Données de cycle supprimées."
@@ -5174,6 +5178,8 @@
     "periodSoonBody": "Vos prochaines règles sont prévues dans environ deux jours.",
     "periodConfirmTitle": "Vos règles ont-elles commencé ?",
     "periodConfirmBody": "Vos règles étaient prévues pour maintenant. Enregistrez-les pour garder des prévisions précises.",
+    "fertileSoonTitle": "Fenêtre fertile à venir",
+    "fertileSoonBody": "Votre fenêtre fertile estimée devrait commencer dans environ deux jours. Il s'agit d'une estimation, et non d'une garantie médicale ou contraceptive.",
     "discreetTitle": "Rappel HealthLog",
     "discreetBody": "Vous avez un rappel dans HealthLog."
   }

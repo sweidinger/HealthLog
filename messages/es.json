@@ -4702,7 +4702,9 @@
     "eventCyclePeriodSoon": "Período próximo",
     "eventCyclePeriodSoonDesc": "Se envía un par de días antes de tu próximo período previsto.",
     "eventCyclePeriodConfirm": "¿Empezó tu período?",
-    "eventCyclePeriodConfirmDesc": "Un recordatorio suave en o después del inicio previsto mientras no se registre ningún período."
+    "eventCyclePeriodConfirmDesc": "Un recordatorio suave en o después del inicio previsto mientras no se registre ningún período.",
+    "eventCycleFertileSoon": "Ventana fértil próxima",
+    "eventCycleFertileSoonDesc": "Se envía unos días antes de tu ventana fértil estimada cuando tu objetivo es concebir."
   },
   "i18n": {
     "maintainershipBanner": {
@@ -5138,6 +5140,8 @@
       "reminders": "Recordatorios",
       "remindersDescription": "Activa los recordatorios de período por canal en los ajustes de notificaciones.",
       "remindersLink": "Ajustes de notificaciones",
+      "fertileReminder": "Recordatorio de ventana fértil",
+      "fertileReminderDescription": "Recibe un aviso unos días antes de tu ventana fértil estimada. Desactivado por defecto: actívalo por canal en los ajustes de notificaciones.",
       "purgeData": "Eliminar datos del ciclo",
       "purgeConfirmAction": "Sí, eliminar todo",
       "purgeDone": "Datos del ciclo eliminados."
@@ -5174,6 +5178,8 @@
     "periodSoonBody": "Se prevé tu próximo periodo en unos dos días.",
     "periodConfirmTitle": "¿Ha comenzado tu periodo?",
     "periodConfirmBody": "Tu periodo estaba previsto para ahora. Regístralo para mantener las predicciones precisas.",
+    "fertileSoonTitle": "Ventana fértil próxima",
+    "fertileSoonBody": "Se prevé que tu ventana fértil estimada comience en unos dos días. Es una estimación, no una garantía médica ni anticonceptiva.",
     "discreetTitle": "Recordatorio de HealthLog",
     "discreetBody": "Tienes un recordatorio en HealthLog."
   }

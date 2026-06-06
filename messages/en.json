@@ -4702,7 +4702,9 @@
     "eventCyclePeriodSoon": "Period coming up",
     "eventCyclePeriodSoonDesc": "Sent a couple of days before your predicted next period.",
     "eventCyclePeriodConfirm": "Did your period start?",
-    "eventCyclePeriodConfirmDesc": "A gentle check-in on or after the predicted start while no period is logged."
+    "eventCyclePeriodConfirmDesc": "A gentle check-in on or after the predicted start while no period is logged.",
+    "eventCycleFertileSoon": "Fertile window coming up",
+    "eventCycleFertileSoonDesc": "Sent a few days before your estimated fertile window when your goal is trying to conceive."
   },
   "i18n": {
     "maintainershipBanner": {
@@ -5143,6 +5145,8 @@
       "reminders": "Reminders",
       "remindersDescription": "Turn period reminders on per channel in notification settings.",
       "remindersLink": "Notification settings",
+      "fertileReminder": "Fertile-window reminder",
+      "fertileReminderDescription": "Get a heads-up a few days before your estimated fertile window. Off by default — turn it on per channel in notification settings.",
       "purgeData": "Delete cycle data",
       "purgeConfirmAction": "Yes, delete everything",
       "purgeDone": "Cycle data deleted."
@@ -5174,6 +5178,8 @@
     "periodSoonBody": "Your next period is predicted in about two days.",
     "periodConfirmTitle": "Did your period start?",
     "periodConfirmBody": "Your period was predicted around now. Log it to keep predictions accurate.",
+    "fertileSoonTitle": "Fertile window coming up",
+    "fertileSoonBody": "Your estimated fertile window is predicted to start in about two days. This is an estimate, not a medical or contraceptive guarantee.",
     "discreetTitle": "HealthLog reminder",
     "discreetBody": "You have a reminder in HealthLog."
   }

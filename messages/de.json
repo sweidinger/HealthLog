@@ -4702,7 +4702,9 @@
     "eventCyclePeriodSoon": "Periode steht bevor",
     "eventCyclePeriodSoonDesc": "Ein paar Tage vor deiner vorhergesagten nächsten Periode.",
     "eventCyclePeriodConfirm": "Hat deine Periode begonnen?",
-    "eventCyclePeriodConfirmDesc": "Eine sanfte Nachfrage am oder nach dem vorhergesagten Beginn, solange keine Periode erfasst ist."
+    "eventCyclePeriodConfirmDesc": "Eine sanfte Nachfrage am oder nach dem vorhergesagten Beginn, solange keine Periode erfasst ist.",
+    "eventCycleFertileSoon": "Fruchtbares Fenster steht bevor",
+    "eventCycleFertileSoonDesc": "Wird einige Tage vor deinem geschätzten fruchtbaren Fenster gesendet, wenn dein Ziel die Empfängnis ist."
   },
   "i18n": {
     "maintainershipBanner": {
@@ -5138,6 +5140,8 @@
       "reminders": "Erinnerungen",
       "remindersDescription": "Perioden-Erinnerungen pro Kanal in den Benachrichtigungseinstellungen aktivieren.",
       "remindersLink": "Benachrichtigungseinstellungen",
+      "fertileReminder": "Erinnerung an das fruchtbare Fenster",
+      "fertileReminderDescription": "Erhalte einige Tage vor deinem geschätzten fruchtbaren Fenster einen Hinweis. Standardmäßig aus – aktiviere sie pro Kanal in den Benachrichtigungseinstellungen.",
       "purgeData": "Zyklusdaten löschen",
       "purgeConfirmAction": "Ja, alles löschen",
       "purgeDone": "Zyklusdaten gelöscht."
@@ -5174,6 +5178,8 @@
     "periodSoonBody": "Deine nächste Periode wird in etwa zwei Tagen erwartet.",
     "periodConfirmTitle": "Hat deine Periode begonnen?",
     "periodConfirmBody": "Deine Periode wurde für etwa jetzt vorhergesagt. Trage sie ein, damit die Vorhersagen genau bleiben.",
+    "fertileSoonTitle": "Fruchtbares Fenster steht bevor",
+    "fertileSoonBody": "Dein geschätztes fruchtbares Fenster beginnt voraussichtlich in etwa zwei Tagen. Dies ist eine Schätzung und keine medizinische oder verhütende Garantie.",
     "discreetTitle": "HealthLog-Erinnerung",
     "discreetBody": "Du hast eine Erinnerung in HealthLog."
   }

@@ -205,6 +205,29 @@ export function CycleSettings({ profile }: { profile: CycleProfileDTO }) {
           </Button>
         </div>
 
+        {/* Fertile-window reminder — surfaced ONLY under the conception goal.
+            The toggle itself is the default-OFF per-channel CYCLE_FERTILE_SOON
+            switch on the notifications page; here we just point a TTC user to
+            it, so the affordance never appears (and fertile language never
+            shows) for the other goals (the inclusive-framing rule). */}
+        {goal === "TRYING_TO_CONCEIVE" ? (
+          <div className="flex items-start justify-between gap-4">
+            <div className="space-y-0.5">
+              <p className="text-sm font-medium">
+                {t("cycle.settings.fertileReminder")}
+              </p>
+              <p className="text-muted-foreground text-xs">
+                {t("cycle.settings.fertileReminderDescription")}
+              </p>
+            </div>
+            <Button variant="outline" size="sm" asChild className="shrink-0">
+              <Link href="/notifications">
+                {t("cycle.settings.remindersLink")}
+              </Link>
+            </Button>
+          </div>
+        ) : null}
+
         <Separator />
 
         {/* Data export / delete */}
