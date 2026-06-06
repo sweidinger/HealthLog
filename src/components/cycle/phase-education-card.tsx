@@ -178,7 +178,7 @@ export function PhaseEducationCard({
                   return (
                     <li
                       key={row.symptomKey}
-                      className="border-foreground/10 bg-background/55 text-foreground inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium"
+                      className="border-foreground/15 bg-background/55 text-foreground inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium"
                     >
                       {Icon ? (
                         <Icon

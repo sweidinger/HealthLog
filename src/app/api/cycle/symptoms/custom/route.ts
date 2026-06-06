@@ -26,6 +26,7 @@ import {
 import { apiHandler, requireAuth } from "@/lib/api-handler";
 import { annotate } from "@/lib/logging/context";
 import { auditLog } from "@/lib/auth/audit";
+import { checkRateLimit } from "@/lib/rate-limit";
 import { requireCycleEnabled } from "@/lib/cycle/gate";
 import {
   createCustomSymptomSchema,
@@ -70,6 +71,13 @@ export const POST = apiHandler(async (request: NextRequest) => {
 
   const gate = await requireCycleEnabled(user.id, user.gender);
   if (!gate.enabled) return gate.response;
+
+  // Cap mutation rate so a single session can't flood the encrypted-label
+  // catalogue (each create runs an encrypt + audit write).
+  const rl = await checkRateLimit(`cycle:symptom:custom:${user.id}`, 30, 60_000);
+  if (!rl.allowed) {
+    return apiError("Too many requests, try again later", 429);
+  }
 
   const parsed = createCustomSymptomSchema.safeParse(await request.json());
   if (!parsed.success) {

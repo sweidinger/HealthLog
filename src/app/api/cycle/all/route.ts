@@ -68,7 +68,13 @@ export const DELETE = apiHandler(async (request: NextRequest) => {
     const pushRows = await tx.pushAttempt.deleteMany({
       where: {
         userId: user.id,
-        eventType: { in: ["CYCLE_PERIOD_SOON", "CYCLE_PERIOD_CONFIRM"] },
+        eventType: {
+          in: [
+            "CYCLE_PERIOD_SOON",
+            "CYCLE_PERIOD_CONFIRM",
+            "CYCLE_FERTILE_SOON",
+          ],
+        },
       },
     });
     // Reset the reproductive INTENT carried on the profile (goal + cycle/period/

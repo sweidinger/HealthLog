@@ -254,11 +254,11 @@ export function CycleCalendar({
               {isConfirmedOvulation ? (
                 <span
                   aria-hidden="true"
-                  className="absolute inset-x-1 inset-y-2 rounded-full ring-[1.5px] ring-inset"
+                  className="absolute inset-x-1 inset-y-2 rounded-full ring-2 ring-inset"
                   style={
                     {
                       backgroundColor: OVULATION_HUE,
-                      opacity: 0.16,
+                      opacity: 0.22,
                       "--tw-ring-color": OVULATION_HUE,
                     } as React.CSSProperties
                   }

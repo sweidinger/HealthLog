@@ -56,6 +56,8 @@ import {
   useLogDay,
   usePatchDayLog,
   useStartPeriod,
+  CustomSymptomError,
+  CUSTOM_SYMPTOM_LIMIT_ERROR_CODE,
   type CustomSymptomDTO,
   type CycleDayLogPatch,
 } from "./use-cycle";
@@ -556,7 +558,7 @@ export function LogDaySheet({
                   }}
                 />
               ))}
-              <AddSymptomChip />
+              <AddSymptomChip onCreated={toggleSymptom} />
             </div>
           </div>
         </div>
@@ -813,7 +815,11 @@ function SymptomChip({
  * popover to mint a new custom symptom. Matches the chip grid (same rounded-
  * full pill, same size) so it reads as part of the grid, not a foreign button.
  */
-function AddSymptomChip() {
+function AddSymptomChip({
+  onCreated,
+}: {
+  onCreated: (key: string) => void;
+}) {
   const { t } = useTranslations();
   const create = useCreateCustomSymptom();
   const [openForm, setOpenForm] = useState(false);
@@ -828,12 +834,24 @@ function AddSymptomChip() {
   async function handleCreate() {
     const trimmed = label.trim();
     if (!trimmed) return;
-    await create.mutateAsync({ label: trimmed, icon });
-    reset();
-    setOpenForm(false);
+    try {
+      const created = await create.mutateAsync({ label: trimmed, icon });
+      // Auto-select the freshly-minted symptom so the user doesn't have to tap
+      // the new chip after adding it.
+      onCreated(created.key);
+      reset();
+      setOpenForm(false);
+    } catch {
+      // Keep the popover open; `create.error` drives the inline message
+      // (cap copy on the limit errorCode, generic otherwise).
+    }
   }
 
-  const limitReached = create.isError;
+  // Only the per-user cap surfaces the "limit reached" copy — a transient or
+  // validation error must not masquerade as the cap being hit.
+  const limitReached =
+    create.error instanceof CustomSymptomError &&
+    create.error.errorCode === CUSTOM_SYMPTOM_LIMIT_ERROR_CODE;
 
   return (
     <Popover

@@ -33,6 +33,9 @@ vi.mock("@/lib/db-compat", () => ({
 vi.mock("@/lib/cycle/gate", () => ({
   requireCycleEnabled: vi.fn(),
 }));
+vi.mock("@/lib/rate-limit", () => ({
+  checkRateLimit: vi.fn().mockResolvedValue({ allowed: true, remaining: 29 }),
+}));
 vi.mock("next/headers", () => ({
   headers: vi.fn(async () => ({ get: () => null })),
   cookies: vi.fn(async () => ({
@@ -159,6 +162,39 @@ describe("PATCH/DELETE /api/cycle/symptoms/custom/:key", () => {
     );
     expect(res.status).toBe(404);
     expect(db.cycleSymptom.findFirst).not.toHaveBeenCalled();
+  });
+
+  it("rechecks the cap on reactivation (hidden → active) and 422s when full", async () => {
+    // A soft-hidden row doesn't count toward the active cap; flipping it back
+    // to active must re-clear the limit so hide-then-reenable can't bypass it.
+    db.cycleSymptom.findFirst.mockResolvedValue({ id: "id1", isActive: false });
+    db.cycleSymptom.count.mockResolvedValue(50);
+    const res = await PATCH(
+      jsonReq("http://localhost/api/cycle/symptoms/custom/custom:abc", "PATCH", {
+        isActive: true,
+      }),
+      params("custom:abc"),
+    );
+    expect(res.status).toBe(422);
+    expect(db.cycleSymptom.update).not.toHaveBeenCalled();
+  });
+
+  it("does not recheck the cap when reactivation is not requested", async () => {
+    db.cycleSymptom.findFirst.mockResolvedValue({ id: "id1", isActive: true });
+    db.cycleSymptom.update.mockResolvedValue({
+      key: "custom:abc",
+      icon: "Tag",
+      isActive: true,
+      labelEncrypted: "enc:Renamed",
+    });
+    const res = await PATCH(
+      jsonReq("http://localhost/api/cycle/symptoms/custom/custom:abc", "PATCH", {
+        label: "Renamed",
+      }),
+      params("custom:abc"),
+    );
+    expect(res.status).toBe(200);
+    expect(db.cycleSymptom.count).not.toHaveBeenCalled();
   });
 
   it("soft-deactivates by default and hard-deletes on ?purge=true", async () => {

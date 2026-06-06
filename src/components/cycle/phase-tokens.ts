@@ -44,6 +44,16 @@ export const FLOW_OPACITY: Record<Exclude<FlowLevel, "NONE">, number> = {
 /** The default period-day fill alpha when a logged day carries no flow grade. */
 export const FLOW_OPACITY_DEFAULT = 0.32;
 
+/**
+ * History-chart bar fill alphas — the two-segment stacked bar (rest-of-cycle
+ * upper, period lower) keeps its intensity here so the chart and the calendar
+ * draw their fills from one token source rather than inline literals. The
+ * period segment sits denser than the rest span so the bleeding portion reads
+ * as the anchor of each bar.
+ */
+export const HISTORY_REST_OPACITY = 0.5;
+export const HISTORY_PERIOD_OPACITY = 0.85;
+
 /** Resolve the flow-shading alpha for a logged period day (graceful fallback). */
 export function flowOpacity(flow: string | null | undefined): number {
   if (flow && flow !== "NONE" && flow in FLOW_OPACITY) {

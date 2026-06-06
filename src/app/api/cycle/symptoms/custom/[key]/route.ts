@@ -18,12 +18,14 @@ import {
 import { apiHandler, requireAuth } from "@/lib/api-handler";
 import { annotate } from "@/lib/logging/context";
 import { auditLog } from "@/lib/auth/audit";
+import { checkRateLimit } from "@/lib/rate-limit";
 import { requireCycleEnabled } from "@/lib/cycle/gate";
 import {
   updateCustomSymptomSchema,
   decryptCustomLabel,
   encryptCustomLabel,
   isCustomSymptomKey,
+  MAX_CUSTOM_SYMPTOMS_PER_USER,
 } from "@/lib/cycle/custom-symptoms";
 
 export const dynamic = "force-dynamic";
@@ -38,6 +40,15 @@ export const PATCH = apiHandler(
     const gate = await requireCycleEnabled(user.id, user.gender);
     if (!gate.enabled) return gate.response;
 
+    const rl = await checkRateLimit(
+      `cycle:symptom:custom:${user.id}`,
+      30,
+      60_000,
+    );
+    if (!rl.allowed) {
+      return apiError("Too many requests, try again later", 429);
+    }
+
     const { key } = await params;
     if (!isCustomSymptomKey(key)) return apiError("Not a custom symptom", 404);
 
@@ -50,9 +61,26 @@ export const PATCH = apiHandler(
 
     const owned = await prisma.cycleSymptom.findFirst({
       where: { key, userId: user.id },
-      select: { id: true },
+      select: { id: true, isActive: true },
     });
     if (!owned) return apiError("Custom symptom not found", 404);
+
+    // Reactivation (soft-hidden → active) re-enters the active set, so it must
+    // re-clear the per-user cap — a hidden row doesn't count toward it, and
+    // skipping the recheck here would let a user exceed the limit by hiding
+    // then re-enabling rows.
+    if (parsed.data.isActive === true && !owned.isActive) {
+      const activeCount = await prisma.cycleSymptom.count({
+        where: { userId: user.id, isActive: true },
+      });
+      if (activeCount >= MAX_CUSTOM_SYMPTOMS_PER_USER) {
+        return apiError(
+          `Custom symptom limit reached (${MAX_CUSTOM_SYMPTOMS_PER_USER})`,
+          422,
+          { errorCode: "cycle.symptom.custom.limit" },
+        );
+      }
+    }
 
     const updated = await prisma.cycleSymptom.update({
       where: { id: owned.id },
@@ -90,6 +118,15 @@ export const DELETE = apiHandler(
 
     const gate = await requireCycleEnabled(user.id, user.gender);
     if (!gate.enabled) return gate.response;
+
+    const rl = await checkRateLimit(
+      `cycle:symptom:custom:${user.id}`,
+      30,
+      60_000,
+    );
+    if (!rl.allowed) {
+      return apiError("Too many requests, try again later", 429);
+    }
 
     const { key } = await params;
     if (!isCustomSymptomKey(key)) return apiError("Not a custom symptom", 404);

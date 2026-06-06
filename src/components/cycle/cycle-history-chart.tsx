@@ -13,7 +13,13 @@ import { useTranslations } from "@/lib/i18n/context";
 import { prefersReducedMotion } from "@/lib/charts/reduced-motion";
 import { cn } from "@/lib/utils";
 import type { CycleHistoryResponse, MenstrualCycleDTO } from "./types";
-import { FLOW_HUE, OVULATION_HUE, PHASE_HUE } from "./phase-tokens";
+import {
+  FLOW_HUE,
+  OVULATION_HUE,
+  PHASE_HUE,
+  HISTORY_REST_OPACITY,
+  HISTORY_PERIOD_OPACITY,
+} from "./phase-tokens";
 
 /**
  * v1.15.1 — the cycle-length history chart.
@@ -296,7 +302,7 @@ function BarField({
                 height={Math.max(restH, 0)}
                 rx={2}
                 fill={REST_HUE}
-                fillOpacity={0.5}
+                fillOpacity={HISTORY_REST_OPACITY}
               />
             ) : null}
             {/* Period segment (lower) — rose, the bleeding portion. */}
@@ -308,7 +314,7 @@ function BarField({
                 height={periodH}
                 rx={2}
                 fill={FLOW_HUE}
-                fillOpacity={0.85}
+                fillOpacity={HISTORY_PERIOD_OPACITY}
                 data-period-segment="true"
               >
                 <title>{periodLabel}</title>

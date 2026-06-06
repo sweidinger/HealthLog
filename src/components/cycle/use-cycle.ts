@@ -133,6 +133,20 @@ export function useCustomSymptoms() {
   });
 }
 
+/** The `errorCode` the create POST returns when the per-user cap is hit. */
+export const CUSTOM_SYMPTOM_LIMIT_ERROR_CODE = "cycle.symptom.custom.limit";
+
+/** An error that preserves the envelope `errorCode` so callers can branch. */
+export class CustomSymptomError extends Error {
+  constructor(
+    public readonly errorCode: string | null,
+    public readonly status: number,
+  ) {
+    super(errorCode ?? `Request failed: ${status}`);
+    this.name = "CustomSymptomError";
+  }
+}
+
 /** Create a custom symptom (mint `custom:<uuid>`, encrypt the label). */
 export function useCreateCustomSymptom() {
   const qc = useQueryClient();
@@ -143,7 +157,17 @@ export function useCreateCustomSymptom() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(input),
       });
-      return unwrap<CustomSymptomDTO>(res);
+      if (!res.ok) {
+        // Preserve the envelope errorCode so the UI can tell the cap hit
+        // (cycle.symptom.custom.limit) apart from a transient/validation error.
+        const errorCode = await res
+          .json()
+          .then((j) => (j?.meta?.errorCode as string | undefined) ?? null)
+          .catch(() => null);
+        throw new CustomSymptomError(errorCode, res.status);
+      }
+      const json = await res.json();
+      return json.data as CustomSymptomDTO;
     },
     onSuccess: () =>
       qc.invalidateQueries({ queryKey: queryKeys.cycleCustomSymptoms() }),
