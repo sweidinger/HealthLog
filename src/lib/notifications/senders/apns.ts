@@ -618,7 +618,14 @@ export async function sendViaApns(
         alert: { title: payload.title, body: stripHtml(payload.message) },
         data: {
           eventType: routingEvent,
-          ...pickIosMetadata(payload.metadata),
+          // In discreet mode also drop cycle-semantic metadata (e.g. `phase`)
+          // so a future cycle push can't name a cycle concept on the wire even
+          // though the allowlist permits `phase` (QA LOW).
+          ...pickIosMetadata(
+            payload.discreet
+              ? stripCycleMetadata(payload.metadata)
+              : payload.metadata,
+          ),
         },
         threadId: routingEvent,
         // The iOS app registers a `UNNotificationCategory` per event-type
@@ -766,6 +773,24 @@ function pickIosMetadata(
     if (IOS_METADATA_ALLOWLIST.has(key)) {
       out[key] = metadata[key];
     }
+  }
+  return out;
+}
+
+/** Cycle-semantic metadata keys that must never ride a discreet payload. */
+const CYCLE_METADATA_KEYS = new Set(["phase"]);
+
+/**
+ * Drop cycle-semantic metadata (e.g. `phase`) so a discreet cycle push can't
+ * name a cycle concept on the wire even though the allowlist permits the key.
+ */
+function stripCycleMetadata(
+  metadata: Record<string, unknown> | undefined,
+): Record<string, unknown> | undefined {
+  if (!metadata) return metadata;
+  const out: Record<string, unknown> = {};
+  for (const key of Object.keys(metadata)) {
+    if (!CYCLE_METADATA_KEYS.has(key)) out[key] = metadata[key];
   }
   return out;
 }

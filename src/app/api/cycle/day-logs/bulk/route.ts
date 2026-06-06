@@ -24,12 +24,12 @@ import {
   safeJson,
   sanitiseZodIssues,
 } from "@/lib/api-response";
+import { prisma } from "@/lib/db";
 import { withIdempotency } from "@/lib/idempotency";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { requireCycleEnabled } from "@/lib/cycle/gate";
 import { cycleBulkSchema, MAX_CYCLE_BULK_ENTRIES } from "@/lib/validations/cycle";
 import { upsertCycleDayLog } from "@/lib/cycle/day-log-write";
-import { findOwningCycleId } from "@/lib/cycle/cycle-attribution";
 import { DEFAULT_TIMEZONE } from "@/lib/mood/date-key";
 
 const BATCH_RATE_LIMIT_MAX = 60;
@@ -92,6 +92,25 @@ async function postBulk(request: NextRequest): Promise<Response> {
   const { entries } = parsed.data;
   const tz = user.timezone ?? DEFAULT_TIMEZONE;
 
+  // Hoist cycle attribution + the invariant encryption flag out of the loop:
+  // load the user's cycle start dates once and resolve the owning span in
+  // memory (latest start <= date), instead of a findOwningCycleId query per
+  // entry (up to 500) + a profile read per entry (QA M-3 / round-1 N+1).
+  const cycleRows = await prisma.menstrualCycle.findMany({
+    where: { userId: user.id, deletedAt: null },
+    orderBy: { startDate: "asc" },
+    select: { id: true, startDate: true },
+  });
+  const owningCycleId = (date: string): string | null => {
+    let id: string | null = null;
+    for (const c of cycleRows) {
+      if (c.startDate <= date) id = c.id;
+      else break;
+    }
+    return id;
+  };
+  const encryptSensitive = gate.profile.sensitiveCategoryEncryption;
+
   const results: EntryResult[] = [];
   let inserted = 0;
   let updated = 0;
@@ -101,8 +120,14 @@ async function postBulk(request: NextRequest): Promise<Response> {
   for (let i = 0; i < entries.length; i++) {
     const entry = entries[i];
     try {
-      const cycleId = await findOwningCycleId(user.id, entry.date);
-      const r = await upsertCycleDayLog(user.id, entry, tz, cycleId);
+      const cycleId = owningCycleId(entry.date);
+      const r = await upsertCycleDayLog(
+        user.id,
+        entry,
+        tz,
+        cycleId,
+        encryptSensitive,
+      );
 
       let status: EntryStatus;
       if (!r.existed) {
@@ -124,9 +149,10 @@ async function postBulk(request: NextRequest): Promise<Response> {
       });
     } catch (err: unknown) {
       // Map to a stable closed set of reason codes — never echo the raw
-      // driver message (it can carry column / constraint / value fragments
-      // and bypasses the central redaction boundary). The full message is
-      // logged through the WideEvent path where redaction applies.
+      // driver message (it can carry column / constraint / value fragments).
+      // `annotate` meta is NOT run through the central redactor (only
+      // setError/setHttp are), so the raw message must not be attached here:
+      // record the stable code + the Prisma error code only (QA M-sec1).
       const code =
         typeof err === "object" && err !== null && "code" in err
           ? (err as { code?: unknown }).code
@@ -142,7 +168,7 @@ async function postBulk(request: NextRequest): Promise<Response> {
         meta: {
           index: i,
           reason,
-          error: err instanceof Error ? err.message : String(err),
+          error_code: typeof code === "string" ? code : "unknown",
         },
       });
       skipped += 1;

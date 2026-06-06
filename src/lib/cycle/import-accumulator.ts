@@ -208,6 +208,15 @@ export class CycleImportAccumulator {
       return id;
     };
 
+    // Resolve the invariant encryption flag once for the whole flush, instead
+    // of re-reading the profile per upserted day (QA M-3). Default ON if the
+    // profile somehow vanished between the gate check and here.
+    const encProfile = await prisma.cycleProfile.findUnique({
+      where: { userId: this.userId },
+      select: { sensitiveCategoryEncryption: true },
+    });
+    const encryptSensitive = encProfile?.sensitiveCategoryEncryption ?? true;
+
     for (const [dayKey, bucket] of this.byDay.entries()) {
       const symptoms =
         bucket.symptomKeys.size > 0
@@ -232,6 +241,7 @@ export class CycleImportAccumulator {
         entry,
         this.userTimezone,
         cycleId,
+        encryptSensitive,
       );
       stats.daysUpserted += 1;
       if (!result.existed) stats.daysInserted += 1;

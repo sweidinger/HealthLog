@@ -79,7 +79,11 @@ export async function sendViaWebPush(
     const pushPayload = JSON.stringify({
       title: payload.title,
       body: payload.message.replace(/<[^>]*>/g, ""),
-      tag: payload.eventType,
+      // Discreet mode (cycle privacy): the coalescing `tag` must not name the
+      // event. Web-Push payloads are VAPID-encrypted (only the SW sees this),
+      // but the discreet contract still requires no event name on the wire —
+      // mirror the APNs GENERIC_EVENT collapse (QA M-sec3).
+      tag: payload.discreet ? "REMINDER" : payload.eventType,
       url: "/",
     });
 

@@ -95,6 +95,27 @@ async function postPeriod(request: NextRequest): Promise<Response> {
           syncVersion: { increment: 1 },
         },
       });
+
+      // Re-anchor the FOLLOWING neighbour: when this start is back-filled
+      // between two existing cycles, the new cycle's end + length are already
+      // known from its successor's start. Without this the inserted cycle keeps
+      // endDate/lengthDays = null even though the next start exists, and the
+      // iOS mirror + history surfaces read a stale open cycle (QA M-1).
+      const next = await db.menstrualCycle.findFirst({
+        where: { userId: user.id, deletedAt: null, startDate: { gt: date } },
+        orderBy: { startDate: "asc" },
+        select: { startDate: true },
+      });
+      if (next) {
+        await db.menstrualCycle.update({
+          where: { id: cycle.id },
+          data: {
+            endDate: addDays(next.startDate, -1),
+            lengthDays: dayDiff(next.startDate, date),
+            syncVersion: { increment: 1 },
+          },
+        });
+      }
       return { cycleId: cycle.id as string | null };
     }
 

@@ -6,8 +6,10 @@
  * `{ profile, prediction, days }`. The synchronous engine call is cheap
  * (pure stats); the heavy part is the cache persist, which is debounced
  * stale-while-revalidate and fire-and-forget so it never blocks the GET.
- * Fertile-window fields are goal-gated (null unless TRYING_TO_CONCEIVE),
- * suppressed server-side.
+ * Fertile-window fields are goal-gated (surfaced for TRYING_TO_CONCEIVE and
+ * AVOID_PREGNANCY — the latter with the stronger "not a contraceptive method"
+ * disclaimer; suppressed for GENERAL_HEALTH / PERIMENOPAUSE / OFF),
+ * resolved server-side.
  *
  * Default range: current cycle − 90d … +180d forward.
  */
@@ -26,6 +28,7 @@ import {
 import {
   toCyclePredictionDTO,
   goalAllowsFertileWindow,
+  cycleDisclaimerKey,
 } from "@/lib/cycle/dto";
 import { persistPredictionCache } from "@/lib/cycle/prediction-cache";
 import { addDays, dayDiff } from "@/lib/cycle/day-math";
@@ -158,7 +161,9 @@ export const GET = apiHandler(async (request: NextRequest) => {
     userLocale: user.locale ?? undefined,
   });
   const t = getServerTranslator(locale);
-  const disclaimer = t.t("cycle.prediction.disclaimer");
+  // AVOID_PREGNANCY surfaces the fertile window, so it must carry the stronger
+  // "not a contraceptive method" caveat (QA H-1).
+  const disclaimer = t.t(cycleDisclaimerKey(profile.goal));
 
   annotate({
     action: { name: "cycle.calendar.read" },

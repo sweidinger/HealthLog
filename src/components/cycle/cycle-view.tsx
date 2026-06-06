@@ -90,7 +90,18 @@ export function CycleView() {
   const loading = calendar.isLoading && !calendar.data;
   const calendarError = calendar.isError && !calendar.data;
   const tileHue = wheel.phase ? PHASE_HUE[wheel.phase] : undefined;
-  const disclaimerText = t("cycle.prediction.disclaimer");
+  // AVOID_PREGNANCY surfaces the fertile window, so it must show the stronger
+  // "not a contraceptive method" caveat. Prefer the server-resolved
+  // prediction.disclaimer (already goal-correct); fall back to the goal-derived
+  // key for the no-prediction calendar tab (QA H-1).
+  const goal = calendar.data?.profile.goal;
+  const disclaimerText =
+    calendar.data?.prediction?.disclaimer ??
+    t(
+      goal === "AVOID_PREGNANCY"
+        ? "cycle.disclaimer"
+        : "cycle.prediction.disclaimer",
+    );
 
   return (
     <div className="space-y-6">

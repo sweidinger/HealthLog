@@ -173,18 +173,27 @@ const EXISTING_SELECT = {
 /**
  * Upsert one cycle day-log. `tz` anchors the date string. When
  * `cycleId` is supplied the row is attributed to that cycle span.
+ *
+ * `encryptSensitiveFlag` lets a batch caller (bulk drain / Apple-Health import
+ * flush) resolve the invariant `sensitiveCategoryEncryption` flag ONCE and
+ * thread it in, instead of this helper re-reading the profile per row (a
+ * per-day round-trip on a multi-year import — QA M-3). The single POST/PATCH
+ * paths omit it and keep the lazy read.
  */
 export async function upsertCycleDayLog(
   userId: string,
   entry: CycleDayLogInput,
   tz: string | null,
   cycleId: string | null = null,
+  encryptSensitiveFlag?: boolean,
 ): Promise<DayLogWriteResult> {
   const source = entry.source;
 
-  // Resolve the sensitive-category encryption flag once per write.
-  const profile = await getOrCreateCycleProfile(userId);
-  const encryptSensitive = profile.sensitiveCategoryEncryption;
+  // Resolve the sensitive-category encryption flag once per write (or reuse the
+  // flag the batch caller already resolved).
+  const encryptSensitive =
+    encryptSensitiveFlag ??
+    (await getOrCreateCycleProfile(userId)).sensitiveCategoryEncryption;
 
   const where: Prisma.CycleDayLogWhereUniqueInput = entry.externalId
     ? {

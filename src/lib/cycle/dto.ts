@@ -247,3 +247,17 @@ export function goalAllowsFertileWindow(goal: string): boolean {
   // hidden for GENERAL_HEALTH / PERIMENOPAUSE / OFF.
   return goal === "TRYING_TO_CONCEIVE" || goal === "AVOID_PREGNANCY";
 }
+
+/**
+ * The i18n key for the disclaimer a goal must show. AVOID_PREGNANCY surfaces the
+ * fertile window, so it MUST carry the stronger "not a contraceptive method —
+ * never safe to assume unprotected sex" copy (`cycle.disclaimer`); every other
+ * goal gets the standard "estimates, not medical advice" line
+ * (`cycle.prediction.disclaimer`). Shared by the server route and the client so
+ * web/iOS/engine show the same caveat. (algorithm.md §4 — safety-relevant.)
+ */
+export function cycleDisclaimerKey(goal: string): string {
+  return goal === "AVOID_PREGNANCY"
+    ? "cycle.disclaimer"
+    : "cycle.prediction.disclaimer";
+}

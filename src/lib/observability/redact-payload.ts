@@ -53,6 +53,18 @@ export const SENSITIVE_KEY_PATTERNS: readonly RegExp[] = [
   /insurance/i,
   /insurer/i,
   /kvnr/i,
+  // v1.15.0 — reproductive-health intent fields (the post-Dobbs threat
+  // model's highest-sensitivity category). These are encrypted at rest in the
+  // sensitive-category envelope and no cycle route currently routes its body
+  // through `buildPayloadDiagnostic`, so this is defence-in-depth: if a future
+  // change ever excerpts a cycle request body, the intent values redact rather
+  // than land verbatim. (`flow`/`note` are too generic to add safely.)
+  /sexualactivity/i,
+  /protectedsex/i,
+  /pregnancytest/i,
+  /progesteronetest/i,
+  /contraceptive/i,
+  /cervicalmucus/i,
 ];
 
 const REDACTED = "[redacted]";
