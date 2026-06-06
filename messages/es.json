@@ -4960,7 +4960,10 @@
       "empty": "Los análisis por fase aparecen aquí cuando tienes suficientes ciclos registrados. Comparan tus métricas entre fases del ciclo, mostrando la estadística abiertamente.",
       "sampleSize": "n = {n}",
       "effectSize": "Tamaño del efecto {value}",
-      "qValue": "q = {value}"
+      "qValue": "q = {value}",
+      "symptomPatternsTitle": "Patrones de síntomas por fase",
+      "symptomPatternsEmpty": "Registra síntomas a lo largo de un ciclo para ver en qué fase se concentran.",
+      "symptomMostlyIn": "Sobre todo en {phase} ({count}/{total} días)"
     },
     "disclaimer": "Estas predicciones son estimaciones descriptivas a partir de tus datos registrados, no un método anticonceptivo ni un consejo médico. Nunca indican que sea seguro tener relaciones sin protección. Para anticoncepción o cualquier decisión médica, consulta a un profesional sanitario.",
     "title": "Tu ciclo",

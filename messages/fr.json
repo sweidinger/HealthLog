@@ -4960,7 +4960,10 @@
       "empty": "Les analyses par phase apparaissent ici une fois assez de cycles enregistrés. Elles comparent tes mesures entre les phases du cycle, avec les statistiques affichées ouvertement.",
       "sampleSize": "n = {n}",
       "effectSize": "Taille d'effet {value}",
-      "qValue": "q = {value}"
+      "qValue": "q = {value}",
+      "symptomPatternsTitle": "Tendances des symptômes par phase",
+      "symptomPatternsEmpty": "Notez vos symptômes sur un cycle pour voir dans quelle phase ils se regroupent.",
+      "symptomMostlyIn": "Surtout en {phase} ({count}/{total} jours)"
     },
     "disclaimer": "Ces prévisions sont des estimations descriptives issues de vos données enregistrées, ni une méthode de contraception ni un avis médical. Elles n'indiquent jamais qu'il est sûr d'avoir des rapports non protégés. Pour la contraception ou toute décision médicale, consultez un professionnel de santé.",
     "title": "Ton cycle",

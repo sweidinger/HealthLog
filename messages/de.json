@@ -4960,7 +4960,10 @@
       "empty": "Phasen-Erkenntnisse erscheinen hier, sobald du genug Zyklen erfasst hast. Sie vergleichen deine Werte über die Zyklusphasen hinweg, mit offen gezeigter Statistik.",
       "sampleSize": "n = {n}",
       "effectSize": "Effektstärke {value}",
-      "qValue": "q = {value}"
+      "qValue": "q = {value}",
+      "symptomPatternsTitle": "Symptommuster nach Phase",
+      "symptomPatternsEmpty": "Erfasse Symptome über einen Zyklus, um zu sehen, in welcher Phase sie sich häufen.",
+      "symptomMostlyIn": "Meist in {phase} ({count}/{total} Tage)"
     },
     "disclaimer": "Diese Vorhersagen sind beschreibende Schätzungen aus deinen erfassten Daten, keine Verhütungsmethode und keine medizinische Beratung. Sie zeigen nie an, dass ungeschützter Geschlechtsverkehr sicher ist. Wende dich für Verhütung oder medizinische Entscheidungen an eine medizinische Fachperson.",
     "title": "Dein Zyklus",

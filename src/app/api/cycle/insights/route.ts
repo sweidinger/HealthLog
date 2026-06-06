@@ -35,6 +35,10 @@ import {
   MOOD_CHANNEL_KEY,
 } from "@/lib/cycle/phase-crosstab";
 import type { CrossMetricMeasurement } from "@/lib/insights/mood-aggregates";
+import {
+  computeSymptomPhasePatterns,
+  type SymptomDay,
+} from "@/lib/cycle/symptom-phase";
 import { addDays } from "@/lib/cycle/day-math";
 import { DEFAULT_TIMEZONE, moodDateKey } from "@/lib/mood/date-key";
 
@@ -79,6 +83,7 @@ export const GET = apiHandler(async () => {
         basalBodyTempC: true,
         ovulationTest: true,
         cervicalMucus: true,
+        symptomLinks: { select: { symptom: { select: { key: true } } } },
       },
     }),
     // Passive wrist temperature feeds the temperature-trend ovulation layer
@@ -196,6 +201,13 @@ export const GET = apiHandler(async () => {
     userPriorityJson,
   });
 
+  // Cycle-NATIVE insight: where each logged symptom clusters across the phases.
+  const symptomDays: SymptomDay[] = dayLogRows.map((d) => ({
+    date: d.date,
+    keys: d.symptomLinks.map((l) => l.symptom.key),
+  }));
+  const symptomPatterns = computeSymptomPhasePatterns(symptomDays, phaseByDay);
+
   annotate({
     action: { name: "cycle.insights.read" },
     meta: {
@@ -205,6 +217,7 @@ export const GET = apiHandler(async () => {
       has_headline: headline !== null,
       lagged_discovered: lagged.discovered.length,
       lagged_pairs_tested: lagged.pairsTested,
+      symptom_patterns: symptomPatterns.length,
     },
   });
 
@@ -217,6 +230,7 @@ export const GET = apiHandler(async () => {
       fdrQ: lagged.fdrQ,
       minPairs: lagged.minPairs,
     },
+    symptomPatterns,
     contrast: { high: "LUTEAL", low: "FOLLICULAR" },
     windowDays: WINDOW_DAYS,
     cyclesObserved: cycles.length,

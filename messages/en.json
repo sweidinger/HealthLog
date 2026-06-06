@@ -4960,7 +4960,10 @@
       "empty": "Phase insights appear here once you have enough logged cycles. They compare your metrics across cycle phases, with the statistics shown openly.",
       "sampleSize": "n = {n}",
       "effectSize": "Effect size {value}",
-      "qValue": "q = {value}"
+      "qValue": "q = {value}",
+      "symptomPatternsTitle": "Symptom patterns by phase",
+      "symptomPatternsEmpty": "Log symptoms across a cycle to see which phase they cluster in.",
+      "symptomMostlyIn": "Mostly in {phase} ({count}/{total} days)"
     },
     "disclaimer": "These predictions are descriptive estimates from your logged data, not a contraceptive method and not medical advice. They never indicate that it is safe to have unprotected sex. For contraception or any medical decision, consult a healthcare professional.",
     "title": "Your cycle",

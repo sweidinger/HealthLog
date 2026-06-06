@@ -15,6 +15,7 @@ import { CycleDisclaimer } from "./cycle-disclaimer";
 import { LogDaySheet } from "./log-day-sheet";
 import { PredictionsPanel } from "./predictions-panel";
 import { CyclePhaseHeadline, CyclePhaseCrosstab } from "./cycle-phase-crosstab";
+import { CycleSymptomPatterns } from "./cycle-symptom-patterns";
 import { CycleSettings } from "./cycle-settings";
 import { deriveWheelState } from "./wheel-state";
 import { PHASE_HUE } from "./phase-tokens";
@@ -263,6 +264,9 @@ export function CycleView() {
                   headline={insights.data?.headline ?? null}
                 />
                 <CyclePhaseCrosstab rows={insights.data?.rows ?? []} />
+                <CycleSymptomPatterns
+                  rows={insights.data?.symptomPatterns ?? []}
+                />
               </>
             )}
           </TabsContent>

@@ -5442,6 +5442,10 @@ components:
                 - fdrQ
                 - minPairs
               additionalProperties: false
+            symptomPatterns:
+              type: array
+              items:
+                $ref: "#/components/schemas/CycleSymptomPhaseRow"
             contrast:
               type: object
               properties:
@@ -5467,6 +5471,7 @@ components:
             - rows
             - headline
             - lagged
+            - symptomPatterns
             - contrast
             - windowDays
             - cyclesObserved
@@ -5497,6 +5502,8 @@ components:
             - basalBodyTemp
             - wristTemperature
             - skinTemperature
+            - bloodGlucose
+            - mood
         display:
           type: string
           enum:
@@ -5506,6 +5513,8 @@ components:
             - ms
             - kg
             - celsius
+            - glucose
+            - mood
         lutealDays:
           type: integer
           minimum: -9007199254740991
@@ -5579,6 +5588,58 @@ components:
       additionalProperties: false
       description: One FDR-surviving lagged-Pearson pair from the continuous CYCLE_PHASE ordinal × outcome matrix (mechanism
         B). Descriptive, never causal.
+    CycleSymptomPhaseRow:
+      type: object
+      properties:
+        symptomKey:
+          type: string
+        counts:
+          type: object
+          properties:
+            MENSTRUAL:
+              type: integer
+              minimum: -9007199254740991
+              maximum: 9007199254740991
+            FOLLICULAR:
+              type: integer
+              minimum: -9007199254740991
+              maximum: 9007199254740991
+            OVULATORY:
+              type: integer
+              minimum: -9007199254740991
+              maximum: 9007199254740991
+            LUTEAL:
+              type: integer
+              minimum: -9007199254740991
+              maximum: 9007199254740991
+          required:
+            - MENSTRUAL
+            - FOLLICULAR
+            - OVULATORY
+            - LUTEAL
+          additionalProperties: false
+        total:
+          type: integer
+          minimum: -9007199254740991
+          maximum: 9007199254740991
+        topPhase:
+          type: string
+          enum:
+            - MENSTRUAL
+            - FOLLICULAR
+            - OVULATORY
+            - LUTEAL
+        topShare:
+          type: number
+      required:
+        - symptomKey
+        - counts
+        - total
+        - topPhase
+        - topShare
+      additionalProperties: false
+      description: Where a logged symptom clusters across the cycle phases. Surfaced only once logged on ≥3 phase-labelled
+        days. Observational, never causal.
     CyclePurgeEnvelope:
       type: object
       properties:

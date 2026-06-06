@@ -2426,8 +2426,19 @@ const cyclePhaseCrosstabRow = z
       "basalBodyTemp",
       "wristTemperature",
       "skinTemperature",
+      "bloodGlucose",
+      "mood",
     ]),
-    display: z.enum(["hours", "steps", "bpm", "ms", "kg", "celsius"]),
+    display: z.enum([
+      "hours",
+      "steps",
+      "bpm",
+      "ms",
+      "kg",
+      "celsius",
+      "glucose",
+      "mood",
+    ]),
     lutealDays: z.number().int(),
     follicularDays: z.number().int(),
     lutealAvg: z.number(),
@@ -2460,6 +2471,32 @@ const cyclePhaseLaggedPair = z
       "One FDR-surviving lagged-Pearson pair from the continuous CYCLE_PHASE ordinal × outcome matrix (mechanism B). Descriptive, never causal.",
   });
 
+const cyclePhaseEnumForCount = z.enum([
+  "MENSTRUAL",
+  "FOLLICULAR",
+  "OVULATORY",
+  "LUTEAL",
+]);
+
+const cycleSymptomPhaseRow = z
+  .object({
+    symptomKey: z.string(),
+    counts: z.object({
+      MENSTRUAL: z.number().int(),
+      FOLLICULAR: z.number().int(),
+      OVULATORY: z.number().int(),
+      LUTEAL: z.number().int(),
+    }),
+    total: z.number().int(),
+    topPhase: cyclePhaseEnumForCount,
+    topShare: z.number(),
+  })
+  .meta({
+    id: "CycleSymptomPhaseRow",
+    description:
+      "Where a logged symptom clusters across the cycle phases. Surfaced only once logged on ≥3 phase-labelled days. Observational, never causal.",
+  });
+
 const cycleInsightsResponse = z.object({
   rows: z.array(cyclePhaseCrosstabRow),
   headline: cyclePhaseCrosstabRow.nullable(),
@@ -2469,6 +2506,7 @@ const cycleInsightsResponse = z.object({
     fdrQ: z.number(),
     minPairs: z.number().int(),
   }),
+  symptomPatterns: z.array(cycleSymptomPhaseRow),
   contrast: z.object({
     high: z.literal("LUTEAL"),
     low: z.literal("FOLLICULAR"),

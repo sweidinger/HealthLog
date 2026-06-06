@@ -31,10 +31,25 @@ import type {
 } from "./types";
 import type { CyclePhaseCrosstabRow } from "./cycle-phase-crosstab";
 
+/** One symptom's per-phase clustering (mirrors `SymptomPhasePatternRow`). */
+export interface SymptomPhaseRow {
+  symptomKey: string;
+  counts: {
+    MENSTRUAL: number;
+    FOLLICULAR: number;
+    OVULATORY: number;
+    LUTEAL: number;
+  };
+  total: number;
+  topPhase: "MENSTRUAL" | "FOLLICULAR" | "OVULATORY" | "LUTEAL";
+  topShare: number;
+}
+
 /** The `/api/cycle/insights` read: the phase-contrast rows + the headline. */
 export interface CycleInsightsResponse {
   rows: CyclePhaseCrosstabRow[];
   headline: CyclePhaseCrosstabRow | null;
+  symptomPatterns: SymptomPhaseRow[];
 }
 
 async function unwrap<T>(res: Response): Promise<T> {
