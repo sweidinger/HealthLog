@@ -7,7 +7,9 @@
  * menstrual cycles, predictions, the cycle audit trail, and the cycle
  * reminder-delivery rows in the push-attempts ledger — so no dated
  * reproductive trace survives in Postgres (the post-Dobbs threat model). The
- * `CycleProfile` row is left in place (gate + settings keep working).
+ * `CycleProfile` row is left in place (gate + settings keep working) but its
+ * intent-revealing fields — goal + cycle/period/luteal priors — are reset to
+ * neutral defaults, so no reproductive intent survives either.
  *
  * Gated (`cycle.disabled` 403) and owner-scoped. The purge action itself IS
  * audited (written after the transaction, so it survives) — its `details`
@@ -61,6 +63,18 @@ export const DELETE = apiHandler(async (request: NextRequest) => {
       where: {
         userId: user.id,
         eventType: { in: ["CYCLE_PERIOD_SOON", "CYCLE_PERIOD_CONFIRM"] },
+      },
+    });
+    // Reset the reproductive INTENT carried on the profile (goal + cycle/period/
+    // luteal priors) to neutral defaults so a purge leaves no intent-revealing
+    // state, while keeping the row so the gate + settings keep working.
+    await tx.cycleProfile.updateMany({
+      where: { userId: user.id },
+      data: {
+        goal: "GENERAL_HEALTH",
+        typicalCycleLength: null,
+        typicalPeriodLength: null,
+        lutealPhaseLength: null,
       },
     });
     return {
