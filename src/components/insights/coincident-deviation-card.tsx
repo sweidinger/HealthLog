@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckCircle2, AlertTriangle, Activity } from "lucide-react";
+import { AlertTriangle, Activity } from "lucide-react";
 
 import { useTranslations } from "@/lib/i18n/context";
 import { cn } from "@/lib/utils";
@@ -17,22 +17,20 @@ import type { DerivedProvenance } from "@/lib/insights/derived/types";
 /**
  * v1.10.3 — "Today's signal" headline card.
  *
- * Promotes the COINCIDENT_DEVIATION flag from one buried below-the-fold vitals
- * tile (painted only when it fired) to a dedicated, always-mounted card at the
- * top of the Insights overview, matching the always-present pattern Apple
- * Vitals / WHOOP Health Monitor / Oura Symptom Radar use. The signal is the
- * daily headline read, not an alarm: an "all clear" day is itself the
- * reassuring product.
+ * Surfaces the COINCIDENT_DEVIATION flag at the top of the Insights overview as
+ * a calm awareness read drawn off the SINGLE existing `Derived` payload — no new
+ * engine math, no new route, no schema change.
  *
- * It renders four calm states off the SINGLE existing `Derived` payload — no
- * new engine math, no new route, no schema change:
- *   - insufficient (< 2 banded vitals) → "building your baselines" + coverage.
- *   - all-clear (ok, !fired, 0 contributing) → a green check + the count
- *     checked.
- *   - watch (ok, !fired, 1 contributing) → a calm, non-alert line naming the
- *     one vital.
- *   - fired (ok, fired, ≥ 2 contributing) → an amber awareness card naming the
- *     vitals + the load-bearing "possible factors — never a cause" line.
+ * The card renders ONLY when there is an actual signal to show. A day where
+ * every vital sits inside its personal range (all-clear), or an account still
+ * building its baselines (insufficient), produces no card at all — the section
+ * stays absent rather than surfacing an empty header. The two states that DO
+ * render:
+ *   - watch (ok, 1 contributing vital, or a thin-history multi-signal flag) →
+ *     a calm, non-alert line naming the vital.
+ *   - fired (ok, fired, ≥ 2 contributing, with enough history) → an amber
+ *     awareness card naming the vitals + the load-bearing "possible factors —
+ *     never a cause" line.
  *
  * Restraint guarantees: at most the `warning` (amber) band — never
  * `destructive`/red, never a score, never a chart (so no Recharts), never a
@@ -167,22 +165,10 @@ export function CoincidentDeviationCard({
     );
   }
 
-  // Building the baselines — fewer than two banded vitals. Calm, never an
-  // alarm, never blank.
+  // Building the baselines — fewer than two banded vitals. There is no signal
+  // to show, so the section stays absent rather than rendering an empty husk.
   if (data.status === "insufficient") {
-    return (
-      <div className={className}>
-        <CardShell state="insufficient" provenance={data.provenance}>
-          <p
-            className="text-muted-foreground text-sm"
-            data-slot="coincident-building"
-          >
-            {t("insights.derived.coincident.building")}
-          </p>
-          <CoverageMeter coverage={data.coverage} />
-        </CardShell>
-      </div>
-    );
+    return null;
   }
 
   const v = data.value!;
@@ -208,32 +194,10 @@ export function CoincidentDeviationCard({
         ? "fired"
         : "watch";
 
+  // All clear — every vital is inside its personal range, so there is no signal
+  // worth a card. Hide the whole section rather than surface an empty header.
   if (state === "all-clear") {
-    return (
-      <div className={className}>
-        <CardShell state="all-clear" provenance={data.provenance}>
-          <div className="flex items-start gap-2">
-            <CheckCircle2
-              className="text-success mt-0.5 h-4 w-4 shrink-0"
-              aria-hidden="true"
-            />
-            <div className="min-w-0 space-y-1">
-              <p
-                className="text-foreground text-sm font-medium"
-                data-slot="coincident-headline"
-              >
-                {t("insights.derived.coincident.allClear")}
-              </p>
-              <p className="text-muted-foreground text-xs leading-snug">
-                {t("insights.derived.coincident.allClearMeta", {
-                  count: v.vitals.length,
-                })}
-              </p>
-            </div>
-          </div>
-        </CardShell>
-      </div>
-    );
+    return null;
   }
 
   if (state === "watch") {
