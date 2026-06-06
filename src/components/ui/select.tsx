@@ -56,7 +56,14 @@ function SelectTrigger({
     >
       {children}
       <SelectPrimitive.Icon asChild>
-        <ChevronDownIcon className="size-4 opacity-50" />
+        {/* `-me-0.5` (-2 px end margin) optically aligns the chevron with the
+            left text inset. The trigger box is `px-3` (12 px both sides), but
+            the Lucide chevron glyph carries ~2 px of empty space inside its
+            16 px bounding box, so the *visible* stroke landed ~2 px farther
+            from the right edge than the value text sits from the left — the
+            trigger read lopsided. Pulling the icon box 2 px toward the edge
+            makes the visible chevron and the value text inset symmetric. */}
+        <ChevronDownIcon className="-me-0.5 size-4 opacity-50" />
       </SelectPrimitive.Icon>
     </SelectPrimitive.Trigger>
   );
