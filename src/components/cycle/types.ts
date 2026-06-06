@@ -107,17 +107,6 @@ export interface CycleProfileDTO {
   updatedAt: string;
 }
 
-/** A phase-correlation insight card the API surfaces (another wave fills these). */
-export interface CycleInsightCard {
-  id: string;
-  title: string;
-  body: string;
-  n?: number;
-  effectSize?: number;
-  qValue?: number;
-  caveat?: string;
-}
-
 /** The day-log capture payload (subset of the API input we send from web). */
 export interface CycleDayLogInput {
   date: string;

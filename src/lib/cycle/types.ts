@@ -57,15 +57,6 @@ export const HISTORY_WINDOW_N = 12;
 /** §1 — need ≥2 completed cycles for a real (non-priors) prediction. */
 export const MIN_CYCLES_TO_PREDICT = 2;
 
-/** §1 — optional recency half-life (cycles). OFF in MVP (see below). */
-export const RECENCY_HALF_LIFE = 6;
-
-/**
- * §1 — recency weighting is OFF in the v1.15 MVP (plain median) so the TS and
- * Swift engines stay trivially identical. Flip in lockstep later.
- */
-export const RECENCY_WEIGHTING_ENABLED = false;
-
 /** §1 — floor on the robust SD so the band is never zero-width (false precision). */
 export const SIGMA_FLOOR = 1.0;
 
@@ -237,12 +228,4 @@ export interface CyclePredictionResult {
   estimatedCycleLength: number;
   /** Robust SD of cycle length (days), >= SIGMA_FLOOR. */
   estimatedCycleSd: number;
-}
-
-/** The phase of a single calendar date relative to its containing cycle. */
-export interface PhaseResult {
-  date: string;
-  phase: CyclePhase | null;
-  /** 1-based day-of-cycle (1 = startDate), or null if the date is outside any cycle. */
-  dayOfCycle: number | null;
 }

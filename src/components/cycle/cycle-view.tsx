@@ -14,15 +14,18 @@ import { CycleRing } from "./cycle-ring";
 import { CycleCalendar } from "./cycle-calendar";
 import { LogDaySheet } from "./log-day-sheet";
 import { PredictionsPanel } from "./predictions-panel";
-import { CycleInsights } from "./cycle-insights";
+import {
+  CyclePhaseHeadline,
+  CyclePhaseCrosstab,
+} from "./cycle-phase-crosstab";
 import { CycleSettings } from "./cycle-settings";
 import { deriveWheelState } from "./wheel-state";
 import {
   useCycleCalendar,
   useCycleHistory,
+  useCycleInsights,
   useCycleProfile,
 } from "./use-cycle";
-import type { CycleInsightCard } from "./types";
 
 /**
  * v1.15.0 — the cycle vertical's client orchestrator.
@@ -53,13 +56,10 @@ export function CycleView() {
   const calendar = useCycleCalendar(from, to);
   const history = useCycleHistory();
   const profileQuery = useCycleProfile();
+  const insights = useCycleInsights();
 
   const [sheetOpen, setSheetOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState(today);
-
-  // Phase-correlation cards arrive from another wave; render the graceful
-  // empty-state until the feed lands.
-  const insightCards: CycleInsightCard[] = [];
 
   const wheel = useMemo(
     () => deriveWheelState(calendar.data?.days ?? [], today),
@@ -153,8 +153,9 @@ export function CycleView() {
           />
         </TabsContent>
 
-        <TabsContent value="insights" className="mt-4">
-          <CycleInsights cards={insightCards} />
+        <TabsContent value="insights" className="mt-4 space-y-4">
+          <CyclePhaseHeadline headline={insights.data?.headline ?? null} />
+          <CyclePhaseCrosstab rows={insights.data?.rows ?? []} />
         </TabsContent>
 
         <TabsContent value="settings" className="mt-4">

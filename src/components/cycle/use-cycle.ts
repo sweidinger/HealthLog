@@ -22,6 +22,13 @@ import type {
   CycleHistoryResponse,
   CycleProfileDTO,
 } from "./types";
+import type { CyclePhaseCrosstabRow } from "./cycle-phase-crosstab";
+
+/** The `/api/cycle/insights` read: the phase-contrast rows + the headline. */
+export interface CycleInsightsResponse {
+  rows: CyclePhaseCrosstabRow[];
+  headline: CyclePhaseCrosstabRow | null;
+}
 
 async function unwrap<T>(res: Response): Promise<T> {
   if (!res.ok) throw new Error(`Request failed: ${res.status}`);
@@ -56,6 +63,22 @@ export function useCycleProfile() {
     queryKey: queryKeys.cycleProfile(),
     queryFn: () =>
       fetch("/api/cycle/profile").then((r) => unwrap<CycleProfileDTO>(r)),
+    staleTime: 5 * 60_000,
+  });
+}
+
+/**
+ * The FDR-guarded phase-correlation surface: the luteal-vs-follicular contrast
+ * rows + the one headline finding. Gated server-side; reads only on the cycle
+ * insights tab.
+ */
+export function useCycleInsights() {
+  return useQuery({
+    queryKey: queryKeys.cycleInsights(),
+    queryFn: () =>
+      fetch("/api/cycle/insights").then((r) =>
+        unwrap<CycleInsightsResponse>(r),
+      ),
     staleTime: 5 * 60_000,
   });
 }

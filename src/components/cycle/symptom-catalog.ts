@@ -105,10 +105,3 @@ export const CYCLE_SYMPTOM_CATALOG: CycleSymptomCategory[] = [
     ],
   },
 ];
-
-/** Flat lookup: symptom key → its i18n labelKey (for rendering dots/labels). */
-export const SYMPTOM_LABEL_BY_KEY: Record<string, string> = Object.fromEntries(
-  CYCLE_SYMPTOM_CATALOG.flatMap((c) =>
-    c.symptoms.map((s) => [s.key, s.labelKey]),
-  ),
-);
