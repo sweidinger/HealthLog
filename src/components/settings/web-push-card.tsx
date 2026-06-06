@@ -155,73 +155,80 @@ export function WebPushCard() {
     }
   }
 
+  // The primary action sits in the header row (right of the title) rather than
+  // bottom-left, so an inactive card does not waste a wide empty band before
+  // its enable button. The loading spinner rides the same slot; the
+  // unsupported / denied notices stay in the body.
+  const headerAction = loading ? (
+    <Loader2 className="text-muted-foreground h-4 w-4 animate-spin motion-reduce:animate-none" />
+  ) : !isSupported || isDenied ? null : (
+    <div className="flex flex-wrap items-center justify-end gap-2">
+      {isSubscribed ? (
+        <Button
+          variant="outline"
+          size="sm"
+          className="min-h-11"
+          onClick={handleUnsubscribe}
+          disabled={actionLoading}
+        >
+          {actionLoading && (
+            <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
+          )}
+          {t("settings.webPushUnsubscribe")}
+        </Button>
+      ) : (
+        <Button
+          variant="outline"
+          size="sm"
+          className="min-h-11"
+          onClick={handleSubscribe}
+          disabled={actionLoading}
+        >
+          {actionLoading ? (
+            <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
+          ) : (
+            <BellRing className="mr-1 h-3.5 w-3.5" />
+          )}
+          {t("settings.webPushSubscribe")}
+        </Button>
+      )}
+      {isSubscribed && (
+        <TestConnectionButton endpoint="/api/notifications/web-push/test" />
+      )}
+    </div>
+  );
+
   return (
     <div className="bg-card border-border rounded-xl border p-6">
       <SettingsCardHeader
         icon={BellRing}
         title={t("settings.webPush")}
         description={t("settings.webPushDescription")}
+        status={headerAction}
       />
 
-      <div className="mt-4 space-y-4">
-        {loading ? (
-          <div className="flex items-center gap-2">
-            <Loader2 className="text-muted-foreground h-4 w-4 animate-spin motion-reduce:animate-none" />
-          </div>
-        ) : !isSupported ? (
-          <p className="text-muted-foreground text-sm">
-            {t("settings.webPushNotSupported")}
-          </p>
-        ) : isDenied ? (
-          <p className="text-destructive text-sm">
-            {t("settings.webPushDenied")}
-          </p>
-        ) : (
-          <div className="flex flex-wrap items-start gap-2">
-            {isSubscribed ? (
-              <Button
-                variant="outline"
-                size="sm"
-                className="min-h-11"
-                onClick={handleUnsubscribe}
-                disabled={actionLoading}
-              >
-                {actionLoading && (
-                  <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
-                )}
-                {t("settings.webPushUnsubscribe")}
-              </Button>
-            ) : (
-              <Button
-                variant="outline"
-                size="sm"
-                className="min-h-11"
-                onClick={handleSubscribe}
-                disabled={actionLoading}
-              >
-                {actionLoading ? (
-                  <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
-                ) : (
-                  <BellRing className="mr-1 h-3.5 w-3.5" />
-                )}
-                {t("settings.webPushSubscribe")}
-              </Button>
-            )}
-            {isSubscribed && (
-              <TestConnectionButton endpoint="/api/notifications/web-push/test" />
-            )}
-          </div>
-        )}
+      {(!loading && !isSupported) || (!loading && isDenied) || msg ? (
+        <div className="mt-4 space-y-4">
+          {!loading && !isSupported ? (
+            <p className="text-muted-foreground text-sm">
+              {t("settings.webPushNotSupported")}
+            </p>
+          ) : !loading && isDenied ? (
+            <p className="text-destructive text-sm">
+              {t("settings.webPushDenied")}
+            </p>
+          ) : null}
 
-        {msg && (
-          <p
-            role="alert"
-            className={`text-sm ${msgType === "success" ? "text-success" : "text-destructive"}`}
-          >
-            {msg}
-          </p>
-        )}
-      </div>
+          {msg && (
+            <p
+              role="alert"
+              className={`text-sm ${msgType === "success" ? "text-success" : "text-destructive"}`}
+            >
+              {msg}
+            </p>
+          )}
+        </div>
+      ) : null}
     </div>
   );
 }

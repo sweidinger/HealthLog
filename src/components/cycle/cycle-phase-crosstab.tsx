@@ -215,9 +215,6 @@ export function CyclePhaseCrosstab({
           );
         })}
       </ul>
-      <p className="text-muted-foreground mt-3 text-xs">
-        {t("cycle.insights.crosstab.footer")}
-      </p>
     </div>
   );
 }

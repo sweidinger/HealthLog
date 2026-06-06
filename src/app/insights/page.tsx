@@ -167,6 +167,19 @@ const CycleInsightSummaryCard = dynamic(
   { ssr: false },
 );
 
+// v1.15.3 — the compact cycle RING, dropped into the wellness-score strip as a
+// gated sibling tile (NOT the summary teaser — that stays further down). Mounted
+// only for a cycle-tracking account, so its calendar read never fires otherwise.
+// Deferred behind `next/dynamic`; it renders nothing while resolving / on error /
+// when there is no active cycle, so it carries no loading placeholder.
+const CycleRingTile = dynamic(
+  () =>
+    import("@/components/cycle/cycle-ring-tile").then((mod) => ({
+      default: mod.CycleRingTile,
+    })),
+  { ssr: false },
+);
+
 /**
  * v1.4.25 W4d — Insights mother page.
  *
@@ -376,6 +389,12 @@ export default function InsightsPage() {
         isLoading={dashboardDerived.isLoading}
         isError={dashboardDerived.isError}
         refetch={dashboardDerived.refetch}
+        // v1.15.3 — the cycle ring rides the scores strip as a gated sibling
+        // tile, only for a cycle-tracking account, so its calendar read never
+        // fires otherwise (the same `/api/auth/me` gate the sidebar nav uses).
+        extraTile={
+          user?.cycleTrackingEnabled ? <CycleRingTile /> : undefined
+        }
       />
 
       {flags.briefing && (

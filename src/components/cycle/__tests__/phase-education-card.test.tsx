@@ -30,11 +30,10 @@ const okGate = {
   predictionEnabled: true,
   rawChartMode: false,
   cyclesObserved: 4,
-  onLogToday: () => {},
 };
 
 describe("<PhaseEducationCard>", () => {
-  it("renders phase name + descriptive line + the log nudge when the gate passes", () => {
+  it("renders phase name + descriptive line when the gate passes", () => {
     const html = render(
       <PhaseEducationCard
         phase="LUTEAL"
@@ -44,7 +43,6 @@ describe("<PhaseEducationCard>", () => {
     );
     expect(html).toContain("Luteal");
     expect(html).toContain("progesterone"); // curated whatsHappening line
-    expect(html).toContain("Log today");
     expect(html).toContain('data-phase="LUTEAL"');
   });
 
@@ -69,7 +67,6 @@ describe("<PhaseEducationCard>", () => {
         predictionEnabled
         rawChartMode={false}
         cyclesObserved={2}
-        onLogToday={() => {}}
       />,
     );
     expect(html).toContain("Still learning your cycle");
@@ -85,7 +82,6 @@ describe("<PhaseEducationCard>", () => {
         predictionEnabled
         rawChartMode
         cyclesObserved={9}
-        onLogToday={() => {}}
       />,
     );
     expect(raw).toContain("Still learning your cycle");
@@ -97,24 +93,21 @@ describe("<PhaseEducationCard>", () => {
         predictionEnabled={false}
         rawChartMode={false}
         cyclesObserved={9}
-        onLogToday={() => {}}
       />,
     );
     expect(off).toContain("Still learning your cycle");
   });
 
-  it("omits the chip row in the compact variant", () => {
+  it("renders the chip row when the user has symptoms clustering in this phase", () => {
     const html = render(
       <PhaseEducationCard
-        compact
         phase="LUTEAL"
         symptomPatterns={[lutealCramps]}
         {...okGate}
       />,
     );
     expect(html).toContain("progesterone");
-    expect(html).not.toContain("cycle-phase-education-chips");
-    // The compact variant still carries the log nudge.
-    expect(html).toContain("Log today");
+    expect(html).toContain("cycle-phase-education-chips");
+    expect(html).toContain("Cramps");
   });
 });

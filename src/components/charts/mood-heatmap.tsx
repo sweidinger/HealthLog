@@ -35,6 +35,12 @@ interface MoodHeatmapProps {
 const CELL_SIZE = 18;
 const GAP = 3;
 const CELL_FLOOR_PX = 14;
+// v1.15.3 — cell-ceiling for the stretch branch. A short window (few covered
+// weeks → only ~5 columns) drove the adaptive `containerWidth / weeks` cell to
+// fill a wide card; since the grid is square the SVG height blew up to ~3× the
+// neighbouring tiles. Capping the cell keeps the grid dense + left-aligned so
+// the calendar holds the tile-height rhythm. Mirrors `compliance-heatmap.tsx`.
+const CELL_CEIL_PX = 22;
 
 /**
  * Mood score band → Dracula colour. Mirrors `mood-chart.tsx` VALUE_BANDS
@@ -183,10 +189,13 @@ export function MoodHeatmap({
   const headerHeight = 18;
   const cellSize =
     stretch && containerWidth > 0
-      ? Math.max(
-          CELL_FLOOR_PX,
-          (containerWidth - labelWidth - Math.max(0, weeks - 1) * GAP) /
-            Math.max(weeks, 1),
+      ? Math.min(
+          CELL_CEIL_PX,
+          Math.max(
+            CELL_FLOOR_PX,
+            (containerWidth - labelWidth - Math.max(0, weeks - 1) * GAP) /
+              Math.max(weeks, 1),
+          ),
         )
       : CELL_SIZE;
   const step = cellSize + GAP;
@@ -205,7 +214,10 @@ export function MoodHeatmap({
         <svg
           width={svgWidth}
           height={svgHeight}
-          className={stretch ? "block w-full" : "block"}
+          // v1.15.3 — `max-w-full` (not `w-full`) so a short window keeps its
+          // natural, square, left-aligned grid rather than CSS-stretching a few
+          // capped columns into wide rectangles. Mirrors `compliance-heatmap`.
+          className={stretch ? "block max-w-full" : "block"}
           onMouseLeave={() => setTooltip((prev) => (prev?.pinned ? prev : null))}
         >
           {monthMarkers.map((m, i) => (

@@ -4999,6 +4999,9 @@
       "noActiveCycle": "Nessun ciclo attivo ancora",
       "viewDetails": "Vedi le analisi del ciclo"
     },
+    "wellnessRing": {
+      "label": "Ciclo"
+    },
     "disclaimer": "Queste previsioni sono stime descrittive basate sui tuoi dati registrati, non un metodo contraccettivo né un parere medico. Non indicano mai che sia sicuro avere rapporti non protetti. Per la contraccezione o qualsiasi decisione medica, consulta un professionista sanitario.",
     "title": "Il tuo ciclo",
     "subtitle": "Registra il ciclo e i sintomi e scopri cosa arriva dopo.",

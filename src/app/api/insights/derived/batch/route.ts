@@ -34,6 +34,8 @@ import {
   isDerivedMetricId,
   type DerivedMetricId,
 } from "@/lib/insights/derived";
+import { resolveDeterministicAssessment } from "@/lib/insights/derived/derived-assessment";
+import { resolveServerLocale } from "@/lib/i18n/server-locale";
 
 export const dynamic = "force-dynamic";
 
@@ -146,6 +148,35 @@ export const GET = apiHandler(async (request: NextRequest) => {
   // four computes at a time against the shared pool, not seventeen.
   const limit = pLimit(BATCH_CONCURRENCY);
   const now = new Date();
+
+  // Attach the cheap DETERMINISTIC per-score assessment to the grid read so
+  // iOS paints the "Einschätzung" straight off the overview without a second
+  // per-id round-trip (the AI-warm prose stays lazy, served by the single
+  // route). `resolveDeterministicAssessment` is pure — no DB, no LLM — and
+  // null for non-assessable ids / non-`ok` status, so a non-score item still
+  // gets `assessment: null`. A best-effort grid extra must NEVER fail the
+  // whole batch, so each call is guarded → null on any unexpected shape.
+  const locale = await resolveServerLocale({
+    request,
+    userLocale: user.locale ?? null,
+    override: request.nextUrl.searchParams.get("locale"),
+  });
+  const assessmentLocale = locale === "de" ? "de" : "en";
+  const safeAssessment = (
+    metric: DerivedMetricId,
+    derived: Parameters<typeof resolveDeterministicAssessment>[1],
+  ) => {
+    try {
+      return resolveDeterministicAssessment(
+        metric,
+        derived,
+        assessmentLocale,
+        now,
+      );
+    } catch {
+      return null;
+    }
+  };
   const results = await Promise.all(
     items.map((item) =>
       limit(async () => {
@@ -167,11 +198,10 @@ export const GET = apiHandler(async (request: NextRequest) => {
             provenance: derived.provenance,
             reason:
               derived.status === "insufficient" ? derived.reason : null,
-            // The batch backs the dashboard GRID; per-score assessment text is
-            // a detail-sheet concern served by the single-metric route. Always
-            // null here so the wire shape matches `DerivedMetricResponse`
-            // without paying the assessment cost on a 17-item grid read.
-            assessment: null,
+            // Deterministic assessment only (cheap, pure). The AI-warm prose
+            // stays a single-route concern; here every assessable `ok` score
+            // carries its template "why" text, everything else stays null.
+            assessment: safeAssessment(item.metric, derived),
           },
         };
       }),

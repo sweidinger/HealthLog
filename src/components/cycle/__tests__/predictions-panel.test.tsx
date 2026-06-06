@@ -37,17 +37,33 @@ const emptyHistory: CycleHistoryResponse = {
 };
 
 describe("<PredictionsPanel>", () => {
-  it("renders the next-period range + the fixed disclaimer", () => {
+  it("renders the next-period range and shows the disclaimer under the AVOID_PREGNANCY goal", () => {
     const html = render(
       <PredictionsPanel
         prediction={basePrediction}
         rawChartMode={false}
         history={emptyHistory}
+        goal="AVOID_PREGNANCY"
       />,
     );
     expect(html).toContain('data-slot="cycle-disclaimer"');
     expect(html).toContain("Estimates only, not medical advice.");
     // The range (not a single date) renders.
+    expect(html).toContain("–");
+  });
+
+  it("suppresses the generic estimate disclaimer for non-AVOID_PREGNANCY goals", () => {
+    const html = render(
+      <PredictionsPanel
+        prediction={basePrediction}
+        rawChartMode={false}
+        history={emptyHistory}
+        goal="GENERAL_HEALTH"
+      />,
+    );
+    expect(html).not.toContain('data-slot="cycle-disclaimer"');
+    expect(html).not.toContain("Estimates only, not medical advice.");
+    // The range still renders.
     expect(html).toContain("–");
   });
 

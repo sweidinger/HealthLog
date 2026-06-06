@@ -1,9 +1,8 @@
 "use client";
 
 import { useMemo } from "react";
-import { Sparkles, Plus } from "lucide-react";
+import { Sparkles } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
 import { useTranslations } from "@/lib/i18n/context";
 import { cn } from "@/lib/utils";
 import { PHASE_WHATS_HAPPENING_KEY } from "@/lib/cycle/phase-copy";
@@ -23,8 +22,8 @@ import type { SymptomPhaseRow } from "./use-cycle";
  *      never clinical advice / a medical claim),
  *   3. a "you often notice this here" chip row sourced from the user's OWN
  *      symptom-by-phase history (`symptomPatterns`), filtered to symptoms that
- *      cluster in THIS phase — never a generic population claim — plus a
- *      "log today" nudge into the existing day-log sheet.
+ *      cluster in THIS phase — never a generic population claim. Logging lives
+ *      on the top-level log entry, so the card carries no own log button.
  *
  * Honesty gate (Clue precedent): when prediction is disabled / raw-chart mode
  * or fewer than three observed cycles, the predictive framing is suppressed and
@@ -47,12 +46,8 @@ export interface PhaseEducationCardProps {
   predictionEnabled: boolean;
   rawChartMode: boolean;
   cyclesObserved: number;
-  /** Open the day-log sheet for today (the "log today" nudge). */
-  onLogToday: () => void;
   /** Ride the wheel's once-per-session reveal — no independent animation. */
   animate?: boolean;
-  /** Compact variant beneath the wheel (tighter padding, no chip row). */
-  compact?: boolean;
   className?: string;
 }
 
@@ -62,9 +57,7 @@ export function PhaseEducationCard({
   predictionEnabled,
   rawChartMode,
   cyclesObserved,
-  onLogToday,
   animate = false,
-  compact = false,
   className,
 }: PhaseEducationCardProps) {
   const { t } = useTranslations();
@@ -118,8 +111,7 @@ export function PhaseEducationCard({
       aria-label={t("cycle.phaseEducation.title")}
       style={{ "--tile-hue": hue } as React.CSSProperties}
       className={cn(
-        "wellness-tile rounded-xl",
-        compact ? "px-4 py-4" : "px-5 py-5",
+        "wellness-tile rounded-xl px-5 py-5",
         animate && "wellness-tile-rise",
         className,
       )}
@@ -159,10 +151,9 @@ export function PhaseEducationCard({
             {t(PHASE_WHATS_HAPPENING_KEY[phase as CyclePhase])}
           </p>
 
-          {/* Zone 3 — the user's OWN clustered symptoms for this phase. The
-              compact variant under the wheel omits the chip row to stay light;
-              the calendar-tab variant shows it. */}
-          {!compact && chips.length > 0 ? (
+          {/* Zone 3 — the user's OWN clustered symptoms for this phase
+              ("you often notice this here"). */}
+          {chips.length > 0 ? (
             <div className="mt-4">
               <p className="text-muted-foreground text-xs font-medium">
                 {t("cycle.phaseEducation.commonHere")}
@@ -194,18 +185,6 @@ export function PhaseEducationCard({
               </ul>
             </div>
           ) : null}
-
-          {/* The "log today" nudge — opens the existing day-log sheet. */}
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={onLogToday}
-            className="bg-background/55 mt-4 gap-1.5"
-          >
-            <Plus className="h-3.5 w-3.5" aria-hidden="true" />
-            {t("cycle.phaseEducation.trackNudge")}
-          </Button>
         </>
       )}
     </section>

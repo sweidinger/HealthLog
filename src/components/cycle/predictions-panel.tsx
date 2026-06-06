@@ -53,6 +53,10 @@ export interface PredictionsPanelProps {
   history: CycleHistoryResponse | undefined;
   /** Fallback disclaimer when no prediction carries one. */
   fallbackDisclaimer?: string;
+  /** The active cycle goal — only AVOID_PREGNANCY surfaces the (deliberate)
+   *  contraceptive-safety caveat here; every other goal drops the generic
+   *  "predictions are estimates" line so it does not repeat under every graph. */
+  goal?: string;
 }
 
 export function PredictionsPanel({
@@ -60,10 +64,18 @@ export function PredictionsPanel({
   rawChartMode,
   history,
   fallbackDisclaimer,
+  goal,
 }: PredictionsPanelProps) {
   const { t } = useTranslations();
 
-  const disclaimer = prediction?.disclaimer ?? fallbackDisclaimer ?? "";
+  // Only the AVOID_PREGNANCY goal shows a disclaimer here: it surfaces the
+  // fertile window, so the stronger "not a contraceptive method" caveat is a
+  // deliberate medical safety note. For all other goals the generic
+  // estimate-caveat is suppressed (it already lives once with the data).
+  const disclaimer =
+    goal === "AVOID_PREGNANCY"
+      ? (prediction?.disclaimer ?? fallbackDisclaimer ?? "")
+      : "";
 
   return (
     <div className="space-y-4">

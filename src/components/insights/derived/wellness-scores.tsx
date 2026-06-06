@@ -47,6 +47,16 @@ interface ScoreStripProps {
   isError?: boolean;
   /** Refetch the one shared batch query. Recovers both strips at once. */
   refetch?: () => void;
+  /**
+   * An optional extra tile rendered as the LAST sibling inside the same scores
+   * grid (e.g. the gated cycle ring). It participates in the column-count math
+   * so it never leaves a dangling empty cell, and it keeps the strip mounted
+   * even when no wellness score has data (a cycle-only account still sees its
+   * dial). The caller owns the gating — the strip just slots whatever it gets.
+   * The element is expected to render `null` on its own when it has nothing to
+   * show, so the strip subtracts it from the count in that case.
+   */
+  extraTile?: React.ReactNode;
   className?: string;
 }
 
@@ -149,6 +159,7 @@ export function WellnessScores({
   isLoading,
   isError = false,
   refetch,
+  extraTile,
   className,
 }: ScoreStripProps) {
   const { t } = useTranslations();
@@ -310,7 +321,23 @@ export function WellnessScores({
     );
   }
 
-  // Whole strip un-mounts when no score has data — never an empty section.
+  // The optional caller-supplied tile (e.g. the gated cycle ring) slots in as
+  // the last sibling. It is counted toward the grid column math so it never
+  // leaves a dangling cell, and its presence keeps the strip mounted even when
+  // no wellness score has data (a cycle-only account still sees its dial). The
+  // tile renders `null` on its own when it has nothing to show; the grid has
+  // no background, so a transient empty trailing cell shows nothing — never a
+  // "missing tile" frame.
+  if (extraTile != null) {
+    tiles.push(
+      <div key="EXTRA" data-slot="wellness-extra-tile-slot" className="contents">
+        {extraTile}
+      </div>,
+    );
+  }
+
+  // Whole strip un-mounts when no score has data AND no extra tile — never an
+  // empty section.
   if (tiles.length === 0) return null;
 
   // v1.12.4 — the strip used a fixed `lg:grid-cols-5`, so the common case of

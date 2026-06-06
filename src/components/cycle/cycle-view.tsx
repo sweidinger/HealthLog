@@ -208,18 +208,17 @@ export function CycleView() {
           ) : null}
         </div>
 
-          {/* Compact phase-education card beneath the wheel — chip row omitted
-              here (compact); the full card lives on the calendar tab. */}
+          {/* Phase-education card beneath the wheel — the single instance,
+              including the "you often notice this here" chip row sourced from
+              the user's own symptom-by-phase history. */}
           {!loading && !calendarError ? (
             <PhaseEducationCard
-              compact
               animate={play}
               phase={wheel.phase}
               symptomPatterns={insights.data?.symptomPatterns ?? []}
               predictionEnabled={calProfile?.predictionEnabled ?? false}
               rawChartMode={calProfile?.rawChartMode ?? false}
               cyclesObserved={calProfile?.cyclesObserved ?? 0}
-              onLogToday={() => openSheet(today)}
             />
           ) : null}
         </div>
@@ -241,16 +240,6 @@ export function CycleView() {
           </TabsList>
 
           <TabsContent value="calendar" className="mt-4 space-y-4">
-            {!loading && !calendarError ? (
-              <PhaseEducationCard
-                phase={wheel.phase}
-                symptomPatterns={insights.data?.symptomPatterns ?? []}
-                predictionEnabled={calProfile?.predictionEnabled ?? false}
-                rawChartMode={calProfile?.rawChartMode ?? false}
-                cyclesObserved={calProfile?.cyclesObserved ?? 0}
-                onLogToday={() => openSheet(today)}
-              />
-            ) : null}
             <Card>
               <CardContent className="py-4">
                 {loading ? (
@@ -292,6 +281,7 @@ export function CycleView() {
                   rawChartMode={calendar.data?.profile.rawChartMode ?? false}
                   history={history.data}
                   fallbackDisclaimer={disclaimerText}
+                  goal={goal}
                 />
                 <CycleHistoryChart history={history.data} animate={play} />
                 <BbtChart

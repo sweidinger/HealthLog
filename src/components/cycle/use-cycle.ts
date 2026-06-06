@@ -335,27 +335,6 @@ export function useDeleteDayLog() {
   });
 }
 
-/**
- * Hard-delete EVERY cycle row the user owns (day-logs, cycles, predictions,
- * the cycle audit trail, and the cycle reminder-delivery ledger rows). The
- * privacy "purge" the post-Dobbs threat model promises — distinct from the
- * per-row soft-delete. Invalidates the whole cycle prefix + the nav gate.
- */
-export function useDeleteAllCycleData() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async () => {
-      const res = await fetch("/api/cycle/all", { method: "DELETE" });
-      if (!res.ok) throw new Error(`Request failed: ${res.status}`);
-      return unwrap<{ purged: boolean }>(res);
-    },
-    onSuccess: () => {
-      void invalidateKeys(qc, cycleDependentKeys);
-      void qc.invalidateQueries({ queryKey: queryKeys.authMe() });
-    },
-  });
-}
-
 export interface CyclePrefsPatch {
   enabled?: boolean;
   goal?: CycleProfileDTO["goal"];
