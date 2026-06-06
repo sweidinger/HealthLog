@@ -35,10 +35,11 @@ clinical records, electrocardiograms). The importer reads
 
 ## 2. Upload to HealthLog
 
-Open the import page from the in-app settings tree. Drop the
-`export.zip` onto the upload control. The browser streams the body
-directly to the server; nothing is buffered into memory on either
-side.
+Open **Settings → Export & Import** in the app and drop the
+`export.zip` onto the Apple Health upload control (or click to pick the
+file). The browser streams the body directly to the server; nothing is
+buffered into memory on either side. A progress indicator polls the
+job until it reports the imported / skipped counts.
 
 The endpoint is `POST /api/import/apple-health-export`. The handler:
 

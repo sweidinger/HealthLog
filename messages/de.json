@@ -3289,8 +3289,8 @@
         "description": "Opt-in-Schalter für den Forschungsmodus sowie der Notausgang zum unwiderruflichen Löschen aller Gesundheitsdaten."
       },
       "export": {
-        "title": "Export",
-        "description": "Lade deine Gesundheitsdaten als PDF, CSV oder vollständiges JSON-Backup herunter.",
+        "title": "Export & Import",
+        "description": "Lade deine Gesundheitsdaten als PDF, CSV oder vollständiges JSON-Backup herunter — oder importiere Daten aus Apple Health oder einer JSON-Datei.",
         "otherOptionsHeading": "Weitere Export-Optionen",
         "downloadFailed": "Der Export konnte nicht heruntergeladen werden. Bitte versuche es erneut.",
         "hero": {
@@ -3327,6 +3327,53 @@
           "fullBackup": {
             "title": "Voll-Backup",
             "description": "Eine einzige JSON-Datei mit allen Daten — gleiches Format wie das wöchentliche Auto-Backup. Praktisch zum Selbst-Wiederherstellen via Admin-Upload."
+          },
+          "cycle": {
+            "title": "Zyklus",
+            "description": "Zyklus- und Reproduktionsdaten als FHIR-Dokument — letzte Periode, durchschnittliche Zyklus- und Periodenlänge, aktuelle Phase."
+          }
+        },
+        "import": {
+          "heading": "Import",
+          "description": "Importiere Daten aus einem Apple-Health-Export oder einer JSON-Datei. Bereits vorhandene Einträge werden übersprungen, ein erneuter Import ist also unbedenklich.",
+          "appleHealth": {
+            "title": "Apple Health",
+            "description": "Lade die export.zip aus der Health-App auf dem iPhone hoch (Profil → Alle Gesundheitsdaten exportieren).",
+            "dropLabel": "export.zip hier ablegen",
+            "dropHint": "oder zum Auswählen klicken",
+            "fileInputLabel": "Eine Apple-Health-export.zip-Datei auswählen",
+            "choose": "Datei auswählen",
+            "idempotencyNote": "Ein erneuter Upload desselben Archivs führt zusammen — es entstehen keine Duplikate. Große Archive werden im Hintergrund verarbeitet.",
+            "uploading": "Wird hochgeladen…",
+            "uploadFailed": "Upload fehlgeschlagen. Bitte erneut versuchen.",
+            "rateLimited": "Zu viele Uploads. Bitte kurz warten und erneut versuchen.",
+            "tooLarge": "Diese Datei ist zu groß (Grenze 1,5 GB).",
+            "failed": "Der Import ist fehlgeschlagen.",
+            "rowsImported": "Bisher {count} Einträge importiert",
+            "doneSummary": "Fertig — {imported} von {read} Datensätzen importiert, {skipped} klinische Datensätze übersprungen.",
+            "phase": {
+              "queued": "In Warteschlange…",
+              "unpacking": "Archiv wird entpackt…",
+              "parsing": "Export wird gelesen…",
+              "upserting": "Datensätze werden importiert…"
+            }
+          },
+          "json": {
+            "title": "JSON-Datei",
+            "description": "JSON einfügen oder eine .json-Datei mit Messwerten und Stimmungseinträgen hochladen.",
+            "pasteLabel": "JSON einfügen",
+            "fileInputLabel": "Eine JSON-Datei zum Import auswählen",
+            "schemaHint": "Zwei Arrays: measurements und moodEntries.",
+            "docsLink": "Schema und Beispiel ansehen.",
+            "uploadFile": "Datei hochladen",
+            "downloadExample": "Beispiel herunterladen",
+            "import": "Importieren",
+            "invalidJson": "Das ist kein gültiges JSON. Bitte die Syntax prüfen und erneut versuchen.",
+            "invalidPayload": "Die Daten passen nicht zum Import-Schema.",
+            "rateLimited": "Zu viele Importe in dieser Stunde (Grenze 5). Bitte später erneut versuchen.",
+            "failed": "Der Import ist fehlgeschlagen. Bitte erneut versuchen.",
+            "readFailed": "Diese Datei konnte nicht gelesen werden.",
+            "resultSummary": "{measurements} Messwerte und {moods} Stimmungseinträge importiert, {skipped} übersprungen."
           }
         }
       },

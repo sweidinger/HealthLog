@@ -3289,8 +3289,8 @@
         "description": "Bouton opt-in du mode Recherche et zone dangereuse pour effacer irrévocablement toutes les données de santé."
       },
       "export": {
-        "title": "Exporter",
-        "description": "Téléchargez vos données de santé en PDF, CSV ou sauvegarde JSON complète.",
+        "title": "Export et import",
+        "description": "Téléchargez vos données de santé en PDF, CSV ou sauvegarde JSON complète, ou importez des données depuis Apple Santé ou un fichier JSON.",
         "otherOptionsHeading": "Autres options d'export",
         "downloadFailed": "Échec du téléchargement de l'export. Veuillez réessayer.",
         "hero": {
@@ -3327,6 +3327,53 @@
           "fullBackup": {
             "title": "Sauvegarde complète",
             "description": "Un seul fichier JSON contenant tout — même format que la sauvegarde automatique hebdomadaire. Utile pour une restauration personnelle via le téléversement administrateur."
+          },
+          "cycle": {
+            "title": "Cycle",
+            "description": "Données de cycle et de santé reproductive sous forme de document FHIR : dernières règles, durée moyenne du cycle et des règles, phase actuelle."
+          }
+        },
+        "import": {
+          "heading": "Import",
+          "description": "Importez des données dans HealthLog depuis un export Apple Santé ou un fichier JSON. L'import ignore les lignes déjà présentes : le relancer est sans risque.",
+          "appleHealth": {
+            "title": "Apple Santé",
+            "description": "Importez le fichier export.zip de l'app Santé sur iPhone (Profil → Exporter toutes les données de santé).",
+            "dropLabel": "Déposez export.zip ici",
+            "dropHint": "ou cliquez pour choisir un fichier",
+            "fileInputLabel": "Choisir un fichier export.zip d'Apple Santé",
+            "choose": "Choisir un fichier",
+            "idempotencyNote": "Réimporter la même archive fusionne les données ; aucun doublon n'est créé. Les grandes archives sont traitées en arrière-plan.",
+            "uploading": "Envoi…",
+            "uploadFailed": "Échec de l'envoi. Veuillez réessayer.",
+            "rateLimited": "Trop d'envois. Patientez un instant et réessayez.",
+            "tooLarge": "Ce fichier est trop volumineux (limite 1,5 Go).",
+            "failed": "L'import a échoué.",
+            "rowsImported": "{count} lignes importées jusqu'ici",
+            "doneSummary": "Terminé — {imported} enregistrements sur {read} importés, {skipped} enregistrements cliniques ignorés.",
+            "phase": {
+              "queued": "En file d'attente…",
+              "unpacking": "Décompression de l'archive…",
+              "parsing": "Lecture de l'export…",
+              "upserting": "Import des enregistrements…"
+            }
+          },
+          "json": {
+            "title": "Fichier JSON",
+            "description": "Collez du JSON ou importez un fichier .json contenant des mesures et des entrées d'humeur.",
+            "pasteLabel": "Coller du JSON",
+            "fileInputLabel": "Choisir un fichier JSON à importer",
+            "schemaHint": "Deux tableaux : measurements et moodEntries.",
+            "docsLink": "Voir le schéma et un exemple.",
+            "uploadFile": "Importer un fichier",
+            "downloadExample": "Télécharger l'exemple",
+            "import": "Importer",
+            "invalidJson": "Ce n'est pas du JSON valide. Vérifiez la syntaxe et réessayez.",
+            "invalidPayload": "Les données ne correspondent pas au schéma d'import.",
+            "rateLimited": "Trop d'imports cette heure-ci (limite 5). Réessayez plus tard.",
+            "failed": "L'import a échoué. Veuillez réessayer.",
+            "readFailed": "Impossible de lire ce fichier.",
+            "resultSummary": "{measurements} mesures et {moods} entrées d'humeur importées, {skipped} ignorées."
           }
         }
       },

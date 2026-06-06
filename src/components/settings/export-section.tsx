@@ -26,7 +26,9 @@
  */
 
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import {
+  CalendarHeart,
   Download,
   FileJson,
   FileSpreadsheet,
@@ -41,9 +43,11 @@ import { DateInput } from "@/components/ui/date-input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { HealthRecordExportPanel } from "@/components/settings/health-record-export-panel";
+import { ImportPanel } from "@/components/settings/import-panel";
+import { queryKeys } from "@/lib/query-keys";
 import { useTranslations } from "@/lib/i18n/context";
 
-type ExportFormat = "CSV" | "JSON";
+type ExportFormat = "CSV" | "JSON" | "FHIR";
 
 /**
  * Trigger a browser download for a given URL by spinning up an anchor
@@ -109,8 +113,18 @@ export function ExportSection() {
           <MedicationsCsvCard />
           <MoodCsvCard />
           <FullBackupCard />
+          {/* R30 — cycle export, gated on cycle tracking being enabled.
+              The card mounts only for accounts with cycle data; it reuses
+              the health-record FHIR export with the reproductive section
+              opted in, so there is no separate backend path. */}
+          <CycleExportCard />
         </div>
       </section>
+
+      {/* R28 / issue #281 — the import surface for the Apple Health
+          `export.zip` and the generic JSON paths. The export routes had
+          backends with no UI until now. */}
+      <ImportPanel />
     </section>
   );
 }
@@ -454,6 +468,116 @@ function FullBackupCard() {
             <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
           ) : (
             <FileText className="mr-1 h-3.5 w-3.5" />
+          )}
+          {t("settings.sections.export.actions.download")}
+        </Button>
+      }
+    >
+      {error && (
+        <p role="alert" className="text-destructive text-xs">
+          {error}
+        </p>
+      )}
+    </ExportCardShell>
+  );
+}
+
+// ─────────────────────────── Cycle export (gated) ───────────────────────────
+
+/**
+ * R30 — cycle / reproductive-health export, GATED on cycle tracking
+ * being enabled for the account. A standalone cycle export was removed
+ * from the cycle settings in v1.15.4 (it lives in the full backup); this
+ * surfaces an explicit, opt-in cycle export here for accounts that track
+ * a cycle. It reuses the flagship `/api/export/health-record` route with
+ * the reproductive section opted in and every other section off — no
+ * separate backend path. The card does not render at all when cycle
+ * tracking is off, so a non-cycle account never sees it.
+ */
+function CycleExportCard() {
+  const { t } = useTranslations();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // The ungated prefs read tells us whether cycle tracking is enabled
+  // without tripping the cycle gate's 403.
+  const prefsQuery = useQuery({
+    queryKey: queryKeys.cyclePrefs(),
+    queryFn: async (): Promise<{ cycleTrackingEnabled: boolean }> => {
+      const res = await fetch("/api/auth/me/cycle-prefs", {
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error(`prefs-${res.status}`);
+      return (await res.json()).data as { cycleTrackingEnabled: boolean };
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+
+  // Gate: render nothing until we know cycle is on. A failed/absent read
+  // keeps the card hidden (fail-closed) so it never appears spuriously.
+  if (prefsQuery.data?.cycleTrackingEnabled !== true) return null;
+
+  async function handleGenerate() {
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/export/health-record", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          format: "fhir",
+          sections: {
+            vitals: {},
+            cardioFitness: {},
+            activity: {},
+            glucose: false,
+            medications: {},
+            mood: false,
+            bmi: false,
+            cycle: true,
+          },
+        }),
+      });
+      if (!res.ok) {
+        setError(t("settings.sections.export.downloadFailed"));
+        return;
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `healthlog-cycle-${new Date().toISOString().slice(0, 10)}.json`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch {
+      setError(t("settings.sections.export.downloadFailed"));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <ExportCardShell
+      testId="export-card-cycle"
+      icon={CalendarHeart}
+      title={t("settings.sections.export.cards.cycle.title")}
+      description={t("settings.sections.export.cards.cycle.description")}
+      format="FHIR"
+      footer={
+        <Button
+          data-testid="export-action-cycle"
+          variant="outline"
+          size="sm"
+          onClick={handleGenerate}
+          disabled={busy}
+        >
+          {busy ? (
+            <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
+          ) : (
+            <Download className="mr-1 h-3.5 w-3.5" />
           )}
           {t("settings.sections.export.actions.download")}
         </Button>

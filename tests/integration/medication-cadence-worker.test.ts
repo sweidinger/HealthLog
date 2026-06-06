@@ -31,7 +31,7 @@
  *   7. Legacy `daysOfWeek` fallback with `intervalWeeks > 1`.
  */
 import { NextRequest } from "next/server";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { cookieJar } from "./mock-next-headers";
 import { getPrismaClient, truncateAllTables } from "./setup";
@@ -719,6 +719,21 @@ describe("legacy daysOfWeek fallback", () => {
 // ────────────────────────────────────────────────────────────────────
 
 describe("v1.8.2 per-med intake POST — source-agnostic slot collapse", () => {
+  // A taken-write must never snap onto a FUTURE slot, so the 07:00 slot
+  // these cases mint has to sit in the past relative to "now" — which it
+  // does not when the suite runs before 07:00 local. Pin the clock to
+  // local noon (kept on today via the real date) and fake only Date, so
+  // Prisma's real timers are untouched.
+  beforeEach(() => {
+    const noon = new Date();
+    noon.setHours(12, 0, 0, 0);
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(noon);
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it("updates a pre-existing pending REMINDER slot row instead of inserting a second WEB row", async () => {
     const prisma = getPrismaClient();
     const med = await prisma.medication.create({

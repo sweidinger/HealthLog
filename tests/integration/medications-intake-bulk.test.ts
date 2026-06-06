@@ -8,7 +8,7 @@
  *   - returns `duplicate` when an idempotencyKey is re-used
  */
 import { NextRequest } from "next/server";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { cookieJar } from "./mock-next-headers";
 import { getPrismaClient, truncateAllTables } from "./setup";
@@ -87,7 +87,10 @@ beforeEach(async () => {
   const session = await prisma.session.create({
     data: {
       userId: TEST_USER_ID,
-      expiresAt: new Date(Date.now() + 60 * 60 * 1000),
+      // Long expiry so the session survives the cases that pin the clock
+      // forward to local noon (a 60-minute expiry would read as expired
+      // under the faked time).
+      expiresAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
     },
   });
   cookieJar.set("healthlog_session", session.id);
@@ -169,6 +172,25 @@ describe("POST /api/medications/intake/bulk (real Postgres)", () => {
   describe("v1.8.2 — source-agnostic slot collapse", () => {
     const TZ = "Europe/Berlin";
 
+    // A taken-write must never snap onto a FUTURE slot, so the 07:00
+    // taken-write cases below pin the clock to local noon (see
+    // `pinClockAfterMorningSlot`) so the slot sits in the past even when
+    // the suite runs before 07:00 local. Sibling cases that use a later
+    // slot or fixed dates keep real time, hence the per-test pin. This
+    // afterEach is a no-op for the cases that never faked.
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    // Pin only Date (leaving Prisma's real timers) to today's local noon,
+    // computed from the real date so it stays on the current day.
+    function pinClockAfterMorningSlot(): void {
+      const noon = new Date();
+      noon.setHours(12, 0, 0, 0);
+      vi.useFakeTimers({ toFake: ["Date"] });
+      vi.setSystemTime(noon);
+    }
+
     async function makeScheduledMed(timesOfDay: string[]): Promise<string> {
       const prisma = getPrismaClient();
       const med = await prisma.medication.create({
@@ -192,6 +214,7 @@ describe("POST /api/medications/intake/bulk (real Postgres)", () => {
     }
 
     it("collapses an API taken-write onto a pre-existing pending REMINDER slot row (exact instant)", async () => {
+      pinClockAfterMorningSlot();
       const prisma = getPrismaClient();
       const medId = await makeScheduledMed(["07:00"]);
       // The projector/worker minted this pending REMINDER row.
@@ -237,6 +260,7 @@ describe("POST /api/medications/intake/bulk (real Postgres)", () => {
     });
 
     it("collapses even when the write's scheduledFor drifts by 1 minute", async () => {
+      pinClockAfterMorningSlot();
       const prisma = getPrismaClient();
       const medId = await makeScheduledMed(["07:00"]);
       const slot = localHmAsUtc(new Date(), TZ, 7, 0);

@@ -27,6 +27,9 @@ vi.mock("next/navigation", () => ({
 }));
 
 vi.mock("@tanstack/react-query", () => ({
+  // The cycle-export card and the Apple-Health status poll both call
+  // `useQuery`; `data: null` keeps the gated cycle card hidden and the
+  // import poll idle, which is the correct default-render state.
   useQuery: () => ({ data: null, isLoading: false, refetch: vi.fn() }),
   useQueryClient: () => ({ invalidateQueries: vi.fn() }),
   useMutation: () => ({ mutate: vi.fn(), isPending: false }),
@@ -53,9 +56,25 @@ function render(node: React.ReactElement, locale: "en" | "de" = "en") {
 describe("<ExportSection> — SSR smoke", () => {
   it("renders the section heading + description", () => {
     const html = render(<ExportSection />);
-    expect(html).toContain("Export");
+    // v1.15.7 — the section was relabelled "Export & Import" (issue #281).
+    expect(html).toContain("Export &amp; Import");
     // Raw key never leaks past i18n.
     expect(html).not.toContain("settings.sections.export.");
+  });
+
+  it("mounts the import area below the export options", () => {
+    const html = render(<ExportSection />);
+    // R28 — the import surface (issue #281) lives in the same section.
+    expect(html).toContain('id="settings-section-import-title"');
+    expect(html).toContain('data-testid="import-card-apple-health"');
+    expect(html).toContain('data-testid="import-card-json"');
+  });
+
+  it("keeps the gated cycle export hidden when cycle is off", () => {
+    const html = render(<ExportSection />);
+    // The mocked `useQuery` returns no prefs, so the gated cycle card
+    // must not render (fail-closed gate).
+    expect(html).not.toContain('data-testid="export-card-cycle"');
   });
 
   it("mounts the health-record export panel as the page hero", () => {
