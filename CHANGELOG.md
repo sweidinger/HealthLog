@@ -2,6 +2,24 @@
 
 ## [Unreleased]
 
+## [1.15.7] — 2026-06-07 — data import in the browser
+
+### Added
+
+- **Import your data from the browser.** Settings → Export is now **Export & Import** and carries a proper import area with two paths:
+  - **Apple Health** — upload your `export.zip` directly. It streams server-side (handles multi-GB archives) and is idempotent, so re-uploading the same archive merges rather than duplicating; progress and the imported/skipped totals are shown as it runs.
+  - **Generic JSON** — upload or paste a JSON document of measurements and mood entries (with a downloadable example and a documented schema) for manually-prepared or converted data.
+  - The data-import schema, the full measurement-type/unit reference, and a "convert a CSV into this" how-to are documented at `docs/integrations/data-import.md`.
+- **Cycle export.** When cycle tracking is on, the Export area offers an explicit cycle export.
+
+### Changed
+
+- **A more compact health-record export card.** The health-record export keeps its prominence but takes far less vertical space.
+
+### Fixed
+
+- **The Apple Health import is reachable again.** The importer existed on the backend, but the web page the docs pointed to was never present; there is now a real import UI in Settings → Export & Import. (#281)
+
 ## [1.15.6] — 2026-06-06 — settings, insights, and medication-card polish
 
 ### Fixed
