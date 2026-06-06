@@ -3,15 +3,17 @@ import { expect, test } from "@playwright/test";
 import { STORAGE_STATE_PATH } from "./setup/global-setup";
 
 /**
- * Settings → Export consolidated UI smoke.
+ * Settings → Export & Import consolidated UI smoke.
  *
  * Validates that:
  *   1. The export surfaces are all rendered with their stable testids:
  *      the health-record export hero, the four CSV/JSON tiles, and the
  *      demoted doctor-report card (v1.12).
- *   2. The health-record "included data" checklist is a disclosure,
+ *   2. The import surfaces (v1.15.7, issue #281) render: the Apple Health
+ *      and generic-JSON cards.
+ *   3. The health-record "included data" checklist is a disclosure,
  *      collapsed by default, and expands on demand.
- *   3. Clicking the Measurements CSV download button fires a real
+ *   4. Clicking the Measurements CSV download button fires a real
  *      browser download — proving the `/api/export/measurements`
  *      endpoint is reachable from the browser end-to-end.
  *
@@ -19,7 +21,7 @@ import { STORAGE_STATE_PATH } from "./setup/global-setup";
  * download is enough to lock in the wiring without doubling the e2e
  * runtime.
  */
-test.describe("Settings → Export", () => {
+test.describe("Settings → Export & Import", () => {
   test.use({ storageState: STORAGE_STATE_PATH });
 
   test("renders all export surfaces with stable testids", async ({ page }) => {
@@ -37,6 +39,35 @@ test.describe("Settings → Export", () => {
     ]) {
       await expect(page.getByTestId(id)).toBeVisible({ timeout: 10_000 });
     }
+  });
+
+  test("renders the import surfaces with stable testids", async ({ page }) => {
+    await page.goto("/settings/export", { waitUntil: "domcontentloaded" });
+    // v1.15.7 (issue #281) — the Apple Health and generic-JSON import
+    // cards live in the same section, below the export options.
+    for (const id of ["import-card-apple-health", "import-card-json"]) {
+      await expect(page.getByTestId(id)).toBeVisible({ timeout: 10_000 });
+    }
+  });
+
+  test("JSON import 'Download example' fires a real download", async ({
+    page,
+  }) => {
+    await page.goto("/settings/export", { waitUntil: "domcontentloaded" });
+    const exampleBtn = page.getByTestId("import-json-download-example");
+    await expect(exampleBtn).toBeVisible({ timeout: 10_000 });
+
+    const downloadPromise = page.waitForEvent("download", { timeout: 30_000 });
+    await exampleBtn.click();
+    const download = await downloadPromise;
+
+    const path = await download.path();
+    expect(path).toBeTruthy();
+    const fs = await import("node:fs/promises");
+    const buf = await fs.readFile(path!);
+    const parsed = JSON.parse(buf.toString("utf8"));
+    expect(Array.isArray(parsed.measurements)).toBe(true);
+    expect(Array.isArray(parsed.moodEntries)).toBe(true);
   });
 
   test("included-data checklist is collapsed by default and expands on demand", async ({
