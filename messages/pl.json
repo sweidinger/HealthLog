@@ -5131,6 +5131,15 @@
       "ORAL": "Tabletka",
       "PATCH": "Plaster",
       "EMERGENCY": "Awaryjna"
+    },
+    "loadError": "Nie udało się wczytać danych cyklu.",
+    "bbt": {
+      "title": "Podstawowa temperatura ciała",
+      "caption": "Twoja poranna temperatura w tym cyklu. Trwały wzrost o około 0,2 °C następuje po owulacji.",
+      "empty": "Brak pomiarów temperatury",
+      "emptyHint": "Zapisuj podstawową temperaturę ciała każdego ranka, aby zobaczyć przesunięcie temperatury w cyklu.",
+      "ovulationEstimate": "Szac. owulacja",
+      "tooltipTemp": "{temp} °C"
     }
   },
   "cycleReminders": {

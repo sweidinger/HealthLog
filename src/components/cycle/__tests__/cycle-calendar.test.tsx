@@ -22,6 +22,9 @@ function dayBase(date: string): CalendarDay {
     flow: null,
     hasSymptoms: false,
     confidence: 1,
+    basalBodyTempC: null,
+    ovulationTest: null,
+    cervicalMucus: null,
   };
 }
 

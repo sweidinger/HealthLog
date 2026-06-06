@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 
-import { deriveWheelState } from "../wheel-state";
+import { deriveWheelState, currentCycleStartDate } from "../wheel-state";
 import type { CalendarDay } from "../types";
 
 function day(date: string, phase: CalendarDay["phase"]): CalendarDay {
@@ -14,6 +14,9 @@ function day(date: string, phase: CalendarDay["phase"]): CalendarDay {
     flow: null,
     hasSymptoms: false,
     confidence: 1,
+    basalBodyTempC: null,
+    ovulationTest: null,
+    cervicalMucus: null,
   };
 }
 
@@ -54,5 +57,28 @@ describe("deriveWheelState", () => {
     expect(total).toBeCloseTo(1, 5);
     // Only phases present in the run are emitted.
     expect(w.spans.map((s) => s.phase)).toContain("MENSTRUAL");
+  });
+});
+
+describe("currentCycleStartDate", () => {
+  it("returns the most recent menstrual run-start at/before today", () => {
+    const days = [
+      day("2026-05-30", "LUTEAL"),
+      day("2026-06-01", "MENSTRUAL"),
+      day("2026-06-02", "MENSTRUAL"),
+      day("2026-06-03", "FOLLICULAR"),
+      day("2026-06-04", "FOLLICULAR"),
+    ];
+    expect(currentCycleStartDate(days, "2026-06-04")).toBe("2026-06-01");
+  });
+
+  it("returns null when today carries no phase", () => {
+    const days = [day("2026-06-01", null), day("2026-06-02", null)];
+    expect(currentCycleStartDate(days, "2026-06-02")).toBeNull();
+  });
+
+  it("returns null when today is absent from the calendar", () => {
+    const days = [day("2026-06-01", "MENSTRUAL")];
+    expect(currentCycleStartDate(days, "2026-06-09")).toBeNull();
   });
 });

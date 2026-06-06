@@ -2303,6 +2303,12 @@ const cycleCalendarDayDto = z.object({
   flow: flowLevelEnum.nullable(),
   hasSymptoms: z.boolean(),
   confidence: z.number(),
+  // v1.15.0 — logged basal-body-temperature + fertility-sign markers, surfaced
+  // so the web BBT chart renders from the calendar read (the values are already
+  // loaded server-side for the symptothermal layer; no extra query).
+  basalBodyTempC: z.number().nullable(),
+  ovulationTest: ovulationTestEnum.nullable(),
+  cervicalMucus: cervicalMucusEnum.nullable(),
 });
 
 const cycleProfileDto = z

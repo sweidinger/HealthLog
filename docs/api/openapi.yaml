@@ -5199,6 +5199,29 @@ components:
                     type: boolean
                   confidence:
                     type: number
+                  basalBodyTempC:
+                    anyOf:
+                      - type: number
+                      - type: "null"
+                  ovulationTest:
+                    anyOf:
+                      - type: string
+                        enum:
+                          - NEGATIVE
+                          - POSITIVE_LH_SURGE
+                          - ESTROGEN_SURGE
+                          - INDETERMINATE
+                      - type: "null"
+                  cervicalMucus:
+                    anyOf:
+                      - type: string
+                        enum:
+                          - DRY
+                          - STICKY
+                          - CREAMY
+                          - WATERY
+                          - EGG_WHITE
+                      - type: "null"
                 required:
                   - date
                   - phase
@@ -5209,6 +5232,9 @@ components:
                   - flow
                   - hasSymptoms
                   - confidence
+                  - basalBodyTempC
+                  - ovulationTest
+                  - cervicalMucus
                 additionalProperties: false
             meta:
               type: object

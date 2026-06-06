@@ -5131,6 +5131,15 @@
       "ORAL": "Pill",
       "PATCH": "Patch",
       "EMERGENCY": "Emergency"
+    },
+    "loadError": "Couldn't load your cycle data.",
+    "bbt": {
+      "title": "Basal body temperature",
+      "caption": "Your morning temperature across this cycle. A sustained rise of about 0.2 °C follows ovulation.",
+      "empty": "No temperature readings yet",
+      "emptyHint": "Log your basal body temperature each morning to see your cycle's temperature shift.",
+      "ovulationEstimate": "Est. ovulation",
+      "tooltipTemp": "{temp} °C"
     }
   },
   "cycleReminders": {

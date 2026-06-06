@@ -5131,6 +5131,15 @@
       "ORAL": "Pillola",
       "PATCH": "Cerotto",
       "EMERGENCY": "Emergenza"
+    },
+    "loadError": "Impossibile caricare i dati del ciclo.",
+    "bbt": {
+      "title": "Temperatura basale",
+      "caption": "La tua temperatura mattutina in questo ciclo. Un rialzo prolungato di circa 0,2 °C segue l'ovulazione.",
+      "empty": "Ancora nessuna misurazione della temperatura",
+      "emptyHint": "Registra la temperatura basale ogni mattina per vedere il rialzo termico del tuo ciclo.",
+      "ovulationEstimate": "Ovulazione stim.",
+      "tooltipTemp": "{temp} °C"
     }
   },
   "cycleReminders": {

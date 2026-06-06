@@ -24,6 +24,36 @@ export interface WheelState {
   spans: { phase: CyclePhase; fraction: number }[];
 }
 
+/**
+ * The first day (`YYYY-MM-DD`) of the current cycle: the start of the most
+ * recent MENSTRUAL-anchored run at/before `today` with no phase gap. Shares
+ * the exact backward-walk `deriveWheelState` uses so the BBT chart scopes to
+ * the same cycle the wheel shows. Returns null when today has no phase (no
+ * active cycle).
+ */
+export function currentCycleStartDate(
+  days: CalendarDay[],
+  today: string,
+): string | null {
+  const sorted = [...days].sort((a, b) => a.date.localeCompare(b.date));
+  const todayIdx = sorted.findIndex((d) => d.date === today);
+  if (todayIdx < 0 || sorted[todayIdx].phase == null) return null;
+
+  let startIdx = todayIdx;
+  for (let i = todayIdx; i >= 0; i--) {
+    const d = sorted[i];
+    if (d.phase == null) break;
+    startIdx = i;
+    if (
+      d.phase === "MENSTRUAL" &&
+      (i === 0 || sorted[i - 1].phase !== "MENSTRUAL")
+    ) {
+      break;
+    }
+  }
+  return sorted[startIdx].date;
+}
+
 export function deriveWheelState(
   days: CalendarDay[],
   today: string,
@@ -48,7 +78,10 @@ export function deriveWheelState(
     const d = sorted[i];
     if (d.phase == null) break;
     startIdx = i;
-    if (d.phase === "MENSTRUAL" && (i === 0 || sorted[i - 1].phase !== "MENSTRUAL")) {
+    if (
+      d.phase === "MENSTRUAL" &&
+      (i === 0 || sorted[i - 1].phase !== "MENSTRUAL")
+    ) {
       break;
     }
   }

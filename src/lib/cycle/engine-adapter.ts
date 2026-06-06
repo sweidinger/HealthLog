@@ -35,6 +35,12 @@ export interface CalendarDayDTO {
   flow: string | null;
   hasSymptoms: boolean;
   confidence: number;
+  /** Logged basal body temperature (°C), or null. Feeds the web BBT chart. */
+  basalBodyTempC: number | null;
+  /** Logged ovulation-test result, or null. */
+  ovulationTest: string | null;
+  /** Logged cervical-mucus quality, or null. */
+  cervicalMucus: string | null;
 }
 
 /** Rows the calendar needs from each day-log. */
@@ -288,6 +294,9 @@ export function buildCalendar(
       flow: log?.flow ?? null,
       hasSymptoms: log?.hasSymptoms ?? false,
       confidence: prediction?.confidence ?? 0,
+      basalBodyTempC: log?.basalBodyTempC ?? null,
+      ovulationTest: log?.ovulationTest ?? null,
+      cervicalMucus: log?.cervicalMucus ?? null,
     });
   }
 

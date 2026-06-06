@@ -5131,6 +5131,15 @@
       "ORAL": "Pille",
       "PATCH": "Pflaster",
       "EMERGENCY": "Notfall"
+    },
+    "loadError": "Zyklusdaten konnten nicht geladen werden.",
+    "bbt": {
+      "title": "Basaltemperatur",
+      "caption": "Deine Morgentemperatur über diesen Zyklus. Ein anhaltender Anstieg um etwa 0,2 °C folgt auf den Eisprung.",
+      "empty": "Noch keine Temperaturwerte",
+      "emptyHint": "Miss deine Basaltemperatur jeden Morgen, um den Temperaturanstieg deines Zyklus zu sehen.",
+      "ovulationEstimate": "Gesch. Eisprung",
+      "tooltipTemp": "{temp} °C"
     }
   },
   "cycleReminders": {

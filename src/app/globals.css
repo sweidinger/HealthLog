@@ -488,7 +488,8 @@
     color-mix(in srgb, var(--tile-hue) 7%, var(--card)) 100%
   );
   border: 1px solid color-mix(in srgb, var(--tile-hue) 22%, transparent);
-  box-shadow: 0 10px 30px -26px color-mix(in srgb, var(--tile-hue) 40%, transparent);
+  box-shadow: 0 10px 30px -26px
+    color-mix(in srgb, var(--tile-hue) 40%, transparent);
   transition:
     transform 200ms cubic-bezier(0.22, 0.61, 0.36, 1),
     box-shadow 200ms cubic-bezier(0.22, 0.61, 0.36, 1),
@@ -516,7 +517,8 @@
   .wellness-tile:hover {
     transform: translateY(-2px);
     border-color: color-mix(in srgb, var(--tile-hue) 38%, transparent);
-    box-shadow: 0 16px 40px -24px color-mix(in srgb, var(--tile-hue) 52%, transparent);
+    box-shadow: 0 16px 40px -24px
+      color-mix(in srgb, var(--tile-hue) 52%, transparent);
   }
   .wellness-tile:hover [data-slot="score-ring"] {
     transform: scale(1.015);
@@ -552,7 +554,18 @@
      — the Oura/WHOOP fill feel. Falls back to the browser default on very old
      engines that ignore linear() (instant fill, not broken). */
   --ring-spring: linear(
-    0, 0.06, 0.23, 0.46, 0.7, 0.89, 1.02, 1.06, 1.03, 1, 0.99, 1
+    0,
+    0.06,
+    0.23,
+    0.46,
+    0.7,
+    0.89,
+    1.02,
+    1.06,
+    1.03,
+    1,
+    0.99,
+    1
   );
   --ring-ease: cubic-bezier(0.22, 0.61, 0.36, 1);
 }
@@ -632,7 +645,9 @@
    on the strongest (green-band) ring so the strip celebrates a good score
    rather than jittering all five. `--ring-glow` is set inline per ring. */
 .wellness-ring-arc {
-  filter: drop-shadow(0 0 3px color-mix(in srgb, var(--ring-glow) 45%, transparent));
+  filter: drop-shadow(
+    0 0 3px color-mix(in srgb, var(--ring-glow) 45%, transparent)
+  );
 }
 .wellness-ring-arc--pulse {
   /* Breathe a few times to celebrate a strong score, then settle — an
@@ -643,10 +658,14 @@
 @keyframes ringGlow {
   0%,
   100% {
-    filter: drop-shadow(0 0 2px color-mix(in srgb, var(--ring-glow) 40%, transparent));
+    filter: drop-shadow(
+      0 0 2px color-mix(in srgb, var(--ring-glow) 40%, transparent)
+    );
   }
   50% {
-    filter: drop-shadow(0 0 8px color-mix(in srgb, var(--ring-glow) 65%, transparent));
+    filter: drop-shadow(
+      0 0 8px color-mix(in srgb, var(--ring-glow) 65%, transparent)
+    );
   }
 }
 
@@ -701,5 +720,81 @@
 @media (prefers-reduced-motion: reduce) {
   .pulse-dot {
     animation: none;
+  }
+}
+
+/*
+ * v1.15.0 — the cycle-ring "signature reveal".
+ *
+ * The phase dial earns the same premium signature as the wellness rings
+ * (sweep + glow + sheen + count-up) without losing its own identity as a
+ * four-phase dial:
+ *   1. a clockwise CLOCK-WIPE draws the phase arcs on from the 12-o'clock
+ *      day-0 origin (the <svg> already carries `-rotate-90`, so the conic
+ *      origin lines up with both the arcs and the current-day marker);
+ *   2. a phase-tinted bloom on the active arc (shared `.wellness-ring-arc`,
+ *      `--ring-glow` set inline to the active phase hue);
+ *   3. the shared `.wellness-ring-sheen` specular pass + `.wellness-tile`
+ *      surface the strip already uses;
+ *   4. a soft halo pulse on the current-day marker so "today" reads as alive.
+ * All gated on the host's `data-revealed` (set once per session) so a
+ * background calendar refetch never re-triggers the moment, and all zeroed
+ * under prefers-reduced-motion.
+ */
+@property --cycle-wipe {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 360deg;
+}
+
+.cycle-ring-reveal {
+  -webkit-mask: conic-gradient(#000 var(--cycle-wipe), transparent 0);
+  mask: conic-gradient(#000 var(--cycle-wipe), transparent 0);
+}
+[data-revealed="true"] .cycle-ring-reveal {
+  animation: cycleRingWipe 1100ms var(--ring-ease) forwards;
+}
+@keyframes cycleRingWipe {
+  from {
+    --cycle-wipe: 0deg;
+  }
+  to {
+    --cycle-wipe: 360deg;
+  }
+}
+
+/* The current-day marker's halo — a few gentle pulses on reveal, then calm
+   (a finite count, never an infinite repaint of the non-compositable ring). */
+.cycle-ring-marker-halo {
+  transform-box: fill-box;
+  transform-origin: center;
+  opacity: 0;
+}
+[data-revealed="true"] .cycle-ring-marker-halo {
+  animation: cycleMarkerHalo 2.4s ease-in-out 950ms 3;
+}
+@keyframes cycleMarkerHalo {
+  0%,
+  100% {
+    opacity: 0;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.45;
+    transform: scale(1.9);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cycle-ring-reveal,
+  [data-revealed="true"] .cycle-ring-reveal {
+    -webkit-mask: none;
+    mask: none;
+    animation: none;
+  }
+  .cycle-ring-marker-halo,
+  [data-revealed="true"] .cycle-ring-marker-halo {
+    animation: none;
+    opacity: 0;
   }
 }

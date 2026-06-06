@@ -43,6 +43,10 @@ export interface CalendarDay {
   flow: string | null;
   hasSymptoms: boolean;
   confidence: number;
+  /** Logged basal body temperature (°C), or null. Feeds the BBT chart. */
+  basalBodyTempC: number | null;
+  ovulationTest: OvulationTest | null;
+  cervicalMucus: CervicalMucus | null;
 }
 
 export interface CyclePrediction {

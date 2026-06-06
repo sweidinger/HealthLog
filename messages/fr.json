@@ -5131,6 +5131,15 @@
       "ORAL": "Pilule",
       "PATCH": "Patch",
       "EMERGENCY": "Urgence"
+    },
+    "loadError": "Impossible de charger vos données de cycle.",
+    "bbt": {
+      "title": "Température basale",
+      "caption": "Votre température matinale sur ce cycle. Une hausse durable d'environ 0,2 °C suit l'ovulation.",
+      "empty": "Pas encore de relevés de température",
+      "emptyHint": "Notez votre température basale chaque matin pour voir le décalage de température de votre cycle.",
+      "ovulationEstimate": "Ovulation est.",
+      "tooltipTemp": "{temp} °C"
     }
   },
   "cycleReminders": {

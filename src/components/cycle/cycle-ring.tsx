@@ -4,21 +4,34 @@ import { useMemo } from "react";
 
 import { cn } from "@/lib/utils";
 import { useTranslations } from "@/lib/i18n/context";
+import { useCountUp } from "@/hooks/use-count-up";
 import { prefersReducedMotion } from "@/lib/charts/reduced-motion";
 import type { CyclePhase } from "./types";
 import { PHASE_HUE } from "./phase-tokens";
 
 /**
  * v1.15.0 — the cycle wheel: a hand-rolled SVG phase ring (0 KB runtime, no
- * chart lib), matching the premium wellness-ring aesthetic (calm distinct
- * hues, thin round-cap arcs, a faint segmented track). Unlike the 0–100
- * score gauge this is a FULL-circle dial: the four cycle phases render as
- * proportional arc segments around the ring, and a marker dot sits at the
- * current day-of-cycle. The day number is real centred DOM text.
+ * chart lib) that carries the same premium "signature reveal" as the wellness
+ * rings while keeping its own identity as a FULL-circle four-phase dial. The
+ * four cycle phases render as proportional arc segments around the ring; a
+ * marker dot sits at the current day-of-cycle; the day number is real centred
+ * DOM text.
+ *
+ * Motion (all CSS-first, all gated on `prefers-reduced-motion` AND on the
+ * host's `data-revealed`, which the view sets ONCE per session so a background
+ * calendar refetch never re-triggers the moment):
+ *   • a clockwise CLOCK-WIPE (`.cycle-ring-reveal`) draws the arcs on from the
+ *     12-o'clock day-0 origin — the <svg> already carries `-rotate-90`, so the
+ *     conic mask origin lines up with both the arcs and the marker;
+ *   • the active phase arc carries the shared `.wellness-ring-arc` bloom,
+ *     `--ring-glow` set inline to the active phase hue;
+ *   • the shared `.wellness-ring-sheen` sweeps a single specular pass;
+ *   • the day number eases up with `useCountUp`;
+ *   • the marker gets a soft `.cycle-ring-marker-halo` pulse.
  *
  * a11y: `role="img"` + a phase-aware aria-label so the ring is never
- * colour-only. The marker + segments are JSX SVG (`<linearGradient>` is NOT
- * `dangerouslySetInnerHTML`).
+ * colour-only. The arcs/marker are real SVG JSX (`<linearGradient>` would not
+ * be `dangerouslySetInnerHTML`); the centred number is real DOM text.
  */
 
 const VIEW = 100;
@@ -50,6 +63,8 @@ export interface CycleRingProps {
   phase: CyclePhase | null;
   /** Proportional phase spans around the ring. Omit for an even quarter split. */
   spans?: PhaseSpan[];
+  /** Whether the once-per-session reveal plays (false = paint final). */
+  animate?: boolean;
   size?: number;
   className?: string;
 }
@@ -63,11 +78,13 @@ export function CycleRing({
   cycleLength,
   phase,
   spans,
+  animate = false,
   size = 220,
   className,
 }: CycleRingProps) {
   const { t } = useTranslations();
   const reduced = prefersReducedMotion();
+  const shouldAnimate = animate && !reduced;
 
   const resolvedSpans = useMemo(() => {
     const raw = spans && spans.length > 0 ? spans : evenSpans();
@@ -80,17 +97,15 @@ export function CycleRing({
   // variable inside `map` (the latter trips the render-immutability rule).
   const segments = useMemo(
     () =>
-      resolvedSpans.reduce<
-        {
-          offset: number;
-          segs: {
-            phase: CyclePhase;
-            dashArray: string;
-            dashOffset: number;
-            active: boolean;
-          }[];
-        }
-      >(
+      resolvedSpans.reduce<{
+        offset: number;
+        segs: {
+          phase: CyclePhase;
+          dashArray: string;
+          dashOffset: number;
+          active: boolean;
+        }[];
+      }>(
         (acc, span) => {
           const len = Math.max(span.fraction * C - GAP, 0);
           acc.segs.push({
@@ -118,18 +133,26 @@ export function CycleRing({
     dayOfCycle != null && cycleLength != null && cycleLength > 0
       ? Math.min((dayOfCycle - 1) / cycleLength, 1)
       : null;
-  const markerAngle = markerProgress != null ? markerProgress * 2 * Math.PI : null;
+  const markerAngle =
+    markerProgress != null ? markerProgress * 2 * Math.PI : null;
   const markerX = markerAngle != null ? CX + R * Math.cos(markerAngle) : 0;
   const markerY = markerAngle != null ? CX + R * Math.sin(markerAngle) : 0;
 
-  const phaseLabel = phase
-    ? t(`cycle.phase.${phase}`)
-    : t("cycle.phase.none");
+  // The day number eases up on the reveal, mirroring the score-ring count-up.
+  const displayedDay = useCountUp(dayOfCycle ?? 0, {
+    enabled: shouldAnimate && dayOfCycle != null,
+    durationMs: 900,
+    startDelayMs: 220,
+  });
+
+  const phaseLabel = phase ? t(`cycle.phase.${phase}`) : t("cycle.phase.none");
 
   const ariaLabel =
     dayOfCycle != null
       ? t("cycle.ring.ariaPhase", { day: dayOfCycle, phase: phaseLabel })
       : t("cycle.ring.ariaUnknown");
+
+  const markerHue = phase ? PHASE_HUE[phase] : "var(--foreground)";
 
   return (
     <div
@@ -138,11 +161,18 @@ export function CycleRing({
       role="img"
       aria-label={ariaLabel}
       className={cn("relative shrink-0", className)}
-      style={{ width: size, height: size }}
+      style={
+        {
+          width: size,
+          height: size,
+          // The bloom on the active arc is tinted to the live phase hue.
+          "--ring-glow": markerHue,
+        } as React.CSSProperties
+      }
     >
       <svg
         viewBox={`0 0 ${VIEW} ${VIEW}`}
-        className="h-full w-full -rotate-90"
+        className="cycle-ring-reveal h-full w-full -rotate-90"
         aria-hidden="true"
       >
         {/* Faint segmented tick track — reads as an instrument. */}
@@ -156,10 +186,12 @@ export function CycleRing({
           strokeWidth={STROKE}
           strokeDasharray="0.5 4.2"
         />
-        {/* Phase arcs — one calm hue per phase, the active phase fully opaque. */}
+        {/* Phase arcs — one calm hue per phase, the active phase fully opaque
+            and carrying the shared wellness-ring bloom. */}
         {segments.map((seg) => (
           <circle
             key={seg.phase}
+            className={cn(seg.active && "wellness-ring-arc")}
             cx={CX}
             cy={CX}
             r={R}
@@ -175,22 +207,38 @@ export function CycleRing({
             }}
           />
         ))}
-        {/* Current-day marker dot. */}
+        {/* Current-day marker: a soft halo pulse behind a solid dot. */}
         {markerAngle != null ? (
-          <circle
-            cx={markerX}
-            cy={markerY}
-            r={STROKE / 1.7}
-            fill="var(--background)"
-            stroke={phase ? PHASE_HUE[phase] : "var(--foreground)"}
-            strokeWidth={2}
-          />
+          <>
+            <circle
+              className="cycle-ring-marker-halo"
+              cx={markerX}
+              cy={markerY}
+              r={STROKE / 1.4}
+              fill="none"
+              stroke={markerHue}
+              strokeWidth={1.5}
+              strokeOpacity={0.6}
+            />
+            <circle
+              cx={markerX}
+              cy={markerY}
+              r={STROKE / 1.7}
+              fill="var(--background)"
+              stroke={markerHue}
+              strokeWidth={2}
+            />
+          </>
         ) : null}
       </svg>
+      {/* Conic specular sheen — sweeps the dial once on the reveal. */}
+      <div className="wellness-ring-sheen" aria-hidden="true" />
       {/* Centred day number + phase caption as real DOM text. */}
       <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center text-center">
         <span className="text-foreground text-4xl font-semibold tracking-tight tabular-nums">
-          {dayOfCycle != null ? dayOfCycle : t("cycle.ring.dayUnknown")}
+          {dayOfCycle != null
+            ? Math.round(displayedDay)
+            : t("cycle.ring.dayUnknown")}
         </span>
         <span className="text-muted-foreground mt-0.5 text-xs">
           {phaseLabel}

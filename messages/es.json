@@ -5131,6 +5131,15 @@
       "ORAL": "Píldora",
       "PATCH": "Parche",
       "EMERGENCY": "Emergencia"
+    },
+    "loadError": "No se pudieron cargar tus datos del ciclo.",
+    "bbt": {
+      "title": "Temperatura basal",
+      "caption": "Tu temperatura matutina a lo largo de este ciclo. Una subida sostenida de unos 0,2 °C sigue a la ovulación.",
+      "empty": "Aún no hay mediciones de temperatura",
+      "emptyHint": "Registra tu temperatura basal cada mañana para ver el cambio de temperatura de tu ciclo.",
+      "ovulationEstimate": "Ovulación est.",
+      "tooltipTemp": "{temp} °C"
     }
   },
   "cycleReminders": {
