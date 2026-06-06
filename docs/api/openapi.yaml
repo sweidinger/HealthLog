@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: HealthLog API
-  version: 1.15.7
+  version: 1.15.8
   description: >-
     Self-hosted personal-health-tracking PWA — public API surface for the iOS native client and external ingest.
 
@@ -8456,12 +8456,17 @@ components:
               type: integer
               minimum: 0
               maximum: 100
+            taken:
+              type: integer
+              minimum: 0
+              maximum: 9007199254740991
             streak:
               type: integer
               minimum: 0
               maximum: 9007199254740991
           required:
             - rate
+            - taken
             - streak
           additionalProperties: false
         long:
@@ -8471,8 +8476,13 @@ components:
               type: integer
               minimum: 0
               maximum: 100
+            taken:
+              type: integer
+              minimum: 0
+              maximum: 9007199254740991
           required:
             - rate
+            - taken
           additionalProperties: false
         currentCycle:
           type: object

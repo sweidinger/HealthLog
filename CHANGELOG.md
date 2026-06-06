@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+## [1.15.8] — 2026-06-07 — medication cards
+
+### Changed
+
+- **Consistent medication cards.** Both medication card styles now use the same structure and the same labels for the same thing — "Next intake" and "Last intake" everywhere — so the two cards read the same way. The GLP-1 card keeps its relative-day hint ("Saturday 13 Jul (in 7 days)").
+- **Compliance bars show the counts.** Each compliance bar now shows the doses behind the percentage (for example "100% · 12 / 12"), so two windows that genuinely land at the same percentage are legible at a glance instead of looking like a glitch.
+
 ## [1.15.7] — 2026-06-07 — data import in the browser
 
 ### Added

@@ -636,10 +636,15 @@ export interface ComplianceDisplay {
   expectedLong: number;
   /** Echo of the density floor so a client can re-derive the rung. */
   minStableDoses: number;
-  /** Compliance percentage + day-streak over the short window. */
-  short: { rate: number; streak: number };
-  /** Compliance percentage over the long window. */
-  long: { rate: number };
+  /**
+   * Compliance percentage + taken-dose count + day-streak over the short
+   * window. `taken` is the count of doses taken in the window (the numerator
+   * the card renders next to the rate so two identical percentages stay
+   * distinguishable and trustworthy).
+   */
+  short: { rate: number; taken: number; streak: number };
+  /** Compliance percentage + taken-dose count over the long window. */
+  long: { rate: number; taken: number };
   /**
    * v1.13.x Fix 4 — the open-cycle state, decoupled from the percentage
    * rows so a between-doses sparse med never renders a scary red number.
@@ -785,8 +790,8 @@ export function buildComplianceDisplay(
     expectedShort,
     expectedLong,
     minStableDoses: MIN_STABLE_DOSES,
-    short: { rate: short.rate, streak: short.streak },
-    long: { rate: long.rate },
+    short: { rate: short.rate, taken: short.taken, streak: short.streak },
+    long: { rate: long.rate, taken: long.taken },
     currentCycle,
   };
 }
