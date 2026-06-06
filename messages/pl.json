@@ -4893,6 +4893,40 @@
     },
     "prediction": {
       "disclaimer": "Prognozy to szacunki na podstawie zapisanych danych, a nie porada medyczna ani metoda antykoncepcji. Dokładność rośnie wraz z liczbą zapisanych cykli."
+    },
+    "insights": {
+      "headline": {
+        "title": "Twój cykl i Twoje ciało",
+        "restingHeartRate": "Twoje tętno spoczynkowe jest o około {delta} {unit} {dir} w fazie lutealnej niż w fazie folikularnej.",
+        "heartRateVariability": "Twoja zmienność rytmu serca jest o około {delta} {unit} {dir} w fazie lutealnej niż w fazie folikularnej.",
+        "generic": "Twoje {metric} jest o około {delta} {unit} {dir} w fazie lutealnej niż w fazie folikularnej.",
+        "dirHigher": "wyższe",
+        "dirLower": "niższe",
+        "empty": "Za mało cykli i pomiarów, aby pokazać wzorzec fazy. Rejestruj dalej — uzupełni się to wraz z historią."
+      },
+      "crosstab": {
+        "description": "Jak każdy pomiar wypada między fazą lutealną a folikularną, na Twoich danych.",
+        "pairLabel": "{metric} · lutealna vs folikularna",
+        "detail": "Lutealna {lutealAvg} {unit} ({lutealDays} dni) vs folikularna {follicularAvg} {unit} ({follicularDays} dni).",
+        "footer": "To powiązania w Twoich danych, nie przyczyny. Pokazywane są tylko wzorce, które przechodzą test istotności.",
+        "metricRestingHeartRate": "Tętno spoczynkowe",
+        "metricHrv": "Zmienność rytmu serca",
+        "metricSleepDuration": "Czas snu",
+        "metricSteps": "Kroki",
+        "metricWeight": "Waga",
+        "metricBasalBodyTemp": "Temperatura podstawowa",
+        "metricWristTemperature": "Nocna temperatura nadgarstka",
+        "metricSkinTemperature": "Temperatura skóry",
+        "unitHours": "godz.",
+        "unitSteps": "kroki",
+        "unitBpm": "ud./min",
+        "unitMs": "ms",
+        "unitKg": "kg",
+        "unitCelsius": "°C",
+        "confidenceLow": "Niska pewność",
+        "confidenceMedium": "Średnia pewność",
+        "confidenceHigh": "Wysoka pewność"
+      }
     }
   }
 }

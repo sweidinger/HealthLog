@@ -4893,6 +4893,40 @@
     },
     "prediction": {
       "disclaimer": "Las predicciones son estimaciones basadas en tus datos registrados, no son consejo médico ni un método anticonceptivo. La precisión mejora a medida que registras más ciclos."
+    },
+    "insights": {
+      "headline": {
+        "title": "Tu ciclo y tu cuerpo",
+        "restingHeartRate": "Tu frecuencia cardíaca en reposo es unos {delta} {unit} {dir} en tu fase lútea que en tu fase folicular.",
+        "heartRateVariability": "Tu variabilidad de la frecuencia cardíaca es unos {delta} {unit} {dir} en tu fase lútea que en tu fase folicular.",
+        "generic": "Tu {metric} es unos {delta} {unit} {dir} en tu fase lútea que en tu fase folicular.",
+        "dirHigher": "más alta",
+        "dirLower": "más baja",
+        "empty": "Aún no hay suficientes ciclos ni registros para mostrar un patrón de fase. Sigue registrando: se completará a medida que crezca tu historial."
+      },
+      "crosstab": {
+        "description": "Cómo se compara cada medición entre tus fases lútea y folicular, con tus propios datos.",
+        "pairLabel": "{metric} · lútea vs. folicular",
+        "detail": "Lútea {lutealAvg} {unit} ({lutealDays} días) vs. folicular {follicularAvg} {unit} ({follicularDays} días).",
+        "footer": "Son asociaciones en tus propios datos, no causas. Solo se muestran los patrones que superan una prueba de significación.",
+        "metricRestingHeartRate": "Frecuencia cardíaca en reposo",
+        "metricHrv": "Variabilidad de la frecuencia cardíaca",
+        "metricSleepDuration": "Duración del sueño",
+        "metricSteps": "Pasos",
+        "metricWeight": "Peso",
+        "metricBasalBodyTemp": "Temperatura basal",
+        "metricWristTemperature": "Temperatura de la muñeca nocturna",
+        "metricSkinTemperature": "Temperatura de la piel",
+        "unitHours": "h",
+        "unitSteps": "pasos",
+        "unitBpm": "lpm",
+        "unitMs": "ms",
+        "unitKg": "kg",
+        "unitCelsius": "°C",
+        "confidenceLow": "Confianza baja",
+        "confidenceMedium": "Confianza media",
+        "confidenceHigh": "Confianza alta"
+      }
     }
   }
 }

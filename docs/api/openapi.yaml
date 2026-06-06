@@ -578,6 +578,27 @@ paths:
         "403": *a2
         "422": *a3
         "429": *a4
+  /api/cycle/insights:
+    get:
+      tags:
+        - Cycle
+      summary: Cycle-phase correlation insights (v1.15.0)
+      description: "FDR-guarded luteal-vs-follicular phase contrast per outcome metric (RHR / HRV / sleep / steps / weight /
+        temperatures), plus the single headline finding (resting-heart-rate-by-phase, falling back to HRV). The same
+        Welch t-test + Benjamini-Hochberg machinery the mood-factor crosstab runs; only rows with p < 0.05 AND q ≤ 0.10
+        surface. Strictly gender-gated — phase never appears on the general `/api/insights/correlations` route.
+        Observational only, never causal. Gated: `cycle.disabled` 403 when the feature is off."
+      responses:
+        "200":
+          description: Phase-correlation rows + headline.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CycleInsightsEnvelope"
+        "401": *a1
+        "403": *a2
+        "422": *a3
+        "429": *a4
   /api/cycle/cycles/{id}:
     delete:
       tags:
@@ -5289,6 +5310,180 @@ components:
         - data
         - error
       additionalProperties: false
+    CycleInsightsEnvelope:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            rows:
+              type: array
+              items:
+                $ref: "#/components/schemas/CyclePhaseCrosstabRow"
+            headline:
+              anyOf:
+                - $ref: "#/components/schemas/CyclePhaseCrosstabRow"
+                - type: "null"
+            lagged:
+              type: object
+              properties:
+                discovered:
+                  type: array
+                  items:
+                    $ref: "#/components/schemas/CyclePhaseLaggedPair"
+                pairsTested:
+                  type: integer
+                  minimum: -9007199254740991
+                  maximum: 9007199254740991
+                fdrQ:
+                  type: number
+                minPairs:
+                  type: integer
+                  minimum: -9007199254740991
+                  maximum: 9007199254740991
+              required:
+                - discovered
+                - pairsTested
+                - fdrQ
+                - minPairs
+              additionalProperties: false
+            contrast:
+              type: object
+              properties:
+                high:
+                  type: string
+                  const: LUTEAL
+                low:
+                  type: string
+                  const: FOLLICULAR
+              required:
+                - high
+                - low
+              additionalProperties: false
+            windowDays:
+              type: integer
+              minimum: -9007199254740991
+              maximum: 9007199254740991
+            cyclesObserved:
+              type: integer
+              minimum: -9007199254740991
+              maximum: 9007199254740991
+          required:
+            - rows
+            - headline
+            - lagged
+            - contrast
+            - windowDays
+            - cyclesObserved
+          additionalProperties: false
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    CyclePhaseCrosstabRow:
+      type: object
+      properties:
+        metricKey:
+          type: string
+          enum:
+            - restingHeartRate
+            - heartRateVariability
+            - sleepDuration
+            - steps
+            - weight
+            - basalBodyTemp
+            - wristTemperature
+            - skinTemperature
+        display:
+          type: string
+          enum:
+            - hours
+            - steps
+            - bpm
+            - ms
+            - kg
+            - celsius
+        lutealDays:
+          type: integer
+          minimum: -9007199254740991
+          maximum: 9007199254740991
+        follicularDays:
+          type: integer
+          minimum: -9007199254740991
+          maximum: 9007199254740991
+        lutealAvg:
+          type: number
+        follicularAvg:
+          type: number
+        delta:
+          type: number
+        pValue:
+          type: number
+        qValue:
+          type: number
+        confidence:
+          type: string
+          enum:
+            - low
+            - medium
+            - high
+      required:
+        - metricKey
+        - display
+        - lutealDays
+        - follicularDays
+        - lutealAvg
+        - follicularAvg
+        - delta
+        - pValue
+        - qValue
+        - confidence
+      additionalProperties: false
+      description: One FDR-surviving luteal-vs-follicular contrast for an outcome metric. `delta = lutealAvg − follicularAvg`.
+        Observational, never causal.
+    CyclePhaseLaggedPair:
+      type: object
+      properties:
+        behaviour:
+          type: string
+        outcome:
+          type: string
+        n:
+          type: integer
+          minimum: -9007199254740991
+          maximum: 9007199254740991
+        r:
+          type: number
+        pValue:
+          type: number
+        qValue:
+          type: number
+        interpretation:
+          type: string
+        lagDays:
+          type: integer
+          minimum: -9007199254740991
+          maximum: 9007199254740991
+      required:
+        - behaviour
+        - outcome
+        - n
+        - r
+        - pValue
+        - qValue
+        - interpretation
+        - lagDays
+      additionalProperties: false
+      description: One FDR-surviving lagged-Pearson pair from the continuous CYCLE_PHASE ordinal × outcome matrix (mechanism
+        B). Descriptive, never causal.
     CycleProfileEnvelope:
       type: object
       properties:

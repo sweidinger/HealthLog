@@ -897,7 +897,7 @@ function berlinDayKey(measuredAt: Date): string {
  * test fixtures, or a metric whose source isn't in the ladder) fall
  * through the picker's pass-through branch unchanged.
  */
-function metricDayMap(
+export function metricDayMap(
   measurements: CrossMetricMeasurement[],
   type: string,
   userPriorityJson: unknown,
@@ -944,7 +944,7 @@ function metricDayMap(
 }
 
 /** Add `lagDays` to a YYYY-MM-DD day key (UTC-anchored, DST-immune). */
-function shiftDayKey(day: string, lagDays: number): string {
+export function shiftDayKey(day: string, lagDays: number): string {
   const [y, m, d] = day.split("-").map(Number);
   const dt = new Date(Date.UTC(y, m - 1, d));
   dt.setUTCDate(dt.getUTCDate() + lagDays);

@@ -2349,6 +2349,68 @@ const cyclePeriodResponse = z.object({
   dayLog: cycleDayLogDto.nullable(),
 });
 
+const cyclePhaseCrosstabRow = z
+  .object({
+    metricKey: z.enum([
+      "restingHeartRate",
+      "heartRateVariability",
+      "sleepDuration",
+      "steps",
+      "weight",
+      "basalBodyTemp",
+      "wristTemperature",
+      "skinTemperature",
+    ]),
+    display: z.enum(["hours", "steps", "bpm", "ms", "kg", "celsius"]),
+    lutealDays: z.number().int(),
+    follicularDays: z.number().int(),
+    lutealAvg: z.number(),
+    follicularAvg: z.number(),
+    delta: z.number(),
+    pValue: z.number(),
+    qValue: z.number(),
+    confidence: z.enum(["low", "medium", "high"]),
+  })
+  .meta({
+    id: "CyclePhaseCrosstabRow",
+    description:
+      "One FDR-surviving luteal-vs-follicular contrast for an outcome metric. `delta = lutealAvg − follicularAvg`. Observational, never causal.",
+  });
+
+const cyclePhaseLaggedPair = z
+  .object({
+    behaviour: z.string(),
+    outcome: z.string(),
+    n: z.number().int(),
+    r: z.number(),
+    pValue: z.number(),
+    qValue: z.number(),
+    interpretation: z.string(),
+    lagDays: z.number().int(),
+  })
+  .meta({
+    id: "CyclePhaseLaggedPair",
+    description:
+      "One FDR-surviving lagged-Pearson pair from the continuous CYCLE_PHASE ordinal × outcome matrix (mechanism B). Descriptive, never causal.",
+  });
+
+const cycleInsightsResponse = z.object({
+  rows: z.array(cyclePhaseCrosstabRow),
+  headline: cyclePhaseCrosstabRow.nullable(),
+  lagged: z.object({
+    discovered: z.array(cyclePhaseLaggedPair),
+    pairsTested: z.number().int(),
+    fdrQ: z.number(),
+    minPairs: z.number().int(),
+  }),
+  contrast: z.object({
+    high: z.literal("LUTEAL"),
+    low: z.literal("FOLLICULAR"),
+  }),
+  windowDays: z.number().int(),
+  cyclesObserved: z.number().int(),
+});
+
 const cycleBulkEntryResult = z.object({
   index: z.number().int(),
   status: z.enum(["inserted", "duplicate", "updated", "skipped"]),
@@ -2546,6 +2608,26 @@ export const openApiPaths: NonNullable<ZodOpenApiObject["paths"]> = {
           content: {
             "application/json": {
               schema: dataEnvelope(cycleHistoryResponse, "CycleHistoryEnvelope"),
+            },
+          },
+        },
+        ...cycleDisabledResponse,
+        ...stdResponses,
+      },
+    },
+  },
+  "/api/cycle/insights": {
+    get: {
+      tags: ["Cycle"],
+      summary: "Cycle-phase correlation insights (v1.15.0)",
+      description:
+        "FDR-guarded luteal-vs-follicular phase contrast per outcome metric (RHR / HRV / sleep / steps / weight / temperatures), plus the single headline finding (resting-heart-rate-by-phase, falling back to HRV). The same Welch t-test + Benjamini-Hochberg machinery the mood-factor crosstab runs; only rows with p < 0.05 AND q ≤ 0.10 surface. Strictly gender-gated — phase never appears on the general `/api/insights/correlations` route. Observational only, never causal. Gated: `cycle.disabled` 403 when the feature is off.",
+      responses: {
+        "200": {
+          description: "Phase-correlation rows + headline.",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(cycleInsightsResponse, "CycleInsightsEnvelope"),
             },
           },
         },

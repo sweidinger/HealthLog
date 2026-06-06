@@ -100,7 +100,7 @@ function periodLengthOf(
  * span ends where the next begins; the latest open cycle runs to the
  * predicted next-period start). Used to label every calendar day's phase.
  */
-function buildPhaseCycles(
+export function buildPhaseCycles(
   cycles: readonly Pick<
     MenstrualCycle,
     "startDate" | "endDate" | "periodEndDate" | "ovulationDate"
@@ -127,12 +127,71 @@ function buildPhaseCycles(
 }
 
 /** Phase of a single date across the contiguous cycle list (or null). */
-function phaseAcross(date: string, phaseCycles: readonly PhaseCycle[]): CyclePhase | null {
+export function phaseAcross(
+  date: string,
+  phaseCycles: readonly PhaseCycle[],
+): CyclePhase | null {
   for (const pc of phaseCycles) {
     const r = phaseForDay(date, pc);
     if (r.phase !== null) return r.phase;
   }
   return null;
+}
+
+/**
+ * Resolve the phase + 1-based day-of-cycle of a single `YYYY-MM-DD` date
+ * across the observed cycles, with the latest open cycle running to
+ * `predictedNextStart` (or +28d). Returns `{ phase: null, dayOfCycle: null }`
+ * when the date falls outside every cycle window. Used by the Coach snapshot
+ * to state "you are on day N, luteal phase".
+ */
+export function phaseForDate(
+  date: string,
+  cycles: readonly Pick<
+    MenstrualCycle,
+    "startDate" | "endDate" | "periodEndDate" | "ovulationDate"
+  >[],
+  predictedNextStart: string | null,
+  lutealLength: number,
+): { phase: CyclePhase | null; dayOfCycle: number | null } {
+  const phaseCycles = buildPhaseCycles(cycles, predictedNextStart, lutealLength);
+  for (const pc of phaseCycles) {
+    const r = phaseForDay(date, pc);
+    if (r.phase !== null) return r;
+  }
+  return { phase: null, dayOfCycle: null };
+}
+
+/**
+ * Build a `YYYY-MM-DD → CyclePhase` map across `[from, to]` inclusive from the
+ * observed cycles. Days that fall outside every cycle window are omitted (no
+ * key) rather than carrying a null — a consumer joins on presence. The latest
+ * open cycle runs to `predictedNextStart` (or +28d) like `buildCalendar`, so
+ * the trailing window is labelled even before the next period is logged.
+ *
+ * This is the per-day phase series the CYCLE_PHASE correlation channel and the
+ * Coach phase block both consume, derived identically to the calendar grid so
+ * the phase a day shows in the UI matches the phase the stats engine uses.
+ */
+export function buildPhaseDayMap(
+  cycles: readonly Pick<
+    MenstrualCycle,
+    "startDate" | "endDate" | "periodEndDate" | "ovulationDate"
+  >[],
+  predictedNextStart: string | null,
+  lutealLength: number,
+  from: string,
+  to: string,
+): Map<string, CyclePhase> {
+  const phaseCycles = buildPhaseCycles(cycles, predictedNextStart, lutealLength);
+  const out = new Map<string, CyclePhase>();
+  const span = dayDiff(to, from);
+  for (let i = 0; i <= span; i++) {
+    const date = addDays(from, i);
+    const phase = phaseAcross(date, phaseCycles);
+    if (phase !== null) out.set(date, phase);
+  }
+  return out;
 }
 
 export interface CalendarBuildResult {

@@ -4893,6 +4893,40 @@
     },
     "prediction": {
       "disclaimer": "Vorhersagen sind Schätzungen aus deinen erfassten Daten, keine medizinische Beratung und keine Verhütung. Die Genauigkeit steigt, je mehr Zyklen du erfasst."
+    },
+    "insights": {
+      "headline": {
+        "title": "Dein Zyklus und dein Körper",
+        "restingHeartRate": "Dein Ruhepuls liegt in der Lutealphase etwa {delta} {unit} {dir} als in der Follikelphase.",
+        "heartRateVariability": "Deine Herzfrequenzvariabilität liegt in der Lutealphase etwa {delta} {unit} {dir} als in der Follikelphase.",
+        "generic": "Dein/e {metric} liegt in der Lutealphase etwa {delta} {unit} {dir} als in der Follikelphase.",
+        "dirHigher": "höher",
+        "dirLower": "niedriger",
+        "empty": "Noch nicht genug Zyklen und Messwerte für ein Phasenmuster. Logge weiter — das füllt sich, je länger deine Historie wird."
+      },
+      "crosstab": {
+        "description": "Wie sich jeder Messwert zwischen deiner Luteal- und Follikelphase vergleicht – auf deinen eigenen Daten.",
+        "pairLabel": "{metric} · Luteal vs. Follikel",
+        "detail": "Luteal {lutealAvg} {unit} ({lutealDays} Tage) vs. Follikel {follicularAvg} {unit} ({follicularDays} Tage).",
+        "footer": "Das sind Zusammenhänge in deinen eigenen Daten, keine Ursachen. Nur Muster, die einen Signifikanztest bestehen, werden gezeigt.",
+        "metricRestingHeartRate": "Ruhepuls",
+        "metricHrv": "Herzfrequenzvariabilität",
+        "metricSleepDuration": "Schlafdauer",
+        "metricSteps": "Schritte",
+        "metricWeight": "Gewicht",
+        "metricBasalBodyTemp": "Basaltemperatur",
+        "metricWristTemperature": "Handgelenkstemperatur nachts",
+        "metricSkinTemperature": "Hauttemperatur",
+        "unitHours": "Std.",
+        "unitSteps": "Schritte",
+        "unitBpm": "S/min",
+        "unitMs": "ms",
+        "unitKg": "kg",
+        "unitCelsius": "°C",
+        "confidenceLow": "Geringe Sicherheit",
+        "confidenceMedium": "Mittlere Sicherheit",
+        "confidenceHigh": "Hohe Sicherheit"
+      }
     }
   }
 }

@@ -4893,6 +4893,40 @@
     },
     "prediction": {
       "disclaimer": "Le previsioni sono stime basate sui dati registrati, non sono un consiglio medico né un metodo contraccettivo. La precisione migliora man mano che registri più cicli."
+    },
+    "insights": {
+      "headline": {
+        "title": "Il tuo ciclo e il tuo corpo",
+        "restingHeartRate": "La tua frequenza cardiaca a riposo è di circa {delta} {unit} {dir} nella fase luteale rispetto alla fase follicolare.",
+        "heartRateVariability": "La tua variabilità della frequenza cardiaca è di circa {delta} {unit} {dir} nella fase luteale rispetto alla fase follicolare.",
+        "generic": "Il/la tuo/a {metric} è di circa {delta} {unit} {dir} nella fase luteale rispetto alla fase follicolare.",
+        "dirHigher": "più alta",
+        "dirLower": "più bassa",
+        "empty": "Non ci sono ancora abbastanza cicli e rilevazioni per mostrare uno schema di fase. Continua a registrare: si completerà man mano che cresce il tuo storico."
+      },
+      "crosstab": {
+        "description": "Come si confronta ogni misurazione tra la fase luteale e quella follicolare, sui tuoi dati.",
+        "pairLabel": "{metric} · luteale vs follicolare",
+        "detail": "Luteale {lutealAvg} {unit} ({lutealDays} giorni) vs follicolare {follicularAvg} {unit} ({follicularDays} giorni).",
+        "footer": "Sono associazioni nei tuoi dati, non cause. Vengono mostrati solo gli schemi che superano un test di significatività.",
+        "metricRestingHeartRate": "Frequenza cardiaca a riposo",
+        "metricHrv": "Variabilità della frequenza cardiaca",
+        "metricSleepDuration": "Durata del sonno",
+        "metricSteps": "Passi",
+        "metricWeight": "Peso",
+        "metricBasalBodyTemp": "Temperatura basale",
+        "metricWristTemperature": "Temperatura del polso notturna",
+        "metricSkinTemperature": "Temperatura della pelle",
+        "unitHours": "h",
+        "unitSteps": "passi",
+        "unitBpm": "bpm",
+        "unitMs": "ms",
+        "unitKg": "kg",
+        "unitCelsius": "°C",
+        "confidenceLow": "Affidabilità bassa",
+        "confidenceMedium": "Affidabilità media",
+        "confidenceHigh": "Affidabilità alta"
+      }
     }
   }
 }
