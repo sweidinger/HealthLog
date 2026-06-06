@@ -20,12 +20,19 @@
  */
 
 /** The sync domains the feed serves. */
-export type SyncDomain = "measurements" | "mood" | "intakes";
+export type SyncDomain =
+  | "measurements"
+  | "mood"
+  | "intakes"
+  | "cycleDays"
+  | "cycles";
 
 export const SYNC_DOMAINS: readonly SyncDomain[] = [
   "measurements",
   "mood",
   "intakes",
+  "cycleDays",
+  "cycles",
 ];
 
 /** A single domain's keyset position. */
@@ -42,7 +49,11 @@ export interface DomainWatermark {
  */
 export type SyncCursor = Partial<Record<SyncDomain, DomainWatermark>>;
 
-const CURSOR_VERSION = 1;
+// v1.15.0 — bumped to 2 when the `cycleDays` + `cycles` domains were
+// added. An in-flight v1 token decodes to null (wrong version) → clean
+// re-init, which is acceptable because the cursor is opaque and the
+// client re-syncs from scratch.
+const CURSOR_VERSION = 2;
 
 /** Encode a per-domain keyset map into an opaque token. */
 export function encodeCursor(cursor: SyncCursor): string {

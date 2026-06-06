@@ -4890,6 +4890,9 @@
       "nausea": "Nudności",
       "diarrhea": "Biegunka",
       "constipation": "Zaparcia"
+    },
+    "prediction": {
+      "disclaimer": "Prognozy to szacunki na podstawie zapisanych danych, a nie porada medyczna ani metoda antykoncepcji. Dokładność rośnie wraz z liczbą zapisanych cykli."
     }
   }
 }

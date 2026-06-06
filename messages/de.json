@@ -4890,6 +4890,9 @@
       "nausea": "Übelkeit",
       "diarrhea": "Durchfall",
       "constipation": "Verstopfung"
+    },
+    "prediction": {
+      "disclaimer": "Vorhersagen sind Schätzungen aus deinen erfassten Daten, keine medizinische Beratung und keine Verhütung. Die Genauigkeit steigt, je mehr Zyklen du erfasst."
     }
   }
 }

@@ -4890,6 +4890,9 @@
       "nausea": "Nausea",
       "diarrhea": "Diarrhea",
       "constipation": "Constipation"
+    },
+    "prediction": {
+      "disclaimer": "Predictions are estimates from your logged data, not medical advice or contraception. Accuracy improves as you log more cycles."
     }
   }
 }

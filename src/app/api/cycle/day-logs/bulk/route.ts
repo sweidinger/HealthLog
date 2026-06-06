@@ -1,0 +1,169 @@
+/**
+ * `POST /api/cycle/day-logs/bulk` — Outbox / HealthKit drain
+ * (ios-contract §2.B / §3).
+ *
+ * The route iOS's Outbox flushes to. Per-entry UPSERT keyed on the
+ * NULL-distinct `(userId, source, externalId)` (or `(userId, date)`
+ * when no externalId). Capped at 500, wrapped in `withIdempotency`,
+ * rate-limited `cycle:day-logs:bulk:{userId}` 60/min. Always 200; each
+ * entry carries `{ index, status, id?, externalId?, reason? }` where
+ * status is `inserted` | `duplicate` | `updated` | `skipped`. `updated`
+ * = an externalId re-post that changed a field; `duplicate` = an
+ * unchanged re-post.
+ */
+import { NextRequest } from "next/server";
+
+import { apiHandler, requireAuth } from "@/lib/api-handler";
+import { annotate } from "@/lib/logging/context";
+import { auditLog } from "@/lib/auth/audit";
+import {
+  apiSuccess,
+  apiError,
+  getClientIp,
+  returnAllZodIssues,
+  safeJson,
+  sanitiseZodIssues,
+} from "@/lib/api-response";
+import { withIdempotency } from "@/lib/idempotency";
+import { checkRateLimit } from "@/lib/rate-limit";
+import { requireCycleEnabled } from "@/lib/cycle/gate";
+import { cycleBulkSchema, MAX_CYCLE_BULK_ENTRIES } from "@/lib/validations/cycle";
+import { upsertCycleDayLog } from "@/lib/cycle/day-log-write";
+import { findOwningCycleId } from "@/lib/cycle/cycle-attribution";
+import { DEFAULT_TIMEZONE } from "@/lib/mood/date-key";
+
+const BATCH_RATE_LIMIT_MAX = 60;
+const BATCH_RATE_LIMIT_WINDOW_MS = 60 * 1000;
+
+type EntryStatus = "inserted" | "duplicate" | "updated" | "skipped";
+interface EntryResult {
+  index: number;
+  status: EntryStatus;
+  id?: string;
+  externalId?: string;
+  reason?: string;
+}
+
+export const POST = apiHandler(withIdempotency<[NextRequest]>(postBulk));
+
+async function postBulk(request: NextRequest): Promise<Response> {
+  const { user } = await requireAuth();
+
+  const gate = await requireCycleEnabled(user.id, user.gender);
+  if (!gate.enabled) return gate.response;
+
+  const rl = await checkRateLimit(
+    `cycle:day-logs:bulk:${user.id}`,
+    BATCH_RATE_LIMIT_MAX,
+    BATCH_RATE_LIMIT_WINDOW_MS,
+  );
+  if (!rl.allowed) {
+    return apiError("Too many bulk submissions, try again later", 429);
+  }
+
+  const { data: rawBody, error: jsonError } = await safeJson(request);
+  if (jsonError) return jsonError;
+
+  if (
+    typeof rawBody === "object" &&
+    rawBody !== null &&
+    "entries" in rawBody &&
+    Array.isArray((rawBody as { entries: unknown }).entries) &&
+    (rawBody as { entries: unknown[] }).entries.length > MAX_CYCLE_BULK_ENTRIES
+  ) {
+    return apiError(
+      `Batch exceeds the ${MAX_CYCLE_BULK_ENTRIES}-entry limit`,
+      422,
+      { errorCode: "cycle.bulk.too_large" },
+    );
+  }
+
+  const parsed = cycleBulkSchema.safeParse(rawBody);
+  if (!parsed.success) {
+    annotate({
+      action: { name: "cycle.bulk.validation-failed" },
+      meta: { issue_count: sanitiseZodIssues(parsed.error.issues).length },
+    });
+    return returnAllZodIssues(parsed.error, 422, {
+      errorCode: "cycle.bulk.invalid",
+    });
+  }
+
+  const { entries } = parsed.data;
+  const tz = user.timezone ?? DEFAULT_TIMEZONE;
+
+  const results: EntryResult[] = [];
+  let inserted = 0;
+  let updated = 0;
+  let duplicates = 0;
+  let skipped = 0;
+
+  for (let i = 0; i < entries.length; i++) {
+    const entry = entries[i];
+    try {
+      const cycleId = await findOwningCycleId(user.id, entry.date);
+      const r = await upsertCycleDayLog(user.id, entry, tz, cycleId);
+
+      let status: EntryStatus;
+      if (!r.existed) {
+        status = "inserted";
+        inserted += 1;
+      } else if (r.changed) {
+        status = "updated";
+        updated += 1;
+      } else {
+        status = "duplicate";
+        duplicates += 1;
+      }
+
+      results.push({
+        index: i,
+        status,
+        id: r.id,
+        ...(entry.externalId ? { externalId: entry.externalId } : {}),
+      });
+    } catch (err: unknown) {
+      const reason =
+        err instanceof Error ? err.message.slice(0, 120) : "upsert_failed";
+      skipped += 1;
+      results.push({
+        index: i,
+        status: "skipped",
+        reason,
+        ...(entry.externalId ? { externalId: entry.externalId } : {}),
+      });
+    }
+  }
+
+  await auditLog("cycle.bulk.ingest", {
+    userId: user.id,
+    ipAddress: getClientIp(request),
+    details: {
+      processed: entries.length,
+      inserted,
+      updated,
+      duplicates,
+      skipped,
+    },
+  });
+
+  annotate({
+    action: { name: "cycle.bulk.ingest" },
+    meta: {
+      processed: entries.length,
+      inserted,
+      updated,
+      duplicates,
+      skipped,
+    },
+  });
+
+  return apiSuccess({
+    processed: entries.length,
+    inserted,
+    updated,
+    duplicates,
+    skipped,
+    entries: results,
+  });
+}

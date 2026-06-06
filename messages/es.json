@@ -4890,6 +4890,9 @@
       "nausea": "Náuseas",
       "diarrhea": "Diarrea",
       "constipation": "Estreñimiento"
+    },
+    "prediction": {
+      "disclaimer": "Las predicciones son estimaciones basadas en tus datos registrados, no son consejo médico ni un método anticonceptivo. La precisión mejora a medida que registras más ciclos."
     }
   }
 }

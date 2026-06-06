@@ -3308,6 +3308,14 @@ model CycleProfile {
   /// Drives all cycle copy + fertile-window gating (see CycleTrackingGoal).
   goal CycleTrackingGoal @default(GENERAL_HEALTH)
 
+  /// Per-user feature enable. NULL = derive from gender (`FEMALE` → on,
+  /// everything else → off) so the column never needs a backfill; an
+  /// explicit `true` opts a non-FEMALE account in, an explicit `false`
+  /// opts a FEMALE account out. Resolved through `isCycleEnabled()` —
+  /// every `/api/cycle/*` route 403s with `errorCode:"cycle.disabled"`
+  /// when the resolved value is false.
+  cycleTrackingEnabled Boolean? @map("cycle_tracking_enabled")
+
   /// Optional user-supplied priors. The engine applies a luteal default
   /// of 14 days in code (NOT a DB default) when `lutealPhaseLength` is
   /// NULL, so a future constant change never strands historical rows.

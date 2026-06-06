@@ -4890,6 +4890,9 @@
       "nausea": "Nausea",
       "diarrhea": "Diarrea",
       "constipation": "Stitichezza"
+    },
+    "prediction": {
+      "disclaimer": "Le previsioni sono stime basate sui dati registrati, non sono un consiglio medico né un metodo contraccettivo. La precisione migliora man mano che registri più cicli."
     }
   }
 }

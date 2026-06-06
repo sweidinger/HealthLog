@@ -42,21 +42,36 @@ describe("sync cursor codec", () => {
     expect(decodeCursor("")).toBeNull();
     // valid base64url but not the expected JSON shape
     expect(decodeCursor(Buffer.from("[]").toString("base64url"))).toBeNull();
-    // wrong version
+    // wrong version — v1.15.0 bumped CURSOR_VERSION to 2, so a v1 token
+    // (the pre-cycle format) now decodes to null → clean re-init.
     expect(
-      decodeCursor(Buffer.from('{"v":2,"d":{}}').toString("base64url")),
+      decodeCursor(Buffer.from('{"v":1,"d":{}}').toString("base64url")),
     ).toBeNull();
     // missing the `d` envelope
     expect(
-      decodeCursor(Buffer.from('{"v":1}').toString("base64url")),
+      decodeCursor(Buffer.from('{"v":2}').toString("base64url")),
     ).toBeNull();
+  });
+
+  it("decodes a current-version empty envelope to a fresh-scan map", () => {
+    expect(
+      decodeCursor(Buffer.from('{"v":2,"d":{}}').toString("base64url")),
+    ).toEqual({});
+  });
+
+  it("round-trips the v1.15.0 cycle domains", () => {
+    const cursor: SyncCursor = {
+      cycleDays: { updatedAtMs: 1_717_001_000_000, id: "clx0cday" },
+      cycles: { updatedAtMs: 1_717_001_500_000, id: "clx0cyc" },
+    };
+    expect(decodeCursor(encodeCursor(cursor))).toEqual(cursor);
   });
 
   it("drops a domain whose watermark is malformed but keeps valid ones", () => {
     // measurements has a string `u` (invalid); mood is well-formed.
     const token = Buffer.from(
       JSON.stringify({
-        v: 1,
+        v: 2,
         d: {
           measurements: { u: "x", i: "z" },
           mood: { u: 5, i: "clx0mood" },

@@ -1,0 +1,362 @@
+/**
+ * Integration suite for the v1.15.0 cycle-tracking routes against a real
+ * Postgres in a testcontainer. Asserts the iOS-facing contract end-to-end:
+ *
+ *   - the feature gate (`cycle.disabled` 403) keys on gender + the
+ *     `cycleTrackingEnabled` toggle, even with a valid session
+ *   - single day-log capture upserts (201 insert → 200 update), encrypts
+ *     the note, and reads it back decrypted
+ *   - the bulk drain returns per-entry inserted / updated / duplicate
+ *   - the period shortcut opens a cycle + boundary day-log
+ *   - the calendar read runs the engine + goal-gates the fertile window
+ *   - the cycle-prefs PATCH flips the gate for a non-FEMALE account
+ *   - `/api/sync/changes` carries the cycleDays + cycles domains incl.
+ *     tombstones after a soft-delete
+ */
+import { NextRequest } from "next/server";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+import { cookieJar, headerJar } from "./mock-next-headers";
+import { getPrismaClient, truncateAllTables } from "./setup";
+
+process.env.API_TOKEN_HMAC_KEY ??=
+  "test-hmac-key-cycle-routes-integration-32-bytes-min-1234567890";
+// Crypto-at-rest needs a key for the note encrypt/decrypt round-trip.
+process.env.ENCRYPTION_KEY ??=
+  "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
+
+const FEMALE_USER_ID = "user-cycle-female";
+const MALE_USER_ID = "user-cycle-male";
+
+vi.mock("next/headers", async () => {
+  const { cookieJar, headerJar } = await import("./mock-next-headers");
+  return {
+    headers: vi.fn(async () => ({
+      get: (name: string) => headerJar.get(name.toLowerCase()) ?? null,
+    })),
+    cookies: vi.fn(async () => ({
+      get: (name: string) => {
+        const value = cookieJar.get(name);
+        return value ? { name, value } : undefined;
+      },
+      set: (name: string, value: string) => cookieJar.set(name, value),
+      delete: (name: string) => cookieJar.delete(name),
+    })),
+  };
+});
+
+vi.mock("@/lib/db-compat", () => ({
+  ensureDbCompatibility: vi.fn().mockResolvedValue(undefined),
+}));
+
+async function loginAs(userId: string): Promise<void> {
+  cookieJar.clear();
+  headerJar.clear();
+  const session = await getPrismaClient().session.create({
+    data: { userId, expiresAt: new Date(Date.now() + 60 * 60 * 1000) },
+  });
+  cookieJar.set("healthlog_session", session.id);
+}
+
+beforeEach(async () => {
+  await truncateAllTables(getPrismaClient());
+  cookieJar.clear();
+  headerJar.clear();
+  const prisma = getPrismaClient();
+  await prisma.user.create({
+    data: {
+      id: FEMALE_USER_ID,
+      username: "cycle-female",
+      email: "cycle-female@example.test",
+      gender: "FEMALE",
+    },
+  });
+  await prisma.user.create({
+    data: {
+      id: MALE_USER_ID,
+      username: "cycle-male",
+      email: "cycle-male@example.test",
+      gender: "MALE",
+    },
+  });
+});
+
+function jsonRequest(
+  path: string,
+  method: string,
+  body?: unknown,
+  opts: { idempotencyKey?: string } = {},
+): NextRequest {
+  const headers: Record<string, string> = {
+    "content-type": "application/json",
+  };
+  if (opts.idempotencyKey) headers["idempotency-key"] = opts.idempotencyKey;
+  return new NextRequest(`http://localhost${path}`, {
+    method,
+    headers,
+    body: body !== undefined ? JSON.stringify(body) : undefined,
+  });
+}
+
+describe("cycle routes — feature gate", () => {
+  it("403s a MALE account on every cycle route", async () => {
+    await loginAs(MALE_USER_ID);
+    const { POST } = await import("@/app/api/cycle/day-logs/route");
+    const res = await POST(
+      jsonRequest("/api/cycle/day-logs", "POST", {
+        date: "2026-03-01",
+        flow: "MEDIUM",
+        loggedAt: "2026-03-01T08:00:00.000Z",
+      }),
+    );
+    expect(res.status).toBe(403);
+    const json = await res.json();
+    expect(json.meta?.errorCode).toBe("cycle.disabled");
+  });
+
+  it("admits a FEMALE account by gender derivation", async () => {
+    await loginAs(FEMALE_USER_ID);
+    const { POST } = await import("@/app/api/cycle/day-logs/route");
+    const res = await POST(
+      jsonRequest("/api/cycle/day-logs", "POST", {
+        date: "2026-03-01",
+        flow: "MEDIUM",
+        loggedAt: "2026-03-01T08:00:00.000Z",
+      }),
+    );
+    expect(res.status).toBe(201);
+  });
+});
+
+describe("cycle day-logs — single capture", () => {
+  it("upserts (201 insert → 200 update) and round-trips the encrypted note", async () => {
+    await loginAs(FEMALE_USER_ID);
+    const { POST } = await import("@/app/api/cycle/day-logs/route");
+
+    const insert = await POST(
+      jsonRequest("/api/cycle/day-logs", "POST", {
+        date: "2026-03-02",
+        flow: "LIGHT",
+        note: "tender, mild cramps",
+        loggedAt: "2026-03-02T08:00:00.000Z",
+      }),
+    );
+    expect(insert.status).toBe(201);
+    const insertJson = await insert.json();
+    expect(insertJson.data.flow).toBe("LIGHT");
+    expect(insertJson.data.note).toBe("tender, mild cramps");
+
+    // The note column is ciphertext, not plaintext.
+    const row = await getPrismaClient().cycleDayLog.findFirstOrThrow({
+      where: { userId: FEMALE_USER_ID, date: "2026-03-02" },
+    });
+    expect(row.notesEncrypted).not.toBeNull();
+    expect(row.notesEncrypted).not.toContain("cramps");
+
+    const update = await POST(
+      jsonRequest("/api/cycle/day-logs", "POST", {
+        date: "2026-03-02",
+        flow: "HEAVY",
+        loggedAt: "2026-03-02T09:00:00.000Z",
+      }),
+    );
+    expect(update.status).toBe(200);
+    const updateJson = await update.json();
+    expect(updateJson.data.flow).toBe("HEAVY");
+    expect(updateJson.data.id).toBe(insertJson.data.id);
+  });
+});
+
+describe("cycle day-logs — bulk drain", () => {
+  it("returns per-entry inserted / updated / duplicate", async () => {
+    await loginAs(FEMALE_USER_ID);
+    const { POST } = await import("@/app/api/cycle/day-logs/bulk/route");
+
+    const first = await POST(
+      jsonRequest("/api/cycle/day-logs/bulk", "POST", {
+        entries: [
+          {
+            date: "2026-03-05",
+            flow: "MEDIUM",
+            source: "APPLE_HEALTH",
+            externalId: "hk-aaa",
+            loggedAt: "2026-03-05T08:00:00.000Z",
+          },
+        ],
+      }),
+    );
+    expect(first.status).toBe(200);
+    const firstJson = await first.json();
+    expect(firstJson.data.inserted).toBe(1);
+    expect(firstJson.data.entries[0].status).toBe("inserted");
+
+    // Re-post unchanged → duplicate; re-post changed → updated.
+    const second = await POST(
+      jsonRequest("/api/cycle/day-logs/bulk", "POST", {
+        entries: [
+          {
+            date: "2026-03-05",
+            flow: "MEDIUM",
+            source: "APPLE_HEALTH",
+            externalId: "hk-aaa",
+            loggedAt: "2026-03-05T08:00:00.000Z",
+          },
+          {
+            date: "2026-03-05",
+            flow: "HEAVY",
+            source: "APPLE_HEALTH",
+            externalId: "hk-aaa",
+            loggedAt: "2026-03-05T08:00:00.000Z",
+          },
+        ],
+      }),
+    );
+    const secondJson = await second.json();
+    expect(secondJson.data.entries[0].status).toBe("duplicate");
+    expect(secondJson.data.entries[1].status).toBe("updated");
+  });
+});
+
+describe("cycle period shortcut", () => {
+  it("opens a cycle + writes the boundary day-log", async () => {
+    await loginAs(FEMALE_USER_ID);
+    const { POST } = await import("@/app/api/cycle/period/route");
+    const res = await POST(
+      jsonRequest("/api/cycle/period", "POST", {
+        action: "start",
+        date: "2026-03-10",
+        loggedAt: "2026-03-10T08:00:00.000Z",
+      }),
+    );
+    expect(res.status).toBe(200);
+    const json = await res.json();
+    expect(json.data.cycle.startDate).toBe("2026-03-10");
+    expect(json.data.dayLog.flow).toBe("MEDIUM");
+  });
+});
+
+describe("cycle calendar", () => {
+  it("runs the engine and goal-gates the fertile window", async () => {
+    await loginAs(FEMALE_USER_ID);
+    const prisma = getPrismaClient();
+    // Three ~28d cycles → a real prediction.
+    for (const [start, end, len] of [
+      ["2026-01-01", "2026-01-28", 28],
+      ["2026-01-29", "2026-02-25", 28],
+    ] as const) {
+      await prisma.menstrualCycle.create({
+        data: {
+          userId: FEMALE_USER_ID,
+          startDate: start,
+          endDate: end,
+          lengthDays: len,
+          periodEndDate: null,
+        },
+      });
+    }
+    await prisma.menstrualCycle.create({
+      data: { userId: FEMALE_USER_ID, startDate: "2026-02-26" },
+    });
+
+    const { GET } = await import("@/app/api/cycle/calendar/route");
+    const res = await GET(
+      new NextRequest(
+        "http://localhost/api/cycle/calendar?from=2026-02-20&to=2026-04-15",
+      ),
+    );
+    expect(res.status).toBe(200);
+    const json = await res.json();
+    expect(json.data.prediction).not.toBeNull();
+    expect(json.data.days.length).toBeGreaterThan(0);
+    // GENERAL_HEALTH default → fertile window suppressed.
+    expect(json.data.prediction.fertileWindowStart).toBeNull();
+
+    // The cache row is persisted fire-and-forget (the route never blocks
+    // the read on it), so poll briefly for it to land.
+    let cache = null;
+    for (let i = 0; i < 20 && cache === null; i++) {
+      cache = await prisma.cyclePrediction.findUnique({
+        where: { userId: FEMALE_USER_ID },
+      });
+      if (cache === null) await new Promise((r) => setTimeout(r, 25));
+    }
+    expect(cache).not.toBeNull();
+  });
+});
+
+describe("cycle-prefs gate flip", () => {
+  it("enables a MALE account via the prefs PATCH, then admits cycle routes", async () => {
+    await loginAs(MALE_USER_ID);
+    const { PATCH } = await import("@/app/api/auth/me/cycle-prefs/route");
+    const patch = await PATCH(
+      jsonRequest("/api/auth/me/cycle-prefs", "PATCH", { enabled: true }),
+    );
+    expect(patch.status).toBe(200);
+    const patchJson = await patch.json();
+    expect(patchJson.data.cycleTrackingEnabled).toBe(true);
+
+    // Re-login (fresh session) and confirm the gate now opens.
+    await loginAs(MALE_USER_ID);
+    const { POST } = await import("@/app/api/cycle/day-logs/route");
+    const res = await POST(
+      jsonRequest("/api/cycle/day-logs", "POST", {
+        date: "2026-03-15",
+        flow: "LIGHT",
+        loggedAt: "2026-03-15T08:00:00.000Z",
+      }),
+    );
+    expect(res.status).toBe(201);
+  });
+});
+
+describe("sync/changes — cycle domains", () => {
+  it("carries cycleDays + cycles upserts and tombstones after a soft-delete", async () => {
+    await loginAs(FEMALE_USER_ID);
+    const prisma = getPrismaClient();
+
+    const cycle = await prisma.menstrualCycle.create({
+      data: { userId: FEMALE_USER_ID, startDate: "2026-03-20" },
+    });
+    const dayLog = await prisma.cycleDayLog.create({
+      data: {
+        userId: FEMALE_USER_ID,
+        date: "2026-03-20",
+        flow: "MEDIUM",
+        source: "APPLE_HEALTH",
+        externalId: "hk-sync-1",
+      },
+    });
+
+    const { GET } = await import("@/app/api/sync/changes/route");
+    const first = await GET(
+      new NextRequest("http://localhost/api/sync/changes"),
+    );
+    const firstJson = await first.json();
+    expect(firstJson.data.changes.cycleDays.upserts.length).toBe(1);
+    expect(firstJson.data.changes.cycles.upserts.length).toBe(1);
+    expect(firstJson.data.changes.cycleDays.upserts[0].externalId).toBe(
+      "hk-sync-1",
+    );
+
+    // Soft-delete both → next pull surfaces tombstones.
+    await prisma.cycleDayLog.update({
+      where: { id: dayLog.id },
+      data: { deletedAt: new Date(), syncVersion: { increment: 1 } },
+    });
+    await prisma.menstrualCycle.update({
+      where: { id: cycle.id },
+      data: { deletedAt: new Date(), syncVersion: { increment: 1 } },
+    });
+
+    const second = await GET(
+      new NextRequest("http://localhost/api/sync/changes"),
+    );
+    const secondJson = await second.json();
+    const dayTombs = secondJson.data.changes.cycleDays.tombstones;
+    const cycleTombs = secondJson.data.changes.cycles.tombstones;
+    expect(dayTombs.length).toBe(1);
+    expect(dayTombs[0].externalId).toBe("hk-sync-1");
+    expect(cycleTombs.length).toBe(1);
+    expect(cycleTombs[0].id).toBe(cycle.id);
+  });
+});
