@@ -6,6 +6,7 @@ import { classifyHttpStatus } from "@/lib/notifications/retry-policy";
 import { getVapidConfig } from "@/lib/notifications/vapid-config";
 import { getEvent } from "@/lib/logging/context";
 import { recordPushAttempt } from "@/lib/notifications/senders/push-attempt-record";
+import { isPublicUrl } from "@/lib/validations/notifications";
 
 /**
  * Send Web Push notification to all subscribed devices of a user.
@@ -95,6 +96,16 @@ export async function sendViaWebPush(
 
     for (const sub of subscriptions) {
       try {
+        // Egress-time SSRF floor: `web-push` dials this endpoint with its own
+        // internal fetch (no safeFetch). The subscribe route already rejects
+        // non-public endpoints, but re-check here to cover any row stored
+        // before that guard landed. A non-public endpoint is dropped, never
+        // dialled — treat like an expired subscription.
+        if (!isPublicUrl(sub.endpoint)) {
+          expiredIds.push(sub.id);
+          continue;
+        }
+
         const p256dh = decrypt(sub.p256dh);
         const auth = decrypt(sub.auth);
 

@@ -17,8 +17,9 @@
 import { prisma } from "@/lib/db";
 import { apiHandler, requireAuth } from "@/lib/api-handler";
 import { annotate } from "@/lib/logging/context";
-import { apiSuccess } from "@/lib/api-response";
+import { apiSuccess, apiError } from "@/lib/api-response";
 import { requireCycleEnabled } from "@/lib/cycle/gate";
+import { checkRateLimit } from "@/lib/rate-limit";
 import { predictCycle, type NightlyTempInput } from "@/lib/cycle";
 import { LUTEAL_DEFAULT } from "@/lib/cycle/types";
 import {
@@ -53,6 +54,14 @@ export const GET = apiHandler(async () => {
   const gate = await requireCycleEnabled(user.id, user.gender);
   if (!gate.enabled) return gate.response;
   const profile = gate.profile;
+
+  // This route runs the FDR phase-contrast over a 365-day window — the most
+  // compute-heavy read in the cycle vertical. Cap repeated hits so a single
+  // authenticated session can't spin it for a self-inflicted compute DoS.
+  const rl = await checkRateLimit(`cycle:insights:${user.id}`, 30, 60_000);
+  if (!rl.allowed) {
+    return apiError("Too many requests, try again later", 429);
+  }
 
   const tz = user.timezone ?? DEFAULT_TIMEZONE;
   const today = moodDateKey(new Date(), tz);
