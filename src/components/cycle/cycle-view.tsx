@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { Loader2, Plus, RefreshCw } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -51,8 +52,25 @@ function shiftToday(days: number): string {
   return localYmd(d);
 }
 
+/** The four cycle tabs, in render order. The deep-link value is validated
+ *  against this set so a junk `?tab=` falls back to the calendar tab. */
+const CYCLE_TABS = ["calendar", "predictions", "insights", "settings"] as const;
+type CycleTab = (typeof CYCLE_TABS)[number];
+
 export function CycleView() {
   const { t } = useTranslations();
+
+  // Deep-link support: `/cycle?tab=insights` opens the insights tab. The value
+  // is read ONCE for the initial `defaultValue` (uncontrolled tabs — so normal
+  // clicking still works), validated against the known set, and falls back to
+  // the calendar tab on anything else.
+  const searchParams = useSearchParams();
+  const initialTab: CycleTab = useMemo(() => {
+    const raw = searchParams?.get("tab");
+    return raw && (CYCLE_TABS as readonly string[]).includes(raw)
+      ? (raw as CycleTab)
+      : "calendar";
+  }, [searchParams]);
 
   const today = useMemo(() => shiftToday(0), []);
   const from = useMemo(() => shiftToday(-90), []);
@@ -206,7 +224,7 @@ export function CycleView() {
           ) : null}
         </div>
 
-        <Tabs defaultValue="calendar">
+        <Tabs defaultValue={initialTab}>
           <TabsList className="w-full">
             <TabsTrigger value="calendar" className="flex-1">
               {t("cycle.tabs.calendar")}

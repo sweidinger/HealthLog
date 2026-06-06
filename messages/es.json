@@ -4993,6 +4993,12 @@
       "trackNudge": "Registrar hoy",
       "stillLearning": "Aún estamos conociendo tu ciclo. Sigue registrando y esto se irá completando con patrones de tus propios días."
     },
+    "insightsSummary": {
+      "title": "Tu ciclo",
+      "currentDay": "Día {day} de tu ciclo",
+      "noActiveCycle": "Aún no hay un ciclo activo",
+      "viewDetails": "Ver análisis del ciclo"
+    },
     "disclaimer": "Estas predicciones son estimaciones descriptivas a partir de tus datos registrados, no un método anticonceptivo ni un consejo médico. Nunca indican que sea seguro tener relaciones sin protección. Para anticoncepción o cualquier decisión médica, consulta a un profesional sanitario.",
     "title": "Tu ciclo",
     "subtitle": "Registra tu periodo y síntomas, y mira qué viene después.",

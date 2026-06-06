@@ -4993,6 +4993,12 @@
       "trackNudge": "Noter aujourd'hui",
       "stillLearning": "On apprend encore ton cycle. Continue à noter et cela se remplira avec les tendances de tes propres journées."
     },
+    "insightsSummary": {
+      "title": "Ton cycle",
+      "currentDay": "Jour {day} de ton cycle",
+      "noActiveCycle": "Aucun cycle actif pour l'instant",
+      "viewDetails": "Voir les analyses du cycle"
+    },
     "disclaimer": "Ces prévisions sont des estimations descriptives issues de vos données enregistrées, ni une méthode de contraception ni un avis médical. Elles n'indiquent jamais qu'il est sûr d'avoir des rapports non protégés. Pour la contraception ou toute décision médicale, consultez un professionnel de santé.",
     "title": "Ton cycle",
     "subtitle": "Enregistre tes règles et symptômes, et vois ce qui arrive ensuite.",
