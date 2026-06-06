@@ -207,49 +207,18 @@ describe("medication cycle status — open-cycle line", () => {
     expect(html).not.toContain("Next dose in");
   });
 
-  it("on_track several days out reads the relative-day phrasing in success tone", () => {
-    const html = render(
-      <MedicationCycleStatus
-        cycle={{ ...baseCycle, state: "on_track", nextDueAt: inDays(4) }}
-      />,
-    );
-    expect(html).toContain("Next dose in 4 days");
-    expect(html).toContain("text-success");
-    expect(html).toContain("lucide-circle-check");
-  });
-
-  it("on_track reads the same day count when nextDueAt arrives as an ISO string", () => {
-    // Over the wire `nextDueAt` is JSON, so it reaches the card as a string
-    // even though the type says `Date`. The component must re-hydrate it for
-    // the Berlin day-bucketing — a raw string would silently drift the count.
-    const iso = inDays(4).toISOString() as unknown as Date;
-    const html = render(
-      <MedicationCycleStatus
-        cycle={{ ...baseCycle, state: "on_track", nextDueAt: iso }}
-      />,
-    );
-    expect(html).toContain("Next dose in 4 days");
-  });
-
-  it("on_track one day out reads tomorrow", () => {
-    const html = render(
-      <MedicationCycleStatus
-        cycle={{ ...baseCycle, state: "on_track", nextDueAt: inDays(1) }}
-      />,
-    );
-    expect(html).toContain("Next dose tomorrow");
-    expect(html).not.toContain("in 1 days");
-  });
-
-  it("on_track later today reads today", () => {
-    // Six hours past the pinned noon — still the same Berlin calendar day.
-    const later = new Date(Date.now() + 6 * 60 * 60 * 1000);
-    const html = render(
-      <MedicationCycleStatus
-        cycle={{ ...baseCycle, state: "on_track", nextDueAt: later }}
-      />,
-    );
-    expect(html).toContain("Next dose today");
+  it("on_track renders nothing — the next-dose timing already reads on the card's top slot", () => {
+    // The calm on_track "next dose in N days" phrasing duplicates the
+    // next-intake slot at the top of the card, so the open-cycle line stays
+    // silent for an on-track med; only due / overdue earn a line here.
+    for (const nextDueAt of [inDays(4), inDays(1), new Date(Date.now() + 6 * 60 * 60 * 1000)]) {
+      const html = render(
+        <MedicationCycleStatus
+          cycle={{ ...baseCycle, state: "on_track", nextDueAt }}
+        />,
+      );
+      expect(html).toBe("");
+    }
   });
 
   it("due reads the amber due-today line", () => {
