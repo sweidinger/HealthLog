@@ -4702,7 +4702,9 @@
     "eventCyclePeriodSoon": "Ciclo in arrivo",
     "eventCyclePeriodSoonDesc": "Inviato un paio di giorni prima del ciclo previsto.",
     "eventCyclePeriodConfirm": "Il ciclo è iniziato?",
-    "eventCyclePeriodConfirmDesc": "Un promemoria discreto dal giorno previsto in poi finché non registri il ciclo."
+    "eventCyclePeriodConfirmDesc": "Un promemoria discreto dal giorno previsto in poi finché non registri il ciclo.",
+    "eventCycleFertileSoon": "Finestra fertile in arrivo",
+    "eventCycleFertileSoonDesc": "Inviato alcuni giorni prima della finestra fertile stimata quando il tuo obiettivo è il concepimento."
   },
   "i18n": {
     "maintainershipBanner": {
@@ -4901,7 +4903,8 @@
     "symptomCategory": {
       "physical": "Fisico",
       "emotional": "Emotivo",
-      "digestive": "Digestivo"
+      "digestive": "Digestivo",
+      "custom": "Personalizzato"
     },
     "symptom": {
       "cramps": "Crampi",
@@ -4918,7 +4921,16 @@
       "foodCravings": "Voglie alimentari",
       "nausea": "Nausea",
       "diarrhea": "Diarrea",
-      "constipation": "Stitichezza"
+      "constipation": "Stitichezza",
+      "custom": {
+        "add": "Aggiungi sintomo",
+        "label": "Nome",
+        "labelPlaceholder": "es. Vertigini",
+        "icon": "Icona",
+        "limitReached": "Limite di sintomi personalizzati raggiunto.",
+        "remove": "Rimuovi {label}",
+        "fallbackLabel": "Sintomo personalizzato"
+      }
     },
     "prediction": {
       "disclaimer": "Le previsioni sono stime basate sui dati registrati, non sono un consiglio medico né un metodo contraccettivo. La precisione migliora man mano che registri più cicli."
@@ -4964,6 +4976,18 @@
       "symptomPatternsTitle": "Pattern dei sintomi per fase",
       "symptomPatternsEmpty": "Registra i sintomi durante un ciclo per vedere in quale fase si concentrano.",
       "symptomMostlyIn": "Soprattutto in {phase} ({count}/{total} giorni)"
+    },
+    "phaseEducation": {
+      "title": "Cosa sta succedendo ora",
+      "whatsHappening": {
+        "MENSTRUAL": "Le mestruazioni sono l'inizio di un nuovo ciclo, mentre il rivestimento uterino si sfalda. In questi primi giorni energia e umore spesso si sentono più bassi.",
+        "FOLLICULAR": "Dopo le mestruazioni gli estrogeni salgono gradualmente mentre il corpo prepara un ovulo. Molte persone notano un'energia più stabile in questa fase.",
+        "OVULATORY": "Verso metà ciclo viene rilasciato un ovulo e la fertilità raggiunge il picco per una breve finestra. Questa fase è la più breve delle quattro.",
+        "LUTEAL": "Dopo l'ovulazione il progesterone sale e il corpo si assesta. Nei giorni prima del ciclo successivo alcune persone notano cambiamenti premestruali."
+      },
+      "commonHere": "Questo lo noti spesso qui",
+      "trackNudge": "Registra oggi",
+      "stillLearning": "Stiamo ancora imparando il tuo ciclo. Continua a registrare e questo si completerà con gli schemi delle tue giornate."
     },
     "disclaimer": "Queste previsioni sono stime descrittive basate sui tuoi dati registrati, non un metodo contraccettivo né un parere medico. Non indicano mai che sia sicuro avere rapporti non protetti. Per la contraccezione o qualsiasi decisione medica, consulta un professionista sanitario.",
     "title": "Il tuo ciclo",
@@ -5037,7 +5061,12 @@
       "empty": "Inizia a registrare per riempire il calendario.",
       "today": "Oggi",
       "dayAria": "{date}",
-      "legendSymptom": "Sintomi"
+      "legendSymptom": "Sintomi",
+      "legendOvulationConfirmed": "Ovulazione confermata",
+      "flowSpotting": "spotting",
+      "flowLight": "leggero",
+      "flowMedium": "medio",
+      "flowHeavy": "abbondante"
     },
     "predictions": {
       "title": "Cosa arriva dopo",
@@ -5072,7 +5101,12 @@
       "recentCycles": "Cicli recenti",
       "ongoing": "in corso",
       "periodDays": "ciclo {count} g",
-      "ovulationChip": "Ovulazione"
+      "ovulationChip": "Ovulazione",
+      "chartTitle": "Durata del ciclo nel tempo",
+      "chartCaption": "Ogni barra è un ciclo: la base rosa è il ciclo mestruale, il resto è la durata del ciclo.",
+      "chartAria": "Grafico della durata dei tuoi ultimi {count} cicli, con una media di {avg} giorni, classificato come {regularity}.",
+      "legendPeriodSegment": "Giorni di mestruazioni",
+      "legendRestSegment": "Resto del ciclo"
     },
     "sheet": {
       "title": "Registra la tua giornata",
@@ -5138,6 +5172,8 @@
       "reminders": "Promemoria",
       "remindersDescription": "Attiva i promemoria del ciclo per canale nelle impostazioni di notifica.",
       "remindersLink": "Impostazioni di notifica",
+      "fertileReminder": "Promemoria finestra fertile",
+      "fertileReminderDescription": "Ricevi un avviso alcuni giorni prima della tua finestra fertile stimata. Disattivato per impostazione predefinita: attivalo per canale nelle impostazioni di notifica.",
       "purgeData": "Elimina i dati del ciclo",
       "purgeConfirmAction": "Sì, elimina tutto",
       "purgeDone": "Dati del ciclo eliminati."
@@ -5174,6 +5210,8 @@
     "periodSoonBody": "Il tuo prossimo ciclo è previsto tra circa due giorni.",
     "periodConfirmTitle": "Il ciclo è iniziato?",
     "periodConfirmBody": "Il tuo ciclo era previsto per adesso. Registralo per mantenere accurate le previsioni.",
+    "fertileSoonTitle": "Finestra fertile in arrivo",
+    "fertileSoonBody": "La tua finestra fertile stimata dovrebbe iniziare tra circa due giorni. È una stima, non una garanzia medica o contraccettiva.",
     "discreetTitle": "Promemoria HealthLog",
     "discreetBody": "Hai un promemoria in HealthLog."
   }

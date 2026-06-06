@@ -798,3 +798,33 @@
     opacity: 0;
   }
 }
+
+/*
+ * v1.15.1 — the cycle-length history chart reveal.
+ *
+ * The hand-rolled SVG bars grow up from the baseline on first paint, a calm
+ * staggered rise (per-bar `--bar-delay`) that matches the wheel's 0-KB SVG
+ * identity. Gated on the chart's own `data-animate="true"` (the view only sets
+ * it when motion is allowed) so a background history refetch never replays it,
+ * and zeroed entirely under prefers-reduced-motion (bars paint at full height).
+ */
+.cycle-history-bar {
+  transform-box: fill-box;
+  transform-origin: bottom;
+}
+[data-animate="true"] .cycle-history-bar {
+  transform: scaleY(0);
+  animation: cycleHistoryBarRise 520ms var(--ring-ease, ease-out) forwards;
+  animation-delay: var(--bar-delay, 0ms);
+}
+@keyframes cycleHistoryBarRise {
+  to {
+    transform: scaleY(1);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  [data-animate="true"] .cycle-history-bar {
+    transform: none;
+    animation: none;
+  }
+}

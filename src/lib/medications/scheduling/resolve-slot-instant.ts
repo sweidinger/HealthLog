@@ -40,6 +40,19 @@ const ONE_HOUR_MS = 60 * ONE_MINUTE_MS;
 const ONE_DAY_MS = 24 * ONE_HOUR_MS;
 
 /**
+ * Forward grace for a TAKEN write (dose-safety, iOS v0.13 report).
+ *
+ * A `.taken` intake must never be attributed to a slot whose instant is in
+ * the future — a dose the user has not yet taken would otherwise render as
+ * "taken" before its time (a late morning dose snapping forward onto the
+ * evening slot of a twice-daily med). We still allow a small forward window
+ * so a dose taken a few minutes early, or with minor client/server clock
+ * skew, snaps onto its own slot as intended. Anything further into the
+ * future is rejected as a snap target and the write keeps its own row.
+ */
+const TAKEN_FORWARD_GRACE_MS = 5 * ONE_MINUTE_MS;
+
+/**
  * Default snap tolerance when a schedule has no usable window span. ±2h
  * is wide enough to absorb the iOS-vs-server `localHmAsUtc` minute drift
  * plus a reasonable "I took it a bit late" margin, while staying narrow
@@ -90,6 +103,23 @@ export interface ResolveSlotInput {
    * keep the legacy snap behaviour unchanged.
    */
   instantIsExplicit?: boolean;
+  /**
+   * Whether this write records a TAKEN dose (has a `takenAt`). When `true`,
+   * the snap will never pick a slot whose instant is meaningfully in the
+   * future (> `now` + `TAKEN_FORWARD_GRACE_MS`) — a taken dose can never be
+   * attributed to a slot the user has not reached yet. A future slot is
+   * simply not a candidate, so the write either snaps to a past/current
+   * slot within tolerance or falls through to `null` (standalone row).
+   *
+   * Defaults to `false` so read-only / projection callers (UI display,
+   * pending-row dedup) keep snapping to future slots as before.
+   */
+  isTakenWrite?: boolean;
+  /**
+   * Reference "now" for the `isTakenWrite` future-slot guard. Defaults to
+   * the current time; injectable for deterministic tests.
+   */
+  now?: Date;
 }
 
 /**
@@ -107,6 +137,8 @@ export function resolveCanonicalSlotInstant(
 ): Date | null {
   const { medication, userTz, incoming } = input;
   const instantIsExplicit = input.instantIsExplicit ?? true;
+  const isTakenWrite = input.isTakenWrite ?? false;
+  const nowMs = (input.now ?? new Date()).getTime();
   const schedules = medication.schedules ?? [];
   if (schedules.length === 0) return null;
 
@@ -170,6 +202,15 @@ export function resolveCanonicalSlotInstant(
       // and keep the canonical engine only for DECIDING which slots exist
       // (PRN / cyclic / rrule / rolling gating).
       const slotInstant = canonicalSlotInstant(occ.at, occ.timeOfDay, userTz);
+
+      // Dose-safety: a taken write may never be attributed to a slot that is
+      // still in the future (beyond a small clock-skew/early-dose grace). A
+      // late morning dose must not snap forward onto the evening slot of a
+      // twice-daily med and render as "taken" before its time.
+      if (isTakenWrite && slotInstant.getTime() > nowMs + TAKEN_FORWARD_GRACE_MS) {
+        continue;
+      }
+
       const deltaMs = Math.abs(slotInstant.getTime() - incoming.getTime());
       if (deltaMs > tolerance) continue;
       if (best === null || deltaMs < best.deltaMs) {

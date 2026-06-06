@@ -4702,7 +4702,9 @@
     "eventCyclePeriodSoon": "Zbliża się okres",
     "eventCyclePeriodSoonDesc": "Wysyłane kilka dni przed przewidywanym okresem.",
     "eventCyclePeriodConfirm": "Czy okres się zaczął?",
-    "eventCyclePeriodConfirmDesc": "Delikatne przypomnienie w dniu przewidywanego początku lub później, gdy nie zarejestrowano okresu."
+    "eventCyclePeriodConfirmDesc": "Delikatne przypomnienie w dniu przewidywanego początku lub później, gdy nie zarejestrowano okresu.",
+    "eventCycleFertileSoon": "Zbliża się okno płodności",
+    "eventCycleFertileSoonDesc": "Wysyłane kilka dni przed szacowanym oknem płodności, gdy Twoim celem jest poczęcie."
   },
   "i18n": {
     "maintainershipBanner": {
@@ -4901,7 +4903,8 @@
     "symptomCategory": {
       "physical": "Fizyczne",
       "emotional": "Emocjonalne",
-      "digestive": "Trawienne"
+      "digestive": "Trawienne",
+      "custom": "Własne"
     },
     "symptom": {
       "cramps": "Skurcze",
@@ -4918,7 +4921,16 @@
       "foodCravings": "Zachcianki",
       "nausea": "Nudności",
       "diarrhea": "Biegunka",
-      "constipation": "Zaparcia"
+      "constipation": "Zaparcia",
+      "custom": {
+        "add": "Dodaj objaw",
+        "label": "Nazwa",
+        "labelPlaceholder": "np. Zawroty głowy",
+        "icon": "Ikona",
+        "limitReached": "Osiągnięto limit własnych objawów.",
+        "remove": "Usuń {label}",
+        "fallbackLabel": "Objaw własny"
+      }
     },
     "prediction": {
       "disclaimer": "Prognozy to szacunki na podstawie zapisanych danych, a nie porada medyczna ani metoda antykoncepcji. Dokładność rośnie wraz z liczbą zapisanych cykli."
@@ -4964,6 +4976,18 @@
       "symptomPatternsTitle": "Wzorce objawów wg fazy",
       "symptomPatternsEmpty": "Zapisuj objawy przez cały cykl, aby zobaczyć, w której fazie się grupują.",
       "symptomMostlyIn": "Głównie w fazie {phase} ({count}/{total} dni)"
+    },
+    "phaseEducation": {
+      "title": "Co się teraz dzieje",
+      "whatsHappening": {
+        "MENSTRUAL": "Miesiączka to początek nowego cyklu, gdy złuszcza się błona śluzowa macicy. W tych pierwszych dniach energia i nastrój często są niższe.",
+        "FOLLICULAR": "Po miesiączce poziom estrogenu stopniowo rośnie, gdy organizm przygotowuje komórkę jajową. Wiele osób odczuwa w tej fazie bardziej stabilną energię.",
+        "OVULATORY": "W połowie cyklu uwalniana jest komórka jajowa, a płodność osiąga szczyt przez krótkie okno czasu. Ta faza jest najkrótsza z czterech.",
+        "LUTEAL": "Po owulacji rośnie poziom progesteronu i organizm się wycisza. W dniach przed kolejną miesiączką niektóre osoby zauważają zmiany przedmiesiączkowe."
+      },
+      "commonHere": "To często zauważasz tutaj",
+      "trackNudge": "Zapisz dziś",
+      "stillLearning": "Wciąż poznajemy Twój cykl. Zapisuj dalej, a to wypełni się wzorcami z Twoich własnych dni."
     },
     "disclaimer": "Te prognozy to opisowe szacunki na podstawie zapisanych danych, a nie metoda antykoncepcji ani porada medyczna. Nigdy nie oznaczają, że współżycie bez zabezpieczenia jest bezpieczne. W sprawach antykoncepcji lub decyzji medycznych skonsultuj się z pracownikiem ochrony zdrowia.",
     "title": "Twój cykl",
@@ -5037,7 +5061,12 @@
       "empty": "Zacznij zapisywać, aby wypełnić kalendarz.",
       "today": "Dziś",
       "dayAria": "{date}",
-      "legendSymptom": "Objawy"
+      "legendSymptom": "Objawy",
+      "legendOvulationConfirmed": "Potwierdzona owulacja",
+      "flowSpotting": "plamienie",
+      "flowLight": "lekkie",
+      "flowMedium": "średnie",
+      "flowHeavy": "obfite"
     },
     "predictions": {
       "title": "Co dalej",
@@ -5072,7 +5101,12 @@
       "recentCycles": "Ostatnie cykle",
       "ongoing": "w toku",
       "periodDays": "okres {count} d",
-      "ovulationChip": "Owulacja"
+      "ovulationChip": "Owulacja",
+      "chartTitle": "Długość cyklu w czasie",
+      "chartCaption": "Każdy słupek to jeden cykl: różowa podstawa to miesiączka, reszta to długość cyklu.",
+      "chartAria": "Wykres długości {count} ostatnich cykli, średnio {avg} dni, sklasyfikowany jako {regularity}.",
+      "legendPeriodSegment": "Dni miesiączki",
+      "legendRestSegment": "Pozostała część cyklu"
     },
     "sheet": {
       "title": "Zapisz swój dzień",
@@ -5138,6 +5172,8 @@
       "reminders": "Przypomnienia",
       "remindersDescription": "Włącz przypomnienia o okresie dla każdego kanału w ustawieniach powiadomień.",
       "remindersLink": "Ustawienia powiadomień",
+      "fertileReminder": "Przypomnienie o oknie płodności",
+      "fertileReminderDescription": "Otrzymaj powiadomienie kilka dni przed szacowanym oknem płodności. Domyślnie wyłączone – włącz je dla każdego kanału w ustawieniach powiadomień.",
       "purgeData": "Usuń dane cyklu",
       "purgeConfirmAction": "Tak, usuń wszystko",
       "purgeDone": "Dane cyklu usunięte."
@@ -5174,6 +5210,8 @@
     "periodSoonBody": "Twoja następna miesiączka jest przewidywana za około dwa dni.",
     "periodConfirmTitle": "Czy miesiączka się zaczęła?",
     "periodConfirmBody": "Twoja miesiączka była przewidywana mniej więcej teraz. Zapisz ją, aby prognozy pozostały dokładne.",
+    "fertileSoonTitle": "Zbliża się okno płodności",
+    "fertileSoonBody": "Szacowane okno płodności rozpocznie się prawdopodobnie za około dwa dni. To szacunek, a nie gwarancja medyczna ani antykoncepcyjna.",
     "discreetTitle": "Przypomnienie HealthLog",
     "discreetBody": "Masz przypomnienie w HealthLog."
   }

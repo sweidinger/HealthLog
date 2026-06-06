@@ -60,19 +60,31 @@ export const CYCLE_REMINDER_LOCAL_HOUR = 9;
 export const PERIOD_SOON_LEAD_DAYS = 2;
 
 /**
+ * Days before the predicted fertile-window start that FERTILE_SOON fires.
+ * Same calm two-day lead as PERIOD_SOON — enough notice to act on the
+ * conception goal without nagging. Only ever reached for the
+ * `TRYING_TO_CONCEIVE` goal (gated in `runCycleReminderTick`).
+ */
+export const FERTILE_SOON_LEAD_DAYS = 2;
+
+/**
  * Days on/after the predicted next-period start that PERIOD_CONFIRM keeps
  * nudging while no period is logged. Day 0 (the predicted start) through
  * this many days inclusive; after that the runner gives up for the cycle.
  */
 export const PERIOD_CONFIRM_GRACE_DAYS = 3;
 
-export type CycleReminderEvent = "CYCLE_PERIOD_SOON" | "CYCLE_PERIOD_CONFIRM";
+export type CycleReminderEvent =
+  | "CYCLE_PERIOD_SOON"
+  | "CYCLE_PERIOD_CONFIRM"
+  | "CYCLE_FERTILE_SOON";
 
 export interface CycleReminderSummary {
   candidatesScanned: number;
   inWindow: number;
   dispatchedPeriodSoon: number;
   dispatchedPeriodConfirm: number;
+  dispatchedFertileSoon: number;
   suppressedClientManaged: number;
   suppressedDiscreet: number;
   skippedAlreadyNotified: number;
@@ -109,6 +121,7 @@ function emptySummary(): CycleReminderSummary {
     inWindow: 0,
     dispatchedPeriodSoon: 0,
     dispatchedPeriodConfirm: 0,
+    dispatchedFertileSoon: 0,
     suppressedClientManaged: 0,
     suppressedDiscreet: 0,
     skippedAlreadyNotified: 0,
@@ -182,6 +195,21 @@ export function evaluateCycleReminder(
 }
 
 /**
+ * Pure decision predicate for the fertile-window reminder: fire when the
+ * user's local date is exactly `leadDays` before the predicted fertile
+ * window start. DB-free + goal-agnostic by design — the TTC goal gate and
+ * the `fertileWindowStart != null` check both live in the runner, where the
+ * profile and forecast are loaded; this only owns the lead-day windowing so
+ * the boundary (08:59 → no, the lead day → yes) stays unit-testable.
+ */
+export function evaluateFertileReminder(
+  args: { today: string; fertileWindowStart: string },
+  leadDays: number = FERTILE_SOON_LEAD_DAYS,
+): boolean {
+  return dayDiff(args.fertileWindowStart, args.today) === leadDays;
+}
+
+/**
  * Build the localised title + body for a cycle reminder push. When
  * `discreet` is true, both collapse to the generic "HealthLog reminder"
  * copy so no cycle event is named on the lock screen (the §6.4 discreet
@@ -203,6 +231,12 @@ export function buildCycleReminderPayload(
     return {
       title: t("cycleReminders.periodSoonTitle"),
       body: t("cycleReminders.periodSoonBody"),
+    };
+  }
+  if (event === "CYCLE_FERTILE_SOON") {
+    return {
+      title: t("cycleReminders.fertileSoonTitle"),
+      body: t("cycleReminders.fertileSoonBody"),
     };
   }
   return {
@@ -267,21 +301,29 @@ export async function runCycleReminderTick(
   //   1. the user's `cycleProfile` must have `cycleTrackingEnabled` (an
   //      account that never opted in can never receive a cycle push), and
   //      `predictionEnabled` must not be explicitly off,
-  //   2. `nextPeriodStart` (a `YYYY-MM-DD` string) must fall inside the
-  //      reminder window [today − grace, today + lead]. The string range is
-  //      computed against a tz-generous span (±1 day past the exact
-  //      lead/grace) so a user whose local date differs from UTC by a day is
-  //      never excluded at the query layer — `evaluateCycleReminder` still
-  //      applies the exact per-user-timezone window below.
+  //   2. either `nextPeriodStart` OR `fertileWindowStart` (both `YYYY-MM-DD`
+  //      strings) must fall inside its reminder window [today − grace,
+  //      today + lead]. The string range is computed against a tz-generous
+  //      span (±1 day past the exact lead/grace) so a user whose local date
+  //      differs from UTC by a day is never excluded at the query layer —
+  //      `evaluateCycleReminder` / `evaluateFertileReminder` still apply the
+  //      exact per-user-timezone window below. The fertile window sits ~2
+  //      weeks ahead of the period start, so it needs its own date range
+  //      rather than riding the period-start filter.
   //
   // The pure-string `gte`/`lte` range is correct because `YYYY-MM-DD`
   // ordering is lexicographic-equals-chronological.
   const windowFloor = utcDateString(now, -(PERIOD_CONFIRM_GRACE_DAYS + 1));
   const windowCeil = utcDateString(now, PERIOD_SOON_LEAD_DAYS + 1);
+  const fertileCeil = utcDateString(now, FERTILE_SOON_LEAD_DAYS + 1);
+  const fertileFloor = utcDateString(now, -1);
 
   const predictions = await prisma.cyclePrediction.findMany({
     where: {
-      nextPeriodStart: { gte: windowFloor, lte: windowCeil },
+      OR: [
+        { nextPeriodStart: { gte: windowFloor, lte: windowCeil } },
+        { fertileWindowStart: { gte: fertileFloor, lte: fertileCeil } },
+      ],
       user: {
         cycleProfile: {
           cycleTrackingEnabled: true,
@@ -292,6 +334,7 @@ export async function runCycleReminderTick(
     select: {
       userId: true,
       nextPeriodStart: true,
+      fertileWindowStart: true,
       user: {
         select: {
           id: true,
@@ -301,6 +344,7 @@ export async function runCycleReminderTick(
           notificationPrefs: true,
           cycleProfile: {
             select: {
+              goal: true,
               cycleTrackingEnabled: true,
               predictionEnabled: true,
               discreetNotifications: true,
@@ -339,6 +383,86 @@ export async function runCycleReminderTick(
 
       summary.inWindow += 1;
 
+      const timezoneForBounds = timezone;
+      // Local day's UTC bounds for the ledger idempotency lookup, computed
+      // once and shared by every event we may fire for this user this tick.
+      // `end` is the last millisecond of the day, so add 1 ms for half-open.
+      const { start: dayStartUtc, end: dayEndInclusive } = getUserTodayBounds(
+        now,
+        timezoneForBounds,
+      );
+      const dayEndExclusive = new Date(dayEndInclusive.getTime() + 1);
+
+      // Shared dispatch tail: clientManaged suppression → idempotency →
+      // discreet body → dispatch → counter. Reused verbatim by the
+      // period-soon / period-confirm nudge and the fertile-window nudge so a
+      // change to the suppression cascade can never drift between them.
+      const dispatchEvent = async (
+        event: CycleReminderEvent,
+      ): Promise<void> => {
+        // clientManaged suppression — iOS owns the local reminders. Mirror
+        // the medication path: skip the server push, emit the annotation.
+        if (isCycleReminderClientManaged(user.notificationPrefs)) {
+          summary.suppressedClientManaged += 1;
+          getEvent()?.addMeta(
+            "cycle_reminder_suppressed_client_managed",
+            `${event}:${today}`,
+          );
+          getEvent()?.addMeta("cycle_reminder_suppressed_meta", {
+            user_id: user.id,
+            event,
+            local_date: today,
+          });
+          return;
+        }
+
+        // Idempotency: one push per event per local day.
+        const seen = await alreadyNotifiedToday(
+          prisma,
+          user.id,
+          event,
+          dayStartUtc,
+          dayEndExclusive,
+        );
+        if (seen) {
+          summary.skippedAlreadyNotified += 1;
+          return;
+        }
+
+        const discreet = profile?.discreetNotifications === true;
+        if (discreet) summary.suppressedDiscreet += 1;
+
+        const { title, body } = buildCycleReminderPayload(
+          event,
+          user.locale,
+          discreet,
+        );
+
+        const outcome = await dispatchImpl({
+          eventType: event,
+          userId: user.id,
+          title,
+          message: body,
+          // In discreet mode the senders mask the lock-screen routing
+          // metadata so no cycle event is named on the lock screen.
+          discreet,
+          metadata: {
+            scheduledAt: now.toISOString(),
+            localDate: today,
+          },
+        });
+
+        if (!outcome.dispatched) {
+          summary.skippedNoChannel += 1;
+          return;
+        }
+
+        if (event === "CYCLE_PERIOD_SOON") summary.dispatchedPeriodSoon += 1;
+        else if (event === "CYCLE_FERTILE_SOON")
+          summary.dispatchedFertileSoon += 1;
+        else summary.dispatchedPeriodConfirm += 1;
+      };
+
       // Has the user already logged an observed (non-predicted) cycle
       // starting on/around the predicted day? If so, the confirm nudge is
       // moot. We look for any observed cycle whose start is within the
@@ -349,83 +473,32 @@ export async function runCycleReminderTick(
         pred.nextPeriodStart,
       );
 
-      const event = evaluateCycleReminder({
+      const periodEvent = evaluateCycleReminder({
         today,
         nextPeriodStart: pred.nextPeriodStart,
         periodAlreadyLogged,
       });
 
-      if (!event) {
+      // Fertile-window nudge — TWICE gated: the conception goal AND a
+      // non-null `fertileWindowStart` (the engine only populates it for the
+      // TTC goal). Never surfaces fertile language to AVOID_PREGNANCY /
+      // GENERAL_HEALTH / PERIMENOPAUSE (the inclusive-framing rule).
+      const fertileDue =
+        profile?.goal === "TRYING_TO_CONCEIVE" &&
+        pred.fertileWindowStart != null &&
+        evaluateFertileReminder({
+          today,
+          fertileWindowStart: pred.fertileWindowStart,
+        });
+
+      if (!periodEvent && !fertileDue) {
         if (periodAlreadyLogged) summary.skippedAlreadyLogged += 1;
         else summary.skippedOutsideWindow += 1;
         continue;
       }
 
-      // clientManaged suppression — iOS owns the local reminders. Mirror the
-      // medication path: skip the server push, emit the annotation.
-      if (isCycleReminderClientManaged(user.notificationPrefs)) {
-        summary.suppressedClientManaged += 1;
-        getEvent()?.addMeta(
-          "cycle_reminder_suppressed_client_managed",
-          `${event}:${today}`,
-        );
-        getEvent()?.addMeta("cycle_reminder_suppressed_meta", {
-          user_id: user.id,
-          event,
-          local_date: today,
-        });
-        continue;
-      }
-
-      // Idempotency: one push per event per local day. Compute the local
-      // day's UTC bounds for the ledger lookup. `end` is the last
-      // millisecond of the day, so add 1 ms to make the range half-open.
-      const { start: dayStartUtc, end: dayEndInclusive } = getUserTodayBounds(
-        now,
-        timezone,
-      );
-      const seen = await alreadyNotifiedToday(
-        prisma,
-        user.id,
-        event,
-        dayStartUtc,
-        new Date(dayEndInclusive.getTime() + 1),
-      );
-      if (seen) {
-        summary.skippedAlreadyNotified += 1;
-        continue;
-      }
-
-      const discreet = profile?.discreetNotifications === true;
-      if (discreet) summary.suppressedDiscreet += 1;
-
-      const { title, body } = buildCycleReminderPayload(
-        event,
-        user.locale,
-        discreet,
-      );
-
-      const outcome = await dispatchImpl({
-        eventType: event,
-        userId: user.id,
-        title,
-        message: body,
-        // In discreet mode the senders mask the lock-screen routing
-        // metadata so no cycle event is named on the lock screen.
-        discreet,
-        metadata: {
-          scheduledAt: now.toISOString(),
-          localDate: today,
-        },
-      });
-
-      if (!outcome.dispatched) {
-        summary.skippedNoChannel += 1;
-        continue;
-      }
-
-      if (event === "CYCLE_PERIOD_SOON") summary.dispatchedPeriodSoon += 1;
-      else summary.dispatchedPeriodConfirm += 1;
+      if (periodEvent) await dispatchEvent(periodEvent);
+      if (fertileDue) await dispatchEvent("CYCLE_FERTILE_SOON");
     } catch (err: unknown) {
       summary.failed += 1;
       const message = err instanceof Error ? err.message : String(err);

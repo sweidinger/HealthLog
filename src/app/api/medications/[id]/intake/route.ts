@@ -159,6 +159,9 @@ async function postIntake(request: NextRequest, { params }: RouteParams) {
     // `takenAt`-only / defaulted-now write must not snap across the wide
     // ±halfGap window onto a far slot (phantom morning dose).
     instantIsExplicit: scheduledFor !== undefined,
+    // Dose-safety: a taken write (any non-skip on this route) must never
+    // snap forward onto a future slot — see resolve-slot-instant.ts.
+    isTakenWrite: isExplicitTaken,
   });
 
   // Idempotency check (explicit key or server-side dedup window)

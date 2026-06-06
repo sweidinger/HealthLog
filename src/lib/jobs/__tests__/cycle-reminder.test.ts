@@ -26,10 +26,12 @@ import {
   buildCycleReminderPayload,
   cycleReminderLocalDate,
   evaluateCycleReminder,
+  evaluateFertileReminder,
   runCycleReminderTick,
   CYCLE_REMINDER_LOCAL_HOUR,
   PERIOD_SOON_LEAD_DAYS,
   PERIOD_CONFIRM_GRACE_DAYS,
+  FERTILE_SOON_LEAD_DAYS,
 } from "../cycle-reminder";
 import type { NotificationPayload } from "@/lib/notifications/types";
 import type { DispatchOutcome } from "@/lib/notifications/dispatcher";
@@ -57,11 +59,17 @@ interface FakeUser {
     cycleTrackingEnabled: boolean | null;
     predictionEnabled: boolean;
     discreetNotifications: boolean;
+    goal?: string;
   } | null;
 }
 
 interface FakeState {
-  predictions: Array<{ userId: string; nextPeriodStart: string; user: FakeUser }>;
+  predictions: Array<{
+    userId: string;
+    nextPeriodStart: string;
+    fertileWindowStart?: string | null;
+    user: FakeUser;
+  }>;
   /** Observed (non-predicted) cycle start dates per userId. */
   observedStarts: Record<string, string[]>;
   /** Existing `ok` push attempts: `${userId}:${eventType}` already sent today. */
@@ -110,6 +118,7 @@ function baseUser(over: Partial<FakeUser> = {}): FakeUser {
       cycleTrackingEnabled: null,
       predictionEnabled: true,
       discreetNotifications: false,
+      goal: "GENERAL_HEALTH",
     },
     ...over,
   };
@@ -214,7 +223,48 @@ describe("evaluateCycleReminder", () => {
   });
 });
 
+describe("evaluateFertileReminder", () => {
+  it("fires exactly lead-days before the fertile-window start", () => {
+    expect(
+      evaluateFertileReminder({
+        today: "2026-05-18",
+        fertileWindowStart: "2026-05-20",
+      }),
+    ).toBe(true);
+    expect(FERTILE_SOON_LEAD_DAYS).toBe(2);
+  });
+
+  it("does not fire one day off the lead", () => {
+    expect(
+      evaluateFertileReminder({
+        today: "2026-05-19",
+        fertileWindowStart: "2026-05-20",
+      }),
+    ).toBe(false);
+    expect(
+      evaluateFertileReminder({
+        today: "2026-05-17",
+        fertileWindowStart: "2026-05-20",
+      }),
+    ).toBe(false);
+  });
+});
+
 describe("buildCycleReminderPayload", () => {
+  it("carries non-contraceptive fertile framing when not discreet", () => {
+    const fertile = buildCycleReminderPayload("CYCLE_FERTILE_SOON", "en", false);
+    expect(fertile.title.toLowerCase()).toContain("fertile");
+    // Honesty boundary: never a contraceptive / safe-day claim.
+    expect(fertile.body.toLowerCase()).toContain("not");
+    expect(fertile.body.toLowerCase()).not.toContain("safe day");
+  });
+
+  it("collapses the fertile event to the generic body when discreet", () => {
+    const fertile = buildCycleReminderPayload("CYCLE_FERTILE_SOON", "en", true);
+    expect(fertile.title.toLowerCase()).not.toContain("fertile");
+    expect(fertile.title).toContain("HealthLog");
+  });
+
   it("names the event when not discreet", () => {
     const soon = buildCycleReminderPayload("CYCLE_PERIOD_SOON", "en", false);
     expect(soon.title.length).toBeGreaterThan(0);
@@ -270,6 +320,86 @@ describe("runCycleReminderTick", () => {
     expect(summary.dispatchedPeriodSoon).toBe(1);
     expect(dispatch).toHaveBeenCalledTimes(1);
     expect(dispatch.mock.calls[0][0].eventType).toBe("CYCLE_PERIOD_SOON");
+  });
+
+  it("dispatches FERTILE_SOON two days before the fertile window for the TTC goal", async () => {
+    const state: FakeState = {
+      predictions: [
+        {
+          userId: "u1",
+          // Period start far out so only the fertile window is in-window.
+          nextPeriodStart: "2026-06-02",
+          fertileWindowStart: "2026-05-19",
+          user: baseUser({
+            cycleProfile: {
+              cycleTrackingEnabled: null,
+              predictionEnabled: true,
+              discreetNotifications: false,
+              goal: "TRYING_TO_CONCEIVE",
+            },
+          }),
+        },
+      ],
+      observedStarts: {},
+      alreadyOk: new Set(),
+    };
+    const dispatch = vi.fn<DispatchFn>(async () => OK);
+    const summary = await run(state, dispatch);
+    expect(summary.dispatchedFertileSoon).toBe(1);
+    expect(dispatch).toHaveBeenCalledTimes(1);
+    expect(dispatch.mock.calls[0][0].eventType).toBe("CYCLE_FERTILE_SOON");
+  });
+
+  it("never dispatches FERTILE_SOON for a non-TTC goal (inclusive framing)", async () => {
+    const state: FakeState = {
+      predictions: [
+        {
+          userId: "u1",
+          nextPeriodStart: "2026-06-02",
+          fertileWindowStart: "2026-05-19",
+          user: baseUser({
+            cycleProfile: {
+              cycleTrackingEnabled: null,
+              predictionEnabled: true,
+              discreetNotifications: false,
+              goal: "AVOID_PREGNANCY",
+            },
+          }),
+        },
+      ],
+      observedStarts: {},
+      alreadyOk: new Set(),
+    };
+    const dispatch = vi.fn<DispatchFn>(async () => OK);
+    const summary = await run(state, dispatch);
+    expect(summary.dispatchedFertileSoon).toBe(0);
+    expect(dispatch).not.toHaveBeenCalled();
+  });
+
+  it("never dispatches FERTILE_SOON when fertileWindowStart is null", async () => {
+    const state: FakeState = {
+      predictions: [
+        {
+          userId: "u1",
+          nextPeriodStart: "2026-06-02",
+          fertileWindowStart: null,
+          user: baseUser({
+            cycleProfile: {
+              cycleTrackingEnabled: null,
+              predictionEnabled: true,
+              discreetNotifications: false,
+              goal: "TRYING_TO_CONCEIVE",
+            },
+          }),
+        },
+      ],
+      observedStarts: {},
+      alreadyOk: new Set(),
+    };
+    const dispatch = vi.fn<DispatchFn>(async () => OK);
+    const summary = await run(state, dispatch);
+    expect(summary.dispatchedFertileSoon).toBe(0);
+    expect(dispatch).not.toHaveBeenCalled();
   });
 
   it("dispatches PERIOD_CONFIRM on the predicted day with no logged period", async () => {
@@ -485,7 +615,10 @@ describe("runCycleReminderTick — windowing query", () => {
     expect(findMany).toHaveBeenCalledTimes(1);
     const arg = findMany.mock.calls[0][0] as unknown as {
       where: {
-        nextPeriodStart: { gte: string; lte: string };
+        OR: Array<{
+          nextPeriodStart?: { gte: string; lte: string };
+          fertileWindowStart?: { gte: string; lte: string };
+        }>;
         user: {
           cycleProfile: {
             cycleTrackingEnabled: boolean;
@@ -497,12 +630,22 @@ describe("runCycleReminderTick — windowing query", () => {
     // Tracking + prediction gate is in the query, not JS.
     expect(arg.where.user.cycleProfile.cycleTrackingEnabled).toBe(true);
     expect(arg.where.user.cycleProfile.NOT.predictionEnabled).toBe(false);
-    // The window is a YYYY-MM-DD string range straddling "now". At
-    // 2026-05-17 it spans [today-grace-1 .. today+lead+1] in UTC.
-    expect(arg.where.nextPeriodStart.gte).toBe("2026-05-13");
-    expect(arg.where.nextPeriodStart.lte).toBe("2026-05-20");
-    expect(arg.where.nextPeriodStart.gte < arg.where.nextPeriodStart.lte).toBe(
-      true,
-    );
+    // The query ORs a period-start window with a fertile-window window
+    // (the fertile window sits ~2 weeks ahead of the period start, so it
+    // needs its own date range). The period window is a YYYY-MM-DD string
+    // range straddling "now"; at 2026-05-17 it spans
+    // [today-grace-1 .. today+lead+1] in UTC.
+    const periodRange = arg.where.OR.find(
+      (c) => c.nextPeriodStart != null,
+    )?.nextPeriodStart;
+    const fertileRange = arg.where.OR.find(
+      (c) => c.fertileWindowStart != null,
+    )?.fertileWindowStart;
+    expect(periodRange?.gte).toBe("2026-05-13");
+    expect(periodRange?.lte).toBe("2026-05-20");
+    expect((periodRange?.gte ?? "") < (periodRange?.lte ?? "")).toBe(true);
+    // Fertile window: [today-1 .. today+lead+1] in UTC.
+    expect(fertileRange?.gte).toBe("2026-05-16");
+    expect(fertileRange?.lte).toBe("2026-05-20");
   });
 });

@@ -4,15 +4,15 @@ import { apiHandler, requireAuth } from "@/lib/api-handler";
 import { annotate } from "@/lib/logging/context";
 import { apiSuccess, apiError } from "@/lib/api-response";
 import { encrypt } from "@/lib/crypto";
+import { webPushSubscriptionSchema } from "@/lib/validations/notifications";
 import { z } from "zod/v4";
 
-const subscribeSchema = z.object({
-  endpoint: z.string().url(),
-  keys: z.object({
-    p256dh: z.string().min(1),
-    auth: z.string().min(1),
-  }),
-});
+// The endpoint is later dialled by `web-push`, which does its own internal
+// fetch that bypasses safeFetch — so the SSRF floor has to be enforced here
+// at input time. `webPushSubscriptionSchema` requires https + isPublicUrl
+// (blocks loopback/link-local/metadata/internal hosts). The sender applies
+// the same check again at egress time as defence-in-depth.
+const subscribeSchema = webPushSubscriptionSchema;
 
 const unsubscribeSchema = z.object({
   endpoint: z.string().url(),

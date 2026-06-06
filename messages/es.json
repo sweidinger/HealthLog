@@ -4702,7 +4702,9 @@
     "eventCyclePeriodSoon": "Período próximo",
     "eventCyclePeriodSoonDesc": "Se envía un par de días antes de tu próximo período previsto.",
     "eventCyclePeriodConfirm": "¿Empezó tu período?",
-    "eventCyclePeriodConfirmDesc": "Un recordatorio suave en o después del inicio previsto mientras no se registre ningún período."
+    "eventCyclePeriodConfirmDesc": "Un recordatorio suave en o después del inicio previsto mientras no se registre ningún período.",
+    "eventCycleFertileSoon": "Ventana fértil próxima",
+    "eventCycleFertileSoonDesc": "Se envía unos días antes de tu ventana fértil estimada cuando tu objetivo es concebir."
   },
   "i18n": {
     "maintainershipBanner": {
@@ -4901,7 +4903,8 @@
     "symptomCategory": {
       "physical": "Físico",
       "emotional": "Emocional",
-      "digestive": "Digestivo"
+      "digestive": "Digestivo",
+      "custom": "Personalizado"
     },
     "symptom": {
       "cramps": "Calambres",
@@ -4918,7 +4921,16 @@
       "foodCravings": "Antojos",
       "nausea": "Náuseas",
       "diarrhea": "Diarrea",
-      "constipation": "Estreñimiento"
+      "constipation": "Estreñimiento",
+      "custom": {
+        "add": "Añadir síntoma",
+        "label": "Nombre",
+        "labelPlaceholder": "p. ej. Mareo",
+        "icon": "Icono",
+        "limitReached": "Se alcanzó el límite de síntomas personalizados.",
+        "remove": "Eliminar {label}",
+        "fallbackLabel": "Síntoma personalizado"
+      }
     },
     "prediction": {
       "disclaimer": "Las predicciones son estimaciones basadas en tus datos registrados, no son consejo médico ni un método anticonceptivo. La precisión mejora a medida que registras más ciclos."
@@ -4964,6 +4976,18 @@
       "symptomPatternsTitle": "Patrones de síntomas por fase",
       "symptomPatternsEmpty": "Registra síntomas a lo largo de un ciclo para ver en qué fase se concentran.",
       "symptomMostlyIn": "Sobre todo en {phase} ({count}/{total} días)"
+    },
+    "phaseEducation": {
+      "title": "Qué está pasando ahora",
+      "whatsHappening": {
+        "MENSTRUAL": "Tu menstruación es el inicio de un nuevo ciclo, mientras el revestimiento uterino se desprende. La energía y el ánimo suelen sentirse más bajos en estos primeros días.",
+        "FOLLICULAR": "Tras la menstruación, el estrógeno sube de forma gradual mientras el cuerpo prepara un óvulo. Muchas personas notan una energía más estable durante esta etapa.",
+        "OVULATORY": "Hacia la mitad del ciclo se libera un óvulo y la fertilidad alcanza su punto máximo durante una ventana corta. Esta fase es la más breve de las cuatro.",
+        "LUTEAL": "Después de la ovulación, la progesterona sube y el cuerpo se asienta. En los días previos a la siguiente menstruación, algunas personas notan cambios premenstruales."
+      },
+      "commonHere": "Esto lo notas a menudo aquí",
+      "trackNudge": "Registrar hoy",
+      "stillLearning": "Aún estamos conociendo tu ciclo. Sigue registrando y esto se irá completando con patrones de tus propios días."
     },
     "disclaimer": "Estas predicciones son estimaciones descriptivas a partir de tus datos registrados, no un método anticonceptivo ni un consejo médico. Nunca indican que sea seguro tener relaciones sin protección. Para anticoncepción o cualquier decisión médica, consulta a un profesional sanitario.",
     "title": "Tu ciclo",
@@ -5037,7 +5061,12 @@
       "empty": "Empieza a registrar para ver tu calendario.",
       "today": "Hoy",
       "dayAria": "{date}",
-      "legendSymptom": "Síntomas"
+      "legendSymptom": "Síntomas",
+      "legendOvulationConfirmed": "Ovulación confirmada",
+      "flowSpotting": "manchado",
+      "flowLight": "ligero",
+      "flowMedium": "medio",
+      "flowHeavy": "abundante"
     },
     "predictions": {
       "title": "Qué viene después",
@@ -5072,7 +5101,12 @@
       "recentCycles": "Ciclos recientes",
       "ongoing": "en curso",
       "periodDays": "período {count} d",
-      "ovulationChip": "Ovulación"
+      "ovulationChip": "Ovulación",
+      "chartTitle": "Duración del ciclo en el tiempo",
+      "chartCaption": "Cada barra es un ciclo: la base rosa es tu periodo, el resto es la duración del ciclo.",
+      "chartAria": "Gráfico de duración de tus últimos {count} ciclos, con una media de {avg} días, clasificado como {regularity}.",
+      "legendPeriodSegment": "Días de periodo",
+      "legendRestSegment": "Resto del ciclo"
     },
     "sheet": {
       "title": "Registrar tu día",
@@ -5138,6 +5172,8 @@
       "reminders": "Recordatorios",
       "remindersDescription": "Activa los recordatorios de período por canal en los ajustes de notificaciones.",
       "remindersLink": "Ajustes de notificaciones",
+      "fertileReminder": "Recordatorio de ventana fértil",
+      "fertileReminderDescription": "Recibe un aviso unos días antes de tu ventana fértil estimada. Desactivado por defecto: actívalo por canal en los ajustes de notificaciones.",
       "purgeData": "Eliminar datos del ciclo",
       "purgeConfirmAction": "Sí, eliminar todo",
       "purgeDone": "Datos del ciclo eliminados."
@@ -5174,6 +5210,8 @@
     "periodSoonBody": "Se prevé tu próximo periodo en unos dos días.",
     "periodConfirmTitle": "¿Ha comenzado tu periodo?",
     "periodConfirmBody": "Tu periodo estaba previsto para ahora. Regístralo para mantener las predicciones precisas.",
+    "fertileSoonTitle": "Ventana fértil próxima",
+    "fertileSoonBody": "Se prevé que tu ventana fértil estimada comience en unos dos días. Es una estimación, no una garantía médica ni anticonceptiva.",
     "discreetTitle": "Recordatorio de HealthLog",
     "discreetBody": "Tienes un recordatorio en HealthLog."
   }

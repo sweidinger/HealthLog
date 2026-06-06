@@ -1,13 +1,18 @@
 /**
  * v1.15.0 — the seeded cycle-symptom catalog, mirrored client-side.
  *
- * The catalog ships seeded-only in v1.15.0 (no per-user custom CRUD yet),
- * so the keys are fixed at the migration seed (0129). The `key` is the
+ * The keys are fixed at the migration seed (0129). The `key` is the
  * snake_case DB key the day-log write resolves against; the `labelKey` is
  * the camelCase i18n leaf under `cycle.symptom.*`; the `icon` is the
  * Lucide name from the seed. Keep this in lockstep with the seed in
  * `prisma/migrations/0129_v1150_cycle_symptom_taxonomy/migration.sql` and
  * the `cycle.symptom.*` / `cycle.symptomCategory.*` i18n leaves.
+ *
+ * v1.15.1 layers per-user custom symptoms on top (the `custom` category,
+ * seeded by migration 0134): the log-day sheet fetches them from
+ * `/api/cycle/symptoms/custom` and merges them into this seeded grid. They
+ * are NOT in this static catalog — their labels are user free text held
+ * encrypted at rest, resolved server-side, never an i18n key.
  */
 import {
   Activity,

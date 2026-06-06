@@ -4702,7 +4702,9 @@
     "eventCyclePeriodSoon": "Règles à venir",
     "eventCyclePeriodSoonDesc": "Envoyé quelques jours avant vos prochaines règles prévues.",
     "eventCyclePeriodConfirm": "Vos règles ont-elles commencé ?",
-    "eventCyclePeriodConfirmDesc": "Un rappel discret le jour prévu ou après, tant qu'aucune règle n'est enregistrée."
+    "eventCyclePeriodConfirmDesc": "Un rappel discret le jour prévu ou après, tant qu'aucune règle n'est enregistrée.",
+    "eventCycleFertileSoon": "Fenêtre fertile à venir",
+    "eventCycleFertileSoonDesc": "Envoyé quelques jours avant votre fenêtre fertile estimée lorsque votre objectif est de concevoir."
   },
   "i18n": {
     "maintainershipBanner": {
@@ -4901,7 +4903,8 @@
     "symptomCategory": {
       "physical": "Physique",
       "emotional": "Émotionnel",
-      "digestive": "Digestif"
+      "digestive": "Digestif",
+      "custom": "Personnalisé"
     },
     "symptom": {
       "cramps": "Crampes",
@@ -4918,7 +4921,16 @@
       "foodCravings": "Fringales",
       "nausea": "Nausées",
       "diarrhea": "Diarrhée",
-      "constipation": "Constipation"
+      "constipation": "Constipation",
+      "custom": {
+        "add": "Ajouter un symptôme",
+        "label": "Nom",
+        "labelPlaceholder": "ex. Vertige",
+        "icon": "Icône",
+        "limitReached": "Limite de symptômes personnalisés atteinte.",
+        "remove": "Supprimer {label}",
+        "fallbackLabel": "Symptôme personnalisé"
+      }
     },
     "prediction": {
       "disclaimer": "Les prévisions sont des estimations issues de tes données enregistrées, et non un avis médical ou un moyen de contraception. La précision s'améliore à mesure que tu enregistres des cycles."
@@ -4964,6 +4976,18 @@
       "symptomPatternsTitle": "Tendances des symptômes par phase",
       "symptomPatternsEmpty": "Notez vos symptômes sur un cycle pour voir dans quelle phase ils se regroupent.",
       "symptomMostlyIn": "Surtout en {phase} ({count}/{total} jours)"
+    },
+    "phaseEducation": {
+      "title": "Ce qui se passe maintenant",
+      "whatsHappening": {
+        "MENSTRUAL": "Tes règles marquent le début d'un nouveau cycle, lorsque la muqueuse utérine se détache. L'énergie et l'humeur semblent souvent plus basses durant ces premiers jours.",
+        "FOLLICULAR": "Après les règles, l'œstrogène augmente progressivement pendant que le corps prépare un ovule. Beaucoup ressentent une énergie plus stable durant cette période.",
+        "OVULATORY": "Vers le milieu du cycle, un ovule est libéré et la fertilité culmine sur une courte fenêtre. Cette phase est la plus brève des quatre.",
+        "LUTEAL": "Après l'ovulation, la progestérone augmente et le corps se pose. Dans les jours précédant les prochaines règles, certaines personnes remarquent des changements prémenstruels."
+      },
+      "commonHere": "Tu le remarques souvent ici",
+      "trackNudge": "Noter aujourd'hui",
+      "stillLearning": "On apprend encore ton cycle. Continue à noter et cela se remplira avec les tendances de tes propres journées."
     },
     "disclaimer": "Ces prévisions sont des estimations descriptives issues de vos données enregistrées, ni une méthode de contraception ni un avis médical. Elles n'indiquent jamais qu'il est sûr d'avoir des rapports non protégés. Pour la contraception ou toute décision médicale, consultez un professionnel de santé.",
     "title": "Ton cycle",
@@ -5037,7 +5061,12 @@
       "empty": "Commence à enregistrer pour remplir ton calendrier.",
       "today": "Aujourd'hui",
       "dayAria": "{date}",
-      "legendSymptom": "Symptômes"
+      "legendSymptom": "Symptômes",
+      "legendOvulationConfirmed": "Ovulation confirmée",
+      "flowSpotting": "spotting",
+      "flowLight": "léger",
+      "flowMedium": "moyen",
+      "flowHeavy": "abondant"
     },
     "predictions": {
       "title": "Ce qui arrive ensuite",
@@ -5072,7 +5101,12 @@
       "recentCycles": "Cycles récents",
       "ongoing": "en cours",
       "periodDays": "règles {count} j",
-      "ovulationChip": "Ovulation"
+      "ovulationChip": "Ovulation",
+      "chartTitle": "Durée du cycle au fil du temps",
+      "chartCaption": "Chaque barre est un cycle : la base rose est vos règles, le reste est la durée du cycle.",
+      "chartAria": "Graphique de durée de vos {count} derniers cycles, d'une moyenne de {avg} jours, classé comme {regularity}.",
+      "legendPeriodSegment": "Jours de règles",
+      "legendRestSegment": "Reste du cycle"
     },
     "sheet": {
       "title": "Enregistrer ta journée",
@@ -5138,6 +5172,8 @@
       "reminders": "Rappels",
       "remindersDescription": "Activez les rappels de règles par canal dans les paramètres de notification.",
       "remindersLink": "Paramètres de notification",
+      "fertileReminder": "Rappel de fenêtre fertile",
+      "fertileReminderDescription": "Recevez un avertissement quelques jours avant votre fenêtre fertile estimée. Désactivé par défaut : activez-le par canal dans les paramètres de notification.",
       "purgeData": "Supprimer les données de cycle",
       "purgeConfirmAction": "Oui, tout supprimer",
       "purgeDone": "Données de cycle supprimées."
@@ -5174,6 +5210,8 @@
     "periodSoonBody": "Vos prochaines règles sont prévues dans environ deux jours.",
     "periodConfirmTitle": "Vos règles ont-elles commencé ?",
     "periodConfirmBody": "Vos règles étaient prévues pour maintenant. Enregistrez-les pour garder des prévisions précises.",
+    "fertileSoonTitle": "Fenêtre fertile à venir",
+    "fertileSoonBody": "Votre fenêtre fertile estimée devrait commencer dans environ deux jours. Il s'agit d'une estimation, et non d'une garantie médicale ou contraceptive.",
     "discreetTitle": "Rappel HealthLog",
     "discreetBody": "Vous avez un rappel dans HealthLog."
   }

@@ -4702,7 +4702,9 @@
     "eventCyclePeriodSoon": "Period coming up",
     "eventCyclePeriodSoonDesc": "Sent a couple of days before your predicted next period.",
     "eventCyclePeriodConfirm": "Did your period start?",
-    "eventCyclePeriodConfirmDesc": "A gentle check-in on or after the predicted start while no period is logged."
+    "eventCyclePeriodConfirmDesc": "A gentle check-in on or after the predicted start while no period is logged.",
+    "eventCycleFertileSoon": "Fertile window coming up",
+    "eventCycleFertileSoonDesc": "Sent a few days before your estimated fertile window when your goal is trying to conceive."
   },
   "i18n": {
     "maintainershipBanner": {
@@ -4901,7 +4903,8 @@
     "symptomCategory": {
       "physical": "Physical",
       "emotional": "Emotional",
-      "digestive": "Digestive"
+      "digestive": "Digestive",
+      "custom": "Custom"
     },
     "symptom": {
       "cramps": "Cramps",
@@ -4918,7 +4921,16 @@
       "foodCravings": "Food cravings",
       "nausea": "Nausea",
       "diarrhea": "Diarrhea",
-      "constipation": "Constipation"
+      "constipation": "Constipation",
+      "custom": {
+        "add": "Add symptom",
+        "label": "Name",
+        "labelPlaceholder": "e.g. Dizziness",
+        "icon": "Icon",
+        "limitReached": "Custom symptom limit reached.",
+        "remove": "Remove {label}",
+        "fallbackLabel": "Custom symptom"
+      }
     },
     "prediction": {
       "disclaimer": "Predictions are estimates from your logged data, not medical advice or contraception. Accuracy improves as you log more cycles."
@@ -4964,6 +4976,18 @@
       "symptomPatternsTitle": "Symptom patterns by phase",
       "symptomPatternsEmpty": "Log symptoms across a cycle to see which phase they cluster in.",
       "symptomMostlyIn": "Mostly in {phase} ({count}/{total} days)"
+    },
+    "phaseEducation": {
+      "title": "What's happening now",
+      "whatsHappening": {
+        "MENSTRUAL": "Your period is the start of a new cycle, as the uterine lining sheds. Energy and mood often feel lower in these first days.",
+        "FOLLICULAR": "After your period, oestrogen gradually rises as the body prepares an egg. Many people notice steadier energy through this stretch.",
+        "OVULATORY": "Around mid-cycle an egg is released and fertility peaks for a short window. This phase is the briefest of the four.",
+        "LUTEAL": "After ovulation, progesterone rises and the body settles in. In the days before your next period some people notice premenstrual changes."
+      },
+      "commonHere": "You often notice this here",
+      "trackNudge": "Log today",
+      "stillLearning": "Still learning your cycle. Keep logging and this fills in with patterns from your own days."
     },
     "disclaimer": "These predictions are descriptive estimates from your logged data, not a contraceptive method and not medical advice. They never indicate that it is safe to have unprotected sex. For contraception or any medical decision, consult a healthcare professional.",
     "title": "Your cycle",
@@ -5037,7 +5061,12 @@
       "empty": "Start logging to see your calendar fill in.",
       "today": "Today",
       "dayAria": "{date}",
-      "legendSymptom": "Symptoms"
+      "legendSymptom": "Symptoms",
+      "legendOvulationConfirmed": "Confirmed ovulation",
+      "flowSpotting": "spotting",
+      "flowLight": "light",
+      "flowMedium": "medium",
+      "flowHeavy": "heavy"
     },
     "predictions": {
       "title": "What comes next",
@@ -5072,7 +5101,12 @@
       "recentCycles": "Recent cycles",
       "ongoing": "ongoing",
       "periodDays": "period {count} d",
-      "ovulationChip": "Ovulation"
+      "ovulationChip": "Ovulation",
+      "chartTitle": "Cycle length over time",
+      "chartCaption": "Each bar is one cycle: the rose base is your period, the rest is the cycle length.",
+      "chartAria": "Cycle-length chart of your last {count} cycles, averaging {avg} days, classified as {regularity}.",
+      "legendPeriodSegment": "Period days",
+      "legendRestSegment": "Rest of cycle"
     },
     "sheet": {
       "title": "Log your day",
@@ -5143,6 +5177,8 @@
       "reminders": "Reminders",
       "remindersDescription": "Turn period reminders on per channel in notification settings.",
       "remindersLink": "Notification settings",
+      "fertileReminder": "Fertile-window reminder",
+      "fertileReminderDescription": "Get a heads-up a few days before your estimated fertile window. Off by default — turn it on per channel in notification settings.",
       "purgeData": "Delete cycle data",
       "purgeConfirmAction": "Yes, delete everything",
       "purgeDone": "Cycle data deleted."
@@ -5174,6 +5210,8 @@
     "periodSoonBody": "Your next period is predicted in about two days.",
     "periodConfirmTitle": "Did your period start?",
     "periodConfirmBody": "Your period was predicted around now. Log it to keep predictions accurate.",
+    "fertileSoonTitle": "Fertile window coming up",
+    "fertileSoonBody": "Your estimated fertile window is predicted to start in about two days. This is an estimate, not a medical or contraceptive guarantee.",
     "discreetTitle": "HealthLog reminder",
     "discreetBody": "You have a reminder in HealthLog."
   }

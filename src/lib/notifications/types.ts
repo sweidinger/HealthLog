@@ -34,6 +34,13 @@ export const EVENT_TYPES = [
   // named on the lock screen.
   "CYCLE_PERIOD_SOON",
   "CYCLE_PERIOD_CONFIRM",
+  // v1.15.1 — fertile-window reminder. Default OFF (see EVENT_DEFAULT_ENABLED)
+  // and TTC-gated in the cron: it only fires when `CycleProfile.goal ===
+  // "TRYING_TO_CONCEIVE"`, so fertile language never reaches the
+  // AVOID_PREGNANCY / GENERAL_HEALTH / PERIMENOPAUSE goals (the inclusive-
+  // framing rule). Fires a few days before `CyclePrediction.fertileWindowStart`
+  // and honours discreet mode like the other cycle reminders.
+  "CYCLE_FERTILE_SOON",
 ] as const;
 export type EventType = (typeof EVENT_TYPES)[number];
 
@@ -65,6 +72,10 @@ export const EVENT_DEFAULT_ENABLED: Record<EventType, boolean> = {
   // also has to be flipped on before the dispatcher surfaces the channel.
   CYCLE_PERIOD_SOON: false,
   CYCLE_PERIOD_CONFIRM: false,
+  // v1.15.1 — default OFF and additionally TTC-gated in the cron, so the
+  // server never surfaces fertile-window language unless the user has both
+  // chosen the conception goal and opted the reminder in.
+  CYCLE_FERTILE_SOON: false,
 };
 
 export const CHANNEL_TYPE_LABELS: Record<ChannelType, string> = {

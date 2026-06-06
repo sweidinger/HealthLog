@@ -2,6 +2,28 @@
 
 ## [Unreleased]
 
+## [1.15.1] — 2026-06-06 — cycle premium parity, reminder polish, fixes
+
+### Added
+
+- **Know your phase.** A "what's happening now" card next to the cycle wheel names your current phase, describes it in plain language, and surfaces the symptoms you yourself tend to log in that phase — drawn from your own history, never generic claims — with a one-tap shortcut to log today. It stays in a calm "still learning" state until there's enough of your data to be honest about.
+- **Your own symptoms.** Add custom symptoms beyond the built-in set, with a name and an icon, straight from the log sheet. Custom symptom names are encrypted at rest, included in export, and removed by the cycle purge.
+- **Fertile-window reminder.** An opt-in reminder a couple of days before your predicted fertile window — shown only when your goal is to conceive, off by default, and discreet-mode aware. It is an estimate, never a contraceptive or "safe day" claim.
+- **A richer cycle calendar and history.** Period days now shade by flow intensity, a confirmed ovulation is marked distinctly from a predicted one, and a new cycle-length history chart shows your recent cycles with average, variability, and a regular/irregular read.
+
+### Changed
+
+- **Reminders read as plain text.** Medication, mood, and cycle reminder notifications no longer carry decorative emoji; emoji are kept only for system and failure alerts.
+
+### Fixed
+
+- **Blood-pressure-in-target reads accurately.** The "in target" share on the home health score now pairs systolic and diastolic readings the same way the rest of the app does, so imported readings whose timestamps differ by more than a few minutes are no longer dropped from the calculation.
+- **A dose is never shown as taken before its time.** Logging a dose can no longer attribute it to a later slot still in the future — a late morning dose will not appear as the evening dose taken early.
+
+### Security
+
+- **Closed a server-side request risk in Web Push.** Push subscription endpoints are now validated against internal-network addresses on save and again before delivery, and the cycle-insights endpoint is rate-limited.
+
 ## [1.15.0] — 2026-06-06 — cycle tracking
 
 ### Added

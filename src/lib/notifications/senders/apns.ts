@@ -30,6 +30,7 @@ import { prisma } from "@/lib/db";
 import { getEvent } from "@/lib/logging/context";
 import type { SendOutcome } from "@/lib/notifications/retry-policy";
 import { recordPushAttempt } from "@/lib/notifications/senders/push-attempt-record";
+import { plainPushText } from "@/lib/notifications/strip-emoji";
 
 export interface ApnsPayload {
   /** APNs `aps.alert.title` + `aps.alert.body`. */
@@ -615,7 +616,10 @@ export async function sendViaApns(
         deviceToken: device.apnsToken,
         environment: attemptEnv,
         payload: {
-          alert: { title: payload.title, body: stripHtml(payload.message) },
+          alert: {
+            title: plainPushText(payload.title, payload.eventType),
+            body: plainPushText(stripHtml(payload.message), payload.eventType),
+          },
           data: {
             eventType: routingEvent,
             // In discreet mode also drop cycle-semantic metadata (e.g. `phase`)

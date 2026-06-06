@@ -4,14 +4,13 @@ import { apiSuccess } from "@/lib/api-response";
 import type { DataPoint, DataSummary } from "@/lib/analytics/trends";
 import { summarize } from "@/lib/analytics/trends";
 import { getBpTargets } from "@/lib/analytics/bp-targets";
-import { isBpReadingInTarget } from "@/lib/analytics/bp-in-target";
+import { computeBpInTargetPct } from "@/lib/analytics/bp-in-target";
 import {
   classifyBMI,
   classifyBP,
   generateAlerts,
 } from "@/lib/analytics/classifications";
 import {
-  pairByTimestamp,
   pearsonCorrelation,
   type PairedPoint,
 } from "@/lib/analytics/correlations";
@@ -185,31 +184,26 @@ export async function buildComprehensiveResponse(user: AuthedUser) {
     );
   }
 
-  // ── BP target adherence ──────────────────────────────────
-  // Keeps the 5-minute tolerance contract — sys + dia must pair on
-  // the same reading session. The aggregator pulled the bounded raw
-  // rows; we reuse `pairByTimestamp` against them so the output is
-  // byte-identical to the legacy path.
+  // ── BP target adherence (trailing 90 days) ───────────────
+  // Route through the canonical `computeBpInTargetPct` so this figure
+  // shares ONE definition with the dashboard tile, the insight cards, the
+  // AI snapshot and the targets endpoint (per the bp-in-target.ts
+  // contract — the inline copy that used to live here drifted: it paired
+  // sys+dia on the 5-minute window ONLY, dropping readings whose sys/dia
+  // timestamps drift past 5 min on Withings / Apple-Health imports, which
+  // skewed the share iOS renders on the Home Health Score). The helper
+  // adds the same-Berlin-day pairing fallback so those readings pair, and
+  // keeps the ESH-2023 band + 90/50 hypotension floor (both sys AND dia at
+  // or below the age-band ceiling). Window is the aggregator's 90-day raw
+  // pull — a "recent control" figure, not the all-time headline.
   let bpPctInTarget: number | null = null;
   if (bpTargets) {
-    const sysData: DataPoint[] = aggregate.bpRawRows.sys.map((r) => ({
-      date: r.measuredAt,
-      value: r.value,
-    }));
-    const diaData: DataPoint[] = aggregate.bpRawRows.dia.map((r) => ({
-      date: r.measuredAt,
-      value: r.value,
-    }));
-    const sysPairs = pairByTimestamp(sysData, diaData, 5 * 60 * 1000);
-
-    if (sysPairs.length > 0) {
-      // v1.4.16 A2 — one-sided ceiling semantics with hypotension
-      // floor. See lib/analytics/bp-in-target.ts.
-      const inTarget = sysPairs.filter((p) =>
-        isBpReadingInTarget(p.a, p.b, bpTargets),
-      ).length;
-      bpPctInTarget = Math.round((inTarget / sysPairs.length) * 100);
-    }
+    bpPctInTarget =
+      computeBpInTargetPct(
+        aggregate.bpRawRows.sys,
+        aggregate.bpRawRows.dia,
+        bpTargets,
+      )?.pct ?? null;
   }
 
   // ── Correlations: weight × Sys BP ─────────────────────────

@@ -110,6 +110,85 @@ export function useCycleHistory(limit = 24) {
   });
 }
 
+/** One per-user custom symptom: a `custom:<uuid>` key + decrypted label. */
+export interface CustomSymptomDTO {
+  key: string;
+  label: string | null;
+  icon: string | null;
+  custom: true;
+}
+
+/**
+ * The caller's own custom symptoms, labels decrypted server-side. The log-day
+ * sheet merges these into the seeded chip grid under the `custom` category.
+ */
+export function useCustomSymptoms() {
+  return useQuery({
+    queryKey: queryKeys.cycleCustomSymptoms(),
+    queryFn: () =>
+      fetch("/api/cycle/symptoms/custom").then((r) =>
+        unwrap<{ symptoms: CustomSymptomDTO[] }>(r),
+      ),
+    staleTime: 5 * 60_000,
+  });
+}
+
+/** The `errorCode` the create POST returns when the per-user cap is hit. */
+export const CUSTOM_SYMPTOM_LIMIT_ERROR_CODE = "cycle.symptom.custom.limit";
+
+/** An error that preserves the envelope `errorCode` so callers can branch. */
+export class CustomSymptomError extends Error {
+  constructor(
+    public readonly errorCode: string | null,
+    public readonly status: number,
+  ) {
+    super(errorCode ?? `Request failed: ${status}`);
+    this.name = "CustomSymptomError";
+  }
+}
+
+/** Create a custom symptom (mint `custom:<uuid>`, encrypt the label). */
+export function useCreateCustomSymptom() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: { label: string; icon?: string | null }) => {
+      const res = await fetch("/api/cycle/symptoms/custom", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(input),
+      });
+      if (!res.ok) {
+        // Preserve the envelope errorCode so the UI can tell the cap hit
+        // (cycle.symptom.custom.limit) apart from a transient/validation error.
+        const errorCode = await res
+          .json()
+          .then((j) => (j?.meta?.errorCode as string | undefined) ?? null)
+          .catch(() => null);
+        throw new CustomSymptomError(errorCode, res.status);
+      }
+      const json = await res.json();
+      return json.data as CustomSymptomDTO;
+    },
+    onSuccess: () =>
+      qc.invalidateQueries({ queryKey: queryKeys.cycleCustomSymptoms() }),
+  });
+}
+
+/** Soft-hide a custom symptom by its key (history-preserving). */
+export function useDeleteCustomSymptom() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (key: string) => {
+      const res = await fetch(
+        `/api/cycle/symptoms/custom/${encodeURIComponent(key)}`,
+        { method: "DELETE" },
+      );
+      return unwrap<{ key: string; purged: boolean }>(res);
+    },
+    onSuccess: () => invalidateKeys(qc, cycleDependentKeys),
+  });
+}
+
 export function useCycleProfile() {
   return useQuery({
     queryKey: queryKeys.cycleProfile(),

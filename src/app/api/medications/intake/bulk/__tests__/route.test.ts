@@ -2,7 +2,7 @@
  * v1.4.43 W6 — multi-issue 422 envelope on POST /api/medications/intake/bulk.
  * Preserves the `medications.intake.bulk.invalid` errorCode meta passthrough.
  */
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { NextRequest } from "next/server";
 
 vi.mock("@/lib/db", () => ({
@@ -186,12 +186,23 @@ describe("POST /api/medications/intake/bulk — v1.8.2 reconcile", () => {
   };
 
   beforeEach(() => {
+    // Pin the clock past both fixture slots (07:00 / 19:00 CEST on
+    // 2026-06-15) so the dose-safety future-slot guard treats these taken
+    // writes as landing on a current/past slot, not a future one. Without
+    // the pin these fixtures are dated days ahead of the real test clock
+    // and the guard (correctly) refuses to snap a taken write forward.
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-06-15T18:00:00.000Z"));
     vi.mocked(prisma.medication.findMany).mockResolvedValue([
       { id: "med-1" },
     ] as never);
     vi.mocked(prisma.medication.findFirst).mockResolvedValue(
       SCHEDULED_MED as never,
     );
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it("C2 — a pending echo onto an already-TAKEN slot is reported duplicate, NOT a downgrade", async () => {
