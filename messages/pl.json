@@ -205,7 +205,7 @@
     "logout": "Wyloguj",
     "login": "Zaloguj",
     "about": "O HealthLog",
-    "notifications": "Centrum powiadomień",
+    "notifications": "Powiadomienia",
     "theme": "Wygląd",
     "themeSystem": "Systemowy",
     "themeDark": "Ciemny",
@@ -4692,8 +4692,8 @@
     "disabledBody": "Administrator wyłączył zgłoszenia błędów na tym serwerze."
   },
   "notifications": {
-    "title": "Centrum powiadomień",
-    "breadcrumbInbox": "Centrum powiadomień",
+    "title": "Powiadomienia",
+    "breadcrumbInbox": "Powiadomienia",
     "breadcrumbChannels": "Kanały powiadomień",
     "breadcrumbSettings": "Ustawienia",
     "eventColumn": "Zdarzenie",

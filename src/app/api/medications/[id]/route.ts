@@ -64,6 +64,27 @@ export const GET = apiHandler(
             select: { takenAt: true },
           })
         : null;
+    // v1.15.10 — slots the user has already acted on near now, so the
+    // next-due search skips them and advances to the next genuinely-open
+    // slot. Bound the read to [now-1d, now+2d] — the lookahead only needs the
+    // slots adjacent to now.
+    const now = new Date();
+    const resolvedFrom = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+    const resolvedTo = new Date(now.getTime() + 2 * 24 * 60 * 60 * 1000);
+    const resolvedRows = await prisma.medicationIntakeEvent.findMany({
+      where: {
+        userId: user.id,
+        medicationId: id,
+        deletedAt: null,
+        scheduledFor: { gte: resolvedFrom, lte: resolvedTo },
+        OR: [
+          { takenAt: { not: null } },
+          { skipped: true },
+          { autoMissed: true },
+        ],
+      },
+      select: { scheduledFor: true },
+    });
     const nextDue = computeNextDueAt({
       medication: {
         id: medication.id,
@@ -73,9 +94,10 @@ export const GET = apiHandler(
         createdAt: medication.createdAt,
       },
       schedules: medication.schedules,
-      now: new Date(),
+      now,
       userTz: user.timezone || "Europe/Berlin",
       lastIntakeAt: lastIntake?.takenAt ?? null,
+      resolvedSlots: resolvedRows.map((r) => r.scheduledFor),
     });
 
     annotate({

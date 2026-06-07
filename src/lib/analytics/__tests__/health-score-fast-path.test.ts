@@ -364,6 +364,59 @@ describe("computeUserHealthScoreFastPath", () => {
       expect(weightCall.where.type).toBe("WEIGHT");
       expect(ROLLUP_FIND_MANY).not.toHaveBeenCalled();
     });
+
+    // Regression pin: a height-less user (no derivable weight target)
+    // who DOES have weight readings must still get a populated, weighted
+    // weight pillar. Before this fix the pillar came back
+    // `{value:null, weight:0, source:"none"}` because the only target
+    // source was `defaultWeightTargetFromHeight(null)` → null, and the
+    // pillar was gated on having a target. The trend-only scoring path
+    // now scores the bare weight trend instead.
+    it("populates the weight pillar from a trend-only score when height is null", async () => {
+      const coverage = new Map<string, boolean>([["WEIGHT", false]]);
+      FULLY_COVERED.mockReturnValue(false);
+      PROBE.mockResolvedValue(coverage);
+
+      const now = new Date("2026-05-17T12:00:00.000Z");
+      MEASUREMENT_FIND_MANY
+        // Weight (live) — multiple readings inside the window, gentle decline.
+        .mockResolvedValueOnce([
+          {
+            measuredAt: new Date("2026-05-04T08:00:00.000Z"),
+            value: 84.0,
+            source: "WITHINGS",
+          },
+          {
+            measuredAt: new Date("2026-05-09T08:00:00.000Z"),
+            value: 83.5,
+            source: "WITHINGS",
+          },
+          {
+            measuredAt: new Date("2026-05-14T08:00:00.000Z"),
+            value: 83.0,
+            source: "WITHINGS",
+          },
+        ])
+        // BP-SYS source attribution.
+        .mockResolvedValueOnce([]);
+
+      const result = await computeUserHealthScoreFastPath({
+        userId: "user-no-height",
+        bpInTargetPct: null,
+        heightCm: null,
+        now,
+        coverage,
+      });
+
+      expect(result).not.toBeNull();
+      const weight = result?.components.weight;
+      // The pillar is populated and weighted even with no target.
+      expect(weight?.value).not.toBeNull();
+      expect(weight?.weight).toBeGreaterThan(0);
+      expect(weight?.source).not.toBe("none");
+      // The source reflects the contributing ingest path, not the empty state.
+      expect(weight?.source).toBe("withings");
+    });
   });
 
   describe("empty path", () => {

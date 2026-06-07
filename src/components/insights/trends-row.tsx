@@ -1,9 +1,11 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import { TrendingUp } from "lucide-react";
 import { useTranslations } from "@/lib/i18n/context";
 import { useAuth } from "@/hooks/use-auth";
 import { ChartSkeleton } from "@/components/charts/chart-skeleton";
+import { SectionHeading } from "@/components/insights/section-heading";
 import { HealthChartDynamicMini } from "@/components/charts/health-chart-dynamic";
 import type { DailyBriefing } from "@/lib/ai/schema";
 import {
@@ -99,7 +101,13 @@ interface TrendsRowProps {
   loading?: boolean;
 }
 
-function MetricChart({ config, title }: { config: TrendChartConfig; title: string }) {
+function MetricChart({
+  config,
+  title,
+}: {
+  config: TrendChartConfig;
+  title: string;
+}) {
   const { user } = useAuth();
   const userTimezone = user?.timezone;
   if (config.kind === "mood") {
@@ -188,14 +196,15 @@ export function TrendsRow({
       aria-label={t("insights.trendsRow.title")}
       className="space-y-3"
     >
-      <div className="flex items-baseline justify-between">
-        <h2 className="text-lg font-semibold">
-          {t("insights.trendsRow.title")}
-        </h2>
-        <p className="text-muted-foreground text-xs">
-          {t("insights.trendsRow.subtitle")}
-        </p>
-      </div>
+      <SectionHeading
+        icon={TrendingUp}
+        title={t("insights.trendsRow.title")}
+        action={
+          <p className="text-muted-foreground text-xs">
+            {t("insights.trendsRow.subtitle")}
+          </p>
+        }
+      />
       {/* v1.4.22 A4 — equal-height cards. The annotation prose
           below each chart varies in length, which used to leave the
           three cards on visibly different baselines. Each card is now

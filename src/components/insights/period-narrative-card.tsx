@@ -2,11 +2,12 @@
 
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Info } from "lucide-react";
+import { CalendarRange, Info } from "lucide-react";
 
 import { useTranslations } from "@/lib/i18n/context";
 import { queryKeys } from "@/lib/query-keys";
 import { cn } from "@/lib/utils";
+import { SectionHeading } from "@/components/insights/section-heading";
 import {
   Popover,
   PopoverContent,
@@ -122,22 +123,30 @@ export function PeriodNarrativeCard({
       q.state.data?.revalidating && !q.state.data.narrative ? 5000 : false,
   });
 
-  // Loading with nothing to show yet → matched skeleton (CLS-safe).
+  // Loading with nothing to show yet → matched skeleton (CLS-safe). The
+  // heading renders above the skeleton so the section reserves its full
+  // height (heading + card) before the prose lands.
   if (query.isLoading) {
     return (
-      <div
-        data-slot="period-narrative-card-skeleton"
-        aria-hidden="true"
-        className={cn(SKELETON_SHELL, className)}
+      <section
+        data-slot="period-narrative-section"
+        aria-label={t("insights.narrativeTitle")}
+        className={cn("space-y-3", className)}
       >
-        <div className="flex h-7 items-center justify-between gap-2">
-          <div className="bg-muted/40 h-3 w-32 rounded" />
-          <div className="bg-muted/40 size-5 rounded-full" />
+        <SectionHeading
+          icon={CalendarRange}
+          title={t("insights.narrativeTitle")}
+        />
+        <div
+          data-slot="period-narrative-card-skeleton"
+          aria-hidden="true"
+          className={SKELETON_SHELL}
+        >
+          <div className="bg-muted/40 h-4 w-full rounded" />
+          <div className="bg-muted/40 h-4 w-5/6 rounded" />
+          <div className="bg-muted/40 h-4 w-2/3 rounded" />
         </div>
-        <div className="bg-muted/40 h-4 w-full rounded" />
-        <div className="bg-muted/40 h-4 w-5/6 rounded" />
-        <div className="bg-muted/40 h-4 w-2/3 rounded" />
-      </div>
+      </section>
     );
   }
 
@@ -153,67 +162,73 @@ export function PeriodNarrativeCard({
   const preparing = !narrative && data?.revalidating === true;
 
   return (
-    <div
-      data-slot="period-narrative-card"
-      data-period={period}
-      className={cn(SHELL, className)}
+    <section
+      data-slot="period-narrative-section"
+      aria-label={t("insights.narrativeTitle")}
+      className={cn("space-y-3", className)}
     >
-      <div className="flex items-center justify-between gap-2">
-        <h2 className="text-foreground truncate text-base font-semibold">
-          {t("insights.narrativeTitle")}
-        </h2>
-        {narrative?.provenance ? (
-          <ProvenanceDisclosure provenance={narrative.provenance} />
+      <SectionHeading
+        icon={CalendarRange}
+        title={t("insights.narrativeTitle")}
+        action={
+          narrative?.provenance ? (
+            <ProvenanceDisclosure provenance={narrative.provenance} />
+          ) : undefined
+        }
+      />
+      <div
+        data-slot="period-narrative-card"
+        data-period={period}
+        className={SHELL}
+      >
+        {/* Week / month toggle. Calm segmented control, no chart. */}
+        <div className="flex gap-1 self-start">
+          {(["week", "month"] as const).map((p) => {
+            const active = period === p;
+            return (
+              <button
+                key={p}
+                type="button"
+                aria-pressed={active}
+                onClick={() => setPeriod(p)}
+                className={cn(
+                  "focus-visible:ring-ring inline-flex min-h-11 items-center rounded-md px-2.5 py-1 text-xs font-medium transition-colors focus-visible:ring-2 focus-visible:outline-none",
+                  active
+                    ? "bg-muted text-foreground"
+                    : "text-muted-foreground hover:text-foreground",
+                )}
+              >
+                {p === "week"
+                  ? t("insights.narrativeWeek")
+                  : t("insights.narrativeMonth")}
+              </button>
+            );
+          })}
+        </div>
+
+        {preparing ? (
+          <p className="text-muted-foreground text-sm">
+            {t("insights.narrativePreparing")}
+          </p>
+        ) : (
+          // Plain text child — NO markdown renderer (XSS posture, CLAUDE.md).
+          <p className="text-foreground text-sm leading-relaxed whitespace-pre-line">
+            {narrative?.text}
+          </p>
+        )}
+
+        {narrative ? (
+          <p className="text-muted-foreground text-right text-[11px]">
+            {data?.revalidating
+              ? t("insights.narrativeUpdating")
+              : t("insights.narrativeUpdated", {
+                  time: new Date(narrative.updatedAt).toLocaleDateString(
+                    locale === "de" ? "de-DE" : undefined,
+                  ),
+                })}
+          </p>
         ) : null}
       </div>
-
-      {/* Week / month toggle. Calm segmented control, no chart. */}
-      <div className="flex gap-1 self-start">
-        {(["week", "month"] as const).map((p) => {
-          const active = period === p;
-          return (
-            <button
-              key={p}
-              type="button"
-              aria-pressed={active}
-              onClick={() => setPeriod(p)}
-              className={cn(
-                "focus-visible:ring-ring inline-flex min-h-11 items-center rounded-md px-2.5 py-1 text-xs font-medium transition-colors focus-visible:ring-2 focus-visible:outline-none",
-                active
-                  ? "bg-muted text-foreground"
-                  : "text-muted-foreground hover:text-foreground",
-              )}
-            >
-              {p === "week"
-                ? t("insights.narrativeWeek")
-                : t("insights.narrativeMonth")}
-            </button>
-          );
-        })}
-      </div>
-
-      {preparing ? (
-        <p className="text-muted-foreground text-sm">
-          {t("insights.narrativePreparing")}
-        </p>
-      ) : (
-        // Plain text child — NO markdown renderer (XSS posture, CLAUDE.md).
-        <p className="text-foreground text-sm leading-relaxed whitespace-pre-line">
-          {narrative?.text}
-        </p>
-      )}
-
-      {narrative ? (
-        <p className="text-muted-foreground text-right text-[11px]">
-          {data?.revalidating
-            ? t("insights.narrativeUpdating")
-            : t("insights.narrativeUpdated", {
-                time: new Date(narrative.updatedAt).toLocaleDateString(
-                  locale === "de" ? "de-DE" : undefined,
-                ),
-              })}
-        </p>
-      ) : null}
-    </div>
+    </section>
   );
 }

@@ -366,6 +366,13 @@ export default function InsightsPage() {
     // wrap used `space-y-6` (24 px), so the overview read as two tiers. Unify
     // to `space-y-6` — it matches the vitals wrap and tightens the overview in
     // line with the "Insights gives away too much space" direction.
+    //
+    // v1.15.10 — `space-y-6` is now the SINGLE inter-section gap, top to
+    // bottom. Every section renders as a real `<section>` (or `null` — never a
+    // `display: contents` wrapper, which used to collapse the cycle-summary box
+    // so `space-y` skipped its margin and the cycle→signals seam read as
+    // zero-gap). Each section owns its OWN `SectionHeading` + `space-y-3` to its
+    // card, so the rhythm is even regardless of which sections are present.
     <div className="space-y-6">
       <HeroStrip
         briefing={briefingPayload}
@@ -377,9 +384,7 @@ export default function InsightsPage() {
             : undefined
         }
         onPickPrompt={
-          coachLaunch
-            ? (prompt) => coachLaunch.askCoach(prompt)
-            : undefined
+          coachLaunch ? (prompt) => coachLaunch.askCoach(prompt) : undefined
         }
         healthScore={analytics?.healthScore ?? undefined}
       />
@@ -392,9 +397,7 @@ export default function InsightsPage() {
         // v1.15.3 — the cycle ring rides the scores strip as a gated sibling
         // tile, only for a cycle-tracking account, so its calendar read never
         // fires otherwise (the same `/api/auth/me` gate the sidebar nav uses).
-        extraTile={
-          user?.cycleTrackingEnabled ? <CycleRingTile /> : undefined
-        }
+        extraTile={user?.cycleTrackingEnabled ? <CycleRingTile /> : undefined}
         // v1.15.5 — when the cycle ring is shown it TAKES the Strain slot:
         // hide Strain so the strip stays compact instead of growing a sixth
         // tile. Strain stays visible for non-cycle accounts.

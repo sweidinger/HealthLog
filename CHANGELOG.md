@@ -2,6 +2,24 @@
 
 ## [Unreleased]
 
+## [1.15.10] — 2026-06-07 — Insights overview, medication follow-ups, health score
+
+### Fixed
+
+- **Medication compliance now pairs doses to the right slot.** For a twice-daily medication, a dose logged off its usual time could be matched to the wrong slot — so a deliberately-skipped dose might read as taken, or a late evening dose as missed. Doses now snap to their own scheduled slot first, so the percentage reflects what actually happened.
+- **The card advances to your next real dose.** After you log a dose, the "next dose" line moves to the next upcoming, unresolved slot instead of lingering on one that's already taken or past.
+- **A single dose time reads cleanly.** A dose with one target time shows "07:00" rather than "07:00 to 07:00".
+- **Your weight trend counts toward the Health Score even without a target.** The weight pillar used to need a height/target to score; it now scores your weight trend on its own when no target is set, so it stops dropping out of the score.
+
+### Changed
+
+- **A consistent Insights overview.** Every section now has its title above its card with a matching icon and even spacing throughout — the daily-briefing icon matches the rest, Trends has an icon, and the period-in-review and cycle sections carry proper headings.
+- **A clearer cycle ring for new trackers.** With only a little cycle data the ring now shows the four phases in sensible proportions instead of collapsing to a single arc.
+- **Mobile polish on Insights and Cycle** — the cycle ring fits narrow screens, the cycle tabs no longer crowd, and calendar days meet the tap-target size.
+- **Your photo in the top bar.** If you've uploaded a profile photo it now shows in the top-right avatar; otherwise the icon remains.
+- **The notifications area is just "Notifications"** (shorter), and admins get a link to the admin area from the mobile menu too.
+- **Dark theme by default** for a fresh visitor; an explicit theme choice is still remembered.
+
 ## [1.15.9] — 2026-06-07 — medication compliance and cards
 
 ### Fixed

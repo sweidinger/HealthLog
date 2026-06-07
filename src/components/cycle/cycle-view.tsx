@@ -98,9 +98,16 @@ export function CycleView() {
     }
   });
 
+  // Pass the profile's typical lengths so a low-data tracker (few logged
+  // cycles) draws the canonical four-phase ring instead of one dominant arc.
   const wheel = useMemo(
-    () => deriveWheelState(calendar.data?.days ?? [], today),
-    [calendar.data, today],
+    () =>
+      deriveWheelState(calendar.data?.days ?? [], today, {
+        typicalCycleLength: profileQuery.data?.typicalCycleLength,
+        typicalPeriodLength: profileQuery.data?.typicalPeriodLength,
+        lutealPhaseLength: profileQuery.data?.lutealPhaseLength,
+      }),
+    [calendar.data, today, profileQuery.data],
   );
 
   function openSheet(date: string) {
@@ -149,64 +156,64 @@ export function CycleView() {
       <div className="grid gap-6 lg:grid-cols-[minmax(0,22rem)_minmax(0,1fr)] lg:items-start">
         {/* Wheel + compact phase card — grouped so they stick together. */}
         <div className="flex flex-col gap-4 lg:sticky lg:top-6">
-        {/* Wheel — the signature ring on the premium wellness-tile surface. */}
-        <div
-          data-slot="cycle-wheel-tile"
-          data-revealed={play ? "true" : undefined}
-          style={
-            tileHue
-              ? ({ "--tile-hue": tileHue } as React.CSSProperties)
-              : undefined
-          }
-          className={cn(
-            "wellness-tile flex flex-col items-center gap-3 rounded-xl px-6 py-6",
-            play && "wellness-tile-rise",
-          )}
-        >
-          {loading ? (
-            <div className="flex h-[220px] items-center justify-center">
-              <Loader2 className="text-primary h-8 w-8 animate-spin motion-reduce:animate-none" />
-            </div>
-          ) : calendarError ? (
-            <div className="flex h-[220px] flex-col items-center justify-center gap-3 text-center">
-              <p className="text-muted-foreground text-sm">
-                {t("cycle.loadError")}
+          {/* Wheel — the signature ring on the premium wellness-tile surface. */}
+          <div
+            data-slot="cycle-wheel-tile"
+            data-revealed={play ? "true" : undefined}
+            style={
+              tileHue
+                ? ({ "--tile-hue": tileHue } as React.CSSProperties)
+                : undefined
+            }
+            className={cn(
+              "wellness-tile flex flex-col items-center gap-3 rounded-xl px-6 py-6",
+              play && "wellness-tile-rise",
+            )}
+          >
+            {loading ? (
+              <div className="flex h-[220px] items-center justify-center">
+                <Loader2 className="text-primary h-8 w-8 animate-spin motion-reduce:animate-none" />
+              </div>
+            ) : calendarError ? (
+              <div className="flex h-[220px] flex-col items-center justify-center gap-3 text-center">
+                <p className="text-muted-foreground text-sm">
+                  {t("cycle.loadError")}
+                </p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5"
+                  onClick={() => void calendar.refetch()}
+                >
+                  <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />
+                  {t("common.retry")}
+                </Button>
+              </div>
+            ) : (
+              <CycleRing
+                dayOfCycle={wheel.dayOfCycle}
+                cycleLength={wheel.cycleLength}
+                phase={wheel.phase}
+                spans={wheel.spans}
+                animate={play}
+              />
+            )}
+            {!calendarError ? (
+              <p className="text-muted-foreground text-xs">
+                {t("cycle.ring.caption")}
               </p>
+            ) : null}
+            {/* First-period CTA — only when no cycle is active yet. */}
+            {!loading && !calendarError && wheel.dayOfCycle == null ? (
               <Button
                 variant="outline"
-                size="sm"
-                className="gap-1.5"
-                onClick={() => void calendar.refetch()}
+                className="mt-1 w-full"
+                onClick={() => openSheet(today)}
               >
-                <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />
-                {t("common.retry")}
+                {t("cycle.ring.firstPeriodCta")}
               </Button>
-            </div>
-          ) : (
-            <CycleRing
-              dayOfCycle={wheel.dayOfCycle}
-              cycleLength={wheel.cycleLength}
-              phase={wheel.phase}
-              spans={wheel.spans}
-              animate={play}
-            />
-          )}
-          {!calendarError ? (
-            <p className="text-muted-foreground text-xs">
-              {t("cycle.ring.caption")}
-            </p>
-          ) : null}
-          {/* First-period CTA — only when no cycle is active yet. */}
-          {!loading && !calendarError && wheel.dayOfCycle == null ? (
-            <Button
-              variant="outline"
-              className="mt-1 w-full"
-              onClick={() => openSheet(today)}
-            >
-              {t("cycle.ring.firstPeriodCta")}
-            </Button>
-          ) : null}
-        </div>
+            ) : null}
+          </div>
 
           {/* Phase-education card beneath the wheel — the single instance,
               including the "you often notice this here" chip row sourced from
@@ -224,17 +231,35 @@ export function CycleView() {
         </div>
 
         <Tabs defaultValue={initialTab}>
-          <TabsList className="w-full">
-            <TabsTrigger value="calendar" className="flex-1">
+          {/* v1.15.10 — the four German labels (Kalender/Prognosen/
+              Erkenntnisse/Einstellungen) overflowed the `flex-1` equal-width
+              cells at 375 px and forced a horizontal scroll. Below `sm` the
+              triggers size to their content (`text-xs`, no `flex-1`) and the
+              strip scrolls cleanly if needed; from `sm` up they reclaim the
+              equal-width `flex-1` layout. */}
+          <TabsList className="w-full max-w-full overflow-x-auto">
+            <TabsTrigger
+              value="calendar"
+              className="text-xs sm:flex-1 sm:text-sm"
+            >
               {t("cycle.tabs.calendar")}
             </TabsTrigger>
-            <TabsTrigger value="predictions" className="flex-1">
+            <TabsTrigger
+              value="predictions"
+              className="text-xs sm:flex-1 sm:text-sm"
+            >
               {t("cycle.tabs.predictions")}
             </TabsTrigger>
-            <TabsTrigger value="insights" className="flex-1">
+            <TabsTrigger
+              value="insights"
+              className="text-xs sm:flex-1 sm:text-sm"
+            >
               {t("cycle.tabs.insights")}
             </TabsTrigger>
-            <TabsTrigger value="settings" className="flex-1">
+            <TabsTrigger
+              value="settings"
+              className="text-xs sm:flex-1 sm:text-sm"
+            >
               {t("cycle.tabs.settings")}
             </TabsTrigger>
           </TabsList>

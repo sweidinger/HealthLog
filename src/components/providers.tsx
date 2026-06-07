@@ -49,16 +49,21 @@ function applyTheme(resolved: "dark" | "light") {
 
 function ThemeProvider({ children }: { children: ReactNode }) {
   const [theme, setThemeState] = useState<Theme>(() => {
-    if (typeof window === "undefined") return "system";
+    if (typeof window === "undefined") return "dark";
     const saved = localStorage.getItem("healthlog-theme") as Theme | null;
-    return saved === "light" || saved === "dark" ? saved : "system";
+    // A stored "light"/"dark"/"system" choice wins. With no stored
+    // preference the app defaults to dark rather than tracking the OS.
+    if (saved === "light" || saved === "dark") return saved;
+    if (saved === "system") return "system";
+    return "dark";
   });
 
   const [resolvedTheme, setResolvedTheme] = useState<"dark" | "light">(() => {
     if (typeof window === "undefined") return "dark";
     const saved = localStorage.getItem("healthlog-theme") as Theme | null;
-    const t = saved === "light" || saved === "dark" ? saved : "system";
-    return t === "system" ? getSystemTheme() : t;
+    if (saved === "light" || saved === "dark") return saved;
+    if (saved === "system") return getSystemTheme();
+    return "dark";
   });
 
   // Apply theme on mount (inline script handles FOUC, this ensures classes are in sync)
@@ -82,13 +87,16 @@ function ThemeProvider({ children }: { children: ReactNode }) {
 
   const setTheme = useCallback((next: Theme) => {
     setThemeState(next);
+    // Persist every explicit choice, including "system" — the absence of a
+    // stored value is reserved for a fresh visitor and now defaults to dark.
+    // Storing "system" verbatim keeps an explicit OS-tracking choice
+    // distinguishable from "never chose", so a reload honours it.
+    localStorage.setItem("healthlog-theme", next);
     if (next === "system") {
-      localStorage.removeItem("healthlog-theme");
       const resolved = getSystemTheme();
       setResolvedTheme(resolved);
       applyTheme(resolved);
     } else {
-      localStorage.setItem("healthlog-theme", next);
       setResolvedTheme(next);
       applyTheme(next);
     }

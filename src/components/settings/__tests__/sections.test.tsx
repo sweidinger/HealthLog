@@ -179,7 +179,7 @@ describe("settings sections — SSR smoke", () => {
     const html = render(<NotificationsSection />);
     // v1.4.33 IW7 — section renamed from "Notifications" to
     // "Notification channels" so it doesn't collide with the inbox at
-    // `/notifications` ("Notification Center").
+    // `/notifications` ("Notifications").
     expect(html).toContain("Notification channels");
   });
 

@@ -536,6 +536,43 @@ export function pairDoses(
   const centres = sorted.map(
     (s) => (s.windowStart.getTime() + s.windowEnd.getTime()) / 2,
   );
+  // Per-slot match index, pre-claimed by the exact-anchor pass below.
+  const matchFor: number[] = new Array(sorted.length).fill(-1);
+
+  // v1.15.10 BUG 3 — exact-anchor pass. An intake's `scheduledFor` is snapped
+  // to the canonical slot instant (the engine occurrence's `windowStart`) by
+  // the write path, so it unambiguously identifies WHICH slot it resolves.
+  // The legacy proximity pass below matches `takenAt` against the slot's
+  // *window centre*, which for a wide intraday window (a twice-daily med with
+  // a 07:00–19:00 window spans 12h → its 07:00 slot centres at 13:00, its
+  // 19:00 slot at 01:00 next day) lands between the real dose times: an
+  // off-time morning take then pairs to the wrong slot, a user-skip reads as
+  // taken, a late evening take reads as missed. Anchoring each event to the
+  // slot whose `windowStart` equals its `scheduledFor` first removes that
+  // ambiguity for every snapped row; rows that DON'T line up on a slot
+  // instant (legacy un-snapped data, sparse cadences logged off-day) fall
+  // through to the proximity pass unchanged.
+  const ANCHOR_EPSILON_MS = 60_000; // sub-minute DST / rounding slop
+  for (let i = 0; i < events.length; i++) {
+    if (claimed.has(i)) continue;
+    const evt = events[i];
+    const anchor = evt.scheduledFor.getTime();
+    let bestSlot = -1;
+    let bestDist = Infinity;
+    for (let s = 0; s < sorted.length; s++) {
+      if (matchFor[s] !== -1) continue;
+      const dist = Math.abs(sorted[s].windowStart.getTime() - anchor);
+      if (dist <= ANCHOR_EPSILON_MS && dist < bestDist) {
+        bestDist = dist;
+        bestSlot = s;
+      }
+    }
+    if (bestSlot !== -1) {
+      matchFor[bestSlot] = i;
+      claimed.add(i);
+    }
+  }
+
   const result: PairedDose[] = [];
 
   for (let s = 0; s < sorted.length; s++) {
@@ -553,16 +590,20 @@ export function pairDoses(
         s < centres.length - 1 ? centres[s + 1] : null,
       ),
     );
-    let bestIdx = -1;
-    let bestDist = Infinity;
-    for (let i = 0; i < events.length; i++) {
-      if (claimed.has(i)) continue;
-      const evt = events[i];
-      const t = (evt.takenAt ?? evt.scheduledFor).getTime();
-      const dist = Math.abs(t - centre);
-      if (dist <= radius && dist < bestDist) {
-        bestDist = dist;
-        bestIdx = i;
+    // Honour an exact-anchor claim from the first pass; otherwise fall back
+    // to the proximity match (legacy un-snapped rows / sparse off-day takes).
+    let bestIdx = matchFor[s];
+    if (bestIdx === -1) {
+      let bestDist = Infinity;
+      for (let i = 0; i < events.length; i++) {
+        if (claimed.has(i)) continue;
+        const evt = events[i];
+        const t = (evt.takenAt ?? evt.scheduledFor).getTime();
+        const dist = Math.abs(t - centre);
+        if (dist <= radius && dist < bestDist) {
+          bestDist = dist;
+          bestIdx = i;
+        }
       }
     }
 

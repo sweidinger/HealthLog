@@ -160,11 +160,16 @@ export function CycleRing({
       data-phase={phase ?? "none"}
       role="img"
       aria-label={ariaLabel}
-      className={cn("relative shrink-0", className)}
+      // v1.15.10 — responsive width. The ring used a fixed `width: size` +
+      // `shrink-0`, so at the 120 px tile size it overflowed grid cells on
+      // ≤360 px Android widths. It now caps at `size` (`maxWidth`) but is free
+      // to shrink to fill its cell (`w-full`, square via `aspect-square`), so it
+      // never pushes the page wider than the viewport. The day number + phase
+      // caption scale with the box; the SVG already paints `h-full w-full`.
+      className={cn("relative aspect-square w-full", className)}
       style={
         {
-          width: size,
-          height: size,
+          maxWidth: size,
           // The bloom on the active arc is tinted to the live phase hue.
           "--ring-glow": markerHue,
         } as React.CSSProperties

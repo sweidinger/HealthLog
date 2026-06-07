@@ -1667,6 +1667,57 @@ describe("buildComplianceDisplay — two rows, cadence-scaled windows", () => {
     expect(missedDisplay.currentDose.status).toBe("missed");
   });
 
+  it("currentDose — twice-daily, both today's slots resolved → next open is tomorrow 07:00 (BUG 2)", () => {
+    // v1.15.10 BUG 2 — afternoon, with today's 07:00 taken and today's 19:00
+    // taken early. The open-dose search must skip both resolved slots and
+    // surface tomorrow's 07:00 — the next genuinely-open slot — instead of
+    // sticking on today's resolved 19:00.
+    const schedules: ComplianceSchedule[] = [
+      {
+        windowStart: "07:00",
+        windowEnd: "19:00",
+        daysOfWeek: null,
+        timesOfDay: ["07:00", "19:00"],
+      },
+    ];
+    // NOW = 2025-06-15T12:00:00Z (UTC ctx). Today's slots: 07:00Z + 19:00Z.
+    const slot0700 = new Date("2025-06-15T07:00:00Z");
+    const slot1900 = new Date("2025-06-15T19:00:00Z");
+    const events = [
+      // 07:00 dose logged on time.
+      { scheduledFor: slot0700, takenAt: new Date("2025-06-15T07:05:00Z"), skipped: false },
+      // 19:00 dose logged EARLY (before its slot) — snapped onto the 19:00 row.
+      { scheduledFor: slot1900, takenAt: new Date("2025-06-15T11:30:00Z"), skipped: false },
+    ];
+    const display = buildComplianceDisplay(events, schedules, ctx(), { now: NOW });
+    expect(display.currentCycle.nextDueAt).not.toBeNull();
+    // Next open slot is tomorrow 07:00 UTC, not today's resolved 19:00.
+    expect(display.currentCycle.nextDueAt!.toISOString()).toBe(
+      "2025-06-16T07:00:00.000Z",
+    );
+  });
+
+  it("currentDose — twice-daily, only 07:00 resolved → next open is today 19:00 (BUG 2)", () => {
+    const schedules: ComplianceSchedule[] = [
+      {
+        windowStart: "07:00",
+        windowEnd: "19:00",
+        daysOfWeek: null,
+        timesOfDay: ["07:00", "19:00"],
+      },
+    ];
+    const slot0700 = new Date("2025-06-15T07:00:00Z");
+    const events = [
+      { scheduledFor: slot0700, takenAt: new Date("2025-06-15T07:05:00Z"), skipped: false },
+    ];
+    const display = buildComplianceDisplay(events, schedules, ctx(), { now: NOW });
+    expect(display.currentCycle.nextDueAt).not.toBeNull();
+    // Today's 19:00 is still open.
+    expect(display.currentCycle.nextDueAt!.toISOString()).toBe(
+      "2025-06-15T19:00:00.000Z",
+    );
+  });
+
   it("currentCycle — brand-new sparse med with zero closed cycles → hasClosedCycles false", () => {
     // v1.13.x Fix 4 — a med created today with no logged intake has no
     // closed dose cycle; the percentage rows are vacuous and the card should
@@ -2063,6 +2114,186 @@ describe("calculateCompliance — autoMissed forgotten doses (BUG #2 / #3)", () 
     expect(display.short.expected).toBe(display.short.taken + display.short.missed);
     expect(display.short.missed).toBeGreaterThanOrEqual(1);
     expect(display.long.expected).toBe(display.long.taken + display.long.missed);
+  });
+});
+
+// ────────────────────────────────────────────────────────────────────
+// v1.15.10 BUG 3 — verify the compliance % for an IRREGULAR twice-daily
+// taker (07:00 + 19:00) who logs at off-times plus the odd ad-hoc dose.
+// Pins the slot-pairing (an off-time morning take snaps to the 07:00 slot,
+// an evening take to the 19:00 slot — ±6h half-gap for a 12h-gap med), the
+// skip/missed/extra semantics, and the resulting rate = taken/(taken+missed).
+// ────────────────────────────────────────────────────────────────────
+
+describe("calculateCompliance — irregular twice-daily taker (BUG 3 verify)", () => {
+  // Pin `now` so the 7-day window is deterministic.
+  const NOW = new Date("2025-01-15T12:00:00Z");
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(NOW);
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  // Twice-daily: 07:00 + 19:00, every day. timesOfDay drives the two slots.
+  const twiceDaily: ComplianceSchedule[] = [
+    {
+      windowStart: "07:00",
+      windowEnd: "19:00",
+      daysOfWeek: null,
+      timesOfDay: ["07:00", "19:00"],
+    },
+  ];
+
+  const ctxVal = buildComplianceMedicationContext(
+    {
+      startsOn: null,
+      endsOn: null,
+      oneShot: false,
+      // Created well before the window so age never clamps the denominator.
+      createdAt: new Date("2025-01-01T00:00:00Z"),
+    },
+    null,
+    "UTC",
+  );
+
+  function slot(day: number, hhmm: "07:00" | "19:00"): Date {
+    return new Date(`2025-01-${String(day).padStart(2, "0")}T${hhmm}:00Z`);
+  }
+
+  it("snaps two off-time same-day takes to BOTH slots → 2 taken, not 1 taken + 1 missed", () => {
+    // The crux of BUG 3: a day with a late-morning take (09:13) and an
+    // evening take (19:00) must read as two taken doses. The morning take
+    // pairs to the 07:00 slot (2h13m away, well inside the ±6h half-gap) and
+    // the evening to the 19:00 slot — NOT the morning take landing on 19:00
+    // and the 07:00 slot reading falsely missed.
+    //
+    // A 2-day window so BOTH of Jan-14's slots fall inside [NOW-2d, NOW]
+    // (a 1-day window starts at noon Jan-14, which is after the 07:00 slot).
+    const events = [
+      // 07:00 slot, logged at 09:13 (off-time, snapped onto the 07:00 row).
+      {
+        scheduledFor: slot(14, "07:00"),
+        takenAt: new Date(slot(14, "07:00").getTime() + (2 * 60 + 13) * 60 * 1000),
+        skipped: false,
+      },
+      // 19:00 slot, logged on time.
+      { scheduledFor: slot(14, "19:00"), takenAt: slot(14, "19:00"), skipped: false },
+      // Jan-13's slots are covered too so the window has no stray miss.
+      { scheduledFor: slot(13, "07:00"), takenAt: slot(13, "07:00"), skipped: false },
+      { scheduledFor: slot(13, "19:00"), takenAt: slot(13, "19:00"), skipped: false },
+    ];
+    const result = calculateCompliance(events, twiceDaily, 2, undefined, {
+      now: NOW,
+      medicationContext: ctxVal,
+    });
+    // Both of Jan-14's off-time/on-time takes pair to their own slot → the
+    // morning slot is NOT falsely missed. No missed slot anywhere → 100%.
+    expect(result.missed).toBe(0);
+    expect(result.rate).toBe(100);
+    // The morning take did not orphan the 07:00 slot: at least Jan-14's two
+    // doses both register as taken.
+    expect(result.taken).toBeGreaterThanOrEqual(3);
+  });
+
+  it("computes the rate as taken/(taken+missed) over a 7-day irregular pattern", () => {
+    // Window: NOW − 7d = Jan 8 12:00 .. Jan 15 12:00. The slots that fall in
+    // [start, now] (07:00 + 19:00 each day; Jan-8 19:00 only since 07:00 is
+    // before 12:00; Jan-15 07:00 only since 19:00 is after now):
+    //   Jan  8: 19:00                         → 1 slot
+    //   Jan  9..14: 07:00 + 19:00             → 12 slots
+    //   Jan 15: 07:00                         → 1 slot
+    // = 14 expected slots.
+    //
+    // Pattern (mirrors the operator: irregular times + 2 real skips + 1
+    // uncovered morning slot + a couple of ad-hoc extras that pair to no
+    // slot):
+    //   - Jan 8 19:00 : taken (logged 20:10, off-time)            → taken
+    //   - Jan 9 07:00 : taken 09:13 (off-time morning)            → taken
+    //   - Jan 9 19:00 : USER-SKIP                                 → skipped (excluded)
+    //   - Jan 10 07:00: taken 06:40                               → taken
+    //   - Jan 10 19:00: taken 21:30 (late)                        → taken
+    //   - Jan 11 07:00: UNCOVERED (no intake, past cutoff)        → missed
+    //   - Jan 11 19:00: taken 18:50                               → taken
+    //   - Jan 12 07:00: taken 08:05                               → taken
+    //   - Jan 12 19:00: taken 19:20                               → taken
+    //   - Jan 13 07:00: USER-SKIP                                 → skipped (excluded)
+    //   - Jan 13 19:00: taken 19:00                               → taken
+    //   - Jan 14 07:00: taken 09:13 (off-time morning)            → taken
+    //   - Jan 14 19:00: taken 19:00                               → taken
+    //   - Jan 15 07:00: taken 07:30                               → taken
+    // Plus two ad-hoc extras (no slot within ±6h) that must NOT touch the
+    // denominator:
+    //   - Jan 10 13:00 (a midday top-up, midpoint between both slots)
+    //   - Jan 12 03:00 (a small-hours dose, > 6h from either slot)
+    //
+    // Hand count over the 14 slots:
+    //   taken   = 11
+    //   skipped = 2  (excluded)
+    //   missed  = 1
+    //   denom   = taken + missed = 12
+    //   rate    = round(11/12 * 100) = round(91.67) = 92
+    const mins = (h: number, m: number) => (h * 60 + m) * 60 * 1000;
+    const takeAt = (s: Date, h: number, m: number) =>
+      new Date(new Date(s).setUTCHours(0, 0, 0, 0) + mins(h, m));
+    const taken = (s: Date, h: number, m: number) => ({
+      scheduledFor: s,
+      takenAt: takeAt(s, h, m),
+      skipped: false,
+    });
+    const userSkip = (s: Date) => ({
+      scheduledFor: s,
+      takenAt: null,
+      skipped: true,
+      autoMissed: false,
+    });
+    const autoMiss = (s: Date) => ({
+      scheduledFor: s,
+      takenAt: null,
+      skipped: false,
+      autoMissed: true,
+    });
+    const extra = (s: Date) => ({ scheduledFor: s, takenAt: s, skipped: false });
+
+    const events = [
+      taken(slot(8, "19:00"), 20, 10),
+      taken(slot(9, "07:00"), 9, 13),
+      userSkip(slot(9, "19:00")),
+      taken(slot(10, "07:00"), 6, 40),
+      taken(slot(10, "19:00"), 21, 30),
+      autoMiss(slot(11, "07:00")),
+      taken(slot(11, "19:00"), 18, 50),
+      taken(slot(12, "07:00"), 8, 5),
+      taken(slot(12, "19:00"), 19, 20),
+      userSkip(slot(13, "07:00")),
+      taken(slot(13, "19:00"), 19, 0),
+      taken(slot(14, "07:00"), 9, 13),
+      taken(slot(14, "19:00"), 19, 0),
+      taken(slot(15, "07:00"), 7, 30),
+      // ad-hoc extras (must not enter the denominator)
+      extra(new Date("2025-01-10T13:00:00Z")),
+      extra(new Date("2025-01-12T03:00:00Z")),
+    ];
+
+    const result = calculateCompliance(events, twiceDaily, 7, undefined, {
+      now: NOW,
+      medicationContext: ctxVal,
+    });
+
+    // The denominator counts only taken + missed (the two user-skips + the
+    // two ad-hoc extras are excluded). With the v1.15.10 exact-anchor pairing
+    // every off-time take lands on its OWN slot — the two user-skips read as
+    // skipped (not taken), the late evening take reads as taken (not missed).
+    expect(result.taken).toBe(11);
+    expect(result.skipped).toBe(2);
+    expect(result.missed).toBe(1);
+    // rate = taken / (taken + missed) = 11/12 = 92% — the honest arithmetic.
+    expect(result.rate).toBe(
+      Math.round((result.taken / (result.taken + result.missed)) * 100),
+    );
+    expect(result.rate).toBe(92);
   });
 });
 

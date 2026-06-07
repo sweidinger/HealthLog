@@ -49,6 +49,9 @@ vi.mock("../use-cycle", async () => {
   return {
     ...actual,
     useCycleCalendar: () => calendarState.current,
+    // The tile now reads the profile lengths for the low-data idealized ring.
+    // Mock it at the hook boundary too so the SSR snapshot needs no QueryClient.
+    useCycleProfile: () => ({ data: undefined }),
   };
 });
 
@@ -112,12 +115,20 @@ describe("<CycleRingTile>", () => {
   });
 
   it("renders nothing while the calendar read is still resolving", () => {
-    calendarState.current = { data: undefined, isLoading: true, isError: false };
+    calendarState.current = {
+      data: undefined,
+      isLoading: true,
+      isError: false,
+    };
     expect(render(<CycleRingTile />)).toBe("");
   });
 
   it("renders nothing on a hard calendar read error", () => {
-    calendarState.current = { data: undefined, isLoading: false, isError: true };
+    calendarState.current = {
+      data: undefined,
+      isLoading: false,
+      isError: true,
+    };
     expect(render(<CycleRingTile />)).toBe("");
   });
 

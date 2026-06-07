@@ -8,10 +8,11 @@ import {
   Monitor,
   Moon,
   Settings,
+  Shield,
   Sun,
-  User,
 } from "lucide-react";
 import { Logo } from "@/components/ui/logo";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import Link from "next/link";
 import { useAuth, useLogout } from "@/hooks/use-auth";
 import { useTheme } from "@/components/providers";
@@ -27,11 +28,21 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
+function getInitials(name: string): string {
+  return name
+    .split(/[\s._-]+/)
+    .slice(0, 2)
+    .map((s) => s[0]?.toUpperCase() ?? "")
+    .join("");
+}
+
 export function TopBar() {
   const { user, isLoading } = useAuth();
   const logout = useLogout();
   const { theme, setTheme } = useTheme();
   const { t } = useTranslations();
+  const avatarUrl = user?.avatarUrl ?? null;
+  const isAdmin = user?.role === "ADMIN";
 
   const themeIcon =
     theme === "system" ? (
@@ -77,7 +88,14 @@ export function TopBar() {
               // the focus indicator without replacing it.
               className="text-muted-foreground hover:text-foreground flex min-h-11 min-w-11 items-center gap-1.5 rounded-md px-2 py-1.5 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:ring-offset-2"
             >
-              <User className="h-4 w-4" />
+              <Avatar className="size-7">
+                {avatarUrl && (
+                  <AvatarImage src={avatarUrl} alt={user.username} />
+                )}
+                <AvatarFallback className="bg-primary/15 text-primary text-xs font-medium">
+                  {getInitials(user.username)}
+                </AvatarFallback>
+              </Avatar>
               <span className="hidden sm:inline">{user.username}</span>
               <ChevronDown className="h-3 w-3 opacity-60" />
             </DropdownMenuTrigger>
@@ -94,6 +112,14 @@ export function TopBar() {
                   {t("nav.notifications")}
                 </Link>
               </DropdownMenuItem>
+              {isAdmin && (
+                <DropdownMenuItem asChild>
+                  <Link href="/admin" className="cursor-pointer">
+                    <Shield className="mr-2 h-4 w-4" />
+                    {t("nav.admin")}
+                  </Link>
+                </DropdownMenuItem>
+              )}
               {/* v1.4.36 W4e — About moved into the Admin Console
                   (`/admin/about`). The dropdown entry was redundant
                   for the small audience that still reaches it (admins

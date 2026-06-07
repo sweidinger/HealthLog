@@ -2,13 +2,19 @@
 
 import { useMemo } from "react";
 import Link from "next/link";
-import { ArrowRight, Sparkles } from "lucide-react";
+import { ArrowRight, Droplets } from "lucide-react";
 
 import { useTranslations } from "@/lib/i18n/context";
+import { SectionHeading } from "@/components/insights/section-heading";
 import { CyclePhaseHeadline } from "./cycle-phase-crosstab";
 import { PHASE_HUE } from "./phase-tokens";
 import { deriveWheelState } from "./wheel-state";
-import { localYmd, useCycleCalendar, useCycleInsights } from "./use-cycle";
+import {
+  localYmd,
+  useCycleCalendar,
+  useCycleInsights,
+  useCycleProfile,
+} from "./use-cycle";
 
 /**
  * v1.15.2 — the gated cycle-insights summary card for the main Insights page.
@@ -54,10 +60,18 @@ export function CycleInsightSummaryCard() {
 
   const calendar = useCycleCalendar(from, to);
   const insights = useCycleInsights();
+  // Shared 5-min-cached profile read so a low-data tracker still gets the
+  // canonical four-phase ring (no extra request — shared cache key).
+  const profile = useCycleProfile();
 
   const wheel = useMemo(
-    () => deriveWheelState(calendar.data?.days ?? [], today),
-    [calendar.data, today],
+    () =>
+      deriveWheelState(calendar.data?.days ?? [], today, {
+        typicalCycleLength: profile.data?.typicalCycleLength,
+        typicalPeriodLength: profile.data?.typicalPeriodLength,
+        lutealPhaseLength: profile.data?.lutealPhaseLength,
+      }),
+    [calendar.data, today, profile.data],
   );
 
   // Stay silent until the calendar read resolves, and on a hard error: the
@@ -83,30 +97,29 @@ export function CycleInsightSummaryCard() {
     // node never matched, so the tile stayed stuck at the rise rule's
     // `opacity: 0` — invisible but still occupying its box, which read as an
     // oversized gap on the overview. The wrapper restores the entrance.
-    <div data-revealed="true" className="contents">
-      <section
-        data-slot="cycle-insight-summary"
-        data-phase={phase ?? "none"}
-        aria-label={t("cycle.insightsSummary.title")}
-        style={{ "--tile-hue": hue } as React.CSSProperties}
-        className="wellness-tile wellness-tile-rise rounded-xl px-5 py-5"
-      >
-        <div className="flex items-start justify-between gap-3">
-          {/* Zone 1 — eyebrow + the current phase / cycle-day read. */}
+    <section
+      data-slot="cycle-insight-summary-section"
+      aria-label={t("cycle.insightsSummary.title")}
+      className="space-y-3"
+    >
+      <SectionHeading
+        icon={Droplets}
+        title={t("cycle.insightsSummary.title")}
+      />
+      {/* `data-revealed` must sit on an ANCESTOR of the `.wellness-tile-rise`
+          element — the keyframe selector is `[data-revealed="true"]
+          .wellness-tile-rise` (descendant combinator). */}
+      <div data-revealed="true" className="contents">
+        <div
+          data-slot="cycle-insight-summary"
+          data-phase={phase ?? "none"}
+          style={{ "--tile-hue": hue } as React.CSSProperties}
+          className="wellness-tile wellness-tile-rise rounded-xl px-5 py-5"
+        >
+          {/* Zone 1 — the current phase / cycle-day read. */}
           <div className="min-w-0">
-            <div className="flex items-center gap-2">
-              <Sparkles
-                className="h-4 w-4 shrink-0"
-                style={{ color: hue }}
-                aria-hidden="true"
-              />
-              <span className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
-                {t("cycle.insightsSummary.title")}
-              </span>
-            </div>
-
             <h3
-              className="text-foreground mt-2 flex items-center gap-2 text-base font-semibold"
+              className="text-foreground flex items-center gap-2 text-base font-semibold"
               aria-label={ariaLabel}
             >
               <span
@@ -126,26 +139,26 @@ export function CycleInsightSummaryCard() {
                 : t("cycle.insightsSummary.noActiveCycle")}
             </p>
           </div>
-        </div>
 
-        {/* Zone 2 — the one headline phase finding (shared component owns the
-          FDR-gated copy AND the honest "not enough cycles yet" empty line, so
-          this can never show a broken state). */}
-        <div className="mt-3">
-          <CyclePhaseHeadline headline={insights.data?.headline ?? null} />
-        </div>
+          {/* Zone 2 — the one headline phase finding (shared component owns the
+            FDR-gated copy AND the honest "not enough cycles yet" empty line, so
+            this can never show a broken state). */}
+          <div className="mt-3">
+            <CyclePhaseHeadline headline={insights.data?.headline ?? null} />
+          </div>
 
-        {/* Zone 3 — the deep-link into the single source of truth: the cycle
-          insights tab. The cycle page reads `?tab=insights` and opens that tab. */}
-        <Link
-          href="/cycle?tab=insights"
-          data-slot="cycle-insight-summary-link"
-          className="text-foreground bg-background/55 border-foreground/15 hover:bg-background/80 focus-visible:ring-ring/50 mt-4 inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm font-medium transition-colors focus:outline-none focus-visible:ring-[3px]"
-        >
-          {t("cycle.insightsSummary.viewDetails")}
-          <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
-        </Link>
-      </section>
-    </div>
+          {/* Zone 3 — the deep-link into the single source of truth: the cycle
+            insights tab. The cycle page reads `?tab=insights` and opens it. */}
+          <Link
+            href="/cycle?tab=insights"
+            data-slot="cycle-insight-summary-link"
+            className="text-foreground bg-background/55 border-foreground/15 hover:bg-background/80 focus-visible:ring-ring/50 mt-4 inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm font-medium transition-colors focus:outline-none focus-visible:ring-[3px]"
+          >
+            {t("cycle.insightsSummary.viewDetails")}
+            <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
+          </Link>
+        </div>
+      </div>
+    </section>
   );
 }

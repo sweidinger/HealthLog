@@ -1,19 +1,14 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import {
-  Activity,
-  HeartPulse,
-  Footprints,
-  Wind,
-  Info,
-} from "lucide-react";
+import { Activity, HeartPulse, Footprints, Wind, Info } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
 import { useAuth } from "@/hooks/use-auth";
 import { queryKeys } from "@/lib/query-keys";
 import { useTranslations, useFormatters } from "@/lib/i18n/context";
 import { cn } from "@/lib/utils";
+import { SectionHeading } from "@/components/insights/section-heading";
 
 /**
  * v1.10.0 — device-flagged event awareness surface (categorical events,
@@ -62,7 +57,8 @@ const EVENT_LABEL_KEYS: Record<string, string> = {
   HIGH_HEART_RATE_EVENT: "insights.rhythmEvents.event.highHeartRate",
   LOW_HEART_RATE_EVENT: "insights.rhythmEvents.event.lowHeartRate",
   WALKING_STEADINESS_EVENT: "insights.rhythmEvents.event.walkingSteadiness",
-  BREATHING_DISTURBANCE_EVENT: "insights.rhythmEvents.event.breathingDisturbance",
+  BREATHING_DISTURBANCE_EVENT:
+    "insights.rhythmEvents.event.breathingDisturbance",
 };
 
 /**
@@ -107,69 +103,70 @@ export function RhythmEventsCard({
 
   return (
     <section
-      data-slot="rhythm-events-card"
+      data-slot="rhythm-events-section"
       aria-label={t("insights.rhythmEvents.sectionTitle")}
-      className={cn(
-        "bg-card border-border space-y-4 rounded-xl border p-4 md:p-6",
-        className,
-      )}
+      className={cn("space-y-3", className)}
     >
-      <div className="space-y-1">
-        <h2 className="text-foreground text-sm font-semibold tracking-tight">
-          {t("insights.rhythmEvents.sectionTitle")}
-        </h2>
+      <SectionHeading
+        icon={Activity}
+        title={t("insights.rhythmEvents.sectionTitle")}
+      />
+      <div
+        data-slot="rhythm-events-card"
+        className="bg-card border-border space-y-4 rounded-xl border p-4 md:p-6"
+      >
         <p className="text-muted-foreground text-sm">
           {t("insights.rhythmEvents.sectionIntro")}
         </p>
-      </div>
 
-      <ol data-slot="rhythm-events-timeline" className="space-y-3">
-        {data.events.map((event) => {
-          const Icon = EVENT_ICONS[event.type] ?? Activity;
-          const labelKey = EVENT_LABEL_KEYS[event.type];
-          const label = labelKey ? t(labelKey) : event.type;
-          const verdictKey = event.classification
-            ? CLASSIFICATION_LABEL_KEYS[event.classification]
-            : undefined;
-          const verdict = verdictKey ? t(verdictKey) : null;
-          return (
-            <li
-              key={event.id}
-              data-slot="rhythm-event-row"
-              data-event-type={event.type}
-              className="border-border/60 flex items-start gap-3 border-b pb-3 last:border-b-0 last:pb-0"
-            >
-              <span className="bg-muted text-muted-foreground mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-full">
-                <Icon className="size-4" />
-              </span>
-              <div className="min-w-0 flex-1 space-y-0.5">
-                <p className="text-foreground text-sm font-medium">{label}</p>
-                {verdict && (
-                  <p
-                    data-slot="rhythm-event-verdict"
-                    className="text-muted-foreground text-sm"
-                  >
-                    {verdict}
+        <ol data-slot="rhythm-events-timeline" className="space-y-3">
+          {data.events.map((event) => {
+            const Icon = EVENT_ICONS[event.type] ?? Activity;
+            const labelKey = EVENT_LABEL_KEYS[event.type];
+            const label = labelKey ? t(labelKey) : event.type;
+            const verdictKey = event.classification
+              ? CLASSIFICATION_LABEL_KEYS[event.classification]
+              : undefined;
+            const verdict = verdictKey ? t(verdictKey) : null;
+            return (
+              <li
+                key={event.id}
+                data-slot="rhythm-event-row"
+                data-event-type={event.type}
+                className="border-border/60 flex items-start gap-3 border-b pb-3 last:border-b-0 last:pb-0"
+              >
+                <span className="bg-muted text-muted-foreground mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-full">
+                  <Icon className="size-4" />
+                </span>
+                <div className="min-w-0 flex-1 space-y-0.5">
+                  <p className="text-foreground text-sm font-medium">{label}</p>
+                  {verdict && (
+                    <p
+                      data-slot="rhythm-event-verdict"
+                      className="text-muted-foreground text-sm"
+                    >
+                      {verdict}
+                    </p>
+                  )}
+                  <p className="text-muted-foreground text-xs">
+                    {fmt.dateTime(new Date(event.occurredAt))}
                   </p>
-                )}
-                <p className="text-muted-foreground text-xs">
-                  {fmt.dateTime(new Date(event.occurredAt))}
-                </p>
-              </div>
-            </li>
-          );
-        })}
-      </ol>
+                </div>
+              </li>
+            );
+          })}
+        </ol>
 
-      {/* Load-bearing regulatory disclaimer — permanent, non-dismissible.
+        {/* Load-bearing regulatory disclaimer — permanent, non-dismissible.
           Plain React text children (no markdown library — XSS rule). */}
-      <div
-        data-slot="rhythm-events-disclaimer"
-        role="note"
-        className="bg-muted/50 text-muted-foreground flex items-start gap-2 rounded-lg p-3 text-xs"
-      >
-        <Info className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
-        <p>{t("insights.rhythmEvents.disclaimer")}</p>
+        <div
+          data-slot="rhythm-events-disclaimer"
+          role="note"
+          className="bg-muted/50 text-muted-foreground flex items-start gap-2 rounded-lg p-3 text-xs"
+        >
+          <Info className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+          <p>{t("insights.rhythmEvents.disclaimer")}</p>
+        </div>
       </div>
     </section>
   );

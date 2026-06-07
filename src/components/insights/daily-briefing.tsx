@@ -22,6 +22,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
+import { SectionHeading } from "@/components/insights/section-heading";
 import { useTranslations } from "@/lib/i18n/context";
 import { formatRelativeTime } from "@/lib/i18n/relative-time";
 import { stripChartTokens } from "@/lib/insights/chart-tokens";
@@ -283,25 +284,15 @@ export function DailyBriefing({
       aria-label={t("insights.dailyBriefing.title")}
       className="space-y-3"
     >
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
-          <Sparkles
-            className="text-dose-accent h-4 w-4 shrink-0"
-            aria-hidden="true"
-          />
-          <h2 className="text-lg font-semibold">
-            {t("insights.dailyBriefing.title")}
-          </h2>
-        </div>
-        {metaSlot && (
-          <div
-            data-slot="daily-briefing-meta-slot"
-            className="flex items-center gap-2"
-          >
-            {metaSlot}
-          </div>
-        )}
-      </div>
+      <SectionHeading
+        icon={Sparkles}
+        title={t("insights.dailyBriefing.title")}
+        action={
+          metaSlot ? (
+            <div data-slot="daily-briefing-meta-slot">{metaSlot}</div>
+          ) : undefined
+        }
+      />
       <Card data-slot="daily-briefing" className="overflow-hidden">
         <CardContent>
           {loading ? (

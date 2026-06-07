@@ -205,7 +205,7 @@
     "logout": "Sign out",
     "login": "Sign in",
     "about": "About HealthLog",
-    "notifications": "Notification Center",
+    "notifications": "Notifications",
     "theme": "Appearance",
     "themeSystem": "System",
     "themeDark": "Dark",
@@ -4692,8 +4692,8 @@
     "disabledBody": "The administrator has disabled bug reports on this server."
   },
   "notifications": {
-    "title": "Notification Center",
-    "breadcrumbInbox": "Notification Center",
+    "title": "Notifications",
+    "breadcrumbInbox": "Notifications",
     "breadcrumbChannels": "Notification channels",
     "breadcrumbSettings": "Settings",
     "eventColumn": "Event",

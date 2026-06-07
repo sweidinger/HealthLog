@@ -205,7 +205,7 @@
     "logout": "Abmelden",
     "login": "Anmelden",
     "about": "Über HealthLog",
-    "notifications": "Benachrichtigungs-Center",
+    "notifications": "Benachrichtigungen",
     "theme": "Darstellung",
     "themeSystem": "System",
     "themeDark": "Dunkel",
@@ -4692,8 +4692,8 @@
     "disabledBody": "Der Administrator hat Bug-Reports auf diesem Server deaktiviert."
   },
   "notifications": {
-    "title": "Benachrichtigungs-Center",
-    "breadcrumbInbox": "Benachrichtigungs-Center",
+    "title": "Benachrichtigungen",
+    "breadcrumbInbox": "Benachrichtigungen",
     "breadcrumbChannels": "Benachrichtigungs-Kanäle",
     "breadcrumbSettings": "Einstellungen",
     "eventColumn": "Ereignis",

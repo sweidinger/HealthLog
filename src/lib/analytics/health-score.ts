@@ -187,6 +187,49 @@ export function coefficientOfVariation(values: number[]): number | null {
 }
 
 /**
+ * Score the recent weight trend on its own, with no target band.
+ *
+ * Used when the user has weight readings but no derivable target (their
+ * profile has no `heightCm`, so `defaultWeightTargetFromHeight` returns
+ * null). Without a goal we can't say "closing the gap", but a sustained
+ * upward weight trend is the one direction that is broadly an adverse
+ * signal independent of any individual target, so we score on that
+ * asymmetry:
+ *
+ * - Flat / stable (slope ≈ 0)        → 75 (maintenance is a solid result).
+ * - Gentle-to-steep decline (slope<0) → 75 → 100 (favourable; saturating).
+ * - Gentle-to-steep rise (slope>0)    → 75 → 25 (unfavourable; saturating).
+ *
+ * The 75 anchor keeps a stable-but-noisy series mid-high (it lands at
+ * 75, not at the 50 "neither" midpoint the target-aware path uses) so a
+ * user simply maintaining weight isn't penalised for lacking a goal.
+ * The same `SATURATION = 0.05 kg/day` (≈ 1.5 kg/month) curve as the
+ * target-aware path keeps the two scoring modes numerically consistent.
+ *
+ * Returns null when fewer than two readings are supplied (caller already
+ * guards this, but the helper stays self-contained for direct tests).
+ */
+function bareWeightTrendScore(
+  series: Array<{ date: string; kg: number }>,
+): number | null {
+  if (series.length < 2) return null;
+  const points = series.map((p) => ({ date: p.date, value: p.kg }));
+  const slope = linearRegressionSlope(points);
+  if (slope === null) return null;
+  if (slope === 0) return 75; // exactly stable → maintenance anchor
+
+  const SATURATION = 0.05;
+  const normalised = Math.tanh(Math.abs(slope) / SATURATION);
+  // Decline lifts the anchor toward 100; rise drops it toward 25. The
+  // 25-point span keeps the unfavourable floor honest (a steep sustained
+  // gain reads "concerning", not "failing") while the favourable ceiling
+  // reaches the full 100.
+  const score =
+    slope < 0 ? 75 + 25 * normalised : 75 - 50 * normalised;
+  return Math.round(Math.max(0, Math.min(100, score)));
+}
+
+/**
  * Score how well the recent weight trend is closing the gap toward the
  * target band [targetMin..targetMax].
  *
@@ -196,13 +239,22 @@ export function coefficientOfVariation(values: number[]): number | null {
  *   doesn't read more positive than a 0.05 kg/day drop.
  * - Below the band → an upward slope is closing.
  *
- * Insufficient data (< 2 readings, no target) → null.
+ * No target (no stored height → no BMI-22 fallback band) but ≥ 2
+ * readings → fall back to scoring the **bare trend** on its own, so a
+ * user with weight data still gets a populated, weighted pillar instead
+ * of an empty `{value:null, weight:0, source:"none"}`. See
+ * `bareWeightTrendScore` for the curve and its rationale. We do NOT
+ * fabricate a target from the user's own median and pretend it's a goal
+ * — the trend is scored honestly, without a target.
+ *
+ * Insufficient data (< 2 readings) → null regardless of target.
  */
 export function weightTrendAlignment(
   series: Array<{ date: string; kg: number }>,
   target: { min: number; max: number } | null,
 ): number | null {
-  if (!target || series.length < 2) return null;
+  if (series.length < 2) return null;
+  if (!target) return bareWeightTrendScore(series);
   const points = series.map((p) => ({ date: p.date, value: p.kg }));
   // Latest reading drives the "are we currently in the band" check.
   const sorted = [...points].sort((a, b) =>

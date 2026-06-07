@@ -37,4 +37,24 @@ describe("formatTimeWindowRange", () => {
     // continue to render the historic German string.
     expect(formatTimeWindowRange("08:00", "12:00")).toBe("08:00 bis 12:00 Uhr");
   });
+
+  test("collapses an equal start/end to a single time (German keeps 'Uhr')", () => {
+    // BUG 1: a single target time (or a zero-span window) must not render the
+    // degenerate "07:00 bis 07:00 Uhr" range — the "bis" separator is reserved
+    // for a genuine range.
+    expect(formatTimeWindowRange("07:00", "07:00", "de")).toBe("07:00 Uhr");
+  });
+
+  test("collapses an equal start/end to a single time (English, no 'to')", () => {
+    expect(formatTimeWindowRange("07:00", "07:00", "en")).toBe("07:00");
+  });
+
+  test("collapses an equal start/end after zero-padding normalisation", () => {
+    // "7:00" and "07:00" are the same clock time once normalised.
+    expect(formatTimeWindowRange("7:00", "07:00", "de")).toBe("07:00 Uhr");
+  });
+
+  test("collapses an equal start/end with no locale (German fallback)", () => {
+    expect(formatTimeWindowRange("07:00", "07:00")).toBe("07:00 Uhr");
+  });
 });
