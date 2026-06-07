@@ -494,7 +494,15 @@
     "typeEnergyExpenditureKj": "Wydatek energetyczny",
     "typeAverageHeartRate": "Średnie tętno",
     "typeMaxHeartRate": "Maksymalne tętno",
-    "typeSleepDisturbanceCount": "Zakłócenia snu"
+    "typeSleepDisturbanceCount": "Zakłócenia snu",
+    "filterBySource": "Filtruj według źródła",
+    "sourceComputed": "Obliczone",
+    "sourceWhoop": "WHOOP",
+    "sourceFitbit": "Fitbit",
+    "bulkDeleteSuccess": "Usunięto pomiary: {count}",
+    "bulkDeleteError": "Błąd podczas usuwania wybranych pomiarów",
+    "bulkDeleteConfirmTitle": "Usunąć pomiary ({count})?",
+    "bulkDeleteConfirmBody": "Wybrane pomiary ({count}) zostaną trwale usunięte."
   },
   "mood": {
     "title": "Nastrój",
@@ -538,6 +546,8 @@
     "deleteConfirmTitle": "Usunąć wpis?",
     "deleteConfirmDescription": "Ten wpis nastroju zostanie nieodwracalnie usunięty.",
     "pageInfo": "Strona {page} z {total}",
+    "previousPage": "Poprzednia strona",
+    "nextPage": "Następna strona",
     "loginRequired": "Zaloguj się, aby zobaczyć wpisy nastroju.",
     "note": "Notatka",
     "notePlaceholder": "Dodaj notatkę o swoim samopoczuciu…",
@@ -598,7 +608,16 @@
       "factorConflict": "konflikt",
       "factorFamily": "rodzina",
       "factorSadness": "smutek"
-    }
+    },
+    "filterBySource": "Filtruj według źródła",
+    "sourceManual": "Ręcznie",
+    "sourceWeb": "Web",
+    "sourceTelegram": "Telegram",
+    "sourceDaylio": "Daylio",
+    "bulkDeleteSuccess": "Usunięto wpisy: {count}",
+    "bulkDeleteError": "Błąd podczas usuwania wybranych wpisów",
+    "bulkDeleteConfirmTitle": "Usunąć wpisy ({count})?",
+    "bulkDeleteConfirmBody": "Wybrane wpisy nastroju ({count}) zostaną trwale usunięte."
   },
   "medications": {
     "title": "Leki",
@@ -5303,5 +5322,16 @@
     "fertileSoonBody": "Szacowane okno płodności rozpocznie się prawdopodobnie za około dwa dni. To szacunek, a nie gwarancja medyczna ani antykoncepcyjna.",
     "discreetTitle": "Przypomnienie HealthLog",
     "discreetBody": "Masz przypomnienie w HealthLog."
+  },
+  "dataList": {
+    "allSources": "Wszystkie źródła",
+    "dateFrom": "Od",
+    "dateTo": "Do",
+    "selectAll": "Zaznacz wszystko na tej stronie",
+    "selectRow": "Zaznacz wiersz",
+    "selected": "Zaznaczono: {count}",
+    "deleteN": "Usuń ({count})",
+    "clearSelection": "Wyczyść zaznaczenie",
+    "selectionBarLabel": "Akcje zaznaczenia"
   }
 }

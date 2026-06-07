@@ -494,7 +494,15 @@
     "typeEnergyExpenditureKj": "Dispendio energetico",
     "typeAverageHeartRate": "Frequenza cardiaca media",
     "typeMaxHeartRate": "Frequenza cardiaca massima",
-    "typeSleepDisturbanceCount": "Disturbi del sonno"
+    "typeSleepDisturbanceCount": "Disturbi del sonno",
+    "filterBySource": "Filtra per fonte",
+    "sourceComputed": "Calcolato",
+    "sourceWhoop": "WHOOP",
+    "sourceFitbit": "Fitbit",
+    "bulkDeleteSuccess": "{count} misurazioni eliminate",
+    "bulkDeleteError": "Errore durante l'eliminazione delle misurazioni selezionate",
+    "bulkDeleteConfirmTitle": "Eliminare {count} misurazioni?",
+    "bulkDeleteConfirmBody": "Le {count} misurazioni selezionate verranno eliminate definitivamente."
   },
   "mood": {
     "title": "Umore",
@@ -538,6 +546,8 @@
     "deleteConfirmTitle": "Eliminare la voce?",
     "deleteConfirmDescription": "Questa voce dell’umore sarà eliminata in modo definitivo.",
     "pageInfo": "Pagina {page} di {total}",
+    "previousPage": "Pagina precedente",
+    "nextPage": "Pagina successiva",
     "loginRequired": "Accedi per vedere le voci dell’umore.",
     "note": "Nota",
     "notePlaceholder": "Aggiungi una nota su come ti senti…",
@@ -598,7 +608,16 @@
       "factorConflict": "conflitto",
       "factorFamily": "famiglia",
       "factorSadness": "tristezza"
-    }
+    },
+    "filterBySource": "Filtra per fonte",
+    "sourceManual": "Manuale",
+    "sourceWeb": "Web",
+    "sourceTelegram": "Telegram",
+    "sourceDaylio": "Daylio",
+    "bulkDeleteSuccess": "{count} voci eliminate",
+    "bulkDeleteError": "Errore durante l'eliminazione delle voci selezionate",
+    "bulkDeleteConfirmTitle": "Eliminare {count} voci?",
+    "bulkDeleteConfirmBody": "Le {count} voci dell'umore selezionate verranno eliminate definitivamente."
   },
   "medications": {
     "title": "Farmaci",
@@ -5303,5 +5322,16 @@
     "fertileSoonBody": "La tua finestra fertile stimata dovrebbe iniziare tra circa due giorni. È una stima, non una garanzia medica o contraccettiva.",
     "discreetTitle": "Promemoria HealthLog",
     "discreetBody": "Hai un promemoria in HealthLog."
+  },
+  "dataList": {
+    "allSources": "Tutte le fonti",
+    "dateFrom": "Dal",
+    "dateTo": "Al",
+    "selectAll": "Seleziona tutto in questa pagina",
+    "selectRow": "Seleziona riga",
+    "selected": "{count} selezionati",
+    "deleteN": "Elimina ({count})",
+    "clearSelection": "Cancella selezione",
+    "selectionBarLabel": "Azioni di selezione"
   }
 }

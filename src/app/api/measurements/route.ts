@@ -97,6 +97,7 @@ export const GET = apiHandler(async (request: NextRequest) => {
     sortDir,
     aggregate,
     source,
+    sourceEq,
     groupBy,
     dayKey,
   } = parsed.data;
@@ -110,6 +111,10 @@ export const GET = apiHandler(async (request: NextRequest) => {
     // dashboard read paths) must never include them.
     deletedAt: null,
     ...(type && { type: type as MeasurementType }),
+    // v1.15.13 — management-list source filter. Distinct from the
+    // `source=rollup` opt-in above (which selects the rollup read tier);
+    // `sourceEq` narrows the plain list to one ingest source.
+    ...(sourceEq && { source: sourceEq }),
     ...(from || to
       ? {
           measuredAt: {

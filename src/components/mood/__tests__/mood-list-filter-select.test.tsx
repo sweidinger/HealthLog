@@ -1,0 +1,100 @@
+import { describe, expect, it, vi } from "vitest";
+import { renderToStaticMarkup } from "react-dom/server";
+
+/**
+ * v1.15.13 — the new source filter + date range + page-scoped
+ * multi-select chrome on the mood management list. Mirrors the
+ * measurements-list guard.
+ */
+
+const baseEntries = [
+  {
+    id: "e-1",
+    date: "2026-05-09",
+    mood: "GUT",
+    score: 4,
+    tags: ["work"],
+    tagKeys: [],
+    note: null,
+    source: "MANUAL",
+    moodLoggedAt: "2026-05-09T20:00:00.000Z",
+  },
+  {
+    id: "e-2",
+    date: "2026-05-08",
+    mood: "OKAY",
+    score: 3,
+    tags: [],
+    tagKeys: [],
+    note: null,
+    source: "MOODLOG",
+    moodLoggedAt: "2026-05-08T20:00:00.000Z",
+  },
+];
+
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
+  usePathname: () => "/mood",
+}));
+
+vi.mock("@tanstack/react-query", () => ({
+  useQuery: () => ({
+    data: { entries: baseEntries, meta: { total: 2 } },
+    isLoading: false,
+  }),
+  useQueryClient: () => ({ invalidateQueries: vi.fn() }),
+  useMutation: () => ({
+    mutate: vi.fn(),
+    mutateAsync: vi.fn(),
+    isPending: false,
+    isError: false,
+    error: null,
+  }),
+}));
+
+vi.mock("@/hooks/use-auth", () => ({
+  useAuth: () => ({
+    user: { id: "u1", username: "marc", role: "USER" },
+    isAuthenticated: true,
+    isLoading: false,
+  }),
+}));
+
+import { I18nProvider } from "@/lib/i18n/context";
+import { MoodList } from "../mood-list";
+
+function render(locale: "en" | "de" = "en") {
+  return renderToStaticMarkup(
+    <I18nProvider initialLocale={locale}>
+      <MoodList />
+    </I18nProvider>,
+  );
+}
+
+describe("MoodList — filter bar + multi-select chrome", () => {
+  it("renders the source filter control", () => {
+    const html = render("en");
+    expect(html).toContain("Filter by source");
+  });
+
+  it("renders the date-range labels wired to from/to", () => {
+    const html = render("en");
+    expect(html).toContain('for="mood-from"');
+    expect(html).toContain('for="mood-to"');
+  });
+
+  it("renders labelled selection checkboxes (per-row + select-all)", () => {
+    const html = render("en");
+    const boxes = html.match(/data-slot="checkbox"/g);
+    expect((boxes?.length ?? 0)).toBeGreaterThanOrEqual(3);
+    expect(html).toContain('aria-label="Select all on this page"');
+    expect(html).toContain('aria-label="Select row"');
+  });
+
+  it("renders the localised non-manual source label, not the raw enum", () => {
+    const html = render("en");
+    // MOODLOG row paints its localised badge label.
+    expect(html).toContain("moodLog");
+    expect(html).not.toContain(">MOODLOG<");
+  });
+});

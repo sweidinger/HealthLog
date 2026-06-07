@@ -165,6 +165,11 @@ export const updateMoodEntrySchema = z.object({
 
 export const listMoodEntriesSchema = z.object({
   mood: moodLevelEnum.optional(),
+  // v1.15.13 — source filter for the management list. Validated against
+  // the mood source set; threaded into the list `where` (the `userId` +
+  // `deletedAt: null` pins stay). Backed by the `(userId, source,
+  // moodLoggedAt)` index (migration 0136).
+  source: moodSourceEnum.optional(),
   from: z
     .string()
     .regex(/^\d{4}-\d{2}-\d{2}$/)

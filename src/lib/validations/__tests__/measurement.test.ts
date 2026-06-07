@@ -236,6 +236,48 @@ describe("measurement validation", () => {
     });
   });
 
+  describe("listMeasurementsSchema — v1.15.13 sourceEq filter", () => {
+    it("accepts a valid MeasurementSource on sourceEq", () => {
+      const parsed = listMeasurementsSchema.safeParse({ sourceEq: "WITHINGS" });
+      expect(parsed.success).toBe(true);
+      if (parsed.success) {
+        expect(parsed.data.sourceEq).toBe("WITHINGS");
+      }
+    });
+
+    it("leaves sourceEq undefined when omitted", () => {
+      const parsed = listMeasurementsSchema.safeParse({});
+      expect(parsed.success).toBe(true);
+      if (parsed.success) {
+        expect(parsed.data.sourceEq).toBeUndefined();
+      }
+    });
+
+    it("rejects an unknown sourceEq value", () => {
+      const parsed = listMeasurementsSchema.safeParse({ sourceEq: "BOGUS" });
+      expect(parsed.success).toBe(false);
+    });
+
+    it("rejects the rollup opt-in value on sourceEq (distinct from source)", () => {
+      // `rollup` is the rollup-tier opt-in for `source`, NOT a valid
+      // MeasurementSource filter — sourceEq must not accept it.
+      const parsed = listMeasurementsSchema.safeParse({ sourceEq: "rollup" });
+      expect(parsed.success).toBe(false);
+    });
+
+    it("accepts source=rollup and sourceEq together (independent params)", () => {
+      const parsed = listMeasurementsSchema.safeParse({
+        source: "rollup",
+        sourceEq: "APPLE_HEALTH",
+      });
+      expect(parsed.success).toBe(true);
+      if (parsed.success) {
+        expect(parsed.data.source).toBe("rollup");
+        expect(parsed.data.sourceEq).toBe("APPLE_HEALTH");
+      }
+    });
+  });
+
   // v1.4.38 — the per-day drill-down branch always returns at most
   // 1000 rows (one pathological phone-only stepCount day). Push the
   // cap into the validator so a caller asking for more sees a 422

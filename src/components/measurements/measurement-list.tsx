@@ -21,7 +21,6 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { ResponsiveSheet } from "@/components/ui/responsive-sheet";
 import {
@@ -49,19 +48,35 @@ import {
   ChevronLeft,
   ChevronRight,
   ChevronDown,
-  ArrowUp,
-  ArrowDown,
-  ArrowUpDown,
   MoreHorizontal,
 } from "lucide-react";
 import { Fragment, useId, useState } from "react";
 import { createPortal } from "react-dom";
+import { toast } from "sonner";
 import { formatDateOrRelative, formatDateTime } from "@/lib/format";
 import { useTranslations, useFormatters } from "@/lib/i18n/context";
 import { CUMULATIVE_DAY_SUM_TYPES } from "@/lib/measurements/cumulative-day-sum";
-import { invalidateKeys, measurementDependentKeys } from "@/lib/query-keys";
-import { MEASUREMENT_NOTES_MAX_LENGTH } from "@/lib/validations/measurement";
-import { DateTimeInput } from "@/components/ui/date-input";
+import {
+  invalidateKeys,
+  measurementDependentKeys,
+  queryKeys,
+} from "@/lib/query-keys";
+import {
+  MEASUREMENT_NOTES_MAX_LENGTH,
+  measurementSourceEnum,
+} from "@/lib/validations/measurement";
+import { DateInput, DateTimeInput } from "@/components/ui/date-input";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  SortableHead,
+  DeleteButton,
+  SelectionActionBar,
+  toggleId,
+  toggleSelectAll,
+  selectAllState,
+  selectedIdsOnPage,
+  selectedCountOnPage,
+} from "@/components/data-list";
 import {
   MEASUREMENT_TYPE_LABEL_KEYS as TYPE_LABEL_KEYS,
   MEASUREMENT_TYPE_ICONS as TYPE_ICONS,
@@ -191,7 +206,38 @@ function formatMeasurementSource(
   if (source === "IMPORT") return t("measurements.sourceImport");
   if (source === "MANUAL") return t("measurements.sourceManual");
   if (source === "APPLE_HEALTH") return t("measurements.sourceAppleHealth");
+  if (source === "COMPUTED") return t("measurements.sourceComputed");
+  if (source === "WHOOP") return t("measurements.sourceWhoop");
+  if (source === "FITBIT") return t("measurements.sourceFitbit");
   return source;
+}
+
+/**
+ * v1.15.13 — the `MeasurementSource` enum values offered in the
+ * management-list source filter. Derived from the shared Zod enum so a
+ * future source addition surfaces here automatically.
+ */
+const MEASUREMENT_SOURCE_OPTIONS = measurementSourceEnum.options;
+
+/**
+ * v1.15.13 — convert a `<input type="date">` value (YYYY-MM-DD) into the
+ * offset-bearing ISO datetime the measurements list `from`/`to` params
+ * require. `from` snaps to the local start-of-day, `to` to the local
+ * end-of-day so an inclusive single-day range returns that whole day.
+ */
+function dayBoundaryIso(
+  day: string,
+  boundary: "start" | "end",
+): string | undefined {
+  if (!day) return undefined;
+  const [y, m, d] = day.split("-").map(Number);
+  if (!y || !m || !d) return undefined;
+  const date =
+    boundary === "start"
+      ? new Date(y, m - 1, d, 0, 0, 0, 0)
+      : new Date(y, m - 1, d, 23, 59, 59, 999);
+  if (Number.isNaN(date.getTime())) return undefined;
+  return date.toISOString();
 }
 
 /**
@@ -220,9 +266,23 @@ export function MeasurementList({
   const [typeFilter, setTypeFilterRaw] = useState<string>(
     lockedType ?? "ALL",
   );
+  // v1.15.13 — management-list source filter + optional date range.
+  // `ALL` clears the source filter; empty date strings clear the bound.
+  const [sourceFilter, setSourceFilterRaw] = useState<string>("ALL");
+  const [fromDay, setFromDayRaw] = useState<string>("");
+  const [toDay, setToDayRaw] = useState<string>("");
   const [page, setPage] = useState(1);
   const [sortBy, setSortBy] = useState<string>("measuredAt");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+
+  // v1.15.13 — page-scoped multi-select. Holds the ids selected on the
+  // CURRENT page; cleared on any page / filter / sort change (per the
+  // v1.15.x audit — no "select across 200k rows"). The bulk-delete
+  // payload is intersected with the painted page ids, so it is always
+  // page-bounded (≤ PAGE_SIZE) and well under the server's 200 cap.
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(
+    () => new Set(),
+  );
 
   // v1.4.37 W7c — set of dayKeys whose drill-down is currently
   // expanded. Each key maps to a one-shot query that lazy-fetches
@@ -256,9 +316,38 @@ export function MeasurementList({
     null,
   );
 
+  // v1.15.13 — every filter / page / sort change resets pagination to
+  // page 1 AND clears the page-scoped selection (the rows it referred to
+  // are about to unmount).
+  const clearSelection = () => setSelectedIds(new Set());
+
   const setTypeFilter = (value: string) => {
     setTypeFilterRaw(value);
     setPage(1);
+    clearSelection();
+  };
+
+  const setSourceFilter = (value: string) => {
+    setSourceFilterRaw(value);
+    setPage(1);
+    clearSelection();
+  };
+
+  const setFromDay = (value: string) => {
+    setFromDayRaw(value);
+    setPage(1);
+    clearSelection();
+  };
+
+  const setToDay = (value: string) => {
+    setToDayRaw(value);
+    setPage(1);
+    clearSelection();
+  };
+
+  const goToPage = (updater: (p: number) => number) => {
+    setPage(updater);
+    clearSelection();
   };
 
   function toggleSort(column: string) {
@@ -269,6 +358,7 @@ export function MeasurementList({
       setSortDir(column === "measuredAt" ? "desc" : "asc");
     }
     setPage(1);
+    clearSelection();
   }
 
   // v1.4.37 W7c — when the type filter is a cumulative HK type
@@ -287,18 +377,34 @@ export function MeasurementList({
   const isSleepFilter = typeFilter === "SLEEP_DURATION";
   const isDayGroupedFilter = isCumulativeFilter || isSleepFilter;
 
+  // v1.15.13 — derive the ISO datetime window the list `from`/`to`
+  // params require from the two date inputs (local start/end of day).
+  const fromIso = dayBoundaryIso(fromDay, "start");
+  const toIso = dayBoundaryIso(toDay, "end");
+  const sourceEq = sourceFilter === "ALL" ? undefined : sourceFilter;
+  const listMode: "raw" | "groupBy=day" | "sleep-night" = isSleepFilter
+    ? "sleep-night"
+    : isCumulativeFilter
+      ? "groupBy=day"
+      : "raw";
+
   const { data, isLoading } = useQuery({
-    queryKey: [
-      "measurements",
-      typeFilter === "ALL" ? undefined : typeFilter,
+    queryKey: queryKeys.measurementsList({
+      type: typeFilter === "ALL" ? undefined : typeFilter,
+      sourceEq,
+      from: fromIso,
+      to: toIso,
       page,
       sortBy,
       sortDir,
-      isSleepFilter ? "sleep-night" : isCumulativeFilter ? "groupBy=day" : "raw",
-    ],
+      mode: listMode,
+    }),
     queryFn: async () => {
       const params = new URLSearchParams();
       if (typeFilter !== "ALL") params.set("type", typeFilter);
+      if (sourceEq) params.set("sourceEq", sourceEq);
+      if (fromIso) params.set("from", fromIso);
+      if (toIso) params.set("to", toIso);
       params.set("limit", String(PAGE_SIZE));
       params.set("offset", String((page - 1) * PAGE_SIZE));
       params.set("sortBy", sortBy);
@@ -349,6 +455,61 @@ export function MeasurementList({
       void invalidateKeys(queryClient, measurementDependentKeys);
     },
   });
+
+  // v1.15.13 — page-scoped bulk soft-delete. Posts the selected ids
+  // (intersected with the painted page) to the bulk-delete route, then
+  // invalidates the same dependent-key bundle the single delete busts so
+  // the dashboard / insights / chart caches stay in lockstep.
+  const bulkDeleteMutation = useMutation({
+    mutationFn: async (ids: string[]) => {
+      const res = await fetch("/api/measurements/bulk-delete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids }),
+      });
+      if (!res.ok) throw new Error("Bulk delete failed");
+      const json = (await res.json()) as { data: { deleted: number } };
+      return json.data.deleted;
+    },
+    onSuccess: async (deleted) => {
+      await invalidateKeys(queryClient, measurementDependentKeys);
+      clearSelection();
+      toast.success(t("measurements.bulkDeleteSuccess", { count: String(deleted) }));
+    },
+    onError: () => {
+      toast.error(t("measurements.bulkDeleteError"));
+    },
+  });
+
+  const pageIds = (data?.measurements ?? [])
+    // Synthetic day-grouped / sleep-night rows aren't individually
+    // deletable (they collapse many raw rows behind a `dayKey`), so they
+    // are excluded from the selectable set.
+    .filter((m) => !(m.dayKey !== undefined && m.sampleCount !== undefined))
+    .map((m) => m.id);
+
+  // Selection is held as a raw id set but every read intersects it with
+  // the painted page (`selectAllState` / `selectedCountOnPage` /
+  // `selectedIdsOnPage`), so an id that falls off the page after a
+  // refetch (e.g. a single-row delete) simply stops counting — no stale
+  // selection survives a page / filter / sort change either, since those
+  // call `clearSelection()`. No prune effect is needed.
+  const selectAll = selectAllState(selectedIds, pageIds);
+  const selectedOnPage = selectedCountOnPage(selectedIds, pageIds);
+
+  function onToggleRow(id: string) {
+    setSelectedIds((prev) => toggleId(prev, id));
+  }
+
+  function onToggleSelectAll() {
+    setSelectedIds((prev) => toggleSelectAll(prev, pageIds));
+  }
+
+  function onConfirmBulkDelete() {
+    const ids = selectedIdsOnPage(selectedIds, pageIds);
+    if (ids.length === 0) return;
+    bulkDeleteMutation.mutate(ids);
+  }
 
   const updateMutation = useMutation({
     mutationFn: async ({
@@ -494,32 +655,103 @@ export function MeasurementList({
             Pre-fix the trigger had a fixed `w-48` (192 px) which on
             Pixel 5 (375 px content width) left only ~120 px for the
             count, which wrapped to 2 lines. */}
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          {lockedType ? (
-            // v1.8.5 — the insights "all readings" subpage knows the
-            // metric from the route, so the global type selector is
-            // suppressed; the count caption still anchors the column.
-            <span className="sr-only">{t("measurements.filterByType")}</span>
-          ) : (
-            <Select value={typeFilter} onValueChange={setTypeFilter}>
-              <SelectTrigger
-                className="w-full sm:w-48"
-                aria-label={t("measurements.filterByType")}
-              >
-                <SelectValue placeholder={t("measurements.allTypes")} />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="ALL">
-                  {t("measurements.allTypes")}
-                </SelectItem>
-                {Object.entries(TYPE_LABEL_KEYS).map(([val, labelKey]) => (
-                  <SelectItem key={val} value={val}>
-                    {t(labelKey)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
+        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
+          <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-end">
+            {lockedType ? (
+              // v1.8.5 — the insights "all readings" subpage knows the
+              // metric from the route, so the global type selector is
+              // suppressed; the count caption still anchors the column.
+              <span className="sr-only">{t("measurements.filterByType")}</span>
+            ) : (
+              <div className="flex flex-col gap-1">
+                <Label className="text-muted-foreground text-xs">
+                  {t("measurements.filterByType")}
+                </Label>
+                <Select value={typeFilter} onValueChange={setTypeFilter}>
+                  <SelectTrigger
+                    className="w-full sm:w-44"
+                    aria-label={t("measurements.filterByType")}
+                  >
+                    <SelectValue placeholder={t("measurements.allTypes")} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="ALL">
+                      {t("measurements.allTypes")}
+                    </SelectItem>
+                    {Object.entries(TYPE_LABEL_KEYS).map(([val, labelKey]) => (
+                      <SelectItem key={val} value={val}>
+                        {t(labelKey)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            {/* v1.15.13 — source filter + date range. Suppressed on the
+                locked-type insights subpage, which wants a focused list
+                scoped to the route's single metric (matches the type-
+                selector suppression above). */}
+            {!lockedType && (
+              <>
+                <div className="flex flex-col gap-1">
+                  <Label className="text-muted-foreground text-xs">
+                    {t("measurements.filterBySource")}
+                  </Label>
+                  <Select value={sourceFilter} onValueChange={setSourceFilter}>
+                    <SelectTrigger
+                      className="w-full sm:w-40"
+                      aria-label={t("measurements.filterBySource")}
+                    >
+                      <SelectValue placeholder={t("dataList.allSources")} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="ALL">
+                        {t("dataList.allSources")}
+                      </SelectItem>
+                      {MEASUREMENT_SOURCE_OPTIONS.map((src) => (
+                        <SelectItem key={src} value={src}>
+                          {formatMeasurementSource(src, t)}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="flex flex-col gap-1">
+                  <Label
+                    htmlFor="measurements-from"
+                    className="text-muted-foreground text-xs"
+                  >
+                    {t("dataList.dateFrom")}
+                  </Label>
+                  <DateInput
+                    id="measurements-from"
+                    className="w-full sm:w-40"
+                    value={fromDay}
+                    max={toDay || undefined}
+                    onChange={(e) => setFromDay(e.target.value)}
+                  />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <Label
+                    htmlFor="measurements-to"
+                    className="text-muted-foreground text-xs"
+                  >
+                    {t("dataList.dateTo")}
+                  </Label>
+                  <DateInput
+                    id="measurements-to"
+                    className="w-full sm:w-40"
+                    value={toDay}
+                    min={fromDay || undefined}
+                    onChange={(e) => setToDay(e.target.value)}
+                  />
+                </div>
+              </>
+            )}
+          </div>
+
           {data?.meta?.total !== undefined && (
             <span className="text-muted-foreground text-sm">
               {t("measurements.measurementCount", {
@@ -576,7 +808,22 @@ export function MeasurementList({
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="w-28 pl-4">
+                    <TableHead className="w-10 pl-4">
+                      {/* v1.15.13 — select-all-on-page header checkbox. */}
+                      <Checkbox
+                        checked={
+                          selectAll === "all"
+                            ? true
+                            : selectAll === "some"
+                              ? "indeterminate"
+                              : false
+                        }
+                        disabled={pageIds.length === 0}
+                        onCheckedChange={onToggleSelectAll}
+                        aria-label={t("dataList.selectAll")}
+                      />
+                    </TableHead>
+                    <TableHead className="w-28">
                       {t("measurements.type")}
                     </TableHead>
                     <SortableHead
@@ -626,10 +873,22 @@ export function MeasurementList({
                     // expanded panel. dayKey is unique per row when
                     // grouped; fall back to m.id otherwise.
                     const drilldownId = `drilldown-desktop-${m.dayKey ?? m.id}`;
+                    const isSelected = selectedIds.has(m.id);
                     return (
                       <Fragment key={m.id}>
-                        <TableRow>
+                        <TableRow data-state={isSelected ? "selected" : undefined}>
                           <TableCell className="pl-4">
+                            {/* Grouped/synthetic rows aren't individually
+                                deletable, so they have no checkbox. */}
+                            {!isGrouped && (
+                              <Checkbox
+                                checked={isSelected}
+                                onCheckedChange={() => onToggleRow(m.id)}
+                                aria-label={t("dataList.selectRow")}
+                              />
+                            )}
+                          </TableCell>
+                          <TableCell>
                             <Badge
                               variant="secondary"
                               className={TYPE_COLORS[m.type] ?? ""}
@@ -744,6 +1003,10 @@ export function MeasurementList({
                                     onConfirm={() =>
                                       deleteMutation.mutate(m.id)
                                     }
+                                    title={t("measurements.deleteConfirmTitle")}
+                                    description={t(
+                                      "measurements.deleteConfirmDescription",
+                                    )}
                                   />
                                 </>
                               )}
@@ -752,7 +1015,7 @@ export function MeasurementList({
                         </TableRow>
                         {isGrouped && isExpanded && (
                           <TableRow id={drilldownId}>
-                            <TableCell colSpan={6} className="p-0">
+                            <TableCell colSpan={7} className="p-0">
                               <DayDrillDown
                                 type={m.type}
                                 dayKey={m.dayKey as string}
@@ -781,13 +1044,43 @@ export function MeasurementList({
                   : false;
                 // v1.4.38 W-D P1-1 — see desktop counterpart.
                 const drilldownId = `drilldown-mobile-${m.dayKey ?? m.id}`;
+                const isSelected = selectedIds.has(m.id);
                 return (
                   <div
                     key={m.id}
-                    className="bg-card border-border rounded-lg border p-3"
+                    data-state={isSelected ? "selected" : undefined}
+                    className="bg-card border-border rounded-lg border p-3 data-[state=selected]:border-dracula-purple/60 data-[state=selected]:bg-dracula-purple/5"
                   >
                     <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2.5 overflow-hidden">
+                      <div className="flex items-center gap-2 overflow-hidden">
+                        {/* v1.15.13 — multi-select checkbox in a 44px tap
+                            target; absent for synthetic grouped rows. */}
+                        {!isGrouped && (
+                          // v1.15.13 MEDIUM-1 — a Radix Checkbox renders a
+                          // 16px `<button role=checkbox>`; a wrapping
+                          // `<label>` does NOT forward taps to a button (label
+                          // forwarding only works for native form controls),
+                          // so the effective tap target was 16px (fails WCAG
+                          // 2.5.5). The 44px button below owns the whole hit
+                          // area and is the single toggle source; the inner
+                          // Checkbox is a `pointer-events-none` controlled
+                          // visual, so a tap can fire the handler exactly once.
+                          <button
+                            type="button"
+                            role="checkbox"
+                            aria-checked={isSelected}
+                            aria-label={t("dataList.selectRow")}
+                            onClick={() => onToggleRow(m.id)}
+                            className="focus-visible:ring-ring/50 flex size-11 shrink-0 items-center justify-center rounded focus-visible:ring-2 focus-visible:outline-none"
+                          >
+                            <Checkbox
+                              checked={isSelected}
+                              tabIndex={-1}
+                              aria-hidden="true"
+                              className="pointer-events-none"
+                            />
+                          </button>
+                        )}
                         {Icon && (
                           <div
                             className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${TYPE_COLORS[m.type] ?? ""}`}
@@ -898,7 +1191,12 @@ export function MeasurementList({
                             </Button>
                             <DeleteButton
                               className="size-11"
+                              iconClassName="h-4 w-4"
                               onConfirm={() => deleteMutation.mutate(m.id)}
+                              title={t("measurements.deleteConfirmTitle")}
+                              description={t(
+                                "measurements.deleteConfirmDescription",
+                              )}
                             />
                           </>
                         )}
@@ -921,6 +1219,20 @@ export function MeasurementList({
           </>
         )}
 
+        {/* v1.15.13 — page-scoped multi-select action bar. */}
+        <SelectionActionBar
+          count={selectedOnPage}
+          onClear={clearSelection}
+          onConfirmDelete={onConfirmBulkDelete}
+          isDeleting={bulkDeleteMutation.isPending}
+          confirmTitle={t("measurements.bulkDeleteConfirmTitle", {
+            count: String(selectedOnPage),
+          })}
+          confirmBody={t("measurements.bulkDeleteConfirmBody", {
+            count: String(selectedOnPage),
+          })}
+        />
+
         {/* Pagination */}
         {totalPages > 1 && (
           <div className="flex items-center justify-between">
@@ -936,7 +1248,7 @@ export function MeasurementList({
                 size="icon"
                 className="size-11"
                 disabled={page <= 1}
-                onClick={() => setPage((p) => p - 1)}
+                onClick={() => goToPage((p) => p - 1)}
                 aria-label={t("measurements.previousPage")}
               >
                 <ChevronLeft className="h-4 w-4" />
@@ -946,7 +1258,7 @@ export function MeasurementList({
                 size="icon"
                 className="size-11"
                 disabled={page >= totalPages}
-                onClick={() => setPage((p) => p + 1)}
+                onClick={() => goToPage((p) => p + 1)}
                 aria-label={t("measurements.nextPage")}
               >
                 <ChevronRight className="h-4 w-4" />
@@ -1279,83 +1591,3 @@ function SleepNightCaption({ m }: { m: Measurement }) {
   );
 }
 
-function SortableHead({
-  column,
-  label,
-  currentSort,
-  currentDir,
-  onSort,
-  className,
-}: {
-  column: string;
-  label: string;
-  currentSort: string;
-  currentDir: "asc" | "desc";
-  onSort: (col: string) => void;
-  className?: string;
-}) {
-  const isActive = currentSort === column;
-  return (
-    <TableHead className={className}>
-      <button
-        type="button"
-        onClick={() => onSort(column)}
-        className="hover:text-foreground inline-flex items-center gap-1 transition-colors"
-      >
-        {label}
-        {isActive ? (
-          currentDir === "asc" ? (
-            <ArrowUp className="h-3.5 w-3.5" />
-          ) : (
-            <ArrowDown className="h-3.5 w-3.5" />
-          )
-        ) : (
-          <ArrowUpDown className="h-3.5 w-3.5 opacity-40" />
-        )}
-      </button>
-    </TableHead>
-  );
-}
-
-function DeleteButton({
-  onConfirm,
-  className = "size-11",
-}: {
-  onConfirm: () => void;
-  className?: string;
-}) {
-  const { t } = useTranslations();
-  return (
-    <AlertDialog>
-      <AlertDialogTrigger asChild>
-        <Button
-          variant="ghost"
-          size="icon"
-          className={`text-destructive ${className}`}
-          aria-label={t("common.delete")}
-        >
-          <Trash2 className="h-3.5 w-3.5" />
-        </Button>
-      </AlertDialogTrigger>
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>
-            {t("measurements.deleteConfirmTitle")}
-          </AlertDialogTitle>
-          <AlertDialogDescription>
-            {t("measurements.deleteConfirmDescription")}
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
-          <AlertDialogAction
-            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            onClick={onConfirm}
-          >
-            {t("common.delete")}
-          </AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
-  );
-}

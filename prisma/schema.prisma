@@ -850,6 +850,10 @@ model Measurement {
   // (Postgres semantics) so manual entries don't collide here.
   @@unique([userId, type, source, externalId])
   @@index([userId, type, measuredAt])
+  // v1.15.13 — leads with `(userId, source)` so the management list's
+  // source filter + recency sort is an index range scan instead of a
+  // `userId` scan + in-memory sort. See migration 0136.
+  @@index([userId, source, measuredAt(sort: Desc)])
   @@index([externalId])
   // v1.7.0 — supports the `/api/sync/changes` keyset feed, which walks
   // `where userId` ordered by `(updatedAt asc, id asc)` with `take
@@ -2082,6 +2086,10 @@ model MoodEntry {
   // null, moodLoggedAt: { gte } }` ordered by `moodLoggedAt desc`; this
   // index turns that into a range scan. See migration 0123.
   @@index([userId, moodLoggedAt])
+  // v1.15.13 — leads with `(userId, source)` so the mood management
+  // list's source filter + recency sort is an index range scan. See
+  // migration 0136.
+  @@index([userId, source, moodLoggedAt(sort: Desc)])
   // v1.7.0 sync — keyset support for the `/api/sync/changes` mood feed
   // (`where userId` ordered by `(updatedAt asc, id asc)`).
   @@index([userId, updatedAt, id])

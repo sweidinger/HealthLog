@@ -586,6 +586,12 @@ export const listMeasurementsSchema = z
     // when the rollup bucket set is empty for the requested window so
     // brand-new accounts still see correct data on their first chart.
     source: z.enum(["rollup"]).optional(),
+    // v1.15.13 — management-list source FILTER. The `source` key above is
+    // the rollup-tier opt-in (`["rollup"]`), NOT a source filter, so the
+    // filter rides a distinct param. Validated against `MeasurementSource`;
+    // threaded into the plain-list `where`. Backed by the `(userId, source,
+    // measuredAt)` index (migration 0136).
+    sourceEq: measurementSourceEnum.optional(),
     // v1.4.37 W7c — list-view "one row per day" mode for cumulative
     // types (steps, active energy, distance, flights, daylight). When
     // `groupBy=day` is set and `type` is a cumulative HK type, the route

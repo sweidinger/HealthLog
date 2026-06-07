@@ -494,7 +494,15 @@
     "typeEnergyExpenditureKj": "Energieverbrauch",
     "typeAverageHeartRate": "Durchschnittlicher Puls",
     "typeMaxHeartRate": "Maximaler Puls",
-    "typeSleepDisturbanceCount": "Schlafstörungen"
+    "typeSleepDisturbanceCount": "Schlafstörungen",
+    "filterBySource": "Nach Quelle filtern",
+    "sourceComputed": "Berechnet",
+    "sourceWhoop": "WHOOP",
+    "sourceFitbit": "Fitbit",
+    "bulkDeleteSuccess": "{count} Messungen gelöscht",
+    "bulkDeleteError": "Fehler beim Löschen der ausgewählten Messungen",
+    "bulkDeleteConfirmTitle": "{count} Messungen löschen?",
+    "bulkDeleteConfirmBody": "Die {count} ausgewählten Messungen werden endgültig gelöscht."
   },
   "mood": {
     "title": "Stimmung",
@@ -538,6 +546,8 @@
     "deleteConfirmTitle": "Eintrag löschen?",
     "deleteConfirmDescription": "Dieser Stimmungseintrag wird unwiderruflich gelöscht.",
     "pageInfo": "Seite {page} von {total}",
+    "previousPage": "Vorherige Seite",
+    "nextPage": "Nächste Seite",
     "loginRequired": "Bitte anmelden, um Stimmungseinträge zu sehen.",
     "note": "Notiz",
     "notePlaceholder": "Notiz dazu, wie du dich fühlst…",
@@ -598,7 +608,16 @@
       "factorConflict": "Konflikt",
       "factorFamily": "Familie",
       "factorSadness": "Traurigkeit"
-    }
+    },
+    "filterBySource": "Nach Quelle filtern",
+    "sourceManual": "Manuell",
+    "sourceWeb": "Web",
+    "sourceTelegram": "Telegram",
+    "sourceDaylio": "Daylio",
+    "bulkDeleteSuccess": "{count} Einträge gelöscht",
+    "bulkDeleteError": "Fehler beim Löschen der ausgewählten Einträge",
+    "bulkDeleteConfirmTitle": "{count} Einträge löschen?",
+    "bulkDeleteConfirmBody": "Die {count} ausgewählten Stimmungseinträge werden endgültig gelöscht."
   },
   "medications": {
     "title": "Medikamente",
@@ -5303,5 +5322,16 @@
     "fertileSoonBody": "Dein geschätztes fruchtbares Fenster beginnt voraussichtlich in etwa zwei Tagen. Dies ist eine Schätzung und keine medizinische oder verhütende Garantie.",
     "discreetTitle": "HealthLog-Erinnerung",
     "discreetBody": "Du hast eine Erinnerung in HealthLog."
+  },
+  "dataList": {
+    "allSources": "Alle Quellen",
+    "dateFrom": "Von",
+    "dateTo": "Bis",
+    "selectAll": "Alle auf dieser Seite auswählen",
+    "selectRow": "Zeile auswählen",
+    "selected": "{count} ausgewählt",
+    "deleteN": "Löschen ({count})",
+    "clearSelection": "Auswahl aufheben",
+    "selectionBarLabel": "Auswahlaktionen"
   }
 }

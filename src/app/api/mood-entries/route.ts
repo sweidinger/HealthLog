@@ -71,13 +71,16 @@ export const GET = apiHandler(async (request: NextRequest) => {
     return returnAllZodIssues(parsed.error, 422);
   }
 
-  const { mood, from, to, limit, offset, sortBy, sortDir } = parsed.data;
+  const { mood, source, from, to, limit, offset, sortBy, sortDir } =
+    parsed.data;
 
   const where = {
     userId: user.id,
     // v1.7.0 sync — hide soft-deleted (tombstoned) rows from the list.
     deletedAt: null,
     ...(mood && { mood }),
+    // v1.15.13 — management-list source filter.
+    ...(source && { source }),
     ...(from || to
       ? {
           date: {
