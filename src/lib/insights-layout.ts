@@ -90,6 +90,39 @@ export function normalizeInsightsTileId(id: string): string {
   return LEGACY_INSIGHTS_TILE_ID_ALIASES[id] ?? id;
 }
 
+/**
+ * v1.15.11 — the overview's big semantic blocks, customizable at the
+ * section level on top of the per-metric `tiles` list. Order here is the
+ * default render order (Hero is NOT a section — Hero + Score + Coach
+ * stays an anchored, non-customizable top block above the customizable
+ * region). English from birth — unlike the tile ids these never had a
+ * German phase, so no alias map is needed.
+ *
+ * Maps to the `/insights` page blocks: WellnessScores → `wellness-scores`,
+ * DailyBriefing → `daily-briefing`, VitalsDashboard → `vitals`, TrendsRow
+ * → `trends`, PeriodNarrativeCard → `period-review`, CycleInsightSummary
+ * → `cycle-summary`, CoincidentDeviationCard → `signals`, RhythmEvents →
+ * `rhythm-events`.
+ */
+export const INSIGHTS_SECTION_IDS = [
+  "wellness-scores",
+  "daily-briefing",
+  "vitals",
+  "trends",
+  "period-review",
+  "cycle-summary",
+  "signals",
+  "rhythm-events",
+] as const;
+
+export type InsightsSectionId = (typeof INSIGHTS_SECTION_IDS)[number];
+
+export interface InsightsSectionConfig {
+  id: InsightsSectionId;
+  visible: boolean;
+  order: number;
+}
+
 export interface InsightsTileConfig {
   id: InsightsTileId;
   visible: boolean;
@@ -98,10 +131,11 @@ export interface InsightsTileConfig {
 
 export interface InsightsLayout {
   version: number;
+  sections: InsightsSectionConfig[];
   tiles: InsightsTileConfig[];
 }
 
-const INSIGHTS_LAYOUT_VERSION = 1;
+const INSIGHTS_LAYOUT_VERSION = 2;
 
 /**
  * Default layout mirrors the routed tab-strip order — vitals first,
@@ -128,10 +162,43 @@ const DEFAULT_VISIBLE_TILE_IDS = new Set<InsightsTileId>([
   "workouts",
   "mood",
   "medications",
+  // v1.15.11 W2c — the Vitals + Mobility grid on the overview surfaces every
+  // one of these tiles today, gated only on data availability. Now that the
+  // grid honours this layout's tile visibility, they must ship default-visible
+  // or a fresh account (no saved layout) would lose the tiles it shows today —
+  // a regression. They stay data-gated on top of visibility, so a tile with no
+  // readings still renders nothing exactly as before; widening the default set
+  // only ensures the layout never *suppresses* a tile the user already sees.
+  // The ids map to the grid's tile concepts:
+  //   cardio-fitness → FitnessAge (VO₂max re-frame); vascular-age →
+  //   VascularAge; hrv → HRV balance; resting-pulse / respiratory-rate /
+  //   oxygen / body-temperature / blood-glucose → the per-vital baseline
+  //   tiles; six-minute-walk / stair-ascent-speed / stair-descent-speed /
+  //   wrist-temperature → the Mobility sub-grid.
+  "cardio-fitness",
+  "vascular-age",
+  "hrv",
+  "resting-pulse",
+  "respiratory-rate",
+  "oxygen",
+  "body-temperature",
+  "blood-glucose",
+  "six-minute-walk",
+  "stair-ascent-speed",
+  "stair-descent-speed",
+  "wrist-temperature",
 ]);
 
 export const DEFAULT_INSIGHTS_LAYOUT: InsightsLayout = {
   version: INSIGHTS_LAYOUT_VERSION,
+  // Every section ships default-visible; feature/data gates still apply
+  // on top at render time. The dense 0-based `order` follows
+  // `INSIGHTS_SECTION_IDS`, which mirrors the current page render order.
+  sections: INSIGHTS_SECTION_IDS.map((id, order) => ({
+    id,
+    visible: true,
+    order,
+  })),
   // Order follows `INSIGHTS_TILE_IDS` (overview first, then the
   // `SUB_PAGE_SLUGS` order, which itself tracks the MeasurementCategory
   // overlay: vitals → body → activity → sleep → cardiovascular → mood →
@@ -185,8 +252,60 @@ export function resolveInsightsLayout(raw: unknown): InsightsLayout {
 
   return {
     version: INSIGHTS_LAYOUT_VERSION,
+    sections: resolveInsightsSections(candidate.sections),
     tiles: [...filtered, ...appended].sort((a, b) => a.order - b.order),
   };
+}
+
+/**
+ * v1.15.11 — section-level resolution, mirroring the tile semantics:
+ * filter unknown ids, dedupe (first occurrence wins), merge missing
+ * default sections, sort by order. A v1 blob (no `sections` key) — or
+ * any garbage `sections` value — yields the full default section set, all
+ * default-visible, so existing iOS-written layouts resolve forward to a
+ * valid v2 layout untouched. New section ids introduced in a later
+ * release auto-merge default-INVISIBLE onto a saved layout (same as
+ * tiles); the current 8 sections come from the defaults default-visible
+ * whenever the blob omits them.
+ */
+function resolveInsightsSections(raw: unknown): InsightsSectionConfig[] {
+  if (!Array.isArray(raw)) {
+    // Missing / garbage → full default set, all visible.
+    return DEFAULT_INSIGHTS_LAYOUT.sections.map((s) => ({ ...s }));
+  }
+
+  const knownIds = new Set<string>(INSIGHTS_SECTION_IDS);
+  const seen = new Set<string>();
+  const filtered: InsightsSectionConfig[] = (
+    raw as Array<Partial<InsightsSectionConfig>>
+  )
+    .filter((s): s is InsightsSectionConfig => {
+      if (
+        !s ||
+        typeof s.id !== "string" ||
+        typeof s.visible !== "boolean" ||
+        typeof s.order !== "number"
+      ) {
+        return false;
+      }
+      if (!knownIds.has(s.id) || seen.has(s.id)) return false;
+      seen.add(s.id);
+      return true;
+    })
+    .map((s) => ({ id: s.id, visible: s.visible, order: s.order }));
+
+  const savedIds = new Set(filtered.map((s) => s.id));
+  const missing = DEFAULT_INSIGHTS_LAYOUT.sections.filter(
+    (s) => !savedIds.has(s.id),
+  );
+  const maxOrder = Math.max(0, ...filtered.map((s) => s.order));
+  const appended = missing.map((s, i) => ({
+    ...s,
+    visible: false, // default-invisible on auto-upgrade of a NEW section id
+    order: maxOrder + 1 + i,
+  }));
+
+  return [...filtered, ...appended].sort((a, b) => a.order - b.order);
 }
 
 /**
@@ -198,7 +317,8 @@ export function resolveInsightsLayout(raw: unknown): InsightsLayout {
  */
 export interface InsightsLayoutInput {
   version: number;
-  tiles: Array<{ id: string; visible: boolean; order: number }>;
+  sections?: Array<{ id: string; visible: boolean; order: number }>;
+  tiles?: Array<{ id: string; visible: boolean; order: number }>;
 }
 
 export function serializeInsightsLayout(
@@ -211,8 +331,18 @@ export function serializeInsightsLayout(
   // legacy and canonical id for one tile collapses to a single entry,
   // keeping the dense 0-based order contiguous.
   const seen = new Set<string>();
+  // An omitted `tiles` (a section-only PUT) falls back to the canonical
+  // default tile set so the persisted blob is always complete.
+  if (!layout.tiles) {
+    return {
+      version: INSIGHTS_LAYOUT_VERSION,
+      sections: serializeInsightsSections(layout.sections),
+      tiles: DEFAULT_INSIGHTS_LAYOUT.tiles.map((t) => ({ ...t })),
+    };
+  }
   return {
     version: INSIGHTS_LAYOUT_VERSION,
+    sections: serializeInsightsSections(layout.sections),
     tiles: layout.tiles
       .slice()
       .sort((a, b) => a.order - b.order)
@@ -228,4 +358,72 @@ export function serializeInsightsLayout(
         order: i, // normalize to 0-based dense order
       })),
   };
+}
+
+/**
+ * v1.15.11 — normalise an optional `sections` input: drop unknown ids,
+ * dedupe (first occurrence by order wins), re-number to a dense 0-based
+ * order. If the input omits `sections` entirely, fill from defaults so a
+ * current iOS client PUTting only `tiles` still persists a valid v2 blob.
+ */
+function serializeInsightsSections(
+  sections: InsightsLayoutInput["sections"],
+): InsightsSectionConfig[] {
+  if (!sections) {
+    return DEFAULT_INSIGHTS_LAYOUT.sections.map((s) => ({ ...s }));
+  }
+
+  const knownIds = new Set<string>(INSIGHTS_SECTION_IDS);
+  const seen = new Set<string>();
+  return sections
+    .slice()
+    .sort((a, b) => a.order - b.order)
+    .filter((s) => {
+      if (!knownIds.has(s.id) || seen.has(s.id)) return false;
+      seen.add(s.id);
+      return true;
+    })
+    .map((s, i) => ({
+      id: s.id as InsightsSectionId,
+      visible: s.visible,
+      order: i, // normalize to 0-based dense order
+    }));
+}
+
+/**
+ * v1.15.11 W2 — the visible section ids in render order, derived from a
+ * resolved layout. Pure helper so the page can map each id onto its JSX in
+ * `SECTION_REGISTRY` without re-implementing the sort/filter inline (and so
+ * the ordering is unit-testable without rendering React). Sections marked
+ * `visible: false` are dropped; the rest sort by `order`. Feature/data gates
+ * still apply on top at render time — a gated-off section that is
+ * layout-visible still renders nothing (its component self-gates / returns
+ * null), so this list is the *candidate* order, not a render guarantee.
+ */
+export function orderedVisibleSectionIds(
+  layout: InsightsLayout,
+): InsightsSectionId[] {
+  return layout.sections
+    .filter((s) => s.visible)
+    .slice()
+    .sort((a, b) => a.order - b.order)
+    .map((s) => s.id);
+}
+
+/**
+ * v1.15.11 W2c — resolve a single tile's layout decision against a resolved
+ * layout. Returns `{ visible, order }` for a known tile id; for a tile id the
+ * layout does not enumerate (a dashboard tile with no corresponding layout
+ * entry — e.g. a derived re-frame like FITNESS_AGE) the tile is treated as
+ * always-on and sorted last so it never disappears on the user. Data-gating
+ * still applies on top — a `visible: true` tile with no data renders nothing.
+ */
+export function resolveTileLayout(
+  layout: InsightsLayout,
+  tileId: InsightsTileId | string,
+): { visible: boolean; order: number } {
+  const entry = layout.tiles.find((t) => t.id === tileId);
+  if (entry) return { visible: entry.visible, order: entry.order };
+  // Unknown-to-layout tile → always render, ordered after every known tile.
+  return { visible: true, order: Number.MAX_SAFE_INTEGER };
 }

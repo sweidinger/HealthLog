@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, type ReactNode } from "react";
 import { Footprints, Gauge, HeartPulse, RefreshCw, Scale } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -23,6 +23,10 @@ import {
   SECTION_MOBILITY,
   type DashboardDerived,
 } from "./use-dashboard-derived";
+import {
+  resolveTileLayout,
+  type InsightsLayout,
+} from "@/lib/insights-layout";
 import type { TrendDirectionSentiment } from "@/lib/insights/trend-sentiment";
 // Type-only — the compute payloads never drag the server graph into the bundle.
 import type { VitalsBaselineValue } from "@/lib/insights/derived/baseline";
@@ -99,7 +103,69 @@ interface DashboardProps {
    * full-width section above the daily briefing.
    */
   batch: DashboardDerived;
+  /**
+   * v1.15.11 W2c — the resolved insights layout, passed down from the page
+   * (which already mounts `useInsightsLayoutQuery()`) so this grid honours the
+   * user's per-tile order + visibility without a second fetch. Each grid tile
+   * maps to a layout tile id (see `VITAL_TILE_LAYOUT_ID` /
+   * `MOBILITY_TILE_LAYOUT_ID`); a tile the layout marks `visible: false` does
+   * not render even if it has data, and visible tiles render in `order`. Tiles
+   * still self-gate on data availability on top of that. Optional so a caller
+   * that has no layout yet falls back to the default (everything shown,
+   * data-gated as before).
+   */
+  layout?: InsightsLayout;
   className?: string;
+}
+
+/**
+ * v1.15.11 W2c — the dashboard's vitals-grid tile concepts mapped onto their
+ * layout tile id (the routed sub-page slug). The four derived re-frames map to
+ * the slug of the metric they re-frame; the per-vital baseline tiles map by
+ * their `MeasurementType`. A tile concept absent from this map (none today)
+ * would fall through `resolveTileLayout` as always-on, so the grid never drops
+ * a tile it cannot place.
+ *
+ *   FitnessAge (VO₂max re-frame) → `cardio-fitness`
+ *   VascularAge                  → `vascular-age`
+ *   HrvBalance                   → `hrv`
+ *   Bmi                          → `bmi`
+ */
+const VITAL_BASELINE_TILE_LAYOUT_ID: Record<string, string> = {
+  RESTING_HEART_RATE: "resting-pulse",
+  RESPIRATORY_RATE: "respiratory-rate",
+  OXYGEN_SATURATION: "oxygen",
+  BODY_TEMPERATURE: "body-temperature",
+  BLOOD_GLUCOSE: "blood-glucose",
+  WEIGHT: "weight",
+};
+
+/** Mobility-section `MeasurementType` → layout tile id (routed slug). */
+const MOBILITY_TILE_LAYOUT_ID: Record<string, string> = {
+  STAIR_ASCENT_SPEED: "stair-ascent-speed",
+  STAIR_DESCENT_SPEED: "stair-descent-speed",
+  WRIST_TEMPERATURE: "wrist-temperature",
+};
+
+/**
+ * v1.15.11 W2c — `true` when the layout marks this tile id visible (or the
+ * layout does not enumerate the id, in which case the tile is always-on). A
+ * `null` layout (caller passed none) is treated as everything-visible so the
+ * default behaviour is unchanged.
+ */
+function tileVisible(layout: InsightsLayout | undefined, tileId: string): boolean {
+  if (!layout) return true;
+  return resolveTileLayout(layout, tileId).visible;
+}
+
+/**
+ * v1.15.11 W2c — the layout `order` for a tile id, used to sort the grid.
+ * Falls back to `MAX_SAFE_INTEGER` (render last) for an unenumerated id and to
+ * a stable 0 when no layout is present (callers keep their source order).
+ */
+function tileOrder(layout: InsightsLayout | undefined, tileId: string): number {
+  if (!layout) return 0;
+  return resolveTileLayout(layout, tileId).order;
 }
 
 /** The provenance ⓘ explainer for one derived metric, wired from the map. */
@@ -465,28 +531,42 @@ function VitalsTileSkeleton() {
  * the CLS the load-state QoL pass closes). Kept in sync with the tile gates
  * above — if a new tile gate changes, reflect it here.
  */
-function hasRenderableVital(read: DerivedBatchRead): boolean {
-  const fitness = read<FitnessAgeValue>({ metric: "FITNESS_AGE" });
-  if (fitness?.status === "ok" && fitness.value) return true;
+function hasRenderableVital(
+  read: DerivedBatchRead,
+  layout: InsightsLayout | undefined,
+): boolean {
+  if (tileVisible(layout, "cardio-fitness")) {
+    const fitness = read<FitnessAgeValue>({ metric: "FITNESS_AGE" });
+    if (fitness?.status === "ok" && fitness.value) return true;
+  }
 
-  const vascular = read<VascularAgeDeltaValue>({
-    metric: "VASCULAR_AGE_DELTA",
-  });
-  if (vascular?.status === "ok" && vascular.value) return true;
+  if (tileVisible(layout, "vascular-age")) {
+    const vascular = read<VascularAgeDeltaValue>({
+      metric: "VASCULAR_AGE_DELTA",
+    });
+    if (vascular?.status === "ok" && vascular.value) return true;
+  }
 
-  const bmi = read<BmiValue>({ metric: "BMI" });
-  if (bmi?.status === "ok" && bmi.value) return true;
+  if (tileVisible(layout, "bmi")) {
+    const bmi = read<BmiValue>({ metric: "BMI" });
+    if (bmi?.status === "ok" && bmi.value) return true;
+  }
 
-  const hrv = read<HrvBalanceValue>({ metric: "HRV_BALANCE" });
-  if (
-    hrv &&
-    !(hrv.status === "insufficient" && hrv.reason === "no_readings_in_window")
-  ) {
-    return true;
+  if (tileVisible(layout, "hrv")) {
+    const hrv = read<HrvBalanceValue>({ metric: "HRV_BALANCE" });
+    if (
+      hrv &&
+      !(hrv.status === "insufficient" && hrv.reason === "no_readings_in_window")
+    ) {
+      return true;
+    }
   }
 
   for (const type of SECTION_VITALS) {
     if (type === "HEART_RATE_VARIABILITY") continue;
+    if (!tileVisible(layout, VITAL_BASELINE_TILE_LAYOUT_ID[type] ?? type)) {
+      continue;
+    }
     const baseline = read<VitalsBaselineValue>({
       metric: "VITALS_BASELINE",
       type,
@@ -511,11 +591,17 @@ function hasRenderableVital(read: DerivedBatchRead): boolean {
  * only rendered once there is content under it (no stranded heading over
  * blank space). Most users carry none of these → the whole section hides.
  */
-function hasRenderableMobility(read: DerivedBatchRead): boolean {
-  const sixmw = read<SixMinuteWalkValue>({ metric: "SIX_MINUTE_WALK_BAND" });
-  if (sixmw?.status === "ok" && sixmw.value) return true;
+function hasRenderableMobility(
+  read: DerivedBatchRead,
+  layout: InsightsLayout | undefined,
+): boolean {
+  if (tileVisible(layout, "six-minute-walk")) {
+    const sixmw = read<SixMinuteWalkValue>({ metric: "SIX_MINUTE_WALK_BAND" });
+    if (sixmw?.status === "ok" && sixmw.value) return true;
+  }
 
-  for (const { metric } of SECTION_MOBILITY) {
+  for (const { metric, type } of SECTION_MOBILITY) {
+    if (!tileVisible(layout, MOBILITY_TILE_LAYOUT_ID[type] ?? type)) continue;
     const band = read<VitalsBaselineValue>({ metric });
     if (
       band &&
@@ -531,15 +617,97 @@ function hasRenderableMobility(read: DerivedBatchRead): boolean {
   return false;
 }
 
-export function VitalsDashboard({ batch, className }: DashboardProps) {
+export function VitalsDashboard({ batch, layout, className }: DashboardProps) {
   const { t } = useTranslations();
-  const vitals = useMemo(() => SECTION_VITALS, []);
 
   const read = batch.read;
   const isLoading = batch.isLoading;
   const isError = batch.isError;
   const refetch = batch.refetch;
   const tileProps: TileProps = { read, isLoading };
+
+  // v1.15.11 W2c — the vitals-grid tiles in resolved layout order, dropping
+  // any the user has hidden. Each tile is `{ id, order, node }`; the tile's
+  // own component still self-gates on data, so a visible tile with no readings
+  // still renders nothing. The four derived re-frames map to the slug of the
+  // metric they re-frame; the per-vital baseline tiles map by `MeasurementType`.
+  const vitalTiles = useMemo(() => {
+    const entries: { id: string; order: number; node: ReactNode }[] = [
+      {
+        id: "cardio-fitness",
+        order: tileOrder(layout, "cardio-fitness"),
+        node: <FitnessAgeTile key="cardio-fitness" {...tileProps} />,
+      },
+      {
+        id: "vascular-age",
+        order: tileOrder(layout, "vascular-age"),
+        node: <VascularAgeTile key="vascular-age" {...tileProps} />,
+      },
+      {
+        id: "hrv",
+        order: tileOrder(layout, "hrv"),
+        node: <HrvBalanceTile key="hrv" {...tileProps} />,
+      },
+      {
+        id: "bmi",
+        order: tileOrder(layout, "bmi"),
+        node: <BmiTile key="bmi" {...tileProps} />,
+      },
+      ...SECTION_VITALS.filter(
+        (type) => type !== "HEART_RATE_VARIABILITY",
+      ).map((type) => {
+        const id = VITAL_BASELINE_TILE_LAYOUT_ID[type] ?? type;
+        return {
+          id,
+          order: tileOrder(layout, id),
+          node: (
+            <BaselineTile
+              key={type}
+              metric="VITALS_BASELINE"
+              type={type}
+              {...tileProps}
+            />
+          ),
+        };
+      }),
+    ];
+    return entries
+      .filter((e) => tileVisible(layout, e.id))
+      .sort((a, b) => a.order - b.order);
+    // `tileProps` is rebuilt every render (read/isLoading); the node closures
+    // capture the current values, so memoising on the layout + load state keeps
+    // the ordered list stable across a no-op rerender without staleness.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [layout, read, isLoading]);
+
+  const mobilityTiles = useMemo(() => {
+    const entries: { id: string; order: number; node: ReactNode }[] = [
+      {
+        id: "six-minute-walk",
+        order: tileOrder(layout, "six-minute-walk"),
+        node: <SixMinuteWalkTile key="six-minute-walk" {...tileProps} />,
+      },
+      ...SECTION_MOBILITY.map(({ metric, type }) => {
+        const id = MOBILITY_TILE_LAYOUT_ID[type] ?? type;
+        return {
+          id,
+          order: tileOrder(layout, id),
+          node: (
+            <BaselineTile
+              key={metric}
+              metric={metric}
+              type={type}
+              {...tileProps}
+            />
+          ),
+        };
+      }),
+    ];
+    return entries
+      .filter((e) => tileVisible(layout, e.id))
+      .sort((a, b) => a.order - b.order);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [layout, read, isLoading]);
 
   // A failed batch (retry:0 + the 8 s client ceiling) must read as an error,
   // not as "no data" — otherwise the whole Vitals + Wellness surface silently
@@ -587,8 +755,8 @@ export function VitalsDashboard({ batch, className }: DashboardProps) {
   // skeleton row reserves the final height). When the batch resolves to zero
   // vitals the heading would otherwise strand over blank space, then content
   // pops in below it — the CLS this pass removes.
-  const showSection = isLoading || hasRenderableVital(read);
-  const showMobility = !isLoading && hasRenderableMobility(read);
+  const showSection = isLoading || hasRenderableVital(read, layout);
+  const showMobility = !isLoading && hasRenderableMobility(read, layout);
 
   return (
     <div
@@ -614,28 +782,11 @@ export function VitalsDashboard({ batch, className }: DashboardProps) {
             }
             className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3"
           >
-            {isLoading ? (
-              Array.from({ length: 6 }).map((_, i) => (
-                <VitalsTileSkeleton key={`vitals-skeleton-${i}`} />
-              ))
-            ) : (
-              <>
-                <FitnessAgeTile {...tileProps} />
-                <VascularAgeTile {...tileProps} />
-                <HrvBalanceTile {...tileProps} />
-                <BmiTile {...tileProps} />
-                {vitals
-                  .filter((type) => type !== "HEART_RATE_VARIABILITY")
-                  .map((type) => (
-                    <BaselineTile
-                      key={type}
-                      metric="VITALS_BASELINE"
-                      type={type}
-                      {...tileProps}
-                    />
-                  ))}
-              </>
-            )}
+            {isLoading
+              ? Array.from({ length: 6 }).map((_, i) => (
+                  <VitalsTileSkeleton key={`vitals-skeleton-${i}`} />
+                ))
+              : vitalTiles.map((tile) => tile.node)}
           </div>
         </section>
       )}
@@ -653,15 +804,7 @@ export function VitalsDashboard({ batch, className }: DashboardProps) {
             data-slot="vitals-mobility-grid"
             className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3"
           >
-            <SixMinuteWalkTile {...tileProps} />
-            {SECTION_MOBILITY.map(({ metric, type }) => (
-              <BaselineTile
-                key={metric}
-                metric={metric}
-                type={type}
-                {...tileProps}
-              />
-            ))}
+            {mobilityTiles.map((tile) => tile.node)}
           </div>
         </section>
       )}

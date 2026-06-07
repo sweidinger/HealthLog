@@ -1,13 +1,19 @@
 "use client";
 
+import { Fragment, useRef, useState, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import { RefreshCw, TrendingUp } from "lucide-react";
+import { RefreshCw, SlidersHorizontal, TrendingUp } from "lucide-react";
 
 import { useAuth } from "@/hooks/use-auth";
 import { queryKeys } from "@/lib/query-keys";
 import { useFeatureFlags } from "@/hooks/use-feature-flags";
+import { useInsightsLayoutQuery } from "@/hooks/use-insights-layout";
+import {
+  orderedVisibleSectionIds,
+  type InsightsSectionId,
+} from "@/lib/insights-layout";
 import { useScrollResetOnRoute } from "@/hooks/use-scroll-reset-on-route";
 import { useTranslations } from "@/lib/i18n/context";
 import { Button } from "@/components/ui/button";
@@ -15,6 +21,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { HeroStrip } from "@/components/insights/hero-strip";
+import { InsightsEditMode } from "@/components/insights/insights-edit-mode";
 import { useInsightsAdvisorQuery } from "@/components/insights/use-insights-advisor";
 import { useCoachLaunch } from "@/lib/insights/coach-launch-context";
 import { useAnalyticsQuery } from "@/lib/queries/use-analytics-query";
@@ -271,6 +278,33 @@ export default function InsightsPage() {
   // single query instance, so the wellness lift adds no second request.
   const dashboardDerived = useDashboardDerived(isAuthenticated);
 
+  // v1.15.11 W2 — the resolved overview layout (sections + tiles). Drives
+  // both the section render order/visibility below and the Vitals grid's
+  // per-tile order/visibility (passed into <VitalsDashboard>). Defaults to
+  // the canonical layout while in-flight so the first paint matches the
+  // default order with no flicker.
+  const {
+    layout,
+    isLoading: layoutLoading,
+  } = useInsightsLayoutQuery(isAuthenticated);
+
+  // v1.15.11 W3 — inline "Anpassen" edit mode. When on, the customizable
+  // region swaps the live (heavy) sections for lightweight edit cards; the
+  // section data is never refetched (the queries stay mounted via the page's
+  // own hooks but the section JSX is replaced). HeroStrip stays anchored.
+  const [editMode, setEditMode] = useState(false);
+
+  // v1.15.11 QA L5 — focus restoration. On entering edit mode focus moves to
+  // the edit-card heading; on close/save focus returns to the "Anpassen"
+  // toggle so keyboard users are not dropped at the top of the document.
+  const customizeToggleRef = useRef<HTMLButtonElement | null>(null);
+
+  // v1.15.11 QA L1 — never let a "Fertig" save flush DEFAULT_INSIGHTS_LAYOUT
+  // over the user's real saved layout. The editor seeds its draft once from
+  // the `layout` prop, which is the default while the GET is in-flight, so the
+  // edit surface stays gated (the toggle disabled) until the query has settled.
+  const canEdit = !layoutLoading;
+
   // Error branch — a transient 500 / network drop (after the query's
   // retries are exhausted) settles the comprehensive query with no data.
   // Without this gate the page would fall through to the "no data yet —
@@ -360,6 +394,80 @@ export default function InsightsPage() {
   // correlation row. The duplicate footer "prepare assessments" control was
   // removed in v1.12.4 — the tab-strip regenerate button is the single
   // affordance. The generic disclaimer lives once in the layout-shell footer.
+
+  // v1.15.11 W2 — decouple the section render order from the JSX. Each section
+  // id maps to its existing node here; the customizable region below renders
+  // `orderedVisibleSectionIds(layout)` against this registry. Every existing
+  // feature/data gate is preserved INSIDE each entry: a section the layout
+  // marks visible but whose gate is off (briefing flag, cycle-enabled) still
+  // resolves to `null`, exactly as today. With the default layout the order +
+  // gates reproduce the pre-v1.15.11 page byte-for-byte. HeroStrip stays
+  // anchored above this region, OUTSIDE the customizable set.
+  const SECTION_REGISTRY: Record<InsightsSectionId, ReactNode> = {
+    "wellness-scores": (
+      <WellnessScores
+        read={dashboardDerived.read}
+        isLoading={dashboardDerived.isLoading}
+        isError={dashboardDerived.isError}
+        refetch={dashboardDerived.refetch}
+        // v1.15.3 — the cycle ring rides the scores strip as a gated sibling
+        // tile, only for a cycle-tracking account, so its calendar read never
+        // fires otherwise (the same `/api/auth/me` gate the sidebar nav uses).
+        extraTile={user?.cycleTrackingEnabled ? <CycleRingTile /> : undefined}
+        // v1.15.5 — when the cycle ring is shown it TAKES the Strain slot:
+        // hide Strain so the strip stays compact instead of growing a sixth
+        // tile. Strain stays visible for non-cycle accounts.
+        hideStrain={user?.cycleTrackingEnabled === true}
+      />
+    ),
+    "daily-briefing": flags.briefing ? (
+      <DailyBriefing
+        briefing={briefingPayload}
+        updatedAt={heroStripUpdatedAt}
+        loading={advisor.isLoading}
+        onRegenerate={advisor.regenerate}
+        regenerating={advisor.isRegenerating}
+      />
+    ) : null,
+    vitals: <VitalsDashboard batch={dashboardDerived} layout={layout} />,
+    trends: (
+      <TrendsRow
+        briefing={briefingPayload}
+        annotations={advisor.payload?.trendAnnotations ?? null}
+        loading={advisor.isLoading || advisor.isRegenerating}
+      />
+    ),
+    "period-review": flags.briefing ? (
+      <PeriodNarrativeCard enabled={isAuthenticated} />
+    ) : null,
+    // v1.15.2 — gated cycle teaser. Render only for a cycle-tracking account;
+    // for everyone else this is nothing (no card, no layout gap). The card
+    // itself stays silent until its reads resolve.
+    "cycle-summary": user?.cycleTrackingEnabled ? (
+      <CycleInsightSummaryCard />
+    ) : null,
+    signals: <CoincidentDeviationCard enabled={isAuthenticated} />,
+    "rhythm-events": <RhythmEventsCard enabled={isAuthenticated} />,
+  };
+
+  // v1.15.11 W3 — sections whose feature/data gate is currently OFF. The edit
+  // row for these renders disabled with a hint so a toggle that does nothing
+  // never confuses the user (it stays orderable, just not enable-able past the
+  // gate). Mirrors the `null` registry entries above: `daily-briefing` +
+  // `period-review` ride the briefing flag; `cycle-summary` rides the cycle
+  // opt-in. Every other section is always available.
+  const gatedOffSectionIds = new Set<InsightsSectionId>();
+  if (!flags.briefing) {
+    gatedOffSectionIds.add("daily-briefing");
+    gatedOffSectionIds.add("period-review");
+  }
+  if (!user?.cycleTrackingEnabled) {
+    gatedOffSectionIds.add("cycle-summary");
+  }
+
+  const orderedSectionIds = orderedVisibleSectionIds(layout);
+  const everySectionHidden = orderedSectionIds.length === 0;
+
   return (
     // v1.12.7 (L3) — one consistent vertical rhythm down the overview. The
     // page used `space-y-8` (32 px) between top-level blocks while the vitals
@@ -389,49 +497,72 @@ export default function InsightsPage() {
         healthScore={analytics?.healthScore ?? undefined}
       />
 
-      <WellnessScores
-        read={dashboardDerived.read}
-        isLoading={dashboardDerived.isLoading}
-        isError={dashboardDerived.isError}
-        refetch={dashboardDerived.refetch}
-        // v1.15.3 — the cycle ring rides the scores strip as a gated sibling
-        // tile, only for a cycle-tracking account, so its calendar read never
-        // fires otherwise (the same `/api/auth/me` gate the sidebar nav uses).
-        extraTile={user?.cycleTrackingEnabled ? <CycleRingTile /> : undefined}
-        // v1.15.5 — when the cycle ring is shown it TAKES the Strain slot:
-        // hide Strain so the strip stays compact instead of growing a sixth
-        // tile. Strain stays visible for non-cycle accounts.
-        hideStrain={user?.cycleTrackingEnabled === true}
-      />
-
-      {flags.briefing && (
-        <DailyBriefing
-          briefing={briefingPayload}
-          updatedAt={heroStripUpdatedAt}
-          loading={advisor.isLoading}
-          onRegenerate={advisor.regenerate}
-          regenerating={advisor.isRegenerating}
-        />
+      {/* v1.15.11 W3 — the "Anpassen" toggle sits at the top of the
+          customizable region, below the anchored HeroStrip. v1.15.11 QA
+          L2-design: the toggle is HIDDEN while editing — the InsightsEditMode
+          card owns save (Fertig) + reset (Zurücksetzen), so a second top-right
+          "Fertig" that only closes-without-saving (a label-collision trap) no
+          longer exists. The toggle only ENTERS edit mode; the component's
+          Fertig/Zurücksetzen → onClose returns here. QA L1: disabled until the
+          layout query settles so a save can never flush defaults. */}
+      {!editMode && (
+        <div className="flex justify-end">
+          <Button
+            ref={customizeToggleRef}
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => setEditMode(true)}
+            disabled={!canEdit}
+            data-slot="insights-customize-toggle"
+            aria-pressed={editMode}
+            className="gap-1.5"
+          >
+            <SlidersHorizontal className="h-3.5 w-3.5" aria-hidden="true" />
+            <span>{t("insights.editMode.open")}</span>
+          </Button>
+        </div>
       )}
 
-      <VitalsDashboard batch={dashboardDerived} />
-
-      <TrendsRow
-        briefing={briefingPayload}
-        annotations={advisor.payload?.trendAnnotations ?? null}
-        loading={advisor.isLoading || advisor.isRegenerating}
-      />
-
-      {flags.briefing && <PeriodNarrativeCard enabled={isAuthenticated} />}
-
-      {/* v1.15.2 — gated cycle teaser. Render only for a cycle-tracking
-          account; for everyone else this is nothing (no card, no layout gap).
-          The card itself stays silent until its reads resolve. */}
-      {user?.cycleTrackingEnabled ? <CycleInsightSummaryCard /> : null}
-
-      <CoincidentDeviationCard enabled={isAuthenticated} />
-
-      <RhythmEventsCard enabled={isAuthenticated} />
+      {editMode ? (
+        /* v1.15.11 W3 — edit mode swaps the live, heavy sections for the
+           lightweight edit cards. The section data queries stay mounted on the
+           page, but their JSX is not rendered, so toggling into edit mode never
+           refetches. */
+        <InsightsEditMode
+          layout={layout}
+          gatedOffSectionIds={gatedOffSectionIds}
+          onClose={() => {
+            setEditMode(false);
+            // v1.15.11 QA L5 — return focus to the toggle that reappears.
+            requestAnimationFrame(() => customizeToggleRef.current?.focus());
+          }}
+        />
+      ) : everySectionHidden ? (
+        /* v1.15.11 W3 — empty-state: every section hidden. The page is never
+           blank — surface a hint + a button that opens edit mode so the user
+           can bring sections back. */
+        <EmptyState
+          icon={<SlidersHorizontal className="size-6" />}
+          title={t("insights.editMode.emptyTitle")}
+          description={t("insights.editMode.emptyDescription")}
+          action={
+            <Button size="sm" onClick={() => setEditMode(true)}>
+              {t("insights.editMode.open")}
+            </Button>
+          }
+        />
+      ) : (
+        /* v1.15.11 W2 — the customizable region: sections render in the
+           resolved layout order, skipping any the user has hidden. A
+           layout-visible-but-gate-off section resolves to `null` from the
+           registry, so the `space-y-6` rhythm closes the gap with no hole.
+           Each registry node is wrapped in a keyed Fragment so React keeps a
+           stable identity across a reorder. */
+        orderedSectionIds.map((id) => (
+          <Fragment key={id}>{SECTION_REGISTRY[id]}</Fragment>
+        ))
+      )}
     </div>
   );
 }

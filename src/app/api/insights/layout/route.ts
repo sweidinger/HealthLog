@@ -28,6 +28,7 @@ import {
   serializeInsightsLayout,
   DEFAULT_INSIGHTS_LAYOUT,
   ACCEPTED_INSIGHTS_TILE_IDS,
+  INSIGHTS_SECTION_IDS,
   type InsightsLayout,
 } from "@/lib/insights-layout";
 import { Prisma } from "@/generated/prisma/client";
@@ -51,8 +52,32 @@ import type { NextRequest } from "next/server";
 // always canonical regardless of which id the client sent.
 const tileIdEnum = z.enum(ACCEPTED_INSIGHTS_TILE_IDS);
 
+// v1.15.11 — section ids are new in layout v2, English from birth, so the
+// enum is the canonical id universe with no legacy-alias widening.
+const sectionIdEnum = z.enum(INSIGHTS_SECTION_IDS);
+
 const layoutSchema = z.object({
-  version: z.literal(1),
+  // v1.15.11 QA C1 — accept BOTH version 1 and 2 on input. The live iOS
+  // client still PUTs `version: 1`; `serializeInsightsLayout` hardcodes the
+  // stored version to the canonical `INSIGHTS_LAYOUT_VERSION` (2) regardless,
+  // so accepting a v1 body writes a canonical v2 blob with zero downside.
+  version: z.union([z.literal(1), z.literal(2)]),
+  // Additive + optional so a current iOS client PUTting only `tiles`
+  // (no `sections` key) still validates; `serializeInsightsLayout` fills
+  // the section defaults when the field is absent.
+  sections: z
+    .array(
+      z.object({
+        id: sectionIdEnum,
+        visible: z.boolean(),
+        order: z.number().int().min(0).max(99),
+      }),
+    )
+    .max(50)
+    .optional(),
+  // Optional too — a section-only PUT (no `tiles` key) is valid; the
+  // serializer fills the canonical default tile set. When present it must
+  // still carry at least one tile so an empty `[]` is a clear client bug.
   tiles: z
     .array(
       z.object({
@@ -62,7 +87,8 @@ const layoutSchema = z.object({
       }),
     )
     .min(1)
-    .max(50),
+    .max(50)
+    .optional(),
 });
 
 async function buildInsightsLayout(userId: string): Promise<InsightsLayout> {
