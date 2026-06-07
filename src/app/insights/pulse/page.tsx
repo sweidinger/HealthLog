@@ -49,6 +49,13 @@ export default function InsightsPulsPage() {
   // dedicated cardio-fitness page.
   const hasVo2 = (analytics?.summaries?.VO2_MAX?.count ?? 0) > 0;
   const pulseSummary = analytics?.summaries?.PULSE ?? null;
+  // v1.15.12 A2 — the resting-pulse band is judged against
+  // RESTING_HEART_RATE (Apple's clean daily resting figure). When the
+  // user has resting rows the chart shows that series against the band;
+  // otherwise it charts raw heart rate WITHOUT the resting-band overlay
+  // (which would flag expected-high workout HR as "outside target").
+  const hasRestingHr =
+    (analytics?.summaries?.RESTING_HEART_RATE?.count ?? 0) > 0;
 
   // v1.12.8 — visible-range stats shared between the pulse chart and the
   // strip (the VO2 chart-row below keeps its own full-range read).
@@ -138,12 +145,12 @@ export default function InsightsPulsPage() {
     >
       <HealthChartDynamic
         chartKey="pulse"
-        types={["PULSE"]}
+        types={hasRestingHr ? ["RESTING_HEART_RATE"] : ["PULSE"]}
         title={t("charts.pulse")}
         titleIcon={Heart}
         colors={["#50fa7b"]}
         unit="bpm"
-        valueBands={pulseBands}
+        valueBands={hasRestingHr ? pulseBands : undefined}
         compareBaseline={compareBaseline}
         userTimezone={user?.timezone}
         onVisibleStats={onVisibleStats}

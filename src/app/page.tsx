@@ -502,6 +502,15 @@ export default function DashboardPage() {
   const sys = data?.summaries?.BLOOD_PRESSURE_SYS;
   const dia = data?.summaries?.BLOOD_PRESSURE_DIA;
   const p = data?.summaries?.PULSE;
+  // v1.15.12 A2 — the resting-pulse target band is judged against the
+  // RESTING_HEART_RATE series (Apple's clean daily resting figure), not
+  // raw PULSE which mixes in workout HR. When the user has resting rows,
+  // the pulse tile shows the resting figure + the resting-band colour;
+  // when only raw PULSE exists, the tile shows heart rate WITHOUT the
+  // resting-band colour overlay (no "outside target" over workout HR).
+  const rhr = data?.summaries?.RESTING_HEART_RATE;
+  const hasRestingHr = (rhr?.count ?? 0) > 0;
+  const pulseTileSummary = hasRestingHr ? rhr : p;
   const bf = data?.summaries?.BODY_FAT;
   const sleepSummary = data?.summaries?.SLEEP_DURATION;
   // v1.11.4 — `summaries.SLEEP_DURATION` now carries per-NIGHT time-asleep
@@ -588,7 +597,9 @@ export default function DashboardPage() {
   // Data-floor gates (widget shows iff visible AND has data)
   const hasWeight = (w?.count ?? 0) > 0;
   const hasBp = (sys?.count ?? 0) > 0 || (dia?.count ?? 0) > 0;
-  const hasPulse = (p?.count ?? 0) > 0;
+  // v1.15.12 A2 — the pulse tile shows resting HR when available, else
+  // raw PULSE; either signal having data shows the tile.
+  const hasPulse = (p?.count ?? 0) > 0 || (rhr?.count ?? 0) > 0;
   const hasBodyFat = (bf?.count ?? 0) > 0;
   const hasMood = (moodSummary?.count ?? 0) > 0;
   const hasSleep = (sleepSummary?.count ?? 0) > 0;
@@ -1128,34 +1139,34 @@ export default function DashboardPage() {
               <TrendCard
                 key="pulse"
                 label={t("dashboard.pulseShort")}
-                latest={p?.latest ?? null}
+                latest={pulseTileSummary?.latest ?? null}
                 unit="bpm"
-                avg7={p?.avg7 ?? null}
-                avg30={p?.avg30 ?? null}
-                avg7ColorClass={getRangeColorClass(p?.avg7, {
-                  range: pulseDisplayRange,
+                avg7={pulseTileSummary?.avg7 ?? null}
+                avg30={pulseTileSummary?.avg30 ?? null}
+                avg7ColorClass={getRangeColorClass(pulseTileSummary?.avg7, {
+                  range: hasRestingHr ? pulseDisplayRange : null,
                 })}
-                avg30ColorClass={getRangeColorClass(p?.avg30, {
-                  range: pulseDisplayRange,
+                avg30ColorClass={getRangeColorClass(pulseTileSummary?.avg30, {
+                  range: hasRestingHr ? pulseDisplayRange : null,
                 })}
                 avg7Hint={getRangeHint(
                   "bpm",
-                  { range: pulseDisplayRange },
+                  { range: hasRestingHr ? pulseDisplayRange : null },
                   t,
                   fmt.number,
                 )}
                 avg30Hint={getRangeHint(
                   "bpm",
-                  { range: pulseDisplayRange },
+                  { range: hasRestingHr ? pulseDisplayRange : null },
                   t,
                   fmt.number,
                 )}
-                slope30={p?.slope30 ?? null}
-                trend7Delta={summaryToTrend7Delta(p)}
+                slope30={pulseTileSummary?.slope30 ?? null}
+                trend7Delta={summaryToTrend7Delta(pulseTileSummary)}
                 icon={TrendingUp}
                 compareBaseline={compareBaseline}
-                compareDelta={tileCompareDelta(p)}
-                staleDays={tileStaleDays("PULSE")}
+                compareDelta={tileCompareDelta(pulseTileSummary)}
+                staleDays={tileStaleDays(hasRestingHr ? "RESTING_HEART_RATE" : "PULSE")}
               />
             ),
           });
@@ -1474,11 +1485,15 @@ export default function DashboardPage() {
               <HealthChartDynamic
                 key="pulse-chart"
                 chartKey="pulse"
-                types={["PULSE"]}
+                // v1.15.12 A2 — chart the RESTING series against the
+                // resting band when available; otherwise chart raw heart
+                // rate WITHOUT the resting-band overlay (it would mark
+                // expected-high workout HR as "outside target").
+                types={hasRestingHr ? ["RESTING_HEART_RATE"] : ["PULSE"]}
                 title={t("dashboard.pulse")}
                 colors={["#50fa7b"]}
                 unit="bpm"
-                valueBands={pulseBands}
+                valueBands={hasRestingHr ? pulseBands : undefined}
                 compareBaseline={compareBaseline}
                 userTimezone={user?.timezone}
               />

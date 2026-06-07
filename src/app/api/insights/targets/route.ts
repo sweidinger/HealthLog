@@ -27,6 +27,7 @@ import {
   classifyPulseByTarget,
   getPersonalizedPulseTarget,
 } from "@/lib/analytics/pulse-targets";
+import { resolveRestingPulseSeries } from "@/lib/analytics/resting-pulse";
 import type {
   MeasurementType,
   GlucoseContext,
@@ -185,6 +186,12 @@ async function buildTargetsResponse(user: AuthedUser) {
     "BLOOD_PRESSURE_SYS",
     "BLOOD_PRESSURE_DIA",
     "PULSE",
+    // v1.15.12 A2 — the "Resting pulse" tile scores RESTING_HEART_RATE
+    // (Apple's clean daily resting figure) against the resting band,
+    // falling back to a low-percentile PULSE proxy. Pull the resting rows
+    // alongside so the consistency strip uses resting data, not raw HR
+    // polluted by workout samples.
+    "RESTING_HEART_RATE",
     "BODY_FAT",
     "ACTIVITY_STEPS",
   ];
@@ -705,35 +712,87 @@ async function buildTargetsResponse(user: AuthedUser) {
     });
   }
 
-  // 3. Pulse
+  // 3. Resting pulse
+  //
+  // v1.15.12 A2 — judge the RESTING band against a RESTING series, not
+  // the raw PULSE stream (which Apple Health fills with workout HR). We
+  // prefer RESTING_HEART_RATE; when the user has none we fall back to a
+  // low-percentile-of-daily-PULSE proxy. The resting series drives the
+  // tile's current / average / consistency / classification so a workout
+  // burst no longer reads "outside target".
   const pulseTarget = getPersonalizedPulseTarget(age, gender);
-  let pulseClassification: { category: string; color: string } | null = null;
-  if (latestByType.PULSE != null) {
-    const cls = classifyPulseByTarget(latestByType.PULSE, pulseTarget);
-    pulseClassification = { category: cls.category, color: cls.color };
-  }
   {
+    const restingResolved = resolveRestingPulseSeries({
+      restingSamples: recentMeasurements
+        .filter((m) => m.type === "RESTING_HEART_RATE")
+        .map((m) => ({ measuredAt: m.measuredAt, value: m.value })),
+      pulseSamples: recentMeasurements
+        .filter((m) => m.type === "PULSE")
+        .map((m) => ({ measuredAt: m.measuredAt, value: m.value })),
+      dayKeyOf: dayKey,
+    });
+    const restingEvents = restingResolved.series;
+    // Current = most recent resting value; average30 = resting mean.
+    const restingCurrent =
+      restingEvents.length > 0
+        ? restingEvents[restingEvents.length - 1].value
+        : null;
+    const restingAvg30 =
+      restingEvents.length > 0
+        ? Math.round(
+            (restingEvents.reduce((s, e) => s + e.value, 0) /
+              restingEvents.length) *
+              10,
+          ) / 10
+        : null;
+
+    let pulseClassification: { category: string; color: string } | null = null;
+    if (restingCurrent != null) {
+      const cls = classifyPulseByTarget(restingCurrent, pulseTarget);
+      pulseClassification = { category: cls.category, color: cls.color };
+    }
+
     const pulseRange = {
       min: pulseTarget.greenMin,
       max: pulseTarget.greenMax,
     };
     const consistency = rollupConsistency(
-      recentMeasurements.filter((m) => m.type === "PULSE"),
+      restingEvents,
       makeRangeClassifier(pulseRange, {
         orangeMin: pulseTarget.orangeMin,
         orangeMax: pulseTarget.orangeMax,
       }),
     );
+    // Trend over the resting series (first-half vs second-half mean).
+    let restingTrend: "up" | "down" | "stable" | null = null;
+    if (restingEvents.length >= 4) {
+      const sorted = [...restingEvents].sort(
+        (a, b) => a.measuredAt.getTime() - b.measuredAt.getTime(),
+      );
+      const mid = Math.floor(sorted.length / 2);
+      const avgFirst =
+        sorted.slice(0, mid).reduce((s, e) => s + e.value, 0) / mid;
+      const avgSecond =
+        sorted.slice(mid).reduce((s, e) => s + e.value, 0) /
+        (sorted.length - mid);
+      const diff = avgSecond - avgFirst;
+      const threshold = avgFirst * 0.02;
+      restingTrend = diff > threshold ? "up" : diff < -threshold ? "down" : "stable";
+    }
+
     targets.push({
       type: "PULSE",
       label: "Resting pulse",
-      current: latestByType.PULSE ?? null,
-      average30: avg30ByType.PULSE ?? null,
-      trend: computeTrend("PULSE"),
+      current: restingCurrent,
+      average30: restingAvg30,
+      trend: restingTrend,
       unit: "bpm",
       range: pulseRange,
       classification: pulseClassification,
-      source: pulseTarget.source,
+      source:
+        restingResolved.which === "proxy"
+          ? `${pulseTarget.source} (estimated from heart rate)`
+          : pulseTarget.source,
       ...consistency,
     });
   }
