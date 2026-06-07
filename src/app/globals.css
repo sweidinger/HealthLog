@@ -513,6 +513,37 @@
   pointer-events: none;
 }
 
+/*
+ * v1.15.12 (F1/F3) — `.wellness-detail-card` is the score-anatomy detail
+ * surface, deepened to match the dashboard ring tile the user tapped.
+ *
+ *   F1 — carries the SAME per-metric `--tile-hue` mix over the theme `--card`
+ *        as `.wellness-tile`, so the tap-through reads as the same surface
+ *        rather than a plain bordered card. The hue is set inline per metric.
+ *   F3 — a SUBTLE vertical gradient that lightens toward the BOTTOM: the top
+ *        carries a touch more of the hue (16%) and it eases to 6% at the foot,
+ *        giving the card a premium, lit-from-below depth. Theme-aware by
+ *        construction — both stops mix over the theme `--card`, so it stays
+ *        luminous on the white Alucard card and rich on the dark Dracula one.
+ *        Kept minimal (a 10pp swing) so it never reads as a heavy slab.
+ *
+ * Static, no hover lift (it is a page surface, not a tap target) — so it
+ * needs no reduced-motion handling.
+ */
+.wellness-detail-card {
+  --tile-hue: var(--dracula-purple);
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--tile-hue) 16%, var(--card)) 0%,
+    color-mix(in srgb, var(--tile-hue) 6%, var(--card)) 100%
+  );
+  border: 1px solid color-mix(in srgb, var(--tile-hue) 22%, transparent);
+  box-shadow: 0 12px 34px -28px
+    color-mix(in srgb, var(--tile-hue) 42%, transparent);
+}
+
 @media (hover: hover) {
   .wellness-tile:hover {
     transform: translateY(-2px);

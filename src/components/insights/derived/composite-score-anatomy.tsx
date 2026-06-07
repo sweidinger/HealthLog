@@ -12,6 +12,7 @@ import {
   ScoreAnatomyView,
   type AnatomyContributor,
 } from "./score-anatomy-view";
+import type { RingHue } from "./ring-hues";
 import { METRIC_PROVENANCE } from "./standards";
 
 /**
@@ -50,6 +51,20 @@ export interface CompositeScoreAnatomyProps {
   metric: AnatomyMetricId;
   className?: string;
 }
+
+/**
+ * v1.15.12 F1 — each anatomy metric maps to the same ring hue its dashboard
+ * tile wears, so the detail card carries the matching tint + the ring arc
+ * leans the same colour (continuity from the tile tap). Mirrors the per-metric
+ * `hue` the wellness strip passes its `RingTile`s.
+ */
+const METRIC_HUE: Record<AnatomyMetricId, RingHue> = {
+  SLEEP_SCORE: "sleep",
+  READINESS: "readiness",
+  RECOVERY_SCORE: "recovery",
+  STRESS_SCORE: "stress",
+  STRAIN_SCORE: "strain",
+};
 
 export function CompositeScoreAnatomy({
   metric,
@@ -117,6 +132,7 @@ export function CompositeScoreAnatomy({
       <ScoreAnatomyView
         title={title}
         score={null}
+        hue={METRIC_HUE[metric]}
         contributors={[]}
         coverage={{
           requiredInputs: 1,
@@ -181,6 +197,7 @@ export function CompositeScoreAnatomy({
     <ScoreAnatomyView
       title={title}
       score={score}
+      hue={METRIC_HUE[metric]}
       caption={caption}
       contributors={contributors}
       coverage={data.coverage}

@@ -53,7 +53,27 @@ describe("<ScoreAnatomyView>", () => {
     expect(html).toContain('data-contributor="respiratory"');
     expect(html).toContain('data-present="false"');
     expect(html).toContain('data-slot="provenance-explainer-trigger"');
-    expect(html).toContain('data-slot="score-anatomy-disclaimer"');
+    // v1.15.12 F4 — the "keine klinische Bewertung" footer line is removed;
+    // the non-clinical framing now lives behind the provenance explainer.
+    expect(html).not.toContain('data-slot="score-anatomy-disclaimer"');
+  });
+
+  it("tints the card + leans the ring hue when a hue is passed (F1)", () => {
+    const html = render(
+      <ScoreAnatomyView
+        title="Readiness"
+        score={74}
+        hue="readiness"
+        contributors={CONTRIBUTORS}
+        coverage={COVERAGE}
+        confidence={CONFIDENCE}
+        provenance={PROVENANCE}
+        method="A blend of deviation components."
+      />,
+    );
+    expect(html).toContain('data-tinted="true"');
+    expect(html).toContain("wellness-detail-card");
+    expect(html).toContain("--tile-hue");
   });
 
   it("renders the insufficient state with the provisional ring + nudge", () => {
