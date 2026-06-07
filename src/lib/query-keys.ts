@@ -297,6 +297,9 @@ export const queryKeys = {
 
   apiVersion: () => ["api", "version"] as const,
   publicVersion: () => ["public", "version"] as const,
+  /** v1.15.12 H1 — admin overview "update available" check against the
+   * latest GitHub release tag (best-effort, day-stale). */
+  versionUpdateCheck: () => ["version", "update-check"] as const,
   researchMode: () => ["research-mode"] as const,
   moodlogStatus: () => ["moodlog-status"] as const,
   integrationsStatus: () => ["integrations", "status"] as const,
