@@ -8,6 +8,7 @@ import type {
   DerivedConfidence,
   DerivedProvenance,
 } from "@/lib/insights/derived/types";
+import type { DerivedAssessment } from "@/lib/insights/derived/derived-assessment";
 
 /**
  * v1.10.0 — the single TanStack Query hook for the generic derived-metric
@@ -44,6 +45,17 @@ export interface DerivedMetricResponse<T> {
   confidence: DerivedConfidence | null;
   provenance: DerivedProvenance;
   reason: string | null;
+  /**
+   * v1.13.2 — the per-score "why is this score what it is" assessment
+   * ({ text, source, updatedAt }). Populated only for the assessable scores
+   * (READINESS, SLEEP_SCORE, RECOVERY_SCORE, STRAIN_SCORE, STRESS_SCORE) when
+   * `status === "ok"`, null otherwise. The single-metric route serves the
+   * AI-warm prose (falling back to the deterministic template); the batch route
+   * serves the cheap deterministic text only. Optional on the wire shape so
+   * grid reads that drop it stay typed. v1.15.12 B3 surfaces it on the web
+   * score-anatomy detail page (it already shipped to iOS in v1.13.2).
+   */
+  assessment?: DerivedAssessment | null;
 }
 
 export interface UseDerivedMetricOptions {
