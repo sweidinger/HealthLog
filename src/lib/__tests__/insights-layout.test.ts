@@ -1,0 +1,207 @@
+/**
+ * v1.15.11 — insights layout model v2.
+ *
+ * The layout blob grew a `sections` array on top of the existing per-
+ * metric `tiles` list. These tests pin the v2 contract that the
+ * `/insights` page (web) and the iOS client share: a v1 blob resolves
+ * forward untouched, section reorder/hide round-trips, unknown section
+ * ids auto-merge invisible then drop on serialize, and an omitted
+ * `sections` / `tiles` field falls back to defaults.
+ */
+import { describe, it, expect } from "vitest";
+import {
+  INSIGHTS_SECTION_IDS,
+  DEFAULT_INSIGHTS_LAYOUT,
+  resolveInsightsLayout,
+  serializeInsightsLayout,
+} from "@/lib/insights-layout";
+
+describe("insights-layout v2 — section id universe", () => {
+  it("carries exactly the eight default sections in render order", () => {
+    expect([...INSIGHTS_SECTION_IDS]).toEqual([
+      "wellness-scores",
+      "daily-briefing",
+      "vitals",
+      "trends",
+      "period-review",
+      "cycle-summary",
+      "signals",
+      "rhythm-events",
+    ]);
+  });
+
+  it("defaults every section visible with a dense 0-based order", () => {
+    expect(DEFAULT_INSIGHTS_LAYOUT.version).toBe(2);
+    expect(DEFAULT_INSIGHTS_LAYOUT.sections.length).toBe(
+      INSIGHTS_SECTION_IDS.length,
+    );
+    DEFAULT_INSIGHTS_LAYOUT.sections.forEach((s, i) => {
+      expect(s.visible).toBe(true);
+      expect(s.order).toBe(i);
+      expect(s.id).toBe(INSIGHTS_SECTION_IDS[i]);
+    });
+  });
+});
+
+describe("resolveInsightsLayout — v1 → v2 forward upgrade", () => {
+  it("fills all sections default-visible and leaves tiles untouched for a v1 blob", () => {
+    const v1blob = {
+      version: 1,
+      tiles: [
+        { id: "overview", visible: true, order: 0 },
+        { id: "blood-pressure", visible: false, order: 1 },
+      ],
+    };
+    const resolved = resolveInsightsLayout(v1blob);
+
+    // Upgraded to v2 with the full default section set, all visible.
+    expect(resolved.version).toBe(2);
+    expect(resolved.sections.length).toBe(INSIGHTS_SECTION_IDS.length);
+    for (const s of resolved.sections) expect(s.visible).toBe(true);
+    expect(resolved.sections.map((s) => s.id)).toEqual([
+      ...INSIGHTS_SECTION_IDS,
+    ]);
+
+    // The two saved tiles survive verbatim at the head; the rest merge.
+    expect(resolved.tiles[0]).toEqual({
+      id: "overview",
+      visible: true,
+      order: 0,
+    });
+    expect(resolved.tiles[1]).toEqual({
+      id: "blood-pressure",
+      visible: false,
+      order: 1,
+    });
+  });
+
+  it("returns the full default layout for garbage input", () => {
+    expect(resolveInsightsLayout(null).sections.length).toBe(
+      INSIGHTS_SECTION_IDS.length,
+    );
+    expect(resolveInsightsLayout({ version: 2 }).sections.length).toBe(
+      INSIGHTS_SECTION_IDS.length,
+    );
+  });
+});
+
+describe("resolveInsightsLayout — section semantics", () => {
+  it("auto-merges a missing default section default-invisible", () => {
+    const resolved = resolveInsightsLayout({
+      version: 2,
+      sections: [{ id: "vitals", visible: true, order: 0 }],
+      tiles: [{ id: "overview", visible: true, order: 0 }],
+    });
+    const vitals = resolved.sections.find((s) => s.id === "vitals");
+    const trends = resolved.sections.find((s) => s.id === "trends");
+    expect(vitals?.visible).toBe(true);
+    // Every section the blob omitted merges in default-invisible.
+    expect(trends?.visible).toBe(false);
+    expect(resolved.sections.length).toBe(INSIGHTS_SECTION_IDS.length);
+  });
+
+  it("drops an unknown section id (auto-merge then filter)", () => {
+    // `resolveInsightsLayout` takes `unknown` (a raw JSON blob from the
+    // column), so a garbage section id models a malformed/forward blob.
+    const blob: unknown = {
+      version: 2,
+      sections: [
+        { id: "vitals", visible: true, order: 0 },
+        { id: "not-a-section", visible: true, order: 1 },
+      ],
+      tiles: [{ id: "overview", visible: true, order: 0 }],
+    };
+    const resolved = resolveInsightsLayout(blob);
+    expect(
+      resolved.sections.some((s) => (s.id as string) === "not-a-section"),
+    ).toBe(false);
+    expect(resolved.sections.length).toBe(INSIGHTS_SECTION_IDS.length);
+  });
+
+  it("dedupes a repeated section id, keeping the first occurrence", () => {
+    const resolved = resolveInsightsLayout({
+      version: 2,
+      sections: [
+        { id: "vitals", visible: true, order: 0 },
+        { id: "vitals", visible: false, order: 1 },
+      ],
+      tiles: [{ id: "overview", visible: true, order: 0 }],
+    });
+    const vitalsRows = resolved.sections.filter((s) => s.id === "vitals");
+    expect(vitalsRows.length).toBe(1);
+    expect(vitalsRows[0]?.visible).toBe(true);
+  });
+});
+
+describe("section reorder + hide round-trips through serialize → resolve", () => {
+  it("preserves a custom order + hidden flag", () => {
+    const reordered = {
+      version: 2,
+      sections: [
+        { id: "trends", visible: true, order: 0 },
+        { id: "wellness-scores", visible: false, order: 1 },
+        { id: "vitals", visible: true, order: 2 },
+      ],
+      tiles: [{ id: "overview", visible: true, order: 0 }],
+    };
+    const serialized = serializeInsightsLayout(reordered);
+    const resolved = resolveInsightsLayout(serialized);
+
+    // The three explicitly-ordered sections lead in their chosen order.
+    expect(resolved.sections[0]?.id).toBe("trends");
+    expect(resolved.sections[1]?.id).toBe("wellness-scores");
+    expect(resolved.sections[1]?.visible).toBe(false);
+    expect(resolved.sections[2]?.id).toBe("vitals");
+    // Orders stay dense 0-based.
+    resolved.sections.forEach((s, i) => expect(s.order).toBe(i));
+  });
+});
+
+describe("serializeInsightsLayout — defaults + dense order", () => {
+  it("fills section defaults when the input omits sections", () => {
+    const serialized = serializeInsightsLayout({
+      version: 2,
+      tiles: [{ id: "overview", visible: true, order: 0 }],
+    });
+    expect(serialized.sections.length).toBe(INSIGHTS_SECTION_IDS.length);
+    for (const s of serialized.sections) expect(s.visible).toBe(true);
+  });
+
+  it("fills tile defaults when the input omits tiles", () => {
+    const serialized = serializeInsightsLayout({
+      version: 2,
+      sections: [{ id: "vitals", visible: true, order: 0 }],
+    });
+    expect(serialized.tiles.length).toBe(DEFAULT_INSIGHTS_LAYOUT.tiles.length);
+  });
+
+  it("normalises sparse section orders to a dense 0-based sequence", () => {
+    const serialized = serializeInsightsLayout({
+      version: 2,
+      sections: [
+        { id: "vitals", visible: true, order: 40 },
+        { id: "trends", visible: true, order: 10 },
+        { id: "signals", visible: false, order: 99 },
+      ],
+      tiles: [{ id: "overview", visible: true, order: 0 }],
+    });
+    // Sorted by input order, then re-numbered 0,1,2.
+    expect(serialized.sections.map((s) => ({ id: s.id, order: s.order }))).toEqual([
+      { id: "trends", order: 0 },
+      { id: "vitals", order: 1 },
+      { id: "signals", order: 2 },
+    ]);
+  });
+
+  it("drops unknown section ids on serialize", () => {
+    const serialized = serializeInsightsLayout({
+      version: 2,
+      sections: [
+        { id: "vitals", visible: true, order: 0 },
+        { id: "bogus", visible: true, order: 1 },
+      ],
+      tiles: [{ id: "overview", visible: true, order: 0 }],
+    });
+    expect(serialized.sections.map((s) => s.id)).toEqual(["vitals"]);
+  });
+});

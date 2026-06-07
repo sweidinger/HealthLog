@@ -103,7 +103,7 @@ describe("GET /api/insights/layout", () => {
     const body = (await res.json()) as {
       data: typeof DEFAULT_INSIGHTS_LAYOUT;
     };
-    expect(body.data.version).toBe(1);
+    expect(body.data.version).toBe(2);
     expect(body.data.tiles.length).toBe(DEFAULT_INSIGHTS_LAYOUT.tiles.length);
     expect(body.data.tiles[0]?.id).toBe(DEFAULT_INSIGHTS_LAYOUT.tiles[0]?.id);
   });
@@ -185,7 +185,7 @@ describe("PUT /api/insights/layout — happy path", () => {
     vi.mocked(prisma.user.update).mockResolvedValue({} as never);
 
     const payload = {
-      version: 1,
+      version: 2,
       tiles: [
         { id: "overview", visible: true, order: 0 },
         { id: "blood-pressure", visible: true, order: 1 },
@@ -219,7 +219,7 @@ describe("PUT /api/insights/layout — happy path", () => {
     vi.mocked(prisma.user.update).mockResolvedValue({} as never);
 
     const payload = {
-      version: 1,
+      version: 2,
       tiles: [
         { id: "overview", visible: true, order: 0 },
         { id: "blutdruck", visible: true, order: 1 },
@@ -279,7 +279,7 @@ describe("PUT /api/insights/layout — full metric-slug universe", () => {
       visible: order % 2 === 0,
       order,
     }));
-    const res = await callPut(makeReq({ version: 1, tiles }));
+    const res = await callPut(makeReq({ version: 2, tiles }));
     // No 422 — these are all canonical sub-page slugs now.
     expect(res.status).toBe(200);
 
@@ -300,7 +300,7 @@ describe("PUT /api/insights/layout — full metric-slug universe", () => {
       visible: true,
       order,
     }));
-    const res = await callPut(makeReq({ version: 1, tiles }));
+    const res = await callPut(makeReq({ version: 2, tiles }));
     expect(res.status).toBe(200);
 
     const body = (await res.json()) as {
@@ -341,7 +341,7 @@ describe("PUT /api/insights/layout — full metric-slug universe", () => {
   it("still rejects a genuinely-unknown id even with the wider set", async () => {
     const res = await callPut(
       makeReq({
-        version: 1,
+        version: 2,
         tiles: [
           { id: "blood-glucose", visible: true, order: 0 },
           { id: "not-a-metric-at-all", visible: true, order: 1 },
@@ -360,7 +360,7 @@ describe("PUT /api/insights/layout — full metric-slug universe", () => {
 
 describe("PUT /api/insights/layout — 422 multi-issue envelope", () => {
   it("surfaces TWO simultaneous validation errors under details.issues", async () => {
-    const res = await callPut(makeReq({ version: 2, tiles: [] }));
+    const res = await callPut(makeReq({ version: 99, tiles: [] }));
     expect(res.status).toBe(422);
 
     const body = (await res.json()) as {
@@ -384,7 +384,7 @@ describe("PUT /api/insights/layout — 422 multi-issue envelope", () => {
   it("rejects an unknown tile id", async () => {
     const res = await callPut(
       makeReq({
-        version: 1,
+        version: 2,
         tiles: [{ id: "not-a-real-tile", visible: true, order: 0 }],
       }),
     );
@@ -398,7 +398,7 @@ describe("PUT /api/insights/layout — 422 multi-issue envelope", () => {
   });
 
   it("writes one audit-ledger row keyed insights.layout.validation-failed", async () => {
-    const res = await callPut(makeReq({ version: 2, tiles: [] }));
+    const res = await callPut(makeReq({ version: 99, tiles: [] }));
     expect(res.status).toBe(422);
 
     await new Promise((r) => setTimeout(r, 5));
@@ -422,9 +422,9 @@ describe("PUT /api/insights/layout — 422 multi-issue envelope", () => {
   });
 
   it("dedups the audit-ledger write across two sequential 422s for the same user", async () => {
-    const res1 = await callPut(makeReq({ version: 2, tiles: [] }));
+    const res1 = await callPut(makeReq({ version: 99, tiles: [] }));
     expect(res1.status).toBe(422);
-    const res2 = await callPut(makeReq({ version: 2, tiles: [] }));
+    const res2 = await callPut(makeReq({ version: 99, tiles: [] }));
     expect(res2.status).toBe(422);
 
     await new Promise((r) => setTimeout(r, 5));
@@ -440,7 +440,7 @@ describe("PUT /api/insights/layout — 422 multi-issue envelope", () => {
   });
 
   it("surfaces received_keys + received_shape_excerpt + zod_issues in the wide-event meta", async () => {
-    const payload = { version: 2, tiles: [], extraGarbage: "from-ios" };
+    const payload = { version: 99, tiles: [], extraGarbage: "from-ios" };
     const res = await callPut(makeReq(payload));
     expect(res.status).toBe(422);
 
@@ -508,12 +508,108 @@ describe("PUT /api/insights/layout — 422 multi-issue envelope", () => {
       new Error("db down"),
     );
 
-    const res = await callPut(makeReq({ version: 2, tiles: [] }));
+    const res = await callPut(makeReq({ version: 99, tiles: [] }));
     expect(res.status).toBe(422);
     const body = (await res.json()) as {
       details: { issues: Array<unknown> };
     };
     expect(body.details.issues.length).toBe(2);
+  });
+});
+
+describe("PUT /api/insights/layout — v2 sections", () => {
+  it("persists a sections array alongside tiles", async () => {
+    vi.mocked(prisma.user.update).mockResolvedValue({} as never);
+
+    const payload = {
+      version: 2,
+      sections: [
+        { id: "vitals", visible: true, order: 0 },
+        { id: "daily-briefing", visible: false, order: 1 },
+        { id: "wellness-scores", visible: true, order: 2 },
+      ],
+      tiles: [{ id: "overview", visible: true, order: 0 }],
+    };
+    const res = await callPut(makeReq(payload));
+    expect(res.status).toBe(200);
+
+    const body = (await res.json()) as {
+      data: { sections: Array<{ id: string; visible: boolean; order: number }> };
+    };
+    // Saved sections surface in saved order, dense 0-based.
+    expect(body.data.sections[0]).toEqual({
+      id: "vitals",
+      visible: true,
+      order: 0,
+    });
+    expect(body.data.sections[1]).toEqual({
+      id: "daily-briefing",
+      visible: false,
+      order: 1,
+    });
+    // PUT persists exactly the sent sections (serialize, not resolve);
+    // the read path merges any missing defaults back in.
+    expect(body.data.sections.map((s) => s.id)).toEqual([
+      "vitals",
+      "daily-briefing",
+      "wellness-scores",
+    ]);
+  });
+
+  it("succeeds when the body omits sections (backward-compat iOS client)", async () => {
+    vi.mocked(prisma.user.update).mockResolvedValue({} as never);
+
+    const res = await callPut(
+      makeReq({
+        version: 2,
+        tiles: [{ id: "overview", visible: true, order: 0 }],
+      }),
+    );
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      data: { sections: Array<{ id: string; visible: boolean }> };
+    };
+    // Defaults fill in, all visible.
+    expect(body.data.sections.length).toBeGreaterThan(0);
+    for (const s of body.data.sections) expect(s.visible).toBe(true);
+  });
+
+  it("succeeds when the body omits tiles (section-only PUT)", async () => {
+    vi.mocked(prisma.user.update).mockResolvedValue({} as never);
+
+    const res = await callPut(
+      makeReq({
+        version: 2,
+        sections: [{ id: "vitals", visible: true, order: 0 }],
+      }),
+    );
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      data: {
+        sections: Array<{ id: string }>;
+        tiles: Array<{ id: string }>;
+      };
+    };
+    // tiles fall back to the canonical default set.
+    expect(body.data.tiles.length).toBe(DEFAULT_INSIGHTS_LAYOUT.tiles.length);
+    expect(body.data.sections.some((s) => s.id === "vitals")).toBe(true);
+  });
+
+  it("rejects an unknown section id", async () => {
+    const res = await callPut(
+      makeReq({
+        version: 2,
+        sections: [{ id: "not-a-section", visible: true, order: 0 }],
+        tiles: [{ id: "overview", visible: true, order: 0 }],
+      }),
+    );
+    expect(res.status).toBe(422);
+    const body = (await res.json()) as {
+      details: { issues: Array<{ path: string }> };
+    };
+    expect(
+      body.details.issues.some((i) => i.path.startsWith("sections")),
+    ).toBe(true);
   });
 });
 

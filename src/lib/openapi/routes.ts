@@ -44,7 +44,10 @@ import {
   MEDICATION_TREATMENT_CLASS_VALUES,
 } from "@/lib/validations/medication";
 import { medicationExtractionSchema } from "@/lib/ai/coach/medication-extract-prompt";
-import { ACCEPTED_INSIGHTS_TILE_IDS } from "@/lib/insights-layout";
+import {
+  ACCEPTED_INSIGHTS_TILE_IDS,
+  INSIGHTS_SECTION_IDS,
+} from "@/lib/insights-layout";
 import { COACH_FACT_CATEGORIES } from "@/lib/ai/coach/facts";
 import { exportSelectionSchema } from "@/lib/validations/health-record-export";
 import { createShareLinkSchema } from "@/lib/validations/clinician-share-link";
@@ -2028,9 +2031,28 @@ medicationExtractionSchema.meta({
 // English id before persisting, and GET always returns canonical ids.
 // The legacy ids are accepted-but-deprecated and will be dropped from
 // the accepted set in a future major.
+// v1.15.11 — layout v2 adds an optional `sections` array on top of the
+// per-metric `tiles` list so the overview's big semantic blocks can be
+// reordered/hidden in their own right. `sections` is additive and
+// optional: a client PUTting only `tiles` (the pre-v2 iOS contract) still
+// validates, and a v1 blob resolves forward to a valid v2 layout with all
+// sections default-visible. Section ids are English from birth — no
+// legacy-alias widening. `tiles` is likewise optional now (a section-only
+// PUT fills the default tile set), but must carry at least one entry when
+// present.
 const insightsLayoutSchema = z
   .object({
-    version: z.literal(1),
+    version: z.literal(2),
+    sections: z
+      .array(
+        z.object({
+          id: z.enum(INSIGHTS_SECTION_IDS),
+          visible: z.boolean(),
+          order: z.number().int().min(0).max(99),
+        }),
+      )
+      .max(50)
+      .optional(),
     tiles: z
       .array(
         z.object({
@@ -2040,12 +2062,13 @@ const insightsLayoutSchema = z
         }),
       )
       .min(1)
-      .max(50),
+      .max(50)
+      .optional(),
   })
   .meta({
     id: "InsightsLayoutBody",
     description:
-      "Per-user Insights tile layout: an ordered list of tiles with a visibility flag. `version` is the layout schema version. Tile ids are a closed enum: the canonical ids are English (matching the routed `/insights/<slug>` sub-pages). The legacy German ids (blutdruck, puls, sauerstoff, koerpertemperatur, gewicht, aktive-energie, schlaf, ruhepuls, stimmung, medikamente) remain accepted on input for backward compatibility and are normalised to their English equivalents before persisting; GET responses always carry the canonical English ids. The legacy ids are deprecated and will be removed in a future major version.",
+      "Per-user Insights layout (v2). `tiles` is the per-metric pill list (ordered, with a visibility flag); `sections` is the additive v2 list of the overview's big semantic blocks (wellness-scores, daily-briefing, vitals, trends, period-review, cycle-summary, signals, rhythm-events), each with order + visibility. `version` is the layout schema version (2). Both arrays are optional on input — a client sending only `tiles` (the pre-v2 contract) still validates, and the server fills missing defaults; a v1 blob with no `sections` resolves forward with all sections default-visible. Tile ids are a closed enum: the canonical ids are English (matching the routed `/insights/<slug>` sub-pages). The legacy German tile ids (blutdruck, puls, sauerstoff, koerpertemperatur, gewicht, aktive-energie, schlaf, ruhepuls, stimmung, medikamente) remain accepted on input for backward compatibility and are normalised to their English equivalents before persisting; GET responses always carry the canonical English ids. Section ids are English-only. The legacy tile ids are deprecated and will be removed in a future major version.",
   });
 
 // v1.7.0 — health-record export selection. Strict shape: unknown keys
