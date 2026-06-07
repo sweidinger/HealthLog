@@ -221,7 +221,7 @@ export function CycleCalendar({
               }
               onClick={() => onSelectDay(date)}
               className={cn(
-                "relative flex aspect-square min-h-10 flex-col items-center justify-center rounded-lg text-sm transition-colors",
+                "relative flex aspect-square min-h-11 flex-col items-center justify-center rounded-lg text-sm transition-colors",
                 "hover:bg-accent focus-visible:ring-ring/50 focus-visible:ring-2 focus-visible:outline-none",
                 isToday && "font-semibold",
               )}
