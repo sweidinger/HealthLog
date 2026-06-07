@@ -73,7 +73,11 @@ export function MoodWeekdayChart({ weekday }: { weekday: MoodWeekdayRow[] }) {
 
   return (
     <div className="space-y-2">
-      <div className="aspect-[3/2] min-h-[160px] w-full">
+      {/* v1.15.14 — bounded compact height (was `aspect-[3/2] min-h-[160px]`,
+          which derived its height off the full card width and ballooned on a
+          wide viewport). A fixed band keeps it a tidy card matching the
+          distribution sibling. */}
+      <div className="h-[150px] w-full">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart
             data={data}
@@ -92,7 +96,15 @@ export function MoodWeekdayChart({ weekday }: { weekday: MoodWeekdayRow[] }) {
               stroke="var(--dracula-comment)"
               width={24}
             />
-            <ReferenceLine y={3.5} stroke="var(--dracula-green)" strokeDasharray="3 3" />
+            {/* v1.15.14 — calmer target guide: a muted comment-grey dashed
+                line instead of the bright green, so it reads as a quiet
+                reference rather than competing with the bars. */}
+            <ReferenceLine
+              y={3.5}
+              stroke="var(--dracula-comment)"
+              strokeDasharray="3 3"
+              strokeOpacity={0.6}
+            />
             <Tooltip
               cursor={{ fill: "var(--secondary)", opacity: 0.4 }}
               contentStyle={{
@@ -116,7 +128,11 @@ export function MoodWeekdayChart({ weekday }: { weekday: MoodWeekdayRow[] }) {
                 ];
               }}
             />
-            <Bar dataKey="value" radius={[3, 3, 0, 0]}>
+            {/* v1.15.14 — soften the saturated mood hues to a muted tint
+                (the level semantics still distinguish the bars; the fill no
+                longer shouts). Scoped here — the shared `--dracula-*` mood
+                tokens used by the heatmap/legend stay untouched. */}
+            <Bar dataKey="value" radius={[3, 3, 0, 0]} fillOpacity={0.55}>
               {data.map((row) => (
                 <Cell
                   key={row.weekday}

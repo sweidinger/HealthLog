@@ -43,9 +43,7 @@ const MoodDistributionChart = dynamic(
     })),
   {
     ssr: false,
-    loading: () => (
-      <Skeleton className="aspect-[3/2] min-h-[180px] w-full rounded-md" />
-    ),
+    loading: () => <Skeleton className="h-[150px] w-full rounded-md" />,
   },
 );
 const MoodWeekdayChart = dynamic(
@@ -55,9 +53,7 @@ const MoodWeekdayChart = dynamic(
     })),
   {
     ssr: false,
-    loading: () => (
-      <Skeleton className="aspect-[3/2] min-h-[160px] w-full rounded-md" />
-    ),
+    loading: () => <Skeleton className="h-[150px] w-full rounded-md" />,
   },
 );
 const MoodTimeOfDayChart = dynamic(
