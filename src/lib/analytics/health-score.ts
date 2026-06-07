@@ -8,7 +8,11 @@
  *
  * Formula (when every component is present):
  *   score = round(
- *     0.30 * bpInTargetRate       // % of paired BP readings inside band
+ *     0.30 * bpGradedScore        // v1.15.12 A1 — graded clinical
+ *                                 // proximity of a recency-weighted
+ *                                 // representative BP (was the binary
+ *                                 // bpInTargetRate, kept as a secondary
+ *                                 // "X% in range" stat)
  *   + 0.20 * weightTrendAlignment // 0..100, see weightTrendAlignment()
  *   + 0.20 * moodStability        // 0..100, see moodStability()
  *   + 0.30 * complianceRate       // mean of medication compliance30
@@ -79,8 +83,26 @@ export interface HealthScoreSourceAttribution {
 }
 
 export interface HealthScoreInput {
-  /** All-time BP-in-target rate, already 0..100 (or null). */
+  /**
+   * All-time BP-in-target rate, already 0..100 (or null).
+   *
+   * v1.15.12 A1 — this is now a SECONDARY honest stat ("X% of readings
+   * in range"), no longer the pillar score itself. When `bpGradedScore`
+   * is supplied it drives the pillar value; `bpInTargetRate` is kept so
+   * the pillar can still be computed (presence check) and the rate
+   * surfaced alongside. Legacy callers that omit `bpGradedScore` keep
+   * the pre-v1.15.12 behaviour where the rate IS the score.
+   */
   bpInTargetRate: number | null;
+  /**
+   * v1.15.12 A1 — graded clinical-proximity BP score, 0..100 (or null).
+   * Computed from a recency-weighted representative reading via
+   * `gradeBpScoreFromSeries`. When present it becomes the BP pillar
+   * value; the binary `bpInTargetRate` only decides presence and is
+   * surfaced as a secondary stat. Closes the "borderline-stage-1 reads
+   * 16/100" trust bug.
+   */
+  bpGradedScore?: number | null;
   /** Weight readings over the last 30 days, ascending or unsorted (we sort). */
   weightSeriesLast30d: Array<{ date: string; kg: number }>;
   /** User's stored target weight in kg, if any. */
@@ -328,8 +350,18 @@ export function computeHealthScore(
   input: HealthScoreInput,
   previous?: HealthScoreInput,
 ): HealthScoreResult {
+  // v1.15.12 A1 — the BP pillar value is the graded clinical-proximity
+  // score when supplied; otherwise it falls back to the legacy binary
+  // in-target rate (pre-v1.15.12 contract). The pillar is present only
+  // when the user actually has BP data — gated on `bpInTargetRate`
+  // (which the caller computes from paired readings) so a graded score
+  // can never resurrect a pillar that has no underlying readings.
   const bpValue =
-    input.bpInTargetRate === null ? null : clampToHundred(input.bpInTargetRate);
+    input.bpInTargetRate === null
+      ? null
+      : input.bpGradedScore !== undefined && input.bpGradedScore !== null
+        ? clampToHundred(input.bpGradedScore)
+        : clampToHundred(input.bpInTargetRate);
 
   const target = deriveWeightTarget(input.weightTargetKg);
   const weightValue = weightTrendAlignment(input.weightSeriesLast30d, target);

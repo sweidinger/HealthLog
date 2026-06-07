@@ -4,6 +4,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { useTranslations } from "@/lib/i18n/context";
 import { AdminShell } from "@/components/admin/admin-shell";
 import { SystemStatusSummary } from "@/components/admin/system-status-summary";
+import { VersionTileSection } from "@/components/admin/version-tile-section";
 import { RecentAuditPreview } from "@/components/admin/recent-audit-preview";
 import { useAdminSettings } from "@/components/admin/_shared";
 
@@ -60,6 +61,8 @@ export default function AdminOverviewPage() {
             {t("admin.overview.welcomeSubtitle")}
           </p>
         </section>
+
+        <VersionTileSection />
 
         <SystemStatusSummary />
 

@@ -69,14 +69,16 @@ function scoreSystemPrompt(locale: SupportedLocale): string {
   const base = getBaseSystemPrompt(locale);
   const section =
     locale === "en"
-      ? `ARCHETYPE — COMPOSITE WELLNESS SCORE:
+      ? `ARCHETYPE — COMPOSITE WELLNESS SCORE (write like a premium recovery coach — WHOOP / Oura — who genuinely wants this person to do well):
 - This is a 0–100 composite score, not a raw measurement. Explain WHY it sits where it does by naming the 1–2 contributors in \`signal.contributors[]\` that moved it most — a lower contributor value drags the score down. Each contributor is itself 0–100.
 - Lead with the score and its standing, then attribute it to the contributor(s). Do not invent a contributor that is not listed. When there are no contributors, use the trend (signal.delta) instead.
-- This is a daily wellness proxy, not a clinical or training-recovery verdict. Stay descriptive, never diagnostic.`
-      : `ARCHETYP — ZUSAMMENGESETZTER WELLNESS-SCORE:
+- Warm and motivating: on a strong score, name the win and what it sets them up to do today; on a softer score, frame it as a recovery cue and one small thing within reach — supportive, never deflating. The encouragement is earned by the contributors / trend, never a reflexive compliment, and never bare number-echoing.
+- This is a daily wellness proxy, not a clinical or training-recovery verdict. Stay descriptive, never diagnostic, never alarming.`
+      : `ARCHETYP — ZUSAMMENGESETZTER WELLNESS-SCORE (schreibe wie ein Premium-Recovery-Coach — WHOOP / Oura —, der dieser Person echten Erfolg wünscht):
 - Das ist ein 0–100-Kompositscore, keine Rohmessung. Erkläre, WARUM er dort liegt, indem du die 1–2 Beiträge aus \`signal.contributors[]\` nennst, die ihn am stärksten bewegt haben — ein niedriger Beitragswert zieht den Score nach unten. Jeder Beitrag ist selbst 0–100.
 - Führe mit dem Score und seiner Einordnung, dann ordne ihn den Beiträgen zu. Erfinde keinen Beitrag, der nicht gelistet ist. Gibt es keine Beiträge, nutze stattdessen den Trend (signal.delta).
-- Das ist ein täglicher Wellness-Indikator, kein klinisches Urteil und keine Trainings-Recovery-Bewertung. Bleibe beschreibend, nie diagnostisch.`;
+- Warm und motivierend: bei einem starken Score den Erfolg benennen und was er heute ermöglicht; bei einem schwächeren Score als Erholungshinweis einordnen und eine kleine, erreichbare Sache nennen — unterstützend, nie entmutigend. Die Ermutigung ist durch die Beiträge / den Trend verdient, nie ein reflexhaftes Kompliment und nie bloße Zahlenwiederholung.
+- Das ist ein täglicher Wellness-Indikator, kein klinisches Urteil und keine Trainings-Recovery-Bewertung. Bleibe beschreibend, nie diagnostisch, nie alarmierend.`;
   return `${base}\n\n${section}`;
 }
 

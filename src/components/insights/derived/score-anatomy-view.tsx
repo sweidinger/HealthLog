@@ -15,6 +15,7 @@ import {
   ProvenanceExplainer,
   type ProvenanceStandard,
 } from "./provenance-explainer";
+import { TILE_HUE, type RingHue } from "./ring-hues";
 import {
   bandForScore,
   BAND_PROGRESS_CLASS,
@@ -64,6 +65,14 @@ export interface ScoreAnatomyViewProps {
   score: number | null;
   /** Band override; derived from the score when omitted. */
   band?: ScoreBand;
+  /**
+   * v1.15.12 (F1/F2/F3) — the metric's ring hue. When set, the detail card
+   * carries the same gentle per-metric tint the dashboard ring tile wears
+   * (visual continuity from tap to detail) and the ring arc leans the same
+   * hue instead of the generic band gradient. Omitted → plain `--card` surface
+   * + band-coloured ring (the legacy look).
+   */
+  hue?: RingHue;
   /** Short caption under the ring (e.g. a band word or a one-line summary). */
   caption?: ReactNode;
   /** Ranked contributors (the caller pre-ranks; the view renders in order). */
@@ -86,6 +95,7 @@ export function ScoreAnatomyView({
   title,
   score,
   band,
+  hue,
   caption,
   contributors,
   coverage,
@@ -104,12 +114,37 @@ export function ScoreAnatomyView({
     <section
       data-slot="score-anatomy-view"
       data-status={insufficient ? "insufficient" : "ok"}
+      // v1.15.12 F1/F3 — when a `hue` is set, the detail card carries the same
+      // gentle `--tile-hue` mix + bottom-leaning gradient the dashboard ring
+      // tile wears (`.wellness-tile` family), so the tap-through reads as the
+      // same surface deepened. No hue → the plain bordered `--card` look.
+      data-tinted={hue ? "true" : undefined}
+      style={
+        hue
+          ? ({ "--tile-hue": TILE_HUE[hue] } as React.CSSProperties)
+          : undefined
+      }
       className={cn(
-        "border-border bg-card flex flex-col gap-5 rounded-xl border p-5",
+        "relative flex flex-col gap-5 rounded-xl border p-5",
+        hue
+          ? "wellness-detail-card"
+          : "border-border bg-card",
         className,
       )}
       aria-label={typeof title === "string" ? title : undefined}
     >
+      {/* v1.15.12 F5 — the ⓘ explainer is pinned TOP-right at heading height
+          (it used to trail the card at bottom-right). Absolute so it never
+          shifts the centred hero title; the trigger keeps its 44px touch
+          target + popover/sheet behaviour. */}
+      <div className="absolute top-3 right-3 z-10">
+        <ProvenanceExplainer
+          provenance={provenance}
+          method={method}
+          standard={standard}
+        />
+      </div>
+
       {/* Hero: title + ring + caption */}
       <div className="flex flex-col items-center gap-3 text-center">
         <h2
@@ -118,12 +153,17 @@ export function ScoreAnatomyView({
         >
           {title}
         </h2>
-        <ScoreRing
-          score={effectiveScore}
-          band={band}
-          label={t("insights.derived.anatomy.outOf")}
-          size="lg"
-        />
+        {/* v1.15.12 F2 — vertical breathing room so the ring's bloom/glow is
+            never clipped top/bottom by the hero container. */}
+        <div className="py-2">
+          <ScoreRing
+            score={effectiveScore}
+            band={band}
+            hue={insufficient ? undefined : hue}
+            label={t("insights.derived.anatomy.outOf")}
+            size="lg"
+          />
+        </div>
         {caption && !insufficient ? (
           <p
             data-slot="score-anatomy-caption"
@@ -160,20 +200,10 @@ export function ScoreAnatomyView({
         </div>
       )}
 
-      {/* Provenance + cited standard + the non-clinical disclaimer */}
-      <div className="flex items-center justify-between gap-2 border-t pt-3">
-        <p
-          data-slot="score-anatomy-disclaimer"
-          className="text-muted-foreground text-[10px] leading-snug"
-        >
-          {t("insights.derived.anatomy.disclaimer")}
-        </p>
-        <ProvenanceExplainer
-          provenance={provenance}
-          method={method}
-          standard={standard}
-        />
-      </div>
+      {/* v1.15.12 F4 — the "Richtwert — keine klinische Bewertung" footer line
+          is gone; the method + cited standard live behind the provenance
+          explainer (now top-right, F5), which carries the non-clinical framing
+          where it belongs. The composition (contributor rows above) stays. */}
     </section>
   );
 }

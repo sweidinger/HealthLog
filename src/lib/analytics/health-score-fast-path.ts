@@ -114,6 +114,20 @@ export interface HealthScoreFastPathInput {
    * additive.
    */
   bpInTargetPctPriorWeek?: number | null;
+  /**
+   * v1.15.12 A1 — graded clinical-proximity BP score (0..100) from a
+   * recency-weighted representative reading. When supplied it becomes
+   * the BP pillar VALUE; the binary `bpInTargetPct` only decides pillar
+   * presence and is surfaced as a secondary stat. Omit (legacy callers)
+   * to keep the pre-v1.15.12 behaviour where the rate IS the score.
+   */
+  bpGradedScore?: number | null;
+  /**
+   * v1.15.12 A1 — prior-week graded BP score for the week-over-week
+   * delta. Omit to fall back to `bpGradedScore` (BP cancels out of the
+   * delta), mirroring the `bpInTargetPctPriorWeek` fallback.
+   */
+  bpGradedScorePriorWeek?: number | null;
   heightCm: number | null;
   now: Date;
   /**
@@ -456,6 +470,9 @@ export async function computeUserHealthScoreFastPath(
 
   const current: HealthScoreInput = {
     bpInTargetRate: bpInTargetPct,
+    // v1.15.12 A1 — graded BP score drives the pillar value when present
+    // (the binary rate above only gates presence + is the secondary stat).
+    bpGradedScore: input.bpGradedScore ?? null,
     weightSeriesLast30d,
     weightTargetKg: fallbackTarget,
     moodEntriesLast30d: moodSeriesLast30d,
@@ -484,6 +501,13 @@ export async function computeUserHealthScoreFastPath(
   // stays single-pass.
   const previous: HealthScoreInput = {
     bpInTargetRate: bpInTargetPctPriorWeek,
+    // v1.15.12 A1 — prior-week graded score so the week-over-week delta
+    // reflects graded BP movement. Falls back to the current graded
+    // score (delta cancels to zero for BP) when the caller omits it.
+    bpGradedScore:
+      input.bpGradedScorePriorWeek === undefined
+        ? (input.bpGradedScore ?? null)
+        : input.bpGradedScorePriorWeek,
     weightSeriesLast30d: weightSeriesPrev30d,
     weightTargetKg: fallbackTarget,
     moodEntriesLast30d: moodSeriesPrev30d,

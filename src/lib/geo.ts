@@ -1,17 +1,19 @@
 /**
  * IP geolocation lookup for audit-log enrichment.
  *
- * v1.4.27 B3: offline-first resolver. The hot path is now a microsecond-
- * scale local read against the bundled MaxMind GeoLite2-City MMDB at
- * `/opt/geolite2/GeoLite2-City.mmdb` (and the matching GeoLite2-ASN
- * database for carrier lookups). The previous `ipwho.is` HTTPS path is
- * kept as the second-tier fallback for IPs the offline DB cannot
- * resolve (freshly-allocated ranges that lag the monthly GeoLite2
- * release roll).
+ * v1.15.12 E2: online-first resolver. The baseline that always works is
+ * the `ipwho.is` HTTPS lookup (free, no key) — every self-host resolves
+ * a location out of the box with no MaxMind licence configured. The
+ * bundled MaxMind GeoLite2-City MMDB at `/opt/geolite2/GeoLite2-City.mmdb`
+ * is an OPTIONAL upgrade: when the offline databases are present
+ * (`offlineGeoReady()`), the resolver prefers the microsecond-scale
+ * local read for both speed and zero egress; when they are absent it
+ * goes straight online.
  *
  *   1. Private / loopback / opt-out → null (no lookup).
- *   2. Offline MMDB hit → return immediately.
- *   3. Offline miss → fall back to the existing `ipwho.is` path.
+ *   2. Per-IP cache hit → return immediately.
+ *   3. Offline MMDB present → local read; on a miss fall through online.
+ *   4. Otherwise → online `ipwho.is` lookup.
  *
  * The legacy contract still holds: `lookupIpLocation` returns a
  * `"City, CC"` string or `null`, never throws. `lookupIpAsn` is the
@@ -29,17 +31,22 @@
  * skip the offline tier — local dev without the MMDBs still works and
  * falls straight back to the online provider.
  *
- * Default provider for the online fallback is ipwho.is (HTTPS, free,
+ * Default provider for the online lookup is ipwho.is (HTTPS, free,
  * no key). Both the response shape from ipwho.is and the fallback
  * ip-api.com pro endpoint are accepted, so swapping providers via
  * `IP_GEO_LOOKUP_URL` only requires matching one of those response
  * shapes.
  *
- * Setting `IP_GEO_LOOKUP_DISABLED=1` disables the online fallback
+ * Setting `IP_GEO_LOOKUP_DISABLED=1` disables the online lookup
  * entirely — used by deployments that do not want any IP egress to a
  * third-party service (V3 audit: GDPR Art. 32 + Art. 44, plaintext
- * HTTP IP egress). The offline tier still runs because no egress is
- * involved.
+ * HTTP IP egress). With egress disabled the resolver leans solely on
+ * the offline MMDB tier (and returns null when that is also absent).
+ *
+ * Resolved locations are cached per IP in a small in-memory LRU
+ * (`LOCATION_CACHE`) so a burst of audit events from the same client
+ * does not hammer ipwho.is — the cache holds both hits and misses
+ * (negative caching) for a bounded TTL.
  *
  * v1.4.16 A8a: the online-fallback body is decoded as UTF-8 explicitly
  * via `TextDecoder('utf-8')` instead of `Response.json()`, and an
@@ -88,6 +95,39 @@ const DEFAULT_GEO_URL = "https://ipwho.is";
 
 function geoLiteDir(): string {
   return process.env.GEOLITE2_DIR ?? "/opt/geolite2";
+}
+
+// ── Per-IP location cache ────────────────────────────────────────────
+//
+// v1.15.12 E1: the online tier is now the baseline path, so a burst of
+// audit events from the same address must not fan out one ipwho.is
+// request each. We cache the resolved "City, CC" string per IP for a
+// bounded TTL and also negative-cache misses (stored as null) so a
+// non-resolving IP doesn't re-hit the provider every time. The map is a
+// simple bounded FIFO — geo lookups are low-cardinality (a handful of
+// distinct client IPs per worker) so an exact LRU is overkill.
+
+const LOCATION_CACHE_TTL_MS = 6 * 60 * 60 * 1000; // 6 h
+const LOCATION_CACHE_MAX = 512;
+const LOCATION_CACHE = new Map<string, { value: string | null; at: number }>();
+
+function getCachedLocation(ip: string): { value: string | null } | null {
+  const hit = LOCATION_CACHE.get(ip);
+  if (!hit) return null;
+  if (Date.now() - hit.at > LOCATION_CACHE_TTL_MS) {
+    LOCATION_CACHE.delete(ip);
+    return null;
+  }
+  return { value: hit.value };
+}
+
+function setCachedLocation(ip: string, value: string | null): void {
+  // Bound the map: drop the oldest insertion when full.
+  if (LOCATION_CACHE.size >= LOCATION_CACHE_MAX) {
+    const oldest = LOCATION_CACHE.keys().next().value;
+    if (oldest !== undefined) LOCATION_CACHE.delete(oldest);
+  }
+  LOCATION_CACHE.set(ip, { value, at: Date.now() });
 }
 
 // ── Offline tier (MaxMind GeoLite2) ──────────────────────────────────
@@ -144,6 +184,7 @@ export function __resetGeoLite2CacheForTests(): void {
   cache.city = undefined;
   cache.asn = undefined;
   notifiedThisProcess = false;
+  LOCATION_CACHE.clear();
 }
 
 // ── Offline readiness + one-shot admin notification ─────────────────
@@ -303,7 +344,10 @@ async function lookupIpLocationOnline(ip: string): Promise<string | null> {
       // v1.11.2 — the lookup URL comes from the operator IP_GEO_LOOKUP_URL env;
       // pin the connect-time DNS check so it can't be pointed at a private /
       // metadata address (SSRF/rebinding).
-      { timeoutMs: 3_000, requirePublicHost: true },
+      // v1.15.12 E1 — keep the online timeout below the audit-log 3 s race
+      // window so a slow-but-successful lookup still lands before the race
+      // resolves null and drops the location (the "—" symptom on apps01).
+      { timeoutMs: 2_500, requirePublicHost: true },
     );
     if (!res.ok) return null;
 
@@ -329,18 +373,34 @@ export async function lookupIpLocation(
 ): Promise<string | null> {
   if (!ip || PRIVATE_IP.test(ip)) return null;
 
-  const offline = lookupIpLocationOffline(ip);
-  if (offline) return offline;
+  const cached = getCachedLocation(ip);
+  if (cached) return cached.value;
 
-  // First public-IP lookup that has to leave the offline tier — if the
-  // offline DBs are missing entirely, send the one-shot admin alert so
-  // the maintainer can wire `MAXMIND_LICENSE_KEY` when convenient. The
-  // notification is fire-and-forget so the audit-log path stays fast.
-  if (!offlineGeoReady()) {
+  // v1.15.12 E2 — online-first precedence. The optional MaxMind offline
+  // tier is preferred ONLY when its databases are actually present
+  // (`offlineGeoReady()`): a local hit is faster and egress-free. When
+  // the offline DBs are absent — the default for a self-host with no
+  // `MAXMIND_LICENSE_KEY` — we skip straight to the online provider,
+  // which is the baseline that always resolves a location.
+  if (offlineGeoReady()) {
+    const offline = lookupIpLocationOffline(ip);
+    if (offline) {
+      setCachedLocation(ip, offline);
+      return offline;
+    }
+    // Offline DBs present but this IP missed (freshly-allocated range
+    // lagging the monthly GeoLite2 roll) → fall through to online.
+  } else {
+    // No offline tier configured — fire the one-shot admin alert so the
+    // maintainer can wire `MAXMIND_LICENSE_KEY` for the offline upgrade
+    // when convenient. Online still resolves; the alert is informational.
+    // Fire-and-forget so the audit-log path stays fast.
     void notifyOfflineGeoUnavailable();
   }
 
-  return lookupIpLocationOnline(ip);
+  const online = await lookupIpLocationOnline(ip);
+  setCachedLocation(ip, online);
+  return online;
 }
 
 /**

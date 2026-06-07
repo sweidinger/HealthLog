@@ -2,6 +2,25 @@
 
 ## [Unreleased]
 
+## [1.15.12] — 2026-06-07 — a fairer health score and a richer overview
+
+### Fixed
+
+- **Blood pressure is scored fairly.** The Health Score's blood-pressure share used to be all-or-nothing per reading: a reading slightly over target counted exactly like one far over, so being consistently a little high collapsed the score even when you were well-controlled. It now grades by how close your readings sit to your target — recent readings weighted more — so "borderline" reads as borderline, not a crisis, while genuinely high pressure still scores low.
+- **Workout heart rate no longer counts against your resting pulse.** Apple Health files every heart-rate sample — including the hundreds recorded during a workout — under one type, and the resting-pulse view was scoring all of them against a resting range, so an active day looked "elevated." Resting-pulse surfaces now use your true resting heart rate (with a careful estimate when that isn't available), and raw heart rate is no longer judged against a resting target.
+- **The "in review" section is named "Rückblick"** and the spacing above it matches the rest of the overview.
+
+### Added
+
+- **Tap a wellness score for the full picture.** Readiness, Recovery, Sleep, Strain, and Stress now open a detail view with an explanation of what the score means and why it matters, the breakdown of how it's built, and a personal assessment of where you stand.
+- **A warmer, more motivating assessment voice** across the insight assessments — encouraging and grounded in your data, never generic.
+- **The running version on the admin overview**, with a hint when a newer release is available.
+
+### Changed
+
+- **Premium polish on the wellness detail view** — the detail card carries the score's colour, the ring has room to breathe, and the info control sits in the top corner.
+- **Self-hosted instances resolve a login's location online by default**, using a bundled offline database only when one is configured — so the admin login overview shows a location out of the box.
+
 ## [1.15.11] — 2026-06-07 — a customizable overview
 
 ### Added

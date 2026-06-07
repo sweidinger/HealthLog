@@ -1,8 +1,11 @@
 "use client";
 
+import { Sparkles } from "lucide-react";
+
 import { useTranslations } from "@/lib/i18n/context";
 import { useDerivedMetric } from "./use-derived-metric";
 import { Skeleton } from "@/components/ui/skeleton";
+import { InsightStatusCard } from "@/components/insights/insight-status-card";
 import type {
   ReadinessValue,
   SleepScoreValue,
@@ -12,6 +15,7 @@ import {
   ScoreAnatomyView,
   type AnatomyContributor,
 } from "./score-anatomy-view";
+import type { RingHue } from "./ring-hues";
 import { METRIC_PROVENANCE } from "./standards";
 
 /**
@@ -50,6 +54,20 @@ export interface CompositeScoreAnatomyProps {
   metric: AnatomyMetricId;
   className?: string;
 }
+
+/**
+ * v1.15.12 F1 — each anatomy metric maps to the same ring hue its dashboard
+ * tile wears, so the detail card carries the matching tint + the ring arc
+ * leans the same colour (continuity from the tile tap). Mirrors the per-metric
+ * `hue` the wellness strip passes its `RingTile`s.
+ */
+const METRIC_HUE: Record<AnatomyMetricId, RingHue> = {
+  SLEEP_SCORE: "sleep",
+  READINESS: "readiness",
+  RECOVERY_SCORE: "recovery",
+  STRESS_SCORE: "stress",
+  STRAIN_SCORE: "strain",
+};
 
 export function CompositeScoreAnatomy({
   metric,
@@ -117,6 +135,7 @@ export function CompositeScoreAnatomy({
       <ScoreAnatomyView
         title={title}
         score={null}
+        hue={METRIC_HUE[metric]}
         contributors={[]}
         coverage={{
           requiredInputs: 1,
@@ -177,20 +196,43 @@ export function CompositeScoreAnatomy({
     }
   }
 
+  // v1.15.12 B3 — the per-score AI assessment ("why is this score what it is")
+  // already rides the single `/api/insights/derived` route as `data.assessment`
+  // (shipped to iOS in v1.13.2); the web simply discarded it. Render it BELOW
+  // the anatomy card, reusing the same `<InsightStatusCard>` the metric
+  // sub-pages mount so it reads identically. The route always populates a
+  // non-empty assessment when the score `status === "ok"` (the deterministic
+  // template at minimum, warmer AI prose when a provider is configured), so a
+  // present `assessment` implies a real text — `hasProvider` is held true and
+  // the card always renders its prose rather than the no-provider fallback.
+  const assessment = data.assessment;
+
   return (
-    <ScoreAnatomyView
-      title={title}
-      score={score}
-      caption={caption}
-      contributors={contributors}
-      coverage={data.coverage}
-      confidence={data.confidence}
-      provenance={data.provenance}
-      method={method}
-      standard={standard}
-      insufficient={insufficient}
-      className={className}
-    />
+    <div className="space-y-3">
+      <ScoreAnatomyView
+        title={title}
+        score={score}
+        hue={METRIC_HUE[metric]}
+        caption={caption}
+        contributors={contributors}
+        coverage={data.coverage}
+        confidence={data.confidence}
+        provenance={data.provenance}
+        method={method}
+        standard={standard}
+        insufficient={insufficient}
+        className={className}
+      />
+      {assessment ? (
+        <InsightStatusCard
+          title={t("insights.assessmentTitle")}
+          icon={<Sparkles className="h-5 w-5" />}
+          text={assessment.text}
+          hasProvider
+          updatedAt={assessment.updatedAt}
+        />
+      ) : null}
+    </div>
   );
 }
 

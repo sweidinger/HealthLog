@@ -33,6 +33,21 @@ const SLUG_TO_METRIC: Record<string, AnatomyMetricId> = {
   strain: "STRAIN_SCORE",
 };
 
+/**
+ * v1.15.12 B1 — the explainer-body key suffix per score, feeding
+ * `insights.subPage.explainer.<suffix>Body` through `SubPageShell`'s
+ * `explainerMetric` prop (mirrors the metric sub-pages). `SLEEP_SCORE`
+ * uses a distinct `sleepScore` suffix so it never collides with the
+ * `sleep` metric's own explainer body.
+ */
+const EXPLAINER_METRIC: Record<AnatomyMetricId, string> = {
+  SLEEP_SCORE: "sleepScore",
+  READINESS: "readiness",
+  RECOVERY_SCORE: "recovery",
+  STRESS_SCORE: "stress",
+  STRAIN_SCORE: "strain",
+};
+
 /** Localised page header per metric (title + one-line description). */
 const HEADER_KEYS: Record<
   AnatomyMetricId,
@@ -71,6 +86,7 @@ export default function CompositeScorePage() {
     <SubPageShell
       title={t(header.title)}
       description={t(header.description)}
+      explainerMetric={EXPLAINER_METRIC[metric]}
       backLink={
         <Button
           asChild

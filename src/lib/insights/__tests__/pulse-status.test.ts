@@ -98,6 +98,104 @@ describe("generatePulseStatusForUser — graded payload", () => {
   });
 });
 
+describe("generatePulseStatusForUser — A2 resting-target in-target %", () => {
+  it("scores RESTING_HEART_RATE against the resting band, ignoring workout PULSE", async () => {
+    const now = new Date();
+    // PULSE polluted with a heavy workout burst (would tank the in-target
+    // % if scored against the resting band).
+    const pulseRecords: Array<{ value: number; measuredAt: Date }> = [];
+    for (let i = 0; i < 500; i++) {
+      pulseRecords.push({
+        value: 150,
+        measuredAt: new Date(now.getTime() - (i % 30) * dayMs),
+      });
+    }
+    // Clean resting series, comfortably inside a 60-100 band.
+    const restingRecords: Array<{ value: number; measuredAt: Date }> = [];
+    for (let d = 0; d < 20; d++) {
+      restingRecords.push({
+        value: 72,
+        measuredAt: new Date(now.getTime() - d * dayMs),
+      });
+    }
+
+    vi.mocked(prisma.user.findUnique).mockResolvedValue({
+      dateOfBirth: null,
+      gender: null,
+    } as never);
+    vi.mocked(prisma.auditLog.findFirst).mockResolvedValue(null);
+    // pulse-status reads PULSE first, then RESTING_HEART_RATE.
+    vi.mocked(prisma.measurement.findMany)
+      .mockResolvedValueOnce(pulseRecords as never)
+      .mockResolvedValueOnce(restingRecords as never)
+      .mockResolvedValue([] as never);
+    vi.mocked(prisma.moodEntry.findMany).mockResolvedValue([] as never);
+    vi.mocked(prisma.auditLog.create).mockResolvedValue({
+      createdAt: now,
+    } as never);
+
+    const captured: { userPrompt: string | null } = { userPrompt: null };
+    stubCompletion('{"summary":"OK"}', captured);
+
+    await generatePulseStatusForUser("user-resting", { locale: "en" });
+
+    const match = captured.userPrompt!.match(/\{[\s\S]*\}/);
+    const snapshot = JSON.parse(match![0]);
+    // Resting 72 sits inside the 60-100 band → 100 % in target, NOT the
+    // ~0 % the workout-polluted PULSE stream would have produced.
+    expect(snapshot.pulse.target.inTargetPctLast30DailyPoints).toBe(100);
+  });
+
+  it("falls back to a low-percentile PULSE proxy when no resting rows exist", async () => {
+    const now = new Date();
+    // Each day: mostly resting reads ~72 + a workout burst ~150. The
+    // proxy's low percentile should keep most days in-band.
+    const pulseRecords: Array<{ value: number; measuredAt: Date }> = [];
+    for (let d = 0; d < 10; d++) {
+      const dayStart = new Date(now.getTime() - d * dayMs);
+      for (let i = 0; i < 20; i++) {
+        pulseRecords.push({
+          value: 70 + (i % 10),
+          measuredAt: new Date(dayStart.getTime() - i * 60_000),
+        });
+      }
+      for (let i = 0; i < 5; i++) {
+        pulseRecords.push({
+          value: 150,
+          measuredAt: new Date(dayStart.getTime() - (i + 30) * 60_000),
+        });
+      }
+    }
+
+    vi.mocked(prisma.user.findUnique).mockResolvedValue({
+      dateOfBirth: null,
+      gender: null,
+    } as never);
+    vi.mocked(prisma.auditLog.findFirst).mockResolvedValue(null);
+    vi.mocked(prisma.measurement.findMany)
+      .mockResolvedValueOnce(pulseRecords as never)
+      .mockResolvedValueOnce([] as never); // no RESTING_HEART_RATE
+    vi.mocked(prisma.measurement.findMany).mockResolvedValue([] as never);
+    vi.mocked(prisma.moodEntry.findMany).mockResolvedValue([] as never);
+    vi.mocked(prisma.auditLog.create).mockResolvedValue({
+      createdAt: now,
+    } as never);
+
+    const captured: { userPrompt: string | null } = { userPrompt: null };
+    stubCompletion('{"summary":"OK"}', captured);
+
+    await generatePulseStatusForUser("user-proxy", { locale: "en" });
+
+    const match = captured.userPrompt!.match(/\{[\s\S]*\}/);
+    const snapshot = JSON.parse(match![0]);
+    // The proxy excludes the workout burst → the resting estimate stays
+    // in the healthy band, so the in-target % is high, not tanked to ~0.
+    expect(
+      snapshot.pulse.target.inTargetPctLast30DailyPoints,
+    ).toBeGreaterThanOrEqual(80);
+  });
+});
+
 describe("generatePulseStatusForUser — cache-read skips a stub", () => {
   it("regenerates when the only cached row is a timeout stub", async () => {
     const now = new Date();

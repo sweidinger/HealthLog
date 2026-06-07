@@ -26,6 +26,15 @@ import { join } from "node:path";
  * both the `<value>Title` and `<value>Body` leaves exist in
  * `messages/en.json`. `i18n-locale-integrity.test.ts` then propagates
  * the EN guarantee across the other five locales.
+ *
+ * v1.15.12 B1 — the score-anatomy detail page (`scores/[metric]/page.tsx`)
+ * picks its explainer key at runtime from a closed `Record<…, string>`
+ * literal (`explainerMetric={EXPLAINER_METRIC[metric]}`), one of five score
+ * suffixes. That single dynamic site is resolved STATICALLY here by parsing
+ * the record's string-literal values (the contract stays verifiable). Score
+ * explainers render only the inline `Body` caption — there is no `?` popover
+ * `Title` for them — so the resolved score values are checked for a `Body`
+ * leaf only, while literal sites keep the full Title + Body pairing.
  */
 
 const ROOT = join(__dirname, "../../../..");
@@ -53,21 +62,47 @@ interface PropSite {
   value: string;
   file: string;
   line: number;
+  /** Score explainers render only the inline Body caption (no `?` Title). */
+  bodyOnly?: boolean;
 }
 
 // Match `explainerMetric="someValue"` — a string-literal prop. The
-// component contract only accepts a static string, so a dynamic
-// `explainerMetric={expr}` would be a different (and unverifiable)
-// shape; none exist in the tree and we assert that below.
+// component contract accepts a static string, OR the single closed-record
+// lookup on the score-anatomy page (resolved statically below).
 const LITERAL_PATTERN = /explainerMetric="([a-zA-Z][a-zA-Z0-9]*)"/g;
 const DYNAMIC_PATTERN = /explainerMetric=\{/;
+
+// v1.15.12 B1 — the one allowed dynamic site: the score-anatomy detail page
+// reads its explainer key from a closed `EXPLAINER_METRIC` record literal.
+// We resolve it statically — parse the record's string-literal values — so
+// the dynamic site stays verifiable rather than escaping the guard.
+const SCORES_PAGE = "src/app/insights/scores/[metric]/page.tsx";
+const RECORD_LOOKUP_PATTERN = /explainerMetric=\{([A-Z_][A-Za-z0-9_]*)\[/;
+const RECORD_VALUE_PATTERN = /:\s*"([a-zA-Z][a-zA-Z0-9]*)"/g;
+
+/** Resolve a closed `const NAME = { … "value" … }` record's string values. */
+function resolveRecordValues(source: string, recordName: string): string[] {
+  const start = source.indexOf(`const ${recordName}`);
+  if (start === -1) return [];
+  const open = source.indexOf("{", start);
+  const close = source.indexOf("}", open);
+  if (open === -1 || close === -1) return [];
+  const body = source.slice(open + 1, close);
+  const values: string[] = [];
+  let m: RegExpExecArray | null;
+  RECORD_VALUE_PATTERN.lastIndex = 0;
+  while ((m = RECORD_VALUE_PATTERN.exec(body)) !== null) values.push(m[1]);
+  return values;
+}
 
 function collectSites(): { sites: PropSite[]; dynamic: PropSite[] } {
   const files = [...walk(INSIGHTS_DIR), HEALTHKIT_PAGE];
   const sites: PropSite[] = [];
   const dynamic: PropSite[] = [];
   for (const file of files) {
-    const lines = readFileSync(file, "utf8").split("\n");
+    const rel = file.slice(ROOT.length + 1);
+    const source = readFileSync(file, "utf8");
+    const lines = source.split("\n");
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
       // The scaffold declares + forwards the prop; ignore the type
@@ -77,10 +112,20 @@ function collectSites(): { sites: PropSite[]; dynamic: PropSite[] } {
       let m: RegExpExecArray | null;
       LITERAL_PATTERN.lastIndex = 0;
       while ((m = LITERAL_PATTERN.exec(line)) !== null) {
-        sites.push({ value: m[1], file: file.slice(ROOT.length + 1), line: i + 1 });
+        sites.push({ value: m[1], file: rel, line: i + 1 });
       }
       if (DYNAMIC_PATTERN.test(line)) {
-        dynamic.push({ value: line.trim(), file: file.slice(ROOT.length + 1), line: i + 1 });
+        // The score-anatomy record lookup is statically resolvable; every
+        // resolved value becomes a Body-only site. Any OTHER dynamic shape
+        // is unverifiable and trips the no-dynamic guard.
+        const lookup = RECORD_LOOKUP_PATTERN.exec(line);
+        if (file.endsWith(SCORES_PAGE) && lookup) {
+          for (const value of resolveRecordValues(source, lookup[1])) {
+            sites.push({ value, file: rel, line: i + 1, bodyOnly: true });
+          }
+        } else {
+          dynamic.push({ value: line.trim(), file: rel, line: i + 1 });
+        }
       }
     }
   }
@@ -121,7 +166,8 @@ describe("insights explainerMetric key coverage", () => {
     for (const site of sites) {
       const titleKey = `insights.subPage.explainer.${site.value}Title`;
       const bodyKey = `insights.subPage.explainer.${site.value}Body`;
-      if (!hasLeaf(en, titleKey)) {
+      // Score explainers (bodyOnly) carry only the inline Body caption.
+      if (!site.bodyOnly && !hasLeaf(en, titleKey)) {
         missing.push(`  ❌ ${titleKey}  (${site.file}:${site.line})`);
       }
       if (!hasLeaf(en, bodyKey)) {

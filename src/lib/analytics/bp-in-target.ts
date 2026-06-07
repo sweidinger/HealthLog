@@ -57,8 +57,8 @@ export interface BpReading {
  * shock-onset thresholds; well below any reasonable normotensive
  * resting reading.
  */
-const SYS_HYPOTENSION_FLOOR = 90;
-const DIA_HYPOTENSION_FLOOR = 50;
+export const SYS_HYPOTENSION_FLOOR = 90;
+export const DIA_HYPOTENSION_FLOOR = 50;
 
 import { toBerlinDayKey } from "@/lib/tz/resolver";
 
@@ -165,6 +165,33 @@ export function computeBpInTargetPct(
     pct: Math.round((inTarget / pairs) * 100),
     pairs,
   };
+}
+
+/**
+ * v1.15.12 A1 — collect the accepted SYS/DIA pairs (same pairing rules
+ * as `computeBpInTargetPct`) as timestamped points, for the graded BP
+ * pillar score. Returns `{ at, sys, dia }` per accepted pair using the
+ * SYS reading's timestamp as the pair anchor — recency weighting only
+ * needs ordering, not sub-second precision. Empty when no pairs form.
+ */
+export function collectBpPairs(
+  sysSeries: BpReading[],
+  diaSeries: BpReading[],
+): Array<{ at: Date; sys: number; dia: number }> {
+  if (sysSeries.length === 0 || diaSeries.length === 0) return [];
+  const SAME_SESSION_MS = 5 * 60 * 1000;
+  const out: Array<{ at: Date; sys: number; dia: number }> = [];
+  for (const sys of sysSeries) {
+    const match = findClosestDia(sys, diaSeries);
+    if (!match) continue;
+    const sameSession = match.deltaMs <= SAME_SESSION_MS;
+    const sameBerlinDay =
+      !sameSession &&
+      toBerlinDayKey(sys.measuredAt) === toBerlinDayKey(match.dia.measuredAt);
+    if (!sameSession && !sameBerlinDay) continue;
+    out.push({ at: sys.measuredAt, sys: sys.value, dia: match.dia.value });
+  }
+  return out;
 }
 
 /**

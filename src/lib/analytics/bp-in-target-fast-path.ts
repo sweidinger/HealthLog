@@ -60,10 +60,12 @@ import {
 } from "@/lib/rollups/measurement-coverage";
 import { isNearUtc } from "@/lib/tz/resolver";
 import {
+  collectBpPairs,
   computeBpInTargetWindows,
   isBpReadingInTarget,
   type BpReading,
 } from "./bp-in-target";
+import { gradeBpScoreFromSeries } from "./bp-grade";
 import type { BpTargets } from "./bp-targets";
 
 /**
@@ -85,6 +87,13 @@ export interface BpInTargetEnvelope {
    * requests to specific outlier accounts.
    */
   rowCount: number;
+  /**
+   * v1.15.12 A1 — graded clinical-proximity BP score (0..100) from a
+   * recency-weighted representative reading over the trailing window.
+   * Feeds the Health-Score BP pillar value, replacing the binary
+   * in-target rate AS THE SCORE. `null` when no pairs formed.
+   */
+  gradedScore: number | null;
 }
 
 /**
@@ -304,6 +313,29 @@ async function computeFromRollups(
     },
   });
 
+  // v1.15.12 A1 — graded BP pillar score from a recency-weighted
+  // representative reading. Each per-day pair (the day's MEAN sys/dia)
+  // contributes weighted by its age; recent readings dominate so genuine
+  // improvement surfaces in the score instead of being diluted by years
+  // of older readings.
+  //
+  // v1.15.12 (audit HIGH-2) — pass `perDayPairCount` as the per-point
+  // `count` weight so a high-variance day weighs N× (matching the live
+  // per-event grade) instead of 1×. Without it the rollup and live paths
+  // produced different graded scores for the same data depending on
+  // DAY-bucket warmth (the in-target RATE already multiplied by
+  // perDayPairCount; the graded score now does the equivalent).
+  const gradedScore = gradeBpScoreFromSeries({
+    pairs: pairsByDay.map((p) => ({
+      at: p.day,
+      sys: p.sys,
+      dia: p.dia,
+      count: p.perDayPairCount,
+    })),
+    target: targets,
+    now,
+  });
+
   return {
     last7Days: last7,
     last30Days: last30,
@@ -312,6 +344,7 @@ async function computeFromRollups(
     priorYear,
     path: "rollup",
     rowCount,
+    gradedScore,
   };
 }
 
@@ -410,6 +443,13 @@ async function computeFromLive(
   });
 
   const windows = computeBpInTargetWindows(sysData, diaData, targets, now);
+  // v1.15.12 A1 — graded BP pillar score from the recency-weighted
+  // representative of every accepted per-event pair over the read window.
+  const gradedScore = gradeBpScoreFromSeries({
+    pairs: collectBpPairs(sysData, diaData),
+    target: targets,
+    now,
+  });
   return {
     last7Days: windows.last7Days,
     last30Days: windows.last30Days,
@@ -418,6 +458,7 @@ async function computeFromLive(
     priorYear: windows.priorYear,
     path: "live",
     rowCount,
+    gradedScore,
   };
 }
 

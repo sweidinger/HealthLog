@@ -17,6 +17,7 @@ import {
   getAgeFromDateOfBirth,
   getPersonalizedPulseTarget,
 } from "@/lib/analytics/pulse-targets";
+import { resolveRestingPulseSeries } from "@/lib/analytics/resting-pulse";
 import { getNoKeyPulseStatusText } from "@/lib/insights/no-key-fallbacks";
 import { applyPayloadBudget } from "@/lib/insights/bucket-series";
 import {
@@ -41,7 +42,7 @@ import {
 } from "@/lib/insights/status-cache";
 import { returnTimeoutFallback } from "@/lib/insights/timeout-fallback";
 import { annotate } from "@/lib/logging/context";
-import { toBerlinDayKey } from "@/lib/tz/resolver";
+import { toBerlinDayKey, userDayKey, DEFAULT_TIMEZONE } from "@/lib/tz/resolver";
 
 export async function generatePulseStatusForUser(
   userId: string,
@@ -113,8 +114,16 @@ export async function generatePulseStatusForUser(
     select: {
       dateOfBirth: true,
       gender: true,
+      timezone: true,
     },
   });
+
+  // v1.15.12 (audit LOW-2) — bucket the resting-pulse proxy on the user's
+  // own day boundary so this surface aligns with the targets route, which
+  // passes `userDayKey(d, userTz)`. Without it the proxy bucketed on
+  // Berlin-day here and on the user's TZ there, drifting the resting
+  // estimate for non-Berlin users.
+  const userTz = user?.timezone ?? DEFAULT_TIMEZONE;
 
   // v1.4.28 FB-D2 — cap the snapshot input. The downstream
   // `applyPayloadBudget` trims further but the unbounded findMany was
@@ -133,6 +142,23 @@ export async function generatePulseStatusForUser(
       measuredAt: true,
     },
   }).then((rows) => rows.reverse());
+
+  // v1.15.12 A2 — the RESTING band is judged against the RESTING series,
+  // not the raw PULSE stream (Apple fills PULSE with workout HR). Pull
+  // RESTING_HEART_RATE rows; the resolver falls back to a low-percentile
+  // PULSE proxy when the user has none.
+  const restingMeasurements = await prisma.measurement
+    .findMany({
+      where: {
+        userId,
+        type: "RESTING_HEART_RATE",
+        deletedAt: null,
+      },
+      orderBy: { measuredAt: "desc" },
+      take: 365,
+      select: { value: true, measuredAt: true },
+    })
+    .then((rows) => rows.reverse());
 
   const now = new Date();
 
@@ -181,20 +207,36 @@ export async function generatePulseStatusForUser(
     (user?.gender as "MALE" | "FEMALE" | null | undefined) ?? null,
   );
 
-  // "Last 30 daily points" = the newest 30 daily buckets (offsets 0..29).
-  const recentPulseDaily = pulseSeries.daily.filter(
-    (bucket) => bucket.dayOffset < 30,
+  // v1.15.12 A2 — resting-target in-target % over the RESTING series
+  // (preferring RESTING_HEART_RATE, else the low-percentile PULSE proxy),
+  // NOT the raw PULSE daily buckets which mix in workout HR. Scoring the
+  // raw stream against a resting band counted a workout day as "over
+  // target" and tanked the %.
+  const restingResolved = resolveRestingPulseSeries({
+    restingSamples: restingMeasurements.map((m) => ({
+      measuredAt: m.measuredAt,
+      value: m.value,
+    })),
+    pulseSamples: measurements.map((m) => ({
+      measuredAt: m.measuredAt,
+      value: m.value,
+    })),
+    dayKeyOf: (d: Date) => userDayKey(d, userTz),
+  });
+  const thirtyDaysAgoMs = now.getTime() - 30 * 24 * 60 * 60 * 1000;
+  const recentResting = restingResolved.series.filter(
+    (p) => p.measuredAt.getTime() >= thirtyDaysAgoMs,
   );
   const inTargetPctLast30DailyPoints =
-    recentPulseDaily.length === 0
+    recentResting.length === 0
       ? null
       : round(
-          (recentPulseDaily.filter(
+          (recentResting.filter(
             (entry) =>
               entry.value >= pulseTarget.greenMin &&
               entry.value <= pulseTarget.greenMax,
           ).length /
-            recentPulseDaily.length) *
+            recentResting.length) *
             100,
           1,
         );
