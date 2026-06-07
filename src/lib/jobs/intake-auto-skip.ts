@@ -1,33 +1,39 @@
 /**
- * v1.4.46 — hourly cron that auto-skips medication intake events the
- * user never marked. Without it the dashboard "compliance" tile keeps
- * counting a missed dose as `pending` forever (the row's `takenAt`
- * stays NULL and `skipped` stays false), which inflates the "missing"
- * column on the streak chart and prevents the next day's intake from
- * rendering cleanly in the "today" window.
+ * v1.4.46 — hourly cron that gives a forgotten medication dose a terminal
+ * state. Without it the dashboard "compliance" tile keeps counting a never-
+ * acted dose as `pending` forever (the row's `takenAt` stays NULL), which
+ * prevents the next day's intake from rendering cleanly in the "today"
+ * window.
  *
- * Rule: flip `skipped = true` for every `MedicationIntakeEvent` where:
+ * v1.15.9 — the terminal state is now `auto_missed = true`, NOT
+ * `skipped = true`. A forgotten dose is a real MISS — it must count against
+ * adherence. The old behaviour flipped `skipped = true`, and because the
+ * compliance engine EXCLUDES skipped doses from the denominator (a
+ * deliberate user pause), a forgotten dose then vanished from the rate
+ * entirely, silently inflating adherence. Setting `auto_missed` keeps the
+ * never-acted dose distinct from a user-initiated skip: the engine pairs an
+ * `auto_missed` slot to a `missed` status (counts against the rate) while a
+ * `skipped` row stays excluded (a deliberate drug holiday).
+ *
+ * Rule: set `auto_missed = true` for every `MedicationIntakeEvent` where:
  *   * `skipped = false` AND
+ *   * `auto_missed = false` AND
  *   * `takenAt IS NULL` AND
  *   * `scheduledFor < NOW() - INTERVAL '24 hours'`
  *
- * The 24 h grace window is intentional: a slightly late mark
- * (user took the morning dose at noon when the schedule was 09:00)
- * shouldn't get auto-skipped before the user has had a full day to
- * record it. Anything older than 24 h is reliably forgotten — the
- * compliance rollup needs a terminal state to count it as a real miss.
+ * The 24 h grace window is intentional: a slightly late mark (user took the
+ * morning dose at noon when the schedule was 09:00) shouldn't be flipped
+ * before the user has had a full day to record it. Anything older than 24 h
+ * is reliably forgotten — the compliance engine needs a terminal state to
+ * count it as a real miss.
  *
- * Idempotent by construction: the second pass within the same hour
- * finds zero candidate rows because the first pass already flipped
- * them. Safe to re-run on worker restart.
+ * Idempotent by construction: the second pass within the same hour finds
+ * zero candidate rows because the first pass already flipped them. Safe to
+ * re-run on worker restart.
  *
- * Compliance-rollup coupling: the `skipped = true` transition is the
- * same terminal state the user's manual "Skip" button writes, so the
- * compliance rollup recompute path triggered by the next ingest /
- * dashboard read picks the new rows up without any extra plumbing.
- * The helper deliberately does NOT touch the rollup directly — the
- * next read-path call lazily folds the day, and a fresh
- * compliance-rollup backfill (boot-time) sweeps any historical gaps.
+ * Compliance coupling: the engine-backed compliance paths read `auto_missed`
+ * directly. The helper deliberately does NOT touch any rollup — the next
+ * read-path call recomputes from the live rows.
  */
 import type { PrismaClient } from "@/generated/prisma/client";
 
@@ -52,7 +58,7 @@ export interface IntakeAutoSkipPayload {
 }
 
 export interface IntakeAutoSkipResult {
-  /** Rows that flipped from pending to `skipped = true` on this pass. */
+  /** Rows that flipped from pending to `auto_missed = true` on this pass. */
   skippedCount: number;
   /** Cutoff timestamp the pass applied — useful for the audit trail. */
   cutoff: Date;
@@ -79,10 +85,11 @@ export async function runIntakeAutoSkipPass(
   const { count } = await prisma.medicationIntakeEvent.updateMany({
     where: {
       skipped: false,
+      autoMissed: false,
       takenAt: null,
       scheduledFor: { lt: cutoff },
     },
-    data: { skipped: true },
+    data: { autoMissed: true },
   });
 
   return { skippedCount: count, cutoff };

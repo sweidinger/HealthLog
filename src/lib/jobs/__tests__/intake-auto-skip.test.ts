@@ -1,15 +1,20 @@
 /**
- * v1.4.46 — coverage for the hourly intake-auto-skip helper.
+ * v1.4.46 — coverage for the hourly intake-auto-miss helper.
  *
- * The helper runs a single `updateMany` against `MedicationIntakeEvent`
- * with the `skipped = false AND takenAt IS NULL AND scheduledFor < cutoff`
- * gate, where `cutoff = now - 24 h`. These tests pin:
+ * v1.15.9 — the terminal state is now `auto_missed = true`, NOT
+ * `skipped = true`. A forgotten dose is a real MISS that must count against
+ * adherence; flipping `skipped` (which the compliance engine excludes from
+ * the denominator) silently inflated the rate. The helper runs a single
+ * `updateMany` with the `skipped = false AND auto_missed = false AND
+ * takenAt IS NULL AND scheduledFor < cutoff` gate, where `cutoff = now - 24 h`.
+ * These tests pin:
  *   * cron + queue contract (constants don't drift),
  *   * cutoff is `now - 24 h` exactly (off-by-one safety),
- *   * Prisma `updateMany` is called with the spec'd shape,
- *   * idempotency-by-construction (a second pass on the same state
- *     finds zero candidates because the predicate has already flipped
- *     them).
+ *   * Prisma `updateMany` is called with the spec'd shape
+ *     (`auto_missed = true`, not `skipped = true`),
+ *   * a user-skipped row is left untouched (a deliberate pause is never
+ *     reclassified as a miss),
+ *   * idempotency-by-construction (a second pass finds zero candidates).
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { PrismaClient } from "@/generated/prisma/client";
@@ -27,10 +32,12 @@ interface FakeIntakeRow {
   scheduledFor: Date;
   takenAt: Date | null;
   skipped: boolean;
+  autoMissed: boolean;
 }
 
 interface FakeUpdateManyWhere {
   skipped?: boolean;
+  autoMissed?: boolean;
   takenAt?: null;
   scheduledFor?: { lt: Date };
 }
@@ -44,11 +51,16 @@ function makeFakePrisma(state: { rows: FakeIntakeRow[] }) {
           data,
         }: {
           where: FakeUpdateManyWhere;
-          data: { skipped: boolean };
+          data: { autoMissed: boolean };
         }) => {
           let count = 0;
           for (const row of state.rows) {
             if (where.skipped !== undefined && row.skipped !== where.skipped)
+              continue;
+            if (
+              where.autoMissed !== undefined &&
+              row.autoMissed !== where.autoMissed
+            )
               continue;
             if (where.takenAt === null && row.takenAt !== null) continue;
             if (
@@ -56,7 +68,7 @@ function makeFakePrisma(state: { rows: FakeIntakeRow[] }) {
               row.scheduledFor.getTime() >= where.scheduledFor.lt.getTime()
             )
               continue;
-            row.skipped = data.skipped;
+            row.autoMissed = data.autoMissed;
             count += 1;
           }
           return { count };
@@ -90,7 +102,7 @@ describe("runIntakeAutoSkipPass", () => {
     vi.clearAllMocks();
   });
 
-  it("flips pending rows older than 24 h to skipped=true", async () => {
+  it("flips pending rows older than 24 h to auto_missed=true (NOT skipped)", async () => {
     const rows: FakeIntakeRow[] = [
       // Stale + unmarked → must flip.
       {
@@ -99,6 +111,7 @@ describe("runIntakeAutoSkipPass", () => {
         scheduledFor: new Date(NOW_MS - 30 * HOUR_MS),
         takenAt: null,
         skipped: false,
+        autoMissed: false,
       },
       // Stale + unmarked (different user) → must flip.
       {
@@ -107,6 +120,7 @@ describe("runIntakeAutoSkipPass", () => {
         scheduledFor: new Date(NOW_MS - 48 * HOUR_MS),
         takenAt: null,
         skipped: false,
+        autoMissed: false,
       },
       // Recent (< 24 h) → must stay pending.
       {
@@ -115,6 +129,7 @@ describe("runIntakeAutoSkipPass", () => {
         scheduledFor: new Date(NOW_MS - 6 * HOUR_MS),
         takenAt: null,
         skipped: false,
+        autoMissed: false,
       },
       // Already taken → must stay.
       {
@@ -123,14 +138,17 @@ describe("runIntakeAutoSkipPass", () => {
         scheduledFor: new Date(NOW_MS - 36 * HOUR_MS),
         takenAt: new Date(NOW_MS - 30 * HOUR_MS),
         skipped: false,
+        autoMissed: false,
       },
-      // Already manually skipped → must stay.
+      // Already manually skipped → must stay a deliberate skip, never
+      // reclassified as an auto-miss.
       {
         id: "i-already-skipped",
         userId: "u1",
         scheduledFor: new Date(NOW_MS - 48 * HOUR_MS),
         takenAt: null,
         skipped: true,
+        autoMissed: false,
       },
     ];
     const state = { rows };
@@ -140,13 +158,19 @@ describe("runIntakeAutoSkipPass", () => {
 
     expect(result.skippedCount).toBe(2);
     expect(result.cutoff.getTime()).toBe(NOW_MS - DAY_MS);
-    expect(state.rows.find((r) => r.id === "i-stale-1")?.skipped).toBe(true);
-    expect(state.rows.find((r) => r.id === "i-stale-2")?.skipped).toBe(true);
-    expect(state.rows.find((r) => r.id === "i-recent")?.skipped).toBe(false);
-    expect(state.rows.find((r) => r.id === "i-taken")?.skipped).toBe(false);
+    expect(state.rows.find((r) => r.id === "i-stale-1")?.autoMissed).toBe(true);
+    expect(state.rows.find((r) => r.id === "i-stale-2")?.autoMissed).toBe(true);
+    expect(state.rows.find((r) => r.id === "i-recent")?.autoMissed).toBe(false);
+    expect(state.rows.find((r) => r.id === "i-taken")?.autoMissed).toBe(false);
+    // The forgotten doses are NOT marked as a user skip.
+    expect(state.rows.find((r) => r.id === "i-stale-1")?.skipped).toBe(false);
+    // A deliberate user skip is left exactly as it was.
     expect(
       state.rows.find((r) => r.id === "i-already-skipped")?.skipped,
     ).toBe(true);
+    expect(
+      state.rows.find((r) => r.id === "i-already-skipped")?.autoMissed,
+    ).toBe(false);
   });
 
   it("calls prisma.updateMany with the spec'd where + data shape", async () => {
@@ -159,10 +183,11 @@ describe("runIntakeAutoSkipPass", () => {
     expect(prisma.medicationIntakeEvent.updateMany).toHaveBeenCalledWith({
       where: {
         skipped: false,
+        autoMissed: false,
         takenAt: null,
         scheduledFor: { lt: new Date(NOW_MS - DAY_MS) },
       },
-      data: { skipped: true },
+      data: { autoMissed: true },
     });
   });
 
@@ -174,6 +199,7 @@ describe("runIntakeAutoSkipPass", () => {
         scheduledFor: new Date(NOW_MS - 30 * HOUR_MS),
         takenAt: null,
         skipped: false,
+        autoMissed: false,
       },
     ];
     const state = { rows };
@@ -197,6 +223,7 @@ describe("runIntakeAutoSkipPass", () => {
         scheduledFor: new Date(NOW_MS - DAY_MS),
         takenAt: null,
         skipped: false,
+        autoMissed: false,
       },
     ];
     const state = { rows };
@@ -204,7 +231,7 @@ describe("runIntakeAutoSkipPass", () => {
 
     const result = await runIntakeAutoSkipPass(prisma, { nowMs: NOW_MS });
     expect(result.skippedCount).toBe(0);
-    expect(state.rows[0].skipped).toBe(false);
+    expect(state.rows[0].autoMissed).toBe(false);
   });
 
   it("uses Date.now() when no nowMs override is supplied", async () => {

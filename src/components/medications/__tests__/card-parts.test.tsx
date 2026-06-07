@@ -13,7 +13,8 @@ import { MedicationStatusPill } from "@/components/medications/card-parts/medica
 import { MedicationIntakeActions } from "@/components/medications/card-parts/medication-intake-actions";
 import { MedicationStateBadges } from "@/components/medications/card-parts/medication-state-badges";
 import { MedicationCycleStatus } from "@/components/medications/card-parts/medication-cycle-status";
-import type { CurrentCycle } from "@/lib/analytics/compliance";
+import { MedicationCardBody } from "@/components/medications/card-parts/medication-card-body";
+import type { CurrentCycle, DoseStatus } from "@/lib/analytics/compliance";
 
 /**
  * v1.7.2 — the medication-card status pill, compliance bars, intake-action
@@ -84,49 +85,22 @@ describe("medication card-parts — shared presentational components", () => {
     expect(html).not.toContain("lucide-flame");
   });
 
-  it("compliance bars show taken / expected counts next to each rate", () => {
-    // v1.15.8 — two identical percentages with no context read as a stuck
-    // display; the count after each rate makes them distinguishable. A
-    // rolling weekly med reading 100% on both windows now shows
-    // `100% · 4 / 4` and `100% · 52 / 52`.
+  it("compliance bars render the percentage only — no dose count beside it", () => {
+    // v1.15.9 — the operator does not want a count next to the percentage.
+    // The auto-miss engine now makes the two windows' percentages genuinely
+    // diverge, so the per-row count (`· 12 / 12`) is gone: percentage + bar
+    // + window-days label only.
     const html = render(
-      <MedicationComplianceBars
-        rate7={100}
-        rate30={100}
-        streak={3}
-        takenShort={4}
-        expectedShort={4}
-        takenLong={52}
-        expectedLong={52}
-      />,
+      <MedicationComplianceBars rate7={100} rate30={92} streak={3} />,
     );
-    expect(html).toContain("4 / 4");
-    expect(html).toContain("52 / 52");
-    // The middle-dot separator joins the percentage and the count.
-    expect(html).toContain("·");
-  });
-
-  it("compliance bars fall back to the bare expected count when no taken count is on the wire", () => {
-    const html = render(
-      <MedicationComplianceBars
-        rate7={80}
-        rate30={75}
-        streak={0}
-        expectedShort={12}
-        expectedLong={52}
-      />,
-    );
-    expect(html).toContain("12 doses");
-    expect(html).toContain("52 doses");
-  });
-
-  it("compliance bars render no count line when neither count is available", () => {
-    // Older mocks / the pre-display fallback path pass only the rates.
-    const html = render(
-      <MedicationComplianceBars rate7={90} rate30={88} streak={0} />,
-    );
+    expect(html).toContain("100%");
+    expect(html).toContain("92%");
+    // No middle-dot separator and no "doses" count caption anywhere.
     expect(html).not.toContain("·");
     expect(html).not.toContain("doses");
+    // The bar + the window-days label survive.
+    expect(html).toContain("7-day compliance");
+    expect(html).toContain("30-day compliance");
   });
 
   it("status pill stamps the success token + take-now glyph in window", () => {
@@ -395,5 +369,91 @@ describe("streak-token parity — generic vs GLP-1 card", () => {
       expect(html).not.toContain("text-orange-400");
       expect(html).not.toContain("text-dracula-orange");
     }
+  });
+});
+
+/**
+ * v1.15.9 — the ONE shared `<MedicationCardBody>` both cards render. These
+ * tests pin the state-driven presentation (green take-window highlight,
+ * overdue / heavily-overdue top line) and the structural identity that makes
+ * the two variants impossible to diverge — they pass content into THIS body.
+ */
+describe("medication card body — shared shell + dose-state presentation", () => {
+  function renderBody(doseStatus: DoseStatus, active = true) {
+    return render(
+      <MedicationCardBody
+        name="Ramipril"
+        dose="5 mg"
+        categoryLabel="Blood Pressure"
+        active={active}
+        href="/medications/m1"
+        linkLabel="Open"
+        stateBadges={null}
+        headerActions={null}
+        windowStatus={
+          doseStatus === "on_time_window"
+            ? { status: "in_window", windowStart: "08:00", windowEnd: "20:00" }
+            : null
+        }
+        doseStatus={doseStatus}
+        nextLine="Tomorrow, 08:00"
+        lastLine="Today, 07:30"
+        compliance={{ rate7: 90, rate30: 88, streak: 0, shortDays: 7, longDays: 30 }}
+        currentCycle={null}
+        intakeLoading={null}
+        onRecordIntake={() => {}}
+      />,
+    );
+  }
+
+  it("highlights the card green when the dose is in its take-window", () => {
+    const html = renderBody("on_time_window");
+    // Green ring + tinted background on the Card shell.
+    expect(html).toContain("ring-success/40");
+    expect(html).toContain("bg-success/5");
+  });
+
+  it("stays calm (no green highlight) for upcoming / taken states", () => {
+    for (const status of ["upcoming", "taken_on_time", "taken_late", "skipped"] as const) {
+      const html = renderBody(status);
+      expect(html).not.toContain("ring-success/40");
+    }
+  });
+
+  it("shows a calm 'Overdue' top line for an overdue dose", () => {
+    const html = renderBody("overdue");
+    expect(html).toContain("Overdue");
+    expect(html).toContain("text-destructive");
+    expect(html).not.toContain("Very overdue");
+  });
+
+  it("escalates to 'Very overdue' at / past the miss cutoff", () => {
+    const html = renderBody("missed");
+    expect(html).toContain("Very overdue");
+    expect(html).toContain("text-destructive");
+  });
+
+  it("never highlights green on an inactive medication", () => {
+    const html = renderBody("on_time_window", false);
+    expect(html).not.toContain("ring-success/40");
+    expect(html).toContain("opacity-60");
+  });
+
+  it("renders the decisive next + last lines exactly once each", () => {
+    const html = renderBody("upcoming");
+    expect((html.match(/Next intake:/g) ?? []).length).toBe(1);
+    expect((html.match(/Last intake:/g) ?? []).length).toBe(1);
+    expect(html).toContain("Tomorrow, 08:00");
+    expect(html).toContain("Today, 07:30");
+  });
+
+  it("keeps the body shell + spacing tokens that guarantee cross-variant identity", () => {
+    const html = renderBody("upcoming");
+    // Single shared CardContent body with the canonical spacing rhythm.
+    expect(html).toContain("flex h-full flex-col space-y-3.5");
+    // Bottom-pinned action wrapper.
+    expect(html).toContain("mt-auto");
+    // The shared reserved-height next/last slot.
+    expect(html).toContain("min-h-[2.75rem] space-y-3.5 text-sm");
   });
 });

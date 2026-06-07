@@ -369,43 +369,59 @@ describe("POST /api/medications/intake", () => {
   });
 });
 
-describe("v1.4.39 W-MED — compliance rollup read swap", () => {
-  it("reads the rollup tier when coverage is present", async () => {
+describe("v1.15.9 — schedule-anchored compliance buckets (BUG #1)", () => {
+  // The dashboard tile's `scheduled` is now the canonical recurrence
+  // engine's expected-dose count per day (not the count of logged intake
+  // rows). With partial adherence the per-day rate `taken / scheduled`
+  // genuinely reflects taken-of-expected — it is NOT pinned at ~100%.
+  function activeDailyMed(createdAt: Date) {
+    return {
+      id: "m1",
+      userId: "user-1",
+      active: true,
+      startsOn: null,
+      endsOn: null,
+      oneShot: false,
+      createdAt,
+      schedules: [
+        {
+          windowStart: "08:00",
+          windowEnd: "09:00",
+          daysOfWeek: null,
+          rrule: "FREQ=DAILY",
+          rollingIntervalDays: null,
+          timesOfDay: ["08:00"],
+          reminderGraceMinutes: null,
+          scheduleType: "SCHEDULED",
+          cyclicOnWeeks: null,
+          cyclicOffWeeks: null,
+        },
+      ],
+    };
+  }
+
+  it("anchors `scheduled` to the schedule — a day with a dose due but none taken reads < 100%", async () => {
     vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
-    // QA F-H-01 (v1.4.39): coverage probe returns
-    // `{ rolled_days >= event_days }` so the route lands on the
-    // rollup tier. Match the trailing-7-day window.
-    vi.mocked(prisma.$queryRaw).mockResolvedValue([
-      { rolled_days: BigInt(7), event_days: BigInt(7) },
+    const createdAt = new Date(Date.now() - 60 * 86_400_000);
+    vi.mocked(prisma.medication.findMany).mockResolvedValue([
+      activeDailyMed(createdAt),
     ] as never);
-    // v1.4.39.1 — anchor the seed row on the runtime's "today" so the
-    // test stays green across the calendar regardless of when it
-    // runs. The pre-fix shape hard-coded `2026-05-18`, which fell out
-    // of the trailing-7-day window on every subsequent wall-clock
-    // day and silently shifted the body.data tail off the seed.
-    //
-    // v1.4.49.4 — compute todayKey in the SAME zone the route uses
-    // (`readMedicationCompliance` → `userDayKey(now, safeTz)`), not in
-    // UTC. SESSION_OK carries no `timezone`, so the route falls
-    // through to `DEFAULT_TIMEZONE = "Europe/Berlin"`. The pre-fix
-    // UTC computation diverged from the route's Berlin computation by
-    // one calendar day during the 22:00-24:00 UTC window every night,
-    // causing the test to fail deterministically once the clock
-    // crossed midnight Berlin while still on the previous UTC day.
-    const todayKey = (() => {
-      const now = new Date();
-      const fmt = new Intl.DateTimeFormat("en-CA", {
-        timeZone: "Europe/Berlin",
-        year: "numeric",
-        month: "2-digit",
-        day: "2-digit",
-      });
-      // `en-CA` short-date format is `YYYY-MM-DD`, matching the
-      // route's `userDayKey` output (see `src/lib/tz/resolver.ts`).
-      return fmt.format(now);
-    })();
-    vi.mocked(prisma.medicationComplianceRollup.findMany).mockResolvedValue([
-      { day: todayKey, scheduled: 3, taken: 2, skipped: 1 },
+    // Only ONE taken dose across the whole 7-day window. A logged-row
+    // denominator would read 1 scheduled / 1 taken = 100% on that one day
+    // and nothing elsewhere; the engine instead expects ~7 doses (one per
+    // day) and counts the six un-taken days as missed → an aggregate rate
+    // well below 100%.
+    const yesterday8 = new Date();
+    yesterday8.setUTCDate(yesterday8.getUTCDate() - 1);
+    yesterday8.setUTCHours(8, 30, 0, 0);
+    vi.mocked(prisma.medicationIntakeEvent.findMany).mockResolvedValue([
+      {
+        medicationId: "m1",
+        scheduledFor: yesterday8,
+        takenAt: yesterday8,
+        skipped: false,
+        autoMissed: false,
+      },
     ] as never);
 
     const res = await GET(
@@ -418,35 +434,53 @@ describe("v1.4.39 W-MED — compliance rollup read swap", () => {
       data: Array<{ date: string; scheduled: number; taken: number }>;
     };
     expect(body.data).toHaveLength(7);
-    const today = body.data[body.data.length - 1];
-    expect(today.scheduled).toBe(3);
-    expect(today.taken).toBe(2);
-    // The legacy live aggregator must not have run when coverage is hot.
-    expect(prisma.medicationIntakeEvent.findMany).not.toHaveBeenCalled();
+    // Engine expects a dose on (nearly) every day → total scheduled ≫ the
+    // single logged row, and total taken is just the one.
+    const totalScheduled = body.data.reduce((s, d) => s + d.scheduled, 0);
+    const totalTaken = body.data.reduce((s, d) => s + d.taken, 0);
+    expect(totalScheduled).toBeGreaterThanOrEqual(5);
+    expect(totalTaken).toBe(1);
+    // Aggregate rate is far from the degenerate ~100% the logged-row
+    // denominator produced.
+    expect(totalTaken / totalScheduled).toBeLessThan(0.5);
   });
 
-  it("falls back to the live aggregator on coverage miss", async () => {
+  it("a fully-adherent daily med reads ~100% on every dosed day", async () => {
     vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
-    // QA F-H-01 (v1.4.39): partial coverage — events present but
-    // rollups missing — forces fall-through to the live aggregator.
-    vi.mocked(prisma.$queryRaw).mockResolvedValue([
-      { rolled_days: BigInt(0), event_days: BigInt(7) },
+    const createdAt = new Date(Date.now() - 60 * 86_400_000);
+    vi.mocked(prisma.medication.findMany).mockResolvedValue([
+      activeDailyMed(createdAt),
     ] as never);
-    vi.mocked(prisma.medicationIntakeEvent.findMany).mockResolvedValue([
-      {
-        scheduledFor: new Date(),
-        takenAt: new Date(),
+    // One taken dose per day across the window.
+    const events = [];
+    for (let d = 0; d < 8; d++) {
+      const at = new Date();
+      at.setUTCDate(at.getUTCDate() - d);
+      at.setUTCHours(8, 10, 0, 0);
+      events.push({
+        medicationId: "m1",
+        scheduledFor: at,
+        takenAt: at,
         skipped: false,
-      },
-    ] as never);
+        autoMissed: false,
+      });
+    }
+    vi.mocked(prisma.medicationIntakeEvent.findMany).mockResolvedValue(
+      events as never,
+    );
 
     const res = await GET(
       new NextRequest(
         "http://localhost/api/medications/intake?scope=compliance&days=7",
       ),
     );
-    expect(res.status).toBe(200);
-    expect(prisma.medicationIntakeEvent.findMany).toHaveBeenCalled();
+    const body = (await res.json()) as {
+      data: Array<{ date: string; scheduled: number; taken: number }>;
+    };
+    // Every dosed day has taken === scheduled → 100% throughout.
+    for (const day of body.data) {
+      if (day.scheduled > 0) expect(day.taken).toBe(day.scheduled);
+    }
   });
 });
 

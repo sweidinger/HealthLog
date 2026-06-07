@@ -2,6 +2,21 @@
 
 ## [Unreleased]
 
+## [1.15.9] — 2026-06-07 — medication compliance and cards
+
+### Fixed
+
+- **Compliance now counts a forgotten dose as missed.** A scheduled dose that was never taken or skipped used to quietly drop out of the calculation after a day, which made adherence read higher than it was. It now counts as missed, so your 7 / 30 / 90 / 365-day figures reflect what actually happened — and genuinely differ from one another instead of all looking the same.
+- **The dashboard medication chart is computed against your schedule.** It previously measured taken doses against the doses you had logged (not the doses you were due), which pushed every window toward 100%. It now measures against the schedule.
+- **Consistent skip handling.** A dose you deliberately skip is treated the same everywhere (a deliberate pause, not a miss); a dose simply forgotten counts as missed.
+
+### Changed
+
+- **The two medication cards are now truly identical.** Both styles render from one shared card body, so structure, spacing, labels, and the streak row line up exactly — only the value content differs (a weekly injectable keeps its relative-day phrasing, a daily dose shows a time). The bottom-spacing mismatch between cards is gone.
+- **Cards highlight the dose that's due.** When a dose is in its take-now window the card is highlighted; once it is past due the card shows an overdue note, escalating to "Stark überfällig" near the cutoff. After the cutoff the dose counts as missed and the next dose becomes the focus.
+- **Dose windows are cadence-aware.** A daily dose has a short on-time window then an overdue grace before it counts as missed; a weekly injectable follows a wider, clinically-appropriate window.
+- **Tidier card.** The compliance bars show the percentage on its own, and the injection-site line was removed from the card (site tracking is unchanged).
+
 ## [1.15.8.1] — 2026-06-07 — large Apple Health imports
 
 ### Fixed

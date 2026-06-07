@@ -321,11 +321,12 @@ describe("<Glp1MedicationCard> — GLP-1 variant rendering", () => {
     );
 
     // v1.15.8 — the GLP-1 card unified onto the generic "Next intake" /
-    // "Last intake" labels (the appointment-phrased override is gone). The
-    // last-line renders the "Last intake:" label in its own left column and
-    // the value (label · site) flush right; both halves show in the SSR.
+    // "Last intake" labels (the appointment-phrased override is gone).
+    // v1.15.9 — the injection SITE is no longer shown on the card line; the
+    // last-line reads the relative-day label only, exactly like the generic
+    // card. (Tracking / logging is unchanged everywhere else.)
     expect(html).toContain("Last intake:");
-    expect(html).toContain("Abdomen, lower left");
+    expect(html).not.toContain("Abdomen, lower left");
     // The next-line carries the "Next intake:" label in its left column,
     // independent of which of the three value variants (today / tomorrow /
     // "in N days") the helper produced.
@@ -372,11 +373,13 @@ describe("<Glp1MedicationCard> — GLP-1 variant rendering", () => {
     expect(html).not.toContain("Dosis-Historie");
   });
 
-  it("does not render an injection-site recommendation on the card", () => {
-    // The card no longer carries a "recommended next site" nudge — the
-    // recommendation is noise on the at-a-glance surface. Site TRACKING stays
-    // (the last site reads on the last-injection line; the post-dose picker
-    // still captures the next site), only the recommendation copy is gone.
+  it("does not render any injection-site display on the card", () => {
+    // v1.15.9 — the card surface drops the injection SITE entirely: neither
+    // the old "recommended next site" nudge NOR the last-site label on the
+    // last-injection line. The operator: "where I injected doesn't interest
+    // me." Site TRACKING is unchanged everywhere else (the post-dose picker
+    // captures the next site; the detail history shows it) — only the card
+    // surface is clean.
     const client = makeClient();
     seedCompliance(client, med7p5.id);
     seedGlp1Details(client, med7p5.id, {
@@ -399,10 +402,9 @@ describe("<Glp1MedicationCard> — GLP-1 variant rendering", () => {
       client,
     );
 
-    // No recommendation copy anywhere on the card.
+    // No recommendation copy and no last-site label anywhere on the card.
     expect(html).not.toContain("Recommended next:");
-    // Last site stays visible on the last-injection line (tracking preserved).
-    expect(html).toContain("Abdomen, lower left");
+    expect(html).not.toContain("Abdomen, lower left");
   });
 
   it("no longer renders the pen-inventory line (retired v1.4.28)", () => {
@@ -609,9 +611,10 @@ describe("<Glp1MedicationCard> — GLP-1 variant rendering", () => {
     expect(html).toContain("Sonstiges");
     expect(html).not.toContain("GLP-1-Injektion");
     // v1.15.8 — unified onto the generic "Letzte Einnahme:" label (the
-    // appointment-phrased "Letzter Termin:" override is gone).
+    // appointment-phrased "Letzter Termin:" override is gone). v1.15.9 — the
+    // injection site no longer renders on the card.
     expect(html).toContain("Letzte Einnahme:");
-    expect(html).toContain("Bauch, unten links");
+    expect(html).not.toContain("Bauch, unten links");
     // v1.4.28 retired the "Dosis-Historie" disclosure on the GLP-1 card.
     expect(html).not.toContain("Dosis-Historie");
   });

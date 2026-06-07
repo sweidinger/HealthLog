@@ -1443,6 +1443,14 @@ model MedicationIntakeEvent {
   scheduledFor   DateTime       @map("scheduled_for")
   takenAt        DateTime?      @map("taken_at")
   skipped        Boolean        @default(false)
+  /// v1.15.9 — distinguishes a never-acted forgotten dose from a
+  /// deliberate user skip. The hourly auto-miss cron sets this (NOT
+  /// `skipped`) on a pending row past its miss cutoff so the compliance
+  /// engine counts it as a MISS in the denominator, while a user-initiated
+  /// `skipped = true` stays excluded (a deliberate drug holiday). Every
+  /// legacy row defaults to false (a user skip or a live pending row,
+  /// neither of which is an auto-miss).
+  autoMissed     Boolean        @default(false) @map("auto_missed")
   source         IntakeSource   @default(WEB)
   idempotencyKey String?        @unique @map("idempotency_key")
   createdAt      DateTime       @default(now()) @map("created_at")
