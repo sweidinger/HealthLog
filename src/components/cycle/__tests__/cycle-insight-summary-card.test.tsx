@@ -57,6 +57,8 @@ vi.mock("../use-cycle", async () => {
     ...actual,
     useCycleCalendar: () => calendarState.current,
     useCycleInsights: () => insightsState.current,
+    // The card now reads the profile lengths for the low-data idealized ring.
+    useCycleProfile: () => ({ data: undefined }),
   };
 });
 
@@ -173,7 +175,11 @@ describe("<CycleInsightSummaryCard>", () => {
   });
 
   it("renders nothing while the calendar read is still resolving", () => {
-    calendarState.current = { data: undefined, isLoading: true, isError: false };
+    calendarState.current = {
+      data: undefined,
+      isLoading: true,
+      isError: false,
+    };
     const html = render(<CycleInsightSummaryCard />);
     expect(html).toBe("");
   });
