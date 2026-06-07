@@ -83,12 +83,29 @@ function isPublicPath(pathname: string): boolean {
 /**
  * API paths that are allowed to accept mutations (POST/PUT/PATCH/DELETE)
  * even when DEMO_MODE is enabled. Everything else is read-only.
+ *
+ * Each entry pins the exact path AND the exact method, so admitting one
+ * verb on a route never opens its siblings (e.g. the dashboard-widgets
+ * PUT must not drag in the layout-reset DELETE on the same path).
+ *
+ * The login family is the historical baseline — a demo visitor still has
+ * to authenticate. The two dashboard entries are display-only preference
+ * writes: idempotent, user-scoped, Zod-validated, and touching nothing but
+ * the caller's own `User.dashboardWidgetsJson` blob (chart-overlay toggles
+ * + comparison-baseline selector). They carry no health data and are safe
+ * to exercise in the demo so the above-chart toggles work there. This whole
+ * block only runs under `DEMO_MODE=true`, so production (apps01) is
+ * unaffected by construction.
  */
-const DEMO_MUTATION_ALLOWLIST = [
-  "/api/auth/login",
-  "/api/auth/passkey/login-options",
-  "/api/auth/passkey/login-verify",
-];
+const DEMO_MUTATION_ALLOWLIST: ReadonlyArray<{ path: string; method: string }> =
+  [
+    { path: "/api/auth/login", method: "POST" },
+    { path: "/api/auth/passkey/login-options", method: "POST" },
+    { path: "/api/auth/passkey/login-verify", method: "POST" },
+    // Chart display-pref toggles above the charts (dashboard + insights):
+    { path: "/api/dashboard/chart-overlay-prefs", method: "PUT" },
+    { path: "/api/dashboard/widgets", method: "PUT" },
+  ];
 
 // Legacy route redirects (German → English)
 const LEGACY_REDIRECTS: Record<string, string> = {
@@ -170,7 +187,9 @@ export function proxy(request: NextRequest) {
     if (
       isApi &&
       isMutation &&
-      !DEMO_MUTATION_ALLOWLIST.some((p) => pathname === p)
+      !DEMO_MUTATION_ALLOWLIST.some(
+        (entry) => pathname === entry.path && method === entry.method,
+      )
     ) {
       return NextResponse.json(
         {

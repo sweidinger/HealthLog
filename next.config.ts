@@ -157,8 +157,18 @@ const nextConfig: NextConfig = {
   outputFileTracingExcludes: {
     "*": ["./next.config.ts"],
   },
+  // Next 16 caps the request body that passes THROUGH middleware (our
+  // `src/proxy.ts`) at ~10MB by default, silently truncating larger bodies
+  // before the route handler sees them. The Apple Health `export.zip` importer
+  // (`/api/import/apple-health-export`) streams multi-MB archives to disk; the
+  // 10MB cap truncated them so the ZIP end-of-central-directory was lost and
+  // the parser failed (GitHub #281). Raise the ceiling so real exports pass
+  // intact. The value is a ceiling, not a buffer — only the actual upload size
+  // is held — so this is safe; very large exports also want a matching
+  // reverse-proxy body limit (see docs/self-hosting/reverse-proxy.md).
   experimental: {
     optimizePackageImports: ["recharts", "lucide-react"],
+    middlewareClientMaxBodySize: "512mb",
   },
 };
 

@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+## [1.15.17] — 2026-06-07 — large imports, demo chart toggles
+
+### Fixed
+
+- **Large Apple Health exports import correctly.** A request-body size limit in the middleware layer truncated uploads over ~10 MB before they reached the importer, so a multi-megabyte `export.zip` lost its ZIP structure and failed with an "end-of-central-directory" error. The limit is raised so real exports arrive intact. (GitHub #281)
+
+### Changed
+
+- **Chart display toggles work in demo mode.** On a demo instance, the comparison-baseline selector and per-chart overlay toggles above charts are no longer blocked — these are harmless display preferences.
+
 ## [1.15.16] — 2026-06-07 — wellness ring glow no longer clipped
 
 ### Fixed
