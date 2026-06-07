@@ -1332,6 +1332,29 @@ const complianceDisplay = z
       .describe(
         "v1.13.x — the current (open) dose cycle, surfaced so a between-doses sparse med renders a neutral 'next dose in N days' line instead of a scary red 0%. The percentage rows above already exclude the open forward cycle from their denominator.",
       ),
+    currentDose: z
+      .object({
+        status: z
+          .enum([
+            "upcoming",
+            "on_time_window",
+            "overdue",
+            "missed",
+            "taken_on_time",
+            "taken_late",
+            "skipped",
+          ])
+          .describe(
+            "Per-dose state of the open cycle, server-derived from the window model so the card renders the take-window (green) / overdue / heavily-overdue escalation from one authority. `upcoming` when no dose is open (PRN / paused / ended).",
+          ),
+        targetAt: z.iso
+          .datetime({ offset: true })
+          .nullable()
+          .describe("Target instant of the open dose. Null when no dose is open."),
+      })
+      .describe(
+        "v1.15.9 — the open dose's per-dose status + target, so the card highlights the actionable take-window green and escalates an overdue dose without re-deriving the window math client-side.",
+      ),
   })
   .meta({
     id: "ComplianceDisplay",

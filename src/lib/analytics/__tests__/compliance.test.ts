@@ -1604,6 +1604,69 @@ describe("buildComplianceDisplay — two rows, cadence-scaled windows", () => {
     );
   });
 
+  it("currentDose — rolling weekly, last shot 3 days ago → upcoming (card stays calm)", () => {
+    // v1.15.9 — the open dose's per-dose status drives the card's green /
+    // overdue presentation. A weekly shot due in 4 days is well before the
+    // ±1-day on-time window opens → `upcoming`, with the target echoed.
+    const schedules: ComplianceSchedule[] = [
+      {
+        windowStart: "08:00",
+        windowEnd: "09:00",
+        daysOfWeek: null,
+        rollingIntervalDays: 7,
+        timesOfDay: ["08:00"],
+      },
+    ];
+    const lastShot = new Date(NOW.getTime() - 3 * DAY_MS);
+    const events = [
+      { scheduledFor: lastShot, takenAt: lastShot, skipped: false },
+    ];
+    const display = buildComplianceDisplay(
+      events,
+      schedules,
+      ctx({ startsOn: lastShot, lastIntakeAt: lastShot }),
+      { now: NOW },
+    );
+    expect(display.currentDose.status).toBe("upcoming");
+    expect(display.currentDose.targetAt).not.toBeNull();
+    expect(display.currentDose.targetAt!.getTime()).toBe(
+      display.currentCycle.nextDueAt!.getTime(),
+    );
+  });
+
+  it("currentDose — weekly shot due now is on_time_window (green); long overdue is missed", () => {
+    const schedules: ComplianceSchedule[] = [
+      {
+        windowStart: "08:00",
+        windowEnd: "09:00",
+        daysOfWeek: null,
+        rollingIntervalDays: 7,
+        timesOfDay: ["08:00"],
+      },
+    ];
+    // Last shot exactly 7 days ago → next due ~now → inside the ±1-day
+    // on-time window → green.
+    const dueNow = new Date(NOW.getTime() - 7 * DAY_MS);
+    const dueNowDisplay = buildComplianceDisplay(
+      [{ scheduledFor: dueNow, takenAt: dueNow, skipped: false }],
+      schedules,
+      ctx({ startsOn: dueNow, lastIntakeAt: dueNow }),
+      { now: NOW },
+    );
+    expect(dueNowDisplay.currentDose.status).toBe("on_time_window");
+
+    // Last shot 14 days ago → due ~7 days ago → past the 4-day overdue tail
+    // → missed (the card escalates to "Stark überfällig").
+    const longAgo = new Date(NOW.getTime() - 14 * DAY_MS);
+    const missedDisplay = buildComplianceDisplay(
+      [{ scheduledFor: longAgo, takenAt: longAgo, skipped: false }],
+      schedules,
+      ctx({ startsOn: longAgo, lastIntakeAt: longAgo }),
+      { now: NOW },
+    );
+    expect(missedDisplay.currentDose.status).toBe("missed");
+  });
+
   it("currentCycle — brand-new sparse med with zero closed cycles → hasClosedCycles false", () => {
     // v1.13.x Fix 4 — a med created today with no logged intake has no
     // closed dose cycle; the percentage rows are vacuous and the card should

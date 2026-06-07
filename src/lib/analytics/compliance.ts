@@ -820,6 +820,15 @@ export interface ComplianceDisplay {
    * rows so a between-doses sparse med never renders a scary red number.
    */
   currentCycle: CurrentCycle;
+  /**
+   * v1.15.9 — the open cycle's per-dose {@link DoseStatus}, server-derived
+   * so the card renders its state (green take-window, overdue / heavily-
+   * overdue escalation) from one authority instead of re-deriving the window
+   * math client-side. `status` is `upcoming` when no dose is open yet and
+   * there is no projected next dose (PRN / paused / ended). `targetAt` is the
+   * open dose's target instant (echo of `currentCycle.nextDueAt`).
+   */
+  currentDose: { status: DoseStatus; targetAt: Date | null };
 }
 
 /**
@@ -954,6 +963,24 @@ export function buildComplianceDisplay(
     events,
   );
 
+  // v1.15.9 — derive the open dose's per-dose status from one server
+  // authority so the card renders the take-window (green) / overdue /
+  // heavily-overdue escalation without re-spelling the window math. The
+  // cadence family comes from the SOONEST non-PRN schedule (the one the
+  // open cycle anchors on). `none` cycles (PRN / paused / ended) carry an
+  // `upcoming` status with a null target so the card stays calm.
+  const currentDose: { status: DoseStatus; targetAt: Date | null } =
+    currentCycle.nextDueAt
+      ? {
+          status: deriveDoseStatus(
+            currentCycle.nextDueAt,
+            soonestCadenceFamily(schedules),
+            now,
+          ),
+          targetAt: currentCycle.nextDueAt,
+        }
+      : { status: "upcoming", targetAt: null };
+
   return {
     shortDays,
     longDays,
@@ -977,7 +1004,25 @@ export function buildComplianceDisplay(
       missed: long.missed,
     },
     currentCycle,
+    currentDose,
   };
+}
+
+/**
+ * v1.15.9 — the {@link DoseCadenceFamily} of the soonest non-PRN schedule,
+ * used to pick the window model for the open dose's status. A multi-schedule
+ * med whose cycle anchors on its earliest window keeps that window's cadence;
+ * when every schedule is PRN (no projected dose) the family is irrelevant
+ * because the caller only reads `currentDose` when a cycle is open.
+ */
+function soonestCadenceFamily(
+  schedules: ComplianceSchedule[],
+): DoseCadenceFamily {
+  for (const s of schedules) {
+    if (s.scheduleType === "PRN") continue;
+    return doseCadenceFamily(s);
+  }
+  return "daily";
 }
 
 /**

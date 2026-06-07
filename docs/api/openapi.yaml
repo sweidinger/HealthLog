@@ -8550,6 +8550,35 @@ components:
           description: v1.13.x — the current (open) dose cycle, surfaced so a between-doses sparse med renders a neutral 'next
             dose in N days' line instead of a scary red 0%. The percentage rows above already exclude the open forward
             cycle from their denominator.
+        currentDose:
+          type: object
+          properties:
+            status:
+              type: string
+              enum:
+                - upcoming
+                - on_time_window
+                - overdue
+                - missed
+                - taken_on_time
+                - taken_late
+                - skipped
+              description: Per-dose state of the open cycle, server-derived from the window model so the card renders the take-window
+                (green) / overdue / heavily-overdue escalation from one authority. `upcoming` when no dose is open (PRN
+                / paused / ended).
+            targetAt:
+              anyOf:
+                - type: string
+                  format: date-time
+                  pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
+                - type: "null"
+              description: Target instant of the open dose. Null when no dose is open.
+          required:
+            - status
+            - targetAt
+          additionalProperties: false
+          description: v1.15.9 — the open dose's per-dose status + target, so the card highlights the actionable take-window green
+            and escalates an overdue dose without re-deriving the window math client-side.
       required:
         - shortDays
         - longDays
@@ -8559,6 +8588,7 @@ components:
         - short
         - long
         - currentCycle
+        - currentDose
       additionalProperties: false
       description: The two-row card block whose windows scale with dosing cadence (dense meds keep 7 / 30 days, sparse meds
         step both windows up). NOT the 30-day denominator — read `compliance30.totalExpected` for that.
