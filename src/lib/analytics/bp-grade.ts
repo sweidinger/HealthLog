@@ -37,11 +37,16 @@
  * and systolic axes share the same offset→score table, so each axis is
  * judged against its own ceiling.
  *
- * Hypotension is penalised symmetrically: below the clinical floors
- * (`sys ≥ 90`, `dia ≥ 50`, mirroring `isBpReadingInTarget`) the distance
- * below the floor is fed through the same over-target curve, so a
- * symptomatically low reading scores like an equally-distant high one
- * rather than reading as "perfect".
+ * Hypotension is penalised on a SEPARATE under-floor curve that is
+ * CONTINUOUS with the optimal plateau at the boundary: at exactly the
+ * clinical floor (`sys = 90`, `dia = 50`, mirroring `isBpReadingInTarget`)
+ * the score is 100, and it descends smoothly as the value drops further
+ * below the floor. The earlier implementation fed `floor − value` through
+ * the over-target table, which made 1 mmHg under the floor jump to ~81 —
+ * a 19-point cliff against the 100 the plateau holds AT the floor. The
+ * dedicated anchors below (floor→100, floor−10→70, floor−20→45,
+ * floor−30→20) mirror the over-target steepness without the cliff, so the
+ * curve is continuous on BOTH sides of every boundary.
  *
  * Pure & deterministic — fully unit-tested in `__tests__/bp-grade.test.ts`.
  */
@@ -67,24 +72,51 @@ const AXIS_ANCHORS: ReadonlyArray<readonly [offset: number, score: number]> = [
 ] as const;
 
 /**
+ * Below-floor hypotension anchors. `below` is mmHg the value sits UNDER
+ * the clinical floor; the score starts at 100 AT the floor (`below = 0`)
+ * so the curve is continuous with the optimal plateau the over-target
+ * branch holds at the floor, then descends to mirror the over-target
+ * steepness. Interpolated piecewise-linearly; clamps below the last
+ * anchor.
+ */
+const HYPO_ANCHORS: ReadonlyArray<readonly [below: number, score: number]> = [
+  [0, 100],
+  [10, 70],
+  [20, 45],
+  [30, 20],
+  [40, 5],
+] as const;
+
+/**
+ * Generic piecewise-linear interpolation over a monotonic-x anchor table.
+ * Clamps to the first / last anchor outside the table range.
+ */
+function interpolateAnchors(
+  anchors: ReadonlyArray<readonly [number, number]>,
+  x: number,
+): number {
+  const first = anchors[0];
+  const last = anchors[anchors.length - 1];
+  if (x <= first[0]) return first[1];
+  if (x >= last[0]) return last[1];
+  for (let i = 0; i < anchors.length - 1; i++) {
+    const [x1, y1] = anchors[i];
+    const [x2, y2] = anchors[i + 1];
+    if (x >= x1 && x <= x2) {
+      const fraction = (x - x1) / (x2 - x1);
+      return y1 + fraction * (y2 - y1);
+    }
+  }
+  return last[1];
+}
+
+/**
  * Piecewise-linear interpolation of an over-/under-target `offset`
  * (mmHg relative to the axis ceiling) onto the 0-100 axis score.
  * Clamps to the first / last anchor outside the table range.
  */
 function interpolateAxisScore(offset: number): number {
-  const first = AXIS_ANCHORS[0];
-  const last = AXIS_ANCHORS[AXIS_ANCHORS.length - 1];
-  if (offset <= first[0]) return first[1];
-  if (offset >= last[0]) return last[1];
-  for (let i = 0; i < AXIS_ANCHORS.length - 1; i++) {
-    const [o1, s1] = AXIS_ANCHORS[i];
-    const [o2, s2] = AXIS_ANCHORS[i + 1];
-    if (offset >= o1 && offset <= o2) {
-      const fraction = (offset - o1) / (o2 - o1);
-      return s1 + fraction * (s2 - s1);
-    }
-  }
-  return last[1];
+  return interpolateAnchors(AXIS_ANCHORS, offset);
 }
 
 /**
@@ -93,12 +125,14 @@ function interpolateAxisScore(offset: number): number {
  * - Above the floor: offset = `value - ceiling`. Negative offsets sit in
  *   the optimal plateau, positive ones climb the over-target curve.
  * - Below the hypotension floor: the distance below the floor is fed
- *   through the same over-target curve so a low excursion is penalised
- *   symmetrically to an equally-distant high one.
+ *   through the dedicated `HYPO_ANCHORS` curve, which starts at 100 AT
+ *   the floor (`below = 0`) so the score is continuous with the plateau
+ *   the over-target branch holds at the floor, then descends smoothly —
+ *   no boundary cliff.
  */
 function gradeAxis(value: number, ceiling: number, floor: number): number {
   if (value < floor) {
-    return interpolateAxisScore(floor - value);
+    return interpolateAnchors(HYPO_ANCHORS, floor - value);
   }
   return interpolateAxisScore(value - ceiling);
 }
@@ -138,6 +172,17 @@ export interface BpPairPoint {
   at: Date;
   sys: number;
   dia: number;
+  /**
+   * v1.15.12 — how many underlying readings this point stands for.
+   * Defaults to 1 (one per-event pair). The rollup path collapses a day
+   * into a single per-day-MEAN pair and passes `perDayPairCount` here so
+   * a 4-reading day's mean counts 4× in the recency-weighted grade,
+   * matching the live per-event behaviour. Without it a high-variance
+   * day weighed 1:1 on rollup but N:1 on live, diverging the BP pillar by
+   * up to ~20 points for the same data. The recency weight MULTIPLIES
+   * this count.
+   */
+  count?: number;
 }
 
 /**
@@ -171,7 +216,11 @@ export function gradeBpScoreFromSeries(input: {
   let diaWeighted = 0;
   for (const p of pairs) {
     const ageDays = Math.max(0, (nowMs - p.at.getTime()) / DAY_MS);
-    const weight = Math.pow(0.5, ageDays / HALF_LIFE_DAYS);
+    // The recency decay multiplies the per-point reading count so a
+    // per-day-mean pair (rollup path) carries the same weight as the N
+    // per-event pairs it stands for (live path).
+    const count = p.count ?? 1;
+    const weight = Math.pow(0.5, ageDays / HALF_LIFE_DAYS) * count;
     weightSum += weight;
     sysWeighted += weight * p.sys;
     diaWeighted += weight * p.dia;

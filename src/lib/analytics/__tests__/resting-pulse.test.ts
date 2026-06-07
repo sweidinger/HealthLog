@@ -61,16 +61,42 @@ describe("deriveRestingProxyFromPulse", () => {
   });
 
   it("buckets by day and returns one proxy point per day, sorted", () => {
+    // Each day needs enough samples (≥ 3) to clear the degenerate-day
+    // guard so it can contribute a proxy point.
     const samples: PulseSample[] = [
       day("2026-06-03T08:00:00", 72),
+      day("2026-06-03T12:00:00", 80),
       day("2026-06-03T20:00:00", 90),
       day("2026-06-01T08:00:00", 60),
+      day("2026-06-01T12:00:00", 64),
+      day("2026-06-01T20:00:00", 68),
     ];
     const proxy = deriveRestingProxyFromPulse(samples);
     expect(proxy).toHaveLength(2);
     expect(proxy[0].measuredAt.getTime()).toBeLessThan(
       proxy[1].measuredAt.getTime(),
     );
+  });
+
+  it("excludes a single-sample workout day — no resting estimate from one high reading", () => {
+    // Audit LOW-1: a day with only one PULSE sample (e.g. a lone workout
+    // reading) must NOT emit that value verbatim as "resting".
+    const oneSampleWorkoutDay: PulseSample[] = [
+      day("2026-06-05T18:00:00", 165),
+    ];
+    expect(deriveRestingProxyFromPulse(oneSampleWorkoutDay)).toEqual([]);
+
+    // A day below the min-sample floor is dropped; only the day with enough
+    // samples contributes.
+    const mixed: PulseSample[] = [
+      day("2026-06-05T18:00:00", 165), // single workout sample → dropped
+      day("2026-06-06T07:00:00", 60),
+      day("2026-06-06T08:00:00", 62),
+      day("2026-06-06T09:00:00", 64),
+    ];
+    const proxy = deriveRestingProxyFromPulse(mixed);
+    expect(proxy).toHaveLength(1);
+    expect(proxy[0].value).toBeLessThan(150);
   });
 
   it("returns empty for no samples", () => {

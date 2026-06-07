@@ -55,6 +55,16 @@ export interface PulseSample {
 export const RESTING_PROXY_DAILY_PERCENTILE = 20;
 
 /**
+ * Minimum PULSE samples a day needs before it can contribute a resting
+ * proxy. A workout-only or single-sample day (n = 1) would otherwise emit
+ * that one sample verbatim — a workout-level value masquerading as
+ * "resting". Below this floor the day is skipped rather than poisoning the
+ * proxy series with a high reading; a real resting day has many ambient
+ * samples and clears it easily.
+ */
+export const RESTING_PROXY_MIN_DAILY_SAMPLES = 3;
+
+/**
  * Collapse raw `PULSE` samples into a per-Berlin-day resting-proxy
  * series: one `{ measuredAt, value }` per day where `value` is the day's
  * low-percentile PULSE. The `measuredAt` anchors on the day's first
@@ -87,6 +97,10 @@ export function deriveRestingProxyFromPulse(
   }
   const out: PulseSample[] = [];
   for (const { firstAt, values } of byDay.values()) {
+    // Skip degenerate days: too few samples to distinguish a resting floor
+    // from a lone workout reading. Emitting the verbatim value would leak a
+    // workout-level number into the "resting" series.
+    if (values.length < RESTING_PROXY_MIN_DAILY_SAMPLES) continue;
     out.push({
       measuredAt: firstAt,
       value: Math.round(percentile(values, RESTING_PROXY_DAILY_PERCENTILE)),

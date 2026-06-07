@@ -318,8 +318,20 @@ async function computeFromRollups(
   // contributes weighted by its age; recent readings dominate so genuine
   // improvement surfaces in the score instead of being diluted by years
   // of older readings.
+  //
+  // v1.15.12 (audit HIGH-2) — pass `perDayPairCount` as the per-point
+  // `count` weight so a high-variance day weighs N× (matching the live
+  // per-event grade) instead of 1×. Without it the rollup and live paths
+  // produced different graded scores for the same data depending on
+  // DAY-bucket warmth (the in-target RATE already multiplied by
+  // perDayPairCount; the graded score now does the equivalent).
   const gradedScore = gradeBpScoreFromSeries({
-    pairs: pairsByDay.map((p) => ({ at: p.day, sys: p.sys, dia: p.dia })),
+    pairs: pairsByDay.map((p) => ({
+      at: p.day,
+      sys: p.sys,
+      dia: p.dia,
+      count: p.perDayPairCount,
+    })),
     target: targets,
     now,
   });

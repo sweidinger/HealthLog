@@ -42,7 +42,7 @@ import {
 } from "@/lib/insights/status-cache";
 import { returnTimeoutFallback } from "@/lib/insights/timeout-fallback";
 import { annotate } from "@/lib/logging/context";
-import { toBerlinDayKey } from "@/lib/tz/resolver";
+import { toBerlinDayKey, userDayKey, DEFAULT_TIMEZONE } from "@/lib/tz/resolver";
 
 export async function generatePulseStatusForUser(
   userId: string,
@@ -114,8 +114,16 @@ export async function generatePulseStatusForUser(
     select: {
       dateOfBirth: true,
       gender: true,
+      timezone: true,
     },
   });
+
+  // v1.15.12 (audit LOW-2) — bucket the resting-pulse proxy on the user's
+  // own day boundary so this surface aligns with the targets route, which
+  // passes `userDayKey(d, userTz)`. Without it the proxy bucketed on
+  // Berlin-day here and on the user's TZ there, drifting the resting
+  // estimate for non-Berlin users.
+  const userTz = user?.timezone ?? DEFAULT_TIMEZONE;
 
   // v1.4.28 FB-D2 — cap the snapshot input. The downstream
   // `applyPayloadBudget` trims further but the unbounded findMany was
@@ -213,6 +221,7 @@ export async function generatePulseStatusForUser(
       measuredAt: m.measuredAt,
       value: m.value,
     })),
+    dayKeyOf: (d: Date) => userDayKey(d, userTz),
   });
   const thirtyDaysAgoMs = now.getTime() - 30 * 24 * 60 * 60 * 1000;
   const recentResting = restingResolved.series.filter(
