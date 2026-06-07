@@ -243,7 +243,16 @@ export function TrendsRow({
               key={config.metric}
               data-slot="trends-row-card"
               data-metric={config.metric}
-              className="flex h-full flex-col gap-2 md:min-h-[300px]"
+              // v1.15.12 D1 — drop the `md:min-h-[300px]` floor. The chart
+              // slot is a fixed 180 px and the caption is `line-clamp-3`, so a
+              // card's natural height tops out around 270 px; the 300 px floor
+              // padded ~30 px of dead space below every caption, which read as
+              // an oversized Trends→Rückblick seam (the `space-y-6` gap is even,
+              // the empty card tail was the culprit). `auto-rows-fr` +
+              // `md:items-stretch` on the grid already pin every card to a
+              // single baseline, and the fixed chart slot aligns the charts, so
+              // the floor was redundant. Cards now size to content.
+              className="flex h-full flex-col gap-2"
             >
               {/* v1.4.28 R3c-Insights — fixed chart slot. The mini
                   chart paints its own band; this wrapper pins the
