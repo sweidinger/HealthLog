@@ -2,11 +2,18 @@
 
 import { useState, type ComponentType } from "react";
 import Link from "next/link";
-import { Activity, Flame, Gauge, HeartPulse, Moon, RefreshCw } from "lucide-react";
+import {
+  Activity,
+  Flame,
+  Gauge,
+  HeartPulse,
+  Moon,
+  RefreshCw,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useTranslations } from "@/lib/i18n/context";
-import { TileHeader } from "@/components/insights/tile-header";
+import { SectionHeading } from "@/components/insights/section-heading";
 import { ScoreRing } from "./score-ring";
 import { TILE_HUE, type RingHue } from "./ring-hues";
 import type { DerivedBatchRead } from "./use-derived-metric";
@@ -201,7 +208,7 @@ export function WellnessScores({
         aria-label={t("insights.derived.scores.sectionTitle")}
         className={cn("space-y-3", className)}
       >
-        <TileHeader
+        <SectionHeading
           icon={Activity}
           title={t("insights.derived.scores.sectionTitle")}
         />
@@ -341,7 +348,11 @@ export function WellnessScores({
   // "missing tile" frame.
   if (extraTile != null) {
     tiles.push(
-      <div key="EXTRA" data-slot="wellness-extra-tile-slot" className="contents">
+      <div
+        key="EXTRA"
+        data-slot="wellness-extra-tile-slot"
+        className="contents"
+      >
         {extraTile}
       </div>,
     );
@@ -380,7 +391,7 @@ export function WellnessScores({
       aria-label={t("insights.derived.scores.sectionTitle")}
       className={cn("space-y-3", className)}
     >
-      <TileHeader
+      <SectionHeading
         icon={Activity}
         title={t("insights.derived.scores.sectionTitle")}
       />

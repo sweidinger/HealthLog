@@ -4,6 +4,7 @@ import { AlertTriangle, Activity } from "lucide-react";
 
 import { useTranslations } from "@/lib/i18n/context";
 import { cn } from "@/lib/utils";
+import { SectionHeading } from "@/components/insights/section-heading";
 import { MEASUREMENT_TYPE_LABEL_KEYS } from "@/components/measurements/measurement-list-meta";
 import { CoverageMeter } from "@/components/insights/derived/coverage-meter";
 import { ProvenanceExplainer } from "@/components/insights/derived/provenance-explainer";
@@ -78,48 +79,61 @@ function CoincidentProvenance({
 }
 
 /**
- * The card shell — uppercase label + the provenance affordance, with the
- * state-specific body as children. The tall `fired` state keeps a `min-h` floor;
- * the calmer everyday states size to their (short) content so the card carries
- * no empty tail.
+ * The card shell — the "Signals of the day" heading lives ABOVE the card now
+ * (via `SectionHeading`, mirroring every other overview section), with the
+ * provenance ⓘ as the heading's trailing action. The card body carries the
+ * state-specific content. The tall `fired` state keeps a `min-h` floor; the
+ * calmer everyday states size to their (short) content so the card carries no
+ * empty tail.
  */
 function CardShell({
   state,
   provenance,
+  className,
   children,
 }: {
   state: SignalState;
   provenance?: DerivedProvenance;
+  className?: string;
   children: React.ReactNode;
 }) {
   const { t } = useTranslations();
   return (
-    <div
-      data-slot="coincident-deviation-card"
-      data-state={state}
-      className={cn(
-        "bg-card flex w-full min-w-0 flex-col gap-2 rounded-xl border p-4 md:p-6",
-        // `min-h` floor only on the tallest state (fired: 44px provenance header
-        // + the named-vitals body + the mandatory factors line). The calmer
-        // everyday states (all-clear / watch / insufficient) carry a single
-        // short body, so flooring them to the fired height left a large empty
-        // tail; they now size to their content. The in-flight `CardSkeleton`
-        // keeps the `min-h-48` footprint so the initial paint still reserves the
-        // row and does not shift as the read resolves.
-        state === "fired" && "min-h-48",
-        // At most amber — never destructive/red. The fired state borders
-        // warning; every calmer state keeps the neutral card border.
-        state === "fired" ? "border-warning/40" : "border-border",
-      )}
+    <section
+      data-slot="coincident-deviation-section"
+      aria-label={t("insights.derived.coincident.cardTitle")}
+      className={cn("space-y-3", className)}
     >
-      <div className="flex items-center justify-between gap-2">
-        <span className="text-muted-foreground truncate text-xs font-medium tracking-wide uppercase">
-          {t("insights.derived.coincident.cardTitle")}
-        </span>
-        {provenance ? <CoincidentProvenance provenance={provenance} /> : null}
+      <SectionHeading
+        icon={Activity}
+        title={t("insights.derived.coincident.cardTitle")}
+        action={
+          provenance ? (
+            <CoincidentProvenance provenance={provenance} />
+          ) : undefined
+        }
+      />
+      <div
+        data-slot="coincident-deviation-card"
+        data-state={state}
+        className={cn(
+          "bg-card flex w-full min-w-0 flex-col gap-2 rounded-xl border p-4 md:p-6",
+          // `min-h` floor only on the tallest state (fired: the named-vitals
+          // body + the mandatory factors line). The calmer everyday states
+          // (all-clear / watch / insufficient) carry a single short body, so
+          // flooring them to the fired height left a large empty tail; they now
+          // size to their content. The in-flight `CardSkeleton` keeps the
+          // `min-h-48` footprint so the initial paint still reserves the row and
+          // does not shift as the read resolves.
+          state === "fired" && "min-h-32",
+          // At most amber — never destructive/red. The fired state borders
+          // warning; every calmer state keeps the neutral card border.
+          state === "fired" ? "border-warning/40" : "border-border",
+        )}
+      >
+        {children}
       </div>
-      {children}
-    </div>
+    </section>
   );
 }
 
@@ -129,20 +143,27 @@ function CardShell({
  * mirroring the provenance trigger the resolved header carries — so the card
  * does not shift when the real content drops in.
  */
-function CardSkeleton() {
+function CardSkeleton({ className }: { className?: string }) {
+  const { t } = useTranslations();
   return (
-    <div
-      data-slot="coincident-deviation-card-skeleton"
-      aria-hidden="true"
-      className="bg-card border-border flex min-h-48 w-full min-w-0 flex-col gap-2 rounded-xl border p-4 md:p-6"
+    <section
+      data-slot="coincident-deviation-section"
+      aria-label={t("insights.derived.coincident.cardTitle")}
+      className={cn("space-y-3", className)}
     >
-      <div className="flex h-11 items-center justify-between gap-2">
-        <div className="bg-muted/40 h-3 w-28 rounded" />
-        <div className="bg-muted/40 h-5 w-5 rounded-full" />
+      <SectionHeading
+        icon={Activity}
+        title={t("insights.derived.coincident.cardTitle")}
+      />
+      <div
+        data-slot="coincident-deviation-card-skeleton"
+        aria-hidden="true"
+        className="bg-card border-border flex min-h-32 w-full min-w-0 flex-col gap-2 rounded-xl border p-4 md:p-6"
+      >
+        <div className="bg-muted/40 h-4 w-3/4 rounded" />
+        <div className="bg-muted/40 h-3 w-1/2 rounded" />
       </div>
-      <div className="bg-muted/40 h-4 w-3/4 rounded" />
-      <div className="bg-muted/40 h-3 w-1/2 rounded" />
-    </div>
+    </section>
   );
 }
 
@@ -158,11 +179,7 @@ export function CoincidentDeviationCard({
 
   // CLS-safe placeholder while the single read is in flight.
   if (!data) {
-    return (
-      <div className={className}>
-        <CardSkeleton />
-      </div>
-    );
+    return <CardSkeleton className={className} />;
   }
 
   // Building the baselines — fewer than two banded vitals. There is no signal
@@ -202,28 +219,30 @@ export function CoincidentDeviationCard({
 
   if (state === "watch") {
     return (
-      <div className={className}>
-        <CardShell state="watch" provenance={data.provenance}>
-          <div className="flex items-start gap-2">
-            <Activity
-              className="text-muted-foreground mt-0.5 h-4 w-4 shrink-0"
-              aria-hidden="true"
-            />
-            <div className="min-w-0 space-y-1">
-              <p
-                className="text-foreground text-sm font-medium"
-                data-slot="coincident-headline"
-              >
-                {t("insights.derived.coincident.watch")}
-              </p>
-              <p className="text-muted-foreground text-xs leading-snug">
-                {t("insights.derived.coincident.watchVital", { vital: names })}
-              </p>
-            </div>
+      <CardShell
+        state="watch"
+        provenance={data.provenance}
+        className={className}
+      >
+        <div className="flex items-start gap-2">
+          <Activity
+            className="text-muted-foreground mt-0.5 h-4 w-4 shrink-0"
+            aria-hidden="true"
+          />
+          <div className="min-w-0 space-y-1">
+            <p
+              className="text-foreground text-sm font-medium"
+              data-slot="coincident-headline"
+            >
+              {t("insights.derived.coincident.watch")}
+            </p>
+            <p className="text-muted-foreground text-xs leading-snug">
+              {t("insights.derived.coincident.watchVital", { vital: names })}
+            </p>
           </div>
-          {thinHistory ? <CoverageMeter coverage={data.coverage} /> : null}
-        </CardShell>
-      </div>
+        </div>
+        {thinHistory ? <CoverageMeter coverage={data.coverage} /> : null}
+      </CardShell>
     );
   }
 
@@ -232,37 +251,35 @@ export function CoincidentDeviationCard({
   // so a screen-reader user gets the day-to-day state change in the calm tone
   // the card keeps visually — the one state whose meaning shifts vs all-clear.
   return (
-    <div className={className}>
-      <CardShell state="fired" provenance={data.provenance}>
-        <div className="flex items-start gap-2" role="status">
-          <AlertTriangle
-            className="text-warning mt-0.5 h-4 w-4 shrink-0"
-            aria-hidden="true"
-          />
-          <div className="min-w-0 space-y-1">
-            <p
-              className="text-foreground text-sm font-medium"
-              data-slot="coincident-headline"
-            >
-              {t("insights.derived.coincident.firedHeadline", {
-                count: contributing.length,
-              })}
-            </p>
-            <p
-              className="text-muted-foreground text-xs leading-snug"
-              data-slot="coincident-vitals"
-            >
-              {t("insights.derived.coincident.vitals", { list: names })}
-            </p>
-          </div>
+    <CardShell state="fired" provenance={data.provenance} className={className}>
+      <div className="flex items-start gap-2" role="status">
+        <AlertTriangle
+          className="text-warning mt-0.5 h-4 w-4 shrink-0"
+          aria-hidden="true"
+        />
+        <div className="min-w-0 space-y-1">
+          <p
+            className="text-foreground text-sm font-medium"
+            data-slot="coincident-headline"
+          >
+            {t("insights.derived.coincident.firedHeadline", {
+              count: contributing.length,
+            })}
+          </p>
+          <p
+            className="text-muted-foreground text-xs leading-snug"
+            data-slot="coincident-vitals"
+          >
+            {t("insights.derived.coincident.vitals", { list: names })}
+          </p>
         </div>
-        <p
-          className="text-muted-foreground text-xs leading-snug"
-          data-slot="coincident-factors"
-        >
-          {t("insights.derived.coincident.factors")}
-        </p>
-      </CardShell>
-    </div>
+      </div>
+      <p
+        className="text-muted-foreground text-xs leading-snug"
+        data-slot="coincident-factors"
+      >
+        {t("insights.derived.coincident.factors")}
+      </p>
+    </CardShell>
   );
 }

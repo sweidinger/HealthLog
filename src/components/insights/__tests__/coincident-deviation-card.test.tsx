@@ -48,7 +48,12 @@ function ok(
     metric: "COINCIDENT_DEVIATION",
     status: "ok",
     value,
-    coverage: { requiredInputs: 5, presentInputs: 5, historyDays: 30, missing: [] },
+    coverage: {
+      requiredInputs: 5,
+      presentInputs: 5,
+      historyDays: 30,
+      missing: [],
+    },
     confidence: { score: 90, band },
     provenance: {
       inputs: ["RESTING_HEART_RATE", "RESPIRATORY_RATE"],
@@ -65,7 +70,12 @@ function insufficient(): Resp {
     metric: "COINCIDENT_DEVIATION",
     status: "insufficient",
     value: null,
-    coverage: { requiredInputs: 2, presentInputs: 1, historyDays: 0, missing: [] },
+    coverage: {
+      requiredInputs: 2,
+      presentInputs: 1,
+      historyDays: 0,
+      missing: [],
+    },
     confidence: null,
     provenance: {
       inputs: ["RESTING_HEART_RATE"],
@@ -90,7 +100,9 @@ describe("<CoincidentDeviationCard>", () => {
     expect(html).toContain('data-slot="coincident-deviation-card-skeleton"');
     expect(html).not.toContain('data-slot="coincident-deviation-card"');
     // The skeleton reserves the resolved card's footprint (no downward shift).
-    expect(html).toContain("min-h-48");
+    // The footprint shrank to `min-h-32` in v1.15.10: the in-card title row
+    // moved out to the section heading above the card.
+    expect(html).toContain("min-h-32");
   });
 
   it("the skeleton and a resolved card share the same min-height footprint", () => {
@@ -111,8 +123,8 @@ describe("<CoincidentDeviationCard>", () => {
       }),
     );
     const fired = render(<CoincidentDeviationCard />);
-    expect(skeleton).toContain("min-h-48");
-    expect(fired).toContain("min-h-48");
+    expect(skeleton).toContain("min-h-32");
+    expect(fired).toContain("min-h-32");
   });
 
   it("renders nothing in the insufficient (building baselines) state", () => {
@@ -127,7 +139,10 @@ describe("<CoincidentDeviationCard>", () => {
       ok({
         fired: false,
         day: "2026-06-03",
-        vitals: [deviation("RESTING_HEART_RATE", false), deviation("WEIGHT", false)],
+        vitals: [
+          deviation("RESTING_HEART_RATE", false),
+          deviation("WEIGHT", false),
+        ],
         contributing: [],
       }),
     );
@@ -141,7 +156,10 @@ describe("<CoincidentDeviationCard>", () => {
       ok({
         fired: false,
         day: "2026-06-03",
-        vitals: [deviation("RESTING_HEART_RATE", true), deviation("WEIGHT", false)],
+        vitals: [
+          deviation("RESTING_HEART_RATE", true),
+          deviation("WEIGHT", false),
+        ],
         contributing: [deviation("RESTING_HEART_RATE", true)],
       }),
     );

@@ -12,6 +12,7 @@ import {
   MEASUREMENT_TYPE_LABEL_KEYS,
 } from "@/components/measurements/measurement-list-meta";
 import { TileHeader } from "@/components/insights/tile-header";
+import { SectionHeading } from "@/components/insights/section-heading";
 import { SparklineDeltaTile } from "./sparkline-delta-tile";
 import { CoverageMeter } from "./coverage-meter";
 import { ProvenanceExplainer } from "./provenance-explainer";
@@ -114,7 +115,9 @@ function MetricProvenance({
   const method = (
     <>
       {meta.caveatKey ? (
-        <span className="text-warning block font-medium">{t(meta.caveatKey)}</span>
+        <span className="text-warning block font-medium">
+          {t(meta.caveatKey)}
+        </span>
       ) : null}
       {t(meta.methodKey)}
     </>
@@ -161,7 +164,10 @@ function BaselineTile({
 
   if (isLoading || !data) return null;
   // Absent → don't render the tile at all.
-  if (data.status === "insufficient" && data.reason === "no_readings_in_window") {
+  if (
+    data.status === "insufficient" &&
+    data.reason === "no_readings_in_window"
+  ) {
     return null;
   }
 
@@ -184,7 +190,10 @@ function BaselineTile({
         className="bg-card border-border flex h-full w-full min-w-0 flex-col gap-3 rounded-xl border p-4 md:p-6"
       >
         <TileHeader icon={Icon} title={label} titleClassName="truncate" />
-        <p className="text-muted-foreground text-sm" data-slot="vitals-tile-building">
+        <p
+          className="text-muted-foreground text-sm"
+          data-slot="vitals-tile-building"
+        >
           {t("insights.derived.vitals.building", {
             count: data.coverage.historyDays,
             target: 7,
@@ -211,7 +220,9 @@ function BaselineTile({
         series={v.series}
         framing={framing}
         directionSentiment={vitalSentiment(type)}
-        provenance={<MetricProvenance metric={metric} provenance={data.provenance} />}
+        provenance={
+          <MetricProvenance metric={metric} provenance={data.provenance} />
+        }
       />
     </div>
   );
@@ -236,7 +247,11 @@ function SixMinuteWalkTile({ read, isLoading }: TileProps) {
         })
       : t("insights.derived.vitals.sixMinuteNoBand");
   return (
-    <div data-slot="vitals-tile" data-metric="SIX_MINUTE_WALK_BAND" data-state="ok">
+    <div
+      data-slot="vitals-tile"
+      data-metric="SIX_MINUTE_WALK_BAND"
+      data-state="ok"
+    >
       <SparklineDeltaTile
         label={t("measurements.typeSixMinuteWalkDistance")}
         value={v.distanceM}
@@ -248,7 +263,10 @@ function SixMinuteWalkTile({ read, isLoading }: TileProps) {
         framing={framing}
         precision={0}
         provenance={
-          <MetricProvenance metric="SIX_MINUTE_WALK_BAND" provenance={data.provenance} />
+          <MetricProvenance
+            metric="SIX_MINUTE_WALK_BAND"
+            provenance={data.provenance}
+          />
         }
       />
     </div>
@@ -311,7 +329,11 @@ function VascularAgeTile({ read, isLoading }: TileProps) {
           : t("insights.derived.vitals.vascularMatch")
       : t("insights.derived.vitals.vascularNoAge");
   return (
-    <div data-slot="vitals-tile" data-metric="VASCULAR_AGE_DELTA" data-state="ok">
+    <div
+      data-slot="vitals-tile"
+      data-metric="VASCULAR_AGE_DELTA"
+      data-state="ok"
+    >
       <SparklineDeltaTile
         label={t("measurements.typeVascularAge")}
         value={v.vascularAge}
@@ -337,7 +359,10 @@ function HrvBalanceTile({ read, isLoading }: TileProps) {
   const { t } = useTranslations();
   const data = read<HrvBalanceValue>({ metric: "HRV_BALANCE" });
   if (isLoading || !data) return null;
-  if (data.status === "insufficient" && data.reason === "no_readings_in_window") {
+  if (
+    data.status === "insufficient" &&
+    data.reason === "no_readings_in_window"
+  ) {
     return null;
   }
   if (data.status === "insufficient") {
@@ -444,7 +469,9 @@ function hasRenderableVital(read: DerivedBatchRead): boolean {
   const fitness = read<FitnessAgeValue>({ metric: "FITNESS_AGE" });
   if (fitness?.status === "ok" && fitness.value) return true;
 
-  const vascular = read<VascularAgeDeltaValue>({ metric: "VASCULAR_AGE_DELTA" });
+  const vascular = read<VascularAgeDeltaValue>({
+    metric: "VASCULAR_AGE_DELTA",
+  });
   if (vascular?.status === "ok" && vascular.value) return true;
 
   const bmi = read<BmiValue>({ metric: "BMI" });
@@ -492,7 +519,10 @@ function hasRenderableMobility(read: DerivedBatchRead): boolean {
     const band = read<VitalsBaselineValue>({ metric });
     if (
       band &&
-      !(band.status === "insufficient" && band.reason === "no_readings_in_window")
+      !(
+        band.status === "insufficient" &&
+        band.reason === "no_readings_in_window"
+      )
     ) {
       return true;
     }
@@ -526,7 +556,7 @@ export function VitalsDashboard({ batch, className }: DashboardProps) {
           aria-label={t("insights.derived.vitals.sectionTitle")}
           className="space-y-3"
         >
-          <TileHeader
+          <SectionHeading
             icon={HeartPulse}
             title={t("insights.derived.vitals.sectionTitle")}
           />
@@ -561,14 +591,17 @@ export function VitalsDashboard({ batch, className }: DashboardProps) {
   const showMobility = !isLoading && hasRenderableMobility(read);
 
   return (
-    <div data-slot="vitals-dashboard-wrap" className={cn("space-y-6", className)}>
+    <div
+      data-slot="vitals-dashboard-wrap"
+      className={cn("space-y-6", className)}
+    >
       {showSection && (
         <section
           data-slot="vitals-dashboard"
           aria-label={t("insights.derived.vitals.sectionTitle")}
           className="space-y-3"
         >
-          <TileHeader
+          <SectionHeading
             icon={HeartPulse}
             title={t("insights.derived.vitals.sectionTitle")}
           />
@@ -612,7 +645,7 @@ export function VitalsDashboard({ batch, className }: DashboardProps) {
           aria-label={t("insights.derived.vitals.mobilitySectionTitle")}
           className="space-y-3"
         >
-          <TileHeader
+          <SectionHeading
             icon={Footprints}
             title={t("insights.derived.vitals.mobilitySectionTitle")}
           />

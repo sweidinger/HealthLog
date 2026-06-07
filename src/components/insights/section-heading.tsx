@@ -1,0 +1,70 @@
+import type { ComponentType, ReactNode } from "react";
+
+import { cn } from "@/lib/utils";
+
+/**
+ * v1.15.10 — the one section heading for the Insights overview.
+ *
+ * Every top-level overview section (health scores, daily briefing, vitals,
+ * trends, period-in-review, cycle summary, signals of the day) leads with
+ * this identical heading ABOVE its card: a leading Lucide icon and an `<h2>`
+ * title, both in the foreground colour (white in dark mode — never a per-
+ * section accent hue), at one size + weight. An optional `action` slot pins a
+ * trailing affordance (a subtitle, a meta control) to the right edge without
+ * breaking the row's alignment.
+ *
+ * The overview used to mix three heading dialects: a `text-lg` `<h2>` with a
+ * purple Sparkles glyph (briefing), a `text-lg` `<h2>` with NO icon (trends),
+ * a `text-base` `TileHeader` with a white icon (scores / vitals), and in-card
+ * titles buried inside the period-narrative, cycle-summary and signals cards.
+ * Side by side they read as four different surfaces. `SectionHeading` pins the
+ * single contract so the system can't drift: icon `h-5 w-5 shrink-0
+ * text-foreground`, title `<h2>` `text-base font-semibold`, `gap-2` between
+ * icon and title. The caller owns the `space-y-3` gap to the card below.
+ *
+ * RSC-safe: no hooks, no browser API.
+ */
+
+interface SectionHeadingProps {
+  /**
+   * Leading glyph. The caller passes the Lucide component itself
+   * (`icon={Sparkles}`), not a pre-sized node — `SectionHeading` owns the
+   * size and colour so every overview heading matches.
+   */
+  icon: ComponentType<{ className?: string }>;
+  /** Heading text rendered inside the `<h2>`. */
+  title: ReactNode;
+  /** Optional trailing affordance pinned to the right edge of the row. */
+  action?: ReactNode;
+  /** Optional id on the `<h2>`, e.g. for an `aria-labelledby` link. */
+  id?: string;
+  className?: string;
+}
+
+export function SectionHeading({
+  icon: Icon,
+  title,
+  action,
+  id,
+  className,
+}: SectionHeadingProps) {
+  return (
+    <div
+      data-slot="section-heading"
+      className={cn(
+        "flex flex-wrap items-center justify-between gap-2",
+        className,
+      )}
+    >
+      <div className="flex min-w-0 items-center gap-2">
+        <Icon className="text-foreground h-5 w-5 shrink-0" aria-hidden="true" />
+        <h2 id={id} className="text-base font-semibold">
+          {title}
+        </h2>
+      </div>
+      {action ? (
+        <div className="flex shrink-0 items-center gap-2">{action}</div>
+      ) : null}
+    </div>
+  );
+}
