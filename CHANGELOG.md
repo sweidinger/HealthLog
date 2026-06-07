@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [1.15.16] — 2026-06-07 — wellness ring glow no longer clipped
+
+### Fixed
+
+- **The score ring's glow shows in full.** On a wellness score detail page the ring's soft glow was being clipped at the card edge. The card no longer clips its contents (its background gradient still follows the rounded corners), so the glow renders uncut on every side.
+
 ## [1.15.15] — 2026-06-07 — one warm, motivating assistant voice
 
 ### Changed
