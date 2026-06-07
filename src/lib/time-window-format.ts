@@ -30,6 +30,13 @@ export function formatTimeWindowRange(
 ): string {
   const s = formatTimeWindowPart(start);
   const e = formatTimeWindowPart(end);
+  // A degenerate window — start == end (a single target time, or a med with
+  // no real window span) — must read as ONE time, not "07:00 bis 07:00 Uhr" /
+  // "07:00 – 07:00". The "bis" / "–" separator is reserved for a genuine
+  // range. The DE branch keeps its "Uhr" suffix on the single time.
+  if (s === e) {
+    return locale === undefined || locale === "de" ? `${s} Uhr` : s;
+  }
   if (locale === undefined || locale === "de") {
     return `${s} bis ${e} Uhr`;
   }
