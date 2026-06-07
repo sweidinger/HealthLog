@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+## [1.15.13] — 2026-06-07 — search, filter, and bulk delete
+
+### Added
+
+- **Filter your measurements and mood entries.** Both lists now filter by source (manual, Apple Health, Withings, …) and by a date range, alongside the existing type / mood filter and sorting.
+- **Select and delete in bulk.** Tick several entries on a page and remove them in one step, with a confirmation step. Deletions stay reversible on your devices the same way a single delete does.
+
 ## [1.15.12] — 2026-06-07 — a fairer health score and a richer overview
 
 ### Fixed
