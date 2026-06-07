@@ -21,7 +21,6 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { ResponsiveSheet } from "@/components/ui/responsive-sheet";
 import {
@@ -38,7 +37,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { DateTimeInput } from "@/components/ui/date-input";
+import { DateInput, DateTimeInput } from "@/components/ui/date-input";
 import { Label } from "@/components/ui/label";
 import {
   Table,
@@ -56,9 +55,6 @@ import {
   Trash2,
   ChevronLeft,
   ChevronRight,
-  ArrowUp,
-  ArrowDown,
-  ArrowUpDown,
   MoreHorizontal,
 } from "lucide-react";
 import { useId, useState } from "react";
@@ -70,7 +66,23 @@ import {
   MOOD_LABEL_KEYS,
   MOOD_SCORE_BY_ENUM,
 } from "@/lib/mood/labels";
-import { invalidateKeys, moodDependentKeys } from "@/lib/query-keys";
+import {
+  invalidateKeys,
+  moodDependentKeys,
+  queryKeys,
+} from "@/lib/query-keys";
+import { moodSourceEnum } from "@/lib/validations/moodlog";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  SortableHead,
+  DeleteButton,
+  SelectionActionBar,
+  toggleId,
+  toggleSelectAll,
+  selectAllState,
+  selectedIdsOnPage,
+  selectedCountOnPage,
+} from "@/components/data-list";
 import { useRovingRadioGroup } from "@/hooks/use-roving-radio-group";
 import { MoodTagPicker } from "./mood-tag-picker";
 
@@ -125,9 +137,18 @@ export function MoodList({ onAddFirst }: MoodListProps = {}) {
   const { isAuthenticated } = useAuth();
   const queryClient = useQueryClient();
   const [moodFilter, setMoodFilterRaw] = useState<string>("ALL");
+  // v1.15.13 — management-list source filter + optional date range.
+  const [sourceFilter, setSourceFilterRaw] = useState<string>("ALL");
+  const [fromDay, setFromDayRaw] = useState<string>("");
+  const [toDay, setToDayRaw] = useState<string>("");
   const [page, setPage] = useState(1);
   const [sortBy, setSortBy] = useState<string>("moodLoggedAt");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+
+  // v1.15.13 — page-scoped multi-select selection (current page ids only).
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(
+    () => new Set(),
+  );
 
   const [editing, setEditing] = useState<MoodEntry | null>(null);
   const [editMood, setEditMood] = useState("");
@@ -156,9 +177,37 @@ export function MoodList({ onAddFirst }: MoodListProps = {}) {
     null,
   );
 
+  // v1.15.13 — every filter / page / sort change resets pagination AND
+  // clears the page-scoped selection.
+  const clearSelection = () => setSelectedIds(new Set());
+
   const setMoodFilter = (value: string) => {
     setMoodFilterRaw(value);
     setPage(1);
+    clearSelection();
+  };
+
+  const setSourceFilter = (value: string) => {
+    setSourceFilterRaw(value);
+    setPage(1);
+    clearSelection();
+  };
+
+  const setFromDay = (value: string) => {
+    setFromDayRaw(value);
+    setPage(1);
+    clearSelection();
+  };
+
+  const setToDay = (value: string) => {
+    setToDayRaw(value);
+    setPage(1);
+    clearSelection();
+  };
+
+  const goToPage = (updater: (p: number) => number) => {
+    setPage(updater);
+    clearSelection();
   };
 
   function toggleSort(column: string) {
@@ -169,19 +218,32 @@ export function MoodList({ onAddFirst }: MoodListProps = {}) {
       setSortDir(column === "moodLoggedAt" ? "desc" : "asc");
     }
     setPage(1);
+    clearSelection();
   }
 
+  // v1.15.13 — mood list `from`/`to` are YYYY-MM-DD (the date inputs hand
+  // back exactly that), so they pass through unchanged. `ALL` clears the
+  // source filter.
+  const fromParam = fromDay || undefined;
+  const toParam = toDay || undefined;
+  const sourceParam = sourceFilter === "ALL" ? undefined : sourceFilter;
+
   const { data, isLoading } = useQuery({
-    queryKey: [
-      "mood-entries",
-      moodFilter === "ALL" ? undefined : moodFilter,
+    queryKey: queryKeys.moodEntriesList({
+      mood: moodFilter === "ALL" ? undefined : moodFilter,
+      source: sourceParam,
+      from: fromParam,
+      to: toParam,
       page,
       sortBy,
       sortDir,
-    ],
+    }),
     queryFn: async () => {
       const params = new URLSearchParams();
       if (moodFilter !== "ALL") params.set("mood", moodFilter);
+      if (sourceParam) params.set("source", sourceParam);
+      if (fromParam) params.set("from", fromParam);
+      if (toParam) params.set("to", toParam);
       params.set("limit", String(PAGE_SIZE));
       params.set("offset", String((page - 1) * PAGE_SIZE));
       params.set("sortBy", sortBy);
@@ -215,6 +277,49 @@ export function MoodList({ onAddFirst }: MoodListProps = {}) {
       toast.error(t("mood.deleteError"));
     },
   });
+
+  // v1.15.13 — page-scoped bulk soft-delete, mirroring the measurements list.
+  const bulkDeleteMutation = useMutation({
+    mutationFn: async (ids: string[]) => {
+      const res = await fetch("/api/mood-entries/bulk-delete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids }),
+      });
+      if (!res.ok) throw new Error("Bulk delete failed");
+      const json = (await res.json()) as { data: { deleted: number } };
+      return json.data.deleted;
+    },
+    onSuccess: async (deleted) => {
+      await invalidateKeys(queryClient, moodDependentKeys);
+      clearSelection();
+      toast.success(t("mood.bulkDeleteSuccess", { count: String(deleted) }));
+    },
+    onError: () => {
+      toast.error(t("mood.bulkDeleteError"));
+    },
+  });
+
+  const pageIds = (data?.entries ?? []).map((e) => e.id);
+
+  // Selection reads intersect with the painted page, so a stale id never
+  // counts; page / filter / sort changes clear selection. No prune effect.
+  const selectAll = selectAllState(selectedIds, pageIds);
+  const selectedOnPage = selectedCountOnPage(selectedIds, pageIds);
+
+  function onToggleRow(id: string) {
+    setSelectedIds((prev) => toggleId(prev, id));
+  }
+
+  function onToggleSelectAll() {
+    setSelectedIds((prev) => toggleSelectAll(prev, pageIds));
+  }
+
+  function onConfirmBulkDelete() {
+    const ids = selectedIdsOnPage(selectedIds, pageIds);
+    if (ids.length === 0) return;
+    bulkDeleteMutation.mutate(ids);
+  }
 
   const updateMutation = useMutation({
     mutationFn: async ({
@@ -321,20 +426,77 @@ export function MoodList({ onAddFirst }: MoodListProps = {}) {
   return (
     <>
       <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <Select value={moodFilter} onValueChange={setMoodFilter}>
-            <SelectTrigger className="w-48">
-              <SelectValue placeholder={t("mood.allMoods")} />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="ALL">{t("mood.allMoods")}</SelectItem>
-              {MOOD_LEVELS_LIST.map((val) => (
-                <SelectItem key={val} value={val}>
-                  {MOOD_SCORES[val]} ({t(MOOD_LABEL_KEYS[val])})
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
+          <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-end">
+            <div className="flex flex-col gap-1">
+              <Label className="text-muted-foreground text-xs">
+                {t("mood.moodLevel")}
+              </Label>
+              <Select value={moodFilter} onValueChange={setMoodFilter}>
+                <SelectTrigger className="w-full sm:w-44">
+                  <SelectValue placeholder={t("mood.allMoods")} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ALL">{t("mood.allMoods")}</SelectItem>
+                  {MOOD_LEVELS_LIST.map((val) => (
+                    <SelectItem key={val} value={val}>
+                      {MOOD_SCORES[val]} ({t(MOOD_LABEL_KEYS[val])})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* v1.15.13 — source filter. */}
+            <div className="flex flex-col gap-1">
+              <Label className="text-muted-foreground text-xs">
+                {t("mood.filterBySource")}
+              </Label>
+              <Select value={sourceFilter} onValueChange={setSourceFilter}>
+                <SelectTrigger
+                  className="w-full sm:w-40"
+                  aria-label={t("mood.filterBySource")}
+                >
+                  <SelectValue placeholder={t("dataList.allSources")} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ALL">{t("dataList.allSources")}</SelectItem>
+                  {MOOD_SOURCE_OPTIONS.map((src) => (
+                    <SelectItem key={src} value={src}>
+                      {formatMoodSource(src, t)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* v1.15.13 — optional date range, wired to from/to. */}
+            <div className="flex flex-col gap-1">
+              <Label htmlFor="mood-from" className="text-muted-foreground text-xs">
+                {t("dataList.dateFrom")}
+              </Label>
+              <DateInput
+                id="mood-from"
+                className="w-full sm:w-40"
+                value={fromDay}
+                max={toDay || undefined}
+                onChange={(e) => setFromDay(e.target.value)}
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <Label htmlFor="mood-to" className="text-muted-foreground text-xs">
+                {t("dataList.dateTo")}
+              </Label>
+              <DateInput
+                id="mood-to"
+                className="w-full sm:w-40"
+                value={toDay}
+                min={fromDay || undefined}
+                onChange={(e) => setToDay(e.target.value)}
+              />
+            </div>
+          </div>
+
           {data?.meta?.total !== undefined && (
             <span className="text-muted-foreground text-sm">
               {t("mood.entryCount", {
@@ -388,13 +550,28 @@ export function MoodList({ onAddFirst }: MoodListProps = {}) {
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead className="w-10 pl-4">
+                      {/* v1.15.13 — select-all-on-page header checkbox. */}
+                      <Checkbox
+                        checked={
+                          selectAll === "all"
+                            ? true
+                            : selectAll === "some"
+                              ? "indeterminate"
+                              : false
+                        }
+                        disabled={pageIds.length === 0}
+                        onCheckedChange={onToggleSelectAll}
+                        aria-label={t("dataList.selectAll")}
+                      />
+                    </TableHead>
                     <SortableHead
                       column="mood"
                       label={t("mood.moodLevel")}
                       currentSort={sortBy}
                       currentDir={sortDir}
                       onSort={toggleSort}
-                      className="w-36 pl-4"
+                      className="w-36"
                     />
                     <TableHead>{t("mood.tags")}</TableHead>
                     <SortableHead
@@ -418,9 +595,21 @@ export function MoodList({ onAddFirst }: MoodListProps = {}) {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {data.entries.map((entry) => (
-                    <TableRow key={entry.id}>
-                      <TableCell className="pl-4 font-semibold tabular-nums">
+                  {data.entries.map((entry) => {
+                    const isSelected = selectedIds.has(entry.id);
+                    return (
+                    <TableRow
+                      key={entry.id}
+                      data-state={isSelected ? "selected" : undefined}
+                    >
+                      <TableCell className="pl-4">
+                        <Checkbox
+                          checked={isSelected}
+                          onCheckedChange={() => onToggleRow(entry.id)}
+                          aria-label={t("dataList.selectRow")}
+                        />
+                      </TableCell>
+                      <TableCell className="font-semibold tabular-nums">
                         {entry.score}{" "}
                         <span className="text-muted-foreground font-normal">
                           (
@@ -457,7 +646,7 @@ export function MoodList({ onAddFirst }: MoodListProps = {}) {
                       <TableCell>
                         {entry.source !== "MANUAL" && (
                           <Badge variant="outline" className="text-xs">
-                            {t("mood.sourceMoodlog")}
+                            {formatMoodSource(entry.source, t)}
                           </Badge>
                         )}
                       </TableCell>
@@ -474,11 +663,14 @@ export function MoodList({ onAddFirst }: MoodListProps = {}) {
                           </Button>
                           <DeleteButton
                             onConfirm={() => deleteMutation.mutate(entry.id)}
+                            title={t("mood.deleteConfirmTitle")}
+                            description={t("mood.deleteConfirmDescription")}
                           />
                         </div>
                       </TableCell>
                     </TableRow>
-                  ))}
+                    );
+                  })}
                 </TableBody>
               </Table>
             </div>
@@ -493,13 +685,24 @@ export function MoodList({ onAddFirst }: MoodListProps = {}) {
                 guard at `e2e/mood-card-mobile.spec.ts` queries to assert
                 "exactly one occurrence of the score per row". */}
             <div className="space-y-2 md:hidden">
-              {data.entries.map((entry) => (
+              {data.entries.map((entry) => {
+                const isSelected = selectedIds.has(entry.id);
+                return (
                 <div
                   key={entry.id}
                   data-testid="mood-row"
-                  className="bg-card border-border flex items-center justify-between rounded-lg border p-3"
+                  data-state={isSelected ? "selected" : undefined}
+                  className="bg-card border-border flex items-center justify-between rounded-lg border p-3 data-[state=selected]:border-dracula-purple/60 data-[state=selected]:bg-dracula-purple/5"
                 >
-                  <div className="flex items-center gap-2.5 overflow-hidden">
+                  <div className="flex items-center gap-2 overflow-hidden">
+                    {/* v1.15.13 — multi-select checkbox in a 44px target. */}
+                    <label className="flex size-11 shrink-0 items-center justify-center">
+                      <Checkbox
+                        checked={isSelected}
+                        onCheckedChange={() => onToggleRow(entry.id)}
+                        aria-label={t("dataList.selectRow")}
+                      />
+                    </label>
                     <div className="bg-muted flex h-8 w-8 shrink-0 items-center justify-center rounded-lg">
                       <span
                         data-testid="mood-row-score"
@@ -546,14 +749,31 @@ export function MoodList({ onAddFirst }: MoodListProps = {}) {
                     </Button>
                     <DeleteButton
                       onConfirm={() => deleteMutation.mutate(entry.id)}
-                      mobile
+                      iconClassName="h-4 w-4"
+                      title={t("mood.deleteConfirmTitle")}
+                      description={t("mood.deleteConfirmDescription")}
                     />
                   </div>
                 </div>
-              ))}
+                );
+              })}
             </div>
           </>
         )}
+
+        {/* v1.15.13 — page-scoped multi-select action bar. */}
+        <SelectionActionBar
+          count={selectedOnPage}
+          onClear={clearSelection}
+          onConfirmDelete={onConfirmBulkDelete}
+          isDeleting={bulkDeleteMutation.isPending}
+          confirmTitle={t("mood.bulkDeleteConfirmTitle", {
+            count: String(selectedOnPage),
+          })}
+          confirmBody={t("mood.bulkDeleteConfirmBody", {
+            count: String(selectedOnPage),
+          })}
+        />
 
         {/* Pagination */}
         {totalPages > 1 && (
@@ -569,7 +789,7 @@ export function MoodList({ onAddFirst }: MoodListProps = {}) {
                 variant="ghost"
                 size="sm"
                 disabled={page <= 1}
-                onClick={() => setPage((p) => p - 1)}
+                onClick={() => goToPage((p) => p - 1)}
               >
                 <ChevronLeft className="h-4 w-4" />
               </Button>
@@ -577,7 +797,7 @@ export function MoodList({ onAddFirst }: MoodListProps = {}) {
                 variant="ghost"
                 size="sm"
                 disabled={page >= totalPages}
-                onClick={() => setPage((p) => p + 1)}
+                onClick={() => goToPage((p) => p + 1)}
               >
                 <ChevronRight className="h-4 w-4" />
               </Button>
@@ -797,85 +1017,31 @@ export function MoodList({ onAddFirst }: MoodListProps = {}) {
   );
 }
 
-function SortableHead({
-  column,
-  label,
-  currentSort,
-  currentDir,
-  onSort,
-  className,
-}: {
-  column: string;
-  label: string;
-  currentSort: string;
-  currentDir: "asc" | "desc";
-  onSort: (col: string) => void;
-  className?: string;
-}) {
-  const isActive = currentSort === column;
-  return (
-    <TableHead className={className}>
-      <button
-        type="button"
-        onClick={() => onSort(column)}
-        className="hover:text-foreground inline-flex items-center gap-1 transition-colors"
-      >
-        {label}
-        {isActive ? (
-          currentDir === "asc" ? (
-            <ArrowUp className="h-3.5 w-3.5" />
-          ) : (
-            <ArrowDown className="h-3.5 w-3.5" />
-          )
-        ) : (
-          <ArrowUpDown className="h-3.5 w-3.5 opacity-40" />
-        )}
-      </button>
-    </TableHead>
-  );
+/**
+ * v1.15.13 — render a `MoodEntry.source` value with its localized label.
+ * MANUAL is shown via the source filter only (a manual row carries no
+ * badge in the table). MOODLOG keeps its existing `mood.sourceMoodlog`
+ * key; the rest fall back to their own keys.
+ */
+function formatMoodSource(
+  source: string,
+  t: ReturnType<typeof useTranslations>["t"],
+): string {
+  switch (source) {
+    case "MANUAL":
+      return t("mood.sourceManual");
+    case "MOODLOG":
+      return t("mood.sourceMoodlog");
+    case "WEB":
+      return t("mood.sourceWeb");
+    case "TELEGRAM":
+      return t("mood.sourceTelegram");
+    case "DAYLIO":
+      return t("mood.sourceDaylio");
+    default:
+      return source;
+  }
 }
 
-function DeleteButton({
-  onConfirm,
-  mobile = false,
-}: {
-  onConfirm: () => void;
-  mobile?: boolean;
-}) {
-  const { t } = useTranslations();
-  return (
-    <AlertDialog>
-      <AlertDialogTrigger asChild>
-        <Button
-          variant="ghost"
-          size="icon"
-          className={
-            mobile
-              ? "text-destructive min-h-11 min-w-11"
-              : "text-destructive h-8 w-8"
-          }
-          aria-label={t("common.delete")}
-        >
-          <Trash2 className={mobile ? "h-4 w-4" : "h-3.5 w-3.5"} />
-        </Button>
-      </AlertDialogTrigger>
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>{t("mood.deleteConfirmTitle")}</AlertDialogTitle>
-          <AlertDialogDescription>
-            {t("mood.deleteConfirmDescription")}
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
-          <AlertDialogAction
-            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            onClick={onConfirm}
-          >
-            {t("common.delete")}
-          </AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
-  );
-}
+/** v1.15.13 — mood source enum values offered in the source filter. */
+const MOOD_SOURCE_OPTIONS = moodSourceEnum.options;

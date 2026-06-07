@@ -494,7 +494,15 @@
     "typeEnergyExpenditureKj": "Gasto energético",
     "typeAverageHeartRate": "Frecuencia cardíaca media",
     "typeMaxHeartRate": "Frecuencia cardíaca máxima",
-    "typeSleepDisturbanceCount": "Interrupciones del sueño"
+    "typeSleepDisturbanceCount": "Interrupciones del sueño",
+    "filterBySource": "Filtrar por fuente",
+    "sourceComputed": "Calculado",
+    "sourceWhoop": "WHOOP",
+    "sourceFitbit": "Fitbit",
+    "bulkDeleteSuccess": "{count} mediciones eliminadas",
+    "bulkDeleteError": "Error al eliminar las mediciones seleccionadas",
+    "bulkDeleteConfirmTitle": "¿Eliminar {count} mediciones?",
+    "bulkDeleteConfirmBody": "Las {count} mediciones seleccionadas se eliminarán de forma permanente."
   },
   "mood": {
     "title": "Estado de ánimo",
@@ -598,7 +606,16 @@
       "factorConflict": "conflicto",
       "factorFamily": "familia",
       "factorSadness": "tristeza"
-    }
+    },
+    "filterBySource": "Filtrar por fuente",
+    "sourceManual": "Manual",
+    "sourceWeb": "Web",
+    "sourceTelegram": "Telegram",
+    "sourceDaylio": "Daylio",
+    "bulkDeleteSuccess": "{count} entradas eliminadas",
+    "bulkDeleteError": "Error al eliminar las entradas seleccionadas",
+    "bulkDeleteConfirmTitle": "¿Eliminar {count} entradas?",
+    "bulkDeleteConfirmBody": "Las {count} entradas de estado de ánimo seleccionadas se eliminarán de forma permanente."
   },
   "medications": {
     "title": "Medicamentos",
@@ -5303,5 +5320,16 @@
     "fertileSoonBody": "Se prevé que tu ventana fértil estimada comience en unos dos días. Es una estimación, no una garantía médica ni anticonceptiva.",
     "discreetTitle": "Recordatorio de HealthLog",
     "discreetBody": "Tienes un recordatorio en HealthLog."
+  },
+  "dataList": {
+    "allSources": "Todas las fuentes",
+    "dateFrom": "Desde",
+    "dateTo": "Hasta",
+    "selectAll": "Seleccionar todo en esta página",
+    "selectRow": "Seleccionar fila",
+    "selected": "{count} seleccionados",
+    "deleteN": "Eliminar ({count})",
+    "clearSelection": "Borrar selección",
+    "selectionBarLabel": "Acciones de selección"
   }
 }

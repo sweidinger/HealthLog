@@ -494,7 +494,15 @@
     "typeEnergyExpenditureKj": "Dépense énergétique",
     "typeAverageHeartRate": "Fréquence cardiaque moyenne",
     "typeMaxHeartRate": "Fréquence cardiaque maximale",
-    "typeSleepDisturbanceCount": "Perturbations du sommeil"
+    "typeSleepDisturbanceCount": "Perturbations du sommeil",
+    "filterBySource": "Filtrer par source",
+    "sourceComputed": "Calculé",
+    "sourceWhoop": "WHOOP",
+    "sourceFitbit": "Fitbit",
+    "bulkDeleteSuccess": "{count} mesures supprimées",
+    "bulkDeleteError": "Erreur lors de la suppression des mesures sélectionnées",
+    "bulkDeleteConfirmTitle": "Supprimer {count} mesures ?",
+    "bulkDeleteConfirmBody": "Les {count} mesures sélectionnées seront définitivement supprimées."
   },
   "mood": {
     "title": "Humeur",
@@ -598,7 +606,16 @@
       "factorConflict": "conflit",
       "factorFamily": "famille",
       "factorSadness": "tristesse"
-    }
+    },
+    "filterBySource": "Filtrer par source",
+    "sourceManual": "Manuel",
+    "sourceWeb": "Web",
+    "sourceTelegram": "Telegram",
+    "sourceDaylio": "Daylio",
+    "bulkDeleteSuccess": "{count} entrées supprimées",
+    "bulkDeleteError": "Erreur lors de la suppression des entrées sélectionnées",
+    "bulkDeleteConfirmTitle": "Supprimer {count} entrées ?",
+    "bulkDeleteConfirmBody": "Les {count} entrées d'humeur sélectionnées seront définitivement supprimées."
   },
   "medications": {
     "title": "Médicaments",
@@ -5303,5 +5320,16 @@
     "fertileSoonBody": "Votre fenêtre fertile estimée devrait commencer dans environ deux jours. Il s'agit d'une estimation, et non d'une garantie médicale ou contraceptive.",
     "discreetTitle": "Rappel HealthLog",
     "discreetBody": "Vous avez un rappel dans HealthLog."
+  },
+  "dataList": {
+    "allSources": "Toutes les sources",
+    "dateFrom": "Du",
+    "dateTo": "Au",
+    "selectAll": "Tout sélectionner sur cette page",
+    "selectRow": "Sélectionner la ligne",
+    "selected": "{count} sélectionné(s)",
+    "deleteN": "Supprimer ({count})",
+    "clearSelection": "Effacer la sélection",
+    "selectionBarLabel": "Actions de sélection"
   }
 }

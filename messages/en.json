@@ -494,7 +494,15 @@
     "typeEnergyExpenditureKj": "Energy expenditure",
     "typeAverageHeartRate": "Average heart rate",
     "typeMaxHeartRate": "Maximum heart rate",
-    "typeSleepDisturbanceCount": "Sleep disturbances"
+    "typeSleepDisturbanceCount": "Sleep disturbances",
+    "filterBySource": "Filter by source",
+    "sourceComputed": "Computed",
+    "sourceWhoop": "WHOOP",
+    "sourceFitbit": "Fitbit",
+    "bulkDeleteSuccess": "{count} measurements deleted",
+    "bulkDeleteError": "Error deleting the selected measurements",
+    "bulkDeleteConfirmTitle": "Delete {count} measurements?",
+    "bulkDeleteConfirmBody": "The {count} selected measurements will be permanently deleted."
   },
   "mood": {
     "title": "Mood",
@@ -598,7 +606,16 @@
       "factorConflict": "conflict",
       "factorFamily": "family",
       "factorSadness": "sadness"
-    }
+    },
+    "filterBySource": "Filter by source",
+    "sourceManual": "Manual",
+    "sourceWeb": "Web",
+    "sourceTelegram": "Telegram",
+    "sourceDaylio": "Daylio",
+    "bulkDeleteSuccess": "{count} entries deleted",
+    "bulkDeleteError": "Error deleting the selected entries",
+    "bulkDeleteConfirmTitle": "Delete {count} entries?",
+    "bulkDeleteConfirmBody": "The {count} selected mood entries will be permanently deleted."
   },
   "medications": {
     "title": "Medications",
@@ -5303,5 +5320,16 @@
     "fertileSoonBody": "Your estimated fertile window is predicted to start in about two days. This is an estimate, not a medical or contraceptive guarantee.",
     "discreetTitle": "HealthLog reminder",
     "discreetBody": "You have a reminder in HealthLog."
+  },
+  "dataList": {
+    "allSources": "All sources",
+    "dateFrom": "From",
+    "dateTo": "To",
+    "selectAll": "Select all on this page",
+    "selectRow": "Select row",
+    "selected": "{count} selected",
+    "deleteN": "Delete ({count})",
+    "clearSelection": "Clear selection",
+    "selectionBarLabel": "Selection actions"
   }
 }

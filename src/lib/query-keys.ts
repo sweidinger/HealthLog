@@ -42,6 +42,66 @@ export const queryKeys = {
   moodEntries: () => ["mood-entries"] as const,
 
   /**
+   * v1.15.13 — the measurements management-list read with its full filter
+   * + sort + pagination state baked into the key so the cache slot is
+   * correct for every filter combination (a `sourceEq` / date-range /
+   * type / page / sort change re-keys instead of poisoning a shared
+   * slot). Rides under the `["measurements"]` prefix so
+   * `measurementDependentKeys` (and a bulk-delete invalidation) reaches
+   * every slot at once. `mode` distinguishes the synthetic day-grouped /
+   * sleep-night branches from the plain `raw` list.
+   */
+  measurementsList: (params: {
+    type: string | undefined;
+    sourceEq: string | undefined;
+    from: string | undefined;
+    to: string | undefined;
+    page: number;
+    sortBy: string;
+    sortDir: string;
+    mode: "raw" | "groupBy=day" | "sleep-night";
+  }) =>
+    [
+      "measurements",
+      "list",
+      params.type ?? null,
+      params.sourceEq ?? null,
+      params.from ?? null,
+      params.to ?? null,
+      params.page,
+      params.sortBy,
+      params.sortDir,
+      params.mode,
+    ] as const,
+
+  /**
+   * v1.15.13 — the mood management-list read with its filter + sort +
+   * pagination state baked into the key, mirroring `measurementsList`.
+   * Rides under the `["mood-entries"]` prefix so `moodDependentKeys`
+   * (and a bulk-delete invalidation) reaches every slot.
+   */
+  moodEntriesList: (params: {
+    mood: string | undefined;
+    source: string | undefined;
+    from: string | undefined;
+    to: string | undefined;
+    page: number;
+    sortBy: string;
+    sortDir: string;
+  }) =>
+    [
+      "mood-entries",
+      "list",
+      params.mood ?? null,
+      params.source ?? null,
+      params.from ?? null,
+      params.to ?? null,
+      params.page,
+      params.sortBy,
+      params.sortDir,
+    ] as const,
+
+  /**
    * v1.11.5 — last-night hypnogram (`GET /api/sleep/night`). The `date`
    * discriminator lets the night-picker step back through recent nights
    * without colliding caches; `undefined` is the most-recent night.
