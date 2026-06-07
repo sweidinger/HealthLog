@@ -103,12 +103,21 @@ export async function streamMultipartToDisk(
   // boundary length so we never accumulate more than necessary.
   let buffer = Buffer.alloc(0);
   // Current parser state:
-  //   "preamble"  — before the first boundary
-  //   "headers"   — inside a part's header block
-  //   "body-file" — inside the captured file's body
-  //   "body-text" — inside a text field's body
-  //   "epilogue"  — after the closing boundary
-  type ParserState = "preamble" | "headers" | "body-file" | "body-text" | "epilogue";
+  //   "preamble"       — before the first boundary marker
+  //   "after-boundary" — a boundary marker was just consumed; awaiting
+  //                      its two-byte suffix ("\r\n" for another part or
+  //                      "--" for the closing boundary)
+  //   "headers"        — inside a part's header block
+  //   "body-file"      — inside the captured file's body
+  //   "body-text"      — inside a text field's body
+  //   "epilogue"       — after the closing boundary
+  type ParserState =
+    | "preamble"
+    | "after-boundary"
+    | "headers"
+    | "body-file"
+    | "body-text"
+    | "epilogue";
   let state: ParserState = "preamble";
   let currentFieldName: string | null = null;
   let currentTextBuffer: Buffer[] = [];
@@ -151,19 +160,42 @@ export async function streamMultipartToDisk(
   // search for the boundary marker, emit bytes up to it.
   const processBuffer = async (): Promise<void> => {
     while (true) {
+      if (state === "epilogue") {
+        // Everything after the closing boundary is discarded.
+        buffer = Buffer.alloc(0);
+        return;
+      }
+
       if (state === "preamble") {
         const idx = buffer.indexOf(boundaryMarker);
         if (idx === -1) {
-          // Need more bytes to find a boundary; retain a small tail
-          // so a boundary split across chunks is still detectable.
-          if (buffer.length > boundaryMarker.length) {
-            buffer = buffer.slice(buffer.length - boundaryMarker.length);
+          // Need more bytes to find a boundary; retain a tail of
+          // `boundaryMarker.length - 1` bytes so a marker split across
+          // chunks is still detectable on the next read. Retaining the
+          // full marker length could drop a byte that completes the
+          // marker, so keep one fewer.
+          const keep = Math.min(buffer.length, boundaryMarker.length - 1);
+          if (buffer.length > keep) {
+            buffer = buffer.slice(buffer.length - keep);
           }
           return;
         }
-        // Drop everything up to and including the boundary marker.
+        // Drop everything up to and including the boundary marker and
+        // hand off to "after-boundary" to classify the two-byte suffix.
+        // Doing this in its own state means a chunk boundary landing
+        // immediately after the marker cannot reset us into a fresh
+        // marker search (which would silently swallow the part body).
         buffer = buffer.slice(idx + boundaryMarker.length);
-        // After the first boundary we expect "\r\n" or "--" (closing).
+        state = "after-boundary";
+        continue;
+      }
+
+      if (state === "after-boundary") {
+        // A boundary marker was just consumed. Wait until we have the
+        // two-byte suffix before deciding: "\r\n" introduces another
+        // part, "--" closes the multipart body. Never search for a new
+        // marker here — that is the bug class this state exists to
+        // prevent.
         if (buffer.length < 2) return;
         if (buffer[0] === 0x2d && buffer[1] === 0x2d) {
           state = "epilogue";
@@ -174,7 +206,20 @@ export async function streamMultipartToDisk(
           state = "headers";
           continue;
         }
-        return;
+        // RFC 2046 allows linear whitespace ("transport padding")
+        // between the marker and its CRLF. Skip a leading run of SP/HT
+        // and re-test; if neither suffix is present yet, the chunk is
+        // malformed.
+        if (buffer[0] === 0x20 || buffer[0] === 0x09) {
+          let i = 0;
+          while (i < buffer.length && (buffer[i] === 0x20 || buffer[i] === 0x09)) {
+            i++;
+          }
+          if (i >= buffer.length) return; // need more bytes
+          buffer = buffer.slice(i);
+          continue;
+        }
+        throw new Error("Malformed multipart boundary suffix");
       }
 
       if (state === "headers") {
@@ -243,21 +288,10 @@ export async function streamMultipartToDisk(
         await closeFileSink();
       }
       buffer = buffer.slice(idx + sep.length);
-      // After the boundary we expect "\r\n" or "--".
-      if (buffer.length < 2) {
-        state = "preamble";
-        return;
-      }
-      if (buffer[0] === 0x2d && buffer[1] === 0x2d) {
-        state = "epilogue";
-        return;
-      }
-      if (buffer[0] === 0x0d && buffer[1] === 0x0a) {
-        buffer = buffer.slice(2);
-        state = "headers";
-        continue;
-      }
-      return;
+      // The boundary marker is consumed; classify its two-byte suffix
+      // in "after-boundary" so a chunk split landing right here cannot
+      // lose the next part.
+      state = "after-boundary";
     }
   };
 
