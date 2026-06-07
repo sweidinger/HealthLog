@@ -126,13 +126,13 @@ describe("getCoachSystemPrompt — native AI-initial locales", () => {
 
   it("EN locale still uses the original EN body (untouched)", () => {
     const prompt = getCoachSystemPrompt("en");
-    expect(prompt).toMatch(/You are the HealthLog Coach\./);
+    expect(prompt).toMatch(/You are the HealthLog Coach/);
     expect(prompt).toMatch(/GROUND RULES/);
   });
 
   it("DE locale still uses the original DE body (untouched)", () => {
     const prompt = getCoachSystemPrompt("de");
-    expect(prompt).toMatch(/Du bist der HealthLog-Coach\./);
+    expect(prompt).toMatch(/Du bist der HealthLog-Coach/);
     expect(prompt).toMatch(/GRUNDREGELN/);
   });
 });
@@ -192,14 +192,14 @@ describe("getStrictInsightsSystemPrompt — native AI-initial locales", () => {
     },
   );
 
-  it("EN locale still uses the original EN body", () => {
+  it("EN locale still uses the original EN body (v1.15.15 warm advisor voice)", () => {
     const prompt = getStrictInsightsSystemPrompt("en");
-    expect(prompt).toMatch(/You are a clinical-context summariser/);
+    expect(prompt).toMatch(/warm, motivating advisor/);
   });
 
-  it("DE locale still uses the original DE body", () => {
+  it("DE locale still uses the original DE body (v1.15.15 warm advisor voice)", () => {
     const prompt = getStrictInsightsSystemPrompt("de");
-    expect(prompt).toMatch(/klinischer-Kontext-Zusammenfasser/);
+    expect(prompt).toMatch(/warme, motivierende Begleiter/);
   });
 });
 
