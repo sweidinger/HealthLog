@@ -205,7 +205,7 @@
     "logout": "Cerrar sesión",
     "login": "Iniciar sesión",
     "about": "Acerca de HealthLog",
-    "notifications": "Centro de notificaciones",
+    "notifications": "Notificaciones",
     "theme": "Apariencia",
     "themeSystem": "Sistema",
     "themeDark": "Oscuro",
@@ -4692,8 +4692,8 @@
     "disabledBody": "El administrador ha desactivado los informes de errores en este servidor."
   },
   "notifications": {
-    "title": "Centro de notificaciones",
-    "breadcrumbInbox": "Centro de notificaciones",
+    "title": "Notificaciones",
+    "breadcrumbInbox": "Notificaciones",
     "breadcrumbChannels": "Canales de notificación",
     "breadcrumbSettings": "Ajustes",
     "eventColumn": "Evento",

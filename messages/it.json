@@ -205,7 +205,7 @@
     "logout": "Esci",
     "login": "Accedi",
     "about": "Informazioni su HealthLog",
-    "notifications": "Centro notifiche",
+    "notifications": "Notifiche",
     "theme": "Aspetto",
     "themeSystem": "Sistema",
     "themeDark": "Scuro",
@@ -4692,8 +4692,8 @@
     "disabledBody": "L'amministratore ha disattivato le segnalazioni di bug su questo server."
   },
   "notifications": {
-    "title": "Centro notifiche",
-    "breadcrumbInbox": "Centro notifiche",
+    "title": "Notifiche",
+    "breadcrumbInbox": "Notifiche",
     "breadcrumbChannels": "Canali di notifica",
     "breadcrumbSettings": "Impostazioni",
     "eventColumn": "Evento",

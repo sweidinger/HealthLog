@@ -205,7 +205,7 @@
     "logout": "Se déconnecter",
     "login": "Se connecter",
     "about": "À propos de HealthLog",
-    "notifications": "Centre de notifications",
+    "notifications": "Notifications",
     "theme": "Apparence",
     "themeSystem": "Système",
     "themeDark": "Sombre",
@@ -4692,8 +4692,8 @@
     "disabledBody": "L'administrateur a désactivé les rapports de bug sur ce serveur."
   },
   "notifications": {
-    "title": "Centre de notifications",
-    "breadcrumbInbox": "Centre de notifications",
+    "title": "Notifications",
+    "breadcrumbInbox": "Notifications",
     "breadcrumbChannels": "Canaux de notification",
     "breadcrumbSettings": "Paramètres",
     "eventColumn": "Événement",

@@ -147,7 +147,7 @@ describe("<SettingsShell>", () => {
     expect(html).toContain("Integrations");
     // v1.9.0 — the section label is back to the shorter "Notifications"
     // (single-line; the longer "Notification channels" wrapped). The
-    // `/notifications` inbox is still "Notification Center" — distinct enough.
+    // `/notifications` inbox now shares the "Notifications" label.
     expect(html).toContain("Notifications");
     expect(html).toContain("Dashboard");
     expect(html).toContain("Insights");
@@ -177,7 +177,7 @@ describe("<SettingsShell>", () => {
     expect(html).toContain("Integrationen");
     // v1.9.0 — back to the shorter "Benachrichtigungen" (single-line; the
     // compound "Benachrichtigungs-Kanäle" wrapped). The `/notifications`
-    // inbox stays "Benachrichtigungs-Center" — distinct enough.
+    // inbox now shares the "Benachrichtigungen" label.
     expect(html).toContain("Benachrichtigungen");
     // v1.4.3: the Settings sub-section formerly labelled "Übersicht" is now
     // "Dashboard" (matching the term users see in the main nav). The
