@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [1.15.11] — 2026-06-07 — a customizable overview
+
+### Added
+
+- **Arrange your overview.** Tap **Anpassen** on the Insights overview to rearrange it: drag sections into the order you want, hide the ones you don't, and — inside Vitals — reorder or hide individual metric tiles. Your layout is saved to your account and carries across devices. Tap **Fertig** to apply, **Zurücksetzen** to return to the default arrangement.
+
 ### Fixed
 
 - **Self-hosting docs now generate a URL-safe Postgres password.** The setup examples used `openssl rand -base64 24`, which can emit characters (`/`, `+`, `=`) that break the unescaped `DATABASE_URL` and stop a fresh instance from connecting to its database. Every example now uses `openssl rand -hex 32`.
