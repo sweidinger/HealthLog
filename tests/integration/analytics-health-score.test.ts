@@ -238,9 +238,15 @@ describe("GET /api/analytics — Health Score", () => {
     };
     expect(env.data!.healthScore).not.toBeNull();
     const hs = env.data!.healthScore!;
-    // The BP pillar must score from the all-time window…
+    // The BP pillar must score from the all-time window (recency-weighted)…
+    // 122/78 sits just inside the under-65 target ceiling (129/79), so the
+    // graded clinical-proximity score lands high (worst-of-axis ≈ 86) rather
+    // than the old binary 100. The point of this test is that the pillar still
+    // SCORES from all-time history when the trailing-30-day window is empty —
+    // a clearly in-target history must read as a strong (≥ 80) pillar, not drop
+    // out entirely (the regression this test pins).
     expect(hs.components.bp.value).not.toBeNull();
-    expect(hs.components.bp.value).toBeGreaterThanOrEqual(90);
+    expect(hs.components.bp.value).toBeGreaterThanOrEqual(80);
     expect(hs.components.bp.weight).toBeGreaterThan(0);
     // …while the tile headline stays scoped to the trailing 30 days
     // (no readings there → null), proving the two are decoupled.
