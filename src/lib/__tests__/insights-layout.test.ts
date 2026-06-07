@@ -11,6 +11,7 @@
 import { describe, it, expect } from "vitest";
 import {
   INSIGHTS_SECTION_IDS,
+  INSIGHTS_TILE_IDS,
   DEFAULT_INSIGHTS_LAYOUT,
   resolveInsightsLayout,
   serializeInsightsLayout,
@@ -294,6 +295,39 @@ describe("resolveTileLayout — W2c per-tile decision", () => {
       "stair-ascent-speed",
       "stair-descent-speed",
       "wrist-temperature",
+    ]) {
+      expect(resolveTileLayout(DEFAULT_INSIGHTS_LAYOUT, id).visible).toBe(true);
+    }
+  });
+
+  // v1.15.14 — the default is ALL-VISIBLE. The v1.15.11 curated subset
+  // dropped ~20 nav pills once the tab strip began gating on the layout
+  // (sleep, steps, active-energy, walking-*, audio-*, daylight, the body-
+  // composition tiles, …). The grid renders a fixed mapped subset
+  // regardless of `tiles.visible`, so all-visible does NOT bloat it; what
+  // it restores is the nav's everything-with-data default. Pin it.
+  it("defaults EVERY tile visible (nav-pill regression guard)", () => {
+    expect(DEFAULT_INSIGHTS_LAYOUT.tiles.length).toBe(INSIGHTS_TILE_IDS.length);
+    for (const tile of DEFAULT_INSIGHTS_LAYOUT.tiles) {
+      expect(tile.visible).toBe(true);
+    }
+    // Spot-check the long-tail slugs that previously regressed out of nav.
+    for (const id of [
+      "sleep",
+      "steps",
+      "active-energy",
+      "walking-distance",
+      "walking-speed",
+      "flights-climbed",
+      "environmental-audio",
+      "headphone-audio",
+      "daylight",
+      "breathing-disturbances",
+      "skin-temperature",
+      "body-water",
+      "fat-mass",
+      "muscle-mass",
+      "lean-body-mass",
     ]) {
       expect(resolveTileLayout(DEFAULT_INSIGHTS_LAYOUT, id).visible).toBe(true);
     }

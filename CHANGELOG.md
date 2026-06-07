@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+## [1.15.14] — 2026-06-07 — manage every detail page, calmer mood charts
+
+### Added
+
+- **Manage every detail page from the overview.** "Anpassen" → "Detailseiten verwalten" now lists every insights sub-page, grouped by category, so you can reorder and hide any of them — not just the vitals tiles. The top navigation follows your choices: hide a page and its pill leaves the nav too.
+
+### Changed
+
+- **Calmer, more compact mood charts.** The mood distribution and weekday-average charts on the mood page are smaller and use softer colour, so the page reads more easily. Their axis labels are now legible in the light theme too.
+
 ## [1.15.13] — 2026-06-07 — search, filter, and bulk delete
 
 ### Added

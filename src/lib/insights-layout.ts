@@ -140,55 +140,30 @@ const INSIGHTS_LAYOUT_VERSION = 2;
 /**
  * Default layout mirrors the routed tab-strip order — vitals first,
  * then body composition, activity, sleep, cardiovascular, mood, then
- * events. Core surfaces are default-visible; the long-tail HealthKit
- * pills (oxygen saturation, body temperature, active energy, sleep,
- * resting HR, HRV) stay default-invisible and the user opts in once
- * the matching data starts to flow. Adding a new tile lands as an
- * additional `{ id, visible: false, order: N }` row here and the
- * resolver auto-merges it onto existing users' saved layouts.
+ * events. Every tile ships default-VISIBLE; the user hides what they
+ * don't want. Adding a new tile lands as an additional default-visible
+ * row here and the resolver auto-merges it onto existing users' saved
+ * layouts.
+ *
+ * v1.15.14 — the default is now ALL-VISIBLE. The v1.15.11 design shipped
+ * a curated subset (`DEFAULT_VISIBLE_TILE_IDS`) authored for the overview
+ * Vitals/Mobility GRID, which renders only a FIXED mapped set of tiles
+ * (the four derived re-frames + `SECTION_VITALS` + `SECTION_MOBILITY` —
+ * see `vitals-dashboard.tsx`). But once the tab strip began gating its
+ * nav pills on the same layout (v1.15.14 W2), that curated subset dropped
+ * ~20 nav pills for a fresh account with data in Sleep, Steps,
+ * Active-Energy, body composition, Walking/mobility, Audio, Daylight,
+ * etc. — pills that show today — and caused a "pills flash in then
+ * vanish" once the layout GET settled.
+ *
+ * The grid renders a fixed mapped subset regardless of `tiles.visible`
+ * (the long-tail slugs never appear in the grid), so defaulting EVERY
+ * tile visible does NOT bloat the grid — it stays its curated, data-gated
+ * set. What it restores is the tab strip's everything-with-data default:
+ * a fresh account sees every pill it has data for, and the user hides the
+ * ones they don't want. Data availability stays the floor everywhere — a
+ * visible tile with no readings still renders nothing.
  */
-// Core surfaces that ship default-visible for a fresh account. Every
-// other tile (the long-tail HealthKit + body-composition + mobility +
-// audio pills) stays default-invisible and the user opts in once the
-// matching data starts to flow. Keeping this as an explicit set means
-// the default-visibility decision is auditable in one place while the
-// tile-id universe itself derives from `SUB_PAGE_SLUGS`.
-const DEFAULT_VISIBLE_TILE_IDS = new Set<InsightsTileId>([
-  "overview",
-  "blood-pressure",
-  "pulse",
-  "weight",
-  "bmi",
-  "workouts",
-  "mood",
-  "medications",
-  // v1.15.11 W2c — the Vitals + Mobility grid on the overview surfaces every
-  // one of these tiles today, gated only on data availability. Now that the
-  // grid honours this layout's tile visibility, they must ship default-visible
-  // or a fresh account (no saved layout) would lose the tiles it shows today —
-  // a regression. They stay data-gated on top of visibility, so a tile with no
-  // readings still renders nothing exactly as before; widening the default set
-  // only ensures the layout never *suppresses* a tile the user already sees.
-  // The ids map to the grid's tile concepts:
-  //   cardio-fitness → FitnessAge (VO₂max re-frame); vascular-age →
-  //   VascularAge; hrv → HRV balance; resting-pulse / respiratory-rate /
-  //   oxygen / body-temperature / blood-glucose → the per-vital baseline
-  //   tiles; six-minute-walk / stair-ascent-speed / stair-descent-speed /
-  //   wrist-temperature → the Mobility sub-grid.
-  "cardio-fitness",
-  "vascular-age",
-  "hrv",
-  "resting-pulse",
-  "respiratory-rate",
-  "oxygen",
-  "body-temperature",
-  "blood-glucose",
-  "six-minute-walk",
-  "stair-ascent-speed",
-  "stair-descent-speed",
-  "wrist-temperature",
-]);
-
 export const DEFAULT_INSIGHTS_LAYOUT: InsightsLayout = {
   version: INSIGHTS_LAYOUT_VERSION,
   // Every section ships default-visible; feature/data gates still apply
@@ -203,9 +178,11 @@ export const DEFAULT_INSIGHTS_LAYOUT: InsightsLayout = {
   // `SUB_PAGE_SLUGS` order, which itself tracks the MeasurementCategory
   // overlay: vitals → body → activity → sleep → cardiovascular → mood →
   // events). The dense 0-based `order` mirrors the routed tab strip.
+  // Every tile defaults VISIBLE — see the module note above for why the
+  // v1.15.11 curated subset was a nav-pill regression.
   tiles: INSIGHTS_TILE_IDS.map((id, order) => ({
     id,
-    visible: DEFAULT_VISIBLE_TILE_IDS.has(id),
+    visible: true,
     order,
   })),
 };

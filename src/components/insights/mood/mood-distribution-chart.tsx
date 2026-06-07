@@ -53,18 +53,33 @@ export function MoodDistributionChart({
   });
 
   return (
-    <div className="aspect-[3/2] min-h-[180px] w-full">
+    // v1.15.14 — bounded compact height (was `aspect-[3/2] min-h-[180px]`,
+    // which ballooned the card on a wide viewport). A fixed band keeps this a
+    // tidy card rather than a dominant block, and matches the weekday sibling.
+    <div className="h-[150px] w-full">
       <ResponsiveContainer width="100%" height="100%">
         <BarChart data={data} margin={{ top: 8, right: 12, bottom: 8, left: 0 }}>
           <XAxis
             dataKey="label"
-            tick={{ fontSize: 11, fill: "var(--dracula-fg)" }}
+            // v1.15.14 — theme-aware axis text. `--dracula-fg` (near-white) is
+            // not overridden in `:root.light` (Alucard white card) → white-on-
+            // white. `--muted-foreground` is the token every other in-app chart
+            // uses for axis ticks and is legible in both themes; dark mode is
+            // unchanged. The mood-hue bar Cells stay on `--dracula-*` — only the
+            // axis text legibility changes here.
+            tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
             stroke="var(--dracula-comment)"
             interval={0}
           />
           <YAxis
             allowDecimals={false}
-            tick={{ fontSize: 11, fill: "var(--dracula-fg)" }}
+            // v1.15.14 — theme-aware axis text. `--dracula-fg` (near-white) is
+            // not overridden in `:root.light` (Alucard white card) → white-on-
+            // white. `--muted-foreground` is the token every other in-app chart
+            // uses for axis ticks and is legible in both themes; dark mode is
+            // unchanged. The mood-hue bar Cells stay on `--dracula-*` — only the
+            // axis text legibility changes here.
+            tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
             stroke="var(--dracula-comment)"
             width={28}
           />
@@ -93,6 +108,13 @@ export function MoodDistributionChart({
             // than a missing slot. The coloured bar paints over the track
             // for non-empty levels.
             background={{ fill: "var(--secondary)", opacity: 0.35, radius: 3 }}
+            // v1.15.14 — the saturated full-bleed mood hues read as
+            // "erschlagend"; soften every bar to a muted tint of its level
+            // colour. The hue (= mood-level semantics) still distinguishes the
+            // bands, but the fill sits calmly over the card rather than
+            // shouting. Scoped to this chart only — the shared `--dracula-*`
+            // mood tokens (heatmap, legend) are untouched.
+            fillOpacity={0.55}
           >
             {data.map((row) => (
               <Cell

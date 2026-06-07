@@ -16,6 +16,7 @@ vi.mock("sonner", () => ({ toast: { success: vi.fn() } }));
 import { InsightsTabStrip } from "../insights-tab-strip";
 import type { InsightInputs } from "@/lib/insights/metric-availability";
 import type { DataSummary } from "@/lib/analytics/trends";
+import { DEFAULT_INSIGHTS_LAYOUT } from "@/lib/insights-layout";
 
 function render(node: React.ReactNode, locale: "en" | "de" = "en") {
   return renderToStaticMarkup(
@@ -221,5 +222,169 @@ describe("<InsightsTabStrip> — vitals group collapse (v1.4.34 IW-D)", () => {
     expect(html).toContain(">Mood<");
     expect(html).toContain(">Medication<");
     expect(html).toContain(">Workouts<");
+  });
+});
+
+describe("<InsightsTabStrip> — saved-layout visibility gate (v1.15.14 W2)", () => {
+  const dataAvailability: InsightInputs = {
+    summaries: {
+      PULSE: fakeSummary(5),
+      WEIGHT: fakeSummary(3),
+    },
+    hasMood: false,
+    hasMedication: false,
+  };
+
+  it("hides a pill whose slug is layout-hidden even though it has data", () => {
+    // `pulse` has data but is NOT in the visible set ⇒ no pill. `weight`
+    // has data AND is visible ⇒ pill shows.
+    const visibleTileIds = new Set(["overview", "weight", "bmi"]);
+    const html = render(
+      <InsightsTabStrip
+        availability={dataAvailability}
+        visibleTileIds={visibleTileIds}
+      />,
+    );
+    expect(html).toContain(">Weight<");
+    expect(html).toContain(">BMI<");
+    expect(html).not.toContain(">Pulse<");
+  });
+
+  it("shows a pill when its slug is layout-visible AND has data", () => {
+    const visibleTileIds = new Set([
+      "overview",
+      "pulse",
+      "weight",
+      "bmi",
+    ]);
+    const html = render(
+      <InsightsTabStrip
+        availability={dataAvailability}
+        visibleTileIds={visibleTileIds}
+      />,
+    );
+    expect(html).toContain(">Pulse<");
+    expect(html).toContain(">Weight<");
+  });
+
+  it("keeps data-availability as the FLOOR — a layout-visible metric with zero data stays hidden", () => {
+    // `blood-pressure` is layout-visible but has no data ⇒ still no pill.
+    const visibleTileIds = new Set([
+      "overview",
+      "blood-pressure",
+      "weight",
+      "bmi",
+    ]);
+    const html = render(
+      <InsightsTabStrip
+        availability={dataAvailability}
+        visibleTileIds={visibleTileIds}
+      />,
+    );
+    expect(html).not.toContain(">Blood Pressure<");
+    expect(html).toContain(">Weight<");
+  });
+
+  it("falls back to the data-only gate when no layout is loaded (visibleTileIds undefined)", () => {
+    // No visibleTileIds prop ⇒ pre-W2 behaviour: every data-having pill shows.
+    const html = render(<InsightsTabStrip availability={dataAvailability} />);
+    expect(html).toContain(">Pulse<");
+    expect(html).toContain(">Weight<");
+    expect(html).toContain(">BMI<");
+  });
+
+  it("always shows the Overview pill regardless of layout visibility", () => {
+    const visibleTileIds = new Set<string>(); // nothing visible
+    const html = render(
+      <InsightsTabStrip
+        availability={dataAvailability}
+        visibleTileIds={visibleTileIds}
+      />,
+    );
+    expect(html).toContain(">Overview<");
+    expect(html).not.toContain(">Pulse<");
+    expect(html).not.toContain(">Weight<");
+  });
+
+  it("hides a group parent pill when every child is layout-hidden", () => {
+    // Activity group: ACTIVITY_STEPS has data, but `steps` is not visible.
+    const availability: InsightInputs = {
+      summaries: { ACTIVITY_STEPS: fakeSummary(4200) },
+      hasMood: false,
+      hasMedication: false,
+    };
+    const visibleTileIds = new Set(["overview"]); // steps hidden
+    const html = render(
+      <InsightsTabStrip
+        availability={availability}
+        visibleTileIds={visibleTileIds}
+      />,
+    );
+    expect(html).not.toContain('data-group="activity"');
+    expect(html).not.toContain(">Activity<");
+  });
+
+  it("shows a group parent pill when at least one child is visible + has data", () => {
+    const availability: InsightInputs = {
+      summaries: { ACTIVITY_STEPS: fakeSummary(4200) },
+      hasMood: false,
+      hasMedication: false,
+    };
+    const visibleTileIds = new Set(["overview", "steps"]);
+    const html = render(
+      <InsightsTabStrip
+        availability={availability}
+        visibleTileIds={visibleTileIds}
+      />,
+    );
+    expect(html).toContain('data-group="activity"');
+    expect(html).toContain(">Activity<");
+  });
+
+  // v1.15.14 — regression guard: the DEFAULT layout's visible set must equal
+  // the data-only nav set. The v1.15.11 curated default dropped ~20 pills once
+  // the strip began gating on the layout; making the default all-visible
+  // restores everything-with-data. Derive `visibleTileIds` straight from
+  // `DEFAULT_INSIGHTS_LAYOUT` (what a fresh / never-customized account
+  // resolves to) and assert the long-tail pills + group parents still show
+  // when their data is present.
+  it("default layout shows every data-having pill (nav-pill regression guard)", () => {
+    const visibleTileIds = new Set(
+      DEFAULT_INSIGHTS_LAYOUT.tiles
+        .filter((t) => t.visible)
+        .map((t) => t.id),
+    );
+    const availability: InsightInputs = {
+      summaries: {
+        SLEEP_DURATION: fakeSummary(20),
+        ACTIVITY_STEPS: fakeSummary(4200),
+        ACTIVE_ENERGY_BURNED: fakeSummary(30),
+        FAT_MASS: fakeSummary(12),
+        MUSCLE_MASS: fakeSummary(12),
+        AUDIO_EXPOSURE_ENV: fakeSummary(40),
+        TIME_IN_DAYLIGHT: fakeSummary(15),
+      },
+      hasMood: false,
+      hasMedication: false,
+    };
+    const html = render(
+      <InsightsTabStrip
+        availability={availability}
+        visibleTileIds={visibleTileIds}
+      />,
+    );
+    // Flat pill that previously regressed out of the default nav.
+    expect(html).toContain(">Sleep<");
+    // Group parents that the curated default suppressed: Activity (steps /
+    // active-energy), Body (fat-mass / muscle-mass), Hearing (audio),
+    // Environment (daylight).
+    expect(html).toContain('data-group="activity"');
+    expect(html).toContain(">Activity<");
+    expect(html).toContain('data-group="body"');
+    expect(html).toContain(">Body<");
+    expect(html).toContain('data-group="hearing"');
+    expect(html).toContain(">Hearing<");
+    expect(html).toContain('data-group="environment"');
+    expect(html).toContain(">Environment<");
   });
 });
