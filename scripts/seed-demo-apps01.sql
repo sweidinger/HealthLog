@@ -14,7 +14,7 @@ BEGIN;
 
 -- ── User (FEMALE, USER role) ──────────────────────────────────────
 INSERT INTO users (id, username, email, password_hash, role, height_cm, date_of_birth, gender, timezone, locale, onboarding_completed_at, created_at, updated_at)
-SELECT 'usr_demo_' || replace(gen_random_uuid()::text, '-', ''),
+SELECT 'usr_demo_cf31025295714ece8d91f5af13afd76d',
        'demo', 'demo@healthlog.app',
        '$argon2id$v=19$m=19456,t=2,p=1$3KvrEIuI5UnwG53GPbS71w$mL8ZQotIXn9iLFIw3yHXbh6SitX1w7TXKI5ahWcKkF8',
        'USER', 168, TIMESTAMP '1992-03-15', 'FEMALE', 'Europe/Berlin', 'en', NOW(), NOW(), NOW()
