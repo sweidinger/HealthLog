@@ -258,6 +258,11 @@ async function buildAnalyticsResponse(user: AuthedUser) {
   // pillar compares the same window on both ends (the tile headline keeps
   // its 30-day scope; the score reads all-time per its documented contract).
   let windowsPriorWeekAllTime: number | null = null;
+  // v1.15.12 A1 — graded clinical-proximity BP score (recency-weighted
+  // representative reading) for the Health-Score BP pillar value, plus
+  // the prior-week run for the week-over-week delta.
+  let bpGradedScore: number | null = null;
+  let bpGradedScorePriorWeek: number | null = null;
   const bpTargets = getBpTargets(user.dateOfBirth);
   if (bpTargets) {
     const now = new Date();
@@ -309,6 +314,8 @@ async function buildAnalyticsResponse(user: AuthedUser) {
     bpInTargetPctPriorMonth = windows.priorMonth?.pct ?? null;
     bpInTargetPctPriorYear = windows.priorYear?.pct ?? null;
     bpInTargetPctPriorWeek = windowsPriorWeek.last30Days?.pct ?? null;
+    bpGradedScore = windows.gradedScore;
+    bpGradedScorePriorWeek = windowsPriorWeek.gradedScore;
     // The Health-Score BP pillar reads the all-time window (see the
     // `bpInTargetPctForScore` derivation below). Capture the prior-week
     // run's all-time pct too so the week-over-week delta compares the
@@ -395,6 +402,12 @@ async function buildAnalyticsResponse(user: AuthedUser) {
     // same all-time window as the current snapshot so the delta is
     // apples-to-apples.
     bpInTargetPctPriorWeek: bpInTargetPctPriorWeekForScore,
+    // v1.15.12 A1 — graded clinical-proximity BP score drives the pillar
+    // VALUE; the binary in-target rate above only gates presence and is
+    // surfaced as a secondary stat. Closes the "borderline-stage-1 reads
+    // 16/100" trust bug.
+    bpGradedScore,
+    bpGradedScorePriorWeek,
     heightCm: user.heightCm ?? null,
     now: new Date(),
     coverage,

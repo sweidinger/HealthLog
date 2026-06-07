@@ -666,4 +666,72 @@ describe("computeUserHealthScoreFastPath", () => {
       expect(result?.components.compliance.value).toBeGreaterThanOrEqual(90);
     });
   });
+
+  /**
+   * v1.15.12 A1 — the graded clinical-proximity score, when supplied,
+   * becomes the BP pillar VALUE; the binary in-target rate only gates
+   * presence. A "borderline-stage-1" profile that read ~16/100 under the
+   * old binary contract must now read in the graded band.
+   */
+  describe("graded BP pillar (A1)", () => {
+    it("uses bpGradedScore as the pillar value, not the binary rate", async () => {
+      const coverage = new Map<string, boolean>();
+      FULLY_COVERED.mockReturnValue(false);
+      PROBE.mockResolvedValue(coverage);
+
+      const now = new Date("2026-06-07T12:00:00.000Z");
+      // Live fallback — no weight/mood/med data; only BP signal present.
+      MEASUREMENT_FIND_MANY
+        .mockResolvedValueOnce([]) // weight raw read (live fallback)
+        .mockResolvedValueOnce([]); // BP-SYS source attribution
+
+      const result = await computeUserHealthScoreFastPath({
+        userId: "user-graded-bp",
+        // Binary all-time rate is catastrophic (the old pillar value)…
+        bpInTargetPct: 16,
+        // …but the graded clinical-proximity score says borderline.
+        bpGradedScore: 55,
+        heightCm: null,
+        now,
+        coverage,
+      });
+
+      expect(result).not.toBeNull();
+      // Pillar reads the graded score, NOT the binary 16.
+      expect(result?.components.bp.value).toBe(55);
+    });
+
+    it("keeps the pillar absent when no BP readings exist (presence gate)", async () => {
+      const coverage = new Map<string, boolean>();
+      FULLY_COVERED.mockReturnValue(false);
+      PROBE.mockResolvedValue(coverage);
+
+      const now = new Date("2026-06-07T12:00:00.000Z");
+      MEASUREMENT_FIND_MANY
+        .mockResolvedValueOnce([]) // weight raw read
+        .mockResolvedValueOnce([]); // BP-SYS source attribution
+      // Mood present so the score is computable even without BP.
+      MOOD_FIND_MANY.mockResolvedValue(
+        Array.from({ length: 6 }, (_v, i) => ({
+          score: 4,
+          moodLoggedAt: new Date(now.getTime() - i * 24 * 60 * 60 * 1000),
+        })),
+      );
+
+      const result = await computeUserHealthScoreFastPath({
+        userId: "user-no-bp",
+        // No paired BP readings → rate is null → pillar absent even if a
+        // stray graded score were supplied.
+        bpInTargetPct: null,
+        bpGradedScore: 80,
+        heightCm: null,
+        now,
+        coverage,
+      });
+
+      expect(result).not.toBeNull();
+      expect(result?.components.bp.value).toBeNull();
+      expect(result?.components.bp.weight).toBe(0);
+    });
+  });
 });
