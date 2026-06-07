@@ -16,6 +16,7 @@ vi.mock("sonner", () => ({ toast: { success: vi.fn() } }));
 import { InsightsTabStrip } from "../insights-tab-strip";
 import type { InsightInputs } from "@/lib/insights/metric-availability";
 import type { DataSummary } from "@/lib/analytics/trends";
+import { DEFAULT_INSIGHTS_LAYOUT } from "@/lib/insights-layout";
 
 function render(node: React.ReactNode, locale: "en" | "de" = "en") {
   return renderToStaticMarkup(
@@ -338,5 +339,52 @@ describe("<InsightsTabStrip> — saved-layout visibility gate (v1.15.14 W2)", ()
     );
     expect(html).toContain('data-group="activity"');
     expect(html).toContain(">Activity<");
+  });
+
+  // v1.15.14 — regression guard: the DEFAULT layout's visible set must equal
+  // the data-only nav set. The v1.15.11 curated default dropped ~20 pills once
+  // the strip began gating on the layout; making the default all-visible
+  // restores everything-with-data. Derive `visibleTileIds` straight from
+  // `DEFAULT_INSIGHTS_LAYOUT` (what a fresh / never-customized account
+  // resolves to) and assert the long-tail pills + group parents still show
+  // when their data is present.
+  it("default layout shows every data-having pill (nav-pill regression guard)", () => {
+    const visibleTileIds = new Set(
+      DEFAULT_INSIGHTS_LAYOUT.tiles
+        .filter((t) => t.visible)
+        .map((t) => t.id),
+    );
+    const availability: InsightInputs = {
+      summaries: {
+        SLEEP_DURATION: fakeSummary(20),
+        ACTIVITY_STEPS: fakeSummary(4200),
+        ACTIVE_ENERGY_BURNED: fakeSummary(30),
+        FAT_MASS: fakeSummary(12),
+        MUSCLE_MASS: fakeSummary(12),
+        AUDIO_EXPOSURE_ENV: fakeSummary(40),
+        TIME_IN_DAYLIGHT: fakeSummary(15),
+      },
+      hasMood: false,
+      hasMedication: false,
+    };
+    const html = render(
+      <InsightsTabStrip
+        availability={availability}
+        visibleTileIds={visibleTileIds}
+      />,
+    );
+    // Flat pill that previously regressed out of the default nav.
+    expect(html).toContain(">Sleep<");
+    // Group parents that the curated default suppressed: Activity (steps /
+    // active-energy), Body (fat-mass / muscle-mass), Hearing (audio),
+    // Environment (daylight).
+    expect(html).toContain('data-group="activity"');
+    expect(html).toContain(">Activity<");
+    expect(html).toContain('data-group="body"');
+    expect(html).toContain(">Body<");
+    expect(html).toContain('data-group="hearing"');
+    expect(html).toContain(">Hearing<");
+    expect(html).toContain('data-group="environment"');
+    expect(html).toContain(">Environment<");
   });
 });

@@ -85,14 +85,22 @@ export function MoodWeekdayChart({ weekday }: { weekday: MoodWeekdayRow[] }) {
           >
             <XAxis
               dataKey="label"
-              tick={{ fontSize: 11, fill: "var(--dracula-fg)" }}
+              // v1.15.14 — theme-aware axis text (see mood-distribution-chart).
+              // `--dracula-fg` was white-on-white on the light-mode card; switch
+              // to the shared `--muted-foreground` axis-tick token. Bar mood
+              // hues stay `--dracula-*`; dark mode is unchanged.
+              tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
               stroke="var(--dracula-comment)"
               interval={0}
             />
             <YAxis
               domain={[1, 5]}
               ticks={[1, 2, 3, 4, 5]}
-              tick={{ fontSize: 11, fill: "var(--dracula-fg)" }}
+              // v1.15.14 — theme-aware axis text (see mood-distribution-chart).
+              // `--dracula-fg` was white-on-white on the light-mode card; switch
+              // to the shared `--muted-foreground` axis-tick token. Bar mood
+              // hues stay `--dracula-*`; dark mode is unchanged.
+              tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
               stroke="var(--dracula-comment)"
               width={24}
             />

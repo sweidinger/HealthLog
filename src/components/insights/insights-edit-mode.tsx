@@ -400,6 +400,15 @@ export function InsightsEditMode({
                         />
                         {t("insights.editMode.manageSubPages")}
                       </button>
+                      {/* v1.15.14 — flag that hiding a detail page also drops
+                          its top-nav pill, so a user isn't surprised a metric
+                          vanished from the navigation. */}
+                      <p
+                        data-slot="insights-edit-tiles-nav-hint"
+                        className="text-muted-foreground mt-1 text-xs"
+                      >
+                        {t("insights.editMode.manageSubPagesHint")}
+                      </p>
                       {tilesOpen && (
                         // v1.15.14 W2 — the manager now lists EVERY sub-page
                         // slug grouped by category, the same `tiles` layout the

@@ -61,13 +61,25 @@ export function MoodDistributionChart({
         <BarChart data={data} margin={{ top: 8, right: 12, bottom: 8, left: 0 }}>
           <XAxis
             dataKey="label"
-            tick={{ fontSize: 11, fill: "var(--dracula-fg)" }}
+            // v1.15.14 — theme-aware axis text. `--dracula-fg` (near-white) is
+            // not overridden in `:root.light` (Alucard white card) → white-on-
+            // white. `--muted-foreground` is the token every other in-app chart
+            // uses for axis ticks and is legible in both themes; dark mode is
+            // unchanged. The mood-hue bar Cells stay on `--dracula-*` — only the
+            // axis text legibility changes here.
+            tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
             stroke="var(--dracula-comment)"
             interval={0}
           />
           <YAxis
             allowDecimals={false}
-            tick={{ fontSize: 11, fill: "var(--dracula-fg)" }}
+            // v1.15.14 — theme-aware axis text. `--dracula-fg` (near-white) is
+            // not overridden in `:root.light` (Alucard white card) → white-on-
+            // white. `--muted-foreground` is the token every other in-app chart
+            // uses for axis ticks and is legible in both themes; dark mode is
+            // unchanged. The mood-hue bar Cells stay on `--dracula-*` — only the
+            // axis text legibility changes here.
+            tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
             stroke="var(--dracula-comment)"
             width={28}
           />
