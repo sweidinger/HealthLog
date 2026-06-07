@@ -1509,6 +1509,18 @@ paths:
             enum:
               - rollup
         - in: query
+          name: sourceEq
+          schema:
+            type: string
+            enum:
+              - MANUAL
+              - WITHINGS
+              - IMPORT
+              - APPLE_HEALTH
+              - COMPUTED
+              - WHOOP
+              - FITBIT
+        - in: query
           name: groupBy
           schema:
             type: string
@@ -1695,6 +1707,31 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/MeasurementsDeleteByExternalIdsResponse"
+        "401": *a1
+        "422": *a3
+        "429": *a4
+  /api/measurements/bulk-delete:
+    post:
+      tags:
+        - Measurements
+      summary: Bulk soft-delete measurements
+      description: Soft-deletes (tombstones) up to 200 of the caller's measurement rows in one call, mirroring the
+        single-DELETE contract. Idempotent via the `Idempotency-Key` header; rate-limited
+        `measurements:bulk-delete:<userId>`. Forged / foreign / already-deleted ids are silently skipped — `deleted` is
+        the count of rows actually tombstoned. The deletions surface in `/api/sync/changes` as tombstones.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MeasurementsBulkDeleteRequest"
+      responses:
+        "200":
+          description: Bulk delete processed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MeasurementsBulkDeleteResponse"
         "401": *a1
         "422": *a3
         "429": *a4
@@ -3998,6 +4035,19 @@ components:
         - externalIds
       description: iOS deletion-sync. Up to 500 externalIds per call; matching rows owned by other users are silently skipped
         (cross-user 404 guard).
+    MeasurementsBulkDeleteRequest:
+      type: object
+      properties:
+        ids:
+          minItems: 1
+          maxItems: 200
+          type: array
+          items:
+            type: string
+            minLength: 1
+      required:
+        - ids
+      description: 1..200 measurement ids, scoped to the caller. Forged / foreign ids are silently skipped (no existence leak).
     DeviceRegisterRequest:
       type: object
       properties:
@@ -7011,6 +7061,33 @@ components:
           maximum: 9007199254740991
       required:
         - deletedCount
+      additionalProperties: false
+    MeasurementsBulkDeleteResponse:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/MeasurementsBulkDeleteResult"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    MeasurementsBulkDeleteResult:
+      type: object
+      properties:
+        deleted:
+          type: integer
+          minimum: 0
+          maximum: 9007199254740991
+      required:
+        - deleted
       additionalProperties: false
     SleepNightResponse:
       type: object

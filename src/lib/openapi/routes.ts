@@ -579,6 +579,26 @@ const deleteByExternalIdsResponse = z
   })
   .meta({ id: "MeasurementsDeleteByExternalIdsResult" });
 
+// v1.15.13 — multi-select bulk soft-delete for the measurements
+// management list. Ids are scoped to the caller; forged / foreign ids
+// are silent no-ops (no existence leak). Soft-delete (tombstone), so the
+// rows surface in the `/api/sync/changes` delta feed.
+const bulkDeleteMeasurementsRequest = z
+  .object({
+    ids: z.array(z.string().min(1)).min(1).max(200),
+  })
+  .meta({
+    id: "MeasurementsBulkDeleteRequest",
+    description:
+      "1..200 measurement ids, scoped to the caller. Forged / foreign ids are silently skipped (no existence leak).",
+  });
+
+const bulkDeleteMeasurementsResponse = z
+  .object({
+    deleted: z.number().int().nonnegative(),
+  })
+  .meta({ id: "MeasurementsBulkDeleteResult" });
+
 const measurementResource = z
   .object({
     id: z.string(),
@@ -3436,6 +3456,34 @@ export const openApiPaths: NonNullable<ZodOpenApiObject["paths"]> = {
               schema: dataEnvelope(
                 deleteByExternalIdsResponse,
                 "MeasurementsDeleteByExternalIdsResponse",
+              ),
+            },
+          },
+        },
+        ...stdResponses,
+      },
+    },
+  },
+  "/api/measurements/bulk-delete": {
+    post: {
+      tags: ["Measurements"],
+      summary: "Bulk soft-delete measurements",
+      description:
+        "Soft-deletes (tombstones) up to 200 of the caller's measurement rows in one call, mirroring the single-DELETE contract. Idempotent via the `Idempotency-Key` header; rate-limited `measurements:bulk-delete:<userId>`. Forged / foreign / already-deleted ids are silently skipped — `deleted` is the count of rows actually tombstoned. The deletions surface in `/api/sync/changes` as tombstones.",
+      requestBody: {
+        required: true,
+        content: {
+          "application/json": { schema: bulkDeleteMeasurementsRequest },
+        },
+      },
+      responses: {
+        "200": {
+          description: "Bulk delete processed.",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                bulkDeleteMeasurementsResponse,
+                "MeasurementsBulkDeleteResponse",
               ),
             },
           },
