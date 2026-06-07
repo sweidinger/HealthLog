@@ -40,6 +40,14 @@ interface IntakeEvent {
   takenAt: Date | null;
   skipped: boolean;
   scheduledFor: Date;
+  /**
+   * v1.15.9 — true when the auto-miss cron marked this never-acted dose as
+   * a forgotten miss. Threaded into the cadence timeline so it counts as a
+   * `missed` slot (against the rate) instead of being neutralised. Optional
+   * so pre-v1.15.9 callers / fixtures default it to a normal pending/taken
+   * row.
+   */
+  autoMissed?: boolean;
 }
 
 export type IntakeTimingClass =
@@ -162,6 +170,166 @@ export function classifyIntakeTiming(
   if (t <= onTimeEnd.getTime()) return "on_time";
   if (t <= lateEnd.getTime()) return "late";
   return "very_late";
+}
+
+/**
+ * v1.15.9 — cadence-aware per-dose grace/miss window model.
+ *
+ * A medication's dose either is on-time, is still takeable but late
+ * (counts when taken), or has slipped past the point where a self-hoster
+ * could plausibly still take it (a MISS). The cutoffs differ by cadence:
+ * an intraday/daily dose has tight hour-scale windows; a weekly/rolling
+ * injectable (the GLP-1 case) follows the clinical "take it within 4 days,
+ * otherwise skip to the next scheduled dose" rule.
+ *
+ * The defaults below are centralised named constants so a future revision
+ * can expose them per-medication without re-deriving the boundaries. Make
+ * it correct first; configurability later.
+ *
+ * DAILY / INTRADAY (minute-scale windows around the target instant):
+ *   - on-time:    target − 60 min … target + 60 min
+ *   - overdue:    target + 60 min … target + 240 min  (still takeable)
+ *   - missed:     > target + 240 min, OR the next dose's on-time window
+ *                 starts first (whichever is sooner — adjacent doses never
+ *                 overlap).
+ *
+ * WEEKLY / ROLLING injectable (day-scale windows; the 4-day clinical rule):
+ *   - on-time:    target day ± 1 day
+ *   - overdue:    up to target + 4 days  (late-but-counts)
+ *   - missed:     > target + 4 days
+ */
+export const DOSE_WINDOW_DEFAULTS = {
+  /** Daily / intraday on-time half-width around the target instant (min). */
+  dailyOnTimeMinutes: 60,
+  /**
+   * Daily / intraday overdue tail past the on-time window (min). A dose
+   * taken inside `[onTime, onTime + overdue]` still counts; beyond it the
+   * dose is missed.
+   */
+  dailyOverdueMinutes: 240 - 60,
+  /** Weekly / rolling on-time half-width around the target day (days). */
+  weeklyOnTimeDays: 1,
+  /**
+   * Weekly / rolling overdue tail past the target day (days) — the clinical
+   * 4-day GLP-1 rule. A shot inside `[target, target + 4d]` still counts;
+   * beyond it the dose is missed and the user skips to the next slot.
+   */
+  weeklyOverdueDays: 4,
+} as const;
+
+/**
+ * v1.15.9 — the derived per-dose state the medication card renders.
+ *
+ *   - `on_time_window` — due now, inside the on-time window (green).
+ *   - `overdue`        — past on-time, before the miss cutoff (still
+ *                        takeable; the card escalates the tint as it nears
+ *                        the cutoff — "stark überfällig").
+ *   - `missed`         — past the miss cutoff, never acted on.
+ *   - `taken_on_time`  — taken inside the on-time window.
+ *   - `taken_late`     — taken in the overdue window (still counts).
+ *   - `skipped`        — a deliberate user skip (excluded from the rate).
+ *   - `upcoming`       — the on-time window has not opened yet.
+ *
+ * PRN doses are never scheduled and so never produce a status — callers
+ * exclude them before calling {@link deriveDoseStatus}.
+ */
+export type DoseStatus =
+  | "upcoming"
+  | "on_time_window"
+  | "overdue"
+  | "missed"
+  | "taken_on_time"
+  | "taken_late"
+  | "skipped";
+
+/** Cadence family the window math keys off. */
+export type DoseCadenceFamily = "daily" | "weekly";
+
+const HOUR_MS = 60 * 60 * 1000;
+const ONE_DAY_MS = 24 * HOUR_MS;
+
+/**
+ * v1.15.9 — derive a single dose's {@link DoseStatus} from its target
+ * instant, the cadence family, `now`, and (optionally) when it was taken /
+ * whether the user skipped it. Pure and deterministic.
+ *
+ * `nextDoseAt` (when supplied) caps a daily dose's miss cutoff at the next
+ * dose's on-time window start, so two adjacent intraday doses never claim
+ * overlapping overdue windows — the earlier dose flips to `missed` the
+ * moment the later one comes due if that is sooner than its own cutoff.
+ *
+ * The defaults come from {@link DOSE_WINDOW_DEFAULTS}; callers may override
+ * per-medication once that configurability lands.
+ */
+export function deriveDoseStatus(
+  targetAt: Date,
+  cadence: DoseCadenceFamily,
+  now: Date,
+  options?: {
+    takenAt?: Date | null;
+    skipped?: boolean;
+    nextDoseAt?: Date | null;
+    windows?: Partial<typeof DOSE_WINDOW_DEFAULTS>;
+  },
+): DoseStatus {
+  if (options?.skipped) return "skipped";
+
+  const w = { ...DOSE_WINDOW_DEFAULTS, ...(options?.windows ?? {}) };
+  const target = targetAt.getTime();
+
+  let onTimeStart: number;
+  let onTimeEnd: number;
+  let overdueEnd: number;
+  if (cadence === "weekly") {
+    onTimeStart = target - w.weeklyOnTimeDays * ONE_DAY_MS;
+    onTimeEnd = target + w.weeklyOnTimeDays * ONE_DAY_MS;
+    overdueEnd = target + w.weeklyOverdueDays * ONE_DAY_MS;
+  } else {
+    onTimeStart = target - w.dailyOnTimeMinutes * 60_000;
+    onTimeEnd = target + w.dailyOnTimeMinutes * 60_000;
+    overdueEnd = onTimeEnd + w.dailyOverdueMinutes * 60_000;
+  }
+
+  // Never let the miss cutoff bleed into the next dose's on-time window.
+  if (options?.nextDoseAt) {
+    const nextOnTimeStart =
+      cadence === "weekly"
+        ? options.nextDoseAt.getTime() - w.weeklyOnTimeDays * ONE_DAY_MS
+        : options.nextDoseAt.getTime() - w.dailyOnTimeMinutes * 60_000;
+    if (nextOnTimeStart < overdueEnd) overdueEnd = nextOnTimeStart;
+  }
+
+  const takenAt = options?.takenAt ?? null;
+  if (takenAt) {
+    const t = takenAt.getTime();
+    return t <= onTimeEnd ? "taken_on_time" : "taken_late";
+  }
+
+  const n = now.getTime();
+  if (n < onTimeStart) return "upcoming";
+  if (n <= onTimeEnd) return "on_time_window";
+  if (n <= overdueEnd) return "overdue";
+  return "missed";
+}
+
+/**
+ * v1.15.9 — classify a schedule's cadence into the {@link DoseCadenceFamily}
+ * the window model uses. A rolling cadence, or any RRULE / legacy weekly
+ * cadence that emits less often than daily, is `weekly` (day-scale windows +
+ * the 4-day rule); everything denser (daily, intraday multi-dose) is
+ * `daily` (minute-scale windows).
+ */
+export function doseCadenceFamily(schedule: ComplianceSchedule): DoseCadenceFamily {
+  if (schedule.rollingIntervalDays != null && schedule.rollingIntervalDays >= 2) {
+    return "weekly";
+  }
+  const rrule = schedule.rrule ?? "";
+  if (/FREQ=(WEEKLY|MONTHLY|YEARLY)/i.test(rrule)) return "weekly";
+  // A legacy daysOfWeek restriction to specific weekdays (not every day)
+  // dosed once a day is still effectively daily-cadence on the days it
+  // fires; the per-slot window is minute-scale either way. Only the rolling
+  // / calendar-sparse shapes use the day-scale 4-day rule.
+  return "daily";
 }
 
 /**
@@ -637,14 +805,16 @@ export interface ComplianceDisplay {
   /** Echo of the density floor so a client can re-derive the rung. */
   minStableDoses: number;
   /**
-   * Compliance percentage + taken-dose count + day-streak over the short
-   * window. `taken` is the count of doses taken in the window (the numerator
-   * the card renders next to the rate so two identical percentages stay
-   * distinguishable and trustworthy).
+   * Compliance percentage + counts + day-streak over the short window.
+   * `taken` is the numerator the card renders next to the rate so two
+   * identical percentages stay distinguishable and trustworthy; `expected`
+   * is the rate denominator (taken + missed, EXCLUDING user skips) and
+   * `missed` the count counting against the rate. The card can render
+   * "26 / 30 · 87%" from `taken` / `expected`.
    */
-  short: { rate: number; taken: number; streak: number };
-  /** Compliance percentage + taken-dose count over the long window. */
-  long: { rate: number; taken: number };
+  short: { rate: number; taken: number; expected: number; missed: number; streak: number };
+  /** Compliance percentage + counts over the long window. */
+  long: { rate: number; taken: number; expected: number; missed: number };
   /**
    * v1.13.x Fix 4 — the open-cycle state, decoupled from the percentage
    * rows so a between-doses sparse med never renders a scary red number.
@@ -790,8 +960,22 @@ export function buildComplianceDisplay(
     expectedShort,
     expectedLong,
     minStableDoses: MIN_STABLE_DOSES,
-    short: { rate: short.rate, taken: short.taken, streak: short.streak },
-    long: { rate: long.rate, taken: long.taken },
+    // `expected` is the rate denominator (taken + missed) so the card can
+    // render the trustworthy "taken / expected · rate%" triple; user skips
+    // are excluded from it by construction (they never enter `missed`).
+    short: {
+      rate: short.rate,
+      taken: short.taken,
+      expected: short.taken + short.missed,
+      missed: short.missed,
+      streak: short.streak,
+    },
+    long: {
+      rate: long.rate,
+      taken: long.taken,
+      expected: long.taken + long.missed,
+      missed: long.missed,
+    },
     currentCycle,
   };
 }
@@ -917,6 +1101,10 @@ export function calculateCompliance(
       scheduledFor: e.scheduledFor,
       takenAt: e.takenAt,
       skipped: e.skipped,
+      // v1.15.9 — carry the forgotten-dose flag into the timeline so an
+      // auto-missed slot pairs to a `missed` status (counts against the
+      // rate) rather than a neutral `skipped`.
+      autoMissed: e.autoMissed ?? false,
     }));
 
   // v1.13.x — ROLLING retrospective expansion. A rolling cadence

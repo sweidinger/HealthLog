@@ -150,6 +150,14 @@ export interface IntakeEventLike {
   scheduledFor: Date;
   takenAt: Date | null;
   skipped: boolean;
+  /**
+   * v1.15.9 — true when the hourly auto-miss cron marked this never-acted
+   * dose as a forgotten miss (NOT a deliberate user skip). The pairing pass
+   * reads it so an auto-missed row counts as `missed` (against the rate)
+   * rather than `skipped` (excluded). Optional so every legacy caller /
+   * fixture that omits it keeps the user-skip-vs-taken-vs-missed contract.
+   */
+  autoMissed?: boolean;
 }
 
 /** One slot the schedule expected the user to dose. */
@@ -563,7 +571,16 @@ export function pairDoses(
     if (bestIdx >= 0) {
       claimed.add(bestIdx);
       match = events[bestIdx];
-      if (match.skipped) status = "skipped";
+      // v1.15.9 — an auto-missed dose (the cron marked a never-acted row
+      // past its miss cutoff) counts as `missed` even though it carries no
+      // `takenAt`. Check it BEFORE the user-skip branch: a forgotten dose
+      // must count against the rate, while a deliberate user skip stays
+      // `skipped` (excluded from the denominator). `autoMissed` and a
+      // user-`skipped` are mutually exclusive on a live row by construction
+      // (the cron only touches `skipped = false` pending rows), but the
+      // ordering makes the precedence explicit and regression-proof.
+      if (match.autoMissed) status = "missed";
+      else if (match.skipped) status = "skipped";
       else if (match.takenAt) status = "taken";
       else if (slot.windowEnd > now) status = "upcoming";
       else status = "missed";

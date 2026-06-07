@@ -14,11 +14,14 @@
  */
 import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
 import {
+  DOSE_WINDOW_DEFAULTS,
   MIN_STABLE_DOSES,
   buildComplianceDisplay,
   buildComplianceMedicationContext,
   calculateCompliance,
   classifyIntakeTiming,
+  deriveDoseStatus,
+  doseCadenceFamily,
   expectedSlotCountForDay,
   expectedSlotsBetween,
   lastNonSkippedTakenAt,
@@ -1879,5 +1882,264 @@ describe("expectedSlotsBetween", () => {
     );
     // A full week of daily doses → ~7 slots.
     expect(slots.length).toBeGreaterThanOrEqual(7);
+  });
+});
+
+// ────────────────────────────────────────────────────────────────────
+// v1.15.9 — forgotten doses count as MISSED (BUG #2) + user-skip vs
+// auto-miss semantics (BUG #3). A never-acted dose the auto-miss cron
+// flipped carries `autoMissed: true`; the engine must pair it to a
+// `missed` slot (against the rate). A deliberate user skip
+// (`skipped: true`) stays excluded from the denominator.
+// ────────────────────────────────────────────────────────────────────
+
+describe("calculateCompliance — autoMissed forgotten doses (BUG #2 / #3)", () => {
+  const NOW = new Date("2025-01-15T12:00:00Z");
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(NOW);
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  const daily: ComplianceSchedule[] = [
+    { windowStart: "08:00", windowEnd: "09:00", daysOfWeek: null },
+  ];
+
+  it("a forgotten daily dose (autoMissed) lowers the rate — not neutralised", () => {
+    // Three days: two taken + one forgotten (autoMissed). Before v1.15.9 the
+    // auto-skip cron flipped the forgotten dose to skipped, which the engine
+    // excluded → 2/2 = 100% (inflated). Now it is a real miss → 2/3 = 67%.
+    const events = [
+      eventAt(new Date("2025-01-14T08:30:00Z"), true),
+      {
+        scheduledFor: new Date("2025-01-13T08:30:00Z"),
+        takenAt: null,
+        skipped: false,
+        autoMissed: true,
+      },
+      eventAt(new Date("2025-01-12T08:30:00Z"), true),
+    ];
+    const result = calculateCompliance(events, daily, 7);
+    expect(result.taken).toBe(2);
+    expect(result.skipped).toBe(0);
+    expect(result.missed).toBeGreaterThanOrEqual(1);
+    // The autoMissed day is inside the denominator and drags the rate below
+    // the inflated 100% the old skip-neutralisation produced.
+    expect(result.rate).toBeLessThan(100);
+  });
+
+  it("a deliberate user-skip is excluded; an auto-miss on the same day-grid counts (BUG #3)", () => {
+    // One taken, one user-skip (excluded), one auto-miss (counted). The
+    // user-skip must NOT appear in the denominator; the auto-miss must.
+    const events = [
+      eventAt(new Date("2025-01-14T08:30:00Z"), true),
+      {
+        scheduledFor: new Date("2025-01-13T08:30:00Z"),
+        takenAt: null,
+        skipped: true, // deliberate pause
+        autoMissed: false,
+      },
+      {
+        scheduledFor: new Date("2025-01-12T08:30:00Z"),
+        takenAt: null,
+        skipped: false,
+        autoMissed: true, // forgotten
+      },
+    ];
+    const result = calculateCompliance(events, daily, 7);
+    expect(result.skipped).toBe(1);
+    expect(result.taken).toBe(1);
+    // Denominator = taken + missed (the user-skip is out). At least the
+    // auto-miss counts, so the rate is taken/(taken+missed) < 100.
+    expect(result.missed).toBeGreaterThanOrEqual(1);
+    expect(result.rate).toBeLessThan(100);
+    // The user-skip alone (no auto-miss) would have kept 100% — confirm the
+    // auto-miss is what pulls it down by re-running with the skip only.
+    // Cover every slot the 7-day window emits (today's 08:00 is past NOW =
+    // 12:00, so the window holds Jan 9..15). Take all but one user-skip.
+    const skipOnlyEvents = [];
+    for (let day = 9; day <= 15; day++) {
+      const at = new Date(`2025-01-${String(day).padStart(2, "0")}T08:30:00Z`);
+      if (day === 13) {
+        skipOnlyEvents.push({
+          scheduledFor: at,
+          takenAt: null,
+          skipped: true,
+          autoMissed: false,
+        });
+      } else {
+        skipOnlyEvents.push(eventAt(at, true));
+      }
+    }
+    const skipOnly = calculateCompliance(skipOnlyEvents, daily, 7);
+    // Every non-skipped day taken → the deliberate skip never lowers the rate.
+    expect(skipOnly.rate).toBe(100);
+  });
+
+  it("buildComplianceDisplay surfaces taken / expected / missed counts per row", () => {
+    const events = [
+      eventAt(new Date("2025-01-14T08:30:00Z"), true),
+      {
+        scheduledFor: new Date("2025-01-13T08:30:00Z"),
+        takenAt: null,
+        skipped: false,
+        autoMissed: true,
+      },
+    ];
+    const ctxVal = buildComplianceMedicationContext(
+      { startsOn: null, endsOn: null, oneShot: false, createdAt: new Date("2025-01-08T00:00:00Z") },
+      lastNonSkippedTakenAt(events),
+      "UTC",
+    );
+    const display = buildComplianceDisplay(events, daily, ctxVal, { now: NOW });
+    // `expected` is the rate denominator (taken + missed), `missed` counts the
+    // forgotten doses, `taken` the numerator — the "taken / expected" triple.
+    expect(display.short.expected).toBe(display.short.taken + display.short.missed);
+    expect(display.short.missed).toBeGreaterThanOrEqual(1);
+    expect(display.long.expected).toBe(display.long.taken + display.long.missed);
+  });
+});
+
+// ────────────────────────────────────────────────────────────────────
+// v1.15.9 — cadence-aware per-dose grace/miss window model. The card
+// reads `deriveDoseStatus` to render on-time / overdue / missed states.
+// ────────────────────────────────────────────────────────────────────
+
+describe("deriveDoseStatus — daily / intraday windows", () => {
+  const target = new Date("2025-01-15T08:00:00Z");
+
+  it("on-time within ±60 min of target", () => {
+    expect(deriveDoseStatus(target, "daily", new Date("2025-01-15T08:30:00Z"))).toBe(
+      "on_time_window",
+    );
+    expect(deriveDoseStatus(target, "daily", new Date("2025-01-15T07:15:00Z"))).toBe(
+      "on_time_window",
+    );
+  });
+
+  it("upcoming before the on-time window opens", () => {
+    expect(deriveDoseStatus(target, "daily", new Date("2025-01-15T06:30:00Z"))).toBe(
+      "upcoming",
+    );
+  });
+
+  it("overdue between +60 min and +240 min", () => {
+    // +90 min → past on-time (60), before miss cutoff (240).
+    expect(deriveDoseStatus(target, "daily", new Date("2025-01-15T09:30:00Z"))).toBe(
+      "overdue",
+    );
+    // +239 min → still overdue (takeable).
+    expect(deriveDoseStatus(target, "daily", new Date("2025-01-15T11:59:00Z"))).toBe(
+      "overdue",
+    );
+  });
+
+  it("missed past +240 min", () => {
+    expect(deriveDoseStatus(target, "daily", new Date("2025-01-15T12:30:00Z"))).toBe(
+      "missed",
+    );
+  });
+
+  it("never overlaps the next dose's on-time window", () => {
+    // Next dose at 10:00; its on-time window opens at 09:00 (−60 min). The
+    // 08:00 dose's miss cutoff is therefore clamped to 09:00, well before its
+    // own +240 min (12:00). At 09:30 the 08:00 dose is already missed.
+    const nextDoseAt = new Date("2025-01-15T10:00:00Z");
+    expect(
+      deriveDoseStatus(target, "daily", new Date("2025-01-15T09:30:00Z"), {
+        nextDoseAt,
+      }),
+    ).toBe("missed");
+  });
+
+  it("taken inside the on-time window → taken_on_time, late → taken_late", () => {
+    expect(
+      deriveDoseStatus(target, "daily", new Date("2025-01-15T20:00:00Z"), {
+        takenAt: new Date("2025-01-15T08:30:00Z"),
+      }),
+    ).toBe("taken_on_time");
+    expect(
+      deriveDoseStatus(target, "daily", new Date("2025-01-15T20:00:00Z"), {
+        takenAt: new Date("2025-01-15T10:00:00Z"),
+      }),
+    ).toBe("taken_late");
+  });
+
+  it("a deliberate skip short-circuits to skipped", () => {
+    expect(
+      deriveDoseStatus(target, "daily", new Date("2025-01-15T20:00:00Z"), {
+        skipped: true,
+      }),
+    ).toBe("skipped");
+  });
+});
+
+describe("deriveDoseStatus — weekly GLP-1 (4-day rule)", () => {
+  const target = new Date("2025-01-13T08:00:00Z"); // a Monday shot
+
+  it("on-time within ±1 day of the target day", () => {
+    expect(deriveDoseStatus(target, "weekly", new Date("2025-01-13T20:00:00Z"))).toBe(
+      "on_time_window",
+    );
+    expect(deriveDoseStatus(target, "weekly", new Date("2025-01-14T07:00:00Z"))).toBe(
+      "on_time_window",
+    );
+  });
+
+  it("overdue up to +4 days (still counts when taken — the clinical rule)", () => {
+    // +3 days from target → past the ±1-day on-time window, before +4 days.
+    expect(deriveDoseStatus(target, "weekly", new Date("2025-01-16T12:00:00Z"))).toBe(
+      "overdue",
+    );
+    // Taken on day +3 still counts as late, not missed.
+    expect(
+      deriveDoseStatus(target, "weekly", new Date("2025-01-20T00:00:00Z"), {
+        takenAt: new Date("2025-01-16T12:00:00Z"),
+      }),
+    ).toBe("taken_late");
+  });
+
+  it("missed past +4 days", () => {
+    expect(deriveDoseStatus(target, "weekly", new Date("2025-01-18T12:00:00Z"))).toBe(
+      "missed",
+    );
+  });
+
+  it("defaults match the documented 60-min / 240-min / 4-day boundaries", () => {
+    expect(DOSE_WINDOW_DEFAULTS.dailyOnTimeMinutes).toBe(60);
+    expect(
+      DOSE_WINDOW_DEFAULTS.dailyOnTimeMinutes + DOSE_WINDOW_DEFAULTS.dailyOverdueMinutes,
+    ).toBe(240);
+    expect(DOSE_WINDOW_DEFAULTS.weeklyOverdueDays).toBe(4);
+  });
+});
+
+describe("doseCadenceFamily", () => {
+  it("rolling ≥ 2 days → weekly", () => {
+    expect(
+      doseCadenceFamily({ windowStart: "08:00", windowEnd: "09:00", rollingIntervalDays: 7 }),
+    ).toBe("weekly");
+  });
+  it("WEEKLY rrule → weekly", () => {
+    expect(
+      doseCadenceFamily({
+        windowStart: "08:00",
+        windowEnd: "09:00",
+        rrule: "FREQ=WEEKLY;BYDAY=MO",
+      }),
+    ).toBe("weekly");
+  });
+  it("daily rrule → daily", () => {
+    expect(
+      doseCadenceFamily({ windowStart: "08:00", windowEnd: "09:00", rrule: "FREQ=DAILY" }),
+    ).toBe("daily");
+  });
+  it("plain legacy daily → daily", () => {
+    expect(
+      doseCadenceFamily({ windowStart: "08:00", windowEnd: "09:00", daysOfWeek: null }),
+    ).toBe("daily");
   });
 });

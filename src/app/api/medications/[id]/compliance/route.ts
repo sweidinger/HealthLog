@@ -113,6 +113,9 @@ export const GET = apiHandler(
       takenAt: e.takenAt,
       skipped: e.skipped,
       scheduledFor: e.scheduledFor,
+      // v1.15.9 — a forgotten dose the auto-miss cron flipped counts as a
+      // miss, not a neutral skip.
+      autoMissed: e.autoMissed,
     }));
 
     const createdAt = medication.createdAt;
@@ -131,7 +134,14 @@ export const GET = apiHandler(
       userTz,
     );
 
+    // v1.15.9 — pin a single `now` and thread it into every cadence
+    // computation. The two `calculateCompliance` calls + the display windows
+    // can otherwise straddle a day boundary on a slow request, so a dose
+    // would count in one window and not the next within the same response.
+    const now = new Date();
+
     const compliance7 = calculateCompliance(mapped, medication.schedules, 7, createdAt, {
+      now,
       medicationContext,
     });
     const compliance30 = calculateCompliance(
@@ -139,7 +149,7 @@ export const GET = apiHandler(
       medication.schedules,
       30,
       createdAt,
-      { medicationContext },
+      { now, medicationContext },
     );
 
     // v1.8.6 — the two-row compliance display. The card always shows two
@@ -152,10 +162,10 @@ export const GET = apiHandler(
       mapped,
       medication.schedules,
       medicationContext,
+      { now },
     );
 
     // Build daily compliance map for heatmap/line chart (90 days)
-    const now = new Date();
     const dailyCompliance: Record<string, DailyComplianceEntry> = {};
 
     for (let d = 0; d < 90; d++) {
