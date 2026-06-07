@@ -546,6 +546,8 @@
     "deleteConfirmTitle": "Usunąć wpis?",
     "deleteConfirmDescription": "Ten wpis nastroju zostanie nieodwracalnie usunięty.",
     "pageInfo": "Strona {page} z {total}",
+    "previousPage": "Poprzednia strona",
+    "nextPage": "Następna strona",
     "loginRequired": "Zaloguj się, aby zobaczyć wpisy nastroju.",
     "note": "Notatka",
     "notePlaceholder": "Dodaj notatkę o swoim samopoczuciu…",

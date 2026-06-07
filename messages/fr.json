@@ -546,6 +546,8 @@
     "deleteConfirmTitle": "Supprimer l’entrée ?",
     "deleteConfirmDescription": "Cette entrée d’humeur sera supprimée définitivement.",
     "pageInfo": "Page {page} sur {total}",
+    "previousPage": "Page précédente",
+    "nextPage": "Page suivante",
     "loginRequired": "Connecte-toi pour voir tes entrées d’humeur.",
     "note": "Note",
     "notePlaceholder": "Ajoutez une note sur votre ressenti…",

@@ -546,6 +546,8 @@
     "deleteConfirmTitle": "Delete entry?",
     "deleteConfirmDescription": "This mood entry will be permanently deleted.",
     "pageInfo": "Page {page} of {total}",
+    "previousPage": "Previous page",
+    "nextPage": "Next page",
     "loginRequired": "Please sign in to view mood entries.",
     "note": "Note",
     "notePlaceholder": "Add a note about how you're feeling…",

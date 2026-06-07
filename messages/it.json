@@ -546,6 +546,8 @@
     "deleteConfirmTitle": "Eliminare la voce?",
     "deleteConfirmDescription": "Questa voce dell’umore sarà eliminata in modo definitivo.",
     "pageInfo": "Pagina {page} di {total}",
+    "previousPage": "Pagina precedente",
+    "nextPage": "Pagina successiva",
     "loginRequired": "Accedi per vedere le voci dell’umore.",
     "note": "Nota",
     "notePlaceholder": "Aggiungi una nota su come ti senti…",

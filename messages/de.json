@@ -546,6 +546,8 @@
     "deleteConfirmTitle": "Eintrag löschen?",
     "deleteConfirmDescription": "Dieser Stimmungseintrag wird unwiderruflich gelöscht.",
     "pageInfo": "Seite {page} von {total}",
+    "previousPage": "Vorherige Seite",
+    "nextPage": "Nächste Seite",
     "loginRequired": "Bitte anmelden, um Stimmungseinträge zu sehen.",
     "note": "Notiz",
     "notePlaceholder": "Notiz dazu, wie du dich fühlst…",

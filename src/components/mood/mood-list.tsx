@@ -695,14 +695,28 @@ export function MoodList({ onAddFirst }: MoodListProps = {}) {
                   className="bg-card border-border flex items-center justify-between rounded-lg border p-3 data-[state=selected]:border-dracula-purple/60 data-[state=selected]:bg-dracula-purple/5"
                 >
                   <div className="flex items-center gap-2 overflow-hidden">
-                    {/* v1.15.13 — multi-select checkbox in a 44px target. */}
-                    <label className="flex size-11 shrink-0 items-center justify-center">
+                    {/* v1.15.13 MEDIUM-1 — a Radix Checkbox renders a 16px
+                        `<button role=checkbox>`; a wrapping `<label>` does
+                        NOT forward taps to a button, so the effective tap
+                        target was 16px (fails WCAG 2.5.5). The 44px button
+                        owns the whole hit area and is the single toggle
+                        source; the inner Checkbox is a `pointer-events-none`
+                        controlled visual, so a tap fires the handler once. */}
+                    <button
+                      type="button"
+                      role="checkbox"
+                      aria-checked={isSelected}
+                      aria-label={t("dataList.selectRow")}
+                      onClick={() => onToggleRow(entry.id)}
+                      className="focus-visible:ring-ring/50 flex size-11 shrink-0 items-center justify-center rounded focus-visible:ring-2 focus-visible:outline-none"
+                    >
                       <Checkbox
                         checked={isSelected}
-                        onCheckedChange={() => onToggleRow(entry.id)}
-                        aria-label={t("dataList.selectRow")}
+                        tabIndex={-1}
+                        aria-hidden="true"
+                        className="pointer-events-none"
                       />
-                    </label>
+                    </button>
                     <div className="bg-muted flex h-8 w-8 shrink-0 items-center justify-center rounded-lg">
                       <span
                         data-testid="mood-row-score"
@@ -785,19 +799,25 @@ export function MoodList({ onAddFirst }: MoodListProps = {}) {
               })}
             </span>
             <div className="flex gap-1">
+              {/* v1.15.13 L2 — match the measurements list's 44px pagination
+                  target (was `size="sm"`, below the WCAG 2.5.5 floor). */}
               <Button
                 variant="ghost"
-                size="sm"
+                size="icon"
+                className="size-11"
                 disabled={page <= 1}
                 onClick={() => goToPage((p) => p - 1)}
+                aria-label={t("mood.previousPage")}
               >
                 <ChevronLeft className="h-4 w-4" />
               </Button>
               <Button
                 variant="ghost"
-                size="sm"
+                size="icon"
+                className="size-11"
                 disabled={page >= totalPages}
                 onClick={() => goToPage((p) => p + 1)}
+                aria-label={t("mood.nextPage")}
               >
                 <ChevronRight className="h-4 w-4" />
               </Button>

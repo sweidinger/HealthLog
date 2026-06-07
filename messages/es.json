@@ -546,6 +546,8 @@
     "deleteConfirmTitle": "¿Eliminar entrada?",
     "deleteConfirmDescription": "Esta entrada de estado de ánimo se eliminará de forma permanente.",
     "pageInfo": "Página {page} de {total}",
+    "previousPage": "Página anterior",
+    "nextPage": "Página siguiente",
     "loginRequired": "Inicia sesión para ver tus estados de ánimo.",
     "note": "Nota",
     "notePlaceholder": "Añade una nota sobre cómo te sientes…",
