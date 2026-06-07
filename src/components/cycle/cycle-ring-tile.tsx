@@ -9,7 +9,7 @@ import { useTranslations } from "@/lib/i18n/context";
 import { CycleRing } from "./cycle-ring";
 import { PHASE_HUE } from "./phase-tokens";
 import { deriveWheelState } from "./wheel-state";
-import { localYmd, useCycleCalendar } from "./use-cycle";
+import { localYmd, useCycleCalendar, useCycleProfile } from "./use-cycle";
 
 /**
  * v1.15.3 — the compact cycle ring as a WELLNESS-STRIP element.
@@ -53,10 +53,19 @@ export function CycleRingTile({ className }: { className?: string }) {
   const to = useMemo(() => shiftToday(180), []);
 
   const calendar = useCycleCalendar(from, to);
+  // Shared 5-min-cached profile read (no extra request when the cycle page or
+  // summary card already loaded it): its typical lengths let a low-data tracker
+  // draw the canonical four-phase ring instead of one dominant arc.
+  const profile = useCycleProfile();
 
   const wheel = useMemo(
-    () => deriveWheelState(calendar.data?.days ?? [], today),
-    [calendar.data, today],
+    () =>
+      deriveWheelState(calendar.data?.days ?? [], today, {
+        typicalCycleLength: profile.data?.typicalCycleLength,
+        typicalPeriodLength: profile.data?.typicalPeriodLength,
+        lutealPhaseLength: profile.data?.lutealPhaseLength,
+      }),
+    [calendar.data, today, profile.data],
   );
 
   // The signature reveal plays ONCE per browser session, gated on its own key
