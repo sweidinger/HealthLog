@@ -4,23 +4,11 @@ import { useEffect, useReducer, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
-import { Card, CardContent } from "@/components/ui/card";
-import { cn } from "@/lib/utils";
-import { MedicationCardHeader } from "@/components/medications/MedicationCardHeader";
 import { MedicationCardMenu } from "@/components/medications/medication-card-menu";
 import { MedicationStateBadges } from "@/components/medications/card-parts/medication-state-badges";
-import { MedicationStatusPill } from "@/components/medications/card-parts/medication-status-pill";
-import {
-  MedicationComplianceBars,
-  MedicationComplianceSkeleton,
-} from "@/components/medications/card-parts/medication-compliance-bars";
-import { MedicationCycleStatus } from "@/components/medications/card-parts/medication-cycle-status";
-import { MedicationIntakeActions } from "@/components/medications/card-parts/medication-intake-actions";
+import { MedicationCardBody } from "@/components/medications/card-parts/medication-card-body";
 import { useMedicationIntake } from "@/components/medications/use-medication-intake";
-import {
-  MedicationNextLastSlot,
-  useWeekdayLabel,
-} from "@/components/medications/card-parts/medication-next-last-slot";
+import { useWeekdayLabel } from "@/components/medications/card-parts/medication-next-last-slot";
 import { useTranslations, useFormatters } from "@/lib/i18n/context";
 import {
   invalidateKeys,
@@ -285,13 +273,10 @@ export function Glp1MedicationCard({
   const rate7 = display?.short.rate ?? compliance?.compliance7?.rate ?? 0;
   const rate30 = display?.long.rate ?? compliance?.compliance30?.rate ?? 0;
   const streak = display?.short.streak ?? compliance?.compliance7?.streak ?? 0;
-  // v1.15.8 — taken-of-expected counts, shown after each percentage so two
-  // identical rates stay distinguishable (a weekly GLP-1 reading 100% on
-  // both windows shows e.g. `100% · 4 / 4` vs `100% · 13 / 13`).
-  const takenShort = display?.short.taken;
-  const expectedShort = display?.expectedShort;
-  const takenLong = display?.long.taken;
-  const expectedLong = display?.expectedLong;
+  // v1.15.9 — the open dose's server-derived status drives the green
+  // take-window highlight + the overdue / heavily-overdue top line, shared
+  // verbatim with the generic card. Defaults to "upcoming" (calm).
+  const doseStatus = display?.currentDose.status ?? "upcoming";
 
   // v1.4.37 W4b — symmetric take-now / overdue pill with the generic
   // card. Sort schedules by `windowStart` so the most-actionable
@@ -325,9 +310,12 @@ export function Glp1MedicationCard({
     now,
   });
 
+  // v1.15.9 — the recent-injection list now feeds ONLY the post-dose
+  // injection-site dialog's rotation history; the card surface no longer
+  // shows where the last shot landed. The operator: "where I injected
+  // doesn't interest me." Site TRACKING / logging is unchanged everywhere
+  // else (the picker, the detail history) — only the card line drops it.
   const recentInjections = details?.recentIntakes ?? [];
-  const lastSite =
-    recentInjections.find((i) => i.injectionSite)?.injectionSite ?? null;
 
   function lastInjectionLabel(): string | null {
     if (!medication.lastTakenAt) return null;
@@ -382,129 +370,58 @@ export function Glp1MedicationCard({
 
   const categoryLabel = getMedicationCategoryLabel(medication.category, t);
 
+  // The upcoming-injection line value. The card owns this VALUE content —
+  // the liked relative-day phrasing ("Samstag 13.7. (in 7 Tagen)") — while
+  // the structure / labels live in the shared body. The purple dose accent
+  // is byte-equivalent with the generic card's.
+  const nextLine =
+    next && currentWindowStatus.status !== "in_window" ? (
+      <>
+        {nextInjectionLabel()}
+        {schedule?.dose && (
+          <span className="text-dose-accent hidden font-medium sm:inline">
+            {" "}
+            — {schedule.dose}
+          </span>
+        )}
+      </>
+    ) : null;
+
+  // v1.15.9 — the last-injection line drops the injection-site display; it
+  // now reads exactly like the generic card's last line (relative-day only).
+  const lastLine = medication.lastTakenAt
+    ? t("medications.glp1LastInjection", { label: lastInjectionLabel() ?? "—" })
+    : null;
+
   return (
-    <Card className={cn("h-full", medication.active ? "" : "opacity-60")}>
-      <MedicationCardHeader
-        name={medication.name}
-        dose={medication.dose}
-        categoryLabel={categoryLabel}
-        stateBadges={stateBadges}
-        actions={headerActions}
-        href={`/medications/${medication.id}`}
-        linkLabel={t("medications.openDetailPage")}
-      />
-
-      <CardContent className="flex h-full flex-col space-y-3.5">
-        {/* Take-now / overdue / very-overdue pill, shared with the
-            generic medication card. The GLP-1 card historically
-            omitted this row, which made Mounjaro feel different from
-            Ramipril on the medications grid even though the underlying
-            schedule contract is the same shape. */}
-        {currentWindowStatus.status && (
-          <MedicationStatusPill
-            status={currentWindowStatus.status}
-            windowStart={currentWindowStatus.schedule!.windowStart}
-            windowEnd={currentWindowStatus.schedule!.windowEnd}
-          />
-        )}
-
-        {/* Injection state — next + last, rendered through the SAME shared
-            <MedicationNextLastSlot> the generic card uses, so the order
-            (next-then-last), labels ("Next intake" / "Last intake"), colour,
-            spacing, gating, reserved min-height and the label-left /
-            value-right two-column layout are identical across the two card
-            types. v1.15.8 dropped the GLP-1-specific appointment-phrased
-            label override so both cards name the concept identically; the
-            relative-day value phrasing ("in N days" / "today") stays the
-            GLP-1 card's own and is preserved. */}
-        <MedicationNextLastSlot
-          next={
-            next && currentWindowStatus.status !== "in_window" ? (
-              <>
-                {nextInjectionLabel()}
-                {/* Purple dose accent on the upcoming schedule dose,
-                    byte-equivalent with the generic card. Schedule.dose can
-                    override the medication-level dose during titration.
-                    Hidden below sm: to keep the narrow viewport row tight. */}
-                {schedule?.dose && (
-                  <span className="text-dose-accent hidden font-medium sm:inline">
-                    {" "}
-                    — {schedule.dose}
-                  </span>
-                )}
-              </>
-            ) : null
-          }
-          last={
-            medication.lastTakenAt
-              ? lastSite
-                ? t("medications.glp1LastInjectionWithSite", {
-                    label: lastInjectionLabel() ?? "—",
-                    site: t(`medications.site${siteSuffix(lastSite)}`),
-                  })
-                : t("medications.glp1LastInjection", {
-                    label: lastInjectionLabel() ?? "—",
-                  })
-              : null
-          }
-        />
-
-        {/* v1.4.28 — the "Bestand" (inventory) surface retired from
-            the GLP-1 card: both the inline pens-remaining summary line
-            and the per-pen disclosure are gone. The iOS-consumed
-            Glp1InventoryDTO slot on /api/medications/[id]/glp1 stays
-            in the response shape; only the web mounts are gone. */}
-
-        {/* Compliance bars — always two rows, shared with the generic
-            card so the page grid stays harmonious. A constant-height
-            skeleton holds the slot while the per-card compliance query is
-            in flight (or returns null) so the card body keeps a fixed
-            footprint and the action row pins to the same baseline as its
-            grid-row sibling. */}
-        {medication.active &&
-          (compliance ? (
-            <MedicationComplianceBars
-              rate7={rate7}
-              rate30={rate30}
-              streak={streak}
-              shortDays={shortDays}
-              longDays={longDays}
-              takenShort={takenShort}
-              expectedShort={expectedShort}
-              takenLong={takenLong}
-              expectedLong={expectedLong}
-            />
-          ) : (
-            <MedicationComplianceSkeleton />
-          ))}
-
-        {/* Open-cycle status line — the real win for a weekly GLP-1: between
-            injections the percentage rows are vacuous, so this calm,
-            rate-decoupled line reports "next dose in N days" / "due today" /
-            "overdue" (or a neutral "no closed cycles yet") instead of a 0%
-            that misreads a perfectly on-schedule med. `state: "none"`
-            collapses to nothing inside the part. */}
-        {medication.active && display?.currentCycle && (
-          <MedicationCycleStatus cycle={display.currentCycle} />
-        )}
-
-        {/* Primary actions row — shared with the generic medication card.
-            The GLP-1-specific side-effect quick-log lives in the
-            header-actions overflow (kebab), not this row, so Mounjaro and
-            Ramipril share the canonical two-button primary row. The content
-            above reserves constant-height slots, so the card bodies in a
-            grid row are equal height and `mt-auto` pins the action row to
-            the same baseline without opening a void. */}
-        {medication.active && (
-          <div className="mt-auto pt-0">
-            <MedicationIntakeActions
-              intakeLoading={intakeLoading}
-              onRecordIntake={(skipped) => recordIntake(skipped, displayedSlot)}
-            />
-          </div>
-        )}
-      </CardContent>
-
+    <MedicationCardBody
+      name={medication.name}
+      dose={medication.dose}
+      categoryLabel={categoryLabel}
+      active={medication.active}
+      href={`/medications/${medication.id}`}
+      linkLabel={t("medications.openDetailPage")}
+      stateBadges={stateBadges}
+      headerActions={headerActions}
+      windowStatus={
+        currentWindowStatus.status
+          ? {
+              status: currentWindowStatus.status,
+              windowStart: currentWindowStatus.schedule!.windowStart,
+              windowEnd: currentWindowStatus.schedule!.windowEnd,
+            }
+          : null
+      }
+      doseStatus={doseStatus}
+      nextLine={nextLine}
+      lastLine={lastLine}
+      compliance={
+        compliance ? { rate7, rate30, streak, shortDays, longDays } : null
+      }
+      currentCycle={display?.currentCycle ?? null}
+      intakeLoading={intakeLoading}
+      onRecordIntake={(skipped) => recordIntake(skipped, displayedSlot)}
+    >
       {/* v1.8.5 — post-dose injection-site capture (optional, skippable). */}
       {tracksInjection && (
         <LogInjectionSiteDialog
@@ -523,18 +440,6 @@ export function Glp1MedicationCard({
           onSkip={() => setSiteIntakeId(null)}
         />
       )}
-    </Card>
+    </MedicationCardBody>
   );
-}
-
-/**
- * Map enum value → i18n suffix.  ABDOMEN_LEFT → "AbdomenLeft" so we can
- * lookup `medications.siteAbdomenLeft` etc. without a switch table.
- */
-function siteSuffix(site: InjectionSiteKey): string {
-  return site
-    .toLowerCase()
-    .split("_")
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join("");
 }

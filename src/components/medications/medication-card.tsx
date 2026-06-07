@@ -3,23 +3,11 @@
 import { useState, useEffect, useReducer } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Card, CardContent } from "@/components/ui/card";
 import { useMedicationIntake } from "@/components/medications/use-medication-intake";
-import { cn } from "@/lib/utils";
-import { MedicationCardHeader } from "@/components/medications/MedicationCardHeader";
 import { MedicationCardMenu } from "@/components/medications/medication-card-menu";
 import { MedicationStateBadges } from "@/components/medications/card-parts/medication-state-badges";
-import { MedicationStatusPill } from "@/components/medications/card-parts/medication-status-pill";
-import {
-  MedicationComplianceBars,
-  MedicationComplianceSkeleton,
-} from "@/components/medications/card-parts/medication-compliance-bars";
-import { MedicationCycleStatus } from "@/components/medications/card-parts/medication-cycle-status";
-import { MedicationIntakeActions } from "@/components/medications/card-parts/medication-intake-actions";
-import {
-  MedicationNextLastSlot,
-  useWeekdayLabel,
-} from "@/components/medications/card-parts/medication-next-last-slot";
+import { MedicationCardBody } from "@/components/medications/card-parts/medication-card-body";
+import { useWeekdayLabel } from "@/components/medications/card-parts/medication-next-last-slot";
 import { formatTimeWindowRange } from "@/lib/time-window-format";
 import { formatDateTime, formatTime } from "@/lib/format";
 import { getMedicationCategoryLabel } from "@/lib/medications/category-label";
@@ -85,10 +73,6 @@ interface Medication {
 
 interface ComplianceData {
   compliance7: {
-    totalExpected: number;
-    taken: number;
-    skipped: number;
-    missed: number;
     rate: number;
     streak: number;
   };
@@ -98,9 +82,10 @@ interface ComplianceData {
   /**
    * v1.8.6 — the two compliance windows scaled to the dosing cadence. The
    * card always shows two percentage rows; `shortDays` / `longDays` name the
-   * windows and `short` / `long` carry their rates. Additive — older mocks
-   * omit it, in which case the card falls back to the static 7-/30-day
-   * `compliance7` / `compliance30` fields.
+   * windows and `short` / `long` carry their rates. v1.15.9 also carries the
+   * open dose's `currentDose.status` for the green / overdue presentation.
+   * Additive — older mocks omit it, in which case the card falls back to the
+   * static 7-/30-day `compliance7` / `compliance30` fields and a calm state.
    */
   complianceDisplay?: ComplianceDisplay;
 }
@@ -211,14 +196,10 @@ export function MedicationCard({
   const rate7 = display?.short.rate ?? compliance?.compliance7?.rate ?? 0;
   const rate30 = display?.long.rate ?? compliance?.compliance30?.rate ?? 0;
   const streak = display?.short.streak ?? compliance?.compliance7?.streak ?? 0;
-  // v1.15.8 — taken-of-expected counts, shown after each percentage so two
-  // identical rates stay distinguishable. Falls back to the static 7-day
-  // `taken` when the cadence-scaled display block is absent.
-  const takenShort = display?.short.taken ?? compliance?.compliance7?.taken;
-  const expectedShort =
-    display?.expectedShort ?? compliance?.compliance7?.totalExpected;
-  const takenLong = display?.long.taken;
-  const expectedLong = display?.expectedLong;
+  // v1.15.9 — the open dose's server-derived status drives the card's green
+  // take-window highlight + the overdue / heavily-overdue top line. Defaults
+  // to "upcoming" (calm) when the display block is absent (older mocks).
+  const doseStatus = display?.currentDose.status ?? "upcoming";
   const categoryLabel = getMedicationCategoryLabel(medication.category, t);
   const sortedSchedules = [...medication.schedules].sort(
     (a, b) =>
@@ -307,139 +288,89 @@ export function MedicationCard({
     />
   );
 
+  // The upcoming-intake line value — a day label + window range + optional
+  // dose accent. The card owns this VALUE content (a daily med reads as a
+  // clock-time window); the structure / labels live in the shared body.
+  const nextLine =
+    nextSchedule && currentWindowStatus.status !== "in_window"
+      ? (() => {
+          const s = nextSchedule;
+
+          // Format day label relative to today
+          let dayLabel = "";
+          if (nextAt) {
+            const nextDate = toBerlinDate(new Date(nextAt));
+            const todayStr = `${nowBerlin.getFullYear()}-${nowBerlin.getMonth()}-${nowBerlin.getDate()}`;
+            const nextStr = `${nextDate.getFullYear()}-${nextDate.getMonth()}-${nextDate.getDate()}`;
+            const tomorrow = new Date(nowBerlin);
+            tomorrow.setDate(tomorrow.getDate() + 1);
+            const tomorrowStr = `${tomorrow.getFullYear()}-${tomorrow.getMonth()}-${tomorrow.getDate()}`;
+
+            const diffDays = Math.round(
+              (nextDate.getTime() - nowBerlin.getTime()) /
+                (24 * 60 * 60 * 1000),
+            );
+
+            if (nextStr === todayStr) {
+              dayLabel = t("medications.today");
+            } else if (nextStr === tomorrowStr) {
+              dayLabel = t("medications.tomorrow");
+            } else if (diffDays <= 5) {
+              dayLabel = weekdayLabel(nextDate.getDay());
+            } else {
+              dayLabel = fmt.dateWithWeekday(nextDate);
+            }
+          }
+
+          return (
+            <>
+              {dayLabel && `${dayLabel}, `}
+              {formatTimeWindowRange(s.windowStart, s.windowEnd, locale)}
+              {s.label && (
+                <span className="hidden sm:inline"> ({s.label})</span>
+              )}
+              {s.dose && (
+                <span className="text-dose-accent hidden font-medium sm:inline">
+                  {" "}
+                  — {s.dose}
+                </span>
+              )}
+            </>
+          );
+        })()
+      : null;
+
   return (
-    <Card className={cn("h-full", medication.active ? "" : "opacity-60")}>
-      <MedicationCardHeader
-        name={medication.name}
-        dose={medication.dose}
-        categoryLabel={categoryLabel}
-        stateBadges={stateBadges}
-        actions={headerActions}
-        href={`/medications/${medication.id}`}
-        linkLabel={t("medications.openDetailPage")}
-      />
-
-      <CardContent className="flex h-full flex-col space-y-3.5">
-        {/* Status, last & next intake info */}
-        {currentWindowStatus.status && (
-          <MedicationStatusPill
-            status={currentWindowStatus.status}
-            windowStart={currentWindowStatus.schedule!.windowStart}
-            windowEnd={currentWindowStatus.schedule!.windowEnd}
-          />
-        )}
-
-        {/* Next / last intake — rendered through the shared
-            <MedicationNextLastSlot> so the generic and GLP-1 cards keep an
-            identical slot (order, colour, spacing, gating, reserved
-            min-height). The card owns only the *content* of each line; the
-            wrapper + "Next / Last intake" labels live in the shared part. */}
-        <MedicationNextLastSlot
-          next={
-            nextSchedule && currentWindowStatus.status !== "in_window"
-              ? (() => {
-                  const s = nextSchedule;
-
-                  // Format day label relative to today
-                  let dayLabel = "";
-                  if (nextAt) {
-                    const nextDate = toBerlinDate(new Date(nextAt));
-                    const todayStr = `${nowBerlin.getFullYear()}-${nowBerlin.getMonth()}-${nowBerlin.getDate()}`;
-                    const nextStr = `${nextDate.getFullYear()}-${nextDate.getMonth()}-${nextDate.getDate()}`;
-                    const tomorrow = new Date(nowBerlin);
-                    tomorrow.setDate(tomorrow.getDate() + 1);
-                    const tomorrowStr = `${tomorrow.getFullYear()}-${tomorrow.getMonth()}-${tomorrow.getDate()}`;
-
-                    const diffDays = Math.round(
-                      (nextDate.getTime() - nowBerlin.getTime()) /
-                        (24 * 60 * 60 * 1000),
-                    );
-
-                    if (nextStr === todayStr) {
-                      dayLabel = t("medications.today");
-                    } else if (nextStr === tomorrowStr) {
-                      dayLabel = t("medications.tomorrow");
-                    } else if (diffDays <= 5) {
-                      dayLabel = weekdayLabel(nextDate.getDay());
-                    } else {
-                      dayLabel = fmt.dateWithWeekday(nextDate);
-                    }
-                  }
-
-                  return (
-                    <>
-                      {dayLabel && `${dayLabel}, `}
-                      {formatTimeWindowRange(s.windowStart, s.windowEnd, locale)}
-                      {s.label && (
-                        <span className="hidden sm:inline"> ({s.label})</span>
-                      )}
-                      {s.dose && (
-                        <span className="text-dose-accent hidden font-medium sm:inline">
-                          {" "}
-                          — {s.dose}
-                        </span>
-                      )}
-                    </>
-                  );
-                })()
-              : null
-          }
-          last={
-            medication.lastTakenAt
-              ? formatLastTakenAt(medication.lastTakenAt)
-              : null
-          }
-        />
-
-        {/* Compliance bars — always two rows. The server scales the two
-            windows to the dosing cadence (7 / 30 days for dense meds,
-            stepping up to 90 / 365 for sparse ones); the labels follow the
-            chosen windows. A constant-height skeleton holds the slot while
-            the per-card compliance query is in flight (or returns null) so
-            the card body keeps a fixed footprint and the action row pins to
-            the same baseline as its grid-row sibling. */}
-        {medication.active &&
-          (compliance ? (
-            <MedicationComplianceBars
-              rate7={rate7}
-              rate30={rate30}
-              streak={streak}
-              shortDays={shortDays}
-              longDays={longDays}
-              takenShort={takenShort}
-              expectedShort={expectedShort}
-              takenLong={takenLong}
-              expectedLong={expectedLong}
-            />
-          ) : (
-            <MedicationComplianceSkeleton />
-          ))}
-
-        {/* Open-cycle status line — calm, rate-decoupled. A sparse weekly /
-            rolling med between doses reports "next dose in N days" / "due
-            today" / "overdue" (or a neutral "no closed cycles yet") instead of
-            leaning on a percentage that reads as a scary 0% for a med that is
-            actually on schedule. Rendered only when the server supplies the
-            descriptor; `state: "none"` collapses to nothing inside the part. */}
-        {medication.active && display?.currentCycle && (
-          <MedicationCycleStatus cycle={display.currentCycle} />
-        )}
-
-        {/* Quick actions — primary buttons of the medication card. The
-            content above reserves constant-height slots, so the card bodies
-            in a grid row are equal height and `mt-auto` pins the action row
-            to the same baseline without opening the void that an unequal-
-            height pin produced before. */}
-        {medication.active && (
-          <div className="mt-auto pt-0">
-            <MedicationIntakeActions
-              intakeLoading={intakeLoading}
-              onRecordIntake={(skipped) => recordIntake(skipped, displayedSlot)}
-            />
-          </div>
-        )}
-      </CardContent>
-
+    <MedicationCardBody
+      name={medication.name}
+      dose={medication.dose}
+      categoryLabel={categoryLabel}
+      active={medication.active}
+      href={`/medications/${medication.id}`}
+      linkLabel={t("medications.openDetailPage")}
+      stateBadges={stateBadges}
+      headerActions={headerActions}
+      windowStatus={
+        currentWindowStatus.status
+          ? {
+              status: currentWindowStatus.status,
+              windowStart: currentWindowStatus.schedule!.windowStart,
+              windowEnd: currentWindowStatus.schedule!.windowEnd,
+            }
+          : null
+      }
+      doseStatus={doseStatus}
+      nextLine={nextLine}
+      lastLine={
+        medication.lastTakenAt ? formatLastTakenAt(medication.lastTakenAt) : null
+      }
+      compliance={
+        compliance ? { rate7, rate30, streak, shortDays, longDays } : null
+      }
+      currentCycle={display?.currentCycle ?? null}
+      intakeLoading={intakeLoading}
+      onRecordIntake={(skipped) => recordIntake(skipped, displayedSlot)}
+    >
       {/* v1.8.5 — post-dose injection-site capture (optional, skippable). */}
       {tracksInjection && (
         <LogInjectionSiteDialog
@@ -454,6 +385,6 @@ export function MedicationCard({
           onSkip={() => setSiteIntakeId(null)}
         />
       )}
-    </Card>
+    </MedicationCardBody>
   );
 }
