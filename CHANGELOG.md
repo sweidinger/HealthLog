@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [1.15.8.1] — 2026-06-07 — large Apple Health imports
+
+### Fixed
+
+- **Large Apple Health `export.zip` uploads no longer fail with "Could not locate ZIP End-Of-Central-Directory record".** The multipart upload reader could drop part of a file body when a network chunk ended exactly on the multipart boundary — which only showed up on larger, multi-chunk uploads (a small export imported fine). The reader now handles the boundary across chunks correctly, so the uploaded archive arrives byte-for-byte intact. (#281)
+
 ## [1.15.8] — 2026-06-07 — medication cards
 
 ### Changed

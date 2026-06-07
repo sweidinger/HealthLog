@@ -1,10 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { readFileSync, unlinkSync } from "node:fs";
+import { createHash } from "node:crypto";
+import { deflateRawSync } from "node:zlib";
 
 import {
   parseBoundary,
   streamMultipartToDisk,
 } from "../stream-to-disk";
+import { extractExportXml } from "@/lib/import/unzip-export-xml";
 
 const BOUNDARY = "----HealthLogTestBoundary";
 
@@ -141,4 +144,316 @@ describe("streamMultipartToDisk", () => {
       ),
     ).rejects.toThrow(/boundary/);
   });
+});
+
+/**
+ * Deterministic pseudo-random binary that contains the byte sequences a
+ * multipart parser is most likely to mis-handle: bare CRLF (0x0D 0x0A),
+ * "--" runs (0x2D 0x2D), and partial boundary-marker prefixes. None of
+ * these is the full boundary marker (the sender guarantees the marker
+ * cannot appear in the content), so a correct parser must copy every
+ * byte through verbatim.
+ */
+function makeAdversarialBinary(n: number): Buffer {
+  const b = Buffer.alloc(n);
+  let s = 0x12345678 >>> 0;
+  for (let i = 0; i < n; i++) {
+    s = (s * 1664525 + 1013904223) >>> 0;
+    b[i] = (s >>> 16) & 0xff;
+  }
+  const partialMarker = Buffer.from(`\r\n--${BOUNDARY.slice(0, 12)}`);
+  for (let off = 100; off + partialMarker.length < n; off += 991) {
+    partialMarker.copy(b, off);
+  }
+  for (let off = 37; off + 1 < n; off += 257) {
+    b[off] = 0x0d;
+    b[off + 1] = 0x0a;
+  }
+  return b;
+}
+
+/** Build a single-entry deflate ZIP wrapping the supplied member. */
+function buildZip(name: string, data: Buffer): Buffer {
+  const nameBuf = Buffer.from(name, "utf8");
+  const compressed = deflateRawSync(data);
+  const table: number[] = [];
+  for (let n = 0; n < 256; n++) {
+    let c = n;
+    for (let k = 0; k < 8; k++) c = (c & 1) ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
+    table[n] = c >>> 0;
+  }
+  let crc = 0 ^ -1;
+  for (let i = 0; i < data.length; i++) {
+    crc = (crc >>> 8) ^ table[(crc ^ data[i]) & 0xff];
+  }
+  const crc32 = (crc ^ -1) >>> 0;
+
+  const local = Buffer.alloc(30);
+  local.writeUInt32LE(0x04034b50, 0);
+  local.writeUInt16LE(20, 4);
+  local.writeUInt16LE(8, 8);
+  local.writeUInt32LE(crc32, 14);
+  local.writeUInt32LE(compressed.length, 18);
+  local.writeUInt32LE(data.length, 22);
+  local.writeUInt16LE(nameBuf.length, 26);
+
+  const cdh = Buffer.alloc(46);
+  cdh.writeUInt32LE(0x02014b50, 0);
+  cdh.writeUInt16LE(20, 4);
+  cdh.writeUInt16LE(20, 6);
+  cdh.writeUInt16LE(8, 10);
+  cdh.writeUInt32LE(crc32, 16);
+  cdh.writeUInt32LE(compressed.length, 20);
+  cdh.writeUInt32LE(data.length, 24);
+  cdh.writeUInt16LE(nameBuf.length, 28);
+
+  const localFull = Buffer.concat([local, nameBuf, compressed]);
+  const cdhFull = Buffer.concat([cdh, nameBuf]);
+
+  const eocd = Buffer.alloc(22);
+  eocd.writeUInt32LE(0x06054b50, 0);
+  eocd.writeUInt16LE(1, 8);
+  eocd.writeUInt16LE(1, 10);
+  eocd.writeUInt32LE(cdhFull.length, 12);
+  eocd.writeUInt32LE(localFull.length, 16);
+
+  return Buffer.concat([localFull, cdhFull, eocd]);
+}
+
+/** Feed `buf` to a ReadableStream in the repeating chunk sizes given. */
+function fixedChunkStream(
+  buf: Buffer,
+  sizes: number[],
+): ReadableStream<Uint8Array> {
+  let i = 0;
+  let si = 0;
+  return new ReadableStream<Uint8Array>({
+    pull(controller) {
+      if (i >= buf.length) {
+        controller.close();
+        return;
+      }
+      const size = sizes[si % sizes.length];
+      si++;
+      const end = Math.min(buf.length, i + size);
+      controller.enqueue(new Uint8Array(buf.subarray(i, end)));
+      i = end;
+    },
+  });
+}
+
+/** Split `buf` at the explicit byte offsets given. */
+function splitAtStream(
+  buf: Buffer,
+  points: number[],
+): ReadableStream<Uint8Array> {
+  const segments: Buffer[] = [];
+  let prev = 0;
+  for (const p of points) {
+    segments.push(buf.subarray(prev, p));
+    prev = p;
+  }
+  segments.push(buf.subarray(prev));
+  let i = 0;
+  return new ReadableStream<Uint8Array>({
+    pull(controller) {
+      if (i >= segments.length) {
+        controller.close();
+        return;
+      }
+      controller.enqueue(new Uint8Array(segments[i]));
+      i++;
+    },
+  });
+}
+
+describe("streamMultipartToDisk — large multi-chunk binary round-trip", () => {
+  // Regression for the cross-chunk boundary-suffix loss: a chunk that
+  // ended exactly on the opening boundary marker dropped the parser back
+  // into a fresh marker search and swallowed the whole part body, so a
+  // multi-chunk upload landed on disk truncated. The downstream ZIP
+  // reader then failed with "Could not locate ZIP End-Of-Central-Directory
+  // record". A tiny single-chunk upload never tripped it.
+  it("writes a multi-MB binary byte-exact under coarse chunkings", async () => {
+    // A few-MB payload exercises many chunks at realistic network sizes —
+    // this is the shape the wild 40 MB upload took.
+    const fileContent = makeAdversarialBinary(3 * 1024 * 1024 + 777);
+    const expectedSha = createHash("sha256")
+      .update(fileContent)
+      .digest("hex");
+    const body = buildMultipartBody("export.zip", fileContent, {
+      userId: "u-1",
+    });
+
+    const markerLen = `--${BOUNDARY}`.length;
+    const sepLen = `\r\n--${BOUNDARY}`.length;
+    const chunkings: number[][] = [
+      [body.length], // single chunk (the trivially-passing case)
+      [4096],
+      [16384, markerLen, 1, 2, 3], // realistic chunks then tiny tails
+      // A repeating size aligned so chunks routinely end on / inside the
+      // boundary marker — the exact window the bug lived in.
+      [markerLen, 8192],
+      [sepLen - 1, 8192], // ends one byte short of the full separator
+      [1024, 64, 5000, 13, 8192], // odd repeating mix
+    ];
+
+    for (const sizes of chunkings) {
+      const result = await streamMultipartToDisk(
+        fixedChunkStream(body, sizes),
+        `multipart/form-data; boundary=${BOUNDARY}`,
+        { maxBytes: 1.5 * 1024 * 1024 * 1024, fieldName: "file" },
+      );
+      try {
+        expect(result.bytes, `bytes for chunking ${sizes}`).toBe(
+          fileContent.length,
+        );
+        expect(result.sha256, `sha for chunking ${sizes}`).toBe(expectedSha);
+        const written = readFileSync(result.filePath);
+        expect(
+          written.equals(fileContent),
+          `byte-exact for chunking ${sizes}`,
+        ).toBe(true);
+        expect(result.textFields.userId).toBe("u-1");
+      } finally {
+        try {
+          unlinkSync(result.filePath);
+        } catch {
+          /* ignore */
+        }
+      }
+    }
+  }, 20_000);
+
+  it("writes byte-exact under fine (1/3/7-byte) chunkings", async () => {
+    // The pathological 1-byte feed is the cleanest reproduction of the
+    // boundary-suffix-loss bug; keep the payload small so the per-chunk
+    // file writes stay fast while still spanning thousands of chunks.
+    const fileContent = makeAdversarialBinary(16 * 1024 + 17);
+    const expectedSha = createHash("sha256")
+      .update(fileContent)
+      .digest("hex");
+    const body = buildMultipartBody("export.zip", fileContent, {
+      userId: "u-1",
+    });
+
+    for (const sizes of [[1], [3], [7], [1, 3, 7, 2, 5, 13]]) {
+      const result = await streamMultipartToDisk(
+        fixedChunkStream(body, sizes),
+        `multipart/form-data; boundary=${BOUNDARY}`,
+        { maxBytes: 1024 * 1024, fieldName: "file" },
+      );
+      try {
+        expect(result.bytes, `bytes for chunking ${sizes}`).toBe(
+          fileContent.length,
+        );
+        expect(result.sha256, `sha for chunking ${sizes}`).toBe(expectedSha);
+        const written = readFileSync(result.filePath);
+        expect(
+          written.equals(fileContent),
+          `byte-exact for chunking ${sizes}`,
+        ).toBe(true);
+      } finally {
+        try {
+          unlinkSync(result.filePath);
+        } catch {
+          /* ignore */
+        }
+      }
+    }
+  }, 20_000);
+
+  it("survives a chunk split at every offset (single + adjacent)", async () => {
+    // Small body, exhaustive split coverage — the failing case in the
+    // wild was a chunk boundary landing in a specific window; assert no
+    // offset can corrupt the captured bytes.
+    const fileContent = Buffer.concat([
+      Buffer.from("AAAA\r\n--BBBB"),
+      Buffer.from(`\r\n--${BOUNDARY.slice(0, 12)}`),
+      Buffer.from("CCCC\r\nDDDD\r\n--"),
+      Buffer.from([0x0d, 0x0a, 0x2d, 0x2d, 0x00, 0xff]),
+    ]);
+    const expectedSha = createHash("sha256")
+      .update(fileContent)
+      .digest("hex");
+    const body = buildMultipartBody("export.zip", fileContent, {
+      userId: "u-1",
+    });
+
+    for (let p = 1; p < body.length; p++) {
+      for (const points of [[p], [p, Math.min(p + 1, body.length)]]) {
+        const result = await streamMultipartToDisk(
+          splitAtStream(body, points),
+          `multipart/form-data; boundary=${BOUNDARY}`,
+          { maxBytes: 1024, fieldName: "file" },
+        );
+        try {
+          expect(result.sha256, `sha at split ${points}`).toBe(expectedSha);
+          const written = readFileSync(result.filePath);
+          expect(
+            written.equals(fileContent),
+            `byte-exact at split ${points}`,
+          ).toBe(true);
+        } finally {
+          try {
+            unlinkSync(result.filePath);
+          } catch {
+            /* ignore */
+          }
+        }
+      }
+    }
+  });
+
+  it("a streamed export.zip stays a valid archive end-to-end", async () => {
+    // Build a real deflate ZIP whose member contains binary-flavoured
+    // XML, stream it through awkward chunkings, and confirm the file on
+    // disk is still extractable — i.e. the EOCD record survives.
+    let xml = `<?xml version="1.0" encoding="UTF-8"?>\n<HealthData locale="en_US">\n`;
+    let s = 42 >>> 0;
+    for (let i = 0; i < 8000; i++) {
+      s = (s * 1103515245 + 12345) >>> 0;
+      xml += `<Record type="HKQuantityTypeIdentifierStepCount" value="${s % 1000}"/>\n`;
+    }
+    xml += `</HealthData>\n`;
+    const xmlBuf = Buffer.from(xml, "utf8");
+    const zip = buildZip("apple_health_export/export.xml", xmlBuf);
+    const expectedSha = createHash("sha256").update(zip).digest("hex");
+    const body = buildMultipartBody("export.zip", zip, { userId: "u-1" });
+
+    const markerLen = `--${BOUNDARY}`.length;
+    for (const sizes of [[7], [markerLen, 257], [1, 3, 7, 64, 13, 257]]) {
+      const result = await streamMultipartToDisk(
+        fixedChunkStream(body, sizes),
+        `multipart/form-data; boundary=${BOUNDARY}`,
+        { maxBytes: 1.5 * 1024 * 1024 * 1024, fieldName: "file" },
+      );
+      let xmlPath: string | null = null;
+      try {
+        expect(result.sha256, `zip sha for chunking ${sizes}`).toBe(
+          expectedSha,
+        );
+        const written = readFileSync(result.filePath);
+        expect(written.equals(zip), `zip byte-exact for ${sizes}`).toBe(true);
+        // The load-bearing assertion: the saved file is still a parseable
+        // archive (EOCD intact) and the member round-trips.
+        const extracted = extractExportXml(result.filePath);
+        xmlPath = extracted.xmlPath;
+        expect(readFileSync(extracted.xmlPath).equals(xmlBuf)).toBe(true);
+      } finally {
+        try {
+          unlinkSync(result.filePath);
+        } catch {
+          /* ignore */
+        }
+        if (xmlPath) {
+          try {
+            unlinkSync(xmlPath);
+          } catch {
+            /* ignore */
+          }
+        }
+      }
+    }
+  }, 20_000);
 });
