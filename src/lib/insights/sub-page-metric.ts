@@ -227,6 +227,95 @@ export const SUB_PAGE_GROUP_ORDER: Record<SubPageGroup, readonly SubPageSlug[]> 
   };
 
 /**
+ * v1.15.14 W2 — manager grouping for the "Anpassen" → "Detailseiten
+ * verwalten" surface.
+ *
+ * The tab strip only assigns a `SUB_PAGE_GROUP` to the long-tail metrics
+ * that collapse behind a popover parent pill; the eight legacy flat pills
+ * (blood-pressure, pulse, weight, bmi, sleep, mood, medications, workouts)
+ * render as direct entries and carry NO `SUB_PAGE_GROUP`. The sub-page
+ * MANAGER, by contrast, lists EVERY slug grouped under a category header,
+ * so it needs a total slug → group mapping that covers the flat pills too
+ * and adds the three categories the tab strip never groups (`sleep`,
+ * `mood`, `events`). This map is that total assignment; it is a superset
+ * of `SUB_PAGE_GROUP` (every `SUB_PAGE_GROUP` entry agrees with it) plus a
+ * fallback for the flat slugs. Single source of truth for the manager —
+ * the tab-strip nav grouping stays `SUB_PAGE_GROUP` exactly as before.
+ */
+export type ManagerGroup =
+  | "vitals"
+  | "body"
+  | "activity"
+  | "sleep"
+  | "cardiovascular"
+  | "hearing"
+  | "environment"
+  | "metabolic"
+  | "mood"
+  | "events";
+
+/**
+ * Render order of the manager's category sections — mirrors the
+ * MeasurementCategory overlay the rest of insights follows
+ * (vitals → body → activity → sleep → cardiovascular → hearing →
+ * environment → metabolic → mood → events).
+ */
+export const MANAGER_GROUP_ORDER: readonly ManagerGroup[] = [
+  "vitals",
+  "body",
+  "activity",
+  "sleep",
+  "cardiovascular",
+  "hearing",
+  "environment",
+  "metabolic",
+  "mood",
+  "events",
+];
+
+/** Explicit group for the flat tab-strip slugs (those `SUB_PAGE_GROUP` omits). */
+const FLAT_SLUG_MANAGER_GROUP: Partial<Record<SubPageSlug, ManagerGroup>> = {
+  "blood-pressure": "vitals",
+  pulse: "vitals",
+  weight: "body",
+  bmi: "body",
+  workouts: "activity",
+  sleep: "sleep",
+  mood: "mood",
+  medications: "events",
+};
+
+/**
+ * Total slug → manager-group assignment. A slug grouped by the tab strip
+ * keeps that group; a flat slug falls back to {@link FLAT_SLUG_MANAGER_GROUP}.
+ * Every slug resolves (asserted by the manager-coverage test).
+ */
+export const SUB_PAGE_MANAGER_GROUP: Record<SubPageSlug, ManagerGroup> =
+  Object.fromEntries(
+    SUB_PAGE_SLUGS.map((slug) => [
+      slug,
+      (SUB_PAGE_GROUP[slug] as ManagerGroup | undefined) ??
+        FLAT_SLUG_MANAGER_GROUP[slug] ??
+        "vitals",
+    ]),
+  ) as unknown as Record<SubPageSlug, ManagerGroup>;
+
+/**
+ * Slugs per manager group, in `SUB_PAGE_SLUGS` order. The manager renders
+ * one collapsible section per group following {@link MANAGER_GROUP_ORDER},
+ * each listing these slugs.
+ */
+export const SUB_PAGE_MANAGER_GROUP_SLUGS: Record<
+  ManagerGroup,
+  readonly SubPageSlug[]
+> = Object.fromEntries(
+  MANAGER_GROUP_ORDER.map((group) => [
+    group,
+    SUB_PAGE_SLUGS.filter((slug) => SUB_PAGE_MANAGER_GROUP[slug] === group),
+  ]),
+) as unknown as Record<ManagerGroup, readonly SubPageSlug[]>;
+
+/**
  * Mother-page route. Kept here as a named constant so call sites
  * never have to hard-code the string.
  */

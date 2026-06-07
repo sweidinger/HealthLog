@@ -73,6 +73,22 @@ export interface InsightsTabStripProps {
    * stay backward-compatible.
    */
   availability?: InsightInputs;
+  /**
+   * v1.15.14 W2 — the set of sub-page slugs the user's saved insights
+   * layout marks `visible`. A pill shows iff its metric has data AND its
+   * slug is in this set, so hiding a sub-page in "Anpassen" removes its
+   * nav pill. `undefined` (layout not yet loaded) falls back to the
+   * data-only gate so first paint is unchanged. Data availability stays
+   * the FLOOR — a layout-visible metric with zero data never gets a pill.
+   */
+  visibleTileIds?: ReadonlySet<string>;
+  /**
+   * v1.15.14 W2 — slug → saved-layout `order`. When present the strip
+   * orders flat pills, group parent pills (by first member), and group
+   * children by this order; absent, it falls back to the natural
+   * `SUB_PAGE_SLUGS` / `SUB_PAGE_GROUP_ORDER` order.
+   */
+  tileOrder?: ReadonlyMap<string, number>;
 }
 
 /**
@@ -111,7 +127,7 @@ type TabEntry =
 // ORDER is owned by `SUB_PAGE_SLUGS` (which iterates the keys of
 // `SUB_PAGE_METRIC`) so adding a new metric is one row in
 // `sub-page-metric.ts` and the strip picks it up automatically.
-const SUB_PAGE_TABS: Record<
+export const SUB_PAGE_TABS: Record<
   SubPageSlug,
   { labelKey: string; metric: InsightMetric }
 > = {
@@ -321,7 +337,11 @@ const SUB_PAGE_GROUP_META: Record<
   },
 };
 
-function buildTabs(availability: InsightInputs | undefined): TabEntry[] {
+function buildTabs(
+  availability: InsightInputs | undefined,
+  visibleTileIds: ReadonlySet<string> | undefined,
+  tileOrder: ReadonlyMap<string, number> | undefined,
+): TabEntry[] {
   // v1.4.36 W4d — strict gating contract: a sub-page only surfaces a
   // pill when the availability inputs CONFIRM the metric has at
   // least one observation in the 90-day window. The legacy
@@ -333,13 +353,39 @@ function buildTabs(availability: InsightInputs | undefined): TabEntry[] {
   // The pills appear progressively as `summaries[METRIC].count`
   // flips from 0 to ≥1 — exactly the auto-light-up behaviour
   // described in `metric-availability.ts` line 26.
+  //
+  // v1.15.14 W2 — the saved insights layout is now a SECOND gate on top
+  // of data availability. A pill shows iff its metric has data AND its
+  // slug is layout-`visible`. Data availability stays the FLOOR (a
+  // layout-visible metric with zero data still gets no pill). When the
+  // layout has not loaded yet (`visibleTileIds === undefined`) we fall
+  // back to the data-only gate so first paint matches the pre-W2
+  // behaviour — the layout query then narrows the set on resolve. The
+  // group child `order` follows the layout (via `orderedSlugs` below),
+  // falling back to `SUB_PAGE_GROUP_ORDER` when the layout is absent.
   const visibleSlugs = availability
-    ? SUB_PAGE_SLUGS.filter((slug) =>
-        hasMetricData(SUB_PAGE_TABS[slug].metric, availability),
+    ? SUB_PAGE_SLUGS.filter(
+        (slug) =>
+          hasMetricData(SUB_PAGE_TABS[slug].metric, availability) &&
+          (visibleTileIds === undefined || visibleTileIds.has(slug)),
       )
     : [];
 
   const visibleSet = new Set(visibleSlugs);
+
+  // v1.15.14 W2 — order the strip by the saved layout when present. The
+  // top-level iteration order decides where each flat pill and each group
+  // parent pill land; a group parent appears at the position of its
+  // first (lowest-order) visible member. Falling back to the natural
+  // `SUB_PAGE_SLUGS` order keeps the pre-W2 layout-absent behaviour.
+  const orderedSlugs = tileOrder
+    ? [...visibleSlugs].sort(
+        (a, b) =>
+          (tileOrder.get(a) ?? Number.MAX_SAFE_INTEGER) -
+          (tileOrder.get(b) ?? Number.MAX_SAFE_INTEGER),
+      )
+    : visibleSlugs;
+
   const entries: TabEntry[] = [
     {
       kind: "link",
@@ -353,12 +399,19 @@ function buildTabs(availability: InsightInputs | undefined): TabEntry[] {
   // same strip position (preserving categorical order).
   const emittedGroups = new Set<SubPageGroup>();
 
-  for (const slug of visibleSlugs) {
+  for (const slug of orderedSlugs) {
     const group = SUB_PAGE_GROUP[slug];
     if (group) {
       if (emittedGroups.has(group)) continue;
       emittedGroups.add(group);
-      const children = SUB_PAGE_GROUP_ORDER[group]
+      const orderedChildren = tileOrder
+        ? [...SUB_PAGE_GROUP_ORDER[group]].sort(
+            (a, b) =>
+              (tileOrder.get(a) ?? Number.MAX_SAFE_INTEGER) -
+              (tileOrder.get(b) ?? Number.MAX_SAFE_INTEGER),
+          )
+        : SUB_PAGE_GROUP_ORDER[group];
+      const children = orderedChildren
         .filter((childSlug) => visibleSet.has(childSlug))
         .map((childSlug) => ({
           slug: childSlug,
@@ -388,6 +441,8 @@ function InsightsTabStripImpl({
   onRegenerate,
   regenerating = false,
   availability,
+  visibleTileIds,
+  tileOrder,
 }: InsightsTabStripProps) {
   const { t } = useTranslations();
   const pathname = usePathname();
@@ -398,7 +453,15 @@ function InsightsTabStripImpl({
   // reconciliation short-circuits when neither pathname nor
   // availability changed. Per
   // `.planning/research/v15-insights-blocking-bug.md` fix 2.
-  const tabs = useMemo(() => buildTabs(availability), [availability]);
+  //
+  // v1.15.14 W2 — the saved-layout visibility set + order map join the
+  // deps so the strip re-derives when the user toggles a sub-page in
+  // "Anpassen". The shell memoises both props so an unchanged layout
+  // doesn't churn the array.
+  const tabs = useMemo(
+    () => buildTabs(availability, visibleTileIds, tileOrder),
+    [availability, visibleTileIds, tileOrder],
+  );
 
   // Fire success toast on the falling edge of `regenerating`. Same
   // rising-edge ref guard as the W3 implementation so the toast fires

@@ -11,6 +11,7 @@ import { useWorkouts } from "@/hooks/use-workouts";
 import { InsightsTabStrip } from "@/components/insights/insights-tab-strip";
 import { useInsightsAdvisorQuery } from "@/components/insights/use-insights-advisor";
 import { useAnalyticsQuery } from "@/lib/queries/use-analytics-query";
+import { useInsightsLayoutQuery } from "@/hooks/use-insights-layout";
 import { queryKeys } from "@/lib/query-keys";
 import type { InsightInputs } from "@/lib/insights/metric-availability";
 
@@ -112,12 +113,37 @@ export function InsightsLayoutShell({ children }: { children: ReactNode }) {
     return { summaries, hasMood, hasMedication, hasWorkouts };
   }, [isAuthenticated, summaries, hasMood, hasMedication, hasWorkouts]);
 
+  // v1.15.14 W2 — couple the tab strip to the saved insights layout.
+  // A sub-page pill now shows iff its metric has data AND its slug is
+  // layout-`visible`; the strip orders pills by the saved `order`. We
+  // pass the derived visibility set + order map only once the GET has
+  // SETTLED (`isSuccess`) — while the layout query is in flight the
+  // strip falls back to the data-only gate (props `undefined`) so the
+  // first paint is unchanged and a slow/failed layout fetch never
+  // suppresses a pill the user has data for. The query shares
+  // `queryKeys.insightsLayout()` with the overview + edit mode, so a
+  // "Fertig" save repaints the strip in lockstep.
+  const { layout: insightsLayout, isSuccess: layoutSettled } =
+    useInsightsLayoutQuery(isAuthenticated);
+  const visibleTileIds = useMemo(() => {
+    if (!layoutSettled) return undefined;
+    return new Set(
+      insightsLayout.tiles.filter((tile) => tile.visible).map((tile) => tile.id),
+    );
+  }, [layoutSettled, insightsLayout]);
+  const tileOrder = useMemo(() => {
+    if (!layoutSettled) return undefined;
+    return new Map(insightsLayout.tiles.map((tile) => [tile.id, tile.order]));
+  }, [layoutSettled, insightsLayout]);
+
   return (
     <div className="space-y-8">
       <InsightsTabStrip
         onRegenerate={advisorEnabled ? advisor.regenerate : undefined}
         regenerating={advisor.isRegenerating}
         availability={availability}
+        visibleTileIds={visibleTileIds}
+        tileOrder={tileOrder}
       />
       {children}
       {/* v1.12.6 — SINGLE SOURCE of the generic Insights disclaimer.

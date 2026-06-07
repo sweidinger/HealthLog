@@ -223,3 +223,120 @@ describe("<InsightsTabStrip> — vitals group collapse (v1.4.34 IW-D)", () => {
     expect(html).toContain(">Workouts<");
   });
 });
+
+describe("<InsightsTabStrip> — saved-layout visibility gate (v1.15.14 W2)", () => {
+  const dataAvailability: InsightInputs = {
+    summaries: {
+      PULSE: fakeSummary(5),
+      WEIGHT: fakeSummary(3),
+    },
+    hasMood: false,
+    hasMedication: false,
+  };
+
+  it("hides a pill whose slug is layout-hidden even though it has data", () => {
+    // `pulse` has data but is NOT in the visible set ⇒ no pill. `weight`
+    // has data AND is visible ⇒ pill shows.
+    const visibleTileIds = new Set(["overview", "weight", "bmi"]);
+    const html = render(
+      <InsightsTabStrip
+        availability={dataAvailability}
+        visibleTileIds={visibleTileIds}
+      />,
+    );
+    expect(html).toContain(">Weight<");
+    expect(html).toContain(">BMI<");
+    expect(html).not.toContain(">Pulse<");
+  });
+
+  it("shows a pill when its slug is layout-visible AND has data", () => {
+    const visibleTileIds = new Set([
+      "overview",
+      "pulse",
+      "weight",
+      "bmi",
+    ]);
+    const html = render(
+      <InsightsTabStrip
+        availability={dataAvailability}
+        visibleTileIds={visibleTileIds}
+      />,
+    );
+    expect(html).toContain(">Pulse<");
+    expect(html).toContain(">Weight<");
+  });
+
+  it("keeps data-availability as the FLOOR — a layout-visible metric with zero data stays hidden", () => {
+    // `blood-pressure` is layout-visible but has no data ⇒ still no pill.
+    const visibleTileIds = new Set([
+      "overview",
+      "blood-pressure",
+      "weight",
+      "bmi",
+    ]);
+    const html = render(
+      <InsightsTabStrip
+        availability={dataAvailability}
+        visibleTileIds={visibleTileIds}
+      />,
+    );
+    expect(html).not.toContain(">Blood Pressure<");
+    expect(html).toContain(">Weight<");
+  });
+
+  it("falls back to the data-only gate when no layout is loaded (visibleTileIds undefined)", () => {
+    // No visibleTileIds prop ⇒ pre-W2 behaviour: every data-having pill shows.
+    const html = render(<InsightsTabStrip availability={dataAvailability} />);
+    expect(html).toContain(">Pulse<");
+    expect(html).toContain(">Weight<");
+    expect(html).toContain(">BMI<");
+  });
+
+  it("always shows the Overview pill regardless of layout visibility", () => {
+    const visibleTileIds = new Set<string>(); // nothing visible
+    const html = render(
+      <InsightsTabStrip
+        availability={dataAvailability}
+        visibleTileIds={visibleTileIds}
+      />,
+    );
+    expect(html).toContain(">Overview<");
+    expect(html).not.toContain(">Pulse<");
+    expect(html).not.toContain(">Weight<");
+  });
+
+  it("hides a group parent pill when every child is layout-hidden", () => {
+    // Activity group: ACTIVITY_STEPS has data, but `steps` is not visible.
+    const availability: InsightInputs = {
+      summaries: { ACTIVITY_STEPS: fakeSummary(4200) },
+      hasMood: false,
+      hasMedication: false,
+    };
+    const visibleTileIds = new Set(["overview"]); // steps hidden
+    const html = render(
+      <InsightsTabStrip
+        availability={availability}
+        visibleTileIds={visibleTileIds}
+      />,
+    );
+    expect(html).not.toContain('data-group="activity"');
+    expect(html).not.toContain(">Activity<");
+  });
+
+  it("shows a group parent pill when at least one child is visible + has data", () => {
+    const availability: InsightInputs = {
+      summaries: { ACTIVITY_STEPS: fakeSummary(4200) },
+      hasMood: false,
+      hasMedication: false,
+    };
+    const visibleTileIds = new Set(["overview", "steps"]);
+    const html = render(
+      <InsightsTabStrip
+        availability={availability}
+        visibleTileIds={visibleTileIds}
+      />,
+    );
+    expect(html).toContain('data-group="activity"');
+    expect(html).toContain(">Activity<");
+  });
+});
