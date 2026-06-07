@@ -533,7 +533,12 @@
 .wellness-detail-card {
   --tile-hue: var(--dracula-purple);
   position: relative;
-  overflow: hidden;
+  /* The bottom-leaning gradient below is the card's OWN `background`, which is
+   * already clipped to `border-radius` — a painted background never bleeds past
+   * the rounded corners regardless of `overflow`. We deliberately do NOT set
+   * `overflow: hidden`: the ring's drop-shadow bloom (`.wellness-ring-arc`) is a
+   * CHILD box, and `overflow: hidden` would clip that glow at the card edge. The
+   * gradient stays corner-clipped; the glow renders uncut on all four sides. */
   background: linear-gradient(
     180deg,
     color-mix(in srgb, var(--tile-hue) 16%, var(--card)) 0%,
