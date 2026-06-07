@@ -1,10 +1,10 @@
 "use client";
 
-import { Fragment, type ReactNode } from "react";
+import { Fragment, useState, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import { RefreshCw, TrendingUp } from "lucide-react";
+import { Check, RefreshCw, SlidersHorizontal, TrendingUp } from "lucide-react";
 
 import { useAuth } from "@/hooks/use-auth";
 import { queryKeys } from "@/lib/query-keys";
@@ -21,6 +21,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { HeroStrip } from "@/components/insights/hero-strip";
+import { InsightsEditMode } from "@/components/insights/insights-edit-mode";
 import { useInsightsAdvisorQuery } from "@/components/insights/use-insights-advisor";
 import { useCoachLaunch } from "@/lib/insights/coach-launch-context";
 import { useAnalyticsQuery } from "@/lib/queries/use-analytics-query";
@@ -284,6 +285,12 @@ export default function InsightsPage() {
   // default order with no flicker.
   const layout = useInsightsLayout(isAuthenticated);
 
+  // v1.15.11 W3 — inline "Anpassen" edit mode. When on, the customizable
+  // region swaps the live (heavy) sections for lightweight edit cards; the
+  // section data is never refetched (the queries stay mounted via the page's
+  // own hooks but the section JSX is replaced). HeroStrip stays anchored.
+  const [editMode, setEditMode] = useState(false);
+
   // Error branch — a transient 500 / network drop (after the query's
   // retries are exhausted) settles the comprehensive query with no data.
   // Without this gate the page would fall through to the "no data yet —
@@ -429,6 +436,24 @@ export default function InsightsPage() {
     "rhythm-events": <RhythmEventsCard enabled={isAuthenticated} />,
   };
 
+  // v1.15.11 W3 — sections whose feature/data gate is currently OFF. The edit
+  // row for these renders disabled with a hint so a toggle that does nothing
+  // never confuses the user (it stays orderable, just not enable-able past the
+  // gate). Mirrors the `null` registry entries above: `daily-briefing` +
+  // `period-review` ride the briefing flag; `cycle-summary` rides the cycle
+  // opt-in. Every other section is always available.
+  const gatedOffSectionIds = new Set<InsightsSectionId>();
+  if (!flags.briefing) {
+    gatedOffSectionIds.add("daily-briefing");
+    gatedOffSectionIds.add("period-review");
+  }
+  if (!user?.cycleTrackingEnabled) {
+    gatedOffSectionIds.add("cycle-summary");
+  }
+
+  const orderedSectionIds = orderedVisibleSectionIds(layout);
+  const everySectionHidden = orderedSectionIds.length === 0;
+
   return (
     // v1.12.7 (L3) — one consistent vertical rhythm down the overview. The
     // page used `space-y-8` (32 px) between top-level blocks while the vitals
@@ -458,15 +483,67 @@ export default function InsightsPage() {
         healthScore={analytics?.healthScore ?? undefined}
       />
 
-      {/* v1.15.11 W2 — the customizable region: sections render in the
-          resolved layout order, skipping any the user has hidden. A
-          layout-visible-but-gate-off section resolves to `null` from the
-          registry, so the `space-y-6` rhythm closes the gap with no hole.
-          Each registry node is wrapped in a keyed Fragment so React keeps a
-          stable identity across a reorder. */}
-      {orderedVisibleSectionIds(layout).map((id) => (
-        <Fragment key={id}>{SECTION_REGISTRY[id]}</Fragment>
-      ))}
+      {/* v1.15.11 W3 — the "Anpassen" toggle sits at the top of the
+          customizable region, below the anchored HeroStrip. In edit mode it
+          reads "Fertig"; the InsightsEditMode component owns the actual
+          Fertig/Zurücksetzen save controls, so this button just enters edit
+          mode (exiting is handled by the component's "Fertig" → onClose). */}
+      <div className="flex justify-end">
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() => setEditMode((v) => !v)}
+          data-slot="insights-customize-toggle"
+          aria-pressed={editMode}
+          className="gap-1.5"
+        >
+          {editMode ? (
+            <Check className="h-3.5 w-3.5" aria-hidden="true" />
+          ) : (
+            <SlidersHorizontal className="h-3.5 w-3.5" aria-hidden="true" />
+          )}
+          <span>
+            {editMode ? t("insights.editMode.done") : t("insights.editMode.open")}
+          </span>
+        </Button>
+      </div>
+
+      {editMode ? (
+        /* v1.15.11 W3 — edit mode swaps the live, heavy sections for the
+           lightweight edit cards. The section data queries stay mounted on the
+           page, but their JSX is not rendered, so toggling into edit mode never
+           refetches. */
+        <InsightsEditMode
+          layout={layout}
+          gatedOffSectionIds={gatedOffSectionIds}
+          onClose={() => setEditMode(false)}
+        />
+      ) : everySectionHidden ? (
+        /* v1.15.11 W3 — empty-state: every section hidden. The page is never
+           blank — surface a hint + a button that opens edit mode so the user
+           can bring sections back. */
+        <EmptyState
+          icon={<SlidersHorizontal className="size-6" />}
+          title={t("insights.editMode.emptyTitle")}
+          description={t("insights.editMode.emptyDescription")}
+          action={
+            <Button size="sm" onClick={() => setEditMode(true)}>
+              {t("insights.editMode.open")}
+            </Button>
+          }
+        />
+      ) : (
+        /* v1.15.11 W2 — the customizable region: sections render in the
+           resolved layout order, skipping any the user has hidden. A
+           layout-visible-but-gate-off section resolves to `null` from the
+           registry, so the `space-y-6` rhythm closes the gap with no hole.
+           Each registry node is wrapped in a keyed Fragment so React keeps a
+           stable identity across a reorder. */
+        orderedSectionIds.map((id) => (
+          <Fragment key={id}>{SECTION_REGISTRY[id]}</Fragment>
+        ))
+      )}
     </div>
   );
 }
