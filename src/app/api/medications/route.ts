@@ -32,29 +32,63 @@ async function buildMedicationsList(
     userTz,
   );
 
-  const [medications, latestIntakes, todayEvents] = await Promise.all([
-    prisma.medication.findMany({
-      where: { userId },
-      include: { schedules: true },
-      orderBy: { createdAt: "desc" },
-    }),
-    prisma.medicationIntakeEvent.groupBy({
-      by: ["medicationId"],
-      // v1.7.0 sync — exclude tombstoned rows from the last-taken map.
-      where: { userId, deletedAt: null, skipped: false, takenAt: { not: null } },
-      _max: { takenAt: true },
-    }),
-    prisma.medicationIntakeEvent.groupBy({
-      by: ["medicationId"],
-      // v1.7.0 sync — exclude tombstoned rows from the today-count map.
-      where: {
-        userId,
-        deletedAt: null,
-        scheduledFor: { gte: todayStartUtc, lte: todayEndUtc },
-      },
-      _count: { id: true },
-    }),
-  ]);
+  // v1.15.10 — the slots the user has already acted on near "now", so the
+  // next-due search can skip them. A resolved slot is a taken, deliberately
+  // skipped, or cron-auto-missed row. Bound the window to [today-start,
+  // today-end + 2d] — the next-due lookahead only needs the slots adjacent to
+  // now, and a tight window keeps the read cheap. The 60s list cache covers
+  // the rest.
+  const resolvedWindowEnd = new Date(todayEndUtc.getTime() + 2 * 24 * 60 * 60 * 1000);
+
+  const [medications, latestIntakes, todayEvents, resolvedEvents] =
+    await Promise.all([
+      prisma.medication.findMany({
+        where: { userId },
+        include: { schedules: true },
+        orderBy: { createdAt: "desc" },
+      }),
+      prisma.medicationIntakeEvent.groupBy({
+        by: ["medicationId"],
+        // v1.7.0 sync — exclude tombstoned rows from the last-taken map.
+        where: {
+          userId,
+          deletedAt: null,
+          skipped: false,
+          takenAt: { not: null },
+        },
+        _max: { takenAt: true },
+      }),
+      prisma.medicationIntakeEvent.groupBy({
+        by: ["medicationId"],
+        // v1.7.0 sync — exclude tombstoned rows from the today-count map.
+        where: {
+          userId,
+          deletedAt: null,
+          scheduledFor: { gte: todayStartUtc, lte: todayEndUtc },
+        },
+        _count: { id: true },
+      }),
+      prisma.medicationIntakeEvent.findMany({
+        where: {
+          userId,
+          deletedAt: null,
+          scheduledFor: { gte: todayStartUtc, lte: resolvedWindowEnd },
+          OR: [
+            { takenAt: { not: null } },
+            { skipped: true },
+            { autoMissed: true },
+          ],
+        },
+        select: { medicationId: true, scheduledFor: true },
+      }),
+    ]);
+
+  const resolvedSlotsByMedId = new Map<string, Date[]>();
+  for (const e of resolvedEvents) {
+    const list = resolvedSlotsByMedId.get(e.medicationId);
+    if (list) list.push(e.scheduledFor);
+    else resolvedSlotsByMedId.set(e.medicationId, [e.scheduledFor]);
+  }
 
   const lastTakenAtByMedicationId = Object.fromEntries(
     latestIntakes.map((entry) => [
@@ -101,6 +135,7 @@ async function buildMedicationsList(
       now,
       userTz,
       lastIntakeAt: lastTakenAtDateByMedicationId[m.id] ?? null,
+      resolvedSlots: resolvedSlotsByMedId.get(m.id) ?? [],
     });
     return {
       ...m,

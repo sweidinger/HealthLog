@@ -118,3 +118,77 @@ describe("computeNextDueAt — rolling first dose", () => {
     expect(next).toBeNull();
   });
 });
+
+/**
+ * v1.15.10 BUG 2 — next-due must advance past slots the user has already
+ * resolved (taken / skipped / auto-missed) and surface the next genuinely
+ * OPEN slot, not re-surface a present/past resolved slot ("träge").
+ *
+ * Twice-daily med, 07:00 + 19:00 Berlin. In June Berlin is UTC+2, so the
+ * canonical slots are 05:00 UTC (07:00) and 17:00 UTC (19:00).
+ */
+describe("computeNextDueAt — skip resolved slots (twice-daily)", () => {
+  function twiceDaily(): WorkerScheduleRow {
+    return {
+      id: "sched-2x",
+      windowStart: "07:00",
+      windowEnd: "19:00",
+      daysOfWeek: null,
+      timesOfDay: ["07:00", "19:00"],
+      reminderGraceMinutes: null,
+      rrule: null,
+      rollingIntervalDays: null,
+      scheduleType: "SCHEDULED",
+      cyclicOnWeeks: null,
+      cyclicOffWeeks: null,
+    };
+  }
+
+  it("advances to tomorrow's 07:00 when both of today's slots are resolved", () => {
+    // Afternoon: 07:00 already past + logged, 19:00 logged early. Both today's
+    // slots resolved → next must be tomorrow 07:00, not today 19:00.
+    const now = d("2026-06-10T16:00:00Z"); // 18:00 Berlin, before the 19:00 slot
+    const next = computeNextDueAt({
+      medication: makeMedication(),
+      schedules: [twiceDaily()],
+      now,
+      userTz: BERLIN,
+      lastIntakeAt: d("2026-06-10T15:30:00Z"),
+      resolvedSlots: [
+        d("2026-06-10T05:00:00Z"), // today 07:00 Berlin
+        d("2026-06-10T17:00:00Z"), // today 19:00 Berlin
+      ],
+    });
+    expect(next).not.toBeNull();
+    expect(berlinDay(next!)).toBe("2026-06-11");
+    // 07:00 Berlin = 05:00 UTC.
+    expect(next!.toISOString()).toBe("2026-06-11T05:00:00.000Z");
+  });
+
+  it("surfaces today's 19:00 when only the 07:00 slot is resolved", () => {
+    const now = d("2026-06-10T16:00:00Z"); // 18:00 Berlin
+    const next = computeNextDueAt({
+      medication: makeMedication(),
+      schedules: [twiceDaily()],
+      now,
+      userTz: BERLIN,
+      lastIntakeAt: d("2026-06-10T07:13:00Z"),
+      resolvedSlots: [d("2026-06-10T05:00:00Z")], // only today 07:00
+    });
+    expect(next).not.toBeNull();
+    expect(next!.toISOString()).toBe("2026-06-10T17:00:00.000Z"); // today 19:00
+  });
+
+  it("keeps the legacy purely-time-anchored next-due when no resolvedSlots passed", () => {
+    const now = d("2026-06-10T16:00:00Z"); // 18:00 Berlin → next slot is 19:00
+    const next = computeNextDueAt({
+      medication: makeMedication(),
+      schedules: [twiceDaily()],
+      now,
+      userTz: BERLIN,
+      lastIntakeAt: null,
+    });
+    expect(next).not.toBeNull();
+    expect(next!.toISOString()).toBe("2026-06-10T17:00:00.000Z"); // today 19:00
+  });
+});

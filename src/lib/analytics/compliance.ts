@@ -502,6 +502,21 @@ function toCanonicalSchedule(
 export interface ComplianceIntakeInstant {
   takenAt: Date | null;
   skipped: boolean;
+  /**
+   * v1.15.10 — the dose slot this intake resolves (the canonical snapped
+   * instant, byte-identical to the engine occurrence's `.at`). Optional so
+   * every legacy caller / fixture that omits it keeps working; when present
+   * the open-dose selection in {@link buildCurrentCycle} uses it to skip a
+   * slot the user has already acted on (taken / skipped / auto-missed) so the
+   * card advances to the next genuinely-open slot rather than re-surfacing a
+   * resolved past dose.
+   */
+  scheduledFor?: Date;
+  /**
+   * v1.15.10 — the cron-flagged forgotten miss. A resolved (auto-missed) slot
+   * is excluded from the open-dose search the same way a take / skip is.
+   */
+  autoMissed?: boolean;
 }
 
 function intakeInstantsAtOrBefore(
@@ -845,6 +860,44 @@ export interface ComplianceDisplay {
  * selection: a window holding zero expected (closed) doses means the
  * percentage rows are vacuous and the card should show a neutral state.
  */
+/**
+ * v1.15.10 — half-window an intake may sit from a slot's canonical instant
+ * and still count as "resolving" that slot. The intake write paths snap
+ * `scheduledFor` to the exact engine slot instant, so an exact (or
+ * sub-minute) match is the common case; the ±6h tolerance also catches an
+ * off-time take on a dense intraday cadence (e.g. a 07:00 dose logged 09:13)
+ * whose snapped slot is the 07:00 row but whose raw instant we compare
+ * defensively. It is the same ±half-gap radius the cadence pairer uses for a
+ * 12h-gap (twice-daily) med, floored so a single-dose-a-day cadence still
+ * matches its one slot.
+ */
+const OPEN_DOSE_RESOLVE_RADIUS_MS = 6 * 60 * 60 * 1000;
+
+/**
+ * v1.15.10 — true when an intake event has already resolved the slot at
+ * `slotAt`. A resolved slot is one the user took, deliberately skipped, or
+ * the auto-miss cron flagged — any of which means the card must NOT keep
+ * surfacing that slot as the next dose. Matches on the snapped `scheduledFor`
+ * first (the canonical, exact path) and falls back to the take/skip instant
+ * within the resolve radius for rows that predate the snap or drifted.
+ */
+function slotIsResolved(
+  slotAt: Date,
+  intakes: ComplianceIntakeInstant[],
+): boolean {
+  const slot = slotAt.getTime();
+  for (const e of intakes) {
+    const isResolved = e.skipped || e.autoMissed === true || e.takenAt !== null;
+    if (!isResolved) continue;
+    const ref = (e.scheduledFor ?? e.takenAt) as Date | undefined;
+    if (!ref) continue;
+    if (Math.abs(ref.getTime() - slot) <= OPEN_DOSE_RESOLVE_RADIUS_MS) {
+      return true;
+    }
+  }
+  return false;
+}
+
 export function buildCurrentCycle(
   schedules: ComplianceSchedule[],
   ctx: ComplianceMedicationContext,
@@ -854,8 +907,9 @@ export function buildCurrentCycle(
 ): CurrentCycle {
   const recurrenceCtx = toRecurrenceCtx(ctx, "compliance-cycle");
   const DAY_MS = 24 * 60 * 60 * 1000;
+  const allIntakes = intakes ?? [];
   const lastIntakeAt =
-    lastNonSkippedTakenAt(intakes ?? []) ?? ctx.lastIntakeAt;
+    lastNonSkippedTakenAt(allIntakes) ?? ctx.lastIntakeAt;
 
   // The open cycle's due instant + grace, picked as the SOONEST across every
   // schedule. Two paths:
@@ -893,12 +947,27 @@ export function buildCurrentCycle(
       consider(anchor, new Date(anchor.getTime() + graceMs));
       continue;
     }
-    const occ = nextOccurrenceAfter(
-      canonical,
-      new Date(now.getTime() - 1),
-      recurrenceCtx,
-    );
-    if (occ) consider(occ.at, occ.graceUntil);
+    // v1.15.10 — advance past slots the user has already resolved. The
+    // engine's `nextOccurrenceAfter` is purely time-anchored, so for a
+    // twice-daily med it surfaces today's 19:00 slot in the afternoon even
+    // after the user logged that dose early — the card then sticks on a
+    // resolved past/present slot ("träge"). Walk occurrences forward and pick
+    // the first one no intake has resolved (taken / skipped / auto-missed), so
+    // a med whose remaining slots today are all logged advances to tomorrow's
+    // first open slot. Bounded so a fully-logged-ahead history can't spin.
+    let after = new Date(now.getTime() - 1);
+    let picked: Occurrence | null = null;
+    for (let step = 0; step < 64; step++) {
+      const occ = nextOccurrenceAfter(canonical, after, recurrenceCtx);
+      if (!occ) break;
+      if (!slotIsResolved(occ.at, allIntakes)) {
+        picked = occ;
+        break;
+      }
+      // This slot is resolved — step strictly past it and keep looking.
+      after = new Date(occ.at.getTime());
+    }
+    if (picked) consider(picked.at, picked.graceUntil);
   }
 
   const hasClosedCycles = expectedShort > 0;
