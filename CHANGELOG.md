@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- **Self-hosting docs now generate a URL-safe Postgres password.** The setup examples used `openssl rand -base64 24`, which can emit characters (`/`, `+`, `=`) that break the unescaped `DATABASE_URL` and stop a fresh instance from connecting to its database. Every example now uses `openssl rand -hex 32`.
+
 ## [1.15.10] — 2026-06-07 — Insights overview, medication follow-ups, health score
 
 ### Fixed
