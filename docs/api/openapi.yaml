@@ -8460,6 +8460,18 @@ components:
               type: integer
               minimum: 0
               maximum: 9007199254740991
+            expected:
+              type: integer
+              minimum: 0
+              maximum: 9007199254740991
+              description: v1.15.9 rate denominator over the short window (`taken + missed`); user skips are excluded. Render `taken /
+                expected · rate%`.
+            missed:
+              type: integer
+              minimum: 0
+              maximum: 9007199254740991
+              description: v1.15.9 doses counted against the rate over the short window — includes forgotten doses the auto-miss cron
+                flipped.
             streak:
               type: integer
               minimum: 0
@@ -8467,6 +8479,8 @@ components:
           required:
             - rate
             - taken
+            - expected
+            - missed
             - streak
           additionalProperties: false
         long:
@@ -8480,9 +8494,21 @@ components:
               type: integer
               minimum: 0
               maximum: 9007199254740991
+            expected:
+              type: integer
+              minimum: 0
+              maximum: 9007199254740991
+              description: v1.15.9 rate denominator over the long window (`taken + missed`).
+            missed:
+              type: integer
+              minimum: 0
+              maximum: 9007199254740991
+              description: v1.15.9 doses counted against the rate over the long window.
           required:
             - rate
             - taken
+            - expected
+            - missed
           additionalProperties: false
         currentCycle:
           type: object

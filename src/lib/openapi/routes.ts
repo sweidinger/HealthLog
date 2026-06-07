@@ -1274,11 +1274,35 @@ const complianceDisplay = z
     short: z.object({
       rate: z.number().int().min(0).max(100),
       taken: z.number().int().nonnegative(),
+      expected: z
+        .number()
+        .int()
+        .nonnegative()
+        .describe(
+          "v1.15.9 rate denominator over the short window (`taken + missed`); user skips are excluded. Render `taken / expected · rate%`.",
+        ),
+      missed: z
+        .number()
+        .int()
+        .nonnegative()
+        .describe(
+          "v1.15.9 doses counted against the rate over the short window — includes forgotten doses the auto-miss cron flipped.",
+        ),
       streak: z.number().int().nonnegative(),
     }),
     long: z.object({
       rate: z.number().int().min(0).max(100),
       taken: z.number().int().nonnegative(),
+      expected: z
+        .number()
+        .int()
+        .nonnegative()
+        .describe("v1.15.9 rate denominator over the long window (`taken + missed`)."),
+      missed: z
+        .number()
+        .int()
+        .nonnegative()
+        .describe("v1.15.9 doses counted against the rate over the long window."),
     }),
     currentCycle: z
       .object({
