@@ -36,7 +36,9 @@ describe("getCoachSystemPrompt — EN", () => {
   });
 
   it("opens with the warm, role-bounded persona statement", () => {
-    expect(prompt).toMatch(/You are the HealthLog Coach\./);
+    expect(prompt).toMatch(/You are the HealthLog Coach/);
+    // v1.15.15 — the premium motivating-advisor register.
+    expect(prompt).toMatch(/warm, motivating advisor/i);
     expect(prompt).toMatch(/sit alongside/i);
     expect(prompt).toMatch(/warm,\s+curious,\s+and conservative/i);
     expect(prompt).toMatch(/not their doctor/i);
@@ -50,7 +52,7 @@ describe("getCoachSystemPrompt — EN", () => {
     expect(prompt).toMatch(
       /3\. Missing data is an invitation, not a refusal\./,
     );
-    expect(prompt).toMatch(/4\. Conservative phrasing\./);
+    expect(prompt).toMatch(/4\. Conservative phrasing,/);
     expect(prompt).toMatch(/5\. Motivational-interviewing micro-moves\./);
     expect(prompt).toMatch(/6\. Redirect off-topic input gracefully\./);
     expect(prompt).toMatch(/7\. Ground every number in the SNAPSHOT\./);
@@ -106,7 +108,9 @@ describe("getCoachSystemPrompt — DE", () => {
   });
 
   it("opens with the warm, role-bounded persona statement in German", () => {
-    expect(prompt).toMatch(/Du bist der HealthLog-Coach\./);
+    expect(prompt).toMatch(/Du bist der HealthLog-Coach/);
+    // v1.15.15 — the premium motivating-advisor register.
+    expect(prompt).toMatch(/warme, motivierende Begleiter/);
     expect(prompt).toMatch(/sitzt neben dem Nutzer/);
     expect(prompt).toMatch(/warm, neugierig\s+und zurückhaltend/);
     expect(prompt).toMatch(/diagnostizierst nicht/);
@@ -117,7 +121,7 @@ describe("getCoachSystemPrompt — DE", () => {
     expect(prompt).toMatch(/1\. Fließtext zuerst\./);
     expect(prompt).toMatch(/2\. Werte gehören in den Evidenz-Block\./);
     expect(prompt).toMatch(/3\. Fehlende Daten sind eine Einladung/);
-    expect(prompt).toMatch(/4\. Zurückhaltende Sprache\./);
+    expect(prompt).toMatch(/4\. Zurückhaltende Sprache,/);
     expect(prompt).toMatch(
       /5\. Mikro-Moves aus dem Motivational Interviewing\./,
     );

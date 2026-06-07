@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [1.15.15] — 2026-06-07 — one warm, motivating assistant voice
+
+### Changed
+
+- **The whole assistant speaks in one voice.** The daily briefing, key findings, the insight write-ups, and the Coach now share the same warm, motivating, advisory tone the metric and wellness assessments adopted last release — encouraging and grounded in your data, honest about what needs attention, never generic. (Already-generated briefing text refreshes within about a day; the Coach speaks the new way immediately.)
+
 ## [1.15.14] — 2026-06-07 — manage every detail page, calmer mood charts
 
 ### Added
