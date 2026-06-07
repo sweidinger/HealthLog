@@ -14,6 +14,8 @@ import {
   DEFAULT_INSIGHTS_LAYOUT,
   resolveInsightsLayout,
   serializeInsightsLayout,
+  orderedVisibleSectionIds,
+  resolveTileLayout,
 } from "@/lib/insights-layout";
 
 describe("insights-layout v2 — section id universe", () => {
@@ -203,5 +205,97 @@ describe("serializeInsightsLayout — defaults + dense order", () => {
       tiles: [{ id: "overview", visible: true, order: 0 }],
     });
     expect(serialized.sections.map((s) => s.id)).toEqual(["vitals"]);
+  });
+});
+
+describe("orderedVisibleSectionIds — W2 render-order helper", () => {
+  it("returns every section in default order for the default layout", () => {
+    expect(orderedVisibleSectionIds(DEFAULT_INSIGHTS_LAYOUT)).toEqual([
+      ...INSIGHTS_SECTION_IDS,
+    ]);
+  });
+
+  it("drops hidden sections and keeps the visible ones in order", () => {
+    const layout = resolveInsightsLayout({
+      version: 2,
+      sections: [
+        { id: "wellness-scores", visible: true, order: 0 },
+        { id: "daily-briefing", visible: false, order: 1 },
+        { id: "vitals", visible: true, order: 2 },
+        { id: "trends", visible: false, order: 3 },
+        { id: "period-review", visible: true, order: 4 },
+        { id: "cycle-summary", visible: false, order: 5 },
+        { id: "signals", visible: true, order: 6 },
+        { id: "rhythm-events", visible: true, order: 7 },
+      ],
+      tiles: [{ id: "overview", visible: true, order: 0 }],
+    });
+    expect(orderedVisibleSectionIds(layout)).toEqual([
+      "wellness-scores",
+      "vitals",
+      "period-review",
+      "signals",
+      "rhythm-events",
+    ]);
+  });
+
+  it("honours a reordered section list", () => {
+    const layout = resolveInsightsLayout({
+      version: 2,
+      sections: [
+        { id: "trends", visible: true, order: 0 },
+        { id: "vitals", visible: true, order: 1 },
+        { id: "wellness-scores", visible: true, order: 2 },
+      ],
+      tiles: [{ id: "overview", visible: true, order: 0 }],
+    });
+    const visible = orderedVisibleSectionIds(layout);
+    // The three explicit sections lead in their saved order; the rest
+    // auto-merge invisible (new-id semantics), so they do NOT appear.
+    expect(visible.slice(0, 3)).toEqual(["trends", "vitals", "wellness-scores"]);
+  });
+});
+
+describe("resolveTileLayout — W2c per-tile decision", () => {
+  it("returns the saved visible + order for a known tile", () => {
+    const layout = resolveInsightsLayout({
+      version: 2,
+      sections: [{ id: "vitals", visible: true, order: 0 }],
+      tiles: [
+        { id: "overview", visible: true, order: 0 },
+        { id: "hrv", visible: false, order: 1 },
+      ],
+    });
+    expect(resolveTileLayout(layout, "hrv")).toEqual({
+      visible: false,
+      order: 1,
+    });
+  });
+
+  it("treats a tile the layout does not enumerate as always-on, ordered last", () => {
+    const res = resolveTileLayout(DEFAULT_INSIGHTS_LAYOUT, "not-a-tile");
+    expect(res.visible).toBe(true);
+    expect(res.order).toBe(Number.MAX_SAFE_INTEGER);
+  });
+
+  it("keeps the grid's default vitals tiles visible by default (no regression)", () => {
+    for (const id of [
+      "weight",
+      "bmi",
+      "cardio-fitness",
+      "vascular-age",
+      "hrv",
+      "resting-pulse",
+      "respiratory-rate",
+      "oxygen",
+      "body-temperature",
+      "blood-glucose",
+      "six-minute-walk",
+      "stair-ascent-speed",
+      "stair-descent-speed",
+      "wrist-temperature",
+    ]) {
+      expect(resolveTileLayout(DEFAULT_INSIGHTS_LAYOUT, id).visible).toBe(true);
+    }
   });
 });

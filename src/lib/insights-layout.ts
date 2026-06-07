@@ -162,6 +162,31 @@ const DEFAULT_VISIBLE_TILE_IDS = new Set<InsightsTileId>([
   "workouts",
   "mood",
   "medications",
+  // v1.15.11 W2c — the Vitals + Mobility grid on the overview surfaces every
+  // one of these tiles today, gated only on data availability. Now that the
+  // grid honours this layout's tile visibility, they must ship default-visible
+  // or a fresh account (no saved layout) would lose the tiles it shows today —
+  // a regression. They stay data-gated on top of visibility, so a tile with no
+  // readings still renders nothing exactly as before; widening the default set
+  // only ensures the layout never *suppresses* a tile the user already sees.
+  // The ids map to the grid's tile concepts:
+  //   cardio-fitness → FitnessAge (VO₂max re-frame); vascular-age →
+  //   VascularAge; hrv → HRV balance; resting-pulse / respiratory-rate /
+  //   oxygen / body-temperature / blood-glucose → the per-vital baseline
+  //   tiles; six-minute-walk / stair-ascent-speed / stair-descent-speed /
+  //   wrist-temperature → the Mobility sub-grid.
+  "cardio-fitness",
+  "vascular-age",
+  "hrv",
+  "resting-pulse",
+  "respiratory-rate",
+  "oxygen",
+  "body-temperature",
+  "blood-glucose",
+  "six-minute-walk",
+  "stair-ascent-speed",
+  "stair-descent-speed",
+  "wrist-temperature",
 ]);
 
 export const DEFAULT_INSIGHTS_LAYOUT: InsightsLayout = {
@@ -363,4 +388,42 @@ function serializeInsightsSections(
       visible: s.visible,
       order: i, // normalize to 0-based dense order
     }));
+}
+
+/**
+ * v1.15.11 W2 — the visible section ids in render order, derived from a
+ * resolved layout. Pure helper so the page can map each id onto its JSX in
+ * `SECTION_REGISTRY` without re-implementing the sort/filter inline (and so
+ * the ordering is unit-testable without rendering React). Sections marked
+ * `visible: false` are dropped; the rest sort by `order`. Feature/data gates
+ * still apply on top at render time — a gated-off section that is
+ * layout-visible still renders nothing (its component self-gates / returns
+ * null), so this list is the *candidate* order, not a render guarantee.
+ */
+export function orderedVisibleSectionIds(
+  layout: InsightsLayout,
+): InsightsSectionId[] {
+  return layout.sections
+    .filter((s) => s.visible)
+    .slice()
+    .sort((a, b) => a.order - b.order)
+    .map((s) => s.id);
+}
+
+/**
+ * v1.15.11 W2c — resolve a single tile's layout decision against a resolved
+ * layout. Returns `{ visible, order }` for a known tile id; for a tile id the
+ * layout does not enumerate (a dashboard tile with no corresponding layout
+ * entry — e.g. a derived re-frame like FITNESS_AGE) the tile is treated as
+ * always-on and sorted last so it never disappears on the user. Data-gating
+ * still applies on top — a `visible: true` tile with no data renders nothing.
+ */
+export function resolveTileLayout(
+  layout: InsightsLayout,
+  tileId: InsightsTileId | string,
+): { visible: boolean; order: number } {
+  const entry = layout.tiles.find((t) => t.id === tileId);
+  if (entry) return { visible: entry.visible, order: entry.order };
+  // Unknown-to-layout tile → always render, ordered after every known tile.
+  return { visible: true, order: Number.MAX_SAFE_INTEGER };
 }

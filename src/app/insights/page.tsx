@@ -1,5 +1,6 @@
 "use client";
 
+import { Fragment, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import dynamic from "next/dynamic";
 import Link from "next/link";
@@ -8,6 +9,11 @@ import { RefreshCw, TrendingUp } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { queryKeys } from "@/lib/query-keys";
 import { useFeatureFlags } from "@/hooks/use-feature-flags";
+import { useInsightsLayout } from "@/hooks/use-insights-layout";
+import {
+  orderedVisibleSectionIds,
+  type InsightsSectionId,
+} from "@/lib/insights-layout";
 import { useScrollResetOnRoute } from "@/hooks/use-scroll-reset-on-route";
 import { useTranslations } from "@/lib/i18n/context";
 import { Button } from "@/components/ui/button";
@@ -271,6 +277,13 @@ export default function InsightsPage() {
   // single query instance, so the wellness lift adds no second request.
   const dashboardDerived = useDashboardDerived(isAuthenticated);
 
+  // v1.15.11 W2 — the resolved overview layout (sections + tiles). Drives
+  // both the section render order/visibility below and the Vitals grid's
+  // per-tile order/visibility (passed into <VitalsDashboard>). Defaults to
+  // the canonical layout while in-flight so the first paint matches the
+  // default order with no flicker.
+  const layout = useInsightsLayout(isAuthenticated);
+
   // Error branch — a transient 500 / network drop (after the query's
   // retries are exhausted) settles the comprehensive query with no data.
   // Without this gate the page would fall through to the "no data yet —
@@ -360,6 +373,62 @@ export default function InsightsPage() {
   // correlation row. The duplicate footer "prepare assessments" control was
   // removed in v1.12.4 — the tab-strip regenerate button is the single
   // affordance. The generic disclaimer lives once in the layout-shell footer.
+
+  // v1.15.11 W2 — decouple the section render order from the JSX. Each section
+  // id maps to its existing node here; the customizable region below renders
+  // `orderedVisibleSectionIds(layout)` against this registry. Every existing
+  // feature/data gate is preserved INSIDE each entry: a section the layout
+  // marks visible but whose gate is off (briefing flag, cycle-enabled) still
+  // resolves to `null`, exactly as today. With the default layout the order +
+  // gates reproduce the pre-v1.15.11 page byte-for-byte. HeroStrip stays
+  // anchored above this region, OUTSIDE the customizable set.
+  const SECTION_REGISTRY: Record<InsightsSectionId, ReactNode> = {
+    "wellness-scores": (
+      <WellnessScores
+        read={dashboardDerived.read}
+        isLoading={dashboardDerived.isLoading}
+        isError={dashboardDerived.isError}
+        refetch={dashboardDerived.refetch}
+        // v1.15.3 — the cycle ring rides the scores strip as a gated sibling
+        // tile, only for a cycle-tracking account, so its calendar read never
+        // fires otherwise (the same `/api/auth/me` gate the sidebar nav uses).
+        extraTile={user?.cycleTrackingEnabled ? <CycleRingTile /> : undefined}
+        // v1.15.5 — when the cycle ring is shown it TAKES the Strain slot:
+        // hide Strain so the strip stays compact instead of growing a sixth
+        // tile. Strain stays visible for non-cycle accounts.
+        hideStrain={user?.cycleTrackingEnabled === true}
+      />
+    ),
+    "daily-briefing": flags.briefing ? (
+      <DailyBriefing
+        briefing={briefingPayload}
+        updatedAt={heroStripUpdatedAt}
+        loading={advisor.isLoading}
+        onRegenerate={advisor.regenerate}
+        regenerating={advisor.isRegenerating}
+      />
+    ) : null,
+    vitals: <VitalsDashboard batch={dashboardDerived} layout={layout} />,
+    trends: (
+      <TrendsRow
+        briefing={briefingPayload}
+        annotations={advisor.payload?.trendAnnotations ?? null}
+        loading={advisor.isLoading || advisor.isRegenerating}
+      />
+    ),
+    "period-review": flags.briefing ? (
+      <PeriodNarrativeCard enabled={isAuthenticated} />
+    ) : null,
+    // v1.15.2 — gated cycle teaser. Render only for a cycle-tracking account;
+    // for everyone else this is nothing (no card, no layout gap). The card
+    // itself stays silent until its reads resolve.
+    "cycle-summary": user?.cycleTrackingEnabled ? (
+      <CycleInsightSummaryCard />
+    ) : null,
+    signals: <CoincidentDeviationCard enabled={isAuthenticated} />,
+    "rhythm-events": <RhythmEventsCard enabled={isAuthenticated} />,
+  };
+
   return (
     // v1.12.7 (L3) — one consistent vertical rhythm down the overview. The
     // page used `space-y-8` (32 px) between top-level blocks while the vitals
@@ -389,49 +458,15 @@ export default function InsightsPage() {
         healthScore={analytics?.healthScore ?? undefined}
       />
 
-      <WellnessScores
-        read={dashboardDerived.read}
-        isLoading={dashboardDerived.isLoading}
-        isError={dashboardDerived.isError}
-        refetch={dashboardDerived.refetch}
-        // v1.15.3 — the cycle ring rides the scores strip as a gated sibling
-        // tile, only for a cycle-tracking account, so its calendar read never
-        // fires otherwise (the same `/api/auth/me` gate the sidebar nav uses).
-        extraTile={user?.cycleTrackingEnabled ? <CycleRingTile /> : undefined}
-        // v1.15.5 — when the cycle ring is shown it TAKES the Strain slot:
-        // hide Strain so the strip stays compact instead of growing a sixth
-        // tile. Strain stays visible for non-cycle accounts.
-        hideStrain={user?.cycleTrackingEnabled === true}
-      />
-
-      {flags.briefing && (
-        <DailyBriefing
-          briefing={briefingPayload}
-          updatedAt={heroStripUpdatedAt}
-          loading={advisor.isLoading}
-          onRegenerate={advisor.regenerate}
-          regenerating={advisor.isRegenerating}
-        />
-      )}
-
-      <VitalsDashboard batch={dashboardDerived} />
-
-      <TrendsRow
-        briefing={briefingPayload}
-        annotations={advisor.payload?.trendAnnotations ?? null}
-        loading={advisor.isLoading || advisor.isRegenerating}
-      />
-
-      {flags.briefing && <PeriodNarrativeCard enabled={isAuthenticated} />}
-
-      {/* v1.15.2 — gated cycle teaser. Render only for a cycle-tracking
-          account; for everyone else this is nothing (no card, no layout gap).
-          The card itself stays silent until its reads resolve. */}
-      {user?.cycleTrackingEnabled ? <CycleInsightSummaryCard /> : null}
-
-      <CoincidentDeviationCard enabled={isAuthenticated} />
-
-      <RhythmEventsCard enabled={isAuthenticated} />
+      {/* v1.15.11 W2 — the customizable region: sections render in the
+          resolved layout order, skipping any the user has hidden. A
+          layout-visible-but-gate-off section resolves to `null` from the
+          registry, so the `space-y-6` rhythm closes the gap with no hole.
+          Each registry node is wrapped in a keyed Fragment so React keeps a
+          stable identity across a reorder. */}
+      {orderedVisibleSectionIds(layout).map((id) => (
+        <Fragment key={id}>{SECTION_REGISTRY[id]}</Fragment>
+      ))}
     </div>
   );
 }
