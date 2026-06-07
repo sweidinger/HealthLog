@@ -253,6 +253,50 @@ describe("PUT /api/insights/layout — happy path", () => {
   });
 });
 
+describe("PUT /api/insights/layout — accepts version 1 (iOS contract)", () => {
+  // v1.15.11 QA C1 — the live iOS client still PUTs `version: 1`. The schema
+  // accepts both 1 and 2; the serializer always normalises to the canonical
+  // v2 blob, so a v1 body persists a resolved v2 layout rather than 422ing.
+  it("accepts a PUT with version 1 and no sections, persisting a resolved v2 layout", async () => {
+    vi.mocked(prisma.user.update).mockResolvedValue({} as never);
+
+    const res = await callPut(
+      makeReq({
+        version: 1,
+        tiles: [
+          { id: "overview", visible: true, order: 0 },
+          { id: "blood-pressure", visible: true, order: 1 },
+        ],
+      }),
+    );
+    expect(res.status).toBe(200);
+
+    const body = (await res.json()) as {
+      data: {
+        version: number;
+        sections: Array<{ id: string; visible: boolean }>;
+        tiles: Array<{ id: string }>;
+      };
+    };
+    // Stored + returned blob is canonical v2 regardless of the input version.
+    expect(body.data.version).toBe(2);
+    // Sections were absent on input → filled from defaults, all visible.
+    expect(body.data.sections.length).toBeGreaterThan(0);
+    for (const s of body.data.sections) expect(s.visible).toBe(true);
+    expect(body.data.tiles.map((t) => t.id)).toContain("overview");
+
+    // The persisted column is the canonical v2 blob too.
+    const updateCall = vi.mocked(prisma.user.update).mock
+      .calls[0]?.[0] as unknown as {
+      data: { insightsLayoutJson: { version: number; sections: unknown[] } };
+    };
+    expect(updateCall.data.insightsLayoutJson.version).toBe(2);
+    expect(
+      Array.isArray(updateCall.data.insightsLayoutJson.sections),
+    ).toBe(true);
+  });
+});
+
 describe("PUT /api/insights/layout — full metric-slug universe", () => {
   // v1.8.7.1 — the layout tile-id enum derives from `SUB_PAGE_SLUGS`, so
   // the long-tail HealthKit + body-composition + mobility + audio slugs

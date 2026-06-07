@@ -4555,8 +4555,11 @@ components:
       type: object
       properties:
         version:
-          type: number
-          const: 2
+          anyOf:
+            - type: number
+              const: 1
+            - type: number
+              const: 2
         sections:
           maxItems: 50
           type: array
@@ -4666,14 +4669,16 @@ components:
       description: "Per-user Insights layout (v2). `tiles` is the per-metric pill list (ordered, with a visibility flag);
         `sections` is the additive v2 list of the overview's big semantic blocks (wellness-scores, daily-briefing,
         vitals, trends, period-review, cycle-summary, signals, rhythm-events), each with order + visibility. `version`
-        is the layout schema version (2). Both arrays are optional on input — a client sending only `tiles` (the pre-v2
-        contract) still validates, and the server fills missing defaults; a v1 blob with no `sections` resolves forward
-        with all sections default-visible. Tile ids are a closed enum: the canonical ids are English (matching the
-        routed `/insights/<slug>` sub-pages). The legacy German tile ids (blutdruck, puls, sauerstoff,
-        koerpertemperatur, gewicht, aktive-energie, schlaf, ruhepuls, stimmung, medikamente) remain accepted on input
-        for backward compatibility and are normalised to their English equivalents before persisting; GET responses
-        always carry the canonical English ids. Section ids are English-only. The legacy tile ids are deprecated and
-        will be removed in a future major version."
+        is the layout schema version: BOTH 1 and 2 are accepted on input (a pre-v2 iOS client still PUTs `version: 1`);
+        the server always normalises to the canonical v2 blob before persisting, and GET responses always carry
+        `version: 2`. Both arrays are optional on input — a client sending only `tiles` (the pre-v2 contract) still
+        validates, and the server fills missing defaults; a v1 blob with no `sections` resolves forward with all
+        sections default-visible. Tile ids are a closed enum: the canonical ids are English (matching the routed
+        `/insights/<slug>` sub-pages). The legacy German tile ids (blutdruck, puls, sauerstoff, koerpertemperatur,
+        gewicht, aktive-energie, schlaf, ruhepuls, stimmung, medikamente) remain accepted on input for backward
+        compatibility and are normalised to their English equivalents before persisting; GET responses always carry the
+        canonical English ids. Section ids are English-only. The legacy tile ids are deprecated and will be removed in a
+        future major version."
     CoachMessageFeedbackRequest:
       type: object
       properties:
@@ -11474,8 +11479,11 @@ components:
       type: object
       properties:
         version:
-          type: number
-          const: 2
+          anyOf:
+            - type: number
+              const: 1
+            - type: number
+              const: 2
         sections:
           maxItems: 50
           type: array
@@ -11588,14 +11596,16 @@ components:
       description: "Per-user Insights layout (v2). `tiles` is the per-metric pill list (ordered, with a visibility flag);
         `sections` is the additive v2 list of the overview's big semantic blocks (wellness-scores, daily-briefing,
         vitals, trends, period-review, cycle-summary, signals, rhythm-events), each with order + visibility. `version`
-        is the layout schema version (2). Both arrays are optional on input — a client sending only `tiles` (the pre-v2
-        contract) still validates, and the server fills missing defaults; a v1 blob with no `sections` resolves forward
-        with all sections default-visible. Tile ids are a closed enum: the canonical ids are English (matching the
-        routed `/insights/<slug>` sub-pages). The legacy German tile ids (blutdruck, puls, sauerstoff,
-        koerpertemperatur, gewicht, aktive-energie, schlaf, ruhepuls, stimmung, medikamente) remain accepted on input
-        for backward compatibility and are normalised to their English equivalents before persisting; GET responses
-        always carry the canonical English ids. Section ids are English-only. The legacy tile ids are deprecated and
-        will be removed in a future major version."
+        is the layout schema version: BOTH 1 and 2 are accepted on input (a pre-v2 iOS client still PUTs `version: 1`);
+        the server always normalises to the canonical v2 blob before persisting, and GET responses always carry
+        `version: 2`. Both arrays are optional on input — a client sending only `tiles` (the pre-v2 contract) still
+        validates, and the server fills missing defaults; a v1 blob with no `sections` resolves forward with all
+        sections default-visible. Tile ids are a closed enum: the canonical ids are English (matching the routed
+        `/insights/<slug>` sub-pages). The legacy German tile ids (blutdruck, puls, sauerstoff, koerpertemperatur,
+        gewicht, aktive-energie, schlaf, ruhepuls, stimmung, medikamente) remain accepted on input for backward
+        compatibility and are normalised to their English equivalents before persisting; GET responses always carry the
+        canonical English ids. Section ids are English-only. The legacy tile ids are deprecated and will be removed in a
+        future major version."
     Medication:
       type: object
       properties:

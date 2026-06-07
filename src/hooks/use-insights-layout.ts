@@ -26,7 +26,24 @@ import {
  * layout lands.
  */
 export function useInsightsLayout(enabled: boolean): InsightsLayout {
-  const { data } = useQuery({
+  return useInsightsLayoutQuery(enabled).layout;
+}
+
+/**
+ * v1.15.11 QA L1 — same query as {@link useInsightsLayout} but also surfaces
+ * the load status so a caller can gate a write surface (the inline "Anpassen"
+ * edit mode) until the GET has settled. Without this gate a user who enters
+ * edit mode while the layout is still in-flight would seed the editor from
+ * `DEFAULT_INSIGHTS_LAYOUT` and a "Fertig" save would PUT defaults over their
+ * real saved layout. Shares the query key, so mounting both hooks costs one
+ * request (TanStack dedupes).
+ */
+export function useInsightsLayoutQuery(enabled: boolean): {
+  layout: InsightsLayout;
+  isLoading: boolean;
+  isSuccess: boolean;
+} {
+  const { data, isLoading, isSuccess } = useQuery({
     queryKey: queryKeys.insightsLayout(),
     queryFn: async () => {
       const res = await fetch("/api/insights/layout");
@@ -35,5 +52,11 @@ export function useInsightsLayout(enabled: boolean): InsightsLayout {
     },
     enabled,
   });
-  return data ?? DEFAULT_INSIGHTS_LAYOUT;
+  return {
+    layout: data ?? DEFAULT_INSIGHTS_LAYOUT,
+    // `enabled: false` keeps the query in a pending-but-idle state; treat a
+    // disabled (unauthenticated) query as not-loading so the gate never sticks.
+    isLoading: enabled && isLoading,
+    isSuccess,
+  };
 }

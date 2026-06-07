@@ -57,7 +57,11 @@ const tileIdEnum = z.enum(ACCEPTED_INSIGHTS_TILE_IDS);
 const sectionIdEnum = z.enum(INSIGHTS_SECTION_IDS);
 
 const layoutSchema = z.object({
-  version: z.literal(2),
+  // v1.15.11 QA C1 — accept BOTH version 1 and 2 on input. The live iOS
+  // client still PUTs `version: 1`; `serializeInsightsLayout` hardcodes the
+  // stored version to the canonical `INSIGHTS_LAYOUT_VERSION` (2) regardless,
+  // so accepting a v1 body writes a canonical v2 blob with zero downside.
+  version: z.union([z.literal(1), z.literal(2)]),
   // Additive + optional so a current iOS client PUTting only `tiles`
   // (no `sections` key) still validates; `serializeInsightsLayout` fills
   // the section defaults when the field is absent.

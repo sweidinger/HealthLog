@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
@@ -33,7 +33,10 @@ import { cn } from "@/lib/utils";
 import { prefersReducedMotion } from "@/lib/charts/reduced-motion";
 import { useTranslations } from "@/lib/i18n/context";
 import { queryKeys } from "@/lib/query-keys";
-import { reorderById } from "@/lib/insights-layout-reorder";
+import {
+  reorderById,
+  rebuildTilesWithReorderedVitals,
+} from "@/lib/insights-layout-reorder";
 import {
   type InsightsLayout,
   type InsightsSectionConfig,
@@ -87,6 +90,10 @@ const VITALS_TILE_LABEL_KEYS: { id: string; labelKey: string }[] = [
   { id: "cardio-fitness", labelKey: "measurements.typeVo2Max" },
   { id: "vascular-age", labelKey: "measurements.typeVascularAge" },
   { id: "hrv", labelKey: "measurements.typeHeartRateVariability" },
+  // v1.15.11 QA M1 — the Vitals grid renders a default-visible Weight tile;
+  // without this entry the inline editor could not hide/reorder it like every
+  // other grid tile.
+  { id: "weight", labelKey: "measurements.typeWeight" },
   { id: "bmi", labelKey: "measurements.typeBodyMassIndex" },
   { id: "resting-pulse", labelKey: "measurements.typeRestingHeartRate" },
   { id: "respiratory-rate", labelKey: "measurements.typeRespiratoryRate" },
@@ -130,6 +137,15 @@ export function InsightsEditMode({
     tiles: [...layout.tiles].sort((a, b) => a.order - b.order),
   }));
   const [tilesOpen, setTilesOpen] = useState(false);
+
+  // v1.15.11 QA L5 — on mount move focus to the edit-card heading so keyboard /
+  // screen-reader users land on the surface they just opened (not the top of
+  // the document). Inline, not modal, so no focus trap — focus returns to the
+  // "Anpassen" toggle on close via the page's onClose handler.
+  const headingRef = useRef<HTMLHeadingElement | null>(null);
+  useEffect(() => {
+    headingRef.current?.focus();
+  }, []);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
@@ -253,28 +269,23 @@ export function InsightsEditMode({
       order: tt.order,
       visible: tt.visible,
     }));
+    // Reorder ONLY the Vitals subset through the tested pure helper — a single
+    // total-order sort, never the mixed-key comparator that used to break
+    // transitivity (QA M2).
     const reordered = reorderById(subset, String(active.id), String(over.id));
-    const newOrderById = new Map(reordered.map((r, i) => [r.id, i]));
+    const reorderedVitalsIds = reordered.map((r) => r.id);
 
-    setDraft((d) => {
-      // Build the next full tile list: Vitals tiles take their new relative
-      // order; everything else keeps its existing order. Then renumber the
-      // whole list densely so the persisted blob stays canonical.
-      const next: InsightsTileConfig[] = [...d.tiles].sort((a, b) => {
-        const aV = VITALS_TILE_IDS.has(a.id);
-        const bV = VITALS_TILE_IDS.has(b.id);
-        if (aV && bV) {
-          return (
-            (newOrderById.get(a.id) ?? 0) - (newOrderById.get(b.id) ?? 0)
-          );
-        }
-        return a.order - b.order;
-      });
-      return {
-        ...d,
-        tiles: next.map((tt, i) => ({ ...tt, order: i })),
-      };
-    });
+    setDraft((d) => ({
+      ...d,
+      // Substitute the Vitals slots in their new relative order while leaving
+      // the sub-page strip (non-Vitals tiles) untouched. Pure, total-order
+      // helper — no mixed-key comparator (QA M2).
+      tiles: rebuildTilesWithReorderedVitals(
+        d.tiles,
+        reorderedVitalsIds,
+        (id) => VITALS_TILE_IDS.has(id),
+      ),
+    }));
   }
 
   const allHidden = draft.sections.every((s) => !s.visible);
@@ -286,7 +297,13 @@ export function InsightsEditMode({
     >
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
         <div>
-          <h2 className="text-lg font-semibold">{t("insights.editMode.title")}</h2>
+          <h2
+            ref={headingRef}
+            tabIndex={-1}
+            className="text-lg font-semibold focus-visible:outline-none"
+          >
+            {t("insights.editMode.title")}
+          </h2>
           <p className="text-muted-foreground text-sm">
             {t("insights.editMode.description")}
           </p>
@@ -386,7 +403,14 @@ export function InsightsEditMode({
                             items={vitalsTileIds}
                             strategy={verticalListSortingStrategy}
                           >
-                            <div className="mt-2 space-y-1.5">
+                            {/* v1.15.11 QA M2-design — cap the disclosed tile
+                                list height and let it scroll inside its own
+                                container so dragging a tile on a phone doesn't
+                                fight the page scroll. `overscroll-contain` keeps
+                                the scroll local; the container is full-width and
+                                only clips on the y-axis, so the drag ghost
+                                (which translates within the row) is not cut. */}
+                            <div className="mt-2 max-h-[60vh] space-y-1.5 overflow-y-auto overscroll-contain">
                               {vitalsTiles.map((tile) => (
                                 <SortableTileRow
                                   key={tile.id}
@@ -447,6 +471,7 @@ function EyeToggle({
       type="button"
       onClick={onClick}
       disabled={disabled}
+      aria-disabled={disabled || undefined}
       aria-pressed={visible}
       aria-label={label}
       title={label}
@@ -517,28 +542,34 @@ function SortableSectionRow({
         >
           <GripVertical className="h-4 w-4" />
         </button>
-        <span className="min-w-0 flex-1 truncate text-sm font-medium" title={title}>
-          {title}
-        </span>
-        {gatedOff ? (
-          <span className="text-muted-foreground hidden text-xs sm:inline">
-            {labels.gatedHint}
+        <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+          <span className="truncate text-sm font-medium" title={title}>
+            {title}
           </span>
-        ) : (
-          <EyeToggle
-            visible={section.visible}
-            disabled={disabled}
-            label={`${section.visible ? labels.hide : labels.show} — ${title}`}
-            onClick={() => onToggle(section.id, !section.visible)}
-            slot="insights-edit-section-eye"
-          />
-        )}
+          {/* v1.15.11 QA M1-design — the gated hint reads as a caption BELOW the
+              title so the row's right-edge control position stays stable whether
+              the section is gated or not. */}
+          {gatedOff && (
+            <span
+              className="text-muted-foreground truncate text-xs"
+              data-slot="insights-edit-section-gated-hint"
+            >
+              {labels.gatedHint}
+            </span>
+          )}
+        </div>
+        {/* v1.15.11 QA M1-design — a gated section keeps a DISABLED eye toggle in
+            the SAME position rather than swapping it for a text span, so the row
+            layout never jumps. The section stays reorderable; only the toggle is
+            inert until the gate opens. */}
+        <EyeToggle
+          visible={section.visible}
+          disabled={disabled || gatedOff}
+          label={`${section.visible ? labels.hide : labels.show} — ${title}`}
+          onClick={() => onToggle(section.id, !section.visible)}
+          slot="insights-edit-section-eye"
+        />
       </div>
-      {gatedOff && (
-        <p className="text-muted-foreground mt-1 pl-13 text-xs sm:hidden">
-          {labels.gatedHint}
-        </p>
-      )}
       {children}
     </div>
   );

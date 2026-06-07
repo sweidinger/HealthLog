@@ -1,15 +1,15 @@
 "use client";
 
-import { Fragment, useState, type ReactNode } from "react";
+import { Fragment, useRef, useState, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import { Check, RefreshCw, SlidersHorizontal, TrendingUp } from "lucide-react";
+import { RefreshCw, SlidersHorizontal, TrendingUp } from "lucide-react";
 
 import { useAuth } from "@/hooks/use-auth";
 import { queryKeys } from "@/lib/query-keys";
 import { useFeatureFlags } from "@/hooks/use-feature-flags";
-import { useInsightsLayout } from "@/hooks/use-insights-layout";
+import { useInsightsLayoutQuery } from "@/hooks/use-insights-layout";
 import {
   orderedVisibleSectionIds,
   type InsightsSectionId,
@@ -283,13 +283,27 @@ export default function InsightsPage() {
   // per-tile order/visibility (passed into <VitalsDashboard>). Defaults to
   // the canonical layout while in-flight so the first paint matches the
   // default order with no flicker.
-  const layout = useInsightsLayout(isAuthenticated);
+  const {
+    layout,
+    isLoading: layoutLoading,
+  } = useInsightsLayoutQuery(isAuthenticated);
 
   // v1.15.11 W3 — inline "Anpassen" edit mode. When on, the customizable
   // region swaps the live (heavy) sections for lightweight edit cards; the
   // section data is never refetched (the queries stay mounted via the page's
   // own hooks but the section JSX is replaced). HeroStrip stays anchored.
   const [editMode, setEditMode] = useState(false);
+
+  // v1.15.11 QA L5 — focus restoration. On entering edit mode focus moves to
+  // the edit-card heading; on close/save focus returns to the "Anpassen"
+  // toggle so keyboard users are not dropped at the top of the document.
+  const customizeToggleRef = useRef<HTMLButtonElement | null>(null);
+
+  // v1.15.11 QA L1 — never let a "Fertig" save flush DEFAULT_INSIGHTS_LAYOUT
+  // over the user's real saved layout. The editor seeds its draft once from
+  // the `layout` prop, which is the default while the GET is in-flight, so the
+  // edit surface stays gated (the toggle disabled) until the query has settled.
+  const canEdit = !layoutLoading;
 
   // Error branch — a transient 500 / network drop (after the query's
   // retries are exhausted) settles the comprehensive query with no data.
@@ -484,30 +498,31 @@ export default function InsightsPage() {
       />
 
       {/* v1.15.11 W3 — the "Anpassen" toggle sits at the top of the
-          customizable region, below the anchored HeroStrip. In edit mode it
-          reads "Fertig"; the InsightsEditMode component owns the actual
-          Fertig/Zurücksetzen save controls, so this button just enters edit
-          mode (exiting is handled by the component's "Fertig" → onClose). */}
-      <div className="flex justify-end">
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={() => setEditMode((v) => !v)}
-          data-slot="insights-customize-toggle"
-          aria-pressed={editMode}
-          className="gap-1.5"
-        >
-          {editMode ? (
-            <Check className="h-3.5 w-3.5" aria-hidden="true" />
-          ) : (
+          customizable region, below the anchored HeroStrip. v1.15.11 QA
+          L2-design: the toggle is HIDDEN while editing — the InsightsEditMode
+          card owns save (Fertig) + reset (Zurücksetzen), so a second top-right
+          "Fertig" that only closes-without-saving (a label-collision trap) no
+          longer exists. The toggle only ENTERS edit mode; the component's
+          Fertig/Zurücksetzen → onClose returns here. QA L1: disabled until the
+          layout query settles so a save can never flush defaults. */}
+      {!editMode && (
+        <div className="flex justify-end">
+          <Button
+            ref={customizeToggleRef}
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => setEditMode(true)}
+            disabled={!canEdit}
+            data-slot="insights-customize-toggle"
+            aria-pressed={editMode}
+            className="gap-1.5"
+          >
             <SlidersHorizontal className="h-3.5 w-3.5" aria-hidden="true" />
-          )}
-          <span>
-            {editMode ? t("insights.editMode.done") : t("insights.editMode.open")}
-          </span>
-        </Button>
-      </div>
+            <span>{t("insights.editMode.open")}</span>
+          </Button>
+        </div>
+      )}
 
       {editMode ? (
         /* v1.15.11 W3 — edit mode swaps the live, heavy sections for the
@@ -517,7 +532,11 @@ export default function InsightsPage() {
         <InsightsEditMode
           layout={layout}
           gatedOffSectionIds={gatedOffSectionIds}
-          onClose={() => setEditMode(false)}
+          onClose={() => {
+            setEditMode(false);
+            // v1.15.11 QA L5 — return focus to the toggle that reappears.
+            requestAnimationFrame(() => customizeToggleRef.current?.focus());
+          }}
         />
       ) : everySectionHidden ? (
         /* v1.15.11 W3 — empty-state: every section hidden. The page is never
