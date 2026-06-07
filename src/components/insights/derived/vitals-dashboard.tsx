@@ -105,7 +105,7 @@ interface DashboardProps {
   batch: DashboardDerived;
   /**
    * v1.15.11 W2c — the resolved insights layout, passed down from the page
-   * (which already mounts `useInsightsLayout()`) so this grid honours the
+   * (which already mounts `useInsightsLayoutQuery()`) so this grid honours the
    * user's per-tile order + visibility without a second fetch. Each grid tile
    * maps to a layout tile id (see `VITAL_TILE_LAYOUT_ID` /
    * `MOBILITY_TILE_LAYOUT_ID`); a tile the layout marks `visible: false` does
