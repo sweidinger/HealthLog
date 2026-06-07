@@ -178,6 +178,38 @@ describe("GET /api/mood-entries — 422 multi-issue (v1.4.43 W6)", () => {
   });
 });
 
+describe("GET /api/mood-entries — source filter (v1.15.13)", () => {
+  it("threads a valid source into the list where", async () => {
+    vi.mocked(prisma.moodEntry.findMany).mockResolvedValue([] as never);
+    vi.mocked(prisma.moodEntry.count).mockResolvedValue(0 as never);
+
+    const res = await GET(getReq("source=TELEGRAM"));
+    expect(res.status).toBe(200);
+
+    const call = vi.mocked(prisma.moodEntry.findMany).mock.calls[0][0];
+    expect(call?.where).toMatchObject({
+      userId: "user-1",
+      deletedAt: null,
+      source: "TELEGRAM",
+    });
+  });
+
+  it("omits source from the where when not supplied", async () => {
+    vi.mocked(prisma.moodEntry.findMany).mockResolvedValue([] as never);
+    vi.mocked(prisma.moodEntry.count).mockResolvedValue(0 as never);
+
+    const res = await GET(getReq(""));
+    expect(res.status).toBe(200);
+    const call = vi.mocked(prisma.moodEntry.findMany).mock.calls[0][0];
+    expect(call?.where).not.toHaveProperty("source");
+  });
+
+  it("422s on an unknown source value", async () => {
+    const res = await GET(getReq("source=BOGUS"));
+    expect(res.status).toBe(422);
+  });
+});
+
 describe("POST /api/mood-entries — 422 multi-issue (v1.4.43 W6)", () => {
   it("surfaces TWO simultaneous validation errors", async () => {
     // Bad `mood` enum + missing `moodLoggedAt`.
