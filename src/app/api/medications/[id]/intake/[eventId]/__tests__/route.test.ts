@@ -12,10 +12,15 @@ vi.mock("@/lib/db", () => ({
       update: vi.fn(),
       delete: vi.fn(),
       findFirst: vi.fn(),
+      // v1.15.18 — the band resolver + the canonical slot upsert read these.
+      findMany: vi.fn(),
+      create: vi.fn(),
     },
     medication: {
       findUnique: vi.fn(),
+      findFirst: vi.fn(),
       updateMany: vi.fn(),
+      update: vi.fn(),
     },
     auditLog: { create: vi.fn() },
   },
@@ -248,5 +253,131 @@ describe("PUT /api/medications/[id]/intake/[eventId] — one-shot reconcile on s
       where: { id: "m1", userId: "user-1", oneShot: true },
       data: { active: true },
     });
+  });
+});
+
+// ────────────────────────────────────────────────────────────────────
+// v1.15.18 — PUT re-runs window-band slot attribution on a takenAt change
+// ────────────────────────────────────────────────────────────────────
+
+import { localHmAsUtc } from "@/lib/timezone";
+
+const TZ = "Europe/Berlin";
+const SESSION_TZ = {
+  session: { id: "sess-1", expiresAt: new Date(Date.now() + 3_600_000) },
+  user: { id: "user-1", username: "tester", role: "USER" as const, timezone: TZ },
+};
+const ATTR_DAY = new Date("2026-06-05T12:00:00Z");
+function at(h: number, m: number): Date {
+  return localHmAsUtc(ATTR_DAY, TZ, h, m);
+}
+
+/** Stub the band resolver's medication load (07:00 / 19:00 twice-daily). */
+function stubTwiceDailyMed() {
+  vi.mocked(prisma.medication.findFirst).mockResolvedValue({
+    id: "m1",
+    startsOn: null,
+    endsOn: null,
+    oneShot: false,
+    createdAt: new Date("2026-01-01T00:00:00Z"),
+    schedules: [
+      {
+        id: "s1",
+        windowStart: "07:00",
+        windowEnd: "07:00",
+        daysOfWeek: null,
+        timesOfDay: ["07:00", "19:00"],
+        reminderGraceMinutes: null,
+        rrule: null,
+        rollingIntervalDays: null,
+        scheduleType: "SCHEDULED",
+        cyclicOnWeeks: null,
+        cyclicOffWeeks: null,
+      },
+    ],
+  } as never);
+}
+
+describe("PUT — v1.15.18 band re-attribution", () => {
+  beforeEach(() => {
+    vi.mocked(getSession).mockResolvedValue(SESSION_TZ as never);
+    vi.mocked(prisma.medication.findUnique).mockResolvedValue({
+      oneShot: false,
+      active: true,
+    } as never);
+    vi.mocked(prisma.medication.update).mockResolvedValue({} as never);
+    stubTwiceDailyMed();
+  });
+
+  it("re-snaps the dose onto the matched slot when the edited takenAt moves it (slot move)", async () => {
+    // The row currently sits on the 07:00 slot; the edit moves takenAt to
+    // 19:05 (on-time for the 19:00 slot). The route tombstones the row + routes
+    // the dose through the canonical slot upsert onto the 19:00 anchor.
+    vi.mocked(prisma.medicationIntakeEvent.findFirst)
+      // PUT lookup of the edited event
+      .mockResolvedValueOnce({
+        id: "e1",
+        userId: "user-1",
+        medicationId: "m1",
+        scheduledFor: at(7, 0),
+        takenAt: at(7, 5),
+        skipped: false,
+      } as never)
+      // lifecycle liveIntake probe
+      .mockResolvedValue(null as never);
+    // applyCanonicalSlotWrite: no existing row at the 19:00 slot → create.
+    vi.mocked(prisma.medicationIntakeEvent.findMany).mockResolvedValue(
+      [] as never,
+    );
+    vi.mocked(prisma.medicationIntakeEvent.update).mockResolvedValue(
+      {} as never,
+    );
+    vi.mocked(prisma.medicationIntakeEvent.create).mockResolvedValue({
+      id: "e2",
+      userId: "user-1",
+      medicationId: "m1",
+      scheduledFor: at(19, 0),
+      takenAt: at(19, 5),
+      skipped: false,
+    } as never);
+
+    const res = await PUT(
+      putReq({ takenAt: at(19, 5).toISOString() }),
+      ROUTE_CTX,
+    );
+    expect(res.status).toBe(200);
+
+    // The original row was tombstoned (deletedAt set).
+    const tombstone = vi
+      .mocked(prisma.medicationIntakeEvent.update)
+      .mock.calls.find((c) => "deletedAt" in (c[0]?.data ?? {}));
+    expect(tombstone).toBeTruthy();
+    // The corrected dose was written onto the 19:00 anchor.
+    const created = vi.mocked(prisma.medicationIntakeEvent.create).mock
+      .calls[0]?.[0]?.data;
+    expect((created?.scheduledFor as Date).getTime()).toBe(at(19, 0).getTime());
+  });
+
+  it("422s a forceSlotInstant that is not a real slot", async () => {
+    vi.mocked(prisma.medicationIntakeEvent.findFirst).mockResolvedValue({
+      id: "e1",
+      userId: "user-1",
+      medicationId: "m1",
+      scheduledFor: at(7, 0),
+      takenAt: at(7, 5),
+      skipped: false,
+    } as never);
+    vi.mocked(prisma.medicationIntakeEvent.findMany).mockResolvedValue(
+      [] as never,
+    );
+
+    const res = await PUT(
+      putReq({
+        takenAt: at(11, 29).toISOString(),
+        forceSlotInstant: at(11, 29).toISOString(), // not a slot
+      }),
+      ROUTE_CTX,
+    );
+    expect(res.status).toBe(422);
   });
 });
