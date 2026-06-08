@@ -550,6 +550,21 @@ export const intakeSchema = z
       .describe(
         "Optional injection site for a taken dose. Honoured only when the medication is an INJECTION with site-tracking enabled; validated against the medication's effective allowed set (per-medication allowed sites minus the user's global exclusion). A disallowed site returns 422. Omit to record the dose without a site.",
       ),
+    /**
+     * v1.15.18 — late-take "attribute anyway" pin. An off-window take that
+     * band attribution would otherwise orphan to an ad-hoc row can be pinned
+     * onto a chosen scheduled slot via the UI's "diesem Slot zuordnen?" nudge.
+     * The instant MUST be a real slot of this medication on its day (the
+     * server validates it against the band anchors); an arbitrary instant is
+     * rejected with 422. Absent → default band attribution.
+     */
+    forceSlotInstant: z.iso
+      .datetime({ offset: true })
+      .transform((s) => new Date(s))
+      .optional()
+      .describe(
+        "Late-take override: pin this taken dose onto the named scheduled slot instead of orphaning it to an ad-hoc row. Must be a real scheduled slot of this medication on its day (validated server-side against the dose-window band anchors); an instant that is not a slot returns 422. Absent applies the default window-band attribution.",
+      ),
   })
   .meta({
     id: "MedicationIntakeRequest",
@@ -594,18 +609,38 @@ export const listIntakeEventsSchema = z.object({
     .default("all"),
 });
 
-export const updateIntakeEventSchema = z.object({
-  takenAt: z.iso
-    .datetime({ offset: true })
-    .transform((s) => new Date(s))
-    .nullable()
-    .optional(),
-  skipped: z.boolean().optional(),
-  scheduledFor: z.iso
-    .datetime({ offset: true })
-    .transform((s) => new Date(s))
-    .optional(),
-});
+export const updateIntakeEventSchema = z
+  .object({
+    takenAt: z.iso
+      .datetime({ offset: true })
+      .transform((s) => new Date(s))
+      .nullable()
+      .optional(),
+    skipped: z.boolean().optional(),
+    scheduledFor: z.iso
+      .datetime({ offset: true })
+      .transform((s) => new Date(s))
+      .optional(),
+    /**
+     * v1.15.18 — late-take "attribute anyway" pin on the edit path. When the
+     * edited `takenAt` lands outside every window the UI can offer to pin the
+     * take onto a chosen slot; the server validates the instant is a real
+     * scheduled slot (422 otherwise). Absent → the edit re-runs band
+     * attribution on the new `takenAt`.
+     */
+    forceSlotInstant: z.iso
+      .datetime({ offset: true })
+      .transform((s) => new Date(s))
+      .optional()
+      .describe(
+        "Late-take override on edit: pin the edited dose onto the named scheduled slot instead of re-attributing by window band. Must be a real scheduled slot of this medication on its day (validated server-side); a non-slot instant returns 422. Absent re-runs the default window-band attribution on the edited `takenAt`.",
+      ),
+  })
+  .meta({
+    id: "UpdateMedicationIntakeEventRequest",
+    description:
+      "Edit a single intake event. v1.15.18 re-runs window-band slot attribution whenever `takenAt` or `skipped` change, snapping `scheduledFor` to the matched slot (or the take's own time when it falls in no window). `forceSlotInstant` overrides that to pin the take onto a named real slot; an explicit `scheduledFor` still wins when supplied directly.",
+  });
 
 /**
  * v1.5.5 — bulk-delete request body. The detail-page intake-history
