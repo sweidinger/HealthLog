@@ -32,6 +32,7 @@ import {
   type ScheduleLike,
 } from "@/lib/medications/scheduling/cadence";
 import { streaksFromTimeline } from "@/lib/medications/scheduling/compliance";
+import { DOSE_WINDOW_DEFAULTS } from "@/lib/medications/scheduling/dose-window-defaults";
 import { normaliseDoseWindows } from "@/lib/medications/scheduling/worker-helpers";
 import {
   reconstructDoseHistory,
@@ -209,24 +210,7 @@ export function classifyIntakeTiming(
  *   - overdue:    up to target + 4 days  (late-but-counts)
  *   - missed:     > target + 4 days
  */
-export const DOSE_WINDOW_DEFAULTS = {
-  /** Daily / intraday on-time half-width around the target instant (min). */
-  dailyOnTimeMinutes: 60,
-  /**
-   * Daily / intraday overdue tail past the on-time window (min). A dose
-   * taken inside `[onTime, onTime + overdue]` still counts; beyond it the
-   * dose is missed.
-   */
-  dailyOverdueMinutes: 240 - 60,
-  /** Weekly / rolling on-time half-width around the target day (days). */
-  weeklyOnTimeDays: 1,
-  /**
-   * Weekly / rolling overdue tail past the target day (days) — the clinical
-   * 4-day GLP-1 rule. A shot inside `[target, target + 4d]` still counts;
-   * beyond it the dose is missed and the user skips to the next slot.
-   */
-  weeklyOverdueDays: 4,
-} as const;
+export { DOSE_WINDOW_DEFAULTS };
 
 /**
  * v1.15.9 — the derived per-dose state the medication card renders.

@@ -20,7 +20,7 @@
  *   - day-scale (weekly / rolling): ±1 day on-time, +4 days late tail.
  */
 
-import { DOSE_WINDOW_DEFAULTS } from "@/lib/analytics/compliance";
+import { DOSE_WINDOW_DEFAULTS } from "@/lib/medications/scheduling/dose-window-defaults";
 
 /** One persisted explicit window. Matches `doseWindowEntrySchema`. */
 export interface DoseWindowEntry {
