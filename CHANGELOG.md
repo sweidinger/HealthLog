@@ -2,6 +2,26 @@
 
 ## [Unreleased]
 
+## [1.15.18] — 2026-06-08 — a traceable medication dose history
+
+### Added
+
+- **A traceable dose history for every medication.** The Verlauf tab now shows every expected dose slot with a clear status — taken on time, taken late, skipped, or missed — and tags any off-schedule intake as ad-hoc. The history reads from the same ledger the compliance percentage is built on, so the rate you see can no longer disagree with the timeline beneath it.
+- **A configurable intake window per dose.** Each dose time can carry either a point time or an explicit range (for example 07:00–09:00); the default stays ±1 hour. The window defines the on-time band, so a take that lands inside it counts as on time rather than late. The window is editable on the schedule and in the medication wizard.
+- **An Insights settings page.** A cog at the top right of the overview opens a dedicated Insights section in Settings, where you arrange the overview sections and sort the navigation pills. The old inline "Anpassen" toggle is gone — the cog is the single entry point.
+- **A dose-history endpoint.** A read endpoint returns the resolved per-slot status over a date range, so the history view and any client render the same picture.
+
+### Changed
+
+- **A redesigned medication detail page.** The detail page is now a tabbed layout — Übersicht, Zeitplan, Erinnerung, Bestand, Verlauf, Erweitert — and the old stacked advanced-settings modal is dissolved into tidy, grouped sections under Erweitert. Card actions open straight to the matching tab.
+- **The medication card keeps a constant surface.** The card no longer changes colour by dose status; the current status shows as a discreet label instead of tinting the whole card.
+- **Intake writes and edits attribute by the real intake time.** Marking a dose taken records it against the slot whose window it falls in; a take outside every window records as ad-hoc instead of snapping to a far-off slot. Editing a dose re-attributes it, a near-miss take offers "attribute to this dose anyway?", and marking taken or skipped recomputes the history and rate immediately.
+
+### Fixed
+
+- **The daily briefing's regenerate no longer times out before the text is ready.** A slow but successful regeneration used to be discarded by a short timeout, leaving the old text in place while the toast still claimed success. The regenerate path now waits for the warm text and the toast is honest — it reports a refresh only when one happened, and tells you to try again when generation is still running.
+- **The sleep-phase chart no longer double-counts time in bed.** Time-in-bed was being stacked as if it were a separate phase on top of the individual phases, roughly doubling the bar and the per-night total. It is no longer counted as a phase, so the bar and tooltip total read correctly.
+
 ## [1.15.17] — 2026-06-07 — large imports, demo chart toggles
 
 ### Fixed
