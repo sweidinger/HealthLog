@@ -895,3 +895,100 @@ describe("compose-mode — multi-schedule encoder + hydrator", () => {
     ]);
   });
 });
+
+describe("v1.15.18 per-dose windows — encode + hydrate round-trip", () => {
+  it("emits only explicit, live-time windows in the create body", () => {
+    const p: WizardPayload = {
+      ...withCadence("daily"),
+      timesOfDay: ["08:00", "20:00"],
+      doseWindows: [
+        // explicit widened band → kept
+        { timeOfDay: "08:00", start: "07:00", end: "12:00" },
+        // point-equivalent (±1h) → dropped
+        { timeOfDay: "20:00", start: "19:00", end: "21:00" },
+      ],
+    };
+    const body = buildCreateBody(p);
+    expect(body.schedules[0].doseWindows).toEqual([
+      { timeOfDay: "08:00", start: "07:00", end: "12:00" },
+    ]);
+  });
+
+  it("omits doseWindows when every dose uses the default band", () => {
+    const p: WizardPayload = {
+      ...withCadence("daily"),
+      timesOfDay: ["08:00"],
+      doseWindows: [{ timeOfDay: "08:00", start: "07:00", end: "09:00" }],
+    };
+    expect(buildCreateBody(p).schedules[0].doseWindows).toBeUndefined();
+  });
+
+  it("drops a window whose timeOfDay is no longer a live dose time", () => {
+    const p: WizardPayload = {
+      ...withCadence("daily"),
+      timesOfDay: ["08:00"],
+      doseWindows: [{ timeOfDay: "20:00", start: "18:00", end: "23:00" }],
+    };
+    expect(buildCreateBody(p).schedules[0].doseWindows).toBeUndefined();
+  });
+
+  it("hydrates persisted windows back onto the active draft mirror", () => {
+    const initial: MedicationPayload = {
+      id: "med1",
+      name: "Foo",
+      dose: "5 mg",
+      category: "OTHER",
+      treatmentClass: "GENERIC",
+      notificationsEnabled: true,
+      startsOn: null,
+      endsOn: null,
+      oneShot: false,
+      schedules: [
+        {
+          id: "sched1",
+          windowStart: "08:00",
+          windowEnd: "09:00",
+          timesOfDay: ["08:00"],
+          rrule: "FREQ=DAILY",
+          doseWindows: [{ timeOfDay: "08:00", start: "07:00", end: "12:00" }],
+        },
+      ],
+    };
+    const payload = hydrateWizardPayload(initial);
+    expect(payload.doseWindows).toEqual([
+      { timeOfDay: "08:00", start: "07:00", end: "12:00" },
+    ]);
+    expect(payload.schedules[0].doseWindows).toEqual([
+      { timeOfDay: "08:00", start: "07:00", end: "12:00" },
+    ]);
+  });
+
+  it("survives the edit → re-encode round-trip", () => {
+    const initial: MedicationPayload = {
+      id: "med1",
+      name: "Foo",
+      dose: "5 mg",
+      category: "OTHER",
+      treatmentClass: "GENERIC",
+      notificationsEnabled: true,
+      startsOn: null,
+      endsOn: null,
+      oneShot: false,
+      schedules: [
+        {
+          id: "sched1",
+          windowStart: "08:00",
+          windowEnd: "09:00",
+          timesOfDay: ["08:00"],
+          rrule: "FREQ=DAILY",
+          doseWindows: [{ timeOfDay: "08:00", start: "07:00", end: "12:00" }],
+        },
+      ],
+    };
+    const payload = hydrateWizardPayload(initial);
+    const body = buildCreateBody(payload, "edit");
+    expect(body.schedules[0].doseWindows).toEqual([
+      { timeOfDay: "08:00", start: "07:00", end: "12:00" },
+    ]);
+  });
+});

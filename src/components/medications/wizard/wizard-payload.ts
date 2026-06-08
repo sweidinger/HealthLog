@@ -64,6 +64,10 @@ import {
   type MedicationDeliveryForm,
 } from "@/lib/validations/medication";
 import type { InjectionSiteKey } from "@/lib/medications/injection-sites";
+import {
+  isExplicitRange,
+  type DoseWindowEntry,
+} from "@/components/medications/scheduling/dose-window";
 
 // ────────────────────────────────────────────────────────────────────
 // Step 2 — treatment-class taxonomy
@@ -176,6 +180,13 @@ export interface ScheduleDraft {
   cadence: CadenceValue;
   subControls: CadenceSubControls;
   timesOfDay: string[];
+  /**
+   * v1.15.18 — per-dose explicit on-time windows. One entry per dose
+   * time the user widened beyond the symmetric ±1h default; a time with
+   * no entry keeps the default band. Empty when every dose uses the
+   * default (the wire then omits / sends `[]`, leaving the column NULL).
+   */
+  doseWindows?: DoseWindowEntry[];
 }
 
 /**
@@ -228,6 +239,12 @@ export interface WizardPayload {
   subControls: CadenceSubControls;
   /** Mirrors `schedules[activeScheduleIndex].timesOfDay`. */
   timesOfDay: string[];
+  /**
+   * v1.15.18 — mirrors `schedules[activeScheduleIndex].doseWindows`. The
+   * per-dose window editor in Step 7 reads + writes this flat slot; the
+   * active-draft helpers keep it in sync with the schedule list.
+   */
+  doseWindows: DoseWindowEntry[];
   startsOn: Date | null;
   endsOn: Date | null;
   notificationsEnabled: boolean;
@@ -272,6 +289,7 @@ export function emptyWizardPayload(): WizardPayload {
     cadence: draft.cadence,
     subControls: draft.subControls,
     timesOfDay: draft.timesOfDay,
+    doseWindows: draft.doseWindows ?? [],
     startsOn: todayUtc(),
     endsOn: null,
     notificationsEnabled: true,
@@ -299,6 +317,7 @@ export function commitActiveDraft(payload: WizardPayload): WizardPayload {
     cadence: payload.cadence,
     subControls: payload.subControls,
     timesOfDay: payload.timesOfDay,
+    doseWindows: payload.doseWindows,
   };
   const schedules = payload.schedules.slice();
   schedules[idx] = next;
@@ -323,6 +342,7 @@ export function setActiveSchedule(
     cadence: draft.cadence,
     subControls: draft.subControls,
     timesOfDay: draft.timesOfDay,
+    doseWindows: draft.doseWindows ?? [],
   };
 }
 
@@ -533,6 +553,8 @@ export interface CreateMedicationBody {
     rollingIntervalDays?: number;
     daysOfWeek?: number[];
     intervalWeeks?: number;
+    /** v1.15.18 — per-dose explicit on-time windows. Omitted when none. */
+    doseWindows?: DoseWindowEntry[];
   }>;
 }
 
@@ -591,6 +613,16 @@ export function encodeScheduleDraft(
     timesOfDay: times,
   };
   if (draft.id) out.id = draft.id;
+  // v1.15.18 — emit only the explicit windows that still name a live dose
+  // time and actually differ from the default ±1h band (a point-equivalent
+  // window leaves the column on the default derivation).
+  if (draft.doseWindows && draft.doseWindows.length > 0) {
+    const liveTimes = new Set(times);
+    const windows = draft.doseWindows.filter(
+      (w) => liveTimes.has(w.timeOfDay) && isExplicitRange(w),
+    );
+    if (windows.length > 0) out.doseWindows = windows;
+  }
   if (!isOneShot) {
     if (draft.cadence.rrule !== null) {
       out.rrule = draft.cadence.rrule;
@@ -885,6 +917,8 @@ export interface MedicationPayload {
     timesOfDay?: string[];
     rrule?: string | null;
     rollingIntervalDays?: number | null;
+    /** v1.15.18 — per-dose explicit on-time windows (edit-hydrate). */
+    doseWindows?: DoseWindowEntry[] | null;
   }>;
 }
 
@@ -913,6 +947,7 @@ interface MedicationScheduleSnapshot {
   timesOfDay?: string[];
   rrule?: string | null;
   rollingIntervalDays?: number | null;
+  doseWindows?: DoseWindowEntry[] | null;
 }
 
 function hydrateScheduleDraft(
@@ -933,6 +968,11 @@ function hydrateScheduleDraft(
     timesOfDay: times,
   };
   if (schedule.id) draft.id = schedule.id;
+  // v1.15.18 — round-trip the persisted per-dose windows so an edit keeps
+  // the user's explicit ranges instead of resetting them to the default.
+  if (schedule.doseWindows && schedule.doseWindows.length > 0) {
+    draft.doseWindows = schedule.doseWindows;
+  }
   return draft;
 }
 
@@ -976,6 +1016,7 @@ export function hydrateWizardPayload(initial: MedicationPayload): WizardPayload 
     cadence: first.cadence,
     subControls: first.subControls,
     timesOfDay: first.timesOfDay,
+    doseWindows: first.doseWindows ?? [],
     startsOn: initial.startsOn ?? base.startsOn,
     endsOn: initial.endsOn,
     notificationsEnabled: initial.notificationsEnabled ?? true,
