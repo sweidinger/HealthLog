@@ -3,10 +3,10 @@
 /**
  * v1.5.5 D-3 §9.8 — Verwaltung & Gefahrenzone.
  *
- * v1.7.0 — split into two reusable bodies so the redesigned
- * `<AdvancedSettingsSheet>` can slot them under different groups:
- * `<LifecycleManageBody>` (Pause + End → Lifecycle group) and
- * `<DangerZoneBody>` (Purge + Delete → Danger zone group).
+ * v1.7.0 — split into two reusable bodies so the detail page's Erweitert
+ * tab can slot them under different groups: `<LifecycleManageBody>`
+ * (Pause + End → Lifecycle group) and `<DangerZoneBody>` (Purge + Delete
+ * → Danger zone group).
  *
  * Mutation contracts per D-3 §3:
  *

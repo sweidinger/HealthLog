@@ -124,15 +124,15 @@ interface Glp1MedicationCardProps {
   medication: Glp1Medication;
   onEdit: (med: Glp1Medication) => void;
   /**
-   * v1.7.1 — routes to the medication's full intake-history view
-   * (`/medications/{id}/history`), mirroring the generic medication card
-   * and the detail-header History button. The parent owns the navigation.
+   * v1.15.18 — navigates to the medication detail page's Verlauf tab
+   * (`/medications/{id}?tab=verlauf`), mirroring the generic medication
+   * card. The parent owns the navigation.
    */
   onOpenHistory: (med: Glp1Medication) => void;
   /**
-   * v1.7.1 — opens the shared `<AdvancedSettingsSheet>` (mounted by the
-   * list page) for this medication, mirroring the generic medication card
-   * and the detail-header sliders button.
+   * v1.15.18 — navigates to the medication detail page's Erweitert tab
+   * (`/medications/{id}?tab=erweitert`), the home of the dissolved
+   * advanced settings.
    */
   onOpenAdvanced: (med: Glp1Medication) => void;
   onLogSideEffect?: (med: Glp1Medication) => void;
