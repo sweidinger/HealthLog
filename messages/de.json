@@ -1533,6 +1533,29 @@
           "data": "Daten",
           "danger": "Gefahrenzone"
         }
+      },
+      "zeitplan": {
+        "title": "Zeitplan",
+        "timesTitle": "Einnahmezeiten",
+        "timesNote": "Passe die Uhrzeiten und das Zeitfenster jeder Dosis an. Für die Häufigkeit (täglich, wöchentlich …) nutze „Vollständig bearbeiten“.",
+        "scheduleLabel": "Zeitplan {index}",
+        "fullEditNote": "Häufigkeit, Wirkstoffklasse und Kursfenster bearbeitest du über „Vollständig bearbeiten“.",
+        "graceEcho": "Erinnerungsfenster: {minutes} Minuten",
+        "graceLink": "In „Erinnerung“ ändern",
+        "save": "Zeitplan speichern",
+        "saved": "Zeitplan gespeichert",
+        "failed": "Zeitplan konnte nicht gespeichert werden",
+        "window": {
+          "intro": "Lege je Dosis fest, wann eine Einnahme als pünktlich gilt — ein genauer Zeitpunkt (±1 Std.) oder ein eigenes Fenster wie 07:00–09:00.",
+          "explicitToggle": "Eigenes Fenster",
+          "startLabel": "Fensterbeginn",
+          "endLabel": "Fensterende",
+          "onTimeBand": "Pünktlich: {start}–{end}",
+          "lateUntil": "verspätet bis {time}",
+          "lateDays": "verspätet bis {days} Tage danach",
+          "orderError": "Der Beginn muss vor dem Ende liegen.",
+          "noTimes": "Noch keine Einnahmezeiten festgelegt."
+        }
       }
     },
     "logInjectionSiteTitle": "Injektionsstelle erfassen",

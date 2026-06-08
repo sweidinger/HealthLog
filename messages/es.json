@@ -1533,6 +1533,29 @@
           "data": "Datos",
           "danger": "Zona de peligro"
         }
+      },
+      "zeitplan": {
+        "title": "Horario",
+        "timesTitle": "Horas de toma",
+        "timesNote": "Ajusta la hora y la ventana puntual de cada dosis. Para la frecuencia (diaria, semanal…) usa «Edición completa».",
+        "scheduleLabel": "Horario {index}",
+        "fullEditNote": "La frecuencia, la clase de tratamiento y la ventana del curso se editan en «Edición completa».",
+        "graceEcho": "Ventana de recordatorio: {minutes} minutos",
+        "graceLink": "Cambiar en «Recordatorios»",
+        "save": "Guardar horario",
+        "saved": "Horario guardado",
+        "failed": "No se pudo guardar el horario",
+        "window": {
+          "intro": "Para cada dosis, define cuándo una toma sigue siendo puntual: una hora exacta (±1h) o tu propia ventana como 07:00–09:00.",
+          "explicitToggle": "Ventana propia",
+          "startLabel": "Inicio de la ventana",
+          "endLabel": "Fin de la ventana",
+          "onTimeBand": "Puntual: {start}–{end}",
+          "lateUntil": "con retraso hasta las {time}",
+          "lateDays": "con retraso hasta {days} días después",
+          "orderError": "El inicio debe ser anterior al fin.",
+          "noTimes": "Aún no hay horas de toma definidas."
+        }
       }
     },
     "logInjectionSiteTitle": "Registrar sitio de inyección",

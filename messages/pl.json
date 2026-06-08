@@ -1533,6 +1533,29 @@
           "data": "Dane",
           "danger": "Strefa zagrożenia"
         }
+      },
+      "zeitplan": {
+        "title": "Harmonogram",
+        "timesTitle": "Godziny przyjęcia",
+        "timesNote": "Dostosuj godzinę i okno punktualności każdej dawki. Częstotliwość (codziennie, co tydzień…) zmieniasz w „Pełna edycja”.",
+        "scheduleLabel": "Harmonogram {index}",
+        "fullEditNote": "Częstotliwość, klasę leczenia i okno kuracji edytujesz przez „Pełna edycja”.",
+        "graceEcho": "Okno przypomnienia: {minutes} minut",
+        "graceLink": "Zmień w „Przypomnienia”",
+        "save": "Zapisz harmonogram",
+        "saved": "Zapisano harmonogram",
+        "failed": "Nie udało się zapisać harmonogramu",
+        "window": {
+          "intro": "Dla każdej dawki ustal, kiedy przyjęcie jest jeszcze punktualne — dokładna godzina (±1 h) lub własne okno, np. 07:00–09:00.",
+          "explicitToggle": "Własne okno",
+          "startLabel": "Początek okna",
+          "endLabel": "Koniec okna",
+          "onTimeBand": "Punktualnie: {start}–{end}",
+          "lateUntil": "z opóźnieniem do {time}",
+          "lateDays": "z opóźnieniem do {days} dni później",
+          "orderError": "Początek musi być przed końcem.",
+          "noTimes": "Nie ustawiono jeszcze godzin przyjęcia."
+        }
       }
     },
     "logInjectionSiteTitle": "Zarejestruj miejsce iniekcji",

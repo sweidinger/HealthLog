@@ -1533,6 +1533,29 @@
           "data": "Données",
           "danger": "Zone de danger"
         }
+      },
+      "zeitplan": {
+        "title": "Horaire",
+        "timesTitle": "Heures de prise",
+        "timesNote": "Ajustez l'heure et la fenêtre à l'heure de chaque dose. Pour la fréquence (quotidienne, hebdomadaire…), utilisez « Édition complète ».",
+        "scheduleLabel": "Horaire {index}",
+        "fullEditNote": "La fréquence, la classe de traitement et la fenêtre de cure se modifient via « Édition complète ».",
+        "graceEcho": "Fenêtre de rappel : {minutes} minutes",
+        "graceLink": "Modifier dans « Rappels »",
+        "save": "Enregistrer l'horaire",
+        "saved": "Horaire enregistré",
+        "failed": "Impossible d'enregistrer l'horaire",
+        "window": {
+          "intro": "Pour chaque dose, définissez quand une prise reste à l'heure : un horaire précis (±1 h) ou votre propre fenêtre comme 07:00–09:00.",
+          "explicitToggle": "Fenêtre personnalisée",
+          "startLabel": "Début de la fenêtre",
+          "endLabel": "Fin de la fenêtre",
+          "onTimeBand": "À l'heure : {start}–{end}",
+          "lateUntil": "en retard jusqu'à {time}",
+          "lateDays": "en retard jusqu'à {days} jours après",
+          "orderError": "Le début doit précéder la fin.",
+          "noTimes": "Aucune heure de prise définie pour l'instant."
+        }
       }
     },
     "logInjectionSiteTitle": "Enregistrer le site d'injection",

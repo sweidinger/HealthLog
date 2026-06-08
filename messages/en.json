@@ -1533,6 +1533,29 @@
           "data": "Data",
           "danger": "Danger zone"
         }
+      },
+      "zeitplan": {
+        "title": "Schedule",
+        "timesTitle": "Dose times",
+        "timesNote": "Adjust each dose's time and on-time window. For the frequency (daily, weekly …) use “Full edit”.",
+        "scheduleLabel": "Schedule {index}",
+        "fullEditNote": "Frequency, treatment class and course window are edited through “Full edit”.",
+        "graceEcho": "Reminder window: {minutes} minutes",
+        "graceLink": "Change under “Reminders”",
+        "save": "Save schedule",
+        "saved": "Schedule saved",
+        "failed": "Could not save the schedule",
+        "window": {
+          "intro": "For each dose, set when an intake still counts as on time — a precise time (±1h) or your own window such as 07:00–09:00.",
+          "explicitToggle": "Custom window",
+          "startLabel": "Window start",
+          "endLabel": "Window end",
+          "onTimeBand": "On time: {start}–{end}",
+          "lateUntil": "late until {time}",
+          "lateDays": "late until {days} days after",
+          "orderError": "The start must be before the end.",
+          "noTimes": "No dose times set yet."
+        }
       }
     },
     "logInjectionSiteTitle": "Log injection site",

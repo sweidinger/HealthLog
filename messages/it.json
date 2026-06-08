@@ -1533,6 +1533,29 @@
           "data": "Dati",
           "danger": "Zona pericolosa"
         }
+      },
+      "zeitplan": {
+        "title": "Programma",
+        "timesTitle": "Orari di assunzione",
+        "timesNote": "Regola l'orario e la finestra puntuale di ogni dose. Per la frequenza (giornaliera, settimanale…) usa «Modifica completa».",
+        "scheduleLabel": "Programma {index}",
+        "fullEditNote": "Frequenza, classe di trattamento e finestra del ciclo si modificano da «Modifica completa».",
+        "graceEcho": "Finestra di promemoria: {minutes} minuti",
+        "graceLink": "Modifica in «Promemoria»",
+        "save": "Salva programma",
+        "saved": "Programma salvato",
+        "failed": "Impossibile salvare il programma",
+        "window": {
+          "intro": "Per ogni dose, stabilisci quando un'assunzione è ancora puntuale: un orario preciso (±1 h) o una finestra a tua scelta come 07:00–09:00.",
+          "explicitToggle": "Finestra personalizzata",
+          "startLabel": "Inizio finestra",
+          "endLabel": "Fine finestra",
+          "onTimeBand": "Puntuale: {start}–{end}",
+          "lateUntil": "in ritardo fino alle {time}",
+          "lateDays": "in ritardo fino a {days} giorni dopo",
+          "orderError": "L'inizio deve precedere la fine.",
+          "noTimes": "Nessun orario di assunzione impostato."
+        }
       }
     },
     "logInjectionSiteTitle": "Registra il sito di iniezione",
