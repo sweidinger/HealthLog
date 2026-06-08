@@ -1457,6 +1457,46 @@
         "back": "Back to medication",
         "subtitle": "Full intake history",
         "plannedSuffix": "planned"
+      },
+      "tabs": {
+        "uebersicht": "Overview",
+        "zeitplan": "Schedule",
+        "erinnerung": "Reminders",
+        "bestand": "Supply",
+        "verlauf": "History",
+        "injektion": "Injection",
+        "erweitert": "Advanced"
+      },
+      "shell": {
+        "fullEdit": "Edit fully",
+        "loadFailed": "This medication could not be loaded.",
+        "tablistLabel": "Medication detail sections"
+      },
+      "uebersicht": {
+        "complianceTitle": "Adherence",
+        "complianceEmpty": "No adherence data yet."
+      },
+      "bestand": {
+        "title": "Supply",
+        "summary": "{remaining} of {total} doses remaining",
+        "itemsTitle": "Pens / vials",
+        "doses": "{remaining} / {total} doses",
+        "state": {
+          "ACTIVE": "Unopened",
+          "IN_USE": "In use",
+          "EXPIRED": "Expired",
+          "USED_UP": "Used up"
+        },
+        "empty": "No supply recorded.",
+        "emptyHelper": "Register a pen or pack to track doses remaining and weeks of supply."
+      },
+      "erweitert": {
+        "group": {
+          "lifecycle": "Lifecycle",
+          "externalApi": "External API",
+          "data": "Data",
+          "danger": "Danger zone"
+        }
       }
     },
     "logInjectionSiteTitle": "Log injection site",

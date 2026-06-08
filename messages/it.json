@@ -1457,6 +1457,46 @@
         "back": "Torna al farmaco",
         "subtitle": "Cronologia completa delle assunzioni",
         "plannedSuffix": "pianificato"
+      },
+      "tabs": {
+        "uebersicht": "Panoramica",
+        "zeitplan": "Programma",
+        "erinnerung": "Promemoria",
+        "bestand": "Scorta",
+        "verlauf": "Cronologia",
+        "injektion": "Iniezione",
+        "erweitert": "Avanzate"
+      },
+      "shell": {
+        "fullEdit": "Modifica completa",
+        "loadFailed": "Impossibile caricare questo farmaco.",
+        "tablistLabel": "Sezioni di dettaglio del farmaco"
+      },
+      "uebersicht": {
+        "complianceTitle": "Aderenza",
+        "complianceEmpty": "Ancora nessun dato sull'aderenza."
+      },
+      "bestand": {
+        "title": "Scorta",
+        "summary": "{remaining} dosi rimanenti su {total}",
+        "itemsTitle": "Penne / flaconi",
+        "doses": "{remaining} / {total} dosi",
+        "state": {
+          "ACTIVE": "Non aperto",
+          "IN_USE": "In uso",
+          "EXPIRED": "Scaduto",
+          "USED_UP": "Esaurito"
+        },
+        "empty": "Nessuna scorta registrata.",
+        "emptyHelper": "Registra una penna o una confezione per monitorare le dosi rimanenti e l'autonomia."
+      },
+      "erweitert": {
+        "group": {
+          "lifecycle": "Ciclo di vita",
+          "externalApi": "API esterna",
+          "data": "Dati",
+          "danger": "Zona pericolosa"
+        }
       }
     },
     "logInjectionSiteTitle": "Registra il sito di iniezione",

@@ -1457,6 +1457,46 @@
         "back": "Retour au médicament",
         "subtitle": "Historique complet des prises",
         "plannedSuffix": "prévu"
+      },
+      "tabs": {
+        "uebersicht": "Aperçu",
+        "zeitplan": "Horaire",
+        "erinnerung": "Rappels",
+        "bestand": "Stock",
+        "verlauf": "Historique",
+        "injektion": "Injection",
+        "erweitert": "Avancé"
+      },
+      "shell": {
+        "fullEdit": "Modifier entièrement",
+        "loadFailed": "Ce médicament n'a pas pu être chargé.",
+        "tablistLabel": "Sections de détail du médicament"
+      },
+      "uebersicht": {
+        "complianceTitle": "Observance",
+        "complianceEmpty": "Aucune donnée d'observance pour l'instant."
+      },
+      "bestand": {
+        "title": "Stock",
+        "summary": "{remaining} doses restantes sur {total}",
+        "itemsTitle": "Stylos / flacons",
+        "doses": "{remaining} / {total} doses",
+        "state": {
+          "ACTIVE": "Non ouvert",
+          "IN_USE": "En cours",
+          "EXPIRED": "Expiré",
+          "USED_UP": "Épuisé"
+        },
+        "empty": "Aucun stock enregistré.",
+        "emptyHelper": "Enregistrez un stylo ou une boîte pour suivre les doses restantes et l'autonomie."
+      },
+      "erweitert": {
+        "group": {
+          "lifecycle": "Cycle de vie",
+          "externalApi": "API externe",
+          "data": "Données",
+          "danger": "Zone de danger"
+        }
       }
     },
     "logInjectionSiteTitle": "Enregistrer le site d'injection",

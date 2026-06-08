@@ -1457,6 +1457,46 @@
         "back": "Zurück zum Medikament",
         "subtitle": "Vollständiger Einnahmeverlauf",
         "plannedSuffix": "geplant"
+      },
+      "tabs": {
+        "uebersicht": "Übersicht",
+        "zeitplan": "Zeitplan",
+        "erinnerung": "Erinnerung",
+        "bestand": "Bestand",
+        "verlauf": "Verlauf",
+        "injektion": "Injektion",
+        "erweitert": "Erweitert"
+      },
+      "shell": {
+        "fullEdit": "Vollständig bearbeiten",
+        "loadFailed": "Dieses Medikament konnte nicht geladen werden.",
+        "tablistLabel": "Medikamenten-Detailbereiche"
+      },
+      "uebersicht": {
+        "complianceTitle": "Therapietreue",
+        "complianceEmpty": "Noch keine Daten zur Therapietreue."
+      },
+      "bestand": {
+        "title": "Bestand",
+        "summary": "{remaining} von {total} Dosen übrig",
+        "itemsTitle": "Pens / Ampullen",
+        "doses": "{remaining} / {total} Dosen",
+        "state": {
+          "ACTIVE": "Ungeöffnet",
+          "IN_USE": "In Gebrauch",
+          "EXPIRED": "Abgelaufen",
+          "USED_UP": "Aufgebraucht"
+        },
+        "empty": "Kein Bestand erfasst.",
+        "emptyHelper": "Erfasse einen Pen oder eine Packung, um verbleibende Dosen und Reichweite zu verfolgen."
+      },
+      "erweitert": {
+        "group": {
+          "lifecycle": "Lebenszyklus",
+          "externalApi": "Externe API",
+          "data": "Daten",
+          "danger": "Gefahrenzone"
+        }
       }
     },
     "logInjectionSiteTitle": "Injektionsstelle erfassen",

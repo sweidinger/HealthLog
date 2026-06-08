@@ -1,153 +1,40 @@
 "use client";
 
 /**
- * v1.7.0 — full intake-history view.
+ * v1.15.18 — legacy intake-history route.
  *
- * Reached directly from the detail-page header's History button. This
- * surface is intake-history ONLY: the estimated drug-level curve, the
- * side-effect logbook, the schedule ("Rhythmus") editor and the
- * titration ladder no longer dominate here. The only editable units
- * are individual intakes (edit / delete / bulk-delete via the shared
- * `<IntakeHistoryEditable>`); CSV import is present but de-emphasised
- * as a ghost action in the header.
- *
- * Sort defaults to `scheduledFor desc` so the order reads
- * today → yesterday → … and skipped rows (`takenAt: null`) never float
- * to the top (O-1).
- *
- * The estimated active-ingredient curve stays available as a
- * default-CLOSED disclosure at the bottom for GLP-1 medications (O-2);
- * it is genuine history context but opt-in, not the default read.
+ * The full intake history folded into the medication detail page's
+ * Verlauf tab. This route stays only as a deep-link redirect so existing
+ * bookmarks and any iOS deep-link keep landing on the right surface.
  */
 
-import { useEffect, useState, use } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { useAuth } from "@/hooks/use-auth";
+import { use, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Loader2, Upload } from "lucide-react";
-import Link from "next/link";
+import { Loader2 } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
-import { DrugLevelChart } from "@/components/medications/DrugLevelChart";
-import { DoseStrengthCurve } from "@/components/medications/dose-strength-curve";
-import { IntakeHistoryEditable } from "@/components/medications/intake-history-editable";
-import { IntakeImportDialog } from "@/components/medications/intake-import-dialog";
-import { useTranslations } from "@/lib/i18n/context";
-import { queryKeys } from "@/lib/query-keys";
-
-export default function IntakeHistoryPage({
+export default function IntakeHistoryRedirectPage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
   const { id } = use(params);
-  const { isAuthenticated, isLoading: authLoading } = useAuth();
   const router = useRouter();
-  const { t } = useTranslations();
-
-  const [importOpen, setImportOpen] = useState(false);
 
   useEffect(() => {
-    if (!authLoading && !isAuthenticated) {
-      router.push("/auth/login");
-    }
-  }, [authLoading, isAuthenticated, router]);
-
-  const { data: medication, isLoading: medLoading } = useQuery({
-    queryKey: queryKeys.medicationDetail(id),
-    queryFn: async () => {
-      const res = await fetch(`/api/medications/${id}`);
-      if (!res.ok) throw new Error("Failed to fetch");
-      const json = await res.json();
-      return json.data as {
-        id: string;
-        name: string;
-        dose: string;
-        treatmentClass?: string;
-        notificationsEnabled?: boolean;
-      };
-    },
-    enabled: isAuthenticated,
-  });
-
-  if (authLoading || medLoading) {
-    return (
-      <div className="flex h-64 items-center justify-center">
-        <Loader2 className="text-primary h-8 w-8 animate-spin motion-reduce:animate-none" />
-      </div>
-    );
-  }
-
-  const isGlp1 = medication?.treatmentClass === "GLP1";
+    router.replace(`/medications/${id}?tab=verlauf`);
+  }, [id, router]);
 
   return (
-    <div className="space-y-6">
-      {/* Back to the medication detail page — history is a drill-down
-          OF the medication, not a sibling of the list. */}
-      <Button variant="ghost" size="sm" className="-ml-2 w-fit" asChild>
-        <Link href={`/medications/${id}`}>
-          <ArrowLeft aria-hidden="true" className="mr-1 size-4" />
-          {t("medications.detail.history.back")}
-        </Link>
-      </Button>
-
-      {medication && (
-        <div className="flex items-start justify-between gap-3">
-          <div className="space-y-1">
-            <h1 className="text-2xl font-bold tracking-tight">
-              {medication.name}
-            </h1>
-            <p className="text-muted-foreground text-sm">{medication.dose}</p>
-            <p className="text-muted-foreground text-xs">
-              {t("medications.detail.history.subtitle")}
-            </p>
-          </div>
-          {/* De-emphasised import — ghost / muted, not a prominent CTA. */}
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setImportOpen(true)}
-            className="text-muted-foreground min-h-11 sm:min-h-9"
-            data-slot="history-import-trigger"
-          >
-            <Upload aria-hidden="true" className="h-4 w-4" />
-            {t("medications.detail.intake.importButton")}
-          </Button>
-        </div>
-      )}
-
-      {medication && (
-        <IntakeHistoryEditable
-          medicationId={id}
-          pageSize={25}
-          defaultSortBy="scheduledFor"
-        />
-      )}
-
-      {/* Estimated drug-level curve (the modelled active-ingredient
-          level) + dose-strength (titration) curve for GLP-1 medications.
-          Visible by default — the drug-level estimate is the one the
-          medication concerns, so it leads; the dose-strength curve plots
-          the user's own logged dose-change history below it. */}
-      {medication && isGlp1 && (
-        <div className="space-y-6" data-slot="history-drug-level-section">
-          <DrugLevelChart
-            medication={{
-              id: medication.id,
-              name: medication.name,
-              dose: medication.dose,
-            }}
-          />
-          <DoseStrengthCurve medicationId={id} />
-        </div>
-      )}
-
-      {importOpen && (
-        <IntakeImportDialog
-          medicationId={id}
-          onClose={() => setImportOpen(false)}
-        />
-      )}
+    <div
+      className="flex h-64 items-center justify-center"
+      role="status"
+      aria-busy="true"
+      aria-live="polite"
+    >
+      <Loader2
+        aria-hidden="true"
+        className="text-primary h-8 w-8 animate-spin motion-reduce:animate-none"
+      />
     </div>
   );
 }

@@ -1457,6 +1457,46 @@
         "back": "Powrót do leku",
         "subtitle": "Pełna historia przyjęć",
         "plannedSuffix": "zaplanowane"
+      },
+      "tabs": {
+        "uebersicht": "Przegląd",
+        "zeitplan": "Harmonogram",
+        "erinnerung": "Przypomnienia",
+        "bestand": "Zapas",
+        "verlauf": "Historia",
+        "injektion": "Iniekcja",
+        "erweitert": "Zaawansowane"
+      },
+      "shell": {
+        "fullEdit": "Edytuj w pełni",
+        "loadFailed": "Nie udało się załadować tego leku.",
+        "tablistLabel": "Sekcje szczegółów leku"
+      },
+      "uebersicht": {
+        "complianceTitle": "Przestrzeganie",
+        "complianceEmpty": "Brak danych o przestrzeganiu."
+      },
+      "bestand": {
+        "title": "Zapas",
+        "summary": "Pozostało {remaining} z {total} dawek",
+        "itemsTitle": "Wstrzykiwacze / fiolki",
+        "doses": "{remaining} / {total} dawek",
+        "state": {
+          "ACTIVE": "Nieotwarte",
+          "IN_USE": "W użyciu",
+          "EXPIRED": "Przeterminowane",
+          "USED_UP": "Zużyte"
+        },
+        "empty": "Nie zarejestrowano zapasu.",
+        "emptyHelper": "Zarejestruj wstrzykiwacz lub opakowanie, aby śledzić pozostałe dawki i zapas na tygodnie."
+      },
+      "erweitert": {
+        "group": {
+          "lifecycle": "Cykl życia",
+          "externalApi": "Zewnętrzne API",
+          "data": "Dane",
+          "danger": "Strefa zagrożenia"
+        }
       }
     },
     "logInjectionSiteTitle": "Zarejestruj miejsce iniekcji",

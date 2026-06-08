@@ -1,29 +1,18 @@
 "use client";
 
 /**
- * v1.7.2 W3 — medication detail page as the history view.
+ * v1.15.18 — medication detail page as the full-page tabbed shell.
  *
- * Supersedes the v1.5.6 composition that carried an Edit / History /
- * Advanced action row and a "Rhythmus" cadence block. Editing and
- * advanced settings are now reached from the medications-list card kebab
- * only; the detail page is purely history-centric:
- *
- *   back link → compact, NON-editable header (name / dose / status +
- *   plain-language cadence line) → intake-history table → GLP-1
- *   drug-level / titration as a default-CLOSED disclosure.
- *
- * The side-effect logbook stays inline for GLP-1 medications (genuine
- * history context). CSV import rides the intake-history section header.
- *
- * Reads:
- *
- *   - `medicationDetail(id)` for the medication snapshot.
- *   - `medicationIntakeList(id, …)` for the header total.
- *
- * Mutations all cascade through `medicationDependentKeys`.
+ * Supersedes the v1.7.2 history-centric composition. The page now owns
+ * auth + the medication read and hands the snapshot to
+ * `<MedicationDetailTabs>`, which carries the tab strip (Übersicht ·
+ * Zeitplan · Erinnerung · Bestand · Verlauf · Injektion* · Erweitert),
+ * `?tab=` URL state, the read-only hero and the "Vollständig bearbeiten"
+ * jump into the wizard. The former modal advanced-settings sheet and the
+ * separate `/history` route both fold into tabs here.
  */
 
-import { use, useEffect, useMemo, useState } from "react";
+import { use, useEffect } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
@@ -32,75 +21,13 @@ import { ArrowLeft, Loader2 } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { useTranslations } from "@/lib/i18n/context";
 import { queryKeys } from "@/lib/query-keys";
-import { parseScheduleRecurrence } from "@/lib/medication-schedule";
 
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { DrugLevelChart } from "@/components/medications/DrugLevelChart";
-import { DoseStrengthCurve } from "@/components/medications/dose-strength-curve";
-import { MedicationDetailSummary } from "@/components/medications/medication-detail-summary";
-import { IntakeHistoryPreview } from "@/components/medications/sections/intake-history-preview";
-import { SideEffectsSection } from "@/components/medications/SideEffectsSection";
-import type { MedicationPayload } from "@/components/medications/wizard/wizard-payload";
-
-interface ScheduleSnapshot {
-  id: string;
-  windowStart: string;
-  windowEnd: string;
-  label: string | null;
-  dose: string | null;
-  daysOfWeek: string | null;
-  timesOfDay?: string[];
-  rrule?: string | null;
-  rollingIntervalDays?: number | null;
-  reminderGraceMinutes?: number | null;
-}
-
-interface MedicationDetailSnapshot {
-  id: string;
-  name: string;
-  dose: string;
-  category: string;
-  treatmentClass?: string;
-  deliveryForm?: string;
-  dosesPerUnit?: number | null;
-  active: boolean;
-  notificationsEnabled: boolean;
-  pausedAt: string | null;
-  startsOn?: string | null;
-  endsOn?: string | null;
-  oneShot?: boolean;
-  schedules: ScheduleSnapshot[];
-}
-
-function snapshotToWizardPayload(
-  med: MedicationDetailSnapshot,
-): MedicationPayload {
-  return {
-    id: med.id,
-    name: med.name,
-    dose: med.dose,
-    category: med.category,
-    treatmentClass: med.treatmentClass,
-    deliveryForm: med.deliveryForm,
-    dosesPerUnit: med.dosesPerUnit ?? null,
-    notificationsEnabled: med.notificationsEnabled,
-    startsOn: med.startsOn ? new Date(med.startsOn) : null,
-    endsOn: med.endsOn ? new Date(med.endsOn) : null,
-    oneShot: med.oneShot ?? false,
-    schedules: med.schedules.map((s) => ({
-      id: s.id,
-      windowStart: s.windowStart,
-      windowEnd: s.windowEnd,
-      label: s.label ?? null,
-      dose: s.dose ?? null,
-      ...parseScheduleRecurrence(s.daysOfWeek),
-      timesOfDay: s.timesOfDay,
-      rrule: s.rrule ?? null,
-      rollingIntervalDays: s.rollingIntervalDays ?? null,
-    })),
-  };
-}
+import {
+  MedicationDetailTabs,
+  type MedicationDetailSnapshot,
+} from "@/components/medications/detail/MedicationDetailTabs";
 
 export default function MedicationDetailPage({
   params,
@@ -111,8 +38,6 @@ export default function MedicationDetailPage({
   const { isAuthenticated, isLoading: authLoading } = useAuth();
   const router = useRouter();
   const { t } = useTranslations();
-
-  const [importOpen, setImportOpen] = useState(false);
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
@@ -138,13 +63,6 @@ export default function MedicationDetailPage({
     // prefix-invalidates `["medications"]` while this page is mounted.
     retry: false,
   });
-
-  // v1.7.2 W3 — derive the wizard payload purely to feed the read-only
-  // cadence summary line (the editor itself lives on the card kebab).
-  const wizardPayload = useMemo<MedicationPayload | null>(
-    () => (medication ? snapshotToWizardPayload(medication) : null),
-    [medication],
-  );
 
   if (authLoading || isLoading) {
     return (
@@ -178,70 +96,12 @@ export default function MedicationDetailPage({
           data-slot="medication-detail-error-card"
         >
           <p className="text-destructive text-sm">
-            {t("medications.loadFailed")}
+            {t("medications.detail.shell.loadFailed")}
           </p>
         </Card>
       </div>
     );
   }
 
-  const oneShot = medication.oneShot === true;
-  // `wizardPayload` is non-null here — the early returns above bail
-  // before this point whenever `medication` is undefined.
-  const payload = wizardPayload as MedicationPayload;
-  const isGlp1 = !oneShot && medication.treatmentClass === "GLP1";
-
-  return (
-    <div className="space-y-6" data-slot="medication-detail-page">
-      <Button variant="ghost" size="sm" className="-ml-2 w-fit" asChild>
-        <Link href="/medications">
-          <ArrowLeft aria-hidden="true" className="mr-1 size-4" />
-          {t("medications.back")}
-        </Link>
-      </Button>
-
-      {/* v1.7.2 W3 — compact, NON-editable header. Editing and advanced
-          settings are reached from the medications-list card kebab only;
-          the detail page is history-centric. The header is a read-only
-          summary: name / dose / status + plain-language cadence line. */}
-      <MedicationDetailSummary
-        name={medication.name}
-        dose={medication.dose}
-        active={medication.active}
-        endsOn={medication.endsOn}
-        payload={payload}
-        oneShot={oneShot}
-        startsOn={medication.startsOn}
-      />
-
-      {/* Intake history table — the primary surface. */}
-      <IntakeHistoryPreview
-        medicationId={id}
-        importOpen={importOpen}
-        onImportOpenChange={setImportOpen}
-      />
-
-      {/* v1.6.0 — side-effect logbook stays inline for GLP-1 medications
-          (genuine history context). */}
-      {isGlp1 && <SideEffectsSection medicationId={id} />}
-
-      {/* GLP-1 estimated drug-level curve (the modelled active-ingredient
-          level) + dose-strength (titration) curve. Visible by default for
-          GLP-1 medications — the drug-level estimate is the one the
-          medication concerns, so it leads; the dose-strength curve plots
-          the user's own logged dose-change history below it. */}
-      {isGlp1 && (
-        <div className="space-y-6" data-slot="detail-drug-level-section">
-          <DrugLevelChart
-            medication={{
-              id: medication.id,
-              name: medication.name,
-              dose: medication.dose,
-            }}
-          />
-          <DoseStrengthCurve medicationId={id} />
-        </div>
-      )}
-    </div>
-  );
+  return <MedicationDetailTabs medication={medication} />;
 }

@@ -265,6 +265,13 @@ export const queryKeys = {
     ["medications", medicationId, "cadence"] as const,
   medicationGlp1Details: (medicationId: string) =>
     ["medications", medicationId, "glp1-details"] as const,
+  /**
+   * v1.15.18 — per-medication pen/vial inventory list, consumed by the
+   * detail page's Bestand (supply) tab. Rides under the `["medications"]`
+   * prefix so an intake mutation that decrements a pen invalidates it.
+   */
+  medicationInventory: (medicationId: string) =>
+    ["medications", medicationId, "inventory"] as const,
   medicationIntakeDrugLevelChart: (medicationId: string) =>
     ["medications", medicationId, "intake", "drug-level-chart"] as const,
   /**
