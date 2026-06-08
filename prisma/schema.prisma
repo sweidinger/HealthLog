@@ -1388,6 +1388,16 @@ model MedicationSchedule {
   /// v1.7.0 — cyclic "off" weeks. Only meaningful when
   /// `scheduleType = CYCLIC`.
   cyclicOffWeeks Int? @map("cyclic_off_weeks")
+  /// v1.15.18 — per-dose on-time intake WINDOW (the configurable lever).
+  /// A JSON array of `{ timeOfDay, start, end }` HH:mm triples, one per
+  /// dose time the user wants an explicit range for (e.g.
+  /// `[{ "timeOfDay": "07:00", "start": "07:00", "end": "09:00" }]`).
+  /// The band minter reads this to build the on-time band from the
+  /// explicit `[start, end]` range for the matching `timeOfDay`; a
+  /// `timeOfDay` with no entry falls back to the symmetric ±1h default.
+  /// The late tail stays cadence-derived. NULL = every slot uses the
+  /// default derivation (unchanged behaviour). Additive + iOS-safe.
+  doseWindows  Json? @map("dose_windows")
 
   medication       Medication                @relation(fields: [medicationId], references: [id], onDelete: Cascade)
   telegramMessages TelegramReminderMessage[]
