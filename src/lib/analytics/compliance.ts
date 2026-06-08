@@ -19,6 +19,12 @@
  * daily compliance heatmap on `/api/medications/[id]/compliance`.
  */
 
+import type { SlotBand } from "@/lib/medications/scheduling/attribution";
+import {
+  buildBandsForSchedules,
+  type BandMinterMedication,
+  type DoseWindowConfig,
+} from "@/lib/medications/scheduling/band-minter";
 import {
   buildCadenceTimeline,
   type CadenceEngineContext,
@@ -26,6 +32,10 @@ import {
   type ScheduleLike,
 } from "@/lib/medications/scheduling/cadence";
 import { streaksFromTimeline } from "@/lib/medications/scheduling/compliance";
+import {
+  reconstructDoseHistory,
+  type HistoryIntake,
+} from "@/lib/medications/scheduling/dose-history";
 import {
   expandRollingRetrospective,
   nextOccurrenceAfter,
@@ -1095,6 +1105,177 @@ function soonestCadenceFamily(
 }
 
 /**
+ * v1.15.18 — the unified compliance tally over the dose-history ledger.
+ *
+ * THE single source of the medication compliance %. It builds the
+ * cadence-aware `SlotBand[]` per schedule (the shared band minter — every
+ * cadence: daily, fixed-weekday, rolling-retrospective, one-shot, cyclic,
+ * PRN), reconstructs the ONE dose-history ledger
+ * (`reconstructDoseHistory`), and tallies it so the percentage and the
+ * history view are mathematically incapable of contradicting each other
+ * (audit CRITICAL-2). It replaces the ±12h `pairDoses` proximity matcher
+ * that `calculateCompliance` used for the engine-routed path.
+ *
+ * The tally follows the adherence literature's TAKING-vs-TIMING split:
+ *   - numerator (taken) = `taken_on_time` + `taken_late` — a late dose is
+ *     still a taken dose; "late" is NOT collapsed into "missed";
+ *   - denominator = taken + `missed`;
+ *   - EXCLUDED from the denominator: `skipped` (deliberate user decision),
+ *     `ad_hoc` (off-schedule top-up — no defensible slot), `upcoming` (the
+ *     window hasn't opened), and ENTIRE PRN groups (`hasExpectedSlots:false`
+ *     — PRN has no defensible denominator per the literature);
+ *   - the rate is capped at 100% (extra doses never inflate it).
+ *
+ * The on-time / late split is surfaced separately so a caller can show both
+ * the TAKING rate (the headline) and the TIMING quality.
+ *
+ * Pure / synchronous: the bands are minted from pre-fetched schedules +
+ * intake instants; no DB access.
+ */
+export interface LedgerComplianceTally {
+  /** Doses taken (on-time + late). The TAKING-adherence numerator. */
+  taken: number;
+  /** Of `taken`, the count inside the on-time band. */
+  takenOnTime: number;
+  /** Of `taken`, the count in the late tail (still counts as taken). */
+  takenLate: number;
+  /** Expected doses never acted on past their miss cutoff. */
+  missed: number;
+  /** Deliberate user skips — excluded from the denominator. */
+  skipped: number;
+  /** Off-schedule intakes (PRN groups + ad-hoc rows) — excluded. */
+  adHoc: number;
+  /** taken + missed (the rate denominator). */
+  denominator: number;
+  /** round(100 · taken / denominator), capped at 100. 100 on empty. */
+  rate: number;
+}
+
+export function tallyComplianceFromLedger(
+  events: IntakeEvent[],
+  schedules: ComplianceSchedule[],
+  ctx: ComplianceMedicationContext,
+  from: Date,
+  to: Date,
+  now: Date,
+  windowConfig?: DoseWindowConfig,
+): LedgerComplianceTally {
+  const medication: BandMinterMedication = {
+    id: "compliance-tally",
+    startsOn: ctx.startsOn,
+    endsOn: ctx.endsOn,
+    oneShot: ctx.oneShot,
+    createdAt: ctx.createdAt,
+  };
+  const recurrenceCtx = toRecurrenceCtx(ctx, "compliance-tally");
+  const canonicalSchedules = schedules.map((s, i) => {
+    const canonical = toCanonicalSchedule(s, `compliance-tally-${i}`);
+    // A legacy daily schedule carries only `windowStart` (no `timesOfDay`,
+    // no rrule, no rolling, no `daysOfWeek`). The engine's `expandLegacy`
+    // reads that as "every day at windowStart", but the band minter's
+    // cadence-detection gate needs an explicit time signal — surface
+    // `windowStart` as the single time-of-day so the daily band is minted.
+    if (
+      canonical.timesOfDay.length === 0 &&
+      canonical.rrule === null &&
+      canonical.rollingIntervalDays === null &&
+      canonical.scheduleType !== "PRN" &&
+      !ctx.oneShot
+    ) {
+      return { ...canonical, timesOfDay: [canonical.windowStart] };
+    }
+    return canonical;
+  });
+  // Rolling cadences anchor their retrospective grid AT each logged intake;
+  // the bands need every non-skipped take in (or before) the window. Reuse
+  // the same instant-extraction the legacy rolling path uses so the
+  // numerator and denominator are built from one expansion.
+  const intakeInstants = intakeInstantsAtOrBefore(
+    events.map((e) => ({ takenAt: e.takenAt, skipped: e.skipped })),
+    to,
+  );
+
+  const groups = buildBandsForSchedules({
+    medication,
+    schedules: canonicalSchedules,
+    ctx: recurrenceCtx,
+    userTz: ctx.timeZone,
+    range: { from, to },
+    now,
+    windowConfig,
+    intakeInstants,
+  });
+
+  // The ledger reads `scheduledFor` + `takenAt` + skip/auto-miss flags. The
+  // bands already partition the slot space, so the union of every
+  // non-PRN schedule's bands is fed to ONE reconstruction — `reconstruct
+  // DoseHistory` claims each slot by at most one intake, so pooling the
+  // (already correctly-minted) bands is safe. PRN groups (no expected
+  // slots) contribute no bands; their intakes surface as ad-hoc and are
+  // excluded from the denominator, exactly as the literature requires.
+  const bands: SlotBand[] = [];
+  for (const g of groups) {
+    if (g.hasExpectedSlots) bands.push(...g.bands);
+  }
+
+  const intakes: HistoryIntake[] = events
+    .filter((e) => e.scheduledFor >= from && e.scheduledFor <= to)
+    .map((e) => ({
+      scheduledFor: e.scheduledFor,
+      takenAt: e.takenAt,
+      skipped: e.skipped,
+      autoMissed: e.autoMissed ?? false,
+    }));
+
+  const rows = reconstructDoseHistory(bands, intakes, now);
+
+  let takenOnTime = 0;
+  let takenLate = 0;
+  let missed = 0;
+  let skipped = 0;
+  let adHoc = 0;
+  for (const row of rows) {
+    switch (row.status) {
+      case "taken_on_time":
+        takenOnTime++;
+        break;
+      case "taken_late":
+        takenLate++;
+        break;
+      case "missed":
+        missed++;
+        break;
+      case "skipped":
+        skipped++;
+        break;
+      case "ad_hoc":
+        adHoc++;
+        break;
+      // `upcoming` slots are future / still-takeable → excluded from every
+      // counter so a partial head-of-window day never pollutes the rate.
+    }
+  }
+
+  const taken = takenOnTime + takenLate;
+  const denominator = taken + missed;
+  const rate =
+    denominator > 0
+      ? Math.min(100, Math.round((taken / denominator) * 100))
+      : 100;
+
+  return {
+    taken,
+    takenOnTime,
+    takenLate,
+    missed,
+    skipped,
+    adHoc,
+    denominator,
+    rate,
+  };
+}
+
+/**
  * Calculate compliance for a medication over a given period.
  *
  * Honours `daysOfWeek` (e.g. `"1"` for Mondays only) and
@@ -1167,6 +1348,41 @@ export function calculateCompliance(
     1,
     Math.ceil((now.getTime() - effectiveStart.getTime()) / DAY_MS),
   );
+
+  // v1.15.18 — when a medication context is supplied, the count fields
+  // (taken / skipped / missed / rate) come from the UNIFIED dose-history
+  // ledger tally, NOT the ±12h `pairDoses` proximity matcher. This is the
+  // keystone unification: the percentage is a tally over the exact same
+  // ledger the history view renders, so the two can never contradict (a
+  // dose can't read "taken late" in the % while the ledger calls it
+  // "ad-hoc"). The numerator is on-time + late takes (a late dose still
+  // counts as taken); user skips + ad-hoc top-ups + PRN groups are excluded
+  // from the denominator. The streak still walks the cadence timeline below
+  // (its day-grain "every dose taken or skipped" rule is unchanged).
+  //
+  // Context-less callers (pure-math fixtures, pre-v1.7 surfaces) keep the
+  // legacy timeline tally byte-stable — they have no engine context to mint
+  // bands from.
+  const ledgerCtx = options?.medicationContext;
+  let ledgerCounts:
+    | { taken: number; skipped: number; missed: number; rate: number }
+    | null = null;
+  if (ledgerCtx) {
+    const tally = tallyComplianceFromLedger(
+      events,
+      schedules,
+      ledgerCtx,
+      effectiveStart,
+      now,
+      now,
+    );
+    ledgerCounts = {
+      taken: tally.taken,
+      skipped: tally.skipped,
+      missed: tally.missed,
+      rate: tally.rate,
+    };
+  }
 
   // Normalise the schedule shape so legacy callers that pass only
   // `{ windowStart, windowEnd }` still produce a usable `daysOfWeek`
@@ -1252,23 +1468,36 @@ export function calculateCompliance(
     retro,
   );
 
-  let taken = 0;
-  let skipped = 0;
-  let missed = 0;
-  for (const slot of timeline) {
-    if (slot.status === "taken") taken++;
-    else if (slot.status === "skipped") skipped++;
-    else if (slot.status === "missed") missed++;
-    // `upcoming` slots (future window) are excluded from every counter
-    // so a partial day at the head of the window doesn't pollute the rate.
+  // v1.15.18 — the count fields come from the unified ledger tally when a
+  // medication context was supplied (the keystone unification), and from the
+  // legacy timeline tally otherwise (context-less pure-math callers). The
+  // streak below always walks the timeline — its day-grain rule is orthogonal
+  // to the per-dose attribution and stays byte-stable for every caller.
+  let taken: number;
+  let skipped: number;
+  let missed: number;
+  let rate: number;
+  if (ledgerCounts) {
+    ({ taken, skipped, missed, rate } = ledgerCounts);
+  } else {
+    taken = 0;
+    skipped = 0;
+    missed = 0;
+    for (const slot of timeline) {
+      if (slot.status === "taken") taken++;
+      else if (slot.status === "skipped") skipped++;
+      else if (slot.status === "missed") missed++;
+      // `upcoming` slots (future window) are excluded from every counter
+      // so a partial day at the head of the window doesn't pollute the rate.
+    }
+    // Skipped doses are excluded from the denominator — they represent a
+    // deliberate user decision rather than a missed dose.
+    const denom = taken + missed;
+    rate =
+      denom > 0 ? Math.min(100, Math.round((taken / denom) * 100)) : 100;
   }
 
   const totalExpected = taken + skipped + missed;
-  // Skipped doses are excluded from the denominator — they represent a
-  // deliberate user decision rather than a missed dose.
-  const denom = taken + missed;
-  const rate =
-    denom > 0 ? Math.min(100, Math.round((taken / denom) * 100)) : 100;
 
   // Streak: consecutive days, ending today, where every expected dose
   // was taken or skipped. Days with no expected dose advance the

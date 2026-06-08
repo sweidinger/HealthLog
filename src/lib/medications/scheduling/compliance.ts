@@ -19,6 +19,11 @@
  * legacy system-local behaviour the W19e tests pin.
  */
 
+import type { SlotBand } from "./attribution";
+import {
+  buildBandsForSchedules,
+  type BandMinterMedication,
+} from "./band-minter";
 import {
   buildCadenceTimeline,
   startOfLocalDay,
@@ -27,6 +32,14 @@ import {
   type PairedDose,
   type ScheduleLike,
 } from "./cadence";
+import {
+  reconstructDoseHistory,
+  type HistoryIntake,
+} from "./dose-history";
+import {
+  type CanonicalSchedule,
+  type RecurrenceContext,
+} from "./recurrence";
 
 export interface ComplianceChips {
   /** 0-100, taken / (taken + missed). Skipped doses are excluded from
@@ -142,6 +155,116 @@ export function streaksFromTimeline(
   return { current, longest };
 }
 
+/**
+ * v1.15.18 — band-ledger tally counts for the detail-page chips.
+ *
+ * When the route threads an engine context (RRULE / rolling / cyclic /
+ * one-shot / PRN / legacy) the adherence rate + missed count come from the
+ * SAME unified dose-history ledger the compliance % and the history view
+ * read — so the chips can never contradict either. The streak still walks
+ * the cadence timeline (its day-grain "every dose taken or skipped" rule is
+ * orthogonal to per-dose attribution). Returns null when there is no engine
+ * context (a pure-math caller) — the caller then falls back to the legacy
+ * timeline tally.
+ */
+function ledgerChipCounts(
+  schedules: ScheduleLike[],
+  events: IntakeEventLike[],
+  asOf: Date,
+  windowDays: number,
+  timeZone: string | undefined,
+  engineCtx: CadenceEngineContext | undefined,
+): { taken: number; missed: number } | null {
+  if (!engineCtx) return null;
+  const DAY_MS = 24 * 60 * 60 * 1000;
+  const from = new Date(asOf.getTime() - windowDays * DAY_MS);
+  const userTz = engineCtx.timeZone || timeZone || "UTC";
+
+  const medication: BandMinterMedication = {
+    id: "chips-tally",
+    startsOn: engineCtx.startsOn,
+    endsOn: engineCtx.endsOn,
+    oneShot: engineCtx.oneShot,
+    createdAt: engineCtx.createdAt,
+  };
+  const recurrenceCtx: RecurrenceContext = {
+    medication: {
+      id: "chips-tally",
+      startsOn: engineCtx.startsOn,
+      endsOn: engineCtx.endsOn,
+      oneShot: engineCtx.oneShot,
+      createdAt: engineCtx.createdAt,
+    },
+    timeZone: userTz,
+    lastIntakeAt: engineCtx.lastIntakeAt,
+  };
+  const canonicalSchedules: CanonicalSchedule[] = schedules.map((s, i) => {
+    const base: CanonicalSchedule = {
+      id: s.id ?? `chips-${i}`,
+      rrule: s.rrule ?? null,
+      rollingIntervalDays: s.rollingIntervalDays ?? null,
+      timesOfDay: s.timesOfDay ?? [],
+      daysOfWeek: s.daysOfWeek ?? null,
+      windowStart: s.windowStart,
+      windowEnd: s.windowEnd,
+      reminderGraceMinutes: s.reminderGraceMinutes ?? null,
+      scheduleType: s.scheduleType ?? "SCHEDULED",
+      cyclicOnWeeks: s.cyclicOnWeeks ?? null,
+      cyclicOffWeeks: s.cyclicOffWeeks ?? null,
+    };
+    // Surface windowStart as the single time-of-day for a legacy daily row
+    // so the band minter's cadence gate mints its daily band (see the
+    // analytics/compliance tally for the same normalisation).
+    if (
+      base.timesOfDay.length === 0 &&
+      base.rrule === null &&
+      base.rollingIntervalDays === null &&
+      base.scheduleType !== "PRN" &&
+      !engineCtx.oneShot
+    ) {
+      return { ...base, timesOfDay: [base.windowStart] };
+    }
+    return base;
+  });
+
+  const intakeInstants = events
+    .filter((e) => !e.skipped && e.takenAt !== null && e.takenAt <= asOf)
+    .map((e) => e.takenAt as Date)
+    .sort((a, b) => a.getTime() - b.getTime());
+
+  const groups = buildBandsForSchedules({
+    medication,
+    schedules: canonicalSchedules,
+    ctx: recurrenceCtx,
+    userTz,
+    range: { from, to: asOf },
+    now: asOf,
+    intakeInstants,
+  });
+  const bands: SlotBand[] = [];
+  for (const g of groups) {
+    if (g.hasExpectedSlots) bands.push(...g.bands);
+  }
+
+  const intakes: HistoryIntake[] = events
+    .filter((e) => e.scheduledFor >= from && e.scheduledFor <= asOf)
+    .map((e) => ({
+      scheduledFor: e.scheduledFor,
+      takenAt: e.takenAt,
+      skipped: e.skipped,
+      autoMissed: e.autoMissed ?? false,
+    }));
+
+  const rows = reconstructDoseHistory(bands, intakes, asOf);
+  let taken = 0;
+  let missed = 0;
+  for (const row of rows) {
+    if (row.status === "taken_on_time" || row.status === "taken_late") taken++;
+    else if (row.status === "missed") missed++;
+  }
+  return { taken, missed };
+}
+
 export function complianceChips(
   schedules: ScheduleLike[],
   events: IntakeEventLike[],
@@ -160,8 +283,23 @@ export function complianceChips(
     timeZone,
     engineCtx,
   );
-  const taken = timeline.filter((d) => d.status === "taken").length;
-  const missed = timeline.filter((d) => d.status === "missed").length;
+  // v1.15.18 — adherence + missed come from the unified band ledger when an
+  // engine context is present (so the chips agree with the % and the history
+  // view); the legacy timeline tally is the fallback for pure-math callers.
+  const ledger = ledgerChipCounts(
+    schedules,
+    events,
+    asOf,
+    windowDays,
+    timeZone,
+    engineCtx,
+  );
+  const taken = ledger
+    ? ledger.taken
+    : timeline.filter((d) => d.status === "taken").length;
+  const missed = ledger
+    ? ledger.missed
+    : timeline.filter((d) => d.status === "missed").length;
   const denom = taken + missed;
   const adherenceRate = denom === 0 ? null : Math.round((taken / denom) * 100);
   const { current, longest } = streaksFromTimeline(

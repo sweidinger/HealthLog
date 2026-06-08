@@ -28,6 +28,15 @@
  */
 
 import { parseScheduleRecurrence } from "@/lib/medication-schedule";
+import type { SlotBand } from "@/lib/medications/scheduling/attribution";
+import {
+  buildBandsForSchedules,
+  type BandMinterMedication,
+} from "@/lib/medications/scheduling/band-minter";
+import {
+  reconstructDoseHistory,
+  type HistoryIntake,
+} from "@/lib/medications/scheduling/dose-history";
 import {
   type CanonicalSchedule,
   type RecurrenceContext,
@@ -790,6 +799,19 @@ export function missedDoses(
   timeZone?: string,
   engineCtx?: CadenceEngineContext,
 ): number {
+  // v1.15.18 — when an engine context is threaded the missed count comes from
+  // the unified band ledger (the same one the % and the history view read), so
+  // every "missed" surface agrees. Pure-math callers (no context) keep the
+  // legacy timeline-status count.
+  const ledger = missedFromLedger(
+    schedules,
+    events,
+    asOf,
+    windowDays,
+    timeZone,
+    engineCtx,
+  );
+  if (ledger !== null) return ledger;
   const timeline = buildCadenceTimeline(
     schedules,
     events,
@@ -800,4 +822,81 @@ export function missedDoses(
     engineCtx,
   );
   return timeline.filter((d) => d.status === "missed").length;
+}
+
+/**
+ * v1.15.18 — the count of `missed` rows in the unified dose-history ledger
+ * over the trailing window. Returns null when no engine context is supplied
+ * (the caller then uses the legacy timeline tally). Shares the band minter +
+ * `reconstructDoseHistory` with the compliance % so the numbers agree.
+ */
+function missedFromLedger(
+  schedules: ScheduleLike[],
+  events: IntakeEventLike[],
+  asOf: Date,
+  windowDays: number,
+  timeZone: string | undefined,
+  engineCtx: CadenceEngineContext | undefined,
+): number | null {
+  if (!engineCtx) return null;
+  const from = new Date(asOf.getTime() - windowDays * DAY_MS);
+  const userTz = engineCtx.timeZone || timeZone || "UTC";
+  const medication: BandMinterMedication = {
+    id: "missed-tally",
+    startsOn: engineCtx.startsOn,
+    endsOn: engineCtx.endsOn,
+    oneShot: engineCtx.oneShot,
+    createdAt: engineCtx.createdAt,
+  };
+  const recurrenceCtx: RecurrenceContext = {
+    medication: {
+      id: "missed-tally",
+      startsOn: engineCtx.startsOn,
+      endsOn: engineCtx.endsOn,
+      oneShot: engineCtx.oneShot,
+      createdAt: engineCtx.createdAt,
+    },
+    timeZone: userTz,
+    lastIntakeAt: engineCtx.lastIntakeAt,
+  };
+  const canonicalSchedules: CanonicalSchedule[] = schedules.map((s, i) => {
+    const base = toCanonical(s, i);
+    if (
+      base.timesOfDay.length === 0 &&
+      base.rrule === null &&
+      base.rollingIntervalDays === null &&
+      base.scheduleType !== "PRN" &&
+      !engineCtx.oneShot
+    ) {
+      return { ...base, timesOfDay: [base.windowStart] };
+    }
+    return base;
+  });
+  const intakeInstants = events
+    .filter((e) => !e.skipped && e.takenAt !== null && e.takenAt <= asOf)
+    .map((e) => e.takenAt as Date)
+    .sort((a, b) => a.getTime() - b.getTime());
+  const groups = buildBandsForSchedules({
+    medication,
+    schedules: canonicalSchedules,
+    ctx: recurrenceCtx,
+    userTz,
+    range: { from, to: asOf },
+    now: asOf,
+    intakeInstants,
+  });
+  const bands: SlotBand[] = [];
+  for (const g of groups) {
+    if (g.hasExpectedSlots) bands.push(...g.bands);
+  }
+  const intakes: HistoryIntake[] = events
+    .filter((e) => e.scheduledFor >= from && e.scheduledFor <= asOf)
+    .map((e) => ({
+      scheduledFor: e.scheduledFor,
+      takenAt: e.takenAt,
+      skipped: e.skipped,
+      autoMissed: e.autoMissed ?? false,
+    }));
+  const rows = reconstructDoseHistory(bands, intakes, asOf);
+  return rows.filter((r) => r.status === "missed").length;
 }
