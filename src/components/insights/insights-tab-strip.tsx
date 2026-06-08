@@ -3,7 +3,7 @@
 import { memo, useEffect, useMemo, useRef } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ChevronDown, Loader2, RefreshCw } from "lucide-react";
+import { ChevronDown, Loader2, RefreshCw, Settings2 } from "lucide-react";
 import { toast } from "sonner";
 
 import {
@@ -475,6 +475,7 @@ function InsightsTabStripImpl({
   }, [regenerating, t]);
 
   const regenerateLabel = t("insights.regenerateAnalysis");
+  const customizeLabel = t("insights.customize");
 
   return (
     <nav
@@ -623,6 +624,29 @@ function InsightsTabStripImpl({
             "from-background/95 pointer-events-none absolute inset-y-0 right-0 w-8 bg-gradient-to-l to-transparent sm:hidden",
           )}
         />
+        {/* v1.15.18 — customise cog. Sits immediately LEFT of the
+            regenerate button and links to the Insights settings section
+            (overview arrange + pill sort), matching the Dashboard cog
+            idiom. Rendered alongside the regenerate affordance so the two
+            top-right controls travel together. The inline "Anpassen"
+            button under the hero was removed — this is the single entry
+            point. */}
+        {onRegenerate && (
+          <Link
+            href="/settings/insights"
+            aria-label={customizeLabel}
+            title={customizeLabel}
+            data-slot="insights-tab-strip-customize"
+            className={cn(
+              "inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full",
+              "text-muted-foreground hover:text-foreground hover:bg-accent",
+              "transition-colors",
+              "focus-visible:ring-ring/50 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none",
+            )}
+          >
+            <Settings2 className="h-4 w-4" aria-hidden="true" />
+          </Link>
+        )}
         {onRegenerate && (
           <button
             type="button"
