@@ -51,25 +51,53 @@ export interface InsightAdvisorPayload {
 }
 
 /**
- * v1.4.31 — bound the advisor POST with an 8-second
- * `AbortController` so a cache-miss path (server still waiting on
- * the provider chain) does not pin the mother-page main thread for
- * the LLM's full completion tail. The strip stays interactive in
- * the DOM, but every re-render of a parent during a long pending
- * fetch competes with WebKit's gesture-recognition timeout —
- * dropping the worst case from 30 s to 8 s eliminates the
- * mobile-tap-block window per
+ * v1.4.31 — bound the advisor READ (GET) with an 8-second
+ * `AbortController` so a cache-miss path (server still warming out of
+ * band) does not pin the mother-page main thread. The strip stays
+ * interactive in the DOM; dropping the worst case from 30 s to 8 s
+ * eliminates the mobile-tap-block window per
  * `.planning/research/v15-insights-blocking-bug.md` fix 1.
  */
 const ADVISOR_TIMEOUT_MS = 8_000;
 
+/**
+ * v1.15.18 — the user-initiated regenerate (`force`) POSTs an INLINE
+ * generation: a ~1500-token warm completion that routinely runs longer
+ * than the 8 s read budget. Bounding the force branch at 8 s silently
+ * discarded a slow-but-successful generation — the abort returned a null
+ * payload, the mutation only invalidated (re-reading the OLD cache), yet
+ * the server had often already written the fresh briefing. Give the force
+ * branch the same 45 s budget the out-of-band warm job uses
+ * (`FORCE_WARM_COMPREHENSIVE_TIMEOUT_MS`) so a slow success is kept, not
+ * dropped. The READ path stays fast at 8 s — only the explicit user tap
+ * may wait. Per `.planning/v1.15.18-daily-briefing-audit.md` Fix 1b.
+ */
+const FORCE_ADVISOR_TIMEOUT_MS = 45_000;
+
+/**
+ * v1.15.18 — the outcome of a force regenerate, so the UI can be HONEST:
+ * only a `fresh` outcome should toast "refreshed". A `timeout` (slow gen
+ * the client gave up on) and a `no-provider` (422) are distinct failure
+ * modes the audit's Fix 2 + Fix 4 call out.
+ */
+export type AdvisorFetchOutcome =
+  | "fresh"
+  | "empty"
+  | "timeout"
+  | "no-provider";
+
+interface AdvisorFetchResult {
+  payload: InsightAdvisorPayload | null;
+  outcome: AdvisorFetchOutcome;
+}
+
 async function fetchAdvisor(
   options: { force?: boolean } = {},
-): Promise<InsightAdvisorPayload | null> {
+): Promise<AdvisorFetchResult> {
   const controller = new AbortController();
   const timeoutHandle = setTimeout(
     () => controller.abort(),
-    ADVISOR_TIMEOUT_MS,
+    options.force ? FORCE_ADVISOR_TIMEOUT_MS : ADVISOR_TIMEOUT_MS,
   );
   let res: Response;
   try {
@@ -92,7 +120,8 @@ async function fetchAdvisor(
     if (err instanceof DOMException && err.name === "AbortError") {
       // Graceful empty payload — the UI surfaces the empty / regen
       // CTA exactly as it does for the 422 / 429 / 503 paths below.
-      return null;
+      // `timeout` lets the regenerate path avoid claiming success.
+      return { payload: null, outcome: "timeout" };
     }
     throw err;
   } finally {
@@ -101,9 +130,14 @@ async function fetchAdvisor(
   if (!res.ok) {
     // 422 (no provider configured) and 429 (rate-limited) are expected
     // surfaces — return null so the consuming UI shows the empty / error
-    // state without the query slipping into an `isError` retry loop.
-    if (res.status === 422 || res.status === 429 || res.status === 503) {
-      return null;
+    // state without the query slipping into an `isError` retry loop. 422
+    // surfaces as `no-provider` so the regenerate path can distinguish a
+    // missing provider from a slow generation (audit Fix 4).
+    if (res.status === 422) {
+      return { payload: null, outcome: "no-provider" };
+    }
+    if (res.status === 429 || res.status === 503) {
+      return { payload: null, outcome: "empty" };
     }
     throw new Error(`HTTP ${res.status}`);
   }
@@ -139,7 +173,7 @@ async function fetchAdvisor(
   } else {
     payload.trendAnnotations = null;
   }
-  return payload;
+  return { payload, outcome: "fresh" };
 }
 
 export interface UseInsightsAdvisorResult {
@@ -150,6 +184,13 @@ export interface UseInsightsAdvisorResult {
   regenerate: () => void;
   isRegenerating: boolean;
   regenerateError: Error | null;
+  /**
+   * v1.15.18 — the outcome of the LAST settled regenerate. The tab strip
+   * fires the "refreshed" toast only when this is `"fresh"`, so a slow gen
+   * the client gave up on (`"timeout"`) or a missing provider
+   * (`"no-provider"`) never reads as "done".
+   */
+  regenerateOutcome: AdvisorFetchOutcome | null;
 }
 
 /**
@@ -162,7 +203,9 @@ export function useInsightsAdvisorQuery(
   const queryClient = useQueryClient();
   const query = useQuery({
     queryKey: queryKeys.insightsAdvisor(),
-    queryFn: () => fetchAdvisor(),
+    // Map the tagged fetch result back onto the payload the cache stores —
+    // the read path only cares about the payload, not the outcome tag.
+    queryFn: async () => (await fetchAdvisor()).payload,
     enabled,
     // 24h cache window matches the server-side `insightsCachedAt` TTL.
     staleTime: 60 * 60 * 1000,
@@ -171,10 +214,17 @@ export function useInsightsAdvisorQuery(
 
   const mutation = useMutation({
     mutationFn: () => fetchAdvisor({ force: true }),
-    onSuccess: (next) => {
-      if (next) {
-        queryClient.setQueryData(queryKeys.insightsAdvisor(), next);
+    onSuccess: ({ payload }) => {
+      if (payload) {
+        // A genuinely fresh generation landed — write it into the shared
+        // cache so the hero subtitle + briefing card repaint immediately.
+        queryClient.setQueryData(queryKeys.insightsAdvisor(), payload);
       } else {
+        // No fresh payload (timeout / no-provider / transient). The server's
+        // inline POST may STILL have written a fresh briefing after the
+        // client gave up at 45 s, so re-read the GET to converge — but the
+        // honest toast is gated on `regenerateOutcome` below, not on this
+        // invalidate.
         queryClient.invalidateQueries({
           queryKey: queryKeys.insightsAdvisor(),
         });
@@ -202,5 +252,6 @@ export function useInsightsAdvisorQuery(
     regenerate,
     isRegenerating: mutation.isPending,
     regenerateError: (mutation.error as Error | null) ?? null,
+    regenerateOutcome: mutation.data?.outcome ?? null,
   };
 }

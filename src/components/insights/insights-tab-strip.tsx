@@ -67,6 +67,15 @@ export interface InsightsTabStripProps {
   /** Spinner state — disables the button and swaps the icon. */
   regenerating?: boolean;
   /**
+   * v1.15.18 — the outcome of the last settled regenerate. The falling-edge
+   * toast fires "refreshed" ONLY when this is `"fresh"`; a slow generation the
+   * client gave up on (`"timeout"`) shows a "still working" hint instead of a
+   * misleading success, and a missing provider (`"no-provider"`) stays silent
+   * (the surface already shows the connect-AI empty state). Absent (legacy
+   * mounts / no regenerate) falls back to the prior unconditional success.
+   */
+  regenerateOutcome?: "fresh" | "empty" | "timeout" | "no-provider" | null;
+  /**
    * v1.4.27 F19 — analytics + event-driven availability inputs the
    * gating helper reads. When omitted the strip falls back to its
    * pre-v1.4.27 behaviour (every pill renders) so legacy mounts
@@ -440,6 +449,7 @@ function buildTabs(
 function InsightsTabStripImpl({
   onRegenerate,
   regenerating = false,
+  regenerateOutcome,
   availability,
   visibleTileIds,
   tileOrder,
@@ -463,16 +473,27 @@ function InsightsTabStripImpl({
     [availability, visibleTileIds, tileOrder],
   );
 
-  // Fire success toast on the falling edge of `regenerating`. Same
-  // rising-edge ref guard as the W3 implementation so the toast fires
-  // exactly once per regenerate cycle.
+  // Fire a toast on the falling edge of `regenerating`. Same rising-edge ref
+  // guard as the W3 implementation so the toast fires exactly once per
+  // regenerate cycle. v1.15.18 — the toast is now HONEST: only a `"fresh"`
+  // outcome reads "refreshed". A `"timeout"` (a slow generation the client
+  // gave up on while the server may still be writing) shows a "still working,
+  // try again" hint rather than claiming success; a `"no-provider"` stays
+  // silent (the surface already shows the connect-AI empty state). The latest
+  // outcome is read through a ref so the effect doesn't re-fire when only the
+  // outcome (not the spinner edge) changed.
   const lastRegeneratingRef = useRef<boolean>(regenerating);
   useEffect(() => {
     if (lastRegeneratingRef.current && !regenerating) {
-      toast.success(t("insights.regenerateSuccess"));
+      if (regenerateOutcome === "timeout") {
+        toast.error(t("insights.regenerateError"));
+      } else if (regenerateOutcome !== "no-provider") {
+        // `"fresh"`, `"empty"`, or legacy `undefined`/null → success.
+        toast.success(t("insights.regenerateSuccess"));
+      }
     }
     lastRegeneratingRef.current = regenerating;
-  }, [regenerating, t]);
+  }, [regenerating, regenerateOutcome, t]);
 
   const regenerateLabel = t("insights.regenerateAnalysis");
   const customizeLabel = t("insights.customize");
