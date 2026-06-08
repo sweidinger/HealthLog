@@ -28,7 +28,10 @@ import { useTranslations } from "@/lib/i18n/context";
 import { useAuth } from "@/hooks/use-auth";
 import { queryKeys } from "@/lib/query-keys";
 import { useInsightsLayoutQuery } from "@/hooks/use-insights-layout";
-import { reorderById } from "@/lib/insights-layout-reorder";
+import {
+  reorderById,
+  rebuildTilesWithReorderedVitals,
+} from "@/lib/insights-layout-reorder";
 import {
   type InsightsLayout,
   type InsightsTileConfig,
@@ -167,21 +170,14 @@ export function InsightsPillOrderSection({ id }: { id?: string }) {
     const reordered = reorderById(subset, String(active.id), String(over.id));
     const reorderedIds = reordered.map((r) => r.id);
 
-    setDraftTiles((tiles) => {
-      // Substitute this group's slots in their new relative order, leaving
-      // every other tile (and its order) untouched. Walk the tile list and,
-      // at each group-member slot, take the next id from the reordered list.
-      let cursor = 0;
-      return tiles.map((tile) => {
-        if (!groupMemberIds.has(tile.id)) return tile;
-        const nextId = reorderedIds[cursor++];
-        const replacement = tiles.find((tt) => tt.id === nextId);
-        // Keep this slot's `order` and `visible`; swap the id into position.
-        return replacement
-          ? { ...replacement, order: tile.order }
-          : tile;
-      });
-    });
+    // Substitute this group's slots in their new relative order through the
+    // same tested, total-order helper the inline edit mode uses, leaving every
+    // other tile's relative order untouched (QA M2).
+    setDraftTiles((tiles) =>
+      rebuildTilesWithReorderedVitals(tiles, reorderedIds, (id) =>
+        groupMemberIds.has(id),
+      ),
+    );
   }
 
   const dirty = useMemo(() => {
