@@ -36,6 +36,11 @@ import {
 } from "@/lib/analytics/compliance";
 import { getUserTodayBounds } from "@/lib/timezone";
 import { projectTodayIntakesAndRecompute } from "@/lib/medications/scheduling/project-today-intakes";
+import {
+  applyCanonicalSlotWrite,
+  resolveForcedSlotForWrite,
+  resolveSlotForWriteByBand,
+} from "@/lib/medications/scheduling/slot-upsert";
 import { resolveInjectionSiteForWrite } from "@/lib/medications/injection-site-write";
 import {
   injectionSiteEnum,
@@ -62,6 +67,14 @@ const updateSchema = z.object({
   // status toggle. Validated server-side against the medication's
   // effective allowed set; ignored for skipped / snoozed.
   injectionSite: injectionSiteEnum.optional(),
+  // v1.15.18 — late-take "attribute anyway" pin. When a "taken" toggle lands
+  // outside every dose window the UI can offer to pin the take onto a chosen
+  // real slot ("diesem Slot zuordnen?"); the server validates the instant is
+  // a real slot of the medication (422 otherwise). Ignored for skip / snooze.
+  forceSlotInstant: z.iso
+    .datetime({ offset: true })
+    .transform((s) => new Date(s))
+    .optional(),
 });
 
 function startOfDayInTz(date: Date, tz: string): Date {
@@ -380,7 +393,7 @@ export const POST = apiHandler(async (request: NextRequest) => {
     return returnAllZodIssues(parsed.error, 422);
   }
 
-  const { intakeId, status, takenAt, snoozedUntil, injectionSite } =
+  const { intakeId, status, takenAt, snoozedUntil, injectionSite, forceSlotInstant } =
     parsed.data;
 
   // v1.7.0 sync — a tombstoned intake 404s on a status toggle; the
@@ -436,26 +449,96 @@ export const POST = apiHandler(async (request: NextRequest) => {
 
   let updated;
   if (status === "taken") {
-    [updated] = await prisma.$transaction([
-      prisma.medicationIntakeEvent.update({
+    const resolvedTakenAt = takenAt ?? new Date();
+
+    // v1.15.18 — re-run window-band attribution on a taken toggle so an
+    // edited / off-window take re-binds to the right slot instead of leaving
+    // `scheduledFor` stale (audit HIGH-4). `forceSlotInstant` pins onto a
+    // named real slot (422 if it is not one); otherwise band membership picks
+    // the slot (the take's own time on a miss → ad-hoc). Mirrors the
+    // per-event PUT route.
+    let targetScheduledFor: Date;
+    if (forceSlotInstant !== undefined) {
+      const forced = await resolveForcedSlotForWrite({
+        userId: user.id,
+        medicationId: existing.medicationId,
+        userTz: userTzForHook,
+        slotInstant: forceSlotInstant,
+      });
+      if (forced === null) {
+        annotate({
+          action: { name: "medication.intake.force_slot.invalid" },
+          meta: { medication_id: existing.medicationId, intake_id: intakeId },
+        });
+        return apiError(
+          "forceSlotInstant is not a scheduled slot of this medication",
+          422,
+          { errorCode: "medications.intake.force_slot.invalid" },
+        );
+      }
+      targetScheduledFor = forced;
+    } else {
+      const attribution = await resolveSlotForWriteByBand({
+        userId: user.id,
+        medicationId: existing.medicationId,
+        userTz: userTzForHook,
+        takenAt: resolvedTakenAt,
+      });
+      targetScheduledFor = attribution.slotInstant ?? resolvedTakenAt;
+    }
+
+    const slotMoved =
+      targetScheduledFor.getTime() !== existing.scheduledFor.getTime();
+
+    if (!slotMoved) {
+      [updated] = await prisma.$transaction([
+        prisma.medicationIntakeEvent.update({
+          where: { id: intakeId },
+          // v1.7.0 sync — bump the reconciliation counter on every
+          // server-side mutation so the delta feed echoes a monotonic value.
+          data: {
+            takenAt: resolvedTakenAt,
+            skipped: false,
+            syncVersion: { increment: 1 },
+            // v1.8.5 — persist the resolved site on the taken branch.
+            ...(resolvedInjectionSite !== null && {
+              injectionSite: resolvedInjectionSite,
+            }),
+          },
+        }),
+        prisma.medication.update({
+          where: { id: existing.medicationId },
+          data: { snoozedUntil: null },
+        }),
+      ]);
+    } else {
+      // The take re-attributed to a different slot. Tombstone the source row
+      // and route the dose through the shared canonical-slot upsert, which
+      // converges onto any row already at the target slot rather than
+      // bare-updating into an occupied slot (P2002-safe).
+      await prisma.medicationIntakeEvent.update({
         where: { id: intakeId },
-        // v1.7.0 sync — bump the reconciliation counter on every
-        // server-side mutation so the delta feed echoes a monotonic value.
-        data: {
-          takenAt: takenAt ?? new Date(),
-          skipped: false,
-          syncVersion: { increment: 1 },
-          // v1.8.5 — persist the resolved site on the taken branch.
-          ...(resolvedInjectionSite !== null && {
-            injectionSite: resolvedInjectionSite,
-          }),
-        },
-      }),
-      prisma.medication.update({
+        data: { deletedAt: new Date(), syncVersion: { increment: 1 } },
+      });
+      const applied = await applyCanonicalSlotWrite({
+        client: prisma,
+        userId: user.id,
+        medicationId: existing.medicationId,
+        canonicalSlot: targetScheduledFor,
+        takenAt: resolvedTakenAt,
+        skipped: false,
+        isExplicitTaken: true,
+        isExplicitSkip: false,
+        idempotencyKey: null,
+        createSource: "WEB",
+        injectionSite: resolvedInjectionSite,
+      });
+      updated = applied.row;
+      await prisma.medication.update({
         where: { id: existing.medicationId },
         data: { snoozedUntil: null },
-      }),
-    ]);
+      });
+    }
   } else if (status === "skipped") {
     updated = await prisma.medicationIntakeEvent.update({
       where: { id: intakeId },

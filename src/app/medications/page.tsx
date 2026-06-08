@@ -3,13 +3,10 @@
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useRouter, useSearchParams } from "next/navigation";
-import { AdvancedSettingsSheet } from "@/components/medications/advanced-settings-sheet";
 import { useAuth } from "@/hooks/use-auth";
 import { useTranslations } from "@/lib/i18n/context";
 import { queryKeys } from "@/lib/query-keys";
-import { parseScheduleRecurrence } from "@/lib/medication-schedule";
 import { MedicationWizardDialog } from "@/components/medications/wizard/MedicationWizardDialog";
-import type { MedicationPayload } from "@/components/medications/wizard/wizard-payload";
 import { MedicationCard } from "@/components/medications/medication-card";
 import { Glp1MedicationCard } from "@/components/medications/glp1-medication-card";
 import { LogIntakeDialog } from "@/components/medications/log-intake-dialog";
@@ -130,12 +127,6 @@ export default function MedicationsPage() {
   // the param from the URL so a manual close + refresh stays closed.
   const shouldOpenFromUrl = searchParams?.get("new") === "1";
   const [dialogOpen, setDialogOpen] = useState(shouldOpenFromUrl);
-  const [editingMed, setEditingMed] = useState<Medication | null>(null);
-  // v1.7.1 — the medications-card History + Advanced actions. History
-  // navigates to the full intake-history view; Advanced opens one shared
-  // `<AdvancedSettingsSheet>` mounted below, keyed to the selected
-  // medication (reused, not duplicated per card).
-  const [advancedMed, setAdvancedMed] = useState<Medication | null>(null);
   // v1.14.0 — the medications-page "Add" choice. The top button now offers
   // two paths: log an intake (incl. a backdated one) against an existing
   // medication, or create a new medication (the existing wizard).
@@ -165,61 +156,29 @@ export default function MedicationsPage() {
     enabled: isAuthenticated,
   });
 
-  // v1.7.1 — the advanced sheet's danger zone needs `intakeCount` to
-  // gate the purge button. Fetch it lazily once a medication is selected
-  // (the list view never pays for it otherwise), mirroring the
-  // detail-page query shape.
-  const advancedIntakeParams = {
-    sortBy: "takenAt",
-    sortDir: "desc" as const,
-    limit: 1,
-    offset: 0,
-    status: "completed",
-  };
-  const { data: advancedIntakeCount } = useQuery({
-    queryKey: advancedMed
-      ? queryKeys.medicationIntakeList(advancedMed.id, advancedIntakeParams)
-      : ["medications", "intake-count", "none"],
-    queryFn: async () => {
-      if (!advancedMed) return 0;
-      const params = new URLSearchParams({
-        sortBy: advancedIntakeParams.sortBy,
-        sortDir: advancedIntakeParams.sortDir,
-        limit: String(advancedIntakeParams.limit),
-        offset: String(advancedIntakeParams.offset),
-        status: advancedIntakeParams.status,
-      });
-      const res = await fetch(
-        `/api/medications/${advancedMed.id}/intake?${params.toString()}`,
-      );
-      if (!res.ok) return 0;
-      const json = await res.json();
-      return (json.data?.meta?.total ?? 0) as number;
-    },
-    enabled: isAuthenticated && !!advancedMed,
-  });
-
   function openCreate() {
-    setEditingMed(null);
     setDialogOpen(true);
   }
 
+  // v1.15.18 — the card kebab actions now navigate to the full-page
+  // tabbed detail surface on the right tab rather than opening a modal
+  // editor / sheet. Edit lands on Zeitplan (the everyday schedule view +
+  // the hero's "Vollständig bearbeiten" jump into the wizard), History on
+  // Verlauf, Advanced on Erweitert (the dissolved advanced-settings).
   function openEdit(med: Medication) {
-    setEditingMed(med);
-    setDialogOpen(true);
+    router.push(`/medications/${med.id}?tab=zeitplan`);
   }
 
   function openHistory(med: Medication) {
-    router.push(`/medications/${med.id}/history`);
+    router.push(`/medications/${med.id}?tab=verlauf`);
   }
 
   function openAdvanced(med: Medication) {
-    setAdvancedMed(med);
+    router.push(`/medications/${med.id}?tab=erweitert`);
   }
 
   function closeDialog() {
     setDialogOpen(false);
-    setEditingMed(null);
   }
 
   if (authLoading) {
@@ -412,15 +371,15 @@ export default function MedicationsPage() {
           the API endpoint moves to the detail-page Settings → Externe
           Integration sub-row. */}
 
-      {/* v1.5.4 — modal-wizard mount. The same component drives both
-          create (no initial) and edit (hydrates from the medication's
-          payload). The wizard owns its own ResponsiveSheet shell with
-          the dialog/sheet split and the sticky footer. */}
+      {/* v1.15.18 — create-only wizard mount. Editing an existing
+          medication now navigates to the detail page's tabs (the hero's
+          "Vollständig bearbeiten" reopens the wizard in edit mode from
+          there); the list page wizard only ever creates. The wizard owns
+          its own ResponsiveSheet shell with the sticky footer. */}
       <MedicationWizardDialog
         open={dialogOpen}
         onOpenChange={setDialogOpen}
-        mode={editingMed ? "edit" : "create"}
-        initial={editingMed ? medicationToPayload(editingMed) : undefined}
+        mode="create"
         onSuccess={closeDialog}
       />
 
@@ -446,68 +405,6 @@ export default function MedicationsPage() {
           }))}
         />
       )}
-
-      {/* v1.7.1 — one shared advanced-settings sheet for every card.
-          Reuses the exact component the detail page mounts (Data /
-          Reminders / Lifecycle / Danger zone); the card's sliders button
-          selects the medication and opens it. Not duplicated per card. */}
-      {advancedMed && (
-        <AdvancedSettingsSheet
-          open={!!advancedMed}
-          onOpenChange={(open) => {
-            if (!open) setAdvancedMed(null);
-          }}
-          medicationId={advancedMed.id}
-          medicationName={advancedMed.name}
-          treatmentClass={advancedMed.treatmentClass}
-          active={advancedMed.active}
-          startsOn={advancedMed.startsOn}
-          endsOn={advancedMed.endsOn}
-          notificationsEnabled={advancedMed.notificationsEnabled}
-          reminderGraceMinutes={
-            advancedMed.schedules[0]?.reminderGraceMinutes ?? null
-          }
-          intakeCount={advancedIntakeCount ?? 0}
-          atcCode={advancedMed.atcCode}
-          rxNormCode={advancedMed.rxNormCode}
-        />
-      )}
     </div>
   );
 }
-
-/**
- * Map a `Medication` row from `GET /api/medications` onto the
- * `MedicationPayload` shape the wizard's edit-path hydrator consumes.
- * Mirrors the schedule pass-through the v1.5.3 flat form relied on so
- * legacy cadences round-trip through the bridge cleanly.
- */
-function medicationToPayload(med: Medication): MedicationPayload {
-  return {
-    id: med.id,
-    name: med.name,
-    dose: med.dose,
-    category: med.category,
-    treatmentClass: med.treatmentClass,
-    deliveryForm: med.deliveryForm,
-    dosesPerUnit: med.dosesPerUnit ?? null,
-    trackInjectionSites: med.trackInjectionSites ?? false,
-    allowedInjectionSites: med.allowedInjectionSites ?? [],
-    notificationsEnabled: med.notificationsEnabled,
-    startsOn: med.startsOn ? new Date(med.startsOn) : null,
-    endsOn: med.endsOn ? new Date(med.endsOn) : null,
-    oneShot: med.oneShot ?? false,
-    schedules: med.schedules.map((s) => ({
-      id: s.id,
-      windowStart: s.windowStart,
-      windowEnd: s.windowEnd,
-      label: s.label ?? null,
-      dose: s.dose ?? null,
-      ...parseScheduleRecurrence(s.daysOfWeek),
-      timesOfDay: s.timesOfDay,
-      rrule: s.rrule ?? null,
-      rollingIntervalDays: s.rollingIntervalDays ?? null,
-    })),
-  };
-}
-

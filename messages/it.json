@@ -1338,6 +1338,42 @@
           "failed": "Impossibile eliminare l’assunzione."
         }
       },
+      "verlauf": {
+        "loading": "Caricamento cronologia …",
+        "loadError": "Impossibile caricare la cronologia.",
+        "empty": "Ancora nessuna assunzione in questo periodo.",
+        "summaryEmpty": "Ancora nessuna dose da valutare.",
+        "adherenceLabel": "Aderenza",
+        "adherenceBarLabel": "{onTime} puntuali, {late} in ritardo, {missed} mancate",
+        "add": "Voce",
+        "markTaken": "Assunta",
+        "markSkipped": "Saltata",
+        "adHocTag": "fuori programma",
+        "takenDetail": "prevista {planned} · assunta {taken}",
+        "status": {
+          "taken_on_time": "puntuale",
+          "taken_late": "in ritardo",
+          "skipped": "saltata",
+          "missed": "mancata",
+          "upcoming": "in attesa",
+          "ad_hoc": "fuori programma"
+        },
+        "addDialog": {
+          "title": "Aggiungi assunzione",
+          "description": "Registra una dose, anche retroattiva o fuori programma.",
+          "takenAtLabel": "Assunta alle",
+          "skippedLabel": "Saltata",
+          "nudgeHint": "Vicina allo slot {slot}: al salvataggio chiediamo se attribuirla.",
+          "cancel": "Annulla",
+          "submit": "Salva"
+        },
+        "nudge": {
+          "title": "Attribuire a questo slot?",
+          "body": "Questa assunzione cade appena fuori dalla finestra di {slot}. Attribuirla a quello slot o tenerla come voce fuori programma?",
+          "keepAdHoc": "Fuori programma",
+          "pin": "Attribuisci"
+        }
+      },
       "notifications": {
         "title": "Promemoria",
         "switchLabel": "Invia un promemoria quando questa dose è dovuta",
@@ -1457,6 +1493,69 @@
         "back": "Torna al farmaco",
         "subtitle": "Cronologia completa delle assunzioni",
         "plannedSuffix": "pianificato"
+      },
+      "tabs": {
+        "uebersicht": "Panoramica",
+        "zeitplan": "Programma",
+        "erinnerung": "Promemoria",
+        "bestand": "Scorta",
+        "verlauf": "Cronologia",
+        "injektion": "Iniezione",
+        "erweitert": "Avanzate"
+      },
+      "shell": {
+        "fullEdit": "Modifica completa",
+        "loadFailed": "Impossibile caricare questo farmaco.",
+        "tablistLabel": "Sezioni di dettaglio del farmaco"
+      },
+      "uebersicht": {
+        "complianceTitle": "Aderenza",
+        "complianceEmpty": "Ancora nessun dato sull'aderenza."
+      },
+      "bestand": {
+        "title": "Scorta",
+        "summary": "{remaining} dosi rimanenti su {total}",
+        "itemsTitle": "Penne / flaconi",
+        "doses": "{remaining} / {total} dosi",
+        "state": {
+          "ACTIVE": "Non aperto",
+          "IN_USE": "In uso",
+          "EXPIRED": "Scaduto",
+          "USED_UP": "Esaurito"
+        },
+        "empty": "Nessuna scorta registrata.",
+        "emptyHelper": "Registra una penna o una confezione per monitorare le dosi rimanenti e l'autonomia."
+      },
+      "erweitert": {
+        "group": {
+          "lifecycle": "Ciclo di vita",
+          "externalApi": "API esterna",
+          "data": "Dati",
+          "danger": "Zona pericolosa"
+        }
+      },
+      "zeitplan": {
+        "title": "Programma",
+        "timesTitle": "Orari di assunzione",
+        "timesNote": "Regola l'orario e la finestra puntuale di ogni dose. Per la frequenza (giornaliera, settimanale…) usa «Modifica completa».",
+        "scheduleLabel": "Programma {index}",
+        "fullEditNote": "Frequenza, classe di trattamento e finestra del ciclo si modificano da «Modifica completa».",
+        "graceEcho": "Finestra di promemoria: {minutes} minuti",
+        "graceLink": "Modifica in «Promemoria»",
+        "save": "Salva programma",
+        "saved": "Programma salvato",
+        "failed": "Impossibile salvare il programma",
+        "window": {
+          "intro": "Per ogni dose, stabilisci quando un'assunzione è ancora puntuale: un orario preciso (±1 h) o una finestra a tua scelta come 07:00–09:00.",
+          "explicitToggle": "Finestra personalizzata",
+          "startLabel": "Inizio finestra",
+          "endLabel": "Fine finestra",
+          "onTimeBand": "Puntuale: {start}–{end}",
+          "lateUntil": "in ritardo fino alle {time}",
+          "lateDays": "in ritardo fino a {days} giorni dopo",
+          "orderError": "L'inizio deve precedere la fine.",
+          "noTimes": "Nessun orario di assunzione impostato."
+        }
       }
     },
     "logInjectionSiteTitle": "Registra il sito di iniezione",
@@ -3041,7 +3140,22 @@
     },
     "disclaimer": {
       "footer": "HealthLog descrive i tuoi dati registrati — non è una valutazione clinica né una diagnosi. Parla con il tuo medico di qualsiasi cosa ti preoccupi."
-    }
+    },
+    "settings": {
+      "overviewTitle": "Organizza la panoramica",
+      "overviewDescription": "Mostra o nascondi le sezioni e definisci il loro ordine nella panoramica degli Approfondimenti."
+    },
+    "pillOrder": {
+      "title": "Ordina le schede di navigazione",
+      "description": "Trascina le schede nell'ordine in cui devono comparire in alto negli Approfondimenti.",
+      "dragHandle": "Riordina",
+      "saveSuccess": "Ordine delle schede salvato.",
+      "saveError": "Salvataggio dell'ordine delle schede non riuscito.",
+      "save": "Salva",
+      "empty": "Nessuna scheda di navigazione ancora disponibile."
+    },
+    "customize": "Personalizza gli Approfondimenti",
+    "regenerateError": "Aggiornamento ancora in corso — riprova tra un momento."
   },
   "thresholds": {
     "defaultLabel": "Predefinito",
@@ -3429,6 +3543,10 @@
       "sharing": {
         "title": "Condivisione",
         "description": "Crea un link di sola lettura per condividere la tua cartella clinica con un medico."
+      },
+      "insights": {
+        "title": "Approfondimenti",
+        "description": "Ordine della panoramica e delle schede di navigazione."
       }
     },
     "profile": "Profilo",

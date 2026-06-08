@@ -25,6 +25,7 @@ import {
   expectedSlotCountForDay,
   expectedSlotsBetween,
   lastNonSkippedTakenAt,
+  tallyComplianceFromLedger,
   type ComplianceMedicationContext,
   type ComplianceSchedule,
 } from "../compliance";
@@ -447,20 +448,67 @@ describe("calculateCompliance — engine-routed (medicationContext)", () => {
     };
   }
 
-  it("parity: a legacy daysOfWeek-only schedule yields identical numbers with no context", () => {
+  it("on-time takes: the ledger scores every logged 08:00 dose as taken (100%)", () => {
+    // v1.15.18 — the context path now tallies the unified dose-history
+    // ledger (band membership) instead of the legacy ±12h proximity timeline.
+    // An 08:00 daily dose taken at 08:00 sits inside the ±60min on-time band →
+    // taken_on_time. The seven logged days all score taken; the current-day
+    // 08:00 slot is still inside its takeable window at NOW (12:00, the late
+    // tail ends at 12:00) so it reads upcoming, not missed → a clean 100%.
+    // (The off-time / stricter behaviour is pinned in the next test.)
     const schedules: ComplianceSchedule[] = [
-      { windowStart: "08:00", windowEnd: "09:00", daysOfWeek: null },
+      { windowStart: "08:00", windowEnd: "09:00", daysOfWeek: null, timesOfDay: ["08:00"] },
     ];
-    const events = Array.from({ length: 7 }, (_, i) =>
-      eventAt(new Date(NOW.getTime() - (i + 1) * DAY_MS), true),
-    );
-    const legacy = calculateCompliance(events, schedules, 7);
+    const onTime = (d: Date) => ({
+      scheduledFor: d,
+      takenAt: d,
+      skipped: false,
+    });
+    const events = Array.from({ length: 7 }, (_, i) => {
+      const day = new Date(NOW.getTime() - (i + 1) * DAY_MS);
+      day.setUTCHours(8, 0, 0, 0);
+      return onTime(day);
+    });
     const withCtx = calculateCompliance(events, schedules, 7, undefined, {
       medicationContext: ctx(),
     });
-    // Legacy daysOfWeek-only schedule has no canonical fields → both
-    // paths run the legacy walker → identical numbers.
-    expect(withCtx).toEqual(legacy);
+    // The window floors at NOW − 7d (Jan-8 12:00), so Jan-8's 08:00 dose falls
+    // just before it; the six in-window logged doses (Jan-9..Jan-14) all score
+    // taken and the current-day slot is still upcoming → 100%.
+    expect(withCtx.taken).toBe(6);
+    expect(withCtx.missed).toBe(0);
+    expect(withCtx.rate).toBe(100);
+  });
+
+  it("off-time take: the ledger is stricter than the legacy ±12h proximity matcher", () => {
+    // v1.15.18 — the keystone behaviour change. A daily 08:00 dose logged at
+    // 12:30 (4.5h late) USED to count as taken under the ±12h `pairDoses`
+    // proximity matcher. The unified band model attributes it honestly: 12:30
+    // is outside the 08:00 slot's on-time band (07:00–09:00) AND its late tail
+    // (to ~12:00), so it is an AD-HOC take and the slot reads MISSED. The
+    // percentage now agrees with the history view (the dose cannot read
+    // "taken" in the % while the ledger calls it ad-hoc).
+    const schedules: ComplianceSchedule[] = [
+      { windowStart: "08:00", windowEnd: "09:00", daysOfWeek: null, timesOfDay: ["08:00"] },
+    ];
+    // takenAt = 08:00 slot + 4.5h = 12:30 (eventAt adds 30min onto a 12:00
+    // scheduledFor; here we pin the off-time take explicitly).
+    const events = Array.from({ length: 7 }, (_, i) => {
+      const day = new Date(NOW.getTime() - (i + 1) * DAY_MS);
+      day.setUTCHours(8, 0, 0, 0);
+      return {
+        scheduledFor: day,
+        takenAt: new Date(day.getTime() + 4.5 * 60 * 60 * 1000),
+        skipped: false,
+      };
+    });
+    const withCtx = calculateCompliance(events, schedules, 7, undefined, {
+      medicationContext: ctx(),
+    });
+    // Every off-time take is ad-hoc → its slot is missed → 0% taken.
+    expect(withCtx.taken).toBe(0);
+    expect(withCtx.missed).toBeGreaterThanOrEqual(6);
+    expect(withCtx.rate).toBe(0);
   });
 
   it("FREQ=WEEKLY;BYDAY=MO — took every Monday → 100%, denominator counts only Mondays", () => {
@@ -2163,39 +2211,40 @@ describe("calculateCompliance — irregular twice-daily taker (BUG 3 verify)", (
     return new Date(`2025-01-${String(day).padStart(2, "0")}T${hhmm}:00Z`);
   }
 
-  it("snaps two off-time same-day takes to BOTH slots → 2 taken, not 1 taken + 1 missed", () => {
-    // The crux of BUG 3: a day with a late-morning take (09:13) and an
-    // evening take (19:00) must read as two taken doses. The morning take
-    // pairs to the 07:00 slot (2h13m away, well inside the ±6h half-gap) and
-    // the evening to the 19:00 slot — NOT the morning take landing on 19:00
-    // and the 07:00 slot reading falsely missed.
+  it("attributes two same-day takes to BOTH slots — a near-on-time morning take is taken_late, not orphaned", () => {
+    // v1.15.18 — the band model attributes each take to its OWN slot. A
+    // morning take at 08:13 (07:00 slot + 1h13m) is inside the 07:00 slot's
+    // late tail (07:00 + 60min on-time + 180min tail → to 10:00), so it reads
+    // taken_late and does NOT orphan the 07:00 slot onto the 19:00 row. The
+    // evening 19:00 take is on-time. The crux of the original BUG-3 fix
+    // survives the move off the ±6h snap: a same-day morning + evening take
+    // never collapse into one taken + one falsely-missed.
     //
-    // A 2-day window so BOTH of Jan-14's slots fall inside [NOW-2d, NOW]
-    // (a 1-day window starts at noon Jan-14, which is after the 07:00 slot).
+    // Cover EVERY slot the window emits so there is no stray uncovered slot:
+    // a 3-day window (NOW − 3d = Jan-12 12:00 .. Jan-15 12:00) holds Jan-12
+    // 19:00, Jan-13 07:00+19:00, Jan-14 07:00+19:00, Jan-15 07:00 = 6 slots.
+    const onTime = (s: Date) => ({ scheduledFor: s, takenAt: s, skipped: false });
     const events = [
-      // 07:00 slot, logged at 09:13 (off-time, snapped onto the 07:00 row).
+      onTime(slot(12, "19:00")),
+      onTime(slot(13, "07:00")),
+      onTime(slot(13, "19:00")),
+      // 07:00 slot, logged at 08:13 (within the late tail → taken_late).
       {
         scheduledFor: slot(14, "07:00"),
-        takenAt: new Date(slot(14, "07:00").getTime() + (2 * 60 + 13) * 60 * 1000),
+        takenAt: new Date(slot(14, "07:00").getTime() + (1 * 60 + 13) * 60 * 1000),
         skipped: false,
       },
-      // 19:00 slot, logged on time.
-      { scheduledFor: slot(14, "19:00"), takenAt: slot(14, "19:00"), skipped: false },
-      // Jan-13's slots are covered too so the window has no stray miss.
-      { scheduledFor: slot(13, "07:00"), takenAt: slot(13, "07:00"), skipped: false },
-      { scheduledFor: slot(13, "19:00"), takenAt: slot(13, "19:00"), skipped: false },
+      onTime(slot(14, "19:00")),
+      onTime(slot(15, "07:00")),
     ];
-    const result = calculateCompliance(events, twiceDaily, 2, undefined, {
+    const result = calculateCompliance(events, twiceDaily, 3, undefined, {
       now: NOW,
       medicationContext: ctxVal,
     });
-    // Both of Jan-14's off-time/on-time takes pair to their own slot → the
-    // morning slot is NOT falsely missed. No missed slot anywhere → 100%.
+    // Every slot is covered by its own take → no miss, 100%.
     expect(result.missed).toBe(0);
     expect(result.rate).toBe(100);
-    // The morning take did not orphan the 07:00 slot: at least Jan-14's two
-    // doses both register as taken.
-    expect(result.taken).toBeGreaterThanOrEqual(3);
+    expect(result.taken).toBe(6);
   });
 
   it("computes the rate as taken/(taken+missed) over a 7-day irregular pattern", () => {
@@ -2435,5 +2484,386 @@ describe("doseCadenceFamily", () => {
     expect(
       doseCadenceFamily({ windowStart: "08:00", windowEnd: "09:00", daysOfWeek: null }),
     ).toBe("daily");
+  });
+});
+
+// ────────────────────────────────────────────────────────────────────
+// v1.15.18 — the UNIFIED ledger tally. `tallyComplianceFromLedger` is the
+// ONE authority behind the compliance %: it builds the cadence-aware bands
+// per schedule, reconstructs the dose-history ledger, and tallies it so the
+// % and the history view can never contradict. These tests pin the
+// taking-vs-timing split, the exclusions (skip / ad-hoc / upcoming / PRN),
+// auto-missed=missed, and the cross-consistency invariant that the SAME
+// intake can't be "taken" in the % while the ledger calls it "ad_hoc".
+// ────────────────────────────────────────────────────────────────────
+
+import { localHmAsUtc } from "@/lib/timezone";
+import {
+  buildBandsForSchedules,
+  type BandMinterMedication,
+} from "@/lib/medications/scheduling/band-minter";
+import {
+  reconstructDoseHistory,
+  type HistoryIntake,
+} from "@/lib/medications/scheduling/dose-history";
+import type { CanonicalSchedule, RecurrenceContext } from "@/lib/medications/scheduling/recurrence";
+
+describe("tallyComplianceFromLedger — the unified % keystone", () => {
+  const TZ = "Europe/Berlin";
+  const dayRef = new Date("2026-06-08T12:00:00Z");
+  function at(h: number, m: number): Date {
+    return localHmAsUtc(dayRef, TZ, h, m);
+  }
+  function ctxFor(
+    over: Partial<ComplianceMedicationContext> = {},
+  ): ComplianceMedicationContext {
+    return {
+      startsOn: new Date("2026-06-01T00:00:00Z"),
+      endsOn: null,
+      oneShot: false,
+      createdAt: new Date("2026-06-01T00:00:00Z"),
+      lastIntakeAt: null,
+      timeZone: TZ,
+      ...over,
+    };
+  }
+  // Twice-daily 07:00 / 19:00, single window covering the whole day.
+  const twiceDaily: ComplianceSchedule[] = [
+    {
+      windowStart: "07:00",
+      windowEnd: "19:00",
+      daysOfWeek: null,
+      timesOfDay: ["07:00", "19:00"],
+    },
+  ];
+  // Late evening "now" so both of the reference day's slots are past cutoff.
+  const nowEvening = at(23, 59);
+  // Window covers just the reference day.
+  const from = at(0, 0);
+
+  it("a late take counts as taken (taking adherence), with the timing split exposed", () => {
+    // 07:00 on-time + 19:00 logged at 20:30 (inside the 180min late tail).
+    const events = [
+      { scheduledFor: at(7, 0), takenAt: at(7, 0), skipped: false },
+      { scheduledFor: at(19, 0), takenAt: at(20, 30), skipped: false },
+    ];
+    const tally = tallyComplianceFromLedger(
+      events,
+      twiceDaily,
+      ctxFor(),
+      from,
+      nowEvening,
+      nowEvening,
+    );
+    expect(tally.taken).toBe(2);
+    expect(tally.takenOnTime).toBe(1);
+    expect(tally.takenLate).toBe(1);
+    expect(tally.missed).toBe(0);
+    expect(tally.rate).toBe(100);
+  });
+
+  it("a deliberate user-skip is EXCLUDED from the denominator", () => {
+    const events = [
+      { scheduledFor: at(7, 0), takenAt: at(7, 0), skipped: false },
+      { scheduledFor: at(19, 0), takenAt: null, skipped: true },
+    ];
+    const tally = tallyComplianceFromLedger(
+      events,
+      twiceDaily,
+      ctxFor(),
+      from,
+      nowEvening,
+      nowEvening,
+    );
+    expect(tally.taken).toBe(1);
+    expect(tally.skipped).toBe(1);
+    expect(tally.missed).toBe(0);
+    expect(tally.denominator).toBe(1); // taken + missed, skip excluded
+    expect(tally.rate).toBe(100);
+  });
+
+  it("an auto-missed forgotten dose IS a miss (counts against the rate)", () => {
+    const events = [
+      { scheduledFor: at(7, 0), takenAt: at(7, 0), skipped: false },
+      {
+        scheduledFor: at(19, 0),
+        takenAt: null,
+        skipped: false,
+        autoMissed: true,
+      },
+    ];
+    const tally = tallyComplianceFromLedger(
+      events,
+      twiceDaily,
+      ctxFor(),
+      from,
+      nowEvening,
+      nowEvening,
+    );
+    expect(tally.taken).toBe(1);
+    expect(tally.missed).toBe(1);
+    expect(tally.skipped).toBe(0);
+    expect(tally.rate).toBe(50);
+  });
+
+  it("an off-schedule (ad-hoc) take is EXCLUDED + leaves its slot missed", () => {
+    // Marc's case: 07:00 dose logged at 11:29 → outside the band → ad-hoc;
+    // the 07:00 slot is missed; the 19:00 slot is also missed (untouched).
+    const events = [
+      { scheduledFor: at(7, 0), takenAt: at(11, 29), skipped: false },
+    ];
+    const tally = tallyComplianceFromLedger(
+      events,
+      twiceDaily,
+      ctxFor(),
+      from,
+      nowEvening,
+      nowEvening,
+    );
+    expect(tally.adHoc).toBe(1);
+    // The ad-hoc take is NOT in taken; both slots are missed.
+    expect(tally.taken).toBe(0);
+    expect(tally.missed).toBe(2);
+    // Denominator = taken + missed; ad-hoc never enters it.
+    expect(tally.denominator).toBe(2);
+    expect(tally.rate).toBe(0);
+  });
+
+  it("a future slot is upcoming — excluded, never a premature miss", () => {
+    // Early morning now: both slots still ahead of their miss cutoff.
+    const earlyNow = at(5, 0);
+    const tally = tallyComplianceFromLedger(
+      [],
+      twiceDaily,
+      ctxFor(),
+      from,
+      earlyNow,
+      earlyNow,
+    );
+    expect(tally.taken).toBe(0);
+    expect(tally.missed).toBe(0);
+    expect(tally.denominator).toBe(0);
+    expect(tally.rate).toBe(100); // empty-window contract
+  });
+
+  it("a PRN schedule contributes NO denominator (every intake excluded)", () => {
+    const prn: ComplianceSchedule[] = [
+      {
+        windowStart: "07:00",
+        windowEnd: "19:00",
+        daysOfWeek: null,
+        timesOfDay: ["07:00"],
+        scheduleType: "PRN",
+      },
+    ];
+    const events = [
+      { scheduledFor: at(7, 0), takenAt: at(7, 0), skipped: false },
+      { scheduledFor: at(14, 0), takenAt: at(14, 0), skipped: false },
+    ];
+    const tally = tallyComplianceFromLedger(
+      events,
+      prn,
+      ctxFor(),
+      from,
+      nowEvening,
+      nowEvening,
+    );
+    // PRN → hasExpectedSlots false → no bands → every take ad-hoc, no slots.
+    expect(tally.taken).toBe(0);
+    expect(tally.missed).toBe(0);
+    expect(tally.adHoc).toBe(2);
+    expect(tally.denominator).toBe(0);
+    expect(tally.rate).toBe(100);
+  });
+
+  it("the rate is capped at 100% (extra doses never inflate it)", () => {
+    // Both slots taken + an ad-hoc extra. Ad-hoc is excluded so the rate is a
+    // clean 100, never >100.
+    const events = [
+      { scheduledFor: at(7, 0), takenAt: at(7, 0), skipped: false },
+      { scheduledFor: at(19, 0), takenAt: at(19, 0), skipped: false },
+      { scheduledFor: at(13, 0), takenAt: at(13, 0), skipped: false }, // extra
+    ];
+    const tally = tallyComplianceFromLedger(
+      events,
+      twiceDaily,
+      ctxFor(),
+      from,
+      nowEvening,
+      nowEvening,
+    );
+    expect(tally.taken).toBe(2);
+    expect(tally.adHoc).toBe(1);
+    expect(tally.rate).toBe(100);
+  });
+
+  it("CROSS-CONSISTENCY: the same intake cannot be taken in the % and ad_hoc in the ledger", () => {
+    // The keystone invariant. Build the exact bands the tally builds, run the
+    // SAME reconstructDoseHistory, and assert the tally's per-status counts
+    // equal the ledger's per-status counts — so a dose graded "taken" by the %
+    // is a "taken_*" row in the history view, and an "ad_hoc" row never leaks
+    // into the taken numerator.
+    const events = [
+      { scheduledFor: at(7, 0), takenAt: at(7, 0), skipped: false }, // on-time
+      { scheduledFor: at(19, 0), takenAt: at(20, 30), skipped: false }, // late
+      { scheduledFor: at(7, 0), takenAt: at(11, 29), skipped: false }, // ad-hoc
+    ];
+    const tally = tallyComplianceFromLedger(
+      events,
+      twiceDaily,
+      ctxFor(),
+      from,
+      nowEvening,
+      nowEvening,
+    );
+
+    // Re-derive the ledger independently the same way the tally does.
+    const medication: BandMinterMedication = {
+      id: "x",
+      startsOn: ctxFor().startsOn,
+      endsOn: null,
+      oneShot: false,
+      createdAt: ctxFor().createdAt,
+    };
+    const recurrenceCtx: RecurrenceContext = {
+      medication: {
+        id: "x",
+        startsOn: ctxFor().startsOn,
+        endsOn: null,
+        oneShot: false,
+        createdAt: ctxFor().createdAt,
+      },
+      timeZone: TZ,
+      lastIntakeAt: null,
+    };
+    const canonical: CanonicalSchedule = {
+      id: "s",
+      rrule: null,
+      rollingIntervalDays: null,
+      timesOfDay: ["07:00", "19:00"],
+      daysOfWeek: null,
+      windowStart: "07:00",
+      windowEnd: "19:00",
+      reminderGraceMinutes: null,
+      scheduleType: "SCHEDULED",
+      cyclicOnWeeks: null,
+      cyclicOffWeeks: null,
+    };
+    const groups = buildBandsForSchedules({
+      medication,
+      schedules: [canonical],
+      ctx: recurrenceCtx,
+      userTz: TZ,
+      range: { from, to: nowEvening },
+      now: nowEvening,
+      intakeInstants: events
+        .filter((e) => !e.skipped && e.takenAt)
+        .map((e) => e.takenAt as Date),
+    });
+    const bands = groups.flatMap((g) => (g.hasExpectedSlots ? g.bands : []));
+    const intakes: HistoryIntake[] = events.map((e) => ({
+      scheduledFor: e.scheduledFor,
+      takenAt: e.takenAt,
+      skipped: e.skipped,
+      autoMissed: false,
+    }));
+    const rows = reconstructDoseHistory(bands, intakes, nowEvening);
+
+    const fromLedger = {
+      onTime: rows.filter((r) => r.status === "taken_on_time").length,
+      late: rows.filter((r) => r.status === "taken_late").length,
+      missed: rows.filter((r) => r.status === "missed").length,
+      adHoc: rows.filter((r) => r.status === "ad_hoc").length,
+    };
+    expect(tally.takenOnTime).toBe(fromLedger.onTime);
+    expect(tally.takenLate).toBe(fromLedger.late);
+    expect(tally.missed).toBe(fromLedger.missed);
+    expect(tally.adHoc).toBe(fromLedger.adHoc);
+    // And the load-bearing claim: the ad-hoc take is NOT counted as taken.
+    expect(tally.taken).toBe(fromLedger.onTime + fromLedger.late);
+    expect(tally.adHoc).toBe(1);
+  });
+
+  it("rolling weekly (GLP-1) — each logged shot is a taken slot (retrospective family)", () => {
+    const rolling: ComplianceSchedule[] = [
+      {
+        windowStart: "08:00",
+        windowEnd: "08:00",
+        daysOfWeek: null,
+        rollingIntervalDays: 7,
+        timesOfDay: ["08:00"],
+      },
+    ];
+    const shot1 = new Date("2026-05-04T09:12:00Z");
+    const shot2 = new Date("2026-05-11T18:40:00Z");
+    const shot3 = new Date("2026-05-18T07:55:00Z");
+    const now = new Date("2026-05-20T12:00:00Z");
+    const events = [shot1, shot2, shot3].map((d) => ({
+      scheduledFor: d,
+      takenAt: d,
+      skipped: false,
+    }));
+    const tally = tallyComplianceFromLedger(
+      events,
+      rolling,
+      ctxFor({
+        startsOn: new Date("2026-05-01T00:00:00Z"),
+        createdAt: new Date("2026-05-01T00:00:00Z"),
+        lastIntakeAt: shot3,
+      }),
+      new Date("2026-05-01T00:00:00Z"),
+      now,
+      now,
+    );
+    // Each irregular shot anchors its own retrospective band → all taken.
+    expect(tally.taken).toBeGreaterThanOrEqual(3);
+    expect(tally.rate).toBeGreaterThanOrEqual(90);
+  });
+
+  // v1.15.18 W7 — the persisted per-dose window reaches the % through the
+  // SAME minter the history view + write path use. An 11:29 take that the
+  // default ±1h leaves ad-hoc (slot missed) is counted on-time once the
+  // morning slot carries an explicit 07:00–12:00 window.
+  it("the persisted doseWindows widens the on-time band feeding the %", () => {
+    const events = [
+      { scheduledFor: at(7, 0), takenAt: at(11, 29), skipped: false },
+      { scheduledFor: at(19, 0), takenAt: at(19, 0), skipped: false },
+    ];
+    // DEFAULT (no doseWindows): 11:29 is past the 11:00 cutoff → ad-hoc,
+    // morning slot missed.
+    const dflt = tallyComplianceFromLedger(
+      events,
+      twiceDaily,
+      ctxFor(),
+      from,
+      nowEvening,
+      nowEvening,
+    );
+    expect(dflt.missed).toBe(1);
+    expect(dflt.adHoc).toBe(1);
+
+    // WITH the persisted 07:00–12:00 window: 11:29 lands on-time, nothing
+    // missed, nothing orphaned.
+    const windowed: ComplianceSchedule[] = [
+      {
+        windowStart: "07:00",
+        windowEnd: "19:00",
+        daysOfWeek: null,
+        timesOfDay: ["07:00", "19:00"],
+        doseWindows: [{ timeOfDay: "07:00", start: "07:00", end: "12:00" }],
+      },
+    ];
+    const wt = tallyComplianceFromLedger(
+      events,
+      windowed,
+      ctxFor(),
+      from,
+      nowEvening,
+      nowEvening,
+    );
+    expect(wt.missed).toBe(0);
+    expect(wt.adHoc).toBe(0);
+    expect(wt.takenOnTime).toBe(2);
+    expect(wt.rate).toBe(100);
   });
 });

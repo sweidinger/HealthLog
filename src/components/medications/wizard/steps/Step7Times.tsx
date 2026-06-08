@@ -3,6 +3,8 @@
 import { Moon, Sun, Sunrise, Sunset } from "lucide-react";
 
 import { TimesOfDayChips } from "@/components/medications/scheduling/TimesOfDayChips";
+import { DoseWindowEditor } from "@/components/medications/scheduling/DoseWindowEditor";
+import type { DoseWindowScale } from "@/components/medications/scheduling/dose-window";
 import { useTranslations } from "@/lib/i18n/context";
 
 import type { StepProps } from "./Step1Name";
@@ -20,6 +22,20 @@ const PRESETS = [
   { time: "18:00", icon: Sunset, key: "evening" },
   { time: "22:00", icon: Moon, key: "night" },
 ] as const;
+
+/**
+ * Window scale for the late-tail hint — a weekly / monthly RRULE or a
+ * ≥2-day rolling cadence is day-scale (the 4-day rule); everything else
+ * is intraday (the ±1h / +3h minute bands).
+ */
+function scaleForCadence(payload: StepProps["payload"]): DoseWindowScale {
+  const rolling = payload.cadence.rollingIntervalDays;
+  if (typeof rolling === "number" && rolling >= 2) return "dayScale";
+  if (/FREQ=(WEEKLY|MONTHLY|YEARLY)/.test(payload.cadence.rrule ?? "")) {
+    return "dayScale";
+  }
+  return "intraday";
+}
 
 export function Step7Times({ payload, applyPartial }: StepProps) {
   const { t } = useTranslations();
@@ -81,6 +97,15 @@ export function Step7Times({ payload, applyPartial }: StepProps) {
         // suggested times; suppress the chips' own labelled preset row so
         // each suggestion isn't shown twice.
         showPresets={false}
+      />
+
+      {/* v1.15.18 — the SAME per-dose window editor the Zeitplan tab uses,
+          so a new med sets windows with identical semantics to an edit. */}
+      <DoseWindowEditor
+        timesOfDay={payload.timesOfDay}
+        value={payload.doseWindows}
+        onChange={(doseWindows) => applyPartial({ doseWindows })}
+        scale={scaleForCadence(payload)}
       />
     </div>
   );

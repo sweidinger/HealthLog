@@ -72,14 +72,21 @@ type WindowSize = (typeof WINDOW_DAYS)[number];
 /**
  * Order on the stack — deepest restorative stages first so a user
  * scanning left → right reads quality before context.
+ *
+ * IN_BED is deliberately NOT a stack segment. It is the TOTAL time in
+ * bed (≈ CORE + DEEP + REM + AWAKE), so stacking it on top of those
+ * phases doubled every bar (~14 h for a 7 h night) and inflated the
+ * tooltip's per-night total. With it out of the stack the bar height
+ * and the tooltip total are the real night. The `STAGE_COLORS.IN_BED`
+ * token + the `insights.sleep.stages.inBed` label survive for the
+ * last-night hypnogram, which still renders the in-bed span.
  */
-const STAGE_ORDER = [
+export const STAGE_ORDER = [
   "DEEP",
   "REM",
   "CORE",
   "ASLEEP",
   "AWAKE",
-  "IN_BED",
 ] as const;
 
 /**

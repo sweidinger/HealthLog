@@ -35,11 +35,16 @@ import type { MedicationWindowStatus } from "@/lib/medications/window-status";
  * the single `mt-auto pt-0` action wrapper — there is no per-variant spacing
  * left to diverge.
  *
- * State-driven presentation (like the iOS app):
- *   - `on_time_window` → the card highlights green (`ring` + tinted bg): the
- *     actionable "take it now" state stands out at a glance.
+ * State-driven presentation:
+ *   - The card surface itself is a CONSTANT neutral surface — dose status
+ *     never tints the card background or border. A whole card washing green
+ *     reads as "take it now everywhere" and drowns the page; status is shown
+ *     ONLY through the discreet top line / pill below.
+ *   - `on_time_window` → the discreet "Take now" pill (success-toned text +
+ *     glyph), no card wash.
  *   - `overdue` → a calm top status line; `missed` (at / past the miss
- *     cutoff) escalates to "Stark überfällig" in the destructive tone.
+ *     cutoff) escalates to "Stark überfällig" in the destructive tone — both
+ *     are a single text line with an icon, not a surface tint.
  *   - `upcoming` / `taken_*` / `skipped` → no escalation; the card stays calm.
  */
 export interface MedicationCardBodyProps {
@@ -123,10 +128,6 @@ export function MedicationCardBody({
 }: MedicationCardBodyProps) {
   const { t } = useTranslations();
 
-  // Green take-window highlight — the actionable "take it now" state, mirrored
-  // from the iOS card. Suppressed on an inactive med (it carries no actions).
-  const inTakeWindow = active && doseStatus === "on_time_window";
-
   // Overdue escalation line: a dose past its on-time window. `missed` (at /
   // past the clinical miss cutoff) reads "Stark überfällig"; the still-takeable
   // `overdue` tail reads the calmer "Überfällig". Both use the destructive
@@ -140,11 +141,10 @@ export function MedicationCardBody({
 
   return (
     <Card
-      className={cn(
-        "h-full",
-        active ? "" : "opacity-60",
-        inTakeWindow && "ring-success/40 bg-success/5 ring-1",
-      )}
+      // The card surface is a constant neutral surface — dose status is never
+      // expressed as a background / border tint (Marc, recurring): only the
+      // discreet status line / pill below communicates take-now / overdue.
+      className={cn("h-full", active ? "" : "opacity-60")}
     >
       <MedicationCardHeader
         name={name}

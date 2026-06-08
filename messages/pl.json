@@ -1338,6 +1338,42 @@
           "failed": "Nie udało się usunąć przyjęcia."
         }
       },
+      "verlauf": {
+        "loading": "Wczytywanie historii …",
+        "loadError": "Nie udało się wczytać historii.",
+        "empty": "Brak przyjęć w tym okresie.",
+        "summaryEmpty": "Brak dawek do oceny.",
+        "adherenceLabel": "Przestrzeganie",
+        "adherenceBarLabel": "{onTime} na czas, {late} z opóźnieniem, {missed} pominięte",
+        "add": "Wpis",
+        "markTaken": "Przyjęte",
+        "markSkipped": "Pominięte",
+        "adHocTag": "poza planem",
+        "takenDetail": "planowo {planned} · przyjęto {taken}",
+        "status": {
+          "taken_on_time": "na czas",
+          "taken_late": "z opóźnieniem",
+          "skipped": "pominięte",
+          "missed": "nieprzyjęte",
+          "upcoming": "oczekujące",
+          "ad_hoc": "poza planem"
+        },
+        "addDialog": {
+          "title": "Dodaj przyjęcie",
+          "description": "Zarejestruj dawkę — także wstecznie lub poza planem.",
+          "takenAtLabel": "Przyjęto o",
+          "skippedLabel": "Pominięte",
+          "nudgeHint": "Blisko slotu {slot} — przy zapisie zapytamy, czy przypisać.",
+          "cancel": "Anuluj",
+          "submit": "Zapisz"
+        },
+        "nudge": {
+          "title": "Przypisać do tego slotu?",
+          "body": "To przyjęcie wypada tuż poza oknem {slot}. Przypisać je do tego slotu czy zachować jako wpis poza planem?",
+          "keepAdHoc": "Poza planem",
+          "pin": "Przypisz"
+        }
+      },
       "notifications": {
         "title": "Przypomnienia",
         "switchLabel": "Wyślij przypomnienie, gdy nadejdzie czas tej dawki",
@@ -1457,6 +1493,69 @@
         "back": "Powrót do leku",
         "subtitle": "Pełna historia przyjęć",
         "plannedSuffix": "zaplanowane"
+      },
+      "tabs": {
+        "uebersicht": "Przegląd",
+        "zeitplan": "Harmonogram",
+        "erinnerung": "Przypomnienia",
+        "bestand": "Zapas",
+        "verlauf": "Historia",
+        "injektion": "Iniekcja",
+        "erweitert": "Zaawansowane"
+      },
+      "shell": {
+        "fullEdit": "Edytuj w pełni",
+        "loadFailed": "Nie udało się załadować tego leku.",
+        "tablistLabel": "Sekcje szczegółów leku"
+      },
+      "uebersicht": {
+        "complianceTitle": "Przestrzeganie",
+        "complianceEmpty": "Brak danych o przestrzeganiu."
+      },
+      "bestand": {
+        "title": "Zapas",
+        "summary": "Pozostało {remaining} z {total} dawek",
+        "itemsTitle": "Wstrzykiwacze / fiolki",
+        "doses": "{remaining} / {total} dawek",
+        "state": {
+          "ACTIVE": "Nieotwarte",
+          "IN_USE": "W użyciu",
+          "EXPIRED": "Przeterminowane",
+          "USED_UP": "Zużyte"
+        },
+        "empty": "Nie zarejestrowano zapasu.",
+        "emptyHelper": "Zarejestruj wstrzykiwacz lub opakowanie, aby śledzić pozostałe dawki i zapas na tygodnie."
+      },
+      "erweitert": {
+        "group": {
+          "lifecycle": "Cykl życia",
+          "externalApi": "Zewnętrzne API",
+          "data": "Dane",
+          "danger": "Strefa zagrożenia"
+        }
+      },
+      "zeitplan": {
+        "title": "Harmonogram",
+        "timesTitle": "Godziny przyjęcia",
+        "timesNote": "Dostosuj godzinę i okno punktualności każdej dawki. Częstotliwość (codziennie, co tydzień…) zmieniasz w „Pełna edycja”.",
+        "scheduleLabel": "Harmonogram {index}",
+        "fullEditNote": "Częstotliwość, klasę leczenia i okno kuracji edytujesz przez „Pełna edycja”.",
+        "graceEcho": "Okno przypomnienia: {minutes} minut",
+        "graceLink": "Zmień w „Przypomnienia”",
+        "save": "Zapisz harmonogram",
+        "saved": "Zapisano harmonogram",
+        "failed": "Nie udało się zapisać harmonogramu",
+        "window": {
+          "intro": "Dla każdej dawki ustal, kiedy przyjęcie jest jeszcze punktualne — dokładna godzina (±1 h) lub własne okno, np. 07:00–09:00.",
+          "explicitToggle": "Własne okno",
+          "startLabel": "Początek okna",
+          "endLabel": "Koniec okna",
+          "onTimeBand": "Punktualnie: {start}–{end}",
+          "lateUntil": "z opóźnieniem do {time}",
+          "lateDays": "z opóźnieniem do {days} dni później",
+          "orderError": "Początek musi być przed końcem.",
+          "noTimes": "Nie ustawiono jeszcze godzin przyjęcia."
+        }
       }
     },
     "logInjectionSiteTitle": "Zarejestruj miejsce iniekcji",
@@ -3041,7 +3140,22 @@
     },
     "disclaimer": {
       "footer": "HealthLog opisuje Twoje własne zarejestrowane dane — nie jest oceną kliniczną ani diagnozą. Porozmawiaj z lekarzem o wszystkim, co Cię niepokoi."
-    }
+    },
+    "settings": {
+      "overviewTitle": "Uporządkuj przegląd",
+      "overviewDescription": "Pokaż lub ukryj sekcje i ustaw ich kolejność w przeglądzie Analiz."
+    },
+    "pillOrder": {
+      "title": "Sortuj pigułki nawigacyjne",
+      "description": "Przeciągnij pigułki w kolejności, w jakiej mają się pojawiać u góry Analiz.",
+      "dragHandle": "Zmień kolejność",
+      "saveSuccess": "Zapisano kolejność pigułek.",
+      "saveError": "Zapisanie kolejności pigułek nie powiodło się.",
+      "save": "Zapisz",
+      "empty": "Brak dostępnych pigułek nawigacyjnych."
+    },
+    "customize": "Dostosuj Analizy",
+    "regenerateError": "Trwa odświeżanie — spróbuj ponownie za chwilę."
   },
   "thresholds": {
     "defaultLabel": "Domyślne",
@@ -3429,6 +3543,10 @@
       "sharing": {
         "title": "Udostępnianie",
         "description": "Utwórz link tylko do odczytu, aby udostępnić swoją dokumentację zdrowotną lekarzowi."
+      },
+      "insights": {
+        "title": "Analizy",
+        "description": "Kolejność przeglądu i pigułek nawigacyjnych."
       }
     },
     "profile": "Profil",

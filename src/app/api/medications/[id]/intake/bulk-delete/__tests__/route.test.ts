@@ -25,7 +25,8 @@ vi.mock("@/lib/db", () => ({
     medication: { findUnique: vi.fn() },
     medicationIntakeEvent: {
       findMany: vi.fn(),
-      deleteMany: vi.fn(),
+      // v1.15.18 LOW-6 — bulk delete is now a soft-delete updateMany.
+      updateMany: vi.fn(),
     },
     auditLog: { create: vi.fn() },
   },
@@ -115,7 +116,7 @@ beforeEach(() => {
     timezone: "Europe/Berlin",
   } as never);
   vi.mocked(prisma.medicationIntakeEvent.findMany).mockResolvedValue([] as never);
-  vi.mocked(prisma.medicationIntakeEvent.deleteMany).mockResolvedValue({
+  vi.mocked(prisma.medicationIntakeEvent.updateMany).mockResolvedValue({
     count: 0,
   } as never);
   vi.mocked(prisma.auditLog.create).mockResolvedValue({} as never);
@@ -125,7 +126,7 @@ describe("POST /api/medications/[id]/intake/bulk-delete", () => {
   it("422 on missing body", async () => {
     const res = await POST(postWithBody({}), ROUTE_PARAMS);
     expect(res.status).toBe(422);
-    expect(prisma.medicationIntakeEvent.deleteMany).not.toHaveBeenCalled();
+    expect(prisma.medicationIntakeEvent.updateMany).not.toHaveBeenCalled();
   });
 
   it("422 on empty eventIds", async () => {
@@ -156,7 +157,7 @@ describe("POST /api/medications/[id]/intake/bulk-delete", () => {
     expect(res.status).toBe(200);
     const json = await res.json();
     expect(json.data).toEqual({ deleted: 0 });
-    expect(prisma.medicationIntakeEvent.deleteMany).not.toHaveBeenCalled();
+    expect(prisma.medicationIntakeEvent.updateMany).not.toHaveBeenCalled();
     expect(recomputeMedicationComplianceForDay).not.toHaveBeenCalled();
   });
 
@@ -168,7 +169,7 @@ describe("POST /api/medications/[id]/intake/bulk-delete", () => {
       { id: "evt-b", scheduledFor: day1 },
       { id: "evt-c", scheduledFor: day2 },
     ] as never);
-    vi.mocked(prisma.medicationIntakeEvent.deleteMany).mockResolvedValueOnce({
+    vi.mocked(prisma.medicationIntakeEvent.updateMany).mockResolvedValueOnce({
       count: 3,
     } as never);
 
@@ -185,23 +186,31 @@ describe("POST /api/medications/[id]/intake/bulk-delete", () => {
     expect(recomputeMedicationComplianceForDay).toHaveBeenCalledTimes(2);
   });
 
-  it("scopes deleteMany by both userId and medicationId", async () => {
+  it("soft-deletes scoped by userId + medicationId + deletedAt:null", async () => {
     const day1 = new Date(Date.UTC(2026, 4, 27, 8, 0, 0));
     vi.mocked(prisma.medicationIntakeEvent.findMany).mockResolvedValueOnce([
       { id: "evt-a", scheduledFor: day1 },
     ] as never);
-    vi.mocked(prisma.medicationIntakeEvent.deleteMany).mockResolvedValueOnce({
+    vi.mocked(prisma.medicationIntakeEvent.updateMany).mockResolvedValueOnce({
       count: 1,
     } as never);
 
     await POST(postWithBody({ eventIds: ["evt-a"] }), ROUTE_PARAMS);
 
-    const deleteArg = vi.mocked(prisma.medicationIntakeEvent.deleteMany).mock
-      .calls[0][0]?.where;
-    expect(deleteArg).toEqual({
+    // v1.15.18 LOW-6 — a bulk delete is a soft-delete updateMany: scoped by
+    // (id IN, user, medication, deletedAt:null) so a re-post counts zero, and
+    // the data sets deletedAt + bumps syncVersion for the iOS tombstone feed.
+    const call = vi.mocked(prisma.medicationIntakeEvent.updateMany).mock
+      .calls[0][0];
+    expect(call?.where).toEqual({
       id: { in: ["evt-a"] },
       userId: "user-1",
       medicationId: "med-1",
+      deletedAt: null,
+    });
+    expect(call?.data).toMatchObject({
+      deletedAt: expect.any(Date),
+      syncVersion: { increment: 1 },
     });
   });
 });
@@ -220,7 +229,7 @@ describe("POST /api/medications/[id]/intake/bulk-delete — F-1 H-6 rate limit",
     expect(res.status).toBe(429);
     expect(res.headers.get("X-RateLimit-Remaining")).toBe("0");
     expect(prisma.medicationIntakeEvent.findMany).not.toHaveBeenCalled();
-    expect(prisma.medicationIntakeEvent.deleteMany).not.toHaveBeenCalled();
+    expect(prisma.medicationIntakeEvent.updateMany).not.toHaveBeenCalled();
   });
 
   it("scopes the bucket key to the calling user", async () => {

@@ -169,7 +169,15 @@ describe("GET /api/medications/[id]/compliance — per-slot timing", () => {
     expect(entry!.onTime).toBe(2);
   });
 
-  it("keeps single-time schedules byte-identical: a 12h-late dose is still very_late", async () => {
+  it("a 12h-late dose is an ad-hoc take + a missed 07:00 slot (band model)", async () => {
+    // v1.15.18 — the heatmap now buckets the unified dose-history ledger. A
+    // single 07:00 daily dose logged at 19:00 is 12h outside the 07:00 slot's
+    // on-time band (±60min) AND its late tail (to ~10:00), so it is an AD-HOC
+    // off-schedule take — a real logged dose (taken / on-time tone), NOT a
+    // "very late" attribution onto the 07:00 slot. The 07:00 slot itself reads
+    // missed (no intake inside its window past its cutoff). This is the audit's
+    // intent: the cell no longer mislabels an off-schedule take as a punctuality
+    // grade against a slot it never belonged to.
     const { start: dayStart } = dayBoundsForOffset(DAY_OFFSET);
     const dateKey = userDayKey(dayStart, TZ);
 
@@ -179,7 +187,7 @@ describe("GET /api/medications/[id]/compliance — per-slot timing", () => {
           id: "sched-1",
           windowStart: "07:00",
           windowEnd: "08:00",
-          timesOfDay: [], // single-time: candidate = [windowStart]
+          timesOfDay: [], // single-time daily: the minter mints a 07:00 band
           daysOfWeek: null,
           rrule: null,
           rollingIntervalDays: null,
@@ -191,7 +199,7 @@ describe("GET /api/medications/[id]/compliance — per-slot timing", () => {
       ]) as never,
     );
 
-    // Single 07:00 schedule, dose taken at 19:00 → ~12h late → very_late.
+    // Single 07:00 schedule, dose logged at 19:00 → outside every band → ad-hoc.
     vi.mocked(prisma.medicationIntakeEvent.findMany).mockResolvedValue([
       {
         takenAt: atSlotUTC(dayStart, "19:00"),
@@ -203,9 +211,14 @@ describe("GET /api/medications/[id]/compliance — per-slot timing", () => {
     const daily = await callRoute();
     const entry = daily[dateKey] as Record<string, number> | undefined;
     expect(entry).toBeDefined();
-    expect(entry!.veryLate).toBe(1);
-    expect(entry!.onTime).toBe(0);
+    // The off-schedule take reads as a logged dose; no late-attribution.
+    expect(entry!.veryLate).toBe(0);
     expect(entry!.late).toBe(0);
+    expect(entry!.onTime).toBe(1);
+    expect(entry!.taken).toBe(1);
+    // The 07:00 slot itself is missed (uncovered, past its cutoff).
+    // expected = the missed slot + the ad-hoc take's own slot.
+    expect(entry!.expected).toBe(2);
   });
 
   it("handles an overnight per-slot window (23:00 slot, 1h span) as on_time near the slot", async () => {

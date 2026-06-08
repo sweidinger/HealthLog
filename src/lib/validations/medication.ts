@@ -126,6 +126,43 @@ export type MedicationDeliveryForm =
 const RRULE_PROPS =
   /^FREQ=(?:DAILY|WEEKLY|MONTHLY|YEARLY)(?:;(?:INTERVAL=\d{1,3}|BYDAY=(?:MO|TU|WE|TH|FR|SA|SU)(?:,(?:MO|TU|WE|TH|FR|SA|SU))*|BYMONTHDAY=-?\d{1,2}(?:,-?\d{1,2})*|BYMONTH=\d{1,2}(?:,\d{1,2})*|COUNT=\d{1,4}|UNTIL=\d{8}T\d{6}Z))*$/;
 
+/**
+ * v1.15.18 — one explicit per-dose on-time window. `timeOfDay` keys the dose
+ * the window applies to; `start`/`end` are the HH:mm on-time bounds in the
+ * user's wall clock. `start <= end` within the day (an overnight window is not
+ * a configurable on-time band — the late tail owns the cross-midnight tail).
+ */
+export const doseWindowEntrySchema = z
+  .object({
+    timeOfDay: z
+      .string()
+      .regex(timeRegex, "Format: HH:mm")
+      .describe("The dose time this window applies to (matches a `timesOfDay` entry)."),
+    start: z
+      .string()
+      .regex(timeRegex, "Format: HH:mm")
+      .describe("On-time band lower bound (HH:mm, user local)."),
+    end: z
+      .string()
+      .regex(timeRegex, "Format: HH:mm")
+      .describe("On-time band upper bound (HH:mm, user local). Must be >= `start`."),
+  })
+  .refine((w) => hhmmToMinutes(w.start) <= hhmmToMinutes(w.end), {
+    message: "Window start must be on or before end (same day)",
+    path: ["end"],
+  })
+  .meta({
+    id: "DoseWindowEntry",
+    description:
+      "One explicit per-dose on-time intake window. `timeOfDay` matches a schedule dose time; `[start, end]` (HH:mm, user local, `start <= end`) is the on-time band. Outside it the cadence-derived late tail applies, then ad-hoc.",
+  });
+
+/** Minutes-since-midnight for an `HH:mm` literal (already regex-validated). */
+function hhmmToMinutes(hhmm: string): number {
+  const [h, m] = hhmm.split(":");
+  return Number(h) * 60 + Number(m);
+}
+
 export const scheduleSchema = z
   .object({
     windowStart: z
@@ -251,6 +288,21 @@ export const scheduleSchema = z
       .describe(
         "Cyclic \"off\" weeks (0..52). Required when `scheduleType` is CYCLIC; ignored otherwise.",
       ),
+    /**
+     * v1.15.18 — per-dose configurable on-time intake window (Marc's
+     * "07:00–09:00" lever). One entry per dose time the user wants an explicit
+     * range for; a `timeOfDay` with no entry keeps the symmetric ±1h default.
+     * Each `timeOfDay` MUST match one of the schedule's `timesOfDay` (or the
+     * legacy `windowStart`), and `start <= end` within the day. Absent → every
+     * slot uses the default derivation (unchanged behaviour).
+     */
+    doseWindows: z
+      .array(doseWindowEntrySchema)
+      .max(8)
+      .optional()
+      .describe(
+        "Per-dose on-time intake windows. Each `{ timeOfDay, start, end }` HH:mm triple sets the explicit on-time band for the matching dose time; a dose time with no entry keeps the symmetric ±1h default. `timeOfDay` must match one of `timesOfDay` (or `windowStart`); `start <= end`. Up to 8 entries. Absent leaves every slot on the default derivation. The late tail stays cadence-derived.",
+      ),
   })
   .refine(
     (s) => !(s.rrule && s.rollingIntervalDays),
@@ -288,6 +340,38 @@ export const scheduleSchema = z
     {
       message: "rolling-cadence schedules accept at most one time of day",
       path: ["timesOfDay"],
+    },
+  )
+  .refine(
+    (s) => {
+      // Every per-dose window must name a real dose time. The effective dose
+      // times are `timesOfDay` when set, else the single legacy `windowStart`
+      // (mirrors the engine's `effectiveTimesOfDay`).
+      if (!s.doseWindows || s.doseWindows.length === 0) return true;
+      const times = new Set(
+        s.timesOfDay && s.timesOfDay.length > 0 ? s.timesOfDay : [s.windowStart],
+      );
+      return s.doseWindows.every((w) => times.has(w.timeOfDay));
+    },
+    {
+      message: "Each doseWindows.timeOfDay must match one of the schedule's timesOfDay",
+      path: ["doseWindows"],
+    },
+  )
+  .refine(
+    (s) => {
+      // A dose time may carry at most one explicit window.
+      if (!s.doseWindows || s.doseWindows.length === 0) return true;
+      const seen = new Set<string>();
+      for (const w of s.doseWindows) {
+        if (seen.has(w.timeOfDay)) return false;
+        seen.add(w.timeOfDay);
+      }
+      return true;
+    },
+    {
+      message: "doseWindows must not repeat a timeOfDay",
+      path: ["doseWindows"],
     },
   )
   .meta({
@@ -550,6 +634,21 @@ export const intakeSchema = z
       .describe(
         "Optional injection site for a taken dose. Honoured only when the medication is an INJECTION with site-tracking enabled; validated against the medication's effective allowed set (per-medication allowed sites minus the user's global exclusion). A disallowed site returns 422. Omit to record the dose without a site.",
       ),
+    /**
+     * v1.15.18 — late-take "attribute anyway" pin. An off-window take that
+     * band attribution would otherwise orphan to an ad-hoc row can be pinned
+     * onto a chosen scheduled slot via the UI's "diesem Slot zuordnen?" nudge.
+     * The instant MUST be a real slot of this medication on its day (the
+     * server validates it against the band anchors); an arbitrary instant is
+     * rejected with 422. Absent → default band attribution.
+     */
+    forceSlotInstant: z.iso
+      .datetime({ offset: true })
+      .transform((s) => new Date(s))
+      .optional()
+      .describe(
+        "Late-take override: pin this taken dose onto the named scheduled slot instead of orphaning it to an ad-hoc row. Must be a real scheduled slot of this medication on its day (validated server-side against the dose-window band anchors); an instant that is not a slot returns 422. Absent applies the default window-band attribution.",
+      ),
   })
   .meta({
     id: "MedicationIntakeRequest",
@@ -594,18 +693,38 @@ export const listIntakeEventsSchema = z.object({
     .default("all"),
 });
 
-export const updateIntakeEventSchema = z.object({
-  takenAt: z.iso
-    .datetime({ offset: true })
-    .transform((s) => new Date(s))
-    .nullable()
-    .optional(),
-  skipped: z.boolean().optional(),
-  scheduledFor: z.iso
-    .datetime({ offset: true })
-    .transform((s) => new Date(s))
-    .optional(),
-});
+export const updateIntakeEventSchema = z
+  .object({
+    takenAt: z.iso
+      .datetime({ offset: true })
+      .transform((s) => new Date(s))
+      .nullable()
+      .optional(),
+    skipped: z.boolean().optional(),
+    scheduledFor: z.iso
+      .datetime({ offset: true })
+      .transform((s) => new Date(s))
+      .optional(),
+    /**
+     * v1.15.18 — late-take "attribute anyway" pin on the edit path. When the
+     * edited `takenAt` lands outside every window the UI can offer to pin the
+     * take onto a chosen slot; the server validates the instant is a real
+     * scheduled slot (422 otherwise). Absent → the edit re-runs band
+     * attribution on the new `takenAt`.
+     */
+    forceSlotInstant: z.iso
+      .datetime({ offset: true })
+      .transform((s) => new Date(s))
+      .optional()
+      .describe(
+        "Late-take override on edit: pin the edited dose onto the named scheduled slot instead of re-attributing by window band. Must be a real scheduled slot of this medication on its day (validated server-side); a non-slot instant returns 422. Absent re-runs the default window-band attribution on the edited `takenAt`.",
+      ),
+  })
+  .meta({
+    id: "UpdateMedicationIntakeEventRequest",
+    description:
+      "Edit a single intake event. v1.15.18 re-runs window-band slot attribution whenever `takenAt` or `skipped` change, snapping `scheduledFor` to the matched slot (or the take's own time when it falls in no window). `forceSlotInstant` overrides that to pin the take onto a named real slot; an explicit `scheduledFor` still wins when supplied directly.",
+  });
 
 /**
  * v1.5.5 — bulk-delete request body. The detail-page intake-history

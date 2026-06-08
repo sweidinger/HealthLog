@@ -141,6 +141,7 @@ export function InsightsLayoutShell({ children }: { children: ReactNode }) {
       <InsightsTabStrip
         onRegenerate={advisorEnabled ? advisor.regenerate : undefined}
         regenerating={advisor.isRegenerating}
+        regenerateOutcome={advisor.regenerateOutcome}
         availability={availability}
         visibleTileIds={visibleTileIds}
         tileOrder={tileOrder}

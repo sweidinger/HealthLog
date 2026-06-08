@@ -24,6 +24,8 @@ import { invalidateUserMedications } from "@/lib/cache/invalidate";
 import { recomputeMedicationComplianceForEvent } from "@/lib/rollups/medication-compliance-rollups";
 import {
   applyCanonicalSlotWrite,
+  resolveForcedSlotForWrite,
+  resolveSlotForWriteByBand,
   resolveSlotInstantForWrite,
 } from "@/lib/medications/scheduling/slot-upsert";
 import { NextRequest } from "next/server";
@@ -79,8 +81,14 @@ async function postIntake(request: NextRequest, { params }: RouteParams) {
     return returnAllZodIssues(parsed.error, 422);
   }
 
-  const { scheduledFor, takenAt, skipped, idempotencyKey, injectionSite } =
-    parsed.data;
+  const {
+    scheduledFor,
+    takenAt,
+    skipped,
+    idempotencyKey,
+    injectionSite,
+    forceSlotInstant,
+  } = parsed.data;
 
   // v1.8.5 — resolve + server-validate the optional injection site. Load
   // the medication's delivery form + tracking opt-in + per-medication
@@ -137,32 +145,61 @@ async function postIntake(request: NextRequest, { params }: RouteParams) {
   const isExplicitTaken = !skipped;
   const isExplicitSkip = skipped === true;
 
-  // v1.8.2 — source-agnostic slot snap. A twice-daily med carries a
-  // pending REMINDER row the projector/worker minted at the canonical
-  // `localHmAsUtc` slot instant. Without this, a manual "Genommen" write
-  // (source WEB) inserted a SECOND row for the slot because the unique
-  // key includes `source` and the iOS-vs-server `scheduledFor` can drift
-  // by a minute — inflating compliance to 100% and suppressing the
-  // "take now" prompt for a dose the user hadn't taken. Snap the write
-  // to the canonical slot and update the existing row in place.
+  // v1.15.18 — window-band slot attribution (replaces the wide ±6h
+  // `snapToleranceMs` nearest-snap). The take is bound to a slot by
+  // membership in that slot's configurable dose window — the SAME bands the
+  // read ledger + the compliance % consume, so the three surfaces can never
+  // disagree. A take that lands in no window is ad-hoc (`canonicalSlot` null)
+  // and records as a standalone "taken now" row; PRN meds always insert
+  // standalone. Resolved BEFORE the idempotency/dedup window so a scheduled
+  // dose routes through the slot upsert (which is itself the dedup).
   //
-  // Resolved BEFORE the idempotency/dedup window so a scheduled dose
-  // routes through the slot upsert (which is itself the dedup): the
-  // legacy 60-second window would otherwise short-circuit by returning
-  // the slot's pending REMINDER row WITHOUT applying the user's takenAt.
-  const canonicalSlot = await resolveSlotInstantForWrite({
-    userId: user.id,
-    medicationId: id,
-    userTz: user.timezone,
-    incoming: incomingScheduledFor,
-    // Only a client-supplied `scheduledFor` names a real slot. A
-    // `takenAt`-only / defaulted-now write must not snap across the wide
-    // ±halfGap window onto a far slot (phantom morning dose).
-    instantIsExplicit: scheduledFor !== undefined,
-    // Dose-safety: a taken write (any non-skip on this route) must never
-    // snap forward onto a future slot — see resolve-slot-instant.ts.
-    isTakenWrite: isExplicitTaken,
-  });
+  //   - SKIP: a skip is logged against a slot deliberately (it carries no
+  //     `takenAt` to attribute by), so it keeps the canonical `scheduledFor`
+  //     snap that binds it to the slot's pending REMINDER row.
+  //   - TAKEN: attribute by `takenAt` band membership. The optional
+  //     `forceSlotInstant` pins an off-window take onto a chosen real slot
+  //     ("diesem Slot zuordnen?"); a pin that is not a real slot is a 422.
+  let canonicalSlot: Date | null = null;
+  if (skipped) {
+    canonicalSlot = await resolveSlotInstantForWrite({
+      userId: user.id,
+      medicationId: id,
+      userTz: user.timezone,
+      incoming: incomingScheduledFor,
+      instantIsExplicit: scheduledFor !== undefined,
+      isTakenWrite: false,
+    });
+  } else if (forceSlotInstant !== undefined) {
+    canonicalSlot = await resolveForcedSlotForWrite({
+      userId: user.id,
+      medicationId: id,
+      userTz: user.timezone,
+      slotInstant: forceSlotInstant,
+    });
+    if (canonicalSlot === null) {
+      annotate({
+        action: { name: "medication.intake.force_slot.invalid" },
+        meta: { medication_id: id },
+      });
+      return apiError(
+        "forceSlotInstant is not a scheduled slot of this medication",
+        422,
+        { errorCode: "medications.intake.force_slot.invalid" },
+      );
+    }
+  } else {
+    // A non-skip write on this route always carries a `takenAt` (defaulted to
+    // now), so `resolvedTakenAt` is non-null here; the fallback only guards the
+    // type.
+    const attribution = await resolveSlotForWriteByBand({
+      userId: user.id,
+      medicationId: id,
+      userTz: user.timezone,
+      takenAt: resolvedTakenAt ?? incomingScheduledFor,
+    });
+    canonicalSlot = attribution.slotInstant;
+  }
 
   // Idempotency check (explicit key or server-side dedup window)
   if (idempotencyKey) {

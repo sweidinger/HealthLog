@@ -1338,6 +1338,42 @@
           "failed": "No se pudo eliminar la toma."
         }
       },
+      "verlauf": {
+        "loading": "Cargando historial …",
+        "loadError": "No se pudo cargar el historial.",
+        "empty": "Aún no hay tomas en este periodo.",
+        "summaryEmpty": "Aún no hay dosis que evaluar.",
+        "adherenceLabel": "Adherencia",
+        "adherenceBarLabel": "{onTime} a tiempo, {late} con retraso, {missed} omitidas",
+        "add": "Entrada",
+        "markTaken": "Tomada",
+        "markSkipped": "Saltada",
+        "adHocTag": "fuera de horario",
+        "takenDetail": "prevista {planned} · tomada {taken}",
+        "status": {
+          "taken_on_time": "a tiempo",
+          "taken_late": "con retraso",
+          "skipped": "saltada",
+          "missed": "perdida",
+          "upcoming": "pendiente",
+          "ad_hoc": "fuera de horario"
+        },
+        "addDialog": {
+          "title": "Añadir toma",
+          "description": "Registra una dosis, también retroactiva o fuera de horario.",
+          "takenAtLabel": "Tomada a las",
+          "skippedLabel": "Saltada",
+          "nudgeHint": "Cerca del horario {slot}: al guardar te preguntamos si asignarla.",
+          "cancel": "Cancelar",
+          "submit": "Guardar"
+        },
+        "nudge": {
+          "title": "¿Asignar a este horario?",
+          "body": "Esta toma queda justo fuera de la ventana de {slot}. ¿Asignarla a ese horario o guardarla como entrada fuera de horario?",
+          "keepAdHoc": "Fuera de horario",
+          "pin": "Asignar"
+        }
+      },
       "notifications": {
         "title": "Recordatorios",
         "switchLabel": "Enviar un recordatorio cuando toque esta dosis",
@@ -1457,6 +1493,69 @@
         "back": "Volver al medicamento",
         "subtitle": "Historial completo de tomas",
         "plannedSuffix": "planificado"
+      },
+      "tabs": {
+        "uebersicht": "Resumen",
+        "zeitplan": "Horario",
+        "erinnerung": "Recordatorios",
+        "bestand": "Existencias",
+        "verlauf": "Historial",
+        "injektion": "Inyección",
+        "erweitert": "Avanzado"
+      },
+      "shell": {
+        "fullEdit": "Editar por completo",
+        "loadFailed": "No se pudo cargar este medicamento.",
+        "tablistLabel": "Secciones de detalle del medicamento"
+      },
+      "uebersicht": {
+        "complianceTitle": "Adherencia",
+        "complianceEmpty": "Aún no hay datos de adherencia."
+      },
+      "bestand": {
+        "title": "Existencias",
+        "summary": "{remaining} de {total} dosis restantes",
+        "itemsTitle": "Plumas / viales",
+        "doses": "{remaining} / {total} dosis",
+        "state": {
+          "ACTIVE": "Sin abrir",
+          "IN_USE": "En uso",
+          "EXPIRED": "Caducado",
+          "USED_UP": "Agotado"
+        },
+        "empty": "No hay existencias registradas.",
+        "emptyHelper": "Registra una pluma o un paquete para hacer seguimiento de las dosis restantes y las semanas de suministro."
+      },
+      "erweitert": {
+        "group": {
+          "lifecycle": "Ciclo de vida",
+          "externalApi": "API externa",
+          "data": "Datos",
+          "danger": "Zona de peligro"
+        }
+      },
+      "zeitplan": {
+        "title": "Horario",
+        "timesTitle": "Horas de toma",
+        "timesNote": "Ajusta la hora y la ventana puntual de cada dosis. Para la frecuencia (diaria, semanal…) usa «Edición completa».",
+        "scheduleLabel": "Horario {index}",
+        "fullEditNote": "La frecuencia, la clase de tratamiento y la ventana del curso se editan en «Edición completa».",
+        "graceEcho": "Ventana de recordatorio: {minutes} minutos",
+        "graceLink": "Cambiar en «Recordatorios»",
+        "save": "Guardar horario",
+        "saved": "Horario guardado",
+        "failed": "No se pudo guardar el horario",
+        "window": {
+          "intro": "Para cada dosis, define cuándo una toma sigue siendo puntual: una hora exacta (±1h) o tu propia ventana como 07:00–09:00.",
+          "explicitToggle": "Ventana propia",
+          "startLabel": "Inicio de la ventana",
+          "endLabel": "Fin de la ventana",
+          "onTimeBand": "Puntual: {start}–{end}",
+          "lateUntil": "con retraso hasta las {time}",
+          "lateDays": "con retraso hasta {days} días después",
+          "orderError": "El inicio debe ser anterior al fin.",
+          "noTimes": "Aún no hay horas de toma definidas."
+        }
       }
     },
     "logInjectionSiteTitle": "Registrar sitio de inyección",
@@ -3041,7 +3140,22 @@
     },
     "disclaimer": {
       "footer": "HealthLog describe tus propios datos registrados — no es una evaluación clínica ni un diagnóstico. Habla con tu médico sobre cualquier cosa que te preocupe."
-    }
+    },
+    "settings": {
+      "overviewTitle": "Organizar la vista general",
+      "overviewDescription": "Muestra u oculta secciones y define su orden en la vista general de Análisis."
+    },
+    "pillOrder": {
+      "title": "Ordenar las pestañas de navegación",
+      "description": "Arrastra las pestañas al orden en que deben aparecer en la parte superior de Análisis.",
+      "dragHandle": "Reordenar",
+      "saveSuccess": "Orden de las pestañas guardado.",
+      "saveError": "No se pudo guardar el orden de las pestañas.",
+      "save": "Guardar",
+      "empty": "Aún no hay pestañas de navegación disponibles."
+    },
+    "customize": "Personalizar Análisis",
+    "regenerateError": "Aún se está actualizando: inténtalo de nuevo en un momento."
   },
   "thresholds": {
     "defaultLabel": "Por defecto",
@@ -3429,6 +3543,10 @@
       "sharing": {
         "title": "Compartir",
         "description": "Crea un enlace de solo lectura para compartir tu historial de salud con un profesional médico."
+      },
+      "insights": {
+        "title": "Análisis",
+        "description": "Orden de la vista general y de las pestañas de navegación."
       }
     },
     "profile": "Perfil",

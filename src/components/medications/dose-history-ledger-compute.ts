@@ -1,0 +1,176 @@
+/**
+ * v1.15.18 WE — pure helpers behind the Verlauf (dose-history) tab.
+ *
+ * The Verlauf tab renders the server-minted ledger
+ * (`GET /api/medications/[id]/dose-history`) and lets the user flip a slot
+ * Genommen / Übersprungen with INSTANT feedback. The instant feel comes from
+ * an optimistic local rebuild: on a tap the cached `rows` array is mutated
+ * synchronously and the headline compliance % is recomputed from those same
+ * rows in the SAME paint — only then does the server write fire and the
+ * authoritative refetch reconcile. The engines that mint the ledger are pure,
+ * so the client can mirror their status accounting without re-running the band
+ * minter it does not hold.
+ *
+ * Everything here is pure / synchronous / instant-free of React so it is unit-
+ * testable without a render (the repo convention — no `renderHook`).
+ */
+
+import type { DoseHistoryStatus } from "@/lib/medications/scheduling/dose-history";
+
+/** The serialised row shape the `dose-history` endpoint returns. */
+export interface LedgerRow {
+  kind: "slot" | "ad_hoc";
+  /** Slot anchor (slot rows) or the ad-hoc take's own time, ISO. */
+  at: string;
+  /** The slot's "HH:mm" label, or null for an ad-hoc row. */
+  timeOfDay: string | null;
+  status: DoseHistoryStatus;
+  intake: {
+    id: string | null;
+    scheduledFor: string;
+    takenAt: string | null;
+    skipped: boolean;
+    autoMissed: boolean;
+  } | null;
+}
+
+/** The full `data` envelope the endpoint returns. */
+export interface LedgerPayload {
+  from: string;
+  to: string;
+  family: "daily" | "weekly" | "one_shot" | "none";
+  hasExpectedSlots: boolean;
+  rows: LedgerRow[];
+}
+
+/**
+ * Headline compliance derived from the ledger — the SAME accounting the
+ * server-side unification uses (audit CRITICAL-2): taken = on-time + late;
+ * denominator = taken + missed; skipped + ad-hoc + upcoming are excluded.
+ * Surfacing one rate from the ledger the user is looking at means the history
+ * view and the percentage can never contradict.
+ */
+export interface LedgerCompliance {
+  /** Whole-percent adherence (0–100), capped. `null` when nothing counts yet. */
+  rate: number | null;
+  takenOnTime: number;
+  takenLate: number;
+  missed: number;
+  /** taken + missed — the doses that count toward the rate. */
+  denominator: number;
+}
+
+/**
+ * Compute the headline adherence from the ledger rows. Ad-hoc rows, skips,
+ * and still-takeable upcoming slots never enter the denominator, so a forward-
+ * looking window does not depress the rate.
+ */
+export function complianceFromLedger(rows: LedgerRow[]): LedgerCompliance {
+  let takenOnTime = 0;
+  let takenLate = 0;
+  let missed = 0;
+  for (const row of rows) {
+    if (row.status === "taken_on_time") takenOnTime += 1;
+    else if (row.status === "taken_late") takenLate += 1;
+    else if (row.status === "missed") missed += 1;
+  }
+  const taken = takenOnTime + takenLate;
+  const denominator = taken + missed;
+  const rate =
+    denominator > 0 ? Math.min(100, Math.round((taken / denominator) * 100)) : null;
+  return { rate, takenOnTime, takenLate, missed, denominator };
+}
+
+/** A day-grouped view of the ledger, most-recent day first. */
+export interface LedgerDayGroup {
+  /** `YYYY-MM-DD` in the user's locale day, for the heading + key. */
+  dayKey: string;
+  /** Rows for that day, chronological (morning first). */
+  rows: LedgerRow[];
+}
+
+/**
+ * Group rows by their local calendar day (most-recent day first; rows inside a
+ * day stay chronological so the morning slot leads). The day key is derived in
+ * the user's timezone via `Intl` so a 23:30 dose does not bleed into the next
+ * UTC day.
+ */
+export function groupLedgerByDay(
+  rows: LedgerRow[],
+  timeZone: string,
+): LedgerDayGroup[] {
+  const dayKeyFmt = new Intl.DateTimeFormat("en-CA", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+  const byDay = new Map<string, LedgerRow[]>();
+  for (const row of rows) {
+    const dayKey = dayKeyFmt.format(new Date(row.at));
+    const bucket = byDay.get(dayKey);
+    if (bucket) bucket.push(row);
+    else byDay.set(dayKey, [row]);
+  }
+  const groups: LedgerDayGroup[] = Array.from(byDay.entries()).map(
+    ([dayKey, dayRows]) => ({
+      dayKey,
+      rows: dayRows
+        .slice()
+        .sort((a, b) => new Date(a.at).getTime() - new Date(b.at).getTime()),
+    }),
+  );
+  // Most-recent day first; chronological within the day above.
+  groups.sort((a, b) => (a.dayKey < b.dayKey ? 1 : a.dayKey > b.dayKey ? -1 : 0));
+  return groups;
+}
+
+/**
+ * Whether a slot row exposes a Genommen / Übersprungen quick action. A slot is
+ * actionable when it has no confirmed intake yet (`upcoming` / `missed`) — the
+ * user is filling in a pending or forgotten dose. A row that already carries a
+ * take / skip is edited via the row's Bearbeiten dialog, not the quick toggle.
+ */
+export function isSlotActionable(row: LedgerRow): boolean {
+  return (
+    row.kind === "slot" &&
+    (row.status === "upcoming" || row.status === "missed")
+  );
+}
+
+/**
+ * Optimistically apply a Genommen / Übersprungen tap to the cached payload so
+ * the row status + the headline % flip before the server round-trip. The
+ * matched slot (by `at`) gets a synthetic intake and the matching status; an
+ * already-claimed or non-slot row is returned untouched. The server write +
+ * the authoritative refetch reconcile afterwards, so any divergence (e.g. the
+ * take landing late rather than on-time) self-heals on the next read.
+ *
+ * `nowIso` is the optimistic `takenAt` for a Genommen tap (the slot's own
+ * anchor stands in for a clean on-time mark until the server re-attributes).
+ */
+export function applyOptimisticSlotMark(
+  payload: LedgerPayload,
+  slotAt: string,
+  action: "taken" | "skipped",
+): LedgerPayload {
+  const rows = payload.rows.map((row) => {
+    if (row.kind !== "slot" || row.at !== slotAt) return row;
+    if (!isSlotActionable(row)) return row;
+    const status: DoseHistoryStatus =
+      action === "taken" ? "taken_on_time" : "skipped";
+    return {
+      ...row,
+      status,
+      intake: {
+        // Optimistic placeholder id; replaced by the server row on refetch.
+        id: row.intake?.id ?? null,
+        scheduledFor: row.at,
+        takenAt: action === "taken" ? row.at : null,
+        skipped: action === "skipped",
+        autoMissed: false,
+      },
+    };
+  });
+  return { ...payload, rows };
+}

@@ -3,7 +3,7 @@
 import { memo, useEffect, useMemo, useRef } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ChevronDown, Loader2, RefreshCw } from "lucide-react";
+import { ChevronDown, Loader2, RefreshCw, Settings2 } from "lucide-react";
 import { toast } from "sonner";
 
 import {
@@ -66,6 +66,15 @@ export interface InsightsTabStripProps {
   onRegenerate?: () => void;
   /** Spinner state — disables the button and swaps the icon. */
   regenerating?: boolean;
+  /**
+   * v1.15.18 — the outcome of the last settled regenerate. The falling-edge
+   * toast fires "refreshed" ONLY when this is `"fresh"`; a slow generation the
+   * client gave up on (`"timeout"`) shows a "still working" hint instead of a
+   * misleading success, and a missing provider (`"no-provider"`) stays silent
+   * (the surface already shows the connect-AI empty state). Absent (legacy
+   * mounts / no regenerate) falls back to the prior unconditional success.
+   */
+  regenerateOutcome?: "fresh" | "empty" | "timeout" | "no-provider" | null;
   /**
    * v1.4.27 F19 — analytics + event-driven availability inputs the
    * gating helper reads. When omitted the strip falls back to its
@@ -440,6 +449,7 @@ function buildTabs(
 function InsightsTabStripImpl({
   onRegenerate,
   regenerating = false,
+  regenerateOutcome,
   availability,
   visibleTileIds,
   tileOrder,
@@ -463,18 +473,30 @@ function InsightsTabStripImpl({
     [availability, visibleTileIds, tileOrder],
   );
 
-  // Fire success toast on the falling edge of `regenerating`. Same
-  // rising-edge ref guard as the W3 implementation so the toast fires
-  // exactly once per regenerate cycle.
+  // Fire a toast on the falling edge of `regenerating`. Same rising-edge ref
+  // guard as the W3 implementation so the toast fires exactly once per
+  // regenerate cycle. v1.15.18 — the toast is now HONEST: only a `"fresh"`
+  // outcome reads "refreshed". A `"timeout"` (a slow generation the client
+  // gave up on while the server may still be writing) shows a "still working,
+  // try again" hint rather than claiming success; a `"no-provider"` stays
+  // silent (the surface already shows the connect-AI empty state). The latest
+  // outcome is read through a ref so the effect doesn't re-fire when only the
+  // outcome (not the spinner edge) changed.
   const lastRegeneratingRef = useRef<boolean>(regenerating);
   useEffect(() => {
     if (lastRegeneratingRef.current && !regenerating) {
-      toast.success(t("insights.regenerateSuccess"));
+      if (regenerateOutcome === "timeout") {
+        toast.error(t("insights.regenerateError"));
+      } else if (regenerateOutcome !== "no-provider") {
+        // `"fresh"`, `"empty"`, or legacy `undefined`/null → success.
+        toast.success(t("insights.regenerateSuccess"));
+      }
     }
     lastRegeneratingRef.current = regenerating;
-  }, [regenerating, t]);
+  }, [regenerating, regenerateOutcome, t]);
 
   const regenerateLabel = t("insights.regenerateAnalysis");
+  const customizeLabel = t("insights.customize");
 
   return (
     <nav
@@ -623,6 +645,29 @@ function InsightsTabStripImpl({
             "from-background/95 pointer-events-none absolute inset-y-0 right-0 w-8 bg-gradient-to-l to-transparent sm:hidden",
           )}
         />
+        {/* v1.15.18 — customise cog. Sits immediately LEFT of the
+            regenerate button and links to the Insights settings section
+            (overview arrange + pill sort), matching the Dashboard cog
+            idiom. Rendered alongside the regenerate affordance so the two
+            top-right controls travel together. The inline "Anpassen"
+            button under the hero was removed — this is the single entry
+            point. */}
+        {onRegenerate && (
+          <Link
+            href="/settings/insights"
+            aria-label={customizeLabel}
+            title={customizeLabel}
+            data-slot="insights-tab-strip-customize"
+            className={cn(
+              "inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full",
+              "text-muted-foreground hover:text-foreground hover:bg-accent",
+              "transition-colors",
+              "focus-visible:ring-ring/50 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none",
+            )}
+          >
+            <Settings2 className="h-4 w-4" aria-hidden="true" />
+          </Link>
+        )}
         {onRegenerate && (
           <button
             type="button"

@@ -19,6 +19,11 @@ import type { PrismaClient } from "@/generated/prisma/client";
 import { prisma as defaultPrisma } from "@/lib/db";
 import { isP2002 } from "@/lib/prisma-errors";
 import { resolveCanonicalSlotInstant } from "@/lib/medications/scheduling/resolve-slot-instant";
+import {
+  attributeTakenToSlot,
+  resolveForcedSlotInstant,
+  type AttributeIntakeMedication,
+} from "@/lib/medications/scheduling/attribute-intake";
 import type { WorkerScheduleRow } from "@/lib/medications/scheduling/worker-helpers";
 import type { InjectionSiteKey } from "@/lib/medications/injection-sites";
 
@@ -294,6 +299,9 @@ const SCHEDULE_SELECT = {
   scheduleType: true,
   cyclicOnWeeks: true,
   cyclicOffWeeks: true,
+  // v1.15.18 — the persisted per-dose window the band attribution honours so
+  // the write/edit slot binding uses the SAME on-time window as the % + history.
+  doseWindows: true,
 } as const;
 
 const MEDICATION_SELECT = {
@@ -386,4 +394,186 @@ export async function resolveSlotInstantForWrite(
     isTakenWrite: input.isTakenWrite ?? false,
     now: input.now,
   });
+}
+
+/**
+ * v1.15.18 — load a medication's schedules + rolling anchors and adapt them to
+ * the shared band attributor's projection. Mirrors `resolveSlotInstantForWrite`
+ * but returns the full medication so the caller can run band attribution AND
+ * the force-attribute guard from one load.
+ */
+async function loadAttributeMedication(input: {
+  userId: string;
+  medicationId: string;
+  client: PrismaLike;
+}): Promise<{
+  medication: AttributeIntakeMedication;
+  lastIntakeAt: Date | null;
+} | null> {
+  const medication = await input.client.medication.findFirst({
+    where: { id: input.medicationId, userId: input.userId },
+    select: MEDICATION_SELECT,
+  });
+  if (!medication || medication.schedules.length === 0) return null;
+
+  // Rolling cadence anchors off the last logged intake — fetch it only when a
+  // schedule actually needs it (mirrors the projector's gate).
+  let lastIntakeAt: Date | null = null;
+  if (medication.schedules.some((s) => s.rollingIntervalDays !== null)) {
+    const lastIntake = await input.client.medicationIntakeEvent.findFirst({
+      where: {
+        userId: input.userId,
+        medicationId: input.medicationId,
+        deletedAt: null,
+        takenAt: { not: null },
+      },
+      orderBy: { takenAt: "desc" },
+      select: { takenAt: true },
+    });
+    lastIntakeAt = lastIntake?.takenAt ?? null;
+  }
+
+  return {
+    medication: {
+      id: medication.id,
+      startsOn: medication.startsOn,
+      endsOn: medication.endsOn,
+      oneShot: medication.oneShot,
+      createdAt: medication.createdAt,
+      schedules: medication.schedules as WorkerScheduleRow[],
+    },
+    lastIntakeAt,
+  };
+}
+
+export interface ResolveSlotByBandInput {
+  userId: string;
+  medicationId: string;
+  userTz: string;
+  /** The real intake instant the slot is resolved from. */
+  takenAt: Date;
+  /** Reference "now"; defaults to the current time. */
+  now?: Date;
+  /** Inject a Prisma client/tx in tests; defaults to the app client. */
+  client?: PrismaLike;
+}
+
+export interface ResolveSlotByBandResult {
+  /** Canonical slot anchor the take attributes to, or null (ad-hoc / PRN). */
+  slotInstant: Date | null;
+  /** on_time / late when matched, null when ad-hoc. */
+  status: "on_time" | "late" | null;
+  /** False for PRN / empty / malformed medications (no slot machinery). */
+  hasExpectedSlots: boolean;
+}
+
+/**
+ * v1.15.18 — band-model slot resolution for the intake WRITE/EDIT paths,
+ * replacing the wide ±6h `snapToleranceMs` nearest-snap. The take is bound to
+ * a slot by band membership against the SAME minter the read ledger + the
+ * compliance % consume, so the three surfaces can never disagree. `null`
+ * means ad-hoc / PRN → the caller inserts a standalone row with
+ * `scheduledFor = takenAt`.
+ */
+export async function resolveSlotForWriteByBand(
+  input: ResolveSlotByBandInput,
+): Promise<ResolveSlotByBandResult> {
+  const client = input.client ?? defaultPrisma;
+  const loaded = await loadAttributeMedication({
+    userId: input.userId,
+    medicationId: input.medicationId,
+    client,
+  });
+  if (!loaded) {
+    return { slotInstant: null, status: null, hasExpectedSlots: false };
+  }
+
+  return attributeTakenToSlot({
+    medication: loaded.medication,
+    userTz: input.userTz,
+    takenAt: input.takenAt,
+    lastIntakeAt: loaded.lastIntakeAt,
+    intakeInstants: await rollingIntakeInstantsIfNeeded(
+      loaded.medication,
+      input.userId,
+      input.medicationId,
+      input.takenAt,
+      client,
+    ),
+    now: input.now,
+  });
+}
+
+export interface ResolveForcedSlotInput {
+  userId: string;
+  medicationId: string;
+  userTz: string;
+  /** The slot instant the client asks to pin an off-window take onto. */
+  slotInstant: Date;
+  now?: Date;
+  client?: PrismaLike;
+}
+
+/**
+ * v1.15.18 — validate the client's "diesem Slot zuordnen?" pin: the supplied
+ * instant must be a REAL scheduled slot of this medication on its day (within
+ * a minute of a band anchor). Returns the canonical anchor on a match, or
+ * `null` when the instant is not a slot — the route then rejects the pin.
+ */
+export async function resolveForcedSlotForWrite(
+  input: ResolveForcedSlotInput,
+): Promise<Date | null> {
+  const client = input.client ?? defaultPrisma;
+  const loaded = await loadAttributeMedication({
+    userId: input.userId,
+    medicationId: input.medicationId,
+    client,
+  });
+  if (!loaded) return null;
+
+  return resolveForcedSlotInstant({
+    medication: loaded.medication,
+    userTz: input.userTz,
+    slotInstant: input.slotInstant,
+    lastIntakeAt: loaded.lastIntakeAt,
+    intakeInstants: await rollingIntakeInstantsIfNeeded(
+      loaded.medication,
+      input.userId,
+      input.medicationId,
+      input.slotInstant,
+      client,
+    ),
+    now: input.now,
+  });
+}
+
+/**
+ * Fetch the non-skipped `takenAt` instants (≤ `around`) a rolling cadence
+ * anchors its retrospective grid on. Returns `undefined` for non-rolling
+ * medications so the band minter skips the (unused) work.
+ */
+async function rollingIntakeInstantsIfNeeded(
+  medication: AttributeIntakeMedication,
+  userId: string,
+  medicationId: string,
+  around: Date,
+  client: PrismaLike,
+): Promise<Date[] | undefined> {
+  if (!medication.schedules.some((s) => s.rollingIntervalDays !== null)) {
+    return undefined;
+  }
+  const rows = await client.medicationIntakeEvent.findMany({
+    where: {
+      userId,
+      medicationId,
+      deletedAt: null,
+      skipped: false,
+      takenAt: { not: null, lte: around },
+    },
+    orderBy: { takenAt: "asc" },
+    select: { takenAt: true },
+  });
+  return rows
+    .map((r) => r.takenAt)
+    .filter((d): d is Date => d !== null);
 }

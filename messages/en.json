@@ -1338,6 +1338,42 @@
           "failed": "Could not delete the intake."
         }
       },
+      "verlauf": {
+        "loading": "Loading history …",
+        "loadError": "Could not load the history.",
+        "empty": "No intakes in this period yet.",
+        "summaryEmpty": "No doses to score yet.",
+        "adherenceLabel": "Adherence",
+        "adherenceBarLabel": "{onTime} on time, {late} late, {missed} missed",
+        "add": "Entry",
+        "markTaken": "Taken",
+        "markSkipped": "Skipped",
+        "adHocTag": "off-schedule",
+        "takenDetail": "planned {planned} · taken {taken}",
+        "status": {
+          "taken_on_time": "on time",
+          "taken_late": "late",
+          "skipped": "skipped",
+          "missed": "missed",
+          "upcoming": "upcoming",
+          "ad_hoc": "off-schedule"
+        },
+        "addDialog": {
+          "title": "Add intake",
+          "description": "Record a dose — including a backdated or off-schedule one.",
+          "takenAtLabel": "Taken at",
+          "skippedLabel": "Skipped",
+          "nudgeHint": "Close to the {slot} slot — on save we ask whether to attribute it.",
+          "cancel": "Cancel",
+          "submit": "Save"
+        },
+        "nudge": {
+          "title": "Attribute to this slot?",
+          "body": "This intake falls just outside the {slot} window. Attribute it to that slot, or keep it as an off-schedule entry?",
+          "keepAdHoc": "Off-schedule",
+          "pin": "Attribute"
+        }
+      },
       "notifications": {
         "title": "Notifications",
         "switchLabel": "Send a reminder when this dose is due",
@@ -1457,6 +1493,69 @@
         "back": "Back to medication",
         "subtitle": "Full intake history",
         "plannedSuffix": "planned"
+      },
+      "tabs": {
+        "uebersicht": "Overview",
+        "zeitplan": "Schedule",
+        "erinnerung": "Reminders",
+        "bestand": "Supply",
+        "verlauf": "History",
+        "injektion": "Injection",
+        "erweitert": "Advanced"
+      },
+      "shell": {
+        "fullEdit": "Edit fully",
+        "loadFailed": "This medication could not be loaded.",
+        "tablistLabel": "Medication detail sections"
+      },
+      "uebersicht": {
+        "complianceTitle": "Adherence",
+        "complianceEmpty": "No adherence data yet."
+      },
+      "bestand": {
+        "title": "Supply",
+        "summary": "{remaining} of {total} doses remaining",
+        "itemsTitle": "Pens / vials",
+        "doses": "{remaining} / {total} doses",
+        "state": {
+          "ACTIVE": "Unopened",
+          "IN_USE": "In use",
+          "EXPIRED": "Expired",
+          "USED_UP": "Used up"
+        },
+        "empty": "No supply recorded.",
+        "emptyHelper": "Register a pen or pack to track doses remaining and weeks of supply."
+      },
+      "erweitert": {
+        "group": {
+          "lifecycle": "Lifecycle",
+          "externalApi": "External API",
+          "data": "Data",
+          "danger": "Danger zone"
+        }
+      },
+      "zeitplan": {
+        "title": "Schedule",
+        "timesTitle": "Dose times",
+        "timesNote": "Adjust each dose's time and on-time window. For the frequency (daily, weekly …) use “Full edit”.",
+        "scheduleLabel": "Schedule {index}",
+        "fullEditNote": "Frequency, treatment class and course window are edited through “Full edit”.",
+        "graceEcho": "Reminder window: {minutes} minutes",
+        "graceLink": "Change under “Reminders”",
+        "save": "Save schedule",
+        "saved": "Schedule saved",
+        "failed": "Could not save the schedule",
+        "window": {
+          "intro": "For each dose, set when an intake still counts as on time — a precise time (±1h) or your own window such as 07:00–09:00.",
+          "explicitToggle": "Custom window",
+          "startLabel": "Window start",
+          "endLabel": "Window end",
+          "onTimeBand": "On time: {start}–{end}",
+          "lateUntil": "late until {time}",
+          "lateDays": "late until {days} days after",
+          "orderError": "The start must be before the end.",
+          "noTimes": "No dose times set yet."
+        }
       }
     },
     "logInjectionSiteTitle": "Log injection site",
@@ -3041,7 +3140,22 @@
     },
     "disclaimer": {
       "footer": "HealthLog describes your own tracked data — it is not a clinical assessment or diagnosis. Talk to your doctor about anything that concerns you."
-    }
+    },
+    "settings": {
+      "overviewTitle": "Arrange the overview",
+      "overviewDescription": "Show or hide sections and set their order on the Insights overview."
+    },
+    "pillOrder": {
+      "title": "Sort the navigation pills",
+      "description": "Drag the pills into the order they should appear in along the top of Insights.",
+      "dragHandle": "Reorder",
+      "saveSuccess": "Pill order saved.",
+      "saveError": "Saving the pill order failed.",
+      "save": "Save",
+      "empty": "No navigation pills available yet."
+    },
+    "customize": "Customize Insights",
+    "regenerateError": "Still refreshing — please try again in a moment."
   },
   "thresholds": {
     "defaultLabel": "Default",
@@ -3429,6 +3543,10 @@
       "sharing": {
         "title": "Sharing",
         "description": "Create a read-only link to share your health record with a clinician."
+      },
+      "insights": {
+        "title": "Insights",
+        "description": "Overview and navigation-pill order."
       }
     },
     "profile": "Profile",

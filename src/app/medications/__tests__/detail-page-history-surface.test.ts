@@ -1,19 +1,15 @@
 /**
- * v1.7.2 W3 — the `/medications/[id]` detail page IS the history view.
+ * v1.15.18 — the `/medications/[id]` detail page is the tabbed shell.
  *
- * Editing and advanced settings are reached from the medications-list
- * card kebab only; the detail page is purely history-centric. Source-
- * level guards (the page is a client component with `use()` + hooks, so
- * a full render is heavier than the contract warrants):
- *   - no `TodaysDoseCard` import or render (lives only on the list page);
- *   - no `isToday` / `todayEvent` derivations (dead once the card is
- *     gone);
- *   - no `landingIntent` / `wizardIntent` / `openWizardWithIntent`
- *     plumbing;
- *   - the page no longer hosts the wizard, the `AdvancedSettingsSheet`,
- *     the `MedicationDetailHeader` action row, or an editable cadence
- *     ("Rhythmus") block — those moved to the card kebab. It renders the
- *     read-only `MedicationDetailSummary` + the intake-history table.
+ * The page owns auth + the medication read and delegates the rest to
+ * `<MedicationDetailTabs>` (the tab strip, `?tab=` URL state, the hero
+ * and the wizard / advanced affordances). Source-level guards (the page
+ * is a client component with `use()` + hooks, so a full render is
+ * heavier than the contract warrants):
+ *   - it renders `MedicationDetailTabs` and nothing tab-specific itself;
+ *   - it carries no `TodaysDoseCard` (lives only on the list page);
+ *   - it hosts neither the wizard nor the modal advanced sheet directly
+ *     (those live inside the tab component).
  */
 
 import { readFileSync } from "node:fs";
@@ -25,35 +21,18 @@ const source = readFileSync(
   "utf8",
 );
 
-describe("medication detail page is the history view (W3)", () => {
+describe("medication detail page is the tabbed shell (v1.15.18)", () => {
+  it("delegates to MedicationDetailTabs", () => {
+    expect(source).toContain("MedicationDetailTabs");
+  });
+
   it("does not import or render TodaysDoseCard", () => {
     expect(source).not.toContain("TodaysDoseCard");
     expect(source).not.toContain("todays-dose-card");
   });
 
-  it("drops the dead isToday / todayEvent derivations", () => {
-    expect(source).not.toContain("isToday");
-    expect(source).not.toContain("todayEvent");
-  });
-
-  it("drops the landingIntent plumbing", () => {
-    expect(source).not.toContain("landingIntent");
-    expect(source).not.toContain("wizardIntent");
-    expect(source).not.toContain("openWizardWithIntent");
-  });
-
-  it("no longer hosts the wizard, advanced sheet, detail-header, or cadence row", () => {
-    // v1.7.2 W3 — editing + advanced moved to the medications-list card
-    // kebab; the detail page carries none of those affordances.
+  it("does not host the wizard or the modal advanced sheet directly", () => {
     expect(source).not.toContain("AdvancedSettingsSheet");
     expect(source).not.toContain("MedicationWizardDialog");
-    expect(source).not.toContain("MedicationDetailHeader");
-    expect(source).not.toContain("CadenceSummaryRow");
-    expect(source).not.toContain("hideEdit");
-  });
-
-  it("renders the read-only summary header + the intake-history table", () => {
-    expect(source).toContain("MedicationDetailSummary");
-    expect(source).toContain("IntakeHistoryPreview");
   });
 });

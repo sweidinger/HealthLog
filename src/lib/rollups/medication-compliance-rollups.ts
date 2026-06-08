@@ -14,6 +14,25 @@
  * coverage probe falls back to live + fires a boot backfill when a
  * user has intake events but zero rollup rows.
  *
+ * v1.15.18 DESIGN DECISION — this tier stays a RAW per-day COVERAGE count,
+ * NOT the band-attributed compliance %. It aggregates, across ALL of a
+ * user's medications, "of the intake rows whose `scheduled_for` lands on
+ * this day, how many carry a non-null `taken_at`" — a coarse daily
+ * cross-medication coverage strip for the dashboard mini-tiles. The
+ * unified band-membership attribution (the `tallyComplianceFromLedger`
+ * keystone) is per-medication and per-cadence: it depends on the slot
+ * bands of each schedule and the user timezone, which cannot be expressed
+ * in a single cross-medication SQL `SUM(CASE …)`. Re-attributing every
+ * intake against its cadence's bands before the tally would mean running
+ * the band minter per `(medication, day)` inside the rollup, which defeats
+ * the rollup's whole purpose (bounded SQL, no per-row Node walk). The
+ * detail page + the medication card already read the band-attributed % via
+ * `calculateCompliance` / `complianceChips`; this tier deliberately remains
+ * the cheaper coverage signal and is documented as such so the two are not
+ * confused. The `scheduled` / `taken` column names reflect this: a day's
+ * `taken` is "intake rows logged taken", not "doses inside their on-time
+ * band".
+ *
  * Audit anchor: `.planning/round-v1438-perf-analysis.md` §2.5 + §5 P4.
  */
 import { prisma } from "@/lib/db";

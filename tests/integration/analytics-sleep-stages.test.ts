@@ -100,7 +100,11 @@ describe("GET /api/analytics — sleep-stage aggregation", () => {
     // One night with the four iOS-16+ stages tagged. The analytics
     // route should surface a single Measurement-summary datapoint
     // (~480 minutes total) plus a per-stage breakdown.
-    const baseDate = new Date("2026-05-09T01:00:00.000Z");
+    // Anchor the night comfortably inside the route's trailing 30-day
+    // window (relative to `now`) so the test never drifts onto the
+    // window edge as the calendar advances or the host TZ shifts.
+    const baseDate = new Date(Date.now() - 5 * 24 * 60 * 60 * 1000);
+    baseDate.setUTCHours(1, 0, 0, 0);
     const stages: Array<{
       stage: "IN_BED" | "CORE" | "DEEP" | "REM";
       min: number;

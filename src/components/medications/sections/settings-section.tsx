@@ -4,12 +4,12 @@
  * v1.5.5 D-3 §9.7 — Settings rows.
  *
  * v1.7.0 — the monolithic "Settings" card is decomposed into reusable
- * rows so the redesigned `<AdvancedSettingsSheet>` can slot each one
- * under the right group: API tokens → Data, Grace → Reminders,
- * Phasen → Lifecycle. The standalone `<SettingsSection>` wrapper stays
- * (it composes the rows under one section card) so existing callers +
- * tests keep working. The CSV-import stub is gone — the sheet's Data
- * group carries a real import button.
+ * rows so each can slot under the right group: API tokens → Data, Grace →
+ * Reminders, Phasen → Lifecycle.
+ *
+ * v1.15.18 — the standalone `<SettingsSection>` wrapper is retired with
+ * the modal advanced-settings sheet; the detail page's tabs consume the
+ * individual rows (`GraceRow` / `DrugCodingRow` / `PhasesRow`) directly.
  *
  * Per H-4-UX: the Grace row's label flags it as primary-schedule
  * scoped so the user knows a multi-schedule medication does not get a
@@ -23,30 +23,9 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Separator } from "@/components/ui/separator";
-import { MedicationDetailSection } from "@/components/medications/medication-detail-section";
-import { ApiTokensRow } from "@/components/medications/sections/api-tokens-row";
 import { PhaseConfigSheet } from "@/components/medications/sections/phase-config-sheet";
 import { useTranslations } from "@/lib/i18n/context";
 import { invalidateKeys, medicationDependentKeys } from "@/lib/query-keys";
-
-export interface SettingsSectionProps {
-  medicationId: string;
-  medicationName: string;
-  treatmentClass?: string;
-  startsOn?: string | null;
-  endsOn?: string | null;
-  reminderGraceMinutes?: number | null;
-  /**
-   * v1.5.6 G-1 §5 — sibling-swap the phase sheet. When provided, the
-   * Phasen button hands control to the parent (which closes the
-   * hosting sheet before opening `<PhaseConfigSheet>`) instead of the
-   * self-managed `phaseSheetOpen` state, so the two sheets never
-   * stack. Absent on the standalone surface, where the section owns
-   * its own phase sheet.
-   */
-  onRequestPhaseSheet?: () => void;
-}
 
 /**
  * v1.7.0 — primary-schedule reminder-window (grace) row. Self-saves via
@@ -313,54 +292,3 @@ export function PhasesRow({
   );
 }
 
-/**
- * Standalone section wrapper — composes the rows under one section
- * card. Retained for callers / tests that expect the bundled shape.
- */
-export function SettingsSection({
-  medicationId,
-  medicationName,
-  treatmentClass,
-  startsOn,
-  endsOn,
-  reminderGraceMinutes,
-  onRequestPhaseSheet,
-}: SettingsSectionProps) {
-  const { t } = useTranslations();
-  const isGlp1 = treatmentClass === "GLP1";
-
-  return (
-    <MedicationDetailSection
-      titleId="medication-detail-settings-heading"
-      title={t("medications.detail.settings.title")}
-      dataSlot="medication-detail-settings-section"
-    >
-      <div className="space-y-4" data-slot="medication-detail-settings-body">
-        <ApiTokensRow
-          medicationId={medicationId}
-          medicationName={medicationName}
-        />
-
-        {isGlp1 && (
-          <>
-            <Separator />
-            <PhasesRow
-              medicationId={medicationId}
-              treatmentClass={treatmentClass}
-              startsOn={startsOn}
-              endsOn={endsOn}
-              onRequestPhaseSheet={onRequestPhaseSheet}
-            />
-          </>
-        )}
-
-        <Separator />
-
-        <GraceRow
-          medicationId={medicationId}
-          reminderGraceMinutes={reminderGraceMinutes}
-        />
-      </div>
-    </MedicationDetailSection>
-  );
-}

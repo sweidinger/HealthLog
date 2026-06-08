@@ -332,6 +332,9 @@ export async function computeUserHealthScoreFastPath(
             scheduleType: true,
             cyclicOnWeeks: true,
             cyclicOffWeeks: true,
+            // v1.15.18 — per-dose window so the score's compliance honours the
+            // same on-time band the detail % + history use.
+            doseWindows: true,
           },
         },
       },

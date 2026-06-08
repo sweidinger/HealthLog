@@ -94,15 +94,14 @@ interface MedicationCardProps {
   medication: Medication;
   onEdit: (med: Medication) => void;
   /**
-   * v1.7.1 — routes to the medication's full intake-history view
-   * (`/medications/{id}/history`), mirroring the detail-header History
-   * button. The parent owns the navigation.
+   * v1.15.18 — navigates to the medication detail page's Verlauf tab
+   * (`/medications/{id}?tab=verlauf`). The parent owns the navigation.
    */
   onOpenHistory: (med: Medication) => void;
   /**
-   * v1.7.1 — opens the shared `<AdvancedSettingsSheet>` (mounted by the
-   * list page) for this medication, mirroring the detail-header sliders
-   * button.
+   * v1.15.18 — navigates to the medication detail page's Erweitert tab
+   * (`/medications/{id}?tab=erweitert`), the home of the dissolved
+   * advanced settings.
    */
   onOpenAdvanced: (med: Medication) => void;
 }

@@ -1338,6 +1338,42 @@
           "failed": "Einnahme konnte nicht gelöscht werden."
         }
       },
+      "verlauf": {
+        "loading": "Verlauf wird geladen …",
+        "loadError": "Verlauf konnte nicht geladen werden.",
+        "empty": "Noch keine Einnahmen in diesem Zeitraum.",
+        "summaryEmpty": "Noch keine auswertbaren Dosen.",
+        "adherenceLabel": "Therapietreue",
+        "adherenceBarLabel": "{onTime} pünktlich, {late} verspätet, {missed} verpasst",
+        "add": "Eintrag",
+        "markTaken": "Genommen",
+        "markSkipped": "Übersprungen",
+        "adHocTag": "außerplanmäßig",
+        "takenDetail": "geplant {planned} · genommen {taken}",
+        "status": {
+          "taken_on_time": "pünktlich",
+          "taken_late": "verspätet",
+          "skipped": "übersprungen",
+          "missed": "verpasst",
+          "upcoming": "ausstehend",
+          "ad_hoc": "außerplanmäßig"
+        },
+        "addDialog": {
+          "title": "Einnahme hinzufügen",
+          "description": "Dosis nachtragen – auch rückwirkend oder außerplanmäßig.",
+          "takenAtLabel": "Genommen um",
+          "skippedLabel": "Übersprungen",
+          "nudgeHint": "Liegt nah am Slot {slot} – beim Speichern fragen wir, ob zugeordnet werden soll.",
+          "cancel": "Abbrechen",
+          "submit": "Speichern"
+        },
+        "nudge": {
+          "title": "Diesem Slot zuordnen?",
+          "body": "Die Einnahme liegt knapp außerhalb des Fensters von {slot}. Diesem Slot zuordnen oder als außerplanmäßigen Eintrag speichern?",
+          "keepAdHoc": "Außerplanmäßig",
+          "pin": "Zuordnen"
+        }
+      },
       "notifications": {
         "title": "Erinnerungen",
         "switchLabel": "Erinnern, wenn die Dosis fällig ist",
@@ -1457,6 +1493,69 @@
         "back": "Zurück zum Medikament",
         "subtitle": "Vollständiger Einnahmeverlauf",
         "plannedSuffix": "geplant"
+      },
+      "tabs": {
+        "uebersicht": "Übersicht",
+        "zeitplan": "Zeitplan",
+        "erinnerung": "Erinnerung",
+        "bestand": "Bestand",
+        "verlauf": "Verlauf",
+        "injektion": "Injektion",
+        "erweitert": "Erweitert"
+      },
+      "shell": {
+        "fullEdit": "Vollständig bearbeiten",
+        "loadFailed": "Dieses Medikament konnte nicht geladen werden.",
+        "tablistLabel": "Medikamenten-Detailbereiche"
+      },
+      "uebersicht": {
+        "complianceTitle": "Therapietreue",
+        "complianceEmpty": "Noch keine Daten zur Therapietreue."
+      },
+      "bestand": {
+        "title": "Bestand",
+        "summary": "{remaining} von {total} Dosen übrig",
+        "itemsTitle": "Pens / Ampullen",
+        "doses": "{remaining} / {total} Dosen",
+        "state": {
+          "ACTIVE": "Ungeöffnet",
+          "IN_USE": "In Gebrauch",
+          "EXPIRED": "Abgelaufen",
+          "USED_UP": "Aufgebraucht"
+        },
+        "empty": "Kein Bestand erfasst.",
+        "emptyHelper": "Erfasse einen Pen oder eine Packung, um verbleibende Dosen und Reichweite zu verfolgen."
+      },
+      "erweitert": {
+        "group": {
+          "lifecycle": "Lebenszyklus",
+          "externalApi": "Externe API",
+          "data": "Daten",
+          "danger": "Gefahrenzone"
+        }
+      },
+      "zeitplan": {
+        "title": "Zeitplan",
+        "timesTitle": "Einnahmezeiten",
+        "timesNote": "Passe die Uhrzeiten und das Zeitfenster jeder Dosis an. Für die Häufigkeit (täglich, wöchentlich …) nutze „Vollständig bearbeiten“.",
+        "scheduleLabel": "Zeitplan {index}",
+        "fullEditNote": "Häufigkeit, Wirkstoffklasse und Kursfenster bearbeitest du über „Vollständig bearbeiten“.",
+        "graceEcho": "Erinnerungsfenster: {minutes} Minuten",
+        "graceLink": "In „Erinnerung“ ändern",
+        "save": "Zeitplan speichern",
+        "saved": "Zeitplan gespeichert",
+        "failed": "Zeitplan konnte nicht gespeichert werden",
+        "window": {
+          "intro": "Lege je Dosis fest, wann eine Einnahme als pünktlich gilt — ein genauer Zeitpunkt (±1 Std.) oder ein eigenes Fenster wie 07:00–09:00.",
+          "explicitToggle": "Eigenes Fenster",
+          "startLabel": "Fensterbeginn",
+          "endLabel": "Fensterende",
+          "onTimeBand": "Pünktlich: {start}–{end}",
+          "lateUntil": "verspätet bis {time}",
+          "lateDays": "verspätet bis {days} Tage danach",
+          "orderError": "Der Beginn muss vor dem Ende liegen.",
+          "noTimes": "Noch keine Einnahmezeiten festgelegt."
+        }
       }
     },
     "logInjectionSiteTitle": "Injektionsstelle erfassen",
@@ -3041,7 +3140,22 @@
     },
     "disclaimer": {
       "footer": "HealthLog beschreibt deine eigenen erfassten Daten — es ist keine klinische Bewertung und keine Diagnose. Sprich mit deiner Ärztin oder deinem Arzt über alles, was dich beunruhigt."
-    }
+    },
+    "settings": {
+      "overviewTitle": "Übersicht anordnen",
+      "overviewDescription": "Abschnitte ein- oder ausblenden und ihre Reihenfolge auf der Insights-Übersicht festlegen."
+    },
+    "pillOrder": {
+      "title": "Navigations-Pills sortieren",
+      "description": "Ziehe die Pills in die Reihenfolge, in der sie oben in den Insights erscheinen sollen.",
+      "dragHandle": "Verschieben",
+      "saveSuccess": "Reihenfolge der Pills gespeichert.",
+      "saveError": "Speichern der Pill-Reihenfolge fehlgeschlagen.",
+      "save": "Speichern",
+      "empty": "Noch keine Navigations-Pills verfügbar."
+    },
+    "customize": "Insights anpassen",
+    "regenerateError": "Aktualisierung läuft noch — bitte gleich erneut versuchen."
   },
   "thresholds": {
     "defaultLabel": "Default",
@@ -3429,6 +3543,10 @@
       "sharing": {
         "title": "Freigabe",
         "description": "Erstelle einen schreibgeschützten Link, um deine Gesundheitsakte mit einer Ärztin oder einem Arzt zu teilen."
+      },
+      "insights": {
+        "title": "Insights",
+        "description": "Reihenfolge der Übersicht und der Navigations-Pills."
       }
     },
     "profile": "Profil",

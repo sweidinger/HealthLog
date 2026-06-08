@@ -116,11 +116,24 @@ export const POST = apiHandler(
       dayKeysToRefresh.add(dayKeyForScheduledFor(row.scheduledFor, tz));
     }
 
-    const { count } = await prisma.medicationIntakeEvent.deleteMany({
+    // v1.15.18 LOW-6 — soft-delete to match the single-event DELETE handler
+    // and the iOS tombstone contract: an intake is an immutable fact, so a
+    // bulk "delete" sets `deletedAt` (+ bumps `syncVersion`) so the
+    // `/api/sync/changes` feed surfaces each removal as a tombstone keyed on
+    // the server id to clients offline at delete time. Every today /
+    // compliance / list read filters `deletedAt: null`, so the rows are
+    // invisible to normal reads from here on. Scope `deletedAt: null` so a
+    // re-post of already-tombstoned ids counts zero rather than re-bumping.
+    const { count } = await prisma.medicationIntakeEvent.updateMany({
       where: {
         id: { in: targetRows.map((r) => r.id) },
         userId: user.id,
         medicationId: id,
+        deletedAt: null,
+      },
+      data: {
+        deletedAt: new Date(),
+        syncVersion: { increment: 1 },
       },
     });
 

@@ -163,7 +163,12 @@ describe("GET /api/analytics — Health Score", () => {
       },
     });
     for (let i = 0; i < 30; i++) {
+      // Anchor the take to a fixed wall-clock instant that lands inside the
+      // 08:00–10:00 Berlin window (07:30 UTC ≈ 09:30 Berlin) so the slot
+      // matcher reads "on-time" deterministically regardless of host TZ —
+      // an unaligned `now - i*DAY` shifts its Berlin hour with the runner TZ.
       const scheduledFor = new Date(now - i * DAY);
+      scheduledFor.setUTCHours(7, 30, 0, 0);
       await prisma.medicationIntakeEvent.create({
         data: {
           userId: user.id,
@@ -283,7 +288,12 @@ describe("GET /api/analytics — Health Score", () => {
       },
     });
     for (let i = 0; i < 30; i++) {
+      // Anchor the take to a fixed wall-clock instant that lands inside the
+      // 08:00–10:00 Berlin window (07:30 UTC ≈ 09:30 Berlin) so the slot
+      // matcher reads "on-time" deterministically regardless of host TZ —
+      // an unaligned `now - i*DAY` shifts its Berlin hour with the runner TZ.
       const scheduledFor = new Date(now - i * DAY);
+      scheduledFor.setUTCHours(7, 30, 0, 0);
       await prisma.medicationIntakeEvent.create({
         data: {
           userId: user.id,

@@ -373,10 +373,11 @@ describe("streak-token parity — generic vs GLP-1 card", () => {
 });
 
 /**
- * v1.15.9 — the ONE shared `<MedicationCardBody>` both cards render. These
- * tests pin the state-driven presentation (green take-window highlight,
- * overdue / heavily-overdue top line) and the structural identity that makes
- * the two variants impossible to diverge — they pass content into THIS body.
+ * v1.15.18 — the ONE shared `<MedicationCardBody>` both cards render. These
+ * tests pin that the card surface is a CONSTANT neutral surface — dose status
+ * is never expressed as a background / border tint (Marc, recurring) — while
+ * status is still surfaced via the discreet top line / pill, plus the
+ * structural identity that makes the two variants impossible to diverge.
  */
 describe("medication card body — shared shell + dose-state presentation", () => {
   function renderBody(doseStatus: DoseStatus, active = true) {
@@ -406,17 +407,30 @@ describe("medication card body — shared shell + dose-state presentation", () =
     );
   }
 
-  it("highlights the card green when the dose is in its take-window", () => {
+  it("never tints the card surface when the dose is in its take-window", () => {
+    // Marc (recurring): the whole card washing green reads as "take it now"
+    // and is a permanent removal. The take-window status survives ONLY as the
+    // discreet "Take now" pill, never as a card background / ring tint.
     const html = renderBody("on_time_window");
-    // Green ring + tinted background on the Card shell.
-    expect(html).toContain("ring-success/40");
-    expect(html).toContain("bg-success/5");
+    expect(html).not.toContain("ring-success/40");
+    expect(html).not.toContain("bg-success/5");
+    // The discreet status pill still communicates the state.
+    expect(html).toContain("Take now");
   });
 
-  it("stays calm (no green highlight) for upcoming / taken states", () => {
-    for (const status of ["upcoming", "taken_on_time", "taken_late", "skipped"] as const) {
+  it("never tints the card surface across any dose status", () => {
+    for (const status of [
+      "on_time_window",
+      "upcoming",
+      "taken_on_time",
+      "taken_late",
+      "skipped",
+      "overdue",
+      "missed",
+    ] as const) {
       const html = renderBody(status);
       expect(html).not.toContain("ring-success/40");
+      expect(html).not.toContain("bg-success/5");
     }
   });
 
@@ -433,9 +447,10 @@ describe("medication card body — shared shell + dose-state presentation", () =
     expect(html).toContain("text-destructive");
   });
 
-  it("never highlights green on an inactive medication", () => {
+  it("keeps the inactive surface muted without any status tint", () => {
     const html = renderBody("on_time_window", false);
     expect(html).not.toContain("ring-success/40");
+    expect(html).not.toContain("bg-success/5");
     expect(html).toContain("opacity-60");
   });
 

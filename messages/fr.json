@@ -1338,6 +1338,42 @@
           "failed": "Impossible de supprimer la prise."
         }
       },
+      "verlauf": {
+        "loading": "Chargement de l'historique …",
+        "loadError": "Impossible de charger l'historique.",
+        "empty": "Aucune prise sur cette période pour l'instant.",
+        "summaryEmpty": "Aucune dose à évaluer pour l'instant.",
+        "adherenceLabel": "Observance",
+        "adherenceBarLabel": "{onTime} à l'heure, {late} en retard, {missed} manquées",
+        "add": "Entrée",
+        "markTaken": "Prise",
+        "markSkipped": "Sautée",
+        "adHocTag": "hors planning",
+        "takenDetail": "prévue {planned} · prise {taken}",
+        "status": {
+          "taken_on_time": "à l'heure",
+          "taken_late": "en retard",
+          "skipped": "sautée",
+          "missed": "manquée",
+          "upcoming": "à venir",
+          "ad_hoc": "hors planning"
+        },
+        "addDialog": {
+          "title": "Ajouter une prise",
+          "description": "Enregistrez une dose, même rétroactive ou hors planning.",
+          "takenAtLabel": "Prise à",
+          "skippedLabel": "Sautée",
+          "nudgeHint": "Proche du créneau {slot} — à l'enregistrement, nous demandons s'il faut l'y rattacher.",
+          "cancel": "Annuler",
+          "submit": "Enregistrer"
+        },
+        "nudge": {
+          "title": "Rattacher à ce créneau ?",
+          "body": "Cette prise se situe juste en dehors de la fenêtre de {slot}. La rattacher à ce créneau ou la conserver comme entrée hors planning ?",
+          "keepAdHoc": "Hors planning",
+          "pin": "Rattacher"
+        }
+      },
       "notifications": {
         "title": "Rappels",
         "switchLabel": "Envoyer un rappel lorsque cette dose est due",
@@ -1457,6 +1493,69 @@
         "back": "Retour au médicament",
         "subtitle": "Historique complet des prises",
         "plannedSuffix": "prévu"
+      },
+      "tabs": {
+        "uebersicht": "Aperçu",
+        "zeitplan": "Horaire",
+        "erinnerung": "Rappels",
+        "bestand": "Stock",
+        "verlauf": "Historique",
+        "injektion": "Injection",
+        "erweitert": "Avancé"
+      },
+      "shell": {
+        "fullEdit": "Modifier entièrement",
+        "loadFailed": "Ce médicament n'a pas pu être chargé.",
+        "tablistLabel": "Sections de détail du médicament"
+      },
+      "uebersicht": {
+        "complianceTitle": "Observance",
+        "complianceEmpty": "Aucune donnée d'observance pour l'instant."
+      },
+      "bestand": {
+        "title": "Stock",
+        "summary": "{remaining} doses restantes sur {total}",
+        "itemsTitle": "Stylos / flacons",
+        "doses": "{remaining} / {total} doses",
+        "state": {
+          "ACTIVE": "Non ouvert",
+          "IN_USE": "En cours",
+          "EXPIRED": "Expiré",
+          "USED_UP": "Épuisé"
+        },
+        "empty": "Aucun stock enregistré.",
+        "emptyHelper": "Enregistrez un stylo ou une boîte pour suivre les doses restantes et l'autonomie."
+      },
+      "erweitert": {
+        "group": {
+          "lifecycle": "Cycle de vie",
+          "externalApi": "API externe",
+          "data": "Données",
+          "danger": "Zone de danger"
+        }
+      },
+      "zeitplan": {
+        "title": "Horaire",
+        "timesTitle": "Heures de prise",
+        "timesNote": "Ajustez l'heure et la fenêtre à l'heure de chaque dose. Pour la fréquence (quotidienne, hebdomadaire…), utilisez « Édition complète ».",
+        "scheduleLabel": "Horaire {index}",
+        "fullEditNote": "La fréquence, la classe de traitement et la fenêtre de cure se modifient via « Édition complète ».",
+        "graceEcho": "Fenêtre de rappel : {minutes} minutes",
+        "graceLink": "Modifier dans « Rappels »",
+        "save": "Enregistrer l'horaire",
+        "saved": "Horaire enregistré",
+        "failed": "Impossible d'enregistrer l'horaire",
+        "window": {
+          "intro": "Pour chaque dose, définissez quand une prise reste à l'heure : un horaire précis (±1 h) ou votre propre fenêtre comme 07:00–09:00.",
+          "explicitToggle": "Fenêtre personnalisée",
+          "startLabel": "Début de la fenêtre",
+          "endLabel": "Fin de la fenêtre",
+          "onTimeBand": "À l'heure : {start}–{end}",
+          "lateUntil": "en retard jusqu'à {time}",
+          "lateDays": "en retard jusqu'à {days} jours après",
+          "orderError": "Le début doit précéder la fin.",
+          "noTimes": "Aucune heure de prise définie pour l'instant."
+        }
       }
     },
     "logInjectionSiteTitle": "Enregistrer le site d'injection",
@@ -3041,7 +3140,22 @@
     },
     "disclaimer": {
       "footer": "HealthLog décrit vos propres données suivies — il ne s'agit pas d'une évaluation clinique ni d'un diagnostic. Parlez à votre médecin de tout ce qui vous préoccupe."
-    }
+    },
+    "settings": {
+      "overviewTitle": "Organiser la vue d'ensemble",
+      "overviewDescription": "Affichez ou masquez des sections et définissez leur ordre sur la vue d'ensemble des Analyses."
+    },
+    "pillOrder": {
+      "title": "Trier les onglets de navigation",
+      "description": "Faites glisser les onglets dans l'ordre où ils doivent apparaître en haut des Analyses.",
+      "dragHandle": "Réorganiser",
+      "saveSuccess": "Ordre des onglets enregistré.",
+      "saveError": "L'enregistrement de l'ordre des onglets a échoué.",
+      "save": "Enregistrer",
+      "empty": "Aucun onglet de navigation disponible pour le moment."
+    },
+    "customize": "Personnaliser les Analyses",
+    "regenerateError": "Actualisation en cours — réessayez dans un instant."
   },
   "thresholds": {
     "defaultLabel": "Par défaut",
@@ -3429,6 +3543,10 @@
       "sharing": {
         "title": "Partage",
         "description": "Créez un lien en lecture seule pour partager votre dossier de santé avec un professionnel de santé."
+      },
+      "insights": {
+        "title": "Analyses",
+        "description": "Ordre de la vue d'ensemble et des onglets de navigation."
       }
     },
     "profile": "Profil",

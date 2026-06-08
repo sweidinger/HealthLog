@@ -6,83 +6,132 @@ import {
   buildComplianceDisplay,
   buildComplianceMedicationContext,
   calculateCompliance,
-  classifyIntakeTiming,
-  expectedSlotCountForDay,
   lastNonSkippedTakenAt,
 } from "@/lib/analytics/compliance";
 import type { DailyComplianceEntry } from "@/lib/analytics/compliance";
+import type { SlotBand } from "@/lib/medications/scheduling/attribution";
+import {
+  buildBandsForSchedules,
+  type BandMinterMedication,
+} from "@/lib/medications/scheduling/band-minter";
+import {
+  reconstructDoseHistory,
+  type DoseHistoryRow,
+  type HistoryIntake,
+} from "@/lib/medications/scheduling/dose-history";
+import {
+  type CanonicalSchedule,
+  type RecurrenceContext,
+} from "@/lib/medications/scheduling/recurrence";
+import { normaliseDoseWindows } from "@/lib/medications/scheduling/worker-helpers";
 import { assertMedicationOwnership } from "@/lib/medications/route-guards";
-import { getUserTodayBounds } from "@/lib/timezone";
 import { userDayKey } from "@/lib/tz/format";
 
 type RouteParams = { params: Promise<{ id: string }> };
 
-/** A single effective dose slot with its derived punctuality window. */
-interface SlotWindow {
-  /** Minute-of-day of the slot's start time (used for nearest-slot match). */
-  startMinutes: number;
-  /** "HH:mm" slot start — fed to `classifyIntakeTiming` as `windowStart`. */
+type MedicationScheduleRow = {
+  id: string;
+  rrule: string | null;
+  rollingIntervalDays: number | null;
+  timesOfDay: string[];
+  daysOfWeek: string | null;
   windowStart: string;
-  /** "HH:mm" slot end = slot start + the schedule's window span. */
   windowEnd: string;
-}
+  reminderGraceMinutes: number | null;
+  scheduleType: "SCHEDULED" | "PRN" | "CYCLIC";
+  cyclicOnWeeks: number | null;
+  cyclicOffWeeks: number | null;
+  /** v1.15.18 — per-dose configurable on-time windows (persisted JSON). */
+  doseWindows: unknown;
+};
 
-const MINUTES_PER_DAY = 24 * 60;
-
-/** Parse "HH:mm" into minute-of-day. */
-function hhmmToMinutes(time: string): number {
-  const [h, m] = time.split(":").map(Number);
-  return h * 60 + m;
-}
-
-/** Format a minute-of-day (wrapped into 0..1439) back to "HH:mm". */
-function minutesToHHmm(minutes: number): string {
-  const wrapped = ((minutes % MINUTES_PER_DAY) + MINUTES_PER_DAY) %
-    MINUTES_PER_DAY;
-  const h = Math.floor(wrapped / 60);
-  const m = wrapped % 60;
-  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+/**
+ * v1.15.18 — adapt a Prisma schedule row to the canonical engine shape the
+ * band minter consumes. A legacy daily row carrying only `windowStart`
+ * surfaces it as the single `timeOfDay` so the minter mints its daily band.
+ */
+function toCanonicalForBands(
+  s: MedicationScheduleRow,
+  oneShot: boolean,
+): CanonicalSchedule {
+  const base: CanonicalSchedule = {
+    id: s.id,
+    rrule: s.rrule,
+    rollingIntervalDays: s.rollingIntervalDays,
+    timesOfDay: s.timesOfDay,
+    daysOfWeek: s.daysOfWeek,
+    windowStart: s.windowStart,
+    windowEnd: s.windowEnd,
+    reminderGraceMinutes: s.reminderGraceMinutes,
+    scheduleType: s.scheduleType,
+    cyclicOnWeeks: s.cyclicOnWeeks,
+    cyclicOffWeeks: s.cyclicOffWeeks,
+    doseWindows: normaliseDoseWindows(s.doseWindows),
+  };
+  if (
+    base.timesOfDay.length === 0 &&
+    base.rrule === null &&
+    base.rollingIntervalDays === null &&
+    base.scheduleType !== "PRN" &&
+    !oneShot
+  ) {
+    return { ...base, timesOfDay: [base.windowStart] };
+  }
+  return base;
 }
 
 /**
- * v1.8.1 B15 follow-on — expand every schedule into its effective dose
- * slots so timing classification matches against the right time-of-day.
+ * v1.15.18 — fold one dose-history ledger row into a per-day heatmap entry.
  *
- * Candidate slot times for a schedule are its `timesOfDay` when non-empty,
- * else `[windowStart]` (so single-time schedules collapse to one slot at
- * `windowStart` and stay byte-identical to the pre-fix matcher). Each
- * slot's punctuality window is anchored at the slot time and spans the
- * schedule's `windowEnd − windowStart` duration; overnight windows
- * (`windowEnd ≤ windowStart`) add a day to the span before deriving the
- * per-slot end. Multi-schedule meds union their slots — the matcher then
- * picks the single closest slot across all of them.
+ * Slot rows contribute to `expected` / `expectedCount` (the day's due-slot
+ * count): a taken slot adds to `taken` and its timing bucket; a missed slot
+ * stays uncounted in `taken`; a skipped slot lands in `skipped`; an upcoming
+ * slot is still due but not yet acted on. An ad-hoc row is a real off-schedule
+ * take — it counts as `taken` AND adds its own `expected` slot (so the
+ * heatmap's `missed = expected − taken − skipped` math stays non-negative) and
+ * reads on-time (a logged dose colours green).
  */
-function buildSlotCandidates(
-  schedules: { windowStart: string; windowEnd: string; timesOfDay: string[] }[],
-): SlotWindow[] {
-  const slots: SlotWindow[] = [];
-  for (const sched of schedules) {
-    const startMin = hhmmToMinutes(sched.windowStart);
-    let endMin = hhmmToMinutes(sched.windowEnd);
-    // Overnight window: the end is on the following day.
-    if (endMin <= startMin) endMin += MINUTES_PER_DAY;
-    const spanMinutes = endMin - startMin;
-
-    const times =
-      sched.timesOfDay.length > 0 ? sched.timesOfDay : [sched.windowStart];
-
-    for (const time of times) {
-      const slotStartMin = hhmmToMinutes(time);
-      slots.push({
-        startMinutes: slotStartMin,
-        windowStart: minutesToHHmm(slotStartMin),
-        // `classifyIntakeTiming` re-detects the overnight wrap from the
-        // HH:mm pair, so a wrapped end formats back into 0..1439 cleanly.
-        windowEnd: minutesToHHmm(slotStartMin + spanMinutes),
-      });
-    }
+function bucketLedgerRow(
+  entry: DailyComplianceEntry,
+  row: DoseHistoryRow,
+): void {
+  switch (row.status) {
+    case "taken_on_time":
+      entry.expected++;
+      entry.expectedCount++;
+      entry.taken++;
+      entry.onTime++;
+      break;
+    case "taken_late":
+      entry.expected++;
+      entry.expectedCount++;
+      entry.taken++;
+      entry.late++;
+      break;
+    case "missed":
+      entry.expected++;
+      entry.expectedCount++;
+      break;
+    case "skipped":
+      entry.expected++;
+      entry.expectedCount++;
+      entry.skipped++;
+      break;
+    case "upcoming":
+      // A future / still-takeable slot is due but not yet acted on. It counts
+      // toward the day's expected/due grid but not toward taken or missed.
+      entry.expected++;
+      entry.expectedCount++;
+      break;
+    case "ad_hoc":
+      // An off-schedule take: a real taken dose with no scheduled slot. Count
+      // it as taken + its own expected slot so the heatmap missed math holds.
+      entry.expected++;
+      entry.expectedCount++;
+      entry.taken++;
+      entry.onTime++;
+      break;
   }
-  return slots;
 }
 
 export const GET = apiHandler(
@@ -165,134 +214,103 @@ export const GET = apiHandler(
       { now },
     );
 
-    // Build daily compliance map for heatmap/line chart (90 days)
+    // v1.15.18 — the heatmap / line-chart daily map is now bucketed from the
+    // ONE unified dose-history ledger (the same bands the % + the history view
+    // read), so the per-day timing split (on-time / late) and the per-day
+    // missed marks can never disagree with the headline rate. The legacy
+    // per-day `classifyIntakeTiming` 3h-grace heuristic + `expectedSlotCount
+    // ForDay` walk are retired here in favour of band membership: a take inside
+    // a slot's on-time band reads on-time, inside its late tail reads late,
+    // outside every band reads ad-hoc; an unfilled slot past its miss cutoff
+    // reads missed; a future slot is upcoming (not yet due).
     const dailyCompliance: Record<string, DailyComplianceEntry> = {};
 
-    for (let d = 0; d < 90; d++) {
-      // v1.7.0 code-correctness M1 — anchor each day's [start,end) on the
-      // user-tz local-day boundary, not a UTC-midnight slice. The engine
-      // applies `timesOfDay` in the user timezone, so for tz-distant users
-      // a UTC slice could attach `due` / `expectedCount` to the adjacent
-      // calendar cell. Anchor on a noon-local representative instant
-      // (dodges the DST midnight-ambiguity edge) and key off the user-tz
-      // day so the heatmap cell, the engine frame, and `dateKey` agree.
-      const representative = new Date(
-        now.getTime() - d * 24 * 60 * 60 * 1000 - 12 * 60 * 60 * 1000,
-      );
-      const { start: dayStart, end: dayEndInclusive } = getUserTodayBounds(
-        representative,
-        userTz,
-      );
-      // `getUserTodayBounds` returns an inclusive end (local 23:59:59.999);
-      // the slicing loops below use a half-open `[dayStart, dayEnd)`.
-      const dayEnd = new Date(dayEndInclusive.getTime() + 1);
+    // Build the bands across the whole 90-day heatmap window once. The window
+    // floor clamps to the medication's creation so pre-existence days never
+    // mint phantom slots.
+    const DAY_MS = 24 * 60 * 60 * 1000;
+    const windowFrom = new Date(
+      Math.max(now.getTime() - 90 * DAY_MS, createdAt.getTime()),
+    );
+    const bandMedication: BandMinterMedication = {
+      id: medication.id,
+      startsOn: medication.startsOn,
+      endsOn: medication.endsOn,
+      oneShot: medication.oneShot,
+      createdAt: medication.createdAt,
+    };
+    const bandCtx: RecurrenceContext = {
+      medication: {
+        id: medication.id,
+        startsOn: medication.startsOn,
+        endsOn: medication.endsOn,
+        oneShot: medication.oneShot,
+        createdAt: medication.createdAt,
+      },
+      timeZone: userTz,
+      lastIntakeAt,
+    };
+    const canonicalSchedules: CanonicalSchedule[] = medication.schedules.map(
+      (s) => toCanonicalForBands(s, medication.oneShot),
+    );
+    const intakeInstants = mapped
+      .filter((e) => !e.skipped && e.takenAt !== null && e.takenAt <= now)
+      .map((e) => e.takenAt as Date)
+      .sort((a, b) => a.getTime() - b.getTime());
+    const groups = buildBandsForSchedules({
+      medication: bandMedication,
+      schedules: canonicalSchedules,
+      ctx: bandCtx,
+      userTz,
+      range: { from: windowFrom, to: now },
+      now,
+      intakeInstants,
+    });
+    const bands: SlotBand[] = [];
+    for (const g of groups) {
+      if (g.hasExpectedSlots) bands.push(...g.bands);
+    }
+    const historyIntakes: HistoryIntake[] = mapped
+      .filter((e) => e.scheduledFor >= windowFrom && e.scheduledFor <= now)
+      .map((e) => ({
+        scheduledFor: e.scheduledFor,
+        takenAt: e.takenAt,
+        skipped: e.skipped,
+        autoMissed: e.autoMissed,
+      }));
+    const ledgerRows = reconstructDoseHistory(bands, historyIntakes, now);
 
-      // Skip days before medication was created
-      if (dayEnd <= createdAt) continue;
-
-      const dateKey = userDayKey(dayStart, userTz);
-
-      const dayEvents = mapped.filter(
-        (e) => e.scheduledFor >= dayStart && e.scheduledFor < dayEnd,
-      );
-
-      const takenEvents = dayEvents.filter(
-        (e) => e.takenAt !== null && !e.skipped,
-      );
-
-      // Classify timing for each taken event against the best-matching schedule
-      let onTime = 0;
-      let late = 0;
-      let veryLate = 0;
-      let early = 0;
-
-      // v1.8.1 B15 follow-on — match each taken event to the closest
-      // effective time-of-day SLOT, not merely `windowStart`. A single
-      // schedule row carrying `timesOfDay = ["07:00","19:00"]` is two
-      // distinct dose slots; matching the evening dose against the lone
-      // `windowStart` "07:00" mis-classified it as `very_late` (~12h late)
-      // and painted the heatmap cell orange even when both doses were
-      // taken on time. Candidate slots for a schedule are its `timesOfDay`
-      // when non-empty, else `[windowStart]` — so single-time schedules
-      // collapse to exactly one candidate at `windowStart` and stay
-      // byte-identical to the pre-fix behaviour. The per-slot window
-      // mirrors the projector / cadence anchor: effective windowStart is
-      // the slot time, effective windowEnd is the slot time plus the
-      // schedule's `windowEnd − windowStart` span (overnight spans where
-      // `windowEnd ≤ windowStart` add a day).
-      const slotCandidates = buildSlotCandidates(medication.schedules);
-
-      for (const evt of takenEvents) {
-        if (slotCandidates.length === 0) {
-          // No schedule info: treat all taken as on_time
-          onTime++;
-          continue;
-        }
-
-        // Match event to the closest slot window by scheduledFor time.
-        const evtHour = evt.scheduledFor.getUTCHours();
-        const evtMin = evt.scheduledFor.getUTCMinutes();
-        const evtMinutes = evtHour * 60 + evtMin;
-
-        let bestSlot = slotCandidates[0];
-        let bestDist = Infinity;
-
-        for (const slot of slotCandidates) {
-          const dist = Math.abs(evtMinutes - slot.startMinutes);
-          if (dist < bestDist) {
-            bestDist = dist;
-            bestSlot = slot;
-          }
-        }
-
-        const timing = classifyIntakeTiming(
-          evt.takenAt,
-          bestSlot.windowStart,
-          bestSlot.windowEnd,
-          dayStart, // the scheduled date
-        );
-
-        // v1.4.34 IW-C — `early` is the new compliant bucket; it counts
-        // alongside `onTime` for the heatmap so a proactive logger reads
-        // green. The classifier still emits a distinct `"early"` value
-        // for downstream consumers that want to differentiate; the
-        // separate counter is surfaced on the daily entry below.
-        if (timing === "on_time") onTime++;
-        else if (timing === "early") early++;
-        else if (timing === "late") late++;
-        else veryLate++;
+    // Bucket each ledger row into its user-tz day. A slot row buckets on its
+    // anchor; an ad-hoc row on its real take time.
+    const byDay = new Map<string, DailyComplianceEntry>();
+    const ensureDay = (key: string): DailyComplianceEntry => {
+      let entry = byDay.get(key);
+      if (!entry) {
+        entry = {
+          expected: 0,
+          expectedCount: 0,
+          due: false,
+          taken: 0,
+          skipped: 0,
+          onTime: 0,
+          late: 0,
+          veryLate: 0,
+          early: 0,
+        };
+        byDay.set(key, entry);
       }
+      return entry;
+    };
 
-      // v1.7.0 item 5 — the per-day expected count is the engine's actual
-      // due-slot count for THIS day, not the static schedule count. iOS
-      // history paints a "missed" mark only when `due === true`, so
-      // off-weeks / non-matching weekdays / PRN days no longer show a
-      // false miss. `expected` is kept populated (= expectedCount) for
-      // existing web consumers that read it; `due` + `expectedCount` are
-      // the explicit additive fields iOS keys off.
-      const expectedCount = expectedSlotCountForDay(
-        medication.schedules,
-        dayStart,
-        dayEnd,
-        medicationContext,
-        // v1.13.x — pass the intake history so a ROLLING schedule's per-day
-        // `due` flags come from the retrospective grid (each logged dose is a
-        // due day) instead of the engine's single forward slot — keeping the
-        // heatmap, the denominator, and the displayed rate in agreement.
-        mapped,
-      );
+    for (const row of ledgerRows) {
+      const key = userDayKey(row.at, userTz);
+      const entry = ensureDay(key);
+      bucketLedgerRow(entry, row);
+    }
 
-      dailyCompliance[dateKey] = {
-        expected: expectedCount,
-        expectedCount,
-        due: expectedCount > 0,
-        taken: takenEvents.length,
-        skipped: dayEvents.filter((e) => e.skipped).length,
-        onTime: onTime + early,
-        late,
-        veryLate,
-        early,
-      };
+    for (const [key, entry] of byDay) {
+      entry.due = entry.expectedCount > 0;
+      dailyCompliance[key] = entry;
     }
 
     annotate({
