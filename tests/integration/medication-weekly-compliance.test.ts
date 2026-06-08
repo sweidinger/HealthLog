@@ -212,15 +212,20 @@ describe("weekly injectable compliance (Mounjaro 0% regression)", () => {
       rrule: "FREQ=WEEKLY;BYDAY=MO",
       windowStart: "07:30",
     });
-    // Log only 12 of the trailing 13 Mondays (skip the most recent).
+    // Take the most-recent Monday on time, then skip ONE older Monday
+    // (`lastMonday − 7d`, which sits 9 days before the pinned now — past
+    // the weekly 4-day overdue tail, so it counts as definitively missed
+    // rather than still-takeable) and take the 11 Mondays before it. The
+    // gap is a real, settled miss, not a head-of-window overdue slot.
+    await logWeeklyIntakes(id, lastMonday, 1);
     await logWeeklyIntakes(
       id,
-      new Date(lastMonday.getTime() - 7 * DAY_MS),
-      12,
+      new Date(lastMonday.getTime() - 14 * DAY_MS),
+      11,
     );
 
     const { compliance90 } = await readCompliance(id);
-    // 12 of 13 expected → ~92%, definitively non-zero and below 100.
+    // 12 taken of 13 expected → ~92%, definitively non-zero and below 100.
     expect(compliance90.rate).toBeGreaterThan(80);
     expect(compliance90.rate).toBeLessThan(100);
     expect(compliance90.missed).toBeGreaterThanOrEqual(1);

@@ -96,7 +96,14 @@ import { getSession } from "@/lib/auth/session";
 
 const SESSION_OK = {
   session: { id: "sess-1", expiresAt: new Date(Date.now() + 3_600_000) },
-  user: { id: "user-1", username: "marc", role: "USER" as const },
+  user: {
+    id: "user-1",
+    username: "marc",
+    role: "USER" as const,
+    // Pin the user timezone so slot-instant resolution is deterministic
+    // regardless of the host TZ (CI runs in UTC, local in Europe/Berlin).
+    timezone: "Europe/Berlin",
+  },
 };
 
 const MED_OK = { id: "med-1", userId: "user-1" };
