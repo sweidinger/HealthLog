@@ -1338,6 +1338,42 @@
           "failed": "Impossibile eliminare l’assunzione."
         }
       },
+      "verlauf": {
+        "loading": "Caricamento cronologia …",
+        "loadError": "Impossibile caricare la cronologia.",
+        "empty": "Ancora nessuna assunzione in questo periodo.",
+        "summaryEmpty": "Ancora nessuna dose da valutare.",
+        "adherenceLabel": "Aderenza",
+        "adherenceBarLabel": "{onTime} puntuali, {late} in ritardo, {missed} mancate",
+        "add": "Voce",
+        "markTaken": "Assunta",
+        "markSkipped": "Saltata",
+        "adHocTag": "fuori programma",
+        "takenDetail": "prevista {planned} · assunta {taken}",
+        "status": {
+          "taken_on_time": "puntuale",
+          "taken_late": "in ritardo",
+          "skipped": "saltata",
+          "missed": "mancata",
+          "upcoming": "in attesa",
+          "ad_hoc": "fuori programma"
+        },
+        "addDialog": {
+          "title": "Aggiungi assunzione",
+          "description": "Registra una dose, anche retroattiva o fuori programma.",
+          "takenAtLabel": "Assunta alle",
+          "skippedLabel": "Saltata",
+          "nudgeHint": "Vicina allo slot {slot}: al salvataggio chiediamo se attribuirla.",
+          "cancel": "Annulla",
+          "submit": "Salva"
+        },
+        "nudge": {
+          "title": "Attribuire a questo slot?",
+          "body": "Questa assunzione cade appena fuori dalla finestra di {slot}. Attribuirla a quello slot o tenerla come voce fuori programma?",
+          "keepAdHoc": "Fuori programma",
+          "pin": "Attribuisci"
+        }
+      },
       "notifications": {
         "title": "Promemoria",
         "switchLabel": "Invia un promemoria quando questa dose è dovuta",

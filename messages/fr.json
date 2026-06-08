@@ -1338,6 +1338,42 @@
           "failed": "Impossible de supprimer la prise."
         }
       },
+      "verlauf": {
+        "loading": "Chargement de l'historique …",
+        "loadError": "Impossible de charger l'historique.",
+        "empty": "Aucune prise sur cette période pour l'instant.",
+        "summaryEmpty": "Aucune dose à évaluer pour l'instant.",
+        "adherenceLabel": "Observance",
+        "adherenceBarLabel": "{onTime} à l'heure, {late} en retard, {missed} manquées",
+        "add": "Entrée",
+        "markTaken": "Prise",
+        "markSkipped": "Sautée",
+        "adHocTag": "hors planning",
+        "takenDetail": "prévue {planned} · prise {taken}",
+        "status": {
+          "taken_on_time": "à l'heure",
+          "taken_late": "en retard",
+          "skipped": "sautée",
+          "missed": "manquée",
+          "upcoming": "à venir",
+          "ad_hoc": "hors planning"
+        },
+        "addDialog": {
+          "title": "Ajouter une prise",
+          "description": "Enregistrez une dose, même rétroactive ou hors planning.",
+          "takenAtLabel": "Prise à",
+          "skippedLabel": "Sautée",
+          "nudgeHint": "Proche du créneau {slot} — à l'enregistrement, nous demandons s'il faut l'y rattacher.",
+          "cancel": "Annuler",
+          "submit": "Enregistrer"
+        },
+        "nudge": {
+          "title": "Rattacher à ce créneau ?",
+          "body": "Cette prise se situe juste en dehors de la fenêtre de {slot}. La rattacher à ce créneau ou la conserver comme entrée hors planning ?",
+          "keepAdHoc": "Hors planning",
+          "pin": "Rattacher"
+        }
+      },
       "notifications": {
         "title": "Rappels",
         "switchLabel": "Envoyer un rappel lorsque cette dose est due",

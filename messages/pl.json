@@ -1338,6 +1338,42 @@
           "failed": "Nie udało się usunąć przyjęcia."
         }
       },
+      "verlauf": {
+        "loading": "Wczytywanie historii …",
+        "loadError": "Nie udało się wczytać historii.",
+        "empty": "Brak przyjęć w tym okresie.",
+        "summaryEmpty": "Brak dawek do oceny.",
+        "adherenceLabel": "Przestrzeganie",
+        "adherenceBarLabel": "{onTime} na czas, {late} z opóźnieniem, {missed} pominięte",
+        "add": "Wpis",
+        "markTaken": "Przyjęte",
+        "markSkipped": "Pominięte",
+        "adHocTag": "poza planem",
+        "takenDetail": "planowo {planned} · przyjęto {taken}",
+        "status": {
+          "taken_on_time": "na czas",
+          "taken_late": "z opóźnieniem",
+          "skipped": "pominięte",
+          "missed": "nieprzyjęte",
+          "upcoming": "oczekujące",
+          "ad_hoc": "poza planem"
+        },
+        "addDialog": {
+          "title": "Dodaj przyjęcie",
+          "description": "Zarejestruj dawkę — także wstecznie lub poza planem.",
+          "takenAtLabel": "Przyjęto o",
+          "skippedLabel": "Pominięte",
+          "nudgeHint": "Blisko slotu {slot} — przy zapisie zapytamy, czy przypisać.",
+          "cancel": "Anuluj",
+          "submit": "Zapisz"
+        },
+        "nudge": {
+          "title": "Przypisać do tego slotu?",
+          "body": "To przyjęcie wypada tuż poza oknem {slot}. Przypisać je do tego slotu czy zachować jako wpis poza planem?",
+          "keepAdHoc": "Poza planem",
+          "pin": "Przypisz"
+        }
+      },
       "notifications": {
         "title": "Przypomnienia",
         "switchLabel": "Wyślij przypomnienie, gdy nadejdzie czas tej dawki",

@@ -1338,6 +1338,42 @@
           "failed": "Could not delete the intake."
         }
       },
+      "verlauf": {
+        "loading": "Loading history …",
+        "loadError": "Could not load the history.",
+        "empty": "No intakes in this period yet.",
+        "summaryEmpty": "No doses to score yet.",
+        "adherenceLabel": "Adherence",
+        "adherenceBarLabel": "{onTime} on time, {late} late, {missed} missed",
+        "add": "Entry",
+        "markTaken": "Taken",
+        "markSkipped": "Skipped",
+        "adHocTag": "off-schedule",
+        "takenDetail": "planned {planned} · taken {taken}",
+        "status": {
+          "taken_on_time": "on time",
+          "taken_late": "late",
+          "skipped": "skipped",
+          "missed": "missed",
+          "upcoming": "upcoming",
+          "ad_hoc": "off-schedule"
+        },
+        "addDialog": {
+          "title": "Add intake",
+          "description": "Record a dose — including a backdated or off-schedule one.",
+          "takenAtLabel": "Taken at",
+          "skippedLabel": "Skipped",
+          "nudgeHint": "Close to the {slot} slot — on save we ask whether to attribute it.",
+          "cancel": "Cancel",
+          "submit": "Save"
+        },
+        "nudge": {
+          "title": "Attribute to this slot?",
+          "body": "This intake falls just outside the {slot} window. Attribute it to that slot, or keep it as an off-schedule entry?",
+          "keepAdHoc": "Off-schedule",
+          "pin": "Attribute"
+        }
+      },
       "notifications": {
         "title": "Notifications",
         "switchLabel": "Send a reminder when this dose is due",

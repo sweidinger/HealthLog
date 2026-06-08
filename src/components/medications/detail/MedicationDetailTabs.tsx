@@ -37,7 +37,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { MedicationDetailSummary } from "@/components/medications/medication-detail-summary";
 import { MedicationDetailSection } from "@/components/medications/medication-detail-section";
 import { MedicationComplianceBars } from "@/components/medications/card-parts/medication-compliance-bars";
-import { IntakeHistoryEditable } from "@/components/medications/intake-history-editable";
+import { DoseHistoryLedger } from "@/components/medications/dose-history-ledger";
 import { IntakeImportDialog } from "@/components/medications/intake-import-dialog";
 import { InventorySection } from "@/components/medications/sections/inventory-section";
 import { NotificationsBody } from "@/components/medications/sections/notifications-section";
@@ -342,9 +342,10 @@ export function MedicationDetailTabs({
           <InventorySection medicationId={id} />
         </TabsContent>
 
-        {/* VERLAUF — the existing editable intake history (the dose-history
-            ledger replaces it in the next wave). CSV import rides the
-            header ghost. */}
+        {/* VERLAUF — the dose-history ledger: every expected slot with its
+            status + ad-hoc takes tagged, inline Genommen/Übersprungen with
+            instant optimistic recompute, edit/add (incl. the late-take "diesem
+            Slot zuordnen?" nudge). CSV import rides the header ghost. */}
         <TabsContent value="verlauf" className="space-y-6 pt-2">
           <MedicationDetailSection
             titleId="medication-verlauf-heading"
@@ -362,10 +363,15 @@ export function MedicationDetailTabs({
               </Button>
             }
           >
-            <IntakeHistoryEditable
+            <DoseHistoryLedger
               medicationId={id}
-              pageSize={25}
-              defaultSortBy="scheduledFor"
+              medicationName={medication.name}
+              schedules={medication.schedules.map((s) => ({
+                windowStart: s.windowStart,
+                label: s.label,
+                dose: s.dose,
+                timesOfDay: s.timesOfDay,
+              }))}
             />
           </MedicationDetailSection>
 

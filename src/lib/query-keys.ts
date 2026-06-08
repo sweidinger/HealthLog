@@ -272,6 +272,22 @@ export const queryKeys = {
    */
   medicationInventory: (medicationId: string) =>
     ["medications", medicationId, "inventory"] as const,
+  /**
+   * v1.15.18 — per-medication dose-history ledger
+   * (`GET /api/medications/[id]/dose-history?from=&to=`), consumed by the
+   * detail page's Verlauf tab. Keyed by the `(from, to)` window so paging the
+   * range caches each span independently; rides under the `["medications"]`
+   * prefix so an intake mutation (take / skip / edit / delete) reaches it
+   * through `medicationDependentKeys`. The Verlauf tab also mutates this slot
+   * optimistically on Genommen / Übersprungen so the row status + the
+   * Übersicht headline % flip in the same paint, then reconciles on the
+   * authoritative refetch.
+   */
+  medicationDoseHistory: (
+    medicationId: string,
+    from: string,
+    to: string,
+  ) => ["medications", medicationId, "dose-history", from, to] as const,
   medicationIntakeDrugLevelChart: (medicationId: string) =>
     ["medications", medicationId, "intake", "drug-level-chart"] as const,
   /**

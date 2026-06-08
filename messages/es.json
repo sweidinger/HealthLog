@@ -1338,6 +1338,42 @@
           "failed": "No se pudo eliminar la toma."
         }
       },
+      "verlauf": {
+        "loading": "Cargando historial …",
+        "loadError": "No se pudo cargar el historial.",
+        "empty": "Aún no hay tomas en este periodo.",
+        "summaryEmpty": "Aún no hay dosis que evaluar.",
+        "adherenceLabel": "Adherencia",
+        "adherenceBarLabel": "{onTime} a tiempo, {late} con retraso, {missed} omitidas",
+        "add": "Entrada",
+        "markTaken": "Tomada",
+        "markSkipped": "Saltada",
+        "adHocTag": "fuera de horario",
+        "takenDetail": "prevista {planned} · tomada {taken}",
+        "status": {
+          "taken_on_time": "a tiempo",
+          "taken_late": "con retraso",
+          "skipped": "saltada",
+          "missed": "perdida",
+          "upcoming": "pendiente",
+          "ad_hoc": "fuera de horario"
+        },
+        "addDialog": {
+          "title": "Añadir toma",
+          "description": "Registra una dosis, también retroactiva o fuera de horario.",
+          "takenAtLabel": "Tomada a las",
+          "skippedLabel": "Saltada",
+          "nudgeHint": "Cerca del horario {slot}: al guardar te preguntamos si asignarla.",
+          "cancel": "Cancelar",
+          "submit": "Guardar"
+        },
+        "nudge": {
+          "title": "¿Asignar a este horario?",
+          "body": "Esta toma queda justo fuera de la ventana de {slot}. ¿Asignarla a ese horario o guardarla como entrada fuera de horario?",
+          "keepAdHoc": "Fuera de horario",
+          "pin": "Asignar"
+        }
+      },
       "notifications": {
         "title": "Recordatorios",
         "switchLabel": "Enviar un recordatorio cuando toque esta dosis",
