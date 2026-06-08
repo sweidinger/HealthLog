@@ -326,6 +326,10 @@ export const POST = apiHandler(async (request: NextRequest) => {
             ...(s.cyclicOffWeeks !== undefined && {
               cyclicOffWeeks: s.cyclicOffWeeks,
             }),
+            // v1.15.18 — per-dose configurable on-time windows. Stored as the
+            // validated `{ timeOfDay, start, end }[]` JSON; absent leaves the
+            // column NULL (every slot on the default ±1h derivation).
+            ...(s.doseWindows !== undefined && { doseWindows: s.doseWindows }),
           };
         }),
       },

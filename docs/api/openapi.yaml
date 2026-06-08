@@ -4307,6 +4307,15 @@ components:
           type: integer
           minimum: 0
           maximum: 52
+        doseWindows:
+          description: Per-dose on-time intake windows. Each `{ timeOfDay, start, end }` HH:mm triple sets the explicit on-time
+            band for the matching dose time; a dose time with no entry keeps the symmetric ±1h default. `timeOfDay` must
+            match one of `timesOfDay` (or `windowStart`); `start <= end`. Up to 8 entries. Absent leaves every slot on
+            the default derivation. The late tail stays cadence-derived.
+          maxItems: 8
+          type: array
+          items:
+            $ref: "#/components/schemas/DoseWindowEntry"
       required:
         - windowStart
         - windowEnd
@@ -4315,6 +4324,28 @@ components:
         preserved through the v1.5.x line for backwards compatibility. **`rrule` and `rollingIntervalDays` are mutually
         exclusive** — supplying both fails 422 (`rrule_xor_rolling`). The DB enforces the same invariant via a CHECK
         constraint.
+    DoseWindowEntry:
+      type: object
+      properties:
+        timeOfDay:
+          type: string
+          pattern: ^([01]\d|2[0-3]):([0-5]\d)$
+          description: The dose time this window applies to (matches a `timesOfDay` entry).
+        start:
+          type: string
+          pattern: ^([01]\d|2[0-3]):([0-5]\d)$
+          description: On-time band lower bound (HH:mm, user local).
+        end:
+          type: string
+          pattern: ^([01]\d|2[0-3]):([0-5]\d)$
+          description: On-time band upper bound (HH:mm, user local). Must be >= `start`.
+      required:
+        - timeOfDay
+        - start
+        - end
+      description: One explicit per-dose on-time intake window. `timeOfDay` matches a schedule dose time; `[start, end]`
+        (HH:mm, user local, `start <= end`) is the on-time band. Outside it the cadence-derived late tail applies, then
+        ad-hoc.
     UpdateMedicationRequest:
       type: object
       properties:

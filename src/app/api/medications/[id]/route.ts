@@ -318,6 +318,10 @@ export const PUT = apiHandler(
               ...(s.cyclicOffWeeks !== undefined && {
                 cyclicOffWeeks: s.cyclicOffWeeks,
               }),
+              // v1.15.18 — per-dose configurable on-time windows. A `schedules`
+              // replace re-creates the rows, so the column is re-written each
+              // time; absent leaves it NULL (default ±1h derivation).
+              ...(s.doseWindows !== undefined && { doseWindows: s.doseWindows }),
             };
           }),
         },
