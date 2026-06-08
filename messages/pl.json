@@ -3041,7 +3041,22 @@
     },
     "disclaimer": {
       "footer": "HealthLog opisuje Twoje własne zarejestrowane dane — nie jest oceną kliniczną ani diagnozą. Porozmawiaj z lekarzem o wszystkim, co Cię niepokoi."
-    }
+    },
+    "settings": {
+      "overviewTitle": "Uporządkuj przegląd",
+      "overviewDescription": "Pokaż lub ukryj sekcje i ustaw ich kolejność w przeglądzie Analiz."
+    },
+    "pillOrder": {
+      "title": "Sortuj pigułki nawigacyjne",
+      "description": "Przeciągnij pigułki w kolejności, w jakiej mają się pojawiać u góry Analiz.",
+      "dragHandle": "Zmień kolejność",
+      "saveSuccess": "Zapisano kolejność pigułek.",
+      "saveError": "Zapisanie kolejności pigułek nie powiodło się.",
+      "save": "Zapisz",
+      "empty": "Brak dostępnych pigułek nawigacyjnych."
+    },
+    "customize": "Dostosuj Analizy",
+    "regenerateError": "Trwa odświeżanie — spróbuj ponownie za chwilę."
   },
   "thresholds": {
     "defaultLabel": "Domyślne",
@@ -3429,6 +3444,10 @@
       "sharing": {
         "title": "Udostępnianie",
         "description": "Utwórz link tylko do odczytu, aby udostępnić swoją dokumentację zdrowotną lekarzowi."
+      },
+      "insights": {
+        "title": "Analizy",
+        "description": "Kolejność przeglądu i pigułek nawigacyjnych."
       }
     },
     "profile": "Profil",

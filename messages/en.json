@@ -3041,7 +3041,22 @@
     },
     "disclaimer": {
       "footer": "HealthLog describes your own tracked data — it is not a clinical assessment or diagnosis. Talk to your doctor about anything that concerns you."
-    }
+    },
+    "settings": {
+      "overviewTitle": "Arrange the overview",
+      "overviewDescription": "Show or hide sections and set their order on the Insights overview."
+    },
+    "pillOrder": {
+      "title": "Sort the navigation pills",
+      "description": "Drag the pills into the order they should appear in along the top of Insights.",
+      "dragHandle": "Reorder",
+      "saveSuccess": "Pill order saved.",
+      "saveError": "Saving the pill order failed.",
+      "save": "Save",
+      "empty": "No navigation pills available yet."
+    },
+    "customize": "Customize Insights",
+    "regenerateError": "Still refreshing — please try again in a moment."
   },
   "thresholds": {
     "defaultLabel": "Default",
@@ -3429,6 +3444,10 @@
       "sharing": {
         "title": "Sharing",
         "description": "Create a read-only link to share your health record with a clinician."
+      },
+      "insights": {
+        "title": "Insights",
+        "description": "Overview and navigation-pill order."
       }
     },
     "profile": "Profile",

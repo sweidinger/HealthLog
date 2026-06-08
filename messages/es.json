@@ -3041,7 +3041,22 @@
     },
     "disclaimer": {
       "footer": "HealthLog describe tus propios datos registrados — no es una evaluación clínica ni un diagnóstico. Habla con tu médico sobre cualquier cosa que te preocupe."
-    }
+    },
+    "settings": {
+      "overviewTitle": "Organizar la vista general",
+      "overviewDescription": "Muestra u oculta secciones y define su orden en la vista general de Análisis."
+    },
+    "pillOrder": {
+      "title": "Ordenar las pestañas de navegación",
+      "description": "Arrastra las pestañas al orden en que deben aparecer en la parte superior de Análisis.",
+      "dragHandle": "Reordenar",
+      "saveSuccess": "Orden de las pestañas guardado.",
+      "saveError": "No se pudo guardar el orden de las pestañas.",
+      "save": "Guardar",
+      "empty": "Aún no hay pestañas de navegación disponibles."
+    },
+    "customize": "Personalizar Análisis",
+    "regenerateError": "Aún se está actualizando: inténtalo de nuevo en un momento."
   },
   "thresholds": {
     "defaultLabel": "Por defecto",
@@ -3429,6 +3444,10 @@
       "sharing": {
         "title": "Compartir",
         "description": "Crea un enlace de solo lectura para compartir tu historial de salud con un profesional médico."
+      },
+      "insights": {
+        "title": "Análisis",
+        "description": "Orden de la vista general y de las pestañas de navegación."
       }
     },
     "profile": "Perfil",

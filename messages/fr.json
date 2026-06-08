@@ -3041,7 +3041,22 @@
     },
     "disclaimer": {
       "footer": "HealthLog décrit vos propres données suivies — il ne s'agit pas d'une évaluation clinique ni d'un diagnostic. Parlez à votre médecin de tout ce qui vous préoccupe."
-    }
+    },
+    "settings": {
+      "overviewTitle": "Organiser la vue d'ensemble",
+      "overviewDescription": "Affichez ou masquez des sections et définissez leur ordre sur la vue d'ensemble des Analyses."
+    },
+    "pillOrder": {
+      "title": "Trier les onglets de navigation",
+      "description": "Faites glisser les onglets dans l'ordre où ils doivent apparaître en haut des Analyses.",
+      "dragHandle": "Réorganiser",
+      "saveSuccess": "Ordre des onglets enregistré.",
+      "saveError": "L'enregistrement de l'ordre des onglets a échoué.",
+      "save": "Enregistrer",
+      "empty": "Aucun onglet de navigation disponible pour le moment."
+    },
+    "customize": "Personnaliser les Analyses",
+    "regenerateError": "Actualisation en cours — réessayez dans un instant."
   },
   "thresholds": {
     "defaultLabel": "Par défaut",
@@ -3429,6 +3444,10 @@
       "sharing": {
         "title": "Partage",
         "description": "Créez un lien en lecture seule pour partager votre dossier de santé avec un professionnel de santé."
+      },
+      "insights": {
+        "title": "Analyses",
+        "description": "Ordre de la vue d'ensemble et des onglets de navigation."
       }
     },
     "profile": "Profil",

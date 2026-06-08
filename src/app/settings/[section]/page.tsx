@@ -8,6 +8,7 @@ import { AiSection } from "@/components/settings/ai-section";
 import { ApiSection } from "@/components/settings/api-section";
 import { DashboardSection } from "@/components/settings/dashboard-section";
 import { ExportSection } from "@/components/settings/export-section";
+import { InsightsSection } from "@/components/settings/insights-section";
 import { IntegrationsSection } from "@/components/settings/integrations-section";
 import { NotificationsSection } from "@/components/settings/notifications-section";
 import { SectionPlaceholder } from "@/components/settings/section-placeholder";
@@ -49,6 +50,7 @@ const SECTION_COMPONENTS: Record<
   integrations: IntegrationsSection,
   notifications: NotificationsSection,
   dashboard: DashboardSection,
+  insights: InsightsSection,
   thresholds: ThresholdsSection,
   sources: () => <SourcesSection />,
   api: ApiSection,

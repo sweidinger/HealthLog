@@ -22,6 +22,7 @@ import {
   Settings2,
   SlidersHorizontal,
   Sparkles,
+  TrendingUp,
   User,
   type LucideIcon,
 } from "lucide-react";
@@ -35,6 +36,7 @@ const SLUG_ICON: Record<SettingsSectionSlug, LucideIcon> = {
   integrations: Link2,
   notifications: Bell,
   dashboard: LayoutDashboard,
+  insights: TrendingUp,
   thresholds: SlidersHorizontal,
   sources: Layers,
   ai: Sparkles,

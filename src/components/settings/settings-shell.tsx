@@ -27,6 +27,7 @@ import {
   Settings2,
   SlidersHorizontal,
   Sparkles,
+  TrendingUp,
   User,
   type LucideIcon,
 } from "lucide-react";
@@ -96,6 +97,11 @@ export const SETTINGS_SECTIONS: readonly SettingsSection[] = [
     slug: "dashboard",
     titleKey: "settings.sections.dashboard.title",
     icon: LayoutDashboard,
+  },
+  {
+    slug: "insights",
+    titleKey: "settings.sections.insights.title",
+    icon: TrendingUp,
   },
   {
     slug: "thresholds",

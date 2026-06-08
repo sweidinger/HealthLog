@@ -3041,7 +3041,22 @@
     },
     "disclaimer": {
       "footer": "HealthLog descrive i tuoi dati registrati — non è una valutazione clinica né una diagnosi. Parla con il tuo medico di qualsiasi cosa ti preoccupi."
-    }
+    },
+    "settings": {
+      "overviewTitle": "Organizza la panoramica",
+      "overviewDescription": "Mostra o nascondi le sezioni e definisci il loro ordine nella panoramica degli Approfondimenti."
+    },
+    "pillOrder": {
+      "title": "Ordina le schede di navigazione",
+      "description": "Trascina le schede nell'ordine in cui devono comparire in alto negli Approfondimenti.",
+      "dragHandle": "Riordina",
+      "saveSuccess": "Ordine delle schede salvato.",
+      "saveError": "Salvataggio dell'ordine delle schede non riuscito.",
+      "save": "Salva",
+      "empty": "Nessuna scheda di navigazione ancora disponibile."
+    },
+    "customize": "Personalizza gli Approfondimenti",
+    "regenerateError": "Aggiornamento ancora in corso — riprova tra un momento."
   },
   "thresholds": {
     "defaultLabel": "Predefinito",
@@ -3429,6 +3444,10 @@
       "sharing": {
         "title": "Condivisione",
         "description": "Crea un link di sola lettura per condividere la tua cartella clinica con un medico."
+      },
+      "insights": {
+        "title": "Approfondimenti",
+        "description": "Ordine della panoramica e delle schede di navigazione."
       }
     },
     "profile": "Profilo",

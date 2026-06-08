@@ -35,7 +35,7 @@ function renderShell(props: {
 }
 
 describe("SETTINGS_SECTION_SLUGS", () => {
-  it("declares the twelve sections", () => {
+  it("declares every section", () => {
     // Order matters — `generateStaticParams()` and the sidebar derive their
     // ordering from this constant, so a reorder is a behaviour change.
     // v1.4.3 split the dashboard panel: layout stays under `dashboard`,
@@ -48,11 +48,14 @@ describe("SETTINGS_SECTION_SLUGS", () => {
     // IW-D merged it into `thresholds`.
     // v1.8.7.1 — `sources` (Sources) is its own slug again, sitting
     // between `thresholds` (Targets) and `ai`.
+    // v1.15.18 — `insights` sits between `dashboard` and `thresholds`: the
+    // overview-arrange + pill-sort customise surface for `/insights`.
     expect([...SETTINGS_SECTION_SLUGS]).toEqual([
       "account",
       "integrations",
       "notifications",
       "dashboard",
+      "insights",
       "thresholds",
       "sources",
       "ai",

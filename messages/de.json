@@ -3041,7 +3041,22 @@
     },
     "disclaimer": {
       "footer": "HealthLog beschreibt deine eigenen erfassten Daten — es ist keine klinische Bewertung und keine Diagnose. Sprich mit deiner Ärztin oder deinem Arzt über alles, was dich beunruhigt."
-    }
+    },
+    "settings": {
+      "overviewTitle": "Übersicht anordnen",
+      "overviewDescription": "Abschnitte ein- oder ausblenden und ihre Reihenfolge auf der Insights-Übersicht festlegen."
+    },
+    "pillOrder": {
+      "title": "Navigations-Pills sortieren",
+      "description": "Ziehe die Pills in die Reihenfolge, in der sie oben in den Insights erscheinen sollen.",
+      "dragHandle": "Verschieben",
+      "saveSuccess": "Reihenfolge der Pills gespeichert.",
+      "saveError": "Speichern der Pill-Reihenfolge fehlgeschlagen.",
+      "save": "Speichern",
+      "empty": "Noch keine Navigations-Pills verfügbar."
+    },
+    "customize": "Insights anpassen",
+    "regenerateError": "Aktualisierung läuft noch — bitte gleich erneut versuchen."
   },
   "thresholds": {
     "defaultLabel": "Default",
@@ -3429,6 +3444,10 @@
       "sharing": {
         "title": "Freigabe",
         "description": "Erstelle einen schreibgeschützten Link, um deine Gesundheitsakte mit einer Ärztin oder einem Arzt zu teilen."
+      },
+      "insights": {
+        "title": "Insights",
+        "description": "Reihenfolge der Übersicht und der Navigations-Pills."
       }
     },
     "profile": "Profil",
