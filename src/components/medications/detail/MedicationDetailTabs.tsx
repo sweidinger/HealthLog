@@ -38,6 +38,8 @@ import { MedicationDetailSummary } from "@/components/medications/medication-det
 import { MedicationDetailSection } from "@/components/medications/medication-detail-section";
 import { MedicationComplianceBars } from "@/components/medications/card-parts/medication-compliance-bars";
 import { DoseHistoryLedger } from "@/components/medications/dose-history-ledger";
+import { ScheduleTimesEditor } from "@/components/medications/scheduling/ScheduleTimesEditor";
+import type { DoseWindowEntry } from "@/components/medications/scheduling/dose-window";
 import { IntakeImportDialog } from "@/components/medications/intake-import-dialog";
 import { InventorySection } from "@/components/medications/sections/inventory-section";
 import { NotificationsBody } from "@/components/medications/sections/notifications-section";
@@ -78,6 +80,12 @@ interface ScheduleSnapshot {
   rrule?: string | null;
   rollingIntervalDays?: number | null;
   reminderGraceMinutes?: number | null;
+  scheduleType?: string | null;
+  cyclicOnWeeks?: number | null;
+  cyclicOffWeeks?: number | null;
+  // v1.15.18 — per-dose on-time windows; the GET returns the raw Json
+  // column, the Zeitplan inline editor round-trips it on save.
+  doseWindows?: DoseWindowEntry[] | null;
 }
 
 export interface MedicationDetailSnapshot {
@@ -142,6 +150,7 @@ function snapshotToWizardPayload(
       timesOfDay: s.timesOfDay,
       rrule: s.rrule ?? null,
       rollingIntervalDays: s.rollingIntervalDays ?? null,
+      doseWindows: s.doseWindows ?? null,
     })),
   };
 }
@@ -299,8 +308,10 @@ export function MedicationDetailTabs({
           </MedicationDetailSection>
         </TabsContent>
 
-        {/* ZEITPLAN — read-only cadence view for now; the inline times +
-            per-dose window editor lands in the next wave. */}
+        {/* ZEITPLAN — inline edit of the everyday levers: dose times +
+            each dose's on-time window. Cadence-kind stays structural
+            (the hero's "Vollständig bearbeiten"); grace is a read-only
+            echo here, owned by the Erinnerung tab. */}
         <TabsContent value="zeitplan" className="space-y-6 pt-2">
           <MedicationDetailSummary
             name={medication.name}
@@ -311,6 +322,34 @@ export function MedicationDetailTabs({
             oneShot={oneShot}
             startsOn={medication.startsOn}
           />
+          {medication.schedules.length > 0 ? (
+            <MedicationDetailSection
+              titleId="medication-zeitplan-times-heading"
+              title={t("medications.detail.zeitplan.title")}
+              dataSlot="medication-zeitplan-section"
+            >
+              <ScheduleTimesEditor
+                medicationId={id}
+                schedules={medication.schedules.map((s) => ({
+                  id: s.id,
+                  windowStart: s.windowStart,
+                  windowEnd: s.windowEnd,
+                  label: s.label,
+                  dose: s.dose,
+                  daysOfWeek: s.daysOfWeek,
+                  timesOfDay: s.timesOfDay,
+                  rrule: s.rrule,
+                  rollingIntervalDays: s.rollingIntervalDays,
+                  reminderGraceMinutes: s.reminderGraceMinutes,
+                  scheduleType: s.scheduleType,
+                  cyclicOnWeeks: s.cyclicOnWeeks,
+                  cyclicOffWeeks: s.cyclicOffWeeks,
+                  doseWindows: s.doseWindows,
+                }))}
+                onRequestReminderTab={() => onTabChange("erinnerung")}
+              />
+            </MedicationDetailSection>
+          ) : null}
         </TabsContent>
 
         {/* ERINNERUNG — notifications switch + reminder grace (the single
