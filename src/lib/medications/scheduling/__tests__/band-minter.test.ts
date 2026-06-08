@@ -224,6 +224,36 @@ describe("rolling GLP-1 (every 7 days) — retrospective bands", () => {
   });
 });
 
+describe("rolling — a ≤1-day interval stays minute-scale (daily family)", () => {
+  // A degenerate every-1-day rolling interval is effectively daily; a ±1-day
+  // on-time window would over-widen, so it must classify daily (minute-scale).
+  const m = med({ startsOn: new Date("2026-06-01T00:00:00Z") });
+  const sched = schedule({ rollingIntervalDays: 1, timesOfDay: ["08:00"] });
+  const shot = new Date("2026-06-08T08:05:00Z");
+  const out = buildBandsForMedication({
+    medication: m,
+    schedule: sched,
+    ctx: ctxFor(m, shot),
+    userTz: TZ,
+    range: {
+      from: new Date("2026-06-07T00:00:00Z"),
+      to: new Date("2026-06-09T00:00:00Z"),
+    },
+    now: new Date("2026-06-09T00:00:00Z"),
+    intakeInstants: [shot],
+  });
+
+  it("uses the daily family for a 1-day rolling cadence", () => {
+    expect(out.family).toBe("daily");
+  });
+
+  it("the on-time band is minute-scale (±60min), not day-scale", () => {
+    const b = out.bands[0];
+    const span = b.onTimeEnd.getTime() - b.onTimeStart.getTime();
+    expect(span).toBe(2 * 60 * MIN);
+  });
+});
+
 // ────────────────────────────────────────────────────────────────────
 // 4. Cyclic (on/off weeks)
 // ────────────────────────────────────────────────────────────────────

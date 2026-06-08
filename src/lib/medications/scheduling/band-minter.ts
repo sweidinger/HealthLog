@@ -165,9 +165,15 @@ export function buildBandsForMedication(
       input.intakeInstants ?? [],
       now,
     );
-    // Rolling is inherently day-scale (every-N-days). Mint day-scale bands.
-    const bands = mintBands(occ, "weekly", input.windowConfig, userTz);
-    return { bands, hasExpectedSlots: true, family: "weekly" };
+    // The canonical rolling case is a once-weekly+ injection (day-scale). A
+    // degenerate ≤1-day rolling interval is effectively daily, so a ±1-day
+    // on-time window would over-widen and let one take claim adjacent slots —
+    // keep it minute-scale. The realised every-N-days cadence is the field
+    // here (intakes drive the anchors), so the interval is the right signal.
+    const family: "daily" | "weekly" =
+      schedule.rollingIntervalDays >= 2 ? "weekly" : "daily";
+    const bands = mintBands(occ, family, input.windowConfig, userTz);
+    return { bands, hasExpectedSlots: true, family };
   }
 
   // Daily / weekly / cyclic / rrule — `occurrencesBetween` already filters
