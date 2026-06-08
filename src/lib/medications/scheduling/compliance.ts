@@ -40,6 +40,7 @@ import {
   type CanonicalSchedule,
   type RecurrenceContext,
 } from "./recurrence";
+import { normaliseDoseWindows } from "./worker-helpers";
 
 export interface ComplianceChips {
   /** 0-100, taken / (taken + missed). Skipped doses are excluded from
@@ -211,6 +212,7 @@ function ledgerChipCounts(
       scheduleType: s.scheduleType ?? "SCHEDULED",
       cyclicOnWeeks: s.cyclicOnWeeks ?? null,
       cyclicOffWeeks: s.cyclicOffWeeks ?? null,
+      doseWindows: normaliseDoseWindows(s.doseWindows),
     };
     // Surface windowStart as the single time-of-day for a legacy daily row
     // so the band minter's cadence gate mints its daily band (see the

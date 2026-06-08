@@ -32,6 +32,7 @@ import {
   type ScheduleLike,
 } from "@/lib/medications/scheduling/cadence";
 import { streaksFromTimeline } from "@/lib/medications/scheduling/compliance";
+import { normaliseDoseWindows } from "@/lib/medications/scheduling/worker-helpers";
 import {
   reconstructDoseHistory,
   type HistoryIntake,
@@ -371,6 +372,15 @@ export interface ComplianceSchedule {
   scheduleType?: ScheduleType | null;
   cyclicOnWeeks?: number | null;
   cyclicOffWeeks?: number | null;
+  /**
+   * v1.15.18 — per-dose configurable on-time windows. Threaded onto the
+   * canonical schedule so `tallyComplianceFromLedger` builds the on-time band
+   * from the explicit `[start, end]` range — keeping the % exactly aligned with
+   * the dose-history view and the write/edit attribution (all consume the same
+   * minter). Accepts the raw persisted JSON (a full Prisma row drops straight
+   * in); `toCanonicalSchedule` normalises it via `normaliseDoseWindows`.
+   */
+  doseWindows?: unknown;
 }
 
 /**
@@ -499,6 +509,7 @@ function toCanonicalSchedule(
     scheduleType: s.scheduleType ?? "SCHEDULED",
     cyclicOnWeeks: s.cyclicOnWeeks ?? null,
     cyclicOffWeeks: s.cyclicOffWeeks ?? null,
+    doseWindows: normaliseDoseWindows(s.doseWindows),
   };
 }
 

@@ -44,6 +44,7 @@ import {
   expandRollingRetrospective,
   occurrencesBetween,
 } from "@/lib/medications/scheduling/recurrence";
+import { normaliseDoseWindows } from "@/lib/medications/scheduling/worker-helpers";
 import { wallClockInTz } from "@/lib/tz/wall-clock";
 
 /**
@@ -96,6 +97,14 @@ export interface ScheduleLike {
   scheduleType?: ScheduleType | null;
   cyclicOnWeeks?: number | null;
   cyclicOffWeeks?: number | null;
+  /**
+   * v1.15.18 — per-dose configurable on-time windows. Carried onto the
+   * canonical schedule so the cadence-timeline bands (the card last/next dose)
+   * honour the same explicit window the % and the history view use. Accepts the
+   * raw persisted JSON (a full Prisma row's `Json?` column drops straight in);
+   * `toCanonical` normalises it via `normaliseDoseWindows`.
+   */
+  doseWindows?: unknown;
   /** Stable id for the engine occurrence; defaults to a synthetic value. */
   id?: string;
 }
@@ -135,6 +144,7 @@ function toCanonical(
     scheduleType: schedule.scheduleType ?? "SCHEDULED",
     cyclicOnWeeks: schedule.cyclicOnWeeks ?? null,
     cyclicOffWeeks: schedule.cyclicOffWeeks ?? null,
+    doseWindows: normaliseDoseWindows(schedule.doseWindows),
   };
 }
 

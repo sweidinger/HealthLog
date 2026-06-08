@@ -47,6 +47,7 @@ import {
   expandRollingRetrospective,
   occurrencesBetween,
   type CanonicalSchedule,
+  type DoseWindowEntry,
   type Occurrence,
   type RecurrenceContext,
 } from "@/lib/medications/scheduling/recurrence";
@@ -172,7 +173,7 @@ export function buildBandsForMedication(
     // here (intakes drive the anchors), so the interval is the right signal.
     const family: "daily" | "weekly" =
       schedule.rollingIntervalDays >= 2 ? "weekly" : "daily";
-    const bands = mintBands(occ, family, input.windowConfig, userTz);
+    const bands = mintBands(occ, family, input.windowConfig, userTz, schedule);
     return { bands, hasExpectedSlots: true, family };
   }
 
@@ -182,7 +183,7 @@ export function buildBandsForMedication(
   // field-shape `doseCadenceFamily` heuristic.
   const occurrences = occurrencesBetween(schedule, range.from, range.to, ctx);
   const family = realisedFamily(schedule, ctx, range);
-  const bands = mintBands(occurrences, family, input.windowConfig, userTz);
+  const bands = mintBands(occurrences, family, input.windowConfig, userTz, schedule);
   return { bands, hasExpectedSlots: true, family };
 }
 
@@ -231,27 +232,103 @@ function mintBands(
   family: "daily" | "weekly",
   windowConfig: DoseWindowConfig | undefined,
   userTz: string,
+  schedule: CanonicalSchedule,
 ): SlotBand[] {
   const w = resolveWindows(windowConfig);
+  // The persisted per-dose windows (Marc's "07:00–09:00" lever). When a slot's
+  // `timeOfDay` matches an entry, the on-time band is the explicit `[start,
+  // end]` range; otherwise the default symmetric ±width applies. The late tail
+  // stays cadence-derived for every slot.
+  const explicit = indexDoseWindows(schedule.doseWindows ?? null);
   const inputs: SlotWindowInput[] = occurrences.map((occ) =>
     family === "weekly"
-      ? weeklyWindow(occ, w, userTz)
-      : dailyWindow(occ, w),
+      ? weeklyWindow(occ, w, userTz, explicit.get(occ.timeOfDay) ?? null)
+      : dailyWindow(occ, w, userTz, explicit.get(occ.timeOfDay) ?? null),
   );
   return buildSlotBands(inputs);
 }
 
-/** Minute-scale band around a slot instant (daily / intraday cadences). */
+/**
+ * Index the schedule's `doseWindows` by `timeOfDay` for O(1) per-slot lookup.
+ * A duplicate `timeOfDay` keeps the first entry (the write path Zod-validates
+ * uniqueness, so this is purely defensive).
+ */
+function indexDoseWindows(
+  windows: DoseWindowEntry[] | null,
+): Map<string, DoseWindowEntry> {
+  const map = new Map<string, DoseWindowEntry>();
+  if (!windows) return map;
+  for (const w of windows) {
+    // Defence-in-depth: only index well-formed `start <= end` HH:mm entries.
+    // `buildCanonicalSchedule` already normalises the persisted JSON, but a
+    // directly-constructed `CanonicalSchedule` (tests, compliance helpers)
+    // must never widen a band from a malformed range.
+    if (!isUsableDoseWindow(w)) continue;
+    if (!map.has(w.timeOfDay)) map.set(w.timeOfDay, w);
+  }
+  return map;
+}
+
+/** True when a dose window is well-formed HH:mm with `start <= end`. */
+function isUsableDoseWindow(w: DoseWindowEntry): boolean {
+  const start = localHourMinute(w.start);
+  const end = localHourMinute(w.end);
+  const startMin = start.hour * 60 + start.minute;
+  const endMin = end.hour * 60 + end.minute;
+  return (
+    HHMM_BAND_RE.test(w.timeOfDay) &&
+    HHMM_BAND_RE.test(w.start) &&
+    HHMM_BAND_RE.test(w.end) &&
+    startMin <= endMin
+  );
+}
+
+const HHMM_BAND_RE = /^([01]\d|2[0-3]):([0-5]\d)$/;
+
+/**
+ * Minute-scale band around a slot instant (daily / intraday cadences). When an
+ * explicit per-dose window is configured for this `timeOfDay`, the on-time band
+ * is the literal `[start, end]` range minted on the slot's local day (DST-correct
+ * via `localHmAsUtc`); otherwise the symmetric ±`dailyOnTimeMinutes` default.
+ */
 function dailyWindow(
   occ: Occurrence,
   w: ResolvedWindows,
+  userTz: string,
+  explicit: DoseWindowEntry | null,
 ): SlotWindowInput {
+  const onTime = explicit
+    ? explicitOnTimeBounds(occ.at, explicit, userTz)
+    : {
+        onTimeStart: new Date(
+          occ.at.getTime() - w.dailyOnTimeMinutes * MINUTE_MS,
+        ),
+        onTimeEnd: new Date(occ.at.getTime() + w.dailyOnTimeMinutes * MINUTE_MS),
+      };
   return {
     at: occ.at,
     timeOfDay: occ.timeOfDay,
-    onTimeStart: new Date(occ.at.getTime() - w.dailyOnTimeMinutes * MINUTE_MS),
-    onTimeEnd: new Date(occ.at.getTime() + w.dailyOnTimeMinutes * MINUTE_MS),
+    onTimeStart: onTime.onTimeStart,
+    onTimeEnd: onTime.onTimeEnd,
     lateGraceMs: w.dailyOverdueMinutes * MINUTE_MS,
+  };
+}
+
+/**
+ * Mint an explicit `[start, end]` on-time range on the slot's local calendar
+ * day. `localHmAsUtc` keys off the local day of its first argument (`occ.at`),
+ * so the bounds land on the same day as the slot, DST-correct.
+ */
+function explicitOnTimeBounds(
+  occAt: Date,
+  window: DoseWindowEntry,
+  userTz: string,
+): { onTimeStart: Date; onTimeEnd: Date } {
+  const start = localHourMinute(window.start);
+  const end = localHourMinute(window.end);
+  return {
+    onTimeStart: localHmAsUtc(occAt, userTz, start.hour, start.minute),
+    onTimeEnd: localHmAsUtc(occAt, userTz, end.hour, end.minute),
   };
 }
 
@@ -265,20 +342,39 @@ function weeklyWindow(
   occ: Occurrence,
   w: ResolvedWindows,
   userTz: string,
+  explicit: DoseWindowEntry | null,
 ): SlotWindowInput {
   const { hour, minute } = localHourMinute(occ.timeOfDay);
-  const onTimeStart = localHmAsUtc(
-    new Date(occ.at.getTime() - w.weeklyOnTimeDays * DAY_MS),
-    userTz,
-    hour,
-    minute,
-  );
-  const onTimeEnd = localHmAsUtc(
-    new Date(occ.at.getTime() + w.weeklyOnTimeDays * DAY_MS),
-    userTz,
-    hour,
-    minute,
-  );
+  // An explicit per-dose window pins the on-time band to the literal `[start,
+  // end]` range on the slot's own local day (a within-day window the user set);
+  // otherwise the default day-scale ±`weeklyOnTimeDays` envelope. Either way the
+  // late tail below stays day-scale + DST-correct.
+  const onTimeStart = explicit
+    ? localHmAsUtc(
+        occ.at,
+        userTz,
+        localHourMinute(explicit.start).hour,
+        localHourMinute(explicit.start).minute,
+      )
+    : localHmAsUtc(
+        new Date(occ.at.getTime() - w.weeklyOnTimeDays * DAY_MS),
+        userTz,
+        hour,
+        minute,
+      );
+  const onTimeEnd = explicit
+    ? localHmAsUtc(
+        occ.at,
+        userTz,
+        localHourMinute(explicit.end).hour,
+        localHourMinute(explicit.end).minute,
+      )
+    : localHmAsUtc(
+        new Date(occ.at.getTime() + w.weeklyOnTimeDays * DAY_MS),
+        userTz,
+        hour,
+        minute,
+      );
   // The late tail is also day-scale: the instant N overdue-days past the
   // on-time end, minted on the calendar day for DST-correctness, then expressed
   // as a millisecond grace `buildSlotBands` consumes.

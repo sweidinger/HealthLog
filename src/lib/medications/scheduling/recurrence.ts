@@ -81,6 +81,25 @@ export interface CanonicalSchedule {
   cyclicOnWeeks: number | null;
   /** v1.7.0 — cyclic "off" weeks. Only read when `scheduleType === "CYCLIC"`. */
   cyclicOffWeeks: number | null;
+  /**
+   * v1.15.18 — per-dose configurable on-time intake windows. The recurrence
+   * engine itself never reads these (slot timing is unchanged); they ride on
+   * the canonical schedule purely so the band minter can build a slot's
+   * on-time band from an explicit `[start, end]` range for the matching
+   * `timeOfDay`. NULL / empty = every slot uses the default ±1h derivation.
+   */
+  doseWindows?: DoseWindowEntry[] | null;
+}
+
+/**
+ * v1.15.18 — one explicit per-dose on-time window. `timeOfDay` keys the dose
+ * the window applies to (matching a `timesOfDay` entry); `start`/`end` are the
+ * HH:mm on-time bounds in the user's wall clock (`start <= end`, same local day).
+ */
+export interface DoseWindowEntry {
+  timeOfDay: string;
+  start: string;
+  end: string;
 }
 
 export interface RecurrenceContext {

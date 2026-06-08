@@ -2819,4 +2819,51 @@ describe("tallyComplianceFromLedger — the unified % keystone", () => {
     expect(tally.taken).toBeGreaterThanOrEqual(3);
     expect(tally.rate).toBeGreaterThanOrEqual(90);
   });
+
+  // v1.15.18 W7 — the persisted per-dose window reaches the % through the
+  // SAME minter the history view + write path use. An 11:29 take that the
+  // default ±1h leaves ad-hoc (slot missed) is counted on-time once the
+  // morning slot carries an explicit 07:00–12:00 window.
+  it("the persisted doseWindows widens the on-time band feeding the %", () => {
+    const events = [
+      { scheduledFor: at(7, 0), takenAt: at(11, 29), skipped: false },
+      { scheduledFor: at(19, 0), takenAt: at(19, 0), skipped: false },
+    ];
+    // DEFAULT (no doseWindows): 11:29 is past the 11:00 cutoff → ad-hoc,
+    // morning slot missed.
+    const dflt = tallyComplianceFromLedger(
+      events,
+      twiceDaily,
+      ctxFor(),
+      from,
+      nowEvening,
+      nowEvening,
+    );
+    expect(dflt.missed).toBe(1);
+    expect(dflt.adHoc).toBe(1);
+
+    // WITH the persisted 07:00–12:00 window: 11:29 lands on-time, nothing
+    // missed, nothing orphaned.
+    const windowed: ComplianceSchedule[] = [
+      {
+        windowStart: "07:00",
+        windowEnd: "19:00",
+        daysOfWeek: null,
+        timesOfDay: ["07:00", "19:00"],
+        doseWindows: [{ timeOfDay: "07:00", start: "07:00", end: "12:00" }],
+      },
+    ];
+    const wt = tallyComplianceFromLedger(
+      events,
+      windowed,
+      ctxFor(),
+      from,
+      nowEvening,
+      nowEvening,
+    );
+    expect(wt.missed).toBe(0);
+    expect(wt.adHoc).toBe(0);
+    expect(wt.takenOnTime).toBe(2);
+    expect(wt.rate).toBe(100);
+  });
 });

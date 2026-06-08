@@ -27,6 +27,7 @@ import {
   type CanonicalSchedule,
   type RecurrenceContext,
 } from "../recurrence";
+import { attributeIntakeToSlot } from "../attribution";
 import { localHmAsUtc } from "@/lib/timezone";
 
 const TZ = "Europe/Berlin";
@@ -466,5 +467,104 @@ describe("multi-schedule — bands built PER SCHEDULE (no cross-clip)", () => {
     const oneBand = dailyGroup!.bands[0];
     const span = oneBand.onTimeEnd.getTime() - oneBand.onTimeStart.getTime();
     expect(span).toBe(2 * 60 * MIN); // ±60min
+  });
+});
+
+// ────────────────────────────────────────────────────────────────────
+// 9. Per-dose configurable window (Marc's "07:00–09:00" lever, v1.15.18 W7)
+// ────────────────────────────────────────────────────────────────────
+
+describe("explicit per-dose window from schedule.doseWindows", () => {
+  const m = med();
+  const day = new Date("2026-06-08T12:00:00Z");
+  // Morning dose carries an explicit 07:00–12:00 window; the evening dose
+  // none, so it keeps the symmetric ±60min default.
+  const sched = schedule({
+    timesOfDay: ["07:00", "19:00"],
+    doseWindows: [{ timeOfDay: "07:00", start: "07:00", end: "12:00" }],
+  });
+  const out = buildBandsForMedication({
+    medication: m,
+    schedule: sched,
+    ctx: ctxFor(m),
+    userTz: TZ,
+    range: { from: at(day, 0, 0), to: at(day, 23, 59) },
+    now: at(day, 23, 59),
+  });
+  const morning = out.bands.find((b) => b.timeOfDay === "07:00")!;
+  const evening = out.bands.find((b) => b.timeOfDay === "19:00")!;
+
+  it("builds the on-time band from the explicit [start,end] range", () => {
+    expect(morning.onTimeStart.getTime()).toBe(at(day, 7, 0).getTime());
+    expect(morning.onTimeEnd.getTime()).toBe(at(day, 12, 0).getTime());
+  });
+
+  it("an 11:29 take lands inside the widened on-time window", () => {
+    expect(attributeIntakeToSlot(at(day, 11, 29), out.bands)).toMatchObject({
+      band: { timeOfDay: "07:00" },
+      status: "on_time",
+    });
+  });
+
+  it("a dose with no entry keeps the symmetric ±60min default", () => {
+    expect(evening.onTimeStart.getTime()).toBe(at(day, 19, 0).getTime() - 60 * MIN);
+    expect(evening.onTimeEnd.getTime()).toBe(at(day, 19, 0).getTime() + 60 * MIN);
+  });
+
+  it("under the DEFAULT (no doseWindows) the same 11:29 take is ad-hoc", () => {
+    const dflt = buildBandsForMedication({
+      medication: m,
+      schedule: schedule({ timesOfDay: ["07:00", "19:00"] }),
+      ctx: ctxFor(m),
+      userTz: TZ,
+      range: { from: at(day, 0, 0), to: at(day, 23, 59) },
+      now: at(day, 23, 59),
+    });
+    // 11:29 is > 07:00 + on-time(60) + tail(180) = 11:00 cutoff → no band.
+    expect(attributeIntakeToSlot(at(day, 11, 29), dflt.bands)).toBeNull();
+  });
+
+  it("a malformed doseWindows shape falls back to the default derivation", () => {
+    const out2 = buildBandsForMedication({
+      medication: m,
+      // start > end is dropped by the normaliser; an unrelated timeOfDay is
+      // ignored. Neither widens the 07:00 band.
+      schedule: schedule({
+        timesOfDay: ["07:00", "19:00"],
+        doseWindows: [
+          { timeOfDay: "07:00", start: "12:00", end: "07:00" },
+        ] as never,
+      }),
+      ctx: ctxFor(m),
+      userTz: TZ,
+      range: { from: at(day, 0, 0), to: at(day, 23, 59) },
+      now: at(day, 23, 59),
+    });
+    const morn = out2.bands.find((b) => b.timeOfDay === "07:00")!;
+    expect(morn.onTimeStart.getTime()).toBe(at(day, 7, 0).getTime() - 60 * MIN);
+    expect(morn.onTimeEnd.getTime()).toBe(at(day, 7, 0).getTime() + 60 * MIN);
+  });
+});
+
+describe("explicit per-dose window is DST-correct (winter)", () => {
+  const m = med();
+  const winterDay = new Date("2026-01-15T12:00:00Z");
+  const sched = schedule({
+    timesOfDay: ["07:00"],
+    doseWindows: [{ timeOfDay: "07:00", start: "07:00", end: "09:00" }],
+  });
+  const out = buildBandsForMedication({
+    medication: m,
+    schedule: sched,
+    ctx: ctxFor(m),
+    userTz: TZ,
+    range: { from: at(winterDay, 0, 0), to: at(winterDay, 23, 59) },
+    now: at(winterDay, 23, 59),
+  });
+
+  it("mints the [start,end] bounds on the slot's local winter day (CET = +1)", () => {
+    const band = out.bands[0];
+    expect(band.onTimeStart.toISOString()).toBe("2026-01-15T06:00:00.000Z");
+    expect(band.onTimeEnd.toISOString()).toBe("2026-01-15T08:00:00.000Z");
   });
 });

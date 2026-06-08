@@ -299,6 +299,9 @@ const SCHEDULE_SELECT = {
   scheduleType: true,
   cyclicOnWeeks: true,
   cyclicOffWeeks: true,
+  // v1.15.18 — the persisted per-dose window the band attribution honours so
+  // the write/edit slot binding uses the SAME on-time window as the % + history.
+  doseWindows: true,
 } as const;
 
 const MEDICATION_SELECT = {

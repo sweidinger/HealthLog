@@ -23,6 +23,7 @@ import {
   type CanonicalSchedule,
   type RecurrenceContext,
 } from "@/lib/medications/scheduling/recurrence";
+import { normaliseDoseWindows } from "@/lib/medications/scheduling/worker-helpers";
 import { assertMedicationOwnership } from "@/lib/medications/route-guards";
 import { userDayKey } from "@/lib/tz/format";
 
@@ -40,6 +41,8 @@ type MedicationScheduleRow = {
   scheduleType: "SCHEDULED" | "PRN" | "CYCLIC";
   cyclicOnWeeks: number | null;
   cyclicOffWeeks: number | null;
+  /** v1.15.18 — per-dose configurable on-time windows (persisted JSON). */
+  doseWindows: unknown;
 };
 
 /**
@@ -63,6 +66,7 @@ function toCanonicalForBands(
     scheduleType: s.scheduleType,
     cyclicOnWeeks: s.cyclicOnWeeks,
     cyclicOffWeeks: s.cyclicOffWeeks,
+    doseWindows: normaliseDoseWindows(s.doseWindows),
   };
   if (
     base.timesOfDay.length === 0 &&

@@ -18,6 +18,7 @@
  */
 import {
   type CanonicalSchedule,
+  type DoseWindowEntry,
   type RecurrenceContext,
   type ScheduleType,
   occurrencesBetween,
@@ -48,6 +49,13 @@ export interface WorkerScheduleRow {
   scheduleType?: ScheduleType | null;
   cyclicOnWeeks?: number | null;
   cyclicOffWeeks?: number | null;
+  /**
+   * v1.15.18 — per-dose on-time windows. The Prisma column is `Json?`, so a
+   * selected row surfaces it as `Prisma.JsonValue` (or `null`). The adapter
+   * normalises it to a `DoseWindowEntry[]` (dropping malformed entries) so the
+   * band minter never has to defend against an arbitrary JSON shape.
+   */
+  doseWindows?: unknown;
 }
 
 /** Minimal `Medication` projection used by the worker. */
@@ -78,7 +86,45 @@ export function buildCanonicalSchedule(
     scheduleType: schedule.scheduleType ?? "SCHEDULED",
     cyclicOnWeeks: schedule.cyclicOnWeeks ?? null,
     cyclicOffWeeks: schedule.cyclicOffWeeks ?? null,
+    doseWindows: normaliseDoseWindows(schedule.doseWindows),
   };
+}
+
+const HHMM_RE = /^([01]\d|2[0-3]):([0-5]\d)$/;
+
+/**
+ * v1.15.18 — coerce the persisted `dose_windows` JSON into a clean
+ * `DoseWindowEntry[]`. Drops anything that isn't an `{ timeOfDay, start, end }`
+ * triple of well-formed HH:mm strings with `start <= end` — the column is
+ * Zod-validated on write, but a hand-edited or legacy row must never crash the
+ * read/write band paths. Returns `null` (the default-derivation signal) when
+ * nothing usable survives.
+ */
+export function normaliseDoseWindows(raw: unknown): DoseWindowEntry[] | null {
+  if (!Array.isArray(raw)) return null;
+  const out: DoseWindowEntry[] = [];
+  for (const item of raw) {
+    if (typeof item !== "object" || item === null) continue;
+    const { timeOfDay, start, end } = item as Record<string, unknown>;
+    if (
+      typeof timeOfDay !== "string" ||
+      typeof start !== "string" ||
+      typeof end !== "string" ||
+      !HHMM_RE.test(timeOfDay) ||
+      !HHMM_RE.test(start) ||
+      !HHMM_RE.test(end) ||
+      hhmmToMinutes(start) > hhmmToMinutes(end)
+    ) {
+      continue;
+    }
+    out.push({ timeOfDay, start, end });
+  }
+  return out.length > 0 ? out : null;
+}
+
+function hhmmToMinutes(hhmm: string): number {
+  const [h, m] = hhmm.split(":");
+  return Number(h) * 60 + Number(m);
 }
 
 /** Build the canonical engine context from worker-loop state. */
