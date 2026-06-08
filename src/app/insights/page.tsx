@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useRef, useState, type ReactNode } from "react";
+import { Fragment, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import dynamic from "next/dynamic";
 import Link from "next/link";
@@ -21,7 +21,6 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { HeroStrip } from "@/components/insights/hero-strip";
-import { InsightsEditMode } from "@/components/insights/insights-edit-mode";
 import { useInsightsAdvisorQuery } from "@/components/insights/use-insights-advisor";
 import { useCoachLaunch } from "@/lib/insights/coach-launch-context";
 import { useAnalyticsQuery } from "@/lib/queries/use-analytics-query";
@@ -283,27 +282,11 @@ export default function InsightsPage() {
   // per-tile order/visibility (passed into <VitalsDashboard>). Defaults to
   // the canonical layout while in-flight so the first paint matches the
   // default order with no flicker.
-  const {
-    layout,
-    isLoading: layoutLoading,
-  } = useInsightsLayoutQuery(isAuthenticated);
-
-  // v1.15.11 W3 — inline "Anpassen" edit mode. When on, the customizable
-  // region swaps the live (heavy) sections for lightweight edit cards; the
-  // section data is never refetched (the queries stay mounted via the page's
-  // own hooks but the section JSX is replaced). HeroStrip stays anchored.
-  const [editMode, setEditMode] = useState(false);
-
-  // v1.15.11 QA L5 — focus restoration. On entering edit mode focus moves to
-  // the edit-card heading; on close/save focus returns to the "Anpassen"
-  // toggle so keyboard users are not dropped at the top of the document.
-  const customizeToggleRef = useRef<HTMLButtonElement | null>(null);
-
-  // v1.15.11 QA L1 — never let a "Fertig" save flush DEFAULT_INSIGHTS_LAYOUT
-  // over the user's real saved layout. The editor seeds its draft once from
-  // the `layout` prop, which is the default while the GET is in-flight, so the
-  // edit surface stays gated (the toggle disabled) until the query has settled.
-  const canEdit = !layoutLoading;
+  // v1.15.18 — the overview layout (sections + tiles) still drives the section
+  // render order/visibility + the Vitals grid below. CUSTOMISING it (and the
+  // nav-pill order) moved out of an in-page "Anpassen" edit mode into
+  // Settings → Insights, reached via the top-right cog on the tab strip.
+  const { layout } = useInsightsLayoutQuery(isAuthenticated);
 
   // Error branch — a transient 500 / network drop (after the query's
   // retries are exhausted) settles the comprehensive query with no data.
@@ -450,21 +433,6 @@ export default function InsightsPage() {
     "rhythm-events": <RhythmEventsCard enabled={isAuthenticated} />,
   };
 
-  // v1.15.11 W3 — sections whose feature/data gate is currently OFF. The edit
-  // row for these renders disabled with a hint so a toggle that does nothing
-  // never confuses the user (it stays orderable, just not enable-able past the
-  // gate). Mirrors the `null` registry entries above: `daily-briefing` +
-  // `period-review` ride the briefing flag; `cycle-summary` rides the cycle
-  // opt-in. Every other section is always available.
-  const gatedOffSectionIds = new Set<InsightsSectionId>();
-  if (!flags.briefing) {
-    gatedOffSectionIds.add("daily-briefing");
-    gatedOffSectionIds.add("period-review");
-  }
-  if (!user?.cycleTrackingEnabled) {
-    gatedOffSectionIds.add("cycle-summary");
-  }
-
   const orderedSectionIds = orderedVisibleSectionIds(layout);
   const everySectionHidden = orderedSectionIds.length === 0;
 
@@ -497,58 +465,21 @@ export default function InsightsPage() {
         healthScore={analytics?.healthScore ?? undefined}
       />
 
-      {/* v1.15.11 W3 — the "Anpassen" toggle sits at the top of the
-          customizable region, below the anchored HeroStrip. v1.15.11 QA
-          L2-design: the toggle is HIDDEN while editing — the InsightsEditMode
-          card owns save (Fertig) + reset (Zurücksetzen), so a second top-right
-          "Fertig" that only closes-without-saving (a label-collision trap) no
-          longer exists. The toggle only ENTERS edit mode; the component's
-          Fertig/Zurücksetzen → onClose returns here. QA L1: disabled until the
-          layout query settles so a save can never flush defaults. */}
-      {!editMode && (
-        <div className="flex justify-end">
-          <Button
-            ref={customizeToggleRef}
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => setEditMode(true)}
-            disabled={!canEdit}
-            data-slot="insights-customize-toggle"
-            aria-pressed={editMode}
-            className="gap-1.5"
-          >
-            <SlidersHorizontal className="h-3.5 w-3.5" aria-hidden="true" />
-            <span>{t("insights.editMode.open")}</span>
-          </Button>
-        </div>
-      )}
-
-      {editMode ? (
-        /* v1.15.11 W3 — edit mode swaps the live, heavy sections for the
-           lightweight edit cards. The section data queries stay mounted on the
-           page, but their JSX is not rendered, so toggling into edit mode never
-           refetches. */
-        <InsightsEditMode
-          layout={layout}
-          gatedOffSectionIds={gatedOffSectionIds}
-          onClose={() => {
-            setEditMode(false);
-            // v1.15.11 QA L5 — return focus to the toggle that reappears.
-            requestAnimationFrame(() => customizeToggleRef.current?.focus());
-          }}
-        />
-      ) : everySectionHidden ? (
-        /* v1.15.11 W3 — empty-state: every section hidden. The page is never
-           blank — surface a hint + a button that opens edit mode so the user
-           can bring sections back. */
+      {/* v1.15.18 — the inline "Anpassen" toggle was removed. Customising the
+          overview (section show/hide + order) and sorting the nav pills now
+          live ONLY in Settings → Insights, reached via the top-right cog on the
+          tab strip — no duplicate in-page entry point. */}
+      {everySectionHidden ? (
+        /* v1.15.18 — empty-state: every section hidden. The page is never
+           blank — surface a hint + a link to the Insights settings section so
+           the user can bring sections back. */
         <EmptyState
           icon={<SlidersHorizontal className="size-6" />}
           title={t("insights.editMode.emptyTitle")}
           description={t("insights.editMode.emptyDescription")}
           action={
-            <Button size="sm" onClick={() => setEditMode(true)}>
-              {t("insights.editMode.open")}
+            <Button size="sm" asChild>
+              <Link href="/settings/insights">{t("insights.customize")}</Link>
             </Button>
           }
         />
