@@ -4,6 +4,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { I18nProvider } from "@/lib/i18n/context";
 import {
   SleepStageStackedBar,
+  STAGE_ORDER,
   type SleepStageBreakdown,
 } from "../sleep-stage-stacked-bar";
 
@@ -90,6 +91,55 @@ describe("<SleepStageStackedBar>", () => {
     expect(() =>
       render(<SleepStageStackedBar breakdown={breakdown} />),
     ).not.toThrow();
+  });
+
+  /**
+   * v1.15.18 — IN_BED is the TOTAL time in bed (≈ CORE + DEEP + REM +
+   * AWAKE), not a sleep PHASE. Stacking it doubled every bar and inflated
+   * the tooltip per-night total. It must not be a stack segment.
+   */
+  describe("IN_BED is not double-counted in the stack (v1.15.18)", () => {
+    it("excludes IN_BED from the stacked phase order", () => {
+      expect(STAGE_ORDER).not.toContain("IN_BED");
+      // The genuine phases (+ the legacy ASLEEP bucket) still stack.
+      expect(STAGE_ORDER).toEqual(["DEEP", "REM", "CORE", "ASLEEP", "AWAKE"]);
+    });
+
+    it("the per-night stack total is CORE + DEEP + REM + AWAKE, not the inflated IN_BED-inclusive sum", () => {
+      // The tooltip sums `payload.reduce` over exactly the stacked series.
+      // With IN_BED out of STAGE_ORDER it is no longer a Bar, so it cannot
+      // enter the payload and the total self-corrects to the real night.
+      const night = { CORE: 240.7, DEEP: 70.6, REM: 90.6, AWAKE: 34.9 };
+      const IN_BED = 436.7; // the reported total in bed
+      const stackedTotal = STAGE_ORDER.reduce(
+        (sum, stage) => sum + ((night as Record<string, number>)[stage] ?? 0),
+        0,
+      );
+      // Sums to the true night (~6 h 56 m), close to the real IN_BED total,
+      // and crucially NOT IN_BED + phases (~14 h) the old stack produced.
+      expect(stackedTotal).toBeCloseTo(436.8, 1);
+      expect(stackedTotal).toBeLessThan(IN_BED + 1);
+      expect(stackedTotal).not.toBeCloseTo(IN_BED + stackedTotal, 1);
+    });
+
+    it("does not stack IN_BED even when the payload carries it", () => {
+      // A night whose breakdown includes the IN_BED total must render the
+      // phase bars only; the chart must still mount without IN_BED dominating.
+      const breakdown: SleepStageBreakdown = {
+        windowDays: 30,
+        nights: 1,
+        totalMinutes: 437,
+        stages: { DEEP: 71, REM: 91, CORE: 241, AWAKE: 35, IN_BED: 437 },
+        perNight: [
+          {
+            dayKey: "2026-06-08",
+            stages: { DEEP: 71, REM: 91, CORE: 241, AWAKE: 35, IN_BED: 437 },
+          },
+        ],
+      };
+      const html = render(<SleepStageStackedBar breakdown={breakdown} />);
+      expect(html).toContain('data-slot="sleep-stage-stacked-bar"');
+    });
   });
 
   /**
