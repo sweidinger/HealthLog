@@ -213,3 +213,76 @@ describe("<MedicationCard> — next-due reads from server nextDueAt", () => {
     expect(html).toContain("Tomorrow,");
   });
 });
+
+describe("<MedicationCard> — open overdue slot (v1.16.4)", () => {
+  // Server contract: when an unresolved slot's anchor has passed but the
+  // catch-up band is still open, the list GET carries THAT slot in
+  // `nextDueAt` with `nextDueOverdue: true`. The card must render it as a
+  // calm amber "overdue — still takeable" line instead of jumping to the
+  // next future slot; with the flag false the regular phrasing returns.
+  function makeMed(overrides: Record<string, unknown>) {
+    return {
+      id: "med-overdue-1",
+      name: "Metformin",
+      dose: "500 mg",
+      category: "OTHER",
+      treatmentClass: undefined as string | undefined,
+      active: true,
+      notificationsEnabled: true,
+      pausedAt: null,
+      lastTakenAt: null,
+      todayEventCount: 0,
+      schedules: [{ id: "s-overdue-1", ...pastWindow }],
+      ...overrides,
+    };
+  }
+
+  it("renders the overdue slot as an amber still-takeable line, not a future next-intake", () => {
+    // Pinned now is 2026-06-02T12:00:00Z; the slot anchor sits two hours
+    // earlier, still inside its catch-up band per the server flag.
+    const med = makeMed({
+      nextDueAt: "2026-06-02T10:00:00Z",
+      nextDueOverdue: true,
+    });
+    const client = makeClient();
+    seedCompliance(client, med.id);
+
+    const html = render(
+      <MedicationCard
+        medication={med}
+        onEdit={() => {}}
+        onOpenHistory={() => {}}
+      />,
+      client,
+    );
+
+    expect(html).toContain("Overdue ·");
+    expect(html).toContain("can still be taken");
+    expect(html).toContain("text-amber-600");
+    expect(html).not.toContain("Next intake: Tomorrow,");
+  });
+
+  it("renders the regular upcoming phrasing once the flag is false (band closed, next slot)", () => {
+    const due = new Date("2026-06-03T10:00:00Z"); // tomorrow relative to pinned now
+    const med = makeMed({
+      nextDueAt: due.toISOString(),
+      nextDueOverdue: false,
+    });
+    const client = makeClient();
+    seedCompliance(client, med.id);
+
+    const html = render(
+      <MedicationCard
+        medication={med}
+        onEdit={() => {}}
+        onOpenHistory={() => {}}
+      />,
+      client,
+    );
+
+    expect(html).toContain("Next intake:");
+    expect(html).toContain("Tomorrow");
+    expect(html).not.toContain("Overdue ·");
+    expect(html).not.toContain("can still be taken");
+  });
+});

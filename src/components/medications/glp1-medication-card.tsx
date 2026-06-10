@@ -100,6 +100,12 @@ export interface Glp1Medication {
    * walked a single hardcoded weekly day-of-week.
    */
   nextDueAt?: string | null;
+  /**
+   * v1.16.4 — true when `nextDueAt` is an OPEN overdue slot (anchor
+   * passed, "now" still inside its catch-up band, unresolved). The card
+   * renders it as "overdue — still takeable" instead of a future date.
+   */
+  nextDueOverdue?: boolean;
   schedules: ScheduleLite[];
 }
 
@@ -376,17 +382,35 @@ export function Glp1MedicationCard({
   // the liked relative-day phrasing ("Samstag 13.7. (in 7 Tagen)") — while
   // the structure / labels live in the shared body. The purple dose accent
   // is byte-equivalent with the generic card's.
+  // v1.16.4 — an open overdue slot stays on the card as a calm amber
+  // "overdue — still takeable" line until its catch-up band closes
+  // (auto-miss); only then does the line advance to the next future slot.
+  // A same-day overdue anchor reads as a clock time, an older one (the
+  // weekly catch-up tail spans days) as its weekday + date.
+  const overdueLabel =
+    medication.nextDueOverdue && next
+      ? diffDays(next.date, now) === 0
+        ? formatTime(next.date.toISOString())
+        : `${weekdayLabel(next.date.getDay())}, ${fmt.dateShort(next.date)}`
+      : null;
+
   const nextLine =
     next && currentWindowStatus.status !== "in_window" ? (
-      <>
-        {nextInjectionLabel()}
-        {schedule?.dose && (
-          <span className="text-dose-accent hidden font-medium sm:inline">
-            {" "}
-            — {schedule.dose}
-          </span>
-        )}
-      </>
+      overdueLabel ? (
+        <span className="font-medium text-amber-600 dark:text-amber-400">
+          {t("medications.nextIntakeOverdue", { time: overdueLabel })}
+        </span>
+      ) : (
+        <>
+          {nextInjectionLabel()}
+          {schedule?.dose && (
+            <span className="text-dose-accent hidden font-medium sm:inline">
+              {" "}
+              — {schedule.dose}
+            </span>
+          )}
+        </>
+      )
     ) : null;
 
   // v1.15.9 — the last-injection line drops the injection-site display; it

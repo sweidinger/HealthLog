@@ -15,7 +15,10 @@ import {
   setMedicationCategory,
 } from "@/lib/medication-category";
 import { serializeScheduleRecurrence } from "@/lib/medication-schedule";
-import { computeNextDueAt } from "@/lib/medications/scheduling/next-due";
+import {
+  computeDisplayDue,
+  OVERDUE_LOOKBACK_MS,
+} from "@/lib/medications/scheduling/next-due";
 import { getUserTodayBounds } from "@/lib/timezone";
 import { invalidateUserMedications } from "@/lib/cache/invalidate";
 import { cached, caches, type ServerCache } from "@/lib/cache/server-cache";
@@ -41,8 +44,15 @@ async function buildMedicationsList(
   const resolvedWindowEnd = new Date(
     todayEndUtc.getTime() + 2 * 24 * 60 * 60 * 1000,
   );
+  // v1.16.4 — the open-overdue search reaches back as far as the widest
+  // band tail (weekly on-time + overdue), so the resolved-slot read must
+  // cover the same horizon or a long-resolved past slot would resurface
+  // as "overdue".
+  const resolvedWindowStart = new Date(
+    todayStartUtc.getTime() - OVERDUE_LOOKBACK_MS,
+  );
 
-  const [medications, latestIntakes, todayEvents, resolvedEvents] =
+  const [medications, latestIntakes, todayEvents, resolvedEvents, eraFloors] =
     await Promise.all([
       prisma.medication.findMany({
         where: { userId },
@@ -74,7 +84,7 @@ async function buildMedicationsList(
         where: {
           userId,
           deletedAt: null,
-          scheduledFor: { gte: todayStartUtc, lte: resolvedWindowEnd },
+          scheduledFor: { gte: resolvedWindowStart, lte: resolvedWindowEnd },
           OR: [
             { takenAt: { not: null } },
             { skipped: true },
@@ -83,6 +93,15 @@ async function buildMedicationsList(
         },
         select: { medicationId: true, scheduledFor: true },
       }),
+      // v1.16.4 — current-era floor per medication: the newest revision's
+      // `validUntil` is where the LIVE schedule rows became valid. The
+      // open-overdue search mints from the live rows, so it must not reach
+      // past this boundary into a previous era's cadence.
+      prisma.medicationScheduleRevision.groupBy({
+        by: ["medicationId"],
+        where: { medication: { userId } },
+        _max: { validUntil: true },
+      }),
     ]);
 
   const resolvedSlotsByMedId = new Map<string, Date[]>();
@@ -90,6 +109,11 @@ async function buildMedicationsList(
     const list = resolvedSlotsByMedId.get(e.medicationId);
     if (list) list.push(e.scheduledFor);
     else resolvedSlotsByMedId.set(e.medicationId, [e.scheduledFor]);
+  }
+
+  const eraStartByMedId = new Map<string, Date>();
+  for (const f of eraFloors) {
+    if (f._max.validUntil) eraStartByMedId.set(f.medicationId, f._max.validUntil);
   }
 
   const lastTakenAtByMedicationId = Object.fromEntries(
@@ -125,7 +149,12 @@ async function buildMedicationsList(
   const now = new Date();
 
   return medications.map((m) => {
-    const nextDue = computeNextDueAt({
+    // v1.16.4 — an OPEN overdue slot (anchor passed, still inside its
+    // catch-up band, unresolved) surfaces FIRST with `nextDueOverdue:
+    // true`; only a closed or resolved band falls through to the future
+    // next-due. Keeps the card on the still-takeable dose instead of
+    // jumping ahead the minute the anchor passes.
+    const display = computeDisplayDue({
       medication: {
         id: m.id,
         startsOn: m.startsOn,
@@ -138,13 +167,15 @@ async function buildMedicationsList(
       userTz,
       lastIntakeAt: lastTakenAtDateByMedicationId[m.id] ?? null,
       resolvedSlots: resolvedSlotsByMedId.get(m.id) ?? [],
+      eraStart: eraStartByMedId.get(m.id) ?? null,
     });
     return {
       ...m,
       category: categoryMap[m.id] ?? "OTHER",
       lastTakenAt: lastTakenAtByMedicationId[m.id] ?? null,
       todayEventCount: todayEventCountByMedId[m.id] ?? 0,
-      nextDueAt: nextDue ? nextDue.toISOString() : null,
+      nextDueAt: display ? display.at.toISOString() : null,
+      nextDueOverdue: display?.overdue ?? false,
     };
   });
 }

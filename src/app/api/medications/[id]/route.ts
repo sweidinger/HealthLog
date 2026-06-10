@@ -22,7 +22,10 @@ import {
   toRevisionPayloadEntry,
 } from "@/lib/medications/scheduling/schedule-eras";
 import type { Prisma } from "@/generated/prisma/client";
-import { computeNextDueAt } from "@/lib/medications/scheduling/next-due";
+import {
+  computeDisplayDue,
+  OVERDUE_LOOKBACK_MS,
+} from "@/lib/medications/scheduling/next-due";
 import {
   dayKeyForScheduledFor,
   recomputeMedicationComplianceForDay,
@@ -118,7 +121,9 @@ export const GET = apiHandler(
     // slot. Bound the read to [now-1d, now+2d] — the lookahead only needs the
     // slots adjacent to now.
     const now = new Date();
-    const resolvedFrom = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+    // v1.16.4 — reach back as far as the widest band tail so a
+    // long-resolved past slot can never resurface as "overdue".
+    const resolvedFrom = new Date(now.getTime() - OVERDUE_LOOKBACK_MS);
     const resolvedTo = new Date(now.getTime() + 2 * 24 * 60 * 60 * 1000);
     const resolvedRows = await prisma.medicationIntakeEvent.findMany({
       where: {
@@ -134,7 +139,15 @@ export const GET = apiHandler(
       },
       select: { scheduledFor: true },
     });
-    const nextDue = computeNextDueAt({
+    // v1.16.4 — current-era floor: the open-overdue search mints from
+    // the LIVE schedule rows, so it must not reach past the newest
+    // revision boundary into a previous era's cadence.
+    const latestRevision = await prisma.medicationScheduleRevision.findFirst({
+      where: { medicationId: id },
+      orderBy: { validUntil: "desc" },
+      select: { validUntil: true },
+    });
+    const display = computeDisplayDue({
       medication: {
         id: medication.id,
         startsOn: medication.startsOn,
@@ -147,6 +160,7 @@ export const GET = apiHandler(
       userTz: user.timezone || "Europe/Berlin",
       lastIntakeAt: lastIntake?.takenAt ?? null,
       resolvedSlots: resolvedRows.map((r) => r.scheduledFor),
+      eraStart: latestRevision?.validUntil ?? null,
     });
 
     annotate({
@@ -160,7 +174,8 @@ export const GET = apiHandler(
     return apiSuccess({
       ...medication,
       category,
-      nextDueAt: nextDue ? nextDue.toISOString() : null,
+      nextDueAt: display ? display.at.toISOString() : null,
+      nextDueOverdue: display?.overdue ?? false,
     });
   },
 );

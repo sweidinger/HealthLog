@@ -728,6 +728,7 @@
     "complianceDoses": "{count} dawek",
     "lastIntake": "Ostatnie przyjęcie:",
     "nextIntake": "Następne przyjęcie:",
+    "nextIntakeOverdue": "Zaległa · {time} — wciąż można przyjąć",
     "dayStreak": "dni serii",
     "cycleNextDoseToday": "Następna dawka dzisiaj",
     "cycleNextDoseTomorrow": "Następna dawka jutro",
