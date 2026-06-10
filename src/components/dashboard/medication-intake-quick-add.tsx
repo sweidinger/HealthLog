@@ -298,9 +298,9 @@ export function MedicationIntakeQuickAdd({
         className="min-h-11 sm:min-h-9"
       >
         {loading ? (
-          <Loader2 className="mr-2 h-4 w-4 animate-spin motion-reduce:animate-none" />
+          <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" />
         ) : (
-          <Plus className="mr-2 h-4 w-4" />
+          <Plus className="h-4 w-4" />
         )}
         {t("common.save")}
       </Button>
@@ -382,7 +382,6 @@ export function MedicationIntakeQuickAdd({
           <SelectTrigger
             id="medication-intake-medication"
             data-testid="medication-intake-quick-add-medication"
-            className="min-h-11"
           >
             <SelectValue
               placeholder={t(
@@ -427,7 +426,7 @@ export function MedicationIntakeQuickAdd({
             t("dashboard.medicationIntakeQuickAdd.dosePlaceholder")
           }
           autoComplete="off"
-          className="min-h-11 bg-muted/40"
+          className="bg-muted/40"
         />
         <p className="text-muted-foreground text-xs">
           {t("dashboard.medicationIntakeQuickAdd.doseHint")}

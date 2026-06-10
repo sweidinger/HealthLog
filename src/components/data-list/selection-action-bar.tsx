@@ -88,9 +88,9 @@ export function SelectionActionBar({
             disabled={isDeleting}
           >
             {isDeleting ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin motion-reduce:animate-none" />
+              <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" />
             ) : (
-              <Trash2 className="mr-2 h-4 w-4" />
+              <Trash2 className="h-4 w-4" />
             )}
             {t("dataList.deleteN", { count: String(count) })}
           </Button>

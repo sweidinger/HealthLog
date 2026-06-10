@@ -290,7 +290,7 @@ export function SubPageShell({
                 pathname ? `?from=${encodeURIComponent(pathname)}` : ""
               }`}
             >
-              <ListOrdered className="mr-1.5 size-4" aria-hidden="true" />
+              <ListOrdered className="size-4" aria-hidden="true" />
               {t("insights.subPage.showAllValues")}
             </Link>
           </Button>

@@ -90,22 +90,22 @@ export function ErrorDetails({
       <div className="flex flex-wrap items-center gap-2">
         {reset && (
           <Button onClick={reset} variant="outline">
-            <RotateCcw className="mr-2 h-4 w-4" />
+            <RotateCcw className="h-4 w-4" />
             {t("common.retry")}
           </Button>
         )}
         <Button onClick={handleCopy} variant="outline">
           {copied ? (
-            <CheckCircle2 className="text-success mr-2 h-4 w-4" />
+            <CheckCircle2 className="text-success h-4 w-4" />
           ) : (
-            <Copy className="mr-2 h-4 w-4" />
+            <Copy className="h-4 w-4" />
           )}
           {copied ? t("common.copied") : t("common.copyDetails")}
         </Button>
         {bugReportEnabled && (
           <Button asChild variant="outline">
             <Link href={reportHref}>
-              <Bug className="mr-2 h-4 w-4" />
+              <Bug className="h-4 w-4" />
               {t("common.reportIssue")}
             </Link>
           </Button>

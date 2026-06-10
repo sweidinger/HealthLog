@@ -91,9 +91,9 @@ function RestoreRowDialog({
           className="min-h-11"
         >
           {pending ? (
-            <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
+            <Loader2 className="h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
           ) : (
-            <History className="mr-1 h-3.5 w-3.5" />
+            <History className="h-3.5 w-3.5" />
           )}
           {t("admin.section.backups.restore")}
         </Button>
@@ -366,9 +366,9 @@ export function BackupsSection() {
           className="min-h-11"
         >
           {runBackup.isPending ? (
-            <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
+            <Loader2 className="h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
           ) : (
-            <PlayCircle className="mr-1 h-3.5 w-3.5" />
+            <PlayCircle className="h-3.5 w-3.5" />
           )}
           {t("admin.section.backups.runNow")}
         </Button>
@@ -422,9 +422,9 @@ export function BackupsSection() {
             className="min-h-11"
           >
             {upload.isPending ? (
-              <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
+              <Loader2 className="h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
             ) : (
-              <Upload className="mr-1 h-3.5 w-3.5" />
+              <Upload className="h-3.5 w-3.5" />
             )}
             {t("admin.section.backups.uploadButton")}
           </Button>
@@ -463,9 +463,9 @@ export function BackupsSection() {
                 className="min-h-11"
               >
                 {runBackup.isPending ? (
-                  <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
+                  <Loader2 className="h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
                 ) : (
-                  <PlayCircle className="mr-1 h-3.5 w-3.5" />
+                  <PlayCircle className="h-3.5 w-3.5" />
                 )}
                 {t("admin.section.backups.runNow")}
               </Button>
@@ -522,9 +522,9 @@ export function BackupsSection() {
                         className="min-h-11"
                       >
                         {downloadingId === row.id ? (
-                          <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
+                          <Loader2 className="h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
                         ) : (
-                          <Download className="mr-1 h-3.5 w-3.5" />
+                          <Download className="h-3.5 w-3.5" />
                         )}
                         {t("admin.section.backups.download")}
                       </Button>

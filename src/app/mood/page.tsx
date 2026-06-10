@@ -49,7 +49,7 @@ export default function MoodPage() {
           </p>
         </div>
         <Button onClick={() => setDialogOpen(true)}>
-          <Plus className="mr-2 h-4 w-4" />
+          <Plus className="h-4 w-4" />
           {t("mood.addEntry")}
         </Button>
       </div>

@@ -36,9 +36,9 @@ export function MedicationIntakeActions({
         disabled={!!intakeLoading}
       >
         {intakeLoading === "take" ? (
-          <Loader2 className="mr-1 h-4 w-4 animate-spin motion-reduce:animate-none" />
+          <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" />
         ) : (
-          <Check className="mr-1 h-4 w-4" />
+          <Check className="h-4 w-4" />
         )}
         {t("medications.taken")}
       </Button>
@@ -49,9 +49,9 @@ export function MedicationIntakeActions({
         disabled={!!intakeLoading}
       >
         {intakeLoading === "skip" ? (
-          <Loader2 className="mr-1 h-4 w-4 animate-spin motion-reduce:animate-none" />
+          <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" />
         ) : (
-          <SkipForward className="mr-1 h-4 w-4" />
+          <SkipForward className="h-4 w-4" />
         )}
         {t("medications.skipped")}
       </Button>

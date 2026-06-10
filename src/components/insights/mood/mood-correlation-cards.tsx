@@ -6,6 +6,7 @@ import { Activity } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useTranslations } from "@/lib/i18n/context";
 import type { CorrelationResult } from "@/lib/analytics/correlations";
 import { MoodExplainerIcon } from "./mood-explainer-icon";
@@ -29,7 +30,7 @@ const ScatterCorrelationChart = dynamic(
   {
     ssr: false,
     loading: () => (
-      <div className="bg-muted/40 aspect-square min-h-[180px] w-full animate-pulse rounded-md motion-reduce:animate-none sm:aspect-[3/2] sm:h-auto" />
+      <Skeleton className="bg-muted/40 aspect-square min-h-[180px] w-full sm:aspect-[3/2] sm:h-auto" />
     ),
   },
 );

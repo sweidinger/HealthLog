@@ -90,7 +90,7 @@ export default function MedicationDetailPage({
       <div className="space-y-6">
         <Button variant="ghost" size="sm" className="-ml-2 w-fit" asChild>
           <Link href="/medications">
-            <ArrowLeft className="mr-1 size-4" aria-hidden="true" />
+            <ArrowLeft className="size-4" aria-hidden="true" />
             {t("medications.back")}
           </Link>
         </Button>

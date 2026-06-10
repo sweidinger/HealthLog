@@ -23,6 +23,7 @@ import { useTranslations } from "@/lib/i18n/context";
 import { formatDate } from "@/lib/format";
 import { useAchievementsQuery } from "@/lib/queries/use-achievements-query";
 import type { AchievementProgress } from "@/lib/gamification/achievements";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const iconMap: Record<string, LucideIcon> = {
   Activity,
@@ -123,10 +124,10 @@ export function RecentAchievementsCard() {
               key={`achievement-skeleton-${idx}`}
               className="border-border bg-background/40 flex items-center gap-3 rounded-md border p-2"
             >
-              <div className="bg-muted/60 h-7 w-7 shrink-0 animate-pulse rounded-md motion-reduce:animate-none" />
+              <Skeleton className="h-7 w-7 shrink-0" />
               <div className="min-w-0 flex-1 space-y-1.5">
-                <div className="bg-muted/60 h-3 w-1/2 animate-pulse rounded motion-reduce:animate-none" />
-                <div className="bg-muted/60 h-2.5 w-3/4 animate-pulse rounded motion-reduce:animate-none" />
+                <Skeleton className="h-3 w-1/2 rounded" />
+                <Skeleton className="h-2.5 w-3/4 rounded" />
               </div>
             </li>
           ))}

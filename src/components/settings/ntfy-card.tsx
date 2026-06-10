@@ -166,7 +166,7 @@ export function NtfyCard({ isAuthenticated }: { isAuthenticated: boolean }) {
               className="min-h-11"
             >
               {save.isPending && (
-                <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
+                <Loader2 className="h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
               )}
               {t("common.save")}
             </Button>

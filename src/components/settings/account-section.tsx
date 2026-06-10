@@ -587,9 +587,9 @@ export function AccountSection() {
           <div className="flex justify-end">
             <Button type="submit" disabled={saving}>
               {saving ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin motion-reduce:animate-none" />
+                <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" />
               ) : (
-                <Save className="mr-2 h-4 w-4" />
+                <Save className="h-4 w-4" />
               )}
               {t("common.save")}
             </Button>
@@ -623,9 +623,9 @@ export function AccountSection() {
             disabled={passkeyLoading}
           >
             {passkeyLoading ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin motion-reduce:animate-none" />
+              <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" />
             ) : (
-              <KeyRound className="mr-2 h-4 w-4" />
+              <KeyRound className="h-4 w-4" />
             )}
             {t("settings.addPasskey")}
           </Button>
@@ -703,9 +703,9 @@ export function AccountSection() {
             className="w-full shrink-0 sm:w-auto"
           >
             {tourRestarting ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin motion-reduce:animate-none" />
+              <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" />
             ) : (
-              <Compass className="mr-2 h-4 w-4" />
+              <Compass className="h-4 w-4" />
             )}
             {t("onboarding.tour.restart")}
           </Button>
@@ -794,9 +794,9 @@ export function AccountSection() {
 
             <Button type="submit" variant="outline" disabled={passwordSaving}>
               {passwordSaving ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin motion-reduce:animate-none" />
+                <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" />
               ) : (
-                <Save className="mr-2 h-4 w-4" />
+                <Save className="h-4 w-4" />
               )}
               {t("settings.changePassword")}
             </Button>
@@ -1180,9 +1180,9 @@ function AvatarSection() {
             onClick={() => fileInputRef.current?.click()}
           >
             {upload.isPending ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin motion-reduce:animate-none" />
+              <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" />
             ) : (
-              <ImageUp className="mr-2 h-4 w-4" />
+              <ImageUp className="h-4 w-4" />
             )}
             {avatarUrl
               ? t("settings.avatar.replace")
@@ -1200,9 +1200,9 @@ function AvatarSection() {
               }}
             >
               {remove.isPending ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin motion-reduce:animate-none" />
+                <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" />
               ) : (
-                <Trash2 className="mr-2 h-4 w-4" />
+                <Trash2 className="h-4 w-4" />
               )}
               {t("settings.avatar.remove")}
             </Button>

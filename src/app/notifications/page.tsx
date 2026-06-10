@@ -7,7 +7,13 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { Bell, ChevronRight, Loader2, Settings, AlertCircle } from "lucide-react";
+import {
+  Bell,
+  ChevronRight,
+  Loader2,
+  Settings,
+  AlertCircle,
+} from "lucide-react";
 import {
   EVENT_DEFAULT_ENABLED,
   type EventType,
@@ -43,11 +49,7 @@ interface PreferencesData {
  * unauthenticated, error, empty, populated) so the user always sees the
  * disambiguation, even when the body content is a fallback state.
  */
-function NotificationsBreadcrumb({
-  t,
-}: {
-  t: (key: string) => string;
-}) {
+function NotificationsBreadcrumb({ t }: { t: (key: string) => string }) {
   return (
     <nav aria-label="Breadcrumb" className="text-muted-foreground text-xs">
       <ol className="flex items-center gap-1">
@@ -231,7 +233,7 @@ export default function NotificationsPage() {
             </p>
             <Button asChild variant="outline">
               <Link href="/settings/notifications">
-                <Settings className="mr-2 h-4 w-4" />
+                <Settings className="h-4 w-4" />
                 {t("notifications.goToSettings")}
               </Link>
             </Button>

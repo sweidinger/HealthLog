@@ -131,7 +131,7 @@ export function CourseWindowRow({
     <div className="space-y-3" data-slot="course-window-row">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
         {/* startsOn */}
-        <div className="flex-1 space-y-1.5">
+        <div className="flex-1 space-y-2">
           <Label htmlFor={startId} className="text-sm">
             {t(`${i18nPrefix}.startsOn.label`)}
           </Label>
@@ -148,7 +148,7 @@ export function CourseWindowRow({
         </div>
 
         {/* endsOn */}
-        <div className="flex-1 space-y-1.5">
+        <div className="flex-1 space-y-2">
           <Label htmlFor={endId} className="text-sm">
             {t(`${i18nPrefix}.endsOn.label`)}
           </Label>
@@ -156,9 +156,7 @@ export function CourseWindowRow({
             id={endId}
             type="date"
             value={endsIso}
-            disabled={
-              disabled || noEndDate || lockEndsToStart
-            }
+            disabled={disabled || noEndDate || lockEndsToStart}
             readOnly={lockEndsToStart}
             onChange={(e) => onEndsChange(e.target.value)}
             className="h-11 w-full"
@@ -199,7 +197,7 @@ export function CourseWindowRow({
 
       {!valid && (
         <p
-          className="text-destructive text-xs"
+          className="text-destructive text-sm"
           role="alert"
           data-slot="course-window-error"
         >

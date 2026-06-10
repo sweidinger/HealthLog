@@ -151,9 +151,9 @@ export default function LoginPage() {
             disabled={loading}
           >
             {loading && mode === "passkey" ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin motion-reduce:animate-none" />
+              <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" />
             ) : (
-              <KeyRound className="mr-2 h-4 w-4" />
+              <KeyRound className="h-4 w-4" />
             )}
             {t("auth.loginWithPasskey")}
           </Button>
@@ -173,7 +173,7 @@ export default function LoginPage() {
               size="lg"
               onClick={() => setMode("password")}
             >
-              <Lock className="mr-2 h-4 w-4" />
+              <Lock className="h-4 w-4" />
               {t("auth.loginWithPassword")}
             </Button>
           ) : (
@@ -220,9 +220,9 @@ export default function LoginPage() {
                 disabled={loading}
               >
                 {loading && mode === "password" ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin motion-reduce:animate-none" />
+                  <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" />
                 ) : (
-                  <Lock className="mr-2 h-4 w-4" />
+                  <Lock className="h-4 w-4" />
                 )}
                 {t("auth.login")}
               </Button>

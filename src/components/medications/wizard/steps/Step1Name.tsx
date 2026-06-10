@@ -14,7 +14,7 @@ export interface StepProps {
 export function Step1Name({ payload, applyPartial }: StepProps) {
   const { t } = useTranslations();
   return (
-    <div className="space-y-1.5" data-slot="wizard-step1">
+    <div className="space-y-2" data-slot="wizard-step1">
       <Label htmlFor="wizard-name" className="sr-only">
         {t("medications.wizard.steps.step1.label")}
       </Label>

@@ -366,7 +366,7 @@ function FeedbackDetailDialog({
             disabled={update.isPending || item.status === "ACKNOWLEDGED"}
             onClick={() => update.mutate({ status: "ACKNOWLEDGED" })}
           >
-            <CheckCircle2 className="mr-1.5 h-3.5 w-3.5" />
+            <CheckCircle2 className="h-3.5 w-3.5" />
             {t("admin.feedback.actionAcknowledge")}
           </Button>
           <Button
@@ -374,7 +374,7 @@ function FeedbackDetailDialog({
             disabled={update.isPending || item.status === "RESOLVED"}
             onClick={() => update.mutate({ status: "RESOLVED" })}
           >
-            <CheckCircle2 className="mr-1.5 h-3.5 w-3.5" />
+            <CheckCircle2 className="h-3.5 w-3.5" />
             {t("admin.feedback.actionResolve")}
           </Button>
           <AlertDialog>
@@ -384,7 +384,7 @@ function FeedbackDetailDialog({
                 variant="destructive"
                 disabled={archive.isPending || item.status === "ARCHIVED"}
               >
-                <Trash2 className="mr-1.5 h-3.5 w-3.5" />
+                <Trash2 className="h-3.5 w-3.5" />
                 {t("admin.feedback.actionArchive")}
               </Button>
             </AlertDialogTrigger>
@@ -419,9 +419,9 @@ function FeedbackDetailDialog({
               className="ml-auto"
             >
               {publish.isPending ? (
-                <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
+                <Loader2 className="h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
               ) : (
-                <GitPullRequest className="mr-1.5 h-3.5 w-3.5" />
+                <GitPullRequest className="h-3.5 w-3.5" />
               )}
               {t("admin.feedback.actionPublishGithub")}
             </Button>
@@ -517,7 +517,7 @@ function FeedbackDetailDialog({
               onClick={() => update.mutate({ adminNote: note || null })}
             >
               {update.isPending && (
-                <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
+                <Loader2 className="h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
               )}
               {t("admin.feedback.saveNote")}
             </Button>

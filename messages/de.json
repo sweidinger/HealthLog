@@ -643,7 +643,7 @@
       "slotNone": "Kein bestimmter Slot",
       "takenAtLabel": "Datum und Uhrzeit",
       "takenAtHint": "Standard ist jetzt; wähle ein früheres Datum und eine frühere Uhrzeit, um eine vergangene Dosis zu erfassen.",
-      "skippedLabel": "Als ausgelassen erfassen",
+      "skippedLabel": "Als übersprungen erfassen",
       "noMedications": "Lege zuerst ein Medikament an, dann kannst du Einnahmen dafür erfassen.",
       "cancel": "Abbrechen",
       "submit": "Einnahme erfassen",

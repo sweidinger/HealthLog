@@ -81,13 +81,7 @@ type WindowSize = (typeof WINDOW_DAYS)[number];
  * token + the `insights.sleep.stages.inBed` label survive for the
  * last-night hypnogram, which still renders the in-bed span.
  */
-export const STAGE_ORDER = [
-  "DEEP",
-  "REM",
-  "CORE",
-  "ASLEEP",
-  "AWAKE",
-] as const;
+export const STAGE_ORDER = ["DEEP", "REM", "CORE", "ASLEEP", "AWAKE"] as const;
 
 /**
  * Dracula stage palette. Exported so the last-night hypnogram
@@ -218,7 +212,7 @@ export function SleepStageStackedBar({ breakdown }: SleepStageStackedBarProps) {
       <CardHeader className="pb-2">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex flex-col gap-0.5">
-            <CardTitle className="text-sm font-medium">
+            <CardTitle className="text-base font-semibold">
               {t("insights.sleep.compositionTitle")}
             </CardTitle>
             <span className="text-muted-foreground text-xs">

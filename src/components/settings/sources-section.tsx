@@ -337,7 +337,7 @@ export function SourcesSection() {
             disabled={resetMutation.isPending || saveMutation.isPending}
             className="self-end sm:self-auto"
           >
-            <RotateCcw className="mr-2 h-3.5 w-3.5" />
+            <RotateCcw className="h-3.5 w-3.5" />
             {t("settings.sections.sources.resetDefaults")}
           </Button>
         </div>
@@ -523,7 +523,7 @@ export function SourcesSection() {
                     onClick={resetDeviceTypeAxis}
                     disabled={saveMutation.isPending}
                   >
-                    <RotateCcw className="mr-1 h-3 w-3" />
+                    <RotateCcw className="h-3 w-3" />
                     {t("settings.sections.sources.resetDeviceTypes")}
                   </Button>
                 </div>
@@ -597,7 +597,7 @@ export function SourcesSection() {
               disabled={saveMutation.isPending}
             >
               {saveMutation.isPending && (
-                <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
+                <Loader2 className="h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
               )}
               {t("common.save")}
             </Button>

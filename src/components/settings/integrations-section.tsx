@@ -165,7 +165,7 @@ function IntegrationErrorMessage({ message }: { message: string }) {
   return (
     <p
       data-testid="integration-error-message"
-      className="text-destructive flex items-start gap-1.5 text-xs"
+      className="text-destructive flex items-start gap-1.5 text-sm"
     >
       <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
       <span className="min-w-0 break-words">{message}</span>
@@ -321,7 +321,9 @@ function WithingsCard({
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.withings() });
-      queryClient.invalidateQueries({ queryKey: queryKeys.integrationsStatus() });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.integrationsStatus(),
+      });
     },
   });
 
@@ -343,7 +345,9 @@ function WithingsCard({
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.withings() });
-      queryClient.invalidateQueries({ queryKey: queryKeys.integrationsStatus() });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.integrationsStatus(),
+      });
     },
   });
 
@@ -368,7 +372,9 @@ function WithingsCard({
         );
         setSyncMsgType("success");
         void invalidateKeys(queryClient, measurementDependentKeys);
-        queryClient.invalidateQueries({ queryKey: queryKeys.integrationsStatus() });
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.integrationsStatus(),
+        });
       } else {
         setSyncMsg(json.error || t("settings.withingsSyncFailed"));
         setSyncMsgType("error");
@@ -445,7 +451,10 @@ function WithingsCard({
         title={t("settings.withings")}
         description={t("settings.withingsDescription")}
         status={
-          <IntegrationStatusPill state={pillState} lastSyncAt={pillLastSyncAt} />
+          <IntegrationStatusPill
+            state={pillState}
+            lastSyncAt={pillLastSyncAt}
+          />
         }
       />
 
@@ -496,7 +505,7 @@ function WithingsCard({
             data-testid="withings-parked-banner"
             className="border-warning/30 bg-warning/10 flex flex-wrap items-center justify-between gap-2 rounded-md border px-3 py-2 text-sm"
           >
-            <span className="text-warning min-w-0 break-words text-xs">
+            <span className="text-warning min-w-0 text-xs break-words">
               {t("settings.integrationPill.parkedReconnect")}
             </span>
             <Button
@@ -509,9 +518,9 @@ function WithingsCard({
               className="min-h-11"
             >
               {resume.isPending ? (
-                <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
+                <Loader2 className="h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
               ) : (
-                <Link2 className="mr-1 h-3.5 w-3.5" />
+                <Link2 className="h-3.5 w-3.5" />
               )}
               {t("settings.integrationPill.resumeCta")}
             </Button>
@@ -520,7 +529,7 @@ function WithingsCard({
         {resume.isError && (
           <p
             role="alert"
-            className="text-destructive text-xs"
+            className="text-destructive text-sm"
             data-testid="withings-resume-error"
           >
             {t("settings.integrationPill.resumeError")}
@@ -604,9 +613,9 @@ function WithingsCard({
                 }
               >
                 {credsSaving ? (
-                  <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
+                  <Loader2 className="h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
                 ) : (
-                  <Save className="mr-1 h-3.5 w-3.5" />
+                  <Save className="h-3.5 w-3.5" />
                 )}
                 {t("settings.withingsSaveCredentials")}
               </Button>
@@ -639,9 +648,9 @@ function WithingsCard({
                 disabled={syncing}
               >
                 {syncing ? (
-                  <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
+                  <Loader2 className="h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
                 ) : (
-                  <RefreshCw className="mr-1 h-3.5 w-3.5" />
+                  <RefreshCw className="h-3.5 w-3.5" />
                 )}
                 {t("settings.withingsSync")}
               </Button>
@@ -654,9 +663,9 @@ function WithingsCard({
                     disabled={syncing}
                   >
                     {syncing ? (
-                      <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
+                      <Loader2 className="h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
                     ) : (
-                      <RefreshCw className="mr-1 h-3.5 w-3.5" />
+                      <RefreshCw className="h-3.5 w-3.5" />
                     )}
                     {t("settings.withingsFullSync")}
                   </Button>
@@ -689,7 +698,7 @@ function WithingsCard({
                     size="sm"
                     className="text-destructive min-h-11"
                   >
-                    <Unlink className="mr-1 h-3.5 w-3.5" />
+                    <Unlink className="h-3.5 w-3.5" />
                     {t("settings.withingsDisconnect")}
                   </Button>
                 </AlertDialogTrigger>
@@ -730,7 +739,7 @@ function WithingsCard({
               window.location.href = "/api/withings/connect";
             }}
           >
-            <Link2 className="mr-2 h-4 w-4" />
+            <Link2 className="h-4 w-4" />
             {t("settings.withingsConnect")}
           </Button>
         ) : (
@@ -816,7 +825,9 @@ function WhoopCard({
       });
       const json = await res.json();
       if (res.ok) {
-        setSyncMsg(t("settings.whoopSyncResult", { count: json.data.imported }));
+        setSyncMsg(
+          t("settings.whoopSyncResult", { count: json.data.imported }),
+        );
         setSyncMsgType("success");
         void invalidateKeys(queryClient, measurementDependentKeys);
         queryClient.invalidateQueries({ queryKey: queryKeys.whoop() });
@@ -897,7 +908,10 @@ function WhoopCard({
           </>
         }
         status={
-          <IntegrationStatusPill state={pillState} lastSyncAt={pillLastSyncAt} />
+          <IntegrationStatusPill
+            state={pillState}
+            lastSyncAt={pillLastSyncAt}
+          />
         }
       />
 
@@ -920,7 +934,7 @@ function WhoopCard({
             data-testid="whoop-parked-banner"
             className="border-warning/30 bg-warning/10 flex flex-wrap items-center justify-between gap-2 rounded-md border px-3 py-2 text-sm"
           >
-            <span className="text-warning min-w-0 break-words text-xs">
+            <span className="text-warning min-w-0 text-xs break-words">
               {t("settings.integrationPill.parkedReconnect")}
             </span>
             <Button
@@ -933,9 +947,9 @@ function WhoopCard({
               className="min-h-11"
             >
               {resume.isPending ? (
-                <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
+                <Loader2 className="h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
               ) : (
-                <Link2 className="mr-1 h-3.5 w-3.5" />
+                <Link2 className="h-3.5 w-3.5" />
               )}
               {t("settings.integrationPill.resumeCta")}
             </Button>
@@ -944,7 +958,7 @@ function WhoopCard({
         {resume.isError && (
           <p
             role="alert"
-            className="text-destructive text-xs"
+            className="text-destructive text-sm"
             data-testid="whoop-resume-error"
           >
             {t("settings.integrationPill.resumeError")}
@@ -1023,9 +1037,9 @@ function WhoopCard({
                 }
               >
                 {credsSaving ? (
-                  <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
+                  <Loader2 className="h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
                 ) : (
-                  <Save className="mr-1 h-3.5 w-3.5" />
+                  <Save className="h-3.5 w-3.5" />
                 )}
                 {t("settings.whoopSaveCredentials")}
               </Button>
@@ -1052,9 +1066,9 @@ function WhoopCard({
                 disabled={syncing}
               >
                 {syncing ? (
-                  <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
+                  <Loader2 className="h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
                 ) : (
-                  <RefreshCw className="mr-1 h-3.5 w-3.5" />
+                  <RefreshCw className="h-3.5 w-3.5" />
                 )}
                 {t("settings.whoopSync")}
               </Button>
@@ -1067,9 +1081,9 @@ function WhoopCard({
                     disabled={syncing}
                   >
                     {syncing ? (
-                      <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
+                      <Loader2 className="h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
                     ) : (
-                      <RefreshCw className="mr-1 h-3.5 w-3.5" />
+                      <RefreshCw className="h-3.5 w-3.5" />
                     )}
                     {t("settings.whoopFullSync")}
                   </Button>
@@ -1102,7 +1116,7 @@ function WhoopCard({
                     size="sm"
                     className="text-destructive min-h-11"
                   >
-                    <Unlink className="mr-1 h-3.5 w-3.5" />
+                    <Unlink className="h-3.5 w-3.5" />
                     {t("settings.whoopDisconnect")}
                   </Button>
                 </AlertDialogTrigger>
@@ -1148,7 +1162,7 @@ function WhoopCard({
               window.location.href = "/api/whoop/connect";
             }}
           >
-            <Link2 className="mr-2 h-4 w-4" />
+            <Link2 className="h-4 w-4" />
             {t("settings.whoopConnect")}
           </Button>
         ) : (
@@ -1344,7 +1358,10 @@ function FitbitCard({
           </>
         }
         status={
-          <IntegrationStatusPill state={pillState} lastSyncAt={pillLastSyncAt} />
+          <IntegrationStatusPill
+            state={pillState}
+            lastSyncAt={pillLastSyncAt}
+          />
         }
       />
 
@@ -1366,7 +1383,7 @@ function FitbitCard({
             data-testid="fitbit-parked-banner"
             className="border-warning/30 bg-warning/10 flex flex-wrap items-center justify-between gap-2 rounded-md border px-3 py-2 text-sm"
           >
-            <span className="text-warning min-w-0 break-words text-xs">
+            <span className="text-warning min-w-0 text-xs break-words">
               {t("settings.integrationPill.parkedReconnect")}
             </span>
             <Button
@@ -1379,9 +1396,9 @@ function FitbitCard({
               className="min-h-11"
             >
               {resume.isPending ? (
-                <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
+                <Loader2 className="h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
               ) : (
-                <Link2 className="mr-1 h-3.5 w-3.5" />
+                <Link2 className="h-3.5 w-3.5" />
               )}
               {t("settings.integrationPill.resumeCta")}
             </Button>
@@ -1390,7 +1407,7 @@ function FitbitCard({
         {resume.isError && (
           <p
             role="alert"
-            className="text-destructive text-xs"
+            className="text-destructive text-sm"
             data-testid="fitbit-resume-error"
           >
             {t("settings.integrationPill.resumeError")}
@@ -1469,9 +1486,9 @@ function FitbitCard({
                 }
               >
                 {credsSaving ? (
-                  <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
+                  <Loader2 className="h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
                 ) : (
-                  <Save className="mr-1 h-3.5 w-3.5" />
+                  <Save className="h-3.5 w-3.5" />
                 )}
                 {t("settings.fitbitSaveCredentials")}
               </Button>
@@ -1498,9 +1515,9 @@ function FitbitCard({
                 disabled={syncing}
               >
                 {syncing ? (
-                  <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
+                  <Loader2 className="h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
                 ) : (
-                  <RefreshCw className="mr-1 h-3.5 w-3.5" />
+                  <RefreshCw className="h-3.5 w-3.5" />
                 )}
                 {t("settings.fitbitSync")}
               </Button>
@@ -1513,9 +1530,9 @@ function FitbitCard({
                     disabled={syncing}
                   >
                     {syncing ? (
-                      <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
+                      <Loader2 className="h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
                     ) : (
-                      <RefreshCw className="mr-1 h-3.5 w-3.5" />
+                      <RefreshCw className="h-3.5 w-3.5" />
                     )}
                     {t("settings.fitbitFullSync")}
                   </Button>
@@ -1548,7 +1565,7 @@ function FitbitCard({
                     size="sm"
                     className="text-destructive min-h-11"
                   >
-                    <Unlink className="mr-1 h-3.5 w-3.5" />
+                    <Unlink className="h-3.5 w-3.5" />
                     {t("settings.fitbitDisconnect")}
                   </Button>
                 </AlertDialogTrigger>
@@ -1594,7 +1611,7 @@ function FitbitCard({
               window.location.href = "/api/fitbit/connect";
             }}
           >
-            <Link2 className="mr-2 h-4 w-4" />
+            <Link2 className="h-4 w-4" />
             {t("settings.fitbitConnect")}
           </Button>
         ) : (

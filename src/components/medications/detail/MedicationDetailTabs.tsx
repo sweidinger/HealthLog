@@ -71,9 +71,7 @@ import { SideEffectsSection } from "@/components/medications/SideEffectsSection"
 import { ChartSkeleton } from "@/components/charts/chart-skeleton";
 import { estimateRunwayDays } from "@/components/medications/detail/supply-runway";
 import { MedicationWizardDialog } from "@/components/medications/wizard/MedicationWizardDialog";
-import {
-  parseScheduleRecurrence,
-} from "@/lib/medication-schedule";
+import { parseScheduleRecurrence } from "@/lib/medication-schedule";
 import { useQuery } from "@tanstack/react-query";
 import { queryKeys } from "@/lib/query-keys";
 import { useTranslations, useFormatters } from "@/lib/i18n/context";
@@ -234,8 +232,7 @@ export function MedicationDetailTabs({
   // medications, so a stale `?tab=injektion` deep-link falls back to the
   // landing tab instead of rendering an empty surface.
   const availableTabs = useMemo<TabSlug[]>(
-    () =>
-      TAB_SLUGS.filter((slug) => slug !== "injektion" || isInjectable),
+    () => TAB_SLUGS.filter((slug) => slug !== "injektion" || isInjectable),
     [isInjectable],
   );
 
@@ -322,9 +319,7 @@ export function MedicationDetailTabs({
     staleTime: 30_000,
   });
 
-  const inventoryItems = Array.isArray(inventory?.items)
-    ? inventory.items
-    : [];
+  const inventoryItems = Array.isArray(inventory?.items) ? inventory.items : [];
   const liveItems = inventoryItems.filter((i) => i.state !== "USED_UP");
   const dosesRemaining = liveItems.reduce(
     (sum, i) => sum + i.dosesRemaining,
@@ -337,7 +332,7 @@ export function MedicationDetailTabs({
     <div className="space-y-6" data-slot="medication-detail-page">
       <Button variant="ghost" size="sm" className="-ml-2 w-fit" asChild>
         <Link href="/medications">
-          <ArrowLeft aria-hidden="true" className="mr-1 size-4" />
+          <ArrowLeft aria-hidden="true" className="size-4" />
           {t("medications.back")}
         </Link>
       </Button>
@@ -587,9 +582,7 @@ export function MedicationDetailTabs({
                 <DoseStrengthCurve medicationId={id} />
               </div>
             )}
-            {!isGlp1 && (
-              <DoseStrengthCurve medicationId={id} />
-            )}
+            {!isGlp1 && <DoseStrengthCurve medicationId={id} />}
           </TabsContent>
         )}
 

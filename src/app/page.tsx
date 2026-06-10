@@ -101,9 +101,9 @@ export function sheetBodyHasUnsavedInput(): boolean {
     '[data-slot="responsive-sheet-body"]',
   );
   if (!body) return false;
-  const fields = body.querySelectorAll<
-    HTMLInputElement | HTMLTextAreaElement
-  >("input, textarea");
+  const fields = body.querySelectorAll<HTMLInputElement | HTMLTextAreaElement>(
+    "input, textarea",
+  );
   for (const field of fields) {
     if (field.disabled || field.type === "hidden") continue;
     // Skip pickers the form prefills with "now" — an untouched default
@@ -124,9 +124,7 @@ export function sheetBodyHasUnsavedInput(): boolean {
   //
   // Mood radios start with nothing selected (`mood = ""`), so ANY
   // `aria-checked="true"` is a deliberate user choice — flag it.
-  if (
-    body.querySelector('[role="radio"][aria-checked="true"]') !== null
-  ) {
+  if (body.querySelector('[role="radio"][aria-checked="true"]') !== null) {
     return true;
   }
   // Radix Select trigger renders `role="combobox"`. A trigger with
@@ -135,9 +133,7 @@ export function sheetBodyHasUnsavedInput(): boolean {
   // We deliberately do NOT treat a merely non-placeholder value as dirty: the
   // type / medication selects mount with a non-placeholder DEFAULT, and
   // flagging that would over-trigger the confirm on a pristine sheet.
-  if (
-    body.querySelector('[role="combobox"][data-state="open"]') !== null
-  ) {
+  if (body.querySelector('[role="combobox"][data-state="open"]') !== null) {
     return true;
   }
   return false;
@@ -290,9 +286,7 @@ function getRangeHint(
   return (
     <>
       <p>
-        <span className="text-success font-bold">
-          {t("charts.colorGreen")}
-        </span>{" "}
+        <span className="text-success font-bold">{t("charts.colorGreen")}</span>{" "}
         {format(range.greenMin)}-{format(range.greenMax)} {unit}
       </p>
       <p>
@@ -572,9 +566,7 @@ export default function DashboardPage() {
    * undefined-safe and tiles with recent data paint byte-identical
    * with the pre-v1.4.34 contract.
    */
-  const tileStaleDays = (
-    type: string | null | undefined,
-  ): number | null => {
+  const tileStaleDays = (type: string | null | undefined): number | null => {
     if (!type) return null;
     const entry = data?.lastSeenByType?.[type];
     if (!entry) return null;
@@ -892,7 +884,7 @@ export default function DashboardPage() {
                 className="min-h-11 sm:min-h-9"
                 data-tour-id="dashboard-quick-add"
               >
-                <Plus className="mr-1 h-4 w-4" />
+                <Plus className="h-4 w-4" />
                 {t("common.add")}
               </Button>
             </DropdownMenuTrigger>
@@ -954,9 +946,7 @@ export default function DashboardPage() {
         open={quickEntryDialog === "measurement"}
         onOpenChange={handleQuickEntryOpenChange}
         title={t("measurements.addMeasurement")}
-        footer={
-          <div ref={setMeasurementFooterEl} className="flex w-full" />
-        }
+        footer={<div ref={setMeasurementFooterEl} className="flex w-full" />}
       >
         <MeasurementForm
           onSuccess={() => setQuickEntryDialog(null)}
@@ -1196,7 +1186,9 @@ export default function DashboardPage() {
                 icon={TrendingUp}
                 compareBaseline={compareBaseline}
                 compareDelta={tileCompareDelta(pulseTileSummary)}
-                staleDays={tileStaleDays(hasRestingHr ? "RESTING_HEART_RATE" : "PULSE")}
+                staleDays={tileStaleDays(
+                  hasRestingHr ? "RESTING_HEART_RATE" : "PULSE",
+                )}
               />
             ),
           });
@@ -1736,7 +1728,7 @@ export default function DashboardPage() {
                   size="sm"
                   onClick={() => setQuickEntryDialog("measurement")}
                 >
-                  <Plus className="mr-1 h-4 w-4" />
+                  <Plus className="h-4 w-4" />
                   {t("dashboard.emptyAddMeasurement")}
                 </Button>
               }

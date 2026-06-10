@@ -121,10 +121,7 @@ describe("pickDefaultMedicationId — auto-select heuristic", () => {
     // alphabetically sort and pick the leading id, "ramipril".
     const now = new Date("2026-05-12T01:00:00Z"); // 03:00 Berlin
     const result = pickDefaultMedicationId(
-      [
-        makeMed("z", { name: "Zolpidem" }),
-        makeMed("r", { name: "Ramipril" }),
-      ],
+      [makeMed("z", { name: "Zolpidem" }), makeMed("r", { name: "Ramipril" })],
       now,
     );
     expect(result).toBe("r");
@@ -169,10 +166,15 @@ describe("<MedicationIntakeQuickAdd> — SSR contract", () => {
     expect(html).toContain(
       'data-testid="medication-intake-quick-add-taken-at"',
     );
-    // 44 px touch floor on every interactive field + the footer Save
-    // button (WCAG 2.5.5). v1.4.37 W10 added the floor to the footer
-    // buttons; the form fields already carried it.
-    expect(html.match(/min-h-11/g)?.length ?? 0).toBeGreaterThanOrEqual(3);
+    // 44 px touch floor (WCAG 2.5.5). The form controls inherit it from
+    // the Input / SelectTrigger primitives' `h-11 sm:h-10` base — no
+    // per-call-site `min-h-11` override (which would force 44 px on
+    // desktop too). The footer buttons keep the explicit
+    // `min-h-11 sm:min-h-9` floor.
+    expect(html.match(/h-11/g)?.length ?? 0).toBeGreaterThanOrEqual(3);
+    expect(
+      html.match(/min-h-11 sm:min-h-9/g)?.length ?? 0,
+    ).toBeGreaterThanOrEqual(1);
   });
 
   it("does not leak raw i18n keys in either locale", () => {

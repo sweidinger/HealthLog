@@ -216,7 +216,7 @@ export function CoachMemorySection({
         <p
           role="status"
           aria-live="polite"
-          className="text-destructive text-xs"
+          className="text-destructive text-sm"
         >
           {t("settings.ai.coachMemory.loadError")}
         </p>

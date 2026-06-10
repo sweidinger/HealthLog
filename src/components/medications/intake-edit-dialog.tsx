@@ -163,7 +163,7 @@ function IntakeEditDialogBody({
           </DialogTitle>
         </DialogHeader>
         <div className="space-y-3">
-          <div className="space-y-1">
+          <div className="space-y-2">
             <Label htmlFor="intake-edit-taken-at">
               {t("medications.detail.intake.edit.takenAtLabel")}
             </Label>
@@ -220,7 +220,7 @@ function IntakeEditDialogBody({
             aria-busy={busy || undefined}
           >
             {busy && (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin motion-reduce:animate-none" />
+              <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" />
             )}
             {t("medications.detail.intake.edit.save")}
           </Button>

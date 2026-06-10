@@ -273,7 +273,7 @@ export function TimesOfDayChips({
           aria-label={t(`${i18nPrefix}.add`)}
           data-slot="times-of-day-add"
         >
-          <Plus className="mr-1 h-4 w-4" aria-hidden="true" />
+          <Plus className="h-4 w-4" aria-hidden="true" />
           {t(`${i18nPrefix}.add`)}
         </Button>
       </div>

@@ -7,15 +7,16 @@
  * component — no client hooks, no data fetch. More specific segments (e.g.
  * `/insights`) provide their own skeleton and take precedence.
  */
+import { Skeleton } from "@/components/ui/skeleton";
 export default function RootLoading() {
   return (
     <div data-slot="dashboard-loading" className="space-y-6 p-4">
-      <div className="bg-muted h-7 w-44 animate-pulse rounded motion-reduce:animate-none" />
+      <Skeleton className="bg-muted h-7 w-44 rounded" />
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {Array.from({ length: 6 }).map((_, i) => (
           <div key={i} className="bg-card rounded-xl border p-4">
-            <div className="bg-muted mb-3 h-4 w-24 animate-pulse rounded motion-reduce:animate-none" />
-            <div className="bg-muted/60 h-24 w-full animate-pulse rounded-lg motion-reduce:animate-none" />
+            <Skeleton className="bg-muted mb-3 h-4 w-24 rounded" />
+            <Skeleton className="h-24 w-full rounded-lg" />
           </div>
         ))}
       </div>

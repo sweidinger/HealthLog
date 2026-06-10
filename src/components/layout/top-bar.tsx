@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { Logo } from "@/components/ui/logo";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Skeleton } from "@/components/ui/skeleton";
 import Link from "next/link";
 import { useAuth, useLogout } from "@/hooks/use-auth";
 import { useTheme } from "@/components/providers";
@@ -75,7 +76,7 @@ export function TopBar() {
       {/* Mobile-only auth section (desktop uses sidebar user section) */}
       <div className="flex items-center gap-2 md:hidden">
         {isLoading ? (
-          <div className="bg-muted h-4 w-20 animate-pulse rounded motion-reduce:animate-none" />
+          <Skeleton className="bg-muted h-4 w-20 rounded" />
         ) : user ? (
           <DropdownMenu>
             <DropdownMenuTrigger
@@ -86,7 +87,7 @@ export function TopBar() {
               // v1.4.34 IW-G — keyboard users get a visible ring on
               // focus-visible. The previous `focus:outline-none` killed
               // the focus indicator without replacing it.
-              className="text-muted-foreground hover:text-foreground flex min-h-11 min-w-11 items-center gap-1.5 rounded-md px-2 py-1.5 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:ring-offset-2"
+              className="text-muted-foreground hover:text-foreground focus-visible:ring-ring/50 flex min-h-11 min-w-11 items-center gap-1.5 rounded-md px-2 py-1.5 text-sm transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
             >
               <Avatar className="size-7">
                 {avatarUrl && (

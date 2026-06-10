@@ -121,7 +121,9 @@ export const ADD_TOKEN_ALIASES: Readonly<Record<string, string>> = {
  * page-level dispatcher and the F-1 contract test consume the same
  * resolver.
  */
-export function resolveAddToken(token: string | null | undefined): string | null {
+export function resolveAddToken(
+  token: string | null | undefined,
+): string | null {
   if (!token) return null;
   const aliased = ADD_TOKEN_ALIASES[token] ?? token;
   return MEASUREMENT_FORM_TYPE_VALUES.includes(aliased) ? aliased : null;
@@ -337,15 +339,11 @@ export function MeasurementForm({
             {t("common.cancel")}
           </Button>
         )}
-        <Button
-          type="submit"
-          form={formId}
-          disabled={loading}
-        >
+        <Button type="submit" form={formId} disabled={loading}>
           {loading ? (
-            <Loader2 className="mr-2 h-4 w-4 animate-spin motion-reduce:animate-none" />
+            <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" />
           ) : (
-            <Plus className="mr-2 h-4 w-4" />
+            <Plus className="h-4 w-4" />
           )}
           {t("common.save")}
         </Button>

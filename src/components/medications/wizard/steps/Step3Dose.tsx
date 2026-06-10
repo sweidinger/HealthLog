@@ -65,16 +65,14 @@ export function Step3Dose({ payload, applyPartial }: StepProps) {
     if (checked) current.add(site);
     else current.delete(site);
     applyPartial({
-      allowedInjectionSites: INJECTION_SITE_KEYS.filter((s) =>
-        current.has(s),
-      ),
+      allowedInjectionSites: INJECTION_SITE_KEYS.filter((s) => current.has(s)),
     });
   }
 
   return (
     <div className="space-y-6" data-slot="wizard-step3">
       <div className="grid grid-cols-2 gap-3">
-        <div className="space-y-1.5">
+        <div className="space-y-2">
           <Label htmlFor="wizard-dose-amount" className="text-sm">
             {t("medications.wizard.steps.step3.amountLabel")}
           </Label>
@@ -90,7 +88,7 @@ export function Step3Dose({ payload, applyPartial }: StepProps) {
             enterKeyHint="next"
           />
         </div>
-        <div className="space-y-1.5">
+        <div className="space-y-2">
           <Label htmlFor="wizard-dose-unit" className="text-sm">
             {t("medications.wizard.steps.step3.unitLabel")}
           </Label>
@@ -116,7 +114,7 @@ export function Step3Dose({ payload, applyPartial }: StepProps) {
           the Step 2 treatment row so an INJECTION delivery surfaces the
           rotation map for any class, not only GLP-1. */}
       <div className="grid grid-cols-2 gap-3">
-        <div className="space-y-1.5">
+        <div className="space-y-2">
           <Label htmlFor="wizard-delivery-form" className="text-sm">
             {t("medications.wizard.steps.step3.deliveryFormLabel")}
           </Label>
@@ -138,7 +136,7 @@ export function Step3Dose({ payload, applyPartial }: StepProps) {
             </SelectContent>
           </Select>
         </div>
-        <div className="space-y-1.5">
+        <div className="space-y-2">
           <Label htmlFor="wizard-doses-per-unit" className="text-sm">
             {t("medications.wizard.steps.step3.dosesPerUnitLabel")}
           </Label>

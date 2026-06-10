@@ -131,9 +131,7 @@ function TargetEditSheetBody({
   // to canonical mg/dL before the PUT — otherwise a `5.5 mmol/L` target
   // is rejected by the 40–400 mg/dL bounds or stored verbatim as 5.5.
   const isGlucoseMmol =
-    metric != null &&
-    metric.startsWith("BLOOD_GLUCOSE") &&
-    unit === "mmol/L";
+    metric != null && metric.startsWith("BLOOD_GLUCOSE") && unit === "mmol/L";
   const toDisplay = (mgdl: number) =>
     isGlucoseMmol ? convertGlucose(mgdl, "mmol/L") : mgdl;
   const toCanonical = (displayValue: number) =>
@@ -374,7 +372,7 @@ function TargetEditSheetBody({
               disabled={busy}
               data-slot="target-edit-reset"
             >
-              <RotateCcw className="mr-2 h-3.5 w-3.5" />
+              <RotateCcw className="h-3.5 w-3.5" />
               {t("targets.edit.resetToDefault")}
             </Button>
           ) : (
@@ -414,88 +412,88 @@ function TargetEditSheetBody({
 
         {!isDerivedMetric && primaryBounds && (
           <div className="space-y-4">
-          <div
-            className="grid grid-cols-1 gap-3 sm:grid-cols-2"
-            data-slot="target-edit-primary-row"
-          >
-            <div className="space-y-1">
-              <Label htmlFor="target-edit-min" className="text-xs">
-                {isBp
-                  ? t("targets.edit.systolicMin")
-                  : t("targets.edit.minLabel")}
-              </Label>
-              <Input
-                id="target-edit-min"
-                ref={firstInputRef}
-                type="number"
-                step={targetType === "ACTIVITY_STEPS" ? 100 : 0.1}
-                min={primaryBounds.min}
-                max={primaryBounds.max}
-                value={displayMin}
-                onChange={(e) => setMinStr(e.target.value)}
-                disabled={busy}
-                data-slot="target-edit-min-input"
-              />
-            </div>
-            <div className="space-y-1">
-              <Label htmlFor="target-edit-max" className="text-xs">
-                {isBp
-                  ? t("targets.edit.systolicMax")
-                  : t("targets.edit.maxLabel")}
-              </Label>
-              <Input
-                id="target-edit-max"
-                type="number"
-                step={targetType === "ACTIVITY_STEPS" ? 100 : 0.1}
-                min={primaryBounds.min}
-                max={primaryBounds.max}
-                value={displayMax}
-                onChange={(e) => setMaxStr(e.target.value)}
-                disabled={busy}
-                data-slot="target-edit-max-input"
-              />
-            </div>
-          </div>
-
-          {isBp && secondaryBounds && (
             <div
               className="grid grid-cols-1 gap-3 sm:grid-cols-2"
-              data-slot="target-edit-secondary-row"
+              data-slot="target-edit-primary-row"
             >
               <div className="space-y-1">
-                <Label htmlFor="target-edit-dia-min" className="text-xs">
-                  {t("targets.edit.diastolicMin")}
+                <Label htmlFor="target-edit-min" className="text-xs">
+                  {isBp
+                    ? t("targets.edit.systolicMin")
+                    : t("targets.edit.minLabel")}
                 </Label>
                 <Input
-                  id="target-edit-dia-min"
+                  id="target-edit-min"
+                  ref={firstInputRef}
                   type="number"
-                  step={0.1}
-                  min={secondaryBounds.min}
-                  max={secondaryBounds.max}
-                  value={displayDiaMin}
-                  onChange={(e) => setDiaMinStr(e.target.value)}
+                  step={targetType === "ACTIVITY_STEPS" ? 100 : 0.1}
+                  min={primaryBounds.min}
+                  max={primaryBounds.max}
+                  value={displayMin}
+                  onChange={(e) => setMinStr(e.target.value)}
                   disabled={busy}
-                  data-slot="target-edit-dia-min-input"
+                  data-slot="target-edit-min-input"
                 />
               </div>
               <div className="space-y-1">
-                <Label htmlFor="target-edit-dia-max" className="text-xs">
-                  {t("targets.edit.diastolicMax")}
+                <Label htmlFor="target-edit-max" className="text-xs">
+                  {isBp
+                    ? t("targets.edit.systolicMax")
+                    : t("targets.edit.maxLabel")}
                 </Label>
                 <Input
-                  id="target-edit-dia-max"
+                  id="target-edit-max"
                   type="number"
-                  step={0.1}
-                  min={secondaryBounds.min}
-                  max={secondaryBounds.max}
-                  value={displayDiaMax}
-                  onChange={(e) => setDiaMaxStr(e.target.value)}
+                  step={targetType === "ACTIVITY_STEPS" ? 100 : 0.1}
+                  min={primaryBounds.min}
+                  max={primaryBounds.max}
+                  value={displayMax}
+                  onChange={(e) => setMaxStr(e.target.value)}
                   disabled={busy}
-                  data-slot="target-edit-dia-max-input"
+                  data-slot="target-edit-max-input"
                 />
               </div>
             </div>
-          )}
+
+            {isBp && secondaryBounds && (
+              <div
+                className="grid grid-cols-1 gap-3 sm:grid-cols-2"
+                data-slot="target-edit-secondary-row"
+              >
+                <div className="space-y-1">
+                  <Label htmlFor="target-edit-dia-min" className="text-xs">
+                    {t("targets.edit.diastolicMin")}
+                  </Label>
+                  <Input
+                    id="target-edit-dia-min"
+                    type="number"
+                    step={0.1}
+                    min={secondaryBounds.min}
+                    max={secondaryBounds.max}
+                    value={displayDiaMin}
+                    onChange={(e) => setDiaMinStr(e.target.value)}
+                    disabled={busy}
+                    data-slot="target-edit-dia-min-input"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label htmlFor="target-edit-dia-max" className="text-xs">
+                    {t("targets.edit.diastolicMax")}
+                  </Label>
+                  <Input
+                    id="target-edit-dia-max"
+                    type="number"
+                    step={0.1}
+                    min={secondaryBounds.min}
+                    max={secondaryBounds.max}
+                    value={displayDiaMax}
+                    onChange={(e) => setDiaMaxStr(e.target.value)}
+                    disabled={busy}
+                    data-slot="target-edit-dia-max-input"
+                  />
+                </div>
+              </div>
+            )}
 
             <p className="text-muted-foreground text-xs">
               {t("targets.edit.boundsHint", {

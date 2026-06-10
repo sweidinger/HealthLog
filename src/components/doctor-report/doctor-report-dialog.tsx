@@ -46,6 +46,7 @@ import { Input } from "@/components/ui/input";
 import { DateInput } from "@/components/ui/date-input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   DEFAULT_DOCTOR_REPORT_PREFS,
   type DoctorReportPrefs,
@@ -497,7 +498,7 @@ export function DoctorReportDialog({
             </Button>
             <Button type="submit" disabled={submitting || !validation.ok}>
               {submitting && (
-                <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
+                <Loader2 className="h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
               )}
               {t("doctorReport.dialog.submit")}
             </Button>
@@ -579,8 +580,8 @@ export function SectionToggles({
           {t("doctorReport.sections.title")}
         </p>
         <div className="space-y-2">
-          <div className="bg-muted h-9 animate-pulse motion-reduce:animate-none rounded-md" />
-          <div className="bg-muted h-9 animate-pulse motion-reduce:animate-none rounded-md" />
+          <Skeleton className="bg-muted h-9" />
+          <Skeleton className="bg-muted h-9" />
         </div>
       </div>
     );

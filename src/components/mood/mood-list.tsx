@@ -62,15 +62,8 @@ import { createPortal } from "react-dom";
 import { toast } from "sonner";
 import { formatDateTime } from "@/lib/format";
 import { useTranslations, useFormatters } from "@/lib/i18n/context";
-import {
-  MOOD_LABEL_KEYS,
-  MOOD_SCORE_BY_ENUM,
-} from "@/lib/mood/labels";
-import {
-  invalidateKeys,
-  moodDependentKeys,
-  queryKeys,
-} from "@/lib/query-keys";
+import { MOOD_LABEL_KEYS, MOOD_SCORE_BY_ENUM } from "@/lib/mood/labels";
+import { invalidateKeys, moodDependentKeys, queryKeys } from "@/lib/query-keys";
 import { moodSourceEnum } from "@/lib/validations/moodlog";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -146,9 +139,7 @@ export function MoodList({ onAddFirst }: MoodListProps = {}) {
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
 
   // v1.15.13 — page-scoped multi-select selection (current page ids only).
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(
-    () => new Set(),
-  );
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
 
   const [editing, setEditing] = useState<MoodEntry | null>(null);
   const [editMood, setEditMood] = useState("");
@@ -173,9 +164,7 @@ export function MoodList({ onAddFirst }: MoodListProps = {}) {
   const [editDeleteDialogOpen, setEditDeleteDialogOpen] = useState(false);
   // v1.4.27 R4 RC2 — Sheet-branch sticky-pinned footer slot.
   const editFormId = useId();
-  const [editFooterEl, setEditFooterEl] = useState<HTMLDivElement | null>(
-    null,
-  );
+  const [editFooterEl, setEditFooterEl] = useState<HTMLDivElement | null>(null);
 
   // v1.15.13 — every filter / page / sort change resets pagination AND
   // clears the page-scoped selection.
@@ -460,7 +449,9 @@ export function MoodList({ onAddFirst }: MoodListProps = {}) {
                   <SelectValue placeholder={t("dataList.allSources")} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="ALL">{t("dataList.allSources")}</SelectItem>
+                  <SelectItem value="ALL">
+                    {t("dataList.allSources")}
+                  </SelectItem>
                   {MOOD_SOURCE_OPTIONS.map((src) => (
                     <SelectItem key={src} value={src}>
                       {formatMoodSource(src, t)}
@@ -472,7 +463,10 @@ export function MoodList({ onAddFirst }: MoodListProps = {}) {
 
             {/* v1.15.13 — optional date range, wired to from/to. */}
             <div className="flex flex-col gap-1">
-              <Label htmlFor="mood-from" className="text-muted-foreground text-xs">
+              <Label
+                htmlFor="mood-from"
+                className="text-muted-foreground text-xs"
+              >
                 {t("dataList.dateFrom")}
               </Label>
               <DateInput
@@ -484,7 +478,10 @@ export function MoodList({ onAddFirst }: MoodListProps = {}) {
               />
             </div>
             <div className="flex flex-col gap-1">
-              <Label htmlFor="mood-to" className="text-muted-foreground text-xs">
+              <Label
+                htmlFor="mood-to"
+                className="text-muted-foreground text-xs"
+              >
                 {t("dataList.dateTo")}
               </Label>
               <DateInput
@@ -537,7 +534,7 @@ export function MoodList({ onAddFirst }: MoodListProps = {}) {
                 </Button>
               ) : onAddFirst ? (
                 <Button size="sm" onClick={onAddFirst}>
-                  <Plus className="mr-1 h-4 w-4" />
+                  <Plus className="h-4 w-4" />
                   {t("mood.emptyAddFirst")}
                 </Button>
               ) : undefined
@@ -598,77 +595,79 @@ export function MoodList({ onAddFirst }: MoodListProps = {}) {
                   {data.entries.map((entry) => {
                     const isSelected = selectedIds.has(entry.id);
                     return (
-                    <TableRow
-                      key={entry.id}
-                      data-state={isSelected ? "selected" : undefined}
-                    >
-                      <TableCell className="pl-4">
-                        <Checkbox
-                          checked={isSelected}
-                          onCheckedChange={() => onToggleRow(entry.id)}
-                          aria-label={t("dataList.selectRow")}
-                        />
-                      </TableCell>
-                      <TableCell className="font-semibold tabular-nums">
-                        {entry.score}{" "}
-                        <span className="text-muted-foreground font-normal">
-                          (
-                          {MOOD_LABEL_KEYS[entry.mood]
-                            ? t(MOOD_LABEL_KEYS[entry.mood])
-                            : entry.mood}
-                          )
-                        </span>
-                      </TableCell>
-                      <TableCell className="text-muted-foreground max-w-[18rem] text-sm">
-                        <span className="block truncate">
-                          {entry.tags.length > 0 ? entry.tags.join(", ") : "-"}
-                        </span>
-                        {entry.note && (
-                          <TooltipProvider>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <p className="text-muted-foreground/80 mt-0.5 line-clamp-2 cursor-default text-xs italic">
-                                  {entry.note}
-                                </p>
-                              </TooltipTrigger>
-                              <TooltipContent className="max-w-xs">
-                                <p className="text-xs whitespace-pre-wrap">
-                                  {entry.note}
-                                </p>
-                              </TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-muted-foreground text-sm">
-                        {formatDateTime(entry.moodLoggedAt)}
-                      </TableCell>
-                      <TableCell>
-                        {entry.source !== "MANUAL" && (
-                          <Badge variant="outline" className="text-xs">
-                            {formatMoodSource(entry.source, t)}
-                          </Badge>
-                        )}
-                      </TableCell>
-                      <TableCell className="pr-4 text-right">
-                        <div className="flex items-center justify-end gap-1">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8"
-                            onClick={() => startEdit(entry)}
-                            aria-label={t("common.edit")}
-                          >
-                            <Pencil className="h-3.5 w-3.5" />
-                          </Button>
-                          <DeleteButton
-                            onConfirm={() => deleteMutation.mutate(entry.id)}
-                            title={t("mood.deleteConfirmTitle")}
-                            description={t("mood.deleteConfirmDescription")}
+                      <TableRow
+                        key={entry.id}
+                        data-state={isSelected ? "selected" : undefined}
+                      >
+                        <TableCell className="pl-4">
+                          <Checkbox
+                            checked={isSelected}
+                            onCheckedChange={() => onToggleRow(entry.id)}
+                            aria-label={t("dataList.selectRow")}
                           />
-                        </div>
-                      </TableCell>
-                    </TableRow>
+                        </TableCell>
+                        <TableCell className="font-semibold tabular-nums">
+                          {entry.score}{" "}
+                          <span className="text-muted-foreground font-normal">
+                            (
+                            {MOOD_LABEL_KEYS[entry.mood]
+                              ? t(MOOD_LABEL_KEYS[entry.mood])
+                              : entry.mood}
+                            )
+                          </span>
+                        </TableCell>
+                        <TableCell className="text-muted-foreground max-w-[18rem] text-sm">
+                          <span className="block truncate">
+                            {entry.tags.length > 0
+                              ? entry.tags.join(", ")
+                              : "-"}
+                          </span>
+                          {entry.note && (
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <p className="text-muted-foreground/80 mt-0.5 line-clamp-2 cursor-default text-xs italic">
+                                    {entry.note}
+                                  </p>
+                                </TooltipTrigger>
+                                <TooltipContent className="max-w-xs">
+                                  <p className="text-xs whitespace-pre-wrap">
+                                    {entry.note}
+                                  </p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-muted-foreground text-sm">
+                          {formatDateTime(entry.moodLoggedAt)}
+                        </TableCell>
+                        <TableCell>
+                          {entry.source !== "MANUAL" && (
+                            <Badge variant="outline" className="text-xs">
+                              {formatMoodSource(entry.source, t)}
+                            </Badge>
+                          )}
+                        </TableCell>
+                        <TableCell className="pr-4 text-right">
+                          <div className="flex items-center justify-end gap-1">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8"
+                              onClick={() => startEdit(entry)}
+                              aria-label={t("common.edit")}
+                            >
+                              <Pencil className="h-3.5 w-3.5" />
+                            </Button>
+                            <DeleteButton
+                              onConfirm={() => deleteMutation.mutate(entry.id)}
+                              title={t("mood.deleteConfirmTitle")}
+                              description={t("mood.deleteConfirmDescription")}
+                            />
+                          </div>
+                        </TableCell>
+                      </TableRow>
                     );
                   })}
                 </TableBody>
@@ -688,87 +687,87 @@ export function MoodList({ onAddFirst }: MoodListProps = {}) {
               {data.entries.map((entry) => {
                 const isSelected = selectedIds.has(entry.id);
                 return (
-                <div
-                  key={entry.id}
-                  data-testid="mood-row"
-                  data-state={isSelected ? "selected" : undefined}
-                  className="bg-card border-border flex items-center justify-between rounded-lg border p-3 data-[state=selected]:border-dracula-purple/60 data-[state=selected]:bg-dracula-purple/5"
-                >
-                  <div className="flex items-center gap-2 overflow-hidden">
-                    {/* v1.15.13 MEDIUM-1 — a Radix Checkbox renders a 16px
+                  <div
+                    key={entry.id}
+                    data-testid="mood-row"
+                    data-state={isSelected ? "selected" : undefined}
+                    className="bg-card border-border data-[state=selected]:border-dracula-purple/60 data-[state=selected]:bg-dracula-purple/5 flex items-center justify-between rounded-lg border p-3"
+                  >
+                    <div className="flex items-center gap-2 overflow-hidden">
+                      {/* v1.15.13 MEDIUM-1 — a Radix Checkbox renders a 16px
                         `<button role=checkbox>`; a wrapping `<label>` does
                         NOT forward taps to a button, so the effective tap
                         target was 16px (fails WCAG 2.5.5). The 44px button
                         owns the whole hit area and is the single toggle
                         source; the inner Checkbox is a `pointer-events-none`
                         controlled visual, so a tap fires the handler once. */}
-                    <button
-                      type="button"
-                      role="checkbox"
-                      aria-checked={isSelected}
-                      aria-label={t("dataList.selectRow")}
-                      onClick={() => onToggleRow(entry.id)}
-                      className="focus-visible:ring-ring/50 flex size-11 shrink-0 items-center justify-center rounded focus-visible:ring-2 focus-visible:outline-none"
-                    >
-                      <Checkbox
-                        checked={isSelected}
-                        tabIndex={-1}
-                        aria-hidden="true"
-                        className="pointer-events-none"
-                      />
-                    </button>
-                    <div className="bg-muted flex h-8 w-8 shrink-0 items-center justify-center rounded-lg">
-                      <span
-                        data-testid="mood-row-score"
-                        className="text-lg font-bold tabular-nums"
+                      <button
+                        type="button"
+                        role="checkbox"
+                        aria-checked={isSelected}
+                        aria-label={t("dataList.selectRow")}
+                        onClick={() => onToggleRow(entry.id)}
+                        className="focus-visible:ring-ring/50 flex size-11 shrink-0 items-center justify-center rounded focus-visible:ring-2 focus-visible:outline-none"
                       >
-                        {entry.score}
-                      </span>
-                    </div>
-                    <div className="min-w-0">
-                      <span className="text-sm font-semibold">
-                        {MOOD_LABEL_KEYS[entry.mood]
-                          ? t(MOOD_LABEL_KEYS[entry.mood])
-                          : entry.mood}
-                      </span>
-                      <p className="text-muted-foreground truncate text-xs">
-                        {formatDateTime(entry.moodLoggedAt)}
-                      </p>
-                      {entry.tags.length > 0 && (
+                        <Checkbox
+                          checked={isSelected}
+                          tabIndex={-1}
+                          aria-hidden="true"
+                          className="pointer-events-none"
+                        />
+                      </button>
+                      <div className="bg-muted flex h-8 w-8 shrink-0 items-center justify-center rounded-lg">
+                        <span
+                          data-testid="mood-row-score"
+                          className="text-lg font-bold tabular-nums"
+                        >
+                          {entry.score}
+                        </span>
+                      </div>
+                      <div className="min-w-0">
+                        <span className="text-sm font-semibold">
+                          {MOOD_LABEL_KEYS[entry.mood]
+                            ? t(MOOD_LABEL_KEYS[entry.mood])
+                            : entry.mood}
+                        </span>
                         <p className="text-muted-foreground truncate text-xs">
-                          {entry.tags.join(", ")}
+                          {formatDateTime(entry.moodLoggedAt)}
                         </p>
-                      )}
-                      {entry.note && (
-                        <p className="text-muted-foreground/80 truncate text-xs italic">
-                          {entry.note}
-                        </p>
-                      )}
+                        {entry.tags.length > 0 && (
+                          <p className="text-muted-foreground truncate text-xs">
+                            {entry.tags.join(", ")}
+                          </p>
+                        )}
+                        {entry.note && (
+                          <p className="text-muted-foreground/80 truncate text-xs italic">
+                            {entry.note}
+                          </p>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                  <div className="flex shrink-0 items-center gap-1">
-                    {/* Phase A5 mobile audit: bumped from h-8 w-8 (32px)
+                    <div className="flex shrink-0 items-center gap-1">
+                      {/* Phase A5 mobile audit: bumped from h-8 w-8 (32px)
                         to min-h-11 min-w-11 (44px) so the per-row edit
                         and delete actions meet WCAG 2.5.5 on touch
                         devices. The desktop table keeps its denser
                         h-8 w-8 since pointer targets allow it. */}
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="min-h-11 min-w-11"
-                      onClick={() => startEdit(entry)}
-                      aria-label={t("common.edit")}
-                    >
-                      <Pencil className="h-4 w-4" />
-                    </Button>
-                    <DeleteButton
-                      onConfirm={() => deleteMutation.mutate(entry.id)}
-                      iconClassName="h-4 w-4"
-                      title={t("mood.deleteConfirmTitle")}
-                      description={t("mood.deleteConfirmDescription")}
-                    />
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="min-h-11 min-w-11"
+                        onClick={() => startEdit(entry)}
+                        aria-label={t("common.edit")}
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <DeleteButton
+                        onConfirm={() => deleteMutation.mutate(entry.id)}
+                        iconClassName="h-4 w-4"
+                        title={t("mood.deleteConfirmTitle")}
+                        description={t("mood.deleteConfirmDescription")}
+                      />
+                    </div>
                   </div>
-                </div>
                 );
               })}
             </div>
@@ -833,205 +832,196 @@ export function MoodList({ onAddFirst }: MoodListProps = {}) {
         title={t("mood.editEntry")}
         footer={<div ref={setEditFooterEl} className="flex w-full" />}
       >
-          {editing && (
-            <form
-              id={editFormId}
-              onSubmit={submitEdit}
-              className="space-y-4"
-            >
-              <div className="space-y-2">
-                <Label id="edit-mood-level-label">{t("mood.moodLevel")}</Label>
-                <div
-                  role="radiogroup"
-                  aria-labelledby="edit-mood-level-label"
-                  className="grid grid-cols-5 gap-2"
-                >
-                  {MOOD_LEVELS_LIST.map((level, index) => {
-                    const isSelected = editMood === level;
-                    return (
-                      <button
-                        key={level}
-                        type="button"
-                        role="radio"
-                        aria-checked={isSelected}
-                        onClick={() => setEditMood(level)}
-                        {...getEditMoodRadioProps(index)}
-                        className={`flex flex-col items-center gap-1 rounded-lg border p-2 text-center transition-colors ${
-                          isSelected
-                            ? "border-primary bg-primary/10 text-primary border-2"
-                            : "border-border hover:bg-accent"
-                        }`}
-                      >
-                        <span className="text-lg font-semibold tabular-nums">
-                          {MOOD_SCORES[level]}
-                        </span>
-                        <span className="text-[10px] leading-tight sm:text-xs">
-                          {t(MOOD_LABEL_KEYS[level])}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
+        {editing && (
+          <form id={editFormId} onSubmit={submitEdit} className="space-y-4">
+            <div className="space-y-2">
+              <Label id="edit-mood-level-label">{t("mood.moodLevel")}</Label>
+              <div
+                role="radiogroup"
+                aria-labelledby="edit-mood-level-label"
+                className="grid grid-cols-5 gap-2"
+              >
+                {MOOD_LEVELS_LIST.map((level, index) => {
+                  const isSelected = editMood === level;
+                  return (
+                    <button
+                      key={level}
+                      type="button"
+                      role="radio"
+                      aria-checked={isSelected}
+                      onClick={() => setEditMood(level)}
+                      {...getEditMoodRadioProps(index)}
+                      className={`flex flex-col items-center gap-1 rounded-lg border p-2 text-center transition-colors ${
+                        isSelected
+                          ? "border-primary bg-primary/10 text-primary border-2"
+                          : "border-border hover:bg-accent"
+                      }`}
+                    >
+                      <span className="text-lg font-semibold tabular-nums">
+                        {MOOD_SCORES[level]}
+                      </span>
+                      <span className="text-[10px] leading-tight sm:text-xs">
+                        {t(MOOD_LABEL_KEYS[level])}
+                      </span>
+                    </button>
+                  );
+                })}
               </div>
+            </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="edit-mood-logged-at">
-                  {t("mood.timestamp")}
+            <div className="space-y-2">
+              <Label htmlFor="edit-mood-logged-at">{t("mood.timestamp")}</Label>
+              <DateTimeInput
+                id="edit-mood-logged-at"
+                value={editMoodLoggedAt}
+                onChange={(e) => setEditMoodLoggedAt(e.target.value)}
+                required
+              />
+            </div>
+
+            <div className="space-y-2">
+              <div className="flex items-center justify-between gap-3">
+                <Label htmlFor="edit-tags">
+                  {t("mood.tags")} ({t("common.optional")})
                 </Label>
-                <DateTimeInput
-                  id="edit-mood-logged-at"
-                  value={editMoodLoggedAt}
-                  onChange={(e) => setEditMoodLoggedAt(e.target.value)}
-                  required
-                />
+                <span className="text-muted-foreground text-xs">
+                  {t("mood.tagsHelp")}
+                </span>
               </div>
+              <Input
+                id="edit-tags"
+                value={editTagsInput}
+                onChange={(e) => setEditTagsInput(e.target.value)}
+                placeholder={t("mood.tagsPlaceholder")}
+              />
+            </div>
 
-              <div className="space-y-2">
-                <div className="flex items-center justify-between gap-3">
-                  <Label htmlFor="edit-tags">
-                    {t("mood.tags")} ({t("common.optional")})
-                  </Label>
-                  <span className="text-muted-foreground text-xs">
-                    {t("mood.tagsHelp")}
-                  </span>
-                </div>
-                <Input
-                  id="edit-tags"
-                  value={editTagsInput}
-                  onChange={(e) => setEditTagsInput(e.target.value)}
-                  placeholder={t("mood.tagsPlaceholder")}
-                />
+            {/* v1.8.5 — structured-tag taxonomy picker. */}
+            <div className="space-y-2">
+              <Label>
+                {t("mood.tagPicker")} ({t("common.optional")})
+              </Label>
+              <MoodTagPicker
+                selected={editTagKeys}
+                onToggle={toggleEditTagKey}
+              />
+            </div>
+
+            {/* v1.8.5 (C1) — free-text note. */}
+            <div className="space-y-2">
+              <Label htmlFor="edit-mood-note">
+                {t("mood.note")} ({t("common.optional")})
+              </Label>
+              <Textarea
+                id="edit-mood-note"
+                value={editNote}
+                onChange={(e) => setEditNote(e.target.value)}
+                placeholder={t("mood.notePlaceholder")}
+                maxLength={500}
+                rows={3}
+              />
+            </div>
+
+            {editError && (
+              <div
+                role="alert"
+                aria-live="assertive"
+                className="bg-destructive/10 text-destructive rounded-lg p-3 text-sm"
+              >
+                {editError}
               </div>
+            )}
 
-              {/* v1.8.5 — structured-tag taxonomy picker. */}
-              <div className="space-y-2">
-                <Label>
-                  {t("mood.tagPicker")} ({t("common.optional")})
-                </Label>
-                <MoodTagPicker
-                  selected={editTagKeys}
-                  onToggle={toggleEditTagKey}
-                />
-              </div>
-
-              {/* v1.8.5 (C1) — free-text note. */}
-              <div className="space-y-2">
-                <Label htmlFor="edit-mood-note">
-                  {t("mood.note")} ({t("common.optional")})
-                </Label>
-                <Textarea
-                  id="edit-mood-note"
-                  value={editNote}
-                  onChange={(e) => setEditNote(e.target.value)}
-                  placeholder={t("mood.notePlaceholder")}
-                  maxLength={500}
-                  rows={3}
-                />
-              </div>
-
-              {editError && (
-                <div
-                  role="alert"
-                  aria-live="assertive"
-                  className="bg-destructive/10 text-destructive rounded-lg p-3 text-sm"
-                >
-                  {editError}
-                </div>
-              )}
-
-              {editFooterEl
-                ? createPortal(
-                    <div className="flex w-full items-center justify-between gap-2">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="icon"
-                            className="h-11 w-11"
-                            disabled={
-                              updateMutation.isPending ||
-                              deleteMutation.isPending
-                            }
-                            aria-label={t("common.moreOptions")}
-                          >
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="start">
-                          <DropdownMenuItem
-                            variant="destructive"
-                            onClick={() => setEditDeleteDialogOpen(true)}
-                          >
-                            <Trash2 className="mr-2 h-4 w-4" />
-                            {t("common.delete")}
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-
-                      <div className="flex items-center gap-2">
+            {editFooterEl
+              ? createPortal(
+                  <div className="flex w-full items-center justify-between gap-2">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
                         <Button
                           type="button"
                           variant="outline"
-                          onClick={closeEdit}
+                          size="icon"
+                          className="h-11 w-11"
                           disabled={
-                            updateMutation.isPending ||
-                            deleteMutation.isPending
+                            updateMutation.isPending || deleteMutation.isPending
                           }
+                          aria-label={t("common.moreOptions")}
                         >
-                          {t("common.cancel")}
+                          <MoreHorizontal className="h-4 w-4" />
                         </Button>
-                        <Button
-                          type="submit"
-                          form={editFormId}
-                          disabled={
-                            updateMutation.isPending ||
-                            deleteMutation.isPending
-                          }
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="start">
+                        <DropdownMenuItem
+                          variant="destructive"
+                          onClick={() => setEditDeleteDialogOpen(true)}
                         >
-                          {updateMutation.isPending ? (
-                            <Loader2 className="mr-2 h-4 w-4 animate-spin motion-reduce:animate-none" />
-                          ) : null}
-                          {t("common.save")}
-                        </Button>
-                      </div>
-                    </div>,
-                    editFooterEl,
-                  )
-                : null}
+                          <Trash2 className="mr-2 h-4 w-4" />
+                          {t("common.delete")}
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
 
-              <AlertDialog
-                open={editDeleteDialogOpen}
-                onOpenChange={setEditDeleteDialogOpen}
-              >
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>
-                      {t("mood.deleteConfirmTitle")}
-                    </AlertDialogTitle>
-                    <AlertDialogDescription>
-                      {t("mood.deleteConfirmDescription")}
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel disabled={deleteMutation.isPending}>
-                      {t("common.cancel")}
-                    </AlertDialogCancel>
-                    <AlertDialogAction
-                      variant="destructive"
-                      onClick={deleteEditingEntry}
-                      disabled={deleteMutation.isPending}
-                    >
-                      {deleteMutation.isPending ? (
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin motion-reduce:animate-none" />
-                      ) : null}
-                      {t("common.delete")}
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
-            </form>
-          )}
+                    <div className="flex items-center gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={closeEdit}
+                        disabled={
+                          updateMutation.isPending || deleteMutation.isPending
+                        }
+                      >
+                        {t("common.cancel")}
+                      </Button>
+                      <Button
+                        type="submit"
+                        form={editFormId}
+                        disabled={
+                          updateMutation.isPending || deleteMutation.isPending
+                        }
+                      >
+                        {updateMutation.isPending ? (
+                          <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" />
+                        ) : null}
+                        {t("common.save")}
+                      </Button>
+                    </div>
+                  </div>,
+                  editFooterEl,
+                )
+              : null}
+
+            <AlertDialog
+              open={editDeleteDialogOpen}
+              onOpenChange={setEditDeleteDialogOpen}
+            >
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>
+                    {t("mood.deleteConfirmTitle")}
+                  </AlertDialogTitle>
+                  <AlertDialogDescription>
+                    {t("mood.deleteConfirmDescription")}
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel disabled={deleteMutation.isPending}>
+                    {t("common.cancel")}
+                  </AlertDialogCancel>
+                  <AlertDialogAction
+                    variant="destructive"
+                    onClick={deleteEditingEntry}
+                    disabled={deleteMutation.isPending}
+                  >
+                    {deleteMutation.isPending ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin motion-reduce:animate-none" />
+                    ) : null}
+                    {t("common.delete")}
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </form>
+        )}
       </ResponsiveSheet>
     </>
   );

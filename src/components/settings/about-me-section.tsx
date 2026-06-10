@@ -23,7 +23,12 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Loader2, MessageCircleQuestion, NotebookPen, Trash2 } from "lucide-react";
+import {
+  Loader2,
+  MessageCircleQuestion,
+  NotebookPen,
+  Trash2,
+} from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -180,9 +185,7 @@ export function AboutMeSection({
           maxLength={fieldMaxChars}
           placeholder={placeholder}
           disabled={disabled}
-          onChange={(e) =>
-            setDrafts((d) => ({ ...d, [key]: e.target.value }))
-          }
+          onChange={(e) => setDrafts((d) => ({ ...d, [key]: e.target.value }))}
         />
       </div>
     );
@@ -342,7 +345,11 @@ export function AboutMeSection({
       )}
 
       {query.isError && (
-        <p role="status" aria-live="polite" className="text-destructive text-xs">
+        <p
+          role="status"
+          aria-live="polite"
+          className="text-destructive text-sm"
+        >
           {t("settings.ai.aboutMe.loadError")}
         </p>
       )}

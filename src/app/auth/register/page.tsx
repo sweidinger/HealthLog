@@ -191,9 +191,9 @@ export default function RegisterPage() {
             disabled={loading}
           >
             {loading ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin motion-reduce:animate-none" />
+              <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" />
             ) : (
-              <UserPlus className="mr-2 h-4 w-4" />
+              <UserPlus className="h-4 w-4" />
             )}
             {t("auth.register")}
           </Button>

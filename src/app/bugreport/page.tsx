@@ -243,9 +243,9 @@ export default function BugReportPage() {
                 `div.space-y-2 > Button > Loader-Circle`).
               */}
               {loading ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin motion-reduce:animate-none" />
+                <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" />
               ) : (
-                <Bug className="mr-2 h-4 w-4" />
+                <Bug className="h-4 w-4" />
               )}
               {t("bugreport.submit")}
             </Button>

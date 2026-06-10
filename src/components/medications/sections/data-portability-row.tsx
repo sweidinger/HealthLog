@@ -156,7 +156,7 @@ export function DataPortabilityRow({
           {t("medications.detail.advanced.dataPortability.export.button")}
         </Button>
         {error && (
-          <p role="alert" className="text-destructive text-xs">
+          <p role="alert" className="text-destructive text-sm">
             {error}
           </p>
         )}

@@ -106,8 +106,8 @@ export function InsightsPillOrderSection({ id }: { id?: string }) {
   // differs from what we last seeded from.
   const serverSignature = layoutSignature(layout.tiles);
   const [seededSignature, setSeededSignature] = useState(serverSignature);
-  const [draftTiles, setDraftTiles] = useState<InsightsTileConfig[]>(
-    () => [...layout.tiles].sort((a, b) => a.order - b.order),
+  const [draftTiles, setDraftTiles] = useState<InsightsTileConfig[]>(() =>
+    [...layout.tiles].sort((a, b) => a.order - b.order),
   );
   if (isSuccess && serverSignature !== seededSignature) {
     setSeededSignature(serverSignature);
@@ -215,10 +215,7 @@ export function InsightsPillOrderSection({ id }: { id?: string }) {
     >
       <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
         <div className="space-y-1">
-          <h2
-            id="insights-pill-order-title"
-            className="text-lg font-semibold"
-          >
+          <h2 id="insights-pill-order-title" className="text-lg font-semibold">
             {t("insights.pillOrder.title")}
           </h2>
           <p className="text-muted-foreground text-sm">
@@ -233,7 +230,7 @@ export function InsightsPillOrderSection({ id }: { id?: string }) {
           className="self-end sm:self-auto"
         >
           {saveMutation.isPending && (
-            <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
+            <Loader2 className="h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
           )}
           {t("insights.pillOrder.save")}
         </Button>
@@ -320,8 +317,14 @@ function SortablePillRow({
   hideLabel: string;
   onToggle: (id: string, visible: boolean) => void;
 }) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
-    useSortable({ id });
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id });
 
   const style: React.CSSProperties = {
     transform: CSS.Transform.toString(transform),

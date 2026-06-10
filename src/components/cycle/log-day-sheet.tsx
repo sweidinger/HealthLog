@@ -423,9 +423,9 @@ export function LogDaySheet({
               aria-label={t("cycle.sheet.delete")}
             >
               {deleteDay.isPending ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin motion-reduce:animate-none" />
+                <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" />
               ) : (
-                <Trash2 className="mr-2 h-4 w-4" />
+                <Trash2 className="h-4 w-4" />
               )}
               {t("cycle.sheet.delete")}
             </Button>
@@ -439,7 +439,7 @@ export function LogDaySheet({
           </Button>
           <Button onClick={handleSave} disabled={busy}>
             {saving ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin motion-reduce:animate-none" />
+              <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" />
             ) : null}
             {saving ? t("cycle.sheet.saving") : t("cycle.sheet.save")}
           </Button>
@@ -815,11 +815,7 @@ function SymptomChip({
  * popover to mint a new custom symptom. Matches the chip grid (same rounded-
  * full pill, same size) so it reads as part of the grid, not a foreign button.
  */
-function AddSymptomChip({
-  onCreated,
-}: {
-  onCreated: (key: string) => void;
-}) {
+function AddSymptomChip({ onCreated }: { onCreated: (key: string) => void }) {
   const { t } = useTranslations();
   const create = useCreateCustomSymptom();
   const [openForm, setOpenForm] = useState(false);
@@ -924,7 +920,7 @@ function AddSymptomChip({
           </div>
         </div>
         {limitReached ? (
-          <p className="text-destructive text-xs" role="alert">
+          <p className="text-destructive text-sm" role="alert">
             {t("cycle.symptom.custom.limitReached")}
           </p>
         ) : null}
@@ -945,7 +941,7 @@ function AddSymptomChip({
             disabled={!label.trim() || create.isPending}
           >
             {create.isPending ? (
-              <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
+              <Loader2 className="h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
             ) : null}
             {t("cycle.symptom.custom.add")}
           </Button>

@@ -4,13 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import {
-  Eye,
-  EyeOff,
-  GripVertical,
-  Loader2,
-  RotateCcw,
-} from "lucide-react";
+import { Eye, EyeOff, GripVertical, Loader2, RotateCcw } from "lucide-react";
 import {
   DndContext,
   KeyboardSensor,
@@ -222,9 +216,9 @@ export function InsightsEditMode({
             data-slot="insights-edit-reset"
           >
             {resetMutation.isPending ? (
-              <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
+              <Loader2 className="h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
             ) : (
-              <RotateCcw className="mr-2 h-3.5 w-3.5" />
+              <RotateCcw className="h-3.5 w-3.5" />
             )}
             {t("insights.editMode.reset")}
           </Button>
@@ -235,7 +229,7 @@ export function InsightsEditMode({
             data-slot="insights-edit-done"
           >
             {saveMutation.isPending && (
-              <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
+              <Loader2 className="h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
             )}
             {t("insights.editMode.done")}
           </Button>
@@ -335,11 +329,7 @@ function EyeToggle({
       data-visible={visible ? "true" : "false"}
       className="text-muted-foreground hover:text-foreground focus-visible:ring-ring focus-visible:ring-offset-background inline-flex h-11 w-11 shrink-0 items-center justify-center rounded transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50 motion-reduce:transition-none sm:h-9 sm:w-9"
     >
-      {visible ? (
-        <Eye className="h-4 w-4" />
-      ) : (
-        <EyeOff className="h-4 w-4" />
-      )}
+      {visible ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
     </button>
   );
 }
@@ -361,8 +351,14 @@ function SortableSectionRow({
   labels,
   onToggle,
 }: SortableSectionRowProps) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
-    useSortable({ id: section.id });
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: section.id });
 
   const style: React.CSSProperties = {
     transform: CSS.Transform.toString(transform),
@@ -427,4 +423,3 @@ function SortableSectionRow({
     </div>
   );
 }
-

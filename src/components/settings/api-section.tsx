@@ -281,7 +281,7 @@ function ApiTokensCard() {
             disabled={creating || !newName.trim()}
           >
             {creating && (
-              <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
+              <Loader2 className="h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
             )}
             {t("common.create")}
           </Button>
@@ -502,7 +502,7 @@ function ApiTokensCard() {
                           size="sm"
                           className="text-destructive border-destructive/30 min-h-11 w-full"
                         >
-                          <Trash2 className="mr-2 h-3.5 w-3.5" />
+                          <Trash2 className="h-3.5 w-3.5" />
                           {t("settings.tokenRevoke")}
                         </Button>
                       </AlertDialogTrigger>

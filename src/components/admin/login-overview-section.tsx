@@ -331,7 +331,7 @@ export function LoginOverviewSection() {
             onClick={downloadCsv}
             disabled={entries.length === 0}
           >
-            <Download className="mr-1 h-3.5 w-3.5" />
+            <Download className="h-3.5 w-3.5" />
             {t("admin.section.auditLog.export")}
           </Button>
         </div>

@@ -245,7 +245,7 @@ export default function MedicationsPage() {
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button className="min-h-11 sm:min-h-9">
-              <Plus className="mr-2 h-4 w-4" />
+              <Plus className="h-4 w-4" />
               {t("medications.addMedication")}
             </Button>
           </DropdownMenuTrigger>
@@ -305,7 +305,7 @@ export default function MedicationsPage() {
           description={t("medications.emptyDescription")}
           action={
             <Button size="sm" onClick={openCreate}>
-              <Plus className="mr-1 h-4 w-4" />
+              <Plus className="h-4 w-4" />
               {t("medications.firstMedication")}
             </Button>
           }

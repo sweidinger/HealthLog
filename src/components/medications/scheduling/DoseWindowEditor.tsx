@@ -68,10 +68,7 @@ export function DoseWindowEditor({
   const generatedId = useId();
   const prefix = idPrefix ?? generatedId;
 
-  const rows = useMemo(
-    () => buildRows(timesOfDay, value),
-    [timesOfDay, value],
-  );
+  const rows = useMemo(() => buildRows(timesOfDay, value), [timesOfDay, value]);
 
   // Rebuild the persisted set from the next row state and bubble it up.
   const emit = useCallback(
@@ -84,9 +81,7 @@ export function DoseWindowEditor({
   const setRow = useCallback(
     (timeOfDay: string, patch: Partial<DoseWindowRow>) => {
       emit(
-        rows.map((r) =>
-          r.timeOfDay === timeOfDay ? { ...r, ...patch } : r,
-        ),
+        rows.map((r) => (r.timeOfDay === timeOfDay ? { ...r, ...patch } : r)),
       );
     },
     [emit, rows],
@@ -201,7 +196,7 @@ export function DoseWindowEditor({
                   isValidHhmm(row.end) &&
                   !ordered ? (
                     <p
-                      className="text-destructive text-xs"
+                      className="text-destructive text-sm"
                       role="alert"
                       data-slot="dose-window-error"
                     >

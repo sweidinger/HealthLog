@@ -92,7 +92,9 @@ export function NotificationStatusCard() {
       if (!res.ok) throw new Error("Failed");
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.notificationsStatus() });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.notificationsStatus(),
+      });
     },
   });
 
@@ -105,7 +107,9 @@ export function NotificationStatusCard() {
       }
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.notificationsStatus() });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.notificationsStatus(),
+      });
     },
   });
 
@@ -286,9 +290,9 @@ function ChannelRow({
             className="min-h-11"
           >
             {reEnablePending ? (
-              <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
+              <Loader2 className="h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
             ) : (
-              <RotateCw className="mr-1 h-3.5 w-3.5" />
+              <RotateCw className="h-3.5 w-3.5" />
             )}
             {t("settings.notificationStatus.reEnable")}
           </Button>
@@ -303,9 +307,9 @@ function ChannelRow({
           className="min-h-11"
         >
           {testPending ? (
-            <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
+            <Loader2 className="h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
           ) : (
-            <Send className="mr-1 h-3.5 w-3.5" />
+            <Send className="h-3.5 w-3.5" />
           )}
           {t("settings.notificationStatus.sendTest")}
         </Button>
@@ -328,8 +332,7 @@ function stateBadgeFor(
       return {
         label: t("settings.notificationStatus.stateActive"),
         variant: "default",
-        className:
-          "border-success/30 bg-success/15 text-success",
+        className: "border-success/30 bg-success/15 text-success",
         icon: <CheckCircle2 className="h-3 w-3" aria-hidden />,
       };
     case "auto_disabled":

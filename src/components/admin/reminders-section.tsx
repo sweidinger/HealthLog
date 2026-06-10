@@ -181,9 +181,9 @@ export function RemindersSection() {
           disabled={testNotification.isPending}
         >
           {testNotification.isPending && (
-            <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
+            <Loader2 className="h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
           )}
-          <Bell className="mr-1.5 h-3.5 w-3.5" />
+          <Bell className="h-3.5 w-3.5" />
           {t("admin.notificationTestSend")}
         </Button>
         <Button
@@ -193,9 +193,9 @@ export function RemindersSection() {
           disabled={reminderCheck.isPending}
         >
           {reminderCheck.isPending && (
-            <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
+            <Loader2 className="h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
           )}
-          <Activity className="mr-1.5 h-3.5 w-3.5" />
+          <Activity className="h-3.5 w-3.5" />
           {t("admin.reminderCheckRun")}
         </Button>
         <Button
@@ -224,7 +224,7 @@ export function RemindersSection() {
           }
         >
           {updateSettings.isPending && (
-            <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
+            <Loader2 className="h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
           )}
           {t("common.save")}
         </Button>
@@ -236,9 +236,9 @@ export function RemindersSection() {
             {testNotification.data.results.map((r, i) => (
               <div key={i} className="flex items-center gap-1.5 text-xs">
                 {r.success ? (
-                  <CheckCircle2 className="text-success dark:text-green-400 h-3.5 w-3.5 shrink-0" />
+                  <CheckCircle2 className="text-success h-3.5 w-3.5 shrink-0 dark:text-green-400" />
                 ) : (
-                  <XCircle className="text-destructive dark:text-red-400 h-3.5 w-3.5 shrink-0" />
+                  <XCircle className="text-destructive h-3.5 w-3.5 shrink-0 dark:text-red-400" />
                 )}
                 <span className="font-medium">{r.channel}</span>
                 {r.error && (
@@ -299,7 +299,7 @@ export function RemindersSection() {
                         </span>
                         <span className={statusColor}>{sched.label}</span>
                         {sched.notificationSent && (
-                          <span className="text-success dark:text-green-400 flex shrink-0 items-center gap-0.5">
+                          <span className="text-success flex shrink-0 items-center gap-0.5 dark:text-green-400">
                             <Bell className="h-3 w-3" />
                             {t("admin.reminderCheckNotifSent")}
                           </span>

@@ -168,15 +168,21 @@ function AppleHealthImportCard() {
           body: form,
         });
         if (res.status === 429) {
-          setUploadError(t("settings.sections.export.import.appleHealth.rateLimited"));
+          setUploadError(
+            t("settings.sections.export.import.appleHealth.rateLimited"),
+          );
           return;
         }
         if (res.status === 413) {
-          setUploadError(t("settings.sections.export.import.appleHealth.tooLarge"));
+          setUploadError(
+            t("settings.sections.export.import.appleHealth.tooLarge"),
+          );
           return;
         }
         if (!res.ok) {
-          setUploadError(t("settings.sections.export.import.appleHealth.uploadFailed"));
+          setUploadError(
+            t("settings.sections.export.import.appleHealth.uploadFailed"),
+          );
           return;
         }
         const body = (await res.json()).data as {
@@ -184,12 +190,16 @@ function AppleHealthImportCard() {
           status: string;
         };
         if (!body?.jobId) {
-          setUploadError(t("settings.sections.export.import.appleHealth.uploadFailed"));
+          setUploadError(
+            t("settings.sections.export.import.appleHealth.uploadFailed"),
+          );
           return;
         }
         setJobId(body.jobId);
       } catch {
-        setUploadError(t("settings.sections.export.import.appleHealth.uploadFailed"));
+        setUploadError(
+          t("settings.sections.export.import.appleHealth.uploadFailed"),
+        );
       } finally {
         setUploading(false);
       }
@@ -212,8 +222,7 @@ function AppleHealthImportCard() {
   }
 
   const status = statusQuery.data ?? null;
-  const isRunning =
-    status !== null && !TERMINAL_STATES.includes(status.status);
+  const isRunning = status !== null && !TERMINAL_STATES.includes(status.status);
   const isDone = status?.status === "done";
   const isFailed = status?.status === "failed";
   const busy = uploading || isRunning;
@@ -265,7 +274,9 @@ function AppleHealthImportCard() {
         type="file"
         accept=".zip,application/zip"
         className="sr-only"
-        aria-label={t("settings.sections.export.import.appleHealth.fileInputLabel")}
+        aria-label={t(
+          "settings.sections.export.import.appleHealth.fileInputLabel",
+        )}
         onChange={onFileChange}
       />
 
@@ -292,9 +303,7 @@ function AppleHealthImportCard() {
                 `settings.sections.export.import.appleHealth.phase.${status?.status ?? "queued"}`,
               )}
             </p>
-            {typeof percent === "number" && (
-              <Progress value={percent} />
-            )}
+            {typeof percent === "number" && <Progress value={percent} />}
             {typeof status?.progress?.rowsUpserted === "number" && (
               <p className="text-muted-foreground text-xs">
                 {t("settings.sections.export.import.appleHealth.rowsImported", {
@@ -325,7 +334,7 @@ function AppleHealthImportCard() {
         {(isFailed || uploadError) && (
           <p
             role="alert"
-            className="text-destructive flex items-start gap-2 text-xs"
+            className="text-destructive flex items-start gap-2 text-sm"
           >
             <AlertCircle
               className="mt-0.5 h-3.5 w-3.5 shrink-0"
@@ -350,9 +359,9 @@ function AppleHealthImportCard() {
           data-testid="import-action-apple-health"
         >
           {busy ? (
-            <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
+            <Loader2 className="h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
           ) : (
-            <Upload className="mr-1 h-3.5 w-3.5" />
+            <Upload className="h-3.5 w-3.5" />
           )}
           {t("settings.sections.export.import.appleHealth.choose")}
         </Button>
@@ -485,7 +494,8 @@ function JsonImportCard() {
       if (res.status === 422) {
         const body = await res.json().catch(() => null);
         setError(
-          body?.error ?? t("settings.sections.export.import.json.invalidPayload"),
+          body?.error ??
+            t("settings.sections.export.import.json.invalidPayload"),
         );
         return;
       }
@@ -570,7 +580,7 @@ function JsonImportCard() {
         {error && (
           <p
             role="alert"
-            className="text-destructive flex items-start gap-2 text-xs"
+            className="text-destructive flex items-start gap-2 text-sm"
           >
             <AlertCircle
               className="mt-0.5 h-3.5 w-3.5 shrink-0"
@@ -589,7 +599,7 @@ function JsonImportCard() {
           onClick={() => fileInputRef.current?.click()}
           data-testid="import-json-choose-file"
         >
-          <Upload className="mr-1 h-3.5 w-3.5" />
+          <Upload className="h-3.5 w-3.5" />
           {t("settings.sections.export.import.json.uploadFile")}
         </Button>
         <Button
@@ -599,7 +609,7 @@ function JsonImportCard() {
           onClick={downloadExample}
           data-testid="import-json-download-example"
         >
-          <Download className="mr-1 h-3.5 w-3.5" />
+          <Download className="h-3.5 w-3.5" />
           {t("settings.sections.export.import.json.downloadExample")}
         </Button>
         <Button
@@ -610,9 +620,9 @@ function JsonImportCard() {
           data-testid="import-action-json"
         >
           {busy ? (
-            <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
+            <Loader2 className="h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
           ) : (
-            <FileJson className="mr-1 h-3.5 w-3.5" />
+            <FileJson className="h-3.5 w-3.5" />
           )}
           {t("settings.sections.export.import.json.import")}
         </Button>

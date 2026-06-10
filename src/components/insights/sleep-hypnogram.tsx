@@ -68,7 +68,14 @@ export interface SleepHypnogramProps {
  * Lane order top → bottom. Awake highest, Deep lowest — depth increases
  * downward, matching Apple Health / Oura's "cityscape" convention.
  */
-const LANE_ORDER = ["AWAKE", "IN_BED", "ASLEEP", "REM", "CORE", "DEEP"] as const;
+const LANE_ORDER = [
+  "AWAKE",
+  "IN_BED",
+  "ASLEEP",
+  "REM",
+  "CORE",
+  "DEEP",
+] as const;
 const LANE_OF: Record<string, number> = Object.fromEntries(
   // Reverse-index so AWAKE (first) sits at the highest y value.
   LANE_ORDER.map((s, i) => [s, LANE_ORDER.length - 1 - i]),
@@ -126,10 +133,7 @@ export function SleepHypnogram({ session }: SleepHypnogramProps) {
   }, [session.segments]);
 
   const domain = useMemo<[number, number]>(
-    () => [
-      new Date(session.start).getTime(),
-      new Date(session.end).getTime(),
-    ],
+    () => [new Date(session.start).getTime(), new Date(session.end).getTime()],
     [session.start, session.end],
   );
 
@@ -148,9 +152,10 @@ export function SleepHypnogram({ session }: SleepHypnogramProps) {
     // First whole hour at or after `from`, aligned to the step grid.
     const firstHour = new Date(from);
     firstHour.setMinutes(0, 0, 0);
-    if (firstHour.getTime() < from) firstHour.setTime(firstHour.getTime() + 3_600_000);
+    if (firstHour.getTime() < from)
+      firstHour.setTime(firstHour.getTime() + 3_600_000);
     // Align the first tick to a multiple of the step (relative to midnight).
-    while ((firstHour.getHours() % stepHours) !== 0) {
+    while (firstHour.getHours() % stepHours !== 0) {
       firstHour.setTime(firstHour.getTime() + 3_600_000);
     }
     const ticks: number[] = [];
@@ -203,7 +208,7 @@ export function SleepHypnogram({ session }: SleepHypnogramProps) {
     <Card data-slot="sleep-hypnogram" className="gap-3 md:gap-3">
       <CardHeader className="pb-0">
         <div className="flex flex-col gap-0.5">
-          <CardTitle className="text-sm font-medium">
+          <CardTitle className="text-base font-semibold">
             {t("insights.sleep.hypnogram.title")}
           </CardTitle>
           <span className="text-muted-foreground text-xs">
@@ -249,7 +254,9 @@ export function SleepHypnogram({ session }: SleepHypnogramProps) {
                       type="number"
                       dataKey="lane"
                       domain={[-0.5, LANE_ORDER.length - 0.5]}
-                      ticks={LANE_ORDER.map((_, i) => LANE_ORDER.length - 1 - i)}
+                      ticks={LANE_ORDER.map(
+                        (_, i) => LANE_ORDER.length - 1 - i,
+                      )}
                       stroke="var(--muted-foreground)"
                       fontSize={10}
                       width={56}
