@@ -29,10 +29,11 @@ import {
   type SlotBand,
 } from "@/lib/medications/scheduling/attribution";
 import {
-  buildBandsForSchedules,
+  buildBandsForMedication,
   type BandMinterMedication,
   type DoseWindowConfig,
 } from "@/lib/medications/scheduling/band-minter";
+import { DOSE_WINDOW_DEFAULTS } from "@/lib/medications/scheduling/dose-window-defaults";
 import {
   buildCanonicalSchedule,
   buildRecurrenceContext,
@@ -116,31 +117,53 @@ export function buildMedicationDayBands(input: {
   });
   const canonicalSchedules = schedules.map(buildCanonicalSchedule);
 
-  // Mint over the take's local day padded a day each side so a slot near the
-  // local-midnight boundary (and any DST shift) is still captured — mirrors
-  // `resolve-slot-instant.ts`. A weekly/rolling band reaches further; its
-  // minter widens the probe internally, so the padded day window is enough to
-  // surface the anchor that the take could pair to.
-  const from = new Date(input.around.getTime() - ONE_DAY_MS);
-  const to = new Date(input.around.getTime() + ONE_DAY_MS);
-
-  const groups = buildBandsForSchedules({
-    medication: bandMinterMedication,
-    schedules: canonicalSchedules,
-    ctx,
-    userTz: input.userTz,
-    range: { from, to },
-    now: input.now ?? input.around,
-    windowConfig: input.windowConfig,
-    intakeInstants: input.intakeInstants,
-  });
+  // Minute-scale cadences: mint over the take's local day padded a day each
+  // side so a slot near the local-midnight boundary (and any DST shift) is
+  // still captured — mirrors `resolve-slot-instant.ts`.
+  //
+  // Day-scale cadences (weekly / rolling) need a wider mint range: a band's
+  // late tail reaches `weeklyOnTimeDays + weeklyOverdueDays` days past its
+  // anchor, so a take inside that tail sits several days AFTER the anchor —
+  // a ±1-day range would never mint the anchor's band and the take would be
+  // misfiled as ad-hoc. The minter widens its probe internally only for
+  // family CLASSIFICATION, not for minting, so the range itself must cover
+  // the band's full reach (derived from the configured / default windows,
+  // plus a day of midnight/DST padding). Each schedule is minted narrow
+  // first; a day-scale family is then re-minted over the wide range.
+  const minuteScaleRange = {
+    from: new Date(input.around.getTime() - ONE_DAY_MS),
+    to: new Date(input.around.getTime() + ONE_DAY_MS),
+  };
+  const dayScaleReachDays =
+    (input.windowConfig?.weeklyOnTimeDays ??
+      DOSE_WINDOW_DEFAULTS.weeklyOnTimeDays) +
+    (input.windowConfig?.weeklyOverdueDays ??
+      DOSE_WINDOW_DEFAULTS.weeklyOverdueDays) +
+    1;
+  const dayScaleRange = {
+    from: new Date(input.around.getTime() - dayScaleReachDays * ONE_DAY_MS),
+    to: new Date(input.around.getTime() + dayScaleReachDays * ONE_DAY_MS),
+  };
 
   const bands: SlotBand[] = [];
   let hasExpectedSlots = false;
-  for (const g of groups) {
-    if (g.hasExpectedSlots) {
+  for (const schedule of canonicalSchedules) {
+    const common = {
+      medication: bandMinterMedication,
+      schedule,
+      ctx,
+      userTz: input.userTz,
+      now: input.now ?? input.around,
+      windowConfig: input.windowConfig,
+      intakeInstants: input.intakeInstants,
+    };
+    let result = buildBandsForMedication({ ...common, range: minuteScaleRange });
+    if (result.family === "weekly") {
+      result = buildBandsForMedication({ ...common, range: dayScaleRange });
+    }
+    if (result.hasExpectedSlots) {
       hasExpectedSlots = true;
-      bands.push(...g.bands);
+      bands.push(...result.bands);
     }
   }
   return { bands, hasExpectedSlots };
