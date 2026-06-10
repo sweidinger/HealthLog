@@ -31,15 +31,24 @@ the medication intake ledger (`medication_intake_events`):
 Always. The default mode only reports and never mutates:
 
 ```bash
-# inside the app container (or any checkout with DATABASE_URL set)
-pnpm dlx tsx scripts/repair-intake-anomalies.ts
+# inside the app container (or any checkout) — DATABASE_URL must point
+# at the target database
+pnpm dlx --package pg --package tsx tsx scripts/repair-intake-anomalies.ts
 
 # scoped to one account
-pnpm dlx tsx scripts/repair-intake-anomalies.ts --user <userId>
+pnpm dlx --package pg --package tsx tsx scripts/repair-intake-anomalies.ts --user <userId>
 ```
 
-Use `pnpm dlx tsx`, not bare `pnpm tsx` — the production standalone image
-strips `tsx`. `DATABASE_URL` must point at the target database.
+The script is self-contained: its only import is `pg` and it reads
+`DATABASE_URL` straight from the environment (no dotenv, no `@/` path
+alias, no `src/` imports). That matters in the production container —
+the standalone image ships no project `node_modules`, so the previous
+revision died there with `Cannot find module 'dotenv/config'`. Inside
+the image `pg` resolves via `NODE_PATH=/opt/pg-boss/node_modules`; in a
+checkout it resolves from the project `node_modules`; the
+`--package pg --package tsx` pins cover any environment with neither.
+Use `pnpm dlx`, not bare `pnpm tsx` — the standalone image also strips
+`tsx`.
 
 The dry-run prints every duplicate group (which row would be kept, which
 would be tombstoned) and a table of implausible rows (id, medication,
@@ -48,7 +57,7 @@ would be tombstoned) and a table of implausible rows (id, medication,
 ## Applying the fix
 
 ```bash
-pnpm dlx tsx scripts/repair-intake-anomalies.ts --fix
+pnpm dlx --package pg --package tsx tsx scripts/repair-intake-anomalies.ts --fix
 ```
 
 `--fix` does three things:
@@ -66,13 +75,17 @@ pnpm dlx tsx scripts/repair-intake-anomalies.ts --fix
   in explicitly:
 
   ```bash
-  pnpm dlx tsx scripts/repair-intake-anomalies.ts --fix --tombstone-implausible
+  pnpm dlx --package pg --package tsx tsx scripts/repair-intake-anomalies.ts --fix --tombstone-implausible
   ```
 
   `--tombstone-implausible` is refused without `--fix`.
 - **Affected compliance rollups are recomputed** for every touched
-  `(user, medication, day)` through the shared rollup helper, so the
-  scheduled/taken counts and the rate self-correct immediately.
+  `(user, medication, day)`. The script executes the same DISTINCT-slot
+  aggregation SQL the shared helper runs (a verbatim twin of
+  `recomputeMedicationComplianceForDay` in
+  `src/lib/rollups/medication-compliance-rollups.ts` — kept inline so
+  the script needs no app imports), so the scheduled/taken counts and
+  the rate self-correct immediately.
 
 The script is idempotent: a second `--fix` run finds zero duplicate groups
 and changes nothing. Exit code is 0 on success (including a clean

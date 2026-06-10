@@ -50,13 +50,16 @@ describe("v1.4.40 — dashboard per-cell Suspense boundaries", () => {
   it("wraps each tile-strip cell in a `<Suspense>` boundary with a layout-stable placeholder", () => {
     const src = load(PAGE_PATH);
     // v1.4.41 W-FRONTEND-FACTORY (UX M1) swapped the prior `null`
-    // fallback for an `aria-hidden` placeholder div that mirrors the
-    // trend-card chrome. The tile body is synchronous today so the
-    // fallback rarely paints, but a future RSC hoist of any tile slot
-    // would otherwise leave the grid track empty and trigger CLS as
-    // the cell paints in. The structural pin guards the contract.
+    // fallback for an `aria-hidden` placeholder div; v1.16.0 upgraded
+    // it to the structured `<TrendCardSkeleton>` silhouette (the
+    // aria-hidden + trend-card chrome now live inside the component,
+    // see `trend-card-skeleton.tsx`). The tile body is synchronous
+    // today so the fallback rarely paints, but a future RSC hoist of
+    // any tile slot would otherwise leave the grid track empty and
+    // trigger CLS as the cell paints in. The structural pin guards the
+    // contract.
     expect(src).toMatch(
-      /<Suspense\s+fallback=\{[\s\S]*?aria-hidden="true"[\s\S]*?\}\s*>\s*\{entry\.node\}\s*<\/Suspense>/,
+      /<Suspense\s+fallback=\{<TrendCardSkeleton\s*\/>\}>\s*\{entry\.node\}\s*<\/Suspense>/,
     );
   });
 

@@ -17,7 +17,7 @@ import {
   ReferenceArea,
   ReferenceDot,
 } from "recharts";
-import { Loader2, SlidersHorizontal } from "lucide-react";
+import { SlidersHorizontal } from "lucide-react";
 import Link from "next/link";
 import {
   useState,
@@ -26,6 +26,7 @@ import {
   useCallback,
   type ComponentType,
 } from "react";
+import { Skeleton } from "@/components/ui/skeleton";
 import { RichChartTooltip, type RichTooltipRow } from "./chart-tooltip";
 import { ChartEmptyState } from "./chart-empty-state";
 import { TileHeader } from "@/components/insights/tile-header";
@@ -231,6 +232,15 @@ interface HealthChartProps {
    * thread the same glyph it hands the stat strip.
    */
   titleIcon?: ComponentType<{ className?: string }>;
+  /**
+   * v1.16.0 — fires once the chart's data query has settled (initial
+   * load finished, success or error). The dashboard's shared reveal
+   * gate listens here so every chart cell swaps from skeleton to
+   * content in one frame instead of popping in one after another.
+   * Optional and repeat-safe: the dashboard's `markReady` is
+   * idempotent; non-dashboard mounts simply omit it.
+   */
+  onDataReady?: () => void;
 }
 
 interface ChartDataPoint {
@@ -535,6 +545,7 @@ export function HealthChart({
   valueScale = 1,
   onVisibleStats,
   titleIcon,
+  onDataReady,
 }: HealthChartProps) {
   const { isAuthenticated, user } = useAuth();
   const { t, locale } = useTranslations();
@@ -878,6 +889,15 @@ export function HealthChart({
     ),
     enabled: isAuthenticated,
   });
+
+  // v1.16.0 — report the settled data query to the dashboard's shared
+  // reveal gate. `isLoading` only covers the INITIAL fetch (a later
+  // range-tab change creates a new cache entry but the gate has long
+  // latched by then), so this fires exactly when the first paintable
+  // state — chart, empty-window card, or error fallback — is available.
+  useEffect(() => {
+    if (!isLoading) onDataReady?.();
+  }, [isLoading, onDataReady]);
 
   const chartData = useMemo(() => {
     if (!data?.length) return data;
@@ -1521,9 +1541,13 @@ export function HealthChart({
       ) : null}
 
       {isLoading ? (
-        <div className="flex h-48 items-center justify-center">
-          <Loader2 className="text-primary h-6 w-6 animate-spin motion-reduce:animate-none" />
-        </div>
+        // v1.16.0 — height-matched skeleton band instead of the former
+        // `h-48` spinner box. The loading state now occupies the exact
+        // box the painted chart will (same `chartHeightClass`), so the
+        // card height never jumps when the data lands — the dashboard's
+        // shared-reveal overlay and every insights mount stay
+        // layout-shift-free.
+        <Skeleton className={`w-full ${chartHeightClass}`} />
       ) : !chartData?.length ? (
         // v1.4.43 W11-M6 — empty-window state.
         //
