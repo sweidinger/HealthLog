@@ -181,14 +181,22 @@ export async function runLogIntake(deps: {
    * slot. Omit/undefined to route through the unscheduled/PRN path.
    */
   scheduledFor?: string;
+  /**
+   * v1.16.4 — per-intake dose override. Sent only on a taken write; the
+   * caller passes it only when the user's dose edit deviates from the
+   * configured medication / schedule dose.
+   */
+  doseTaken?: string;
   t: Translator;
   queryClient: QueryClient;
 }): Promise<boolean> {
-  const { medication, skipped, takenAt, scheduledFor, t, queryClient } = deps;
+  const { medication, skipped, takenAt, scheduledFor, doseTaken, t, queryClient } =
+    deps;
   try {
     const body: Record<string, unknown> = { skipped };
     if (!skipped) body.takenAt = takenAt;
     if (scheduledFor) body.scheduledFor = scheduledFor;
+    if (!skipped && doseTaken) body.doseTaken = doseTaken;
     const res = await fetch(`/api/medications/${medication.id}/intake`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },

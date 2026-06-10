@@ -4709,6 +4709,13 @@ components:
           type: string
           format: date-time
           pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
+        doseTaken:
+          description: Dose actually consumed for THIS intake when it deviates from (or documents) the medication's configured
+            dose, e.g. a half tablet or a titration step. Free text, max 50 characters. Omit to record the take under
+            the medication's configured dose.
+          type: string
+          minLength: 1
+          maxLength: 50
       required:
         - medicationId
       description: Per-medication intake log body. Idempotent via `idempotencyKey`; the server also dedupes by a 60-second

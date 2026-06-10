@@ -96,6 +96,11 @@ const bulkEntrySchema = z.object({
     .datetime({ offset: true })
     .transform((s) => new Date(s))
     .optional(),
+  // v1.16.4 — per-entry dose override, mirroring the single intake
+  // route: free text (max 50 chars, like `Medication.dose`), persisted
+  // only on a taken entry. Absent = the configured medication dose
+  // applies.
+  doseTaken: z.string().trim().min(1).max(50).optional(),
 });
 
 const bulkPayloadSchema = z.object({
@@ -381,6 +386,8 @@ async function postBulk(request: NextRequest): Promise<Response> {
           createSource: "API",
           injectionSite: resolvedInjectionSite,
           attributionSource,
+          // v1.16.4 — dose override only documents a consumed dose.
+          doseTaken: (!entry.skipped && entry.doseTaken) || null,
         });
         if (applied.noDowngradeNoOp) {
           // C2 — pending echo onto an already-actioned slot. Report it as a
@@ -451,6 +458,7 @@ async function postBulk(request: NextRequest): Promise<Response> {
             createSource: "API",
             injectionSite: resolvedInjectionSite,
             attributionSource,
+            doseTaken: (!entry.skipped && entry.doseTaken) || null,
           });
           if (applied.noDowngradeNoOp) {
             duplicates += 1;
@@ -485,6 +493,9 @@ async function postBulk(request: NextRequest): Promise<Response> {
               ...(resolvedInjectionSite !== null && {
                 injectionSite: resolvedInjectionSite,
               }),
+              // v1.16.4 — dose override only on a taken entry carrying one.
+              ...(!entry.skipped &&
+                entry.doseTaken && { doseTaken: entry.doseTaken }),
             },
           });
           inserted += 1;

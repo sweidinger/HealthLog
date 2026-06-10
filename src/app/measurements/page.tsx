@@ -1,13 +1,16 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
+import { usePullToRefresh } from "@/hooks/use-pull-to-refresh";
 import {
   MeasurementForm,
   resolveAddToken,
 } from "@/components/measurements/measurement-form";
 import { MeasurementList } from "@/components/measurements/measurement-list";
 import { Button } from "@/components/ui/button";
+import { PullToRefreshIndicator } from "@/components/ui/pull-to-refresh-indicator";
 import { ResponsiveSheet } from "@/components/ui/responsive-sheet";
 import { Plus, Loader2 } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -16,6 +19,7 @@ import { useTranslations } from "@/lib/i18n/context";
 export default function MeasurementsPage() {
   const { isAuthenticated, isLoading } = useAuth();
   const router = useRouter();
+  const queryClient = useQueryClient();
   const searchParams = useSearchParams();
   const { t } = useTranslations();
 
@@ -33,6 +37,19 @@ export default function MeasurementsPage() {
   // v1.4.27 R4 RC2 — DOM handle the form portals its action row into so
   // the Sheet branch can sticky-pin Save / Cancel.
   const [footerEl, setFooterEl] = useState<HTMLDivElement | null>(null);
+
+  // v1.16.4 — PWA pull-to-refresh: a top-anchored touch pull refetches
+  // whatever this page currently has mounted (`type: "active"` scopes the
+  // invalidation to visible queries). Suspended while the add-sheet is
+  // open so a drag inside the form can't arm the gesture.
+  const refreshVisible = useCallback(
+    () => queryClient.invalidateQueries({ type: "active" }),
+    [queryClient],
+  );
+  const pull = usePullToRefresh({
+    onRefresh: refreshVisible,
+    disabled: dialogOpen,
+  });
 
   if (addParam && addParam !== consumedAddParam) {
     setConsumedAddParam(addParam);
@@ -66,6 +83,7 @@ export default function MeasurementsPage() {
 
   return (
     <div className="space-y-6">
+      <PullToRefreshIndicator {...pull} />
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">

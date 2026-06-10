@@ -1,10 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
+import { usePullToRefresh } from "@/hooks/use-pull-to-refresh";
 import { MoodForm } from "@/components/mood/mood-form";
 import { MoodList } from "@/components/mood/mood-list";
 import { Button } from "@/components/ui/button";
+import { PullToRefreshIndicator } from "@/components/ui/pull-to-refresh-indicator";
 import { ResponsiveSheet } from "@/components/ui/responsive-sheet";
 import { Plus, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -14,12 +17,26 @@ import { useTranslations } from "@/lib/i18n/context";
 export default function MoodPage() {
   const { isAuthenticated, isLoading } = useAuth();
   const router = useRouter();
+  const queryClient = useQueryClient();
   const [dialogOpen, setDialogOpen] = useState(false);
   // v1.4.27 R4 RC2 — DOM-ref handle the form portals its action row
   // into. The ref lives on the `<ResponsiveSheet>` footer slot so the
   // Sheet branch can sticky-pin Save / Cancel above the keyboard.
   const [footerEl, setFooterEl] = useState<HTMLDivElement | null>(null);
   const { t } = useTranslations();
+
+  // v1.16.4 — PWA pull-to-refresh: a top-anchored touch pull refetches
+  // whatever this page currently has mounted (`type: "active"` scopes the
+  // invalidation to visible queries). Suspended while the add-sheet is
+  // open so a drag inside the form can't arm the gesture.
+  const refreshVisible = useCallback(
+    () => queryClient.invalidateQueries({ type: "active" }),
+    [queryClient],
+  );
+  const pull = usePullToRefresh({
+    onRefresh: refreshVisible,
+    disabled: dialogOpen,
+  });
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
@@ -37,6 +54,7 @@ export default function MoodPage() {
 
   return (
     <div className="space-y-6">
+      <PullToRefreshIndicator {...pull} />
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">

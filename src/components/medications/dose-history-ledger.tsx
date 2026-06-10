@@ -659,6 +659,19 @@ function LedgerRowItem({
             })}
           </p>
         )}
+        {/* v1.16.4 — quiet per-intake dose override note. Only rows whose
+            take recorded a deviating dose carry one; the configured dose
+            stays implicit, so the ledger's rhythm is undisturbed. */}
+        {intake?.doseTaken && (
+          <p
+            className="text-muted-foreground text-xs"
+            data-slot="ledger-dose-taken"
+          >
+            {t("medications.detail.verlauf.doseTaken", {
+              dose: intake.doseTaken,
+            })}
+          </p>
+        )}
         {dueContext && (
           <p
             className="text-muted-foreground text-xs"

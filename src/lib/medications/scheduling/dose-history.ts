@@ -58,6 +58,12 @@ export interface HistoryIntake {
    * anchor-binds. Optional so legacy callers / fixtures default to AUTO.
    */
   pinned?: boolean;
+  /**
+   * v1.16.4 — per-intake dose override the user recorded at log time.
+   * Optional free text; absent / null = the medication's configured dose
+   * applies. Pure pass-through for the read ledger (no status impact).
+   */
+  doseTaken?: string | null;
 }
 
 export type DoseHistoryStatus =

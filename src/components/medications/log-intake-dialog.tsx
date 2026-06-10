@@ -127,6 +127,11 @@ export function LogIntakeDialog({
   );
   const [skipped, setSkipped] = useState(false);
   const [busy, setBusy] = useState(false);
+  // v1.16.4 — per-intake dose override. `null` = untouched: the slot's
+  // schedule dose (when a slot is pinned and carries one) or the
+  // medication's configured dose prefills the field and nothing extra is
+  // submitted. An edit that deviates travels as `doseTaken`.
+  const [doseOverride, setDoseOverride] = useState<string | null>(null);
 
   const selected = useMemo(
     () => medications.find((m) => m.id === medicationId),
@@ -134,11 +139,30 @@ export function LogIntakeDialog({
   );
   const slotTimes = useMemo(() => slotTimesFor(selected), [selected]);
 
+  // Configured baseline for the picked slot: a pinned slot prefers its
+  // schedule's own dose (titration schedules differ per slot); otherwise
+  // the medication's catalogue dose.
+  const configuredDose = useMemo(() => {
+    if (!selected) return "";
+    if (slot !== NO_SLOT) {
+      const scheduleForSlot = selected.schedules.find((s) =>
+        s.timesOfDay && s.timesOfDay.length > 0
+          ? s.timesOfDay.includes(slot)
+          : s.windowStart === slot,
+      );
+      if (scheduleForSlot?.dose) return scheduleForSlot.dose;
+    }
+    return selected.dose ?? "";
+  }, [selected, slot]);
+  const dose = doseOverride ?? configuredDose;
+
   function handleMedicationChange(id: string) {
     setMedicationId(id);
     // Reset the slot when switching medications — the prior slot may not
-    // exist on the new schedule.
+    // exist on the new schedule. The dose override resets too so the new
+    // medication's configured dose flows through.
     setSlot(NO_SLOT);
+    setDoseOverride(null);
   }
 
   async function submit() {
@@ -158,12 +182,20 @@ export function LogIntakeDialog({
       scheduledFor = iso;
     }
     setBusy(true);
+    // v1.16.4 — only a deliberate deviation travels; an untouched or
+    // configured-dose value keeps the row NULL (configured dose applies).
+    const trimmedDose = dose.trim();
+    const doseDeviates =
+      !skipped &&
+      trimmedDose.length > 0 &&
+      trimmedDose !== configuredDose.trim();
     try {
       const ok = await runLogIntake({
         medication: { id: med.id, name: med.name },
         skipped,
         takenAt: new Date(takenAt).toISOString(),
         scheduledFor,
+        ...(doseDeviates && { doseTaken: trimmedDose }),
         t,
         queryClient,
       });
@@ -214,7 +246,12 @@ export function LogIntakeDialog({
                 <NativeSelect
                   id="log-intake-slot"
                   value={slot}
-                  onChange={(e) => setSlot(e.target.value)}
+                  onChange={(e) => {
+                    setSlot(e.target.value);
+                    // The configured baseline tracks the slot's schedule
+                    // dose, so an untouched field re-prefills on change.
+                    setDoseOverride(null);
+                  }}
                 >
                   <option value={NO_SLOT}>
                     {t("medications.logIntake.slotNone")}
@@ -227,6 +264,24 @@ export function LogIntakeDialog({
                 </NativeSelect>
               </div>
             )}
+
+            <div className="space-y-2">
+              <Label htmlFor="log-intake-dose">
+                {t("medications.logIntake.doseLabel")}
+              </Label>
+              <Input
+                id="log-intake-dose"
+                value={dose}
+                maxLength={50}
+                onChange={(e) => setDoseOverride(e.target.value)}
+                placeholder={configuredDose}
+                autoComplete="off"
+                disabled={skipped}
+              />
+              <p className="text-muted-foreground text-xs">
+                {t("medications.logIntake.doseHint")}
+              </p>
+            </div>
 
             <div className="space-y-2">
               <Label htmlFor="log-intake-taken-at">

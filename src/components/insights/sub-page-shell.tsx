@@ -3,7 +3,7 @@
 import { useEffect, useRef, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ListOrdered } from "lucide-react";
+import { ListOrdered, Settings2 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -227,6 +227,32 @@ export function SubPageShell({
             <div className="flex shrink-0 items-center gap-0.5">
               <TargetAdjustButton />
               {coachLaunch ? <CoachLaunchButton variant="icon" /> : null}
+              {/* v1.16.4 — customise cog on every routed sub-page,
+                mirroring the mother page's tab-strip cog: same Settings2
+                glyph, same `/settings/insights` destination (overview
+                arrange + pill sort). Rightmost in the cluster so it sits
+                where the mother page's cog sits — far top-right — and
+                clearly apart from the self-gating target-adjust gear. */}
+              <Button
+                asChild
+                variant="ghost"
+                size="icon"
+                data-slot="insights-subpage-customize"
+                className={cn(
+                  // Match the cluster's 40 px icon box + extended hit area
+                  // (see `<TargetAdjustButton>` for the WCAG 2.5.5 note).
+                  "text-muted-foreground hover:text-foreground relative size-10",
+                  "before:absolute before:-inset-1.5 before:content-['']",
+                )}
+              >
+                <Link
+                  href="/settings/insights"
+                  aria-label={t("insights.customize")}
+                  title={t("insights.customize")}
+                >
+                  <Settings2 className="size-4" aria-hidden="true" />
+                </Link>
+              </Button>
             </div>
           </div>
           {explainerMetric ? (
