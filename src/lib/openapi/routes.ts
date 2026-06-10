@@ -4346,19 +4346,25 @@ export const openApiPaths: NonNullable<ZodOpenApiObject["paths"]> = {
   "/api/coach/about-me": {
     get: {
       tags: ["Insights"],
-      summary: "Read the caller's \"about me\" self-description",
+      summary: "Read the caller's self-context",
       description:
-        "v1.15.20 — returns the user-authored free-text self-description the Coach system prompt and the daily briefing inject as a delimited, user-provided context block. Stored encrypted at rest; an undecryptable payload reads as null (fail closed). Auth via cookie or Bearer; the owner is always narrowed from the session.",
+        "v1.16.0 — returns the structured self-context (free text plus chronic conditions, allergies, coach focus) the Coach system prompt and the daily briefing inject as a delimited, user-provided context block, alongside any pending clarifying questions. Every field is stored encrypted at rest; an undecryptable payload reads as null (fail closed). Auth via cookie or Bearer; the owner is always narrowed from the session.",
       responses: {
         "200": {
-          description: "The stored text (null when never written / cleared).",
+          description:
+            "The stored fields (null when never written / cleared) plus pending clarifying questions.",
           content: {
             "application/json": {
               schema: dataEnvelope(
                 z.object({
                   aboutMe: z.string().nullable(),
+                  conditions: z.string().nullable(),
+                  allergies: z.string().nullable(),
+                  coachFocus: z.string().nullable(),
+                  pendingQuestions: z.array(z.string()),
                   updatedAt: z.iso.datetime({ offset: true }).nullable(),
                   maxChars: z.number().int(),
+                  fieldMaxChars: z.number().int(),
                 }),
                 "GetCoachAboutMeResponse",
               ),
@@ -4370,25 +4376,88 @@ export const openApiPaths: NonNullable<ZodOpenApiObject["paths"]> = {
     },
     put: {
       tags: ["Insights"],
-      summary: "Write (or clear) the caller's \"about me\" self-description",
+      summary: "Write (or clear) the caller's self-context",
       description:
-        "v1.15.20 — persists the free text encrypted at rest (4 000-char cap enforced before encryption). An empty / whitespace-only value clears the text while keeping the row so `updatedAt` documents the deletion instant. Rate-limited per user.",
+        "v1.16.0 — persists the free text (4 000-char cap) and the three structured fields (500-char cap each) encrypted at rest; caps are enforced before encryption. Structured fields are optional: omitted leaves the stored value untouched, an empty string clears it. After a non-empty save the server derives up to 3 clarifying questions (AI when a provider and the daily Coach token budget allow, deterministic completion hints otherwise) and returns them as `pendingQuestions`. Rate-limited per user.",
       requestBody: {
         required: true,
         content: { "application/json": { schema: aboutMePutSchema } },
       },
       responses: {
         "200": {
-          description: "The saved (trimmed) text echoed back.",
+          description:
+            "The effective (trimmed) state echoed back plus the freshly derived pending questions.",
           content: {
             "application/json": {
               schema: dataEnvelope(
                 z.object({
                   aboutMe: z.string().nullable(),
+                  conditions: z.string().nullable(),
+                  allergies: z.string().nullable(),
+                  coachFocus: z.string().nullable(),
+                  pendingQuestions: z.array(z.string()),
                   updatedAt: z.iso.datetime({ offset: true }),
                   maxChars: z.number().int(),
+                  fieldMaxChars: z.number().int(),
                 }),
                 "PutCoachAboutMeResponse",
+              ),
+            },
+          },
+        },
+        ...stdResponses,
+      },
+    },
+  },
+  "/api/coach/about-me/questions": {
+    get: {
+      tags: ["Insights"],
+      summary: "Read the pending clarifying questions",
+      description:
+        "v1.16.0 — the up-to-3 clarifying questions derived after the last self-context save. The Coach composer renders them as tappable suggestion chips. Stored encrypted; an undecryptable payload reads as an empty list (fail closed).",
+      responses: {
+        "200": {
+          description: "The pending questions (possibly empty).",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                z.object({ questions: z.array(z.string()) }),
+                "GetCoachAboutMeQuestionsResponse",
+              ),
+            },
+          },
+        },
+        ...stdResponses,
+      },
+    },
+    delete: {
+      tags: ["Insights"],
+      summary: "Dismiss pending clarifying questions",
+      description:
+        "v1.16.0 — dismisses one question (body `{ question }`, exact match) or all of them (empty body). Tapping a chip in the Coach composer inserts the question into the chat input and dismisses it here.",
+      requestBody: {
+        required: false,
+        content: {
+          "application/json": {
+            schema: z.object({
+              question: z
+                .string()
+                .optional()
+                .describe(
+                  "Exact question text to dismiss. Omitted = dismiss all.",
+                ),
+            }),
+          },
+        },
+      },
+      responses: {
+        "200": {
+          description: "The remaining questions after the dismissal.",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                z.object({ questions: z.array(z.string()) }),
+                "DeleteCoachAboutMeQuestionsResponse",
               ),
             },
           },
@@ -4402,7 +4471,7 @@ export const openApiPaths: NonNullable<ZodOpenApiObject["paths"]> = {
       tags: ["Admin"],
       summary: "List registration invites",
       description:
-        "v1.15.20 — every invite with creator / consumer usernames and use counters. Metadata only — the raw token is never derivable from this endpoint (only its HMAC hash is persisted). Admin session cookie required; Bearer tokens cannot reach admin endpoints.",
+        "v1.16.0 — every invite with creator / consumer usernames, use counters, soft-revocation timestamp, and the full per-signup redemption ledger (`redemptions`; `consumer` only carries the LAST account on a multi-use invite). Metadata only — the raw token is never derivable from this endpoint (only its HMAC hash is persisted). Admin session cookie required; Bearer tokens cannot reach admin endpoints.",
       responses: {
         "200": {
           description: "All invites, newest first.",
@@ -4415,6 +4484,7 @@ export const openApiPaths: NonNullable<ZodOpenApiObject["paths"]> = {
                     createdAt: z.iso.datetime({ offset: true }),
                     expiresAt: z.iso.datetime({ offset: true }),
                     usedAt: z.iso.datetime({ offset: true }).nullable(),
+                    revokedAt: z.iso.datetime({ offset: true }).nullable(),
                     uses: z.number().int(),
                     maxUses: z.number().int(),
                     creator: z
@@ -4423,6 +4493,19 @@ export const openApiPaths: NonNullable<ZodOpenApiObject["paths"]> = {
                     consumer: z
                       .object({ id: z.string(), username: z.string() })
                       .nullable(),
+                    redemptions: z.array(
+                      z.object({
+                        id: z.string(),
+                        redeemedAt: z.iso.datetime({ offset: true }),
+                        user: z
+                          .object({
+                            id: z.string(),
+                            username: z.string(),
+                            email: z.string().nullable(),
+                          })
+                          .nullable(),
+                      }),
+                    ),
                   }),
                 ),
                 "AdminInviteList",
@@ -4480,16 +4563,16 @@ export const openApiPaths: NonNullable<ZodOpenApiObject["paths"]> = {
       requestParams: { path: z.object({ id: z.string() }) },
       summary: "Revoke a registration invite",
       description:
-        "v1.15.20 — hard-deletes the invite (no plaintext secret, no health data; mint + revoke live in the audit log). Idempotent: an unknown id returns `{ deleted: false }` instead of 404. Admin session cookie required.",
+        "v1.16.0 — soft-revokes the invite (`revokedAt`): the row keeps its redemption history visible in the admin table while the consume path refuses the link like an expired one. Idempotent: an unknown or already-revoked id returns `{ revoked: false }` instead of 404. Admin session cookie required.",
       responses: {
         "200": {
           description:
-            "The invite was deleted (`deleted: true`) or the id matched nothing (`deleted: false`).",
+            "The invite was revoked (`revoked: true`) or nothing matched (`revoked: false`).",
           content: {
             "application/json": {
               schema: dataEnvelope(
-                z.object({ deleted: z.boolean() }),
-                "AdminInviteDeleted",
+                z.object({ revoked: z.boolean() }),
+                "AdminInviteRevoked",
               ),
             },
           },

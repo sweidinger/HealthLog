@@ -395,6 +395,8 @@ export const queryKeys = {
   coachFacts: () => ["coach-facts"] as const,
   /** v1.15.20 — Settings → AI "about me" self-description. */
   coachAboutMe: () => ["coach-about-me"] as const,
+  /** v1.16.0 — pending clarifying questions (Coach composer chips). */
+  coachAboutMeQuestions: () => ["coach-about-me", "questions"] as const,
 
   /**
    * v1.4.41 — admin surfaces. Pre-fix every admin section declared its

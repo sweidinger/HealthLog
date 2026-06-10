@@ -66,7 +66,7 @@ export type InviteConsumeResult =
   | { ok: true; inviteId: string }
   | {
       ok: false;
-      reason: "not_found" | "expired" | "exhausted";
+      reason: "not_found" | "expired" | "exhausted" | "revoked";
     };
 
 /**
@@ -85,11 +85,22 @@ export async function consumeInviteToken(
   const tokenHash = hashToken(rawToken);
   const invite = await prisma.inviteToken.findUnique({
     where: { tokenHash },
-    select: { id: true, expiresAt: true, uses: true, maxUses: true },
+    select: {
+      id: true,
+      expiresAt: true,
+      uses: true,
+      maxUses: true,
+      revokedAt: true,
+    },
   });
   if (!invite) return { ok: false, reason: "not_found" };
 
   const now = new Date();
+  // v1.16.0 — a revoked invite is refused like an expired one; the row
+  // stays so the admin table keeps its redemption history visible.
+  if (invite.revokedAt !== null) {
+    return { ok: false, reason: "revoked" };
+  }
   if (invite.expiresAt.getTime() <= now.getTime()) {
     return { ok: false, reason: "expired" };
   }
@@ -101,6 +112,7 @@ export async function consumeInviteToken(
     where: {
       id: invite.id,
       expiresAt: { gt: now },
+      revokedAt: null,
       // Guarded increment — Postgres evaluates the predicate and the
       // UPDATE atomically, so a concurrent consumer of the last use
       // makes this a no-op instead of an overshoot.
@@ -119,20 +131,28 @@ export async function consumeInviteToken(
 }
 
 /**
- * Stamp the consumer account onto the invite after the user row exists.
- * Best-effort + last-consumer-wins on multi-use invites; a failure here
- * never unwinds the registration.
+ * Stamp the consumer account onto the invite after the user row exists
+ * AND append a row to the per-signup redemption ledger (v1.16.0 —
+ * `usedBy` only ever holds the LAST consumer; the ledger holds them
+ * all, so multi-use invites keep their full history). Best-effort; a
+ * failure here never unwinds the registration.
  */
 export async function recordInviteConsumer(
   inviteId: string,
   userId: string,
 ): Promise<void> {
   try {
-    await prisma.inviteToken.update({
-      where: { id: inviteId },
-      data: { usedBy: userId },
-    });
+    await prisma.$transaction([
+      prisma.inviteToken.update({
+        where: { id: inviteId },
+        data: { usedBy: userId },
+      }),
+      prisma.inviteRedemption.create({
+        data: { inviteId, userId },
+      }),
+    ]);
   } catch {
-    // Informational column only — the use itself is already counted.
+    // Informational rows only — the use itself is already counted by
+    // the guarded increment in `consumeInviteToken`.
   }
 }

@@ -28,7 +28,7 @@ import {
 import { buildSystemPromptWithReferences } from "@/lib/ai/prompts/insight-generator";
 import {
   buildAboutMeInsightBlock,
-  getAboutMeForUser,
+  getSelfContextTextForUser,
 } from "@/lib/ai/coach/about-me";
 import { metricsFromPresentSections } from "@/lib/ai/medical-references";
 import { summarize, type DataPoint } from "@/lib/analytics/trends";
@@ -551,7 +551,7 @@ export const POST = apiHandler(async (request: NextRequest) => {
   // v1.15.20 — fold the user-authored "about me" self-description
   // (Settings → AI) into the briefing as a delimited, user-provided
   // SYSTEM CONTEXT block. Null (no text / undecryptable) costs nothing.
-  const aboutMe = await getAboutMeForUser(userId);
+  const aboutMe = await getSelfContextTextForUser(userId, locale);
   if (aboutMe) {
     userPrompt += buildAboutMeInsightBlock(aboutMe, locale);
   }

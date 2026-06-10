@@ -32,6 +32,7 @@ import {
   ShieldAlert,
   SlidersHorizontal,
   Sparkles,
+  Ticket,
   Users,
   type LucideIcon,
 } from "lucide-react";
@@ -103,6 +104,13 @@ export const ADMIN_SECTIONS: readonly AdminSection[] = [
     slug: "users",
     titleKey: "admin.section.users.title",
     icon: Users,
+  },
+  // v1.16.0 — invites as their own section, directly after Users
+  // (admission lives next to the accounts it creates).
+  {
+    slug: "invites",
+    titleKey: "admin.section.invites.title",
+    icon: Ticket,
   },
   {
     slug: "api-tokens",

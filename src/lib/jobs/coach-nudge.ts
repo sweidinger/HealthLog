@@ -32,6 +32,11 @@
  *   - `score`: recovery score falling sharply — the last 7-day mean
  *     sits ≥ 15 points under the previous 7-day mean (≥ 3 samples in
  *     each window).
+ *   - `selfContext` (v1.16.0): the self-context questionnaire is
+ *     incomplete or 60+ days stale AND the user actively talks to the
+ *     Coach (a CoachUsage row in the last 14 days) — a gentle check-up
+ *     nudge to refresh the personal context the Coach reads. Presence
+ *     is checked on the encrypted columns only; nothing is decrypted.
  */
 import type { PrismaClient } from "@/generated/prisma/client";
 import { getAssistantFlags } from "@/lib/feature-flags";
@@ -67,8 +72,12 @@ export const COACH_NUDGE_BP_MIN_READINGS = 3;
 export const COACH_NUDGE_SCORE_DROP = 15;
 /** Score trigger: minimum samples per weekly window. */
 export const COACH_NUDGE_SCORE_MIN_SAMPLES = 3;
+/** Self-context trigger: profile older than this counts as stale. */
+export const COACH_NUDGE_SELF_CONTEXT_STALE_DAYS = 60;
+/** Self-context trigger: Coach usage within this window counts as active. */
+export const COACH_NUDGE_COACH_ACTIVE_DAYS = 14;
 
-export type CoachNudgeTrigger = "compliance" | "bp" | "score";
+export type CoachNudgeTrigger = "compliance" | "bp" | "score" | "selfContext";
 
 export interface CoachNudgeSummary {
   candidatesScanned: number;
@@ -114,6 +123,49 @@ export function evaluateBpTrigger(
   return mean > greenMax;
 }
 
+export interface SelfContextTriggerInput {
+  /** Presence-only view of the questionnaire (encrypted columns). */
+  profile: {
+    hasAboutMe: boolean;
+    hasConditions: boolean;
+    hasAllergies: boolean;
+    hasCoachFocus: boolean;
+    updatedAt: Date;
+  } | null;
+  /** Most recent CoachUsage activity, or null when never used. */
+  lastCoachUseAt: Date | null;
+}
+
+/**
+ * v1.16.0 — fourth trigger: the self-context is incomplete (any of the
+ * four fields empty, or no profile at all) or stale (60+ days), AND
+ * the user actively talks to the Coach. Without the activity gate this
+ * would nag every passive account forever.
+ */
+export function evaluateSelfContextTrigger(
+  input: SelfContextTriggerInput,
+  now: Date,
+): boolean {
+  const { profile, lastCoachUseAt } = input;
+  if (
+    lastCoachUseAt === null ||
+    now.getTime() - lastCoachUseAt.getTime() >
+      COACH_NUDGE_COACH_ACTIVE_DAYS * MS_PER_DAY
+  ) {
+    return false;
+  }
+  if (profile === null) return true;
+  const incomplete =
+    !profile.hasAboutMe ||
+    !profile.hasConditions ||
+    !profile.hasAllergies ||
+    !profile.hasCoachFocus;
+  const stale =
+    now.getTime() - profile.updatedAt.getTime() >
+    COACH_NUDGE_SELF_CONTEXT_STALE_DAYS * MS_PER_DAY;
+  return incomplete || stale;
+}
+
 export function evaluateScoreTrigger(
   recentValues: number[],
   priorValues: number[],
@@ -154,6 +206,11 @@ export function buildCoachNudgePayload(
       return {
         title: t("coachNudges.scoreTitle"),
         body: t("coachNudges.scoreBody"),
+      };
+    case "selfContext":
+      return {
+        title: t("coachNudges.selfContextTitle"),
+        body: t("coachNudges.selfContextBody"),
       };
   }
 }
@@ -234,6 +291,46 @@ export async function findTriggerForUser(
     .filter((m) => m.measuredAt < sevenDaysAgo)
     .map((m) => m.value);
   if (evaluateScoreTrigger(recent, prior)) return "score";
+
+  // 4) Self-context incomplete / stale while the Coach is in active
+  //    use. Presence-only reads on the encrypted columns — nothing is
+  //    decrypted in this job.
+  const coachActiveCutoff = new Date(
+    now.getTime() - COACH_NUDGE_COACH_ACTIVE_DAYS * MS_PER_DAY,
+  );
+  const recentUsage = await prisma.coachUsage.findFirst({
+    where: { userId: user.id, updatedAt: { gte: coachActiveCutoff } },
+    orderBy: { updatedAt: "desc" },
+    select: { updatedAt: true },
+  });
+  if (recentUsage) {
+    const profileRow = await prisma.userHealthProfile.findUnique({
+      where: { userId: user.id },
+      select: {
+        aboutMeEncrypted: true,
+        conditionsEncrypted: true,
+        allergiesEncrypted: true,
+        coachFocusEncrypted: true,
+        updatedAt: true,
+      },
+    });
+    const triggered = evaluateSelfContextTrigger(
+      {
+        profile: profileRow
+          ? {
+              hasAboutMe: profileRow.aboutMeEncrypted !== null,
+              hasConditions: profileRow.conditionsEncrypted !== null,
+              hasAllergies: profileRow.allergiesEncrypted !== null,
+              hasCoachFocus: profileRow.coachFocusEncrypted !== null,
+              updatedAt: profileRow.updatedAt,
+            }
+          : null,
+        lastCoachUseAt: recentUsage.updatedAt,
+      },
+      now,
+    );
+    if (triggered) return "selfContext";
+  }
 
   return null;
 }

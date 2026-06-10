@@ -40,10 +40,21 @@ export const GET = apiHandler(async () => {
       createdAt: true,
       expiresAt: true,
       usedAt: true,
+      revokedAt: true,
       uses: true,
       maxUses: true,
       creator: { select: { id: true, username: true } },
       consumer: { select: { id: true, username: true } },
+      // v1.16.0 — full per-signup history. `consumer` only carries the
+      // LAST account; multi-use invites list every admitted signup here.
+      redemptions: {
+        select: {
+          id: true,
+          redeemedAt: true,
+          user: { select: { id: true, username: true, email: true } },
+        },
+        orderBy: { redeemedAt: "desc" },
+      },
     },
     orderBy: { createdAt: "desc" },
   });

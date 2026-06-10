@@ -520,6 +520,8 @@ model User {
   // multi-use invite).
   invitesCreated InviteToken[] @relation("InviteCreator")
   invitesUsed    InviteToken[] @relation("InviteConsumer")
+  // v1.16.0 — per-signup invite redemption ledger (multi-use history).
+  inviteRedemptions InviteRedemption[] @relation("InviteRedemptions")
 
   @@map("users")
 }
@@ -1851,12 +1853,35 @@ model InviteToken {
   usedBy    String?   @map("used_by")
   maxUses   Int       @default(1) @map("max_uses")
   uses      Int       @default(0)
+  // v1.16.0 — soft revocation. A revoked invite keeps its redemption
+  // history visible in the admin table instead of vanishing; the
+  // consume path refuses it like an expired one.
+  revokedAt DateTime? @map("revoked_at")
 
-  creator  User  @relation("InviteCreator", fields: [createdBy], references: [id], onDelete: Cascade)
-  consumer User? @relation("InviteConsumer", fields: [usedBy], references: [id], onDelete: SetNull)
+  creator     User               @relation("InviteCreator", fields: [createdBy], references: [id], onDelete: Cascade)
+  consumer    User?              @relation("InviteConsumer", fields: [usedBy], references: [id], onDelete: SetNull)
+  redemptions InviteRedemption[]
 
   @@index([expiresAt])
   @@map("invite_tokens")
+}
+
+// v1.16.0 — one row per signup an invite admitted. `InviteToken.usedBy`
+// keeps only the LAST consumer (it overwrites on multi-use invites);
+// this ledger carries the full history so the admin table can show
+// every redemption with its timestamp. `userId` survives account
+// deletion as NULL — the row still documents that a use was consumed.
+model InviteRedemption {
+  id         String   @id @default(cuid())
+  inviteId   String   @map("invite_id")
+  userId     String?  @map("user_id")
+  redeemedAt DateTime @default(now()) @map("redeemed_at")
+
+  invite InviteToken @relation(fields: [inviteId], references: [id], onDelete: Cascade)
+  user   User?       @relation("InviteRedemptions", fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([inviteId])
+  @@map("invite_redemptions")
 }
 
 // ─── Refresh Tokens (native client short-lived access + rotating refresh) ─
@@ -3080,6 +3105,19 @@ model UserHealthProfile {
   // Free text, hard-capped at 4 000 chars by the route's Zod schema
   // BEFORE encryption. NULL = cleared / never written.
   aboutMeEncrypted Bytes?   @map("about_me_encrypted")
+  // v1.16.0 — structured self-context companions to the free text.
+  // Short answers (each capped at 500 chars BEFORE encryption).
+  // Age/gender deliberately do NOT live here — they come from the User
+  // profile and are merged into the prompt block at assembly time so
+  // the data is never duplicated.
+  conditionsEncrypted Bytes? @map("conditions_encrypted")
+  allergiesEncrypted  Bytes? @map("allergies_encrypted")
+  coachFocusEncrypted Bytes? @map("coach_focus_encrypted")
+  // v1.16.0 — up to 3 clarifying questions the server derives after a
+  // save (AI-generated when a provider + budget allow, deterministic
+  // hints otherwise). Encrypted JSON string[]; the Coach composer
+  // renders them as tappable suggestion chips. NULL = none pending.
+  pendingQuestionsEncrypted Bytes? @map("pending_questions_encrypted")
   createdAt        DateTime @default(now()) @map("created_at")
   updatedAt        DateTime @updatedAt @map("updated_at")
 

@@ -1,12 +1,23 @@
 "use client";
 
 /**
- * v1.15.20 — admin card for registration invites (Users section).
+ * v1.16.0 — Admin → Invites. Full management surface for registration
+ * invite links (formerly a card inside the Users section).
  *
- * Mint an invite (7 / 14 / 30-day lifetime), hand it over as a link or
- * QR code, see the open invites, revoke one. The raw token + URL + QR
- * appear exactly once — straight from the POST response — and are gone
- * after a reload; the list endpoint only ever returns metadata.
+ * Layout:
+ *   - Header row: explanatory copy + the single "create" action. TTL +
+ *     max-uses selection moved into the create dialog so the section
+ *     header stays calm (no 7/14/30 button wall).
+ *   - The freshly minted link + QR render INSIDE the dialog as a
+ *     one-time "ticket": only the HMAC hash is persisted, so the URL is
+ *     copyable exactly now and never again. The UI says so honestly.
+ *   - Desktop (md+): a real table — status, created, expiry
+ *     (relative + absolute), uses, redemption history, revoke.
+ *   - Mobile: stacked cards carrying the same facts.
+ *
+ * Status model (derived client-side from the row):
+ *   revoked > exhausted > expired > active. Revocation is soft
+ *   (DELETE sets `revokedAt`), so history rows never disappear.
  *
  * The QR data-URL is rendered inside the mutation (not in an effect):
  * `qrcode`'s `toDataURL` is async, so folding it into `mutationFn`
@@ -14,7 +25,16 @@
  */
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Copy, Loader2, Ticket, Trash2 } from "lucide-react";
+import {
+  Ban,
+  Check,
+  Copy,
+  Loader2,
+  Plus,
+  ShieldCheck,
+  Ticket,
+  Users,
+} from "lucide-react";
 import QRCode from "qrcode";
 import { toast } from "sonner";
 
@@ -28,21 +48,53 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { formatDate } from "@/lib/format";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { EmptyState } from "@/components/ui/empty-state";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { formatDate, formatDateTime } from "@/lib/format";
 import { useTranslations } from "@/lib/i18n/context";
 import { queryKeys } from "@/lib/query-keys";
+import { cn } from "@/lib/utils";
+
+interface InviteRedemptionEntry {
+  id: string;
+  redeemedAt: string;
+  user: { id: string; username: string; email: string | null } | null;
+}
 
 interface AdminInvite {
   id: string;
   createdAt: string;
   expiresAt: string;
   usedAt: string | null;
+  revokedAt: string | null;
   uses: number;
   maxUses: number;
   creator: { id: string; username: string } | null;
   consumer: { id: string; username: string } | null;
+  redemptions: InviteRedemptionEntry[];
 }
 
 interface MintedInvite {
@@ -53,21 +105,79 @@ interface MintedInvite {
   qrDataUrl: string;
 }
 
-type InviteStatus = "active" | "expired" | "exhausted";
+type InviteStatus = "active" | "expired" | "exhausted" | "revoked";
 
-function deriveStatus(invite: AdminInvite, now: Date): InviteStatus {
+export function deriveInviteStatus(
+  invite: Pick<
+    AdminInvite,
+    "uses" | "maxUses" | "expiresAt" | "revokedAt"
+  >,
+  now: Date,
+): InviteStatus {
+  if (invite.revokedAt !== null) return "revoked";
   if (invite.uses >= invite.maxUses) return "exhausted";
   if (new Date(invite.expiresAt).getTime() <= now.getTime()) return "expired";
   return "active";
 }
 
 const TTL_CHOICES = [7, 14, 30] as const;
+const MAX_USES_CAP = 50;
+
+/** Whole days (ceil) from `now` until `iso`; negative when past. */
+function daysUntil(iso: string, now: Date): number {
+  const ms = new Date(iso).getTime() - now.getTime();
+  return Math.ceil(ms / (24 * 60 * 60 * 1000));
+}
+
+const STATUS_STYLES: Record<InviteStatus, { dot: string; chip: string }> = {
+  // Quiet tinted chips with a colour dot — the dot carries the state at
+  // a glance, the tint stays low so a table of mixed states reads calm.
+  active: {
+    dot: "bg-dracula-green",
+    chip: "border-dracula-green/30 bg-dracula-green/10 text-dracula-green",
+  },
+  expired: {
+    dot: "bg-muted-foreground/60",
+    chip: "border-border bg-muted/40 text-muted-foreground",
+  },
+  exhausted: {
+    dot: "bg-dracula-cyan",
+    chip: "border-dracula-cyan/30 bg-dracula-cyan/10 text-dracula-cyan",
+  },
+  revoked: {
+    dot: "bg-dracula-red",
+    chip: "border-dracula-red/30 bg-dracula-red/10 text-dracula-red",
+  },
+};
+
+function StatusChip({ status, label }: { status: InviteStatus; label: string }) {
+  const styles = STATUS_STYLES[status];
+  return (
+    <span
+      data-testid={`invite-status-${status}`}
+      className={cn(
+        "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium whitespace-nowrap",
+        styles.chip,
+      )}
+    >
+      <span
+        aria-hidden="true"
+        className={cn("size-1.5 rounded-full", styles.dot)}
+      />
+      {label}
+    </span>
+  );
+}
 
 export function InviteTokensSection() {
   const { t } = useTranslations();
   const queryClient = useQueryClient();
+  const [createOpen, setCreateOpen] = useState(false);
+  const [ttlDays, setTtlDays] = useState<number>(7);
+  const [maxUses, setMaxUses] = useState<string>("1");
   const [minted, setMinted] = useState<MintedInvite | null>(null);
-  const [deleteTarget, setDeleteTarget] = useState<AdminInvite | null>(null);
+  const [copied, setCopied] = useState(false);
+  const [revokeTarget, setRevokeTarget] = useState<AdminInvite | null>(null);
 
   const { data: invites, isError } = useQuery({
     queryKey: queryKeys.adminInvites(),
@@ -80,11 +190,14 @@ export function InviteTokensSection() {
 
   const create = useMutation({
     mutationKey: queryKeys.adminInvites(),
-    mutationFn: async (expiresInDays: number): Promise<MintedInvite> => {
+    mutationFn: async (input: {
+      expiresInDays: number;
+      maxUses: number;
+    }): Promise<MintedInvite> => {
       const res = await fetch("/api/admin/invites", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ expiresInDays }),
+        body: JSON.stringify(input),
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = (await res.json()).data as Omit<MintedInvite, "qrDataUrl">;
@@ -104,206 +217,544 @@ export function InviteTokensSection() {
     },
   });
 
-  const remove = useMutation({
+  const revoke = useMutation({
     mutationFn: async (id: string) => {
       const res = await fetch(`/api/admin/invites/${id}`, {
         method: "DELETE",
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
     },
-    onSuccess: (_data, id) => {
-      toast.success(t("admin.invites.deletedToast"));
-      if (minted?.id === id) setMinted(null);
+    onSuccess: () => {
+      toast.success(t("admin.invites.revokedToast"));
       queryClient.invalidateQueries({ queryKey: queryKeys.adminInvites() });
     },
     onError: () => {
-      toast.error(t("admin.invites.deleteError"));
+      toast.error(t("admin.invites.revokeError"));
     },
   });
 
   async function copyUrl(url: string) {
     try {
       await navigator.clipboard.writeText(url);
+      setCopied(true);
       toast.success(t("admin.invites.copiedToast"));
+      window.setTimeout(() => setCopied(false), 2_000);
     } catch {
       toast.error(t("admin.invites.copyError"));
     }
   }
 
+  function openCreateDialog() {
+    setMinted(null);
+    setCopied(false);
+    setTtlDays(7);
+    setMaxUses("1");
+    setCreateOpen(true);
+  }
+
+  function submitCreate() {
+    const parsedMax = Number.parseInt(maxUses, 10);
+    const safeMax =
+      Number.isFinite(parsedMax) && parsedMax >= 1
+        ? Math.min(parsedMax, MAX_USES_CAP)
+        : 1;
+    create.mutate({ expiresInDays: ttlDays, maxUses: safeMax });
+  }
+
   const now = new Date();
 
+  function statusLabel(status: InviteStatus): string {
+    // Literal keys so the i18n call-site coverage guard sees them.
+    switch (status) {
+      case "active":
+        return t("admin.invites.statusActive");
+      case "expired":
+        return t("admin.invites.statusExpired");
+      case "exhausted":
+        return t("admin.invites.statusExhausted");
+      case "revoked":
+        return t("admin.invites.statusRevoked");
+    }
+  }
+
+  function expiryRelative(invite: AdminInvite, status: InviteStatus): string {
+    if (status !== "active") return "—";
+    const days = daysUntil(invite.expiresAt, now);
+    if (days <= 0) return "—";
+    return days === 1
+      ? t("admin.invites.expiresInDaysOne")
+      : t("admin.invites.expiresInDaysOther", { count: days });
+  }
+
+  function redemptionSummary(invite: AdminInvite): string {
+    if (invite.redemptions.length === 0) return "—";
+    const first = invite.redemptions[0];
+    const name =
+      first.user?.username ?? t("admin.invites.redeemerDeleted");
+    if (invite.redemptions.length === 1) return name;
+    return t("admin.invites.redeemedByMore", {
+      username: name,
+      count: invite.redemptions.length - 1,
+    });
+  }
+
   return (
-    <div
-      className="bg-card border-border rounded-xl border p-4 sm:p-6"
+    <section
+      aria-labelledby="admin-invites-title"
+      className="bg-card border-border rounded-xl border"
       data-testid="admin-invites-card"
     >
-      <div className="flex items-center gap-2">
-        <Ticket className="text-primary h-5 w-5" aria-hidden="true" />
-        <h2 className="text-lg font-semibold">{t("admin.invites.title")}</h2>
-      </div>
-      <p className="text-muted-foreground mt-1 text-sm">
-        {t("admin.invites.description")}
-      </p>
-
-      <div className="mt-4 flex flex-wrap items-center gap-2">
-        <span className="text-sm font-medium">
-          {t("admin.invites.createLabel")}
-        </span>
-        {TTL_CHOICES.map((days) => (
-          <Button
-            key={days}
-            type="button"
-            variant="outline"
-            size="sm"
-            disabled={create.isPending}
-            onClick={() => create.mutate(days)}
-            data-testid={`admin-invites-create-${days}`}
-          >
-            {create.isPending ? (
-              <Loader2
-                className="h-4 w-4 animate-spin motion-reduce:animate-none"
-                aria-hidden="true"
-              />
-            ) : null}
-            {t("admin.invites.createDays", { days })}
-          </Button>
-        ))}
-      </div>
-
-      {minted && (
-        <div
-          className="border-border bg-background mt-4 space-y-3 rounded-lg border p-4"
-          data-testid="admin-invites-minted"
-        >
-          <p className="text-sm font-medium">{t("admin.invites.tokenTitle")}</p>
-          <p className="text-muted-foreground text-xs">
-            {t("admin.invites.tokenOnceHint")}
-          </p>
-          <p className="bg-muted overflow-x-auto rounded-md p-2 font-mono text-xs break-all">
-            {minted.url}
-          </p>
-          <div className="flex flex-wrap items-start gap-4">
-            {/* eslint-disable-next-line @next/next/no-img-element -- data-URL QR, no remote loader involved */}
-            <img
-              src={minted.qrDataUrl}
-              alt={t("admin.invites.qrAlt")}
-              width={160}
-              height={160}
-              className="rounded-md bg-white p-2"
-            />
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => copyUrl(minted.url)}
-            >
-              <Copy className="h-4 w-4" aria-hidden="true" />
-              {t("admin.invites.copyLink")}
-            </Button>
+      {/* Header — copy left, the one action right. */}
+      <div className="flex flex-col gap-4 p-4 sm:flex-row sm:items-start sm:justify-between sm:p-6">
+        <div className="min-w-0">
+          <div className="flex items-center gap-2">
+            <Ticket className="text-primary h-5 w-5" aria-hidden="true" />
+            <h2 id="admin-invites-title" className="text-lg font-semibold">
+              {t("admin.invites.title")}
+            </h2>
           </div>
+          <p className="text-muted-foreground mt-1 text-sm">
+            {t("admin.invites.description")}
+          </p>
+          <p className="text-muted-foreground/80 mt-1 flex items-center gap-1.5 text-xs">
+            <ShieldCheck className="size-3.5 shrink-0" aria-hidden="true" />
+            {t("admin.invites.adminOnlyHint")}
+          </p>
+        </div>
+        <Button
+          type="button"
+          onClick={openCreateDialog}
+          data-testid="admin-invites-open-create"
+          className="shrink-0"
+        >
+          <Plus className="size-4" aria-hidden="true" />
+          {t("admin.invites.create")}
+        </Button>
+      </div>
+
+      {isError && (
+        <p className="text-destructive px-4 pb-4 text-sm sm:px-6">
+          {t("admin.invites.loadError")}
+        </p>
+      )}
+
+      {invites && invites.length === 0 && (
+        <div className="px-4 pb-4 sm:px-6 sm:pb-6">
+          <EmptyState
+            icon={<Ticket className="size-6" aria-hidden="true" />}
+            title={t("admin.invites.emptyTitle")}
+            description={t("admin.invites.emptyDescription")}
+            action={
+              <Button type="button" variant="outline" onClick={openCreateDialog}>
+                <Plus className="size-4" aria-hidden="true" />
+                {t("admin.invites.create")}
+              </Button>
+            }
+          />
         </div>
       )}
 
-      <div className="mt-6 space-y-2">
-        {isError && (
-          <p className="text-destructive text-sm">
-            {t("admin.invites.loadError")}
-          </p>
-        )}
-        {invites && invites.length === 0 && (
-          <p className="text-muted-foreground text-sm">
-            {t("admin.invites.listEmpty")}
-          </p>
-        )}
-        {invites?.map((invite) => {
-          const status = deriveStatus(invite, now);
-          // Literal keys so the i18n call-site coverage guard sees them.
-          const statusLabel =
-            status === "active"
-              ? t("admin.invites.statusActive")
-              : status === "expired"
-                ? t("admin.invites.statusExpired")
-                : t("admin.invites.statusExhausted");
-          return (
-            <div
-              key={invite.id}
-              className="border-border flex flex-wrap items-center justify-between gap-2 rounded-lg border p-3"
-            >
-              <div className="min-w-0 space-y-0.5">
-                <div className="flex flex-wrap items-center gap-2 text-sm">
-                  <Badge
-                    variant={status === "active" ? "default" : "secondary"}
-                  >
-                    {statusLabel}
-                  </Badge>
-                  <span className="text-muted-foreground text-xs">
-                    {t("admin.invites.expires", {
-                      date: formatDate(invite.expiresAt),
-                    })}
-                  </span>
-                  <span className="text-muted-foreground text-xs tabular-nums">
-                    {t("admin.invites.uses", {
-                      used: invite.uses,
-                      max: invite.maxUses,
-                    })}
-                  </span>
-                </div>
-                <p className="text-muted-foreground text-xs">
-                  {t("admin.invites.createdMeta", {
-                    date: formatDate(invite.createdAt),
-                    by: invite.creator?.username ?? "—",
-                  })}
-                  {invite.consumer
-                    ? ` · ${t("admin.invites.usedBy", {
-                        username: invite.consumer.username,
-                      })}`
-                    : ""}
-                </p>
-              </div>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="text-destructive"
-                aria-label={t("admin.invites.deleteAria")}
-                disabled={remove.isPending}
-                onClick={() => setDeleteTarget(invite)}
-              >
-                <Trash2 className="h-4 w-4" aria-hidden="true" />
-              </Button>
-            </div>
-          );
-        })}
-      </div>
+      {invites && invites.length > 0 && (
+        <>
+          {/* Desktop table (md+) */}
+          <div className="hidden px-2 pb-2 md:block">
+            <Table data-testid="admin-invites-table">
+              <TableHeader>
+                <TableRow className="hover:bg-transparent">
+                  <TableHead>{t("admin.invites.colStatus")}</TableHead>
+                  <TableHead>{t("admin.invites.colCreated")}</TableHead>
+                  <TableHead>{t("admin.invites.colExpires")}</TableHead>
+                  <TableHead className="text-right">
+                    {t("admin.invites.colUses")}
+                  </TableHead>
+                  <TableHead>{t("admin.invites.colRedeemedBy")}</TableHead>
+                  <TableHead className="text-right">
+                    <span className="sr-only">
+                      {t("admin.invites.colActions")}
+                    </span>
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {invites.map((invite) => {
+                  const status = deriveInviteStatus(invite, now);
+                  const relative = expiryRelative(invite, status);
+                  return (
+                    <TableRow
+                      key={invite.id}
+                      data-testid="admin-invite-row"
+                      className={cn(
+                        status !== "active" && "text-muted-foreground",
+                      )}
+                    >
+                      <TableCell>
+                        <StatusChip
+                          status={status}
+                          label={statusLabel(status)}
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <div className="leading-tight">
+                          <div className="text-sm tabular-nums">
+                            {formatDate(invite.createdAt)}
+                          </div>
+                          <div className="text-muted-foreground text-xs">
+                            {t("admin.invites.byCreator", {
+                              by: invite.creator?.username ?? "—",
+                            })}
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="leading-tight">
+                          <div className="text-sm tabular-nums">
+                            {relative !== "—"
+                              ? relative
+                              : formatDate(invite.expiresAt)}
+                          </div>
+                          {relative !== "—" && (
+                            <div className="text-muted-foreground text-xs tabular-nums">
+                              {formatDate(invite.expiresAt)}
+                            </div>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-right text-sm tabular-nums">
+                        {invite.uses}
+                        <span className="text-muted-foreground">
+                          {" "}
+                          / {invite.maxUses}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        <RedemptionsCell
+                          invite={invite}
+                          summary={redemptionSummary(invite)}
+                        />
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {status === "active" && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="text-dracula-red hover:text-dracula-red"
+                            aria-label={t("admin.invites.revokeAria")}
+                            disabled={revoke.isPending}
+                            onClick={() => setRevokeTarget(invite)}
+                            data-testid="admin-invite-revoke"
+                          >
+                            <Ban className="size-4" aria-hidden="true" />
+                            {t("admin.invites.revoke")}
+                          </Button>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </div>
 
-      <AlertDialog
-        open={deleteTarget !== null}
+          {/* Mobile cards (<md) */}
+          <ul className="space-y-2 px-4 pb-4 md:hidden">
+            {invites.map((invite) => {
+              const status = deriveInviteStatus(invite, now);
+              const relative = expiryRelative(invite, status);
+              return (
+                <li
+                  key={invite.id}
+                  className="border-border rounded-lg border p-3"
+                  data-testid="admin-invite-row"
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <StatusChip status={status} label={statusLabel(status)} />
+                    <span className="text-sm tabular-nums">
+                      {invite.uses}
+                      <span className="text-muted-foreground">
+                        {" "}
+                        / {invite.maxUses}
+                      </span>
+                    </span>
+                  </div>
+                  <dl className="text-muted-foreground mt-2 space-y-1 text-xs">
+                    <div className="flex justify-between gap-2">
+                      <dt>{t("admin.invites.colCreated")}</dt>
+                      <dd className="text-right tabular-nums">
+                        {formatDate(invite.createdAt)}
+                      </dd>
+                    </div>
+                    <div className="flex justify-between gap-2">
+                      <dt>{t("admin.invites.colExpires")}</dt>
+                      <dd className="text-right tabular-nums">
+                        {relative !== "—" ? `${relative} · ` : ""}
+                        {formatDate(invite.expiresAt)}
+                      </dd>
+                    </div>
+                    {invite.redemptions.length > 0 && (
+                      <div className="flex justify-between gap-2">
+                        <dt>{t("admin.invites.colRedeemedBy")}</dt>
+                        <dd className="text-foreground text-right">
+                          {redemptionSummary(invite)}
+                        </dd>
+                      </div>
+                    )}
+                  </dl>
+                  {status === "active" && (
+                    <div className="mt-2 flex justify-end">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="text-dracula-red hover:text-dracula-red"
+                        disabled={revoke.isPending}
+                        onClick={() => setRevokeTarget(invite)}
+                      >
+                        <Ban className="size-4" aria-hidden="true" />
+                        {t("admin.invites.revoke")}
+                      </Button>
+                    </div>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        </>
+      )}
+
+      {/* Create dialog — selection first, then the one-time ticket. */}
+      <Dialog
+        open={createOpen}
         onOpenChange={(open) => {
-          if (!open) setDeleteTarget(null);
+          setCreateOpen(open);
+          if (!open) setMinted(null);
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          {minted === null ? (
+            <>
+              <DialogHeader>
+                <DialogTitle>{t("admin.invites.createTitle")}</DialogTitle>
+                <DialogDescription>
+                  {t("admin.invites.createDescription")}
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-5">
+                <fieldset>
+                  <legend className="text-sm font-medium">
+                    {t("admin.invites.ttlLegend")}
+                  </legend>
+                  <div className="mt-2 grid grid-cols-3 gap-2" role="radiogroup">
+                    {TTL_CHOICES.map((days) => (
+                      <button
+                        key={days}
+                        type="button"
+                        role="radio"
+                        aria-checked={ttlDays === days}
+                        onClick={() => setTtlDays(days)}
+                        data-testid={`admin-invites-ttl-${days}`}
+                        className={cn(
+                          "min-h-11 rounded-lg border px-3 py-2 text-sm font-medium transition-colors",
+                          ttlDays === days
+                            ? "border-dracula-purple/50 bg-dracula-purple/10 text-dracula-purple"
+                            : "border-border text-foreground hover:bg-accent",
+                        )}
+                      >
+                        {t("admin.invites.createDays", { days })}
+                      </button>
+                    ))}
+                  </div>
+                </fieldset>
+                <div className="space-y-1.5">
+                  <Label htmlFor="admin-invites-max-uses">
+                    {t("admin.invites.maxUsesLabel")}
+                  </Label>
+                  <Input
+                    id="admin-invites-max-uses"
+                    type="number"
+                    inputMode="numeric"
+                    min={1}
+                    max={MAX_USES_CAP}
+                    value={maxUses}
+                    onChange={(e) => setMaxUses(e.target.value)}
+                    className="w-24 tabular-nums"
+                    data-testid="admin-invites-max-uses"
+                  />
+                  <p className="text-muted-foreground text-xs">
+                    {t("admin.invites.maxUsesHint")}
+                  </p>
+                </div>
+              </div>
+              <DialogFooter>
+                <Button
+                  type="button"
+                  disabled={create.isPending}
+                  onClick={submitCreate}
+                  data-testid="admin-invites-submit-create"
+                >
+                  {create.isPending ? (
+                    <Loader2
+                      className="size-4 animate-spin motion-reduce:animate-none"
+                      aria-hidden="true"
+                    />
+                  ) : (
+                    <Ticket className="size-4" aria-hidden="true" />
+                  )}
+                  {t("admin.invites.createConfirm")}
+                </Button>
+              </DialogFooter>
+            </>
+          ) : (
+            <>
+              <DialogHeader>
+                <DialogTitle>{t("admin.invites.tokenTitle")}</DialogTitle>
+                <DialogDescription>
+                  {t("admin.invites.tokenOnceHint")}
+                </DialogDescription>
+              </DialogHeader>
+              {/* The ticket — dashed edge marks the one-time nature. */}
+              <div
+                className="border-dracula-purple/40 bg-background rounded-xl border border-dashed p-4"
+                data-testid="admin-invites-minted"
+              >
+                <div className="flex flex-col items-center gap-4">
+                  {/* eslint-disable-next-line @next/next/no-img-element -- data-URL QR, no remote loader involved */}
+                  <img
+                    src={minted.qrDataUrl}
+                    alt={t("admin.invites.qrAlt")}
+                    width={176}
+                    height={176}
+                    className="rounded-lg bg-white p-2"
+                  />
+                  <p className="bg-muted w-full overflow-x-auto rounded-md p-2 text-center font-mono text-xs break-all select-all">
+                    {minted.url}
+                  </p>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full"
+                    onClick={() => copyUrl(minted.url)}
+                    data-testid="admin-invites-copy"
+                  >
+                    {copied ? (
+                      <Check
+                        className="text-dracula-green size-4"
+                        aria-hidden="true"
+                      />
+                    ) : (
+                      <Copy className="size-4" aria-hidden="true" />
+                    )}
+                    {t("admin.invites.copyLink")}
+                  </Button>
+                </div>
+              </div>
+              <p className="text-muted-foreground text-xs">
+                {t("admin.invites.hashExplainer")}
+              </p>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Revoke confirmation */}
+      <AlertDialog
+        open={revokeTarget !== null}
+        onOpenChange={(open) => {
+          if (!open) setRevokeTarget(null);
         }}
       >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
-              {t("admin.invites.deleteConfirmTitle")}
+              {t("admin.invites.revokeConfirmTitle")}
             </AlertDialogTitle>
             <AlertDialogDescription>
-              {t("admin.invites.deleteConfirmBody")}
+              {t("admin.invites.revokeConfirmBody")}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>{t("admin.invites.cancel")}</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => {
-                if (deleteTarget) remove.mutate(deleteTarget.id);
-                setDeleteTarget(null);
+                if (revokeTarget) revoke.mutate(revokeTarget.id);
+                setRevokeTarget(null);
               }}
             >
-              {t("admin.invites.deleteConfirmAction")}
+              {t("admin.invites.revokeConfirmAction")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
+    </section>
+  );
+}
+
+/**
+ * "Redeemed by" cell: single redeemer renders inline; multiple open a
+ * popover listing every redemption with username, email, and timestamp
+ * (the `InviteRedemption` ledger — `usedBy` alone only knows the last).
+ */
+function RedemptionsCell({
+  invite,
+  summary,
+}: {
+  invite: AdminInvite;
+  summary: string;
+}) {
+  const { t } = useTranslations();
+  if (invite.redemptions.length === 0) {
+    return <span className="text-muted-foreground text-sm">—</span>;
+  }
+  if (invite.redemptions.length === 1) {
+    const entry = invite.redemptions[0];
+    return (
+      <div className="leading-tight">
+        <div className="text-sm">
+          {entry.user?.username ?? t("admin.invites.redeemerDeleted")}
+        </div>
+        <div className="text-muted-foreground text-xs tabular-nums">
+          {formatDateTime(entry.redeemedAt)}
+        </div>
+      </div>
+    );
+  }
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          className="hover:text-foreground inline-flex min-h-11 items-center gap-1.5 text-sm underline-offset-4 hover:underline"
+          data-testid="admin-invite-redemptions-trigger"
+        >
+          <Users className="size-3.5" aria-hidden="true" />
+          {summary}
+        </button>
+      </PopoverTrigger>
+      <PopoverContent align="start" className="w-72">
+        <p className="text-sm font-medium">
+          {t("admin.invites.redemptionsTitle", {
+            count: invite.redemptions.length,
+          })}
+        </p>
+        <ul className="mt-2 space-y-2">
+          {invite.redemptions.map((entry) => (
+            <li key={entry.id} className="text-sm leading-tight">
+              <div>
+                {entry.user?.username ?? t("admin.invites.redeemerDeleted")}
+                {entry.user?.email && (
+                  <span className="text-muted-foreground">
+                    {" "}
+                    · {entry.user.email}
+                  </span>
+                )}
+              </div>
+              <div className="text-muted-foreground text-xs tabular-nums">
+                {formatDateTime(entry.redeemedAt)}
+              </div>
+            </li>
+          ))}
+        </ul>
+      </PopoverContent>
+    </Popover>
   );
 }

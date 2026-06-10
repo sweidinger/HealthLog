@@ -64,7 +64,7 @@ import {
 } from "@/lib/ai/coach/budget";
 import { detectRefusal } from "@/lib/ai/coach/refusal";
 import { getCoachSystemPrompt } from "@/lib/ai/coach/system-prompt";
-import { getAboutMeForUser } from "@/lib/ai/coach/about-me";
+import { getSelfContextTextForUser } from "@/lib/ai/coach/about-me";
 import { buildCoachSnapshot } from "@/lib/ai/coach/snapshot";
 import { parseKeyValuesSentinel } from "@/lib/ai/coach/keyvalues";
 import { parseCoachPrefs } from "@/lib/validations/coach-prefs";
@@ -318,7 +318,9 @@ async function handleChatRequest(request: NextRequest): Promise<Response> {
   // AI) rides the system prompt as a delimited, user-provided context
   // block. Fail-open: a missing / undecryptable text yields null and the
   // prompt is byte-identical to the pre-feature one.
-  const aboutMe = await getAboutMeForUser(userId);
+  // v1.16.0 — composed self-context: structured questionnaire fields
+  // plus age/gender merged in from the User profile.
+  const aboutMe = await getSelfContextTextForUser(userId, locale);
   const systemPrompt = getCoachSystemPrompt(locale, coachPrefs, aboutMe);
   const allTurns: CoachTurn[] = [
     ...priorTurns,

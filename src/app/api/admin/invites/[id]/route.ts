@@ -1,11 +1,14 @@
 /**
  * DELETE /api/admin/invites/{id} — revoke a registration invite.
  *
- * v1.15.20 — hard delete: an invite row carries no health data and no
- * plaintext secret, and the audit log already records mint + revoke, so
- * keeping a tombstone would only grow the table. Idempotent — deleting
- * an unknown id returns `{ deleted: false }` rather than 404 so a
- * double-tap in the admin UI never surfaces an error.
+ * v1.16.0 — soft revocation (`revokedAt`), replacing the v1.15.20 hard
+ * delete: the admin table now renders redemption history per invite,
+ * and a deleted row would erase who was admitted through it. The
+ * consume path refuses a revoked invite like an expired one.
+ *
+ * Idempotent — revoking an unknown or already-revoked id returns
+ * `{ revoked: false }` rather than 404 so a double-tap in the admin UI
+ * never surfaces an error.
  */
 import { prisma } from "@/lib/db";
 import { apiHandler, requireAdmin } from "@/lib/api-handler";
@@ -20,11 +23,14 @@ export const DELETE = apiHandler(
     const { user } = await requireAdmin();
     const { id } = await params;
 
-    const { count } = await prisma.inviteToken.deleteMany({ where: { id } });
-    const deleted = count > 0;
+    const { count } = await prisma.inviteToken.updateMany({
+      where: { id, revokedAt: null },
+      data: { revokedAt: new Date() },
+    });
+    const revoked = count > 0;
 
-    if (deleted) {
-      await auditLog("admin.invite.deleted", {
+    if (revoked) {
+      await auditLog("admin.invite.revoked", {
         userId: user.id,
         ipAddress: getClientIp(req),
         details: { inviteId: id },
@@ -32,10 +38,10 @@ export const DELETE = apiHandler(
     }
 
     annotate({
-      action: { name: "admin.invite.deleted" },
-      meta: { deleted },
+      action: { name: "admin.invite.revoked" },
+      meta: { revoked },
     });
 
-    return apiSuccess({ deleted });
+    return apiSuccess({ revoked });
   },
 );

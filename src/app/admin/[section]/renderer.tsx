@@ -139,12 +139,19 @@ export function AdminSectionRenderer({
           title={t("admin.section.users.title")}
           subtitle={t("admin.section.users.subtitle")}
         >
-          <div className="space-y-6">
-            <UserManagementSection />
-            {/* v1.15.20 — registration invites live with the accounts
-                they admit. */}
-            <InviteTokensSection />
-          </div>
+          <UserManagementSection />
+        </SectionFrame>
+      );
+    case "invites":
+      // v1.16.0 — invites moved out of Users into their own section:
+      // the full table (status, redemptions, revocation) is a workflow
+      // of its own and was drowning under the account list.
+      return (
+        <SectionFrame
+          title={t("admin.section.invites.title")}
+          subtitle={t("admin.section.invites.subtitle")}
+        >
+          <InviteTokensSection />
         </SectionFrame>
       );
     case "api-tokens":

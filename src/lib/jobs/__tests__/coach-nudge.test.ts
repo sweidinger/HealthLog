@@ -21,6 +21,7 @@ import {
   evaluateBpTrigger,
   evaluateComplianceTrigger,
   evaluateScoreTrigger,
+  evaluateSelfContextTrigger,
 } from "../coach-nudge";
 
 function dose(taken: boolean, skipped = false) {
@@ -137,10 +138,77 @@ describe("buildCoachNudgePayload", () => {
 
   it("produces a distinct payload per trigger", () => {
     const titles = new Set(
-      (["compliance", "bp", "score"] as const).map(
+      (["compliance", "bp", "score", "selfContext"] as const).map(
         (trigger) => buildCoachNudgePayload(trigger, "en").title,
       ),
     );
-    expect(titles.size).toBe(3);
+    expect(titles.size).toBe(4);
+  });
+});
+
+describe("evaluateSelfContextTrigger", () => {
+  const now = new Date("2026-06-10T05:15:00Z");
+  const daysAgo = (days: number) =>
+    new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
+  const fullProfile = (updatedAt: Date) => ({
+    hasAboutMe: true,
+    hasConditions: true,
+    hasAllergies: true,
+    hasCoachFocus: true,
+    updatedAt,
+  });
+
+  it("never fires without recent Coach activity", () => {
+    expect(
+      evaluateSelfContextTrigger(
+        { profile: null, lastCoachUseAt: null },
+        now,
+      ),
+    ).toBe(false);
+    expect(
+      evaluateSelfContextTrigger(
+        { profile: null, lastCoachUseAt: daysAgo(15) },
+        now,
+      ),
+    ).toBe(false);
+  });
+
+  it("fires for an active user with no profile at all", () => {
+    expect(
+      evaluateSelfContextTrigger(
+        { profile: null, lastCoachUseAt: daysAgo(2) },
+        now,
+      ),
+    ).toBe(true);
+  });
+
+  it("fires for an incomplete profile", () => {
+    expect(
+      evaluateSelfContextTrigger(
+        {
+          profile: { ...fullProfile(daysAgo(1)), hasAllergies: false },
+          lastCoachUseAt: daysAgo(2),
+        },
+        now,
+      ),
+    ).toBe(true);
+  });
+
+  it("fires for a complete-but-stale profile (60+ days)", () => {
+    expect(
+      evaluateSelfContextTrigger(
+        { profile: fullProfile(daysAgo(61)), lastCoachUseAt: daysAgo(2) },
+        now,
+      ),
+    ).toBe(true);
+  });
+
+  it("stays silent for a complete, fresh profile", () => {
+    expect(
+      evaluateSelfContextTrigger(
+        { profile: fullProfile(daysAgo(10)), lastCoachUseAt: daysAgo(2) },
+        now,
+      ),
+    ).toBe(false);
   });
 });
