@@ -358,6 +358,106 @@ describe("PUT — v1.15.18 band re-attribution", () => {
     expect((created?.scheduledFor as Date).getTime()).toBe(at(19, 0).getTime());
   });
 
+  it("422s an edited takenAt before the medication's start date (P0-4)", async () => {
+    // Use fixed wall-clock so the schema's "not in the future / within 5
+    // years" bounds hold regardless of when the suite runs.
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-06-10T12:00:00Z"));
+    try {
+      vi.mocked(prisma.medication.findFirst).mockResolvedValue({
+        id: "m1",
+        startsOn: new Date("2026-06-01T00:00:00Z"),
+        endsOn: null,
+        oneShot: false,
+        createdAt: new Date("2026-01-01T00:00:00Z"),
+        schedules: [],
+      } as never);
+      vi.mocked(prisma.medicationIntakeEvent.findFirst).mockResolvedValue({
+        id: "e1",
+        userId: "user-1",
+        medicationId: "m1",
+        scheduledFor: at(7, 0),
+        takenAt: at(7, 5),
+        skipped: false,
+      } as never);
+
+      const res = await PUT(
+        putReq({ takenAt: "2026-05-15T10:00:00+02:00" }),
+        ROUTE_CTX,
+      );
+      expect(res.status).toBe(422);
+      const body = (await res.json()) as { error: string };
+      expect(body.error).toContain("start date");
+      // The guard fires before any write.
+      expect(prisma.medicationIntakeEvent.update).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("does not false-reject a takenAt in the early hours of the start day (tz day-key)", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-06-10T12:00:00Z"));
+    try {
+      // startsOn 2026-06-01; the edit is 00:30 local Berlin on the start day,
+      // which is 2026-05-31T22:30Z — a naive UTC compare would reject it.
+      vi.mocked(prisma.medication.findFirst).mockResolvedValue({
+        id: "m1",
+        startsOn: new Date("2026-06-01T00:00:00Z"),
+        endsOn: null,
+        oneShot: false,
+        createdAt: new Date("2026-01-01T00:00:00Z"),
+        schedules: [
+          {
+            id: "s1",
+            windowStart: "07:00",
+            windowEnd: "07:00",
+            daysOfWeek: null,
+            timesOfDay: ["07:00", "19:00"],
+            reminderGraceMinutes: null,
+            rrule: null,
+            rollingIntervalDays: null,
+            scheduleType: "SCHEDULED",
+            cyclicOnWeeks: null,
+            cyclicOffWeeks: null,
+          },
+        ],
+      } as never);
+      vi.mocked(prisma.medicationIntakeEvent.findFirst)
+        .mockResolvedValueOnce({
+          id: "e1",
+          userId: "user-1",
+          medicationId: "m1",
+          scheduledFor: at(7, 0),
+          takenAt: at(7, 5),
+          skipped: false,
+        } as never)
+        .mockResolvedValue(null as never);
+      vi.mocked(prisma.medicationIntakeEvent.findMany).mockResolvedValue(
+        [] as never,
+      );
+      vi.mocked(prisma.medicationIntakeEvent.update).mockResolvedValue(
+        {} as never,
+      );
+      vi.mocked(prisma.medicationIntakeEvent.create).mockResolvedValue({
+        id: "e2",
+        userId: "user-1",
+        medicationId: "m1",
+        scheduledFor: new Date("2026-05-31T22:30:00Z"),
+        takenAt: new Date("2026-05-31T22:30:00Z"),
+        skipped: false,
+      } as never);
+
+      const res = await PUT(
+        putReq({ takenAt: "2026-06-01T00:30:00+02:00" }),
+        ROUTE_CTX,
+      );
+      expect(res.status).toBe(200);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("422s a forceSlotInstant that is not a real slot", async () => {
     vi.mocked(prisma.medicationIntakeEvent.findFirst).mockResolvedValue({
       id: "e1",

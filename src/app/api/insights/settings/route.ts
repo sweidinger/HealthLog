@@ -42,8 +42,9 @@ export const GET = apiHandler(async () => {
 export const PUT = apiHandler(async (request: NextRequest) => {
   const { user } = await requireAuth();
 
-  const { data: body, error: jsonError } =
-    await safeJson<Record<string, unknown>>(request);
+  const { data: body, error: jsonError } = await safeJson<
+    Record<string, unknown>
+  >(request, { maxBytes: 64 * 1024 });
   if (jsonError) return jsonError;
 
   const data: Record<string, unknown> = {};

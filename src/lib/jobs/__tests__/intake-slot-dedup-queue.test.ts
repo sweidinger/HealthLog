@@ -35,12 +35,47 @@ describe("reminder-worker — intake-slot-dedup wiring", () => {
   });
 
   it("registers a boss.work handler against the intake-slot-dedup queue", () => {
+    // v1.15.19 — span widened from {0,400}: the handler gained the daily
+    // cron-tick dispatch branch (no `userId` → discovery fan-out) between
+    // the queue name and the per-user dedup call.
     expect(source).toMatch(
-      /boss\.work[\s\S]{0,200}INTAKE_SLOT_DEDUP_QUEUE[\s\S]{0,400}dedupeUserIntakeSlots/,
+      /boss\.work[\s\S]{0,200}INTAKE_SLOT_DEDUP_QUEUE[\s\S]{0,1200}dedupeUserIntakeSlots/,
     );
   });
 
   it("fires the boot-discovery enqueue helper", () => {
     expect(source).toMatch(/await enqueueBootTimeIntakeSlotDedup\(\)/);
+  });
+
+  // v1.15.19 — the boot-only pass left duplicates created between deploys
+  // standing until the next worker restart. The queue now also carries a
+  // daily cron tick whose empty payload (no `userId`) dispatches the same
+  // discovery fan-out.
+  it("declares a daily cron inside the 03:xx maintenance window", () => {
+    const cronMatch = source.match(
+      /const INTAKE_SLOT_DEDUP_CRON\s*=\s*["']([^"']+)["']/,
+    );
+    expect(cronMatch).not.toBeNull();
+    // Five-field cron, daily (day-of-month/month/day-of-week all `*`),
+    // inside the 03:xx maintenance window.
+    expect(cronMatch![1]).toMatch(/^\d{1,2} 3 \* \* \*$/);
+  });
+
+  it("registers the cron in the schedules table", () => {
+    const schedulesMatch = source.match(
+      /const schedules:\s*\[string, string\]\[\]\s*=\s*\[([\s\S]*?)\n  \];/,
+    );
+    expect(schedulesMatch).not.toBeNull();
+    expect(schedulesMatch![1]).toMatch(
+      /\[INTAKE_SLOT_DEDUP_QUEUE,\s*INTAKE_SLOT_DEDUP_CRON\]/,
+    );
+  });
+
+  it("dispatches a payload without userId to the discovery fan-out", () => {
+    // The handler must branch on the missing `userId` BEFORE the per-user
+    // dedup call, and the branch must run the discovery helper.
+    expect(source).toMatch(
+      /INTAKE_SLOT_DEDUP_QUEUE[\s\S]{0,800}if \(!userId\) \{[\s\S]{0,400}enqueueBootTimeIntakeSlotDedup\(\)/,
+    );
   });
 });

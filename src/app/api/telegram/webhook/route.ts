@@ -684,7 +684,13 @@ export const POST = apiHandler(async (request: NextRequest) => {
 
   let update: TelegramUpdate;
   try {
-    update = (await request.json()) as TelegramUpdate;
+    const raw = await request.text();
+    if (raw.length > 256 * 1024) {
+      // Oversized payload — acknowledge with 200 like invalid JSON so the
+      // sender does not retry-loop the update.
+      return NextResponse.json({ status: "invalid json" }, { status: 200 });
+    }
+    update = JSON.parse(raw) as TelegramUpdate;
   } catch {
     return NextResponse.json({ status: "invalid json" }, { status: 200 });
   }

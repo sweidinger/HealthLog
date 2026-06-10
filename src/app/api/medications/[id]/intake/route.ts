@@ -44,7 +44,9 @@ async function postIntake(request: NextRequest, { params }: RouteParams) {
   const guard = await assertMedicationOwnership(id, user.id);
   if (guard) return guard;
 
-  const { data: body, error: jsonError } = await safeJson(request);
+  const { data: body, error: jsonError } = await safeJson(request, {
+    maxBytes: 64 * 1024,
+  });
 
   if (jsonError) return jsonError;
   const parsed = intakeSchema.safeParse({
@@ -126,9 +128,13 @@ async function postIntake(request: NextRequest, { params }: RouteParams) {
         action: { name: "medication.intake.injection_site.disallowed" },
         meta: { medication_id: id, site: resolution.site },
       });
-      return apiError("Injection site is not allowed for this medication", 422, {
-        errorCode: "medications.intake.injection_site.disallowed",
-      });
+      return apiError(
+        "Injection site is not allowed for this medication",
+        422,
+        {
+          errorCode: "medications.intake.injection_site.disallowed",
+        },
+      );
     }
     resolvedInjectionSite = resolution.site;
   }
@@ -269,33 +275,82 @@ async function postIntake(request: NextRequest, { params }: RouteParams) {
       });
     }
   } else {
-    // Unscheduled / PRN / off-slot — keep the original insert behaviour.
-    [event] = await prisma.$transaction([
-      prisma.medicationIntakeEvent.create({
-        data: {
-          userId: user.id,
-          medicationId: id,
-          scheduledFor: incomingScheduledFor,
-          takenAt: resolvedTakenAt,
-          skipped,
-          source: "WEB",
-          idempotencyKey: idempotencyKey ?? null,
-          // v1.8.5 — site only on a resolved taken-injection write.
-          ...(resolvedInjectionSite !== null && {
-            injectionSite: resolvedInjectionSite,
-          }),
-        },
-      }),
-      // Reset snooze when medication is taken
-      ...(!skipped
-        ? [
-            prisma.medication.update({
-              where: { id },
-              data: { snoozedUntil: null },
+    // Unscheduled / PRN / off-slot. When the client named an explicit
+    // `scheduledFor`, converge source-agnostically onto any live row that
+    // already sits on that instant (e.g. the pending REMINDER row the
+    // worker minted on a slot the band attribution did not claim) before
+    // inserting. Without the probe the insert lands a second live row for
+    // the same slot that differs only by `source` — the partial unique
+    // index carries `source` and cannot catch it — inflating the
+    // compliance rollup's scheduled count. A defaulted anchor (takenAt /
+    // now) never names a slot, so the probe is skipped on that hot path.
+    const existingSlotRow =
+      scheduledFor !== undefined
+        ? await prisma.medicationIntakeEvent.findFirst({
+            where: {
+              userId: user.id,
+              medicationId: id,
+              scheduledFor: incomingScheduledFor,
+              deletedAt: null,
+            },
+            select: { id: true },
+          })
+        : null;
+    if (existingSlotRow) {
+      const applied = await applyCanonicalSlotWrite({
+        client: prisma,
+        userId: user.id,
+        medicationId: id,
+        canonicalSlot: incomingScheduledFor,
+        takenAt: resolvedTakenAt,
+        skipped,
+        isExplicitTaken,
+        isExplicitSkip,
+        idempotencyKey: idempotencyKey ?? null,
+        createSource: "WEB",
+        injectionSite: resolvedInjectionSite,
+      });
+      event = applied.row;
+      consumedTransition = applied.consumedTransition;
+      if (!skipped && !applied.noDowngradeNoOp) {
+        await prisma.medication.update({
+          where: { id },
+          data: { snoozedUntil: null },
+        });
+      }
+    } else {
+      // Genuinely standalone. Anchor a taken write on the intake instant —
+      // the documented ad-hoc contract (`scheduledFor = takenAt`) — so an
+      // unresolvable client anchor can never park a live row exactly on a
+      // slot instant a pending REMINDER row is minted for later. A skip
+      // without a slot keeps the incoming instant (it has no takenAt).
+      [event] = await prisma.$transaction([
+        prisma.medicationIntakeEvent.create({
+          data: {
+            userId: user.id,
+            medicationId: id,
+            scheduledFor: resolvedTakenAt ?? incomingScheduledFor,
+            takenAt: resolvedTakenAt,
+            skipped,
+            source: "WEB",
+            idempotencyKey: idempotencyKey ?? null,
+            // v1.8.5 — site only on a resolved taken-injection write.
+            ...(resolvedInjectionSite !== null && {
+              injectionSite: resolvedInjectionSite,
             }),
-          ]
-        : []),
-    ]);
+          },
+        }),
+        // Reset snooze when medication is taken
+        ...(!skipped
+          ? [
+              prisma.medication.update({
+                where: { id },
+                data: { snoozedUntil: null },
+              }),
+            ]
+          : []),
+      ]);
+    }
   }
 
   // v1.4.25 W19b — pen-inventory dose decrement. Only fires for

@@ -277,7 +277,9 @@ async function buildScheduleAnchoredComplianceBuckets(
   const dayKeys: string[] = [];
   const dayBounds = new Map<string, { start: Date; end: Date }>();
   for (let i = days - 1; i >= 0; i--) {
-    const representative = new Date(nowMs - i * 86_400_000 - 12 * 60 * 60 * 1000);
+    const representative = new Date(
+      nowMs - i * 86_400_000 - 12 * 60 * 60 * 1000,
+    );
     const { start: dayStart, end: dayEndInclusive } = getUserTodayBounds(
       representative,
       userTz,
@@ -297,7 +299,12 @@ async function buildScheduleAnchoredComplianceBuckets(
   // Group events by medication so each med's engine context is built once.
   const eventsByMed = new Map<
     string,
-    { scheduledFor: Date; takenAt: Date | null; skipped: boolean; autoMissed: boolean }[]
+    {
+      scheduledFor: Date;
+      takenAt: Date | null;
+      skipped: boolean;
+      autoMissed: boolean;
+    }[]
   >();
   for (const e of events) {
     const list = eventsByMed.get(e.medicationId) ?? [];
@@ -363,7 +370,9 @@ async function buildScheduleAnchoredComplianceBuckets(
 export const POST = apiHandler(async (request: NextRequest) => {
   const { user } = await requireAuth();
 
-  const { data: body, error } = await safeJson(request);
+  const { data: body, error } = await safeJson(request, {
+    maxBytes: 64 * 1024,
+  });
   if (error) return error;
 
   const parsed = updateSchema.safeParse(body);
@@ -393,8 +402,14 @@ export const POST = apiHandler(async (request: NextRequest) => {
     return returnAllZodIssues(parsed.error, 422);
   }
 
-  const { intakeId, status, takenAt, snoozedUntil, injectionSite, forceSlotInstant } =
-    parsed.data;
+  const {
+    intakeId,
+    status,
+    takenAt,
+    snoozedUntil,
+    injectionSite,
+    forceSlotInstant,
+  } = parsed.data;
 
   // v1.7.0 sync — a tombstoned intake 404s on a status toggle; the
   // `deletedAt: null` filter refuses to mutate a soft-deleted row.
@@ -428,8 +443,8 @@ export const POST = apiHandler(async (request: NextRequest) => {
       taken: status === "taken",
       deliveryForm: existing.medication.deliveryForm,
       trackInjectionSites: existing.medication.trackInjectionSites,
-      allowedInjectionSites:
-        existing.medication.allowedInjectionSites as InjectionSiteValue[],
+      allowedInjectionSites: existing.medication
+        .allowedInjectionSites as InjectionSiteValue[],
       globalExcludedInjectionSites: (userRow?.globalExcludedInjectionSites ??
         []) as InjectionSiteValue[],
     });
@@ -438,9 +453,13 @@ export const POST = apiHandler(async (request: NextRequest) => {
         action: { name: "medication.intake.injection_site.disallowed" },
         meta: { medication_id: existing.medicationId, site: resolution.site },
       });
-      return apiError("Injection site is not allowed for this medication", 422, {
-        errorCode: "medications.intake.injection_site.disallowed",
-      });
+      return apiError(
+        "Injection site is not allowed for this medication",
+        422,
+        {
+          errorCode: "medications.intake.injection_site.disallowed",
+        },
+      );
     }
     resolvedInjectionSite = resolution.site;
   }

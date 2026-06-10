@@ -46,13 +46,16 @@ const openApiBase: Pick<
       "Server responses since v1.4.25 emit timestamps with the requesting user's display-timezone offset when a user context exists (exports, doctor-report PDF). Background-job-authored payloads (backups, admin tools) emit `Z`. " +
       "Native iOS clients should always parse via a Foundation ISO-8601 formatter with the `withInternetDateTime` + `withTimeZone` options enabled.",
     license: {
-      name: "AGPL-3.0",
+      name: "PolyForm-Noncommercial-1.0.0",
       url: "https://github.com/MBombeck/HealthLog/blob/main/LICENSE",
     },
     contact: { name: "HealthLog", url: "https://healthlog.dev" },
   },
   servers: [
-    { url: "https://healthlog.bombeck.io", description: "Production" },
+    {
+      url: "https://healthlog.example.com",
+      description: "Your self-hosted instance",
+    },
     { url: "http://localhost:3000", description: "Local dev" },
   ],
   tags: [

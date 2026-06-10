@@ -46,8 +46,10 @@ export const PATCH = apiHandler(async (request: NextRequest) => {
   const { user } = await requireAuth();
   annotate({ action: { name: "user.ai-provider.update" } });
 
-  const { data: body, error } =
-    await safeJson<Record<string, unknown>>(request);
+  const { data: body, error } = await safeJson<Record<string, unknown>>(
+    request,
+    { maxBytes: 64 * 1024 },
+  );
   if (error) return error;
 
   const updates: Record<string, unknown> = {};

@@ -4,11 +4,7 @@ import { verifyPassword } from "@/lib/auth/password";
 import { createSession } from "@/lib/auth/session";
 import { auditLog } from "@/lib/auth/audit";
 import { hashToken } from "@/lib/auth/hmac";
-import {
-  apiSuccess,
-  apiError,
-  safeJson,
-} from "@/lib/api-response";
+import { apiSuccess, apiError, safeJson } from "@/lib/api-response";
 import { checkAuthSurfaceRateLimit, rateLimitHeaders } from "@/lib/rate-limit";
 import { ensureDbCompatibility } from "@/lib/db-compat";
 import { NextRequest, NextResponse } from "next/server";
@@ -45,7 +41,9 @@ export const POST = apiHandler(async (request: NextRequest) => {
 
   await ensureDbCompatibility();
 
-  const { data: body, error: jsonError } = await safeJson(request);
+  const { data: body, error: jsonError } = await safeJson(request, {
+    maxBytes: 64 * 1024,
+  });
 
   if (jsonError) return jsonError;
   const parsed = loginPasswordSchema.safeParse(body);

@@ -9,7 +9,7 @@ import { useTranslations } from "@/lib/i18n/context";
  * v1.4.25 W9e — notice strip for AI-initial locales.
  *
  * HealthLog ships German + English as maintainer-curated translations
- * (the maintainer, Marc, owns both bodies). French, Spanish, Italian
+ * (the maintainer owns both bodies). French, Spanish, Italian
  * and Polish ship as AI-initial translations — they pass the
  * locale-integrity test (full key parity, no empty values, no TODOs)
  * but the prose has not been hand-reviewed for register, regional

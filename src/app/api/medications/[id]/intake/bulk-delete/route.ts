@@ -77,7 +77,9 @@ export const POST = apiHandler(
       });
     }
 
-    const { data: body, error: jsonError } = await safeJson(request);
+    const { data: body, error: jsonError } = await safeJson(request, {
+      maxBytes: 256 * 1024,
+    });
     if (jsonError) return jsonError;
     const parsed = bulkDeleteIntakeEventsSchema.safeParse(body);
     if (!parsed.success) {

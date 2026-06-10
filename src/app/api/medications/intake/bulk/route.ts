@@ -112,7 +112,9 @@ async function postBulk(request: NextRequest): Promise<Response> {
     return apiError("Too many bulk submissions, try again later", 429);
   }
 
-  const { data: rawBody, error: jsonError } = await safeJson(request);
+  const { data: rawBody, error: jsonError } = await safeJson(request, {
+    maxBytes: 2 * 1024 * 1024,
+  });
   if (jsonError) return jsonError;
 
   if (
@@ -207,7 +209,10 @@ async function postBulk(request: NextRequest): Promise<Response> {
   // touched by the batch so one rollup recompute fires per pair after
   // all inserts complete. Per-row recompute would balloon a 500-entry
   // batch into 500 sequential rollup hits.
-  const touchedDays = new Map<string, { medicationId: string; dayKey: string }>();
+  const touchedDays = new Map<
+    string,
+    { medicationId: string; dayKey: string }
+  >();
 
   for (let i = 0; i < entries.length; i++) {
     const entry = entries[i];
@@ -244,7 +249,10 @@ async function postBulk(request: NextRequest): Promise<Response> {
         isTakenWrite: !entry.skipped && entry.takenAt !== undefined,
       });
 
-      const scheduledFor = canonicalSlot ?? incomingScheduledFor;
+      // The `scheduledFor` instant the row actually lands on — set by the
+      // branch that performs the write so the rollup recompute below keys
+      // the same day the stored row anchors to.
+      let effectiveScheduledFor = canonicalSlot ?? incomingScheduledFor;
 
       // C2 — classify the incoming write. An offline-sync replay echoes a
       // PENDING projection (no `takenAt`, `skipped:false`) for a slot the
@@ -312,28 +320,104 @@ async function postBulk(request: NextRequest): Promise<Response> {
           results.push({ index: i, status: "inserted", id: applied.row.id });
         }
       } else {
-        // Unscheduled / PRN — insert. The idempotencyKey, when supplied,
-        // has a UNIQUE index; a re-submission returns the existing row via
-        // P2002 → status: "duplicate".
-        const row = await prisma.medicationIntakeEvent.create({
-          data: {
+        // Resolver-null: PRN / off-slot / future-slot-guarded. Before the
+        // standalone insert, two guards keep the slot from forking into a
+        // second live row:
+        //
+        //   1. idempotencyKey replay pre-check — a re-submission returns the
+        //      existing row as "duplicate" (previously reached via the P2002
+        //      catch; the explicit probe keeps that contract now that a
+        //      replay could otherwise converge as "updated" below).
+        //   2. source-agnostic convergence probe — when ANY live row already
+        //      sits on the incoming instant (e.g. the pending REMINDER row
+        //      the worker pre-minted on a slot the taken-write future guard
+        //      refused to snap to), converge onto THAT row through the shared
+        //      slot upsert instead of inserting a sibling that differs only
+        //      by `source`. The partial unique index carries `source`, so it
+        //      cannot catch this duplicate; the probe must.
+        if (entry.idempotencyKey) {
+          const replay = await prisma.medicationIntakeEvent.findUnique({
+            where: { idempotencyKey: entry.idempotencyKey },
+            select: { id: true },
+          });
+          if (replay) {
+            duplicates += 1;
+            results.push({ index: i, status: "duplicate", id: replay.id });
+            continue;
+          }
+        }
+        // Only an explicit client `scheduledFor` names a slot a row could
+        // already sit on; a defaulted anchor (takenAt / now) never does, so
+        // the probe is skipped on that path.
+        const existingSlotRow =
+          entry.scheduledFor !== undefined
+            ? await prisma.medicationIntakeEvent.findFirst({
+                where: {
+                  userId: user.id,
+                  medicationId: entry.medicationId,
+                  scheduledFor: incomingScheduledFor,
+                  deletedAt: null,
+                },
+                select: { id: true },
+              })
+            : null;
+        if (existingSlotRow) {
+          const applied = await applyCanonicalSlotWrite({
+            client: prisma,
             userId: user.id,
             medicationId: entry.medicationId,
-            scheduledFor,
+            canonicalSlot: incomingScheduledFor,
             takenAt: entry.takenAt ?? null,
             skipped: entry.skipped,
-            source: "API",
+            isExplicitTaken,
+            isExplicitSkip,
             idempotencyKey: entry.idempotencyKey ?? null,
-            // v1.8.5 — site only on a resolved taken-injection entry.
-            ...(resolvedInjectionSite !== null && {
-              injectionSite: resolvedInjectionSite,
-            }),
-          },
-        });
-        inserted += 1;
-        results.push({ index: i, status: "inserted", id: row.id });
+            createSource: "API",
+            injectionSite: resolvedInjectionSite,
+          });
+          if (applied.noDowngradeNoOp) {
+            duplicates += 1;
+            results.push({ index: i, status: "duplicate", id: applied.row.id });
+          } else if (applied.outcome === "updated") {
+            updated += 1;
+            results.push({ index: i, status: "updated", id: applied.row.id });
+          } else {
+            inserted += 1;
+            results.push({ index: i, status: "inserted", id: applied.row.id });
+          }
+        } else {
+          // Genuinely standalone. Anchor the row on the intake instant —
+          // the documented ad-hoc contract (`scheduledFor = takenAt`) — so
+          // an unresolvable client anchor (a future slot instant the taken
+          // guard rejected) can never park a live row exactly on a slot the
+          // worker later mints a pending REMINDER row for. A pending echo
+          // (no takenAt) keeps the incoming instant. The idempotencyKey,
+          // when supplied, has a UNIQUE index; a racing re-submission
+          // returns the existing row via P2002 → status: "duplicate".
+          effectiveScheduledFor = entry.takenAt ?? incomingScheduledFor;
+          const row = await prisma.medicationIntakeEvent.create({
+            data: {
+              userId: user.id,
+              medicationId: entry.medicationId,
+              scheduledFor: effectiveScheduledFor,
+              takenAt: entry.takenAt ?? null,
+              skipped: entry.skipped,
+              source: "API",
+              idempotencyKey: entry.idempotencyKey ?? null,
+              // v1.8.5 — site only on a resolved taken-injection entry.
+              ...(resolvedInjectionSite !== null && {
+                injectionSite: resolvedInjectionSite,
+              }),
+            },
+          });
+          inserted += 1;
+          results.push({ index: i, status: "inserted", id: row.id });
+        }
       }
-      const dayKey = dayKeyForScheduledFor(scheduledFor, user.timezone);
+      const dayKey = dayKeyForScheduledFor(
+        effectiveScheduledFor,
+        user.timezone,
+      );
       touchedDays.set(`${entry.medicationId}|${dayKey}`, {
         medicationId: entry.medicationId,
         dayKey,

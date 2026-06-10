@@ -44,10 +44,13 @@ export const POST = apiHandler(async (request: NextRequest) => {
   const { user } = await requireAdmin();
   annotate({ action: { name: "admin.drain.cumulative" } });
 
-  const { data: rawBody, error: jsonError } = await safeJson<DrainBody>(request);
+  const { data: rawBody, error: jsonError } = await safeJson<DrainBody>(
+    request,
+    { maxBytes: 64 * 1024 },
+  );
   if (jsonError) return jsonError;
 
-  const body: DrainBody = (rawBody && typeof rawBody === "object") ? rawBody : {};
+  const body: DrainBody = rawBody && typeof rawBody === "object" ? rawBody : {};
   const userId =
     typeof body.userId === "string" && body.userId.length > 0
       ? body.userId
@@ -88,7 +91,11 @@ export const POST = apiHandler(async (request: NextRequest) => {
     });
   }
 
-  if (summary.totals.bucketsCollapsed === 0 && summary.totals.usersScanned === 0 && userId) {
+  if (
+    summary.totals.bucketsCollapsed === 0 &&
+    summary.totals.usersScanned === 0 &&
+    userId
+  ) {
     return apiError("User not found", 404);
   }
 

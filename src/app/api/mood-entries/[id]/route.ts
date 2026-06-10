@@ -73,7 +73,9 @@ export const PUT = apiHandler(
       return apiError("Mood entry not found", 404);
     }
 
-    const { data: body, error: jsonError } = await safeJson(request);
+    const { data: body, error: jsonError } = await safeJson(request, {
+      maxBytes: 64 * 1024,
+    });
 
     if (jsonError) return jsonError;
     const parsed = updateMoodEntrySchema.safeParse(body);

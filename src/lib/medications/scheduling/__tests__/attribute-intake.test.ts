@@ -123,6 +123,80 @@ describe("attributeTakenToSlot — PRN / unscheduled", () => {
   });
 });
 
+describe("attributeTakenToSlot — weekly day-scale late tail", () => {
+  // Weekly Monday 08:00 (legacy daysOfWeek shape). DAY (2026-06-08) is a
+  // Monday, so the anchor is Monday 08:00 and the band spans Sun 08:00 →
+  // Tue 08:00 on-time plus the 4-day overdue tail to Sat 08:00.
+  const weekly = med([schedule({ daysOfWeek: "1", timesOfDay: ["08:00"] })]);
+
+  it("binds a take 3 days after the anchor to the slot as late, not ad-hoc", () => {
+    // Thursday 08:00 — inside the 4-day overdue tail, but 3 days past the
+    // anchor: a ±1-day mint range never surfaces the Monday band.
+    const takenAt = at(new Date("2026-06-11T12:00:00Z"), 8, 0);
+    const out = attributeTakenToSlot({
+      medication: weekly,
+      userTz: TZ,
+      takenAt,
+    });
+    expect(out.slotInstant?.getTime()).toBe(at(DAY, 8, 0).getTime());
+    expect(out.status).toBe("late");
+  });
+
+  it("treats a take past the overdue tail as ad-hoc (bi-weekly, +6 days)", () => {
+    // Bi-weekly Monday anchored at startsOn = Mon 2026-06-08; the next
+    // anchor (Jun 22) is two weeks out, so day +6 sits in the dead zone
+    // past the tail (Sat Jun 13 08:00) and before the next on-time band.
+    const biWeekly = med(
+      [schedule({ daysOfWeek: "i2;1", timesOfDay: ["08:00"] })],
+      { startsOn: new Date("2026-06-08T00:00:00Z") },
+    );
+    const takenAt = at(new Date("2026-06-14T12:00:00Z"), 8, 0);
+    const out = attributeTakenToSlot({
+      medication: biWeekly,
+      userTz: TZ,
+      takenAt,
+    });
+    expect(out.slotInstant).toBeNull();
+    expect(out.status).toBeNull();
+    expect(out.hasExpectedSlots).toBe(true);
+  });
+
+  it("binds a rolling take 4 days after the projected next-due as late", () => {
+    // 7-day rolling, last shot Mon Jun 1 08:00 → next due Mon Jun 8 08:00.
+    // Take Friday Jun 12 08:00: 4 days past the anchor (inside the tail,
+    // and past the half-cycle gate that emits the overdue forward slot).
+    const rolling = med([
+      schedule({ rollingIntervalDays: 7, timesOfDay: ["08:00"] }),
+    ]);
+    const lastShot = at(new Date("2026-06-01T12:00:00Z"), 8, 0);
+    const takenAt = at(new Date("2026-06-12T12:00:00Z"), 8, 0);
+    const out = attributeTakenToSlot({
+      medication: rolling,
+      userTz: TZ,
+      takenAt,
+      lastIntakeAt: lastShot,
+      intakeInstants: [lastShot],
+    });
+    expect(out.slotInstant?.getTime()).toBe(at(DAY, 8, 0).getTime());
+    expect(out.status).toBe("late");
+  });
+
+  it("binds a 3-days-late weekly take across the spring DST transition", () => {
+    // Friday 2026-03-27 08:00 CET anchor; the take lands Monday 2026-03-30
+    // 08:00 CEST — 3 days later across the Mar 29 spring-forward shift.
+    const friday = med([schedule({ daysOfWeek: "5", timesOfDay: ["08:00"] })]);
+    const anchorDay = new Date("2026-03-27T12:00:00Z");
+    const takenAt = at(new Date("2026-03-30T12:00:00Z"), 8, 0);
+    const out = attributeTakenToSlot({
+      medication: friday,
+      userTz: TZ,
+      takenAt,
+    });
+    expect(out.slotInstant?.getTime()).toBe(at(anchorDay, 8, 0).getTime());
+    expect(out.status).toBe("late");
+  });
+});
+
 describe("attributeTakenToSlot — DST correctness", () => {
   it("snaps a winter (CET) on-time take to its slot", () => {
     const winterDay = new Date("2026-01-15T12:00:00Z"); // CET

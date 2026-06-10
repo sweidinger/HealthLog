@@ -1323,8 +1323,9 @@
         "edit": {
           "dialogTitle": "Modifier la prise",
           "takenAtLabel": "Prise à",
+          "scheduledForHint": "Prévue : {dateTime}",
+          "farFromScheduledWarning": "Très éloignée de l’heure prévue — vérifiez la date.",
           "skippedLabel": "Sautée",
-          "noteLabel": "Note",
           "save": "Enregistrer",
           "cancel": "Annuler",
           "savedToast": "Prise mise à jour",

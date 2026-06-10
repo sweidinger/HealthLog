@@ -13,8 +13,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
-    // v1.4.41 — ignore Claude Code session worktrees so a mid-marathon
-    // worktree on an older commit can't poison `pnpm lint` locally.
+    // v1.4.41 — ignore local tool worktrees so a worktree on an older
+    // commit can't poison `pnpm lint` locally.
     // CI never sees this path; the rule is for the dev environment.
     ".claude/**",
     // The project-local ESLint rule plugin is CommonJS (require/module
@@ -22,11 +22,11 @@ const eslintConfig = defineConfig([
     // is not linted by the app's TypeScript ruleset.
     "eslint-plugins/**",
   ]),
-  // v1.4.41 W-PROCESS-DOCS — custom rule that flags any bare-array
+  // v1.4.41 — custom rule that flags any bare-array
   // `queryKey: [ … ]` / `mutationKey: [ … ]` declaration inside the
-  // files the queryKeys factory currently guards. Promotes the
-  // test-guard substitute from v1.4.40 W-RSC to a real ESLint rule
-  // so IDE + CI both fail fast on a factory bypass. See
+  // files the queryKeys factory currently guards. Promotes the earlier
+  // v1.4.40 test-guard substitute to a real ESLint rule so IDE + CI
+  // both fail fast on a factory bypass. See
   // `eslint-plugins/healthlog/queryKey-factory.js` for the
   // whitelist + rationale.
   {

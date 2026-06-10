@@ -56,7 +56,9 @@ export const PATCH = apiHandler(
     const existing = await loadOwnedItem(id, itemId, user.id);
     if (!existing) return apiError("Inventory item not found", 404);
 
-    const { data: body, error: jsonError } = await safeJson(request);
+    const { data: body, error: jsonError } = await safeJson(request, {
+      maxBytes: 64 * 1024,
+    });
     if (jsonError) return jsonError;
 
     const parsed = updateInventoryItemSchema.safeParse(body);

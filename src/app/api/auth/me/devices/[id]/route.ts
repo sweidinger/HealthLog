@@ -54,7 +54,9 @@ export const PATCH = apiHandler(
     const { user } = await requireAuth();
     const { id } = await context.params;
 
-    const { data: body, error: jsonError } = await safeJson(request);
+    const { data: body, error: jsonError } = await safeJson(request, {
+      maxBytes: 64 * 1024,
+    });
     if (jsonError) return jsonError;
     const parsed = devicePatchSchema.safeParse(body);
     if (!parsed.success) {
@@ -82,7 +84,9 @@ export const PATCH = apiHandler(
         entity_type: "device",
         entity_id: id,
       },
-      meta: { medication_delivery: parsed.data.medicationDelivery ?? "inherit" },
+      meta: {
+        medication_delivery: parsed.data.medicationDelivery ?? "inherit",
+      },
     });
 
     return apiSuccess({

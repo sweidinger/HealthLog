@@ -106,6 +106,21 @@ describe("POST /api/import — rate-limit guard", () => {
     expect(response.status).toBeLessThan(400);
   });
 
+  it("rejects a body over the 16 MB cap with 413 before parsing", async () => {
+    vi.mocked(checkRateLimit).mockResolvedValue({ allowed: true } as never);
+    const response = await POST(
+      new NextRequest("http://localhost/api/import", {
+        method: "POST",
+        body: JSON.stringify({
+          measurements: [],
+          pad: "x".repeat(16 * 1024 * 1024),
+        }),
+        headers: { "content-type": "application/json" },
+      }),
+    );
+    expect(response.status).toBe(413);
+  });
+
   it("returns the standard apiError envelope for invalid payloads", async () => {
     vi.mocked(checkRateLimit).mockResolvedValue({
       allowed: true,

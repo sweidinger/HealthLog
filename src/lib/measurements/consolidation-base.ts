@@ -231,6 +231,22 @@ export interface ConsolidationParams<TType extends MeasurementType> {
   }) => void;
   /** Per-user log line, COMPLETE — optional. */
   onUserComplete?: (input: { userId: string; tz: string; dryRun: boolean }) => void;
+  /**
+   * Per-day failure boundary — optional. When supplied, an error thrown
+   * while reducing / writing / recording ONE day bucket is reported here
+   * and the walk continues with the next bucket, so a single poisoned day
+   * (e.g. a unique-index collision on the mint) can no longer abort the
+   * whole global pass and strand every later user / type / day. When
+   * omitted, errors propagate exactly as before — drains whose `writeDay`
+   * classifies its own errors (and relies on the rethrow reaching pg-boss
+   * for a retry) keep their established semantics.
+   */
+  onBucketError?: (input: {
+    userId: string;
+    type: TType;
+    dateKey: string;
+    error: unknown;
+  }) => void;
 }
 
 const DEFAULT_SCAN_SELECT: Prisma.MeasurementSelect = {
@@ -245,7 +261,9 @@ const DEFAULT_SCAN_SELECT: Prisma.MeasurementSelect = {
  * Drive one consolidation pass. Walks `users → types → days`, scans live
  * source rows inside the grace window, buckets them, reduces each day,
  * and delegates the per-day mint + delete to `writeDay`. Returns the
- * number of users scanned so the caller can seed its summary totals.
+ * number of users scanned (so the caller can seed its summary totals)
+ * plus the number of day buckets absorbed by `onBucketError` (0 when the
+ * boundary is not supplied).
  *
  * Idempotency, the grace-window cutoff, and the "skip already-collapsed
  * rows" predicate are all owned here; the divergent reducer / delete /
@@ -253,11 +271,12 @@ const DEFAULT_SCAN_SELECT: Prisma.MeasurementSelect = {
  */
 export async function runConsolidation<TType extends MeasurementType>(
   params: ConsolidationParams<TType>,
-): Promise<{ usersScanned: number; dryRun: boolean }> {
+): Promise<{ usersScanned: number; dryRun: boolean; daysFailed: number }> {
   const { prismaClient, options } = params;
   const dryRun = options.dryRun ?? false;
   const cutoffAt = resolveCutoffInstant(options.cutoffHours);
   const scanSelect = params.scanSelect ?? DEFAULT_SCAN_SELECT;
+  let daysFailed = 0;
 
   const users = await loadConsolidationUsers(prismaClient, options.userId);
 
@@ -296,55 +315,68 @@ export async function runConsolidation<TType extends MeasurementType>(
       for (const [dateKey, dayRows] of byDay) {
         if (dayRows.length === 0) continue;
 
-        const reducedValue = params.reduce(dayRows);
-        const canonicalTimestamp = canonicalDailyTimestamp(dateKey, tz);
-        const externalId = params.dailyStatsExternalId(hkIdentifier, dateKey);
+        try {
+          const reducedValue = params.reduce(dayRows);
+          const canonicalTimestamp = canonicalDailyTimestamp(dateKey, tz);
+          const externalId = params.dailyStatsExternalId(hkIdentifier, dateKey);
 
-        const shouldMint = params.onBucket
-          ? await params.onBucket({
+          const shouldMint = params.onBucket
+            ? await params.onBucket({
+                prismaClient,
+                userId: user.id,
+                type,
+                dateKey,
+                dayRows,
+                reducedValue,
+                canonicalTimestamp,
+                externalId,
+              })
+            : true;
+
+          let outcome: DayWriteOutcome | null = null;
+          if (!dryRun) {
+            const sourceRowIds = dayRows.map((r) => r.id);
+            outcome = await params.writeDay({
               prismaClient,
               userId: user.id,
               type,
-              dateKey,
-              dayRows,
-              reducedValue,
-              canonicalTimestamp,
               externalId,
-            })
-          : true;
+              canonicalTimestamp,
+              reducedValue,
+              dayRows,
+              sourceRowIds,
+              shouldMint,
+            });
+          }
 
-        let outcome: DayWriteOutcome | null = null;
-        if (!dryRun) {
-          const sourceRowIds = dayRows.map((r) => r.id);
-          outcome = await params.writeDay({
-            prismaClient,
+          params.recordBucket({
             userId: user.id,
             type,
-            externalId,
-            canonicalTimestamp,
-            reducedValue,
+            dateKey,
             dayRows,
-            sourceRowIds,
+            reducedValue,
+            canonicalTimestamp,
+            externalId,
             shouldMint,
+            outcome,
+          });
+        } catch (err) {
+          // No boundary supplied → preserve the historical abort-the-run
+          // behaviour for the drains that classify errors in `writeDay`.
+          if (!params.onBucketError) throw err;
+          daysFailed += 1;
+          params.onBucketError({
+            userId: user.id,
+            type,
+            dateKey,
+            error: err,
           });
         }
-
-        params.recordBucket({
-          userId: user.id,
-          type,
-          dateKey,
-          dayRows,
-          reducedValue,
-          canonicalTimestamp,
-          externalId,
-          shouldMint,
-          outcome,
-        });
       }
     }
 
     params.onUserComplete?.({ userId: user.id, tz, dryRun });
   }
 
-  return { usersScanned: users.length, dryRun };
+  return { usersScanned: users.length, dryRun, daysFailed };
 }

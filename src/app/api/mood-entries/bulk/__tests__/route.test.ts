@@ -101,6 +101,13 @@ beforeEach(() => {
 });
 
 describe("POST /api/mood-entries/bulk — 422 multi-issue (v1.4.43 W6)", () => {
+  it("rejects a body over the 2 MB cap with 413 before parsing", async () => {
+    const res = await POST(
+      postReq({ entries: [], pad: "x".repeat(2 * 1024 * 1024) }),
+    );
+    expect(res.status).toBe(413);
+  });
+
   it("surfaces TWO simultaneous validation errors", async () => {
     const res = await POST(
       postReq({

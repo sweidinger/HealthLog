@@ -143,7 +143,9 @@ export const GET = apiHandler(async () => {
 export const PUT = apiHandler(async (request: NextRequest) => {
   const { user } = await requireAuth();
 
-  const { data: body, error: jsonError } = await safeJson(request);
+  const { data: body, error: jsonError } = await safeJson(request, {
+    maxBytes: 256 * 1024,
+  });
   if (jsonError) return jsonError;
 
   // v1.7.0 W1 — accept-and-ignore widget ids OUTSIDE the 27-id catalogue
@@ -165,8 +167,7 @@ export const PUT = apiHandler(async (request: NextRequest) => {
     const droppedIds = widgetsBody.widgets
       .map((w) => w?.id)
       .filter(
-        (id): id is string =>
-          typeof id === "string" && !knownWidgetIds.has(id),
+        (id): id is string => typeof id === "string" && !knownWidgetIds.has(id),
       );
     if (droppedIds.length > 0) {
       widgetsBody.widgets = widgetsBody.widgets.filter(
@@ -208,7 +209,9 @@ export const PUT = apiHandler(async (request: NextRequest) => {
     // future field matching the denylist (password / token / secret /
     // apiKey / authorization / csrfState / nonce) lands as the literal
     // `"[redacted]"` instead of its raw value.
-    const payloadDiagnostic = buildPayloadDiagnostic(redactSensitiveFields(body));
+    const payloadDiagnostic = buildPayloadDiagnostic(
+      redactSensitiveFields(body),
+    );
     annotate({
       action: { name: "dashboard.widgets.validation-failed" },
       meta: {

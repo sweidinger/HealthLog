@@ -117,7 +117,9 @@ export const GET = apiHandler(async () => {
 export const PUT = apiHandler(async (request: NextRequest) => {
   const { user } = await requireAuth();
 
-  const { data: body, error: jsonError } = await safeJson(request);
+  const { data: body, error: jsonError } = await safeJson(request, {
+    maxBytes: 256 * 1024,
+  });
   if (jsonError) return jsonError;
 
   const parsed = layoutSchema.safeParse(body);
@@ -127,7 +129,9 @@ export const PUT = apiHandler(async (request: NextRequest) => {
     // round-trip; the wide-event line carries the redacted payload
     // shape for operator debugging without leaking the raw body.
     const issues = sanitiseZodIssues(parsed.error.issues);
-    const payloadDiagnostic = buildPayloadDiagnostic(redactSensitiveFields(body));
+    const payloadDiagnostic = buildPayloadDiagnostic(
+      redactSensitiveFields(body),
+    );
     annotate({
       action: { name: "insights.layout.validation-failed" },
       meta: {

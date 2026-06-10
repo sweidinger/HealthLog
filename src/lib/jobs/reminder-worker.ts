@@ -331,6 +331,15 @@ const FITBIT_SYNC_CRON = "8 * * * *"; // every hour at :08
 // to the WHOOP sweep (03:22), inside the maintenance window.
 const FITBIT_OAUTH_STATE_CLEANUP_QUEUE = "fitbit-oauth-state-cleanup";
 const FITBIT_OAUTH_STATE_CLEANUP_CRON = "24 3 * * *";
+// v1.15.19 — daily duplicate dose-slot dedup discovery tick. The boot-time
+// pass only ran on worker restart, so a cross-source duplicate slot created
+// between deploys (a pending REMINDER row plus a standalone API/WEB row on
+// the same instant) survived until the next reboot. The cron payload omits
+// `userId`; the handler treats that as the discovery tick and fans out one
+// per-user job (singletonKey-coalesced) exactly like the boot pass. Slots at
+// 03:28 between the mood-reminder cleanup (03:25) and the inventory expire
+// (03:30), inside the maintenance window.
+const INTAKE_SLOT_DEDUP_CRON = "28 3 * * *";
 const OFFHOST_BACKUP_QUEUE = "data-backup-offhost";
 // 02:30 Europe/Berlin — runs after audit-log/idempotency cleanups so old
 // rows are gone before they're snapshotted, but before the existing
@@ -2648,6 +2657,12 @@ export async function startReminderWorker() {
     // v1.7.0 — daily 03:40 Europe/Berlin prune for expired measurement
     // tombstones.
     [MEASUREMENT_TOMBSTONE_CLEANUP_QUEUE, MEASUREMENT_TOMBSTONE_CLEANUP_CRON],
+    // v1.15.19 — daily 03:28 Europe/Berlin duplicate dose-slot dedup
+    // discovery. The empty cron payload (no `userId`) is the handler's
+    // signal to run the discovery fan-out instead of a per-user pass, so
+    // cross-source duplicate slots created between deploys collapse within
+    // a day instead of waiting for the next worker reboot.
+    [INTAKE_SLOT_DEDUP_QUEUE, INTAKE_SLOT_DEDUP_CRON],
     // v1.10.0 — computed scores (WX-C). Nightly 04:45 Europe/Berlin
     // Recovery-score compute + store, after the rollup-feeding consolidation
     // + drain so the signals it reads are already folded.
@@ -3175,13 +3190,29 @@ export async function startReminderWorker() {
   // to the same canonical slot; this handler keeps the winner, soft-
   // deletes the losers, normalises the winner's scheduledFor, and
   // recomputes the affected compliance rollups. Serial concurrency so the
-  // one-time pass never crowds the request pool.
-  await boss.work<IntakeSlotDedupPayload>(
+  // pass never crowds the request pool.
+  //
+  // v1.15.19 — the queue also carries a daily cron tick (03:28, scheduled
+  // above) whose payload omits `userId`. That tick runs the SAME discovery
+  // fan-out the boot pass uses, so duplicate slots created between deploys
+  // collapse within a day instead of waiting for the next worker reboot.
+  await boss.work<Partial<IntakeSlotDedupPayload>>(
     INTAKE_SLOT_DEDUP_QUEUE,
     { localConcurrency: INTAKE_SLOT_DEDUP_CONCURRENCY },
     async (jobs) => {
       for (const job of jobs) {
         const { userId } = job.data;
+        if (!userId) {
+          // Daily discovery tick — fan out one per-user job per account
+          // still holding duplicate-slot candidates (singletonKey-coalesced,
+          // identical to the boot pass).
+          const result = await enqueueBootTimeIntakeSlotDedup();
+          workerLog(
+            "info",
+            `[intake-slot-dedup] daily discovery enqueued=${result.enqueued} skipped=${result.skipped}${result.error ? ` error=${result.error}` : ""}`,
+          );
+          continue;
+        }
         try {
           const summary = await dedupeUserIntakeSlots(userId);
           workerLog(
@@ -3330,7 +3361,7 @@ export async function startReminderWorker() {
           });
           workerLog(
             "info",
-            `[mean-consolidation] triggeredAt=${job.data.triggeredAt} usersScanned=${meanSummary.totals.usersScanned} daysConsolidated=${meanSummary.totals.daysConsolidated} perSampleRowsSoftDeleted=${meanSummary.totals.perSampleRowsSoftDeleted} dailyRowsUpserted=${meanSummary.totals.dailyRowsUpserted}`,
+            `[mean-consolidation] triggeredAt=${job.data.triggeredAt} usersScanned=${meanSummary.totals.usersScanned} daysConsolidated=${meanSummary.totals.daysConsolidated} perSampleRowsSoftDeleted=${meanSummary.totals.perSampleRowsSoftDeleted} dailyRowsUpserted=${meanSummary.totals.dailyRowsUpserted} daysFailed=${meanSummary.totals.daysFailed}`,
           );
         } catch (err) {
           recordError();

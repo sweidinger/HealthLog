@@ -1,7 +1,12 @@
 import { NextRequest } from "next/server";
 
 import { prisma } from "@/lib/db";
-import { apiSuccess, apiError, returnAllZodIssues } from "@/lib/api-response";
+import {
+  apiSuccess,
+  apiError,
+  returnAllZodIssues,
+  safeJson,
+} from "@/lib/api-response";
 import { apiHandler, requireAuth } from "@/lib/api-handler";
 import { annotate } from "@/lib/logging/context";
 import {
@@ -24,7 +29,11 @@ export const dynamic = "force-dynamic";
 export const POST = apiHandler(async (request: NextRequest) => {
   const { user } = await requireAuth();
 
-  const parsed = createCustomTagSchema.safeParse(await request.json());
+  const { data: rawJsonBody, error: jsonError } = await safeJson(request, {
+    maxBytes: 64 * 1024,
+  });
+  if (jsonError) return jsonError;
+  const parsed = createCustomTagSchema.safeParse(rawJsonBody);
   if (!parsed.success) return returnAllZodIssues(parsed.error, 422);
 
   const activeCount = await prisma.moodTag.count({
@@ -52,10 +61,20 @@ export const POST = apiHandler(async (request: NextRequest) => {
       sortOrder: activeCount,
       userId: user.id,
     },
-    select: { key: true, icon: true, kind: true, scaleMin: true, scaleMax: true, inverse: true },
+    select: {
+      key: true,
+      icon: true,
+      kind: true,
+      scaleMin: true,
+      scaleMax: true,
+      inverse: true,
+    },
   });
 
-  annotate({ action: { name: "mood.tag.custom.create" }, meta: { icon: created.icon } });
+  annotate({
+    action: { name: "mood.tag.custom.create" },
+    meta: { icon: created.icon },
+  });
 
   return apiSuccess(
     {

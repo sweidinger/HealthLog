@@ -1,11 +1,7 @@
 import { prisma } from "@/lib/db";
 import { apiHandler, requireAuth } from "@/lib/api-handler";
 import { annotate } from "@/lib/logging/context";
-import {
-  apiSuccess,
-  returnAllZodIssues,
-  safeJson,
-} from "@/lib/api-response";
+import { apiSuccess, returnAllZodIssues, safeJson } from "@/lib/api-response";
 import { phaseConfigSchema } from "@/lib/validations/phase-config";
 import { assertMedicationOwnership } from "@/lib/medications/route-guards";
 import { NextRequest } from "next/server";
@@ -58,7 +54,9 @@ export const PUT = apiHandler(
     const guard = await assertMedicationOwnership(id, user.id);
     if (guard) return guard;
 
-    const { data: body, error: jsonError } = await safeJson(request);
+    const { data: body, error: jsonError } = await safeJson(request, {
+      maxBytes: 64 * 1024,
+    });
 
     if (jsonError) return jsonError;
     const parsed = phaseConfigSchema.safeParse(body);

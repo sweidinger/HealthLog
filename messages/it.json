@@ -1323,8 +1323,9 @@
         "edit": {
           "dialogTitle": "Modifica assunzione",
           "takenAtLabel": "Assunta alle",
+          "scheduledForHint": "Programmata: {dateTime}",
+          "farFromScheduledWarning": "Molto distante dall’orario programmato — controlla la data.",
           "skippedLabel": "Saltata",
-          "noteLabel": "Nota",
           "save": "Salva",
           "cancel": "Annulla",
           "savedToast": "Assunzione aggiornata",

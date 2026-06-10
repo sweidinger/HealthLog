@@ -157,8 +157,13 @@ async function handleChatRequest(request: NextRequest): Promise<Response> {
 
   let body: unknown;
   try {
-    body = await request.json();
-  } catch {
+    const raw = await request.text();
+    if (raw.length > 64 * 1024) {
+      throw new HttpError(413, `Request body exceeds ${64 * 1024} bytes`);
+    }
+    body = JSON.parse(raw);
+  } catch (err) {
+    if (err instanceof HttpError) throw err;
     throw new HttpError(400, "Invalid JSON body");
   }
   const parsed = coachChatRequestSchema.safeParse(body);

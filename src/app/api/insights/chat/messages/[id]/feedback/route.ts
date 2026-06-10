@@ -79,7 +79,9 @@ async function handlePost(request: NextRequest, ctx: RouteContext) {
     return apiError("Too many feedback submissions, try again later", 429);
   }
 
-  const { data: rawBody, error } = await safeJson<unknown>(request);
+  const { data: rawBody, error } = await safeJson<unknown>(request, {
+    maxBytes: 64 * 1024,
+  });
   if (error) return error;
   const parsed = coachMessageFeedbackSchema.safeParse(rawBody);
   if (!parsed.success) {

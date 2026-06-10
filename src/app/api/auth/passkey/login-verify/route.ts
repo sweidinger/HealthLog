@@ -1,11 +1,7 @@
 import { verifyAuthentication } from "@/lib/auth/passkey";
 import { createSession } from "@/lib/auth/session";
 import { auditLog } from "@/lib/auth/audit";
-import {
-  apiSuccess,
-  apiError,
-  safeJson,
-} from "@/lib/api-response";
+import { apiSuccess, apiError, safeJson } from "@/lib/api-response";
 import { prisma } from "@/lib/db";
 import { ensureDbCompatibility } from "@/lib/db-compat";
 import { checkAuthSurfaceRateLimit } from "@/lib/rate-limit";
@@ -35,8 +31,9 @@ export const POST = apiHandler(async (request: NextRequest) => {
     return apiError("Too many attempts. Please wait 15 minutes.", 429);
   }
 
-  const { data: body, error: jsonError } =
-    await safeJson<Record<string, unknown>>(request);
+  const { data: body, error: jsonError } = await safeJson<
+    Record<string, unknown>
+  >(request, { maxBytes: 64 * 1024 });
 
   if (jsonError) return jsonError;
   const challengeId = body.challengeId as string | undefined;

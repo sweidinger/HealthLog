@@ -37,7 +37,9 @@ export const POST = apiHandler(
     const guard = await assertMedicationOwnership(id, user.id);
     if (guard) return guard;
 
-    const { data: body, error: jsonError } = await safeJson(request);
+    const { data: body, error: jsonError } = await safeJson(request, {
+      maxBytes: 1024 * 1024,
+    });
 
     if (jsonError) return jsonError;
 

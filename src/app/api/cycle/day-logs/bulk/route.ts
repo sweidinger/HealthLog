@@ -64,7 +64,9 @@ async function postBulk(request: NextRequest): Promise<Response> {
     return apiError("Too many bulk submissions, try again later", 429);
   }
 
-  const { data: rawBody, error: jsonError } = await safeJson(request);
+  const { data: rawBody, error: jsonError } = await safeJson(request, {
+    maxBytes: 2 * 1024 * 1024,
+  });
   if (jsonError) return jsonError;
 
   if (

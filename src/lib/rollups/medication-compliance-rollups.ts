@@ -30,8 +30,20 @@
  * `calculateCompliance` / `complianceChips`; this tier deliberately remains
  * the cheaper coverage signal and is documented as such so the two are not
  * confused. The `scheduled` / `taken` column names reflect this: a day's
- * `taken` is "intake rows logged taken", not "doses inside their on-time
- * band".
+ * `taken` is "slots with an intake logged taken", not "doses inside their
+ * on-time band".
+ *
+ * v1.15.19 — the count is SLOT-level, not row-level. The partial unique
+ * index on `(user, medication, scheduled_for, source)` lets two live rows
+ * share one slot instant when their `source` differs (e.g. a pending
+ * REMINDER row plus a taken API row for the same dose); a row-level
+ * `COUNT(*)` double-counted that slot as two scheduled doses. The
+ * aggregate now groups by `scheduled_for` first: `scheduled` counts
+ * distinct slot instants, and each slot folds its rows with
+ * taken-beats-skipped priority (`BOOL_OR` of taken, then skipped only when
+ * no row in the slot is taken). This neutralises cross-source duplicate
+ * rows retroactively — any recompute over pre-existing duplicates yields
+ * the deduplicated counts without a data migration.
  *
  * Audit anchor: `.planning/round-v1438-perf-analysis.md` §2.5 + §5 P4.
  */
@@ -194,18 +206,31 @@ export async function recomputeMedicationComplianceForDay(
   // provides. The DELETE runs second so it cannot clobber a row the
   // INSERT just wrote — when the day still has events the
   // `WHERE NOT EXISTS` predicate matches zero rows.
+  // v1.15.19 — slot-level aggregation. The inner CTE folds the rows that
+  // share one `scheduled_for` instant (cross-source duplicates: pending
+  // REMINDER + taken API) into one slot with taken-beats-skipped priority;
+  // the outer aggregate then counts slots, not rows, so a duplicated slot
+  // can never inflate `scheduled`. Pure SQL — re-running the recompute
+  // over historic duplicates self-corrects the counts.
   await client.$executeRaw`
-    WITH aggregate AS (
+    WITH slot AS (
       SELECT
-        COUNT(*)::int                                                    AS scheduled,
-        SUM(CASE WHEN "skipped" THEN 0 WHEN "taken_at" IS NOT NULL THEN 1 ELSE 0 END)::int AS taken,
-        SUM(CASE WHEN "skipped" THEN 1 ELSE 0 END)::int                  AS skipped
+        BOOL_OR("taken_at" IS NOT NULL AND NOT "skipped") AS slot_taken,
+        BOOL_OR("skipped")                                AS slot_skipped
       FROM "medication_intake_events"
       WHERE "user_id"        = ${userId}
         AND "medication_id"  = ${medicationId}
         AND "deleted_at"     IS NULL
         AND "scheduled_for" >= ${start}
         AND "scheduled_for" <  ${windowEnd}
+      GROUP BY "scheduled_for"
+    ),
+    aggregate AS (
+      SELECT
+        COUNT(*)::int                                                            AS scheduled,
+        COALESCE(SUM(CASE WHEN "slot_taken" THEN 1 ELSE 0 END), 0)::int          AS taken,
+        COALESCE(SUM(CASE WHEN NOT "slot_taken" AND "slot_skipped" THEN 1 ELSE 0 END), 0)::int AS skipped
+      FROM slot
     )
     INSERT INTO "medication_compliance_rollups"
       ("user_id", "medication_id", "day", "scheduled", "taken", "skipped", "computed_at")

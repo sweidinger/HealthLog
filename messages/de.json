@@ -1323,8 +1323,9 @@
         "edit": {
           "dialogTitle": "Einnahme bearbeiten",
           "takenAtLabel": "Eingenommen um",
+          "scheduledForHint": "Geplant: {dateTime}",
+          "farFromScheduledWarning": "Liegt weit vom geplanten Zeitpunkt entfernt – Datum prüfen.",
           "skippedLabel": "Übersprungen",
-          "noteLabel": "Notiz",
           "save": "Speichern",
           "cancel": "Abbrechen",
           "savedToast": "Einnahme aktualisiert",

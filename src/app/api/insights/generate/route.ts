@@ -1,6 +1,11 @@
 import { prisma } from "@/lib/db";
 import { auditLog } from "@/lib/auth/audit";
-import { apiSuccess, apiError, getClientIp } from "@/lib/api-response";
+import {
+  apiSuccess,
+  apiError,
+  getClientIp,
+  safeJson,
+} from "@/lib/api-response";
 import {
   extractFeatures,
   FeaturesPayloadTooLargeError,
@@ -267,8 +272,7 @@ export const GET = apiHandler(async () => {
 
   const cachedAt = dbUser?.insightsCachedAt ?? null;
   const isFresh =
-    cachedAt !== null &&
-    Date.now() - cachedAt.getTime() < BRIEFING_FRESH_MS;
+    cachedAt !== null && Date.now() - cachedAt.getTime() < BRIEFING_FRESH_MS;
 
   // Read-only: never block on the provider. Warm out of band only when the
   // cached briefing is stale / missing AND a provider is configured (a
@@ -341,7 +345,10 @@ export const POST = apiHandler(async (request: NextRequest) => {
     userLocale: dbUser?.locale ?? user.locale ?? null,
   });
 
-  const body = await request.json().catch(() => ({}));
+  const { data: body, error: jsonError } = await safeJson<{
+    force?: unknown;
+  }>(request, { maxBytes: 16 * 1024 });
+  if (jsonError) return jsonError;
   const forceRefresh = body.force === true;
 
   if (

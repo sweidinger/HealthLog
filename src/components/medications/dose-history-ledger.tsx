@@ -136,6 +136,7 @@ export function DoseHistoryLedger({
     id: string;
     takenAt: string | null;
     skipped: boolean;
+    scheduledFor: string | null;
   } | null>(null);
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
   const [marking, setMarking] = useState<string | null>(null);
@@ -384,6 +385,7 @@ function LedgerRowItem({
     id: string;
     takenAt: string | null;
     skipped: boolean;
+    scheduledFor: string | null;
   }) => void;
   onDelete: (id: string) => void;
 }) {
@@ -499,6 +501,7 @@ function LedgerRowItem({
                   id: intake.id as string,
                   takenAt: intake.takenAt,
                   skipped: intake.skipped,
+                  scheduledFor: intake.scheduledFor,
                 })
               }
               className="min-h-9"

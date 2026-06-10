@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  <a href="LICENSE"><img src="https://img.shields.io/badge/License-AGPL--3.0-blue.svg" alt="License: AGPL-3.0" /></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-PolyForm--Noncommercial--1.0.0-blue.svg" alt="License: PolyForm-Noncommercial-1.0.0" /></a>
   <a href="https://github.com/MBombeck/HealthLog/releases"><img src="https://img.shields.io/github/v/release/MBombeck/HealthLog?sort=semver&color=success&cacheSeconds=60" alt="Latest release" /></a>
   <a href="https://github.com/MBombeck/HealthLog/actions/workflows/integration.yml"><img src="https://img.shields.io/github/actions/workflow/status/MBombeck/HealthLog/integration.yml?branch=main&label=CI" alt="CI status" /></a>
   <a href="https://testflight.apple.com/join/bucuTBpa"><img src="https://img.shields.io/badge/iOS-TestFlight-007AFF?logo=apple&logoColor=white" alt="iOS app on TestFlight" /></a>
@@ -60,7 +60,7 @@
 
 ## What it is
 
-HealthLog is a self-hosted personal health tracker that runs from a single `docker compose up`. It covers the metrics most people actually log -- weight, blood pressure, pulse, body composition, blood glucose, sleep, mood, and medication compliance -- and brings them together in one dashboard with reference ranges from ESH 2023, ADA 2024, and NICE NG115. Withings, WHOOP, and Google Health/Fitbit devices sync automatically over OAuth2; an `export.zip` import folds your full Apple Health history into the same timeline; a native SwiftUI iOS client (public-beta via [TestFlight](https://testflight.apple.com/join/bucuTBpa)) streams HealthKit live; multi-provider AI insights (BYOK or local) explain what the numbers mean; a doctor-report PDF generates client-side. EN/DE end-to-end. AGPL-3.0.
+HealthLog is a self-hosted personal health tracker that runs from a single `docker compose up`. It covers the metrics most people actually log -- weight, blood pressure, pulse, body composition, blood glucose, sleep, mood, and medication compliance -- and brings them together in one dashboard with reference ranges from ESH 2023, ADA 2024, and NICE NG115. Withings, WHOOP, and Google Health/Fitbit devices sync automatically over OAuth2; an `export.zip` import folds your full Apple Health history into the same timeline; a native SwiftUI iOS client (public-beta via [TestFlight](https://testflight.apple.com/join/bucuTBpa)) streams HealthKit live; multi-provider AI insights (BYOK or local) explain what the numbers mean; a doctor-report PDF generates client-side. EN/DE end-to-end. PolyForm Noncommercial 1.0.0.
 
 > **Status**: active. New releases roughly weekly -- see [CHANGELOG](CHANGELOG.md). Current line: v1.12 — a Google Health/Fitbit connection for Fitbit and Pixel wearables (experimental, see [Integrations](#integrations)) and a rebuilt mood log (five-face capture, a structured tag catalog, and rated daily-life factors), on top of the v1.11 mood-relations and sleep-depth insights, a read-only FHIR R4 API with shareable clinician records, the v1.10 derived-metrics tier (fitness-age, vascular-age delta, HRV balance, sleep score, readiness and recovery scores, an early-strain flag), and the v1.7 health-record export (PDF + FHIR R4). The native iOS client is public-beta via [TestFlight](https://testflight.apple.com/join/bucuTBpa).
 
@@ -81,7 +81,7 @@ Most health apps lock your data behind proprietary clouds, push subscriptions, a
 |                            | HealthLog            | Withings web    | Apple Health  | Oura web    | WHOOP web   | Fitbit web   | Generic CSV |
 | -------------------------- | -------------------- | --------------- | ------------- | ----------- | ----------- | ------------ | ----------- |
 | Self-hosted                | Yes                  | No              | No            | No          | No          | No           | Yes         |
-| Open source                | AGPL-3.0             | No              | No            | No          | No          | No           | n/a         |
+| Source-available           | PolyForm-NC-1.0.0    | No              | No            | No          | No          | No           | n/a         |
 | Withings device sync       | Yes (OAuth2)         | Yes (native)    | Via shortcut  | No          | No          | No           | No          |
 | WHOOP device sync          | Yes (OAuth2, BYO-keys)| No             | No            | No          | Native      | No           | No          |
 | Google Health / Fitbit sync| Yes (experimental)   | No              | No            | No          | No          | Native       | No          |
@@ -102,7 +102,7 @@ Most health apps lock your data behind proprietary clouds, push subscriptions, a
 
 The wrist-band ecosystems are good at what their hardware measures, and HealthLog does not try to be a ring or a strap. It does not ship a sensor, and it does not claim to match one. What it does is take the readings those devices already collect — plus the ones they don't hold, like cuff blood pressure, finger-stick or CGM glucose, and medication intake — and keep them on a server you run.
 
-- **You own the data and the host.** No vendor account, no cloud round-trip, no subscription tier gating a metric you already recorded. AGPL-3.0, single `docker compose up`, encrypted at rest, on your NAS / homelab / VPS.
+- **You own the data and the host.** No vendor account, no cloud round-trip, no subscription tier gating a metric you already recorded. PolyForm Noncommercial 1.0.0, single `docker compose up`, encrypted at rest, on your NAS / homelab / VPS.
 - **It aggregates across providers instead of locking you to one.** Withings and WHOOP devices sync over OAuth2, a Google Health/Fitbit connection pulls Fitbit and Pixel data (experimental), an Apple Health `export.zip` folds your full history in, and the native iOS client streams HealthKit live — so a Withings scale, a WHOOP strap, an Apple Watch, and a glucometer land on one timeline instead of four apps. When two providers report the same metric, a per-metric source priority decides which one is canonical, so a dedicated scale outranks a wrist estimate and cumulative metrics like steps are never double-counted (see [Source priority](#source-priority)).
 - **It carries context the wrist bands don't.** Blood pressure, blood glucose, body composition, and cadence-aware medication compliance sit next to the wearable signals, so a trend reads against the whole picture rather than activity and sleep alone.
 - **The derived metrics are transparent, not a black box.** HealthLog computes a fitness-age and vascular-age delta, an HRV-balance and sleep-score band, a daily readiness and recovery score, and a coincident-deviation early-strain flag — each from your own measurements, each citing the inputs and the published method behind it, each degrading honestly to "not enough data" rather than fabricating a number. These are descriptive wellness framings, not clinical or training-grade assessments, and a score is only stored once its minimum inputs are present.
@@ -653,7 +653,7 @@ Spezi exists because medical-device-grade software needs medical-device-grade pr
 
 ### Status
 
-`v0.6.1.x` ships almost daily; the [iOS repo CHANGELOG](https://github.com/MBombeck/healthlog-iOS/blob/main/CHANGELOG.md) and tag list track what landed in each build. German-primary UI with English secondary. iOS 18+ minimum (iOS 26+ for the on-device Coach). AGPL-3.0, same as this repo.
+`v0.6.1.x` ships almost daily; the [iOS repo CHANGELOG](https://github.com/MBombeck/healthlog-iOS/blob/main/CHANGELOG.md) and tag list track what landed in each build. German-primary UI with English secondary. iOS 18+ minimum (iOS 26+ for the on-device Coach). PolyForm Noncommercial 1.0.0, same as this repo.
 
 <p align="center">
   <a href="https://testflight.apple.com/join/bucuTBpa">TestFlight beta</a> &middot;
@@ -676,7 +676,9 @@ Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines
 
 ## License
 
-HealthLog is licensed under the [GNU Affero General Public License v3.0](LICENSE).
+HealthLog is licensed under the [PolyForm Noncommercial License 1.0.0](LICENSE). It is free to use, self-host, and modify for noncommercial purposes; commercial use requires a separate agreement with the maintainers.
+
+Releases up to and including v1.15.18 were published under the GNU Affero General Public License v3.0 and remain available under that license.
 
 ---
 

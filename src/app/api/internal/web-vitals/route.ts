@@ -57,7 +57,13 @@ const webVitalsBodySchema = z.object({
   delta: z.number().finite().optional(),
   rating: z.enum(["good", "needs-improvement", "poor"]).optional(),
   navigationType: z
-    .enum(["navigate", "reload", "back-forward", "back-forward-cache", "prerender"])
+    .enum([
+      "navigate",
+      "reload",
+      "back-forward",
+      "back-forward-cache",
+      "prerender",
+    ])
     .optional(),
 });
 
@@ -90,11 +96,7 @@ export const POST = apiHandler(async (request: NextRequest) => {
   // ≤ 7 beacons / page-load and well below a flood. 429 on hit; the
   // beacon contract still accepts 4xx without retry on the client.
   const ip = getClientIp(request);
-  const rl = await checkRateLimit(
-    `web-vitals:${ip ?? "unknown"}`,
-    60,
-    60_000,
-  );
+  const rl = await checkRateLimit(`web-vitals:${ip ?? "unknown"}`, 60, 60_000);
   if (!rl.allowed) {
     return NextResponse.json(
       { error: "rate_limited" },
@@ -104,7 +106,11 @@ export const POST = apiHandler(async (request: NextRequest) => {
 
   let raw: unknown;
   try {
-    raw = await request.json();
+    const text = await request.text();
+    if (text.length > 64 * 1024) {
+      return NextResponse.json({ error: "payload_too_large" }, { status: 413 });
+    }
+    raw = JSON.parse(text);
   } catch {
     // Malformed payload — 400 so the beacon never retries. Crucially:
     // we do NOT log the raw body (log-injection defence).

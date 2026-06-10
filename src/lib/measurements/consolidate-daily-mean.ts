@@ -45,7 +45,11 @@
  * production standalone image strips `tsx`. Modelled on the
  * `step-consolidation` boot-time converging-backfill pattern.
  */
-import type { MeasurementType, PrismaClient } from "@/generated/prisma/client";
+import type {
+  MeasurementType,
+  Prisma,
+  PrismaClient,
+} from "@/generated/prisma/client";
 
 import {
   dailyStatsExternalId,
@@ -95,6 +99,12 @@ export interface MeanConsolidationSummary {
     daysConsolidated: number;
     perSampleRowsSoftDeleted: number;
     dailyRowsUpserted: number;
+    /**
+     * Day buckets whose write failed and was stepped over. A failed day
+     * keeps its per-sample rows live, so the next nightly run retries it;
+     * every other bucket of the pass still consolidates.
+     */
+    daysFailed: number;
   };
 }
 
@@ -136,6 +146,51 @@ export function bucketMeanRows(
 }
 
 /**
+ * Find the first instant at/after `base + 1s` that the full unique
+ * `(userId, type, measuredAt, source, sleepStage)` — NULLS NOT DISTINCT,
+ * so tombstones occupy it too — does not already hold for this
+ * (user, type, APPLE_HEALTH, sleepStage NULL) tuple. A slot held by the
+ * row carrying `selfExternalId` counts as free: that row is the one the
+ * caller's upsert is about to update in place, so re-using its instant
+ * converges across re-runs instead of drifting one second per night.
+ * Bounded probe; the per-day failure boundary in `runConsolidation`
+ * absorbs the pathological exhaustion case.
+ */
+async function nextFreeInstant(
+  tx: Prisma.TransactionClient,
+  input: {
+    userId: string;
+    type: MeasurementType;
+    base: Date;
+    selfExternalId: string | null;
+  },
+): Promise<Date> {
+  for (let offsetSeconds = 1; offsetSeconds <= 60; offsetSeconds++) {
+    const candidate = new Date(input.base.getTime() + offsetSeconds * 1000);
+    const occupant = await tx.measurement.findFirst({
+      where: {
+        userId: input.userId,
+        type: input.type,
+        source: "APPLE_HEALTH",
+        measuredAt: candidate,
+        sleepStage: null,
+      },
+      select: { externalId: true },
+    });
+    if (
+      occupant === null ||
+      (input.selfExternalId !== null &&
+        occupant.externalId === input.selfExternalId)
+    ) {
+      return candidate;
+    }
+  }
+  throw new Error(
+    `no free measuredAt slot within 60s after ${input.base.toISOString()}`,
+  );
+}
+
+/**
  * Run the daily-mean consolidation. Idempotent — re-invocation after a
  * successful pass reports zero days because the per-sample rows are
  * soft-deleted (and so excluded from the live scan).
@@ -156,10 +211,11 @@ export async function consolidateDailyMean(
       daysConsolidated: 0,
       perSampleRowsSoftDeleted: 0,
       dailyRowsUpserted: 0,
+      daysFailed: 0,
     },
   };
 
-  const { usersScanned } = await runConsolidation<MeasurementType>({
+  const { usersScanned, daysFailed } = await runConsolidation<MeasurementType>({
     prismaClient,
     options,
     types: HIGH_FREQUENCY_MEAN_TYPES,
@@ -205,7 +261,71 @@ export async function consolidateDailyMean(
       const unit = dayRows[0]?.unit ?? "unknown";
       let removed = 0;
       await pc.$transaction(async (tx) => {
-        // Mint / refresh the canonical daily-mean row first. The unique
+        // The upsert below arbiters on (userId, type, source, externalId),
+        // but the Measurement model carries a SECOND full unique —
+        // (userId, type, measuredAt, source, sleepStage), NULLS NOT
+        // DISTINCT, covering tombstones (schema.prisma, migration 0055).
+        // Any row sitting exactly on the canonical local-noon instant with
+        // a DIFFERENT externalId — live or soft-deleted — trips that index
+        // on the upsert's create path (P2002) and rolls the whole day
+        // back. Resolve the slot deterministically before minting:
+        //   1. Slot row carries the TARGET externalId → it IS the
+        //      canonical daily row (re-run path); the upsert updates it in
+        //      place, no conflict.
+        //   2. Slot row is a tombstone, or a per-sample row this very pass
+        //      is about to soft-delete → it has no live claim on the
+        //      instant; step it aside to the next free second so the
+        //      canonical row keeps the local-noon anchor.
+        //   3. Slot row is a live foreign row outside the consolidation
+        //      set (it stays user-visible and is not ours to move) → it
+        //      keeps its instant; the mean row yields and mints on the
+        //      next free second after local-noon instead.
+        const slotRow = await tx.measurement.findFirst({
+          where: {
+            userId,
+            type,
+            source: "APPLE_HEALTH",
+            measuredAt: canonicalTimestamp,
+            sleepStage: null,
+          },
+          select: { id: true, externalId: true, deletedAt: true },
+        });
+
+        let mintAt = canonicalTimestamp;
+        if (slotRow !== null && slotRow.externalId !== externalId) {
+          const yieldsToMean =
+            slotRow.deletedAt !== null || sourceRowIds.includes(slotRow.id);
+          if (yieldsToMean) {
+            // `selfExternalId: null` — the shifted row must land on a
+            // strictly free instant; sharing one with the canonical row
+            // (e.g. a mean row that yielded on an earlier run and still
+            // sits at +1s) would re-trip the unique.
+            await tx.measurement.update({
+              where: { id: slotRow.id },
+              data: {
+                measuredAt: await nextFreeInstant(tx, {
+                  userId,
+                  type,
+                  base: canonicalTimestamp,
+                  selfExternalId: null,
+                }),
+              },
+            });
+          } else {
+            // `selfExternalId: externalId` — an instant already held by
+            // the existing mean row (yielded on an earlier run) counts as
+            // free, so the upsert re-targets it instead of drifting one
+            // second further every night.
+            mintAt = await nextFreeInstant(tx, {
+              userId,
+              type,
+              base: canonicalTimestamp,
+              selfExternalId: externalId,
+            });
+          }
+        }
+
+        // Mint / refresh the canonical daily-mean row. The unique
         // index (userId, type, source, externalId) makes the upsert
         // idempotent across re-runs. Built field-by-field (no spread)
         // per the no-mass-assignment convention.
@@ -224,12 +344,12 @@ export async function consolidateDailyMean(
             value: reducedValue,
             unit,
             source: "APPLE_HEALTH",
-            measuredAt: canonicalTimestamp,
+            measuredAt: mintAt,
             externalId,
           },
           update: {
             value: reducedValue,
-            measuredAt: canonicalTimestamp,
+            measuredAt: mintAt,
             deletedAt: null,
           },
         });
@@ -285,12 +405,24 @@ export async function consolidateDailyMean(
         `[mean-consolidation] user=${userId} tz=${tz}${dryRun ? " (dry-run)" : ""}`,
       );
     },
+    // Per-day failure boundary: one poisoned day (e.g. a residual
+    // unique-index collision the slot resolution could not absorb) must
+    // not abort the global nightly pass — every later user / type / day
+    // still consolidates, and the failed day's per-sample rows stay live
+    // for the next run to retry.
+    onBucketError: ({ userId, type, dateKey, error }) => {
+      const reason = error instanceof Error ? error.message : String(error);
+      log(
+        `[mean-consolidation] user=${userId} type=${type} day=${dateKey} failed — ${reason}; continuing with the next bucket`,
+      );
+    },
   });
 
   summary.totals.usersScanned = usersScanned;
+  summary.totals.daysFailed = daysFailed;
 
   log(
-    `[mean-consolidation] done — usersScanned=${summary.totals.usersScanned} daysConsolidated=${summary.totals.daysConsolidated} perSampleRowsSoftDeleted=${summary.totals.perSampleRowsSoftDeleted} dailyRowsUpserted=${summary.totals.dailyRowsUpserted}${options.dryRun ? " (dry-run)" : ""}`,
+    `[mean-consolidation] done — usersScanned=${summary.totals.usersScanned} daysConsolidated=${summary.totals.daysConsolidated} perSampleRowsSoftDeleted=${summary.totals.perSampleRowsSoftDeleted} dailyRowsUpserted=${summary.totals.dailyRowsUpserted} daysFailed=${summary.totals.daysFailed}${options.dryRun ? " (dry-run)" : ""}`,
   );
 
   return summary;

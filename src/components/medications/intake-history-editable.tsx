@@ -207,6 +207,7 @@ export function IntakeHistoryEditable({
                 id: editingEvent.id,
                 takenAt: editingEvent.takenAt,
                 skipped: editingEvent.skipped,
+                scheduledFor: editingEvent.scheduledFor,
               }
             : null
         }

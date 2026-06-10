@@ -9,7 +9,7 @@ import { dispatchLocalisedNotification } from "@/lib/notifications/dispatch-loca
 import { prisma } from "@/lib/db";
 
 /**
- * Deploy-status webhook (phase C2 / v1.4.15).
+ * Deploy-status webhook (v1.4.15).
  *
  * Coolify (Settings → Notifications → Webhook) calls this endpoint after
  * every deploy attempt. We verify the request via a shared secret in the
@@ -135,7 +135,10 @@ async function notifyAdminsOfFailure(event: NormalizedEvent): Promise<void> {
         application: event.applicationName,
         error: event.error ?? "",
         deployment: event.deploymentUuid ?? "",
-        logsUrl: "https://apps-01.bombeck.io",
+        // Optional: operators can point this at their deployment
+        // dashboard (e.g. the Coolify UI). Falls back to an empty
+        // string so the body template still composes cleanly.
+        logsUrl: process.env.DEPLOY_LOGS_URL ?? "",
       },
       metadata: {
         source: "deploy-webhook",
@@ -173,7 +176,7 @@ export const POST = apiHandler(async (request: NextRequest) => {
   getEvent()?.setAuth({ auth_method: "webhook_secret" });
 
   const { data: payload, error: jsonError } =
-    await safeJson<CoolifyDeployPayload>(request);
+    await safeJson<CoolifyDeployPayload>(request, { maxBytes: 64 * 1024 });
   if (jsonError) return jsonError;
 
   const event = normalizePayload(payload);

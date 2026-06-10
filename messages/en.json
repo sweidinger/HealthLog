@@ -1323,8 +1323,9 @@
         "edit": {
           "dialogTitle": "Edit intake",
           "takenAtLabel": "Taken at",
+          "scheduledForHint": "Scheduled: {dateTime}",
+          "farFromScheduledWarning": "This is far from the scheduled time — check the date.",
           "skippedLabel": "Skipped",
-          "noteLabel": "Note",
           "save": "Save",
           "cancel": "Cancel",
           "savedToast": "Intake updated",

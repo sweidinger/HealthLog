@@ -21,8 +21,8 @@ import { NextResponse } from "next/server";
  * it to devices, so the origin only needs to respond reliably; Apple's
  * one-hour CDN TTL pairs with the `Cache-Control` directive below.
  *
- * Both `healthlog.bombeck.io` (maintainer prod) and `demo.healthlog.dev`
- * (demo) share this handler — the response is host-independent.
+ * Every host serving this app (an operator's instance, the public demo)
+ * shares this handler — the response is host-independent.
  */
 const AASA_APP_ID = "S8WDX4W5KX.dev.healthlog.app";
 

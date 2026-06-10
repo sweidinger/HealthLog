@@ -18,6 +18,8 @@ vi.mock("@/lib/db", () => ({
       // v1.8.2 reconcile — shared slot upsert reads + updates in place.
       findMany: vi.fn(),
       update: vi.fn(),
+      // v1.15.19 — resolver-null convergence probe before standalone insert.
+      findFirst: vi.fn(),
     },
     auditLog: { create: vi.fn() },
   },
@@ -83,6 +85,13 @@ beforeEach(() => {
 });
 
 describe("POST /api/medications/intake/bulk — 422 multi-issue (v1.4.43 W6)", () => {
+  it("rejects a body over the 2 MB cap with 413 before parsing", async () => {
+    const res = await POST(
+      postReq({ entries: [], pad: "x".repeat(2 * 1024 * 1024) }),
+    );
+    expect(res.status).toBe(413);
+  });
+
   it("surfaces TWO simultaneous validation errors", async () => {
     const res = await POST(
       postReq({
@@ -317,7 +326,10 @@ describe("POST /api/medications/intake/bulk — v1.8.2 reconcile", () => {
     );
     expect(res.status).toBe(200);
     const body = (await res.json()) as {
-      data: { updated: number; entries: Array<{ status: string; id?: string }> };
+      data: {
+        updated: number;
+        entries: Array<{ status: string; id?: string }>;
+      };
     };
     // The dose is APPLIED to the existing row, not silently dropped.
     expect(body.data.updated).toBe(1);
@@ -326,5 +338,178 @@ describe("POST /api/medications/intake/bulk — v1.8.2 reconcile", () => {
     expect(prisma.medicationIntakeEvent.update).toHaveBeenCalledWith(
       expect.objectContaining({ where: { id: "row-raced" } }),
     );
+  });
+});
+
+// ────────────────────────────────────────────────────────────────────
+// v1.15.19 — resolver-null convergence (cross-source duplicate slots)
+// ────────────────────────────────────────────────────────────────────
+
+describe("POST /api/medications/intake/bulk — v1.15.19 resolver-null convergence", () => {
+  const SCHEDULED_MED = {
+    id: "med-1",
+    startsOn: null,
+    endsOn: null,
+    oneShot: false,
+    createdAt: new Date("2026-01-01T00:00:00Z"),
+    schedules: [
+      {
+        id: "s1",
+        windowStart: "07:00",
+        windowEnd: "07:00",
+        daysOfWeek: null,
+        timesOfDay: ["07:00", "19:00"],
+        reminderGraceMinutes: null,
+        rrule: null,
+        rollingIntervalDays: null,
+        scheduleType: "SCHEDULED",
+        cyclicOnWeeks: null,
+        cyclicOffWeeks: null,
+        doseWindows: null,
+      },
+    ],
+  };
+
+  beforeEach(() => {
+    // Pin the clock HOURS before the fixture slot so the taken-write
+    // future-slot guard (TAKEN_FORWARD_GRACE_MS) rejects the snap and the
+    // resolver returns null — the production shape: the reminder worker has
+    // already pre-minted the pending REMINDER row at the slot instant, the
+    // client confirms early with an explicit `scheduledFor` on that instant.
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-06-15T00:30:00.000Z"));
+    vi.mocked(prisma.medication.findMany).mockResolvedValue([
+      { id: "med-1" },
+    ] as never);
+    vi.mocked(prisma.medication.findFirst).mockResolvedValue(
+      SCHEDULED_MED as never,
+    );
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("converges an early taken-write onto the pre-minted pending REMINDER row instead of inserting a sibling", async () => {
+    // Source-agnostic probe finds the live REMINDER row on the incoming
+    // instant…
+    vi.mocked(prisma.medicationIntakeEvent.findFirst).mockResolvedValueOnce({
+      id: "row-reminder",
+    } as never);
+    // …and the shared slot upsert re-reads + updates it in place.
+    vi.mocked(prisma.medicationIntakeEvent.findMany).mockResolvedValueOnce([
+      {
+        id: "row-reminder",
+        takenAt: null,
+        skipped: false,
+        idempotencyKey: null,
+        scheduledFor: new Date("2026-06-15T05:00:00Z"),
+        source: "REMINDER",
+        createdAt: new Date("2026-06-15T00:00:00Z"),
+      },
+    ] as never);
+    vi.mocked(prisma.medicationIntakeEvent.update).mockResolvedValueOnce({
+      id: "row-reminder",
+    } as never);
+
+    const res = await POST(
+      postReq({
+        entries: [
+          {
+            medicationId: "med-1",
+            scheduledFor: "2026-06-15T05:00:00.000Z",
+            takenAt: "2026-06-15T00:30:00.000Z",
+          },
+        ],
+      }),
+    );
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      data: {
+        inserted: number;
+        updated: number;
+        entries: Array<{ status: string; id?: string }>;
+      };
+    };
+    // The slot did NOT fork into a second live event.
+    expect(body.data.updated).toBe(1);
+    expect(body.data.inserted).toBe(0);
+    expect(body.data.entries[0].status).toBe("updated");
+    expect(body.data.entries[0].id).toBe("row-reminder");
+    expect(prisma.medicationIntakeEvent.create).not.toHaveBeenCalled();
+    expect(prisma.medicationIntakeEvent.update).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: "row-reminder" } }),
+    );
+  });
+
+  it("anchors a genuinely standalone resolver-null take on takenAt, not on the client's slot anchor", async () => {
+    // No live row on the incoming instant — the write is ad-hoc and must
+    // anchor on the intake instant so a worker mint at the slot instant
+    // later cannot pair up with it as a cross-source duplicate.
+    vi.mocked(prisma.medicationIntakeEvent.findFirst).mockResolvedValueOnce(
+      null as never,
+    );
+    vi.mocked(prisma.medicationIntakeEvent.create).mockResolvedValueOnce({
+      id: "row-standalone",
+    } as never);
+
+    const res = await POST(
+      postReq({
+        entries: [
+          {
+            medicationId: "med-1",
+            scheduledFor: "2026-06-15T05:00:00.000Z",
+            takenAt: "2026-06-15T00:30:00.000Z",
+          },
+        ],
+      }),
+    );
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      data: { inserted: number; entries: Array<{ status: string }> };
+    };
+    expect(body.data.inserted).toBe(1);
+    expect(body.data.entries[0].status).toBe("inserted");
+    expect(prisma.medicationIntakeEvent.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          scheduledFor: new Date("2026-06-15T00:30:00.000Z"),
+          takenAt: new Date("2026-06-15T00:30:00.000Z"),
+        }),
+      }),
+    );
+  });
+
+  it("keeps the idempotencyKey replay contract: a re-submission reports duplicate, not updated", async () => {
+    // The replay pre-check fires BEFORE the convergence probe so a re-sent
+    // entry keeps its historical `duplicate` status.
+    vi.mocked(prisma.medicationIntakeEvent.findUnique).mockResolvedValueOnce({
+      id: "row-existing",
+    } as never);
+
+    const res = await POST(
+      postReq({
+        entries: [
+          {
+            medicationId: "med-1",
+            scheduledFor: "2026-06-15T05:00:00.000Z",
+            takenAt: "2026-06-15T00:30:00.000Z",
+            idempotencyKey: "ios-key-1",
+          },
+        ],
+      }),
+    );
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      data: {
+        duplicates: number;
+        entries: Array<{ status: string; id?: string }>;
+      };
+    };
+    expect(body.data.duplicates).toBe(1);
+    expect(body.data.entries[0].status).toBe("duplicate");
+    expect(body.data.entries[0].id).toBe("row-existing");
+    expect(prisma.medicationIntakeEvent.create).not.toHaveBeenCalled();
+    expect(prisma.medicationIntakeEvent.findFirst).not.toHaveBeenCalled();
   });
 });

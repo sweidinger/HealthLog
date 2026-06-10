@@ -41,7 +41,9 @@ export const POST = apiHandler(async (request: NextRequest) => {
     return apiError("Bug reports are disabled by the administrator", 503);
   }
 
-  const { data: body, error: jsonError } = await safeJson(request);
+  const { data: body, error: jsonError } = await safeJson(request, {
+    maxBytes: 64 * 1024,
+  });
   if (jsonError) return jsonError;
 
   const parsed = createFeedbackSchema.safeParse(body);

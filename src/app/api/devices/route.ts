@@ -100,7 +100,9 @@ export const POST = apiHandler(async (request: NextRequest) => {
     return apiError("Too many device registrations, please slow down", 429);
   }
 
-  const { data: body, error } = await safeJson(request);
+  const { data: body, error } = await safeJson(request, {
+    maxBytes: 64 * 1024,
+  });
   if (error) return error;
 
   const parsed = deviceSchema.safeParse(body);

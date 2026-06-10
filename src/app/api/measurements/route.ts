@@ -336,13 +336,7 @@ export const GET = apiHandler(async (request: NextRequest) => {
   //     the live `date_trunc` path so a brand-new account whose
   //     populator hasn't caught up still sees a correct chart on its
   //     first render.
-  if (
-    source === "rollup" &&
-    aggregate === "daily" &&
-    type &&
-    from &&
-    to
-  ) {
+  if (source === "rollup" && aggregate === "daily" && type && from && to) {
     const cap = Math.min(limit, BUCKET_CAP.daily);
     // v1.11.1 — rollup rows are per source; collapse overlapping sources to the
     // ladder-canonical reading per day before the chart consumes them, so a
@@ -422,9 +416,7 @@ export const GET = apiHandler(async (request: NextRequest) => {
       // Cheap probe — one indexed range scan over
       // `(user_id, type, measured_at)`. Returns the count of distinct
       // calendar days the live table holds for the window.
-      const liveDayCountRows = await prisma.$queryRaw<
-        Array<{ days: bigint }>
-      >`
+      const liveDayCountRows = await prisma.$queryRaw<Array<{ days: bigint }>>`
         SELECT COUNT(DISTINCT date_trunc('day', m."measured_at"))::bigint AS days
         FROM measurements m
         WHERE m."user_id"     = ${user.id}
@@ -504,9 +496,7 @@ export const GET = apiHandler(async (request: NextRequest) => {
         type != null && CUMULATIVE_HK_TYPES.has(type as MeasurementType);
       const measurements = effectiveRows.map((r) => ({
         type: r.type,
-        value: useSum
-          ? (r.sumValue ?? r.mean * r.count)
-          : r.mean,
+        value: useSum ? (r.sumValue ?? r.mean * r.count) : r.mean,
         measuredAt: r.bucketStart.toISOString(),
         count: r.count,
         // v1.8.5 — per-day min / max so the chart can shade an
@@ -847,7 +837,9 @@ export const POST = apiHandler(withIdempotency<[NextRequest]>(postMeasurement));
 async function postMeasurement(request: NextRequest) {
   const { user } = await requireAuth();
 
-  const { data: body, error: jsonError } = await safeJson(request);
+  const { data: body, error: jsonError } = await safeJson(request, {
+    maxBytes: 64 * 1024,
+  });
 
   if (jsonError) return jsonError;
 

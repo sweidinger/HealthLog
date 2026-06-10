@@ -87,6 +87,10 @@
         {
           "name": "DEPLOY_WEBHOOK_SECRET",
           "purpose": "Shared secret for the X-Deploy-Webhook-Secret header on POST /api/internal/deploy-webhook. 64 hex chars."
+        },
+        {
+          "name": "DEPLOY_LOGS_URL",
+          "purpose": "URL of the deployment dashboard (e.g. the Coolify UI) linked in deploy-failure notifications. Optional; when unset the notification omits the link."
         }
       ]
     },

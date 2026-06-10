@@ -13,7 +13,11 @@
  * Run it after every deploy — the queued-deploy status is not the source
  * of truth, the served version is:
  *
- *   pnpm dlx tsx scripts/assert-deploy.ts <expected-version>
+ *   HEALTHLOG_PROD_URL=https://healthlog.example.com \
+ *     pnpm dlx tsx scripts/assert-deploy.ts <expected-version>
+ *
+ * The prod target's base URL comes from HEALTHLOG_PROD_URL (required
+ * unless --only=demo).
  *
  * Examples:
  *
@@ -36,8 +40,15 @@ interface Target {
   url: string;
 }
 
-const TARGETS: Record<string, Target> = {
-  prod: { name: "prod", url: "https://healthlog.bombeck.io/api/version" },
+// The production base URL is instance-specific — there is no meaningful
+// default for a self-hosted app. Set HEALTHLOG_PROD_URL (e.g.
+// `https://healthlog.example.com`) before asserting the prod target.
+const PROD_BASE_URL = process.env.HEALTHLOG_PROD_URL?.replace(/\/+$/, "");
+
+const TARGETS: Record<string, Target | undefined> = {
+  prod: PROD_BASE_URL
+    ? { name: "prod", url: `${PROD_BASE_URL}/api/version` }
+    : undefined,
   demo: { name: "demo", url: "https://demo.healthlog.dev/api/version" },
 };
 
@@ -140,14 +151,26 @@ async function main(): Promise<void> {
 
   let selected: Target[];
   if (only) {
+    if (!(only in TARGETS)) {
+      console.error(`unknown --only target: ${only} (use prod or demo)`);
+      process.exit(2);
+    }
     const picked = TARGETS[only];
     if (!picked) {
-      console.error(`unknown --only target: ${only} (use prod or demo)`);
+      console.error(
+        `target "${only}" needs HEALTHLOG_PROD_URL set to the instance base URL (e.g. https://healthlog.example.com)`,
+      );
       process.exit(2);
     }
     selected = [picked];
   } else {
-    selected = Object.values(TARGETS);
+    if (!TARGETS.prod) {
+      console.error(
+        "HEALTHLOG_PROD_URL is not set — set it to the instance base URL (e.g. https://healthlog.example.com) or use --only=demo",
+      );
+      process.exit(2);
+    }
+    selected = Object.values(TARGETS).filter((t): t is Target => Boolean(t));
   }
 
   console.log(

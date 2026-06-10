@@ -27,7 +27,11 @@ export const DELETE = apiHandler(async (request: NextRequest) => {
 
   let confirm = "";
   try {
-    const body = await request.json();
+    const raw = await request.text();
+    if (raw.length > 64 * 1024) {
+      return apiError(`Request body exceeds ${64 * 1024} bytes`, 413);
+    }
+    const body = JSON.parse(raw);
     confirm = typeof body?.confirm === "string" ? body.confirm : "";
   } catch {
     return apiError("Invalid request", 422);

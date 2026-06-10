@@ -12,6 +12,7 @@ import {
   consolidateDailyMean,
   meanBucketValue,
 } from "../consolidate-daily-mean";
+import { canonicalDailyTimestamp } from "../consolidation-tz";
 import type { PerSampleRow } from "../drain-per-sample-cumulative";
 import type { MeasurementType, PrismaClient } from "@/generated/prisma/client";
 
@@ -85,12 +86,16 @@ describe("consolidateDailyMean — drain flow (mocked Prisma)", () => {
   function buildPrismaMock(rowsByType: Record<string, unknown[]>) {
     const upsert = vi.fn().mockResolvedValue({});
     const updateMany = vi.fn().mockResolvedValue({ count: 0 });
+    const update = vi.fn().mockResolvedValue({});
+    // Canonical-slot probe inside the write transaction — defaults to an
+    // unoccupied slot (the pre-collision-fix happy path).
+    const txFindFirst = vi.fn().mockResolvedValue(null);
     const findManyMeasurement = vi.fn(
       async (args: { where: { type: string } }) =>
         rowsByType[args.where.type] ?? [],
     );
     const tx = {
-      measurement: { upsert, updateMany },
+      measurement: { upsert, updateMany, update, findFirst: txFindFirst },
     };
     return {
       mock: {
@@ -108,6 +113,8 @@ describe("consolidateDailyMean — drain flow (mocked Prisma)", () => {
       },
       upsert,
       updateMany,
+      update,
+      txFindFirst,
       findManyMeasurement,
     };
   }
@@ -236,5 +243,185 @@ describe("consolidateDailyMean — drain flow (mocked Prisma)", () => {
       where: { measuredAt?: { lt: Date } };
     };
     expect(call.where.measuredAt?.lt).toBeInstanceOf(Date);
+  });
+});
+
+describe("consolidateDailyMean — canonical-slot collision (second unique index)", () => {
+  // Local-noon for 2026-05-01 in Europe/Berlin — the instant the mint
+  // targets and any colliding row occupies.
+  const noon = canonicalDailyTimestamp("2026-05-01", "Europe/Berlin");
+  const targetExternalId =
+    "stats:HKQuantityTypeIdentifierWalkingSpeed:2026-05-01";
+
+  function buildPrismaMock(rowsByType: Record<string, unknown[]>) {
+    const upsert = vi.fn().mockResolvedValue({});
+    const updateMany = vi.fn().mockResolvedValue({ count: 0 });
+    const update = vi.fn().mockResolvedValue({});
+    const txFindFirst = vi.fn().mockResolvedValue(null);
+    const findManyMeasurement = vi.fn(
+      async (args: { where: { type: string } }) =>
+        rowsByType[args.where.type] ?? [],
+    );
+    const tx = {
+      measurement: { upsert, updateMany, update, findFirst: txFindFirst },
+    };
+    return {
+      mock: {
+        user: {
+          findMany: vi
+            .fn()
+            .mockResolvedValue([{ id: "user-1", timezone: "Europe/Berlin" }]),
+        },
+        measurement: { findMany: findManyMeasurement },
+        $transaction: vi.fn(async (cb: (t: unknown) => Promise<unknown>) =>
+          cb(tx),
+        ),
+      } as unknown as PrismaClient,
+      upsert,
+      updateMany,
+      update,
+      txFindFirst,
+    };
+  }
+
+  /** Slot probe answering `occupant` at noon and "free" everywhere else. */
+  function occupySlot(
+    txFindFirst: ReturnType<typeof vi.fn>,
+    occupant: { id: string; externalId: string | null; deletedAt: Date | null },
+  ) {
+    txFindFirst.mockImplementation(
+      async (args: { where: { measuredAt: Date } }) =>
+        args.where.measuredAt.getTime() === noon.getTime() ? occupant : null,
+    );
+  }
+
+  it("steps a tombstone occupying the canonical instant aside and mints at noon (no P2002)", async () => {
+    const { mock, upsert, update, txFindFirst } = buildPrismaMock({
+      WALKING_SPEED: [
+        row("a", 1.0, "2026-05-01T08:00:00.000Z"),
+        row("b", 1.4, "2026-05-01T09:00:00.000Z"),
+      ],
+    });
+    occupySlot(txFindFirst, {
+      id: "tomb-1",
+      externalId: "uuid-foreign-sample",
+      deletedAt: new Date("2026-05-02T00:00:00.000Z"),
+    });
+
+    const summary = await consolidateDailyMean(mock, { log: () => {} });
+
+    // The tombstone is shifted off the canonical instant (+1s)…
+    expect(update).toHaveBeenCalledTimes(1);
+    const updArg = update.mock.calls[0]?.[0] as {
+      where: { id: string };
+      data: { measuredAt: Date };
+    };
+    expect(updArg.where.id).toBe("tomb-1");
+    expect(updArg.data.measuredAt.getTime()).toBe(noon.getTime() + 1000);
+
+    // …and the mean row keeps the local-noon anchor.
+    const upsertArg = upsert.mock.calls[0]?.[0] as {
+      create: { measuredAt: Date };
+      update: { measuredAt: Date };
+    };
+    expect(upsertArg.create.measuredAt.getTime()).toBe(noon.getTime());
+    expect(summary.totals.daysConsolidated).toBe(1);
+    expect(summary.totals.daysFailed).toBe(0);
+  });
+
+  it("shifts a per-sample row of the consolidation set off the canonical instant", async () => {
+    const { mock, update, txFindFirst } = buildPrismaMock({
+      WALKING_SPEED: [
+        // "a" sits exactly on local-noon and is part of the folded set.
+        row("a", 1.0, noon.toISOString(), "uuid-a"),
+        row("b", 1.4, "2026-05-01T09:00:00.000Z", "uuid-b"),
+      ],
+    });
+    occupySlot(txFindFirst, {
+      id: "a",
+      externalId: "uuid-a",
+      deletedAt: null,
+    });
+
+    const summary = await consolidateDailyMean(mock, { log: () => {} });
+
+    // The live sample is folded anyway, so it yields the instant.
+    expect(update).toHaveBeenCalledTimes(1);
+    const updArg = update.mock.calls[0]?.[0] as { where: { id: string } };
+    expect(updArg.where.id).toBe("a");
+    expect(summary.totals.daysFailed).toBe(0);
+  });
+
+  it("yields the mean row's instant when a live foreign row holds the canonical slot", async () => {
+    const { mock, upsert, update, txFindFirst } = buildPrismaMock({
+      WALKING_SPEED: [
+        row("a", 1.0, "2026-05-01T08:00:00.000Z"),
+        row("b", 1.4, "2026-05-01T09:00:00.000Z"),
+      ],
+    });
+    // Live row outside the consolidation set — not ours to move.
+    occupySlot(txFindFirst, {
+      id: "foreign-live",
+      externalId: "uuid-foreign-live",
+      deletedAt: null,
+    });
+
+    const summary = await consolidateDailyMean(mock, { log: () => {} });
+
+    expect(update).not.toHaveBeenCalled();
+    const upsertArg = upsert.mock.calls[0]?.[0] as {
+      create: { measuredAt: Date };
+    };
+    expect(upsertArg.create.measuredAt.getTime()).toBe(noon.getTime() + 1000);
+    expect(summary.totals.daysFailed).toBe(0);
+  });
+
+  it("re-run path: a slot row already carrying the target externalId is updated in place", async () => {
+    const { mock, upsert, update, txFindFirst } = buildPrismaMock({
+      WALKING_SPEED: [row("late", 1.2, "2026-05-01T18:00:00.000Z")],
+    });
+    occupySlot(txFindFirst, {
+      id: "mean-1",
+      externalId: targetExternalId,
+      deletedAt: null,
+    });
+
+    await consolidateDailyMean(mock, { log: () => {} });
+
+    // No shift, no yield — the upsert's update branch owns the row.
+    expect(update).not.toHaveBeenCalled();
+    const upsertArg = upsert.mock.calls[0]?.[0] as {
+      create: { measuredAt: Date };
+    };
+    expect(upsertArg.create.measuredAt.getTime()).toBe(noon.getTime());
+    // Only the single slot probe ran — no free-instant search.
+    expect(txFindFirst).toHaveBeenCalledTimes(1);
+  });
+
+  it("a failing day bucket does not abort the pass — later buckets still consolidate", async () => {
+    const { mock, upsert } = buildPrismaMock({
+      WALKING_SPEED: [row("a", 1.0, "2026-05-01T08:00:00.000Z")],
+      WALKING_ASYMMETRY: [
+        row("c", 2.0, "2026-05-01T08:00:00.000Z", null, "%", "WALKING_ASYMMETRY"),
+      ],
+    });
+    // First bucket's mint trips the unique index; the second succeeds.
+    upsert.mockRejectedValueOnce(
+      Object.assign(new Error("unique constraint failed"), { code: "P2002" }),
+    );
+    const lines: string[] = [];
+
+    const summary = await consolidateDailyMean(mock, {
+      log: (line) => lines.push(line),
+    });
+
+    expect(summary.totals.daysFailed).toBe(1);
+    expect(summary.totals.daysConsolidated).toBe(1);
+    // The surviving bucket reached the rollup recompute.
+    expect(recomputeBucketsForMeasurement).toHaveBeenCalledTimes(1);
+    // The failed day is reported with user/type/day context.
+    expect(
+      lines.some((l) => l.includes("failed") && l.includes("user-1")),
+    ).toBe(true);
   });
 });
