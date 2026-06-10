@@ -62,6 +62,11 @@ export async function enqueueNarrativeWarm(payload: {
       {
         singletonKey: `warm:${payload.userId}:${payload.period}:${payload.locale}`,
         singletonSeconds: 120,
+        // Transient provider / pool failures retry with backoff instead
+        // of leaving the narrative cold until the next boundary night.
+        retryLimit: 3,
+        retryDelay: 60,
+        retryBackoff: true,
       },
     );
     annotate({

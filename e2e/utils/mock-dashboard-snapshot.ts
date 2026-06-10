@@ -147,6 +147,7 @@ export function buildMockSnapshot(
     briefing: null,
     briefingState: "preparing",
     briefingUpdatedAt: null,
+    briefingStale: false,
     generatedAt: now,
   };
 }

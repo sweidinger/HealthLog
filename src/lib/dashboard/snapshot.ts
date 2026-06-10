@@ -28,8 +28,11 @@
  *
  * No LLM is reachable from this builder. The briefing is lifted
  * read-only from `User.insightsCachedText`; a cache miss / stale row
- * yields `briefingState: "preparing"` and the `insight-pregenerate`
- * cron refills it. The builder NEVER POSTs `/api/insights/generate`.
+ * yields `briefingState: "preparing"` (with the last good briefing
+ * delivered under `briefingStale: true` when one exists) and the
+ * `insight-pregenerate` cron refills it — or `"no-provider"` when no
+ * AI provider is configured anywhere, so clients can stop waiting.
+ * The builder NEVER POSTs `/api/insights/generate`.
  */
 import type {
   PrismaClient,
@@ -61,6 +64,7 @@ import {
 } from "@/lib/dashboard-layout";
 import { dailyBriefingSchema, type DailyBriefing } from "@/lib/ai/schema";
 import { getAssistantFlags } from "@/lib/feature-flags";
+import { hasAnyConfiguredProvider } from "@/lib/ai/provider";
 import { DEFAULT_TIMEZONE } from "@/lib/tz/resolver";
 
 /** Briefing freshness window — mirrors the 24 h TTL on the advisor cache. */
@@ -137,7 +141,14 @@ const METRIC_KIND_RAW_BY_TYPE: Partial<Record<MeasurementType, string>> = {
   TIME_IN_DAYLIGHT: "timeInDaylight",
 };
 
-export type BriefingState = "ready" | "preparing" | "disabled";
+/**
+ * v1.15.20 — `"no-provider"` joins the tri-state: the cache is stale or
+ * missing AND no AI provider is configured anywhere (user chain, legacy
+ * selection, Codex link, operator key), so no warm pass will ever fill
+ * it. Clients render a "connect a provider" hint instead of an eternal
+ * "preparing" spinner. Existing states keep their exact semantics.
+ */
+export type BriefingState = "ready" | "preparing" | "disabled" | "no-provider";
 
 export interface DashboardSnapshotUser {
   username: string;
@@ -233,6 +244,15 @@ export interface DashboardSnapshot {
   briefing: DailyBriefing | null;
   briefingState: BriefingState;
   briefingUpdatedAt: string | null;
+  /**
+   * v1.15.20 — additive honesty flag. `true` when `briefing` carries the
+   * LAST GOOD (expired-TTL) briefing while a refresh is pending
+   * (`briefingState: "preparing"`) or will never come
+   * (`"no-provider"`). Clients show the stale content with its
+   * `briefingUpdatedAt` timestamp instead of a blank tile — the same
+   * stale-while-revalidate honesty the insights page uses.
+   */
+  briefingStale: boolean;
   generatedAt: string;
 }
 
@@ -430,24 +450,53 @@ async function buildExtras(
   };
 }
 
+/** Parse + validate the cached `dailyBriefing` block; null when unusable. */
+function parseCachedBriefing(
+  cachedText: string | null,
+): DailyBriefing | null {
+  if (!cachedText) return null;
+  try {
+    const parsed = JSON.parse(cachedText) as Record<string, unknown>;
+    const candidate = parsed?.dailyBriefing;
+    if (candidate == null) return null;
+    const validated = dailyBriefingSchema.safeParse(candidate);
+    return validated.success ? validated.data : null;
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Read-only briefing lift. Parses `User.insightsCachedText`, validates
- * the `dailyBriefing` block, and reports a tri-state. NEVER calls the
- * provider chain.
+ * the `dailyBriefing` block, and reports a four-state. NEVER calls the
+ * provider chain — `hasProvider` is a credential-PRESENCE thunk (two
+ * narrow reads, no decrypt, no network) evaluated only on the
+ * stale/missing path, so the common warm-cache snapshot pays nothing.
+ *
+ * v1.15.20 — two honesty upgrades over the old tri-state:
+ *   - a stale-but-parseable briefing is DELIVERED with
+ *     `briefingStale: true` (plus its timestamp) instead of `null`, so
+ *     the tile can show yesterday's content while the warm pass runs;
+ *   - when no provider is configured anywhere the state is
+ *     `"no-provider"` instead of an eternal `"preparing"`, so clients
+ *     can point at Settings → AI rather than spin forever.
  */
-function liftBriefing(
+async function liftBriefing(
   user: SnapshotUserInput,
   coachEnabled: boolean,
-): {
+  hasProvider: () => Promise<boolean>,
+): Promise<{
   briefing: DailyBriefing | null;
   briefingState: BriefingState;
   briefingUpdatedAt: string | null;
-} {
+  briefingStale: boolean;
+}> {
   if (!coachEnabled || user.disableCoach) {
     return {
       briefing: null,
       briefingState: "disabled",
       briefingUpdatedAt: null,
+      briefingStale: false,
     };
   }
 
@@ -455,47 +504,30 @@ function liftBriefing(
   const updatedAt = cachedAt?.toISOString() ?? null;
   const stale =
     !cachedAt || Date.now() - cachedAt.getTime() >= BRIEFING_TTL_MS;
-  if (stale || !user.insightsCachedText) {
+  const cachedBriefing = parseCachedBriefing(user.insightsCachedText);
+
+  if (!stale && cachedBriefing) {
     return {
-      briefing: null,
-      briefingState: "preparing",
+      briefing: cachedBriefing,
+      briefingState: "ready",
       briefingUpdatedAt: updatedAt,
+      briefingStale: false,
     };
   }
 
-  try {
-    const parsed = JSON.parse(user.insightsCachedText) as Record<
-      string,
-      unknown
-    >;
-    const candidate = parsed?.dailyBriefing;
-    if (candidate == null) {
-      return {
-        briefing: null,
-        briefingState: "preparing",
-        briefingUpdatedAt: updatedAt,
-      };
-    }
-    const validated = dailyBriefingSchema.safeParse(candidate);
-    if (!validated.success) {
-      return {
-        briefing: null,
-        briefingState: "preparing",
-        briefingUpdatedAt: updatedAt,
-      };
-    }
-    return {
-      briefing: validated.data,
-      briefingState: "ready",
-      briefingUpdatedAt: updatedAt,
-    };
-  } catch {
-    return {
-      briefing: null,
-      briefingState: "preparing",
-      briefingUpdatedAt: updatedAt,
-    };
-  }
+  // Stale or unusable cache — distinguish "a warm pass will fill this"
+  // from "nothing ever will" so the client can stop waiting honestly.
+  const briefingState: BriefingState = (await hasProvider())
+    ? "preparing"
+    : "no-provider";
+  return {
+    // Serve the last good briefing (when one parses) instead of a blank
+    // tile; `briefingStale: true` + the timestamp carry the honesty.
+    briefing: cachedBriefing,
+    briefingState,
+    briefingUpdatedAt: updatedAt,
+    briefingStale: cachedBriefing !== null,
+  };
 }
 
 /**
@@ -592,6 +624,12 @@ export async function buildDashboardSnapshot(
   options: {
     /** Optional per-sub-query timing sink (route surfaces it under `meta`). */
     time?: <T>(label: string, fn: () => Promise<T>) => Promise<T>;
+    /**
+     * Provider credential-presence probe for the briefing lift —
+     * injectable for tests. Defaults to the cheap presence check in
+     * `@/lib/ai/provider` (no decrypt, no network).
+     */
+    hasProvider?: () => Promise<boolean>;
   } = {},
 ): Promise<DashboardSnapshot> {
   const userTz = user.timezone ?? DEFAULT_TIMEZONE;
@@ -620,7 +658,11 @@ export async function buildDashboardSnapshot(
   ]);
 
   const layout = resolveDashboardLayout(user.dashboardWidgetsJson);
-  const briefing = liftBriefing(user, flags.briefing);
+  const briefing = await liftBriefing(
+    user,
+    flags.briefing,
+    options.hasProvider ?? (() => hasAnyConfiguredProvider(user.id)),
+  );
 
   const gender =
     user.gender === "MALE" || user.gender === "FEMALE" ? user.gender : null;
@@ -651,6 +693,7 @@ export async function buildDashboardSnapshot(
     briefing: briefing.briefing,
     briefingState: briefing.briefingState,
     briefingUpdatedAt: briefing.briefingUpdatedAt,
+    briefingStale: briefing.briefingStale,
     generatedAt: now.toISOString(),
   };
 }

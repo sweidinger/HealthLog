@@ -107,6 +107,11 @@ export async function enqueueStatusGeneration(
       // De-dupe within a short window so a polling client doesn't enqueue
       // a fresh job on every tick while a generation is already running.
       singletonSeconds: 120,
+      // Transient provider / pool failures retry with backoff instead of
+      // leaving the card on "preparing" until the next nightly cron.
+      retryLimit: 3,
+      retryDelay: 60,
+      retryBackoff: true,
     });
     annotate({
       action: { name: "insights.status.generate.enqueued" },

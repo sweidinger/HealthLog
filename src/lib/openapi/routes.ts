@@ -191,6 +191,12 @@ const profileUpdateRequest = z
     displayName: z.string().min(1).max(80).nullable().optional(),
     locale: z.enum(["de", "en"]).nullable().optional(),
     timezone: z.string().min(1).max(64).optional(),
+    timeFormat: z
+      .enum(["AUTO", "H12", "H24"])
+      .optional()
+      .describe(
+        "Hour-cycle display preference. AUTO follows the locale convention, H12 forces AM/PM, H24 forces 24-hour.",
+      ),
     moodReminderEnabled: z.boolean().optional(),
     fullName: z.string().max(120).nullable().optional(),
     insurerName: z.string().max(120).nullable().optional(),
@@ -223,6 +229,11 @@ const profileResponse = z
     heightCm: z.number().nullable(),
     locale: z.string().nullable(),
     timezone: z.string(),
+    timeFormat: z
+      .enum(["AUTO", "H12", "H24"])
+      .describe(
+        "Hour-cycle display preference. AUTO follows the locale convention, H12 forces AM/PM, H24 forces 24-hour.",
+      ),
     moodReminderEnabled: z.boolean(),
     fullName: z.string().nullable(),
     insurerName: z.string().nullable(),
@@ -253,6 +264,11 @@ const profileUpdateResponse = z
     heightCm: z.number().nullable(),
     locale: z.string().nullable(),
     timezone: z.string(),
+    timeFormat: z
+      .enum(["AUTO", "H12", "H24"])
+      .describe(
+        "Hour-cycle display preference. AUTO follows the locale convention, H12 forces AM/PM, H24 forces 24-hour.",
+      ),
     moodReminderEnabled: z.boolean(),
     fullName: z.string().nullable(),
     insurerName: z.string().nullable(),
@@ -1987,14 +2003,19 @@ const dashboardSnapshotResponse = z
       })
       .nullable(),
     briefing: z.record(z.string(), z.unknown()).nullable(),
-    briefingState: z.enum(["ready", "preparing", "disabled"]),
+    briefingState: z.enum(["ready", "preparing", "disabled", "no-provider"]),
     briefingUpdatedAt: z.string().nullable(),
+    briefingStale: z
+      .boolean()
+      .describe(
+        "True when `briefing` carries the last good (expired-TTL) briefing while a refresh is pending (`preparing`) or impossible (`no-provider`). Render the stale content with its `briefingUpdatedAt` timestamp instead of a blank tile.",
+      ),
     generatedAt: z.string(),
   })
   .meta({
     id: "DashboardSnapshotResponse",
     description:
-      "Unified above-the-fold dashboard payload. `tiles` always arrives (slim summaries + mood + resolved widget layout); `extras` (BD-in-target + per-context glucose) is null on a rollup-coverage miss so the strip never waits on the slowest read. `briefing` is lifted read-only from the pre-generated insight cache — never generated synchronously — and reports `ready` / `preparing` / `disabled` via `briefingState`. `layoutCatalogue` (full 27-id widget catalogue) and `metricStates` (latest reading per metric, keyed by iOS `MetricKind` raw value) are additive cold-launch seeds for the native client; both derive in-process from data already fetched, adding no DB round-trip.",
+      "Unified above-the-fold dashboard payload. `tiles` always arrives (slim summaries + mood + resolved widget layout); `extras` (BD-in-target + per-context glucose) is null on a rollup-coverage miss so the strip never waits on the slowest read. `briefing` is lifted read-only from the pre-generated insight cache — never generated synchronously — and reports `ready` / `preparing` / `disabled` / `no-provider` via `briefingState` (`no-provider` = stale-or-missing cache with no AI provider configured anywhere, so no warm pass will fill it; stop polling and surface a connect-provider hint). A stale-but-parseable briefing is still delivered with `briefingStale: true`. `layoutCatalogue` (full 27-id widget catalogue) and `metricStates` (latest reading per metric, keyed by iOS `MetricKind` raw value) are additive cold-launch seeds for the native client; both derive in-process from data already fetched, adding no DB round-trip.",
   });
 
 // v1.5.0 — natural-language medication extraction route. The wizard's

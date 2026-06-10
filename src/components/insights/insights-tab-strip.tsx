@@ -79,10 +79,18 @@ export interface InsightsTabStripProps {
    * toast fires "refreshed" ONLY when this is `"fresh"`; a slow generation the
    * client gave up on (`"timeout"`) shows a "still working" hint instead of a
    * misleading success, and a missing provider (`"no-provider"`) stays silent
-   * (the surface already shows the connect-AI empty state). Absent (legacy
+   * (the surface already shows the connect-AI empty state). v1.15.20 —
+   * `"rate-limited"` (quota exhausted) and `"empty"` (transient 503) show
+   * their own honest hints instead of the success toast. Absent (legacy
    * mounts / no regenerate) falls back to the prior unconditional success.
    */
-  regenerateOutcome?: "fresh" | "empty" | "timeout" | "no-provider" | null;
+  regenerateOutcome?:
+    | "fresh"
+    | "empty"
+    | "rate-limited"
+    | "timeout"
+    | "no-provider"
+    | null;
   /**
    * v1.4.27 F19 — analytics + event-driven availability inputs the
    * gating helper reads. When omitted the strip falls back to its
@@ -486,20 +494,27 @@ function InsightsTabStripImpl({
 
   // Fire a toast on the falling edge of `regenerating`. Same rising-edge ref
   // guard as the W3 implementation so the toast fires exactly once per
-  // regenerate cycle. v1.15.18 — the toast is now HONEST: only a `"fresh"`
-  // outcome reads "refreshed". A `"timeout"` (a slow generation the client
-  // gave up on while the server may still be writing) shows a "still working,
-  // try again" hint rather than claiming success; a `"no-provider"` stays
-  // silent (the surface already shows the connect-AI empty state). The latest
-  // outcome is read through a ref so the effect doesn't re-fire when only the
-  // outcome (not the spinner edge) changed.
+  // regenerate cycle. v1.15.18 — the toast is HONEST: only a `"fresh"`
+  // outcome reads "refreshed". v1.15.20 — the honesty extends to the
+  // non-fresh outcomes: `"rate-limited"` (429) says the quota is exhausted,
+  // `"empty"` (transient 503) says nothing fresh arrived, `"timeout"` keeps
+  // its "still working, try again" hint, and `"no-provider"` stays silent
+  // (the surface already shows the connect-AI empty state). Previously
+  // `"empty"` lumped 429 + 503 together AND toasted success — a rate-limited
+  // regenerate claimed "refreshed" while serving the old text. The latest
+  // outcome is read through a ref-free dep so the effect fires only on the
+  // spinner edge.
   const lastRegeneratingRef = useRef<boolean>(regenerating);
   useEffect(() => {
     if (lastRegeneratingRef.current && !regenerating) {
       if (regenerateOutcome === "timeout") {
         toast.error(t("insights.regenerateError"));
+      } else if (regenerateOutcome === "rate-limited") {
+        toast.error(t("insights.regenerateRateLimited"));
+      } else if (regenerateOutcome === "empty") {
+        toast.error(t("insights.regenerateUnavailable"));
       } else if (regenerateOutcome !== "no-provider") {
-        // `"fresh"`, `"empty"`, or legacy `undefined`/null → success.
+        // `"fresh"` or legacy `undefined`/null → success.
         toast.success(t("insights.regenerateSuccess"));
       }
     }

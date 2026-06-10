@@ -337,8 +337,13 @@ export async function findPregenerateCandidates(
   });
 }
 
+/**
+ * Non-German locales resolve to ENGLISH (matching
+ * `status-shared.normalizeLocale` and the no-key fallback routing) so a
+ * fr/es/it/pl account gets English AI prose, not German.
+ */
 function normalizeLocale(value: string | null): "de" | "en" {
-  return value === "en" ? "en" : "de";
+  return value === "de" ? "de" : "en";
 }
 
 /**

@@ -100,6 +100,12 @@ interface DailyBriefingProps {
   /** Disables the regenerate CTA while a generation is in flight. */
   regenerating?: boolean;
   /**
+   * v1.15.20 — no AI provider is configured anywhere, so generating is
+   * futile. The empty state swaps the regenerate CTA for a quiet hint
+   * linking to Settings → AI instead of an eternal "preparing" loop.
+   */
+  noProvider?: boolean;
+  /**
    * Optional slot for a meta control mounted in the card header — the
    * comparison toggle migrates here from the hero in commit 5.
    */
@@ -269,6 +275,7 @@ export function DailyBriefing({
   loading = false,
   onRegenerate,
   regenerating = false,
+  noProvider = false,
   metaSlot,
 }: DailyBriefingProps) {
   const { t } = useTranslations();
@@ -343,6 +350,29 @@ export function DailyBriefing({
                 </p>
               )}
             </div>
+          ) : noProvider ? (
+            // v1.15.20 — no provider configured anywhere: a regenerate CTA
+            // would 422 forever, so point at Settings → AI instead.
+            <EmptyState
+              data-slot="daily-briefing-no-provider"
+              variant="plain"
+              icon={<Sparkles className="size-5" />}
+              title={t("insights.dailyBriefing.noProviderTitle")}
+              description={t("insights.dailyBriefing.noProviderDescription")}
+              action={
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  asChild
+                  data-slot="daily-briefing-no-provider-cta"
+                >
+                  <Link href="/settings/ai">
+                    {t("insights.dailyBriefing.noProviderAction")}
+                  </Link>
+                </Button>
+              }
+            />
           ) : (
             <EmptyState
               data-slot="daily-briefing-empty"

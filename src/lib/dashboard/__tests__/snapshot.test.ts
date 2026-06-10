@@ -6,7 +6,8 @@
  *   - every above-the-fold tile field is present in the envelope;
  *   - the two-phase contract: `extras` is null on a rollup-coverage
  *     miss, populated when warm;
- *   - the briefingState matrix (ready / preparing / disabled);
+ *   - the briefingState matrix (ready / preparing / disabled /
+ *     no-provider) plus the stale-briefing delivery contract;
  *   - NO LLM client is reachable from the builder (the provider chain
  *     is never imported by `snapshot.ts` — asserted structurally).
  */
@@ -19,6 +20,7 @@ const readMoodDayRollups = vi.fn();
 const ensureUserMoodRollupsFresh = vi.fn();
 const computeBpInTargetFastPath = vi.fn();
 const getAssistantFlags = vi.fn();
+const hasAnyConfiguredProvider = vi.fn();
 
 vi.mock("@/lib/analytics/summaries-slice", () => ({
   computeSummariesSlice: (...a: unknown[]) => computeSummariesSlice(...a),
@@ -38,6 +40,11 @@ vi.mock("@/lib/analytics/bp-in-target-fast-path", () => ({
 }));
 vi.mock("@/lib/feature-flags", () => ({
   getAssistantFlags: (...a: unknown[]) => getAssistantFlags(...a),
+}));
+// The builder imports only the credential-PRESENCE check; mock it so the
+// test never touches the real provider module (prisma / crypto imports).
+vi.mock("@/lib/ai/provider", () => ({
+  hasAnyConfiguredProvider: (...a: unknown[]) => hasAnyConfiguredProvider(...a),
 }));
 
 import {
@@ -104,6 +111,7 @@ beforeEach(() => {
   });
   fakePrisma.measurement.findMany.mockResolvedValue([]);
   fakePrisma.moodEntry.findMany.mockResolvedValue([]);
+  hasAnyConfiguredProvider.mockResolvedValue(true);
 });
 
 describe("buildDashboardSnapshot — envelope shape", () => {
@@ -211,7 +219,41 @@ describe("buildDashboardSnapshot — briefingState matrix", () => {
     expect(snap.briefing!.paragraph).toContain("grünen");
   });
 
-  it("preparing — cache older than 24h", async () => {
+  it("preparing — cache older than 24h still DELIVERS the stale briefing with briefingStale: true", async () => {
+    const cachedAt = new Date(Date.now() - 25 * 60 * 60 * 1000);
+    const snap = await buildDashboardSnapshot(
+      fakePrisma,
+      baseUser({
+        insightsCachedAt: cachedAt,
+        insightsCachedText: JSON.stringify({
+          dailyBriefing: { greeting: "x", paragraph: "y", keyFindings: [] },
+        }),
+      }),
+    );
+    expect(snap.briefingState).toBe("preparing");
+    // v1.15.20 — the last good briefing rides along instead of a blank
+    // tile; the stale flag + timestamp carry the honesty.
+    expect(snap.briefing).not.toBeNull();
+    expect(snap.briefingStale).toBe(true);
+    expect(snap.briefingUpdatedAt).toBe(cachedAt.toISOString());
+  });
+
+  it("preparing — never generated (null cache)", async () => {
+    const snap = await buildDashboardSnapshot(fakePrisma, baseUser());
+    expect(snap.briefingState).toBe("preparing");
+    expect(snap.briefing).toBeNull();
+    expect(snap.briefingStale).toBe(false);
+  });
+
+  it("no-provider — stale cache and no provider configured anywhere", async () => {
+    hasAnyConfiguredProvider.mockResolvedValue(false);
+    const snap = await buildDashboardSnapshot(fakePrisma, baseUser());
+    expect(snap.briefingState).toBe("no-provider");
+    expect(snap.briefing).toBeNull();
+  });
+
+  it("no-provider — still delivers a stale briefing when one exists", async () => {
+    hasAnyConfiguredProvider.mockResolvedValue(false);
     const snap = await buildDashboardSnapshot(
       fakePrisma,
       baseUser({
@@ -221,14 +263,22 @@ describe("buildDashboardSnapshot — briefingState matrix", () => {
         }),
       }),
     );
-    expect(snap.briefingState).toBe("preparing");
-    expect(snap.briefing).toBeNull();
+    expect(snap.briefingState).toBe("no-provider");
+    expect(snap.briefing).not.toBeNull();
+    expect(snap.briefingStale).toBe(true);
   });
 
-  it("preparing — never generated (null cache)", async () => {
-    const snap = await buildDashboardSnapshot(fakePrisma, baseUser());
-    expect(snap.briefingState).toBe("preparing");
-    expect(snap.briefing).toBeNull();
+  it("ready — the provider presence probe never runs on a fresh cache", async () => {
+    await buildDashboardSnapshot(
+      fakePrisma,
+      baseUser({
+        insightsCachedAt: new Date(),
+        insightsCachedText: JSON.stringify({
+          dailyBriefing: { greeting: "x", paragraph: "y", keyFindings: [] },
+        }),
+      }),
+    );
+    expect(hasAnyConfiguredProvider).not.toHaveBeenCalled();
   });
 
   it("disabled — coach surface off (flag)", async () => {
@@ -453,9 +503,10 @@ describe("buildDashboardSnapshot — additive proof", () => {
     for (const key of legacyKeys) {
       expect(snap).toHaveProperty(key);
     }
-    // The two new additive blocks sit alongside, not in place of.
+    // The new additive blocks sit alongside, not in place of.
     expect(snap).toHaveProperty("metricStates");
     expect(snap).toHaveProperty("layoutCatalogue");
+    expect(snap).toHaveProperty("briefingStale");
 
     // The web-consumed `layout` block is the resolved per-user layout —
     // NOT replaced by the 35-id catalogue.

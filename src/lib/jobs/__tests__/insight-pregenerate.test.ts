@@ -212,9 +212,10 @@ describe("runInsightPregenerate — outcome tally", () => {
       failed: 1,
       budgetBlocked: 0,
     });
-    // Locale defaulting: null → "de".
+    // Locale defaulting: v1.15.20 — non-German (incl. null) → "en",
+    // matching the no-key fallback routing.
     expect(generate).toHaveBeenLastCalledWith("d", {
-      locale: "de",
+      locale: "en",
       force: true,
     });
   });
@@ -662,9 +663,9 @@ describe("queue registration", () => {
     expect(match![1]).toMatch(/\bINSIGHT_PREGENERATE_QUEUE\b/);
   });
 
-  it("schedules the cron in the schedules table", () => {
+  it("schedules the cron in the schedules table (with retry policy)", () => {
     expect(workerSrc).toMatch(
-      /\[\s*INSIGHT_PREGENERATE_QUEUE\s*,\s*INSIGHT_PREGENERATE_CRON\s*\]/,
+      /\[\s*INSIGHT_PREGENERATE_QUEUE\s*,\s*INSIGHT_PREGENERATE_CRON\s*,\s*insightRetryOptions\s*\]/,
     );
   });
 

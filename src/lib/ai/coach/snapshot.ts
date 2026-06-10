@@ -755,7 +755,8 @@ async function buildCoachSnapshotImpl(
       : null;
   const intakeRowsPromise = wantsCompliance
     ? prisma.medicationIntakeEvent.findMany({
-        where: { userId, scheduledFor: { gte: cutoff } },
+        // Tombstoned intake rows must never reach the Coach snapshot.
+        where: { userId, deletedAt: null, scheduledFor: { gte: cutoff } },
         orderBy: { scheduledFor: "asc" },
         select: { scheduledFor: true, takenAt: true, skipped: true },
       })

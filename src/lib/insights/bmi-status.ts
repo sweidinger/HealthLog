@@ -128,6 +128,8 @@ export async function generateBmiStatusForUser(
       where: {
         userId,
         type: "WEIGHT",
+        // Soft-deleted rows must never reach the prompt snapshot.
+        deletedAt: null,
       },
       orderBy: { measuredAt: "desc" },
       take: 365,

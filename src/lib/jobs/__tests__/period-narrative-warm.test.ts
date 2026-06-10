@@ -25,9 +25,22 @@ import {
   PERIOD_NARRATIVE_CRON,
 } from "../period-narrative-warm";
 
-function makePrisma(users: Array<{ id: string; locale: string | null }>) {
+function makePrisma(
+  users: Array<{ id: string; locale: string | null }>,
+  narrativeWrites: Array<{ userId: string; updatedAt: Date }> = [],
+) {
   const findMany = vi.fn().mockResolvedValue(users);
-  return { prisma: { user: { findMany } }, findMany };
+  const groupBy = vi.fn().mockResolvedValue(
+    narrativeWrites.map((row) => ({
+      userId: row.userId,
+      _max: { updatedAt: row.updatedAt },
+    })),
+  );
+  return {
+    prisma: { user: { findMany }, insightNarrative: { groupBy } },
+    findMany,
+    groupBy,
+  };
 }
 
 // A Monday that is also the 1st of the month — both periods warm.
@@ -61,13 +74,37 @@ describe("periodsForDay — boundary gate", () => {
 });
 
 describe("findNarrativeCandidates", () => {
-  it("filters coach-enabled users, capped", async () => {
-    const { prisma, findMany } = makePrisma([{ id: "u1", locale: "de" }]);
+  it("filters coach-enabled users", async () => {
+    const { prisma, findMany, groupBy } = makePrisma([
+      { id: "u1", locale: "de" },
+    ]);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    await findNarrativeCandidates(prisma as any, 50);
+    const result = await findNarrativeCandidates(prisma as any, 50);
     const arg = findMany.mock.calls[0][0];
     expect(arg.where.disableCoach).toBe(false);
-    expect(arg.take).toBe(50);
+    expect(result).toEqual([{ id: "u1", locale: "de" }]);
+    // Below the cap the ordering aggregate never runs.
+    expect(groupBy).not.toHaveBeenCalled();
+  });
+
+  it("serves never-warmed and oldest-narrative users first when the cap bites", async () => {
+    const { prisma, groupBy } = makePrisma(
+      [
+        { id: "fresh", locale: "de" },
+        { id: "stale", locale: "de" },
+        { id: "never", locale: "de" },
+      ],
+      [
+        { userId: "fresh", updatedAt: new Date("2026-06-09T05:00:00Z") },
+        { userId: "stale", updatedAt: new Date("2026-05-01T05:00:00Z") },
+      ],
+    );
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const result = await findNarrativeCandidates(prisma as any, 2);
+    expect(groupBy).toHaveBeenCalledTimes(1);
+    // never-warmed first (no narrative row), then the staleest write;
+    // the freshest user falls past the cap.
+    expect(result.map((c) => c.id)).toEqual(["never", "stale"]);
   });
 });
 
@@ -150,9 +187,9 @@ describe("queue registration", () => {
     expect(match![1]).toMatch(/\bPERIOD_NARRATIVE_QUEUE\b/);
   });
 
-  it("schedules the cron in the schedules table", () => {
+  it("schedules the cron in the schedules table (with retry policy)", () => {
     expect(workerSrc).toMatch(
-      /\[\s*PERIOD_NARRATIVE_QUEUE\s*,\s*PERIOD_NARRATIVE_CRON\s*\]/,
+      /\[\s*PERIOD_NARRATIVE_QUEUE\s*,\s*PERIOD_NARRATIVE_CRON\s*,\s*insightRetryOptions\s*\]/,
     );
   });
 
