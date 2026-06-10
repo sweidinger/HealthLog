@@ -7,24 +7,6 @@
  * custom server setup. In dev, use: npx tsx src/lib/jobs/reminder-worker.ts
  */
 import { PgBoss } from "pg-boss";
-import type { Job } from "pg-boss";
-import { PrismaClient } from "@/generated/prisma/client";
-import { PrismaPg } from "@prisma/adapter-pg";
-import { dispatchNotification } from "@/lib/notifications/dispatcher";
-import { buildCycleBackupSection } from "@/lib/cycle/backup";
-import {
-  buildCanonicalSchedule,
-  buildRecurrenceContext,
-  scheduleEmitsInWindow,
-  shouldMintMissedDoseRow,
-} from "@/lib/medications/scheduling/worker-helpers";
-import { syncUserMeasurements } from "@/lib/withings/sync";
-import { syncUserActivity } from "@/lib/withings/sync-activity";
-import { syncUserSleep } from "@/lib/withings/sync-sleep";
-import { syncUserRecovery } from "@/lib/whoop/sync-recovery";
-import { syncUserSleep as syncWhoopSleep } from "@/lib/whoop/sync-sleep";
-import { syncUserCycle } from "@/lib/whoop/sync-cycle";
-import { syncUserWorkout } from "@/lib/whoop/sync-workout";
 import {
   WHOOP_BACKFILL_QUEUE,
   WHOOP_BACKFILL_CONCURRENCY,
@@ -33,52 +15,17 @@ import {
   type WhoopBackfillPayload,
 } from "@/lib/jobs/whoop-backfill";
 import {
-  cleanupExpiredWhoopConnectTickets,
-  cleanupExpiredWhoopOAuthStates,
-} from "@/lib/jobs/whoop-oauth-state-cleanup";
-import { runFitbitPollCohort } from "@/lib/fitbit/sync";
-import {
   FITBIT_BACKFILL_QUEUE,
   FITBIT_BACKFILL_CONCURRENCY,
   runFitbitBackfillForUser,
   enqueueBootTimeFitbitBackfill,
   type FitbitBackfillPayload,
 } from "@/lib/jobs/fitbit-backfill";
-import { cleanupExpiredFitbitOAuthStates } from "@/lib/jobs/fitbit-oauth-state-cleanup";
-import { generateGeneralStatusForUser } from "@/lib/insights/general-status";
-import { generateBloodPressureStatusForUser } from "@/lib/insights/blood-pressure-status";
-import { generateWeightStatusForUser } from "@/lib/insights/weight-status";
-import { generatePulseStatusForUser } from "@/lib/insights/pulse-status";
-import { generateBmiStatusForUser } from "@/lib/insights/bmi-status";
-import { generateMoodStatusForUser } from "@/lib/insights/mood-status";
-import { generateMedicationComplianceStatusForUser } from "@/lib/insights/medication-compliance-status";
-import { findStatusCronCandidates } from "@/lib/jobs/status-cron-candidates";
 import { reportWorkerError } from "@/lib/jobs/report-worker-error";
-import {
-  markWorkerStarted,
-  recordReminderCheck,
-  recordWithingsSync,
-  recordInsightsRun,
-  recordError,
-} from "@/lib/jobs/worker-status";
+import { markWorkerStarted, recordError } from "@/lib/jobs/worker-status";
 import { setGlobalBoss } from "@/lib/jobs/boss-instance";
-import { cleanupExpiredIdempotencyKeys } from "@/lib/jobs/idempotency-cleanup";
-import { cleanupOldAuditLogs } from "@/lib/jobs/audit-log-cleanup";
-import { cleanupExpiredWithingsOAuthStates } from "@/lib/jobs/withings-oauth-state-cleanup";
+import { GEO_BACKFILL_QUEUE, GEO_BACKFILL_CRON } from "@/lib/jobs/geo-backfill";
 import {
-  cleanupExpiredMeasurementTombstones,
-  cleanupExpiredMoodTombstones,
-  cleanupExpiredIntakeTombstones,
-} from "@/lib/jobs/measurement-tombstone-cleanup";
-import { runHostMetricTick } from "@/lib/jobs/host-metric-sampler";
-import { aggregateRecommendationFeedback } from "@/lib/jobs/feedback-aggregator";
-import {
-  runGeoBackfill,
-  GEO_BACKFILL_QUEUE,
-  GEO_BACKFILL_CRON,
-} from "@/lib/jobs/geo-backfill";
-import {
-  runTlsPinMonitor,
   TLS_PIN_MONITOR_QUEUE,
   TLS_PIN_MONITOR_CRON,
 } from "@/lib/jobs/tls-pin-monitor";
@@ -88,7 +35,6 @@ import {
   PR_DETECTION_FALLBACK_CRON,
   type PrDetectionPayload,
 } from "@/lib/jobs/pr-detection";
-import { detectPersonalRecordsForUser } from "@/lib/personal-records/pr-detection-worker";
 import {
   MEDICATION_INVENTORY_EXPIRE_QUEUE,
   MEDICATION_INVENTORY_EXPIRE_CRON,
@@ -97,8 +43,6 @@ import {
 import {
   INSIGHT_PREGENERATE_QUEUE,
   INSIGHT_PREGENERATE_CRON,
-  runInsightPregenerate,
-  forceWarmUser,
   type InsightPregeneratePayload,
 } from "@/lib/jobs/insight-pregenerate";
 import {
@@ -145,13 +89,11 @@ import { runDenseIntradayRetention } from "@/lib/measurements/dense-intraday-ret
 import {
   INSIGHT_STATUS_GENERATE_QUEUE,
   INSIGHT_STATUS_GENERATE_CONCURRENCY,
-  runInsightStatusGenerate,
   type InsightStatusGeneratePayload,
 } from "@/lib/jobs/insight-status-generate";
 import {
   INTAKE_AUTO_SKIP_QUEUE,
   INTAKE_AUTO_SKIP_CRON,
-  runIntakeAutoSkipPass,
   type IntakeAutoSkipPayload,
 } from "@/lib/jobs/intake-auto-skip";
 import {
@@ -184,7 +126,6 @@ import {
 import {
   MEDICATION_COMPLIANCE_BACKFILL_QUEUE,
   MEDICATION_COMPLIANCE_BACKFILL_CONCURRENCY,
-  recomputeMedicationComplianceForEvent,
   recomputeUserMedicationCompliance,
   enqueueBootTimeMedicationComplianceBackfill,
   type MedicationComplianceBackfillPayload,
@@ -218,56 +159,112 @@ import {
   enqueueBootTimeIntakeSlotDedup,
   type IntakeSlotDedupPayload,
 } from "@/lib/medications/intake-slot-dedup";
-import { expireStaleInUseItems } from "@/lib/medications/inventory/service";
 import { rotateLegacyMoodLogSecrets } from "@/lib/moodlog-secret";
 import { probeIntegrationStatusNullBuckets } from "@/lib/jobs/integration-status-null-probe";
-import { deleteMessage } from "@/lib/telegram";
-import { decrypt, encrypt } from "@/lib/crypto";
-import { syncMoodLogEntries } from "@/lib/moodlog/sync";
-import {
-  DEFAULT_PHASE_CONFIG,
-  resolvePhaseThresholds,
-  determinePhase,
-  getPhaseMessage,
-  getPhaseKeyboard,
-} from "@/lib/jobs/reminder-phases";
-import { runMoodReminderTick } from "@/lib/jobs/mood-reminder";
-import { runCycleReminderTick } from "@/lib/jobs/cycle-reminder";
-import { isMedicationReminderClientManaged } from "@/lib/validations/notification-prefs";
 import { withBackgroundEvent } from "@/lib/logging/background";
 import { assertSubsystemEnabled } from "@/lib/process-type";
-import { runOffhostBackup } from "@/lib/jobs/offhost-backup";
 import {
-  getUserTodayBounds as getUserTodayBoundsUtil,
-  localHmAsUtc,
-} from "@/lib/timezone";
-
-function parseTimeToMinutes(value: string): number {
-  const [h, m] = value.split(":").map(Number);
-  if (!Number.isFinite(h) || !Number.isFinite(m)) return 0;
-  // Some Node ICU builds render midnight as "24:00" via toLocaleTimeString.
-  // Normalize so comparisons against schedule windows that wrap midnight
-  // don't produce a 1440-minute value.
-  const hours = h === 24 ? 0 : h;
-  return hours * 60 + m;
-}
-
-const DATABASE_URL = process.env.DATABASE_URL!;
-
-// Reuse a single PrismaClient across all job handlers to avoid connection pool exhaustion
-let workerPrisma: PrismaClient | null = null;
-
-function getWorkerPrisma(): PrismaClient {
-  if (!workerPrisma) {
-    const adapter = new PrismaPg({ connectionString: DATABASE_URL });
-    workerPrisma = new PrismaClient({ adapter });
-  }
-  return workerPrisma;
-}
+  handleRestoreDrill,
+  RESTORE_DRILL_CRON,
+  RESTORE_DRILL_QUEUE,
+} from "@/lib/jobs/restore-drill";
+import { DATABASE_URL, getWorkerPrisma, workerLog } from "./reminder/shared";
+import {
+  ReminderCheckPayload,
+  handleReminderCheck,
+} from "./reminder/medication-reminder-check";
+import {
+  WithingsSyncPayload,
+  WithingsActivitySyncPayload,
+  WithingsSleepSyncPayload,
+  handleWithingsFallbackSync,
+  handleWithingsActivitySync,
+  handleWithingsSleepSync,
+} from "./reminder/withings-sync";
+import {
+  WhoopSyncPayload,
+  handleWhoopRecoverySync,
+  handleWhoopSleepSync,
+  handleWhoopWorkoutSync,
+  handleWhoopCycleSync,
+} from "./reminder/whoop-sync";
+import {
+  GeneralStatusPayload,
+  BloodPressureStatusPayload,
+  WeightStatusPayload,
+  PulseStatusPayload,
+  BmiStatusPayload,
+  MoodStatusPayload,
+  MedicationComplianceStatusPayload,
+  handleGeneralStatusGenerate,
+  handleBloodPressureStatusGenerate,
+  handleWeightStatusGenerate,
+  handlePulseStatusGenerate,
+  handleBmiStatusGenerate,
+  handleMoodStatusGenerate,
+  handleMedicationComplianceStatusGenerate,
+  handleInsightPregenerateJob,
+  handleInsightStatusGenerate,
+} from "./reminder/insights-handlers";
+import { MoodLogSyncPayload, handleMoodLogSync } from "./reminder/moodlog-sync";
+import {
+  DataBackupPayload,
+  OffhostBackupPayload,
+  handleOffhostBackup,
+  handleDataBackup,
+} from "./reminder/backup-handlers";
+import {
+  RateLimitCleanupPayload,
+  IdempotencyCleanupPayload,
+  AuditLogCleanupPayload,
+  WithingsOAuthStateCleanupPayload,
+  MoodReminderCleanupPayload,
+  handleMoodReminderCleanup,
+  PushAttemptCleanupPayload,
+  handlePushAttemptCleanup,
+  MeasurementTombstoneCleanupPayload,
+  handleMeasurementTombstoneCleanup,
+  handleRateLimitCleanup,
+  handleIdempotencyCleanup,
+  handleAuditLogCleanup,
+  handleWithingsOAuthStateCleanup,
+  WhoopOAuthStateCleanupPayload,
+  handleWhoopOAuthStateCleanup,
+} from "./reminder/cleanup-handlers";
+import {
+  MoodReminderPayload,
+  CycleReminderPayload,
+  handleMoodReminderCheck,
+  handleCycleReminderCheck,
+} from "./reminder/mood-cycle-checks";
+import {
+  HostMetricSamplePayload,
+  FeedbackAggregatorPayload,
+  GeoBackfillPayload,
+  TlsPinMonitorPayload,
+  handleHostMetricSample,
+  handleFeedbackAggregator,
+  handleGeoBackfill,
+  handleTlsPinMonitor,
+  handlePrDetection,
+} from "./reminder/ops-handlers";
+import {
+  FitbitSyncPayload,
+  handleFitbitSync,
+  FitbitOAuthStateCleanupPayload,
+  handleFitbitOAuthStateCleanup,
+} from "./reminder/fitbit-sync";
+import {
+  handleMedicationInventoryExpire,
+  handleIntakeAutoSkip,
+} from "./reminder/medication-maintenance";
 
 const QUEUE_NAME = "medication-reminder-check";
+
 const CHECK_INTERVAL_CRON = "*/15 * * * *"; // every 15 minutes
+
 const WITHINGS_SYNC_QUEUE = "withings-fallback-sync";
+
 const WITHINGS_SYNC_CRON = "0 * * * *"; // every 60 minutes
 // v1.4.25 W17b/c — webhook-primary + cron-safety-net for activity and
 // sleep v2. The webhook handler enqueues per-user jobs on appli=16 / 44
@@ -275,37 +272,65 @@ const WITHINGS_SYNC_CRON = "0 * * * *"; // every 60 minutes
 // notifications Withings drops. Offset 15-minute cadence per the
 // research recommendation so the two queues don't lockstep against the
 // existing measure cron at :00.
+
 const WITHINGS_ACTIVITY_QUEUE = "withings-activity-sync";
+
 const WITHINGS_ACTIVITY_CRON = "0 * * * *"; // every hour at :00
+
 const WITHINGS_SLEEP_QUEUE = "withings-sleep-sync";
+
 const WITHINGS_SLEEP_CRON = "15 * * * *"; // every hour at :15
+
 const GENERAL_STATUS_QUEUE = "insights-general-status";
+
 const GENERAL_STATUS_CRON = "0 2 * * *"; // daily at 02:00
+
 const BLOOD_PRESSURE_STATUS_QUEUE = "insights-blood-pressure-status";
+
 const BLOOD_PRESSURE_STATUS_CRON = "5 2 * * *"; // daily at 02:05
+
 const WEIGHT_STATUS_QUEUE = "insights-weight-status";
+
 const WEIGHT_STATUS_CRON = "10 2 * * *"; // daily at 02:10
+
 const PULSE_STATUS_QUEUE = "insights-pulse-status";
+
 const PULSE_STATUS_CRON = "15 2 * * *"; // daily at 02:15
+
 const BMI_STATUS_QUEUE = "insights-bmi-status";
+
 const BMI_STATUS_CRON = "20 2 * * *"; // daily at 02:20
 // v1.15.20 — mood joins the nightly per-metric status ladder. Same gate +
 // discovery as the six older crons (see status-cron-candidates.ts); 02:30
 // continues the 5-minute stagger after BMI (02:20) and compliance (02:25).
+
 const MOOD_STATUS_QUEUE = "insights-mood-status";
+
 const MOOD_STATUS_CRON = "30 2 * * *"; // daily at 02:30
+
 const MEDICATION_COMPLIANCE_STATUS_QUEUE =
   "insights-medication-compliance-status";
+
 const MEDICATION_COMPLIANCE_STATUS_CRON = "25 2 * * *"; // daily at 02:25
+
 const MOODLOG_SYNC_QUEUE = "moodlog-sync";
+
 const MOODLOG_SYNC_CRON = "30 * * * *"; // every hour at :30
+
 const DATA_BACKUP_QUEUE = "data-backup";
+
 const DATA_BACKUP_CRON = "0 3 * * 0"; // weekly Sunday at 03:00
+
 const RATE_LIMIT_CLEANUP_QUEUE = "rate-limit-cleanup";
+
 const RATE_LIMIT_CLEANUP_CRON = "*/5 * * * *"; // every 5 minutes
+
 const IDEMPOTENCY_CLEANUP_QUEUE = "idempotency-cleanup";
+
 const IDEMPOTENCY_CLEANUP_CRON = "0 3 * * *"; // daily at 03:00 (Europe/Berlin)
+
 const AUDIT_LOG_CLEANUP_QUEUE = "audit-log-cleanup";
+
 const AUDIT_LOG_CLEANUP_CRON = "15 3 * * *"; // daily at 03:15 (Europe/Berlin)
 // v1.4.47 W6 — daily sweep for the Withings OAuth state ledger. Slots
 // at :20 between the audit-log cleanup (:15) and the mood-reminder
@@ -313,7 +338,9 @@ const AUDIT_LOG_CLEANUP_CRON = "15 3 * * *"; // daily at 03:15 (Europe/Berlin)
 // Rows are normally consumed by the callback handler in single-use
 // fashion; this sweep picks up the long tail where a user closed the
 // Withings approval tab without bouncing back to the callback URL.
+
 const WITHINGS_OAUTH_STATE_CLEANUP_QUEUE = "withings-oauth-state-cleanup";
+
 const WITHINGS_OAUTH_STATE_CLEANUP_CRON = "20 3 * * *";
 // v1.11.0 — WHOOP sync queues. Webhook-primary + cron-safety-net, mirroring
 // the Withings activity/sleep crons. Recovery / sleep / workout each have a
@@ -321,28 +348,42 @@ const WITHINGS_OAUTH_STATE_CLEANUP_CRON = "20 3 * * *";
 // crons below are the catch-net for dropped deliveries. Cycle has NO webhook,
 // so its cron is the only driver. Minutes are staggered off the Withings crons
 // (:00/:15) to spread DB load.
+
 const WHOOP_RECOVERY_SYNC_QUEUE = "whoop-recovery-sync";
+
 const WHOOP_RECOVERY_SYNC_CRON = "5 * * * *"; // every hour at :05
+
 const WHOOP_SLEEP_SYNC_QUEUE = "whoop-sleep-sync";
+
 const WHOOP_SLEEP_SYNC_CRON = "20 * * * *"; // every hour at :20
+
 const WHOOP_WORKOUT_SYNC_QUEUE = "whoop-workout-sync";
+
 const WHOOP_WORKOUT_SYNC_CRON = "35 * * * *"; // every hour at :35
+
 const WHOOP_CYCLE_SYNC_QUEUE = "whoop-cycle-sync";
+
 const WHOOP_CYCLE_SYNC_CRON = "50 * * * *"; // every hour at :50 (poll-only)
 // v1.11.0 — daily sweep for the WHOOP OAuth state ledger. Slots at 03:22,
 // next to the Withings sweep (03:20), inside the maintenance window.
+
 const WHOOP_OAUTH_STATE_CLEANUP_QUEUE = "whoop-oauth-state-cleanup";
+
 const WHOOP_OAUTH_STATE_CLEANUP_CRON = "22 3 * * *";
 // v1.12.0 — Fitbit / Google Health poll-only sync. There is no Fitbit webhook
 // at launch (Pub/Sub deferred), so a single hourly cron drives the per-user
 // `syncUserFitbit` driver across every connection. Minute staggered off the
 // WHOOP slots (:05/:20/:35/:50) and the Withings slots (:00/:15) so the hourly
 // ticks don't pile up on one boss poll.
+
 const FITBIT_SYNC_QUEUE = "fitbit-sync";
+
 const FITBIT_SYNC_CRON = "8 * * * *"; // every hour at :08
 // v1.12.0 — daily sweep for the Fitbit OAuth state ledger. Slots at 03:24, next
 // to the WHOOP sweep (03:22), inside the maintenance window.
+
 const FITBIT_OAUTH_STATE_CLEANUP_QUEUE = "fitbit-oauth-state-cleanup";
+
 const FITBIT_OAUTH_STATE_CLEANUP_CRON = "24 3 * * *";
 // v1.15.19 — daily duplicate dose-slot dedup discovery tick. The boot-time
 // pass only ran on worker restart, so a cross-source duplicate slot created
@@ -352,20 +393,27 @@ const FITBIT_OAUTH_STATE_CLEANUP_CRON = "24 3 * * *";
 // per-user job (singletonKey-coalesced) exactly like the boot pass. Slots at
 // 03:28 between the mood-reminder cleanup (03:25) and the inventory expire
 // (03:30), inside the maintenance window.
+
 const INTAKE_SLOT_DEDUP_CRON = "28 3 * * *";
+
 const OFFHOST_BACKUP_QUEUE = "data-backup-offhost";
 // 02:30 Europe/Berlin — runs after audit-log/idempotency cleanups so old
 // rows are gone before they're snapshotted, but before the existing
 // in-DB DATA_BACKUP at 03:00 (Sundays only) so the off-host copy is
 // always at-or-ahead of the local one.
+
 const OFFHOST_BACKUP_CRON = "30 2 * * *";
+
 const HOST_METRIC_QUEUE = "host-metric-sample";
 // Per-minute cadence — matches the chart's 60s polling refetchInterval.
+
 const HOST_METRIC_CRON = "* * * * *";
 // v1.4.16 phase B5e — daily rec-feedback aggregator. 04:00 Europe/Berlin
 // runs the slot AFTER all the cleanup jobs (rate-limit, idempotency,
 // audit-log) so the previous-day's noise is gone before we aggregate.
+
 const FEEDBACK_AGGREGATOR_QUEUE = "feedback-aggregator";
+
 const FEEDBACK_AGGREGATOR_CRON = "0 4 * * *";
 // v1.4.37 — hourly geo backfill. Queue name + cron expression live
 // in `@/lib/jobs/geo-backfill` so a unit test can pin the scheduling
@@ -378,7 +426,9 @@ const FEEDBACK_AGGREGATOR_CRON = "0 4 * * *";
 // 36-hour grace window keeps today + the trailing watch-sync window
 // intact for real-time visibility; only completed-and-stable days
 // fall to the drain.
+
 const DRAIN_CUMULATIVE_QUEUE = "drain-per-sample-cumulative";
+
 const DRAIN_CUMULATIVE_CRON = "45 3 * * *";
 // v0.5.4 ios-coord — daily mood-reminder cron.
 //
@@ -389,33 +439,26 @@ const DRAIN_CUMULATIVE_CRON = "45 3 * * *";
 // ~4 ticks-per-hour × 1 actual-dispatch-window-per-user = at most one
 // push per user per day. Idempotency is enforced by the
 // `MoodReminderDispatch` ledger inside the handler.
+
 const MOOD_REMINDER_QUEUE = "mood-reminder-check";
+
 const MOOD_REMINDER_CRON = "*/15 * * * *";
 // v1.4.38.2 — daily retention sweep for the mood-reminder dispatch
 // ledger. Rows older than 90 days are behavioural footprints of
 // mood-log gaps; we keep them long enough to debug a duplicate-push
 // report (~one billing cycle) but no longer. Slots between the
 // audit-log cleanup (03:15) and the drain (03:45).
+
 const MOOD_REMINDER_CLEANUP_QUEUE = "mood-reminder-cleanup";
+
 const MOOD_REMINDER_CLEANUP_CRON = "25 3 * * *";
-const MOOD_REMINDER_RETENTION_DAYS = 90;
-// v1.4.49 — daily prune for the push-attempt ledger. Same 90-day
-// retention as the mood-reminder dispatch ledger; both surfaces are
-// behavioural footprints we keep long enough to debug a duplicate-push
-// report (~one billing cycle) but no longer. Slots at 03:35 between
-// mood-reminder cleanup (03:25) and drain-cumulative (03:45) so the
-// 03:xx maintenance window stays ordered.
+
 const PUSH_ATTEMPT_CLEANUP_QUEUE = "push-attempt-cleanup";
+
 const PUSH_ATTEMPT_CLEANUP_CRON = "35 3 * * *";
-const PUSH_ATTEMPT_RETENTION_DAYS = 90;
-// v1.7.0 — daily prune for soft-deleted measurement tombstones. Rows
-// whose `deletedAt` predates the refresh-token lifetime + margin are
-// hard-deleted (a device offline that long re-pairs with a full backfill,
-// not an incremental delta, so it never relies on the tombstone).
-// Retention lives on the helper module keyed to the refresh lifetime so
-// the two never drift. Slots at 03:40 between push-attempt cleanup (03:35)
-// and the drain (03:45) inside the existing 03:xx maintenance window.
+
 const MEASUREMENT_TOMBSTONE_CLEANUP_QUEUE = "measurement-tombstone-cleanup";
+
 const MEASUREMENT_TOMBSTONE_CLEANUP_CRON = "40 3 * * *";
 // v1.15 — daily cycle reminder cron (period-soon + period-start-confirm).
 //
@@ -425,1775 +468,17 @@ const MEASUREMENT_TOMBSTONE_CLEANUP_CRON = "40 3 * * *";
 // timezone crossing that hour without one cron entry per zone. At most one
 // push per event per user per local day — the `push_attempts` ledger is the
 // idempotency anchor inside the handler.
+
 const CYCLE_REMINDER_QUEUE = "cycle-reminder-check";
+
 const CYCLE_REMINDER_CRON = "*/15 * * * *";
 // v1.4.38 — the per-sample cutoff hours constant now lives on the
 // helper module so the worker, the admin route, and the CLI all read
 // the same source of truth. Re-export pulled in alongside
 // `drainPerSampleCumulative` above.
+
 interface DrainCumulativePayload {
   triggeredAt: string;
-}
-
-interface ReminderCheckPayload {
-  triggeredAt: string;
-}
-
-interface WithingsSyncPayload {
-  triggeredAt: string;
-}
-
-/**
- * v1.4.25 W17b — payload for the activity-sync queue. When enqueued
- * by the webhook handler, `userId` is set so the worker syncs only
- * that user; when enqueued by the cron schedule, `userId` is absent
- * and the worker iterates every connection (safety-net behaviour).
- */
-interface WithingsActivitySyncPayload {
-  triggeredAt: string;
-  userId?: string;
-}
-
-/**
- * v1.4.25 W17c — payload for the sleep-sync queue. Same shape and
- * webhook-vs-cron semantics as the activity payload.
- */
-interface WithingsSleepSyncPayload {
-  triggeredAt: string;
-  userId?: string;
-}
-
-interface GeneralStatusPayload {
-  triggeredAt: string;
-}
-
-interface BloodPressureStatusPayload {
-  triggeredAt: string;
-}
-
-interface WeightStatusPayload {
-  triggeredAt: string;
-}
-
-interface PulseStatusPayload {
-  triggeredAt: string;
-}
-
-interface BmiStatusPayload {
-  triggeredAt: string;
-}
-
-interface MoodStatusPayload {
-  triggeredAt?: string;
-}
-
-interface MedicationComplianceStatusPayload {
-  triggeredAt: string;
-}
-
-interface MoodLogSyncPayload {
-  triggeredAt: string;
-}
-
-interface DataBackupPayload {
-  triggeredAt: string;
-}
-
-interface RateLimitCleanupPayload {
-  triggeredAt: string;
-}
-
-interface IdempotencyCleanupPayload {
-  triggeredAt: string;
-}
-
-interface AuditLogCleanupPayload {
-  triggeredAt: string;
-}
-
-interface WithingsOAuthStateCleanupPayload {
-  triggeredAt: string;
-}
-
-interface OffhostBackupPayload {
-  triggeredAt: string;
-}
-
-interface HostMetricSamplePayload {
-  triggeredAt: string;
-}
-
-interface FeedbackAggregatorPayload {
-  triggeredAt: string;
-}
-
-interface GeoBackfillPayload {
-  triggeredAt: string;
-}
-
-interface MoodReminderPayload {
-  triggeredAt: string;
-}
-
-interface CycleReminderPayload {
-  triggeredAt: string;
-}
-
-interface TlsPinMonitorPayload {
-  triggeredAt: string;
-}
-
-// Re-export timezone utilities under local names for backward compatibility
-const getUserTodayBounds = getUserTodayBoundsUtil;
-
-/**
- * Process expired TelegramScheduledDeletion records.
- * Deletes messages from Telegram and removes the DB records.
- * Called at the start of every reminder check (every 15 minutes).
- */
-async function cleanupScheduledTelegramDeletions(): Promise<void> {
-  const prisma = getWorkerPrisma();
-  try {
-    let totalDeleted = 0;
-
-    // Process in batches until all expired records are handled
-    while (true) {
-      const expired = await prisma.telegramScheduledDeletion.findMany({
-        where: { deleteAfter: { lte: new Date() } },
-        take: 100,
-      });
-
-      if (expired.length === 0) break;
-
-      // Group by userId to fetch bot token once per user
-      const byUser = new Map<
-        string,
-        { chatId: string; messageId: number; id: string }[]
-      >();
-      for (const record of expired) {
-        const list = byUser.get(record.userId) ?? [];
-        list.push({
-          chatId: record.chatId,
-          messageId: record.messageId,
-          id: record.id,
-        });
-        byUser.set(record.userId, list);
-      }
-
-      const deletedIds: string[] = [];
-      for (const [userId, messages] of byUser) {
-        const user = await prisma.user.findFirst({
-          where: { id: userId, telegramBotToken: { not: null } },
-          select: { telegramBotToken: true },
-        });
-        if (!user?.telegramBotToken) {
-          // No bot token — just clean up the records
-          deletedIds.push(...messages.map((m) => m.id));
-          continue;
-        }
-        const botToken = decrypt(user.telegramBotToken);
-        for (const msg of messages) {
-          try {
-            await deleteMessage(botToken, msg.chatId, msg.messageId);
-          } catch {
-            // Best-effort: message may already be deleted
-          }
-          deletedIds.push(msg.id);
-        }
-      }
-
-      if (deletedIds.length > 0) {
-        await prisma.telegramScheduledDeletion.deleteMany({
-          where: { id: { in: deletedIds } },
-        });
-        totalDeleted += deletedIds.length;
-      }
-    }
-
-    if (totalDeleted > 0) {
-      const { getEvent } = await import("@/lib/logging/context");
-      getEvent()?.addMeta("telegram_scheduled_cleanup", totalDeleted);
-    }
-  } catch (err) {
-    const { getEvent } = await import("@/lib/logging/context");
-    getEvent()?.addWarning(`telegram-scheduled-cleanup failed: ${err}`);
-  }
-}
-
-/**
- * Check all active medications for each user and determine reminder phases.
- * Uses phase-based logic (GREEN/YELLOW/ORANGE/RED) to send one notification
- * per phase transition rather than every 15 minutes.
- */
-async function handleReminderCheck(jobs: Job<ReminderCheckPayload>[]) {
-  void jobs;
-  await withBackgroundEvent("job.medication_reminder", async (evt) => {
-    const prisma = getWorkerPrisma();
-    try {
-      recordReminderCheck();
-      const now = new Date();
-
-      // Clean up expired scheduled Telegram message deletions
-      await cleanupScheduledTelegramDeletions();
-
-      // Clean up expired snoozes
-      await prisma.medication.updateMany({
-        where: { snoozedUntil: { lt: now } },
-        data: { snoozedUntil: null },
-      });
-
-      // Get all active medications with schedules and phase config
-      const medications = await prisma.medication.findMany({
-        where: { active: true },
-        include: {
-          schedules: true,
-          phaseConfig: true,
-          user: {
-            select: {
-              id: true,
-              timezone: true,
-              // Used to localise the reminder title / message / keyboard
-              // labels per user. Null falls back to the app default.
-              locale: true,
-              // v1.4.49 M-DOUBLE-REMINDER — read the per-user prefs
-              // blob so the dispatch step can skip APNs sends for users
-              // whose iOS client has opted in to local SpeziScheduler
-              // reminders. Null = legacy default (clientManaged: false),
-              // i.e. the server reminder fires as before.
-              notificationPrefs: true,
-            },
-          },
-        },
-      });
-
-      for (const med of medications) {
-        const userTz = med.user.timezone || "Europe/Berlin";
-        const { start: todayStart, end: todayEnd } = getUserTodayBounds(
-          now,
-          userTz,
-        );
-
-        const currentTime = now.toLocaleTimeString("en-GB", {
-          timeZone: userTz,
-          hour: "2-digit",
-          minute: "2-digit",
-          hour12: false,
-        });
-
-        // Get today's date string in user's timezone for message tracking
-        const localDateStr = now.toLocaleDateString("sv-SE", {
-          timeZone: userTz,
-        }); // YYYY-MM-DD format
-
-        // v1.7.0 code-correctness M4 — fetch today's intake events so a
-        // logged dose suppresses the reminder for the SLOT it belongs to,
-        // not a positional running counter. The pre-v1.7 code suppressed
-        // by `eventCount > schedulesProcessed`, which attributed a logged
-        // morning dose to whichever slot iterated first; with an unsorted
-        // `timesOfDay = ["20:00","08:00"]` that suppressed the evening
-        // reminder while the morning still fired. We match by time-of-day
-        // proximity instead. Worker-minted RED placeholders (takenAt null,
-        // not skipped, source REMINDER) are NOT a user action, so they are
-        // excluded from the suppression set.
-        const todayEvents = await prisma.medicationIntakeEvent.findMany({
-          where: {
-            medicationId: med.id,
-            userId: med.user.id,
-            // v1.7.0 sync — a tombstoned dose is no longer a logged
-            // action, so it must not suppress today's reminder.
-            deletedAt: null,
-            scheduledFor: { gte: todayStart, lte: todayEnd },
-          },
-          select: { scheduledFor: true, takenAt: true, skipped: true },
-        });
-        const loggedDoseInstants = todayEvents
-          .filter((e) => e.takenAt !== null || e.skipped)
-          .map((e) => (e.takenAt ?? e.scheduledFor).getTime());
-
-        // Resolve phase configuration
-        const phaseConfig = med.phaseConfig ?? DEFAULT_PHASE_CONFIG;
-
-        // Slots a logged dose has already claimed (by index into the
-        // chronologically-sorted slotTimes) so one dose can't suppress two.
-        const claimedSlotInstants = new Set<number>();
-
-        const sortedSchedules = [...med.schedules].sort((a, b) =>
-          a.windowStart.localeCompare(b.windowStart),
-        );
-
-        // v1.5.0 — fetch the latest `takenAt` for this medication
-        // once per tick when any schedule on it is rolling. The
-        // canonical recurrence engine needs `lastIntakeAt` to compute
-        // the next-due instant for rolling cadences; calendar
-        // cadences ignore the field, so the fetch is conditional to
-        // avoid an extra round-trip on the common path. Failures bias
-        // toward "treat as never logged" so a flaky DB doesn't
-        // suppress reminders.
-        const hasRollingSchedule = med.schedules.some(
-          (s) => s.rollingIntervalDays !== null,
-        );
-        let lastIntakeAt: Date | null = null;
-        if (hasRollingSchedule) {
-          const lastIntake = await prisma.medicationIntakeEvent.findFirst({
-            where: {
-              userId: med.user.id,
-              medicationId: med.id,
-              // v1.7.0 sync — a tombstoned intake no longer anchors the
-              // rolling-interval next-due computation.
-              deletedAt: null,
-              takenAt: { not: null },
-            },
-            orderBy: { takenAt: "desc" },
-            select: { takenAt: true },
-          });
-          lastIntakeAt = lastIntake?.takenAt ?? null;
-        }
-
-        for (const schedule of sortedSchedules) {
-          // v1.5.0 — route every "does today emit a slot?" decision
-          // through the canonical recurrence engine. Replaces the
-          // legacy weekday-only filter that silently ignored
-          // `intervalWeeks` (the pre-v1.5 bi-weekly bug — a Wed
-          // bi-weekly schedule fired every Wed instead of every other
-          // Wed). The engine honours RRULE / rolling / one-shot /
-          // legacy-with-interval-weeks / `endsOn` cap; no special-
-          // casing here.
-          const canonicalSchedule = buildCanonicalSchedule(schedule);
-          const recurrenceCtx = buildRecurrenceContext({
-            medication: med,
-            userTz,
-            lastIntakeAt,
-          });
-          if (
-            !scheduleEmitsInWindow(
-              canonicalSchedule,
-              recurrenceCtx,
-              todayStart,
-              todayEnd,
-            )
-          ) {
-            continue;
-          }
-
-          // v1.7.0 SB-SCHED-4 — multi-time-of-day dispatch. A schedule
-          // with `timesOfDay = ["08:00","20:00"]` is two distinct dose
-          // slots per day; the pre-v1.7 worker keyed phase + dedup on the
-          // single `windowStart`, so the evening dose never reminded.
-          // Iterate every first-class time-of-day, each with its own
-          // window (anchored at the time, spanning the legacy
-          // `windowEnd - windowStart` duration), phase, dedup key
-          // (now including the time-of-day), and RED-mint instant.
-          //
-          // The legacy single-window contract is preserved: a schedule
-          // with no first-class `timesOfDay` emits exactly one slot at
-          // `windowStart` with `timeOfDay = ""`, which dedupes against
-          // pre-v1.7 rows (backfilled to "") byte-for-byte.
-          const baseStartMins = parseTimeToMinutes(schedule.windowStart);
-          const baseEndMins = parseTimeToMinutes(schedule.windowEnd);
-          const windowDuration = baseEndMins - baseStartMins;
-          const currentMins = parseTimeToMinutes(currentTime);
-
-          const hasFirstClassTimes =
-            schedule.timesOfDay && schedule.timesOfDay.length > 0;
-          // v1.7.0 code-correctness M4 — iterate slots in chronological
-          // order so phase/dedup/suppression decisions are deterministic
-          // and a logged dose maps to the nearest slot, not whichever the
-          // stored array order happened to surface first.
-          const slotTimes = (
-            hasFirstClassTimes ? [...schedule.timesOfDay] : [schedule.windowStart]
-          ).sort((a, b) => parseTimeToMinutes(a) - parseTimeToMinutes(b));
-
-          for (const slotTime of slotTimes) {
-            // Dedup key time-of-day: "" for a legacy single-window
-            // schedule (byte-stable against pre-v1.7 rows), else the
-            // explicit HH:mm.
-            const dedupTimeOfDay = hasFirstClassTimes ? slotTime : "";
-            const slotStartMins = parseTimeToMinutes(slotTime);
-            const slotEndMins = slotStartMins + windowDuration;
-            const minutesToEnd = slotEndMins - currentMins;
-            const minutesFromStart = currentMins - slotStartMins;
-
-            // The UTC instant this slot is due (DST-safe).
-            const [slotH, slotM] = slotTime.split(":").map(Number);
-            const slotInstant = localHmAsUtc(
-              now,
-              med.user.timezone,
-              slotH,
-              slotM,
-            ).getTime();
-
-            // Suppress this slot's reminder if a user-logged dose (taken
-            // or skipped) sits within half the window duration of the
-            // slot's due time. Matching by proximity — not a positional
-            // counter — means a partially-dosed day still reminds for the
-            // correct missing slot. Each logged dose claims at most one
-            // slot so two slots can't both be suppressed by one dose.
-            const matchRadiusMs =
-              Math.max(windowDuration, 60) * 60_000 * 0.5;
-            let matchedIdx = -1;
-            let matchedDist = Infinity;
-            for (let li = 0; li < loggedDoseInstants.length; li++) {
-              if (claimedSlotInstants.has(li)) continue;
-              const dist = Math.abs(loggedDoseInstants[li] - slotInstant);
-              if (dist <= matchRadiusMs && dist < matchedDist) {
-                matchedDist = dist;
-                matchedIdx = li;
-              }
-            }
-            if (matchedIdx >= 0) {
-              claimedSlotInstants.add(matchedIdx);
-              continue;
-            }
-
-            // Skip if medication is snoozed
-            if (med.snoozedUntil && now < med.snoozedUntil) {
-              continue;
-            }
-
-            // Resolve phase thresholds
-            const thresholds = resolvePhaseThresholds(
-              phaseConfig,
-              windowDuration,
-            );
-
-            // Determine current phase for this slot's window.
-            const currentPhase = determinePhase(
-              minutesToEnd,
-              minutesFromStart,
-              thresholds,
-            );
-
-            if (!currentPhase) {
-              continue;
-            }
-
-            // Check if this phase was already notified today for this
-            // time-of-day.
-            const existingMessage =
-              await prisma.telegramReminderMessage.findUnique({
-                where: {
-                  medicationId_scheduleId_date_phase_timeOfDay: {
-                    medicationId: med.id,
-                    scheduleId: schedule.id,
-                    date: localDateStr,
-                    phase: currentPhase,
-                    timeOfDay: dedupTimeOfDay,
-                  },
-                },
-              });
-
-            if (existingMessage) {
-              // Already sent for this phase + time-of-day — skip
-              continue;
-            }
-
-            const doseInfo = schedule.dose ?? med.dose;
-            const timeWindow = `${slotTime}`;
-
-            // DST-safe slot instant, computed once above.
-            const slotScheduledFor = new Date(slotInstant);
-
-            // RED phase: create missed intake event for this slot.
-            if (currentPhase === "RED") {
-              // v1.8.2 — gate the missed-dose mint through the shared
-              // guard. It refuses to mint when the slot already carries an
-              // existing pending REMINDER row (P2002-collision avoidance,
-              // tombstones included) OR an ACTIONED row (taken / skipped)
-              // from ANY source. The intake write paths snap a "Genommen" /
-              // "Übersprungen" write onto the canonical slot instant
-              // (source-agnostic update), so a user who acted before the
-              // RED phase opens has a live taken/skipped row at this exact
-              // slot — minting here would re-create the duplicate the
-              // write paths just collapsed.
-              const shouldMint = await shouldMintMissedDoseRow(prisma, {
-                userId: med.user.id,
-                medicationId: med.id,
-                scheduledFor: slotScheduledFor,
-              });
-
-              if (shouldMint) {
-                await prisma.medicationIntakeEvent.create({
-                  data: {
-                    userId: med.user.id,
-                    medicationId: med.id,
-                    scheduledFor: slotScheduledFor,
-                    takenAt: null,
-                    skipped: false,
-                    source: "REMINDER",
-                  },
-                });
-
-                evt.addMeta("missed_dose", `${med.name}:${slotTime}`);
-
-                // v1.4.39 W-MED — refresh the compliance rollup so the
-                // per-day `scheduled` count increments before any read.
-                await recomputeMedicationComplianceForEvent({
-                  userId: med.user.id,
-                  medicationId: med.id,
-                  scheduledFor: slotScheduledFor,
-                  tz: med.user.timezone,
-                });
-              }
-            }
-
-            // Send notification if enabled
-            if (med.notificationsEnabled) {
-              // v1.4.49 M-DOUBLE-REMINDER — opt-in client-managed
-              // suppression. ONLY suppresses MEDICATION_REMINDER.
-              if (
-                isMedicationReminderClientManaged(med.user.notificationPrefs)
-              ) {
-                const doseAtIso = slotScheduledFor.toISOString();
-                evt.addMeta(
-                  "medication_reminder_suppressed_client_managed",
-                  `${med.name}:${slotTime}`,
-                );
-                evt.addMeta("medication_reminder_suppressed_meta", {
-                  user_id: med.user.id,
-                  medication_id: med.id,
-                  schedule_id: schedule.id,
-                  phase: currentPhase,
-                  dose_at: doseAtIso,
-                });
-                continue;
-              }
-
-              const { title, message } = getPhaseMessage(
-                currentPhase,
-                med.name,
-                doseInfo,
-                timeWindow,
-                minutesToEnd,
-                med.user.locale,
-              );
-
-              const keyboard = getPhaseKeyboard(
-                currentPhase,
-                med.id,
-                med.user.locale,
-              );
-
-              // v0.5.4 — surface the slot time as an ISO 8601 string so
-              // the iOS snooze action pins against the actual slot.
-              const scheduledAtIso = slotScheduledFor.toISOString();
-
-              evt.addMeta(
-                "notification_phase",
-                `${currentPhase}:${med.name}:${slotTime}`,
-              );
-
-              try {
-                await dispatchNotification({
-                  eventType: "MEDICATION_REMINDER",
-                  userId: med.user.id,
-                  title,
-                  message,
-                  metadata: {
-                    medicationId: med.id,
-                    scheduleId: schedule.id,
-                    phase: currentPhase,
-                    date: localDateStr,
-                    // v1.7.0 SB-SCHED-4 — carry the dedup time-of-day so
-                    // the Telegram-message ledger keys per slot.
-                    timeOfDay: dedupTimeOfDay,
-                    scheduledAt: scheduledAtIso,
-                    replyMarkup: keyboard,
-                  },
-                });
-              } catch (notifErr) {
-                evt.addWarning(
-                  `Notification dispatch failed for ${currentPhase} phase ${med.name}: ${notifErr}`,
-                );
-              }
-            }
-          }
-        }
-      }
-    } catch (err) {
-      evt.setError(err);
-      recordError();
-      throw err;
-    }
-  });
-}
-
-/**
- * Fallback polling for Withings data.
- * Runs periodically in case webhook delivery is delayed or unavailable.
- */
-async function handleWithingsFallbackSync(jobs: Job<WithingsSyncPayload>[]) {
-  void jobs;
-  await withBackgroundEvent("job.withings_sync", async (evt) => {
-    const prisma = getWorkerPrisma();
-    try {
-      recordWithingsSync();
-      const connections = await prisma.withingsConnection.findMany({
-        select: { userId: true },
-      });
-
-      if (connections.length === 0) {
-        return;
-      }
-
-      let usersSynced = 0;
-      let measurementsImported = 0;
-
-      for (const connection of connections) {
-        try {
-          const imported = await syncUserMeasurements(connection.userId);
-          usersSynced++;
-          measurementsImported += imported;
-        } catch (err) {
-          evt.addWarning(
-            `Fallback sync failed for user ${connection.userId}: ${err}`,
-          );
-        }
-      }
-
-      evt.setBackground({
-        task_name: "job.withings_sync",
-        result: {
-          users_synced: usersSynced,
-          total: connections.length,
-          measurements_imported: measurementsImported,
-        },
-      });
-    } catch (err) {
-      evt.setError(err);
-      recordError();
-      throw err;
-    }
-  });
-}
-
-/**
- * v1.4.25 W17b — activity-sync handler.
- *
- * Two enqueue paths feed this queue:
- *
- *   1. Webhook (appli=16) — payload carries `userId`, the handler
- *      runs `syncUserActivity` for that one user.
- *   2. Cron (`withings-activity-sync` at :00 every hour) — payload
- *      has no `userId`, the handler iterates every Withings
- *      connection and re-syncs each. Catches the 1 % of webhook
- *      deliveries Withings drops.
- *
- * Sync failures per-user are logged as warnings; the queue carries on
- * so one user's parked-at-reauth state doesn't starve every other
- * connection on the cron tick.
- */
-async function handleWithingsActivitySync(
-  jobs: Job<WithingsActivitySyncPayload>[],
-) {
-  await withBackgroundEvent("job.withings_activity_sync", async (evt) => {
-    const prisma = getWorkerPrisma();
-    try {
-      const targets: Array<{ userId: string }> = [];
-      for (const job of jobs) {
-        if (job.data?.userId) {
-          targets.push({ userId: job.data.userId });
-        }
-      }
-      // No user-specific enqueue → cron fallback iterating everyone.
-      if (targets.length === 0) {
-        const connections = await prisma.withingsConnection.findMany({
-          select: { userId: true },
-        });
-        targets.push(...connections);
-      }
-      if (targets.length === 0) return;
-
-      let usersSynced = 0;
-      let measurementsImported = 0;
-      for (const { userId } of targets) {
-        try {
-          const imported = await syncUserActivity(userId);
-          usersSynced++;
-          measurementsImported += imported;
-        } catch (err) {
-          evt.addWarning(
-            `Withings activity sync failed for user ${userId}: ${err}`,
-          );
-        }
-      }
-
-      evt.setBackground({
-        task_name: "job.withings_activity_sync",
-        result: {
-          users_synced: usersSynced,
-          total: targets.length,
-          measurements_imported: measurementsImported,
-        },
-      });
-    } catch (err) {
-      evt.setError(err);
-      recordError();
-      throw err;
-    }
-  });
-}
-
-/**
- * v1.4.25 W17c — sleep-sync handler. Same enqueue semantics as the
- * activity handler: per-user when the webhook fires, full-iteration
- * when the cron ticks.
- */
-async function handleWithingsSleepSync(jobs: Job<WithingsSleepSyncPayload>[]) {
-  await withBackgroundEvent("job.withings_sleep_sync", async (evt) => {
-    const prisma = getWorkerPrisma();
-    try {
-      const targets: Array<{ userId: string }> = [];
-      for (const job of jobs) {
-        if (job.data?.userId) {
-          targets.push({ userId: job.data.userId });
-        }
-      }
-      if (targets.length === 0) {
-        const connections = await prisma.withingsConnection.findMany({
-          select: { userId: true },
-        });
-        targets.push(...connections);
-      }
-      if (targets.length === 0) return;
-
-      let usersSynced = 0;
-      let measurementsImported = 0;
-      for (const { userId } of targets) {
-        try {
-          const imported = await syncUserSleep(userId);
-          usersSynced++;
-          measurementsImported += imported;
-        } catch (err) {
-          evt.addWarning(
-            `Withings sleep sync failed for user ${userId}: ${err}`,
-          );
-        }
-      }
-
-      evt.setBackground({
-        task_name: "job.withings_sleep_sync",
-        result: {
-          users_synced: usersSynced,
-          total: targets.length,
-          measurements_imported: measurementsImported,
-        },
-      });
-    } catch (err) {
-      evt.setError(err);
-      recordError();
-      throw err;
-    }
-  });
-}
-
-/**
- * v1.11.0 — WHOOP per-resource sync payload. Two enqueue paths feed each
- * WHOOP sync queue:
- *
- *   1. Webhook (`recovery.updated` / `sleep.updated` / `workout.updated`) —
- *      payload carries `userId`, the handler syncs that one user.
- *   2. Cron — payload has no `userId`; the handler iterates every WHOOP
- *      connection and re-syncs each, catching dropped webhook deliveries.
- *      Cycle has no webhook, so its cron is the sole driver.
- */
-interface WhoopSyncPayload {
-  userId?: string;
-}
-
-/**
- * Shared driver for the per-resource WHOOP sync handlers. Resolves the target
- * set (per-user from the webhook payload, or every connection on the cron
- * tick) and runs `syncFn` per user. One user's parked-at-reauth state never
- * starves the rest of the cohort on the cron path.
- */
-async function runWhoopResourceSync(
-  taskName: string,
-  jobs: Job<WhoopSyncPayload>[],
-  syncFn: (userId: string) => Promise<number>,
-): Promise<void> {
-  await withBackgroundEvent(taskName, async (evt) => {
-    const prisma = getWorkerPrisma();
-    try {
-      const targets: Array<{ userId: string }> = [];
-      for (const job of jobs) {
-        if (job.data?.userId) targets.push({ userId: job.data.userId });
-      }
-      if (targets.length === 0) {
-        const connections = await prisma.whoopConnection.findMany({
-          select: { userId: true },
-        });
-        targets.push(...connections);
-      }
-      if (targets.length === 0) return;
-
-      let usersSynced = 0;
-      let measurementsImported = 0;
-      for (const { userId } of targets) {
-        try {
-          measurementsImported += await syncFn(userId);
-          usersSynced++;
-        } catch (err) {
-          evt.addWarning(`${taskName} failed for user ${userId}: ${err}`);
-        }
-      }
-
-      evt.setBackground({
-        task_name: taskName,
-        result: {
-          users_synced: usersSynced,
-          total: targets.length,
-          measurements_imported: measurementsImported,
-        },
-      });
-    } catch (err) {
-      evt.setError(err);
-      recordError();
-      throw err;
-    }
-  });
-}
-
-function handleWhoopRecoverySync(jobs: Job<WhoopSyncPayload>[]) {
-  return runWhoopResourceSync("job.whoop_recovery_sync", jobs, syncUserRecovery);
-}
-
-function handleWhoopSleepSync(jobs: Job<WhoopSyncPayload>[]) {
-  return runWhoopResourceSync("job.whoop_sleep_sync", jobs, syncWhoopSleep);
-}
-
-function handleWhoopWorkoutSync(jobs: Job<WhoopSyncPayload>[]) {
-  return runWhoopResourceSync("job.whoop_workout_sync", jobs, syncUserWorkout);
-}
-
-function handleWhoopCycleSync(jobs: Job<WhoopSyncPayload>[]) {
-  return runWhoopResourceSync("job.whoop_cycle_sync", jobs, syncUserCycle);
-}
-
-/**
- * Shared driver for the nightly 02:xx per-metric status crons. User
- * discovery is centralised in `findStatusCronCandidates`, which applies
- * the operator assistant kill-switch, the per-user `disableCoach` gate,
- * and the pregenerate-candidate skip (users with a configured provider
- * and a stale comprehensive cache belong to the 04:30 pre-generate pass,
- * which re-warms every per-status cache anyway — see
- * `status-cron-candidates.ts` for the full division of nightly labour).
- * The generators normalise `locale` themselves (de stays de, everything
- * else gets English prose).
- */
-async function runStatusCronGenerate(
-  taskName: string,
-  generate: (
-    userId: string,
-    options: { locale: string | null; force: boolean },
-  ) => Promise<unknown>,
-  options: { recordRun?: boolean } = {},
-): Promise<void> {
-  await withBackgroundEvent(taskName, async (evt) => {
-    const prisma = getWorkerPrisma();
-    try {
-      if (options.recordRun) recordInsightsRun();
-      const users = await findStatusCronCandidates(prisma);
-
-      if (users.length === 0) return;
-
-      let generated = 0;
-      let failed = 0;
-
-      for (const user of users) {
-        try {
-          await generate(user.id, { locale: user.locale, force: false });
-          generated++;
-        } catch (error) {
-          failed++;
-          evt.addWarning(
-            `${taskName} generation failed for user ${user.id}: ${error}`,
-          );
-        }
-      }
-
-      evt.setBackground({
-        task_name: taskName,
-        result: { generated, failed, total: users.length },
-      });
-    } catch (err) {
-      evt.setError(err);
-      recordError();
-      await reportWorkerError(taskName, err);
-      throw err;
-    }
-  });
-}
-
-function handleGeneralStatusGenerate(jobs: Job<GeneralStatusPayload>[]) {
-  void jobs;
-  return runStatusCronGenerate(
-    "job.insights.general",
-    generateGeneralStatusForUser,
-    { recordRun: true },
-  );
-}
-
-function handleBloodPressureStatusGenerate(
-  jobs: Job<BloodPressureStatusPayload>[],
-) {
-  void jobs;
-  return runStatusCronGenerate(
-    "job.insights.blood_pressure",
-    generateBloodPressureStatusForUser,
-  );
-}
-
-function handleWeightStatusGenerate(jobs: Job<WeightStatusPayload>[]) {
-  void jobs;
-  return runStatusCronGenerate(
-    "job.insights.weight",
-    generateWeightStatusForUser,
-  );
-}
-
-function handlePulseStatusGenerate(jobs: Job<PulseStatusPayload>[]) {
-  void jobs;
-  return runStatusCronGenerate(
-    "job.insights.pulse",
-    generatePulseStatusForUser,
-  );
-}
-
-function handleBmiStatusGenerate(jobs: Job<BmiStatusPayload>[]) {
-  void jobs;
-  return runStatusCronGenerate("job.insights.bmi", generateBmiStatusForUser);
-}
-
-function handleMoodStatusGenerate(jobs: Job<MoodStatusPayload>[]) {
-  void jobs;
-  return runStatusCronGenerate("job.insights.mood", generateMoodStatusForUser);
-}
-
-function handleMedicationComplianceStatusGenerate(
-  jobs: Job<MedicationComplianceStatusPayload>[],
-) {
-  void jobs;
-  return runStatusCronGenerate(
-    "job.insights.medication_compliance",
-    generateMedicationComplianceStatusForUser,
-  );
-}
-
-/**
- * Fallback polling for moodLog data.
- * Syncs mood entries for all users with moodLog enabled.
- */
-async function handleMoodLogSync(jobs: Job<MoodLogSyncPayload>[]) {
-  void jobs;
-  await withBackgroundEvent("job.moodlog_sync", async (evt) => {
-    const prisma = getWorkerPrisma();
-    try {
-      // Check global toggle
-      const appSettings = await prisma.appSettings.findUnique({
-        where: { id: "singleton" },
-        select: { moodLogGlobal: true },
-      });
-      if (appSettings && !appSettings.moodLogGlobal) {
-        evt.addMeta("skipped", "global_toggle_disabled");
-        return;
-      }
-
-      const users = await prisma.user.findMany({
-        where: { moodLogEnabled: true },
-        select: { id: true },
-      });
-
-      if (users.length === 0) return;
-
-      let synced = 0;
-      let totalImported = 0;
-
-      for (const user of users) {
-        try {
-          const imported = await syncMoodLogEntries(user.id);
-          synced++;
-          totalImported += imported;
-        } catch (err) {
-          evt.addWarning(`Fallback sync failed for user ${user.id}: ${err}`);
-        }
-      }
-
-      evt.setBackground({
-        task_name: "job.moodlog_sync",
-        result: {
-          synced,
-          total: users.length,
-          entries_imported: totalImported,
-        },
-      });
-    } catch (err) {
-      evt.setError(err);
-      recordError();
-      throw err;
-    }
-  });
-}
-
-/**
- * v0.5.4 ios-coord — daily mood-reminder dispatcher.
- *
- * Delegates the dispatch decision to `runMoodReminderTick` in
- * `mood-reminder.ts` so the unit tests can exercise the logic without
- * spinning up pg-boss. The handler is a thin shim that wires the worker
- * Prisma singleton + the wide-event sink to the pure function.
- */
-interface MoodReminderCleanupPayload {
-  triggeredAt: string;
-}
-
-async function handleMoodReminderCleanup(
-  jobs: Job<MoodReminderCleanupPayload>[],
-) {
-  void jobs;
-  await withBackgroundEvent("job.mood_reminder_cleanup", async (evt) => {
-    const p = getWorkerPrisma();
-    try {
-      const cutoff = new Date();
-      cutoff.setUTCDate(cutoff.getUTCDate() - MOOD_REMINDER_RETENTION_DAYS);
-      const cutoffIso = cutoff.toISOString().slice(0, 10);
-      const deleted = await p.moodReminderDispatch.deleteMany({
-        where: { date: { lt: cutoffIso } },
-      });
-      evt.addMeta("mood_reminder_cleanup_deleted", deleted.count);
-    } catch (err) {
-      evt.addWarning(`mood-reminder-cleanup failed: ${err}`);
-    }
-  });
-}
-
-/**
- * v1.4.49 — daily prune for the per-attempt push-delivery ledger.
- *
- * Every sender (APNS, WEB_PUSH, TELEGRAM, NTFY) writes one
- * fire-and-forget row to `push_attempts` per dispatch. The admin
- * diagnostic endpoint only ever reads the trailing 20 rows per user,
- * so anything older than the 90-day retention window is dead weight
- * inflating the table and the `(user_id, created_at DESC)` index.
- *
- * The DELETE is unbounded by user — the index covers `created_at`
- * directly, so a `WHERE created_at < cutoff` scan is bounded by the
- * size of the trailing-edge of the table rather than the live working
- * set. On a one-million-row table with the documented retention
- * window, the daily prune touches ~11k rows (1M / 90d × 1d) and
- * completes in milliseconds.
- */
-interface PushAttemptCleanupPayload {
-  triggeredAt: string;
-}
-
-async function handlePushAttemptCleanup(
-  jobs: Job<PushAttemptCleanupPayload>[],
-) {
-  void jobs;
-  await withBackgroundEvent("job.push_attempt_cleanup", async (evt) => {
-    const p = getWorkerPrisma();
-    try {
-      const cutoff = new Date();
-      cutoff.setUTCDate(cutoff.getUTCDate() - PUSH_ATTEMPT_RETENTION_DAYS);
-      const deleted = await p.pushAttempt.deleteMany({
-        where: { createdAt: { lt: cutoff } },
-      });
-      evt.addMeta("push_attempt_cleanup_deleted", deleted.count);
-    } catch (err) {
-      evt.addWarning(`push-attempt-cleanup failed: ${err}`);
-    }
-  });
-}
-
-interface MeasurementTombstoneCleanupPayload {
-  triggeredAt: string;
-}
-
-async function handleMeasurementTombstoneCleanup(
-  jobs: Job<MeasurementTombstoneCleanupPayload>[],
-) {
-  void jobs;
-  await withBackgroundEvent("job.measurement_tombstone_cleanup", async (evt) => {
-    const p = getWorkerPrisma();
-    try {
-      // v1.7.0 sync — prune tombstones across all three sync domains on
-      // the same retention horizon.
-      const [measurements, mood, intakes] = await Promise.all([
-        cleanupExpiredMeasurementTombstones(p),
-        cleanupExpiredMoodTombstones(p),
-        cleanupExpiredIntakeTombstones(p),
-      ]);
-      evt.addMeta("measurement_tombstone_cleanup_pruned", measurements);
-      evt.addMeta("mood_tombstone_cleanup_pruned", mood);
-      evt.addMeta("intake_tombstone_cleanup_pruned", intakes);
-    } catch (err) {
-      evt.addWarning(`tombstone-cleanup failed: ${err}`);
-    }
-  });
-}
-
-async function handleMoodReminderCheck(jobs: Job<MoodReminderPayload>[]) {
-  void jobs;
-  await withBackgroundEvent("job.mood_reminder", async (evt) => {
-    const prisma = getWorkerPrisma();
-    try {
-      const summary = await runMoodReminderTick(prisma, new Date());
-      evt.setBackground({
-        task_name: "job.mood_reminder",
-        result: {
-          candidates_scanned: summary.candidatesScanned,
-          in_window: summary.inWindow,
-          dispatched: summary.dispatched,
-          skipped_already_logged: summary.skippedAlreadyLogged,
-          skipped_already_dispatched: summary.skippedAlreadyDispatched,
-          skipped_outside_window: summary.skippedOutsideWindow,
-        },
-      });
-    } catch (err) {
-      evt.setError(err);
-      recordError();
-      throw err;
-    }
-  });
-}
-
-/**
- * v1.15 — daily cycle-reminder dispatcher (period-soon + period-start-confirm).
- *
- * Thin shim around `runCycleReminderTick` in `cycle-reminder.ts` so the
- * unit tests exercise the windowing + suppression logic without pg-boss.
- */
-async function handleCycleReminderCheck(jobs: Job<CycleReminderPayload>[]) {
-  void jobs;
-  await withBackgroundEvent("job.cycle_reminder", async (evt) => {
-    const prisma = getWorkerPrisma();
-    try {
-      const summary = await runCycleReminderTick(prisma, new Date());
-      evt.setBackground({
-        task_name: "job.cycle_reminder",
-        result: {
-          candidates_scanned: summary.candidatesScanned,
-          in_window: summary.inWindow,
-          dispatched_period_soon: summary.dispatchedPeriodSoon,
-          dispatched_period_confirm: summary.dispatchedPeriodConfirm,
-          suppressed_client_managed: summary.suppressedClientManaged,
-          suppressed_discreet: summary.suppressedDiscreet,
-          skipped_already_notified: summary.skippedAlreadyNotified,
-          skipped_outside_window: summary.skippedOutsideWindow,
-        },
-      });
-    } catch (err) {
-      evt.setError(err);
-      recordError();
-      throw err;
-    }
-  });
-}
-
-async function handleRateLimitCleanup(jobs: Job<RateLimitCleanupPayload>[]) {
-  void jobs;
-  await withBackgroundEvent("job.rate_limit_cleanup", async (evt) => {
-    const p = getWorkerPrisma();
-    try {
-      const result = await p.$executeRaw`
-        DELETE FROM rate_limits WHERE reset_at < NOW()
-      `;
-      evt.addMeta("rate_limit_cleanup_deleted", result);
-    } catch (err) {
-      evt.addWarning(`rate-limit-cleanup failed: ${err}`);
-    }
-  });
-}
-
-async function handleIdempotencyCleanup(
-  jobs: Job<IdempotencyCleanupPayload>[],
-) {
-  void jobs;
-  await withBackgroundEvent("job.idempotency_cleanup", async (evt) => {
-    const p = getWorkerPrisma();
-    try {
-      const deleted = await cleanupExpiredIdempotencyKeys(p);
-      evt.addMeta("idempotency_cleanup_deleted", deleted);
-    } catch (err) {
-      evt.addWarning(`idempotency-cleanup failed: ${err}`);
-    }
-  });
-}
-
-async function handleAuditLogCleanup(jobs: Job<AuditLogCleanupPayload>[]) {
-  void jobs;
-  await withBackgroundEvent("job.audit_log_cleanup", async (evt) => {
-    const p = getWorkerPrisma();
-    try {
-      const deleted = await cleanupOldAuditLogs(p);
-      evt.addMeta("audit_log_cleanup_deleted", deleted);
-    } catch (err) {
-      evt.addWarning(`audit-log-cleanup failed: ${err}`);
-    }
-  });
-}
-
-async function handleWithingsOAuthStateCleanup(
-  jobs: Job<WithingsOAuthStateCleanupPayload>[],
-) {
-  void jobs;
-  await withBackgroundEvent("job.withings_oauth_state_cleanup", async (evt) => {
-    const p = getWorkerPrisma();
-    try {
-      const deleted = await cleanupExpiredWithingsOAuthStates(p);
-      evt.addMeta("withings_oauth_state_cleanup_deleted", deleted);
-    } catch (err) {
-      // The OAuth flow tolerates a stale row sticking around for an
-      // extra day — log + carry on so the boss queue doesn't retry-loop.
-      evt.addWarning(`withings-oauth-state-cleanup failed: ${err}`);
-    }
-  });
-}
-
-interface WhoopOAuthStateCleanupPayload {
-  triggeredAt?: string;
-}
-
-async function handleWhoopOAuthStateCleanup(
-  jobs: Job<WhoopOAuthStateCleanupPayload>[],
-) {
-  void jobs;
-  await withBackgroundEvent("job.whoop_oauth_state_cleanup", async (evt) => {
-    const p = getWorkerPrisma();
-    try {
-      const deleted = await cleanupExpiredWhoopOAuthStates(p);
-      evt.addMeta("whoop_oauth_state_cleanup_deleted", deleted);
-      const ticketsDeleted = await cleanupExpiredWhoopConnectTickets(p);
-      evt.addMeta("whoop_connect_ticket_cleanup_deleted", ticketsDeleted);
-    } catch (err) {
-      evt.addWarning(`whoop-oauth-state-cleanup failed: ${err}`);
-    }
-  });
-}
-
-/**
- * v1.12.0 — Fitbit poll-sync payload. Poll-only (no webhook at launch): the
- * single hourly cron tick carries no `userId`, so the handler iterates every
- * Fitbit connection and re-syncs each via `syncUserFitbit`. One user's
- * parked-at-reauth state never starves the rest of the cohort.
- */
-interface FitbitSyncPayload {
-  userId?: string;
-}
-
-async function handleFitbitSync(jobs: Job<FitbitSyncPayload>[]) {
-  await withBackgroundEvent("job.fitbit_sync", async (evt) => {
-    const prisma = getWorkerPrisma();
-    try {
-      const targets: Array<{ userId: string }> = [];
-      for (const job of jobs) {
-        if (job.data?.userId) targets.push({ userId: job.data.userId });
-      }
-      if (targets.length === 0) {
-        const connections = await prisma.fitbitConnection.findMany({
-          select: { userId: true },
-        });
-        targets.push(...connections);
-      }
-      if (targets.length === 0) return;
-
-      // Fan the cohort out with bounded concurrency + per-user error isolation:
-      // one slow Google response can't stall the whole cohort, and a single
-      // user's failure is warned without aborting the pass.
-      const { usersSynced, measurementsImported } = await runFitbitPollCohort(
-        targets.map((t) => t.userId),
-        {
-          onUserError: (userId, err) =>
-            evt.addWarning(`job.fitbit_sync failed for user ${userId}: ${err}`),
-        },
-      );
-
-      evt.setBackground({
-        task_name: "job.fitbit_sync",
-        result: {
-          users_synced: usersSynced,
-          total: targets.length,
-          measurements_imported: measurementsImported,
-        },
-      });
-    } catch (err) {
-      evt.setError(err);
-      recordError();
-      throw err;
-    }
-  });
-}
-
-interface FitbitOAuthStateCleanupPayload {
-  triggeredAt?: string;
-}
-
-async function handleFitbitOAuthStateCleanup(
-  jobs: Job<FitbitOAuthStateCleanupPayload>[],
-) {
-  void jobs;
-  await withBackgroundEvent("job.fitbit_oauth_state_cleanup", async (evt) => {
-    const p = getWorkerPrisma();
-    try {
-      const deleted = await cleanupExpiredFitbitOAuthStates(p);
-      evt.addMeta("fitbit_oauth_state_cleanup_deleted", deleted);
-    } catch (err) {
-      evt.addWarning(`fitbit-oauth-state-cleanup failed: ${err}`);
-    }
-  });
-}
-
-async function handleHostMetricSample(jobs: Job<HostMetricSamplePayload>[]) {
-  void jobs;
-  await withBackgroundEvent("job.host_metric_sample", async (evt) => {
-    const p = getWorkerPrisma();
-    try {
-      const { pruned } = await runHostMetricTick(p);
-      evt.addMeta("host_metric_pruned", pruned);
-    } catch (err) {
-      // The chart degrades gracefully when samples are missing — log
-      // and move on rather than poisoning the boss queue with retries.
-      evt.addWarning(`host-metric-sample failed: ${err}`);
-    }
-  });
-}
-
-async function handleFeedbackAggregator(
-  jobs: Job<FeedbackAggregatorPayload>[],
-) {
-  void jobs;
-  await withBackgroundEvent("job.feedback_aggregator", async (evt) => {
-    const p = getWorkerPrisma();
-    try {
-      const summary = await aggregateRecommendationFeedback(p);
-      evt.addMeta("feedback_buckets", summary.buckets.length);
-      evt.addMeta(
-        "feedback_total_rows",
-        summary.buckets.reduce((acc, b) => acc + b.total, 0),
-      );
-      evt.addMeta("feedback_window_days", summary.windowDays);
-    } catch (err) {
-      // The admin dashboard tolerates a stale summary — log and move
-      // on rather than poisoning the boss queue with retries that
-      // would block the next cleanup window.
-      evt.addWarning(`feedback-aggregator failed: ${err}`);
-    }
-  });
-}
-
-/**
- * v1.4.37 — geo-backfill worker. Walks `audit_logs` rows that landed
- * with a null `location` (offline MMDB missing at write time, online
- * provider unreachable) and re-resolves them through the now-bundled
- * resolver chain. The helper is idempotent and capped per pass so
- * the hourly cadence cannot starve a live login spike.
- *
- * v1.4.38 — in-process singleton guard. pg-boss already coalesces
- * concurrent cron ticks across multiple worker containers via the
- * shared queue lease, but a single container that takes longer than
- * one cron interval can pick up two jobs back-to-back when the
- * second tick fires while the first pass is still running. The
- * in-process `geoBackfillRunning` flag fans the second invocation
- * out as a no-op log line instead of stacking two concurrent passes
- * inside the same Node process — the next cron tick after the first
- * completes will catch up the work the skipped pass would have done.
- */
-let geoBackfillRunning = false;
-async function handleGeoBackfill(jobs: Job<GeoBackfillPayload>[]) {
-  void jobs;
-  await withBackgroundEvent("job.geo_backfill", async (evt) => {
-    if (geoBackfillRunning) {
-      // Earlier pass still in flight; skip this tick. Idempotent + the
-      // next tick after the in-flight pass completes will pick up
-      // anything we miss here.
-      evt.addWarning(
-        "geo-backfill skipped — earlier pass still in flight inside the same worker process",
-      );
-      evt.addMeta("geo_backfill_skipped", true);
-      return;
-    }
-    geoBackfillRunning = true;
-    const p = getWorkerPrisma();
-    try {
-      const summary = await runGeoBackfill(p);
-      evt.addMeta("geo_backfill_scanned", summary.scanned);
-      evt.addMeta("geo_backfill_located", summary.located);
-      evt.addMeta("geo_backfill_carrier_resolved", summary.carrierResolved);
-      evt.addMeta("geo_backfill_still_unresolved", summary.stillUnresolved);
-    } catch (err) {
-      // The admin sign-in overview tolerates a stale Standort cell —
-      // log and move on so a one-off resolver hiccup does not poison
-      // the queue and block the next pass.
-      evt.addWarning(`geo-backfill failed: ${err}`);
-    } finally {
-      geoBackfillRunning = false;
-    }
-  });
-}
-
-async function handleTlsPinMonitor(jobs: Job<TlsPinMonitorPayload>[]) {
-  void jobs;
-  await withBackgroundEvent("job.tls_pin_monitor", async (evt) => {
-    const p = getWorkerPrisma();
-    try {
-      const summary = await runTlsPinMonitor(p);
-      evt.addMeta("tls_pin_monitor_outcome", summary.outcome);
-      evt.addMeta("tls_pin_monitor_host", summary.host);
-      evt.addMeta("tls_pin_monitor_known_count", summary.knownPinCount);
-    } catch (err) {
-      // runTlsPinMonitor swallows probe failures internally; anything that
-      // escapes is unexpected. Log and move on so a one-off failure does not
-      // poison the queue and block the next tick.
-      evt.addWarning(`tls-pin-monitor failed: ${err}`);
-    }
-  });
-}
-
-async function handlePrDetection(
-  jobs: Job<PrDetectionPayload | { userId?: undefined }>[],
-) {
-  for (const job of jobs) {
-    await withBackgroundEvent("job.pr_detection", async (evt) => {
-      const p = getWorkerPrisma();
-      // The cron-fired job carries an empty payload — iterate all
-      // users in that case. The push-suppression flag is irrelevant
-      // for the cron path (the dispatcher's per-user opt-in handles
-      // the loud/quiet decision once the row is written).
-      const payloadUserId = (job.data as PrDetectionPayload | undefined)
-        ?.userId;
-      const silent =
-        (job.data as PrDetectionPayload | undefined)?.silent ?? false;
-      const userIds: string[] = payloadUserId
-        ? [payloadUserId]
-        : (await p.user.findMany({ select: { id: true } })).map((u) => u.id);
-
-      let insertedTotal = 0;
-      let tiesTotal = 0;
-      for (const userId of userIds) {
-        try {
-          const result = await detectPersonalRecordsForUser(userId, {
-            silent,
-            prisma: p,
-          });
-          insertedTotal += result.inserted;
-          tiesTotal += result.ties;
-        } catch (err) {
-          evt.addWarning(`pr-detection failed for user ${userId}: ${err}`);
-        }
-      }
-      evt.addMeta("pr_detection_users", userIds.length);
-      evt.addMeta("pr_detection_inserted", insertedTotal);
-      evt.addMeta("pr_detection_ties", tiesTotal);
-      evt.addMeta("pr_detection_silent", silent);
-      evt.addMeta("pr_detection_mode", payloadUserId ? "ingest" : "cron");
-    });
-  }
-}
-
-/**
- * v1.4.25 W19b — daily expire-stale pass for `MedicationInventoryItem`
- * rows. Flips IN_USE pens whose 30-day window has lapsed to EXPIRED
- * via the pure state-machine evaluator.
- */
-async function handleMedicationInventoryExpire(
-  jobs: Job<MedicationInventoryExpirePayload>[],
-) {
-  void jobs;
-  await withBackgroundEvent("job.medication_inventory_expire", async (evt) => {
-    try {
-      const count = await expireStaleInUseItems({ nowMs: Date.now() });
-      evt.addMeta("inventory_expired_count", count);
-    } catch (err) {
-      evt.addWarning(
-        `medication-inventory-expire failed: ${
-          err instanceof Error ? err.message : String(err)
-        }`,
-      );
-    }
-  });
-}
-
-async function handleInsightPregenerateJob(
-  jobs: Job<InsightPregeneratePayload>[],
-) {
-  await withBackgroundEvent("job.insight_pregenerate", async (evt) => {
-    // v1.8.7.1 — a forced single-user warm carries `{ userId, force }`;
-    // the scheduled tick carries neither. Route each job individually so a
-    // batch that mixes a cron tick with on-demand warms (it never does in
-    // practice, but the contract is per-job) stays correct.
-    const forced = jobs.filter((j) => j.data?.force && j.data?.userId);
-    const scheduled = jobs.filter((j) => !(j.data?.force && j.data?.userId));
-
-    for (const job of forced) {
-      const userId = job.data.userId as string;
-      const locale = job.data.locale === "en" ? "en" : "de";
-      try {
-        const summary = await forceWarmUser(getWorkerPrisma(), userId, locale);
-        evt.addMeta(
-          "force_warm",
-          `${summary.comprehensive}:${summary.assessmentsWarmed}+${summary.metricAssessmentsWarmed}`,
-        );
-      } catch (err) {
-        evt.addWarning(
-          `insight-pregenerate force-warm failed: ${
-            err instanceof Error ? err.message : String(err)
-          }`,
-        );
-        // Surface the failure centrally and rethrow so the queue's retry
-        // policy (retryLimit 3 + backoff) re-runs the warm — swallowing it
-        // here left the user's caches cold with zero operator signal.
-        await reportWorkerError(INSIGHT_PREGENERATE_QUEUE, err, {
-          mode: "force-warm",
-        });
-        throw err;
-      }
-    }
-
-    if (scheduled.length === 0) return;
-    try {
-      const summary = await runInsightPregenerate(getWorkerPrisma());
-      evt.setBackground({
-        task_name: "job.insight_pregenerate",
-        result: { ...summary },
-      });
-    } catch (err) {
-      evt.addWarning(
-        `insight-pregenerate failed: ${
-          err instanceof Error ? err.message : String(err)
-        }`,
-      );
-      // Same contract as the force path: report + rethrow so the nightly
-      // tick retries instead of silently waiting for the next night.
-      await reportWorkerError(INSIGHT_PREGENERATE_QUEUE, err, {
-        mode: "scheduled",
-      });
-      throw err;
-    }
-  });
-}
-
-/**
- * v1.8.3 — on-demand per-metric status generation. The read-only status
- * route enqueues one job per cold card; this handler runs the matching
- * generator with `force: true` so the assessment cache row lands and the
- * polling client picks it up. Each job carries `{ userId, metric, locale }`.
- */
-async function handleInsightStatusGenerate(
-  jobs: Job<InsightStatusGeneratePayload>[],
-) {
-  await withBackgroundEvent("job.insight_status_generate", async (evt) => {
-    for (const job of jobs) {
-      if (!job.data?.userId || !job.data?.metric) continue;
-      try {
-        await runInsightStatusGenerate(job.data);
-        evt.addMeta("status_generated", `${job.data.metric}:${job.data.locale}`);
-      } catch (err) {
-        evt.addWarning(
-          `insight-status-generate failed for ${job.data.metric}: ${
-            err instanceof Error ? err.message : String(err)
-          }`,
-        );
-        // Report centrally + rethrow so the enqueue's retry policy
-        // (retryLimit 3 + backoff) re-runs the generation; the polling
-        // client otherwise sits on "preparing" with zero operator signal.
-        await reportWorkerError(INSIGHT_STATUS_GENERATE_QUEUE, err, {
-          metric: job.data.metric,
-        });
-        throw err;
-      }
-    }
-  });
-}
-
-/**
- * v1.4.46 — hourly auto-skip for stale unmarked medication intakes.
- *
- * Flips `MedicationIntakeEvent.skipped` to `true` for every event the
- * user neither took nor explicitly skipped within the 24 h grace
- * window. The pure helper lives in `@/lib/jobs/intake-auto-skip` so a
- * unit test can drive it with an in-memory fake Prisma; this wrapper
- * threads the worker's pg-boss + background-event plumbing.
- */
-async function handleIntakeAutoSkip(jobs: Job<IntakeAutoSkipPayload>[]) {
-  void jobs;
-  await withBackgroundEvent("job.intake_auto_skip", async (evt) => {
-    const prisma = getWorkerPrisma();
-    try {
-      const result = await runIntakeAutoSkipPass(prisma, {
-        nowMs: Date.now(),
-      });
-      evt.addMeta("intake_auto_skip_count", result.skippedCount);
-      evt.addMeta("intake_auto_skip_cutoff", result.cutoff.toISOString());
-    } catch (err) {
-      evt.addWarning(
-        `intake-auto-skip failed: ${
-          err instanceof Error ? err.message : String(err)
-        }`,
-      );
-    }
-  });
-}
-
-async function handleOffhostBackup(jobs: Job<OffhostBackupPayload>[]) {
-  void jobs;
-  await withBackgroundEvent("job.offhost_backup", async (evt) => {
-    const p = getWorkerPrisma();
-    try {
-      const report = await runOffhostBackup(p);
-      evt.addMeta("offhost_backup_uploaded", report.uploaded);
-      evt.addMeta("offhost_backup_failed", report.failed);
-      evt.addMeta("offhost_backup_total_users", report.totalUsers);
-      evt.addMeta("offhost_backup_endpoint", report.config.endpoint);
-      evt.addMeta("offhost_backup_bucket", report.config.bucket);
-      // Per-user failure detail is also emitted as warnings inside
-      // runOffhostBackup; echo a structured digest for at-a-glance triage.
-      if (report.failures.length > 0) {
-        evt.addMeta(
-          "offhost_backup_failures",
-          JSON.stringify(report.failures.slice(0, 10)),
-        );
-      }
-    } catch (err) {
-      // Not configured ⇒ skip silently with a warning, not an error.
-      evt.addWarning(`offhost-backup skipped/failed: ${err}`);
-    }
-  });
-}
-
-async function handleDataBackup(jobs: Job<DataBackupPayload>[]) {
-  void jobs;
-  await withBackgroundEvent("job.data_backup", async (evt) => {
-    const prisma = getWorkerPrisma();
-    try {
-      const users = await prisma.user.findMany({
-        select: { id: true, username: true },
-      });
-
-      let backed = 0;
-      for (const user of users) {
-        try {
-          const [measurements, medications, intakeEvents, moodEntries, cycle] =
-            await Promise.all([
-              prisma.measurement.findMany({
-                where: { userId: user.id },
-                orderBy: { measuredAt: "desc" },
-              }),
-              prisma.medication.findMany({
-                where: { userId: user.id },
-                include: { schedules: true },
-              }),
-              prisma.medicationIntakeEvent.findMany({
-                where: { userId: user.id },
-                include: { medication: { select: { name: true } } },
-                orderBy: { scheduledFor: "desc" },
-              }),
-              prisma.moodEntry.findMany({
-                where: { userId: user.id },
-                orderBy: { moodLoggedAt: "desc" },
-              }),
-              // v1.15.0 — cycle slice (shared helper, notesEncrypted verbatim).
-              buildCycleBackupSection(prisma, user.id),
-            ]);
-
-          const backupJson = JSON.stringify({
-            // Bumped only when the on-disk shape changes incompatibly.
-            // Mirrors `BACKUP_SCHEMA_VERSION` in
-            // `src/lib/validations/backup.ts` — keep them in sync.
-            schemaVersion: "1",
-            exportedAt: new Date().toISOString(),
-            userId: user.id,
-            measurements: measurements.map((m) => ({
-              type: m.type,
-              value: m.value,
-              unit: m.unit,
-              measuredAt: m.measuredAt.toISOString(),
-              source: m.source,
-              notes: m.notes,
-            })),
-            medications: medications.map((m) => ({
-              name: m.name,
-              dose: m.dose,
-              active: m.active,
-              schedules: m.schedules.map((s) => ({
-                windowStart: s.windowStart,
-                windowEnd: s.windowEnd,
-                label: s.label,
-                dose: s.dose,
-              })),
-            })),
-            intakeEvents: intakeEvents.map((e) => ({
-              medication: e.medication.name,
-              scheduledFor: e.scheduledFor.toISOString(),
-              takenAt: e.takenAt?.toISOString() ?? null,
-              skipped: e.skipped,
-              source: e.source,
-            })),
-            moodEntries: moodEntries.map((e) => ({
-              date: e.date,
-              mood: e.mood,
-              score: e.score,
-              tags: e.tags,
-              source: e.source,
-              loggedAt: e.moodLoggedAt.toISOString(),
-            })),
-            // v1.15.0 — cycle slice (profile + observed spans + day-logs).
-            cycleProfile: cycle.cycleProfile,
-            cycles: cycle.cycles,
-            cycleDayLogs: cycle.cycleDayLogs,
-          });
-
-          // Encrypt the backup data (contains sensitive health information)
-          const encryptedBackup = encrypt(backupJson);
-
-          await prisma.dataBackup.upsert({
-            where: {
-              userId_type: { userId: user.id, type: "WEEKLY_AUTO" },
-            },
-            update: {
-              data: encryptedBackup,
-              createdAt: new Date(),
-            },
-            create: {
-              userId: user.id,
-              type: "WEEKLY_AUTO",
-              data: encryptedBackup,
-            },
-          });
-          backed++;
-        } catch (err) {
-          evt.addWarning(`Failed for user ${user.id}: ${err}`);
-        }
-      }
-
-      evt.setBackground({
-        task_name: "job.data_backup",
-        result: { backed, total: users.length },
-      });
-    } catch (err) {
-      evt.setError(err);
-      recordError();
-      throw err;
-    }
-  });
-}
-
-/**
- * Internal logger that prefers structured Wide-Event annotations when a
- * worker context is active, and falls back to stderr only for true
- * lifecycle events that fire outside any handler (init, fatal startup
- * errors, shutdown). Avoids the historical pattern of `console.log`
- * everywhere in this file, which polluted production stdout and was
- * never queryable in Loki.
- */
-function workerLog(level: "info" | "error", msg: string, err?: unknown): void {
-  if (level === "error") {
-    // Errors during worker init or shutdown happen outside any request
-    // context, so stderr is the only audience the operator has.
-    if (err !== undefined) console.error(`[pg-boss] ${msg}`, err);
-    else console.error(`[pg-boss] ${msg}`);
-  }
-  // info-level lifecycle messages are intentionally silent — pg-boss own
-  // events surface state, and Wide Events from handlers carry the work.
 }
 
 export async function startReminderWorker() {
@@ -2317,6 +602,7 @@ export async function startReminderWorker() {
     FITBIT_BACKFILL_QUEUE,
     FITBIT_OAUTH_STATE_CLEANUP_QUEUE,
     OFFHOST_BACKUP_QUEUE,
+    RESTORE_DRILL_QUEUE,
     HOST_METRIC_QUEUE,
     FEEDBACK_AGGREGATOR_QUEUE,
     GEO_BACKFILL_QUEUE,
@@ -2469,9 +755,12 @@ export async function startReminderWorker() {
   // count query + Wide-Event warning if any survive; fire-and-forget
   // so a probe failure never blocks worker boot.
   try {
-    await withBackgroundEvent("worker.boot.integration_status_null_probe", async () => {
-      await probeIntegrationStatusNullBuckets(getWorkerPrisma());
-    });
+    await withBackgroundEvent(
+      "worker.boot.integration_status_null_probe",
+      async () => {
+        await probeIntegrationStatusNullBuckets(getWorkerPrisma());
+      },
+    );
   } catch (err) {
     workerLog("error", "integration-status-null-probe failed", err);
   }
@@ -2529,6 +818,7 @@ export async function startReminderWorker() {
     [FITBIT_SYNC_QUEUE, FITBIT_SYNC_CRON],
     [FITBIT_OAUTH_STATE_CLEANUP_QUEUE, FITBIT_OAUTH_STATE_CLEANUP_CRON],
     [OFFHOST_BACKUP_QUEUE, OFFHOST_BACKUP_CRON],
+    [RESTORE_DRILL_QUEUE, RESTORE_DRILL_CRON],
     [HOST_METRIC_QUEUE, HOST_METRIC_CRON],
     [FEEDBACK_AGGREGATOR_QUEUE, FEEDBACK_AGGREGATOR_CRON],
     // v1.4.37 — hourly geo backfill. The helper is idempotent + capped
@@ -2608,10 +898,15 @@ export async function startReminderWorker() {
   ];
 
   for (const [name, cron, sendOptions] of schedules) {
-    await boss.schedule(name, cron, {}, {
-      tz: "Europe/Berlin",
-      ...(sendOptions ?? {}),
-    });
+    await boss.schedule(
+      name,
+      cron,
+      {},
+      {
+        tz: "Europe/Berlin",
+        ...(sendOptions ?? {}),
+      },
+    );
   }
 
   // Register the handler
@@ -2779,6 +1074,8 @@ export async function startReminderWorker() {
     { localConcurrency: 1 },
     handleOffhostBackup,
   );
+  // prettier-ignore
+  await boss.work(RESTORE_DRILL_QUEUE, { localConcurrency: 1 }, handleRestoreDrill);
   await boss.work<HostMetricSamplePayload>(
     HOST_METRIC_QUEUE,
     { localConcurrency: 1 },
@@ -2863,99 +1160,80 @@ export async function startReminderWorker() {
   // eligible user and upserts one `COMPUTED RECOVERY_SCORE` row per scored
   // day (idempotent — a re-fire overwrites in place). Single-flight so two
   // ticks never double-walk the cohort.
-  await boss.work(
-    RECOVERY_SCORE_QUEUE,
-    { localConcurrency: 1 },
-    async () => {
-      try {
-        const summary = await runRecoveryScore(getWorkerPrisma());
-        workerLog(
-          "info",
-          `[recovery-score] considered=${summary.considered} stored=${summary.stored} insufficient=${summary.insufficient} errored=${summary.errored}`,
-        );
-      } catch (err) {
-        recordError();
-        workerLog("error", "[recovery-score] pass failed", err);
-        throw err;
-      }
-    },
-  );
+  await boss.work(RECOVERY_SCORE_QUEUE, { localConcurrency: 1 }, async () => {
+    try {
+      const summary = await runRecoveryScore(getWorkerPrisma());
+      workerLog(
+        "info",
+        `[recovery-score] considered=${summary.considered} stored=${summary.stored} insufficient=${summary.insufficient} errored=${summary.errored}`,
+      );
+    } catch (err) {
+      recordError();
+      workerLog("error", "[recovery-score] pass failed", err);
+      throw err;
+    }
+  });
   // v1.15.20 — proactive Coach nudge. Single-flight; the push-attempts
   // ledger caps a user at one nudge per rolling week, so an overlapping
   // tick would only waste reads. Deterministic triggers, no AI call.
-  await boss.work(
-    COACH_NUDGE_QUEUE,
-    { localConcurrency: 1 },
-    async () => {
-      await withBackgroundEvent("job.coach_nudge", async (evt) => {
-        try {
-          const summary = await runCoachNudgeTick(
-            getWorkerPrisma(),
-            new Date(),
-          );
-          evt.setBackground({
-            task_name: "job.coach_nudge",
-            result: {
-              candidates_scanned: summary.candidatesScanned,
-              dispatched: summary.dispatched,
-              skipped_opted_out: summary.skippedOptedOut,
-              skipped_no_provider: summary.skippedNoProvider,
-              skipped_recent_nudge: summary.skippedRecentNudge,
-              skipped_no_trigger: summary.skippedNoTrigger,
-              skipped_no_channel: summary.skippedNoChannel,
-              failed: summary.failed,
-            },
-          });
-        } catch (err) {
-          evt.setError(err);
-          recordError();
-          throw err;
-        }
-      });
-    },
-  );
+  await boss.work(COACH_NUDGE_QUEUE, { localConcurrency: 1 }, async () => {
+    await withBackgroundEvent("job.coach_nudge", async (evt) => {
+      try {
+        const summary = await runCoachNudgeTick(getWorkerPrisma(), new Date());
+        evt.setBackground({
+          task_name: "job.coach_nudge",
+          result: {
+            candidates_scanned: summary.candidatesScanned,
+            dispatched: summary.dispatched,
+            skipped_opted_out: summary.skippedOptedOut,
+            skipped_no_provider: summary.skippedNoProvider,
+            skipped_recent_nudge: summary.skippedRecentNudge,
+            skipped_no_trigger: summary.skippedNoTrigger,
+            skipped_no_channel: summary.skippedNoChannel,
+            failed: summary.failed,
+          },
+        });
+      } catch (err) {
+        evt.setError(err);
+        recordError();
+        throw err;
+      }
+    });
+  });
   // v1.10.0 — computed scores (WX-E). Nightly Stress-score (HRV-derived
   // proxy) compute + store. Single-flight so two ticks never double-walk
   // the cohort. The runner iterates every eligible user and upserts one
   // `COMPUTED STRESS_SCORE` row per scored day (idempotent — a re-fire
   // overwrites in place).
-  await boss.work(
-    STRESS_SCORE_QUEUE,
-    { localConcurrency: 1 },
-    async () => {
-      try {
-        const summary = await runStressScore(getWorkerPrisma());
-        workerLog(
-          "info",
-          `[stress-score] considered=${summary.considered} stored=${summary.stored} insufficient=${summary.insufficient} errored=${summary.errored}`,
-        );
-      } catch (err) {
-        recordError();
-        workerLog("error", "[stress-score] pass failed", err);
-        throw err;
-      }
-    },
-  );
+  await boss.work(STRESS_SCORE_QUEUE, { localConcurrency: 1 }, async () => {
+    try {
+      const summary = await runStressScore(getWorkerPrisma());
+      workerLog(
+        "info",
+        `[stress-score] considered=${summary.considered} stored=${summary.stored} insufficient=${summary.insufficient} errored=${summary.errored}`,
+      );
+    } catch (err) {
+      recordError();
+      workerLog("error", "[stress-score] pass failed", err);
+      throw err;
+    }
+  });
   // v1.10.0 — computed scores (WX-E). Nightly Strain-score (Banister TRIMP
   // cardio-load) compute + store. Single-flight; upserts one `COMPUTED
   // STRAIN_SCORE` row per scored day (idempotent).
-  await boss.work(
-    STRAIN_SCORE_QUEUE,
-    { localConcurrency: 1 },
-    async () => {
-      try {
-        const summary = await runStrainScore(getWorkerPrisma());
-        workerLog(
-          "info",
-          `[strain-score] considered=${summary.considered} stored=${summary.stored} insufficient=${summary.insufficient} errored=${summary.errored}`,
-        );
-      } catch (err) {
-        recordError();
-        workerLog("error", "[strain-score] pass failed", err);
-        throw err;
-      }
-    },
-  );
+  await boss.work(STRAIN_SCORE_QUEUE, { localConcurrency: 1 }, async () => {
+    try {
+      const summary = await runStrainScore(getWorkerPrisma());
+      workerLog(
+        "info",
+        `[strain-score] considered=${summary.considered} stored=${summary.stored} insufficient=${summary.insufficient} errored=${summary.errored}`,
+      );
+    } catch (err) {
+      recordError();
+      workerLog("error", "[strain-score] pass failed", err);
+      throw err;
+    }
+  });
   // v1.11.0 — period-narrative warm. A scheduled tick (no `userId`) runs the
   // boundary-gated nightly fan-out; a `userId` payload runs a single-user warm
   // enqueued by the read-only GET on a cold/stale read. Single-flight so two
@@ -3191,11 +1469,7 @@ export async function startReminderWorker() {
           );
         } catch (err) {
           recordError();
-          workerLog(
-            "error",
-            `[intake-slot-dedup] user=${userId} failed`,
-            err,
-          );
+          workerLog("error", `[intake-slot-dedup] user=${userId} failed`, err);
           throw err;
         }
       }
@@ -3556,13 +1830,9 @@ export async function startReminderWorker() {
   // returned through the helper's result value — the worker boot never
   // fails because of a dedup miss.
   try {
-    const { enqueued, skipped, error } =
-      await enqueueBootTimeIntakeSlotDedup();
+    const { enqueued, skipped, error } = await enqueueBootTimeIntakeSlotDedup();
     if (error) {
-      workerLog(
-        "error",
-        `[intake-slot-dedup] boot discovery failed: ${error}`,
-      );
+      workerLog("error", `[intake-slot-dedup] boot discovery failed: ${error}`);
     } else {
       workerLog(
         "info",

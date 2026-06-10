@@ -1,0 +1,84 @@
+/**
+ * Fitbit hourly poll-cohort sync and OAuth-state cleanup handlers.
+ *
+ * Extracted from reminder-worker.ts, which owns the queue names, cron
+ * schedules, and boss.work registrations.
+ */
+import { type Job } from "pg-boss";
+import { recordError } from "@/lib/jobs/worker-status";
+import { withBackgroundEvent } from "@/lib/logging/background";
+import { runFitbitPollCohort } from "@/lib/fitbit/sync";
+import { cleanupExpiredFitbitOAuthStates } from "@/lib/jobs/fitbit-oauth-state-cleanup";
+import { getWorkerPrisma } from "./shared";
+
+/**
+ * v1.12.0 — Fitbit poll-sync payload. Poll-only (no webhook at launch): the
+ * single hourly cron tick carries no `userId`, so the handler iterates every
+ * Fitbit connection and re-syncs each via `syncUserFitbit`. One user's
+ * parked-at-reauth state never starves the rest of the cohort.
+ */
+export interface FitbitSyncPayload {
+  userId?: string;
+}
+
+export async function handleFitbitSync(jobs: Job<FitbitSyncPayload>[]) {
+  await withBackgroundEvent("job.fitbit_sync", async (evt) => {
+    const prisma = getWorkerPrisma();
+    try {
+      const targets: Array<{ userId: string }> = [];
+      for (const job of jobs) {
+        if (job.data?.userId) targets.push({ userId: job.data.userId });
+      }
+      if (targets.length === 0) {
+        const connections = await prisma.fitbitConnection.findMany({
+          select: { userId: true },
+        });
+        targets.push(...connections);
+      }
+      if (targets.length === 0) return;
+
+      // Fan the cohort out with bounded concurrency + per-user error isolation:
+      // one slow Google response can't stall the whole cohort, and a single
+      // user's failure is warned without aborting the pass.
+      const { usersSynced, measurementsImported } = await runFitbitPollCohort(
+        targets.map((t) => t.userId),
+        {
+          onUserError: (userId, err) =>
+            evt.addWarning(`job.fitbit_sync failed for user ${userId}: ${err}`),
+        },
+      );
+
+      evt.setBackground({
+        task_name: "job.fitbit_sync",
+        result: {
+          users_synced: usersSynced,
+          total: targets.length,
+          measurements_imported: measurementsImported,
+        },
+      });
+    } catch (err) {
+      evt.setError(err);
+      recordError();
+      throw err;
+    }
+  });
+}
+
+export interface FitbitOAuthStateCleanupPayload {
+  triggeredAt?: string;
+}
+
+export async function handleFitbitOAuthStateCleanup(
+  jobs: Job<FitbitOAuthStateCleanupPayload>[],
+) {
+  void jobs;
+  await withBackgroundEvent("job.fitbit_oauth_state_cleanup", async (evt) => {
+    const p = getWorkerPrisma();
+    try {
+      const deleted = await cleanupExpiredFitbitOAuthStates(p);
+      evt.addMeta("fitbit_oauth_state_cleanup_deleted", deleted);
+    } catch (err) {
+      evt.addWarning(`fitbit-oauth-state-cleanup failed: ${err}`);
+    }
+  });
+}
