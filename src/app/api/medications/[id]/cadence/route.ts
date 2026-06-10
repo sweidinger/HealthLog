@@ -57,7 +57,11 @@ export const GET = apiHandler(
       where: { id },
       // v1.15.20 — schedules through the shared compliance select so the
       // configured per-dose windows reach this surface like every other.
-      include: { schedules: { select: SCHEDULE_COMPLIANCE_SELECT } },
+      include: {
+        schedules: { select: SCHEDULE_COMPLIANCE_SELECT },
+        // v1.16.3 — archived schedule eras for era-aware chips/tallies.
+        scheduleRevisions: { orderBy: { validFrom: "asc" } },
+      },
     });
     if (!med) {
       return apiError("Medication not found", 404);
@@ -126,6 +130,7 @@ export const GET = apiHandler(
       createdAt: med.createdAt,
       lastIntakeAt,
       timeZone: userTz,
+      scheduleRevisions: med.scheduleRevisions,
     };
 
     const timeline = buildCadenceTimeline(

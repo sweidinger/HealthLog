@@ -17,6 +17,8 @@ import {
   type WorkerScheduleRow,
 } from "@/lib/medications/scheduling/worker-helpers";
 import { nextOccurrenceAfter } from "@/lib/medications/scheduling/recurrence";
+import { buildBandsForMedication } from "@/lib/medications/scheduling/band-minter";
+import { DOSE_WINDOW_DEFAULTS } from "@/lib/medications/scheduling/dose-window-defaults";
 
 /**
  * v1.15.10 — radius an intake may sit from a slot's canonical instant and
@@ -26,6 +28,22 @@ import { nextOccurrenceAfter } from "@/lib/medications/scheduling/recurrence";
  * twice-daily med splits cleanly at ±6h).
  */
 const RESOLVE_RADIUS_MS = 6 * 60 * 60 * 1000;
+
+/**
+ * v1.16.4 — how far back the open-overdue search mints bands. The widest
+ * possible band reach is a weekly slot's on-time half-width plus its
+ * overdue tail (1 + 4 days); one spare day absorbs DST / timezone skew.
+ * Exported so the list route can widen its resolved-slot read to the
+ * same horizon.
+ */
+export const OVERDUE_LOOKBACK_MS =
+  (DOSE_WINDOW_DEFAULTS.weeklyOnTimeDays +
+    DOSE_WINDOW_DEFAULTS.weeklyOverdueDays +
+    1) *
+  24 *
+  60 *
+  60 *
+  1000;
 
 export function computeNextDueAt(input: {
   medication: WorkerMedicationRow;
@@ -75,4 +93,100 @@ export function computeNextDueAt(input: {
     }
   }
   return earliest;
+}
+
+/** The instant a medication card should surface, plus its overdue state. */
+export interface DisplayDue {
+  at: Date;
+  /**
+   * True when `at` is an OPEN overdue slot: its anchor has passed but `now`
+   * is still inside the slot's catch-up band (`anchor < now ≤ overdueEnd`)
+   * and the user has not acted on it. The card renders this slot as
+   * "overdue — still takeable" instead of jumping to the next future slot.
+   */
+  overdue: boolean;
+}
+
+export interface ComputeDisplayDueInput {
+  medication: WorkerMedicationRow;
+  schedules: WorkerScheduleRow[];
+  now: Date;
+  userTz: string;
+  lastIntakeAt: Date | null;
+  resolvedSlots?: Date[];
+  /**
+   * Floor of the CURRENT schedule era (the newest revision's `validUntil`),
+   * when the medication has archived revisions. The overdue search mints
+   * bands from the LIVE schedule rows only, so it must not reach back past
+   * the era boundary — a pre-edit slot belongs to the old era's cadence and
+   * must not be re-minted at the new times.
+   */
+  eraStart?: Date | null;
+}
+
+/**
+ * v1.16.4 — the display-due resolution for the medication list cards.
+ *
+ * `computeNextDueAt` walks strictly forward from `now`, so the moment a
+ * slot's anchor passed the card jumped to the NEXT slot — even while the
+ * dose was still takeable inside its catch-up band. This wrapper first
+ * searches the current era for an open overdue slot (band model:
+ * `anchor < now ≤ overdueEnd`, no taken / skipped / auto-missed row on the
+ * anchor) and surfaces it with `overdue: true`; only when every passed
+ * band is closed or resolved does it fall through to the future next-due.
+ */
+export function computeDisplayDue(
+  input: ComputeDisplayDueInput,
+): DisplayDue | null {
+  const open = findOpenOverdueSlot(input);
+  if (open) return { at: open, overdue: true };
+  const next = computeNextDueAt(input);
+  return next ? { at: next, overdue: false } : null;
+}
+
+function findOpenOverdueSlot(input: ComputeDisplayDueInput): Date | null {
+  const { medication, schedules, now, userTz, lastIntakeAt } = input;
+  if (schedules.length === 0) return null;
+
+  const resolved = input.resolvedSlots ?? [];
+  const isResolved = (slotAt: Date): boolean => {
+    const slot = slotAt.getTime();
+    for (const r of resolved) {
+      if (Math.abs(r.getTime() - slot) <= RESOLVE_RADIUS_MS) return true;
+    }
+    return false;
+  };
+
+  let floor = new Date(now.getTime() - OVERDUE_LOOKBACK_MS);
+  if (input.eraStart && input.eraStart.getTime() > floor.getTime()) {
+    floor = input.eraStart;
+  }
+  if (floor.getTime() >= now.getTime()) return null;
+
+  const ctx = buildRecurrenceContext({ medication, userTz, lastIntakeAt });
+  let latest: Date | null = null;
+  for (const schedule of schedules) {
+    const { bands } = buildBandsForMedication({
+      medication,
+      schedule: buildCanonicalSchedule(schedule),
+      ctx,
+      userTz,
+      range: { from: floor, to: now },
+      now,
+      intakeInstants: lastIntakeAt ? [lastIntakeAt] : [],
+    });
+    for (const band of bands) {
+      const anchor = band.at.getTime();
+      // Open overdue: the anchor has passed, now is still inside the
+      // catch-up band, and no live intake row resolves the slot. An anchor
+      // before the era floor is rejected explicitly — the minter works in
+      // local-day granularity, so the range floor alone is not a guarantee.
+      if (anchor < floor.getTime()) continue;
+      if (anchor >= now.getTime()) continue;
+      if (now.getTime() > band.overdueEnd.getTime()) continue;
+      if (isResolved(band.at)) continue;
+      if (latest === null || anchor > latest.getTime()) latest = band.at;
+    }
+  }
+  return latest;
 }

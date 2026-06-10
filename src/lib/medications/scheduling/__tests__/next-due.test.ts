@@ -11,7 +11,7 @@
  */
 import { describe, expect, it } from "vitest";
 
-import { computeNextDueAt } from "../next-due";
+import { computeDisplayDue, computeNextDueAt } from "../next-due";
 import type {
   WorkerMedicationRow,
   WorkerScheduleRow,
@@ -244,5 +244,95 @@ describe("computeNextDueAt — stale degenerate window never wins over timesOfDa
     expect(next).not.toBeNull();
     // 21:00 Berlin = 19:00 UTC.
     expect(next!.toISOString()).toBe("2026-06-10T19:00:00.000Z");
+  });
+});
+
+/**
+ * v1.16.4 — `computeDisplayDue`: an unresolved slot whose anchor has
+ * passed must stay on the card as an OPEN overdue slot while `now` is
+ * still inside its catch-up band (`anchor < now ≤ overdueEnd`); only a
+ * closed or resolved band advances to the future next-due.
+ */
+function makeDailySchedule(
+  overrides: Partial<WorkerScheduleRow> = {},
+): WorkerScheduleRow {
+  return {
+    id: "sched-daily-1",
+    windowStart: "09:00",
+    windowEnd: "21:00",
+    daysOfWeek: null,
+    timesOfDay: ["09:00", "21:00"],
+    reminderGraceMinutes: null,
+    rrule: null,
+    rollingIntervalDays: null,
+    scheduleType: "SCHEDULED",
+    cyclicOnWeeks: null,
+    cyclicOffWeeks: null,
+    ...overrides,
+  };
+}
+
+describe("computeDisplayDue — open overdue slot", () => {
+  // Berlin is UTC+2 in June: the 21:00 local slot on 2026-06-10 is
+  // 19:00Z; its default band is 20:00–22:00 local with a 3 h late tail,
+  // so the catch-up window stays open until 01:00 local (23:00Z).
+  const medication = makeMedication();
+  const schedules = [makeDailySchedule()];
+
+  it("surfaces the unresolved 21:00 slot at 22:30 (inside the catch-up tail) as overdue", () => {
+    const now = d("2026-06-10T20:30:00Z"); // 22:30 Berlin
+    const due = computeDisplayDue({
+      medication,
+      schedules,
+      now,
+      userTz: BERLIN,
+      lastIntakeAt: null,
+    });
+    expect(due).not.toBeNull();
+    expect(due!.overdue).toBe(true);
+    expect(due!.at.toISOString()).toBe("2026-06-10T19:00:00.000Z"); // 21:00 Berlin
+  });
+
+  it("advances to the next future slot (09:00) once the band closed at 02:00", () => {
+    const now = d("2026-06-11T00:00:00Z"); // 02:00 Berlin — past the 01:00 tail end
+    const due = computeDisplayDue({
+      medication,
+      schedules,
+      now,
+      userTz: BERLIN,
+      lastIntakeAt: null,
+    });
+    expect(due).not.toBeNull();
+    expect(due!.overdue).toBe(false);
+    expect(due!.at.toISOString()).toBe("2026-06-11T07:00:00.000Z"); // 09:00 Berlin
+  });
+
+  it("treats a slot with a live taken/skipped row on the anchor as resolved", () => {
+    const now = d("2026-06-10T20:30:00Z");
+    const due = computeDisplayDue({
+      medication,
+      schedules,
+      now,
+      userTz: BERLIN,
+      lastIntakeAt: null,
+      resolvedSlots: [d("2026-06-10T19:00:00Z")],
+    });
+    expect(due).not.toBeNull();
+    expect(due!.overdue).toBe(false);
+    expect(due!.at.toISOString()).toBe("2026-06-11T07:00:00.000Z");
+  });
+
+  it("never claims an overdue anchor from before the current era floor", () => {
+    const now = d("2026-06-10T20:30:00Z");
+    const due = computeDisplayDue({
+      medication,
+      schedules,
+      now,
+      userTz: BERLIN,
+      lastIntakeAt: null,
+      eraStart: d("2026-06-10T19:30:00Z"), // schedules replaced after the slot
+    });
+    expect(due).not.toBeNull();
+    expect(due!.overdue).toBe(false);
   });
 });

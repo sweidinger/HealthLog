@@ -333,6 +333,12 @@ const MEDICATION_SELECT = {
   oneShot: true,
   createdAt: true,
   schedules: { select: SCHEDULE_SELECT },
+  // v1.16.3 — archived schedule eras: a write/edit at a historical instant
+  // attributes against the era that was live at that takenAt.
+  scheduleRevisions: {
+    orderBy: { validFrom: "asc" },
+    select: { id: true, validFrom: true, validUntil: true, payload: true },
+  },
 } as const;
 
 export interface ResolveSlotForWriteInput {

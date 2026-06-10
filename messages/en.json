@@ -728,6 +728,7 @@
     "complianceDoses": "{count} doses",
     "lastIntake": "Last intake:",
     "nextIntake": "Next intake:",
+    "nextIntakeOverdue": "Overdue · {time} — can still be taken",
     "dayStreak": "day streak",
     "cycleNextDoseToday": "Next dose today",
     "cycleNextDoseTomorrow": "Next dose tomorrow",

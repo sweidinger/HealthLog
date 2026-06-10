@@ -31,6 +31,7 @@ import { RichChartTooltip, type RichTooltipRow } from "./chart-tooltip";
 import { ChartEmptyState } from "./chart-empty-state";
 import { TileHeader } from "@/components/insights/tile-header";
 import { prefersReducedMotion } from "@/lib/charts/reduced-motion";
+import { computePaddedYDomain } from "@/lib/insights/chart-y-domain";
 import { Button } from "@/components/ui/button";
 import { useTranslations, useFormatters } from "@/lib/i18n/context";
 import { makeFormatters } from "@/lib/format-locale";
@@ -1135,20 +1136,7 @@ export function HealthChart({
       .filter((value): value is number => typeof value === "number")
       .filter((value) => Number.isFinite(value));
 
-    if (!values.length) return undefined;
-
-    const min = Math.min(...values);
-    const max = Math.max(...values);
-
-    if (min === max) {
-      const delta = Math.max(Math.abs(min) * 0.05, 1);
-      return [min - delta, max + delta * 1.35];
-    }
-
-    const span = max - min;
-    const paddingBottom = Math.max(span * 0.08, 0.5);
-    const paddingTop = Math.max(span * 0.16, 1);
-    return [min - paddingBottom, max + paddingTop];
+    return computePaddedYDomain(values);
   }, [
     chartDataWithCompare,
     effectiveCompareBaseline,

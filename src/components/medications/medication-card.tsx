@@ -76,6 +76,13 @@ interface Medication {
    * cadences that the legacy daysOfWeek-only walker ignored.
    */
   nextDueAt?: string | null;
+  /**
+   * v1.16.4 — true when `nextDueAt` is an OPEN overdue slot (its anchor
+   * passed but "now" is still inside the slot's catch-up band and no
+   * intake row resolves it). The card renders the slot as "overdue —
+   * still takeable" instead of the regular upcoming-intake phrasing.
+   */
+  nextDueOverdue?: boolean;
   schedules: Schedule[];
 }
 
@@ -299,6 +306,20 @@ export function MedicationCard({
     nextSchedule && currentWindowStatus.status !== "in_window"
       ? (() => {
           const s = nextSchedule;
+
+          // v1.16.4 — an open overdue slot stays on the card as a calm
+          // amber "overdue · HH:mm — still takeable" line until its
+          // catch-up band closes (auto-miss); only then does the line
+          // advance to the next future slot.
+          if (medication.nextDueOverdue && nextAt) {
+            return (
+              <span className="font-medium text-amber-600 dark:text-amber-400">
+                {t("medications.nextIntakeOverdue", {
+                  time: formatTime(new Date(nextAt).toISOString()),
+                })}
+              </span>
+            );
+          }
 
           // Format day label relative to today
           let dayLabel = "";

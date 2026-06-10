@@ -1335,6 +1335,12 @@ model Medication {
   /// on the linked MedicationIntakeEvent rows refresh the row inline;
   /// the read paths consume this instead of the per-event findMany.
   complianceRollups MedicationComplianceRollup[]
+  /// v1.16.3 — archived schedule eras (effective dating). Superseded
+  /// schedule states land here when a wholesale schedule replace changes
+  /// cadence-relevant fields; the band minter segments historical minting
+  /// ranges into eras so past days read against the schedule that was
+  /// live THEN, not the current one.
+  scheduleRevisions MedicationScheduleRevision[]
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -1429,6 +1435,47 @@ model MedicationSchedule {
   telegramMessages TelegramReminderMessage[]
 
   @@map("medication_schedules")
+}
+
+/// v1.16.3 — schedule-revision archive (effective dating). One row per
+/// SUPERSEDED schedule state of a medication: when the schedule set is
+/// wholesale-replaced with materially different cadence fields, the old
+/// rows are archived here as a single revision covering
+/// `[validFrom, validUntil)`. The LIVE rows stay in
+/// `medication_schedules` — a revision never describes the current
+/// state, so `validUntil` is always set (no open-ended rows).
+///
+/// The band minter segments any historical minting range into eras:
+/// each revision interval mints with ITS archived schedules, the
+/// remainder (from the newest `validUntil` onward) mints with the live
+/// rows. Era boundary rule: a slot belongs to the era its anchor lies
+/// in; an on-time/late tail may reach past the boundary, but no new
+/// anchor is minted beyond it.
+///
+/// `startsOn` stays the global floor for ALL eras: the first era begins
+/// at `max(medication.createdAt, startsOn)`; a times-only edit must
+/// never move `startsOn`.
+model MedicationScheduleRevision {
+  id           String   @id @default(cuid())
+  medicationId String   @map("medication_id")
+  /// Inclusive start of the era this archived state was live for.
+  /// Chains from the previous revision's `validUntil`, or from
+  /// `medication.createdAt` for the first revision.
+  validFrom    DateTime @map("valid_from") @db.Timestamptz(6)
+  /// Exclusive end of the era — the instant the replace happened.
+  validUntil   DateTime @map("valid_until") @db.Timestamptz(6)
+  /// Full snapshot of the superseded schedule rows: an array of
+  /// `{ timesOfDay, windowStart, windowEnd, daysOfWeek, rrule,
+  /// rollingIntervalDays, scheduleType, cyclicOnWeeks, cyclicOffWeeks,
+  /// doseWindows, label, dose, reminderGraceMinutes }` objects — enough
+  /// to rebuild a `CanonicalSchedule` list for era minting.
+  payload      Json
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  medication Medication @relation(fields: [medicationId], references: [id], onDelete: Cascade)
+
+  @@index([medicationId, validFrom])
+  @@map("medication_schedule_revisions")
 }
 
 enum IntakeSource {

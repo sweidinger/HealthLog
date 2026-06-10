@@ -99,27 +99,48 @@ function measureTarget(targetId: string | null): SpotlightRect | null {
   };
 }
 
+/** Resolved placement — the geometric placements plus the sheet fallback. */
+export type ResolvedPlacement = TourStop["placement"] | "sheet";
+
 /**
  * Decide tooltip position. The intent is to sit beside the target
  * along the requested axis, but flip to the opposite edge if there
- * isn't enough room. Returns absolute viewport coordinates that the
- * UI uses with `position: fixed`. Falls back to centred when there
- * is no spotlight rect.
+ * isn't enough room — vertical fallbacks prefer ABOVE the target so
+ * the footer buttons can never be pushed under the viewport bottom.
+ * Returns absolute viewport coordinates that the UI uses with
+ * `position: fixed`. Falls back to centred when there is no spotlight
+ * rect, and to `"sheet"` (caller renders a bottom sheet on EVERY
+ * viewport width) when the target is off-screen or no candidate fits.
+ *
+ * Pure function of its inputs (viewport passed explicitly) so the
+ * Node-environment vitest suite can exercise it without jsdom.
  */
-function computeTooltipPosition(
+export function computeTooltipPosition(
   rect: SpotlightRect | null,
   placement: TourStop["placement"],
   tooltipSize: { width: number; height: number },
-): { top: number; left: number; placement: TourStop["placement"] } {
-  if (typeof window === "undefined") return { top: 0, left: 0, placement };
-  const vw = window.innerWidth;
-  const vh = window.innerHeight;
+  viewport: { width: number; height: number },
+): { top: number; left: number; placement: ResolvedPlacement } {
+  const vw = viewport.width;
+  const vh = viewport.height;
   if (!rect) {
     return {
       top: Math.max(16, (vh - tooltipSize.height) / 2),
       left: Math.max(16, (vw - tooltipSize.width) / 2),
       placement: "center",
     };
+  }
+  // Target entirely outside the visible viewport (e.g. an anchor below
+  // the fold that scrollIntoView could not bring in, or mid-scroll):
+  // every anchored candidate would point at nothing and risk landing
+  // off-screen. Render the sheet fallback instead — on ALL viewports.
+  const targetVisible =
+    rect.top < vh - COLLISION_PAD &&
+    rect.top + rect.height > COLLISION_PAD &&
+    rect.left < vw - COLLISION_PAD &&
+    rect.left + rect.width > COLLISION_PAD;
+  if (!targetVisible) {
+    return { top: 0, left: 0, placement: "sheet" };
   }
   const GAP = 12;
   const candidates: Array<{
@@ -128,61 +149,52 @@ function computeTooltipPosition(
     left: number;
   }> = [];
 
-  if (placement === "bottom" || placement === "top" || placement === "center") {
-    candidates.push({
-      placement: "bottom",
-      top: rect.top + rect.height + GAP,
-      left: Math.min(
-        Math.max(16, rect.left + rect.width / 2 - tooltipSize.width / 2),
-        vw - tooltipSize.width - 16,
-      ),
-    });
-    candidates.push({
-      placement: "top",
-      top: rect.top - tooltipSize.height - GAP,
-      left: Math.min(
-        Math.max(16, rect.left + rect.width / 2 - tooltipSize.width / 2),
-        vw - tooltipSize.width - 16,
-      ),
-    });
-  }
-  if (placement === "right" || placement === "left") {
-    candidates.push({
-      placement: "right",
-      top: Math.min(
-        Math.max(16, rect.top + rect.height / 2 - tooltipSize.height / 2),
-        vh - tooltipSize.height - 16,
-      ),
-      left: rect.left + rect.width + GAP,
-    });
-    candidates.push({
-      placement: "left",
-      top: Math.min(
-        Math.max(16, rect.top + rect.height / 2 - tooltipSize.height / 2),
-        vh - tooltipSize.height - 16,
-      ),
-      left: rect.left - tooltipSize.width - GAP,
-    });
-  }
-  // Pick the first candidate that fits the viewport; otherwise fall back to
-  // centred. EVERY returned position is clamped into the viewport with a
-  // collision padding — a candidate computed off a target near the edge must
-  // never push the card (and its footer buttons) out of view.
-  const clamp = (c: {
-    placement: TourStop["placement"];
-    top: number;
-    left: number;
-  }) => ({
-    placement: c.placement,
-    top: Math.min(
-      Math.max(COLLISION_PAD, c.top),
-      Math.max(COLLISION_PAD, vh - tooltipSize.height - COLLISION_PAD),
-    ),
-    left: Math.min(
-      Math.max(COLLISION_PAD, c.left),
-      Math.max(COLLISION_PAD, vw - tooltipSize.width - COLLISION_PAD),
-    ),
+  const centredLeft = Math.min(
+    Math.max(16, rect.left + rect.width / 2 - tooltipSize.width / 2),
+    vw - tooltipSize.width - 16,
+  );
+  const vertical = (side: "top" | "bottom") => ({
+    placement: side,
+    top:
+      side === "bottom"
+        ? rect.top + rect.height + GAP
+        : rect.top - tooltipSize.height - GAP,
+    left: centredLeft,
   });
+  const horizontal = (side: "left" | "right") => ({
+    placement: side,
+    top: Math.min(
+      Math.max(16, rect.top + rect.height / 2 - tooltipSize.height / 2),
+      vh - tooltipSize.height - 16,
+    ),
+    left:
+      side === "right"
+        ? rect.left + rect.width + GAP
+        : rect.left - tooltipSize.width - GAP,
+  });
+
+  if (placement === "bottom" || placement === "center") {
+    candidates.push(vertical("bottom"), vertical("top"));
+  } else if (placement === "top") {
+    candidates.push(vertical("top"), vertical("bottom"));
+  } else {
+    // Side placements: requested side first, then the opposite side,
+    // then the vertical axis — above before below, so a target low in
+    // the viewport flips the card upwards instead of clipping its
+    // footer under the fold.
+    candidates.push(
+      horizontal(placement),
+      horizontal(placement === "right" ? "left" : "right"),
+      vertical("top"),
+      vertical("bottom"),
+    );
+  }
+  // Pick the first candidate that fully fits the viewport — by
+  // construction its bottom edge sits ≥ COLLISION_PAD above the
+  // viewport bottom. If NONE fits (target visible but crowded on every
+  // side), fall back to the sheet rather than clamping a card over an
+  // arbitrary region: the sheet keeps the footer buttons reachable on
+  // every viewport, which is the property the tour cannot lose.
   for (const c of candidates) {
     if (
       c.top >= COLLISION_PAD &&
@@ -193,14 +205,7 @@ function computeTooltipPosition(
       return c;
     }
   }
-  // None fits as-is: prefer the first requested candidate clamped into the
-  // viewport (keeps the card near its target) over jumping to centre.
-  if (candidates.length > 0) return clamp(candidates[0]);
-  return clamp({
-    placement: "center",
-    top: (vh - tooltipSize.height) / 2,
-    left: (vw - tooltipSize.width) / 2,
-  });
+  return { top: 0, left: 0, placement: "sheet" };
 }
 
 const TOOLTIP_WIDTH = 320;
@@ -237,6 +242,21 @@ export function OnboardingTour({
         setRect(measureTarget(stop.targetId));
       });
     };
+    // Bring the target into view BEFORE the first measurement of this
+    // step — anchors low on the page (e.g. the Settings nav item) can
+    // sit entirely below the fold, and positioning against an
+    // off-screen rect put the popover under the viewport bottom where
+    // its Next button was unreachable. `block: "center"` keeps room on
+    // both sides for the flipped placement; the rAF in `measure()`
+    // runs after the instant scroll so we measure post-scroll
+    // coordinates. Optional-chained: jsdom and older engines lack it.
+    if (stop.targetId && typeof document !== "undefined") {
+      document
+        .querySelector<HTMLElement>(
+          `[data-tour-id="${CSS.escape(stop.targetId)}"]`,
+        )
+        ?.scrollIntoView?.({ block: "center", inline: "nearest" });
+    }
     measure();
     window.addEventListener("resize", measure);
     window.addEventListener("scroll", measure, true);
@@ -362,15 +382,23 @@ export function OnboardingTour({
   // next to a target on a ~400 px screen always ends up clipped.
   const viewportWidth =
     typeof window !== "undefined" ? window.innerWidth : 1024;
-  const asSheet = viewportWidth < SHEET_BREAKPOINT;
+  const viewportHeight =
+    typeof window !== "undefined" ? window.innerHeight : 768;
   const tooltipWidth = Math.min(
     TOOLTIP_WIDTH,
     viewportWidth - COLLISION_PAD * 2,
   );
-  const tooltipPos = computeTooltipPosition(rect, stop.placement, {
-    width: tooltipWidth,
-    height: TOOLTIP_HEIGHT,
-  });
+  const tooltipPos = computeTooltipPosition(
+    rect,
+    stop.placement,
+    { width: tooltipWidth, height: TOOLTIP_HEIGHT },
+    { width: viewportWidth, height: viewportHeight },
+  );
+  // The sheet renders on narrow viewports unconditionally AND on any
+  // viewport when the resolver found no anchored placement that keeps
+  // the whole card (footer included) inside the viewport.
+  const asSheet =
+    viewportWidth < SHEET_BREAKPOINT || tooltipPos.placement === "sheet";
 
   // v1.4.33 F2 — onboarding overlay was a single full-viewport `<button>`
   // with a `clip-path` punching a hole around the spotlight. The clip-path
@@ -518,11 +546,12 @@ export function OnboardingTour({
         data-placement={asSheet ? "sheet" : tooltipPos.placement}
         className={
           asSheet
-            ? // Bottom-sheet fallback for small viewports — full-width card
-              // pinned above the bottom edge; no anchored positioning that
-              // could clip the footer buttons off-screen.
-              "bg-card border-border pointer-events-auto absolute inset-x-2 bottom-2 max-h-[70vh] overflow-x-hidden overflow-y-auto rounded-xl border p-5 shadow-2xl"
-            : "bg-card border-border pointer-events-auto absolute max-h-[80vh] max-w-[22rem] overflow-x-hidden overflow-y-auto rounded-xl border p-5 shadow-2xl"
+            ? // Bottom-sheet fallback — full-width on small screens,
+              // centred above the bottom edge on wide ones (`mx-auto` +
+              // `max-w`). Used on EVERY viewport when no anchored
+              // placement keeps the footer buttons inside the viewport.
+              "bg-card border-border pointer-events-auto absolute inset-x-2 bottom-2 mx-auto max-h-[70vh] max-w-[22rem] overflow-x-hidden overflow-y-auto rounded-xl border p-5 shadow-2xl"
+            : "bg-card border-border pointer-events-auto absolute max-w-[22rem] overflow-x-hidden overflow-y-auto rounded-xl border p-5 shadow-2xl"
         }
         style={
           asSheet
@@ -531,6 +560,15 @@ export function OnboardingTour({
                 top: `${tooltipPos.top}px`,
                 left: `${tooltipPos.left}px`,
                 width: `${tooltipWidth}px`,
+                // Hard guarantee: the card's bottom edge stays ≥
+                // COLLISION_PAD above the viewport bottom even when the
+                // real content outgrows the TOOLTIP_HEIGHT estimate the
+                // resolver positioned with — the card scrolls internally
+                // instead of pushing its footer below the fold.
+                maxHeight: `${Math.max(
+                  0,
+                  viewportHeight - tooltipPos.top - COLLISION_PAD,
+                )}px`,
               }
         }
       >

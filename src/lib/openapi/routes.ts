@@ -1093,7 +1093,12 @@ const medicationResource = z
       .datetime({ offset: true })
       .nullable()
       .describe(
-        "v1.7.0 server-computed next due instant across all the medication's schedules (earliest `nextOccurrenceAfter`). Read-only — computed, not stored. NULL when no schedule has an upcoming slot (paused, one-shot in the past, `endsOn` crossed, every schedule PRN). The list GET is cached 60 s, so a 60 s staleness is accepted.",
+        "v1.7.0 server-computed next due instant across all the medication's schedules (earliest `nextOccurrenceAfter`). Read-only — computed, not stored. NULL when no schedule has an upcoming slot (paused, one-shot in the past, `endsOn` crossed, every schedule PRN). v1.16.4 — when an unresolved slot's anchor has passed but the catch-up band is still open (`anchor < now <= overdueEnd`, current schedule era), this carries THAT slot (a past instant) with `nextDueOverdue: true` instead of jumping to the next future slot. The list GET is cached 60 s, so a 60 s staleness is accepted.",
+      ),
+    nextDueOverdue: z
+      .boolean()
+      .describe(
+        "v1.16.4 — true when `nextDueAt` is an OPEN overdue slot: its anchor has passed, `now` is still inside the slot's catch-up band, and no taken / skipped / auto-missed row resolves it. False for a regular future next-due (and when `nextDueAt` is null). Read-only — computed, not stored.",
       ),
     startsOn: z.iso
       .datetime({ offset: true })

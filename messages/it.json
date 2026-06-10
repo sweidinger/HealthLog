@@ -728,6 +728,7 @@
     "complianceDoses": "{count} dosi",
     "lastIntake": "Ultima assunzione:",
     "nextIntake": "Prossima assunzione:",
+    "nextIntakeOverdue": "In ritardo · {time} — ancora recuperabile",
     "dayStreak": "giorni di serie",
     "cycleNextDoseToday": "Prossima dose oggi",
     "cycleNextDoseTomorrow": "Prossima dose domani",

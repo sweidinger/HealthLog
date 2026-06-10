@@ -246,7 +246,11 @@ export const GET = apiHandler(
 
     const medication = await prisma.medication.findUnique({
       where: { id },
-      include: { schedules: true },
+      include: {
+        schedules: true,
+        // v1.16.3 — archived schedule eras for era-aware compliance.
+        scheduleRevisions: { orderBy: { validFrom: "asc" } },
+      },
     });
 
     if (!medication) {

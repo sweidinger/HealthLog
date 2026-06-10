@@ -13,7 +13,12 @@ vi.mock("@/lib/db", () => ({
     medicationSchedule: {
       deleteMany: vi.fn().mockResolvedValue({ count: 0 }),
       findFirst: vi.fn(),
+      findMany: vi.fn().mockResolvedValue([]),
       update: vi.fn(),
+    },
+    medicationScheduleRevision: {
+      findFirst: vi.fn().mockResolvedValue(null),
+      create: vi.fn().mockResolvedValue({}),
     },
     medicationIntakeEvent: {
       findMany: vi.fn().mockResolvedValue([]),
@@ -101,6 +106,15 @@ beforeEach(() => {
   vi.mocked(prisma.medicationSchedule.deleteMany).mockResolvedValue({
     count: 0,
   } as never);
+  // v1.16.3 — the schedule-replace branch archives the previous rows as a
+  // revision when a cadence field changes; default to "no previous rows".
+  vi.mocked(prisma.medicationSchedule.findMany).mockResolvedValue([] as never);
+  vi.mocked(prisma.medicationScheduleRevision.findFirst).mockResolvedValue(
+    null as never,
+  );
+  vi.mocked(prisma.medicationScheduleRevision.create).mockResolvedValue(
+    {} as never,
+  );
 });
 
 describe("PUT /api/medications/[id] — 422 multi-issue (v1.4.43 W6)", () => {
@@ -199,6 +213,125 @@ describe("PUT /api/medications/[id] — v1.5 scheduling primitives", () => {
       ROUTE_CTX,
     );
     expect(res.status).toBe(422);
+  });
+});
+
+describe("PUT /api/medications/[id] — schedule replace archives a revision (v1.16.3)", () => {
+  const PREVIOUS_ROW = {
+    id: "s1",
+    medicationId: "m1",
+    windowStart: "07:00",
+    windowEnd: "19:00",
+    label: null,
+    dose: null,
+    daysOfWeek: null,
+    timesOfDay: ["07:00", "19:00"],
+    reminderGraceMinutes: null,
+    rrule: "FREQ=DAILY",
+    rollingIntervalDays: null,
+    scheduleType: "SCHEDULED",
+    cyclicOnWeeks: null,
+    cyclicOffWeeks: null,
+    doseWindows: null,
+  };
+
+  beforeEach(() => {
+    vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
+    vi.mocked(prisma.medication.findUnique).mockResolvedValue({
+      id: "m1",
+      userId: "user-1",
+      active: true,
+      createdAt: new Date("2026-05-01T08:00:00.000Z"),
+    } as never);
+    vi.mocked(prisma.medication.update).mockResolvedValue({
+      id: "m1",
+      userId: "user-1",
+      schedules: [],
+    } as never);
+    vi.mocked(getMedicationCategories).mockResolvedValue({});
+    vi.mocked(auditLog).mockResolvedValue(undefined);
+    vi.mocked(dayKeyForScheduledFor).mockReturnValue("2026-06-10");
+    vi.mocked(recomputeMedicationComplianceForDay).mockResolvedValue(
+      undefined,
+    );
+    vi.mocked(prisma.medicationSchedule.findMany).mockResolvedValue([
+      PREVIOUS_ROW,
+    ] as never);
+  });
+
+  it("archives the previous rows when the dose times change", async () => {
+    const res = await PUT(
+      putReq({
+        schedules: [
+          {
+            windowStart: "09:00",
+            windowEnd: "21:00",
+            timesOfDay: ["09:00", "21:00"],
+            rrule: "FREQ=DAILY",
+          },
+        ],
+      }),
+      ROUTE_CTX,
+    );
+    expect(res.status).toBe(200);
+    const calls = vi.mocked(prisma.medicationScheduleRevision.create).mock
+      .calls;
+    expect(calls).toHaveLength(1);
+    const data = calls[0][0].data as {
+      medicationId: string;
+      validFrom: Date;
+      validUntil: Date;
+      payload: Array<{ timesOfDay: string[] }>;
+    };
+    expect(data.medicationId).toBe("m1");
+    // First revision chains from medication.createdAt.
+    expect(data.validFrom.toISOString()).toBe("2026-05-01T08:00:00.000Z");
+    expect(data.validUntil.getTime()).toBeLessThanOrEqual(Date.now());
+    expect(data.payload[0].timesOfDay).toEqual(["07:00", "19:00"]);
+  });
+
+  it("does NOT archive a revision on a no-op echo of the same schedule", async () => {
+    const res = await PUT(
+      putReq({
+        schedules: [
+          {
+            windowStart: "07:00",
+            windowEnd: "19:00",
+            timesOfDay: ["19:00", "07:00"], // reordered — still no-op
+            rrule: "FREQ=DAILY",
+            label: "Renamed", // display-only — never a cadence change
+          },
+        ],
+      }),
+      ROUTE_CTX,
+    );
+    expect(res.status).toBe(200);
+    expect(prisma.medicationScheduleRevision.create).not.toHaveBeenCalled();
+  });
+
+  it("chains validFrom from the newest existing revision", async () => {
+    vi.mocked(prisma.medicationScheduleRevision.findFirst).mockResolvedValue({
+      validUntil: new Date("2026-06-01T12:00:00.000Z"),
+    } as never);
+    const res = await PUT(
+      putReq({
+        schedules: [
+          {
+            windowStart: "10:00",
+            windowEnd: "22:00",
+            timesOfDay: ["10:00", "22:00"],
+            rrule: "FREQ=DAILY",
+          },
+        ],
+      }),
+      ROUTE_CTX,
+    );
+    expect(res.status).toBe(200);
+    const calls = vi.mocked(prisma.medicationScheduleRevision.create).mock
+      .calls;
+    expect(calls).toHaveLength(1);
+    const data = calls[0][0].data as { validFrom: Date };
+    expect(data.validFrom.toISOString()).toBe("2026-06-01T12:00:00.000Z");
   });
 });
 

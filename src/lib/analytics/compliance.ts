@@ -21,10 +21,14 @@
 
 import type { SlotBand } from "@/lib/medications/scheduling/attribution";
 import {
-  buildBandsForSchedules,
   type BandMinterMedication,
   type DoseWindowConfig,
 } from "@/lib/medications/scheduling/band-minter";
+import {
+  buildBandsForSchedulesWithEras,
+  occurrencesAcrossEras,
+  type ScheduleRevisionLike,
+} from "@/lib/medications/scheduling/schedule-eras";
 import {
   buildCadenceTimeline,
   type CadenceEngineContext,
@@ -419,6 +423,13 @@ export interface ComplianceMedicationContext {
   createdAt: Date;
   lastIntakeAt: Date | null;
   timeZone: string;
+  /**
+   * v1.16.3 — archived schedule eras (`validFrom` ascending). When present,
+   * every expected-slot expansion + band mint segments its range so a past
+   * day counts/mints against the schedule that was live THEN. Optional:
+   * callers without revisions keep the live-only expansion.
+   */
+  scheduleRevisions?: ScheduleRevisionLike[];
 }
 
 /**
@@ -433,6 +444,8 @@ export function buildComplianceMedicationContext(
     endsOn: Date | null;
     oneShot: boolean;
     createdAt: Date;
+    /** v1.16.3 — thread the archived eras when the bundle carries them. */
+    scheduleRevisions?: ScheduleRevisionLike[];
   },
   lastIntakeAt: Date | null,
   timeZone: string,
@@ -444,6 +457,7 @@ export function buildComplianceMedicationContext(
     createdAt: med.createdAt,
     lastIntakeAt,
     timeZone,
+    ...(med.scheduleRevisions && { scheduleRevisions: med.scheduleRevisions }),
   };
 }
 
@@ -624,25 +638,28 @@ export function expectedSlotCountForDay(
   ctx: ComplianceMedicationContext,
   intakes?: ComplianceIntakeInstant[],
 ): number {
-  let count = 0;
   const recurrenceCtx = toRecurrenceCtx(ctx, "compliance-daily");
   const now = new Date();
   const retro =
     intakes && schedules.some((s) => s.rollingIntervalDays != null)
       ? { intakeInstants: intakeInstantsAtOrBefore(intakes, now), now }
       : undefined;
-  for (let i = 0; i < schedules.length; i++) {
-    count += expandComplianceOccurrences(
-      toCanonicalSchedule(schedules[i], `compliance-daily-${i}`),
-      recurrenceCtx,
-      dayStart,
+  // v1.16.3 — era-aware: a past day counts the slots of the schedule that
+  // was live THEN. With no revisions the single live era expands exactly
+  // the per-schedule loop this used to run.
+  return occurrencesAcrossEras(
+    {
+      from: dayStart,
       // occurrencesBetween is inclusive of both ends; subtract 1 ms so a
       // slot exactly at the next day's midnight doesn't double-count.
-      new Date(dayEnd.getTime() - 1),
-      retro,
-    ).length;
-  }
-  return count;
+      to: new Date(dayEnd.getTime() - 1),
+    },
+    ctx.scheduleRevisions ?? [],
+    schedules.map((s, i) => toCanonicalSchedule(s, `compliance-daily-${i}`)),
+    (schedule, eraFrom, eraTo) =>
+      expandComplianceOccurrences(schedule, recurrenceCtx, eraFrom, eraTo, retro),
+    { oneShot: ctx.oneShot },
+  ).length;
 }
 
 /**
@@ -686,19 +703,17 @@ export function expectedSlotsBetween(
     intakes && schedules.some((s) => s.rollingIntervalDays != null)
       ? { intakeInstants: intakeInstantsAtOrBefore(intakes, to), now: to }
       : undefined;
-  const all: Occurrence[] = [];
-  for (let i = 0; i < schedules.length; i++) {
-    all.push(
-      ...expandComplianceOccurrences(
-        toCanonicalSchedule(schedules[i], `compliance-slots-${i}`),
-        recurrenceCtx,
-        effectiveFrom,
-        to,
-        retro,
-      ),
-    );
-  }
-  return all.sort((a, b) => a.at.getTime() - b.at.getTime());
+  if (effectiveFrom.getTime() > to.getTime()) return [];
+  // v1.16.3 — era-aware: each archived era contributes the slots of ITS
+  // schedules; the live rows cover only the range past the newest revision.
+  return occurrencesAcrossEras(
+    { from: effectiveFrom, to },
+    ctx.scheduleRevisions ?? [],
+    schedules.map((s, i) => toCanonicalSchedule(s, `compliance-slots-${i}`)),
+    (schedule, eraFrom, eraTo) =>
+      expandComplianceOccurrences(schedule, recurrenceCtx, eraFrom, eraTo, retro),
+    { oneShot: ctx.oneShot },
+  );
 }
 
 /**
@@ -1261,9 +1276,11 @@ export function buildComplianceLedgerRows(
     to,
   );
 
-  const groups = buildBandsForSchedules({
+  // v1.16.3 — era-aware mint: archived eras band with THEIR schedules.
+  const groups = buildBandsForSchedulesWithEras({
     medication,
     schedules: canonicalSchedules,
+    revisions: ctx.scheduleRevisions ?? [],
     ctx: recurrenceCtx,
     userTz: ctx.timeZone,
     range: { from, to },
@@ -1504,6 +1521,7 @@ export function calculateCompliance(
         createdAt: ctx.createdAt,
         lastIntakeAt: ctx.lastIntakeAt,
         timeZone: ctx.timeZone,
+        scheduleRevisions: ctx.scheduleRevisions,
       }
     : undefined;
 
@@ -1853,6 +1871,7 @@ function buildTimelineForWindow(
     createdAt: ctx.createdAt,
     lastIntakeAt: ctx.lastIntakeAt,
     timeZone: ctx.timeZone,
+    scheduleRevisions: ctx.scheduleRevisions,
   };
 
   const normalisedEvents: IntakeEventLike[] = events
