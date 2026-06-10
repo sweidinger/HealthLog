@@ -10,13 +10,16 @@
  * day first, chronological inside the day.
  *
  * Three interactions land here:
- *   - a pending / missed slot exposes Genommen / Übersprungen ON the row
- *     (~2 taps, not buried), which mark the dose with INSTANT feedback — the
+ *   - an actionable slot (upcoming, or missed today) exposes ONE visible
+ *     [Genommen] button that marks the dose with INSTANT feedback — the
  *     cached ledger + the headline % are mutated optimistically (the engines
  *     are pure, so the client mirrors their accounting) before the server
- *     write fires and the authoritative refetch reconciles;
- *   - any row with an intake can be edited (time / skipped) or deleted via the
- *     shared `<IntakeEditDialog>` + delete confirm;
+ *     write fires and the authoritative refetch reconciles. The success
+ *     toast carries an Undo. Übersprungen and the backfill of older missed
+ *     slots live in the row's overflow kebab;
+ *   - settled rows (taken / skipped / a past missed day) carry ONLY the
+ *     kebab: Bearbeiten, the Übersprungen↔Genommen toggle, Löschen — so the
+ *     ledger reads as a calm record, not a button wall;
  *   - a header "+ Eintrag" opens an add dialog scoped to this medication
  *     (incl. backdated / off-schedule); an off-window take surfaces the
  *     "diesem Slot zuordnen?" nudge, pinning it onto a chosen slot via
@@ -35,13 +38,23 @@ import {
   Check,
   CircleCheck,
   Loader2,
+  MoreVertical,
+  Pencil,
   Plus,
   SkipForward,
+  Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -60,6 +73,7 @@ import {
   queryKeys,
 } from "@/lib/query-keys";
 import type { DoseHistoryStatus } from "@/lib/medications/scheduling/dose-history";
+import { runUndoIntake } from "@/components/medications/use-medication-intake";
 import { IntakeEditDialog } from "@/components/medications/intake-edit-dialog";
 import { LedgerAddDialog } from "@/components/medications/dose-history-add-dialog";
 import {
@@ -177,11 +191,26 @@ export function DoseHistoryLedger({
     [data, timeZone],
   );
 
+  // Today's local day key — a missed slot from TODAY is still in active
+  // play (visible Genommen button); older missed days settle into the
+  // row kebab so the history reads calm.
+  const todayKey = useMemo(
+    () =>
+      new Intl.DateTimeFormat("en-CA", {
+        timeZone,
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      }).format(new Date()),
+    [timeZone],
+  );
+
   /**
    * Genommen / Übersprungen on a pending / missed slot. The cached ledger is
    * mutated optimistically (row status + the headline % flip in this paint),
    * then the server write fires and the dependent-key invalidation reconciles.
-   * A failed write rolls the optimistic snapshot back + toasts (mirrors the
+   * A failed write rolls the optimistic snapshot back + toasts; a successful
+   * one carries the same Undo action the medication cards offer (mirrors the
    * C1/C2 pattern in `use-medication-intake.ts`).
    */
   const markSlot = useCallback(
@@ -220,6 +249,15 @@ export function DoseHistoryLedger({
           );
           return;
         }
+        // The POST returns the created event; its id drives the Undo
+        // affordance (the same soft-delete route the cards use).
+        let eventId: string | undefined;
+        try {
+          const json = await res.json();
+          eventId = json?.data?.id as string | undefined;
+        } catch {
+          /* dose recorded; the body is best-effort for the id */
+        }
         toast.success(
           t(
             action === "skipped"
@@ -227,6 +265,20 @@ export function DoseHistoryLedger({
               : "medications.intakeToastTaken",
             { name: medicationName },
           ),
+          eventId
+            ? {
+                action: {
+                  label: t("medications.intakeUndo"),
+                  onClick: () =>
+                    void runUndoIntake({
+                      medication: { id: medicationId, name: medicationName },
+                      eventId,
+                      t,
+                      queryClient,
+                    }),
+                },
+              }
+            : undefined,
         );
         await invalidateKeys(queryClient, [
           ...medicationDependentKeys,
@@ -242,6 +294,49 @@ export function DoseHistoryLedger({
       }
     },
     [marking, medicationId, medicationName, queryClient, queryKey, t],
+  );
+
+  /**
+   * Flip an existing intake between Übersprungen and Genommen from the row
+   * kebab. Same `PUT intake/[eventId]` contract the edit dialog uses; a
+   * skipped→taken flip anchors `takenAt` on the slot instant (a past slot)
+   * rather than "now".
+   */
+  const toggleIntakeSkipped = useCallback(
+    async (intake: {
+      id: string;
+      skipped: boolean;
+      scheduledFor: string | null;
+    }) => {
+      try {
+        const body = intake.skipped
+          ? {
+              skipped: false,
+              takenAt: intake.scheduledFor ?? new Date().toISOString(),
+            }
+          : { skipped: true, takenAt: null };
+        const res = await fetch(
+          `/api/medications/${medicationId}/intake/${intake.id}`,
+          {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(body),
+          },
+        );
+        if (!res.ok) {
+          toast.error(t("medications.detail.intake.edit.failed"));
+          return;
+        }
+        await invalidateKeys(queryClient, [
+          ...medicationDependentKeys,
+          queryKey,
+        ]);
+        toast.success(t("medications.detail.intake.edit.savedToast"));
+      } catch {
+        toast.error(t("medications.detail.intake.edit.failed"));
+      }
+    },
+    [medicationId, queryClient, queryKey, t],
   );
 
   async function confirmRowDelete() {
@@ -330,7 +425,9 @@ export function DoseHistoryLedger({
                   key={`${row.kind}:${row.at}:${row.intake?.id ?? i}`}
                   row={row}
                   marking={marking}
+                  isToday={group.dayKey === todayKey}
                   onMark={markSlot}
+                  onToggleSkipped={toggleIntakeSkipped}
                   onEdit={(ev) => setEditingEvent(ev)}
                   onDelete={(id) => setPendingDeleteId(id)}
                 />
@@ -367,20 +464,34 @@ export function DoseHistoryLedger({
 }
 
 /**
- * One ledger row: time + status pill + (when an intake is attributed) its real
- * take time, plus the inline actions. A pending/missed slot offers Genommen /
- * Übersprungen; a row with an intake offers Bearbeiten / Löschen.
+ * One ledger row: time + status (colour + glyph + text) + (when an intake is
+ * attributed) its real take time, plus the row actions.
+ *
+ * Action shape (v1.15.20): an actionable slot that is still in play
+ * (upcoming, or missed TODAY) carries exactly ONE visible [Genommen] button —
+ * label visible on every viewport — plus the overflow kebab (Übersprungen).
+ * Every settled row (taken / skipped / a past missed day / ad-hoc) carries
+ * ONLY the kebab: Bearbeiten, the Übersprungen↔Genommen toggle, Löschen —
+ * and, for a past missed slot, the Genommen / Übersprungen backfill marks.
  */
 function LedgerRowItem({
   row,
   marking,
+  isToday,
   onMark,
+  onToggleSkipped,
   onEdit,
   onDelete,
 }: {
   row: LedgerRow;
   marking: string | null;
+  isToday: boolean;
   onMark: (row: LedgerRow, action: "taken" | "skipped") => void;
+  onToggleSkipped: (intake: {
+    id: string;
+    skipped: boolean;
+    scheduledFor: string | null;
+  }) => void;
   onEdit: (event: {
     id: string;
     takenAt: string | null;
@@ -393,6 +504,10 @@ function LedgerRowItem({
   const fmt = useFormatters();
 
   const actionable = isSlotActionable(row);
+  // A missed slot from an earlier day stays markable, but only through the
+  // kebab — the visible button is reserved for doses still in play.
+  const showTakenButton =
+    actionable && (row.status === "upcoming" || isToday);
   const intake = row.intake;
   const takeBusy = marking === `${row.at}:taken`;
   const skipBusy = marking === `${row.at}:skipped`;
@@ -445,81 +560,125 @@ function LedgerRowItem({
       </div>
 
       <div className="flex shrink-0 items-center gap-1">
-        {actionable && (
-          <>
+        {showTakenButton && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => onMark(row, "taken")}
+            disabled={takeBusy || skipBusy}
+            aria-busy={takeBusy || undefined}
+            className="min-h-9"
+            data-slot="ledger-mark-taken"
+          >
+            {takeBusy ? (
+              <Loader2
+                aria-hidden="true"
+                className="size-4 animate-spin motion-reduce:animate-none"
+              />
+            ) : (
+              <Check aria-hidden="true" className="size-4" />
+            )}
+            {t("medications.detail.verlauf.markTaken")}
+          </Button>
+        )}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
             <Button
-              variant="outline"
-              size="sm"
-              onClick={() => onMark(row, "taken")}
-              disabled={takeBusy || skipBusy}
-              aria-busy={takeBusy || undefined}
-              className="min-h-9"
-              data-slot="ledger-mark-taken"
+              variant="ghost"
+              size="icon-sm"
+              className="min-h-9 min-w-9"
+              aria-label={t("medications.detail.verlauf.rowActionsLabel", {
+                time: timeLabel,
+              })}
+              data-slot="ledger-row-menu"
             >
-              {takeBusy ? (
-                <Loader2
-                  aria-hidden="true"
-                  className="size-4 animate-spin motion-reduce:animate-none"
-                />
-              ) : (
-                <Check aria-hidden="true" className="size-4" />
-              )}
-              <span className="hidden sm:inline">
+              <MoreVertical aria-hidden="true" className="size-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent
+            align="end"
+            data-slot="ledger-row-menu-content"
+          >
+            {actionable && !showTakenButton && (
+              <DropdownMenuItem
+                onClick={() => onMark(row, "taken")}
+                data-slot="ledger-menu-taken"
+              >
+                <Check aria-hidden="true" className="mr-2 size-4" />
                 {t("medications.detail.verlauf.markTaken")}
-              </span>
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => onMark(row, "skipped")}
-              disabled={takeBusy || skipBusy}
-              aria-busy={skipBusy || undefined}
-              className="min-h-9"
-              data-slot="ledger-mark-skipped"
-            >
-              {skipBusy ? (
-                <Loader2
-                  aria-hidden="true"
-                  className="size-4 animate-spin motion-reduce:animate-none"
-                />
-              ) : (
-                <SkipForward aria-hidden="true" className="size-4" />
-              )}
-              <span className="hidden sm:inline">
+              </DropdownMenuItem>
+            )}
+            {actionable && (
+              <DropdownMenuItem
+                onClick={() => onMark(row, "skipped")}
+                data-slot="ledger-mark-skipped"
+              >
+                {skipBusy ? (
+                  <Loader2
+                    aria-hidden="true"
+                    className="mr-2 size-4 animate-spin motion-reduce:animate-none"
+                  />
+                ) : (
+                  <SkipForward aria-hidden="true" className="mr-2 size-4" />
+                )}
                 {t("medications.detail.verlauf.markSkipped")}
-              </span>
-            </Button>
-          </>
-        )}
-        {intake?.id && (
-          <>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() =>
-                onEdit({
-                  id: intake.id as string,
-                  takenAt: intake.takenAt,
-                  skipped: intake.skipped,
-                  scheduledFor: intake.scheduledFor,
-                })
-              }
-              className="min-h-9"
-              data-slot="ledger-edit"
-            >
-              {t("medications.detail.intake.rowActions.edit")}
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => onDelete(intake.id as string)}
-              className="text-destructive min-h-9"
-              data-slot="ledger-delete"
-            >
-              {t("medications.detail.intake.rowActions.delete")}
-            </Button>
-          </>
-        )}
+              </DropdownMenuItem>
+            )}
+            {intake?.id && (
+              <>
+                <DropdownMenuItem
+                  onClick={() =>
+                    onEdit({
+                      id: intake.id as string,
+                      takenAt: intake.takenAt,
+                      skipped: intake.skipped,
+                      scheduledFor: intake.scheduledFor,
+                    })
+                  }
+                  data-slot="ledger-edit"
+                >
+                  <Pencil aria-hidden="true" className="mr-2 size-4" />
+                  {t("medications.detail.intake.rowActions.edit")}
+                </DropdownMenuItem>
+                {(row.status === "skipped" ||
+                  row.status === "taken_on_time" ||
+                  row.status === "taken_late") && (
+                  <DropdownMenuItem
+                    onClick={() =>
+                      onToggleSkipped({
+                        id: intake.id as string,
+                        skipped: intake.skipped,
+                        scheduledFor: intake.scheduledFor,
+                      })
+                    }
+                    data-slot="ledger-toggle-skipped"
+                  >
+                    {intake.skipped ? (
+                      <Check aria-hidden="true" className="mr-2 size-4" />
+                    ) : (
+                      <SkipForward
+                        aria-hidden="true"
+                        className="mr-2 size-4"
+                      />
+                    )}
+                    {intake.skipped
+                      ? t("medications.detail.verlauf.markAsTaken")
+                      : t("medications.detail.verlauf.markAsSkipped")}
+                  </DropdownMenuItem>
+                )}
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onClick={() => onDelete(intake.id as string)}
+                  className="text-destructive focus:text-destructive"
+                  data-slot="ledger-delete"
+                >
+                  <Trash2 aria-hidden="true" className="mr-2 size-4" />
+                  {t("medications.detail.intake.rowActions.delete")}
+                </DropdownMenuItem>
+              </>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
     </li>
   );

@@ -28,7 +28,7 @@ import type { StepProps } from "./Step1Name";
 /**
  * Dose unit choices, ordered so mg / ml / IE / µg lead and the
  * device-form units (Tablette, Hub, Sprühstoß, …) follow. Mirrors the
- * v1.5.3 list with the Marc-requested order tightening.
+ * v1.5.3 list with the maintainer-requested order tightening.
  */
 const DOSE_UNIT_KEYS = [
   "mg",
@@ -88,7 +88,6 @@ export function Step3Dose({ payload, applyPartial }: StepProps) {
             maxLength={20}
             autoComplete="off"
             enterKeyHint="next"
-            className="h-11"
           />
         </div>
         <div className="space-y-1.5">
@@ -99,7 +98,7 @@ export function Step3Dose({ payload, applyPartial }: StepProps) {
             value={payload.doseUnit}
             onValueChange={(v) => applyPartial({ doseUnit: v })}
           >
-            <SelectTrigger id="wizard-dose-unit" className="h-11 w-full">
+            <SelectTrigger id="wizard-dose-unit" className="w-full">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -127,7 +126,7 @@ export function Step3Dose({ payload, applyPartial }: StepProps) {
               applyPartial({ deliveryForm: v as MedicationDeliveryForm })
             }
           >
-            <SelectTrigger id="wizard-delivery-form" className="h-11 w-full">
+            <SelectTrigger id="wizard-delivery-form" className="w-full">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -158,7 +157,6 @@ export function Step3Dose({ payload, applyPartial }: StepProps) {
             )}
             maxLength={3}
             autoComplete="off"
-            className="h-11"
           />
           <p className="text-muted-foreground text-xs">
             {t("medications.wizard.steps.step3.dosesPerUnitHint")}

@@ -153,7 +153,6 @@ describe("medication card symmetry — Ramipril vs Mounjaro", () => {
         medication={ramipril}
         onEdit={() => {}}
         onOpenHistory={() => {}}
-        onOpenAdvanced={() => {}}
       />,
       client,
     );
@@ -162,7 +161,6 @@ describe("medication card symmetry — Ramipril vs Mounjaro", () => {
         medication={mounjaro}
         onEdit={() => {}}
         onOpenHistory={() => {}}
-        onOpenAdvanced={() => {}}
       />,
       client,
     );
@@ -197,7 +195,6 @@ describe("medication card symmetry — Ramipril vs Mounjaro", () => {
         medication={mounjaro}
         onEdit={() => {}}
         onOpenHistory={() => {}}
-        onOpenAdvanced={() => {}}
         onLogSideEffect={() => {}}
       />,
       client,
@@ -219,7 +216,6 @@ describe("medication card symmetry — Ramipril vs Mounjaro", () => {
         medication={ramipril}
         onEdit={() => {}}
         onOpenHistory={() => {}}
-        onOpenAdvanced={() => {}}
       />,
       client,
     );
@@ -228,7 +224,6 @@ describe("medication card symmetry — Ramipril vs Mounjaro", () => {
         medication={mounjaro}
         onEdit={() => {}}
         onOpenHistory={() => {}}
-        onOpenAdvanced={() => {}}
       />,
       client,
     );
@@ -252,7 +247,6 @@ describe("medication card symmetry — Ramipril vs Mounjaro", () => {
         medication={ramipril}
         onEdit={() => {}}
         onOpenHistory={() => {}}
-        onOpenAdvanced={() => {}}
       />,
       client,
     );
@@ -261,7 +255,6 @@ describe("medication card symmetry — Ramipril vs Mounjaro", () => {
         medication={mounjaro}
         onEdit={() => {}}
         onOpenHistory={() => {}}
-        onOpenAdvanced={() => {}}
       />,
       client,
     );
@@ -285,7 +278,6 @@ describe("medication card symmetry — Ramipril vs Mounjaro", () => {
         medication={ramipril}
         onEdit={() => {}}
         onOpenHistory={() => {}}
-        onOpenAdvanced={() => {}}
       />,
       client,
     );
@@ -294,7 +286,6 @@ describe("medication card symmetry — Ramipril vs Mounjaro", () => {
         medication={mounjaro}
         onEdit={() => {}}
         onOpenHistory={() => {}}
-        onOpenAdvanced={() => {}}
         onLogSideEffect={() => {}}
       />,
       client,
@@ -364,7 +355,6 @@ describe("medication card symmetry — Ramipril vs Mounjaro", () => {
         medication={ramiprilFuture}
         onEdit={() => {}}
         onOpenHistory={() => {}}
-        onOpenAdvanced={() => {}}
       />,
       client,
     );
@@ -373,7 +363,6 @@ describe("medication card symmetry — Ramipril vs Mounjaro", () => {
         medication={mounjaroFuture}
         onEdit={() => {}}
         onOpenHistory={() => {}}
-        onOpenAdvanced={() => {}}
       />,
       client,
     );
@@ -426,7 +415,6 @@ describe("medication card symmetry — Ramipril vs Mounjaro", () => {
         medication={ramiprilBoth}
         onEdit={() => {}}
         onOpenHistory={() => {}}
-        onOpenAdvanced={() => {}}
       />,
       client,
     );
@@ -435,7 +423,6 @@ describe("medication card symmetry — Ramipril vs Mounjaro", () => {
         medication={mounjaroBoth}
         onEdit={() => {}}
         onOpenHistory={() => {}}
-        onOpenAdvanced={() => {}}
       />,
       client,
     );
@@ -520,7 +507,6 @@ describe("medication card symmetry — Ramipril vs Mounjaro", () => {
           medication={oral}
           onEdit={() => {}}
           onOpenHistory={() => {}}
-          onOpenAdvanced={() => {}}
         />,
         client,
       ),
@@ -529,7 +515,6 @@ describe("medication card symmetry — Ramipril vs Mounjaro", () => {
           medication={prn}
           onEdit={() => {}}
           onOpenHistory={() => {}}
-          onOpenAdvanced={() => {}}
         />,
         client,
       ),
@@ -538,7 +523,6 @@ describe("medication card symmetry — Ramipril vs Mounjaro", () => {
           medication={oneShot}
           onEdit={() => {}}
           onOpenHistory={() => {}}
-          onOpenAdvanced={() => {}}
         />,
         client,
       ),
@@ -547,7 +531,6 @@ describe("medication card symmetry — Ramipril vs Mounjaro", () => {
           medication={glp1}
           onEdit={() => {}}
           onOpenHistory={() => {}}
-          onOpenAdvanced={() => {}}
         />,
         client,
       ),

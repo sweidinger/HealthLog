@@ -159,7 +159,7 @@ export function TimesOfDayChips({
             if (!TIME_RE.test(v)) return;
             onChange([v]);
           }}
-          className="h-11 w-32"
+          className="h-11 w-32 sm:h-9"
           aria-label={t(`${i18nPrefix}.label`)}
         />
       </div>
@@ -195,7 +195,10 @@ export function TimesOfDayChips({
                 data-active={isOn ? "true" : "false"}
                 onClick={() => onPresetToggle(preset)}
                 className={[
-                  "focus-visible:ring-ring inline-flex h-11 items-center gap-1 rounded-md border px-3 text-xs font-medium transition-colors focus-visible:ring-2 focus-visible:outline-none disabled:opacity-50",
+                  // 44 px tap floor on mobile, 36 px on sm+ — the same
+                  // height system the dose-window inputs + save button use
+                  // so the Zeitplan tab renders one control height.
+                  "focus-visible:ring-ring inline-flex h-11 items-center gap-1 rounded-md border px-3 text-xs font-medium transition-colors focus-visible:ring-2 focus-visible:outline-none disabled:opacity-50 sm:h-9",
                   isOn
                     ? "bg-primary text-primary-foreground border-primary"
                     : "border-border bg-background text-foreground hover:bg-muted",
@@ -227,7 +230,7 @@ export function TimesOfDayChips({
               key={time}
               data-slot="times-of-day-chip"
               data-time={time}
-              className="bg-muted text-foreground inline-flex h-11 items-center gap-1.5 rounded-md border px-3 text-sm font-medium"
+              className="bg-muted text-foreground inline-flex h-11 items-center gap-1.5 rounded-md border px-3 text-sm font-medium sm:h-9"
             >
               <span>{time}</span>
               <button
@@ -256,7 +259,7 @@ export function TimesOfDayChips({
           value={draft}
           disabled={disabled || atCap}
           onChange={(e) => setDraft(e.target.value)}
-          className="h-11 w-32"
+          className="h-11 w-32 sm:h-9"
           aria-label={t(`${i18nPrefix}.add`)}
           data-slot="times-of-day-draft-input"
         />
@@ -266,7 +269,7 @@ export function TimesOfDayChips({
           size="sm"
           disabled={disabled || !draft || atCap}
           onClick={onAddDraft}
-          className="h-11"
+          className="h-11 sm:h-9"
           aria-label={t(`${i18nPrefix}.add`)}
           data-slot="times-of-day-add"
         >

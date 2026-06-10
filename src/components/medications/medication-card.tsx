@@ -98,19 +98,12 @@ interface MedicationCardProps {
    * (`/medications/{id}?tab=verlauf`). The parent owns the navigation.
    */
   onOpenHistory: (med: Medication) => void;
-  /**
-   * v1.15.18 — navigates to the medication detail page's Erweitert tab
-   * (`/medications/{id}?tab=erweitert`), the home of the dissolved
-   * advanced settings.
-   */
-  onOpenAdvanced: (med: Medication) => void;
 }
 
 export function MedicationCard({
   medication,
   onEdit,
   onOpenHistory,
-  onOpenAdvanced,
 }: MedicationCardProps) {
   const queryClient = useQueryClient();
   const { t, locale } = useTranslations();
@@ -288,7 +281,6 @@ export function MedicationCard({
     <MedicationCardMenu
       onEdit={() => onEdit(medication)}
       onOpenHistory={() => onOpenHistory(medication)}
-      onOpenAdvanced={() => onOpenAdvanced(medication)}
     />
   );
 

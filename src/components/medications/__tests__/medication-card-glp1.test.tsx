@@ -194,7 +194,6 @@ describe("<Glp1MedicationCard> — GLP-1 variant rendering", () => {
         medication={med7p5}
         onEdit={() => {}}
         onOpenHistory={() => {}}
-        onOpenAdvanced={() => {}}
       />,
       client,
     );
@@ -208,26 +207,24 @@ describe("<Glp1MedicationCard> — GLP-1 variant rendering", () => {
     expect(html).not.toMatch(/lucide-syringe/i);
   });
 
-  it("collapses edit / history / advanced into a single overflow kebab + navigable header", () => {
-    // v1.7.2 W3 — the four former header icon-buttons collapse into one
+  it("collapses edit / history into a single overflow kebab + navigable header", () => {
+    // v1.7.2 W3 — the former header icon-buttons collapse into one
     // kebab; the card header links to the detail page. The menu items
-    // (edit / history / advanced) render inside the portalled dropdown
-    // content, so SSR markup carries only the kebab trigger + the header
-    // link, not the individual action buttons.
+    // (edit / history) render inside the portalled dropdown content, so
+    // SSR markup carries only the kebab trigger + the header link, not
+    // the individual action buttons. v1.15.20 retires the Advanced item.
     const client = makeClient();
     seedCompliance(client, med7p5.id);
     seedGlp1Details(client, med7p5.id, {});
 
     const onEdit = vi.fn();
     const onOpenHistory = vi.fn();
-    const onOpenAdvanced = vi.fn();
 
     const html = render(
       <Glp1MedicationCard
         medication={med7p5}
         onEdit={onEdit}
         onOpenHistory={onOpenHistory}
-        onOpenAdvanced={onOpenAdvanced}
       />,
       client,
     );
@@ -240,13 +237,13 @@ describe("<Glp1MedicationCard> — GLP-1 variant rendering", () => {
 
     // Smoke-check the handler contract — SSR can't fire DOM events, so
     // invoke the handlers the way each menu item's onClick would and pin
-    // the medication-object payload the parent routes / sheets against.
+    // the medication-object payload the parent routes against.
     onOpenHistory(med7p5);
-    onOpenAdvanced(med7p5);
+    onEdit(med7p5);
     expect(onOpenHistory).toHaveBeenCalledWith(
       expect.objectContaining({ id: "med-glp1-1", treatmentClass: "GLP1" }),
     );
-    expect(onOpenAdvanced).toHaveBeenCalledWith(
+    expect(onEdit).toHaveBeenCalledWith(
       expect.objectContaining({ id: "med-glp1-1", treatmentClass: "GLP1" }),
     );
   });
@@ -264,7 +261,6 @@ describe("<Glp1MedicationCard> — GLP-1 variant rendering", () => {
         medication={defaultMed}
         onEdit={() => {}}
         onOpenHistory={() => {}}
-        onOpenAdvanced={() => {}}
       />,
       client,
     );
@@ -288,7 +284,6 @@ describe("<Glp1MedicationCard> — GLP-1 variant rendering", () => {
         medication={med7p5}
         onEdit={() => {}}
         onOpenHistory={() => {}}
-        onOpenAdvanced={() => {}}
       />,
       client,
     );
@@ -315,7 +310,6 @@ describe("<Glp1MedicationCard> — GLP-1 variant rendering", () => {
         medication={med7p5}
         onEdit={() => {}}
         onOpenHistory={() => {}}
-        onOpenAdvanced={() => {}}
       />,
       client,
     );
@@ -364,7 +358,6 @@ describe("<Glp1MedicationCard> — GLP-1 variant rendering", () => {
         medication={med7p5}
         onEdit={() => {}}
         onOpenHistory={() => {}}
-        onOpenAdvanced={() => {}}
       />,
       client,
     );
@@ -397,7 +390,6 @@ describe("<Glp1MedicationCard> — GLP-1 variant rendering", () => {
         medication={med7p5}
         onEdit={() => {}}
         onOpenHistory={() => {}}
-        onOpenAdvanced={() => {}}
       />,
       client,
     );
@@ -428,7 +420,6 @@ describe("<Glp1MedicationCard> — GLP-1 variant rendering", () => {
         medication={med7p5}
         onEdit={() => {}}
         onOpenHistory={() => {}}
-        onOpenAdvanced={() => {}}
       />,
       client,
     );
@@ -454,7 +445,6 @@ describe("<Glp1MedicationCard> — GLP-1 variant rendering", () => {
         medication={med7p5}
         onEdit={() => {}}
         onOpenHistory={() => {}}
-        onOpenAdvanced={() => {}}
       />,
       client,
     );
@@ -479,7 +469,6 @@ describe("<Glp1MedicationCard> — GLP-1 variant rendering", () => {
         medication={med7p5}
         onEdit={() => {}}
         onOpenHistory={() => {}}
-        onOpenAdvanced={() => {}}
         onLogSideEffect={handler}
       />,
       client,
@@ -516,7 +505,6 @@ describe("<Glp1MedicationCard> — GLP-1 variant rendering", () => {
         medication={med7p5}
         onEdit={() => {}}
         onOpenHistory={() => {}}
-        onOpenAdvanced={() => {}}
       />,
       client,
     );
@@ -540,7 +528,6 @@ describe("<Glp1MedicationCard> — GLP-1 variant rendering", () => {
         medication={med7p5}
         onEdit={() => {}}
         onOpenHistory={() => {}}
-        onOpenAdvanced={() => {}}
       />,
       client,
     );
@@ -565,7 +552,6 @@ describe("<Glp1MedicationCard> — GLP-1 variant rendering", () => {
         medication={paused}
         onEdit={() => {}}
         onOpenHistory={() => {}}
-        onOpenAdvanced={() => {}}
       />,
       client,
     );
@@ -598,7 +584,6 @@ describe("<Glp1MedicationCard> — GLP-1 variant rendering", () => {
         medication={med7p5}
         onEdit={() => {}}
         onOpenHistory={() => {}}
-        onOpenAdvanced={() => {}}
       />,
       client,
       "de",

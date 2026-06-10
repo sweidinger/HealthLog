@@ -349,7 +349,6 @@ describe("streak-token parity — generic vs GLP-1 card", () => {
         medication={ramipril}
         onEdit={() => {}}
         onOpenHistory={() => {}}
-        onOpenAdvanced={() => {}}
       />,
       client,
     );
@@ -358,7 +357,6 @@ describe("streak-token parity — generic vs GLP-1 card", () => {
         medication={mounjaro}
         onEdit={() => {}}
         onOpenHistory={() => {}}
-        onOpenAdvanced={() => {}}
       />,
       client,
     );

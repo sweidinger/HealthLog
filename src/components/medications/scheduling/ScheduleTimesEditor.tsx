@@ -11,8 +11,8 @@
  * Self-saves via `PUT /api/medications/[id]` with the FULL `schedules`
  * array (the route replaces schedules wholesale, so every cadence field
  * is preserved verbatim from the snapshot and only the times + windows
- * change). Reminder grace is a READ-ONLY echo here — its single owner is
- * the Erinnerung tab.
+ * change). Reminder grace is a READ-ONLY echo here — its owner is the
+ * Erinnerung card directly below on the same tab.
  *
  * Calm, inset-grouped, AA. No card tint.
  */
@@ -81,12 +81,9 @@ function effectiveTimes(s: EditableSchedule): string[] {
 export function ScheduleTimesEditor({
   medicationId,
   schedules,
-  onRequestReminderTab,
 }: {
   medicationId: string;
   schedules: EditableSchedule[];
-  /** Jump the user to the Erinnerung tab (the grace owner). */
-  onRequestReminderTab?: () => void;
 }) {
   const { t } = useTranslations();
   const queryClient = useQueryClient();
@@ -238,19 +235,6 @@ export function ScheduleTimesEditor({
                 {t("medications.detail.zeitplan.graceEcho", {
                   minutes: grace,
                 })}
-                {onRequestReminderTab ? (
-                  <>
-                    {" · "}
-                    <button
-                      type="button"
-                      onClick={onRequestReminderTab}
-                      className="text-primary underline-offset-2 hover:underline focus-visible:ring-ring rounded-sm focus-visible:ring-2 focus-visible:outline-none"
-                      data-slot="zeitplan-grace-link"
-                    >
-                      {t("medications.detail.zeitplan.graceLink")}
-                    </button>
-                  </>
-                ) : null}
               </p>
             ) : null}
           </div>

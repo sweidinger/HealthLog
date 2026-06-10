@@ -30,7 +30,7 @@ import type { ComplianceDisplay } from "@/lib/analytics/compliance";
 /**
  * v1.4.25 W4d — GLP-1 medication card variant.
  *
- * Marc directive 2026-05-14: NO chart on the medication card. The card
+ * Maintainer directive 2026-05-14: NO chart on the medication card. The card
  * stays text-rich (drug name + current dose, last/next injection,
  * injection-site rotation hint, side-effect quick-log). v1.4.28
  * retired the inline dose-history disclosure and the inventory
@@ -129,12 +129,6 @@ interface Glp1MedicationCardProps {
    * card. The parent owns the navigation.
    */
   onOpenHistory: (med: Glp1Medication) => void;
-  /**
-   * v1.15.18 — navigates to the medication detail page's Erweitert tab
-   * (`/medications/{id}?tab=erweitert`), the home of the dissolved
-   * advanced settings.
-   */
-  onOpenAdvanced: (med: Glp1Medication) => void;
   onLogSideEffect?: (med: Glp1Medication) => void;
 }
 
@@ -167,7 +161,6 @@ export function Glp1MedicationCard({
   medication,
   onEdit,
   onOpenHistory,
-  onOpenAdvanced,
   onLogSideEffect,
 }: Glp1MedicationCardProps) {
   const queryClient = useQueryClient();
@@ -364,7 +357,6 @@ export function Glp1MedicationCard({
     <MedicationCardMenu
       onEdit={() => onEdit(medication)}
       onOpenHistory={() => onOpenHistory(medication)}
-      onOpenAdvanced={() => onOpenAdvanced(medication)}
       onLogSideEffect={
         onLogSideEffect ? () => onLogSideEffect(medication) : undefined
       }

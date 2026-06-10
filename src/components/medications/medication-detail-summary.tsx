@@ -87,7 +87,7 @@ export function MedicationDetailSummary({
 
   return (
     <div className="space-y-1.5" data-slot="medication-detail-summary">
-      <h1 className="text-2xl font-bold tracking-tight">{name}</h1>
+      <h1 className="text-2xl font-semibold tracking-tight">{name}</h1>
       <p className="text-muted-foreground text-sm">{dose}</p>
       <div
         className="text-muted-foreground flex items-center gap-2 text-xs"

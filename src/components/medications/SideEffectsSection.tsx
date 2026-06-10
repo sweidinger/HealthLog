@@ -262,7 +262,6 @@ export function SideEffectsSection({ medicationId }: SideEffectsSectionProps) {
       titleId="side-effects-heading"
       title={t("medications.sideEffects.section")}
       headerExtras={headerExtras}
-      bodyPaddingY="py-2.5"
     >
       {isLoading && (
         <div className="text-muted-foreground flex items-center gap-2">

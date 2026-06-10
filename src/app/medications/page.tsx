@@ -171,24 +171,20 @@ export default function MedicationsPage() {
     queryClient.setQueryData(queryKeys.medicationDetail(med.id), med);
   }
 
-  // v1.15.18 — the card kebab actions now navigate to the full-page
-  // tabbed detail surface on the right tab rather than opening a modal
-  // editor / sheet. Edit lands on Zeitplan (the everyday schedule view +
-  // the hero's "Vollständig bearbeiten" jump into the wizard), History on
-  // Verlauf, Advanced on Erweitert (the dissolved advanced-settings).
+  // v1.15.20 — the kebab's Edit opens the medication wizard directly:
+  // it navigates to the detail page with `?edit=1`, which the tabbed
+  // shell reads synchronously to mount the wizard in edit mode (the same
+  // `editOpen` path the hero's "Vollständig bearbeiten" uses). History
+  // still lands on the Verlauf tab; the former Advanced item is retired —
+  // the Erweitert tab stays reachable through the card body.
   function openEdit(med: Medication) {
     seedDetail(med);
-    router.push(`/medications/${med.id}?tab=zeitplan`);
+    router.push(`/medications/${med.id}?edit=1`);
   }
 
   function openHistory(med: Medication) {
     seedDetail(med);
     router.push(`/medications/${med.id}?tab=verlauf`);
-  }
-
-  function openAdvanced(med: Medication) {
-    seedDetail(med);
-    router.push(`/medications/${med.id}?tab=erweitert`);
   }
 
   function closeDialog() {
@@ -327,7 +323,6 @@ export default function MedicationsPage() {
                       medication={med}
                       onEdit={openEdit}
                       onOpenHistory={openHistory}
-                      onOpenAdvanced={openAdvanced}
                     />
                   ) : (
                     <MedicationCard
@@ -335,7 +330,6 @@ export default function MedicationsPage() {
                       medication={med}
                       onEdit={openEdit}
                       onOpenHistory={openHistory}
-                      onOpenAdvanced={openAdvanced}
                     />
                   ),
                 )}
@@ -357,7 +351,6 @@ export default function MedicationsPage() {
                       medication={med}
                       onEdit={openEdit}
                       onOpenHistory={openHistory}
-                      onOpenAdvanced={openAdvanced}
                     />
                   ) : (
                     <MedicationCard
@@ -365,7 +358,6 @@ export default function MedicationsPage() {
                       medication={med}
                       onEdit={openEdit}
                       onOpenHistory={openHistory}
-                      onOpenAdvanced={openAdvanced}
                     />
                   ),
                 )}
