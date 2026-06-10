@@ -358,6 +358,50 @@ describe("PUT — v1.15.18 band re-attribution", () => {
     expect((created?.scheduledFor as Date).getTime()).toBe(at(19, 0).getTime());
   });
 
+  it("unpin (forceSlotInstant: null) keeps USER_PIN provenance on the released ad-hoc row (v1.16.0)", async () => {
+    // The row is pinned onto the 07:00 anchor; its real takenAt (12:00) is
+    // outside every band. Releasing the binding re-attributes by band →
+    // miss → the row re-anchors on its own takenAt — and the release is
+    // itself a user-fixed decision, so the row must keep USER_PIN (the
+    // nightly dedup keys its standalone guarantee on that marker).
+    vi.mocked(prisma.medicationIntakeEvent.findFirst)
+      // PUT lookup of the edited event
+      .mockResolvedValueOnce({
+        id: "e1",
+        userId: "user-1",
+        medicationId: "m1",
+        scheduledFor: at(7, 0),
+        takenAt: at(12, 0),
+        skipped: false,
+      } as never)
+      // lifecycle liveIntake probe
+      .mockResolvedValue(null as never);
+    // applyCanonicalSlotWrite: no existing row at the 12:00 instant → create.
+    vi.mocked(prisma.medicationIntakeEvent.findMany).mockResolvedValue(
+      [] as never,
+    );
+    vi.mocked(prisma.medicationIntakeEvent.update).mockResolvedValue(
+      {} as never,
+    );
+    vi.mocked(prisma.medicationIntakeEvent.create).mockResolvedValue({
+      id: "e2",
+      userId: "user-1",
+      medicationId: "m1",
+      scheduledFor: at(12, 0),
+      takenAt: at(12, 0),
+      skipped: false,
+    } as never);
+
+    const res = await PUT(putReq({ forceSlotInstant: null }), ROUTE_CTX);
+    expect(res.status).toBe(200);
+
+    const created = vi.mocked(prisma.medicationIntakeEvent.create).mock
+      .calls[0]?.[0]?.data;
+    // Released row: anchored on its own takenAt, provenance stays USER_PIN.
+    expect((created?.scheduledFor as Date).getTime()).toBe(at(12, 0).getTime());
+    expect(created?.attributionSource).toBe("USER_PIN");
+  });
+
   it("422s an edited takenAt before the medication's start date (P0-4)", async () => {
     // Use fixed wall-clock so the schema's "not in the future / within 5
     // years" bounds hold regardless of when the suite runs.
@@ -456,6 +500,48 @@ describe("PUT — v1.15.18 band re-attribution", () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  it("422s a pin onto a slot already served by another recorded action (v1.16.0)", async () => {
+    // The edited event is an ad-hoc take; the pin targets the real 07:00
+    // slot — but that slot already carries a DIFFERENT recorded take.
+    // Converging would overwrite it (last-write-wins), so the route
+    // refuses with `medications.intake.force_slot.occupied` before any
+    // write happens.
+    vi.mocked(prisma.medicationIntakeEvent.findFirst).mockResolvedValue({
+      id: "e1",
+      userId: "user-1",
+      medicationId: "m1",
+      scheduledFor: at(12, 0),
+      takenAt: at(12, 0),
+      skipped: false,
+    } as never);
+    // findPinConflict's slot-row read: the 07:00 anchor is served.
+    vi.mocked(prisma.medicationIntakeEvent.findMany).mockResolvedValue([
+      {
+        id: "other-take",
+        takenAt: at(7, 5),
+        skipped: false,
+        idempotencyKey: null,
+        scheduledFor: at(7, 0),
+        source: "WEB",
+        createdAt: at(0, 1),
+      },
+    ] as never);
+
+    const res = await PUT(
+      putReq({ forceSlotInstant: at(7, 0).toISOString() }),
+      ROUTE_CTX,
+    );
+    expect(res.status).toBe(422);
+    const body = (await res.json()) as {
+      meta?: { errorCode?: string };
+    };
+    expect(body.meta?.errorCode).toBe(
+      "medications.intake.force_slot.occupied",
+    );
+    expect(prisma.medicationIntakeEvent.update).not.toHaveBeenCalled();
+    expect(prisma.medicationIntakeEvent.create).not.toHaveBeenCalled();
   });
 
   it("422s a forceSlotInstant that is not a real slot", async () => {

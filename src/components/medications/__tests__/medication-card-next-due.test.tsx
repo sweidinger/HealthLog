@@ -101,7 +101,6 @@ describe("<MedicationCard> — next-due reads from server nextDueAt", () => {
         medication={rollingMed}
         onEdit={() => {}}
         onOpenHistory={() => {}}
-        onOpenAdvanced={() => {}}
       />,
       client,
     );
@@ -151,7 +150,6 @@ describe("<MedicationCard> — next-due reads from server nextDueAt", () => {
         medication={med}
         onEdit={() => {}}
         onOpenHistory={() => {}}
-        onOpenAdvanced={() => {}}
       />,
       client,
     );
@@ -206,7 +204,6 @@ describe("<MedicationCard> — next-due reads from server nextDueAt", () => {
         medication={med}
         onEdit={() => {}}
         onOpenHistory={() => {}}
-        onOpenAdvanced={() => {}}
       />,
       client,
     );

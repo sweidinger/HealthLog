@@ -31,6 +31,7 @@ import { LoginOverviewSection } from "@/components/admin/login-overview-section"
 import { RemindersSection } from "@/components/admin/reminders-section";
 import { ServicesSection } from "@/components/admin/services-section";
 import { SystemStatusSection } from "@/components/admin/system-status-section";
+import { InviteTokensSection } from "@/components/admin/invite-tokens-section";
 import { UserManagementSection } from "@/components/admin/user-management-section";
 import type { AdminSectionSlug } from "@/components/admin/section-slugs";
 
@@ -139,6 +140,18 @@ export function AdminSectionRenderer({
           subtitle={t("admin.section.users.subtitle")}
         >
           <UserManagementSection />
+        </SectionFrame>
+      );
+    case "invites":
+      // v1.16.0 — invites moved out of Users into their own section:
+      // the full table (status, redemptions, revocation) is a workflow
+      // of its own and was drowning under the account list.
+      return (
+        <SectionFrame
+          title={t("admin.section.invites.title")}
+          subtitle={t("admin.section.invites.subtitle")}
+        >
+          <InviteTokensSection />
         </SectionFrame>
       );
     case "api-tokens":

@@ -156,7 +156,7 @@ export function IntakeImportDialog({
           <p className="text-muted-foreground text-sm">
             {t("medications.importDescription")}
           </p>
-          <div className="space-y-1.5">
+          <div className="space-y-2">
             <Label htmlFor="intake-import-file" className="text-xs font-medium">
               {t("medications.importUploadFile")}
             </Label>
@@ -236,9 +236,9 @@ export function IntakeImportDialog({
                 className="min-h-11 sm:min-h-9"
               >
                 {importing ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin motion-reduce:animate-none" />
+                  <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" />
                 ) : (
-                  <Upload className="mr-2 h-4 w-4" />
+                  <Upload className="h-4 w-4" />
                 )}
                 {t("common.import")}
               </Button>

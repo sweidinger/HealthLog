@@ -138,7 +138,7 @@ export function ThresholdsEditorSection({ id }: { id: string }) {
             onClick={() => resetMutation.mutate(null)}
             disabled={resetMutation.isPending}
           >
-            <RotateCcw className="mr-2 h-3.5 w-3.5" />
+            <RotateCcw className="h-3.5 w-3.5" />
             {t("thresholds.resetAllAction")}
           </Button>
         )}

@@ -1,9 +1,9 @@
 "use client";
 
 import { useId, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
-import { Loader2, UserPlus } from "lucide-react";
+import { Loader2, MailOpen, UserPlus } from "lucide-react";
 import { Logo } from "@/components/ui/logo";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -16,6 +16,11 @@ import { queryKeys } from "@/lib/query-keys";
 
 export default function RegisterPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  // v1.15.20 — invite deep link (`/auth/register?invite=hlv_…`). The
+  // token rides the signup POST so a closed-registration instance still
+  // admits the invited user; an open instance simply ignores it.
+  const inviteToken = searchParams.get("invite");
   const queryClient = useQueryClient();
   const [email, setEmail] = useState("");
   const [username, setUsername] = useState("");
@@ -45,7 +50,13 @@ export default function RegisterPage() {
       const res = await fetch("/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, username, password, timezone }),
+        body: JSON.stringify({
+          email,
+          username,
+          password,
+          timezone,
+          ...(inviteToken ? { inviteToken } : {}),
+        }),
       });
 
       const json = await res.json();
@@ -84,6 +95,17 @@ export default function RegisterPage() {
             </p>
           </div>
         </div>
+
+        {inviteToken && (
+          <div
+            role="status"
+            className="bg-primary/10 text-primary mt-6 flex items-center gap-2 rounded-lg p-3 text-sm"
+            data-testid="register-invite-banner"
+          >
+            <MailOpen className="h-4 w-4 shrink-0" aria-hidden="true" />
+            {t("auth.invitedBanner")}
+          </div>
+        )}
 
         <form onSubmit={handleRegister} className="mt-8 space-y-4">
           <div className="space-y-2">
@@ -169,9 +191,9 @@ export default function RegisterPage() {
             disabled={loading}
           >
             {loading ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin motion-reduce:animate-none" />
+              <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" />
             ) : (
-              <UserPlus className="mr-2 h-4 w-4" />
+              <UserPlus className="h-4 w-4" />
             )}
             {t("auth.register")}
           </Button>

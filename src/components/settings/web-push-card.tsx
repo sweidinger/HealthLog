@@ -172,7 +172,7 @@ export function WebPushCard() {
           disabled={actionLoading}
         >
           {actionLoading && (
-            <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
+            <Loader2 className="h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
           )}
           {t("settings.webPushUnsubscribe")}
         </Button>
@@ -185,9 +185,9 @@ export function WebPushCard() {
           disabled={actionLoading}
         >
           {actionLoading ? (
-            <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
+            <Loader2 className="h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
           ) : (
-            <BellRing className="mr-1 h-3.5 w-3.5" />
+            <BellRing className="h-3.5 w-3.5" />
           )}
           {t("settings.webPushSubscribe")}
         </Button>

@@ -1,5 +1,6 @@
 import { Flame } from "lucide-react";
 
+import { ComplianceInfoTip } from "@/components/medications/card-parts/compliance-info-tip";
 import { Progress } from "@/components/ui/progress";
 import { useTranslations, useFormatters } from "@/lib/i18n/context";
 
@@ -64,7 +65,13 @@ export function MedicationComplianceBars({
     <div className="space-y-2.5">
       <div className="space-y-1.5">
         <div className="flex items-center justify-between text-sm">
-          <span className="text-muted-foreground">{shortLabel}</span>
+          <span className="text-muted-foreground flex items-center gap-1">
+            {shortLabel}
+            {/* One `?` for the whole block — both rows measure the same
+                thing over different windows, so a second trigger on the
+                long row would only add noise. */}
+            <ComplianceInfoTip />
+          </span>
           <span className="font-medium">{shortPct}%</span>
         </div>
         {/* aria-label so the bar has an accessible name. */}

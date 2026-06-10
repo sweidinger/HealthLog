@@ -3,6 +3,7 @@
 import {
   Activity,
   Bell,
+  Bug,
   Droplets,
   Dumbbell,
   Home,
@@ -17,6 +18,7 @@ import {
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
+import { useAppSettings } from "@/components/app-settings-provider";
 import { useAuth } from "@/hooks/use-auth";
 import {
   Sheet,
@@ -80,18 +82,38 @@ const CYCLE_HUB_ITEM: NavLink = {
   icon: Droplets,
 };
 
+// The bug-report entry, spliced into the More hub under the same
+// `bugReportEnabled` operator flag that gates the desktop sidebar
+// entry. Pre-splice the route was desktop-only — a phone user had no
+// path to `/bugreport` at all.
+const BUGREPORT_HUB_ITEM: NavLink = {
+  href: "/bugreport",
+  tKey: "nav.bugreport",
+  icon: Bug,
+};
+
 export function BottomNav() {
   const pathname = usePathname();
   const { t } = useTranslations();
   const { user } = useAuth();
+  const { bugReportEnabled } = useAppSettings();
   const [moreOpen, setMoreOpen] = useState(false);
   const [captureOpen, setCaptureOpen] = useState(false);
 
   // v1.15.0 — splice the cycle entry into the More hub after Mood when the
   // account's gate is on, so it never appears for accounts without it.
-  const moreHub: ReadonlyArray<NavLink> = user?.cycleTrackingEnabled
+  const cycleAwareHub: ReadonlyArray<NavLink> = user?.cycleTrackingEnabled
     ? [MORE_HUB[0], MORE_HUB[1], CYCLE_HUB_ITEM, ...MORE_HUB.slice(2)]
     : MORE_HUB;
+  // Bug report sits directly before Settings (the hub's last entry)
+  // when the operator flag is on — same gate as the desktop sidebar.
+  const moreHub: ReadonlyArray<NavLink> = bugReportEnabled
+    ? [
+        ...cycleAwareHub.slice(0, -1),
+        BUGREPORT_HUB_ITEM,
+        cycleAwareHub[cycleAwareHub.length - 1],
+      ]
+    : cycleAwareHub;
 
   function isActiveLink(href: string) {
     return href === "/" ? pathname === "/" : pathname.startsWith(href);

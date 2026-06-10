@@ -67,6 +67,9 @@ export const GET = apiHandler(async () => {
     // storage stays SI; this only drives the display-time transform
     // branch. Null defaults to "metric" on the client.
     unitPreference: user.unitPreference === "imperial" ? "imperial" : "metric",
+    // Hour-cycle display preference (AUTO follows the locale convention,
+    // H12 / H24 pin the cycle). Clients mirror this into their formatters.
+    timeFormat: user.timeFormat ?? "AUTO",
     lastReportPracticeName: user.lastReportPracticeName ?? null,
     // v1.4.47 W3 — per-user Coach opt-out. Default `false` if the
     // column is absent (partial-deploy rollback safety, see migration

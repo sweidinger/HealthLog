@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import { TileHeader } from "@/components/insights/tile-header";
 import { useTranslations } from "@/lib/i18n/context";
 import { formatRelativeTime } from "@/lib/i18n/relative-time";
@@ -91,9 +92,9 @@ export function InsightStatusCard({
           <TileHeader icon={nodeIcon(icon)} title={title} />
         </CardHeader>
         <CardContent className="space-y-2">
-          <div className="bg-muted h-3.5 w-full animate-pulse rounded motion-reduce:animate-none" />
-          <div className="bg-muted h-3.5 w-11/12 animate-pulse rounded motion-reduce:animate-none" />
-          <div className="bg-muted h-3.5 w-9/12 animate-pulse rounded motion-reduce:animate-none" />
+          <Skeleton className="bg-muted h-3.5 w-full rounded" />
+          <Skeleton className="bg-muted h-3.5 w-11/12 rounded" />
+          <Skeleton className="bg-muted h-3.5 w-9/12 rounded" />
           <p className="text-muted-foreground text-xs">
             {t("insights.assessmentPreparing")}
           </p>
@@ -126,15 +127,15 @@ export function InsightStatusCard({
       >
         <CardHeader className="pb-1">
           <div className="flex items-center gap-2">
-            <div className="bg-muted h-5 w-5 animate-pulse rounded motion-reduce:animate-none" />
-            <div className="bg-muted h-4 w-32 animate-pulse rounded motion-reduce:animate-none" />
+            <Skeleton className="bg-muted h-5 w-5 rounded" />
+            <Skeleton className="bg-muted h-4 w-32 rounded" />
           </div>
         </CardHeader>
         <CardContent className="space-y-2">
-          <div className="bg-muted h-3.5 w-full animate-pulse rounded motion-reduce:animate-none" />
-          <div className="bg-muted h-3.5 w-11/12 animate-pulse rounded motion-reduce:animate-none" />
-          <div className="bg-muted h-3.5 w-9/12 animate-pulse rounded motion-reduce:animate-none" />
-          <div className="bg-muted/70 h-3 w-1/3 animate-pulse rounded motion-reduce:animate-none" />
+          <Skeleton className="bg-muted h-3.5 w-full rounded" />
+          <Skeleton className="bg-muted h-3.5 w-11/12 rounded" />
+          <Skeleton className="bg-muted h-3.5 w-9/12 rounded" />
+          <Skeleton className="bg-muted/70 h-3 w-1/3 rounded" />
           <span className="sr-only">{t("common.loading")}</span>
         </CardContent>
       </Card>

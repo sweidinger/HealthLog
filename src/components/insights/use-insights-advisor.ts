@@ -78,11 +78,17 @@ const FORCE_ADVISOR_TIMEOUT_MS = 45_000;
  * v1.15.18 — the outcome of a force regenerate, so the UI can be HONEST:
  * only a `fresh` outcome should toast "refreshed". A `timeout` (slow gen
  * the client gave up on) and a `no-provider` (422) are distinct failure
- * modes the audit's Fix 2 + Fix 4 call out.
+ * modes.
+ *
+ * v1.15.20 — `rate-limited` (429) splits off from `empty`: the user's
+ * regenerate quota is exhausted, which deserves a "try again later"
+ * hint rather than the success toast the old lump produced. `empty` now
+ * means only the transient 503 surface (provider chain unavailable).
  */
 export type AdvisorFetchOutcome =
   | "fresh"
   | "empty"
+  | "rate-limited"
   | "timeout"
   | "no-provider";
 
@@ -128,15 +134,19 @@ async function fetchAdvisor(
     clearTimeout(timeoutHandle);
   }
   if (!res.ok) {
-    // 422 (no provider configured) and 429 (rate-limited) are expected
-    // surfaces — return null so the consuming UI shows the empty / error
-    // state without the query slipping into an `isError` retry loop. 422
-    // surfaces as `no-provider` so the regenerate path can distinguish a
-    // missing provider from a slow generation (audit Fix 4).
+    // 422 (no provider configured), 429 (rate-limited), and 503
+    // (provider chain unavailable) are expected surfaces — return null
+    // so the consuming UI shows the empty / error state without the
+    // query slipping into an `isError` retry loop. Each gets its own
+    // outcome tag so the regenerate toast can be honest about WHY no
+    // fresh payload arrived.
     if (res.status === 422) {
       return { payload: null, outcome: "no-provider" };
     }
-    if (res.status === 429 || res.status === 503) {
+    if (res.status === 429) {
+      return { payload: null, outcome: "rate-limited" };
+    }
+    if (res.status === 503) {
       return { payload: null, outcome: "empty" };
     }
     throw new Error(`HTTP ${res.status}`);
@@ -191,6 +201,14 @@ export interface UseInsightsAdvisorResult {
    * (`"no-provider"`) never reads as "done".
    */
   regenerateOutcome: AdvisorFetchOutcome | null;
+  /**
+   * v1.15.20 — the outcome of the last settled READ. Lets surfaces
+   * distinguish "no briefing yet, a generate could help" (`empty` /
+   * `timeout`) from "no provider configured, generating is futile"
+   * (`no-provider`) and render a connect-AI hint instead of a dead
+   * regenerate CTA.
+   */
+  readOutcome: AdvisorFetchOutcome | null;
 }
 
 /**
@@ -203,9 +221,10 @@ export function useInsightsAdvisorQuery(
   const queryClient = useQueryClient();
   const query = useQuery({
     queryKey: queryKeys.insightsAdvisor(),
-    // Map the tagged fetch result back onto the payload the cache stores —
-    // the read path only cares about the payload, not the outcome tag.
-    queryFn: async () => (await fetchAdvisor()).payload,
+    // v1.15.20 — the cache stores the full tagged result (payload +
+    // outcome) so the read path can surface WHY a payload is missing
+    // (`no-provider` → connect-AI hint instead of a dead regenerate CTA).
+    queryFn: () => fetchAdvisor(),
     enabled,
     // 24h cache window matches the server-side `insightsCachedAt` TTL.
     staleTime: 60 * 60 * 1000,
@@ -214,11 +233,11 @@ export function useInsightsAdvisorQuery(
 
   const mutation = useMutation({
     mutationFn: () => fetchAdvisor({ force: true }),
-    onSuccess: ({ payload }) => {
-      if (payload) {
+    onSuccess: (result) => {
+      if (result.payload) {
         // A genuinely fresh generation landed — write it into the shared
         // cache so the hero subtitle + briefing card repaint immediately.
-        queryClient.setQueryData(queryKeys.insightsAdvisor(), payload);
+        queryClient.setQueryData(queryKeys.insightsAdvisor(), result);
       } else {
         // No fresh payload (timeout / no-provider / transient). The server's
         // inline POST may STILL have written a fresh briefing after the
@@ -245,7 +264,7 @@ export function useInsightsAdvisorQuery(
   const regenerate = useCallback(() => mutate(), [mutate]);
 
   return {
-    payload: query.data ?? null,
+    payload: query.data?.payload ?? null,
     isLoading: query.isLoading,
     isError: query.isError,
     error: (query.error as Error | null) ?? null,
@@ -253,5 +272,6 @@ export function useInsightsAdvisorQuery(
     isRegenerating: mutation.isPending,
     regenerateError: (mutation.error as Error | null) ?? null,
     regenerateOutcome: mutation.data?.outcome ?? null,
+    readOutcome: query.data?.outcome ?? null,
   };
 }

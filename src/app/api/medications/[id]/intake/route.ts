@@ -24,6 +24,7 @@ import { invalidateUserMedications } from "@/lib/cache/invalidate";
 import { recomputeMedicationComplianceForEvent } from "@/lib/rollups/medication-compliance-rollups";
 import {
   applyCanonicalSlotWrite,
+  findPinConflict,
   resolveForcedSlotForWrite,
   resolveSlotForWriteByBand,
   resolveSlotInstantForWrite,
@@ -167,6 +168,10 @@ async function postIntake(request: NextRequest, { params }: RouteParams) {
   //     `forceSlotInstant` pins an off-window take onto a chosen real slot
   //     ("diesem Slot zuordnen?"); a pin that is not a real slot is a 422.
   let canonicalSlot: Date | null = null;
+  // v1.15.20 — binding provenance for the written row: USER_PIN on the
+  // forced "diesem Slot zuordnen" path, AUTO when band attribution decided.
+  // Skips carry no binding decision (undefined → column untouched/default).
+  let attributionSource: "AUTO" | "USER_PIN" | undefined;
   if (skipped) {
     canonicalSlot = await resolveSlotInstantForWrite({
       userId: user.id,
@@ -194,6 +199,29 @@ async function postIntake(request: NextRequest, { params }: RouteParams) {
         { errorCode: "medications.intake.force_slot.invalid" },
       );
     }
+    // v1.16.0 — refuse to pin onto a slot another recorded action already
+    // serves: the explicit-write last-write-wins rule would silently
+    // overwrite that dose record. The ledger UI only offers the pin for
+    // unserved slots, so this only fires for stale clients / raw API calls.
+    if (
+      await findPinConflict({
+        userId: user.id,
+        medicationId: id,
+        canonicalSlot,
+        incomingTakenAt: resolvedTakenAt ?? null,
+      })
+    ) {
+      annotate({
+        action: { name: "medication.intake.force_slot.occupied" },
+        meta: { medication_id: id },
+      });
+      return apiError(
+        "forceSlotInstant already carries a recorded dose action",
+        422,
+        { errorCode: "medications.intake.force_slot.occupied" },
+      );
+    }
+    attributionSource = "USER_PIN";
   } else {
     // A non-skip write on this route always carries a `takenAt` (defaulted to
     // now), so `resolvedTakenAt` is non-null here; the fallback only guards the
@@ -205,6 +233,9 @@ async function postIntake(request: NextRequest, { params }: RouteParams) {
       takenAt: resolvedTakenAt ?? incomingScheduledFor,
     });
     canonicalSlot = attribution.slotInstant;
+    // A band decision (slot or ad-hoc) is an AUTO binding; it also resets a
+    // stale USER_PIN when this write converges onto a previously-pinned row.
+    attributionSource = "AUTO";
   }
 
   // Idempotency check (explicit key or server-side dedup window)
@@ -263,6 +294,7 @@ async function postIntake(request: NextRequest, { params }: RouteParams) {
       // v1.8.5 — resolved + validated site (null unless a tracking-on
       // injection taken write supplied an allowed site).
       injectionSite: resolvedInjectionSite,
+      attributionSource,
     });
     event = applied.row;
     consumedTransition = applied.consumedTransition;
@@ -309,6 +341,7 @@ async function postIntake(request: NextRequest, { params }: RouteParams) {
         idempotencyKey: idempotencyKey ?? null,
         createSource: "WEB",
         injectionSite: resolvedInjectionSite,
+        attributionSource,
       });
       event = applied.row;
       consumedTransition = applied.consumedTransition;

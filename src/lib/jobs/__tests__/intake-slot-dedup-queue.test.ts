@@ -62,8 +62,11 @@ describe("reminder-worker — intake-slot-dedup wiring", () => {
   });
 
   it("registers the cron in the schedules table", () => {
+    // v1.15.20 — the schedules tuple grew an optional send-options slot
+    // (retry policy for the insight queues); match on the assignment, not
+    // the exact tuple type.
     const schedulesMatch = source.match(
-      /const schedules:\s*\[string, string\]\[\]\s*=\s*\[([\s\S]*?)\n  \];/,
+      /const schedules:[^=]*=\s*\[([\s\S]*?)\n  \];/,
     );
     expect(schedulesMatch).not.toBeNull();
     expect(schedulesMatch![1]).toMatch(

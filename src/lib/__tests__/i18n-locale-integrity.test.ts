@@ -362,7 +362,7 @@ describe("i18n locale file integrity", () => {
       ["insights.healthScore.componentBp", "Blutdruck"],
       ["insights.healthScore.componentWeight", "Gewicht"],
       ["insights.healthScore.componentMood", "Stimmung"],
-      ["insights.healthScore.componentCompliance", "Einnahmetreue"],
+      ["insights.healthScore.componentCompliance", "Therapietreue"],
     ];
 
     for (const [key, expectedDe] of EXPECTED) {

@@ -31,7 +31,10 @@ import {
   type CadenceEngineContext,
 } from "@/lib/medications/scheduling/cadence";
 import { complianceChips } from "@/lib/medications/scheduling/compliance";
-import { lastNonSkippedTakenAt } from "@/lib/analytics/compliance";
+import {
+  lastNonSkippedTakenAt,
+  SCHEDULE_COMPLIANCE_SELECT,
+} from "@/lib/analytics/compliance";
 import { assertMedicationOwnership } from "@/lib/medications/route-guards";
 import { resolveUserTimezone } from "@/lib/tz/resolver";
 
@@ -52,7 +55,9 @@ export const GET = apiHandler(
 
     const med = await prisma.medication.findUnique({
       where: { id },
-      include: { schedules: true },
+      // v1.15.20 — schedules through the shared compliance select so the
+      // configured per-dose windows reach this surface like every other.
+      include: { schedules: { select: SCHEDULE_COMPLIANCE_SELECT } },
     });
     if (!med) {
       return apiError("Medication not found", 404);
@@ -81,7 +86,14 @@ export const GET = apiHandler(
         deletedAt: null,
         scheduledFor: { gte: from },
       },
-      select: { scheduledFor: true, takenAt: true, skipped: true },
+      select: {
+        scheduledFor: true,
+        takenAt: true,
+        skipped: true,
+        // v1.15.20 — pinned takes bind by anchor in the chip tally so the
+        // chips agree with the % + the history on a "zugeordnet" dose.
+        attributionSource: true,
+      },
       orderBy: { scheduledFor: "asc" },
     });
 

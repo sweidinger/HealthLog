@@ -16,8 +16,9 @@
  * fetches + day-keys + responds. No LLM, no narrative, no cache table.
  */
 import { apiHandler, requireAuth } from "@/lib/api-handler";
-import { apiSuccess } from "@/lib/api-response";
+import { apiError, apiSuccess } from "@/lib/api-response";
 import { annotate } from "@/lib/logging/context";
+import { checkAnalyticsReadRateLimit } from "@/lib/rate-limit";
 import { requireAssistantSurface } from "@/lib/feature-flags";
 import { prisma } from "@/lib/db";
 import { getLocalDateParts } from "@/lib/timezone";
@@ -65,6 +66,13 @@ function toDailyMeans(
 
 export const GET = apiHandler(async () => {
   const { user } = await requireAuth();
+
+  // v1.15.20 — shared analytics-read budget (generous; caps runaway loops).
+  const rl = await checkAnalyticsReadRateLimit(user.id);
+  if (!rl.allowed) {
+    return apiError("Too many analytics requests. Please retry later.", 429);
+  }
+
   // Operator can hide the correlation surface entirely.
   await requireAssistantSurface("correlations");
 

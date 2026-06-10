@@ -10,6 +10,7 @@ import {
   sanitiseZodIssues,
 } from "@/lib/api-response";
 import { assertMedicationOwnership } from "@/lib/medications/route-guards";
+import { invalidateUserMedications } from "@/lib/cache/invalidate";
 import {
   recomputeMedicationComplianceForDay,
   dayKeyForScheduledFor,
@@ -156,6 +157,13 @@ export const POST = apiHandler(
           },
         });
       }
+    }
+
+    // v1.15.20 — imported intakes change every cached medication read
+    // (list, intake caches, compliance payload). This write path was the
+    // one intake surface missing the flush.
+    if (imported > 0) {
+      invalidateUserMedications(user.id);
     }
 
     await auditLog("medication.intake.import", {

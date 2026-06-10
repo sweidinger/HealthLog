@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   applyOptimisticSlotMark,
   complianceFromLedger,
+  formatSlotDelta,
   groupLedgerByDay,
   isSlotActionable,
   type LedgerPayload,
@@ -106,6 +107,33 @@ describe("isSlotActionable", () => {
         intake: null,
       }),
     ).toBe(false);
+  });
+});
+
+// v1.15.20 — the signed offset on the ad-hoc "fällig gewesen" subline.
+describe("formatSlotDelta", () => {
+  const slot = "2026-06-01T05:00:00.000Z";
+
+  it("renders a take after the slot with a plus sign in minutes", () => {
+    expect(formatSlotDelta("2026-06-01T05:45:00.000Z", slot)).toBe("+45 min");
+  });
+
+  it("renders a take before the slot with a minus sign", () => {
+    expect(formatSlotDelta("2026-06-01T04:30:00.000Z", slot)).toBe("-30 min");
+  });
+
+  it("renders whole hours without a minutes part", () => {
+    expect(formatSlotDelta("2026-06-01T07:00:00.000Z", slot)).toBe("+2 h");
+  });
+
+  it("renders mixed hours + minutes", () => {
+    expect(formatSlotDelta("2026-06-01T06:20:00.000Z", slot)).toBe(
+      "+1 h 20 min",
+    );
+  });
+
+  it("collapses a sub-minute delta to +0 min", () => {
+    expect(formatSlotDelta("2026-06-01T05:00:20.000Z", slot)).toBe("+0 min");
   });
 });
 

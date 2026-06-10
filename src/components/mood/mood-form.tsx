@@ -248,15 +248,11 @@ export function MoodForm({ onSuccess, onCancel, footerSlot }: MoodFormProps) {
             {t("common.cancel")}
           </Button>
         )}
-        <Button
-          type="submit"
-          form={formId}
-          disabled={loading || !mood}
-        >
+        <Button type="submit" form={formId} disabled={loading || !mood}>
           {loading ? (
-            <Loader2 className="mr-2 h-4 w-4 animate-spin motion-reduce:animate-none" />
+            <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" />
           ) : (
-            <Plus className="mr-2 h-4 w-4" />
+            <Plus className="h-4 w-4" />
           )}
           {t("common.save")}
         </Button>
@@ -328,145 +324,150 @@ export function MoodForm({ onSuccess, onCancel, footerSlot }: MoodFormProps) {
       </div>
 
       {moodPicked && (
-        <div className="space-y-4 border-t pt-4" data-slot="mood-annotate-panel">
-      <div className="space-y-2">
-        <Label htmlFor="mood-logged-at">{t("mood.timestamp")}</Label>
-        <DateTimeInput
-          id="mood-logged-at"
-          value={moodLoggedAt}
-          onChange={(e) => setMoodLoggedAt(e.target.value)}
-          required
-          aria-required="true"
-          aria-invalid={!!error || undefined}
-          aria-describedby={errorDescriptor}
-        />
-      </div>
+        <div
+          className="space-y-4 border-t pt-4"
+          data-slot="mood-annotate-panel"
+        >
+          <div className="space-y-2">
+            <Label htmlFor="mood-logged-at">{t("mood.timestamp")}</Label>
+            <DateTimeInput
+              id="mood-logged-at"
+              value={moodLoggedAt}
+              onChange={(e) => setMoodLoggedAt(e.target.value)}
+              required
+              aria-required="true"
+              aria-invalid={!!error || undefined}
+              aria-describedby={errorDescriptor}
+            />
+          </div>
 
-      <div className="space-y-2">
-        <div className="flex items-center justify-between gap-3">
-          <Label htmlFor="tags">
-            {t("mood.tags")}{" "}
-            <span className="text-muted-foreground font-normal">
-              ({t("common.optional")})
-            </span>
-          </Label>
-          <span className="text-muted-foreground text-xs">
-            {t("mood.tagsHelp")}
-          </span>
-        </div>
-        <Input
-          id="tags"
-          value={tagsInput}
-          onChange={(e) => setTagsInput(e.target.value)}
-          placeholder={t("mood.tagsPlaceholder")}
-          enterKeyHint="done"
-          autoCapitalize="none"
-          autoComplete="off"
-        />
-        {/* v1.4.25 W4d — GLP-1 side-effect quick-tags. Tapping a chip
+          <div className="space-y-2">
+            <div className="flex items-center justify-between gap-3">
+              <Label htmlFor="tags">
+                {t("mood.tags")}{" "}
+                <span className="text-muted-foreground font-normal">
+                  ({t("common.optional")})
+                </span>
+              </Label>
+              <span className="text-muted-foreground text-xs">
+                {t("mood.tagsHelp")}
+              </span>
+            </div>
+            <Input
+              id="tags"
+              value={tagsInput}
+              onChange={(e) => setTagsInput(e.target.value)}
+              placeholder={t("mood.tagsPlaceholder")}
+              enterKeyHint="done"
+              autoCapitalize="none"
+              autoComplete="off"
+            />
+            {/* v1.4.25 W4d — GLP-1 side-effect quick-tags. Tapping a chip
             appends the localised label to the free-text tag list.
             Always visible for now (cheap UX; the Coach side-effect
             aggregator filters on the canonical English tag set so the
             German labels still register correctly). */}
-        <div className="space-y-1.5 pt-1">
-          <p className="text-muted-foreground text-xs">
-            {t("medications.sideEffectTagsHelp")}
-          </p>
-          <div className="flex flex-wrap gap-1.5">
-            {GLP1_SIDE_EFFECT_KEYS.map((key) => {
-              const label = t(key);
-              const tags = tagsInput
-                .split(",")
-                .map((p) => p.trim().toLowerCase());
-              const isActive = tags.includes(label.toLowerCase());
-              return (
-                <button
-                  key={key}
-                  type="button"
-                  onClick={() => {
-                    if (isActive) {
-                      const next = tagsInput
-                        .split(",")
-                        .map((p) => p.trim())
-                        .filter((p) => p.toLowerCase() !== label.toLowerCase());
-                      setTagsInput(next.join(", "));
-                    } else {
-                      const next = tagsInput.trim()
-                        ? `${tagsInput.replace(/[,\s]+$/, "")}, ${label}`
-                        : label;
-                      setTagsInput(next);
-                    }
-                  }}
-                  className={`inline-flex min-h-11 items-center rounded-full border px-3 py-2 text-xs transition-colors ${
-                    isActive
-                      ? "border-primary bg-primary/15 text-primary"
-                      : "border-border/70 bg-muted text-foreground/75 hover:bg-accent hover:text-foreground"
-                  }`}
-                  aria-pressed={isActive}
-                >
-                  {label}
-                </button>
-              );
-            })}
+            <div className="space-y-1.5 pt-1">
+              <p className="text-muted-foreground text-xs">
+                {t("medications.sideEffectTagsHelp")}
+              </p>
+              <div className="flex flex-wrap gap-1.5">
+                {GLP1_SIDE_EFFECT_KEYS.map((key) => {
+                  const label = t(key);
+                  const tags = tagsInput
+                    .split(",")
+                    .map((p) => p.trim().toLowerCase());
+                  const isActive = tags.includes(label.toLowerCase());
+                  return (
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() => {
+                        if (isActive) {
+                          const next = tagsInput
+                            .split(",")
+                            .map((p) => p.trim())
+                            .filter(
+                              (p) => p.toLowerCase() !== label.toLowerCase(),
+                            );
+                          setTagsInput(next.join(", "));
+                        } else {
+                          const next = tagsInput.trim()
+                            ? `${tagsInput.replace(/[,\s]+$/, "")}, ${label}`
+                            : label;
+                          setTagsInput(next);
+                        }
+                      }}
+                      className={`inline-flex min-h-11 items-center rounded-full border px-3 py-2 text-xs transition-colors ${
+                        isActive
+                          ? "border-primary bg-primary/15 text-primary"
+                          : "border-border/70 bg-muted text-foreground/75 hover:bg-accent hover:text-foreground"
+                      }`}
+                      aria-pressed={isActive}
+                    >
+                      {label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
           </div>
-        </div>
-      </div>
 
-      {/* v1.8.5 / v1.12.0 — structured-tag taxonomy picker. Additive next
+          {/* v1.8.5 / v1.12.0 — structured-tag taxonomy picker. Additive next
           to the free-text input above; an entry can carry both axes. The
           picker also surfaces the FACTOR-kind tags as 1..scaleMax rating
           controls, lifted here as `ratedFactors`. */}
-      <div className="space-y-2">
-        <Label>
-          {t("mood.tagPicker")}{" "}
-          <span className="text-muted-foreground font-normal">
-            ({t("common.optional")})
-          </span>
-        </Label>
-        <MoodTagPicker
-          selected={tagKeys}
-          onToggle={toggleTagKey}
-          ratedFactors={ratedFactors}
-          onRateFactor={rateFactor}
-        />
-      </div>
+          <div className="space-y-2">
+            <Label>
+              {t("mood.tagPicker")}{" "}
+              <span className="text-muted-foreground font-normal">
+                ({t("common.optional")})
+              </span>
+            </Label>
+            <MoodTagPicker
+              selected={tagKeys}
+              onToggle={toggleTagKey}
+              ratedFactors={ratedFactors}
+              onRateFactor={rateFactor}
+            />
+          </div>
 
-      {/* v1.8.5 (C1) — free-text note. */}
-      <div className="space-y-2">
-        <div className="flex items-center justify-between gap-3">
-          <Label htmlFor="mood-note">
-            {t("mood.note")}{" "}
-            <span className="text-muted-foreground font-normal">
-              ({t("common.optional")})
-            </span>
-          </Label>
-          {/* v1.11.5 — character counter so the `maxLength` cap no longer
+          {/* v1.8.5 (C1) — free-text note. */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between gap-3">
+              <Label htmlFor="mood-note">
+                {t("mood.note")}{" "}
+                <span className="text-muted-foreground font-normal">
+                  ({t("common.optional")})
+                </span>
+              </Label>
+              {/* v1.11.5 — character counter so the `maxLength` cap no longer
               truncates silently. Turns destructive (warns) as the input
               approaches the limit. */}
-          <span
-            data-testid="mood-note-counter"
-            className={`text-xs tabular-nums ${
-              note.length >= NOTE_MAX_LENGTH
-                ? "text-destructive"
-                : "text-muted-foreground"
-            }`}
-            aria-live="polite"
-          >
-            {t("mood.noteCharCount", {
-              count: String(note.length),
-              max: String(NOTE_MAX_LENGTH),
-            })}
-          </span>
-        </div>
-        <Textarea
-          id="mood-note"
-          value={note}
-          onChange={(e) => setNote(e.target.value)}
-          placeholder={t("mood.notePlaceholder")}
-          maxLength={NOTE_MAX_LENGTH}
-          rows={3}
-        />
-      </div>
+              <span
+                data-testid="mood-note-counter"
+                className={`text-xs tabular-nums ${
+                  note.length >= NOTE_MAX_LENGTH
+                    ? "text-destructive"
+                    : "text-muted-foreground"
+                }`}
+                aria-live="polite"
+              >
+                {t("mood.noteCharCount", {
+                  count: String(note.length),
+                  max: String(NOTE_MAX_LENGTH),
+                })}
+              </span>
+            </div>
+            <Textarea
+              id="mood-note"
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              placeholder={t("mood.notePlaceholder")}
+              maxLength={NOTE_MAX_LENGTH}
+              rows={3}
+            />
+          </div>
         </div>
       )}
 
@@ -497,10 +498,7 @@ export function MoodForm({ onSuccess, onCancel, footerSlot }: MoodFormProps) {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
-            <AlertDialogAction
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              onClick={resetForm}
-            >
+            <AlertDialogAction variant="destructive" onClick={resetForm}>
               {t("mood.formResetConfirmAction")}
             </AlertDialogAction>
           </AlertDialogFooter>

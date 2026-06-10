@@ -17,8 +17,16 @@ import {
   ReferenceArea,
   ReferenceDot,
 } from "recharts";
-import { Loader2 } from "lucide-react";
-import { useState, useMemo, useEffect, type ComponentType } from "react";
+import { SlidersHorizontal } from "lucide-react";
+import Link from "next/link";
+import {
+  useState,
+  useMemo,
+  useEffect,
+  useCallback,
+  type ComponentType,
+} from "react";
+import { Skeleton } from "@/components/ui/skeleton";
 import { RichChartTooltip, type RichTooltipRow } from "./chart-tooltip";
 import { ChartEmptyState } from "./chart-empty-state";
 import { TileHeader } from "@/components/insights/tile-header";
@@ -100,6 +108,15 @@ interface HealthChartProps {
     textColor?: string;
     lineOpacity?: number;
   }>;
+  /**
+   * Optional href for a small "adjust targets" link in the chart
+   * header. Callers whose charts paint a target band / zones (weight,
+   * blood pressure) pass `/settings/thresholds` so the band's origin —
+   * and the page that edits personal target ranges — is one click
+   * away. Omitted (every other mount) renders no link. Ignored in
+   * `mini` mode, which has no header.
+   */
+  targetSettingsHref?: string;
   /**
    * v1.4.16 phase B5c — compact chart mode used by the Oura-style
    * rationale card. Drops the range tabs, the moving-average / trend
@@ -215,6 +232,15 @@ interface HealthChartProps {
    * thread the same glyph it hands the stat strip.
    */
   titleIcon?: ComponentType<{ className?: string }>;
+  /**
+   * v1.16.0 — fires once the chart's data query has settled (initial
+   * load finished, success or error). The dashboard's shared reveal
+   * gate listens here so every chart cell swaps from skeleton to
+   * content in one frame instead of popping in one after another.
+   * Optional and repeat-safe: the dashboard's `markReady` is
+   * idempotent; non-dashboard mounts simply omit it.
+   */
+  onDataReady?: () => void;
 }
 
 interface ChartDataPoint {
@@ -508,6 +534,7 @@ export function HealthChart({
   showYAxisUnit = true,
   valueBands,
   targetZones,
+  targetSettingsHref,
   mini = false,
   windowOverride,
   compareBaseline = "none",
@@ -518,6 +545,7 @@ export function HealthChart({
   valueScale = 1,
   onVisibleStats,
   titleIcon,
+  onDataReady,
 }: HealthChartProps) {
   const { isAuthenticated, user } = useAuth();
   const { t, locale } = useTranslations();
@@ -607,10 +635,17 @@ export function HealthChart({
     // and a fresh measurement evicts every per-chart daily cache in one
     // pass (audit C2). The factory-packed tuple is byte-identical with
     // the pre-v1.4.40 inline literal so the cache layout stays stable.
+    // v1.15.20 — BMI is a pure transformation of the WEIGHT series
+    // (value / height²), so the BMI view shares the raw series' cache
+    // entry instead of re-fetching the same window under its own key.
+    // The key pins the literal "raw" / "no-bmi" discriminators (the
+    // factory tuple shape is unchanged) and the BMI division happens in
+    // the `select` callback below — the factory rule stays intact and
+    // the cached data is mode-agnostic.
     queryKey: queryKeys.chartData(
       types.join(","),
-      valueMode,
-      bmiDivisor ?? "no-bmi",
+      "raw",
+      "no-bmi",
       // v1.4.25 W7b — bucket keys + tick labels depend on the active
       // user timezone, so re-key the cache when it changes. Without
       // this, a tz change inside a session would render stale buckets.
@@ -745,15 +780,12 @@ export function HealthChart({
           // personal baseline, the trend, and the tooltip all operate
           // on the scaled series uniformly. `valueScale` defaults to 1
           // (identity), so non-unit-fixed charts read byte-identical.
-          const rawValue = measurement.value * valueScale;
-          const value =
-            valueMode === "bmi"
-              ? bmiDivisor
-                ? rawValue / bmiDivisor
-                : null
-              : rawValue;
+          // v1.15.20 — the BMI division moved into the query's `select`
+          // callback so the cached series stays raw and the WEIGHT and
+          // BMI views share one cache entry.
+          const value = measurement.value * valueScale;
 
-          if (value == null || !Number.isFinite(value)) {
+          if (!Number.isFinite(value)) {
             continue;
           }
 
@@ -773,11 +805,13 @@ export function HealthChart({
           // v1.8.5 — carry the rollup bucket's min / max through when the
           // API supplies them (daily-aggregate path, non-cumulative).
           // `valueScale` already folded into `value` above; apply the
-          // same scale to the spread so the band tracks the line.
+          // same scale to the spread so the band tracks the line. The
+          // BMI view drops the range tuple in its `select` callback (it
+          // has never rendered the band), so the raw cache always
+          // carries the spread.
           if (
             typeof measurement.minValue === "number" &&
-            typeof measurement.maxValue === "number" &&
-            valueMode !== "bmi"
+            typeof measurement.maxValue === "number"
           ) {
             const scaledMin = measurement.minValue * valueScale;
             const scaledMax = measurement.maxValue * valueScale;
@@ -826,8 +860,44 @@ export function HealthChart({
 
       return allData;
     },
+    // v1.15.20 — BMI view: transform the cached raw WEIGHT series into
+    // BMI at read time. The transformation lives in `select` (not the
+    // queryFn) so the cache entry stays raw and is shared with the
+    // weight chart; tanstack re-runs the projection without a refetch.
+    // No height on the profile → empty series (matches the previous
+    // behaviour where every point was skipped). The `${type}__range`
+    // tuples are dropped — the BMI view has never rendered the band.
+    select: useCallback(
+      (points: ChartDataPoint[]): ChartDataPoint[] => {
+        if (valueMode !== "bmi") return points;
+        if (!bmiDivisor) return [];
+        return points.map((p) => {
+          const out: ChartDataPoint = {
+            date: p.date,
+            timestamp: p.timestamp,
+          };
+          for (const type of types) {
+            const v = p[type];
+            if (typeof v === "number") {
+              out[type] = v / bmiDivisor;
+            }
+          }
+          return out;
+        });
+      },
+      [valueMode, bmiDivisor, types],
+    ),
     enabled: isAuthenticated,
   });
+
+  // v1.16.0 — report the settled data query to the dashboard's shared
+  // reveal gate. `isLoading` only covers the INITIAL fetch (a later
+  // range-tab change creates a new cache entry but the gate has long
+  // latched by then), so this fires exactly when the first paintable
+  // state — chart, empty-window card, or error fallback — is available.
+  useEffect(() => {
+    if (!isLoading) onDataReady?.();
+  }, [isLoading, onDataReady]);
 
   const chartData = useMemo(() => {
     if (!data?.length) return data;
@@ -1405,6 +1475,19 @@ export function HealthChart({
                 )}
               </span>
             )}
+            {/* Discoverability link from the painted target band to the
+                page that edits personal target ranges. Only mounts when
+                a caller passes `targetSettingsHref` (weight + BP). */}
+            {targetSettingsHref ? (
+              <Link
+                href={targetSettingsHref}
+                data-slot="chart-target-settings-link"
+                className="text-muted-foreground hover:text-foreground inline-flex min-h-11 items-center gap-1 text-xs underline underline-offset-2 transition-colors sm:min-h-9"
+              >
+                <SlidersHorizontal className="h-3 w-3" aria-hidden="true" />
+                {t("charts.adjustTargets")}
+              </Link>
+            ) : null}
           </div>
           <div
             className="flex flex-nowrap items-center justify-end gap-1 self-end sm:self-auto"
@@ -1458,9 +1541,13 @@ export function HealthChart({
       ) : null}
 
       {isLoading ? (
-        <div className="flex h-48 items-center justify-center">
-          <Loader2 className="text-primary h-6 w-6 animate-spin motion-reduce:animate-none" />
-        </div>
+        // v1.16.0 — height-matched skeleton band instead of the former
+        // `h-48` spinner box. The loading state now occupies the exact
+        // box the painted chart will (same `chartHeightClass`), so the
+        // card height never jumps when the data lands — the dashboard's
+        // shared-reveal overlay and every insights mount stay
+        // layout-shift-free.
+        <Skeleton className={`w-full ${chartHeightClass}`} />
       ) : !chartData?.length ? (
         // v1.4.43 W11-M6 — empty-window state.
         //

@@ -2,6 +2,36 @@
 
 ## [Unreleased]
 
+## [1.16.0] — 2026-06-10 — a coach that knows you, invites, and a faster, calmer app
+
+### Added
+
+- **Tell the assistant about yourself.** A new encrypted self-context in Settings → AI — free text plus structured fields for conditions, allergies and what the coach should watch — feeds the coach and the daily briefing as clearly fenced context. After saving, the coach may ask up to three targeted follow-up questions, surfaced as tappable chips above the chat composer.
+- **Proactive coach nudges.** A nightly pass watches four signals — low 7-day adherence, blood pressure above its target band, a falling recovery trend, and a stale self-context — and sends at most one gentle nudge per week through your configured notification channels, with its own opt-out. Off whenever the coach is disabled.
+- **Invite links with QR codes.** Operators on closed registrations can mint expiring invite links from a new admin section: status, uses, expiry and a redemption history of who joined when. Revoking keeps the history; the link and QR are shown exactly once at creation.
+- **Attribute an off-schedule dose to its slot.** History rows that landed off schedule now show when the dose had been due and offer to attribute the intake to that slot — visibly badged, always counted as taken late, reversible at any time.
+- **A time-format preference.** Automatic (follows the language), 24-hour, or 12-hour — set once in the profile, applied to every clock the app renders.
+- **Insight pills are manageable in one place.** The settings list that orders the navigation pills now also hides and shows them, with the same eye toggle the overview tiles use; the page-side manager folded into a link.
+
+### Changed
+
+- **The medication detail page calms down.** Six tabs instead of seven (reminders live with the schedule they gate), every section on the card surface, an overview tab that actually summarises — next dose, reminder state, supply runway — and a history where settled rows carry one quiet menu instead of a button wall. Charts load on demand.
+- **The dashboard loads as one.** Structured skeletons replace bare tiles, and charts reveal together once their data is in instead of popping in one after another.
+- **The medication list stops hammering the server.** Compliance for the cards is computed in one calendar pass per request, cached for fifteen minutes and invalidated on every write; the dashboard drops two redundant queries; the BMI chart reuses the weight series; expensive analytics endpoints gain a shared per-user rate limit.
+- **Nightly assistant runs respect every gate.** Status generation skips users who disabled the coach and honours the operator kill switch, deleted measurements never feed a prompt, the mood card gets the nightly run the other cards always had, non-German locales consistently fall back to English, and worker failures finally reach the error tracker with real retries behind them.
+- **The README says what matters in one screen**, and the repository description and topics match it.
+
+### Fixed
+
+- The wellness ring's glow is no longer clipped to the circle.
+- An overflowing insight-pill row is reachable by mouse — chevrons and wheel scrolling joined touch.
+- Safari favourites no longer render the icon on a white plate.
+- A rate-limited briefing regenerate stops claiming success, and a missing AI provider shows as exactly that instead of an eternal "preparing".
+- Editing schedule times migrates the open dose rows of the old anchors and reconciles a stale intake window instead of stranding both.
+- Auto-missed verdicts respect each schedule's real catch-up window, clear when the dose is taken after all, and skip deleted rows.
+- The intake repair script runs inside the production container.
+- Every workflow action is pinned, dependabot merges only patch and minor updates behind required checks, vulnerability gates block instead of warn, and the published image carries its build SHA so a deployment can prove what is running.
+
 ## [1.15.19] — 2026-06-10 — honest dose states, bounded bodies, new licence
 
 ### Changed
@@ -1021,14 +1051,14 @@ v1.5.5 gave every retired medication feature a home on the detail page, but the 
 
 - 5615 → 5635 unit; 1 skipped. Detail-page history surface, advanced-settings sheet, intake-edit seed, and legacy step consolidation are covered; the pre-tag reconcile sweep keeps the suite green.
 
-## [1.5.5] — 2026-05-29 — Medication detail page, iOS coord wave, outbound-fetch hardening
+## [1.5.5] — 2026-05-29 — Medication detail page, iOS coordination, outbound-fetch hardening
 
 The v1.5.4 modal wizard landed the create + edit plan flow, but it took 16 features down with the retired flat form — Einnahmen bearbeiten / löschen, Medikament pausieren / beenden / löschen, per-Med API tokens, Phasen-Konfiguration, CSV-Import — and the trends-row on Insights had a 34 px overflow that pushed annotation copy on top of the charts. This release lands the medication detail page that gives every retired feature a coherent home, polishes the wizard against the live walk-through feedback, closes the iOS audit follow-ups in one go, and hardens every outbound fetch the server makes.
 
 ### Added
 
 - **`/medications/[id]/page.tsx`** — a single Server-Component detail page composed of eight sections (Header band → Today's-dose → Cadence summary → Phasen (GLP-1) → Intake history preview → Notifications → Settings → Verwaltung & Gefahrenzone). One-shot medications walk a five-section variant; paused medications keep the structure but the status pill flips to `Pausiert` and the dose-card surface mutes. Restores every one of the 16 features the v1.5.4 flat-form retirement displaced.
-- **Per-row + bulk intake history actions** — the preview now ships a per-row kebab (`Bearbeiten` / `Löschen`) and a multi-select toolbar that fires the new `POST /api/medications/{id}/intake/bulk-delete` endpoint. Marc's „Einnahmen löschen" + „Einnahmen bearbeiten" complaints from the v1.5.4 walk-through close cleanly.
+- **Per-row + bulk intake history actions** — the preview now ships a per-row kebab (`Bearbeiten` / `Löschen`) and a multi-select toolbar that fires the new `POST /api/medications/{id}/intake/bulk-delete` endpoint. The maintainer's „Einnahmen löschen" + „Einnahmen bearbeiten" complaints from the v1.5.4 walk-through close cleanly.
 - **`safeFetch` wrapper** at `src/lib/safe-fetch.ts` — every outbound fetch the server makes for user-supplied hosts now inherits `redirect: "manual"` + `AbortSignal.timeout(15_000)` defaults. Closes #218.
 - **DNS-rebinding pinned `undici.Agent`** at `src/lib/safe-fetch-dispatcher.ts` — when `requirePublicHost: true`, the dispatcher resolves the hostname literally inside the connect hook, refuses any address `isPublicIp` would reject, and pins the connection to the first valid public address. The five user-host paths (MoodLog sync + push + test, local-AI client, ntfy) route through it. Closes #217.
 - **Self-hosted avatar storage** at `POST/GET/DELETE /api/user/avatar` — multipart-uploaded JPEG/PNG/WebP, 2 MiB / 2048×2048 max, hand-rolled magic-byte sniff + dimension probe so no native dependency lands. Stored on the User row as BYTEA; rides `pg_dump` alongside the rest of the row. The profile response carries an `avatarUrl` with a cache-busting timestamp. `src/lib/gravatar.ts` retires — Automattic no longer sees the email-hash on every authenticated page load.
@@ -1050,7 +1080,7 @@ The v1.5.4 modal wizard landed the create + edit plan flow, but it took 16 featu
 
 ### Fixed
 
-- **Trends-row text overlapping the charts** — Marc's specific Insights complaint. Chart slot was 140 px but the mini-card shell painted ~174 px; the 34 px overflow pushed annotation copy onto the chart envelope. The 180 px slot accommodates the full envelope.
+- **Trends-row text overlapping the charts** — a specific Insights complaint from a user report. Chart slot was 140 px but the mini-card shell painted ~174 px; the 34 px overflow pushed annotation copy onto the chart envelope. The 180 px slot accommodates the full envelope.
 - **Grace-row save dead on arrival** — the detail page Settings section PUTs `reminderGraceMinutes` at the top level; the route now normalises the value onto the primary schedule before the Prisma update. The schema declares the top-level field with a description noting the normalisation.
 - **Purge route did not invalidate server caches** — Tier-3a `Verlauf löschen` dropped the rollup rows but left the analytics + iOS today-tally caches with the pre-purge counts for up to their TTL. The success path now calls `invalidateUserMedications(user.id)` alongside the rollup delete.
 - **Bi-weekly worker still emitted every Wednesday** — the v1.5.3 cadence engine fix was correct, but the cadence chart + medication card on the dashboard still read the legacy `daysOfWeek` column. The v1.5.x window keeps this in place; the read-flip arrives in v1.5.6. Operators see correct reminder fan-out today; the dashboard chip cosmetic catch-up follows.
@@ -1067,11 +1097,11 @@ The v1.5.4 modal wizard landed the create + edit plan flow, but it took 16 featu
 - `safeFetch` + DNS-rebinding pinned dispatcher close issues #217 + #218 architecturally — the input-time `isPublicUrl` guard now pairs with a connect-time IP pin so DNS rebinding cannot flip the resolved host between accept and dispatch.
 - Avatar route enforces size before parse (Content-Length pre-flight + post-parse `file.size` check), magic-byte sniff over the declared content-type, dimension probe, owner-scoped on every method. No new XSS vector — the served content-type is whitelisted to the three image MIMEs.
 - `assertMedicationOwnership` sweep closes every detail-page route's ownership narrowing — the route layer is now the single ownership predicate across `src/app/api/medications/[id]/**`.
-- Pre-tag senior-dev + security architect audit produced two docs at `.planning/medication-detail-page-2026-05-28/F-{1,2}-*.md`. The four senior-dev Criticals + five Highs landed in code; F-1 H-5 (`safeFetch` migration to constant-host call sites like Withings + Codex + the GitHub bug-reporter) + F-2 M-1..M-3 (operator-host `requirePublicHost`, avatar chunked-body pre-flight, raw-fetch lint rule) deferred to v1.5.5.1.
+- Pre-tag senior-dev + security architect audit produced two docs (internal working notes). The four senior-dev Criticals + five Highs landed in code; F-1 H-5 (`safeFetch` migration to constant-host call sites like Withings + Codex + the GitHub bug-reporter) + F-2 M-1..M-3 (operator-host `requirePublicHost`, avatar chunked-body pre-flight, raw-fetch lint rule) deferred to v1.5.5.1.
 
 ### iOS coord
 
-- The iOS team's v0.8.0 audit closed cleanly. Detailed acknowledgements at `.planning/ios-coord/v155-wire-six-deferred-identifiers.md` + `.planning/ios-coord/v155-step-length-speed-followup.md`.
+- The iOS team's v0.8.0 audit closed cleanly. Detailed acknowledgements live in the internal iOS coordination notes.
 - The iOS team flips `walkingAsymmetryPercentage` + `walkingDoubleSupportPercentage` from pre-multiplied to raw in their next release; until then the server fails-closed (`skipped:"value_out_of_range"`) on > 100% values, so no DB pollution.
 
 ### Notes
@@ -1101,7 +1131,7 @@ The v1.5.3 creation wizard shipped as a single-page card with seven inline steps
 ### Fixed
 
 - **Multi-schedule data-loss risk** — the v1.5.3 wizard collapsed a multi-schedule medication to its first schedule on save and silently dropped the rest. Compose-mode is the proper fix; the encoder now emits every schedule, the hydrator reads every schedule, the per-schedule `id` round-trips so the PUT preserves identity.
-- **The edit form being wider than its container** — Marc's specific complaint from the v1.5.3 hand-walk. The container is now a constrained Dialog at `sm:max-w-md` on desktop and a sticky-footer Sheet at `max-h-[90dvh]` on mobile; the form-as-page surface is gone.
+- **The edit form being wider than its container** — a specific user complaint from the v1.5.3 hand-walk. The container is now a constrained Dialog at `sm:max-w-md` on desktop and a sticky-footer Sheet at `max-h-[90dvh]` on mobile; the form-as-page surface is gone.
 
 ### Tests
 
@@ -1111,7 +1141,7 @@ The v1.5.3 creation wizard shipped as a single-page card with seven inline steps
 
 ### Notes
 
-- **No API or wire-format change.** The wizard writes the same `createMedicationSchema` payload the v1.5.3 wizard wrote; iOS clients reading and writing the existing schedule shape are unaffected. The native `treatmentClass` enum already shipped `GLP1`; the wizard's Step 2 maps the Marc-confirmed labels onto the existing enum + the two new `MedicationCategory` values.
+- **No API or wire-format change.** The wizard writes the same `createMedicationSchema` payload the v1.5.3 wizard wrote; iOS clients reading and writing the existing schedule shape are unaffected. The native `treatmentClass` enum already shipped `GLP1`; the wizard's Step 2 maps the maintainer-confirmed labels onto the existing enum + the two new `MedicationCategory` values.
 - **Cadence-engine read-flip is still v1.5.x deferred** — the today-projector, the cadence chart, and the medication card continue to read the legacy `daysOfWeek` / `intervalWeeks` columns. A wizard-minted rolling or one-shot medication will render a daily-looking next-due chip on the dashboard until the read-flip ships. The reminder worker and the engine work with the new fields correctly.
 - **Test totals.** 5500 unit + 1 skipped, 261 integration + 3 skipped, 14 Playwright wizard instances. Typecheck, lint, `openapi:check`, i18n call-site coverage, locale-integrity all green at HEAD.
 
@@ -1256,7 +1286,7 @@ Before this change, the iOS HealthKit observer would POST today's running step t
 
 ## [1.4.50] — 2026-05-24 — MoodLog reverse-sync (HealthLog → MoodLog push)
 
-Marc reported that mood entries logged inside HealthLog — specifically via the iOS app — never reached MoodLog. The historic integration ran one-way: `syncMoodLogEntries` polled MoodLog every 15 minutes and pulled new rows, but nothing flowed the other direction. A user tracking mood in HealthLog ended up with one log per app and no overlap.
+A user reported that mood entries logged inside HealthLog — specifically via the iOS app — never reached MoodLog. The historic integration ran one-way: `syncMoodLogEntries` polled MoodLog every 15 minutes and pulled new rows, but nothing flowed the other direction. A user tracking mood in HealthLog ended up with one log per app and no overlap.
 
 ### Added
 
@@ -1278,7 +1308,7 @@ The matching MoodLog v0.2.0 release adds the `POST /api/integrations/health-log/
 
 ## [1.4.49.4] — 2026-05-24 — BD-tile number truncation + medication-compliance test tz drift
 
-Marc reported the dashboard BD (Sys) tile rendering `"13… mmHg"` — the systolic / diastolic pair (`131/85`) was wider than the narrowest grid column and the value-row's `truncate` ellipsis chopped the most important part of the tile (the number itself).
+A user reported the dashboard BD (Sys) tile rendering `"13… mmHg"` — the systolic / diastolic pair (`131/85`) was wider than the narrowest grid column and the value-row's `truncate` ellipsis chopped the most important part of the tile (the number itself).
 
 ### Fixed
 
@@ -1288,12 +1318,12 @@ Marc reported the dashboard BD (Sys) tile rendering `"13… mmHg"` — the systo
 
 ## [1.4.49.3] — 2026-05-23 — Full i18n call-site audit + 28 stale missing keys filled
 
-Marc reported additional raw key strings (`notifications.eventMoodReminder`, `notifications.eventMoodReminderDesc`) reaching the UI after v1.4.49.2 had landed the relative-time fix. The narrow `{count}`-call audit that drove v1.4.49.2 had missed every dynamic key construction; the full exhaustive sweep below picked up 28 keys called from real code that had never existed in any locale bundle.
+A user reported additional raw key strings (`notifications.eventMoodReminder`, `notifications.eventMoodReminderDesc`) reaching the UI after v1.4.49.2 had landed the relative-time fix. The narrow `{count}`-call audit that drove v1.4.49.2 had missed every dynamic key construction; the full exhaustive sweep below picked up 28 keys called from real code that had never existed in any locale bundle.
 
 ### Fixed
 
 - Filled 28 missing translation keys across all 6 locales (de / en / es / fr / it / pl = 168 entries), grouped by feature surface that introduced them and never wired the strings:
-  - **Notifications event matrix** (14 keys — added with v1.4.41 / MOOD_REMINDER surfaced the gap in v1.4.49): `notifications.event{MedicationReminder,MeasurementAnomaly,ComplianceLow,WithingsSyncFailed,SystemAlert,PersonalRecord,MoodReminder}` and the `Desc` variant of each. The `/notifications` settings page is the consumer; before this release the per-event rows on Marc's account rendered the bare keys instead of the localised name + description.
+  - **Notifications event matrix** (14 keys — added with v1.4.41 / MOOD_REMINDER surfaced the gap in v1.4.49): `notifications.event{MedicationReminder,MeasurementAnomaly,ComplianceLow,WithingsSyncFailed,SystemAlert,PersonalRecord,MoodReminder}` and the `Desc` variant of each. The `/notifications` settings page is the consumer; before this release the per-event rows on an affected account rendered the bare keys instead of the localised name + description.
   - **Welcome carousel** (13 keys — added with the 3-slide intro in v1.4.45): `onboarding.welcome.{title,carouselLabel,slideOf,prevSlide,nextSlide,gotoSlide,cta}` for the chrome plus `slide{1,2,3}.title/body` for the content. The carousel mounted with raw keys for every screen-reader label, dot-pager aria-label, and slide body.
   - **Measurement list error state** (1 key — added with v1.4.44): `measurements.loadError`. The error branch in `measurement-list.tsx` rendered the raw key when a fetch failed.
 
@@ -1307,7 +1337,7 @@ The guard above did not exist before. v1.4.27 B6 introduced `i18n-drift-guard.te
 
 ## [1.4.49.2] — 2026-05-23 — Raw i18n key leak on relative-time helper
 
-Marc reported the raw string `insights.relativeHoursAgo` rendering verbatim on medication cards, recent-achievements, admin sections, the iOS notification preview, and every other consumer of `formatDateOrRelative`. Audit across the full `t(…, { count })` surface (~20 call sites) confirmed exactly two leaks: `insights.relativeMinutesAgo` and `insights.relativeHoursAgo`. Both pointed to keys that have NEVER existed in the translation bundle — only the pluralised `*One` / `*Other` variants ship.
+A user reported the raw string `insights.relativeHoursAgo` rendering verbatim on medication cards, recent-achievements, admin sections, the iOS notification preview, and every other consumer of `formatDateOrRelative`. Audit across the full `t(…, { count })` surface (~20 call sites) confirmed exactly two leaks: `insights.relativeMinutesAgo` and `insights.relativeHoursAgo`. Both pointed to keys that have NEVER existed in the translation bundle — only the pluralised `*One` / `*Other` variants ship.
 
 ### Fixed
 
@@ -1327,7 +1357,7 @@ v1.4.49 shipped the slim-slice (`?slice=summaries`) cold-fallback fix, but the p
 
 ### Fixed
 
-- `GET /api/analytics` (default slice) no longer fans out 15 per-type `findMany` reads against `measurements`. The route now delegates the per-type `summaries` work to `computeSummariesSlice`, which reads the same data from `measurement_rollups` DAY buckets + a 90-day narrow `$queryRaw` for the windowed avg / slope / r² columns. On Marc's production account this drops the cold critical path from ~8 s to sub-second; warm cache is unchanged.
+- `GET /api/analytics` (default slice) no longer fans out 15 per-type `findMany` reads against `measurements`. The route now delegates the per-type `summaries` work to `computeSummariesSlice`, which reads the same data from `measurement_rollups` DAY buckets + a 90-day narrow `$queryRaw` for the windowed avg / slope / r² columns. On a large production account this drops the cold critical path from ~8 s to sub-second; warm cache is unchanged.
 - Pool starvation that ALSO affected the supposedly-fast `?slice=summaries` request when fired concurrently — the slim slice now resolves in its own SQL budget regardless of whether the default-slice request is also in flight.
 
 ### Changed
@@ -1419,7 +1449,7 @@ v1.4.47 closed the high-priority punch list. v1.4.49 bundles the remaining v1.4.
 
 ### Deferred
 
-- iOS v0.6.0.8 ships the Settings-side notification-permission re-trigger (`healthlog-iOS#10`), the in-app APNs diagnostic surface, and the `CFBundleShortVersionString` + UA build-number fixes — these depend on Marc's Xcode build cycle, not the server. The server-side suppression flag added in this release is opt-in (`clientManaged: false` by default) so existing users on the still-buggy v0.6.0.7 client see no behaviour change until they upgrade to v0.6.0.8 and the iOS client explicitly opts in via `PATCH /api/auth/me/notification-prefs`.
+- iOS v0.6.0.8 ships the Settings-side notification-permission re-trigger (`healthlog-iOS#10`), the in-app APNs diagnostic surface, and the `CFBundleShortVersionString` + UA build-number fixes — these depend on the iOS client's build cycle, not the server. The server-side suppression flag added in this release is opt-in (`clientManaged: false` by default) so existing users on the still-buggy v0.6.0.7 client see no behaviour change until they upgrade to v0.6.0.8 and the iOS client explicitly opts in via `PATCH /api/auth/me/notification-prefs`.
 - Reactive `prefersReducedMotion()` hook — current helper at `src/lib/charts/reduced-motion.ts` is read-once at render; doesn't react to mid-session OS toggle. Twenty-one call sites would benefit from a `useSyncExternalStore`-backed hook. Scoped as a v1.4.50 single-purpose refactor.
 - `handleReminderCheck` extraction — the cron handler in `src/lib/jobs/reminder-worker.ts` is a 260-line non-exported blob. The v1.4.49 suppression skip-path is pinned via the helper `isMedicationReminderClientManaged` rather than a direct integration test of the handler. Scoped as v1.4.50 hygiene.
 
@@ -1756,7 +1786,7 @@ v1.4.41 closed the iOS BP/Weight 14 s perf paper-cut and the soft-delete reader-
 - **`offhost-backup.ts:219` DR-intent comment** — the nightly disaster-recovery S3 snapshot deliberately includes soft-deleted rows so a future "restore from yesterday" brings back a row the user undeleted on the source side. The inline comment now documents the asymmetry vs the user-facing `/api/export/full-backup` which correctly excludes them.
 - **`src/lib/doctor-report-data.ts` byte cleanliness** — the file was checked in as `Binary files differ` because the sanitiser regex held literal control bytes (NUL + US + DEL) in its character class. The regex now uses `[\x00-\x1F\x7F]` escape-sequence form so the file becomes UTF-8 clean and future code reviews can read the diffs. Same runtime behaviour; the existing 18-case test suite still passes.
 - **Two dead re-exports dropped**: `listSupportedTimezones` re-export in `src/lib/tz/resolver.ts` (callers import from `@/lib/tz/format` directly) and the `describeInjectionSite` re-export in `src/components/medications/glp1-medication-card.tsx` ("Re-export so the parent doesn't need to import it" — no caller ever did).
-- **`pnpm check-env` catches the v1.4.40 AP-2 silent-disable it was conceived to catch.** The APNs group in `scripts/env-manifest.json` shipped without `allOrNone: true`, so an operator setting three of four `APNS_*` vars and leaving `APNS_KEY` / `APNS_KEY_FILE` empty would still exit 0 — exactly the silent-disable shape the wave was meant to prevent. Adding the flag closes the gap; the regression test pins the AP-2 scenario directly.
+- **`pnpm check-env` catches the v1.4.40 AP-2 silent-disable it was conceived to catch.** The APNs group in `scripts/env-manifest.json` shipped without `allOrNone: true`, so an operator setting three of four `APNS_*` vars and leaving `APNS_KEY` / `APNS_KEY_FILE` empty would still exit 0 — exactly the silent-disable shape the gate was meant to prevent. Adding the flag closes the gap; the regression test pins the AP-2 scenario directly.
 
 ### Operator notes
 
@@ -1823,11 +1853,11 @@ v1.4.39.x stitched the rollup tier across mood, medication compliance, and cumul
 ### Changed
 
 - **Per-tile Suspense boundaries on the dashboard.** Each chart tile now mounts inside its own `<Suspense>` so a slow tile no longer blocks the others on first paint. The parent gate is the slim / thick analytics merge (already split per v1.4.39.2); the per-tile Suspense layer is the structural foundation the v1.4.41 React Server Components migration will graft onto. `mood-chart` queryKey dedup eliminates one round-trip on cold mount.
-- **queryKey factory enforcement** (`src/lib/__tests__/query-keys.test.ts`). A walker test fails CI if any guarded file declares a bare-literal `queryKey: [...]`. Guarded roots are `src/components/charts/`, `src/components/comparison/`, `src/app/page.tsx`, and `src/hooks/use-auth.ts`. Cheaper than a custom ESLint rule and points the failure message at the exact `file:line` a contributor needs to fix; opt-in expansion as future waves migrate the remaining sites away from bare literals.
+- **queryKey factory enforcement** (`src/lib/__tests__/query-keys.test.ts`). A walker test fails CI if any guarded file declares a bare-literal `queryKey: [...]`. Guarded roots are `src/components/charts/`, `src/components/comparison/`, `src/app/page.tsx`, and `src/hooks/use-auth.ts`. Cheaper than a custom ESLint rule and points the failure message at the exact `file:line` a contributor needs to fix; opt-in expansion as future releases migrate the remaining sites away from bare literals.
 
 ### Fixed
 
-- **Prisma pool starvation root cause** (empirical-trace finding #1). The 15-way `fetchMeasurementSeriesChunked` fan-out in `/api/analytics` thick used to monopolise ≥ 8 of the default-10 `pg.Pool` connections during a power-user cold mount, blocking every Wave-B and Wave-C chart-tile fetch behind it. The fan-out is now wrapped in `p-limit(4)` so analytics holds at most 4 pool slots, and the `pg.Pool` `max` is raised from the library default 10 → 20 (overridable via `DATABASE_POOL_MAX`) so a second concurrent power-user retains ≥ 8 free slots after both branches hit their `p-limit(4)` cap. The cap is a per-request instance, not module-level, so a stale limit cannot leak in-flight state across HTTP boundaries.
+- **Prisma pool starvation root cause** (empirical-trace finding #1). The 15-way `fetchMeasurementSeriesChunked` fan-out in `/api/analytics` thick used to monopolise ≥ 8 of the default-10 `pg.Pool` connections during a power-user cold mount, blocking every other dashboard chart-tile fetch behind it. The fan-out is now wrapped in `p-limit(4)` so analytics holds at most 4 pool slots, and the `pg.Pool` `max` is raised from the library default 10 → 20 (overridable via `DATABASE_POOL_MAX`) so a second concurrent power-user retains ≥ 8 free slots after both branches hit their `p-limit(4)` cap. The cap is a per-request instance, not module-level, so a stale limit cannot leak in-flight state across HTTP boundaries.
 - **Soft-delete invisibility full-wire.** Eleven reader-tier helpers across `src/lib/measurements/rollups.ts`, `src/lib/measurements/rollup-coverage.ts`, `src/lib/analytics/{summaries-slice,correlations-fast-path,bp-in-target-fast-path,health-score-fast-path}.ts`, `src/lib/insights/comprehensive-aggregator.ts`, `src/app/api/dashboard/summary/route.ts`, `src/app/api/measurements/route.ts`, `src/app/api/measurements/series/route.ts`, and `src/lib/ai/coach/snapshot.ts` now filter `deletedAt: null` (or the SQL equivalent `m."deleted_at" IS NULL`) at every aggregate, every cursor walk, every `DISTINCT ON` latest probe, and every rollup-rebuild SQL. Three integration-test contracts in `tests/integration/measurement-soft-delete.test.ts` pin the invariant against a Postgres testcontainer.
 - **Six remaining insights `measurement.findMany` sites** that the earlier mood-rollup swap left unfiltered (`/api/insights/{targets,cards,generate}` plus `src/lib/insights/{features,glp1-plateau,pulse-status}.ts`). All six now filter `deletedAt: null` so the iOS-adapter card stream, the AI prompt feature aggregator, the GLP-1 plateau detector window, and the per-type tile-strip averages stop counting tombstoned readings once iOS sync starts emitting deletions.
 - **Compliance-rollup hook gap on bulk-projection paths.** Both `/api/medications/intake?scope=today` and `/api/dashboard/summary` mint fresh `(medicationId, scheduledFor)` rows in PENDING state when a daily schedule is projected on first read. Without a recompute hook the rollup for the affected `(user, medication, day)` tuples stayed at its previous (pre-projection) `scheduled` count, which inflated the apparent compliance % until the user logged against the new row. Both call sites now fire one recompute per distinct `(medicationId, dayKey)` tuple, deduplicated through a `Set` so the cost stays bounded. The recompute call is wrapped in `Promise.allSettled` so any future change that lets the helper throw still leaves the user request 200-OK.
@@ -1838,9 +1868,9 @@ v1.4.39.x stitched the rollup tier across mood, medication compliance, and cumul
 
 ### Performance
 
-Expected on Marc-sized accounts; numbers anchored on the v1.4.40 empirical trace. Live perf-verify rides the post-deploy window.
+Expected on large accounts; numbers anchored on the v1.4.40 empirical trace. Live perf-verify rides the post-deploy window.
 
-- **Wave-C chart-tile first-paint: +7.3 s → +1.6 s.** Bounded analytics fan-out (p-limit 4 + pool max 20) lets the 6× `/api/measurements?source=rollup` Wave-C burst release incrementally as analytics rotates lanes, instead of gating the entire burst behind the thick analytics drain.
+- **Late-mounting chart-tile first-paint: +7.3 s → +1.6 s.** Bounded analytics fan-out (p-limit 4 + pool max 20) lets the 6× `/api/measurements?source=rollup` tile burst release incrementally as analytics rotates lanes, instead of gating the entire burst behind the thick analytics drain.
 - **6 insights routes cold-mount.** The mood-rollup swap on `/api/insights/{features,targets,cards}` moves mood aggregation off the live `MoodEntry.findMany` walk onto the v1.4.39 mood-rollup tier; the cold-mount budget for the affected routes drops onto the same flat-200 ms band the v1.4.39 `/api/mood/analytics` numbers land in.
 - **`avg30LastYear` now populated.** The 425-day `since` cap on the `/api/analytics` live-fallback per-type loop (v1.4.39) lets the year-ago baseline tile resolve from raw data without forcing a 347 k-row scan; the v1.4.40 pool cap keeps that fallback off the hot path.
 - **`slope90` via MONTH-tier reader.** `readBestGranularityRollups` auto-routes the 90-day slope window onto the MONTH bucket where coverage allows, eliminating a per-cold-mount aggregate on multi-year tenants.
@@ -1942,7 +1972,7 @@ Withings sync, `/api/import`, and admin-restore paths. New writes from
 those surfaces now fold the persistent rollup tier on touch, and the
 boot-time backfill discovery surfaces every per-(user, type, day) gap
 so a worker restart converges any stranded accounts. v1.4.39.2 closes
-two follow-ups Marc surfaced from the post-deploy trace: the dashboard
+two follow-ups the maintainer surfaced from the post-deploy trace: the dashboard
 chart still painted its `< 3 daily points` empty-state on the 30-point
 range for accounts whose historic rollup partition had not yet been
 folded, and the cold-mount UX waterfall left every per-type tile
@@ -2086,7 +2116,7 @@ self-heal via boot-time backfill on first reach.
 
 ### Performance
 
-Expected on Marc-sized accounts; numbers anchored on the v1.4.38 perf
+Expected on large accounts; numbers anchored on the v1.4.38 perf
 analysis and confirmed by the unit-test fixture suite. Live perf-verify
 rides the post-deploy window.
 
@@ -2179,7 +2209,7 @@ longer poisons unrelated cards.
 ### Operator notes
 
 - No new migration. No env-var change.
-- Expected: cold-mount `/api/analytics` on Marc-sized accounts
+- Expected: cold-mount `/api/analytics` on large accounts
   drops from 30-75 s to ~3-5 s.
 
 ## [1.4.38.7] — 2026-05-18 — Rollup recompute observability + admin trigger
@@ -2608,7 +2638,7 @@ dashboard SQL surfaced.
   load-shedding lands — no semantic change, just a hand-off note.
 - The private `dayKey` helper in `bp-in-target-fast-path` renames to
   `bucketDayKey` so the cross-file term lines up with the cross-tz
-  guard wave naming.
+  guard naming.
 - Health-score `bpInTargetPct` reuses the same prior-week query
   across windows instead of issuing one read per window.
 
@@ -2664,7 +2694,7 @@ dashboard SQL surfaced.
   `{day}` so a11y labels announce per-weekday).
 - `admin`, `settings`, and `achievements` namespaces remain
   intentional T3 — operator-facing surface that will land in a
-  follow-up wave alongside the iOS launch.
+  follow-up release alongside the iOS launch.
 
 ### Security
 
@@ -2733,7 +2763,7 @@ returns in a single round-trip.
   `count / min / max / mean` instead of ~306k bucket rows. The
   downstream JS aggregation is bypassed because the per-type
   aggregate is already shaped server-side. Cache-miss budget on
-  Marc-sized accounts: ~3.1 s → < 100 ms expected.
+  large accounts: ~3.1 s → < 100 ms expected.
 
 ### Operator notes
 
@@ -2983,7 +3013,7 @@ double-digit MB for power users. The Insights page itself stops
 blocking the entire shell on `/api/insights/comprehensive`, so each
 section renders its own skeleton and fills in independently.
 
-On top of the perf wave: chart slot heights pinned to kill Recharts'
+On top of the performance work: chart slot heights pinned to kill Recharts'
 `width=-1 height=-1` warning and the matching CLS, a tri-state trend
 annotation contract that ends the cold-mount "more data needed" flash,
 medication intake history restored on the detail page, About card
@@ -3726,8 +3756,7 @@ the iOS native client launches. Subsequent v1.4.x tags carry security
 fixes, dependency bumps, and hotfix-only corrections. New feature work
 is paused until the iOS app clears Apple review, at which point a
 v1.5.0 version-bump-only release tags the milestone. The Prisma
-schema head comment and `.planning/v15-strategic-plan.md` §5
-decision-log row pin the freeze trigger in-tree.
+schema head comment pins the freeze trigger in-tree.
 
 ## [1.4.33] — 2026-05-17 — Polish and reliability
 
@@ -3922,9 +3951,9 @@ the affected surfaces.
   the Insights mother page now accepts both eager and
   `next/dynamic` spellings.
 
-## [1.4.32] — 2026-05-17 — HealthKit Tier 1 first wave
+## [1.4.32] — 2026-05-17 — HealthKit Tier 1 first surface
 
-First public surface wave for the HealthKit Tier 1 metrics that
+First public surface for the HealthKit Tier 1 metrics that
 the iOS contributor brief locked in for v1.5. The headline item
 is a workouts flow that lands end-to-end on the web: a list page
 at `/insights/workouts`, a detail page with route preview and
@@ -4046,8 +4075,7 @@ sleep before the trigger step lands inside the existing
 ### Fixed
 
 - **Insights tab-strip blocking on mobile.** Three orthogonal
-  client-side fixes per
-  `.planning/research/v15-insights-blocking-bug.md`:
+  client-side fixes:
   - `fetchAdvisor` gets an 8 s `AbortController`; `AbortError`
     falls through to the existing graceful-null return path so the
     UI surfaces the regen CTA instead of pinning the query in
@@ -4111,9 +4139,8 @@ Every change is additive on the wire.
   error and degrades gracefully through its existing 403
   handler. v1.4.31+ iOS reads the `errorCode` to render the
   surface-specific empty state.
-- The locked-contract entry at
-  `.planning/v15-ios-handoff/08-locked-contracts.md` §14
-  documents the rule that the flag matrix gates BOTH
+- The locked-contract coordination notes (§14)
+  document the rule that the flag matrix gates BOTH
   server-routed AND on-device assistant surfaces. Apple
   Foundation Models on-device Coach + Briefing flows in the
   v0.6.0 iOS path honour the same flag matrix as the
@@ -4139,12 +4166,12 @@ standalone-first track depends on lands as §13 of
   `MeasurementType`. `requireAuth()` gates the route — any logged-in
   user passes — and `Cache-Control: public, max-age=600` enables a
   10-minute edge cache. Locked per
-  `.planning/RESPONSE-TO-IOS-TEAM-2026-05-16.md` §3 R1.
+  the iOS-team coordination response, §3 R1.
 
 ### Documented
 
 - **SyncMode conflict-resolution policy.**
-  `.planning/v15-ios-handoff/08-locked-contracts.md` gains §13 per
+  The locked-contract coordination notes gain §13 per
   R9 of the iOS-team response doc. Hard-spec covers bulk-backfill,
   steady-state bidirectional sync via `(updatedAt, syncVersion)`
   optimistic concurrency, the 409 write-conflict + 410 Gone
@@ -4188,8 +4215,7 @@ permission picker and the future Insights nav.
 - **Daily-stats `externalId` helper.** `dailyStatsExternalId(hkId,
   date)` mints `"stats:<HKQuantityTypeIdentifier>:<YYYY-MM-DD>"`
   alongside the v1.4.29 `CUMULATIVE_HK_TYPES` set. The shape is
-  locked in `.planning/v15-ios-handoff/08-locked-contracts.md` §12
-  and `.planning/v15-ios-handoff/06-ios-responsibilities.md`. iOS
+  locked in the iOS coordination notes (§12). iOS
   emits one row per day per cumulative type via
   `HKStatisticsCollectionQuery`; the unique index collapses
   re-syncs idempotently, and a future PATCH-on-divergence call
@@ -4898,8 +4924,7 @@ is additive, `IF NOT EXISTS`-guarded, and forward-only.
   full filtered set, dedupes once, then slices, so `meta.total`
   reports the deduped count rather than the per-window
   `canonical.length`.
-- **iOS handoff addendum.** New
-  `.planning/v15-ios-handoff/22-standalone-and-server-pairing.md`
+- **iOS handoff addendum.** A new coordination note
   documents the standalone-then-pair pattern for the iOS native
   client. Sibling of the existing `22-offline-first-architecture.md`;
   same research input, neutral framing per the v1.4.27 convention
@@ -5356,7 +5381,7 @@ refuses drug-level estimates with MDR + MDCG 2021-24 cites).
   per-locale bodies (no `REPLY LANGUAGE` footer indirection) with
   the full safety-contract matrix in YAML per locale + structural
   refusal-probe coverage in CI (see Tests). EN + DE stay
-  Marc-maintained. Locale picker covers all six; signup
+  maintainer-curated. Locale picker covers all six; signup
   browser-detect maps `fr|es|it|pl` to the corresponding bundle.
 - **Coach — native first-party system prompts across six locales.**
   Coach + insights system prompts move from EN body + `REPLY
@@ -5950,8 +5975,8 @@ refuses drug-level estimates with MDR + MDCG 2021-24 cites).
 
 ### Deferred to v1.4.26
 
-See `.planning/v1426-backlog.md` for the full backlog with effort
-estimates and source citations. Headline items:
+The full backlog, with effort
+estimates and source citations, is tracked internally. Headline items:
 
 - `User.onboardingGoals` column + server-side persistence for the
   goals chip-picker selection (today the picker holds the choice
@@ -6510,7 +6535,7 @@ NOT NULL`) is the defence-in-depth backstop.
 
 - **Coolify image-digest auto-deploy.** Instructions for the
   one-time UI-toggle ("Watch image registry for new digests")
-  live at `.planning/coolify-auto-deploy-howto.md`. Future
+  live in the internal ops notes. Future
   releases should drop the host-side retag fallback the moment
   the toggle is on.
 - **191 maintainer-name references in `src/` source comments
@@ -6526,7 +6551,7 @@ NOT NULL`) is the defence-in-depth backstop.
 
 ### Deferred to v1.4.23
 
-See `.planning/v1422-backlog.md` for the full carry-over list.
+The full carry-over list is tracked internally.
 Highlights: sentinel parser malformed-enum hardening (Sr-M5);
 analytics-route unbounded `findMany` paging; targets-route
 7-pass sparkline coalesce; `CoachDrawer key={prefill}`
@@ -6828,8 +6853,7 @@ Coach extension for the new measurement types
 - 3 HIGH from QA — `/insights` `data?.` narrowing refactor,
   `/admin/api-tokens` touch-tooltip (needs Popover swap), and
   `/insights` hero density (folded into the v1.4.20 redesign).
-- 31 MED + 16 LOW from the quality-of-life audit. Short-list at
-  `.planning/v1420-backlog.md`.
+- 31 MED + 16 LOW from the quality-of-life audit. Short-list tracked internally.
 - `/insights` redesign with AI Coach — separate roadmap, design
   handoff at `~/Downloads/design_handoff_insights_redesign`.
 
@@ -6901,9 +6925,9 @@ Coach extension for the new measurement types
   `messages/de.json` are still statically imported into the client
   bundle, so a determined user can `Cmd-F` for the hidden strings in
   `_next/static/chunks/*.js`. Needs a build-time strip or reversible
-  obfuscation. Tracked in `.planning/v1419-backlog.md`.
-- See `.planning/v1419-backlog.md` for the short-list and
-  `.planning/v15-backlog.md` for the strategic v1.5 items.
+  obfuscation. Tracked internally.
+- The short-list and the strategic v1.5 items are tracked
+  internally.
 
 ## [1.4.17] — 2026-05-10
 

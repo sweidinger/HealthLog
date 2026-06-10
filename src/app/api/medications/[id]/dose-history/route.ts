@@ -77,6 +77,12 @@ interface SerializedDoseHistoryRow {
   at: string;
   timeOfDay: string | null;
   status: DoseHistoryRow["status"];
+  /** v1.15.20 — slot served by a deliberate user pin ("zugeordnet"). */
+  pinned?: boolean;
+  /** v1.15.20 — due-context for an ad-hoc take: the nearest slot it could
+   * belong to (preferring an unserved one), so the UI can show "fällig
+   * gewesen" and offer the pin when `filled` is false. */
+  nearestSlot?: { at: string; timeOfDay: string; filled: boolean };
   intake: {
     id: string | null;
     scheduledFor: string;
@@ -148,6 +154,8 @@ export const GET = apiHandler(
         takenAt: true,
         skipped: true,
         autoMissed: true,
+        // v1.15.20 — USER_PIN rows bind by anchor in the read ledger.
+        attributionSource: true,
       },
     });
 
@@ -157,6 +165,7 @@ export const GET = apiHandler(
       takenAt: e.takenAt,
       skipped: e.skipped,
       autoMissed: e.autoMissed,
+      pinned: e.attributionSource === "USER_PIN",
     }));
 
     const lastIntakeAt = lastNonSkippedTakenAt(mapped);
@@ -226,6 +235,7 @@ export const GET = apiHandler(
         takenAt: e.takenAt,
         skipped: e.skipped,
         autoMissed: e.autoMissed,
+        pinned: e.pinned,
       }));
 
     const rows = reconstructDoseHistory(bands, historyIntakes, now);
@@ -235,6 +245,14 @@ export const GET = apiHandler(
       at: row.at.toISOString(),
       timeOfDay: row.timeOfDay,
       status: row.status,
+      ...(row.pinned && { pinned: true }),
+      ...(row.nearestSlot && {
+        nearestSlot: {
+          at: row.nearestSlot.at.toISOString(),
+          timeOfDay: row.nearestSlot.timeOfDay,
+          filled: row.nearestSlot.filled,
+        },
+      }),
       intake: row.intake
         ? {
             id: row.intake.id ?? null,

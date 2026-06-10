@@ -28,6 +28,7 @@
  */
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import Link from "next/link";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
@@ -307,6 +308,18 @@ export function SourcesSection() {
         <p className="text-muted-foreground text-sm">
           {t("settings.sections.sources.description")}
         </p>
+        {/* Cross-link back to Settings → Integrations — the page that
+            actually adds / removes the sources this ladder ranks. */}
+        <p className="text-muted-foreground text-xs">
+          {t("settings.sections.sources.integrationsHint")}{" "}
+          <Link
+            href="/settings/integrations"
+            className="text-primary underline underline-offset-2"
+            data-slot="sources-integrations-cross-link"
+          >
+            {t("settings.sections.sources.integrationsHintLink")}
+          </Link>
+        </p>
       </header>
 
       <div className="bg-card border-border space-y-4 rounded-xl border p-6">
@@ -324,7 +337,7 @@ export function SourcesSection() {
             disabled={resetMutation.isPending || saveMutation.isPending}
             className="self-end sm:self-auto"
           >
-            <RotateCcw className="mr-2 h-3.5 w-3.5" />
+            <RotateCcw className="h-3.5 w-3.5" />
             {t("settings.sections.sources.resetDefaults")}
           </Button>
         </div>
@@ -387,7 +400,8 @@ export function SourcesSection() {
                             className="h-11 w-11"
                             onClick={() => moveSource(metric, index, 1)}
                             disabled={
-                              index === list.length - 1 || saveMutation.isPending
+                              index === list.length - 1 ||
+                              saveMutation.isPending
                             }
                             aria-label={t("settings.sections.sources.moveDown")}
                           >
@@ -509,7 +523,7 @@ export function SourcesSection() {
                     onClick={resetDeviceTypeAxis}
                     disabled={saveMutation.isPending}
                   >
-                    <RotateCcw className="mr-1 h-3 w-3" />
+                    <RotateCcw className="h-3 w-3" />
                     {t("settings.sections.sources.resetDeviceTypes")}
                   </Button>
                 </div>
@@ -536,9 +550,7 @@ export function SourcesSection() {
                           variant="ghost"
                           size="icon"
                           className="h-11 w-11"
-                          onClick={() =>
-                            moveDeviceType(null, index, -1)
-                          }
+                          onClick={() => moveDeviceType(null, index, -1)}
                           disabled={index === 0 || saveMutation.isPending}
                           aria-label={t("settings.sections.sources.moveUp")}
                         >
@@ -566,8 +578,11 @@ export function SourcesSection() {
           </div>
         )}
 
+        {/* `flex-col-reverse` mirrors the DialogFooter idiom: the primary
+            action stacks on top on mobile, row order stays Cancel → Save
+            on `sm+`. */}
         {dirty && priority && (
-          <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
+          <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
             <Button
               type="button"
               variant="ghost"
@@ -582,7 +597,7 @@ export function SourcesSection() {
               disabled={saveMutation.isPending}
             >
               {saveMutation.isPending && (
-                <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
+                <Loader2 className="h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
               )}
               {t("common.save")}
             </Button>

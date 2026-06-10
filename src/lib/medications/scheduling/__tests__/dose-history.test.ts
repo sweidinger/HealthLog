@@ -18,6 +18,7 @@ import { describe, expect, it } from "vitest";
 import { buildSlotBands, type SlotWindowInput } from "../attribution";
 import {
   reconstructDoseHistory,
+  suggestNearestSlot,
   type HistoryIntake,
 } from "../dose-history";
 import { localHmAsUtc } from "@/lib/timezone";
@@ -86,7 +87,7 @@ describe("reconstructDoseHistory", () => {
   });
 
   it("emits an 11:29 take as an ad-hoc row and leaves 07:00 missed", () => {
-    // Marc's case: the stored scheduledFor was snapped to 07:00 by the old
+    // the reported case: the stored scheduledFor was snapped to 07:00 by the old
     // write path, but the real takenAt (11:29) is outside every band → ad-hoc.
     const rows = reconstructDoseHistory(
       bands,
@@ -228,6 +229,223 @@ describe("reconstructDoseHistory", () => {
         at(8, 30),
       );
       expect(rows.find((r) => r.timeOfDay === "07:00")?.status).toBe("missed");
+    });
+  });
+
+  // v1.15.20 — deliberate user pins ("diesem Slot zuordnen"). A USER_PIN row
+  // binds by its stored `scheduledFor` anchor like a skip, NOT by takenAt
+  // band membership, so a pin outside the late tail stays on its slot. The
+  // status never flatters: taken_late unless the takenAt happens to sit
+  // inside the slot's own on-time band anyway.
+  describe("pinned takes (USER_PIN)", () => {
+    it("binds an off-band pinned take to its slot anchor as taken_late", () => {
+      // 13:00 is past the 07:00 band's miss cutoff (11:00) — unpinned it
+      // would be ad-hoc and the slot missed; the pin keeps it on the slot.
+      const rows = reconstructDoseHistory(
+        bands,
+        [intake({ takenAt: at(13, 0), scheduledFor: at(7, 0), pinned: true })],
+        nowEvening,
+      );
+      const morning = rows.find((r) => r.timeOfDay === "07:00");
+      expect(morning?.status).toBe("taken_late");
+      expect(morning?.pinned).toBe(true);
+      expect(morning?.intake?.takenAt?.toISOString()).toBe(
+        at(13, 0).toISOString(),
+      );
+      expect(rows.filter((r) => r.kind === "ad_hoc")).toHaveLength(0);
+    });
+
+    it("reads taken_on_time only when the takenAt sits inside the on-time band anyway", () => {
+      const rows = reconstructDoseHistory(
+        bands,
+        [intake({ takenAt: at(7, 30), scheduledFor: at(7, 0), pinned: true })],
+        nowEvening,
+      );
+      const morning = rows.find((r) => r.timeOfDay === "07:00");
+      expect(morning?.status).toBe("taken_on_time");
+      expect(morning?.pinned).toBe(true);
+    });
+
+    it("a pin inside the late tail reads taken_late, never flattered", () => {
+      const rows = reconstructDoseHistory(
+        bands,
+        [intake({ takenAt: at(9, 0), scheduledFor: at(7, 0), pinned: true })],
+        nowEvening,
+      );
+      expect(rows.find((r) => r.timeOfDay === "07:00")?.status).toBe(
+        "taken_late",
+      );
+    });
+
+    it("a deliberate pin claims the slot before a band-attributed take", () => {
+      const rows = reconstructDoseHistory(
+        bands,
+        [
+          intake({ id: "auto", takenAt: at(7, 0), scheduledFor: at(7, 0) }),
+          intake({
+            id: "pin",
+            takenAt: at(13, 0),
+            scheduledFor: at(7, 0),
+            pinned: true,
+          }),
+        ],
+        nowEvening,
+      );
+      const morning = rows.find((r) => r.timeOfDay === "07:00");
+      expect(morning?.intake?.id).toBe("pin");
+      expect(morning?.status).toBe("taken_late");
+      const adhoc = rows.filter((r) => r.kind === "ad_hoc");
+      expect(adhoc.map((r) => r.intake?.id)).toEqual(["auto"]);
+    });
+
+    it("falls through to ad-hoc when the pinned slot is already claimed by a skip", () => {
+      const rows = reconstructDoseHistory(
+        bands,
+        [
+          intake({ id: "skip", skipped: true, scheduledFor: at(7, 0) }),
+          intake({
+            id: "pin",
+            takenAt: at(13, 0),
+            scheduledFor: at(7, 0),
+            pinned: true,
+          }),
+        ],
+        nowEvening,
+      );
+      expect(rows.find((r) => r.timeOfDay === "07:00")?.status).toBe("skipped");
+      const adhoc = rows.filter((r) => r.kind === "ad_hoc");
+      expect(adhoc.map((r) => r.intake?.id)).toEqual(["pin"]);
+    });
+
+    it("falls through to ad-hoc when the pinned anchor matches no band (schedule changed)", () => {
+      const rows = reconstructDoseHistory(
+        bands,
+        [
+          intake({
+            takenAt: at(15, 30),
+            scheduledFor: at(15, 0),
+            pinned: true,
+          }),
+        ],
+        nowEvening,
+      );
+      const adhoc = rows.filter((r) => r.kind === "ad_hoc");
+      expect(adhoc).toHaveLength(1);
+      expect(adhoc[0].at.toISOString()).toBe(at(15, 30).toISOString());
+    });
+
+    // v1.16.0 — a RELEASED pin ("Zuordnung lösen") persists USER_PIN with
+    // `scheduledFor === takenAt`: deliberately ad-hoc, never anchor-bound.
+    it("surfaces a released pin (scheduledFor === takenAt) as a pinned ad-hoc row, never taken_late", () => {
+      const rows = reconstructDoseHistory(
+        bands,
+        [intake({ takenAt: at(9, 0), scheduledFor: at(9, 0), pinned: true })],
+        nowEvening,
+      );
+      const adhoc = rows.filter((r) => r.kind === "ad_hoc");
+      expect(adhoc).toHaveLength(1);
+      expect(adhoc[0].status).toBe("ad_hoc");
+      expect(adhoc[0].pinned).toBe(true);
+      // The 07:00 slot stays unserved (missed by evening) — the released
+      // take must not be pulled back onto it.
+      expect(rows.find((r) => r.timeOfDay === "07:00")?.status).toBe("missed");
+    });
+
+    it("a released pin within anchor epsilon of a slot still reads ad-hoc (no re-binding)", () => {
+      // 07:00:30 sits 30 s from the 07:00 anchor — inside ANCHOR_EPSILON_MS.
+      // Without the release guard the pinned path would claim the slot as
+      // taken_on_time, silently reverting the user's release.
+      const t = new Date(at(7, 0).getTime() + 30_000);
+      const rows = reconstructDoseHistory(
+        bands,
+        [intake({ takenAt: t, scheduledFor: t, pinned: true })],
+        nowEvening,
+      );
+      const adhoc = rows.filter((r) => r.kind === "ad_hoc");
+      expect(adhoc).toHaveLength(1);
+      expect(adhoc[0].pinned).toBe(true);
+      expect(rows.find((r) => r.timeOfDay === "07:00")?.status).toBe("missed");
+    });
+  });
+
+  // v1.15.20 — the due-context an ad-hoc take carries. With the test
+  // geometry the 07:00 band runs 06:00–11:00 (on-time 06:00–08:00, 180min
+  // tail), so its suggestion zone extends to 12:30 (tail + 50 %).
+  describe("ad-hoc nearestSlot due-context", () => {
+    it("an ad-hoc take inside an unserved slot's suggestion zone offers the pin", () => {
+      const rows = reconstructDoseHistory(
+        bands,
+        [intake({ takenAt: at(11, 29), scheduledFor: at(7, 0) })],
+        nowEvening,
+      );
+      const adhoc = rows.find((r) => r.kind === "ad_hoc");
+      expect(adhoc?.nearestSlot?.timeOfDay).toBe("07:00");
+      expect(adhoc?.nearestSlot?.at.toISOString()).toBe(at(7, 0).toISOString());
+      expect(adhoc?.nearestSlot?.filled).toBe(false);
+    });
+
+    it("a take past the suggestion zone keeps the context but reads filled (no pin offer)", () => {
+      // 12:45 > 12:30 — outside the zone even though the slot is unserved.
+      const rows = reconstructDoseHistory(
+        bands,
+        [intake({ takenAt: at(12, 45), scheduledFor: at(7, 0) })],
+        nowEvening,
+      );
+      const adhoc = rows.find((r) => r.kind === "ad_hoc");
+      expect(adhoc?.nearestSlot?.timeOfDay).toBe("07:00");
+      expect(adhoc?.nearestSlot?.filled).toBe(true);
+    });
+
+    it("a second take near an already-served slot reads filled", () => {
+      const rows = reconstructDoseHistory(
+        bands,
+        [
+          intake({ id: "a", takenAt: at(7, 0), scheduledFor: at(7, 0) }),
+          intake({ id: "b", takenAt: at(7, 20), scheduledFor: at(7, 0) }),
+        ],
+        nowEvening,
+      );
+      const adhoc = rows.find((r) => r.kind === "ad_hoc");
+      expect(adhoc?.intake?.id).toBe("b");
+      expect(adhoc?.nearestSlot?.timeOfDay).toBe("07:00");
+      expect(adhoc?.nearestSlot?.filled).toBe(true);
+    });
+
+    it("an orphaned ad-hoc skip carries no due-context", () => {
+      const morningOnly = bands.filter((b) => b.timeOfDay === "07:00");
+      const rows = reconstructDoseHistory(
+        morningOnly,
+        [intake({ skipped: true, scheduledFor: at(19, 0) })],
+        at(14, 0),
+      );
+      const adhoc = rows.find((r) => r.kind === "ad_hoc");
+      expect(adhoc).toBeDefined();
+      expect(adhoc?.nearestSlot).toBeUndefined();
+    });
+
+    it("suggestNearestSlot caps the zone at the next slot's on-time start", () => {
+      // 07:00's tail+50 % would reach 12:30, but the 12:00 slot's on-time
+      // window opens at 11:30 — the zones must stay disjoint.
+      const tight = buildSlotBands([
+        pointSlot(at(7, 0), "07:00"),
+        {
+          at: at(12, 0),
+          timeOfDay: "12:00",
+          onTimeStart: at(11, 30),
+          onTimeEnd: at(12, 30),
+          lateGraceMs: 180 * MIN,
+        },
+      ]);
+      const before = suggestNearestSlot(at(11, 15), tight, () => false);
+      expect(before?.timeOfDay).toBe("07:00");
+      expect(before?.filled).toBe(false);
+      const after = suggestNearestSlot(at(11, 45), tight, () => false);
+      expect(after?.timeOfDay).toBe("12:00");
+      expect(after?.filled).toBe(false);
+    });
+
+    it("suggestNearestSlot returns null without bands", () => {
+      expect(suggestNearestSlot(at(9, 0), [], () => false)).toBeNull();
     });
   });
 

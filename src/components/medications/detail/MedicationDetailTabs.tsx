@@ -11,24 +11,35 @@
  *
  * Tab state lives in the URL (`?tab=<slug>`), so a tab is deep-linkable,
  * survives reload, and is reachable from the medications-list card kebab
- * (Edit→zeitplan, History→verlauf, Advanced→erweitert). Slugs are ASCII /
+ * (History→verlauf). The kebab's Edit arrives as `?edit=1`, which opens
+ * the wizard in edit mode on top of the landing tab. Slugs are ASCII /
  * locale-independent; the visible labels are i18n.
+ *
+ * v1.15.20 — six tabs: the former Erinnerung tab dissolved into Zeitplan
+ * (a "Erinnerung" card under the times editor owns the notifications
+ * switch + the reminder grace), and Übersicht grew from a lone
+ * compliance bar into the status landing surface (next due dose,
+ * reminder state, supply runway — each with a jump link into its owner
+ * tab). Stale `?tab=erinnerung` deep-links land on Zeitplan.
  *
  * Only the active tab body mounts (Radix `Tabs` default) so inactive tabs
  * do not fetch. The hero stays above the tabs as the always-visible
  * read-only summary plus the "Vollständig bearbeiten" jump into the
  * creation/edit wizard (the structural-edit tool — name / class /
  * cadence kind / schedules). Everyday levers (reminders, supply, history)
- * live inline in the tabs.
- *
- * Verlauf renders the existing editable intake history and Zeitplan the
- * read-only cadence summary for now — the dose-history ledger and the
- * per-dose window editor land in the next wave. Injektion is gated to
- * injectable routes of administration.
+ * live inline in the tabs. Injektion is gated to injectable routes of
+ * administration.
  */
 
-import { useCallback, useMemo, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from "react";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, Pencil } from "lucide-react";
 
@@ -56,18 +67,34 @@ import {
 } from "@/components/medications/sections/destructive-zone-section";
 import { SettingsGroup } from "@/components/medications/settings-group";
 import { PhaseConfigSheet } from "@/components/medications/sections/phase-config-sheet";
-import { DrugLevelChart } from "@/components/medications/DrugLevelChart";
-import { DoseStrengthCurve } from "@/components/medications/dose-strength-curve";
 import { SideEffectsSection } from "@/components/medications/SideEffectsSection";
+import { ChartSkeleton } from "@/components/charts/chart-skeleton";
+import { estimateRunwayDays } from "@/components/medications/detail/supply-runway";
 import { MedicationWizardDialog } from "@/components/medications/wizard/MedicationWizardDialog";
-import {
-  parseScheduleRecurrence,
-} from "@/lib/medication-schedule";
+import { parseScheduleRecurrence } from "@/lib/medication-schedule";
 import { useQuery } from "@tanstack/react-query";
 import { queryKeys } from "@/lib/query-keys";
-import { useTranslations } from "@/lib/i18n/context";
+import { useTranslations, useFormatters } from "@/lib/i18n/context";
 import type { MedicationPayload } from "@/components/medications/wizard/wizard-payload";
 import type { ComplianceDisplay } from "@/lib/analytics/compliance";
+
+// v1.15.20 — Recharts stays out of the detail page's initial bundle:
+// both chart bodies load through `next/dynamic` (client-only) with the
+// shared chart skeleton standing in while the chunk streams.
+const DrugLevelChart = dynamic(
+  () =>
+    import("@/components/medications/DrugLevelChart").then((mod) => ({
+      default: mod.DrugLevelChart,
+    })),
+  { ssr: false, loading: () => <ChartSkeleton /> },
+);
+const DoseStrengthCurve = dynamic(
+  () =>
+    import("@/components/medications/dose-strength-curve").then((mod) => ({
+      default: mod.DoseStrengthCurve,
+    })),
+  { ssr: false, loading: () => <ChartSkeleton /> },
+);
 
 interface ScheduleSnapshot {
   id: string;
@@ -106,6 +133,12 @@ export interface MedicationDetailSnapshot {
   oneShot?: boolean;
   atcCode?: string | null;
   rxNormCode?: string | null;
+  /**
+   * v1.15.20 — server-computed next due instant (the detail GET carries
+   * it alongside the row). The Übersicht status surface renders it
+   * directly; no client-side recurrence walking.
+   */
+  nextDueAt?: string | null;
   schedules: ScheduleSnapshot[];
 }
 
@@ -115,13 +148,22 @@ export interface MedicationDetailSnapshot {
 const TAB_SLUGS = [
   "uebersicht",
   "zeitplan",
-  "erinnerung",
   "bestand",
   "verlauf",
   "injektion",
   "erweitert",
 ] as const;
 type TabSlug = (typeof TAB_SLUGS)[number];
+
+/**
+ * Legacy slugs that point at a dissolved tab. The Erinnerung tab folded
+ * into Zeitplan in v1.15.20; old deep-links keep landing on the surface
+ * that now owns the reminder controls instead of falling back to the
+ * landing tab.
+ */
+const LEGACY_TAB_SLUGS: Record<string, TabSlug> = {
+  erinnerung: "zeitplan",
+};
 
 function snapshotToWizardPayload(
   med: MedicationDetailSnapshot,
@@ -161,10 +203,17 @@ export function MedicationDetailTabs({
   medication: MedicationDetailSnapshot;
 }) {
   const { t } = useTranslations();
+  const fmt = useFormatters();
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  const [editOpen, setEditOpen] = useState(false);
+  // v1.15.20 — the medications-list kebab's "Bearbeiten" arrives as
+  // `?edit=1` and opens the wizard straight away (the same editOpen the
+  // hero button drives). Read synchronously so the wizard mounts open on
+  // the first render; the effect below strips the param so a close +
+  // reload stays closed.
+  const shouldOpenEditFromUrl = searchParams?.get("edit") === "1";
+  const [editOpen, setEditOpen] = useState(shouldOpenEditFromUrl);
   const [importOpen, setImportOpen] = useState(false);
   const [phaseSheetOpen, setPhaseSheetOpen] = useState(false);
 
@@ -183,14 +232,33 @@ export function MedicationDetailTabs({
   // medications, so a stale `?tab=injektion` deep-link falls back to the
   // landing tab instead of rendering an empty surface.
   const availableTabs = useMemo<TabSlug[]>(
-    () =>
-      TAB_SLUGS.filter((slug) => slug !== "injektion" || isInjectable),
+    () => TAB_SLUGS.filter((slug) => slug !== "injektion" || isInjectable),
     [isInjectable],
   );
 
-  const requested = searchParams?.get("tab") as TabSlug | null;
+  const requestedRaw = searchParams?.get("tab");
+  const requested = (
+    requestedRaw && requestedRaw in LEGACY_TAB_SLUGS
+      ? LEGACY_TAB_SLUGS[requestedRaw]
+      : requestedRaw
+  ) as TabSlug | null;
   const activeTab: TabSlug =
     requested && availableTabs.includes(requested) ? requested : "uebersicht";
+
+  useEffect(() => {
+    if (shouldOpenEditFromUrl) {
+      // Drop `?edit=1` (keep any `tab` param) so a refresh after closing
+      // the wizard does not keep reopening it.
+      const params = new URLSearchParams(
+        Array.from(searchParams?.entries() ?? []),
+      );
+      params.delete("edit");
+      const qs = params.toString();
+      router.replace(`/medications/${id}${qs ? `?${qs}` : ""}`, {
+        scroll: false,
+      });
+    }
+  }, [shouldOpenEditFromUrl, id, router, searchParams]);
 
   const onTabChange = useCallback(
     (next: string) => {
@@ -230,11 +298,41 @@ export function MedicationDetailTabs({
   const shortDays = display?.shortDays ?? 7;
   const longDays = display?.longDays ?? 30;
 
+  // v1.15.20 — supply readout for the Übersicht status surface. Same
+  // query key the Bestand tab uses, so the two tabs share one cache slot
+  // and the row only renders when the user has actually registered
+  // supply items.
+  const { data: inventory } = useQuery({
+    queryKey: queryKeys.medicationInventory(id),
+    queryFn: async () => {
+      const res = await fetch(`/api/medications/${id}/inventory`);
+      if (!res.ok) return null;
+      return (await res.json()).data as {
+        items: Array<{
+          state: "ACTIVE" | "IN_USE" | "EXPIRED" | "USED_UP";
+          dosesTotal: number;
+          dosesRemaining: number;
+        }>;
+      } | null;
+    },
+    enabled: activeTab === "uebersicht",
+    staleTime: 30_000,
+  });
+
+  const inventoryItems = Array.isArray(inventory?.items) ? inventory.items : [];
+  const liveItems = inventoryItems.filter((i) => i.state !== "USED_UP");
+  const dosesRemaining = liveItems.reduce(
+    (sum, i) => sum + i.dosesRemaining,
+    0,
+  );
+  const dosesTotal = liveItems.reduce((sum, i) => sum + i.dosesTotal, 0);
+  const runwayDays = estimateRunwayDays(dosesRemaining, medication.schedules);
+
   return (
     <div className="space-y-6" data-slot="medication-detail-page">
       <Button variant="ghost" size="sm" className="-ml-2 w-fit" asChild>
         <Link href="/medications">
-          <ArrowLeft aria-hidden="true" className="mr-1 size-4" />
+          <ArrowLeft aria-hidden="true" className="size-4" />
           {t("medications.back")}
         </Link>
       </Button>
@@ -285,8 +383,68 @@ export function MedicationDetailTabs({
           ))}
         </TabsList>
 
-        {/* ÜBERSICHT — landing read view: summary echo + compliance. */}
+        {/* ÜBERSICHT — the status landing surface: next due dose,
+            reminder state and supply runway (each with a jump link into
+            its owner tab), then the compliance readout. All values come
+            from data the page already holds — no new endpoints. */}
         <TabsContent value="uebersicht" className="space-y-6 pt-2">
+          <MedicationDetailSection
+            titleId="medication-uebersicht-status-heading"
+            title={t("medications.detail.uebersicht.statusTitle")}
+            dataSlot="medication-uebersicht-status"
+          >
+            <ul className="divide-border/60 divide-y">
+              <StatusRow
+                label={t("medications.detail.uebersicht.nextDoseLabel")}
+                value={
+                  !medication.active
+                    ? t("medications.detail.uebersicht.pausedHint")
+                    : medication.nextDueAt
+                      ? fmt.dateTime(medication.nextDueAt)
+                      : t("medications.detail.uebersicht.nextDoseNone")
+                }
+                jumpLabel={t("medications.detail.uebersicht.jumpToZeitplan")}
+                onJump={() => onTabChange("zeitplan")}
+                dataSlot="uebersicht-next-dose"
+              />
+              <StatusRow
+                label={t("medications.detail.uebersicht.reminderLabel")}
+                value={
+                  medication.notificationsEnabled
+                    ? t("medications.detail.uebersicht.reminderOn")
+                    : t("medications.detail.uebersicht.reminderOff")
+                }
+                jumpLabel={t("medications.detail.uebersicht.jumpToZeitplan")}
+                onJump={() => onTabChange("zeitplan")}
+                dataSlot="uebersicht-reminder"
+              />
+              {inventoryItems.length > 0 && (
+                <StatusRow
+                  label={t("medications.detail.uebersicht.supplyLabel")}
+                  value={
+                    <>
+                      {t("medications.detail.bestand.summary", {
+                        remaining: dosesRemaining,
+                        total: dosesTotal,
+                      })}
+                      {runwayDays !== null && (
+                        <span className="text-muted-foreground">
+                          {" · "}
+                          {t("medications.detail.uebersicht.supplyRunway", {
+                            days: runwayDays,
+                          })}
+                        </span>
+                      )}
+                    </>
+                  }
+                  jumpLabel={t("medications.detail.uebersicht.jumpToBestand")}
+                  onJump={() => onTabChange("bestand")}
+                  dataSlot="uebersicht-supply"
+                />
+              )}
+            </ul>
+          </MedicationDetailSection>
+
           <MedicationDetailSection
             titleId="medication-uebersicht-compliance-heading"
             title={t("medications.detail.uebersicht.complianceTitle")}
@@ -309,19 +467,11 @@ export function MedicationDetailTabs({
         </TabsContent>
 
         {/* ZEITPLAN — inline edit of the everyday levers: dose times +
-            each dose's on-time window. Cadence-kind stays structural
-            (the hero's "Vollständig bearbeiten"); grace is a read-only
-            echo here, owned by the Erinnerung tab. */}
+            each dose's on-time window, then the Erinnerung card (the
+            notifications switch + the reminder grace, folded in from the
+            dissolved Erinnerung tab). Cadence-kind stays structural (the
+            hero's "Vollständig bearbeiten"). */}
         <TabsContent value="zeitplan" className="space-y-6 pt-2">
-          <MedicationDetailSummary
-            name={medication.name}
-            dose={medication.dose}
-            active={medication.active}
-            endsOn={medication.endsOn}
-            payload={payload}
-            oneShot={oneShot}
-            startsOn={medication.startsOn}
-          />
           {medication.schedules.length > 0 ? (
             <MedicationDetailSection
               titleId="medication-zeitplan-times-heading"
@@ -346,34 +496,40 @@ export function MedicationDetailTabs({
                   cyclicOffWeeks: s.cyclicOffWeeks,
                   doseWindows: s.doseWindows,
                 }))}
-                onRequestReminderTab={() => onTabChange("erinnerung")}
               />
             </MedicationDetailSection>
           ) : null}
-        </TabsContent>
 
-        {/* ERINNERUNG — notifications switch + reminder grace (the single
-            owner of `reminderGraceMinutes`). */}
-        <TabsContent value="erinnerung" className="space-y-4 pt-2">
-          <SettingsGroup
-            label={t("medications.detail.advanced.group.reminders")}
-            dataSlot="erinnerung-group"
+          <MedicationDetailSection
+            titleId="medication-zeitplan-reminder-heading"
+            title={t("medications.detail.zeitplan.reminderTitle")}
+            dataSlot="medication-zeitplan-reminder"
           >
-            <div className="py-3">
+            <div className="space-y-4">
               <NotificationsBody
                 medicationId={id}
                 notificationsEnabled={medication.notificationsEnabled}
               />
-            </div>
-            <div className="py-3">
               <GraceRow
                 medicationId={id}
-                reminderGraceMinutes={
-                  medication.schedules[0]?.reminderGraceMinutes ?? null
-                }
+                schedules={medication.schedules.map((s) => ({
+                  windowStart: s.windowStart,
+                  windowEnd: s.windowEnd,
+                  label: s.label,
+                  dose: s.dose,
+                  daysOfWeek: s.daysOfWeek,
+                  timesOfDay: s.timesOfDay,
+                  rrule: s.rrule,
+                  rollingIntervalDays: s.rollingIntervalDays,
+                  reminderGraceMinutes: s.reminderGraceMinutes,
+                  scheduleType: s.scheduleType,
+                  cyclicOnWeeks: s.cyclicOnWeeks,
+                  cyclicOffWeeks: s.cyclicOffWeeks,
+                  doseWindows: s.doseWindows,
+                }))}
               />
             </div>
-          </SettingsGroup>
+          </MedicationDetailSection>
         </TabsContent>
 
         {/* BESTAND — inventory readout for all meds. */}
@@ -382,25 +538,15 @@ export function MedicationDetailTabs({
         </TabsContent>
 
         {/* VERLAUF — the dose-history ledger: every expected slot with its
-            status + ad-hoc takes tagged, inline Genommen/Übersprungen with
-            instant optimistic recompute, edit/add (incl. the late-take "diesem
-            Slot zuordnen?" nudge). CSV import rides the header ghost. */}
+            status + ad-hoc takes tagged, inline Genommen with instant
+            optimistic recompute, edit/add (incl. the late-take "diesem
+            Slot zuordnen?" nudge). CSV import lives under Erweitert →
+            Daten (the DataPortabilityRow), not in this header. */}
         <TabsContent value="verlauf" className="space-y-6 pt-2">
           <MedicationDetailSection
             titleId="medication-verlauf-heading"
             title={t("medications.detail.intake.title")}
             dataSlot="medication-verlauf-section"
-            headerExtras={
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setImportOpen(true)}
-                className="min-h-11 sm:min-h-9"
-                data-slot="verlauf-import"
-              >
-                {t("medications.detail.intake.importButton")}
-              </Button>
-            }
           >
             <DoseHistoryLedger
               medicationId={id}
@@ -413,13 +559,6 @@ export function MedicationDetailTabs({
               }))}
             />
           </MedicationDetailSection>
-
-          {importOpen && (
-            <IntakeImportDialog
-              medicationId={id}
-              onClose={() => setImportOpen(false)}
-            />
-          )}
         </TabsContent>
 
         {/* INJEKTION — injectable routes only. Current GLP-1 charts +
@@ -443,9 +582,7 @@ export function MedicationDetailTabs({
                 <DoseStrengthCurve medicationId={id} />
               </div>
             )}
-            {!isGlp1 && (
-              <DoseStrengthCurve medicationId={id} />
-            )}
+            {!isGlp1 && <DoseStrengthCurve medicationId={id} />}
           </TabsContent>
         )}
 
@@ -542,6 +679,45 @@ export function MedicationDetailTabs({
         />
       )}
     </div>
+  );
+}
+
+/**
+ * One Übersicht status row: label + value on the left, a quiet jump link
+ * into the owning tab on the right. The link is a button (the tab switch
+ * is shallow URL state, not a navigation) styled as an inline text link.
+ */
+function StatusRow({
+  label,
+  value,
+  jumpLabel,
+  onJump,
+  dataSlot,
+}: {
+  label: string;
+  value: ReactNode;
+  jumpLabel: string;
+  onJump: () => void;
+  dataSlot: string;
+}) {
+  return (
+    <li
+      className="flex items-center justify-between gap-3 py-2.5 first:pt-0 last:pb-0"
+      data-slot={dataSlot}
+    >
+      <div className="min-w-0 space-y-0.5">
+        <p className="text-muted-foreground text-xs font-medium">{label}</p>
+        <p className="text-foreground text-sm">{value}</p>
+      </div>
+      <button
+        type="button"
+        onClick={onJump}
+        className="text-primary focus-visible:ring-ring shrink-0 rounded-sm text-xs underline-offset-2 hover:underline focus-visible:ring-2 focus-visible:outline-none"
+        data-slot={`${dataSlot}-jump`}
+      >
+        {jumpLabel}
+      </button>
+    </li>
   );
 }
 

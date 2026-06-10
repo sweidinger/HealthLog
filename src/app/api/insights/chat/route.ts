@@ -64,6 +64,7 @@ import {
 } from "@/lib/ai/coach/budget";
 import { detectRefusal } from "@/lib/ai/coach/refusal";
 import { getCoachSystemPrompt } from "@/lib/ai/coach/system-prompt";
+import { getSelfContextTextForUser } from "@/lib/ai/coach/about-me";
 import { buildCoachSnapshot } from "@/lib/ai/coach/snapshot";
 import { parseKeyValuesSentinel } from "@/lib/ai/coach/keyvalues";
 import { parseCoachPrefs } from "@/lib/validations/coach-prefs";
@@ -313,7 +314,14 @@ async function handleChatRequest(request: NextRequest): Promise<Response> {
       ? { ...(scope ?? {}), window: coachPrefs.defaultWindow }
       : scope;
   const snapshot = await buildCoachSnapshot(userId, effectiveScope);
-  const systemPrompt = getCoachSystemPrompt(locale, coachPrefs);
+  // v1.15.20 — the user-authored "about me" self-description (Settings →
+  // AI) rides the system prompt as a delimited, user-provided context
+  // block. Fail-open: a missing / undecryptable text yields null and the
+  // prompt is byte-identical to the pre-feature one.
+  // v1.16.0 — composed self-context: structured questionnaire fields
+  // plus age/gender merged in from the User profile.
+  const aboutMe = await getSelfContextTextForUser(userId, locale);
+  const systemPrompt = getCoachSystemPrompt(locale, coachPrefs, aboutMe);
   const allTurns: CoachTurn[] = [
     ...priorTurns,
     { role: "user", content: message },

@@ -22,6 +22,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
+import { Skeleton } from "@/components/ui/skeleton";
 import { SectionHeading } from "@/components/insights/section-heading";
 import { useTranslations } from "@/lib/i18n/context";
 import { formatRelativeTime } from "@/lib/i18n/relative-time";
@@ -99,6 +100,12 @@ interface DailyBriefingProps {
   onRegenerate?: () => void;
   /** Disables the regenerate CTA while a generation is in flight. */
   regenerating?: boolean;
+  /**
+   * v1.15.20 — no AI provider is configured anywhere, so generating is
+   * futile. The empty state swaps the regenerate CTA for a quiet hint
+   * linking to Settings → AI instead of an eternal "preparing" loop.
+   */
+  noProvider?: boolean;
   /**
    * Optional slot for a meta control mounted in the card header — the
    * comparison toggle migrates here from the hero in commit 5.
@@ -244,10 +251,10 @@ function BriefingSkeleton() {
       aria-hidden="true"
     >
       <div className="space-y-2">
-        <div className="bg-muted/60 h-3 w-11/12 animate-pulse rounded motion-reduce:animate-none" />
-        <div className="bg-muted/60 h-3 w-10/12 animate-pulse rounded motion-reduce:animate-none" />
-        <div className="bg-muted/60 h-3 w-9/12 animate-pulse rounded motion-reduce:animate-none" />
-        <div className="bg-muted/60 h-3 w-8/12 animate-pulse rounded motion-reduce:animate-none" />
+        <Skeleton className="h-3 w-11/12 rounded" />
+        <Skeleton className="h-3 w-10/12 rounded" />
+        <Skeleton className="h-3 w-9/12 rounded" />
+        <Skeleton className="h-3 w-8/12 rounded" />
       </div>
       <div className="space-y-2">
         {[0, 1, 2].map((i) => (
@@ -255,7 +262,7 @@ function BriefingSkeleton() {
             key={i}
             className="border-border/40 bg-card/30 flex h-16 items-center rounded-md border p-3"
           >
-            <div className="bg-muted/60 h-3 w-1/3 animate-pulse rounded motion-reduce:animate-none" />
+            <Skeleton className="h-3 w-1/3 rounded" />
           </div>
         ))}
       </div>
@@ -269,6 +276,7 @@ export function DailyBriefing({
   loading = false,
   onRegenerate,
   regenerating = false,
+  noProvider = false,
   metaSlot,
 }: DailyBriefingProps) {
   const { t } = useTranslations();
@@ -343,6 +351,29 @@ export function DailyBriefing({
                 </p>
               )}
             </div>
+          ) : noProvider ? (
+            // v1.15.20 — no provider configured anywhere: a regenerate CTA
+            // would 422 forever, so point at Settings → AI instead.
+            <EmptyState
+              data-slot="daily-briefing-no-provider"
+              variant="plain"
+              icon={<Sparkles className="size-5" />}
+              title={t("insights.dailyBriefing.noProviderTitle")}
+              description={t("insights.dailyBriefing.noProviderDescription")}
+              action={
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  asChild
+                  data-slot="daily-briefing-no-provider-cta"
+                >
+                  <Link href="/settings/ai">
+                    {t("insights.dailyBriefing.noProviderAction")}
+                  </Link>
+                </Button>
+              }
+            />
           ) : (
             <EmptyState
               data-slot="daily-briefing-empty"

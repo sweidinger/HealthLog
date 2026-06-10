@@ -17,6 +17,9 @@
  *     idempotencyKey?,       — Medication.intake_events.idempotency_key
  *                              (existing UNIQUE column; serves as the
  *                              per-entry dedup hint)
+ *     forceSlotInstant?,     — ISO timestamp; pins a taken entry onto a
+ *                              named real scheduled slot (server-validated
+ *                              against the band anchors)
  *   }
  *
  * Response (always 200): processed / inserted / duplicates / skipped /
@@ -49,6 +52,9 @@ import {
 } from "@/lib/rollups/medication-compliance-rollups";
 import {
   applyCanonicalSlotWrite,
+  findPinConflict,
+  resolveForcedSlotForWrite,
+  resolveSlotForWriteByBand,
   resolveSlotInstantForWrite,
 } from "@/lib/medications/scheduling/slot-upsert";
 import { resolveInjectionSiteForWrite } from "@/lib/medications/injection-site-write";
@@ -79,6 +85,17 @@ const bulkEntrySchema = z.object({
   // entry skipped (`injection_site_not_allowed`) without failing the
   // whole batch, matching the bulk endpoint's per-entry contract.
   injectionSite: injectionSiteEnum.optional(),
+  // v1.15.20 — late-take "attribute anyway" pin, mirroring the single
+  // intake route: pin a taken entry onto a named real scheduled slot
+  // instead of the default window-band attribution. Validated server-side
+  // against the band anchors; an instant that is not a slot marks the
+  // entry skipped (`force_slot_invalid`) per the bulk per-entry contract.
+  // Ignored on non-taken entries (a pending echo / skip carries no take
+  // to attribute).
+  forceSlotInstant: z.iso
+    .datetime({ offset: true })
+    .transform((s) => new Date(s))
+    .optional(),
 });
 
 const bulkPayloadSchema = z.object({
@@ -228,32 +245,6 @@ async function postBulk(request: NextRequest): Promise<Response> {
       const incomingScheduledFor =
         entry.scheduledFor ?? entry.takenAt ?? new Date();
 
-      // v1.8.2 — source-agnostic slot snap. iOS posts the "Genommen"
-      // reminder action here (source API); without this it inserted a
-      // SECOND row for a slot already carrying the projector/worker's
-      // pending REMINDER row (the unique key includes `source`, and the
-      // iOS-vs-server `scheduledFor` drifts by a minute). Snap onto the
-      // canonical slot instant and update the existing row in place.
-      const canonicalSlot = await resolveSlotInstantForWrite({
-        userId: user.id,
-        medicationId: entry.medicationId,
-        userTz: user.timezone,
-        incoming: incomingScheduledFor,
-        // Only a client-supplied `scheduledFor` names a real slot. A
-        // `takenAt`-only / defaulted-now write must not snap across the
-        // wide ±halfGap window onto a far slot (phantom morning dose).
-        instantIsExplicit: entry.scheduledFor !== undefined,
-        // Dose-safety: a taken write (has `takenAt`, not skipped) must never
-        // snap forward onto a future slot. A pending sync echo (no `takenAt`)
-        // legitimately maps to a future slot, so the guard stays off for it.
-        isTakenWrite: !entry.skipped && entry.takenAt !== undefined,
-      });
-
-      // The `scheduledFor` instant the row actually lands on — set by the
-      // branch that performs the write so the rollup recompute below keys
-      // the same day the stored row anchors to.
-      let effectiveScheduledFor = canonicalSlot ?? incomingScheduledFor;
-
       // C2 — classify the incoming write. An offline-sync replay echoes a
       // PENDING projection (no `takenAt`, `skipped:false`) for a slot the
       // user may already have actioned; that echo must NEVER clear a
@@ -261,6 +252,90 @@ async function postBulk(request: NextRequest): Promise<Response> {
       // real user action and applies last-write-wins.
       const isExplicitTaken = !entry.skipped && entry.takenAt !== undefined;
       const isExplicitSkip = entry.skipped === true;
+
+      // v1.15.20 — taken writes attribute through the window-band engine
+      // (the SAME minter the read ledger + the compliance % consume), so a
+      // bulk-synced take binds to a slot identically to the single-route
+      // write. The optional `forceSlotInstant` pins an off-window take onto
+      // a named real slot. Pending echoes and skips carry no take to
+      // attribute by, so they keep the canonical anchor snap that binds
+      // them to the projector/worker-minted slot row.
+      let canonicalSlot: Date | null;
+      // v1.15.20 — binding provenance: USER_PIN on the forced path, AUTO on
+      // a band decision. Pending echoes / skips carry no decision
+      // (undefined → the upsert leaves an existing USER_PIN untouched).
+      let attributionSource: "AUTO" | "USER_PIN" | undefined;
+      if (isExplicitTaken && entry.forceSlotInstant !== undefined) {
+        canonicalSlot = await resolveForcedSlotForWrite({
+          userId: user.id,
+          medicationId: entry.medicationId,
+          userTz: user.timezone,
+          slotInstant: entry.forceSlotInstant,
+        });
+        if (canonicalSlot === null) {
+          // Mirrors the single route's 422 (`medications.intake.force_slot
+          // .invalid`) as a per-entry skip so one bad pin never fails the
+          // batch.
+          const reason = "force_slot_invalid";
+          skipped.push({ index: i, reason });
+          results.push({ index: i, status: "skipped", reason });
+          continue;
+        }
+        // v1.16.0 — refuse to pin onto a slot another recorded action
+        // already serves: the explicit-write last-write-wins rule would
+        // silently overwrite that dose record. Per-entry skip, mirroring
+        // the single route's 422 `medications.intake.force_slot.occupied`.
+        if (
+          await findPinConflict({
+            userId: user.id,
+            medicationId: entry.medicationId,
+            canonicalSlot,
+            incomingTakenAt: entry.takenAt ?? null,
+          })
+        ) {
+          const reason = "force_slot_occupied";
+          skipped.push({ index: i, reason });
+          results.push({ index: i, status: "skipped", reason });
+          continue;
+        }
+        attributionSource = "USER_PIN";
+      } else if (isExplicitTaken) {
+        const attribution = await resolveSlotForWriteByBand({
+          userId: user.id,
+          medicationId: entry.medicationId,
+          userTz: user.timezone,
+          takenAt: entry.takenAt as Date,
+        });
+        canonicalSlot = attribution.slotInstant;
+        attributionSource = "AUTO";
+      } else {
+        // v1.8.2 — source-agnostic anchor snap for pending echoes + skips.
+        // iOS posts the reminder actions here (source API); without this
+        // they inserted a SECOND row for a slot already carrying the
+        // projector/worker's pending REMINDER row (the unique key includes
+        // `source`, and the iOS-vs-server `scheduledFor` drifts by a
+        // minute). Snap onto the canonical slot instant and update the
+        // existing row in place.
+        canonicalSlot = await resolveSlotInstantForWrite({
+          userId: user.id,
+          medicationId: entry.medicationId,
+          userTz: user.timezone,
+          incoming: incomingScheduledFor,
+          // Only a client-supplied `scheduledFor` names a real slot. A
+          // defaulted-now write must not snap across the wide ±halfGap
+          // window onto a far slot (phantom morning dose).
+          instantIsExplicit: entry.scheduledFor !== undefined,
+          // Pending echoes / skips never record a take; a pending sync
+          // echo legitimately maps to a future slot, so the taken
+          // future-slot guard stays off here.
+          isTakenWrite: false,
+        });
+      }
+
+      // The `scheduledFor` instant the row actually lands on — set by the
+      // branch that performs the write so the rollup recompute below keys
+      // the same day the stored row anchors to.
+      let effectiveScheduledFor = canonicalSlot ?? incomingScheduledFor;
 
       // v1.8.5 — resolve + validate the optional per-entry injection
       // site. A disallowed site marks the entry skipped without failing
@@ -305,6 +380,7 @@ async function postBulk(request: NextRequest): Promise<Response> {
           idempotencyKey: entry.idempotencyKey ?? null,
           createSource: "API",
           injectionSite: resolvedInjectionSite,
+          attributionSource,
         });
         if (applied.noDowngradeNoOp) {
           // C2 — pending echo onto an already-actioned slot. Report it as a
@@ -374,6 +450,7 @@ async function postBulk(request: NextRequest): Promise<Response> {
             idempotencyKey: entry.idempotencyKey ?? null,
             createSource: "API",
             injectionSite: resolvedInjectionSite,
+            attributionSource,
           });
           if (applied.noDowngradeNoOp) {
             duplicates += 1;

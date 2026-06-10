@@ -189,7 +189,7 @@ export function LogIntakeDialog({
           </p>
         ) : (
           <div className="space-y-3">
-            <div className="space-y-1">
+            <div className="space-y-2">
               <Label htmlFor="log-intake-medication">
                 {t("medications.logIntake.medicationLabel")}
               </Label>
@@ -207,7 +207,7 @@ export function LogIntakeDialog({
             </div>
 
             {slotTimes.length > 0 && (
-              <div className="space-y-1">
+              <div className="space-y-2">
                 <Label htmlFor="log-intake-slot">
                   {t("medications.logIntake.slotLabel")}
                 </Label>
@@ -228,7 +228,7 @@ export function LogIntakeDialog({
               </div>
             )}
 
-            <div className="space-y-1">
+            <div className="space-y-2">
               <Label htmlFor="log-intake-taken-at">
                 {t("medications.logIntake.takenAtLabel")}
               </Label>
@@ -275,7 +275,7 @@ export function LogIntakeDialog({
             aria-busy={busy || undefined}
           >
             {busy && (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin motion-reduce:animate-none" />
+              <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" />
             )}
             {t("medications.logIntake.submit")}
           </Button>

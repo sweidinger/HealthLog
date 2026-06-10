@@ -25,6 +25,11 @@ export interface LedgerRow {
   /** The slot's "HH:mm" label, or null for an ad-hoc row. */
   timeOfDay: string | null;
   status: DoseHistoryStatus;
+  /** v1.15.20 — slot served by a deliberate user pin ("zugeordnet"). */
+  pinned?: boolean;
+  /** v1.15.20 — due-context for an ad-hoc take: the nearest slot it could
+   * belong to. `filled: false` unlocks the "Slot zuordnen" kebab action. */
+  nearestSlot?: { at: string; timeOfDay: string; filled: boolean };
   intake: {
     id: string | null;
     scheduledFor: string;
@@ -32,6 +37,24 @@ export interface LedgerRow {
     skipped: boolean;
     autoMissed: boolean;
   } | null;
+}
+
+/**
+ * v1.15.20 — human-compact signed offset between an ad-hoc take and the slot
+ * it would have been due at ("+45 min", "-2 h", "+1 h 20 min"). Unit
+ * abbreviations are locale-neutral (min / h); the sign reads "taken after
+ * (+) / before (−) the slot". Sub-minute deltas collapse to "±0 min".
+ */
+export function formatSlotDelta(takenAtIso: string, slotAtIso: string): string {
+  const deltaMs = new Date(takenAtIso).getTime() - new Date(slotAtIso).getTime();
+  const sign = deltaMs < 0 ? "-" : "+";
+  const totalMinutes = Math.round(Math.abs(deltaMs) / 60_000);
+  if (totalMinutes < 60) return `${sign}${totalMinutes} min`;
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  return minutes === 0
+    ? `${sign}${hours} h`
+    : `${sign}${hours} h ${minutes} min`;
 }
 
 /** The full `data` envelope the endpoint returns. */

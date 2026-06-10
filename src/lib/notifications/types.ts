@@ -41,6 +41,13 @@ export const EVENT_TYPES = [
   // framing rule). Fires a few days before `CyclePrediction.fertileWindowStart`
   // and honours discreet mode like the other cycle reminders.
   "CYCLE_FERTILE_SOON",
+  // v1.15.20 — proactive Coach nudge. Fired by the 05:15 Europe/Berlin
+  // cron when a deterministic trigger (7-day compliance < 60 %, BP
+  // weekly mean above target, sharply falling recovery score) warrants
+  // pointing the user at /insights/coach. Capped at one nudge per user
+  // per rolling week via the `push_attempts` ledger; per-user opt-out
+  // lives in `notificationPrefs.coach.nudgesEnabled`.
+  "COACH_NUDGE",
 ] as const;
 export type EventType = (typeof EVENT_TYPES)[number];
 
@@ -72,6 +79,11 @@ export const EVENT_DEFAULT_ENABLED: Record<EventType, boolean> = {
   // also has to be flipped on before the dispatcher surfaces the channel.
   CYCLE_PERIOD_SOON: false,
   CYCLE_PERIOD_CONFIRM: false,
+  // v1.15.20 — ON at the channel layer; the real gate is the per-user
+  // `notificationPrefs.coach.nudgesEnabled` opt-out the cron reads
+  // (plus the disableCoach / kill-switch / provider gates). An explicit
+  // per-channel `NotificationPreference` row still wins.
+  COACH_NUDGE: true,
   // v1.15.1 — default OFF and additionally TTC-gated in the cron, so the
   // server never surfaces fertile-window language unless the user has both
   // chosen the conception goal and opted the reminder in.

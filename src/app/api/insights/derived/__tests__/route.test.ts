@@ -17,6 +17,17 @@ vi.mock("@/lib/auth/session", () => ({ getSession: vi.fn() }));
 vi.mock("@/lib/auth/audit", () => ({
   auditLog: vi.fn().mockResolvedValue(undefined),
 }));
+// v1.15.20 — the route checks the shared analytics-read budget before any
+// DB work; the real helper would hit the unmocked `$queryRaw`. This file
+// uses `clearAllMocks` (implementations survive), so the factory default
+// is enough.
+vi.mock("@/lib/rate-limit", () => ({
+  checkAnalyticsReadRateLimit: vi.fn().mockResolvedValue({
+    allowed: true,
+    remaining: 119,
+    resetAt: 0,
+  }),
+}));
 vi.mock("@/lib/logging/transports", () => ({ emitIfSampled: vi.fn() }));
 vi.mock("@/lib/db-compat", () => ({
   ensureDbCompatibility: vi.fn().mockResolvedValue(undefined),

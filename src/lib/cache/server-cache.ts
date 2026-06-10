@@ -393,6 +393,22 @@ export const caches = {
     maxEntries: 1000,
     ttlMs: 900_000,
   }),
+  /**
+   * v1.15.20 — per-medication compliance payload
+   * (`GET /api/medications/[id]/compliance`). The medications list fans
+   * the endpoint out once per card, and each cold build runs the full
+   * band-expansion pass — so the warm path has to live server-side.
+   * Keyed `${userId}|${medicationId}|compliance`; every intake /
+   * medication write flushes the `${userId}|` prefix via
+   * `invalidateUserMedications`, so the 15-minute TTL only bounds
+   * wall-clock drift (a dose flipping overdue), never user-action
+   * staleness. Sized for a few hundred users × a handful of meds.
+   */
+  medicationCompliance: new ServerCache<unknown>({
+    name: "medicationCompliance",
+    maxEntries: 2000,
+    ttlMs: 900_000,
+  }),
   moodAnalytics: new ServerCache<unknown>({
     name: "moodAnalytics",
     maxEntries: 1000,

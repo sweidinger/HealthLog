@@ -16,10 +16,7 @@ import {
   SleepStageStackedBar,
   type SleepStageBreakdown,
 } from "./sleep-stage-stacked-bar";
-import {
-  SleepHypnogram,
-  type SleepHypnogramSession,
-} from "./sleep-hypnogram";
+import { SleepHypnogram, type SleepHypnogramSession } from "./sleep-hypnogram";
 import { SleepDurationChart } from "./sleep-duration-chart";
 
 /**
@@ -138,7 +135,7 @@ export function SleepOverview() {
         <CardHeader className="pb-0">
           <div className="flex items-center gap-2">
             <Moon className="text-dracula-cyan h-4 w-4" />
-            <CardTitle className="text-sm font-medium">
+            <CardTitle className="text-base font-semibold">
               {t("insights.sleep.headlineTitle")}
             </CardTitle>
           </div>

@@ -156,9 +156,7 @@ export function TelegramCard({
             <p
               role="alert"
               className={`text-sm ${
-                msgType === "success"
-                  ? "text-success"
-                  : "text-destructive"
+                msgType === "success" ? "text-success" : "text-destructive"
               }`}
             >
               {msg}
@@ -172,9 +170,9 @@ export function TelegramCard({
             />
             <Button type="submit" disabled={saving} className="min-h-11">
               {saving ? (
-                <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
+                <Loader2 className="h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
               ) : (
-                <Save className="mr-1 h-3.5 w-3.5" />
+                <Save className="h-3.5 w-3.5" />
               )}
               {t("common.save")}
             </Button>

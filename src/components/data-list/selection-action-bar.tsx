@@ -88,9 +88,9 @@ export function SelectionActionBar({
             disabled={isDeleting}
           >
             {isDeleting ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin motion-reduce:animate-none" />
+              <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" />
             ) : (
-              <Trash2 className="mr-2 h-4 w-4" />
+              <Trash2 className="h-4 w-4" />
             )}
             {t("dataList.deleteN", { count: String(count) })}
           </Button>
@@ -105,7 +105,7 @@ export function SelectionActionBar({
               {t("common.cancel")}
             </AlertDialogCancel>
             <AlertDialogAction
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              variant="destructive"
               onClick={onConfirmDelete}
               disabled={isDeleting}
             >

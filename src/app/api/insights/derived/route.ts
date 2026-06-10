@@ -20,9 +20,10 @@
  */
 import { NextRequest } from "next/server";
 import { z } from "zod/v4";
-import { apiSuccess, returnAllZodIssues } from "@/lib/api-response";
+import { apiError, apiSuccess, returnAllZodIssues } from "@/lib/api-response";
 import { apiHandler, requireAuth } from "@/lib/api-handler";
 import { annotate } from "@/lib/logging/context";
+import { checkAnalyticsReadRateLimit } from "@/lib/rate-limit";
 import { requireAssistantSurface } from "@/lib/feature-flags";
 import { prisma } from "@/lib/db";
 import {
@@ -50,6 +51,13 @@ const derivedQuerySchema = z.object({
 
 export const GET = apiHandler(async (request: NextRequest) => {
   const { user } = await requireAuth();
+
+  // v1.15.20 — shared analytics-read budget (generous; caps runaway loops).
+  const rl = await checkAnalyticsReadRateLimit(user.id);
+  if (!rl.allowed) {
+    return apiError("Too many analytics requests. Please retry later.", 429);
+  }
+
   await requireAssistantSurface("insightStatus");
 
   const parsed = derivedQuerySchema.safeParse({

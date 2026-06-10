@@ -35,10 +35,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { useTranslations } from "@/lib/i18n/context";
-import {
-  invalidateKeys,
-  medicationDependentKeys,
-} from "@/lib/query-keys";
+import { invalidateKeys, medicationDependentKeys } from "@/lib/query-keys";
 import type { QueryKey } from "@tanstack/react-query";
 import type { LedgerSchedule } from "@/components/medications/dose-history-ledger";
 
@@ -187,7 +184,10 @@ export function LedgerAddDialog({
           { name: medicationName },
         ),
       );
-      await invalidateKeys(queryClient, [...medicationDependentKeys, ledgerKey]);
+      await invalidateKeys(queryClient, [
+        ...medicationDependentKeys,
+        ledgerKey,
+      ]);
       setNudgeOpen(false);
       onOpenChange(false);
     } catch {
@@ -220,7 +220,7 @@ export function LedgerAddDialog({
         </DialogHeader>
 
         <div className="space-y-3">
-          <div className="space-y-1">
+          <div className="space-y-2">
             <Label htmlFor="ledger-add-taken-at">
               {t("medications.detail.verlauf.addDialog.takenAtLabel")}
             </Label>
@@ -277,7 +277,7 @@ export function LedgerAddDialog({
             data-slot="ledger-add-submit"
           >
             {busy && (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin motion-reduce:animate-none" />
+              <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" />
             )}
             {t("medications.detail.verlauf.addDialog.submit")}
           </Button>
@@ -317,7 +317,7 @@ export function LedgerAddDialog({
                   data-slot="ledger-add-nudge-pin"
                 >
                   {busy && (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin motion-reduce:animate-none" />
+                    <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" />
                   )}
                   {t("medications.detail.verlauf.nudge.pin")}
                 </Button>

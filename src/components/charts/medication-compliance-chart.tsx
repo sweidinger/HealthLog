@@ -33,7 +33,7 @@
  * the wrapper itself stays intact.
  */
 import { useQuery } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { queryKeys } from "@/lib/query-keys";
 import {
   ResponsiveContainer,
@@ -45,8 +45,10 @@ import {
   Tooltip,
   ReferenceLine,
 } from "recharts";
-import { ArrowDown, ArrowRight, ArrowUp, Loader2, Pill } from "lucide-react";
+import { ArrowDown, ArrowRight, ArrowUp, Pill } from "lucide-react";
+import { ComplianceInfoTip } from "@/components/medications/card-parts/compliance-info-tip";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/hooks/use-auth";
 import { useTranslations, useFormatters } from "@/lib/i18n/context";
 import { formatDateShort } from "@/lib/format";
@@ -187,12 +189,20 @@ interface MedicationComplianceChartProps {
    * byte-identical.
    */
   userTimezone?: string;
+  /**
+   * v1.16.0 — fires once the compliance query has settled (initial
+   * load finished). The dashboard's shared reveal gate listens here so
+   * every chart cell swaps from skeleton to content in one frame.
+   * Optional and repeat-safe.
+   */
+  onDataReady?: () => void;
 }
 
 export function MedicationComplianceChart({
   title,
   userTimezone = "Europe/Berlin",
   compareBaseline,
+  onDataReady,
 }: MedicationComplianceChartProps) {
   // v1.4.27 R4 RC3 — the prop is accepted so the dashboard can pass
   // `compareBaseline={compareBaseline}` uniformly across every chart.
@@ -243,6 +253,12 @@ export function MedicationComplianceChart({
     },
     enabled: isAuthenticated,
   });
+
+  // v1.16.0 — report the settled query to the dashboard's shared
+  // reveal gate (see `onDataReady` prop doc).
+  useEffect(() => {
+    if (!isLoading) onDataReady?.();
+  }, [isLoading, onDataReady]);
 
   const chartData = useMemo(
     () =>
@@ -329,6 +345,9 @@ export function MedicationComplianceChart({
         <div className="flex flex-wrap items-center gap-2">
           <Pill className="text-muted-foreground h-4 w-4" />
           <h3 className="text-sm font-semibold">{displayTitle}</h3>
+          {/* `?` explainer for what the adherence percentage measures —
+              shares the i18n body with the per-card bars. */}
+          <ComplianceInfoTip />
           {/* v1.4.18 — 7-day trend chip is now opt-in via the
               "7-day trend" overlay toggle. Default OFF; the user
               activates it from the chart settings popover. */}
@@ -396,9 +415,10 @@ export function MedicationComplianceChart({
       )}
 
       {isLoading ? (
-        <div className="flex h-48 items-center justify-center">
-          <Loader2 className="text-primary h-6 w-6 animate-spin motion-reduce:animate-none" />
-        </div>
+        // v1.16.0 — height-matched skeleton band instead of the former
+        // `h-48` spinner box; matches the painted chart body below so
+        // the card never jumps when the data lands.
+        <Skeleton className="h-[var(--chart-height,240px)] w-full md:h-[var(--chart-height-md,280px)]" />
       ) : !hasData ? (
         <div className="text-muted-foreground flex h-48 items-center justify-center text-sm">
           {t("charts.noData")}

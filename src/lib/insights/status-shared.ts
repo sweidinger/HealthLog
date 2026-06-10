@@ -32,11 +32,16 @@ export function normalizeSummaryText(value: string): string {
   return stripChartTokens(value).replace(/\s+/g, " ").trim();
 }
 
-/** Narrow an arbitrary locale string to the two the prompts support. */
+/**
+ * Narrow an arbitrary locale string to the two the prompts support.
+ * Non-German locales (fr/es/it/pl, unknown values) resolve to ENGLISH —
+ * the same routing the no-key fallbacks use — so a French UI never
+ * receives German AI prose just because the prompts ship DE + EN only.
+ */
 export function normalizeLocale(
   value: string | null | undefined,
 ): SupportedLocale {
-  return value === "en" ? "en" : "de";
+  return value === "de" ? "de" : "en";
 }
 
 export interface SeriesSummary {

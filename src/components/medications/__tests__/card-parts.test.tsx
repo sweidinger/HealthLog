@@ -49,8 +49,8 @@ describe("medication card-parts — shared presentational components", () => {
     const html = render(
       <MedicationComplianceBars rate7={90} rate30={88} streak={5} />,
     );
-    expect(html).toContain("7-day compliance");
-    expect(html).toContain("30-day compliance");
+    expect(html).toContain("Adherence (7 days)");
+    expect(html).toContain("Adherence (30 days)");
     expect(html).toContain("90%");
     expect(html).toContain("88%");
     expect(html).toContain("lucide-flame");
@@ -72,10 +72,10 @@ describe("medication card-parts — shared presentational components", () => {
         longDays={365}
       />,
     );
-    expect(html).toContain("90-day compliance");
-    expect(html).toContain("365-day compliance");
-    expect(html).not.toContain("7-day compliance");
-    expect(html).not.toContain("30-day compliance");
+    expect(html).toContain("Adherence (90 days)");
+    expect(html).toContain("Adherence (365 days)");
+    expect(html).not.toContain("Adherence (7 days)");
+    expect(html).not.toContain("Adherence (30 days)");
   });
 
   it("compliance bars hide the streak flame when streak is zero", () => {
@@ -99,8 +99,8 @@ describe("medication card-parts — shared presentational components", () => {
     expect(html).not.toContain("·");
     expect(html).not.toContain("doses");
     // The bar + the window-days label survive.
-    expect(html).toContain("7-day compliance");
-    expect(html).toContain("30-day compliance");
+    expect(html).toContain("Adherence (7 days)");
+    expect(html).toContain("Adherence (30 days)");
   });
 
   it("status pill stamps the success token + take-now glyph in window", () => {
@@ -349,7 +349,6 @@ describe("streak-token parity — generic vs GLP-1 card", () => {
         medication={ramipril}
         onEdit={() => {}}
         onOpenHistory={() => {}}
-        onOpenAdvanced={() => {}}
       />,
       client,
     );
@@ -358,7 +357,6 @@ describe("streak-token parity — generic vs GLP-1 card", () => {
         medication={mounjaro}
         onEdit={() => {}}
         onOpenHistory={() => {}}
-        onOpenAdvanced={() => {}}
       />,
       client,
     );

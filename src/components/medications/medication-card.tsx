@@ -98,19 +98,12 @@ interface MedicationCardProps {
    * (`/medications/{id}?tab=verlauf`). The parent owns the navigation.
    */
   onOpenHistory: (med: Medication) => void;
-  /**
-   * v1.15.18 — navigates to the medication detail page's Erweitert tab
-   * (`/medications/{id}?tab=erweitert`), the home of the dissolved
-   * advanced settings.
-   */
-  onOpenAdvanced: (med: Medication) => void;
 }
 
 export function MedicationCard({
   medication,
   onEdit,
   onOpenHistory,
-  onOpenAdvanced,
 }: MedicationCardProps) {
   const queryClient = useQueryClient();
   const { t, locale } = useTranslations();
@@ -146,7 +139,12 @@ export function MedicationCard({
       const json = await res.json();
       return json.data as ComplianceData;
     },
-    staleTime: 30 * 1000,
+    // v1.15.20 — the card renders two percentage rows that move on a
+    // dose action (which invalidates this key through
+    // `medicationDependentKeys`) or over hours of wall-clock drift; a
+    // 30 s window only re-fired one request per card on every list
+    // visit. Five minutes matches the reminder-thresholds query below.
+    staleTime: 5 * 60 * 1000,
   });
 
   const [, forceUpdate] = useReducer((x: number) => x + 1, 0);
@@ -283,7 +281,6 @@ export function MedicationCard({
     <MedicationCardMenu
       onEdit={() => onEdit(medication)}
       onOpenHistory={() => onOpenHistory(medication)}
-      onOpenAdvanced={() => onOpenAdvanced(medication)}
     />
   );
 

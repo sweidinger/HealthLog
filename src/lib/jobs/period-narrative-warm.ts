@@ -96,20 +96,47 @@ interface NarrativeCandidate {
  * a provider / enough history is confirmed inside the generator (skipped /
  * insufficient), so a provider-less or sparse account costs at most one cheap
  * chain-resolve and no LLM call.
+ *
+ * Ordering needs a second read: `InsightNarrative` keeps one row per
+ * (user, period, locale), so the user's most recent narrative write is a
+ * per-user `MAX(updated_at)` — never-warmed users (no rows at all) sort
+ * first, then the staleest. The aggregate only runs when the cohort
+ * actually exceeds the cap; below it every candidate is processed anyway
+ * and the order is irrelevant.
  */
 export async function findNarrativeCandidates(
   prisma: PrismaClient,
   cap: number,
 ): Promise<NarrativeCandidate[]> {
-  return prisma.user.findMany({
+  const users: NarrativeCandidate[] = await prisma.user.findMany({
     where: { disableCoach: false },
-    take: cap,
     select: { id: true, locale: true },
   });
+  if (users.length <= cap) return users;
+
+  const latest = await prisma.insightNarrative.groupBy({
+    by: ["userId"],
+    _max: { updatedAt: true },
+  });
+  const latestByUser = new Map<string, number>(
+    latest.map((row) => [
+      row.userId,
+      row._max.updatedAt?.getTime() ?? 0,
+    ]),
+  );
+  return [...users]
+    .sort(
+      (a, b) => (latestByUser.get(a.id) ?? 0) - (latestByUser.get(b.id) ?? 0),
+    )
+    .slice(0, cap);
 }
 
+/**
+ * Non-German locales resolve to ENGLISH (matching
+ * `status-shared.normalizeLocale` and the no-key fallback routing).
+ */
 function normalizeLocale(value: string | null): "de" | "en" {
-  return value === "en" ? "en" : "de";
+  return value === "de" ? "de" : "en";
 }
 
 /**

@@ -10,17 +10,29 @@
  * day first, chronological inside the day.
  *
  * Three interactions land here:
- *   - a pending / missed slot exposes Genommen / Übersprungen ON the row
- *     (~2 taps, not buried), which mark the dose with INSTANT feedback — the
+ *   - an actionable slot (upcoming, or missed today) exposes ONE visible
+ *     [Genommen] button that marks the dose with INSTANT feedback — the
  *     cached ledger + the headline % are mutated optimistically (the engines
  *     are pure, so the client mirrors their accounting) before the server
- *     write fires and the authoritative refetch reconciles;
- *   - any row with an intake can be edited (time / skipped) or deleted via the
- *     shared `<IntakeEditDialog>` + delete confirm;
+ *     write fires and the authoritative refetch reconciles. The success
+ *     toast carries an Undo. Übersprungen and the backfill of older missed
+ *     slots live in the row's overflow kebab;
+ *   - settled rows (taken / skipped / a past missed day) carry ONLY the
+ *     kebab: Bearbeiten, the Übersprungen↔Genommen toggle, Löschen — so the
+ *     ledger reads as a calm record, not a button wall;
  *   - a header "+ Eintrag" opens an add dialog scoped to this medication
  *     (incl. backdated / off-schedule); an off-window take surfaces the
  *     "diesem Slot zuordnen?" nudge, pinning it onto a chosen slot via
- *     `forceSlotInstant` rather than orphaning it to an ad-hoc row.
+ *     `forceSlotInstant` rather than orphaning it to an ad-hoc row;
+ *   - v1.15.20: an ad-hoc row shows WHEN the dose would have been due
+ *     (`nearestSlot` subline) and — when that slot is still unserved — a
+ *     kebab "Slot … zuordnen" action that pins the take onto it after a
+ *     confirm that names the consequence ("zählt als verspätet"). A pinned
+ *     slot row carries a quiet "zugeordnet" badge and the inverse
+ *     "Zuordnung lösen" kebab action (`forceSlotInstant: null`). v1.16.0:
+ *     the released row keeps USER_PIN provenance server-side (the dedup
+ *     leaves it standalone) and reads as a plain ad-hoc row here — no
+ *     badge, since it is no longer bound to a slot.
  *
  * A compact took / skipped history chart sits at the top — the ledger already
  * carries the counts. The card body never tints by status (removed earlier);
@@ -34,14 +46,26 @@ import {
   AlertTriangle,
   Check,
   CircleCheck,
+  Link2,
   Loader2,
+  MoreVertical,
+  Pencil,
   Plus,
   SkipForward,
+  Trash2,
+  Unlink,
 } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -60,11 +84,13 @@ import {
   queryKeys,
 } from "@/lib/query-keys";
 import type { DoseHistoryStatus } from "@/lib/medications/scheduling/dose-history";
+import { runUndoIntake } from "@/components/medications/use-medication-intake";
 import { IntakeEditDialog } from "@/components/medications/intake-edit-dialog";
 import { LedgerAddDialog } from "@/components/medications/dose-history-add-dialog";
 import {
   applyOptimisticSlotMark,
   complianceFromLedger,
+  formatSlotDelta,
   groupLedgerByDay,
   isSlotActionable,
   type LedgerPayload,
@@ -140,6 +166,12 @@ export function DoseHistoryLedger({
   } | null>(null);
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
   const [marking, setMarking] = useState<string | null>(null);
+  // v1.15.20 — the pending "Slot zuordnen" confirm: which intake to pin
+  // onto which slot. The confirm names the consequence (counts as late).
+  const [pendingPin, setPendingPin] = useState<{
+    eventId: string;
+    slotAt: string;
+  } | null>(null);
 
   // Stable window captured once at mount (a lazy state initializer keeps the
   // impure `Date.now()` out of render) so the query key + the `from`/`to`
@@ -177,11 +209,26 @@ export function DoseHistoryLedger({
     [data, timeZone],
   );
 
+  // Today's local day key — a missed slot from TODAY is still in active
+  // play (visible Genommen button); older missed days settle into the
+  // row kebab so the history reads calm.
+  const todayKey = useMemo(
+    () =>
+      new Intl.DateTimeFormat("en-CA", {
+        timeZone,
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      }).format(new Date()),
+    [timeZone],
+  );
+
   /**
    * Genommen / Übersprungen on a pending / missed slot. The cached ledger is
    * mutated optimistically (row status + the headline % flip in this paint),
    * then the server write fires and the dependent-key invalidation reconciles.
-   * A failed write rolls the optimistic snapshot back + toasts (mirrors the
+   * A failed write rolls the optimistic snapshot back + toasts; a successful
+   * one carries the same Undo action the medication cards offer (mirrors the
    * C1/C2 pattern in `use-medication-intake.ts`).
    */
   const markSlot = useCallback(
@@ -220,6 +267,15 @@ export function DoseHistoryLedger({
           );
           return;
         }
+        // The POST returns the created event; its id drives the Undo
+        // affordance (the same soft-delete route the cards use).
+        let eventId: string | undefined;
+        try {
+          const json = await res.json();
+          eventId = json?.data?.id as string | undefined;
+        } catch {
+          /* dose recorded; the body is best-effort for the id */
+        }
         toast.success(
           t(
             action === "skipped"
@@ -227,6 +283,20 @@ export function DoseHistoryLedger({
               : "medications.intakeToastTaken",
             { name: medicationName },
           ),
+          eventId
+            ? {
+                action: {
+                  label: t("medications.intakeUndo"),
+                  onClick: () =>
+                    void runUndoIntake({
+                      medication: { id: medicationId, name: medicationName },
+                      eventId,
+                      t,
+                      queryClient,
+                    }),
+                },
+              }
+            : undefined,
         );
         await invalidateKeys(queryClient, [
           ...medicationDependentKeys,
@@ -242,6 +312,88 @@ export function DoseHistoryLedger({
       }
     },
     [marking, medicationId, medicationName, queryClient, queryKey, t],
+  );
+
+  /**
+   * Flip an existing intake between Übersprungen and Genommen from the row
+   * kebab. Same `PUT intake/[eventId]` contract the edit dialog uses; a
+   * skipped→taken flip anchors `takenAt` on the slot instant (a past slot)
+   * rather than "now".
+   */
+  const toggleIntakeSkipped = useCallback(
+    async (intake: {
+      id: string;
+      skipped: boolean;
+      scheduledFor: string | null;
+    }) => {
+      try {
+        const body = intake.skipped
+          ? {
+              skipped: false,
+              takenAt: intake.scheduledFor ?? new Date().toISOString(),
+            }
+          : { skipped: true, takenAt: null };
+        const res = await fetch(
+          `/api/medications/${medicationId}/intake/${intake.id}`,
+          {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(body),
+          },
+        );
+        if (!res.ok) {
+          toast.error(t("medications.detail.intake.edit.failed"));
+          return;
+        }
+        await invalidateKeys(queryClient, [
+          ...medicationDependentKeys,
+          queryKey,
+        ]);
+        toast.success(t("medications.detail.intake.edit.savedToast"));
+      } catch {
+        toast.error(t("medications.detail.intake.edit.failed"));
+      }
+    },
+    [medicationId, queryClient, queryKey, t],
+  );
+
+  /**
+   * v1.15.20 — pin an ad-hoc take onto a scheduled slot (`forceSlotInstant`)
+   * or release a pinned binding (`forceSlotInstant: null` → the server
+   * re-attributes by band, usually back to ad-hoc). Same PUT contract the
+   * edit dialog uses; the authoritative refetch re-renders the moved row.
+   */
+  const setAttribution = useCallback(
+    async (eventId: string, slotAtIso: string | null) => {
+      try {
+        const res = await fetch(
+          `/api/medications/${medicationId}/intake/${eventId}`,
+          {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ forceSlotInstant: slotAtIso }),
+          },
+        );
+        if (!res.ok) {
+          toast.error(t("medications.detail.intake.edit.failed"));
+          return;
+        }
+        toast.success(
+          t(
+            slotAtIso
+              ? "medications.detail.verlauf.pin.pinnedToast"
+              : "medications.detail.verlauf.pin.unpinnedToast",
+          ),
+        );
+        await invalidateKeys(queryClient, [
+          ...medicationDependentKeys,
+          queryKey,
+        ]);
+      } catch {
+        toast.error(t("medications.detail.intake.edit.failed"));
+      }
+    },
+    [medicationId, queryClient, queryKey, t],
   );
 
   async function confirmRowDelete() {
@@ -330,9 +482,15 @@ export function DoseHistoryLedger({
                   key={`${row.kind}:${row.at}:${row.intake?.id ?? i}`}
                   row={row}
                   marking={marking}
+                  isToday={group.dayKey === todayKey}
                   onMark={markSlot}
+                  onToggleSkipped={toggleIntakeSkipped}
                   onEdit={(ev) => setEditingEvent(ev)}
                   onDelete={(id) => setPendingDeleteId(id)}
+                  onPin={(eventId, slotAt) =>
+                    setPendingPin({ eventId, slotAt })
+                  }
+                  onUnpin={(eventId) => void setAttribution(eventId, null)}
                 />
               ))}
             </ul>
@@ -362,25 +520,53 @@ export function DoseHistoryLedger({
           onCancel={() => setPendingDeleteId(null)}
         />
       )}
+
+      {pendingPin && (
+        <PinConfirm
+          slotLabel={fmt.time(new Date(pendingPin.slotAt))}
+          onConfirm={() => {
+            const pin = pendingPin;
+            setPendingPin(null);
+            void setAttribution(pin.eventId, pin.slotAt);
+          }}
+          onCancel={() => setPendingPin(null)}
+        />
+      )}
     </div>
   );
 }
 
 /**
- * One ledger row: time + status pill + (when an intake is attributed) its real
- * take time, plus the inline actions. A pending/missed slot offers Genommen /
- * Übersprungen; a row with an intake offers Bearbeiten / Löschen.
+ * One ledger row: time + status (colour + glyph + text) + (when an intake is
+ * attributed) its real take time, plus the row actions.
+ *
+ * Action shape (v1.15.20): an actionable slot that is still in play
+ * (upcoming, or missed TODAY) carries exactly ONE visible [Genommen] button —
+ * label visible on every viewport — plus the overflow kebab (Übersprungen).
+ * Every settled row (taken / skipped / a past missed day / ad-hoc) carries
+ * ONLY the kebab: Bearbeiten, the Übersprungen↔Genommen toggle, Löschen —
+ * and, for a past missed slot, the Genommen / Übersprungen backfill marks.
  */
 function LedgerRowItem({
   row,
   marking,
+  isToday,
   onMark,
+  onToggleSkipped,
   onEdit,
   onDelete,
+  onPin,
+  onUnpin,
 }: {
   row: LedgerRow;
   marking: string | null;
+  isToday: boolean;
   onMark: (row: LedgerRow, action: "taken" | "skipped") => void;
+  onToggleSkipped: (intake: {
+    id: string;
+    skipped: boolean;
+    scheduledFor: string | null;
+  }) => void;
   onEdit: (event: {
     id: string;
     takenAt: string | null;
@@ -388,11 +574,19 @@ function LedgerRowItem({
     scheduledFor: string | null;
   }) => void;
   onDelete: (id: string) => void;
+  /** Open the pin confirm for an ad-hoc take onto the named slot (ISO). */
+  onPin: (eventId: string, slotAt: string) => void;
+  /** Release a pinned binding (server re-attributes by band). */
+  onUnpin: (eventId: string) => void;
 }) {
   const { t } = useTranslations();
   const fmt = useFormatters();
 
   const actionable = isSlotActionable(row);
+  // A missed slot from an earlier day stays markable, but only through the
+  // kebab — the visible button is reserved for doses still in play.
+  const showTakenButton =
+    actionable && (row.status === "upcoming" || isToday);
   const intake = row.intake;
   const takeBusy = marking === `${row.at}:taken`;
   const skipBusy = marking === `${row.at}:skipped`;
@@ -408,6 +602,16 @@ function LedgerRowItem({
     row.kind === "slot" &&
     intake?.takenAt &&
     (row.status === "taken_on_time" || row.status === "taken_late");
+
+  // v1.15.20 — an ad-hoc take with a due-context shows WHEN the dose would
+  // have been due; the pin action additionally needs the slot unserved and a
+  // real persisted event to re-anchor.
+  const dueContext =
+    row.kind === "ad_hoc" && intake?.takenAt && row.nearestSlot
+      ? row.nearestSlot
+      : null;
+  const canPin = Boolean(dueContext && !dueContext.filled && intake?.id);
+  const canUnpin = Boolean(row.kind === "slot" && row.pinned && intake?.id);
 
   return (
     <li
@@ -433,6 +637,19 @@ function LedgerRowItem({
               {t("medications.detail.verlauf.adHocTag")}
             </Badge>
           )}
+          {/* v1.16.0 — the "zugeordnet" badge only when the row is actually
+              bound to a slot. A released ("Zuordnung lösen") USER_PIN take
+              surfaces as an ad-hoc row that also carries `pinned`; badging
+              it "zugeordnet" would claim the binding the user just released. */}
+          {row.kind === "slot" && row.pinned && (
+            <Badge
+              variant="outline"
+              className="text-[0.65rem]"
+              data-slot="ledger-pinned-badge"
+            >
+              {t("medications.detail.verlauf.pin.pinnedTag")}
+            </Badge>
+          )}
         </div>
         {showTakeDetail && (
           <p className="text-muted-foreground text-xs">
@@ -442,84 +659,161 @@ function LedgerRowItem({
             })}
           </p>
         )}
+        {dueContext && (
+          <p
+            className="text-muted-foreground text-xs"
+            data-slot="ledger-due-context"
+          >
+            {t("medications.detail.verlauf.pin.dueContext", {
+              time: fmt.time(new Date(dueContext.at)),
+              delta: formatSlotDelta(intake!.takenAt!, dueContext.at),
+            })}
+          </p>
+        )}
       </div>
 
       <div className="flex shrink-0 items-center gap-1">
-        {actionable && (
-          <>
+        {showTakenButton && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => onMark(row, "taken")}
+            disabled={takeBusy || skipBusy}
+            aria-busy={takeBusy || undefined}
+            className="min-h-9"
+            data-slot="ledger-mark-taken"
+          >
+            {takeBusy ? (
+              <Loader2
+                aria-hidden="true"
+                className="size-4 animate-spin motion-reduce:animate-none"
+              />
+            ) : (
+              <Check aria-hidden="true" className="size-4" />
+            )}
+            {t("medications.detail.verlauf.markTaken")}
+          </Button>
+        )}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
             <Button
-              variant="outline"
-              size="sm"
-              onClick={() => onMark(row, "taken")}
-              disabled={takeBusy || skipBusy}
-              aria-busy={takeBusy || undefined}
-              className="min-h-9"
-              data-slot="ledger-mark-taken"
+              variant="ghost"
+              size="icon-sm"
+              className="min-h-9 min-w-9"
+              aria-label={t("medications.detail.verlauf.rowActionsLabel", {
+                time: timeLabel,
+              })}
+              data-slot="ledger-row-menu"
             >
-              {takeBusy ? (
-                <Loader2
-                  aria-hidden="true"
-                  className="size-4 animate-spin motion-reduce:animate-none"
-                />
-              ) : (
-                <Check aria-hidden="true" className="size-4" />
-              )}
-              <span className="hidden sm:inline">
+              <MoreVertical aria-hidden="true" className="size-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent
+            align="end"
+            data-slot="ledger-row-menu-content"
+          >
+            {actionable && !showTakenButton && (
+              <DropdownMenuItem
+                onClick={() => onMark(row, "taken")}
+                data-slot="ledger-menu-taken"
+              >
+                <Check aria-hidden="true" className="mr-2 size-4" />
                 {t("medications.detail.verlauf.markTaken")}
-              </span>
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => onMark(row, "skipped")}
-              disabled={takeBusy || skipBusy}
-              aria-busy={skipBusy || undefined}
-              className="min-h-9"
-              data-slot="ledger-mark-skipped"
-            >
-              {skipBusy ? (
-                <Loader2
-                  aria-hidden="true"
-                  className="size-4 animate-spin motion-reduce:animate-none"
-                />
-              ) : (
-                <SkipForward aria-hidden="true" className="size-4" />
-              )}
-              <span className="hidden sm:inline">
+              </DropdownMenuItem>
+            )}
+            {actionable && (
+              <DropdownMenuItem
+                onClick={() => onMark(row, "skipped")}
+                data-slot="ledger-mark-skipped"
+              >
+                {skipBusy ? (
+                  <Loader2
+                    aria-hidden="true"
+                    className="mr-2 size-4 animate-spin motion-reduce:animate-none"
+                  />
+                ) : (
+                  <SkipForward aria-hidden="true" className="mr-2 size-4" />
+                )}
                 {t("medications.detail.verlauf.markSkipped")}
-              </span>
-            </Button>
-          </>
-        )}
-        {intake?.id && (
-          <>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() =>
-                onEdit({
-                  id: intake.id as string,
-                  takenAt: intake.takenAt,
-                  skipped: intake.skipped,
-                  scheduledFor: intake.scheduledFor,
-                })
-              }
-              className="min-h-9"
-              data-slot="ledger-edit"
-            >
-              {t("medications.detail.intake.rowActions.edit")}
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => onDelete(intake.id as string)}
-              className="text-destructive min-h-9"
-              data-slot="ledger-delete"
-            >
-              {t("medications.detail.intake.rowActions.delete")}
-            </Button>
-          </>
-        )}
+              </DropdownMenuItem>
+            )}
+            {canPin && (
+              <DropdownMenuItem
+                onClick={() =>
+                  onPin(intake!.id as string, dueContext!.at)
+                }
+                data-slot="ledger-pin"
+              >
+                <Link2 aria-hidden="true" className="mr-2 size-4" />
+                {t("medications.detail.verlauf.pin.action", {
+                  time: fmt.time(new Date(dueContext!.at)),
+                })}
+              </DropdownMenuItem>
+            )}
+            {canUnpin && (
+              <DropdownMenuItem
+                onClick={() => onUnpin(intake!.id as string)}
+                data-slot="ledger-unpin"
+              >
+                <Unlink aria-hidden="true" className="mr-2 size-4" />
+                {t("medications.detail.verlauf.pin.release")}
+              </DropdownMenuItem>
+            )}
+            {intake?.id && (
+              <>
+                <DropdownMenuItem
+                  onClick={() =>
+                    onEdit({
+                      id: intake.id as string,
+                      takenAt: intake.takenAt,
+                      skipped: intake.skipped,
+                      scheduledFor: intake.scheduledFor,
+                    })
+                  }
+                  data-slot="ledger-edit"
+                >
+                  <Pencil aria-hidden="true" className="mr-2 size-4" />
+                  {t("medications.detail.intake.rowActions.edit")}
+                </DropdownMenuItem>
+                {(row.status === "skipped" ||
+                  row.status === "taken_on_time" ||
+                  row.status === "taken_late") && (
+                  <DropdownMenuItem
+                    onClick={() =>
+                      onToggleSkipped({
+                        id: intake.id as string,
+                        skipped: intake.skipped,
+                        scheduledFor: intake.scheduledFor,
+                      })
+                    }
+                    data-slot="ledger-toggle-skipped"
+                  >
+                    {intake.skipped ? (
+                      <Check aria-hidden="true" className="mr-2 size-4" />
+                    ) : (
+                      <SkipForward
+                        aria-hidden="true"
+                        className="mr-2 size-4"
+                      />
+                    )}
+                    {intake.skipped
+                      ? t("medications.detail.verlauf.markAsTaken")
+                      : t("medications.detail.verlauf.markAsSkipped")}
+                  </DropdownMenuItem>
+                )}
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onClick={() => onDelete(intake.id as string)}
+                  className="text-destructive focus:text-destructive"
+                  data-slot="ledger-delete"
+                >
+                  <Trash2 aria-hidden="true" className="mr-2 size-4" />
+                  {t("medications.detail.intake.rowActions.delete")}
+                </DropdownMenuItem>
+              </>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
     </li>
   );
@@ -585,6 +879,54 @@ function LedgerSummaryChart({
         </span>
       </div>
     </div>
+  );
+}
+
+/**
+ * v1.15.20 — the "Slot zuordnen" confirm. Pinning is a deliberate, visible
+ * decision, so the dialog names the consequence before the write: the dose
+ * will count as taken LATE for that slot (the rate is served, never
+ * flattered) and the row will carry the "zugeordnet" badge until released.
+ */
+function PinConfirm({
+  slotLabel,
+  onConfirm,
+  onCancel,
+}: {
+  slotLabel: string;
+  onConfirm: () => void;
+  onCancel: () => void;
+}) {
+  const { t } = useTranslations();
+  return (
+    <AlertDialog open onOpenChange={(open) => !open && onCancel()}>
+      <AlertDialogContent data-slot="ledger-pin-confirm">
+        <AlertDialogHeader>
+          <AlertDialogTitle>
+            {t("medications.detail.verlauf.pin.confirmTitle", {
+              time: slotLabel,
+            })}
+          </AlertDialogTitle>
+          <AlertDialogDescription>
+            {t("medications.detail.verlauf.pin.confirmBody")}
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>
+            {t("medications.detail.verlauf.pin.confirmCancel")}
+          </AlertDialogCancel>
+          <AlertDialogAction
+            onClick={(e) => {
+              e.preventDefault();
+              onConfirm();
+            }}
+            data-slot="ledger-pin-confirm-action"
+          >
+            {t("medications.detail.verlauf.pin.confirmAction")}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   );
 }
 

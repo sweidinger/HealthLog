@@ -15,6 +15,7 @@ import {
   buildComplianceMedicationContext,
   calculateCompliance,
   lastNonSkippedTakenAt,
+  SCHEDULE_COMPLIANCE_SELECT,
 } from "@/lib/analytics/compliance";
 import { pairByTimestamp } from "@/lib/analytics/correlations";
 import {
@@ -1004,7 +1005,9 @@ async function buildTargetsResponse(user: AuthedUser) {
   // 8. Medication Compliance (average across active medications)
   const activeMedications = await prisma.medication.findMany({
     where: { userId, active: true },
-    include: { schedules: true },
+    // v1.15.20 — schedules through the shared compliance select so the
+    // configured per-dose windows reach this surface like every other.
+    include: { schedules: { select: SCHEDULE_COMPLIANCE_SELECT } },
     orderBy: { name: "asc" },
   });
 

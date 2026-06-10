@@ -410,6 +410,10 @@ export default function InsightsPage() {
         loading={advisor.isLoading}
         onRegenerate={advisor.regenerate}
         regenerating={advisor.isRegenerating}
+        // v1.15.20 — the read path reports a 422 (no provider configured)
+        // as its own outcome; swap the futile regenerate CTA for a quiet
+        // Settings → AI hint instead of an eternal "preparing" loop.
+        noProvider={advisor.readOutcome === "no-provider"}
       />
     ) : null,
     vitals: <VitalsDashboard batch={dashboardDerived} layout={layout} />,

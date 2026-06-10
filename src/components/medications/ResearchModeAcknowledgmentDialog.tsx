@@ -85,9 +85,7 @@ export function ResearchModeAcknowledgmentDialog({
       const json = await res.json().catch(() => ({}));
       if (!res.ok) {
         const code =
-          typeof json?.error === "string"
-            ? json.error
-            : `http-${res.status}`;
+          typeof json?.error === "string" ? json.error : `http-${res.status}`;
         throw new Error(code);
       }
       return json?.data ?? null;
@@ -137,7 +135,7 @@ export function ResearchModeAcknowledgmentDialog({
       description={t("medications.researchMode.dialog.intro")}
       className="sm:max-w-xl"
       footer={
-        <div className="flex w-full gap-2 sm:justify-end sm:gap-2">
+        <>
           <Button
             variant="outline"
             onClick={handleCancel}
@@ -152,118 +150,118 @@ export function ResearchModeAcknowledgmentDialog({
             data-slot="research-mode-acknowledge"
           >
             {mutation.isPending ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin motion-reduce:animate-none" />
+              <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" />
             ) : null}
             {t("medications.researchMode.dialog.acknowledgeCta")}
           </Button>
-        </div>
+        </>
       }
     >
-        <div
-          data-slot="research-mode-acknowledgment-dialog"
-          className="space-y-4 text-sm"
+      <div
+        data-slot="research-mode-acknowledgment-dialog"
+        className="space-y-4 text-sm"
+      >
+        <section
+          aria-labelledby="research-mode-what-it-is"
+          data-slot="research-mode-what-it-is"
         >
-          <section
-            aria-labelledby="research-mode-what-it-is"
-            data-slot="research-mode-what-it-is"
+          <h3
+            id="research-mode-what-it-is"
+            className="text-foreground font-medium"
           >
-            <h3
-              id="research-mode-what-it-is"
-              className="text-foreground font-medium"
-            >
-              {t("medications.researchMode.dialog.whatItIsHeader")}
-            </h3>
-            <p className="text-muted-foreground mt-1">
-              {t("medications.researchMode.dialog.whatItIs")}
-            </p>
-          </section>
+            {t("medications.researchMode.dialog.whatItIsHeader")}
+          </h3>
+          <p className="text-muted-foreground mt-1">
+            {t("medications.researchMode.dialog.whatItIs")}
+          </p>
+        </section>
 
-          <section
-            aria-labelledby="research-mode-what-it-isnt"
-            data-slot="research-mode-what-it-isnt"
+        <section
+          aria-labelledby="research-mode-what-it-isnt"
+          data-slot="research-mode-what-it-isnt"
+        >
+          <h3
+            id="research-mode-what-it-isnt"
+            className="text-foreground font-medium"
           >
-            <h3
-              id="research-mode-what-it-isnt"
-              className="text-foreground font-medium"
-            >
-              {t("medications.researchMode.dialog.whatItIsntHeader")}
-            </h3>
-            <p className="text-muted-foreground mt-1">
-              {t("medications.researchMode.dialog.whatItIsnt")}
-            </p>
-          </section>
+            {t("medications.researchMode.dialog.whatItIsntHeader")}
+          </h3>
+          <p className="text-muted-foreground mt-1">
+            {t("medications.researchMode.dialog.whatItIsnt")}
+          </p>
+        </section>
 
-          <section
-            aria-labelledby="research-mode-why-estimate"
-            data-slot="research-mode-why-estimate"
+        <section
+          aria-labelledby="research-mode-why-estimate"
+          data-slot="research-mode-why-estimate"
+        >
+          <h3
+            id="research-mode-why-estimate"
+            className="text-foreground font-medium"
           >
-            <h3
-              id="research-mode-why-estimate"
-              className="text-foreground font-medium"
-            >
-              {t("medications.researchMode.dialog.whyEstimateHeader")}
-            </h3>
-            <p className="text-muted-foreground mt-1">
-              {t("medications.researchMode.dialog.whyEstimate")}
-            </p>
-          </section>
+            {t("medications.researchMode.dialog.whyEstimateHeader")}
+          </h3>
+          <p className="text-muted-foreground mt-1">
+            {t("medications.researchMode.dialog.whyEstimate")}
+          </p>
+        </section>
 
-          <section
-            aria-labelledby="research-mode-mdr"
-            data-slot="research-mode-mdr-boundary"
-            className="bg-warning/10 border-warning/30 rounded-md border-l-4 px-3 py-2"
+        <section
+          aria-labelledby="research-mode-mdr"
+          data-slot="research-mode-mdr-boundary"
+          className="bg-warning/10 border-warning/30 rounded-md border-l-4 px-3 py-2"
+        >
+          <h3
+            id="research-mode-mdr"
+            className="text-foreground flex items-center gap-2 font-medium"
           >
-            <h3
-              id="research-mode-mdr"
-              className="text-foreground flex items-center gap-2 font-medium"
-            >
-              <AlertTriangle
-                className="text-warning h-4 w-4 shrink-0"
-                aria-hidden="true"
-              />
-              {t("medications.researchMode.dialog.mdrBoundaryHeader")}
-            </h3>
-            <p className="text-foreground/85 mt-1">
-              {t("medications.researchMode.dialog.mdrBoundary")}
-            </p>
-          </section>
+            <AlertTriangle
+              className="text-warning h-4 w-4 shrink-0"
+              aria-hidden="true"
+            />
+            {t("medications.researchMode.dialog.mdrBoundaryHeader")}
+          </h3>
+          <p className="text-foreground/85 mt-1">
+            {t("medications.researchMode.dialog.mdrBoundary")}
+          </p>
+        </section>
 
-          <section
-            aria-labelledby="research-mode-citations"
-            data-slot="research-mode-citations"
+        <section
+          aria-labelledby="research-mode-citations"
+          data-slot="research-mode-citations"
+        >
+          <h3
+            id="research-mode-citations"
+            className="text-foreground font-medium"
           >
-            <h3
-              id="research-mode-citations"
-              className="text-foreground font-medium"
-            >
-              {t("medications.researchMode.dialog.citationsHeader")}
-            </h3>
-            <p className="text-muted-foreground mt-1">
-              {t("medications.researchMode.dialog.citations")}
-            </p>
-          </section>
+            {t("medications.researchMode.dialog.citationsHeader")}
+          </h3>
+          <p className="text-muted-foreground mt-1">
+            {t("medications.researchMode.dialog.citations")}
+          </p>
+        </section>
 
-          {currentDisclaimerVersion && (
-            <p
-              className="text-muted-foreground text-xs italic"
-              data-slot="research-mode-version"
-            >
-              {t("medications.researchMode.dialog.versionLine", {
-                version: currentDisclaimerVersion,
-              })}
-            </p>
-          )}
+        {currentDisclaimerVersion && (
+          <p
+            className="text-muted-foreground text-xs italic"
+            data-slot="research-mode-version"
+          >
+            {t("medications.researchMode.dialog.versionLine", {
+              version: currentDisclaimerVersion,
+            })}
+          </p>
+        )}
 
-          {errorMessage && (
-            <p
-              role="alert"
-              className="text-destructive text-sm"
-              data-slot="research-mode-error"
-            >
-              {errorMessage}
-            </p>
-          )}
-        </div>
+        {errorMessage && (
+          <p
+            role="alert"
+            className="text-destructive text-sm"
+            data-slot="research-mode-error"
+          >
+            {errorMessage}
+          </p>
+        )}
+      </div>
     </ResponsiveSheet>
   );
 }

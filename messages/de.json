@@ -58,11 +58,11 @@
     "classification": "Klassifikation",
     "bmiTitle": "Body-Mass-Index (BMI)",
     "bmiRow": "BMI: {bmi} kg/m² — Klassifikation: {class} (WHO)",
-    "complianceTitle": "Medikamenten-Compliance",
+    "complianceTitle": "Therapietreue",
     "glp1Title": "GLP-1-Therapie",
     "glp1WeightSummary": "Gewicht im Berichtszeitraum: {start} kg → {end} kg ({delta} kg)",
     "glp1CurrentDose": "Aktuelle Dosis: {value} {unit} (seit {since})",
-    "glp1Compliance": "Compliance: {taken} / {total} ({rate}%)",
+    "glp1Compliance": "Therapietreue: {taken} / {total} ({rate}%)",
     "glp1SideEffectsTitle": "Erfasste Nebenwirkungen",
     "colGlp1Date": "Datum",
     "colGlp1Dose": "Dosis",
@@ -73,7 +73,7 @@
     "colSkipped": "Übersprungen",
     "colMissed": "Verpasst",
     "colTotal": "Gesamt",
-    "colComplianceRate": "Compliance-Rate",
+    "colComplianceRate": "Therapietreue",
     "moodTitle": "Stimmungsverlauf",
     "moodSummary": "Durchschnitt: {avg} / 5,0 · Einträge: {count} · Bereich: {min}–{max}",
     "colMood": "Stimmung",
@@ -144,7 +144,7 @@
       "bmi": "Body-Mass-Index (BMI)",
       "mood": "Stimmung",
       "moodSensitive": "Sensibel — standardmäßig aus.",
-      "compliance": "Medikamenten-Compliance",
+      "compliance": "Therapietreue",
       "sleep": "Schlafdauer",
       "cycle": "Menstruationszyklus",
       "empty": "Für den gewählten Zeitraum liegen noch keine Daten vor. Der Bericht enthält dennoch das Deckblatt.",
@@ -155,7 +155,7 @@
     "summaryTitle": "Klinische Zusammenfassung",
     "summaryReadings": "Über {days} Tage erfasst: {count} Messwerte über {params} Parameter.",
     "summaryTrend": "{label}: zuletzt {latest} {arrow}",
-    "summaryAdherence": "Medikamenten-Einnahmetreue: {rate}% (gewichteter Mittelwert).",
+    "summaryAdherence": "Medikamenten-Therapietreue: {rate}% (gewichteter Mittelwert).",
     "chartsTitle": "Trend-Diagramme",
     "aiSummaryTitle": "KI-Zusammenfassung — nicht klinisch validiert",
     "aiSummaryDisclaimer": "Dieser Abschnitt wurde automatisch von einem KI-Modell erzeugt und ist nicht klinisch validiert. Er ersetzt keine ärztliche Beurteilung.",
@@ -191,6 +191,9 @@
   },
   "offlineBanner": {
     "message": "Keine Verbindung — Änderungen werden gespeichert, sobald du wieder online bist."
+  },
+  "demoBanner": {
+    "message": "Demo-Modus — Änderungen werden nicht gespeichert."
   },
   "nav": {
     "dashboard": "Dashboard",
@@ -251,6 +254,7 @@
     "hasAccount": "Bereits ein Konto?",
     "loginFailed": "Anmeldung fehlgeschlagen",
     "registerFailed": "Registrierung fehlgeschlagen",
+    "invitedBanner": "Du wurdest eingeladen — erstelle dein Konto, auch wenn die Registrierung sonst geschlossen ist.",
     "createAccount": "Konto erstellen",
     "newAccount": "Neues Konto erstellen",
     "backToPasskey": "Zurück zu Passkey",
@@ -314,7 +318,7 @@
       "confirm": "Verwerfen",
       "cancel": "Weiter bearbeiten"
     },
-    "compliance7d": "Einnahmetreue (7 Tage)",
+    "compliance7d": "Therapietreue (7 Tage)",
     "mood": "Stimmung",
     "customizeTitle": "Dashboard-Layout",
     "layoutReset": "Auf Defaults zurücksetzen",
@@ -639,14 +643,14 @@
       "slotNone": "Kein bestimmter Slot",
       "takenAtLabel": "Datum und Uhrzeit",
       "takenAtHint": "Standard ist jetzt; wähle ein früheres Datum und eine frühere Uhrzeit, um eine vergangene Dosis zu erfassen.",
-      "skippedLabel": "Als ausgelassen erfassen",
+      "skippedLabel": "Als übersprungen erfassen",
       "noMedications": "Lege zuerst ein Medikament an, dann kannst du Einnahmen dafür erfassen.",
       "cancel": "Abbrechen",
       "submit": "Einnahme erfassen",
       "slotError": "Der gewählte Slot konnte keiner Uhrzeit zugeordnet werden. Bitte wähle einen anderen Slot oder „Kein bestimmter Slot“."
     },
     "emptyTitle": "Noch keine Medikamente",
-    "emptyDescription": "Lege Medikamente, Dosierungen und Einnahmefenster an, um Compliance zu erfassen.",
+    "emptyDescription": "Lege Medikamente, Dosierungen und Einnahmefenster an, um die Therapietreue zu erfassen.",
     "loadFailed": "Medikamente konnten nicht geladen werden",
     "retryLoad": "Erneut laden",
     "name": "Name",
@@ -660,7 +664,7 @@
     "intakeHistory": "Einnahme-Verlauf",
     "openDetailPage": "Medikament-Detailseite öffnen",
     "deleteConfirm": "Medikament löschen?",
-    "compliance": "Einnahmetreue",
+    "compliance": "Therapietreue",
     "importIntakes": "Einnahmen importieren",
     "importDescription": "JSON-Array mit Einnahme-Daten einfügen. Erwartetes Format:",
     "importUploadFile": "JSON-Datei hochladen",
@@ -716,9 +720,11 @@
     "takeNow": "Jetzt einnehmen",
     "overdue": "Überfällig",
     "veryOverdue": "Stark überfällig",
-    "compliance7d": "7-Tage-Compliance",
-    "compliance30d": "30-Tage-Compliance",
-    "complianceWindow": "{days}-Tage-Compliance",
+    "compliance7d": "Therapietreue (7 Tage)",
+    "compliance30d": "Therapietreue (30 Tage)",
+    "complianceWindow": "Therapietreue ({days} Tage)",
+    "complianceInfo": "Anteil der erfassten an den erwarteten Dosen. Wöchentliche Pläne zählen wochenweise.",
+    "complianceInfoLabel": "Was bedeutet Therapietreue?",
     "complianceDoses": "{count} Dosen",
     "lastIntake": "Letzte Einnahme:",
     "nextIntake": "Nächste Einnahme:",
@@ -834,7 +840,7 @@
         "title": "Medikament beschreiben",
         "description": "Beschreibe das Medikament in eigenen Worten — das Formular wird automatisch vorausgefüllt.",
         "placeholder": "z. B. Mounjaro 5 mg wöchentlich am Mittwochmorgen ab nächstem Montag",
-        "submit": "Übernehmen",
+        "submit": "Extrahieren",
         "submitBusy": "Wird verarbeitet …",
         "cancel": "Abbrechen",
         "examples": {
@@ -1046,6 +1052,8 @@
           "subline": "Du kannst alles unten nochmal prüfen, bevor du speicherst.",
           "remindersLabel": "Erinnerungen aktiv",
           "remindersDescription": "Push, Telegram oder ntfy — je nach deinen Einstellungen.",
+          "noChannelHint": "Erinnerungen brauchen einen Benachrichtigungskanal — aktuell ist keiner aktiv.",
+          "noChannelHintLink": "Benachrichtigungen einrichten",
           "multiScheduleNote": "Dieses Medikament hat mehrere Zeitpläne. Den Detail-Editor öffnen wir in einer späteren Version.",
           "short": "Fertig"
         }
@@ -1282,19 +1290,6 @@
         "paused": "Pausiert",
         "ended": "Beendet"
       },
-      "today": {
-        "groupLabel": "Heutige Dosis",
-        "taken": "Genommen",
-        "skipped": "Übersprungen",
-        "toastTaken": "Heutige Dosis erfasst",
-        "toastSkipped": "Heutige Dosis übersprungen",
-        "recordedTaken": "Heute genommen um {time}",
-        "recordedSkipped": "Heute übersprungen um {time}",
-        "recordedOneShot": "Einmalig genommen um {time}",
-        "noneScheduled": "Heute keine Einnahme geplant.",
-        "pausedHint": "Pausiert — heute keine Erinnerung.",
-        "error": "Dosis konnte nicht erfasst werden."
-      },
       "cadence": {
         "oneShotOn": "Einmalige Dosis am {date}.",
         "oneShotPending": "Einmalige Dosis ausstehend."
@@ -1349,6 +1344,9 @@
         "add": "Eintrag",
         "markTaken": "Genommen",
         "markSkipped": "Übersprungen",
+        "rowActionsLabel": "Aktionen für {time}",
+        "markAsTaken": "Als genommen markieren",
+        "markAsSkipped": "Als übersprungen markieren",
         "adHocTag": "außerplanmäßig",
         "takenDetail": "geplant {planned} · genommen {taken}",
         "status": {
@@ -1373,6 +1371,18 @@
           "body": "Die Einnahme liegt knapp außerhalb des Fensters von {slot}. Diesem Slot zuordnen oder als außerplanmäßigen Eintrag speichern?",
           "keepAdHoc": "Außerplanmäßig",
           "pin": "Zuordnen"
+        },
+        "pin": {
+          "action": "Slot {time} zuordnen",
+          "release": "Zuordnung lösen",
+          "pinnedTag": "zugeordnet",
+          "pinnedToast": "Einnahme dem Slot zugeordnet",
+          "unpinnedToast": "Zuordnung gelöst",
+          "dueContext": "fällig gewesen: {time} ({delta})",
+          "confirmTitle": "Slot {time} zuordnen?",
+          "confirmBody": "Die Einnahme zählt für diesen Slot als verspätet – die Quote wird nicht geschönt. Die Zuordnung lässt sich jederzeit wieder lösen.",
+          "confirmCancel": "Abbrechen",
+          "confirmAction": "Zuordnen"
         }
       },
       "notifications": {
@@ -1392,8 +1402,8 @@
           "requiresCourseWindow": "Phasen sind nur mit Kurs-Fenster verfügbar."
         },
         "grace": {
-          "label": "Erinnerungsfenster — gilt für deinen Hauptzeitplan",
-          "primaryScheduleNote": "Andere Zeitpläne behalten ihr Standard-Fenster.",
+          "label": "Erinnerungsfenster",
+          "appliesToAllNote": "Gilt für alle Zeitpläne dieses Medikaments.",
           "unit": "Minuten",
           "saved": "Erinnerungsfenster gespeichert",
           "failed": "Erinnerungsfenster konnte nicht gespeichert werden."
@@ -1468,7 +1478,6 @@
         "title": "Erweiterte Einstellungen",
         "group": {
           "data": "Daten",
-          "reminders": "Erinnerungen",
           "lifecycle": "Lebenszyklus",
           "externalApi": "Externe API"
         },
@@ -1487,8 +1496,7 @@
         }
       },
       "header": {
-        "historyLabel": "Einnahmeverlauf ansehen",
-        "advancedLabel": "Erweiterte Einstellungen"
+        "historyLabel": "Einnahmeverlauf ansehen"
       },
       "history": {
         "back": "Zurück zum Medikament",
@@ -1498,7 +1506,6 @@
       "tabs": {
         "uebersicht": "Übersicht",
         "zeitplan": "Zeitplan",
-        "erinnerung": "Erinnerung",
         "bestand": "Bestand",
         "verlauf": "Verlauf",
         "injektion": "Injektion",
@@ -1510,6 +1517,17 @@
         "tablistLabel": "Medikamenten-Detailbereiche"
       },
       "uebersicht": {
+        "statusTitle": "Status",
+        "nextDoseLabel": "Nächste Dosis",
+        "nextDoseNone": "Keine anstehende Dosis.",
+        "pausedHint": "Pausiert — keine Erinnerungen.",
+        "reminderLabel": "Erinnerung",
+        "reminderOn": "Aktiv",
+        "reminderOff": "Aus",
+        "supplyLabel": "Bestand",
+        "supplyRunway": "Reicht noch ca. {days} Tage",
+        "jumpToZeitplan": "Zum Zeitplan",
+        "jumpToBestand": "Zum Bestand",
         "complianceTitle": "Therapietreue",
         "complianceEmpty": "Noch keine Daten zur Therapietreue."
       },
@@ -1542,7 +1560,7 @@
         "scheduleLabel": "Zeitplan {index}",
         "fullEditNote": "Häufigkeit, Wirkstoffklasse und Kursfenster bearbeitest du über „Vollständig bearbeiten“.",
         "graceEcho": "Erinnerungsfenster: {minutes} Minuten",
-        "graceLink": "In „Erinnerung“ ändern",
+        "reminderTitle": "Erinnerung",
         "save": "Zeitplan speichern",
         "saved": "Zeitplan gespeichert",
         "failed": "Zeitplan konnte nicht gespeichert werden",
@@ -1573,6 +1591,7 @@
   "charts": {
     "loadingLabel": "Diagramm wird geladen…",
     "loadingSlowHint": "Auswertungen werden berechnet — das kann einen Moment dauern.",
+    "adjustTargets": "Zielwerte anpassen",
     "weight": "Gewicht",
     "bloodPressure": "Blutdruck",
     "pulse": "Puls",
@@ -1697,7 +1716,7 @@
       "lastMonth": "Vergleich nicht verfügbar — noch keine Daten aus dem Vormonat",
       "lastYear": "Vergleich nicht verfügbar — noch keine Daten aus dem Vorjahr"
     },
-    "notAvailableForCompliance": "Vergleich für Compliance nicht verfügbar"
+    "notAvailableForCompliance": "Vergleich für Therapietreue nicht verfügbar"
   },
   "insights": {
     "emptyTitle": "Noch nicht genug Daten",
@@ -1712,8 +1731,7 @@
       "dragHandle": "Zum Sortieren ziehen",
       "show": "Einblenden",
       "hide": "Ausblenden",
-      "manageSubPages": "Detailseiten verwalten",
-      "manageSubPagesHint": "Ausgeblendete Seiten verschwinden auch aus der oberen Navigation.",
+      "manageInSettings": "Pills & Detailseiten in den Einstellungen verwalten",
       "groupSleep": "Schlaf",
       "groupMood": "Stimmung",
       "groupEvents": "Ereignisse",
@@ -1806,13 +1824,13 @@
       "componentBp": "Blutdruck",
       "componentWeight": "Gewicht",
       "componentMood": "Stimmung",
-      "componentCompliance": "Einnahmetreue",
+      "componentCompliance": "Therapietreue",
       "disclaimer": "Orientierungshilfe — keine ärztliche Bewertung.",
       "deltaExplainer": {
         "trigger": "Was bedeutet diese Veränderung?",
         "title": "So wird die Veränderung berechnet",
         "description": "Veränderung gegenüber letzter Woche: {delta}",
-        "body": "Der Score kombiniert Blutdruck, Gewicht, Stimmung und Einnahmetreue. Wir vergleichen den heutigen Stand mit demselben Zeitpunkt vor einer Woche. Erfasse eine frische Messung oder einen Stimmungs-Check, um den Wert nach oben zu schubsen."
+        "body": "Der Score kombiniert Blutdruck, Gewicht, Stimmung und Therapietreue. Wir vergleichen den heutigen Stand mit demselben Zeitpunkt vor einer Woche. Erfasse eine frische Messung oder einen Stimmungs-Check, um den Wert nach oben zu schubsen."
       },
       "provenance": {
         "toggle": "Zusammensetzung",
@@ -1843,7 +1861,10 @@
       "emptyTitle": "Noch kein Briefing",
       "emptyDescription": "Erstelle das heutige Briefing, um eine Zusammenfassung deiner Trends zu bekommen.",
       "emptyAction": "Briefing erstellen",
-      "loadingLabel": "Briefing wird zusammengestellt"
+      "loadingLabel": "Briefing wird zusammengestellt",
+      "noProviderTitle": "Kein KI-Anbieter verbunden",
+      "noProviderDescription": "Verbinde einen KI-Anbieter in den Einstellungen, um tägliche Briefings zu erhalten.",
+      "noProviderAction": "Zu den KI-Einstellungen"
     },
     "trendsRow": {
       "title": "Trends",
@@ -1911,8 +1932,8 @@
       "confidenceModerate": "Mittlere Konfidenz",
       "confidenceLow": "Geringe Konfidenz",
       "card": {
-        "bpComplianceTitle": "BD × Medikamenten-Compliance",
-        "bpComplianceSubtitle": "Täglicher Systolischer gegen Compliance-%",
+        "bpComplianceTitle": "BD × Therapietreue",
+        "bpComplianceSubtitle": "Täglicher Systolischer gegen Therapietreue in %",
         "moodPulseTitle": "Stimmung × Ruhepuls",
         "moodPulseSubtitle": "Stimmung und Ruhepuls am selben Tag",
         "weightWeekdayTitle": "Gewicht × Wochentag",
@@ -1936,6 +1957,8 @@
       "composerPlaceholder": "Frag mich etwas zu deinen Daten…",
       "composerHint": "Enter zum Senden, Umschalt+Enter für eine neue Zeile.",
       "composerDisclaimer": "Coach-Antworten sind generiert. Klinische Entscheidungen gehören in die Hand deines Arztes.",
+      "selfContextChipsLabel": "Der Coach würde gern wissen:",
+      "selfContextChipDismiss": "Frage verwerfen",
       "voiceComingSoon": "Spracheingabe kommt mit der iOS-App in v1.5.",
       "threadEmpty": "Frag mich etwas zu deinen Trends, Medikamenten oder Messwerten, um zu starten.",
       "historyTitle": "Unterhaltungen",
@@ -1953,7 +1976,7 @@
         "weight": "Gewicht",
         "pulse": "Puls",
         "mood": "Stimmung",
-        "compliance": "Einnahmetreue",
+        "compliance": "Therapietreue",
         "general": "Allgemein",
         "hrv": "HRV",
         "sleep": "Schlaf",
@@ -2099,6 +2122,8 @@
     "navSteps": "Schritte",
     "navActiveEnergy": "Aktive Energie",
     "navAriaLabel": "Zu Abschnitt springen",
+    "pillScrollLeft": "Tabs nach links scrollen",
+    "pillScrollRight": "Tabs nach rechts scrollen",
     "tabStrip": {
       "vitalsParent": {
         "label": "Vitalwerte",
@@ -2218,13 +2243,13 @@
         "weightTitle": "Gewicht",
         "weightBody": "Das Körpergewicht ist eines der einfachsten Signale für die langfristige Energiebilanz und die allgemeine Gesundheit. Der Trend über Wochen zählt weit mehr als ein einzelner Wert, der mit Flüssigkeit, Ernährung und Tageszeit schwankt.",
         "bmiTitle": "Body-Mass-Index (BMI)",
-        "bmiBody": "Der BMI ist das Gewicht geteilt durch die Körpergröße zum Quadrat und ordnet Sie einer groben Gewichtskategorie zu. Er ist ein Orientierungswert, keine Diagnose, und unterscheidet nicht zwischen Muskeln und Fett.",
+        "bmiBody": "Der BMI ist dein Gewicht geteilt durch deine Körpergröße zum Quadrat und ordnet dich einer groben Gewichtskategorie zu. Er ist ein Orientierungswert, keine Diagnose, und unterscheidet nicht zwischen Muskeln und Fett.",
         "sleepTitle": "Schlaf",
         "sleepBody": "Die Schlafdauer ist die tatsächlich geschlafene Zeit pro Nacht, aufgeteilt in Leicht-, Tief- und REM-Schlaf. Die meisten Erwachsenen brauchen etwa sieben bis neun Stunden; gleichmäßige Menge und Qualität unterstützen Erholung, Stimmung und Stoffwechsel.",
         "moodTitle": "Stimmung",
-        "moodBody": "Die Stimmungserfassung hält auf einer einfachen Skala fest, wie Sie sich fühlen. Regelmäßiges Protokollieren zeigt Muster – wie Schlaf, Aktivität oder Medikamente mit dem Befinden zusammenhängen –, die ein einzelner Tag nie offenbart.",
+        "moodBody": "Die Stimmungserfassung hält auf einer einfachen Skala fest, wie du dich fühlst. Regelmäßiges Protokollieren zeigt Muster – wie Schlaf, Aktivität oder Medikamente mit dem Befinden zusammenhängen –, die ein einzelner Tag nie offenbart.",
         "medicationsTitle": "Medikamenten-Therapietreue",
-        "medicationsBody": "Die Therapietreue zeigt, wie zuverlässig Sie Ihre Medikamente wie verordnet einnehmen, hier als Anteil der erwarteten Dosen, die Sie erfasst haben. Eine gleichmäßige Einnahme entscheidet oft darüber, ob eine Therapie wie beabsichtigt wirkt.",
+        "medicationsBody": "Die Therapietreue zeigt, wie zuverlässig du deine Medikamente wie verordnet einnimmst, hier als Anteil der erwarteten Dosen, die du erfasst hast. Eine gleichmäßige Einnahme entscheidet oft darüber, ob eine Therapie wie beabsichtigt wirkt.",
         "restingHrTitle": "Ruhepuls",
         "restingHrBody": "Der Ruhepuls ist die Herzfrequenz in völliger Ruhe, meist über Nacht gemessen. Ein niedriger Ruhepuls deutet in der Regel auf eine bessere Herz-Kreislauf-Fitness hin, ein steigender Trend kann ein frühes Zeichen für Stress oder Krankheit sein.",
         "hrvTitle": "Herzfrequenzvariabilität (HRV)",
@@ -2232,11 +2257,11 @@
         "oxygenSaturationTitle": "Sauerstoffsättigung (SpO₂)",
         "oxygenSaturationBody": "Die SpO₂ ist der Prozentsatz der roten Blutkörperchen, die Sauerstoff transportieren. Werte von 95–100 % sind in Ruhe normal; Werte, die dauerhaft unter 90 % liegen, verdienen Aufmerksamkeit, kurze nächtliche Abfälle sind jedoch häufig.",
         "bodyTemperatureTitle": "Körpertemperatur",
-        "bodyTemperatureBody": "Die Körpertemperatur spiegelt Ihren Kernwärmezustand wider, normalerweise um 37 °C mit kleinen Tagesschwankungen. Ein anhaltender Anstieg kann auf eine Infektion hindeuten; nächtliche Messungen am Handgelenk erfassen vor allem relative Änderungen, keinen klinischen Wert.",
+        "bodyTemperatureBody": "Die Körpertemperatur spiegelt deinen Kernwärmezustand wider, normalerweise um 37 °C mit kleinen Tagesschwankungen. Ein anhaltender Anstieg kann auf eine Infektion hindeuten; nächtliche Messungen am Handgelenk erfassen vor allem relative Änderungen, keinen klinischen Wert.",
         "activeEnergyTitle": "Aktive Energie",
-        "activeEnergyBody": "Die aktive Energie sind die Kalorien, die Sie durch Bewegung verbrennen, zusätzlich zum Grundumsatz in Ruhe. Sie ist ein direktes Maß dafür, wie körperlich aktiv Ihr Tag war.",
+        "activeEnergyBody": "Die aktive Energie sind die Kalorien, die du durch Bewegung verbrennst, zusätzlich zum Grundumsatz in Ruhe. Sie ist ein direktes Maß dafür, wie körperlich aktiv dein Tag war.",
         "workoutsTitle": "Workouts",
-        "workoutsBody": "Workouts sind die strukturierten Trainingseinheiten, die Ihre Geräte mit Art, Dauer und Energie aufzeichnen. Ihre Erfassung zeigt, wie sich regelmäßiges Training über Wochen summiert und wie es mit Ihren anderen Gesundheitssignalen zusammenhängt.",
+        "workoutsBody": "Workouts sind die strukturierten Trainingseinheiten, die deine Geräte mit Art, Dauer und Energie aufzeichnen. Ihre Erfassung zeigt, wie sich regelmäßiges Training über Wochen summiert und wie es mit deinen anderen Gesundheitssignalen zusammenhängt.",
         "respiratoryRateTitle": "Atemfrequenz",
         "respiratoryRateBody": "Die Atemfrequenz ist die Anzahl der Atemzüge pro Minute. In Ruhe atmen die meisten Erwachsenen etwa zwölf- bis zwanzigmal pro Minute; ein anhaltender Anstieg kann mit Krankheit, Anstrengung oder Stress einhergehen.",
         "bodyWaterTitle": "Gesamtkörperwasser",
@@ -2301,11 +2326,11 @@
         "stairDescentSpeedBody": "Dies gibt an, wie schnell du eine Treppe hinabgehst. Zusammen mit dem Steig-Tempo zeigt es Beinkontrolle und Gleichgewicht — ein gleichmäßiges Tempo ist gut, ein sinkendes solltest du im Blick behalten.",
         "breathingDisturbancesTitle": "Atemaussetzer im Schlaf",
         "breathingDisturbancesBody": "Deine Apple Watch kann schätzen, wie oft deine Atmung im Schlaf unterbrochen war. Ein niedriger Index ist besser; ein von Apple als erhöht eingestufter Wert — vor allem über viele Nächte — sollte mit einer Ärztin oder einem Arzt besprochen werden.",
-        "readinessBody": "Die Tagesform ist ein einzelner Tageswert dafür, wie bereit dein Körper für den Tag ist — er verbindet Ruhepuls, Herzfrequenzvariabilität, Schlaf und die Beständigkeit deiner letzten Nächte. Ein höherer Wert bedeutet, dass dein System erholt und belastbar wirkt; ein niedrigerer ist ein sanfter Hinweis, einen Gang zurückzuschalten und deinem Körper Zeit zum Aufholen zu geben. Sieh ihn als Orientierung für die Tagesplanung, nicht als Urteil.",
-        "sleepScoreBody": "Dein Schlafscore fasst eine ganze Nacht in einer Zahl zusammen und wägt ab, wie lange und wie effizient du geschlafen hast, wie regelmäßig deine Zeiten waren und wie sich Leicht-, Tief- und REM-Schlaf verteilen. Er soll auf einen Blick zeigen, ob die Nacht dich wirklich erholt hat. Achte eher auf das Muster über Wochen als auf einen perfekten Wert in einer einzelnen Nacht.",
-        "recoveryBody": "Die Erholung zeigt, wie gut sich dein Körper regeneriert hat und wie viel Kapazität du heute für Belastung hast — sie stützt sich auf nächtliche Signale wie Herzfrequenzvariabilität und Ruhepuls. Ein hoher Wert ist grünes Licht, mehr zu geben; ein niedrigerer deutet an, dass dein System noch aufbaut. Er ist eine Orientierung, wie stark du dich einbringen kannst, keine starre Grenze.",
-        "strainBody": "Die Belastung erfasst, wie viel kardiovaskuläre und körperliche Last du deinem Körper zugemutet hast — von Workouts bis zu einem aktiven Tag auf den Beinen. Sobald genügend Verlauf vorliegt, wird sie an deinem eigenen üblichen Aufwand gemessen und spiegelt so, was speziell für dich fordernd ist. Nutze sie, um anstrengende Tage mit ruhigeren auszugleichen und dein Training tragfähig zu halten.",
-        "stressBody": "Stress ist hier eine Schätzung der körperlichen Last auf deinem Nervensystem, vor allem aus Mustern der Herzfrequenzvariabilität abgelesen — nicht daraus, wie du dich bewusst fühlst. Ein niedrigerer Wert deutet auf einen ruhigeren, gut regulierten Zustand hin; ein höherer ist eine Einladung, Erholung einzuplanen. Er ist ein beschreibender Näherungswert, um Trends zu erkennen, keine klinische Messung."
+        "readinessBody": "Die Tagesform ist ein einzelner Tageswert dafür, wie bereit dein Körper für den Tag ist — er verbindet Ruhepuls, Herzfrequenzvariabilität, Schlaf und die Beständigkeit deiner letzten Nächte. Ein höherer Wert heißt erholt und belastbar; ein niedrigerer ist ein sanfter Hinweis, einen Gang zurückzuschalten.",
+        "sleepScoreBody": "Dein Schlafscore fasst eine ganze Nacht in einer Zahl zusammen — aus Dauer, Effizienz, Regelmäßigkeit und der Verteilung von Leicht-, Tief- und REM-Schlaf. Achte eher auf das Muster über Wochen als auf einen perfekten Wert in einer einzelnen Nacht.",
+        "recoveryBody": "Die Erholung zeigt, wie gut sich dein Körper regeneriert hat — gestützt auf nächtliche Signale wie Herzfrequenzvariabilität und Ruhepuls. Ein hoher Wert ist grünes Licht, mehr zu geben; ein niedrigerer deutet an, dass dein System noch aufbaut.",
+        "strainBody": "Die Belastung erfasst, wie viel kardiovaskuläre und körperliche Last du deinem Körper zugemutet hast — von Workouts bis zu einem aktiven Tag auf den Beinen. Sobald genügend Verlauf vorliegt, wird sie an deinem eigenen üblichen Aufwand gemessen, nicht an einem fremden Maßstab.",
+        "stressBody": "Stress ist hier eine Schätzung der körperlichen Last auf deinem Nervensystem, vor allem aus Mustern der Herzfrequenzvariabilität abgelesen — nicht daraus, wie du dich bewusst fühlst. Ein niedrigerer Wert deutet auf einen ruhigen, gut regulierten Zustand hin; ein höherer ist eine Einladung, Erholung einzuplanen."
       },
       "stats": {
         "label": "Zusammenfassende Statistik",
@@ -2359,10 +2384,10 @@
       }
     },
     "correlations": "Korrelationen",
-    "medicationCompliance": "Medikamenten-Compliance",
+    "medicationCompliance": "Therapietreue",
     "dayStreak": "{count} Tage Serie",
-    "compliance7d": "7-Tage-Compliance",
-    "compliance30d": "30-Tage-Compliance",
+    "compliance7d": "Therapietreue (7 Tage)",
+    "compliance30d": "Therapietreue (30 Tage)",
     "taken": "genommen",
     "skipped": "übersprungen",
     "missed": "verpasst",
@@ -2378,7 +2403,7 @@
     "weightSectionTitle": "Gewicht",
     "pulseSectionTitle": "Puls",
     "bmiSectionTitle": "BMI",
-    "complianceNoData": "Keine Compliance-Daten verfügbar",
+    "complianceNoData": "Keine Daten zur Therapietreue verfügbar",
     "generate": "Neue Analyse erstellen",
     "moodSectionTitle": "Stimmung",
     "confidence": "Konfidenz",
@@ -2411,7 +2436,7 @@
       },
       "medication": {
         "title": "Noch keine Medikamente angelegt",
-        "description": "Lege ein Medikament an, dann erscheinen Einnahme-Compliance, Wirkstoffspiegel und Eskalations-Verlauf.",
+        "description": "Lege ein Medikament an, dann erscheinen Therapietreue, Wirkstoffspiegel und Eskalations-Verlauf.",
         "cta": "Medikament hinzufügen"
       },
       "sleep": {
@@ -3148,7 +3173,7 @@
     },
     "pillOrder": {
       "title": "Navigations-Pills sortieren",
-      "description": "Ziehe die Pills in die Reihenfolge, in der sie oben in den Insights erscheinen sollen.",
+      "description": "Ziehe die Pills in die gewünschte Reihenfolge und blende sie über das Augensymbol ein oder aus. Ausgeblendete Detailseiten verschwinden auch aus der oberen Navigation.",
       "dragHandle": "Verschieben",
       "saveSuccess": "Reihenfolge der Pills gespeichert.",
       "saveError": "Speichern der Pill-Reihenfolge fehlgeschlagen.",
@@ -3156,6 +3181,8 @@
       "empty": "Noch keine Navigations-Pills verfügbar."
     },
     "customize": "Insights anpassen",
+    "regenerateRateLimited": "Aktualisierungslimit erreicht — bitte später erneut versuchen.",
+    "regenerateUnavailable": "Keine neue Analyse erhalten — bitte später erneut versuchen.",
     "regenerateError": "Aktualisierung läuft noch — bitte gleich erneut versuchen."
   },
   "thresholds": {
@@ -3327,7 +3354,7 @@
       "measurementDescription": "Ein Messpunkt reicht, um die Kachel zu aktivieren — der Trend zeichnet sich ab dem 5. Eintrag.",
       "measurementCta": "Messung hinzufügen",
       "medicationTitle": "Medikament hinzufügen",
-      "medicationDescription": "Verfolge Compliance und erhalte Erinnerungen genau dann, wenn du sie brauchst.",
+      "medicationDescription": "Verfolge die Therapietreue und erhalte Erinnerungen genau dann, wenn du sie brauchst.",
       "medicationCta": "Medikament hinzufügen",
       "withingsTitle": "Withings verbinden (optional)",
       "withingsDescription": "Synchronisiere Gewicht, Blutdruck und Puls automatisch aus deinen Withings-Geräten.",
@@ -3382,6 +3409,8 @@
       "sources": {
         "title": "Quellen-Priorität",
         "description": "Lege fest, welche Quelle führt, wenn mehrere am selben Tag dieselbe Metrik liefern.",
+        "integrationsHint": "Neue Datenquellen verbindest oder trennst du auf der Integrationen-Seite.",
+        "integrationsHintLink": "Integrationen öffnen",
         "cardTitle": "Quellen-Priorität pro Metrik",
         "help": "Wenn mehrere Quellen denselben Wert am selben Tag liefern (z. B. Withings + Apple Health beide 1.200 Schritte), wird die oberste Quelle als kanonisch verwendet. Andere Quellen bleiben gespeichert für die Audit-Spur.",
         "resetDefaults": "Auf Standard zurücksetzen",
@@ -3455,7 +3484,7 @@
         "downloadFailed": "Der Export konnte nicht heruntergeladen werden. Bitte versuche es erneut.",
         "hero": {
           "eyebrow": "Arzttermin",
-          "valueStatement": "Ein druckbarer PDF-Bericht für den Arzttermin — Vitalwerte, BMI, Blutdruck-Klassifikation, Medikamenten-Compliance und (optional) Stimmungsverlauf, alles auf wenigen Seiten.",
+          "valueStatement": "Ein druckbarer PDF-Bericht für den Arzttermin — Vitalwerte, BMI, Blutdruck-Klassifikation, Therapietreue und (optional) Stimmungsverlauf, alles auf wenigen Seiten.",
           "cta": "Bericht konfigurieren & generieren",
           "formatHint": "PDF · druckfertig"
         },
@@ -3469,7 +3498,7 @@
         "cards": {
           "doctorReport": {
             "title": "Arztbericht",
-            "description": "Druckbares PDF für den Arzttermin — Vitalwerte, BMI, BD-Klassifikation, Medikamenten-Compliance, Stimmung."
+            "description": "Druckbares PDF für den Arzttermin — Vitalwerte, BMI, BD-Klassifikation, Therapietreue, Stimmung."
           },
           "measurementsCsv": {
             "title": "Messwerte",
@@ -3553,6 +3582,15 @@
     "profile": "Profil",
     "language": "Sprache",
     "languageDescription": "Wähle die Anzeigesprache der Anwendung.",
+    "timeFormat": {
+      "title": "Stundenformat",
+      "description": "Bestimmt, ob Uhrzeiten im 24-Stunden- oder 12-Stunden-Format (AM/PM) angezeigt werden.",
+      "auto": "Automatisch (Sprache)",
+      "h24": "24 Stunden",
+      "h12": "12 Stunden (AM/PM)",
+      "saved": "Stundenformat gespeichert.",
+      "saveError": "Speichern des Stundenformats fehlgeschlagen."
+    },
     "username": "Benutzername",
     "height": "Körpergröße (cm)",
     "dateOfBirth": "Geburtsdatum",
@@ -3642,8 +3680,8 @@
     "codexDisconnected": "ChatGPT-Verbindung getrennt.",
     "codexConnectionFailed": "ChatGPT-Verbindung fehlgeschlagen. Bitte versuche es erneut.",
     "rawData": "Rohdaten mitsenden",
-    "rawDataOnDescription": "Es werden aggregierte Kennzahlen plus anonymisierte Rohdaten der letzten 30 Tage gesendet. Dazu zählen einzelne Messpunkte je Bereich (z. B. Gewicht, Blutdruck, Puls) mit Zeitbezug, damit der Provider zeitliche Muster, Ausreißer und Zusammenhänge zuverlässiger erkennen kann. Nicht übertragen werden Name, E-Mail oder direkte Kontodaten.",
-    "rawDataOffDescription": "Es werden nur zusammengefasste Werte gesendet (z. B. Durchschnitt, Trend, Minimum/Maximum). Keine einzelnen Messpunkte und keine exakten Zeitbezüge. Das ist datensparsamer, der Provider kann dafür aber weniger fein auf Muster und kurzfristige Schwankungen eingehen.",
+    "rawDataOnDescription": "Es werden aggregierte Kennzahlen plus anonymisierte einzelne Messpunkte der letzten 30 Tage mit Zeitbezug gesendet — ohne Name, E-Mail oder direkte Kontodaten.",
+    "rawDataOffDescription": "Es werden nur zusammengefasste Werte gesendet (z. B. Durchschnitt, Trend, Minimum/Maximum) — ohne einzelne Messpunkte und exakte Zeitbezüge.",
     "rawDataWarning": "Rohdaten aktiv: Der Provider erhält zusätzlich anonymisierte Messpunkte der letzten 30 Tage für eine präzisere Auswertung.",
     "regenerateInsights": "Reports neu generieren",
     "regenerateSuccess": "Reports wurden neu generiert",
@@ -3775,6 +3813,30 @@
         "savedHidden": "Coach ist ausgeblendet.",
         "savedShown": "Coach ist sichtbar.",
         "saveError": "Speichern fehlgeschlagen. Bitte erneut versuchen."
+      },
+      "aboutMe": {
+        "title": "Über mich",
+        "description": "Persönlicher Kontext, den Coach und Tagesbriefing zusätzlich zu deinen Daten lesen.",
+        "placeholder": "Z. B. Schichtarbeit, vegetarische Ernährung, Knieverletzung, Training für einen Halbmarathon …",
+        "charCount": "{used} / {max} Zeichen",
+        "clear": "Leeren",
+        "save": "Speichern",
+        "savedToast": "Über-mich-Notiz gespeichert.",
+        "clearedToast": "Über-mich-Notiz gelöscht.",
+        "saveError": "Speichern fehlgeschlagen. Bitte versuche es erneut.",
+        "loadError": "Die Notiz konnte nicht geladen werden.",
+        "hint": "Wird als zusätzlicher Kontext an Coach und Tagesbriefing übergeben. Leer lassen, um nichts mitzusenden.",
+        "profileHint": "Alter und Geschlecht stammen aus deinem Profil und werden automatisch mitgegeben.",
+        "freeTextLabel": "Über mich (Freitext)",
+        "conditionsLabel": "Chronische Erkrankungen",
+        "conditionsPlaceholder": "Z. B. Bluthochdruck, Typ-2-Diabetes …",
+        "allergiesLabel": "Allergien & Unverträglichkeiten",
+        "allergiesPlaceholder": "Z. B. Laktoseintoleranz, Penicillin-Allergie …",
+        "focusLabel": "Worauf soll der Coach achten?",
+        "focusPlaceholder": "Z. B. behalte meinen Blutdruck im Blick, motiviere mich zu mehr Bewegung …",
+        "completeness": "{answered} von {total} beantwortet",
+        "questionsTitle": "Der Coach hat Rückfragen",
+        "questionsOpenCoach": "Im Coach beantworten"
       }
     },
     "dashboard": {
@@ -3804,6 +3866,21 @@
     "withingsSyncResult": "{count} Messwerte synchronisiert",
     "withingsFullSyncResult": "{count} Messwerte vollständig synchronisiert",
     "withingsSyncFailed": "Sync fehlgeschlagen",
+    "withingsOauthConnected": "Withings verbunden — der erste Sync startet im Hintergrund.",
+    "withingsOauthFailed": "Withings-Verbindung fehlgeschlagen",
+    "withingsOauthError": {
+      "csrf1": "Die Sicherheitsprüfung ist fehlgeschlagen, weil das Browser-Cookie fehlte. Starte die Verbindung bitte erneut im selben Browser.",
+      "replay": "Dieser Bestätigungslink wurde bereits verwendet. Starte die Verbindung bitte erneut.",
+      "state": "Die Antwort von Withings passte zu keiner offenen Verbindungsanfrage. Starte die Verbindung bitte erneut.",
+      "expired": "Die Verbindungsanfrage ist abgelaufen. Starte die Verbindung erneut und schließe die Freigabe innerhalb weniger Minuten ab.",
+      "cross_user": "Die Antwort gehört zu einer Anfrage eines anderen Kontos. Starte die Verbindung bitte aus deinem eigenen Konto neu.",
+      "nocode": "Withings hat keinen Freigabe-Code übermittelt. Versuche es erneut und erlaube den Zugriff im Withings-Dialog.",
+      "nocreds": "Es sind keine Withings-API-Zugangsdaten hinterlegt. Speichere zuerst Client-ID und Client-Secret, dann verbinde erneut.",
+      "token": "Der Token-Austausch mit Withings ist fehlgeschlagen. Prüfe Client-ID und Client-Secret und versuche es erneut.",
+      "generic": "Unbekannter Fehler bei der Verbindung. Starte die Verbindung bitte erneut."
+    },
+    "integrationsSourcesHint": "Liefern mehrere Quellen dieselbe Metrik, entscheidet die Quellen-Priorität, welcher Wert zählt.",
+    "integrationsSourcesHintLink": "Quellen-Priorität öffnen",
     "withingsSynchronize": "Synchronisieren",
     "withingsDisconnect": "Trennen",
     "withingsDisconnectTitle": "Withings-Verbindung trennen?",
@@ -4049,7 +4126,7 @@
       "distance": "Distanz",
       "sleep": "Schlaf",
       "glucose": "Blutzucker",
-      "medications": "Medikamente & Einnahmetreue",
+      "medications": "Medikamente & Therapietreue",
       "mood": "Stimmung (standardmäßig aus — sensible Daten)",
       "bmi": "BMI",
       "includeCharts": "Trend-Diagramme einbetten (nur PDF)",
@@ -4240,6 +4317,55 @@
     "bugReportRepoPlaceholder": "owner/repo",
     "bugReportToken": "Issue-Token",
     "bugReportTokenPlaceholder": "ghp_...",
+    "invites": {
+      "title": "Einladungen",
+      "description": "Einladungslinks für die Registrierung — funktionieren auch bei geschlossener Registrierung. Der Link wird nur einmal angezeigt.",
+      "adminOnlyHint": "Nur Admins können Einladungen erstellen und widerrufen.",
+      "create": "Einladung erstellen",
+      "createTitle": "Einladung erstellen",
+      "createDescription": "Der Link erlaubt eine Registrierung auch bei geschlossener Registrierung.",
+      "ttlLegend": "Gültig für",
+      "createDays": "{days} Tage",
+      "maxUsesLabel": "Maximale Nutzungen",
+      "maxUsesHint": "Wie viele Registrierungen dieser Link zulässt (1–50).",
+      "createConfirm": "Einladung erstellen",
+      "createdToast": "Einladung erstellt.",
+      "createError": "Einladung konnte nicht erstellt werden.",
+      "tokenTitle": "Einladungslink",
+      "tokenOnceHint": "Nur jetzt kopierbar — kopiere den Link oder lass den QR-Code scannen.",
+      "hashExplainer": "Gespeichert wird nur ein Hash des Links — er kann später nicht erneut angezeigt werden. Geht er verloren: Einladung widerrufen und neu erstellen.",
+      "copyLink": "Link kopieren",
+      "copiedToast": "Link kopiert.",
+      "copyError": "Kopieren fehlgeschlagen.",
+      "qrAlt": "QR-Code des Einladungslinks",
+      "loadError": "Einladungen konnten nicht geladen werden.",
+      "emptyTitle": "Noch keine Einladungen",
+      "emptyDescription": "Erstelle einen Einladungslink, um jemanden trotz geschlossener Registrierung aufzunehmen.",
+      "colStatus": "Status",
+      "colCreated": "Erstellt",
+      "colExpires": "Läuft ab",
+      "colUses": "Nutzungen",
+      "colRedeemedBy": "Eingelöst von",
+      "colActions": "Aktionen",
+      "byCreator": "von {by}",
+      "expiresInDaysOne": "in 1 Tag",
+      "expiresInDaysOther": "in {count} Tagen",
+      "statusActive": "Aktiv",
+      "statusExpired": "Abgelaufen",
+      "statusExhausted": "Aufgebraucht",
+      "statusRevoked": "Widerrufen",
+      "redeemerDeleted": "gelöschtes Konto",
+      "redeemedByMore": "{username} + {count} weitere",
+      "redemptionsTitle": "{count} Einlösungen",
+      "revoke": "Widerrufen",
+      "revokeAria": "Einladung widerrufen",
+      "revokeConfirmTitle": "Einladung widerrufen?",
+      "revokeConfirmBody": "Der Einladungslink wird sofort ungültig. Bereits registrierte Konten bleiben bestehen, die Einlösungs-Historie bleibt sichtbar.",
+      "revokeConfirmAction": "Widerrufen",
+      "cancel": "Abbrechen",
+      "revokedToast": "Einladung widerrufen.",
+      "revokeError": "Einladung konnte nicht widerrufen werden."
+    },
     "userManagement": "Benutzerverwaltung",
     "userName": "Name",
     "userEmail": "E-Mail",
@@ -4458,6 +4584,10 @@
         "emptyDescription": "Es gibt keine Nutzer, die zum aktuellen Filter passen.",
         "emptyResetFilter": "Alle Nutzer anzeigen"
       },
+      "invites": {
+        "title": "Einladungen",
+        "subtitle": "Einladungslinks erstellen, nachverfolgen und widerrufen."
+      },
       "api-tokens": {
         "title": "API-Tokens",
         "subtitle": "Aktive Bearer-Tokens für native Clients und Integrationen."
@@ -4636,7 +4766,7 @@
       },
       "compliance801": {
         "title": "Treue 80% · 1T",
-        "description": "Erreiche an einem Tag eine 30-Tage-Einnahmetreue von mindestens 80%."
+        "description": "Erreiche an einem Tag eine 30-Tage-Therapietreue von mindestens 80%."
       },
       "bmiGreen1": {
         "title": "BMI im Grün · 1T",
@@ -4656,7 +4786,7 @@
       },
       "compliance807": {
         "title": "Treue 80% · 7T",
-        "description": "Erreiche 7 Tage in Folge eine 30-Tage-Einnahmetreue von mindestens 80%."
+        "description": "Erreiche 7 Tage in Folge eine 30-Tage-Therapietreue von mindestens 80%."
       },
       "bmiGreen7": {
         "title": "BMI im Grün · 7T",
@@ -4676,7 +4806,7 @@
       },
       "compliance8030": {
         "title": "Treue 80% · 30T",
-        "description": "Erreiche 30 Tage in Folge eine 30-Tage-Einnahmetreue von mindestens 80%."
+        "description": "Erreiche 30 Tage in Folge eine 30-Tage-Therapietreue von mindestens 80%."
       },
       "bmiGreen30": {
         "title": "BMI im Grün · 30T",
@@ -4696,7 +4826,7 @@
       },
       "compliance80180": {
         "title": "Treue 80% · 180T",
-        "description": "Erreiche 180 Tage in Folge eine 30-Tage-Einnahmetreue von mindestens 80%."
+        "description": "Erreiche 180 Tage in Folge eine 30-Tage-Therapietreue von mindestens 80%."
       },
       "bmiGreen180": {
         "title": "BMI im Grün · 180T",
@@ -4716,7 +4846,7 @@
       },
       "compliance80360": {
         "title": "Treue 80% · 360T",
-        "description": "Erreiche 360 Tage in Folge eine 30-Tage-Einnahmetreue von mindestens 80%."
+        "description": "Erreiche 360 Tage in Folge eine 30-Tage-Therapietreue von mindestens 80%."
       },
       "bmiGreen360": {
         "title": "BMI im Grün · 360T",
@@ -4903,12 +5033,22 @@
       "hourAria": "Stunde der Stimmungs-Erinnerung",
       "hourSavedToast": "Erinnerungszeit aktualisiert."
     },
+    "coachNudge": {
+      "title": "Proaktiver Coach",
+      "description": "Meldet sich höchstens einmal pro Woche, wenn deine Daten einen Blick in den Coach nahelegen — etwa bei niedriger Therapietreue oder erhöhtem Blutdruck-Wochenmittel.",
+      "toggleAria": "Proaktive Coach-Hinweise umschalten",
+      "statusOn": "Aktiv — max. 1× pro Woche",
+      "statusOff": "Aus",
+      "enabledToast": "Proaktive Coach-Hinweise aktiviert.",
+      "disabledToast": "Proaktive Coach-Hinweise deaktiviert.",
+      "saveError": "Speichern fehlgeschlagen. Bitte später erneut versuchen."
+    },
     "eventMedicationReminder": "Medikamenten-Erinnerung",
     "eventMedicationReminderDesc": "Wird zu jeder geplanten Einnahmezeit gesendet.",
     "eventMeasurementAnomaly": "Auffälliger Messwert",
     "eventMeasurementAnomalyDesc": "Wird gesendet, wenn ein Wert deutlich außerhalb deines üblichen Bereichs liegt.",
-    "eventComplianceLow": "Niedrige Einnahmequote",
-    "eventComplianceLowDesc": "Wird gesendet, wenn deine Einnahmequote in den letzten Tagen unter 80 % fällt.",
+    "eventComplianceLow": "Niedrige Therapietreue",
+    "eventComplianceLowDesc": "Wird gesendet, wenn deine Therapietreue in den letzten Tagen unter 80 % fällt.",
     "eventWithingsSyncFailed": "Withings-Sync fehlgeschlagen",
     "eventWithingsSyncFailedDesc": "Wird gesendet, wenn die Withings-Synchronisierung mehrere Versuche in Folge scheitert.",
     "eventSystemAlert": "Systemmeldung",
@@ -5089,6 +5229,20 @@
     "dailyTitle": "Stimmung erfassen",
     "dailyBody": "Wie geht es dir heute?"
   },
+  "coachNudges": {
+    "complianceTitle": "Dein Coach hätte einen Gedanken dazu",
+    "complianceBody": "Deine Einnahmen waren diese Woche lückenhaft. Sprich kurz mit dem Coach — vielleicht lässt sich der Plan vereinfachen.",
+    "bpTitle": "Blutdruck im Wochenmittel erhöht",
+    "bpBody": "Dein Blutdruck lag diese Woche im Schnitt über deinem Ziel. Der Coach kann die Werte mit dir einordnen.",
+    "scoreTitle": "Dein Erholungswert fällt",
+    "scoreBody": "Dein Erholungswert ist diese Woche deutlich gesunken. Der Coach hilft dir, mögliche Ursachen einzugrenzen.",
+    "selfContextTitle": "Hilf deinem Coach, dich besser zu kennen",
+    "selfContextBody": "Deine Selbstauskunft ist unvollständig oder länger nicht aktualisiert. Zwei Minuten in den Einstellungen halten den Kontext des Coachs frisch.",
+    "questionConditions": "Hast du chronische Erkrankungen, die der Coach kennen sollte?",
+    "questionFocus": "Gibt es etwas Bestimmtes, worauf der Coach achten soll?",
+    "questionAllergies": "Hast du Allergien oder Unverträglichkeiten?",
+    "questionAboutMe": "Magst du dem Coach etwas über dich erzählen — Alltag, Ziele, Kontext?"
+  },
   "clinicianView": {
     "title": "Geteilte Gesundheitsakte",
     "period": "Berichtszeitraum: {start} – {end}",
@@ -5096,10 +5250,10 @@
     "provenance": "Dies ist eine schreibgeschützte Zusammenfassung, die von der betreffenden Person geteilt wurde, exportiert aus ihren selbst erfassten HealthLog-Daten. Die Werte sind selbst erhoben und können geräteübertragene Messwerte enthalten; behandeln Sie sie als von der Patientin/dem Patienten berichtet, nicht als klinische Untersuchung.",
     "vitals": "Vitalwerte",
     "labs": "Laborwerte",
-    "medications": "Medikamente & Einnahmetreue",
+    "medications": "Medikamente & Therapietreue",
     "bmi": "Body-Mass-Index (BMI)",
     "statSummary": "zuletzt {latest} (Ø {avg}, Bereich {min}–{max})",
-    "adherence": "{rate} Einnahmetreue",
+    "adherence": "{rate} Therapietreue",
     "noAdherence": "—",
     "glucose": {
       "FASTING": "Glukose (nüchtern)",

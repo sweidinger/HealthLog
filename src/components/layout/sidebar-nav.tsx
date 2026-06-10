@@ -9,6 +9,7 @@ import {
   ChevronsRight,
   Droplets,
   Home,
+  Info,
   Lightbulb,
   LogOut,
   Monitor,
@@ -156,10 +157,18 @@ function SidebarUserSection({ collapsed }: { collapsed: boolean }) {
           {t("nav.notifications")}
         </Link>
       </DropdownMenuItem>
-      {/* v1.4.36 W4e — About moved into the Admin Console
-          (`/admin/about`). Admins reach it through the Admin sidebar
-          and the mobile section strip; non-admin users see the
-          public `/about` landing instead. */}
+      {/* "About HealthLog" links the signed-in `/settings/about`
+          section (version, licences, update check). The slug also has
+          its own entry at the end of the settings shell nav; this
+          dropdown item keeps the historic discovery path alive. The
+          public `/about` landing stays separate for signed-out
+          visitors. */}
+      <DropdownMenuItem asChild>
+        <Link href="/settings/about" className="cursor-pointer">
+          <Info className="mr-2 h-4 w-4" />
+          {t("nav.about")}
+        </Link>
+      </DropdownMenuItem>
       <DropdownMenuSub>
         <DropdownMenuSubTrigger>
           {themeIcon}

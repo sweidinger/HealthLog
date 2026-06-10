@@ -34,6 +34,7 @@ import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
 import { Switch } from "@/components/ui/switch";
 import { PasswordInput } from "@/components/ui/password-input";
+import { AboutMeSection } from "@/components/settings/about-me-section";
 import { CoachMemorySection } from "@/components/settings/coach-memory-section";
 import { useAuth } from "@/hooks/use-auth";
 import { formatDateTime } from "@/lib/format";
@@ -200,9 +201,12 @@ export function AiSection() {
 
       {/* v1.11.2 — "What the Coach remembers": durable-fact review +
           forget controls. Gated on the Coach being enabled. */}
-      {coachEnabled && (
-        <CoachMemorySection isAuthenticated={isAuthenticated} />
-      )}
+      {coachEnabled && <CoachMemorySection isAuthenticated={isAuthenticated} />}
+
+      {/* v1.15.20 — user-authored "about me" context for the Coach +
+          daily briefing. Not gated on the Coach toggle: the briefing
+          reads it too. */}
+      <AboutMeSection isAuthenticated={isAuthenticated} />
     </section>
   );
 }
@@ -830,9 +834,9 @@ function CodexProviderForm({
           disabled={disconnecting}
         >
           {disconnecting ? (
-            <Loader2 className="mr-1 h-4 w-4 animate-spin motion-reduce:animate-none" />
+            <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" />
           ) : (
-            <Trash2 className="mr-1 h-4 w-4" />
+            <Trash2 className="h-4 w-4" />
           )}
           {t("settings.ai.codex.disconnectButton")}
         </Button>
@@ -894,9 +898,9 @@ function CodexProviderForm({
           className="w-full sm:w-auto"
         >
           {devicePolling ? (
-            <Loader2 className="mr-2 h-4 w-4 animate-spin motion-reduce:animate-none" />
+            <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" />
           ) : (
-            <Sparkles className="mr-2 h-4 w-4" />
+            <Sparkles className="h-4 w-4" />
           )}
           {t("settings.ai.codex.connectButton")}
         </Button>
@@ -1090,9 +1094,9 @@ function OpenAIProviderForm({
           disabled={saveMutation.isPending}
         >
           {saveMutation.isPending ? (
-            <Loader2 className="mr-2 h-4 w-4 animate-spin motion-reduce:animate-none" />
+            <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" />
           ) : (
-            <Save className="mr-2 h-4 w-4" />
+            <Save className="h-4 w-4" />
           )}
           {t("settings.ai.saveCta")}
         </Button>
@@ -1246,9 +1250,9 @@ function AnthropicProviderForm({
           disabled={saveMutation.isPending}
         >
           {saveMutation.isPending ? (
-            <Loader2 className="mr-2 h-4 w-4 animate-spin motion-reduce:animate-none" />
+            <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" />
           ) : (
-            <Save className="mr-2 h-4 w-4" />
+            <Save className="h-4 w-4" />
           )}
           {t("settings.ai.saveCta")}
         </Button>
@@ -1403,9 +1407,9 @@ function LocalProviderForm({
           disabled={saveMutation.isPending}
         >
           {saveMutation.isPending ? (
-            <Loader2 className="mr-2 h-4 w-4 animate-spin motion-reduce:animate-none" />
+            <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" />
           ) : (
-            <Save className="mr-2 h-4 w-4" />
+            <Save className="h-4 w-4" />
           )}
           {t("settings.ai.saveCta")}
         </Button>
@@ -1655,16 +1659,16 @@ function FallbackChainCard({
           data-testid="ai-fallback-chain-save"
         >
           {saveMutation.isPending ? (
-            <Loader2 className="mr-2 h-4 w-4 animate-spin motion-reduce:animate-none" />
+            <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" />
           ) : (
-            <Save className="mr-2 h-4 w-4" />
+            <Save className="h-4 w-4" />
           )}
           {t("settings.ai.providerChain.saveOrder")}
         </Button>
         <AlertDialog>
           <AlertDialogTrigger asChild>
             <Button size="sm" variant="outline">
-              <RotateCcw className="mr-2 h-4 w-4" />
+              <RotateCcw className="h-4 w-4" />
               {t("settings.ai.providerChain.resetDefaults")}
             </Button>
           </AlertDialogTrigger>
@@ -1728,7 +1732,7 @@ function AddProviderControl({
           if (isProviderType(picked)) onAdd(picked);
         }}
       >
-        <PlusCircle className="mr-2 h-4 w-4" />
+        <PlusCircle className="h-4 w-4" />
         {t("settings.ai.providerChain.addProvider")}
       </Button>
     </div>
@@ -1927,9 +1931,9 @@ function RuntimeActionsRow({
           data-testid="ai-test-active-provider"
         >
           {testing ? (
-            <Loader2 className="mr-2 h-4 w-4 animate-spin motion-reduce:animate-none" />
+            <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" />
           ) : (
-            <Sparkles className="mr-2 h-4 w-4" />
+            <Sparkles className="h-4 w-4" />
           )}
           {t("settings.ai.testProvider")}
         </Button>
@@ -1941,9 +1945,9 @@ function RuntimeActionsRow({
             disabled={regen}
           >
             {regen ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin motion-reduce:animate-none" />
+              <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" />
             ) : (
-              <RefreshCw className="mr-2 h-4 w-4" />
+              <RefreshCw className="h-4 w-4" />
             )}
             {t("settings.regenerateInsights")}
           </Button>

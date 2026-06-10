@@ -71,9 +71,11 @@ export default function InsightsMetricValuesPage({
           className="-ml-2 w-fit"
         >
           <Link href={backHref}>
-            <ArrowLeft className="mr-1 size-4" aria-hidden="true" />
+            <ArrowLeft className="size-4" aria-hidden="true" />
             {backToOrigin
-              ? t("insights.subPage.valuesBackToMetric", { metric: metricLabel })
+              ? t("insights.subPage.valuesBackToMetric", {
+                  metric: metricLabel,
+                })
               : t("insights.subPage.valuesBack")}
           </Link>
         </Button>

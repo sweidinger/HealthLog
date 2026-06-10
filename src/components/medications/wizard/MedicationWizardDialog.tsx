@@ -27,13 +27,7 @@
  * dialog reaches a new locale.
  */
 
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -189,15 +183,17 @@ function WizardDialogShell({
   // payload validates every gate, so the ceiling is the whole path.
   const reachableUntil = useMemo(
     () =>
-      Math.max(fallbackIndex, firstInvalidIndex(payload, stepList, fallbackIndex)),
+      Math.max(
+        fallbackIndex,
+        firstInvalidIndex(payload, stepList, fallbackIndex),
+      ),
     [payload, stepList, fallbackIndex],
   );
   // Jump-to-last is enabled only when the WHOLE path validates — i.e.
   // every step from the first slot onward passes its gate, so a single
   // tap can land the user on the review step without stranding them
   // behind an unmet requirement.
-  const lastReachable =
-    firstInvalidIndex(payload, stepList, 0) >= totalSteps;
+  const lastReachable = firstInvalidIndex(payload, stepList, 0) >= totalSteps;
 
   const canContinue = useMemo(
     () => validateStep(payload, step),
@@ -345,16 +341,7 @@ function WizardDialogShell({
     } finally {
       setSubmitting(false);
     }
-  }, [
-    initial,
-    mode,
-    onOpenChange,
-    onSuccess,
-    payload,
-    queryClient,
-    router,
-    t,
-  ]);
+  }, [initial, mode, onOpenChange, onSuccess, payload, queryClient, router, t]);
 
   const Icon = STEP_ICONS[step];
 
@@ -445,7 +432,7 @@ function WizardDialogShell({
                 className="h-11"
               >
                 {submitting && (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin motion-reduce:animate-none" />
+                  <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" />
                 )}
                 {primaryCtaLabel}
               </Button>
@@ -495,10 +482,7 @@ function WizardDialogShell({
                   data-slot="wizard-nl-button"
                   aria-label={t("medications.wizard.nl.button")}
                 >
-                  <Sparkles
-                    className="h-3.5 w-3.5"
-                    aria-hidden="true"
-                  />
+                  <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
                   {t("medications.wizard.nl.button")}
                 </Button>
               </div>
@@ -515,7 +499,7 @@ function WizardDialogShell({
               snaps the step. The slide proposed in D-2 was stripped. */}
           <div
             ref={bodyRef}
-            className="flex flex-col gap-6 p-4 pr-12 sm:gap-8 sm:p-6 sm:pr-14 animate-in fade-in-0 duration-200 motion-reduce:animate-none"
+            className="animate-in fade-in-0 flex flex-col gap-6 p-4 pr-12 duration-200 motion-reduce:animate-none sm:gap-8 sm:p-6 sm:pr-14"
             data-slot="wizard-step-body"
             key={step}
           >
@@ -545,13 +529,11 @@ function WizardDialogShell({
                 <h2
                   ref={stepTitleRef}
                   tabIndex={-1}
-                  className="text-foreground text-base font-semibold leading-tight tracking-tight focus-visible:outline-none"
+                  className="text-foreground text-base leading-tight font-semibold tracking-tight focus-visible:outline-none"
                 >
                   {stepTitle}
                 </h2>
-                <p className="text-muted-foreground text-sm">
-                  {stepSubline}
-                </p>
+                <p className="text-muted-foreground text-sm">{stepSubline}</p>
                 {/* v1.8.6 W4b — muted "what's next" hint so the user
                     knows what the Next tap leads to (or, on the final
                     slot, that Next saves). */}
@@ -582,10 +564,7 @@ function WizardDialogShell({
                 <Step4Window payload={payload} applyPartial={applyPartial} />
               )}
               {step === 5 && (
-                <Step5Cadence
-                  payload={payload}
-                  applyPartial={applyPartial}
-                />
+                <Step5Cadence payload={payload} applyPartial={applyPartial} />
               )}
               {step === 6 && (
                 <Step6SubCadence
@@ -594,10 +573,7 @@ function WizardDialogShell({
                 />
               )}
               {step === 7 && (
-                <Step7Times
-                  payload={payload}
-                  applyPartial={applyPartial}
-                />
+                <Step7Times payload={payload} applyPartial={applyPartial} />
               )}
               {step === 8 && (
                 <Step8Summary

@@ -39,7 +39,10 @@ export const metadata: Metadata = {
   manifest: "/manifest.json",
   icons: {
     icon: "/favicon.svg",
-    apple: "/logo-192.png",
+    // Pre-flattened 180×180 on the app background — Safari ignores PNG
+    // alpha in favourites/home-screen tiles and would render the
+    // transparent logo on a white slab otherwise.
+    apple: "/apple-touch-icon.png",
   },
   appleWebApp: {
     capable: true,
@@ -117,7 +120,13 @@ export default async function RootLayout({
         <Providers initialLocale={initialLocale}>
           <MonitoringBootstrap />
           <WebVitalsReporter />
-          <AuthShell>{children}</AuthShell>
+          {/* `DEMO_MODE` is a server-only env var; the proxy uses it to
+              block mutations. Resolve it here (server component) and
+              thread the boolean into the client shell so the demo
+              banner can render without a client-side detection path. */}
+          <AuthShell demoMode={process.env.DEMO_MODE === "true"}>
+            {children}
+          </AuthShell>
         </Providers>
       </body>
     </html>

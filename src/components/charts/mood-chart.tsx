@@ -14,9 +14,9 @@ import {
   ReferenceArea,
   ReferenceLine,
 } from "recharts";
-import { Loader2 } from "lucide-react";
-import { useState, useMemo } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { useTranslations } from "@/lib/i18n/context";
 import { makeFormatters } from "@/lib/format-locale";
@@ -93,6 +93,14 @@ interface MoodChartProps {
    * "Europe/Berlin" so older mount sites stay byte-identical.
    */
   userTimezone?: string;
+  /**
+   * v1.16.0 — fires once the mood analytics query has settled (initial
+   * load finished). The dashboard's shared reveal gate listens here so
+   * every chart cell swaps from skeleton to content in one frame —
+   * pre-fix the cheap `/api/mood/analytics` read made this chart paint
+   * visibly before its measurement siblings. Optional and repeat-safe.
+   */
+  onDataReady?: () => void;
 }
 
 // --- Constants ---
@@ -294,6 +302,7 @@ export function MoodChart({
   compareBaseline = "none",
   chartKey,
   userTimezone = "Europe/Berlin",
+  onDataReady,
 }: MoodChartProps) {
   const { isAuthenticated } = useAuth();
   const { t, locale } = useTranslations();
@@ -348,6 +357,14 @@ export function MoodChart({
     staleTime: 60_000,
     refetchOnWindowFocus: false,
   });
+
+  // v1.16.0 — report the settled query to the dashboard's shared reveal
+  // gate (see `onDataReady` prop doc). Must run BEFORE the
+  // empty-entries early return below so a no-data mount still unblocks
+  // the row.
+  useEffect(() => {
+    if (!isLoading) onDataReady?.();
+  }, [isLoading, onDataReady]);
 
   // v1.4.43 W2-CHART-GATE — raw mood-entry count across every day in
   // the window. `entries[].samples` carries the per-day raw count
@@ -576,9 +593,17 @@ export function MoodChart({
   // the padding values — makes the three trend cards share one title
   // baseline and one height. Full (non-mini) mode keeps the Card path.
   const chartBody = isLoading ? (
-    <div className="flex h-48 items-center justify-center">
-      <Loader2 className="text-primary h-6 w-6 animate-spin motion-reduce:animate-none" />
-    </div>
+    // v1.16.0 — height-matched skeleton band instead of the former
+    // `h-48` spinner box: the loading state occupies the same box the
+    // painted chart will (mini 140 px / full 200-220 px), so the card
+    // never jumps when the data lands.
+    <Skeleton
+      className={
+        mini
+          ? "h-[var(--chart-height,140px)] w-full"
+          : "h-[var(--chart-height,200px)] w-full md:h-[var(--chart-height-md,220px)]"
+      }
+    />
   ) : !chartData?.length ? (
     <div className="text-muted-foreground flex h-48 items-center justify-center text-sm">
       {t("charts.noData")}

@@ -23,6 +23,7 @@ import {
   buildComplianceMedicationContext,
   calculateCompliance,
   lastNonSkippedTakenAt,
+  SCHEDULE_COMPLIANCE_SELECT,
 } from "@/lib/analytics/compliance";
 import { resolveUserTimezone } from "@/lib/tz/resolver";
 import { getMedicationCategories } from "@/lib/medication-category";
@@ -262,7 +263,9 @@ export async function generateBloodPressureStatusForUser(
 
   const activeMedications = await prisma.medication.findMany({
     where: { userId, active: true },
-    include: { schedules: true },
+    // v1.15.20 — schedules through the shared compliance select so the
+    // configured per-dose windows reach this surface like every other.
+    include: { schedules: { select: SCHEDULE_COMPLIANCE_SELECT } },
   });
 
   const categoryMap = await getMedicationCategories(

@@ -24,6 +24,11 @@ export const ADMIN_SECTION_SLUGS = [
   "feedback",
   "reminders",
   "users",
+  // v1.16.0 — registration invites get their own section. They started
+  // as a card inside Users, but the invite table (status, redemptions,
+  // revocation) is a workflow of its own and was drowning under the
+  // account list; "who may join" sits right next to "who is here".
+  "invites",
   "api-tokens",
   "login-overview",
   "app-logs",

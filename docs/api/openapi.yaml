@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: HealthLog API
-  version: 1.15.19
+  version: 1.16.0
   description: >-
     Self-hosted personal-health-tracking PWA — public API surface for the iOS native client and external ingest.
 
@@ -3275,6 +3275,187 @@ paths:
         "401": *a1
         "422": *a3
         "429": *a4
+  /api/coach/about-me:
+    get:
+      tags:
+        - Insights
+      summary: Read the caller's self-context
+      description: v1.16.0 — returns the structured self-context (free text plus chronic conditions, allergies, coach focus)
+        the Coach system prompt and the daily briefing inject as a delimited, user-provided context block, alongside any
+        pending clarifying questions. Every field is stored encrypted at rest; an undecryptable payload reads as null
+        (fail closed). Auth via cookie or Bearer; the owner is always narrowed from the session.
+      responses:
+        "200":
+          description: The stored fields (null when never written / cleared) plus pending clarifying questions.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GetCoachAboutMeResponse"
+        "401": *a1
+        "422": *a3
+        "429": *a4
+    put:
+      tags:
+        - Insights
+      summary: Write (or clear) the caller's self-context
+      description: "v1.16.0 — persists the free text (4 000-char cap) and the three structured fields (500-char cap each)
+        encrypted at rest; caps are enforced before encryption. Structured fields are optional: omitted leaves the
+        stored value untouched, an empty string clears it. After a non-empty save the server derives up to 3 clarifying
+        questions (AI when a provider and the daily Coach token budget allow, deterministic completion hints otherwise)
+        and returns them as `pendingQuestions`. Rate-limited per user."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                aboutMe:
+                  type: string
+                  maxLength: 4000
+                conditions:
+                  type: string
+                  maxLength: 500
+                allergies:
+                  type: string
+                  maxLength: 500
+                coachFocus:
+                  type: string
+                  maxLength: 500
+              required:
+                - aboutMe
+      responses:
+        "200":
+          description: The effective (trimmed) state echoed back plus the freshly derived pending questions.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PutCoachAboutMeResponse"
+        "401": *a1
+        "422": *a3
+        "429": *a4
+  /api/coach/about-me/questions:
+    get:
+      tags:
+        - Insights
+      summary: Read the pending clarifying questions
+      description: v1.16.0 — the up-to-3 clarifying questions derived after the last self-context save. The Coach composer
+        renders them as tappable suggestion chips. Stored encrypted; an undecryptable payload reads as an empty list
+        (fail closed).
+      responses:
+        "200":
+          description: The pending questions (possibly empty).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GetCoachAboutMeQuestionsResponse"
+        "401": *a1
+        "422": *a3
+        "429": *a4
+    delete:
+      tags:
+        - Insights
+      summary: Dismiss pending clarifying questions
+      description: v1.16.0 — dismisses one question (body `{ question }`, exact match) or all of them (empty body). Tapping a
+        chip in the Coach composer inserts the question into the chat input and dismisses it here.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                question:
+                  description: Exact question text to dismiss. Omitted = dismiss all.
+                  type: string
+      responses:
+        "200":
+          description: The remaining questions after the dismissal.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeleteCoachAboutMeQuestionsResponse"
+        "401": *a1
+        "422": *a3
+        "429": *a4
+  /api/admin/invites:
+    get:
+      tags:
+        - Admin
+      summary: List registration invites
+      description: v1.16.0 — every invite with creator / consumer usernames, use counters, soft-revocation timestamp, and the
+        full per-signup redemption ledger (`redemptions`; `consumer` only carries the LAST account on a multi-use
+        invite). Metadata only — the raw token is never derivable from this endpoint (only its HMAC hash is persisted).
+        Admin session cookie required; Bearer tokens cannot reach admin endpoints.
+      responses:
+        "200":
+          description: All invites, newest first.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminInviteList"
+        "401": *a1
+        "422": *a3
+        "429": *a4
+    post:
+      tags:
+        - Admin
+      summary: Mint a registration invite
+      description: v1.15.20 — creates an invite that admits a signup even while open registration is disabled. The raw
+        `hlv_<64hex>` token and the composed registration URL appear EXACTLY ONCE in this response; only the keyed hash
+        is persisted. Lifetime is capped at 30 days; `maxUses` makes multi-use invites possible (consumption is an
+        atomic guarded increment). Admin session cookie required.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                expiresInDays:
+                  default: 7
+                  type: integer
+                  minimum: 1
+                  maximum: 30
+                maxUses:
+                  default: 1
+                  type: integer
+                  minimum: 1
+                  maximum: 50
+      responses:
+        "201":
+          description: The minted invite, including the one-time raw token.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminInviteCreated"
+        "401": *a1
+        "422": *a3
+        "429": *a4
+  /api/admin/invites/{id}:
+    delete:
+      tags:
+        - Admin
+      summary: Revoke a registration invite
+      description: "v1.16.0 — soft-revokes the invite (`revokedAt`): the row keeps its redemption history visible in the admin
+        table while the consume path refuses the link like an expired one. Idempotent: an unknown or already-revoked id
+        returns `{ revoked: false }` instead of 404. Admin session cookie required."
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+          required: true
+      responses:
+        "200":
+          description: "The invite was revoked (`revoked: true`) or nothing matched (`revoked: false`)."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminInviteRevoked"
+        "401": *a1
+        "422": *a3
+        "429": *a4
   /api/insights/chat/messages/{id}/feedback:
     post:
       tags:
@@ -4615,6 +4796,13 @@ components:
           type: string
           minLength: 1
           maxLength: 64
+        timeFormat:
+          description: Hour-cycle display preference. AUTO follows the locale convention, H12 forces AM/PM, H24 forces 24-hour.
+          type: string
+          enum:
+            - AUTO
+            - H12
+            - H24
         moodReminderEnabled:
           type: boolean
         fullName:
@@ -10022,6 +10210,13 @@ components:
             - type: "null"
         timezone:
           type: string
+        timeFormat:
+          type: string
+          enum:
+            - AUTO
+            - H12
+            - H24
+          description: Hour-cycle display preference. AUTO follows the locale convention, H12 forces AM/PM, H24 forces 24-hour.
         moodReminderEnabled:
           type: boolean
         fullName:
@@ -10050,6 +10245,7 @@ components:
         - heightCm
         - locale
         - timezone
+        - timeFormat
         - moodReminderEnabled
         - fullName
         - insurerName
@@ -10111,6 +10307,13 @@ components:
             - type: "null"
         timezone:
           type: string
+        timeFormat:
+          type: string
+          enum:
+            - AUTO
+            - H12
+            - H24
+          description: Hour-cycle display preference. AUTO follows the locale convention, H12 forces AM/PM, H24 forces 24-hour.
         moodReminderEnabled:
           type: boolean
         fullName:
@@ -10137,6 +10340,7 @@ components:
         - heightCm
         - locale
         - timezone
+        - timeFormat
         - moodReminderEnabled
         - fullName
         - insurerName
@@ -10291,6 +10495,374 @@ components:
                 id (idempotent no-op).
           required:
             - deleted
+          additionalProperties: false
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    GetCoachAboutMeResponse:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            aboutMe:
+              anyOf:
+                - type: string
+                - type: "null"
+            conditions:
+              anyOf:
+                - type: string
+                - type: "null"
+            allergies:
+              anyOf:
+                - type: string
+                - type: "null"
+            coachFocus:
+              anyOf:
+                - type: string
+                - type: "null"
+            pendingQuestions:
+              type: array
+              items:
+                type: string
+            updatedAt:
+              anyOf:
+                - type: string
+                  format: date-time
+                  pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
+                - type: "null"
+            maxChars:
+              type: integer
+              minimum: -9007199254740991
+              maximum: 9007199254740991
+            fieldMaxChars:
+              type: integer
+              minimum: -9007199254740991
+              maximum: 9007199254740991
+          required:
+            - aboutMe
+            - conditions
+            - allergies
+            - coachFocus
+            - pendingQuestions
+            - updatedAt
+            - maxChars
+            - fieldMaxChars
+          additionalProperties: false
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    PutCoachAboutMeResponse:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            aboutMe:
+              anyOf:
+                - type: string
+                - type: "null"
+            conditions:
+              anyOf:
+                - type: string
+                - type: "null"
+            allergies:
+              anyOf:
+                - type: string
+                - type: "null"
+            coachFocus:
+              anyOf:
+                - type: string
+                - type: "null"
+            pendingQuestions:
+              type: array
+              items:
+                type: string
+            updatedAt:
+              type: string
+              format: date-time
+              pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
+            maxChars:
+              type: integer
+              minimum: -9007199254740991
+              maximum: 9007199254740991
+            fieldMaxChars:
+              type: integer
+              minimum: -9007199254740991
+              maximum: 9007199254740991
+          required:
+            - aboutMe
+            - conditions
+            - allergies
+            - coachFocus
+            - pendingQuestions
+            - updatedAt
+            - maxChars
+            - fieldMaxChars
+          additionalProperties: false
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    GetCoachAboutMeQuestionsResponse:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            questions:
+              type: array
+              items:
+                type: string
+          required:
+            - questions
+          additionalProperties: false
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    DeleteCoachAboutMeQuestionsResponse:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            questions:
+              type: array
+              items:
+                type: string
+          required:
+            - questions
+          additionalProperties: false
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    AdminInviteList:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+              createdAt:
+                type: string
+                format: date-time
+                pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
+              expiresAt:
+                type: string
+                format: date-time
+                pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
+              usedAt:
+                anyOf:
+                  - type: string
+                    format: date-time
+                    pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
+                  - type: "null"
+              revokedAt:
+                anyOf:
+                  - type: string
+                    format: date-time
+                    pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
+                  - type: "null"
+              uses:
+                type: integer
+                minimum: -9007199254740991
+                maximum: 9007199254740991
+              maxUses:
+                type: integer
+                minimum: -9007199254740991
+                maximum: 9007199254740991
+              creator:
+                anyOf:
+                  - type: object
+                    properties:
+                      id:
+                        type: string
+                      username:
+                        type: string
+                    required:
+                      - id
+                      - username
+                    additionalProperties: false
+                  - type: "null"
+              consumer:
+                anyOf:
+                  - type: object
+                    properties:
+                      id:
+                        type: string
+                      username:
+                        type: string
+                    required:
+                      - id
+                      - username
+                    additionalProperties: false
+                  - type: "null"
+              redemptions:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: string
+                    redeemedAt:
+                      type: string
+                      format: date-time
+                      pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
+                    user:
+                      anyOf:
+                        - type: object
+                          properties:
+                            id:
+                              type: string
+                            username:
+                              type: string
+                            email:
+                              anyOf:
+                                - type: string
+                                - type: "null"
+                          required:
+                            - id
+                            - username
+                            - email
+                          additionalProperties: false
+                        - type: "null"
+                  required:
+                    - id
+                    - redeemedAt
+                    - user
+                  additionalProperties: false
+            required:
+              - id
+              - createdAt
+              - expiresAt
+              - usedAt
+              - revokedAt
+              - uses
+              - maxUses
+              - creator
+              - consumer
+              - redemptions
+            additionalProperties: false
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    AdminInviteCreated:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            id:
+              type: string
+            createdAt:
+              type: string
+              format: date-time
+              pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
+            expiresAt:
+              type: string
+              format: date-time
+              pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
+            uses:
+              type: integer
+              minimum: -9007199254740991
+              maximum: 9007199254740991
+            maxUses:
+              type: integer
+              minimum: -9007199254740991
+              maximum: 9007199254740991
+            token:
+              type: string
+              description: Raw invite token (`hlv_<64hex>`). Shown exactly once — never persisted in plaintext.
+            url:
+              type: string
+              description: Composed registration deep link (`/auth/register?invite=…`).
+          required:
+            - id
+            - createdAt
+            - expiresAt
+            - uses
+            - maxUses
+            - token
+            - url
+          additionalProperties: false
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    AdminInviteRevoked:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            revoked:
+              type: boolean
+          required:
+            - revoked
           additionalProperties: false
         error:
           type: "null"
@@ -10668,10 +11240,16 @@ components:
             - ready
             - preparing
             - disabled
+            - no-provider
         briefingUpdatedAt:
           anyOf:
             - type: string
             - type: "null"
+        briefingStale:
+          type: boolean
+          description: True when `briefing` carries the last good (expired-TTL) briefing while a refresh is pending (`preparing`)
+            or impossible (`no-provider`). Render the stale content with its `briefingUpdatedAt` timestamp instead of a
+            blank tile.
         generatedAt:
           type: string
       required:
@@ -10684,15 +11262,18 @@ components:
         - briefing
         - briefingState
         - briefingUpdatedAt
+        - briefingStale
         - generatedAt
       additionalProperties: false
-      description: Unified above-the-fold dashboard payload. `tiles` always arrives (slim summaries + mood + resolved widget
+      description: "Unified above-the-fold dashboard payload. `tiles` always arrives (slim summaries + mood + resolved widget
         layout); `extras` (BD-in-target + per-context glucose) is null on a rollup-coverage miss so the strip never
         waits on the slowest read. `briefing` is lifted read-only from the pre-generated insight cache — never generated
-        synchronously — and reports `ready` / `preparing` / `disabled` via `briefingState`. `layoutCatalogue` (full
-        27-id widget catalogue) and `metricStates` (latest reading per metric, keyed by iOS `MetricKind` raw value) are
-        additive cold-launch seeds for the native client; both derive in-process from data already fetched, adding no DB
-        round-trip.
+        synchronously — and reports `ready` / `preparing` / `disabled` / `no-provider` via `briefingState`
+        (`no-provider` = stale-or-missing cache with no AI provider configured anywhere, so no warm pass will fill it;
+        stop polling and surface a connect-provider hint). A stale-but-parseable briefing is still delivered with
+        `briefingStale: true`. `layoutCatalogue` (full 27-id widget catalogue) and `metricStates` (latest reading per
+        metric, keyed by iOS `MetricKind` raw value) are additive cold-launch seeds for the native client; both derive
+        in-process from data already fetched, adding no DB round-trip."
     InsightsComprehensiveResponseEnvelope:
       type: object
       properties:

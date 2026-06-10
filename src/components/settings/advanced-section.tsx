@@ -90,9 +90,7 @@ function researchModeStatusLabel(
   if (gate === "off") return t("settings.researchMode.disabledStatus");
   if (gate === "stale") return t("settings.researchMode.enabledStaleStatus");
   return t("settings.researchMode.acknowledgedOn", {
-    date: status?.acknowledgedAt
-      ? formatDateTime(status.acknowledgedAt)
-      : "—",
+    date: status?.acknowledgedAt ? formatDateTime(status.acknowledgedAt) : "—",
   });
 }
 
@@ -306,9 +304,9 @@ function DataResetCard() {
               className="w-full shrink-0 sm:w-auto"
             >
               {deleting ? (
-                <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
+                <Loader2 className="h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
               ) : (
-                <Trash2 className="mr-1 h-3.5 w-3.5" />
+                <Trash2 className="h-3.5 w-3.5" />
               )}
               {t("settings.dangerZone")}
             </Button>
@@ -327,7 +325,7 @@ function DataResetCard() {
                 {t("common.cancel")}
               </AlertDialogCancel>
               <AlertDialogAction
-                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                variant="destructive"
                 onClick={(e) => {
                   e.preventDefault();
                   void handleDeleteAllData();
@@ -450,9 +448,9 @@ function AccountDeleteCard() {
               data-slot="settings-account-delete-trigger"
             >
               {deleting ? (
-                <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
+                <Loader2 className="h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
               ) : (
-                <Trash2 className="mr-1 h-3.5 w-3.5" />
+                <Trash2 className="h-3.5 w-3.5" />
               )}
               {t("settings.deleteAccountCta")}
             </Button>
@@ -471,7 +469,7 @@ function AccountDeleteCard() {
                 {t("common.cancel")}
               </AlertDialogCancel>
               <AlertDialogAction
-                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                variant="destructive"
                 onClick={(e) => {
                   e.preventDefault();
                   void handleDeleteAccount();

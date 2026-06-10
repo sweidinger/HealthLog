@@ -20,6 +20,9 @@ const extendedProfileSchema = profileSchema.extend({
     .refine(isValidTimezone, "Invalid IANA timezone")
     .optional(),
   moodReminderEnabled: z.boolean().optional(),
+  // Hour-cycle display preference. AUTO follows the locale convention,
+  // H12 forces AM/PM, H24 forces 24-hour.
+  timeFormat: z.enum(["AUTO", "H12", "H24"]).optional(),
 });
 
 export interface ApplyProfileResult {
@@ -35,6 +38,7 @@ export interface ApplyProfileResult {
     gender: string | null;
     timezone: string;
     locale: string | null;
+    timeFormat: "AUTO" | "H12" | "H24";
     moodReminderEnabled: boolean;
     // v1.7.0 — patient-identity fields. `insuranceNumber` is returned in
     // plaintext (decrypted on read by the route) so the client can render
@@ -101,6 +105,7 @@ export async function applyProfileUpdate(
   }
   if (data.locale !== undefined) updates.locale = data.locale;
   if (data.timezone !== undefined) updates.timezone = data.timezone;
+  if (data.timeFormat !== undefined) updates.timeFormat = data.timeFormat;
   if (data.moodReminderEnabled !== undefined) {
     updates.moodReminderEnabled = data.moodReminderEnabled;
   }
@@ -175,6 +180,7 @@ export async function applyProfileUpdate(
       gender: updatedUser.gender,
       timezone: updatedUser.timezone,
       locale: updatedUser.locale,
+      timeFormat: updatedUser.timeFormat ?? "AUTO",
       moodReminderEnabled: updatedUser.moodReminderEnabled,
       fullName: updatedUser.fullName,
       insurerName: updatedUser.insurerName,

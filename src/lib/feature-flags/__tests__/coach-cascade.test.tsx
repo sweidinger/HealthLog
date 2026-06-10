@@ -286,6 +286,11 @@ describe("Coach disable cascade invariant", () => {
     // v1.12.0 — the full-page Coach route gates on `flags.coach` and
     // redirects to `/insights` when the operator master flag is off.
     "src/app/insights/coach/page.tsx",
+    // v1.15.20 — the proactive Coach-nudge cron short-circuits on
+    // `flags.coach` (gate 1) so an operator kill-switch also silences
+    // the nudges. Server-side cron, not a render path — the cascade
+    // fixture cannot mount it, so the allowlist entry is the pin.
+    "src/lib/jobs/coach-nudge.ts",
   ];
 
   /**

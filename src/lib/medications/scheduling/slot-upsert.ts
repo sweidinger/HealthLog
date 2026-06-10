@@ -64,6 +64,14 @@ export interface ApplyCanonicalSlotWriteInput {
    * upsert, so this is trusted here.
    */
   injectionSite?: InjectionSiteKey | null;
+  /**
+   * v1.15.20 — slot-binding provenance to stamp on the row. `USER_PIN` on
+   * the forced "diesem Slot zuordnen" paths, `AUTO` when a write
+   * (re-)attributes by window band. Omitted → leave the column untouched on
+   * an update / default AUTO on a create (pending echoes and skips never
+   * carry a binding decision).
+   */
+  attributionSource?: "AUTO" | "USER_PIN";
 }
 
 export interface ApplyCanonicalSlotWriteResult {
@@ -165,6 +173,7 @@ export async function applyCanonicalSlotWrite(
     idempotencyKey,
     createSource,
     injectionSite = null,
+    attributionSource,
   } = input;
 
   const rows = await findSlotRows(client, userId, medicationId, canonicalSlot);
@@ -193,6 +202,8 @@ export async function applyCanonicalSlotWrite(
         // v1.8.5 — site only when the route resolved one (taken
         // injection, tracking on, validated allowed).
         ...(injectionSite !== null && { injectionSite }),
+        // v1.15.20 — binding provenance; absent → schema default AUTO.
+        ...(attributionSource !== undefined && { attributionSource }),
       },
       select: SLOT_ROW_SELECT,
     })) as SlotIntakeRow;
@@ -238,6 +249,7 @@ async function applyToExisting(
     isExplicitSkip,
     idempotencyKey,
     injectionSite = null,
+    attributionSource,
   } = input;
 
   const existingActioned = existing.takenAt !== null || existing.skipped;
@@ -269,12 +281,22 @@ async function applyToExisting(
     data: {
       takenAt,
       skipped,
+      // A recorded dose is no longer an auto-miss. The hourly auto-miss cron
+      // stamps `autoMissed: true` on a never-acted slot; when the user later
+      // records the take (late entry, offline sync catching up), the flag
+      // must reset or the compliance engine keeps counting the now-taken
+      // dose as a miss.
+      ...(takenAt !== null && { autoMissed: false }),
       syncVersion: { increment: 1 },
       idempotencyKey: idempotencyKey ?? existing.idempotencyKey ?? null,
       // v1.8.5 — write the site only when this write carries a resolved
       // one (taken injection, tracking on, validated). Never clear a
       // previously-recorded site with a null on an idempotent re-post.
       ...(injectionSite !== null && { injectionSite }),
+      // v1.15.20 — binding provenance: set only when this write carries a
+      // decision (pin / band re-attribution). A pending echo or skip never
+      // overwrites a recorded USER_PIN.
+      ...(attributionSource !== undefined && { attributionSource }),
     },
     select: SLOT_ROW_SELECT,
   })) as SlotIntakeRow;
@@ -501,6 +523,53 @@ export async function resolveSlotForWriteByBand(
       client,
     ),
     now: input.now,
+  });
+}
+
+/**
+ * v1.16.0 — pin-conflict probe for the USER_PIN write paths. A pin moves a
+ * DIFFERENT take onto a named slot; converging it onto a slot whose live
+ * row is already actioned (taken or explicitly skipped) would overwrite
+ * that recorded action through the explicit-write last-write-wins rule —
+ * a silent loss of a dose record. The read ledger only offers the pin for
+ * UNSERVED slots (`nearestSlot.filled` gates the kebab action), so a
+ * conflict here means a stale client or a hand-rolled API call: the route
+ * refuses it with 422 `medications.intake.force_slot.occupied`.
+ *
+ * Not a conflict:
+ *   - a pending projection row at the slot (that is the normal target the
+ *     pin converges onto);
+ *   - the row being edited itself (`excludeEventId` on the PUT path);
+ *   - an actioned row whose `takenAt` equals the incoming instant — that
+ *     is an idempotent re-post of the same pinned dose.
+ */
+export async function findPinConflict(input: {
+  userId: string;
+  medicationId: string;
+  /** The validated canonical slot anchor the pin targets. */
+  canonicalSlot: Date;
+  /** The incoming row's takenAt (null for a skip-shaped edit). */
+  incomingTakenAt: Date | null;
+  /** The event being edited (PUT path) — never conflicts with itself. */
+  excludeEventId?: string;
+  client?: PrismaLike;
+}): Promise<boolean> {
+  const client = input.client ?? defaultPrisma;
+  const rows = await findSlotRows(
+    client,
+    input.userId,
+    input.medicationId,
+    input.canonicalSlot,
+  );
+  return rows.some((row) => {
+    if (input.excludeEventId && row.id === input.excludeEventId) return false;
+    const actioned = row.takenAt !== null || row.skipped;
+    if (!actioned) return false;
+    const sameTake =
+      input.incomingTakenAt !== null &&
+      row.takenAt !== null &&
+      row.takenAt.getTime() === input.incomingTakenAt.getTime();
+    return !sameTake;
   });
 }
 

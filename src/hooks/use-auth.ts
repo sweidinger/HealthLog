@@ -3,6 +3,8 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { queryKeys } from "@/lib/query-keys";
+import type { TimeFormatPreference } from "@/lib/format-locale";
+import { isTimeFormatPreference, storeTimeFormat } from "@/lib/time-format";
 
 export interface AuthUser {
   id: string;
@@ -36,6 +38,14 @@ export interface AuthUser {
    * "metric" in `fetchMe`.
    */
   unitPreference: "metric" | "imperial";
+  /**
+   * Hour-cycle display preference. AUTO follows the locale convention
+   * (en → AM/PM, de → 24h); H12 / H24 pin the cycle regardless of locale.
+   * Mirrored into localStorage by `fetchMe` so `useFormatters()` and the
+   * legacy `src/lib/format.ts` helpers render the same clock. Coerced to
+   * "AUTO" against a stale /me payload.
+   */
+  timeFormat: TimeFormatPreference;
   /**
    * v1.4.47 W3 — per-user Coach opt-out. When `true`, every Coach
    * mount point (`<LayoutCoachFab>`, `<LayoutCoachMount>`, the
@@ -81,12 +91,22 @@ async function fetchMe(): Promise<AuthUser> {
     role: string;
     timezone: string;
   };
+  // Hour-cycle preference: coerce against a stale /me payload, then mirror
+  // into localStorage so `useFormatters()` and the legacy format helpers
+  // (which cannot reach the query cache) render the same clock.
+  const timeFormat: TimeFormatPreference = isTimeFormatPreference(
+    data.timeFormat,
+  )
+    ? data.timeFormat
+    : "AUTO";
+  storeTimeFormat(timeFormat);
   return {
     ...(data as AuthUser),
     disableCoach: data.disableCoach ?? false,
     // v1.7.0 — coerce against a stale /me payload (older server image
     // without the field) so the display defaults to metric.
     unitPreference: data.unitPreference === "imperial" ? "imperial" : "metric",
+    timeFormat,
     // v1.15.0 — coerce against a stale /me payload so the cycle nav entry
     // stays hidden by default when the field is absent.
     cycleTrackingEnabled: data.cycleTrackingEnabled === true,

@@ -48,7 +48,7 @@ Tailwind's default 4-pixel scale. Reach for these stops first:
 | ------------------------------------ | ------------- | ------ |
 | Inline gap between icon and label    | `gap-1`       | 4      |
 | Tight stack inside a card            | `gap-2`       | 8      |
-| Default form-field stack             | `space-y-3`   | 12     |
+| Label-to-field stack (form fields)   | `space-y-2`   | 8      |
 | Section block (heading + body)       | `space-y-4`   | 16     |
 | Page section separator               | `space-y-6`   | 24     |
 | Dashboard tile-row gap, hero spacing | `gap-4`       | 16     |
@@ -65,12 +65,17 @@ these classes first:
 | Use                                | Class                                   |
 | ---------------------------------- | --------------------------------------- |
 | Page title (h1)                    | `text-2xl font-semibold tracking-tight` |
-| Section heading (h2)               | `text-lg font-semibold`                 |
-| Card title                         | `text-base font-medium`                 |
+| Section heading / section card     | `text-lg font-semibold`                 |
+| Tile / inner card title            | `text-base font-semibold`               |
 | Body text                          | `text-sm`                               |
 | Muted helper / metadata            | `text-sm text-muted-foreground`         |
 | Microcopy / footer                 | `text-xs text-muted-foreground`         |
 | Tabular data (latency, large nums) | `font-mono tabular-nums`                |
+
+Card titles come in exactly two sizes: `text-lg font-semibold` for a
+section-level card (one per page region) and `text-base font-semibold`
+for tiles and inner cards. Don't introduce a third level — a smaller
+heading is a sign the content wants a list row, not a card.
 
 Never use `font-bold` for emphasis — bump to `font-semibold` instead and
 let the design system breathe.
@@ -381,7 +386,16 @@ We aim for **WCAG 2.1 AA**, with the following non-negotiables:
 - Color contrast ≥ 4.5:1 for normal text, 3:1 for large text and UI
   components. Verified by `@axe-core/playwright` in CI on every page.
 - Touch targets ≥ 44×44 CSS px on bottom-nav and primary action buttons
-  (WCAG 2.5.5).
+  (WCAG 2.5.5). Two idioms implement the floor, and they are deliberate:
+  - **Form controls** (`Input`, `NativeSelect`, `SelectTrigger` default
+    size): `h-11 sm:h-10` is baked into the primitives — 44 px on
+    mobile, back to the 40 px desktop tier. Never re-add `min-h-11` on
+    top of these; it forces 44 px on desktop and breaks the row rhythm.
+  - **Buttons on dense touch surfaces** (medication detail, dashboard
+    quick actions): `min-h-11 sm:min-h-9` — 44 px mobile floor,
+    compact `sm` tier on desktop. Plain `min-h-11` without the `sm:`
+    reset is legacy spelling; don't introduce new ones, and align a
+    button to its direct neighbours when editing one.
 - Focus is always visible: shadcn's `focus-visible:ring` is preserved on
   every customized component.
 - Every interactive element has an accessible name. Icon-only buttons

@@ -172,6 +172,8 @@ export async function generateWeightStatusForUser(
         type: {
           in: ["WEIGHT", "BLOOD_PRESSURE_SYS", "BLOOD_PRESSURE_DIA"],
         },
+        // Soft-deleted rows must never reach the prompt snapshot.
+        deletedAt: null,
       },
       take: 1095,
       orderBy: { measuredAt: "desc" },

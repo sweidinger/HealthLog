@@ -132,6 +132,8 @@ export async function generateGeneralStatusForUser(
         type: {
           in: [...MEASUREMENT_TYPES],
         },
+        // Soft-deleted rows must never reach the prompt snapshot.
+        deletedAt: null,
       },
       orderBy: { measuredAt: "desc" },
       take: 5000,

@@ -1,9 +1,16 @@
 "use client";
 
-import { memo, useEffect, useMemo, useRef } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ChevronDown, Loader2, RefreshCw, Settings2 } from "lucide-react";
+import {
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  Loader2,
+  RefreshCw,
+  Settings2,
+} from "lucide-react";
 import { toast } from "sonner";
 
 import {
@@ -13,6 +20,7 @@ import {
 } from "@/components/ui/popover";
 import { useTranslations } from "@/lib/i18n/context";
 import { cn } from "@/lib/utils";
+import { prefersReducedMotion } from "@/lib/charts/reduced-motion";
 import {
   INSIGHTS_OVERVIEW_PATH,
   SUB_PAGE_GROUP,
@@ -71,10 +79,18 @@ export interface InsightsTabStripProps {
    * toast fires "refreshed" ONLY when this is `"fresh"`; a slow generation the
    * client gave up on (`"timeout"`) shows a "still working" hint instead of a
    * misleading success, and a missing provider (`"no-provider"`) stays silent
-   * (the surface already shows the connect-AI empty state). Absent (legacy
+   * (the surface already shows the connect-AI empty state). v1.15.20 —
+   * `"rate-limited"` (quota exhausted) and `"empty"` (transient 503) show
+   * their own honest hints instead of the success toast. Absent (legacy
    * mounts / no regenerate) falls back to the prior unconditional success.
    */
-  regenerateOutcome?: "fresh" | "empty" | "timeout" | "no-provider" | null;
+  regenerateOutcome?:
+    | "fresh"
+    | "empty"
+    | "rate-limited"
+    | "timeout"
+    | "no-provider"
+    | null;
   /**
    * v1.4.27 F19 — analytics + event-driven availability inputs the
    * gating helper reads. When omitted the strip falls back to its
@@ -226,7 +242,10 @@ export const SUB_PAGE_TABS: Record<
     metric: "WALKING_SPEED",
   },
   // v1.10.0 — cardio fitness (VO2 max) + Apple-Health Mobility additions.
-  "cardio-fitness": { labelKey: "insights.navCardioFitness", metric: "VO2_MAX" },
+  "cardio-fitness": {
+    labelKey: "insights.navCardioFitness",
+    metric: "VO2_MAX",
+  },
   falls: { labelKey: "insights.navFalls", metric: "FALL_COUNT" },
   "six-minute-walk": {
     labelKey: "insights.navSixMinuteWalk",
@@ -475,20 +494,27 @@ function InsightsTabStripImpl({
 
   // Fire a toast on the falling edge of `regenerating`. Same rising-edge ref
   // guard as the W3 implementation so the toast fires exactly once per
-  // regenerate cycle. v1.15.18 — the toast is now HONEST: only a `"fresh"`
-  // outcome reads "refreshed". A `"timeout"` (a slow generation the client
-  // gave up on while the server may still be writing) shows a "still working,
-  // try again" hint rather than claiming success; a `"no-provider"` stays
-  // silent (the surface already shows the connect-AI empty state). The latest
-  // outcome is read through a ref so the effect doesn't re-fire when only the
-  // outcome (not the spinner edge) changed.
+  // regenerate cycle. v1.15.18 — the toast is HONEST: only a `"fresh"`
+  // outcome reads "refreshed". v1.15.20 — the honesty extends to the
+  // non-fresh outcomes: `"rate-limited"` (429) says the quota is exhausted,
+  // `"empty"` (transient 503) says nothing fresh arrived, `"timeout"` keeps
+  // its "still working, try again" hint, and `"no-provider"` stays silent
+  // (the surface already shows the connect-AI empty state). Previously
+  // `"empty"` lumped 429 + 503 together AND toasted success — a rate-limited
+  // regenerate claimed "refreshed" while serving the old text. The latest
+  // outcome is read through a ref-free dep so the effect fires only on the
+  // spinner edge.
   const lastRegeneratingRef = useRef<boolean>(regenerating);
   useEffect(() => {
     if (lastRegeneratingRef.current && !regenerating) {
       if (regenerateOutcome === "timeout") {
         toast.error(t("insights.regenerateError"));
+      } else if (regenerateOutcome === "rate-limited") {
+        toast.error(t("insights.regenerateRateLimited"));
+      } else if (regenerateOutcome === "empty") {
+        toast.error(t("insights.regenerateUnavailable"));
       } else if (regenerateOutcome !== "no-provider") {
-        // `"fresh"`, `"empty"`, or legacy `undefined`/null → success.
+        // `"fresh"` or legacy `undefined`/null → success.
         toast.success(t("insights.regenerateSuccess"));
       }
     }
@@ -497,6 +523,63 @@ function InsightsTabStripImpl({
 
   const regenerateLabel = t("insights.regenerateAnalysis");
   const customizeLabel = t("insights.customize");
+
+  // Overflow affordance for the pill row. The row hides its scrollbar
+  // (deliberately — see the container classes below), which left desktop
+  // users with no signal and no obvious gesture once the pills overflow:
+  // mouse wheels scroll vertically and there is nothing to grab. Three
+  // complements close that gap:
+  //   • chevron buttons (sm+ only — touch keeps native pan) that page the
+  //     row ±200 px; they render whenever the row overflows and disable
+  //     per-direction so focus never lands on a vanished control;
+  //   • a native non-passive wheel listener that turns a dominant vertical
+  //     wheel delta into horizontal scroll (React's synthetic onWheel is
+  //     passive at the root, so `preventDefault()` must bind natively);
+  //   • the existing `<sm` right-edge fade stays as the mobile signal.
+  const scrollerRef = useRef<HTMLDivElement | null>(null);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(false);
+
+  const updateScrollAffordance = useCallback(() => {
+    const el = scrollerRef.current;
+    if (!el) return;
+    const maxScroll = el.scrollWidth - el.clientWidth;
+    setCanScrollLeft(el.scrollLeft > 4);
+    setCanScrollRight(el.scrollLeft < maxScroll - 4);
+  }, []);
+
+  useEffect(() => {
+    // Re-measure on mount, when the pill set changes, and on any resize of
+    // the scroll container (sidebar collapse, orientation change).
+    updateScrollAffordance();
+    const el = scrollerRef.current;
+    if (!el) return;
+    const observer = new ResizeObserver(updateScrollAffordance);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [updateScrollAffordance, tabs]);
+
+  useEffect(() => {
+    const el = scrollerRef.current;
+    if (!el) return;
+    const onWheel = (event: WheelEvent) => {
+      if (el.scrollWidth <= el.clientWidth) return;
+      if (Math.abs(event.deltaY) <= Math.abs(event.deltaX)) return;
+      el.scrollLeft += event.deltaY;
+      event.preventDefault();
+    };
+    el.addEventListener("wheel", onWheel, { passive: false });
+    return () => el.removeEventListener("wheel", onWheel);
+  }, []);
+
+  const scrollPills = useCallback((direction: -1 | 1) => {
+    scrollerRef.current?.scrollBy({
+      left: direction * 200,
+      behavior: prefersReducedMotion() ? "auto" : "smooth",
+    });
+  }, []);
+
+  const pillsOverflow = canScrollLeft || canScrollRight;
 
   return (
     <nav
@@ -523,7 +606,28 @@ function InsightsTabStripImpl({
       )}
     >
       <div className="flex items-center gap-2">
-        <div className="flex min-w-0 flex-1 [scrollbar-width:none] gap-2 overflow-x-auto [&::-webkit-scrollbar]:hidden">
+        {pillsOverflow && (
+          <button
+            type="button"
+            onClick={() => scrollPills(-1)}
+            disabled={!canScrollLeft}
+            aria-label={t("insights.pillScrollLeft")}
+            data-slot="insights-tab-strip-scroll-left"
+            className={cn(
+              "hidden h-11 w-9 shrink-0 items-center justify-center rounded-full sm:inline-flex",
+              "text-muted-foreground hover:text-foreground hover:bg-accent transition-colors",
+              "focus-visible:ring-ring/50 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none",
+              "disabled:cursor-not-allowed disabled:opacity-30",
+            )}
+          >
+            <ChevronLeft className="h-4 w-4" aria-hidden="true" />
+          </button>
+        )}
+        <div
+          ref={scrollerRef}
+          onScroll={updateScrollAffordance}
+          className="flex min-w-0 flex-1 [scrollbar-width:none] gap-2 overflow-x-auto [&::-webkit-scrollbar]:hidden"
+        >
           {tabs.map((tab) => {
             if (tab.kind === "link") {
               // The overview pill matches the mother page exactly; the
@@ -631,6 +735,23 @@ function InsightsTabStripImpl({
             );
           })}
         </div>
+        {pillsOverflow && (
+          <button
+            type="button"
+            onClick={() => scrollPills(1)}
+            disabled={!canScrollRight}
+            aria-label={t("insights.pillScrollRight")}
+            data-slot="insights-tab-strip-scroll-right"
+            className={cn(
+              "hidden h-11 w-9 shrink-0 items-center justify-center rounded-full sm:inline-flex",
+              "text-muted-foreground hover:text-foreground hover:bg-accent transition-colors",
+              "focus-visible:ring-ring/50 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none",
+              "disabled:cursor-not-allowed disabled:opacity-30",
+            )}
+          >
+            <ChevronRight className="h-4 w-4" aria-hidden="true" />
+          </button>
+        )}
         {/* v1.4.27 MB7 / CF-72 — right-edge fade. The gradient
             absolute-positions over the rightmost ~24 px of the strip
             so the last visible pill softly fades into the background

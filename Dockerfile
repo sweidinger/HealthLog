@@ -22,6 +22,18 @@ WORKDIR /app
 ARG NEXT_PUBLIC_APP_VERSION
 ENV NEXT_PUBLIC_APP_VERSION=$NEXT_PUBLIC_APP_VERSION
 
+# Short Git SHA of the release commit, same workflow source as the
+# version arg above. Changes exactly when the source changes, so it
+# adds no cache churn beyond what the COPY below already causes.
+# /api/version surfaces it as `buildSha` for deploy verification
+# (docs/ops/deploy.md). The built-at timestamp is intentionally NOT
+# set in this stage: it differs on every run and would bust the
+# `pnpm build` layer cache even for content-identical rebuilds — the
+# runner stage below carries it instead (the route reads process.env
+# at request time, not at bundle time).
+ARG NEXT_PUBLIC_APP_BUILD_SHA
+ENV NEXT_PUBLIC_APP_BUILD_SHA=$NEXT_PUBLIC_APP_BUILD_SHA
+
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
@@ -53,6 +65,13 @@ ENV TZ=Europe/Berlin
 # the prior `pnpm build` layer still surfaces the right runtime version.
 ARG NEXT_PUBLIC_APP_VERSION
 ENV NEXT_PUBLIC_APP_VERSION=$NEXT_PUBLIC_APP_VERSION
+
+# Short Git SHA the image was built from — /api/version returns it as
+# `buildSha` so an operator can verify which commit a running `:latest`
+# container actually carries (the deploy runbook checks it after every
+# deploy). Provided by docker-publish.yml alongside the version arg.
+ARG NEXT_PUBLIC_APP_BUILD_SHA
+ENV NEXT_PUBLIC_APP_BUILD_SHA=$NEXT_PUBLIC_APP_BUILD_SHA
 
 RUN addgroup --system --gid 1001 nodejs && \
     adduser --system --uid 1001 nextjs
@@ -96,6 +115,15 @@ RUN mkdir -p /opt/prisma-cli && \
 # `/about` in the running app.
 RUN mkdir -p /opt/geolite2
 COPY assets/geolite2/ /opt/geolite2/
+
+# ISO-8601 build timestamp — /api/version returns it as `builtAt`.
+# Declared this late in the stage on purpose: the value differs on
+# every CI run, and every instruction after an ARG shares its cache
+# fate. Down here the only layers it invalidates are the cheap
+# entrypoint COPY/chmod below; the npm-install layers above stay
+# cache-warm across rebuilds of the same release.
+ARG NEXT_PUBLIC_APP_BUILT_AT
+ENV NEXT_PUBLIC_APP_BUILT_AT=$NEXT_PUBLIC_APP_BUILT_AT
 
 # Entrypoint script (runs migrations, then starts app)
 COPY docker-entrypoint.sh ./

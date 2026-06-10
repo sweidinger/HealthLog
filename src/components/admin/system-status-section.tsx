@@ -19,6 +19,7 @@ import {
   Users,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { formatDateTime } from "@/lib/format";
 import { useFormatters, useTranslations } from "@/lib/i18n/context";
 import { StatusItem, usePublicVersion, useSystemStatus } from "./_shared";
@@ -36,7 +37,7 @@ const HostMetricsChart = dynamic(
   {
     ssr: false,
     loading: () => (
-      <div className="bg-muted/40 h-[200px] w-full animate-pulse rounded-xl motion-reduce:animate-none" />
+      <Skeleton className="bg-muted/40 h-[200px] w-full rounded-xl" />
     ),
   },
 );
@@ -207,9 +208,9 @@ export function SystemStatusSection() {
               data-testid="system-status-retry"
             >
               {isFetching ? (
-                <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
+                <Loader2 className="h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
               ) : (
-                <RotateCw className="mr-1 h-3.5 w-3.5" />
+                <RotateCw className="h-3.5 w-3.5" />
               )}
               {t("admin.systemStatusRetry")}
             </Button>

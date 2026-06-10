@@ -11,9 +11,11 @@
  * the modal advanced-settings sheet; the detail page's tabs consume the
  * individual rows (`GraceRow` / `DrugCodingRow` / `PhasesRow`) directly.
  *
- * Per H-4-UX: the Grace row's label flags it as primary-schedule
- * scoped so the user knows a multi-schedule medication does not get a
- * fan-out from this control.
+ * v1.15.20 — the Grace row writes the SAME value onto every schedule of
+ * a multi-schedule medication (full `schedules` round-trip, the same
+ * wholesale-replace contract the Zeitplan times editor uses) instead of
+ * silently touching only the primary schedule. A helper line states the
+ * all-schedules scope when more than one schedule exists.
  */
 
 import { useState } from "react";
@@ -25,38 +27,105 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PhaseConfigSheet } from "@/components/medications/sections/phase-config-sheet";
 import { useTranslations } from "@/lib/i18n/context";
+import { parseScheduleRecurrence } from "@/lib/medication-schedule";
 import { invalidateKeys, medicationDependentKeys } from "@/lib/query-keys";
+import type { DoseWindowEntry } from "@/components/medications/scheduling/dose-window";
+
+/** The schedule fields the grace save round-trips on a wholesale PUT. */
+export interface GraceScheduleSnapshot {
+  windowStart: string;
+  windowEnd: string;
+  label: string | null;
+  dose: string | null;
+  daysOfWeek: string | null;
+  timesOfDay?: string[];
+  rrule?: string | null;
+  rollingIntervalDays?: number | null;
+  reminderGraceMinutes?: number | null;
+  scheduleType?: string | null;
+  cyclicOnWeeks?: number | null;
+  cyclicOffWeeks?: number | null;
+  doseWindows?: DoseWindowEntry[] | null;
+}
 
 /**
- * v1.7.0 — primary-schedule reminder-window (grace) row. Self-saves via
- * `PUT /api/medications/[id]` with a top-level `reminderGraceMinutes`.
+ * v1.7.0 — reminder-window (grace) row. Self-saves via
+ * `PUT /api/medications/[id]`.
+ *
+ * v1.15.20 — a single-schedule medication keeps the cheap top-level
+ * `reminderGraceMinutes` write (the server applies it to the primary
+ * schedule). A multi-schedule medication round-trips the FULL schedules
+ * array with the same grace on every schedule — every field is preserved
+ * verbatim from the snapshot, only `reminderGraceMinutes` changes — so
+ * the value can no longer drift apart per schedule.
  */
 export function GraceRow({
   medicationId,
-  reminderGraceMinutes,
+  schedules,
 }: {
   medicationId: string;
-  reminderGraceMinutes?: number | null;
+  schedules: GraceScheduleSnapshot[];
 }) {
   const { t } = useTranslations();
   const queryClient = useQueryClient();
+  const firstGrace = schedules[0]?.reminderGraceMinutes;
   const [graceValue, setGraceValue] = useState(
-    typeof reminderGraceMinutes === "number" ? reminderGraceMinutes : 30,
+    typeof firstGrace === "number" ? firstGrace : 30,
   );
   const [graceBusy, setGraceBusy] = useState(false);
+
+  const multiSchedule = schedules.length > 1;
 
   async function saveGrace() {
     if (graceBusy) return;
     setGraceBusy(true);
     try {
-      // Primary-schedule scope: the PUT body's schedules array is
-      // absent so the server preserves existing schedules; the route
-      // accepts top-level `reminderGraceMinutes` as a primary-schedule
-      // override on the v1.5.4 flat-form bridge.
+      const body = multiSchedule
+        ? {
+            // Wholesale schedules replace (the PUT contract): preserve
+            // every cadence field from the snapshot, set the SAME grace
+            // on every schedule.
+            schedules: schedules.map((s) => {
+              const recurrence = parseScheduleRecurrence(s.daysOfWeek);
+              return {
+                windowStart: s.windowStart,
+                windowEnd: s.windowEnd,
+                label: s.label ?? undefined,
+                dose: s.dose ?? undefined,
+                timesOfDay:
+                  s.timesOfDay && s.timesOfDay.length > 0
+                    ? s.timesOfDay
+                    : [s.windowStart],
+                daysOfWeek: recurrence.daysOfWeek,
+                intervalWeeks: recurrence.intervalWeeks,
+                ...(s.rrule ? { rrule: s.rrule } : {}),
+                ...(typeof s.rollingIntervalDays === "number"
+                  ? { rollingIntervalDays: s.rollingIntervalDays }
+                  : {}),
+                reminderGraceMinutes: graceValue,
+                ...(s.scheduleType
+                  ? {
+                      scheduleType: s.scheduleType as
+                        | "SCHEDULED"
+                        | "PRN"
+                        | "CYCLIC",
+                    }
+                  : {}),
+                ...(typeof s.cyclicOnWeeks === "number"
+                  ? { cyclicOnWeeks: s.cyclicOnWeeks }
+                  : {}),
+                ...(typeof s.cyclicOffWeeks === "number"
+                  ? { cyclicOffWeeks: s.cyclicOffWeeks }
+                  : {}),
+                ...(s.doseWindows ? { doseWindows: s.doseWindows } : {}),
+              };
+            }),
+          }
+        : { reminderGraceMinutes: graceValue };
       const res = await fetch(`/api/medications/${medicationId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ reminderGraceMinutes: graceValue }),
+        body: JSON.stringify(body),
       });
       if (!res.ok) {
         toast.error(t("medications.detail.settings.grace.failed"));
@@ -79,9 +148,11 @@ export function GraceRow({
       >
         {t("medications.detail.settings.grace.label")}
       </Label>
-      <p className="text-muted-foreground text-xs">
-        {t("medications.detail.settings.grace.primaryScheduleNote")}
-      </p>
+      {multiSchedule && (
+        <p className="text-muted-foreground text-xs">
+          {t("medications.detail.settings.grace.appliesToAllNote")}
+        </p>
+      )}
       <div className="flex flex-wrap items-center gap-2">
         <Input
           id="medication-detail-grace-input"

@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useTranslations } from "@/lib/i18n/context";
 import { cn } from "@/lib/utils";
 import type { CorrelationResult } from "@/lib/insights/correlations";
@@ -36,7 +37,7 @@ const ScatterCorrelationChart = dynamic(
       // skeleton reserves the same space across breakpoints. The
       // legacy `h-[180px]` was ~60 px shorter than the painted chart
       // at `sm+` and caused a visible CLS shift on insights mount.
-      <div className="bg-muted/40 aspect-square min-h-[180px] w-full animate-pulse rounded-md motion-reduce:animate-none sm:aspect-[3/2] sm:h-auto" />
+      <Skeleton className="bg-muted/40 aspect-square min-h-[180px] w-full sm:aspect-[3/2] sm:h-auto" />
     ),
   },
 );

@@ -53,7 +53,12 @@ import {
 import { MeasurementForm } from "@/components/measurements/measurement-form";
 import { MoodForm } from "@/components/mood/mood-form";
 import { MedicationIntakeQuickAdd } from "@/components/dashboard/medication-intake-quick-add";
+import {
+  DashboardChartCell,
+  useDashboardChartReveal,
+} from "@/components/dashboard/chart-reveal";
 import { TrendCard } from "@/components/charts/trend-card";
+import { TrendCardSkeleton } from "@/components/charts/trend-card-skeleton";
 import { TrendHint } from "@/components/charts/trend-hint";
 import { summaryToTrend7Delta } from "@/lib/analytics/trend-delta";
 import { GettingStartedChecklist } from "@/components/onboarding/getting-started-checklist";
@@ -96,9 +101,9 @@ export function sheetBodyHasUnsavedInput(): boolean {
     '[data-slot="responsive-sheet-body"]',
   );
   if (!body) return false;
-  const fields = body.querySelectorAll<
-    HTMLInputElement | HTMLTextAreaElement
-  >("input, textarea");
+  const fields = body.querySelectorAll<HTMLInputElement | HTMLTextAreaElement>(
+    "input, textarea",
+  );
   for (const field of fields) {
     if (field.disabled || field.type === "hidden") continue;
     // Skip pickers the form prefills with "now" — an untouched default
@@ -119,9 +124,7 @@ export function sheetBodyHasUnsavedInput(): boolean {
   //
   // Mood radios start with nothing selected (`mood = ""`), so ANY
   // `aria-checked="true"` is a deliberate user choice — flag it.
-  if (
-    body.querySelector('[role="radio"][aria-checked="true"]') !== null
-  ) {
+  if (body.querySelector('[role="radio"][aria-checked="true"]') !== null) {
     return true;
   }
   // Radix Select trigger renders `role="combobox"`. A trigger with
@@ -130,9 +133,7 @@ export function sheetBodyHasUnsavedInput(): boolean {
   // We deliberately do NOT treat a merely non-placeholder value as dirty: the
   // type / medication selects mount with a non-placeholder DEFAULT, and
   // flagging that would over-trigger the confirm on a pristine sheet.
-  if (
-    body.querySelector('[role="combobox"][data-state="open"]') !== null
-  ) {
+  if (body.querySelector('[role="combobox"][data-state="open"]') !== null) {
     return true;
   }
   return false;
@@ -285,9 +286,7 @@ function getRangeHint(
   return (
     <>
       <p>
-        <span className="text-success font-bold">
-          {t("charts.colorGreen")}
-        </span>{" "}
+        <span className="text-success font-bold">{t("charts.colorGreen")}</span>{" "}
         {format(range.greenMin)}-{format(range.greenMax)} {unit}
       </p>
       <p>
@@ -567,9 +566,7 @@ export default function DashboardPage() {
    * undefined-safe and tiles with recent data paint byte-identical
    * with the pre-v1.4.34 contract.
    */
-  const tileStaleDays = (
-    type: string | null | undefined,
-  ): number | null => {
+  const tileStaleDays = (type: string | null | undefined): number | null => {
     if (!type) return null;
     const entry = data?.lastSeenByType?.[type];
     if (!entry) return null;
@@ -674,6 +671,31 @@ export default function DashboardPage() {
   // who hid it.
   const showRecentWorkoutsTile =
     layoutResolved && isChartVisible("recentWorkouts");
+
+  // v1.16.0 — shared reveal gate for the chart row. Every data-backed
+  // chart mounts as soon as its visibility gate flips (so the per-chart
+  // queries fan out in parallel), but the cells hold their layout-stable
+  // skeletons until EVERY gated chart reported its data settled — or the
+  // 2 s timeout fires so one slow widget cannot block the row (see
+  // `chart-reveal.tsx`). Pre-fix the cheap `/api/mood/analytics` read
+  // made the mood chart paint first and the measurement charts trickle
+  // in one after another. The id list mirrors the `charts[]` entry ids
+  // below; the achievements + recent-workouts cards stay outside the
+  // gate (they self-skeleton and carry no chart-shaped footprint).
+  const revealChartIds: string[] = [];
+  if (showWeightChart) {
+    revealChartIds.push("weight-chart");
+    if (user?.heightCm) revealChartIds.push("bmi-chart");
+  }
+  if (showBpCharts) revealChartIds.push("bp-chart");
+  if (showPulseChart) revealChartIds.push("pulse-chart");
+  if (showBodyFatChart) revealChartIds.push("bodyFat-chart");
+  if (showMoodChart) revealChartIds.push("mood-chart");
+  if (showSleepChart) revealChartIds.push("sleep-chart");
+  if (showStepsChart) revealChartIds.push("steps-chart");
+  if (showMedicationsCard) revealChartIds.push("medications");
+  const { revealed: chartsRevealed, markReady: markChartReady } =
+    useDashboardChartReveal(revealChartIds);
 
   // Glucose widget — visible iff layout enables it AND at least one reading exists.
   // Glucose has no separate chart slot today, so the tile flag is the
@@ -862,7 +884,7 @@ export default function DashboardPage() {
                 className="min-h-11 sm:min-h-9"
                 data-tour-id="dashboard-quick-add"
               >
-                <Plus className="mr-1 h-4 w-4" />
+                <Plus className="h-4 w-4" />
                 {t("common.add")}
               </Button>
             </DropdownMenuTrigger>
@@ -924,9 +946,7 @@ export default function DashboardPage() {
         open={quickEntryDialog === "measurement"}
         onOpenChange={handleQuickEntryOpenChange}
         title={t("measurements.addMeasurement")}
-        footer={
-          <div ref={setMeasurementFooterEl} className="flex w-full" />
-        }
+        footer={<div ref={setMeasurementFooterEl} className="flex w-full" />}
       >
         <MeasurementForm
           onSuccess={() => setQuickEntryDialog(null)}
@@ -1166,7 +1186,9 @@ export default function DashboardPage() {
                 icon={TrendingUp}
                 compareBaseline={compareBaseline}
                 compareDelta={tileCompareDelta(pulseTileSummary)}
-                staleDays={tileStaleDays(hasRestingHr ? "RESTING_HEART_RATE" : "PULSE")}
+                staleDays={tileStaleDays(
+                  hasRestingHr ? "RESTING_HEART_RATE" : "PULSE",
+                )}
               />
             ),
           });
@@ -1408,6 +1430,14 @@ export default function DashboardPage() {
            * undefined disables the hint (e.g. medications card).
            */
           count?: number;
+          /**
+           * v1.16.0 — entry participates in the shared chart reveal:
+           * the cell holds its skeleton until every gated chart's data
+           * settled (or the 2 s fallback fires). Data-backed charts set
+           * this; the self-skeletoning achievements / recent-workouts
+           * cards do not.
+           */
+          revealGated?: boolean;
         };
         const charts: ChartEntry[] = [];
         if (showWeightChart) {
@@ -1415,15 +1445,18 @@ export default function DashboardPage() {
             id: "weight-chart",
             order: widgetOrder("weight"),
             count: w?.count ?? 0,
+            revealGated: true,
             node: (
               <HealthChartDynamic
                 key="weight-chart"
+                onDataReady={() => markChartReady("weight-chart")}
                 chartKey="weight"
                 types={["WEIGHT"]}
                 title={t("dashboard.weight")}
                 colors={["#bd93f9"]}
                 unit="kg"
                 valueBands={weightBands}
+                targetSettingsHref="/settings/thresholds"
                 compareBaseline={compareBaseline}
                 userTimezone={user?.timezone}
               />
@@ -1433,9 +1466,11 @@ export default function DashboardPage() {
             charts.push({
               id: "bmi-chart",
               order: widgetOrder("weight") + 0.5,
+              revealGated: true,
               node: (
                 <HealthChartDynamic
                   key="bmi-chart"
+                  onDataReady={() => markChartReady("bmi-chart")}
                   chartKey="bmi"
                   types={["WEIGHT"]}
                   title={t("targets.bmi")}
@@ -1460,9 +1495,11 @@ export default function DashboardPage() {
             id: "bp-chart",
             order: widgetOrder("bp"),
             count: Math.max(sys?.count ?? 0, dia?.count ?? 0),
+            revealGated: true,
             node: (
               <HealthChartDynamic
                 key="bp-chart"
+                onDataReady={() => markChartReady("bp-chart")}
                 chartKey="bp"
                 types={["BLOOD_PRESSURE_SYS", "BLOOD_PRESSURE_DIA"]}
                 title={t("dashboard.bloodPressure")}
@@ -1470,6 +1507,7 @@ export default function DashboardPage() {
                 unit="mmHg"
                 yAxisUnit="Hg"
                 targetZones={bpTargetZones}
+                targetSettingsHref="/settings/thresholds"
                 compareBaseline={compareBaseline}
                 userTimezone={user?.timezone}
               />
@@ -1481,9 +1519,11 @@ export default function DashboardPage() {
             id: "pulse-chart",
             order: widgetOrder("pulse"),
             count: p?.count ?? 0,
+            revealGated: true,
             node: (
               <HealthChartDynamic
                 key="pulse-chart"
+                onDataReady={() => markChartReady("pulse-chart")}
                 chartKey="pulse"
                 // v1.15.12 A2 — chart the RESTING series against the
                 // resting band when available; otherwise chart raw heart
@@ -1505,9 +1545,11 @@ export default function DashboardPage() {
             id: "bodyFat-chart",
             order: widgetOrder("bodyFat"),
             count: bf?.count ?? 0,
+            revealGated: true,
             node: (
               <HealthChartDynamic
                 key="bodyFat-chart"
+                onDataReady={() => markChartReady("bodyFat-chart")}
                 chartKey="bodyFat"
                 types={["BODY_FAT"]}
                 title={t("dashboard.bodyFat")}
@@ -1525,9 +1567,11 @@ export default function DashboardPage() {
             id: "mood-chart",
             order: widgetOrder("mood"),
             count: moodSummary?.count ?? 0,
+            revealGated: true,
             node: (
               <MoodChart
                 key="mood-chart"
+                onDataReady={() => markChartReady("mood-chart")}
                 compareBaseline={compareBaseline}
                 chartKey="mood"
                 userTimezone={user?.timezone}
@@ -1540,9 +1584,11 @@ export default function DashboardPage() {
             id: "sleep-chart",
             order: widgetOrder("sleep"),
             count: sleepSummary?.count ?? 0,
+            revealGated: true,
             node: (
               <HealthChartDynamic
                 key="sleep-chart"
+                onDataReady={() => markChartReady("sleep-chart")}
                 chartKey="sleep"
                 types={["SLEEP_DURATION"]}
                 title={t("dashboard.sleep") ?? "Sleep"}
@@ -1559,9 +1605,11 @@ export default function DashboardPage() {
             id: "steps-chart",
             order: widgetOrder("steps"),
             count: stepsSummary?.count ?? 0,
+            revealGated: true,
             node: (
               <HealthChartDynamic
                 key="steps-chart"
+                onDataReady={() => markChartReady("steps-chart")}
                 chartKey="steps"
                 types={["ACTIVITY_STEPS"]}
                 title={t("dashboard.steps") ?? "Steps"}
@@ -1581,9 +1629,11 @@ export default function DashboardPage() {
           charts.push({
             id: "medications",
             order: widgetOrder("medications"),
+            revealGated: true,
             node: (
               <MedicationComplianceChart
                 key="medications"
+                onDataReady={() => markChartReady("medications")}
                 compareBaseline={compareBaseline}
                 userTimezone={user?.timezone}
               />
@@ -1678,7 +1728,7 @@ export default function DashboardPage() {
                   size="sm"
                   onClick={() => setQuickEntryDialog("measurement")}
                 >
-                  <Plus className="mr-1 h-4 w-4" />
+                  <Plus className="h-4 w-4" />
                   {t("dashboard.emptyAddMeasurement")}
                 </Button>
               }
@@ -1727,11 +1777,14 @@ export default function DashboardPage() {
                   "[grid-template-columns:repeat(auto-fit,minmax(min(100%,11rem),1fr))]",
                 )}
               >
+                {/* v1.16.0 — structured silhouettes (label + headline
+                    value + sub-row, see `<TrendCardSkeleton>`) instead
+                    of the former EMPTY pulsing cards, so the first
+                    paint previews the final tile shape. Reduced motion
+                    is honoured inside the component via the Skeleton
+                    primitive's motion-reduce:animate-none. */}
                 {Array.from({ length: configuredTileCount }).map((_, idx) => (
-                  <div
-                    key={`tile-skeleton-${idx}`}
-                    className="bg-card border-border min-h-[8rem] animate-pulse rounded-xl border p-4 motion-reduce:animate-none md:p-6"
-                  />
+                  <TrendCardSkeleton key={`tile-skeleton-${idx}`} />
                 ))}
               </div>
             )}
@@ -1787,14 +1840,11 @@ export default function DashboardPage() {
                      *
                      * v1.4.40 W-RSC — boundary added; v1.4.41 W-FRONTEND-FACTORY — fallback hoisted to layout-stable placeholder.
                      */}
-                    <Suspense
-                      fallback={
-                        <div
-                          aria-hidden="true"
-                          className="bg-card border-border flex h-full min-h-[8rem] w-full min-w-0 flex-col overflow-hidden rounded-xl border p-4 md:p-6"
-                        />
-                      }
-                    >
+                    {/* v1.16.0 — the fallback is the same structured
+                        silhouette the tile-strip skeleton paints, so a
+                        suspending tile slot previews the final shape
+                        instead of an empty card. */}
+                    <Suspense fallback={<TrendCardSkeleton />}>
                       {entry.node}
                     </Suspense>
                   </div>
@@ -1827,8 +1877,31 @@ export default function DashboardPage() {
                  * legend, or a server-streamed sparkline) gets its own
                  * fallback without re-architecting the row.
                  */}
-                <Suspense fallback={<ChartSkeleton />}>{entry.node}</Suspense>
-                {entry.count != null ? <TrendHint count={entry.count} /> : null}
+                {entry.revealGated ? (
+                  /* v1.16.0 — gated cell: the chart mounts (its query
+                     fires) but stays visually on the layout-stable
+                     skeleton until the shared reveal flips — all gated
+                     charts swap in the same frame with one short
+                     fade-in (motion-safe). The TrendHint rides inside
+                     the cell so it appears with its chart. */
+                  <DashboardChartCell revealed={chartsRevealed}>
+                    <Suspense fallback={<ChartSkeleton />}>
+                      {entry.node}
+                    </Suspense>
+                    {entry.count != null ? (
+                      <TrendHint count={entry.count} />
+                    ) : null}
+                  </DashboardChartCell>
+                ) : (
+                  <>
+                    <Suspense fallback={<ChartSkeleton />}>
+                      {entry.node}
+                    </Suspense>
+                    {entry.count != null ? (
+                      <TrendHint count={entry.count} />
+                    ) : null}
+                  </>
+                )}
               </div>
             ))}
           </>

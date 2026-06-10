@@ -18,10 +18,7 @@ describe("correlation-card scatter skeleton mirrors loaded chart", () => {
     "utf8",
   );
   const chartSrc = readFileSync(
-    join(
-      process.cwd(),
-      "src/components/charts/scatter-correlation-chart.tsx",
-    ),
+    join(process.cwd(), "src/components/charts/scatter-correlation-chart.tsx"),
     "utf8",
   );
 
@@ -35,7 +32,10 @@ describe("correlation-card scatter skeleton mirrors loaded chart", () => {
     expect(block).toContain("min-h-[180px]");
     expect(block).toContain("sm:aspect-[3/2]");
     expect(block).toContain("sm:h-auto");
-    expect(block).toContain("motion-reduce:animate-none");
+    // Reduced-motion handling comes from the shared <Skeleton>
+    // primitive (its base classes carry `motion-reduce:animate-none`),
+    // so the loader block must render it rather than a raw pulse div.
+    expect(block).toContain("<Skeleton");
   });
 
   it("loaded scatter chart still owns the same aspect-ratio quartet", () => {

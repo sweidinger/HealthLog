@@ -88,9 +88,9 @@ export function TestConnectionButton({
         disabled={disabled || testing}
       >
         {testing ? (
-          <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
+          <Loader2 className="h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
         ) : (
-          <Plug className="mr-1 h-3.5 w-3.5" />
+          <Plug className="h-3.5 w-3.5" />
         )}
         {testing
           ? t("settings.testConnection.testing")
@@ -110,7 +110,7 @@ export function TestConnectionButton({
       {result?.kind === "error" && (
         <p
           role="alert"
-          className="text-destructive flex items-center gap-1.5 text-xs"
+          className="text-destructive flex items-center gap-1.5 text-sm"
         >
           <XCircle className="h-3.5 w-3.5" />
           {describeError(result.errorCode)}

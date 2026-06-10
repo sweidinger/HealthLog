@@ -17,6 +17,7 @@ import { recomputeMedicationComplianceForEvent } from "@/lib/rollups/medication-
 import { dayKeyForUserTz } from "@/lib/measurements/consolidation-tz";
 import {
   applyCanonicalSlotWrite,
+  findPinConflict,
   resolveForcedSlotForWrite,
   resolveSlotForWriteByBand,
 } from "@/lib/medications/scheduling/slot-upsert";
@@ -124,13 +125,28 @@ export const PUT = apiHandler(
     // leaving `scheduledFor` stale (audit HIGH-4). Precedence:
     //   1. an explicit `scheduledFor` in the body wins (deliberate override);
     //   2. else `forceSlotInstant` pins onto a named real slot (422 if it is
-    //      not a slot of this med);
-    //   3. else a taken edit attributes by band (slot anchor on match, the
-    //      take's own time on a miss → ad-hoc);
-    //   4. a skip / pending edit keeps the existing `scheduledFor` anchor.
+    //      not a slot of this med) — v1.15.20: standalone too, no takenAt /
+    //      skipped change required ("Slot zuordnen" from the ledger kebab),
+    //      and the row is stamped USER_PIN so the read ledger binds it by
+    //      anchor instead of degrading the off-window take back to ad-hoc;
+    //   3. else an explicit `forceSlotInstant: null` UNPINS (v1.15.20,
+    //      "Zuordnung lösen"): re-attribute the take by band on its takenAt
+    //      (ad-hoc when no band matches). v1.16.0 — the release is itself a
+    //      deliberate binding decision, so the row KEEPS `USER_PIN`
+    //      provenance ("attribution user-fixed": onto a slot OR deliberately
+    //      ad-hoc). The persisted marker is what keeps the nightly slot
+    //      dedup from snapping the released row back into the cluster the
+    //      user just detached it from;
+    //   4. else a taken edit attributes by band (slot anchor on match, the
+    //      take's own time on a miss → ad-hoc), provenance AUTO;
+    //   5. a skip / pending edit keeps the existing `scheduledFor` anchor.
     let resolvedScheduledFor: Date | undefined = data.scheduledFor;
-    if (resolvedScheduledFor === undefined && takenOrSkippedChanged) {
-      if (data.forceSlotInstant !== undefined) {
+    let attributionSource: "AUTO" | "USER_PIN" | undefined;
+    if (resolvedScheduledFor === undefined) {
+      if (
+        data.forceSlotInstant !== undefined &&
+        data.forceSlotInstant !== null
+      ) {
         const forced = await resolveForcedSlotForWrite({
           userId: user.id,
           medicationId: id,
@@ -148,8 +164,37 @@ export const PUT = apiHandler(
             { errorCode: "medications.intake.force_slot.invalid" },
           );
         }
+        // v1.16.0 — refuse to pin onto a slot another recorded action
+        // already serves (excluding the row being edited): the explicit-
+        // write last-write-wins rule would silently overwrite that dose
+        // record. The ledger UI only offers the pin for unserved slots,
+        // so this only fires for stale clients / raw API calls.
+        if (
+          await findPinConflict({
+            userId: user.id,
+            medicationId: id,
+            canonicalSlot: forced,
+            incomingTakenAt: nextSkipped ? null : nextTakenAt,
+            excludeEventId: eventId,
+          })
+        ) {
+          annotate({
+            action: { name: "medication.intake.force_slot.occupied" },
+            meta: { medication_id: id, event_id: eventId },
+          });
+          return apiError(
+            "forceSlotInstant already carries a recorded dose action",
+            422,
+            { errorCode: "medications.intake.force_slot.occupied" },
+          );
+        }
         resolvedScheduledFor = forced;
-      } else if (nextTakenAt !== null && !nextSkipped) {
+        attributionSource = "USER_PIN";
+      } else if (
+        (data.forceSlotInstant === null || takenOrSkippedChanged) &&
+        nextTakenAt !== null &&
+        !nextSkipped
+      ) {
         const attribution = await resolveSlotForWriteByBand({
           userId: user.id,
           medicationId: id,
@@ -158,6 +203,16 @@ export const PUT = apiHandler(
         });
         // band.at on match; the take's own time on a miss (ad-hoc).
         resolvedScheduledFor = attribution.slotInstant ?? nextTakenAt;
+        // v1.16.0 — an explicit unpin stays user-fixed (USER_PIN) even on
+        // the released row; a plain taken/skipped edit re-attributes AUTO.
+        attributionSource =
+          data.forceSlotInstant === null ? "USER_PIN" : "AUTO";
+      } else if (data.forceSlotInstant === null) {
+        // Unpin on a row that is not a confirmed take (skip / pending):
+        // nothing to re-attribute, but the provenance still resets — a
+        // skip / pending row anchors on its slot by construction, so there
+        // is no user-fixed ad-hoc decision to persist.
+        attributionSource = "AUTO";
       }
       // skip / pending edits leave `scheduledFor` on the existing anchor.
     }
@@ -175,6 +230,11 @@ export const PUT = apiHandler(
         data: {
           ...(data.takenAt !== undefined && { takenAt: data.takenAt }),
           ...(data.skipped !== undefined && { skipped: data.skipped }),
+          // v1.15.20 — binding provenance: pin / unpin / band re-attribution
+          // stamps it even when the anchor itself did not move (e.g. a pin
+          // onto the slot the row already sits on, or an unpin whose band
+          // re-attribution lands on the same anchor).
+          ...(attributionSource !== undefined && { attributionSource }),
           // v1.7.0 sync — bump the reconciliation counter on every
           // server-side mutation so the `/api/sync/changes` feed echoes a
           // monotonic value to paired clients.
@@ -203,6 +263,7 @@ export const PUT = apiHandler(
         isExplicitSkip: nextSkipped,
         idempotencyKey: null,
         createSource: "WEB",
+        attributionSource,
       });
       updated = applied.row;
     }

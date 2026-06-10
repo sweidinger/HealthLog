@@ -64,7 +64,7 @@ export function DeleteButton({
         <AlertDialogFooter>
           <AlertDialogCancel>{cancelLabel ?? t("common.cancel")}</AlertDialogCancel>
           <AlertDialogAction
-            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            variant="destructive"
             onClick={onConfirm}
           >
             {confirmLabel ?? t("common.delete")}

@@ -19,9 +19,48 @@ import {
 import { serializeScheduleRecurrence } from "@/lib/medication-schedule";
 import { computeNextDueAt } from "@/lib/medications/scheduling/next-due";
 import { assertMedicationOwnership } from "@/lib/medications/route-guards";
+import { getUserTodayBounds } from "@/lib/timezone";
 import { NextRequest } from "next/server";
 
 type RouteParams = { params: Promise<{ id: string }> };
+
+/** Parse "HH:mm" into minutes-of-day; NaN-safe (malformed → 0). */
+function hhmmToMinutes(value: string): number {
+  const [h, m] = value.split(":").map(Number);
+  if (!Number.isFinite(h) || !Number.isFinite(m)) return 0;
+  return h * 60 + m;
+}
+
+/**
+ * Reconcile a schedule's `windowStart` / `windowEnd` with its effective
+ * `timesOfDay`. The schedule editor can change only the dose times while the
+ * client echoes the previous window back; a time outside the window then
+ * breaks every consumer that assumes `timesOfDay ⊆ [windowStart, windowEnd]`
+ * (the window-status pill, the reminder phases, the legacy compliance
+ * walker). When ANY time falls outside the window — including the overnight
+ * `windowEnd < windowStart` shape, checked with wrap-around membership —
+ * the window is pulled to the min/max of the times so the persisted row is
+ * self-consistent. A window that already covers every time is left
+ * byte-identical (explicitly wider windows are a feature).
+ */
+function reconcileScheduleWindow(
+  windowStart: string,
+  windowEnd: string,
+  timesOfDay: string[],
+): { windowStart: string; windowEnd: string } {
+  if (timesOfDay.length === 0) return { windowStart, windowEnd };
+  const startMins = hhmmToMinutes(windowStart);
+  const endMins = hhmmToMinutes(windowEnd);
+  const overnight = endMins < startMins;
+  const inWindow = (t: number): boolean =>
+    overnight ? t >= startMins || t <= endMins : t >= startMins && t <= endMins;
+  const sorted = [...timesOfDay].sort(
+    (a, b) => hhmmToMinutes(a) - hhmmToMinutes(b),
+  );
+  const allInside = sorted.every((t) => inWindow(hhmmToMinutes(t)));
+  if (allInside) return { windowStart, windowEnd };
+  return { windowStart: sorted[0], windowEnd: sorted[sorted.length - 1] };
+}
 
 export const GET = apiHandler(
   async (_request: NextRequest, { params }: RouteParams) => {
@@ -239,6 +278,31 @@ export const PUT = apiHandler(
 
     // If schedules provided, replace all
     if (schedules) {
+      // A schedule replace invalidates the open slot anchors the projector /
+      // reminder worker minted for the OLD times: a pending 08:00 row for a
+      // medication that now doses at 20:00 would linger as a phantom slot,
+      // auto-miss later, and depress compliance. Tombstone today's and
+      // future open pending rows (never an actioned row — `takenAt`,
+      // `skipped`, and `autoMissed` are user-visible history) and bump
+      // `syncVersion` so delta-sync clients drop them. The projector and
+      // the reminder worker re-mint the anchors for the new times on their
+      // next pass — the route does not pre-create them.
+      const { start: todayStart } = getUserTodayBounds(
+        new Date(),
+        user.timezone || "Europe/Berlin",
+      );
+      await prisma.medicationIntakeEvent.updateMany({
+        where: {
+          userId: user.id,
+          medicationId: id,
+          deletedAt: null,
+          takenAt: null,
+          skipped: false,
+          autoMissed: false,
+          scheduledFor: { gte: todayStart },
+        },
+        data: { deletedAt: new Date(), syncVersion: { increment: 1 } },
+      });
       await prisma.medicationSchedule.deleteMany({
         where: { medicationId: id },
       });
@@ -292,9 +356,19 @@ export const PUT = apiHandler(
                 ? s.timesOfDay
                 : [s.windowStart];
 
+            // Invariant 4 — window / times consistency. See
+            // `reconcileScheduleWindow`: a times-only edit that echoes the
+            // stale window back gets the window pulled to the min/max of
+            // the new times.
+            const window = reconcileScheduleWindow(
+              s.windowStart,
+              s.windowEnd,
+              effectiveTimesOfDay,
+            );
+
             return {
-              windowStart: s.windowStart,
-              windowEnd: s.windowEnd,
+              windowStart: window.windowStart,
+              windowEnd: window.windowEnd,
               label: s.label ?? null,
               dose: s.dose ?? null,
               daysOfWeek: serializeScheduleRecurrence({

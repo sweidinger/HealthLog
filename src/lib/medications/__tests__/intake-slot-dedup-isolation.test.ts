@@ -64,7 +64,10 @@ const MED = {
 // Two duplicate rows per slot (07:00 and 19:00) on 2026-06-15 CEST.
 // 07:00 CEST = 05:00Z, 19:00 CEST = 17:00Z. Each slot has a pending
 // REMINDER row + a taken WEB row a minute apart → both collapse, both
-// need a winner normalise.
+// need a winner normalise. The taken rows carry the legacy-drift shape
+// (`scheduledFor` ≠ `takenAt`): an exactly-equal pair is the band-era
+// deliberate-ad-hoc signature, which the dedup deliberately never
+// collapses (v1.16.0 pin-awareness — see the dedicated pin test file).
 function seedRows() {
   return [
     {
@@ -75,15 +78,17 @@ function seedRows() {
       skipped: false,
       syncVersion: 0,
       createdAt: new Date("2026-06-15T00:00:00Z"),
+      attributionSource: "AUTO",
     },
     {
       id: "r-07-web",
       medicationId: "med-1",
       scheduledFor: new Date("2026-06-15T05:01:00.000Z"),
-      takenAt: new Date("2026-06-15T05:01:00.000Z"),
+      takenAt: new Date("2026-06-15T05:03:00.000Z"),
       skipped: false,
       syncVersion: 1,
       createdAt: new Date("2026-06-15T05:01:00Z"),
+      attributionSource: "AUTO",
     },
     {
       id: "r-19-rem",
@@ -93,15 +98,17 @@ function seedRows() {
       skipped: false,
       syncVersion: 0,
       createdAt: new Date("2026-06-15T00:00:00Z"),
+      attributionSource: "AUTO",
     },
     {
       id: "r-19-web",
       medicationId: "med-1",
       scheduledFor: new Date("2026-06-15T17:01:00.000Z"),
-      takenAt: new Date("2026-06-15T17:01:00.000Z"),
+      takenAt: new Date("2026-06-15T17:03:00.000Z"),
       skipped: false,
       syncVersion: 1,
       createdAt: new Date("2026-06-15T17:01:00Z"),
+      attributionSource: "AUTO",
     },
   ];
 }

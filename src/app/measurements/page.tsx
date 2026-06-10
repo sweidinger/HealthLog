@@ -28,9 +28,7 @@ export default function MeasurementsPage() {
   // effect, so the open-on-param work is render-driven instead.
   const addParam = searchParams.get("add");
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [defaultType, setDefaultType] = useState<string | undefined>(
-    undefined,
-  );
+  const [defaultType, setDefaultType] = useState<string | undefined>(undefined);
   const [consumedAddParam, setConsumedAddParam] = useState<string | null>(null);
   // v1.4.27 R4 RC2 — DOM handle the form portals its action row into so
   // the Sheet branch can sticky-pin Save / Cancel.
@@ -81,7 +79,7 @@ export default function MeasurementsPage() {
           </p>
         </div>
         <Button onClick={() => setDialogOpen(true)}>
-          <Plus className="mr-2 h-4 w-4" />
+          <Plus className="h-4 w-4" />
           {t("measurements.addMeasurement")}
         </Button>
       </div>

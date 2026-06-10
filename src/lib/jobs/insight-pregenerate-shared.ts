@@ -67,6 +67,11 @@ export async function enqueueForceWarm(payload: {
         // De-dupe within a 2-minute window so a double tap or an
         // auto-trigger racing a manual tap enqueues one warm, not two.
         singletonSeconds: 120,
+        // Transient provider / pool failures retry with backoff instead
+        // of leaving every cache cold until the nightly cron.
+        retryLimit: 3,
+        retryDelay: 60,
+        retryBackoff: true,
       },
     );
     annotate({

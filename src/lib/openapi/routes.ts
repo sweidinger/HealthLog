@@ -30,6 +30,8 @@ import {
   measurementSourceEnum,
 } from "@/lib/validations/measurement";
 import { loginPasswordSchema } from "@/lib/validations/auth";
+import { aboutMePutSchema } from "@/lib/validations/about-me";
+import { inviteCreateSchema } from "@/lib/validations/invite";
 import { coachPrefsSchema } from "@/lib/validations/coach-prefs";
 import {
   deviceTypeEnum,
@@ -191,6 +193,12 @@ const profileUpdateRequest = z
     displayName: z.string().min(1).max(80).nullable().optional(),
     locale: z.enum(["de", "en"]).nullable().optional(),
     timezone: z.string().min(1).max(64).optional(),
+    timeFormat: z
+      .enum(["AUTO", "H12", "H24"])
+      .optional()
+      .describe(
+        "Hour-cycle display preference. AUTO follows the locale convention, H12 forces AM/PM, H24 forces 24-hour.",
+      ),
     moodReminderEnabled: z.boolean().optional(),
     fullName: z.string().max(120).nullable().optional(),
     insurerName: z.string().max(120).nullable().optional(),
@@ -223,6 +231,11 @@ const profileResponse = z
     heightCm: z.number().nullable(),
     locale: z.string().nullable(),
     timezone: z.string(),
+    timeFormat: z
+      .enum(["AUTO", "H12", "H24"])
+      .describe(
+        "Hour-cycle display preference. AUTO follows the locale convention, H12 forces AM/PM, H24 forces 24-hour.",
+      ),
     moodReminderEnabled: z.boolean(),
     fullName: z.string().nullable(),
     insurerName: z.string().nullable(),
@@ -253,6 +266,11 @@ const profileUpdateResponse = z
     heightCm: z.number().nullable(),
     locale: z.string().nullable(),
     timezone: z.string(),
+    timeFormat: z
+      .enum(["AUTO", "H12", "H24"])
+      .describe(
+        "Hour-cycle display preference. AUTO follows the locale convention, H12 forces AM/PM, H24 forces 24-hour.",
+      ),
     moodReminderEnabled: z.boolean(),
     fullName: z.string().nullable(),
     insurerName: z.string().nullable(),
@@ -1987,14 +2005,19 @@ const dashboardSnapshotResponse = z
       })
       .nullable(),
     briefing: z.record(z.string(), z.unknown()).nullable(),
-    briefingState: z.enum(["ready", "preparing", "disabled"]),
+    briefingState: z.enum(["ready", "preparing", "disabled", "no-provider"]),
     briefingUpdatedAt: z.string().nullable(),
+    briefingStale: z
+      .boolean()
+      .describe(
+        "True when `briefing` carries the last good (expired-TTL) briefing while a refresh is pending (`preparing`) or impossible (`no-provider`). Render the stale content with its `briefingUpdatedAt` timestamp instead of a blank tile.",
+      ),
     generatedAt: z.string(),
   })
   .meta({
     id: "DashboardSnapshotResponse",
     description:
-      "Unified above-the-fold dashboard payload. `tiles` always arrives (slim summaries + mood + resolved widget layout); `extras` (BD-in-target + per-context glucose) is null on a rollup-coverage miss so the strip never waits on the slowest read. `briefing` is lifted read-only from the pre-generated insight cache — never generated synchronously — and reports `ready` / `preparing` / `disabled` via `briefingState`. `layoutCatalogue` (full 27-id widget catalogue) and `metricStates` (latest reading per metric, keyed by iOS `MetricKind` raw value) are additive cold-launch seeds for the native client; both derive in-process from data already fetched, adding no DB round-trip.",
+      "Unified above-the-fold dashboard payload. `tiles` always arrives (slim summaries + mood + resolved widget layout); `extras` (BD-in-target + per-context glucose) is null on a rollup-coverage miss so the strip never waits on the slowest read. `briefing` is lifted read-only from the pre-generated insight cache — never generated synchronously — and reports `ready` / `preparing` / `disabled` / `no-provider` via `briefingState` (`no-provider` = stale-or-missing cache with no AI provider configured anywhere, so no warm pass will fill it; stop polling and surface a connect-provider hint). A stale-but-parseable briefing is still delivered with `briefingStale: true`. `layoutCatalogue` (full 27-id widget catalogue) and `metricStates` (latest reading per metric, keyed by iOS `MetricKind` raw value) are additive cold-launch seeds for the native client; both derive in-process from data already fetched, adding no DB round-trip.",
   });
 
 // v1.5.0 — natural-language medication extraction route. The wizard's
@@ -4312,6 +4335,244 @@ export const openApiPaths: NonNullable<ZodOpenApiObject["paths"]> = {
               schema: dataEnvelope(
                 coachFactDeletedResponse,
                 "CoachFactDeleted",
+              ),
+            },
+          },
+        },
+        ...stdResponses,
+      },
+    },
+  },
+  "/api/coach/about-me": {
+    get: {
+      tags: ["Insights"],
+      summary: "Read the caller's self-context",
+      description:
+        "v1.16.0 — returns the structured self-context (free text plus chronic conditions, allergies, coach focus) the Coach system prompt and the daily briefing inject as a delimited, user-provided context block, alongside any pending clarifying questions. Every field is stored encrypted at rest; an undecryptable payload reads as null (fail closed). Auth via cookie or Bearer; the owner is always narrowed from the session.",
+      responses: {
+        "200": {
+          description:
+            "The stored fields (null when never written / cleared) plus pending clarifying questions.",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                z.object({
+                  aboutMe: z.string().nullable(),
+                  conditions: z.string().nullable(),
+                  allergies: z.string().nullable(),
+                  coachFocus: z.string().nullable(),
+                  pendingQuestions: z.array(z.string()),
+                  updatedAt: z.iso.datetime({ offset: true }).nullable(),
+                  maxChars: z.number().int(),
+                  fieldMaxChars: z.number().int(),
+                }),
+                "GetCoachAboutMeResponse",
+              ),
+            },
+          },
+        },
+        ...stdResponses,
+      },
+    },
+    put: {
+      tags: ["Insights"],
+      summary: "Write (or clear) the caller's self-context",
+      description:
+        "v1.16.0 — persists the free text (4 000-char cap) and the three structured fields (500-char cap each) encrypted at rest; caps are enforced before encryption. Structured fields are optional: omitted leaves the stored value untouched, an empty string clears it. After a non-empty save the server derives up to 3 clarifying questions (AI when a provider and the daily Coach token budget allow, deterministic completion hints otherwise) and returns them as `pendingQuestions`. Rate-limited per user.",
+      requestBody: {
+        required: true,
+        content: { "application/json": { schema: aboutMePutSchema } },
+      },
+      responses: {
+        "200": {
+          description:
+            "The effective (trimmed) state echoed back plus the freshly derived pending questions.",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                z.object({
+                  aboutMe: z.string().nullable(),
+                  conditions: z.string().nullable(),
+                  allergies: z.string().nullable(),
+                  coachFocus: z.string().nullable(),
+                  pendingQuestions: z.array(z.string()),
+                  updatedAt: z.iso.datetime({ offset: true }),
+                  maxChars: z.number().int(),
+                  fieldMaxChars: z.number().int(),
+                }),
+                "PutCoachAboutMeResponse",
+              ),
+            },
+          },
+        },
+        ...stdResponses,
+      },
+    },
+  },
+  "/api/coach/about-me/questions": {
+    get: {
+      tags: ["Insights"],
+      summary: "Read the pending clarifying questions",
+      description:
+        "v1.16.0 — the up-to-3 clarifying questions derived after the last self-context save. The Coach composer renders them as tappable suggestion chips. Stored encrypted; an undecryptable payload reads as an empty list (fail closed).",
+      responses: {
+        "200": {
+          description: "The pending questions (possibly empty).",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                z.object({ questions: z.array(z.string()) }),
+                "GetCoachAboutMeQuestionsResponse",
+              ),
+            },
+          },
+        },
+        ...stdResponses,
+      },
+    },
+    delete: {
+      tags: ["Insights"],
+      summary: "Dismiss pending clarifying questions",
+      description:
+        "v1.16.0 — dismisses one question (body `{ question }`, exact match) or all of them (empty body). Tapping a chip in the Coach composer inserts the question into the chat input and dismisses it here.",
+      requestBody: {
+        required: false,
+        content: {
+          "application/json": {
+            schema: z.object({
+              question: z
+                .string()
+                .optional()
+                .describe(
+                  "Exact question text to dismiss. Omitted = dismiss all.",
+                ),
+            }),
+          },
+        },
+      },
+      responses: {
+        "200": {
+          description: "The remaining questions after the dismissal.",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                z.object({ questions: z.array(z.string()) }),
+                "DeleteCoachAboutMeQuestionsResponse",
+              ),
+            },
+          },
+        },
+        ...stdResponses,
+      },
+    },
+  },
+  "/api/admin/invites": {
+    get: {
+      tags: ["Admin"],
+      summary: "List registration invites",
+      description:
+        "v1.16.0 — every invite with creator / consumer usernames, use counters, soft-revocation timestamp, and the full per-signup redemption ledger (`redemptions`; `consumer` only carries the LAST account on a multi-use invite). Metadata only — the raw token is never derivable from this endpoint (only its HMAC hash is persisted). Admin session cookie required; Bearer tokens cannot reach admin endpoints.",
+      responses: {
+        "200": {
+          description: "All invites, newest first.",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                z.array(
+                  z.object({
+                    id: z.string(),
+                    createdAt: z.iso.datetime({ offset: true }),
+                    expiresAt: z.iso.datetime({ offset: true }),
+                    usedAt: z.iso.datetime({ offset: true }).nullable(),
+                    revokedAt: z.iso.datetime({ offset: true }).nullable(),
+                    uses: z.number().int(),
+                    maxUses: z.number().int(),
+                    creator: z
+                      .object({ id: z.string(), username: z.string() })
+                      .nullable(),
+                    consumer: z
+                      .object({ id: z.string(), username: z.string() })
+                      .nullable(),
+                    redemptions: z.array(
+                      z.object({
+                        id: z.string(),
+                        redeemedAt: z.iso.datetime({ offset: true }),
+                        user: z
+                          .object({
+                            id: z.string(),
+                            username: z.string(),
+                            email: z.string().nullable(),
+                          })
+                          .nullable(),
+                      }),
+                    ),
+                  }),
+                ),
+                "AdminInviteList",
+              ),
+            },
+          },
+        },
+        ...stdResponses,
+      },
+    },
+    post: {
+      tags: ["Admin"],
+      summary: "Mint a registration invite",
+      description:
+        "v1.15.20 — creates an invite that admits a signup even while open registration is disabled. The raw `hlv_<64hex>` token and the composed registration URL appear EXACTLY ONCE in this response; only the keyed hash is persisted. Lifetime is capped at 30 days; `maxUses` makes multi-use invites possible (consumption is an atomic guarded increment). Admin session cookie required.",
+      requestBody: {
+        required: true,
+        content: { "application/json": { schema: inviteCreateSchema } },
+      },
+      responses: {
+        "201": {
+          description: "The minted invite, including the one-time raw token.",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                z.object({
+                  id: z.string(),
+                  createdAt: z.iso.datetime({ offset: true }),
+                  expiresAt: z.iso.datetime({ offset: true }),
+                  uses: z.number().int(),
+                  maxUses: z.number().int(),
+                  token: z
+                    .string()
+                    .describe(
+                      "Raw invite token (`hlv_<64hex>`). Shown exactly once — never persisted in plaintext.",
+                    ),
+                  url: z
+                    .string()
+                    .describe(
+                      "Composed registration deep link (`/auth/register?invite=…`).",
+                    ),
+                }),
+                "AdminInviteCreated",
+              ),
+            },
+          },
+        },
+        ...stdResponses,
+      },
+    },
+  },
+  "/api/admin/invites/{id}": {
+    delete: {
+      tags: ["Admin"],
+      requestParams: { path: z.object({ id: z.string() }) },
+      summary: "Revoke a registration invite",
+      description:
+        "v1.16.0 — soft-revokes the invite (`revokedAt`): the row keeps its redemption history visible in the admin table while the consume path refuses the link like an expired one. Idempotent: an unknown or already-revoked id returns `{ revoked: false }` instead of 404. Admin session cookie required.",
+      responses: {
+        "200": {
+          description:
+            "The invite was revoked (`revoked: true`) or nothing matched (`revoked: false`).",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                z.object({ revoked: z.boolean() }),
+                "AdminInviteRevoked",
               ),
             },
           },

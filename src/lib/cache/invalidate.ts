@@ -105,6 +105,10 @@ export function invalidateUserMood(userId: string): void {
 export function invalidateUserMedications(userId: string): void {
   caches.medications.deleteByPrefix(userId);
   caches.medicationsIntake.deleteByPrefix(`${userId}|`);
+  // v1.15.20 — the per-medication compliance payload is cached 15 min;
+  // every intake / medication / schedule write must flush it so the card
+  // rates and the heatmap reflect the action on the next read.
+  caches.medicationCompliance.deleteByPrefix(`${userId}|`);
   caches.achievements.deleteByPrefix(userId);
   // v1.4.36 W1 — medication writes change the MEDICATION_COMPLIANCE
   // target rollup (compliance7 / compliance30 / consistency strip).

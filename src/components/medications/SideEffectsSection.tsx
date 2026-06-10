@@ -251,7 +251,7 @@ export function SideEffectsSection({ medicationId }: SideEffectsSectionProps) {
           setOpen(true);
         }}
       >
-        <Plus className="mr-1.5 h-3.5 w-3.5" />
+        <Plus className="h-3.5 w-3.5" />
         {t("medications.sideEffects.addCta")}
       </Button>
     </>
@@ -262,7 +262,6 @@ export function SideEffectsSection({ medicationId }: SideEffectsSectionProps) {
       titleId="side-effects-heading"
       title={t("medications.sideEffects.section")}
       headerExtras={headerExtras}
-      bodyPaddingY="py-2.5"
     >
       {isLoading && (
         <div className="text-muted-foreground flex items-center gap-2">
@@ -513,7 +512,7 @@ export function SideEffectsSection({ medicationId }: SideEffectsSectionProps) {
                   disabled={createMutation.isPending}
                 >
                   {createMutation.isPending && (
-                    <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
+                    <Loader2 className="h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
                   )}
                   {t("medications.sideEffects.submitCta")}
                 </Button>

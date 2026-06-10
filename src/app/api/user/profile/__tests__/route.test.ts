@@ -57,7 +57,7 @@ describe("GET /api/user/profile", () => {
     vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
     vi.mocked(prisma.user.findUnique).mockResolvedValue({
       username: "marc",
-      displayName: "Marc B.",
+      displayName: "Alex T.",
       email: "marc@example.com",
       dateOfBirth: new Date("1985-03-12T00:00:00.000Z"),
       gender: "MALE",
@@ -77,7 +77,7 @@ describe("GET /api/user/profile", () => {
       };
     };
     expect(body.data.username).toBe("marc");
-    expect(body.data.displayName).toBe("Marc B.");
+    expect(body.data.displayName).toBe("Alex T.");
     expect(body.data.heightCm).toBe(180);
     expect(body.data.locale).toBe("de");
   });
@@ -137,7 +137,7 @@ describe("PATCH /api/user/profile", () => {
     vi.mocked(prisma.user.update).mockResolvedValue({
       id: "user-1",
       username: "marc",
-      displayName: "Marc B.",
+      displayName: "Alex T.",
       email: null,
       role: "USER",
       heightCm: null,
@@ -147,13 +147,13 @@ describe("PATCH /api/user/profile", () => {
       locale: "de",
     } as never);
 
-    const res = await PATCH(req({ displayName: "Marc B.", locale: "de" }));
+    const res = await PATCH(req({ displayName: "Alex T.", locale: "de" }));
     expect(res.status).toBe(200);
     expect(prisma.user.update).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { id: "user-1" },
         data: expect.objectContaining({
-          displayName: "Marc B.",
+          displayName: "Alex T.",
           locale: "de",
         }),
       }),
@@ -197,6 +197,52 @@ describe("PATCH /api/user/profile", () => {
   it("returns 422 for a malformed IKNR", async () => {
     vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
     const res = await PATCH(req({ insurerIkNumber: "abc" }));
+    expect(res.status).toBe(422);
+    expect(prisma.user.update).not.toHaveBeenCalled();
+  });
+
+  // v1.15.20 — hour-cycle display preference rides the shared profile
+  // update path: a valid enum value persists field-by-field and echoes
+  // back; anything outside AUTO/H12/H24 is rejected by the Zod schema.
+  it("persists a valid timeFormat and echoes it back", async () => {
+    vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
+    vi.mocked(prisma.user.findUnique).mockResolvedValue(null);
+    vi.mocked(prisma.user.update).mockResolvedValue({
+      id: "user-1",
+      username: "marc",
+      displayName: null,
+      email: null,
+      role: "USER",
+      heightCm: null,
+      dateOfBirth: null,
+      gender: null,
+      timezone: "Europe/Berlin",
+      locale: null,
+      timeFormat: "H24",
+      moodReminderEnabled: false,
+      fullName: null,
+      insurerName: null,
+      insurerIkNumber: null,
+      insuranceNumberEncrypted: null,
+    } as never);
+
+    const res = await PATCH(req({ timeFormat: "H24" }));
+    expect(res.status).toBe(200);
+    expect(prisma.user.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: "user-1" },
+        data: expect.objectContaining({ timeFormat: "H24" }),
+      }),
+    );
+    const body = (await res.json()) as {
+      data: { timeFormat: string };
+    };
+    expect(body.data.timeFormat).toBe("H24");
+  });
+
+  it("returns 422 for an invalid timeFormat", async () => {
+    vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
+    const res = await PATCH(req({ timeFormat: "12h" }));
     expect(res.status).toBe(422);
     expect(prisma.user.update).not.toHaveBeenCalled();
   });

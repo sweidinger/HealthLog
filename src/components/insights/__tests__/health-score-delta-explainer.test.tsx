@@ -149,7 +149,7 @@ describe("<HealthScoreDeltaExplainer>", () => {
     expect(body).not.toBeNull();
     const text = body?.[1] ?? "";
     // Components — window — action triad pinned.
-    expect(text).toContain("BP, weight, mood and meds");
+    expect(text).toContain("BP, weight, mood and medication adherence");
     expect(text).toContain("same time last week");
     expect(text).toContain("Log a fresh reading");
     // 3-sentence ceiling. Soft check: at most 4 sentence-ending
@@ -171,7 +171,7 @@ describe("<HealthScoreDeltaExplainer>", () => {
     const text = body?.[1] ?? "";
     expect(text).toContain("Blutdruck");
     expect(text).toContain("Stimmung");
-    expect(text).toContain("Einnahmetreue");
+    expect(text).toContain("Therapietreue");
     expect(text).toContain("vor einer Woche");
   });
 

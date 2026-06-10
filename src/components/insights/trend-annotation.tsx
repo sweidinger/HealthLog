@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Sparkles } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useTranslations } from "@/lib/i18n/context";
 import { useAuth } from "@/hooks/use-auth";
 import { queryKeys } from "@/lib/query-keys";
@@ -158,9 +159,9 @@ export function TrendAnnotation({
         className="border-border/60 bg-card/40 space-y-1.5 rounded-md border p-3 motion-reduce:animate-none"
         aria-label={t("insights.trendAnnotation.pendingLabel")}
       >
-        <div className="bg-muted/60 h-2.5 w-11/12 animate-pulse motion-reduce:animate-none rounded" />
-        <div className="bg-muted/60 h-2.5 w-9/12 animate-pulse motion-reduce:animate-none rounded" />
-        <div className="bg-muted/60 h-2.5 w-7/12 animate-pulse motion-reduce:animate-none rounded" />
+        <Skeleton className="h-2.5 w-11/12 rounded" />
+        <Skeleton className="h-2.5 w-9/12 rounded" />
+        <Skeleton className="h-2.5 w-7/12 rounded" />
       </div>
     );
   }
@@ -289,9 +290,7 @@ export function TrendDescriptorCaption({
     queryKey: queryKeys.insightsTrendSeries(primaryType),
     queryFn: async () => {
       const to = new Date();
-      const from = new Date(
-        to.getTime() - DESCRIPTOR_WINDOW_DAYS * 86_400_000,
-      );
+      const from = new Date(to.getTime() - DESCRIPTOR_WINDOW_DAYS * 86_400_000);
       const params = new URLSearchParams({
         type: primaryType,
         sortBy: "measuredAt",
@@ -364,7 +363,8 @@ export function TrendDescriptorCaption({
   // copy defensively (should not happen for the legacy triple).
   const copy = isMood
     ? moodDescriptorCopy(descriptor)
-    : (numericDescriptorCopy(metric, descriptor) ?? moodDescriptorCopy(descriptor));
+    : (numericDescriptorCopy(metric, descriptor) ??
+      moodDescriptorCopy(descriptor));
 
   return (
     <TrendCaptionCard

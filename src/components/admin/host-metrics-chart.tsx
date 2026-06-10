@@ -38,6 +38,7 @@ import {
 import { useMemo } from "react";
 import { useFormatters, useTranslations } from "@/lib/i18n/context";
 import { queryKeys } from "@/lib/query-keys";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface HostMetricsApiSample {
   capturedAt: string;
@@ -168,7 +169,7 @@ export function HostMetricsChart() {
             {t("admin.hostMetrics.last2hours")}
           </span>
         </div>
-        <div className="bg-muted/40 h-[180px] w-full animate-pulse rounded-md motion-reduce:animate-none" />
+        <Skeleton className="bg-muted/40 h-[180px] w-full" />
       </section>
     );
   }

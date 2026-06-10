@@ -263,9 +263,7 @@ export function MeasurementList({
   const queryClient = useQueryClient();
   // v1.8.5 — when `lockedType` is set the list is pinned to that metric
   // and the type selector is hidden; the filter state seeds from it.
-  const [typeFilter, setTypeFilterRaw] = useState<string>(
-    lockedType ?? "ALL",
-  );
+  const [typeFilter, setTypeFilterRaw] = useState<string>(lockedType ?? "ALL");
   // v1.15.13 — management-list source filter + optional date range.
   // `ALL` clears the source filter; empty date strings clear the bound.
   const [sourceFilter, setSourceFilterRaw] = useState<string>("ALL");
@@ -280,9 +278,7 @@ export function MeasurementList({
   // v1.15.x audit — no "select across 200k rows"). The bulk-delete
   // payload is intersected with the painted page ids, so it is always
   // page-bounded (≤ PAGE_SIZE) and well under the server's 200 cap.
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(
-    () => new Set(),
-  );
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
 
   // v1.4.37 W7c — set of dayKeys whose drill-down is currently
   // expanded. Each key maps to a one-shot query that lazy-fetches
@@ -312,9 +308,7 @@ export function MeasurementList({
   const editErrorDescriptor = editError ? editErrorId : undefined;
   // v1.4.27 R4 RC2 — Sheet-branch sticky-pinned footer slot.
   const editFormId = useId();
-  const [editFooterEl, setEditFooterEl] = useState<HTMLDivElement | null>(
-    null,
-  );
+  const [editFooterEl, setEditFooterEl] = useState<HTMLDivElement | null>(null);
 
   // v1.15.13 — every filter / page / sort change resets pagination to
   // page 1 AND clears the page-scoped selection (the rows it referred to
@@ -474,7 +468,9 @@ export function MeasurementList({
     onSuccess: async (deleted) => {
       await invalidateKeys(queryClient, measurementDependentKeys);
       clearSelection();
-      toast.success(t("measurements.bulkDeleteSuccess", { count: String(deleted) }));
+      toast.success(
+        t("measurements.bulkDeleteSuccess", { count: String(deleted) }),
+      );
     },
     onError: () => {
       toast.error(t("measurements.bulkDeleteError"));
@@ -577,9 +573,7 @@ export function MeasurementList({
   // path collapses to a single page. Per-sample lists continue to
   // paginate at PAGE_SIZE = 25.
   const totalPages =
-    data && !isDayGroupedFilter
-      ? Math.ceil(data.meta.total / PAGE_SIZE)
-      : 0;
+    data && !isDayGroupedFilter ? Math.ceil(data.meta.total / PAGE_SIZE) : 0;
 
   function startEdit(measurement: Measurement) {
     if (onEdit) {
@@ -787,15 +781,12 @@ export function MeasurementList({
               // v1.8.5 — a locked-type list has no "reset filter" path;
               // the metric is fixed by the route.
               typeFilter !== "ALL" && !lockedType ? (
-                <Button
-                  variant="outline"
-                  onClick={() => setTypeFilter("ALL")}
-                >
+                <Button variant="outline" onClick={() => setTypeFilter("ALL")}>
                   {t("measurements.emptyResetFilter")}
                 </Button>
               ) : onAddFirst ? (
                 <Button onClick={onAddFirst}>
-                  <Plus className="mr-1 h-4 w-4" />
+                  <Plus className="h-4 w-4" />
                   {t("measurements.emptyAddFirst")}
                 </Button>
               ) : undefined
@@ -876,7 +867,9 @@ export function MeasurementList({
                     const isSelected = selectedIds.has(m.id);
                     return (
                       <Fragment key={m.id}>
-                        <TableRow data-state={isSelected ? "selected" : undefined}>
+                        <TableRow
+                          data-state={isSelected ? "selected" : undefined}
+                        >
                           <TableCell className="pl-4">
                             {/* Grouped/synthetic rows aren't individually
                                 deletable, so they have no checkbox. */}
@@ -1049,7 +1042,7 @@ export function MeasurementList({
                   <div
                     key={m.id}
                     data-state={isSelected ? "selected" : undefined}
-                    className="bg-card border-border rounded-lg border p-3 data-[state=selected]:border-dracula-purple/60 data-[state=selected]:bg-dracula-purple/5"
+                    className="bg-card border-border data-[state=selected]:border-dracula-purple/60 data-[state=selected]:bg-dracula-purple/5 rounded-lg border p-3"
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2 overflow-hidden">
@@ -1274,115 +1267,110 @@ export function MeasurementList({
         title={t("measurements.editMeasurement")}
         footer={<div ref={setEditFooterEl} className="flex w-full" />}
       >
-          {editing && (
-            <form
-              id={editFormId}
-              onSubmit={submitEdit}
-              className="space-y-4"
-            >
-              <div className="flex items-center gap-1.5">
-                <Label className="shrink-0">{t("measurements.type")}</Label>
-                <span className="text-sm leading-none font-medium">
-                  {TYPE_LABEL_KEYS[editing.type]
-                    ? t(TYPE_LABEL_KEYS[editing.type])
-                    : editing.type}
+        {editing && (
+          <form id={editFormId} onSubmit={submitEdit} className="space-y-4">
+            <div className="flex items-center gap-1.5">
+              <Label className="shrink-0">{t("measurements.type")}</Label>
+              <span className="text-sm leading-none font-medium">
+                {TYPE_LABEL_KEYS[editing.type]
+                  ? t(TYPE_LABEL_KEYS[editing.type])
+                  : editing.type}
+              </span>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="edit-value">
+                {t("measurements.valueWithUnit", { unit: editing.unit })}
+              </Label>
+              <Input
+                id="edit-value"
+                type="number"
+                enterKeyHint="next"
+                step="any"
+                value={editValue}
+                onChange={(e) => setEditValue(e.target.value)}
+                required
+                aria-required="true"
+                aria-invalid={!!editError || undefined}
+                aria-describedby={editErrorDescriptor}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="edit-measuredAt">
+                {t("measurements.timestamp")}
+              </Label>
+              <DateTimeInput
+                id="edit-measuredAt"
+                value={editMeasuredAt}
+                onChange={(e) => setEditMeasuredAt(e.target.value)}
+                required
+                aria-required="true"
+                aria-invalid={!!editError || undefined}
+                aria-describedby={editErrorDescriptor}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <div className="flex items-center justify-between gap-3">
+                <Label htmlFor="edit-notes">
+                  {t("measurements.notes")} ({t("common.optional")})
+                </Label>
+                <span className="text-muted-foreground text-xs">
+                  {editNotes.length}/{MAX_COMMENT_LENGTH}
                 </span>
               </div>
+              <Input
+                id="edit-notes"
+                value={editNotes}
+                onChange={(e) => setEditNotes(e.target.value)}
+                maxLength={MAX_COMMENT_LENGTH}
+                enterKeyHint="done"
+                autoCapitalize="sentences"
+              />
+            </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="edit-value">
-                  {t("measurements.valueWithUnit", { unit: editing.unit })}
-                </Label>
-                <Input
-                  id="edit-value"
-                  type="number"
-                  enterKeyHint="next"
-                  step="any"
-                  value={editValue}
-                  onChange={(e) => setEditValue(e.target.value)}
-                  required
-                  aria-required="true"
-                  aria-invalid={!!editError || undefined}
-                  aria-describedby={editErrorDescriptor}
-                />
+            {editError && (
+              <div
+                id={editErrorId}
+                role="alert"
+                aria-live="assertive"
+                className="bg-destructive/10 text-destructive rounded-lg p-3 text-sm"
+              >
+                {editError}
               </div>
+            )}
 
-              <div className="space-y-2">
-                <Label htmlFor="edit-measuredAt">
-                  {t("measurements.timestamp")}
-                </Label>
-                <DateTimeInput
-                  id="edit-measuredAt"
-                  value={editMeasuredAt}
-                  onChange={(e) => setEditMeasuredAt(e.target.value)}
-                  required
-                  aria-required="true"
-                  aria-invalid={!!editError || undefined}
-                  aria-describedby={editErrorDescriptor}
-                />
-              </div>
+            {editFooterEl
+              ? createPortal(
+                  <div className="flex w-full items-center justify-between gap-2">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon"
+                          className="size-11"
+                          disabled={
+                            updateMutation.isPending || deleteMutation.isPending
+                          }
+                          aria-label={t("common.moreOptions")}
+                        >
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="start">
+                        <DropdownMenuItem
+                          variant="destructive"
+                          onClick={() => setEditDeleteDialogOpen(true)}
+                        >
+                          <Trash2 className="mr-2 h-4 w-4" />
+                          {t("common.delete")}
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
 
-              <div className="space-y-2">
-                <div className="flex items-center justify-between gap-3">
-                  <Label htmlFor="edit-notes">
-                    {t("measurements.notes")} ({t("common.optional")})
-                  </Label>
-                  <span className="text-muted-foreground text-xs">
-                    {editNotes.length}/{MAX_COMMENT_LENGTH}
-                  </span>
-                </div>
-                <Input
-                  id="edit-notes"
-                  value={editNotes}
-                  onChange={(e) => setEditNotes(e.target.value)}
-                  maxLength={MAX_COMMENT_LENGTH}
-                  enterKeyHint="done"
-                  autoCapitalize="sentences"
-                />
-              </div>
-
-              {editError && (
-                <div
-                  id={editErrorId}
-                  role="alert"
-                  aria-live="assertive"
-                  className="bg-destructive/10 text-destructive rounded-lg p-3 text-sm"
-                >
-                  {editError}
-                </div>
-              )}
-
-              {editFooterEl
-                ? createPortal(
-                    <div className="flex w-full items-center justify-between gap-2">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="icon"
-                            className="size-11"
-                            disabled={
-                              updateMutation.isPending ||
-                              deleteMutation.isPending
-                            }
-                            aria-label={t("common.moreOptions")}
-                          >
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="start">
-                          <DropdownMenuItem
-                            variant="destructive"
-                            onClick={() => setEditDeleteDialogOpen(true)}
-                          >
-                            <Trash2 className="mr-2 h-4 w-4" />
-                            {t("common.delete")}
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-
-                      {/*
+                    {/*
                         v1.4.43 QoL (L7) — `[Cancel] [Save]` order is
                         iOS-first intentional per Apple HIG, which
                         puts the primary / confirmation action
@@ -1394,69 +1382,67 @@ export function MeasurementList({
                         refactor — fork a platform-specific shell
                         instead if Android becomes a real audience.
                       */}
-                      <div className="flex items-center gap-2">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          onClick={closeEdit}
-                          disabled={
-                            updateMutation.isPending ||
-                            deleteMutation.isPending
-                          }
-                        >
-                          {t("common.cancel")}
-                        </Button>
-                        <Button
-                          type="submit"
-                          form={editFormId}
-                          disabled={
-                            updateMutation.isPending ||
-                            deleteMutation.isPending
-                          }
-                        >
-                          {updateMutation.isPending ? (
-                            <Loader2 className="mr-2 h-4 w-4 animate-spin motion-reduce:animate-none" />
-                          ) : null}
-                          {t("common.save")}
-                        </Button>
-                      </div>
-                    </div>,
-                    editFooterEl,
-                  )
-                : null}
+                    <div className="flex items-center gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={closeEdit}
+                        disabled={
+                          updateMutation.isPending || deleteMutation.isPending
+                        }
+                      >
+                        {t("common.cancel")}
+                      </Button>
+                      <Button
+                        type="submit"
+                        form={editFormId}
+                        disabled={
+                          updateMutation.isPending || deleteMutation.isPending
+                        }
+                      >
+                        {updateMutation.isPending ? (
+                          <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" />
+                        ) : null}
+                        {t("common.save")}
+                      </Button>
+                    </div>
+                  </div>,
+                  editFooterEl,
+                )
+              : null}
 
-              <AlertDialog
-                open={editDeleteDialogOpen}
-                onOpenChange={setEditDeleteDialogOpen}
-              >
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>
-                      {t("measurements.deleteConfirmTitle")}
-                    </AlertDialogTitle>
-                    <AlertDialogDescription>
-                      {t("measurements.deleteConfirmDescription")}
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel disabled={deleteMutation.isPending}>
-                      {t("common.cancel")}
-                    </AlertDialogCancel>
-                    <AlertDialogAction
-                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                      onClick={deleteEditingMeasurement}
-                      disabled={deleteMutation.isPending}
-                    >
-                      {deleteMutation.isPending ? (
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin motion-reduce:animate-none" />
-                      ) : null}
-                      {t("common.delete")}
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
-            </form>
-          )}
+            <AlertDialog
+              open={editDeleteDialogOpen}
+              onOpenChange={setEditDeleteDialogOpen}
+            >
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>
+                    {t("measurements.deleteConfirmTitle")}
+                  </AlertDialogTitle>
+                  <AlertDialogDescription>
+                    {t("measurements.deleteConfirmDescription")}
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel disabled={deleteMutation.isPending}>
+                    {t("common.cancel")}
+                  </AlertDialogCancel>
+                  <AlertDialogAction
+                    variant="destructive"
+                    onClick={deleteEditingMeasurement}
+                    disabled={deleteMutation.isPending}
+                  >
+                    {deleteMutation.isPending ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin motion-reduce:animate-none" />
+                    ) : null}
+                    {t("common.delete")}
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </form>
+        )}
       </ResponsiveSheet>
     </>
   );
@@ -1511,7 +1497,7 @@ function DayDrillDown({
   }
   if (error) {
     return (
-      <div className="text-destructive py-2 text-xs">
+      <div className="text-destructive py-2 text-sm">
         {t("measurements.loadError")}
       </div>
     );
@@ -1536,10 +1522,14 @@ function DayDrillDown({
             className="flex items-center justify-between gap-3 px-2 py-1 text-xs"
           >
             <span className="text-muted-foreground tabular-nums">
-              {isSleep ? sleepStageLabel(s.sleepStage, t) : formatDateTime(s.measuredAt)}
+              {isSleep
+                ? sleepStageLabel(s.sleepStage, t)
+                : formatDateTime(s.measuredAt)}
             </span>
             <span className="font-medium tabular-nums">
-              {isSleep ? formatSleepMinutes(s.value, locale) : `${s.value} ${unit}`}
+              {isSleep
+                ? formatSleepMinutes(s.value, locale)
+                : `${s.value} ${unit}`}
             </span>
           </div>
         ))}
@@ -1554,10 +1544,14 @@ function DayDrillDown({
           className="flex items-center justify-between gap-2 px-1 py-1 text-xs"
         >
           <span className="text-muted-foreground tabular-nums">
-            {isSleep ? sleepStageLabel(s.sleepStage, t) : formatDateTime(s.measuredAt)}
+            {isSleep
+              ? sleepStageLabel(s.sleepStage, t)
+              : formatDateTime(s.measuredAt)}
           </span>
           <span className="font-medium tabular-nums">
-            {isSleep ? formatSleepMinutes(s.value, locale) : `${s.value} ${unit}`}
+            {isSleep
+              ? formatSleepMinutes(s.value, locale)
+              : `${s.value} ${unit}`}
           </span>
         </div>
       ))}
@@ -1590,4 +1584,3 @@ function SleepNightCaption({ m }: { m: Measurement }) {
     </span>
   );
 }
-

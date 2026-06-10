@@ -13,6 +13,7 @@ import { CoachSettingsSheet } from "./coach-settings-sheet";
 import { HistoryRail } from "./history-rail";
 import { MessageThread } from "./message-thread";
 import { MobileRailTray } from "./mobile-rail-tray";
+import { SelfContextChips } from "./self-context-chips";
 import { SourcesRail } from "./sources-rail";
 import { useResettableValue } from "./use-resettable-value";
 import { useCoachConversation, useSendCoachMessage } from "./use-coach";
@@ -220,15 +221,25 @@ export function CoachConversation({
           </p>
         }
         composer={
-          <CoachInput
-            value={inputValue}
-            onChange={setInputValue}
-            onSubmit={() => handleSubmit(inputValue)}
-            onCancel={send.cancel}
-            disabled={send.isStreaming}
-            isStreaming={send.isStreaming}
-            autoFocusOnOpen={autoFocusComposer}
-          />
+          <div>
+            {/* v1.16.0 — pending self-context questions as tappable
+                chips. Tapping inserts the question into the composer
+                (the user answers it in their own words) and dismisses
+                the chip. Renders nothing when no questions pend. */}
+            <SelfContextChips
+              disabled={send.isStreaming}
+              onPick={(question) => setInputValue(`${question}\n`)}
+            />
+            <CoachInput
+              value={inputValue}
+              onChange={setInputValue}
+              onSubmit={() => handleSubmit(inputValue)}
+              onCancel={send.cancel}
+              disabled={send.isStreaming}
+              isStreaming={send.isStreaming}
+              autoFocusOnOpen={autoFocusComposer}
+            />
+          </div>
         }
         onOpenHistoryTray={() => setHistoryTrayOpen(true)}
         onOpenSourcesTray={() => setSourcesTrayOpen(true)}

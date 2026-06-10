@@ -130,7 +130,12 @@ describe("v1.4.43 W11 — dashboard tile-strip skeleton (wiring)", () => {
     );
   });
 
-  it("marks the skeleton aria-hidden + carries motion-reduce", () => {
+  it("marks the skeleton aria-hidden + renders structured silhouettes", () => {
+    // v1.16.0 — the strip silhouettes are structured `<TrendCardSkeleton>`
+    // cards (label + headline value + sub-row), not empty pulsing divs.
+    // Reduced motion moved into the component (the `<Skeleton>` primitive
+    // carries `motion-reduce:animate-none`); the per-component test in
+    // `dashboard-chart-reveal.test.tsx` pins that.
     const src = readFileSync(PAGE_PATH, "utf8");
     const skeletonBlock = src.match(
       /showTileStripSkeleton\s*&&[\s\S]*?<\/div>\s*\)\}/,
@@ -138,7 +143,14 @@ describe("v1.4.43 W11 — dashboard tile-strip skeleton (wiring)", () => {
     expect(skeletonBlock).not.toBeNull();
     const block = skeletonBlock?.[0] ?? "";
     expect(block).toContain('aria-hidden="true"');
-    expect(block).toContain("motion-reduce:animate-none");
+    expect(block).toContain("<TrendCardSkeleton");
+  });
+
+  it("uses the structured silhouette as the per-tile Suspense fallback", () => {
+    const src = readFileSync(PAGE_PATH, "utf8");
+    expect(src).toMatch(
+      /<Suspense fallback=\{<TrendCardSkeleton \/>\}>/,
+    );
   });
 
   it("gates the EmptyState on the resolved `showEmptyState` flag", () => {

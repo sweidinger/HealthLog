@@ -314,6 +314,116 @@ export async function resolveProviderChain(
 }
 
 /**
+ * Credential-presence subset of the `User` row that
+ * `userRowHasProviderCredential` evaluates. Mirrors the columns
+ * `resolveProviderChain` / `resolveProvider` read, but presence-only —
+ * no decrypt, no client construction, no token refresh.
+ */
+export interface ProviderCredentialRow {
+  aiProvider: string | null;
+  aiProviderChain: unknown;
+  aiAnthropicKeyEncrypted: string | null;
+  aiLocalKeyEncrypted: string | null;
+  aiOpenaiKeyEncrypted: string | null;
+  aiBaseUrl: string | null;
+  codexConnectionStatus: string | null;
+  codexAccessTokenEncrypted: string | null;
+  codexRefreshTokenEncrypted: string | null;
+}
+
+/**
+ * Cheap, synchronous "is any provider configured?" check over an already
+ * loaded credential row. Mirrors the resolution semantics of
+ * `resolveProviderChain` + the legacy `resolveProvider` fallback (the
+ * exact pair `generateComprehensiveInsight` uses to decide
+ * `skipped: no-provider`), but evaluates credential PRESENCE only —
+ * it never decrypts a key, constructs a client, or refreshes a Codex
+ * token. A `true` here can still resolve to a dead provider at call
+ * time (revoked key, unreachable local host); callers use it to decide
+ * whether a generation is worth attempting at all, not as a liveness
+ * probe.
+ *
+ * `adminKeyConfigured` is the presence of `appSettings.adminAiKeyEncrypted`
+ * — passed in so batch callers can read it once for a whole cohort.
+ */
+export function userRowHasProviderCredential(
+  row: ProviderCredentialRow,
+  adminKeyConfigured: boolean,
+): boolean {
+  const codexConnected =
+    row.codexConnectionStatus === "connected" &&
+    !!row.codexAccessTokenEncrypted &&
+    !!row.codexRefreshTokenEncrypted;
+
+  const chain = parseProviderChain(row.aiProviderChain ?? null).filter(
+    (e) => e.enabled,
+  );
+  for (const entry of chain) {
+    switch (entry.providerType) {
+      case "codex":
+        if (codexConnected) return true;
+        break;
+      case "openai":
+        if (row.aiOpenaiKeyEncrypted) return true;
+        break;
+      case "anthropic":
+        if (row.aiAnthropicKeyEncrypted) return true;
+        break;
+      case "local":
+        if (row.aiBaseUrl) return true;
+        break;
+      case "admin-openai":
+        if (adminKeyConfigured) return true;
+        break;
+    }
+  }
+
+  // Legacy `resolveProvider()` fallback — only reached when the chain
+  // resolves empty. Mirrors buildUserProvider → codex → admin in order.
+  const choice = row.aiProvider?.toUpperCase();
+  if (choice === "ANTHROPIC" && row.aiAnthropicKeyEncrypted) return true;
+  if (choice === "LOCAL" && row.aiBaseUrl) return true;
+  if (choice === "OPENAI" && row.aiOpenaiKeyEncrypted) return true;
+  if ((choice === "CHATGPT_OAUTH" || !choice) && codexConnected) return true;
+  return adminKeyConfigured;
+}
+
+/**
+ * Async single-user variant of `userRowHasProviderCredential`: two
+ * narrow presence reads (user credential columns + the admin key flag),
+ * no decrypt, no network. Used by read paths that only need to know
+ * whether a generation could ever produce provider-backed text (e.g.
+ * the dashboard snapshot's `briefingState: "no-provider"`).
+ */
+export async function hasAnyConfiguredProvider(
+  userId: string,
+): Promise<boolean> {
+  const userRow = await prisma.user.findUnique({
+    where: { id: userId },
+    select: {
+      aiProvider: true,
+      aiProviderChain: true,
+      aiAnthropicKeyEncrypted: true,
+      aiLocalKeyEncrypted: true,
+      aiOpenaiKeyEncrypted: true,
+      aiBaseUrl: true,
+      codexConnectionStatus: true,
+      codexAccessTokenEncrypted: true,
+      codexRefreshTokenEncrypted: true,
+    },
+  });
+  if (!userRow) return false;
+  const settings = await prisma.appSettings.findUnique({
+    where: { id: "singleton" },
+    select: { adminAiKeyEncrypted: true },
+  });
+  return userRowHasProviderCredential(
+    userRow,
+    !!settings?.adminAiKeyEncrypted,
+  );
+}
+
+/**
  * Materialise a single chain entry. Returns null when the user lacks
  * the matching credential — the chain runner skips null entries.
  */

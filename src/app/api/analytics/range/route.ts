@@ -20,8 +20,9 @@ import { NextRequest } from "next/server";
 import { z } from "zod/v4";
 
 import { apiHandler, requireAuth } from "@/lib/api-handler";
-import { apiSuccess, returnAllZodIssues } from "@/lib/api-response";
+import { apiError, apiSuccess, returnAllZodIssues } from "@/lib/api-response";
 import { annotate } from "@/lib/logging/context";
+import { checkAnalyticsReadRateLimit } from "@/lib/rate-limit";
 import { measurementTypeEnum } from "@/lib/validations/measurement";
 import {
   ANALYTICS_RANGES,
@@ -39,6 +40,12 @@ const rangeQuerySchema = z.object({
 
 export const GET = apiHandler(async (request: NextRequest) => {
   const { user } = await requireAuth();
+
+  // v1.15.20 — shared analytics-read budget (generous; caps runaway loops).
+  const rl = await checkAnalyticsReadRateLimit(user.id);
+  if (!rl.allowed) {
+    return apiError("Too many analytics requests. Please retry later.", 429);
+  }
 
   const parsed = rangeQuerySchema.safeParse({
     type: request.nextUrl.searchParams.get("type"),

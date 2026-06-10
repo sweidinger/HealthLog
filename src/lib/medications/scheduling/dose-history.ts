@@ -18,6 +18,17 @@
  *     a slot outside the queried window, not a user action);
  *   - a TAKEN intake is attributed by `attributeIntakeToSlot(takenAt, bands)`;
  *     inside a band → that slot (on-time / late), outside every band → ad-hoc;
+ *   - a TAKEN intake the user PINNED onto a slot (`pinned`, v1.15.20 —
+ *     `attributionSource = USER_PIN`) binds by its `scheduledFor` anchor like
+ *     a skip, NOT by takenAt-band membership, so a pin outside the late tail
+ *     never degrades back to ad-hoc. Status is `taken_late` unless the
+ *     takenAt happens to sit inside the slot's on-time band — a pin can
+ *     never flatter the timing;
+ *   - a RELEASED pin (v1.16.0 — "Zuordnung lösen" persists `USER_PIN` with
+ *     `scheduledFor === takenAt`) is a deliberately ad-hoc take: it never
+ *     anchor-binds (not even when its instant sits within epsilon of a slot
+ *     anchor) and surfaces as an ad-hoc row carrying `pinned`, never as
+ *     `taken_late`;
  *   - each slot is claimed by at most one intake (first/best wins); extra
  *     intakes near a filled slot fall through to ad-hoc.
  *
@@ -39,6 +50,14 @@ export interface HistoryIntake {
   skipped: boolean;
   /** Cron-marked forgotten dose (counts as missed, not skipped). */
   autoMissed?: boolean;
+  /**
+   * v1.15.20 — `attributionSource === "USER_PIN"`: the user fixed this
+   * row's attribution by hand. Pinned onto a slot (`scheduledFor` is the
+   * slot anchor): binds by anchor, not by takenAt band. Released
+   * (v1.16.0, `scheduledFor === takenAt`): deliberately ad-hoc, never
+   * anchor-binds. Optional so legacy callers / fixtures default to AUTO.
+   */
+  pinned?: boolean;
 }
 
 export type DoseHistoryStatus =
@@ -48,6 +67,25 @@ export type DoseHistoryStatus =
   | "missed"
   | "upcoming"
   | "ad_hoc";
+
+/**
+ * v1.15.20 — the due-context an ad-hoc row carries: the nearest scheduled
+ * slot the take COULD belong to, so the UI can show "fällig gewesen: …" and
+ * offer "diesem Slot zuordnen" when the slot is still unserved.
+ */
+export interface NearestSlotContext {
+  /** The slot's canonical anchor instant. */
+  at: Date;
+  /** The slot's "HH:mm" label. */
+  timeOfDay: string;
+  /**
+   * True when the slot cannot be offered for pinning: it is already served
+   * by another intake (take / skip), OR the take falls outside the slot's
+   * suggestion window (the context is then informational only — "fällig
+   * gewesen" renders, the pin action does not).
+   */
+  filled: boolean;
+}
 
 export interface DoseHistoryRow {
   /** A scheduled slot, or a standalone off-schedule intake. */
@@ -59,6 +97,22 @@ export interface DoseHistoryRow {
   status: DoseHistoryStatus;
   /** The intake attributed to this row, if any. */
   intake: HistoryIntake | null;
+  /**
+   * v1.15.20 — true when this slot row is served by a USER_PIN intake (a
+   * deliberate "diesem Slot zuordnen" decision). The UI badges it
+   * "zugeordnet" and offers "Zuordnung lösen". v1.16.0 — also true on an
+   * `ad_hoc` row whose intake is USER_PIN (a released / deliberately
+   * ad-hoc take); the UI shows NO badge there (the row is not slot-bound),
+   * it only marks the binding as user-fixed.
+   */
+  pinned?: boolean;
+  /**
+   * v1.15.20 — for an ad-hoc TAKE only: the nearest scheduled slot in the
+   * window (preferring an unserved slot whose suggestion band contains the
+   * take). Absent when the medication has no expected slots in the window
+   * or the row is an orphaned skip.
+   */
+  nearestSlot?: NearestSlotContext;
 }
 
 /** Sub-minute slop for binding an anchored (skip/pending) row to its slot. */
@@ -76,16 +130,19 @@ export function reconstructDoseHistory(
   // Per-band claim: the intake attributed to it + the resolved status.
   const claim = new Map<
     SlotBand,
-    { intake: HistoryIntake; status: DoseHistoryStatus }
+    { intake: HistoryIntake; status: DoseHistoryStatus; pinned?: boolean }
   >();
   const adHoc: HistoryIntake[] = [];
 
   // Partition: anchored rows (skip / auto-missed / pending — no takenAt) bind
-  // by scheduledFor; taken rows attribute by real takenAt band membership.
-  // Process anchored first so a deliberate skip/miss owns its slot before a
-  // stray take could.
+  // by scheduledFor; PINNED takes (v1.15.20) also bind by scheduledFor (the
+  // pin IS the binding decision); unpinned taken rows attribute by real
+  // takenAt band membership. Process anchored first so a deliberate
+  // skip/miss owns its slot before a stray take could, then pins (a
+  // deliberate decision beats band proximity), then band-attributed takes.
   const anchored = intakes.filter((i) => i.takenAt === null);
-  const taken = intakes.filter((i) => i.takenAt !== null);
+  const pinnedTaken = intakes.filter((i) => i.takenAt !== null && i.pinned);
+  const taken = intakes.filter((i) => i.takenAt !== null && !i.pinned);
 
   for (const i of anchored) {
     const band = nearestAnchorBand(i.scheduledFor, bands);
@@ -114,6 +171,37 @@ export function reconstructDoseHistory(
     // window; emitting the placeholder would fabricate a phantom ad-hoc row.
   }
 
+  // v1.15.20 — pinned takes bind by their stored slot anchor, NOT by
+  // takenAt-band membership: the whole point of a pin is that the take sits
+  // outside (or past the tail of) the band it belongs to. Status never
+  // flatters: taken_late, unless the takenAt happens to sit inside the
+  // slot's own on-time band anyway. A pin whose slot is gone (schedule
+  // changed) or already claimed falls through to ad-hoc so nothing vanishes.
+  for (const i of pinnedTaken) {
+    // v1.16.0 — a released pin ("Zuordnung lösen") persists USER_PIN with
+    // `scheduledFor === takenAt`: the user fixed the attribution as
+    // deliberately ad-hoc. Route it straight to ad-hoc — anchor-binding it
+    // (its instant can sit within epsilon of a slot anchor) would re-attach
+    // the very binding the user released and mislabel the row taken_late.
+    if (i.scheduledFor.getTime() === (i.takenAt as Date).getTime()) {
+      adHoc.push(i);
+      continue;
+    }
+    const band = nearestAnchorBand(i.scheduledFor, bands);
+    if (band && !claim.has(band)) {
+      const t = (i.takenAt as Date).getTime();
+      const onTime =
+        t >= band.onTimeStart.getTime() && t <= band.onTimeEnd.getTime();
+      claim.set(band, {
+        intake: i,
+        status: onTime ? "taken_on_time" : "taken_late",
+        pinned: true,
+      });
+    } else {
+      adHoc.push(i);
+    }
+  }
+
   for (const i of taken) {
     const matched = attributeIntakeToSlot(i.takenAt as Date, bands);
     if (matched && !claim.has(matched.band)) {
@@ -135,6 +223,7 @@ export function reconstructDoseHistory(
         timeOfDay: band.timeOfDay,
         status: c.status,
         intake: c.intake,
+        ...(c.pinned && { pinned: true }),
       };
     }
     // Unfilled slot: missed only once the miss cutoff (the late tail's end)
@@ -152,17 +241,91 @@ export function reconstructDoseHistory(
   });
 
   for (const i of adHoc) {
+    // v1.15.20 — an ad-hoc TAKE carries its due-context: the nearest slot it
+    // could belong to, so the UI can show when the dose would have been due
+    // and offer "diesem Slot zuordnen" when that slot is still unserved.
+    // Orphaned skips (no takenAt) carry no take to attribute, so no context.
+    const nearestSlot =
+      i.takenAt !== null
+        ? suggestNearestSlot(i.takenAt, bands, (band) => claim.has(band))
+        : null;
     rows.push({
       kind: "ad_hoc",
       at: i.takenAt ?? i.scheduledFor,
       timeOfDay: null,
       status: "ad_hoc",
       intake: i,
+      // v1.16.0 — a USER_PIN intake surfacing ad-hoc (released, or its
+      // pinned slot vanished / was claimed) keeps the user-fixed marker.
+      ...(i.pinned && { pinned: true }),
+      ...(nearestSlot && { nearestSlot }),
     });
   }
 
   rows.sort((a, b) => a.at.getTime() - b.at.getTime());
   return rows;
+}
+
+/**
+ * v1.15.20 — the slot an ad-hoc take most plausibly belongs to.
+ *
+ * Preference order:
+ *   1. an UNSERVED slot whose suggestion band contains the take — the band is
+ *      the slot's capture zone (`onTimeStart`‥`overdueEnd`) extended past the
+ *      tail by 50 % of the tail's length, capped at the next slot's
+ *      `onTimeStart` so two adjacent slots' suggestion zones stay disjoint.
+ *      Nearest anchor wins among multiple matches;
+ *   2. otherwise the nearest slot anchor overall (served or not) — the UI
+ *      still shows the "fällig gewesen" context, it just can't offer the pin.
+ *
+ * Pure; `isFilled` reports whether a band is already claimed by an intake.
+ */
+export function suggestNearestSlot(
+  takenAt: Date,
+  bands: SlotBand[],
+  isFilled: (band: SlotBand) => boolean,
+): NearestSlotContext | null {
+  if (bands.length === 0) return null;
+  const t = takenAt.getTime();
+  const sorted = [...bands].sort((a, b) => a.at.getTime() - b.at.getTime());
+
+  let bestSuggest: { band: SlotBand; dist: number } | null = null;
+  let bestAny: { band: SlotBand; dist: number } | null = null;
+
+  for (let i = 0; i < sorted.length; i++) {
+    const band = sorted[i];
+    const dist = Math.abs(t - band.at.getTime());
+    if (bestAny === null || dist < bestAny.dist) {
+      bestAny = { band, dist };
+    }
+
+    if (isFilled(band)) continue;
+    // Suggestion zone: the capture band plus half the late tail again,
+    // capped at the following slot's on-time start (disjointness mirrors
+    // `buildSlotBands`' overdue cap).
+    const tailMs = band.overdueEnd.getTime() - band.onTimeEnd.getTime();
+    let suggestEnd = band.overdueEnd.getTime() + tailMs * 0.5;
+    const next = sorted[i + 1];
+    if (next) suggestEnd = Math.min(suggestEnd, next.onTimeStart.getTime());
+    if (t >= band.onTimeStart.getTime() && t <= suggestEnd) {
+      if (bestSuggest === null || dist < bestSuggest.dist) {
+        bestSuggest = { band, dist };
+      }
+    }
+  }
+
+  const pick = bestSuggest ?? bestAny;
+  if (!pick) return null;
+  return {
+    at: pick.band.at,
+    timeOfDay: pick.band.timeOfDay,
+    // `filled` gates the pin offer. Only a preference-1 pick (an UNSERVED
+    // slot whose suggestion window contains the take) is pinnable; the
+    // nearest-anchor fallback is due-context only, so it reads filled even
+    // when the slot itself is unserved — the pin never reaches across the
+    // suggestion cap.
+    filled: pick !== bestSuggest,
+  };
 }
 
 /** The band whose anchor is within epsilon of `instant`, nearest wins. */

@@ -85,9 +85,9 @@ export function DangerZoneSection() {
                 disabled={wipeAllData.isPending}
               >
                 {wipeAllData.isPending ? (
-                  <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
+                  <Loader2 className="h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
                 ) : (
-                  <Trash2 className="mr-1 h-3.5 w-3.5" />
+                  <Trash2 className="h-3.5 w-3.5" />
                 )}
                 {t("admin.deleteButton")}
               </Button>
@@ -104,9 +104,14 @@ export function DangerZoneSection() {
               <AlertDialogFooter>
                 <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
                 <AlertDialogAction
-                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  variant="destructive"
+                  disabled={wipeAllData.isPending}
+                  aria-busy={wipeAllData.isPending || undefined}
                   onClick={() => wipeAllData.mutate()}
                 >
+                  {wipeAllData.isPending && (
+                    <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
+                  )}
                   {t("admin.finalDelete")}
                 </AlertDialogAction>
               </AlertDialogFooter>

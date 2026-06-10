@@ -122,8 +122,7 @@ export function ScoreRing({
   const shouldAnimate = animate && hasScore && !reduced;
   const dash = (clamped / 100) * C;
 
-  const hasBaseline =
-    baseline != null && Number.isFinite(baseline) && hasScore;
+  const hasBaseline = baseline != null && Number.isFinite(baseline) && hasScore;
   const baselineDash = hasBaseline ? (clampScore(baseline) / 100) * C : 0;
 
   // Arc starts empty (offset C) and sweeps to its fill on the next frame after
@@ -170,9 +169,14 @@ export function ScoreRing({
         } as React.CSSProperties
       }
     >
+      {/* `overflow-visible`: the arc's drop-shadow bloom (`.wellness-ring-arc`)
+          paints outside the viewBox — the arc fills the 0 0 100 100 box, so the
+          default `overflow: hidden` on SVG clipped the glow flat at the circle's
+          edge. The -90° rotation is unaffected (the bloom is radially symmetric)
+          and the parent div never clips, so the glow now feathers out fully. */}
       <svg
         viewBox={`0 0 ${VIEW} ${VIEW}`}
-        className="h-full w-full -rotate-90"
+        className="h-full w-full -rotate-90 overflow-visible"
         aria-hidden="true"
       >
         <defs>

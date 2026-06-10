@@ -18,9 +18,9 @@ import { cn } from "@/lib/utils";
  *   ```tsx
  *   <Button disabled={loading} aria-busy={loading || undefined}>
  *     {loading ? (
- *       <Loader2 className="mr-2 h-4 w-4 animate-spin motion-reduce:animate-none" />
+ *       <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" />
  *     ) : (
- *       <Icon className="mr-2 h-4 w-4" />
+ *       <Icon className="h-4 w-4" />
  *     )}
  *     {label}
  *   </Button>

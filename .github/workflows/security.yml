@@ -15,11 +15,11 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
 
-      - uses: pnpm/action-setup@v6
+      - uses: pnpm/action-setup@0e279bb959325dab635dd2c09392533439d90093 # v6.0.8
 
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
         with:
           node-version: 22
           cache: "pnpm"
@@ -28,12 +28,10 @@ jobs:
 
       - run: pnpm db:generate
 
+      # Blocking since v1.15.20 — the settings-split refactor that kept
+      # this warn-only is long done and the tree lints clean.
       - name: ESLint
         run: pnpm lint
-        # Non-blocking on the existing settings page monolith — its set-state-
-        # in-effect violations need the 1.4.0 settings-split refactor to fix
-        # cleanly. Will flip to blocking once settings/page.tsx is broken up.
-        continue-on-error: true
 
       - name: TypeScript strict check
         run: pnpm typecheck
@@ -62,32 +60,37 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
 
-      - uses: pnpm/action-setup@v6
+      - uses: pnpm/action-setup@0e279bb959325dab635dd2c09392533439d90093 # v6.0.8
 
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
         with:
           node-version: 22
           cache: "pnpm"
 
       - run: pnpm install --frozen-lockfile
 
+      # Blocking since v1.15.20 — a HIGH/CRITICAL advisory against a
+      # production dependency fails the build. If an advisory has no
+      # upstream fix yet, pin an `auditConfig.ignoreCves` entry in
+      # package.json (pnpm's documented suppression mechanism) with a
+      # comment referencing the tracking issue, rather than flipping
+      # this step back to warn-only.
       - name: Audit for known vulnerabilities
         run: pnpm audit --prod --audit-level=high
-        continue-on-error: true
 
   secret-scan:
     name: Secret Scanning
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
           fetch-depth: 0
 
       - name: Gitleaks secret scan
-        uses: gitleaks/gitleaks-action@v3
+        uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e # v3.0.0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -97,7 +100,7 @@ jobs:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
 
       - name: Build Docker image
         run: docker build -t healthlog:scan .
@@ -109,6 +112,12 @@ jobs:
           echo "deb [signed-by=/usr/share/keyrings/trivy.gpg] https://aquasecurity.github.io/trivy-repo/deb generic main" | sudo tee /etc/apt/sources.list.d/trivy.list
           sudo apt-get update && sudo apt-get install -y trivy
 
+      # Blocking since v1.15.20 — a HIGH/CRITICAL finding in the built
+      # image fails the job. For a finding without an upstream fix
+      # (e.g. a base-image CVE Alpine has not patched yet), add the CVE
+      # id to a `.trivyignore` file at the repository root — Trivy reads
+      # it automatically — one CVE per line, each with a comment naming
+      # the tracking issue and the re-check condition. Never suppress a
+      # finding that has a fixed version available; bump instead.
       - name: Trivy container scan
         run: trivy image --format table --severity CRITICAL,HIGH --exit-code 1 healthlog:scan
-        continue-on-error: true

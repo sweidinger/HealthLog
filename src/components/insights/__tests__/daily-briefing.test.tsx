@@ -202,4 +202,33 @@ describe("<DailyBriefing>", () => {
     const html = render(<DailyBriefing briefing={baseBriefing} />);
     expect(html).not.toContain('data-slot="daily-briefing-meta-slot"');
   });
+
+  // v1.15.20 — no-provider state: the regenerate CTA would 422 forever,
+  // so the card points at Settings → AI instead.
+  it("renders the connect-provider hint with a settings link when noProvider", () => {
+    const html = render(
+      <DailyBriefing briefing={null} onRegenerate={() => {}} noProvider />,
+    );
+    expect(html).toContain('data-slot="daily-briefing-no-provider"');
+    expect(html).toContain("No AI provider connected");
+    expect(html).toMatch(/href="\/settings\/ai"/);
+    // The futile regenerate CTA must NOT render in this state.
+    expect(html).not.toContain('data-slot="daily-briefing-empty-cta"');
+  });
+
+  it("renders the German connect-provider hint under the de locale", () => {
+    const html = render(
+      <DailyBriefing briefing={null} noProvider />,
+      "de",
+    );
+    expect(html).toContain("Kein KI-Anbieter verbunden");
+  });
+
+  it("prefers the briefing content over the no-provider hint when both exist", () => {
+    const html = render(
+      <DailyBriefing briefing={baseBriefing} noProvider />,
+    );
+    expect(html).toContain('data-slot="daily-briefing-findings"');
+    expect(html).not.toContain('data-slot="daily-briefing-no-provider"');
+  });
 });

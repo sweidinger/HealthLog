@@ -58,11 +58,11 @@
     "classification": "Classification",
     "bmiTitle": "Body Mass Index (BMI)",
     "bmiRow": "BMI: {bmi} kg/m² — Classification: {class} (WHO)",
-    "complianceTitle": "Medication compliance",
+    "complianceTitle": "Medication adherence",
     "glp1Title": "GLP-1 therapy",
     "glp1WeightSummary": "Weight over report period: {start} kg → {end} kg ({delta} kg)",
     "glp1CurrentDose": "Current dose: {value} {unit} (since {since})",
-    "glp1Compliance": "Compliance: {taken} / {total} ({rate}%)",
+    "glp1Compliance": "Adherence: {taken} / {total} ({rate}%)",
     "glp1SideEffectsTitle": "Side effects logged",
     "colGlp1Date": "Date",
     "colGlp1Dose": "Dose",
@@ -73,7 +73,7 @@
     "colSkipped": "Skipped",
     "colMissed": "Missed",
     "colTotal": "Total",
-    "colComplianceRate": "Compliance rate",
+    "colComplianceRate": "Adherence rate",
     "moodTitle": "Mood trajectory",
     "moodSummary": "Average: {avg} / 5.0 · Entries: {count} · Range: {min}–{max}",
     "colMood": "Mood",
@@ -144,7 +144,7 @@
       "bmi": "Body Mass Index (BMI)",
       "mood": "Mood",
       "moodSensitive": "Sensitive — off by default.",
-      "compliance": "Medication compliance",
+      "compliance": "Medication adherence",
       "sleep": "Sleep duration",
       "cycle": "Menstrual cycle",
       "empty": "No data was recorded in this date range yet. The report will still include the cover page.",
@@ -191,6 +191,9 @@
   },
   "offlineBanner": {
     "message": "No connection — your changes will save once you're back online."
+  },
+  "demoBanner": {
+    "message": "Demo mode — changes are not saved."
   },
   "nav": {
     "dashboard": "Dashboard",
@@ -251,6 +254,7 @@
     "hasAccount": "Already have an account?",
     "loginFailed": "Login failed",
     "registerFailed": "Registration failed",
+    "invitedBanner": "You have been invited — create your account even while registration is otherwise closed.",
     "createAccount": "Create account",
     "newAccount": "Create new account",
     "backToPasskey": "Back to Passkey",
@@ -314,7 +318,7 @@
       "confirm": "Discard",
       "cancel": "Keep editing"
     },
-    "compliance7d": "Compliance (7 days)",
+    "compliance7d": "Adherence (7 days)",
     "mood": "Mood",
     "customizeTitle": "Dashboard layout",
     "layoutReset": "Reset to defaults",
@@ -646,7 +650,7 @@
       "slotError": "The selected slot couldn’t be matched to a time. Pick another slot or “No specific slot”."
     },
     "emptyTitle": "No medications yet",
-    "emptyDescription": "Add medications, dosages, and reminder windows to track compliance.",
+    "emptyDescription": "Add medications, dosages, and reminder windows to track adherence.",
     "loadFailed": "Could not load medications",
     "retryLoad": "Retry",
     "name": "Name",
@@ -660,7 +664,7 @@
     "intakeHistory": "Intake history",
     "openDetailPage": "Open medication detail page",
     "deleteConfirm": "Delete medication?",
-    "compliance": "Compliance",
+    "compliance": "Adherence",
     "importIntakes": "Import intakes",
     "importDescription": "Paste a JSON array with intake data. Expected format:",
     "importUploadFile": "Upload JSON file",
@@ -716,9 +720,11 @@
     "takeNow": "Take now",
     "overdue": "Overdue",
     "veryOverdue": "Very overdue",
-    "compliance7d": "7-day compliance",
-    "compliance30d": "30-day compliance",
-    "complianceWindow": "{days}-day compliance",
+    "compliance7d": "Adherence (7 days)",
+    "compliance30d": "Adherence (30 days)",
+    "complianceWindow": "Adherence ({days} days)",
+    "complianceInfo": "Share of expected doses you logged. Weekly schedules count week by week.",
+    "complianceInfoLabel": "What does adherence mean?",
     "complianceDoses": "{count} doses",
     "lastIntake": "Last intake:",
     "nextIntake": "Next intake:",
@@ -1046,6 +1052,8 @@
           "subline": "Review everything below before you save.",
           "remindersLabel": "Reminders on",
           "remindersDescription": "Push, Telegram or ntfy — based on your settings.",
+          "noChannelHint": "Reminders need a notification channel — none is active right now.",
+          "noChannelHintLink": "Set up notifications",
           "multiScheduleNote": "This medication has multiple schedules. The detailed editor returns in a later release.",
           "short": "Done"
         }
@@ -1282,19 +1290,6 @@
         "paused": "Paused",
         "ended": "Ended"
       },
-      "today": {
-        "groupLabel": "Today's dose",
-        "taken": "Taken",
-        "skipped": "Skipped",
-        "toastTaken": "Today's dose logged",
-        "toastSkipped": "Today's dose skipped",
-        "recordedTaken": "Taken today at {time}",
-        "recordedSkipped": "Skipped today at {time}",
-        "recordedOneShot": "One-shot dose taken at {time}",
-        "noneScheduled": "No dose scheduled for today.",
-        "pausedHint": "Paused — no reminder today.",
-        "error": "Could not log the dose."
-      },
       "cadence": {
         "oneShotOn": "One-time dose on {date}.",
         "oneShotPending": "One-time dose pending."
@@ -1349,6 +1344,9 @@
         "add": "Entry",
         "markTaken": "Taken",
         "markSkipped": "Skipped",
+        "rowActionsLabel": "Actions for {time}",
+        "markAsTaken": "Mark as taken",
+        "markAsSkipped": "Mark as skipped",
         "adHocTag": "off-schedule",
         "takenDetail": "planned {planned} · taken {taken}",
         "status": {
@@ -1373,6 +1371,18 @@
           "body": "This intake falls just outside the {slot} window. Attribute it to that slot, or keep it as an off-schedule entry?",
           "keepAdHoc": "Off-schedule",
           "pin": "Attribute"
+        },
+        "pin": {
+          "action": "Attribute to slot {time}",
+          "release": "Release attribution",
+          "pinnedTag": "attributed",
+          "pinnedToast": "Intake attributed to slot",
+          "unpinnedToast": "Attribution released",
+          "dueContext": "was due: {time} ({delta})",
+          "confirmTitle": "Attribute to slot {time}?",
+          "confirmBody": "The intake counts as taken late for this slot – the rate is never flattered. You can release the attribution at any time.",
+          "confirmCancel": "Cancel",
+          "confirmAction": "Attribute"
         }
       },
       "notifications": {
@@ -1392,8 +1402,8 @@
           "requiresCourseWindow": "Phases are available once a course window is set."
         },
         "grace": {
-          "label": "Reminder window — applies to your primary schedule",
-          "primaryScheduleNote": "Multi-schedule medications keep their other schedules' default window.",
+          "label": "Reminder window",
+          "appliesToAllNote": "Applies to every schedule of this medication.",
           "unit": "minutes",
           "saved": "Reminder window saved",
           "failed": "Could not save the reminder window."
@@ -1468,7 +1478,6 @@
         "title": "Advanced settings",
         "group": {
           "data": "Data",
-          "reminders": "Reminders",
           "lifecycle": "Lifecycle",
           "externalApi": "External API"
         },
@@ -1487,8 +1496,7 @@
         }
       },
       "header": {
-        "historyLabel": "View intake history",
-        "advancedLabel": "Advanced settings"
+        "historyLabel": "View intake history"
       },
       "history": {
         "back": "Back to medication",
@@ -1498,7 +1506,6 @@
       "tabs": {
         "uebersicht": "Overview",
         "zeitplan": "Schedule",
-        "erinnerung": "Reminders",
         "bestand": "Supply",
         "verlauf": "History",
         "injektion": "Injection",
@@ -1510,6 +1517,17 @@
         "tablistLabel": "Medication detail sections"
       },
       "uebersicht": {
+        "statusTitle": "Status",
+        "nextDoseLabel": "Next dose",
+        "nextDoseNone": "No upcoming dose.",
+        "pausedHint": "Paused — no reminders.",
+        "reminderLabel": "Reminder",
+        "reminderOn": "On",
+        "reminderOff": "Off",
+        "supplyLabel": "Supply",
+        "supplyRunway": "Lasts about {days} more days",
+        "jumpToZeitplan": "Open schedule",
+        "jumpToBestand": "Open supply",
         "complianceTitle": "Adherence",
         "complianceEmpty": "No adherence data yet."
       },
@@ -1542,7 +1560,7 @@
         "scheduleLabel": "Schedule {index}",
         "fullEditNote": "Frequency, treatment class and course window are edited through “Full edit”.",
         "graceEcho": "Reminder window: {minutes} minutes",
-        "graceLink": "Change under “Reminders”",
+        "reminderTitle": "Reminder",
         "save": "Save schedule",
         "saved": "Schedule saved",
         "failed": "Could not save the schedule",
@@ -1573,6 +1591,7 @@
   "charts": {
     "loadingLabel": "Loading chart…",
     "loadingSlowHint": "Computing analytics — this can take a moment.",
+    "adjustTargets": "Adjust targets",
     "weight": "Weight",
     "bloodPressure": "Blood Pressure",
     "pulse": "Pulse",
@@ -1697,7 +1716,7 @@
       "lastMonth": "Comparison unavailable — no data from last month yet",
       "lastYear": "Comparison unavailable — no data from last year yet"
     },
-    "notAvailableForCompliance": "Comparison N/A for compliance"
+    "notAvailableForCompliance": "Comparison N/A for adherence"
   },
   "insights": {
     "noAnalysisYet": "No assessment yet.",
@@ -1714,8 +1733,7 @@
       "dragHandle": "Drag to reorder",
       "show": "Show",
       "hide": "Hide",
-      "manageSubPages": "Manage detail pages",
-      "manageSubPagesHint": "Hidden pages are also removed from the top navigation.",
+      "manageInSettings": "Manage pills & detail pages in Settings",
       "groupSleep": "Sleep",
       "groupMood": "Mood",
       "groupEvents": "Events",
@@ -1806,13 +1824,13 @@
       "componentBp": "BP",
       "componentWeight": "Weight",
       "componentMood": "Mood",
-      "componentCompliance": "Meds",
+      "componentCompliance": "Adherence",
       "disclaimer": "Indicative — not a clinical assessment.",
       "deltaExplainer": {
         "trigger": "What does this delta mean?",
         "title": "How the delta is computed",
         "description": "Change vs last week: {delta}",
-        "body": "The score combines BP, weight, mood and meds. We compare today's score with the same time last week. Log a fresh reading or a mood check to nudge it up."
+        "body": "The score combines BP, weight, mood and medication adherence. We compare today's score with the same time last week. Log a fresh reading or a mood check to nudge it up."
       },
       "provenance": {
         "toggle": "Driven by",
@@ -1843,7 +1861,10 @@
       "emptyTitle": "No briefing yet",
       "emptyDescription": "Generate today's briefing to get a narrative read of your trends.",
       "emptyAction": "Generate briefing",
-      "loadingLabel": "Synthesising today's briefing"
+      "loadingLabel": "Synthesising today's briefing",
+      "noProviderTitle": "No AI provider connected",
+      "noProviderDescription": "Connect an AI provider in settings to receive daily briefings.",
+      "noProviderAction": "Open AI settings"
     },
     "trendsRow": {
       "title": "Trends",
@@ -1911,8 +1932,8 @@
       "confidenceModerate": "Moderate confidence",
       "confidenceLow": "Low confidence",
       "card": {
-        "bpComplianceTitle": "BP × medication compliance",
-        "bpComplianceSubtitle": "Daily systolic against compliance %",
+        "bpComplianceTitle": "BP × medication adherence",
+        "bpComplianceSubtitle": "Daily systolic against adherence in %",
         "moodPulseTitle": "Mood × resting pulse",
         "moodPulseSubtitle": "Same-day mood and resting pulse",
         "weightWeekdayTitle": "Weight × weekday",
@@ -1936,6 +1957,8 @@
       "composerPlaceholder": "Ask anything about your data…",
       "composerHint": "Press Enter to send, Shift+Enter for a new line.",
       "composerDisclaimer": "Coach replies are generated. Clinical decisions belong with your doctor.",
+      "selfContextChipsLabel": "The Coach would like to know:",
+      "selfContextChipDismiss": "Dismiss question",
       "voiceComingSoon": "Voice input arrives with the iOS app in v1.5.",
       "threadEmpty": "Ask anything about your trends, medications, or readings to start a conversation.",
       "historyTitle": "Conversations",
@@ -1953,7 +1976,7 @@
         "weight": "Weight",
         "pulse": "Pulse",
         "mood": "Mood",
-        "compliance": "Compliance",
+        "compliance": "Adherence",
         "general": "General",
         "hrv": "HRV",
         "sleep": "Sleep",
@@ -2099,6 +2122,8 @@
     "navSteps": "Steps",
     "navActiveEnergy": "Active energy",
     "navAriaLabel": "Skip to section",
+    "pillScrollLeft": "Scroll tabs left",
+    "pillScrollRight": "Scroll tabs right",
     "tabStrip": {
       "vitalsParent": {
         "label": "Vitals",
@@ -2301,11 +2326,11 @@
         "stairDescentSpeedBody": "This is how fast you go down a flight of stairs. Together with ascent speed it tracks leg control and balance — a steady pace is a good sign, and a falling one is worth watching.",
         "breathingDisturbancesTitle": "Sleep breathing disturbances",
         "breathingDisturbancesBody": "Your Apple Watch can estimate how often your breathing was interrupted during sleep. A lower index is better; a level Apple flags as elevated, especially over many nights, is worth raising with a clinician.",
-        "readinessBody": "Readiness is a single daily read on how prepared your body is to take on the day, blending resting heart rate, heart-rate variability, sleep, and how steady your recent nights have been. A higher score means your system looks recovered and resourced; a lower one is a gentle cue to ease off and let your body catch up. Treat it as guidance for pacing the day, not a verdict.",
-        "sleepScoreBody": "Your sleep score distils a whole night into one number, weighing how long you slept, how efficiently, how regular your timing was, and the balance of light, deep, and REM. It is meant to show at a glance whether the night truly restored you. Watch the pattern across weeks rather than chasing a perfect score on any single night.",
-        "recoveryBody": "Recovery reflects how well your body has bounced back and how much capacity you have to take on load today, drawing on overnight signals like heart-rate variability and resting heart rate. A strong score is a green light to push; a softer one suggests your system is still rebuilding. It is a guide for how hard to lean in, not a limit.",
-        "strainBody": "Strain captures how much cardiovascular and physical load you have put on your body, from workouts to an active day on your feet. Once you have enough history it is judged against your own typical effort, so it reflects what is demanding for you specifically. Use it to balance hard days with easier ones and keep your training sustainable.",
-        "stressBody": "Stress here is an estimate of physiological load on your nervous system, read mainly from heart-rate-variability patterns rather than how you consciously feel. A lower score points to a calmer, well-regulated state; a higher one is an invitation to build in recovery. It is a descriptive proxy to notice trends, not a clinical measurement."
+        "readinessBody": "Readiness is a single daily read on how prepared your body is to take on the day, blending resting heart rate, heart-rate variability, sleep, and how steady your recent nights have been. A higher score means recovered and resourced; a lower one is a gentle cue to ease off.",
+        "sleepScoreBody": "Your sleep score distils a whole night into one number — duration, efficiency, regularity, and the balance of light, deep, and REM. Watch the pattern across weeks rather than chasing a perfect score on any single night.",
+        "recoveryBody": "Recovery reflects how well your body has bounced back, drawing on overnight signals like heart-rate variability and resting heart rate. A strong score is a green light to push; a softer one suggests your system is still rebuilding.",
+        "strainBody": "Strain captures how much cardiovascular and physical load you have put on your body, from workouts to an active day on your feet. Once you have enough history it is judged against your own typical effort, not someone else's baseline.",
+        "stressBody": "Stress here is an estimate of physiological load on your nervous system, read mainly from heart-rate-variability patterns rather than how you consciously feel. A lower score points to a calm, well-regulated state; a higher one is an invitation to build in recovery."
       },
       "stats": {
         "label": "Summary statistics",
@@ -2359,10 +2384,10 @@
       }
     },
     "correlations": "Correlations",
-    "medicationCompliance": "Medication Compliance",
+    "medicationCompliance": "Medication adherence",
     "dayStreak": "{count} day streak",
-    "compliance7d": "7-day compliance",
-    "compliance30d": "30-day compliance",
+    "compliance7d": "Adherence (7 days)",
+    "compliance30d": "Adherence (30 days)",
     "taken": "taken",
     "skipped": "skipped",
     "missed": "missed",
@@ -2378,7 +2403,7 @@
     "weightSectionTitle": "Weight",
     "pulseSectionTitle": "Pulse",
     "bmiSectionTitle": "BMI",
-    "complianceNoData": "No compliance data available.",
+    "complianceNoData": "No adherence data available.",
     "generate": "Generate new analysis",
     "moodSectionTitle": "Mood",
     "confidence": "Confidence",
@@ -2411,7 +2436,7 @@
       },
       "medication": {
         "title": "No medications set up yet",
-        "description": "Set up a medication and intake compliance, drug level and titration timeline will appear here.",
+        "description": "Set up a medication and adherence, drug level and titration timeline will appear here.",
         "cta": "Add medication"
       },
       "sleep": {
@@ -3148,7 +3173,7 @@
     },
     "pillOrder": {
       "title": "Sort the navigation pills",
-      "description": "Drag the pills into the order they should appear in along the top of Insights.",
+      "description": "Drag the pills into the order you want and show or hide them via the eye icon. Hidden detail pages are also removed from the top navigation.",
       "dragHandle": "Reorder",
       "saveSuccess": "Pill order saved.",
       "saveError": "Saving the pill order failed.",
@@ -3156,6 +3181,8 @@
       "empty": "No navigation pills available yet."
     },
     "customize": "Customize Insights",
+    "regenerateRateLimited": "Refresh limit reached — please try again later.",
+    "regenerateUnavailable": "No fresh analysis arrived — please try again later.",
     "regenerateError": "Still refreshing — please try again in a moment."
   },
   "thresholds": {
@@ -3327,7 +3354,7 @@
       "measurementDescription": "One reading unlocks the tile — the trend itself draws from your 5th reading.",
       "measurementCta": "Add measurement",
       "medicationTitle": "Add a medication",
-      "medicationDescription": "Track compliance and get reminders right when you need them.",
+      "medicationDescription": "Track adherence and get reminders right when you need them.",
       "medicationCta": "Add medication",
       "withingsTitle": "Connect Withings (optional)",
       "withingsDescription": "Auto-sync weight, BP and pulse from your Withings devices.",
@@ -3382,6 +3409,8 @@
       "sources": {
         "title": "Source priority",
         "description": "Pick which ingest source wins when more than one records the same metric for the same day.",
+        "integrationsHint": "Connect or disconnect data sources on the Integrations page.",
+        "integrationsHintLink": "Open integrations",
         "cardTitle": "Source priority by metric",
         "help": "When more than one source delivers the same value on the same day (e.g. Withings and Apple Health both report 1,200 steps), the top source counts as the canonical reading. Other sources stay stored for the audit trail.",
         "resetDefaults": "Reset to defaults",
@@ -3455,7 +3484,7 @@
         "downloadFailed": "Couldn't download the export. Please try again.",
         "hero": {
           "eyebrow": "Doctor visit",
-          "valueStatement": "A printable PDF report for your doctor's appointment — vitals, BMI, blood-pressure classification, medication compliance and (optionally) mood, all on a few pages.",
+          "valueStatement": "A printable PDF report for your doctor's appointment — vitals, BMI, blood-pressure classification, medication adherence and (optionally) mood, all on a few pages.",
           "cta": "Configure & generate report",
           "formatHint": "PDF · print-ready"
         },
@@ -3469,7 +3498,7 @@
         "cards": {
           "doctorReport": {
             "title": "Doctor Report",
-            "description": "Printable PDF for the doctor's appointment — vitals, BMI, BP classification, medication compliance, mood."
+            "description": "Printable PDF for the doctor's appointment — vitals, BMI, BP classification, medication adherence, mood."
           },
           "measurementsCsv": {
             "title": "Measurements",
@@ -3553,6 +3582,15 @@
     "profile": "Profile",
     "language": "Language",
     "languageDescription": "Choose the display language of the application.",
+    "timeFormat": {
+      "title": "Hour format",
+      "description": "Controls whether times render on the 24-hour or the 12-hour (AM/PM) clock.",
+      "auto": "Automatic (language)",
+      "h24": "24-hour",
+      "h12": "12-hour (AM/PM)",
+      "saved": "Hour format saved.",
+      "saveError": "Saving the hour format failed."
+    },
     "username": "Username",
     "height": "Height (cm)",
     "dateOfBirth": "Date of birth",
@@ -3642,8 +3680,8 @@
     "codexDisconnected": "ChatGPT connection removed.",
     "codexConnectionFailed": "ChatGPT connection failed. Please try again.",
     "rawData": "Send raw data",
-    "rawDataOnDescription": "Aggregated metrics plus anonymized raw points from the last 30 days are sent. This includes per-metric measurements (for example weight, blood pressure, pulse) with time context so the provider can detect patterns, outliers, and correlations more reliably. Name, email, and direct account identifiers are not transmitted.",
-    "rawDataOffDescription": "Only summarized metrics are sent (for example averages, trends, minimum/maximum). No individual points and no exact time context. This is more privacy-preserving, but the provider can be less precise for short-term patterns and fluctuations.",
+    "rawDataOnDescription": "Aggregated metrics plus anonymized individual points from the last 30 days with time context are sent — never your name, email, or direct account identifiers.",
+    "rawDataOffDescription": "Only summarized metrics are sent (for example averages, trends, minimum/maximum) — no individual points and no exact time context.",
     "rawDataWarning": "Raw mode enabled: the provider receives additional anonymized points from the last 30 days for higher analysis accuracy.",
     "regenerateInsights": "Regenerate reports",
     "regenerateSuccess": "Reports regenerated successfully",
@@ -3775,6 +3813,30 @@
         "savedHidden": "Coach hidden.",
         "savedShown": "Coach visible.",
         "saveError": "Could not save the change. Please try again."
+      },
+      "aboutMe": {
+        "title": "About me",
+        "description": "Personal context the Coach and the daily briefing read alongside your data.",
+        "placeholder": "E.g. shift work, vegetarian diet, knee injury, training for a half marathon…",
+        "charCount": "{used} / {max} characters",
+        "clear": "Clear",
+        "save": "Save",
+        "savedToast": "About-me note saved.",
+        "clearedToast": "About-me note cleared.",
+        "saveError": "Could not save. Please try again.",
+        "loadError": "The note could not be loaded.",
+        "hint": "Passed to the Coach and the daily briefing as additional context. Leave empty to send nothing.",
+        "profileHint": "Age and gender come from your profile and are included automatically.",
+        "freeTextLabel": "About me (free text)",
+        "conditionsLabel": "Chronic conditions",
+        "conditionsPlaceholder": "E.g. hypertension, type 2 diabetes…",
+        "allergiesLabel": "Allergies & intolerances",
+        "allergiesPlaceholder": "E.g. lactose intolerance, penicillin allergy…",
+        "focusLabel": "What should the Coach watch?",
+        "focusPlaceholder": "E.g. keep an eye on my blood pressure, motivate me to move more…",
+        "completeness": "{answered} of {total} answered",
+        "questionsTitle": "The Coach has follow-up questions",
+        "questionsOpenCoach": "Answer them in the Coach"
       }
     },
     "dashboard": {
@@ -3804,6 +3866,21 @@
     "withingsSyncResult": "{count} measurements synchronized",
     "withingsFullSyncResult": "{count} measurements fully synchronized",
     "withingsSyncFailed": "Sync failed",
+    "withingsOauthConnected": "Withings connected — the first sync starts in the background.",
+    "withingsOauthFailed": "Withings connection failed",
+    "withingsOauthError": {
+      "csrf1": "The security check failed because the browser cookie was missing. Please start the connection again in the same browser.",
+      "replay": "This confirmation link has already been used. Please start the connection again.",
+      "state": "The response from Withings did not match any open connection request. Please start the connection again.",
+      "expired": "The connection request expired. Start the connection again and complete the approval within a few minutes.",
+      "cross_user": "The response belongs to a request from a different account. Please restart the connection from your own account.",
+      "nocode": "Withings did not return an authorization code. Try again and allow access in the Withings dialog.",
+      "nocreds": "No Withings API credentials are stored. Save the client ID and client secret first, then connect again.",
+      "token": "The token exchange with Withings failed. Check the client ID and client secret and try again.",
+      "generic": "Unknown error while connecting. Please start the connection again."
+    },
+    "integrationsSourcesHint": "When several sources report the same metric, the source priority decides which value counts.",
+    "integrationsSourcesHintLink": "Open source priority",
     "withingsSynchronize": "Synchronize",
     "withingsDisconnect": "Disconnect",
     "withingsDisconnectTitle": "Disconnect Withings?",
@@ -4240,6 +4317,55 @@
     "bugReportRepoPlaceholder": "owner/repo",
     "bugReportToken": "Issue token",
     "bugReportTokenPlaceholder": "ghp_...",
+    "invites": {
+      "title": "Invites",
+      "description": "Registration invite links — they work even while registration is closed. The link is shown only once.",
+      "adminOnlyHint": "Only admins can create and revoke invites.",
+      "create": "Create invite",
+      "createTitle": "Create invite",
+      "createDescription": "The link admits a signup even while registration is closed.",
+      "ttlLegend": "Valid for",
+      "createDays": "{days} days",
+      "maxUsesLabel": "Maximum uses",
+      "maxUsesHint": "How many signups this link admits (1–50).",
+      "createConfirm": "Create invite",
+      "createdToast": "Invite created.",
+      "createError": "Could not create the invite.",
+      "tokenTitle": "Invite link",
+      "tokenOnceHint": "Copyable only now — copy the link or have the QR code scanned.",
+      "hashExplainer": "Only a hash of the link is stored, so it cannot be shown again later. If it gets lost, revoke the invite and create a new one.",
+      "copyLink": "Copy link",
+      "copiedToast": "Link copied.",
+      "copyError": "Copy failed.",
+      "qrAlt": "QR code for the invite link",
+      "loadError": "Could not load the invites.",
+      "emptyTitle": "No invites yet",
+      "emptyDescription": "Create an invite link to admit someone while registration is closed.",
+      "colStatus": "Status",
+      "colCreated": "Created",
+      "colExpires": "Expires",
+      "colUses": "Uses",
+      "colRedeemedBy": "Redeemed by",
+      "colActions": "Actions",
+      "byCreator": "by {by}",
+      "expiresInDaysOne": "in 1 day",
+      "expiresInDaysOther": "in {count} days",
+      "statusActive": "Active",
+      "statusExpired": "Expired",
+      "statusExhausted": "Used up",
+      "statusRevoked": "Revoked",
+      "redeemerDeleted": "deleted account",
+      "redeemedByMore": "{username} + {count} more",
+      "redemptionsTitle": "{count} redemptions",
+      "revoke": "Revoke",
+      "revokeAria": "Revoke invite",
+      "revokeConfirmTitle": "Revoke this invite?",
+      "revokeConfirmBody": "The invite link becomes invalid immediately. Accounts already registered through it remain, and the redemption history stays visible.",
+      "revokeConfirmAction": "Revoke",
+      "cancel": "Cancel",
+      "revokedToast": "Invite revoked.",
+      "revokeError": "Could not revoke the invite."
+    },
     "userManagement": "User Management",
     "userName": "Name",
     "userEmail": "Email",
@@ -4457,6 +4583,10 @@
         "emptyTitle": "No users in this view",
         "emptyDescription": "There are no users matching the current filter.",
         "emptyResetFilter": "Show all users"
+      },
+      "invites": {
+        "title": "Invites",
+        "subtitle": "Mint, track, and revoke registration invite links."
       },
       "api-tokens": {
         "title": "API Tokens",
@@ -4903,12 +5033,22 @@
       "hourAria": "Mood reminder hour",
       "hourSavedToast": "Reminder time updated."
     },
+    "coachNudge": {
+      "title": "Proactive Coach",
+      "description": "Reaches out at most once a week when your data suggests a look at the Coach — for example low medication adherence or an elevated weekly blood-pressure average.",
+      "toggleAria": "Toggle proactive Coach nudges",
+      "statusOn": "Active — max. once a week",
+      "statusOff": "Off",
+      "enabledToast": "Proactive Coach nudges enabled.",
+      "disabledToast": "Proactive Coach nudges disabled.",
+      "saveError": "Could not save. Please try again later."
+    },
     "eventMedicationReminder": "Medication reminder",
     "eventMedicationReminderDesc": "Sent at each scheduled dose time.",
     "eventMeasurementAnomaly": "Unusual measurement",
     "eventMeasurementAnomalyDesc": "Sent when a reading is well outside your usual range.",
-    "eventComplianceLow": "Low compliance",
-    "eventComplianceLowDesc": "Sent when your intake rate over the last few days drops below 80 %.",
+    "eventComplianceLow": "Low adherence",
+    "eventComplianceLowDesc": "Sent when your adherence over the last few days drops below 80 %.",
     "eventWithingsSyncFailed": "Withings sync failed",
     "eventWithingsSyncFailedDesc": "Sent when Withings synchronisation fails multiple attempts in a row.",
     "eventSystemAlert": "System notice",
@@ -5088,6 +5228,20 @@
   "moodReminders": {
     "dailyTitle": "Log your mood",
     "dailyBody": "How are you feeling today?"
+  },
+  "coachNudges": {
+    "complianceTitle": "Your Coach has a thought on this",
+    "complianceBody": "Your intakes were patchy this week. Have a quick word with the Coach — maybe the plan can be simplified.",
+    "bpTitle": "Blood pressure elevated this week",
+    "bpBody": "Your blood pressure averaged above your target this week. The Coach can help you put the readings in context.",
+    "scoreTitle": "Your recovery score is dropping",
+    "scoreBody": "Your recovery score fell noticeably this week. The Coach can help you narrow down possible causes.",
+    "selfContextTitle": "Help your Coach know you better",
+    "selfContextBody": "Your self-description is incomplete or has not been updated in a while. Two minutes in the settings keep the Coach's context fresh.",
+    "questionConditions": "Do you have any chronic conditions the Coach should know about?",
+    "questionFocus": "Is there anything specific the Coach should pay attention to?",
+    "questionAllergies": "Do you have any allergies or intolerances?",
+    "questionAboutMe": "Want to tell the Coach a bit about yourself — routines, goals, context?"
   },
   "clinicianView": {
     "title": "Shared health record",

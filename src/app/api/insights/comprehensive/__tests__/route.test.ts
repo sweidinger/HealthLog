@@ -50,6 +50,12 @@ vi.mock("@/lib/auth/audit", () => ({
   auditLog: vi.fn().mockResolvedValue(undefined),
 }));
 
+// v1.15.20 — the route checks the shared analytics-read budget before any
+// DB work; the real helper would hit the unmocked `$queryRaw`.
+vi.mock("@/lib/rate-limit", () => ({
+  checkAnalyticsReadRateLimit: vi.fn(),
+}));
+
 vi.mock("@/lib/logging/transports", () => ({ emitIfSampled: vi.fn() }));
 
 vi.mock("@/lib/db-compat", () => ({
@@ -84,6 +90,7 @@ import { GET } from "../route";
 import { getSession } from "@/lib/auth/session";
 import { prisma } from "@/lib/db";
 import { buildComprehensiveAggregate } from "@/lib/insights/comprehensive-aggregator";
+import { checkAnalyticsReadRateLimit } from "@/lib/rate-limit";
 import { __resetAllCachesForTests } from "@/lib/cache/server-cache";
 
 const SESSION_OK = {
@@ -104,6 +111,12 @@ function makeReq(): NextRequest {
 beforeEach(() => {
   vi.resetAllMocks();
   __resetAllCachesForTests();
+  // v1.15.20 — default to an allowing analytics-read budget.
+  vi.mocked(checkAnalyticsReadRateLimit).mockResolvedValue({
+    allowed: true,
+    remaining: 119,
+    resetAt: Date.now() + 60_000,
+  });
   // Default to assistant-on so the gate doesn't 403 every test.
   (
     prisma.appSettings.findUnique as ReturnType<typeof vi.fn>

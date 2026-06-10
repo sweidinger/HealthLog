@@ -24,6 +24,7 @@
  */
 
 import { makeFormatters } from "./format-locale";
+import { readStoredTimeFormat } from "./time-format";
 import { locales, type Locale } from "./i18n/config";
 
 function isLocale(value: string | null | undefined): value is Locale {
@@ -45,7 +46,10 @@ function activeLocale(): Locale {
 }
 
 function formatters() {
-  return makeFormatters(activeLocale());
+  // Honour the mirrored hour-cycle preference so these legacy helpers render
+  // the same clock as `useFormatters()` call sites. SSR reads AUTO — same
+  // post-hydration caveat as `activeLocale()` above.
+  return makeFormatters(activeLocale(), undefined, readStoredTimeFormat());
 }
 
 /** Locale-aware "19.02.2026, 14:30" or "02/19/2026, 2:30 PM". */

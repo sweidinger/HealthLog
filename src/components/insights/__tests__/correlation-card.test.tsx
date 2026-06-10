@@ -61,8 +61,8 @@ describe("<CorrelationCard>", () => {
   it("renders title + subtitle + interpretation when status=ok", () => {
     const html = render(<CorrelationCard result={okResult} />);
     expect(html).toMatch(/data-slot="correlation-card"/);
-    expect(html).toContain("BP × medication compliance");
-    expect(html).toContain("Daily systolic against compliance %");
+    expect(html).toContain("BP × medication adherence");
+    expect(html).toContain("Daily systolic against adherence in %");
     expect(html).toContain("a pattern worth watching");
   });
 
@@ -99,7 +99,7 @@ describe("<CorrelationCard>", () => {
 
   it("renders German copy when locale=de", () => {
     const html = render(<CorrelationCard result={okResult} />, "de");
-    expect(html).toContain("BD × Medikamenten-Compliance");
+    expect(html).toContain("BD × Therapietreue");
     expect(html).toContain("7-Tage-Experiment");
   });
 

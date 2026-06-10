@@ -26,6 +26,10 @@ import {
   type ComparisonSnapshot,
 } from "@/lib/ai/prompts/insight-system-prompt";
 import { buildSystemPromptWithReferences } from "@/lib/ai/prompts/insight-generator";
+import {
+  buildAboutMeInsightBlock,
+  getSelfContextTextForUser,
+} from "@/lib/ai/coach/about-me";
 import { metricsFromPresentSections } from "@/lib/ai/medical-references";
 import { summarize, type DataPoint } from "@/lib/analytics/trends";
 import {
@@ -426,7 +430,7 @@ export const POST = apiHandler(async (request: NextRequest) => {
   // v1.4.36 W3 T1 — `extractFeatures` enforces a 5 MB ceiling on the
   // serialised payload. If the raw (bucketed) shape ever blows past
   // it (regression watch — the v1.4.35 rawMeasurements shape hit
-  // 25.9 MB on Marc's account), the helper throws
+  // 25.9 MB on the largest tenant), the helper throws
   // `FeaturesPayloadTooLargeError`. We downgrade to the aggregated
   // shape rather than 500-ing so the user still gets an insight; the
   // annotate event surfaces the regression to ops via the Logflare
@@ -543,6 +547,13 @@ export const POST = apiHandler(async (request: NextRequest) => {
   );
   if (plateauContext) {
     userPrompt += buildGlp1PlateauPrompt(plateauContext, locale);
+  }
+  // v1.15.20 — fold the user-authored "about me" self-description
+  // (Settings → AI) into the briefing as a delimited, user-provided
+  // SYSTEM CONTEXT block. Null (no text / undecryptable) costs nothing.
+  const aboutMe = await getSelfContextTextForUser(userId, locale);
+  if (aboutMe) {
+    userPrompt += buildAboutMeInsightBlock(aboutMe, locale);
   }
   // v1.10.0 — fold a notable derived wellness signal (readiness / recovery
   // shift, confidence-gated) into the briefing as a SYSTEM CONTEXT block.

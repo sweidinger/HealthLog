@@ -9,19 +9,18 @@ import { type ReactNode } from "react";
  * divider + body padding — and drifted on padding, border opacity, and
  * aria wiring.
  *
- * v1.4.28 FB-F3 / F4 — heading scale collapsed to one shape across the
- * `/medications/[id]` surface so the page reads as one consistent
- * document. Title classes now match the settings symmetry sweep:
- * `text-base font-semibold leading-6 tracking-tight`. Body band keeps
- * its `text-xs` density; one heading scale (`text-base font-semibold`),
- * one body scale (`text-sm`), one micro scale (`text-xs`) on the page.
+ * v1.15.20 — lifted to the card language the rest of the detail page
+ * speaks (`SettingsGroup`, the dashboard cards): `bg-card` surface,
+ * `rounded-xl`, `p-4 md:p-6` padding. The body band reads at `text-sm`
+ * (the standard body scale) instead of the former `text-xs` container,
+ * so every tab renders the same surface vocabulary.
  *
  * Contract:
- *   - `border-border/60 rounded-md border` chrome
- *   - `px-3 py-2.5` header row with
+ *   - `bg-card rounded-xl border p-4 md:p-6` chrome
+ *   - header row with
  *     `text-foreground text-base font-semibold leading-6 tracking-tight`
- *     title
- *   - `border-border/60 border-t px-3 py-3 text-xs` body band
+ *     title, separated from the body by a `border-border/60` rule
+ *   - `pt-3 text-sm` body band
  *   - `aria-labelledby` wired to a stable per-section id derived from `titleId`
  *
  * Consumers pass:
@@ -35,9 +34,6 @@ import { type ReactNode } from "react";
  *   - `dataSlot` — optional `data-slot` attribute on the outer section
  *     so cross-section selectors (Playwright, snapshot tests) stay
  *     stable.
- *   - `bodyPaddingY` — escape hatch for sections that need a different
- *     vertical padding (the side-effects body runs at py-2.5 because
- *     it owns an inline timeline with its own gap rhythm).
  */
 export interface MedicationDetailSectionProps {
   titleId: string;
@@ -45,7 +41,6 @@ export interface MedicationDetailSectionProps {
   headerExtras?: ReactNode;
   children: ReactNode;
   dataSlot?: string;
-  bodyPaddingY?: "py-2.5" | "py-3";
 }
 
 export function MedicationDetailSection({
@@ -54,15 +49,14 @@ export function MedicationDetailSection({
   headerExtras,
   children,
   dataSlot,
-  bodyPaddingY = "py-3",
 }: MedicationDetailSectionProps) {
   return (
     <section
-      className="border-border/60 rounded-md border"
+      className="bg-card rounded-xl border p-4 md:p-6"
       aria-labelledby={titleId}
       {...(dataSlot ? { "data-slot": dataSlot } : {})}
     >
-      <header className="flex items-center justify-between gap-2 px-3 py-2.5">
+      <header className="border-border/60 flex items-center justify-between gap-2 border-b pb-3">
         <h2
           id={titleId}
           className="text-foreground text-base font-semibold leading-6 tracking-tight"
@@ -71,11 +65,7 @@ export function MedicationDetailSection({
         </h2>
         {headerExtras}
       </header>
-      <div
-        className={`border-border/60 border-t px-3 text-xs ${bodyPaddingY}`}
-      >
-        {children}
-      </div>
+      <div className="pt-3 text-sm">{children}</div>
     </section>
   );
 }

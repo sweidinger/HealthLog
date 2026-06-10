@@ -25,11 +25,7 @@ import { useTranslations } from "@/lib/i18n/context";
  * a muted zero-height bar so the four-column rhythm stays intact.
  */
 
-export type MoodTimeOfDayBucket =
-  | "morning"
-  | "afternoon"
-  | "evening"
-  | "night";
+export type MoodTimeOfDayBucket = "morning" | "afternoon" | "evening" | "night";
 
 export interface MoodTimeOfDayRow {
   bucket: MoodTimeOfDayBucket;
@@ -88,23 +84,28 @@ export function MoodTimeOfDayChart({
             data={data}
             margin={{ top: 8, right: 12, bottom: 8, left: 0 }}
           >
+            {/* Muted chart language — same treatment as the weekday/distribution
+                siblings: `--muted-foreground` axis ticks, a quiet comment-grey
+                target guide, and 0.55 bar fill so the level hues inform without
+                shouting. */}
             <XAxis
               dataKey="label"
-              tick={{ fontSize: 11, fill: "var(--dracula-fg)" }}
+              tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
               stroke="var(--dracula-comment)"
               interval={0}
             />
             <YAxis
               domain={[1, 5]}
               ticks={[1, 2, 3, 4, 5]}
-              tick={{ fontSize: 11, fill: "var(--dracula-fg)" }}
+              tick={{ fontSize: 11, fill: "var(--muted-foreground)" }}
               stroke="var(--dracula-comment)"
               width={24}
             />
             <ReferenceLine
               y={3.5}
-              stroke="var(--dracula-green)"
+              stroke="var(--dracula-comment)"
               strokeDasharray="3 3"
+              strokeOpacity={0.6}
             />
             <Tooltip
               cursor={{ fill: "var(--secondary)", opacity: 0.4 }}
@@ -129,7 +130,7 @@ export function MoodTimeOfDayChart({
                 ];
               }}
             />
-            <Bar dataKey="value" radius={[3, 3, 0, 0]}>
+            <Bar dataKey="value" radius={[3, 3, 0, 0]} fillOpacity={0.55}>
               {data.map((row) => (
                 <Cell
                   key={row.bucket}

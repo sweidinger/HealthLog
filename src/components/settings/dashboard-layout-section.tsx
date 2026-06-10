@@ -324,7 +324,7 @@ export function DashboardLayoutSection({ id }: { id: string }) {
           disabled={resetMutation.isPending}
           className="self-end sm:self-auto"
         >
-          <RotateCcw className="mr-2 h-3.5 w-3.5" />
+          <RotateCcw className="h-3.5 w-3.5" />
           {t("dashboard.layoutReset")}
         </Button>
       </div>
@@ -512,7 +512,7 @@ export function DashboardLayoutSection({ id }: { id: string }) {
             disabled={saveMutation.isPending}
           >
             {saveMutation.isPending && (
-              <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
+              <Loader2 className="h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
             )}
             {t("common.save")}
           </Button>
@@ -637,7 +637,7 @@ function SortableWidgetRow({
         // visible GripVertical at 28 px (matches the Switch primitive
         // pattern from v1.4.43 W5-H1). v1.4.47 W10 design-M1 — drop
         // dnd-kit's CSS transition under prefers-reduced-motion.
-        className="text-muted-foreground hover:text-foreground focus-visible:ring-ring focus-visible:ring-offset-background -m-1 relative inline-flex h-7 w-7 cursor-grab touch-none items-center justify-center rounded transition-colors before:absolute before:inset-[-8px] before:content-[''] focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none active:cursor-grabbing disabled:cursor-not-allowed disabled:opacity-50 motion-reduce:transition-none"
+        className="text-muted-foreground hover:text-foreground focus-visible:ring-ring focus-visible:ring-offset-background relative -m-1 inline-flex h-7 w-7 cursor-grab touch-none items-center justify-center rounded transition-colors before:absolute before:inset-[-8px] before:content-[''] focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none active:cursor-grabbing disabled:cursor-not-allowed disabled:opacity-50 motion-reduce:transition-none"
       >
         <GripVertical className="h-4 w-4" />
       </button>

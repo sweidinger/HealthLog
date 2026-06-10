@@ -50,7 +50,10 @@ import { generateBloodPressureStatusForUser } from "@/lib/insights/blood-pressur
 import { generateWeightStatusForUser } from "@/lib/insights/weight-status";
 import { generatePulseStatusForUser } from "@/lib/insights/pulse-status";
 import { generateBmiStatusForUser } from "@/lib/insights/bmi-status";
+import { generateMoodStatusForUser } from "@/lib/insights/mood-status";
 import { generateMedicationComplianceStatusForUser } from "@/lib/insights/medication-compliance-status";
+import { findStatusCronCandidates } from "@/lib/jobs/status-cron-candidates";
+import { reportWorkerError } from "@/lib/jobs/report-worker-error";
 import {
   markWorkerStarted,
   recordReminderCheck,
@@ -103,6 +106,11 @@ import {
   RECOVERY_SCORE_CRON,
   runRecoveryScore,
 } from "@/lib/jobs/recovery-score";
+import {
+  COACH_NUDGE_QUEUE,
+  COACH_NUDGE_CRON,
+  runCoachNudgeTick,
+} from "@/lib/jobs/coach-nudge";
 import {
   STRESS_SCORE_QUEUE,
   STRESS_SCORE_CRON,
@@ -281,6 +289,11 @@ const PULSE_STATUS_QUEUE = "insights-pulse-status";
 const PULSE_STATUS_CRON = "15 2 * * *"; // daily at 02:15
 const BMI_STATUS_QUEUE = "insights-bmi-status";
 const BMI_STATUS_CRON = "20 2 * * *"; // daily at 02:20
+// v1.15.20 — mood joins the nightly per-metric status ladder. Same gate +
+// discovery as the six older crons (see status-cron-candidates.ts); 02:30
+// continues the 5-minute stagger after BMI (02:20) and compliance (02:25).
+const MOOD_STATUS_QUEUE = "insights-mood-status";
+const MOOD_STATUS_CRON = "30 2 * * *"; // daily at 02:30
 const MEDICATION_COMPLIANCE_STATUS_QUEUE =
   "insights-medication-compliance-status";
 const MEDICATION_COMPLIANCE_STATUS_CRON = "25 2 * * *"; // daily at 02:25
@@ -468,6 +481,10 @@ interface PulseStatusPayload {
 
 interface BmiStatusPayload {
   triggeredAt: string;
+}
+
+interface MoodStatusPayload {
+  triggeredAt?: string;
 }
 
 interface MedicationComplianceStatusPayload {
@@ -1252,15 +1269,30 @@ function handleWhoopCycleSync(jobs: Job<WhoopSyncPayload>[]) {
   return runWhoopResourceSync("job.whoop_cycle_sync", jobs, syncUserCycle);
 }
 
-async function handleGeneralStatusGenerate(jobs: Job<GeneralStatusPayload>[]) {
-  void jobs;
-  await withBackgroundEvent("job.insights.general", async (evt) => {
+/**
+ * Shared driver for the nightly 02:xx per-metric status crons. User
+ * discovery is centralised in `findStatusCronCandidates`, which applies
+ * the operator assistant kill-switch, the per-user `disableCoach` gate,
+ * and the pregenerate-candidate skip (users with a configured provider
+ * and a stale comprehensive cache belong to the 04:30 pre-generate pass,
+ * which re-warms every per-status cache anyway — see
+ * `status-cron-candidates.ts` for the full division of nightly labour).
+ * The generators normalise `locale` themselves (de stays de, everything
+ * else gets English prose).
+ */
+async function runStatusCronGenerate(
+  taskName: string,
+  generate: (
+    userId: string,
+    options: { locale: string | null; force: boolean },
+  ) => Promise<unknown>,
+  options: { recordRun?: boolean } = {},
+): Promise<void> {
+  await withBackgroundEvent(taskName, async (evt) => {
     const prisma = getWorkerPrisma();
     try {
-      recordInsightsRun();
-      const users = await prisma.user.findMany({
-        select: { id: true, locale: true },
-      });
+      if (options.recordRun) recordInsightsRun();
+      const users = await findStatusCronCandidates(prisma);
 
       if (users.length === 0) return;
 
@@ -1269,240 +1301,81 @@ async function handleGeneralStatusGenerate(jobs: Job<GeneralStatusPayload>[]) {
 
       for (const user of users) {
         try {
-          await generateGeneralStatusForUser(user.id, {
-            locale: user.locale ?? "de",
-            force: false,
-          });
+          await generate(user.id, { locale: user.locale, force: false });
           generated++;
         } catch (error) {
           failed++;
           evt.addWarning(
-            `general-status generation failed for user ${user.id}: ${error}`,
+            `${taskName} generation failed for user ${user.id}: ${error}`,
           );
         }
       }
 
       evt.setBackground({
-        task_name: "job.insights.general",
+        task_name: taskName,
         result: { generated, failed, total: users.length },
       });
     } catch (err) {
       evt.setError(err);
       recordError();
+      await reportWorkerError(taskName, err);
       throw err;
     }
   });
 }
 
-async function handleBloodPressureStatusGenerate(
+function handleGeneralStatusGenerate(jobs: Job<GeneralStatusPayload>[]) {
+  void jobs;
+  return runStatusCronGenerate(
+    "job.insights.general",
+    generateGeneralStatusForUser,
+    { recordRun: true },
+  );
+}
+
+function handleBloodPressureStatusGenerate(
   jobs: Job<BloodPressureStatusPayload>[],
 ) {
   void jobs;
-  await withBackgroundEvent("job.insights.blood_pressure", async (evt) => {
-    const prisma = getWorkerPrisma();
-    try {
-      const users = await prisma.user.findMany({
-        select: { id: true, locale: true },
-      });
-
-      if (users.length === 0) return;
-
-      let generated = 0;
-      let failed = 0;
-
-      for (const user of users) {
-        try {
-          await generateBloodPressureStatusForUser(user.id, {
-            locale: user.locale ?? "de",
-            force: false,
-          });
-          generated++;
-        } catch (error) {
-          failed++;
-          evt.addWarning(
-            `blood-pressure-status generation failed for user ${user.id}: ${error}`,
-          );
-        }
-      }
-
-      evt.setBackground({
-        task_name: "job.insights.blood_pressure",
-        result: { generated, failed, total: users.length },
-      });
-    } catch (err) {
-      evt.setError(err);
-      recordError();
-      throw err;
-    }
-  });
+  return runStatusCronGenerate(
+    "job.insights.blood_pressure",
+    generateBloodPressureStatusForUser,
+  );
 }
 
-async function handleWeightStatusGenerate(jobs: Job<WeightStatusPayload>[]) {
+function handleWeightStatusGenerate(jobs: Job<WeightStatusPayload>[]) {
   void jobs;
-  await withBackgroundEvent("job.insights.weight", async (evt) => {
-    const prisma = getWorkerPrisma();
-    try {
-      const users = await prisma.user.findMany({
-        select: { id: true, locale: true },
-      });
-
-      if (users.length === 0) return;
-
-      let generated = 0;
-      let failed = 0;
-
-      for (const user of users) {
-        try {
-          await generateWeightStatusForUser(user.id, {
-            locale: user.locale ?? "de",
-            force: false,
-          });
-          generated++;
-        } catch (error) {
-          failed++;
-          evt.addWarning(
-            `weight-status generation failed for user ${user.id}: ${error}`,
-          );
-        }
-      }
-
-      evt.setBackground({
-        task_name: "job.insights.weight",
-        result: { generated, failed, total: users.length },
-      });
-    } catch (err) {
-      evt.setError(err);
-      recordError();
-      throw err;
-    }
-  });
+  return runStatusCronGenerate(
+    "job.insights.weight",
+    generateWeightStatusForUser,
+  );
 }
 
-async function handlePulseStatusGenerate(jobs: Job<PulseStatusPayload>[]) {
+function handlePulseStatusGenerate(jobs: Job<PulseStatusPayload>[]) {
   void jobs;
-  await withBackgroundEvent("job.insights.pulse", async (evt) => {
-    const prisma = getWorkerPrisma();
-    try {
-      const users = await prisma.user.findMany({
-        select: { id: true, locale: true },
-      });
-
-      if (users.length === 0) return;
-
-      let generated = 0;
-      let failed = 0;
-
-      for (const user of users) {
-        try {
-          await generatePulseStatusForUser(user.id, {
-            locale: user.locale ?? "de",
-            force: false,
-          });
-          generated++;
-        } catch (error) {
-          failed++;
-          evt.addWarning(
-            `pulse-status generation failed for user ${user.id}: ${error}`,
-          );
-        }
-      }
-
-      evt.setBackground({
-        task_name: "job.insights.pulse",
-        result: { generated, failed, total: users.length },
-      });
-    } catch (err) {
-      evt.setError(err);
-      recordError();
-      throw err;
-    }
-  });
+  return runStatusCronGenerate(
+    "job.insights.pulse",
+    generatePulseStatusForUser,
+  );
 }
 
-async function handleBmiStatusGenerate(jobs: Job<BmiStatusPayload>[]) {
+function handleBmiStatusGenerate(jobs: Job<BmiStatusPayload>[]) {
   void jobs;
-  await withBackgroundEvent("job.insights.bmi", async (evt) => {
-    const prisma = getWorkerPrisma();
-    try {
-      const users = await prisma.user.findMany({
-        select: { id: true, locale: true },
-      });
-
-      if (users.length === 0) return;
-
-      let generated = 0;
-      let failed = 0;
-
-      for (const user of users) {
-        try {
-          await generateBmiStatusForUser(user.id, {
-            locale: user.locale ?? "de",
-            force: false,
-          });
-          generated++;
-        } catch (error) {
-          failed++;
-          evt.addWarning(
-            `bmi-status generation failed for user ${user.id}: ${error}`,
-          );
-        }
-      }
-
-      evt.setBackground({
-        task_name: "job.insights.bmi",
-        result: { generated, failed, total: users.length },
-      });
-    } catch (err) {
-      evt.setError(err);
-      recordError();
-      throw err;
-    }
-  });
+  return runStatusCronGenerate("job.insights.bmi", generateBmiStatusForUser);
 }
 
-async function handleMedicationComplianceStatusGenerate(
+function handleMoodStatusGenerate(jobs: Job<MoodStatusPayload>[]) {
+  void jobs;
+  return runStatusCronGenerate("job.insights.mood", generateMoodStatusForUser);
+}
+
+function handleMedicationComplianceStatusGenerate(
   jobs: Job<MedicationComplianceStatusPayload>[],
 ) {
   void jobs;
-  await withBackgroundEvent(
+  return runStatusCronGenerate(
     "job.insights.medication_compliance",
-    async (evt) => {
-      const prisma = getWorkerPrisma();
-      try {
-        const users = await prisma.user.findMany({
-          select: { id: true, locale: true },
-        });
-
-        if (users.length === 0) return;
-
-        let generated = 0;
-        let failed = 0;
-
-        for (const user of users) {
-          try {
-            await generateMedicationComplianceStatusForUser(user.id, {
-              locale: user.locale ?? "de",
-              force: false,
-            });
-            generated++;
-          } catch (error) {
-            failed++;
-            evt.addWarning(
-              `medication-compliance-status generation failed for user ${user.id}: ${error}`,
-            );
-          }
-        }
-
-        evt.setBackground({
-          task_name: "job.insights.medication_compliance",
-          result: { generated, failed, total: users.length },
-        });
-      } catch (err) {
-        evt.setError(err);
-        recordError();
-        throw err;
-      }
-    },
+    generateMedicationComplianceStatusForUser,
   );
 }
 
@@ -2066,6 +1939,13 @@ async function handleInsightPregenerateJob(
             err instanceof Error ? err.message : String(err)
           }`,
         );
+        // Surface the failure centrally and rethrow so the queue's retry
+        // policy (retryLimit 3 + backoff) re-runs the warm — swallowing it
+        // here left the user's caches cold with zero operator signal.
+        await reportWorkerError(INSIGHT_PREGENERATE_QUEUE, err, {
+          mode: "force-warm",
+        });
+        throw err;
       }
     }
 
@@ -2082,6 +1962,12 @@ async function handleInsightPregenerateJob(
           err instanceof Error ? err.message : String(err)
         }`,
       );
+      // Same contract as the force path: report + rethrow so the nightly
+      // tick retries instead of silently waiting for the next night.
+      await reportWorkerError(INSIGHT_PREGENERATE_QUEUE, err, {
+        mode: "scheduled",
+      });
+      throw err;
     }
   });
 }
@@ -2107,6 +1993,13 @@ async function handleInsightStatusGenerate(
             err instanceof Error ? err.message : String(err)
           }`,
         );
+        // Report centrally + rethrow so the enqueue's retry policy
+        // (retryLimit 3 + backoff) re-runs the generation; the polling
+        // client otherwise sits on "preparing" with zero operator signal.
+        await reportWorkerError(INSIGHT_STATUS_GENERATE_QUEUE, err, {
+          metric: job.data.metric,
+        });
+        throw err;
       }
     }
   });
@@ -2386,6 +2279,10 @@ export async function startReminderWorker() {
     WEIGHT_STATUS_QUEUE,
     PULSE_STATUS_QUEUE,
     BMI_STATUS_QUEUE,
+    // v1.15.20 — mood joins the nightly status ladder. The queue MUST be
+    // registered here or pg-boss never provisions it and the 02:30 schedule
+    // silently no-ops (the v1.4.37 dead-queue class).
+    MOOD_STATUS_QUEUE,
     MEDICATION_COMPLIANCE_STATUS_QUEUE,
     MOODLOG_SYNC_QUEUE,
     DATA_BACKUP_QUEUE,
@@ -2545,6 +2442,10 @@ export async function startReminderWorker() {
     // turn. The queue MUST be registered here or the enqueue silently never
     // runs.
     COACH_MEMORY_REFRESH_QUEUE,
+    // v1.15.20 — proactive Coach nudge. Same pg-boss v12 createQueue
+    // contract; without this entry the daily 05:15 schedule silently
+    // no-ops and no nudge ever fires.
+    COACH_NUDGE_QUEUE,
   ];
 
   for (const q of allQueues) {
@@ -2575,18 +2476,39 @@ export async function startReminderWorker() {
     workerLog("error", "integration-status-null-probe failed", err);
   }
 
-  // Schedule recurring cron jobs
-  const schedules: [string, string][] = [
+  // v1.15.20 — retry policy for the LLM-bound insight queues. A transient
+  // failure (provider hiccup, pool exhaustion) used to fail the nightly tick
+  // silently until the NEXT night; three backed-off retries match the
+  // backfill queues' established shape (see e.g. whoop-backfill.ts).
+  const insightRetryOptions = {
+    retryLimit: 3,
+    retryDelay: 60,
+    retryBackoff: true,
+  } as const;
+
+  // Schedule recurring cron jobs. The optional third element carries
+  // per-queue send options (retry policy) merged into the schedule call.
+  const schedules: [string, string, Record<string, unknown>?][] = [
     [QUEUE_NAME, CHECK_INTERVAL_CRON],
     [WITHINGS_SYNC_QUEUE, WITHINGS_SYNC_CRON],
     [WITHINGS_ACTIVITY_QUEUE, WITHINGS_ACTIVITY_CRON],
     [WITHINGS_SLEEP_QUEUE, WITHINGS_SLEEP_CRON],
-    [GENERAL_STATUS_QUEUE, GENERAL_STATUS_CRON],
-    [BLOOD_PRESSURE_STATUS_QUEUE, BLOOD_PRESSURE_STATUS_CRON],
-    [WEIGHT_STATUS_QUEUE, WEIGHT_STATUS_CRON],
-    [PULSE_STATUS_QUEUE, PULSE_STATUS_CRON],
-    [BMI_STATUS_QUEUE, BMI_STATUS_CRON],
-    [MEDICATION_COMPLIANCE_STATUS_QUEUE, MEDICATION_COMPLIANCE_STATUS_CRON],
+    [GENERAL_STATUS_QUEUE, GENERAL_STATUS_CRON, insightRetryOptions],
+    [
+      BLOOD_PRESSURE_STATUS_QUEUE,
+      BLOOD_PRESSURE_STATUS_CRON,
+      insightRetryOptions,
+    ],
+    [WEIGHT_STATUS_QUEUE, WEIGHT_STATUS_CRON, insightRetryOptions],
+    [PULSE_STATUS_QUEUE, PULSE_STATUS_CRON, insightRetryOptions],
+    [BMI_STATUS_QUEUE, BMI_STATUS_CRON, insightRetryOptions],
+    // v1.15.20 — mood status nightly, continuing the 02:xx ladder.
+    [MOOD_STATUS_QUEUE, MOOD_STATUS_CRON, insightRetryOptions],
+    [
+      MEDICATION_COMPLIANCE_STATUS_QUEUE,
+      MEDICATION_COMPLIANCE_STATUS_CRON,
+      insightRetryOptions,
+    ],
     [MOODLOG_SYNC_QUEUE, MOODLOG_SYNC_CRON],
     [DATA_BACKUP_QUEUE, DATA_BACKUP_CRON],
     [RATE_LIMIT_CLEANUP_QUEUE, RATE_LIMIT_CLEANUP_CRON],
@@ -2653,7 +2575,7 @@ export async function startReminderWorker() {
     [PUSH_ATTEMPT_CLEANUP_QUEUE, PUSH_ATTEMPT_CLEANUP_CRON],
     // v1.7.0 — nightly 04:30 Europe/Berlin comprehensive-insight
     // pre-generation. Budget-gated per user inside the handler.
-    [INSIGHT_PREGENERATE_QUEUE, INSIGHT_PREGENERATE_CRON],
+    [INSIGHT_PREGENERATE_QUEUE, INSIGHT_PREGENERATE_CRON, insightRetryOptions],
     // v1.7.0 — daily 03:40 Europe/Berlin prune for expired measurement
     // tombstones.
     [MEASUREMENT_TOMBSTONE_CLEANUP_QUEUE, MEASUREMENT_TOMBSTONE_CLEANUP_CRON],
@@ -2678,11 +2600,18 @@ export async function startReminderWorker() {
     // v1.11.0 — nightly 05:05 Europe/Berlin period-narrative warm. The
     // handler only fans out on a week (Mon) / month (1st) boundary; every
     // other night is a cheap no-op. Budget-gated per user inside the runner.
-    [PERIOD_NARRATIVE_QUEUE, PERIOD_NARRATIVE_CRON],
+    [PERIOD_NARRATIVE_QUEUE, PERIOD_NARRATIVE_CRON, insightRetryOptions],
+    // v1.15.20 — daily 05:15 Europe/Berlin proactive Coach nudge, after
+    // the 04:45–04:55 score crons so the recovery-score trigger reads
+    // settled rows. Deterministic triggers only — no AI call on this path.
+    [COACH_NUDGE_QUEUE, COACH_NUDGE_CRON],
   ];
 
-  for (const [name, cron] of schedules) {
-    await boss.schedule(name, cron, {}, { tz: "Europe/Berlin" });
+  for (const [name, cron, sendOptions] of schedules) {
+    await boss.schedule(name, cron, {}, {
+      tz: "Europe/Berlin",
+      ...(sendOptions ?? {}),
+    });
   }
 
   // Register the handler
@@ -2804,6 +2733,11 @@ export async function startReminderWorker() {
     BMI_STATUS_QUEUE,
     { localConcurrency: 1 },
     handleBmiStatusGenerate,
+  );
+  await boss.work<MoodStatusPayload>(
+    MOOD_STATUS_QUEUE,
+    { localConcurrency: 1 },
+    handleMoodStatusGenerate,
   );
   await boss.work<MedicationComplianceStatusPayload>(
     MEDICATION_COMPLIANCE_STATUS_QUEUE,
@@ -2946,6 +2880,40 @@ export async function startReminderWorker() {
       }
     },
   );
+  // v1.15.20 — proactive Coach nudge. Single-flight; the push-attempts
+  // ledger caps a user at one nudge per rolling week, so an overlapping
+  // tick would only waste reads. Deterministic triggers, no AI call.
+  await boss.work(
+    COACH_NUDGE_QUEUE,
+    { localConcurrency: 1 },
+    async () => {
+      await withBackgroundEvent("job.coach_nudge", async (evt) => {
+        try {
+          const summary = await runCoachNudgeTick(
+            getWorkerPrisma(),
+            new Date(),
+          );
+          evt.setBackground({
+            task_name: "job.coach_nudge",
+            result: {
+              candidates_scanned: summary.candidatesScanned,
+              dispatched: summary.dispatched,
+              skipped_opted_out: summary.skippedOptedOut,
+              skipped_no_provider: summary.skippedNoProvider,
+              skipped_recent_nudge: summary.skippedRecentNudge,
+              skipped_no_trigger: summary.skippedNoTrigger,
+              skipped_no_channel: summary.skippedNoChannel,
+              failed: summary.failed,
+            },
+          });
+        } catch (err) {
+          evt.setError(err);
+          recordError();
+          throw err;
+        }
+      });
+    },
+  );
   // v1.10.0 — computed scores (WX-E). Nightly Stress-score (HRV-derived
   // proxy) compute + store. Single-flight so two ticks never double-walk
   // the cohort. The runner iterates every eligible user and upserts one
@@ -3010,7 +2978,9 @@ export async function startReminderWorker() {
           }
         } catch (err) {
           recordError();
-          workerLog("error", "[period-narrative] warm failed", err);
+          await reportWorkerError(PERIOD_NARRATIVE_QUEUE, err, {
+            mode: job.data?.userId ? "single-user" : "scheduled",
+          });
           throw err;
         }
       }
@@ -3339,7 +3309,7 @@ export async function startReminderWorker() {
           );
         } catch (err) {
           recordError();
-          workerLog("error", "[drain-cumulative] run failed", err);
+          await reportWorkerError("drain-cumulative", err);
         }
 
         // v1.8.5 — fold the daily-MEAN drain onto the same nightly tick as
@@ -3365,7 +3335,9 @@ export async function startReminderWorker() {
           );
         } catch (err) {
           recordError();
-          workerLog("error", "[mean-consolidation] nightly run failed", err);
+          await reportWorkerError("mean-consolidation", err, {
+            tick: "nightly",
+          });
         }
 
         // v1.10.0 WX-E — fold the dense intra-day retention drain onto the
@@ -3400,11 +3372,9 @@ export async function startReminderWorker() {
           }
         } catch (err) {
           recordError();
-          workerLog(
-            "error",
-            "[dense-intraday-retention] nightly run failed",
-            err,
-          );
+          await reportWorkerError("dense-intraday-retention", err, {
+            tick: "nightly",
+          });
         }
       }
     },

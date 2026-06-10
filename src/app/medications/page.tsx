@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/hooks/use-auth";
 import { useTranslations } from "@/lib/i18n/context";
@@ -119,6 +119,7 @@ export default function MedicationsPage() {
   const { isAuthenticated, isLoading: authLoading } = useAuth();
   const { t } = useTranslations();
   const router = useRouter();
+  const queryClient = useQueryClient();
   const searchParams = useSearchParams();
   // v1.5.4 — the retired `/medications/new` route redirects here with
   // `?new=1`, so legacy bookmarks keep landing on the create wizard.
@@ -160,21 +161,30 @@ export default function MedicationsPage() {
     setDialogOpen(true);
   }
 
-  // v1.15.18 — the card kebab actions now navigate to the full-page
-  // tabbed detail surface on the right tab rather than opening a modal
-  // editor / sheet. Edit lands on Zeitplan (the everyday schedule view +
-  // the hero's "Vollständig bearbeiten" jump into the wizard), History on
-  // Verlauf, Advanced on Erweitert (the dissolved advanced-settings).
+  // v1.15.20 — seed the detail page's query from the list row before
+  // navigating. The list response is a superset of the detail GET
+  // (`{...medication, category, nextDueAt}` plus the list-only
+  // `lastTakenAt` / `todayEventCount`), so the detail shell paints
+  // instantly from the seeded cache while its own un-gated query
+  // refetches the authoritative row in the background.
+  function seedDetail(med: Medication) {
+    queryClient.setQueryData(queryKeys.medicationDetail(med.id), med);
+  }
+
+  // v1.15.20 — the kebab's Edit opens the medication wizard directly:
+  // it navigates to the detail page with `?edit=1`, which the tabbed
+  // shell reads synchronously to mount the wizard in edit mode (the same
+  // `editOpen` path the hero's "Vollständig bearbeiten" uses). History
+  // still lands on the Verlauf tab; the former Advanced item is retired —
+  // the Erweitert tab stays reachable through the card body.
   function openEdit(med: Medication) {
-    router.push(`/medications/${med.id}?tab=zeitplan`);
+    seedDetail(med);
+    router.push(`/medications/${med.id}?edit=1`);
   }
 
   function openHistory(med: Medication) {
+    seedDetail(med);
     router.push(`/medications/${med.id}?tab=verlauf`);
-  }
-
-  function openAdvanced(med: Medication) {
-    router.push(`/medications/${med.id}?tab=erweitert`);
   }
 
   function closeDialog() {
@@ -235,7 +245,7 @@ export default function MedicationsPage() {
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button className="min-h-11 sm:min-h-9">
-              <Plus className="mr-2 h-4 w-4" />
+              <Plus className="h-4 w-4" />
               {t("medications.addMedication")}
             </Button>
           </DropdownMenuTrigger>
@@ -295,7 +305,7 @@ export default function MedicationsPage() {
           description={t("medications.emptyDescription")}
           action={
             <Button size="sm" onClick={openCreate}>
-              <Plus className="mr-1 h-4 w-4" />
+              <Plus className="h-4 w-4" />
               {t("medications.firstMedication")}
             </Button>
           }
@@ -313,7 +323,6 @@ export default function MedicationsPage() {
                       medication={med}
                       onEdit={openEdit}
                       onOpenHistory={openHistory}
-                      onOpenAdvanced={openAdvanced}
                     />
                   ) : (
                     <MedicationCard
@@ -321,7 +330,6 @@ export default function MedicationsPage() {
                       medication={med}
                       onEdit={openEdit}
                       onOpenHistory={openHistory}
-                      onOpenAdvanced={openAdvanced}
                     />
                   ),
                 )}
@@ -343,7 +351,6 @@ export default function MedicationsPage() {
                       medication={med}
                       onEdit={openEdit}
                       onOpenHistory={openHistory}
-                      onOpenAdvanced={openAdvanced}
                     />
                   ) : (
                     <MedicationCard
@@ -351,7 +358,6 @@ export default function MedicationsPage() {
                       medication={med}
                       onEdit={openEdit}
                       onOpenHistory={openHistory}
-                      onOpenAdvanced={openAdvanced}
                     />
                   ),
                 )}

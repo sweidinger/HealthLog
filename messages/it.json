@@ -192,6 +192,9 @@
   "offlineBanner": {
     "message": "Nessuna connessione — le tue modifiche verranno salvate appena torni online."
   },
+  "demoBanner": {
+    "message": "Modalità demo — le modifiche non vengono salvate."
+  },
   "nav": {
     "dashboard": "Dashboard",
     "measurements": "Misurazioni",
@@ -251,6 +254,7 @@
     "hasAccount": "Hai già un account?",
     "loginFailed": "Accesso non riuscito",
     "registerFailed": "Registrazione non riuscita",
+    "invitedBanner": "Sei stato invitato — crea il tuo account anche se la registrazione è chiusa.",
     "createAccount": "Crea account",
     "newAccount": "Crea un nuovo account",
     "backToPasskey": "Torna a passkey",
@@ -719,6 +723,8 @@
     "compliance7d": "Aderenza 7 giorni",
     "compliance30d": "Aderenza 30 giorni",
     "complianceWindow": "Aderenza {days} giorni",
+    "complianceInfo": "Quota delle dosi attese che hai registrato. I piani settimanali contano settimana per settimana.",
+    "complianceInfoLabel": "Cosa significa aderenza?",
     "complianceDoses": "{count} dosi",
     "lastIntake": "Ultima assunzione:",
     "nextIntake": "Prossima assunzione:",
@@ -1046,6 +1052,8 @@
           "subline": "Controlla tutto qui sotto prima di salvare.",
           "remindersLabel": "Promemoria attivi",
           "remindersDescription": "Push, Telegram o ntfy — in base alle tue impostazioni.",
+          "noChannelHint": "I promemoria richiedono un canale di notifica — al momento nessuno è attivo.",
+          "noChannelHintLink": "Configura le notifiche",
           "multiScheduleNote": "Questo farmaco ha più orari. L’editor dettagliato tornerà in una versione successiva.",
           "short": "Fatto"
         }
@@ -1282,19 +1290,6 @@
         "paused": "In pausa",
         "ended": "Terminato"
       },
-      "today": {
-        "groupLabel": "Dose di oggi",
-        "taken": "Assunta",
-        "skipped": "Saltata",
-        "toastTaken": "Dose di oggi registrata",
-        "toastSkipped": "Dose di oggi saltata",
-        "recordedTaken": "Assunta oggi alle {time}",
-        "recordedSkipped": "Saltata oggi alle {time}",
-        "recordedOneShot": "Dose singola assunta alle {time}",
-        "noneScheduled": "Nessuna dose prevista per oggi.",
-        "pausedHint": "In pausa — nessun promemoria oggi.",
-        "error": "Impossibile registrare la dose."
-      },
       "cadence": {
         "oneShotOn": "Dose singola il {date}.",
         "oneShotPending": "Dose singola in sospeso."
@@ -1349,6 +1344,9 @@
         "add": "Voce",
         "markTaken": "Assunta",
         "markSkipped": "Saltata",
+        "rowActionsLabel": "Azioni per {time}",
+        "markAsTaken": "Segna come assunta",
+        "markAsSkipped": "Segna come saltata",
         "adHocTag": "fuori programma",
         "takenDetail": "prevista {planned} · assunta {taken}",
         "status": {
@@ -1373,6 +1371,18 @@
           "body": "Questa assunzione cade appena fuori dalla finestra di {slot}. Attribuirla a quello slot o tenerla come voce fuori programma?",
           "keepAdHoc": "Fuori programma",
           "pin": "Attribuisci"
+        },
+        "pin": {
+          "action": "Attribuisci allo slot delle {time}",
+          "release": "Rimuovi attribuzione",
+          "pinnedTag": "attribuita",
+          "pinnedToast": "Assunzione attribuita allo slot",
+          "unpinnedToast": "Attribuzione rimossa",
+          "dueContext": "prevista alle {time} ({delta})",
+          "confirmTitle": "Attribuire allo slot delle {time}?",
+          "confirmBody": "L'assunzione conterà come in ritardo per questo slot – la percentuale non viene abbellita. L'attribuzione può essere rimossa in qualsiasi momento.",
+          "confirmCancel": "Annulla",
+          "confirmAction": "Attribuisci"
         }
       },
       "notifications": {
@@ -1392,8 +1402,8 @@
           "requiresCourseWindow": "Le fasi sono disponibili dopo aver impostato un periodo di trattamento."
         },
         "grace": {
-          "label": "Finestra di promemoria — si applica al tuo programma principale",
-          "primaryScheduleNote": "I farmaci con più programmi mantengono la finestra predefinita degli altri programmi.",
+          "label": "Finestra di promemoria",
+          "appliesToAllNote": "Vale per tutti i programmi di questo farmaco.",
           "unit": "minuti",
           "saved": "Finestra di promemoria salvata",
           "failed": "Impossibile salvare la finestra di promemoria."
@@ -1468,7 +1478,6 @@
         "title": "Impostazioni avanzate",
         "group": {
           "data": "Dati",
-          "reminders": "Promemoria",
           "lifecycle": "Ciclo di vita",
           "externalApi": "API esterna"
         },
@@ -1487,8 +1496,7 @@
         }
       },
       "header": {
-        "historyLabel": "Visualizza cronologia assunzioni",
-        "advancedLabel": "Impostazioni avanzate"
+        "historyLabel": "Visualizza cronologia assunzioni"
       },
       "history": {
         "back": "Torna al farmaco",
@@ -1498,7 +1506,6 @@
       "tabs": {
         "uebersicht": "Panoramica",
         "zeitplan": "Programma",
-        "erinnerung": "Promemoria",
         "bestand": "Scorta",
         "verlauf": "Cronologia",
         "injektion": "Iniezione",
@@ -1510,6 +1517,17 @@
         "tablistLabel": "Sezioni di dettaglio del farmaco"
       },
       "uebersicht": {
+        "statusTitle": "Stato",
+        "nextDoseLabel": "Prossima dose",
+        "nextDoseNone": "Nessuna dose in programma.",
+        "pausedHint": "In pausa — nessun promemoria.",
+        "reminderLabel": "Promemoria",
+        "reminderOn": "Attivo",
+        "reminderOff": "Disattivo",
+        "supplyLabel": "Scorta",
+        "supplyRunway": "Copre ancora circa {days} giorni",
+        "jumpToZeitplan": "Apri programma",
+        "jumpToBestand": "Apri scorta",
         "complianceTitle": "Aderenza",
         "complianceEmpty": "Ancora nessun dato sull'aderenza."
       },
@@ -1542,7 +1560,7 @@
         "scheduleLabel": "Programma {index}",
         "fullEditNote": "Frequenza, classe di trattamento e finestra del ciclo si modificano da «Modifica completa».",
         "graceEcho": "Finestra di promemoria: {minutes} minuti",
-        "graceLink": "Modifica in «Promemoria»",
+        "reminderTitle": "Promemoria",
         "save": "Salva programma",
         "saved": "Programma salvato",
         "failed": "Impossibile salvare il programma",
@@ -1573,6 +1591,7 @@
   "charts": {
     "loadingLabel": "Caricamento del grafico…",
     "loadingSlowHint": "Calcolo delle analisi — può richiedere un momento.",
+    "adjustTargets": "Regola i valori target",
     "weight": "Peso",
     "bloodPressure": "Pressione arteriosa",
     "pulse": "Pulsazioni",
@@ -1714,8 +1733,7 @@
       "dragHandle": "Trascina per riordinare",
       "show": "Mostra",
       "hide": "Nascondi",
-      "manageSubPages": "Gestisci pagine di dettaglio",
-      "manageSubPagesHint": "Le pagine nascoste vengono rimosse anche dalla navigazione in alto.",
+      "manageInSettings": "Gestisci schede e pagine di dettaglio nelle impostazioni",
       "groupSleep": "Sonno",
       "groupMood": "Umore",
       "groupEvents": "Eventi",
@@ -1843,7 +1861,10 @@
       "emptyTitle": "Ancora nessun briefing",
       "emptyDescription": "Genera il briefing di oggi per avere un riepilogo dei tuoi trend.",
       "emptyAction": "Genera briefing",
-      "loadingLabel": "Preparazione del briefing"
+      "loadingLabel": "Preparazione del briefing",
+      "noProviderTitle": "Nessun provider IA collegato",
+      "noProviderDescription": "Collega un provider IA nelle impostazioni per ricevere briefing giornalieri.",
+      "noProviderAction": "Apri impostazioni IA"
     },
     "trendsRow": {
       "title": "Tendenze",
@@ -1936,6 +1957,8 @@
       "composerPlaceholder": "Chiedimi qualcosa sui tuoi dati…",
       "composerHint": "Invio per inviare, Shift+Invio per una nuova riga.",
       "composerDisclaimer": "Le risposte sono generate. Le decisioni cliniche restano al tuo medico.",
+      "selfContextChipsLabel": "Il Coach vorrebbe sapere:",
+      "selfContextChipDismiss": "Ignora la domanda",
       "voiceComingSoon": "L’input vocale arriva con l’app iOS in v1.5.",
       "threadEmpty": "Chiedimi qualcosa sui tuoi trend, farmaci o misurazioni per iniziare.",
       "historyTitle": "Conversazioni",
@@ -2099,6 +2122,8 @@
     "navSteps": "Passi",
     "navActiveEnergy": "Energia attiva",
     "navAriaLabel": "Vai alla sezione",
+    "pillScrollLeft": "Scorri le schede a sinistra",
+    "pillScrollRight": "Scorri le schede a destra",
     "tabStrip": {
       "vitalsParent": {
         "label": "Vitali",
@@ -2301,11 +2326,11 @@
         "stairDescentSpeedBody": "È la velocità con cui scendi una rampa di scale. Insieme alla velocità in salita riflette il controllo delle gambe e l'equilibrio: un ritmo stabile è un buon segno, mentre uno in calo va tenuto d'occhio.",
         "breathingDisturbancesTitle": "Disturbi respiratori nel sonno",
         "breathingDisturbancesBody": "Il tuo Apple Watch può stimare quanto spesso la respirazione si è interrotta durante il sonno. Un indice più basso è migliore; un livello che Apple segnala come elevato, soprattutto su molte notti, andrebbe segnalato a un medico.",
-        "readinessBody": "La prontezza è una lettura giornaliera di quanto il tuo corpo sia pronto ad affrontare la giornata, combinando frequenza cardiaca a riposo, variabilità della frequenza cardiaca, sonno e regolarità delle ultime notti. Un punteggio più alto indica che il tuo organismo appare recuperato e pieno di risorse; uno più basso è un invito gentile a rallentare e lasciare che il corpo recuperi. Consideralo una guida per dosare la giornata, non un verdetto.",
-        "sleepScoreBody": "Il tuo punteggio del sonno riassume un'intera notte in un solo numero, valutando quanto hai dormito, con quale efficienza, quanto regolari sono stati i tuoi orari e l'equilibrio tra sonno leggero, profondo e REM. Serve a mostrare a colpo d'occhio se la notte ti ha davvero ristorato. Osserva l'andamento nell'arco delle settimane invece di rincorrere un punteggio perfetto in una singola notte.",
-        "recoveryBody": "Il recupero riflette quanto bene il tuo corpo si è ripreso e quanta capacità hai oggi per sostenere il carico, basandosi su segnali notturni come la variabilità della frequenza cardiaca e la frequenza a riposo. Un punteggio alto è il via libera per spingere; uno più basso suggerisce che il tuo organismo si sta ancora ricostruendo. È una guida su quanto impegnarti, non un limite.",
-        "strainBody": "Lo sforzo misura quanto carico cardiovascolare e fisico hai imposto al tuo corpo, dagli allenamenti a una giornata attiva in piedi. Quando c'è abbastanza storico, viene valutato rispetto al tuo sforzo abituale e riflette così ciò che è impegnativo per te in particolare. Usalo per bilanciare le giornate intense con altre più leggere e mantenere un allenamento sostenibile.",
-        "stressBody": "Lo stress qui è una stima del carico fisiologico sul tuo sistema nervoso, letto soprattutto dagli schemi di variabilità della frequenza cardiaca e non da come ti senti consapevolmente. Un punteggio più basso indica uno stato più calmo e ben regolato; uno più alto è un invito a inserire del recupero. È un'approssimazione descrittiva per notare le tendenze, non una misurazione clinica."
+        "readinessBody": "La prontezza è una lettura giornaliera di quanto il tuo corpo sia pronto ad affrontare la giornata, combinando frequenza cardiaca a riposo, variabilità della frequenza cardiaca, sonno e regolarità delle ultime notti. Un punteggio più alto indica che il tuo organismo appare recuperato e pieno di risorse; uno più basso è un invito gentile a rallentare.",
+        "sleepScoreBody": "Il tuo punteggio del sonno riassume un'intera notte in un solo numero — durata, efficienza, regolarità degli orari ed equilibrio tra sonno leggero, profondo e REM. Osserva l'andamento nell'arco delle settimane invece di rincorrere un punteggio perfetto in una singola notte.",
+        "recoveryBody": "Il recupero riflette quanto bene il tuo corpo si è ripreso, basandosi su segnali notturni come la variabilità della frequenza cardiaca e la frequenza a riposo. Un punteggio alto è il via libera per spingere; uno più basso suggerisce che il tuo organismo si sta ancora ricostruendo.",
+        "strainBody": "Lo sforzo misura quanto carico cardiovascolare e fisico hai imposto al tuo corpo, dagli allenamenti a una giornata attiva in piedi. Quando c'è abbastanza storico, viene valutato rispetto al tuo sforzo abituale, non rispetto a uno standard esterno.",
+        "stressBody": "Lo stress qui è una stima del carico fisiologico sul tuo sistema nervoso, letto soprattutto dagli schemi di variabilità della frequenza cardiaca e non da come ti senti consapevolmente. Un punteggio più basso indica uno stato calmo e ben regolato; uno più alto è un invito a inserire del recupero."
       },
       "stats": {
         "label": "Statistiche riepilogative",
@@ -3148,7 +3173,7 @@
     },
     "pillOrder": {
       "title": "Ordina le schede di navigazione",
-      "description": "Trascina le schede nell'ordine in cui devono comparire in alto negli Approfondimenti.",
+      "description": "Trascina le schede nell'ordine desiderato e mostrale o nascondile con l'icona dell'occhio. Le pagine di dettaglio nascoste vengono rimosse anche dalla navigazione in alto.",
       "dragHandle": "Riordina",
       "saveSuccess": "Ordine delle schede salvato.",
       "saveError": "Salvataggio dell'ordine delle schede non riuscito.",
@@ -3156,6 +3181,8 @@
       "empty": "Nessuna scheda di navigazione ancora disponibile."
     },
     "customize": "Personalizza gli Approfondimenti",
+    "regenerateRateLimited": "Limite di aggiornamento raggiunto — riprova più tardi.",
+    "regenerateUnavailable": "Nessuna nuova analisi ricevuta — riprova più tardi.",
     "regenerateError": "Aggiornamento ancora in corso — riprova tra un momento."
   },
   "thresholds": {
@@ -3382,6 +3409,8 @@
       "sources": {
         "title": "Priorità delle fonti",
         "description": "Scegli quale fonte prevale quando più di una registra la stessa metrica lo stesso giorno.",
+        "integrationsHint": "Collega o scollega le fonti dati nella pagina Integrazioni.",
+        "integrationsHintLink": "Apri le integrazioni",
         "cardTitle": "Priorità delle fonti per metrica",
         "help": "Quando più fonti forniscono lo stesso valore nello stesso giorno (ad es. Withings e Apple Health riportano entrambe 1.200 passi), la fonte in cima conta come lettura canonica. Le altre fonti restano memorizzate per la traccia di controllo.",
         "resetDefaults": "Ripristina i valori predefiniti",
@@ -3553,6 +3582,15 @@
     "profile": "Profilo",
     "language": "Lingua",
     "languageDescription": "Scegli la lingua di visualizzazione dell’applicazione.",
+    "timeFormat": {
+      "title": "Formato orario",
+      "description": "Determina se gli orari vengono mostrati nel formato 24 ore o 12 ore (AM/PM).",
+      "auto": "Automatico (lingua)",
+      "h24": "24 ore",
+      "h12": "12 ore (AM/PM)",
+      "saved": "Formato orario salvato.",
+      "saveError": "Salvataggio del formato orario non riuscito."
+    },
     "username": "Nome utente",
     "height": "Altezza (cm)",
     "dateOfBirth": "Data di nascita",
@@ -3642,8 +3680,8 @@
     "codexDisconnected": "Connessione a ChatGPT rimossa.",
     "codexConnectionFailed": "Connessione a ChatGPT non riuscita. Riprova.",
     "rawData": "Invia dati grezzi",
-    "rawDataOnDescription": "Vengono inviate metriche aggregate più punti grezzi anonimizzati degli ultimi 30 giorni. Ciò include misurazioni per singola metrica (ad esempio peso, pressione, polso) con contesto temporale, in modo che il provider possa rilevare in modo più affidabile schemi, valori anomali e correlazioni. Nome, e-mail e identificatori diretti dell’account non vengono trasmessi.",
-    "rawDataOffDescription": "Vengono inviate solo metriche riassuntive (ad esempio medie, tendenze, minimo/massimo). Nessun punto individuale e nessun contesto temporale preciso. Questo tutela meglio la privacy, ma il provider può essere meno preciso su schemi e oscillazioni a breve termine.",
+    "rawDataOnDescription": "Vengono inviate metriche aggregate più punti individuali anonimizzati degli ultimi 30 giorni con contesto temporale — mai nome, e-mail o identificatori diretti dell’account.",
+    "rawDataOffDescription": "Vengono inviate solo metriche riassuntive (ad esempio medie, tendenze, minimo/massimo) — nessun punto individuale e nessun contesto temporale preciso.",
     "rawDataWarning": "Modalità grezza attiva: il provider riceve ulteriori punti anonimizzati degli ultimi 30 giorni per un’analisi più precisa.",
     "regenerateInsights": "Rigenera i report",
     "regenerateSuccess": "Report rigenerati correttamente",
@@ -3775,6 +3813,30 @@
         "savedHidden": "Coach nascosto.",
         "savedShown": "Coach visibile.",
         "saveError": "Impossibile salvare la modifica. Riprova."
+      },
+      "aboutMe": {
+        "title": "Su di me",
+        "description": "Contesto personale che il Coach e il briefing giornaliero leggono insieme ai tuoi dati.",
+        "placeholder": "Es. lavoro a turni, dieta vegetariana, infortunio al ginocchio, allenamento per una mezza maratona…",
+        "charCount": "{used} / {max} caratteri",
+        "clear": "Svuota",
+        "save": "Salva",
+        "savedToast": "Nota «Su di me» salvata.",
+        "clearedToast": "Nota «Su di me» eliminata.",
+        "saveError": "Impossibile salvare. Riprova.",
+        "loadError": "Impossibile caricare la nota.",
+        "hint": "Inviato al Coach e al briefing giornaliero come contesto aggiuntivo. Lascia vuoto per non inviare nulla.",
+        "profileHint": "Età e genere provengono dal tuo profilo e vengono inclusi automaticamente.",
+        "freeTextLabel": "Su di me (testo libero)",
+        "conditionsLabel": "Malattie croniche",
+        "conditionsPlaceholder": "Es. ipertensione, diabete di tipo 2…",
+        "allergiesLabel": "Allergie e intolleranze",
+        "allergiesPlaceholder": "Es. intolleranza al lattosio, allergia alla penicillina…",
+        "focusLabel": "A cosa deve fare attenzione il Coach?",
+        "focusPlaceholder": "Es. tieni d'occhio la mia pressione, motivami a muovermi di più…",
+        "completeness": "{answered} su {total} compilati",
+        "questionsTitle": "Il Coach ha alcune domande",
+        "questionsOpenCoach": "Rispondi nel Coach"
       }
     },
     "dashboard": {
@@ -3804,6 +3866,21 @@
     "withingsSyncResult": "{count} misurazioni sincronizzate",
     "withingsFullSyncResult": "{count} misurazioni sincronizzate completamente",
     "withingsSyncFailed": "Sincronizzazione non riuscita",
+    "withingsOauthConnected": "Withings collegato — la prima sincronizzazione parte in background.",
+    "withingsOauthFailed": "Collegamento a Withings non riuscito",
+    "withingsOauthError": {
+      "csrf1": "Il controllo di sicurezza non è riuscito perché mancava il cookie del browser. Avvia di nuovo il collegamento nello stesso browser.",
+      "replay": "Questo link di conferma è già stato utilizzato. Avvia di nuovo il collegamento.",
+      "state": "La risposta di Withings non corrisponde a nessuna richiesta di collegamento aperta. Avvia di nuovo il collegamento.",
+      "expired": "La richiesta di collegamento è scaduta. Avvia di nuovo il collegamento e completa l'autorizzazione entro pochi minuti.",
+      "cross_user": "La risposta appartiene a una richiesta di un altro account. Riavvia il collegamento dal tuo account.",
+      "nocode": "Withings non ha restituito alcun codice di autorizzazione. Riprova e consenti l'accesso nella finestra di Withings.",
+      "nocreds": "Non sono salvate credenziali API di Withings. Salva prima Client ID e Client Secret, poi ricollega.",
+      "token": "Lo scambio di token con Withings non è riuscito. Controlla Client ID e Client Secret e riprova.",
+      "generic": "Errore sconosciuto durante il collegamento. Avvia di nuovo il collegamento."
+    },
+    "integrationsSourcesHint": "Se più fonti forniscono la stessa metrica, la priorità delle fonti decide quale valore conta.",
+    "integrationsSourcesHintLink": "Apri la priorità delle fonti",
     "withingsSynchronize": "Sincronizza",
     "withingsDisconnect": "Disconnetti",
     "withingsDisconnectTitle": "Disconnettere Withings?",
@@ -4240,6 +4317,55 @@
     "bugReportRepoPlaceholder": "owner/repo",
     "bugReportToken": "Token delle issue",
     "bugReportTokenPlaceholder": "ghp_...",
+    "invites": {
+      "title": "Inviti",
+      "description": "Link di invito per la registrazione: funzionano anche quando la registrazione è chiusa. Il link viene mostrato una sola volta.",
+      "adminOnlyHint": "Solo gli amministratori possono creare e revocare gli inviti.",
+      "create": "Crea invito",
+      "createTitle": "Crea invito",
+      "createDescription": "Il link consente una registrazione anche quando la registrazione è chiusa.",
+      "ttlLegend": "Valido per",
+      "createDays": "{days} giorni",
+      "maxUsesLabel": "Utilizzi massimi",
+      "maxUsesHint": "Quante registrazioni consente questo link (1–50).",
+      "createConfirm": "Crea invito",
+      "createdToast": "Invito creato.",
+      "createError": "Impossibile creare l'invito.",
+      "tokenTitle": "Link di invito",
+      "tokenOnceHint": "Copiabile solo adesso: copia il link o fai scansionare il codice QR.",
+      "hashExplainer": "Viene salvato solo un hash del link: non potrà più essere mostrato. Se va perso, revoca l'invito e creane uno nuovo.",
+      "copyLink": "Copia link",
+      "copiedToast": "Link copiato.",
+      "copyError": "Copia non riuscita.",
+      "qrAlt": "Codice QR del link di invito",
+      "loadError": "Impossibile caricare gli inviti.",
+      "emptyTitle": "Ancora nessun invito",
+      "emptyDescription": "Crea un link di invito per ammettere qualcuno nonostante la registrazione chiusa.",
+      "colStatus": "Stato",
+      "colCreated": "Creato",
+      "colExpires": "Scade",
+      "colUses": "Utilizzi",
+      "colRedeemedBy": "Riscattato da",
+      "colActions": "Azioni",
+      "byCreator": "da {by}",
+      "expiresInDaysOne": "tra 1 giorno",
+      "expiresInDaysOther": "tra {count} giorni",
+      "statusActive": "Attivo",
+      "statusExpired": "Scaduto",
+      "statusExhausted": "Esaurito",
+      "statusRevoked": "Revocato",
+      "redeemerDeleted": "account eliminato",
+      "redeemedByMore": "{username} + altri {count}",
+      "redemptionsTitle": "{count} riscatti",
+      "revoke": "Revoca",
+      "revokeAria": "Revoca invito",
+      "revokeConfirmTitle": "Revocare questo invito?",
+      "revokeConfirmBody": "Il link di invito diventa subito non valido. Gli account già registrati con questo link restano e la cronologia dei riscatti resta visibile.",
+      "revokeConfirmAction": "Revoca",
+      "cancel": "Annulla",
+      "revokedToast": "Invito revocato.",
+      "revokeError": "Impossibile revocare l'invito."
+    },
     "userManagement": "Gestione utenti",
     "userName": "Nome",
     "userEmail": "E-mail",
@@ -4457,6 +4583,10 @@
         "emptyTitle": "Nessun utente in questa vista",
         "emptyDescription": "Nessun utente corrisponde al filtro attuale.",
         "emptyResetFilter": "Mostra tutti gli utenti"
+      },
+      "invites": {
+        "title": "Inviti",
+        "subtitle": "Creare, monitorare e revocare i link di invito."
       },
       "api-tokens": {
         "title": "Token API",
@@ -4903,6 +5033,16 @@
       "hourAria": "Ora del promemoria dell’umore",
       "hourSavedToast": "Ora del promemoria aggiornata."
     },
+    "coachNudge": {
+      "title": "Coach proattivo",
+      "description": "Si fa sentire al massimo una volta a settimana quando i tuoi dati suggeriscono di consultare il Coach — ad esempio bassa aderenza terapeutica o una media settimanale della pressione elevata.",
+      "toggleAria": "Attiva o disattiva gli avvisi proattivi del Coach",
+      "statusOn": "Attivo — max 1 volta a settimana",
+      "statusOff": "Disattivato",
+      "enabledToast": "Avvisi proattivi del Coach attivati.",
+      "disabledToast": "Avvisi proattivi del Coach disattivati.",
+      "saveError": "Impossibile salvare. Riprova più tardi."
+    },
     "eventMedicationReminder": "Promemoria farmaco",
     "eventMedicationReminderDesc": "Inviato a ogni orario di dose programmato.",
     "eventMeasurementAnomaly": "Misurazione insolita",
@@ -5088,6 +5228,20 @@
   "moodReminders": {
     "dailyTitle": "Registra il tuo umore",
     "dailyBody": "Come ti senti oggi?"
+  },
+  "coachNudges": {
+    "complianceTitle": "Il tuo Coach ha un'osservazione",
+    "complianceBody": "Le tue assunzioni sono state discontinue questa settimana. Parla un attimo con il Coach: forse il piano si può semplificare.",
+    "bpTitle": "Pressione elevata questa settimana",
+    "bpBody": "La tua pressione media di questa settimana ha superato il tuo obiettivo. Il Coach può aiutarti a contestualizzare i valori.",
+    "scoreTitle": "Il tuo punteggio di recupero sta calando",
+    "scoreBody": "Il tuo punteggio di recupero è calato sensibilmente questa settimana. Il Coach può aiutarti a circoscrivere le possibili cause.",
+    "selfContextTitle": "Aiuta il tuo Coach a conoscerti meglio",
+    "selfContextBody": "La tua autodescrizione è incompleta o non viene aggiornata da tempo. Due minuti nelle impostazioni mantengono fresco il contesto del Coach.",
+    "questionConditions": "Hai malattie croniche che il Coach dovrebbe conoscere?",
+    "questionFocus": "C'è qualcosa di specifico a cui il Coach dovrebbe fare attenzione?",
+    "questionAllergies": "Hai allergie o intolleranze?",
+    "questionAboutMe": "Vuoi raccontare al Coach qualcosa di te — abitudini, obiettivi, contesto?"
   },
   "clinicianView": {
     "title": "Cartella sanitaria condivisa",

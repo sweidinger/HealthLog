@@ -250,6 +250,50 @@ describe("applyCanonicalSlotWrite — M2 inventory transition", () => {
   });
 });
 
+describe("applyCanonicalSlotWrite — auto-miss reset", () => {
+  it("writes autoMissed:false when a take lands on an existing slot row", async () => {
+    // The hourly auto-miss cron stamped the slot; a late user take must
+    // clear the flag or the compliance engine keeps counting the recorded
+    // dose as a miss.
+    const autoMissed = row({ id: "missed-1", source: "REMINDER" });
+    const client = makeClient({
+      findManyResult: [[autoMissed]],
+      updateImpl: async (id) =>
+        row({ id, takenAt: new Date("2026-06-16T09:00:00Z") }),
+    });
+    await applyCanonicalSlotWrite({
+      ...BASE,
+      client: client as unknown as UpsertClient,
+      takenAt: new Date("2026-06-16T09:00:00Z"),
+      skipped: false,
+      isExplicitTaken: true,
+      isExplicitSkip: false,
+    });
+    const updateArg = vi.mocked(client.medicationIntakeEvent.update).mock
+      .calls[0][0] as unknown as { data: Record<string, unknown> };
+    expect(updateArg.data.autoMissed).toBe(false);
+  });
+
+  it("does NOT touch autoMissed on a write without a takenAt (skip)", async () => {
+    const pending = row({ id: "pend-skip", source: "REMINDER" });
+    const client = makeClient({
+      findManyResult: [[pending]],
+      updateImpl: async (id) => row({ id, skipped: true }),
+    });
+    await applyCanonicalSlotWrite({
+      ...BASE,
+      client: client as unknown as UpsertClient,
+      takenAt: null,
+      skipped: true,
+      isExplicitTaken: false,
+      isExplicitSkip: true,
+    });
+    const updateArg = vi.mocked(client.medicationIntakeEvent.update).mock
+      .calls[0][0] as unknown as { data: Record<string, unknown> };
+    expect("autoMissed" in updateArg.data).toBe(false);
+  });
+});
+
 describe("applyCanonicalSlotWrite — H1 deterministic selection", () => {
   it("updates the ACTIONED row, not the pending one, when both exist", async () => {
     // Pending REMINDER row created first, taken WEB row created later. The

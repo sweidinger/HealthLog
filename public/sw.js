@@ -50,16 +50,24 @@ self.addEventListener("install", (event) => {
 // ── Activate: clean up old caches ────────────────────────────────────────────
 self.addEventListener("activate", (event) => {
   event.waitUntil(
-    caches
-      .keys()
-      .then((keys) =>
-        Promise.all(
-          keys
-            .filter((k) => k !== STATIC_CACHE && k !== PAGE_CACHE)
-            .map((k) => caches.delete(k)),
+    Promise.all([
+      caches
+        .keys()
+        .then((keys) =>
+          Promise.all(
+            keys
+              .filter((k) => k !== STATIC_CACHE && k !== PAGE_CACHE)
+              .map((k) => caches.delete(k)),
+          ),
         ),
-      )
-      .then(() => self.clients.claim()),
+      // Navigation preload lets the browser start the navigation request
+      // in parallel with service-worker startup; `networkFirst` consumes
+      // it via `event.preloadResponse`, shaving SW boot latency off every
+      // page navigation. Guarded — older engines lack the API.
+      self.registration.navigationPreload
+        ? self.registration.navigationPreload.enable()
+        : Promise.resolve(),
+    ]).then(() => self.clients.claim()),
   );
 });
 
@@ -86,9 +94,10 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // HTML pages — network-first with cache fallback
+  // HTML pages — network-first with cache fallback. The whole event is
+  // passed so `networkFirst` can consume the navigation-preload response.
   if (request.headers.get("accept")?.includes("text/html")) {
-    event.respondWith(networkFirst(request, PAGE_CACHE));
+    event.respondWith(networkFirst(event, PAGE_CACHE));
     return;
   }
 });
@@ -110,11 +119,21 @@ async function cacheFirst(request, cacheName) {
 }
 
 /**
- * Network-first: try network, fall back to cache.
+ * Network-first: try network (preferring the navigation-preload response
+ * when the browser already started it), fall back to cache.
+ *
+ * The offline fallback only serves a shell cached under the CURRENT
+ * `CACHE_VERSION` cache names. The previous global `caches.match()` could
+ * resolve from a stale pre-update cache in the activation gap and serve a
+ * shell whose `/_next/static/*` chunk graph no longer exists
+ * (`ChunkLoadError` on the first lazy navigation).
  */
-async function networkFirst(request, cacheName) {
+async function networkFirst(event, cacheName) {
+  const { request } = event;
   try {
-    const response = await fetch(request);
+    const response =
+      (event.preloadResponse ? await event.preloadResponse : null) ||
+      (await fetch(request));
     if (response.ok) {
       const cache = await caches.open(cacheName);
       cache.put(request, response.clone());
@@ -122,8 +141,15 @@ async function networkFirst(request, cacheName) {
     }
     return response;
   } catch {
-    const cached = await caches.match(request);
-    if (cached) return cached;
+    // Version-scoped fallback: the page cache first, then the precached
+    // app shell — both names embed CACHE_VERSION, so a stale shell from a
+    // previous release can never be served here.
+    const pageCache = await caches.open(cacheName);
+    const cachedPage = await pageCache.match(request);
+    if (cachedPage) return cachedPage;
+    const staticCache = await caches.open(STATIC_CACHE);
+    const precached = await staticCache.match(request);
+    if (precached) return precached;
 
     // Offline fallback. F-7 (mobile security audit, 2026-05-16): the
     // previous fallback rendered hard-coded German body copy, which is
@@ -143,14 +169,16 @@ async function networkFirst(request, cacheName) {
 }
 
 /**
- * Trim cache to maxEntries by removing oldest entries.
+ * Trim cache to maxEntries by removing oldest entries. `keys()` returns
+ * insertion order, so one read + a single pass over the excess prefix
+ * replaces the previous re-fetch-keys-per-deletion loop (O(n²) reads).
  */
 async function trimCache(cacheName, maxEntries) {
   const cache = await caches.open(cacheName);
-  let keys = await cache.keys();
-  while (keys.length > maxEntries) {
-    await cache.delete(keys[0]);
-    keys = await cache.keys();
+  const keys = await cache.keys();
+  const excess = keys.length - maxEntries;
+  for (let i = 0; i < excess; i++) {
+    await cache.delete(keys[i]);
   }
 }
 

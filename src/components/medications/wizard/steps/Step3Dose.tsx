@@ -28,7 +28,7 @@ import type { StepProps } from "./Step1Name";
 /**
  * Dose unit choices, ordered so mg / ml / IE / µg lead and the
  * device-form units (Tablette, Hub, Sprühstoß, …) follow. Mirrors the
- * v1.5.3 list with the Marc-requested order tightening.
+ * v1.5.3 list with the maintainer-requested order tightening.
  */
 const DOSE_UNIT_KEYS = [
   "mg",
@@ -65,16 +65,14 @@ export function Step3Dose({ payload, applyPartial }: StepProps) {
     if (checked) current.add(site);
     else current.delete(site);
     applyPartial({
-      allowedInjectionSites: INJECTION_SITE_KEYS.filter((s) =>
-        current.has(s),
-      ),
+      allowedInjectionSites: INJECTION_SITE_KEYS.filter((s) => current.has(s)),
     });
   }
 
   return (
     <div className="space-y-6" data-slot="wizard-step3">
       <div className="grid grid-cols-2 gap-3">
-        <div className="space-y-1.5">
+        <div className="space-y-2">
           <Label htmlFor="wizard-dose-amount" className="text-sm">
             {t("medications.wizard.steps.step3.amountLabel")}
           </Label>
@@ -88,10 +86,9 @@ export function Step3Dose({ payload, applyPartial }: StepProps) {
             maxLength={20}
             autoComplete="off"
             enterKeyHint="next"
-            className="h-11"
           />
         </div>
-        <div className="space-y-1.5">
+        <div className="space-y-2">
           <Label htmlFor="wizard-dose-unit" className="text-sm">
             {t("medications.wizard.steps.step3.unitLabel")}
           </Label>
@@ -99,7 +96,7 @@ export function Step3Dose({ payload, applyPartial }: StepProps) {
             value={payload.doseUnit}
             onValueChange={(v) => applyPartial({ doseUnit: v })}
           >
-            <SelectTrigger id="wizard-dose-unit" className="h-11 w-full">
+            <SelectTrigger id="wizard-dose-unit" className="w-full">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -117,7 +114,7 @@ export function Step3Dose({ payload, applyPartial }: StepProps) {
           the Step 2 treatment row so an INJECTION delivery surfaces the
           rotation map for any class, not only GLP-1. */}
       <div className="grid grid-cols-2 gap-3">
-        <div className="space-y-1.5">
+        <div className="space-y-2">
           <Label htmlFor="wizard-delivery-form" className="text-sm">
             {t("medications.wizard.steps.step3.deliveryFormLabel")}
           </Label>
@@ -127,7 +124,7 @@ export function Step3Dose({ payload, applyPartial }: StepProps) {
               applyPartial({ deliveryForm: v as MedicationDeliveryForm })
             }
           >
-            <SelectTrigger id="wizard-delivery-form" className="h-11 w-full">
+            <SelectTrigger id="wizard-delivery-form" className="w-full">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -139,7 +136,7 @@ export function Step3Dose({ payload, applyPartial }: StepProps) {
             </SelectContent>
           </Select>
         </div>
-        <div className="space-y-1.5">
+        <div className="space-y-2">
           <Label htmlFor="wizard-doses-per-unit" className="text-sm">
             {t("medications.wizard.steps.step3.dosesPerUnitLabel")}
           </Label>
@@ -158,7 +155,6 @@ export function Step3Dose({ payload, applyPartial }: StepProps) {
             )}
             maxLength={3}
             autoComplete="off"
-            className="h-11"
           />
           <p className="text-muted-foreground text-xs">
             {t("medications.wizard.steps.step3.dosesPerUnitHint")}

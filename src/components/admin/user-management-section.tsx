@@ -189,7 +189,7 @@ export function UserManagementSection() {
             : t("admin.promoteToAdmin")
         }
       >
-        <Shield className="mr-1 h-3 w-3" aria-hidden="true" />
+        <Shield className="h-3 w-3" aria-hidden="true" />
         {u.role === "ADMIN" ? t("admin.toUser") : t("admin.toAdmin")}
       </Button>
       <Button
@@ -461,7 +461,7 @@ export function UserManagementSection() {
                 }
               >
                 {updateUser.isPending && (
-                  <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
+                  <Loader2 className="h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
                 )}
                 {t("common.save")}
               </Button>
@@ -511,7 +511,7 @@ export function UserManagementSection() {
                 }
               >
                 {resetPw.isPending && (
-                  <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
+                  <Loader2 className="h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
                 )}
                 {t("admin.reset")}
               </Button>
@@ -560,7 +560,9 @@ export function UserManagementSection() {
                   forceLogout.mutate({ id: logoutTarget.id });
                 }
               }}
-              className="bg-destructive hover:bg-destructive/90"
+              variant="destructive"
+              disabled={forceLogout.isPending}
+              aria-busy={forceLogout.isPending || undefined}
             >
               {forceLogout.isPending ? (
                 <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />

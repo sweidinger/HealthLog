@@ -87,6 +87,7 @@ function buildUser(disableCoach: boolean): AuthUser {
     avatarUrl: null,
     glucoseUnit: null,
     unitPreference: "metric",
+    timeFormat: "AUTO",
     disableCoach,
     fullName: null,
     insurerName: null,

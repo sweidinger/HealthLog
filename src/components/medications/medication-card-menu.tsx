@@ -7,8 +7,11 @@
  * collapsed their former four header icon-buttons (open / edit / history
  * / advanced) into a single overflow kebab so the card header carries one
  * affordance instead of a cluster. The card body itself navigates to the
- * detail page (the former chevron target); this menu owns the edit /
- * history / advanced actions.
+ * detail page (the former chevron target); this menu owns the edit and
+ * history actions. v1.15.20 retires the "Advanced settings" item — the
+ * detail page's Erweitert tab is reachable through the card body, and
+ * Edit now opens the medication wizard directly instead of landing on
+ * the Zeitplan tab.
  *
  * The optional `onLogSideEffect` slot exists for the GLP-1 card to fold a
  * "Log side effect" item into the SAME menu, but it is NOT wired on the
@@ -28,7 +31,7 @@
  * navigation.
  */
 
-import { History, MoreVertical, Pencil, SlidersHorizontal, Stethoscope } from "lucide-react";
+import { History, MoreVertical, Pencil, Stethoscope } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -43,7 +46,6 @@ import { useTranslations } from "@/lib/i18n/context";
 export interface MedicationCardMenuProps {
   onEdit: () => void;
   onOpenHistory: () => void;
-  onOpenAdvanced: () => void;
   /** GLP-1-only: folds the side-effect quick-log into the same menu. */
   onLogSideEffect?: () => void;
 }
@@ -51,7 +53,6 @@ export interface MedicationCardMenuProps {
 export function MedicationCardMenu({
   onEdit,
   onOpenHistory,
-  onOpenAdvanced,
   onLogSideEffect,
 }: MedicationCardMenuProps) {
   const { t } = useTranslations();
@@ -84,10 +85,6 @@ export function MedicationCardMenu({
         <DropdownMenuItem onClick={onOpenHistory}>
           <History className="mr-2 h-4 w-4" />
           {t("medications.detail.header.historyLabel")}
-        </DropdownMenuItem>
-        <DropdownMenuItem onClick={onOpenAdvanced}>
-          <SlidersHorizontal className="mr-2 h-4 w-4" />
-          {t("medications.detail.header.advancedLabel")}
         </DropdownMenuItem>
         {onLogSideEffect && (
           <>

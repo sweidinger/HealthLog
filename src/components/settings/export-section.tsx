@@ -289,9 +289,9 @@ function CsvCard({
           disabled={busy}
         >
           {busy ? (
-            <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
+            <Loader2 className="h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
           ) : (
-            <Download className="mr-1 h-3.5 w-3.5" />
+            <Download className="h-3.5 w-3.5" />
           )}
           {t("settings.sections.export.actions.download")}
         </Button>
@@ -305,7 +305,7 @@ function CsvCard({
         setUntil={setUntil}
       />
       {error && (
-        <p role="alert" className="text-destructive text-xs">
+        <p role="alert" className="text-destructive text-sm">
           {error}
         </p>
       )}
@@ -376,9 +376,9 @@ function MedicationsCsvCard() {
           disabled={busy}
         >
           {busy ? (
-            <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
+            <Loader2 className="h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
           ) : (
-            <Download className="mr-1 h-3.5 w-3.5" />
+            <Download className="h-3.5 w-3.5" />
           )}
           {t("settings.sections.export.actions.download")}
         </Button>
@@ -406,7 +406,7 @@ function MedicationsCsvCard() {
         </span>
       </label>
       {error && (
-        <p role="alert" className="text-destructive text-xs">
+        <p role="alert" className="text-destructive text-sm">
           {error}
         </p>
       )}
@@ -465,16 +465,16 @@ function FullBackupCard() {
           disabled={busy}
         >
           {busy ? (
-            <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
+            <Loader2 className="h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
           ) : (
-            <FileText className="mr-1 h-3.5 w-3.5" />
+            <FileText className="h-3.5 w-3.5" />
           )}
           {t("settings.sections.export.actions.download")}
         </Button>
       }
     >
       {error && (
-        <p role="alert" className="text-destructive text-xs">
+        <p role="alert" className="text-destructive text-sm">
           {error}
         </p>
       )}
@@ -575,16 +575,16 @@ function CycleExportCard() {
           disabled={busy}
         >
           {busy ? (
-            <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
+            <Loader2 className="h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
           ) : (
-            <Download className="mr-1 h-3.5 w-3.5" />
+            <Download className="h-3.5 w-3.5" />
           )}
           {t("settings.sections.export.actions.download")}
         </Button>
       }
     >
       {error && (
-        <p role="alert" className="text-destructive text-xs">
+        <p role="alert" className="text-destructive text-sm">
           {error}
         </p>
       )}

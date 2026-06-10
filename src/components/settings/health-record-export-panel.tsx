@@ -168,8 +168,7 @@ export function HealthRecordExportPanel() {
         return;
       }
       const blob = await res.blob();
-      const ext =
-        format === "pdf" ? "pdf" : format === "fhir" ? "json" : "zip";
+      const ext = format === "pdf" ? "pdf" : format === "fhir" ? "json" : "zip";
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
@@ -306,127 +305,127 @@ export function HealthRecordExportPanel() {
               className="animate-insight-in space-y-3"
               style={{ animationDuration: "200ms" }}
             >
-          <div className="border-border space-y-2 rounded-lg border p-3">
-            <p className="text-xs font-semibold">
-              {t("settings.healthRecord.groupVitals")}
-            </p>
-            <div className="grid gap-2 sm:grid-cols-2">
-              <ToggleRow
-                label={t("settings.healthRecord.weight")}
-                checked={sections.weight}
-                onToggle={() => toggle("weight")}
-              />
-              <ToggleRow
-                label={t("settings.healthRecord.bp")}
-                checked={sections.bp}
-                onToggle={() => toggle("bp")}
-              />
-              <ToggleRow
-                label={t("settings.healthRecord.pulse")}
-                checked={sections.pulse}
-                onToggle={() => toggle("pulse")}
-              />
-              <ToggleRow
-                label={t("settings.healthRecord.oxygenSaturation")}
-                checked={sections.oxygenSaturation}
-                onToggle={() => toggle("oxygenSaturation")}
-              />
-              <ToggleRow
-                label={t("settings.healthRecord.bodyFat")}
-                checked={sections.bodyFat}
-                onToggle={() => toggle("bodyFat")}
-              />
-              <ToggleRow
-                label={t("settings.healthRecord.bodyComposition")}
-                checked={sections.bodyComposition}
-                onToggle={() => toggle("bodyComposition")}
-              />
-            </div>
-          </div>
+              <div className="border-border space-y-2 rounded-lg border p-3">
+                <p className="text-xs font-semibold">
+                  {t("settings.healthRecord.groupVitals")}
+                </p>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  <ToggleRow
+                    label={t("settings.healthRecord.weight")}
+                    checked={sections.weight}
+                    onToggle={() => toggle("weight")}
+                  />
+                  <ToggleRow
+                    label={t("settings.healthRecord.bp")}
+                    checked={sections.bp}
+                    onToggle={() => toggle("bp")}
+                  />
+                  <ToggleRow
+                    label={t("settings.healthRecord.pulse")}
+                    checked={sections.pulse}
+                    onToggle={() => toggle("pulse")}
+                  />
+                  <ToggleRow
+                    label={t("settings.healthRecord.oxygenSaturation")}
+                    checked={sections.oxygenSaturation}
+                    onToggle={() => toggle("oxygenSaturation")}
+                  />
+                  <ToggleRow
+                    label={t("settings.healthRecord.bodyFat")}
+                    checked={sections.bodyFat}
+                    onToggle={() => toggle("bodyFat")}
+                  />
+                  <ToggleRow
+                    label={t("settings.healthRecord.bodyComposition")}
+                    checked={sections.bodyComposition}
+                    onToggle={() => toggle("bodyComposition")}
+                  />
+                </div>
+              </div>
 
-          <div className="border-border space-y-2 rounded-lg border p-3">
-            <p className="text-xs font-semibold">
-              {t("settings.healthRecord.groupCardio")}
-            </p>
-            <div className="grid gap-2 sm:grid-cols-2">
-              <ToggleRow
-                label={t("settings.healthRecord.restingHeartRate")}
-                checked={sections.restingHeartRate}
-                onToggle={() => toggle("restingHeartRate")}
-              />
-              <ToggleRow
-                label={t("settings.healthRecord.hrv")}
-                checked={sections.hrv}
-                onToggle={() => toggle("hrv")}
-              />
-              <ToggleRow
-                label={t("settings.healthRecord.vo2max")}
-                checked={sections.vo2max}
-                onToggle={() => toggle("vo2max")}
-              />
-            </div>
-          </div>
+              <div className="border-border space-y-2 rounded-lg border p-3">
+                <p className="text-xs font-semibold">
+                  {t("settings.healthRecord.groupCardio")}
+                </p>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  <ToggleRow
+                    label={t("settings.healthRecord.restingHeartRate")}
+                    checked={sections.restingHeartRate}
+                    onToggle={() => toggle("restingHeartRate")}
+                  />
+                  <ToggleRow
+                    label={t("settings.healthRecord.hrv")}
+                    checked={sections.hrv}
+                    onToggle={() => toggle("hrv")}
+                  />
+                  <ToggleRow
+                    label={t("settings.healthRecord.vo2max")}
+                    checked={sections.vo2max}
+                    onToggle={() => toggle("vo2max")}
+                  />
+                </div>
+              </div>
 
-          <div className="border-border space-y-2 rounded-lg border p-3">
-            <p className="text-xs font-semibold">
-              {t("settings.healthRecord.groupActivity")}
-            </p>
-            <div className="grid gap-2 sm:grid-cols-2">
-              <ToggleRow
-                label={t("settings.healthRecord.steps")}
-                checked={sections.steps}
-                onToggle={() => toggle("steps")}
-              />
-              <ToggleRow
-                label={t("settings.healthRecord.distance")}
-                checked={sections.distance}
-                onToggle={() => toggle("distance")}
-              />
-              <ToggleRow
-                label={t("settings.healthRecord.sleep")}
-                checked={sections.sleep}
-                onToggle={() => toggle("sleep")}
-              />
-            </div>
-          </div>
+              <div className="border-border space-y-2 rounded-lg border p-3">
+                <p className="text-xs font-semibold">
+                  {t("settings.healthRecord.groupActivity")}
+                </p>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  <ToggleRow
+                    label={t("settings.healthRecord.steps")}
+                    checked={sections.steps}
+                    onToggle={() => toggle("steps")}
+                  />
+                  <ToggleRow
+                    label={t("settings.healthRecord.distance")}
+                    checked={sections.distance}
+                    onToggle={() => toggle("distance")}
+                  />
+                  <ToggleRow
+                    label={t("settings.healthRecord.sleep")}
+                    checked={sections.sleep}
+                    onToggle={() => toggle("sleep")}
+                  />
+                </div>
+              </div>
 
-          <div className="grid gap-2 sm:grid-cols-2">
-            <ToggleRow
-              label={t("settings.healthRecord.glucose")}
-              checked={sections.glucose}
-              onToggle={() => toggle("glucose")}
-            />
-            <ToggleRow
-              label={t("settings.healthRecord.medications")}
-              checked={sections.medList && sections.compliance}
-              onToggle={toggleMedications}
-            />
-            <ToggleRow
-              label={t("settings.healthRecord.bmi")}
-              checked={sections.bmi}
-              onToggle={() => toggle("bmi")}
-            />
-            <ToggleRow
-              label={t("settings.healthRecord.mood")}
-              checked={sections.mood}
-              onToggle={() => toggle("mood")}
-            />
-          </div>
+              <div className="grid gap-2 sm:grid-cols-2">
+                <ToggleRow
+                  label={t("settings.healthRecord.glucose")}
+                  checked={sections.glucose}
+                  onToggle={() => toggle("glucose")}
+                />
+                <ToggleRow
+                  label={t("settings.healthRecord.medications")}
+                  checked={sections.medList && sections.compliance}
+                  onToggle={toggleMedications}
+                />
+                <ToggleRow
+                  label={t("settings.healthRecord.bmi")}
+                  checked={sections.bmi}
+                  onToggle={() => toggle("bmi")}
+                />
+                <ToggleRow
+                  label={t("settings.healthRecord.mood")}
+                  checked={sections.mood}
+                  onToggle={() => toggle("mood")}
+                />
+              </div>
 
-          {isPdfLike && (
-            <ToggleRow
-              label={t("settings.healthRecord.includeCharts")}
-              checked={includeCharts}
-              onToggle={() => setIncludeCharts((v) => !v)}
-            />
-          )}
-          {isPdfLike && (
-            <ToggleRow
-              label={t("settings.healthRecord.includeAiSummary")}
-              checked={includeAiSummary}
-              onToggle={() => setIncludeAiSummary((v) => !v)}
-            />
-          )}
+              {isPdfLike && (
+                <ToggleRow
+                  label={t("settings.healthRecord.includeCharts")}
+                  checked={includeCharts}
+                  onToggle={() => setIncludeCharts((v) => !v)}
+                />
+              )}
+              {isPdfLike && (
+                <ToggleRow
+                  label={t("settings.healthRecord.includeAiSummary")}
+                  checked={includeAiSummary}
+                  onToggle={() => setIncludeAiSummary((v) => !v)}
+                />
+              )}
             </div>
           )}
         </fieldset>
@@ -449,9 +448,9 @@ export function HealthRecordExportPanel() {
             className="ml-auto min-h-11 sm:min-h-9"
           >
             {busy ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin motion-reduce:animate-none" />
+              <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" />
             ) : (
-              <Download className="mr-2 h-4 w-4" />
+              <Download className="h-4 w-4" />
             )}
             {t("settings.healthRecord.generate")}
           </Button>

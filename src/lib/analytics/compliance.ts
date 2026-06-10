@@ -36,6 +36,7 @@ import { DOSE_WINDOW_DEFAULTS } from "@/lib/medications/scheduling/dose-window-d
 import { normaliseDoseWindows } from "@/lib/medications/scheduling/worker-helpers";
 import {
   reconstructDoseHistory,
+  type DoseHistoryRow,
   type HistoryIntake,
 } from "@/lib/medications/scheduling/dose-history";
 import {
@@ -60,6 +61,14 @@ interface IntakeEvent {
    * row.
    */
   autoMissed?: boolean;
+  /**
+   * v1.15.20 — slot-binding provenance. `USER_PIN` = the user deliberately
+   * pinned this off-window take onto its `scheduledFor` slot; the unified
+   * ledger then binds it by anchor (taken-late, never on-time-washed)
+   * instead of degrading it to ad-hoc when the takenAt sits outside the
+   * band tail. Optional so legacy callers / fixtures default to AUTO.
+   */
+  attributionSource?: "AUTO" | "USER_PIN";
 }
 
 export type IntakeTimingClass =
@@ -366,6 +375,35 @@ export interface ComplianceSchedule {
    */
   doseWindows?: unknown;
 }
+
+/**
+ * v1.15.20 — the ONE Prisma `select` for schedule rows feeding a compliance
+ * computation. Every call site that loads schedules for
+ * `calculateCompliance` / the cadence helpers must use this constant instead
+ * of hand-rolling a field list (or an unbounded `include: { schedules:
+ * true }`), so a future schedule column that the engine consumes — the way
+ * `doseWindows` joined in v1.15.18 — reaches every surface the moment it is
+ * added here. Covers the full {@link ComplianceSchedule} shape plus `id`
+ * (engine-internal labelling / diagnostics).
+ */
+export const SCHEDULE_COMPLIANCE_SELECT = {
+  id: true,
+  windowStart: true,
+  windowEnd: true,
+  daysOfWeek: true,
+  timesOfDay: true,
+  reminderGraceMinutes: true,
+  rrule: true,
+  rollingIntervalDays: true,
+  scheduleType: true,
+  cyclicOnWeeks: true,
+  cyclicOffWeeks: true,
+  // The configurable per-dose on-time windows. Selecting them everywhere is
+  // the point: a user-configured "07:00–09:00" band must shape the rate on
+  // the dashboard pillar, the insights features, the BP-status gate and the
+  // report exactly as it shapes the medication detail page.
+  doseWindows: true,
+} as const;
 
 /**
  * v1.7.0 SB-SCHED-2 — medication-level context the canonical engine
@@ -1155,6 +1193,39 @@ export function tallyComplianceFromLedger(
   now: Date,
   windowConfig?: DoseWindowConfig,
 ): LedgerComplianceTally {
+  const rows = buildComplianceLedgerRows(
+    events,
+    schedules,
+    ctx,
+    from,
+    to,
+    now,
+    windowConfig,
+  );
+  return tallyLedgerRows(rows);
+}
+
+/**
+ * Mint the cadence-aware bands over `[from, to]` and reconstruct the ONE
+ * unified dose-history ledger for them. This is the expansion pass behind
+ * {@link tallyComplianceFromLedger}, extracted so a caller that needs
+ * several trailing sub-windows (7-day / 30-day / display / heatmap, all
+ * ending at `now`) can mint the bands ONCE over the widest window and tally
+ * each sub-window from the same rows via {@link tallyLedgerRows} instead of
+ * re-expanding per window.
+ *
+ * Pure / synchronous: bands come from pre-fetched schedules + intake
+ * instants; no DB access.
+ */
+export function buildComplianceLedgerRows(
+  events: IntakeEvent[],
+  schedules: ComplianceSchedule[],
+  ctx: ComplianceMedicationContext,
+  from: Date,
+  to: Date,
+  now: Date,
+  windowConfig?: DoseWindowConfig,
+): DoseHistoryRow[] {
   const medication: BandMinterMedication = {
     id: "compliance-tally",
     startsOn: ctx.startsOn,
@@ -1220,16 +1291,36 @@ export function tallyComplianceFromLedger(
       takenAt: e.takenAt,
       skipped: e.skipped,
       autoMissed: e.autoMissed ?? false,
+      // v1.15.20 — a pinned take binds by anchor and tallies as taken-late
+      // (slot served, no on-time gain) instead of ad_hoc + missed.
+      pinned: e.attributionSource === "USER_PIN",
     }));
 
-  const rows = reconstructDoseHistory(bands, intakes, now);
+  return reconstructDoseHistory(bands, intakes, now);
+}
 
+/**
+ * Tally pre-built ledger rows into the {@link LedgerComplianceTally}
+ * counters. When `window` is supplied only rows whose instant (`row.at`)
+ * falls inside `[window.from, window.to]` (inclusive) are counted — that is
+ * how a sub-window tally is carved out of a wider single-pass ledger. The
+ * window-less call tallies every row, byte-identical to the historical
+ * {@link tallyComplianceFromLedger} behaviour.
+ */
+export function tallyLedgerRows(
+  rows: DoseHistoryRow[],
+  window?: { from: Date; to: Date },
+): LedgerComplianceTally {
   let takenOnTime = 0;
   let takenLate = 0;
   let missed = 0;
   let skipped = 0;
   let adHoc = 0;
   for (const row of rows) {
+    if (window) {
+      const t = row.at.getTime();
+      if (t < window.from.getTime() || t > window.to.getTime()) continue;
+    }
     switch (row.status) {
       case "taken_on_time":
         takenOnTime++;
@@ -1516,4 +1607,278 @@ export function calculateCompliance(
   );
 
   return { totalExpected, taken, skipped, missed, rate, streak };
+}
+
+/**
+ * Widest trailing window the single-pass compliance ledger has to cover:
+ * the top rung of {@link COMPLIANCE_WINDOW_LADDER} (365 days). Every
+ * sub-window the per-medication compliance endpoint serves (7 / 30 /
+ * cadence-scaled display rows / 90-day heatmap) is a suffix of it.
+ */
+export const COMPLIANCE_LEDGER_WINDOW_DAYS = 365;
+
+/**
+ * The per-medication compliance payload computed from ONE shared expansion
+ * pass. `ledgerRows` is the unified dose-history ledger over
+ * `[ledgerFrom, now]`; the caller carves the 90-day heatmap out of it by
+ * filtering on `row.at`.
+ */
+export interface MedicationComplianceBundle {
+  compliance7: ComplianceResult;
+  compliance30: ComplianceResult;
+  complianceDisplay: ComplianceDisplay;
+  /** Unified ledger rows over `[ledgerFrom, now]`, chronological. */
+  ledgerRows: DoseHistoryRow[];
+  /** Lower bound of the mint window (clamped to the medication's creation). */
+  ledgerFrom: Date;
+}
+
+/**
+ * Build every block of the per-medication compliance response from a single
+ * band-expansion pass.
+ *
+ * The historical composition called {@link calculateCompliance} four times
+ * (7 / 30 / short / long), {@link selectComplianceWindows} (up to four more
+ * occurrence expansions for the rung probes) and a separate 90-day heatmap
+ * mint — five-plus full band expansions per request. This builder instead:
+ *
+ *   1. mints the bands + reconstructs the ledger ONCE over
+ *      `[max(createdAt, now − 365 d), now]` (every served window is a
+ *      suffix of that range and ends at `now`, so a sub-window tally is a
+ *      filter over `row.at`, not a re-expansion);
+ *   2. builds ONE cadence timeline over the same range for the per-window
+ *      streaks ({@link streaksFromTimeline} bounds its day-walk by the
+ *      requested window, so the wider timeline serves every window);
+ *   3. walks the {@link COMPLIANCE_WINDOW_LADDER} on the ledger's slot-row
+ *      counts (one band per engine occurrence, so the counts match the
+ *      historical `expectedSlotsBetween` probes).
+ *
+ * The returned blocks carry the exact public shapes the route has always
+ * served — only the number of expansion passes changed.
+ */
+export function buildMedicationComplianceBundle(
+  events: IntakeEvent[],
+  schedules: ComplianceSchedule[],
+  ctx: ComplianceMedicationContext,
+  now: Date,
+): MedicationComplianceBundle {
+  const ledgerPeriodStart = new Date(
+    now.getTime() - COMPLIANCE_LEDGER_WINDOW_DAYS * ONE_DAY_MS,
+  );
+  const ledgerFrom =
+    ctx.createdAt.getTime() > ledgerPeriodStart.getTime()
+      ? ctx.createdAt
+      : ledgerPeriodStart;
+
+  const hasSchedules = schedules.length > 0;
+  const ledgerRows = hasSchedules
+    ? buildComplianceLedgerRows(events, schedules, ctx, ledgerFrom, now, now)
+    : [];
+
+  // ONE cadence timeline over the full ledger window. Each per-window
+  // streak below walks only its own trailing `effectiveDays`, so sharing
+  // the wide timeline reproduces the per-window builds.
+  const fullDays = Math.max(
+    1,
+    Math.ceil((now.getTime() - ledgerFrom.getTime()) / ONE_DAY_MS),
+  );
+  const timeline = hasSchedules
+    ? buildTimelineForWindow(events, schedules, ctx, now, ledgerFrom, fullDays)
+    : [];
+
+  const resultForWindow = (days: number): ComplianceResult => {
+    if (!hasSchedules) {
+      // Mirrors `calculateCompliance`'s empty-schedule short-circuit.
+      return {
+        totalExpected: 0,
+        taken: 0,
+        skipped: 0,
+        missed: 0,
+        rate: 100,
+        streak: 0,
+      };
+    }
+    const periodStart = new Date(now.getTime() - days * ONE_DAY_MS);
+    const effectiveStart =
+      ctx.createdAt.getTime() > periodStart.getTime()
+        ? ctx.createdAt
+        : periodStart;
+    const effectiveDays = Math.max(
+      1,
+      Math.ceil((now.getTime() - effectiveStart.getTime()) / ONE_DAY_MS),
+    );
+    const tally = tallyLedgerRows(ledgerRows, { from: effectiveStart, to: now });
+    const { current: streak } = streaksFromTimeline(
+      timeline,
+      now,
+      effectiveDays,
+      ctx.timeZone,
+    );
+    return {
+      totalExpected: tally.taken + tally.skipped + tally.missed,
+      taken: tally.taken,
+      skipped: tally.skipped,
+      missed: tally.missed,
+      rate: tally.rate,
+      streak,
+    };
+  };
+
+  // Window-ladder selection from the ledger's slot rows. A slot row is one
+  // minted band, and the minter emits one band per engine occurrence, so
+  // counting slot rows over a trailing window equals the historical
+  // `expectedSlotsBetween(...).length` probe for that window.
+  const expectedCache = new Map<number, number>();
+  const expectedOver = (days: number): number => {
+    const hit = expectedCache.get(days);
+    if (hit !== undefined) return hit;
+    const from = Math.max(
+      ctx.createdAt.getTime(),
+      now.getTime() - days * ONE_DAY_MS,
+    );
+    let count = 0;
+    for (const row of ledgerRows) {
+      if (row.kind !== "slot") continue;
+      const t = row.at.getTime();
+      if (t >= from && t <= now.getTime()) count++;
+    }
+    expectedCache.set(days, count);
+    return count;
+  };
+
+  let selection: ComplianceWindowSelection | null = null;
+  for (const [shortDays, longDays] of COMPLIANCE_WINDOW_LADDER) {
+    const expectedShort = expectedOver(shortDays);
+    const expectedLong = expectedOver(longDays);
+    if (expectedShort >= MIN_STABLE_DOSES && expectedLong >= MIN_STABLE_DOSES) {
+      selection = { shortDays, longDays, expectedShort, expectedLong };
+      break;
+    }
+  }
+  if (!selection) {
+    // No rung cleared the floor — fall back to the widest rung, exactly
+    // like `selectComplianceWindows`.
+    const [shortDays, longDays] =
+      COMPLIANCE_WINDOW_LADDER[COMPLIANCE_WINDOW_LADDER.length - 1];
+    selection = {
+      shortDays,
+      longDays,
+      expectedShort: expectedOver(shortDays),
+      expectedLong: expectedOver(longDays),
+    };
+  }
+
+  const compliance7 = resultForWindow(7);
+  const compliance30 = resultForWindow(30);
+  const short = resultForWindow(selection.shortDays);
+  const long = resultForWindow(selection.longDays);
+
+  const currentCycle = buildCurrentCycle(
+    schedules,
+    ctx,
+    now,
+    selection.expectedShort,
+    events,
+  );
+  const currentDose: { status: DoseStatus; targetAt: Date | null } =
+    currentCycle.nextDueAt
+      ? {
+          status: deriveDoseStatus(
+            currentCycle.nextDueAt,
+            soonestCadenceFamily(schedules),
+            now,
+          ),
+          targetAt: currentCycle.nextDueAt,
+        }
+      : { status: "upcoming", targetAt: null };
+
+  const complianceDisplay: ComplianceDisplay = {
+    shortDays: selection.shortDays,
+    longDays: selection.longDays,
+    expectedShort: selection.expectedShort,
+    expectedLong: selection.expectedLong,
+    minStableDoses: MIN_STABLE_DOSES,
+    short: {
+      rate: short.rate,
+      taken: short.taken,
+      expected: short.taken + short.missed,
+      missed: short.missed,
+      streak: short.streak,
+    },
+    long: {
+      rate: long.rate,
+      taken: long.taken,
+      expected: long.taken + long.missed,
+      missed: long.missed,
+    },
+    currentCycle,
+    currentDose,
+  };
+
+  return { compliance7, compliance30, complianceDisplay, ledgerRows, ledgerFrom };
+}
+
+/**
+ * The cadence-timeline construction from {@link calculateCompliance},
+ * extracted so {@link buildMedicationComplianceBundle} can build it once
+ * over the full ledger window instead of once per served sub-window. Same
+ * normalisation, same engine context, same rolling-retrospective routing.
+ */
+function buildTimelineForWindow(
+  events: IntakeEvent[],
+  schedules: ComplianceSchedule[],
+  ctx: ComplianceMedicationContext,
+  now: Date,
+  effectiveStart: Date,
+  effectiveDays: number,
+): ReturnType<typeof buildCadenceTimeline> {
+  const normalisedSchedules: ScheduleLike[] = schedules.map((s, i) => ({
+    id: `compliance-${i}`,
+    windowStart: s.windowStart,
+    windowEnd: s.windowEnd,
+    daysOfWeek: s.daysOfWeek ?? null,
+    rrule: s.rrule ?? null,
+    rollingIntervalDays: s.rollingIntervalDays ?? null,
+    timesOfDay: s.timesOfDay,
+    reminderGraceMinutes: s.reminderGraceMinutes ?? null,
+    scheduleType: s.scheduleType ?? null,
+    cyclicOnWeeks: s.cyclicOnWeeks ?? null,
+    cyclicOffWeeks: s.cyclicOffWeeks ?? null,
+  }));
+
+  const engineCtx: CadenceEngineContext = {
+    startsOn: ctx.startsOn,
+    endsOn: ctx.endsOn,
+    oneShot: ctx.oneShot,
+    createdAt: ctx.createdAt,
+    lastIntakeAt: ctx.lastIntakeAt,
+    timeZone: ctx.timeZone,
+  };
+
+  const normalisedEvents: IntakeEventLike[] = events
+    .filter((e) => e.scheduledFor >= effectiveStart && e.scheduledFor <= now)
+    .map((e) => ({
+      scheduledFor: e.scheduledFor,
+      takenAt: e.takenAt,
+      skipped: e.skipped,
+      autoMissed: e.autoMissed ?? false,
+    }));
+
+  const hasRolling = schedules.some(
+    (s) => s.rollingIntervalDays != null && s.rollingIntervalDays > 0,
+  );
+  const retro = hasRolling
+    ? { intakeInstants: rollingIntakeInstants(events, now), now }
+    : undefined;
+
+  return buildCadenceTimeline(
+    normalisedSchedules,
+    normalisedEvents,
+    now,
+    effectiveDays,
+    ctx.createdAt,
+    ctx.timeZone,
+    engineCtx,
+    retro,
+  );
 }

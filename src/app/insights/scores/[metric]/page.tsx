@@ -96,7 +96,7 @@ export default function CompositeScorePage() {
           className="-ml-2 w-fit"
         >
           <Link href="/insights">
-            <ArrowLeft className="mr-1 size-4" aria-hidden="true" />
+            <ArrowLeft className="size-4" aria-hidden="true" />
             {t("insights.subPage.scoresBack")}
           </Link>
         </Button>

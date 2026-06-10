@@ -42,7 +42,18 @@ export interface ResponsiveSheetProps {
    */
   hideHeader?: boolean;
   /**
-   * Footer slot. The Sheet branch sticky-pins the footer to the
+   * Footer slot. Pass the action `<Button>`s directly (a fragment is
+   * fine) — never a wrapper `<div className="flex …">`. The two
+   * branches deliberately stack differently and both rely on owning
+   * the flex context: the Sheet branch pins a `flex-row justify-end`
+   * bar so Cancel/Save sit side by side above the keyboard, while the
+   * Dialog branch defers to `DialogFooter`'s `flex-col-reverse
+   * sm:flex-row` so narrow dialogs stack the primary action on top.
+   * A consumer-supplied wrapper div collapses both into a single flex
+   * child and breaks that responsive stacking. This split is a
+   * decision, not drift — don't unify the two branches.
+   *
+   * The Sheet branch sticky-pins the footer to the
    * bottom of the bottom-sheet so the primary CTA stays reachable
    * once the body scrolls; the Dialog branch lets the footer flow
    * normally beneath the body.
@@ -167,7 +178,7 @@ export function ResponsiveSheet({
           {footer ? (
             <SheetFooter
               data-slot="responsive-sheet-footer"
-              className="border-border/70 sticky bottom-0 mt-0 flex-row justify-end gap-2 border-t bg-background/95 p-4 backdrop-blur supports-[backdrop-filter]:bg-background/80"
+              className="border-border/70 bg-background/95 supports-[backdrop-filter]:bg-background/80 sticky bottom-0 mt-0 flex-row justify-end gap-2 border-t p-4 backdrop-blur"
             >
               {footer}
             </SheetFooter>

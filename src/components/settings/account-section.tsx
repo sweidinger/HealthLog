@@ -50,6 +50,7 @@ import { describePasskeyError } from "@/lib/passkey-errors";
 import { queryKeys } from "@/lib/query-keys";
 import { SettingsCardHeader } from "@/components/settings/_card-header";
 import { TimezonePicker } from "@/components/settings/timezone-picker";
+import { TimeFormatSelect } from "@/components/settings/time-format-select";
 import { UnitPreferenceSelect } from "@/components/settings/unit-preference-select";
 import { InjectionSitesCard } from "@/components/settings/injection-sites-card";
 import { CycleTrackingCard } from "@/components/settings/cycle-tracking-card";
@@ -506,13 +507,15 @@ export function AccountSection() {
             </div>
           </div>
 
-          {/* Timezone + unit system share one grid row — both are
-              personal display preferences (like language above). The
-              unit dropdown PATCHes its own endpoint on change; the
-              timezone saves through the form's submit handler. */}
+          {/* Timezone + unit system + hour format share one grid block —
+              all personal display preferences (like language above). The
+              unit and time-format dropdowns PATCH their own endpoints on
+              change; the timezone saves through the form's submit
+              handler. */}
           <div className="grid gap-4 sm:grid-cols-2">
             <TimezonePicker value={timezone} onChange={setTimezone} />
             <UnitPreferenceSelect isAuthenticated={isAuthenticated} />
+            <TimeFormatSelect isAuthenticated={isAuthenticated} />
           </div>
 
           {/* v1.7.0 — optional patient-identity fields surfaced on the
@@ -584,9 +587,9 @@ export function AccountSection() {
           <div className="flex justify-end">
             <Button type="submit" disabled={saving}>
               {saving ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin motion-reduce:animate-none" />
+                <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" />
               ) : (
-                <Save className="mr-2 h-4 w-4" />
+                <Save className="h-4 w-4" />
               )}
               {t("common.save")}
             </Button>
@@ -620,9 +623,9 @@ export function AccountSection() {
             disabled={passkeyLoading}
           >
             {passkeyLoading ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin motion-reduce:animate-none" />
+              <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" />
             ) : (
-              <KeyRound className="mr-2 h-4 w-4" />
+              <KeyRound className="h-4 w-4" />
             )}
             {t("settings.addPasskey")}
           </Button>
@@ -700,9 +703,9 @@ export function AccountSection() {
             className="w-full shrink-0 sm:w-auto"
           >
             {tourRestarting ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin motion-reduce:animate-none" />
+              <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" />
             ) : (
-              <Compass className="mr-2 h-4 w-4" />
+              <Compass className="h-4 w-4" />
             )}
             {t("onboarding.tour.restart")}
           </Button>
@@ -791,9 +794,9 @@ export function AccountSection() {
 
             <Button type="submit" variant="outline" disabled={passwordSaving}>
               {passwordSaving ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin motion-reduce:animate-none" />
+                <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" />
               ) : (
-                <Save className="mr-2 h-4 w-4" />
+                <Save className="h-4 w-4" />
               )}
               {t("settings.changePassword")}
             </Button>
@@ -940,9 +943,14 @@ function PasskeyListSection({ isAuthenticated }: { isAuthenticated: boolean }) {
                           {t("common.cancel")}
                         </AlertDialogCancel>
                         <AlertDialogAction
-                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                          variant="destructive"
+                          disabled={deletePasskey.isPending}
+                          aria-busy={deletePasskey.isPending || undefined}
                           onClick={() => deletePasskey.mutate(pk.id)}
                         >
+                          {deletePasskey.isPending && (
+                            <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
+                          )}
                           {t("common.delete")}
                         </AlertDialogAction>
                       </AlertDialogFooter>
@@ -1022,9 +1030,14 @@ function PasskeyListSection({ isAuthenticated }: { isAuthenticated: boolean }) {
                   <AlertDialogFooter>
                     <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
                     <AlertDialogAction
-                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                      variant="destructive"
+                      disabled={deletePasskey.isPending}
+                      aria-busy={deletePasskey.isPending || undefined}
                       onClick={() => deletePasskey.mutate(pk.id)}
                     >
+                      {deletePasskey.isPending && (
+                        <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
+                      )}
                       {t("common.delete")}
                     </AlertDialogAction>
                   </AlertDialogFooter>
@@ -1167,9 +1180,9 @@ function AvatarSection() {
             onClick={() => fileInputRef.current?.click()}
           >
             {upload.isPending ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin motion-reduce:animate-none" />
+              <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" />
             ) : (
-              <ImageUp className="mr-2 h-4 w-4" />
+              <ImageUp className="h-4 w-4" />
             )}
             {avatarUrl
               ? t("settings.avatar.replace")
@@ -1187,9 +1200,9 @@ function AvatarSection() {
               }}
             >
               {remove.isPending ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin motion-reduce:animate-none" />
+                <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" />
               ) : (
-                <Trash2 className="mr-2 h-4 w-4" />
+                <Trash2 className="h-4 w-4" />
               )}
               {t("settings.avatar.remove")}
             </Button>
