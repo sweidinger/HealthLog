@@ -1282,19 +1282,6 @@
         "paused": "En pause",
         "ended": "Terminé"
       },
-      "today": {
-        "groupLabel": "Dose du jour",
-        "taken": "Pris",
-        "skipped": "Sauté",
-        "toastTaken": "Dose du jour enregistrée",
-        "toastSkipped": "Dose du jour sautée",
-        "recordedTaken": "Prise aujourd’hui à {time}",
-        "recordedSkipped": "Sautée aujourd’hui à {time}",
-        "recordedOneShot": "Dose unique prise à {time}",
-        "noneScheduled": "Aucune dose prévue aujourd’hui.",
-        "pausedHint": "En pause — pas de rappel aujourd’hui.",
-        "error": "Impossible d’enregistrer la dose."
-      },
       "cadence": {
         "oneShotOn": "Dose unique le {date}.",
         "oneShotPending": "Dose unique en attente."
@@ -1349,6 +1336,9 @@
         "add": "Entrée",
         "markTaken": "Prise",
         "markSkipped": "Sautée",
+        "rowActionsLabel": "Actions pour {time}",
+        "markAsTaken": "Marquer comme prise",
+        "markAsSkipped": "Marquer comme sautée",
         "adHocTag": "hors planning",
         "takenDetail": "prévue {planned} · prise {taken}",
         "status": {
@@ -1392,8 +1382,8 @@
           "requiresCourseWindow": "Les phases sont disponibles une fois une période de traitement définie."
         },
         "grace": {
-          "label": "Fenêtre de rappel — s’applique à votre horaire principal",
-          "primaryScheduleNote": "Les médicaments à horaires multiples conservent la fenêtre par défaut de leurs autres horaires.",
+          "label": "Fenêtre de rappel",
+          "appliesToAllNote": "S’applique à tous les horaires de ce médicament.",
           "unit": "minutes",
           "saved": "Fenêtre de rappel enregistrée",
           "failed": "Impossible d’enregistrer la fenêtre de rappel."
@@ -1468,7 +1458,6 @@
         "title": "Paramètres avancés",
         "group": {
           "data": "Données",
-          "reminders": "Rappels",
           "lifecycle": "Cycle de vie",
           "externalApi": "API externe"
         },
@@ -1487,8 +1476,7 @@
         }
       },
       "header": {
-        "historyLabel": "Voir l'historique des prises",
-        "advancedLabel": "Paramètres avancés"
+        "historyLabel": "Voir l'historique des prises"
       },
       "history": {
         "back": "Retour au médicament",
@@ -1498,7 +1486,6 @@
       "tabs": {
         "uebersicht": "Aperçu",
         "zeitplan": "Horaire",
-        "erinnerung": "Rappels",
         "bestand": "Stock",
         "verlauf": "Historique",
         "injektion": "Injection",
@@ -1510,6 +1497,17 @@
         "tablistLabel": "Sections de détail du médicament"
       },
       "uebersicht": {
+        "statusTitle": "Statut",
+        "nextDoseLabel": "Prochaine dose",
+        "nextDoseNone": "Aucune dose à venir.",
+        "pausedHint": "En pause — aucun rappel.",
+        "reminderLabel": "Rappel",
+        "reminderOn": "Activé",
+        "reminderOff": "Désactivé",
+        "supplyLabel": "Stock",
+        "supplyRunway": "Couvre encore environ {days} jours",
+        "jumpToZeitplan": "Voir l'horaire",
+        "jumpToBestand": "Voir le stock",
         "complianceTitle": "Observance",
         "complianceEmpty": "Aucune donnée d'observance pour l'instant."
       },
@@ -1542,7 +1540,7 @@
         "scheduleLabel": "Horaire {index}",
         "fullEditNote": "La fréquence, la classe de traitement et la fenêtre de cure se modifient via « Édition complète ».",
         "graceEcho": "Fenêtre de rappel : {minutes} minutes",
-        "graceLink": "Modifier dans « Rappels »",
+        "reminderTitle": "Rappel",
         "save": "Enregistrer l'horaire",
         "saved": "Horaire enregistré",
         "failed": "Impossible d'enregistrer l'horaire",
@@ -1714,8 +1712,7 @@
       "dragHandle": "Fais glisser pour réorganiser",
       "show": "Afficher",
       "hide": "Masquer",
-      "manageSubPages": "Gérer les pages de détail",
-      "manageSubPagesHint": "Les pages masquées disparaissent aussi de la navigation supérieure.",
+      "manageInSettings": "Gérer les onglets et les pages de détail dans les réglages",
       "groupSleep": "Sommeil",
       "groupMood": "Humeur",
       "groupEvents": "Événements",
@@ -1843,7 +1840,10 @@
       "emptyTitle": "Pas encore de briefing",
       "emptyDescription": "Génère le briefing du jour pour obtenir un récap de tes tendances.",
       "emptyAction": "Générer le briefing",
-      "loadingLabel": "Préparation du briefing"
+      "loadingLabel": "Préparation du briefing",
+      "noProviderTitle": "Aucun fournisseur d'IA connecté",
+      "noProviderDescription": "Connecte un fournisseur d'IA dans les réglages pour recevoir des briefings quotidiens.",
+      "noProviderAction": "Ouvrir les réglages IA"
     },
     "trendsRow": {
       "title": "Tendances",
@@ -3150,7 +3150,7 @@
     },
     "pillOrder": {
       "title": "Trier les onglets de navigation",
-      "description": "Faites glisser les onglets dans l'ordre où ils doivent apparaître en haut des Analyses.",
+      "description": "Faites glisser les onglets dans l'ordre souhaité et affichez-les ou masquez-les via l'icône en forme d'œil. Les pages de détail masquées disparaissent aussi de la navigation supérieure.",
       "dragHandle": "Réorganiser",
       "saveSuccess": "Ordre des onglets enregistré.",
       "saveError": "L'enregistrement de l'ordre des onglets a échoué.",
@@ -3158,6 +3158,8 @@
       "empty": "Aucun onglet de navigation disponible pour le moment."
     },
     "customize": "Personnaliser les Analyses",
+    "regenerateRateLimited": "Limite d'actualisation atteinte — réessayez plus tard.",
+    "regenerateUnavailable": "Aucune nouvelle analyse reçue — réessayez plus tard.",
     "regenerateError": "Actualisation en cours — réessayez dans un instant."
   },
   "thresholds": {
@@ -3555,6 +3557,15 @@
     "profile": "Profil",
     "language": "Langue",
     "languageDescription": "Choisissez la langue d’affichage de l’application.",
+    "timeFormat": {
+      "title": "Format horaire",
+      "description": "Détermine si les heures s’affichent au format 24 heures ou 12 heures (AM/PM).",
+      "auto": "Automatique (langue)",
+      "h24": "24 heures",
+      "h12": "12 heures (AM/PM)",
+      "saved": "Format horaire enregistré.",
+      "saveError": "Échec de l’enregistrement du format horaire."
+    },
     "username": "Nom d'utilisateur",
     "height": "Taille (cm)",
     "dateOfBirth": "Date de naissance",

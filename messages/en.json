@@ -1282,19 +1282,6 @@
         "paused": "Paused",
         "ended": "Ended"
       },
-      "today": {
-        "groupLabel": "Today's dose",
-        "taken": "Taken",
-        "skipped": "Skipped",
-        "toastTaken": "Today's dose logged",
-        "toastSkipped": "Today's dose skipped",
-        "recordedTaken": "Taken today at {time}",
-        "recordedSkipped": "Skipped today at {time}",
-        "recordedOneShot": "One-shot dose taken at {time}",
-        "noneScheduled": "No dose scheduled for today.",
-        "pausedHint": "Paused — no reminder today.",
-        "error": "Could not log the dose."
-      },
       "cadence": {
         "oneShotOn": "One-time dose on {date}.",
         "oneShotPending": "One-time dose pending."
@@ -1349,6 +1336,9 @@
         "add": "Entry",
         "markTaken": "Taken",
         "markSkipped": "Skipped",
+        "rowActionsLabel": "Actions for {time}",
+        "markAsTaken": "Mark as taken",
+        "markAsSkipped": "Mark as skipped",
         "adHocTag": "off-schedule",
         "takenDetail": "planned {planned} · taken {taken}",
         "status": {
@@ -1392,8 +1382,8 @@
           "requiresCourseWindow": "Phases are available once a course window is set."
         },
         "grace": {
-          "label": "Reminder window — applies to your primary schedule",
-          "primaryScheduleNote": "Multi-schedule medications keep their other schedules' default window.",
+          "label": "Reminder window",
+          "appliesToAllNote": "Applies to every schedule of this medication.",
           "unit": "minutes",
           "saved": "Reminder window saved",
           "failed": "Could not save the reminder window."
@@ -1468,7 +1458,6 @@
         "title": "Advanced settings",
         "group": {
           "data": "Data",
-          "reminders": "Reminders",
           "lifecycle": "Lifecycle",
           "externalApi": "External API"
         },
@@ -1487,8 +1476,7 @@
         }
       },
       "header": {
-        "historyLabel": "View intake history",
-        "advancedLabel": "Advanced settings"
+        "historyLabel": "View intake history"
       },
       "history": {
         "back": "Back to medication",
@@ -1498,7 +1486,6 @@
       "tabs": {
         "uebersicht": "Overview",
         "zeitplan": "Schedule",
-        "erinnerung": "Reminders",
         "bestand": "Supply",
         "verlauf": "History",
         "injektion": "Injection",
@@ -1510,6 +1497,17 @@
         "tablistLabel": "Medication detail sections"
       },
       "uebersicht": {
+        "statusTitle": "Status",
+        "nextDoseLabel": "Next dose",
+        "nextDoseNone": "No upcoming dose.",
+        "pausedHint": "Paused — no reminders.",
+        "reminderLabel": "Reminder",
+        "reminderOn": "On",
+        "reminderOff": "Off",
+        "supplyLabel": "Supply",
+        "supplyRunway": "Lasts about {days} more days",
+        "jumpToZeitplan": "Open schedule",
+        "jumpToBestand": "Open supply",
         "complianceTitle": "Adherence",
         "complianceEmpty": "No adherence data yet."
       },
@@ -1542,7 +1540,7 @@
         "scheduleLabel": "Schedule {index}",
         "fullEditNote": "Frequency, treatment class and course window are edited through “Full edit”.",
         "graceEcho": "Reminder window: {minutes} minutes",
-        "graceLink": "Change under “Reminders”",
+        "reminderTitle": "Reminder",
         "save": "Save schedule",
         "saved": "Schedule saved",
         "failed": "Could not save the schedule",
@@ -1714,8 +1712,7 @@
       "dragHandle": "Drag to reorder",
       "show": "Show",
       "hide": "Hide",
-      "manageSubPages": "Manage detail pages",
-      "manageSubPagesHint": "Hidden pages are also removed from the top navigation.",
+      "manageInSettings": "Manage pills & detail pages in Settings",
       "groupSleep": "Sleep",
       "groupMood": "Mood",
       "groupEvents": "Events",
@@ -1843,7 +1840,10 @@
       "emptyTitle": "No briefing yet",
       "emptyDescription": "Generate today's briefing to get a narrative read of your trends.",
       "emptyAction": "Generate briefing",
-      "loadingLabel": "Synthesising today's briefing"
+      "loadingLabel": "Synthesising today's briefing",
+      "noProviderTitle": "No AI provider connected",
+      "noProviderDescription": "Connect an AI provider in settings to receive daily briefings.",
+      "noProviderAction": "Open AI settings"
     },
     "trendsRow": {
       "title": "Trends",
@@ -3150,7 +3150,7 @@
     },
     "pillOrder": {
       "title": "Sort the navigation pills",
-      "description": "Drag the pills into the order they should appear in along the top of Insights.",
+      "description": "Drag the pills into the order you want and show or hide them via the eye icon. Hidden detail pages are also removed from the top navigation.",
       "dragHandle": "Reorder",
       "saveSuccess": "Pill order saved.",
       "saveError": "Saving the pill order failed.",
@@ -3158,6 +3158,8 @@
       "empty": "No navigation pills available yet."
     },
     "customize": "Customize Insights",
+    "regenerateRateLimited": "Refresh limit reached — please try again later.",
+    "regenerateUnavailable": "No fresh analysis arrived — please try again later.",
     "regenerateError": "Still refreshing — please try again in a moment."
   },
   "thresholds": {
@@ -3555,6 +3557,15 @@
     "profile": "Profile",
     "language": "Language",
     "languageDescription": "Choose the display language of the application.",
+    "timeFormat": {
+      "title": "Hour format",
+      "description": "Controls whether times render on the 24-hour or the 12-hour (AM/PM) clock.",
+      "auto": "Automatic (language)",
+      "h24": "24-hour",
+      "h12": "12-hour (AM/PM)",
+      "saved": "Hour format saved.",
+      "saveError": "Saving the hour format failed."
+    },
     "username": "Username",
     "height": "Height (cm)",
     "dateOfBirth": "Date of birth",

@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { GripVertical, Loader2 } from "lucide-react";
+import { Eye, EyeOff, GripVertical, Loader2 } from "lucide-react";
 import {
   DndContext,
   KeyboardSensor,
@@ -45,19 +45,24 @@ import { SUB_PAGE_TABS } from "@/components/insights/insights-tab-strip";
 
 /**
  * v1.15.18 — dedicated pill-sort control for the Insights settings section.
+ * v1.15.20 — pill VISIBILITY joins the same list: each row carries the eye
+ * toggle the overview edit cards use, flipping `tiles[].visible` (the field
+ * that already gates both the top-nav pill and the overview Vitals grid since
+ * v1.15.14). Sorting and show/hide for the detail pages live on ONE surface;
+ * the on-page edit mode's former "Manage detail pages" disclosure retired in
+ * favour of a link here.
  *
  * The Insights nav PILLS persist to `insightsLayoutJson.tiles[].order`, a field
  * that is ALREADY separate from the overview `sections[].order` in layout v2.
- * Until now the pill order could only be changed implicitly through the
+ * Until v1.15.18 the pill order could only be changed implicitly through the
  * overview "Anpassen" → "Kacheln verwalten" disclosure (the Vitals row), which
  * the maintainer found unintuitive. This is the explicit surface: drag the
- * pills, "Speichern" PUTs the merged `{ tiles }` blob to `/api/insights/layout`,
- * which the tab strip + overview share via `queryKeys.insightsLayout()`.
+ * pills, toggle their eyes, "Speichern" PUTs the merged `{ tiles }` blob to
+ * `/api/insights/layout`, which the tab strip + overview share via
+ * `queryKeys.insightsLayout()`.
  *
  * Drag mirrors `insights-edit-mode` — each manager group is its OWN
  * `DndContext` + `SortableContext` so a drag never crosses a group boundary.
- * The pills here are NOT visibility toggles; visibility lives on the overview
- * "Übersicht anordnen" block so the two concerns stay distinct.
  */
 
 const MANAGER_GROUP_HEADER_KEYS: Record<ManagerGroup, string> = {
@@ -73,11 +78,15 @@ const MANAGER_GROUP_HEADER_KEYS: Record<ManagerGroup, string> = {
   events: "insights.editMode.groupEvents",
 };
 
-/** Stable id-order fingerprint used to detect when the server copy changed. */
-function orderSignature(tiles: readonly InsightsTileConfig[]): string {
+/**
+ * Stable fingerprint used to detect when the server copy changed. Carries
+ * both the id order AND each tile's visibility so a save that only flipped
+ * an eye still re-seeds the draft baseline.
+ */
+function layoutSignature(tiles: readonly InsightsTileConfig[]): string {
   return [...tiles]
     .sort((a, b) => a.order - b.order)
-    .map((tile) => tile.id)
+    .map((tile) => `${tile.id}:${tile.visible ? 1 : 0}`)
     .join(",");
 }
 
@@ -95,7 +104,7 @@ export function InsightsPillOrderSection({ id }: { id?: string }) {
   // ref) keeps the reseed render-safe and idempotent while leaving in-flight
   // drag edits untouched: the baseline only advances when the *server* order
   // differs from what we last seeded from.
-  const serverSignature = orderSignature(layout.tiles);
+  const serverSignature = layoutSignature(layout.tiles);
   const [seededSignature, setSeededSignature] = useState(serverSignature);
   const [draftTiles, setDraftTiles] = useState<InsightsTileConfig[]>(
     () => [...layout.tiles].sort((a, b) => a.order - b.order),
@@ -153,6 +162,7 @@ export function InsightsPillOrderSection({ id }: { id?: string }) {
           return {
             id: slug as string,
             labelKey: SUB_PAGE_TABS[slug].labelKey,
+            visible: cfg?.visible ?? false,
             order: cfg?.order ?? Number.MAX_SAFE_INTEGER,
           };
         })
@@ -180,12 +190,21 @@ export function InsightsPillOrderSection({ id }: { id?: string }) {
     );
   }
 
-  const dirty = useMemo(() => {
-    const original = [...layout.tiles].sort((a, b) => a.order - b.order);
-    if (original.length !== draftTiles.length) return true;
-    const draftByOrder = [...draftTiles].sort((a, b) => a.order - b.order);
-    return original.some((tt, i) => tt.id !== draftByOrder[i]?.id);
-  }, [layout.tiles, draftTiles]);
+  /**
+   * Flip one tile's visibility in the draft. Persisted on "Speichern" through
+   * the same `{ tiles }` PUT as the order — `tiles[].visible` is the field the
+   * tab strip and the overview Vitals grid already read (v1.15.14).
+   */
+  function toggleTileVisible(id: string, visible: boolean) {
+    setDraftTiles((tiles) =>
+      tiles.map((tile) => (tile.id === id ? { ...tile, visible } : tile)),
+    );
+  }
+
+  const dirty = useMemo(
+    () => layoutSignature(layout.tiles) !== layoutSignature(draftTiles),
+    [layout.tiles, draftTiles],
+  );
 
   return (
     <section
@@ -260,8 +279,12 @@ export function InsightsPillOrderSection({ id }: { id?: string }) {
                         key={tile.id}
                         id={tile.id}
                         title={t(tile.labelKey)}
+                        visible={tile.visible}
                         disabled={busy}
                         dragHandleLabel={t("insights.pillOrder.dragHandle")}
+                        showLabel={t("insights.editMode.show")}
+                        hideLabel={t("insights.editMode.hide")}
+                        onToggle={toggleTileVisible}
                       />
                     ))}
                   </div>
@@ -281,13 +304,21 @@ const DRAG_HANDLE_CLASS =
 function SortablePillRow({
   id,
   title,
+  visible,
   disabled,
   dragHandleLabel,
+  showLabel,
+  hideLabel,
+  onToggle,
 }: {
   id: string;
   title: string;
+  visible: boolean;
   disabled: boolean;
   dragHandleLabel: string;
+  showLabel: string;
+  hideLabel: string;
+  onToggle: (id: string, visible: boolean) => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id });
@@ -324,6 +355,21 @@ function SortablePillRow({
       <span className="min-w-0 flex-1 truncate text-sm" title={title}>
         {title}
       </span>
+      {/* v1.15.20 — same eye interaction as the overview edit cards: the
+          toggle flips the draft's `visible` flag; "Speichern" persists it. */}
+      <button
+        type="button"
+        onClick={() => onToggle(id, !visible)}
+        disabled={disabled}
+        aria-pressed={visible}
+        aria-label={`${visible ? hideLabel : showLabel} — ${title}`}
+        title={visible ? hideLabel : showLabel}
+        data-slot="insights-pill-order-eye"
+        data-visible={visible ? "true" : "false"}
+        className="text-muted-foreground hover:text-foreground focus-visible:ring-ring focus-visible:ring-offset-background inline-flex h-11 w-11 shrink-0 items-center justify-center rounded transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50 motion-reduce:transition-none sm:h-9 sm:w-9"
+      >
+        {visible ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+      </button>
     </div>
   );
 }

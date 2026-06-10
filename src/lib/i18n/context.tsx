@@ -7,10 +7,19 @@ import {
   useMemo,
   useState,
   useCallback,
+  useSyncExternalStore,
   type ReactNode,
 } from "react";
 import { locales, defaultLocale, type Locale } from "./config";
-import { makeFormatters, type Formatters } from "../format-locale";
+import {
+  makeFormatters,
+  type Formatters,
+  type TimeFormatPreference,
+} from "../format-locale";
+import {
+  readStoredTimeFormat,
+  subscribeTimeFormat,
+} from "../time-format";
 import { allMessages, resolveKey } from "./shared-resolve";
 
 interface I18nContextValue {
@@ -134,11 +143,31 @@ export function useTranslations() {
 }
 
 /**
+ * The user's hour-cycle preference (AUTO / H12 / H24), reactive to changes.
+ * Backed by the localStorage mirror that `useAuth`'s `/api/auth/me` fetch
+ * and the profile time-format select keep in sync with the server value —
+ * no QueryClient required in the tree. SSR resolves AUTO.
+ */
+export function useTimeFormatPreference(): TimeFormatPreference {
+  return useSyncExternalStore(
+    subscribeTimeFormat,
+    readStoredTimeFormat,
+    () => "AUTO" as const,
+  );
+}
+
+/**
  * Locale-aware formatters tied to the active UI locale. Use for every number,
  * date, and time rendered in the UI so regional conventions (70,5 vs 70.5,
- * 19.02.2026 vs Feb 19, 2026) follow the user's language choice.
+ * 19.02.2026 vs Feb 19, 2026) follow the user's language choice. Times honour
+ * the per-user hour-cycle preference (AUTO follows the locale, H12 / H24 pin
+ * the cycle).
  */
 export function useFormatters(): Formatters {
   const { locale } = useTranslations();
-  return useMemo(() => makeFormatters(locale), [locale]);
+  const timeFormat = useTimeFormatPreference();
+  return useMemo(
+    () => makeFormatters(locale, undefined, timeFormat),
+    [locale, timeFormat],
+  );
 }

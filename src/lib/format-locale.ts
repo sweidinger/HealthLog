@@ -42,6 +42,31 @@ export function resolveIntlLocale(locale: Locale): string {
   return INTL_LOCALE_MAP[locale] ?? "en-US";
 }
 
+/**
+ * Hour-cycle display preference (mirrors the `TimeFormatPreference` Prisma
+ * enum). AUTO defers to the locale's own convention (en-US → AM/PM, de-DE →
+ * 24h); H12 forces AM/PM; H24 forces a 24-hour clock ("h23": midnight is
+ * 00:30, never 24:30). Display-time only — stored instants stay UTC.
+ */
+export type TimeFormatPreference = "AUTO" | "H12" | "H24";
+
+/**
+ * Intl options for the requested hour cycle. AUTO contributes nothing so
+ * `Intl.DateTimeFormat` falls back to the locale default.
+ */
+function hourCycleOptions(
+  timeFormat: TimeFormatPreference,
+): Intl.DateTimeFormatOptions {
+  switch (timeFormat) {
+    case "H12":
+      return { hour12: true };
+    case "H24":
+      return { hourCycle: "h23" };
+    default:
+      return {};
+  }
+}
+
 type DateInput = Date | string | number;
 
 function asDate(value: DateInput): Date {
@@ -59,9 +84,9 @@ export interface Formatters {
   date: (value: DateInput) => string;
   /** Short date without year, e.g. "19.02." / "Feb 19". */
   dateShort: (value: DateInput) => string;
-  /** Full date + time in 24h. */
+  /** Full date + time; hour cycle follows the `timeFormat` preference. */
   dateTime: (value: DateInput) => string;
-  /** Time only in 24h, e.g. "14:30". */
+  /** Time only, e.g. "14:30" or "2:30 PM" per the `timeFormat` preference. */
   time: (value: DateInput) => string;
   /** Short weekday + date, e.g. "Do., 19.02." / "Thu, Feb 19". */
   dateWithWeekday: (value: DateInput) => string;
@@ -69,9 +94,14 @@ export interface Formatters {
   monthShort: (value: DateInput) => string;
 }
 
-export function makeFormatters(locale: Locale, userTz?: string): Formatters {
+export function makeFormatters(
+  locale: Locale,
+  userTz?: string,
+  timeFormat: TimeFormatPreference = "AUTO",
+): Formatters {
   const intlLocale = resolveIntlLocale(locale);
   const tz = userTz && userTz.length > 0 ? userTz : DISPLAY_TIMEZONE;
+  const hourOpts = hourCycleOptions(timeFormat);
 
   return {
     number: (value, fractionDigits) =>
@@ -115,7 +145,7 @@ export function makeFormatters(locale: Locale, userTz?: string): Formatters {
         year: "numeric",
         hour: "2-digit",
         minute: "2-digit",
-        hour12: false,
+        ...hourOpts,
       }),
 
     time: (value) =>
@@ -123,7 +153,7 @@ export function makeFormatters(locale: Locale, userTz?: string): Formatters {
         timeZone: tz,
         hour: "2-digit",
         minute: "2-digit",
-        hour12: false,
+        ...hourOpts,
       }),
 
     dateWithWeekday: (value) =>

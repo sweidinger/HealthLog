@@ -1,18 +1,14 @@
 /**
- * v1.12.x — Settings → Profile unit-system dropdown contract.
+ * Settings → Profile hour-format dropdown contract (v1.15.20).
  *
- * The unit system moved from a standalone card into a `<NativeSelect>`
- * in the Profile form beside the timezone picker. The control reads the
- * current value from `useAuth().unitPreference` and PATCHes
- * `/api/auth/me/unit-preference` on change, invalidating
- * `queryKeys.authMe()` so the chart display transforms re-render.
+ * The control reads the current value from `useAuth().timeFormat` and
+ * PATCHes `/api/user/profile` on change (the shared `applyProfileUpdate`
+ * path), invalidating `queryKeys.authMe()` and writing the localStorage
+ * mirror so every `useFormatters()` consumer repaints.
  *
- * Test strategy mirrors the project's SSR-only convention (no
- * `@testing-library/react`): real `useMutation` + `QueryClient`, a
- * spied `useAuth`, and a stubbed `fetch`. The render pass pins the
- * selected option SSR shape and the disabled state; the mutation
- * contract (endpoint + method + body) is pinned against the same
- * `fetch` stub the change handler issues.
+ * Test strategy mirrors `<UnitPreferenceSelect>`'s suite — the project's
+ * SSR-only convention (no `@testing-library/react`): real `useMutation` +
+ * `QueryClient`, a spied `useAuth`, and a stubbed `fetch`.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
@@ -20,10 +16,11 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 import { I18nProvider } from "@/lib/i18n/context";
 import type { AuthUser } from "@/hooks/use-auth";
+import type { TimeFormatPreference } from "@/lib/format-locale";
 
 const authSpy = vi.fn<
   () => { user: AuthUser | null; isAuthenticated: boolean }
->(() => ({ user: buildUser("metric"), isAuthenticated: true }));
+>(() => ({ user: buildUser("AUTO"), isAuthenticated: true }));
 vi.mock("@/hooks/use-auth", async () => {
   const actual =
     await vi.importActual<typeof import("@/hooks/use-auth")>(
@@ -32,7 +29,7 @@ vi.mock("@/hooks/use-auth", async () => {
   return { ...actual, useAuth: () => authSpy() };
 });
 
-function buildUser(unitPreference: "metric" | "imperial"): AuthUser {
+function buildUser(timeFormat: TimeFormatPreference): AuthUser {
   return {
     id: "user-1",
     username: "user",
@@ -46,8 +43,8 @@ function buildUser(unitPreference: "metric" | "imperial"): AuthUser {
     onboardingTourCompleted: true,
     avatarUrl: null,
     glucoseUnit: null,
-    unitPreference,
-    timeFormat: "AUTO",
+    unitPreference: "metric",
+    timeFormat,
     disableCoach: false,
     fullName: null,
     insurerName: null,
@@ -57,7 +54,7 @@ function buildUser(unitPreference: "metric" | "imperial"): AuthUser {
   };
 }
 
-import { UnitPreferenceSelect } from "../unit-preference-select";
+import { TimeFormatSelect } from "../time-format-select";
 
 let fetchMock: ReturnType<typeof vi.fn>;
 
@@ -65,7 +62,7 @@ function makeFetch() {
   return vi.fn(async (_url: RequestInfo | URL, init?: RequestInit) => {
     const body = init?.body ? JSON.parse(init.body as string) : {};
     return new Response(
-      JSON.stringify({ data: { unitPreference: body.unitPreference } }),
+      JSON.stringify({ data: { timeFormat: body.timeFormat } }),
       { status: 200, headers: { "Content-Type": "application/json" } },
     );
   });
@@ -74,7 +71,7 @@ function makeFetch() {
 beforeEach(() => {
   authSpy.mockClear();
   authSpy.mockImplementation(() => ({
-    user: buildUser("metric"),
+    user: buildUser("AUTO"),
     isAuthenticated: true,
   }));
   fetchMock = makeFetch();
@@ -92,63 +89,64 @@ function render(isAuthenticated = true): string {
   return renderToStaticMarkup(
     <QueryClientProvider client={client}>
       <I18nProvider initialLocale="en">
-        <UnitPreferenceSelect isAuthenticated={isAuthenticated} />
+        <TimeFormatSelect isAuthenticated={isAuthenticated} />
       </I18nProvider>
     </QueryClientProvider>,
   );
 }
 
-describe("Settings — UnitPreferenceSelect", () => {
-  it("renders a labeled native select with both options", () => {
+describe("Settings — TimeFormatSelect", () => {
+  it("renders a labeled native select with all three options", () => {
     const html = render();
-    expect(html).toContain('data-testid="settings-unit-preference-select"');
-    expect(html).toContain('value="metric"');
-    expect(html).toContain('value="imperial"');
-    expect(html).toContain("Metric");
-    expect(html).toContain("Imperial");
+    expect(html).toContain('data-testid="settings-time-format-select"');
+    expect(html).toContain('value="AUTO"');
+    expect(html).toContain('value="H24"');
+    expect(html).toContain('value="H12"');
+    expect(html).toContain("Automatic (language)");
+    expect(html).toContain("24-hour");
+    expect(html).toContain("12-hour (AM/PM)");
   });
 
-  it("selects the current value for a metric user", () => {
-    const html = render();
-    // React renders the controlled select value via the option's
-    // `selected` attribute under SSR.
-    expect(html).toMatch(/<option[^>]*value="metric"[^>]*>/);
-    expect(html).toContain('value="metric"');
-  });
-
-  it("reflects an imperial user's stored preference", () => {
+  it("reflects a stored H24 preference", () => {
     authSpy.mockImplementation(() => ({
-      user: buildUser("imperial"),
+      user: buildUser("H24"),
       isAuthenticated: true,
     }));
     const html = render();
-    expect(html).toContain('value="imperial"');
+    expect(html).toMatch(/<option[^>]*selected[^>]*value="H24"|<option[^>]*value="H24"[^>]*selected/);
+  });
+
+  it("defaults to AUTO when the user has no stored preference", () => {
+    authSpy.mockImplementation(() => ({
+      user: null,
+      isAuthenticated: true,
+    }));
+    const html = render();
+    expect(html).toMatch(/<option[^>]*selected[^>]*value="AUTO"|<option[^>]*value="AUTO"[^>]*selected/);
   });
 
   it("disables the select when unauthenticated", () => {
     const html = render(false);
     const select = html.match(
-      /<select[^>]*settings-unit-preference-select[^>]*>/,
+      /<select[^>]*settings-time-format-select[^>]*>/,
     );
     expect(select).not.toBeNull();
     expect(select![0]).toContain("disabled");
   });
 
-  it("targets the unit-preference endpoint with a PATCH body", async () => {
+  it("targets the profile endpoint with a PATCH body", async () => {
     // SSR can't dispatch a change event, so pin the mutation contract
     // against the same stub the handler issues — endpoint, method, and
     // the field-by-field body shape the route's Zod schema accepts.
-    await fetch("/api/auth/me/unit-preference", {
+    await fetch("/api/user/profile", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ unitPreference: "imperial" }),
+      body: JSON.stringify({ timeFormat: "H24" }),
     });
     expect(fetchMock).toHaveBeenCalledTimes(1);
     const [url, init] = fetchMock.mock.calls[0]!;
-    expect(url).toBe("/api/auth/me/unit-preference");
+    expect(url).toBe("/api/user/profile");
     expect(init?.method).toBe("PATCH");
-    expect(JSON.parse(init?.body as string)).toEqual({
-      unitPreference: "imperial",
-    });
+    expect(JSON.parse(init?.body as string)).toEqual({ timeFormat: "H24" });
   });
 });

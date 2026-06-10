@@ -1282,19 +1282,6 @@
         "paused": "Pausado",
         "ended": "Finalizado"
       },
-      "today": {
-        "groupLabel": "Dosis de hoy",
-        "taken": "Tomada",
-        "skipped": "Omitida",
-        "toastTaken": "Dosis de hoy registrada",
-        "toastSkipped": "Dosis de hoy omitida",
-        "recordedTaken": "Tomada hoy a las {time}",
-        "recordedSkipped": "Omitida hoy a las {time}",
-        "recordedOneShot": "Dosis única tomada a las {time}",
-        "noneScheduled": "No hay ninguna dosis programada para hoy.",
-        "pausedHint": "En pausa — hoy no hay recordatorio.",
-        "error": "No se pudo registrar la dosis."
-      },
       "cadence": {
         "oneShotOn": "Dosis única el {date}.",
         "oneShotPending": "Dosis única pendiente."
@@ -1349,6 +1336,9 @@
         "add": "Entrada",
         "markTaken": "Tomada",
         "markSkipped": "Saltada",
+        "rowActionsLabel": "Acciones para {time}",
+        "markAsTaken": "Marcar como tomada",
+        "markAsSkipped": "Marcar como omitida",
         "adHocTag": "fuera de horario",
         "takenDetail": "prevista {planned} · tomada {taken}",
         "status": {
@@ -1392,8 +1382,8 @@
           "requiresCourseWindow": "Las fases están disponibles una vez fijado un periodo de tratamiento."
         },
         "grace": {
-          "label": "Ventana de recordatorio — se aplica a tu horario principal",
-          "primaryScheduleNote": "Los medicamentos con varios horarios mantienen la ventana predeterminada de sus demás horarios.",
+          "label": "Ventana de recordatorio",
+          "appliesToAllNote": "Se aplica a todos los horarios de este medicamento.",
           "unit": "minutos",
           "saved": "Ventana de recordatorio guardada",
           "failed": "No se pudo guardar la ventana de recordatorio."
@@ -1468,7 +1458,6 @@
         "title": "Ajustes avanzados",
         "group": {
           "data": "Datos",
-          "reminders": "Recordatorios",
           "lifecycle": "Ciclo de vida",
           "externalApi": "API externa"
         },
@@ -1487,8 +1476,7 @@
         }
       },
       "header": {
-        "historyLabel": "Ver historial de tomas",
-        "advancedLabel": "Configuración avanzada"
+        "historyLabel": "Ver historial de tomas"
       },
       "history": {
         "back": "Volver al medicamento",
@@ -1498,7 +1486,6 @@
       "tabs": {
         "uebersicht": "Resumen",
         "zeitplan": "Horario",
-        "erinnerung": "Recordatorios",
         "bestand": "Existencias",
         "verlauf": "Historial",
         "injektion": "Inyección",
@@ -1510,6 +1497,17 @@
         "tablistLabel": "Secciones de detalle del medicamento"
       },
       "uebersicht": {
+        "statusTitle": "Estado",
+        "nextDoseLabel": "Próxima dosis",
+        "nextDoseNone": "No hay dosis pendiente.",
+        "pausedHint": "En pausa — sin recordatorios.",
+        "reminderLabel": "Recordatorio",
+        "reminderOn": "Activado",
+        "reminderOff": "Desactivado",
+        "supplyLabel": "Existencias",
+        "supplyRunway": "Alcanza para unos {days} días más",
+        "jumpToZeitplan": "Ver horario",
+        "jumpToBestand": "Ver existencias",
         "complianceTitle": "Adherencia",
         "complianceEmpty": "Aún no hay datos de adherencia."
       },
@@ -1542,7 +1540,7 @@
         "scheduleLabel": "Horario {index}",
         "fullEditNote": "La frecuencia, la clase de tratamiento y la ventana del curso se editan en «Edición completa».",
         "graceEcho": "Ventana de recordatorio: {minutes} minutos",
-        "graceLink": "Cambiar en «Recordatorios»",
+        "reminderTitle": "Recordatorio",
         "save": "Guardar horario",
         "saved": "Horario guardado",
         "failed": "No se pudo guardar el horario",
@@ -1714,8 +1712,7 @@
       "dragHandle": "Arrastra para reordenar",
       "show": "Mostrar",
       "hide": "Ocultar",
-      "manageSubPages": "Gestionar páginas de detalle",
-      "manageSubPagesHint": "Las páginas ocultas también se quitan de la navegación superior.",
+      "manageInSettings": "Gestionar pestañas y páginas de detalle en los ajustes",
       "groupSleep": "Sueño",
       "groupMood": "Estado de ánimo",
       "groupEvents": "Eventos",
@@ -1843,7 +1840,10 @@
       "emptyTitle": "Aún no hay resumen",
       "emptyDescription": "Genera el resumen de hoy para tener una vista rápida de tus tendencias.",
       "emptyAction": "Generar resumen",
-      "loadingLabel": "Preparando el resumen"
+      "loadingLabel": "Preparando el resumen",
+      "noProviderTitle": "Ningún proveedor de IA conectado",
+      "noProviderDescription": "Conecta un proveedor de IA en los ajustes para recibir resúmenes diarios.",
+      "noProviderAction": "Abrir ajustes de IA"
     },
     "trendsRow": {
       "title": "Tendencias",
@@ -3150,7 +3150,7 @@
     },
     "pillOrder": {
       "title": "Ordenar las pestañas de navegación",
-      "description": "Arrastra las pestañas al orden en que deben aparecer en la parte superior de Análisis.",
+      "description": "Arrastra las pestañas al orden que quieras y muéstralas u ocúltalas con el icono del ojo. Las páginas de detalle ocultas también se quitan de la navegación superior.",
       "dragHandle": "Reordenar",
       "saveSuccess": "Orden de las pestañas guardado.",
       "saveError": "No se pudo guardar el orden de las pestañas.",
@@ -3158,6 +3158,8 @@
       "empty": "Aún no hay pestañas de navegación disponibles."
     },
     "customize": "Personalizar Análisis",
+    "regenerateRateLimited": "Límite de actualizaciones alcanzado: inténtalo de nuevo más tarde.",
+    "regenerateUnavailable": "No llegó un análisis nuevo: inténtalo de nuevo más tarde.",
     "regenerateError": "Aún se está actualizando: inténtalo de nuevo en un momento."
   },
   "thresholds": {
@@ -3555,6 +3557,15 @@
     "profile": "Perfil",
     "language": "Idioma",
     "languageDescription": "Elige el idioma de visualización de la aplicación.",
+    "timeFormat": {
+      "title": "Formato horario",
+      "description": "Determina si las horas se muestran en formato de 24 horas o de 12 horas (AM/PM).",
+      "auto": "Automático (idioma)",
+      "h24": "24 horas",
+      "h12": "12 horas (AM/PM)",
+      "saved": "Formato horario guardado.",
+      "saveError": "No se pudo guardar el formato horario."
+    },
     "username": "Nombre de usuario",
     "height": "Altura (cm)",
     "dateOfBirth": "Fecha de nacimiento",

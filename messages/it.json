@@ -1282,19 +1282,6 @@
         "paused": "In pausa",
         "ended": "Terminato"
       },
-      "today": {
-        "groupLabel": "Dose di oggi",
-        "taken": "Assunta",
-        "skipped": "Saltata",
-        "toastTaken": "Dose di oggi registrata",
-        "toastSkipped": "Dose di oggi saltata",
-        "recordedTaken": "Assunta oggi alle {time}",
-        "recordedSkipped": "Saltata oggi alle {time}",
-        "recordedOneShot": "Dose singola assunta alle {time}",
-        "noneScheduled": "Nessuna dose prevista per oggi.",
-        "pausedHint": "In pausa — nessun promemoria oggi.",
-        "error": "Impossibile registrare la dose."
-      },
       "cadence": {
         "oneShotOn": "Dose singola il {date}.",
         "oneShotPending": "Dose singola in sospeso."
@@ -1349,6 +1336,9 @@
         "add": "Voce",
         "markTaken": "Assunta",
         "markSkipped": "Saltata",
+        "rowActionsLabel": "Azioni per {time}",
+        "markAsTaken": "Segna come assunta",
+        "markAsSkipped": "Segna come saltata",
         "adHocTag": "fuori programma",
         "takenDetail": "prevista {planned} · assunta {taken}",
         "status": {
@@ -1392,8 +1382,8 @@
           "requiresCourseWindow": "Le fasi sono disponibili dopo aver impostato un periodo di trattamento."
         },
         "grace": {
-          "label": "Finestra di promemoria — si applica al tuo programma principale",
-          "primaryScheduleNote": "I farmaci con più programmi mantengono la finestra predefinita degli altri programmi.",
+          "label": "Finestra di promemoria",
+          "appliesToAllNote": "Vale per tutti i programmi di questo farmaco.",
           "unit": "minuti",
           "saved": "Finestra di promemoria salvata",
           "failed": "Impossibile salvare la finestra di promemoria."
@@ -1468,7 +1458,6 @@
         "title": "Impostazioni avanzate",
         "group": {
           "data": "Dati",
-          "reminders": "Promemoria",
           "lifecycle": "Ciclo di vita",
           "externalApi": "API esterna"
         },
@@ -1487,8 +1476,7 @@
         }
       },
       "header": {
-        "historyLabel": "Visualizza cronologia assunzioni",
-        "advancedLabel": "Impostazioni avanzate"
+        "historyLabel": "Visualizza cronologia assunzioni"
       },
       "history": {
         "back": "Torna al farmaco",
@@ -1498,7 +1486,6 @@
       "tabs": {
         "uebersicht": "Panoramica",
         "zeitplan": "Programma",
-        "erinnerung": "Promemoria",
         "bestand": "Scorta",
         "verlauf": "Cronologia",
         "injektion": "Iniezione",
@@ -1510,6 +1497,17 @@
         "tablistLabel": "Sezioni di dettaglio del farmaco"
       },
       "uebersicht": {
+        "statusTitle": "Stato",
+        "nextDoseLabel": "Prossima dose",
+        "nextDoseNone": "Nessuna dose in programma.",
+        "pausedHint": "In pausa — nessun promemoria.",
+        "reminderLabel": "Promemoria",
+        "reminderOn": "Attivo",
+        "reminderOff": "Disattivo",
+        "supplyLabel": "Scorta",
+        "supplyRunway": "Copre ancora circa {days} giorni",
+        "jumpToZeitplan": "Apri programma",
+        "jumpToBestand": "Apri scorta",
         "complianceTitle": "Aderenza",
         "complianceEmpty": "Ancora nessun dato sull'aderenza."
       },
@@ -1542,7 +1540,7 @@
         "scheduleLabel": "Programma {index}",
         "fullEditNote": "Frequenza, classe di trattamento e finestra del ciclo si modificano da «Modifica completa».",
         "graceEcho": "Finestra di promemoria: {minutes} minuti",
-        "graceLink": "Modifica in «Promemoria»",
+        "reminderTitle": "Promemoria",
         "save": "Salva programma",
         "saved": "Programma salvato",
         "failed": "Impossibile salvare il programma",
@@ -1714,8 +1712,7 @@
       "dragHandle": "Trascina per riordinare",
       "show": "Mostra",
       "hide": "Nascondi",
-      "manageSubPages": "Gestisci pagine di dettaglio",
-      "manageSubPagesHint": "Le pagine nascoste vengono rimosse anche dalla navigazione in alto.",
+      "manageInSettings": "Gestisci schede e pagine di dettaglio nelle impostazioni",
       "groupSleep": "Sonno",
       "groupMood": "Umore",
       "groupEvents": "Eventi",
@@ -1843,7 +1840,10 @@
       "emptyTitle": "Ancora nessun briefing",
       "emptyDescription": "Genera il briefing di oggi per avere un riepilogo dei tuoi trend.",
       "emptyAction": "Genera briefing",
-      "loadingLabel": "Preparazione del briefing"
+      "loadingLabel": "Preparazione del briefing",
+      "noProviderTitle": "Nessun provider IA collegato",
+      "noProviderDescription": "Collega un provider IA nelle impostazioni per ricevere briefing giornalieri.",
+      "noProviderAction": "Apri impostazioni IA"
     },
     "trendsRow": {
       "title": "Tendenze",
@@ -3150,7 +3150,7 @@
     },
     "pillOrder": {
       "title": "Ordina le schede di navigazione",
-      "description": "Trascina le schede nell'ordine in cui devono comparire in alto negli Approfondimenti.",
+      "description": "Trascina le schede nell'ordine desiderato e mostrale o nascondile con l'icona dell'occhio. Le pagine di dettaglio nascoste vengono rimosse anche dalla navigazione in alto.",
       "dragHandle": "Riordina",
       "saveSuccess": "Ordine delle schede salvato.",
       "saveError": "Salvataggio dell'ordine delle schede non riuscito.",
@@ -3158,6 +3158,8 @@
       "empty": "Nessuna scheda di navigazione ancora disponibile."
     },
     "customize": "Personalizza gli Approfondimenti",
+    "regenerateRateLimited": "Limite di aggiornamento raggiunto — riprova più tardi.",
+    "regenerateUnavailable": "Nessuna nuova analisi ricevuta — riprova più tardi.",
     "regenerateError": "Aggiornamento ancora in corso — riprova tra un momento."
   },
   "thresholds": {
@@ -3555,6 +3557,15 @@
     "profile": "Profilo",
     "language": "Lingua",
     "languageDescription": "Scegli la lingua di visualizzazione dell’applicazione.",
+    "timeFormat": {
+      "title": "Formato orario",
+      "description": "Determina se gli orari vengono mostrati nel formato 24 ore o 12 ore (AM/PM).",
+      "auto": "Automatico (lingua)",
+      "h24": "24 ore",
+      "h12": "12 ore (AM/PM)",
+      "saved": "Formato orario salvato.",
+      "saveError": "Salvataggio del formato orario non riuscito."
+    },
     "username": "Nome utente",
     "height": "Altezza (cm)",
     "dateOfBirth": "Data di nascita",

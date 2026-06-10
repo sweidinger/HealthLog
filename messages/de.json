@@ -1282,19 +1282,6 @@
         "paused": "Pausiert",
         "ended": "Beendet"
       },
-      "today": {
-        "groupLabel": "Heutige Dosis",
-        "taken": "Genommen",
-        "skipped": "Übersprungen",
-        "toastTaken": "Heutige Dosis erfasst",
-        "toastSkipped": "Heutige Dosis übersprungen",
-        "recordedTaken": "Heute genommen um {time}",
-        "recordedSkipped": "Heute übersprungen um {time}",
-        "recordedOneShot": "Einmalig genommen um {time}",
-        "noneScheduled": "Heute keine Einnahme geplant.",
-        "pausedHint": "Pausiert — heute keine Erinnerung.",
-        "error": "Dosis konnte nicht erfasst werden."
-      },
       "cadence": {
         "oneShotOn": "Einmalige Dosis am {date}.",
         "oneShotPending": "Einmalige Dosis ausstehend."
@@ -1349,6 +1336,9 @@
         "add": "Eintrag",
         "markTaken": "Genommen",
         "markSkipped": "Übersprungen",
+        "rowActionsLabel": "Aktionen für {time}",
+        "markAsTaken": "Als genommen markieren",
+        "markAsSkipped": "Als übersprungen markieren",
         "adHocTag": "außerplanmäßig",
         "takenDetail": "geplant {planned} · genommen {taken}",
         "status": {
@@ -1392,8 +1382,8 @@
           "requiresCourseWindow": "Phasen sind nur mit Kurs-Fenster verfügbar."
         },
         "grace": {
-          "label": "Erinnerungsfenster — gilt für deinen Hauptzeitplan",
-          "primaryScheduleNote": "Andere Zeitpläne behalten ihr Standard-Fenster.",
+          "label": "Erinnerungsfenster",
+          "appliesToAllNote": "Gilt für alle Zeitpläne dieses Medikaments.",
           "unit": "Minuten",
           "saved": "Erinnerungsfenster gespeichert",
           "failed": "Erinnerungsfenster konnte nicht gespeichert werden."
@@ -1468,7 +1458,6 @@
         "title": "Erweiterte Einstellungen",
         "group": {
           "data": "Daten",
-          "reminders": "Erinnerungen",
           "lifecycle": "Lebenszyklus",
           "externalApi": "Externe API"
         },
@@ -1487,8 +1476,7 @@
         }
       },
       "header": {
-        "historyLabel": "Einnahmeverlauf ansehen",
-        "advancedLabel": "Erweiterte Einstellungen"
+        "historyLabel": "Einnahmeverlauf ansehen"
       },
       "history": {
         "back": "Zurück zum Medikament",
@@ -1498,7 +1486,6 @@
       "tabs": {
         "uebersicht": "Übersicht",
         "zeitplan": "Zeitplan",
-        "erinnerung": "Erinnerung",
         "bestand": "Bestand",
         "verlauf": "Verlauf",
         "injektion": "Injektion",
@@ -1510,6 +1497,17 @@
         "tablistLabel": "Medikamenten-Detailbereiche"
       },
       "uebersicht": {
+        "statusTitle": "Status",
+        "nextDoseLabel": "Nächste Dosis",
+        "nextDoseNone": "Keine anstehende Dosis.",
+        "pausedHint": "Pausiert — keine Erinnerungen.",
+        "reminderLabel": "Erinnerung",
+        "reminderOn": "Aktiv",
+        "reminderOff": "Aus",
+        "supplyLabel": "Bestand",
+        "supplyRunway": "Reicht noch ca. {days} Tage",
+        "jumpToZeitplan": "Zum Zeitplan",
+        "jumpToBestand": "Zum Bestand",
         "complianceTitle": "Therapietreue",
         "complianceEmpty": "Noch keine Daten zur Therapietreue."
       },
@@ -1542,7 +1540,7 @@
         "scheduleLabel": "Zeitplan {index}",
         "fullEditNote": "Häufigkeit, Wirkstoffklasse und Kursfenster bearbeitest du über „Vollständig bearbeiten“.",
         "graceEcho": "Erinnerungsfenster: {minutes} Minuten",
-        "graceLink": "In „Erinnerung“ ändern",
+        "reminderTitle": "Erinnerung",
         "save": "Zeitplan speichern",
         "saved": "Zeitplan gespeichert",
         "failed": "Zeitplan konnte nicht gespeichert werden",
@@ -1712,8 +1710,7 @@
       "dragHandle": "Zum Sortieren ziehen",
       "show": "Einblenden",
       "hide": "Ausblenden",
-      "manageSubPages": "Detailseiten verwalten",
-      "manageSubPagesHint": "Ausgeblendete Seiten verschwinden auch aus der oberen Navigation.",
+      "manageInSettings": "Pills & Detailseiten in den Einstellungen verwalten",
       "groupSleep": "Schlaf",
       "groupMood": "Stimmung",
       "groupEvents": "Ereignisse",
@@ -1843,7 +1840,10 @@
       "emptyTitle": "Noch kein Briefing",
       "emptyDescription": "Erstelle das heutige Briefing, um eine Zusammenfassung deiner Trends zu bekommen.",
       "emptyAction": "Briefing erstellen",
-      "loadingLabel": "Briefing wird zusammengestellt"
+      "loadingLabel": "Briefing wird zusammengestellt",
+      "noProviderTitle": "Kein KI-Anbieter verbunden",
+      "noProviderDescription": "Verbinde einen KI-Anbieter in den Einstellungen, um tägliche Briefings zu erhalten.",
+      "noProviderAction": "Zu den KI-Einstellungen"
     },
     "trendsRow": {
       "title": "Trends",
@@ -3150,7 +3150,7 @@
     },
     "pillOrder": {
       "title": "Navigations-Pills sortieren",
-      "description": "Ziehe die Pills in die Reihenfolge, in der sie oben in den Insights erscheinen sollen.",
+      "description": "Ziehe die Pills in die gewünschte Reihenfolge und blende sie über das Augensymbol ein oder aus. Ausgeblendete Detailseiten verschwinden auch aus der oberen Navigation.",
       "dragHandle": "Verschieben",
       "saveSuccess": "Reihenfolge der Pills gespeichert.",
       "saveError": "Speichern der Pill-Reihenfolge fehlgeschlagen.",
@@ -3158,6 +3158,8 @@
       "empty": "Noch keine Navigations-Pills verfügbar."
     },
     "customize": "Insights anpassen",
+    "regenerateRateLimited": "Aktualisierungslimit erreicht — bitte später erneut versuchen.",
+    "regenerateUnavailable": "Keine neue Analyse erhalten — bitte später erneut versuchen.",
     "regenerateError": "Aktualisierung läuft noch — bitte gleich erneut versuchen."
   },
   "thresholds": {
@@ -3555,6 +3557,15 @@
     "profile": "Profil",
     "language": "Sprache",
     "languageDescription": "Wähle die Anzeigesprache der Anwendung.",
+    "timeFormat": {
+      "title": "Stundenformat",
+      "description": "Bestimmt, ob Uhrzeiten im 24-Stunden- oder 12-Stunden-Format (AM/PM) angezeigt werden.",
+      "auto": "Automatisch (Sprache)",
+      "h24": "24 Stunden",
+      "h12": "12 Stunden (AM/PM)",
+      "saved": "Stundenformat gespeichert.",
+      "saveError": "Speichern des Stundenformats fehlgeschlagen."
+    },
     "username": "Benutzername",
     "height": "Körpergröße (cm)",
     "dateOfBirth": "Geburtsdatum",

@@ -1,10 +1,10 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
-  ChevronDown,
   Eye,
   EyeOff,
   GripVertical,
@@ -33,22 +33,12 @@ import { cn } from "@/lib/utils";
 import { prefersReducedMotion } from "@/lib/charts/reduced-motion";
 import { useTranslations } from "@/lib/i18n/context";
 import { queryKeys } from "@/lib/query-keys";
-import {
-  reorderById,
-  rebuildTilesWithReorderedVitals,
-} from "@/lib/insights-layout-reorder";
+import { reorderById } from "@/lib/insights-layout-reorder";
 import {
   type InsightsLayout,
   type InsightsSectionConfig,
   type InsightsSectionId,
-  type InsightsTileConfig,
 } from "@/lib/insights-layout";
-import {
-  MANAGER_GROUP_ORDER,
-  SUB_PAGE_MANAGER_GROUP_SLUGS,
-  type ManagerGroup,
-} from "@/lib/insights/sub-page-metric";
-import { SUB_PAGE_TABS } from "@/components/insights/insights-tab-strip";
 
 /**
  * v1.15.11 W3 — inline "Anpassen" edit mode for the customizable Insights
@@ -61,14 +51,11 @@ import { SUB_PAGE_TABS } from "@/components/insights/insights-tab-strip";
  * and invalidates `queryKeys.insightsLayout()`; "Zurücksetzen" DELETEs to
  * defaults.
  *
- * Tile-level depth (the Vitals section's per-metric tiles) ships as the
- * spec-sanctioned DISCLOSURE fallback rather than nested cross-container drag:
- * section rows drag in ONE top-level `SortableContext`; the Vitals row carries a
- * "Kacheln verwalten" disclosure that opens a SEPARATE, independent
- * `DndContext` + `SortableContext` for its tiles. The two drag contexts never
- * share collision detection, so a tile drag can never cross-fire into a section
- * drag — the failure mode flagged in the plan's Risks section. Still inline,
- * still drag + eye per tile, robust on touch.
+ * Tile-level management (the per-metric detail pages + their nav pills)
+ * moved to Settings → Insights in v1.15.20 — the pill-order section there
+ * carries both sorting AND the eye toggles, so the disclosure this card used
+ * to nest under the Vitals row was a duplicate surface. The card keeps the
+ * draft's `tiles` untouched and links to the settings section instead.
  */
 
 /** Localized title key per section id — used for the edit-card label. */
@@ -81,27 +68,6 @@ const SECTION_TITLE_KEYS: Record<InsightsSectionId, string> = {
   "cycle-summary": "cycle.insightsSummary.title",
   signals: "insights.derived.coincident.cardTitle",
   "rhythm-events": "insights.rhythmEvents.sectionTitle",
-};
-
-/**
- * v1.15.14 W2 — group-header label key per manager group. Reuses the
- * tab-strip parent-pill labels (`insights.tabStrip.<group>Parent.label`)
- * so a section header in the manager reads exactly like the nav pill it
- * governs; the three groups the tab strip never collapses (sleep / mood /
- * events) get their own `insights.editMode.group*` keys. ONE source of
- * labels keeps the customize surface and the nav in lockstep.
- */
-const MANAGER_GROUP_HEADER_KEYS: Record<ManagerGroup, string> = {
-  vitals: "insights.tabStrip.vitalsParent.label",
-  body: "insights.tabStrip.bodyParent.label",
-  activity: "insights.tabStrip.activityParent.label",
-  sleep: "insights.editMode.groupSleep",
-  cardiovascular: "insights.tabStrip.cardiovascularParent.label",
-  hearing: "insights.tabStrip.hearingParent.label",
-  environment: "insights.tabStrip.environmentParent.label",
-  metabolic: "insights.tabStrip.metabolicParent.label",
-  mood: "insights.editMode.groupMood",
-  events: "insights.editMode.groupEvents",
 };
 
 interface InsightsEditModeProps {
@@ -131,9 +97,10 @@ export function InsightsEditMode({
   const [draft, setDraft] = useState<InsightsLayout>(() => ({
     version: layout.version,
     sections: [...layout.sections].sort((a, b) => a.order - b.order),
+    // Tiles pass through the save verbatim — pill order + visibility are
+    // managed on Settings → Insights since v1.15.20.
     tiles: [...layout.tiles].sort((a, b) => a.order - b.order),
   }));
-  const [tilesOpen, setTilesOpen] = useState(false);
 
   // v1.15.11 QA L5 — on mount move focus to the edit-card heading so keyboard /
   // screen-reader users land on the surface they just opened (not the top of
@@ -208,34 +175,6 @@ export function InsightsEditMode({
   );
   const sectionIds = sections.map((s) => s.id);
 
-  // v1.15.14 W2 — the manager now lists EVERY sub-page slug grouped by
-  // category, not just the Vitals overview grid subset. Each group renders
-  // its slugs sorted by the draft's saved `order`; a slug the layout does
-  // not enumerate falls to the end. The `overview` tile is layout-only (the
-  // mother page, not a sub-page) so it never appears here. Labels reuse the
-  // tab-strip `SUB_PAGE_TABS[slug].labelKey` so the manager row reads like
-  // the nav pill it governs.
-  const tilesByGroup = useMemo(() => {
-    const byId = new Map<string, InsightsTileConfig>(
-      draft.tiles.map((tt) => [tt.id, tt]),
-    );
-    return MANAGER_GROUP_ORDER.map((group) => {
-      const rows = SUB_PAGE_MANAGER_GROUP_SLUGS[group]
-        .map((slug) => {
-          const cfg = byId.get(slug);
-          return {
-            id: slug as string,
-            labelKey: SUB_PAGE_TABS[slug].labelKey,
-            visible: cfg?.visible ?? false,
-            order: cfg?.order ?? Number.MAX_SAFE_INTEGER,
-          };
-        })
-        .sort((a, b) => a.order - b.order);
-      return { group, rows };
-    }).filter((g) => g.rows.length > 0);
-    // Re-derive on any tile change.
-  }, [draft.tiles]);
-
   function toggleSection(id: InsightsSectionId, visible: boolean) {
     setDraft((d) => ({
       ...d,
@@ -252,47 +191,6 @@ export function InsightsEditMode({
       String(over.id),
     );
     setDraft((d) => ({ ...d, sections: reordered }));
-  }
-
-  function toggleTile(id: string, visible: boolean) {
-    setDraft((d) => ({
-      ...d,
-      tiles: d.tiles.map((tt) => (tt.id === id ? { ...tt, visible } : tt)),
-    }));
-  }
-
-  /**
-   * v1.15.14 W2 — reorder the tiles WITHIN one manager group. Each group
-   * renders its own `SortableContext`, so a drag never crosses a group
-   * boundary; the group is identified from the dragged slug. We reorder the
-   * group's subset through the tested pure helper, then splice it back into
-   * the full `tiles` array (which also drives the tab strip + overview grid),
-   * re-densifying order only across that group's slots while every other
-   * tile keeps its relative order.
-   */
-  function handleGroupTileDragEnd(group: ManagerGroup, event: DragEndEvent) {
-    const { active, over } = event;
-    if (!over || active.id === over.id) return;
-    const groupRows = tilesByGroup.find((g) => g.group === group)?.rows ?? [];
-    const groupMemberIds = new Set(groupRows.map((r) => r.id));
-    const subset = groupRows.map((tt) => ({
-      id: tt.id,
-      order: tt.order,
-      visible: tt.visible,
-    }));
-    // Reorder ONLY this group's subset through the tested pure helper — a
-    // single total-order sort, never a mixed-key comparator (QA M2).
-    const reordered = reorderById(subset, String(active.id), String(over.id));
-    const reorderedIds = reordered.map((r) => r.id);
-
-    setDraft((d) => ({
-      ...d,
-      // Substitute this group's slots in their new relative order while leaving
-      // every other tile untouched. Pure, total-order helper (QA M2).
-      tiles: rebuildTilesWithReorderedVitals(d.tiles, reorderedIds, (id) =>
-        groupMemberIds.has(id),
-      ),
-    }));
   }
 
   const allHidden = draft.sections.every((s) => !s.visible);
@@ -365,7 +263,6 @@ export function InsightsEditMode({
           <div className="space-y-2">
             {sections.map((section) => {
               const gatedOff = gatedOffSectionIds.has(section.id);
-              const isVitals = section.id === "vitals";
               return (
                 <SortableSectionRow
                   key={section.id}
@@ -380,94 +277,25 @@ export function InsightsEditMode({
                     gatedHint: t("insights.editMode.gatedHint"),
                   }}
                   onToggle={toggleSection}
-                >
-                  {isVitals && (
-                    <div className="mt-2 border-t pt-2">
-                      <button
-                        type="button"
-                        onClick={() => setTilesOpen((o) => !o)}
-                        disabled={busy}
-                        aria-expanded={tilesOpen}
-                        data-slot="insights-edit-tiles-disclosure"
-                        className="text-muted-foreground hover:text-foreground focus-visible:ring-ring inline-flex min-h-11 items-center gap-1.5 rounded text-sm focus-visible:ring-2 focus-visible:outline-none disabled:opacity-50"
-                      >
-                        <ChevronDown
-                          className={cn(
-                            "h-4 w-4 transition-transform motion-reduce:transition-none",
-                            tilesOpen && "rotate-180",
-                          )}
-                          aria-hidden="true"
-                        />
-                        {t("insights.editMode.manageSubPages")}
-                      </button>
-                      {/* v1.15.14 — flag that hiding a detail page also drops
-                          its top-nav pill, so a user isn't surprised a metric
-                          vanished from the navigation. */}
-                      <p
-                        data-slot="insights-edit-tiles-nav-hint"
-                        className="text-muted-foreground mt-1 text-xs"
-                      >
-                        {t("insights.editMode.manageSubPagesHint")}
-                      </p>
-                      {tilesOpen && (
-                        // v1.15.14 W2 — the manager now lists EVERY sub-page
-                        // slug grouped by category, the same `tiles` layout the
-                        // tab strip + overview Vitals grid read. Each group is
-                        // its OWN `DndContext` + `SortableContext` so a drag
-                        // never crosses a group boundary (and never cross-fires
-                        // into the section drag). The whole list scrolls inside
-                        // one capped container; `overscroll-contain` keeps the
-                        // scroll local on touch.
-                        <div className="mt-2 max-h-[60vh] space-y-3 overflow-y-auto overscroll-contain">
-                          {tilesByGroup.map(({ group, rows }) => (
-                            <div key={group} data-slot="insights-edit-tile-group" data-group={group}>
-                              <p className="text-muted-foreground px-1 py-1 text-[11px] font-semibold tracking-wide uppercase">
-                                {t(MANAGER_GROUP_HEADER_KEYS[group])}
-                              </p>
-                              <DndContext
-                                sensors={sensors}
-                                collisionDetection={closestCenter}
-                                onDragEnd={(event) =>
-                                  handleGroupTileDragEnd(group, event)
-                                }
-                              >
-                                <SortableContext
-                                  items={rows.map((r) => r.id)}
-                                  strategy={verticalListSortingStrategy}
-                                >
-                                  <div className="space-y-1.5">
-                                    {rows.map((tile) => (
-                                      <SortableTileRow
-                                        key={tile.id}
-                                        id={tile.id}
-                                        title={t(tile.labelKey)}
-                                        visible={tile.visible}
-                                        disabled={busy}
-                                        labels={{
-                                          dragHandle: t(
-                                            "insights.editMode.dragHandle",
-                                          ),
-                                          show: t("insights.editMode.show"),
-                                          hide: t("insights.editMode.hide"),
-                                        }}
-                                        onToggle={toggleTile}
-                                      />
-                                    ))}
-                                  </div>
-                                </SortableContext>
-                              </DndContext>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </SortableSectionRow>
+                />
               );
             })}
           </div>
         </SortableContext>
       </DndContext>
+
+      {/* v1.15.20 — the per-detail-page manager (sort + show/hide) lives on
+          Settings → Insights; the disclosure this card used to nest under
+          the Vitals row duplicated it. Keep a quiet pointer instead. */}
+      <p className="text-muted-foreground text-xs">
+        <Link
+          href="/settings/insights#insights-pill-order"
+          data-slot="insights-edit-manage-link"
+          className="hover:text-foreground focus-visible:ring-ring rounded underline underline-offset-2 focus-visible:ring-2 focus-visible:outline-none"
+        >
+          {t("insights.editMode.manageInSettings")}
+        </Link>
+      </p>
     </div>
   );
 }
@@ -523,7 +351,6 @@ interface SortableSectionRowProps {
   disabled: boolean;
   labels: RowLabels & { gatedHint: string };
   onToggle: (id: InsightsSectionId, visible: boolean) => void;
-  children?: React.ReactNode;
 }
 
 function SortableSectionRow({
@@ -533,7 +360,6 @@ function SortableSectionRow({
   disabled,
   labels,
   onToggle,
-  children,
 }: SortableSectionRowProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: section.id });
@@ -598,70 +424,7 @@ function SortableSectionRow({
           slot="insights-edit-section-eye"
         />
       </div>
-      {children}
     </div>
   );
 }
 
-interface SortableTileRowProps {
-  id: string;
-  title: string;
-  visible: boolean;
-  disabled: boolean;
-  labels: RowLabels;
-  onToggle: (id: string, visible: boolean) => void;
-}
-
-function SortableTileRow({
-  id,
-  title,
-  visible,
-  disabled,
-  labels,
-  onToggle,
-}: SortableTileRowProps) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
-    useSortable({ id });
-
-  const style: React.CSSProperties = {
-    transform: CSS.Transform.toString(transform),
-    transition: prefersReducedMotion() ? "none" : transition,
-  };
-
-  return (
-    <div
-      ref={setNodeRef}
-      style={style}
-      data-slot="insights-edit-tile-row"
-      data-tile={id}
-      data-dragging={isDragging ? "true" : undefined}
-      className={cn(
-        "border-border bg-card flex items-center gap-2 rounded-md border px-2 py-1.5",
-        isDragging && "ring-primary z-10 opacity-90 shadow-md ring-2",
-      )}
-    >
-      <button
-        type="button"
-        {...attributes}
-        {...listeners}
-        aria-label={`${labels.dragHandle} — ${title}`}
-        title={labels.dragHandle}
-        disabled={disabled}
-        data-slot="insights-edit-tile-handle"
-        className={DRAG_HANDLE_CLASS}
-      >
-        <GripVertical className="h-4 w-4" />
-      </button>
-      <span className="min-w-0 flex-1 truncate text-sm" title={title}>
-        {title}
-      </span>
-      <EyeToggle
-        visible={visible}
-        disabled={disabled}
-        label={`${visible ? labels.hide : labels.show} — ${title}`}
-        onClick={() => onToggle(id, !visible)}
-        slot="insights-edit-tile-eye"
-      />
-    </div>
-  );
-}

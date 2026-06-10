@@ -4615,6 +4615,13 @@ components:
           type: string
           minLength: 1
           maxLength: 64
+        timeFormat:
+          description: Hour-cycle display preference. AUTO follows the locale convention, H12 forces AM/PM, H24 forces 24-hour.
+          type: string
+          enum:
+            - AUTO
+            - H12
+            - H24
         moodReminderEnabled:
           type: boolean
         fullName:
@@ -10022,6 +10029,13 @@ components:
             - type: "null"
         timezone:
           type: string
+        timeFormat:
+          type: string
+          enum:
+            - AUTO
+            - H12
+            - H24
+          description: Hour-cycle display preference. AUTO follows the locale convention, H12 forces AM/PM, H24 forces 24-hour.
         moodReminderEnabled:
           type: boolean
         fullName:
@@ -10050,6 +10064,7 @@ components:
         - heightCm
         - locale
         - timezone
+        - timeFormat
         - moodReminderEnabled
         - fullName
         - insurerName
@@ -10111,6 +10126,13 @@ components:
             - type: "null"
         timezone:
           type: string
+        timeFormat:
+          type: string
+          enum:
+            - AUTO
+            - H12
+            - H24
+          description: Hour-cycle display preference. AUTO follows the locale convention, H12 forces AM/PM, H24 forces 24-hour.
         moodReminderEnabled:
           type: boolean
         fullName:
@@ -10137,6 +10159,7 @@ components:
         - heightCm
         - locale
         - timezone
+        - timeFormat
         - moodReminderEnabled
         - fullName
         - insurerName
@@ -10668,10 +10691,16 @@ components:
             - ready
             - preparing
             - disabled
+            - no-provider
         briefingUpdatedAt:
           anyOf:
             - type: string
             - type: "null"
+        briefingStale:
+          type: boolean
+          description: True when `briefing` carries the last good (expired-TTL) briefing while a refresh is pending (`preparing`)
+            or impossible (`no-provider`). Render the stale content with its `briefingUpdatedAt` timestamp instead of a
+            blank tile.
         generatedAt:
           type: string
       required:
@@ -10684,15 +10713,18 @@ components:
         - briefing
         - briefingState
         - briefingUpdatedAt
+        - briefingStale
         - generatedAt
       additionalProperties: false
-      description: Unified above-the-fold dashboard payload. `tiles` always arrives (slim summaries + mood + resolved widget
+      description: "Unified above-the-fold dashboard payload. `tiles` always arrives (slim summaries + mood + resolved widget
         layout); `extras` (BD-in-target + per-context glucose) is null on a rollup-coverage miss so the strip never
         waits on the slowest read. `briefing` is lifted read-only from the pre-generated insight cache — never generated
-        synchronously — and reports `ready` / `preparing` / `disabled` via `briefingState`. `layoutCatalogue` (full
-        27-id widget catalogue) and `metricStates` (latest reading per metric, keyed by iOS `MetricKind` raw value) are
-        additive cold-launch seeds for the native client; both derive in-process from data already fetched, adding no DB
-        round-trip.
+        synchronously — and reports `ready` / `preparing` / `disabled` / `no-provider` via `briefingState`
+        (`no-provider` = stale-or-missing cache with no AI provider configured anywhere, so no warm pass will fill it;
+        stop polling and surface a connect-provider hint). A stale-but-parseable briefing is still delivered with
+        `briefingStale: true`. `layoutCatalogue` (full 27-id widget catalogue) and `metricStates` (latest reading per
+        metric, keyed by iOS `MetricKind` raw value) are additive cold-launch seeds for the native client; both derive
+        in-process from data already fetched, adding no DB round-trip."
     InsightsComprehensiveResponseEnvelope:
       type: object
       properties:

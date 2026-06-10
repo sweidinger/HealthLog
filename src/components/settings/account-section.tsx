@@ -50,6 +50,7 @@ import { describePasskeyError } from "@/lib/passkey-errors";
 import { queryKeys } from "@/lib/query-keys";
 import { SettingsCardHeader } from "@/components/settings/_card-header";
 import { TimezonePicker } from "@/components/settings/timezone-picker";
+import { TimeFormatSelect } from "@/components/settings/time-format-select";
 import { UnitPreferenceSelect } from "@/components/settings/unit-preference-select";
 import { InjectionSitesCard } from "@/components/settings/injection-sites-card";
 import { CycleTrackingCard } from "@/components/settings/cycle-tracking-card";
@@ -506,13 +507,15 @@ export function AccountSection() {
             </div>
           </div>
 
-          {/* Timezone + unit system share one grid row — both are
-              personal display preferences (like language above). The
-              unit dropdown PATCHes its own endpoint on change; the
-              timezone saves through the form's submit handler. */}
+          {/* Timezone + unit system + hour format share one grid block —
+              all personal display preferences (like language above). The
+              unit and time-format dropdowns PATCH their own endpoints on
+              change; the timezone saves through the form's submit
+              handler. */}
           <div className="grid gap-4 sm:grid-cols-2">
             <TimezonePicker value={timezone} onChange={setTimezone} />
             <UnitPreferenceSelect isAuthenticated={isAuthenticated} />
+            <TimeFormatSelect isAuthenticated={isAuthenticated} />
           </div>
 
           {/* v1.7.0 — optional patient-identity fields surfaced on the

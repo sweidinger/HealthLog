@@ -1282,19 +1282,6 @@
         "paused": "Wstrzymany",
         "ended": "Zakończony"
       },
-      "today": {
-        "groupLabel": "Dzisiejsza dawka",
-        "taken": "Przyjęto",
-        "skipped": "Pominięto",
-        "toastTaken": "Dzisiejsza dawka zapisana",
-        "toastSkipped": "Dzisiejsza dawka pominięta",
-        "recordedTaken": "Przyjęto dziś o {time}",
-        "recordedSkipped": "Pominięto dziś o {time}",
-        "recordedOneShot": "Jednorazową dawkę przyjęto o {time}",
-        "noneScheduled": "Na dziś nie zaplanowano żadnej dawki.",
-        "pausedHint": "Wstrzymano — dziś brak przypomnienia.",
-        "error": "Nie udało się zapisać dawki."
-      },
       "cadence": {
         "oneShotOn": "Dawka jednorazowa w dniu {date}.",
         "oneShotPending": "Dawka jednorazowa oczekuje."
@@ -1349,6 +1336,9 @@
         "add": "Wpis",
         "markTaken": "Przyjęte",
         "markSkipped": "Pominięte",
+        "rowActionsLabel": "Akcje dla {time}",
+        "markAsTaken": "Oznacz jako przyjętą",
+        "markAsSkipped": "Oznacz jako pominiętą",
         "adHocTag": "poza planem",
         "takenDetail": "planowo {planned} · przyjęto {taken}",
         "status": {
@@ -1392,8 +1382,8 @@
           "requiresCourseWindow": "Fazy są dostępne po ustawieniu okresu leczenia."
         },
         "grace": {
-          "label": "Okno przypomnienia — dotyczy głównego harmonogramu",
-          "primaryScheduleNote": "Leki z wieloma harmonogramami zachowują domyślne okno pozostałych harmonogramów.",
+          "label": "Okno przypomnienia",
+          "appliesToAllNote": "Dotyczy wszystkich harmonogramów tego leku.",
           "unit": "minut",
           "saved": "Okno przypomnienia zapisane",
           "failed": "Nie udało się zapisać okna przypomnienia."
@@ -1468,7 +1458,6 @@
         "title": "Ustawienia zaawansowane",
         "group": {
           "data": "Dane",
-          "reminders": "Przypomnienia",
           "lifecycle": "Cykl życia",
           "externalApi": "Zewnętrzne API"
         },
@@ -1487,8 +1476,7 @@
         }
       },
       "header": {
-        "historyLabel": "Zobacz historię przyjęć",
-        "advancedLabel": "Ustawienia zaawansowane"
+        "historyLabel": "Zobacz historię przyjęć"
       },
       "history": {
         "back": "Powrót do leku",
@@ -1498,7 +1486,6 @@
       "tabs": {
         "uebersicht": "Przegląd",
         "zeitplan": "Harmonogram",
-        "erinnerung": "Przypomnienia",
         "bestand": "Zapas",
         "verlauf": "Historia",
         "injektion": "Iniekcja",
@@ -1510,6 +1497,17 @@
         "tablistLabel": "Sekcje szczegółów leku"
       },
       "uebersicht": {
+        "statusTitle": "Status",
+        "nextDoseLabel": "Następna dawka",
+        "nextDoseNone": "Brak nadchodzącej dawki.",
+        "pausedHint": "Wstrzymano — brak przypomnień.",
+        "reminderLabel": "Przypomnienie",
+        "reminderOn": "Włączone",
+        "reminderOff": "Wyłączone",
+        "supplyLabel": "Zapas",
+        "supplyRunway": "Wystarczy na około {days} dni",
+        "jumpToZeitplan": "Otwórz harmonogram",
+        "jumpToBestand": "Otwórz zapas",
         "complianceTitle": "Przestrzeganie",
         "complianceEmpty": "Brak danych o przestrzeganiu."
       },
@@ -1542,7 +1540,7 @@
         "scheduleLabel": "Harmonogram {index}",
         "fullEditNote": "Częstotliwość, klasę leczenia i okno kuracji edytujesz przez „Pełna edycja”.",
         "graceEcho": "Okno przypomnienia: {minutes} minut",
-        "graceLink": "Zmień w „Przypomnienia”",
+        "reminderTitle": "Przypomnienie",
         "save": "Zapisz harmonogram",
         "saved": "Zapisano harmonogram",
         "failed": "Nie udało się zapisać harmonogramu",
@@ -1714,8 +1712,7 @@
       "dragHandle": "Przeciągnij, aby zmienić kolejność",
       "show": "Pokaż",
       "hide": "Ukryj",
-      "manageSubPages": "Zarządzaj stronami szczegółów",
-      "manageSubPagesHint": "Ukryte strony znikają również z górnej nawigacji.",
+      "manageInSettings": "Zarządzaj pigułkami i stronami szczegółów w ustawieniach",
       "groupSleep": "Sen",
       "groupMood": "Nastrój",
       "groupEvents": "Zdarzenia",
@@ -1843,7 +1840,10 @@
       "emptyTitle": "Jeszcze brak briefingu",
       "emptyDescription": "Wygeneruj dzisiejszy briefing, aby zobaczyć podsumowanie trendów.",
       "emptyAction": "Wygeneruj briefing",
-      "loadingLabel": "Przygotowanie briefingu"
+      "loadingLabel": "Przygotowanie briefingu",
+      "noProviderTitle": "Brak połączonego dostawcy AI",
+      "noProviderDescription": "Połącz dostawcę AI w ustawieniach, aby otrzymywać codzienne briefingi.",
+      "noProviderAction": "Otwórz ustawienia AI"
     },
     "trendsRow": {
       "title": "Trendy",
@@ -3150,7 +3150,7 @@
     },
     "pillOrder": {
       "title": "Sortuj pigułki nawigacyjne",
-      "description": "Przeciągnij pigułki w kolejności, w jakiej mają się pojawiać u góry Analiz.",
+      "description": "Przeciągnij pigułki w wybranej kolejności i pokaż lub ukryj je ikoną oka. Ukryte strony szczegółów znikają również z górnej nawigacji.",
       "dragHandle": "Zmień kolejność",
       "saveSuccess": "Zapisano kolejność pigułek.",
       "saveError": "Zapisanie kolejności pigułek nie powiodło się.",
@@ -3158,6 +3158,8 @@
       "empty": "Brak dostępnych pigułek nawigacyjnych."
     },
     "customize": "Dostosuj Analizy",
+    "regenerateRateLimited": "Osiągnięto limit odświeżeń — spróbuj ponownie później.",
+    "regenerateUnavailable": "Nie otrzymano nowej analizy — spróbuj ponownie później.",
     "regenerateError": "Trwa odświeżanie — spróbuj ponownie za chwilę."
   },
   "thresholds": {
@@ -3555,6 +3557,15 @@
     "profile": "Profil",
     "language": "Język",
     "languageDescription": "Wybierz język wyświetlania aplikacji.",
+    "timeFormat": {
+      "title": "Format godziny",
+      "description": "Określa, czy godziny są wyświetlane w formacie 24-godzinnym czy 12-godzinnym (AM/PM).",
+      "auto": "Automatycznie (język)",
+      "h24": "24-godzinny",
+      "h12": "12-godzinny (AM/PM)",
+      "saved": "Zapisano format godziny.",
+      "saveError": "Nie udało się zapisać formatu godziny."
+    },
     "username": "Nazwa użytkownika",
     "height": "Wzrost (cm)",
     "dateOfBirth": "Data urodzenia",

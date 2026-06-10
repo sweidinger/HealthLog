@@ -12,10 +12,6 @@ import {
   DEFAULT_INSIGHTS_LAYOUT,
   type InsightsSectionId,
 } from "@/lib/insights-layout";
-import {
-  MANAGER_GROUP_ORDER,
-  SUB_PAGE_MANAGER_GROUP_SLUGS,
-} from "@/lib/insights/sub-page-metric";
 
 function render(node: React.ReactNode) {
   const queryClient = new QueryClient({
@@ -28,31 +24,38 @@ function render(node: React.ReactNode) {
   );
 }
 
-describe("<InsightsEditMode> — broadened sub-page manager (v1.15.14 W2)", () => {
+describe("<InsightsEditMode> — detail-page manager retired (v1.15.20)", () => {
   const noneGated: ReadonlySet<InsightsSectionId> = new Set();
 
-  it("relabels the Vitals disclosure to 'Manage detail pages'", () => {
-    const html = render(
+  function renderEditMode(): string {
+    return render(
       <InsightsEditMode
         layout={DEFAULT_INSIGHTS_LAYOUT}
         gatedOffSectionIds={noneGated}
         onClose={() => {}}
       />,
     );
-    expect(html).toContain('data-slot="insights-edit-tiles-disclosure"');
-    expect(html).toContain("Manage detail pages");
+  }
+
+  it("no longer renders the per-detail-page manager disclosure", () => {
+    // Pill sorting + visibility moved to Settings → Insights; the in-card
+    // disclosure under the Vitals row duplicated that surface.
+    const html = renderEditMode();
+    expect(html).not.toContain('data-slot="insights-edit-tiles-disclosure"');
+    expect(html).not.toContain('data-slot="insights-edit-tile-row"');
+    expect(html).not.toContain('data-slot="insights-edit-tiles-nav-hint"');
   });
 
-  it("groups every routed sub-page slug under exactly one manager group", () => {
-    // The disclosure body is collapsed in SSR (no effects fire), so this
-    // asserts the data the manager renders FROM rather than the open DOM:
-    // every group in the manager order carries at least one slug, and the
-    // three tab-strip-flat categories (sleep / mood / events) are present.
-    expect(MANAGER_GROUP_ORDER).toContain("mood");
-    expect(MANAGER_GROUP_ORDER).toContain("events");
-    expect(MANAGER_GROUP_ORDER).toContain("sleep");
-    // A non-vitals slug (`steps`) lands in the activity group so it is
-    // toggle-able from the manager — the round-trip the spec calls out.
-    expect(SUB_PAGE_MANAGER_GROUP_SLUGS.activity).toContain("steps");
+  it("links to the settings pill section instead", () => {
+    const html = renderEditMode();
+    expect(html).toContain('data-slot="insights-edit-manage-link"');
+    expect(html).toContain('href="/settings/insights#insights-pill-order"');
+    expect(html).toContain("Manage pills &amp; detail pages in Settings");
+  });
+
+  it("still renders the section rows with their eye toggles", () => {
+    const html = renderEditMode();
+    expect(html).toContain('data-slot="insights-edit-section-row"');
+    expect(html).toContain('data-slot="insights-edit-section-eye"');
   });
 });
