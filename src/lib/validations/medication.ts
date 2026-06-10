@@ -803,6 +803,13 @@ export const updateInventoryItemSchema = z.object({
     .transform((s) => new Date(s))
     .nullable()
     .optional(),
+  /**
+   * v1.16.1 — stock correction (the Bestand tab's adjust / withdraw
+   * flow). Sets the remaining-dose count directly; the route clamps to
+   * `dosesTotal` and re-runs the canonical state machine (0 ⇒ USED_UP,
+   * a raise out of 0 re-evaluates against the expiry clocks).
+   */
+  dosesRemaining: z.number().int().min(0).max(100).optional(),
   notes: z.string().max(200).nullable().optional(),
 });
 

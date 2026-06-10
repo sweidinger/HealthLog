@@ -192,3 +192,57 @@ describe("computeNextDueAt — skip resolved slots (twice-daily)", () => {
     expect(next!.toISOString()).toBe("2026-06-10T17:00:00.000Z"); // today 19:00
   });
 });
+
+/**
+ * v1.16.1 — a stale / degenerate legacy window must NEVER determine
+ * next-due once `timesOfDay` exists. Regression fixture: a twice-daily
+ * med whose schedule row still carries the historic `07:00 / 07:00`
+ * point window while the canonical dose times moved to 09:00 / 21:00.
+ * The card read "today, 07:00" off the window; the engine must anchor on
+ * the timesOfDay slots exclusively.
+ */
+describe("computeNextDueAt — stale degenerate window never wins over timesOfDay", () => {
+  function staleWindowTwiceDaily(): WorkerScheduleRow {
+    return {
+      id: "sched-stale",
+      windowStart: "07:00",
+      windowEnd: "07:00",
+      daysOfWeek: null,
+      timesOfDay: ["09:00", "21:00"],
+      reminderGraceMinutes: null,
+      rrule: null,
+      rollingIntervalDays: null,
+      scheduleType: "SCHEDULED",
+      cyclicOnWeeks: null,
+      cyclicOffWeeks: null,
+    };
+  }
+
+  it("returns today's 09:00 slot before the morning dose", () => {
+    const now = d("2026-06-10T06:00:00Z"); // 08:00 Berlin
+    const next = computeNextDueAt({
+      medication: makeMedication(),
+      schedules: [staleWindowTwiceDaily()],
+      now,
+      userTz: BERLIN,
+      lastIntakeAt: null,
+    });
+    expect(next).not.toBeNull();
+    // 09:00 Berlin (CEST, UTC+2) = 07:00 UTC — never the stale 07:00 window.
+    expect(next!.toISOString()).toBe("2026-06-10T07:00:00.000Z");
+  });
+
+  it("returns today's 21:00 slot between the doses", () => {
+    const now = d("2026-06-10T08:00:00Z"); // 10:00 Berlin
+    const next = computeNextDueAt({
+      medication: makeMedication(),
+      schedules: [staleWindowTwiceDaily()],
+      now,
+      userTz: BERLIN,
+      lastIntakeAt: null,
+    });
+    expect(next).not.toBeNull();
+    // 21:00 Berlin = 19:00 UTC.
+    expect(next!.toISOString()).toBe("2026-06-10T19:00:00.000Z");
+  });
+});

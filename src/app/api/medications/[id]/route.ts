@@ -18,6 +18,10 @@ import {
 } from "@/lib/medication-category";
 import { serializeScheduleRecurrence } from "@/lib/medication-schedule";
 import { computeNextDueAt } from "@/lib/medications/scheduling/next-due";
+import {
+  dayKeyForScheduledFor,
+  recomputeMedicationComplianceForDay,
+} from "@/lib/rollups/medication-compliance-rollups";
 import { assertMedicationOwnership } from "@/lib/medications/route-guards";
 import { getUserTodayBounds } from "@/lib/timezone";
 import { NextRequest } from "next/server";
@@ -287,22 +291,50 @@ export const PUT = apiHandler(
       // `syncVersion` so delta-sync clients drop them. The projector and
       // the reminder worker re-mint the anchors for the new times on their
       // next pass — the route does not pre-create them.
-      const { start: todayStart } = getUserTodayBounds(
-        new Date(),
-        user.timezone || "Europe/Berlin",
-      );
+      const userTz = user.timezone || "Europe/Berlin";
+      const { start: todayStart } = getUserTodayBounds(new Date(), userTz);
+      const tombstoneWhere = {
+        userId: user.id,
+        medicationId: id,
+        deletedAt: null,
+        takenAt: null,
+        skipped: false,
+        autoMissed: false,
+        scheduledFor: { gte: todayStart },
+      } as const;
+      // Capture the affected slots BEFORE the tombstone so the compliance
+      // rollups for those days can be recomputed immediately below —
+      // `updateMany` does not return the touched rows. Without the
+      // recompute a tombstoned pending kept counting as `scheduled` in
+      // the rollup row until the next event-driven write for that day,
+      // depressing the rate the cards read in the meantime.
+      const tombstoned = await prisma.medicationIntakeEvent.findMany({
+        where: tombstoneWhere,
+        select: { scheduledFor: true },
+      });
       await prisma.medicationIntakeEvent.updateMany({
-        where: {
-          userId: user.id,
-          medicationId: id,
-          deletedAt: null,
-          takenAt: null,
-          skipped: false,
-          autoMissed: false,
-          scheduledFor: { gte: todayStart },
-        },
+        where: tombstoneWhere,
         data: { deletedAt: new Date(), syncVersion: { increment: 1 } },
       });
+      // Recompute each affected rollup day (deduped via the user-tz day
+      // key). Best-effort like every other rollup write-hook: a failure
+      // is annotated, never blocks the schedule replace.
+      const staleDayKeys = new Set(
+        tombstoned.map((row) => dayKeyForScheduledFor(row.scheduledFor, userTz)),
+      );
+      for (const dayKey of staleDayKeys) {
+        try {
+          await recomputeMedicationComplianceForDay(user.id, id, dayKey, userTz);
+        } catch (err) {
+          annotate({
+            meta: {
+              medication_compliance_rollup_failed: true,
+              medication_compliance_rollup_error:
+                err instanceof Error ? err.message : String(err),
+            },
+          });
+        }
+      }
       await prisma.medicationSchedule.deleteMany({
         where: { medicationId: id },
       });

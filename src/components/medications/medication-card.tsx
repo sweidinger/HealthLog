@@ -34,6 +34,14 @@ interface Schedule {
   label: string | null;
   dose: string | null;
   daysOfWeek: string | null;
+  /**
+   * v1.16.1 — first-class dose times + explicit per-dose bands. The
+   * window-status helper derives its bands from these (canonical) and
+   * only falls back to `windowStart` / `windowEnd` when they are absent,
+   * so a stale window can no longer drive the pill or the recorded slot.
+   */
+  timesOfDay?: string[];
+  doseWindows?: { timeOfDay: string; start: string; end: string }[] | null;
 }
 
 interface Medication {
@@ -318,10 +326,18 @@ export function MedicationCard({
             }
           }
 
+          // v1.16.1 — the TIME is the canonical next-due instant (the
+          // recurrence engine's timesOfDay-anchored slot), not the legacy
+          // schedule window. A stale `windowStart` / `windowEnd` pair
+          // (e.g. 07:00 / 07:00 while the times moved to 09:00 / 21:00)
+          // used to print "today, 07:00" here. The window range stays as
+          // the fallback for rows the server has no next-due for.
           return (
             <>
               {dayLabel && `${dayLabel}, `}
-              {formatTimeWindowRange(s.windowStart, s.windowEnd, locale)}
+              {nextAt
+                ? formatTime(new Date(nextAt).toISOString())
+                : formatTimeWindowRange(s.windowStart, s.windowEnd, locale)}
               {s.label && (
                 <span className="hidden sm:inline"> ({s.label})</span>
               )}
@@ -350,8 +366,10 @@ export function MedicationCard({
         currentWindowStatus.status
           ? {
               status: currentWindowStatus.status,
-              windowStart: currentWindowStatus.schedule!.windowStart,
-              windowEnd: currentWindowStatus.schedule!.windowEnd,
+              // v1.16.1 — the pill shows the MATCHED dose band, not the
+              // legacy schedule window (which may be stale / degenerate).
+              windowStart: currentWindowStatus.window!.start,
+              windowEnd: currentWindowStatus.window!.end,
             }
           : null
       }

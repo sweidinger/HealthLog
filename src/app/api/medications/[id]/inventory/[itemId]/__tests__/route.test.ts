@@ -1,6 +1,10 @@
 /**
  * v1.4.43 W6 — multi-issue 422 envelope on PATCH
  * /api/medications/[id]/inventory/[itemId].
+ *
+ * v1.16.1 — stock-correction contract: `dosesRemaining` sets the count
+ * absolutely, clamps to `dosesTotal`, and the canonical state machine
+ * derives the next state (0 ⇒ USED_UP).
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { NextRequest } from "next/server";
@@ -122,5 +126,57 @@ describe("PATCH /api/medications/[id]/inventory/[itemId] — 422 multi-issue (v1
       details: { issues: Array<unknown> };
     };
     expect(body.details.issues.length).toBeGreaterThanOrEqual(3);
+  });
+});
+
+describe("PATCH /api/medications/[id]/inventory/[itemId] — dosesRemaining stock correction (v1.16.1)", () => {
+  beforeEach(() => {
+    vi.mocked(prisma.medicationInventoryItem.findUnique).mockResolvedValue({
+      id: "i1",
+      medicationId: "m1",
+      userId: "user-1",
+      firstUseAt: null,
+      state: "IN_USE",
+      dosesTotal: 4,
+      dosesRemaining: 3,
+      printedExpiry: null,
+      notes: null,
+    } as never);
+    vi.mocked(prisma.medicationInventoryItem.update).mockImplementation(
+      (async (args: { data: Record<string, unknown> }) => ({
+        id: "i1",
+        ...args.data,
+      })) as never,
+    );
+  });
+
+  it("sets the remaining count absolutely", async () => {
+    const res = await PATCH(patchReq({ dosesRemaining: 1 }), ROUTE_CTX);
+    expect(res.status).toBe(200);
+    const update = vi.mocked(prisma.medicationInventoryItem.update).mock
+      .calls[0][0] as { data: { dosesRemaining: number } };
+    expect(update.data.dosesRemaining).toBe(1);
+  });
+
+  it("derives USED_UP when corrected to zero", async () => {
+    const res = await PATCH(patchReq({ dosesRemaining: 0 }), ROUTE_CTX);
+    expect(res.status).toBe(200);
+    const update = vi.mocked(prisma.medicationInventoryItem.update).mock
+      .calls[0][0] as { data: { dosesRemaining: number; state: string } };
+    expect(update.data.dosesRemaining).toBe(0);
+    expect(update.data.state).toBe("USED_UP");
+  });
+
+  it("clamps a raise above the item's capacity to dosesTotal", async () => {
+    const res = await PATCH(patchReq({ dosesRemaining: 99 }), ROUTE_CTX);
+    expect(res.status).toBe(200);
+    const update = vi.mocked(prisma.medicationInventoryItem.update).mock
+      .calls[0][0] as { data: { dosesRemaining: number } };
+    expect(update.data.dosesRemaining).toBe(4);
+  });
+
+  it("rejects a negative correction with 422", async () => {
+    const res = await PATCH(patchReq({ dosesRemaining: -1 }), ROUTE_CTX);
+    expect(res.status).toBe(422);
   });
 });

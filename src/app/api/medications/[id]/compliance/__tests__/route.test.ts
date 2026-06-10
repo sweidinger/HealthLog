@@ -439,7 +439,9 @@ describe("GET /api/medications/[id]/compliance — caching and limits", () => {
     expect(vi.mocked(cached)).toHaveBeenCalledTimes(1);
     const [, key] = vi.mocked(cached).mock.calls[0];
     // `${userId}|...` prefix is what `invalidateUserMedications` sweeps.
-    expect(key).toBe("user-1|med-1|compliance");
+    // The trailing tz segment (v1.16.1) makes a timezone change miss the
+    // old entry instead of serving day buckets computed for the prior zone.
+    expect(key).toBe("user-1|med-1|compliance|UTC");
   });
 
   it("bounds the intake-event read to a trailing window and the consumed columns", async () => {

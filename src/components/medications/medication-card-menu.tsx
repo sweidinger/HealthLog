@@ -9,9 +9,10 @@
  * affordance instead of a cluster. The card body itself navigates to the
  * detail page (the former chevron target); this menu owns the edit and
  * history actions. v1.15.20 retires the "Advanced settings" item — the
- * detail page's Erweitert tab is reachable through the card body, and
- * Edit now opens the medication wizard directly instead of landing on
- * the Zeitplan tab.
+ * detail page's Erweitert tab is reachable through the card body.
+ * v1.16.1 — Edit navigates to the detail page's Übersicht tab (the same
+ * target as the name tap); the structural wizard lives under the detail
+ * page's Erweitert → Lebenszyklus row.
  *
  * The optional `onLogSideEffect` slot exists for the GLP-1 card to fold a
  * "Log side effect" item into the SAME menu, but it is NOT wired on the

@@ -129,7 +129,9 @@ describe("reduceCurrentWindowStatus — degenerate point window", () => {
 });
 
 describe("reduceCurrentWindowStatus — timesOfDay-aware overdue coverage", () => {
-  // One schedule row, two dose times, window long past at 22:00.
+  // One schedule row, two dose times. v1.16.1: each dose carries its own
+  // ±60 min band (07:00–09:00 and 19:00–21:00); the legacy row window is
+  // ignored once timesOfDay exists.
   const twoDoseSchedule = [
     {
       windowStart: "08:00",
@@ -143,23 +145,40 @@ describe("reduceCurrentWindowStatus — timesOfDay-aware overdue coverage", () =
     const res = reduceCurrentWindowStatus({
       ...BASE,
       schedules: twoDoseSchedule,
-      nowBerlin: localClock(21, 0),
+      nowBerlin: localClock(21, 30),
       todayEventCount: 1,
     });
-    // One event covers one dose; the second passed dose is uncovered →
-    // the late pill must stay up. (Pre-v1.15.20 the row counted as ONE
-    // expected dose and the pill vanished here.)
+    // 21:30 — both bands have passed (ends 09:00 + 21:00); one event
+    // covers one dose; the second passed dose is uncovered → the late
+    // pill must stay up. (Pre-v1.15.20 the row counted as ONE expected
+    // dose and the pill vanished here.)
     expect(res.status).toBe("late");
+    expect(res.window).toEqual({
+      timeOfDay: "20:00",
+      start: "19:00",
+      end: "21:00",
+    });
   });
 
   it("suppresses the pill once both doses are covered", () => {
     const res = reduceCurrentWindowStatus({
       ...BASE,
       schedules: twoDoseSchedule,
-      nowBerlin: localClock(21, 0),
+      nowBerlin: localClock(21, 30),
       todayEventCount: 2,
     });
     expect(res.status).toBeNull();
+    expect(res.window).toBeNull();
+  });
+
+  it("is in_window inside the second dose's own band", () => {
+    const res = reduceCurrentWindowStatus({
+      ...BASE,
+      schedules: twoDoseSchedule,
+      nowBerlin: localClock(20, 30),
+    });
+    expect(res.status).toBe("in_window");
+    expect(res.window?.timeOfDay).toBe("20:00");
   });
 
   it("a schedule without timesOfDay keeps counting as one dose", () => {
@@ -173,5 +192,75 @@ describe("reduceCurrentWindowStatus — timesOfDay-aware overdue coverage", () =
       todayEventCount: 1,
     });
     expect(res.status).toBeNull();
+  });
+});
+
+describe("reduceCurrentWindowStatus — stale window never beats timesOfDay (v1.16.1)", () => {
+  // The production regression: the schedule row still carries the historic
+  // degenerate 07:00 / 07:00 window while the dose times moved to
+  // 09:00 / 21:00. The 07:00 window must not paint any pill.
+  const staleSchedule = [
+    {
+      windowStart: "07:00",
+      windowEnd: "07:00",
+      daysOfWeek: null,
+      timesOfDay: ["09:00", "21:00"],
+    },
+  ];
+
+  it("shows NO pill at 07:00 (the stale window used to read in_window)", () => {
+    const res = reduceCurrentWindowStatus({
+      ...BASE,
+      schedules: staleSchedule,
+      nowBerlin: localClock(7, 0),
+    });
+    expect(res.status).toBeNull();
+  });
+
+  it("is in_window inside the 09:00 dose band, anchored on 09:00", () => {
+    const res = reduceCurrentWindowStatus({
+      ...BASE,
+      schedules: staleSchedule,
+      nowBerlin: localClock(9, 15),
+    });
+    expect(res.status).toBe("in_window");
+    expect(res.window).toEqual({
+      timeOfDay: "09:00",
+      start: "08:00",
+      end: "10:00",
+    });
+  });
+
+  it("turns late after the 09:00 band end, still anchored on 09:00", () => {
+    const res = reduceCurrentWindowStatus({
+      ...BASE,
+      schedules: staleSchedule,
+      nowBerlin: localClock(11, 0),
+    });
+    expect(res.status).toBe("late");
+    expect(res.window?.timeOfDay).toBe("09:00");
+  });
+
+  it("honours an explicit doseWindows band over the default derivation", () => {
+    const withExplicit = [
+      {
+        windowStart: "07:00",
+        windowEnd: "07:00",
+        daysOfWeek: null,
+        timesOfDay: ["09:00"],
+        doseWindows: [{ timeOfDay: "09:00", start: "08:30", end: "11:30" }],
+      },
+    ];
+    const res = reduceCurrentWindowStatus({
+      ...BASE,
+      schedules: withExplicit,
+      nowBerlin: localClock(11, 0),
+    });
+    expect(res.status).toBe("in_window");
+    expect(res.window).toEqual({
+      timeOfDay: "09:00",
+      start: "08:30",
+      end: "11:30",
+    });
   });
 });

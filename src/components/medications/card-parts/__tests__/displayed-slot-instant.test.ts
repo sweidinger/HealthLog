@@ -61,6 +61,26 @@ describe("resolveDisplayedSlotInstant", () => {
     expect(slot!.toISOString()).toBe("2026-06-05T17:00:00.000Z");
   });
 
+  it("anchors on the matched band's timeOfDay over the stale legacy windowStart (v1.16.1)", () => {
+    // The production regression fixture: degenerate 07:00 / 07:00 window
+    // left behind while the dose times moved to 09:00 / 21:00. The matched
+    // band carries timeOfDay 09:00 — the recorded slot must be 09:00, not
+    // the stale window's 07:00.
+    const inBandNow = new Date("2026-06-05T07:30:00.000Z"); // 09:30 Berlin
+    const slot = resolveDisplayedSlotInstant({
+      currentWindowStatus: {
+        status: "in_window",
+        schedule: { windowStart: "07:00", windowEnd: "07:00" },
+        window: { timeOfDay: "09:00" },
+      },
+      nextDueAt: null,
+      now: inBandNow,
+      timeZone: "Europe/Berlin",
+    });
+    // 09:00 Berlin on 2026-06-05 is 07:00 UTC (CEST = +2).
+    expect(slot!.toISOString()).toBe("2026-06-05T07:00:00.000Z");
+  });
+
   it("falls back to the server's next-due instant when no window is currently actionable", () => {
     const nextDueAt = "2026-06-06T05:00:00.000Z";
     const slot = resolveDisplayedSlotInstant({

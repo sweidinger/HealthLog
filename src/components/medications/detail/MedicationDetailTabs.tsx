@@ -151,6 +151,7 @@ const TAB_SLUGS = [
   "bestand",
   "verlauf",
   "injektion",
+  "api",
   "erweitert",
 ] as const;
 type TabSlug = (typeof TAB_SLUGS)[number];
@@ -337,31 +338,19 @@ export function MedicationDetailTabs({
         </Link>
       </Button>
 
-      {/* HERO — always-visible read-only summary + the structural-edit
-          jump into the wizard. Everyday levers live in the tabs below. */}
-      <div className="flex items-start justify-between gap-3">
-        <MedicationDetailSummary
-          name={medication.name}
-          dose={medication.dose}
-          active={medication.active}
-          endsOn={medication.endsOn}
-          payload={payload}
-          oneShot={oneShot}
-          startsOn={medication.startsOn}
-        />
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => setEditOpen(true)}
-          className="min-h-11 shrink-0 sm:min-h-9"
-          data-slot="medication-detail-full-edit"
-        >
-          <Pencil aria-hidden="true" className="h-4 w-4" />
-          <span className="hidden sm:inline">
-            {t("medications.detail.shell.fullEdit")}
-          </span>
-        </Button>
-      </div>
+      {/* HERO — always-visible read-only summary. The structural edit
+          (wizard) moved out of the header: it lives as a row under
+          Erweitert → Lebenszyklus (the header button read as "edit this
+          page" and misled). `?edit=1` still opens the wizard directly. */}
+      <MedicationDetailSummary
+        name={medication.name}
+        dose={medication.dose}
+        active={medication.active}
+        endsOn={medication.endsOn}
+        payload={payload}
+        oneShot={oneShot}
+        startsOn={medication.startsOn}
+      />
 
       <Tabs
         value={activeTab}
@@ -528,13 +517,28 @@ export function MedicationDetailTabs({
                   doseWindows: s.doseWindows,
                 }))}
               />
+              {/* Quiet cross-link: WHICH channels deliver the reminder
+                  (push / Telegram / ntfy, quiet hours) is configured
+                  globally, not per medication. */}
+              <p className="text-muted-foreground text-xs">
+                <Link
+                  href="/settings/notifications"
+                  className="focus-visible:ring-ring rounded-sm underline underline-offset-2 focus-visible:ring-2 focus-visible:outline-none"
+                  data-slot="zeitplan-manage-channels-link"
+                >
+                  {t("medications.detail.zeitplan.manageChannels")}
+                </Link>
+              </p>
             </div>
           </MedicationDetailSection>
         </TabsContent>
 
-        {/* BESTAND — inventory readout for all meds. */}
+        {/* BESTAND — inventory readout + register / correct flows. */}
         <TabsContent value="bestand" className="space-y-4 pt-2">
-          <InventorySection medicationId={id} />
+          <InventorySection
+            medicationId={id}
+            dosesPerUnit={medication.dosesPerUnit}
+          />
         </TabsContent>
 
         {/* VERLAUF — the dose-history ledger: every expected slot with its
@@ -586,36 +590,14 @@ export function MedicationDetailTabs({
           </TabsContent>
         )}
 
-        {/* ERWEITERT — the dissolved advanced-settings sheet, now grouped
-            un-stacked: Lifecycle → Externe API → Daten → Gefahrenzone. */}
-        <TabsContent value="erweitert" className="space-y-4 pt-2">
-          <SettingsGroup
-            label={t("medications.detail.erweitert.group.lifecycle")}
-            dataSlot="erweitert-group-lifecycle"
-          >
-            <div className="py-3">
-              <LifecycleManageBody
-                medicationId={id}
-                medicationName={medication.name}
-                active={medication.active}
-              />
-            </div>
-            {isGlp1 && (
-              <div className="py-3">
-                <PhasesRow
-                  medicationId={id}
-                  treatmentClass={medication.treatmentClass}
-                  startsOn={medication.startsOn}
-                  endsOn={medication.endsOn}
-                  onRequestPhaseSheet={() => setPhaseSheetOpen(true)}
-                />
-              </div>
-            )}
-          </SettingsGroup>
-
+        {/* API — the external-ingest surface in its own tab: per-medication
+            tokens + the drug-coding identifiers external systems key on.
+            Pulled out of Erweitert so the destructive zone and the token
+            management stop sharing one surface. */}
+        <TabsContent value="api" className="space-y-4 pt-2">
           <SettingsGroup
             label={t("medications.detail.erweitert.group.externalApi")}
-            dataSlot="erweitert-group-external-api"
+            dataSlot="api-group-external-api"
           >
             <div className="py-3">
               <ApiTokensRow
@@ -630,6 +612,61 @@ export function MedicationDetailTabs({
                 rxNormCode={medication.rxNormCode}
               />
             </div>
+          </SettingsGroup>
+        </TabsContent>
+
+        {/* ERWEITERT — Lifecycle → Daten → Gefahrenzone. The external-API
+            group moved to its own API tab. */}
+        <TabsContent value="erweitert" className="space-y-4 pt-2">
+          <SettingsGroup
+            label={t("medications.detail.erweitert.group.lifecycle")}
+            dataSlot="erweitert-group-lifecycle"
+          >
+            <div className="py-3">
+              <LifecycleManageBody
+                medicationId={id}
+                medicationName={medication.name}
+                active={medication.active}
+              />
+            </div>
+            {/* The structural editor (the create/edit wizard) — name,
+                class, cadence kind, schedules. Replaces the former hero
+                "Vollständig bearbeiten" button, which read as "edit this
+                page". */}
+            <div
+              className="flex items-center justify-between gap-3 py-3"
+              data-slot="erweitert-editor-row"
+            >
+              <div className="space-y-1">
+                <p className="text-foreground text-sm font-medium">
+                  {t("medications.detail.erweitert.editor.title")}
+                </p>
+                <p className="text-muted-foreground text-xs">
+                  {t("medications.detail.erweitert.editor.helper")}
+                </p>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setEditOpen(true)}
+                className="min-h-11 shrink-0 sm:min-h-9"
+                data-slot="medication-detail-full-edit"
+              >
+                <Pencil aria-hidden="true" className="h-4 w-4" />
+                {t("medications.detail.erweitert.editor.button")}
+              </Button>
+            </div>
+            {isGlp1 && (
+              <div className="py-3">
+                <PhasesRow
+                  medicationId={id}
+                  treatmentClass={medication.treatmentClass}
+                  startsOn={medication.startsOn}
+                  endsOn={medication.endsOn}
+                  onRequestPhaseSheet={() => setPhaseSheetOpen(true)}
+                />
+              </div>
+            )}
           </SettingsGroup>
 
           <SettingsGroup
@@ -763,18 +800,18 @@ function ComplianceGatedDangerZone({
   const { t } = useTranslations();
 
   return (
+    // v1.16.1 — same neutral card chrome as every other group; only the
+    // action buttons stay destructive. A red-washed card read as a
+    // constant alarm on a page the user visits routinely.
     <SettingsGroup
       label={t("medications.detail.erweitert.group.danger")}
       dataSlot="erweitert-group-danger"
-      className="border-destructive/40 bg-destructive/5"
     >
-      <div className="py-3">
-        <DangerZoneBody
-          medicationId={medicationId}
-          medicationName={medicationName}
-          intakeCount={intakeCount ?? 0}
-        />
-      </div>
+      <DangerZoneBody
+        medicationId={medicationId}
+        medicationName={medicationName}
+        intakeCount={intakeCount ?? 0}
+      />
     </SettingsGroup>
   );
 }
