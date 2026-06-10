@@ -1323,8 +1323,9 @@
         "edit": {
           "dialogTitle": "Edytuj przyjęcie",
           "takenAtLabel": "Przyjęto o",
+          "scheduledForHint": "Zaplanowano: {dateTime}",
+          "farFromScheduledWarning": "Znacznie odbiega od zaplanowanego terminu — sprawdź datę.",
           "skippedLabel": "Pominięto",
-          "noteLabel": "Notatka",
           "save": "Zapisz",
           "cancel": "Anuluj",
           "savedToast": "Przyjęcie zaktualizowane",

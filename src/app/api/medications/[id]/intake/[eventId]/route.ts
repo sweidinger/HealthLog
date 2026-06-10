@@ -14,6 +14,7 @@ import { updateIntakeEventSchema } from "@/lib/validations/medication";
 import { reconcileOneShotState } from "@/lib/medications/lifecycle";
 import { invalidateUserMedications } from "@/lib/cache/invalidate";
 import { recomputeMedicationComplianceForEvent } from "@/lib/rollups/medication-compliance-rollups";
+import { dayKeyForUserTz } from "@/lib/measurements/consolidation-tz";
 import {
   applyCanonicalSlotWrite,
   resolveForcedSlotForWrite,
@@ -75,6 +76,35 @@ export const PUT = apiHandler(
     }
 
     const data = parsed.data;
+
+    // v1.15.19 — start-date guard on an edited `takenAt` (audit P0-4). The
+    // schema bounds the instant to a plausible absolute range; this check
+    // adds the per-medication floor: a take cannot predate the day the
+    // medication starts (calendar-day comparison in the user's timezone, so
+    // a take in the early hours of the start day never false-rejects).
+    if (data.takenAt instanceof Date) {
+      const medication = await prisma.medication.findFirst({
+        where: { id, userId: user.id },
+        select: { startsOn: true },
+      });
+      if (medication?.startsOn) {
+        const takenDay = dayKeyForUserTz(data.takenAt, user.timezone);
+        const startsOnDay = medication.startsOn.toISOString().slice(0, 10);
+        if (takenDay < startsOnDay) {
+          annotate({
+            action: {
+              name: "medications.intake.event.update.before-start-date",
+            },
+            meta: { medication_id: id, event_id: eventId },
+          });
+          return apiError(
+            "takenAt is before the medication's start date",
+            422,
+            { errorCode: "medications.intake.taken_at.before_start" },
+          );
+        }
+      }
+    }
 
     // The post-edit state of the row (current values where the body omits a
     // field) — drives the re-attribution decision.

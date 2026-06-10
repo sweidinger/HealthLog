@@ -693,11 +693,30 @@ export const listIntakeEventsSchema = z.object({
     .default("all"),
 });
 
+/**
+ * v1.15.19 — `takenAt` plausibility bounds on the edit path (audit P0-4).
+ * A date typo on an intake edit could park `takenAt` a month before its
+ * slot with no pushback anywhere. The schema rejects the physically
+ * implausible cases: a future instant (small skew allowance for client
+ * clocks) and anything older than the 5-year window the GLP-1 dose-change
+ * validator already established (`glp1DoseChangePostSchema`). Slot-distance
+ * checks stay out of the schema — it cannot see the medication — and live
+ * in the route (start-date guard) + the edit dialog (non-blocking hint).
+ */
+const TAKEN_AT_CLOCK_SKEW_MS = 5 * 60 * 1000;
+const TAKEN_AT_MAX_AGE_MS = 5 * 365 * 24 * 60 * 60 * 1000;
+
 export const updateIntakeEventSchema = z
   .object({
     takenAt: z.iso
       .datetime({ offset: true })
       .transform((s) => new Date(s))
+      .refine((d) => d.getTime() <= Date.now() + TAKEN_AT_CLOCK_SKEW_MS, {
+        message: "takenAt must not be in the future",
+      })
+      .refine((d) => d.getTime() >= Date.now() - TAKEN_AT_MAX_AGE_MS, {
+        message: "takenAt must be within the last 5 years",
+      })
       .nullable()
       .optional(),
     skipped: z.boolean().optional(),
@@ -723,7 +742,7 @@ export const updateIntakeEventSchema = z
   .meta({
     id: "UpdateMedicationIntakeEventRequest",
     description:
-      "Edit a single intake event. v1.15.18 re-runs window-band slot attribution whenever `takenAt` or `skipped` change, snapping `scheduledFor` to the matched slot (or the take's own time when it falls in no window). `forceSlotInstant` overrides that to pin the take onto a named real slot; an explicit `scheduledFor` still wins when supplied directly.",
+      "Edit a single intake event. v1.15.18 re-runs window-band slot attribution whenever `takenAt` or `skipped` change, snapping `scheduledFor` to the matched slot (or the take's own time when it falls in no window). `forceSlotInstant` overrides that to pin the take onto a named real slot; an explicit `scheduledFor` still wins when supplied directly. `takenAt` must not be in the future (5-minute clock-skew allowance) nor more than 5 years in the past; a `takenAt` before the medication's start date returns 422.",
   });
 
 /**

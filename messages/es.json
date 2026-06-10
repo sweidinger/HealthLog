@@ -1323,8 +1323,9 @@
         "edit": {
           "dialogTitle": "Editar toma",
           "takenAtLabel": "Tomada a las",
+          "scheduledForHint": "Programada: {dateTime}",
+          "farFromScheduledWarning": "Está muy lejos de la hora programada; comprueba la fecha.",
           "skippedLabel": "Omitida",
-          "noteLabel": "Nota",
           "save": "Guardar",
           "cancel": "Cancelar",
           "savedToast": "Toma actualizada",
