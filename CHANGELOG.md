@@ -2,6 +2,36 @@
 
 ## [Unreleased]
 
+## [1.16.0] — 2026-06-10 — a coach that knows you, invites, and a faster, calmer app
+
+### Added
+
+- **Tell the assistant about yourself.** A new encrypted self-context in Settings → AI — free text plus structured fields for conditions, allergies and what the coach should watch — feeds the coach and the daily briefing as clearly fenced context. After saving, the coach may ask up to three targeted follow-up questions, surfaced as tappable chips above the chat composer.
+- **Proactive coach nudges.** A nightly pass watches four signals — low 7-day adherence, blood pressure above its target band, a falling recovery trend, and a stale self-context — and sends at most one gentle nudge per week through your configured notification channels, with its own opt-out. Off whenever the coach is disabled.
+- **Invite links with QR codes.** Operators on closed registrations can mint expiring invite links from a new admin section: status, uses, expiry and a redemption history of who joined when. Revoking keeps the history; the link and QR are shown exactly once at creation.
+- **Attribute an off-schedule dose to its slot.** History rows that landed off schedule now show when the dose had been due and offer to attribute the intake to that slot — visibly badged, always counted as taken late, reversible at any time.
+- **A time-format preference.** Automatic (follows the language), 24-hour, or 12-hour — set once in the profile, applied to every clock the app renders.
+- **Insight pills are manageable in one place.** The settings list that orders the navigation pills now also hides and shows them, with the same eye toggle the overview tiles use; the page-side manager folded into a link.
+
+### Changed
+
+- **The medication detail page calms down.** Six tabs instead of seven (reminders live with the schedule they gate), every section on the card surface, an overview tab that actually summarises — next dose, reminder state, supply runway — and a history where settled rows carry one quiet menu instead of a button wall. Charts load on demand.
+- **The dashboard loads as one.** Structured skeletons replace bare tiles, and charts reveal together once their data is in instead of popping in one after another.
+- **The medication list stops hammering the server.** Compliance for the cards is computed in one calendar pass per request, cached for fifteen minutes and invalidated on every write; the dashboard drops two redundant queries; the BMI chart reuses the weight series; expensive analytics endpoints gain a shared per-user rate limit.
+- **Nightly assistant runs respect every gate.** Status generation skips users who disabled the coach and honours the operator kill switch, deleted measurements never feed a prompt, the mood card gets the nightly run the other cards always had, non-German locales consistently fall back to English, and worker failures finally reach the error tracker with real retries behind them.
+- **The README says what matters in one screen**, and the repository description and topics match it.
+
+### Fixed
+
+- The wellness ring's glow is no longer clipped to the circle.
+- An overflowing insight-pill row is reachable by mouse — chevrons and wheel scrolling joined touch.
+- Safari favourites no longer render the icon on a white plate.
+- A rate-limited briefing regenerate stops claiming success, and a missing AI provider shows as exactly that instead of an eternal "preparing".
+- Editing schedule times migrates the open dose rows of the old anchors and reconciles a stale intake window instead of stranding both.
+- Auto-missed verdicts respect each schedule's real catch-up window, clear when the dose is taken after all, and skip deleted rows.
+- The intake repair script runs inside the production container.
+- Every workflow action is pinned, dependabot merges only patch and minor updates behind required checks, vulnerability gates block instead of warn, and the published image carries its build SHA so a deployment can prove what is running.
+
 ## [1.15.19] — 2026-06-10 — honest dose states, bounded bodies, new licence
 
 ### Changed
