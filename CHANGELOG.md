@@ -2,6 +2,25 @@
 
 ## [Unreleased]
 
+## [1.15.19] — 2026-06-10 — honest dose states, bounded bodies, new licence
+
+### Changed
+
+- **The project licence is now PolyForm Noncommercial 1.0.0.** HealthLog stays free to use, modify and self-host for noncommercial purposes; commercial use needs a separate arrangement. Releases up to and including v1.15.18 were published under AGPL-3.0 and remain available under that licence.
+
+### Fixed
+
+- **An open dose no longer reads as missed the moment its time passes.** A pending dose now shows as upcoming until its intake window actually closes — hours for daily schedules, days for weekly ones — so the history tab and the compliance rate stop punishing doses that are still takeable. Phantom "ad-hoc" lines for tonight's not-yet-due doses are gone too.
+- **Logging the same dose from two places no longer doubles it.** A dose acknowledged via a reminder and also logged from another client produced two live rows on the same slot, inflating the day's schedule count (4 of 4 on a two-dose day). Intake writes now converge onto the existing slot row regardless of source, the compliance rollup counts slots instead of rows — which also corrects historical days on the next recompute — and the duplicate sweep runs nightly instead of only at worker start.
+- **A weekly dose taken a few days late counts as late, not missed.** The write path only searched ±1 day around the intake time for a matching slot, so a weekly injection taken inside its multi-day catch-up window was stored as off-schedule while the slot stayed missed. The search now covers the schedule's full window reach.
+- **An intake edit can no longer park a dose on an impossible date.** Editing a dose's time now rejects future timestamps and dates before the medication existed, the picker caps at now, the dialog shows the scheduled slot next to the field and warns when the new time sits more than 48 hours away from it — a day/month typo no longer corrupts the today view silently. The edit dialog's note field is removed; it was never saved.
+- **One poisoned day no longer halts the nightly consolidation for everyone.** The daily-mean pass could collide with a row parked exactly on its canonical timestamp and abort the whole run on the first conflict, leaving every later user and metric unconsolidated night after night. Collisions now resolve deterministically and a failing day is logged, counted and skipped.
+- **Every JSON request body is now size-bounded.** Raising the upload limit for large Apple Health archives had removed the implicit ceiling on all other JSON routes; each one now enforces an explicit cap sized to its payload and answers 413 beyond it.
+
+### Added
+
+- **An operator repair script for historical intake anomalies.** `scripts/repair-intake-anomalies.ts` lists duplicate rows sharing a dose slot and intakes whose taken time sits implausibly far from their slot; with `--fix` it merges the duplicates the same way the nightly sweep does and recomputes the affected compliance days. Runbook: `docs/ops/intake-repair.md`.
+
 ## [1.15.18] — 2026-06-08 — a traceable medication dose history
 
 ### Added
