@@ -65,8 +65,9 @@ const BERLIN_DAY_FORMATTER = new Intl.DateTimeFormat("en-US", {
  * Format a Date as `YYYY-MM-DD` in `Europe/Berlin`. The seven Insight
  * status helpers (`bmi`, `blood-pressure`, `weight`, `pulse`, `mood`,
  * `medication-compliance`, `general`) all key their per-day cache on
- * this — Marc's primary tenant runs in Berlin and the cache action
- * row reads identically across helpers when the formatter lives here.
+ * this — the maintainer's primary tenant runs in Berlin and the cache
+ * action row reads identically across helpers when the formatter lives
+ * here.
  *
  * For per-user surfaces, prefer `userDayKey(date, tz)` from `./format`.
  * This helper exists for the cache-key path where the day-bucket is

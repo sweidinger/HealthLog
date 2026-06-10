@@ -1,7 +1,7 @@
 ---
 file: docs/apple-store-connect-checklist.md
 purpose: Step-by-step ASC submission checklist for HealthLog iOS — covering medical-device declaration, privacy nutrition labels, and ASC metadata
-audience: Marc (the maintainer) before submitting to App Store
+audience: the maintainer, before submitting to App Store
 estimated_read_time: 15 min
 last_updated: 2026-05-15
 ---
@@ -10,7 +10,7 @@ last_updated: 2026-05-15
 
 ## TL;DR
 
-Three submission gates that need Marc's hand at ASC:
+Three submission gates that need the maintainer's hand at ASC:
 1. Regulated-Medical-Device declaration (Guideline 1.4 + 5.1.1(ix))
 2. Privacy Nutrition Labels matching the iOS Privacy Manifest (Guideline 5.1.2)
 3. Standard metadata (name, description, screenshots, categories, age rating)
@@ -29,7 +29,7 @@ Plus pre-submit final checks.
 **What to check**:
 - [ ] Check "No" on the medical-device toggle
 - [ ] Add the description above to the medical-device-justification field if Apple shows one
-- [ ] Cross-reference the in-app `/privacy` page (https://healthlog.bombeck.io/privacy) §7 MDR-boundary
+- [ ] Cross-reference the in-app `/privacy` page (https://<your-instance>/privacy) §7 MDR-boundary
 
 **Why this matters**: Apple's first-submission rejection rate for health apps is ~40%. The most common reason is unclear medical-device classification. The above wording mirrors the in-app disclaimer + the per-feature gating; consistency between the form and the app is what Apple looks for.
 
@@ -37,7 +37,7 @@ Plus pre-submit final checks.
 
 **Where**: App Store Connect → App Privacy → "Edit" the privacy choices.
 
-**Cross-reference**: every data category here MUST match what the iOS Privacy Manifest (in the iOS repo) declares. iOS-Claude's v0.3.0 release extended the manifest to: Email + OtherUserContent + SensitiveInfo + DeviceID + UserID + AccountManagement-purpose.
+**Cross-reference**: every data category here MUST match what the iOS Privacy Manifest (in the iOS repo) declares. The iOS client's v0.3.0 release extended the manifest to: Email + OtherUserContent + SensitiveInfo + DeviceID + UserID + AccountManagement-purpose.
 
 ### Data categories to declare
 
@@ -86,7 +86,7 @@ For each category below: **Linked to user, used for App Functionality + Account 
 - Location (Precise or Coarse) — workout GPS routes are opt-in per-workout; if the iOS app implements them, declare; otherwise omit
 - Purchases
 - Financial Info
-- Diagnostics, Crash Data, Performance Data, Other Diagnostic Data — if iOS uses any analytics SDK, declare; otherwise omit. Verify with iOS-Claude.
+- Diagnostics, Crash Data, Performance Data, Other Diagnostic Data — if iOS uses any analytics SDK, declare; otherwise omit. Verify against the iOS client.
 - Advertising Data
 - Other Usage Data
 
@@ -101,7 +101,7 @@ For each category below: **Linked to user, used for App Functionality + Account 
 - [ ] Subtitle: 30-char tagline (suggestion: "Personal health-data log + Coach")
 - [ ] Primary category: Health & Fitness
 - [ ] Secondary category: Medical (if Apple accepts non-medical-device classification for it)
-- [ ] Content rights: confirm Marc owns the app rights
+- [ ] Content rights: confirm the maintainer owns the app rights
 - [ ] Age rating: 17+ (because Sensitive Health Info content)
 
 ### Description
@@ -114,36 +114,36 @@ For each category below: **Linked to user, used for App Functionality + Account 
 - [ ] iPad screenshots if supporting iPad.
 
 ### URLs
-- [ ] Marketing URL: https://healthlog.bombeck.io (or marketing site once landing repo's v1.4.25 deployed)
-- [ ] Privacy Policy URL: **https://healthlog.bombeck.io/privacy** (ships with v1.4.25.1 hotfix)
+- [ ] Marketing URL: https://<your-instance> (or the marketing site once the landing repo's v1.4.25 is deployed)
+- [ ] Privacy Policy URL: **https://<your-instance>/privacy** (ships with v1.4.25.1 hotfix)
 - [ ] Support URL: https://github.com/MBombeck/HealthLog/issues
 
 ### App Review Information
-- [ ] Demo account credentials: Marc creates a read-only demo account on `demo.healthlog.dev` and provides credentials in the demo account fields
+- [ ] Demo account credentials: the maintainer creates a read-only demo account on `demo.healthlog.dev` and provides credentials in the demo account fields
 - [ ] Review notes: explain MDR boundary + AI Coach safety contract + Research Mode gating; reference `/privacy` §7 MDR-boundary. Apple reviewers DO read this and DO check the in-app behavior matches the claim.
 - [ ] Sign-in required: yes (provide demo credentials)
 
 ### Pricing + Availability
 - [ ] Free
-- [ ] Availability: select countries (Marc-decision — recommend EU + US + Canada + Australia + Japan for first launch)
+- [ ] Availability: select countries (maintainer decision — recommend EU + US + Canada + Australia + Japan for first launch)
 
 ## Section 4 — Pre-Submit Final Check
 
 Run through this list:
 
-- [ ] Privacy Policy URL responds 200 (curl https://healthlog.bombeck.io/privacy)
+- [ ] Privacy Policy URL responds 200 (curl https://<your-instance>/privacy)
 - [ ] iOS Privacy Manifest categories match the App Privacy declarations in §2
 - [ ] Demo account works on the demo server
 - [ ] iOS app's TestFlight build is on the latest commit
-- [ ] Marc has the APNs .p8 backed up to 1Password or similar (see `.planning/v15-apns-key-handling.md`)
-- [ ] Marc's Apple Developer Program subscription is active
+- [ ] The maintainer has the APNs .p8 backed up to a password manager
+- [ ] The maintainer's Apple Developer Program subscription is active
 
 ## Section 5 — Common First-Submission Rejection Reasons (Apple Health-App-Specific)
 
 - Guideline 1.4.1: "Medical claims" — wording in app or screenshots implies diagnosis/treatment → fix: tone down wording, lean on the MDR-boundary disclaimer
-- Guideline 5.1.1(v): "Account Deletion missing" — iOS-Claude added this in v0.3.0
-- Guideline 5.1.2(i): "Third-Party AI consent" — DEFERRED to v0.3.1 per iOS-Claude release notes; resubmission may flag
-- Guideline 5.1.2: "Privacy Manifest mismatch" — see §2; iOS-Claude needs to ensure the manifest matches
+- Guideline 5.1.1(v): "Account Deletion missing" — the iOS client added this in v0.3.0
+- Guideline 5.1.2(i): "Third-Party AI consent" — DEFERRED to v0.3.1 per the iOS release notes; resubmission may flag
+- Guideline 5.1.2: "Privacy Manifest mismatch" — see §2; the iOS release process needs to ensure the manifest matches
 
 ## Section 6 — Post-Submit / If Rejected
 

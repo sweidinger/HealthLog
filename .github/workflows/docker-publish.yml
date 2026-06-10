@@ -313,15 +313,15 @@ jobs:
         run: |
           docker buildx imagetools inspect '${{ env.IMAGE_REF }}:${{ steps.meta.outputs.version }}'
 
-      # Phase C2 (v1.4.15): trigger Coolify deploy automatically once GHCR has
-      # the new image. Removes the manual SSH + force-pull recipe documented
-      # in `.planning/phase-8-report.md`.
+      # v1.4.15: trigger the Coolify deploy automatically once GHCR has
+      # the new image. Replaces the former manual SSH + force-pull recipe
+      # on the deployment host.
       #
       # Runs only on the publish path (push to `main` or to a `v*` tag), never
       # on PRs. `continue-on-error: true` because the image is *already*
       # published to GHCR by the time we reach this step — a Coolify-side
-      # outage must not retroactively fail the build. Marc still has the
-      # manual recipe as fallback.
+      # outage must not retroactively fail the build. The maintainer still
+      # has the manual recipe as fallback.
       #
       # Required GitHub repository secrets (set by the maintainer once):
       #   COOLIFY_WEBHOOK = full deploy URL incl. ?uuid=...&force=false
@@ -377,8 +377,8 @@ jobs:
           # new digest. The webhook fires inside that window, so
           # Coolify pulls "latest" while the edge still serves the
           # prior digest, gets "no change", and returns success.
-          # See `.planning/round-coolify-auto-deploy-fix-2026-05-16.md`
-          # for the full root-cause + remediation note.
+          # Waiting out the propagation window before firing the
+          # webhook closes that gap.
           echo "Waiting 90 s for GHCR cache propagation before triggering Coolify (image: $IMAGE_VERSION)…"
           sleep 90
           # v1.4.22 C3 — force=true tells Coolify to skip its image-cache
@@ -405,8 +405,8 @@ jobs:
           echo "Coolify response (HTTP $status):"
           echo "$body"
           if [ "$status" -lt 200 ] || [ "$status" -ge 300 ]; then
-            echo "::error::Coolify deploy webhook returned HTTP $status — image is published, but auto-deploy did not fire. Marc: deploy manually via SSH recipe in .planning/phase-8-report.md."
+            echo "::error::Coolify deploy webhook returned HTTP $status — image is published, but auto-deploy did not fire. Maintainer: deploy manually on the deployment host (SSH force-pull recipe, see docs/ops/deploy.md)."
             exit 1
           fi
-          echo "::notice::Coolify auto-deploy webhook fired at $(date -u +%FT%TZ) for ref ${{ github.ref_name }} (sha ${GITHUB_SHA::7}). If /api/version doesn't reach the new tag within ~60s, see .planning/coolify-auto-deploy-howto.md."
+          echo "::notice::Coolify auto-deploy webhook fired at $(date -u +%FT%TZ) for ref ${{ github.ref_name }} (sha ${GITHUB_SHA::7}). If /api/version doesn't reach the new tag within ~60s, re-trigger the deploy from the Coolify UI or deploy manually on the deployment host (docs/ops/deploy.md)."
           echo "Coolify deploy queued — awaiting outgoing notification webhook to /api/internal/deploy-webhook for final status."

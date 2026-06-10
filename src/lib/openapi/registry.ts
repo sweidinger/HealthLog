@@ -52,7 +52,10 @@ const openApiBase: Pick<
     contact: { name: "HealthLog", url: "https://healthlog.dev" },
   },
   servers: [
-    { url: "https://healthlog.bombeck.io", description: "Production" },
+    {
+      url: "https://healthlog.example.com",
+      description: "Your self-hosted instance",
+    },
     { url: "http://localhost:3000", description: "Local dev" },
   ],
   tags: [

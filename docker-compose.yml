@@ -65,6 +65,13 @@ services:
       # container (the `environment:` block is a whitelist).
       WHOOP_WEBHOOK_SECRET: "${WHOOP_WEBHOOK_SECRET:-}"
       WHOOP_REDIRECT_URI: "${WHOOP_REDIRECT_URI:-}"
+      # Deploy-result webhook (optional). DEPLOY_WEBHOOK_SECRET authenticates
+      # POST /api/internal/deploy-webhook; DEPLOY_LOGS_URL is the
+      # deployment-dashboard URL (e.g. the Coolify UI) linked in
+      # deploy-failure notifications. Listed here so operator values in
+      # .env reach the container (the `environment:` block is a whitelist).
+      DEPLOY_WEBHOOK_SECRET: "${DEPLOY_WEBHOOK_SECRET:-}"
+      DEPLOY_LOGS_URL: "${DEPLOY_LOGS_URL:-}"
       # TLS leaf SPKI-change alarm baseline (optional). The native client
       # pins the served TLS leaf; this is the known-good pin set the monitor
       # alarms against on a rotation. Comma-separated for the dual-pin

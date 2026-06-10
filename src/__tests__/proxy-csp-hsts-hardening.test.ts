@@ -6,7 +6,7 @@ import { NextRequest } from "next/server";
  * needed to harden against first-visit MITM and to scope the
  * Withings backend host to its surface only.
  *
- *   - HSTS now carries `; preload` so `healthlog.bombeck.io` is
+ *   - HSTS now carries `; preload` so the served host is
  *     eligible for the Chromium HSTS preload list.
  *   - The `wbsapi.withings.net` `connect-src` entry only ships on
  *     the Withings surfaces (`/settings/integrations/withings/*`

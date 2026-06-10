@@ -1,8 +1,8 @@
 /**
  * Integration regression for the "BD-Zielbereich" / BP-in-target tile.
  *
- * Marc reported (v1.4.16 marathon) that the dashboard tile rendered
- * 0 % despite multiple BP readings clearly inside the well-controlled
+ * A v1.4.16 bug report showed the dashboard tile rendering 0 %
+ * despite multiple BP readings clearly inside the well-controlled
  * range. v1.4.15 A4 had restructured the calculation but kept the
  * ESH 2023 narrow-band semantics (`sysLow <= sys <= sysHigh AND diaLow
  * <= dia <= diaHigh`) — which collapses to 0 % for any user whose
@@ -73,15 +73,15 @@ describe("BP-in-target % — production data shape", () => {
   it("computes a non-zero % for a normotensive user born under 65", async () => {
     const prisma = getPrismaClient();
 
-    // Marc's actual production readings (anonymised but timestamps + values
-    // verbatim so a future reviewer can re-derive the expected count by
-    // hand from the test fixture). DOB: 1985-07-09 — under 65, so target
-    // is sysHigh = 129, diaHigh = 79.
+    // Synthetic but representative normotensive readings for a user
+    // under 65, annotated IN/OUT so a future reviewer can re-derive the
+    // expected count by hand from the test fixture. DOB 1980-01-15 —
+    // under 65, so target is sysHigh = 129, diaHigh = 79.
     const user = await prisma.user.create({
       data: {
         username: "bp-in-target-fixture",
         email: "bp-in-target@example.test",
-        dateOfBirth: new Date("1985-07-09"),
+        dateOfBirth: new Date("1980-01-15"),
       },
     });
 
@@ -90,16 +90,16 @@ describe("BP-in-target % — production data shape", () => {
       dia: number;
       measuredAt: string;
     }> = [
-      { sys: 117, dia: 79, measuredAt: "2026-05-08T07:38:22Z" }, // IN
-      { sys: 122, dia: 86, measuredAt: "2026-05-03T21:22:02Z" }, // OUT (dia)
-      { sys: 108, dia: 76, measuredAt: "2026-05-03T05:51:45Z" }, // IN
-      { sys: 106, dia: 73, measuredAt: "2026-05-03T05:50:55Z" }, // IN
-      { sys: 127, dia: 86, measuredAt: "2026-04-20T05:57:42Z" }, // OUT (dia)
-      { sys: 115, dia: 78, measuredAt: "2026-04-18T06:59:29Z" }, // IN
-      { sys: 108, dia: 75, measuredAt: "2026-04-16T05:24:51Z" }, // IN
-      { sys: 124, dia: 82, measuredAt: "2026-04-15T05:34:35Z" }, // OUT (dia)
-      { sys: 126, dia: 80, measuredAt: "2026-04-15T05:33:44Z" }, // OUT (dia)
-      { sys: 133, dia: 95, measuredAt: "2026-04-15T20:52:26Z" }, // OUT (both)
+      { sys: 118, dia: 78, measuredAt: "2026-05-08T07:40:00Z" }, // IN
+      { sys: 124, dia: 85, measuredAt: "2026-05-03T21:20:00Z" }, // OUT (dia)
+      { sys: 110, dia: 75, measuredAt: "2026-05-03T06:00:00Z" }, // IN
+      { sys: 104, dia: 72, measuredAt: "2026-05-03T05:50:00Z" }, // IN
+      { sys: 126, dia: 84, measuredAt: "2026-04-20T06:00:00Z" }, // OUT (dia)
+      { sys: 116, dia: 77, measuredAt: "2026-04-18T07:00:00Z" }, // IN
+      { sys: 109, dia: 74, measuredAt: "2026-04-16T05:25:00Z" }, // IN
+      { sys: 123, dia: 83, measuredAt: "2026-04-15T05:35:00Z" }, // OUT (dia)
+      { sys: 127, dia: 81, measuredAt: "2026-04-15T05:34:00Z" }, // OUT (dia)
+      { sys: 134, dia: 94, measuredAt: "2026-04-15T20:50:00Z" }, // OUT (both)
     ];
 
     // Seed both sys and dia rows at the same `measuredAt` so the helper's
@@ -154,7 +154,7 @@ describe("BP-in-target % — production data shape", () => {
       data: {
         username: "bp-empty-fixture",
         email: "bp-empty@example.test",
-        dateOfBirth: new Date("1985-07-09"),
+        dateOfBirth: new Date("1980-01-15"),
       },
     });
 
@@ -184,7 +184,7 @@ describe("BP-in-target % — production data shape", () => {
       data: {
         username: "bp-sys-only-fixture",
         email: "bp-sys-only@example.test",
-        dateOfBirth: new Date("1985-07-09"),
+        dateOfBirth: new Date("1980-01-15"),
       },
     });
 
@@ -224,7 +224,7 @@ describe("BP-in-target % — production data shape", () => {
       data: {
         username: "bp-hypo-fixture",
         email: "bp-hypo@example.test",
-        dateOfBirth: new Date("1985-07-09"),
+        dateOfBirth: new Date("1980-01-15"),
       },
     });
 
@@ -272,9 +272,9 @@ describe("BP-in-target % — production data shape", () => {
 
 describe("BP-in-target % — windowed (7-day + 30-day) — production data shape", () => {
   /**
-   * v1.4.18 A1 regression — Marc's BD-Zielbereich tile rendered the
+   * v1.4.18 A1 regression — the BD-Zielbereich tile rendered the
    * 30-day headline (50 %) but `7T: —` and `30T: —` placeholders even
-   * though he had paired BP readings in both windows. Root cause was
+   * though the user had paired BP readings in both windows. Root cause was
    * that the API only returned a single `bpInTargetPct`; the tile got
    * `avg7={null}, avg30={null}` and rendered the dash fallback. The fix
    * surfaces both windows from `computeBpInTargetWindows()` against the
@@ -290,7 +290,7 @@ describe("BP-in-target % — windowed (7-day + 30-day) — production data shape
       data: {
         username: "bp-windows-fixture",
         email: "bp-windows@example.test",
-        dateOfBirth: new Date("1985-07-09"),
+        dateOfBirth: new Date("1980-01-15"),
       },
     });
 
@@ -309,12 +309,12 @@ describe("BP-in-target % — windowed (7-day + 30-day) — production data shape
     //   last30Days: 15/29 = 52 % (rounded).
     const seed: Array<{ daysAgo: number; sys: number; dia: number }> = [
       // 7-day window (4 IN, 3 OUT)
-      { daysAgo: 0.5, sys: 117, dia: 79 }, // IN
-      { daysAgo: 1.5, sys: 122, dia: 86 }, // OUT (dia)
-      { daysAgo: 2.5, sys: 108, dia: 76 }, // IN
+      { daysAgo: 0.5, sys: 118, dia: 78 }, // IN
+      { daysAgo: 1.5, sys: 124, dia: 85 }, // OUT (dia)
+      { daysAgo: 2.5, sys: 110, dia: 75 }, // IN
       { daysAgo: 3.5, sys: 145, dia: 95 }, // OUT (both)
-      { daysAgo: 4.5, sys: 115, dia: 78 }, // IN
-      { daysAgo: 5.5, sys: 124, dia: 82 }, // OUT (dia)
+      { daysAgo: 4.5, sys: 116, dia: 77 }, // IN
+      { daysAgo: 5.5, sys: 123, dia: 83 }, // OUT (dia)
       { daysAgo: 6.5, sys: 125, dia: 75 }, // IN
       // older 7-30-day window (alternating, 11 IN / 11 OUT)
       ...Array.from({ length: 22 }, (_, i) => {
@@ -377,10 +377,11 @@ describe("BP-in-target % — windowed (7-day + 30-day) — production data shape
   });
 
   /**
-   * v1.4.19 A1 regression — Marc reported the tile shows EXACTLY 50 %
-   * on 7T, 30T, AND the headline ("total"). With his real production
-   * shape (572 paired readings since 2022, recent 30d ≈ 50 %, all-time
-   * ≈ 11 %) the headline cannot legitimately be 50 %. Root cause: the
+   * v1.4.19 A1 regression — a bug report showed the tile rendering
+   * EXACTLY 50 % on 7T, 30T, AND the headline ("total"). With a long
+   * reading history (hundreds of paired readings over several years,
+   * recent 30d ≈ 50 %, all-time far lower) the headline cannot
+   * legitimately be 50 %. Root cause: the
    * analytics route routed `bpInTargetPct = windows.last30Days?.pct`,
    * making the headline a literal copy of `30T`. The fix returns a
    * third `allTime` window that the route now uses for the headline.
@@ -397,14 +398,14 @@ describe("BP-in-target % — windowed (7-day + 30-day) — production data shape
       data: {
         username: "bp-three-windows-fixture",
         email: "bp-three-windows@example.test",
-        dateOfBirth: new Date("1985-07-09"),
+        dateOfBirth: new Date("1980-01-15"),
       },
     });
 
     const now = new Date();
     const seed: Array<{ daysAgo: number; sys: number; dia: number }> = [
       // Last 7 days: 1 IN, 1 OUT.
-      { daysAgo: 1.5, sys: 117, dia: 79 }, // IN
+      { daysAgo: 1.5, sys: 118, dia: 78 }, // IN
       { daysAgo: 5.5, sys: 145, dia: 95 }, // OUT
       // 7-30 days ago: 4 IN, 4 OUT (alternating).
       { daysAgo: 8, sys: 122, dia: 75 }, // IN
@@ -466,7 +467,7 @@ describe("BP-in-target % — windowed (7-day + 30-day) — production data shape
     expect(windows.allTime!.pct).toBe(Math.round((5 / 40) * 100));
 
     // The smoking gun: even when 7d AND 30d are 50 %, all-time is NOT
-    // 50 % once older history is present. Marc's prod tile pinned to
+    // 50 % once older history is present. The reported tile pinned to
     // 50/50/50 because the route routed the headline through `last30Days`
     // — the algorithmic pin the brief warned about.
     expect(windows.allTime!.pct).not.toBe(windows.last30Days!.pct);
@@ -485,7 +486,7 @@ describe("BP-in-target % — windowed (7-day + 30-day) — production data shape
       data: {
         username: "bp-no-recent-fixture",
         email: "bp-no-recent@example.test",
-        dateOfBirth: new Date("1985-07-09"),
+        dateOfBirth: new Date("1980-01-15"),
       },
     });
 
@@ -552,7 +553,7 @@ describe("GET /api/analytics — BP-in-target headline (v1.4.22 A1)", () => {
         username,
         email: `${username}@example.test`,
         role: "USER",
-        dateOfBirth: new Date("1985-07-09"),
+        dateOfBirth: new Date("1980-01-15"),
       },
     });
     const session = await prisma.session.create({
@@ -576,7 +577,7 @@ describe("GET /api/analytics — BP-in-target headline (v1.4.22 A1)", () => {
     // 30d both ~50 %, all-time ~13 %.
     const seed: Array<{ daysAgo: number; sys: number; dia: number }> = [
       // Last 7 days: 1 IN, 1 OUT.
-      { daysAgo: 1.5, sys: 117, dia: 79 },
+      { daysAgo: 1.5, sys: 118, dia: 78 },
       { daysAgo: 5.5, sys: 145, dia: 95 },
       // 7-30 days ago: 4 IN, 4 OUT.
       { daysAgo: 8, sys: 122, dia: 75 },

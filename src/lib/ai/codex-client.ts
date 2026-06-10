@@ -92,7 +92,7 @@ function isSlugRejection(status: number, bodyExcerpt: string): boolean {
 }
 
 const ORIGINATOR = "healthlog";
-const USER_AGENT = "HealthLog/1.0 (+https://healthlog.bombeck.io)";
+const USER_AGENT = "HealthLog/1.0 (+https://github.com/MBombeck/HealthLog)";
 
 interface CodexClientConfig {
   accessToken: string;

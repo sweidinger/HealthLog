@@ -8,7 +8,7 @@ import Link from "next/link";
  *
  *   1. **Apple App Store Connect** requires a publicly reachable Privacy-
  *      Policy URL before the iOS native app's first submission. The URL
- *      registered with ASC is `https://healthlog.bombeck.io/privacy`.
+ *      registered with ASC is this route on the maintainer's instance.
  *   2. **GDPR / DSGVO Art. 13 / 14 + Art. 15-22** — data-subject rights
  *      enumerated with concrete in-app routes the user can hit.
  *   3. **EU MDR 2017/745 + MDCG 2021-24** — the boundary "HealthLog is
@@ -342,14 +342,12 @@ export default function PrivacyPage() {
                 >
                   github.com/MBombeck/HealthLog
                 </a>{" "}
-                veröffentlicht. Diese Erklärung beschreibt, wie die unter{" "}
+                veröffentlicht. Diese Erklärung beschreibt, wie die
+                Instanz, über die Sie diese Seite abrufen, und die
+                zugehörige iOS-Anwendung <em>HealthLog for iOS</em>{" "}
+                (Bundle-ID{" "}
                 <code className="bg-muted rounded px-1 py-0.5 text-xs">
-                  healthlog.bombeck.io
-                </code>{" "}
-                betriebene Instanz und die zugehörige iOS-Anwendung{" "}
-                <em>HealthLog for iOS</em> (Bundle-ID{" "}
-                <code className="bg-muted rounded px-1 py-0.5 text-xs">
-                  io.bombeck.healthlog
+                  dev.healthlog.app
                 </code>
                 ) personenbezogene Daten verarbeiten.
               </p>
@@ -359,7 +357,7 @@ export default function PrivacyPage() {
                 Deutschland). Eigenständig betriebene, selbst-gehostete
                 Instanzen unterliegen der Datenschutzerklärung ihres
                 jeweiligen Betreibers; dieses Dokument gilt ausschließlich
-                für die genannte Domain.
+                für diese Instanz.
               </p>
               <p>
                 Für Fragen oder Datenschutz-Anfragen siehe Abschnitt 11
@@ -381,14 +379,11 @@ export default function PrivacyPage() {
                   github.com/MBombeck/HealthLog
                 </a>{" "}
                 under the GNU Affero General Public License v3.0. This
-                policy describes how the hosted instance at{" "}
+                policy describes how the instance serving this page and
+                the companion iOS application <em>HealthLog for iOS</em>{" "}
+                (bundle identifier{" "}
                 <code className="bg-muted rounded px-1 py-0.5 text-xs">
-                  healthlog.bombeck.io
-                </code>{" "}
-                and the companion iOS application{" "}
-                <em>HealthLog for iOS</em> (bundle identifier{" "}
-                <code className="bg-muted rounded px-1 py-0.5 text-xs">
-                  io.bombeck.healthlog
+                  dev.healthlog.app
                 </code>
                 ) handle personal data.
               </p>
@@ -397,7 +392,7 @@ export default function PrivacyPage() {
                 this instance (an individual based in Germany). Self-
                 hosted deployments controlled by a different operator are
                 governed by that operator&apos;s own privacy policy; this
-                document applies only to the hostname above.
+                document applies only to this instance.
               </p>
               <p>
                 For questions or data-subject requests, see section 11
@@ -1211,8 +1206,8 @@ export default function PrivacyPage() {
                 />
                 <SubProcessor
                   name="Cloudflare, Inc."
-                  roleDe="Autoritative DNS-Auflösung für die bombeck.io-Zonen. Die Anwendung selbst steht nicht hinter dem Cloudflare-Proxy."
-                  roleEn="Authoritative DNS for the bombeck.io zones. The application itself is not behind the Cloudflare proxy; only the DNS resolution path is."
+                  roleDe="Autoritative DNS-Auflösung für die Domain dieser Instanz. Die Anwendung selbst steht nicht hinter dem Cloudflare-Proxy."
+                  roleEn="Authoritative DNS for this instance's domain. The application itself is not behind the Cloudflare proxy; only the DNS resolution path is."
                   dataDe="Quell-IP und User-Agent zum Zeitpunkt der Auflösung."
                   dataEn="Source IP address and user-agent at resolution time."
                   locationDe="USA; globales Anycast-Netz von Cloudflare."

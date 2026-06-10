@@ -58,8 +58,8 @@ describe("<AdminShell>", () => {
     // The 13-section strip is ~1700 CSS px wide. Without
     // `no-scrollbar` (defined in `globals.css`) Chromium/WebKit paint
     // an always-on horizontal scrollbar at the top of every admin
-    // page. Production probe at https://healthlog.bombeck.io/admin/
-    // api-tokens at Pixel-5 viewport pins this as the *only* element
+    // page. A live probe of /admin/api-tokens at a Pixel-5 viewport
+    // pins this as the *only* element
     // with `overflow-x:auto AND scrollWidth > clientWidth`, so the
     // class is the load-bearing fix.
     const html = renderShell({ active: "api-tokens" });
