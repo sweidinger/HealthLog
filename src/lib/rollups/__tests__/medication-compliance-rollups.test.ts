@@ -139,6 +139,35 @@ describe("recomputeMedicationComplianceForDay", () => {
     expect(deleteBinds).toContain("2026-05-18");
   });
 
+  it("aggregates at SLOT level so cross-source duplicate rows cannot inflate scheduled", async () => {
+    // v1.15.19 — the partial unique index carries `source`, so a pending
+    // REMINDER row and a taken API row can share one `scheduled_for`
+    // instant. A row-level COUNT(*) counted that slot twice. Pin that the
+    // statement groups by `scheduled_for` and folds each slot with
+    // taken-beats-skipped priority (BOOL_OR) before counting. Semantics
+    // (two live rows, one slot, different source → scheduled=1, taken=1)
+    // are proven on real Postgres in
+    // `tests/integration/medication-compliance-rollup-slot.test.ts`.
+    await recomputeMedicationComplianceForDay(
+      "user-1",
+      "med-1",
+      "2026-05-18",
+      "Europe/Berlin",
+    );
+
+    const insertSql = (executeRaw.mock.calls[0][0] as readonly string[]).join(
+      "?",
+    );
+    expect(insertSql).toMatch(/GROUP BY\s+"scheduled_for"/);
+    expect(insertSql).toMatch(/BOOL_OR\("taken_at" IS NOT NULL AND NOT "skipped"\)/);
+    expect(insertSql).toMatch(/BOOL_OR\("skipped"\)/);
+    // Slot-level taken beats skipped: a slot is `skipped` only when no row
+    // in it is taken.
+    expect(insertSql).toMatch(/NOT "slot_taken" AND "slot_skipped"/);
+    // Scheduled counts slots (the grouped CTE), not raw event rows.
+    expect(insertSql).toMatch(/FROM slot/);
+  });
+
   it("emits a paired DELETE so a fully-cleared day removes its row", async () => {
     // The DELETE fires unconditionally and gates on NOT EXISTS — when
     // the day still has events the predicate matches zero rows. The

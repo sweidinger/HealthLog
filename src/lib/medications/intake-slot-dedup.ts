@@ -1,5 +1,5 @@
 /**
- * v1.8.2 — one-time, idempotent cleanup for duplicate dose-slot rows.
+ * v1.8.2 — idempotent cleanup for duplicate dose-slot rows.
  *
  * The v1.8.2 write-path fix (`resolveCanonicalSlotInstant` +
  * `shouldMintMissedDoseRow`) converges every NEW intake write onto one
@@ -10,9 +10,11 @@
  * minute. The duplicate inflates the per-day `scheduled` count, paints a
  * phantom "taken", and confuses the "due now" prompt.
  *
- * This module is the boot-time backfill that collapses those existing
- * duplicates. It mirrors the `rollup-full-backfill` / `step-consolidation`
- * boot pattern:
+ * This module is the backfill that collapses those existing duplicates.
+ * Discovery runs at worker boot AND on a daily cron tick (v1.15.19 — a
+ * duplicate created between deploys must not wait for the next reboot).
+ * It mirrors the `rollup-full-backfill` / `step-consolidation` boot
+ * pattern:
  *   - a cheap discovery pre-query enqueues one job ONLY for users that
  *     actually hold duplicate slot rows;
  *   - the per-user handler groups live `MedicationIntakeEvent` rows into
@@ -357,7 +359,9 @@ export async function dedupeUserIntakeSlots(
 }
 
 /**
- * Boot-time discovery. Finds every user that holds more than one live
+ * Discovery pass — runs at worker boot and on the daily cron tick (the
+ * cron payload omits `userId`; the worker handler dispatches here). Finds
+ * every user that holds more than one live
  * `MedicationIntakeEvent` row that COULD be a duplicate slot — i.e. a
  * `(medicationId, scheduledFor-truncated-to-the-minute)` cluster with
  * more than one row, OR two live rows on the same medication within a
