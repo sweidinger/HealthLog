@@ -66,7 +66,15 @@ import { checkRateLimit } from "@/lib/rate-limit";
 
 const SESSION_OK = {
   session: { id: "sess-1", expiresAt: new Date(Date.now() + 3_600_000) },
-  user: { id: "user-1", username: "tester", role: "USER" as const },
+  // Explicit timezone keeps the band/slot fixtures below host-TZ-stable:
+  // the engine expands occurrences in the user's zone, so an unset value
+  // would silently track the machine's clock.
+  user: {
+    id: "user-1",
+    username: "tester",
+    role: "USER" as const,
+    timezone: "Europe/Berlin",
+  },
 };
 
 function postReq(body: unknown): NextRequest {
@@ -480,6 +488,45 @@ describe("POST /api/medications/intake/bulk — v1.15.19 resolver-null convergen
     );
   });
 
+  it("anchors a pending echo through the canonical snap (band engine is taken-only)", async () => {
+    // A pending echo (no takenAt) has nothing to attribute by — it must
+    // keep the anchor snap that binds it to the projector-minted slot row.
+    vi.mocked(prisma.medicationIntakeEvent.findMany).mockResolvedValueOnce([
+      {
+        id: "row-pending",
+        takenAt: null,
+        skipped: false,
+        idempotencyKey: null,
+        scheduledFor: new Date("2026-06-15T05:00:00Z"),
+        source: "REMINDER",
+        createdAt: new Date("2026-06-15T00:00:00Z"),
+      },
+    ] as never);
+    vi.mocked(prisma.medicationIntakeEvent.update).mockResolvedValueOnce({
+      id: "row-pending",
+    } as never);
+
+    const res = await POST(
+      postReq({
+        entries: [
+          {
+            medicationId: "med-1",
+            scheduledFor: "2026-06-15T05:00:30.000Z",
+            // no takenAt → pending echo onto the (still pending) slot row
+          },
+        ],
+      }),
+    );
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      data: { updated: number; entries: Array<{ status: string }> };
+    };
+    // The echo converges onto the canonical slot row (here a no-op update
+    // path through the shared upsert), never a standalone insert.
+    expect(body.data.entries[0].status).toBe("updated");
+    expect(prisma.medicationIntakeEvent.create).not.toHaveBeenCalled();
+  });
+
   it("keeps the idempotencyKey replay contract: a re-submission reports duplicate, not updated", async () => {
     // The replay pre-check fires BEFORE the convergence probe so a re-sent
     // entry keeps its historical `duplicate` status.
@@ -511,5 +558,195 @@ describe("POST /api/medications/intake/bulk — v1.15.19 resolver-null convergen
     expect(body.data.entries[0].id).toBe("row-existing");
     expect(prisma.medicationIntakeEvent.create).not.toHaveBeenCalled();
     expect(prisma.medicationIntakeEvent.findFirst).not.toHaveBeenCalled();
+  });
+});
+
+// ────────────────────────────────────────────────────────────────────
+// v1.15.20 — taken writes attribute through the window-band engine
+// ────────────────────────────────────────────────────────────────────
+
+describe("POST /api/medications/intake/bulk — v1.15.20 band attribution", () => {
+  const SCHEDULED_MED = {
+    id: "med-1",
+    startsOn: null,
+    endsOn: null,
+    oneShot: false,
+    createdAt: new Date("2026-01-01T00:00:00Z"),
+    schedules: [
+      {
+        id: "s1",
+        windowStart: "07:00",
+        windowEnd: "07:00",
+        daysOfWeek: null,
+        timesOfDay: ["07:00", "19:00"],
+        reminderGraceMinutes: null,
+        rrule: null,
+        rollingIntervalDays: null,
+        scheduleType: "SCHEDULED",
+        cyclicOnWeeks: null,
+        cyclicOffWeeks: null,
+        doseWindows: null,
+      },
+    ],
+  };
+
+  beforeEach(() => {
+    // 20:30 Berlin on 2026-06-15 — past both fixture slots for the day.
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-06-15T18:30:00.000Z"));
+    vi.mocked(prisma.medication.findMany).mockResolvedValue([
+      { id: "med-1" },
+    ] as never);
+    vi.mocked(prisma.medication.findFirst).mockResolvedValue(
+      SCHEDULED_MED as never,
+    );
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("attributes a takenAt-only entry to its slot by band membership", async () => {
+    // 19:30 Berlin sits inside the 19:00 slot's ±60 min on-time band — the
+    // take must converge onto the slot's pending REMINDER row even though
+    // the client named no scheduledFor (the legacy snap refused to bind a
+    // defaulted anchor to a slot; the band engine binds by the take itself).
+    vi.mocked(prisma.medicationIntakeEvent.findMany).mockResolvedValueOnce([
+      {
+        id: "row-evening",
+        takenAt: null,
+        skipped: false,
+        idempotencyKey: null,
+        scheduledFor: new Date("2026-06-15T17:00:00Z"),
+        source: "REMINDER",
+        createdAt: new Date("2026-06-15T00:00:00Z"),
+      },
+    ] as never);
+    vi.mocked(prisma.medicationIntakeEvent.update).mockResolvedValueOnce({
+      id: "row-evening",
+    } as never);
+
+    const res = await POST(
+      postReq({
+        entries: [
+          {
+            medicationId: "med-1",
+            takenAt: "2026-06-15T17:30:00.000Z",
+          },
+        ],
+      }),
+    );
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      data: {
+        updated: number;
+        inserted: number;
+        entries: Array<{ status: string; id?: string }>;
+      };
+    };
+    expect(body.data.updated).toBe(1);
+    expect(body.data.inserted).toBe(0);
+    expect(body.data.entries[0].status).toBe("updated");
+    expect(body.data.entries[0].id).toBe("row-evening");
+    expect(prisma.medicationIntakeEvent.create).not.toHaveBeenCalled();
+  });
+
+  it("forceSlotInstant pins an off-window take onto the named real slot", async () => {
+    // 14:00 Berlin falls in no band; the client pins the take onto the
+    // morning slot anchor (05:00Z = 07:00 Berlin).
+    vi.mocked(prisma.medicationIntakeEvent.findMany).mockResolvedValueOnce([
+      {
+        id: "row-morning",
+        takenAt: null,
+        skipped: false,
+        idempotencyKey: null,
+        scheduledFor: new Date("2026-06-15T05:00:00Z"),
+        source: "REMINDER",
+        createdAt: new Date("2026-06-15T00:00:00Z"),
+      },
+    ] as never);
+    vi.mocked(prisma.medicationIntakeEvent.update).mockResolvedValueOnce({
+      id: "row-morning",
+    } as never);
+
+    const res = await POST(
+      postReq({
+        entries: [
+          {
+            medicationId: "med-1",
+            takenAt: "2026-06-15T12:00:00.000Z",
+            forceSlotInstant: "2026-06-15T05:00:00.000Z",
+          },
+        ],
+      }),
+    );
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      data: { updated: number; entries: Array<{ status: string; id?: string }> };
+    };
+    expect(body.data.updated).toBe(1);
+    expect(body.data.entries[0].status).toBe("updated");
+    expect(body.data.entries[0].id).toBe("row-morning");
+  });
+
+  it("marks an entry skipped when forceSlotInstant names no real slot", async () => {
+    const res = await POST(
+      postReq({
+        entries: [
+          {
+            medicationId: "med-1",
+            takenAt: "2026-06-15T12:00:00.000Z",
+            forceSlotInstant: "2026-06-15T12:34:00.000Z",
+          },
+        ],
+      }),
+    );
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      data: {
+        skipped: Array<{ index: number; reason: string }>;
+        entries: Array<{ status: string; reason?: string }>;
+      };
+    };
+    expect(body.data.entries[0].status).toBe("skipped");
+    expect(body.data.entries[0].reason).toBe("force_slot_invalid");
+    expect(body.data.skipped[0]).toEqual({
+      index: 0,
+      reason: "force_slot_invalid",
+    });
+    expect(prisma.medicationIntakeEvent.create).not.toHaveBeenCalled();
+    expect(prisma.medicationIntakeEvent.update).not.toHaveBeenCalled();
+  });
+
+  it("files an out-of-band take as ad-hoc (scheduledFor = takenAt)", async () => {
+    // 14:00 Berlin, no band, no pin → standalone row anchored on the take.
+    vi.mocked(prisma.medicationIntakeEvent.create).mockResolvedValueOnce({
+      id: "row-adhoc",
+    } as never);
+
+    const res = await POST(
+      postReq({
+        entries: [
+          {
+            medicationId: "med-1",
+            takenAt: "2026-06-15T12:00:00.000Z",
+          },
+        ],
+      }),
+    );
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      data: { inserted: number; entries: Array<{ status: string }> };
+    };
+    expect(body.data.inserted).toBe(1);
+    expect(body.data.entries[0].status).toBe("inserted");
+    expect(prisma.medicationIntakeEvent.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          scheduledFor: new Date("2026-06-15T12:00:00.000Z"),
+          takenAt: new Date("2026-06-15T12:00:00.000Z"),
+        }),
+      }),
+    );
   });
 });

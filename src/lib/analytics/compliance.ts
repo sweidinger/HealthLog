@@ -369,6 +369,35 @@ export interface ComplianceSchedule {
 }
 
 /**
+ * v1.15.20 — the ONE Prisma `select` for schedule rows feeding a compliance
+ * computation. Every call site that loads schedules for
+ * `calculateCompliance` / the cadence helpers must use this constant instead
+ * of hand-rolling a field list (or an unbounded `include: { schedules:
+ * true }`), so a future schedule column that the engine consumes — the way
+ * `doseWindows` joined in v1.15.18 — reaches every surface the moment it is
+ * added here. Covers the full {@link ComplianceSchedule} shape plus `id`
+ * (engine-internal labelling / diagnostics).
+ */
+export const SCHEDULE_COMPLIANCE_SELECT = {
+  id: true,
+  windowStart: true,
+  windowEnd: true,
+  daysOfWeek: true,
+  timesOfDay: true,
+  reminderGraceMinutes: true,
+  rrule: true,
+  rollingIntervalDays: true,
+  scheduleType: true,
+  cyclicOnWeeks: true,
+  cyclicOffWeeks: true,
+  // The configurable per-dose on-time windows. Selecting them everywhere is
+  // the point: a user-configured "07:00–09:00" band must shape the rate on
+  // the dashboard pillar, the insights features, the BP-status gate and the
+  // report exactly as it shapes the medication detail page.
+  doseWindows: true,
+} as const;
+
+/**
  * v1.7.0 SB-SCHED-2 — medication-level context the canonical engine
  * needs to expand expected slots. When supplied, `calculateCompliance`
  * routes the denominator through the engine; when omitted, every

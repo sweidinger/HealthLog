@@ -269,6 +269,12 @@ async function applyToExisting(
     data: {
       takenAt,
       skipped,
+      // A recorded dose is no longer an auto-miss. The hourly auto-miss cron
+      // stamps `autoMissed: true` on a never-acted slot; when the user later
+      // records the take (late entry, offline sync catching up), the flag
+      // must reset or the compliance engine keeps counting the now-taken
+      // dose as a miss.
+      ...(takenAt !== null && { autoMissed: false }),
       syncVersion: { increment: 1 },
       idempotencyKey: idempotencyKey ?? existing.idempotencyKey ?? null,
       // v1.8.5 — write the site only when this write carries a resolved

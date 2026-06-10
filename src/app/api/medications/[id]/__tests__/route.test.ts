@@ -15,6 +15,9 @@ vi.mock("@/lib/db", () => ({
       findFirst: vi.fn(),
       update: vi.fn(),
     },
+    medicationIntakeEvent: {
+      updateMany: vi.fn().mockResolvedValue({ count: 0 }),
+    },
     apiToken: {
       updateMany: vi.fn().mockResolvedValue({ count: 0 }),
     },
@@ -173,6 +176,153 @@ describe("PUT /api/medications/[id] — v1.5 scheduling primitives", () => {
       ROUTE_CTX,
     );
     expect(res.status).toBe(422);
+  });
+});
+
+describe("PUT /api/medications/[id] — schedule replace migrates open slots", () => {
+  beforeEach(() => {
+    vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
+    vi.mocked(prisma.medication.findUnique).mockResolvedValue({
+      id: "m1",
+      userId: "user-1",
+      active: true,
+    } as never);
+    vi.mocked(prisma.medication.update).mockResolvedValue({
+      id: "m1",
+      userId: "user-1",
+      schedules: [],
+    } as never);
+    vi.mocked(getMedicationCategories).mockResolvedValue({});
+    vi.mocked(auditLog).mockResolvedValue(undefined);
+    vi.mocked(prisma.medicationIntakeEvent.updateMany).mockResolvedValue({
+      count: 1,
+    } as never);
+  });
+
+  it("tombstones open pending rows (today + future) on a schedule replace", async () => {
+    const res = await PUT(
+      putReq({
+        schedules: [{ windowStart: "20:00", windowEnd: "20:30" }],
+      }),
+      ROUTE_CTX,
+    );
+    expect(res.status).toBe(200);
+    expect(prisma.medicationIntakeEvent.updateMany).toHaveBeenCalledTimes(1);
+    const arg = vi.mocked(prisma.medicationIntakeEvent.updateMany).mock
+      .calls[0][0] as {
+      where: Record<string, unknown>;
+      data: Record<string, unknown>;
+    };
+    // Only live, never-acted rows from today's local day-start forward —
+    // taken / skipped / auto-missed history must survive a schedule edit.
+    expect(arg.where).toMatchObject({
+      userId: "user-1",
+      medicationId: "m1",
+      deletedAt: null,
+      takenAt: null,
+      skipped: false,
+      autoMissed: false,
+    });
+    expect(
+      (arg.where.scheduledFor as { gte: Date }).gte,
+    ).toBeInstanceOf(Date);
+    expect(arg.data.deletedAt).toBeInstanceOf(Date);
+    expect(arg.data.syncVersion).toEqual({ increment: 1 });
+  });
+
+  it("does NOT touch intake rows when the body carries no schedules array", async () => {
+    const res = await PUT(putReq({ name: "Renamed" }), ROUTE_CTX);
+    expect(res.status).toBe(200);
+    expect(prisma.medicationIntakeEvent.updateMany).not.toHaveBeenCalled();
+  });
+});
+
+describe("PUT /api/medications/[id] — window / timesOfDay consistency", () => {
+  beforeEach(() => {
+    vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
+    vi.mocked(prisma.medication.findUnique).mockResolvedValue({
+      id: "m1",
+      userId: "user-1",
+      active: true,
+    } as never);
+    vi.mocked(prisma.medication.update).mockResolvedValue({
+      id: "m1",
+      userId: "user-1",
+      schedules: [],
+    } as never);
+    vi.mocked(getMedicationCategories).mockResolvedValue({});
+    vi.mocked(auditLog).mockResolvedValue(undefined);
+    vi.mocked(prisma.medicationIntakeEvent.updateMany).mockResolvedValue({
+      count: 0,
+    } as never);
+  });
+
+  function createdSchedule(): Record<string, unknown> {
+    const calls = vi.mocked(prisma.medication.update).mock.calls;
+    expect(calls.length).toBeGreaterThan(0);
+    const arg = calls[calls.length - 1][0] as unknown as {
+      data: { schedules: { create: Array<Record<string, unknown>> } };
+    };
+    return arg.data.schedules.create[0];
+  }
+
+  it("pulls a stale window to the min/max of new timesOfDay", async () => {
+    // The client changed only the dose times and echoed the old window
+    // back; 21:00 falls outside [08:00, 09:00].
+    const res = await PUT(
+      putReq({
+        schedules: [
+          {
+            windowStart: "08:00",
+            windowEnd: "09:00",
+            timesOfDay: ["07:00", "21:00"],
+          },
+        ],
+      }),
+      ROUTE_CTX,
+    );
+    expect(res.status).toBe(200);
+    const created = createdSchedule();
+    expect(created.windowStart).toBe("07:00");
+    expect(created.windowEnd).toBe("21:00");
+  });
+
+  it("keeps a window that already covers every time byte-identical", async () => {
+    const res = await PUT(
+      putReq({
+        schedules: [
+          {
+            windowStart: "06:00",
+            windowEnd: "22:00",
+            timesOfDay: ["08:00", "20:00"],
+          },
+        ],
+      }),
+      ROUTE_CTX,
+    );
+    expect(res.status).toBe(200);
+    const created = createdSchedule();
+    expect(created.windowStart).toBe("06:00");
+    expect(created.windowEnd).toBe("22:00");
+  });
+
+  it("keeps an overnight window whose times sit inside the wrap", async () => {
+    const res = await PUT(
+      putReq({
+        schedules: [
+          {
+            windowStart: "22:00",
+            windowEnd: "02:00",
+            timesOfDay: ["23:00"],
+          },
+        ],
+      }),
+      ROUTE_CTX,
+    );
+    expect(res.status).toBe(200);
+    const created = createdSchedule();
+    expect(created.windowStart).toBe("22:00");
+    expect(created.windowEnd).toBe("02:00");
   });
 });
 
