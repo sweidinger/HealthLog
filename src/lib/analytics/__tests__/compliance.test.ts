@@ -2582,6 +2582,75 @@ describe("tallyComplianceFromLedger — the unified % keystone", () => {
     expect(tally.rate).toBe(100);
   });
 
+  // v1.15.19 — intraday pending rows. The today-projector mints pending
+  // rows (takenAt = null, not skipped, not auto-missed) for every slot of
+  // the day up front; from slot time onward the old ledger read them as
+  // missed, so the rate dipped intraday although the dose was still inside
+  // its overdue window.
+  it("a pending row inside its overdue window reads upcoming — the intraday rate holds", () => {
+    // 07:00 taken; the 19:00 pending row was minted up front. At 20:00 the
+    // evening dose is still takeable (the late tail runs to 23:00), so it
+    // stays out of the denominator and the rate holds at 100, not 50.
+    const events = [
+      { scheduledFor: at(7, 0), takenAt: at(7, 0), skipped: false },
+      { scheduledFor: at(19, 0), takenAt: null, skipped: false },
+    ];
+    const tally = tallyComplianceFromLedger(
+      events,
+      twiceDaily,
+      ctxFor(),
+      from,
+      at(23, 59),
+      at(20, 0),
+    );
+    expect(tally.taken).toBe(1);
+    expect(tally.missed).toBe(0);
+    expect(tally.denominator).toBe(1);
+    expect(tally.rate).toBe(100);
+  });
+
+  it("a pending row past its overdueEnd IS a miss", () => {
+    // Same shape, but read at 23:59 — the 19:00 dose's tail has closed.
+    const events = [
+      { scheduledFor: at(7, 0), takenAt: at(7, 0), skipped: false },
+      { scheduledFor: at(19, 0), takenAt: null, skipped: false },
+    ];
+    const tally = tallyComplianceFromLedger(
+      events,
+      twiceDaily,
+      ctxFor(),
+      from,
+      nowEvening,
+      nowEvening,
+    );
+    expect(tally.taken).toBe(1);
+    expect(tally.missed).toBe(1);
+    expect(tally.rate).toBe(50);
+  });
+
+  it("a pending row whose slot lies outside `to = now` never becomes a phantom ad-hoc", () => {
+    // The history view asks with `to = now`. The 19:00 band is not minted
+    // at 14:00, but the projector already wrote the evening pending row —
+    // it must be dropped, not surfaced as an ad-hoc row with takenAt=null.
+    const events = [
+      { scheduledFor: at(7, 0), takenAt: at(7, 0), skipped: false },
+      { scheduledFor: at(19, 0), takenAt: null, skipped: false },
+    ];
+    const nowAfternoon = at(14, 0);
+    const tally = tallyComplianceFromLedger(
+      events,
+      twiceDaily,
+      ctxFor(),
+      from,
+      nowAfternoon,
+      nowAfternoon,
+    );
+    expect(tally.adHoc).toBe(0);
+    expect(tally.taken).toBe(1);
+    expect(tally.missed).toBe(0);
+    expect(tally.rate).toBe(100);
+  });
+
   it("an auto-missed forgotten dose IS a miss (counts against the rate)", () => {
     const events = [
       { scheduledFor: at(7, 0), takenAt: at(7, 0), skipped: false },

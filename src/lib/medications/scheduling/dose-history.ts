@@ -11,7 +11,11 @@
  * Attribution rules:
  *   - skipped / auto-missed / pending rows (no `takenAt`) bind to the slot
  *     whose anchor equals their `scheduledFor` (±epsilon): these were written
- *     against a slot deliberately, so they annotate that slot;
+ *     against a slot deliberately, so they annotate that slot. A pending row
+ *     (neither skipped nor auto-missed) is status-derived by time — missed
+ *     only past the slot's miss cutoff, upcoming until then — and a pending
+ *     row matching no band at all is dropped (server-minted placeholder for
+ *     a slot outside the queried window, not a user action);
  *   - a TAKEN intake is attributed by `attributeIntakeToSlot(takenAt, bands)`;
  *     inside a band → that slot (on-time / late), outside every band → ad-hoc;
  *   - each slot is claimed by at most one intake (first/best wins); extra
@@ -85,14 +89,29 @@ export function reconstructDoseHistory(
 
   for (const i of anchored) {
     const band = nearestAnchorBand(i.scheduledFor, bands);
-    const status: DoseHistoryStatus = i.skipped ? "skipped" : "missed";
     if (band && !claim.has(band)) {
+      // Status is time-aware for a pending row: the projector / reminder
+      // worker mint pending rows for every slot of the day up front, so a
+      // pending row on a slot whose miss cutoff hasn't passed is still
+      // takeable — it reads upcoming, not missed (mirrors the unfilled-slot
+      // branch below). A skip stays a skip; a cron-marked auto-miss stays
+      // missed regardless of the clock.
+      const status: DoseHistoryStatus = i.skipped
+        ? "skipped"
+        : i.autoMissed || now.getTime() > band.overdueEnd.getTime()
+          ? "missed"
+          : "upcoming";
       claim.set(band, { intake: i, status });
-    } else {
-      // A skip/miss with no matching slot (legacy off-grid) — surface it so
-      // nothing silently vanishes; tag it ad-hoc.
+    } else if (i.skipped || i.autoMissed) {
+      // A deliberate skip / cron-marked miss with no matching slot (legacy
+      // off-grid) — surface it so nothing silently vanishes; tag it ad-hoc.
       adHoc.push(i);
     }
+    // A pending row with no matching band is dropped: it is a server-minted
+    // placeholder (no user action) for a slot outside the queried band
+    // window — e.g. today's evening slot when the caller asked `to = now`.
+    // The band set is the source of truth for which slots exist in the
+    // window; emitting the placeholder would fabricate a phantom ad-hoc row.
   }
 
   for (const i of taken) {
