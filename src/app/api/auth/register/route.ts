@@ -127,17 +127,29 @@ export const POST = apiHandler(async (request: NextRequest) => {
   // so a taken username or weak password can never burn one of the
   // invite's uses. The guarded increment inside `consumeInviteToken`
   // makes the last-use race safe under concurrent signups.
+  //
+  // v1.16.1 — consume whenever a token was sent, not only when the
+  // invite is the admission requirement. A signup through an invite
+  // link while registration happens to be open used to leave the
+  // invite untouched, so the issuer's ledger (uses, consumers) was
+  // silently incomplete. The consume stays a hard 403 only when
+  // registration is closed (the invite is the door key); under open
+  // registration a stale or exhausted token is annotated and the
+  // signup proceeds uninvited.
   let inviteId: string | null = null;
-  if (!registrationEnabled && inviteToken) {
+  if (inviteToken) {
     const consumed = await consumeInviteToken(inviteToken);
-    if (!consumed.ok) {
+    if (consumed.ok) {
+      inviteId = consumed.inviteId;
+    } else {
       annotate({
         action: { name: "auth.register.invite_rejected" },
-        meta: { reason: consumed.reason },
+        meta: { reason: consumed.reason, registration_open: registrationEnabled },
       });
-      return apiError("Invalid or expired invite", 403);
+      if (!registrationEnabled) {
+        return apiError("Invalid or expired invite", 403);
+      }
     }
-    inviteId = consumed.inviteId;
   }
 
   // First user becomes admin

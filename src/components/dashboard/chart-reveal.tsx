@@ -22,15 +22,24 @@ import { cn } from "@/lib/utils";
  *
  *   1. every gated chart has reported its data query settled
  *      (`onDataReady` — the Promise.all moment), or
- *   2. the reveal timeout elapses (`CHART_REVEAL_TIMEOUT_MS`, 2 s) so a
+ *   2. the reveal timeout elapses (`CHART_REVEAL_TIMEOUT_MS`) so a
  *      single slow widget cannot hold the whole row hostage — the late
  *      chart simply finishes on its own skeleton-free cell afterwards.
  *
  * Both signals are monotonic: the ready-set only grows and the timeout
- * only fires once, so after the first 2 s the reveal can never regress
- * even when a later mutation makes an additional chart visible.
+ * only fires once, so after the timeout window the reveal can never
+ * regress even when a later mutation makes an additional chart visible.
+ *
+ * There is deliberately NO minimum delay: when every gated query is fast
+ * the row reveals the moment the last one settles. The timeout is only
+ * the worst-case cap on how long fast charts wait for the slowest
+ * sibling — v1.16.1 lowered it 2 s → 1.2 s after the maintainer flagged
+ * the dashboard as feeling slower: with warm caches most charts settle
+ * in well under a second, and capping the hostage window at 1.2 s keeps
+ * the synchronized reveal while shaving up to 800 ms of artificial wait
+ * when one widget lags.
  */
-export const CHART_REVEAL_TIMEOUT_MS = 2_000;
+export const CHART_REVEAL_TIMEOUT_MS = 1_200;
 
 /**
  * Pure resolver behind `useDashboardChartReveal` — exported so the gate

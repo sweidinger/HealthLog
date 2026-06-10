@@ -72,15 +72,16 @@ function render(locale: "en" | "de" = "en") {
 }
 
 describe("MoodList — filter bar + multi-select chrome", () => {
-  it("renders the source filter control", () => {
+  // v1.16.1 — the per-page Select/date-input row migrated to the unified
+  // `<FilterBar>` pill rail; same grammar as the measurements list.
+  it("renders the filter rail with mood, source and date-range pills", () => {
     const html = render("en");
-    expect(html).toContain("Filter by source");
-  });
-
-  it("renders the date-range labels wired to from/to", () => {
-    const html = render("en");
-    expect(html).toContain('for="mood-from"');
-    expect(html).toContain('for="mood-to"');
+    expect(html).toContain('data-slot="filter-bar"');
+    expect(html).toContain('aria-label="Mood"');
+    expect(html).toContain('aria-label="Source"');
+    expect(html).toContain('aria-label="Date range"');
+    const pills = html.match(/data-slot="filter-bar-pill"/g);
+    expect(pills?.length).toBe(3);
   });
 
   it("renders labelled selection checkboxes (per-row + select-all)", () => {

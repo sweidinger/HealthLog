@@ -198,7 +198,27 @@ admin views. Default to `<Card>` + list rows for everything else;
 tables on mobile collapse poorly. When you must use a table on mobile,
 swap to a vertical list at `sm:` breakpoint.
 
-### 2.6 Status indicators
+### 2.6 Filter bars over data lists
+
+Every list surface with filters (measurements, mood, future admin
+lists) uses the unified `<FilterBar>` rail from
+`src/components/ui/filter-bar.tsx` — never a per-page row of large
+labelled `<Select>`s and date inputs.
+
+- **Grammar**: `[icon] [Zeitraum] [Typ] [Quelle] [extras…]
+  [Zurücksetzen] … [count]`. Canonical dimension order is date range,
+  type, source; surface-specific dimensions append after.
+- **Pill = trigger + chip**: inactive pills show only the dimension
+  name; active pills show `Name: Wert`, pick up the primary accent and
+  grow a removable ✕. No separate chip row.
+- **Reset** renders only while at least one dimension is active.
+- **Mobile** (< `sm`): the rail is a horizontal scroll row (hidden
+  scrollbar, edge-bleed); the result count wraps to its own line.
+- The component is presentation-only — filter state, query keys and
+  fetching stay in the owning page. Use `FilterBarSelect` for enum
+  dimensions and `FilterBarDateRange` for the from/to pair.
+
+### 2.7 Status indicators
 
 Use the same color taxonomy across the app:
 
@@ -277,7 +297,7 @@ Same shape as Settings, with the right-hand sidebar listing:
 - Maintenance
 - Audit log
 
-Status badges use the §2.6 color taxonomy. Each section opens to a card
+Status badges use the §2.7 color taxonomy. Each section opens to a card
 grid, never a long fluid list.
 
 ---

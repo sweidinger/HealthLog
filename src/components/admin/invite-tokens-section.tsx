@@ -21,7 +21,10 @@
  *
  * The QR data-URL is rendered inside the mutation (not in an effect):
  * `qrcode`'s `toDataURL` is async, so folding it into `mutationFn`
- * keeps the component free of setState-in-effect churn.
+ * keeps the component free of setState-in-effect churn. The library
+ * itself loads via dynamic `import()` at that call site (v1.16.1) —
+ * it is only needed the moment an admin mints an invite, so it stays
+ * out of the admin route bundle entirely.
  */
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -35,7 +38,6 @@ import {
   Ticket,
   Users,
 } from "lucide-react";
-import QRCode from "qrcode";
 import { toast } from "sonner";
 
 import {
@@ -108,10 +110,7 @@ interface MintedInvite {
 type InviteStatus = "active" | "expired" | "exhausted" | "revoked";
 
 export function deriveInviteStatus(
-  invite: Pick<
-    AdminInvite,
-    "uses" | "maxUses" | "expiresAt" | "revokedAt"
-  >,
+  invite: Pick<AdminInvite, "uses" | "maxUses" | "expiresAt" | "revokedAt">,
   now: Date,
 ): InviteStatus {
   if (invite.revokedAt !== null) return "revoked";
@@ -150,7 +149,13 @@ const STATUS_STYLES: Record<InviteStatus, { dot: string; chip: string }> = {
   },
 };
 
-function StatusChip({ status, label }: { status: InviteStatus; label: string }) {
+function StatusChip({
+  status,
+  label,
+}: {
+  status: InviteStatus;
+  label: string;
+}) {
   const styles = STATUS_STYLES[status];
   return (
     <span
@@ -201,6 +206,8 @@ export function InviteTokensSection() {
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = (await res.json()).data as Omit<MintedInvite, "qrDataUrl">;
+      // Lazy chunk: qrcode is only ever needed right here, at mint time.
+      const QRCode = (await import("qrcode")).default;
       const qrDataUrl = await QRCode.toDataURL(data.url, {
         width: 240,
         margin: 1,
@@ -289,8 +296,7 @@ export function InviteTokensSection() {
   function redemptionSummary(invite: AdminInvite): string {
     if (invite.redemptions.length === 0) return "—";
     const first = invite.redemptions[0];
-    const name =
-      first.user?.username ?? t("admin.invites.redeemerDeleted");
+    const name = first.user?.username ?? t("admin.invites.redeemerDeleted");
     if (invite.redemptions.length === 1) return name;
     return t("admin.invites.redeemedByMore", {
       username: name,
@@ -345,7 +351,11 @@ export function InviteTokensSection() {
             title={t("admin.invites.emptyTitle")}
             description={t("admin.invites.emptyDescription")}
             action={
-              <Button type="button" variant="outline" onClick={openCreateDialog}>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={openCreateDialog}
+              >
                 <Plus className="size-4" aria-hidden="true" />
                 {t("admin.invites.create")}
               </Button>
@@ -544,7 +554,10 @@ export function InviteTokensSection() {
                   <legend className="text-sm font-medium">
                     {t("admin.invites.ttlLegend")}
                   </legend>
-                  <div className="mt-2 grid grid-cols-3 gap-2" role="radiogroup">
+                  <div
+                    className="mt-2 grid grid-cols-3 gap-2"
+                    role="radiogroup"
+                  >
                     {TTL_CHOICES.map((days) => (
                       <button
                         key={days}

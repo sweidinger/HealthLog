@@ -61,12 +61,15 @@ function render(lockedType?: string) {
 }
 
 describe("MeasurementList — lockedType", () => {
-  it("hides the type selector when locked to a metric", () => {
+  it("hides the filter rail when locked to a metric", () => {
     const locked = render("WEIGHT");
     const unlocked = render();
-    // The unlocked list paints the filter trigger; the locked one does
-    // not (the metric is fixed by the route).
-    expect(unlocked).toContain("Filter by type");
+    // v1.16.1 — the unlocked list paints the unified `<FilterBar>` pill
+    // rail (type pill included); the locked one suppresses the whole
+    // rail (the metric is fixed by the route) and keeps only the count.
+    expect(unlocked).toContain('data-slot="filter-bar"');
+    expect(unlocked).toContain('aria-label="Type"');
+    expect(locked).not.toContain('data-slot="filter-bar"');
     expect(locked).not.toContain('role="combobox"');
   });
 

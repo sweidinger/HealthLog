@@ -18,6 +18,10 @@ import {
   getEarnabilityFlags,
 } from "@/lib/gamification/expansion-metrics";
 import {
+  getMissFreeDayKeys,
+  getWeeklyConsistency,
+} from "@/lib/gamification/care-metrics";
+import {
   classifyBMI,
   classifyBP,
   classifyPulse,
@@ -43,11 +47,19 @@ export const dynamic = "force-dynamic";
 const DAY_MS = 24 * 60 * 60 * 1000;
 const ROLLING_WINDOW_DAYS = 30;
 
+// v1.16.1 — weekly measurement-consistency badge: 4 consecutive weeks
+// with at least 5 distinct active vitals days each. Mirrors the
+// `measurement-weeks-4` definition's target.
+const MEASUREMENT_CONSISTENCY_MIN_DAYS_PER_WEEK = 5;
+const MEASUREMENT_CONSISTENCY_TARGET_WEEKS = 4;
+
 type IntakeEventRecord = {
   medicationId: string;
   scheduledFor: Date;
   takenAt: Date | null;
   skipped: boolean;
+  /** v1.16.1 — feeds the miss-free day streak. */
+  autoMissed: boolean;
 };
 
 type MedicationScheduleRecord = {
@@ -527,6 +539,8 @@ async function buildAchievementsResult(user: AuthedUser) {
     passkeys,
     auditEvents,
     moodEntries,
+    sleepMeasurements,
+    healthProfile,
   ] = await Promise.all([
     prisma.measurement.findMany({
       where: {
@@ -560,6 +574,9 @@ async function buildAchievementsResult(user: AuthedUser) {
         scheduledFor: true,
         takenAt: true,
         skipped: true,
+        // v1.16.1 — the miss-free streak disqualifies a day on any
+        // auto-missed slot.
+        autoMissed: true,
       },
     }),
     prisma.medication.findMany({
@@ -623,6 +640,32 @@ async function buildAchievementsResult(user: AuthedUser) {
         moodLoggedAt: true,
       },
     }),
+    // v1.16.1 — sleep samples feed the sleep-logging streak. Read
+    // separately from the vitals query above so passive sleep syncs
+    // never inflate the entry-day / consistent-month engagement
+    // metrics, which reward ACTIVE tracking.
+    prisma.measurement.findMany({
+      where: {
+        userId,
+        measuredAt: { gte: startDate, lte: now },
+        source: { not: "IMPORT" },
+        type: "SLEEP_DURATION",
+        deletedAt: null,
+      },
+      select: { measuredAt: true },
+    }),
+    // v1.16.1 — presence-only read of the self-context questionnaire
+    // (nothing is decrypted) for the maintained-self-report badge.
+    prisma.userHealthProfile.findUnique({
+      where: { userId },
+      select: {
+        aboutMeEncrypted: true,
+        conditionsEncrypted: true,
+        allergiesEncrypted: true,
+        coachFocusEncrypted: true,
+        updatedAt: true,
+      },
+    }),
   ]);
 
   const schedulesByMedicationId = new Map(
@@ -665,6 +708,28 @@ async function buildAchievementsResult(user: AuthedUser) {
     now,
   );
 
+  // v1.16.1 — care-routine series. Miss-free days and sleep-logging
+  // days reuse the standard day-series plumbing; the weekly measurement
+  // consistency folds distinct active vitals days into Monday-anchored
+  // weeks (≥5 active days each, 4 consecutive weeks for the badge).
+  const missFreeSeries = toDaySeries(getMissFreeDayKeys(intakeEvents));
+  const sleepSeries = getEventDaySeries(
+    sleepMeasurements.map((m) => m.measuredAt),
+  );
+  const weeklyConsistency = getWeeklyConsistency(
+    measurements.map((m) => toBerlinDayKey(m.measuredAt)),
+    MEASUREMENT_CONSISTENCY_MIN_DAYS_PER_WEEK,
+    MEASUREMENT_CONSISTENCY_TARGET_WEEKS,
+  );
+  const selfContextComplete =
+    healthProfile !== null &&
+    healthProfile.aboutMeEncrypted !== null &&
+    healthProfile.conditionsEncrypted !== null &&
+    healthProfile.allergiesEncrypted !== null &&
+    healthProfile.coachFocusEncrypted !== null
+      ? 1
+      : 0;
+
   const expansionValues = buildExpansionMetricValues({
     measurements,
     moodEntries,
@@ -679,6 +744,7 @@ async function buildAchievementsResult(user: AuthedUser) {
       bpCount: expansionValues.bpMeasurementCount,
       pulseCount: expansionValues.pulseMeasurementCount,
     },
+    sleepSampleCount: sleepMeasurements.length,
   });
 
   const metrics = {
@@ -696,6 +762,11 @@ async function buildAchievementsResult(user: AuthedUser) {
     loginDayStreak: calculateLongestStreak(loginDaySeries.dayKeys),
     bugReportCount: bugReportDates.length,
     ...expansionValues,
+    // v1.16.1 — care-routine metrics.
+    missFreeDayStreak: calculateLongestStreak(missFreeSeries.dayKeys),
+    measurementConsistencyWeeks: weeklyConsistency.longestRunWeeks,
+    selfContextCompleteCount: selfContextComplete,
+    sleepLogDayStreak: calculateLongestStreak(sleepSeries.dayKeys),
   };
 
   const completionDates: Partial<Record<string, Date>> = {};
@@ -821,6 +892,43 @@ async function buildAchievementsResult(user: AuthedUser) {
         complianceSeries.firstDateByDay,
       );
       if (completedAt) completionDates[definition.id] = completedAt;
+      continue;
+    }
+
+    // ── v1.16.1 ─ care-routine completion dates ─────────────────────
+    if (definition.metric === "missFreeDayStreak") {
+      const completedAt = findStreakCompletionDate(
+        missFreeSeries.dayKeys,
+        definition.target,
+        missFreeSeries.firstDateByDay,
+      );
+      if (completedAt) completionDates[definition.id] = completedAt;
+      continue;
+    }
+
+    if (definition.metric === "sleepLogDayStreak") {
+      const completedAt = findStreakCompletionDate(
+        sleepSeries.dayKeys,
+        definition.target,
+        sleepSeries.firstDateByDay,
+      );
+      if (completedAt) completionDates[definition.id] = completedAt;
+      continue;
+    }
+
+    if (definition.metric === "measurementConsistencyWeeks") {
+      if (weeklyConsistency.completionDayKey) {
+        completionDates[definition.id] = dayKeyToDate(
+          weeklyConsistency.completionDayKey,
+        );
+      }
+      continue;
+    }
+
+    if (definition.metric === "selfContextCompleteCount") {
+      if (selfContextComplete === 1 && healthProfile) {
+        completionDates[definition.id] = healthProfile.updatedAt;
+      }
     }
   }
 
