@@ -168,4 +168,4 @@ If you find a security vulnerability, **do not open a public issue**. See [SECUR
 
 ## License
 
-By contributing, you agree that your contributions will be licensed under the [AGPL-3.0](LICENSE) license.
+The project is licensed under the [PolyForm Noncommercial License 1.0.0](LICENSE). By contributing, you agree that your contributions are submitted under the project license.

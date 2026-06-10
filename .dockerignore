@@ -78,8 +78,9 @@ CONTRIBUTING.md
 CONTRIBUTING-AI.md
 CODE_OF_CONDUCT.md
 SECURITY.md
-# LICENSE / LICENSE.md are deliberately NOT ignored: AGPL-3.0 conveys with
-# the software, so the licence text ships inside the image.
+# LICENSE / LICENSE.md are deliberately NOT ignored: the PolyForm
+# Noncommercial 1.0.0 notice terms require the licence text (or its URL)
+# to ship with every copy of the software, so it ships inside the image.
 AGENTS.md
 .planning
 docs

@@ -1847,14 +1847,14 @@ export default function PrivacyPage() {
           data-slot="privacy-footer"
         >
           <p>
-            HealthLog — open source under{" "}
+            HealthLog — source-available under the{" "}
             <a
               href="https://github.com/MBombeck/HealthLog/blob/main/LICENSE"
               target="_blank"
               rel="noopener noreferrer"
               className="hover:text-foreground hover:underline"
             >
-              AGPL-3.0
+              PolyForm Noncommercial License 1.0.0
             </a>
             . Policy version {POLICY_VERSION}. Last updated {LAST_UPDATED}.
           </p>

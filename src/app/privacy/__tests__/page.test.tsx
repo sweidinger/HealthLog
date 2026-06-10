@@ -256,7 +256,7 @@ describe("<PrivacyPage>", () => {
   it("renders a discoverable footer with the version and license", () => {
     const html = render();
     expect(html).toContain('data-slot="privacy-footer"');
-    expect(html).toContain("AGPL-3.0");
+    expect(html).toContain("PolyForm Noncommercial License 1.0.0");
     expect(html).toContain(POLICY_VERSION);
   });
 });

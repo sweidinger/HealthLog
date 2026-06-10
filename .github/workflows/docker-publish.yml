@@ -107,7 +107,7 @@ jobs:
           labels: |
             org.opencontainers.image.title=HealthLog
             org.opencontainers.image.description=Self-hosted health-tracking PWA
-            org.opencontainers.image.licenses=AGPL-3.0-only
+            org.opencontainers.image.licenses=PolyForm-Noncommercial-1.0.0
             org.opencontainers.image.source=https://github.com/${{ github.repository }}
 
       # v1.4.27 B3 — GeoLite2-City + GeoLite2-ASN databases are too large
@@ -299,7 +299,7 @@ jobs:
           labels: |
             org.opencontainers.image.title=HealthLog
             org.opencontainers.image.description=Self-hosted health-tracking PWA
-            org.opencontainers.image.licenses=AGPL-3.0-only
+            org.opencontainers.image.licenses=PolyForm-Noncommercial-1.0.0
             org.opencontainers.image.source=https://github.com/${{ github.repository }}
 
       - name: Create multi-arch manifest

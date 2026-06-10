@@ -54,7 +54,7 @@ export const GET = apiHandler(async () => {
     version,
     buildSha,
     builtAt,
-    license: "AGPL-3.0",
+    license: "PolyForm-Noncommercial-1.0.0",
     repository: "https://github.com/MBombeck/HealthLog",
     changelog: "https://github.com/MBombeck/HealthLog/blob/main/CHANGELOG.md",
     docs: "https://docs.healthlog.dev",

@@ -4,7 +4,7 @@ Working notes for anyone (human or otherwise) editing this repository. Skim befo
 
 ## What HealthLog is
 
-Self-hosted personal-health-tracking PWA: weight, blood pressure, pulse, body composition, glucose, sleep, mood, medication compliance. Withings + Apple Health sync, multi-provider AI Insights (BYOK or local), doctor-report PDF, native iOS client in public beta. Single `docker compose up`, Postgres-backed, AES-256-GCM at rest. AGPL-3.0. Current line: v1.12.x.
+Self-hosted personal-health-tracking PWA: weight, blood pressure, pulse, body composition, glucose, sleep, mood, medication compliance. Withings + Apple Health sync, multi-provider AI Insights (BYOK or local), doctor-report PDF, native iOS client in public beta. Single `docker compose up`, Postgres-backed, AES-256-GCM at rest. PolyForm Noncommercial 1.0.0 (AGPL-3.0 through v1.15.18). Current line: v1.12.x.
 
 ## Voice and privacy
 

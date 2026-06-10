@@ -29,7 +29,7 @@ vi.mock("@tanstack/react-query", () => ({
           version: "1.4.0",
           buildSha: "abc1234567",
           builtAt: "2026-05-08T12:00:00Z",
-          license: "AGPL-3.0",
+          license: "PolyForm-Noncommercial-1.0.0",
           repository: "https://github.com/MBombeck/HealthLog",
           changelog:
             "https://github.com/MBombeck/HealthLog/blob/main/CHANGELOG.md",

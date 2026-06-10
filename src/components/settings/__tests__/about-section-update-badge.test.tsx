@@ -41,7 +41,7 @@ function makeClient() {
     version: "1.4.36",
     buildSha: "abc1234",
     builtAt: "2026-05-17T08:00:00.000Z",
-    license: "AGPL-3.0",
+    license: "PolyForm-Noncommercial-1.0.0",
     repository: "https://github.com/MBombeck/HealthLog",
     changelog: "https://github.com/MBombeck/HealthLog/blob/main/CHANGELOG.md",
     docs: "https://github.com/MBombeck/HealthLog/tree/main/docs",
