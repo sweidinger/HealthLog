@@ -11,7 +11,7 @@ Self-hosted personal-health-tracking PWA: weight, blood pressure, pulse, body co
 Hard rules for every committed artefact — commit messages, CHANGELOG entries, PR bodies, code comments, GitHub release notes, docs site copy. Treat these as the project's public face.
 
 - **Voice.** English. Maintainer prose: present-tense, imperative for commits, factual for prose. No marketing tone, no apology tone, no "wow what a cool feature" framing. The voice is one human writing notes for the next.
-- **No assistant / tooling references.** Do not surface AI, agent, assistant, copilot, marathon, phase, wave, round, or session vocabulary into anything that lands on GitHub. The `Co-Authored-By` trailer on commits is fine — it is git metadata and the project accepts that convention; anywhere else, no.
+- **No assistant / tooling references.** Do not surface AI, agent, assistant, copilot, marathon, phase, wave, round, or session vocabulary into anything that lands on GitHub — including commit messages and trailers. Commits carry no `Co-Authored-By` tooling trailer; they are authored by the maintainer's git identity alone.
 - **No personal data.** No real names (the maintainer's, a reporter's, or anyone else's). No live health figures, no live tenant identifiers, no real-account anchors. Generalise to "a self-hoster", "a user", "an operator", "an authenticated session", etc. The internal `.planning/*` files are gitignored and exempt; everywhere else in the repo, no.
 
 If a draft commit message or release note would violate one of the three, rewrite it before committing. The `git log` is more durable than today's task.
