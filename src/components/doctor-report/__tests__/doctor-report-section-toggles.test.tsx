@@ -61,7 +61,7 @@ describe("<SectionToggles> v1.4.43 M4 disabled-row behaviour", () => {
       /data-unavailable="true"[\s\S]*?Resting pulse/,
     );
     expect(html).toMatch(
-      /data-unavailable="true"[\s\S]*?Medication compliance/,
+      /data-unavailable="true"[\s\S]*?Medication adherence/,
     );
     expect(html).toMatch(/data-unavailable="true"[\s\S]*?Sleep duration/);
 
@@ -168,7 +168,7 @@ describe("<SectionToggles> v1.4.43 M4 disabled-row behaviour", () => {
     );
     // The compliance row exists and is marked unavailable…
     expect(html).toMatch(
-      /data-unavailable="true"[\s\S]*?Medication compliance/,
+      /data-unavailable="true"[\s\S]*?Medication adherence/,
     );
     // …and the disabled switch is rendered (aria-disabled or
     // data-disabled survives in the SSR markup).

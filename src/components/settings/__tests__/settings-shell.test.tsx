@@ -85,12 +85,9 @@ describe("SETTINGS_SECTION_SLUGS", () => {
 describe("<SettingsShell>", () => {
   it("renders every navigable section link — once for the mobile strip and once for the desktop sidebar", () => {
     const html = renderShell({ active: "account" });
-    // v1.4.33 IW7 — the `about` slug is alive as a route
-    // (`/settings/about` still resolves and `generateStaticParams()`
-    // still emits the page) but it is hidden from the in-shell nav.
-    // The user-card dropdown owns the link now. Iterate the visible
-    // sections list, not the slug list, when asserting on rendered
-    // markup.
+    // Every slug — including `about`, which returned to the shell nav
+    // as the last entry after living dropdown-only since v1.4.33 IW7 —
+    // renders in both layouts.
     const navigableSlugs = SETTINGS_SECTIONS.map((section) => section.slug);
     for (const slug of navigableSlugs) {
       const matches = html.match(new RegExp(`href="/settings/${slug}"`, "g"));
@@ -100,8 +97,6 @@ describe("<SettingsShell>", () => {
       // before media queries resolve.
       expect(matches?.length ?? 0).toBe(2);
     }
-    // The hidden `about` slug must NOT appear in the in-shell nav.
-    expect(html).not.toContain('href="/settings/about"');
   });
 
   it("links use the correct `/settings/<slug>` href — regression guard against typos", () => {
@@ -161,10 +156,9 @@ describe("<SettingsShell>", () => {
     // entry in the sidebar; the link must be present in both locales.
     expect(html).toContain('href="/settings/export"');
     expect(html).toContain("Advanced");
-    // v1.4.33 IW7 — About is no longer in the settings nav; it lives
-    // in the sidebar user-card dropdown. Route `/settings/about` is
-    // still alive for direct links.
-    expect(html).not.toContain('href="/settings/about"');
+    // About is back in the settings nav as the last entry (it also
+    // stays linked from the sidebar user-card dropdown).
+    expect(html).toContain('href="/settings/about"');
     // v1.8.7.1 — Targets and Sources are two separate nav entries again.
     expect(html).toContain('href="/settings/thresholds"');
     expect(html).toContain('href="/settings/sources"');
@@ -197,9 +191,9 @@ describe("<SettingsShell>", () => {
     // API & Tokens is identical in both locales (proper noun + ampersand)
     expect(html).toContain("API &amp; Tokens");
     expect(html).toContain("Erweitert");
-    // v1.4.33 IW7 — "Über" (About) section removed from the in-shell
-    // nav, folded into the sidebar user-card dropdown ("Über HealthLog").
-    expect(html).not.toContain('href="/settings/about"');
+    // "Über diese App" (About) is back as the last in-shell nav entry
+    // (the sidebar user-card dropdown keeps its own link too).
+    expect(html).toContain('href="/settings/about"');
     // v1.8.7.1 — both Targets and Sources nav entries are present.
     expect(html).toContain('href="/settings/sources"');
   });

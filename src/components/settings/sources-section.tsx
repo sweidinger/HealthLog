@@ -28,6 +28,7 @@
  */
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import Link from "next/link";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
@@ -306,6 +307,18 @@ export function SourcesSection() {
         </h1>
         <p className="text-muted-foreground text-sm">
           {t("settings.sections.sources.description")}
+        </p>
+        {/* Cross-link back to Settings → Integrations — the page that
+            actually adds / removes the sources this ladder ranks. */}
+        <p className="text-muted-foreground text-xs">
+          {t("settings.sections.sources.integrationsHint")}{" "}
+          <Link
+            href="/settings/integrations"
+            className="text-primary underline-offset-2 hover:underline"
+            data-slot="sources-integrations-cross-link"
+          >
+            {t("settings.sections.sources.integrationsHintLink")}
+          </Link>
         </p>
       </header>
 

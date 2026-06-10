@@ -20,6 +20,7 @@ import { usePathname } from "next/navigation";
 import {
   Bell,
   Download,
+  Info,
   KeyRound,
   Layers,
   LayoutDashboard,
@@ -66,15 +67,11 @@ interface SettingsSection {
  * in its sidebar + mobile chip-strip. Order matches the in-app
  * navigation order. Don't reorder without updating tests.
  *
- * v1.4.33 IW7 — "About" was folded into the sidebar user-card
- * dropdown (sidebar-nav.tsx -> "Über HealthLog" / "About HealthLog")
- * because its three small cards (identity / links / update check)
- * collectively read once or twice a year and didn't earn a top-level
- * settings slot. The route `/settings/about` is still alive — the
- * slug stays in `SETTINGS_SECTION_SLUGS` so `generateStaticParams()`
- * keeps emitting the page — but it no longer appears in the in-page
- * navigation. Direct links (the user-card dropdown, the public
- * `/about` permalink) continue to resolve to the same component.
+ * "About" sits at the end of the list. v1.4.33 IW7 had folded it into
+ * the sidebar user-card dropdown only, which left `/settings/about` an
+ * orphaned route — reachable by URL but discoverable nowhere in the
+ * settings navigation. It is now both a regular (last) shell entry and
+ * a user-card dropdown item ("Über HealthLog" / "About HealthLog").
  *
  * v1.8.7.1 — `thresholds` (Targets) and `sources` (Sources) are two
  * separate sidebar entries again (merged into a single "Targets &
@@ -124,6 +121,11 @@ export const SETTINGS_SECTIONS: readonly SettingsSection[] = [
     slug: "advanced",
     titleKey: "settings.sections.advanced.title",
     icon: Settings2,
+  },
+  {
+    slug: "about",
+    titleKey: "settings.sections.about.title",
+    icon: Info,
   },
 ] as const;
 

@@ -10,6 +10,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { useTranslations } from "@/lib/i18n/context";
 import { CoachLaunchProvider } from "@/lib/insights/coach-launch-context";
 import { BottomNav } from "./bottom-nav";
+import { DemoBanner } from "./demo-banner";
 import { OfflineBanner } from "./offline-banner";
 import { SidebarNav } from "./sidebar-nav";
 import { TopBar } from "./top-bar";
@@ -32,7 +33,18 @@ const PUBLIC_PATHS = [
   "/c/",
 ];
 
-export function AuthShell({ children }: { children: React.ReactNode }) {
+export function AuthShell({
+  children,
+  demoMode = false,
+}: {
+  children: React.ReactNode;
+  /**
+   * True when the instance runs with `DEMO_MODE=true` (resolved by the
+   * server-side root layout). Renders the persistent demo banner above
+   * the app chrome so a visitor knows mutations won't persist.
+   */
+  demoMode?: boolean;
+}) {
   const { user, isAuthenticated, isLoading } = useAuth();
   const { t } = useTranslations();
   const pathname = usePathname();
@@ -119,6 +131,7 @@ export function AuthShell({ children }: { children: React.ReactNode }) {
     }
     return (
       <div className="flex h-dvh flex-col">
+        {demoMode ? <DemoBanner /> : null}
         <MaintainershipBanner />
         <main
           id="main-content"
@@ -197,6 +210,11 @@ export function AuthShell({ children }: { children: React.ReactNode }) {
             the first chrome line a user sees in the offline branch.
           */}
           <OfflineBanner />
+          {/* Demo instances surface a persistent "changes are not
+              saved" strip — the proxy blocks every mutation, and
+              without the banner that block only surfaced as a raw API
+              error after the user already filled in a form. */}
+          {demoMode ? <DemoBanner /> : null}
           <MaintainershipBanner />
           <TopBar />
           <main

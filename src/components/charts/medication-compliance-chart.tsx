@@ -46,6 +46,7 @@ import {
   ReferenceLine,
 } from "recharts";
 import { ArrowDown, ArrowRight, ArrowUp, Loader2, Pill } from "lucide-react";
+import { ComplianceInfoTip } from "@/components/medications/card-parts/compliance-info-tip";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/use-auth";
 import { useTranslations, useFormatters } from "@/lib/i18n/context";
@@ -329,6 +330,9 @@ export function MedicationComplianceChart({
         <div className="flex flex-wrap items-center gap-2">
           <Pill className="text-muted-foreground h-4 w-4" />
           <h3 className="text-sm font-semibold">{displayTitle}</h3>
+          {/* `?` explainer for what the adherence percentage measures —
+              shares the i18n body with the per-card bars. */}
+          <ComplianceInfoTip />
           {/* v1.4.18 — 7-day trend chip is now opt-in via the
               "7-day trend" overlay toggle. Default OFF; the user
               activates it from the chart settings popover. */}

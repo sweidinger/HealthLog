@@ -17,7 +17,8 @@ import {
   ReferenceArea,
   ReferenceDot,
 } from "recharts";
-import { Loader2 } from "lucide-react";
+import { Loader2, SlidersHorizontal } from "lucide-react";
+import Link from "next/link";
 import {
   useState,
   useMemo,
@@ -106,6 +107,15 @@ interface HealthChartProps {
     textColor?: string;
     lineOpacity?: number;
   }>;
+  /**
+   * Optional href for a small "adjust targets" link in the chart
+   * header. Callers whose charts paint a target band / zones (weight,
+   * blood pressure) pass `/settings/thresholds` so the band's origin —
+   * and the page that edits personal target ranges — is one click
+   * away. Omitted (every other mount) renders no link. Ignored in
+   * `mini` mode, which has no header.
+   */
+  targetSettingsHref?: string;
   /**
    * v1.4.16 phase B5c — compact chart mode used by the Oura-style
    * rationale card. Drops the range tabs, the moving-average / trend
@@ -514,6 +524,7 @@ export function HealthChart({
   showYAxisUnit = true,
   valueBands,
   targetZones,
+  targetSettingsHref,
   mini = false,
   windowOverride,
   compareBaseline = "none",
@@ -1444,6 +1455,19 @@ export function HealthChart({
                 )}
               </span>
             )}
+            {/* Discoverability link from the painted target band to the
+                page that edits personal target ranges. Only mounts when
+                a caller passes `targetSettingsHref` (weight + BP). */}
+            {targetSettingsHref ? (
+              <Link
+                href={targetSettingsHref}
+                data-slot="chart-target-settings-link"
+                className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1 text-xs underline-offset-2 transition-colors hover:underline"
+              >
+                <SlidersHorizontal className="h-3 w-3" aria-hidden="true" />
+                {t("charts.adjustTargets")}
+              </Link>
+            ) : null}
           </div>
           <div
             className="flex flex-nowrap items-center justify-end gap-1 self-end sm:self-auto"

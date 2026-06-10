@@ -1424,6 +1424,7 @@ export default function DashboardPage() {
                 colors={["#bd93f9"]}
                 unit="kg"
                 valueBands={weightBands}
+                targetSettingsHref="/settings/thresholds"
                 compareBaseline={compareBaseline}
                 userTimezone={user?.timezone}
               />
@@ -1470,6 +1471,7 @@ export default function DashboardPage() {
                 unit="mmHg"
                 yAxisUnit="Hg"
                 targetZones={bpTargetZones}
+                targetSettingsHref="/settings/thresholds"
                 compareBaseline={compareBaseline}
                 userTimezone={user?.timezone}
               />

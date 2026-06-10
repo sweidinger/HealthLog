@@ -1,11 +1,14 @@
 "use client";
 
+import { useQuery } from "@tanstack/react-query";
 import { Plus, Trash2 } from "lucide-react";
+import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { useTranslations } from "@/lib/i18n/context";
+import { queryKeys } from "@/lib/query-keys";
 
 import {
   type MedicationPayload,
@@ -54,6 +57,28 @@ export function Step8Summary({
   const { t } = useTranslations();
   const topSummary = summariseCadence(payload, t);
   const canRemove = payload.schedules.length > 1;
+
+  // Reminders need at least one delivery channel. Fetch the channel
+  // list only while the toggle is on; when the server reports zero
+  // enabled channels, a small hint below the toggle links to
+  // `/settings/notifications` so the user learns BEFORE saving that
+  // the reminder would have nowhere to go. Query errors / loading
+  // render no hint — a false "no channel" warning is worse than none.
+  const { data: notificationChannels } = useQuery({
+    queryKey: queryKeys.notificationsStatus(),
+    queryFn: async () => {
+      const res = await fetch("/api/notifications/status");
+      if (!res.ok) throw new Error("Failed");
+      return ((await res.json()).data as { channels: Array<{ enabled: boolean }> })
+        .channels;
+    },
+    enabled: payload.notificationsEnabled,
+    staleTime: 60_000,
+  });
+  const showNoChannelHint =
+    payload.notificationsEnabled &&
+    Array.isArray(notificationChannels) &&
+    !notificationChannels.some((channel) => channel.enabled);
 
   return (
     <div className="space-y-4" data-slot="wizard-step8">
@@ -158,6 +183,21 @@ export function Step8Summary({
           aria-label={t("medications.wizard.steps.step8.remindersLabel")}
         />
       </div>
+
+      {showNoChannelHint && (
+        <p
+          className="text-muted-foreground text-xs"
+          data-slot="wizard-no-channel-hint"
+        >
+          {t("medications.wizard.steps.step8.noChannelHint")}{" "}
+          <Link
+            href="/settings/notifications"
+            className="text-primary underline-offset-2 hover:underline"
+          >
+            {t("medications.wizard.steps.step8.noChannelHintLink")}
+          </Link>
+        </p>
+      )}
 
       {submitError && (
         <p
