@@ -22,6 +22,7 @@ import {
   apiError,
   getClientIp,
   returnAllZodIssues,
+  safeJson,
 } from "@/lib/api-response";
 import { apiHandler, requireAuth } from "@/lib/api-handler";
 import { annotate } from "@/lib/logging/context";
@@ -74,12 +75,20 @@ export const POST = apiHandler(async (request: NextRequest) => {
 
   // Cap mutation rate so a single session can't flood the encrypted-label
   // catalogue (each create runs an encrypt + audit write).
-  const rl = await checkRateLimit(`cycle:symptom:custom:${user.id}`, 30, 60_000);
+  const rl = await checkRateLimit(
+    `cycle:symptom:custom:${user.id}`,
+    30,
+    60_000,
+  );
   if (!rl.allowed) {
     return apiError("Too many requests, try again later", 429);
   }
 
-  const parsed = createCustomSymptomSchema.safeParse(await request.json());
+  const { data: rawJsonBody, error: jsonError } = await safeJson(request, {
+    maxBytes: 64 * 1024,
+  });
+  if (jsonError) return jsonError;
+  const parsed = createCustomSymptomSchema.safeParse(rawJsonBody);
   if (!parsed.success) {
     return returnAllZodIssues(parsed.error, 422, {
       errorCode: "cycle.symptom.custom.invalid",

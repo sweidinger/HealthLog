@@ -173,6 +173,15 @@ describe("POST /api/measurements/bulk-delete", () => {
     expect(res.status).toBe(422);
   });
 
+  it("rejects a body over the 256 KB cap with 413 before parsing", async () => {
+    const res = await POST(
+      postReq({ ids: ["m1"], pad: "x".repeat(256 * 1024) }),
+    );
+    expect(res.status).toBe(413);
+    expect(prisma.measurement.findMany).not.toHaveBeenCalled();
+    expect(prisma.measurement.updateMany).not.toHaveBeenCalled();
+  });
+
   it("429s when the rate limit is exceeded", async () => {
     vi.mocked(checkRateLimit).mockResolvedValue({ allowed: false } as never);
     const res = await POST(postReq({ ids: ["m1"] }));

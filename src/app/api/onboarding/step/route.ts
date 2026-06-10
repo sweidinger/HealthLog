@@ -61,7 +61,9 @@ export const POST = apiHandler(async (request: NextRequest) => {
     return apiError("Too many onboarding writes, try again later", 429);
   }
 
-  const { data: body, error: jsonError } = await safeJson<unknown>(request);
+  const { data: body, error: jsonError } = await safeJson<unknown>(request, {
+    maxBytes: 64 * 1024,
+  });
   if (jsonError) return jsonError;
 
   const parsed = stepBodySchema.safeParse(body);
@@ -102,10 +104,7 @@ export const POST = apiHandler(async (request: NextRequest) => {
       action: { name: "onboarding.step" },
       meta: { outcome: "out_of_order", current, requested: step },
     });
-    return apiError(
-      `Step out of order — current step is ${current}`,
-      409,
-    );
+    return apiError(`Step out of order — current step is ${current}`, 409);
   }
 
   const completing = step === 4;

@@ -52,7 +52,9 @@ export const POST = apiHandler(async (request: NextRequest) => {
     return apiError("API is globally disabled", 403);
   }
 
-  const { data: body, error: jsonError } = await safeJson(request);
+  const { data: body, error: jsonError } = await safeJson(request, {
+    maxBytes: 64 * 1024,
+  });
 
   if (jsonError) return jsonError;
   const parsed = createTokenSchema.safeParse(body);

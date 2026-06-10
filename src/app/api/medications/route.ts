@@ -38,7 +38,9 @@ async function buildMedicationsList(
   // today-end + 2d] — the next-due lookahead only needs the slots adjacent to
   // now, and a tight window keeps the read cheap. The 60s list cache covers
   // the rest.
-  const resolvedWindowEnd = new Date(todayEndUtc.getTime() + 2 * 24 * 60 * 60 * 1000);
+  const resolvedWindowEnd = new Date(
+    todayEndUtc.getTime() + 2 * 24 * 60 * 60 * 1000,
+  );
 
   const [medications, latestIntakes, todayEvents, resolvedEvents] =
     await Promise.all([
@@ -174,7 +176,9 @@ export const GET = apiHandler(async () => {
 export const POST = apiHandler(async (request: NextRequest) => {
   const { user } = await requireAuth();
 
-  const { data: body, error: jsonError } = await safeJson(request);
+  const { data: body, error: jsonError } = await safeJson(request, {
+    maxBytes: 64 * 1024,
+  });
 
   if (jsonError) return jsonError;
   const parsed = createMedicationSchema.safeParse(body);
@@ -319,7 +323,9 @@ export const POST = apiHandler(async (request: NextRequest) => {
               rollingIntervalDays: s.rollingIntervalDays,
             }),
             // v1.7.0 — schedule type + cyclic weeks, field-by-field.
-            ...(s.scheduleType !== undefined && { scheduleType: s.scheduleType }),
+            ...(s.scheduleType !== undefined && {
+              scheduleType: s.scheduleType,
+            }),
             ...(s.cyclicOnWeeks !== undefined && {
               cyclicOnWeeks: s.cyclicOnWeeks,
             }),

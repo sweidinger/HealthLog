@@ -77,7 +77,9 @@ async function postDayLog(request: NextRequest): Promise<Response> {
   const gate = await requireCycleEnabled(user.id, user.gender);
   if (!gate.enabled) return gate.response;
 
-  const { data: rawBody, error: jsonError } = await safeJson(request);
+  const { data: rawBody, error: jsonError } = await safeJson(request, {
+    maxBytes: 64 * 1024,
+  });
   if (jsonError) return jsonError;
 
   const parsed = cycleDayLogInputSchema.safeParse(rawBody);

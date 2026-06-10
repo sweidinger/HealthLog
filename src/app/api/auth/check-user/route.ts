@@ -42,10 +42,7 @@ import { apiHandler } from "@/lib/api-handler";
 import { annotate } from "@/lib/logging/context";
 import { auditLog } from "@/lib/auth/audit";
 import { hashToken } from "@/lib/auth/hmac";
-import {
-  checkAuthSurfaceRateLimit,
-  rateLimitHeaders,
-} from "@/lib/rate-limit";
+import { checkAuthSurfaceRateLimit, rateLimitHeaders } from "@/lib/rate-limit";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
@@ -77,7 +74,9 @@ export const POST = apiHandler(async (request: NextRequest) => {
     );
   }
 
-  const { data: body, error: jsonError } = await safeJson(request);
+  const { data: body, error: jsonError } = await safeJson(request, {
+    maxBytes: 64 * 1024,
+  });
   if (jsonError) return jsonError;
 
   const parsed = bodySchema.safeParse(body);
@@ -109,7 +108,10 @@ export const POST = apiHandler(async (request: NextRequest) => {
   const identifierHash = hashToken(identifier);
 
   if (!user) {
-    annotate({ action: { name: "auth.check-user" }, meta: { branch: "not_found" } });
+    annotate({
+      action: { name: "auth.check-user" },
+      meta: { branch: "not_found" },
+    });
     await auditLog("auth.check-user", {
       ipAddress: ip,
       details: { branch: "not_found", identifier_hash: identifierHash },

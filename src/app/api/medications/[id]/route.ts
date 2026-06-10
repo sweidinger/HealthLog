@@ -49,21 +49,22 @@ export const GET = apiHandler(
     // cadences re-anchor on the latest non-skipped intake, so fetch it
     // once (no-op for calendar cadences but cheap + keeps the value
     // correct for rolling injections).
-    const lastIntake =
-      medication.schedules.some((s) => s.rollingIntervalDays !== null)
-        ? await prisma.medicationIntakeEvent.findFirst({
-            // v1.7.0 sync — a tombstoned intake no longer anchors the
-            // rolling-interval next-due computation.
-            where: {
-              userId: user.id,
-              medicationId: id,
-              deletedAt: null,
-              takenAt: { not: null },
-            },
-            orderBy: { takenAt: "desc" },
-            select: { takenAt: true },
-          })
-        : null;
+    const lastIntake = medication.schedules.some(
+      (s) => s.rollingIntervalDays !== null,
+    )
+      ? await prisma.medicationIntakeEvent.findFirst({
+          // v1.7.0 sync — a tombstoned intake no longer anchors the
+          // rolling-interval next-due computation.
+          where: {
+            userId: user.id,
+            medicationId: id,
+            deletedAt: null,
+            takenAt: { not: null },
+          },
+          orderBy: { takenAt: "desc" },
+          select: { takenAt: true },
+        })
+      : null;
     // v1.15.10 — slots the user has already acted on near now, so the
     // next-due search skips them and advances to the next genuinely-open
     // slot. Bound the read to [now-1d, now+2d] — the lookahead only needs the
@@ -136,7 +137,9 @@ export const PUT = apiHandler(
       return apiError("Medication not found", 404);
     }
 
-    const { data: body, error: jsonError } = await safeJson(request);
+    const { data: body, error: jsonError } = await safeJson(request, {
+      maxBytes: 64 * 1024,
+    });
 
     if (jsonError) return jsonError;
     const parsed = updateMedicationSchema.safeParse(body);
@@ -223,8 +226,7 @@ export const PUT = apiHandler(
 
     // Normalise endsOn for one-shot. `oneShot === true` + `startsOn`
     // means the dose is the start date; endsOn auto-matches.
-    const normalisedEndsOn =
-      oneShot === true && startsOn ? startsOn : endsOn;
+    const normalisedEndsOn = oneShot === true && startsOn ? startsOn : endsOn;
 
     const pausedAtPatch =
       active === undefined
@@ -321,7 +323,9 @@ export const PUT = apiHandler(
               // v1.15.18 — per-dose configurable on-time windows. A `schedules`
               // replace re-creates the rows, so the column is re-written each
               // time; absent leaves it NULL (default ±1h derivation).
-              ...(s.doseWindows !== undefined && { doseWindows: s.doseWindows }),
+              ...(s.doseWindows !== undefined && {
+                doseWindows: s.doseWindows,
+              }),
             };
           }),
         },
@@ -373,8 +377,7 @@ export const PUT = apiHandler(
       await prisma.medicationSchedule.update({
         where: { id: primaryScheduleGracePatch.scheduleId },
         data: {
-          reminderGraceMinutes:
-            primaryScheduleGracePatch.reminderGraceMinutes,
+          reminderGraceMinutes: primaryScheduleGracePatch.reminderGraceMinutes,
         },
       });
       const refreshed = await prisma.medication.findUnique({

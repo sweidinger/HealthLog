@@ -32,7 +32,9 @@ export const POST = apiHandler(async (request: NextRequest) => {
     return apiError("Too many attempts. Please wait 15 minutes.", 429);
   }
 
-  const { data: body, error: jsonError } = await safeJson(request);
+  const { data: body, error: jsonError } = await safeJson(request, {
+    maxBytes: 64 * 1024,
+  });
 
   if (jsonError) return jsonError;
   const parsed = changePasswordSchema.safeParse(body);

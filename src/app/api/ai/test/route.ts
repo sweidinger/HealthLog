@@ -39,7 +39,9 @@ export const POST = apiHandler(async (request: NextRequest) => {
   let override: AITestOverride = {};
   const contentLength = Number(request.headers.get("content-length") ?? "0");
   if (contentLength > 0) {
-    const { data, error } = await safeJson<unknown>(request);
+    const { data, error } = await safeJson<unknown>(request, {
+      maxBytes: 64 * 1024,
+    });
     if (error) return error;
     const parsed = overrideSchema.safeParse(data);
     if (!parsed.success) {
@@ -140,7 +142,8 @@ function classifyTestFailure(
   if (status === 401 || status === 403 || (status >= 500 && looksLikeAuth)) {
     return {
       reasonCode: "credentials",
-      reason: "Provider rejected the credentials — re-authenticate in AI settings.",
+      reason:
+        "Provider rejected the credentials — re-authenticate in AI settings.",
     };
   }
   if (status === 429) {

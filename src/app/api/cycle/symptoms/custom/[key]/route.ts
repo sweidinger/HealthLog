@@ -14,6 +14,7 @@ import {
   apiError,
   getClientIp,
   returnAllZodIssues,
+  safeJson,
 } from "@/lib/api-response";
 import { apiHandler, requireAuth } from "@/lib/api-handler";
 import { annotate } from "@/lib/logging/context";
@@ -52,7 +53,11 @@ export const PATCH = apiHandler(
     const { key } = await params;
     if (!isCustomSymptomKey(key)) return apiError("Not a custom symptom", 404);
 
-    const parsed = updateCustomSymptomSchema.safeParse(await request.json());
+    const { data: rawJsonBody, error: jsonError } = await safeJson(request, {
+      maxBytes: 64 * 1024,
+    });
+    if (jsonError) return jsonError;
+    const parsed = updateCustomSymptomSchema.safeParse(rawJsonBody);
     if (!parsed.success) {
       return returnAllZodIssues(parsed.error, 422, {
         errorCode: "cycle.symptom.custom.invalid",

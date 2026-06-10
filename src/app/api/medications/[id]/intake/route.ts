@@ -44,7 +44,9 @@ async function postIntake(request: NextRequest, { params }: RouteParams) {
   const guard = await assertMedicationOwnership(id, user.id);
   if (guard) return guard;
 
-  const { data: body, error: jsonError } = await safeJson(request);
+  const { data: body, error: jsonError } = await safeJson(request, {
+    maxBytes: 64 * 1024,
+  });
 
   if (jsonError) return jsonError;
   const parsed = intakeSchema.safeParse({
@@ -126,9 +128,13 @@ async function postIntake(request: NextRequest, { params }: RouteParams) {
         action: { name: "medication.intake.injection_site.disallowed" },
         meta: { medication_id: id, site: resolution.site },
       });
-      return apiError("Injection site is not allowed for this medication", 422, {
-        errorCode: "medications.intake.injection_site.disallowed",
-      });
+      return apiError(
+        "Injection site is not allowed for this medication",
+        422,
+        {
+          errorCode: "medications.intake.injection_site.disallowed",
+        },
+      );
     }
     resolvedInjectionSite = resolution.site;
   }

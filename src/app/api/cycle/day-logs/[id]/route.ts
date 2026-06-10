@@ -56,7 +56,9 @@ export const PATCH = apiHandler(
       return apiError("Day-log not found", 404);
     }
 
-    const { data: rawBody, error: jsonError } = await safeJson(request);
+    const { data: rawBody, error: jsonError } = await safeJson(request, {
+      maxBytes: 64 * 1024,
+    });
     if (jsonError) return jsonError;
 
     const parsed = cycleDayLogPatchSchema.safeParse(rawBody);

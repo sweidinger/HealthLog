@@ -91,7 +91,9 @@ export const PATCH = apiHandler(async (request: NextRequest) => {
     return response;
   }
 
-  const { data: body, error: jsonError } = await safeJson(request);
+  const { data: body, error: jsonError } = await safeJson(request, {
+    maxBytes: 64 * 1024,
+  });
   if (jsonError) return jsonError;
 
   const parsed = patchBodySchema.safeParse(body);

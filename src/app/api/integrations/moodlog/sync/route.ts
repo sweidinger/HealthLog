@@ -22,7 +22,12 @@ export const POST = apiHandler(async (request: NextRequest) => {
 
   let fullSync = false;
   try {
-    const body = await request.json();
+    const raw = await request.text();
+    // Flag-only payload — cap the parse cost (mirrors safeJson maxBytes).
+    if (raw.length > 64 * 1024) {
+      return apiError(`Request body exceeds ${64 * 1024} bytes`, 413);
+    }
+    const body = JSON.parse(raw);
     fullSync = body?.fullSync === true;
   } catch {
     // No body or invalid JSON — use defaults

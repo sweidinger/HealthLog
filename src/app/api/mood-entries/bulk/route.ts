@@ -78,7 +78,10 @@ const bulkEntrySchema = z.object({
    */
   ratedFactors: z
     .array(
-      z.object({ key: z.string().max(60), rating: z.number().int().min(1).max(5) }),
+      z.object({
+        key: z.string().max(60),
+        rating: z.number().int().min(1).max(5),
+      }),
     )
     .max(30)
     .optional(),
@@ -126,7 +129,9 @@ async function postBulk(request: NextRequest): Promise<Response> {
     return apiError("Too many bulk submissions, try again later", 429);
   }
 
-  const { data: rawBody, error: jsonError } = await safeJson(request);
+  const { data: rawBody, error: jsonError } = await safeJson(request, {
+    maxBytes: 2 * 1024 * 1024,
+  });
   if (jsonError) return jsonError;
 
   if (

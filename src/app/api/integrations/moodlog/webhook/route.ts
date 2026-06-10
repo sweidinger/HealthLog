@@ -74,7 +74,11 @@ export const POST = apiHandler(async (request: NextRequest) => {
   // 5. Parse body
   let body: Record<string, unknown>;
   try {
-    body = await request.json();
+    const raw = await request.text();
+    if (raw.length > 256 * 1024) {
+      return apiError(`Request body exceeds ${256 * 1024} bytes`, 413);
+    }
+    body = JSON.parse(raw);
   } catch {
     return apiError("Invalid JSON", 400);
   }

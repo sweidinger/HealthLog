@@ -1,7 +1,12 @@
 import { NextRequest } from "next/server";
 
 import { prisma } from "@/lib/db";
-import { apiSuccess, apiError, returnAllZodIssues } from "@/lib/api-response";
+import {
+  apiSuccess,
+  apiError,
+  returnAllZodIssues,
+  safeJson,
+} from "@/lib/api-response";
 import { apiHandler, requireAuth } from "@/lib/api-handler";
 import { annotate } from "@/lib/logging/context";
 import {
@@ -30,7 +35,11 @@ export const PATCH = apiHandler(
     const { key } = await params;
     if (!isCustomTagKey(key)) return apiError("Not a custom tag", 404);
 
-    const parsed = updateCustomTagSchema.safeParse(await request.json());
+    const { data: rawJsonBody, error: jsonError } = await safeJson(request, {
+      maxBytes: 64 * 1024,
+    });
+    if (jsonError) return jsonError;
+    const parsed = updateCustomTagSchema.safeParse(rawJsonBody);
     if (!parsed.success) return returnAllZodIssues(parsed.error, 422);
 
     const owned = await prisma.moodTag.findFirst({

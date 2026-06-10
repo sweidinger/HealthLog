@@ -71,6 +71,11 @@ beforeEach(() => {
 });
 
 describe("POST /api/medications/[id]/intake/import — 422 multi-issue (v1.4.43 W6)", () => {
+  it("rejects a body over the 1 MB cap with 413 before parsing", async () => {
+    const res = await POST(postReq(["x".repeat(1024 * 1024)]), ROUTE_CTX);
+    expect(res.status).toBe(413);
+  });
+
   it("surfaces TWO simultaneous validation errors", async () => {
     // Two entries with malformed datum + malformed uhrzeit.
     const res = await POST(

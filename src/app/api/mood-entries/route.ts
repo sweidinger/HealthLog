@@ -130,7 +130,10 @@ export const GET = apiHandler(async (request: NextRequest) => {
     // form re-renders the sliders without a refetch.
     ratedFactors: tagLinks
       .filter((link) => link.moodTag.kind === "RATED" && link.rating !== null)
-      .map((link) => ({ key: link.moodTag.key, rating: link.rating as number })),
+      .map((link) => ({
+        key: link.moodTag.key,
+        rating: link.rating as number,
+      })),
   }));
 
   return apiSuccess({
@@ -144,7 +147,9 @@ export const POST = apiHandler(withIdempotency<[NextRequest]>(postMoodEntry));
 async function postMoodEntry(request: NextRequest) {
   const { user } = await requireAuth();
 
-  const { data: body, error: jsonError } = await safeJson(request);
+  const { data: body, error: jsonError } = await safeJson(request, {
+    maxBytes: 64 * 1024,
+  });
 
   if (jsonError) return jsonError;
   const parsed = createMoodEntrySchema.safeParse(body);

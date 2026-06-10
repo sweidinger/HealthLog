@@ -48,8 +48,10 @@ export const POST = apiHandler(async (request: NextRequest) => {
   const { user } = await requireAdmin();
   annotate({ action: { name: "admin.rollups.recompute" } });
 
-  const { data: rawBody, error: jsonError } =
-    await safeJson<RecomputeBody>(request);
+  const { data: rawBody, error: jsonError } = await safeJson<RecomputeBody>(
+    request,
+    { maxBytes: 64 * 1024 },
+  );
   if (jsonError) return jsonError;
 
   const body: RecomputeBody =

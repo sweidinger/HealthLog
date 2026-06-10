@@ -55,7 +55,9 @@ export const DELETE = apiHandler(deleteByExternalIds);
 async function deleteByExternalIds(request: NextRequest): Promise<Response> {
   const { user } = await requireAuth();
 
-  const { data: rawBody, error: jsonError } = await safeJson<unknown>(request);
+  const { data: rawBody, error: jsonError } = await safeJson<unknown>(request, {
+    maxBytes: 256 * 1024,
+  });
   if (jsonError) return jsonError;
 
   // Distinguish "too many entries" from "validation failed" so the iOS

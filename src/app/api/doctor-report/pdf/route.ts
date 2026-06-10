@@ -146,7 +146,10 @@ async function readOptionalJsonBody(
   const contentType = request.headers.get("content-type") ?? "";
   if (!contentType.includes("application/json")) return null;
   try {
-    return (await request.json()) as PdfRequestBody;
+    const raw = await request.text();
+    // Small options object — treat an oversized body as no body.
+    if (raw.length > 64 * 1024) return null;
+    return JSON.parse(raw) as PdfRequestBody;
   } catch {
     return null;
   }

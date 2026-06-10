@@ -59,7 +59,9 @@ async function postBulkDelete(request: NextRequest): Promise<Response> {
     return apiError("Too many bulk deletions, try again later", 429);
   }
 
-  const { data: rawBody, error: jsonError } = await safeJson(request);
+  const { data: rawBody, error: jsonError } = await safeJson(request, {
+    maxBytes: 256 * 1024,
+  });
   if (jsonError) return jsonError;
 
   const parsed = bulkDeleteSchema.safeParse(rawBody);

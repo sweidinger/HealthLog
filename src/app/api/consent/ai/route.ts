@@ -9,11 +9,7 @@
  */
 import { NextRequest } from "next/server";
 import { apiHandler, requireAuth } from "@/lib/api-handler";
-import {
-  apiSuccess,
-  returnAllZodIssues,
-  safeJson,
-} from "@/lib/api-response";
+import { apiSuccess, returnAllZodIssues, safeJson } from "@/lib/api-response";
 import { annotate } from "@/lib/logging/context";
 import { auditLog } from "@/lib/auth/audit";
 import { consentPostBody } from "@/lib/validations/consent";
@@ -22,7 +18,9 @@ import { createReceipt } from "@/lib/consent/receipts";
 export const POST = apiHandler(async (request: NextRequest) => {
   const { user } = await requireAuth();
 
-  const { data: body, error } = await safeJson(request);
+  const { data: body, error } = await safeJson(request, {
+    maxBytes: 128 * 1024,
+  });
   if (error) return error;
 
   const parsed = consentPostBody.safeParse(body);

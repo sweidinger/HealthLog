@@ -36,7 +36,9 @@ export const POST = apiHandler(async (request: NextRequest) => {
   const { user } = await requireAuth();
   annotate({ action: { name: "doctor-report.availability" } });
 
-  const { data: body, error } = await safeJson(request);
+  const { data: body, error } = await safeJson(request, {
+    maxBytes: 64 * 1024,
+  });
   if (error) return error;
   const range = normaliseDateRange(body ?? undefined);
   const { start, end } = range;

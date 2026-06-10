@@ -27,9 +27,7 @@ interface RouteContext {
   params: Promise<{ token: string }>;
 }
 
-async function verifyTokenSegment(
-  token: string | undefined,
-): Promise<boolean> {
+async function verifyTokenSegment(token: string | undefined): Promise<boolean> {
   const expected = process.env.WHOOP_WEBHOOK_SECRET;
   if (!expected) {
     getEvent()?.addWarning("WHOOP_WEBHOOK_SECRET not configured");
@@ -57,6 +55,14 @@ export const POST = apiHandler(
     // exactly once — `request.json()` would consume it and defeat the
     // signature check.
     const rawBody = await request.text();
+    if (rawBody.length > 256 * 1024) {
+      // Cap the body before the HMAC walk and JSON.parse — legitimate
+      // webhook payloads are tiny.
+      return NextResponse.json(
+        { status: "payload_too_large" },
+        { status: 413 },
+      );
+    }
     const secret = process.env.WHOOP_WEBHOOK_SECRET;
     if (
       !secret ||

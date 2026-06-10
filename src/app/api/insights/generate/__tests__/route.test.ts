@@ -99,10 +99,9 @@ vi.mock("@/lib/logging/context", () => ({
 }));
 
 vi.mock("@/lib/insights/features", async () => {
-  const actual =
-    await vi.importActual<typeof import("@/lib/insights/features")>(
-      "@/lib/insights/features",
-    );
+  const actual = await vi.importActual<
+    typeof import("@/lib/insights/features")
+  >("@/lib/insights/features");
   return {
     ...actual,
     extractFeatures: vi.fn(async () => ({ stub: true })),
@@ -193,6 +192,13 @@ function makeProviderThatThrows(
 }
 
 describe("POST /api/insights/generate — provider error mapping", () => {
+  it("rejects a body over the 16 KB cap with 413 before parsing", async () => {
+    const res = await POST(
+      jsonRequest({ force: true, pad: "x".repeat(16 * 1024) }) as never,
+    );
+    expect(res.status).toBe(413);
+  });
+
   it("maps a 401 from the provider to 422 with a readable message", async () => {
     const err = Object.assign(new Error("OpenAI request failed (401)"), {
       httpStatus: 401,
@@ -421,7 +427,10 @@ describe("POST /api/insights/generate — payload-size hard downgrade (H1)", () 
         (call[0] as { meta?: Record<string, unknown> })?.meta
           ?.insights_payload_too_large === true,
     );
-    expect(annotated, "annotate event with insights_payload_too_large").toBeTruthy();
+    expect(
+      annotated,
+      "annotate event with insights_payload_too_large",
+    ).toBeTruthy();
   });
 });
 

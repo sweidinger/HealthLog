@@ -176,7 +176,7 @@ export const POST = apiHandler(async (request: NextRequest) => {
   getEvent()?.setAuth({ auth_method: "webhook_secret" });
 
   const { data: payload, error: jsonError } =
-    await safeJson<CoolifyDeployPayload>(request);
+    await safeJson<CoolifyDeployPayload>(request, { maxBytes: 64 * 1024 });
   if (jsonError) return jsonError;
 
   const event = normalizePayload(payload);

@@ -4,11 +4,7 @@
  */
 import { NextRequest } from "next/server";
 import { apiHandler } from "@/lib/api-handler";
-import {
-  apiSuccess,
-  apiError,
-  safeJson,
-} from "@/lib/api-response";
+import { apiSuccess, apiError, safeJson } from "@/lib/api-response";
 import { auditLog } from "@/lib/auth/audit";
 import { annotate } from "@/lib/logging/context";
 import { checkAuthSurfaceRateLimit } from "@/lib/rate-limit";
@@ -42,7 +38,7 @@ export const POST = apiHandler(async (request: NextRequest) => {
   const { data: body, error: jsonError } = await safeJson<{
     refreshToken?: string;
     revoke?: boolean;
-  }>(request);
+  }>(request, { maxBytes: 64 * 1024 });
   if (jsonError) return jsonError;
   if (!body.refreshToken || typeof body.refreshToken !== "string") {
     return apiError("refreshToken required", 422);

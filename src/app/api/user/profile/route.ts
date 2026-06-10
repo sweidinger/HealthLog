@@ -75,7 +75,9 @@ export const GET = apiHandler(async () => {
 export const PATCH = apiHandler(async (request: NextRequest) => {
   const { user } = await requireAuth();
 
-  const { data: body, error } = await safeJson(request);
+  const { data: body, error } = await safeJson(request, {
+    maxBytes: 64 * 1024,
+  });
   if (error) return error;
 
   const result = await applyProfileUpdate(user.id, body, getClientIp(request));

@@ -112,7 +112,9 @@ async function postBulk(request: NextRequest): Promise<Response> {
     return apiError("Too many bulk submissions, try again later", 429);
   }
 
-  const { data: rawBody, error: jsonError } = await safeJson(request);
+  const { data: rawBody, error: jsonError } = await safeJson(request, {
+    maxBytes: 2 * 1024 * 1024,
+  });
   if (jsonError) return jsonError;
 
   if (
@@ -207,7 +209,10 @@ async function postBulk(request: NextRequest): Promise<Response> {
   // touched by the batch so one rollup recompute fires per pair after
   // all inserts complete. Per-row recompute would balloon a 500-entry
   // batch into 500 sequential rollup hits.
-  const touchedDays = new Map<string, { medicationId: string; dayKey: string }>();
+  const touchedDays = new Map<
+    string,
+    { medicationId: string; dayKey: string }
+  >();
 
   for (let i = 0; i < entries.length; i++) {
     const entry = entries[i];
@@ -409,7 +414,10 @@ async function postBulk(request: NextRequest): Promise<Response> {
           results.push({ index: i, status: "inserted", id: row.id });
         }
       }
-      const dayKey = dayKeyForScheduledFor(effectiveScheduledFor, user.timezone);
+      const dayKey = dayKeyForScheduledFor(
+        effectiveScheduledFor,
+        user.timezone,
+      );
       touchedDays.set(`${entry.medicationId}|${dayKey}`, {
         medicationId: entry.medicationId,
         dayKey,

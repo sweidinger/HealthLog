@@ -76,7 +76,9 @@ export const POST = apiHandler(async (request: NextRequest) => {
     return apiError("Maximum 5 imports per hour", 429);
   }
 
-  const { data: body, error: jsonError } = await safeJson(request);
+  const { data: body, error: jsonError } = await safeJson(request, {
+    maxBytes: 16 * 1024 * 1024,
+  });
 
   if (jsonError) return jsonError;
   const parsed = importSchema.safeParse(body);

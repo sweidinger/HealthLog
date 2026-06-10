@@ -38,7 +38,9 @@ export const PUT = apiHandler(async (request: NextRequest) => {
   const rl = await checkRateLimit("admin-ai-settings", 10, 60_000);
   if (!rl.allowed) throw new HttpError(429, "Too many requests");
 
-  const { data: body, error: jsonError } = await safeJson(request);
+  const { data: body, error: jsonError } = await safeJson(request, {
+    maxBytes: 64 * 1024,
+  });
   if (jsonError) return jsonError;
 
   const { apiKey, model, baseUrl } = body as {

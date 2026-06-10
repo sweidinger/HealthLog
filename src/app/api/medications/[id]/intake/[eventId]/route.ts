@@ -40,7 +40,9 @@ export const PUT = apiHandler(
       return apiError("Intake not found", 404);
     }
 
-    const { data: body, error: jsonError } = await safeJson(request);
+    const { data: body, error: jsonError } = await safeJson(request, {
+      maxBytes: 64 * 1024,
+    });
 
     if (jsonError) return jsonError;
     const parsed = updateIntakeEventSchema.safeParse(body);

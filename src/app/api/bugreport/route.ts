@@ -80,7 +80,9 @@ export const POST = apiHandler(async (request: NextRequest) => {
     );
   }
 
-  const { data: body, error: jsonError } = await safeJson(request);
+  const { data: body, error: jsonError } = await safeJson(request, {
+    maxBytes: 8 * 1024 * 1024,
+  });
 
   if (jsonError) return jsonError;
   const parsed = bugReportSchema.safeParse(body);

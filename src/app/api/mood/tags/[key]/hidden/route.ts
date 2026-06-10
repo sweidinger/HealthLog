@@ -1,7 +1,12 @@
 import { NextRequest } from "next/server";
 
 import { prisma } from "@/lib/db";
-import { apiSuccess, apiError, returnAllZodIssues } from "@/lib/api-response";
+import {
+  apiSuccess,
+  apiError,
+  returnAllZodIssues,
+  safeJson,
+} from "@/lib/api-response";
 import { apiHandler, requireAuth } from "@/lib/api-handler";
 import { annotate } from "@/lib/logging/context";
 import { hideCatalogueTagSchema, isCustomTagKey } from "@/lib/mood/custom-tags";
@@ -29,7 +34,11 @@ export const PUT = apiHandler(
       );
     }
 
-    const parsed = hideCatalogueTagSchema.safeParse(await request.json());
+    const { data: rawJsonBody, error: jsonError } = await safeJson(request, {
+      maxBytes: 64 * 1024,
+    });
+    if (jsonError) return jsonError;
+    const parsed = hideCatalogueTagSchema.safeParse(rawJsonBody);
     if (!parsed.success) return returnAllZodIssues(parsed.error, 422);
 
     // Resolve against the catalogue (user_id NULL) only.

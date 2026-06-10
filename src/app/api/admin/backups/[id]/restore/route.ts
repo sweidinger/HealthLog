@@ -120,7 +120,11 @@ const handler = apiHandler(
 
     let body: { confirm?: string } = {};
     try {
-      body = (await request.json()) as { confirm?: string };
+      const raw = await request.text();
+      if (raw.length > 64 * 1024) {
+        return apiError(`Request body exceeds ${64 * 1024} bytes`, 413);
+      }
+      body = JSON.parse(raw) as { confirm?: string };
     } catch {
       return apiError("Invalid JSON body", 400);
     }

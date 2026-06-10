@@ -85,6 +85,13 @@ beforeEach(() => {
 });
 
 describe("POST /api/medications/intake/bulk — 422 multi-issue (v1.4.43 W6)", () => {
+  it("rejects a body over the 2 MB cap with 413 before parsing", async () => {
+    const res = await POST(
+      postReq({ entries: [], pad: "x".repeat(2 * 1024 * 1024) }),
+    );
+    expect(res.status).toBe(413);
+  });
+
   it("surfaces TWO simultaneous validation errors", async () => {
     const res = await POST(
       postReq({
@@ -319,7 +326,10 @@ describe("POST /api/medications/intake/bulk — v1.8.2 reconcile", () => {
     );
     expect(res.status).toBe(200);
     const body = (await res.json()) as {
-      data: { updated: number; entries: Array<{ status: string; id?: string }> };
+      data: {
+        updated: number;
+        entries: Array<{ status: string; id?: string }>;
+      };
     };
     // The dose is APPLIED to the existing row, not silently dropped.
     expect(body.data.updated).toBe(1);
@@ -491,7 +501,10 @@ describe("POST /api/medications/intake/bulk — v1.15.19 resolver-null convergen
     );
     expect(res.status).toBe(200);
     const body = (await res.json()) as {
-      data: { duplicates: number; entries: Array<{ status: string; id?: string }> };
+      data: {
+        duplicates: number;
+        entries: Array<{ status: string; id?: string }>;
+      };
     };
     expect(body.data.duplicates).toBe(1);
     expect(body.data.entries[0].status).toBe("duplicate");

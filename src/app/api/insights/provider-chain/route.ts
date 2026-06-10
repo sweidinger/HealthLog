@@ -100,7 +100,9 @@ export const PUT = apiHandler(async (request: NextRequest) => {
   const { user } = await requireAuth();
   annotate({ action: { name: "insights.provider_chain.update" } });
 
-  const { data: body, error } = await safeJson<unknown>(request);
+  const { data: body, error } = await safeJson<unknown>(request, {
+    maxBytes: 64 * 1024,
+  });
   if (error) return error;
 
   const parsed = chainBodySchema.safeParse(body);
