@@ -29,10 +29,11 @@
 
 import { parseScheduleRecurrence } from "@/lib/medication-schedule";
 import type { SlotBand } from "@/lib/medications/scheduling/attribution";
+import { type BandMinterMedication } from "@/lib/medications/scheduling/band-minter";
 import {
-  buildBandsForSchedules,
-  type BandMinterMedication,
-} from "@/lib/medications/scheduling/band-minter";
+  buildBandsForSchedulesWithEras,
+  type ScheduleRevisionLike,
+} from "@/lib/medications/scheduling/schedule-eras";
 import {
   reconstructDoseHistory,
   type HistoryIntake,
@@ -125,6 +126,12 @@ export interface CadenceEngineContext {
   lastIntakeAt: Date | null;
   /** User IANA timezone. Required for the engine to apply HH:mm slots. */
   timeZone: string;
+  /**
+   * v1.16.3 — archived schedule eras (`validFrom` ascending). When present
+   * the ledger-band consumers mint past days against the schedule that was
+   * live THEN. Optional: callers without revisions keep live-only minting.
+   */
+  scheduleRevisions?: ScheduleRevisionLike[];
 }
 
 /** Build a `CanonicalSchedule` from a `ScheduleLike` + its index. */
@@ -892,9 +899,10 @@ function missedFromLedger(
     .filter((e) => !e.skipped && e.takenAt !== null && e.takenAt <= asOf)
     .map((e) => e.takenAt as Date)
     .sort((a, b) => a.getTime() - b.getTime());
-  const groups = buildBandsForSchedules({
+  const groups = buildBandsForSchedulesWithEras({
     medication,
     schedules: canonicalSchedules,
+    revisions: engineCtx.scheduleRevisions ?? [],
     ctx: recurrenceCtx,
     userTz,
     range: { from, to: asOf },

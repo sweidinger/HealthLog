@@ -29,10 +29,10 @@ import { checkRateLimit, rateLimitHeaders } from "@/lib/rate-limit";
 import { lastNonSkippedTakenAt } from "@/lib/analytics/compliance";
 import type { SlotBand } from "@/lib/medications/scheduling/attribution";
 import {
-  buildBandsForSchedules,
   type BandFamily,
   type BandMinterMedication,
 } from "@/lib/medications/scheduling/band-minter";
+import { buildBandsForSchedulesWithEras } from "@/lib/medications/scheduling/schedule-eras";
 import {
   reconstructDoseHistory,
   type DoseHistoryRow,
@@ -123,7 +123,12 @@ export const GET = apiHandler(
 
     const medication = await prisma.medication.findUnique({
       where: { id },
-      include: { schedules: true },
+      include: {
+        schedules: true,
+        // v1.16.3 — archived schedule eras: past days mint against the
+        // schedule that was live THEN.
+        scheduleRevisions: { orderBy: { validFrom: "asc" } },
+      },
     });
     if (!medication) {
       return apiError("Medication not found", 404);
@@ -205,9 +210,10 @@ export const GET = apiHandler(
       .map((e) => e.takenAt as Date)
       .sort((a, b) => a.getTime() - b.getTime());
 
-    const groups = buildBandsForSchedules({
+    const groups = buildBandsForSchedulesWithEras({
       medication: bandMedication,
       schedules: canonicalSchedules,
+      revisions: medication.scheduleRevisions ?? [],
       ctx,
       userTz,
       range: { from, to },

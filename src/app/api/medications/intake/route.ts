@@ -258,7 +258,11 @@ async function buildScheduleAnchoredComplianceBuckets(
 
   const medications = await prisma.medication.findMany({
     where: { userId, active: true },
-    include: { schedules: true },
+    include: {
+      schedules: true,
+      // v1.16.3 — archived schedule eras for era-aware expected counts.
+      scheduleRevisions: { orderBy: { validFrom: "asc" } },
+    },
   });
 
   const events = await prisma.medicationIntakeEvent.findMany({

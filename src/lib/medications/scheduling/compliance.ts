@@ -20,10 +20,8 @@
  */
 
 import type { SlotBand } from "./attribution";
-import {
-  buildBandsForSchedules,
-  type BandMinterMedication,
-} from "./band-minter";
+import { type BandMinterMedication } from "./band-minter";
+import { buildBandsForSchedulesWithEras } from "./schedule-eras";
 import {
   buildCadenceTimeline,
   startOfLocalDay,
@@ -234,9 +232,10 @@ function ledgerChipCounts(
     .map((e) => e.takenAt as Date)
     .sort((a, b) => a.getTime() - b.getTime());
 
-  const groups = buildBandsForSchedules({
+  const groups = buildBandsForSchedulesWithEras({
     medication,
     schedules: canonicalSchedules,
+    revisions: engineCtx.scheduleRevisions ?? [],
     ctx: recurrenceCtx,
     userTz,
     range: { from, to: asOf },

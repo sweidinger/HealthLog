@@ -265,7 +265,11 @@ export async function generateBloodPressureStatusForUser(
     where: { userId, active: true },
     // v1.15.20 — schedules through the shared compliance select so the
     // configured per-dose windows reach this surface like every other.
-    include: { schedules: { select: SCHEDULE_COMPLIANCE_SELECT } },
+    include: {
+      schedules: { select: SCHEDULE_COMPLIANCE_SELECT },
+      // v1.16.3 — archived schedule eras for era-aware compliance.
+      scheduleRevisions: { orderBy: { validFrom: "asc" } },
+    },
   });
 
   const categoryMap = await getMedicationCategories(

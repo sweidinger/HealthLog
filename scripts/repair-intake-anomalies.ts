@@ -38,6 +38,18 @@
  *      anchors — they linger as phantom open doses. Repair: tombstone
  *      with `--fix` (same soft-delete shape as defect 1).
  *
+ *   5. ERA INFERENCE (v1.16.3) — medications edited BEFORE schedule
+ *      versioning existed lost their old era: history reads against the
+ *      current times and the old takes look off-schedule. When the
+ *      recorded slot anchors (user-tz HH:mm on a 5-minute grid) deviate
+ *      from the CURRENT `times_of_day` for >= 7 consecutive recorded days
+ *      before the current times first appear, the script proposes one
+ *      `medication_schedule_revisions` row (validFrom = first deviating
+ *      row, validUntil = first day on the current times). It also flags a
+ *      `starts_on` that postdates the first recorded row. Report always;
+ *      CREATE/UPDATE only with `--backfill-eras`. Medications that
+ *      already have a revision are skipped (idempotent).
+ *
  * After any mutation the affected `(user, medication, day)` compliance
  * rollups are recomputed with the SAME slot-level DISTINCT aggregation the
  * shared helper runs — see `recomputeComplianceDay` below, a verbatim
@@ -75,6 +87,9 @@
  *   # apply
  *   pnpm dlx --package pg --package tsx tsx scripts/repair-intake-anomalies.ts --fix
  *   pnpm dlx --package pg --package tsx tsx scripts/repair-intake-anomalies.ts --fix --tombstone-implausible
+ *
+ *   # create the proposed schedule revisions + startsOn fixes (defect 5)
+ *   pnpm dlx --package pg --package tsx tsx scripts/repair-intake-anomalies.ts --backfill-eras
  */
 import { Client, types } from "pg";
 
@@ -101,6 +116,8 @@ function utcParam(date: Date): string {
 interface CliOptions {
   fix: boolean;
   tombstoneImplausible: boolean;
+  /** v1.16.3 — create the proposed schedule revisions / startsOn fixes. */
+  backfillEras: boolean;
   userId: string | null;
 }
 
@@ -108,6 +125,7 @@ function parseArgs(argv: string[]): CliOptions {
   const opts: CliOptions = {
     fix: false,
     tombstoneImplausible: false,
+    backfillEras: false,
     userId: null,
   };
   for (let i = 0; i < argv.length; i++) {
@@ -116,6 +134,8 @@ function parseArgs(argv: string[]): CliOptions {
       opts.fix = true;
     } else if (arg === "--tombstone-implausible") {
       opts.tombstoneImplausible = true;
+    } else if (arg === "--backfill-eras") {
+      opts.backfillEras = true;
     } else if (arg === "--user" && argv[i + 1]) {
       opts.userId = argv[i + 1];
       i += 1;
@@ -374,6 +394,10 @@ interface Summary {
   windowsReconciled: number;
   staleAnchorRows: number;
   staleAnchorTombstoned: number;
+  eraCandidates: number;
+  eraRevisionsCreated: number;
+  startsOnCandidates: number;
+  startsOnAdjusted: number;
   rollupsRecomputed: number;
 }
 
@@ -429,6 +453,10 @@ async function main(): Promise<void> {
     windowsReconciled: 0,
     staleAnchorRows: 0,
     staleAnchorTombstoned: 0,
+    eraCandidates: 0,
+    eraRevisionsCreated: 0,
+    startsOnCandidates: 0,
+    startsOnAdjusted: 0,
     rollupsRecomputed: 0,
   };
 
@@ -807,13 +835,245 @@ async function main(): Promise<void> {
     }
 
     // ─────────────────────────────────────────────────────────────────
-    // 5. Recompute the affected compliance rollups so scheduled/taken
+    // 5. Era inference (v1.16.3) — medications whose historical slot
+    //    anchors deviate from the CURRENT times_of_day for >= 7
+    //    consecutive recorded days before the current times appear: the
+    //    schedule was edited pre-versioning and the old era was lost.
+    //    Propose one MedicationScheduleRevision per medication
+    //    (validFrom = first deviating row, validUntil = first day on the
+    //    current times) plus a startsOn correction when startsOn
+    //    postdates the first recorded row. Report always; CREATE only
+    //    with --backfill-eras. Only medications with ZERO existing
+    //    revisions are considered, so the section is idempotent.
+    // ─────────────────────────────────────────────────────────────────
+    const eraRowsRes = await client.query<{
+      user_id: string;
+      medication_id: string;
+      medication_name: string;
+      created_at: Date;
+      starts_on: Date | null;
+      scheduled_for: Date;
+    }>(
+      `
+      SELECT e."user_id", e."medication_id", m."name" AS medication_name,
+             m."created_at", m."starts_on", e."scheduled_for"
+      FROM "medication_intake_events" e
+      JOIN "medications" m ON m."id" = e."medication_id"
+      WHERE e."deleted_at" IS NULL
+        AND (e."taken_at" IS NOT NULL OR e."skipped" OR e."auto_missed")
+        AND NOT EXISTS (
+          SELECT 1 FROM "medication_schedule_revisions" r
+          WHERE r."medication_id" = e."medication_id"
+        )
+        ${userFilter}
+      ORDER BY e."user_id", e."medication_id", e."scheduled_for"
+      `,
+      userParams,
+    );
+
+    /** Per-medication actioned rows, chronological. */
+    const byMedication = new Map<string, typeof eraRowsRes.rows>();
+    for (const row of eraRowsRes.rows) {
+      const list = byMedication.get(row.medication_id) ?? [];
+      list.push(row);
+      byMedication.set(row.medication_id, list);
+    }
+
+    interface EraProposal {
+      userId: string;
+      medicationId: string;
+      medicationName: string;
+      timesOfDay: string[];
+      validFrom: Date;
+      validUntil: Date;
+      dayCount: number;
+    }
+    interface StartsOnProposal {
+      medicationId: string;
+      medicationName: string;
+      startsOn: Date;
+      firstRow: Date;
+    }
+    const eraProposals: EraProposal[] = [];
+    const startsOnProposals: StartsOnProposal[] = [];
+
+    for (const [medicationId, rows] of byMedication) {
+      const tz = await userTimezone(rows[0].user_id);
+      const anchors = await medicationAnchors(medicationId);
+      if (anchors.size === 0) continue; // PRN / unscheduled — nothing to infer.
+
+      // startsOn AFTER the first recorded row — the course began earlier
+      // than the configured start; propose pulling startsOn back.
+      const startsOn = rows[0].starts_on;
+      if (startsOn && startsOn.getTime() > rows[0].scheduled_for.getTime()) {
+        startsOnProposals.push({
+          medicationId,
+          medicationName: rows[0].medication_name,
+          startsOn,
+          firstRow: rows[0].scheduled_for,
+        });
+      }
+
+      // Walk the recorded days chronologically. Only ANCHOR-shaped rows
+      // count: a scheduled_for whose user-tz HH:mm sits on a 5-minute
+      // grid (reminder-/projector-minted slot instants land on the
+      // configured times; free-hand ad-hoc takes rarely do).
+      const dayTimes = new Map<string, Set<string>>();
+      const dayOrder: string[] = [];
+      for (const row of rows) {
+        const hhmm = hhmmInTz(row.scheduled_for, tz);
+        if (!HHMM_RE.test(hhmm)) continue;
+        if (Number(hhmm.slice(3)) % 5 !== 0) continue; // not anchor-shaped
+        const dayKey = dayKeyForScheduledFor(row.scheduled_for, tz);
+        let set = dayTimes.get(dayKey);
+        if (!set) {
+          set = new Set<string>();
+          dayTimes.set(dayKey, set);
+          dayOrder.push(dayKey);
+        }
+        set.add(hhmm);
+      }
+
+      // The leading run of recorded days whose anchor times ALL deviate
+      // from the current schedule, ended by the first day that matches
+      // the current times. Consecutive = consecutive RECORDED days; gaps
+      // without rows (skipped logging) do not break the run.
+      const offTimes = new Set<string>();
+      let runDays = 0;
+      let firstOffDay: string | null = null;
+      let switchDay: string | null = null;
+      for (const dayKey of dayOrder) {
+        const times = [...(dayTimes.get(dayKey) ?? [])];
+        if (times.length === 0) continue;
+        const allOff = times.every((t) => !anchors.has(t));
+        const anyOn = times.some((t) => anchors.has(t));
+        if (allOff) {
+          if (switchDay !== null) {
+            // Off-anchor days AFTER current times appeared — mixed
+            // history, not a clean era prefix. Bail for this medication.
+            runDays = 0;
+            break;
+          }
+          runDays += 1;
+          if (firstOffDay === null) firstOffDay = dayKey;
+          for (const t of times) offTimes.add(t);
+        } else if (anyOn && switchDay === null) {
+          switchDay = dayKey;
+        }
+      }
+
+      if (runDays >= 7 && firstOffDay !== null && switchDay !== null) {
+        const firstRow = rows.find(
+          (r) => dayKeyForScheduledFor(r.scheduled_for, tz) === firstOffDay,
+        );
+        const validFrom = firstRow?.scheduled_for ?? rows[0].created_at;
+        const validUntil = startOfDayUtcInTz(switchDay, safeTimezone(tz));
+        eraProposals.push({
+          userId: rows[0].user_id,
+          medicationId,
+          medicationName: rows[0].medication_name,
+          timesOfDay: [...offTimes].sort(),
+          validFrom,
+          validUntil,
+          dayCount: runDays,
+        });
+      }
+    }
+
+    summary.eraCandidates = eraProposals.length;
+    summary.startsOnCandidates = startsOnProposals.length;
+    console.log(
+      `\n${TAG} 5) era-inference candidates (>=7 consistent off-anchor days): ${eraProposals.length}`,
+    );
+    if (eraProposals.length > 0) {
+      console.table(
+        eraProposals.map((p) => ({
+          medication: p.medicationName,
+          oldTimes: p.timesOfDay.join(","),
+          validFrom: p.validFrom.toISOString(),
+          validUntil: p.validUntil.toISOString(),
+          days: p.dayCount,
+        })),
+      );
+    }
+    if (startsOnProposals.length > 0) {
+      console.log(
+        `${TAG}    startsOn postdates the first recorded row: ${startsOnProposals.length}`,
+      );
+      console.table(
+        startsOnProposals.map((p) => ({
+          medication: p.medicationName,
+          startsOn: p.startsOn.toISOString(),
+          firstRow: p.firstRow.toISOString(),
+        })),
+      );
+    }
+
+    if (opts.backfillEras) {
+      const { randomUUID } = await import("node:crypto");
+      for (const p of eraProposals) {
+        const payload = JSON.stringify([
+          {
+            timesOfDay: p.timesOfDay,
+            windowStart: p.timesOfDay[0],
+            windowEnd: p.timesOfDay[p.timesOfDay.length - 1],
+            daysOfWeek: null,
+            rrule: "FREQ=DAILY",
+            rollingIntervalDays: null,
+            scheduleType: "SCHEDULED",
+            cyclicOnWeeks: null,
+            cyclicOffWeeks: null,
+            doseWindows: null,
+            label: null,
+            dose: null,
+            reminderGraceMinutes: null,
+          },
+        ]);
+        await client.query(
+          `
+          INSERT INTO "medication_schedule_revisions"
+            ("id", "medication_id", "valid_from", "valid_until", "payload")
+          SELECT $1, $2, $3::timestamptz, $4::timestamptz, $5::jsonb
+          WHERE NOT EXISTS (
+            SELECT 1 FROM "medication_schedule_revisions"
+            WHERE "medication_id" = $2
+          )
+          `,
+          [
+            randomUUID(),
+            p.medicationId,
+            p.validFrom.toISOString(),
+            p.validUntil.toISOString(),
+            payload,
+          ],
+        );
+        summary.eraRevisionsCreated += 1;
+      }
+      for (const p of startsOnProposals) {
+        const res = await client.query(
+          `
+          UPDATE "medications"
+          SET "starts_on" = $2::timestamp, "updated_at" = NOW()
+          WHERE "id" = $1 AND "starts_on" = $3::timestamp
+          `,
+          [
+            p.medicationId,
+            utcParam(p.firstRow),
+            utcParam(p.startsOn),
+          ],
+        );
+        summary.startsOnAdjusted += res.rowCount ?? 0;
+      }
+    }
+
+    // ─────────────────────────────────────────────────────────────────
+    // 6. Recompute the affected compliance rollups so scheduled/taken
     //    counts self-correct. Same DISTINCT-slot SQL the shared helper
     //    runs (see `recomputeComplianceDay` above).
     // ─────────────────────────────────────────────────────────────────
     if (opts.fix && daysToRecompute.size > 0) {
       console.log(
-        `\n${TAG} 5) recomputing ${daysToRecompute.size} compliance rollup day(s)`,
+        `\n${TAG} 6) recomputing ${daysToRecompute.size} compliance rollup day(s)`,
       );
       for (const key of daysToRecompute) {
         const [userId, medicationId, dayKey] = key.split("|");
@@ -850,6 +1110,10 @@ async function main(): Promise<void> {
   console.log(`  windows reconciled:           ${summary.windowsReconciled}`);
   console.log(`  stale-anchor pending rows:    ${summary.staleAnchorRows}`);
   console.log(`  stale-anchor rows tombstoned: ${summary.staleAnchorTombstoned}`);
+  console.log(`  era-inference candidates:     ${summary.eraCandidates}`);
+  console.log(`  era revisions created:        ${summary.eraRevisionsCreated}`);
+  console.log(`  startsOn candidates:          ${summary.startsOnCandidates}`);
+  console.log(`  startsOn adjusted:            ${summary.startsOnAdjusted}`);
   console.log(`  rollup days recomputed:       ${summary.rollupsRecomputed}`);
 }
 

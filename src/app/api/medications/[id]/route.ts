@@ -17,6 +17,11 @@ import {
   setMedicationCategory,
 } from "@/lib/medication-category";
 import { serializeScheduleRecurrence } from "@/lib/medication-schedule";
+import {
+  schedulesMateriallyDiffer,
+  toRevisionPayloadEntry,
+} from "@/lib/medications/scheduling/schedule-eras";
+import type { Prisma } from "@/generated/prisma/client";
 import { computeNextDueAt } from "@/lib/medications/scheduling/next-due";
 import {
   dayKeyForScheduledFor,
@@ -174,7 +179,7 @@ export const PUT = apiHandler(
     if (guard) return guard;
     const existing = await prisma.medication.findUnique({
       where: { id },
-      select: { active: true },
+      select: { active: true, createdAt: true },
     });
     if (!existing) {
       return apiError("Medication not found", 404);
@@ -280,8 +285,151 @@ export const PUT = apiHandler(
             ? { pausedAt: new Date() }
             : {};
 
+    // v1.16.3 — normalise the incoming schedules ONCE: the same values feed
+    // the create payload below AND the revision compare/snapshot (so the
+    // material-change gate sees exactly what will be persisted).
+    const normalisedSchedules = schedules?.map((s) => {
+      // Invariant 2 — default to FREQ=DAILY when nothing else is set.
+      // v1.7.0 — PRN carries no cadence, so never default it.
+      const hasLegacyDays = (s.daysOfWeek?.length ?? 0) > 0;
+      const isPrn = s.scheduleType === "PRN";
+      const defaultedRrule =
+        oneShot !== true &&
+        !isPrn &&
+        s.rrule === undefined &&
+        s.rollingIntervalDays === undefined &&
+        !hasLegacyDays
+          ? "FREQ=DAILY"
+          : s.rrule;
+
+      // Invariant 3 — dual-write timesOfDay from windowStart.
+      const effectiveTimesOfDay =
+        s.timesOfDay && s.timesOfDay.length > 0 ? s.timesOfDay : [s.windowStart];
+
+      // Invariant 4 — window / times consistency. See
+      // `reconcileScheduleWindow`: a times-only edit that echoes the
+      // stale window back gets the window pulled to the min/max of
+      // the new times.
+      const window = reconcileScheduleWindow(
+        s.windowStart,
+        s.windowEnd,
+        effectiveTimesOfDay,
+      );
+
+      const serializedDaysOfWeek = serializeScheduleRecurrence({
+        daysOfWeek: s.daysOfWeek ?? [],
+        intervalWeeks: s.intervalWeeks ?? 1,
+      });
+
+      return {
+        createData: {
+          windowStart: window.windowStart,
+          windowEnd: window.windowEnd,
+          label: s.label ?? null,
+          dose: s.dose ?? null,
+          daysOfWeek: serializedDaysOfWeek,
+          // v1.5 first-class times-of-day.
+          timesOfDay: effectiveTimesOfDay,
+          ...(s.reminderGraceMinutes !== undefined && {
+            reminderGraceMinutes: s.reminderGraceMinutes,
+          }),
+          ...(defaultedRrule !== undefined && { rrule: defaultedRrule }),
+          ...(s.rollingIntervalDays !== undefined && {
+            rollingIntervalDays: s.rollingIntervalDays,
+          }),
+          // v1.7.0 — schedule type + cyclic weeks, field-by-field.
+          ...(s.scheduleType !== undefined && {
+            scheduleType: s.scheduleType,
+          }),
+          ...(s.cyclicOnWeeks !== undefined && {
+            cyclicOnWeeks: s.cyclicOnWeeks,
+          }),
+          ...(s.cyclicOffWeeks !== undefined && {
+            cyclicOffWeeks: s.cyclicOffWeeks,
+          }),
+          // v1.15.18 — per-dose configurable on-time windows. A `schedules`
+          // replace re-creates the rows, so the column is re-written each
+          // time; absent leaves it NULL (default ±1h derivation).
+          ...(s.doseWindows !== undefined && {
+            doseWindows: s.doseWindows,
+          }),
+        },
+        // Mirror of the row the create above will persist (defaults applied),
+        // shaped for the cadence compare.
+        snapshot: toRevisionPayloadEntry({
+          timesOfDay: effectiveTimesOfDay,
+          windowStart: window.windowStart,
+          windowEnd: window.windowEnd,
+          daysOfWeek: serializedDaysOfWeek,
+          rrule: defaultedRrule ?? null,
+          rollingIntervalDays: s.rollingIntervalDays ?? null,
+          scheduleType: s.scheduleType ?? "SCHEDULED",
+          cyclicOnWeeks: s.cyclicOnWeeks ?? null,
+          cyclicOffWeeks: s.cyclicOffWeeks ?? null,
+          doseWindows: s.doseWindows ?? null,
+          label: s.label ?? null,
+          dose: s.dose ?? null,
+          reminderGraceMinutes: s.reminderGraceMinutes ?? null,
+        }),
+      };
+    });
+
     // If schedules provided, replace all
-    if (schedules) {
+    if (schedules && normalisedSchedules) {
+      // v1.16.3 — effective dating. Before the wholesale replace below wipes
+      // the old rows, archive them as ONE revision covering
+      // `[previous validUntil | medication.createdAt, now)` — but only when a
+      // cadence-relevant field actually changes. A no-op edit (the Zeitplan
+      // tab echoing the same rows back) must not mint a phantom era.
+      const previousRows = await prisma.medicationSchedule.findMany({
+        where: { medicationId: id },
+      });
+      const previousEntries = previousRows.map((row) =>
+        toRevisionPayloadEntry({
+          timesOfDay: row.timesOfDay,
+          windowStart: row.windowStart,
+          windowEnd: row.windowEnd,
+          daysOfWeek: row.daysOfWeek,
+          rrule: row.rrule,
+          rollingIntervalDays: row.rollingIntervalDays,
+          scheduleType: row.scheduleType,
+          cyclicOnWeeks: row.cyclicOnWeeks,
+          cyclicOffWeeks: row.cyclicOffWeeks,
+          doseWindows: row.doseWindows,
+          label: row.label,
+          dose: row.dose,
+          reminderGraceMinutes: row.reminderGraceMinutes,
+        }),
+      );
+      if (
+        previousRows.length > 0 &&
+        schedulesMateriallyDiffer(
+          previousEntries,
+          normalisedSchedules.map((n) => n.snapshot),
+        )
+      ) {
+        const lastRevision = await prisma.medicationScheduleRevision.findFirst({
+          where: { medicationId: id },
+          orderBy: { validUntil: "desc" },
+          select: { validUntil: true },
+        });
+        await prisma.medicationScheduleRevision.create({
+          data: {
+            medicationId: id,
+            validFrom: lastRevision?.validUntil ?? existing.createdAt,
+            validUntil: new Date(),
+            payload: previousEntries as unknown as Prisma.InputJsonValue,
+          },
+        });
+        annotate({
+          action: {
+            name: "medication.schedule.revision_archived",
+            entity_type: "medication",
+            entity_id: id,
+          },
+          meta: { schedule_revision_rows: previousEntries.length },
+        });
+      }
       // A schedule replace invalidates the open slot anchors the projector /
       // reminder worker minted for the OLD times: a pending 08:00 row for a
       // medication that now doses at 20:00 would linger as a phantom slot,
@@ -366,74 +514,9 @@ export const PUT = apiHandler(
       ...(startsOn !== undefined && { startsOn }),
       ...(normalisedEndsOn !== undefined && { endsOn: normalisedEndsOn }),
       ...(oneShot !== undefined && { oneShot }),
-      ...(schedules && {
+      ...(normalisedSchedules && {
         schedules: {
-          create: schedules.map((s) => {
-            // Invariant 2 — default to FREQ=DAILY when nothing else is set.
-            // v1.7.0 — PRN carries no cadence, so never default it.
-            const hasLegacyDays = (s.daysOfWeek?.length ?? 0) > 0;
-            const isPrn = s.scheduleType === "PRN";
-            const defaultedRrule =
-              oneShot !== true &&
-              !isPrn &&
-              s.rrule === undefined &&
-              s.rollingIntervalDays === undefined &&
-              !hasLegacyDays
-                ? "FREQ=DAILY"
-                : s.rrule;
-
-            // Invariant 3 — dual-write timesOfDay from windowStart.
-            const effectiveTimesOfDay =
-              s.timesOfDay && s.timesOfDay.length > 0
-                ? s.timesOfDay
-                : [s.windowStart];
-
-            // Invariant 4 — window / times consistency. See
-            // `reconcileScheduleWindow`: a times-only edit that echoes the
-            // stale window back gets the window pulled to the min/max of
-            // the new times.
-            const window = reconcileScheduleWindow(
-              s.windowStart,
-              s.windowEnd,
-              effectiveTimesOfDay,
-            );
-
-            return {
-              windowStart: window.windowStart,
-              windowEnd: window.windowEnd,
-              label: s.label ?? null,
-              dose: s.dose ?? null,
-              daysOfWeek: serializeScheduleRecurrence({
-                daysOfWeek: s.daysOfWeek ?? [],
-                intervalWeeks: s.intervalWeeks ?? 1,
-              }),
-              // v1.5 first-class times-of-day.
-              timesOfDay: effectiveTimesOfDay,
-              ...(s.reminderGraceMinutes !== undefined && {
-                reminderGraceMinutes: s.reminderGraceMinutes,
-              }),
-              ...(defaultedRrule !== undefined && { rrule: defaultedRrule }),
-              ...(s.rollingIntervalDays !== undefined && {
-                rollingIntervalDays: s.rollingIntervalDays,
-              }),
-              // v1.7.0 — schedule type + cyclic weeks, field-by-field.
-              ...(s.scheduleType !== undefined && {
-                scheduleType: s.scheduleType,
-              }),
-              ...(s.cyclicOnWeeks !== undefined && {
-                cyclicOnWeeks: s.cyclicOnWeeks,
-              }),
-              ...(s.cyclicOffWeeks !== undefined && {
-                cyclicOffWeeks: s.cyclicOffWeeks,
-              }),
-              // v1.15.18 — per-dose configurable on-time windows. A `schedules`
-              // replace re-creates the rows, so the column is re-written each
-              // time; absent leaves it NULL (default ±1h derivation).
-              ...(s.doseWindows !== undefined && {
-                doseWindows: s.doseWindows,
-              }),
-            };
-          }),
+          create: normalisedSchedules.map((n) => n.createData),
         },
       }),
     };

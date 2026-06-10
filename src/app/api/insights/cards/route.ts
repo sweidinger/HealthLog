@@ -84,7 +84,11 @@ export const GET = apiHandler(async () => {
     }),
     prisma.medication.findMany({
       where: { userId: user.id, active: true },
-      include: { schedules: true },
+      include: {
+        schedules: true,
+        // v1.16.3 — archived schedule eras for era-aware expected counts.
+        scheduleRevisions: { orderBy: { validFrom: "asc" } },
+      },
     }),
   ]);
 

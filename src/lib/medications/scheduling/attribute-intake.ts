@@ -29,11 +29,14 @@ import {
   type SlotBand,
 } from "@/lib/medications/scheduling/attribution";
 import {
-  buildBandsForMedication,
   type BandMinterMedication,
   type DoseWindowConfig,
 } from "@/lib/medications/scheduling/band-minter";
 import { DOSE_WINDOW_DEFAULTS } from "@/lib/medications/scheduling/dose-window-defaults";
+import {
+  buildBandsForSchedulesWithEras,
+  type ScheduleRevisionLike,
+} from "@/lib/medications/scheduling/schedule-eras";
 import {
   buildCanonicalSchedule,
   buildRecurrenceContext,
@@ -46,6 +49,13 @@ const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 /** The medication projection the attributor reads (matches the write `select`). */
 export interface AttributeIntakeMedication extends WorkerMedicationRow {
   schedules: WorkerScheduleRow[];
+  /**
+   * v1.16.3 — archived schedule eras, `validFrom` ascending. When present
+   * the day bands around a historical `takenAt` mint from the era that was
+   * live THEN, so an edit of an old take attributes against the old times.
+   * Optional: callers without revisions keep the live-only behaviour.
+   */
+  scheduleRevisions?: ScheduleRevisionLike[];
 }
 
 export interface AttributeTakenInput {
@@ -145,25 +155,34 @@ export function buildMedicationDayBands(input: {
     to: new Date(input.around.getTime() + dayScaleReachDays * ONE_DAY_MS),
   };
 
-  const bands: SlotBand[] = [];
-  let hasExpectedSlots = false;
-  for (const schedule of canonicalSchedules) {
-    const common = {
+  // v1.16.3 — bands mint era-aware: a historical `around` inside an archived
+  // era gets THAT era's schedules. With no revisions the wrapper passes
+  // straight through to the live-only minter.
+  const mintEras = (range: { from: Date; to: Date }) =>
+    buildBandsForSchedulesWithEras({
       medication: bandMinterMedication,
-      schedule,
+      schedules: canonicalSchedules,
+      revisions: input.medication.scheduleRevisions ?? [],
       ctx,
       userTz: input.userTz,
+      range,
       now: input.now ?? input.around,
       windowConfig: input.windowConfig,
       intakeInstants: input.intakeInstants,
-    };
-    let result = buildBandsForMedication({ ...common, range: minuteScaleRange });
-    if (result.family === "weekly") {
-      result = buildBandsForMedication({ ...common, range: dayScaleRange });
-    }
-    if (result.hasExpectedSlots) {
+    });
+  let groups = mintEras(minuteScaleRange);
+  // Day-scale families re-mint over the wide range (the same per-schedule
+  // narrow-then-wide pass as before, applied per group).
+  if (groups.some((g) => g.family === "weekly")) {
+    const wide = mintEras(dayScaleRange).filter((g) => g.family === "weekly");
+    groups = [...groups.filter((g) => g.family !== "weekly"), ...wide];
+  }
+  const bands: SlotBand[] = [];
+  let hasExpectedSlots = false;
+  for (const g of groups) {
+    if (g.hasExpectedSlots) {
       hasExpectedSlots = true;
-      bands.push(...result.bands);
+      bands.push(...g.bands);
     }
   }
   return { bands, hasExpectedSlots };
