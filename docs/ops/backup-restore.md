@@ -85,3 +85,30 @@ pnpm tsx scripts/restore-backup.ts \
 The script downloads the object, decrypts it, and writes the JSON dump
 to disk. Importing the JSON back into a HealthLog instance is left to
 the operator (use `prisma db seed` or a custom script).
+
+## Monthly restore drill (automatic)
+
+Since v1.16.4 a pg-boss job (`data-restore-drill`, cron `11 4 1 * *` —
+04:11 on the 1st of each month) exercises the read path end-to-end:
+fetch the most recent backup object from the bucket, decrypt it under
+the current `BACKUP_ENCRYPTION_KEY`, JSON-parse it, and sanity-check
+the payload shape. It performs **no database restore** — it validates
+the artefact, not the import path.
+
+Outcomes:
+
+- **Success** — record counts, object age, and sizes land in the
+  wide-event meta (`job.restore_drill`).
+- **Stale chain** — the newest object is older than 3 days: the nightly
+  uploader has stalled (or the lifecycle rule is too aggressive). The
+  drill pages via the worker error reporter (stderr + GlitchTip).
+- **Failure** — empty bucket, fetch error, decryption failure (wrong or
+  rotated key), malformed JSON: pages the same way. A decryption
+  failure right after a `BACKUP_ENCRYPTION_KEY` change means the new
+  key cannot read the existing objects — re-encrypt or accept that
+  pre-rotation backups are only readable with the retired key.
+- **Not configured** — deployments without the `BACKUP_S3_*` vars skip
+  silently (wide-event warning only).
+
+The drill needs no IAM grant beyond the uploader's existing
+`GetObject` + `ListBucket`.

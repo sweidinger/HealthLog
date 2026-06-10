@@ -77,6 +77,10 @@ services:
       # .env reach the container (the `environment:` block is a whitelist).
       DEPLOY_WEBHOOK_SECRET: "${DEPLOY_WEBHOOK_SECRET:-}"
       DEPLOY_LOGS_URL: "${DEPLOY_LOGS_URL:-}"
+      # Optional replay hardening: when "true", the deploy webhook
+      # requires a fresh X-Deploy-Webhook-Timestamp header (±5 min).
+      # See docs/ops/deploy.md.
+      DEPLOY_WEBHOOK_REQUIRE_TIMESTAMP: "${DEPLOY_WEBHOOK_REQUIRE_TIMESTAMP:-}"
       # TLS leaf SPKI-change alarm baseline (optional). The native client
       # pins the served TLS leaf; this is the known-good pin set the monitor
       # alarms against on a rotation. Comma-separated for the dual-pin

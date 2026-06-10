@@ -85,6 +85,58 @@ function normalizePayload(payload: CoolifyDeployPayload): NormalizedEvent {
   };
 }
 
+/**
+ * Replay protection (v1.16.4). A captured webhook request carries a
+ * static shared secret, so without a freshness check it can be replayed
+ * indefinitely — re-paging admins with stale failure alerts and
+ * polluting the audit log with forged deploy outcomes.
+ *
+ * The sender attaches `X-Deploy-Webhook-Timestamp` (unix seconds or
+ * ISO-8601). Requests whose timestamp falls outside a ±5-minute window
+ * are rejected. Two modes:
+ *
+ *   - Default (tolerant): a request WITHOUT the header passes — Coolify's
+ *     stock notification sender does not attach one, and breaking the
+ *     live integration would cost more than the residual replay window.
+ *     A header that IS present but stale/invalid is always rejected, so
+ *     a replayed capture of a timestamped request never lands.
+ *   - `DEPLOY_WEBHOOK_REQUIRE_TIMESTAMP=true`: the header becomes
+ *     mandatory. For operators whose sender (or reverse proxy) can
+ *     attach the timestamp; closes the replay window completely.
+ *
+ * See docs/ops/deploy.md ("Deploy-status webhook") for the operator
+ * guidance.
+ */
+const TIMESTAMP_WINDOW_MS = 5 * 60 * 1000;
+
+function parseTimestamp(raw: string): number | null {
+  // Unix seconds (10 digits covers 2001-2286) or milliseconds.
+  if (/^\d{10}$/.test(raw)) return Number(raw) * 1000;
+  if (/^\d{13}$/.test(raw)) return Number(raw);
+  const iso = Date.parse(raw);
+  return Number.isFinite(iso) ? iso : null;
+}
+
+function checkTimestampFreshness(
+  request: NextRequest,
+  now: number = Date.now(),
+): { ok: boolean; reason?: string } {
+  const raw = request.headers.get("x-deploy-webhook-timestamp");
+  const required =
+    process.env.DEPLOY_WEBHOOK_REQUIRE_TIMESTAMP === "true" ||
+    process.env.DEPLOY_WEBHOOK_REQUIRE_TIMESTAMP === "1";
+  if (raw === null || raw === "") {
+    if (required) return { ok: false, reason: "timestamp_missing" };
+    return { ok: true };
+  }
+  const ts = parseTimestamp(raw);
+  if (ts === null) return { ok: false, reason: "timestamp_invalid" };
+  if (Math.abs(now - ts) > TIMESTAMP_WINDOW_MS) {
+    return { ok: false, reason: "timestamp_outside_window" };
+  }
+  return { ok: true };
+}
+
 function hasValidSecret(request: NextRequest): boolean {
   const expected = process.env.DEPLOY_WEBHOOK_SECRET;
   if (!expected) {
@@ -171,6 +223,17 @@ export const POST = apiHandler(async (request: NextRequest) => {
 
   if (!hasValidSecret(request)) {
     return NextResponse.json({ status: "unauthorized" }, { status: 401 });
+  }
+
+  // Freshness AFTER the secret check: an unauthenticated caller learns
+  // nothing about the timestamp policy, and a replayed-but-stale request
+  // from a captured legitimate call is rejected here.
+  const freshness = checkTimestampFreshness(request);
+  if (!freshness.ok) {
+    annotate({
+      meta: { deploy_webhook_replay_reason: freshness.reason ?? "unknown" },
+    });
+    return NextResponse.json({ status: "stale" }, { status: 401 });
   }
 
   getEvent()?.setAuth({ auth_method: "webhook_secret" });

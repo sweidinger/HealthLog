@@ -1,0 +1,32 @@
+# Git-hook manager (v1.16.4). `pnpm install` wires the hooks via the
+# `prepare` script in package.json; no manual step needed.
+#
+# Pre-commit secret scan: `gitleaks protect --staged` scans exactly the
+# staged hunks against the repo's `.gitleaks.toml` before every commit,
+# so a secret-shaped string never reaches the object store (where only
+# a history rewrite can remove it again).
+#
+# Requirements: the `gitleaks` binary must be on PATH — the command
+# below fails with install pointers when it is missing rather than
+# silently skipping the scan.
+#
+# Opt-out (one commit):   LEFTHOOK=0 git commit ...
+# Opt-out (skip one job): LEFTHOOK_EXCLUDE=gitleaks git commit ...
+# Opt-out (permanent):    pnpm lefthook uninstall
+# Per project policy (`--no-verify` is banned), prefer fixing the
+# finding over bypassing the hook.
+
+pre-commit:
+  commands:
+    gitleaks:
+      run: |
+        if ! command -v gitleaks >/dev/null 2>&1; then
+          echo "ERROR: gitleaks binary not found on PATH — the staged-secret scan cannot run." >&2
+          echo "Install it first, e.g.:" >&2
+          echo "  brew install gitleaks            # macOS" >&2
+          echo "  apt/apk/pacman install gitleaks  # Linux distros" >&2
+          echo "  https://github.com/gitleaks/gitleaks#installing" >&2
+          echo "One-off bypass (use sparingly): LEFTHOOK=0 git commit ..." >&2
+          exit 1
+        fi
+        gitleaks protect --staged --redact --no-banner
