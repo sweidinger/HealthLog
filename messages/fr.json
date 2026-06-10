@@ -1979,8 +1979,7 @@
       "stop": "Arrêter",
       "thinking": "Réflexion en cours…",
       "composerPlaceholder": "Pose-moi une question sur tes données…",
-      "composerHint": "Entrée pour envoyer, Maj+Entrée pour une nouvelle ligne.",
-      "composerDisclaimer": "Les réponses sont générées. Les décisions cliniques relèvent de ton médecin.",
+      "nudgeBubbleLabel": "Nouveau message du coach — ouvrir le chat",
       "selfContextChipsLabel": "Le Coach aimerait savoir :",
       "selfContextChipDismiss": "Ignorer la question",
       "voiceComingSoon": "La saisie vocale arrive avec l’app iOS en v1.5.",
@@ -3759,6 +3758,7 @@
         "resetConfirmTitle": "Réinitialiser la chaîne aux valeurs par défaut ?",
         "resetConfirmBody": "La chaîne revient à Codex → OpenAI → Anthropic → Local → OpenAI administrateur. Vos identifiants enregistrés ne sont pas affectés."
       },
+      "providerCardTitle": "Fournisseur d'IA",
       "activeProviderHeading": "Fournisseur actif",
       "activeProviderBody": "Choisissez le fournisseur à utiliser en premier. Le formulaire ci-dessous configure uniquement le fournisseur sélectionné ; la chaîne de secours en bas détermine ce qui se passe en cas d’échec.",
       "activeProviderLabel": "Fournisseur principal",

@@ -301,7 +301,7 @@ export function SourcesSection() {
       <header className="space-y-1">
         <h1
           id="settings-section-sources-title"
-          className="text-2xl font-semibold tracking-tight"
+          className="sr-only"
         >
           {t("settings.sections.sources.title")}
         </h1>
@@ -325,7 +325,7 @@ export function SourcesSection() {
       <div className="bg-card border-border space-y-4 rounded-xl border p-6">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
           <div className="flex items-center gap-2">
-            <Layers className="text-primary h-5 w-5" />
+            <Layers className="text-muted-foreground h-5 w-5" />
             <h2 className="text-lg font-semibold">
               {t("settings.sections.sources.cardTitle")}
             </h2>
@@ -342,7 +342,7 @@ export function SourcesSection() {
           </Button>
         </div>
 
-        <p className="text-muted-foreground text-xs">
+        <p className="text-muted-foreground pl-7 text-xs">
           {t("settings.sections.sources.help")}
         </p>
 

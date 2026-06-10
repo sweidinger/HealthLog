@@ -12,10 +12,10 @@ export function ServicesSection() {
   return (
     <div className="bg-card border-border rounded-xl border p-6">
       <div className="flex items-center gap-2">
-        <Globe className="text-primary h-5 w-5" />
+        <Globe className="text-muted-foreground h-5 w-5" />
         <div className="text-lg font-semibold">{t("admin.servicesGlobal")}</div>
       </div>
-      <p className="text-muted-foreground mt-1 text-xs">
+      <p className="text-muted-foreground mt-1 pl-7 text-xs">
         {t("admin.servicesGlobalDescription")}
       </p>
       <div className="mt-4 space-y-3">

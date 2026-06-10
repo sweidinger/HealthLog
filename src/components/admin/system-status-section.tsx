@@ -53,7 +53,7 @@ export function SystemStatusSection() {
       <HostMetricsChart />
       <div className="bg-card border-border rounded-xl border p-6">
         <div className="flex items-center gap-2">
-          <Server className="text-primary h-5 w-5" />
+          <Server className="text-muted-foreground h-5 w-5" />
           <div className="text-lg font-semibold">{t("admin.systemStatus")}</div>
         </div>
         {status ? (

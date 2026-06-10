@@ -1979,8 +1979,7 @@
       "stop": "Detener",
       "thinking": "Pensando…",
       "composerPlaceholder": "Pregúntame sobre tus datos…",
-      "composerHint": "Intro para enviar, Mayús+Intro para una nueva línea.",
-      "composerDisclaimer": "Las respuestas son generadas. Las decisiones clínicas las toma tu médico.",
+      "nudgeBubbleLabel": "Nuevo mensaje del coach — abrir el chat",
       "selfContextChipsLabel": "Al Coach le gustaría saber:",
       "selfContextChipDismiss": "Descartar pregunta",
       "voiceComingSoon": "La entrada por voz llega con la app de iOS en la v1.5.",
@@ -3759,6 +3758,7 @@
         "resetConfirmTitle": "¿Restablecer la cadena a los valores predeterminados?",
         "resetConfirmBody": "La cadena vuelve a Codex → OpenAI → Anthropic → Local → OpenAI de administrador. Tus credenciales guardadas no se modifican."
       },
+      "providerCardTitle": "Proveedor de IA",
       "activeProviderHeading": "Proveedor activo",
       "activeProviderBody": "Elige el proveedor que quieres usar primero. El formulario de abajo configura únicamente el proveedor seleccionado; la cadena de respaldo del final decide qué ocurre si falla.",
       "activeProviderLabel": "Proveedor principal",

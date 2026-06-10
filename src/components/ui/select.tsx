@@ -63,7 +63,11 @@ function SelectTrigger({
             from the right edge than the value text sits from the left — the
             trigger read lopsided. Pulling the icon box 2 px toward the edge
             makes the visible chevron and the value text inset symmetric. */}
-        <ChevronDownIcon className="-me-0.5 size-4 opacity-50" />
+        {/* Full-strength muted-foreground (no `opacity-50`): the halved
+            chevron read near-invisible on the light theme while the value
+            text next to it sat at full strength. The chevron now matches
+            the NativeSelect chevron and the input text weight. */}
+        <ChevronDownIcon className="text-muted-foreground -me-0.5 size-4" />
       </SelectPrimitive.Icon>
     </SelectPrimitive.Trigger>
   );

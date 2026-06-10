@@ -111,12 +111,12 @@ export function RemindersSection() {
         {/* v1.4.22 D / F-58 — icon swap so the section header matches
             the admin-shell nav tile (Bell). Clock now lives on the
             timing chips inline instead of competing as the page icon. */}
-        <Bell className="text-primary h-5 w-5" />
+        <Bell className="text-muted-foreground h-5 w-5" />
         <div className="text-lg font-semibold">
           {t("admin.medicationReminders")}
         </div>
       </div>
-      <p className="text-muted-foreground mt-1 text-xs">
+      <p className="text-muted-foreground mt-1 pl-7 text-xs">
         {t("admin.medicationRemindersDescription")}
       </p>
 

@@ -218,7 +218,31 @@ labelled `<Select>`s and date inputs.
   fetching stay in the owning page. Use `FilterBarSelect` for enum
   dimensions and `FilterBarDateRange` for the from/to pair.
 
-### 2.7 Status indicators
+### 2.7 Section-card headers — icon column + content column
+
+Every Settings/Admin section card header follows one shape, implemented
+by `<SettingsCardHeader>` (`src/components/settings/_card-header.tsx`)
+or an equivalent inline structure:
+
+- **Icon column** (left): one Lucide icon, `text-muted-foreground h-5 w-5`.
+  Icons in card headers are always neutral — never `text-primary` or any
+  `dracula-*` accent. Purple/primary is reserved for actions and
+  highlight states (§2.8), not for iconography.
+- **Content column** (right of the icon, `gap-2` → 28 px offset): the
+  title, its description, and **everything textual that follows in the
+  card** — descriptions, follow-up headings after separators, form
+  stacks, helper/feedback lines. Apply `pl-7` to body blocks so nothing
+  textual ever starts further left than the title above it, and
+  follow-up headings align with the title column, not the icon.
+- **Exception — full-bleed structures**: data tables, tile/card grids,
+  charts, ladder lists, and `<hr>` separators may span the full card
+  width. The rule governs text alignment, not structural surfaces.
+- The page-level section `<h1>` is `sr-only`: the shell header already
+  carries "Einstellungen · <Sektion>", so a visible in-section repeat
+  is a double title. Keep the `<h1>` in the DOM for the document
+  outline and `aria-labelledby`.
+
+### 2.8 Status indicators
 
 Use the same color taxonomy across the app:
 
@@ -297,7 +321,7 @@ Same shape as Settings, with the right-hand sidebar listing:
 - Maintenance
 - Audit log
 
-Status badges use the §2.7 color taxonomy. Each section opens to a card
+Status badges use the §2.8 color taxonomy. Each section opens to a card
 grid, never a long fluid list.
 
 ---

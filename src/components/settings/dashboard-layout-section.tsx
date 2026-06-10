@@ -312,7 +312,7 @@ export function DashboardLayoutSection({ id }: { id: string }) {
           zurücksetzen" copy clipping the card edge at narrow widths. */}
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
         <div className="flex items-center gap-2">
-          <LayoutDashboard className="text-primary h-5 w-5" />
+          <LayoutDashboard className="text-muted-foreground h-5 w-5" />
           <h2 className="text-lg font-semibold">
             {t("dashboard.customizeTitle")}
           </h2>

@@ -46,10 +46,13 @@ import { cn } from "@/lib/utils";
 // Doing it as a background (rather than an overlay element) keeps `<select>` a
 // single element, so every call site's width / margin className still composes
 // straight onto it. `pe-9` reserves room so a long value never runs under the
-// chevron. The chevron glyph is the same path Lucide's `ChevronDownIcon` draws,
-// at `currentColor` with 50 % opacity to match the trigger.
-const CHEVRON_SVG =
-  "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' opacity='0.5'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E\")";
+// chevron. The chevron glyph is the same path Lucide's `ChevronDownIcon` draws.
+// Colour: `currentColor` inside a background-image data URI resolves to black
+// (no CSS cascade reaches it), which read as a near-black arrow on the light
+// theme. The stroke is therefore baked per theme into the
+// `--native-select-chevron` custom property in `globals.css`, pinned to the
+// theme's `--muted-foreground` — same colour the shadcn `<SelectTrigger>`
+// chevron uses.
 
 const NATIVE_SELECT_CLASS =
   "border-input bg-background text-foreground ring-offset-background placeholder:text-muted-foreground focus-visible:ring-ring flex h-11 sm:h-10 w-full appearance-none rounded-md border ps-3 pe-9 py-1 text-sm shadow-xs transition-[color,box-shadow] focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none bg-[image:var(--native-select-chevron)] bg-[length:1rem] bg-[position:right_0.75rem_center] bg-no-repeat";
@@ -65,12 +68,7 @@ export const NativeSelect = React.forwardRef<
       ref={ref}
       data-slot="native-select"
       className={cn(NATIVE_SELECT_CLASS, className)}
-      style={
-        {
-          "--native-select-chevron": CHEVRON_SVG,
-          ...style,
-        } as React.CSSProperties
-      }
+      style={style}
       {...props}
     >
       {children}

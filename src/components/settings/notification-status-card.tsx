@@ -136,12 +136,12 @@ export function NotificationStatusCard() {
         data-testid="notification-status-empty"
       >
         <div className="flex items-center gap-2">
-          <Bell className="text-primary h-5 w-5" />
+          <Bell className="text-muted-foreground h-5 w-5" />
           <h2 className="text-lg font-semibold">
             {t("settings.notificationStatus.title")}
           </h2>
         </div>
-        <p className="text-muted-foreground mt-1 text-sm">
+        <p className="text-muted-foreground mt-1 pl-7 text-sm">
           {t("settings.notificationStatus.emptyDescription")}
         </p>
       </div>
@@ -152,12 +152,12 @@ export function NotificationStatusCard() {
     <div className="bg-card border-border rounded-xl border p-6">
       <header className="mb-4">
         <div className="flex items-center gap-2">
-          <Bell className="text-primary h-5 w-5" />
+          <Bell className="text-muted-foreground h-5 w-5" />
           <h2 className="text-lg font-semibold">
             {t("settings.notificationStatus.title")}
           </h2>
         </div>
-        <p className="text-muted-foreground text-xs">
+        <p className="text-muted-foreground pl-7 text-xs">
           {t("settings.notificationStatus.description")}
         </p>
       </header>

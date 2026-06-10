@@ -77,7 +77,7 @@ export function NotificationsSection() {
       <header className="space-y-1">
         <h1
           id="settings-section-notifications-title"
-          className="text-2xl font-semibold tracking-tight"
+          className="sr-only"
         >
           {t("settings.sections.notifications.title")}
         </h1>

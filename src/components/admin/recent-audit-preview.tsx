@@ -59,7 +59,7 @@ export function RecentAuditPreview() {
     >
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
-          <ScrollText className="text-primary h-5 w-5" aria-hidden="true" />
+          <ScrollText className="text-muted-foreground h-5 w-5" aria-hidden="true" />
           <h2
             id="admin-overview-audit-heading"
             className="text-lg font-semibold"

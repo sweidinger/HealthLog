@@ -116,7 +116,7 @@ export function AppLogPreviewSection() {
     <div className="bg-card border-border space-y-4 rounded-xl border p-6">
       <header className="flex items-start justify-between gap-3">
         <div className="flex items-start gap-2">
-          <FileText className="text-primary mt-0.5 h-5 w-5" />
+          <FileText className="text-muted-foreground mt-0.5 h-5 w-5" />
           <div>
             <h2 className="text-lg font-semibold">
               {t("admin.section.app-logs.title")}

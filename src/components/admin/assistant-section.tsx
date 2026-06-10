@@ -107,10 +107,10 @@ export function AssistantSection() {
   return (
     <div className="bg-card border-border space-y-6 rounded-xl border p-6">
       <div className="flex items-center gap-2">
-        <Sparkles className="text-primary h-5 w-5" />
+        <Sparkles className="text-muted-foreground h-5 w-5" />
         <div className="text-lg font-semibold">{t("admin.assistant.title")}</div>
       </div>
-      <p className="text-muted-foreground text-sm">
+      <p className="text-muted-foreground pl-7 text-sm">
         {t("admin.assistant.description")}
       </p>
 

@@ -238,7 +238,7 @@ export function AboutSection() {
       <header className="space-y-1">
         <h1
           id="settings-section-about-title"
-          className="text-2xl font-semibold tracking-tight"
+          className="sr-only"
         >
           {t("settings.sections.about.title")}
         </h1>
@@ -255,14 +255,14 @@ export function AboutSection() {
         <SettingsCardHeader icon={Info} title="HealthLog" className="mb-4" />
 
         {isLoading || !version ? (
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 pl-7">
             <Loader2 className="text-muted-foreground h-4 w-4 animate-spin motion-reduce:animate-none" />
             <span className="text-muted-foreground text-sm">
               {t("common.loading")}
             </span>
           </div>
         ) : (
-          <dl className="flex flex-wrap items-baseline gap-x-6 gap-y-3 text-sm">
+          <dl className="flex flex-wrap items-baseline gap-x-6 gap-y-3 pl-7 text-sm">
             <div className="flex items-baseline gap-2">
               <dt className="text-muted-foreground text-xs tracking-wide uppercase">
                 {t("settings.about.version")}
@@ -327,7 +327,7 @@ export function AboutSection() {
             title={t("settings.about.linksHeading")}
             className="mb-4"
           />
-          <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+          <div className="flex flex-col gap-2 pl-7 sm:flex-row sm:flex-wrap">
             <Button asChild variant="outline" size="sm">
               <a
                 href={version.repository}
@@ -372,16 +372,16 @@ export function AboutSection() {
           tour" card so the two surfaces feel consistent. */}
       <div className="bg-card border-border rounded-xl border p-6">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-2">
-          <div className="space-y-1">
-            <div className="flex items-center gap-2">
-              <Compass className="text-primary h-5 w-5" />
+          <div className="flex items-start gap-2">
+            <Compass className="text-muted-foreground mt-0.5 h-5 w-5 shrink-0" />
+            <div className="space-y-1">
               <h2 className="text-lg font-semibold">
                 {t("settings.about.tourReplay")}
               </h2>
+              <p className="text-muted-foreground text-xs">
+                {t("settings.about.tourReplayHint")}
+              </p>
             </div>
-            <p className="text-muted-foreground text-xs">
-              {t("settings.about.tourReplayHint")}
-            </p>
           </div>
           <Button
             type="button"
@@ -402,7 +402,7 @@ export function AboutSection() {
         {tourFeedback && (
           <p
             role="alert"
-            className={`mt-2 text-xs ${
+            className={`mt-2 pl-7 text-xs ${
               tourFeedback.type === "success"
                 ? "text-success"
                 : "text-destructive"

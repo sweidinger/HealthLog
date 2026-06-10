@@ -1979,8 +1979,7 @@
       "stop": "Stopp",
       "thinking": "Denke nach…",
       "composerPlaceholder": "Frag mich etwas zu deinen Daten…",
-      "composerHint": "Enter zum Senden, Umschalt+Enter für eine neue Zeile.",
-      "composerDisclaimer": "Coach-Antworten sind generiert. Klinische Entscheidungen gehören in die Hand deines Arztes.",
+      "nudgeBubbleLabel": "Neue Nachricht vom Coach — Chat öffnen",
       "selfContextChipsLabel": "Der Coach würde gern wissen:",
       "selfContextChipDismiss": "Frage verwerfen",
       "voiceComingSoon": "Spracheingabe kommt mit der iOS-App in v1.5.",
@@ -3759,6 +3758,7 @@
         "resetConfirmTitle": "Kette auf Standard zurücksetzen?",
         "resetConfirmBody": "Die Kette wird auf Codex → OpenAI → Anthropic → Lokal → Admin-OpenAI zurückgesetzt. Gespeicherte Zugangsdaten bleiben erhalten."
       },
+      "providerCardTitle": "KI-Anbieter",
       "activeProviderHeading": "Aktiver Provider",
       "activeProviderBody": "Wähle den Provider, der zuerst genutzt wird. Das Formular darunter konfiguriert ausschließlich den ausgewählten Provider; die Fallback-Kette unten regelt, was passiert, wenn er ausfällt.",
       "activeProviderLabel": "Primärer Provider",

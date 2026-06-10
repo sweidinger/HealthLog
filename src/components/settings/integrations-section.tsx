@@ -257,7 +257,7 @@ export function IntegrationsSection() {
       <header className="space-y-1">
         <h1
           id="settings-section-integrations-title"
-          className="text-2xl font-semibold tracking-tight"
+          className="sr-only"
         >
           {t("settings.sections.integrations.title")}
         </h1>
@@ -463,7 +463,7 @@ function WithingsCard({
         className="border-border/60 mt-4"
       />
 
-      <div className="mt-4 space-y-4">
+      <div className="mt-4 space-y-4 pl-7">
         {errorMessage && <IntegrationErrorMessage message={errorMessage} />}
         {/* v1.4.25 W5d — Withings activity-scope reconnect banner.
             Only paints when (a) the user has an active Withings
@@ -920,7 +920,7 @@ function WhoopCard({
         className="border-border/60 mt-4"
       />
 
-      <div className="mt-4 space-y-4">
+      <div className="mt-4 space-y-4 pl-7">
         {errorMessage && <IntegrationErrorMessage message={errorMessage} />}
         {/* Parked-integration resume CTA. Surfaces only when the row
             state is `parked` (>24h of persistent failures). The button
@@ -1370,7 +1370,7 @@ function FitbitCard({
         className="border-border/60 mt-4"
       />
 
-      <div className="mt-4 space-y-4">
+      <div className="mt-4 space-y-4 pl-7">
         {errorMessage && <IntegrationErrorMessage message={errorMessage} />}
         {/* Parked-integration resume CTA. Surfaces only when the row
             state is `parked` (>24h of persistent failures). The button

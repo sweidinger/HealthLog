@@ -60,10 +60,9 @@ export function InsightsLayoutShell({ children }: { children: ReactNode }) {
   const advisorEnabled =
     isAuthenticated && flags.enabled && flags.briefing;
 
-  // v1.12.6 — routes that carry their own purpose-built disclaimer must NOT
-  // also show the generic footer below (otherwise two disclaimers stack).
-  // The Coach full page renders its own `composerDisclaimer` under the
-  // composer, so its segment is excluded here. Every other segment — the
+  // v1.12.6 — the Coach segment is excluded from the generic disclaimer
+  // footer (v1.16.1 dropped the in-chat disclaimer line entirely; the
+  // chat surface stays footer-free by design). Every other segment — the
   // overview (null segment), the metric sub-pages, mood, medications, the
   // raw values table — keeps the single generic footer.
   const segment = useSelectedLayoutSegment();

@@ -80,7 +80,7 @@ export function ExportSection() {
       <header className="space-y-1">
         <h1
           id="settings-section-export-title"
-          className="text-2xl font-semibold tracking-tight"
+          className="sr-only"
         >
           {t("settings.sections.export.title")}
         </h1>
@@ -161,7 +161,7 @@ function ExportCardShell({
     >
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-2">
-          <Icon className="text-primary h-5 w-5 shrink-0" />
+          <Icon className="text-muted-foreground h-5 w-5 shrink-0" />
           <h2 className="text-base font-semibold">{title}</h2>
         </div>
         <span className="border-border text-muted-foreground rounded-full border px-2 py-0.5 text-[11px] font-medium tracking-wide uppercase">

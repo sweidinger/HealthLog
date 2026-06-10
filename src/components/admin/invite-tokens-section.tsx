@@ -314,15 +314,15 @@ export function InviteTokensSection() {
       <div className="flex flex-col gap-4 p-4 sm:flex-row sm:items-start sm:justify-between sm:p-6">
         <div className="min-w-0">
           <div className="flex items-center gap-2">
-            <Ticket className="text-primary h-5 w-5" aria-hidden="true" />
+            <Ticket className="text-muted-foreground h-5 w-5" aria-hidden="true" />
             <h2 id="admin-invites-title" className="text-lg font-semibold">
               {t("admin.invites.title")}
             </h2>
           </div>
-          <p className="text-muted-foreground mt-1 text-sm">
+          <p className="text-muted-foreground mt-1 pl-7 text-sm">
             {t("admin.invites.description")}
           </p>
-          <p className="text-muted-foreground/80 mt-1 flex items-center gap-1.5 text-xs">
+          <p className="text-muted-foreground/80 mt-1 flex items-center gap-1.5 pl-7 text-xs">
             <ShieldCheck className="size-3.5 shrink-0" aria-hidden="true" />
             {t("admin.invites.adminOnlyHint")}
           </p>

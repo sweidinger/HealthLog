@@ -43,7 +43,7 @@ export function ApiSection() {
       <header className="space-y-1">
         <h1
           id="settings-section-api-title"
-          className="text-2xl font-semibold tracking-tight"
+          className="sr-only"
         >
           {t("settings.sections.api.title")}
         </h1>
@@ -262,7 +262,7 @@ function ApiTokensCard() {
         }
       />
 
-      <div className="mt-4 space-y-4">
+      <div className="mt-4 space-y-4 pl-7">
         {/* The button mirrors the Input's responsive height (h-11 / sm:h-10)
             so the row reads as one aligned control group instead of a tall
             input next to a shorter `sm` button. */}

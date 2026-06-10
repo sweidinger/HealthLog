@@ -243,7 +243,7 @@ export function UserManagementSection() {
           floating into the title's gap. */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-2">
         <div className="flex items-center gap-2">
-          <Users className="text-primary h-5 w-5" />
+          <Users className="text-muted-foreground h-5 w-5" />
           <div className="text-lg font-semibold">
             {t("admin.userManagement")}
           </div>

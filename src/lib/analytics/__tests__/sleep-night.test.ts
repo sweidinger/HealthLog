@@ -286,6 +286,47 @@ describe("reconstructSleepNights", () => {
     // Apple Health wins under the override: 230 + 80 = 310.
     expect(nights[0].asleepMinutes).toBe(310);
   });
+
+  it("prefers the stage-granular source over a coarse one regardless of ladder", () => {
+    // Mixed night: WHOOP writes the full hypnogram (REM/CORE/DEEP/AWAKE),
+    // Apple Health writes only coarse AWAKE/ASLEEP blocks + IN_BED for the
+    // SAME night. Even with a ladder that ranks Apple Health first, the
+    // granular WHOOP partition must carry the night — otherwise the chart
+    // collapses to awake/asleep and the stages disappear.
+    const priorityJson = { sleep: ["APPLE_HEALTH", "WHOOP"] };
+    const rows: SleepStageRow[] = [
+      srcRow("2026-06-04T01:00:00.000Z", "CORE", 240, "WHOOP"),
+      srcRow("2026-06-04T03:00:00.000Z", "DEEP", 90, "WHOOP"),
+      srcRow("2026-06-04T04:30:00.000Z", "REM", 90, "WHOOP"),
+      srcRow("2026-06-04T04:40:00.000Z", "AWAKE", 10, "WHOOP"),
+      // Apple Health's coarse parallel export of the same night.
+      srcRow("2026-06-04T01:30:00.000Z", "ASLEEP", 110, "APPLE_HEALTH"),
+      srcRow("2026-06-04T01:40:00.000Z", "AWAKE", 10, "APPLE_HEALTH"),
+      srcRow("2026-06-04T03:30:00.000Z", "ASLEEP", 100, "APPLE_HEALTH"),
+      srcRow("2026-06-04T04:30:00.000Z", "ASLEEP", 60, "APPLE_HEALTH"),
+      srcRow("2026-06-04T04:40:00.000Z", "IN_BED", 430, "APPLE_HEALTH"),
+    ];
+    const nights = reconstructSleepNights(rows, "UTC", priorityJson);
+    expect(nights).toHaveLength(1);
+    // WHOOP's granular partition: 240 + 90 + 90 = 420.
+    expect(nights[0].asleepMinutes).toBe(420);
+    expect(nights[0].stages.REM).toBe(90);
+    expect(nights[0].stages.DEEP).toBe(90);
+    expect(nights[0].stages.CORE).toBe(240);
+    // The coarse source's bare ASLEEP blocks must not blend in.
+    expect(nights[0].stages.ASLEEP).toBeUndefined();
+  });
+
+  it("keeps the coarse source as fallback when no granular source exists", () => {
+    const priorityJson = { sleep: ["APPLE_HEALTH", "WHOOP"] };
+    const rows: SleepStageRow[] = [
+      srcRow("2026-06-04T01:30:00.000Z", "ASLEEP", 110, "APPLE_HEALTH"),
+      srcRow("2026-06-04T03:30:00.000Z", "ASLEEP", 100, "APPLE_HEALTH"),
+    ];
+    const nights = reconstructSleepNights(rows, "UTC", priorityJson);
+    expect(nights).toHaveLength(1);
+    expect(nights[0].asleepMinutes).toBe(210);
+  });
 });
 
 describe("reconstructSleepSessions", () => {

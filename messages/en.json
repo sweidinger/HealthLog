@@ -1979,8 +1979,7 @@
       "stop": "Stop",
       "thinking": "Thinking…",
       "composerPlaceholder": "Ask anything about your data…",
-      "composerHint": "Press Enter to send, Shift+Enter for a new line.",
-      "composerDisclaimer": "Coach replies are generated. Clinical decisions belong with your doctor.",
+      "nudgeBubbleLabel": "New message from the Coach — open chat",
       "selfContextChipsLabel": "The Coach would like to know:",
       "selfContextChipDismiss": "Dismiss question",
       "voiceComingSoon": "Voice input arrives with the iOS app in v1.5.",
@@ -3759,6 +3758,7 @@
         "resetConfirmTitle": "Reset chain to defaults?",
         "resetConfirmBody": "The chain reverts to Codex → OpenAI → Anthropic → Local → Admin OpenAI. Your saved credentials are not touched."
       },
+      "providerCardTitle": "AI provider",
       "activeProviderHeading": "Active provider",
       "activeProviderBody": "Pick the provider you want to use first. The form below configures only the selected provider; the fallback chain at the bottom decides what happens if it fails.",
       "activeProviderLabel": "Primary provider",

@@ -35,7 +35,9 @@ import { NativeSelect } from "@/components/ui/native-select";
 import { Switch } from "@/components/ui/switch";
 import { PasswordInput } from "@/components/ui/password-input";
 import { AboutMeSection } from "@/components/settings/about-me-section";
+import { SettingsCardHeader } from "@/components/settings/_card-header";
 import { CoachMemorySection } from "@/components/settings/coach-memory-section";
+import { CoachPrefsSection } from "@/components/settings/coach-prefs-section";
 import { useAuth } from "@/hooks/use-auth";
 import { formatDateTime } from "@/lib/format";
 import { useTranslations } from "@/lib/i18n/context";
@@ -183,7 +185,7 @@ export function AiSection() {
       <header className="space-y-1">
         <h1
           id="settings-section-ai-title"
-          className="text-2xl font-semibold tracking-tight"
+          className="sr-only"
         >
           {t("settings.sections.ai.title")}
         </h1>
@@ -198,6 +200,12 @@ export function AiSection() {
           card so users who want the surface gone never have to scroll
           through provider configuration before finding the toggle. */}
       <DisableCoachCard isAuthenticated={isAuthenticated} />
+
+      {/* v1.16.1 — Coach preferences (tone, verbosity, data scope)
+          moved here from the in-chat sheet; the chat header gear
+          deep-links to this section. Gated on the Coach being
+          enabled. */}
+      {coachEnabled && <CoachPrefsSection isAuthenticated={isAuthenticated} />}
 
       {/* v1.11.2 — "What the Coach remembers": durable-fact review +
           forget controls. Gated on the Coach being enabled. */}
@@ -447,57 +455,64 @@ function AiInsightsCard({ isAuthenticated }: { isAuthenticated: boolean }) {
 
   return (
     <div className="bg-card border-border space-y-4 rounded-xl border p-6">
-      {/* v1.4.33 IW7 — the dedicated H2 ("KI-Insights") used to repeat
-          the parent section title ("KI-Auswertungen"). Both are gone now:
-          the section renders "Auswertungen" once at the top, and this
-          card carries only the Sparkles icon + the live provider-status
-          badges, mirroring the description that lives on the section
-          header. The configuration description is moved one level up
-          into the section subtitle so the visual hierarchy stays
-          two-level (section -> form) instead of three-level
-          (section -> card title -> form). */}
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <Sparkles className="text-primary h-5 w-5" aria-hidden="true" />
-        <ProviderStatusBadges
-          settings={insightsSettings}
-          activeProvider={chainData?.activeProvider ?? null}
+      {/* The card used to render an icon-only header row (Sparkles +
+          status badges, no title), which left the tile unanchored next
+          to its titled siblings. It now follows the shared
+          `SettingsCardHeader` contract: icon column, title + description
+          in the content column, status badges top-right — and the body
+          below indents to the title column (`pl-7`). */}
+      <SettingsCardHeader
+        icon={Sparkles}
+        title={t("settings.ai.providerCardTitle")}
+        description={t("settings.kiInsightsDescription")}
+        status={
+          <ProviderStatusBadges
+            settings={insightsSettings}
+            activeProvider={chainData?.activeProvider ?? null}
+          />
+        }
+      />
+
+      <div className="space-y-4 pl-7">
+        <ActiveProviderSelect
+          value={selectedProvider}
+          onChange={pickProvider}
+        />
+
+        <ProviderConfigCard
+          provider={selectedProvider}
+          insightsSettings={insightsSettings}
+          userProvider={userProvider}
+        />
+
+        <FallbackChainCard
+          chain={chainData?.configuredChain ?? []}
+          selected={selectedProvider}
+          onSelect={pickProvider}
+        />
+
+        <RuntimeActionsRow
+          provider={selectedProvider}
+          userProvider={userProvider}
+          canRegenerate={
+            insightsSettings?.codexStatus === "connected" ||
+            insightsSettings?.hasAdminKey ||
+            Boolean(userProvider?.provider)
+          }
+          privacyMode={insightsSettings?.privacyMode ?? "aggregated"}
+          lastInsightAt={insightsSettings?.lastInsightAt ?? null}
+          onRegenerated={() =>
+            queryClient.invalidateQueries({
+              queryKey: queryKeys.insightsRoot(),
+            })
+          }
+          onPrivacyChanged={() =>
+            queryClient.invalidateQueries({
+              queryKey: queryKeys.insightsRoot(),
+            })
+          }
         />
       </div>
-      <p className="text-muted-foreground text-xs">
-        {t("settings.kiInsightsDescription")}
-      </p>
-
-      <ActiveProviderSelect value={selectedProvider} onChange={pickProvider} />
-
-      <ProviderConfigCard
-        provider={selectedProvider}
-        insightsSettings={insightsSettings}
-        userProvider={userProvider}
-      />
-
-      <FallbackChainCard
-        chain={chainData?.configuredChain ?? []}
-        selected={selectedProvider}
-        onSelect={pickProvider}
-      />
-
-      <RuntimeActionsRow
-        provider={selectedProvider}
-        userProvider={userProvider}
-        canRegenerate={
-          insightsSettings?.codexStatus === "connected" ||
-          insightsSettings?.hasAdminKey ||
-          Boolean(userProvider?.provider)
-        }
-        privacyMode={insightsSettings?.privacyMode ?? "aggregated"}
-        lastInsightAt={insightsSettings?.lastInsightAt ?? null}
-        onRegenerated={() =>
-          queryClient.invalidateQueries({ queryKey: queryKeys.insightsRoot() })
-        }
-        onPrivacyChanged={() =>
-          queryClient.invalidateQueries({ queryKey: queryKeys.insightsRoot() })
-        }
-      />
     </div>
   );
 }

@@ -383,7 +383,7 @@ export function AccountSection() {
       <header className="space-y-1">
         <h1
           id="settings-section-account-title"
-          className="text-2xl font-semibold tracking-tight"
+          className="sr-only"
         >
           {t("settings.sections.account.title")}
         </h1>
@@ -402,7 +402,7 @@ export function AccountSection() {
           title={t("settings.profile")}
           className="mb-4"
         />
-        <form onSubmit={handleSaveProfile} className="space-y-4">
+        <form onSubmit={handleSaveProfile} className="space-y-4 pl-7">
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="username">{t("settings.username")}</Label>
@@ -615,8 +615,10 @@ export function AccountSection() {
           title={t("settings.passkeys")}
           className="mb-4"
         />
-        <PasskeyListSection isAuthenticated={isAuthenticated} />
-        <div className="mt-4 flex justify-end">
+        <div className="pl-7">
+          <PasskeyListSection isAuthenticated={isAuthenticated} />
+        </div>
+        <div className="mt-4 flex justify-end pl-7">
           <Button
             variant="outline"
             onClick={handleAddPasskey}
@@ -653,16 +655,16 @@ export function AccountSection() {
           right border by ~48 px). */}
       <div className="bg-card border-border rounded-xl border p-6">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-2">
-          <div className="space-y-1">
-            <div className="flex items-center gap-2">
-              <Shield className="text-primary h-5 w-5" />
+          <div className="flex items-start gap-2">
+            <Shield className="text-muted-foreground mt-0.5 h-5 w-5 shrink-0" />
+            <div className="space-y-1">
               <h2 className="text-lg font-semibold">
                 {t("settings.passwordReset")}
               </h2>
+              <p className="text-muted-foreground text-xs">
+                {t("settings.changePasswordDescription")}
+              </p>
             </div>
-            <p className="text-muted-foreground text-xs">
-              {t("settings.changePasswordDescription")}
-            </p>
           </div>
           <Button
             type="button"
@@ -683,16 +685,16 @@ export function AccountSection() {
           as the password card so both action surfaces look identical. */}
       <div className="bg-card border-border rounded-xl border p-6">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-2">
-          <div className="space-y-1">
-            <div className="flex items-center gap-2">
-              <Compass className="text-primary h-5 w-5" />
+          <div className="flex items-start gap-2">
+            <Compass className="text-muted-foreground mt-0.5 h-5 w-5 shrink-0" />
+            <div className="space-y-1">
               <h2 className="text-lg font-semibold">
                 {t("onboarding.tour.restart")}
               </h2>
+              <p className="text-muted-foreground text-xs">
+                {t("onboarding.tour.restartHint")}
+              </p>
             </div>
-            <p className="text-muted-foreground text-xs">
-              {t("onboarding.tour.restartHint")}
-            </p>
           </div>
           <Button
             type="button"
@@ -1156,10 +1158,10 @@ function AvatarSection() {
         title={t("settings.avatar.title")}
         className="mb-4"
       />
-      <p className="text-muted-foreground mb-4 text-sm">
+      <p className="text-muted-foreground mb-4 pl-7 text-sm">
         {t("settings.avatar.description")}
       </p>
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-4 pl-7">
         <Avatar className="size-16">
           {avatarUrl && <AvatarImage src={avatarUrl} alt={user.username} />}
           <AvatarFallback className="text-base">

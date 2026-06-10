@@ -13,11 +13,11 @@ import {
   Percent,
   Pill,
   Plus,
+  Settings2,
   Smile,
   Target,
   TrendingUp,
   Waves,
-  Wrench,
 } from "lucide-react";
 import { convertGlucose, resolveGlucoseUnit } from "@/lib/glucose";
 import { cn } from "@/lib/utils";
@@ -844,7 +844,7 @@ export default function DashboardPage() {
           <p className="text-muted-foreground mt-1 text-sm">{welcomeText}</p>
         </div>
         <div className="flex items-center gap-2">
-          {/* Wrench shortcut to the dashboard-customization settings
+          {/* Customize shortcut to the dashboard-customization settings
               (the tile/layout editor at /settings/dashboard). Sits to
               the left of the add button as a monochrome ghost icon, with
               a `min-h-11 min-w-11` mobile floor so it meets the 44 px
@@ -862,7 +862,7 @@ export default function DashboardPage() {
               aria-label={t("dashboard.customizeDashboard")}
               title={t("dashboard.customizeDashboard")}
             >
-              <Wrench className="h-4 w-4" aria-hidden="true" />
+              <Settings2 className="h-4 w-4" aria-hidden="true" />
             </Link>
           </Button>
           <DropdownMenu>
@@ -1456,7 +1456,6 @@ export default function DashboardPage() {
                 colors={["#bd93f9"]}
                 unit="kg"
                 valueBands={weightBands}
-                targetSettingsHref="/settings/thresholds"
                 compareBaseline={compareBaseline}
                 userTimezone={user?.timezone}
               />
@@ -1507,7 +1506,6 @@ export default function DashboardPage() {
                 unit="mmHg"
                 yAxisUnit="Hg"
                 targetZones={bpTargetZones}
-                targetSettingsHref="/settings/thresholds"
                 compareBaseline={compareBaseline}
                 userTimezone={user?.timezone}
               />

@@ -267,6 +267,7 @@ export function MoodHeatmap({
                 height={cellSize}
                 rx={2}
                 fill={cell.color}
+                fillOpacity={cell.cell ? 0.55 : 1}
                 className="cursor-pointer"
                 onPointerEnter={(e) => {
                   if (e.pointerType === "touch") return;
@@ -317,7 +318,7 @@ export function MoodHeatmap({
           <span key={label} className="flex items-center gap-1">
             <div
               className="h-3 w-3 rounded-sm"
-              style={{ backgroundColor: color }}
+              style={{ backgroundColor: color, opacity: 0.55 }}
             />
             {label}
           </span>

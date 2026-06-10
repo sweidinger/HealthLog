@@ -349,7 +349,7 @@ export function BackupsSection() {
     <div className="bg-card border-border rounded-xl border p-6">
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
-          <Database className="text-primary h-5 w-5" />
+          <Database className="text-muted-foreground h-5 w-5" />
           <div className="text-lg font-semibold">
             {t("admin.section.backups.title")}
           </div>

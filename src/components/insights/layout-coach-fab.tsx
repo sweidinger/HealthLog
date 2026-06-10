@@ -1,5 +1,8 @@
 "use client";
 
+import { useEffect, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { useQuery } from "@tanstack/react-query";
 import { Sparkles } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -8,88 +11,139 @@ import { useTranslations } from "@/lib/i18n/context";
 import { useCoachLaunch } from "@/lib/insights/coach-launch-context";
 import { useFeatureFlags } from "@/hooks/use-feature-flags";
 import { useDisableCoach } from "@/hooks/use-disable-coach";
+import { queryKeys } from "@/lib/query-keys";
 
 import { useChartTooltipActive } from "./use-chart-tooltip-active";
 
 /**
- * Layout-level mobile Coach launch FAB.
+ * v1.16.1 — the layout FAB is no longer a permanent launcher. It now
+ * renders ONLY while an unseen Coach-initiated nudge exists (the
+ * proactive `COACH_NUDGE` dispatch, surfaced by
+ * `/api/insights/coach/nudge-status`): a floating circle at the bottom
+ * right that opens the full-page Coach chat. It disappears once the
+ * nudge counts as read — the user sent a Coach message after the
+ * nudge (server-derived), or opened the Coach on this device (local
+ * seen stamp keyed by the nudge timestamp).
  *
- * v1.4.28 R3c — promoted out of `<CoachLaunchButton>` (which previously
- * rendered both the FAB and the inline pill from a single component;
- * each sub-page mount therefore painted a duplicate FAB into the DOM
- * before `fixed` positioning collapsed them visually). Mounting the
- * FAB once at the layout level keeps the affordance reachable from
- * every routed Insights surface while leaving the a11y tree with a
- * single button.
+ * The previous always-on mobile FAB drew attention to nothing; the
+ * inline "Ask Coach" pill in each page's action row stays the everyday
+ * entry point.
  *
- * Hidden on `lg+` viewports — desktop users reach the Coach via the
- * inline `<CoachLaunchButton>` pill that each page mounts in its
- * action row.
- *
- * v1.4.33 (F15) — the FAB sits at `bottom-right` and used to overlay
- * Recharts tooltips on the bottom-right of any insight chart, so a
- * mobile user tapping a data point near the chart's lower-right
- * couldn't read the bubble. The button now auto-hides while a chart
- * tooltip is active (the wrapper's `visibility: visible` flips us
- * to fade-out + pointer-events-none). When the user releases / scrolls
- * away the tooltip clears and the FAB fades back in.
+ * v1.4.33 (F15) — the bubble keeps the chart-tooltip auto-hide so it
+ * never overlays a Recharts tooltip on the lower right.
  */
+
+const NUDGE_SEEN_STORAGE_KEY = "healthlog-coach-nudge-seen";
+
+export interface CoachNudgeStatus {
+  nudgedAt: string | null;
+  unread: boolean;
+}
+
+/**
+ * Pure unread derivation — server signal AND-ed with the local
+ * seen-stamp. Exported so the unit test pins the contract without a
+ * QueryClient round-trip.
+ */
+export function isNudgeUnread(
+  status: CoachNudgeStatus | undefined,
+  seenStamp: string | null,
+): boolean {
+  if (!status?.unread || status.nudgedAt === null) return false;
+  return seenStamp !== status.nudgedAt;
+}
+
 export function LayoutCoachFab() {
   const { t } = useTranslations();
+  const router = useRouter();
+  const pathname = usePathname();
   const launch = useCoachLaunch();
   const flags = useFeatureFlags();
   const disableCoach = useDisableCoach();
   const tooltipActive = useChartTooltipActive();
-  if (!launch) return null;
-  // v1.4.31 — operator can hide the Coach surface app-wide. The
-  // FAB returns null when the master OR the coach sub-flag is off.
-  if (!flags.coach) return null;
-  // v1.4.47 W3 — per-user opt-out beats the operator's "on" default.
-  // A privacy-leaning user who toggles "Hide Coach" in Settings → Insights
-  // gets the FAB short-circuited here, identical to the global-off
-  // branch above. The hook defaults to `false` in the absence of a
-  // QueryClient (legacy SSR-only snapshot tests).
-  if (disableCoach) return null;
 
-  const accessibleLabel = t("insights.heroActionAskCoach");
+  // Local "seen on this device" stamp — the nudge timestamp the user
+  // last dismissed by opening the chat. Lazy initialiser per the
+  // `react-hooks/set-state-in-effect` rule.
+  const [seenStamp, setSeenStamp] = useState<string | null>(() => {
+    if (typeof window === "undefined") return null;
+    try {
+      return window.localStorage.getItem(NUDGE_SEEN_STORAGE_KEY);
+    } catch {
+      return null;
+    }
+  });
+
+  const coachAvailable = !!launch && flags.coach && !disableCoach;
+  const onCoachPage = pathname?.startsWith("/insights/coach") ?? false;
+
+  const { data: status } = useQuery({
+    queryKey: queryKeys.coachNudgeStatus(),
+    queryFn: async (): Promise<CoachNudgeStatus> => {
+      const res = await fetch("/api/insights/coach/nudge-status");
+      if (!res.ok) throw new Error("coach-nudge-status.failed");
+      return (await res.json()).data as CoachNudgeStatus;
+    },
+    enabled: coachAvailable,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const nudgedAt = status?.nudgedAt ?? null;
+  const unread = isNudgeUnread(status, seenStamp);
+
+  // Visiting the Coach page itself counts as reading the nudge on this
+  // device — persist the stamp so the bubble stays gone after leaving.
+  useEffect(() => {
+    if (!onCoachPage || nudgedAt === null) return;
+    try {
+      window.localStorage.setItem(NUDGE_SEEN_STORAGE_KEY, nudgedAt);
+    } catch {
+      // Storage unavailable (private mode) — the server-side read
+      // signal still clears the bubble once the user sends a message.
+    }
+  }, [onCoachPage, nudgedAt]);
+
+  if (!coachAvailable) return null;
+  if (onCoachPage || !unread) return null;
+
+  const accessibleLabel = t("insights.coach.nudgeBubbleLabel");
+
+  const handleOpen = () => {
+    if (nudgedAt !== null) {
+      setSeenStamp(nudgedAt);
+      try {
+        window.localStorage.setItem(NUDGE_SEEN_STORAGE_KEY, nudgedAt);
+      } catch {
+        // Best effort — see above.
+      }
+    }
+    router.push("/insights/coach");
+  };
 
   return (
     <Button
       type="button"
-      size="lg"
-      data-slot="coach-launch-fab"
+      size="icon"
+      data-slot="coach-nudge-bubble"
       data-chart-tooltip-active={tooltipActive ? "true" : undefined}
-      onClick={() => launch.askCoach(null)}
+      onClick={handleOpen}
       aria-label={accessibleLabel}
       title={accessibleLabel}
-      // v1.4.33 (F15) — `aria-hidden` + `tabIndex={-1}` while a chart
-      // tooltip is painted so screen-reader users + keyboard users
-      // don't trip over a button that's visually faded; pointer-events
-      // are gone, so a tap can't land on the invisible FAB either.
       aria-hidden={tooltipActive ? true : undefined}
       tabIndex={tooltipActive ? -1 : undefined}
       className={cn(
         // Sit above the 64 px bottom-nav + the iPhone home-indicator
-        // safe-area inset. `calc(env(safe-area-inset-bottom,0)+5rem)`
-        // keeps the FAB clear of the nav on notched iPhones (where the
-        // inset is ~34 px) without forcing extra padding into the
-        // layout grid.
-        "fixed right-4 z-40 h-12 rounded-full px-4 shadow-lg",
-        "bottom-[calc(env(safe-area-inset-bottom,0px)+5rem)]",
+        // safe-area inset on mobile; plain bottom offset on desktop.
+        "fixed right-4 z-40 size-12 rounded-full shadow-lg",
+        "bottom-[calc(env(safe-area-inset-bottom,0px)+5rem)] lg:bottom-6",
         "from-dracula-purple to-dracula-pink bg-gradient-to-br text-white",
         "hover:from-dracula-purple/90 hover:to-dracula-pink/90",
-        "lg:hidden",
-        // v1.4.33 (F15) — fade out while a Recharts tooltip is open.
-        // 150 ms transition matches the rest of the Coach drawer's
-        // fade timing; `motion-reduce:transition-none` honours user
-        // preference. `pointer-events-none` keeps the faded FAB from
-        // intercepting taps that should reach the tooltip behind.
+        // Fade out while a Recharts tooltip is open (see header note).
         "transition-opacity duration-150 motion-reduce:transition-none",
         tooltipActive && "pointer-events-none opacity-0",
       )}
     >
-      <Sparkles className="size-4" aria-hidden="true" />
-      <span>{accessibleLabel}</span>
+      <Sparkles className="size-5" aria-hidden="true" />
     </Button>
   );
 }
