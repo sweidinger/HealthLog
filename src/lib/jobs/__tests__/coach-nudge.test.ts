@@ -24,8 +24,15 @@ import {
   evaluateSelfContextTrigger,
 } from "../coach-nudge";
 
-function dose(taken: boolean, skipped = false) {
-  return { takenAt: taken ? new Date() : null, skipped };
+function dose(taken: boolean, skipped = false, autoMissed?: boolean) {
+  return {
+    takenAt: taken ? new Date() : null,
+    skipped,
+    // An untaken, unskipped row in these fixtures models a RESOLVED miss
+    // (the hourly auto-miss cron has flipped it). A still-open pending is
+    // modelled explicitly with `autoMissed: false`.
+    autoMissed: autoMissed ?? (!taken && !skipped),
+  };
 }
 
 describe("evaluateComplianceTrigger", () => {
@@ -76,6 +83,25 @@ describe("evaluateComplianceTrigger", () => {
       dose(false, true),
       dose(false, true),
       dose(false, true),
+    ];
+    expect(evaluateComplianceTrigger(rows)).toBe(false);
+  });
+
+  it("excludes still-open pendings from the denominator (v1.16.1)", () => {
+    // 3 taken + 2 auto-missed = 60 % (no fire). Four open pendings —
+    // today's not-yet-due slots, or slots whose grace window is still
+    // running (autoMissed false) — must not count as misses: with them
+    // the rate would read 33 % and nudge an adherent user at 05:15.
+    const rows = [
+      dose(true),
+      dose(true),
+      dose(true),
+      dose(false), // resolved miss (auto-missed)
+      dose(false), // resolved miss (auto-missed)
+      dose(false, false, false), // open pending
+      dose(false, false, false), // open pending
+      dose(false, false, false), // open pending
+      dose(false, false, false), // open pending
     ];
     expect(evaluateComplianceTrigger(rows)).toBe(false);
   });

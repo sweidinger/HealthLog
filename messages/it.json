@@ -1509,10 +1509,10 @@
         "bestand": "Scorta",
         "verlauf": "Cronologia",
         "injektion": "Iniezione",
+        "api": "API",
         "erweitert": "Avanzate"
       },
       "shell": {
-        "fullEdit": "Modifica completa",
         "loadFailed": "Impossibile caricare questo farmaco.",
         "tablistLabel": "Sezioni di dettaglio del farmaco"
       },
@@ -1543,7 +1543,25 @@
           "USED_UP": "Esaurito"
         },
         "empty": "Nessuna scorta registrata.",
-        "emptyHelper": "Registra una penna o una confezione per monitorare le dosi rimanenti e l'autonomia."
+        "emptyHelper": "Registra una penna o una confezione per monitorare le dosi rimanenti e l'autonomia.",
+        "emptyCta": "Registra una confezione",
+        "addButton": "Registra",
+        "addTitle": "Registra una penna o una confezione",
+        "addDescription": "Registra una nuova scorta con il numero di dosi; la data di scadenza è facoltativa.",
+        "addQuantityLabel": "Quantità (dosi / unità)",
+        "addQuantityHelper": "1–100 dosi per penna o confezione.",
+        "addExpiryLabel": "Data di scadenza (facoltativa)",
+        "addSubmit": "Registra",
+        "addSuccess": "Scorta registrata.",
+        "addFailed": "Impossibile registrare la scorta.",
+        "adjustButton": "Correggi",
+        "adjustTitle": "Correggi la scorta",
+        "adjustDescription": "Imposta le dosi rimanenti — per correzioni o un prelievo. 0 segna la scorta come esaurita.",
+        "adjustQuantityLabel": "Dosi rimanenti",
+        "adjustHelper": "Capacità: {total} dosi.",
+        "adjustSubmit": "Salva",
+        "adjustSuccess": "Scorta aggiornata.",
+        "adjustFailed": "Impossibile aggiornare la scorta."
       },
       "erweitert": {
         "group": {
@@ -1551,16 +1569,22 @@
           "externalApi": "API esterna",
           "data": "Dati",
           "danger": "Zona pericolosa"
+        },
+        "editor": {
+          "title": "Modifica il farmaco nell'editor",
+          "helper": "Cambia nome, classe di trattamento, frequenza e programmi nell'editor passo dopo passo.",
+          "button": "Apri editor"
         }
       },
       "zeitplan": {
         "title": "Programma",
         "timesTitle": "Orari di assunzione",
-        "timesNote": "Regola l'orario e la finestra puntuale di ogni dose. Per la frequenza (giornaliera, settimanale…) usa «Modifica completa».",
+        "timesNote": "Regola l'orario e la finestra puntuale di ogni dose. La frequenza (giornaliera, settimanale…) si modifica nell'editor, in Avanzate.",
         "scheduleLabel": "Programma {index}",
-        "fullEditNote": "Frequenza, classe di trattamento e finestra del ciclo si modificano da «Modifica completa».",
+        "fullEditNote": "Frequenza, classe di trattamento e finestra del ciclo si modificano nell'editor, in Avanzate → Ciclo di vita.",
         "graceEcho": "Finestra di promemoria: {minutes} minuti",
         "reminderTitle": "Promemoria",
+        "manageChannels": "Gestisci i canali di notifica",
         "save": "Salva programma",
         "saved": "Programma salvato",
         "failed": "Impossibile salvare il programma",
@@ -4943,6 +4967,30 @@
       "hiddenBugBuddy": {
         "title": "Amico dei bug",
         "description": "Hai inviato almeno 5 segnalazioni di bug — il progetto ti ama."
+      },
+      "missFree7": {
+        "title": "Nessuna dose persa · 7g",
+        "description": "7 giorni consecutivi senza una dose persa."
+      },
+      "missFree30": {
+        "title": "Nessuna dose persa · 30g",
+        "description": "30 giorni consecutivi senza una dose persa."
+      },
+      "missFree90": {
+        "title": "Nessuna dose persa · 90g",
+        "description": "90 giorni consecutivi senza una dose persa."
+      },
+      "measurementWeeks4": {
+        "title": "Routine di misurazione",
+        "description": "4 settimane consecutive con misurazioni in almeno 5 giorni ciascuna."
+      },
+      "selfContextComplete": {
+        "title": "Autodichiarazione aggiornata",
+        "description": "Tutti e quattro i campi dell’autodichiarazione compilati — il Coach conosce il tuo contesto."
+      },
+      "sleepLog7": {
+        "title": "Diario del sonno · 7g",
+        "description": "Dati del sonno registrati per 7 giorni consecutivi."
       }
     },
     "nextProgressLabel": "Progressi verso lo sblocco",
@@ -5604,6 +5652,11 @@
     "allSources": "Tutte le fonti",
     "dateFrom": "Dal",
     "dateTo": "Al",
+    "dateRange": "Periodo",
+    "typeLabel": "Tipo",
+    "sourceLabel": "Fonte",
+    "resetFilters": "Reimposta",
+    "clearFilter": "Rimuovi filtro: {label}",
     "selectAll": "Seleziona tutto in questa pagina",
     "selectRow": "Seleziona riga",
     "selected": "{count} selezionati",

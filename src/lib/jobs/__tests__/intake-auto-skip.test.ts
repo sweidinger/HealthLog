@@ -22,9 +22,13 @@
  *     reclassified as a miss),
  *   * idempotency-by-construction (a second pass finds zero candidates).
  */
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import type { PrismaClient } from "@/generated/prisma/client";
 
+import {
+  caches,
+  __resetAllCachesForTests,
+} from "@/lib/cache/server-cache";
 import {
   INTAKE_AUTO_SKIP_CRON,
   INTAKE_AUTO_SKIP_GRACE_HOURS,
@@ -92,10 +96,16 @@ function makeFakePrisma(state: {
   return {
     medicationIntakeEvent: {
       groupBy: vi.fn(async ({ where }: { where: FakeWhere }) => {
-        const ids = new Set(
-          state.rows.filter((r) => matches(r, where)).map((r) => r.medicationId),
-        );
-        return [...ids].map((medicationId) => ({ medicationId }));
+        // Mirrors `by: ["medicationId", "userId"]` — unique pairs.
+        const pairs = new Map<string, { medicationId: string; userId: string }>();
+        for (const row of state.rows) {
+          if (!matches(row, where)) continue;
+          pairs.set(`${row.medicationId}|${row.userId}`, {
+            medicationId: row.medicationId,
+            userId: row.userId,
+          });
+        }
+        return [...pairs.values()];
       }),
       updateMany: vi.fn(
         async ({
@@ -236,6 +246,10 @@ describe("runIntakeAutoSkipPass", () => {
     vi.clearAllMocks();
   });
 
+  afterEach(() => {
+    __resetAllCachesForTests();
+  });
+
   it("flips daily pending rows older than 24 h to auto_missed (NOT skipped)", async () => {
     const rows: FakeIntakeRow[] = [
       pendingRow("i-stale-1", "med-daily", new Date(NOW_MS - 30 * HOUR_MS)),
@@ -271,6 +285,40 @@ describe("runIntakeAutoSkipPass", () => {
     expect(
       rows.find((r) => r.id === "i-already-skipped")?.autoMissed,
     ).toBe(false);
+  });
+
+  it("invalidates the affected users' server caches after a flip (v1.16.1)", async () => {
+    const rows: FakeIntakeRow[] = [
+      pendingRow("i-u1", "med-daily", new Date(NOW_MS - 30 * HOUR_MS)),
+      pendingRow("i-u2", "med-daily", new Date(NOW_MS - 48 * HOUR_MS), {
+        userId: "u2",
+      }),
+    ];
+    const prisma = makeFakePrisma({ rows, medications: [DAILY_MED] });
+    // Warm a compliance cache entry for an affected and an unaffected user.
+    caches.medicationCompliance.set("u1|med-daily|compliance|UTC", { x: 1 });
+    caches.medicationCompliance.set("u3|med-x|compliance|UTC", { x: 2 });
+
+    const result = await runIntakeAutoSkipPass(prisma, { nowMs: NOW_MS });
+
+    expect([...result.invalidatedUserIds].sort()).toEqual(["u1", "u2"]);
+    // The flipped users' cached compliance payloads dropped; the
+    // untouched user's entry survives.
+    expect(
+      caches.medicationCompliance.get("u1|med-daily|compliance|UTC"),
+    ).toBeNull();
+    expect(
+      caches.medicationCompliance.get("u3|med-x|compliance|UTC"),
+    ).not.toBeNull();
+  });
+
+  it("reports no invalidated users when nothing flipped", async () => {
+    const rows = [
+      pendingRow("i-fresh", "med-daily", new Date(NOW_MS - 6 * HOUR_MS)),
+    ];
+    const prisma = makeFakePrisma({ rows, medications: [DAILY_MED] });
+    const result = await runIntakeAutoSkipPass(prisma, { nowMs: NOW_MS });
+    expect(result.invalidatedUserIds).toEqual([]);
   });
 
   it("bumps syncVersion on every flipped row", async () => {

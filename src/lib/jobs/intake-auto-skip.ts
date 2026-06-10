@@ -46,10 +46,14 @@
  *
  * Compliance coupling: the engine-backed compliance paths read `auto_missed`
  * directly. The helper deliberately does NOT touch any rollup — the next
- * read-path call recomputes from the live rows.
+ * read-path call recomputes from the live rows. It DOES (v1.16.1) drop the
+ * affected users' server caches via `invalidateUserMedications`, because the
+ * cached compliance / intake / summary payloads were built on the
+ * pre-flip denominator and would otherwise serve it for up to their TTL.
  */
 import type { PrismaClient } from "@/generated/prisma/client";
 
+import { invalidateUserMedications } from "@/lib/cache/invalidate";
 import { DOSE_WINDOW_DEFAULTS } from "@/lib/medications/scheduling/dose-window-defaults";
 import { normaliseDoseWindows } from "@/lib/medications/scheduling/worker-helpers";
 
@@ -95,6 +99,15 @@ export interface IntakeAutoSkipResult {
    * their band reach.
    */
   cutoff: Date;
+  /**
+   * v1.16.1 — users whose server caches were invalidated because a flip
+   * touched (or may have touched) one of their medications. Slight
+   * over-approximation by design: a flip group invalidates every
+   * candidate user of its medications, matching the documented
+   * "redundant eviction is cheap, under-eviction surfaces stale data"
+   * stance of `invalidate.ts`.
+   */
+  invalidatedUserIds: string[];
 }
 
 /**
@@ -195,17 +208,26 @@ export async function runIntakeAutoSkipPass(
 
   // Medications carrying at least one candidate row past the 24 h floor.
   // Day-scale rows inside their band tail are filtered out per-medication
-  // below; everything younger than the floor is never a candidate.
+  // below; everything younger than the floor is never a candidate. The
+  // owning `userId` rides along so a flip can invalidate the affected
+  // users' server caches below.
   const candidates = await prisma.medicationIntakeEvent.groupBy({
-    by: ["medicationId"],
+    by: ["medicationId", "userId"],
     where: { ...pendingWhere, scheduledFor: { lt: baseCutoff } },
   });
   if (candidates.length === 0) {
-    return { skippedCount: 0, cutoff: baseCutoff };
+    return { skippedCount: 0, cutoff: baseCutoff, invalidatedUserIds: [] };
+  }
+
+  const usersByMedication = new Map<string, Set<string>>();
+  for (const candidate of candidates) {
+    const users = usersByMedication.get(candidate.medicationId) ?? new Set();
+    users.add(candidate.userId);
+    usersByMedication.set(candidate.medicationId, users);
   }
 
   const medications = await prisma.medication.findMany({
-    where: { id: { in: candidates.map((c) => c.medicationId) } },
+    where: { id: { in: [...usersByMedication.keys()] } },
     select: {
       id: true,
       schedules: {
@@ -225,6 +247,7 @@ export async function runIntakeAutoSkipPass(
   }
 
   let skippedCount = 0;
+  const invalidatedUserIds = new Set<string>();
   for (const [delayMs, medicationIds] of medsByDelay) {
     const { count } = await prisma.medicationIntakeEvent.updateMany({
       where: {
@@ -237,7 +260,32 @@ export async function runIntakeAutoSkipPass(
       data: { autoMissed: true, syncVersion: { increment: 1 } },
     });
     skippedCount += count;
+    if (count > 0) {
+      for (const medicationId of medicationIds) {
+        for (const userId of usersByMedication.get(medicationId) ?? []) {
+          invalidatedUserIds.add(userId);
+        }
+      }
+    }
   }
 
-  return { skippedCount, cutoff: baseCutoff };
+  // v1.16.1 — a flip changes the compliance denominator the cached
+  // payloads (per-medication compliance, intake ledger, dashboard
+  // summary, insight targets) were built on, so the affected users'
+  // server caches must drop now rather than after the 15-min TTL.
+  // The caches are process-local; in the default single-container
+  // deploy the worker shares the web process, so this eviction reaches
+  // the serving instance directly. In a split web/worker deployment the
+  // web container's cache still ages out via its TTL — that bound is
+  // the documented staleness ceiling there (same caveat as every other
+  // process-local cache, see `server-cache.ts`).
+  for (const userId of invalidatedUserIds) {
+    invalidateUserMedications(userId);
+  }
+
+  return {
+    skippedCount,
+    cutoff: baseCutoff,
+    invalidatedUserIds: [...invalidatedUserIds],
+  };
 }

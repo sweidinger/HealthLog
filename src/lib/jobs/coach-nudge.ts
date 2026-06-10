@@ -101,12 +101,23 @@ function resolveLocale(locale: string | null | undefined): Locale {
  * thresholds stay pinned without a DB.
  */
 export function evaluateComplianceTrigger(
-  rows: { takenAt: Date | null; skipped: boolean }[],
+  rows: { takenAt: Date | null; skipped: boolean; autoMissed: boolean }[],
 ): boolean {
   // Deliberate skips are a planned break, not a compliance problem —
   // exclude them from both numerator and denominator (the compliance
   // engine's own semantics).
-  const due = rows.filter((r) => !r.skipped);
+  //
+  // v1.16.1 — only RESOLVED slots count toward the denominator: taken
+  // rows and auto-missed rows (the hourly auto-miss cron flips a pending
+  // once its overdue window has closed, so `autoMissed` IS the
+  // "overdueEnd < now" signal without re-deriving per-schedule windows
+  // here). A still-open pending — today's not-yet-due slot, or one whose
+  // grace window is still running — used to count as a miss and could
+  // nudge a perfectly adherent user at 05:15 over doses they simply
+  // had not reached yet.
+  const due = rows.filter(
+    (r) => !r.skipped && (r.takenAt !== null || r.autoMissed),
+  );
   if (due.length < COACH_NUDGE_COMPLIANCE_MIN_DOSES) return false;
   const taken = due.filter((r) => r.takenAt !== null).length;
   return taken / due.length < COACH_NUDGE_COMPLIANCE_THRESHOLD;
@@ -233,14 +244,16 @@ export async function findTriggerForUser(
   const sevenDaysAgo = new Date(now.getTime() - 7 * MS_PER_DAY);
   const fourteenDaysAgo = new Date(now.getTime() - 14 * MS_PER_DAY);
 
-  // 1) Medication compliance (7 d).
+  // 1) Medication compliance (7 d). `autoMissed` rides along so the
+  //    trigger can restrict its denominator to resolved slots — a
+  //    still-open pending is not a miss yet.
   const intakeRows = await prisma.medicationIntakeEvent.findMany({
     where: {
       userId: user.id,
       deletedAt: null,
       scheduledFor: { gte: sevenDaysAgo, lte: now },
     },
-    select: { takenAt: true, skipped: true },
+    select: { takenAt: true, skipped: true, autoMissed: true },
   });
   if (evaluateComplianceTrigger(intakeRows)) return "compliance";
 

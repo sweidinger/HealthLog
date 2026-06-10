@@ -111,24 +111,27 @@ const PREGENERATE_BUDGET_WINDOW_MS = 20 * 60 * 60 * 1000;
 const WARM_PASS_CONCURRENCY = 3;
 
 /**
- * Bounded budget for the comprehensive step of a forced full warm. The
+ * Bounded budget for one comprehensive generation inside a warm pass —
+ * the forced single-user warm AND the nightly per-candidate loop. The
  * comprehensive insight is the single heaviest generation (full feature
  * extraction + a 1500-token completion) and a slow or stalled provider
  * could pin the whole warm for a minute-plus, after which the entire job
  * aborted with the per-status + generic-metric passes never run. Capping
- * it lets the forced path abandon a slow comprehensive and still warm the
+ * it lets both paths abandon a slow comprehensive and still warm the
  * cheaper per-status (7) + generic-metric (~30) assessments, so the user's
- * cards are warm even when the briefing generation stalls. Set a hair
+ * cards are warm even when the briefing generation stalls. In the nightly
+ * loop the cap also bounds head-of-line blocking: without it one stalled
+ * provider pinned the whole batch behind a single candidate. Set a hair
  * below the queue's own retry horizon so a single tick stays bounded.
  */
-const FORCE_WARM_COMPREHENSIVE_TIMEOUT_MS = 45_000;
+const COMPREHENSIVE_WARM_TIMEOUT_MS = 45_000;
 
 /** Per-user result of one forced full warm. */
 export interface ForceWarmResult {
   /**
    * Outcome of the comprehensive-insight generation. `"timeout"` is
    * distinct from `"failed"`: the comprehensive step exceeded its own
-   * bounded budget (see `FORCE_WARM_COMPREHENSIVE_TIMEOUT_MS`) and was
+   * bounded budget (see `COMPREHENSIVE_WARM_TIMEOUT_MS`) and was
    * abandoned so the per-status + generic-metric passes could still run.
    */
   comprehensive: GenerateOutcome["status"] | "timeout";
@@ -206,6 +209,12 @@ async function warmPerStatusCaches(
   userId: string,
   locales: ReadonlyArray<"de" | "en">,
   generators: ReadonlyArray<StatusGenerator>,
+  // v1.16.1 — `force: false` is the refill-only mode the nightly fallback
+  // warm uses: the per-status cache is keyed on today's dateKey, so a card
+  // already generated today short-circuits to its cache row while a cold
+  // card still generates. The eviction path (after a generated/cached
+  // comprehensive) keeps `force: true` because the rows were just deleted.
+  force = true,
 ): Promise<number> {
   const limit = pLimit(WARM_PASS_CONCURRENCY);
   // v1.8.3 — warm every locale the user might request, not just the
@@ -220,7 +229,7 @@ async function warmPerStatusCaches(
     locales.map((locale) =>
       limit(async () => {
         try {
-          const outcome = await generate(userId, { locale, force: true });
+          const outcome = await generate(userId, { locale, force });
           return outcome.hasProvider && !outcome.cached ? 1 : 0;
         } catch {
           // A single card's generation failing must not abort the rest of
@@ -250,6 +259,8 @@ async function warmGenericMetricCaches(
   prisma: PrismaClient,
   userId: string,
   locales: ReadonlyArray<"de" | "en">,
+  // See `warmPerStatusCaches` — `false` is the refill-only fallback mode.
+  force = true,
 ): Promise<number> {
   // One distinct read: the set of MeasurementTypes the user has live
   // rows for. Best-effort — a read failure (or a worker prisma surface
@@ -284,7 +295,7 @@ async function warmGenericMetricCaches(
             metric,
             userId,
             locale,
-            force: true,
+            force,
           });
           // `insufficient` never reaches here (we pre-filtered to
           // metrics with data), but guard anyway: count only a fresh
@@ -361,7 +372,7 @@ export async function runInsightPregenerate(
     /** Injected for the test — defaults to the real generator. */
     generate?: (
       userId: string,
-      opts: { locale: "de" | "en"; force?: boolean },
+      opts: { locale: "de" | "en"; force?: boolean; signal?: AbortSignal },
     ) => Promise<GenerateOutcome>;
     /** Injected for the test — defaults to the seven real status generators. */
     statusGenerators?: ReadonlyArray<StatusGenerator>;
@@ -373,6 +384,7 @@ export async function runInsightPregenerate(
     warmGenericMetrics?: (
       userId: string,
       locales: ReadonlyArray<"de" | "en">,
+      force?: boolean,
     ) => Promise<number>;
   } = {},
 ): Promise<PregenerateRunResult> {
@@ -383,8 +395,8 @@ export async function runInsightPregenerate(
     options.statusGenerators ?? DEFAULT_STATUS_GENERATORS;
   const warmGenericMetrics =
     options.warmGenericMetrics ??
-    ((userId: string, locales: ReadonlyArray<"de" | "en">) =>
-      warmGenericMetricCaches(prisma, userId, locales));
+    ((userId: string, locales: ReadonlyArray<"de" | "en">, force?: boolean) =>
+      warmGenericMetricCaches(prisma, userId, locales, force));
 
   const result: PregenerateRunResult = {
     total: 0,
@@ -406,74 +418,112 @@ export async function runInsightPregenerate(
   result.total = candidates.length;
 
   for (const candidate of candidates) {
-    // Budget gate — one pre-generation per user per 20 h. The route's
-    // on-demand path uses a different bucket (`insights:${userId}`), so
-    // this never starves a user's manual regenerate quota.
+    // Budget gate — one COMPREHENSIVE pre-generation per user per 20 h.
+    // The route's on-demand path uses a different bucket
+    // (`insights:${userId}`), so this never starves a user's manual
+    // regenerate quota. The gate bounds the comprehensive cost only: a
+    // blocked user still gets the refill-only status warm below, because
+    // the 02:xx status crons already skipped every pregenerate candidate
+    // on the assumption that THIS pass warms their cards — exiting early
+    // here left those cards cold until the first on-visit generation.
     const budget = await checkRateLimit(
       `insight-pregenerate:${candidate.id}`,
       1,
       PREGENERATE_BUDGET_WINDOW_MS,
     );
+
+    const locale = normalizeLocale(candidate.locale);
+    let outcome: GenerateOutcome | null = null;
     if (!budget.allowed) {
       result.budgetBlocked++;
+    } else {
+      // Force a fresh generation: the discovery window (20 h) is shorter
+      // than the generator's 24 h cache TTL, so without `force` a user
+      // whose cache is 20–24 h old would be discovered, consume the
+      // budget bucket, then short-circuit to `cached` with no actual
+      // pre-generation — defeating the "warm the cache before the user's
+      // morning visit" intent for the common case. The per-user budget
+      // bucket (above) is what bounds cost, not the TTL re-check.
+      //
+      // Bounded budget + abort (v1.16.1): one stalled provider must not
+      // pin the whole batch behind a single candidate, and `withTimeout`
+      // alone cannot cancel the detached generation — without the abort a
+      // late resolve would reach `evictPerStatusInsightCache` and delete
+      // the rows the warm passes write below (the same race the forced
+      // single-user warm closes).
+      const controller = new AbortController();
+      const bounded = await withTimeout(
+        () =>
+          generate(candidate.id, {
+            locale,
+            force: true,
+            signal: controller.signal,
+          }),
+        COMPREHENSIVE_WARM_TIMEOUT_MS,
+        null,
+        () => controller.abort(),
+      );
+      if (bounded.timedOut || bounded.errored || bounded.value === null) {
+        result.failed++;
+      } else {
+        outcome = bounded.value;
+        switch (outcome.status) {
+          case "generated":
+            result.generated++;
+            break;
+          case "cached":
+            result.cached++;
+            break;
+          case "skipped":
+            result.skipped++;
+            break;
+          case "failed":
+            result.failed++;
+            break;
+        }
+      }
+    }
+
+    // Warm the per-metric assessment caches. Two modes:
+    //
+    //   - After a `generated` or `cached` comprehensive the generator's
+    //     write evicted (`evictPerStatusInsightCache`) every per-status
+    //     row, so the warm forces a fresh generation per card.
+    //   - On every other path (budget-blocked, failed, timed-out,
+    //     consent-skipped comprehensive) the warm still runs, but
+    //     refill-only (`force: false`): the per-status cache is keyed on
+    //     today's dateKey, so a card already generated today is a cheap
+    //     cache read while a cold card generates. Before v1.16.1 these
+    //     paths skipped the warm entirely — and because the 02:xx status
+    //     crons skip every pregenerate candidate, a single failed or
+    //     budget-blocked comprehensive left ALL of that user's cards cold
+    //     until the first on-visit generation.
+    //
+    // The only outcome with nothing to warm is a missing provider
+    // (`skipped`/`no-provider`): the per-card generators would no-op to
+    // their fallbacks anyway, so the pass is skipped to save the
+    // chain-resolves.
+    if (outcome?.status === "skipped" && outcome.reason === "no-provider") {
       continue;
     }
-
-    // Force a fresh generation: the discovery window (20 h) is shorter
-    // than the generator's 24 h cache TTL, so without `force` a user
-    // whose cache is 20–24 h old would be discovered, consume the
-    // budget bucket, then short-circuit to `cached` with no actual
-    // pre-generation — defeating the "warm the cache before the user's
-    // morning visit" intent for the common case. The per-user budget
-    // bucket (above) is what bounds cost, not the TTL re-check.
-    const locale = normalizeLocale(candidate.locale);
-    const outcome = await generate(candidate.id, {
-      locale,
-      force: true,
-    });
-    switch (outcome.status) {
-      case "generated":
-        result.generated++;
-        break;
-      case "cached":
-        result.cached++;
-        break;
-      case "skipped":
-        result.skipped++;
-        break;
-      case "failed":
-        result.failed++;
-        break;
-    }
-
-    // Warm the per-metric assessment caches the comprehensive generator
-    // evicts (`evictPerStatusInsightCache`) but does not re-fill.
-    //
-    // v1.8.3 — warm on `generated` OR `cached`. A `cached` outcome means
-    // the comprehensive insight is fresh-enough that its write already
-    // evicted the per-status caches, so they are cold and need re-filling
-    // exactly as on a fresh `generated`. The pre-v1.8.3 `=== "generated"`
-    // gate left those caches cold whenever the comprehensive pass short-
-    // circuited to `cached`, so the morning visit still ran a live
-    // generation per card. `skipped` (no provider) has nothing to warm and
-    // `failed` means the chain is unhealthy this run — re-running it seven
-    // more times would only multiply the failure.
-    if (outcome.status === "generated" || outcome.status === "cached") {
-      result.assessmentsWarmed += await warmPerStatusCaches(
-        candidate.id,
-        // Warm both supported locales — the client reads against the active
-        // UI locale, which can differ from the persisted User.locale.
-        ["de", "en"],
-        statusGenerators,
-      );
-      // v1.8.7.1 — warm the generic per-HealthKit-metric caches too, for
-      // the user's data-bearing metrics only (the helper filters via one
-      // grouped count, so an empty metric never reaches the provider).
-      result.metricAssessmentsWarmed += await warmGenericMetrics(
-        candidate.id,
-        ["de", "en"],
-      );
-    }
+    const evicted =
+      outcome?.status === "generated" || outcome?.status === "cached";
+    result.assessmentsWarmed += await warmPerStatusCaches(
+      candidate.id,
+      // Warm both supported locales — the client reads against the active
+      // UI locale, which can differ from the persisted User.locale.
+      ["de", "en"],
+      statusGenerators,
+      evicted,
+    );
+    // v1.8.7.1 — warm the generic per-HealthKit-metric caches too, for
+    // the user's data-bearing metrics only (the helper filters via one
+    // grouped count, so an empty metric never reaches the provider).
+    result.metricAssessmentsWarmed += await warmGenericMetrics(
+      candidate.id,
+      ["de", "en"],
+      evicted,
+    );
   }
 
   // Wide-event tally so the nightly dashboard can track how many
@@ -520,7 +570,7 @@ export async function runInsightPregenerate(
  * active `locale` so a single-locale user pays half the provider cost.
  *
  * The three sections are decoupled: the comprehensive step runs under its
- * own bounded budget (`FORCE_WARM_COMPREHENSIVE_TIMEOUT_MS`) and its
+ * own bounded budget (`COMPREHENSIVE_WARM_TIMEOUT_MS`) and its
  * failure / timeout / skip is non-fatal — the per-status (7) and
  * generic-metric (~30) warm passes ALWAYS run afterwards. The earlier
  * design short-circuited both passes on a non-`generated`/`cached`
@@ -593,7 +643,7 @@ export async function forceWarmUser(
     const controller = new AbortController();
     const comprehensive = await withTimeout(
       () => generate(userId, { locale, force: true, signal: controller.signal }),
-      FORCE_WARM_COMPREHENSIVE_TIMEOUT_MS,
+      COMPREHENSIVE_WARM_TIMEOUT_MS,
       null,
       () => controller.abort(),
     );

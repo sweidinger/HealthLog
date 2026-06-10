@@ -398,7 +398,9 @@ export const caches = {
    * (`GET /api/medications/[id]/compliance`). The medications list fans
    * the endpoint out once per card, and each cold build runs the full
    * band-expansion pass — so the warm path has to live server-side.
-   * Keyed `${userId}|${medicationId}|compliance`; every intake /
+   * Keyed `${userId}|${medicationId}|compliance|${userTz}` (the payload's
+   * day buckets derive from the user timezone, so a timezone change must
+   * miss rather than serve the previous zone's buckets); every intake /
    * medication write flushes the `${userId}|` prefix via
    * `invalidateUserMedications`, so the 15-minute TTL only bounds
    * wall-clock drift (a dose flipping overdue), never user-action

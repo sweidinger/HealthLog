@@ -33,7 +33,13 @@ export type AchievementMetricKey =
   | "earlyBirdCount"
   | "leapDayCount"
   | "doctorPdfCount"
-  | "localeFlipCount";
+  | "localeFlipCount"
+  // v1.16.1 expansion ─ care routine (therapy adherence, measurement
+  // consistency, self-report upkeep, sleep logging)
+  | "missFreeDayStreak"
+  | "measurementConsistencyWeeks"
+  | "selfContextCompleteCount"
+  | "sleepLogDayStreak";
 
 /**
  * Achievement categories — used by the /achievements UI to visually group
@@ -86,6 +92,8 @@ export interface EarnabilityFlags {
   hasWeight: boolean;
   hasBp: boolean;
   hasPulse: boolean;
+  /** v1.16.1 — at least one sleep sample (any source) exists. */
+  hasSleep: boolean;
 }
 
 function categoryForMetric(metric: AchievementMetricKey): AchievementCategory {
@@ -95,6 +103,7 @@ function categoryForMetric(metric: AchievementMetricKey): AchievementCategory {
     case "skippedIntakeCount":
     case "onTimePerfectDayStreak":
     case "compliance80DayStreak":
+    case "missFreeDayStreak":
       return "medication";
     case "bmiGreenStreak":
     case "bpGreenStreak":
@@ -102,6 +111,7 @@ function categoryForMetric(metric: AchievementMetricKey): AchievementCategory {
     case "weightMeasurementCount":
     case "bpMeasurementCount":
     case "pulseMeasurementCount":
+    case "sleepLogDayStreak":
       return "vitals";
     case "moodEntryCount":
     case "moodDayStreak":
@@ -116,6 +126,8 @@ function categoryForMetric(metric: AchievementMetricKey): AchievementCategory {
     case "consistentMonthCount":
     case "entryDayStreak":
     case "weekendStreakCount":
+    case "measurementConsistencyWeeks":
+    case "selfContextCompleteCount":
       return "engagement";
     case "nightOwlCount":
     case "earlyBirdCount":
@@ -169,6 +181,10 @@ export interface AchievementMetrics {
   leapDayCount: number;
   doctorPdfCount: number;
   localeFlipCount: number;
+  missFreeDayStreak: number;
+  measurementConsistencyWeeks: number;
+  selfContextCompleteCount: number;
+  sleepLogDayStreak: number;
 }
 
 export interface AchievementProgress {
@@ -637,6 +653,72 @@ export const ACHIEVEMENT_DEFINITIONS: AchievementDefinition[] = [
     format: "count",
     isHidden: true,
   }),
+  // ─── v1.16.1 ─ care routine (6) ─────────────────────────
+  // Quiet, clinically meaningful milestones: therapy adherence without
+  // a single auto-missed dose, sustained measurement consistency, a
+  // maintained self-report, and a sleep-logging series. Computation
+  // lives in `care-metrics.ts` + the achievements route; no schema
+  // change (UserAchievement keys on the id string).
+  define({
+    id: "miss-free-7",
+    metric: "missFreeDayStreak",
+    target: 7,
+    points: 60,
+    icon: "ClipboardCheck",
+    tTitle: "achievements.badges.missFree7.title",
+    tDescription: "achievements.badges.missFree7.description",
+    format: "days",
+  }),
+  define({
+    id: "miss-free-30",
+    metric: "missFreeDayStreak",
+    target: 30,
+    points: 200,
+    icon: "ClipboardCheck",
+    tTitle: "achievements.badges.missFree30.title",
+    tDescription: "achievements.badges.missFree30.description",
+    format: "days",
+  }),
+  define({
+    id: "miss-free-90",
+    metric: "missFreeDayStreak",
+    target: 90,
+    points: 520,
+    icon: "ClipboardCheck",
+    tTitle: "achievements.badges.missFree90.title",
+    tDescription: "achievements.badges.missFree90.description",
+    format: "days",
+  }),
+  define({
+    id: "measurement-weeks-4",
+    metric: "measurementConsistencyWeeks",
+    target: 4,
+    points: 120,
+    icon: "CalendarRange",
+    tTitle: "achievements.badges.measurementWeeks4.title",
+    tDescription: "achievements.badges.measurementWeeks4.description",
+    format: "count",
+  }),
+  define({
+    id: "self-context-complete",
+    metric: "selfContextCompleteCount",
+    target: 1,
+    points: 40,
+    icon: "UserCheck",
+    tTitle: "achievements.badges.selfContextComplete.title",
+    tDescription: "achievements.badges.selfContextComplete.description",
+    format: "count",
+  }),
+  define({
+    id: "sleep-log-7",
+    metric: "sleepLogDayStreak",
+    target: 7,
+    points: 50,
+    icon: "MoonStar",
+    tTitle: "achievements.badges.sleepLog7.title",
+    tDescription: "achievements.badges.sleepLog7.description",
+    format: "days",
+  }),
 ];
 
 function dayKeyToNumber(dayKey: string): number {
@@ -786,7 +868,10 @@ function isEarnable(
     case "skippedIntakeCount":
     case "onTimePerfectDayStreak":
     case "compliance80DayStreak":
+    case "missFreeDayStreak":
       return flags.hasMedication;
+    case "sleepLogDayStreak":
+      return flags.hasSleep;
     case "moodEntryCount":
     case "moodDayStreak":
     case "moodImprovementHit":
@@ -808,6 +893,8 @@ function isEarnable(
     case "consistentMonthCount":
     case "entryDayStreak":
     case "weekendStreakCount":
+    case "measurementConsistencyWeeks":
+    case "selfContextCompleteCount":
     case "nightOwlCount":
     case "earlyBirdCount":
     case "leapDayCount":

@@ -318,6 +318,8 @@ export function getEarnabilityFlags(input: {
   hasMedication: boolean;
   moodEntryCount: number;
   measurementCounts: MeasurementCounts;
+  /** v1.16.1 — sleep samples gate the sleep-logging streak badge. */
+  sleepSampleCount?: number;
 }): EarnabilityFlags {
   return {
     hasMedication: input.hasMedication,
@@ -325,6 +327,7 @@ export function getEarnabilityFlags(input: {
     hasWeight: input.measurementCounts.weightCount > 0,
     hasBp: input.measurementCounts.bpCount > 0,
     hasPulse: input.measurementCounts.pulseCount > 0,
+    hasSleep: (input.sleepSampleCount ?? 0) > 0,
   };
 }
 
