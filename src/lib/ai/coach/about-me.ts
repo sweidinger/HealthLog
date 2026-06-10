@@ -81,15 +81,6 @@ export async function getSelfContextForUser(
   }
 }
 
-/**
- * Back-compat shim for callers that only need the free text (kept so
- * the questions generator can cheaply inspect the prose alone).
- */
-export async function getAboutMeForUser(
-  userId: string,
-): Promise<string | null> {
-  return (await getSelfContextForUser(userId)).aboutMe;
-}
 
 /** Whole years between `dateOfBirth` and `now`; null when unknown. */
 export function deriveAgeYears(
@@ -187,7 +178,7 @@ export function composeSelfContextText(
  * One-call variant for the prompt-assembly paths: load the structured
  * context + the profile facts and return the composed text (or `null`
  * when the user never wrote anything). Replaces the v1.15.20
- * `getAboutMeForUser` call sites.
+ * the read path.
  */
 export async function getSelfContextTextForUser(
   userId: string,

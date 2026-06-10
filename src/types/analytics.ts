@@ -21,7 +21,6 @@
  *   - `InsightsAnalyticsData` — insights mother page
  *     (`src/app/insights/page.tsx`); carries `correlations` +
  *     `healthScore` blocks that the sub-pages also don't use.
- *   - `ChecklistAnalyticsData` — onboarding checklist component;
  *     ultra-loose shape that only checks per-type `count` for
  *     "do you have any data of this kind yet?".
  *
@@ -149,12 +148,3 @@ export interface InsightsAnalyticsData {
   } | null;
 }
 
-/**
- * Shape consumed by the onboarding checklist
- * (`src/components/onboarding/getting-started-checklist.tsx`).
- * Intentionally loose — the checklist only asks
- * "does any per-type bucket have a non-zero count?".
- */
-export interface ChecklistAnalyticsData {
-  summaries?: Record<string, { count?: number } | undefined>;
-}
