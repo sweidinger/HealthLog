@@ -24,6 +24,7 @@ import { invalidateUserMedications } from "@/lib/cache/invalidate";
 import { recomputeMedicationComplianceForEvent } from "@/lib/rollups/medication-compliance-rollups";
 import {
   applyCanonicalSlotWrite,
+  findPinConflict,
   resolveForcedSlotForWrite,
   resolveSlotForWriteByBand,
   resolveSlotInstantForWrite,
@@ -196,6 +197,28 @@ async function postIntake(request: NextRequest, { params }: RouteParams) {
         "forceSlotInstant is not a scheduled slot of this medication",
         422,
         { errorCode: "medications.intake.force_slot.invalid" },
+      );
+    }
+    // v1.16.0 — refuse to pin onto a slot another recorded action already
+    // serves: the explicit-write last-write-wins rule would silently
+    // overwrite that dose record. The ledger UI only offers the pin for
+    // unserved slots, so this only fires for stale clients / raw API calls.
+    if (
+      await findPinConflict({
+        userId: user.id,
+        medicationId: id,
+        canonicalSlot,
+        incomingTakenAt: resolvedTakenAt ?? null,
+      })
+    ) {
+      annotate({
+        action: { name: "medication.intake.force_slot.occupied" },
+        meta: { medication_id: id },
+      });
+      return apiError(
+        "forceSlotInstant already carries a recorded dose action",
+        422,
+        { errorCode: "medications.intake.force_slot.occupied" },
       );
     }
     attributionSource = "USER_PIN";

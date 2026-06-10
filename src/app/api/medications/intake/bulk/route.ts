@@ -52,6 +52,7 @@ import {
 } from "@/lib/rollups/medication-compliance-rollups";
 import {
   applyCanonicalSlotWrite,
+  findPinConflict,
   resolveForcedSlotForWrite,
   resolveSlotForWriteByBand,
   resolveSlotInstantForWrite,
@@ -276,6 +277,23 @@ async function postBulk(request: NextRequest): Promise<Response> {
           // .invalid`) as a per-entry skip so one bad pin never fails the
           // batch.
           const reason = "force_slot_invalid";
+          skipped.push({ index: i, reason });
+          results.push({ index: i, status: "skipped", reason });
+          continue;
+        }
+        // v1.16.0 — refuse to pin onto a slot another recorded action
+        // already serves: the explicit-write last-write-wins rule would
+        // silently overwrite that dose record. Per-entry skip, mirroring
+        // the single route's 422 `medications.intake.force_slot.occupied`.
+        if (
+          await findPinConflict({
+            userId: user.id,
+            medicationId: entry.medicationId,
+            canonicalSlot,
+            incomingTakenAt: entry.takenAt ?? null,
+          })
+        ) {
+          const reason = "force_slot_occupied";
           skipped.push({ index: i, reason });
           results.push({ index: i, status: "skipped", reason });
           continue;

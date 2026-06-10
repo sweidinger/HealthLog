@@ -113,15 +113,21 @@ interface IntakeRow {
   skipped: boolean;
   source: string;
   createdAt: Date;
+  /** v1.16.0 — slot-binding provenance; USER_PIN = deliberate user pin. */
+  attributionSource: string;
 }
 
 /**
- * Rank a row for the slot-winner pick: taken (2) > skipped (1) >
- * pending (0). `takenAt` set and `skipped` together still counts as
- * taken — the recorded dose dominates.
+ * Rank a row for the slot-winner pick: pinned take (3) > taken (2) >
+ * skipped (1) > pending (0). `takenAt` set and `skipped` together still
+ * counts as taken — the recorded dose dominates. The USER_PIN rung
+ * (v1.16.0) mirrors the dedup worker: a deliberate "diesem Slot
+ * zuordnen" decision is the dose of record for its slot.
  */
 function rowRank(row: IntakeRow): number {
-  if (row.takenAt !== null) return 2;
+  if (row.takenAt !== null) {
+    return row.attributionSource === "USER_PIN" ? 3 : 2;
+  }
   if (row.skipped) return 1;
   return 0;
 }
@@ -431,9 +437,11 @@ async function main(): Promise<void> {
         skipped: boolean;
         source: string;
         created_at: Date;
+        attribution_source: string;
       }>(
         `
-        SELECT "id", "taken_at", "skipped", "source"::text AS source, "created_at"
+        SELECT "id", "taken_at", "skipped", "source"::text AS source, "created_at",
+               "attribution_source"::text AS attribution_source
         FROM "medication_intake_events"
         WHERE "user_id"       = $1
           AND "medication_id" = $2
@@ -449,6 +457,7 @@ async function main(): Promise<void> {
         skipped: r.skipped,
         source: r.source,
         createdAt: r.created_at,
+        attributionSource: r.attribution_source,
       }));
       if (rows.length < 2) continue; // collapsed since the scan — nothing to do.
 

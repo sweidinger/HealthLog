@@ -17,6 +17,7 @@ import { recomputeMedicationComplianceForEvent } from "@/lib/rollups/medication-
 import { dayKeyForUserTz } from "@/lib/measurements/consolidation-tz";
 import {
   applyCanonicalSlotWrite,
+  findPinConflict,
   resolveForcedSlotForWrite,
   resolveSlotForWriteByBand,
 } from "@/lib/medications/scheduling/slot-upsert";
@@ -156,6 +157,30 @@ export const PUT = apiHandler(
             "forceSlotInstant is not a scheduled slot of this medication",
             422,
             { errorCode: "medications.intake.force_slot.invalid" },
+          );
+        }
+        // v1.16.0 — refuse to pin onto a slot another recorded action
+        // already serves (excluding the row being edited): the explicit-
+        // write last-write-wins rule would silently overwrite that dose
+        // record. The ledger UI only offers the pin for unserved slots,
+        // so this only fires for stale clients / raw API calls.
+        if (
+          await findPinConflict({
+            userId: user.id,
+            medicationId: id,
+            canonicalSlot: forced,
+            incomingTakenAt: nextSkipped ? null : nextTakenAt,
+            excludeEventId: eventId,
+          })
+        ) {
+          annotate({
+            action: { name: "medication.intake.force_slot.occupied" },
+            meta: { medication_id: id, event_id: eventId },
+          });
+          return apiError(
+            "forceSlotInstant already carries a recorded dose action",
+            422,
+            { errorCode: "medications.intake.force_slot.occupied" },
           );
         }
         resolvedScheduledFor = forced;

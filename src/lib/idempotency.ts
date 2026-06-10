@@ -59,7 +59,10 @@ function getIdempotencyKey(request: Request | NextRequest): string | null {
  *                             handler again.
  *   - `null`                — no live row; the caller may claim + run.
  */
-type CacheLookup = { kind: "replay"; response: NextResponse } | { kind: "pending" } | null;
+type CacheLookup =
+  | { kind: "replay"; response: NextResponse }
+  | { kind: "pending" }
+  | null;
 
 /**
  * Look up the state of a (userId, key, method, path) tuple. Distinguishes
@@ -315,7 +318,10 @@ export function withIdempotency<
       return NextResponse.json(
         {
           data: null,
-          error: { message: "A request with this Idempotency-Key is already in progress" },
+          error: {
+            message:
+              "A request with this Idempotency-Key is already in progress",
+          },
         },
         { status: 409, headers: { "X-Idempotent-Replay": "false" } },
       );
@@ -333,7 +339,10 @@ export function withIdempotency<
       return NextResponse.json(
         {
           data: null,
-          error: { message: "A request with this Idempotency-Key is already in progress" },
+          error: {
+            message:
+              "A request with this Idempotency-Key is already in progress",
+          },
         },
         { status: 409, headers: { "X-Idempotent-Replay": "false" } },
       );
@@ -357,12 +366,14 @@ export function withIdempotency<
       //   `hlk_`    = our access tokens
       //   `hlr_`    = our refresh tokens
       //   `hls_`    = clinician share-link tokens (v1.11)
+      //   `hlv_`    = registration invite tokens (v1.16 — the admin mint
+      //               response is the one place the raw token appears)
       //   `sk-…`    = OpenAI / Anthropic keys (full token form, not the
       //               raw substring — a 422 body explaining "task-id…"
       //               or any other word containing `sk-` would otherwise
       //               silently break idempotency for benign retries).
       const SECRET_PATTERN =
-        /(?:\b(?:hlk_|hlr_|hls_)[A-Za-z0-9_-]+|\bsk-(?:ant-)?[A-Za-z0-9_-]{8,})/;
+        /(?:\b(?:hlk_|hlr_|hls_|hlv_)[A-Za-z0-9_-]+|\bsk-(?:ant-)?[A-Za-z0-9_-]{8,})/;
       const cloned = response.clone();
       const text = await cloned.text();
       if (!SECRET_PATTERN.test(text)) {

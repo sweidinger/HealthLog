@@ -653,18 +653,22 @@ describe("POST /api/medications/intake/bulk — v1.15.20 band attribution", () =
 
   it("forceSlotInstant pins an off-window take onto the named real slot", async () => {
     // 14:00 Berlin falls in no band; the client pins the take onto the
-    // morning slot anchor (05:00Z = 07:00 Berlin).
-    vi.mocked(prisma.medicationIntakeEvent.findMany).mockResolvedValueOnce([
-      {
-        id: "row-morning",
-        takenAt: null,
-        skipped: false,
-        idempotencyKey: null,
-        scheduledFor: new Date("2026-06-15T05:00:00Z"),
-        source: "REMINDER",
-        createdAt: new Date("2026-06-15T00:00:00Z"),
-      },
-    ] as never);
+    // morning slot anchor (05:00Z = 07:00 Berlin). The slot rows are read
+    // twice on the pin path: once by the v1.16.0 occupied-slot guard
+    // (`findPinConflict` — a pending row is not a conflict), once by the
+    // canonical upsert itself.
+    const morningPendingRow = {
+      id: "row-morning",
+      takenAt: null,
+      skipped: false,
+      idempotencyKey: null,
+      scheduledFor: new Date("2026-06-15T05:00:00Z"),
+      source: "REMINDER",
+      createdAt: new Date("2026-06-15T00:00:00Z"),
+    };
+    vi.mocked(prisma.medicationIntakeEvent.findMany)
+      .mockResolvedValueOnce([morningPendingRow] as never)
+      .mockResolvedValueOnce([morningPendingRow] as never);
     vi.mocked(prisma.medicationIntakeEvent.update).mockResolvedValueOnce({
       id: "row-morning",
     } as never);
@@ -687,6 +691,47 @@ describe("POST /api/medications/intake/bulk — v1.15.20 band attribution", () =
     expect(body.data.updated).toBe(1);
     expect(body.data.entries[0].status).toBe("updated");
     expect(body.data.entries[0].id).toBe("row-morning");
+  });
+
+  it("marks an entry skipped when the pinned slot already carries a recorded action", async () => {
+    // v1.16.0 — the morning slot is already served by a different take;
+    // pinning another take onto it would overwrite that dose record via
+    // last-write-wins, so the entry is refused per-entry
+    // (`force_slot_occupied`) instead of converging.
+    vi.mocked(prisma.medicationIntakeEvent.findMany).mockResolvedValueOnce([
+      {
+        id: "row-morning",
+        takenAt: new Date("2026-06-15T05:10:00Z"),
+        skipped: false,
+        idempotencyKey: null,
+        scheduledFor: new Date("2026-06-15T05:00:00Z"),
+        source: "WEB",
+        createdAt: new Date("2026-06-15T00:00:00Z"),
+      },
+    ] as never);
+
+    const res = await POST(
+      postReq({
+        entries: [
+          {
+            medicationId: "med-1",
+            takenAt: "2026-06-15T12:00:00.000Z",
+            forceSlotInstant: "2026-06-15T05:00:00.000Z",
+          },
+        ],
+      }),
+    );
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      data: {
+        skipped: Array<{ index: number; reason: string }>;
+        entries: Array<{ status: string; reason?: string }>;
+      };
+    };
+    expect(body.data.entries[0].status).toBe("skipped");
+    expect(body.data.entries[0].reason).toBe("force_slot_occupied");
+    expect(prisma.medicationIntakeEvent.create).not.toHaveBeenCalled();
+    expect(prisma.medicationIntakeEvent.update).not.toHaveBeenCalled();
   });
 
   it("marks an entry skipped when forceSlotInstant names no real slot", async () => {

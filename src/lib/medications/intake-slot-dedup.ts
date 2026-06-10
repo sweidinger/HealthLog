@@ -98,14 +98,39 @@ interface DedupIntakeRow {
   skipped: boolean;
   syncVersion: number;
   createdAt: Date;
+  /** v1.16.0 — slot-binding provenance; USER_PIN = deliberate user pin. */
+  attributionSource: string;
 }
 
 /**
- * Winner priority of a row inside a slot: taken (2) > skipped (1) >
- * pending (0). A higher number wins.
+ * v1.16.0 — true for a row the band-era write path deliberately recorded
+ * as a standalone ad-hoc take (`scheduledFor === takenAt`, the unpin /
+ * outside-every-band signature). The dedup snap must never second-guess
+ * that decision: the canonical-instant resolver still uses the legacy
+ * ± half-window tolerance, which is WIDER than the band model, so an
+ * unpinned ("Zuordnung gelöst") or early off-band take within snap reach
+ * of a slot would otherwise be re-merged into that slot's cluster —
+ * silently reverting the user's binding decision (and, when the slot row
+ * is also a take, soft-deleting one of two real dose records).
+ */
+function isDeliberateAdHocRow(row: DedupIntakeRow): boolean {
+  return (
+    row.takenAt !== null &&
+    row.scheduledFor.getTime() === row.takenAt.getTime()
+  );
+}
+
+/**
+ * Winner priority of a row inside a slot: pinned take (3) > taken (2) >
+ * skipped (1) > pending (0). A higher number wins. The USER_PIN rung
+ * (v1.16.0) keeps a deliberate "diesem Slot zuordnen" decision from
+ * losing the tie-break against a same-slot sibling row — the pin is the
+ * dose of record for its slot.
  */
 function rowPriority(row: DedupIntakeRow): number {
-  if (row.takenAt !== null) return 2;
+  if (row.takenAt !== null) {
+    return row.attributionSource === "USER_PIN" ? 3 : 2;
+  }
   if (row.skipped) return 1;
   return 0;
 }
@@ -219,6 +244,8 @@ export async function dedupeUserIntakeSlots(
         skipped: true,
         syncVersion: true,
         createdAt: true,
+        // v1.16.0 — pin-awareness: a USER_PIN row must win its slot.
+        attributionSource: true,
       },
       orderBy: { scheduledFor: "asc" },
     })) as DedupIntakeRow[];
@@ -230,6 +257,10 @@ export async function dedupeUserIntakeSlots(
     // never collapse together.
     const slots = new Map<string, { instant: Date; rows: DedupIntakeRow[] }>();
     for (const row of rows) {
+      // v1.16.0 — a deliberate band-era ad-hoc take never joins a slot
+      // cluster (see `isDeliberateAdHocRow`). Declining to collapse is
+      // always safe: the row simply keeps its own anchor.
+      if (isDeliberateAdHocRow(row)) continue;
       const canonical = resolveCanonicalSlotInstant({
         medication: {
           id: med.id,
