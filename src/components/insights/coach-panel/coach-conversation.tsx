@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { Plus, Settings, Sparkles } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -9,7 +10,6 @@ import { useTranslations } from "@/lib/i18n/context";
 
 import { CoachDrawerBody } from "./coach-drawer-body";
 import { CoachInput } from "./coach-input";
-import { CoachSettingsSheet } from "./coach-settings-sheet";
 import { HistoryRail } from "./history-rail";
 import { MessageThread } from "./message-thread";
 import { MobileRailTray } from "./mobile-rail-tray";
@@ -25,10 +25,10 @@ import { useCoachConversation, useSendCoachMessage } from "./use-coach";
  *
  * This component is the single source of truth for the Coach
  * conversation: it owns the active-conversation id, the streaming send
- * hook, the composer value, the settings sheet, and the mobile rail
- * trays — every piece of Coach v2 behaviour (incremental streaming,
- * collapsible history + provenance, the single composer disclaimer,
- * the auto-grow composer, refusal / budget handling) lives here once.
+ * hook, the composer value, and the rail trays — every piece of Coach
+ * v2 behaviour (incremental streaming, collapsible history +
+ * provenance, the auto-grow composer, refusal / budget handling)
+ * lives here once.
  * The drawer and the page differ ONLY in their chrome: the drawer wraps
  * this surface in a `<Sheet>` and supplies a close button + a maximize
  * control; the page renders it edge-to-edge and supplies a minimize
@@ -79,6 +79,14 @@ export interface CoachConversationProps {
    * tears the stream down on its own.
    */
   registerReset?: (reset: () => void) => void;
+  /**
+   * v1.16.1 — drawer-only: the "Conversations" affordance no longer
+   * opens an in-panel left tray (it kept breaking inside the sheet);
+   * it hands the user off to the full-page Coach route instead. The
+   * drawer wires this to its maximize handler (close sheet + route);
+   * the page omits it and renders the list inline / as a tray.
+   */
+  onRequestFullView?: () => void;
   /** className passthrough for the outer flex column. */
   className?: string;
   /** data-variant on the root, surfaced for e2e + styling hooks. */
@@ -93,6 +101,7 @@ export function CoachConversation({
   trailingHeaderActions,
   autoFocusComposer,
   registerReset,
+  onRequestFullView,
   className,
   surface,
 }: CoachConversationProps) {
@@ -103,7 +112,6 @@ export function CoachConversation({
   >(null);
   const [historyTrayOpen, setHistoryTrayOpen] = useState(false);
   const [sourcesTrayOpen, setSourcesTrayOpen] = useState(false);
-  const [settingsOpen, setSettingsOpen] = useState(false);
   const [inputValue, setInputValue] = useResettableValue(prefill ?? "");
 
   const { data: conversation } = useCoachConversation(currentConversationId);
@@ -188,37 +196,42 @@ export function CoachConversation({
         >
           <Plus className="size-4" aria-hidden="true" />
         </Button>
+        {/* v1.16.1 — the Coach preferences moved into Settings → AI
+            (one place for model + behaviour). The header keeps a gear
+            that deep-links there instead of opening an in-chat sheet. */}
         <Button
-          type="button"
+          asChild
           variant="ghost"
           size="icon"
-          onClick={() => setSettingsOpen(true)}
           data-slot="coach-settings"
-          aria-label={t("insights.coach.settingsAriaLabel")}
-          title={t("insights.coach.settingsAriaLabel")}
           className="text-muted-foreground hover:text-foreground size-11 shrink-0"
         >
-          <Settings className="size-4" aria-hidden="true" />
+          <Link
+            href="/settings/ai"
+            aria-label={t("insights.coach.settingsAriaLabel")}
+            title={t("insights.coach.settingsAriaLabel")}
+          >
+            <Settings className="size-4" aria-hidden="true" />
+          </Link>
         </Button>
         {trailingHeaderActions}
       </header>
 
       <CoachDrawerBody
-        sourcesRail={<SourcesRail />}
+        historyRail={
+          surface === "page" ? (
+            <HistoryRail
+              activeId={currentConversationId}
+              onSelect={(id) => setCurrentConversationId(id)}
+            />
+          ) : undefined
+        }
         thread={
           <MessageThread
             conversation={conversation ?? null}
             streaming={send.streaming}
             optimisticUser={send.optimisticUser}
           />
-        }
-        disclaimer={
-          <p
-            data-slot="coach-composer-disclaimer"
-            className="text-muted-foreground text-xs leading-relaxed"
-          >
-            {t("insights.coach.composerDisclaimer")}
-          </p>
         }
         composer={
           <div>
@@ -241,11 +254,14 @@ export function CoachConversation({
             />
           </div>
         }
-        onOpenHistoryTray={() => setHistoryTrayOpen(true)}
+        onHistoryClick={
+          surface === "drawer" && onRequestFullView
+            ? onRequestFullView
+            : () => setHistoryTrayOpen(true)
+        }
         onOpenSourcesTray={() => setSourcesTrayOpen(true)}
       />
 
-      <CoachSettingsSheet open={settingsOpen} onOpenChange={setSettingsOpen} />
       <MobileRailTray
         historyOpen={historyTrayOpen}
         onHistoryOpenChange={setHistoryTrayOpen}

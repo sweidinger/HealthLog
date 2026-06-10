@@ -380,6 +380,192 @@ export async function extractAndStoreFacts(
 }
 
 // ---------------------------------------------------------------------------
+// Deterministic always-remember extraction
+// ---------------------------------------------------------------------------
+
+/**
+ * v1.16.1 — the LLM extraction above only runs once a conversation grows past
+ * the history cap (the chat route enqueues the memory refresh at >20 turns),
+ * so an allergy stated in the second message of a short chat never reached the
+ * fact store at all. Allergies, intolerances and explicitly self-reported
+ * diagnoses are the one category the Coach must NEVER drop, so they get a
+ * deterministic, provider-free path that runs on every user message: a small
+ * closed set of self-statement patterns ("ich habe eine X-Allergie", "I'm
+ * allergic to X", …). Matches store as `condition` facts at confidence 95 —
+ * high enough to displace at the cap and to rank into the injection top-N.
+ *
+ * The patterns stay deliberately narrow: they match explicit first-person
+ * self-statements only, never an inferred or third-party condition, keeping
+ * the "descriptive, never diagnostic" contract of the LLM prompt.
+ */
+export const DETERMINISTIC_FACT_CONFIDENCE = 95;
+
+interface DeterministicPattern {
+  re: RegExp;
+  kind: "allergy" | "intolerance" | "diagnosis";
+}
+
+const DETERMINISTIC_PATTERNS: DeterministicPattern[] = [
+  // German — allergies.
+  {
+    // "ich habe eine Erdnussallergie" / "ich hab 'ne Erdnuss-Allergie".
+    // The capture must be compounded onto "-allergie" (no space) so the
+    // article in "eine Allergie gegen X" can never be captured — that
+    // phrasing belongs to the next pattern.
+    re: /\bich\s+hab(?:e)?\s+(?:eine?\s+|'?ne\s+)?([a-zäöüß][\wäöüß-]*?)-?allergie\b/i,
+    kind: "allergy",
+  },
+  {
+    // "ich habe eine Allergie gegen Erdnüsse" / "ich bin allergisch gegen/auf Erdnüsse"
+    re: /\bich\s+(?:hab(?:e)?\s+(?:eine?\s+)?allergie\s+(?:gegen|auf)|bin\s+allergisch\s+(?:gegen|auf))\s+([a-zäöüß][\wäöüß -]{1,40}?)(?=[.,;!?]|$)/im,
+    kind: "allergy",
+  },
+  // German — intolerances.
+  {
+    // "ich habe eine Laktoseunverträglichkeit / Laktose-Intoleranz".
+    // Compound-only capture, same rationale as the allergy pattern.
+    re: /\bich\s+hab(?:e)?\s+(?:eine?\s+)?([a-zäöüß][\wäöüß-]*?)-?(?:unverträglichkeit|intoleranz)\b/i,
+    kind: "intolerance",
+  },
+  {
+    // "ich bin laktoseintolerant"
+    re: /\bich\s+bin\s+([a-zäöüß][\wäöüß-]*?)[-\s]?intolerant\b/i,
+    kind: "intolerance",
+  },
+  // German — explicit self-reported diagnosis.
+  {
+    // "bei mir wurde Asthma diagnostiziert"
+    re: /\bbei\s+mir\s+wurde\s+([a-zäöüß][\wäöüß -]{1,40}?)\s+diagnostiziert\b/i,
+    kind: "diagnosis",
+  },
+  // English — allergies.
+  {
+    // "I'm allergic to peanuts"
+    re: /\bI(?:'m|\s+am)\s+allergic\s+to\s+([a-z][\w -]{1,40}?)(?=[.,;!?]|$)/im,
+    kind: "allergy",
+  },
+  {
+    // "I have a peanut allergy"
+    re: /\bI\s+have\s+an?\s+([a-z][\w-]*)\s+allergy\b/i,
+    kind: "allergy",
+  },
+  // English — intolerances.
+  {
+    // "I have a lactose intolerance" / "I'm lactose intolerant"
+    re: /\bI\s+have\s+an?\s+([a-z][\w-]*)\s+intolerance\b/i,
+    kind: "intolerance",
+  },
+  {
+    re: /\bI(?:'m|\s+am)\s+([a-z][\w-]*)[-\s]intolerant\b/i,
+    kind: "intolerance",
+  },
+  // English — explicit self-reported diagnosis.
+  {
+    re: /\bI\s+(?:was|got)\s+diagnosed\s+with\s+([a-z][\w -]{1,40}?)(?=[.,;!?]|$)/im,
+    kind: "diagnosis",
+  },
+];
+
+function cleanCapture(raw: string): string | null {
+  const cleaned = raw.replace(/\s+/g, " ").replace(/[.,;:!?]+$/u, "").trim();
+  if (cleaned.length < 2 || cleaned.length > 60) return null;
+  return cleaned;
+}
+
+function deterministicFactText(
+  kind: DeterministicPattern["kind"],
+  subject: string,
+  locale: string | undefined,
+): string {
+  const de = locale?.toLowerCase().startsWith("de") ?? true;
+  switch (kind) {
+    case "allergy":
+      return de
+        ? `Allergie: ${subject} (eigene Angabe)`
+        : `Allergy: ${subject} (self-reported)`;
+    case "intolerance":
+      return de
+        ? `Unverträglichkeit: ${subject} (eigene Angabe)`
+        : `Intolerance: ${subject} (self-reported)`;
+    case "diagnosis":
+      return de
+        ? `Diagnose laut eigener Angabe: ${subject}`
+        : `Self-reported diagnosis: ${subject}`;
+  }
+}
+
+/**
+ * Pure pattern pass over a single user message. Exported so the unit tests
+ * pin the patterns without a DB. Returns zero or more `condition` facts.
+ */
+export function extractDeterministicFacts(
+  message: string,
+  locale?: string,
+): ParsedFact[] {
+  const out: ParsedFact[] = [];
+  for (const { re, kind } of DETERMINISTIC_PATTERNS) {
+    const match = re.exec(message);
+    if (!match) continue;
+    const subject = cleanCapture(match[1] ?? "");
+    if (!subject) continue;
+    const fact = deterministicFactText(kind, subject, locale);
+    if (fact.length > FACT_MAX_CHARS) continue;
+    out.push({
+      category: "condition",
+      fact,
+      confidence: DETERMINISTIC_FACT_CONFIDENCE,
+    });
+  }
+  return out;
+}
+
+/**
+ * Run the deterministic pass on one user message and persist the survivors
+ * (deduped against the active set). No provider call — safe to fire on every
+ * turn from the chat route. Returns the number of facts stored.
+ */
+export async function storeDeterministicFacts(args: {
+  conversationId: string;
+  userId: string;
+  message: string;
+  locale?: string;
+  prisma?: PrismaLike;
+}): Promise<number> {
+  const db = args.prisma ?? prisma;
+
+  const candidates = extractDeterministicFacts(args.message, args.locale);
+  if (candidates.length === 0) return 0;
+
+  const active = await loadActiveFacts(db, args.userId);
+  const seen = active.map((f) => f.text);
+
+  let stored = 0;
+  for (const cand of candidates) {
+    if (isNearDuplicate(cand.fact, seen)) continue;
+    seen.push(cand.fact);
+    // Field-by-field, no spread (mass-assignment rule, CLAUDE.md).
+    await db.coachFact.create({
+      data: {
+        userId: args.userId,
+        factEncrypted: encryptToBytes(cand.fact),
+        category: cand.category,
+        confidence: cand.confidence,
+        sourceConversationId: args.conversationId,
+      },
+    });
+    stored += 1;
+  }
+
+  if (stored > 0) {
+    annotate({
+      action: { name: "coach.facts.deterministic_stored" },
+      meta: { count: stored, conversationId: args.conversationId },
+    });
+  }
+  return stored;
+}
+
+// ---------------------------------------------------------------------------
 // Injection block
 // ---------------------------------------------------------------------------
 

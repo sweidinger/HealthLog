@@ -57,6 +57,7 @@ import {
   listConversations,
 } from "@/lib/ai/coach/persistence";
 import { enqueueCoachMemoryRefresh } from "@/lib/ai/coach/coach-memory-shared";
+import { storeDeterministicFacts } from "@/lib/ai/coach/facts";
 import {
   buildDateKey,
   enforceBudget,
@@ -331,6 +332,20 @@ async function handleChatRequest(request: NextRequest): Promise<Response> {
   // rolling summary + extract durable facts off the request path. Fire-and-
   // forget: this turn uses whatever summary is already on disk; the refresh
   // makes the next long turn fresh. No-ops without an embedded worker.
+  // v1.16.1 — always-remember categories (allergies, intolerances, explicit
+  // self-reported diagnoses) must not wait for the >TURN_CAP memory refresh:
+  // a health-critical statement in the second message of a short chat used
+  // to never reach the fact store. The deterministic pattern pass is
+  // provider-free and deduped, so it fires on every user turn.
+  void storeDeterministicFacts({
+    conversationId: workingConversationId,
+    userId,
+    message,
+    locale,
+  }).catch(() => {
+    // Fact capture must never break the chat turn; the >TURN_CAP LLM
+    // extraction remains as the catch-all on long conversations.
+  });
   if (allTurns.length > TURN_CAP) {
     void enqueueCoachMemoryRefresh({
       conversationId: workingConversationId,

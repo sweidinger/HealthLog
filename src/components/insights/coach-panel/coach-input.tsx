@@ -7,14 +7,9 @@ import {
   useEffect,
   useRef,
 } from "react";
-import { Info, Loader2, Send, Square } from "lucide-react";
+import { Loader2, Send, Square } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { useTranslations } from "@/lib/i18n/context";
 
@@ -186,10 +181,17 @@ export function CoachInput({
       onSubmit={handleFormSubmit}
       className="flex flex-col"
     >
+      {/* v1.16.1 — modern chat-app composer: a single row with the
+          textarea and the send control on the same baseline. The
+          textarea starts at one line and auto-grows; `items-end` keeps
+          the button pinned to the input's last line as it grows. The
+          old footer row (Info-popover hint + right-aligned button) is
+          gone — Enter still sends and Shift+Enter still inserts a
+          newline, the affordance just no longer needs explaining. */}
       <div
         className={cn(
           "border-border/60 bg-muted/40 group rounded-md border",
-          "p-2.5 transition-colors",
+          "flex items-end gap-2 p-2 transition-colors",
           "focus-within:border-dracula-purple/50 focus-within:ring-dracula-purple/15 focus-within:ring-2",
         )}
       >
@@ -221,86 +223,51 @@ export function CoachInput({
             // 16 px floor and yanks the viewport on every Coach tap.
             // Desktop shrinks back to `text-sm` for the compact
             // composer.
-            "w-full resize-none bg-transparent text-base leading-relaxed outline-none sm:text-sm",
+            "min-w-0 flex-1 resize-none bg-transparent text-base leading-relaxed outline-none sm:text-sm",
+            // Centre the single-line state against the 36 px send
+            // button so the placeholder and the icon share a baseline.
+            "py-1.5",
             "max-h-[9.5rem] overflow-auto",
             "placeholder:text-muted-foreground disabled:opacity-60",
           )}
         />
-        {/* v1.4.27 F15 — the verbose "Enter to send, Shift+Enter for
-            new line" prose footer used to render under the textarea;
-            it ate ~140 px of vertical room for an Apple-Health-like
-            single-message exchange. The hint now sits behind a tiny
-            Info icon left of the send button; the existing
-            translation string surfaces as the popover body so
-            screen-reader users still hear it on focus.
-
-            v1.4.27 MB3 / CF-31 — swapped off Radix `<Tooltip>` (which
-            never tap-toggles reliably on touch) onto `<Popover>` so
-            mobile users can open the hint via a plain tap on the icon
-            button. The aria-label still labels the icon for screen
-            readers; the popover body carries the long-form copy. */}
-        <div className="mt-1.5 flex items-center justify-end gap-2">
-          <Popover>
-            <PopoverTrigger asChild>
-              <button
-                type="button"
-                aria-label={t("insights.coach.composerHint")}
-                data-slot="coach-input-hint"
-                className={cn(
-                  "text-muted-foreground hover:text-foreground",
-                  "focus-visible:ring-ring/50 inline-flex h-11 w-11",
-                  "items-center justify-center rounded",
-                  "focus-visible:ring-2 focus-visible:outline-none",
-                )}
-              >
-                <Info className="size-3.5" aria-hidden="true" />
-              </button>
-            </PopoverTrigger>
-            <PopoverContent
-              side="top"
-              align="end"
-              data-slot="coach-input-hint-body"
-            >
-              {t("insights.coach.composerHint")}
-            </PopoverContent>
-          </Popover>
-          {isStreaming && onCancel ? (
-            // While a reply streams, swap the send button for a Stop
-            // control bound to the abort handler so the user can
-            // interrupt a long or off-track reply instead of waiting it
-            // out. The spinner stays inside the Stop affordance so the
-            // in-progress state is still legible.
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              onClick={onCancel}
-              data-slot="coach-input-stop"
-              className="gap-1.5"
-            >
-              <Square
-                className="size-3.5 fill-current"
+        {isStreaming && onCancel ? (
+          // While a reply streams, swap the send button for a Stop
+          // control bound to the abort handler so the user can
+          // interrupt a long or off-track reply instead of waiting it
+          // out.
+          <Button
+            type="button"
+            size="icon"
+            variant="outline"
+            onClick={onCancel}
+            data-slot="coach-input-stop"
+            aria-label={t("insights.coach.stop")}
+            title={t("insights.coach.stop")}
+            className="size-9 shrink-0"
+          >
+            <Square className="size-3.5 fill-current" aria-hidden="true" />
+          </Button>
+        ) : (
+          <Button
+            type="submit"
+            size="icon"
+            disabled={!canSubmit}
+            data-slot="coach-input-send"
+            aria-label={t("insights.coach.send")}
+            title={t("insights.coach.send")}
+            className="size-9 shrink-0"
+          >
+            {isStreaming ? (
+              <Loader2
+                className="size-4 animate-spin motion-reduce:animate-none"
                 aria-hidden="true"
               />
-              <span>{t("insights.coach.stop")}</span>
-            </Button>
-          ) : (
-            <Button
-              type="submit"
-              size="sm"
-              disabled={!canSubmit}
-              data-slot="coach-input-send"
-              className="gap-1.5"
-            >
-              {isStreaming ? (
-                <Loader2 className="size-3.5 animate-spin motion-reduce:animate-none" aria-hidden="true" />
-              ) : (
-                <Send className="size-3.5" aria-hidden="true" />
-              )}
-              <span>{t("insights.coach.send")}</span>
-            </Button>
-          )}
-        </div>
+            ) : (
+              <Send className="size-4" aria-hidden="true" />
+            )}
+          </Button>
+        )}
       </div>
     </form>
   );

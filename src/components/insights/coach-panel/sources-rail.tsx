@@ -95,11 +95,20 @@ export function SourcesRail({ className }: SourcesRailProps) {
   return (
     <div
       data-slot="coach-sources-rail"
-      className={cn("flex h-full min-h-0 flex-col gap-3 p-3", className)}
+      // v1.16.1 — `min-w-0` + `overflow-x-hidden` pin the rail to its
+      // column width: the switch rows used to push past the 280/320 px
+      // container and paint a horizontal scrollbar under the rail.
+      className={cn(
+        "flex h-full min-h-0 min-w-0 flex-col gap-3 overflow-x-hidden p-3",
+        className,
+      )}
     >
       <h3
         data-slot="coach-sources-rail-heading"
-        className="text-muted-foreground flex items-center gap-1.5 px-1 text-[11px] font-medium tracking-wide uppercase"
+        // No horizontal inset — the heading sits flush with the row
+        // boxes below it (headings and their content share one left
+        // edge across the Coach surfaces).
+        className="text-muted-foreground flex items-center gap-1.5 text-[11px] font-medium tracking-wide uppercase"
       >
         <Eye className="text-muted-foreground size-3.5" aria-hidden="true" />
         {t("insights.coach.sourcesTitle")}
@@ -111,7 +120,7 @@ export function SourcesRail({ className }: SourcesRailProps) {
       <div data-slot="coach-sources-window" className="flex flex-col gap-1">
         <label
           htmlFor="coach-sources-window-select"
-          className="text-muted-foreground px-1 text-[10px] font-medium tracking-wide uppercase"
+          className="text-muted-foreground text-[10px] font-medium tracking-wide uppercase"
         >
           {t("insights.coach.windowLabel")}
         </label>
