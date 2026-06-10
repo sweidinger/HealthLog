@@ -26,6 +26,10 @@ import {
   type ComparisonSnapshot,
 } from "@/lib/ai/prompts/insight-system-prompt";
 import { buildSystemPromptWithReferences } from "@/lib/ai/prompts/insight-generator";
+import {
+  buildAboutMeInsightBlock,
+  getAboutMeForUser,
+} from "@/lib/ai/coach/about-me";
 import { metricsFromPresentSections } from "@/lib/ai/medical-references";
 import { summarize, type DataPoint } from "@/lib/analytics/trends";
 import {
@@ -543,6 +547,13 @@ export const POST = apiHandler(async (request: NextRequest) => {
   );
   if (plateauContext) {
     userPrompt += buildGlp1PlateauPrompt(plateauContext, locale);
+  }
+  // v1.15.20 — fold the user-authored "about me" self-description
+  // (Settings → AI) into the briefing as a delimited, user-provided
+  // SYSTEM CONTEXT block. Null (no text / undecryptable) costs nothing.
+  const aboutMe = await getAboutMeForUser(userId);
+  if (aboutMe) {
+    userPrompt += buildAboutMeInsightBlock(aboutMe, locale);
   }
   // v1.10.0 — fold a notable derived wellness signal (readiness / recovery
   // shift, confidence-gated) into the briefing as a SYSTEM CONTEXT block.

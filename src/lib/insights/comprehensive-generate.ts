@@ -34,6 +34,10 @@ import {
   type ComparisonSnapshot,
 } from "@/lib/ai/prompts/insight-system-prompt";
 import { buildSystemPromptWithReferences } from "@/lib/ai/prompts/insight-generator";
+import {
+  buildAboutMeInsightBlock,
+  getAboutMeForUser,
+} from "@/lib/ai/coach/about-me";
 import { metricsFromPresentSections } from "@/lib/ai/medical-references";
 import { summarize, type DataPoint } from "@/lib/analytics/trends";
 import {
@@ -561,6 +565,13 @@ export async function generateComprehensiveInsight(
   );
   if (plateauContext) {
     userPrompt += buildGlp1PlateauPrompt(plateauContext, locale);
+  }
+  // v1.15.20 — fold the user-authored "about me" self-description
+  // (Settings → AI) into the nightly briefing exactly like the
+  // on-demand route. Null (no text / undecryptable) costs nothing.
+  const aboutMe = await getAboutMeForUser(userId);
+  if (aboutMe) {
+    userPrompt += buildAboutMeInsightBlock(aboutMe, locale);
   }
 
   // v1.12.7 (B5) — inject the curated SOURCES block for the metric sections

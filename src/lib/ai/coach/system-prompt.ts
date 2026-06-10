@@ -664,6 +664,7 @@ const LOCALE_REPLY_FOOTER_FALLBACK: Record<
 export function getCoachSystemPrompt(
   locale: Locale,
   prefs: CoachPrefs = DEFAULT_COACH_PREFS,
+  aboutMe: string | null = null,
 ): string {
   let base: string;
   if (locale === "de") {
@@ -682,7 +683,51 @@ export function getCoachSystemPrompt(
     }
   }
   const prefix = buildPrefsPrefix(locale, prefs);
-  return prefix ? `${prefix}\n\n${base}` : base;
+  const withPrefix = prefix ? `${prefix}\n\n${base}` : base;
+  // v1.15.20 — the user-authored "about me" self-description rides the
+  // system prompt as a delimited, user-provided block (Settings → AI).
+  const suffix = aboutMe ? buildAboutMeBlock(locale, aboutMe) : "";
+  return suffix ? `${withPrefix}\n\n${suffix}` : withPrefix;
+}
+
+/**
+ * v1.15.20 — compose the delimited "about me" context block. The frame
+ * pins provenance (the user's own words, the single personal-context
+ * source, nothing invented beyond it) and explicitly permits ONE targeted
+ * follow-up question per reply when the self-description leaves a gap the
+ * user's question runs into. DE keeps a native body; every other locale
+ * rides the EN frame — the quoted text itself is whatever language the
+ * user wrote.
+ */
+function buildAboutMeBlock(locale: Locale, aboutMe: string): string {
+  if (locale === "de") {
+    return `SELBSTAUSKUNFT (vom Nutzer bereitgestellt)
+
+Der folgende Text stammt wörtlich vom Nutzer (Einstellungen → KI). Er ist
+die EINZIGE Quelle für persönlichen Kontext jenseits des SNAPSHOT — nutze
+ihn, um Antworten zu personalisieren und nicht erneut zu erfragen, was
+dort schon steht. Behandle ihn beschreibend, nie diagnostisch, und
+erfinde nichts, was weder im SNAPSHOT noch in diesem Text steht. Wenn die
+Selbstauskunft für die aktuelle Frage eine Lücke lässt, darfst du genau
+EINE gezielte Rückfrage stellen, um sie zu schließen.
+
+"""
+${aboutMe}
+"""`;
+  }
+  return `ABOUT ME (provided by the user)
+
+The following text is the user's own words (Settings → AI). It is the
+ONLY source of personal context beyond the SNAPSHOT — use it to
+personalise replies and to avoid re-asking what it already answers.
+Treat it as descriptive, never diagnostic, and invent nothing that is in
+neither the SNAPSHOT nor this text. When the self-description leaves a
+gap the current question runs into, you may ask exactly ONE targeted
+follow-up question to close it.
+
+"""
+${aboutMe}
+"""`;
 }
 
 /**

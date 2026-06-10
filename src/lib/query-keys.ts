@@ -393,6 +393,8 @@ export const queryKeys = {
   featureFlags: () => ["feature-flags"] as const,
   coachPrefs: () => ["coach-prefs"] as const,
   coachFacts: () => ["coach-facts"] as const,
+  /** v1.15.20 — Settings → AI "about me" self-description. */
+  coachAboutMe: () => ["coach-about-me"] as const,
 
   /**
    * v1.4.41 — admin surfaces. Pre-fix every admin section declared its
@@ -413,6 +415,8 @@ export const queryKeys = {
   adminFeedbackRoot: () => ["admin", "feedback"] as const,
   adminHostMetrics: (window: string) =>
     ["admin", "host-metrics", window] as const,
+  /** v1.15.20 — registration invite list (admin Users section). */
+  adminInvites: () => ["admin", "invites"] as const,
   adminAuditActions: () => ["admin", "audit-log", "actions"] as const,
   adminAuditOverview: () => ["admin", "audit-log", "overview-preview"] as const,
   /**

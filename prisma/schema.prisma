@@ -511,6 +511,16 @@ model User {
   // seeded catalogue).
   cycleSymptomsCustom CycleSymptom[] @relation("UserCycleSymptoms")
 
+  // v1.15.20 — user-authored "about me" context for the AI surfaces
+  // (1:1, encrypted free text). See `UserHealthProfile`.
+  healthProfile UserHealthProfile?
+  // v1.15.20 — registration invite tokens (closed-registration flow).
+  // `InviteCreator` = admin who minted the invite; `InviteConsumer` =
+  // the account that registered through it (last consumer wins on a
+  // multi-use invite).
+  invitesCreated InviteToken[] @relation("InviteCreator")
+  invitesUsed    InviteToken[] @relation("InviteConsumer")
+
   @@map("users")
 }
 
@@ -1428,6 +1438,17 @@ enum IntakeSource {
   @@map("intake_source")
 }
 
+/// v1.15.20 — provenance of an intake row's slot binding. `USER_PIN` marks
+/// a deliberate "diesem Slot zuordnen" decision on an off-window take; the
+/// ledger then binds the row by its `scheduledFor` anchor and renders it
+/// as taken-late + "zugeordnet" (no compliance flattering, unpinnable).
+enum IntakeAttributionSource {
+  AUTO
+  USER_PIN
+
+  @@map("intake_attribution_source")
+}
+
 enum ReminderPhase {
   GREEN
   YELLOW
@@ -1479,6 +1500,15 @@ model MedicationIntakeEvent {
   /// legacy row defaults to false (a user skip or a live pending row,
   /// neither of which is an auto-miss).
   autoMissed     Boolean        @default(false) @map("auto_missed")
+  /// v1.15.20 — how this row's `scheduledFor` slot binding came to be.
+  /// `AUTO` (default) = the write path attributed the take by window-band
+  /// membership (or the row is a skip / pending mint anchored on its slot).
+  /// `USER_PIN` = the user deliberately pinned an off-window take onto a
+  /// named slot ("diesem Slot zuordnen"). The read ledger binds USER_PIN
+  /// rows by their `scheduledFor` anchor (like skips) instead of re-running
+  /// takenAt-band attribution, so a pinned take outside the late tail stays
+  /// on its slot — visibly marked, counted late, never on-time-washed.
+  attributionSource IntakeAttributionSource @default(AUTO) @map("attribution_source")
   source         IntakeSource   @default(WEB)
   idempotencyKey String?        @unique @map("idempotency_key")
   createdAt      DateTime       @default(now()) @map("created_at")
@@ -1798,6 +1828,35 @@ model ApiToken {
 
   @@index([userId])
   @@map("api_tokens")
+}
+
+// v1.15.20 — registration invite tokens. When the operator has disabled
+// open registration (`AppSettings.registrationEnabled = false`), a valid,
+// unexpired invite token still admits a signup. The raw `hlv_<hex>` token
+// is shown exactly once at mint time; only its HMAC-SHA256 hash (keyed by
+// `API_TOKEN_HMAC_KEY`, the same scheme as `ApiToken.tokenHash`) is
+// stored. `expiresAt` is mandatory and capped at 30 days by the admin
+// route. `uses`/`maxUses` make multi-use invites possible; the register
+// path consumes a use with an atomic guarded increment so a concurrent
+// signup can never overshoot `maxUses`. `usedBy` tracks the most recent
+// consumer (informational; SetNull on account deletion so the invite
+// audit row outlives the account).
+model InviteToken {
+  id        String    @id @default(cuid())
+  tokenHash String    @unique @map("token_hash")
+  createdBy String    @map("created_by")
+  createdAt DateTime  @default(now()) @map("created_at")
+  expiresAt DateTime  @map("expires_at")
+  usedAt    DateTime? @map("used_at")
+  usedBy    String?   @map("used_by")
+  maxUses   Int       @default(1) @map("max_uses")
+  uses      Int       @default(0)
+
+  creator  User  @relation("InviteCreator", fields: [createdBy], references: [id], onDelete: Cascade)
+  consumer User? @relation("InviteConsumer", fields: [usedBy], references: [id], onDelete: SetNull)
+
+  @@index([expiresAt])
+  @@map("invite_tokens")
 }
 
 // ─── Refresh Tokens (native client short-lived access + rotating refresh) ─
@@ -3005,6 +3064,28 @@ model CoachFact {
 
   @@index([userId, deletedAt, confidence])
   @@map("coach_facts")
+}
+
+// v1.15.20 — user-authored "about me" self-description the AI surfaces
+// (Coach system prompt + daily-briefing user prompt) inject as a clearly
+// delimited, user-provided context block. 1:1 with User and lazily
+// created on first save so existing accounts pay nothing. The free text
+// is encrypted at rest (AES-256-GCM via the shared Bytes codec, exactly
+// like `CoachFact.factEncrypted`) — it is unstructured health prose and
+// must never land in the table as plaintext. A cleared profile keeps the
+// row with a NULL payload so `updatedAt` documents the deletion instant.
+model UserHealthProfile {
+  id               String   @id @default(cuid())
+  userId           String   @unique @map("user_id")
+  // Free text, hard-capped at 4 000 chars by the route's Zod schema
+  // BEFORE encryption. NULL = cleared / never written.
+  aboutMeEncrypted Bytes?   @map("about_me_encrypted")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_health_profiles")
 }
 
 // Per-user, per-day token-spend ledger for the AI Coach. The dispatcher

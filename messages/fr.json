@@ -192,6 +192,9 @@
   "offlineBanner": {
     "message": "Pas de connexion — tes modifications seront enregistrées dès que tu seras de nouveau en ligne."
   },
+  "demoBanner": {
+    "message": "Mode démo — les modifications ne sont pas enregistrées."
+  },
   "nav": {
     "dashboard": "Tableau de bord",
     "measurements": "Mesures",
@@ -251,6 +254,7 @@
     "hasAccount": "Déjà un compte ?",
     "loginFailed": "Échec de la connexion",
     "registerFailed": "Échec de l’inscription",
+    "invitedBanner": "Vous avez été invité — créez votre compte même si les inscriptions sont fermées.",
     "createAccount": "Créer un compte",
     "newAccount": "Créer un nouveau compte",
     "backToPasskey": "Revenir à la passkey",
@@ -719,6 +723,8 @@
     "compliance7d": "Observance 7 jours",
     "compliance30d": "Observance 30 jours",
     "complianceWindow": "Observance {days} jours",
+    "complianceInfo": "Part des doses attendues que vous avez enregistrées. Les plans hebdomadaires comptent semaine par semaine.",
+    "complianceInfoLabel": "Que signifie l'observance ?",
     "complianceDoses": "{count} doses",
     "lastIntake": "Dernière prise :",
     "nextIntake": "Prochaine prise :",
@@ -1046,6 +1052,8 @@
           "subline": "Vérifiez tout ci-dessous avant d’enregistrer.",
           "remindersLabel": "Rappels activés",
           "remindersDescription": "Push, Telegram ou ntfy — selon vos réglages.",
+          "noChannelHint": "Les rappels nécessitent un canal de notification — aucun n'est actif pour le moment.",
+          "noChannelHintLink": "Configurer les notifications",
           "multiScheduleNote": "Ce médicament a plusieurs horaires. L’éditeur détaillé reviendra dans une version ultérieure.",
           "short": "Fini"
         }
@@ -1363,6 +1371,18 @@
           "body": "Cette prise se situe juste en dehors de la fenêtre de {slot}. La rattacher à ce créneau ou la conserver comme entrée hors planning ?",
           "keepAdHoc": "Hors planning",
           "pin": "Rattacher"
+        },
+        "pin": {
+          "action": "Rattacher au créneau de {time}",
+          "release": "Détacher du créneau",
+          "pinnedTag": "rattachée",
+          "pinnedToast": "Prise rattachée au créneau",
+          "unpinnedToast": "Prise détachée du créneau",
+          "dueContext": "prévue à {time} ({delta})",
+          "confirmTitle": "Rattacher au créneau de {time} ?",
+          "confirmBody": "La prise comptera comme prise en retard pour ce créneau – le taux n'est pas embelli. Le rattachement peut être retiré à tout moment.",
+          "confirmCancel": "Annuler",
+          "confirmAction": "Rattacher"
         }
       },
       "notifications": {
@@ -1571,6 +1591,7 @@
   "charts": {
     "loadingLabel": "Chargement du graphique…",
     "loadingSlowHint": "Calcul des analyses — cela peut prendre un instant.",
+    "adjustTargets": "Ajuster les valeurs cibles",
     "weight": "Poids",
     "bloodPressure": "Tension artérielle",
     "pulse": "Pouls",
@@ -2303,11 +2324,11 @@
         "stairDescentSpeedBody": "C'est la vitesse à laquelle vous descendez une volée de marches. Avec la vitesse de montée, elle reflète le contrôle des jambes et l'équilibre : un rythme stable est bon signe, un rythme en baisse mérite attention.",
         "breathingDisturbancesTitle": "Troubles respiratoires du sommeil",
         "breathingDisturbancesBody": "Votre Apple Watch peut estimer à quelle fréquence votre respiration a été interrompue pendant le sommeil. Un indice plus bas est préférable ; un niveau qu'Apple signale comme élevé, surtout sur plusieurs nuits, mérite d'être évoqué avec un professionnel.",
-        "readinessBody": "La forme du jour est une lecture quotidienne unique de la disposition de votre corps à affronter la journée, mêlant fréquence cardiaque au repos, variabilité de la fréquence cardiaque, sommeil et régularité de vos dernières nuits. Un score élevé signifie que votre organisme paraît récupéré et disponible ; un score plus bas est une invitation douce à lever le pied et à laisser votre corps rattraper. Voyez-le comme un repère pour doser la journée, pas comme un verdict.",
-        "sleepScoreBody": "Votre score de sommeil résume toute une nuit en un seul chiffre, en pesant la durée de votre sommeil, son efficacité, la régularité de vos horaires et l'équilibre entre sommeil léger, profond et paradoxal. Il vise à montrer d'un coup d'œil si la nuit vous a vraiment restauré. Observez la tendance sur plusieurs semaines plutôt que de courir après un score parfait sur une seule nuit.",
-        "recoveryBody": "La récupération reflète la qualité du rétablissement de votre corps et la capacité dont vous disposez aujourd'hui pour encaisser de la charge, à partir de signaux nocturnes comme la variabilité de la fréquence cardiaque et la fréquence au repos. Un score élevé est un feu vert pour pousser ; un score plus bas suggère que votre organisme se reconstruit encore. C'est un repère sur l'intensité à adopter, pas une limite.",
-        "strainBody": "La charge mesure l'effort cardiovasculaire et physique que vous avez imposé à votre corps, des entraînements à une journée active debout. Dès qu'il y a assez d'historique, elle est évaluée par rapport à votre propre effort habituel et reflète ainsi ce qui est exigeant pour vous en particulier. Servez-vous-en pour équilibrer les journées intenses et les plus douces, et garder un entraînement tenable.",
-        "stressBody": "Le stress est ici une estimation de la charge physiologique sur votre système nerveux, lue surtout à partir des schémas de variabilité de la fréquence cardiaque et non de ce que vous ressentez consciemment. Un score plus bas indique un état plus calme et bien régulé ; un score plus élevé invite à prévoir de la récupération. C'est une approximation descriptive pour repérer des tendances, pas une mesure clinique."
+        "readinessBody": "La forme du jour est une lecture quotidienne unique de la disposition de votre corps à affronter la journée, mêlant fréquence cardiaque au repos, variabilité de la fréquence cardiaque, sommeil et régularité de vos dernières nuits. Un score élevé signifie que votre organisme paraît récupéré et disponible ; un score plus bas est une invitation douce à lever le pied.",
+        "sleepScoreBody": "Votre score de sommeil résume toute une nuit en un seul chiffre — durée, efficacité, régularité des horaires et équilibre entre sommeil léger, profond et paradoxal. Observez la tendance sur plusieurs semaines plutôt que de courir après un score parfait sur une seule nuit.",
+        "recoveryBody": "La récupération reflète la qualité du rétablissement de votre corps, à partir de signaux nocturnes comme la variabilité de la fréquence cardiaque et la fréquence au repos. Un score élevé est un feu vert pour pousser ; un score plus bas suggère que votre organisme se reconstruit encore.",
+        "strainBody": "La charge mesure l'effort cardiovasculaire et physique que vous avez imposé à votre corps, des entraînements à une journée active debout. Dès qu'il y a assez d'historique, elle est évaluée par rapport à votre propre effort habituel, pas à un standard extérieur.",
+        "stressBody": "Le stress est ici une estimation de la charge physiologique sur votre système nerveux, lue surtout à partir des schémas de variabilité de la fréquence cardiaque et non de ce que vous ressentez consciemment. Un score plus bas indique un état calme et bien régulé ; un score plus élevé invite à prévoir de la récupération."
       },
       "stats": {
         "label": "Statistiques récapitulatives",
@@ -3386,6 +3407,8 @@
       "sources": {
         "title": "Priorité des sources",
         "description": "Choisissez quelle source prévaut quand plusieurs enregistrent la même métrique le même jour.",
+        "integrationsHint": "Connectez ou déconnectez des sources de données sur la page Intégrations.",
+        "integrationsHintLink": "Ouvrir les intégrations",
         "cardTitle": "Priorité des sources par métrique",
         "help": "Lorsque plusieurs sources fournissent la même valeur le même jour (p. ex. Withings et Apple Health indiquent tous deux 1 200 pas), la source en tête compte comme la lecture canonique. Les autres sources restent enregistrées pour la piste d’audit.",
         "resetDefaults": "Rétablir les valeurs par défaut",
@@ -3655,8 +3678,8 @@
     "codexDisconnected": "Connexion à ChatGPT supprimée.",
     "codexConnectionFailed": "Échec de la connexion à ChatGPT. Veuillez réessayer.",
     "rawData": "Envoyer les données brutes",
-    "rawDataOnDescription": "Des métriques agrégées sont envoyées, ainsi que des points bruts anonymisés des 30 derniers jours. Cela inclut des mesures par métrique (par exemple poids, tension, pouls) avec un contexte temporel, afin que le fournisseur puisse détecter plus fiablement les tendances, les valeurs aberrantes et les corrélations. Le nom, l’e-mail et les identifiants de compte directs ne sont pas transmis.",
-    "rawDataOffDescription": "Seules des métriques résumées sont envoyées (par exemple moyennes, tendances, minimum/maximum). Aucun point individuel ni contexte temporel exact. Cela préserve mieux la vie privée, mais le fournisseur peut être moins précis pour les tendances et fluctuations à court terme.",
+    "rawDataOnDescription": "Des métriques agrégées et des points individuels anonymisés des 30 derniers jours avec contexte temporel sont envoyés — jamais le nom, l’e-mail ni les identifiants de compte directs.",
+    "rawDataOffDescription": "Seules des métriques résumées sont envoyées (par exemple moyennes, tendances, minimum/maximum) — aucun point individuel ni contexte temporel exact.",
     "rawDataWarning": "Mode brut activé : le fournisseur reçoit des points anonymisés supplémentaires des 30 derniers jours pour une analyse plus précise.",
     "regenerateInsights": "Régénérer les rapports",
     "regenerateSuccess": "Rapports régénérés",
@@ -3788,6 +3811,19 @@
         "savedHidden": "Coach masqué.",
         "savedShown": "Coach visible.",
         "saveError": "Impossible d'enregistrer la modification. Veuillez réessayer."
+      },
+      "aboutMe": {
+        "title": "À propos de moi",
+        "description": "Contexte personnel que le Coach et le briefing quotidien lisent en plus de vos données.",
+        "placeholder": "Ex. travail posté, régime végétarien, blessure au genou, entraînement pour un semi-marathon…",
+        "charCount": "{used} / {max} caractères",
+        "clear": "Vider",
+        "save": "Enregistrer",
+        "savedToast": "Note « À propos de moi » enregistrée.",
+        "clearedToast": "Note « À propos de moi » supprimée.",
+        "saveError": "Impossible d'enregistrer. Veuillez réessayer.",
+        "loadError": "Impossible de charger la note.",
+        "hint": "Transmis au Coach et au briefing quotidien comme contexte supplémentaire. Laissez vide pour ne rien envoyer."
       }
     },
     "dashboard": {
@@ -3817,6 +3853,21 @@
     "withingsSyncResult": "{count} mesures synchronisées",
     "withingsFullSyncResult": "{count} mesures entièrement synchronisées",
     "withingsSyncFailed": "Échec de la synchronisation",
+    "withingsOauthConnected": "Withings connecté — la première synchronisation démarre en arrière-plan.",
+    "withingsOauthFailed": "Échec de la connexion Withings",
+    "withingsOauthError": {
+      "csrf1": "Le contrôle de sécurité a échoué car le cookie du navigateur manquait. Relancez la connexion dans le même navigateur.",
+      "replay": "Ce lien de confirmation a déjà été utilisé. Relancez la connexion.",
+      "state": "La réponse de Withings ne correspond à aucune demande de connexion en cours. Relancez la connexion.",
+      "expired": "La demande de connexion a expiré. Relancez la connexion et terminez l'autorisation en quelques minutes.",
+      "cross_user": "La réponse appartient à une demande d'un autre compte. Relancez la connexion depuis votre propre compte.",
+      "nocode": "Withings n'a renvoyé aucun code d'autorisation. Réessayez et autorisez l'accès dans la fenêtre Withings.",
+      "nocreds": "Aucun identifiant d'API Withings n'est enregistré. Enregistrez d'abord le Client ID et le Client Secret, puis reconnectez.",
+      "token": "L'échange de jetons avec Withings a échoué. Vérifiez le Client ID et le Client Secret, puis réessayez.",
+      "generic": "Erreur inconnue lors de la connexion. Relancez la connexion."
+    },
+    "integrationsSourcesHint": "Quand plusieurs sources fournissent la même métrique, la priorité des sources décide quelle valeur compte.",
+    "integrationsSourcesHintLink": "Ouvrir la priorité des sources",
     "withingsSynchronize": "Synchroniser",
     "withingsDisconnect": "Déconnecter",
     "withingsDisconnectTitle": "Déconnecter Withings ?",
@@ -4253,6 +4304,36 @@
     "bugReportRepoPlaceholder": "owner/repo",
     "bugReportToken": "Jeton d'issue",
     "bugReportTokenPlaceholder": "ghp_...",
+    "invites": {
+      "title": "Invitations",
+      "description": "Liens d'invitation pour l'inscription — ils fonctionnent même lorsque les inscriptions sont fermées. Le lien n'est affiché qu'une seule fois.",
+      "createLabel": "Nouvelle invitation :",
+      "createDays": "{days} jours",
+      "createdToast": "Invitation créée.",
+      "createError": "Impossible de créer l'invitation.",
+      "tokenTitle": "Lien d'invitation",
+      "tokenOnceHint": "Affiché uniquement maintenant — copiez le lien ou faites scanner le code QR.",
+      "copyLink": "Copier le lien",
+      "copiedToast": "Lien copié.",
+      "copyError": "Échec de la copie.",
+      "qrAlt": "Code QR du lien d'invitation",
+      "loadError": "Impossible de charger les invitations.",
+      "listEmpty": "Aucune invitation pour l'instant.",
+      "expires": "expire le {date}",
+      "uses": "{used} / {max} utilisés",
+      "createdMeta": "Créée le {date} par {by}",
+      "usedBy": "utilisée en dernier par {username}",
+      "statusActive": "Active",
+      "statusExpired": "Expirée",
+      "statusExhausted": "Épuisée",
+      "deleteAria": "Supprimer l'invitation",
+      "deleteConfirmTitle": "Supprimer cette invitation ?",
+      "deleteConfirmBody": "Le lien d'invitation devient immédiatement invalide. Les comptes déjà créés avec ce lien sont conservés.",
+      "deleteConfirmAction": "Supprimer",
+      "cancel": "Annuler",
+      "deletedToast": "Invitation supprimée.",
+      "deleteError": "Impossible de supprimer l'invitation."
+    },
     "userManagement": "Gestion des utilisateurs",
     "userName": "Nom",
     "userEmail": "E-mail",
@@ -4916,6 +4997,16 @@
       "hourAria": "Heure du rappel d’humeur",
       "hourSavedToast": "Heure du rappel mise à jour."
     },
+    "coachNudge": {
+      "title": "Coach proactif",
+      "description": "Vous contacte au plus une fois par semaine lorsque vos données suggèrent de consulter le Coach — par exemple une faible observance ou une moyenne hebdomadaire de tension élevée.",
+      "toggleAria": "Activer ou désactiver les rappels proactifs du Coach",
+      "statusOn": "Actif — max. 1 fois par semaine",
+      "statusOff": "Désactivé",
+      "enabledToast": "Rappels proactifs du Coach activés.",
+      "disabledToast": "Rappels proactifs du Coach désactivés.",
+      "saveError": "Impossible d'enregistrer. Veuillez réessayer plus tard."
+    },
     "eventMedicationReminder": "Rappel de médicament",
     "eventMedicationReminderDesc": "Envoyé à chaque heure de prise prévue.",
     "eventMeasurementAnomaly": "Mesure inhabituelle",
@@ -5101,6 +5192,14 @@
   "moodReminders": {
     "dailyTitle": "Enregistrer votre humeur",
     "dailyBody": "Comment vous sentez-vous aujourd’hui ?"
+  },
+  "coachNudges": {
+    "complianceTitle": "Votre Coach a une remarque à ce sujet",
+    "complianceBody": "Vos prises ont été irrégulières cette semaine. Échangez avec le Coach — le plan peut peut-être être simplifié.",
+    "bpTitle": "Tension élevée cette semaine",
+    "bpBody": "Votre tension moyenne de la semaine a dépassé votre objectif. Le Coach peut vous aider à mettre les valeurs en perspective.",
+    "scoreTitle": "Votre score de récupération baisse",
+    "scoreBody": "Votre score de récupération a nettement chuté cette semaine. Le Coach peut vous aider à cerner les causes possibles."
   },
   "clinicianView": {
     "title": "Dossier de santé partagé",

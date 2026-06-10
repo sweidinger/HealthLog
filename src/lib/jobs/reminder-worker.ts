@@ -107,6 +107,11 @@ import {
   runRecoveryScore,
 } from "@/lib/jobs/recovery-score";
 import {
+  COACH_NUDGE_QUEUE,
+  COACH_NUDGE_CRON,
+  runCoachNudgeTick,
+} from "@/lib/jobs/coach-nudge";
+import {
   STRESS_SCORE_QUEUE,
   STRESS_SCORE_CRON,
   runStressScore,
@@ -2437,6 +2442,10 @@ export async function startReminderWorker() {
     // turn. The queue MUST be registered here or the enqueue silently never
     // runs.
     COACH_MEMORY_REFRESH_QUEUE,
+    // v1.15.20 — proactive Coach nudge. Same pg-boss v12 createQueue
+    // contract; without this entry the daily 05:15 schedule silently
+    // no-ops and no nudge ever fires.
+    COACH_NUDGE_QUEUE,
   ];
 
   for (const q of allQueues) {
@@ -2592,6 +2601,10 @@ export async function startReminderWorker() {
     // handler only fans out on a week (Mon) / month (1st) boundary; every
     // other night is a cheap no-op. Budget-gated per user inside the runner.
     [PERIOD_NARRATIVE_QUEUE, PERIOD_NARRATIVE_CRON, insightRetryOptions],
+    // v1.15.20 — daily 05:15 Europe/Berlin proactive Coach nudge, after
+    // the 04:45–04:55 score crons so the recovery-score trigger reads
+    // settled rows. Deterministic triggers only — no AI call on this path.
+    [COACH_NUDGE_QUEUE, COACH_NUDGE_CRON],
   ];
 
   for (const [name, cron, sendOptions] of schedules) {
@@ -2865,6 +2878,40 @@ export async function startReminderWorker() {
         workerLog("error", "[recovery-score] pass failed", err);
         throw err;
       }
+    },
+  );
+  // v1.15.20 — proactive Coach nudge. Single-flight; the push-attempts
+  // ledger caps a user at one nudge per rolling week, so an overlapping
+  // tick would only waste reads. Deterministic triggers, no AI call.
+  await boss.work(
+    COACH_NUDGE_QUEUE,
+    { localConcurrency: 1 },
+    async () => {
+      await withBackgroundEvent("job.coach_nudge", async (evt) => {
+        try {
+          const summary = await runCoachNudgeTick(
+            getWorkerPrisma(),
+            new Date(),
+          );
+          evt.setBackground({
+            task_name: "job.coach_nudge",
+            result: {
+              candidates_scanned: summary.candidatesScanned,
+              dispatched: summary.dispatched,
+              skipped_opted_out: summary.skippedOptedOut,
+              skipped_no_provider: summary.skippedNoProvider,
+              skipped_recent_nudge: summary.skippedRecentNudge,
+              skipped_no_trigger: summary.skippedNoTrigger,
+              skipped_no_channel: summary.skippedNoChannel,
+              failed: summary.failed,
+            },
+          });
+        } catch (err) {
+          evt.setError(err);
+          recordError();
+          throw err;
+        }
+      });
     },
   );
   // v1.10.0 — computed scores (WX-E). Nightly Stress-score (HRV-derived

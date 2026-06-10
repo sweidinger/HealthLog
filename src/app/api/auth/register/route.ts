@@ -1,4 +1,8 @@
 import { prisma } from "@/lib/db";
+import {
+  consumeInviteToken,
+  recordInviteConsumer,
+} from "@/lib/auth/invite-token";
 import { registerSchema } from "@/lib/validations/auth";
 import { hashPassword, checkPasswordStrength } from "@/lib/auth/password";
 import { createSession } from "@/lib/auth/session";
@@ -57,10 +61,6 @@ export const POST = apiHandler(async (request: NextRequest) => {
   } catch {
     // Table may not exist yet; allow registration
   }
-  if (!registrationEnabled) {
-    return apiError("Registration is disabled", 403);
-  }
-
   const { data: body, error: jsonError } = await safeJson(request, {
     maxBytes: 64 * 1024,
   });
@@ -73,7 +73,21 @@ export const POST = apiHandler(async (request: NextRequest) => {
     return returnAllZodIssues(parsed.error, 422);
   }
 
-  const { email, username, password, timezone: timezoneInput } = parsed.data;
+  const {
+    email,
+    username,
+    password,
+    timezone: timezoneInput,
+    inviteToken,
+  } = parsed.data;
+
+  // v1.15.20 — closed registration still admits a valid invite. The
+  // token itself is 32 random bytes behind a keyed hash and the surface
+  // is rate-limited (5 / 15 min / IP), so a distinct "invalid invite"
+  // message is a UX win, not an oracle.
+  if (!registrationEnabled && !inviteToken) {
+    return apiError("Registration is disabled", 403);
+  }
 
   // v1.4.25 W7 — accept a browser-detected timezone from the
   // registration form. Validate against the runtime IANA list; on
@@ -109,6 +123,23 @@ export const POST = apiHandler(async (request: NextRequest) => {
   }
   const passwordHash = await hashPassword(password);
 
+  // v1.15.20 — consume the invite LAST, after every other validation,
+  // so a taken username or weak password can never burn one of the
+  // invite's uses. The guarded increment inside `consumeInviteToken`
+  // makes the last-use race safe under concurrent signups.
+  let inviteId: string | null = null;
+  if (!registrationEnabled && inviteToken) {
+    const consumed = await consumeInviteToken(inviteToken);
+    if (!consumed.ok) {
+      annotate({
+        action: { name: "auth.register.invite_rejected" },
+        meta: { reason: consumed.reason },
+      });
+      return apiError("Invalid or expired invite", 403);
+    }
+    inviteId = consumed.inviteId;
+  }
+
   // First user becomes admin
   const role = userCount === 0 ? "ADMIN" : "USER";
 
@@ -130,10 +161,16 @@ export const POST = apiHandler(async (request: NextRequest) => {
   const ua = request.headers.get("user-agent");
   await createSession(user.id, true, ip, ua);
 
+  // Stamp the consumer onto the invite (informational, best-effort —
+  // the use itself was already counted atomically above).
+  if (inviteId) {
+    await recordInviteConsumer(inviteId, user.id);
+  }
+
   await auditLog("auth.register", {
     userId: user.id,
     ipAddress: ip,
-    details: { method: "password", timezone },
+    details: { method: "password", timezone, invited: inviteId !== null },
   });
 
   annotate({ action: { name: "auth.register" } });

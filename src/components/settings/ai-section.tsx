@@ -34,6 +34,7 @@ import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
 import { Switch } from "@/components/ui/switch";
 import { PasswordInput } from "@/components/ui/password-input";
+import { AboutMeSection } from "@/components/settings/about-me-section";
 import { CoachMemorySection } from "@/components/settings/coach-memory-section";
 import { useAuth } from "@/hooks/use-auth";
 import { formatDateTime } from "@/lib/format";
@@ -203,6 +204,11 @@ export function AiSection() {
       {coachEnabled && (
         <CoachMemorySection isAuthenticated={isAuthenticated} />
       )}
+
+      {/* v1.15.20 — user-authored "about me" context for the Coach +
+          daily briefing. Not gated on the Coach toggle: the briefing
+          reads it too. */}
+      <AboutMeSection isAuthenticated={isAuthenticated} />
     </section>
   );
 }

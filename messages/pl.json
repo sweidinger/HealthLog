@@ -192,6 +192,9 @@
   "offlineBanner": {
     "message": "Brak połączenia — twoje zmiany zostaną zapisane, gdy ponownie pojawisz się online."
   },
+  "demoBanner": {
+    "message": "Tryb demo — zmiany nie są zapisywane."
+  },
   "nav": {
     "dashboard": "Panel",
     "measurements": "Pomiary",
@@ -251,6 +254,7 @@
     "hasAccount": "Masz już konto?",
     "loginFailed": "Logowanie nie powiodło się",
     "registerFailed": "Rejestracja nie powiodła się",
+    "invitedBanner": "Otrzymano zaproszenie — utwórz konto, nawet jeśli rejestracja jest zamknięta.",
     "createAccount": "Utwórz konto",
     "newAccount": "Utwórz nowe konto",
     "backToPasskey": "Wróć do passkey",
@@ -719,6 +723,8 @@
     "compliance7d": "Przestrzeganie 7 dni",
     "compliance30d": "Przestrzeganie 30 dni",
     "complianceWindow": "Przestrzeganie {days} dni",
+    "complianceInfo": "Udział zarejestrowanych dawek względem oczekiwanych. Plany tygodniowe liczone są tydzień po tygodniu.",
+    "complianceInfoLabel": "Co oznacza przestrzeganie zaleceń?",
     "complianceDoses": "{count} dawek",
     "lastIntake": "Ostatnie przyjęcie:",
     "nextIntake": "Następne przyjęcie:",
@@ -1046,6 +1052,8 @@
           "subline": "Sprawdź wszystko poniżej przed zapisaniem.",
           "remindersLabel": "Przypomnienia włączone",
           "remindersDescription": "Push, Telegram lub ntfy — w zależności od ustawień.",
+          "noChannelHint": "Przypomnienia wymagają kanału powiadomień — obecnie żaden nie jest aktywny.",
+          "noChannelHintLink": "Skonfiguruj powiadomienia",
           "multiScheduleNote": "Ten lek ma wiele harmonogramów. Szczegółowy edytor wróci w kolejnej wersji.",
           "short": "Gotowe"
         }
@@ -1363,6 +1371,18 @@
           "body": "To przyjęcie wypada tuż poza oknem {slot}. Przypisać je do tego slotu czy zachować jako wpis poza planem?",
           "keepAdHoc": "Poza planem",
           "pin": "Przypisz"
+        },
+        "pin": {
+          "action": "Przypisz do slotu {time}",
+          "release": "Usuń przypisanie",
+          "pinnedTag": "przypisana",
+          "pinnedToast": "Dawka przypisana do slotu",
+          "unpinnedToast": "Przypisanie usunięte",
+          "dueContext": "termin: {time} ({delta})",
+          "confirmTitle": "Przypisać do slotu {time}?",
+          "confirmBody": "Dawka zostanie policzona jako przyjęta z opóźnieniem dla tego slotu – wskaźnik nie jest zawyżany. Przypisanie można w każdej chwili usunąć.",
+          "confirmCancel": "Anuluj",
+          "confirmAction": "Przypisz"
         }
       },
       "notifications": {
@@ -1571,6 +1591,7 @@
   "charts": {
     "loadingLabel": "Ładowanie wykresu…",
     "loadingSlowHint": "Obliczanie analiz — to może chwilę potrwać.",
+    "adjustTargets": "Dostosuj wartości docelowe",
     "weight": "Waga",
     "bloodPressure": "Ciśnienie tętnicze",
     "pulse": "Tętno",
@@ -2303,11 +2324,11 @@
         "stairDescentSpeedBody": "To prędkość, z jaką schodzisz bieg schodów. Razem z prędkością wchodzenia odzwierciedla kontrolę nóg i równowagę — stałe tempo to dobry znak, a spadające warto obserwować.",
         "breathingDisturbancesTitle": "Zaburzenia oddychania we śnie",
         "breathingDisturbancesBody": "Twój Apple Watch potrafi oszacować, jak często Twój oddech był przerywany podczas snu. Niższy wskaźnik jest lepszy; poziom, który Apple oznacza jako podwyższony — zwłaszcza przez wiele nocy — warto omówić z lekarzem.",
-        "readinessBody": "Gotowość to pojedynczy dzienny odczyt tego, jak przygotowane jest Twoje ciało, by zmierzyć się z dniem — łączy tętno spoczynkowe, zmienność rytmu serca, sen i regularność ostatnich nocy. Wyższy wynik oznacza, że Twój organizm wygląda na wypoczęty i pełen zasobów; niższy to delikatna wskazówka, by zwolnić tempo i dać ciału nadrobić zaległości. Traktuj go jako wskazówkę do rozłożenia sił w ciągu dnia, a nie jako wyrok.",
-        "sleepScoreBody": "Twój wynik snu streszcza całą noc w jednej liczbie, biorąc pod uwagę, jak długo i jak efektywnie spałeś, jak regularne były Twoje pory oraz proporcje snu lekkiego, głębokiego i REM. Ma pokazać na pierwszy rzut oka, czy noc naprawdę Cię zregenerowała. Obserwuj wzorzec w ujęciu tygodni, zamiast gonić za idealnym wynikiem jednej nocy.",
-        "recoveryBody": "Regeneracja odzwierciedla, jak dobrze Twoje ciało się odbudowało i ile masz dziś zapasu, by przyjąć obciążenie — opiera się na nocnych sygnałach, takich jak zmienność rytmu serca i tętno spoczynkowe. Wysoki wynik to zielone światło, by przyspieszyć; niższy sugeruje, że organizm wciąż się regeneruje. To wskazówka, jak mocno się angażować, a nie sztywna granica.",
-        "strainBody": "Obciążenie ujmuje, ile wysiłku sercowo-naczyniowego i fizycznego nałożyłeś na swoje ciało — od treningów po aktywny dzień na nogach. Gdy zbierze się wystarczająco danych, jest oceniane względem Twojego własnego typowego wysiłku, więc odzwierciedla to, co jest wymagające właśnie dla Ciebie. Wykorzystaj je, by równoważyć ciężkie dni lżejszymi i utrzymać trening na zrównoważonym poziomie.",
-        "stressBody": "Stres jest tu szacunkiem fizjologicznego obciążenia Twojego układu nerwowego, odczytywanym głównie ze wzorców zmienności rytmu serca, a nie z tego, jak się świadomie czujesz. Niższy wynik wskazuje na spokojniejszy, dobrze regulowany stan; wyższy to zachęta, by wpleść regenerację. To opisowe przybliżenie pozwalające dostrzegać trendy, a nie pomiar kliniczny."
+        "readinessBody": "Gotowość to pojedynczy dzienny odczyt tego, jak przygotowane jest Twoje ciało, by zmierzyć się z dniem — łączy tętno spoczynkowe, zmienność rytmu serca, sen i regularność ostatnich nocy. Wyższy wynik oznacza, że Twój organizm wygląda na wypoczęty i pełen zasobów; niższy to delikatna wskazówka, by zwolnić tempo.",
+        "sleepScoreBody": "Twój wynik snu streszcza całą noc w jednej liczbie — długość, efektywność, regularność pór oraz proporcje snu lekkiego, głębokiego i REM. Obserwuj wzorzec w ujęciu tygodni, zamiast gonić za idealnym wynikiem jednej nocy.",
+        "recoveryBody": "Regeneracja odzwierciedla, jak dobrze Twoje ciało się odbudowało — opiera się na nocnych sygnałach, takich jak zmienność rytmu serca i tętno spoczynkowe. Wysoki wynik to zielone światło, by przyspieszyć; niższy sugeruje, że organizm wciąż się regeneruje.",
+        "strainBody": "Obciążenie ujmuje, ile wysiłku sercowo-naczyniowego i fizycznego nałożyłeś na swoje ciało — od treningów po aktywny dzień na nogach. Gdy zbierze się wystarczająco danych, jest oceniane względem Twojego własnego typowego wysiłku, a nie cudzej miary.",
+        "stressBody": "Stres jest tu szacunkiem fizjologicznego obciążenia Twojego układu nerwowego, odczytywanym głównie ze wzorców zmienności rytmu serca, a nie z tego, jak się świadomie czujesz. Niższy wynik wskazuje na spokojny, dobrze regulowany stan; wyższy to zachęta, by wpleść regenerację."
       },
       "stats": {
         "label": "Statystyki podsumowujące",
@@ -3386,6 +3407,8 @@
       "sources": {
         "title": "Priorytet źródeł",
         "description": "Wybierz, które źródło wygrywa, gdy kilka rejestruje tę samą metrykę tego samego dnia.",
+        "integrationsHint": "Źródła danych podłączysz lub odłączysz na stronie integracji.",
+        "integrationsHintLink": "Otwórz integracje",
         "cardTitle": "Priorytet źródeł według metryki",
         "help": "Gdy więcej niż jedno źródło dostarcza tę samą wartość tego samego dnia (np. Withings i Apple Health raportują po 1200 kroków), źródło na górze liczy się jako odczyt kanoniczny. Pozostałe źródła pozostają zapisane na potrzeby ścieżki audytu.",
         "resetDefaults": "Przywróć wartości domyślne",
@@ -3655,8 +3678,8 @@
     "codexDisconnected": "Połączenie z ChatGPT usunięte.",
     "codexConnectionFailed": "Połączenie z ChatGPT nie powiodło się. Spróbuj ponownie.",
     "rawData": "Wysyłaj surowe dane",
-    "rawDataOnDescription": "Wysyłane są zagregowane metryki oraz zanonimizowane surowe punkty z ostatnich 30 dni. Obejmuje to pomiary dla poszczególnych metryk (np. waga, ciśnienie, tętno) z kontekstem czasowym, aby dostawca mógł rzetelniej wykrywać wzorce, wartości odstające i korelacje. Imię, adres e-mail i bezpośrednie identyfikatory konta nie są przesyłane.",
-    "rawDataOffDescription": "Wysyłane są tylko podsumowane metryki (np. średnie, trendy, minimum/maksimum). Bez pojedynczych punktów i bez dokładnego kontekstu czasowego. Lepiej chroni to prywatność, ale dostawca może być mniej precyzyjny w przypadku wzorców i krótkoterminowych wahań.",
+    "rawDataOnDescription": "Wysyłane są zagregowane metryki oraz zanonimizowane pojedyncze punkty z ostatnich 30 dni z kontekstem czasowym — nigdy imię, adres e-mail ani bezpośrednie identyfikatory konta.",
+    "rawDataOffDescription": "Wysyłane są tylko podsumowane metryki (np. średnie, trendy, minimum/maksimum) — bez pojedynczych punktów i bez dokładnego kontekstu czasowego.",
     "rawDataWarning": "Tryb surowych danych włączony: dostawca otrzymuje dodatkowe zanonimizowane punkty z ostatnich 30 dni dla dokładniejszej analizy.",
     "regenerateInsights": "Wygeneruj raporty ponownie",
     "regenerateSuccess": "Raporty wygenerowane ponownie",
@@ -3788,6 +3811,19 @@
         "savedHidden": "Coach ukryty.",
         "savedShown": "Coach widoczny.",
         "saveError": "Nie udało się zapisać zmiany. Spróbuj ponownie."
+      },
+      "aboutMe": {
+        "title": "O mnie",
+        "description": "Osobisty kontekst, który Coach i codzienny briefing czytają obok Twoich danych.",
+        "placeholder": "Np. praca zmianowa, dieta wegetariańska, kontuzja kolana, trening do półmaratonu…",
+        "charCount": "{used} / {max} znaków",
+        "clear": "Wyczyść",
+        "save": "Zapisz",
+        "savedToast": "Notatka „O mnie” zapisana.",
+        "clearedToast": "Notatka „O mnie” usunięta.",
+        "saveError": "Nie udało się zapisać. Spróbuj ponownie.",
+        "loadError": "Nie udało się wczytać notatki.",
+        "hint": "Przekazywane Coachowi i codziennemu briefingowi jako dodatkowy kontekst. Zostaw puste, aby nic nie wysyłać."
       }
     },
     "dashboard": {
@@ -3817,6 +3853,21 @@
     "withingsSyncResult": "{count} pomiarów zsynchronizowano",
     "withingsFullSyncResult": "{count} pomiarów w pełni zsynchronizowano",
     "withingsSyncFailed": "Synchronizacja nie powiodła się",
+    "withingsOauthConnected": "Withings połączony — pierwsza synchronizacja rozpocznie się w tle.",
+    "withingsOauthFailed": "Połączenie z Withings nie powiodło się",
+    "withingsOauthError": {
+      "csrf1": "Kontrola bezpieczeństwa nie powiodła się, ponieważ brakowało pliku cookie przeglądarki. Rozpocznij połączenie ponownie w tej samej przeglądarce.",
+      "replay": "Ten link potwierdzający został już użyty. Rozpocznij połączenie ponownie.",
+      "state": "Odpowiedź Withings nie pasuje do żadnego otwartego żądania połączenia. Rozpocznij połączenie ponownie.",
+      "expired": "Żądanie połączenia wygasło. Rozpocznij połączenie ponownie i dokończ autoryzację w ciągu kilku minut.",
+      "cross_user": "Odpowiedź należy do żądania innego konta. Rozpocznij połączenie ponownie z własnego konta.",
+      "nocode": "Withings nie zwrócił kodu autoryzacji. Spróbuj ponownie i zezwól na dostęp w oknie Withings.",
+      "nocreds": "Brak zapisanych danych dostępowych API Withings. Najpierw zapisz Client ID i Client Secret, potem połącz ponownie.",
+      "token": "Wymiana tokenów z Withings nie powiodła się. Sprawdź Client ID i Client Secret i spróbuj ponownie.",
+      "generic": "Nieznany błąd podczas łączenia. Rozpocznij połączenie ponownie."
+    },
+    "integrationsSourcesHint": "Gdy kilka źródeł dostarcza tę samą metrykę, priorytet źródeł decyduje, która wartość się liczy.",
+    "integrationsSourcesHintLink": "Otwórz priorytet źródeł",
     "withingsSynchronize": "Synchronizuj",
     "withingsDisconnect": "Rozłącz",
     "withingsDisconnectTitle": "Rozłączyć Withings?",
@@ -4253,6 +4304,36 @@
     "bugReportRepoPlaceholder": "owner/repo",
     "bugReportToken": "Token zgłoszeń",
     "bugReportTokenPlaceholder": "ghp_...",
+    "invites": {
+      "title": "Zaproszenia",
+      "description": "Linki z zaproszeniem do rejestracji — działają nawet przy zamkniętej rejestracji. Link jest wyświetlany tylko raz.",
+      "createLabel": "Nowe zaproszenie:",
+      "createDays": "{days} dni",
+      "createdToast": "Zaproszenie utworzone.",
+      "createError": "Nie udało się utworzyć zaproszenia.",
+      "tokenTitle": "Link z zaproszeniem",
+      "tokenOnceHint": "Wyświetlane tylko teraz — skopiuj link lub udostępnij kod QR do zeskanowania.",
+      "copyLink": "Kopiuj link",
+      "copiedToast": "Link skopiowany.",
+      "copyError": "Kopiowanie nie powiodło się.",
+      "qrAlt": "Kod QR linku z zaproszeniem",
+      "loadError": "Nie udało się wczytać zaproszeń.",
+      "listEmpty": "Brak zaproszeń.",
+      "expires": "wygasa {date}",
+      "uses": "{used} / {max} wykorzystane",
+      "createdMeta": "Utworzono {date} przez {by}",
+      "usedBy": "ostatnio użyte przez {username}",
+      "statusActive": "Aktywne",
+      "statusExpired": "Wygasłe",
+      "statusExhausted": "Wyczerpane",
+      "deleteAria": "Usuń zaproszenie",
+      "deleteConfirmTitle": "Usunąć to zaproszenie?",
+      "deleteConfirmBody": "Link z zaproszeniem natychmiast straci ważność. Konta już zarejestrowane przez ten link pozostaną.",
+      "deleteConfirmAction": "Usuń",
+      "cancel": "Anuluj",
+      "deletedToast": "Zaproszenie usunięte.",
+      "deleteError": "Nie udało się usunąć zaproszenia."
+    },
     "userManagement": "Zarządzanie użytkownikami",
     "userName": "Nazwa",
     "userEmail": "E-mail",
@@ -4916,6 +4997,16 @@
       "hourAria": "Godzina przypomnienia o nastroju",
       "hourSavedToast": "Godzina przypomnienia zaktualizowana."
     },
+    "coachNudge": {
+      "title": "Proaktywny Coach",
+      "description": "Odzywa się najwyżej raz w tygodniu, gdy Twoje dane sugerują zajrzenie do Coacha — np. niska systematyczność przyjmowania leków lub podwyższona tygodniowa średnia ciśnienia.",
+      "toggleAria": "Przełącz proaktywne podpowiedzi Coacha",
+      "statusOn": "Aktywne — maks. 1 raz w tygodniu",
+      "statusOff": "Wyłączone",
+      "enabledToast": "Proaktywne podpowiedzi Coacha włączone.",
+      "disabledToast": "Proaktywne podpowiedzi Coacha wyłączone.",
+      "saveError": "Nie udało się zapisać. Spróbuj ponownie później."
+    },
     "eventMedicationReminder": "Przypomnienie o leku",
     "eventMedicationReminderDesc": "Wysyłane o każdej zaplanowanej godzinie dawki.",
     "eventMeasurementAnomaly": "Nietypowy pomiar",
@@ -5101,6 +5192,14 @@
   "moodReminders": {
     "dailyTitle": "Zapisz nastrój",
     "dailyBody": "Jak się dzisiaj czujesz?"
+  },
+  "coachNudges": {
+    "complianceTitle": "Twój Coach ma na ten temat przemyślenie",
+    "complianceBody": "W tym tygodniu Twoje dawki były przyjmowane nieregularnie. Porozmawiaj chwilę z Coachem — może plan da się uprościć.",
+    "bpTitle": "Podwyższone ciśnienie w tym tygodniu",
+    "bpBody": "Twoje średnie ciśnienie w tym tygodniu przekroczyło cel. Coach pomoże Ci umieścić wyniki w kontekście.",
+    "scoreTitle": "Twój wskaźnik regeneracji spada",
+    "scoreBody": "Twój wskaźnik regeneracji wyraźnie spadł w tym tygodniu. Coach pomoże Ci zawęzić możliwe przyczyny."
   },
   "clinicianView": {
     "title": "Udostępniona dokumentacja zdrowotna",

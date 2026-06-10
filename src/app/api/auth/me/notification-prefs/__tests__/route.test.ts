@@ -91,6 +91,7 @@ describe("GET /api/auth/me/notification-prefs", () => {
       medication: { clientManaged: false, deliveryDefault: "server" },
       mood: { reminderHour: 22 },
       cycle: { clientManaged: false },
+      coach: { nudgesEnabled: true },
     });
   });
 
@@ -111,6 +112,7 @@ describe("GET /api/auth/me/notification-prefs", () => {
       medication: { clientManaged: true, deliveryDefault: "server" },
       mood: { reminderHour: 22 },
       cycle: { clientManaged: false },
+      coach: { nudgesEnabled: true },
     });
   });
 
@@ -133,6 +135,7 @@ describe("GET /api/auth/me/notification-prefs", () => {
       medication: { clientManaged: false, deliveryDefault: "server" },
       mood: { reminderHour: 22 },
       cycle: { clientManaged: false },
+      coach: { nudgesEnabled: true },
     });
   });
 });
@@ -166,6 +169,7 @@ describe("PATCH /api/auth/me/notification-prefs", () => {
       medication: { clientManaged: true, deliveryDefault: "server" },
       mood: { reminderHour: 22 },
       cycle: { clientManaged: false },
+      coach: { nudgesEnabled: true },
     });
 
     expect(prisma.user.update).toHaveBeenCalledWith({
@@ -175,6 +179,7 @@ describe("PATCH /api/auth/me/notification-prefs", () => {
           medication: { clientManaged: true, deliveryDefault: "server" },
           mood: { reminderHour: 22 },
           cycle: { clientManaged: false },
+          coach: { nudgesEnabled: true },
         },
       },
     });
@@ -188,11 +193,13 @@ describe("PATCH /api/auth/me/notification-prefs", () => {
             medication: { clientManaged: false, deliveryDefault: "server" },
             mood: { reminderHour: 22 },
             cycle: { clientManaged: false },
+            coach: { nudgesEnabled: true },
           },
           next: {
             medication: { clientManaged: true, deliveryDefault: "server" },
             mood: { reminderHour: 22 },
             cycle: { clientManaged: false },
+            coach: { nudgesEnabled: true },
           },
           changed: ["medication"],
         }),
@@ -254,6 +261,7 @@ describe("PATCH /api/auth/me/notification-prefs", () => {
           medication: { clientManaged: true, deliveryDefault: "server" },
           mood: { reminderHour: 22 },
           cycle: { clientManaged: false },
+          coach: { nudgesEnabled: true },
         },
       },
     });
@@ -279,6 +287,7 @@ describe("PATCH /api/auth/me/notification-prefs", () => {
       medication: { clientManaged: true, deliveryDefault: "server" },
       mood: { reminderHour: 22 },
       cycle: { clientManaged: false },
+      coach: { nudgesEnabled: true },
     });
 
     expect(prisma.user.update).toHaveBeenCalledWith({
@@ -288,6 +297,7 @@ describe("PATCH /api/auth/me/notification-prefs", () => {
           medication: { clientManaged: true, deliveryDefault: "server" },
           mood: { reminderHour: 22 },
           cycle: { clientManaged: false },
+          coach: { nudgesEnabled: true },
         },
       },
     });
@@ -316,6 +326,7 @@ describe("PATCH /api/auth/me/notification-prefs", () => {
           medication: { clientManaged: false, deliveryDefault: "server" },
           mood: { reminderHour: 9 },
           cycle: { clientManaged: false },
+          coach: { nudgesEnabled: true },
         },
       },
     });

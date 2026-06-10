@@ -31,6 +31,7 @@ import { LoginOverviewSection } from "@/components/admin/login-overview-section"
 import { RemindersSection } from "@/components/admin/reminders-section";
 import { ServicesSection } from "@/components/admin/services-section";
 import { SystemStatusSection } from "@/components/admin/system-status-section";
+import { InviteTokensSection } from "@/components/admin/invite-tokens-section";
 import { UserManagementSection } from "@/components/admin/user-management-section";
 import type { AdminSectionSlug } from "@/components/admin/section-slugs";
 
@@ -138,7 +139,12 @@ export function AdminSectionRenderer({
           title={t("admin.section.users.title")}
           subtitle={t("admin.section.users.subtitle")}
         >
-          <UserManagementSection />
+          <div className="space-y-6">
+            <UserManagementSection />
+            {/* v1.15.20 — registration invites live with the accounts
+                they admit. */}
+            <InviteTokensSection />
+          </div>
         </SectionFrame>
       );
     case "api-tokens":

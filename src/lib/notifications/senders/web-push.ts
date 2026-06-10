@@ -89,7 +89,16 @@ export async function sendViaWebPush(
       // but the discreet contract still requires no event name on the wire —
       // mirror the APNs GENERIC_EVENT collapse (QA M-sec3).
       tag: payload.discreet ? "REMINDER" : payload.eventType,
-      url: "/",
+      // v1.15.20 — opt-in deep link: a dispatcher payload may carry a
+      // same-origin path in `metadata.url` (e.g. the Coach nudge's
+      // `/insights/coach`); everything else keeps the legacy "/" click
+      // target. Only relative paths are honoured so a poisoned metadata
+      // value can never point the SW at a foreign origin.
+      url:
+        typeof payload.metadata?.url === "string" &&
+        payload.metadata.url.startsWith("/")
+          ? payload.metadata.url
+          : "/",
     });
 
     let anySuccess = false;

@@ -30,6 +30,8 @@ import {
   measurementSourceEnum,
 } from "@/lib/validations/measurement";
 import { loginPasswordSchema } from "@/lib/validations/auth";
+import { aboutMePutSchema } from "@/lib/validations/about-me";
+import { inviteCreateSchema } from "@/lib/validations/invite";
 import { coachPrefsSchema } from "@/lib/validations/coach-prefs";
 import {
   deviceTypeEnum,
@@ -4333,6 +4335,161 @@ export const openApiPaths: NonNullable<ZodOpenApiObject["paths"]> = {
               schema: dataEnvelope(
                 coachFactDeletedResponse,
                 "CoachFactDeleted",
+              ),
+            },
+          },
+        },
+        ...stdResponses,
+      },
+    },
+  },
+  "/api/coach/about-me": {
+    get: {
+      tags: ["Insights"],
+      summary: "Read the caller's \"about me\" self-description",
+      description:
+        "v1.15.20 — returns the user-authored free-text self-description the Coach system prompt and the daily briefing inject as a delimited, user-provided context block. Stored encrypted at rest; an undecryptable payload reads as null (fail closed). Auth via cookie or Bearer; the owner is always narrowed from the session.",
+      responses: {
+        "200": {
+          description: "The stored text (null when never written / cleared).",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                z.object({
+                  aboutMe: z.string().nullable(),
+                  updatedAt: z.iso.datetime({ offset: true }).nullable(),
+                  maxChars: z.number().int(),
+                }),
+                "GetCoachAboutMeResponse",
+              ),
+            },
+          },
+        },
+        ...stdResponses,
+      },
+    },
+    put: {
+      tags: ["Insights"],
+      summary: "Write (or clear) the caller's \"about me\" self-description",
+      description:
+        "v1.15.20 — persists the free text encrypted at rest (4 000-char cap enforced before encryption). An empty / whitespace-only value clears the text while keeping the row so `updatedAt` documents the deletion instant. Rate-limited per user.",
+      requestBody: {
+        required: true,
+        content: { "application/json": { schema: aboutMePutSchema } },
+      },
+      responses: {
+        "200": {
+          description: "The saved (trimmed) text echoed back.",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                z.object({
+                  aboutMe: z.string().nullable(),
+                  updatedAt: z.iso.datetime({ offset: true }),
+                  maxChars: z.number().int(),
+                }),
+                "PutCoachAboutMeResponse",
+              ),
+            },
+          },
+        },
+        ...stdResponses,
+      },
+    },
+  },
+  "/api/admin/invites": {
+    get: {
+      tags: ["Admin"],
+      summary: "List registration invites",
+      description:
+        "v1.15.20 — every invite with creator / consumer usernames and use counters. Metadata only — the raw token is never derivable from this endpoint (only its HMAC hash is persisted). Admin session cookie required; Bearer tokens cannot reach admin endpoints.",
+      responses: {
+        "200": {
+          description: "All invites, newest first.",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                z.array(
+                  z.object({
+                    id: z.string(),
+                    createdAt: z.iso.datetime({ offset: true }),
+                    expiresAt: z.iso.datetime({ offset: true }),
+                    usedAt: z.iso.datetime({ offset: true }).nullable(),
+                    uses: z.number().int(),
+                    maxUses: z.number().int(),
+                    creator: z
+                      .object({ id: z.string(), username: z.string() })
+                      .nullable(),
+                    consumer: z
+                      .object({ id: z.string(), username: z.string() })
+                      .nullable(),
+                  }),
+                ),
+                "AdminInviteList",
+              ),
+            },
+          },
+        },
+        ...stdResponses,
+      },
+    },
+    post: {
+      tags: ["Admin"],
+      summary: "Mint a registration invite",
+      description:
+        "v1.15.20 — creates an invite that admits a signup even while open registration is disabled. The raw `hlv_<64hex>` token and the composed registration URL appear EXACTLY ONCE in this response; only the keyed hash is persisted. Lifetime is capped at 30 days; `maxUses` makes multi-use invites possible (consumption is an atomic guarded increment). Admin session cookie required.",
+      requestBody: {
+        required: true,
+        content: { "application/json": { schema: inviteCreateSchema } },
+      },
+      responses: {
+        "201": {
+          description: "The minted invite, including the one-time raw token.",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                z.object({
+                  id: z.string(),
+                  createdAt: z.iso.datetime({ offset: true }),
+                  expiresAt: z.iso.datetime({ offset: true }),
+                  uses: z.number().int(),
+                  maxUses: z.number().int(),
+                  token: z
+                    .string()
+                    .describe(
+                      "Raw invite token (`hlv_<64hex>`). Shown exactly once — never persisted in plaintext.",
+                    ),
+                  url: z
+                    .string()
+                    .describe(
+                      "Composed registration deep link (`/auth/register?invite=…`).",
+                    ),
+                }),
+                "AdminInviteCreated",
+              ),
+            },
+          },
+        },
+        ...stdResponses,
+      },
+    },
+  },
+  "/api/admin/invites/{id}": {
+    delete: {
+      tags: ["Admin"],
+      requestParams: { path: z.object({ id: z.string() }) },
+      summary: "Revoke a registration invite",
+      description:
+        "v1.15.20 — hard-deletes the invite (no plaintext secret, no health data; mint + revoke live in the audit log). Idempotent: an unknown id returns `{ deleted: false }` instead of 404. Admin session cookie required.",
+      responses: {
+        "200": {
+          description:
+            "The invite was deleted (`deleted: true`) or the id matched nothing (`deleted: false`).",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                z.object({ deleted: z.boolean() }),
+                "AdminInviteDeleted",
               ),
             },
           },
