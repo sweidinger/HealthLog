@@ -50,6 +50,18 @@ async function primeAllCaches(): Promise<void> {
     c: 2,
   }));
 
+  // v1.15.20 — per-medication compliance payload cache.
+  await cached(
+    caches.medicationCompliance,
+    `${USER_A}|med-1|compliance`,
+    async () => ({ mc: 1 }),
+  );
+  await cached(
+    caches.medicationCompliance,
+    `${USER_B}|med-1|compliance`,
+    async () => ({ mc: 2 }),
+  );
+
   await cached(caches.achievements, USER_A, async () => ({ ach: 1 }));
   await cached(caches.achievements, USER_B, async () => ({ ach: 2 }));
 
@@ -148,6 +160,20 @@ describe("invalidateUserMedications", () => {
     expect(caches.analytics.get(dashboardSnapshotCacheKey(USER_A))).toBeNull();
     expect(caches.medications.get(USER_B)).not.toBeNull();
     expect(caches.medicationsIntake.get(`${USER_B}|compliance|30`)).not.toBeNull();
+  });
+
+  it("evicts the per-medication compliance payload for the target user only", async () => {
+    await primeAllCaches();
+    invalidateUserMedications(USER_A);
+
+    // v1.15.20 — the compliance route caches 15 min; an intake write must
+    // flush the `${userId}|` prefix so the next card read is fresh.
+    expect(
+      caches.medicationCompliance.get(`${USER_A}|med-1|compliance`),
+    ).toBeNull();
+    expect(
+      caches.medicationCompliance.get(`${USER_B}|med-1|compliance`),
+    ).not.toBeNull();
   });
 });
 

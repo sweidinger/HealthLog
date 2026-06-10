@@ -14,14 +14,12 @@ import {
   X,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-// v1.4.41 W-ORG — shared shape lives in `src/types/analytics.ts` as
-// `ChecklistAnalyticsData`; aliased back to the local name.
-import type { ChecklistAnalyticsData as AnalyticsData } from "@/types/analytics";
 
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/use-auth";
 import { useTranslations } from "@/lib/i18n/context";
-import { useAnalyticsQuery } from "@/lib/queries/use-analytics-query";
+import { useDashboardSnapshot } from "@/lib/queries/use-dashboard-snapshot";
+import { queryKeys } from "@/lib/query-keys";
 import {
   buildChecklist,
   checklistProgress,
@@ -181,40 +179,54 @@ export function GettingStartedChecklist() {
     }
   }, [expanded]);
 
-  // Light-weight queries: each fetch is small and cached by tanstack.
-  // We rely on the React Query cache the dashboard already uses for
-  // analytics, so this won't fire a second request when the dashboard
-  // and the checklist mount together. v1.4.33 IW2 routes the checklist
-  // onto IW1's slim `?slice=summaries` branch — the only field
-  // consumed is `summaries[METRIC].count`, which the slim slice fills
-  // directly. The cache slot is distinct from the dashboard's thick
-  // slice but each consumer's payload is byte-correct for its own
-  // reads, and the shared hook keeps the legacy `?.data` unwrap so the
-  // canonical consumers still see `{summaries, …}` not `{data: …}`.
-  const analyticsQuery = useAnalyticsQuery({
-    slice: "summaries",
-    enabled: !!user,
-  });
-  const analyticsData = analyticsQuery.data as AnalyticsData | undefined;
+  // v1.15.20 — the measurement count is derived from the dashboard
+  // snapshot the page already fetches (`tiles.summaries` is the same
+  // `computeSummariesSlice` payload the legacy `?slice=summaries`
+  // analytics query carried), so the checklist no longer fires its own
+  // analytics request on every dashboard load. Subscribing to the shared
+  // `queryKeys.dashboardSnapshot()` cell costs zero extra network.
+  const snapshotQuery = useDashboardSnapshot(!!user);
+  const snapshotData = snapshotQuery.data;
+
+  const measurementCount = useMemo(() => {
+    const summaries = snapshotData?.tiles?.summaries ?? {};
+    let total = 0;
+    for (const key of Object.keys(summaries)) {
+      total += summaries[key]?.count ?? 0;
+    }
+    return total;
+  }, [snapshotData]);
+
+  // v1.15.20 — only fetch the checklist's supporting data while the card
+  // can actually render: the user is still in setup (`shouldShowChecklist`'s
+  // `onboardingCompletedAt == null || measurementCount < 5` rule) and has
+  // not dismissed it. Established users used to pay this medications fetch
+  // (and, pre-v1.5, two more) on every dashboard load for a card that
+  // never mounts. Gated on the snapshot having resolved so the count is
+  // real, not the loading-default 0.
+  const checklistRelevant =
+    !!user &&
+    !dismissedAll &&
+    snapshotData !== undefined &&
+    (user.onboardingCompletedAt == null || measurementCount < 5);
 
   const { data: medsData } = useQuery<Array<{ id: string }>>({
-    queryKey: ["medications"],
+    queryKey: queryKeys.medications(),
     queryFn: async () => {
       const res = await fetch("/api/medications");
       if (!res.ok) throw new Error("Failed");
       const json = await res.json();
       return json.data;
     },
-    enabled: !!user,
+    enabled: checklistRelevant,
   });
 
   // v1.5 perf audit: skip these two fetches once the user is past
   // onboarding. The checklist hides itself anyway via shouldShowChecklist
-  // when onboardingCompletedAt != null AND measurementCount >= 5; the
-  // analytics + medications queries above piggy-back on the dashboard's
-  // shared cache, but withings/status and notifications/preferences are
-  // unique to this component and were burning ~950 ms of network on every
-  // dashboard load for established users. See docs/audit/v15-performance.md.
+  // when onboardingCompletedAt != null AND measurementCount >= 5;
+  // withings/status and notifications/preferences are unique to this
+  // component and were burning ~950 ms of network on every dashboard load
+  // for established users. See docs/audit/v15-performance.md.
   const onboardingPending = !!user && user.onboardingCompletedAt == null;
 
   const { data: withingsData } = useQuery<WithingsStatus>({
@@ -238,15 +250,6 @@ export function GettingStartedChecklist() {
     },
     enabled: onboardingPending,
   });
-
-  const measurementCount = useMemo(() => {
-    const summaries = analyticsData?.summaries ?? {};
-    let total = 0;
-    for (const key of Object.keys(summaries)) {
-      total += summaries[key]?.count ?? 0;
-    }
-    return total;
-  }, [analyticsData]);
 
   const medicationCount = medsData?.length ?? 0;
   const withingsConnected = withingsData?.connected === true;
@@ -291,19 +294,19 @@ export function GettingStartedChecklist() {
   });
 
   // v1.4.15 phase-A3 fix #3 — flicker guard. Until BOTH the auth user
-  // AND the analytics query have resolved we render NOTHING. The
+  // AND the snapshot query have resolved we render NOTHING. The
   // previous version rendered a default-true `show` branch while
-  // `measurementCount` was still 0 (because analytics hadn't returned),
+  // `measurementCount` was still 0 (because the data hadn't returned),
   // so a user whose actual `measurementCount >= 5` saw the card flash
   // for ~500 ms before `shouldShowChecklist` flipped to false. We rely
-  // on `analyticsQuery.data === undefined` as the loading sentinel —
+  // on `snapshotData === undefined` as the loading sentinel —
   // tanstack-query writes `data` exactly once per fetch, so this is
   // race-free across hot-reloads and stale-cache invalidation. (The
-  // dashboard's `/api/analytics` query shares the cache key, so the
-  // checklist almost always sees the cached value synchronously on
-  // mount and never blocks UI.)
+  // dashboard's snapshot query shares the cache key, so the checklist
+  // almost always sees the cached value synchronously on mount and
+  // never blocks UI.)
   if (!user) return null;
-  if (analyticsQuery.data === undefined) return null;
+  if (snapshotData === undefined) return null;
   if (!show) return null;
 
   return (

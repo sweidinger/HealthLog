@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/db";
 import { resolveProvider } from "@/lib/ai/provider";
-import { apiSuccess } from "@/lib/api-response";
+import { apiError, apiSuccess } from "@/lib/api-response";
 import type { DataPoint, DataSummary } from "@/lib/analytics/trends";
 import { summarize } from "@/lib/analytics/trends";
 import { getBpTargets } from "@/lib/analytics/bp-targets";
@@ -23,6 +23,7 @@ import { getMedicationCategories } from "@/lib/medication-category";
 import { apiHandler, requireAuth, type AuthContext } from "@/lib/api-handler";
 import { annotate } from "@/lib/logging/context";
 import { requireAssistantSurface } from "@/lib/feature-flags";
+import { checkAnalyticsReadRateLimit } from "@/lib/rate-limit";
 import { cached, caches, type ServerCache } from "@/lib/cache/server-cache";
 import { buildComprehensiveAggregate } from "@/lib/insights/comprehensive-aggregator";
 import {
@@ -34,6 +35,13 @@ export const dynamic = "force-dynamic";
 
 export const GET = apiHandler(async () => {
   const { user } = await requireAuth();
+
+  // v1.15.20 — shared analytics-read budget (generous; caps runaway loops).
+  const rl = await checkAnalyticsReadRateLimit(user.id);
+  if (!rl.allowed) {
+    return apiError("Too many analytics requests. Please retry later.", 429);
+  }
+
   // v1.4.31 — comprehensive feeds the hero strip narration and the
   // recommendations grid that share the Coach gate.
   await requireAssistantSurface("coach");

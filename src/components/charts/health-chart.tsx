@@ -18,7 +18,13 @@ import {
   ReferenceDot,
 } from "recharts";
 import { Loader2 } from "lucide-react";
-import { useState, useMemo, useEffect, type ComponentType } from "react";
+import {
+  useState,
+  useMemo,
+  useEffect,
+  useCallback,
+  type ComponentType,
+} from "react";
 import { RichChartTooltip, type RichTooltipRow } from "./chart-tooltip";
 import { ChartEmptyState } from "./chart-empty-state";
 import { TileHeader } from "@/components/insights/tile-header";
@@ -607,10 +613,17 @@ export function HealthChart({
     // and a fresh measurement evicts every per-chart daily cache in one
     // pass (audit C2). The factory-packed tuple is byte-identical with
     // the pre-v1.4.40 inline literal so the cache layout stays stable.
+    // v1.15.20 — BMI is a pure transformation of the WEIGHT series
+    // (value / height²), so the BMI view shares the raw series' cache
+    // entry instead of re-fetching the same window under its own key.
+    // The key pins the literal "raw" / "no-bmi" discriminators (the
+    // factory tuple shape is unchanged) and the BMI division happens in
+    // the `select` callback below — the factory rule stays intact and
+    // the cached data is mode-agnostic.
     queryKey: queryKeys.chartData(
       types.join(","),
-      valueMode,
-      bmiDivisor ?? "no-bmi",
+      "raw",
+      "no-bmi",
       // v1.4.25 W7b — bucket keys + tick labels depend on the active
       // user timezone, so re-key the cache when it changes. Without
       // this, a tz change inside a session would render stale buckets.
@@ -745,15 +758,12 @@ export function HealthChart({
           // personal baseline, the trend, and the tooltip all operate
           // on the scaled series uniformly. `valueScale` defaults to 1
           // (identity), so non-unit-fixed charts read byte-identical.
-          const rawValue = measurement.value * valueScale;
-          const value =
-            valueMode === "bmi"
-              ? bmiDivisor
-                ? rawValue / bmiDivisor
-                : null
-              : rawValue;
+          // v1.15.20 — the BMI division moved into the query's `select`
+          // callback so the cached series stays raw and the WEIGHT and
+          // BMI views share one cache entry.
+          const value = measurement.value * valueScale;
 
-          if (value == null || !Number.isFinite(value)) {
+          if (!Number.isFinite(value)) {
             continue;
           }
 
@@ -773,11 +783,13 @@ export function HealthChart({
           // v1.8.5 — carry the rollup bucket's min / max through when the
           // API supplies them (daily-aggregate path, non-cumulative).
           // `valueScale` already folded into `value` above; apply the
-          // same scale to the spread so the band tracks the line.
+          // same scale to the spread so the band tracks the line. The
+          // BMI view drops the range tuple in its `select` callback (it
+          // has never rendered the band), so the raw cache always
+          // carries the spread.
           if (
             typeof measurement.minValue === "number" &&
-            typeof measurement.maxValue === "number" &&
-            valueMode !== "bmi"
+            typeof measurement.maxValue === "number"
           ) {
             const scaledMin = measurement.minValue * valueScale;
             const scaledMax = measurement.maxValue * valueScale;
@@ -826,6 +838,33 @@ export function HealthChart({
 
       return allData;
     },
+    // v1.15.20 — BMI view: transform the cached raw WEIGHT series into
+    // BMI at read time. The transformation lives in `select` (not the
+    // queryFn) so the cache entry stays raw and is shared with the
+    // weight chart; tanstack re-runs the projection without a refetch.
+    // No height on the profile → empty series (matches the previous
+    // behaviour where every point was skipped). The `${type}__range`
+    // tuples are dropped — the BMI view has never rendered the band.
+    select: useCallback(
+      (points: ChartDataPoint[]): ChartDataPoint[] => {
+        if (valueMode !== "bmi") return points;
+        if (!bmiDivisor) return [];
+        return points.map((p) => {
+          const out: ChartDataPoint = {
+            date: p.date,
+            timestamp: p.timestamp,
+          };
+          for (const type of types) {
+            const v = p[type];
+            if (typeof v === "number") {
+              out[type] = v / bmiDivisor;
+            }
+          }
+          return out;
+        });
+      },
+      [valueMode, bmiDivisor, types],
+    ),
     enabled: isAuthenticated,
   });
 

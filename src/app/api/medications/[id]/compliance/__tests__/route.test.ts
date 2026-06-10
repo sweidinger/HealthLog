@@ -33,6 +33,26 @@ vi.mock("@/lib/medications/route-guards", () => ({
   assertMedicationOwnership: vi.fn().mockResolvedValue(null),
 }));
 
+// v1.15.20 — the route reads through the per-user compliance cache and a
+// per-user rate limit. Pass-through mocks keep each test's fixture
+// isolated (the real module-scope cache would leak state across tests);
+// the rate-limit tests below flip `allowed` explicitly.
+vi.mock("@/lib/cache/server-cache", () => ({
+  cached: vi.fn(
+    async (_cache: unknown, _key: string, builder: () => Promise<unknown>) =>
+      builder(),
+  ),
+  caches: { medicationCompliance: {} },
+}));
+
+vi.mock("@/lib/rate-limit", () => ({
+  checkRateLimit: vi.fn().mockResolvedValue({
+    allowed: true,
+    remaining: 59,
+    resetAt: Date.now() + 60_000,
+  }),
+}));
+
 vi.mock("@/lib/logging/transports", () => ({ emitIfSampled: vi.fn() }));
 
 vi.mock("@/lib/db-compat", () => ({
@@ -51,6 +71,8 @@ vi.mock("next/headers", () => ({
 import { GET } from "../route";
 import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/auth/session";
+import { cached } from "@/lib/cache/server-cache";
+import { checkRateLimit } from "@/lib/rate-limit";
 import { getUserTodayBounds } from "@/lib/timezone";
 import { userDayKey } from "@/lib/tz/format";
 
@@ -106,6 +128,17 @@ function medication(schedules: unknown[]) {
 beforeEach(() => {
   vi.resetAllMocks();
   vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
+  // `resetAllMocks` clears the factory implementations — re-prime the
+  // pass-through cache and the allowing rate limit for every test.
+  vi.mocked(cached).mockImplementation(
+    async (_cache: unknown, _key: string, builder: () => Promise<unknown>) =>
+      builder(),
+  );
+  vi.mocked(checkRateLimit).mockResolvedValue({
+    allowed: true,
+    remaining: 59,
+    resetAt: Date.now() + 60_000,
+  });
 });
 
 async function callRoute(): Promise<Record<string, unknown>> {
@@ -351,5 +384,86 @@ describe("GET /api/medications/[id]/compliance — complianceDisplay", () => {
     // the ladder steps the short window beyond 7 days and the long beyond 30.
     expect(display.shortDays).toBeGreaterThan(7);
     expect(display.longDays).toBeGreaterThan(30);
+  });
+});
+
+// v1.15.20 — server cache + bounded event read + per-user rate limit.
+describe("GET /api/medications/[id]/compliance — caching and limits", () => {
+  function mockDailyMed() {
+    vi.mocked(prisma.medication.findUnique).mockResolvedValue(
+      medication([
+        {
+          id: "sched-1",
+          windowStart: "08:00",
+          windowEnd: "09:00",
+          timesOfDay: ["08:00"],
+          daysOfWeek: null,
+          rrule: null,
+          rollingIntervalDays: null,
+          reminderGraceMinutes: null,
+          scheduleType: "SCHEDULED",
+          cyclicOnWeeks: null,
+          cyclicOffWeeks: null,
+        },
+      ]) as never,
+    );
+    vi.mocked(prisma.medicationIntakeEvent.findMany).mockResolvedValue(
+      [] as never,
+    );
+  }
+
+  it("returns 429 when the per-user rate limit is exhausted", async () => {
+    vi.mocked(checkRateLimit).mockResolvedValue({
+      allowed: false,
+      remaining: 0,
+      resetAt: Date.now() + 60_000,
+    });
+
+    const res = await GET(new Request("http://localhost"), ROUTE_PARAMS);
+    expect(res.status).toBe(429);
+    expect(vi.mocked(checkRateLimit)).toHaveBeenCalledWith(
+      "medication-compliance:user-1",
+      60,
+      60_000,
+    );
+    // The limited request never touches the medication tables.
+    expect(prisma.medication.findUnique).not.toHaveBeenCalled();
+  });
+
+  it("reads through the per-user compliance cache key", async () => {
+    mockDailyMed();
+
+    const res = await GET(new Request("http://localhost"), ROUTE_PARAMS);
+    expect(res.status).toBe(200);
+
+    expect(vi.mocked(cached)).toHaveBeenCalledTimes(1);
+    const [, key] = vi.mocked(cached).mock.calls[0];
+    // `${userId}|...` prefix is what `invalidateUserMedications` sweeps.
+    expect(key).toBe("user-1|med-1|compliance");
+  });
+
+  it("bounds the intake-event read to a trailing window and the consumed columns", async () => {
+    mockDailyMed();
+
+    const res = await GET(new Request("http://localhost"), ROUTE_PARAMS);
+    expect(res.status).toBe(200);
+
+    const call = vi.mocked(prisma.medicationIntakeEvent.findMany).mock
+      .calls[0][0] as {
+      where: { scheduledFor?: { gte?: Date } };
+      select?: Record<string, boolean>;
+    };
+    // Lower-bounded: the widest served window is 365 days (+1 day margin).
+    const gte = call.where.scheduledFor?.gte;
+    expect(gte).toBeInstanceOf(Date);
+    const minExpected = Date.now() - 367 * 24 * 60 * 60 * 1000;
+    expect((gte as Date).getTime()).toBeGreaterThan(minExpected);
+    // Column-bounded: only the four fields the math consumes.
+    expect(call.select).toEqual({
+      takenAt: true,
+      skipped: true,
+      scheduledFor: true,
+      autoMissed: true,
+    });
   });
 });

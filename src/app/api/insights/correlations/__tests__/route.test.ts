@@ -17,6 +17,12 @@ vi.mock("@/lib/auth/audit", () => ({
   auditLog: vi.fn().mockResolvedValue(undefined),
 }));
 
+// v1.15.20 — the route checks the shared analytics-read budget before any
+// DB work; the real helper would hit the unmocked `$queryRaw`.
+vi.mock("@/lib/rate-limit", () => ({
+  checkAnalyticsReadRateLimit: vi.fn(),
+}));
+
 vi.mock("@/lib/logging/transports", () => ({ emitIfSampled: vi.fn() }));
 
 vi.mock("@/lib/db-compat", () => ({
@@ -35,6 +41,7 @@ vi.mock("next/headers", () => ({
 import { GET } from "../route";
 import { getSession } from "@/lib/auth/session";
 import { prisma } from "@/lib/db";
+import { checkAnalyticsReadRateLimit } from "@/lib/rate-limit";
 
 const SESSION_OK = {
   session: { id: "sess-1", expiresAt: new Date(Date.now() + 3_600_000) },
@@ -43,6 +50,12 @@ const SESSION_OK = {
 
 beforeEach(() => {
   vi.resetAllMocks();
+  // v1.15.20 — default to an allowing analytics-read budget.
+  vi.mocked(checkAnalyticsReadRateLimit).mockResolvedValue({
+    allowed: true,
+    remaining: 119,
+    resetAt: Date.now() + 60_000,
+  });
   // v1.4.31 — default to an all-on flag set so existing assertions
   // ride through unchanged. Tests that need the gate-off path set
   // their own findUnique resolution.
@@ -117,5 +130,21 @@ describe("GET /api/insights/correlations", () => {
     });
     const res = await callGet(makeReq());
     expect(res.status).toBe(403);
+  });
+
+  it("returns 429 when the shared analytics-read budget is exhausted", async () => {
+    vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
+    vi.mocked(checkAnalyticsReadRateLimit).mockResolvedValue({
+      allowed: false,
+      remaining: 0,
+      resetAt: Date.now() + 60_000,
+    });
+    const res = await callGet(makeReq());
+    expect(res.status).toBe(429);
+    expect(vi.mocked(checkAnalyticsReadRateLimit)).toHaveBeenCalledWith(
+      "user-1",
+    );
+    // The limited request never reaches the series reads.
+    expect(prisma.measurement.findMany).not.toHaveBeenCalled();
   });
 });

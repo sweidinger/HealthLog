@@ -3,81 +3,37 @@ import { apiHandler, requireAuth } from "@/lib/api-handler";
 import { annotate } from "@/lib/logging/context";
 import { apiSuccess, apiError } from "@/lib/api-response";
 import {
-  buildComplianceDisplay,
   buildComplianceMedicationContext,
-  calculateCompliance,
+  buildMedicationComplianceBundle,
   lastNonSkippedTakenAt,
+  type ComplianceDisplay,
+  type ComplianceResult,
+  type DailyComplianceEntry,
 } from "@/lib/analytics/compliance";
-import type { DailyComplianceEntry } from "@/lib/analytics/compliance";
-import type { SlotBand } from "@/lib/medications/scheduling/attribution";
-import {
-  buildBandsForSchedules,
-  type BandMinterMedication,
-} from "@/lib/medications/scheduling/band-minter";
-import {
-  reconstructDoseHistory,
-  type DoseHistoryRow,
-  type HistoryIntake,
-} from "@/lib/medications/scheduling/dose-history";
-import {
-  type CanonicalSchedule,
-  type RecurrenceContext,
-} from "@/lib/medications/scheduling/recurrence";
-import { normaliseDoseWindows } from "@/lib/medications/scheduling/worker-helpers";
+import type { DoseHistoryRow } from "@/lib/medications/scheduling/dose-history";
 import { assertMedicationOwnership } from "@/lib/medications/route-guards";
+import { cached, caches, type ServerCache } from "@/lib/cache/server-cache";
+import { checkRateLimit } from "@/lib/rate-limit";
 import { userDayKey } from "@/lib/tz/format";
 
 type RouteParams = { params: Promise<{ id: string }> };
 
-type MedicationScheduleRow = {
-  id: string;
-  rrule: string | null;
-  rollingIntervalDays: number | null;
-  timesOfDay: string[];
-  daysOfWeek: string | null;
-  windowStart: string;
-  windowEnd: string;
-  reminderGraceMinutes: number | null;
-  scheduleType: "SCHEDULED" | "PRN" | "CYCLIC";
-  cyclicOnWeeks: number | null;
-  cyclicOffWeeks: number | null;
-  /** v1.15.18 — per-dose configurable on-time windows (persisted JSON). */
-  doseWindows: unknown;
-};
+const DAY_MS = 24 * 60 * 60 * 1000;
 
 /**
- * v1.15.18 — adapt a Prisma schedule row to the canonical engine shape the
- * band minter consumes. A legacy daily row carrying only `windowStart`
- * surfaces it as the single `timeOfDay` so the minter mints its daily band.
+ * Lower bound for the intake-event read. The widest window any served
+ * block needs is the 365-day display rung; one extra day absorbs the
+ * inclusive-boundary edge so the ledger's own 365-day clamp never sits
+ * on a half-fetched day.
  */
-function toCanonicalForBands(
-  s: MedicationScheduleRow,
-  oneShot: boolean,
-): CanonicalSchedule {
-  const base: CanonicalSchedule = {
-    id: s.id,
-    rrule: s.rrule,
-    rollingIntervalDays: s.rollingIntervalDays,
-    timesOfDay: s.timesOfDay,
-    daysOfWeek: s.daysOfWeek,
-    windowStart: s.windowStart,
-    windowEnd: s.windowEnd,
-    reminderGraceMinutes: s.reminderGraceMinutes,
-    scheduleType: s.scheduleType,
-    cyclicOnWeeks: s.cyclicOnWeeks,
-    cyclicOffWeeks: s.cyclicOffWeeks,
-    doseWindows: normaliseDoseWindows(s.doseWindows),
-  };
-  if (
-    base.timesOfDay.length === 0 &&
-    base.rrule === null &&
-    base.rollingIntervalDays === null &&
-    base.scheduleType !== "PRN" &&
-    !oneShot
-  ) {
-    return { ...base, timesOfDay: [base.windowStart] };
-  }
-  return base;
+const EVENT_FETCH_WINDOW_DAYS = 366;
+
+/** The cached response body (the exact public wire shape). */
+interface CompliancePayload {
+  compliance7: ComplianceResult;
+  compliance30: ComplianceResult;
+  dailyCompliance: Record<string, DailyComplianceEntry>;
+  complianceDisplay: ComplianceDisplay;
 }
 
 /**
@@ -134,11 +90,153 @@ function bucketLedgerRow(
   }
 }
 
+/**
+ * The full compliance computation for one medication. Lifted out of the
+ * handler so the server cache can wrap it: ONE bounded intake-event read
+ * (only the four columns the math consumes, floored at the 366-day fetch
+ * window) feeds ONE shared band-expansion pass
+ * (`buildMedicationComplianceBundle`) that serves the 7-/30-day blocks,
+ * the cadence-scaled display rows AND the 90-day heatmap — replacing the
+ * historical five-plus per-request expansions over an unbounded,
+ * all-columns event read.
+ */
+async function buildCompliancePayload(
+  medication: {
+    id: string;
+    createdAt: Date;
+    startsOn: Date | null;
+    endsOn: Date | null;
+    oneShot: boolean;
+    schedules: Parameters<typeof buildMedicationComplianceBundle>[1];
+  },
+  userId: string,
+  userTz: string,
+): Promise<CompliancePayload> {
+  // v1.15.9 — pin a single `now` and thread it into every cadence
+  // computation so no block can straddle a day boundary on a slow request.
+  const now = new Date();
+  const createdAt = medication.createdAt;
+
+  const fetchFrom = new Date(
+    Math.max(
+      createdAt.getTime(),
+      now.getTime() - EVENT_FETCH_WINDOW_DAYS * DAY_MS,
+    ),
+  );
+  const events = await prisma.medicationIntakeEvent.findMany({
+    // v1.7.0 sync — exclude tombstoned rows from the compliance read.
+    // Bounded to the 366-day fetch window: every served block is a suffix
+    // of the 365-day ledger window, so older rows can never change the
+    // response.
+    where: {
+      medicationId: medication.id,
+      userId,
+      deletedAt: null,
+      scheduledFor: { gte: fetchFrom },
+    },
+    orderBy: { scheduledFor: "desc" },
+    select: {
+      takenAt: true,
+      skipped: true,
+      scheduledFor: true,
+      // v1.15.9 — a forgotten dose the auto-miss cron flipped counts as a
+      // miss, not a neutral skip.
+      autoMissed: true,
+    },
+  });
+
+  // v1.7.0 SB-SCHED-2 — thread the medication context so the denominator
+  // routes through the canonical engine (RRULE / rolling / one-shot / PRN /
+  // cyclic). `lastIntakeAt` is the latest non-skipped takenAt inside the
+  // fetch window (rolling cadences re-anchor on it).
+  const lastIntakeAt = lastNonSkippedTakenAt(events);
+  const medicationContext = buildComplianceMedicationContext(
+    medication,
+    lastIntakeAt,
+    userTz,
+  );
+
+  // ONE shared expansion pass for every served block (the v1.15.20
+  // performance fix): bands + ledger + timeline are minted once over the
+  // widest window and each sub-window is a tally over the same rows.
+  const bundle = buildMedicationComplianceBundle(
+    events,
+    medication.schedules,
+    medicationContext,
+    now,
+  );
+
+  // v1.15.18 — the heatmap / line-chart daily map is bucketed from the ONE
+  // unified dose-history ledger (the same bands the % + the history view
+  // read), so the per-day timing split (on-time / late) and the per-day
+  // missed marks can never disagree with the headline rate. The 90-day
+  // window is carved out of the shared ledger by `row.at`; the window
+  // floor clamps to the medication's creation so pre-existence days never
+  // mint phantom slots.
+  const heatmapFrom = new Date(
+    Math.max(now.getTime() - 90 * DAY_MS, createdAt.getTime()),
+  );
+
+  const dailyCompliance: Record<string, DailyComplianceEntry> = {};
+  const byDay = new Map<string, DailyComplianceEntry>();
+  const ensureDay = (key: string): DailyComplianceEntry => {
+    let entry = byDay.get(key);
+    if (!entry) {
+      entry = {
+        expected: 0,
+        expectedCount: 0,
+        due: false,
+        taken: 0,
+        skipped: 0,
+        onTime: 0,
+        late: 0,
+        veryLate: 0,
+        early: 0,
+      };
+      byDay.set(key, entry);
+    }
+    return entry;
+  };
+
+  // Bucket each ledger row into its user-tz day. A slot row buckets on its
+  // anchor; an ad-hoc row on its real take time.
+  for (const row of bundle.ledgerRows) {
+    if (row.at.getTime() < heatmapFrom.getTime()) continue;
+    const key = userDayKey(row.at, userTz);
+    const entry = ensureDay(key);
+    bucketLedgerRow(entry, row);
+  }
+
+  for (const [key, entry] of byDay) {
+    entry.due = entry.expectedCount > 0;
+    dailyCompliance[key] = entry;
+  }
+
+  return {
+    compliance7: bundle.compliance7,
+    compliance30: bundle.compliance30,
+    dailyCompliance,
+    complianceDisplay: bundle.complianceDisplay,
+  };
+}
+
 export const GET = apiHandler(
   async (_request: Request, { params }: RouteParams) => {
     const { user } = await requireAuth();
 
     const { id } = await params;
+
+    // The medications list fans this endpoint out once per card, so the
+    // per-user budget is generous — it only caps a runaway client loop.
+    const rl = await checkRateLimit(
+      `medication-compliance:${user.id}`,
+      60,
+      60_000,
+    );
+    if (!rl.allowed) {
+      return apiError("Too many compliance requests. Please retry later.", 429);
+    }
+
     // v1.4.25 W21 Fix-N — privacy gate hoisted to the shared helper.
     const guard = await assertMedicationOwnership(id, user.id);
     if (guard) return guard;
@@ -152,166 +250,18 @@ export const GET = apiHandler(
       return apiError("Medication not found", 404);
     }
 
-    const events = await prisma.medicationIntakeEvent.findMany({
-      // v1.7.0 sync — exclude tombstoned rows from the compliance read.
-      where: { medicationId: id, userId: user.id, deletedAt: null },
-      orderBy: { scheduledFor: "desc" },
-    });
-
-    const mapped = events.map((e) => ({
-      takenAt: e.takenAt,
-      skipped: e.skipped,
-      scheduledFor: e.scheduledFor,
-      // v1.15.9 — a forgotten dose the auto-miss cron flipped counts as a
-      // miss, not a neutral skip.
-      autoMissed: e.autoMissed,
-    }));
-
-    const createdAt = medication.createdAt;
-
-    // v1.7.0 SB-SCHED-2 — thread the medication context so the
-    // denominator routes through the canonical engine (RRULE / rolling /
-    // one-shot / PRN / cyclic) instead of the legacy daysOfWeek walker.
-    // `lastIntakeAt` is the latest non-skipped takenAt (rolling cadences
-    // re-anchor on it); the events list is already ordered scheduledFor
-    // desc, so scan for the max takenAt.
-    const lastIntakeAt = lastNonSkippedTakenAt(mapped);
     const userTz = user.timezone || "Europe/Berlin";
-    const medicationContext = buildComplianceMedicationContext(
-      medication,
-      lastIntakeAt,
-      userTz,
+
+    // Read-through the per-user compliance cache (15 min TTL). Every
+    // intake / medication write flushes the `${userId}|` prefix via
+    // `invalidateUserMedications`, so a warm entry can only be stale
+    // relative to wall-clock drift, never to a user action.
+    const payload = await cached(
+      caches.medicationCompliance as ServerCache<CompliancePayload>,
+      `${user.id}|${id}|compliance`,
+      () => buildCompliancePayload(medication, user.id, userTz),
+      annotate,
     );
-
-    // v1.15.9 — pin a single `now` and thread it into every cadence
-    // computation. The two `calculateCompliance` calls + the display windows
-    // can otherwise straddle a day boundary on a slow request, so a dose
-    // would count in one window and not the next within the same response.
-    const now = new Date();
-
-    const compliance7 = calculateCompliance(mapped, medication.schedules, 7, createdAt, {
-      now,
-      medicationContext,
-    });
-    const compliance30 = calculateCompliance(
-      mapped,
-      medication.schedules,
-      30,
-      createdAt,
-      { now, medicationContext },
-    );
-
-    // v1.8.6 — the two-row compliance display. The card always shows two
-    // percentage rows; the server scales the two windows to the dosing
-    // cadence (dense meds keep 7 / 30 days, sparse meds step both windows
-    // up) and computes each row's rate over the chosen span. `compliance7`
-    // / `compliance30` above are untouched — iOS + the Health Score read
-    // them verbatim.
-    const complianceDisplay = buildComplianceDisplay(
-      mapped,
-      medication.schedules,
-      medicationContext,
-      { now },
-    );
-
-    // v1.15.18 — the heatmap / line-chart daily map is now bucketed from the
-    // ONE unified dose-history ledger (the same bands the % + the history view
-    // read), so the per-day timing split (on-time / late) and the per-day
-    // missed marks can never disagree with the headline rate. The legacy
-    // per-day `classifyIntakeTiming` 3h-grace heuristic + `expectedSlotCount
-    // ForDay` walk are retired here in favour of band membership: a take inside
-    // a slot's on-time band reads on-time, inside its late tail reads late,
-    // outside every band reads ad-hoc; an unfilled slot past its miss cutoff
-    // reads missed; a future slot is upcoming (not yet due).
-    const dailyCompliance: Record<string, DailyComplianceEntry> = {};
-
-    // Build the bands across the whole 90-day heatmap window once. The window
-    // floor clamps to the medication's creation so pre-existence days never
-    // mint phantom slots.
-    const DAY_MS = 24 * 60 * 60 * 1000;
-    const windowFrom = new Date(
-      Math.max(now.getTime() - 90 * DAY_MS, createdAt.getTime()),
-    );
-    const bandMedication: BandMinterMedication = {
-      id: medication.id,
-      startsOn: medication.startsOn,
-      endsOn: medication.endsOn,
-      oneShot: medication.oneShot,
-      createdAt: medication.createdAt,
-    };
-    const bandCtx: RecurrenceContext = {
-      medication: {
-        id: medication.id,
-        startsOn: medication.startsOn,
-        endsOn: medication.endsOn,
-        oneShot: medication.oneShot,
-        createdAt: medication.createdAt,
-      },
-      timeZone: userTz,
-      lastIntakeAt,
-    };
-    const canonicalSchedules: CanonicalSchedule[] = medication.schedules.map(
-      (s) => toCanonicalForBands(s, medication.oneShot),
-    );
-    const intakeInstants = mapped
-      .filter((e) => !e.skipped && e.takenAt !== null && e.takenAt <= now)
-      .map((e) => e.takenAt as Date)
-      .sort((a, b) => a.getTime() - b.getTime());
-    const groups = buildBandsForSchedules({
-      medication: bandMedication,
-      schedules: canonicalSchedules,
-      ctx: bandCtx,
-      userTz,
-      range: { from: windowFrom, to: now },
-      now,
-      intakeInstants,
-    });
-    const bands: SlotBand[] = [];
-    for (const g of groups) {
-      if (g.hasExpectedSlots) bands.push(...g.bands);
-    }
-    const historyIntakes: HistoryIntake[] = mapped
-      .filter((e) => e.scheduledFor >= windowFrom && e.scheduledFor <= now)
-      .map((e) => ({
-        scheduledFor: e.scheduledFor,
-        takenAt: e.takenAt,
-        skipped: e.skipped,
-        autoMissed: e.autoMissed,
-      }));
-    const ledgerRows = reconstructDoseHistory(bands, historyIntakes, now);
-
-    // Bucket each ledger row into its user-tz day. A slot row buckets on its
-    // anchor; an ad-hoc row on its real take time.
-    const byDay = new Map<string, DailyComplianceEntry>();
-    const ensureDay = (key: string): DailyComplianceEntry => {
-      let entry = byDay.get(key);
-      if (!entry) {
-        entry = {
-          expected: 0,
-          expectedCount: 0,
-          due: false,
-          taken: 0,
-          skipped: 0,
-          onTime: 0,
-          late: 0,
-          veryLate: 0,
-          early: 0,
-        };
-        byDay.set(key, entry);
-      }
-      return entry;
-    };
-
-    for (const row of ledgerRows) {
-      const key = userDayKey(row.at, userTz);
-      const entry = ensureDay(key);
-      bucketLedgerRow(entry, row);
-    }
-
-    for (const [key, entry] of byDay) {
-      entry.due = entry.expectedCount > 0;
-      dailyCompliance[key] = entry;
-    }
 
     annotate({
       action: {
@@ -320,18 +270,13 @@ export const GET = apiHandler(
         entity_id: id,
       },
       meta: {
-        compliance7: compliance7.rate,
-        compliance30: compliance30.rate,
-        complianceShortDays: complianceDisplay.shortDays,
-        complianceLongDays: complianceDisplay.longDays,
+        compliance7: payload.compliance7.rate,
+        compliance30: payload.compliance30.rate,
+        complianceShortDays: payload.complianceDisplay.shortDays,
+        complianceLongDays: payload.complianceDisplay.longDays,
       },
     });
 
-    return apiSuccess({
-      compliance7,
-      compliance30,
-      dailyCompliance,
-      complianceDisplay,
-    });
+    return apiSuccess(payload);
   },
 );

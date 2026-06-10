@@ -203,7 +203,10 @@ export function Glp1MedicationCard({
       const json = await res.json();
       return json.data as ComplianceData;
     },
-    staleTime: 30 * 1000,
+    // v1.15.20 — same 5-minute window as the generic card: dose actions
+    // invalidate the key explicitly, so a short staleTime only re-fired
+    // a request per card on every list visit.
+    staleTime: 5 * 60 * 1000,
   });
 
   // v1.4.37 W4b — same reminder-thresholds source as the generic

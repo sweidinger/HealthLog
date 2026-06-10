@@ -56,7 +56,12 @@ export default function MedicationDetailPage({
       if (!res.ok) throw new Error("medication_detail_failed");
       return (await res.json()).data as MedicationDetailSnapshot;
     },
-    enabled: isAuthenticated,
+    // v1.15.20 — deliberately NOT gated on `isAuthenticated`: the session
+    // cookie rides the fetch either way, so waiting for `/api/auth/me`
+    // serialised two round-trips into a waterfall on every detail
+    // navigation. An unauthenticated visit fails fast with a 401 here and
+    // the redirect effect above still routes to the login page (the
+    // render guard below keeps the spinner up until it does).
     // A deleted medication 404s here. Don't burn a retry/backoff cycle on
     // a resource that no longer exists — the delete handler evicts this
     // key on success, but `retry: false` hardens any caller that
@@ -64,7 +69,7 @@ export default function MedicationDetailPage({
     retry: false,
   });
 
-  if (authLoading || isLoading) {
+  if (authLoading || isLoading || !isAuthenticated) {
     return (
       <div
         className="flex h-64 items-center justify-center"

@@ -65,6 +65,29 @@ export function rateLimitHeaders(
 }
 
 /**
+ * v1.15.20 — shared per-user budget for the heavy read-only analytics
+ * surfaces (`/api/insights/comprehensive`, `/api/insights/correlations`,
+ * `/api/insights/derived`, `/api/analytics/range`). The insights page
+ * legitimately fans several of these out per mount, so the bucket is
+ * generous — 120/min only caps a runaway client loop or a scripted
+ * drain, mirroring the `sync:changes` budget. One shared bucket (not
+ * per-surface) keeps the cap meaningful when a loop rotates across
+ * endpoints.
+ */
+const ANALYTICS_READ_LIMIT = 120;
+const ANALYTICS_READ_WINDOW_MS = 60 * 1000;
+
+export async function checkAnalyticsReadRateLimit(
+  userId: string,
+): Promise<RateLimitResult> {
+  return checkRateLimit(
+    `analytics-read:${userId}`,
+    ANALYTICS_READ_LIMIT,
+    ANALYTICS_READ_WINDOW_MS,
+  );
+}
+
+/**
  * v1.4.43 W13 M-4 — anonymous/trust-violation bucket key shared by every
  * caller of `checkAuthSurfaceRateLimit`. When `TRUST_PROXY_HOPS` and the
  * actual proxy chain don't agree, `getClientIp` returns null and every

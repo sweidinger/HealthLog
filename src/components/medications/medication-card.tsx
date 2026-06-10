@@ -146,7 +146,12 @@ export function MedicationCard({
       const json = await res.json();
       return json.data as ComplianceData;
     },
-    staleTime: 30 * 1000,
+    // v1.15.20 — the card renders two percentage rows that move on a
+    // dose action (which invalidates this key through
+    // `medicationDependentKeys`) or over hours of wall-clock drift; a
+    // 30 s window only re-fired one request per card on every list
+    // visit. Five minutes matches the reminder-thresholds query below.
+    staleTime: 5 * 60 * 1000,
   });
 
   const [, forceUpdate] = useReducer((x: number) => x + 1, 0);

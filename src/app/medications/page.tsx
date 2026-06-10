@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/hooks/use-auth";
 import { useTranslations } from "@/lib/i18n/context";
@@ -119,6 +119,7 @@ export default function MedicationsPage() {
   const { isAuthenticated, isLoading: authLoading } = useAuth();
   const { t } = useTranslations();
   const router = useRouter();
+  const queryClient = useQueryClient();
   const searchParams = useSearchParams();
   // v1.5.4 — the retired `/medications/new` route redirects here with
   // `?new=1`, so legacy bookmarks keep landing on the create wizard.
@@ -160,20 +161,33 @@ export default function MedicationsPage() {
     setDialogOpen(true);
   }
 
+  // v1.15.20 — seed the detail page's query from the list row before
+  // navigating. The list response is a superset of the detail GET
+  // (`{...medication, category, nextDueAt}` plus the list-only
+  // `lastTakenAt` / `todayEventCount`), so the detail shell paints
+  // instantly from the seeded cache while its own un-gated query
+  // refetches the authoritative row in the background.
+  function seedDetail(med: Medication) {
+    queryClient.setQueryData(queryKeys.medicationDetail(med.id), med);
+  }
+
   // v1.15.18 — the card kebab actions now navigate to the full-page
   // tabbed detail surface on the right tab rather than opening a modal
   // editor / sheet. Edit lands on Zeitplan (the everyday schedule view +
   // the hero's "Vollständig bearbeiten" jump into the wizard), History on
   // Verlauf, Advanced on Erweitert (the dissolved advanced-settings).
   function openEdit(med: Medication) {
+    seedDetail(med);
     router.push(`/medications/${med.id}?tab=zeitplan`);
   }
 
   function openHistory(med: Medication) {
+    seedDetail(med);
     router.push(`/medications/${med.id}?tab=verlauf`);
   }
 
   function openAdvanced(med: Medication) {
+    seedDetail(med);
     router.push(`/medications/${med.id}?tab=erweitert`);
   }
 
