@@ -1,0 +1,14 @@
+/**
+ * Query keys — Coach preferences, facts, about-me, and nudge state.
+ * Part of the centralized factory; aggregated in `./index.ts`.
+ */
+export const coachKeys = {
+  coachPrefs: () => ["coach-prefs"] as const,
+  coachFacts: () => ["coach-facts"] as const,
+  /** v1.15.20 — Settings → AI "about me" self-description. */
+  coachAboutMe: () => ["coach-about-me"] as const,
+  /** v1.16.0 — pending clarifying questions (Coach composer chips). */
+  coachAboutMeQuestions: () => ["coach-about-me", "questions"] as const,
+  /** v1.16.1 — unseen proactive-nudge state for the floating Coach bubble. */
+  coachNudgeStatus: () => ["coach-nudge-status"] as const,
+};

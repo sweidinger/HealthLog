@@ -4,15 +4,15 @@
  * table in `src/lib/openapi/registry.ts`.
  *
  * v1.4.23 baseline: only the iOS-touched routes are registered (see
- * `src/lib/openapi/routes.ts`). The CI step that wraps this script runs
+ * `src/lib/openapi/routes/`). The CI step that wraps this script runs
  * with `continue-on-error: true` until the registry catches up with the
  * rest of the hand-maintained `docs/api/openapi.yaml` — once coverage is
  * complete, the gate flips to hard-fail in v1.4.24+.
  *
  * The output is stable across re-runs because the upstream order is
  * itself deterministic: Zod preserves schema property declaration
- * order and the path table is a single object literal in
- * `src/lib/openapi/routes.ts`. `yaml@2`'s `sortMapEntries` option is
+ * order and the path table is assembled with a fixed spread order in
+ * `src/lib/openapi/routes/index.ts`. `yaml@2`'s `sortMapEntries` option is
  * intentionally NOT set — when enabled, the emitter reorders keys
  * alphabetically and can place an `*alias` reference before its
  * `&anchor` definition, which triggers `verifyAliasOrder` and throws

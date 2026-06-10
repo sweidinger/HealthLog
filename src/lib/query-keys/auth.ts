@@ -1,0 +1,55 @@
+/**
+ * Query keys — auth session, passkeys, and per-user account preferences.
+ * Part of the centralized factory; aggregated in `./index.ts`.
+ */
+export const authKeys = {
+  auth: () => ["auth"] as const,
+  /**
+   * v1.4.40 W-RSC — the `useAuth` hook's `["auth", "me"]` shape was a
+   * recurring source of factory drift (audit H1 — "`useAuth` uses
+   * `["auth", "me"]` but `queryKeys.auth()` returns `["auth"]`"). Both
+   * shapes share the `["auth"]` prefix so existing prefix-invalidations
+   * still match, but the centralised name makes the call site
+   * obviously factory-routed.
+   */
+  authMe: () => ["auth", "me"] as const,
+  authRegistrationStatus: () => ["auth", "registration-status"] as const,
+  /**
+   * v1.4.40 W-RSC — Settings → AI surfaces and the targets editor
+   * subscribe to the user-thresholds API. Centralise the key so a
+   * future rename (e.g. `["user","limits"]`) doesn't drift across the
+   * three call sites (settings/thresholds-editor-section,
+   * settings/ai-section, targets/target-edit-sheet).
+   */
+  userThresholds: () => ["user", "thresholds"] as const,
+  /**
+   * v1.7.0 — Settings → Display metric/imperial control reads its
+   * current value from `GET /api/auth/me/unit-preference`. The PATCH
+   * mutation also invalidates `authMe()` so `useAuth().unitPreference`
+   * (and every chart display transform that keys off it) re-renders
+   * without a manual reload.
+   */
+  userUnitPreference: () => ["user", "unit-preference"] as const,
+
+  passkeys: () => ["passkeys"] as const,
+
+  userAiProvider: () => ["user", "ai-provider"] as const,
+  userProfile: () => ["user", "profile"] as const,
+  /**
+   * v1.7.0 — the roaming notification prefs blob behind
+   * `GET/PATCH /api/auth/me/notification-prefs` (medication delivery
+   * default + mood reminder hour). Distinct from
+   * `notificationsPreferences()` (the per-event push toggles on the
+   * `/notifications` page) so the two never collide in the cache.
+   */
+  authNotificationPrefs: () => ["auth", "me", "notification-prefs"] as const,
+
+  /**
+   * v1.4.25 W5e — per-user, per-metric-class source priority. The
+   * Settings → Sources surface reads + writes this key; saving
+   * invalidates `analytics()` because the cumulative-metric aggregator
+   * folds the new priority into the SLEEP_DURATION daily total
+   * immediately.
+   */
+  sourcePriority: () => ["auth", "source-priority"] as const,
+};

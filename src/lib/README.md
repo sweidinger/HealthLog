@@ -8,7 +8,7 @@ The server and runtime toolkit. Everything that is not a page, component, or rou
 - **`api-response.ts`** — the `{ data, error, meta? }` envelope: `apiSuccess` / `apiError`, `safeJson`, trusted-proxy IP resolver, `returnAllZodIssues` + `sanitiseZodIssues`.
 - **`rate-limit.ts`** — Postgres-backed sliding-window limiter (single atomic upsert); multi-instance correct.
 - **`idempotency.ts`** — user-scoped idempotency keys that refuse to cache secret-shaped responses.
-- **`query-keys.ts`** — the only legal source of TanStack Query `queryKey` / `mutationKey` arrays (enforced by an ESLint rule).
+- **`query-keys/`** — the only legal source of TanStack Query `queryKey` / `mutationKey` arrays (enforced by an ESLint rule); per-feature files behind the `index.ts` barrel.
 - **`safe-fetch.ts`** — the one documented outbound-egress entry (`redirect: "manual"` + timeout; optional connect-time DNS-rebinding pin). Raw `fetch(` under `lib/` + `app/` is banned by ESLint.
 - **`db.ts`** — the Prisma client singleton.
 - **`crypto.ts`** — AES-256-GCM at rest with versioned key ids, fail-closed loader, rotation primitives.

@@ -1,0 +1,966 @@
+/**
+ * OpenAPI route table — dashboard snapshot, comprehensive insights, analytics range, metric status, derived metrics, correlations.
+ *
+ * Part of the OpenAPI route table; aggregated in `./index.ts`.
+ * Schemas come from `src/lib/validations/*` where shared with the
+ * runtime request parsing, so the wire contract stays single-source.
+ */
+import { z } from "zod/v4";
+import type { ZodOpenApiObject } from "zod-openapi";
+import { measurementTypeEnum } from "@/lib/validations/measurement";
+import { METRIC_STATUS_IDS } from "@/lib/insights/metric-status-registry";
+import {
+  DERIVED_METRIC_IDS,
+  VITALS_BASELINE_TYPES,
+} from "@/lib/insights/derived/registry";
+import { ANALYTICS_RANGES } from "@/lib/analytics/range-delta";
+import { dataEnvelope, stdResponses } from "./shared";
+
+const insightsComprehensiveResponse = z
+  .object({
+    summary: z.string(),
+    recommendations: z.array(z.record(z.string(), z.unknown())),
+    citations: z.array(z.record(z.string(), z.unknown())),
+    warnings: z.array(z.record(z.string(), z.unknown())),
+    dailyBriefing: z.record(z.string(), z.unknown()).nullable().optional(),
+    trendAnnotations: z.record(z.string(), z.unknown()).nullable().optional(),
+    storyboardAnnotations: z
+      .array(z.record(z.string(), z.unknown()))
+      .optional(),
+    metricSource: z.record(z.string(), z.unknown()).optional(),
+  })
+  .meta({
+    id: "InsightsComprehensiveResponse",
+    description:
+      "AI-generated insights bundle. Strict-schema validated server-side; Coach-routed when the insight surface needs day-level grounding.",
+  });
+
+// v1.8.7.1 — generic per-HealthKit-metric assessment. The query enum is
+// derived from the same registry the route validates against, so the
+// spec, the route, and the cache scope cannot drift. The seven
+// specialised metrics (weight / blood-pressure / pulse / bmi / mood /
+// medication-compliance) keep their own routes and are NOT accepted here.
+const metricStatusQuery = z
+  .object({
+    metric: z
+      .enum(METRIC_STATUS_IDS as [string, ...string[]])
+      .describe(
+        "HealthKit metric id to assess (e.g. RESTING_HEART_RATE, SLEEP_DURATION). Closed enum: an unknown id 422s. The seven specialised metrics are served by their own routes and are not accepted here.",
+      ),
+    locale: z
+      .enum(["de", "en"])
+      .optional()
+      .describe("Optional UI-locale override; defaults to the session locale."),
+  })
+  .meta({ id: "MetricStatusQuery" });
+
+const metricStatusResponse = z
+  .object({
+    hasProvider: z
+      .boolean()
+      .describe(
+        "False when the user has no usable AI provider — `text` then carries the generic no-key guidance.",
+      ),
+    text: z
+      .string()
+      .nullable()
+      .describe(
+        "The assessment narrative (plain text, rendered as React text children). Null while a first generation is preparing, or when the metric has insufficient data.",
+      ),
+    cached: z
+      .boolean()
+      .describe("True when `text` is served from cache (incl. last-good)."),
+    updatedAt: z.iso
+      .datetime({ offset: true })
+      .nullable()
+      .describe("When the served assessment was generated; null when none."),
+    preparing: z
+      .boolean()
+      .optional()
+      .describe(
+        "True when a first assessment is being generated out of band and no prior text exists yet — the client polls until it lands.",
+      ),
+    revalidating: z
+      .boolean()
+      .optional()
+      .describe(
+        "True when `text` is served from last-good cache (stale-while-revalidate) while a fresh generation is in flight. The payload is otherwise terminal; the client keeps polling on `preparing || revalidating` (bounded) so the open card upgrades to the warmed assessment without a remount.",
+      ),
+    insufficient: z
+      .boolean()
+      .optional()
+      .describe(
+        "True when the metric has no readings; no assessment is generated (no LLM call). The card shows its insufficient-data state.",
+      ),
+  })
+  .meta({
+    id: "MetricStatusResponse",
+    description:
+      "Generic per-metric assessment envelope. Identical shape to the seven specialised `*-status` cards so the `InsightStatusCard` consumes it unchanged. Read-only + stale-while-revalidate: a cache miss warms a generation out of band and serves the last-good text meanwhile.",
+  });
+
+// v1.10.0 — generic derived-wellness-metric route. The query enum is
+// derived from the same registry the route validates against, so spec +
+// route + cache scope cannot drift. `type` sub-targets the single vital
+// a baseline metric (VITALS_BASELINE) bands over.
+const derivedMetricQuery = z
+  .object({
+    metric: z
+      .enum(DERIVED_METRIC_IDS as [string, ...string[]])
+      .describe(
+        "Derived-metric id to compute (e.g. VITALS_BASELINE, FITNESS_AGE, VASCULAR_AGE_DELTA, HRV_BALANCE, BMI, READINESS). Closed enum: an unknown id 422s. Metrics whose compute has not yet landed return an `insufficient` value with reason `not_implemented`.",
+      ),
+    type: z
+      .enum(VITALS_BASELINE_TYPES as [string, ...string[]])
+      .optional()
+      .describe(
+        "For VITALS_BASELINE only — the single vital to band (defaults to RESTING_HEART_RATE). Ignored by composites. An unsupported value yields an `insufficient` value rather than a 422 so iOS metric combinations stay forgiving.",
+      ),
+  })
+  .meta({ id: "DerivedMetricQuery" });
+
+const derivedCoverage = z
+  .object({
+    requiredInputs: z
+      .number()
+      .int()
+      .describe("Inputs the metric wants (its full input set)."),
+    presentInputs: z
+      .number()
+      .int()
+      .describe("Inputs actually present in the user's data."),
+    historyDays: z
+      .number()
+      .int()
+      .describe(
+        "Distinct days of history backing the value (the gating floor).",
+      ),
+    missing: z
+      .array(z.string())
+      .describe(
+        "Named inputs still missing — drives the 'track N more' nudge.",
+      ),
+  })
+  .meta({ id: "DerivedCoverage" });
+
+const derivedConfidence = z
+  .object({
+    score: z
+      .number()
+      .describe(
+        "0..100 confidence; feeds the shared coverage meter unchanged.",
+      ),
+    band: z
+      .enum(["high", "medium", "low", "draft"])
+      .describe("Confidence band the meter renders."),
+  })
+  .meta({ id: "DerivedConfidence" });
+
+const derivedProvenance = z
+  .object({
+    inputs: z
+      .array(z.string())
+      .describe("Named inputs that actually backed the value."),
+    source: z
+      .enum(["DAY", "WEEK", "MONTH", "YEAR", "live", "none"])
+      .describe(
+        "Granularity the dominant read resolved against. 'live' = a coverage-miss live-SQL fallback; 'none' = no data backed the value.",
+      ),
+    windowDays: z
+      .number()
+      .int()
+      .describe("Trailing window the value summarises, in days."),
+    computedAt: z.iso
+      .datetime({ offset: true })
+      .describe("Compute time (for cache-staleness + the 'as of' chip)."),
+  })
+  .meta({ id: "DerivedProvenance" });
+
+// v1.13.2 — per-derived-SCORE assessment text. Additive, non-breaking field
+// on the derived response; the iOS field-name contract is LOCKED.
+const derivedAssessment = z
+  .object({
+    text: z
+      .string()
+      .describe(
+        "Short, non-empty explanation of why the score sits where it does, referencing the score's contributors.",
+      ),
+    source: z
+      .string()
+      .describe(
+        "'deterministic' for the always-on template text, or 'ai' when warmer provider prose has been cached.",
+      ),
+    updatedAt: z.iso
+      .datetime({ offset: true })
+      .describe("When the text was produced / last warmed."),
+  })
+  .meta({ id: "DerivedAssessment" });
+
+const derivedMetricResponse = z
+  .object({
+    metric: z
+      .enum(DERIVED_METRIC_IDS as [string, ...string[]])
+      .describe("Echoes the requested derived-metric id (tags the union)."),
+    status: z
+      .enum(["ok", "insufficient"])
+      .describe(
+        "'ok' carries `value` + `confidence`; 'insufficient' carries `reason` and no value, but still carries `coverage` + `provenance` so the surface renders the same gating UI.",
+      ),
+    value: z
+      .record(z.string(), z.unknown())
+      .nullable()
+      .describe(
+        "Metric-specific value object when status is 'ok' (e.g. { type, center, low, high, spread, sampleDays, k, series } for VITALS_BASELINE, where `series` is the trailing per-day mean values for the inline sparkline); null when 'insufficient'.",
+      ),
+    coverage: derivedCoverage,
+    confidence: derivedConfidence
+      .nullable()
+      .describe("Present when status is 'ok'; null when 'insufficient'."),
+    provenance: derivedProvenance,
+    reason: z
+      .string()
+      .nullable()
+      .describe(
+        "Why the value could not be produced; null when status is 'ok'.",
+      ),
+    assessment: derivedAssessment
+      .nullable()
+      .describe(
+        "v1.13.2 — short 'why is this score what it is' explanation, keyed to the SAME requested id (only for the per-score ids READINESS, SLEEP_SCORE, RECOVERY_SCORE, STRAIN_SCORE, STRESS_SCORE). Null for any other metric and whenever status !== 'ok'. Always non-empty when present: a deterministic text fills it (so provider-less accounts + the demo always get one) and warmer AI prose overrides it once cached.",
+      ),
+  })
+  .meta({
+    id: "DerivedMetricResponse",
+    description:
+      "Flat `Derived<T>` envelope for one derived wellness metric. Pure compute over the rollup tier (no LLM, no narrative). iOS decodes one stable shape and combines values across metrics; coverage/confidence/provenance let it render the same honesty chips.",
+  });
+
+// v1.10.0 — batched derived-metric query. The `metrics` CSV carries one
+// or more `metric` / `metric:type` tokens; the route fans out server-side
+// under a bounded limiter with the profile loaded once, collapsing the
+// dashboard's cold-mount fan-out of N single-metric requests into one.
+const derivedBatchQuery = z
+  .object({
+    metrics: z
+      .string()
+      .min(1)
+      .max(1024)
+      .describe(
+        "Comma-separated derived-metric tokens. Each is a `<DERIVED_METRIC_ID>` or `<DERIVED_METRIC_ID>:<MeasurementType>` (the colon sub-targets a VITALS_BASELINE vital). An unknown id 422s; at most 24 tokens; duplicates collapse.",
+      ),
+  })
+  .meta({ id: "DerivedBatchQuery" });
+
+const derivedBatchResponse = z
+  .object({
+    metrics: z
+      .record(z.string(), derivedMetricResponse)
+      .describe(
+        "Map keyed by the per-request token (`<metric>` or `<metric>:<type>`). Each value is the same flat `Derived<T>` envelope the single-metric route returns, so a client decodes one shape and reads back exactly the tokens it asked for.",
+      ),
+  })
+  .meta({
+    id: "DerivedBatchResponse",
+    description:
+      "Batched derived-metric values. One request resolves the whole dashboard grid (the wellness scores + the derived re-frames + one baseline per vital) instead of N concurrent single-metric requests sharing the Prisma pool. Pure compute over the rollup tier — no LLM, no narrative, no cache table.",
+  });
+
+// v1.10.0 — FDR-controlled correlation discovery result. One discovered,
+// statistically-defensible behaviour → next-day-outcome pair.
+const discoveredCorrelation = z
+  .object({
+    behaviour: z
+      .string()
+      .describe("Behaviour channel (lag source), e.g. TIME_IN_DAYLIGHT, MOOD."),
+    outcome: z
+      .string()
+      .describe(
+        "Outcome channel (lag target), e.g. SLEEP_DURATION, HEART_RATE_VARIABILITY.",
+      ),
+    n: z
+      .number()
+      .int()
+      .describe("Paired-day count after the day+1 lag join (≥ 20)."),
+    r: z.number().describe("Pearson r over the lag-joined daily series."),
+    pValue: z.number().describe("Two-sided exact Student-t p-value (< 0.05)."),
+    qValue: z
+      .number()
+      .describe(
+        "Benjamini-Hochberg FDR-adjusted q-value (≤ the surface threshold).",
+      ),
+    interpretation: z
+      .string()
+      .describe("Conservative, descriptive interpretation — never causal."),
+    lagDays: z.number().int().describe("Lag in days applied (1)."),
+  })
+  .meta({ id: "DiscoveredCorrelation" });
+
+const correlationDiscoveryResponse = z
+  .object({
+    discovered: z
+      .array(discoveredCorrelation)
+      .describe("Pairs surviving n ≥ 20, p < 0.05, AND the BH-FDR control."),
+    pairsTested: z
+      .number()
+      .int()
+      .describe("Behaviour × outcome pairs assessed (for the honest footer)."),
+    fdrQ: z.number().describe("The FDR target the surface used."),
+    minPairs: z
+      .number()
+      .int()
+      .describe("Minimum paired-day count enforced per pair."),
+  })
+  .meta({
+    id: "CorrelationDiscoveryResponse",
+    description:
+      "v1.10.0 — FDR-controlled correlation discovery over a curated behaviour × outcome matrix, lagged behaviour → next-day outcome. Only statistically-defensible pairs surface; descriptive, never causal.",
+  });
+
+// The seven specialised `*-status` routes accept an optional locale
+// override (the metric is fixed by the route path, unlike the generic
+// metric-status route which carries it as a query field).
+const insightStatusQuery = z
+  .object({
+    locale: z
+      .enum(["de", "en"])
+      .optional()
+      .describe("Optional UI-locale override; defaults to the session locale."),
+  })
+  .meta({ id: "InsightStatusQuery" });
+
+// Shared response shape for the five text-bearing specialised status
+// routes (blood-pressure, pulse, weight, bmi, mood). Same envelope as
+// the generic metric-status card minus the `insufficient` flag, which is
+// metric-status-only. Read-only + stale-while-revalidate.
+const insightStatusResponse = z
+  .object({
+    hasProvider: z
+      .boolean()
+      .describe(
+        "False when the user has no usable AI provider — `text` then carries the generic no-key guidance.",
+      ),
+    text: z
+      .string()
+      .nullable()
+      .describe(
+        "The assessment narrative (plain text, rendered as React text children). Null while a first generation is preparing.",
+      ),
+    cached: z
+      .boolean()
+      .describe("True when `text` is served from cache (incl. last-good)."),
+    updatedAt: z.iso
+      .datetime({ offset: true })
+      .nullable()
+      .describe("When the served assessment was generated; null when none."),
+    preparing: z
+      .boolean()
+      .optional()
+      .describe(
+        "True when a first assessment is being generated out of band and no prior text exists yet — the client polls until it lands.",
+      ),
+    revalidating: z
+      .boolean()
+      .optional()
+      .describe(
+        "True when `text` is served from last-good cache (stale-while-revalidate) while a fresh generation is in flight. The client keeps polling on `preparing || revalidating` (bounded) so the open card upgrades to the warmed assessment without a remount.",
+      ),
+  })
+  .meta({
+    id: "InsightStatusResponse",
+    description:
+      "Specialised per-metric assessment envelope (blood-pressure, pulse, weight, bmi, mood). Identical shape to the generic metric-status card so the `InsightStatusCard` consumes it unchanged. Read-only + stale-while-revalidate: a cache miss warms a generation out of band and serves the last-good text meanwhile.",
+  });
+
+// The medication-compliance route carries a richer envelope than the
+// other six: a `summary` narrative plus a per-medication `text` array,
+// instead of a single `text` field.
+const medicationComplianceStatusResponse = z
+  .object({
+    hasProvider: z
+      .boolean()
+      .describe(
+        "False when the user has no usable AI provider — `summary` then carries the generic no-key guidance.",
+      ),
+    summary: z
+      .string()
+      .nullable()
+      .describe(
+        "The overall compliance narrative (plain text). Null while a first generation is preparing.",
+      ),
+    medications: z
+      .array(
+        z
+          .object({
+            medicationId: z
+              .string()
+              .describe("The medication this note belongs to."),
+            text: z
+              .string()
+              .describe("Per-medication compliance note (plain text)."),
+          })
+          .meta({ id: "MedicationComplianceStatusItem" }),
+      )
+      .describe(
+        "Per-medication compliance notes. Empty while preparing or when no medication qualifies.",
+      ),
+    cached: z
+      .boolean()
+      .describe(
+        "True when the envelope is served from cache (incl. last-good).",
+      ),
+    updatedAt: z.iso
+      .datetime({ offset: true })
+      .nullable()
+      .describe("When the served assessment was generated; null when none."),
+    preparing: z
+      .boolean()
+      .optional()
+      .describe(
+        "True when a first assessment is being generated out of band and no prior summary exists yet — the client polls until it lands.",
+      ),
+    revalidating: z
+      .boolean()
+      .optional()
+      .describe(
+        "True when the envelope is served from last-good cache (stale-while-revalidate) while a fresh generation is in flight. The client keeps polling on `preparing || revalidating` (bounded).",
+      ),
+  })
+  .meta({
+    id: "MedicationComplianceStatusResponse",
+    description:
+      "Medication-compliance assessment envelope. Unlike the other six specialised cards it carries a `summary` plus a per-medication `text` array rather than a single `text` field. Read-only + stale-while-revalidate.",
+  });
+
+const analyticsRangeQuery = z
+  .object({
+    type: measurementTypeEnum.describe(
+      "The measurement type to read (single metric — no fan-out). Closed enum: an unknown type 422s.",
+    ),
+    range: z
+      .enum(ANALYTICS_RANGES)
+      .describe(
+        "Trailing window: `7d` / `30d` / `90d` / `1y`. The previous comparable window is the equally-sized span immediately before it.",
+      ),
+  })
+  .meta({ id: "AnalyticsRangeQuery" });
+
+const analyticsWindowAggregate = z
+  .object({
+    count: z.number().int().describe("Reading count composed across buckets."),
+    min: z.number().nullable().describe("Window minimum; null when empty."),
+    max: z.number().nullable().describe("Window maximum; null when empty."),
+    mean: z
+      .number()
+      .nullable()
+      .describe("Count-weighted mean across buckets; null when empty."),
+    sum: z
+      .number()
+      .nullable()
+      .describe(
+        "Cumulative total for cumulative metrics (steps, energy, distance); null when no bucket carries a sum.",
+      ),
+  })
+  .meta({ id: "AnalyticsWindowAggregate" });
+
+const analyticsRangeResponse = z
+  .object({
+    range: z
+      .enum(ANALYTICS_RANGES)
+      .describe("The range that was read (echoes the request)."),
+    windowDays: z
+      .number()
+      .int()
+      .describe("Trailing-window length in days for the chosen range."),
+    granularity: z
+      .string()
+      .describe(
+        "Rollup granularity the read resolved against (`DAY` / `WEEK` / `MONTH` / `YEAR`, or `none` on a coverage miss).",
+      ),
+    current: analyticsWindowAggregate.describe(
+      "Aggregate over the current window `[now-N, now)`.",
+    ),
+    previous: analyticsWindowAggregate.describe(
+      "Aggregate over the previous comparable window `[now-2N, now-N)`.",
+    ),
+    delta: z
+      .number()
+      .nullable()
+      .describe(
+        "`current.mean - previous.mean`; null when either window has no data (never a misleading 0).",
+      ),
+    deltaPct: z
+      .number()
+      .nullable()
+      .describe(
+        "`delta / previous.mean` as a fraction (0.03 = +3 %); null when the prior window has no / zero mean (no divide-by-zero). The client shows 'no prior-period data' in that case.",
+      ),
+  })
+  .meta({
+    id: "AnalyticsRangeResponse",
+    description:
+      "Single-metric period-over-period aggregate. Reads the current and previous comparable windows from the WMY rollup tier and composes a count-weighted-mean delta. `count/min/max/mean/sum` are linearly composable across buckets; SD/slope/r² are intentionally excluded (not composable).",
+  });
+
+const insightsPregenerateRequest = z.object({}).meta({
+  id: "InsightsPregenerateRequest",
+  description:
+    "No body fields. The user is taken from the session / Bearer and the locale from the session; the warm covers every assessment for that user.",
+});
+
+const insightsPregenerateResponse = z
+  .object({
+    queued: z
+      .boolean()
+      .describe("True when the full warm was accepted and enqueued."),
+    locale: z
+      .enum(["de", "en"])
+      .describe("The locale the assessments are being warmed in."),
+  })
+  .meta({
+    id: "InsightsPregenerateResponse",
+    description:
+      "Acknowledgement that a full assessment warm was enqueued for the calling user. The generation runs out of band; the text lands in the read-only status routes.",
+  });
+
+// v1.7.0 — unified dashboard first-paint snapshot. One GET that
+// assembles every above-the-fold tile field in a single round-trip.
+// Two-phase shape: `tiles` (fast, always present) + `extras` (thick,
+// nullable on a rollup-coverage miss). The nested AI / DataSummary
+// blocks are typed loosely (`z.record`) to match the comprehensive
+// response style above — the strict shapes live in their own Zod
+// modules and the iOS client does not consume this web-only route.
+const dataSummaryRecord = z.record(z.string(), z.unknown());
+
+const dashboardSnapshotResponse = z
+  .object({
+    user: z.object({
+      username: z.string(),
+      timezone: z.string(),
+      heightCm: z.number().nullable(),
+      dateOfBirth: z.string().nullable(),
+      gender: z.enum(["MALE", "FEMALE"]).nullable(),
+      glucoseUnit: z.string().nullable(),
+      onboardingTourCompleted: z.boolean(),
+      greetingHour: z.number().int(),
+    }),
+    layout: z.record(z.string(), z.unknown()),
+    // v1.7.0 — full 27-id widget catalogue (16 server-known + 11
+    // iOS-only) so a cold-launch first-paint seeds every tile and the
+    // layout round-trips in one key. Additive alongside the web
+    // `layout` block, which stays byte-identical.
+    layoutCatalogue: z
+      .array(
+        z.object({
+          id: z.string(),
+          visible: z.boolean(),
+          order: z.number().int(),
+        }),
+      )
+      .describe(
+        "Full 27-id widget catalogue (server-known + iOS-only) with per-widget visibility + order. iOS-only ids are appended default-invisible. The web dashboard reads `layout`; this block is the cold-launch seed for the native client.",
+      ),
+    // v1.7.0 — per-chartable-metric latest reading keyed by iOS
+    // `MetricKind` raw value (e.g. `oxygenSaturation`,
+    // `heartRateVariability`, `bodyMassIndex`). Derived in-process from
+    // the slim summaries slice — no extra DB read.
+    metricStates: z
+      .record(
+        z.string(),
+        z.object({
+          value: z.number(),
+          measuredAt: z.string(),
+          unit: z.string(),
+        }),
+      )
+      .describe(
+        "Latest reading per chartable metric, keyed by the iOS `MetricKind` raw value (the non-obvious raws: `oxygenSaturation`, `totalBodyWater`, `heartRateVariability`, `bodyMassIndex`, `walkingAsymmetryPercentage`, `walkingDoubleSupportPercentage`, `environmentalAudioExposure`, `headphoneAudioExposure`, `activeEnergyBurned`). Each entry carries `value`, `measuredAt` (ISO8601), and the canonical `unit`. Types the user has never logged are omitted.",
+      ),
+    tiles: z.object({
+      summaries: dataSummaryRecord,
+      lastSeenByType: z.record(z.string(), z.unknown()),
+      mood: z.object({
+        summary: dataSummaryRecord.nullable(),
+        entries: z.array(
+          z.object({
+            date: z.string(),
+            score: z.number(),
+            samples: z.number().int(),
+          }),
+        ),
+      }),
+    }),
+    extras: z
+      .object({
+        bpInTargetPct: z.number().nullable(),
+        bpInTargetPct7d: z.number().nullable(),
+        bpInTargetPct30d: z.number().nullable(),
+        bpInTargetPctAllTime: z.number().nullable(),
+        bpInTargetPctPriorMonth: z.number().nullable(),
+        bpInTargetPctPriorYear: z.number().nullable(),
+        glucoseByContext: dataSummaryRecord,
+      })
+      .nullable(),
+    briefing: z.record(z.string(), z.unknown()).nullable(),
+    briefingState: z.enum(["ready", "preparing", "disabled", "no-provider"]),
+    briefingUpdatedAt: z.string().nullable(),
+    briefingStale: z
+      .boolean()
+      .describe(
+        "True when `briefing` carries the last good (expired-TTL) briefing while a refresh is pending (`preparing`) or impossible (`no-provider`). Render the stale content with its `briefingUpdatedAt` timestamp instead of a blank tile.",
+      ),
+    generatedAt: z.string(),
+  })
+  .meta({
+    id: "DashboardSnapshotResponse",
+    description:
+      "Unified above-the-fold dashboard payload. `tiles` always arrives (slim summaries + mood + resolved widget layout); `extras` (BD-in-target + per-context glucose) is null on a rollup-coverage miss so the strip never waits on the slowest read. `briefing` is lifted read-only from the pre-generated insight cache — never generated synchronously — and reports `ready` / `preparing` / `disabled` / `no-provider` via `briefingState` (`no-provider` = stale-or-missing cache with no AI provider configured anywhere, so no warm pass will fill it; stop polling and surface a connect-provider hint). A stale-but-parseable briefing is still delivered with `briefingStale: true`. `layoutCatalogue` (full 27-id widget catalogue) and `metricStates` (latest reading per metric, keyed by iOS `MetricKind` raw value) are additive cold-launch seeds for the native client; both derive in-process from data already fetched, adding no DB round-trip.",
+  });
+
+export const insightsPaths: NonNullable<ZodOpenApiObject["paths"]> = {
+  "/api/dashboard/snapshot": {
+    get: {
+      tags: ["Dashboard"],
+      summary: "Unified dashboard first-paint snapshot",
+      description:
+        "Assembles every above-the-fold tile field in one round-trip from the rollup / mood / widget helpers plus a read-only lift of the pre-generated daily briefing. Two-phase: `tiles` always present, `extras` nullable on a rollup-coverage miss. No LLM is reachable from this path. Cookie or Bearer auth.",
+      responses: {
+        "200": {
+          description: "Dashboard snapshot.",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                dashboardSnapshotResponse,
+                "DashboardSnapshotResponseEnvelope",
+              ),
+            },
+          },
+        },
+        ...stdResponses,
+      },
+    },
+  },
+  "/api/insights/comprehensive": {
+    get: {
+      tags: ["Insights"],
+      summary: "Comprehensive AI insights bundle",
+      description:
+        "Full Insights surface — daily briefing, recommendations with rationale, optional weekly report + storyboard annotations. Strict-schema validated server-side.",
+      responses: {
+        "200": {
+          description: "Insights bundle.",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                insightsComprehensiveResponse,
+                "InsightsComprehensiveResponseEnvelope",
+              ),
+            },
+          },
+        },
+        ...stdResponses,
+      },
+    },
+  },
+  "/api/insights/pregenerate": {
+    post: {
+      tags: ["Insights"],
+      summary: "Warm all AI assessments for the calling user",
+      description:
+        "v1.8.7.1 — enqueue a full warm of every AI assessment for the authenticated user (comprehensive insight + the seven specialised status cards + every data-bearing generic metric assessment) in the active locale, so the read-only status GETs serve cached text instantly. Returns immediately; the generation runs out of band on the worker. Empty metrics and provider-less accounts never trigger an LLM call. Short anti-spam bucket (`insights-warm:<userId>`, one warm per 3 minutes) → 429 on a tight loop. Auth via cookie or Bearer; `userId` is taken from the session, never the body.",
+      requestBody: {
+        required: false,
+        content: {
+          "application/json": { schema: insightsPregenerateRequest },
+        },
+      },
+      responses: {
+        "200": {
+          description:
+            "Warm accepted and enqueued. The work runs on the worker; poll the read-only status routes for the text.",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                insightsPregenerateResponse,
+                "InsightsPregenerateResponseEnvelope",
+              ),
+            },
+          },
+        },
+        ...stdResponses,
+      },
+    },
+  },
+  "/api/analytics/range": {
+    get: {
+      tags: ["Analytics"],
+      summary: "Single-metric period-over-period range delta",
+      description:
+        "v1.9.0 — returns the current-window aggregate, the previous comparable window, and the composed delta for ONE metric type over a `7d` / `30d` / `90d` / `1y` range. Single-type by construction (the metric page is single-metric), so the read is one rollup-tier call covering the trailing 2N days sliced into the two halves — no per-type fan-out. Additive route; the `/api/analytics` envelope is unchanged. Auth via cookie or Bearer.",
+      requestParams: {
+        query: analyticsRangeQuery,
+      },
+      responses: {
+        "200": {
+          description: "Current + previous window aggregates and the delta.",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                analyticsRangeResponse,
+                "AnalyticsRangeResponseEnvelope",
+              ),
+            },
+          },
+        },
+        ...stdResponses,
+      },
+    },
+  },
+  "/api/insights/blood-pressure-status": {
+    get: {
+      tags: ["Insights"],
+      summary: "Blood-pressure assessment",
+      description:
+        "Data-driven plain-language assessment of the user's recent blood-pressure readings. Read-only: a cache miss warms a generation out of band and serves the last-good text meanwhile (stale-while-revalidate). Auth via cookie or Bearer.",
+      requestParams: {
+        query: insightStatusQuery,
+      },
+      responses: {
+        "200": {
+          description: "Assessment envelope (fresh, cached, or preparing).",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                insightStatusResponse,
+                "BloodPressureStatusResponseEnvelope",
+              ),
+            },
+          },
+        },
+        ...stdResponses,
+      },
+    },
+  },
+  "/api/insights/pulse-status": {
+    get: {
+      tags: ["Insights"],
+      summary: "Pulse assessment",
+      description:
+        "Data-driven plain-language assessment of the user's recent resting-pulse readings. Read-only: a cache miss warms a generation out of band and serves the last-good text meanwhile (stale-while-revalidate). Auth via cookie or Bearer.",
+      requestParams: {
+        query: insightStatusQuery,
+      },
+      responses: {
+        "200": {
+          description: "Assessment envelope (fresh, cached, or preparing).",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                insightStatusResponse,
+                "PulseStatusResponseEnvelope",
+              ),
+            },
+          },
+        },
+        ...stdResponses,
+      },
+    },
+  },
+  "/api/insights/weight-status": {
+    get: {
+      tags: ["Insights"],
+      summary: "Weight assessment",
+      description:
+        "Data-driven plain-language assessment of the user's recent weight trend. Read-only: a cache miss warms a generation out of band and serves the last-good text meanwhile (stale-while-revalidate). Auth via cookie or Bearer.",
+      requestParams: {
+        query: insightStatusQuery,
+      },
+      responses: {
+        "200": {
+          description: "Assessment envelope (fresh, cached, or preparing).",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                insightStatusResponse,
+                "WeightStatusResponseEnvelope",
+              ),
+            },
+          },
+        },
+        ...stdResponses,
+      },
+    },
+  },
+  "/api/insights/bmi-status": {
+    get: {
+      tags: ["Insights"],
+      summary: "BMI assessment",
+      description:
+        "Data-driven plain-language assessment of the user's body-mass index. Read-only: a cache miss warms a generation out of band and serves the last-good text meanwhile (stale-while-revalidate). Auth via cookie or Bearer.",
+      requestParams: {
+        query: insightStatusQuery,
+      },
+      responses: {
+        "200": {
+          description: "Assessment envelope (fresh, cached, or preparing).",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                insightStatusResponse,
+                "BmiStatusResponseEnvelope",
+              ),
+            },
+          },
+        },
+        ...stdResponses,
+      },
+    },
+  },
+  "/api/insights/mood-status": {
+    get: {
+      tags: ["Insights"],
+      summary: "Mood assessment",
+      description:
+        "Data-driven plain-language assessment of the user's recent mood entries. Read-only: a cache miss warms a generation out of band and serves the last-good text meanwhile (stale-while-revalidate). Auth via cookie or Bearer.",
+      requestParams: {
+        query: insightStatusQuery,
+      },
+      responses: {
+        "200": {
+          description: "Assessment envelope (fresh, cached, or preparing).",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                insightStatusResponse,
+                "MoodStatusResponseEnvelope",
+              ),
+            },
+          },
+        },
+        ...stdResponses,
+      },
+    },
+  },
+  "/api/insights/medication-compliance-status": {
+    get: {
+      tags: ["Insights"],
+      summary: "Medication-compliance assessment",
+      description:
+        "Data-driven plain-language assessment of the user's medication compliance — an overall `summary` plus a per-medication note array. Read-only: a cache miss warms a generation out of band and serves the last-good envelope meanwhile (stale-while-revalidate). Auth via cookie or Bearer.",
+      requestParams: {
+        query: insightStatusQuery,
+      },
+      responses: {
+        "200": {
+          description:
+            "Compliance assessment envelope (fresh, cached, or preparing).",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                medicationComplianceStatusResponse,
+                "MedicationComplianceStatusResponseEnvelope",
+              ),
+            },
+          },
+        },
+        ...stdResponses,
+      },
+    },
+  },
+  "/api/insights/metric-status": {
+    get: {
+      tags: ["Insights"],
+      summary: "Generic per-HealthKit-metric assessment",
+      description:
+        "v1.8.7.1 — data-driven plain-language assessment for any registered HealthKit metric (resting heart rate, sleep, glucose, body composition, gait, audio exposure, …). One generic route covering ~30 metric pages via archetype prompt templates + per-metric metadata. Read-only: a cache miss warms a generation out of band and serves the last-good text meanwhile (stale-while-revalidate). An unknown `metric` 422s against the closed registry enum. Auth via cookie or Bearer.",
+      requestParams: {
+        query: metricStatusQuery,
+      },
+      responses: {
+        "200": {
+          description: "Assessment envelope (fresh, cached, or preparing).",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                metricStatusResponse,
+                "MetricStatusResponseEnvelope",
+              ),
+            },
+          },
+        },
+        ...stdResponses,
+      },
+    },
+  },
+  "/api/insights/derived": {
+    get: {
+      tags: ["Insights"],
+      summary: "Derived wellness metric (compute-once)",
+      description:
+        "v1.10.0 — the compute-once `Derived<T>` value for any registered derived wellness metric (personal typical-range vitals baseline, cardio-fitness band, vascular-age delta, sleep score, readiness, coincident-deviation flag). One generic route over a closed registry enum; an unknown `metric` 422s. Pure compute over the rollup tier with a per-type live fallback on a coverage miss — no LLM call, no narrative, no cache table. Returns the flat `Derived<T>` union so the native client can decode one stable shape and combine values across metrics. Auth via cookie or Bearer.",
+      requestParams: {
+        query: derivedMetricQuery,
+      },
+      responses: {
+        "200": {
+          description: "The flat derived-metric value (ok or insufficient).",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                derivedMetricResponse,
+                "DerivedMetricResponseEnvelope",
+              ),
+            },
+          },
+        },
+        ...stdResponses,
+      },
+    },
+  },
+  "/api/insights/derived/batch": {
+    get: {
+      tags: ["Insights"],
+      summary: "Derived wellness metrics (batched compute-once)",
+      description:
+        "v1.10.0 — resolve several derived wellness metrics in ONE request. The `metrics` CSV names the metrics (a `metric:type` token sub-targets a VITALS_BASELINE vital); the server fans out under a bounded limiter with the profile loaded once and returns a map keyed by the per-request token. Collapses the Insights cold-mount fan-out of 14+ independent single-metric requests — the pool-starvation class that surfaces as a hang-then-recover. The single-metric route stays for the per-score detail pages. Auth via cookie or Bearer.",
+      requestParams: {
+        query: derivedBatchQuery,
+      },
+      responses: {
+        "200": {
+          description: "The map of derived-metric values, keyed by token.",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                derivedBatchResponse,
+                "DerivedBatchResponseEnvelope",
+              ),
+            },
+          },
+        },
+        ...stdResponses,
+      },
+    },
+  },
+  "/api/insights/correlations": {
+    get: {
+      tags: ["Insights"],
+      summary: "Correlation discovery (FDR-controlled)",
+      description:
+        "v1.10.0 — scans a curated behaviour × outcome matrix (daylight / mood / glucose / BP / steps × sleep / HRV / resting HR / weight), lag-joins each behaviour day to the next day's outcome, runs Pearson with the exact Student-t p-value, and applies Benjamini-Hochberg FDR control across every tested pair. Only statistically-defensible pairs surface, each carrying n, r, p, and the BH-adjusted q. Descriptive, never causal. Gated by the operator `correlations` assistant surface. Auth via cookie or Bearer.",
+      responses: {
+        "200": {
+          description: "The discovered correlations + the tested-pair count.",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                correlationDiscoveryResponse,
+                "CorrelationDiscoveryResponseEnvelope",
+              ),
+            },
+          },
+        },
+        ...stdResponses,
+      },
+    },
+  },
+};
