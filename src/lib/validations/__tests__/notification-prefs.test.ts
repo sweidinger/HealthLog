@@ -91,6 +91,7 @@ describe("parseNotificationPrefs", () => {
       medication: { clientManaged: true, deliveryDefault: "server" },
       mood: { reminderHour: DEFAULT_MOOD_REMINDER_HOUR },
       cycle: { clientManaged: false },
+      coach: { nudgesEnabled: true },
     });
   });
 
@@ -99,6 +100,7 @@ describe("parseNotificationPrefs", () => {
       medication: { clientManaged: false, deliveryDefault: "server" },
       mood: { reminderHour: DEFAULT_MOOD_REMINDER_HOUR },
       cycle: { clientManaged: false },
+      coach: { nudgesEnabled: true },
     });
   });
 
@@ -109,6 +111,7 @@ describe("parseNotificationPrefs", () => {
       medication: { clientManaged: true, deliveryDefault: "client" },
       mood: { reminderHour: DEFAULT_MOOD_REMINDER_HOUR },
       cycle: { clientManaged: false },
+      coach: { nudgesEnabled: true },
     });
   });
 
@@ -135,6 +138,7 @@ describe("resolveNotificationPrefs (deep-merge)", () => {
       medication: { clientManaged: true, deliveryDefault: "server" },
       mood: { reminderHour: DEFAULT_MOOD_REMINDER_HOUR },
       cycle: { clientManaged: false },
+      coach: { nudgesEnabled: true },
     });
   });
 
@@ -149,6 +153,7 @@ describe("resolveNotificationPrefs (deep-merge)", () => {
       medication: { clientManaged: true, deliveryDefault: "server" },
       mood: { reminderHour: DEFAULT_MOOD_REMINDER_HOUR },
       cycle: { clientManaged: false },
+      coach: { nudgesEnabled: true },
     });
   });
 
@@ -160,6 +165,7 @@ describe("resolveNotificationPrefs (deep-merge)", () => {
       medication: { clientManaged: true, deliveryDefault: "server" },
       mood: { reminderHour: DEFAULT_MOOD_REMINDER_HOUR },
       cycle: { clientManaged: false },
+      coach: { nudgesEnabled: true },
     });
   });
 
@@ -171,6 +177,7 @@ describe("resolveNotificationPrefs (deep-merge)", () => {
       medication: { clientManaged: true, deliveryDefault: "client" },
       mood: { reminderHour: DEFAULT_MOOD_REMINDER_HOUR },
       cycle: { clientManaged: false },
+      coach: { nudgesEnabled: true },
     });
   });
 
@@ -183,6 +190,7 @@ describe("resolveNotificationPrefs (deep-merge)", () => {
       medication: { clientManaged: true, deliveryDefault: "server" },
       mood: { reminderHour: 8 },
       cycle: { clientManaged: false },
+      coach: { nudgesEnabled: true },
     });
   });
 

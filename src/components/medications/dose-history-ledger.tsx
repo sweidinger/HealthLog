@@ -23,7 +23,13 @@
  *   - a header "+ Eintrag" opens an add dialog scoped to this medication
  *     (incl. backdated / off-schedule); an off-window take surfaces the
  *     "diesem Slot zuordnen?" nudge, pinning it onto a chosen slot via
- *     `forceSlotInstant` rather than orphaning it to an ad-hoc row.
+ *     `forceSlotInstant` rather than orphaning it to an ad-hoc row;
+ *   - v1.15.20: an ad-hoc row shows WHEN the dose would have been due
+ *     (`nearestSlot` subline) and — when that slot is still unserved — a
+ *     kebab "Slot … zuordnen" action that pins the take onto it after a
+ *     confirm that names the consequence ("zählt als verspätet"). A pinned
+ *     slot row carries a quiet "zugeordnet" badge and the inverse
+ *     "Zuordnung lösen" kebab action (`forceSlotInstant: null`).
  *
  * A compact took / skipped history chart sits at the top — the ledger already
  * carries the counts. The card body never tints by status (removed earlier);
@@ -37,12 +43,14 @@ import {
   AlertTriangle,
   Check,
   CircleCheck,
+  Link2,
   Loader2,
   MoreVertical,
   Pencil,
   Plus,
   SkipForward,
   Trash2,
+  Unlink,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -79,6 +87,7 @@ import { LedgerAddDialog } from "@/components/medications/dose-history-add-dialo
 import {
   applyOptimisticSlotMark,
   complianceFromLedger,
+  formatSlotDelta,
   groupLedgerByDay,
   isSlotActionable,
   type LedgerPayload,
@@ -154,6 +163,12 @@ export function DoseHistoryLedger({
   } | null>(null);
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
   const [marking, setMarking] = useState<string | null>(null);
+  // v1.15.20 — the pending "Slot zuordnen" confirm: which intake to pin
+  // onto which slot. The confirm names the consequence (counts as late).
+  const [pendingPin, setPendingPin] = useState<{
+    eventId: string;
+    slotAt: string;
+  } | null>(null);
 
   // Stable window captured once at mount (a lazy state initializer keeps the
   // impure `Date.now()` out of render) so the query key + the `from`/`to`
@@ -339,6 +354,45 @@ export function DoseHistoryLedger({
     [medicationId, queryClient, queryKey, t],
   );
 
+  /**
+   * v1.15.20 — pin an ad-hoc take onto a scheduled slot (`forceSlotInstant`)
+   * or release a pinned binding (`forceSlotInstant: null` → the server
+   * re-attributes by band, usually back to ad-hoc). Same PUT contract the
+   * edit dialog uses; the authoritative refetch re-renders the moved row.
+   */
+  const setAttribution = useCallback(
+    async (eventId: string, slotAtIso: string | null) => {
+      try {
+        const res = await fetch(
+          `/api/medications/${medicationId}/intake/${eventId}`,
+          {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ forceSlotInstant: slotAtIso }),
+          },
+        );
+        if (!res.ok) {
+          toast.error(t("medications.detail.intake.edit.failed"));
+          return;
+        }
+        toast.success(
+          t(
+            slotAtIso
+              ? "medications.detail.verlauf.pin.pinnedToast"
+              : "medications.detail.verlauf.pin.unpinnedToast",
+          ),
+        );
+        await invalidateKeys(queryClient, [
+          ...medicationDependentKeys,
+          queryKey,
+        ]);
+      } catch {
+        toast.error(t("medications.detail.intake.edit.failed"));
+      }
+    },
+    [medicationId, queryClient, queryKey, t],
+  );
+
   async function confirmRowDelete() {
     if (!pendingDeleteId) return;
     const id = pendingDeleteId;
@@ -430,6 +484,10 @@ export function DoseHistoryLedger({
                   onToggleSkipped={toggleIntakeSkipped}
                   onEdit={(ev) => setEditingEvent(ev)}
                   onDelete={(id) => setPendingDeleteId(id)}
+                  onPin={(eventId, slotAt) =>
+                    setPendingPin({ eventId, slotAt })
+                  }
+                  onUnpin={(eventId) => void setAttribution(eventId, null)}
                 />
               ))}
             </ul>
@@ -459,6 +517,18 @@ export function DoseHistoryLedger({
           onCancel={() => setPendingDeleteId(null)}
         />
       )}
+
+      {pendingPin && (
+        <PinConfirm
+          slotLabel={fmt.time(new Date(pendingPin.slotAt))}
+          onConfirm={() => {
+            const pin = pendingPin;
+            setPendingPin(null);
+            void setAttribution(pin.eventId, pin.slotAt);
+          }}
+          onCancel={() => setPendingPin(null)}
+        />
+      )}
     </div>
   );
 }
@@ -482,6 +552,8 @@ function LedgerRowItem({
   onToggleSkipped,
   onEdit,
   onDelete,
+  onPin,
+  onUnpin,
 }: {
   row: LedgerRow;
   marking: string | null;
@@ -499,6 +571,10 @@ function LedgerRowItem({
     scheduledFor: string | null;
   }) => void;
   onDelete: (id: string) => void;
+  /** Open the pin confirm for an ad-hoc take onto the named slot (ISO). */
+  onPin: (eventId: string, slotAt: string) => void;
+  /** Release a pinned binding (server re-attributes by band). */
+  onUnpin: (eventId: string) => void;
 }) {
   const { t } = useTranslations();
   const fmt = useFormatters();
@@ -524,6 +600,16 @@ function LedgerRowItem({
     intake?.takenAt &&
     (row.status === "taken_on_time" || row.status === "taken_late");
 
+  // v1.15.20 — an ad-hoc take with a due-context shows WHEN the dose would
+  // have been due; the pin action additionally needs the slot unserved and a
+  // real persisted event to re-anchor.
+  const dueContext =
+    row.kind === "ad_hoc" && intake?.takenAt && row.nearestSlot
+      ? row.nearestSlot
+      : null;
+  const canPin = Boolean(dueContext && !dueContext.filled && intake?.id);
+  const canUnpin = Boolean(row.kind === "slot" && row.pinned && intake?.id);
+
   return (
     <li
       className="flex items-center justify-between gap-2 px-3 py-2"
@@ -548,12 +634,32 @@ function LedgerRowItem({
               {t("medications.detail.verlauf.adHocTag")}
             </Badge>
           )}
+          {row.pinned && (
+            <Badge
+              variant="outline"
+              className="text-[0.65rem]"
+              data-slot="ledger-pinned-badge"
+            >
+              {t("medications.detail.verlauf.pin.pinnedTag")}
+            </Badge>
+          )}
         </div>
         {showTakeDetail && (
           <p className="text-muted-foreground text-xs">
             {t("medications.detail.verlauf.takenDetail", {
               planned: row.timeOfDay ?? fmt.time(new Date(row.at)),
               taken: fmt.time(new Date(intake!.takenAt!)),
+            })}
+          </p>
+        )}
+        {dueContext && (
+          <p
+            className="text-muted-foreground text-xs"
+            data-slot="ledger-due-context"
+          >
+            {t("medications.detail.verlauf.pin.dueContext", {
+              time: fmt.time(new Date(dueContext.at)),
+              delta: formatSlotDelta(intake!.takenAt!, dueContext.at),
             })}
           </p>
         )}
@@ -622,6 +728,28 @@ function LedgerRowItem({
                   <SkipForward aria-hidden="true" className="mr-2 size-4" />
                 )}
                 {t("medications.detail.verlauf.markSkipped")}
+              </DropdownMenuItem>
+            )}
+            {canPin && (
+              <DropdownMenuItem
+                onClick={() =>
+                  onPin(intake!.id as string, dueContext!.at)
+                }
+                data-slot="ledger-pin"
+              >
+                <Link2 aria-hidden="true" className="mr-2 size-4" />
+                {t("medications.detail.verlauf.pin.action", {
+                  time: fmt.time(new Date(dueContext!.at)),
+                })}
+              </DropdownMenuItem>
+            )}
+            {canUnpin && (
+              <DropdownMenuItem
+                onClick={() => onUnpin(intake!.id as string)}
+                data-slot="ledger-unpin"
+              >
+                <Unlink aria-hidden="true" className="mr-2 size-4" />
+                {t("medications.detail.verlauf.pin.release")}
               </DropdownMenuItem>
             )}
             {intake?.id && (
@@ -744,6 +872,54 @@ function LedgerSummaryChart({
         </span>
       </div>
     </div>
+  );
+}
+
+/**
+ * v1.15.20 — the "Slot zuordnen" confirm. Pinning is a deliberate, visible
+ * decision, so the dialog names the consequence before the write: the dose
+ * will count as taken LATE for that slot (the rate is served, never
+ * flattered) and the row will carry the "zugeordnet" badge until released.
+ */
+function PinConfirm({
+  slotLabel,
+  onConfirm,
+  onCancel,
+}: {
+  slotLabel: string;
+  onConfirm: () => void;
+  onCancel: () => void;
+}) {
+  const { t } = useTranslations();
+  return (
+    <AlertDialog open onOpenChange={(open) => !open && onCancel()}>
+      <AlertDialogContent data-slot="ledger-pin-confirm">
+        <AlertDialogHeader>
+          <AlertDialogTitle>
+            {t("medications.detail.verlauf.pin.confirmTitle", {
+              time: slotLabel,
+            })}
+          </AlertDialogTitle>
+          <AlertDialogDescription>
+            {t("medications.detail.verlauf.pin.confirmBody")}
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>
+            {t("medications.detail.verlauf.pin.confirmCancel")}
+          </AlertDialogCancel>
+          <AlertDialogAction
+            onClick={(e) => {
+              e.preventDefault();
+              onConfirm();
+            }}
+            data-slot="ledger-pin-confirm-action"
+          >
+            {t("medications.detail.verlauf.pin.confirmAction")}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   );
 }
 

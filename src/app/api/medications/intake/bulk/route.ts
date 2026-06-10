@@ -260,6 +260,10 @@ async function postBulk(request: NextRequest): Promise<Response> {
       // attribute by, so they keep the canonical anchor snap that binds
       // them to the projector/worker-minted slot row.
       let canonicalSlot: Date | null;
+      // v1.15.20 — binding provenance: USER_PIN on the forced path, AUTO on
+      // a band decision. Pending echoes / skips carry no decision
+      // (undefined → the upsert leaves an existing USER_PIN untouched).
+      let attributionSource: "AUTO" | "USER_PIN" | undefined;
       if (isExplicitTaken && entry.forceSlotInstant !== undefined) {
         canonicalSlot = await resolveForcedSlotForWrite({
           userId: user.id,
@@ -276,6 +280,7 @@ async function postBulk(request: NextRequest): Promise<Response> {
           results.push({ index: i, status: "skipped", reason });
           continue;
         }
+        attributionSource = "USER_PIN";
       } else if (isExplicitTaken) {
         const attribution = await resolveSlotForWriteByBand({
           userId: user.id,
@@ -284,6 +289,7 @@ async function postBulk(request: NextRequest): Promise<Response> {
           takenAt: entry.takenAt as Date,
         });
         canonicalSlot = attribution.slotInstant;
+        attributionSource = "AUTO";
       } else {
         // v1.8.2 — source-agnostic anchor snap for pending echoes + skips.
         // iOS posts the reminder actions here (source API); without this
@@ -356,6 +362,7 @@ async function postBulk(request: NextRequest): Promise<Response> {
           idempotencyKey: entry.idempotencyKey ?? null,
           createSource: "API",
           injectionSite: resolvedInjectionSite,
+          attributionSource,
         });
         if (applied.noDowngradeNoOp) {
           // C2 — pending echo onto an already-actioned slot. Report it as a
@@ -425,6 +432,7 @@ async function postBulk(request: NextRequest): Promise<Response> {
             idempotencyKey: entry.idempotencyKey ?? null,
             createSource: "API",
             injectionSite: resolvedInjectionSite,
+            attributionSource,
           });
           if (applied.noDowngradeNoOp) {
             duplicates += 1;

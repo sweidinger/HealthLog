@@ -730,19 +730,25 @@ export const updateIntakeEventSchema = z
      * take onto a chosen slot; the server validates the instant is a real
      * scheduled slot (422 otherwise). Absent → the edit re-runs band
      * attribution on the new `takenAt`.
+     *
+     * v1.15.20 — an explicit `null` UNPINS: the dose re-attributes by window
+     * band on its (unchanged or edited) `takenAt` and the binding provenance
+     * resets to AUTO — the "Zuordnung lösen" path. A pin / unpin no longer
+     * requires `takenAt` or `skipped` to change in the same request.
      */
     forceSlotInstant: z.iso
       .datetime({ offset: true })
       .transform((s) => new Date(s))
+      .nullable()
       .optional()
       .describe(
-        "Late-take override on edit: pin the edited dose onto the named scheduled slot instead of re-attributing by window band. Must be a real scheduled slot of this medication on its day (validated server-side); a non-slot instant returns 422. Absent re-runs the default window-band attribution on the edited `takenAt`.",
+        "Late-take override on edit: pin the edited dose onto the named scheduled slot instead of re-attributing by window band. Must be a real scheduled slot of this medication on its day (validated server-side); a non-slot instant returns 422. Explicit null unpins: the dose re-attributes by window band on its takenAt (ad-hoc when no band matches). Absent re-runs the default window-band attribution on the edited `takenAt`.",
       ),
   })
   .meta({
     id: "UpdateMedicationIntakeEventRequest",
     description:
-      "Edit a single intake event. v1.15.18 re-runs window-band slot attribution whenever `takenAt` or `skipped` change, snapping `scheduledFor` to the matched slot (or the take's own time when it falls in no window). `forceSlotInstant` overrides that to pin the take onto a named real slot; an explicit `scheduledFor` still wins when supplied directly. `takenAt` must not be in the future (5-minute clock-skew allowance) nor more than 5 years in the past; a `takenAt` before the medication's start date returns 422.",
+      "Edit a single intake event. v1.15.18 re-runs window-band slot attribution whenever `takenAt` or `skipped` change, snapping `scheduledFor` to the matched slot (or the take's own time when it falls in no window). `forceSlotInstant` overrides that to pin the take onto a named real slot (explicit null unpins, re-attributing by band); an explicit `scheduledFor` still wins when supplied directly. `takenAt` must not be in the future (5-minute clock-skew allowance) nor more than 5 years in the past; a `takenAt` before the medication's start date returns 422.",
   });
 
 /**

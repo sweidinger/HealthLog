@@ -458,12 +458,14 @@ describe("GET /api/medications/[id]/compliance — caching and limits", () => {
     expect(gte).toBeInstanceOf(Date);
     const minExpected = Date.now() - 367 * 24 * 60 * 60 * 1000;
     expect((gte as Date).getTime()).toBeGreaterThan(minExpected);
-    // Column-bounded: only the four fields the math consumes.
+    // Column-bounded: only the five fields the math consumes
+    // (v1.15.20 adds the slot-binding provenance for pinned takes).
     expect(call.select).toEqual({
       takenAt: true,
       skipped: true,
       scheduledFor: true,
       autoMissed: true,
+      attributionSource: true,
     });
   });
 });

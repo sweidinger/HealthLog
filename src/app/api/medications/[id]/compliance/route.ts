@@ -142,6 +142,9 @@ async function buildCompliancePayload(
       // v1.15.9 — a forgotten dose the auto-miss cron flipped counts as a
       // miss, not a neutral skip.
       autoMissed: true,
+      // v1.15.20 — pinned takes bind by anchor in the unified ledger so the
+      // % agrees with the history view on a "zugeordnet" dose (taken-late).
+      attributionSource: true,
     },
   });
 

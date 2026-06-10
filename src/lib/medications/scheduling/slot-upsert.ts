@@ -64,6 +64,14 @@ export interface ApplyCanonicalSlotWriteInput {
    * upsert, so this is trusted here.
    */
   injectionSite?: InjectionSiteKey | null;
+  /**
+   * v1.15.20 — slot-binding provenance to stamp on the row. `USER_PIN` on
+   * the forced "diesem Slot zuordnen" paths, `AUTO` when a write
+   * (re-)attributes by window band. Omitted → leave the column untouched on
+   * an update / default AUTO on a create (pending echoes and skips never
+   * carry a binding decision).
+   */
+  attributionSource?: "AUTO" | "USER_PIN";
 }
 
 export interface ApplyCanonicalSlotWriteResult {
@@ -165,6 +173,7 @@ export async function applyCanonicalSlotWrite(
     idempotencyKey,
     createSource,
     injectionSite = null,
+    attributionSource,
   } = input;
 
   const rows = await findSlotRows(client, userId, medicationId, canonicalSlot);
@@ -193,6 +202,8 @@ export async function applyCanonicalSlotWrite(
         // v1.8.5 — site only when the route resolved one (taken
         // injection, tracking on, validated allowed).
         ...(injectionSite !== null && { injectionSite }),
+        // v1.15.20 — binding provenance; absent → schema default AUTO.
+        ...(attributionSource !== undefined && { attributionSource }),
       },
       select: SLOT_ROW_SELECT,
     })) as SlotIntakeRow;
@@ -238,6 +249,7 @@ async function applyToExisting(
     isExplicitSkip,
     idempotencyKey,
     injectionSite = null,
+    attributionSource,
   } = input;
 
   const existingActioned = existing.takenAt !== null || existing.skipped;
@@ -281,6 +293,10 @@ async function applyToExisting(
       // one (taken injection, tracking on, validated). Never clear a
       // previously-recorded site with a null on an idempotent re-post.
       ...(injectionSite !== null && { injectionSite }),
+      // v1.15.20 — binding provenance: set only when this write carries a
+      // decision (pin / band re-attribution). A pending echo or skip never
+      // overwrites a recorded USER_PIN.
+      ...(attributionSource !== undefined && { attributionSource }),
     },
     select: SLOT_ROW_SELECT,
   })) as SlotIntakeRow;

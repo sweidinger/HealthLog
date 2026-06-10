@@ -71,6 +71,20 @@ const cyclePrefsSchema = z
   .partial();
 
 /**
+ * v1.15.20 — coach category schema. `nudgesEnabled` gates the proactive
+ * Coach nudge cron (05:15 Europe/Berlin): default ON (the nudge is an
+ * opt-out surface — it only fires for users who kept the Coach enabled
+ * AND have a working provider), flipped off from Settings →
+ * Notifications. Sub-object form keeps the layout open for future
+ * coach-notification knobs (quiet days, trigger selection, …).
+ */
+const coachPrefsSchema = z
+  .object({
+    nudgesEnabled: z.boolean(),
+  })
+  .partial();
+
+/**
  * v1.7.0 — per-device delivery override schema for the device PATCH.
  * NULL clears the override (the device inherits the user-level roaming
  * default).
@@ -88,6 +102,7 @@ export const notificationPrefsSchema = z
     medication: medicationPrefsSchema,
     mood: moodPrefsSchema,
     cycle: cyclePrefsSchema,
+    coach: coachPrefsSchema,
   })
   .partial();
 
@@ -116,6 +131,13 @@ export interface NotificationPrefs {
      */
     clientManaged: boolean;
   };
+  coach: {
+    /**
+     * v1.15.20 — proactive Coach nudge opt-out. Default `true`; the
+     * 05:15 nudge cron skips the user when `false`.
+     */
+    nudgesEnabled: boolean;
+  };
 }
 
 /**
@@ -140,6 +162,9 @@ export const DEFAULT_NOTIFICATION_PREFS: NotificationPrefs = {
   },
   cycle: {
     clientManaged: false,
+  },
+  coach: {
+    nudgesEnabled: true,
   },
 };
 
@@ -181,6 +206,10 @@ export function resolveNotificationPrefs(
       ...base.cycle,
       ...(incoming.cycle ?? {}),
     },
+    coach: {
+      ...base.coach,
+      ...(incoming.coach ?? {}),
+    },
   });
 }
 
@@ -206,6 +235,7 @@ function applyDeliveryDefaultMapping(prefs: NotificationPrefs): NotificationPref
     },
     mood: { ...prefs.mood },
     cycle: { ...prefs.cycle },
+    coach: { ...prefs.coach },
   };
 }
 
@@ -262,11 +292,22 @@ export function resolveMoodReminderHour(raw: unknown): number {
   return parseNotificationPrefs(raw).mood.reminderHour;
 }
 
+/**
+ * v1.15.20 — cron-side helper. Returns `true` when the proactive Coach
+ * nudge may fire for this user (the default). Tolerates a null /
+ * drifted prefs row. The nudge cron layers this on top of the
+ * disableCoach / kill-switch / provider gates.
+ */
+export function resolveCoachNudgesEnabled(raw: unknown): boolean {
+  return parseNotificationPrefs(raw).coach.nudgesEnabled;
+}
+
 function cloneDefaults(): NotificationPrefs {
   return {
     medication: { ...DEFAULT_NOTIFICATION_PREFS.medication },
     mood: { ...DEFAULT_NOTIFICATION_PREFS.mood },
     cycle: { ...DEFAULT_NOTIFICATION_PREFS.cycle },
+    coach: { ...DEFAULT_NOTIFICATION_PREFS.coach },
   };
 }
 
@@ -285,6 +326,10 @@ function mergeOverDefaults(
     cycle: {
       ...DEFAULT_NOTIFICATION_PREFS.cycle,
       ...(input.cycle ?? {}),
+    },
+    coach: {
+      ...DEFAULT_NOTIFICATION_PREFS.coach,
+      ...(input.coach ?? {}),
     },
   });
 }

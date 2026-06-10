@@ -86,7 +86,14 @@ export const GET = apiHandler(
         deletedAt: null,
         scheduledFor: { gte: from },
       },
-      select: { scheduledFor: true, takenAt: true, skipped: true },
+      select: {
+        scheduledFor: true,
+        takenAt: true,
+        skipped: true,
+        // v1.15.20 — pinned takes bind by anchor in the chip tally so the
+        // chips agree with the % + the history on a "zugeordnet" dose.
+        attributionSource: true,
+      },
       orderBy: { scheduledFor: "asc" },
     });
 

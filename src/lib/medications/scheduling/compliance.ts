@@ -255,6 +255,8 @@ function ledgerChipCounts(
       takenAt: e.takenAt,
       skipped: e.skipped,
       autoMissed: e.autoMissed ?? false,
+      // v1.15.20 — pinned takes bind by anchor (taken-late, slot served).
+      pinned: e.attributionSource === "USER_PIN",
     }));
 
   const rows = reconstructDoseHistory(bands, intakes, asOf);

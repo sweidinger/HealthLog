@@ -27,6 +27,13 @@ export const registerSchema = z.object({
    * keep working.
    */
   timezone: z.string().max(64).optional(),
+  /**
+   * v1.15.20 — registration invite token (`hlv_<64hex>`, 68 chars).
+   * Only consulted when the operator has disabled open registration:
+   * a valid, unexpired invite still admits the signup. Ignored when
+   * registration is open.
+   */
+  inviteToken: z.string().max(80).optional(),
 });
 
 export const loginPasswordSchema = z.object({

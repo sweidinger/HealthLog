@@ -177,6 +177,12 @@ export interface IntakeEventLike {
    * fixture that omits it keeps the user-skip-vs-taken-vs-missed contract.
    */
   autoMissed?: boolean;
+  /**
+   * v1.15.20 — slot-binding provenance (`USER_PIN` = deliberate user pin).
+   * Read by the band-ledger chip tally so a pinned take binds by anchor;
+   * optional so legacy callers default to AUTO.
+   */
+  attributionSource?: "AUTO" | "USER_PIN";
 }
 
 /** One slot the schedule expected the user to dose. */

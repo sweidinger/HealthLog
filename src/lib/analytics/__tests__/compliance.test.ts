@@ -2582,6 +2582,58 @@ describe("tallyComplianceFromLedger — the unified % keystone", () => {
     expect(tally.rate).toBe(100);
   });
 
+  // v1.15.20 — a USER_PIN take binds by its slot anchor, so a deliberate
+  // "diesem Slot zuordnen" on an off-window take serves the slot as a LATE
+  // dose: it enters the numerator (taken), never the on-time count, and the
+  // slot stops reading missed. The same instants WITHOUT the pin read
+  // ad-hoc + missed — the pin is the only thing that may move them.
+  it("a pinned off-window take serves its slot as late — no on-time gain", () => {
+    const pinned = [
+      {
+        scheduledFor: at(7, 0),
+        takenAt: at(13, 0), // far past the 07:00 band's tail
+        skipped: false,
+        attributionSource: "USER_PIN" as const,
+      },
+      { scheduledFor: at(19, 0), takenAt: at(19, 0), skipped: false },
+    ];
+    const tally = tallyComplianceFromLedger(
+      pinned,
+      twiceDaily,
+      ctxFor(),
+      from,
+      nowEvening,
+      nowEvening,
+    );
+    expect(tally.taken).toBe(2);
+    expect(tally.takenOnTime).toBe(1); // only the 19:00 dose
+    expect(tally.takenLate).toBe(1); // the pin counts late, never on-time
+    expect(tally.missed).toBe(0);
+    expect(tally.adHoc).toBe(0);
+    expect(tally.rate).toBe(100);
+
+    // Control: the identical instants without the pin stay ad-hoc and the
+    // 07:00 slot reads missed — AUTO attribution is untouched.
+    const unpinned = pinned.map((e) => ({
+      scheduledFor: e.scheduledFor,
+      takenAt: e.takenAt,
+      skipped: e.skipped,
+    }));
+    const auto = tallyComplianceFromLedger(
+      unpinned,
+      twiceDaily,
+      ctxFor(),
+      from,
+      nowEvening,
+      nowEvening,
+    );
+    expect(auto.taken).toBe(1);
+    expect(auto.takenLate).toBe(0);
+    expect(auto.missed).toBe(1);
+    expect(auto.adHoc).toBe(1);
+    expect(auto.rate).toBe(50);
+  });
+
   // v1.15.19 — intraday pending rows. The today-projector mints pending
   // rows (takenAt = null, not skipped, not auto-missed) for every slot of
   // the day up front; from slot time onward the old ledger read them as

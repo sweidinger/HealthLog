@@ -61,6 +61,14 @@ interface IntakeEvent {
    * row.
    */
   autoMissed?: boolean;
+  /**
+   * v1.15.20 — slot-binding provenance. `USER_PIN` = the user deliberately
+   * pinned this off-window take onto its `scheduledFor` slot; the unified
+   * ledger then binds it by anchor (taken-late, never on-time-washed)
+   * instead of degrading it to ad-hoc when the takenAt sits outside the
+   * band tail. Optional so legacy callers / fixtures default to AUTO.
+   */
+  attributionSource?: "AUTO" | "USER_PIN";
 }
 
 export type IntakeTimingClass =
@@ -1283,6 +1291,9 @@ export function buildComplianceLedgerRows(
       takenAt: e.takenAt,
       skipped: e.skipped,
       autoMissed: e.autoMissed ?? false,
+      // v1.15.20 — a pinned take binds by anchor and tallies as taken-late
+      // (slot served, no on-time gain) instead of ad_hoc + missed.
+      pinned: e.attributionSource === "USER_PIN",
     }));
 
   return reconstructDoseHistory(bands, intakes, now);
