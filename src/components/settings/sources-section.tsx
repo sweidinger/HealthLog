@@ -387,7 +387,8 @@ export function SourcesSection() {
                             className="h-11 w-11"
                             onClick={() => moveSource(metric, index, 1)}
                             disabled={
-                              index === list.length - 1 || saveMutation.isPending
+                              index === list.length - 1 ||
+                              saveMutation.isPending
                             }
                             aria-label={t("settings.sections.sources.moveDown")}
                           >
@@ -536,9 +537,7 @@ export function SourcesSection() {
                           variant="ghost"
                           size="icon"
                           className="h-11 w-11"
-                          onClick={() =>
-                            moveDeviceType(null, index, -1)
-                          }
+                          onClick={() => moveDeviceType(null, index, -1)}
                           disabled={index === 0 || saveMutation.isPending}
                           aria-label={t("settings.sections.sources.moveUp")}
                         >
@@ -566,8 +565,11 @@ export function SourcesSection() {
           </div>
         )}
 
+        {/* `flex-col-reverse` mirrors the DialogFooter idiom: the primary
+            action stacks on top on mobile, row order stays Cancel → Save
+            on `sm+`. */}
         {dirty && priority && (
-          <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
+          <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
             <Button
               type="button"
               variant="ghost"

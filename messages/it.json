@@ -2099,6 +2099,8 @@
     "navSteps": "Passi",
     "navActiveEnergy": "Energia attiva",
     "navAriaLabel": "Vai alla sezione",
+    "pillScrollLeft": "Scorri le schede a sinistra",
+    "pillScrollRight": "Scorri le schede a destra",
     "tabStrip": {
       "vitalsParent": {
         "label": "Vitali",

@@ -1,9 +1,16 @@
 "use client";
 
-import { memo, useEffect, useMemo, useRef } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ChevronDown, Loader2, RefreshCw, Settings2 } from "lucide-react";
+import {
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  Loader2,
+  RefreshCw,
+  Settings2,
+} from "lucide-react";
 import { toast } from "sonner";
 
 import {
@@ -13,6 +20,7 @@ import {
 } from "@/components/ui/popover";
 import { useTranslations } from "@/lib/i18n/context";
 import { cn } from "@/lib/utils";
+import { prefersReducedMotion } from "@/lib/charts/reduced-motion";
 import {
   INSIGHTS_OVERVIEW_PATH,
   SUB_PAGE_GROUP,
@@ -226,7 +234,10 @@ export const SUB_PAGE_TABS: Record<
     metric: "WALKING_SPEED",
   },
   // v1.10.0 — cardio fitness (VO2 max) + Apple-Health Mobility additions.
-  "cardio-fitness": { labelKey: "insights.navCardioFitness", metric: "VO2_MAX" },
+  "cardio-fitness": {
+    labelKey: "insights.navCardioFitness",
+    metric: "VO2_MAX",
+  },
   falls: { labelKey: "insights.navFalls", metric: "FALL_COUNT" },
   "six-minute-walk": {
     labelKey: "insights.navSixMinuteWalk",
@@ -498,6 +509,63 @@ function InsightsTabStripImpl({
   const regenerateLabel = t("insights.regenerateAnalysis");
   const customizeLabel = t("insights.customize");
 
+  // Overflow affordance for the pill row. The row hides its scrollbar
+  // (deliberately — see the container classes below), which left desktop
+  // users with no signal and no obvious gesture once the pills overflow:
+  // mouse wheels scroll vertically and there is nothing to grab. Three
+  // complements close that gap:
+  //   • chevron buttons (sm+ only — touch keeps native pan) that page the
+  //     row ±200 px; they render whenever the row overflows and disable
+  //     per-direction so focus never lands on a vanished control;
+  //   • a native non-passive wheel listener that turns a dominant vertical
+  //     wheel delta into horizontal scroll (React's synthetic onWheel is
+  //     passive at the root, so `preventDefault()` must bind natively);
+  //   • the existing `<sm` right-edge fade stays as the mobile signal.
+  const scrollerRef = useRef<HTMLDivElement | null>(null);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(false);
+
+  const updateScrollAffordance = useCallback(() => {
+    const el = scrollerRef.current;
+    if (!el) return;
+    const maxScroll = el.scrollWidth - el.clientWidth;
+    setCanScrollLeft(el.scrollLeft > 4);
+    setCanScrollRight(el.scrollLeft < maxScroll - 4);
+  }, []);
+
+  useEffect(() => {
+    // Re-measure on mount, when the pill set changes, and on any resize of
+    // the scroll container (sidebar collapse, orientation change).
+    updateScrollAffordance();
+    const el = scrollerRef.current;
+    if (!el) return;
+    const observer = new ResizeObserver(updateScrollAffordance);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [updateScrollAffordance, tabs]);
+
+  useEffect(() => {
+    const el = scrollerRef.current;
+    if (!el) return;
+    const onWheel = (event: WheelEvent) => {
+      if (el.scrollWidth <= el.clientWidth) return;
+      if (Math.abs(event.deltaY) <= Math.abs(event.deltaX)) return;
+      el.scrollLeft += event.deltaY;
+      event.preventDefault();
+    };
+    el.addEventListener("wheel", onWheel, { passive: false });
+    return () => el.removeEventListener("wheel", onWheel);
+  }, []);
+
+  const scrollPills = useCallback((direction: -1 | 1) => {
+    scrollerRef.current?.scrollBy({
+      left: direction * 200,
+      behavior: prefersReducedMotion() ? "auto" : "smooth",
+    });
+  }, []);
+
+  const pillsOverflow = canScrollLeft || canScrollRight;
+
   return (
     <nav
       data-slot="insights-tab-strip"
@@ -523,7 +591,28 @@ function InsightsTabStripImpl({
       )}
     >
       <div className="flex items-center gap-2">
-        <div className="flex min-w-0 flex-1 [scrollbar-width:none] gap-2 overflow-x-auto [&::-webkit-scrollbar]:hidden">
+        {pillsOverflow && (
+          <button
+            type="button"
+            onClick={() => scrollPills(-1)}
+            disabled={!canScrollLeft}
+            aria-label={t("insights.pillScrollLeft")}
+            data-slot="insights-tab-strip-scroll-left"
+            className={cn(
+              "hidden h-11 w-9 shrink-0 items-center justify-center rounded-full sm:inline-flex",
+              "text-muted-foreground hover:text-foreground hover:bg-accent transition-colors",
+              "focus-visible:ring-ring/50 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none",
+              "disabled:cursor-not-allowed disabled:opacity-30",
+            )}
+          >
+            <ChevronLeft className="h-4 w-4" aria-hidden="true" />
+          </button>
+        )}
+        <div
+          ref={scrollerRef}
+          onScroll={updateScrollAffordance}
+          className="flex min-w-0 flex-1 [scrollbar-width:none] gap-2 overflow-x-auto [&::-webkit-scrollbar]:hidden"
+        >
           {tabs.map((tab) => {
             if (tab.kind === "link") {
               // The overview pill matches the mother page exactly; the
@@ -631,6 +720,23 @@ function InsightsTabStripImpl({
             );
           })}
         </div>
+        {pillsOverflow && (
+          <button
+            type="button"
+            onClick={() => scrollPills(1)}
+            disabled={!canScrollRight}
+            aria-label={t("insights.pillScrollRight")}
+            data-slot="insights-tab-strip-scroll-right"
+            className={cn(
+              "hidden h-11 w-9 shrink-0 items-center justify-center rounded-full sm:inline-flex",
+              "text-muted-foreground hover:text-foreground hover:bg-accent transition-colors",
+              "focus-visible:ring-ring/50 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none",
+              "disabled:cursor-not-allowed disabled:opacity-30",
+            )}
+          >
+            <ChevronRight className="h-4 w-4" aria-hidden="true" />
+          </button>
+        )}
         {/* v1.4.27 MB7 / CF-72 — right-edge fade. The gradient
             absolute-positions over the rightmost ~24 px of the strip
             so the last visible pill softly fades into the background

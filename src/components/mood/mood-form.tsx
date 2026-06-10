@@ -498,7 +498,7 @@ export function MoodForm({ onSuccess, onCancel, footerSlot }: MoodFormProps) {
           <AlertDialogFooter>
             <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
             <AlertDialogAction
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              variant="destructive"
               onClick={resetForm}
             >
               {t("mood.formResetConfirmAction")}

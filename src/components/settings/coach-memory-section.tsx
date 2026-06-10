@@ -197,8 +197,13 @@ export function CoachMemorySection({
                 </AlertDialogCancel>
                 <AlertDialogAction
                   data-testid="settings-coach-memory-forget-all-confirm"
+                  disabled={forgetAll.isPending}
+                  aria-busy={forgetAll.isPending || undefined}
                   onClick={() => forgetAll.mutate()}
                 >
+                  {forgetAll.isPending && (
+                    <Loader2 className="mr-1 size-3.5 animate-spin motion-reduce:animate-none" />
+                  )}
                   {t("settings.ai.coachMemory.forgetAllConfirmAction")}
                 </AlertDialogAction>
               </AlertDialogFooter>
@@ -208,7 +213,11 @@ export function CoachMemorySection({
       </div>
 
       {query.isError && (
-        <p role="status" aria-live="polite" className="text-destructive text-xs">
+        <p
+          role="status"
+          aria-live="polite"
+          className="text-destructive text-xs"
+        >
           {t("settings.ai.coachMemory.loadError")}
         </p>
       )}

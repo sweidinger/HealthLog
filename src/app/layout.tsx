@@ -39,7 +39,10 @@ export const metadata: Metadata = {
   manifest: "/manifest.json",
   icons: {
     icon: "/favicon.svg",
-    apple: "/logo-192.png",
+    // Pre-flattened 180×180 on the app background — Safari ignores PNG
+    // alpha in favourites/home-screen tiles and would render the
+    // transparent logo on a white slab otherwise.
+    apple: "/apple-touch-icon.png",
   },
   appleWebApp: {
     capable: true,

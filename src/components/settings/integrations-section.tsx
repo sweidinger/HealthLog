@@ -622,7 +622,7 @@ function WithingsCard({
                   <AlertDialogFooter>
                     <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
                     <AlertDialogAction
-                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                      variant="destructive"
                       onClick={() => disconnect.mutate()}
                     >
                       {t("settings.withingsDisconnect")}
@@ -1035,7 +1035,7 @@ function WhoopCard({
                   <AlertDialogFooter>
                     <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
                     <AlertDialogAction
-                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                      variant="destructive"
                       onClick={() => disconnect.mutate()}
                     >
                       {t("settings.whoopDisconnect")}
@@ -1481,7 +1481,7 @@ function FitbitCard({
                   <AlertDialogFooter>
                     <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
                     <AlertDialogAction
-                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                      variant="destructive"
                       onClick={() => disconnect.mutate()}
                     >
                       {t("settings.fitbitDisconnect")}

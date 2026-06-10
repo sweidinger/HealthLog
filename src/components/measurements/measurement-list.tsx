@@ -1443,7 +1443,7 @@ export function MeasurementList({
                       {t("common.cancel")}
                     </AlertDialogCancel>
                     <AlertDialogAction
-                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                      variant="destructive"
                       onClick={deleteEditingMeasurement}
                       disabled={deleteMutation.isPending}
                     >

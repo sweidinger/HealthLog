@@ -134,13 +134,13 @@ function ApiEndpointsCard() {
               <code className="font-mono break-all">{endpoint.path}</code>
             </div>
             <div>
-              <p className="text-muted-foreground text-[10px] uppercase tracking-wide">
+              <p className="text-muted-foreground text-[10px] tracking-wide uppercase">
                 {t("settings.apiEndpointAuth")}
               </p>
               <code className="font-mono break-all">{endpoint.auth}</code>
             </div>
             <div>
-              <p className="text-muted-foreground text-[10px] uppercase tracking-wide">
+              <p className="text-muted-foreground text-[10px] tracking-wide uppercase">
                 {t("settings.apiEndpointExample")}
               </p>
               <code className="block font-mono break-all">
@@ -263,7 +263,10 @@ function ApiTokensCard() {
       />
 
       <div className="mt-4 space-y-4">
-        <form onSubmit={handleCreate} className="flex gap-2">
+        {/* The button mirrors the Input's responsive height (h-11 / sm:h-10)
+            so the row reads as one aligned control group instead of a tall
+            input next to a shorter `sm` button. */}
+        <form onSubmit={handleCreate} className="flex items-center gap-2">
           <Input
             value={newName}
             onChange={(e) => setNewName(e.target.value)}
@@ -274,10 +277,12 @@ function ApiTokensCard() {
           <Button
             type="submit"
             variant="outline"
-            size="sm"
+            className="h-11 sm:h-10"
             disabled={creating || !newName.trim()}
           >
-            {creating && <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />}
+            {creating && (
+              <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
+            )}
             {t("common.create")}
           </Button>
         </form>
@@ -416,7 +421,7 @@ function ApiTokensCard() {
                                 {t("common.cancel")}
                               </AlertDialogCancel>
                               <AlertDialogAction
-                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                variant="destructive"
                                 onClick={() => handleRevoke(tok.id)}
                               >
                                 {t("settings.tokenRevoked")}
@@ -515,7 +520,7 @@ function ApiTokensCard() {
                             {t("common.cancel")}
                           </AlertDialogCancel>
                           <AlertDialogAction
-                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            variant="destructive"
                             onClick={() => handleRevoke(tok.id)}
                           >
                             {t("settings.tokenRevoked")}

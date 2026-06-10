@@ -940,9 +940,14 @@ function PasskeyListSection({ isAuthenticated }: { isAuthenticated: boolean }) {
                           {t("common.cancel")}
                         </AlertDialogCancel>
                         <AlertDialogAction
-                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                          variant="destructive"
+                          disabled={deletePasskey.isPending}
+                          aria-busy={deletePasskey.isPending || undefined}
                           onClick={() => deletePasskey.mutate(pk.id)}
                         >
+                          {deletePasskey.isPending && (
+                            <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
+                          )}
                           {t("common.delete")}
                         </AlertDialogAction>
                       </AlertDialogFooter>
@@ -1022,9 +1027,14 @@ function PasskeyListSection({ isAuthenticated }: { isAuthenticated: boolean }) {
                   <AlertDialogFooter>
                     <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
                     <AlertDialogAction
-                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                      variant="destructive"
+                      disabled={deletePasskey.isPending}
+                      aria-busy={deletePasskey.isPending || undefined}
                       onClick={() => deletePasskey.mutate(pk.id)}
                     >
+                      {deletePasskey.isPending && (
+                        <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
+                      )}
                       {t("common.delete")}
                     </AlertDialogAction>
                   </AlertDialogFooter>

@@ -327,7 +327,7 @@ function DataResetCard() {
                 {t("common.cancel")}
               </AlertDialogCancel>
               <AlertDialogAction
-                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                variant="destructive"
                 onClick={(e) => {
                   e.preventDefault();
                   void handleDeleteAllData();
@@ -471,7 +471,7 @@ function AccountDeleteCard() {
                 {t("common.cancel")}
               </AlertDialogCancel>
               <AlertDialogAction
-                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                variant="destructive"
                 onClick={(e) => {
                   e.preventDefault();
                   void handleDeleteAccount();

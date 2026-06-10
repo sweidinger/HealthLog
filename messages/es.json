@@ -2099,6 +2099,8 @@
     "navSteps": "Pasos",
     "navActiveEnergy": "Energía activa",
     "navAriaLabel": "Saltar a sección",
+    "pillScrollLeft": "Desplazar las pestañas a la izquierda",
+    "pillScrollRight": "Desplazar las pestañas a la derecha",
     "tabStrip": {
       "vitalsParent": {
         "label": "Vitales",

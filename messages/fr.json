@@ -2099,6 +2099,8 @@
     "navSteps": "Pas",
     "navActiveEnergy": "Énergie active",
     "navAriaLabel": "Aller à la section",
+    "pillScrollLeft": "Faire défiler les onglets vers la gauche",
+    "pillScrollRight": "Faire défiler les onglets vers la droite",
     "tabStrip": {
       "vitalsParent": {
         "label": "Constantes",

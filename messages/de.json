@@ -834,7 +834,7 @@
         "title": "Medikament beschreiben",
         "description": "Beschreibe das Medikament in eigenen Worten — das Formular wird automatisch vorausgefüllt.",
         "placeholder": "z. B. Mounjaro 5 mg wöchentlich am Mittwochmorgen ab nächstem Montag",
-        "submit": "Übernehmen",
+        "submit": "Extrahieren",
         "submitBusy": "Wird verarbeitet …",
         "cancel": "Abbrechen",
         "examples": {
@@ -2099,6 +2099,8 @@
     "navSteps": "Schritte",
     "navActiveEnergy": "Aktive Energie",
     "navAriaLabel": "Zu Abschnitt springen",
+    "pillScrollLeft": "Tabs nach links scrollen",
+    "pillScrollRight": "Tabs nach rechts scrollen",
     "tabStrip": {
       "vitalsParent": {
         "label": "Vitalwerte",

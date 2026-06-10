@@ -2099,6 +2099,8 @@
     "navSteps": "Kroki",
     "navActiveEnergy": "Energia czynna",
     "navAriaLabel": "Przejdź do sekcji",
+    "pillScrollLeft": "Przewiń karty w lewo",
+    "pillScrollRight": "Przewiń karty w prawo",
     "tabStrip": {
       "vitalsParent": {
         "label": "Witalne",

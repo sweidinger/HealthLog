@@ -127,7 +127,7 @@ function RestoreRowDialog({
           <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
           <AlertDialogAction
             disabled={!matched || pending}
-            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            variant="destructive"
             onClick={() => {
               if (!matched) return;
               setOpen(false);

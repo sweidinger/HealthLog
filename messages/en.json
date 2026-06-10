@@ -2099,6 +2099,8 @@
     "navSteps": "Steps",
     "navActiveEnergy": "Active energy",
     "navAriaLabel": "Skip to section",
+    "pillScrollLeft": "Scroll tabs left",
+    "pillScrollRight": "Scroll tabs right",
     "tabStrip": {
       "vitalsParent": {
         "label": "Vitals",
