@@ -15,6 +15,11 @@ services:
     image: ghcr.io/mbombeck/healthlog:latest
     pull_policy: always
     container_name: healthlog-app
+    # The app runs as the unprivileged `nextjs` user and never needs a
+    # setuid/setgid escalation; blocking privilege gain caps what a
+    # compromised process inside the container can do.
+    security_opt:
+      - no-new-privileges:true
     ports:
       - "3000:3000"
     environment:
@@ -125,8 +130,16 @@ services:
   #   restart: unless-stopped
 
   db:
-    image: postgres:16-alpine
+    # Pinned to the concrete minor instead of the floating `16-alpine`
+    # alias so a database update is always a deliberate, reviewable
+    # change (at pin time `16-alpine` resolved to this same digest, so
+    # existing deployments see no image change). Minor releases share
+    # the on-disk format — bumping this pin is safe without a dump /
+    # restore; a major-version bump (17+) is not.
+    image: postgres:16.14-alpine
     container_name: healthlog-db
+    security_opt:
+      - no-new-privileges:true
     environment:
       POSTGRES_USER: healthlog
       POSTGRES_PASSWORD: "${POSTGRES_PASSWORD}"

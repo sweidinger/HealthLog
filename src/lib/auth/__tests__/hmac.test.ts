@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { verifyHmacSignature, hashToken } from "../hmac";
 import { createHmac } from "node:crypto";
 
-const TEST_HMAC_KEY = "test-hmac-key-for-unit-tests";
+const TEST_HMAC_KEY = "test-hmac-key-for-unit-tests-32-chars-min";
 
 beforeEach(() => {
   vi.stubEnv("API_TOKEN_HMAC_KEY", TEST_HMAC_KEY);
@@ -83,5 +83,20 @@ describe("hashToken", () => {
     expect(() => hashToken("test")).toThrow(
       "API_TOKEN_HMAC_KEY env var must be set",
     );
+  });
+
+  it("throws if API_TOKEN_HMAC_KEY is shorter than 32 characters", () => {
+    vi.stubEnv("API_TOKEN_HMAC_KEY", "short-key-31-characters-xxxxxxx");
+    expect(() => hashToken("test")).toThrow(
+      "API_TOKEN_HMAC_KEY must be at least 32 characters, got 31",
+    );
+  });
+
+  it("accepts a key of exactly 32 characters", () => {
+    const key32 = "exactly-32-characters-long-key-x";
+    vi.stubEnv("API_TOKEN_HMAC_KEY", key32);
+    expect(key32).toHaveLength(32);
+    const expected = createHmac("sha256", key32).update("test").digest("hex");
+    expect(hashToken("test")).toBe(expected);
   });
 });
