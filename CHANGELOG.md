@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+## [1.16.3] — 2026-06-10 — schedules remember their history
+
+### Fixed
+
+- **Changing a schedule no longer rewrites the past.** Every material cadence change now archives the outgoing schedule as a dated revision, and history, compliance and write attribution evaluate each period against the schedule that was valid at the time — a dose era taken at its then-correct times stays on time forever. The repair script can infer historical eras from consistently dated old anchors behind an explicit flag.
+- **The welcome tour can no longer strand its buttons below the fold.** The target scrolls into view first, the popover flips above it when space runs out, and a centred sheet takes over on any viewport when neither fits.
+- The avatar menu drops its about entry; the section lives in settings.
+
 ## [1.16.1] — 2026-06-10 — a chat worth using, honest sleep stages, stock you can record
 
 ### Added
