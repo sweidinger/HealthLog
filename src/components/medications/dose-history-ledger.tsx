@@ -29,7 +29,10 @@
  *     kebab "Slot … zuordnen" action that pins the take onto it after a
  *     confirm that names the consequence ("zählt als verspätet"). A pinned
  *     slot row carries a quiet "zugeordnet" badge and the inverse
- *     "Zuordnung lösen" kebab action (`forceSlotInstant: null`).
+ *     "Zuordnung lösen" kebab action (`forceSlotInstant: null`). v1.16.0:
+ *     the released row keeps USER_PIN provenance server-side (the dedup
+ *     leaves it standalone) and reads as a plain ad-hoc row here — no
+ *     badge, since it is no longer bound to a slot.
  *
  * A compact took / skipped history chart sits at the top — the ledger already
  * carries the counts. The card body never tints by status (removed earlier);
@@ -634,7 +637,11 @@ function LedgerRowItem({
               {t("medications.detail.verlauf.adHocTag")}
             </Badge>
           )}
-          {row.pinned && (
+          {/* v1.16.0 — the "zugeordnet" badge only when the row is actually
+              bound to a slot. A released ("Zuordnung lösen") USER_PIN take
+              surfaces as an ad-hoc row that also carries `pinned`; badging
+              it "zugeordnet" would claim the binding the user just released. */}
+          {row.kind === "slot" && row.pinned && (
             <Badge
               variant="outline"
               className="text-[0.65rem]"

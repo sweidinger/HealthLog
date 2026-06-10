@@ -87,7 +87,7 @@ describe("reconstructDoseHistory", () => {
   });
 
   it("emits an 11:29 take as an ad-hoc row and leaves 07:00 missed", () => {
-    // Marc's case: the stored scheduledFor was snapped to 07:00 by the old
+    // the reported case: the stored scheduledFor was snapped to 07:00 by the old
     // write path, but the real takenAt (11:29) is outside every band → ad-hoc.
     const rows = reconstructDoseHistory(
       bands,
@@ -332,6 +332,39 @@ describe("reconstructDoseHistory", () => {
       const adhoc = rows.filter((r) => r.kind === "ad_hoc");
       expect(adhoc).toHaveLength(1);
       expect(adhoc[0].at.toISOString()).toBe(at(15, 30).toISOString());
+    });
+
+    // v1.16.0 — a RELEASED pin ("Zuordnung lösen") persists USER_PIN with
+    // `scheduledFor === takenAt`: deliberately ad-hoc, never anchor-bound.
+    it("surfaces a released pin (scheduledFor === takenAt) as a pinned ad-hoc row, never taken_late", () => {
+      const rows = reconstructDoseHistory(
+        bands,
+        [intake({ takenAt: at(9, 0), scheduledFor: at(9, 0), pinned: true })],
+        nowEvening,
+      );
+      const adhoc = rows.filter((r) => r.kind === "ad_hoc");
+      expect(adhoc).toHaveLength(1);
+      expect(adhoc[0].status).toBe("ad_hoc");
+      expect(adhoc[0].pinned).toBe(true);
+      // The 07:00 slot stays unserved (missed by evening) — the released
+      // take must not be pulled back onto it.
+      expect(rows.find((r) => r.timeOfDay === "07:00")?.status).toBe("missed");
+    });
+
+    it("a released pin within anchor epsilon of a slot still reads ad-hoc (no re-binding)", () => {
+      // 07:00:30 sits 30 s from the 07:00 anchor — inside ANCHOR_EPSILON_MS.
+      // Without the release guard the pinned path would claim the slot as
+      // taken_on_time, silently reverting the user's release.
+      const t = new Date(at(7, 0).getTime() + 30_000);
+      const rows = reconstructDoseHistory(
+        bands,
+        [intake({ takenAt: t, scheduledFor: t, pinned: true })],
+        nowEvening,
+      );
+      const adhoc = rows.filter((r) => r.kind === "ad_hoc");
+      expect(adhoc).toHaveLength(1);
+      expect(adhoc[0].pinned).toBe(true);
+      expect(rows.find((r) => r.timeOfDay === "07:00")?.status).toBe("missed");
     });
   });
 

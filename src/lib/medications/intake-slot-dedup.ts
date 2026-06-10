@@ -98,34 +98,22 @@ interface DedupIntakeRow {
   skipped: boolean;
   syncVersion: number;
   createdAt: Date;
-  /** v1.16.0 — slot-binding provenance; USER_PIN = deliberate user pin. */
+  /**
+   * v1.16.0 — slot-binding provenance; USER_PIN = the user fixed the
+   * attribution by hand (pin onto a slot OR released as deliberately
+   * ad-hoc). Such a row never joins a snap cluster.
+   */
   attributionSource: string;
-}
-
-/**
- * v1.16.0 — true for a row the band-era write path deliberately recorded
- * as a standalone ad-hoc take (`scheduledFor === takenAt`, the unpin /
- * outside-every-band signature). The dedup snap must never second-guess
- * that decision: the canonical-instant resolver still uses the legacy
- * ± half-window tolerance, which is WIDER than the band model, so an
- * unpinned ("Zuordnung gelöst") or early off-band take within snap reach
- * of a slot would otherwise be re-merged into that slot's cluster —
- * silently reverting the user's binding decision (and, when the slot row
- * is also a take, soft-deleting one of two real dose records).
- */
-function isDeliberateAdHocRow(row: DedupIntakeRow): boolean {
-  return (
-    row.takenAt !== null &&
-    row.scheduledFor.getTime() === row.takenAt.getTime()
-  );
 }
 
 /**
  * Winner priority of a row inside a slot: pinned take (3) > taken (2) >
  * skipped (1) > pending (0). A higher number wins. The USER_PIN rung
- * (v1.16.0) keeps a deliberate "diesem Slot zuordnen" decision from
- * losing the tie-break against a same-slot sibling row — the pin is the
- * dose of record for its slot.
+ * (v1.16.0) is defensive here — USER_PIN rows never enter a cluster in
+ * the first place (see the exclusion in `dedupeUserIntakeSlots`) — but it
+ * keeps this rank the mirror of the repair script's `rowRank`
+ * (`scripts/repair-intake-anomalies.ts`), where exact-instant groups DO
+ * contain pins and the pin is the dose of record for its slot.
  */
 function rowPriority(row: DedupIntakeRow): number {
   if (row.takenAt !== null) {
@@ -244,7 +232,7 @@ export async function dedupeUserIntakeSlots(
         skipped: true,
         syncVersion: true,
         createdAt: true,
-        // v1.16.0 — pin-awareness: a USER_PIN row must win its slot.
+        // v1.16.0 — pin-awareness: a USER_PIN row never joins a cluster.
         attributionSource: true,
       },
       orderBy: { scheduledFor: "asc" },
@@ -257,10 +245,19 @@ export async function dedupeUserIntakeSlots(
     // never collapse together.
     const slots = new Map<string, { instant: Date; rows: DedupIntakeRow[] }>();
     for (const row of rows) {
-      // v1.16.0 — a deliberate band-era ad-hoc take never joins a slot
-      // cluster (see `isDeliberateAdHocRow`). Declining to collapse is
-      // always safe: the row simply keeps its own anchor.
-      if (isDeliberateAdHocRow(row)) continue;
+      // v1.16.0 — a USER_PIN row (attribution fixed by the user: pinned
+      // onto a slot, or released as deliberately ad-hoc with
+      // `scheduledFor === takenAt`) never joins a slot cluster. The
+      // canonical-instant resolver still uses the legacy ± half-window
+      // tolerance, WIDER than the band model, so snapping would silently
+      // revert the user's binding decision (and, when the slot row is
+      // also a take, soft-delete one of two real dose records). Keyed on
+      // the persisted provenance — NOT on the `scheduledFor === takenAt`
+      // shape, which since v1.15.19 every AUTO standalone insert shares:
+      // those legitimate drift duplicates (an iOS row +60 s beside the
+      // server pending row) MUST stay collapsible. Declining to collapse
+      // a pin is always safe: the row simply keeps its own anchor.
+      if (row.attributionSource === "USER_PIN") continue;
       const canonical = resolveCanonicalSlotInstant({
         medication: {
           id: med.id,

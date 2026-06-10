@@ -1441,9 +1441,11 @@ enum IntakeSource {
 }
 
 /// v1.15.20 — provenance of an intake row's slot binding. `USER_PIN` marks
-/// a deliberate "diesem Slot zuordnen" decision on an off-window take; the
-/// ledger then binds the row by its `scheduledFor` anchor and renders it
-/// as taken-late + "zugeordnet" (no compliance flattering, unpinnable).
+/// an attribution the user fixed by hand (widened in v1.16.0): either a
+/// deliberate "diesem Slot zuordnen" pin onto a named slot, or its released
+/// ("Zuordnung lösen") counterpart that stays a standalone ad-hoc take
+/// (`scheduledFor === takenAt`). The nightly slot dedup never folds a
+/// USER_PIN row into a snap cluster, so neither decision is reverted.
 enum IntakeAttributionSource {
   AUTO
   USER_PIN
@@ -1505,11 +1507,14 @@ model MedicationIntakeEvent {
   /// v1.15.20 — how this row's `scheduledFor` slot binding came to be.
   /// `AUTO` (default) = the write path attributed the take by window-band
   /// membership (or the row is a skip / pending mint anchored on its slot).
-  /// `USER_PIN` = the user deliberately pinned an off-window take onto a
-  /// named slot ("diesem Slot zuordnen"). The read ledger binds USER_PIN
-  /// rows by their `scheduledFor` anchor (like skips) instead of re-running
-  /// takenAt-band attribution, so a pinned take outside the late tail stays
-  /// on its slot — visibly marked, counted late, never on-time-washed.
+  /// `USER_PIN` = the user fixed the attribution by hand (v1.16.0): a
+  /// deliberate pin onto a named slot ("diesem Slot zuordnen") OR the
+  /// released ("Zuordnung lösen") row that stays deliberately ad-hoc
+  /// (`scheduledFor === takenAt`). The read ledger binds slot-anchored
+  /// USER_PIN rows by their `scheduledFor` anchor (like skips) instead of
+  /// re-running takenAt-band attribution — visibly marked, counted late,
+  /// never on-time-washed — and surfaces released rows as ad-hoc; the
+  /// nightly dedup leaves both standalone.
   attributionSource IntakeAttributionSource @default(AUTO) @map("attribution_source")
   source         IntakeSource   @default(WEB)
   idempotencyKey String?        @unique @map("idempotency_key")

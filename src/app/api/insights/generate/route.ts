@@ -430,7 +430,7 @@ export const POST = apiHandler(async (request: NextRequest) => {
   // v1.4.36 W3 T1 — `extractFeatures` enforces a 5 MB ceiling on the
   // serialised payload. If the raw (bucketed) shape ever blows past
   // it (regression watch — the v1.4.35 rawMeasurements shape hit
-  // 25.9 MB on Marc's account), the helper throws
+  // 25.9 MB on the largest tenant), the helper throws
   // `FeaturesPayloadTooLargeError`. We downgrade to the aggregated
   // shape rather than 500-ing so the user still gets an insight; the
   // annotate event surfaces the regression to ops via the Logflare

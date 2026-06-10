@@ -113,7 +113,11 @@ interface IntakeRow {
   skipped: boolean;
   source: string;
   createdAt: Date;
-  /** v1.16.0 — slot-binding provenance; USER_PIN = deliberate user pin. */
+  /**
+   * v1.16.0 — slot-binding provenance; USER_PIN = the user fixed the
+   * attribution by hand (pin onto a slot OR released as deliberately
+   * ad-hoc with `scheduledFor === takenAt`).
+   */
   attributionSource: string;
 }
 
@@ -121,8 +125,12 @@ interface IntakeRow {
  * Rank a row for the slot-winner pick: pinned take (3) > taken (2) >
  * skipped (1) > pending (0). `takenAt` set and `skipped` together still
  * counts as taken — the recorded dose dominates. The USER_PIN rung
- * (v1.16.0) mirrors the dedup worker: a deliberate "diesem Slot
- * zuordnen" decision is the dose of record for its slot.
+ * (v1.16.0) mirrors the dedup worker's rank
+ * (`src/lib/medications/intake-slot-dedup.ts`). The worker additionally
+ * excludes USER_PIN rows from its SNAP clusters (the snap could move a
+ * user-fixed anchor); this script needs no such exclusion — its groups
+ * are exact-instant, so a USER_PIN row in a group already sits ON its
+ * fixed anchor and the rank keeps it as the dose of record there.
  */
 function rowRank(row: IntakeRow): number {
   if (row.takenAt !== null) {

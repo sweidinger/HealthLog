@@ -57,7 +57,7 @@ describe("GET /api/user/profile", () => {
     vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
     vi.mocked(prisma.user.findUnique).mockResolvedValue({
       username: "marc",
-      displayName: "Marc B.",
+      displayName: "Alex T.",
       email: "marc@example.com",
       dateOfBirth: new Date("1985-03-12T00:00:00.000Z"),
       gender: "MALE",
@@ -77,7 +77,7 @@ describe("GET /api/user/profile", () => {
       };
     };
     expect(body.data.username).toBe("marc");
-    expect(body.data.displayName).toBe("Marc B.");
+    expect(body.data.displayName).toBe("Alex T.");
     expect(body.data.heightCm).toBe(180);
     expect(body.data.locale).toBe("de");
   });
@@ -137,7 +137,7 @@ describe("PATCH /api/user/profile", () => {
     vi.mocked(prisma.user.update).mockResolvedValue({
       id: "user-1",
       username: "marc",
-      displayName: "Marc B.",
+      displayName: "Alex T.",
       email: null,
       role: "USER",
       heightCm: null,
@@ -147,13 +147,13 @@ describe("PATCH /api/user/profile", () => {
       locale: "de",
     } as never);
 
-    const res = await PATCH(req({ displayName: "Marc B.", locale: "de" }));
+    const res = await PATCH(req({ displayName: "Alex T.", locale: "de" }));
     expect(res.status).toBe(200);
     expect(prisma.user.update).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { id: "user-1" },
         data: expect.objectContaining({
-          displayName: "Marc B.",
+          displayName: "Alex T.",
           locale: "de",
         }),
       }),

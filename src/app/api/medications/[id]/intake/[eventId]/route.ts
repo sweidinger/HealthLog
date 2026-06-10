@@ -131,7 +131,12 @@ export const PUT = apiHandler(
     //      anchor instead of degrading the off-window take back to ad-hoc;
     //   3. else an explicit `forceSlotInstant: null` UNPINS (v1.15.20,
     //      "Zuordnung lösen"): re-attribute the take by band on its takenAt
-    //      (ad-hoc when no band matches) and reset the provenance to AUTO;
+    //      (ad-hoc when no band matches). v1.16.0 — the release is itself a
+    //      deliberate binding decision, so the row KEEPS `USER_PIN`
+    //      provenance ("attribution user-fixed": onto a slot OR deliberately
+    //      ad-hoc). The persisted marker is what keeps the nightly slot
+    //      dedup from snapping the released row back into the cluster the
+    //      user just detached it from;
     //   4. else a taken edit attributes by band (slot anchor on match, the
     //      take's own time on a miss → ad-hoc), provenance AUTO;
     //   5. a skip / pending edit keeps the existing `scheduledFor` anchor.
@@ -198,10 +203,15 @@ export const PUT = apiHandler(
         });
         // band.at on match; the take's own time on a miss (ad-hoc).
         resolvedScheduledFor = attribution.slotInstant ?? nextTakenAt;
-        attributionSource = "AUTO";
+        // v1.16.0 — an explicit unpin stays user-fixed (USER_PIN) even on
+        // the released row; a plain taken/skipped edit re-attributes AUTO.
+        attributionSource =
+          data.forceSlotInstant === null ? "USER_PIN" : "AUTO";
       } else if (data.forceSlotInstant === null) {
         // Unpin on a row that is not a confirmed take (skip / pending):
-        // nothing to re-attribute, but the provenance still resets.
+        // nothing to re-attribute, but the provenance still resets — a
+        // skip / pending row anchors on its slot by construction, so there
+        // is no user-fixed ad-hoc decision to persist.
         attributionSource = "AUTO";
       }
       // skip / pending edits leave `scheduledFor` on the existing anchor.

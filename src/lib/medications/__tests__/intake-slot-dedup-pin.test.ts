@@ -1,22 +1,32 @@
 /**
  * v1.16.0 — pin-awareness of the intake-slot dedup pass.
  *
- * Two regressions the v1.15.20 pin/unpin flow could otherwise suffer from
- * the nightly dedup cron:
+ * The exclusion is keyed on the PERSISTED provenance
+ * (`attributionSource = USER_PIN`), never on the `scheduledFor === takenAt`
+ * row shape: since v1.15.19 every AUTO standalone insert anchors
+ * `scheduledFor = takenAt`, so a shape-based guard would also shield the
+ * legitimate drift duplicates (an iOS row +60 s beside the server pending
+ * row) the dedup exists to collapse.
  *
- *   1. A deliberately UNPINNED ("Zuordnung lösen") or outside-every-band
- *      take is stored as a standalone ad-hoc row with
- *      `scheduledFor === takenAt`. The dedup's canonical-instant resolver
- *      still uses the legacy ± half-window snap, which is WIDER than the
- *      band model — without the guard the cron would re-merge the row into
- *      the nearest slot's cluster, silently reverting the user's binding
- *      decision (and, when the slot row is also a take, soft-deleting one
- *      of two real dose records).
+ * Covered here:
  *
- *   2. A USER_PIN row shares its slot anchor with a sibling row (cross-
- *      source race). The winner pick must prefer the pinned take — the pin
- *      IS the dose of record for its slot — instead of letting the
- *      `syncVersion` tie-break soft-delete the user's deliberate decision.
+ *   1. The nightly re-pin scenario: the user releases a binding
+ *      ("Zuordnung lösen" → the row keeps USER_PIN with
+ *      `scheduledFor === takenAt`), the projector re-mints a pending row on
+ *      the freed slot, then the dedup cron runs. The released row must stay
+ *      standalone and the pending row must survive untouched (free to
+ *      auto-miss normally) — the snap's legacy ± half-window tolerance is
+ *      WIDER than the band model and would otherwise re-merge the pair,
+ *      silently reverting the user's decision.
+ *
+ *   2. The regression guard: an AUTO standalone take with the
+ *      `scheduledFor === takenAt` anchor shape and sub-minute drift IS
+ *      still collapsed into the slot's cluster.
+ *
+ *   3. A USER_PIN row sharing its exact slot anchor with an AUTO sibling
+ *      (cross-source race) is left alone: the pin never enters the
+ *      cluster, so nothing is soft-deleted — declining to collapse never
+ *      destroys a dose record.
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -87,13 +97,53 @@ beforeEach(() => {
 });
 
 describe("dedupeUserIntakeSlots — pin-awareness (v1.16.0)", () => {
-  it("never re-merges a deliberate ad-hoc take (scheduledFor === takenAt) into a slot cluster", async () => {
-    // 07:00 CEST = 05:00Z. The pending REMINDER row sits on the anchor;
-    // the unpinned take sits 40 min later — inside the legacy snap
-    // tolerance, outside the user's deliberate ad-hoc decision.
+  it("re-pin scenario: a released USER_PIN row stays standalone next to the re-minted pending", async () => {
+    // 07:00 CEST = 05:00Z. The user released a binding: the take keeps
+    // USER_PIN with `scheduledFor === takenAt` 40 min past the anchor —
+    // inside the legacy snap tolerance. The projector then re-minted a
+    // pending row on the freed 05:00Z slot.
     vi.mocked(prisma.medicationIntakeEvent.findMany).mockResolvedValue([
       {
-        id: "r-07-rem",
+        id: "r-07-pending",
+        medicationId: "med-1",
+        scheduledFor: new Date("2026-06-15T05:00:00.000Z"),
+        takenAt: null,
+        skipped: false,
+        syncVersion: 0,
+        createdAt: new Date("2026-06-15T06:00:00Z"),
+        attributionSource: "AUTO",
+      },
+      {
+        id: "r-07-released",
+        medicationId: "med-1",
+        scheduledFor: new Date("2026-06-15T05:40:00.000Z"),
+        takenAt: new Date("2026-06-15T05:40:00.000Z"),
+        skipped: false,
+        syncVersion: 3,
+        createdAt: new Date("2026-06-15T05:40:00Z"),
+        attributionSource: "USER_PIN",
+      },
+    ] as never);
+
+    const summary = await dedupeUserIntakeSlots("u1");
+
+    // The released row never joins the 05:00 cluster → the slot holds one
+    // row (the fresh pending) → nothing collapses; the pending survives to
+    // auto-miss / be taken normally.
+    expect(summary.slotsCollapsed).toBe(0);
+    expect(summary.rowsSoftDeleted).toBe(0);
+    expect(prisma.medicationIntakeEvent.updateMany).not.toHaveBeenCalled();
+    expect(prisma.medicationIntakeEvent.update).not.toHaveBeenCalled();
+  });
+
+  it("still collapses an AUTO drift duplicate despite its scheduledFor === takenAt anchor shape", async () => {
+    // The v1.15.19 standalone-insert anchor shape: the iOS take landed
+    // +60 s beside the server-minted pending row, provenance AUTO. This is
+    // exactly the duplicate the dedup exists for — the persisted-provenance
+    // exclusion must NOT shield it the way the old shape heuristic did.
+    vi.mocked(prisma.medicationIntakeEvent.findMany).mockResolvedValue([
+      {
+        id: "r-07-pending",
         medicationId: "med-1",
         scheduledFor: new Date("2026-06-15T05:00:00.000Z"),
         takenAt: null,
@@ -103,31 +153,31 @@ describe("dedupeUserIntakeSlots — pin-awareness (v1.16.0)", () => {
         attributionSource: "AUTO",
       },
       {
-        id: "r-07-adhoc",
+        id: "r-07-drift",
         medicationId: "med-1",
-        scheduledFor: new Date("2026-06-15T05:40:00.000Z"),
-        takenAt: new Date("2026-06-15T05:40:00.000Z"),
+        scheduledFor: new Date("2026-06-15T05:01:00.000Z"),
+        takenAt: new Date("2026-06-15T05:01:00.000Z"),
         skipped: false,
-        syncVersion: 3,
-        createdAt: new Date("2026-06-15T05:40:00Z"),
+        syncVersion: 2,
+        createdAt: new Date("2026-06-15T05:01:00Z"),
         attributionSource: "AUTO",
       },
     ] as never);
 
     const summary = await dedupeUserIntakeSlots("u1");
 
-    // The ad-hoc row never joins the 05:00 cluster → the slot holds one
-    // row → nothing collapses, nothing is soft-deleted or normalised.
-    expect(summary.slotsCollapsed).toBe(0);
-    expect(summary.rowsSoftDeleted).toBe(0);
-    expect(prisma.medicationIntakeEvent.updateMany).not.toHaveBeenCalled();
-    expect(prisma.medicationIntakeEvent.update).not.toHaveBeenCalled();
+    // The pair collapses onto the taken row; the pending is the loser.
+    expect(summary.slotsCollapsed).toBe(1);
+    expect(summary.rowsSoftDeleted).toBe(1);
+    const updateManyArg = vi.mocked(prisma.medicationIntakeEvent.updateMany)
+      .mock.calls[0][0] as { where: { id: { in: string[] } } };
+    expect(updateManyArg.where.id.in).toEqual(["r-07-pending"]);
   });
 
-  it("keeps the USER_PIN row as the slot winner over a higher-syncVersion sibling take", async () => {
-    // Both rows sit on the 05:00Z anchor (cross-source race shape). The
-    // sibling AUTO take has the higher syncVersion — without the pin rung
-    // it would win the tie-break and the user's pin would be tombstoned.
+  it("leaves a USER_PIN row and its same-anchor AUTO sibling both alive (no collapse)", async () => {
+    // Cross-source race shape: both rows sit on the 05:00Z anchor. The pin
+    // never enters the cluster, so the cluster holds one row and nothing
+    // is soft-deleted — neither dose record is destroyed.
     vi.mocked(prisma.medicationIntakeEvent.findMany).mockResolvedValue([
       {
         id: "r-07-pin",
@@ -153,10 +203,8 @@ describe("dedupeUserIntakeSlots — pin-awareness (v1.16.0)", () => {
 
     const summary = await dedupeUserIntakeSlots("u1");
 
-    expect(summary.slotsCollapsed).toBe(1);
-    // The AUTO sibling is the loser; the pinned row survives.
-    const updateManyArg = vi.mocked(prisma.medicationIntakeEvent.updateMany)
-      .mock.calls[0][0] as { where: { id: { in: string[] } } };
-    expect(updateManyArg.where.id.in).toEqual(["r-07-auto"]);
+    expect(summary.slotsCollapsed).toBe(0);
+    expect(summary.rowsSoftDeleted).toBe(0);
+    expect(prisma.medicationIntakeEvent.updateMany).not.toHaveBeenCalled();
   });
 });

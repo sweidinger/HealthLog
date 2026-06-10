@@ -358,6 +358,50 @@ describe("PUT — v1.15.18 band re-attribution", () => {
     expect((created?.scheduledFor as Date).getTime()).toBe(at(19, 0).getTime());
   });
 
+  it("unpin (forceSlotInstant: null) keeps USER_PIN provenance on the released ad-hoc row (v1.16.0)", async () => {
+    // The row is pinned onto the 07:00 anchor; its real takenAt (12:00) is
+    // outside every band. Releasing the binding re-attributes by band →
+    // miss → the row re-anchors on its own takenAt — and the release is
+    // itself a user-fixed decision, so the row must keep USER_PIN (the
+    // nightly dedup keys its standalone guarantee on that marker).
+    vi.mocked(prisma.medicationIntakeEvent.findFirst)
+      // PUT lookup of the edited event
+      .mockResolvedValueOnce({
+        id: "e1",
+        userId: "user-1",
+        medicationId: "m1",
+        scheduledFor: at(7, 0),
+        takenAt: at(12, 0),
+        skipped: false,
+      } as never)
+      // lifecycle liveIntake probe
+      .mockResolvedValue(null as never);
+    // applyCanonicalSlotWrite: no existing row at the 12:00 instant → create.
+    vi.mocked(prisma.medicationIntakeEvent.findMany).mockResolvedValue(
+      [] as never,
+    );
+    vi.mocked(prisma.medicationIntakeEvent.update).mockResolvedValue(
+      {} as never,
+    );
+    vi.mocked(prisma.medicationIntakeEvent.create).mockResolvedValue({
+      id: "e2",
+      userId: "user-1",
+      medicationId: "m1",
+      scheduledFor: at(12, 0),
+      takenAt: at(12, 0),
+      skipped: false,
+    } as never);
+
+    const res = await PUT(putReq({ forceSlotInstant: null }), ROUTE_CTX);
+    expect(res.status).toBe(200);
+
+    const created = vi.mocked(prisma.medicationIntakeEvent.create).mock
+      .calls[0]?.[0]?.data;
+    // Released row: anchored on its own takenAt, provenance stays USER_PIN.
+    expect((created?.scheduledFor as Date).getTime()).toBe(at(12, 0).getTime());
+    expect(created?.attributionSource).toBe("USER_PIN");
+  });
+
   it("422s an edited takenAt before the medication's start date (P0-4)", async () => {
     // Use fixed wall-clock so the schema's "not in the future / within 5
     // years" bounds hold regardless of when the suite runs.

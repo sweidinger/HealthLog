@@ -24,6 +24,11 @@
  *     never degrades back to ad-hoc. Status is `taken_late` unless the
  *     takenAt happens to sit inside the slot's on-time band — a pin can
  *     never flatter the timing;
+ *   - a RELEASED pin (v1.16.0 — "Zuordnung lösen" persists `USER_PIN` with
+ *     `scheduledFor === takenAt`) is a deliberately ad-hoc take: it never
+ *     anchor-binds (not even when its instant sits within epsilon of a slot
+ *     anchor) and surfaces as an ad-hoc row carrying `pinned`, never as
+ *     `taken_late`;
  *   - each slot is claimed by at most one intake (first/best wins); extra
  *     intakes near a filled slot fall through to ad-hoc.
  *
@@ -46,9 +51,11 @@ export interface HistoryIntake {
   /** Cron-marked forgotten dose (counts as missed, not skipped). */
   autoMissed?: boolean;
   /**
-   * v1.15.20 — `attributionSource === "USER_PIN"`: the user deliberately
-   * pinned this take onto its `scheduledFor` slot. Binds by anchor, not by
-   * takenAt band. Optional so legacy callers / fixtures default to AUTO.
+   * v1.15.20 — `attributionSource === "USER_PIN"`: the user fixed this
+   * row's attribution by hand. Pinned onto a slot (`scheduledFor` is the
+   * slot anchor): binds by anchor, not by takenAt band. Released
+   * (v1.16.0, `scheduledFor === takenAt`): deliberately ad-hoc, never
+   * anchor-binds. Optional so legacy callers / fixtures default to AUTO.
    */
   pinned?: boolean;
 }
@@ -93,7 +100,10 @@ export interface DoseHistoryRow {
   /**
    * v1.15.20 — true when this slot row is served by a USER_PIN intake (a
    * deliberate "diesem Slot zuordnen" decision). The UI badges it
-   * "zugeordnet" and offers "Zuordnung lösen".
+   * "zugeordnet" and offers "Zuordnung lösen". v1.16.0 — also true on an
+   * `ad_hoc` row whose intake is USER_PIN (a released / deliberately
+   * ad-hoc take); the UI shows NO badge there (the row is not slot-bound),
+   * it only marks the binding as user-fixed.
    */
   pinned?: boolean;
   /**
@@ -168,6 +178,15 @@ export function reconstructDoseHistory(
   // slot's own on-time band anyway. A pin whose slot is gone (schedule
   // changed) or already claimed falls through to ad-hoc so nothing vanishes.
   for (const i of pinnedTaken) {
+    // v1.16.0 — a released pin ("Zuordnung lösen") persists USER_PIN with
+    // `scheduledFor === takenAt`: the user fixed the attribution as
+    // deliberately ad-hoc. Route it straight to ad-hoc — anchor-binding it
+    // (its instant can sit within epsilon of a slot anchor) would re-attach
+    // the very binding the user released and mislabel the row taken_late.
+    if (i.scheduledFor.getTime() === (i.takenAt as Date).getTime()) {
+      adHoc.push(i);
+      continue;
+    }
     const band = nearestAnchorBand(i.scheduledFor, bands);
     if (band && !claim.has(band)) {
       const t = (i.takenAt as Date).getTime();
@@ -236,6 +255,9 @@ export function reconstructDoseHistory(
       timeOfDay: null,
       status: "ad_hoc",
       intake: i,
+      // v1.16.0 — a USER_PIN intake surfacing ad-hoc (released, or its
+      // pinned slot vanished / was claimed) keeps the user-fixed marker.
+      ...(i.pinned && { pinned: true }),
       ...(nearestSlot && { nearestSlot }),
     });
   }
