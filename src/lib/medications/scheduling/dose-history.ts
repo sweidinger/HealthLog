@@ -314,6 +314,27 @@ export function suggestNearestSlot(
     }
   }
 
+  // The nearest-anchor fallback only makes sense as due-context when the
+  // anchor sits within one cadence step of the take. A take recorded before
+  // the schedule's first minted slot (e.g. history predating startsOn) would
+  // otherwise pair with a slot days or weeks away and the history row would
+  // read "due 09:00 (-1904 h)" — meaningless. Cap the fallback at the band's
+  // own capture reach plus one inter-slot gap; beyond that, no due-context.
+  if (bestAny && bestSuggest === null) {
+    const b = bestAny.band;
+    const reach = b.overdueEnd.getTime() - b.onTimeStart.getTime();
+    const idx = sorted.indexOf(b);
+    const gapMs =
+      sorted.length > 1
+        ? Math.abs(
+            (sorted[Math.min(idx + 1, sorted.length - 1)].at.getTime() ||
+              b.at.getTime()) -
+              (sorted[Math.max(idx - 1, 0)].at.getTime() || b.at.getTime()),
+          ) / Math.max(1, Math.min(idx + 1, sorted.length - 1) - Math.max(idx - 1, 0))
+        : reach;
+    if (bestAny.dist > reach + gapMs) return null;
+  }
+
   const pick = bestSuggest ?? bestAny;
   if (!pick) return null;
   return {

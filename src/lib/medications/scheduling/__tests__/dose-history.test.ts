@@ -459,3 +459,26 @@ describe("reconstructDoseHistory", () => {
     expect(times).toEqual([...times].sort((a, b) => a - b));
   });
 });
+
+describe("suggestNearestSlot fallback cap", () => {
+  it("omits due-context when the nearest anchor sits days away", async () => {
+    const { suggestNearestSlot } = await import("../dose-history");
+    const mk = (iso: string) => {
+      const at = new Date(iso);
+      return {
+        at,
+        timeOfDay: "09:00",
+        onTimeStart: new Date(at.getTime() - 60 * 60_000),
+        onTimeEnd: new Date(at.getTime() + 60 * 60_000),
+        overdueEnd: new Date(at.getTime() + 4 * 60 * 60_000),
+      } as never;
+    };
+    // First minted slot is 2026-05-31 (startsOn); the take predates it by 6 days.
+    const bands = [mk("2026-05-31T07:00:00Z"), mk("2026-06-01T07:00:00Z")];
+    const far = suggestNearestSlot(new Date("2026-05-25T09:26:00Z"), bands, () => false);
+    expect(far).toBeNull();
+    // A take inside the suggestion zone still gets its context.
+    const near = suggestNearestSlot(new Date("2026-05-31T08:30:00Z"), bands, () => false);
+    expect(near?.timeOfDay).toBe("09:00");
+  });
+});
