@@ -1482,7 +1482,7 @@ export function HealthChart({
               <Link
                 href={targetSettingsHref}
                 data-slot="chart-target-settings-link"
-                className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1 text-xs underline-offset-2 transition-colors hover:underline"
+                className="text-muted-foreground hover:text-foreground inline-flex min-h-11 items-center gap-1 text-xs underline underline-offset-2 transition-colors sm:min-h-9"
               >
                 <SlidersHorizontal className="h-3 w-3" aria-hidden="true" />
                 {t("charts.adjustTargets")}

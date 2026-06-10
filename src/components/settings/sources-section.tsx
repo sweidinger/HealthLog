@@ -314,7 +314,7 @@ export function SourcesSection() {
           {t("settings.sections.sources.integrationsHint")}{" "}
           <Link
             href="/settings/integrations"
-            className="text-primary underline-offset-2 hover:underline"
+            className="text-primary underline underline-offset-2"
             data-slot="sources-integrations-cross-link"
           >
             {t("settings.sections.sources.integrationsHintLink")}

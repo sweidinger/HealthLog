@@ -272,7 +272,7 @@ export function IntegrationsSection() {
           {t("settings.integrationsSourcesHint")}{" "}
           <Link
             href="/settings/sources"
-            className="text-primary underline-offset-2 hover:underline"
+            className="text-primary underline underline-offset-2"
             data-slot="integrations-sources-cross-link"
           >
             {t("settings.integrationsSourcesHintLink")}
