@@ -69,6 +69,13 @@ vi.mock("@/hooks/use-auth", async () => {
 // below trivially fail; instead we let the real `useDisableCoach`
 // pass through and capture the underlying `useAuth` calls.
 
+// v1.16.1 — the nudge-driven `<LayoutCoachFab>` reads the app router
+// (push + pathname); SSR test renders have no router context.
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
+  usePathname: () => "/insights",
+}));
+
 function buildUser(disableCoach: boolean): AuthUser {
   // Minimal `AuthUser` shape — the Coach gates only read
   // `disableCoach`, but TypeScript requires the full interface to
@@ -143,7 +150,10 @@ const DISABLE_COACH_SURFACES: DisableCoachSurface[] = [
         <LayoutCoachFab />
       </CoachLaunchProvider>
     ),
-    proofWhenVisible: 'data-slot="coach-launch-fab"',
+    // v1.16.1 — nudge-driven: SSR shape is empty even when visible
+    // (the bubble waits for the nudge-status query). Negative
+    // assertion still pins the gate via the `coach-*` slot grep.
+    proofWhenVisible: "",
   },
   {
     name: "LayoutCoachMount",

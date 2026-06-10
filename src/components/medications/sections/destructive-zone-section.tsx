@@ -43,7 +43,6 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
 import { useTranslations } from "@/lib/i18n/context";
@@ -233,8 +232,10 @@ export function LifecycleManageBody({
 
 /**
  * v1.7.0 — irreversible danger zone: purge intake history + delete the
- * medication. Wrapped in a `border-destructive/40` card to keep the
- * visual warning convention.
+ * medication. v1.16.1 — the body is bare rows (the caller's
+ * `SettingsGroup` supplies the neutral card chrome and dividers); the
+ * destructive signal lives ONLY in the red action buttons + the confirm
+ * dialogs, not in a tinted surface.
  */
 export function DangerZoneBody({
   medicationId,
@@ -317,8 +318,8 @@ export function DangerZoneBody({
   }
 
   return (
-    <Card
-      className="border-destructive/40 bg-destructive/5 divide-destructive/20 gap-0 divide-y px-4 py-1"
+    <div
+      className="divide-border/60 divide-y"
       data-slot="destructive-zone-card-b"
     >
       {/* Tier 3a — Verlauf löschen. Matched pair with the delete row
@@ -440,7 +441,7 @@ export function DangerZoneBody({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </Card>
+    </div>
   );
 }
 

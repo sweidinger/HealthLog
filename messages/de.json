@@ -1509,10 +1509,10 @@
         "bestand": "Bestand",
         "verlauf": "Verlauf",
         "injektion": "Injektion",
+        "api": "API",
         "erweitert": "Erweitert"
       },
       "shell": {
-        "fullEdit": "Vollständig bearbeiten",
         "loadFailed": "Dieses Medikament konnte nicht geladen werden.",
         "tablistLabel": "Medikamenten-Detailbereiche"
       },
@@ -1543,7 +1543,25 @@
           "USED_UP": "Aufgebraucht"
         },
         "empty": "Kein Bestand erfasst.",
-        "emptyHelper": "Erfasse einen Pen oder eine Packung, um verbleibende Dosen und Reichweite zu verfolgen."
+        "emptyHelper": "Erfasse einen Pen oder eine Packung, um verbleibende Dosen und Reichweite zu verfolgen.",
+        "emptyCta": "Packung erfassen",
+        "addButton": "Erfassen",
+        "addTitle": "Pen oder Packung erfassen",
+        "addDescription": "Lege einen neuen Vorrat mit seiner Dosenanzahl an; das Ablaufdatum ist optional.",
+        "addQuantityLabel": "Menge (Dosen / Einheiten)",
+        "addQuantityHelper": "1–100 Dosen pro Pen oder Packung.",
+        "addExpiryLabel": "Ablaufdatum (optional)",
+        "addSubmit": "Erfassen",
+        "addSuccess": "Bestand erfasst.",
+        "addFailed": "Bestand konnte nicht erfasst werden.",
+        "adjustButton": "Anpassen",
+        "adjustTitle": "Bestand korrigieren",
+        "adjustDescription": "Setze die verbleibenden Dosen neu — für Korrekturen oder eine Entnahme. 0 markiert den Vorrat als aufgebraucht.",
+        "adjustQuantityLabel": "Verbleibende Dosen",
+        "adjustHelper": "Kapazität: {total} Dosen.",
+        "adjustSubmit": "Speichern",
+        "adjustSuccess": "Bestand aktualisiert.",
+        "adjustFailed": "Bestand konnte nicht aktualisiert werden."
       },
       "erweitert": {
         "group": {
@@ -1551,16 +1569,22 @@
           "externalApi": "Externe API",
           "data": "Daten",
           "danger": "Gefahrenzone"
+        },
+        "editor": {
+          "title": "Medikament im Editor bearbeiten",
+          "helper": "Name, Wirkstoffklasse, Häufigkeit und Zeitpläne im Schritt-für-Schritt-Editor ändern.",
+          "button": "Editor öffnen"
         }
       },
       "zeitplan": {
         "title": "Zeitplan",
         "timesTitle": "Einnahmezeiten",
-        "timesNote": "Passe die Uhrzeiten und das Zeitfenster jeder Dosis an. Für die Häufigkeit (täglich, wöchentlich …) nutze „Vollständig bearbeiten“.",
+        "timesNote": "Passe die Uhrzeiten und das Zeitfenster jeder Dosis an. Die Häufigkeit (täglich, wöchentlich …) änderst du im Editor unter Erweitert.",
         "scheduleLabel": "Zeitplan {index}",
-        "fullEditNote": "Häufigkeit, Wirkstoffklasse und Kursfenster bearbeitest du über „Vollständig bearbeiten“.",
+        "fullEditNote": "Häufigkeit, Wirkstoffklasse und Kursfenster bearbeitest du im Editor unter Erweitert → Lebenszyklus.",
         "graceEcho": "Erinnerungsfenster: {minutes} Minuten",
         "reminderTitle": "Erinnerung",
+        "manageChannels": "Benachrichtigungskanäle verwalten",
         "save": "Zeitplan speichern",
         "saved": "Zeitplan gespeichert",
         "failed": "Zeitplan konnte nicht gespeichert werden",
@@ -1955,8 +1979,7 @@
       "stop": "Stopp",
       "thinking": "Denke nach…",
       "composerPlaceholder": "Frag mich etwas zu deinen Daten…",
-      "composerHint": "Enter zum Senden, Umschalt+Enter für eine neue Zeile.",
-      "composerDisclaimer": "Coach-Antworten sind generiert. Klinische Entscheidungen gehören in die Hand deines Arztes.",
+      "nudgeBubbleLabel": "Neue Nachricht vom Coach — Chat öffnen",
       "selfContextChipsLabel": "Der Coach würde gern wissen:",
       "selfContextChipDismiss": "Frage verwerfen",
       "voiceComingSoon": "Spracheingabe kommt mit der iOS-App in v1.5.",
@@ -3735,6 +3758,7 @@
         "resetConfirmTitle": "Kette auf Standard zurücksetzen?",
         "resetConfirmBody": "Die Kette wird auf Codex → OpenAI → Anthropic → Lokal → Admin-OpenAI zurückgesetzt. Gespeicherte Zugangsdaten bleiben erhalten."
       },
+      "providerCardTitle": "KI-Anbieter",
       "activeProviderHeading": "Aktiver Provider",
       "activeProviderBody": "Wähle den Provider, der zuerst genutzt wird. Das Formular darunter konfiguriert ausschließlich den ausgewählten Provider; die Fallback-Kette unten regelt, was passiert, wenn er ausfällt.",
       "activeProviderLabel": "Primärer Provider",
@@ -4943,6 +4967,30 @@
       "hiddenBugBuddy": {
         "title": "Bug-Kumpel",
         "description": "Mindestens 5 Bugreports eingereicht — das Projekt liebt dich."
+      },
+      "missFree7": {
+        "title": "Lückenlos · 7T",
+        "description": "7 Tage in Folge ohne eine verpasste Dosis."
+      },
+      "missFree30": {
+        "title": "Lückenlos · 30T",
+        "description": "30 Tage in Folge ohne eine verpasste Dosis."
+      },
+      "missFree90": {
+        "title": "Lückenlos · 90T",
+        "description": "90 Tage in Folge ohne eine verpasste Dosis."
+      },
+      "measurementWeeks4": {
+        "title": "Mess-Routine",
+        "description": "4 Wochen in Folge an mindestens 5 Tagen pro Woche gemessen."
+      },
+      "selfContextComplete": {
+        "title": "Selbstauskunft gepflegt",
+        "description": "Alle vier Felder der Selbstauskunft ausgefüllt — der Coach kennt deinen Kontext."
+      },
+      "sleepLog7": {
+        "title": "Schlafprotokoll · 7T",
+        "description": "An 7 Tagen in Folge Schlafdaten erfasst."
       }
     },
     "nextProgressLabel": "Fortschritt bis Freischaltung",
@@ -5604,6 +5652,11 @@
     "allSources": "Alle Quellen",
     "dateFrom": "Von",
     "dateTo": "Bis",
+    "dateRange": "Zeitraum",
+    "typeLabel": "Typ",
+    "sourceLabel": "Quelle",
+    "resetFilters": "Zurücksetzen",
+    "clearFilter": "Filter entfernen: {label}",
     "selectAll": "Alle auf dieser Seite auswählen",
     "selectRow": "Zeile auswählen",
     "selected": "{count} ausgewählt",

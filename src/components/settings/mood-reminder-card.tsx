@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { SmilePlus } from "lucide-react";
 
+import { NativeSelect } from "@/components/ui/native-select";
 import { Switch } from "@/components/ui/switch";
 import { SettingsCardHeader } from "@/components/settings/_card-header";
 import { useTranslations } from "@/lib/i18n/context";
@@ -181,16 +182,16 @@ export function MoodReminderCard({
         }
       />
       {enabled && (
-        <div className="mt-4 flex min-h-11 items-center gap-3">
+        <div className="mt-4 flex min-h-11 items-center gap-3 pl-7">
           <label
             htmlFor="mood-reminder-hour"
             className="text-sm font-medium"
           >
             {t("notifications.moodReminder.hourLabel")}
           </label>
-          <select
+          <NativeSelect
             id="mood-reminder-hour"
-            className="border-input bg-background h-11 rounded-md border px-3 text-sm"
+            className="w-auto"
             value={reminderHour}
             disabled={!isAuthenticated || saving}
             onChange={(e) => handleHourChange(Number(e.target.value))}
@@ -201,7 +202,7 @@ export function MoodReminderCard({
                 {`${h.toString().padStart(2, "0")}:00`}
               </option>
             ))}
-          </select>
+          </NativeSelect>
         </div>
       )}
       {msg && (
@@ -210,8 +211,8 @@ export function MoodReminderCard({
           aria-live="polite"
           className={
             msgType === "error"
-              ? "text-destructive mt-3 text-sm"
-              : "text-muted-foreground mt-3 text-sm"
+              ? "text-destructive mt-3 pl-7 text-sm"
+              : "text-muted-foreground mt-3 pl-7 text-sm"
           }
         >
           {msg}

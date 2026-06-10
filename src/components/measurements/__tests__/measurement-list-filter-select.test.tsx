@@ -72,15 +72,18 @@ function render(locale: "en" | "de" = "en") {
 }
 
 describe("MeasurementList — filter bar + multi-select chrome", () => {
-  it("renders the source filter control", () => {
+  // v1.16.1 — the per-page Select/date-input row migrated to the unified
+  // `<FilterBar>` pill rail (date range · type · source pills + count).
+  // The date inputs now live inside the pill's popover (closed in SSR),
+  // so the guard pins the labelled pill triggers instead.
+  it("renders the filter rail with type, source and date-range pills", () => {
     const html = render("en");
-    expect(html).toContain("Filter by source");
-  });
-
-  it("renders the date-range labels wired to from/to", () => {
-    const html = render("en");
-    expect(html).toContain('for="measurements-from"');
-    expect(html).toContain('for="measurements-to"');
+    expect(html).toContain('data-slot="filter-bar"');
+    expect(html).toContain('aria-label="Type"');
+    expect(html).toContain('aria-label="Source"');
+    expect(html).toContain('aria-label="Date range"');
+    const pills = html.match(/data-slot="filter-bar-pill"/g);
+    expect(pills?.length).toBe(3);
   });
 
   it("renders labelled selection checkboxes (per-row + select-all)", () => {
@@ -95,7 +98,8 @@ describe("MeasurementList — filter bar + multi-select chrome", () => {
 
   it("localises the new chrome in German", () => {
     const html = render("de");
-    expect(html).toContain("Nach Quelle filtern");
+    expect(html).toContain('aria-label="Quelle"');
+    expect(html).toContain('aria-label="Zeitraum"');
     expect(html).toContain('aria-label="Alle auf dieser Seite auswählen"');
   });
 });

@@ -48,7 +48,7 @@ export function BugReportSection() {
     <div className="bg-card border-border rounded-xl border p-6">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="flex items-center gap-2">
-          <Bug className="text-primary h-5 w-5" />
+          <Bug className="text-muted-foreground h-5 w-5" />
           <h2 className="text-lg font-semibold">
             {t("admin.bugReportGithub")}
           </h2>

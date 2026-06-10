@@ -68,7 +68,7 @@ const ADVISOR_TIMEOUT_MS = 8_000;
  * payload, the mutation only invalidated (re-reading the OLD cache), yet
  * the server had often already written the fresh briefing. Give the force
  * branch the same 45 s budget the out-of-band warm job uses
- * (`FORCE_WARM_COMPREHENSIVE_TIMEOUT_MS`) so a slow success is kept, not
+ * (`COMPREHENSIVE_WARM_TIMEOUT_MS`) so a slow success is kept, not
  * dropped. The READ path stays fast at 8 s — only the explicit user tap
  * may wait. Per `.planning/v1.15.18-daily-briefing-audit.md` Fix 1b.
  */

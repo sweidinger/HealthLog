@@ -444,7 +444,6 @@ function ChatBubble({
             "border-border/60 bg-muted/40 text-foreground",
             "rounded-xl rounded-tl-sm border px-3.5 py-2.5",
             "text-sm leading-relaxed whitespace-pre-wrap",
-            inProgress && "animate-pulse motion-reduce:animate-none",
           )}
         >
           {/* v1.4.25 W5b — strip stray Metric/enum leak tokens from
@@ -452,12 +451,19 @@ function ChatBubble({
               raw `content` is the streamed Coach reply (or the
               persisted twin after `done` fires); both paths are AI-
               authored so they share the same leak surface as the
-              insight prose elsewhere. */}
-          {content
-            ? stripChartTokens(content)
-            : inProgress
-              ? t("insights.coach.thinking")
-              : ""}
+              insight prose elsewhere.
+
+              v1.16.1 — before the first token lands, the bubble shows
+              a classic typing indicator (three pulsing dots) instead
+              of the old whole-bubble pulse + "Thinking…" prose. The
+              prose stays as the screen-reader announcement. */}
+          {content ? (
+            stripChartTokens(content)
+          ) : inProgress ? (
+            <TypingDots label={t("insights.coach.thinking")} />
+          ) : (
+            ""
+          )}
         </div>
         {safeError && (
           <p className="text-warning/90 text-xs">{safeError}</p>
@@ -569,6 +575,33 @@ function ChatBubble({
           )}
       </div>
     </div>
+  );
+}
+
+/**
+ * v1.16.1 — classic chat typing indicator: three dots pulsing in
+ * sequence inside the assistant bubble, shown only between submit and
+ * the first streamed token. Uses the stock `animate-pulse` keyframe
+ * with staggered delays so no custom keyframe is introduced;
+ * `motion-reduce` freezes the dots and the `label` stays as the
+ * screen-reader text either way.
+ */
+function TypingDots({ label }: { label: string }) {
+  return (
+    <span
+      data-slot="coach-typing-indicator"
+      className="inline-flex items-center gap-1 py-1"
+    >
+      <span className="sr-only">{label}</span>
+      {[0, 1, 2].map((i) => (
+        <span
+          key={i}
+          aria-hidden="true"
+          className="bg-muted-foreground/70 size-1.5 animate-pulse rounded-full motion-reduce:animate-none"
+          style={{ animationDelay: `${i * 250}ms` }}
+        />
+      ))}
+    </span>
   );
 }
 

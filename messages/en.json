@@ -1509,10 +1509,10 @@
         "bestand": "Supply",
         "verlauf": "History",
         "injektion": "Injection",
+        "api": "API",
         "erweitert": "Advanced"
       },
       "shell": {
-        "fullEdit": "Edit fully",
         "loadFailed": "This medication could not be loaded.",
         "tablistLabel": "Medication detail sections"
       },
@@ -1543,7 +1543,25 @@
           "USED_UP": "Used up"
         },
         "empty": "No supply recorded.",
-        "emptyHelper": "Register a pen or pack to track doses remaining and weeks of supply."
+        "emptyHelper": "Register a pen or pack to track doses remaining and weeks of supply.",
+        "emptyCta": "Register a pack",
+        "addButton": "Register",
+        "addTitle": "Register a pen or pack",
+        "addDescription": "Record a new supply with its dose count; the expiry date is optional.",
+        "addQuantityLabel": "Quantity (doses / units)",
+        "addQuantityHelper": "1–100 doses per pen or pack.",
+        "addExpiryLabel": "Expiry date (optional)",
+        "addSubmit": "Register",
+        "addSuccess": "Supply registered.",
+        "addFailed": "The supply could not be registered.",
+        "adjustButton": "Adjust",
+        "adjustTitle": "Correct stock",
+        "adjustDescription": "Set the remaining doses — for corrections or a withdrawal. 0 marks the item as used up.",
+        "adjustQuantityLabel": "Remaining doses",
+        "adjustHelper": "Capacity: {total} doses.",
+        "adjustSubmit": "Save",
+        "adjustSuccess": "Stock updated.",
+        "adjustFailed": "The stock could not be updated."
       },
       "erweitert": {
         "group": {
@@ -1551,16 +1569,22 @@
           "externalApi": "External API",
           "data": "Data",
           "danger": "Danger zone"
+        },
+        "editor": {
+          "title": "Edit medication in the editor",
+          "helper": "Change name, treatment class, frequency and schedules in the step-by-step editor.",
+          "button": "Open editor"
         }
       },
       "zeitplan": {
         "title": "Schedule",
         "timesTitle": "Dose times",
-        "timesNote": "Adjust each dose's time and on-time window. For the frequency (daily, weekly …) use “Full edit”.",
+        "timesNote": "Adjust each dose's time and on-time window. The frequency (daily, weekly …) is edited in the editor under Advanced.",
         "scheduleLabel": "Schedule {index}",
-        "fullEditNote": "Frequency, treatment class and course window are edited through “Full edit”.",
+        "fullEditNote": "Frequency, treatment class and course window are edited in the editor under Advanced → Lifecycle.",
         "graceEcho": "Reminder window: {minutes} minutes",
         "reminderTitle": "Reminder",
+        "manageChannels": "Manage notification channels",
         "save": "Save schedule",
         "saved": "Schedule saved",
         "failed": "Could not save the schedule",
@@ -1955,8 +1979,7 @@
       "stop": "Stop",
       "thinking": "Thinking…",
       "composerPlaceholder": "Ask anything about your data…",
-      "composerHint": "Press Enter to send, Shift+Enter for a new line.",
-      "composerDisclaimer": "Coach replies are generated. Clinical decisions belong with your doctor.",
+      "nudgeBubbleLabel": "New message from the Coach — open chat",
       "selfContextChipsLabel": "The Coach would like to know:",
       "selfContextChipDismiss": "Dismiss question",
       "voiceComingSoon": "Voice input arrives with the iOS app in v1.5.",
@@ -3735,6 +3758,7 @@
         "resetConfirmTitle": "Reset chain to defaults?",
         "resetConfirmBody": "The chain reverts to Codex → OpenAI → Anthropic → Local → Admin OpenAI. Your saved credentials are not touched."
       },
+      "providerCardTitle": "AI provider",
       "activeProviderHeading": "Active provider",
       "activeProviderBody": "Pick the provider you want to use first. The form below configures only the selected provider; the fallback chain at the bottom decides what happens if it fails.",
       "activeProviderLabel": "Primary provider",
@@ -4943,6 +4967,30 @@
       "hiddenBugBuddy": {
         "title": "Bug buddy",
         "description": "Submitted at least 5 bug reports — the project loves you."
+      },
+      "missFree7": {
+        "title": "No dose missed · 7d",
+        "description": "7 consecutive days without a missed dose."
+      },
+      "missFree30": {
+        "title": "No dose missed · 30d",
+        "description": "30 consecutive days without a missed dose."
+      },
+      "missFree90": {
+        "title": "No dose missed · 90d",
+        "description": "90 consecutive days without a missed dose."
+      },
+      "measurementWeeks4": {
+        "title": "Measuring routine",
+        "description": "4 consecutive weeks with measurements on at least 5 days each."
+      },
+      "selfContextComplete": {
+        "title": "Self-report maintained",
+        "description": "All four self-report fields filled in — the Coach knows your context."
+      },
+      "sleepLog7": {
+        "title": "Sleep log · 7d",
+        "description": "Sleep data recorded on 7 consecutive days."
       }
     },
     "nextProgressLabel": "Progress to unlock",
@@ -5604,6 +5652,11 @@
     "allSources": "All sources",
     "dateFrom": "From",
     "dateTo": "To",
+    "dateRange": "Date range",
+    "typeLabel": "Type",
+    "sourceLabel": "Source",
+    "resetFilters": "Reset",
+    "clearFilter": "Clear filter: {label}",
     "selectAll": "Select all on this page",
     "selectRow": "Select row",
     "selected": "{count} selected",

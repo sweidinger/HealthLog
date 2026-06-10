@@ -21,7 +21,10 @@
  *
  * The QR data-URL is rendered inside the mutation (not in an effect):
  * `qrcode`'s `toDataURL` is async, so folding it into `mutationFn`
- * keeps the component free of setState-in-effect churn.
+ * keeps the component free of setState-in-effect churn. The library
+ * itself loads via dynamic `import()` at that call site (v1.16.1) —
+ * it is only needed the moment an admin mints an invite, so it stays
+ * out of the admin route bundle entirely.
  */
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -35,7 +38,6 @@ import {
   Ticket,
   Users,
 } from "lucide-react";
-import QRCode from "qrcode";
 import { toast } from "sonner";
 
 import {
@@ -108,10 +110,7 @@ interface MintedInvite {
 type InviteStatus = "active" | "expired" | "exhausted" | "revoked";
 
 export function deriveInviteStatus(
-  invite: Pick<
-    AdminInvite,
-    "uses" | "maxUses" | "expiresAt" | "revokedAt"
-  >,
+  invite: Pick<AdminInvite, "uses" | "maxUses" | "expiresAt" | "revokedAt">,
   now: Date,
 ): InviteStatus {
   if (invite.revokedAt !== null) return "revoked";
@@ -150,7 +149,13 @@ const STATUS_STYLES: Record<InviteStatus, { dot: string; chip: string }> = {
   },
 };
 
-function StatusChip({ status, label }: { status: InviteStatus; label: string }) {
+function StatusChip({
+  status,
+  label,
+}: {
+  status: InviteStatus;
+  label: string;
+}) {
   const styles = STATUS_STYLES[status];
   return (
     <span
@@ -201,6 +206,8 @@ export function InviteTokensSection() {
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = (await res.json()).data as Omit<MintedInvite, "qrDataUrl">;
+      // Lazy chunk: qrcode is only ever needed right here, at mint time.
+      const QRCode = (await import("qrcode")).default;
       const qrDataUrl = await QRCode.toDataURL(data.url, {
         width: 240,
         margin: 1,
@@ -289,8 +296,7 @@ export function InviteTokensSection() {
   function redemptionSummary(invite: AdminInvite): string {
     if (invite.redemptions.length === 0) return "—";
     const first = invite.redemptions[0];
-    const name =
-      first.user?.username ?? t("admin.invites.redeemerDeleted");
+    const name = first.user?.username ?? t("admin.invites.redeemerDeleted");
     if (invite.redemptions.length === 1) return name;
     return t("admin.invites.redeemedByMore", {
       username: name,
@@ -308,15 +314,15 @@ export function InviteTokensSection() {
       <div className="flex flex-col gap-4 p-4 sm:flex-row sm:items-start sm:justify-between sm:p-6">
         <div className="min-w-0">
           <div className="flex items-center gap-2">
-            <Ticket className="text-primary h-5 w-5" aria-hidden="true" />
+            <Ticket className="text-muted-foreground h-5 w-5" aria-hidden="true" />
             <h2 id="admin-invites-title" className="text-lg font-semibold">
               {t("admin.invites.title")}
             </h2>
           </div>
-          <p className="text-muted-foreground mt-1 text-sm">
+          <p className="text-muted-foreground mt-1 pl-7 text-sm">
             {t("admin.invites.description")}
           </p>
-          <p className="text-muted-foreground/80 mt-1 flex items-center gap-1.5 text-xs">
+          <p className="text-muted-foreground/80 mt-1 flex items-center gap-1.5 pl-7 text-xs">
             <ShieldCheck className="size-3.5 shrink-0" aria-hidden="true" />
             {t("admin.invites.adminOnlyHint")}
           </p>
@@ -345,7 +351,11 @@ export function InviteTokensSection() {
             title={t("admin.invites.emptyTitle")}
             description={t("admin.invites.emptyDescription")}
             action={
-              <Button type="button" variant="outline" onClick={openCreateDialog}>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={openCreateDialog}
+              >
                 <Plus className="size-4" aria-hidden="true" />
                 {t("admin.invites.create")}
               </Button>
@@ -544,7 +554,10 @@ export function InviteTokensSection() {
                   <legend className="text-sm font-medium">
                     {t("admin.invites.ttlLegend")}
                   </legend>
-                  <div className="mt-2 grid grid-cols-3 gap-2" role="radiogroup">
+                  <div
+                    className="mt-2 grid grid-cols-3 gap-2"
+                    role="radiogroup"
+                  >
                     {TTL_CHOICES.map((days) => (
                       <button
                         key={days}

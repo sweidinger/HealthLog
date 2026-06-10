@@ -1,7 +1,8 @@
 # Medication intake repair
 
-`scripts/repair-intake-anomalies.ts` repairs two known historic defects in
-the medication intake ledger (`medication_intake_events`):
+`scripts/repair-intake-anomalies.ts` repairs the known historic defects in
+the medication intake ledger (`medication_intake_events`) and its schedule
+metadata (`medication_schedules`):
 
 1. **Duplicate dose-slot rows.** More than one live row on the same exact
    `(user, medication, scheduled_for)` tuple — cross-source duplicates the
@@ -12,6 +13,20 @@ the medication intake ledger (`medication_intake_events`):
    7 days before `scheduled_for` or more than 1 day in the future —
    typically the residue of a mis-attributed edit before the v1.15.19
    `taken_at` validation landed.
+3. **Window / times drift (v1.16.1).** Schedule rows whose legacy
+   `window_start` / `window_end` no longer contains the canonical
+   `times_of_day` — typically a degenerate `07:00 / 07:00` point window
+   left behind by an old write path while the dose times moved on (e.g.
+   to `09:00 / 21:00`). The dose-band model never reads the window once
+   `times_of_day` exists, but the stale pair kept feeding every legacy
+   read (the pre-v1.16.1 cards painted "next intake 07:00" from it).
+4. **Stale-anchor pending rows (v1.16.1).** Live pending rows
+   (`taken_at IS NULL`, not skipped, not auto-missed) whose
+   `scheduled_for` wall-clock HH:mm — evaluated in the user's timezone —
+   matches no current dose anchor of the medication (any schedule's
+   `times_of_day` entry; `window_start` for legacy rows without times).
+   These are reminder-minted slots on retired schedule times that linger
+   as phantom open doses in the ledger.
 
 ## When to use it
 
@@ -51,8 +66,10 @@ Use `pnpm dlx`, not bare `pnpm tsx` — the standalone image also strips
 `tsx`.
 
 The dry-run prints every duplicate group (which row would be kept, which
-would be tombstoned) and a table of implausible rows (id, medication,
-`scheduledFor`, `takenAt`, source, timestamps).
+would be tombstoned), a table of implausible rows (id, medication,
+`scheduledFor`, `takenAt`, source, timestamps), every schedule whose
+window has drifted off its `times_of_day` (with the reconciled bounds it
+would write), and a table of stale-anchor pending rows.
 
 ## Applying the fix
 
@@ -60,7 +77,7 @@ would be tombstoned) and a table of implausible rows (id, medication,
 pnpm dlx --package pg --package tsx tsx scripts/repair-intake-anomalies.ts --fix
 ```
 
-`--fix` does three things:
+`--fix` does five things:
 
 - **Duplicate groups** are collapsed to one winner per slot. Precedence:
   an actioned row (taken or skipped) beats a pending one; between two
@@ -79,6 +96,14 @@ pnpm dlx --package pg --package tsx tsx scripts/repair-intake-anomalies.ts --fix
   ```
 
   `--tombstone-implausible` is refused without `--fix`.
+- **Drifted schedule windows are reconciled** to
+  `min/max(times_of_day)` so the legacy pair stops contradicting the
+  canonical dose times. Overnight windows (`window_end < window_start`)
+  encode a deliberate wrap and are never touched.
+- **Stale-anchor pending rows are tombstoned** (same soft-delete shape
+  as the duplicate losers). A medication without any derivable anchor
+  (PRN-only / unscheduled) is skipped — there is nothing to compare
+  against.
 - **Affected compliance rollups are recomputed** for every touched
   `(user, medication, day)`. The script executes the same DISTINCT-slot
   aggregation SQL the shared helper runs (a verbatim twin of

@@ -16,6 +16,7 @@ vi.mock("@/lib/db", () => ({
       update: vi.fn(),
     },
     medicationIntakeEvent: {
+      findMany: vi.fn().mockResolvedValue([]),
       updateMany: vi.fn().mockResolvedValue({ count: 0 }),
     },
     apiToken: {
@@ -31,6 +32,13 @@ vi.mock("@/lib/auth/audit", () => ({
 }));
 vi.mock("@/lib/cache/invalidate", () => ({
   invalidateUserMedications: vi.fn(),
+}));
+// v1.16.1 — the schedule-replace branch recomputes the compliance
+// rollups of the tombstoned slots; stub the rollup module so the route
+// test never reaches `$executeRaw`.
+vi.mock("@/lib/rollups/medication-compliance-rollups", () => ({
+  dayKeyForScheduledFor: vi.fn(() => "2026-06-10"),
+  recomputeMedicationComplianceForDay: vi.fn().mockResolvedValue(undefined),
 }));
 vi.mock("@/lib/medication-category", () => ({
   deleteMedicationCategory: vi.fn().mockResolvedValue(undefined),
@@ -55,6 +63,10 @@ import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/auth/session";
 import { getMedicationCategories } from "@/lib/medication-category";
 import { auditLog } from "@/lib/auth/audit";
+import {
+  dayKeyForScheduledFor,
+  recomputeMedicationComplianceForDay,
+} from "@/lib/rollups/medication-compliance-rollups";
 
 const SESSION_OK = {
   session: { id: "sess-1", expiresAt: new Date(Date.now() + 3_600_000) },
@@ -77,6 +89,17 @@ beforeEach(() => {
   vi.mocked(prisma.medication.findUnique).mockResolvedValue({
     id: "m1",
     userId: "user-1",
+  } as never);
+  // `resetAllMocks` clears the factory-level resolved values, so the
+  // schedule-replace reads need fresh defaults each test.
+  vi.mocked(prisma.medicationIntakeEvent.findMany).mockResolvedValue(
+    [] as never,
+  );
+  vi.mocked(prisma.medicationIntakeEvent.updateMany).mockResolvedValue({
+    count: 0,
+  } as never);
+  vi.mocked(prisma.medicationSchedule.deleteMany).mockResolvedValue({
+    count: 0,
   } as never);
 });
 
@@ -228,6 +251,40 @@ describe("PUT /api/medications/[id] — schedule replace migrates open slots", (
     ).toBeInstanceOf(Date);
     expect(arg.data.deletedAt).toBeInstanceOf(Date);
     expect(arg.data.syncVersion).toEqual({ increment: 1 });
+  });
+
+  it("recomputes the compliance rollups of the tombstoned days (v1.16.1)", async () => {
+    // Two pendings on the same local day + one on another day → exactly
+    // two distinct day-key recomputes, not three.
+    vi.mocked(prisma.medicationIntakeEvent.findMany).mockResolvedValue([
+      { scheduledFor: new Date("2026-06-10T06:00:00Z") },
+      { scheduledFor: new Date("2026-06-10T18:00:00Z") },
+      { scheduledFor: new Date("2026-06-11T06:00:00Z") },
+    ] as never);
+    vi.mocked(dayKeyForScheduledFor).mockImplementation(
+      (scheduledFor: Date) => scheduledFor.toISOString().slice(0, 10),
+    );
+
+    const res = await PUT(
+      putReq({
+        schedules: [{ windowStart: "20:00", windowEnd: "20:30" }],
+      }),
+      ROUTE_CTX,
+    );
+    expect(res.status).toBe(200);
+    expect(recomputeMedicationComplianceForDay).toHaveBeenCalledTimes(2);
+    expect(recomputeMedicationComplianceForDay).toHaveBeenCalledWith(
+      "user-1",
+      "m1",
+      "2026-06-10",
+      "Europe/Berlin",
+    );
+    expect(recomputeMedicationComplianceForDay).toHaveBeenCalledWith(
+      "user-1",
+      "m1",
+      "2026-06-11",
+      "Europe/Berlin",
+    );
   });
 
   it("does NOT touch intake rows when the body carries no schedules array", async () => {

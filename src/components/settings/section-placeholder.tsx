@@ -72,7 +72,7 @@ export function SectionPlaceholder({ slug }: SectionPlaceholderProps) {
       <header className="space-y-1">
         <h1
           id={`settings-section-${slug}-title`}
-          className="text-2xl font-semibold tracking-tight"
+          className="sr-only"
         >
           {sectionTitle}
         </h1>

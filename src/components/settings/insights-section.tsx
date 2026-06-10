@@ -26,7 +26,7 @@ export function InsightsSection() {
       <header className="space-y-1">
         <h1
           id="settings-section-insights-title"
-          className="text-2xl font-semibold tracking-tight"
+          className="sr-only"
         >
           {t("settings.sections.insights.title")}
         </h1>

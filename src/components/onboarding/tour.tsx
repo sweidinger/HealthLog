@@ -164,28 +164,51 @@ function computeTooltipPosition(
       left: rect.left - tooltipSize.width - GAP,
     });
   }
-  // Pick the first candidate that fits the viewport; otherwise the
-  // first candidate (the renderer will clamp inside the box).
+  // Pick the first candidate that fits the viewport; otherwise fall back to
+  // centred. EVERY returned position is clamped into the viewport with a
+  // collision padding — a candidate computed off a target near the edge must
+  // never push the card (and its footer buttons) out of view.
+  const clamp = (c: {
+    placement: TourStop["placement"];
+    top: number;
+    left: number;
+  }) => ({
+    placement: c.placement,
+    top: Math.min(
+      Math.max(COLLISION_PAD, c.top),
+      Math.max(COLLISION_PAD, vh - tooltipSize.height - COLLISION_PAD),
+    ),
+    left: Math.min(
+      Math.max(COLLISION_PAD, c.left),
+      Math.max(COLLISION_PAD, vw - tooltipSize.width - COLLISION_PAD),
+    ),
+  });
   for (const c of candidates) {
     if (
-      c.top >= 8 &&
-      c.left >= 8 &&
-      c.top + tooltipSize.height <= vh - 8 &&
-      c.left + tooltipSize.width <= vw - 8
+      c.top >= COLLISION_PAD &&
+      c.left >= COLLISION_PAD &&
+      c.top + tooltipSize.height <= vh - COLLISION_PAD &&
+      c.left + tooltipSize.width <= vw - COLLISION_PAD
     ) {
       return c;
     }
   }
-  // Last-resort: centred bottom of viewport.
-  return {
+  // None fits as-is: prefer the first requested candidate clamped into the
+  // viewport (keeps the card near its target) over jumping to centre.
+  if (candidates.length > 0) return clamp(candidates[0]);
+  return clamp({
     placement: "center",
-    top: Math.max(16, (vh - tooltipSize.height) / 2),
-    left: Math.max(16, (vw - tooltipSize.width) / 2),
-  };
+    top: (vh - tooltipSize.height) / 2,
+    left: (vw - tooltipSize.width) / 2,
+  });
 }
 
 const TOOLTIP_WIDTH = 320;
 const TOOLTIP_HEIGHT = 220; // enough headroom for two-line title + 4-line body + footer
+/** Minimum gap the tooltip keeps from every viewport edge. */
+const COLLISION_PAD = 8;
+/** Below this viewport width the tooltip renders as a bottom sheet. */
+const SHEET_BREAKPOINT = 480;
 
 export function OnboardingTour({
   includeAchievements = true,
@@ -333,8 +356,19 @@ export function OnboardingTour({
 
   const counter = stepCounter(state);
   const isLast = counter.current === counter.total;
+  // Responsive sizing: the card never claims more width than the viewport
+  // minus the collision padding, and very small viewports skip the anchored
+  // popover entirely in favour of a bottom sheet — anchoring a 20 rem card
+  // next to a target on a ~400 px screen always ends up clipped.
+  const viewportWidth =
+    typeof window !== "undefined" ? window.innerWidth : 1024;
+  const asSheet = viewportWidth < SHEET_BREAKPOINT;
+  const tooltipWidth = Math.min(
+    TOOLTIP_WIDTH,
+    viewportWidth - COLLISION_PAD * 2,
+  );
   const tooltipPos = computeTooltipPosition(rect, stop.placement, {
-    width: TOOLTIP_WIDTH,
+    width: tooltipWidth,
     height: TOOLTIP_HEIGHT,
   });
 
@@ -481,13 +515,24 @@ export function OnboardingTour({
       <div
         ref={tooltipRef}
         data-testid="onboarding-tour-tooltip"
-        data-placement={tooltipPos.placement}
-        className="bg-card border-border pointer-events-auto absolute max-h-[80vh] overflow-y-auto rounded-xl border p-5 shadow-2xl"
-        style={{
-          top: `${tooltipPos.top}px`,
-          left: `${tooltipPos.left}px`,
-          width: `${TOOLTIP_WIDTH}px`,
-        }}
+        data-placement={asSheet ? "sheet" : tooltipPos.placement}
+        className={
+          asSheet
+            ? // Bottom-sheet fallback for small viewports — full-width card
+              // pinned above the bottom edge; no anchored positioning that
+              // could clip the footer buttons off-screen.
+              "bg-card border-border pointer-events-auto absolute inset-x-2 bottom-2 max-h-[70vh] overflow-x-hidden overflow-y-auto rounded-xl border p-5 shadow-2xl"
+            : "bg-card border-border pointer-events-auto absolute max-h-[80vh] max-w-[22rem] overflow-x-hidden overflow-y-auto rounded-xl border p-5 shadow-2xl"
+        }
+        style={
+          asSheet
+            ? undefined
+            : {
+                top: `${tooltipPos.top}px`,
+                left: `${tooltipPos.left}px`,
+                width: `${tooltipWidth}px`,
+              }
+        }
       >
         <header className="flex items-start justify-between gap-3">
           <div>
@@ -516,7 +561,10 @@ export function OnboardingTour({
             on the iPad / iPhone PWA shell. Bumping to `min-h-11` (44 px)
             keeps the desktop visual close enough — the buttons grow
             ~4 px taller — while making mobile usable. */}
-        <footer className="mt-5 flex items-center justify-between gap-2">
+        {/* `flex-wrap` keeps long localised labels (Skip / Back / Next) from
+            forcing a horizontal scrollbar inside the card — the row wraps
+            instead, so the primary action is always reachable. */}
+        <footer className="mt-5 flex flex-wrap items-center justify-between gap-2">
           <Button
             type="button"
             variant="ghost"

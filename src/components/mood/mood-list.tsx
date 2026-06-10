@@ -6,12 +6,10 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+  FilterBar,
+  FilterBarDateRange,
+  FilterBarSelect,
+} from "@/components/ui/filter-bar";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -37,7 +35,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { DateInput, DateTimeInput } from "@/components/ui/date-input";
+import { DateTimeInput } from "@/components/ui/date-input";
 import { Label } from "@/components/ui/label";
 import {
   Table,
@@ -415,93 +413,60 @@ export function MoodList({ onAddFirst }: MoodListProps = {}) {
   return (
     <>
       <div className="space-y-4">
-        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
-          <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-end">
-            <div className="flex flex-col gap-1">
-              <Label className="text-muted-foreground text-xs">
-                {t("mood.moodLevel")}
-              </Label>
-              <Select value={moodFilter} onValueChange={setMoodFilter}>
-                <SelectTrigger className="w-full sm:w-44">
-                  <SelectValue placeholder={t("mood.allMoods")} />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="ALL">{t("mood.allMoods")}</SelectItem>
-                  {MOOD_LEVELS_LIST.map((val) => (
-                    <SelectItem key={val} value={val}>
-                      {MOOD_SCORES[val]} ({t(MOOD_LABEL_KEYS[val])})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* v1.15.13 — source filter. */}
-            <div className="flex flex-col gap-1">
-              <Label className="text-muted-foreground text-xs">
-                {t("mood.filterBySource")}
-              </Label>
-              <Select value={sourceFilter} onValueChange={setSourceFilter}>
-                <SelectTrigger
-                  className="w-full sm:w-40"
-                  aria-label={t("mood.filterBySource")}
-                >
-                  <SelectValue placeholder={t("dataList.allSources")} />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="ALL">
-                    {t("dataList.allSources")}
-                  </SelectItem>
-                  {MOOD_SOURCE_OPTIONS.map((src) => (
-                    <SelectItem key={src} value={src}>
-                      {formatMoodSource(src, t)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* v1.15.13 — optional date range, wired to from/to. */}
-            <div className="flex flex-col gap-1">
-              <Label
-                htmlFor="mood-from"
-                className="text-muted-foreground text-xs"
-              >
-                {t("dataList.dateFrom")}
-              </Label>
-              <DateInput
-                id="mood-from"
-                className="w-full sm:w-40"
-                value={fromDay}
-                max={toDay || undefined}
-                onChange={(e) => setFromDay(e.target.value)}
-              />
-            </div>
-            <div className="flex flex-col gap-1">
-              <Label
-                htmlFor="mood-to"
-                className="text-muted-foreground text-xs"
-              >
-                {t("dataList.dateTo")}
-              </Label>
-              <DateInput
-                id="mood-to"
-                className="w-full sm:w-40"
-                value={toDay}
-                min={fromDay || undefined}
-                onChange={(e) => setToDay(e.target.value)}
-              />
-            </div>
-          </div>
-
-          {data?.meta?.total !== undefined && (
-            <span className="text-muted-foreground text-sm">
-              {t("mood.entryCount", {
-                count: fmt.integer(data.meta.total),
-              })}
-            </span>
-          )}
-        </div>
+        {/* v1.16.1 — unified filter rail (`<FilterBar>`), same grammar as
+            the measurements list: date range · mood · source as compact
+            pills, active filters as removable chips, reset + count.
+            Filter state and query keys unchanged. */}
+        <FilterBar
+          isFiltered={
+            moodFilter !== "ALL" ||
+            sourceFilter !== "ALL" ||
+            fromDay !== "" ||
+            toDay !== ""
+          }
+          onReset={() => {
+            setMoodFilter("ALL");
+            setSourceFilter("ALL");
+            setFromDay("");
+            setToDay("");
+          }}
+          count={
+            data?.meta?.total !== undefined
+              ? t("mood.entryCount", {
+                  count: fmt.integer(data.meta.total),
+                })
+              : undefined
+          }
+        >
+          <FilterBarDateRange
+            label={t("dataList.dateRange")}
+            from={fromDay}
+            to={toDay}
+            onFromChange={setFromDay}
+            onToChange={setToDay}
+            idPrefix="mood"
+          />
+          <FilterBarSelect
+            label={t("mood.moodLevel")}
+            value={moodFilter}
+            onValueChange={setMoodFilter}
+            allLabel={t("mood.allMoods")}
+            options={MOOD_LEVELS_LIST.map((val) => ({
+              value: val,
+              label: `${MOOD_SCORES[val]} (${t(MOOD_LABEL_KEYS[val])})`,
+            }))}
+          />
+          <FilterBarSelect
+            label={t("dataList.sourceLabel")}
+            value={sourceFilter}
+            onValueChange={setSourceFilter}
+            allLabel={t("dataList.allSources")}
+            options={MOOD_SOURCE_OPTIONS.map((src) => ({
+              value: src,
+              label: formatMoodSource(src, t),
+            }))}
+          />
+        </FilterBar>
 
         {isLoading ? (
           <div className="flex h-32 items-center justify-center">

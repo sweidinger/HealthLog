@@ -6,6 +6,9 @@
  *     - mark-as-used-up (terminal — operator override when a pen is
  *       physically discarded but the dose ledger hasn't reached zero)
  *     - update printed expiry (e.g. carton label correction)
+ *     - stock correction via `dosesRemaining` (v1.16.1 — the Bestand
+ *       tab's adjust / withdraw flow; clamped to `dosesTotal`, state
+ *       re-derived by the canonical state machine)
  *     - update notes
  *
  *   DELETE /api/medications/[id]/inventory/[itemId]
@@ -67,8 +70,13 @@ export const PATCH = apiHandler(
       return returnAllZodIssues(parsed.error, 422);
     }
 
-    const { markAsFirstUseAt, markAsUsedUp, printedExpiry, notes } =
-      parsed.data;
+    const {
+      markAsFirstUseAt,
+      markAsUsedUp,
+      printedExpiry,
+      dosesRemaining,
+      notes,
+    } = parsed.data;
 
     // Compose the next-row shape. Each mutation field is optional and
     // commutative — applying them in any order produces the same row.
@@ -86,6 +94,14 @@ export const PATCH = apiHandler(
 
     if (printedExpiry !== undefined) {
       nextPrintedExpiry = printedExpiry;
+    }
+
+    if (dosesRemaining !== undefined) {
+      // v1.16.1 — stock correction (Bestand tab adjust / withdraw).
+      // Clamp to the item's capacity; the state-machine re-run below
+      // owns every state consequence (0 ⇒ USED_UP, a raise out of 0
+      // re-evaluates against the expiry clocks).
+      nextDosesRemaining = Math.min(dosesRemaining, existing.dosesTotal);
     }
 
     if (markAsUsedUp === true) {

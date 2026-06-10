@@ -78,7 +78,7 @@ export function HistoryRail({
           (the rail still has to stand alone on desktop). */}
       <h3
         data-slot="coach-history-rail-heading"
-        className="text-muted-foreground flex items-center gap-1.5 px-1 text-[11px] font-medium tracking-wide uppercase"
+        className="text-muted-foreground flex items-center gap-1.5 text-[11px] font-medium tracking-wide uppercase"
       >
         <MessagesSquare
           className="text-muted-foreground size-3.5"

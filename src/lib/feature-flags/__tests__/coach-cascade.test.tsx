@@ -37,6 +37,13 @@ vi.mock("@/hooks/use-feature-flags", async () => {
   };
 });
 
+// v1.16.1 — the nudge-driven `<LayoutCoachFab>` reads the app router
+// (push + pathname); SSR test renders have no router context.
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
+  usePathname: () => "/insights",
+}));
+
 /**
  * v1.4.37 W5 — Coach disable cascade invariant.
  *
@@ -178,7 +185,11 @@ const COACH_SURFACES: CoachSurface[] = [
         <LayoutCoachFab />
       </CoachLaunchProvider>
     ),
-    proofWhenOn: 'data-slot="coach-launch-fab"',
+    // v1.16.1 — the FAB is nudge-driven: it renders nothing until the
+    // nudge-status query resolves with an unseen nudge, so its SSR
+    // shape is empty even when the flag is on. The negative `coach-*`
+    // grep + the gate-fired spy assertion still pin the off state.
+    proofWhenOn: "",
   },
   {
     name: "LayoutCoachMount drawer subtree",

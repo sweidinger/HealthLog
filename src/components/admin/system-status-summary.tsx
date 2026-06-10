@@ -37,7 +37,7 @@ export function SystemStatusSummary() {
       className="bg-card border-border rounded-xl border p-6"
     >
       <div className="flex items-center gap-2">
-        <Server className="text-primary h-5 w-5" aria-hidden="true" />
+        <Server className="text-muted-foreground h-5 w-5" aria-hidden="true" />
         <h2
           id="admin-overview-snapshot-heading"
           className="text-lg font-semibold"

@@ -258,10 +258,14 @@ export const GET = apiHandler(
     // Read-through the per-user compliance cache (15 min TTL). Every
     // intake / medication write flushes the `${userId}|` prefix via
     // `invalidateUserMedications`, so a warm entry can only be stale
-    // relative to wall-clock drift, never to a user action.
+    // relative to wall-clock drift, never to a user action. The key
+    // carries the timezone the payload was bucketed in: day keys, the
+    // heatmap, and the overdue cut all derive from `userTz`, so a
+    // timezone change must miss the old entry instead of serving day
+    // buckets computed for the previous zone until the TTL lapses.
     const payload = await cached(
       caches.medicationCompliance as ServerCache<CompliancePayload>,
-      `${user.id}|${id}|compliance`,
+      `${user.id}|${id}|compliance|${userTz}`,
       () => buildCompliancePayload(medication, user.id, userTz),
       annotate,
     );

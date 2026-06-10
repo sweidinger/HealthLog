@@ -130,7 +130,7 @@ describe("runInsightPregenerate — kill switch", () => {
 });
 
 describe("runInsightPregenerate — budget gate", () => {
-  it("skips a user whose per-user budget bucket is exhausted and never calls the generator for them", async () => {
+  it("skips the comprehensive for a budget-blocked user but never calls the generator for them", async () => {
     const { prisma } = makePrisma([
       { id: "u1", locale: "de" },
       { id: "u2", locale: "en" },
@@ -161,7 +161,39 @@ describe("runInsightPregenerate — budget gate", () => {
     expect(generate).toHaveBeenCalledWith("u2", {
       locale: "en",
       force: true,
+      signal: expect.any(AbortSignal),
     });
+  });
+
+  it("still runs the refill-only status warm for a budget-blocked user (v1.16.1)", async () => {
+    // The 02:xx status crons skip every pregenerate candidate on the
+    // assumption that the 04:30 pass warms their cards. A budget-blocked
+    // candidate must therefore still get the warm — refill-only
+    // (`force: false`), so a card already generated today is a cheap
+    // cache read while a cold card generates.
+    const { prisma } = makePrisma([{ id: "u1", locale: "de" }]);
+    checkRateLimit.mockResolvedValue({ allowed: false });
+    const generate = vi.fn();
+    const statusGenerators = Array.from({ length: 7 }, () =>
+      vi.fn().mockResolvedValue({ hasProvider: true, cached: false }),
+    );
+    const warmGenericMetrics = vi.fn().mockResolvedValue(2);
+
+    const result = await runInsightPregenerate(prisma as never, {
+      generate,
+      statusGenerators,
+      warmGenericMetrics,
+    });
+
+    expect(generate).not.toHaveBeenCalled();
+    expect(result.budgetBlocked).toBe(1);
+    for (const g of statusGenerators) {
+      expect(g).toHaveBeenCalledWith("u1", { locale: "de", force: false });
+      expect(g).toHaveBeenCalledWith("u1", { locale: "en", force: false });
+    }
+    expect(warmGenericMetrics).toHaveBeenCalledWith("u1", ["de", "en"], false);
+    expect(result.assessmentsWarmed).toBe(14);
+    expect(result.metricAssessmentsWarmed).toBe(2);
   });
 });
 
@@ -177,10 +209,13 @@ describe("runInsightPregenerate — force flag", () => {
     // The cron's discovery window (20 h) is shorter than the
     // generator's 24 h TTL; `force: true` bypasses the TTL re-check so
     // a 20-24h-old cache actually regenerates rather than returning
-    // `cached` and wasting the budget bucket.
+    // `cached` and wasting the budget bucket. The nightly loop also
+    // threads an AbortSignal so its bounded budget can cut a stalled
+    // generation off.
     expect(generate).toHaveBeenCalledWith("u1", {
       locale: "de",
       force: true,
+      signal: expect.any(AbortSignal),
     });
   });
 });
@@ -217,7 +252,55 @@ describe("runInsightPregenerate — outcome tally", () => {
     expect(generate).toHaveBeenLastCalledWith("d", {
       locale: "en",
       force: true,
+      signal: expect.any(AbortSignal),
     });
+  });
+
+  it("tallies a comprehensive that exceeds its bounded budget as failed and aborts it (v1.16.1)", async () => {
+    const { prisma } = makePrisma([{ id: "u1", locale: "de" }]);
+    let observedSignal: AbortSignal | undefined;
+    const generate = vi.fn().mockImplementation(
+      (_userId: string, opts: { signal?: AbortSignal }) =>
+        new Promise((resolve) => {
+          observedSignal = opts.signal;
+          setTimeout(
+            () => resolve({ status: "generated", providerType: "x" }),
+            120_000,
+          );
+        }),
+    );
+    const statusGenerators = Array.from({ length: 7 }, () =>
+      vi.fn().mockResolvedValue({ hasProvider: true, cached: false }),
+    );
+    const warmGenericMetrics = vi.fn().mockResolvedValue(0);
+
+    vi.useFakeTimers();
+    try {
+      const promise = runInsightPregenerate(prisma as never, {
+        generate,
+        statusGenerators,
+        warmGenericMetrics,
+      });
+      await vi.advanceTimersByTimeAsync(60_000);
+      const result = await promise;
+
+      // The timeout fired, aborted the still-running generation (so its
+      // late resolve cannot evict the rows the warm pass writes), and the
+      // refill-only warm still ran.
+      expect(observedSignal?.aborted).toBe(true);
+      expect(result.failed).toBe(1);
+      expect(result.generated).toBe(0);
+      for (const g of statusGenerators) {
+        expect(g).toHaveBeenCalledWith("u1", { locale: "de", force: false });
+      }
+      expect(warmGenericMetrics).toHaveBeenCalledWith(
+        "u1",
+        ["de", "en"],
+        false,
+      );
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
 
@@ -290,7 +373,11 @@ describe("runInsightPregenerate — per-metric warm pass", () => {
     expect(result.assessmentsWarmed).toBe(0);
   });
 
-  it("does NOT warm when the comprehensive pass failed", async () => {
+  it("warms refill-only (force:false) when the comprehensive pass failed (v1.16.1)", async () => {
+    // A failed comprehensive means no eviction ran, so today's rows (if
+    // any) are still valid — the warm refills only the cold cards. Before
+    // v1.16.1 this path skipped the warm entirely, leaving every card of a
+    // 02:xx-skipped candidate cold until the first on-visit generation.
     const { prisma } = makePrisma([{ id: "u1", locale: "de" }]);
     const generate = vi
       .fn()
@@ -305,9 +392,36 @@ describe("runInsightPregenerate — per-metric warm pass", () => {
     });
 
     for (const g of statusGenerators) {
-      expect(g).not.toHaveBeenCalled();
+      expect(g).toHaveBeenCalledTimes(2);
+      expect(g).toHaveBeenCalledWith("u1", { locale: "de", force: false });
+      expect(g).toHaveBeenCalledWith("u1", { locale: "en", force: false });
     }
-    expect(result.assessmentsWarmed).toBe(0);
+    expect(result.assessmentsWarmed).toBe(14);
+  });
+
+  it("warms refill-only when the comprehensive pass skipped for missing consent (v1.16.1)", async () => {
+    // `skipped`/`no-consent` gates only the comprehensive briefing; the
+    // per-card generators decide their own consent/provider posture, so
+    // the warm still runs (the forced single-user warm already behaves
+    // this way — "it is the generator, not the caller, that decides").
+    const { prisma } = makePrisma([{ id: "u1", locale: "de" }]);
+    const generate = vi
+      .fn()
+      .mockResolvedValue({ status: "skipped", reason: "no-consent" });
+    const statusGenerators = Array.from({ length: 7 }, () =>
+      warmGen({ hasProvider: true, cached: false }),
+    );
+
+    const result = await runInsightPregenerate(prisma as never, {
+      generate,
+      statusGenerators,
+    });
+
+    for (const g of statusGenerators) {
+      expect(g).toHaveBeenCalledTimes(2);
+      expect(g).toHaveBeenCalledWith("u1", { locale: "de", force: false });
+    }
+    expect(result.assessmentsWarmed).toBe(14);
   });
 
   it("counts only fresh provider-backed assessments and survives a thrown generator", async () => {
@@ -358,7 +472,9 @@ describe("runInsightPregenerate — generic metric warm pass (v1.8.7.1)", () => 
     });
 
     expect(warmGenericMetrics).toHaveBeenCalledTimes(1);
-    expect(warmGenericMetrics).toHaveBeenCalledWith("u1", ["de", "en"]);
+    // Third arg `true` — the comprehensive write evicted the caches, so
+    // the warm forces fresh generations.
+    expect(warmGenericMetrics).toHaveBeenCalledWith("u1", ["de", "en"], true);
     expect(result.metricAssessmentsWarmed).toBe(9);
   });
 

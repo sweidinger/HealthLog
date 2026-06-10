@@ -85,8 +85,13 @@ describe("resolveChartRevealState", () => {
     ).toBe(true);
   });
 
-  it("pins the 2 s fallback budget", () => {
-    expect(CHART_REVEAL_TIMEOUT_MS).toBe(2_000);
+  it("pins the 1.2 s fallback budget", () => {
+    // v1.16.1 — lowered from 2 s: the timeout is only the worst-case cap
+    // on how long fast charts wait for the slowest sibling (there is no
+    // minimum delay — the row reveals the moment every gated query
+    // settles). 1.2 s keeps the synchronized reveal without making one
+    // cold widget hold the whole row on skeletons for 2 s.
+    expect(CHART_REVEAL_TIMEOUT_MS).toBe(1_200);
   });
 });
 

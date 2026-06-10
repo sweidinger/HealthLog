@@ -43,6 +43,7 @@
  * unregistered queue silently never drains.
  */
 import { prisma } from "@/lib/db";
+import { invalidateUserMedications } from "@/lib/cache/invalidate";
 import { isP2002 } from "@/lib/prisma-errors";
 import { annotate } from "@/lib/logging/context";
 import { getGlobalBoss } from "@/lib/jobs/boss-instance";
@@ -368,6 +369,21 @@ export async function dedupeUserIntakeSlots(
       tz: userTz,
     });
     summary.daysRecomputed += 1;
+  }
+
+  // v1.16.1 — a collapse changed the rows the cached compliance / intake /
+  // summary payloads were built on; drop this user's server caches so the
+  // next read reflects the corrected slots instead of waiting out the TTL.
+  // Process-local like every server cache: in the default single-container
+  // deploy the worker shares the web process, so the eviction reaches the
+  // serving instance; a split web/worker deployment falls back to the TTL
+  // bound (see `server-cache.ts`).
+  if (
+    summary.slotsCollapsed > 0 ||
+    summary.rowsSoftDeleted > 0 ||
+    summary.rowsNormalised > 0
+  ) {
+    invalidateUserMedications(userId);
   }
 
   annotate({

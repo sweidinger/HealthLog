@@ -1509,10 +1509,10 @@
         "bestand": "Stock",
         "verlauf": "Historique",
         "injektion": "Injection",
+        "api": "API",
         "erweitert": "Avancé"
       },
       "shell": {
-        "fullEdit": "Modifier entièrement",
         "loadFailed": "Ce médicament n'a pas pu être chargé.",
         "tablistLabel": "Sections de détail du médicament"
       },
@@ -1543,7 +1543,25 @@
           "USED_UP": "Épuisé"
         },
         "empty": "Aucun stock enregistré.",
-        "emptyHelper": "Enregistrez un stylo ou une boîte pour suivre les doses restantes et l'autonomie."
+        "emptyHelper": "Enregistrez un stylo ou une boîte pour suivre les doses restantes et l'autonomie.",
+        "emptyCta": "Enregistrer une boîte",
+        "addButton": "Enregistrer",
+        "addTitle": "Enregistrer un stylo ou une boîte",
+        "addDescription": "Enregistrez un nouveau stock avec son nombre de doses ; la date de péremption est facultative.",
+        "addQuantityLabel": "Quantité (doses / unités)",
+        "addQuantityHelper": "1–100 doses par stylo ou boîte.",
+        "addExpiryLabel": "Date de péremption (facultatif)",
+        "addSubmit": "Enregistrer",
+        "addSuccess": "Stock enregistré.",
+        "addFailed": "Le stock n'a pas pu être enregistré.",
+        "adjustButton": "Ajuster",
+        "adjustTitle": "Corriger le stock",
+        "adjustDescription": "Définissez les doses restantes — pour une correction ou un prélèvement. 0 marque l'article comme épuisé.",
+        "adjustQuantityLabel": "Doses restantes",
+        "adjustHelper": "Capacité : {total} doses.",
+        "adjustSubmit": "Enregistrer",
+        "adjustSuccess": "Stock mis à jour.",
+        "adjustFailed": "Le stock n'a pas pu être mis à jour."
       },
       "erweitert": {
         "group": {
@@ -1551,16 +1569,22 @@
           "externalApi": "API externe",
           "data": "Données",
           "danger": "Zone de danger"
+        },
+        "editor": {
+          "title": "Modifier le médicament dans l'éditeur",
+          "helper": "Modifiez le nom, la classe de traitement, la fréquence et les horaires dans l'éditeur pas à pas.",
+          "button": "Ouvrir l'éditeur"
         }
       },
       "zeitplan": {
         "title": "Horaire",
         "timesTitle": "Heures de prise",
-        "timesNote": "Ajustez l'heure et la fenêtre à l'heure de chaque dose. Pour la fréquence (quotidienne, hebdomadaire…), utilisez « Édition complète ».",
+        "timesNote": "Ajustez l'heure et la fenêtre à l'heure de chaque dose. La fréquence (quotidienne, hebdomadaire…) se modifie dans l'éditeur, sous Avancé.",
         "scheduleLabel": "Horaire {index}",
-        "fullEditNote": "La fréquence, la classe de traitement et la fenêtre de cure se modifient via « Édition complète ».",
+        "fullEditNote": "La fréquence, la classe de traitement et la fenêtre de cure se modifient dans l'éditeur, sous Avancé → Cycle de vie.",
         "graceEcho": "Fenêtre de rappel : {minutes} minutes",
         "reminderTitle": "Rappel",
+        "manageChannels": "Gérer les canaux de notification",
         "save": "Enregistrer l'horaire",
         "saved": "Horaire enregistré",
         "failed": "Impossible d'enregistrer l'horaire",
@@ -1955,8 +1979,7 @@
       "stop": "Arrêter",
       "thinking": "Réflexion en cours…",
       "composerPlaceholder": "Pose-moi une question sur tes données…",
-      "composerHint": "Entrée pour envoyer, Maj+Entrée pour une nouvelle ligne.",
-      "composerDisclaimer": "Les réponses sont générées. Les décisions cliniques relèvent de ton médecin.",
+      "nudgeBubbleLabel": "Nouveau message du coach — ouvrir le chat",
       "selfContextChipsLabel": "Le Coach aimerait savoir :",
       "selfContextChipDismiss": "Ignorer la question",
       "voiceComingSoon": "La saisie vocale arrive avec l’app iOS en v1.5.",
@@ -3735,6 +3758,7 @@
         "resetConfirmTitle": "Réinitialiser la chaîne aux valeurs par défaut ?",
         "resetConfirmBody": "La chaîne revient à Codex → OpenAI → Anthropic → Local → OpenAI administrateur. Vos identifiants enregistrés ne sont pas affectés."
       },
+      "providerCardTitle": "Fournisseur d'IA",
       "activeProviderHeading": "Fournisseur actif",
       "activeProviderBody": "Choisissez le fournisseur à utiliser en premier. Le formulaire ci-dessous configure uniquement le fournisseur sélectionné ; la chaîne de secours en bas détermine ce qui se passe en cas d’échec.",
       "activeProviderLabel": "Fournisseur principal",
@@ -4943,6 +4967,30 @@
       "hiddenBugBuddy": {
         "title": "Compagnon des bugs",
         "description": "Vous avez soumis au moins 5 rapports de bug — le projet vous adore."
+      },
+      "missFree7": {
+        "title": "Aucune dose oubliée · 7j",
+        "description": "7 jours consécutifs sans dose oubliée."
+      },
+      "missFree30": {
+        "title": "Aucune dose oubliée · 30j",
+        "description": "30 jours consécutifs sans dose oubliée."
+      },
+      "missFree90": {
+        "title": "Aucune dose oubliée · 90j",
+        "description": "90 jours consécutifs sans dose oubliée."
+      },
+      "measurementWeeks4": {
+        "title": "Routine de mesure",
+        "description": "4 semaines consécutives avec des mesures au moins 5 jours par semaine."
+      },
+      "selfContextComplete": {
+        "title": "Auto-déclaration à jour",
+        "description": "Les quatre champs de l’auto-déclaration sont remplis — le Coach connaît votre contexte."
+      },
+      "sleepLog7": {
+        "title": "Journal de sommeil · 7j",
+        "description": "Données de sommeil enregistrées pendant 7 jours consécutifs."
       }
     },
     "nextProgressLabel": "Progression avant déblocage",
@@ -5604,6 +5652,11 @@
     "allSources": "Toutes les sources",
     "dateFrom": "Du",
     "dateTo": "Au",
+    "dateRange": "Période",
+    "typeLabel": "Type",
+    "sourceLabel": "Source",
+    "resetFilters": "Réinitialiser",
+    "clearFilter": "Supprimer le filtre : {label}",
     "selectAll": "Tout sélectionner sur cette page",
     "selectRow": "Sélectionner la ligne",
     "selected": "{count} sélectionné(s)",

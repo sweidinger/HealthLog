@@ -33,7 +33,9 @@ import type { LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export interface SettingsCardHeaderProps {
-  /** Lucide icon component; rendered as `text-primary h-5 w-5`. */
+  /** Lucide icon component; rendered as `text-muted-foreground h-5 w-5`.
+   *  Neutral by design — primary/purple stays reserved for actions and
+   *  highlight states, never for section-header iconography. */
   icon: LucideIcon;
   /** Card title — rendered as `<h2 class="text-lg font-semibold">`.
    *  Accepts a node so a card can wrap the title in a link. */
@@ -68,7 +70,7 @@ export function SettingsCardHeader({
   return (
     <header className={cn("flex items-start gap-2", className)}>
       <Icon
-        className="text-primary mt-0.5 h-5 w-5 shrink-0"
+        className="text-muted-foreground mt-0.5 h-5 w-5 shrink-0"
         aria-hidden="true"
       />
       {/* Title + description share one column to the RIGHT of the icon, so the

@@ -6,12 +6,10 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+  FilterBar,
+  FilterBarDateRange,
+  FilterBarSelect,
+} from "@/components/ui/filter-bar";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -65,7 +63,7 @@ import {
   MEASUREMENT_NOTES_MAX_LENGTH,
   measurementSourceEnum,
 } from "@/lib/validations/measurement";
-import { DateInput, DateTimeInput } from "@/components/ui/date-input";
+import { DateTimeInput } from "@/components/ui/date-input";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   SortableHead,
@@ -643,117 +641,75 @@ export function MeasurementList({
   return (
     <>
       <div className="space-y-4">
-        {/* v1.4.27 MB7 / CF-46 — the filter row stacks the SelectTrigger
-            and the count caption vertically on `<sm` so the trigger
-            fills the column and the count drops to a separate line.
-            Pre-fix the trigger had a fixed `w-48` (192 px) which on
-            Pixel 5 (375 px content width) left only ~120 px for the
-            count, which wrapped to 2 lines. */}
-        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
-          <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-end">
-            {lockedType ? (
-              // v1.8.5 — the insights "all readings" subpage knows the
-              // metric from the route, so the global type selector is
-              // suppressed; the count caption still anchors the column.
-              <span className="sr-only">{t("measurements.filterByType")}</span>
-            ) : (
-              <div className="flex flex-col gap-1">
-                <Label className="text-muted-foreground text-xs">
-                  {t("measurements.filterByType")}
-                </Label>
-                <Select value={typeFilter} onValueChange={setTypeFilter}>
-                  <SelectTrigger
-                    className="w-full sm:w-44"
-                    aria-label={t("measurements.filterByType")}
-                  >
-                    <SelectValue placeholder={t("measurements.allTypes")} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="ALL">
-                      {t("measurements.allTypes")}
-                    </SelectItem>
-                    {Object.entries(TYPE_LABEL_KEYS).map(([val, labelKey]) => (
-                      <SelectItem key={val} value={val}>
-                        {t(labelKey)}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
-
-            {/* v1.15.13 — source filter + date range. Suppressed on the
-                locked-type insights subpage, which wants a focused list
-                scoped to the route's single metric (matches the type-
-                selector suppression above). */}
-            {!lockedType && (
-              <>
-                <div className="flex flex-col gap-1">
-                  <Label className="text-muted-foreground text-xs">
-                    {t("measurements.filterBySource")}
-                  </Label>
-                  <Select value={sourceFilter} onValueChange={setSourceFilter}>
-                    <SelectTrigger
-                      className="w-full sm:w-40"
-                      aria-label={t("measurements.filterBySource")}
-                    >
-                      <SelectValue placeholder={t("dataList.allSources")} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="ALL">
-                        {t("dataList.allSources")}
-                      </SelectItem>
-                      {MEASUREMENT_SOURCE_OPTIONS.map((src) => (
-                        <SelectItem key={src} value={src}>
-                          {formatMeasurementSource(src, t)}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="flex flex-col gap-1">
-                  <Label
-                    htmlFor="measurements-from"
-                    className="text-muted-foreground text-xs"
-                  >
-                    {t("dataList.dateFrom")}
-                  </Label>
-                  <DateInput
-                    id="measurements-from"
-                    className="w-full sm:w-40"
-                    value={fromDay}
-                    max={toDay || undefined}
-                    onChange={(e) => setFromDay(e.target.value)}
-                  />
-                </div>
-                <div className="flex flex-col gap-1">
-                  <Label
-                    htmlFor="measurements-to"
-                    className="text-muted-foreground text-xs"
-                  >
-                    {t("dataList.dateTo")}
-                  </Label>
-                  <DateInput
-                    id="measurements-to"
-                    className="w-full sm:w-40"
-                    value={toDay}
-                    min={fromDay || undefined}
-                    onChange={(e) => setToDay(e.target.value)}
-                  />
-                </div>
-              </>
-            )}
-          </div>
-
-          {data?.meta?.total !== undefined && (
-            <span className="text-muted-foreground text-sm">
-              {t("measurements.measurementCount", {
-                count: fmt.integer(data.meta.total),
-              })}
-            </span>
-          )}
-        </div>
+        {/* v1.16.1 — unified filter rail (`<FilterBar>`): compact pill
+            triggers in the canonical order date range · type · source,
+            active filters fold into their pill as removable chips, plus
+            a reset action and the result count. Filter state and query
+            keys are unchanged — this swap is presentation-only.
+            On the locked-type insights subpage the rail is suppressed
+            entirely (the metric is fixed by the route); only the count
+            line remains. */}
+        {lockedType ? (
+          data?.meta?.total !== undefined && (
+            <div className="flex items-center justify-end">
+              <span className="text-muted-foreground text-sm tabular-nums">
+                {t("measurements.measurementCount", {
+                  count: fmt.integer(data.meta.total),
+                })}
+              </span>
+            </div>
+          )
+        ) : (
+          <FilterBar
+            isFiltered={
+              typeFilter !== "ALL" ||
+              sourceFilter !== "ALL" ||
+              fromDay !== "" ||
+              toDay !== ""
+            }
+            onReset={() => {
+              setTypeFilter("ALL");
+              setSourceFilter("ALL");
+              setFromDay("");
+              setToDay("");
+            }}
+            count={
+              data?.meta?.total !== undefined
+                ? t("measurements.measurementCount", {
+                    count: fmt.integer(data.meta.total),
+                  })
+                : undefined
+            }
+          >
+            <FilterBarDateRange
+              label={t("dataList.dateRange")}
+              from={fromDay}
+              to={toDay}
+              onFromChange={setFromDay}
+              onToChange={setToDay}
+              idPrefix="measurements"
+            />
+            <FilterBarSelect
+              label={t("dataList.typeLabel")}
+              value={typeFilter}
+              onValueChange={setTypeFilter}
+              allLabel={t("measurements.allTypes")}
+              options={Object.entries(TYPE_LABEL_KEYS).map(
+                ([val, labelKey]) => ({ value: val, label: t(labelKey) }),
+              )}
+            />
+            <FilterBarSelect
+              label={t("dataList.sourceLabel")}
+              value={sourceFilter}
+              onValueChange={setSourceFilter}
+              allLabel={t("dataList.allSources")}
+              options={MEASUREMENT_SOURCE_OPTIONS.map((src) => ({
+                value: src,
+                label: formatMeasurementSource(src, t),
+              }))}
+            />
+          </FilterBar>
+        )}
 
         {isLoading ? (
           <div className="flex h-32 items-center justify-center">

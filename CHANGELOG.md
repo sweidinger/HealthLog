@@ -2,6 +2,28 @@
 
 ## [Unreleased]
 
+## [1.16.1] — 2026-06-10 — a chat worth using, honest sleep stages, stock you can record
+
+### Added
+
+- **The inventory tab records stock.** Packs and pens with optional expiry, plus corrections and withdrawals — no API detour. The medication detail page also gains a dedicated API tab, an editor entry under lifecycle replacing the misleading header button, and a danger zone on the shared card surface with only its buttons in red.
+- **A shared filter bar.** Measurements and mood lists filter through one pill-rail language — active filters read as removable chips, date ranges live in a popover, every page feels the same.
+- **Six care achievements.** Miss-free dose streaks (7/30/90 days), a four-week measurement routine, a complete self-context and a week of sleep logging.
+
+### Changed
+
+- **The coach chat behaves like one.** Single-line composer that grows with the text, a typing indicator, no inline disclaimer, a context rail that hides until asked, conversations in the full view, and coach preferences in Settings. Clearly stated allergies and conditions are remembered immediately.
+- **Settings and admin share one alignment language.** Icon column left, content flush on its own column, neutral header icons, no duplicated titles, and every select on the account-style idiom with a visible chevron.
+- **First paint shows silhouettes, not bare cards**, and charts reveal within 1.2 seconds even when one widget lags.
+
+### Fixed
+
+- **Sleep stages show again next to coarse sources.** A night carrying granular watch stages alongside coarse phone samples picked the coarse source and showed only awake/asleep; the granular source now wins its session.
+- **The next-dose line tells the truth after a schedule change.** It reads from the dose calendar instead of a stale schedule window; the repair script reconciles drifted windows and clears pending rows on abandoned anchors.
+- **Nightly insight texts are actually there in the morning.** The warm pass no longer skips the status cards when the briefing step is budget-blocked or fails, and one hanging provider cannot stall the whole run.
+- The welcome tour stays inside the viewport — no more sideways scrolling to reach its buttons, with a bottom-sheet fallback on narrow screens.
+- The dashboard customize icon matches insights, the target-settings link leaves the home charts, and the mood heatmap adopts the damped fills of its sibling charts.
+
 ## [1.16.0] — 2026-06-10 — a coach that knows you, invites, and a faster, calmer app
 
 ### Added

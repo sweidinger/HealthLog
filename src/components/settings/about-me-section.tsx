@@ -229,7 +229,7 @@ export function AboutMeSection({
         </div>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid gap-4 pl-7 sm:grid-cols-2">
         {structuredField(
           "conditions",
           t("settings.ai.aboutMe.conditionsLabel"),
@@ -249,7 +249,7 @@ export function AboutMeSection({
         </div>
       </div>
 
-      <div className="space-y-1.5">
+      <div className="space-y-1.5 pl-7">
         <Label htmlFor="settings-about-me-freetext">
           {t("settings.ai.aboutMe.freeTextLabel")}
         </Label>
@@ -267,7 +267,7 @@ export function AboutMeSection({
         />
       </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-3 pl-7">
         <p
           data-testid="settings-about-me-count"
           className="text-muted-foreground text-xs tabular-nums"
@@ -354,7 +354,7 @@ export function AboutMeSection({
         </p>
       )}
 
-      <p className="text-muted-foreground border-border border-t pt-3 text-xs">
+      <p className="text-muted-foreground border-border border-t pt-3 pl-7 text-xs">
         {t("settings.ai.aboutMe.hint")} {t("settings.ai.aboutMe.profileHint")}
       </p>
     </section>

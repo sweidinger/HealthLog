@@ -128,7 +128,7 @@ export function ThresholdsEditorSection({ id }: { id: string }) {
           control affordance. */}
       <div className="flex items-center justify-between">
         <SlidersHorizontal
-          className="text-primary h-5 w-5"
+          className="text-muted-foreground h-5 w-5"
           aria-hidden="true"
         />
         {data && Object.keys(data.overrides).length > 0 && (

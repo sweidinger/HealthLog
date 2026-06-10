@@ -33,10 +33,17 @@ export interface ResolveDisplayedSlotInstantInput {
    * The card's current-window status. When its `status` is non-null the
    * card is surfacing that schedule's window today (in_window / late /
    * very_late), so the recorded dose is that window's slot today.
+   *
+   * v1.16.1 — `window` carries the matched dose band's anchor
+   * (`timeOfDay`, a `timesOfDay` entry). It is the canonical slot time;
+   * the schedule's `windowStart` stays only as the legacy fallback for
+   * rows without `timesOfDay`, so a stale / degenerate window can no
+   * longer mis-anchor the recorded dose.
    */
   currentWindowStatus: {
     status: "in_window" | "late" | "very_late" | null;
     schedule: DisplayedSlotSchedule | null;
+    window?: { timeOfDay: string } | null;
   };
   /**
    * The server-computed next-due instant (`computeNextDueAt`, the canonical
@@ -130,10 +137,15 @@ export function resolveDisplayedSlotInstant(
   const { currentWindowStatus, nextDueAt, now, timeZone = "Europe/Berlin" } =
     input;
 
-  // The card surfaces the current/overdue window — record that window's
-  // slot on today's calendar day.
+  // The card surfaces the current/overdue dose band — record that band's
+  // slot on today's calendar day. The matched band's `timeOfDay` is the
+  // canonical dose anchor; `windowStart` is only the legacy fallback for
+  // schedules without `timesOfDay`.
   if (currentWindowStatus.status && currentWindowStatus.schedule) {
-    const hm = parseHm(currentWindowStatus.schedule.windowStart);
+    const anchor =
+      currentWindowStatus.window?.timeOfDay ??
+      currentWindowStatus.schedule.windowStart;
+    const hm = parseHm(anchor);
     if (hm) return localHmTodayAsUtc(now, timeZone, hm.hour, hm.minute);
   }
 

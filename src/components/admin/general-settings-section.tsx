@@ -27,7 +27,7 @@ export function GeneralSettingsSection() {
   return (
     <div className="bg-card border-border rounded-xl border p-6">
       <div className="flex items-center gap-2">
-        <Settings className="text-primary h-5 w-5" />
+        <Settings className="text-muted-foreground h-5 w-5" />
         <div className="text-lg font-semibold">{t("admin.appSettings")}</div>
       </div>
       <div className="mt-4 space-y-4">

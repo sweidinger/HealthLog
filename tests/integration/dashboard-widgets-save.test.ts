@@ -268,11 +268,19 @@ describe("PUT /api/dashboard/widgets — Save persists full layouts", () => {
       expect(paths).toEqual(["version", "widgets"]);
 
       // Audit-ledger breadcrumb. The route emits the row fire-and-forget,
-      // so we may need a tick before the row materialises.
-      await new Promise((r) => setTimeout(r, 25));
-      const audit = await getPrismaClient().auditLog.findFirst({
-        where: { userId, action: "dashboard.widgets.validation-failed" },
-      });
+      // so poll until it materialises instead of asserting after one fixed
+      // tick — under container load the detached insert can land well past
+      // 25 ms, which made this assertion flaky. Bounded at ~2 s.
+      const deadline = Date.now() + 2_000;
+      let audit: { details: string | null } | null = null;
+      while (audit === null && Date.now() < deadline) {
+        audit = await getPrismaClient().auditLog.findFirst({
+          where: { userId, action: "dashboard.widgets.validation-failed" },
+        });
+        if (audit === null) {
+          await new Promise((r) => setTimeout(r, 50));
+        }
+      }
       expect(audit).not.toBeNull();
       const details = JSON.parse(audit?.details ?? "{}") as {
         issues: Array<{ path: string }>;

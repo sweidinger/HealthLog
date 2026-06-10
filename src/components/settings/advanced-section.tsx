@@ -57,7 +57,7 @@ export function AdvancedSection() {
       <header className="space-y-1">
         <h1
           id="settings-section-advanced-title"
-          className="text-2xl font-semibold tracking-tight"
+          className="sr-only"
         >
           {t("settings.sections.advanced.title")}
         </h1>
@@ -154,12 +154,12 @@ function ResearchModeCard() {
       data-slot="settings-research-mode-card"
     >
       <div className="flex items-center gap-2">
-        <BookOpenCheck className="text-primary h-5 w-5" />
+        <BookOpenCheck className="text-muted-foreground h-5 w-5" />
         <h2 className="text-lg font-semibold">
           {t("settings.researchMode.sectionTitle")}
         </h2>
       </div>
-      <p className="text-muted-foreground mt-1 text-xs">
+      <p className="text-muted-foreground mt-1 pl-7 text-xs">
         {t("settings.researchMode.subtitle")}
       </p>
 

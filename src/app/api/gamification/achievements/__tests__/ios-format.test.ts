@@ -13,6 +13,7 @@ vi.mock("@/lib/db", () => ({
       findMany: vi.fn(),
       createMany: vi.fn(),
     },
+    userHealthProfile: { findUnique: vi.fn() },
   },
 }));
 
@@ -67,6 +68,9 @@ beforeEach(() => {
     count: 0,
   } as never);
   vi.mocked(prisma.moodEntry.findMany).mockResolvedValue([] as never);
+  vi.mocked(prisma.userHealthProfile.findUnique).mockResolvedValue(
+    null as never,
+  );
 });
 
 describe("GET /api/gamification/achievements?format=ios", () => {

@@ -91,10 +91,10 @@ export function CoachLaunchButton({
     );
   }
 
-  // Inline header-style action on `lg+`. Hidden below `lg` because the
-  // layout-level FAB (`<LayoutCoachFab>`) covers that breakpoint —
-  // mounting both at the same time would put two affordances in front
-  // of the user.
+  // Inline header-style action. v1.16.1 — visible on every viewport:
+  // the layout-level FAB is no longer a permanent launcher (it only
+  // surfaces an unseen proactive nudge), so the pill is the everyday
+  // Coach entry point on mobile too.
   return (
     <Button
       type="button"
@@ -102,7 +102,7 @@ export function CoachLaunchButton({
       size="sm"
       data-slot="coach-launch-inline"
       onClick={() => launch.askCoach(prefill ?? null)}
-      className={cn("hidden h-10 gap-2 self-end lg:inline-flex", className)}
+      className={cn("inline-flex h-10 gap-2 self-end", className)}
     >
       <Sparkles className="size-4" aria-hidden="true" />
       <span>{accessibleLabel}</span>

@@ -171,6 +171,11 @@
   --secondary-foreground: #f8f8f2;
   --muted: #44475a;
   --muted-foreground: #9aa3b3;
+  /* NativeSelect chevron — a data-URI background-image cannot resolve
+   * `currentColor` (it falls back to black per the SVG spec), so the
+   * muted-foreground value is baked into the stroke per theme. Keep in
+   * sync with `--muted-foreground` above. */
+  --native-select-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%239aa3b3' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
   --accent: #44475a;
   --accent-foreground: #f8f8f2;
   --destructive: #ff5555;
@@ -266,6 +271,8 @@
   --secondary-foreground: #1f1f1f;
   --muted: #dcdeef;
   --muted-foreground: #5b6273;
+  /* Light-theme counterpart of the NativeSelect chevron (see dark block). */
+  --native-select-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%235b6273' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
   --accent: #dcdeef;
   --accent-foreground: #1f1f1f;
   --destructive: #cb3a2a;

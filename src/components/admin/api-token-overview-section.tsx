@@ -159,7 +159,7 @@ export function ApiTokenOverviewSection() {
   return (
     <div className="bg-card border-border overflow-hidden rounded-xl border p-4 sm:p-6">
       <div className="flex items-center gap-2">
-        <Key className="text-primary h-5 w-5" />
+        <Key className="text-muted-foreground h-5 w-5" />
         <div className="text-lg font-semibold">{t("admin.apiTokens")}</div>
       </div>
 

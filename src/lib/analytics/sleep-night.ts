@@ -206,10 +206,15 @@ export interface SleepNight {
 const NO_SOURCE = "__none__";
 
 /**
- * Pick the one canonical source for a session. The user's `sleep`
- * source-priority ladder wins (lowest ladder index = highest priority).
- * Sources absent from the ladder fall back to "most asleep minutes", then
- * a stable source-name tiebreak. Single-source (or source-less) sessions
+ * Pick the one canonical source for a session. STAGE GRANULARITY wins first:
+ * a source carrying at least one granular stage (CORE / DEEP / REM) always
+ * beats a coarse ASLEEP/AWAKE-only source, so a wearable's full hypnogram is
+ * never masked by a parallel coarse export of the same night (e.g. Apple
+ * Health's 6–9 AWAKE/ASLEEP blocks alongside WHOOP's per-stage rows). Among
+ * equally granular (or equally coarse) sources the user's `sleep`
+ * source-priority ladder decides (lowest ladder index = highest priority);
+ * sources absent from the ladder fall back to "most asleep minutes", then a
+ * stable source-name tiebreak. Single-source (or source-less) sessions
  * resolve to that one bucket with no work.
  */
 function pickSessionSource(
@@ -233,10 +238,18 @@ function pickSessionSource(
   }
   // No asleep minutes anywhere (IN_BED / AWAKE only) — fall back to the set
   // of all present sources so the session still resolves to a single bucket.
-  const sources =
+  let sources =
     asleepBySource.size > 0
       ? [...asleepBySource.keys()]
       : [...new Set(rows.map((r) => r.source ?? NO_SOURCE))];
+  // Granularity gate: a source with a CORE/DEEP/REM partition always beats a
+  // coarse ASLEEP-only source — otherwise a parallel coarse export of the
+  // same night masks the wearable's hypnogram. Coarse sources stay only as
+  // the fallback when NO granular source covers the session.
+  const granularSources = sources.filter((src) =>
+    sawGranularStage(rowsBySource.get(src) ?? []),
+  );
+  if (granularSources.length > 0) sources = granularSources;
   if (sources.length <= 1) return sources[0] ?? NO_SOURCE;
 
   const rankOf = (src: string): number => {

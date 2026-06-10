@@ -39,6 +39,10 @@ const FULL_METRICS: AchievementMetrics = {
   leapDayCount: 1000,
   doctorPdfCount: 1000,
   localeFlipCount: 1000,
+  missFreeDayStreak: 1000,
+  measurementConsistencyWeeks: 1000,
+  selfContextCompleteCount: 1000,
+  sleepLogDayStreak: 1000,
 };
 
 const ZERO_METRICS: AchievementMetrics = Object.fromEntries(
@@ -51,6 +55,7 @@ const ALL_EARNABLE: EarnabilityFlags = {
   hasWeight: true,
   hasBp: true,
   hasPulse: true,
+  hasSleep: true,
 };
 
 const NONE_EARNABLE: EarnabilityFlags = {
@@ -59,6 +64,7 @@ const NONE_EARNABLE: EarnabilityFlags = {
   hasWeight: false,
   hasBp: false,
   hasPulse: false,
+  hasSleep: false,
 };
 
 describe("gamification achievements", () => {
@@ -84,8 +90,8 @@ describe("gamification achievements", () => {
     ).toBe(3);
   });
 
-  it("ships the v1.4.18 expanded definition list (59 total)", () => {
-    expect(ACHIEVEMENT_DEFINITIONS).toHaveLength(59);
+  it("ships the expanded definition list (65 total — v1.4.18 + v1.16.1 care routine)", () => {
+    expect(ACHIEVEMENT_DEFINITIONS).toHaveLength(65);
   });
 
   it("includes mood and hidden categories in the render order", () => {
@@ -96,8 +102,8 @@ describe("gamification achievements", () => {
   it("evaluates unlocked achievements and points when all metrics maxed", () => {
     const result = evaluateAchievementsWithCompletionDates(FULL_METRICS, {});
 
-    expect(result.summary.unlockedCount).toBe(59);
-    expect(result.summary.totalCount).toBe(59);
+    expect(result.summary.unlockedCount).toBe(65);
+    expect(result.summary.totalCount).toBe(65);
     expect(result.summary.nextAchievement).toBeNull();
     expect(result.summary.earnedPoints).toBe(result.summary.totalPoints);
   });

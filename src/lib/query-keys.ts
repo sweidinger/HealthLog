@@ -397,6 +397,8 @@ export const queryKeys = {
   coachAboutMe: () => ["coach-about-me"] as const,
   /** v1.16.0 — pending clarifying questions (Coach composer chips). */
   coachAboutMeQuestions: () => ["coach-about-me", "questions"] as const,
+  /** v1.16.1 — unseen proactive-nudge state for the floating Coach bubble. */
+  coachNudgeStatus: () => ["coach-nudge-status"] as const,
 
   /**
    * v1.4.41 — admin surfaces. Pre-fix every admin section declared its

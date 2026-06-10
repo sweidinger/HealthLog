@@ -1,5 +1,5 @@
 /**
- * scripts/repair-intake-anomalies.ts — operator repair for the two known
+ * scripts/repair-intake-anomalies.ts — operator repair for the known
  * historic medication-ledger defects:
  *
  *   1. SLOT DUPLICATES — more than one live `medication_intake_events` row
@@ -17,6 +17,26 @@
  *      (correct or delete them in the medication history tab). With
  *      `--fix --tombstone-implausible` the operator can explicitly opt
  *      into soft-deleting them.
+ *
+ *   3. WINDOW / TIMES DRIFT (v1.16.1) — `medication_schedules` rows whose
+ *      legacy `window_start` / `window_end` no longer contains the
+ *      canonical `times_of_day` (e.g. a degenerate 07:00 / 07:00 window
+ *      left behind while the dose times moved to 09:00 / 21:00). The
+ *      band model never reads the window when `times_of_day` exists, but
+ *      the stale pair keeps confusing every legacy read. Repair: clamp
+ *      `window_start` / `window_end` to `min/max(times_of_day)`. Report
+ *      always; mutate with `--fix`. Overnight windows
+ *      (`window_end < window_start`) are skipped — they encode a
+ *      deliberate wrap and cannot drift in this shape.
+ *
+ *   4. STALE-ANCHOR PENDING ROWS (v1.16.1) — live pending rows
+ *      (`taken_at IS NULL`, not skipped, not auto-missed) whose
+ *      `scheduled_for` wall-clock HH:mm (user timezone) matches NO
+ *      current dose anchor of the medication (any schedule's
+ *      `times_of_day` entry; `window_start` for legacy rows without
+ *      times). These are reminder-minted slots on retired schedule
+ *      anchors — they linger as phantom open doses. Repair: tombstone
+ *      with `--fix` (same soft-delete shape as defect 1).
  *
  * After any mutation the affected `(user, medication, day)` compliance
  * rollups are recomputed with the SAME slot-level DISTINCT aggregation the
@@ -350,7 +370,28 @@ interface Summary {
   rowsTombstoned: number;
   implausibleRows: number;
   implausibleTombstoned: number;
+  windowDriftSchedules: number;
+  windowsReconciled: number;
+  staleAnchorRows: number;
+  staleAnchorTombstoned: number;
   rollupsRecomputed: number;
+}
+
+const HHMM_RE = /^([01]\d|2[0-3]):([0-5]\d)$/;
+
+/** Wall-clock `HH:mm` of `instant` in the user's timezone. */
+function hhmmInTz(instant: Date, tz: string | null | undefined): string {
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: safeTimezone(tz),
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).formatToParts(instant);
+  const get = (type: Intl.DateTimeFormatPartTypes): string =>
+    parts.find((p) => p.type === type)?.value ?? "00";
+  // Some engines render midnight as 24:xx; normalise to 00.
+  const hour = String(Number(get("hour")) % 24).padStart(2, "0");
+  return `${hour}:${get("minute")}`;
 }
 
 async function main(): Promise<void> {
@@ -384,6 +425,10 @@ async function main(): Promise<void> {
     rowsTombstoned: 0,
     implausibleRows: 0,
     implausibleTombstoned: 0,
+    windowDriftSchedules: 0,
+    windowsReconciled: 0,
+    staleAnchorRows: 0,
+    staleAnchorTombstoned: 0,
     rollupsRecomputed: 0,
   };
 
@@ -591,13 +636,184 @@ async function main(): Promise<void> {
     }
 
     // ─────────────────────────────────────────────────────────────────
-    // 3. Recompute the affected compliance rollups so scheduled/taken
+    // 3. Window / times drift — schedules whose legacy window no longer
+    //    contains the canonical times_of_day. Reconcile the window to
+    //    min/max(times_of_day) with --fix. Overnight windows
+    //    (window_end < window_start) are skipped by the predicate.
+    // ─────────────────────────────────────────────────────────────────
+    const schedUserFilter = opts.userId ? `AND m."user_id" = $1` : "";
+    const driftRes = await client.query<{
+      id: string;
+      medication_id: string;
+      user_id: string;
+      medication_name: string;
+      window_start: string;
+      window_end: string;
+      times_min: string;
+      times_max: string;
+    }>(
+      `
+      SELECT s."id", s."medication_id", m."user_id",
+             m."name" AS medication_name,
+             s."window_start", s."window_end",
+             (SELECT MIN(t) FROM unnest(s."times_of_day") AS t) AS times_min,
+             (SELECT MAX(t) FROM unnest(s."times_of_day") AS t) AS times_max
+      FROM "medication_schedules" s
+      JOIN "medications" m ON m."id" = s."medication_id"
+      WHERE COALESCE(array_length(s."times_of_day", 1), 0) > 0
+        AND s."window_start" <= s."window_end"
+        AND (
+          (SELECT MIN(t) FROM unnest(s."times_of_day") AS t) < s."window_start"
+          OR (SELECT MAX(t) FROM unnest(s."times_of_day") AS t) > s."window_end"
+        )
+        ${schedUserFilter}
+      ORDER BY m."user_id", s."medication_id", s."id"
+      `,
+      userParams,
+    );
+
+    summary.windowDriftSchedules = driftRes.rows.length;
+    console.log(
+      `\n${TAG} 3) schedules whose window does not contain times_of_day: ${driftRes.rows.length}`,
+    );
+    for (const row of driftRes.rows) {
+      console.log(
+        `  - schedule=${row.id} medication=${row.medication_id} (${row.medication_name}) ` +
+          `window=${row.window_start}..${row.window_end} → ` +
+          `${row.times_min}..${row.times_max}`,
+      );
+      if (!HHMM_RE.test(row.times_min) || !HHMM_RE.test(row.times_max)) {
+        console.log(
+          `${TAG}   SKIP: malformed times_of_day bounds on schedule ${row.id}`,
+        );
+        continue;
+      }
+      if (opts.fix) {
+        const res = await client.query(
+          `
+          UPDATE "medication_schedules"
+          SET "window_start" = $2,
+              "window_end"   = $3
+          WHERE "id" = $1
+          `,
+          [row.id, row.times_min, row.times_max],
+        );
+        summary.windowsReconciled += res.rowCount ?? 0;
+      }
+    }
+
+    // ─────────────────────────────────────────────────────────────────
+    // 4. Stale-anchor pending rows — live pending rows whose
+    //    scheduled_for HH:mm (user tz) matches no current dose anchor of
+    //    the medication. Tombstone with --fix.
+    // ─────────────────────────────────────────────────────────────────
+    const pendingRes = await client.query<{
+      id: string;
+      user_id: string;
+      medication_id: string;
+      medication_name: string;
+      scheduled_for: Date;
+      source: string;
+    }>(
+      `
+      SELECT e."id", e."user_id", e."medication_id",
+             m."name" AS medication_name,
+             e."scheduled_for", e."source"::text AS source
+      FROM "medication_intake_events" e
+      JOIN "medications" m ON m."id" = e."medication_id"
+      WHERE e."deleted_at" IS NULL
+        AND e."taken_at" IS NULL
+        AND e."skipped" = false
+        AND e."auto_missed" = false
+        ${userFilter}
+      ORDER BY e."user_id", e."scheduled_for"
+      `,
+      userParams,
+    );
+
+    /** `medicationId -> Set<HH:mm>` of current dose anchors. */
+    const anchorCache = new Map<string, Set<string>>();
+    async function medicationAnchors(
+      medicationId: string,
+    ): Promise<Set<string>> {
+      const cached = anchorCache.get(medicationId);
+      if (cached) return cached;
+      const res = await client.query<{
+        window_start: string;
+        times_of_day: string[];
+      }>(
+        `SELECT "window_start", "times_of_day"
+         FROM "medication_schedules" WHERE "medication_id" = $1`,
+        [medicationId],
+      );
+      const anchors = new Set<string>();
+      for (const s of res.rows) {
+        const times = (s.times_of_day ?? []).filter((t) => HHMM_RE.test(t));
+        if (times.length > 0) {
+          for (const t of times) anchors.add(t);
+        } else if (HHMM_RE.test(s.window_start)) {
+          // Legacy row without times_of_day — its anchor is window_start.
+          anchors.add(s.window_start);
+        }
+      }
+      anchorCache.set(medicationId, anchors);
+      return anchors;
+    }
+
+    const staleRows: typeof pendingRes.rows = [];
+    for (const row of pendingRes.rows) {
+      const anchors = await medicationAnchors(row.medication_id);
+      // No derivable anchors (PRN-only / unscheduled) — leave the row.
+      if (anchors.size === 0) continue;
+      const tz = await userTimezone(row.user_id);
+      if (!anchors.has(hhmmInTz(row.scheduled_for, tz))) {
+        staleRows.push(row);
+      }
+    }
+
+    summary.staleAnchorRows = staleRows.length;
+    console.log(
+      `\n${TAG} 4) live pending rows on stale schedule anchors: ${staleRows.length}`,
+    );
+    if (staleRows.length > 0) {
+      console.table(
+        staleRows.map((r) => ({
+          id: r.id,
+          medication: r.medication_name,
+          scheduledFor: r.scheduled_for.toISOString(),
+          source: r.source,
+        })),
+      );
+    }
+
+    if (opts.fix && staleRows.length > 0) {
+      const res = await client.query(
+        `
+        UPDATE "medication_intake_events"
+        SET "deleted_at"   = NOW(),
+            "sync_version" = "sync_version" + 1,
+            "updated_at"   = NOW()
+        WHERE "id" = ANY($1) AND "deleted_at" IS NULL
+        `,
+        [staleRows.map((r) => r.id)],
+      );
+      summary.staleAnchorTombstoned = res.rowCount ?? 0;
+
+      for (const row of staleRows) {
+        const tz = await userTimezone(row.user_id);
+        const dayKey = dayKeyForScheduledFor(row.scheduled_for, tz);
+        daysToRecompute.add(`${row.user_id}|${row.medication_id}|${dayKey}`);
+      }
+    }
+
+    // ─────────────────────────────────────────────────────────────────
+    // 5. Recompute the affected compliance rollups so scheduled/taken
     //    counts self-correct. Same DISTINCT-slot SQL the shared helper
     //    runs (see `recomputeComplianceDay` above).
     // ─────────────────────────────────────────────────────────────────
     if (opts.fix && daysToRecompute.size > 0) {
       console.log(
-        `\n${TAG} 3) recomputing ${daysToRecompute.size} compliance rollup day(s)`,
+        `\n${TAG} 5) recomputing ${daysToRecompute.size} compliance rollup day(s)`,
       );
       for (const key of daysToRecompute) {
         const [userId, medicationId, dayKey] = key.split("|");
@@ -630,6 +846,10 @@ async function main(): Promise<void> {
   console.log(`  duplicate rows tombstoned:    ${summary.rowsTombstoned}`);
   console.log(`  implausible taken_at rows:    ${summary.implausibleRows}`);
   console.log(`  implausible rows tombstoned:  ${summary.implausibleTombstoned}`);
+  console.log(`  window/times drift schedules: ${summary.windowDriftSchedules}`);
+  console.log(`  windows reconciled:           ${summary.windowsReconciled}`);
+  console.log(`  stale-anchor pending rows:    ${summary.staleAnchorRows}`);
+  console.log(`  stale-anchor rows tombstoned: ${summary.staleAnchorTombstoned}`);
   console.log(`  rollup days recomputed:       ${summary.rollupsRecomputed}`);
 }
 

@@ -68,13 +68,15 @@ export function MobileRailTray({
           <div className="h-full min-h-0 overflow-y-auto">{historyRail}</div>
         </SheetContent>
       </Sheet>
-      {/* Sources tray — slides in from the right edge. `xl:hidden`
-          because the sources rail is inline on xl+. */}
+      {/* Sources tray — slides in from the right edge. v1.16.1 — the
+          rail no longer has an inline xl+ column; the tray is the one
+          sources surface on every viewport (hidden by default, opened
+          via the toggle in the rail-tray strip). */}
       <Sheet open={sourcesOpen} onOpenChange={onSourcesOpenChange}>
         <SheetContent
           side="right"
           data-slot="coach-drawer-sources-tray"
-          className="w-[88vw] max-w-[320px] p-0 xl:hidden"
+          className="w-[88vw] max-w-[320px] p-0"
         >
           <SheetHeader className="border-border/70 border-b p-3">
             <SheetTitle className="text-sm">

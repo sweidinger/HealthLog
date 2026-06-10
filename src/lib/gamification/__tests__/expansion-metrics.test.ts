@@ -269,7 +269,19 @@ describe("getEarnabilityFlags", () => {
       hasWeight: false,
       hasBp: true,
       hasPulse: false,
+      hasSleep: false,
     });
+  });
+
+  it("flags sleep when at least one sleep sample exists (v1.16.1)", () => {
+    expect(
+      getEarnabilityFlags({
+        hasMedication: false,
+        moodEntryCount: 0,
+        measurementCounts: { weightCount: 0, bpCount: 0, pulseCount: 0 },
+        sleepSampleCount: 3,
+      }).hasSleep,
+    ).toBe(true);
   });
 });
 

@@ -117,6 +117,10 @@ export function CoachDrawer({ open, onOpenChange, prefill }: CoachDrawerProps) {
           prefill={prefill}
           autoFocusComposer
           registerReset={registerReset}
+          // v1.16.1 — the "Conversations" affordance hands off to the
+          // full-page route (same path as maximize) instead of opening
+          // the broken in-panel left tray.
+          onRequestFullView={handleMaximize}
           // Radix requires an accessible name + description on the
           // dialog content. Mount them through the title/description
           // render-props so the page can swap in a plain heading.

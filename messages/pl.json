@@ -1509,10 +1509,10 @@
         "bestand": "Zapas",
         "verlauf": "Historia",
         "injektion": "Iniekcja",
+        "api": "API",
         "erweitert": "Zaawansowane"
       },
       "shell": {
-        "fullEdit": "Edytuj w pełni",
         "loadFailed": "Nie udało się załadować tego leku.",
         "tablistLabel": "Sekcje szczegółów leku"
       },
@@ -1543,7 +1543,25 @@
           "USED_UP": "Zużyte"
         },
         "empty": "Nie zarejestrowano zapasu.",
-        "emptyHelper": "Zarejestruj wstrzykiwacz lub opakowanie, aby śledzić pozostałe dawki i zapas na tygodnie."
+        "emptyHelper": "Zarejestruj wstrzykiwacz lub opakowanie, aby śledzić pozostałe dawki i zapas na tygodnie.",
+        "emptyCta": "Zarejestruj opakowanie",
+        "addButton": "Zarejestruj",
+        "addTitle": "Zarejestruj wstrzykiwacz lub opakowanie",
+        "addDescription": "Zapisz nowy zapas z liczbą dawek; data ważności jest opcjonalna.",
+        "addQuantityLabel": "Ilość (dawki / jednostki)",
+        "addQuantityHelper": "1–100 dawek na wstrzykiwacz lub opakowanie.",
+        "addExpiryLabel": "Data ważności (opcjonalnie)",
+        "addSubmit": "Zarejestruj",
+        "addSuccess": "Zapas zarejestrowany.",
+        "addFailed": "Nie udało się zarejestrować zapasu.",
+        "adjustButton": "Skoryguj",
+        "adjustTitle": "Skoryguj zapas",
+        "adjustDescription": "Ustaw pozostałe dawki — przy korekcie lub pobraniu. 0 oznacza zapas jako zużyty.",
+        "adjustQuantityLabel": "Pozostałe dawki",
+        "adjustHelper": "Pojemność: {total} dawek.",
+        "adjustSubmit": "Zapisz",
+        "adjustSuccess": "Zapas zaktualizowany.",
+        "adjustFailed": "Nie udało się zaktualizować zapasu."
       },
       "erweitert": {
         "group": {
@@ -1551,16 +1569,22 @@
           "externalApi": "Zewnętrzne API",
           "data": "Dane",
           "danger": "Strefa zagrożenia"
+        },
+        "editor": {
+          "title": "Edytuj lek w edytorze",
+          "helper": "Zmień nazwę, klasę leczenia, częstotliwość i harmonogramy w edytorze krok po kroku.",
+          "button": "Otwórz edytor"
         }
       },
       "zeitplan": {
         "title": "Harmonogram",
         "timesTitle": "Godziny przyjęcia",
-        "timesNote": "Dostosuj godzinę i okno punktualności każdej dawki. Częstotliwość (codziennie, co tydzień…) zmieniasz w „Pełna edycja”.",
+        "timesNote": "Dostosuj godzinę i okno punktualności każdej dawki. Częstotliwość (codziennie, co tydzień…) zmieniasz w edytorze w sekcji Zaawansowane.",
         "scheduleLabel": "Harmonogram {index}",
-        "fullEditNote": "Częstotliwość, klasę leczenia i okno kuracji edytujesz przez „Pełna edycja”.",
+        "fullEditNote": "Częstotliwość, klasę leczenia i okno kuracji edytujesz w edytorze w sekcji Zaawansowane → Cykl życia.",
         "graceEcho": "Okno przypomnienia: {minutes} minut",
         "reminderTitle": "Przypomnienie",
+        "manageChannels": "Zarządzaj kanałami powiadomień",
         "save": "Zapisz harmonogram",
         "saved": "Zapisano harmonogram",
         "failed": "Nie udało się zapisać harmonogramu",
@@ -1955,8 +1979,7 @@
       "stop": "Zatrzymaj",
       "thinking": "Myślę…",
       "composerPlaceholder": "Zapytaj o swoje dane…",
-      "composerHint": "Enter wysyła, Shift+Enter przechodzi do nowej linii.",
-      "composerDisclaimer": "Odpowiedzi są generowane. Decyzje kliniczne należą do lekarza.",
+      "nudgeBubbleLabel": "Nowa wiadomość od trenera — otwórz czat",
       "selfContextChipsLabel": "Coach chciałby wiedzieć:",
       "selfContextChipDismiss": "Odrzuć pytanie",
       "voiceComingSoon": "Wejście głosowe pojawi się z aplikacją iOS w v1.5.",
@@ -3735,6 +3758,7 @@
         "resetConfirmTitle": "Przywrócić domyślny łańcuch?",
         "resetConfirmBody": "Łańcuch wraca do Codex → OpenAI → Anthropic → Lokalny → OpenAI administratora. Zapisane dane logowania pozostają nienaruszone."
       },
+      "providerCardTitle": "Dostawca AI",
       "activeProviderHeading": "Aktywny dostawca",
       "activeProviderBody": "Wybierz dostawcę, którego chcesz użyć jako pierwszego. Formularz poniżej konfiguruje tylko wybranego dostawcę; łańcuch zapasowy na dole decyduje, co się stanie w razie awarii.",
       "activeProviderLabel": "Główny dostawca",
@@ -4943,6 +4967,30 @@
       "hiddenBugBuddy": {
         "title": "Towarzysz błędów",
         "description": "Wysłałeś co najmniej 5 zgłoszeń błędów — projekt Cię kocha."
+      },
+      "missFree7": {
+        "title": "Bez pominiętej dawki · 7 dni",
+        "description": "7 kolejnych dni bez pominiętej dawki."
+      },
+      "missFree30": {
+        "title": "Bez pominiętej dawki · 30 dni",
+        "description": "30 kolejnych dni bez pominiętej dawki."
+      },
+      "missFree90": {
+        "title": "Bez pominiętej dawki · 90 dni",
+        "description": "90 kolejnych dni bez pominiętej dawki."
+      },
+      "measurementWeeks4": {
+        "title": "Rutyna pomiarów",
+        "description": "4 kolejne tygodnie z pomiarami przez co najmniej 5 dni w każdym."
+      },
+      "selfContextComplete": {
+        "title": "Wywiad uzupełniony",
+        "description": "Wszystkie cztery pola wywiadu wypełnione — Coach zna Twój kontekst."
+      },
+      "sleepLog7": {
+        "title": "Dziennik snu · 7 dni",
+        "description": "Dane o śnie zapisane przez 7 kolejnych dni."
       }
     },
     "nextProgressLabel": "Postęp do odblokowania",
@@ -5604,6 +5652,11 @@
     "allSources": "Wszystkie źródła",
     "dateFrom": "Od",
     "dateTo": "Do",
+    "dateRange": "Zakres dat",
+    "typeLabel": "Typ",
+    "sourceLabel": "Źródło",
+    "resetFilters": "Resetuj",
+    "clearFilter": "Usuń filtr: {label}",
     "selectAll": "Zaznacz wszystko na tej stronie",
     "selectRow": "Zaznacz wiersz",
     "selected": "Zaznaczono: {count}",

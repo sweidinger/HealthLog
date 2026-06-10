@@ -17,7 +17,19 @@
  * schedule, so the helper accepts any schedule that satisfies the
  * minimal `ScheduleWindowInput` shape.
  *
- * v1.15.20 — three model fixes:
+ * v1.16.1 — the dose-band model becomes the canonical source. When a
+ * schedule carries `timesOfDay`, every status decision derives from
+ * per-dose on-time bands — the explicit `doseWindows` entry for the
+ * matching dose when present, else `timeOfDay ±` the default daily
+ * on-time half-width. The legacy `windowStart` / `windowEnd` pair is
+ * consulted ONLY for rows without `timesOfDay`; a stale or degenerate
+ * window (e.g. `07:00 / 07:00` left behind by an old write path while
+ * the times moved to `09:00 / 21:00`) can no longer paint a take-now
+ * pill at 07:00 or mis-anchor the recorded slot. The matched band rides
+ * on the result (`window`) so the pill text and the displayed-slot
+ * resolution read the SAME band the status came from.
+ *
+ * v1.15.20 — three model fixes (kept):
  *   - the wall-clock conversion takes the user's IANA timezone (default
  *     `Europe/Berlin` so existing call sites compile + behave unchanged;
  *     threading the real user timezone through the cards is the follow-up);
@@ -25,12 +37,19 @@
  *     time echoed into both fields) is a POINT window widened by the
  *     default daily on-time half-width — it previously fell into the
  *     overnight branch and read as a 24 h always-in-window band;
- *   - `countPassedSchedules` counts the schedule's `timesOfDay` doses, not
+ *   - passed-dose counting counts the schedule's `timesOfDay` doses, not
  *     schedule rows, so a two-dose row ("08:00" + "20:00") expects two
  *     intake events before the overdue pill is suppressed.
  */
 import { parseScheduleRecurrence } from "@/lib/medication-schedule";
 import { DOSE_WINDOW_DEFAULTS } from "@/lib/medications/scheduling/dose-window-defaults";
+
+/** One explicit per-dose on-time window as the API serialises it. */
+export interface DoseWindowEntryInput {
+  timeOfDay: string;
+  start: string;
+  end: string;
+}
 
 export interface ScheduleWindowInput {
   windowStart: string;
@@ -39,16 +58,35 @@ export interface ScheduleWindowInput {
   /**
    * v1.15.20 — first-class dose times. Optional so legacy fixtures and the
    * existing card call sites compile unchanged; when absent the schedule
-   * row counts as ONE expected dose (the pre-v1.15.20 behaviour).
+   * row falls back to the single legacy window (the pre-v1.16.1 behaviour).
    */
   timesOfDay?: string[];
+  /**
+   * v1.16.1 — explicit per-dose on-time windows (the detail page's
+   * Zeitplan editor writes them). Only read for doses listed in
+   * `timesOfDay`; malformed entries fall back to the default derivation.
+   */
+  doseWindows?: DoseWindowEntryInput[] | null;
 }
 
 export type MedicationWindowStatus = "in_window" | "late" | "very_late" | null;
 
+/**
+ * The dose band that produced a non-null status. `timeOfDay` is the dose
+ * anchor (a `timesOfDay` entry, or `windowStart` on a legacy row); `start`
+ * / `end` are the HH:mm band bounds for display.
+ */
+export interface MatchedDoseWindow {
+  timeOfDay: string;
+  start: string;
+  end: string;
+}
+
 export interface CurrentWindowStatus<Schedule extends ScheduleWindowInput> {
   status: MedicationWindowStatus;
   schedule: Schedule | null;
+  /** Non-null exactly when `status` is non-null. */
+  window: MatchedDoseWindow | null;
 }
 
 /** Fallback timezone until every call site threads the user's own. */
@@ -88,15 +126,29 @@ export function parseTimeToMinutes(value: string): number {
   return h * 60 + m;
 }
 
-interface WindowBounds {
+function minutesToHm(mins: number): string {
+  const clamped = Math.min(Math.max(mins, 0), 24 * 60 - 1);
+  const h = Math.floor(clamped / 60);
+  const m = clamped % 60;
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+}
+
+const HHMM_RE = /^([01]?\d|2[0-3]):([0-5]\d)$/;
+
+interface DoseWindowBounds {
+  /** Dose anchor for slot resolution + UI labels. */
+  timeOfDay: string;
   startMins: number;
-  /** May exceed 24 h × 60 for an overnight window (end wrapped past midnight). */
+  /** May exceed 24 h × 60 for a legacy overnight window (end wrapped past midnight). */
   endMins: number;
+  /** HH:mm display strings (the legacy branch keeps the raw schedule strings). */
+  startHm: string;
+  endHm: string;
 }
 
 /**
- * Resolve a schedule's window into minute-of-day bounds with two special
- * shapes handled:
+ * Resolve a legacy (no `timesOfDay`) schedule window into minute-of-day
+ * bounds with two special shapes handled:
  *
  *   - `end === start` — a degenerate POINT window (a single dose time echoed
  *     into both fields). Previously this fell into the overnight branch and
@@ -106,7 +158,10 @@ interface WindowBounds {
  *   - `end < start` — a genuine overnight window; the end wraps past
  *     midnight (`endMins > 1440`), matching the historical behaviour.
  */
-function resolveWindowBounds(schedule: ScheduleWindowInput): WindowBounds {
+function resolveLegacyWindowBounds(schedule: ScheduleWindowInput): {
+  startMins: number;
+  endMins: number;
+} {
   let startMins = parseTimeToMinutes(schedule.windowStart);
   let endMins = parseTimeToMinutes(schedule.windowEnd);
 
@@ -121,34 +176,119 @@ function resolveWindowBounds(schedule: ScheduleWindowInput): WindowBounds {
   return { startMins, endMins };
 }
 
-function getWindowStatus<Schedule extends ScheduleWindowInput>(
-  schedule: Schedule,
-  nowLocal: Date,
+/**
+ * v1.16.1 — the canonical band resolution. A schedule with `timesOfDay`
+ * yields ONE band per dose: the explicit `doseWindows` entry when present
+ * and well-formed, else `timeOfDay ±` the default daily on-time
+ * half-width (clamped to the local day). A schedule without `timesOfDay`
+ * yields the single legacy window. The legacy `windowStart` / `windowEnd`
+ * NEVER shape a band once `timesOfDay` exists — stale or degenerate
+ * windows must not drive the status or the recorded slot.
+ */
+function resolveDoseWindows(schedule: ScheduleWindowInput): DoseWindowBounds[] {
+  const times = (schedule.timesOfDay ?? []).filter((t) => HHMM_RE.test(t));
+  if (times.length > 0) {
+    const half = DOSE_WINDOW_DEFAULTS.dailyOnTimeMinutes;
+    return times.map((timeOfDay) => {
+      const explicit = Array.isArray(schedule.doseWindows)
+        ? schedule.doseWindows.find(
+            (w) =>
+              w &&
+              w.timeOfDay === timeOfDay &&
+              HHMM_RE.test(w.start) &&
+              HHMM_RE.test(w.end) &&
+              parseTimeToMinutes(w.start) <= parseTimeToMinutes(w.end),
+          )
+        : undefined;
+      if (explicit) {
+        return {
+          timeOfDay,
+          startMins: parseTimeToMinutes(explicit.start),
+          endMins: parseTimeToMinutes(explicit.end),
+          startHm: explicit.start,
+          endHm: explicit.end,
+        };
+      }
+      const anchor = parseTimeToMinutes(timeOfDay);
+      const startMins = Math.max(0, anchor - half);
+      const endMins = Math.min(24 * 60 - 1, anchor + half);
+      return {
+        timeOfDay,
+        startMins,
+        endMins,
+        startHm: minutesToHm(startMins),
+        endHm: minutesToHm(endMins),
+      };
+    });
+  }
+
+  const { startMins, endMins } = resolveLegacyWindowBounds(schedule);
+  return [
+    {
+      timeOfDay: schedule.windowStart,
+      startMins,
+      endMins,
+      // Keep the raw schedule strings for display so legacy pills render
+      // byte-identically to the pre-band model.
+      startHm: schedule.windowStart,
+      endHm: schedule.windowEnd,
+    },
+  ];
+}
+
+const STATUS_PRIORITY = { in_window: 3, late: 2, very_late: 1 } as const;
+
+function bandStatus(
+  band: DoseWindowBounds,
+  nowMins: number,
   lateMinutes: number,
   missedMinutes: number,
-): MedicationWindowStatus {
-  const nowMins = nowLocal.getHours() * 60 + nowLocal.getMinutes();
-  const { startMins, endMins } = resolveWindowBounds(schedule);
-
-  // Handle overnight windows
+): Exclude<MedicationWindowStatus, null> | null {
+  // Handle legacy overnight windows (wrapped end past midnight).
   const adjustedNow =
-    nowMins < startMins && endMins > 24 * 60 ? nowMins + 24 * 60 : nowMins;
+    nowMins < band.startMins && band.endMins > 24 * 60
+      ? nowMins + 24 * 60
+      : nowMins;
 
-  // Currently in window
-  if (adjustedNow >= startMins && adjustedNow <= endMins) return "in_window";
+  if (adjustedNow >= band.startMins && adjustedNow <= band.endMins) {
+    return "in_window";
+  }
 
-  // Past window end: check late thresholds
-  const minutesPastEnd = adjustedNow - endMins;
+  const minutesPastEnd = adjustedNow - band.endMins;
   if (minutesPastEnd > 0 && minutesPastEnd <= lateMinutes) return "late";
-  if (minutesPastEnd > lateMinutes && minutesPastEnd <= missedMinutes)
+  if (minutesPastEnd > lateMinutes && minutesPastEnd <= missedMinutes) {
     return "very_late";
-
+  }
   return null;
 }
 
-function isLastIntakeInCurrentWindow<Schedule extends ScheduleWindowInput>(
+function getScheduleStatus(
+  schedule: ScheduleWindowInput,
+  nowLocal: Date,
+  lateMinutes: number,
+  missedMinutes: number,
+): {
+  status: Exclude<MedicationWindowStatus, null>;
+  band: DoseWindowBounds;
+} | null {
+  const nowMins = nowLocal.getHours() * 60 + nowLocal.getMinutes();
+  let best: {
+    status: Exclude<MedicationWindowStatus, null>;
+    band: DoseWindowBounds;
+  } | null = null;
+  for (const band of resolveDoseWindows(schedule)) {
+    const status = bandStatus(band, nowMins, lateMinutes, missedMinutes);
+    if (!status) continue;
+    if (!best || STATUS_PRIORITY[status] > STATUS_PRIORITY[best.status]) {
+      best = { status, band };
+    }
+  }
+  return best;
+}
+
+function isLastIntakeInBand(
   lastTakenAt: string | null,
-  schedule: Schedule,
+  band: DoseWindowBounds,
   nowLocal: Date,
   tz: string,
 ): boolean {
@@ -166,35 +306,35 @@ function isLastIntakeInCurrentWindow<Schedule extends ScheduleWindowInput>(
   }
 
   const intakeMins = intake.getHours() * 60 + intake.getMinutes();
-  const { startMins, endMins } = resolveWindowBounds(schedule);
 
-  // Handle overnight windows
+  // Handle legacy overnight windows
   const adjustedIntake =
-    intakeMins < startMins && endMins > 24 * 60
+    intakeMins < band.startMins && band.endMins > 24 * 60
       ? intakeMins + 24 * 60
       : intakeMins;
 
-  return adjustedIntake >= startMins && adjustedIntake <= endMins;
+  return adjustedIntake >= band.startMins && adjustedIntake <= band.endMins;
 }
 
 /**
- * Count how many doses are past their window today, honouring the
+ * Count how many doses are past their band today, honouring the
  * recurrence's allowed days-of-week. Used by both cards to suppress
  * "overdue" pills once the user has already covered every passed dose
  * with intake events for the day.
  *
- * v1.15.20 — counts `timesOfDay` entries, not schedule rows: a schedule
- * row carrying two dose times expects TWO intake events once its window
- * passes. A row without `timesOfDay` (legacy shape) keeps counting as one.
- * The passed check stays anchored on the (degenerate-resolved) raw window
- * end of the same local day, matching the historical comparison — an
- * overnight window therefore never reads as "passed" within the same local
- * day, exactly as before.
+ * v1.16.1 — counts per-dose BANDS: each `timesOfDay` dose passes when its
+ * own on-time band end has passed, so a 09:00 / 21:00 row reads ONE
+ * passed dose at noon (not two). A row without `timesOfDay` (legacy
+ * shape) keeps the single-window behaviour, including the degenerate
+ * point-window resolution; a wrapped overnight end (> 1440) keeps the raw
+ * minute comparison so an overnight window never reads as "passed"
+ * within the same local day, exactly as before.
  */
-function countPassedSchedules<Schedule extends ScheduleWindowInput>(
+function countPassedDoses<Schedule extends ScheduleWindowInput>(
   schedules: Schedule[],
   nowLocal: Date,
 ): number {
+  const nowMins = nowLocal.getHours() * 60 + nowLocal.getMinutes();
   return schedules.reduce((sum, s) => {
     const recurrence = parseScheduleRecurrence(s.daysOfWeek);
     if (
@@ -203,32 +343,27 @@ function countPassedSchedules<Schedule extends ScheduleWindowInput>(
     ) {
       return sum;
     }
-    // Same-day end bound: a wrapped overnight end (> 1440) keeps the raw
-    // minute value so the comparison below matches the historical
-    // behaviour; the degenerate point window resolves to its widened end.
-    const rawStart = parseTimeToMinutes(s.windowStart);
-    const rawEnd = parseTimeToMinutes(s.windowEnd);
-    const endMins =
-      rawEnd === rawStart
-        ? Math.min(24 * 60 - 1, rawEnd + DOSE_WINDOW_DEFAULTS.dailyOnTimeMinutes)
-        : rawEnd;
-    const nowMins = nowLocal.getHours() * 60 + nowLocal.getMinutes();
-    if (nowMins <= endMins) return sum;
-    const doseCount =
-      s.timesOfDay && s.timesOfDay.length > 0 ? s.timesOfDay.length : 1;
-    return sum + doseCount;
+    const passed = resolveDoseWindows(s).filter((band) => {
+      // Same-day end bound: a wrapped overnight end (> 1440) keeps the
+      // raw minute value so the comparison matches the historical
+      // behaviour (it never passes within the same local day).
+      const endMins =
+        band.endMins > 24 * 60 ? band.endMins - 24 * 60 : band.endMins;
+      return nowMins > endMins;
+    }).length;
+    return sum + passed;
   }, 0);
 }
 
 /**
  * Reduce a list of schedules into the most actionable window status
  * for the card header pill. Returns `null` status when the medication
- * is paused, no schedule is currently in/past its window, or every
- * overdue schedule is already covered by today's intake events.
+ * is paused, no dose band is currently in/past its window, or every
+ * overdue dose is already covered by today's intake events.
  *
  * Priority: in_window > late > very_late. Suppresses an `in_window`
- * status when the last intake already falls inside the window so the
- * pill doesn't nag after the user took the dose.
+ * status when the last intake already falls inside the matched band so
+ * the pill doesn't nag after the user took the dose.
  *
  * `nowBerlin` is the wall-clock "now" already shifted into the user's
  * timezone (via `toZonedDate`); `tz` must name the same timezone so the
@@ -260,32 +395,41 @@ export function reduceCurrentWindowStatus<Schedule extends ScheduleWindowInput>(
     tz = DEFAULT_TZ,
   } = options;
 
-  if (!active) return { status: null, schedule: null };
+  const none: CurrentWindowStatus<Schedule> = {
+    status: null,
+    schedule: null,
+    window: null,
+  };
+  if (!active) return none;
 
-  const passedScheduleCount = countPassedSchedules(schedules, nowBerlin);
-  const hasUncoveredOverdue = todayEventCount < passedScheduleCount;
+  const passedDoseCount = countPassedDoses(schedules, nowBerlin);
+  const hasUncoveredOverdue = todayEventCount < passedDoseCount;
 
-  return schedules.reduce<CurrentWindowStatus<Schedule>>(
-    (best, s) => {
-      const status = getWindowStatus(s, nowBerlin, lateMinutes, missedMinutes);
-      if (!status) return best;
-      // Don't show late/very_late if all overdue schedules are covered
-      // by intake events for the day.
-      if (status !== "in_window" && !hasUncoveredOverdue) return best;
-      // Don't show in_window if last intake is already within this
-      // window today.
-      if (
-        status === "in_window" &&
-        isLastIntakeInCurrentWindow(lastTakenAt, s, nowBerlin, tz)
-      ) {
-        return best;
-      }
-      const priority = { in_window: 3, late: 2, very_late: 1 };
-      if (!best.status || priority[status] > priority[best.status]) {
-        return { status, schedule: s };
-      }
+  return schedules.reduce<CurrentWindowStatus<Schedule>>((best, s) => {
+    const hit = getScheduleStatus(s, nowBerlin, lateMinutes, missedMinutes);
+    if (!hit) return best;
+    // Don't show late/very_late if all overdue doses are covered by
+    // intake events for the day.
+    if (hit.status !== "in_window" && !hasUncoveredOverdue) return best;
+    // Don't show in_window if last intake is already within this band
+    // today.
+    if (
+      hit.status === "in_window" &&
+      isLastIntakeInBand(lastTakenAt, hit.band, nowBerlin, tz)
+    ) {
       return best;
-    },
-    { status: null, schedule: null },
-  );
+    }
+    if (!best.status || STATUS_PRIORITY[hit.status] > STATUS_PRIORITY[best.status]) {
+      return {
+        status: hit.status,
+        schedule: s,
+        window: {
+          timeOfDay: hit.band.timeOfDay,
+          start: hit.band.startHm,
+          end: hit.band.endHm,
+        },
+      };
+    }
+    return best;
+  }, none);
 }

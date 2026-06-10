@@ -52,6 +52,13 @@ interface ScheduleLite {
   label: string | null;
   dose: string | null;
   daysOfWeek: string | null;
+  /**
+   * v1.16.1 — first-class dose times + explicit per-dose bands; the
+   * window-status helper derives its bands from these (canonical) and
+   * only falls back to the legacy window when they are absent.
+   */
+  timesOfDay?: string[];
+  doseWindows?: { timeOfDay: string; start: string; end: string }[] | null;
 }
 
 interface DoseChangeLite {
@@ -402,8 +409,10 @@ export function Glp1MedicationCard({
         currentWindowStatus.status
           ? {
               status: currentWindowStatus.status,
-              windowStart: currentWindowStatus.schedule!.windowStart,
-              windowEnd: currentWindowStatus.schedule!.windowEnd,
+              // v1.16.1 — the pill shows the MATCHED dose band, not the
+              // legacy schedule window (which may be stale / degenerate).
+              windowStart: currentWindowStatus.window!.start,
+              windowEnd: currentWindowStatus.window!.end,
             }
           : null
       }

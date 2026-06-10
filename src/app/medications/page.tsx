@@ -171,15 +171,14 @@ export default function MedicationsPage() {
     queryClient.setQueryData(queryKeys.medicationDetail(med.id), med);
   }
 
-  // v1.15.20 — the kebab's Edit opens the medication wizard directly:
-  // it navigates to the detail page with `?edit=1`, which the tabbed
-  // shell reads synchronously to mount the wizard in edit mode (the same
-  // `editOpen` path the hero's "Vollständig bearbeiten" uses). History
-  // still lands on the Verlauf tab; the former Advanced item is retired —
-  // the Erweitert tab stays reachable through the card body.
+  // v1.16.1 — the kebab's Edit lands on the detail page's Übersicht tab,
+  // exactly like tapping the medication name. Every everyday edit lives
+  // inline in the tabs there; the structural wizard is reachable via
+  // Erweitert → Lebenszyklus (and still answers `?edit=1` deep-links).
+  // History still lands on the Verlauf tab.
   function openEdit(med: Medication) {
     seedDetail(med);
-    router.push(`/medications/${med.id}?edit=1`);
+    router.push(`/medications/${med.id}`);
   }
 
   function openHistory(med: Medication) {

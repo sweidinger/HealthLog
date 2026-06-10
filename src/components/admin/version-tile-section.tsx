@@ -77,7 +77,7 @@ export function VersionTileSection() {
       className="bg-card border-border rounded-xl border p-6"
     >
       <div className="flex flex-wrap items-center gap-2">
-        <Tag className="text-primary h-5 w-5" aria-hidden="true" />
+        <Tag className="text-muted-foreground h-5 w-5" aria-hidden="true" />
         <h2
           id="admin-overview-version-heading"
           className="text-lg font-semibold"
