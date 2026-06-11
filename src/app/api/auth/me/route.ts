@@ -12,22 +12,22 @@ export const dynamic = "force-dynamic";
 export const GET = apiHandler(async () => {
   const { user } = await requireAuth();
 
-  // v1.4.22 W5 reconcile (Sr-H1) — fall-back resync for legacy
-  // sessions that predate the cookie. New sessions anchor the cookie
-  // inside `createSession` itself, so this is no longer the primary
-  // write path; it just makes sure pre-v1.4.22 sessions get their
-  // cookie set on the first /me roundtrip after the upgrade.
-  await setOnboardingPendingCookie(user.onboardingCompletedAt == null);
-
   annotate({ action: { name: "auth.me" } });
 
-  // v1.15.0 — resolved cycle-tracking gate. Read the profile without
-  // forcing a row (a NULL toggle derives from gender); the resolver
-  // collapses both gates into the single boolean iOS hides the tab on.
-  const cycleProfile = await prisma.cycleProfile.findUnique({
-    where: { userId: user.id },
-    select: { cycleTrackingEnabled: true },
-  });
+  // Two independent awaits, overlapped: the onboarding-cookie resync
+  // (v1.4.22 W5 Sr-H1 — fall-back for legacy sessions that predate the
+  // cookie; new sessions anchor it inside `createSession`) touches only
+  // the cookie store, while the cycle-profile read (v1.15.0 — resolved
+  // cycle-tracking gate; no row is forced, a NULL toggle derives from
+  // gender) is a Postgres round-trip. Running them sequentially added
+  // the cookie hop to every /me — and /me sits on every app boot path.
+  const [, cycleProfile] = await Promise.all([
+    setOnboardingPendingCookie(user.onboardingCompletedAt == null),
+    prisma.cycleProfile.findUnique({
+      where: { userId: user.id },
+      select: { cycleTrackingEnabled: true },
+    }),
+  ]);
   const cycleTrackingEnabled = isCycleEnabled(user.gender, cycleProfile);
 
   // v1.7.0 — patient-identity fields for the health-record export. The

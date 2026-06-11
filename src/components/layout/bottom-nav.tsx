@@ -17,6 +17,8 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
+import { medicationsPrefetchIntentProps } from "@/lib/queries/prefetch-medications";
 import { useState } from "react";
 import { useAppSettings } from "@/components/app-settings-provider";
 import { useAuth } from "@/hooks/use-auth";
@@ -96,6 +98,10 @@ export function BottomNav() {
   const pathname = usePathname();
   const { t } = useTranslations();
   const { user } = useAuth();
+  const queryClient = useQueryClient();
+  // v1.16.7 — touch intent on the medications tab starts the list
+  // request before the navigation commits (see sidebar-nav).
+  const medsIntent = medicationsPrefetchIntentProps(queryClient);
   const { bugReportEnabled } = useAppSettings();
   const [moreOpen, setMoreOpen] = useState(false);
   const [captureOpen, setCaptureOpen] = useState(false);
@@ -132,6 +138,7 @@ export function BottomNav() {
         href={item.href}
         aria-label={t(item.tKey)}
         aria-current={isActive ? "page" : undefined}
+        {...(item.href === "/medications" ? medsIntent : {})}
         // Touch target sized to WCAG 2.5.5 (44×44 CSS px). The
         // outer min-h-11 min-w-11 is the actual hit area; the icon
         // stays visually centered at 20px so the design doesn't shift.

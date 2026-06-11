@@ -36,9 +36,12 @@ import { MoodHeatmap } from "@/components/charts/mood-heatmap";
 import type { MoodDistributionRow } from "./mood-distribution-chart";
 import type { MoodWeekdayRow } from "./mood-weekday-chart";
 import type { MoodTimeOfDayPattern } from "./mood-time-of-day-chart";
+// v1.16.7 — all three loaders resolve the ONE `./mood-charts` barrel so
+// they share a single chunk: the cards reveal together instead of
+// popping in chunk-by-chunk, and Recharts ships once for the trio.
 const MoodDistributionChart = dynamic(
   () =>
-    import("./mood-distribution-chart").then((mod) => ({
+    import("./mood-charts").then((mod) => ({
       default: mod.MoodDistributionChart,
     })),
   {
@@ -48,7 +51,7 @@ const MoodDistributionChart = dynamic(
 );
 const MoodWeekdayChart = dynamic(
   () =>
-    import("./mood-weekday-chart").then((mod) => ({
+    import("./mood-charts").then((mod) => ({
       default: mod.MoodWeekdayChart,
     })),
   {
@@ -58,7 +61,7 @@ const MoodWeekdayChart = dynamic(
 );
 const MoodTimeOfDayChart = dynamic(
   () =>
-    import("./mood-time-of-day-chart").then((mod) => ({
+    import("./mood-charts").then((mod) => ({
       default: mod.MoodTimeOfDayChart,
     })),
   {

@@ -13,15 +13,17 @@
  * handlers):
  *
  *   - 02:xx status crons → users WITHOUT a comprehensive-pregenerate
- *     claim: no configured provider, or a comprehensive cache fresh
- *     enough (< 20 h) that the 04:30 pass will skip them — their
- *     per-status caches still age out daily and only these crons
- *     re-fill them.
+ *     claim: no configured provider, or a comprehensive cache fresher
+ *     than `PREGENERATE_STALE_MS` so the 04:30 pass will skip them —
+ *     their per-status caches still age out daily and only these crons
+ *     re-fill them. With the one-hour threshold this cohort is, in
+ *     practice, the provider-less accounts.
  *   - 04:30 insight-pregenerate → the rest: coach-enabled users with a
- *     configured provider and a stale (>= 20 h) comprehensive cache.
- *     That pass regenerates the comprehensive insight AND force-warms
- *     every per-status cache, so a 02:xx generation for those users
- *     would be evicted and redone two hours later.
+ *     configured provider and a comprehensive cache older than
+ *     `PREGENERATE_STALE_MS`. That pass regenerates the comprehensive
+ *     insight AND force-warms every per-status cache, so a 02:xx
+ *     generation for those users would be evicted and redone two hours
+ *     later.
  *
  * Gates, in order:
  *   1. Operator kill-switch via `getAssistantFlags()` — the same source

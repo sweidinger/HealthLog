@@ -443,7 +443,9 @@ describe("GET /api/insights/generate — read-only advisor read", () => {
       locale: "en",
     } as never);
 
-    const res = await (GET as () => Promise<Response>)();
+    const res = await (GET as unknown as (req: Request) => Promise<Response>)(
+      new Request("http://localhost/api/insights/generate"),
+    );
     expect(res.status).toBe(200);
     const body = (await res.json()) as {
       data: { insights: unknown; cached: boolean };
@@ -464,7 +466,9 @@ describe("GET /api/insights/generate — read-only advisor read", () => {
       locale: "en",
     } as never);
 
-    const res = await (GET as () => Promise<Response>)();
+    const res = await (GET as unknown as (req: Request) => Promise<Response>)(
+      new Request("http://localhost/api/insights/generate"),
+    );
     expect(res.status).toBe(200);
     expect(enqueueForceWarm).toHaveBeenCalledWith({
       userId: "u-1",
@@ -481,7 +485,9 @@ describe("GET /api/insights/generate — read-only advisor read", () => {
       locale: "en",
     } as never);
 
-    const res = await (GET as () => Promise<Response>)();
+    const res = await (GET as unknown as (req: Request) => Promise<Response>)(
+      new Request("http://localhost/api/insights/generate"),
+    );
     expect(res.status).toBe(200);
     const body = (await res.json()) as {
       data: { insights: unknown; cached: boolean };

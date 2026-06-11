@@ -21,6 +21,7 @@ import { AppSettingsProvider } from "@/components/app-settings-provider";
 import { VersionPoller } from "@/components/version-poller";
 import { isDashboardSnapshotEnabled } from "@/lib/dashboard/snapshot-flag";
 import { prefetchDashboardSnapshot } from "@/lib/queries/use-dashboard-snapshot";
+import { prefetchMedicationsList } from "@/lib/queries/prefetch-medications";
 
 // ── Theme Context ────────────────────────────────────
 
@@ -131,6 +132,15 @@ function DashboardSnapshotPreloader() {
   useEffect(() => {
     if (pathname === "/" && isDashboardSnapshotEnabled()) {
       prefetchDashboardSnapshot(queryClient);
+    }
+    // v1.16.7 — same waterfall cut for the medications page: its list
+    // query (which carries the per-medication `nextDueAt` the due cells
+    // render) used to fire only after the page chunk mounted. Firing it
+    // at route commit rides the data hop in parallel with the chunk
+    // download; the nav links additionally prefetch on hover/touch
+    // intent, so this is the fallback for direct loads + reloads.
+    if (pathname === "/medications") {
+      prefetchMedicationsList(queryClient);
     }
   }, [pathname, queryClient]);
   return null;

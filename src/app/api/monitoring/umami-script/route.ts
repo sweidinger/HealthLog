@@ -26,16 +26,33 @@ export const GET = apiHandler(async () => {
     });
   }
 
-  const response = await safeFetch(
-    settings.umamiScriptUrl,
-    {
-      next: { revalidate: 3600 },
-    },
-    // Operator-configured host — pin the connect-time IP so a low-TTL
-    // DNS record cannot rebind the fetch at an internal range between
-    // the input-time `isPublicUrl` accept and the socket connect.
-    { requirePublicHost: true },
-  );
+  // Fail-soft: an unreachable / slow / rebinding-refused upstream must
+  // degrade to the noop script, not 500 the proxy route — `safeFetch`
+  // THROWS on its 15 s timeout and on the connect-time public-host
+  // refusal, and an uncaught throw here surfaced as a 500 on every
+  // mount whenever the operator's Umami host was down or unresolvable.
+  let response: Response;
+  try {
+    response = await safeFetch(
+      settings.umamiScriptUrl,
+      {
+        next: { revalidate: 3600 },
+      },
+      // Operator-configured host — pin the connect-time IP so a low-TTL
+      // DNS record cannot rebind the fetch at an internal range between
+      // the input-time `isPublicUrl` accept and the socket connect.
+      { requirePublicHost: true },
+    );
+  } catch {
+    annotate({ meta: { umami_script_fetch_failed: true } });
+    return new NextResponse(NOOP_SCRIPT, {
+      status: 200,
+      headers: {
+        "Content-Type": "application/javascript; charset=utf-8",
+        "Cache-Control": "public, max-age=60",
+      },
+    });
+  }
   if (!response.ok) {
     return new NextResponse(NOOP_SCRIPT, {
       status: 200,

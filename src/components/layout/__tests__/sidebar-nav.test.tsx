@@ -47,6 +47,7 @@ vi.mock("@/components/app-settings-provider", () => ({
   useAppSettings: () => mockSettingsRef.value,
 }));
 
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { I18nProvider } from "@/lib/i18n/context";
 import { SidebarNav } from "../sidebar-nav";
 import { ADMIN_SECTIONS } from "@/components/admin/admin-shell";
@@ -66,9 +67,14 @@ function render({
   mockSettingsRef.value = { bugReportEnabled };
   mockUserRef.value = { ...mockUserRef.value, role, cycleTrackingEnabled };
   return renderToStaticMarkup(
-    <I18nProvider initialLocale="en">
-      <SidebarNav />
-    </I18nProvider>,
+    // The nav reads `useQueryClient()` for the medications intent
+    // prefetch (v1.16.7); a fresh client per render keeps the SSR
+    // markup assertions isolated.
+    <QueryClientProvider client={new QueryClient()}>
+      <I18nProvider initialLocale="en">
+        <SidebarNav />
+      </I18nProvider>
+    </QueryClientProvider>,
   );
 }
 

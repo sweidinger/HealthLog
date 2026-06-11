@@ -3,11 +3,16 @@
 import { useCallback } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { InsightResult } from "@/lib/ai/types";
-import {
-  dailyBriefingSchema,
-  trendAnnotationsSchema,
-  type DailyBriefing as DailyBriefingPayload,
-  type TrendAnnotations,
+// Type-only — the runtime schemas load lazily inside `fetchAdvisor` so
+// the zod module graph (`@/lib/ai/schema` is ~550 lines of zod builders)
+// stays out of the insights route-entry chunk. This hook is imported
+// eagerly by BOTH the insights page and the layout shell, so a value
+// import here landed zod in the chunk every insights visit downloads
+// before first paint; the schemas are only needed once a payload has
+// actually arrived, which is by definition after the network hop.
+import type {
+  DailyBriefing as DailyBriefingPayload,
+  TrendAnnotations,
 } from "@/lib/ai/schema";
 import { queryKeys } from "@/lib/query-keys";
 import { apiFetchRaw } from "@/lib/api/api-fetch";
@@ -157,6 +162,12 @@ async function fetchAdvisor(
   }
   const json = await res.json();
   const payload = json.data as InsightAdvisorPayload;
+  // Lazy schema load — see the type-only import note at the top. The
+  // module is cached after the first call, so this await is free from
+  // the second fetch on.
+  const { dailyBriefingSchema, trendAnnotationsSchema } = await import(
+    "@/lib/ai/schema"
+  );
   // The cached `insights` blob may carry a `dailyBriefing` from a fresh
   // PROMPT_VERSION 4.20.x generation. Lift it onto the payload so
   // consumers don't have to know the legacy shape.

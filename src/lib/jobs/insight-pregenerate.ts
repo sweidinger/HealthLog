@@ -37,7 +37,8 @@
  *
  * The discovery query selects only users that are worth a generation:
  * coach surface enabled (`disableCoach = false`) AND a stale-or-missing
- * cache (`insightsCachedAt IS NULL OR < now - 20h`). Whether the user
+ * cache (`insightsCachedAt IS NULL OR < now - PREGENERATE_STALE_MS`,
+ * see the constant for why that window is one hour). Whether the user
  * has a configured provider is confirmed inside
  * `generateComprehensiveInsight` (returns `skipped: no-provider`), so a
  * provider-less account costs one cheap chain-resolve and no LLM call.
@@ -88,10 +89,21 @@ export type { InsightPregeneratePayload };
  */
 export const INSIGHT_PREGENERATE_CRON = "30 4 * * *";
 
-/** Stale-cache threshold — a hair under the 24 h advisor TTL so the
- * overnight run always refreshes a cache that will expire before the
- * user's next likely visit. */
-export const PREGENERATE_STALE_MS = 20 * 60 * 60 * 1000;
+/** Stale-cache threshold for the nightly discovery pass.
+ *
+ * The cron runs every 24 h and the advisor cache lives 24 h — so ANY
+ * cache not written within the last hour will expire before the next
+ * nightly tick, i.e. at some point during the user's day. The previous
+ * 20 h threshold structurally excluded every evening visitor: a visit
+ * at ~19:50 stamps `insightsCachedAt`, the 04:30 run sees a ~9 h-old
+ * cache and skips, and the cache then expires at ~19:50 the next day —
+ * exactly when the user returns. That recreated the on-visit warm storm
+ * (comprehensive feature extraction + the full per-card warm pass in
+ * the request-serving process) every single evening, which is what the
+ * nightly pass exists to prevent. One hour keeps the only sensible
+ * skip: a cache the on-demand path generated minutes before the tick.
+ */
+export const PREGENERATE_STALE_MS = 60 * 60 * 1000;
 
 /** Per-run cap on the number of users a single tick generates for. */
 export const PREGENERATE_BATCH_CAP = 200;
@@ -566,8 +578,11 @@ export async function runInsightPregenerate(
  *     it just rewrites the same cache row; concurrent enqueues collapse via
  *     the queue `singletonKey`.
  *
- * Unlike the nightly cron (de+en), the forced path warms only the caller's
- * active `locale` so a single-locale user pays half the provider cost.
+ * Like the nightly cron, the forced path warms BOTH locales (de+en): its
+ * own comprehensive step evicts every per-status row across both locale
+ * families, and the refill-only mode keeps the second family's cost at
+ * exactly the cards that are cold. The caller's `locale` still picks the
+ * language of the comprehensive briefing itself.
  *
  * The three sections are decoupled: the comprehensive step runs under its
  * own bounded budget (`COMPREHENSIVE_WARM_TIMEOUT_MS`) and its
@@ -595,6 +610,7 @@ export async function forceWarmUser(
     warmGenericMetrics?: (
       userId: string,
       locales: ReadonlyArray<"de" | "en">,
+      force?: boolean,
     ) => Promise<number>;
   } = {},
 ): Promise<ForceWarmResult> {
@@ -603,8 +619,8 @@ export async function forceWarmUser(
     options.statusGenerators ?? DEFAULT_STATUS_GENERATORS;
   const warmGenericMetrics =
     options.warmGenericMetrics ??
-    ((id: string, locales: ReadonlyArray<"de" | "en">) =>
-      warmGenericMetricCaches(prisma, id, locales));
+    ((id: string, locales: ReadonlyArray<"de" | "en">, force?: boolean) =>
+      warmGenericMetricCaches(prisma, id, locales, force));
 
   const result: ForceWarmResult = {
     comprehensive: "skipped",
@@ -624,7 +640,17 @@ export async function forceWarmUser(
   const flags = await getAssistantFlags();
   if (!flags.briefing && !flags.insightStatus) return result;
 
-  const locales: ReadonlyArray<"de" | "en"> = [locale];
+  // Warm BOTH supported locales, matching the nightly pass. A fresh
+  // comprehensive generation evicts every per-status cache row in both
+  // locale families (`evictPerStatusInsightCache` deletes by scope, not
+  // by locale) — refilling only the caller's active locale left the
+  // other family cold, so an account read through two surfaces (German
+  // web UI + an English Accept-Language client) regenerated the second
+  // family card-by-card on its next visits, all day, every day. The
+  // refill mode below short-circuits to the cache for any card already
+  // generated today, so the second locale costs only the cards that are
+  // actually cold.
+  const locales: ReadonlyArray<"de" | "en"> = ["de", "en"];
 
   // The comprehensive step gets its own bounded budget and its failure is
   // non-fatal. A slow or stalled briefing generation must not short-circuit
@@ -665,12 +691,26 @@ export async function forceWarmUser(
   // outcome that has nothing to warm is a missing provider, and the
   // generators detect that themselves at near-zero cost.
   if (flags.insightStatus) {
+    // Mirror the nightly loop's force/refill split: only a `generated` /
+    // `cached` comprehensive ran `evictPerStatusInsightCache`, so only
+    // then must every card re-generate. On a failed / timed-out /
+    // skipped comprehensive the rows survived — refill-only (`force:
+    // false`) lets a card already generated today short-circuit to its
+    // cache, which is what keeps the second locale family cheap.
+    const evicted =
+      result.comprehensive === "generated" ||
+      result.comprehensive === "cached";
     result.assessmentsWarmed = await warmPerStatusCaches(
       userId,
       locales,
       statusGenerators,
+      evicted,
     );
-    result.metricAssessmentsWarmed = await warmGenericMetrics(userId, locales);
+    result.metricAssessmentsWarmed = await warmGenericMetrics(
+      userId,
+      locales,
+      evicted,
+    );
   }
 
   annotate({
