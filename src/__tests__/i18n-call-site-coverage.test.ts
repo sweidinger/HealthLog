@@ -1,7 +1,7 @@
 /**
  * v1.4.49.3 — call-site i18n coverage guard.
  *
- * Marc surfaced raw `insights.relativeHoursAgo`, `notifications.event
+ * The maintainer surfaced raw `insights.relativeHoursAgo`, `notifications.event
  * MoodReminder`, and `notifications.eventMoodReminderDesc` strings
  * leaking into the UI in v1.4.49. Audit found 28 keys called from real
  * code that never existed in any locale bundle — silent regressions

@@ -22,7 +22,7 @@ import { STORAGE_STATE_PATH } from "./setup/global-setup";
  *
  * Walks the 7-step daily path through the modal dialog. The dialog
  * mounts when `/medications/new` redirects to `/medications?new=1`.
- * The DE label surface (Marc's primary locale) is the assertion
+ * The DE label surface (the maintainer's primary locale) is the assertion
  * surface — "Schritt N von 7" tracks the visible counter.
  */
 test.describe("medication wizard — daily", () => {

@@ -9,6 +9,10 @@ export default defineConfig({
   test: {
     globals: true,
     environment: "node",
+    // Primes the i18n locale cache so provider mounts resolve every
+    // locale synchronously (production gets the active bundle as an RSC
+    // prop instead — see src/lib/i18n/load-locale.ts).
+    setupFiles: ["./vitest.setup.ts"],
     // Default `pnpm test` keeps unit tests only — integration suite uses
     // testcontainers and runs separately via `pnpm test:integration`.
     exclude: [

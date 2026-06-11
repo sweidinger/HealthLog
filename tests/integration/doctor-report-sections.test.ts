@@ -230,7 +230,7 @@ describe("doctor-report — per-section toggles", () => {
 
     const data = await collectDoctorReportData(userId, RANGE);
 
-    // Privacy default per Marc — mood is opt-in, not opt-out.
+    // Privacy default per the maintainer — mood is opt-in, not opt-out.
     expect(data.mood).toBeNull();
     // Every other section keeps its data.
     expect(data.stats.WEIGHT).toBeDefined();

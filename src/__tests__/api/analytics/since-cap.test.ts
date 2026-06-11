@@ -4,7 +4,7 @@
  *
  * The v1.4.38.7 perf audit (`.planning/round-v1438-perf-analysis.md`
  * §1 A2) flagged the per-type `fetchMeasurementSeriesChunked` loop
- * inside `/api/analytics` as the dominant cost of Marc's 74.6 s cold
+ * inside `/api/analytics` as the dominant cost of the maintainer's 74.6 s cold
  * full-slice mount. v1.4.38.8 (commit 8a8150d2) relaxed the
  * `isFullyCovered` gate inside the three downstream fast-paths so the
  * walk became unreachable in the common case — but the A2 loop itself
@@ -129,7 +129,7 @@ const SESSION_OK = {
   session: { id: "sess-1", expiresAt: new Date(Date.now() + 3_600_000) },
   user: {
     id: "user-since-1",
-    username: "marc",
+    username: "testuser",
     role: "USER" as const,
     locale: "en",
     timezone: "Europe/Berlin",

@@ -5,7 +5,7 @@ import { STORAGE_STATE_PATH } from "./setup/global-setup";
 /**
  * v1.4.16 A1 — Sidebar Admin entry must mirror the Settings entry
  * exactly: a single link with no sub-item expansion in the global
- * sidebar. Marc reported in v1.4.15 that the sidebar was auto-expanding
+ * sidebar. The maintainer reported in v1.4.15 that the sidebar was auto-expanding
  * admin sub-items on `/admin/*` and the gravatar dropdown felt linked to
  * the sidebar — both unwanted UX. The in-shell `<AdminShell>` already
  * renders its own per-section nav inside the page itself.

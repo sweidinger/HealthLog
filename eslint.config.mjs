@@ -38,6 +38,12 @@ const eslintConfig = defineConfig([
       // requirePublicHost connect-time pin). The wrapper internals and
       // test files are exempt; see the rule file for the allowlist.
       "healthlog/safe-fetch-required": "error",
+      // v1.16.4 — same-origin `/api/...` calls in the client surface
+      // (src/components + src/app) must route through the typed apiFetch
+      // wrapper (`src/lib/api/api-fetch.ts`): one `.ok` check, one
+      // envelope unwrap, one ApiError shape. Wrapper internals and test
+      // files are exempt; see the rule file for the allowlist.
+      "healthlog/api-fetch-required": "error",
     },
   },
 ]);

@@ -119,7 +119,7 @@ describe("POST /api/auth/check-user", () => {
       passwordHash: null,
       _count: { passkeys: 2 },
     } as never);
-    const res = await POST(makeRequest({ identifier: "marc" }));
+    const res = await POST(makeRequest({ identifier: "testuser" }));
     const body = (await res.json()) as CheckUserBody;
     expect(body.data.branch).toBe("passkey_only");
     expect(body.data.hasPasskey).toBe(true);
@@ -132,7 +132,7 @@ describe("POST /api/auth/check-user", () => {
       passwordHash: "argon2id$…",
       _count: { passkeys: 1 },
     } as never);
-    const res = await POST(makeRequest({ identifier: "marc" }));
+    const res = await POST(makeRequest({ identifier: "testuser" }));
     const body = (await res.json()) as CheckUserBody;
     expect(body.data.branch).toBe("email_fallback");
     expect(body.data.hasPasskey).toBe(true);
@@ -145,7 +145,7 @@ describe("POST /api/auth/check-user", () => {
       passwordHash: null,
       _count: { passkeys: 0 },
     } as never);
-    const res = await POST(makeRequest({ identifier: "marc" }));
+    const res = await POST(makeRequest({ identifier: "testuser" }));
     const body = (await res.json()) as CheckUserBody;
     expect(body.data.branch).toBe("exists");
     expect(body.data.hasPasskey).toBe(false);

@@ -339,7 +339,7 @@ describe("PUT /api/dashboard/widgets — Save persists full layouts", () => {
     const { userId } = await seedUser();
     const { PUT, GET } = await import("@/app/api/dashboard/widgets/route");
 
-    // Marc flips the sleep widget's chart visibility on.
+    // The maintainer flips the sleep widget's chart visibility on.
     const body = buildClientPayload({
       chartOverlayPrefs: {
         bp: {

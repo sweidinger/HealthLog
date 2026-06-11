@@ -12,7 +12,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { cookieJar } from "./mock-next-headers";
 import { getPrismaClient, truncateAllTables } from "./setup";
-import { localHmAsUtc } from "@/lib/timezone";
+import { localHmAsUtc } from "@/lib/tz/local-day";
 
 const TEST_USER_ID = "user-medications-intake-bulk";
 const OTHER_USER_ID = "user-medications-intake-other";

@@ -41,7 +41,7 @@ import {
   buildRecurrenceContext,
   scheduleEmitsInWindow,
 } from "@/lib/medications/scheduling/worker-helpers";
-import { localHmAsUtc } from "@/lib/timezone";
+import { localHmAsUtc } from "@/lib/tz/local-day";
 
 const TEST_USER_ID = "user-medication-cadence-worker";
 
@@ -131,7 +131,7 @@ async function loadCanonical(medicationId: string): Promise<{
 
 /**
  * Compute the user-tz today bounds for an arbitrary "now" instant,
- * matching `getUserTodayBounds` in `src/lib/timezone.ts` so the test
+ * matching `getUserTodayBounds` in `src/lib/tz/local-day.ts` so the test
  * window matches what the worker would build on that tick.
  */
 // UTC midnight on the local calendar day that `now` falls within for `tz`.
