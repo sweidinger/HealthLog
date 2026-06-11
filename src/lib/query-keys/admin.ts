@@ -10,6 +10,12 @@ export const adminKeys = {
    * lets a single rename change every consumer in lockstep.
    */
   adminAiQuality: () => ["admin", "ai-quality"] as const,
+  /**
+   * v1.16.6 — operator-wide AI key (the `admin-openai` chain fallback).
+   * Read/write via `/api/admin/ai-settings`; the user-facing
+   * `insightsSettings.hasAdminKey` flag mirrors the configured state.
+   */
+  adminAiServerKey: () => ["admin", "ai-server-key"] as const,
   adminAppLogs: (
     traceId: string | undefined,
     action: string | undefined,

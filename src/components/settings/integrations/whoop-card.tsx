@@ -2,7 +2,14 @@
 
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Activity, Link2, Loader2, RefreshCw, Save, Unlink } from "lucide-react";
+import {
+  Activity,
+  Link2,
+  Loader2,
+  RefreshCw,
+  Save,
+  Unlink,
+} from "lucide-react";
 
 import {
   AlertDialog,
@@ -174,7 +181,7 @@ export function WhoopCard({
       : null;
 
   return (
-    <div className="bg-card border-border rounded-xl border p-6">
+    <div className="bg-card border-border rounded-xl border p-4 sm:p-6">
       <SettingsCardHeader
         icon={Activity}
         title={t("settings.whoop")}

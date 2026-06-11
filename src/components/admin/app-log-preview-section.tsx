@@ -46,6 +46,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { formatDateTime } from "@/lib/format";
+import { SettingsCardHeader } from "@/components/settings/_card-header";
 import { useTranslations } from "@/lib/i18n/context";
 import { queryKeys } from "@/lib/query-keys";
 import type { WideEvent, LogLevel } from "@/lib/logging/types";
@@ -104,7 +105,9 @@ export function AppLogPreviewSection() {
   const { data, isLoading, refetch, isFetching } = useQuery({
     queryKey: queryKeys.adminAppLogs(traceId, actionFilter, level, range),
     queryFn: async () => {
-      return apiGet<AppLogsResponse>(`/api/admin/app-logs?${params.toString()}`);
+      return apiGet<AppLogsResponse>(
+        `/api/admin/app-logs?${params.toString()}`,
+      );
     },
     refetchInterval: 30_000,
   });
@@ -112,31 +115,25 @@ export function AppLogPreviewSection() {
   const events = data?.events ?? [];
 
   return (
-    <div className="bg-card border-border space-y-4 rounded-xl border p-6">
-      <header className="flex items-start justify-between gap-3">
-        <div className="flex items-start gap-2">
-          <FileText className="text-muted-foreground mt-0.5 h-5 w-5" />
-          <div>
-            <h2 className="text-lg font-semibold">
-              {t("admin.section.app-logs.title")}
-            </h2>
-            <p className="text-muted-foreground mt-1 text-xs">
-              {t("admin.section.app-logs.processNote")}
-            </p>
-          </div>
-        </div>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => refetch()}
-          disabled={isFetching}
-          aria-label={t("admin.section.app-logs.refresh")}
-        >
-          <RefreshCw
-            className={`h-4 w-4 ${isFetching ? "animate-spin" : ""} motion-reduce:animate-none`}
-          />
-        </Button>
-      </header>
+    <div className="bg-card border-border space-y-4 rounded-xl border p-4 sm:p-6">
+      <SettingsCardHeader
+        icon={FileText}
+        title={t("admin.section.app-logs.title")}
+        description={t("admin.section.app-logs.processNote")}
+        status={
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => refetch()}
+            disabled={isFetching}
+            aria-label={t("admin.section.app-logs.refresh")}
+          >
+            <RefreshCw
+              className={`h-4 w-4 ${isFetching ? "animate-spin" : ""} motion-reduce:animate-none`}
+            />
+          </Button>
+        }
+      />
 
       <div className="grid gap-2 md:grid-cols-2 lg:grid-cols-4">
         <Input

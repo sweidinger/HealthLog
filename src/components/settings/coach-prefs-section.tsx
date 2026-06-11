@@ -19,17 +19,10 @@
  * contradict each other.
  */
 import { useState } from "react";
-import { Loader2 } from "lucide-react";
+import Link from "next/link";
+import { Loader2, SlidersHorizontal } from "lucide-react";
 import { toast } from "sonner";
 
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -41,14 +34,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { SettingsCardHeader } from "@/components/settings/_card-header";
 import { useTranslations } from "@/lib/i18n/context";
 import { useCoachPrefs, useSaveCoachPrefs } from "@/hooks/use-coach-prefs";
 import {
-  DEFAULT_COACH_CLUSTERS,
   DEFAULT_COACH_PREFS,
-  coachDataClusterEnum,
-  type CoachDataCluster,
-  type CoachDefaultWindow,
   type CoachExcludeMetric,
   type CoachPrefs,
   type CoachTone,
@@ -75,15 +65,6 @@ const CONTEXT_OPTIONS: CoachExcludeMetric[] = [
   "medications",
   "anthropometrics",
 ];
-
-const DEFAULT_WINDOW_OPTIONS: CoachDefaultWindow[] = [
-  "last7days",
-  "last30days",
-  "last90days",
-  "allTime",
-];
-
-const CLUSTER_OPTIONS: CoachDataCluster[] = coachDataClusterEnum.options;
 
 export interface CoachPrefsSectionProps {
   isAuthenticated: boolean;
@@ -122,36 +103,22 @@ export function CoachPrefsSection({ isAuthenticated }: CoachPrefsSectionProps) {
     }));
   }
 
-  function toggleCluster(cluster: CoachDataCluster, next: boolean) {
-    setDraft((prev) => {
-      const current = prev.dataClusters ?? Array.from(DEFAULT_COACH_CLUSTERS);
-      const updated = next
-        ? Array.from(new Set([...current, cluster]))
-        : current.filter((c) => c !== cluster);
-      return { ...prev, dataClusters: updated };
-    });
-  }
-
-  const enabledClusters = new Set<CoachDataCluster>(
-    draft.dataClusters ?? DEFAULT_COACH_CLUSTERS,
-  );
-
   const isLoading = isAuthenticated && !persisted;
 
   return (
-    <Card data-slot="coach-prefs-section">
-      <CardHeader>
-        <CardTitle className="text-lg font-semibold">
-          {t("insights.coach.settingsTitle")}
-        </CardTitle>
-        <CardDescription>
-          {t("insights.coach.settingsDescription")}
-        </CardDescription>
-      </CardHeader>
+    <div
+      className="bg-card border-border rounded-xl border p-4 sm:p-6"
+      data-slot="coach-prefs-section"
+    >
+      <SettingsCardHeader
+        icon={SlidersHorizontal}
+        title={t("insights.coach.settingsTitle")}
+        description={t("insights.coach.settingsDescription")}
+      />
       {isLoading ? (
-        <CardContent
+        <div
           data-slot="coach-prefs-skeleton"
-          className="flex flex-col gap-5"
+          className="mt-4 flex flex-col gap-5 pl-7"
         >
           <div className="flex flex-col gap-2">
             <Skeleton className="h-3 w-20" />
@@ -166,9 +133,9 @@ export function CoachPrefsSection({ isAuthenticated }: CoachPrefsSectionProps) {
             <Skeleton className="h-3 w-3/4" />
             <Skeleton className="h-44 w-full" />
           </div>
-        </CardContent>
+        </div>
       ) : (
-        <CardContent className="flex flex-col gap-5">
+        <div className="mt-4 flex flex-col gap-5 pl-7">
           <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
             {/* Tone */}
             <div className="flex flex-col gap-2">
@@ -181,7 +148,10 @@ export function CoachPrefsSection({ isAuthenticated }: CoachPrefsSectionProps) {
                   setDraft((prev) => ({ ...prev, tone: value as CoachTone }))
                 }
               >
-                <SelectTrigger id="coach-prefs-tone" data-slot="coach-prefs-tone">
+                <SelectTrigger
+                  id="coach-prefs-tone"
+                  data-slot="coach-prefs-tone"
+                >
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -236,84 +206,24 @@ export function CoachPrefsSection({ isAuthenticated }: CoachPrefsSectionProps) {
             </div>
           </div>
 
-          {/* Default analysis window */}
-          <div className="flex flex-col gap-2">
-            <Label
-              htmlFor="coach-prefs-default-window"
-              className="text-xs font-medium"
+          {/* Data clusters + analysis window live on ONE owner: the
+              sources rail inside the chat ("What I draw on"). This card
+              used to render its own copies of both controls; two writable
+              surfaces for the same persisted fields is exactly the
+              redundancy the rail was built to end. A pointer replaces
+              them. */}
+          <p
+            data-slot="coach-prefs-sources-pointer"
+            className="text-muted-foreground border-border/60 rounded-md border border-dashed px-3 py-2 text-[11px] leading-relaxed"
+          >
+            {t("insights.coach.settingsSourcesPointer")}{" "}
+            <Link
+              href="/insights/coach"
+              className="text-foreground underline underline-offset-2"
             >
-              {t("insights.coach.settingsDefaultWindowLabel")}
-            </Label>
-            <p className="text-muted-foreground text-[11px] leading-relaxed">
-              {t("insights.coach.settingsDefaultWindowHint")}
-            </p>
-            <Select
-              value={draft.defaultWindow}
-              onValueChange={(value) =>
-                setDraft((prev) => ({
-                  ...prev,
-                  defaultWindow: value as CoachDefaultWindow,
-                }))
-              }
-            >
-              <SelectTrigger
-                id="coach-prefs-default-window"
-                data-slot="coach-prefs-default-window"
-              >
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {DEFAULT_WINDOW_OPTIONS.map((w) => (
-                  <SelectItem key={w} value={w}>
-                    {t(`insights.coach.window.${w}`)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Clustered, opt-in data sources */}
-          <div className="flex flex-col gap-2">
-            <Label className="text-xs font-medium">
-              {t("insights.coach.settingsClustersLabel")}
-            </Label>
-            <p className="text-muted-foreground text-[11px] leading-relaxed">
-              {t("insights.coach.settingsClustersHint")}
-            </p>
-            <ul
-              data-slot="coach-prefs-cluster-list"
-              className="border-border/60 divide-border/50 mt-1 flex flex-col divide-y rounded-md border"
-            >
-              {CLUSTER_OPTIONS.map((cluster) => {
-                const id = `coach-prefs-cluster-${cluster}`;
-                const checked = enabledClusters.has(cluster);
-                return (
-                  <li
-                    key={cluster}
-                    className="flex items-center justify-between gap-3 px-3 py-2"
-                  >
-                    <div className="flex min-w-0 flex-col">
-                      <Label
-                        htmlFor={id}
-                        className="cursor-pointer text-xs font-medium"
-                      >
-                        {t(`insights.coach.cluster.${cluster}.label`)}
-                      </Label>
-                      <span className="text-muted-foreground text-[11px] leading-snug">
-                        {t(`insights.coach.cluster.${cluster}.hint`)}
-                      </span>
-                    </div>
-                    <Switch
-                      id={id}
-                      data-slot={`coach-prefs-cluster-${cluster}`}
-                      checked={checked}
-                      onCheckedChange={(next) => toggleCluster(cluster, next)}
-                    />
-                  </li>
-                );
-              })}
-            </ul>
-          </div>
+              {t("insights.coach.settingsSourcesPointerLink")}
+            </Link>
+          </p>
 
           {/* Exclude metrics — checked = excluded. */}
           <div className="flex flex-col gap-2">
@@ -386,9 +296,9 @@ export function CoachPrefsSection({ isAuthenticated }: CoachPrefsSectionProps) {
               })}
             </ul>
           </div>
-        </CardContent>
+        </div>
       )}
-      <CardFooter className="justify-end">
+      <div className="mt-4 flex justify-end pl-7">
         <Button
           type="button"
           size="sm"
@@ -404,7 +314,7 @@ export function CoachPrefsSection({ isAuthenticated }: CoachPrefsSectionProps) {
           ) : null}
           {t("insights.coach.settingsSave")}
         </Button>
-      </CardFooter>
-    </Card>
+      </div>
+    </div>
   );
 }

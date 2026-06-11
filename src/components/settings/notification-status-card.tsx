@@ -32,6 +32,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/use-auth";
+import { SettingsCardHeader } from "@/components/settings/_card-header";
 import { useFormatters, useTranslations } from "@/lib/i18n/context";
 import { queryKeys } from "@/lib/query-keys";
 import { apiGet, apiPost } from "@/lib/api/api-fetch";
@@ -113,7 +114,7 @@ export function NotificationStatusCard() {
 
   if (isLoading) {
     return (
-      <div className="bg-card border-border rounded-xl border p-6">
+      <div className="bg-card border-border rounded-xl border p-4 sm:p-6">
         <Loader2 className="text-muted-foreground h-4 w-4 animate-spin motion-reduce:animate-none" />
       </div>
     );
@@ -128,37 +129,30 @@ export function NotificationStatusCard() {
   if (channels.length === 0) {
     return (
       <div
-        className="bg-card border-border rounded-xl border p-6"
+        className="bg-card border-border rounded-xl border p-4 sm:p-6"
         data-testid="notification-status-empty"
       >
-        <div className="flex items-center gap-2">
-          <Bell className="text-muted-foreground h-5 w-5" />
-          <h2 className="text-lg font-semibold">
-            {t("settings.notificationStatus.title")}
-          </h2>
-        </div>
-        <p className="text-muted-foreground mt-1 pl-7 text-sm">
-          {t("settings.notificationStatus.emptyDescription")}
-        </p>
+        <SettingsCardHeader
+          icon={Bell}
+          title={t("settings.notificationStatus.title")}
+          description={t("settings.notificationStatus.emptyDescription")}
+        />
       </div>
     );
   }
 
   return (
-    <div className="bg-card border-border rounded-xl border p-6">
-      <header className="mb-4">
-        <div className="flex items-center gap-2">
-          <Bell className="text-muted-foreground h-5 w-5" />
-          <h2 className="text-lg font-semibold">
-            {t("settings.notificationStatus.title")}
-          </h2>
-        </div>
-        <p className="text-muted-foreground pl-7 text-xs">
-          {t("settings.notificationStatus.description")}
-        </p>
-      </header>
+    <div className="bg-card border-border rounded-xl border p-4 sm:p-6">
+      <SettingsCardHeader
+        icon={Bell}
+        title={t("settings.notificationStatus.title")}
+        description={t("settings.notificationStatus.description")}
+      />
 
-      <ul className="space-y-3" data-testid="notification-status-list">
+      <ul
+        className="mt-4 space-y-3 pl-7"
+        data-testid="notification-status-list"
+      >
         {channels.map((ch) => (
           <ChannelRow
             key={ch.id}

@@ -79,10 +79,7 @@ export function ExportSection() {
       className="space-y-6"
     >
       <header className="space-y-1">
-        <h1
-          id="settings-section-export-title"
-          className="sr-only"
-        >
+        <h1 id="settings-section-export-title" className="sr-only">
           {t("settings.sections.export.title")}
         </h1>
         <p className="text-muted-foreground text-sm">
@@ -158,7 +155,7 @@ function ExportCardShell({
   return (
     <div
       data-testid={testId}
-      className={`bg-card border-border flex h-full flex-col rounded-xl border p-6${outerClassName ? ` ${outerClassName}` : ""}`}
+      className={`bg-card border-border flex h-full flex-col rounded-xl border p-4 sm:p-6${outerClassName ? ` ${outerClassName}` : ""}`}
     >
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-2">
@@ -505,7 +502,10 @@ function CycleExportCard() {
   const prefsQuery = useQuery({
     queryKey: queryKeys.cyclePrefs(),
     queryFn: async (): Promise<{ cycleTrackingEnabled: boolean }> => {
-      return apiGet<{ cycleTrackingEnabled: boolean }>("/api/auth/me/cycle-prefs", { credentials: "include" });
+      return apiGet<{ cycleTrackingEnabled: boolean }>(
+        "/api/auth/me/cycle-prefs",
+        { credentials: "include" },
+      );
     },
     staleTime: 5 * 60 * 1000,
   });

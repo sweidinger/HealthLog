@@ -137,6 +137,56 @@ describe("segmentRangeIntoEras", () => {
     expect(eras).toHaveLength(1);
     expect(eras[0].live).toBe(true);
   });
+
+  it("skips a superseded revision — only its correction mints an era", () => {
+    const range = {
+      from: new Date("2026-05-10T00:00:00.000Z"),
+      to: new Date("2026-06-10T00:00:00.000Z"),
+    };
+    // The recorded archive was corrected: the original points at the
+    // MANUAL correction and must no longer mint.
+    const superseded: ScheduleRevisionLike = {
+      ...oldEraRevision,
+      supersededByRevisionId: "rev-fix",
+    };
+    const correction: ScheduleRevisionLike = {
+      id: "rev-fix",
+      validFrom: createdAt,
+      validUntil: replaceAt,
+      payload: [
+        entry({
+          timesOfDay: ["06:00"],
+          windowStart: "06:00",
+          windowEnd: "06:00",
+        }),
+      ],
+      supersededByRevisionId: null,
+    };
+    const eras = segmentRangeIntoEras(
+      range,
+      [superseded, correction],
+      [liveSchedule],
+    );
+    expect(eras).toHaveLength(2);
+    expect(eras[0].live).toBe(false);
+    expect(eras[0].schedules[0].timesOfDay).toEqual(["06:00"]);
+    expect(eras[1].live).toBe(true);
+  });
+
+  it("falls back to a single live era when every revision is superseded", () => {
+    const range = {
+      from: new Date("2026-05-10T00:00:00.000Z"),
+      to: new Date("2026-06-10T00:00:00.000Z"),
+    };
+    const superseded: ScheduleRevisionLike = {
+      ...oldEraRevision,
+      supersededByRevisionId: "rev-gone",
+    };
+    const eras = segmentRangeIntoEras(range, [superseded], [liveSchedule]);
+    expect(eras).toHaveLength(1);
+    expect(eras[0].live).toBe(true);
+    expect(eras[0].from).toEqual(range.from);
+  });
 });
 
 describe("buildBandsForSchedulesWithEras", () => {

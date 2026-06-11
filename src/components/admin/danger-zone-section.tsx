@@ -59,7 +59,7 @@ export function DangerZoneSection() {
   });
 
   return (
-    <div className="bg-destructive/5 border-destructive/30 rounded-xl border p-6">
+    <div className="bg-destructive/5 border-destructive/30 rounded-xl border p-4 sm:p-6">
       {/* v1.4.19 A8 / F-08: page header `admin.section.danger-zone.*`
           already names the section, so the card-level title was a
           duplicate of the page title. The destructive icon stays so

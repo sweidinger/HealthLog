@@ -35,13 +35,22 @@ export const scheduleRevisionCreateSchema = z
       .describe(
         "Exclusive end instant of the manual era (ISO 8601). Must precede the current plan.",
       ),
-    /** Daily dose times the era ran at. Same cap as live schedules. */
+    /**
+     * Daily dose times the era ran at. Same cap as live schedules.
+     * Duplicates collapse and the result sorts ascending — "07:00,
+     * 07:00, 19:00" and "19:00, 07:00" both normalise to
+     * ["07:00", "19:00"], so a double-tapped chip never mints a
+     * double-counted slot.
+     */
     timesOfDay: z
       .array(z.string().regex(timeRegex, "Format: HH:mm"))
       .min(1)
       .max(8)
+      .transform((times) =>
+        [...new Set(times)].sort((a, b) => a.localeCompare(b)),
+      )
       .describe(
-        "Daily dose times (HH:mm, user local) the era ran at. 1–8 entries.",
+        "Daily dose times (HH:mm, user local) the era ran at. 1–8 entries; duplicates are collapsed.",
       ),
   })
   .refine(
@@ -59,4 +68,25 @@ export const scheduleRevisionCreateSchema = z
 
 export type ScheduleRevisionCreateInput = z.infer<
   typeof scheduleRevisionCreateSchema
+>;
+
+/**
+ * v1.16.6 — request schema for
+ * `PATCH /api/medications/{id}/schedule-revisions/{revisionId}`.
+ *
+ * A correction carries the same full era shape as a create: bounds plus
+ * daily times. MANUAL eras update in place; ARCHIVED eras stay as the
+ * audit record and the correction is minted as a superseding MANUAL
+ * row. Field-for-field identical to the create schema — only the meta
+ * id differs so the OpenAPI document names the two requests apart.
+ */
+export const scheduleRevisionUpdateSchema = scheduleRevisionCreateSchema
+  .meta({
+    id: "UpdateScheduleRevisionRequest",
+    description:
+      "Corrected schedule-era payload: replacement era bounds plus the daily dose times that were live during the era.",
+  });
+
+export type ScheduleRevisionUpdateInput = z.infer<
+  typeof scheduleRevisionUpdateSchema
 >;

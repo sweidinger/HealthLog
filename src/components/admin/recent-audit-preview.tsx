@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { EmptyState } from "@/components/ui/empty-state";
 import { formatDateTime } from "@/lib/format";
+import { SettingsCardHeader } from "@/components/settings/_card-header";
 import { useTranslations } from "@/lib/i18n/context";
 import { queryKeys } from "@/lib/query-keys";
 import { type AdminAuditEntry, useAuthActionLabels } from "./_shared";
@@ -38,7 +39,9 @@ export function RecentAuditPreview() {
   const { data, isLoading, isError } = useQuery({
     queryKey: queryKeys.adminAuditOverview(),
     queryFn: async () => {
-      return apiGet<AuditLogResponse>(`/api/admin/audit-log?limit=${PREVIEW_LIMIT}&filter=auth`);
+      return apiGet<AuditLogResponse>(
+        `/api/admin/audit-log?limit=${PREVIEW_LIMIT}&filter=auth`,
+      );
     },
     // Avoid hitting the DB on every page focus; the overview is the
     // type of page admins keep open and re-render frequently.
@@ -52,26 +55,22 @@ export function RecentAuditPreview() {
   return (
     <section
       aria-labelledby="admin-overview-audit-heading"
-      className="bg-card border-border rounded-xl border p-6"
+      className="bg-card border-border rounded-xl border p-4 sm:p-6"
     >
-      <div className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
-          <ScrollText className="text-muted-foreground h-5 w-5" aria-hidden="true" />
-          <h2
-            id="admin-overview-audit-heading"
-            className="text-lg font-semibold"
+      <SettingsCardHeader
+        icon={ScrollText}
+        titleId="admin-overview-audit-heading"
+        title={t("admin.overview.auditTitle")}
+        status={
+          <Link
+            href="/admin/login-overview"
+            className="text-primary hover:text-primary/80 inline-flex items-center gap-1 text-sm"
           >
-            {t("admin.overview.auditTitle")}
-          </h2>
-        </div>
-        <Link
-          href="/admin/login-overview"
-          className="text-primary hover:text-primary/80 inline-flex items-center gap-1 text-sm"
-        >
-          {t("admin.overview.auditViewAll")}
-          <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
-        </Link>
-      </div>
+            {t("admin.overview.auditViewAll")}
+            <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
+          </Link>
+        }
+      />
 
       <div className="mt-4">
         {isLoading ? (

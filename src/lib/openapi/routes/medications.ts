@@ -15,7 +15,10 @@ import {
   MEDICATION_TREATMENT_CLASS_VALUES,
 } from "@/lib/validations/medication";
 import { medicationExtractionSchema } from "@/lib/ai/coach/medication-extract-prompt";
-import { scheduleRevisionCreateSchema } from "@/lib/validations/schedule-revision";
+import {
+  scheduleRevisionCreateSchema,
+  scheduleRevisionUpdateSchema,
+} from "@/lib/validations/schedule-revision";
 import { dataEnvelope, errorEnvelope, stdResponses } from "./shared";
 
 // ── Medications (v1.5 scheduling) ────────────────────────────────────
@@ -945,11 +948,50 @@ export const medicationPaths: NonNullable<ZodOpenApiObject["paths"]> = {
     },
   },
   "/api/medications/{id}/schedule-revisions/{revisionId}": {
+    patch: {
+      tags: ["Medications"],
+      summary: "Correct a recorded schedule era",
+      description:
+        "Replaces an era's bounds and daily times. A `MANUAL` era updates in place; an `ARCHIVED` era stays as the immutable audit record and the correction is minted as a superseding `MANUAL` revision that takes its place in every historical surface (the response carries the correction's id). Validation mirrors the sibling POST: the era must end at or before the start of the live plan and must not overlap another active era; violations return 422. An era that has already been corrected refuses with 409. Audits as `medication.schedule_revision.updated`.",
+      requestParams: {
+        path: z.object({ id: z.string(), revisionId: z.string() }),
+      },
+      requestBody: {
+        required: true,
+        content: {
+          "application/json": { schema: scheduleRevisionUpdateSchema },
+        },
+      },
+      responses: {
+        "200": {
+          description: "Era corrected.",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                scheduleRevisionResource,
+                "UpdateScheduleRevisionResponse",
+              ),
+            },
+          },
+        },
+        "404": {
+          description:
+            "Medication or revision not found (or owned by another user).",
+          content: { "application/json": { schema: errorEnvelope } },
+        },
+        "409": {
+          description:
+            "The revision has already been superseded by a correction.",
+          content: { "application/json": { schema: errorEnvelope } },
+        },
+        ...stdResponses,
+      },
+    },
     delete: {
       tags: ["Medications"],
       summary: "Delete a manually added schedule era",
       description:
-        "Removes a `MANUAL` era the owner appended through the sibling POST. Write-path archives (`source: ARCHIVED`) are immutable history and refuse with 409. Audits as `medication.schedule_revision.deleted`.",
+        "Removes a `MANUAL` era — one appended through the sibling POST, or a correction minted by PATCH (deleting a correction restores the archived original it superseded). Write-path archives (`source: ARCHIVED`) are immutable history and refuse with 409. Audits as `medication.schedule_revision.deleted`.",
       requestParams: {
         path: z.object({ id: z.string(), revisionId: z.string() }),
       },

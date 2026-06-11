@@ -318,6 +318,16 @@ export function Glp1MedicationCard({
     active: medication.active,
     lastTakenAt: medication.lastTakenAt,
     todayEventCount: medication.todayEventCount ?? 0,
+    // v1.16.6 — gate the pill on the server display-due so a rolling
+    // cadence whose next injection is days away can never paint an overdue
+    // pill today. `undefined` (older payloads / fixtures) keeps legacy
+    // behaviour; `next` is already the parsed-and-validated `nextDueAt`.
+    nextDue:
+      medication.nextDueAt === undefined
+        ? undefined
+        : next
+          ? { at: next.date, overdue: medication.nextDueOverdue === true }
+          : null,
   });
 
   // v1.12.3 — slot instant of the injection this card is showing (the

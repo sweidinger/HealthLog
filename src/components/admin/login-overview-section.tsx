@@ -21,6 +21,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { formatDateTime } from "@/lib/format";
+import { SettingsCardHeader } from "@/components/settings/_card-header";
 import { useTranslations } from "@/lib/i18n/context";
 import { queryKeys } from "@/lib/query-keys";
 import { toCSV } from "@/lib/export";
@@ -131,7 +132,9 @@ export function LoginOverviewSection() {
       if (filter === "failed") {
         params.set("action", "auth.login.failed");
       }
-      return apiGet<AuditLogResponse>(`/api/admin/audit-log?${params.toString()}`);
+      return apiGet<AuditLogResponse>(
+        `/api/admin/audit-log?${params.toString()}`,
+      );
     },
   });
 
@@ -193,11 +196,12 @@ export function LoginOverviewSection() {
   }
 
   return (
-    <div className="bg-card border-border rounded-xl border p-6">
-      <div className="flex items-center gap-2">
-        <ScrollText className="text-muted-foreground h-5 w-5" />
-        <div className="text-lg font-semibold">{t("admin.loginOverview")}</div>
-      </div>
+    <div className="bg-card border-border rounded-xl border p-4 sm:p-6">
+      <SettingsCardHeader
+        icon={ScrollText}
+        title={t("admin.loginOverview")}
+        description={t("admin.loginOverviewDescription")}
+      />
 
       <div className="mt-4 space-y-3">
         {/* Quick-filter pills. Failed-only is the most common

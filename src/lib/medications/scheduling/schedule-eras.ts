@@ -50,6 +50,14 @@ export interface ScheduleRevisionLike {
   validUntil: Date;
   /** JSON array of {@link ScheduleRevisionEntry} snapshots. */
   payload: unknown;
+  /**
+   * v1.16.6 — set when a correction replaced this era (the id of the
+   * superseding MANUAL revision). A superseded row is an audit record,
+   * not an era: the splitter skips it. Optional so pre-existing
+   * callers/tests that thread plain `{id, validFrom, validUntil,
+   * payload}` projections keep compiling — absent means active.
+   */
+  supersededByRevisionId?: string | null;
 }
 
 /**
@@ -155,9 +163,12 @@ export function segmentRangeIntoEras(
   options?: { oneShot?: boolean },
 ): ScheduleEra[] {
   const eras: ScheduleEra[] = [];
-  const sorted = [...revisions].sort(
-    (a, b) => a.validFrom.getTime() - b.validFrom.getTime(),
-  );
+  // Superseded rows are audit records, not eras — a correction took
+  // their place. Skipping them here covers every era consumer (band
+  // minting, occurrence counts) in one spot.
+  const sorted = revisions
+    .filter((r) => r.supersededByRevisionId == null)
+    .sort((a, b) => a.validFrom.getTime() - b.validFrom.getTime());
   for (const revision of sorted) {
     const from = new Date(
       Math.max(revision.validFrom.getTime(), range.from.getTime()),

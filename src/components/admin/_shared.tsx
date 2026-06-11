@@ -5,6 +5,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Cpu, Fingerprint, Globe, KeyRound } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
+import { Badge } from "@/components/ui/badge";
 import { useTranslations } from "@/lib/i18n/context";
 import { queryKeys } from "@/lib/query-keys";
 import { PasswordInput as SharedPasswordInput } from "@/components/ui/password-input";
@@ -159,6 +160,18 @@ export const FEEDBACK_STATUS_TABS: FeedbackStatusType[] = [
   "RESOLVED",
   "ARCHIVED",
 ];
+
+/** Shared green "configured" pill — the GlitchTip, Umami, bug-report,
+ * and Web-Push VAPID cards all surface the same state; one component
+ * keeps the tint and copy in lockstep. */
+export function ConfiguredBadge() {
+  const { t } = useTranslations();
+  return (
+    <Badge className="border-dracula-green/30 bg-dracula-green/15 text-dracula-green">
+      {t("admin.configured")}
+    </Badge>
+  );
+}
 
 export function StatusItem({
   icon: Icon,

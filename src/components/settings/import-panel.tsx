@@ -93,10 +93,13 @@ function ImportCardShell({
   return (
     <div
       data-testid={testId}
-      className="bg-card border-border flex h-full flex-col rounded-xl border p-6"
+      className="bg-card border-border flex h-full flex-col rounded-xl border p-4 sm:p-6"
     >
       <div className="flex items-center gap-2">
-        <Icon className="text-muted-foreground h-5 w-5 shrink-0" aria-hidden="true" />
+        <Icon
+          className="text-muted-foreground h-5 w-5 shrink-0"
+          aria-hidden="true"
+        />
         <h3 className="text-base font-semibold">{title}</h3>
       </div>
       <p className="text-muted-foreground mt-1 text-xs">{description}</p>
@@ -144,7 +147,10 @@ function AppleHealthImportCard() {
       return 2000;
     },
     queryFn: async (): Promise<JobStatus> => {
-      return apiGet<JobStatus>(`/api/import/apple-health-export/${jobId}/status`, { credentials: "include" });
+      return apiGet<JobStatus>(
+        `/api/import/apple-health-export/${jobId}/status`,
+        { credentials: "include" },
+      );
     },
   });
 

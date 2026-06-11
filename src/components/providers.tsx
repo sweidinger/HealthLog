@@ -1,6 +1,11 @@
 "use client";
 
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import {
+  QueryClient,
+  QueryClientProvider,
+  useQueryClient,
+} from "@tanstack/react-query";
+import { usePathname } from "next/navigation";
 import {
   createContext,
   useCallback,
@@ -14,6 +19,8 @@ import type { Locale } from "@/lib/i18n/config";
 import { Toaster } from "@/components/ui/sonner";
 import { AppSettingsProvider } from "@/components/app-settings-provider";
 import { VersionPoller } from "@/components/version-poller";
+import { isDashboardSnapshotEnabled } from "@/lib/dashboard/snapshot-flag";
+import { prefetchDashboardSnapshot } from "@/lib/queries/use-dashboard-snapshot";
 
 // ── Theme Context ────────────────────────────────────
 
@@ -109,6 +116,26 @@ function ThemeProvider({ children }: { children: ReactNode }) {
   );
 }
 
+// ── Dashboard snapshot preloader ─────────────────────
+//
+// v1.16.6 first-load waterfall fix: fire the snapshot fetch the moment
+// the router commits to "/" instead of waiting for the dashboard page
+// chunk to download + mount (~450 ms later on a 4G / 4x-CPU profile).
+// The proxy has already enforced auth + onboarding for "/" before any
+// client code runs here, so the prefetch cannot fire for an
+// unauthenticated visitor; a racing edge case just yields a swallowed
+// 401 prefetch and the mounted cell re-resolves normally.
+function DashboardSnapshotPreloader() {
+  const queryClient = useQueryClient();
+  const pathname = usePathname();
+  useEffect(() => {
+    if (pathname === "/" && isDashboardSnapshotEnabled()) {
+      prefetchDashboardSnapshot(queryClient);
+    }
+  }, [pathname, queryClient]);
+  return null;
+}
+
 // ── Root Providers ───────────────────────────────────
 
 export function Providers({
@@ -143,6 +170,7 @@ export function Providers({
           initialMessages={initialMessages}
         >
           <AppSettingsProvider>
+            <DashboardSnapshotPreloader />
             {children}
             <Toaster position="bottom-right" richColors />
             <VersionPoller />

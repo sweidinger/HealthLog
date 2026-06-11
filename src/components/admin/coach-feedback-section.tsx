@@ -21,6 +21,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { Loader2, Sparkles } from "lucide-react";
 
+import { SettingsCardHeader } from "@/components/settings/_card-header";
 import { useTranslations, useFormatters } from "@/lib/i18n/context";
 import { queryKeys } from "@/lib/query-keys";
 import { apiGet } from "@/lib/api/api-fetch";
@@ -69,25 +70,23 @@ export function CoachFeedbackSection() {
   // /admin/coach-feedback. Mirrors the canonical structure used by
   // <SystemStatusSection> (header outside the fetch-state branch).
   return (
-    <div className="bg-card border-border space-y-4 rounded-xl border p-6">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
-          <Sparkles className="text-dracula-purple h-5 w-5" />
-          <div className="text-lg font-semibold">
-            {t("admin.coachFeedback.title")}
-          </div>
-        </div>
-        {hasData && summary && (
-          <p className="text-muted-foreground text-xs">
-            {t("admin.coachFeedback.windowLabel", {
-              days: String(summary.windowDays),
-            })}
-            {" · "}
-            {t("admin.coachFeedback.generatedAtLabel")}{" "}
-            {fmt.dateTime(summary.generatedAt)}
-          </p>
-        )}
-      </div>
+    <div className="bg-card border-border space-y-4 rounded-xl border p-4 sm:p-6">
+      <SettingsCardHeader
+        icon={Sparkles}
+        title={t("admin.coachFeedback.title")}
+        status={
+          hasData && summary ? (
+            <p className="text-muted-foreground text-xs">
+              {t("admin.coachFeedback.windowLabel", {
+                days: String(summary.windowDays),
+              })}
+              {" · "}
+              {t("admin.coachFeedback.generatedAtLabel")}{" "}
+              {fmt.dateTime(summary.generatedAt)}
+            </p>
+          ) : null
+        }
+      />
 
       {query.isLoading ? (
         <div className="flex items-center gap-2">

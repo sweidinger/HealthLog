@@ -44,9 +44,9 @@ describe("resolveInitialTimezone — v1.4.37 silent auto-seed", () => {
   });
 
   it("respects any non-Berlin stored value — explicit user choice wins over browser detection", () => {
-    expect(
-      resolveInitialTimezone("America/Los_Angeles", "Europe/Berlin"),
-    ).toBe("America/Los_Angeles");
+    expect(resolveInitialTimezone("America/Los_Angeles", "Europe/Berlin")).toBe(
+      "America/Los_Angeles",
+    );
   });
 
   it("respects a non-Berlin stored value even when the browser reports a different non-Berlin zone", () => {

@@ -59,7 +59,7 @@ export function CycleTrackingCard({
   const enabled = data?.cycleTrackingEnabled ?? false;
 
   return (
-    <div className="bg-card rounded-lg border p-4 sm:p-6">
+    <div className="bg-card border-border rounded-xl border p-4 sm:p-6">
       <SettingsCardHeader
         icon={CalendarHeart}
         title={t("settings.cycleTracking.title")}

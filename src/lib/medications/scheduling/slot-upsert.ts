@@ -352,7 +352,13 @@ const MEDICATION_SELECT = {
   // attributes against the era that was live at that takenAt.
   scheduleRevisions: {
     orderBy: { validFrom: "asc" },
-    select: { id: true, validFrom: true, validUntil: true, payload: true },
+    select: {
+      id: true,
+      validFrom: true,
+      validUntil: true,
+      payload: true,
+      supersededByRevisionId: true,
+    },
   },
 } as const;
 

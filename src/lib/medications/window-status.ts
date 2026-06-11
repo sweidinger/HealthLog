@@ -89,6 +89,23 @@ export interface CurrentWindowStatus<Schedule extends ScheduleWindowInput> {
   window: MatchedDoseWindow | null;
 }
 
+/**
+ * v1.16.6 — the server's display-due verdict (`nextDueAt` +
+ * `nextDueOverdue` on the list payload, computed by `computeDisplayDue`
+ * from the band model: next unresolved slot + its overdue tail). When a
+ * caller threads it, the pill status is gated on it so the pill can NEVER
+ * read more overdue than the next-due line. Without the gate a rolling
+ * cadence (`daysOfWeek` empty) re-mints its dose band every local day and
+ * escalates to late / very_late each afternoon even while the next
+ * unresolved slot sits days in the future.
+ */
+export interface NextDueGate {
+  /** The display-due instant (`nextDueAt` parsed). */
+  at: Date;
+  /** True when that instant is an OPEN overdue slot (`nextDueOverdue`). */
+  overdue: boolean;
+}
+
 /** Fallback timezone until every call site threads the user's own. */
 const DEFAULT_TZ = "Europe/Berlin";
 
@@ -382,6 +399,19 @@ export function reduceCurrentWindowStatus<Schedule extends ScheduleWindowInput>(
     todayEventCount: number;
     /** IANA timezone matching `nowBerlin`'s conversion; defaults to Berlin. */
     tz?: string;
+    /**
+     * v1.16.6 — the server display-due gate. `undefined` keeps the legacy
+     * purely band-derived behaviour (callers without the list payload);
+     * `null` means the server found NO upcoming slot (paused / ended /
+     * one-shot past) so no pill renders at all. With a gate present:
+     *   - `overdue: false` (next unresolved slot in the future) suppresses
+     *     late / very_late outright and allows in_window only when the due
+     *     instant falls on the current local day — a rolling cadence whose
+     *     next dose is tomorrow stays calm today;
+     *   - `overdue: true` keeps the band-derived escalation (the slot is
+     *     genuinely in its catch-up tail).
+     */
+    nextDue?: NextDueGate | null;
   },
 ): CurrentWindowStatus<Schedule> {
   const {
@@ -393,6 +423,7 @@ export function reduceCurrentWindowStatus<Schedule extends ScheduleWindowInput>(
     lastTakenAt,
     todayEventCount,
     tz = DEFAULT_TZ,
+    nextDue,
   } = options;
 
   const none: CurrentWindowStatus<Schedule> = {
@@ -401,13 +432,35 @@ export function reduceCurrentWindowStatus<Schedule extends ScheduleWindowInput>(
     window: null,
   };
   if (!active) return none;
+  if (nextDue === null) return none;
 
   const passedDoseCount = countPassedDoses(schedules, nowBerlin);
   const hasUncoveredOverdue = todayEventCount < passedDoseCount;
 
+  // Display-due gate (see the option's doc above). Computed once: it does
+  // not vary per schedule row — the server already reduced the rows to one
+  // verdict.
+  const dueIsToday =
+    nextDue != null &&
+    (() => {
+      const dueLocal = toZonedDate(nextDue.at, tz);
+      return (
+        dueLocal.getFullYear() === nowBerlin.getFullYear() &&
+        dueLocal.getMonth() === nowBerlin.getMonth() &&
+        dueLocal.getDate() === nowBerlin.getDate()
+      );
+    })();
+
   return schedules.reduce<CurrentWindowStatus<Schedule>>((best, s) => {
     const hit = getScheduleStatus(s, nowBerlin, lateMinutes, missedMinutes);
     if (!hit) return best;
+    // The pill must never read more overdue than the next-due line: a
+    // future (non-overdue) display-due suppresses every overdue tier, and
+    // allows the take-now pill only on the due day itself.
+    if (nextDue != null && !nextDue.overdue) {
+      if (hit.status !== "in_window") return best;
+      if (!dueIsToday) return best;
+    }
     // Don't show late/very_late if all overdue doses are covered by
     // intake events for the day.
     if (hit.status !== "in_window" && !hasUncoveredOverdue) return best;

@@ -17,10 +17,16 @@
  *
  *   idle ──START──▶ asking ──ANSWER_SUBMITTED──▶ answered
  *     │               │  ▲                          │
- *   LATER           SKIP└──────TURN_COMPLETE────────┘
- *     │               │      (next question, or…)
- *     ▼               ├──EXIT/SKIP-on-last──▶ summary (answers exist)
- *   done ◀────────────┴──────────────────────▶ done   (none answered)
+ *   LATER           SKIP└── TURN_COMPLETE ──────────┤
+ *     │               │     (provider-less: advance │
+ *     │               │      right after the send)  │
+ *     │               │  ▲                          │
+ *     │               └── ADOPTION_SETTLED ─────────┘
+ *     │               │   (current outcome: Coach reaction has
+ *     │               │    streamed, the adopt offer settled —
+ *     ▼               │    NOW the next question may appear)
+ *   done ◀────────────┴──EXIT/SKIP-on-last──▶ summary (answers exist)
+ *                                        ──▶ done    (none answered)
  *
  * Server contract stays additive-free: answering dismisses that one
  * question (existing DELETE), "skip" / "later" leave questions pending
@@ -140,11 +146,7 @@ export function guidedReducer(
 
     case "TURN_COMPLETE": {
       if (state.phase !== "answered") return state;
-      const next = state.index + 1;
-      if (next < state.questions.length) {
-        return { ...state, phase: "asking", index: next };
-      }
-      return finish(state);
+      return advance(state);
     }
 
     case "SKIP": {
@@ -174,9 +176,36 @@ export function guidedReducer(
           ? { ...o, adoption: event.adoption }
           : o,
       );
+      // v1.16.6 — when a provider reacted to the answer the sequence
+      // waits in `answered` until the adopt offer settles, so the
+      // transcript reads answer → Coach reaction → adopt outcome →
+      // next question. Settling the CURRENT outcome is that signal;
+      // a late settle for an older outcome (provider-less flow, where
+      // TURN_COMPLETE already advanced) only updates the tally.
+      if (state.phase === "answered" && event.index === state.index) {
+        return advance({ ...state, outcomes });
+      }
       return { ...state, outcomes };
     }
   }
+}
+
+/** Move past the current question: next one, or close the sequence. */
+function advance(state: {
+  questions: string[];
+  index: number;
+  outcomes: GuidedOutcome[];
+}): GuidedState {
+  const next = state.index + 1;
+  if (next < state.questions.length) {
+    return {
+      phase: "asking",
+      questions: state.questions,
+      index: next,
+      outcomes: state.outcomes,
+    };
+  }
+  return finish(state);
 }
 
 /** Count of answers actually written into the self-context. */

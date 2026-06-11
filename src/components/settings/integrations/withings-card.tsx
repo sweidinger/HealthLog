@@ -189,7 +189,7 @@ export function WithingsCard({
       : null;
 
   return (
-    <div className="bg-card border-border rounded-xl border p-6">
+    <div className="bg-card border-border rounded-xl border p-4 sm:p-6">
       <SettingsCardHeader
         icon={Link2}
         title={t("settings.withings")}

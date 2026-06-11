@@ -125,12 +125,12 @@ export function InsightsPillOrderSection({ id }: { id?: string }) {
   const saveMutation = useMutation({
     mutationFn: async (tiles: InsightsTileConfig[]) => {
       return apiPut<InsightsLayout>("/api/insights/layout", {
-          version: 2,
-          // Preserve the overview section order/visibility verbatim — this
-          // surface owns the PILL order only.
-          sections: layout.sections,
-          tiles,
-        });
+        version: 2,
+        // Preserve the overview section order/visibility verbatim — this
+        // surface owns the PILL order only.
+        sections: layout.sections,
+        tiles,
+      });
     },
     onSuccess: (saved) => {
       queryClient.setQueryData(queryKeys.insightsLayout(), saved);

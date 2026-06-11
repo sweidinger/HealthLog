@@ -314,12 +314,15 @@ export function InviteTokensSection() {
       <div className="flex flex-col gap-4 p-4 sm:flex-row sm:items-start sm:justify-between sm:p-6">
         <div className="min-w-0">
           <div className="flex items-center gap-2">
-            <Ticket className="text-muted-foreground h-5 w-5" aria-hidden="true" />
+            <Ticket
+              className="text-muted-foreground h-5 w-5"
+              aria-hidden="true"
+            />
             <h2 id="admin-invites-title" className="text-lg font-semibold">
               {t("admin.invites.title")}
             </h2>
           </div>
-          <p className="text-muted-foreground mt-1 pl-7 text-sm">
+          <p className="text-muted-foreground mt-1 pl-7 text-xs">
             {t("admin.invites.description")}
           </p>
           <p className="text-muted-foreground/80 mt-1 flex items-center gap-1.5 pl-7 text-xs">
@@ -559,79 +562,79 @@ export function InviteTokensSection() {
                 }}
                 className="space-y-4"
               >
-              <div className="space-y-5">
-                <fieldset>
-                  <legend className="text-sm font-medium">
-                    {t("admin.invites.ttlLegend")}
-                  </legend>
-                  <div
-                    className="mt-2 grid grid-cols-3 gap-2"
-                    role="radiogroup"
-                  >
-                    {TTL_CHOICES.map((days) => (
-                      <button
-                        key={days}
-                        type="button"
-                        role="radio"
-                        aria-checked={ttlDays === days}
-                        onClick={() => setTtlDays(days)}
-                        data-testid={`admin-invites-ttl-${days}`}
-                        className={cn(
-                          "min-h-11 rounded-lg border px-3 py-2 text-sm font-medium transition-colors",
-                          ttlDays === days
-                            ? "border-dracula-purple/50 bg-dracula-purple/10 text-dracula-purple"
-                            : "border-border text-foreground hover:bg-accent",
-                        )}
-                      >
-                        {t("admin.invites.createDays", { days })}
-                      </button>
-                    ))}
-                  </div>
-                </fieldset>
-                <div className="space-y-1.5">
-                  <Label htmlFor="admin-invites-max-uses">
-                    {t("admin.invites.maxUsesLabel")}
-                  </Label>
-                  <Input
-                    id="admin-invites-max-uses"
-                    type="number"
-                    inputMode="numeric"
-                    min={1}
-                    max={MAX_USES_CAP}
-                    step={1}
-                    value={maxUses}
-                    onChange={(e) => setMaxUses(e.target.value)}
-                    onBlur={() => {
-                      // Echo the submit-time clamp (1–50, integer) into
-                      // the field so the admin sees what will be minted.
-                      setMaxUses(String(clampMaxUses(maxUses)));
-                    }}
-                    className="w-24 tabular-nums"
-                    data-testid="admin-invites-max-uses"
-                  />
-                  <p className="text-muted-foreground text-xs">
-                    {t("admin.invites.maxUsesHint")}
-                  </p>
-                </div>
-              </div>
-              <DialogFooter>
-                <Button
-                  type="submit"
-                  disabled={create.isPending}
-                  aria-busy={create.isPending || undefined}
-                  data-testid="admin-invites-submit-create"
-                >
-                  {create.isPending ? (
-                    <Loader2
-                      className="size-4 animate-spin motion-reduce:animate-none"
-                      aria-hidden="true"
+                <div className="space-y-5">
+                  <fieldset>
+                    <legend className="text-sm font-medium">
+                      {t("admin.invites.ttlLegend")}
+                    </legend>
+                    <div
+                      className="mt-2 grid grid-cols-3 gap-2"
+                      role="radiogroup"
+                    >
+                      {TTL_CHOICES.map((days) => (
+                        <button
+                          key={days}
+                          type="button"
+                          role="radio"
+                          aria-checked={ttlDays === days}
+                          onClick={() => setTtlDays(days)}
+                          data-testid={`admin-invites-ttl-${days}`}
+                          className={cn(
+                            "min-h-11 rounded-lg border px-3 py-2 text-sm font-medium transition-colors",
+                            ttlDays === days
+                              ? "border-dracula-purple/50 bg-dracula-purple/10 text-dracula-purple"
+                              : "border-border text-foreground hover:bg-accent",
+                          )}
+                        >
+                          {t("admin.invites.createDays", { days })}
+                        </button>
+                      ))}
+                    </div>
+                  </fieldset>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="admin-invites-max-uses">
+                      {t("admin.invites.maxUsesLabel")}
+                    </Label>
+                    <Input
+                      id="admin-invites-max-uses"
+                      type="number"
+                      inputMode="numeric"
+                      min={1}
+                      max={MAX_USES_CAP}
+                      step={1}
+                      value={maxUses}
+                      onChange={(e) => setMaxUses(e.target.value)}
+                      onBlur={() => {
+                        // Echo the submit-time clamp (1–50, integer) into
+                        // the field so the admin sees what will be minted.
+                        setMaxUses(String(clampMaxUses(maxUses)));
+                      }}
+                      className="w-24 tabular-nums"
+                      data-testid="admin-invites-max-uses"
                     />
-                  ) : (
-                    <Ticket className="size-4" aria-hidden="true" />
-                  )}
-                  {t("admin.invites.createConfirm")}
-                </Button>
-              </DialogFooter>
+                    <p className="text-muted-foreground text-xs">
+                      {t("admin.invites.maxUsesHint")}
+                    </p>
+                  </div>
+                </div>
+                <DialogFooter>
+                  <Button
+                    type="submit"
+                    disabled={create.isPending}
+                    aria-busy={create.isPending || undefined}
+                    data-testid="admin-invites-submit-create"
+                  >
+                    {create.isPending ? (
+                      <Loader2
+                        className="size-4 animate-spin motion-reduce:animate-none"
+                        aria-hidden="true"
+                      />
+                    ) : (
+                      <Ticket className="size-4" aria-hidden="true" />
+                    )}
+                    {t("admin.invites.createConfirm")}
+                  </Button>
+                </DialogFooter>
               </form>
             </>
           ) : (

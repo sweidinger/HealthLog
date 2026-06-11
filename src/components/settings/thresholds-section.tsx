@@ -39,10 +39,7 @@ export function ThresholdsSection() {
       className="space-y-6"
     >
       <header className="space-y-1">
-        <h1
-          id="settings-section-thresholds-title"
-          className="sr-only"
-        >
+        <h1 id="settings-section-thresholds-title" className="sr-only">
           {t("settings.sections.thresholds.title")}
         </h1>
         <p className="text-muted-foreground text-sm">

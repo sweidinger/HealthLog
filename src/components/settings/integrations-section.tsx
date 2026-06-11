@@ -99,10 +99,7 @@ export function IntegrationsSection() {
       className="space-y-6"
     >
       <header className="space-y-1">
-        <h1
-          id="settings-section-integrations-title"
-          className="sr-only"
-        >
+        <h1 id="settings-section-integrations-title" className="sr-only">
           {t("settings.sections.integrations.title")}
         </h1>
         <p className="text-muted-foreground text-sm">

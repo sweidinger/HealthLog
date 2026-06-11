@@ -374,9 +374,7 @@ describe("carrierShortLabel — DACH carrier folding (v1.4.27 B3)", () => {
   });
 
   it("folds Telefónica + O2 variants down to 'O2'", () => {
-    expect(
-      carrierShortLabel("Telefónica Germany GmbH & Co. OHG"),
-    ).toBe("O2");
+    expect(carrierShortLabel("Telefónica Germany GmbH & Co. OHG")).toBe("O2");
     expect(carrierShortLabel("Telefonica Germany Online Services")).toBe("O2");
     expect(carrierShortLabel("O2 Deutschland")).toBe("O2");
   });
@@ -384,6 +382,8 @@ describe("carrierShortLabel — DACH carrier folding (v1.4.27 B3)", () => {
   it("returns the raw organisation string for unknown carriers", () => {
     expect(carrierShortLabel("Google LLC")).toBe("Google LLC");
     expect(carrierShortLabel("Amazon.com, Inc.")).toBe("Amazon.com, Inc.");
-    expect(carrierShortLabel("Hetzner Online GmbH")).toBe("Hetzner Online GmbH");
+    expect(carrierShortLabel("Hetzner Online GmbH")).toBe(
+      "Hetzner Online GmbH",
+    );
   });
 });

@@ -2,12 +2,17 @@
 
 import { useState } from "react";
 import { BellRing, Loader2 } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
+import { SettingsCardHeader } from "@/components/settings/_card-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useTranslations } from "@/lib/i18n/context";
-import { PasswordInput, useAdminSettings, useUpdateSettings } from "./_shared";
+import {
+  ConfiguredBadge,
+  PasswordInput,
+  useAdminSettings,
+  useUpdateSettings,
+} from "./_shared";
 
 export function WebPushVapidSection() {
   const { t } = useTranslations();
@@ -48,27 +53,15 @@ export function WebPushVapidSection() {
   }
 
   return (
-    <div className="bg-card border-border rounded-xl border p-6">
-      <div className="flex flex-wrap items-start justify-between gap-2">
-        <div className="flex items-center gap-2">
-          <BellRing className="text-muted-foreground h-5 w-5" />
-          <h2 className="text-lg font-semibold">
-            {t("admin.webPushVapidTitle")}
-          </h2>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          {configured && (
-            <Badge className="border-dracula-green/30 bg-dracula-green/15 text-dracula-green">
-              {t("admin.configured")}
-            </Badge>
-          )}
-        </div>
-      </div>
-      <p className="text-muted-foreground mt-1 text-xs">
-        {t("admin.webPushVapidDescription")}
-      </p>
+    <div className="bg-card border-border rounded-xl border p-4 sm:p-6">
+      <SettingsCardHeader
+        icon={BellRing}
+        title={t("admin.webPushVapidTitle")}
+        description={t("admin.webPushVapidDescription")}
+        status={configured ? <ConfiguredBadge /> : null}
+      />
 
-      <div className="mt-4 grid gap-3 sm:grid-cols-2">
+      <div className="mt-4 grid gap-3 pl-7 sm:grid-cols-2">
         <div className="space-y-1.5 sm:col-span-2">
           <Label htmlFor="admin-web-push-public-key" className="text-xs">
             {t("admin.webPushVapidPublicKey")}

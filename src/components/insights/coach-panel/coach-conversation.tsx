@@ -204,9 +204,12 @@ export function CoachConversation({
       dismissQuestions.mutate(guidedQuestion);
     }
     setInputValue("");
-    await send.send({
+    // v1.16.6 — hand the question to the turn so the Coach reaction is
+    // contextual (the question bubble itself is never persisted).
+    const resolvedId = await send.send({
       conversationId: currentConversationId ?? undefined,
       message: trimmed,
+      guidedQuestion: guidedQuestion ?? undefined,
     });
     if (guidedQuestion !== null && guidedIndex !== null) {
       setPendingAdopt({
@@ -214,9 +217,15 @@ export function CoachConversation({
         answer: trimmed,
         guidedIndex,
       });
-      // The assistant turn is done — advance to the next question (or
-      // the closing summary).
-      dispatchGuided({ type: "TURN_COMPLETE" });
+      // v1.16.6 — sequence per answer: answer → Coach reaction
+      // (streamed above) → adopt offer → next question. A resolved id
+      // means the reaction landed; the machine then advances when the
+      // adopt offer settles (ADOPTION_SETTLED). A null id is the
+      // provider-less / errored turn — no reaction is coming, so keep
+      // the original silent flow and advance immediately.
+      if (resolvedId === null) {
+        dispatchGuided({ type: "TURN_COMPLETE" });
+      }
     }
   }
 

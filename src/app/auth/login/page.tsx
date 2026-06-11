@@ -14,6 +14,8 @@ import { describePasskeyError } from "@/lib/passkey-errors";
 import { useTranslations } from "@/lib/i18n/context";
 import { queryKeys } from "@/lib/query-keys";
 import { ApiError, apiGet, apiPost } from "@/lib/api/api-fetch";
+import { isDashboardSnapshotEnabled } from "@/lib/dashboard/snapshot-flag";
+import { prefetchDashboardSnapshot } from "@/lib/queries/use-dashboard-snapshot";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -58,6 +60,18 @@ export default function LoginPage() {
     return "/";
   }
 
+  // v1.16.6 first-load waterfall fix — the session cookie exists the
+  // moment the login POST resolves, so the dashboard snapshot request
+  // can ride in parallel with the route transition + page-chunk
+  // download instead of queueing behind the dashboard mount.
+  function navigateAfterLogin() {
+    const target = getRedirectTarget();
+    if (target === "/" && isDashboardSnapshotEnabled()) {
+      prefetchDashboardSnapshot(queryClient);
+    }
+    router.push(target);
+  }
+
   async function handlePasskeyLogin() {
     setError(null);
     setLoading(true);
@@ -77,7 +91,7 @@ export default function LoginPage() {
       });
 
       await queryClient.invalidateQueries({ queryKey: queryKeys.auth() });
-      router.push(getRedirectTarget());
+      navigateAfterLogin();
     } catch (err) {
       // Route rejections carry the envelope error verbatim; everything
       // else (WebAuthn ceremony failures) keeps the descriptive mapping.
@@ -101,7 +115,7 @@ export default function LoginPage() {
       await apiPost("/api/auth/login", { email, password });
 
       await queryClient.invalidateQueries({ queryKey: queryKeys.auth() });
-      router.push(getRedirectTarget());
+      navigateAfterLogin();
     } catch (err) {
       setError(
         err instanceof ApiError && err.message

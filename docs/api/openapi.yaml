@@ -2466,12 +2466,61 @@ paths:
         "422": *a3
         "429": *a4
   /api/medications/{id}/schedule-revisions/{revisionId}:
+    patch:
+      tags:
+        - Medications
+      summary: Correct a recorded schedule era
+      description: "Replaces an era's bounds and daily times. A `MANUAL` era updates in place; an `ARCHIVED` era stays as the
+        immutable audit record and the correction is minted as a superseding `MANUAL` revision that takes its place in
+        every historical surface (the response carries the correction's id). Validation mirrors the sibling POST: the
+        era must end at or before the start of the live plan and must not overlap another active era; violations return
+        422. An era that has already been corrected refuses with 409. Audits as `medication.schedule_revision.updated`."
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+          required: true
+        - in: path
+          name: revisionId
+          schema:
+            type: string
+          required: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateScheduleRevisionRequest"
+      responses:
+        "200":
+          description: Era corrected.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UpdateScheduleRevisionResponse"
+        "401": *a1
+        "404":
+          description: Medication or revision not found (or owned by another user).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "409":
+          description: The revision has already been superseded by a correction.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "422": *a3
+        "429": *a4
     delete:
       tags:
         - Medications
       summary: Delete a manually added schedule era
-      description: "Removes a `MANUAL` era the owner appended through the sibling POST. Write-path archives (`source:
-        ARCHIVED`) are immutable history and refuse with 409. Audits as `medication.schedule_revision.deleted`."
+      description: "Removes a `MANUAL` era — one appended through the sibling POST, or a correction minted by PATCH (deleting
+        a correction restores the archived original it superseded). Write-path archives (`source: ARCHIVED`) are
+        immutable history and refuse with 409. Audits as `medication.schedule_revision.deleted`."
       parameters:
         - in: path
           name: id
@@ -4912,18 +4961,21 @@ components:
           pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
           description: Exclusive end instant of the manual era (ISO 8601). Must precede the current plan.
         timesOfDay:
+          description: Daily dose times (HH:mm, user local) the era ran at. 1–8 entries; duplicates are collapsed.
           minItems: 1
           maxItems: 8
           type: array
           items:
             type: string
             pattern: ^([01]\d|2[0-3]):([0-5]\d)$
-          description: Daily dose times (HH:mm, user local) the era ran at. 1–8 entries.
       required:
         - validFrom
         - validUntil
         - timesOfDay
       description: "Manual schedule-era payload: era bounds plus the daily dose times that were live during the era."
+    UpdateScheduleRevisionRequest:
+      description: "Corrected schedule-era payload: replacement era bounds plus the daily dose times that were live during the era."
+      $ref: "#/components/schemas/CreateScheduleRevisionRequest"
     DisableCoachFlag:
       type: object
       properties:
@@ -9250,6 +9302,23 @@ components:
       description: Display summary of one archived schedule row inside an era. The full snapshot (windows, rrule, doseWindows,
         …) stays server-side; this projection carries what the timeline renders.
     CreateScheduleRevisionResponse:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/MedicationScheduleRevision"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    UpdateScheduleRevisionResponse:
       type: object
       properties:
         data:

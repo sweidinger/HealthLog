@@ -24,10 +24,12 @@ vi.mock("next/navigation", () => ({
 // The shell gates its own frame on the confirmed ADMIN role — a
 // non-admin (or a still-loading auth state) must not see the section
 // nav while AuthShell's redirect effect is catching up.
-const mockUserRef = { value: { role: "ADMIN", username: "op" } as {
-  role: string;
-  username: string;
-} | null };
+const mockUserRef = {
+  value: { role: "ADMIN", username: "op" } as {
+    role: string;
+    username: string;
+  } | null,
+};
 vi.mock("@/hooks/use-auth", () => ({
   useAuth: () => ({ user: mockUserRef.value }),
 }));

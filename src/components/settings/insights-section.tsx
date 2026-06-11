@@ -24,10 +24,7 @@ export function InsightsSection() {
       className="space-y-6"
     >
       <header className="space-y-1">
-        <h1
-          id="settings-section-insights-title"
-          className="sr-only"
-        >
+        <h1 id="settings-section-insights-title" className="sr-only">
           {t("settings.sections.insights.title")}
         </h1>
         <p className="text-muted-foreground text-sm">

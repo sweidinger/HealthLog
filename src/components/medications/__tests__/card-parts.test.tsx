@@ -470,3 +470,74 @@ describe("medication card body — shared shell + dose-state presentation", () =
     expect(html).toContain("min-h-[2.75rem] space-y-3.5 text-sm");
   });
 });
+
+describe("compliance bars — fixed geometry (v1.16.6)", () => {
+  /**
+   * The two percentage rows must keep an IDENTICAL, fixed geometry no
+   * matter the rates, labels, or any status colouring around them: each
+   * label line is pinned to one text line (`h-5` + `truncate`) and each
+   * bar to `h-2`. A regression here lets a wrapping label or a
+   * status-dependent caption make the two bars sit at unequal heights
+   * with stray space below (the v1.16.4 card report).
+   */
+  function geometrySignature(html: string): {
+    labelRows: number;
+    bars: number;
+    truncated: number;
+  } {
+    return {
+      labelRows: (html.match(/flex h-5 items-center justify-between/g) ?? [])
+        .length,
+      bars: (html.match(/data-slot="progress"/g) ?? []).length,
+      truncated: (html.match(/truncate/g) ?? []).length,
+    };
+  }
+
+  it("pins both rows to the same fixed-height markup regardless of rates", () => {
+    const low = render(
+      <MedicationComplianceBars rate7={0} rate30={13} streak={0} />,
+    );
+    const high = render(
+      <MedicationComplianceBars rate7={100} rate30={100} streak={9} />,
+    );
+    const wide = render(
+      <MedicationComplianceBars
+        rate7={50}
+        rate30={50}
+        streak={0}
+        shortDays={90}
+        longDays={365}
+      />,
+    );
+
+    for (const html of [low, high, wide]) {
+      const sig = geometrySignature(html);
+      expect(sig.labelRows).toBe(2);
+      expect(sig.bars).toBe(2);
+      expect(sig.truncated).toBe(2);
+      // Both bars carry the same fixed track height.
+      expect(html.match(/data-slot="progress"[^>]*h-2/g) ?? []).toHaveLength(2);
+    }
+  });
+
+  it("rate / streak changes alter text only, never the geometry classes", () => {
+    const a = render(
+      <MedicationComplianceBars rate7={0} rate30={0} streak={0} />,
+    );
+    const b = render(
+      <MedicationComplianceBars rate7={100} rate30={42} streak={0} />,
+    );
+    // Strip text nodes; the remaining tag/class skeleton must be identical
+    // between a 0% and a 100% card (transform style varies with the value
+    // by design, so it is normalised too).
+    const skeleton = (html: string) =>
+      html
+        .replace(/>[^<]+</g, "><")
+        .replace(/transform:[^;"]+/g, "transform:X")
+        .replace(/aria-valuenow="\d+"/g, 'aria-valuenow="N"')
+        .replace(/data-state="[^"]*"/g, 'data-state="S"')
+        .replace(/data-value="[^"]*"/g, 'data-value="V"')
+        .replace(/data-max="[^"]*"/g, 'data-max="M"');
+    expect(skeleton(a)).toBe(skeleton(b));
+  });
+});

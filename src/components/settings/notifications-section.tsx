@@ -74,10 +74,7 @@ export function NotificationsSection() {
         </ol>
       </nav>
       <header className="space-y-1">
-        <h1
-          id="settings-section-notifications-title"
-          className="sr-only"
-        >
+        <h1 id="settings-section-notifications-title" className="sr-only">
           {t("settings.sections.notifications.title")}
         </h1>
         <p className="text-muted-foreground text-sm">

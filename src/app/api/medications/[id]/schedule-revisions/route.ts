@@ -86,7 +86,9 @@ export const GET = apiHandler(
     }
 
     const revisions = await prisma.medicationScheduleRevision.findMany({
-      where: { medicationId: id },
+      // Superseded rows are audit records behind a correction — the
+      // timeline shows the corrected state, like every era consumer.
+      where: { medicationId: id, supersededByRevisionId: null },
       orderBy: { validFrom: "desc" },
       select: {
         id: true,
@@ -164,46 +166,10 @@ export const POST = apiHandler(
       return apiError("validFrom must be a date after 1900", 422);
     }
 
-    const existing = await prisma.medicationScheduleRevision.findMany({
-      where: { medicationId: id },
-      select: { validFrom: true, validUntil: true },
-    });
-
-    // "Before the current plan": the live era began at the newest
-    // archived `validUntil`; with no archive the live plan has covered
-    // everything since the medication was created (the era splitter
-    // reads `[newest validUntil, ∞)` — or the whole range when no
-    // revision exists), so a manual era must end at or before
-    // `createdAt`. Allowing it to reach "now" would let the manual
-    // snapshot swallow tracked live history and re-score compliance
-    // against the wrong plan.
-    const liveStart = existing.reduce(
-      (latest, r) => (r.validUntil > latest ? r.validUntil : latest),
-      new Date(0),
-    );
-    const liveBoundary = existing.length > 0 ? liveStart : med.createdAt;
-    if (validUntil.getTime() > liveBoundary.getTime()) {
-      return apiError(
-        "A manual era must end before the current plan begins",
-        422,
-      );
-    }
-
-    // No overlap with any archived interval `[validFrom, validUntil)`.
-    const overlaps = existing.some(
-      (r) =>
-        validFrom.getTime() < r.validUntil.getTime() &&
-        validUntil.getTime() > r.validFrom.getTime(),
-    );
-    if (overlaps) {
-      return apiError("The era overlaps an existing schedule era", 422);
-    }
-
     // Snapshot entry shaped exactly like the write-path archive: daily
     // recurrence at the given times, window pulled to their min/max.
-    const times = [...parsed.data.timesOfDay].sort((a, b) =>
-      a.localeCompare(b),
-    );
+    // The schema already deduped + sorted the times.
+    const times = parsed.data.timesOfDay;
     const entry = toRevisionPayloadEntry({
       timesOfDay: times,
       windowStart: times[0],
@@ -220,22 +186,76 @@ export const POST = apiHandler(
       reminderGraceMinutes: null,
     });
 
-    const revision = await prisma.medicationScheduleRevision.create({
-      data: {
-        medicationId: id,
-        validFrom,
-        validUntil,
-        source: "MANUAL",
-        payload: [entry] as unknown as Prisma.InputJsonValue,
-      },
-      select: {
-        id: true,
-        validFrom: true,
-        validUntil: true,
-        source: true,
-        payload: true,
-      },
+    // Validate-then-write under a per-medication row lock: two
+    // concurrent era writes used to both pass the overlap check against
+    // the same snapshot and both insert. `FOR UPDATE` on the medication
+    // row serialises every era write for this medication; the reads run
+    // through the same `tx` so they see the locked state.
+    const outcome = await prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`
+        SELECT id FROM medications
+        WHERE id = ${id}
+        FOR UPDATE
+      `;
+
+      const existing = await tx.medicationScheduleRevision.findMany({
+        where: { medicationId: id, supersededByRevisionId: null },
+        select: { validFrom: true, validUntil: true },
+      });
+
+      // "Before the current plan": the live era began at the newest
+      // active `validUntil`, and never earlier than `createdAt` — the
+      // era splitter reads `[newest validUntil, ∞)`, or the whole range
+      // when no revision exists. Allowing a manual era to reach past
+      // that instant would let the manual snapshot swallow tracked live
+      // history and re-score compliance against the wrong plan.
+      const liveBoundary = existing.reduce(
+        (latest, r) => (r.validUntil > latest ? r.validUntil : latest),
+        med.createdAt,
+      );
+      if (validUntil.getTime() > liveBoundary.getTime()) {
+        return {
+          ok: false,
+          error: "A manual era must end before the current plan begins",
+        } as const;
+      }
+
+      // No overlap with any active interval `[validFrom, validUntil)`.
+      const overlaps = existing.some(
+        (r) =>
+          validFrom.getTime() < r.validUntil.getTime() &&
+          validUntil.getTime() > r.validFrom.getTime(),
+      );
+      if (overlaps) {
+        return {
+          ok: false,
+          error: "The era overlaps an existing schedule era",
+        } as const;
+      }
+
+      const revision = await tx.medicationScheduleRevision.create({
+        data: {
+          medicationId: id,
+          validFrom,
+          validUntil,
+          source: "MANUAL",
+          payload: [entry] as unknown as Prisma.InputJsonValue,
+        },
+        select: {
+          id: true,
+          validFrom: true,
+          validUntil: true,
+          source: true,
+          payload: true,
+        },
+      });
+      return { ok: true, revision } as const;
     });
+
+    if (!outcome.ok) {
+      return apiError(outcome.error, 422);
+    }
+    const revision = outcome.revision;
 
     await auditLog("medication.schedule_revision.created", {
       userId: user.id,

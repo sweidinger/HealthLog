@@ -26,6 +26,7 @@ import { Switch } from "@/components/ui/switch";
 import { SettingsCardHeader } from "@/components/settings/_card-header";
 import { apiPatch } from "@/lib/api/api-fetch";
 import { useAuth } from "@/hooks/use-auth";
+import { useMounted } from "@/hooks/use-mounted";
 import { useTranslations } from "@/lib/i18n/context";
 import { queryKeys } from "@/lib/query-keys";
 
@@ -74,7 +75,12 @@ export function DisableCoachCard({
     }, 3000);
   }
 
-  const checked = optimistic ?? user?.disableCoach ?? false;
+  // `mounted`-gated: `user` comes from the auth query, which can
+  // resolve before this boundary hydrates — the Switch state must
+  // match the unchecked SSR HTML during hydration (React #418) and
+  // pick up the wire value on the first client re-render.
+  const mounted = useMounted();
+  const checked = mounted ? (optimistic ?? user?.disableCoach ?? false) : false;
 
   const mutation = useMutation({
     mutationFn: async (next: boolean) => {
@@ -122,7 +128,7 @@ export function DisableCoachCard({
     <section
       aria-labelledby="settings-ai-disable-coach-title"
       data-testid="settings-disable-coach-card"
-      className="bg-card border-border rounded-xl border p-6"
+      className="bg-card border-border rounded-xl border p-4 sm:p-6"
     >
       <SettingsCardHeader
         icon={MessageCircleOff}

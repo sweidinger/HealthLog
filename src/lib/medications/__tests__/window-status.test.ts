@@ -264,3 +264,104 @@ describe("reduceCurrentWindowStatus — stale window never beats timesOfDay (v1.
     });
   });
 });
+
+describe("reduceCurrentWindowStatus — display-due gate (v1.16.6)", () => {
+  // Mirrors the production shape that mis-pilled: a rolling 7-day
+  // medication (daysOfWeek empty) with a single 08:00 dose and an explicit
+  // 08:00–09:00 on-time window. Without the gate the band re-mints every
+  // local day and escalates after 09:00 even when the next unresolved slot
+  // is tomorrow.
+  const rolling = [
+    {
+      windowStart: "08:00",
+      windowEnd: "09:00",
+      daysOfWeek: null,
+      timesOfDay: ["08:00"],
+      doseWindows: [{ timeOfDay: "08:00", start: "08:00", end: "09:00" }],
+    },
+  ];
+  // June 11 2026, 07:00 Berlin (CEST) — "tomorrow" relative to the
+  // localClock fixtures (June 10).
+  const dueTomorrow = new Date("2026-06-11T05:00:00Z");
+  // June 10 2026, 08:00 Berlin — "today's" dose anchor.
+  const dueToday = new Date("2026-06-10T06:00:00Z");
+
+  it("rolling med due tomorrow never paints an overdue pill today", () => {
+    // Contrast pin: WITHOUT the gate the legacy band model escalates to
+    // very_late at 13:00 (240 min past the 09:00 band end) — the bug.
+    const ungated = reduceCurrentWindowStatus({
+      ...BASE,
+      schedules: rolling,
+      nowBerlin: localClock(13, 0),
+    });
+    expect(ungated.status).toBe("very_late");
+
+    // WITH the server display-due (next slot tomorrow, not overdue) the
+    // pill stays calm — the status can never read more overdue than the
+    // next-due line.
+    const gated = reduceCurrentWindowStatus({
+      ...BASE,
+      schedules: rolling,
+      nowBerlin: localClock(13, 0),
+      nextDue: { at: dueTomorrow, overdue: false },
+    });
+    expect(gated.status).toBeNull();
+
+    // Same at the late tier (10:00 — 60 min past the band end).
+    const lateTier = reduceCurrentWindowStatus({
+      ...BASE,
+      schedules: rolling,
+      nowBerlin: localClock(10, 0),
+      nextDue: { at: dueTomorrow, overdue: false },
+    });
+    expect(lateTier.status).toBeNull();
+  });
+
+  it("a genuinely open overdue slot keeps the band escalation", () => {
+    const late = reduceCurrentWindowStatus({
+      ...BASE,
+      schedules: rolling,
+      nowBerlin: localClock(10, 0),
+      nextDue: { at: dueToday, overdue: true },
+    });
+    expect(late.status).toBe("late");
+
+    const veryLate = reduceCurrentWindowStatus({
+      ...BASE,
+      schedules: rolling,
+      nowBerlin: localClock(12, 30),
+      nextDue: { at: dueToday, overdue: true },
+    });
+    expect(veryLate.status).toBe("very_late");
+  });
+
+  it("take-now shows only on the due day itself", () => {
+    // In the 08:00–09:00 band but the next dose is tomorrow → calm.
+    const notYetDue = reduceCurrentWindowStatus({
+      ...BASE,
+      schedules: rolling,
+      nowBerlin: localClock(8, 30),
+      nextDue: { at: dueTomorrow, overdue: false },
+    });
+    expect(notYetDue.status).toBeNull();
+
+    // Same wall clock, dose due today → the take-now pill renders.
+    const dueNow = reduceCurrentWindowStatus({
+      ...BASE,
+      schedules: rolling,
+      nowBerlin: localClock(8, 30),
+      nextDue: { at: dueToday, overdue: false },
+    });
+    expect(dueNow.status).toBe("in_window");
+  });
+
+  it("a null gate (no upcoming slot) suppresses the pill entirely", () => {
+    const res = reduceCurrentWindowStatus({
+      ...BASE,
+      schedules: rolling,
+      nowBerlin: localClock(8, 30),
+      nextDue: null,
+    });
+    expect(res.status).toBeNull();
+  });
+});

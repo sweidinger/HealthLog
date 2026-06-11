@@ -120,9 +120,12 @@ describe("UserManagementSection — mobile responsive", () => {
     expect(html).toMatch(/class="[^"]*\bp-4\b[^"]*sm:p-6/);
   });
 
-  it("stacks header rows on mobile so filter pills don't collide with title", () => {
+  it("wraps the filter pills below the title on narrow viewports", () => {
     const html = render();
-    // Header carries `flex-col` at base + `sm:flex-row` at small+.
-    expect(html).toMatch(/class="[^"]*\bflex-col\b[^"]*sm:flex-row/);
+    // The shared SettingsCardHeader title row wraps, so the status slot
+    // (filter pills) reflows under the title instead of colliding with it.
+    expect(html).toMatch(
+      /class="[^"]*\bflex-wrap\b[^"]*items-start justify-between/,
+    );
   });
 });

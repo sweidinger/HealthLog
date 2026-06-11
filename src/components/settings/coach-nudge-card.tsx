@@ -172,7 +172,7 @@ export function CoachNudgeCard({
   return (
     <section
       aria-labelledby="settings-coach-nudge-title"
-      className="bg-card rounded-lg border p-4 sm:p-6"
+      className="bg-card border-border rounded-xl border p-4 sm:p-6"
       data-testid="settings-coach-nudge-card"
     >
       <SettingsCardHeader

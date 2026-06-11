@@ -63,8 +63,7 @@ export function TimeFormatSelect({
     }, 3000);
   }
 
-  const value: TimeFormatPreference =
-    optimistic ?? user?.timeFormat ?? "AUTO";
+  const value: TimeFormatPreference = optimistic ?? user?.timeFormat ?? "AUTO";
 
   const mutation = useMutation({
     mutationFn: async (next: TimeFormatPreference) => {
@@ -94,9 +93,7 @@ export function TimeFormatSelect({
     onError: (err) => {
       setOptimistic(null);
       setMsg(
-        err instanceof Error
-          ? err.message
-          : t("settings.timeFormat.saveError"),
+        err instanceof Error ? err.message : t("settings.timeFormat.saveError"),
       );
       setMsgType("error");
       scheduleClear();

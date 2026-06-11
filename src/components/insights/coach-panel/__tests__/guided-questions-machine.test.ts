@@ -203,6 +203,58 @@ describe("guidedReducer — adoption settling", () => {
   });
 });
 
+describe("guidedReducer — reaction-then-adopt sequencing (v1.16.6)", () => {
+  // With a provider, the turn streams a Coach reaction and the flow
+  // waits in `answered` until the adopt offer settles; the settle of
+  // the CURRENT outcome is what advances the sequence.
+  it("ADOPTION_SETTLED for the current outcome advances to the next question", () => {
+    const state = run([
+      { type: "START", questions: QUESTIONS },
+      { type: "ANSWER_SUBMITTED", answer: "Hypertension." },
+      { type: "ADOPTION_SETTLED", index: 0, adoption: "adopted" },
+    ]);
+    if (state.phase !== "asking") throw new Error("unreachable");
+    expect(state.index).toBe(1);
+    expect(state.outcomes[0].adoption).toBe("adopted");
+  });
+
+  it("ADOPTION_SETTLED on the last answer lands on the summary", () => {
+    const state = run([
+      { type: "START", questions: ["only one"] },
+      { type: "ANSWER_SUBMITTED", answer: "An answer." },
+      { type: "ADOPTION_SETTLED", index: 0, adoption: "declined" },
+    ]);
+    expect(state.phase).toBe("summary");
+    if (state.phase !== "summary") throw new Error("unreachable");
+    expect(state.outcomes[0].adoption).toBe("declined");
+  });
+
+  it("a late settle for an older outcome does not advance", () => {
+    // Silent (provider-less) flow already advanced via TURN_COMPLETE;
+    // question 2 is answered and streaming when outcome 0 settles.
+    const state = run([
+      { type: "START", questions: QUESTIONS },
+      { type: "ANSWER_SUBMITTED", answer: "Hypertension." },
+      { type: "TURN_COMPLETE" },
+      { type: "ANSWER_SUBMITTED", answer: "Sleep." },
+      { type: "ADOPTION_SETTLED", index: 0, adoption: "adopted" },
+    ]);
+    if (state.phase !== "answered") throw new Error("unreachable");
+    expect(state.index).toBe(1);
+    expect(state.outcomes[0].adoption).toBe("adopted");
+  });
+
+  it("the silent flow still advances on TURN_COMPLETE alone", () => {
+    const state = run([
+      { type: "START", questions: QUESTIONS },
+      { type: "ANSWER_SUBMITTED", answer: "Hypertension." },
+      { type: "TURN_COMPLETE" },
+    ]);
+    if (state.phase !== "asking") throw new Error("unreachable");
+    expect(state.index).toBe(1);
+  });
+});
+
 describe("deriveThreadItems", () => {
   it("idle and done contribute nothing", () => {
     expect(deriveThreadItems(GUIDED_IDLE)).toEqual([]);

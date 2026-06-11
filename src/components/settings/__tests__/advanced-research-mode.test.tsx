@@ -137,9 +137,7 @@ describe("<AdvancedSection> → Research Mode card", () => {
 
     expect(html).toContain('data-slot="settings-research-mode-reprompt"');
     expect(html).toContain("Disclaimer updated");
-    expect(html).toContain(
-      'data-slot="settings-research-mode-reprompt-cta"',
-    );
+    expect(html).toContain('data-slot="settings-research-mode-reprompt-cta"');
     expect(html).toContain("Re-acknowledge disclaimer");
     // Status line reflects the stale state without claiming
     // "acknowledged on …" — that copy would mis-represent that the

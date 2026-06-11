@@ -14,6 +14,8 @@
  *      the chip + delete affordance, ARCHIVED eras get neither.
  *   4. No revisions: no toggle, the add-era CTA still renders.
  *   5. `eraTimes` dedupes/sorts across entries and drops non-arrays.
+ *   6. v1.16.6: every era row (MANUAL and ARCHIVED) carries the edit
+ *      pencil; only MANUAL rows carry delete.
  */
 import { describe, expect, it } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
@@ -130,9 +132,13 @@ describe("ScheduleHistoryTimeline", () => {
     expect(html).toContain("Manuell ergänzt");
     expect(html).toContain("Ära löschen");
     // Exactly ONE manual chip + ONE delete button — the archived era
-    // renders read-only.
+    // renders without delete.
     expect(html.match(/zeitplan-history-manual-chip/g)).toHaveLength(1);
     expect(html.match(/zeitplan-history-delete/g)).toHaveLength(1);
+    // BOTH eras carry the edit pencil: a MANUAL era edits in place, an
+    // ARCHIVED era is corrected via a superseding revision.
+    expect(html.match(/zeitplan-history-edit/g)).toHaveLength(2);
+    expect(html).toContain("Ära bearbeiten");
     expect(html).toContain("Frühere Ären ausblenden");
   });
 

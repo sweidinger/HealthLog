@@ -17,6 +17,11 @@
  *   - MANUAL eras carry a tinted chip and a delete affordance
  *     (confirmed via AlertDialog); write-path archives are immutable
  *     and render without one.
+ *   - v1.16.6: every era row carries an edit pencil. The dialog opens
+ *     prefilled like the add flow; a MANUAL era PATCHes in place, an
+ *     ARCHIVED era shows a quiet hint that the change corrects the
+ *     recorded history (the server mints a superseding MANUAL row and
+ *     keeps the original as the audit record).
  *
  * The "Bis" date is the day the NEXT plan took over (exclusive bound) —
  * the dialog copy says so, and adjacency with the live plan is the
@@ -25,7 +30,14 @@
  */
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ChevronDown, History, Loader2, Plus, Trash2 } from "lucide-react";
+import {
+  ChevronDown,
+  History,
+  Loader2,
+  Pencil,
+  Plus,
+  Trash2,
+} from "lucide-react";
 import { toast } from "sonner";
 
 import {
@@ -50,7 +62,7 @@ import {
 import { DateInput } from "@/components/ui/date-input";
 import { Label } from "@/components/ui/label";
 import { TimesOfDayChips } from "@/components/medications/scheduling/TimesOfDayChips";
-import { apiDelete, apiGet, apiPost } from "@/lib/api/api-fetch";
+import { apiDelete, apiGet, apiPatch, apiPost } from "@/lib/api/api-fetch";
 import { useFormatters, useTranslations } from "@/lib/i18n/context";
 import { queryKeys } from "@/lib/query-keys";
 import { cn } from "@/lib/utils";
@@ -103,6 +115,9 @@ export function ScheduleHistoryTimeline({
   const queryClient = useQueryClient();
   const [expanded, setExpanded] = useState(defaultExpanded);
   const [addOpen, setAddOpen] = useState(false);
+  const [editTarget, setEditTarget] = useState<ScheduleRevisionRow | null>(
+    null,
+  );
   const [deleteTarget, setDeleteTarget] = useState<ScheduleRevisionRow | null>(
     null,
   );
@@ -206,22 +221,37 @@ export function ScheduleHistoryTimeline({
                       {fmt.date(revision.validUntil)}
                     </p>
                   </div>
-                  {revision.source === "MANUAL" && (
+                  <div className="flex shrink-0 items-center">
                     <Button
                       type="button"
                       variant="ghost"
                       size="icon"
-                      className="text-muted-foreground hover:text-dracula-red size-8 shrink-0"
+                      className="text-muted-foreground hover:text-foreground size-8"
                       aria-label={t(
-                        "medications.detail.zeitplan.history.deleteAria",
+                        "medications.detail.zeitplan.history.editAria",
                       )}
-                      disabled={remove.isPending}
-                      onClick={() => setDeleteTarget(revision)}
-                      data-slot="zeitplan-history-delete"
+                      onClick={() => setEditTarget(revision)}
+                      data-slot="zeitplan-history-edit"
                     >
-                      <Trash2 className="size-4" aria-hidden="true" />
+                      <Pencil className="size-4" aria-hidden="true" />
                     </Button>
-                  )}
+                    {revision.source === "MANUAL" && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="text-muted-foreground hover:text-dracula-red size-8"
+                        aria-label={t(
+                          "medications.detail.zeitplan.history.deleteAria",
+                        )}
+                        disabled={remove.isPending}
+                        onClick={() => setDeleteTarget(revision)}
+                        data-slot="zeitplan-history-delete"
+                      >
+                        <Trash2 className="size-4" aria-hidden="true" />
+                      </Button>
+                    )}
+                  </div>
                 </div>
               </TimelineRow>
             );
@@ -266,11 +296,18 @@ export function ScheduleHistoryTimeline({
         </Button>
       </div>
 
-      <AddEraDialog
+      <EraDialog
+        key={editTarget?.id ?? "add"}
         medicationId={medicationId}
-        open={addOpen}
-        onOpenChange={setAddOpen}
-        onCreated={() => setExpanded(true)}
+        target={editTarget}
+        open={addOpen || editTarget !== null}
+        onOpenChange={(next) => {
+          if (!next) {
+            setAddOpen(false);
+            setEditTarget(null);
+          }
+        }}
+        onSaved={() => setExpanded(true)}
       />
 
       <AlertDialog
@@ -343,37 +380,58 @@ function TimelineRow({
   );
 }
 
+/** ISO instant → the local calendar date a `DateInput` understands. */
+function toLocalDateInput(iso: string): string {
+  const d = new Date(iso);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
 /**
- * "Frühere Ära ergänzen" — collects daily dose times + the Von/Bis date
- * pair and POSTs a MANUAL schedule revision. Client-side guards mirror
- * the server validation (times present, Von before Bis); the server
- * stays authoritative for overlap / before-current-plan and its message
- * surfaces through the error toast.
+ * "Frühere Ära ergänzen" / "Ära bearbeiten" — collects daily dose times
+ * + the Von/Bis date pair. Without a `target` it POSTs a MANUAL
+ * revision; with one it PATCHes the era (a MANUAL era updates in place,
+ * an ARCHIVED era gets a superseding correction — the dialog shows a
+ * quiet hint that the recorded history is being corrected). The parent
+ * remounts the dialog via `key` per target, so the prefill is a plain
+ * lazy state init. Client-side guards mirror the server validation
+ * (times present, Von before Bis); the server stays authoritative for
+ * overlap / before-current-plan and its message surfaces through the
+ * error toast.
  */
-function AddEraDialog({
+function EraDialog({
   medicationId,
+  target,
   open,
   onOpenChange,
-  onCreated,
+  onSaved,
 }: {
   medicationId: string;
+  /** Era being edited; null = the add flow. */
+  target: ScheduleRevisionRow | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onCreated: () => void;
+  onSaved: () => void;
 }) {
   const { t } = useTranslations();
   const queryClient = useQueryClient();
-  const [times, setTimes] = useState<string[]>([]);
-  const [fromDate, setFromDate] = useState("");
-  const [untilDate, setUntilDate] = useState("");
+  const [times, setTimes] = useState<string[]>(() =>
+    target ? eraTimes(target.entries) : [],
+  );
+  const [fromDate, setFromDate] = useState(() =>
+    target ? toLocalDateInput(target.validFrom) : "",
+  );
+  const [untilDate, setUntilDate] = useState(() =>
+    target ? toLocalDateInput(target.validUntil) : "",
+  );
   const [validationKey, setValidationKey] = useState<
     "timesMissing" | "rangeMissing" | "rangeOrder" | null
   >(null);
 
   function reset() {
-    setTimes([]);
-    setFromDate("");
-    setUntilDate("");
+    setTimes(target ? eraTimes(target.entries) : []);
+    setFromDate(target ? toLocalDateInput(target.validFrom) : "");
+    setUntilDate(target ? toLocalDateInput(target.validUntil) : "");
     setValidationKey(null);
   }
 
@@ -383,21 +441,34 @@ function AddEraDialog({
       validUntil: string;
       timesOfDay: string[];
     }) =>
-      apiPost<ScheduleRevisionRow>(
-        `/api/medications/${medicationId}/schedule-revisions`,
-        input,
-      ),
+      target
+        ? apiPatch<ScheduleRevisionRow>(
+            `/api/medications/${medicationId}/schedule-revisions/${target.id}`,
+            input,
+          )
+        : apiPost<ScheduleRevisionRow>(
+            `/api/medications/${medicationId}/schedule-revisions`,
+            input,
+          ),
     onSuccess: () => {
-      toast.success(t("medications.detail.zeitplan.history.createdToast"));
+      toast.success(
+        target
+          ? t("medications.detail.zeitplan.history.updatedToast")
+          : t("medications.detail.zeitplan.history.createdToast"),
+      );
       queryClient.invalidateQueries({
         queryKey: queryKeys.medicationDetail(medicationId),
       });
       onOpenChange(false);
       reset();
-      onCreated();
+      onSaved();
     },
     onError: () => {
-      toast.error(t("medications.detail.zeitplan.history.createError"));
+      toast.error(
+        target
+          ? t("medications.detail.zeitplan.history.updateError")
+          : t("medications.detail.zeitplan.history.createError"),
+      );
     },
   });
 
@@ -437,12 +508,24 @@ function AddEraDialog({
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>
-            {t("medications.detail.zeitplan.history.addEraTitle")}
+            {target
+              ? t("medications.detail.zeitplan.history.editEraTitle")
+              : t("medications.detail.zeitplan.history.addEraTitle")}
           </DialogTitle>
           <DialogDescription>
-            {t("medications.detail.zeitplan.history.addEraDescription")}
+            {target
+              ? t("medications.detail.zeitplan.history.editEraDescription")
+              : t("medications.detail.zeitplan.history.addEraDescription")}
           </DialogDescription>
         </DialogHeader>
+        {target?.source === "ARCHIVED" && (
+          <p
+            className="text-muted-foreground text-xs"
+            data-slot="zeitplan-history-archived-hint"
+          >
+            {t("medications.detail.zeitplan.history.archivedEditHint")}
+          </p>
+        )}
         <form
           onSubmit={(e) => {
             e.preventDefault();
