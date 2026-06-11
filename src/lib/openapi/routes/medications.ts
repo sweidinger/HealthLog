@@ -15,6 +15,7 @@ import {
   MEDICATION_TREATMENT_CLASS_VALUES,
 } from "@/lib/validations/medication";
 import { medicationExtractionSchema } from "@/lib/ai/coach/medication-extract-prompt";
+import { scheduleRevisionCreateSchema } from "@/lib/validations/schedule-revision";
 import { dataEnvelope, errorEnvelope, stdResponses } from "./shared";
 
 // ── Medications (v1.5 scheduling) ────────────────────────────────────
@@ -503,6 +504,60 @@ const medicationComplianceResponse = z
       "Adherence read for a single medication. `compliance30` is the authoritative 30-day taken-vs-expected summary; `dailyCompliance` is the per-day grid for the history glyph track. The graded raw→week→month→year series used elsewhere for AI prompts does NOT apply here — this response is never downsampled.",
   });
 
+// v1.16.5 — schedule-era management (the Zeitplan-tab history timeline).
+// Archived eras come from two provenances: the wholesale-replace write
+// path (`ARCHIVED`, immutable) and the user-entered pre-tracking flow
+// (`MANUAL`, deletable through the `[revisionId]` DELETE).
+const scheduleRevisionEntrySummary = z
+  .object({
+    timesOfDay: z
+      .array(z.string())
+      .describe("Daily dose times (HH:mm, user local) the era ran at."),
+    label: z.string().nullable(),
+    dose: z.string().nullable(),
+    scheduleType: z
+      .string()
+      .describe("Schedule-type discriminator of the archived row (SCHEDULED / PRN / CYCLIC)."),
+  })
+  .meta({
+    id: "ScheduleRevisionEntry",
+    description:
+      "Display summary of one archived schedule row inside an era. The full snapshot (windows, rrule, doseWindows, …) stays server-side; this projection carries what the timeline renders.",
+  });
+
+const scheduleRevisionResource = z
+  .object({
+    id: z.string(),
+    validFrom: z.iso
+      .datetime()
+      .describe("Inclusive start instant of the era."),
+    validUntil: z.iso
+      .datetime()
+      .describe("Exclusive end instant of the era — the moment the next plan took over."),
+    source: z
+      .enum(["ARCHIVED", "MANUAL"])
+      .describe(
+        "Provenance. ARCHIVED = minted by the schedule-replace write path (immutable). MANUAL = user-entered pre-tracking era (deletable).",
+      ),
+    entries: z.array(scheduleRevisionEntrySummary),
+  })
+  .meta({
+    id: "MedicationScheduleRevision",
+    description:
+      "One archived schedule era covering `[validFrom, validUntil)`. The dose-history ledger, compliance tallies, and cadence chips mint past days against the era that was live then.",
+  });
+
+const scheduleRevisionListResponse = z.object({
+  currentSince: z.iso
+    .datetime()
+    .describe(
+      "Instant the LIVE plan took over: the newest revision's `validUntil`, or the medication's `createdAt` when no era has been archived.",
+    ),
+  revisions: z
+    .array(scheduleRevisionResource)
+    .describe("Archived eras, newest first."),
+});
+
 // v1.5.0 — natural-language medication extraction route. The wizard's
 // optional "Beschreiben" overlay POSTs a free-text description and
 // receives a partial structured payload the form merges onto whatever
@@ -821,6 +876,103 @@ export const medicationPaths: NonNullable<ZodOpenApiObject["paths"]> = {
         },
         "404": {
           description: "Medication not found (or owned by another user).",
+          content: { "application/json": { schema: errorEnvelope } },
+        },
+        ...stdResponses,
+      },
+    },
+  },
+  "/api/medications/{id}/schedule-revisions": {
+    get: {
+      tags: ["Medications"],
+      summary: "List a medication's archived schedule eras",
+      description:
+        "Returns every archived schedule era (newest first) plus `currentSince`, the instant the live plan took over. The dose-history ledger and compliance tallies already mint past days against these eras; this read powers the Zeitplan-tab history timeline.",
+      requestParams: {
+        path: z.object({ id: z.string() }),
+      },
+      responses: {
+        "200": {
+          description: "Era list.",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                scheduleRevisionListResponse,
+                "ListScheduleRevisionsResponse",
+              ),
+            },
+          },
+        },
+        "404": {
+          description: "Medication not found (or owned by another user).",
+          content: { "application/json": { schema: errorEnvelope } },
+        },
+        ...stdResponses,
+      },
+    },
+    post: {
+      tags: ["Medications"],
+      summary: "Append a manual schedule era (pre-tracking history)",
+      description:
+        "Records that the medication dosed at the given daily times during `[validFrom, validUntil)` — history from before the schedule was edited in the app. The era must end at or before the start of the live plan and must not overlap an existing era; violations return 422. The snapshot is shaped exactly like a write-path archive (`FREQ=DAILY`, window pulled to the min/max of the times), so every historical surface reads it transparently. Audits as `medication.schedule_revision.created`.",
+      requestParams: {
+        path: z.object({ id: z.string() }),
+      },
+      requestBody: {
+        required: true,
+        content: {
+          "application/json": { schema: scheduleRevisionCreateSchema },
+        },
+      },
+      responses: {
+        "201": {
+          description: "Manual era created.",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                scheduleRevisionResource,
+                "CreateScheduleRevisionResponse",
+              ),
+            },
+          },
+        },
+        "404": {
+          description: "Medication not found (or owned by another user).",
+          content: { "application/json": { schema: errorEnvelope } },
+        },
+        ...stdResponses,
+      },
+    },
+  },
+  "/api/medications/{id}/schedule-revisions/{revisionId}": {
+    delete: {
+      tags: ["Medications"],
+      summary: "Delete a manually added schedule era",
+      description:
+        "Removes a `MANUAL` era the owner appended through the sibling POST. Write-path archives (`source: ARCHIVED`) are immutable history and refuse with 409. Audits as `medication.schedule_revision.deleted`.",
+      requestParams: {
+        path: z.object({ id: z.string(), revisionId: z.string() }),
+      },
+      responses: {
+        "200": {
+          description: "Deletion succeeded.",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                z.object({ deleted: z.boolean() }),
+                "DeleteScheduleRevisionResponse",
+              ),
+            },
+          },
+        },
+        "404": {
+          description:
+            "Medication or revision not found (or owned by another user).",
+          content: { "application/json": { schema: errorEnvelope } },
+        },
+        "409": {
+          description:
+            "The revision is a write-path archive (`ARCHIVED`) and cannot be deleted.",
           content: { "application/json": { schema: errorEnvelope } },
         },
         ...stdResponses,

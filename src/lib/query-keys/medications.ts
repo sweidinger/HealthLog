@@ -28,6 +28,15 @@ export const medicationKeys = {
   medicationInventory: (medicationId: string) =>
     ["medications", medicationId, "inventory"] as const,
   /**
+   * v1.16.5 — archived schedule eras + `currentSince`
+   * (`GET /api/medications/[id]/schedule-revisions`), consumed by the
+   * Zeitplan tab's history timeline. Rides under the `["medications"]`
+   * prefix so a schedule replace (which may archive a new era)
+   * invalidates it together with the detail read.
+   */
+  medicationScheduleRevisions: (medicationId: string) =>
+    ["medications", medicationId, "schedule-revisions"] as const,
+  /**
    * v1.15.18 — per-medication dose-history ledger
    * (`GET /api/medications/[id]/dose-history?from=&to=`), consumed by the
    * detail page's Verlauf tab. Keyed by the `(from, to)` window so paging the

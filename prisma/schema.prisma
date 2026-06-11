@@ -1470,6 +1470,11 @@ model MedicationScheduleRevision {
   /// doseWindows, label, dose, reminderGraceMinutes }` objects — enough
   /// to rebuild a `CanonicalSchedule` list for era minting.
   payload      Json
+  /// v1.16.5 — provenance. 'ARCHIVED' = minted by the schedule-replace
+  /// write path (immutable history). 'MANUAL' = user-entered pre-tracking
+  /// era via POST /api/medications/{id}/schedule-revisions (deletable by
+  /// the owner).
+  source       String   @default("ARCHIVED")
   createdAt    DateTime @default(now()) @map("created_at")
 
   medication Medication @relation(fields: [medicationId], references: [id], onDelete: Cascade)
