@@ -2,6 +2,29 @@
 
 ## [Unreleased]
 
+## [1.16.4] — 2026-06-11 — half the bundle, a typed client, and stock you can record
+
+### Added
+
+- **The inventory tab records stock** — packs and pens with optional expiry, corrections and withdrawals. The detail page gains a dedicated API tab, an editor entry under lifecycle, and a danger zone without the red drama.
+- **Record the dose you actually took.** Intakes carry an optional actual dose, editable in the quick-add and log dialogs and shown as a quiet deviation in the history.
+- **Undo for deletes.** Removing a measurement or mood entry can be taken back from the toast.
+- **Pull-to-refresh** on the measurement and mood lists, and the customize entry on every insights sub-page.
+- **Answered coach follow-ups can flow into your self-context** with one tap.
+
+### Changed
+
+- **The app got dramatically lighter and faster.** Only the active language ships to the browser — the dashboard route drops from 2.1 MB to under 1 MB parsed (288 KB gzip), with no language flash. The shell paints immediately while the session resolves, a redundant request stage is gone, and insight sub-pages prefetch on approach: a first tab switch lands in tens of milliseconds instead of nearly a second.
+- **Every client call goes through one typed API client** with the envelope, error and ok-handling in a single place, enforced by lint. The route registry, query keys, background worker and dashboard page split into feature-located modules behind thin indexes.
+- **Settings behave one way.** Provider and integration cards live in focused subcomponents, every setting persists server-side at exactly one home, save conventions are documented, and duplicated controls collapsed into single owners with links.
+- **Published images are signed**, dependabot merges only behind the required checks, a pre-commit secret scan guards every commit, the deploy webhook can demand a fresh timestamp, and a monthly drill proves the newest backup actually decrypts.
+
+### Fixed
+
+- Server and first client render now agree everywhere query state used to leak into the chrome.
+- Delete confirmations admit the undo they offer, step counts drop their decimals, streaks know their singular, the medication header speaks your date format, and a failed coach turn keeps your message and says what went wrong.
+- A language switch updates pending status notes and only flips once the new language is actually loaded.
+
 ## [1.16.3] — 2026-06-10 — schedules remember their history
 
 ### Fixed

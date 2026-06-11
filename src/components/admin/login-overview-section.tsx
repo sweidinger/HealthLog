@@ -36,6 +36,7 @@ import {
   useAuthActionLabels,
   useAuthProviderLabels,
 } from "./_shared";
+import { apiGet } from "@/lib/api/api-fetch";
 
 type DateRangePreset = "all" | "24h" | "7d" | "30d";
 type PerPageValue = 25 | 50 | 100;
@@ -130,9 +131,7 @@ export function LoginOverviewSection() {
       if (filter === "failed") {
         params.set("action", "auth.login.failed");
       }
-      const res = await fetch(`/api/admin/audit-log?${params.toString()}`);
-      if (!res.ok) throw new Error("Failed");
-      return (await res.json()).data as AuditLogResponse;
+      return apiGet<AuditLogResponse>(`/api/admin/audit-log?${params.toString()}`);
     },
   });
 
@@ -140,9 +139,7 @@ export function LoginOverviewSection() {
   const { data: actionsData } = useQuery({
     queryKey: queryKeys.adminAuditActions(),
     queryFn: async () => {
-      const res = await fetch("/api/admin/audit-log/actions");
-      if (!res.ok) throw new Error("Failed");
-      return (await res.json()).data as { actions: string[] };
+      return apiGet<{ actions: string[] }>("/api/admin/audit-log/actions");
     },
     staleTime: 5 * 60_000,
   });

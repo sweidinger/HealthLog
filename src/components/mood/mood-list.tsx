@@ -55,7 +55,7 @@ import {
   ChevronRight,
   MoreHorizontal,
 } from "lucide-react";
-import { useId, useState } from "react";
+import { useCallback, useId, useState } from "react";
 import { createPortal } from "react-dom";
 import { toast } from "sonner";
 import { formatDateTime } from "@/lib/format";
@@ -76,6 +76,7 @@ import {
 } from "@/components/data-list";
 import { useRovingRadioGroup } from "@/hooks/use-roving-radio-group";
 import { MoodTagPicker } from "./mood-tag-picker";
+import { apiDelete, apiGet, apiPost, apiPut } from "@/lib/api/api-fetch";
 
 // Re-export the score map under the legacy local name to keep the
 // rest of this file unchanged. v1.4.27 B6 / BL-P6-11 — the single
@@ -235,26 +236,43 @@ export function MoodList({ onAddFirst }: MoodListProps = {}) {
       params.set("offset", String((page - 1) * PAGE_SIZE));
       params.set("sortBy", sortBy);
       params.set("sortDir", sortDir);
-      const res = await fetch(`/api/mood-entries?${params}`);
-      if (!res.ok) throw new Error("Failed to fetch");
-      const json = await res.json();
-      return json.data as {
+      return apiGet<{
         entries: MoodEntry[];
         meta: { total: number };
-      };
+      }>(`/api/mood-entries?${params}`);
     },
     enabled: isAuthenticated,
   });
 
+  // v1.16.4 — deletes are soft (tombstones), so the success toast can
+  // carry a real Undo: it POSTs the ids to `/api/mood-entries/restore`,
+  // which clears `deletedAt` and re-fires the same dependent-key bundle.
+  // Mirrors the measurements list and the intake-Undo pattern.
+  const restoreEntries = useCallback(
+    async (ids: string[]) => {
+      try {
+        await apiPost("/api/mood-entries/restore", { ids });
+        await invalidateKeys(queryClient, moodDependentKeys);
+        toast.success(t("mood.restoredToast"));
+      } catch {
+        toast.error(t("mood.restoreError"));
+      }
+    },
+    [queryClient, t],
+  );
+
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      const res = await fetch(`/api/mood-entries/${id}`, {
-        method: "DELETE",
-      });
-      if (!res.ok) throw new Error("Delete failed");
+      await apiDelete(`/api/mood-entries/${id}`);
     },
-    onSuccess: () => {
+    onSuccess: (_data, id) => {
       void invalidateKeys(queryClient, moodDependentKeys);
+      toast.success(t("mood.deletedToast"), {
+        action: {
+          label: t("common.undo"),
+          onClick: () => void restoreEntries([id]),
+        },
+      });
     },
     // v1.11.5 — a failed delete used to fail silently (no onError handler),
     // leaving the row in place with no signal that the request was rejected.
@@ -268,19 +286,21 @@ export function MoodList({ onAddFirst }: MoodListProps = {}) {
   // v1.15.13 — page-scoped bulk soft-delete, mirroring the measurements list.
   const bulkDeleteMutation = useMutation({
     mutationFn: async (ids: string[]) => {
-      const res = await fetch("/api/mood-entries/bulk-delete", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ids }),
-      });
-      if (!res.ok) throw new Error("Bulk delete failed");
-      const json = (await res.json()) as { data: { deleted: number } };
-      return json.data.deleted;
+      const data = await apiPost<{ deleted: number }>(
+        "/api/mood-entries/bulk-delete",
+        { ids },
+      );
+      return data.deleted;
     },
-    onSuccess: async (deleted) => {
+    onSuccess: async (deleted, ids) => {
       await invalidateKeys(queryClient, moodDependentKeys);
       clearSelection();
-      toast.success(t("mood.bulkDeleteSuccess", { count: String(deleted) }));
+      toast.success(t("mood.bulkDeleteSuccess", { count: String(deleted) }), {
+        action: {
+          label: t("common.undo"),
+          onClick: () => void restoreEntries(ids),
+        },
+      });
     },
     onError: () => {
       toast.error(t("mood.bulkDeleteError"));
@@ -324,16 +344,7 @@ export function MoodList({ onAddFirst }: MoodListProps = {}) {
       note: string | null;
       moodLoggedAt: string;
     }) => {
-      const res = await fetch(`/api/mood-entries/${id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mood, tags, tagKeys, note, moodLoggedAt }),
-      });
-
-      const json = await res.json();
-      if (!res.ok) {
-        throw new Error(json.error ?? "Update failed");
-      }
+      await apiPut(`/api/mood-entries/${id}`, { mood, tags, tagKeys, note, moodLoggedAt });
     },
     onSuccess: async () => {
       await invalidateKeys(queryClient, moodDependentKeys);
@@ -659,28 +670,23 @@ export function MoodList({ onAddFirst }: MoodListProps = {}) {
                     className="bg-card border-border data-[state=selected]:border-dracula-purple/60 data-[state=selected]:bg-dracula-purple/5 flex items-center justify-between rounded-lg border p-3"
                   >
                     <div className="flex items-center gap-2 overflow-hidden">
-                      {/* v1.15.13 MEDIUM-1 — a Radix Checkbox renders a 16px
-                        `<button role=checkbox>`; a wrapping `<label>` does
-                        NOT forward taps to a button, so the effective tap
-                        target was 16px (fails WCAG 2.5.5). The 44px button
-                        owns the whole hit area and is the single toggle
-                        source; the inner Checkbox is a `pointer-events-none`
-                        controlled visual, so a tap fires the handler once. */}
-                      <button
-                        type="button"
-                        role="checkbox"
-                        aria-checked={isSelected}
-                        aria-label={t("dataList.selectRow")}
-                        onClick={() => onToggleRow(entry.id)}
-                        className="focus-visible:ring-ring/50 flex size-11 shrink-0 items-center justify-center rounded focus-visible:ring-2 focus-visible:outline-none"
-                      >
+                      {/* v1.15.13 MEDIUM-1 kept the 16px Radix Checkbox
+                        (itself a `<button role=checkbox>`) inside a 44px
+                        wrapper `<button>` for WCAG 2.5.5 — but a button may
+                        not nest inside a button, and the invalid markup made
+                        React 19 fail hydration on every list paint. The
+                        wrapper is now a plain layout `<div>`; the Checkbox
+                        stays the single control and owns the 44px hit area
+                        via an `after` hit-slop (clicks on a pseudo-element
+                        hit-test against its host button). */}
+                      <div className="flex size-11 shrink-0 items-center justify-center">
                         <Checkbox
                           checked={isSelected}
-                          tabIndex={-1}
-                          aria-hidden="true"
-                          className="pointer-events-none"
+                          onCheckedChange={() => onToggleRow(entry.id)}
+                          aria-label={t("dataList.selectRow")}
+                          className="relative after:absolute after:-inset-3.5"
                         />
-                      </button>
+                      </div>
                       <div className="bg-muted flex h-8 w-8 shrink-0 items-center justify-center rounded-lg">
                         <span
                           data-testid="mood-row-score"

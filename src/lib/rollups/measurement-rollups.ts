@@ -776,7 +776,7 @@ export async function enqueueBootTimeRollupBackfill(): Promise<{
     // its composite primary key.
     //
     // v1.4.41 — the v1.4.39 W-SUM legacy-NULL `sum_value` UNION arm
-    // has been retired. Marc's tenant converged at v1.4.40, so the
+    // has been retired. The maintainer's tenant converged at v1.4.40, so the
     // arm was a permanent no-op seq scan over `measurement_rollups`.
     // Per-day missing coverage remains the sole discovery anchor.
     const users = await prisma.$queryRaw<Array<{ id: string }>>`

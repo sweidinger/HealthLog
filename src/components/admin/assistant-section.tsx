@@ -6,7 +6,8 @@ import { toast } from "sonner";
 
 import { useTranslations } from "@/lib/i18n/context";
 import { queryKeys } from "@/lib/query-keys";
-import { SettingsToggle, getApiErrorMessage } from "./_shared";
+import { SettingsToggle } from "./_shared";
+import { apiGet, apiPut } from "@/lib/api/api-fetch";
 
 /**
  * v1.4.31 — operator-side panel for the six assistant feature
@@ -48,9 +49,7 @@ function useAssistantFlags() {
   return useQuery({
     queryKey: queryKeys.adminAssistantFlags(),
     queryFn: async () => {
-      const res = await fetch("/api/admin/settings/assistant-flags");
-      if (!res.ok) throw new Error("Failed");
-      return (await res.json()).data as AssistantFlagsResponse;
+      return apiGet<AssistantFlagsResponse>("/api/admin/settings/assistant-flags");
     },
   });
 }
@@ -62,15 +61,7 @@ function useUpdateAssistantFlags() {
     mutationFn: async (
       patch: Partial<AssistantFlagsResponse["raw"]>,
     ): Promise<AssistantFlagsResponse> => {
-      const res = await fetch("/api/admin/settings/assistant-flags", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(patch),
-      });
-      if (!res.ok) {
-        throw new Error(await getApiErrorMessage(res));
-      }
-      return (await res.json()).data as AssistantFlagsResponse;
+      return apiPut<AssistantFlagsResponse>("/api/admin/settings/assistant-flags", patch);
     },
     onSuccess: (data) => {
       client.setQueryData(

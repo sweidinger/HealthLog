@@ -15,8 +15,8 @@ vi.mock("next/navigation", () => ({
 const mockUserRef = {
   value: {
     id: "u1",
-    username: "marc",
-    email: "marc@example.com",
+    username: "testuser",
+    email: "user@example.com",
     role: "USER" as "USER" | "ADMIN",
     avatarUrl: null,
     cycleTrackingEnabled: false,

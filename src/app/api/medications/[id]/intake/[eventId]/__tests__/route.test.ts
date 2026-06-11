@@ -260,7 +260,7 @@ describe("PUT /api/medications/[id]/intake/[eventId] — one-shot reconcile on s
 // v1.15.18 — PUT re-runs window-band slot attribution on a takenAt change
 // ────────────────────────────────────────────────────────────────────
 
-import { localHmAsUtc } from "@/lib/timezone";
+import { localHmAsUtc } from "@/lib/tz/local-day";
 
 const TZ = "Europe/Berlin";
 const SESSION_TZ = {

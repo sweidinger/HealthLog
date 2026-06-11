@@ -22,7 +22,7 @@
  * test-guard substitute holds the "guarded surface" line until a
  * future wave extends both the guard and this whitelist together.
  *
- * @see src/lib/query-keys.ts        — factory home (do not lint as offender)
+ * @see src/lib/query-keys/         — factory home (do not lint as offender)
  * @see src/lib/__tests__/query-keys.test.ts — test-guard substitute
  * @see .planning/phase-W-PROCESS-DOCS-v1441-report.md
  */
@@ -35,13 +35,15 @@
 // exempt for now. Path matches use `String#includes` semantics against
 // the absolute filename — keep entries as posix-style suffix paths.
 const FACTORY_HOME_FILES = [
-  // The factory definition file is allowed to declare literal keys —
-  // that's the whole point of the factory.
-  "src/lib/query-keys.ts",
   // The factory's own unit-test file constructs literal keys to assert
   // the factory output shape.
   "src/lib/__tests__/query-keys.test.ts",
 ];
+
+// The factory definition files are allowed to declare literal keys —
+// that's the whole point of the factory. The factory is split into
+// per-feature files under this directory (barrel at index.ts).
+const FACTORY_HOME_DIRECTORY = "src/lib/query-keys";
 
 // Directories under which any `queryKey: [ … ]` literal is an error.
 // Extend in lockstep with the test-guard substitute's `guardedRoots`.
@@ -81,6 +83,7 @@ function isGuarded(filename) {
   for (const home of FACTORY_HOME_FILES) {
     if (filename.endsWith(home)) return false;
   }
+  if (filename.includes(`/${FACTORY_HOME_DIRECTORY}/`)) return false;
   for (const dir of GUARDED_DIRECTORIES) {
     if (filename.includes(`/${dir}/`)) return true;
   }
@@ -96,7 +99,7 @@ const queryKeyFactoryRule = {
     type: "problem",
     docs: {
       description:
-        "Disallow literal-array `queryKey` / `mutationKey` declarations in guarded files. Use `queryKeys.<entry>()` from `src/lib/query-keys.ts` instead.",
+        "Disallow literal-array `queryKey` / `mutationKey` declarations in guarded files. Use `queryKeys.<entry>()` from `src/lib/query-keys/` instead.",
       recommended: false,
     },
     messages: {

@@ -14,20 +14,20 @@ import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
-const REMINDER_WORKER_PATH = join(
-  __dirname,
-  "..",
-  "reminder-worker.ts",
-);
+const REMINDER_WORKER_PATH = join(__dirname, "..", "reminder-worker.ts");
 
-const source = readFileSync(REMINDER_WORKER_PATH, "utf8");
+const source =
+  readFileSync(REMINDER_WORKER_PATH, "utf8") +
+  readFileSync(join(__dirname, "..", "reminder", "withings-sync.ts"), "utf8");
 
 describe("reminder-worker — Withings activity + sleep v2 queues", () => {
   it("declares the activity-sync queue at the documented cadence", () => {
     expect(source).toMatch(
       /WITHINGS_ACTIVITY_QUEUE\s*=\s*["']withings-activity-sync["']/,
     );
-    expect(source).toMatch(/WITHINGS_ACTIVITY_CRON\s*=\s*["']0 \* \* \* \*["']/);
+    expect(source).toMatch(
+      /WITHINGS_ACTIVITY_CRON\s*=\s*["']0 \* \* \* \*["']/,
+    );
   });
 
   it("declares the sleep-sync queue at the offset cadence", () => {

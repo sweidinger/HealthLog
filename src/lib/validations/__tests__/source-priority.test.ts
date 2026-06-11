@@ -171,7 +171,7 @@ describe("DEFAULT_SOURCE_PRIORITY", () => {
     }
   });
 
-  it("places WITHINGS first for point measurements (Marc directive)", () => {
+  it("places WITHINGS first for point measurements (the maintainer directive)", () => {
     // Withings devices are the primary sensor for point readings; the
     // canonical row should come from the scale / cuff / ScanWatch /
     // Thermo rather than HealthKit's second-hand mirror.

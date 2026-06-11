@@ -151,7 +151,7 @@ export function SparklineDeltaTile({
       </div>
 
       <div
-        className="mt-2 flex items-baseline gap-x-1.5"
+        className="mt-2 flex flex-wrap items-baseline gap-x-1.5"
         data-slot="sparkline-delta-tile-value-row"
       >
         <span
@@ -160,7 +160,10 @@ export function SparklineDeltaTile({
         >
           {value !== null ? fmt.number(value, precision) : "—"}
         </span>
-        <span className="text-muted-foreground min-w-0 truncate text-sm tabular-nums">
+        {/* v1.16.4 — the unit is short, load-bearing metadata ("mmHg",
+            "kg") and must never ellipsis ("m…"); on a too-narrow tile
+            the row wraps instead (hence `flex-wrap` above). */}
+        <span className="text-muted-foreground shrink-0 text-sm whitespace-nowrap tabular-nums">
           {unit}
         </span>
         <span

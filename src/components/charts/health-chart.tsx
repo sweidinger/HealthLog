@@ -3,6 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import { queryKeys } from "@/lib/query-keys";
+import { apiGet } from "@/lib/api/api-fetch";
 import {
   ResponsiveContainer,
   ComposedChart,
@@ -707,13 +708,16 @@ export function HealthChart({
           "days",
           String(Math.max(1, Math.min(3650, Math.ceil(fetchWindow.windowDays)))),
         );
-        const res = await fetch(`/api/measurements/series?${sleepParams}`);
-        if (!res.ok) return;
-        const json = await res.json();
-        const points = (json.data?.points ?? []) as Array<{
-          at: string;
-          value: number;
-        }>;
+        let points: Array<{ at: string; value: number }>;
+        try {
+          const data = await apiGet<{
+            points?: Array<{ at: string; value: number }>;
+          }>(`/api/measurements/series?${sleepParams}`);
+          points = data?.points ?? [];
+        } catch {
+          // Sleep overlay is additive — skip it on failure, as before.
+          return;
+        }
         for (const point of points) {
           const value = point.value * valueScale;
           if (value == null || !Number.isFinite(value)) continue;
@@ -769,11 +773,16 @@ export function HealthChart({
           typeParams.set("source", "rollup");
         }
 
-        const res = await fetch(`/api/measurements?${typeParams}`);
-        if (!res.ok) return;
-
-        const json = await res.json();
-        const page = (json.data?.measurements ?? []) as MeasurementApiRow[];
+        let page: MeasurementApiRow[];
+        try {
+          const data = await apiGet<{ measurements?: MeasurementApiRow[] }>(
+            `/api/measurements?${typeParams}`,
+          );
+          page = data?.measurements ?? [];
+        } catch {
+          // Per-type fetch failure degrades that series only, as before.
+          return;
+        }
 
         for (const measurement of page) {
           // v1.7.0 — fold the display-time scale into the raw value at

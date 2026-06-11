@@ -46,7 +46,7 @@ import { enqueueForceWarm } from "@/lib/jobs/insight-pregenerate-shared";
 
 const SESSION_OK = {
   session: { id: "sess-1", expiresAt: new Date(Date.now() + 3_600_000) },
-  user: { id: "user-1", username: "marc", role: "USER" as const, locale: "en" },
+  user: { id: "user-1", username: "testuser", role: "USER" as const, locale: "en" },
 };
 
 const callPost = POST as unknown as (req: NextRequest) => Promise<Response>;

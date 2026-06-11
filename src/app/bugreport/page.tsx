@@ -17,6 +17,7 @@ import {
 import { Loader2, CheckCircle2, Bug, GitPullRequest, Info } from "lucide-react";
 import { useTranslations } from "@/lib/i18n/context";
 import { queryKeys } from "@/lib/query-keys";
+import { ApiError, apiGet, apiPost } from "@/lib/api/api-fetch";
 
 interface BugReportStatus {
   configured: boolean;
@@ -49,10 +50,7 @@ export default function BugReportPage() {
   const { data: status } = useQuery({
     queryKey: queryKeys.bugreportStatus(),
     queryFn: async () => {
-      const res = await fetch("/api/bugreport/status");
-      if (!res.ok) throw new Error("Failed to load status");
-      const json = await res.json();
-      return json.data as BugReportStatus;
+      return apiGet<BugReportStatus>("/api/bugreport/status");
     },
     enabled: isAuthenticated,
   });
@@ -63,36 +61,28 @@ export default function BugReportPage() {
     setLoading(true);
 
     try {
-      const res = await fetch("/api/feedback", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          category,
-          subject: subject || description.slice(0, 60),
-          description,
-          metadata: {
-            locale,
-            userAgent:
-              typeof navigator !== "undefined" ? navigator.userAgent : null,
-            url:
-              typeof window !== "undefined" ? window.location.pathname : null,
-          },
-        }),
+      await apiPost("/api/feedback", {
+        category,
+        subject: subject || description.slice(0, 60),
+        description,
+        metadata: {
+          locale,
+          userAgent:
+            typeof navigator !== "undefined" ? navigator.userAgent : null,
+          url: typeof window !== "undefined" ? window.location.pathname : null,
+        },
       });
-
-      const json = await res.json();
-      if (res.ok) {
-        setResult({ type: "success", message: t("bugreport.success") });
-        setSubject("");
-        setDescription("");
-      } else {
-        setResult({
-          type: "error",
-          message: json.error || t("bugreport.errorCreating"),
-        });
-      }
-    } catch {
-      setResult({ type: "error", message: t("common.networkError") });
+      setResult({ type: "success", message: t("bugreport.success") });
+      setSubject("");
+      setDescription("");
+    } catch (err) {
+      setResult({
+        type: "error",
+        message:
+          err instanceof ApiError
+            ? err.message || t("bugreport.errorCreating")
+            : t("common.networkError"),
+      });
     } finally {
       setLoading(false);
     }

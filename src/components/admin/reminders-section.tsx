@@ -9,11 +9,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useTranslations } from "@/lib/i18n/context";
-import {
-  getApiErrorMessage,
-  useAdminSettings,
-  useUpdateSettings,
-} from "./_shared";
+import { useAdminSettings, useUpdateSettings } from "./_shared";
+import { apiPost } from "@/lib/api/api-fetch";
 
 export function RemindersSection() {
   const { t } = useTranslations();
@@ -28,23 +25,17 @@ export function RemindersSection() {
 
   const testNotification = useMutation({
     mutationFn: async () => {
-      const res = await fetch("/api/admin/notifications/test", {
-        method: "POST",
-      });
-      if (!res.ok) {
-        throw new Error(await getApiErrorMessage(res));
-      }
-      const json = (await res.json()) as {
-        data?: {
-          message?: string;
-          results?: Array<{
-            channel: string;
-            success: boolean;
-            error?: string;
-          }>;
-        };
-      };
-      return json.data;
+      return apiPost<
+        | {
+            message?: string;
+            results?: Array<{
+              channel: string;
+              success: boolean;
+              error?: string;
+            }>;
+          }
+        | undefined
+      >("/api/admin/notifications/test");
     },
     onSuccess: (data) => {
       const hasFailures = data?.results?.some((r) => !r.success);
@@ -65,35 +56,29 @@ export function RemindersSection() {
 
   const reminderCheck = useMutation({
     mutationFn: async () => {
-      const res = await fetch("/api/admin/notifications/reminder-check", {
-        method: "POST",
-      });
-      if (!res.ok) {
-        throw new Error(await getApiErrorMessage(res));
-      }
-      const json = (await res.json()) as {
-        data?: {
-          message?: string;
-          medications?: Array<{
-            name: string;
-            dose: string;
-            user: string;
-            localTime: string;
-            dayOfWeek: string;
-            notificationsEnabled: boolean;
-            schedules: Array<{
-              window: string;
-              days: string;
-              status: string;
-              label: string;
-              notificationSent?: boolean;
+      return apiPost<
+        | {
+            message?: string;
+            medications?: Array<{
+              name: string;
+              dose: string;
+              user: string;
+              localTime: string;
+              dayOfWeek: string;
+              notificationsEnabled: boolean;
+              schedules: Array<{
+                window: string;
+                days: string;
+                status: string;
+                label: string;
+                notificationSent?: boolean;
+              }>;
+              eventsToday: number;
             }>;
-            eventsToday: number;
-          }>;
-          notificationsSent?: number;
-        };
-      };
-      return json.data;
+            notificationsSent?: number;
+          }
+        | undefined
+      >("/api/admin/notifications/reminder-check");
     },
     onSuccess: (data) => {
       toast.success(data?.message ?? t("admin.reminderCheckSuccess"));

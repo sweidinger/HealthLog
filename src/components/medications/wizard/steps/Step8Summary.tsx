@@ -7,8 +7,9 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { useTranslations } from "@/lib/i18n/context";
+import { useTranslations, useFormatters } from "@/lib/i18n/context";
 import { queryKeys } from "@/lib/query-keys";
+import { apiGet } from "@/lib/api/api-fetch";
 
 import {
   type MedicationPayload,
@@ -55,7 +56,8 @@ export function Step8Summary({
   onAddSchedule,
 }: Step8SummaryProps) {
   const { t } = useTranslations();
-  const topSummary = summariseCadence(payload, t);
+  const formatters = useFormatters();
+  const topSummary = summariseCadence(payload, t, formatters.date);
   const canRemove = payload.schedules.length > 1;
 
   // Reminders need at least one delivery channel. Fetch the channel
@@ -67,10 +69,10 @@ export function Step8Summary({
   const { data: notificationChannels } = useQuery({
     queryKey: queryKeys.notificationsStatus(),
     queryFn: async () => {
-      const res = await fetch("/api/notifications/status");
-      if (!res.ok) throw new Error("Failed");
-      return ((await res.json()).data as { channels: Array<{ enabled: boolean }> })
-        .channels;
+      const data = await apiGet<{ channels: Array<{ enabled: boolean }> }>(
+        "/api/notifications/status",
+      );
+      return data.channels;
     },
     enabled: payload.notificationsEnabled,
     staleTime: 60_000,

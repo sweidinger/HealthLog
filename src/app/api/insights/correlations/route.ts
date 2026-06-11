@@ -21,7 +21,7 @@ import { annotate } from "@/lib/logging/context";
 import { checkAnalyticsReadRateLimit } from "@/lib/rate-limit";
 import { requireAssistantSurface } from "@/lib/feature-flags";
 import { prisma } from "@/lib/db";
-import { getLocalDateParts } from "@/lib/timezone";
+import { wallClockInTz } from "@/lib/tz/wall-clock";
 import type { MeasurementType } from "@/generated/prisma/client";
 import {
   discoverCorrelations,
@@ -39,7 +39,7 @@ const WINDOW_DAYS = 180;
 
 /** Day key (YYYY-MM-DD) for an instant in the user's display timezone. */
 function tzDayKey(at: Date, tz: string): string {
-  const { year, month, day } = getLocalDateParts(at, tz);
+  const { year, month, day } = wallClockInTz(at, tz);
   const mm = String(month).padStart(2, "0");
   const dd = String(day).padStart(2, "0");
   return `${year}-${mm}-${dd}`;

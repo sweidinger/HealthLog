@@ -31,7 +31,7 @@ import {
   recomputeMedicationComplianceForDay,
 } from "@/lib/rollups/medication-compliance-rollups";
 import { assertMedicationOwnership } from "@/lib/medications/route-guards";
-import { getUserTodayBounds } from "@/lib/timezone";
+import { getUserTodayBounds } from "@/lib/tz/local-day";
 import { NextRequest } from "next/server";
 
 type RouteParams = { params: Promise<{ id: string }> };

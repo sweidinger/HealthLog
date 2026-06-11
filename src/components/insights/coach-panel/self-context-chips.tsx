@@ -17,10 +17,12 @@
  */
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { MessageCircleQuestion, X } from "lucide-react";
+import { toast } from "sonner";
 
 import { useTranslations } from "@/lib/i18n/context";
 import { queryKeys } from "@/lib/query-keys";
 import { cn } from "@/lib/utils";
+import { apiDelete, apiGet } from "@/lib/api/api-fetch";
 
 export interface SelfContextChipsProps {
   /** Insert the tapped question into the composer. */
@@ -39,9 +41,7 @@ export function SelfContextChips({
   const { data } = useQuery({
     queryKey: queryKeys.coachAboutMeQuestions(),
     queryFn: async () => {
-      const res = await fetch("/api/coach/about-me/questions");
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      return (await res.json()).data as { questions: string[] };
+      return apiGet<{ questions: string[] }>("/api/coach/about-me/questions");
     },
     staleTime: 60_000,
   });
@@ -49,16 +49,15 @@ export function SelfContextChips({
   const dismiss = useMutation({
     mutationKey: queryKeys.coachAboutMeQuestions(),
     mutationFn: async (question: string) => {
-      const res = await fetch("/api/coach/about-me/questions", {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ question }),
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      return (await res.json()).data as { questions: string[] };
+      return apiDelete<{ questions: string[] }>("/api/coach/about-me/questions", { question });
     },
     onSuccess: (next) => {
       queryClient.setQueryData(queryKeys.coachAboutMeQuestions(), next);
+    },
+    // v1.16.4 — a failed dismiss used to fail silently, leaving the chip
+    // in place with no signal that the request was rejected.
+    onError: () => {
+      toast.error(t("insights.coach.selfContextChipDismissError"));
     },
   });
 

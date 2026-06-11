@@ -6,6 +6,7 @@ import { useQuery } from "@tanstack/react-query";
 
 import { useTranslations } from "@/lib/i18n/context";
 import { useAuth } from "@/hooks/use-auth";
+import { useMounted } from "@/hooks/use-mounted";
 import { useFeatureFlags } from "@/hooks/use-feature-flags";
 import { useWorkouts } from "@/hooks/use-workouts";
 import { InsightsTabStrip } from "@/components/insights/insights-tab-strip";
@@ -14,6 +15,7 @@ import { useAnalyticsQuery } from "@/lib/queries/use-analytics-query";
 import { useInsightsLayoutQuery } from "@/hooks/use-insights-layout";
 import { queryKeys } from "@/lib/query-keys";
 import type { InsightInputs } from "@/lib/insights/metric-availability";
+import { apiGet } from "@/lib/api/api-fetch";
 
 /**
  * v1.4.25 W4 — client shell for `src/app/insights/layout.tsx`.
@@ -57,8 +59,13 @@ export function InsightsLayoutShell({ children }: { children: ReactNode }) {
   // hiccup still renders the advisor — the gate only takes effect when
   // the operator has explicitly turned the surface off.
   const flags = useFeatureFlags();
+  // v1.16.4 — `mounted` keeps the hydration render in lockstep with the
+  // SSR HTML: a late-hydrating boundary can see resolved query state on
+  // its first render (auth + flags settled), which used to flip the
+  // regenerate affordance on at hydration time and trip React #418.
+  const mounted = useMounted();
   const advisorEnabled =
-    isAuthenticated && flags.enabled && flags.briefing;
+    mounted && isAuthenticated && flags.enabled && flags.briefing;
 
   // v1.12.6 — the Coach segment is excluded from the generic disclaimer
   // footer (v1.16.1 dropped the in-chat disclaimer line entirely; the
@@ -81,10 +88,7 @@ export function InsightsLayoutShell({ children }: { children: ReactNode }) {
   const comprehensiveQuery = useQuery({
     queryKey: queryKeys.insightsComprehensive(),
     queryFn: async () => {
-      const res = await fetch("/api/insights/comprehensive");
-      if (!res.ok) throw new Error("Failed");
-      const json = await res.json();
-      return json.data as ComprehensivePayload;
+      return apiGet<ComprehensivePayload>("/api/insights/comprehensive");
     },
     enabled: isAuthenticated,
   });

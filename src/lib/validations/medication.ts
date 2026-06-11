@@ -289,7 +289,7 @@ export const scheduleSchema = z
         "Cyclic \"off\" weeks (0..52). Required when `scheduleType` is CYCLIC; ignored otherwise.",
       ),
     /**
-     * v1.15.18 — per-dose configurable on-time intake window (Marc's
+     * v1.15.18 — per-dose configurable on-time intake window (the maintainer's
      * "07:00–09:00" lever). One entry per dose time the user wants an explicit
      * range for; a `timeOfDay` with no entry keeps the symmetric ±1h default.
      * Each `timeOfDay` MUST match one of the schedule's `timesOfDay` (or the
@@ -648,6 +648,21 @@ export const intakeSchema = z
       .optional()
       .describe(
         "Late-take override: pin this taken dose onto the named scheduled slot instead of orphaning it to an ad-hoc row. Must be a real scheduled slot of this medication on its day (validated server-side against the dose-window band anchors); an instant that is not a slot returns 422. Absent applies the default window-band attribution.",
+      ),
+    /**
+     * v1.16.4 — per-intake dose override. Free text mirroring
+     * `Medication.dose` (max 50 chars). Persisted only on a taken
+     * (non-skipped) write. Absent = the configured medication dose
+     * applies; read paths fall back to it.
+     */
+    doseTaken: z
+      .string()
+      .trim()
+      .min(1)
+      .max(50)
+      .optional()
+      .describe(
+        "Dose actually consumed for THIS intake when it deviates from (or documents) the medication's configured dose, e.g. a half tablet or a titration step. Free text, max 50 characters. Omit to record the take under the medication's configured dose.",
       ),
   })
   .meta({

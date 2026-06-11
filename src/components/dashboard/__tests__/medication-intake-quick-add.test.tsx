@@ -6,7 +6,7 @@
  * assertions below cover:
  *
  *   1. The pure `pickDefaultMedicationId` helper — the cool/easy
- *      default-selection logic Marc asked for ("auto-select when one is
+ *      default-selection logic the maintainer asked for ("auto-select when one is
  *      due"). Tested across the four ranked branches: empty,
  *      single-active, due-now, alphabetical fallback.
  *   2. The empty-state SSR markup — when the user has no active
@@ -183,7 +183,7 @@ describe("<MedicationIntakeQuickAdd> — SSR contract", () => {
     const de = renderSSR(<MedicationIntakeQuickAdd />, "de");
     expect(en).not.toContain("dashboard.medicationIntakeQuickAdd");
     expect(de).not.toContain("dashboard.medicationIntakeQuickAdd");
-    // German locale ships Marc-Voice DE copy with umlauts (UTF-8
+    // German locale ships project-voice DE copy with umlauts (UTF-8
     // end-to-end, never their HTML entity form).
     expect(de).toContain("Medikamente angelegt");
   });

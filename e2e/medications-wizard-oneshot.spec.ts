@@ -78,7 +78,9 @@ test.describe("medication wizard — one-shot", () => {
     await expectStep(page, 5, 5);
     const summary = page.locator('[data-slot="wizard-summary"]');
     await expect(summary).toContainText(/Einmaldosis/i);
-    await expect(summary).toContainText(/2026-10-15/);
+    // The summary renders the date through the locale-aware formatter
+    // (DE UI → "15.10.2026"), not the ISO value the input carries.
+    await expect(summary).toContainText(/15\.10\.2026/);
 
     await clickSave(page);
 

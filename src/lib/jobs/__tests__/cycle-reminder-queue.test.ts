@@ -14,7 +14,12 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 const REMINDER_WORKER_PATH = join(__dirname, "..", "reminder-worker.ts");
-const source = readFileSync(REMINDER_WORKER_PATH, "utf8");
+const source =
+  readFileSync(REMINDER_WORKER_PATH, "utf8") +
+  readFileSync(
+    join(__dirname, "..", "reminder", "mood-cycle-checks.ts"),
+    "utf8",
+  );
 
 describe("reminder-worker — cycle-reminder wiring", () => {
   it("imports the cycle-reminder tick runner", () => {
@@ -26,11 +31,15 @@ describe("reminder-worker — cycle-reminder wiring", () => {
     expect(source).toMatch(
       /CYCLE_REMINDER_QUEUE\s*=\s*["']cycle-reminder-check["']/,
     );
-    expect(source).toMatch(/CYCLE_REMINDER_CRON\s*=\s*["']\*\/15 \* \* \* \*["']/);
+    expect(source).toMatch(
+      /CYCLE_REMINDER_CRON\s*=\s*["']\*\/15 \* \* \* \*["']/,
+    );
   });
 
   it("registers the cycle-reminder queue in the allQueues loop", () => {
-    const allQueuesMatch = source.match(/const allQueues\s*=\s*\[([\s\S]*?)\];/);
+    const allQueuesMatch = source.match(
+      /const allQueues\s*=\s*\[([\s\S]*?)\];/,
+    );
     expect(allQueuesMatch).not.toBeNull();
     expect(allQueuesMatch![1]).toMatch(/\bCYCLE_REMINDER_QUEUE\b/);
   });

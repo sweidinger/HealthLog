@@ -149,9 +149,38 @@ Wrap inputs in `<label>` (visible) plus `aria-describedby` for helper text.
   _and_ the user routinely sweeps. For most thresholds and counts, an
   `<Input type="number">` plus stepper buttons is faster and less
   fiddly. See §6 (Slider audit) for the migration path.
-- **Boolean toggle**: `<Switch>` for "applies immediately" settings (e.g.
-  enable Telegram). `<Checkbox>` for "applies on Save" lists (e.g. select
-  measurements to export).
+- **Boolean toggle**: `<Switch>` for settings. Exactly two persistence
+  patterns are legal (see §2.2.1); pick one per card, never mix.
+  `<Checkbox>` stays reserved for "applies on Save" _lists_ (e.g. select
+  measurements to export) and for action parameters that are not
+  persisted at all (export options).
+
+#### 2.2.1 Settings persistence patterns
+
+Every control under `/settings` follows exactly one of two save
+patterns. The pattern is a property of the **card**, not of the
+individual control:
+
+1. **Immediate persist** — a standalone boolean that is the card's only
+   mutable state. The `<Switch>` fires the mutation in
+   `onCheckedChange`, disables itself while pending, updates
+   optimistically with rollback, and toasts on success/error. No Save
+   button anywhere on the card. Examples: hide-Coach, ntfy enable,
+   cycle tracking, research mode, mood reminder, Coach nudges.
+2. **Draft + Save** — the card edits a multi-field payload (or a list
+   the server PUTs whole). All controls — including `<Switch>` rows —
+   mutate a local draft only; a visible Save button flushes the draft
+   in one request and the card surfaces its dirty state. Examples:
+   Coach preferences, Telegram (enable + bot token), provider fallback
+   chain, dashboard layout, threshold editor.
+
+A `<Switch>` inside a draft+Save card is legal **only** when the card
+shows the Save button; a card with both an auto-persisting switch and
+a Save-gated field is a bug. Every setting presented under `/settings`
+persists server-side. `localStorage` is reserved for device-local UI
+state that is not a setting (sidebar collapse, last-update-check
+timestamp, tour progress) — label such keys with a comment at the
+declaration site and never render them with Save/Saved affordances.
 
 **Validation.** Inline messages below the field. Field gets
 `aria-invalid="true"` and a destructive border. Form-level errors land

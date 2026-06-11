@@ -25,6 +25,7 @@ import {
   type ResearchModeStatus,
   researchModeGateState,
 } from "@/lib/medications/research-mode-types";
+import { apiFetchRaw } from "@/lib/api/api-fetch";
 
 /**
  * Settings → Advanced.
@@ -104,7 +105,7 @@ function ResearchModeCard() {
   const { data: status, isLoading } = useQuery<ResearchModeStatus | null>({
     queryKey: queryKeys.researchMode(),
     queryFn: async () => {
-      const res = await fetch("/api/auth/me/research-mode");
+      const res = await apiFetchRaw("/api/auth/me/research-mode");
       if (!res.ok) return null;
       const json = await res.json();
       return json.data as ResearchModeStatus;
@@ -133,7 +134,7 @@ function ResearchModeCard() {
     // Toggle OFF → fire DELETE directly.
     setToggleBusy(true);
     try {
-      const res = await fetch("/api/auth/me/research-mode", {
+      const res = await apiFetchRaw("/api/auth/me/research-mode", {
         method: "DELETE",
       });
       if (!res.ok) {
@@ -243,7 +244,7 @@ function DataResetCard() {
     setMsg(null);
     setMsgType(null);
     try {
-      const res = await fetch("/api/settings/data", {
+      const res = await apiFetchRaw("/api/settings/data", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ confirm: "DELETE" }),
@@ -383,7 +384,7 @@ function AccountDeleteCard() {
     setMsg(null);
     setMsgType(null);
     try {
-      const res = await fetch("/api/settings/account", {
+      const res = await apiFetchRaw("/api/settings/account", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ confirm: "DELETE_ACCOUNT" }),

@@ -290,6 +290,15 @@ export function proxy(request: NextRequest) {
   // Flash/PDF crossdomain.xml channel that some scanners still flag.
   response.headers.set("Cross-Origin-Opener-Policy", "same-origin");
   response.headers.set("Cross-Origin-Resource-Policy", "same-origin");
+  // COEP `credentialless` completes the cross-origin-isolation triad
+  // without the operational hazard of `require-corp`: cross-origin
+  // no-CORS subresources load with credentials stripped instead of
+  // being blocked outright. The app's CSP already pins `img-src` to
+  // `'self' data:` (Gravatar is proxied same-origin since v1.5.5), so
+  // no shipped surface loads cross-origin subresources at all — the
+  // header is pure defence-in-depth against a future regression and
+  // unlocks `crossOriginIsolated` capabilities should they be needed.
+  response.headers.set("Cross-Origin-Embedder-Policy", "credentialless");
   response.headers.set("X-Permitted-Cross-Domain-Policies", "none");
 
   // CSP — permissive in dev, strict in production. Third-party hosts in
@@ -321,9 +330,7 @@ export function proxy(request: NextRequest) {
   const isWhoopRoute =
     pathname.startsWith("/settings/integrations/whoop") ||
     pathname.startsWith("/api/whoop/");
-  const whoopConnectSrc = isWhoopRoute
-    ? " https://api.prod.whoop.com"
-    : "";
+  const whoopConnectSrc = isWhoopRoute ? " https://api.prod.whoop.com" : "";
   // v1.5.5 — Gravatar host removed from `img-src`. The /me payload
   // used to return `gravatarUrl: https://www.gravatar.com/avatar/<sha256(email)>`,
   // which leaked the email digest to Automattic on every authenticated

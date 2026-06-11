@@ -3,6 +3,7 @@
 import React, { Suspense, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
+import { useMounted } from "@/hooks/use-mounted";
 import {
   Activity,
   Droplet,
@@ -11,13 +12,10 @@ import {
   Heart,
   Moon,
   Percent,
-  Pill,
   Plus,
-  Settings2,
   Smile,
   Target,
   TrendingUp,
-  Waves,
 } from "lucide-react";
 import { convertGlucose, resolveGlucoseUnit } from "@/lib/glucose";
 import { cn } from "@/lib/utils";
@@ -28,35 +26,25 @@ import {
 } from "@/lib/dashboard-layout";
 import type { DashboardAnalyticsData as AnalyticsData } from "@/types/analytics";
 import dynamic from "next/dynamic";
-import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ChartSkeleton } from "@/components/charts/chart-skeleton";
 import { HealthChartDynamic } from "@/components/charts/health-chart-dynamic";
-import { ResponsiveSheet } from "@/components/ui/responsive-sheet";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { MeasurementForm } from "@/components/measurements/measurement-form";
-import { MoodForm } from "@/components/mood/mood-form";
-import { MedicationIntakeQuickAdd } from "@/components/dashboard/medication-intake-quick-add";
 import {
   DashboardChartCell,
   useDashboardChartReveal,
 } from "@/components/dashboard/chart-reveal";
+import { DashboardHeader } from "@/components/dashboard/dashboard-header";
+import {
+  QuickEntrySheets,
+  type QuickEntryDialog,
+} from "@/components/dashboard/quick-entry-sheets";
+import {
+  getHourForTimeZone,
+  getRangeColorClass,
+  getRangeHint,
+  toHoursSummary,
+} from "@/components/dashboard/range-display";
 import { TrendCard } from "@/components/charts/trend-card";
 import { TrendCardSkeleton } from "@/components/charts/trend-card-skeleton";
 import { TrendHint } from "@/components/charts/trend-hint";
@@ -75,69 +63,6 @@ const DASHBOARD_QUERY_OPTS = {
   staleTime: 60_000,
   refetchOnWindowFocus: false,
 } as const;
-
-/**
- * v1.11.3 F3 — guard the quick-entry sheets against an accidental
- * dismiss (overlay tap, Esc, mobile swipe-down) discarding a partly
- * filled form. The forms live behind a stable `ResponsiveSheet` body
- * slot and don't expose their dirty state, so we read it from the DOM
- * at dismiss time: any visible text/number input or textarea that
- * carries a value, or any checked checkbox/radio that isn't a default,
- * counts as unsaved input. Date/time pickers are excluded — the forms
- * prefill them with the current timestamp on mount, so a pristine sheet
- * would otherwise always read as dirty. Cheap, synchronous, and runs
- * only on the one mounted sheet body.
- */
-const PREFILLED_PICKER_TYPES = new Set([
-  "date",
-  "datetime-local",
-  "time",
-  "month",
-  "week",
-]);
-export function sheetBodyHasUnsavedInput(): boolean {
-  if (typeof document === "undefined") return false;
-  const body = document.querySelector<HTMLElement>(
-    '[data-slot="responsive-sheet-body"]',
-  );
-  if (!body) return false;
-  const fields = body.querySelectorAll<HTMLInputElement | HTMLTextAreaElement>(
-    "input, textarea",
-  );
-  for (const field of fields) {
-    if (field.disabled || field.type === "hidden") continue;
-    // Skip pickers the form prefills with "now" — an untouched default
-    // is not user input (v1.11.3 QA H1).
-    if (PREFILLED_PICKER_TYPES.has(field.type)) continue;
-    if (field.type === "checkbox" || field.type === "radio") {
-      const box = field as HTMLInputElement;
-      if (box.checked !== box.defaultChecked) return true;
-      continue;
-    }
-    if (field.value.trim() !== "") return true;
-  }
-  // v1.11.5 — the input/textarea walk misses two non-text controls a user can
-  // change before dismissing: the mood `role="radio"` selector and a Radix
-  // Select (measurement type / medication). Losing either silently on a
-  // backdrop-dismiss is the same data-loss class the H1 confirm-on-dirty guard
-  // was meant to close.
-  //
-  // Mood radios start with nothing selected (`mood = ""`), so ANY
-  // `aria-checked="true"` is a deliberate user choice — flag it.
-  if (body.querySelector('[role="radio"][aria-checked="true"]') !== null) {
-    return true;
-  }
-  // Radix Select trigger renders `role="combobox"`. A trigger with
-  // `data-state="open"` is mid-interaction (the dropdown is up) — the user is
-  // actively choosing, so a dismiss should confirm rather than drop the pick.
-  // We deliberately do NOT treat a merely non-placeholder value as dirty: the
-  // type / medication selects mount with a non-placeholder DEFAULT, and
-  // flagging that would over-trigger the confirm on a pristine sheet.
-  if (body.querySelector('[role="combobox"][data-state="open"]') !== null) {
-    return true;
-  }
-  return false;
-}
 
 const MoodChart = dynamic(
   () =>
@@ -167,67 +92,12 @@ import {
   buildWeightBandsFromHeight,
   buildWeightRangeFromHeight,
   getBodyFatTargetRange,
-  type TrafficRange,
 } from "@/lib/analytics/value-bands";
 import {
   getAgeFromDateOfBirth,
   getPersonalizedPulseTarget,
 } from "@/lib/analytics/pulse-targets";
-
-interface RangeDisplayConfig {
-  range: TrafficRange | null;
-}
-
-/**
- * v1.11.4 — minutes→hours projection of a `DataSummary` for the sleep
- * tile. The server emits `summaries.SLEEP_DURATION` as per-night minutes;
- * the tile renders hours. Every value-bearing field (latest / min / max /
- * mean / median / avg7 / avg30 / avg30LastMonth / avg30LastYear) divides
- * by 60; the slope tuples scale their `slope` (per-day rate) by the same
- * factor so the trend arrow stays consistent; count / direction /
- * confidence / anomalyCount are unit-free and pass through.
- */
-function toHoursSummary(s: DataSummary): DataSummary {
-  const h = (v: number | null | undefined): number | null =>
-    v == null ? null : Math.round((v / 60) * 100) / 100;
-  const scaleSlope = (slope: DataSummary["slope7"]): DataSummary["slope7"] =>
-    slope == null
-      ? null
-      : { ...slope, slope: Math.round((slope.slope / 60) * 1000) / 1000 };
-  return {
-    ...s,
-    latest: h(s.latest),
-    min: h(s.min),
-    max: h(s.max),
-    mean: h(s.mean),
-    median: h(s.median),
-    avg7: h(s.avg7),
-    avg30: h(s.avg30),
-    avg30LastMonth: h(s.avg30LastMonth),
-    avg30LastYear: h(s.avg30LastYear),
-    slope7: scaleSlope(s.slope7),
-    slope30: scaleSlope(s.slope30),
-    slope90: scaleSlope(s.slope90),
-  };
-}
-
-function getHourForTimeZone(timeZone?: string): number {
-  const now = new Date();
-  if (!timeZone) return now.getHours();
-
-  try {
-    const parts = new Intl.DateTimeFormat("en-US", {
-      hour: "2-digit",
-      hour12: false,
-      timeZone,
-    }).formatToParts(now);
-    const hourPart = parts.find((part) => part.type === "hour")?.value;
-    const parsed = hourPart ? Number(hourPart) : Number.NaN;
-    return Number.isNaN(parsed) ? now.getHours() : parsed;
-  } catch {
-    return now.getHours();
-  }
-}
+import { apiGet } from "@/lib/api/api-fetch";
 
 /**
  * v1.7.0 — first-paint gate for the dashboard tile strip.
@@ -257,92 +127,13 @@ export function resolveDashboardFirstPaintGate(input: {
   return { showTileStripSkeleton, showEmptyState };
 }
 
-function getRangeColorClass(
-  value: number | null | undefined,
-  config: RangeDisplayConfig,
-): string | undefined {
-  const range = config.range;
-  if (value == null || !range) return undefined;
-  const inGreen = value >= range.greenMin && value <= range.greenMax;
-  const inOrange =
-    !inGreen && value >= range.orangeMin && value <= range.orangeMax;
-
-  if (inGreen) return "text-success";
-  if (inOrange) return "text-warning";
-  return "text-destructive";
-}
-
-function getRangeHint(
-  unit: string,
-  config: RangeDisplayConfig,
-  t: (key: string) => string,
-  formatNumber: (value: number, fractionDigits?: number) => string,
-): React.ReactNode | undefined {
-  const range = config.range;
-  if (!range) return undefined;
-
-  const format = (value: number) => formatNumber(value, 1);
-
-  return (
-    <>
-      <p>
-        <span className="text-success font-bold">{t("charts.colorGreen")}</span>{" "}
-        {format(range.greenMin)}-{format(range.greenMax)} {unit}
-      </p>
-      <p>
-        <span className="text-warning font-bold">
-          {t("charts.colorOrange")}
-        </span>{" "}
-        {format(range.orangeMin)}-{format(range.greenMin)} {t("common.or")}{" "}
-        {format(range.greenMax)}-{format(range.orangeMax)} {unit}
-      </p>
-      <p>
-        <span className="text-destructive font-bold">
-          {t("charts.colorRed")}
-        </span>{" "}
-        {"< "}
-        {format(range.orangeMin)} {t("common.or")} {"> "}
-        {format(range.orangeMax)} {unit}
-      </p>
-    </>
-  );
-}
-
 export default function DashboardPage() {
   const { isAuthenticated, user } = useAuth();
+  const mounted = useMounted();
   const { t } = useTranslations();
   const fmt = useFormatters();
-  const [quickEntryDialog, setQuickEntryDialog] = useState<
-    "measurement" | "mood" | "medicationIntake" | null
-  >(null);
-  // v1.4.27 R4 RC2 — DOM handles for the form action-row portal target
-  // on each quick-entry sheet. The Sheet branch sticky-pins this slot.
-  const [measurementFooterEl, setMeasurementFooterEl] =
-    useState<HTMLDivElement | null>(null);
-  const [moodFooterEl, setMoodFooterEl] = useState<HTMLDivElement | null>(null);
-  // v1.4.37 W7b — medication-intake quick-add lives on the same Sheet
-  // primitive as the other two quick-entries; the form's action row is
-  // portalled into this slot so Save / Cancel stay reachable above the
-  // mobile soft keyboard.
-  const [medicationIntakeFooterEl, setMedicationIntakeFooterEl] =
-    useState<HTMLDivElement | null>(null);
-  // v1.11.3 F3 — when an open quick-entry sheet is dismissed with
-  // unsaved input, hold the close in this flag and surface a confirm
-  // instead of nulling the dialog outright. Cleared once the user
-  // confirms (close) or keeps editing (dismiss the confirm).
-  const [confirmDiscardOpen, setConfirmDiscardOpen] = useState(false);
-
-  // Intercept a sheet dismiss: close immediately when the form is
-  // clean, otherwise keep the sheet open and ask before discarding.
-  function handleQuickEntryOpenChange(open: boolean) {
-    if (open) return;
-    if (sheetBodyHasUnsavedInput()) {
-      setConfirmDiscardOpen(true);
-      return;
-    }
-    setQuickEntryDialog(null);
-  }
-
+  const [quickEntryDialog, setQuickEntryDialog] =
+    useState<QuickEntryDialog>(null);
   // v1.4.29 M5 — the three inline dashboard queries default to a
   // 0-ms `staleTime`, so a tab-focus-and-return triggered a refetch
   // storm. None of these are real-time data; minute-scale staleness
@@ -360,7 +151,7 @@ export default function DashboardPage() {
   // (thick slice) blocked every per-type tile until the heavy fan-out
   // resolved. Mood and medication tiles paint from their own dedicated
   // endpoints and arrived first; the per-type measurement tiles then
-  // arrived as one burst once the full slice landed — Marc reported
+  // arrived as one burst once the full slice landed — the maintainer reported
   // this "blocked-then-burst" pattern as "etwas nervig".
   //
   // Post-fix: two parallel queries. The slim slice (`?slice=summaries`)
@@ -417,7 +208,7 @@ export default function DashboardPage() {
     // coverage. Pre-fix the inline `slim?.summaries ?? thick?.summaries`
     // short-circuited on a truthy-but-empty `{}` from the slim slice
     // and blanked the tile strip even when thick carried the full
-    // payload — the regression Marc's v1.4.39.3 e2e CI flagged across
+    // payload — the regression the maintainer's v1.4.39.3 e2e CI flagged across
     // eight dashboard / chart specs. The helper falls back to thick
     // when slim resolves with no content and otherwise keeps the
     // v1.4.39.2 slim-wins-first progressive-paint contract.
@@ -449,10 +240,7 @@ export default function DashboardPage() {
   const { data: layoutDataLegacy } = useQuery({
     queryKey: queryKeys.dashboardWidgets(),
     queryFn: async () => {
-      const res = await fetch("/api/dashboard/widgets");
-      if (!res.ok) throw new Error("Failed");
-      const json = await res.json();
-      return json.data as DashboardLayout;
+      return apiGet<DashboardLayout>("/api/dashboard/widgets");
     },
     enabled: !snapshotEnabled && isAuthenticated,
     ...DASHBOARD_QUERY_OPTS,
@@ -464,13 +252,10 @@ export default function DashboardPage() {
   const { data: moodDataLegacy } = useQuery({
     queryKey: queryKeys.moodAnalytics(),
     queryFn: async () => {
-      const res = await fetch("/api/mood/analytics");
-      if (!res.ok) throw new Error("Failed");
-      const json = await res.json();
-      return json.data as {
+      return apiGet<{
         entries: Array<{ date: string; score: number; samples: number }>;
         summary: DataSummary;
-      };
+      }>("/api/mood/analytics");
     },
     enabled: !snapshotEnabled && isAuthenticated,
     ...DASHBOARD_QUERY_OPTS,
@@ -829,101 +614,10 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      {/* v1.4.37 W4a item 7 — centre-align the Hinzufügen button
-          against the 2-line title block on mobile (< sm). The
-          `welcomeText` line wraps under the title at < 380 px so the
-          button used to float at the top of the row without a
-          baseline anchor; `items-center sm:items-start` keeps the
-          mobile vertical centre while preserving the original
-          top-aligned posture on sm+ (where the title is one line). */}
-      <div className="flex items-center justify-between gap-4 sm:items-start">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">
-            {t("dashboard.title")}
-          </h1>
-          <p className="text-muted-foreground mt-1 text-sm">{welcomeText}</p>
-        </div>
-        <div className="flex items-center gap-2">
-          {/* Customize shortcut to the dashboard-customization settings
-              (the tile/layout editor at /settings/dashboard). Sits to
-              the left of the add button as a monochrome ghost icon, with
-              a `min-h-11 min-w-11` mobile floor so it meets the 44 px
-              touch-target contract the add button also honours, shrinking
-              back to the 40 px icon footprint on sm+. */}
-          <Button
-            asChild
-            variant="ghost"
-            size="icon"
-            className="min-h-11 min-w-11 sm:min-h-9 sm:min-w-9"
-            data-testid="dashboard-customize-shortcut"
-          >
-            <Link
-              href="/settings/dashboard"
-              aria-label={t("dashboard.customizeDashboard")}
-              title={t("dashboard.customizeDashboard")}
-            >
-              <Settings2 className="h-4 w-4" aria-hidden="true" />
-            </Link>
-          </Button>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              {/* v1.4.33 maintainer-item-7 — restore proportional sizing
-                  across viewports. The v1.4.27 fix pinned a `size="sm"
-                  min-h-11` combo to hit WCAG 2.5.5's 44 px touch-target
-                  contract on mobile, but `size="sm"` is h-8 (32 px) and
-                  the `min-h-11` override stretched the cap vertically
-                  while keeping the small horizontal padding — the
-                  button read as klobig on Pixel 5. Switch to
-                  `size="default"` (h-10 = 40 px) on mobile with a
-                  responsive `min-h-11 sm:min-h-9` so the button is
-                  44 px tall under finger pressure and shrinks back to
-                  the desktop-friendly 36 px on `sm:` upwards. The icon
-                  + label keep the same visual contract. */}
-              <Button
-                size="default"
-                className="min-h-11 sm:min-h-9"
-                data-tour-id="dashboard-quick-add"
-              >
-                <Plus className="h-4 w-4" />
-                {t("common.add")}
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent
-              align="end"
-              className="max-w-[calc(100vw-2rem)]"
-            >
-              {/* Menu items must each carry a self-contained verb-phrase
-                  ("Log measurement", "Log mood") — the trigger above already
-                  says "Add", and the icon is `aria-hidden`, so the visible
-                  text is the only thing distinguishing the rows. v1.4.15
-                  phase-A3 fix #1 hardened this with a unit guard at
-                  `src/app/__tests__/quick-add-labels.test.ts` — both labels
-                  must differ from each other AND from `common.add`. */}
-              <DropdownMenuItem
-                onClick={() => setQuickEntryDialog("measurement")}
-              >
-                <Activity className="mr-2 h-4 w-4" aria-hidden="true" />
-                {t("dashboard.quickAddMeasurement")}
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setQuickEntryDialog("mood")}>
-                <Waves className="mr-2 h-4 w-4" aria-hidden="true" />
-                {t("dashboard.quickAddMood")}
-              </DropdownMenuItem>
-              {/* v1.4.37 W7b — third quick-add row: medication intake.
-                  Same Sheet-on-mobile / Dialog-on-desktop primitive as
-                  the other two; the menu label is a self-contained
-                  verb-phrase so it doesn't collide with the trigger or
-                  the sibling rows (cf. quick-add-labels.test.ts). */}
-              <DropdownMenuItem
-                onClick={() => setQuickEntryDialog("medicationIntake")}
-              >
-                <Pill className="mr-2 h-4 w-4" aria-hidden="true" />
-                {t("dashboard.quickAddMedicationIntake")}
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-      </div>
+      <DashboardHeader
+        welcomeText={welcomeText}
+        onQuickEntry={setQuickEntryDialog}
+      />
 
       {/* v1.4: Getting-started checklist for brand-new users.
        * Self-gates visibility on (onboardingCompletedAt == null
@@ -942,82 +636,10 @@ export default function DashboardPage() {
       <TourLauncher ready={data !== undefined} />
 
       {/* Quick Entry Sheets — bottom-sheet on `<md`, centred Dialog on `md+`. */}
-      <ResponsiveSheet
-        open={quickEntryDialog === "measurement"}
-        onOpenChange={handleQuickEntryOpenChange}
-        title={t("measurements.addMeasurement")}
-        footer={<div ref={setMeasurementFooterEl} className="flex w-full" />}
-      >
-        <MeasurementForm
-          onSuccess={() => setQuickEntryDialog(null)}
-          onCancel={() => setQuickEntryDialog(null)}
-          footerSlot={measurementFooterEl}
-        />
-      </ResponsiveSheet>
-      <ResponsiveSheet
-        open={quickEntryDialog === "mood"}
-        onOpenChange={handleQuickEntryOpenChange}
-        title={t("mood.addEntry")}
-        footer={<div ref={setMoodFooterEl} className="flex w-full" />}
-      >
-        <MoodForm
-          onSuccess={() => setQuickEntryDialog(null)}
-          onCancel={() => setQuickEntryDialog(null)}
-          footerSlot={moodFooterEl}
-        />
-      </ResponsiveSheet>
-      {/* v1.4.37 W7b — third Sheet: medication intake. Same
-          ResponsiveSheet contract as the two above; the form's footer
-          (Cancel + Save) portals into the sticky-pinned slot so it
-          stays reachable above the soft keyboard on mobile. */}
-      <ResponsiveSheet
-        open={quickEntryDialog === "medicationIntake"}
-        onOpenChange={handleQuickEntryOpenChange}
-        title={t("dashboard.medicationIntakeQuickAdd.sheetTitle")}
-        description={t("dashboard.medicationIntakeQuickAdd.sheetDescription")}
-        footer={
-          <div ref={setMedicationIntakeFooterEl} className="flex w-full" />
-        }
-      >
-        <MedicationIntakeQuickAdd
-          onSuccess={() => setQuickEntryDialog(null)}
-          onCancel={() => setQuickEntryDialog(null)}
-          footerSlot={medicationIntakeFooterEl}
-        />
-      </ResponsiveSheet>
-
-      {/* v1.11.3 F3 — confirm before discarding a partly-filled
-          quick-entry form when the sheet is dismissed by an overlay
-          tap, Escape, or a mobile swipe-down. Keeps the sheet open
-          until the user decides. */}
-      <AlertDialog
-        open={confirmDiscardOpen}
-        onOpenChange={setConfirmDiscardOpen}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>
-              {t("dashboard.quickEntryDiscard.title")}
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              {t("dashboard.quickEntryDiscard.description")}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>
-              {t("dashboard.quickEntryDiscard.cancel")}
-            </AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => {
-                setConfirmDiscardOpen(false);
-                setQuickEntryDialog(null);
-              }}
-            >
-              {t("dashboard.quickEntryDiscard.confirm")}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <QuickEntrySheets
+        open={quickEntryDialog}
+        onClose={() => setQuickEntryDialog(null)}
+      />
 
       {(() => {
         type TrendEntry = { id: string; order: number; node: React.ReactNode };
@@ -1690,9 +1312,17 @@ export default function DashboardPage() {
         // never fires under snapshot mode, so the empty-state branch
         // below flashes for the whole snapshot fetch. Key the loading
         // flag off whichever query is actually driving the tiles.
-        const primaryLoading = snapshotEnabled
-          ? snapshotQuery.isLoading
-          : analyticsSlimQuery.isLoading;
+        // v1.16.4 — `!mounted` pins the SSR pass AND the hydration
+        // render to the skeleton branch. Server-side the data queries
+        // are `enabled: false` (no auth) → `isLoading: false`, which
+        // used to select the empty state; a late-hydrating boundary
+        // then saw `isAuthenticated` already resolved and rendered the
+        // skeleton instead — React #418. See `useMounted`.
+        const primaryLoading =
+          !mounted ||
+          (snapshotEnabled
+            ? snapshotQuery.isLoading
+            : analyticsSlimQuery.isLoading);
         const { showTileStripSkeleton, showEmptyState } =
           resolveDashboardFirstPaintGate({
             trendCardCount: trendCards.length,
@@ -1737,7 +1367,7 @@ export default function DashboardPage() {
         return (
           <>
             {/* v1.4: dashboard tiles are *always* a single row.
-             * maintainer-explicit (per feedback_dashboard_one_row.md): a 2-row
+             * Maintainer-explicit (per feedback_dashboard_one_row.md): a 2-row
              * tile strip breaks the visual hierarchy and reads like an
              * Excel grid. Total width caps at the parent container —
              * exactly the chart-width below. When the active tile count

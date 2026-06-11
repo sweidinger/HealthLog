@@ -65,7 +65,7 @@ const SESSION_OK = {
   session: { id: "sess-1", expiresAt: new Date(Date.now() + 3_600_000) },
   user: {
     id: "user-1",
-    username: "marc",
+    username: "testuser",
     role: "USER" as const,
     displayName: null,
   },
@@ -134,7 +134,7 @@ describe("GET /api/dashboard/summary", () => {
         metrics: Array<{ id: string; kind: string; sparkline: number[] }>;
       };
     };
-    expect(body.data.greeting.salutation).toBe("Hi, marc");
+    expect(body.data.greeting.salutation).toBe("Hi, testuser");
     expect(body.data.streak.currentDays).toBe(0);
     expect(body.data.compliance.scheduledToday).toBe(0);
     // REG-11 (v1.4.44): weight is the only always-emitted base metric.

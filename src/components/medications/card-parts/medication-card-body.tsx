@@ -142,7 +142,7 @@ export function MedicationCardBody({
   return (
     <Card
       // The card surface is a constant neutral surface — dose status is never
-      // expressed as a background / border tint (Marc, recurring): only the
+      // expressed as a background / border tint (the maintainer, recurring): only the
       // discreet status line / pill below communicates take-now / overdue.
       className={cn("h-full", active ? "" : "opacity-60")}
     >

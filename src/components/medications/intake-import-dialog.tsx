@@ -38,6 +38,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useTranslations } from "@/lib/i18n/context";
 import { invalidateKeys, medicationDependentKeys } from "@/lib/query-keys";
+import { ApiError, apiPost } from "@/lib/api/api-fetch";
 
 export interface IntakeImportDialogProps {
   medicationId: string | null;
@@ -107,18 +108,12 @@ export function IntakeImportDialog({
         else throw new Error(t("medications.importNoArray"));
       }
 
-      const res = await fetch(
-        `/api/medications/${medicationId}/intake/import`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(data),
-        },
-      );
-
-      const json = await res.json();
-      if (res.ok) {
-        const d = json.data;
+      try {
+        const d = await apiPost<{
+          imported: number;
+          skippedDuplicates: number;
+          skippedInvalid: number;
+        }>(`/api/medications/${medicationId}/intake/import`, data);
         setResult(
           t("medications.importResult", { imported: d.imported }) +
             (d.skippedDuplicates > 0
@@ -130,8 +125,9 @@ export function IntakeImportDialog({
         );
         setResultType("success");
         void invalidateKeys(queryClient, medicationDependentKeys);
-      } else {
-        setResult(json.error || t("medications.importFailed"));
+      } catch (err) {
+        if (!(err instanceof ApiError)) throw err;
+        setResult(err.message || t("medications.importFailed"));
         setResultType("error");
       }
     } catch (err) {

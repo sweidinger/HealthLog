@@ -15,7 +15,7 @@ import { useTranslations } from "@/lib/i18n/context";
 import { STAGE_COLORS } from "./sleep-stage-stacked-bar";
 
 /**
- * v1.11.5 — last-night HYPNOGRAM (Marc directive: the phase-progression
+ * v1.11.5 — last-night HYPNOGRAM (the maintainer directive: the phase-progression
  * view). Renders one night's stage timeline as a stepped depth track —
  * Awake at the top, Deep at the base — over clock time, in the Dracula
  * stage palette reused from `sleep-stage-stacked-bar.tsx` (no token

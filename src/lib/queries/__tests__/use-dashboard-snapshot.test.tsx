@@ -16,9 +16,15 @@ import { describe, it, expect, vi, afterEach } from "vitest";
 
 const useQueryMock =
   vi.fn<(opts: Record<string, unknown>) => { data: undefined }>();
+const getQueryDataMock = vi.fn();
+const setQueryDataMock = vi.fn();
 
 vi.mock("@tanstack/react-query", () => ({
   useQuery: (opts: Record<string, unknown>) => useQueryMock(opts),
+  useQueryClient: () => ({
+    getQueryData: getQueryDataMock,
+    setQueryData: setQueryDataMock,
+  }),
 }));
 
 import { useDashboardSnapshot } from "../use-dashboard-snapshot";
@@ -26,6 +32,9 @@ import { queryKeys } from "@/lib/query-keys";
 
 afterEach(() => {
   useQueryMock.mockClear();
+  getQueryDataMock.mockReset();
+  setQueryDataMock.mockClear();
+  vi.unstubAllGlobals();
 });
 
 describe("useDashboardSnapshot — auto-refresh on an open page", () => {
@@ -53,5 +62,39 @@ describe("useDashboardSnapshot — auto-refresh on an open page", () => {
     useDashboardSnapshot();
     const opts = lastOpts();
     expect(opts.queryKey).toEqual(queryKeys.dashboardSnapshot());
+  });
+
+  it("seeds the widgets cache from the snapshot layout when the slot is empty", async () => {
+    const layout = { widgets: [] };
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({ data: { layout, tiles: {} } }),
+      }),
+    );
+    getQueryDataMock.mockReturnValue(undefined);
+    useDashboardSnapshot();
+    const opts = lastOpts();
+    await (opts.queryFn as () => Promise<unknown>)();
+    expect(setQueryDataMock).toHaveBeenCalledWith(
+      queryKeys.dashboardWidgets(),
+      layout,
+    );
+  });
+
+  it("never clobbers an already-populated widgets cache", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({ data: { layout: { widgets: [] }, tiles: {} } }),
+      }),
+    );
+    getQueryDataMock.mockReturnValue({ widgets: [{ id: "existing" }] });
+    useDashboardSnapshot();
+    const opts = lastOpts();
+    await (opts.queryFn as () => Promise<unknown>)();
+    expect(setQueryDataMock).not.toHaveBeenCalled();
   });
 });

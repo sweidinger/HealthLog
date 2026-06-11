@@ -63,9 +63,7 @@ describe("runGeoBackfill", () => {
       location: null,
       ipAddress: { not: null },
       createdAt: {
-        gt: new Date(
-          now.getTime() - GEO_BACKFILL_WINDOW_DAYS * 86_400_000,
-        ),
+        gt: new Date(now.getTime() - GEO_BACKFILL_WINDOW_DAYS * 86_400_000),
       },
     });
     expect(args?.take).toBe(GEO_BACKFILL_BATCH_CAP);
@@ -248,8 +246,12 @@ describe("geo-backfill scheduling contract (v1.4.37)", () => {
       path.resolve(__dirname, "..", "reminder-worker.ts"),
       "utf-8",
     );
-    expect(workerSrc).toContain(
-      "import {\n  runGeoBackfill,\n  GEO_BACKFILL_QUEUE,\n  GEO_BACKFILL_CRON,\n} from \"@/lib/jobs/geo-backfill\";",
+    const handlerSrc = await fs.readFile(
+      path.resolve(__dirname, "..", "reminder", "ops-handlers.ts"),
+      "utf-8",
+    );
+    expect(handlerSrc).toMatch(
+      /import \{[^}]*runGeoBackfill[^}]*\} from "@\/lib\/jobs\/geo-backfill";/,
     );
     expect(workerSrc).toContain("GEO_BACKFILL_QUEUE, GEO_BACKFILL_CRON");
     expect(workerSrc).toContain("handleGeoBackfill");

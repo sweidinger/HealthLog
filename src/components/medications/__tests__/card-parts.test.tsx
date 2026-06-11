@@ -373,7 +373,7 @@ describe("streak-token parity — generic vs GLP-1 card", () => {
 /**
  * v1.15.18 — the ONE shared `<MedicationCardBody>` both cards render. These
  * tests pin that the card surface is a CONSTANT neutral surface — dose status
- * is never expressed as a background / border tint (Marc, recurring) — while
+ * is never expressed as a background / border tint (the maintainer, recurring) — while
  * status is still surfaced via the discreet top line / pill, plus the
  * structural identity that makes the two variants impossible to diverge.
  */
@@ -406,7 +406,7 @@ describe("medication card body — shared shell + dose-state presentation", () =
   }
 
   it("never tints the card surface when the dose is in its take-window", () => {
-    // Marc (recurring): the whole card washing green reads as "take it now"
+    // The maintainer (recurring): the whole card washing green reads as "take it now"
     // and is a permanent removal. The take-window status survives ONLY as the
     // discreet "Take now" pill, never as a card background / ring tint.
     const html = renderBody("on_time_window");

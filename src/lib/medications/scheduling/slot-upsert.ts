@@ -72,6 +72,14 @@ export interface ApplyCanonicalSlotWriteInput {
    * carry a binding decision).
    */
   attributionSource?: "AUTO" | "USER_PIN";
+  /**
+   * v1.16.4 — per-intake dose override to persist on a taken write.
+   * `null` / omitted = no override (the column stays untouched on an
+   * update, NULL on a create). Never clears a previously-recorded
+   * override — like `injectionSite`, a pending echo or skip cannot wash
+   * a recorded dose away.
+   */
+  doseTaken?: string | null;
 }
 
 export interface ApplyCanonicalSlotWriteResult {
@@ -174,6 +182,7 @@ export async function applyCanonicalSlotWrite(
     createSource,
     injectionSite = null,
     attributionSource,
+    doseTaken = null,
   } = input;
 
   const rows = await findSlotRows(client, userId, medicationId, canonicalSlot);
@@ -204,6 +213,8 @@ export async function applyCanonicalSlotWrite(
         ...(injectionSite !== null && { injectionSite }),
         // v1.15.20 — binding provenance; absent → schema default AUTO.
         ...(attributionSource !== undefined && { attributionSource }),
+        // v1.16.4 — dose override only when the write carries one.
+        ...(doseTaken !== null && { doseTaken }),
       },
       select: SLOT_ROW_SELECT,
     })) as SlotIntakeRow;
@@ -250,6 +261,7 @@ async function applyToExisting(
     idempotencyKey,
     injectionSite = null,
     attributionSource,
+    doseTaken = null,
   } = input;
 
   const existingActioned = existing.takenAt !== null || existing.skipped;
@@ -297,6 +309,9 @@ async function applyToExisting(
       // decision (pin / band re-attribution). A pending echo or skip never
       // overwrites a recorded USER_PIN.
       ...(attributionSource !== undefined && { attributionSource }),
+      // v1.16.4 — dose override only when this write carries one; never
+      // clear a previously-recorded override with a null re-post.
+      ...(doseTaken !== null && { doseTaken }),
     },
     select: SLOT_ROW_SELECT,
   })) as SlotIntakeRow;

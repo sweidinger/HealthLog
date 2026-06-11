@@ -10,6 +10,16 @@
  * log.
  */
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
+
+import {
+  ApiError,
+  apiDelete,
+  apiGet,
+  apiPatch,
+  apiPost,
+} from "@/lib/api/api-fetch";
+import { useTranslations } from "@/lib/i18n/context";
 
 import {
   cycleDependentKeys,
@@ -52,12 +62,6 @@ export interface CycleInsightsResponse {
   symptomPatterns: SymptomPhaseRow[];
 }
 
-async function unwrap<T>(res: Response): Promise<T> {
-  if (!res.ok) throw new Error(`Request failed: ${res.status}`);
-  const json = await res.json();
-  return json.data as T;
-}
-
 /**
  * The local-timezone `YYYY-MM-DD` for a Date (default: now). Cycle day-keys
  * are tz-anchored on the server; the client must derive the key from the
@@ -81,9 +85,7 @@ export function useCycleDayLog(date: string | null) {
     queryKey: queryKeys.cycleDayLog(date ?? ""),
     enabled: date !== null,
     queryFn: () =>
-      fetch(`/api/cycle/day-logs?date=${date}`).then((r) =>
-        unwrap<CycleDayLogDTO | null>(r),
-      ),
+      apiGet<CycleDayLogDTO | null>(`/api/cycle/day-logs?date=${date}`),
     staleTime: 30_000,
   });
 }
@@ -92,9 +94,7 @@ export function useCycleCalendar(from: string, to: string) {
   return useQuery({
     queryKey: queryKeys.cycleCalendar(from, to),
     queryFn: () =>
-      fetch(`/api/cycle/calendar?from=${from}&to=${to}`).then((r) =>
-        unwrap<CalendarResponse>(r),
-      ),
+      apiGet<CalendarResponse>(`/api/cycle/calendar?from=${from}&to=${to}`),
     staleTime: 60_000,
   });
 }
@@ -103,9 +103,7 @@ export function useCycleHistory(limit = 24) {
   return useQuery({
     queryKey: queryKeys.cycleHistory(limit),
     queryFn: () =>
-      fetch(`/api/cycle/cycles?limit=${limit}`).then((r) =>
-        unwrap<CycleHistoryResponse>(r),
-      ),
+      apiGet<CycleHistoryResponse>(`/api/cycle/cycles?limit=${limit}`),
     staleTime: 60_000,
   });
 }
@@ -126,9 +124,7 @@ export function useCustomSymptoms() {
   return useQuery({
     queryKey: queryKeys.cycleCustomSymptoms(),
     queryFn: () =>
-      fetch("/api/cycle/symptoms/custom").then((r) =>
-        unwrap<{ symptoms: CustomSymptomDTO[] }>(r),
-      ),
+      apiGet<{ symptoms: CustomSymptomDTO[] }>("/api/cycle/symptoms/custom"),
     staleTime: 5 * 60_000,
   });
 }
@@ -152,22 +148,22 @@ export function useCreateCustomSymptom() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (input: { label: string; icon?: string | null }) => {
-      const res = await fetch("/api/cycle/symptoms/custom", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(input),
-      });
-      if (!res.ok) {
+      try {
+        return await apiPost<CustomSymptomDTO>(
+          "/api/cycle/symptoms/custom",
+          input,
+        );
+      } catch (e) {
         // Preserve the envelope errorCode so the UI can tell the cap hit
         // (cycle.symptom.custom.limit) apart from a transient/validation error.
-        const errorCode = await res
-          .json()
-          .then((j) => (j?.meta?.errorCode as string | undefined) ?? null)
-          .catch(() => null);
-        throw new CustomSymptomError(errorCode, res.status);
+        if (e instanceof ApiError) {
+          throw new CustomSymptomError(
+            (e.meta?.errorCode as string | undefined) ?? null,
+            e.status,
+          );
+        }
+        throw e;
       }
-      const json = await res.json();
-      return json.data as CustomSymptomDTO;
     },
     onSuccess: () =>
       qc.invalidateQueries({ queryKey: queryKeys.cycleCustomSymptoms() }),
@@ -177,15 +173,17 @@ export function useCreateCustomSymptom() {
 /** Soft-hide a custom symptom by its key (history-preserving). */
 export function useDeleteCustomSymptom() {
   const qc = useQueryClient();
+  const { t } = useTranslations();
   return useMutation({
     mutationFn: async (key: string) => {
-      const res = await fetch(
+      return apiDelete<{ key: string; purged: boolean }>(
         `/api/cycle/symptoms/custom/${encodeURIComponent(key)}`,
-        { method: "DELETE" },
       );
-      return unwrap<{ key: string; purged: boolean }>(res);
     },
     onSuccess: () => invalidateKeys(qc, cycleDependentKeys),
+    // v1.16.4 — a failed delete used to fail silently (the sheet clears the
+    // chip optimistically), so surface the rejection.
+    onError: () => toast.error(t("cycle.deleteError")),
   });
 }
 
@@ -193,7 +191,7 @@ export function useCycleProfile() {
   return useQuery({
     queryKey: queryKeys.cycleProfile(),
     queryFn: () =>
-      fetch("/api/cycle/profile").then((r) => unwrap<CycleProfileDTO>(r)),
+      apiGet<CycleProfileDTO>("/api/cycle/profile"),
     staleTime: 5 * 60_000,
   });
 }
@@ -207,9 +205,7 @@ export function useCycleInsights() {
   return useQuery({
     queryKey: queryKeys.cycleInsights(),
     queryFn: () =>
-      fetch("/api/cycle/insights").then((r) =>
-        unwrap<CycleInsightsResponse>(r),
-      ),
+      apiGet<CycleInsightsResponse>("/api/cycle/insights"),
     staleTime: 5 * 60_000,
   });
 }
@@ -223,15 +219,9 @@ export function useLogDay() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (input: CycleDayLogInput) => {
-      const res = await fetch("/api/cycle/day-logs", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Idempotency-Key": idempotencyKey(),
-        },
-        body: JSON.stringify(input),
+      return apiPost<unknown>("/api/cycle/day-logs", input, {
+        headers: { "Idempotency-Key": idempotencyKey() },
       });
-      return unwrap<unknown>(res);
     },
     onSuccess: () => invalidateKeys(qc, cycleDependentKeys),
   });
@@ -269,12 +259,7 @@ export function usePatchDayLog() {
       id: string;
       patch: CycleDayLogPatch;
     }) => {
-      const res = await fetch(`/api/cycle/day-logs/${id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(patch),
-      });
-      return unwrap<CycleDayLogDTO>(res);
+      return apiPatch<CycleDayLogDTO>(`/api/cycle/day-logs/${id}`, patch);
     },
     onSuccess: () => invalidateKeys(qc, cycleDependentKeys),
   });
@@ -282,56 +267,49 @@ export function usePatchDayLog() {
 
 export function useStartPeriod() {
   const qc = useQueryClient();
+  const { t } = useTranslations();
   return useMutation({
     mutationFn: async (date: string) => {
-      const res = await fetch("/api/cycle/period", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "start",
-          date,
-          loggedAt: new Date().toISOString(),
-        }),
+      return apiPost<unknown>("/api/cycle/period", {
+        action: "start",
+        date,
+        loggedAt: new Date().toISOString(),
       });
-      return unwrap<unknown>(res);
     },
     onSuccess: () => invalidateKeys(qc, cycleDependentKeys),
+    // v1.16.4 — period boundaries had no failure signal at all (the sheet
+    // simply stayed open); a toast names the rejection.
+    onError: () => toast.error(t("cycle.saveError")),
   });
 }
 
 /** The one-tap "end period" boundary (`action:"end"`). */
 export function useEndPeriod() {
   const qc = useQueryClient();
+  const { t } = useTranslations();
   return useMutation({
     mutationFn: async (date: string) => {
-      const res = await fetch("/api/cycle/period", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action: "end",
-          date,
-          loggedAt: new Date().toISOString(),
-        }),
+      return apiPost<unknown>("/api/cycle/period", {
+        action: "end",
+        date,
+        loggedAt: new Date().toISOString(),
       });
-      return unwrap<unknown>(res);
     },
     onSuccess: () => invalidateKeys(qc, cycleDependentKeys),
+    onError: () => toast.error(t("cycle.saveError")),
   });
 }
 
 /** Soft-delete a logged day by its row id (the GET supplies the id). */
 export function useDeleteDayLog() {
   const qc = useQueryClient();
+  const { t } = useTranslations();
   return useMutation({
     mutationFn: async (id: string) => {
-      const res = await fetch(`/api/cycle/day-logs/${id}`, {
-        method: "DELETE",
-      });
-      if (!res.ok && res.status !== 204) {
-        throw new Error(`Request failed: ${res.status}`);
-      }
+      await apiDelete(`/api/cycle/day-logs/${id}`);
     },
     onSuccess: () => invalidateKeys(qc, cycleDependentKeys),
+    onError: () => toast.error(t("cycle.deleteError")),
   });
 }
 
@@ -351,12 +329,7 @@ export function useUpdateCyclePrefs() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (patch: CyclePrefsPatch) => {
-      const res = await fetch("/api/auth/me/cycle-prefs", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(patch),
-      });
-      return unwrap<CycleProfileDTO>(res);
+      return apiPatch<CycleProfileDTO>("/api/auth/me/cycle-prefs", patch);
     },
     onSuccess: () => {
       void invalidateKeys(qc, cycleDependentKeys);

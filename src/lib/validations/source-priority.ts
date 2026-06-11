@@ -199,7 +199,7 @@ export type MetricPriority = z.infer<typeof metricPriorityObjectSchema>;
 export type DeviceTypePriority = z.infer<typeof deviceTypePrioritySchema>;
 
 /**
- * Marc-directive 2026-05-14 defaults:
+ * maintainer-directive 2026-05-14 defaults:
  *   - Cumulative metrics (steps, activeEnergy, walkingRunningDistance,
  *     flightsClimbed): APPLE_HEALTH > WITHINGS > MANUAL. iOS HealthKit
  *     aggregates ScanWatch + iPhone sensors into a single canonical

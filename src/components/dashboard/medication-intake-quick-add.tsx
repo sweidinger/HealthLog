@@ -28,11 +28,12 @@ import {
   toBerlinDate,
   type ScheduleWindowInput,
 } from "@/lib/medications/window-status";
+import { ApiError, apiGet, apiPost } from "@/lib/api/api-fetch";
 
 /**
  * v1.4.37 W7b — dashboard "Hinzufügen" → "Medikamenteneinnahme" quick-add.
  *
- * Marc's brief: the dashboard's top-right "Hinzufügen" menu logs
+ * The maintainer's brief: the dashboard's top-right "Hinzufügen" menu logs
  * measurements and mood entries; add a medication-intake action so a
  * dose can be logged in a few taps without leaving the dashboard.
  *
@@ -47,13 +48,10 @@ import {
  *      unusable form.
  *   2. Dose. Pre-filled from the medication's catalogue dose for
  *      visual confirmation ("this is the strength I'm logging").
- *      v1.4.37 W10 — rendered read-only because the POST body has no
- *      `dose` field; any user edit would be silently dropped. When
- *      the user wants to record a half/double dose they still edit
- *      the medication itself on `/medications` until the v1.4.38
- *      schema grows a `doseOverride` slot. Hint copy below the
- *      field warns about the constraint so the user's mental model
- *      tracks what the server persists.
+ *      v1.16.4 — editable: the intake POST body grew a `doseTaken`
+ *      override slot, so a half/double dose can be recorded for THIS
+ *      take. An untouched (or configured-dose) value sends nothing and
+ *      the take records under the medication's dose as before.
  *   3. Time taken. Defaults to `now` (local datetime-local format
  *      shaped the same as `MoodForm`).
  *
@@ -160,10 +158,7 @@ export function MedicationIntakeQuickAdd({
   const { data: medicationsRaw, isLoading: medicationsLoading } = useQuery({
     queryKey: queryKeys.medications(),
     queryFn: async () => {
-      const res = await fetch("/api/medications");
-      if (!res.ok) throw new Error("Failed to load medications");
-      const json = await res.json();
-      return json.data as MedicationOption[];
+      return apiGet<MedicationOption[]>("/api/medications");
     },
     // v1.4.38 — share the parent dashboard's medications cache.
     // `queryKeys.medications()` resolves to `["medications"]` — the
@@ -200,13 +195,11 @@ export function MedicationIntakeQuickAdd({
   const [medicationOverride, setMedicationOverride] = useState<string | null>(
     null,
   );
-  // v1.4.37 W10 — the dose field is informational only. The intake
-  // POST body has no `dose` slot, so any user edit would be silently
-  // dropped on submit. Until the v1.4.38 schema grows a `doseOverride`
-  // field, render the input as read-only so the user's mental model
-  // tracks what the server actually persists. The state holder is
-  // kept (as `null`) so the medication-switch handler still resets
-  // the slot cleanly if the schema ever grows the field.
+  // v1.16.4 — the dose field is editable: the intake POST body grew a
+  // `doseTaken` slot, so a half/double dose can be recorded per intake.
+  // `null` = untouched → the medication's configured dose flows through
+  // and nothing extra is sent; an edit that differs from the configured
+  // dose is persisted as the per-intake override.
   const [doseOverride, setDoseOverride] = useState<string | null>(null);
   const [takenAt, setTakenAt] = useState<string>(getDefaultIntakeAtValue);
   const [loading, setLoading] = useState(false);
@@ -227,10 +220,7 @@ export function MedicationIntakeQuickAdd({
   function handleMedicationChange(value: string) {
     setMedicationOverride(value);
     // Reset the dose override when the medication changes so the new
-    // default flows through on the next render. The dose field is
-    // currently read-only (see v1.4.37 W10 note above), but the reset
-    // stays in place so the slot is ready to switch back to editable
-    // when the v1.4.38 doseOverride schema lands.
+    // medication's configured dose flows through on the next render.
     setDoseOverride(null);
   }
 
@@ -242,25 +232,18 @@ export function MedicationIntakeQuickAdd({
 
     try {
       const timestamp = new Date(takenAt).toISOString();
-      const res = await fetch(`/api/medications/${medicationId}/intake`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          takenAt: timestamp,
-          skipped: false,
-        }),
+      // v1.16.4 — only a deliberate deviation travels: an untouched or
+      // configured-dose value sends nothing, so the row stays NULL and
+      // read paths fall back to the medication's dose.
+      const trimmedDose = dose.trim();
+      const doseDeviates =
+        trimmedDose.length > 0 &&
+        trimmedDose !== (selectedMedication?.dose ?? "").trim();
+      await apiPost(`/api/medications/${medicationId}/intake`, {
+        takenAt: timestamp,
+        skipped: false,
+        ...(doseDeviates && { doseTaken: trimmedDose }),
       });
-
-      const json = await res.json();
-      if (!res.ok) {
-        setError(
-          typeof json?.error === "string"
-            ? json.error
-            : t("dashboard.medicationIntakeQuickAdd.saveError"),
-        );
-        setLoading(false);
-        return;
-      }
 
       await invalidateKeys(queryClient, medicationDependentKeys);
       // Fan-out to every inline compliance chart key (one per medication)
@@ -271,8 +254,12 @@ export function MedicationIntakeQuickAdd({
 
       toast.success(t("common.saved"));
       onSuccess?.();
-    } catch {
-      setError(t("dashboard.medicationIntakeQuickAdd.saveError"));
+    } catch (err) {
+      setError(
+        err instanceof ApiError && err.message
+          ? err.message
+          : t("dashboard.medicationIntakeQuickAdd.saveError"),
+      );
     } finally {
       setLoading(false);
     }
@@ -418,15 +405,13 @@ export function MedicationIntakeQuickAdd({
           id="medication-intake-dose"
           data-testid="medication-intake-quick-add-dose"
           value={dose}
-          readOnly
-          aria-readonly="true"
-          tabIndex={-1}
+          onChange={(e) => setDoseOverride(e.target.value)}
+          maxLength={50}
           placeholder={
             selectedMedication?.dose ??
             t("dashboard.medicationIntakeQuickAdd.dosePlaceholder")
           }
           autoComplete="off"
-          className="bg-muted/40"
         />
         <p className="text-muted-foreground text-xs">
           {t("dashboard.medicationIntakeQuickAdd.doseHint")}

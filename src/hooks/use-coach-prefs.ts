@@ -3,6 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { queryKeys } from "@/lib/query-keys";
+import { apiFetchRaw, apiPut } from "@/lib/api/api-fetch";
 import {
   DEFAULT_COACH_PREFS,
   type CoachPrefs,
@@ -27,7 +28,9 @@ export function useCoachPrefs(opts?: { enabled?: boolean }) {
   return useQuery<CoachPrefs>({
     queryKey: queryKeys.coachPrefs(),
     queryFn: async () => {
-      const res = await fetch("/api/auth/me/coach-prefs");
+      // `apiFetchRaw` (no .ok throw) — a non-OK read soft-fails to the
+      // defaults instead of surfacing an error state.
+      const res = await apiFetchRaw("/api/auth/me/coach-prefs");
       if (!res.ok) return DEFAULT_COACH_PREFS;
       const env = (await res.json()) as { data: CoachPrefs };
       return env.data;
@@ -49,20 +52,10 @@ export function useSaveCoachPrefs(opts?: { onSuccess?: () => void }) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationKey: queryKeys.coachPrefs(),
-    mutationFn: async (next: CoachPrefs) => {
-      const res = await fetch("/api/auth/me/coach-prefs", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(next),
-      });
-      if (!res.ok) throw new Error("coach-prefs.save_failed");
-      return (await res.json()) as { data: CoachPrefs };
-    },
-    onSuccess: (envelope) => {
-      queryClient.setQueryData<CoachPrefs>(
-        queryKeys.coachPrefs(),
-        envelope.data,
-      );
+    mutationFn: async (next: CoachPrefs) =>
+      apiPut<CoachPrefs>("/api/auth/me/coach-prefs", next),
+    onSuccess: (data) => {
+      queryClient.setQueryData<CoachPrefs>(queryKeys.coachPrefs(), data);
       opts?.onSuccess?.();
     },
   });

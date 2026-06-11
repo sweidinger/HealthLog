@@ -27,7 +27,7 @@
 import type { PrismaClient } from "@/generated/prisma/client";
 import { prisma as defaultPrisma } from "@/lib/db";
 import { encrypt, decrypt } from "@/lib/crypto";
-import { getLocalDateParts } from "@/lib/timezone";
+import { wallClockInTz } from "@/lib/tz/wall-clock";
 import { annotate } from "@/lib/logging/context";
 import { runStatusCompletion } from "@/lib/insights/status-provider";
 import {
@@ -85,7 +85,7 @@ export interface NarrativeProvenancePayload {
 
 /** UTC YYYY-MM-DD boundary key for a row, in the user's tz. */
 function dateKeyFor(now: Date, tz: string): string {
-  const { year, month, day } = getLocalDateParts(now, tz);
+  const { year, month, day } = wallClockInTz(now, tz);
   return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
 }
 

@@ -25,8 +25,8 @@ vi.mock("next/navigation", () => ({
 const sampleUsers = [
   {
     id: "u1",
-    username: "marc",
-    email: "marc@example.com",
+    username: "testuser",
+    email: "user@example.com",
     role: "ADMIN" as const,
     passkeyCount: 2,
     createdAt: "2026-04-01T08:00:00Z",
@@ -57,8 +57,8 @@ vi.mock("@/hooks/use-auth", () => ({
   useAuth: () => ({
     user: {
       id: "u1",
-      username: "marc",
-      email: "marc@example.com",
+      username: "testuser",
+      email: "user@example.com",
       role: "ADMIN",
     },
     isAuthenticated: true,

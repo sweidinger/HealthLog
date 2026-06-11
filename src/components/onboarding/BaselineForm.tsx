@@ -19,7 +19,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useTranslations } from "@/lib/i18n/context";
-import { readError } from "@/lib/api/read-error";
+import { apiPost, apiPut } from "@/lib/api/api-fetch";
 
 /**
  * v1.4.25 W14b-Content — onboarding step 3 (baseline).
@@ -90,20 +90,10 @@ export function BaselineForm() {
           profileBody.gender = form.gender;
         }
         if (Object.keys(profileBody).length > 0) {
-          const profileRes = await fetch("/api/auth/profile", {
-            method: "PUT",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(profileBody),
-          });
-          if (!profileRes.ok) throw new Error(await readError(profileRes));
+          await apiPut("/api/auth/profile", profileBody);
         }
       }
-      const stepRes = await fetch("/api/onboarding/step", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ step: 4 }),
-      });
-      if (!stepRes.ok) throw new Error(await readError(stepRes));
+      await apiPost("/api/onboarding/step", { step: 4 });
       await queryClient.invalidateQueries({ queryKey: ["auth"] });
       router.push("/onboarding/4");
     } catch (err) {

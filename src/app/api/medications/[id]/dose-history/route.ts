@@ -89,6 +89,8 @@ interface SerializedDoseHistoryRow {
     takenAt: string | null;
     skipped: boolean;
     autoMissed: boolean;
+    /** v1.16.4 — per-intake dose override; null = configured dose. */
+    doseTaken: string | null;
   } | null;
 }
 
@@ -161,6 +163,8 @@ export const GET = apiHandler(
         autoMissed: true,
         // v1.15.20 — USER_PIN rows bind by anchor in the read ledger.
         attributionSource: true,
+        // v1.16.4 — per-intake dose override for the ledger's deviation hint.
+        doseTaken: true,
       },
     });
 
@@ -171,6 +175,7 @@ export const GET = apiHandler(
       skipped: e.skipped,
       autoMissed: e.autoMissed,
       pinned: e.attributionSource === "USER_PIN",
+      doseTaken: e.doseTaken,
     }));
 
     const lastIntakeAt = lastNonSkippedTakenAt(mapped);
@@ -242,6 +247,7 @@ export const GET = apiHandler(
         skipped: e.skipped,
         autoMissed: e.autoMissed,
         pinned: e.pinned,
+        doseTaken: e.doseTaken,
       }));
 
     const rows = reconstructDoseHistory(bands, historyIntakes, now);
@@ -266,6 +272,7 @@ export const GET = apiHandler(
             takenAt: row.intake.takenAt?.toISOString() ?? null,
             skipped: row.intake.skipped,
             autoMissed: row.intake.autoMissed ?? false,
+            doseTaken: row.intake.doseTaken ?? null,
           }
         : null,
     }));

@@ -19,6 +19,7 @@ import {
   type EventType,
 } from "@/lib/notifications/types";
 import { queryKeys } from "@/lib/query-keys";
+import { apiGet, apiPut } from "@/lib/api/api-fetch";
 
 interface ChannelInfo {
   id: string;
@@ -91,10 +92,7 @@ export default function NotificationsPage() {
   const { data, isLoading, isError } = useQuery({
     queryKey: queryKeys.notificationsPreferences(),
     queryFn: async () => {
-      const res = await fetch("/api/notifications/preferences");
-      if (!res.ok) throw new Error("Failed to load preferences");
-      const json = await res.json();
-      return json.data as PreferencesData;
+      return apiGet<PreferencesData>("/api/notifications/preferences");
     },
     enabled: isAuthenticated,
   });
@@ -105,13 +103,7 @@ export default function NotificationsPage() {
       eventType: string;
       enabled: boolean;
     }) => {
-      const res = await fetch("/api/notifications/preferences", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(params),
-      });
-      if (!res.ok) throw new Error("Failed to update preference");
-      return res.json();
+      return apiPut("/api/notifications/preferences", params);
     },
     onMutate: async ({ channelId, eventType, enabled }) => {
       await queryClient.cancelQueries({

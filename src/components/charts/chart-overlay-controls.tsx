@@ -23,7 +23,7 @@ import {
 /**
  * v1.4.18 — per-chart overlay-controls popover.
  *
- * the maintainer rolled back B1a's always-on chart overlays (gradient fills,
+ * The maintainer rolled back B1a's always-on chart overlays (gradient fills,
  * personal-baseline reference line, target-zone shading) and asked for
  * a per-chart switch surface instead. Each dashboard chart card mounts
  * one of these in its top-right corner (a settings-cog dropdown) so the

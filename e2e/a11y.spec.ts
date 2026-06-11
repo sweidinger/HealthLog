@@ -116,7 +116,7 @@ test.describe("axe-core authenticated surfaces", () => {
   }
 
   // The keyboard-only "skip to content" link is fixed at the top-left
-  // corner of every authenticated page. Marc reported it intercepting
+  // corner of every authenticated page. The maintainer reported it intercepting
   // logo clicks in v1.4.14 — the fix combines `pointer-events-none`
   // with `-translate-y-full` so the element sits offscreen until
   // focused. Regression guard: with no keyboard focus, the logo's own
@@ -127,7 +127,7 @@ test.describe("axe-core authenticated surfaces", () => {
   }) => {
     // The desktop sidebar (and its logo) is `hidden md:flex` — the
     // mobile profile (Pixel 5) hides it by design. The skip-link
-    // regression Marc originally reported in v1.4.14 was a desktop-
+    // regression the maintainer originally reported in v1.4.14 was a desktop-
     // only artifact (mobile uses the topbar logo, which is a
     // different DOM node). Skip the mobile project so we don't
     // flake on a contract that doesn't apply there.

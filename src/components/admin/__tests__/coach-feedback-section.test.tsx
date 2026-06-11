@@ -108,7 +108,7 @@ describe("CoachFeedbackSection", () => {
     expect(html).toContain('role="alert"');
   });
 
-  // v1.4.25 W8 regression — Marc reported a layout shift on
+  // v1.4.25 W8 regression — the maintainer reported a layout shift on
   // /admin/coach-feedback. Root cause was the title only rendering in the
   // empty + data branches, so the section grew taller (loading → data)
   // and snapped down. Lock the heading + outer-card structure across

@@ -195,7 +195,7 @@ export interface AggregatedFeatures {
  *
  * Replaces v1.4.35.x `rawMeasurements` (which appended every
  * measurement row and blew the 10 MB Codex prompt ceiling on power
- * users with multi-year imports — 25.9 MB observed on Marc's account
+ * users with multi-year imports — 25.9 MB observed on the maintainer's account
  * with 311 775 rows). Reading from `measurement_rollups` instead caps
  * the payload at O(types × buckets) regardless of underlying row
  * count.
@@ -249,7 +249,7 @@ export class FeaturesPayloadTooLargeError extends Error {
  * The 90 / 365 / 1825-day windows are non-overlapping: each row of
  * `measurement_rollups` lives at exactly one granularity, and the
  * downstream model reads the union of the three series per type.
- * Total volume per type for a Marc-scale power user (5 years of daily
+ * Total volume per type for a heavy power user (5 years of daily
  * data): 90 DAY + 39 WEEK + 50 MONTH = 179 buckets × ~40 bytes JSON
  * each ≈ 7 KB. Eight metric types lands at ~56 KB — well under the
  * 5 MB cap above, vs 25.9 MB for the v1.4.35 rawMeasurements shape.

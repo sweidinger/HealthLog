@@ -9,7 +9,7 @@ import { join } from "node:path";
  * thick `/api/analytics` envelope; every per-type tile waited on the
  * heavy fan-out before paint. Mood and medication tiles arrived first
  * (separate routes) and then every other tile arrived as one burst,
- * which Marc reported as "etwas nervig" in the v1.4.39.1 post-deploy
+ * which the maintainer reported as "etwas nervig" in the v1.4.39.1 post-deploy
  * trace.
  *
  * Post-fix the dashboard mounts TWO `useAnalyticsQuery` calls in

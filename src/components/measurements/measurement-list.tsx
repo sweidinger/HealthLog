@@ -48,12 +48,13 @@ import {
   ChevronDown,
   MoreHorizontal,
 } from "lucide-react";
-import { Fragment, useId, useState } from "react";
+import { Fragment, useCallback, useId, useState } from "react";
 import { createPortal } from "react-dom";
 import { toast } from "sonner";
 import { formatDateOrRelative, formatDateTime } from "@/lib/format";
 import { useTranslations, useFormatters } from "@/lib/i18n/context";
 import { CUMULATIVE_DAY_SUM_TYPES } from "@/lib/measurements/cumulative-day-sum";
+import { rawDisplayFractionDigits } from "@/lib/measurements/display-transform";
 import {
   invalidateKeys,
   measurementDependentKeys,
@@ -80,6 +81,13 @@ import {
   MEASUREMENT_TYPE_ICONS as TYPE_ICONS,
   MEASUREMENT_TYPE_COLORS as TYPE_COLORS,
 } from "./measurement-list-meta";
+import {
+  ApiError,
+  apiDelete,
+  apiGet,
+  apiPost,
+  apiPut,
+} from "@/lib/api/api-fetch";
 
 /**
  * v1.4.37 W7c — cumulative HK types whose list view collapses to one
@@ -425,26 +433,49 @@ export function MeasurementList({
         params.set("limit", "366");
         params.set("offset", "0");
       }
-      const res = await fetch(`/api/measurements?${params}`);
-      if (!res.ok) throw new Error("Failed to fetch");
-      const json = await res.json();
-      return json.data as {
+      return apiGet<{
         measurements: Measurement[];
         meta: { total: number };
-      };
+      }>(`/api/measurements?${params}`);
     },
     enabled: isAuthenticated,
   });
 
+  // v1.16.4 — deletes are soft (tombstones), so the success toast can
+  // carry a real Undo: it POSTs the ids to `/api/measurements/restore`,
+  // which clears `deletedAt` and re-fires the same dependent-key bundle.
+  // Mirrors the intake-Undo pattern in `use-medication-intake.ts`.
+  const restoreMeasurements = useCallback(
+    async (ids: string[]) => {
+      try {
+        await apiPost("/api/measurements/restore", { ids });
+        await invalidateKeys(queryClient, measurementDependentKeys);
+        toast.success(t("measurements.restoredToast"));
+      } catch {
+        toast.error(t("measurements.restoreError"));
+      }
+    },
+    [queryClient, t],
+  );
+
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      const res = await fetch(`/api/measurements/${id}`, {
-        method: "DELETE",
-      });
-      if (!res.ok) throw new Error("Delete failed");
+      await apiDelete(`/api/measurements/${id}`);
     },
-    onSuccess: () => {
+    onSuccess: (_data, id) => {
       void invalidateKeys(queryClient, measurementDependentKeys);
+      toast.success(t("measurements.deletedToast"), {
+        action: {
+          label: t("common.undo"),
+          onClick: () => void restoreMeasurements([id]),
+        },
+      });
+    },
+    // v1.16.4 — a failed row delete used to fail silently (no onError
+    // handler); the edit-dialog path surfaced its own inline error but
+    // the row-level confirm had no feedback at all.
+    onError: () => {
+      toast.error(t("measurements.deleteError"));
     },
   });
 
@@ -454,20 +485,23 @@ export function MeasurementList({
   // the dashboard / insights / chart caches stay in lockstep.
   const bulkDeleteMutation = useMutation({
     mutationFn: async (ids: string[]) => {
-      const res = await fetch("/api/measurements/bulk-delete", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ids }),
-      });
-      if (!res.ok) throw new Error("Bulk delete failed");
-      const json = (await res.json()) as { data: { deleted: number } };
-      return json.data.deleted;
+      const data = await apiPost<{ deleted: number }>(
+        "/api/measurements/bulk-delete",
+        { ids },
+      );
+      return data.deleted;
     },
-    onSuccess: async (deleted) => {
+    onSuccess: async (deleted, ids) => {
       await invalidateKeys(queryClient, measurementDependentKeys);
       clearSelection();
       toast.success(
         t("measurements.bulkDeleteSuccess", { count: String(deleted) }),
+        {
+          action: {
+            label: t("common.undo"),
+            onClick: () => void restoreMeasurements(ids),
+          },
+        },
       );
     },
     onError: () => {
@@ -517,35 +551,7 @@ export function MeasurementList({
       measuredAt: string;
       notes: string | null;
     }) => {
-      const res = await fetch(`/api/measurements/${id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          value,
-          measuredAt,
-          notes,
-        }),
-      });
-
-      const json = (await res.json()) as {
-        error?: string;
-        meta?: { errorCode?: string };
-      };
-      if (!res.ok) {
-        // v1.4.28 FB-B1 — the PUT route now returns a 409 with
-        // `meta.errorCode === "measurement.duplicate_timestamp"` when
-        // the edit collides with an existing row's
-        // `(type, measuredAt, source, sleepStage)` tuple. Forward the
-        // code alongside the message so `onError` can pick the
-        // localised string.
-        const err = new Error(json.error ?? "Update failed") as Error & {
-          errorCode?: string;
-          status?: number;
-        };
-        err.errorCode = json.meta?.errorCode;
-        err.status = res.status;
-        throw err;
-      }
+      await apiPut(`/api/measurements/${id}`, { value, measuredAt, notes });
     },
     onSuccess: async () => {
       await invalidateKeys(queryClient, measurementDependentKeys);
@@ -553,8 +559,15 @@ export function MeasurementList({
       setEditError(null);
     },
     onError: (err) => {
-      const errWithCode = err as Error & { errorCode?: string };
-      if (errWithCode.errorCode === "measurement.duplicate_timestamp") {
+      // v1.4.28 FB-B1 — the PUT route returns a 409 with
+      // `meta.errorCode === "measurement.duplicate_timestamp"` when the
+      // edit collides with an existing row's
+      // `(type, measuredAt, source, sleepStage)` tuple. ApiError carries
+      // the envelope `meta`, so the localised string can be picked here.
+      if (
+        err instanceof ApiError &&
+        err.meta?.errorCode === "measurement.duplicate_timestamp"
+      ) {
         setEditError(t("measurements.duplicateTimestamp"));
         return;
       }
@@ -869,7 +882,10 @@ export function MeasurementList({
                               <>
                                 {isGrouped
                                   ? fmt.integer(m.value)
-                                  : fmt.number(m.value)}{" "}
+                                  : fmt.number(
+                                      m.value,
+                                      rawDisplayFractionDigits(m.type),
+                                    )}{" "}
                                 {m.unit}
                                 {isGrouped && (
                                   <span className="text-muted-foreground ml-2 text-xs font-normal">
@@ -1005,30 +1021,24 @@ export function MeasurementList({
                         {/* v1.15.13 — multi-select checkbox in a 44px tap
                             target; absent for synthetic grouped rows. */}
                         {!isGrouped && (
-                          // v1.15.13 MEDIUM-1 — a Radix Checkbox renders a
-                          // 16px `<button role=checkbox>`; a wrapping
-                          // `<label>` does NOT forward taps to a button (label
-                          // forwarding only works for native form controls),
-                          // so the effective tap target was 16px (fails WCAG
-                          // 2.5.5). The 44px button below owns the whole hit
-                          // area and is the single toggle source; the inner
-                          // Checkbox is a `pointer-events-none` controlled
-                          // visual, so a tap can fire the handler exactly once.
-                          <button
-                            type="button"
-                            role="checkbox"
-                            aria-checked={isSelected}
-                            aria-label={t("dataList.selectRow")}
-                            onClick={() => onToggleRow(m.id)}
-                            className="focus-visible:ring-ring/50 flex size-11 shrink-0 items-center justify-center rounded focus-visible:ring-2 focus-visible:outline-none"
-                          >
+                          // v1.15.13 MEDIUM-1 kept the 16px Radix Checkbox
+                          // (itself a `<button role=checkbox>`) inside a
+                          // 44px wrapper `<button>` for WCAG 2.5.5 — but a
+                          // button may not nest inside a button, and the
+                          // invalid markup made React 19 fail hydration on
+                          // every list paint. The wrapper is now a plain
+                          // layout `<div>`; the Checkbox stays the single
+                          // control and owns the 44px hit area via an
+                          // `after` hit-slop (clicks on a pseudo-element
+                          // hit-test against its host button).
+                          <div className="flex size-11 shrink-0 items-center justify-center">
                             <Checkbox
                               checked={isSelected}
-                              tabIndex={-1}
-                              aria-hidden="true"
-                              className="pointer-events-none"
+                              onCheckedChange={() => onToggleRow(m.id)}
+                              aria-label={t("dataList.selectRow")}
+                              className="relative after:absolute after:-inset-3.5"
                             />
-                          </button>
+                          </div>
                         )}
                         {Icon && (
                           <div
@@ -1066,7 +1076,10 @@ export function MeasurementList({
                               <>
                                 {isGrouped
                                   ? fmt.integer(m.value)
-                                  : fmt.number(m.value)}{" "}
+                                  : fmt.number(
+                                      m.value,
+                                      rawDisplayFractionDigits(m.type),
+                                    )}{" "}
                                 {m.unit}
                               </>
                             )}
@@ -1430,10 +1443,7 @@ function DayDrillDown({
       params.set("type", type);
       params.set("dayKey", dayKey);
       params.set("sortDir", "asc");
-      const res = await fetch(`/api/measurements?${params}`);
-      if (!res.ok) throw new Error("Failed to fetch drill-down");
-      const json = await res.json();
-      return json.data as { measurements: Measurement[] };
+      return apiGet<{ measurements: Measurement[] }>(`/api/measurements?${params}`);
     },
     enabled: isAuthenticated,
     // The drill-down is per-day — once fetched it rarely needs to

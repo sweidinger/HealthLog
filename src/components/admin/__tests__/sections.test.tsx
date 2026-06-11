@@ -30,8 +30,8 @@ vi.mock("@/hooks/use-auth", () => ({
   useAuth: () => ({
     user: {
       id: "u1",
-      username: "marc",
-      email: "marc@example.com",
+      username: "testuser",
+      email: "user@example.com",
       role: "ADMIN",
     },
     isAuthenticated: true,
@@ -149,7 +149,7 @@ describe("admin sections — SSR smoke", () => {
   it("<AiQualitySection> renders the empty-state when no summary exists", () => {
     const html = render(<AiQualitySection />);
     // v1.4.33 IW7 — section renamed from "AI Quality" to
-    // "Insights Quality" per the Marc-Voice rule (no "KI"/"AI" prefix
+    // "Insights Quality" per the project-voice rule (no "KI"/"AI" prefix
     // in user-facing copy).
     expect(html).toContain("Insights Quality");
     expect(html).toContain("No feedback yet");

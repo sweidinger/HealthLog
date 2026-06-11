@@ -136,7 +136,7 @@ const ALLOWED_SET = new Set<string>(ALLOWED_CHART_TOKENS);
 const STRIP_TOKEN_REGEX = /metric:[A-Za-z0-9_]+/g;
 const PARSE_TOKEN_REGEX = /metric:[A-Z_]+/g;
 
-// v1.4.25 W5b — capitalised-Metric form. Marc reported the leak
+// v1.4.25 W5b — capitalised-Metric form. The maintainer reported the leak
 // pattern `Metric Pressure_Sys` on /insights 2026-05-14: the model
 // emitted the metric reference as a two-word phrase ("Metric" + space
 // + enum-cased identifier) instead of the canonical `metric:<TYPE>`
@@ -236,7 +236,7 @@ const ORPHAN_ENUMS = [
 // (lowercase) or "BMI" (no underscore) never match. The fixed list
 // also means we never accidentally strip a single capitalised word
 // like "MOOD" or "WEIGHT" that has legitimate use as an in-prose
-// metric label in display copy. Marc's directive (2026-05-14) is to
+// metric label in display copy. The maintainer's directive (2026-05-14) is to
 // strip ONLY upper-snake / suffixed enum identifiers, not the
 // canonical user-facing labels.
 const ORPHAN_ENUM_REGEX = new RegExp(

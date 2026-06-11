@@ -10,6 +10,7 @@ import {
   type ComparisonBaseline,
   type DashboardLayout,
 } from "@/lib/dashboard-layout";
+import { apiGet, apiPut } from "@/lib/api/api-fetch";
 
 /**
  * v1.4.16 phase D reconcile (CRITICAL C3) — on-surface comparison
@@ -29,10 +30,7 @@ export function CompareToggle({ className }: { className?: string }) {
   const { data: layoutData } = useQuery({
     queryKey: queryKeys.dashboardWidgets(),
     queryFn: async () => {
-      const res = await fetch("/api/dashboard/widgets");
-      if (!res.ok) throw new Error("failed");
-      const json = await res.json();
-      return json.data as DashboardLayout;
+      return apiGet<DashboardLayout>("/api/dashboard/widgets");
     },
   });
 
@@ -43,13 +41,7 @@ export function CompareToggle({ className }: { className?: string }) {
     mutationFn: async (next: ComparisonBaseline) => {
       if (!layout) throw new Error("layout-not-loaded");
       const body: DashboardLayout = { ...layout, comparisonBaseline: next };
-      const res = await fetch("/api/dashboard/widgets", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
-      if (!res.ok) throw new Error("save-failed");
-      return (await res.json()).data as DashboardLayout;
+      return apiPut<DashboardLayout>("/api/dashboard/widgets", body);
     },
     onMutate: async (next) => {
       await queryClient.cancelQueries({

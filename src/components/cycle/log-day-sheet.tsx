@@ -369,33 +369,56 @@ export function LogDaySheet({
       note,
       symptoms,
     };
-    if (rowId) {
-      // Editing an existing row → PATCH with explicit nulls so a deselected
-      // chip actually CLEARS (the POST merge can only add/keep — QA W-2).
-      await patchDay.mutateAsync({ id: rowId, patch: buildDayLogPatch(state) });
+    // v1.16.4 — catch so a rejected save doesn't escape as an unhandled
+    // rejection; the inline `logDay.isError || patchDay.isError` strip in the
+    // footer carries the visible failure signal and the sheet stays open.
+    try {
+      if (rowId) {
+        // Editing an existing row → PATCH with explicit nulls so a deselected
+        // chip actually CLEARS (the POST merge can only add/keep — QA W-2).
+        await patchDay.mutateAsync({
+          id: rowId,
+          patch: buildDayLogPatch(state),
+        });
+      } else {
+        await logDay.mutateAsync(buildDayLogInput(state, date));
+      }
       onOpenChange(false);
-      return;
+    } catch {
+      /* surfaced via the inline isError strip */
     }
-    await logDay.mutateAsync(buildDayLogInput(state, date));
-    onOpenChange(false);
   }
 
   // Period boundaries operate on the SELECTED date, so a forgotten day-1 can be
   // corrected from the calendar retroactively (QA M3) — not today-only.
+  // v1.16.4 — the rejection is surfaced as a toast by the hook's onError;
+  // catching here keeps the sheet open without an unhandled rejection.
   async function handleStartPeriod() {
-    await startPeriod.mutateAsync(date);
-    onOpenChange(false);
+    try {
+      await startPeriod.mutateAsync(date);
+      onOpenChange(false);
+    } catch {
+      /* toast shown by useStartPeriod onError */
+    }
   }
 
   async function handleEndPeriod() {
-    await endPeriod.mutateAsync(date);
-    onOpenChange(false);
+    try {
+      await endPeriod.mutateAsync(date);
+      onOpenChange(false);
+    } catch {
+      /* toast shown by useEndPeriod onError */
+    }
   }
 
   async function handleDelete() {
     if (!rowId) return;
-    await deleteDay.mutateAsync(rowId);
-    onOpenChange(false);
+    try {
+      await deleteDay.mutateAsync(rowId);
+      onOpenChange(false);
+    } catch {
+      /* toast shown by useDeleteDayLog onError */
+    }
   }
 
   const busy =
@@ -757,7 +780,11 @@ function SymptomChip({
   async function handleRemove() {
     if (!custom) return;
     onClear?.(custom.key);
-    await deleteCustom.mutateAsync(custom.key);
+    try {
+      await deleteCustom.mutateAsync(custom.key);
+    } catch {
+      /* toast shown by useDeleteCustomSymptom onError */
+    }
   }
 
   return (

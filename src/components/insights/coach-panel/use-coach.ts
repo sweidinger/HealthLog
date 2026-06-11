@@ -11,6 +11,7 @@ import type {
   CoachScope,
   CoachStreamEvent,
 } from "@/lib/ai/coach/types";
+import { apiDelete, apiFetchRaw, apiGet } from "@/lib/api/api-fetch";
 
 /**
  * v1.4.20 phase B2b — TanStack Query + SSE client for the AI Coach
@@ -34,14 +35,6 @@ const QUERY_KEYS = {
   one: (id: string) => ["coachConversation", id] as const,
 };
 
-interface ConversationsApiResponse {
-  data: CoachConversationsPage;
-}
-
-interface ConversationApiResponse {
-  data: CoachConversationDetailDTO;
-}
-
 /**
  * List of conversations for the rail. Cursor pagination is exposed via
  * `loadMore` — the rail can call it when the user scrolls past the
@@ -52,12 +45,9 @@ export function useCoachConversations(enabled = true) {
   const query = useQuery({
     queryKey: QUERY_KEYS.list(),
     queryFn: async (): Promise<CoachConversationsPage> => {
-      const res = await fetch("/api/insights/chat", {
+      return apiGet<CoachConversationsPage>("/api/insights/chat", {
         headers: { Accept: "application/json" },
       });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const json = (await res.json()) as ConversationsApiResponse;
-      return json.data;
     },
     enabled,
     staleTime: 30 * 1000,
@@ -86,12 +76,9 @@ export function useCoachConversation(id: string | null) {
     queryKey: ["coachConversation", id] as const,
     queryFn: async (): Promise<CoachConversationDetailDTO> => {
       if (!id) throw new Error("missing id");
-      const res = await fetch(`/api/insights/chat/${id}`, {
+      return apiGet<CoachConversationDetailDTO>(`/api/insights/chat/${id}`, {
         headers: { Accept: "application/json" },
       });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const json = (await res.json()) as ConversationApiResponse;
-      return json.data;
     },
     enabled: id !== null,
     staleTime: 60 * 1000,
@@ -106,10 +93,7 @@ export function useDeleteCoachConversation() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
-      const res = await fetch(`/api/insights/chat/${id}`, {
-        method: "DELETE",
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      await apiDelete(`/api/insights/chat/${id}`);
       return id;
     },
     onMutate: async (id: string) => {
@@ -210,7 +194,7 @@ export interface CoachStreamingMessage {
  * `src/app/api/insights/chat/route.ts`), but the persisted twin only
  * lands client-side after the SSE `done` frame triggers a
  * `queryClient.invalidateQueries`. The earlier render order was
- * "Thinking…" → user message → assistant reply, which Marc flagged in
+ * "Thinking…" → user message → assistant reply, which the maintainer flagged in
  * the W5 polish brief; surfacing this optimistic bubble flips the
  * order to user → "Thinking…" → assistant reply.
  *
@@ -312,7 +296,7 @@ export function useSendCoachMessage(opts: UseSendCoachMessageOptions = {}) {
       // the "Thinking…" placeholder paints. Without this the send hook
       // only exposed the streaming assistant bubble, so the first
       // thing the user saw was the placeholder followed by their own
-      // message landing on the next refetch — Marc flagged the
+      // message landing on the next refetch — the maintainer flagged the
       // order as confusing on the suggested-prompt chips.
       setOptimisticUser({
         localId: `local-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
@@ -341,9 +325,11 @@ export function useSendCoachMessage(opts: UseSendCoachMessageOptions = {}) {
         return;
       }
 
+      // apiFetchRaw: the chat POST streams SSE — the envelope helpers
+      // would buffer and unwrap a body that never carries the envelope.
       let response: Response;
       try {
-        response = await fetch("/api/insights/chat", {
+        response = await apiFetchRaw("/api/insights/chat", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -414,10 +400,11 @@ export function useSendCoachMessage(opts: UseSendCoachMessageOptions = {}) {
           messageId: null,
           errorCode: structured ?? `coach.http.${response.status}`,
         });
-        // Drop the optimistic user bubble on the error path too so
-        // the next refetch — which still has the persisted user
-        // message — doesn't render the same bubble twice.
-        setOptimisticUser(null);
+        // v1.16.4 — KEEP the optimistic user bubble: a rejected turn
+        // (budget gate, 4xx) has no persisted twin coming, and dropping
+        // the bubble left the error standing next to an empty thread.
+        // The content-equality dedupe in <MessageThread> still
+        // suppresses the optimistic copy if a persisted twin lands.
         return;
       }
 
@@ -498,10 +485,16 @@ export function useSendCoachMessage(opts: UseSendCoachMessageOptions = {}) {
         optsRef.current.onDone?.(resolvedConversationId);
       }
       // v1.4.25 W5 — drop the optimistic user bubble; the persisted
-      // twin is on its way via the invalidate-refetch above. Drop on
-      // error too so the user message isn't doubled when the next
-      // refetch sees the server-persisted row.
-      setOptimisticUser(null);
+      // twin is on its way via the invalidate-refetch above.
+      // v1.16.4 — but only when a twin IS coming (the turn resolved a
+      // conversation) or the turn succeeded outright. An errored turn
+      // without a conversation id persisted nothing; dropping the
+      // bubble then erased the user's message next to the error bubble.
+      // The content-equality dedupe in <MessageThread> still suppresses
+      // the optimistic copy if a persisted twin does land later.
+      if (resolvedConversationId || !lastError) {
+        setOptimisticUser(null);
+      }
     },
     [queryClient],
   );

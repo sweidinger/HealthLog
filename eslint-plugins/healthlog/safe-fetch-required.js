@@ -39,6 +39,10 @@
 const EXEMPT_FILES = [
   "src/lib/safe-fetch.ts",
   "src/lib/safe-fetch-dispatcher.ts",
+  // The same-origin `/api/...` envelope wrapper: its `fetch` calls are
+  // relative-path by contract (the api-fetch-required rule pins every
+  // client call site onto it), so the egress defences don't apply.
+  "src/lib/api/api-fetch.ts",
 ];
 
 // Only enforce inside the application source roots. Scripts, config, and

@@ -10,6 +10,7 @@ import type { TimeFormatPreference } from "@/lib/format-locale";
 import { storeTimeFormat } from "@/lib/time-format";
 import { useTranslations } from "@/lib/i18n/context";
 import { queryKeys } from "@/lib/query-keys";
+import { apiFetchRaw } from "@/lib/api/api-fetch";
 
 /**
  * Hour-cycle (12h/24h) preference as a Profile dropdown.
@@ -67,7 +68,7 @@ export function TimeFormatSelect({
 
   const mutation = useMutation({
     mutationFn: async (next: TimeFormatPreference) => {
-      const res = await fetch("/api/user/profile", {
+      const res = await apiFetchRaw("/api/user/profile", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ timeFormat: next }),

@@ -60,7 +60,7 @@ import { getSession } from "@/lib/auth/session";
 
 const ADMIN_SESSION = {
   session: { id: "sess-admin", expiresAt: new Date(Date.now() + 3_600_000) },
-  user: { id: "admin-1", username: "marc", role: "ADMIN" as const },
+  user: { id: "admin-1", username: "testuser", role: "ADMIN" as const },
 };
 const USER_SESSION = {
   session: { id: "sess-user", expiresAt: new Date(Date.now() + 3_600_000) },

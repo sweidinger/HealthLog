@@ -20,7 +20,7 @@ const USER_ID = "user-1";
 
 const STUB_USER = {
   id: USER_ID,
-  username: "marc",
+  username: "testuser",
   displayName: null,
   email: null,
   role: "USER",

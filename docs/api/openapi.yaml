@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: HealthLog API
-  version: 1.16.3
+  version: 1.16.4
   description: >-
     Self-hosted personal-health-tracking PWA — public API surface for the iOS native client and external ingest.
 
@@ -1732,6 +1732,31 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/MeasurementsBulkDeleteResponse"
+        "401": *a1
+        "422": *a3
+        "429": *a4
+  /api/measurements/restore:
+    post:
+      tags:
+        - Measurements
+      summary: Restore soft-deleted measurements
+      description: Un-tombstones up to 200 of the caller's soft-deleted measurement rows in one call — the delete-Undo
+        counterpart to `/api/measurements/bulk-delete`. Idempotent via the `Idempotency-Key` header; rate-limited
+        `measurements:restore:<userId>`. Forged / foreign / not-deleted ids are silently skipped — `restored` is the
+        count of rows actually un-tombstoned. The restored rows re-surface in `/api/sync/changes` as upserts.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MeasurementsRestoreRequest"
+      responses:
+        "200":
+          description: Restore processed.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MeasurementsRestoreResponse"
         "401": *a1
         "422": *a3
         "429": *a4
@@ -4229,6 +4254,20 @@ components:
       required:
         - ids
       description: 1..200 measurement ids, scoped to the caller. Forged / foreign ids are silently skipped (no existence leak).
+    MeasurementsRestoreRequest:
+      type: object
+      properties:
+        ids:
+          minItems: 1
+          maxItems: 200
+          type: array
+          items:
+            type: string
+            minLength: 1
+      required:
+        - ids
+      description: 1..200 measurement ids, scoped to the caller. Forged / foreign / not-deleted ids are silently skipped (no
+        existence leak).
     DeviceRegisterRequest:
       type: object
       properties:
@@ -4709,6 +4748,13 @@ components:
           type: string
           format: date-time
           pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
+        doseTaken:
+          description: Dose actually consumed for THIS intake when it deviates from (or documents) the medication's configured
+            dose, e.g. a half tablet or a titration step. Free text, max 50 characters. Omit to record the take under
+            the medication's configured dose.
+          type: string
+          minLength: 1
+          maxLength: 50
       required:
         - medicationId
       description: Per-medication intake log body. Idempotent via `idempotencyKey`; the server also dedupes by a 60-second
@@ -7315,6 +7361,33 @@ components:
           maximum: 9007199254740991
       required:
         - deleted
+      additionalProperties: false
+    MeasurementsRestoreResponse:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/MeasurementsRestoreResult"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    MeasurementsRestoreResult:
+      type: object
+      properties:
+        restored:
+          type: integer
+          minimum: 0
+          maximum: 9007199254740991
+      required:
+        - restored
       additionalProperties: false
     SleepNightResponse:
       type: object

@@ -183,7 +183,7 @@ describe("dedupeWorkoutBatch", () => {
   });
 
   it("falls back to earliest createdAt when source + calories both tie", () => {
-    // Marc's ScanWatch on the wrist + ScanWatch in a desk drawer:
+    // The maintainer's ScanWatch on the wrist + ScanWatch in a desk drawer:
     // unrealistic, but the case isolates the tie-breaker hierarchy.
     const early = row({
       id: "early",

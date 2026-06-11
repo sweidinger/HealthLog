@@ -71,7 +71,7 @@ describe("stripChartTokens", () => {
   });
 });
 
-// v1.4.25 W5b — Marc reported the raw "Metric Pressure_Sys" leak on
+// v1.4.25 W5b — the maintainer reported the raw "Metric Pressure_Sys" leak on
 // /insights 2026-05-14. The v1.4.22 W1a regex only caught the canonical
 // `metric:<TYPE>` colon form; the model emitted a capitalised "Metric"
 // word followed by a Pascal/enum-cased identifier. The fix extends the
@@ -79,7 +79,7 @@ describe("stripChartTokens", () => {
 // phrase, (2) bare upper-snake-case enum identifiers from the
 // MeasurementType list (including the v1.4.23 Apple-Health additions).
 describe("stripChartTokens — v1.4.25 W5b capitalised + orphan-enum leaks", () => {
-  it("strips the capitalised `Metric Pressure_Sys` phrase Marc reported", () => {
+  it("strips the capitalised `Metric Pressure_Sys` phrase the maintainer reported", () => {
     expect(
       stripChartTokens("Your Metric Pressure_Sys is sitting above 140."),
     ).toBe("Your is sitting above 140.");
@@ -171,7 +171,7 @@ describe("stripChartTokens — v1.4.25 W5b capitalised + orphan-enum leaks", () 
   it("does not strip ordinary prose that incidentally contains 'metric' as a word", () => {
     // Lower-case word "metric" without the colon form must not be
     // touched — it's a perfectly legitimate English word inside copy
-    // like "Each metric in the snapshot ...". Marc's directive
+    // like "Each metric in the snapshot ...". The maintainer's directive
     // explicitly targets the leak patterns, not legitimate prose.
     expect(stripChartTokens("Each metric tells part of the story.")).toBe(
       "Each metric tells part of the story.",

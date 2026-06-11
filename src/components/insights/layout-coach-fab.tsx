@@ -14,6 +14,7 @@ import { useDisableCoach } from "@/hooks/use-disable-coach";
 import { queryKeys } from "@/lib/query-keys";
 
 import { useChartTooltipActive } from "./use-chart-tooltip-active";
+import { apiGet } from "@/lib/api/api-fetch";
 
 /**
  * v1.16.1 — the layout FAB is no longer a permanent launcher. It now
@@ -80,9 +81,7 @@ export function LayoutCoachFab() {
   const { data: status } = useQuery({
     queryKey: queryKeys.coachNudgeStatus(),
     queryFn: async (): Promise<CoachNudgeStatus> => {
-      const res = await fetch("/api/insights/coach/nudge-status");
-      if (!res.ok) throw new Error("coach-nudge-status.failed");
-      return (await res.json()).data as CoachNudgeStatus;
+      return apiGet<CoachNudgeStatus>("/api/insights/coach/nudge-status");
     },
     enabled: coachAvailable,
     staleTime: 5 * 60 * 1000,

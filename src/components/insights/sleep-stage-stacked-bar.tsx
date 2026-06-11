@@ -20,7 +20,7 @@ import { useTranslations } from "@/lib/i18n/context";
 /**
  * v1.4.25 W4c → W3f — sleep-stage composition chart.
  *
- * Marc directive 2026-05-14: switch from "30-day average composition"
+ * The maintainer directive 2026-05-14: switch from "30-day average composition"
  * to a per-night stacked column chart so the user sees nightly stage
  * variation, not just a rolling average. Apple Health's sleep tab is
  * the visual reference — one column per night, stacks for REM / Deep /

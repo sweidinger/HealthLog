@@ -40,6 +40,7 @@ import { useViewportWidth } from "@/hooks/use-viewport-width";
 import { computeTickPositions } from "@/lib/charts/x-axis-density";
 import { CHART_HEIGHT_PX } from "@/lib/charts/constants";
 import { moodLabelKeyForScore } from "@/lib/mood/labels";
+import { apiGet } from "@/lib/api/api-fetch";
 
 // --- Types ---
 
@@ -348,10 +349,7 @@ export function MoodChart({
   const { data, isLoading } = useQuery({
     queryKey: queryKeys.moodAnalytics(),
     queryFn: async (): Promise<MoodAnalyticsData> => {
-      const res = await fetch("/api/mood/analytics");
-      if (!res.ok) throw new Error("Failed to fetch mood analytics");
-      const json = await res.json();
-      return json.data as MoodAnalyticsData;
+      return apiGet<MoodAnalyticsData>("/api/mood/analytics");
     },
     enabled: isAuthenticated,
     staleTime: 60_000,

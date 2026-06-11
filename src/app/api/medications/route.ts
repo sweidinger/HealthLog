@@ -19,7 +19,7 @@ import {
   computeDisplayDue,
   OVERDUE_LOOKBACK_MS,
 } from "@/lib/medications/scheduling/next-due";
-import { getUserTodayBounds } from "@/lib/timezone";
+import { getUserTodayBounds } from "@/lib/tz/local-day";
 import { invalidateUserMedications } from "@/lib/cache/invalidate";
 import { cached, caches, type ServerCache } from "@/lib/cache/server-cache";
 import { NextRequest } from "next/server";

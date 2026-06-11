@@ -8,7 +8,7 @@ import { I18nProvider } from "@/lib/i18n/context";
 /**
  * v1.4.25 W20a — regression coverage for the dashboard top-tile polish.
  *
- * Marc-direktive 2026-05-14 named three issues with the 5-tile top row:
+ * Maintainer directive 2026-05-14 named three issues with the 5-tile top row:
  *
  *   1. Headings wrapped to two lines at narrow viewports (e.g. "Blood
  *      Pressure" on Pixel 5 / 393 px / 2-col grid). Locked the heading

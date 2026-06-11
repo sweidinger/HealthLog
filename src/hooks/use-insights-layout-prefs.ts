@@ -3,6 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 
 import { queryKeys } from "@/lib/query-keys";
+import { apiGet } from "@/lib/api/api-fetch";
 import {
   resolveDashboardLayout,
   type DashboardLayout,
@@ -28,12 +29,7 @@ import {
 export function useInsightsLayoutPrefs(enabled: boolean) {
   const { data } = useQuery({
     queryKey: queryKeys.dashboardWidgets(),
-    queryFn: async () => {
-      const res = await fetch("/api/dashboard/widgets");
-      if (!res.ok) throw new Error("Failed to load dashboard layout");
-      const json = await res.json();
-      return json.data as DashboardLayout;
-    },
+    queryFn: async () => apiGet<DashboardLayout>("/api/dashboard/widgets"),
     enabled,
   });
   const compareBaseline =

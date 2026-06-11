@@ -650,7 +650,7 @@ englischen Nachrichten antworte auf Englisch.`;
  * Both gates landed earlier in this wave; the dispatcher below now
  * assembles a native body per locale from the matrix. The DE branch
  * keeps its existing hand-curated body (two years of clause-by-clause
- * Marc review) — it is the calibration reference for the native FR /
+ * the maintainer review) — it is the calibration reference for the native FR /
  * ES / IT / PL bodies and we do not disturb it in v1.4.25. If the
  * matrix loader throws for any reason, the dispatcher falls back to
  * the previous EN body + footer so the surface fails open rather

@@ -1,13 +1,17 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
+import { useMounted } from "@/hooks/use-mounted";
+import { usePullToRefresh } from "@/hooks/use-pull-to-refresh";
 import {
   MeasurementForm,
   resolveAddToken,
 } from "@/components/measurements/measurement-form";
 import { MeasurementList } from "@/components/measurements/measurement-list";
 import { Button } from "@/components/ui/button";
+import { PullToRefreshIndicator } from "@/components/ui/pull-to-refresh-indicator";
 import { ResponsiveSheet } from "@/components/ui/responsive-sheet";
 import { Plus, Loader2 } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -15,25 +19,55 @@ import { useTranslations } from "@/lib/i18n/context";
 
 export default function MeasurementsPage() {
   const { isAuthenticated, isLoading } = useAuth();
+  const mounted = useMounted();
   const router = useRouter();
+  const queryClient = useQueryClient();
   const searchParams = useSearchParams();
   const { t } = useTranslations();
 
   // v1.4.27 MB6 — read the `?add=<TYPE>` query param during render so
   // the dialog opens on the first paint (no flash of the page behind
-  // it). The state-from-prop pattern follows `account-section.tsx`:
-  // store the "addToken we acted on" sentinel and let render kick off
-  // the open + replace transition once per param value. The lint rule
+  // it). The first-load param is consumed in the `useState` lazy
+  // initializers: they run identically on the server and the hydration
+  // render (pure token resolution, no router call), so SSR — which sees
+  // real search params now that the root layout renders every route
+  // dynamically — stays side-effect free. Calling `router.replace`
+  // during a server render throws (`location is not defined`); the
+  // query-strip lives in the effect below instead. The render-driven
+  // block then only handles LATER client-side navigations back to
+  // `?add=` (e.g. the insights empty-state CTAs), following the
+  // state-from-prop pattern in `account-section.tsx` — the lint rule
   // `react-hooks/set-state-in-effect` rejects setState from inside an
-  // effect, so the open-on-param work is render-driven instead.
+  // effect, so that path stays render-driven.
   const addParam = searchParams.get("add");
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [defaultType, setDefaultType] = useState<string | undefined>(undefined);
-  const [consumedAddParam, setConsumedAddParam] = useState<string | null>(null);
+  const initialAdd = addParam ? resolveAddToken(addParam) : null;
+  const [dialogOpen, setDialogOpen] = useState(() => initialAdd != null);
+  const [defaultType, setDefaultType] = useState<string | undefined>(
+    () => initialAdd ?? undefined,
+  );
+  const [consumedAddParam, setConsumedAddParam] = useState<string | null>(
+    () => addParam,
+  );
   // v1.4.27 R4 RC2 — DOM handle the form portals its action row into so
   // the Sheet branch can sticky-pin Save / Cancel.
   const [footerEl, setFooterEl] = useState<HTMLDivElement | null>(null);
 
+  // v1.16.4 — PWA pull-to-refresh: a top-anchored touch pull refetches
+  // whatever this page currently has mounted (`type: "active"` scopes the
+  // invalidation to visible queries). Suspended while the add-sheet is
+  // open so a drag inside the form can't arm the gesture.
+  const refreshVisible = useCallback(
+    () => queryClient.invalidateQueries({ type: "active" }),
+    [queryClient],
+  );
+  const pull = usePullToRefresh({
+    onRefresh: refreshVisible,
+    disabled: dialogOpen,
+  });
+
+  // Later client-side navigation landed on `?add=` again (the first
+  // load is consumed by the initializers above, so on the server this
+  // is always a no-op: `consumedAddParam` starts as the param itself).
   if (addParam && addParam !== consumedAddParam) {
     setConsumedAddParam(addParam);
     // v1.4.34 IW-G — `resolveAddToken` is the single source of truth
@@ -45,10 +79,14 @@ export default function MeasurementsPage() {
       setDefaultType(resolved);
       setDialogOpen(true);
     }
-    // Drop the query string so the back-button leaves the user on
-    // `/measurements` rather than re-opening the dialog.
-    router.replace("/measurements");
   }
+
+  // Drop the query string so the back-button leaves the user on
+  // `/measurements` rather than re-opening the dialog. Effect-driven
+  // (client-only) because `router.replace` is not callable during SSR.
+  useEffect(() => {
+    if (addParam) router.replace("/measurements");
+  }, [addParam, router]);
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
@@ -56,7 +94,10 @@ export default function MeasurementsPage() {
     }
   }, [isLoading, isAuthenticated, router]);
 
-  if (isLoading) {
+  // v1.16.4 — `!mounted` keeps the hydration render identical to the
+  // SSR HTML when this boundary hydrates after `/api/auth/me` settled
+  // (React #418 family); see `useMounted`.
+  if (!mounted || isLoading) {
     return (
       <div className="flex h-64 items-center justify-center">
         <Loader2 className="text-primary h-8 w-8 animate-spin motion-reduce:animate-none" />
@@ -66,6 +107,7 @@ export default function MeasurementsPage() {
 
   return (
     <div className="space-y-6">
+      <PullToRefreshIndicator {...pull} />
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">

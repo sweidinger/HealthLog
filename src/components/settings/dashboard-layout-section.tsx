@@ -48,6 +48,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { apiDelete, apiGet, apiPut } from "@/lib/api/api-fetch";
 
 /**
  * v1.4.47 W4 — pure reorder helper shared by the arrow buttons and the
@@ -171,10 +172,7 @@ export function DashboardLayoutSection({ id }: { id: string }) {
   const { data: remote, isLoading } = useQuery({
     queryKey: queryKeys.dashboardWidgets(),
     queryFn: async () => {
-      const res = await fetch("/api/dashboard/widgets");
-      if (!res.ok) throw new Error("failed");
-      const json = await res.json();
-      return json.data as DashboardLayout;
+      return apiGet<DashboardLayout>("/api/dashboard/widgets");
     },
   });
 
@@ -187,13 +185,7 @@ export function DashboardLayoutSection({ id }: { id: string }) {
 
   const saveMutation = useMutation({
     mutationFn: async (next: DashboardLayout) => {
-      const res = await fetch("/api/dashboard/widgets", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(next),
-      });
-      if (!res.ok) throw new Error("save failed");
-      return (await res.json()).data as DashboardLayout;
+      return apiPut<DashboardLayout>("/api/dashboard/widgets", next);
     },
     onSuccess: (saved) => {
       queryClient.setQueryData(queryKeys.dashboardWidgets(), saved);
@@ -205,9 +197,7 @@ export function DashboardLayoutSection({ id }: { id: string }) {
 
   const resetMutation = useMutation({
     mutationFn: async () => {
-      const res = await fetch("/api/dashboard/widgets", { method: "DELETE" });
-      if (!res.ok) throw new Error("reset failed");
-      return (await res.json()).data as DashboardLayout;
+      return apiDelete<DashboardLayout>("/api/dashboard/widgets");
     },
     onSuccess: (saved) => {
       queryClient.setQueryData(queryKeys.dashboardWidgets(), saved);
@@ -230,7 +220,7 @@ export function DashboardLayoutSection({ id }: { id: string }) {
    * v1.4.15 Fix 5 — independent toggle for the *strip tile* (the upper
    * row of trend cards). Until v1.4.14 a single switch controlled both
    * the tile AND the chart for the same metric, which the maintainer found too
-   * coarse: he wanted a chart visible without the tile (for metrics he
+   * coarse: they wanted a chart visible without the tile (for metrics they
    * tracks without wanting the at-a-glance number) or vice versa.
    */
   function toggleTile(widgetId: DashboardWidgetId, tileVisible: boolean) {

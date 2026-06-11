@@ -23,7 +23,7 @@ import { STORAGE_STATE_PATH } from "./setup/global-setup";
  * Walks the 8-step recurring path with "Flexibel ab letzter
  * Einnahme" picked on Step 5 and rollingDays = 7 set on Step 6.
  * Emits `rollingIntervalDays: 7` (no rrule). The cadence row also
- * surfaces Marc's literal "Counter startet neu" copy directly below
+ * surfaces the maintainer's literal "Counter startet neu" copy directly below
  * the row label — the assertion below pins the phrase so a future
  * copy edit can't silently drop the rolling explainer.
  */

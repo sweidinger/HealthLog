@@ -245,10 +245,11 @@ describe("<PrivacyPage>", () => {
     // email address attaches the actual contact.
     expect(html).toContain("mailto:mbombeck@gmail.com");
     expect(html).toContain("github.com/MBombeck/HealthLog/issues");
-    // Marc-Voice rule: no personal name in user-facing artefacts. The
-    // policy speaks in terms of "the operator" / "the controller"
-    // not Marc's full name. Only the bare email address attaches the
-    // contact route.
+    // Project-voice rule: no personal name in user-facing artefacts.
+    // The policy speaks in terms of "the operator" / "the controller",
+    // never a person's full name. Only the bare email address attaches
+    // the contact route. The regexes pin the operator's given-name /
+    // surname fragments so a regression cannot reintroduce them.
     expect(html).not.toMatch(/Marc[- ]?Andr/i);
     expect(html).not.toMatch(/\bBombeck\s+[A-Z]/);
   });

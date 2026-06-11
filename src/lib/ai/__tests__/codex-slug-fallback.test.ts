@@ -10,7 +10,7 @@ import {
 /**
  * Phase C1 — slug-drift defence.
  *
- * the maintainer, verbatim 2026-05-09: "Die Integration des Slug Drift Risiko
+ * The maintainer, verbatim 2026-05-09: "Die Integration des Slug Drift Risiko
  * darf halt immer überhaupt nicht sein."
  * ("Slug-drift risk must never happen.")
  *

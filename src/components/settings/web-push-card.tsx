@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { TestConnectionButton } from "@/components/settings/test-connection-button";
 import { SettingsCardHeader } from "@/components/settings/_card-header";
 import { useTranslations } from "@/lib/i18n/context";
+import { apiFetchRaw } from "@/lib/api/api-fetch";
 
 /** Convert a URL-safe base64 string to an ArrayBuffer (for VAPID key). */
 function urlBase64ToArrayBuffer(base64String: string): ArrayBuffer {
@@ -70,7 +71,7 @@ export function WebPushCard() {
     setMsgType(null);
 
     try {
-      const vapidRes = await fetch("/api/notifications/vapid");
+      const vapidRes = await apiFetchRaw("/api/notifications/vapid");
       if (!vapidRes.ok) {
         setMsg(t("settings.webPushNotConfigured"));
         setMsgType("error");
@@ -90,7 +91,7 @@ export function WebPushCard() {
 
       const subJson = subscription.toJSON();
 
-      const res = await fetch("/api/notifications/web-push", {
+      const res = await apiFetchRaw("/api/notifications/web-push", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -134,7 +135,7 @@ export function WebPushCard() {
       if (registration) {
         const subscription = await registration.pushManager.getSubscription();
         if (subscription) {
-          await fetch("/api/notifications/web-push", {
+          await apiFetchRaw("/api/notifications/web-push", {
             method: "DELETE",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ endpoint: subscription.endpoint }),

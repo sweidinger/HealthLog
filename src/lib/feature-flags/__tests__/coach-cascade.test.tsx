@@ -47,7 +47,7 @@ vi.mock("next/navigation", () => ({
 /**
  * v1.4.37 W5 — Coach disable cascade invariant.
  *
- * Marc directive: when the operator turns the global Coach flag off,
+ * The maintainer directive: when the operator turns the global Coach flag off,
  * every Coach affordance on every surface must vanish — no
  * grey-out, no error, no inert button, no DOM trace. The web app
  * gates each surface via `useFeatureFlags()` and a `flags.coach`

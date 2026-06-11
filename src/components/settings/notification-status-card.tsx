@@ -34,6 +34,7 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/use-auth";
 import { useFormatters, useTranslations } from "@/lib/i18n/context";
 import { queryKeys } from "@/lib/query-keys";
+import { apiGet, apiPost } from "@/lib/api/api-fetch";
 
 type ChannelType = "TELEGRAM" | "NTFY" | "WEB_PUSH" | "APNS";
 
@@ -73,10 +74,10 @@ export function NotificationStatusCard() {
   const { data, isLoading } = useQuery({
     queryKey: queryKeys.notificationsStatus(),
     queryFn: async () => {
-      const res = await fetch("/api/notifications/status");
-      if (!res.ok) throw new Error("Failed");
-      return ((await res.json()).data as { channels: ChannelStatus[] })
-        .channels;
+      const data = await apiGet<{ channels: ChannelStatus[] }>(
+        "/api/notifications/status",
+      );
+      return data.channels;
     },
     enabled: isAuthenticated,
     refetchInterval: 30_000,
@@ -84,12 +85,7 @@ export function NotificationStatusCard() {
 
   const reEnable = useMutation({
     mutationFn: async (channelId: string) => {
-      const res = await fetch("/api/notifications/status", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ channelId }),
-      });
-      if (!res.ok) throw new Error("Failed");
+      await apiPost("/api/notifications/status", { channelId });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({

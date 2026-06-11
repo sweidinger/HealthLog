@@ -154,7 +154,7 @@ const SIDE_EFFECT_TAGS = new Set([
   "headache",
   "vomiting",
   "reflux",
-  // German variants the mood-tag picker exposes — Marc's userbase types
+  // German variants the mood-tag picker exposes — the maintainer's userbase types
   // in both languages and we don't want the snapshot to miss "Übelkeit"
   // because the user picked the German chip.
   "übelkeit",

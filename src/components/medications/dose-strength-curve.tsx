@@ -44,6 +44,7 @@ import {
 
 import { useTranslations, useFormatters } from "@/lib/i18n/context";
 import { queryKeys } from "@/lib/query-keys";
+import { apiGet } from "@/lib/api/api-fetch";
 import { prefersReducedMotion } from "@/lib/charts/reduced-motion";
 import { MedicationDetailSection } from "@/components/medications/medication-detail-section";
 
@@ -115,10 +116,13 @@ export function DoseStrengthCurve({
   const { data: details, isLoading } = useQuery<Glp1DetailsResponse | null>({
     queryKey: queryKeys.medicationGlp1Details(medicationId),
     queryFn: async () => {
-      const res = await fetch(`/api/medications/${medicationId}/glp1`);
-      if (!res.ok) return null;
-      const json = await res.json();
-      return json.data as Glp1DetailsResponse;
+      try {
+        return await apiGet<Glp1DetailsResponse>(
+          `/api/medications/${medicationId}/glp1`,
+        );
+      } catch {
+        return null;
+      }
     },
     staleTime: 60 * 1000,
   });

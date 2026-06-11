@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { TileHeader } from "@/components/insights/tile-header";
 import { useAuth } from "@/hooks/use-auth";
 import { queryKeys } from "@/lib/query-keys";
+import { apiGet } from "@/lib/api/api-fetch";
 import { useTranslations } from "@/lib/i18n/context";
 import {
   MoodNarrativeFeed,
@@ -44,11 +45,9 @@ export function MoodWhatStandsOut({
   const { data, isLoading, isError } = useQuery({
     queryKey: queryKeys.insightsCorrelations(),
     queryFn: async () => {
-      const res = await fetch("/api/insights/correlations");
-      // 403 = operator disabled the surface; any non-OK degrades to nothing.
-      if (!res.ok) throw new Error("unavailable");
-      const json = await res.json();
-      return json.data as CorrelationDiscoveryResponse;
+      // 403 = operator disabled the surface; any rejection (ApiError)
+      // degrades to the card's isError → render-nothing path.
+      return apiGet<CorrelationDiscoveryResponse>("/api/insights/correlations");
     },
     enabled: isAuthenticated,
     staleTime: 60_000,

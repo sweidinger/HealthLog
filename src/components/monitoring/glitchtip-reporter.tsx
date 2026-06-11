@@ -2,6 +2,8 @@
 
 import { useEffect } from "react";
 
+import { apiPost } from "@/lib/api/api-fetch";
+
 interface GlitchtipReporterProps {
   enabled: boolean;
 }
@@ -12,16 +14,15 @@ function sendClientError(payload: {
   level?: "error" | "warning" | "info";
   type?: string;
 }) {
-  fetch("/api/monitoring/glitchtip", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
+  apiPost(
+    "/api/monitoring/glitchtip",
+    {
       ...payload,
       url: window.location.href,
       userAgent: navigator.userAgent,
-    }),
-    keepalive: true,
-  }).catch(() => {});
+    },
+    { keepalive: true },
+  ).catch(() => {});
 }
 
 export function GlitchtipReporter({ enabled }: GlitchtipReporterProps) {

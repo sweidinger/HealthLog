@@ -108,6 +108,10 @@ describe("runRecordIntake — shared C1 failure toast + C2 Undo", () => {
       vi.fn().mockResolvedValue({
         ok: true,
         json: vi.fn().mockResolvedValue({ data: { id: "evt-99" } }),
+        // The apiFetch wrapper reads the envelope via `text()`.
+        text: vi
+          .fn()
+          .mockResolvedValue(JSON.stringify({ data: { id: "evt-99" } })),
       }),
     );
     const undoIntake = vi.fn();
@@ -144,6 +148,7 @@ describe("runRecordIntake — shared C1 failure toast + C2 Undo", () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
       json: vi.fn().mockResolvedValue({ data: { id: "evt-am" } }),
+      text: vi.fn().mockResolvedValue(JSON.stringify({ data: { id: "evt-am" } })),
     });
     vi.stubGlobal("fetch", fetchMock);
 
@@ -172,6 +177,7 @@ describe("runRecordIntake — shared C1 failure toast + C2 Undo", () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
       json: vi.fn().mockResolvedValue({ data: { id: "evt" } }),
+      text: vi.fn().mockResolvedValue(JSON.stringify({ data: { id: "evt" } })),
     });
     vi.stubGlobal("fetch", fetchMock);
 
@@ -239,6 +245,7 @@ describe("runRecordIntake — shared C1 failure toast + C2 Undo", () => {
       vi.fn().mockResolvedValue({
         ok: true,
         json: vi.fn().mockResolvedValue({ data: {} }),
+        text: vi.fn().mockResolvedValue(JSON.stringify({ data: {} })),
       }),
     );
 
@@ -258,7 +265,11 @@ describe("runRecordIntake — shared C1 failure toast + C2 Undo", () => {
 
 describe("runLogIntake — manual backdated intake from the Add choice", () => {
   it("posts a backdated takenAt against the medication's intake route and returns true", async () => {
-    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: vi.fn() });
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: vi.fn(),
+      text: vi.fn().mockResolvedValue(""),
+    });
     vi.stubGlobal("fetch", fetchMock);
     const queryClient = fakeQueryClient();
 
@@ -284,7 +295,11 @@ describe("runLogIntake — manual backdated intake from the Add choice", () => {
   });
 
   it("threads scheduledFor (the chosen slot) so the write routes through the canonical slot upsert", async () => {
-    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: vi.fn() });
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: vi.fn(),
+      text: vi.fn().mockResolvedValue(""),
+    });
     vi.stubGlobal("fetch", fetchMock);
 
     await runLogIntake({
@@ -307,7 +322,11 @@ describe("runLogIntake — manual backdated intake from the Add choice", () => {
   });
 
   it("omits takenAt on a skipped log and shows the skipped toast", async () => {
-    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: vi.fn() });
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: vi.fn(),
+      text: vi.fn().mockResolvedValue(""),
+    });
     vi.stubGlobal("fetch", fetchMock);
 
     await runLogIntake({
@@ -351,7 +370,10 @@ describe("runLogIntake — manual backdated intake from the Add choice", () => {
 
 describe("runUndoIntake — shared soft-delete", () => {
   it("reverts via DELETE and confirms on success", async () => {
-    const fetchMock = vi.fn().mockResolvedValue({ ok: true });
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      text: vi.fn().mockResolvedValue(""),
+    });
     vi.stubGlobal("fetch", fetchMock);
     const queryClient = fakeQueryClient();
 

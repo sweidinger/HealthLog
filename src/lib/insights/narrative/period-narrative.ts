@@ -31,7 +31,7 @@
  */
 import type { MeasurementType } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db";
-import { getLocalDateParts } from "@/lib/timezone";
+import { wallClockInTz } from "@/lib/tz/wall-clock";
 import {
   discoverCorrelations,
   DISCOVERY_BEHAVIOURS,
@@ -177,7 +177,7 @@ export type PeriodNarrativeResult =
 
 /** YYYY-MM-DD day key for an instant in the user's display timezone. */
 function tzDayKey(at: Date, tz: string): string {
-  const { year, month, day } = getLocalDateParts(at, tz);
+  const { year, month, day } = wallClockInTz(at, tz);
   return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
 }
 

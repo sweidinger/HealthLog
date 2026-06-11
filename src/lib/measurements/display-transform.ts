@@ -91,6 +91,32 @@ export function getDisplayTransform(
 }
 
 /**
+ * v1.16.4 — count metrics are integers by definition; any fractional
+ * part on a stored sample is source noise (HK chunk splitting, device
+ * estimation), so the raw-value surfaces render them with 0 decimals
+ * ("9.689 steps", never "9.688,595 steps"). Every other type keeps the
+ * formatter's default precision (≤3 digits, trailing zeros dropped).
+ */
+const INTEGER_DISPLAY_TYPES: ReadonlySet<string> = new Set([
+  "ACTIVITY_STEPS",
+  "FLIGHTS_CLIMBED",
+  "FALL_COUNT",
+  // kcal + daylight minutes — whole units are the meaningful display
+  // grain for these day-cumulative counts.
+  "ACTIVE_ENERGY_BURNED",
+  "TIME_IN_DAYLIGHT",
+]);
+
+/**
+ * Display fraction digits for a RAW (untransformed) value of `type`.
+ * `0` for integer count metrics, `undefined` (= formatter default)
+ * otherwise — pass the result straight into `Formatters.number`.
+ */
+export function rawDisplayFractionDigits(type: string): number | undefined {
+  return INTEGER_DISPLAY_TYPES.has(type) ? 0 : undefined;
+}
+
+/**
  * Apply a transform's factor to a raw canonical value. Pure helper —
  * keeps the multiply in one place so the chart, list cell, and tooltip
  * all scale identically.

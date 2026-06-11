@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 
 import { useAuth } from "@/hooks/use-auth";
 import { queryKeys } from "@/lib/query-keys";
+import { apiGet } from "@/lib/api/api-fetch";
 
 /**
  * v1.4.32 — TanStack Query wrapper for `GET /api/workouts`.
@@ -73,12 +74,7 @@ async function fetchWorkouts(
   const query = params.toString();
   const url = query ? `/api/workouts?${query}` : "/api/workouts";
 
-  const res = await fetch(url);
-  if (!res.ok) {
-    throw new Error(`Failed to load workouts (${res.status})`);
-  }
-  const json = (await res.json()) as { data: WorkoutListPayload };
-  return json.data;
+  return apiGet<WorkoutListPayload>(url);
 }
 
 export interface UseWorkoutsResult {
@@ -132,12 +128,9 @@ export interface WorkoutDetailPayload extends WorkoutListEntry {
 }
 
 async function fetchWorkoutDetail(id: string): Promise<WorkoutDetailPayload> {
-  const res = await fetch(`/api/workouts/${encodeURIComponent(id)}`);
-  if (!res.ok) {
-    throw new Error(`Failed to load workout (${res.status})`);
-  }
-  const json = (await res.json()) as { data: WorkoutDetailPayload };
-  return json.data;
+  return apiGet<WorkoutDetailPayload>(
+    `/api/workouts/${encodeURIComponent(id)}`,
+  );
 }
 
 export interface UseWorkoutDetailResult {

@@ -13,7 +13,9 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 const REMINDER_WORKER_PATH = join(__dirname, "..", "reminder-worker.ts");
-const workerSource = readFileSync(REMINDER_WORKER_PATH, "utf8");
+const workerSource =
+  readFileSync(REMINDER_WORKER_PATH, "utf8") +
+  readFileSync(join(__dirname, "..", "reminder", "ops-handlers.ts"), "utf8");
 
 describe("reminder-worker — tls-pin-monitor wiring", () => {
   it("imports the queue symbols from the tls-pin-monitor module", () => {

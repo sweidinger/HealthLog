@@ -5,7 +5,7 @@
  *     - hard delete; the row is user-owned, non-clinical, and the
  *       audit log captures enough state to reconstruct it if needed.
  *
- * Marc-decision (from the W19d brief): allow delete at any time
+ * maintainer decision (from the W19d brief): allow delete at any time
  * rather than a 24-hour retraction window. Side-effect rows are not
  * a clinical record; the user owns them and a stale mis-entry should
  * never be undeletable. The audit trail preserves "what was deleted

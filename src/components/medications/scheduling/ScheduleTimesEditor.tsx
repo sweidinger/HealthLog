@@ -32,6 +32,7 @@ import {
 import { useTranslations } from "@/lib/i18n/context";
 import { parseScheduleRecurrence } from "@/lib/medication-schedule";
 import { invalidateKeys, medicationDependentKeys } from "@/lib/query-keys";
+import { apiPut } from "@/lib/api/api-fetch";
 
 /** The schedule fields the inline editor reads + round-trips on save. */
 export interface EditableSchedule {
@@ -159,15 +160,7 @@ export function ScheduleTimesEditor({
         }),
       };
 
-      const res = await fetch(`/api/medications/${medicationId}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
-      if (!res.ok) {
-        toast.error(t("medications.detail.zeitplan.failed"));
-        return;
-      }
+      await apiPut(`/api/medications/${medicationId}`, body);
       await invalidateKeys(queryClient, medicationDependentKeys);
       toast.success(t("medications.detail.zeitplan.saved"));
     } catch {

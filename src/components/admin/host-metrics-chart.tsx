@@ -39,6 +39,7 @@ import { useMemo } from "react";
 import { useFormatters, useTranslations } from "@/lib/i18n/context";
 import { queryKeys } from "@/lib/query-keys";
 import { Skeleton } from "@/components/ui/skeleton";
+import { apiGet } from "@/lib/api/api-fetch";
 
 interface HostMetricsApiSample {
   capturedAt: string;
@@ -134,9 +135,7 @@ export function HostMetricsChart() {
   const { data, isLoading, isError } = useQuery({
     queryKey: queryKeys.adminHostMetrics("2h"),
     queryFn: async () => {
-      const res = await fetch("/api/admin/host-metrics?since=2h");
-      if (!res.ok) throw new Error("Failed to load host metrics");
-      return (await res.json()).data as HostMetricsApiResponse;
+      return apiGet<HostMetricsApiResponse>("/api/admin/host-metrics?since=2h");
     },
     // 60s matches the sampler cadence — anything faster would just
     // re-render the same data.

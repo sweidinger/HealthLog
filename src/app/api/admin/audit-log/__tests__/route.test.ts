@@ -70,19 +70,19 @@ describe("GET /api/admin/audit-log — extended filters", () => {
   });
 
   it("filters by `actor` against userId OR user.username", async () => {
-    await GET(req("actor=marc"));
+    await GET(req("actor=testuser"));
     const call = vi.mocked(prisma.auditLog.findMany).mock.calls[0][0]!;
     const where = call.where as Record<string, unknown>;
     // Expect an OR clause covering userId + user.username (contains)
     expect(where.OR).toBeDefined();
     const or = where.OR as Array<Record<string, unknown>>;
-    const matchesUserId = or.some((c) => c.userId === "marc");
+    const matchesUserId = or.some((c) => c.userId === "testuser");
     const matchesUsername = or.some(
       (c) =>
         typeof c.user === "object" &&
         c.user !== null &&
-        // user: { username: { contains: "marc", mode: "insensitive" } }
-        JSON.stringify(c).toLowerCase().includes("marc"),
+        // user: { username: { contains: "testuser", mode: "insensitive" } }
+        JSON.stringify(c).toLowerCase().includes("testuser"),
     );
     expect(matchesUserId).toBe(true);
     expect(matchesUsername).toBe(true);

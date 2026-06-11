@@ -29,7 +29,7 @@ import {
   applyCanonicalSlotWrite,
   resolveSlotInstantForWrite,
 } from "@/lib/medications/scheduling/slot-upsert";
-import { localHmAsUtc } from "@/lib/timezone";
+import { localHmAsUtc } from "@/lib/tz/local-day";
 
 const TEST_USER_ID = "user-intake-slot-dedup";
 const OTHER_USER_ID = "user-intake-slot-dedup-clean";

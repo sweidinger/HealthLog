@@ -43,7 +43,7 @@ import {
  * `usePathname()` decides the active pill, and the strip is mounted in
  * `src/app/insights/layout.tsx` so it persists across navigation
  * without re-rendering. The CoachDrawer is NOT mounted in this layout —
- * the drawer lives in the mother page's body only (Marc directive
+ * the drawer lives in the mother page's body only (the maintainer directive
  * 2026-05-11).
  *
  * Pills:
@@ -643,6 +643,13 @@ function InsightsTabStripImpl({
                 <Link
                   key={tab.href}
                   href={tab.href}
+                  // Full route prefetch (RSC payload incl. the dynamic
+                  // sub-page, not just the loading boundary) the moment
+                  // the pill scrolls into view. The insights sub-pages
+                  // are dynamic routes, so the default viewport prefetch
+                  // only warms `loading.tsx`; the full prefetch removes
+                  // the route-payload round-trip from the pill switch.
+                  prefetch={true}
                   aria-current={isActive ? "page" : undefined}
                   data-slot="insights-tab-strip-pill"
                   data-active={isActive ? "true" : undefined}
@@ -713,6 +720,9 @@ function InsightsTabStripImpl({
                         <li key={child.href}>
                           <Link
                             href={child.href}
+                            // Same full-prefetch contract as the flat
+                            // pills — fires when the popover opens.
+                            prefetch={true}
                             aria-current={isChildActive ? "page" : undefined}
                             data-slot="insights-tab-strip-group-item"
                             data-active={isChildActive ? "true" : undefined}

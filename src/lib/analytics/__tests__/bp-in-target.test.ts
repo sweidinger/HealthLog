@@ -169,9 +169,9 @@ describe("computeBpInTargetPct", () => {
   /**
    * v1.4.16 A2 regression — the live tenant's actual production data.
    *
-   * the maintainer reported BD-Zielbereich = 0 % despite multiple BP readings
+   * The maintainer reported BD-Zielbereich = 0 % despite multiple BP readings
    * that "are clearly in target". A query against production showed
-   * his last 30 days of paired readings include 117/79, 122/76, 108/76,
+   * their last 30 days of paired readings include 117/79, 122/76, 108/76,
    * 106/73, 127/86, 115/78, 108/75, 124/82, 126/80, 133/95.
    *
    * Under v1.4.15 narrow-band semantics (sys >= 120 AND sys <= 129 AND
@@ -238,7 +238,7 @@ describe("computeBpInTargetPct", () => {
 describe("computeBpInTargetWindows — all-time headline (v1.4.19 A1)", () => {
   /**
    * v1.4.19 A1 regression — the maintainer reported the BD-Zielbereich tile shows
-   * **EXACTLY 50 % on 7T, 30T, AND the headline ("total")** for his
+   * **EXACTLY 50 % on 7T, 30T, AND the headline ("total")** for their
    * production data. Hand-counted hypothesis-1 from the brief (the
    * three-way coincidence cannot be data — it's a calculation pin):
    *

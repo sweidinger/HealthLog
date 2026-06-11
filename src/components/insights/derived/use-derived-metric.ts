@@ -9,6 +9,7 @@ import type {
   DerivedProvenance,
 } from "@/lib/insights/derived/types";
 import type { DerivedAssessment } from "@/lib/insights/derived/derived-assessment";
+import { apiGet } from "@/lib/api/api-fetch";
 
 /**
  * v1.10.0 — the single TanStack Query hook for the generic derived-metric
@@ -84,13 +85,7 @@ export function useDerivedMetric<T>(
       try {
         const params = new URLSearchParams({ metric });
         if (type) params.set("type", type);
-        const res = await fetch(`/api/insights/derived?${params.toString()}`, {
-          signal: controller.signal,
-        });
-        if (!res.ok) {
-          throw new Error(`derived ${metric} request failed (${res.status})`);
-        }
-        return (await res.json()).data as DerivedMetricResponse<T>;
+        return apiGet<DerivedMetricResponse<T>>(`/api/insights/derived?${params.toString()}`, { signal: controller.signal });
       } finally {
         clearTimeout(timeoutHandle);
       }
@@ -159,14 +154,7 @@ export function useDerivedBatch(
       );
       try {
         const params = new URLSearchParams({ metrics: wireTokens.join(",") });
-        const res = await fetch(
-          `/api/insights/derived/batch?${params.toString()}`,
-          { signal: controller.signal },
-        );
-        if (!res.ok) {
-          throw new Error(`derived batch request failed (${res.status})`);
-        }
-        return (await res.json()).data as DerivedBatchResponse;
+        return apiGet<DerivedBatchResponse>(`/api/insights/derived/batch?${params.toString()}`, { signal: controller.signal });
       } finally {
         clearTimeout(timeoutHandle);
       }

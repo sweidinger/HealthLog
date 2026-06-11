@@ -3,6 +3,7 @@
 import { useId, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { Loader2, Plus, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -31,6 +32,7 @@ import {
   severityLikertLabel,
 } from "@/lib/medications/side-effects/taxonomy";
 import { MedicationDetailSection } from "@/components/medications/medication-detail-section";
+import { apiDelete, apiPost } from "@/lib/api/api-fetch";
 
 /**
  * v1.4.25 W19d — GLP-1 side-effect section for the medication detail
@@ -146,18 +148,10 @@ export function SideEffectsSection({ medicationId }: SideEffectsSectionProps) {
       // from the wire payload. The server derives it from the entry
       // via `categoryForEntry`. Backwards-compatible with older
       // clients during the cut window (route accepts both shapes).
-      const res = await fetch(`/api/medications/${medicationId}/side-effects`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      if (!res.ok) {
-        const body = (await res.json().catch(() => ({}))) as {
-          error?: string;
-        };
-        throw new Error(body.error ?? "Failed to log side effect");
-      }
-      return (await res.json()).data as SideEffectRow;
+      return apiPost<SideEffectRow>(
+        `/api/medications/${medicationId}/side-effects`,
+        payload,
+      );
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: listKey });
@@ -166,15 +160,16 @@ export function SideEffectsSection({ medicationId }: SideEffectsSectionProps) {
 
   const deleteMutation = useMutation({
     mutationFn: async (logId: string) => {
-      const res = await fetch(
-        `/api/medications/${medicationId}/side-effects/${logId}`,
-        { method: "DELETE" },
-      );
-      if (!res.ok) throw new Error("Failed to delete entry");
+      await apiDelete(`/api/medications/${medicationId}/side-effects/${logId}`);
       return true;
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: listKey });
+    },
+    // v1.16.4 — a failed delete used to fail silently, leaving the row
+    // in place with no signal that the request was rejected.
+    onError: () => {
+      toast.error(t("medications.sideEffects.deleteError"));
     },
   });
 

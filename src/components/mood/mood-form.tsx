@@ -29,6 +29,7 @@ import { toast } from "sonner";
 import { useTranslations } from "@/lib/i18n/context";
 import { useRovingRadioGroup } from "@/hooks/use-roving-radio-group";
 import { invalidateKeys, moodDependentKeys } from "@/lib/query-keys";
+import { ApiError, apiPost } from "@/lib/api/api-fetch";
 import { MoodTagPicker, type RatedFactor } from "./mood-tag-picker";
 import { moodFaceIcon } from "./mood-tag-icons";
 
@@ -182,33 +183,26 @@ export function MoodForm({ onSuccess, onCancel, footerSlot }: MoodFormProps) {
 
       const trimmedNote = note.trim();
 
-      const res = await fetch("/api/mood-entries", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          mood,
-          tags: tags.length > 0 ? tags : undefined,
-          tagKeys: tagKeys.length > 0 ? tagKeys : undefined,
-          // v1.12.0 — rated factors as a parallel [{key,rating}] array.
-          ratedFactors: ratedFactors.length > 0 ? ratedFactors : undefined,
-          note: trimmedNote.length > 0 ? trimmedNote : undefined,
-          moodLoggedAt: timestamp,
-        }),
+      await apiPost("/api/mood-entries", {
+        mood,
+        tags: tags.length > 0 ? tags : undefined,
+        tagKeys: tagKeys.length > 0 ? tagKeys : undefined,
+        // v1.12.0 — rated factors as a parallel [{key,rating}] array.
+        ratedFactors: ratedFactors.length > 0 ? ratedFactors : undefined,
+        note: trimmedNote.length > 0 ? trimmedNote : undefined,
+        moodLoggedAt: timestamp,
       });
-
-      const json = await res.json();
-      if (!res.ok) {
-        setError(json.error);
-        setLoading(false);
-        return;
-      }
 
       resetForm();
       await invalidateKeys(queryClient, moodDependentKeys);
       toast.success(t("common.saved"));
       onSuccess?.();
-    } catch {
-      setError(t("mood.saveError"));
+    } catch (err) {
+      setError(
+        err instanceof ApiError && err.message
+          ? err.message
+          : t("mood.saveError"),
+      );
     } finally {
       setLoading(false);
     }

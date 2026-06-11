@@ -5,7 +5,7 @@ import { Tabs, TabsList, TabsTrigger } from "../tabs";
 
 describe("<TabsList>", () => {
   it("clamps the y-axis so a fixed-height strip never paints a vertical scrollbar", () => {
-    // the maintainer reported a stray "mini scroll-button" on the right side of
+    // The maintainer reported a stray "mini scroll-button" on the right side of
     // the feedback inbox tab strip (Open / Acknowledged / Resolved /
     // Archived). Root cause: `overflow-x-auto` couples to `overflow-y`
     // — once one axis is `auto`, the other can no longer be `visible`,

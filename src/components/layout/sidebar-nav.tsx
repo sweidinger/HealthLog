@@ -9,7 +9,6 @@ import {
   ChevronsRight,
   Droplets,
   Home,
-  Info,
   Lightbulb,
   LogOut,
   Monitor,

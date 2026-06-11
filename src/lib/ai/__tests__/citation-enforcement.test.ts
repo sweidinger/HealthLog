@@ -12,7 +12,7 @@ import { MockAIProvider } from "../mock-client";
 /**
  * Phase C1 — citation-from-data hard requirement.
  *
- * the maintainer, verbatim 2026-05-09: "es muss sich halt irgendwie stützen auf
+ * The maintainer, verbatim 2026-05-09: "es muss sich halt irgendwie stützen auf
  * medizinische Dinge."  ("It must ground on medical facts / user data.")
  *
  * Operational meaning:

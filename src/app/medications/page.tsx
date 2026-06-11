@@ -21,6 +21,7 @@ import {
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { CheckCircle2, Loader2, Pill, Plus } from "lucide-react";
+import { apiGet } from "@/lib/api/api-fetch";
 
 interface Schedule {
   id: string;
@@ -149,10 +150,7 @@ export default function MedicationsPage() {
   } = useQuery({
     queryKey: queryKeys.medications(),
     queryFn: async () => {
-      const res = await fetch("/api/medications");
-      if (!res.ok) throw new Error("Failed to fetch");
-      const json = await res.json();
-      return json.data as Medication[];
+      return apiGet<Medication[]>("/api/medications");
     },
     enabled: isAuthenticated,
   });

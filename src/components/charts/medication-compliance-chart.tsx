@@ -61,6 +61,7 @@ import { prefersReducedMotion } from "@/lib/charts/reduced-motion";
 import { useChartOverlayPrefs } from "@/hooks/use-chart-overlay-prefs";
 import { useViewportWidth } from "@/hooks/use-viewport-width";
 import { chooseTickInterval } from "@/lib/charts/x-axis-density";
+import { apiGet } from "@/lib/api/api-fetch";
 
 interface DailyCompliancePoint {
   /** Berlin calendar day, "YYYY-MM-DD". */
@@ -244,12 +245,7 @@ export function MedicationComplianceChart({
   const { data, isLoading } = useQuery({
     queryKey: queryKeys.dashboardMedicationCompliance(days),
     queryFn: async (): Promise<DailyCompliancePoint[]> => {
-      const res = await fetch(
-        `/api/medications/intake?scope=compliance&days=${days}`,
-      );
-      if (!res.ok) throw new Error("failed to fetch medication compliance");
-      const json = await res.json();
-      return json.data as DailyCompliancePoint[];
+      return apiGet<DailyCompliancePoint[]>(`/api/medications/intake?scope=compliance&days=${days}`);
     },
     enabled: isAuthenticated,
   });

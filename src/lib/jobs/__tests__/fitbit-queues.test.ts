@@ -18,7 +18,9 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 const REMINDER_WORKER_PATH = join(__dirname, "..", "reminder-worker.ts");
-const source = readFileSync(REMINDER_WORKER_PATH, "utf8");
+const source =
+  readFileSync(REMINDER_WORKER_PATH, "utf8") +
+  readFileSync(join(__dirname, "..", "reminder", "fitbit-sync.ts"), "utf8");
 
 const FITBIT_QUEUE_CONSTS = [
   "FITBIT_SYNC_QUEUE",

@@ -44,6 +44,7 @@ import { useFormatters, useTranslations } from "@/lib/i18n/context";
 import { queryKeys } from "@/lib/query-keys";
 import type { BackupRow, BackupsList } from "@/types/backups";
 import { getApiErrorMessage } from "./_shared";
+import { apiFetch, apiFetchRaw, apiGet, apiPost } from "@/lib/api/api-fetch";
 
 /**
  * Typed-confirmation dialog for restore. The destructive Restore button
@@ -175,19 +176,13 @@ export function BackupsSection() {
   const { data, isLoading, isError } = useQuery({
     queryKey: queryKeys.adminBackups(),
     queryFn: async () => {
-      const res = await fetch("/api/admin/backups");
-      if (!res.ok) throw new Error("Failed");
-      return (await res.json()).data as BackupsList;
+      return apiGet<BackupsList>("/api/admin/backups");
     },
   });
 
   const runBackup = useMutation({
     mutationFn: async () => {
-      const res = await fetch("/api/admin/backups/run", { method: "POST" });
-      if (!res.ok) {
-        throw new Error(await getApiErrorMessage(res));
-      }
-      return (await res.json()).data as { jobId: string | null };
+      return apiPost<{ jobId: string | null }>("/api/admin/backups/run");
     },
     onSuccess: () => {
       toast.success(t("admin.section.backups.runEnqueued"));
@@ -219,14 +214,9 @@ export function BackupsSection() {
     mutationFn: async (file: File) => {
       const fd = new FormData();
       fd.append("file", file);
-      const res = await fetch("/api/admin/backups/upload", {
-        method: "POST",
-        body: fd,
-      });
-      if (!res.ok) {
-        throw new Error(await getApiErrorMessage(res));
-      }
-      return (await res.json()).data as {
+      // apiFetch with a raw init: the multipart body must NOT be JSON
+      // re-encoded, so the verb helper (which JSON-stringifies) is out.
+      return apiFetch<{
         id: string;
         valid: true;
         summary: {
@@ -237,7 +227,7 @@ export function BackupsSection() {
           cycles?: number;
           cycleDayLogs?: number;
         };
-      };
+      }>("/api/admin/backups/upload", { method: "POST", body: fd });
     },
     onSuccess: (data) => {
       const total =
@@ -280,18 +270,11 @@ export function BackupsSection() {
       // destructive transaction. Include the row id so two different
       // backups can both be restored independently in the same minute.
       const idempotencyKey = `restore-${row.id}-${crypto.randomUUID()}`;
-      const res = await fetch(`/api/admin/backups/${row.id}/restore`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Idempotency-Key": idempotencyKey,
-        },
-        body: JSON.stringify({ confirm: "RESTORE" }),
-      });
-      if (!res.ok) {
-        throw new Error(await getApiErrorMessage(res));
-      }
-      return (await res.json()).data as { restored: true };
+      return apiPost<{ restored: true }>(
+        `/api/admin/backups/${row.id}/restore`,
+        { confirm: "RESTORE" },
+        { headers: { "Idempotency-Key": idempotencyKey } },
+      );
     },
     onSuccess: () => {
       toast.success(t("admin.section.backups.restoreSuccess"));
@@ -312,7 +295,9 @@ export function BackupsSection() {
   async function handleDownload(row: BackupRow) {
     setDownloadingId(row.id);
     try {
-      const res = await fetch(`/api/admin/backups/${row.id}/download`);
+      // apiFetchRaw: the download needs the raw Response for the blob +
+      // the Content-Disposition filename header.
+      const res = await apiFetchRaw(`/api/admin/backups/${row.id}/download`);
       if (!res.ok) {
         throw new Error(await getApiErrorMessage(res));
       }

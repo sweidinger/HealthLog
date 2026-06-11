@@ -79,6 +79,7 @@ import { formatDate, formatDateTime } from "@/lib/format";
 import { useTranslations } from "@/lib/i18n/context";
 import { queryKeys } from "@/lib/query-keys";
 import { cn } from "@/lib/utils";
+import { apiDelete, apiGet, apiPost } from "@/lib/api/api-fetch";
 
 interface InviteRedemptionEntry {
   id: string;
@@ -187,9 +188,7 @@ export function InviteTokensSection() {
   const { data: invites, isError } = useQuery({
     queryKey: queryKeys.adminInvites(),
     queryFn: async () => {
-      const res = await fetch("/api/admin/invites");
-      if (!res.ok) throw new Error("Failed");
-      return (await res.json()).data as AdminInvite[];
+      return apiGet<AdminInvite[]>("/api/admin/invites");
     },
   });
 
@@ -199,13 +198,10 @@ export function InviteTokensSection() {
       expiresInDays: number;
       maxUses: number;
     }): Promise<MintedInvite> => {
-      const res = await fetch("/api/admin/invites", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(input),
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = (await res.json()).data as Omit<MintedInvite, "qrDataUrl">;
+      const data = await apiPost<Omit<MintedInvite, "qrDataUrl">>(
+        "/api/admin/invites",
+        input,
+      );
       // Lazy chunk: qrcode is only ever needed right here, at mint time.
       const QRCode = (await import("qrcode")).default;
       const qrDataUrl = await QRCode.toDataURL(data.url, {
@@ -226,10 +222,7 @@ export function InviteTokensSection() {
 
   const revoke = useMutation({
     mutationFn: async (id: string) => {
-      const res = await fetch(`/api/admin/invites/${id}`, {
-        method: "DELETE",
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      await apiDelete(`/api/admin/invites/${id}`);
     },
     onSuccess: () => {
       toast.success(t("admin.invites.revokedToast"));
@@ -549,6 +542,16 @@ export function InviteTokensSection() {
                   {t("admin.invites.createDescription")}
                 </DialogDescription>
               </DialogHeader>
+              {/* v1.16.4 — a real form so Enter in the max-uses field
+                  submits; mirrors the intake-edit dialog convention. */}
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  if (create.isPending) return;
+                  submitCreate();
+                }}
+                className="space-y-4"
+              >
               <div className="space-y-5">
                 <fieldset>
                   <legend className="text-sm font-medium">
@@ -600,9 +603,9 @@ export function InviteTokensSection() {
               </div>
               <DialogFooter>
                 <Button
-                  type="button"
+                  type="submit"
                   disabled={create.isPending}
-                  onClick={submitCreate}
+                  aria-busy={create.isPending || undefined}
                   data-testid="admin-invites-submit-create"
                 >
                   {create.isPending ? (
@@ -616,6 +619,7 @@ export function InviteTokensSection() {
                   {t("admin.invites.createConfirm")}
                 </Button>
               </DialogFooter>
+              </form>
             </>
           ) : (
             <>

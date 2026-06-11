@@ -319,7 +319,7 @@ export const GET = apiHandler(async (request: NextRequest) => {
   // `GET /api/measurements?type=…&aggregate=daily&limit=5000` requests
   // (BP_SYS / BP_DIA / WEIGHT). The legacy `date_trunc('day', …)`
   // path scanned the measurements table each time — a full year window
-  // on Marc's account hit 3 × ~3 s on the v1.4.35 HAR. Reading from
+  // on the maintainer's account hit 3 × ~3 s on the v1.4.35 HAR. Reading from
   // the persistent `measurement_rollups` DAY buckets drops each call
   // to a small indexed read against the ~5 k-row rollup table.
   //
@@ -398,7 +398,7 @@ export const GET = apiHandler(async (request: NextRequest) => {
     // window) and finishes well inside the request budget.
     //
     // The probe runs only on suspicious rollups so the covered-tenant
-    // happy path stays a single indexed read. Marc's tenant on a 30-day
+    // happy path stays a single indexed read. The maintainer's tenant on a 30-day
     // BP_SYS window pre-fix returned 2 rollup rows and hit `total: 2`
     // in the live trace; post-fix the probe finds ~30 distinct days in
     // `measurements`, folds them, and the chart paints all 30.

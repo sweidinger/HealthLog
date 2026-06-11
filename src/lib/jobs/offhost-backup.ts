@@ -107,7 +107,7 @@ export function decryptBackup(buf: Buffer, key: Buffer): string {
   return Buffer.concat([dec.update(ct), dec.final()]).toString("utf8");
 }
 
-interface S3Like {
+export interface S3Like {
   putObject(key: string, body: Buffer | Uint8Array): Promise<void>;
   getObject(key: string): Promise<Buffer>;
   headObject(key: string): Promise<boolean>;

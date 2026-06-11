@@ -8,6 +8,7 @@ import { RefreshCw, SlidersHorizontal, TrendingUp } from "lucide-react";
 
 import { useAuth } from "@/hooks/use-auth";
 import { queryKeys } from "@/lib/query-keys";
+import { apiGet } from "@/lib/api/api-fetch";
 import { useFeatureFlags } from "@/hooks/use-feature-flags";
 import { useInsightsLayoutQuery } from "@/hooks/use-insights-layout";
 import {
@@ -202,7 +203,7 @@ const CycleRingTile = dynamic(
  *     cards moved onto the metric pages they belong to (Weight owns
  *     weight × weekday, Pulse owns mood × pulse, …), so the overview
  *     no longer renders a duplicate correlation row.
- *   - The CoachDrawer is mounted in the mother-page body only (Marc
+ *   - The CoachDrawer is mounted in the mother-page body only (the maintainer
  *     directive). Navigating to a sub-page unmounts the drawer.
  *
  * The per-section status cards (BP/Weight/Pulse/etc.) and their
@@ -250,10 +251,11 @@ export default function InsightsPage() {
   const { data, isLoading, isFetched, isError, refetch } = useQuery({
     queryKey: queryKeys.insightsComprehensive(),
     queryFn: async () => {
-      const res = await fetch("/api/insights/comprehensive");
-      if (!res.ok) throw new Error(t("insights.loadError"));
-      const json = await res.json();
-      return json.data as ComprehensiveData;
+      try {
+        return await apiGet<ComprehensiveData>("/api/insights/comprehensive");
+      } catch {
+        throw new Error(t("insights.loadError"));
+      }
     },
     enabled: isAuthenticated,
   });

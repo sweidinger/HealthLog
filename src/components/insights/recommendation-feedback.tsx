@@ -33,6 +33,7 @@ import { ThumbsUp, ThumbsDown, Loader2, Check } from "lucide-react";
 import { useTranslations } from "@/lib/i18n/context";
 import { useAuth } from "@/hooks/use-auth";
 import type { RecommendationFeedbackRequest } from "@/lib/validations/recommendation-feedback";
+import { ApiError, apiPost } from "@/lib/api/api-fetch";
 
 // v1.4.16 phase D reconcile (simplify F5) — re-export the canonical
 // types from the validation schema instead of hand-maintaining the
@@ -69,11 +70,6 @@ type FeedbackState =
   | "already-rated-down";
 
 const LOCAL_STORAGE_PREFIX = "healthlog-rec-feedback";
-
-interface FeedbackEnvelope {
-  data: { id: string; createdAt: string } | null;
-  error?: string | null;
-}
 
 function localCacheKey(userId: string, recId: string, recText: string): string {
   // recText is part of the key because the server-side dedup also
@@ -152,24 +148,22 @@ export function RecommendationFeedback({
 
   const mutation = useMutation({
     mutationFn: async (helpful: boolean) => {
-      const res = await fetch("/api/insights/feedback", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+      try {
+        await apiPost("/api/insights/feedback", {
           recommendationId: recId,
           recommendationText: recText,
           recommendationSeverity: recSeverity,
           metricSourceType,
           metricSourceTimeRange,
           helpful,
-        }),
-      });
-      const body = (await res.json()) as FeedbackEnvelope;
-      if (res.status === 409) {
-        return { duplicate: true, helpful } as const;
-      }
-      if (!res.ok) {
-        throw new Error(body.error ?? "feedback_failed");
+        });
+      } catch (err) {
+        // 409 = the server already holds a verdict for this rec — treat
+        // as the non-throwing duplicate outcome, exactly as before.
+        if (err instanceof ApiError && err.status === 409) {
+          return { duplicate: true, helpful } as const;
+        }
+        throw err;
       }
       return { duplicate: false, helpful } as const;
     },

@@ -49,6 +49,7 @@ import {
 
 import { useTranslations } from "@/lib/i18n/context";
 import { queryKeys } from "@/lib/query-keys";
+import { apiGet } from "@/lib/api/api-fetch";
 import {
   computeOneCompartment,
   type DoseEvent,
@@ -127,10 +128,13 @@ export function DrugLevelChart({ medication, asOf }: DrugLevelChartProps) {
     useQuery<Glp1DetailsResponse | null>({
       queryKey: queryKeys.medicationGlp1Details(medication.id),
       queryFn: async () => {
-        const res = await fetch(`/api/medications/${medication.id}/glp1`);
-        if (!res.ok) return null;
-        const json = await res.json();
-        return json.data as Glp1DetailsResponse;
+        try {
+          return await apiGet<Glp1DetailsResponse>(
+            `/api/medications/${medication.id}/glp1`,
+          );
+        } catch {
+          return null;
+        }
       },
       enabled: !!drugId,
       staleTime: 60 * 1000,
@@ -139,12 +143,13 @@ export function DrugLevelChart({ medication, asOf }: DrugLevelChartProps) {
   const { data: intakeEnvelope, isLoading: intakeLoading } = useQuery({
     queryKey: queryKeys.medicationIntakeDrugLevelChart(medication.id),
     queryFn: async () => {
-      const res = await fetch(
-        `/api/medications/${medication.id}/intake?limit=20&sortBy=takenAt&sortDir=desc`,
-      );
-      if (!res.ok) return null;
-      const json = await res.json();
-      return json.data as { events: IntakeEvent[] };
+      try {
+        return await apiGet<{ events: IntakeEvent[] }>(
+          `/api/medications/${medication.id}/intake?limit=20&sortBy=takenAt&sortDir=desc`,
+        );
+      } catch {
+        return null;
+      }
     },
     enabled: !!drugId,
     staleTime: 60 * 1000,

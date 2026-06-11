@@ -13,6 +13,7 @@ import { SettingsCardHeader } from "@/components/settings/_card-header";
 import { TestConnectionButton } from "@/components/settings/test-connection-button";
 import { useTranslations } from "@/lib/i18n/context";
 import { queryKeys } from "@/lib/query-keys";
+import { apiFetchRaw, apiGet } from "@/lib/api/api-fetch";
 
 interface TelegramSettings {
   enabled: boolean;
@@ -37,10 +38,7 @@ export function TelegramCard({
   const { data: settings } = useQuery({
     queryKey: queryKeys.telegramSettings(),
     queryFn: async () => {
-      const res = await fetch("/api/settings/telegram");
-      if (!res.ok) throw new Error("Failed");
-      const json = await res.json();
-      return json.data as TelegramSettings;
+      return apiGet<TelegramSettings>("/api/settings/telegram");
     },
     enabled: isAuthenticated,
   });
@@ -69,7 +67,7 @@ export function TelegramCard({
     if (botToken.trim()) body.botToken = botToken.trim();
     if (chatId !== (settings?.chatId ?? "")) body.chatId = chatId;
 
-    const res = await fetch("/api/settings/telegram", {
+    const res = await apiFetchRaw("/api/settings/telegram", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),

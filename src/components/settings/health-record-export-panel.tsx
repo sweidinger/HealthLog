@@ -30,6 +30,7 @@ import { Input } from "@/components/ui/input";
 import { NativeSelect } from "@/components/ui/native-select";
 import { Switch } from "@/components/ui/switch";
 import { useRovingRadioGroup } from "@/hooks/use-roving-radio-group";
+import { apiFetchRaw } from "@/lib/api/api-fetch";
 import { useTranslations } from "@/lib/i18n/context";
 import { cn } from "@/lib/utils";
 
@@ -146,7 +147,7 @@ export function HealthRecordExportPanel() {
     setBusy(true);
     setError(null);
     try {
-      const res = await fetch("/api/export/health-record", {
+      const res = await apiFetchRaw("/api/export/health-record", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",

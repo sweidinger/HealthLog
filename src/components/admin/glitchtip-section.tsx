@@ -11,10 +11,10 @@ import { Label } from "@/components/ui/label";
 import { useTranslations } from "@/lib/i18n/context";
 import {
   SettingsToggle,
-  getApiErrorMessage,
   useAdminSettings,
   useUpdateSettings,
 } from "./_shared";
+import { apiPost } from "@/lib/api/api-fetch";
 
 export function GlitchtipSection() {
   const { t } = useTranslations();
@@ -35,14 +35,10 @@ export function GlitchtipSection() {
 
   const testGlitchtip = useMutation({
     mutationFn: async () => {
-      const res = await fetch("/api/admin/monitoring/glitchtip-test", {
-        method: "POST",
-      });
-      if (!res.ok) {
-        throw new Error(await getApiErrorMessage(res));
-      }
-      const json = (await res.json()) as { data?: { message?: string } };
-      return json.data?.message ?? t("admin.monitoringTestSuccess");
+      const data = await apiPost<{ message?: string } | undefined>(
+        "/api/admin/monitoring/glitchtip-test",
+      );
+      return data?.message ?? t("admin.monitoringTestSuccess");
     },
     onSuccess: (message) => {
       toast.success(message);

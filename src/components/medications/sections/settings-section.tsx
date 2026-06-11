@@ -29,6 +29,7 @@ import { PhaseConfigSheet } from "@/components/medications/sections/phase-config
 import { useTranslations } from "@/lib/i18n/context";
 import { parseScheduleRecurrence } from "@/lib/medication-schedule";
 import { invalidateKeys, medicationDependentKeys } from "@/lib/query-keys";
+import { apiPut } from "@/lib/api/api-fetch";
 import type { DoseWindowEntry } from "@/components/medications/scheduling/dose-window";
 
 /** The schedule fields the grace save round-trips on a wholesale PUT. */
@@ -122,15 +123,7 @@ export function GraceRow({
             }),
           }
         : { reminderGraceMinutes: graceValue };
-      const res = await fetch(`/api/medications/${medicationId}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
-      if (!res.ok) {
-        toast.error(t("medications.detail.settings.grace.failed"));
-        return;
-      }
+      await apiPut(`/api/medications/${medicationId}`, body);
       await invalidateKeys(queryClient, medicationDependentKeys);
       toast.success(t("medications.detail.settings.grace.saved"));
     } catch {
@@ -210,18 +203,10 @@ export function DrugCodingRow({
     try {
       // Empty input clears the column (null); a non-empty value is sent
       // verbatim for the server to validate (422 on a malformed code).
-      const res = await fetch(`/api/medications/${medicationId}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          atcCode: atcValue.trim() === "" ? null : atcValue.trim(),
-          rxNormCode: rxValue.trim() === "" ? null : rxValue.trim(),
-        }),
+      await apiPut(`/api/medications/${medicationId}`, {
+        atcCode: atcValue.trim() === "" ? null : atcValue.trim(),
+        rxNormCode: rxValue.trim() === "" ? null : rxValue.trim(),
       });
-      if (!res.ok) {
-        toast.error(t("medications.detail.settings.codes.failed"));
-        return;
-      }
       await invalidateKeys(queryClient, medicationDependentKeys);
       toast.success(t("medications.detail.settings.codes.saved"));
     } catch {

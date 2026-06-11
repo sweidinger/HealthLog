@@ -33,7 +33,8 @@ import {
   type CanonicalSchedule,
   type RecurrenceContext,
 } from "@/lib/medications/scheduling/recurrence";
-import { getLocalDateParts, localHmAsUtc } from "@/lib/timezone";
+import { localHmAsUtc } from "@/lib/tz/local-day";
+import { wallClockInTz } from "@/lib/tz/wall-clock";
 
 const ONE_MINUTE_MS = 60_000;
 const ONE_HOUR_MS = 60 * ONE_MINUTE_MS;
@@ -153,7 +154,7 @@ export function resolveCanonicalSlotInstant(
   // time-of-day near the local-midnight boundary (and any DST shift) is
   // still captured — the projector + worker apply the time-of-day to the
   // local day, which can land just outside a naive same-UTC-day window.
-  const parts = getLocalDateParts(incoming, userTz);
+  const parts = wallClockInTz(incoming, userTz);
   const localDayMidnightUtc = localHmAsUtc(incoming, userTz, 0, 0);
   const windowStart = new Date(localDayMidnightUtc.getTime() - ONE_DAY_MS);
   const windowEnd = new Date(localDayMidnightUtc.getTime() + 2 * ONE_DAY_MS);
@@ -180,7 +181,7 @@ export function resolveCanonicalSlotInstant(
       // Only consider slots that land on the SAME local calendar day as
       // the incoming instant — a slot on the padded neighbouring day must
       // not capture a write meant for a different day.
-      const occParts = getLocalDateParts(occ.at, userTz);
+      const occParts = wallClockInTz(occ.at, userTz);
       if (
         occParts.year !== parts.year ||
         occParts.month !== parts.month ||

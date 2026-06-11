@@ -30,7 +30,7 @@ const sampleTokens = [
     expiresAt: null,
     createdAt: "2026-05-01T08:00:00Z",
     revoked: false,
-    user: { id: "u1", username: "marc" },
+    user: { id: "u1", username: "testuser" },
   },
 ];
 
@@ -54,8 +54,8 @@ vi.mock("@/hooks/use-auth", () => ({
   useAuth: () => ({
     user: {
       id: "u1",
-      username: "marc",
-      email: "marc@example.com",
+      username: "testuser",
+      email: "user@example.com",
       role: "ADMIN",
     },
     isAuthenticated: true,
@@ -107,7 +107,7 @@ describe("ApiTokenOverviewSection — responsive", () => {
     // All data points the desktop table shows must also appear in the
     // mobile cards. Token name + username + a permission badge + the
     // last-used/created labels are all present.
-    expect(html).toContain("marc"); // username
+    expect(html).toContain("testuser"); // username
     expect(html).toContain("iOS app"); // token name
     // F-19 (v1.4.19): the wildcard `*` permission renders as the
     // human-readable "All" with a tooltip explaining the semantics,

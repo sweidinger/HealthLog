@@ -36,6 +36,8 @@ export interface LedgerRow {
     takenAt: string | null;
     skipped: boolean;
     autoMissed: boolean;
+    /** v1.16.4 — per-intake dose override; null/absent = configured dose. */
+    doseTaken?: string | null;
   } | null;
 }
 

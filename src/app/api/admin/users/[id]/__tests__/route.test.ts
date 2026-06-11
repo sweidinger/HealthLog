@@ -71,7 +71,7 @@ describe("PUT /api/admin/users/[id]", () => {
       new HttpError(401, "Not authenticated"),
     );
     await expect(
-      PUT(jsonReq({ username: "marc" }), params("u1")),
+      PUT(jsonReq({ username: "testuser" }), params("u1")),
     ).rejects.toThrow("Not authenticated");
   });
 
@@ -80,7 +80,7 @@ describe("PUT /api/admin/users/[id]", () => {
       new HttpError(403, "Admin access required"),
     );
     await expect(
-      PUT(jsonReq({ username: "marc" }), params("u1")),
+      PUT(jsonReq({ username: "testuser" }), params("u1")),
     ).rejects.toThrow("Admin access required");
   });
 
@@ -97,7 +97,7 @@ describe("PUT /api/admin/users/[id]", () => {
 
   it("returns 404 when target user does not exist", async () => {
     vi.mocked(prisma.user.findUnique).mockResolvedValue(null);
-    const res = await PUT(jsonReq({ username: "marc" }), params("u-missing"));
+    const res = await PUT(jsonReq({ username: "testuser" }), params("u-missing"));
     expect(res.status).toBe(404);
     expect(vi.mocked(prisma.user.update)).not.toHaveBeenCalled();
   });

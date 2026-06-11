@@ -47,3 +47,19 @@ export const aboutMePutSchema = z.object({
 });
 
 export type AboutMePutInput = z.infer<typeof aboutMePutSchema>;
+
+/**
+ * v1.16.4 — request schema for `POST /api/coach/about-me/adopt`: a
+ * clarifying-question answer the user chose to fold back into the
+ * stored self-context. The server picks the matching structured field
+ * from the question wording, dedupes against the stored text, and
+ * appends encrypted.
+ */
+export const aboutMeAdoptSchema = z.object({
+  /** The clarifying question the answer belongs to (field matching). */
+  question: z.string().trim().min(1).max(500),
+  /** The user's answer, as typed into the Coach composer. */
+  answer: z.string().trim().min(1).max(ABOUT_ME_FIELD_MAX_CHARS),
+});
+
+export type AboutMeAdoptInput = z.infer<typeof aboutMeAdoptSchema>;

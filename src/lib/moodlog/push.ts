@@ -11,7 +11,7 @@ import { safeFetch } from "@/lib/safe-fetch";
  * polls MoodLog every 15 minutes and imports new rows. That's a
  * one-way bridge: anything the user logs INSIDE HealthLog (the iOS
  * app's mood reminder, the web form, a Telegram nudge handler) never
- * reaches MoodLog. Marc's report: he taps a mood in iOS, the entry
+ * reaches MoodLog. The maintainer's report: they tap a mood in iOS, the entry
  * lands in HealthLog, but never appears in MoodLog's timeline.
  *
  * This helper closes that gap. Every successful create on

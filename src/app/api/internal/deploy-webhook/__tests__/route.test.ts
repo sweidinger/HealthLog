@@ -330,3 +330,84 @@ describe("GET /api/internal/deploy-webhook (reachability check)", () => {
     expect(res.status).toBe(401);
   });
 });
+
+describe("POST /api/internal/deploy-webhook (timestamp replay protection)", () => {
+  const ORIGINAL_REQUIRE = process.env.DEPLOY_WEBHOOK_REQUIRE_TIMESTAMP;
+
+  afterEach(() => {
+    if (ORIGINAL_REQUIRE === undefined) {
+      delete process.env.DEPLOY_WEBHOOK_REQUIRE_TIMESTAMP;
+    } else {
+      process.env.DEPLOY_WEBHOOK_REQUIRE_TIMESTAMP = ORIGINAL_REQUIRE;
+    }
+  });
+
+  function timestamped(ts: string): NextRequest {
+    return jsonRequest(
+      { status: "success" },
+      {
+        "x-deploy-webhook-secret": "test-secret",
+        "x-deploy-webhook-timestamp": ts,
+      },
+    );
+  }
+
+  it("accepts a fresh unix-seconds timestamp", async () => {
+    const res = await POST(timestamped(String(Math.floor(Date.now() / 1000))));
+    expect(res.status).toBe(200);
+  });
+
+  it("accepts a fresh ISO-8601 timestamp", async () => {
+    const res = await POST(timestamped(new Date().toISOString()));
+    expect(res.status).toBe(200);
+  });
+
+  it("rejects a timestamp older than the 5-minute window", async () => {
+    const stale = Math.floor((Date.now() - 6 * 60 * 1000) / 1000);
+    const res = await POST(timestamped(String(stale)));
+    expect(res.status).toBe(401);
+    expect(auditLog).not.toHaveBeenCalled();
+  });
+
+  it("rejects a timestamp too far in the future (clock-skew bound)", async () => {
+    const future = Math.floor((Date.now() + 6 * 60 * 1000) / 1000);
+    const res = await POST(timestamped(String(future)));
+    expect(res.status).toBe(401);
+  });
+
+  it("rejects an unparseable timestamp value", async () => {
+    const res = await POST(timestamped("not-a-timestamp"));
+    expect(res.status).toBe(401);
+  });
+
+  it("accepts a request without the header in tolerant default mode", async () => {
+    delete process.env.DEPLOY_WEBHOOK_REQUIRE_TIMESTAMP;
+    const res = await POST(
+      jsonRequest(
+        { status: "success" },
+        { "x-deploy-webhook-secret": "test-secret" },
+      ),
+    );
+    expect(res.status).toBe(200);
+  });
+
+  it("rejects a request without the header when DEPLOY_WEBHOOK_REQUIRE_TIMESTAMP=true", async () => {
+    process.env.DEPLOY_WEBHOOK_REQUIRE_TIMESTAMP = "true";
+    const res = await POST(
+      jsonRequest(
+        { status: "success" },
+        { "x-deploy-webhook-secret": "test-secret" },
+      ),
+    );
+    expect(res.status).toBe(401);
+    expect(auditLog).not.toHaveBeenCalled();
+  });
+
+  it("still rejects a stale timestamp before any audit-log write", async () => {
+    const stale = Math.floor((Date.now() - 10 * 60 * 1000) / 1000);
+    const res = await POST(timestamped(String(stale)));
+    expect(res.status).toBe(401);
+    expect(auditLog).not.toHaveBeenCalled();
+    expect(dispatchLocalisedNotification).not.toHaveBeenCalled();
+  });
+});

@@ -74,6 +74,7 @@ import { MedicationWizardDialog } from "@/components/medications/wizard/Medicati
 import { parseScheduleRecurrence } from "@/lib/medication-schedule";
 import { useQuery } from "@tanstack/react-query";
 import { queryKeys } from "@/lib/query-keys";
+import { apiGet } from "@/lib/api/api-fetch";
 import { useTranslations, useFormatters } from "@/lib/i18n/context";
 import type { MedicationPayload } from "@/components/medications/wizard/wizard-payload";
 import type { ComplianceDisplay } from "@/lib/analytics/compliance";
@@ -280,13 +281,15 @@ export function MedicationDetailTabs({
   const { data: compliance } = useQuery({
     queryKey: queryKeys.medicationCompliance(id),
     queryFn: async () => {
-      const res = await fetch(`/api/medications/${id}/compliance`);
-      if (!res.ok) return null;
-      return (await res.json()).data as {
-        compliance7?: { rate: number; streak: number };
-        compliance30?: { rate: number };
-        complianceDisplay?: ComplianceDisplay;
-      };
+      try {
+        return await apiGet<{
+          compliance7?: { rate: number; streak: number };
+          compliance30?: { rate: number };
+          complianceDisplay?: ComplianceDisplay;
+        }>(`/api/medications/${id}/compliance`);
+      } catch {
+        return null;
+      }
     },
     enabled: activeTab === "uebersicht",
     staleTime: 30_000,
@@ -306,15 +309,17 @@ export function MedicationDetailTabs({
   const { data: inventory } = useQuery({
     queryKey: queryKeys.medicationInventory(id),
     queryFn: async () => {
-      const res = await fetch(`/api/medications/${id}/inventory`);
-      if (!res.ok) return null;
-      return (await res.json()).data as {
-        items: Array<{
-          state: "ACTIVE" | "IN_USE" | "EXPIRED" | "USED_UP";
-          dosesTotal: number;
-          dosesRemaining: number;
-        }>;
-      } | null;
+      try {
+        return await apiGet<{
+          items: Array<{
+            state: "ACTIVE" | "IN_USE" | "EXPIRED" | "USED_UP";
+            dosesTotal: number;
+            dosesRemaining: number;
+          }>;
+        } | null>(`/api/medications/${id}/inventory`);
+      } catch {
+        return null;
+      }
     },
     enabled: activeTab === "uebersicht",
     staleTime: 30_000,
@@ -787,12 +792,14 @@ function ComplianceGatedDangerZone({
         offset: String(params.offset),
         status: params.status,
       });
-      const res = await fetch(
-        `/api/medications/${medicationId}/intake?${search.toString()}`,
-      );
-      if (!res.ok) return 0;
-      const json = await res.json();
-      return (json.data?.meta?.total ?? 0) as number;
+      try {
+        const data = await apiGet<{ meta?: { total?: number } }>(
+          `/api/medications/${medicationId}/intake?${search.toString()}`,
+        );
+        return data?.meta?.total ?? 0;
+      } catch {
+        return 0;
+      }
     },
     staleTime: 30_000,
   });

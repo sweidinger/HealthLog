@@ -22,6 +22,7 @@ import {
   medicationDependentKeys,
   queryKeys,
 } from "@/lib/query-keys";
+import { apiGet, apiPost } from "@/lib/api/api-fetch";
 import { LogInjectionSiteDialog } from "@/components/medications/log-injection-site-dialog";
 import { useGlobalExcludedInjectionSites } from "@/lib/medications/use-injection-site-prefs";
 import type { InjectionSiteKey } from "@/lib/medications/injection-sites";
@@ -149,10 +150,13 @@ export function MedicationCard({
   const { data: compliance } = useQuery({
     queryKey: queryKeys.medicationCompliance(medication.id),
     queryFn: async () => {
-      const res = await fetch(`/api/medications/${medication.id}/compliance`);
-      if (!res.ok) return null;
-      const json = await res.json();
-      return json.data as ComplianceData;
+      try {
+        return await apiGet<ComplianceData>(
+          `/api/medications/${medication.id}/compliance`,
+        );
+      } catch {
+        return null;
+      }
     },
     // v1.15.20 — the card renders two percentage rows that move on a
     // dose action (which invalidates this key through
@@ -167,10 +171,13 @@ export function MedicationCard({
   const { data: thresholds } = useQuery({
     queryKey: queryKeys.settingsReminderThresholds(),
     queryFn: async () => {
-      const res = await fetch("/api/settings/reminder-thresholds");
-      if (!res.ok) return null;
-      const json = await res.json();
-      return json.data as { lateMinutes: number; missedMinutes: number };
+      try {
+        return await apiGet<{ lateMinutes: number; missedMinutes: number }>(
+          "/api/settings/reminder-thresholds",
+        );
+      } catch {
+        return null;
+      }
     },
     staleTime: 5 * 60 * 1000,
   });
@@ -186,14 +193,15 @@ export function MedicationCard({
     // v1.11.5 — keep the dialog open until the PATCH resolves. On failure
     // surface a toast and re-throw so the dialog stays mounted with the
     // chosen site instead of dismissing as though the site had been saved.
-    const res = await fetch("/api/medications/intake", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ intakeId, status: "taken", injectionSite: site }),
-    });
-    if (!res.ok) {
+    try {
+      await apiPost("/api/medications/intake", {
+        intakeId,
+        status: "taken",
+        injectionSite: site,
+      });
+    } catch (err) {
       toast.error(t("medications.logInjectionSiteSaveFailed"));
-      throw new Error("injection-site PATCH failed");
+      throw err;
     }
     await invalidateKeys(queryClient, medicationDependentKeys);
     setSiteIntakeId(null);

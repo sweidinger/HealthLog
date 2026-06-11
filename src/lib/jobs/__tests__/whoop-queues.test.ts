@@ -14,7 +14,9 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 const REMINDER_WORKER_PATH = join(__dirname, "..", "reminder-worker.ts");
-const source = readFileSync(REMINDER_WORKER_PATH, "utf8");
+const source =
+  readFileSync(REMINDER_WORKER_PATH, "utf8") +
+  readFileSync(join(__dirname, "..", "reminder", "whoop-sync.ts"), "utf8");
 
 const WHOOP_QUEUE_CONSTS = [
   "WHOOP_RECOVERY_SYNC_QUEUE",
@@ -93,9 +95,7 @@ describe("reminder-worker — WHOOP sync queues", () => {
   });
 
   it("imports the WHOOP per-resource sync routines", () => {
-    expect(source).toMatch(
-      /from\s*["']@\/lib\/whoop\/sync-recovery["']/,
-    );
+    expect(source).toMatch(/from\s*["']@\/lib\/whoop\/sync-recovery["']/);
     expect(source).toMatch(/from\s*["']@\/lib\/whoop\/sync-cycle["']/);
     expect(source).toMatch(/from\s*["']@\/lib\/whoop\/sync-workout["']/);
   });

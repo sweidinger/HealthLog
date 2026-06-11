@@ -13,6 +13,7 @@ import { CoachInput } from "./coach-input";
 import { HistoryRail } from "./history-rail";
 import { MessageThread } from "./message-thread";
 import { MobileRailTray } from "./mobile-rail-tray";
+import { SelfContextAdoptOffer } from "./self-context-adopt-offer";
 import { SelfContextChips } from "./self-context-chips";
 import { SourcesRail } from "./sources-rail";
 import { useResettableValue } from "./use-resettable-value";
@@ -113,6 +114,17 @@ export function CoachConversation({
   const [historyTrayOpen, setHistoryTrayOpen] = useState(false);
   const [sourcesTrayOpen, setSourcesTrayOpen] = useState(false);
   const [inputValue, setInputValue] = useResettableValue(prefill ?? "");
+  // v1.16.4 — self-context backflow. `activeChipQuestion` remembers the
+  // clarifying-question chip the user tapped (the chip pre-fills the
+  // composer); when the next message answers it, `pendingAdopt` raises a
+  // quiet offer to fold the answer back into the Selbstauskunft.
+  const [activeChipQuestion, setActiveChipQuestion] = useState<string | null>(
+    null,
+  );
+  const [pendingAdopt, setPendingAdopt] = useState<{
+    question: string;
+    answer: string;
+  } | null>(null);
 
   const { data: conversation } = useCoachConversation(currentConversationId);
   const send = useSendCoachMessage({
@@ -137,16 +149,32 @@ export function CoachConversation({
   async function handleSubmit(value: string) {
     const trimmed = value.trim();
     if (!trimmed || send.isStreaming) return;
+    // v1.16.4 — when this message answers a tapped clarifying-question
+    // chip, peel the inserted question off the front so only the user's
+    // own words form the adoptable answer. An empty remainder (the user
+    // deleted their answer or sent the bare question) raises no offer.
+    const chipQuestion = activeChipQuestion;
+    setActiveChipQuestion(null);
+    const answer = chipQuestion
+      ? trimmed.startsWith(chipQuestion)
+        ? trimmed.slice(chipQuestion.length).trim()
+        : trimmed
+      : null;
     setInputValue("");
     await send.send({
       conversationId: currentConversationId ?? undefined,
       message: trimmed,
     });
+    if (chipQuestion && answer) {
+      setPendingAdopt({ question: chipQuestion, answer });
+    }
   }
 
   function handleNewChat() {
     setCurrentConversationId(null);
     setInputValue("");
+    setActiveChipQuestion(null);
+    setPendingAdopt(null);
     send.reset();
   }
 
@@ -239,9 +267,21 @@ export function CoachConversation({
                 chips. Tapping inserts the question into the composer
                 (the user answers it in their own words) and dismisses
                 the chip. Renders nothing when no questions pend. */}
+            {/* v1.16.4 — quiet adopt-into-self-context offer once a chip
+                question has been answered. Self-removes after settle. */}
+            {pendingAdopt && !send.isStreaming ? (
+              <SelfContextAdoptOffer
+                question={pendingAdopt.question}
+                answer={pendingAdopt.answer}
+                onDismiss={() => setPendingAdopt(null)}
+              />
+            ) : null}
             <SelfContextChips
               disabled={send.isStreaming}
-              onPick={(question) => setInputValue(`${question}\n`)}
+              onPick={(question) => {
+                setActiveChipQuestion(question);
+                setInputValue(`${question}\n`);
+              }}
             />
             <CoachInput
               value={inputValue}

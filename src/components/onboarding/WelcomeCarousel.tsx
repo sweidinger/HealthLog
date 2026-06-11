@@ -15,9 +15,9 @@ import {
 
 import { Button } from "@/components/ui/button";
 import { useTranslations } from "@/lib/i18n/context";
-import { readError } from "@/lib/api/read-error";
 import { scrollBehaviorForUser } from "@/lib/motion";
 import { cn } from "@/lib/utils";
+import { apiPost } from "@/lib/api/api-fetch";
 
 /**
  * v1.4.25 W14b-Content — onboarding welcome carousel.
@@ -131,12 +131,7 @@ export function WelcomeCarousel() {
     if (advancing) return;
     setAdvancing(true);
     try {
-      const res = await fetch("/api/onboarding/step", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ step: 1 }),
-      });
-      if (!res.ok) throw new Error(await readError(res));
+      await apiPost("/api/onboarding/step", { step: 1 });
       await queryClient.invalidateQueries({ queryKey: ["auth"] });
       router.push("/onboarding/1");
     } catch (err) {

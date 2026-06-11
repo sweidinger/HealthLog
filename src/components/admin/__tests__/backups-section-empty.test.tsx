@@ -35,7 +35,7 @@ vi.mock("@tanstack/react-query", () => ({
 
 vi.mock("@/hooks/use-auth", () => ({
   useAuth: () => ({
-    user: { id: "u1", username: "marc", role: "ADMIN" },
+    user: { id: "u1", username: "testuser", role: "ADMIN" },
     isAuthenticated: true,
     isLoading: false,
     refetch: vi.fn(),

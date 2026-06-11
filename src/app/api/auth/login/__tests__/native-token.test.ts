@@ -75,8 +75,8 @@ import { createSession } from "@/lib/auth/session";
 
 const FAKE_USER = {
   id: "user-1",
-  username: "marc",
-  email: "marc@example.com",
+  username: "testuser",
+  email: "user@example.com",
   passwordHash: "$argon2id$...",
 };
 
@@ -88,7 +88,7 @@ function makeRequest(headers: Record<string, string> = {}): NextRequest {
       ...headers,
     },
     body: JSON.stringify({
-      email: "marc@example.com",
+      email: "user@example.com",
       password: "supersecret",
     }),
   });

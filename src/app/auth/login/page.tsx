@@ -13,6 +13,7 @@ import { Separator } from "@/components/ui/separator";
 import { describePasskeyError } from "@/lib/passkey-errors";
 import { useTranslations } from "@/lib/i18n/context";
 import { queryKeys } from "@/lib/query-keys";
+import { ApiError, apiGet, apiPost } from "@/lib/api/api-fetch";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -33,12 +34,16 @@ export default function LoginPage() {
   const { data: registrationEnabled } = useQuery({
     queryKey: queryKeys.authRegistrationStatus(),
     queryFn: async () => {
-      const res = await fetch("/api/auth/registration-status", {
-        cache: "no-store",
-      });
-      if (!res.ok) return true;
-      const json = await res.json();
-      return Boolean(json.data?.registrationEnabled ?? true);
+      try {
+        const data = await apiGet<{ registrationEnabled?: boolean }>(
+          "/api/auth/registration-status",
+          { cache: "no-store" },
+        );
+        return Boolean(data?.registrationEnabled ?? true);
+      } catch {
+        // Fail open, exactly as the raw `if (!res.ok) return true` did.
+        return true;
+      }
     },
     staleTime: 60 * 1000,
   });
@@ -58,38 +63,30 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      const optRes = await fetch("/api/auth/passkey/login-options", {
-        method: "POST",
-      });
-      const optJson = await optRes.json();
-      if (!optRes.ok) {
-        setError(optJson.error);
-        setLoading(false);
-        return;
-      }
-
-      const { options, challengeId } = optJson.data;
       const { startAuthentication } = await import("@simplewebauthn/browser");
+      const { options, challengeId } = await apiPost<{
+        options: Parameters<typeof startAuthentication>[0]["optionsJSON"];
+        challengeId: string;
+      }>("/api/auth/passkey/login-options");
+
       const credential = await startAuthentication({ optionsJSON: options });
 
-      const verifyRes = await fetch("/api/auth/passkey/login-verify", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ challengeId, credential }),
+      await apiPost("/api/auth/passkey/login-verify", {
+        challengeId,
+        credential,
       });
-
-      const verifyJson = await verifyRes.json();
-      if (!verifyRes.ok) {
-        setError(verifyJson.error || t("auth.loginFailed"));
-        setLoading(false);
-        return;
-      }
 
       await queryClient.invalidateQueries({ queryKey: queryKeys.auth() });
       router.push(getRedirectTarget());
     } catch (err) {
-      const { key, params } = describePasskeyError(err);
-      setError(t(key, params));
+      // Route rejections carry the envelope error verbatim; everything
+      // else (WebAuthn ceremony failures) keeps the descriptive mapping.
+      if (err instanceof ApiError) {
+        setError(err.message || t("auth.loginFailed"));
+      } else {
+        const { key, params } = describePasskeyError(err);
+        setError(t(key, params));
+      }
     } finally {
       setLoading(false);
     }
@@ -101,23 +98,16 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      const res = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
-      });
-
-      const json = await res.json();
-      if (!res.ok) {
-        setError(json.error);
-        setLoading(false);
-        return;
-      }
+      await apiPost("/api/auth/login", { email, password });
 
       await queryClient.invalidateQueries({ queryKey: queryKeys.auth() });
       router.push(getRedirectTarget());
-    } catch {
-      setError(t("auth.loginFailed"));
+    } catch (err) {
+      setError(
+        err instanceof ApiError && err.message
+          ? err.message
+          : t("auth.loginFailed"),
+      );
     } finally {
       setLoading(false);
     }

@@ -9,7 +9,7 @@ import {
 /**
  * v1.4.18 — per-chart overlay-controls popover.
  *
- * Marc reverted v1.4.16's always-on chart overlays (gradient fill,
+ * The maintainer reverted v1.4.16's always-on chart overlays (gradient fill,
  * personal-baseline line, target-zone shading) and asked for per-chart
  * switches that the user can flip on or off. This spec exercises the
  * end-to-end behaviour against the seeded test user:

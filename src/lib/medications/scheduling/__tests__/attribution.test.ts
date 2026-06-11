@@ -25,7 +25,7 @@ import {
   attributeIntakeToSlot,
   type SlotWindowInput,
 } from "../attribution";
-import { localHmAsUtc } from "@/lib/timezone";
+import { localHmAsUtc } from "@/lib/tz/local-day";
 
 const TZ = "Europe/Berlin";
 const MIN = 60_000;
@@ -76,7 +76,7 @@ describe("attributeIntakeToSlot — summer (CEST)", () => {
   });
 
   it("a take at 11:29 is ad-hoc (past the 07:00 tail, before the 19:00 window)", () => {
-    // The exact case Marc reported: an 11:29 take must NOT show as the 07:00 slot.
+    // The exact case the maintainer reported: an 11:29 take must NOT show as the 07:00 slot.
     expect(attributeIntakeToSlot(at(day, 11, 29), bands)).toBeNull();
   });
 
@@ -148,8 +148,8 @@ describe("attributeIntakeToSlot — configurable window widens on-time", () => {
   const day = new Date("2026-06-08T12:00:00Z");
 
   it("an explicit 07:00–12:00 window makes an 11:29 take on_time for that dose", () => {
-    // Marc's lever: a real morning window of 07:00–12:00 (not a ±60 point)
-    // means his habitual ~11:00 intake counts as on-time, not ad-hoc.
+    // The maintainer's lever: a real morning window of 07:00–12:00 (not a ±60 point)
+    // means their habitual ~11:00 intake counts as on-time, not ad-hoc.
     const slots: SlotWindowInput[] = [
       {
         at: localHmAsUtc(day, TZ, 7, 0),

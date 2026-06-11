@@ -3,7 +3,7 @@
  *
  * Returns one boolean per toggleable section so the dialog can hide
  * checkboxes for data types that have zero rows in the user-selected
- * date range (Marc's "hide-when-empty" rule). Pure presence check —
+ * date range (the maintainer's "hide-when-empty" rule). Pure presence check —
  * `count` queries on small indexed tables — so this is cheap enough to
  * run on every date-range change in the dialog without driving cost.
  *

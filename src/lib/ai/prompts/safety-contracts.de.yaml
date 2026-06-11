@@ -2,7 +2,7 @@
 # Translations of safety-contracts.en.yaml. DE bodies are derived from
 # the existing hand-curated COACH_PROMPT_DE / SYSTEM_PROMPT_DE bodies in
 # `src/lib/ai/coach/system-prompt.ts` and `src/lib/ai/prompts/insight-
-# generator.ts` — these have been Marc-reviewed clause-by-clause for
+# generator.ts` — these have been maintainer-reviewed clause-by-clause for
 # two years and are the calibration reference for FR/ES/IT/PL.
 
 ground_rules:

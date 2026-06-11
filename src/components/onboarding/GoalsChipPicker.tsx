@@ -17,8 +17,8 @@ import {
 
 import { Button } from "@/components/ui/button";
 import { useTranslations } from "@/lib/i18n/context";
-import { readError } from "@/lib/api/read-error";
 import { cn } from "@/lib/utils";
+import { apiPost } from "@/lib/api/api-fetch";
 
 /**
  * v1.4.25 W14b-Content — onboarding step 1 (goals).
@@ -122,12 +122,7 @@ export function GoalsChipPicker({ userId: _userId }: GoalsChipPickerProps) {
     if (advancing) return;
     setAdvancing(true);
     try {
-      const res = await fetch("/api/onboarding/step", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ step: 2 }),
-      });
-      if (!res.ok) throw new Error(await readError(res));
+      await apiPost("/api/onboarding/step", { step: 2 });
       await queryClient.invalidateQueries({ queryKey: ["auth"] });
       router.push("/onboarding/2");
     } catch (err) {

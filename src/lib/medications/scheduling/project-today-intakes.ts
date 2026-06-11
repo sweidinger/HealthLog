@@ -34,7 +34,7 @@ import {
   buildRecurrenceContext,
   scheduleEmitsInWindow,
 } from "@/lib/medications/scheduling/worker-helpers";
-import { localHmAsUtc } from "@/lib/timezone";
+import { localHmAsUtc } from "@/lib/tz/local-day";
 import { recomputeMedicationComplianceForEvent } from "@/lib/rollups/medication-compliance-rollups";
 
 export interface ProjectTodayIntakesResult {

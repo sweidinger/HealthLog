@@ -24,6 +24,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { formatDate, formatDateTime } from "@/lib/format";
 import { useTranslations } from "@/lib/i18n/context";
 import { queryKeys } from "@/lib/query-keys";
+import { apiFetchRaw, apiGet } from "@/lib/api/api-fetch";
 
 interface ApiTokenInfo {
   id: string;
@@ -168,9 +169,7 @@ function ApiTokensCard() {
   const { data: tokens } = useQuery({
     queryKey: queryKeys.tokens(),
     queryFn: async () => {
-      const res = await fetch("/api/tokens");
-      if (!res.ok) throw new Error("Failed");
-      return (await res.json()).data as ApiTokenInfo[];
+      return apiGet<ApiTokenInfo[]>("/api/tokens");
     },
     enabled: isAuthenticated,
   });
@@ -182,7 +181,7 @@ function ApiTokensCard() {
     setNewToken(null);
 
     try {
-      const res = await fetch("/api/tokens", {
+      const res = await apiFetchRaw("/api/tokens", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: newName.trim() }),
@@ -218,7 +217,9 @@ function ApiTokensCard() {
 
   async function handleRevoke(tokenId: string) {
     try {
-      const res = await fetch(`/api/tokens/${tokenId}`, { method: "DELETE" });
+      const res = await apiFetchRaw(`/api/tokens/${tokenId}`, {
+        method: "DELETE",
+      });
       if (!res.ok) {
         toast.error(t("settings.tokenRevokeFailed"));
         return;

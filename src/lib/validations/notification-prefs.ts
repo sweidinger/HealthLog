@@ -149,7 +149,7 @@ export const DEFAULT_MOOD_REMINDER_HOUR = 22;
 /**
  * Safe defaults. Every category is off so the server reminders flow
  * unchanged for any user the iOS app has not explicitly opted in.
- * Marc's directive: zero regression for clients without working
+ * The maintainer's directive: zero regression for clients without working
  * local reminders.
  */
 export const DEFAULT_NOTIFICATION_PREFS: NotificationPrefs = {

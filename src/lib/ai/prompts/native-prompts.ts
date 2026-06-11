@@ -15,7 +15,7 @@
  * than a silent break.
  *
  * The DE locale continues to use its existing hand-curated body —
- * Marc has reviewed that text clause-by-clause for two years and it's
+ * the maintainer has reviewed that text clause-by-clause for two years and it's
  * the calibration reference for the new native bodies. We do NOT route
  * DE through the matrix in v1.4.25 to avoid disturbing a known-good
  * surface; a later release can fold it in once the matrix has lived in

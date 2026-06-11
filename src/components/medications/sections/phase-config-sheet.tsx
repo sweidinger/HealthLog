@@ -47,6 +47,7 @@ import {
   medicationDependentKeys,
   queryKeys,
 } from "@/lib/query-keys";
+import { ApiError, apiGet, apiPut } from "@/lib/api/api-fetch";
 
 type PhaseMode = "MINUTES" | "PERCENT";
 
@@ -138,9 +139,11 @@ export function PhaseConfigSheet({
   const { data, isLoading, isError } = useQuery({
     queryKey: queryKeys.medicationPhaseConfig(medicationId),
     queryFn: async () => {
-      const res = await fetch(`/api/medications/${medicationId}/phase-config`);
-      if (!res.ok) throw new Error("phase_config_failed");
-      return fromApi((await res.json()).data as PhaseConfigApiPayload);
+      return fromApi(
+        await apiGet<PhaseConfigApiPayload>(
+          `/api/medications/${medicationId}/phase-config`,
+        ),
+      );
     },
     enabled: open,
     staleTime: 0,
@@ -216,27 +219,19 @@ function PhaseConfigForm({
   async function save() {
     setSaving(true);
     try {
-      const res = await fetch(`/api/medications/${medicationId}/phase-config`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(toApi(cfg)),
-      });
-      if (!res.ok) {
-        const json = await res.json().catch(() => ({}));
-        toast.error(
-          (json as { error?: string }).error ??
-            t("medications.detail.phases.saveFailed"),
-        );
-        return;
-      }
+      await apiPut(`/api/medications/${medicationId}/phase-config`, toApi(cfg));
       await invalidateKeys(queryClient, [
         ...medicationDependentKeys,
         queryKeys.medicationPhaseConfig(medicationId),
       ]);
       toast.success(t("medications.phaseSaved"));
       onClose();
-    } catch {
-      toast.error(t("medications.detail.phases.saveFailed"));
+    } catch (err) {
+      toast.error(
+        err instanceof ApiError && err.message
+          ? err.message
+          : t("medications.detail.phases.saveFailed"),
+      );
     } finally {
       setSaving(false);
     }

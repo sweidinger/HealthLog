@@ -26,6 +26,7 @@ import { createContext, useContext, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import { queryKeys } from "@/lib/query-keys";
+import { apiGet } from "@/lib/api/api-fetch";
 
 export interface AppSettings {
   /** Whether the admin has enabled in-app bug-report / feedback submission. */
@@ -60,10 +61,7 @@ export function AppSettingsProvider({ children }: { children: ReactNode }) {
     queryKey: queryKeys.bugreportStatus(),
     enabled: isAuthenticated,
     queryFn: async () => {
-      const res = await fetch("/api/bugreport/status");
-      if (!res.ok) throw new Error("Failed to load bug-report status");
-      const json = (await res.json()) as { data: BugReportStatusPayload };
-      return json.data;
+      return apiGet<BugReportStatusPayload>("/api/bugreport/status");
     },
     staleTime: 5 * 60 * 1000,
   });

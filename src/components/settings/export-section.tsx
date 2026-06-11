@@ -46,6 +46,7 @@ import { HealthRecordExportPanel } from "@/components/settings/health-record-exp
 import { ImportPanel } from "@/components/settings/import-panel";
 import { queryKeys } from "@/lib/query-keys";
 import { useTranslations } from "@/lib/i18n/context";
+import { apiFetchRaw, apiGet } from "@/lib/api/api-fetch";
 
 type ExportFormat = "CSV" | "JSON" | "FHIR";
 
@@ -504,11 +505,7 @@ function CycleExportCard() {
   const prefsQuery = useQuery({
     queryKey: queryKeys.cyclePrefs(),
     queryFn: async (): Promise<{ cycleTrackingEnabled: boolean }> => {
-      const res = await fetch("/api/auth/me/cycle-prefs", {
-        credentials: "include",
-      });
-      if (!res.ok) throw new Error(`prefs-${res.status}`);
-      return (await res.json()).data as { cycleTrackingEnabled: boolean };
+      return apiGet<{ cycleTrackingEnabled: boolean }>("/api/auth/me/cycle-prefs", { credentials: "include" });
     },
     staleTime: 5 * 60 * 1000,
   });
@@ -521,7 +518,7 @@ function CycleExportCard() {
     setBusy(true);
     setError(null);
     try {
-      const res = await fetch("/api/export/health-record", {
+      const res = await apiFetchRaw("/api/export/health-record", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",

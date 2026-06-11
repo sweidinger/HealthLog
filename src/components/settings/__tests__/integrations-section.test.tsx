@@ -1,7 +1,7 @@
 /**
  * v1.4.19 Phase A5 — Settings → Integrations status consolidation.
  *
- * the maintainer's verbatim concern (paraphrased):
+ * The maintainer's verbatim concern (paraphrased):
  *   - Withings card had 3 status displays — top-right "connected"
  *     badge, mid-card "connected / last successful / last attempt"
  *     trio container, and the badge inside that container.

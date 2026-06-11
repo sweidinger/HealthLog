@@ -4,7 +4,7 @@ import { MEDICAL_REFERENCE_IDS } from "./medical-references";
 /**
  * Strict response schema for v1.4.15 AI hardening (Phase C1).
  *
- * the maintainer, verbatim 2026-05-09: "Es darf null Halluzinationen haben und es
+ * The maintainer, verbatim 2026-05-09: "Es darf null Halluzinationen haben und es
  * muss sich halt irgendwie stützen auf medizinische Dinge."  ("It must
  * have zero hallucinations and must ground on medical facts.")
  *
@@ -216,7 +216,7 @@ export const aiWarningSchema = z.object({
  * v1.4.19 (which predate the field) still parse cleanly. Fresh
  * generations after the v1.4.20 PROMPT_VERSION bump emit the block.
  *
- * the maintainer's "zero hallucinations" mandate stays: the prompt instructs the
+ * The maintainer's "zero hallucinations" mandate stays: the prompt instructs the
  * model to derive every finding from a number visible in the snapshot,
  * and `keyFindings.length` is hard-capped at 5 so a runaway model
  * cannot pad the surface with filler.

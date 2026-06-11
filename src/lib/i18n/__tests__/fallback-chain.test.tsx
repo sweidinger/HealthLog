@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 import { I18nProvider, useTranslations } from "@/lib/i18n/context";
+import deMessages from "../../../../messages/de.json";
 
 function Read({ k }: { k: string }) {
   const { t } = useTranslations();
@@ -8,17 +9,29 @@ function Read({ k }: { k: string }) {
 }
 
 describe("i18n fallback chain", () => {
-  it("resolves a key that exists in the active locale", () => {
+  it("renders the active locale synchronously when its bundle is passed (RSC handoff)", () => {
+    // This is the production path since the bundle split: the root
+    // layout resolves the locale server-side and threads the bundle in
+    // as `initialMessages`. The very first render — server HTML and
+    // first client paint alike — must already be German; an async gap
+    // here would be the EN→DE hydration flash the handoff exists to
+    // prevent. renderToStaticMarkup is synchronous, so this test fails
+    // if the provider ever needs an await before t() resolves DE.
     const html = renderToStaticMarkup(
-      <I18nProvider initialLocale="de">
-        <Read k="dashboard.title" />
+      <I18nProvider initialLocale="de" initialMessages={deMessages}>
+        <Read k="common.save" />
       </I18nProvider>,
     );
-    // dashboard.title is shipped in every locale; the German value should
-    // appear (not the EN value, not the raw key).
-    expect(html).toContain('data-key="dashboard.title"');
-    expect(html).not.toMatch(/>dashboard\.title</);
+    expect(html).toContain("Speichern");
+    expect(html).not.toContain(">Save<");
   });
+
+  // A "no bundle passed for a non-EN locale" mount serves the static EN
+  // floor synchronously and backfills the real bundle async. That path
+  // is not testable in this suite — vitest.setup.ts primes the cache
+  // with every locale (deliberately, so hundreds of provider mounts
+  // keep resolving synchronously) — and it never runs in the app: the
+  // root layout always passes the active locale's bundle.
 
   // Level-2 of the fallback chain (active locale missing → EN) is
   // unreachable in production by design: the locale-integrity parity

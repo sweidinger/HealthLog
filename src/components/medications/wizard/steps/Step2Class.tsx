@@ -24,7 +24,7 @@ import {
 } from "../wizard-payload";
 import type { StepProps } from "./Step1Name";
 
-// Each row's Lucide glyph. Marc-confirmed assignment in D-1 §3 Step 2.
+// Each row's Lucide glyph. maintainer-confirmed assignment in D-1 §3 Step 2.
 const ROW_ICONS: Record<
   WizardTreatmentRow,
   ComponentType<LucideProps>

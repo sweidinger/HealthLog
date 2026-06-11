@@ -83,7 +83,7 @@ export function MedicationDetailSummary({
           date: formatters.dateTime(startsOn),
         })
       : t("medications.detail.cadence.oneShotPending")
-    : summariseCadence(hydrateWizardPayload(payload), t);
+    : summariseCadence(hydrateWizardPayload(payload), t, formatters.date);
 
   return (
     <div className="space-y-1.5" data-slot="medication-detail-summary">

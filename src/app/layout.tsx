@@ -8,6 +8,7 @@ import { MonitoringBootstrap } from "@/components/monitoring/bootstrap";
 import { WebVitalsReporter } from "@/components/monitoring/web-vitals-reporter";
 import { parseLocaleFromAcceptLanguage } from "@/lib/format-locale";
 import { locales, type Locale } from "@/lib/i18n/config";
+import { allMessages } from "@/lib/i18n/shared-resolve";
 
 async function resolveInitialLocale(): Promise<Locale> {
   // Both cookies() and headers() can throw (DynamicServerError, etc.) —
@@ -106,6 +107,13 @@ export default async function RootLayout({
       : undefined;
 
   const initialLocale = await resolveInitialLocale();
+  // RSC handoff for the i18n bundle split: only EN ships statically in
+  // the client chunk, so a non-EN first paint needs its bundle inlined
+  // into the payload here — that is what keeps the split free of the
+  // EN→DE hydration flash. EN passes nothing (the client already holds
+  // the static fallback floor).
+  const initialMessages =
+    initialLocale === "en" ? undefined : allMessages[initialLocale];
 
   return (
     <html lang={initialLocale} suppressHydrationWarning>
@@ -117,7 +125,7 @@ export default async function RootLayout({
         />
       </head>
       <body className={`${inter.variable} font-sans antialiased`}>
-        <Providers initialLocale={initialLocale}>
+        <Providers initialLocale={initialLocale} initialMessages={initialMessages}>
           <MonitoringBootstrap />
           <WebVitalsReporter />
           {/* `DEMO_MODE` is a server-only env var; the proxy uses it to

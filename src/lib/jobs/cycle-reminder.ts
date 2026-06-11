@@ -40,7 +40,8 @@ import type { PrismaClient } from "@/generated/prisma/client";
 import { getServerTranslator } from "@/lib/i18n/server-translator";
 import type { Locale } from "@/lib/i18n/config";
 import { defaultLocale, locales } from "@/lib/i18n/config";
-import { getLocalDateParts, getUserTodayBounds } from "@/lib/timezone";
+import { getUserTodayBounds } from "@/lib/tz/local-day";
+import { wallClockInTz } from "@/lib/tz/wall-clock";
 import { dayDiff } from "@/lib/cycle/day-math";
 import { isCycleEnabled } from "@/lib/cycle/gate";
 import { dispatchNotification } from "@/lib/notifications/dispatcher";
@@ -143,7 +144,7 @@ export function cycleReminderLocalDate(
   now: Date,
   timezone: string,
 ): string | null {
-  const parts = getLocalDateParts(now, timezone || "Europe/Berlin");
+  const parts = wallClockInTz(now, timezone || "Europe/Berlin");
   if (parts.hour !== CYCLE_REMINDER_LOCAL_HOUR) return null;
   return `${parts.year.toString().padStart(4, "0")}-${parts.month
     .toString()

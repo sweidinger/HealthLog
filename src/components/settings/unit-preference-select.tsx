@@ -8,6 +8,7 @@ import { NativeSelect } from "@/components/ui/native-select";
 import { useAuth } from "@/hooks/use-auth";
 import { useTranslations } from "@/lib/i18n/context";
 import { queryKeys } from "@/lib/query-keys";
+import { apiFetchRaw } from "@/lib/api/api-fetch";
 
 type UnitPreference = "metric" | "imperial";
 
@@ -63,7 +64,7 @@ export function UnitPreferenceSelect({
 
   const mutation = useMutation({
     mutationFn: async (next: UnitPreference) => {
-      const res = await fetch("/api/auth/me/unit-preference", {
+      const res = await apiFetchRaw("/api/auth/me/unit-preference", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ unitPreference: next }),

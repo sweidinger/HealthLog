@@ -91,7 +91,13 @@ async function postIntake(request: NextRequest, { params }: RouteParams) {
     idempotencyKey,
     injectionSite,
     forceSlotInstant,
+    doseTaken,
   } = parsed.data;
+
+  // v1.16.4 — the dose override documents a consumed dose, so it only
+  // applies to a taken (non-skipped) write; on a skip it is silently
+  // dropped (the slot consumed nothing).
+  const resolvedDoseTaken = !skipped && doseTaken ? doseTaken : null;
 
   // v1.8.5 — resolve + server-validate the optional injection site. Load
   // the medication's delivery form + tracking opt-in + per-medication
@@ -295,6 +301,9 @@ async function postIntake(request: NextRequest, { params }: RouteParams) {
       // injection taken write supplied an allowed site).
       injectionSite: resolvedInjectionSite,
       attributionSource,
+      // v1.16.4 — per-intake dose override (null unless a taken write
+      // carried one).
+      doseTaken: resolvedDoseTaken,
     });
     event = applied.row;
     consumedTransition = applied.consumedTransition;
@@ -342,6 +351,7 @@ async function postIntake(request: NextRequest, { params }: RouteParams) {
         createSource: "WEB",
         injectionSite: resolvedInjectionSite,
         attributionSource,
+        doseTaken: resolvedDoseTaken,
       });
       event = applied.row;
       consumedTransition = applied.consumedTransition;
@@ -370,6 +380,10 @@ async function postIntake(request: NextRequest, { params }: RouteParams) {
             // v1.8.5 — site only on a resolved taken-injection write.
             ...(resolvedInjectionSite !== null && {
               injectionSite: resolvedInjectionSite,
+            }),
+            // v1.16.4 — dose override only on a taken write carrying one.
+            ...(resolvedDoseTaken !== null && {
+              doseTaken: resolvedDoseTaken,
             }),
           },
         }),

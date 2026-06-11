@@ -1,0 +1,263 @@
+/**
+ * Nightly insight status crons (general / blood pressure / weight / pulse / BMI / mood / medication compliance) plus the insight pregenerate and per-user status-generate handlers.
+ *
+ * Extracted from reminder-worker.ts, which owns the queue names, cron
+ * schedules, and boss.work registrations.
+ */
+import { type Job } from "pg-boss";
+import { reportWorkerError } from "@/lib/jobs/report-worker-error";
+import { recordError, recordInsightsRun } from "@/lib/jobs/worker-status";
+import {
+  INSIGHT_PREGENERATE_QUEUE,
+  type InsightPregeneratePayload,
+  runInsightPregenerate,
+  forceWarmUser,
+} from "@/lib/jobs/insight-pregenerate";
+import {
+  INSIGHT_STATUS_GENERATE_QUEUE,
+  type InsightStatusGeneratePayload,
+  runInsightStatusGenerate,
+} from "@/lib/jobs/insight-status-generate";
+import { withBackgroundEvent } from "@/lib/logging/background";
+import { generateGeneralStatusForUser } from "@/lib/insights/general-status";
+import { generateBloodPressureStatusForUser } from "@/lib/insights/blood-pressure-status";
+import { generateWeightStatusForUser } from "@/lib/insights/weight-status";
+import { generatePulseStatusForUser } from "@/lib/insights/pulse-status";
+import { generateBmiStatusForUser } from "@/lib/insights/bmi-status";
+import { generateMoodStatusForUser } from "@/lib/insights/mood-status";
+import { generateMedicationComplianceStatusForUser } from "@/lib/insights/medication-compliance-status";
+import { findStatusCronCandidates } from "@/lib/jobs/status-cron-candidates";
+import { getWorkerPrisma } from "./shared";
+
+export interface GeneralStatusPayload {
+  triggeredAt: string;
+}
+
+export interface BloodPressureStatusPayload {
+  triggeredAt: string;
+}
+
+export interface WeightStatusPayload {
+  triggeredAt: string;
+}
+
+export interface PulseStatusPayload {
+  triggeredAt: string;
+}
+
+export interface BmiStatusPayload {
+  triggeredAt: string;
+}
+
+export interface MoodStatusPayload {
+  triggeredAt?: string;
+}
+
+export interface MedicationComplianceStatusPayload {
+  triggeredAt: string;
+}
+
+/**
+ * Shared driver for the nightly 02:xx per-metric status crons. User
+ * discovery is centralised in `findStatusCronCandidates`, which applies
+ * the operator assistant kill-switch, the per-user `disableCoach` gate,
+ * and the pregenerate-candidate skip (users with a configured provider
+ * and a stale comprehensive cache belong to the 04:30 pre-generate pass,
+ * which re-warms every per-status cache anyway — see
+ * `status-cron-candidates.ts` for the full division of nightly labour).
+ * The generators normalise `locale` themselves (de stays de, everything
+ * else gets English prose).
+ */
+export async function runStatusCronGenerate(
+  taskName: string,
+  generate: (
+    userId: string,
+    options: { locale: string | null; force: boolean },
+  ) => Promise<unknown>,
+  options: { recordRun?: boolean } = {},
+): Promise<void> {
+  await withBackgroundEvent(taskName, async (evt) => {
+    const prisma = getWorkerPrisma();
+    try {
+      if (options.recordRun) recordInsightsRun();
+      const users = await findStatusCronCandidates(prisma);
+
+      if (users.length === 0) return;
+
+      let generated = 0;
+      let failed = 0;
+
+      for (const user of users) {
+        try {
+          await generate(user.id, { locale: user.locale, force: false });
+          generated++;
+        } catch (error) {
+          failed++;
+          evt.addWarning(
+            `${taskName} generation failed for user ${user.id}: ${error}`,
+          );
+        }
+      }
+
+      evt.setBackground({
+        task_name: taskName,
+        result: { generated, failed, total: users.length },
+      });
+    } catch (err) {
+      evt.setError(err);
+      recordError();
+      await reportWorkerError(taskName, err);
+      throw err;
+    }
+  });
+}
+
+export function handleGeneralStatusGenerate(jobs: Job<GeneralStatusPayload>[]) {
+  void jobs;
+  return runStatusCronGenerate(
+    "job.insights.general",
+    generateGeneralStatusForUser,
+    { recordRun: true },
+  );
+}
+
+export function handleBloodPressureStatusGenerate(
+  jobs: Job<BloodPressureStatusPayload>[],
+) {
+  void jobs;
+  return runStatusCronGenerate(
+    "job.insights.blood_pressure",
+    generateBloodPressureStatusForUser,
+  );
+}
+
+export function handleWeightStatusGenerate(jobs: Job<WeightStatusPayload>[]) {
+  void jobs;
+  return runStatusCronGenerate(
+    "job.insights.weight",
+    generateWeightStatusForUser,
+  );
+}
+
+export function handlePulseStatusGenerate(jobs: Job<PulseStatusPayload>[]) {
+  void jobs;
+  return runStatusCronGenerate(
+    "job.insights.pulse",
+    generatePulseStatusForUser,
+  );
+}
+
+export function handleBmiStatusGenerate(jobs: Job<BmiStatusPayload>[]) {
+  void jobs;
+  return runStatusCronGenerate("job.insights.bmi", generateBmiStatusForUser);
+}
+
+export function handleMoodStatusGenerate(jobs: Job<MoodStatusPayload>[]) {
+  void jobs;
+  return runStatusCronGenerate("job.insights.mood", generateMoodStatusForUser);
+}
+
+export function handleMedicationComplianceStatusGenerate(
+  jobs: Job<MedicationComplianceStatusPayload>[],
+) {
+  void jobs;
+  return runStatusCronGenerate(
+    "job.insights.medication_compliance",
+    generateMedicationComplianceStatusForUser,
+  );
+}
+
+export async function handleInsightPregenerateJob(
+  jobs: Job<InsightPregeneratePayload>[],
+) {
+  await withBackgroundEvent("job.insight_pregenerate", async (evt) => {
+    // v1.8.7.1 — a forced single-user warm carries `{ userId, force }`;
+    // the scheduled tick carries neither. Route each job individually so a
+    // batch that mixes a cron tick with on-demand warms (it never does in
+    // practice, but the contract is per-job) stays correct.
+    const forced = jobs.filter((j) => j.data?.force && j.data?.userId);
+    const scheduled = jobs.filter((j) => !(j.data?.force && j.data?.userId));
+
+    for (const job of forced) {
+      const userId = job.data.userId as string;
+      const locale = job.data.locale === "en" ? "en" : "de";
+      try {
+        const summary = await forceWarmUser(getWorkerPrisma(), userId, locale);
+        evt.addMeta(
+          "force_warm",
+          `${summary.comprehensive}:${summary.assessmentsWarmed}+${summary.metricAssessmentsWarmed}`,
+        );
+      } catch (err) {
+        evt.addWarning(
+          `insight-pregenerate force-warm failed: ${
+            err instanceof Error ? err.message : String(err)
+          }`,
+        );
+        // Surface the failure centrally and rethrow so the queue's retry
+        // policy (retryLimit 3 + backoff) re-runs the warm — swallowing it
+        // here left the user's caches cold with zero operator signal.
+        await reportWorkerError(INSIGHT_PREGENERATE_QUEUE, err, {
+          mode: "force-warm",
+        });
+        throw err;
+      }
+    }
+
+    if (scheduled.length === 0) return;
+    try {
+      const summary = await runInsightPregenerate(getWorkerPrisma());
+      evt.setBackground({
+        task_name: "job.insight_pregenerate",
+        result: { ...summary },
+      });
+    } catch (err) {
+      evt.addWarning(
+        `insight-pregenerate failed: ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+      );
+      // Same contract as the force path: report + rethrow so the nightly
+      // tick retries instead of silently waiting for the next night.
+      await reportWorkerError(INSIGHT_PREGENERATE_QUEUE, err, {
+        mode: "scheduled",
+      });
+      throw err;
+    }
+  });
+}
+
+/**
+ * v1.8.3 — on-demand per-metric status generation. The read-only status
+ * route enqueues one job per cold card; this handler runs the matching
+ * generator with `force: true` so the assessment cache row lands and the
+ * polling client picks it up. Each job carries `{ userId, metric, locale }`.
+ */
+export async function handleInsightStatusGenerate(
+  jobs: Job<InsightStatusGeneratePayload>[],
+) {
+  await withBackgroundEvent("job.insight_status_generate", async (evt) => {
+    for (const job of jobs) {
+      if (!job.data?.userId || !job.data?.metric) continue;
+      try {
+        await runInsightStatusGenerate(job.data);
+        evt.addMeta(
+          "status_generated",
+          `${job.data.metric}:${job.data.locale}`,
+        );
+      } catch (err) {
+        evt.addWarning(
+          `insight-status-generate failed for ${job.data.metric}: ${
+            err instanceof Error ? err.message : String(err)
+          }`,
+        );
+        // Report centrally + rethrow so the enqueue's retry policy
+        // (retryLimit 3 + backoff) re-runs the generation; the polling
+        // client otherwise sits on "preparing" with zero operator signal.
+        await reportWorkerError(INSIGHT_STATUS_GENERATE_QUEUE, err, {
+          metric: job.data.metric,
+        });
+        throw err;
+      }
+    }
+  });
+}

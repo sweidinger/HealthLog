@@ -13,6 +13,7 @@ import { SettingsCardHeader } from "@/components/settings/_card-header";
 import { TestConnectionButton } from "@/components/settings/test-connection-button";
 import { useTranslations } from "@/lib/i18n/context";
 import { queryKeys } from "@/lib/query-keys";
+import { apiFetchRaw, apiGet } from "@/lib/api/api-fetch";
 
 interface NtfySettings {
   enabled: boolean;
@@ -35,10 +36,7 @@ export function NtfyCard({ isAuthenticated }: { isAuthenticated: boolean }) {
   const { data: settings } = useQuery({
     queryKey: queryKeys.settingsNtfy(),
     queryFn: async () => {
-      const res = await fetch("/api/settings/ntfy");
-      if (!res.ok) throw new Error("Failed");
-      const json = await res.json();
-      return json.data as NtfySettings;
+      return apiGet<NtfySettings>("/api/settings/ntfy");
     },
     enabled: isAuthenticated,
   });
@@ -56,7 +54,7 @@ export function NtfyCard({ isAuthenticated }: { isAuthenticated: boolean }) {
 
   const save = useMutation({
     mutationFn: async (enabled: boolean) => {
-      const res = await fetch("/api/settings/ntfy", {
+      const res = await apiFetchRaw("/api/settings/ntfy", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

@@ -23,7 +23,7 @@
  *     re-fetches the research-mode state and renders the toggle in
  *     the new state.
  *
- * Copy direction (Marc-Voice, English, no AI/phase/wave mentions):
+ * Copy direction (project-voice, English, no AI/phase/wave mentions):
  *   - "What this is" — single-paragraph framing: the chart is an
  *     estimate from EMA-published population PK.
  *   - "What this isn't" — explicit boundary: not a measurement, not
@@ -46,6 +46,7 @@ import { ResponsiveSheet } from "@/components/ui/responsive-sheet";
 import { Button } from "@/components/ui/button";
 import { useTranslations } from "@/lib/i18n/context";
 import { queryKeys } from "@/lib/query-keys";
+import { apiPost } from "@/lib/api/api-fetch";
 
 export interface ResearchModeAcknowledgmentDialogProps {
   open: boolean;
@@ -77,18 +78,14 @@ export function ResearchModeAcknowledgmentDialog({
 
   const mutation = useMutation({
     mutationFn: async (version: string) => {
-      const res = await fetch("/api/auth/me/research-mode", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ acknowledged: true, version }),
-      });
-      const json = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        const code =
-          typeof json?.error === "string" ? json.error : `http-${res.status}`;
-        throw new Error(code);
-      }
-      return json?.data ?? null;
+      // ApiError.message carries the envelope `error` string verbatim, so
+      // the stale-version code below still matches on `err.message`.
+      return (
+        (await apiPost("/api/auth/me/research-mode", {
+          acknowledged: true,
+          version,
+        })) ?? null
+      );
     },
     onSuccess: () => {
       setErrorMessage(null);

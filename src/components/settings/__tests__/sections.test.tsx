@@ -46,14 +46,21 @@ vi.mock("@tanstack/react-query", () => ({
 }));
 
 // Stub the auth hook — sections check `isAuthenticated` to enable queries.
+// v1.16.4 — AccountSection gates its content on `useMounted()` so the
+// SSR pass and the hydration render agree (React #418 family). The
+// smoke test asserts the post-mount content, so pin the flag to true.
+vi.mock("@/hooks/use-mounted", () => ({
+  useMounted: () => true,
+}));
+
 // We return `isAuthenticated: true` + a minimal user so the loading-spinner
 // branch in AccountSection paints the real form.
 vi.mock("@/hooks/use-auth", () => ({
   useAuth: () => ({
     user: {
       id: "u1",
-      username: "marc",
-      email: "marc@example.com",
+      username: "testuser",
+      email: "user@example.com",
       heightCm: 180,
       dateOfBirth: "1990-01-01",
       gender: "MALE",
@@ -153,7 +160,7 @@ describe("settings sections — SSR smoke", () => {
   });
 
   it("<AboutSection> renders the German Replay-tour label end-to-end", () => {
-    // Marc-voice + i18n parity: the W5 spec explicitly names this
+    // project-voice + i18n parity: the W5 spec explicitly names this
     // surface "Tour ansehen" in German. Lock the resolved copy so a
     // future locale-bundle drift doesn't silently fall back to English.
     const html = render(<AboutSection />, "de");

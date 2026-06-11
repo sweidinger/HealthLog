@@ -41,6 +41,7 @@ import {
 } from "@/components/medications/intake-history-list-v2";
 import { useTranslations } from "@/lib/i18n/context";
 import { invalidateKeys, medicationDependentKeys } from "@/lib/query-keys";
+import { apiDelete, apiPost } from "@/lib/api/api-fetch";
 
 export interface IntakeHistoryEditableProps {
   medicationId: string;
@@ -90,18 +91,9 @@ export function IntakeHistoryEditable({
     setBulkBusy(true);
     const ids = Array.from(selected);
     try {
-      const res = await fetch(
-        `/api/medications/${medicationId}/intake/bulk-delete`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ eventIds: ids }),
-        },
-      );
-      if (!res.ok) {
-        toast.error(t("medications.detail.intake.bulkDelete.failed"));
-        return;
-      }
+      await apiPost(`/api/medications/${medicationId}/intake/bulk-delete`, {
+        eventIds: ids,
+      });
       await invalidateKeys(queryClient, medicationDependentKeys);
       toast.success(t("medications.detail.intake.bulkDelete.toast"));
       setBulkConfirmOpen(false);
@@ -118,13 +110,7 @@ export function IntakeHistoryEditable({
     setRowDeleteBusy(true);
     const id = pendingDeleteId;
     try {
-      const res = await fetch(`/api/medications/${medicationId}/intake/${id}`, {
-        method: "DELETE",
-      });
-      if (!res.ok) {
-        toast.error(t("medications.detail.intake.deleteRow.failed"));
-        return;
-      }
+      await apiDelete(`/api/medications/${medicationId}/intake/${id}`);
       await invalidateKeys(queryClient, medicationDependentKeys);
       toast.success(t("medications.detail.intake.deleteRow.toast"));
       setPendingDeleteId(null);

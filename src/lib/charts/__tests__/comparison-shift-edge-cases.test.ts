@@ -11,7 +11,7 @@ import {
  *
  * The basic shift suite (`comparison-shift.test.ts`) already pins the
  * happy path: integer-day forward shifts, value preservation, empty
- * input → empty output. This file pins the corner cases Marc flagged
+ * input → empty output. This file pins the corner cases the maintainer flagged
  * worry about, in particular:
  *
  *   1. DST transition days — the helper must NOT cross a calendar-day
@@ -26,7 +26,7 @@ import {
  *      so a future refactor can't silently change it.
  *   3. Insufficient prior-period data — the chart's empty-state copy
  *      reads "Comparison unavailable …" only when `hasComparisonData`
- *      is false. Per Marc's directive 2026-05-14 the placeholder is
+ *      is false. Per the maintainer's directive 2026-05-14 the placeholder is
  *      gone; the renderer just suppresses the overlay cleanly. The
  *      helper supports that by returning empty arrays for empty input.
  *   4. 60-days-of-data, asks for `vs Vorjahr` — the shift moves every

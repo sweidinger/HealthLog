@@ -23,6 +23,7 @@ import { Loader2, Sparkles } from "lucide-react";
 
 import { useTranslations, useFormatters } from "@/lib/i18n/context";
 import { queryKeys } from "@/lib/query-keys";
+import { apiGet } from "@/lib/api/api-fetch";
 import { helpfulRateColour } from "./_shared";
 
 interface CoachFeedbackBucket {
@@ -41,11 +42,6 @@ interface FeedbackSummary {
   coachBuckets?: CoachFeedbackBucket[];
 }
 
-interface CoachFeedbackResponse {
-  data: { summary: FeedbackSummary | null } | null;
-  error?: string | null;
-}
-
 export function CoachFeedbackSection() {
   const { t } = useTranslations();
   const fmt = useFormatters();
@@ -53,10 +49,10 @@ export function CoachFeedbackSection() {
   const query = useQuery({
     queryKey: queryKeys.adminCoachFeedback(),
     queryFn: async () => {
-      const res = await fetch("/api/admin/ai-quality");
-      const json = (await res.json()) as CoachFeedbackResponse;
-      if (!res.ok) throw new Error(json.error ?? "coach_feedback_failed");
-      return json.data?.summary ?? null;
+      const data = await apiGet<{ summary: FeedbackSummary | null } | null>(
+        "/api/admin/ai-quality",
+      );
+      return data?.summary ?? null;
     },
   });
 
@@ -69,7 +65,7 @@ export function CoachFeedbackSection() {
   // baseline stays at a constant Y-offset. Previously the loading branch
   // returned a thin flex-row stub and the error branch a p-4 alert with
   // NO heading, which made the entire section snap downward when the
-  // fetched data resolved — Marc reported the visible layout shift on
+  // fetched data resolved — the maintainer reported the visible layout shift on
   // /admin/coach-feedback. Mirrors the canonical structure used by
   // <SystemStatusSection> (header outside the fetch-state branch).
   return (

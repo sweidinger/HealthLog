@@ -25,7 +25,7 @@ import {
   type DailyBucket,
 } from "@/lib/insights/bucket-series";
 import { round, summarizeSeries } from "@/lib/insights/status-shared";
-import { getLocalDateParts } from "@/lib/timezone";
+import { wallClockInTz } from "@/lib/tz/wall-clock";
 import {
   computeMoodNarratives,
   type MoodNarrative,
@@ -1555,7 +1555,7 @@ export function computeTimeOfDayAverages(
   const sums = new Map<TimeOfDayBucket, { sum: number; count: number }>();
   for (const entry of entries) {
     const tz = entry.tz ?? "UTC";
-    const { hour } = getLocalDateParts(entry.moodLoggedAt, tz);
+    const { hour } = wallClockInTz(entry.moodLoggedAt, tz);
     const bucket = bucketForHour(hour);
     const cur = sums.get(bucket) ?? { sum: 0, count: 0 };
     cur.sum += entry.score;

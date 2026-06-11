@@ -12,6 +12,7 @@ import {
 import { useAuth } from "@/hooks/use-auth";
 import { useTranslations } from "@/lib/i18n/context";
 import { queryKeys } from "@/lib/query-keys";
+import { apiGet } from "@/lib/api/api-fetch";
 import { detectMeasurementDiversity } from "@/lib/insights/measurement-diversity";
 
 /**
@@ -67,13 +68,15 @@ export function MeasurementDiversityNudge({
       params.set("limit", String(WINDOW_SIZE));
       params.set("sortBy", "measuredAt");
       params.set("sortDir", "desc");
-      const res = await fetch(`/api/measurements?${params}`);
-      if (!res.ok) return [];
-      const json = await res.json();
-      const rows = (json.data?.measurements ?? []) as Array<{
-        measuredAt: string;
-      }>;
-      return rows.map((r) => r.measuredAt);
+      try {
+        const data = await apiGet<{
+          measurements?: Array<{ measuredAt: string }>;
+        }>(`/api/measurements?${params}`);
+        return (data?.measurements ?? []).map((r) => r.measuredAt);
+      } catch {
+        // Nudge is optional — degrade to "no data", as before.
+        return [];
+      }
     },
     enabled: isAuthenticated,
     // The pattern shifts slowly — a 5-minute cache keeps the nudge calm

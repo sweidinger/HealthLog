@@ -5,7 +5,7 @@
  * ledger: both run the SAME shared band minter so a take is bound to a slot
  * identically wherever it is decided. These tests pin the behaviour the audit
  * called out (HIGH-5: the ±6h snap fully gone) + the late-take force-attribute
- * guard (Marc's "diesem Slot zuordnen?" nudge):
+ * guard (the maintainer's "diesem Slot zuordnen?" nudge):
  *
  *   - on-time take      → its own slot anchor;
  *   - clearly off-window → ad-hoc (null), NOT the nearest snapped slot;
@@ -22,7 +22,7 @@ import {
   type AttributeIntakeMedication,
 } from "../attribute-intake";
 import type { WorkerScheduleRow } from "../worker-helpers";
-import { localHmAsUtc } from "@/lib/timezone";
+import { localHmAsUtc } from "@/lib/tz/local-day";
 
 const TZ = "Europe/Berlin";
 
@@ -65,7 +65,7 @@ function at(dayRef: Date, h: number, m: number): Date {
 
 const DAY = new Date("2026-06-08T12:00:00Z"); // CEST
 
-describe("attributeTakenToSlot — twice-daily 07:00 / 19:00 (Marc's case)", () => {
+describe("attributeTakenToSlot — twice-daily 07:00 / 19:00 (the maintainer's case)", () => {
   const m = med([schedule({ timesOfDay: ["07:00", "19:00"] })]);
 
   it("snaps an on-time morning take to the 07:00 slot", () => {

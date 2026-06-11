@@ -19,6 +19,7 @@ import {
 } from "@/lib/insights/trend-descriptor";
 import { cn } from "@/lib/utils";
 import { CONFIDENCE_BADGE_CLASS } from "./confidence-badge";
+import { apiGet } from "@/lib/api/api-fetch";
 
 /**
  * v1.4.20 phase B3 — single-sentence AI annotation rendered directly
@@ -276,10 +277,7 @@ export function TrendDescriptorCaption({
   const moodQuery = useQuery({
     queryKey: queryKeys.moodAnalytics(),
     queryFn: async () => {
-      const res = await fetch("/api/mood/analytics");
-      if (!res.ok) throw new Error("Failed to fetch mood analytics");
-      const json = await res.json();
-      return json.data as { entries: MoodAnalyticsRow[] };
+      return apiGet<{ entries: MoodAnalyticsRow[] }>("/api/mood/analytics");
     },
     enabled: isAuthenticated && isMood,
     staleTime: 60_000,
@@ -301,10 +299,10 @@ export function TrendDescriptorCaption({
         aggregate: "daily",
         source: "rollup",
       });
-      const res = await fetch(`/api/measurements?${params}`);
-      if (!res.ok) throw new Error("Failed to fetch measurement series");
-      const json = await res.json();
-      return (json.data?.measurements ?? []) as MeasurementApiRow[];
+      const data = await apiGet<{ measurements?: MeasurementApiRow[] }>(
+        `/api/measurements?${params}`,
+      );
+      return data?.measurements ?? [];
     },
     enabled: isAuthenticated && !isMood && primaryType.length > 0,
     staleTime: 60_000,

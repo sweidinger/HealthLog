@@ -334,7 +334,7 @@ describe("<HealthScoreCard>", () => {
   // (the provenance accordion) instead of clumping under the
   // disclaimer. Pin both the grid switch and the `1fr` slack row so
   // a future refactor can't silently revert to flex and re-introduce
-  // the "Karte hört bei der Trennlinie auf" Marc-reported bug.
+  // the "Karte hört bei der Trennlinie auf" maintainer-reported bug.
   it("uses a 7-row grid on the inner column so slack distributes on the accordion row", () => {
     const html = ssr(
       <HealthScoreCard

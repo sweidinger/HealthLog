@@ -15,7 +15,7 @@ import { toCSV } from "@/lib/export";
  * `createdAt` string, which Excel/LibreOffice misread once the `Z`
  * suffix was stripped. This test pins:
  *
- *   - The column order Marc requested:
+ *   - The column order the maintainer requested:
  *     `timestamp → user → IP → location → provider → outcome` (email
  *     is absent from the audit-log API so it's intentionally skipped)
  *     followed by `action` + `details` for triage completeness.
@@ -80,7 +80,7 @@ function deterministicFormatter(iso: string): string {
 }
 
 describe("buildAuditLogCsvRecords", () => {
-  it("emits Marc's column order: timestamp → user → ip → location → provider → outcome (+ action, details)", () => {
+  it("emits the maintainer's column order: timestamp → user → ip → location → provider → outcome (+ action, details)", () => {
     const entries: AuditCsvEntry[] = [
       {
         createdAt: "2026-05-11T09:05:00.000Z",
@@ -88,7 +88,7 @@ describe("buildAuditLogCsvRecords", () => {
         ipAddress: "203.0.113.7",
         location: "Berlin, DE",
         details: null,
-        user: { id: "u1", username: "marc" },
+        user: { id: "u1", username: "testuser" },
       },
     ];
     const [record] = buildAuditLogCsvRecords(
@@ -119,7 +119,7 @@ describe("buildAuditLogCsvRecords", () => {
         ipAddress: null,
         location: null,
         details: null,
-        user: { id: "u1", username: "marc" },
+        user: { id: "u1", username: "testuser" },
       },
       {
         createdAt: "2026-05-11T09:06:00.000Z",
@@ -220,7 +220,7 @@ describe("toCSV(records, headerLabels) — audit-log integration", () => {
         ipAddress: "203.0.113.7",
         location: "Berlin, DE",
         details: null,
-        user: { id: "u1", username: "marc" },
+        user: { id: "u1", username: "testuser" },
       },
     ];
     const records = buildAuditLogCsvRecords(
@@ -234,12 +234,12 @@ describe("toCSV(records, headerLabels) — audit-log integration", () => {
       "Zeitpunkt,Benutzer,IP,Standort,Mobilfunkanbieter,Anbieter,Ergebnis,Aktion,Details",
     );
     expect(lines[1]).toBe(
-      '2026-05-11T09:05:00+00:00,marc,203.0.113.7,"Berlin, DE",,Passkey,Erfolgreich,auth.login.passkey,',
+      '2026-05-11T09:05:00+00:00,testuser,203.0.113.7,"Berlin, DE",,Passkey,Erfolgreich,auth.login.passkey,',
     );
   });
 
   it("folds the GeoLite2 organisation string to the short DACH carrier label", () => {
-    // Marc's spec: the verbose MMDB org strings get a glanceable chip.
+    // The maintainer's spec: the verbose MMDB org strings get a glanceable chip.
     // The CSV column carries the same folded text so a downstream
     // spreadsheet matches what the admin overview screen renders.
     const entries: AuditCsvEntry[] = [
@@ -251,7 +251,7 @@ describe("toCSV(records, headerLabels) — audit-log integration", () => {
         carrier: "Deutsche Telekom AG",
         asn: 3320,
         details: null,
-        user: { id: "u1", username: "marc" },
+        user: { id: "u1", username: "testuser" },
       },
       {
         createdAt: "2026-05-11T09:06:00.000Z",
@@ -261,7 +261,7 @@ describe("toCSV(records, headerLabels) — audit-log integration", () => {
         carrier: "Vodafone GmbH",
         asn: 3209,
         details: null,
-        user: { id: "u2", username: "marc" },
+        user: { id: "u2", username: "testuser" },
       },
       {
         createdAt: "2026-05-11T09:07:00.000Z",
@@ -271,7 +271,7 @@ describe("toCSV(records, headerLabels) — audit-log integration", () => {
         carrier: "1&1 Versatel GmbH",
         asn: 8881,
         details: null,
-        user: { id: "u3", username: "marc" },
+        user: { id: "u3", username: "testuser" },
       },
       {
         createdAt: "2026-05-11T09:08:00.000Z",
@@ -281,7 +281,7 @@ describe("toCSV(records, headerLabels) — audit-log integration", () => {
         carrier: "Telefónica Germany GmbH & Co. OHG",
         asn: 6805,
         details: null,
-        user: { id: "u4", username: "marc" },
+        user: { id: "u4", username: "testuser" },
       },
       {
         createdAt: "2026-05-11T09:09:00.000Z",
@@ -291,7 +291,7 @@ describe("toCSV(records, headerLabels) — audit-log integration", () => {
         carrier: "Google LLC",
         asn: 15169,
         details: null,
-        user: { id: "u5", username: "marc" },
+        user: { id: "u5", username: "testuser" },
       },
     ];
     const records = buildAuditLogCsvRecords(

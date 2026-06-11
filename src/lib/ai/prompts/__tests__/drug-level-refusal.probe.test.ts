@@ -169,7 +169,7 @@ describe("drug-level refusal — Coach system prompt embeds the rule body", () =
   for (const locale of SAFETY_CONTRACT_LOCALES) {
     it(`${locale} Coach system prompt contains the drug-level refusal pattern + MDR cite`, () => {
       const prompt = assembleCoachContext(locale);
-      // The prompt must reference the regulatory ids verbatim — Marc's
+      // The prompt must reference the regulatory ids verbatim — the maintainer's
       // dialog copy already exposes these to the user, so the Coach
       // can cite them without paraphrasing.
       expect(prompt).toContain("EU 2017/745");

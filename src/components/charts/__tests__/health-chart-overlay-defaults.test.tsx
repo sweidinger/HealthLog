@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 /**
  * v1.4.18 — Default overlay state on chart wrappers.
  *
- * the maintainer rejected the always-on personal-baseline reference line that B1a
+ * The maintainer rejected the always-on personal-baseline reference line that B1a
  * painted on every chart. The default surface for a new chart should be
  * a clean line + axes + tooltip — no baseline, no target-zone shading,
  * no trend line. Overlays are user-opt-in via the per-chart settings

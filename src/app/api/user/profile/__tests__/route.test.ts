@@ -34,7 +34,7 @@ import { getSession } from "@/lib/auth/session";
 
 const SESSION_OK = {
   session: { id: "sess-1", expiresAt: new Date(Date.now() + 3_600_000) },
-  user: { id: "user-1", username: "marc", role: "USER" as const },
+  user: { id: "user-1", username: "testuser", role: "USER" as const },
 };
 
 beforeEach(() => {
@@ -56,9 +56,9 @@ describe("GET /api/user/profile", () => {
   it("returns flattened iOS-style fields", async () => {
     vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
     vi.mocked(prisma.user.findUnique).mockResolvedValue({
-      username: "marc",
+      username: "testuser",
       displayName: "Alex T.",
-      email: "marc@example.com",
+      email: "user@example.com",
       dateOfBirth: new Date("1985-03-12T00:00:00.000Z"),
       gender: "MALE",
       heightCm: 180,
@@ -76,7 +76,7 @@ describe("GET /api/user/profile", () => {
         locale: string | null;
       };
     };
-    expect(body.data.username).toBe("marc");
+    expect(body.data.username).toBe("testuser");
     expect(body.data.displayName).toBe("Alex T.");
     expect(body.data.heightCm).toBe(180);
     expect(body.data.locale).toBe("de");
@@ -85,7 +85,7 @@ describe("GET /api/user/profile", () => {
   it("echoes the insurer IK number on GET", async () => {
     vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
     vi.mocked(prisma.user.findUnique).mockResolvedValue({
-      username: "marc",
+      username: "testuser",
       displayName: null,
       email: null,
       dateOfBirth: null,
@@ -136,7 +136,7 @@ describe("PATCH /api/user/profile", () => {
     vi.mocked(prisma.user.findUnique).mockResolvedValue(null);
     vi.mocked(prisma.user.update).mockResolvedValue({
       id: "user-1",
-      username: "marc",
+      username: "testuser",
       displayName: "Alex T.",
       email: null,
       role: "USER",
@@ -165,7 +165,7 @@ describe("PATCH /api/user/profile", () => {
     vi.mocked(prisma.user.findUnique).mockResolvedValue(null);
     vi.mocked(prisma.user.update).mockResolvedValue({
       id: "user-1",
-      username: "marc",
+      username: "testuser",
       displayName: null,
       email: null,
       role: "USER",
@@ -209,7 +209,7 @@ describe("PATCH /api/user/profile", () => {
     vi.mocked(prisma.user.findUnique).mockResolvedValue(null);
     vi.mocked(prisma.user.update).mockResolvedValue({
       id: "user-1",
-      username: "marc",
+      username: "testuser",
       displayName: null,
       email: null,
       role: "USER",

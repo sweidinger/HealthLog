@@ -95,6 +95,7 @@ import {
   MoodFactorMetricCrosstab,
   type MoodFactorMetricCrosstabRow,
 } from "./mood-factor-metric-crosstab";
+import { apiGet } from "@/lib/api/api-fetch";
 
 /**
  * v1.8.5 — additional Mood Insights sections.
@@ -193,10 +194,7 @@ export function MoodInsightsSections({
   const { data, isLoading } = useQuery({
     queryKey: queryKeys.moodInsights(),
     queryFn: async () => {
-      const res = await fetch("/api/mood/insights");
-      if (!res.ok) throw new Error("Failed");
-      const json = await res.json();
-      return json.data as MoodInsightsResponse;
+      return apiGet<MoodInsightsResponse>("/api/mood/insights");
     },
     enabled: isAuthenticated,
     staleTime: 60_000,

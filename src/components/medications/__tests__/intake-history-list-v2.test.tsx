@@ -148,7 +148,7 @@ describe("<IntakeHistoryListV2> — populated rows", () => {
   });
 
   it("renders the taken row with a green Check chip and the skipped row with an outline SkipForward chip", () => {
-    // v1.4.37 W3 — guards the regression Marc reported on 2026-05-17:
+    // v1.4.37 W3 — guards the regression the maintainer reported on 2026-05-17:
     // before the fix, every row used the same secondary badge with the
     // "Eingenommen" label regardless of skipped status. The chip must
     // surface a distinct icon + label per branch and never label a
@@ -198,7 +198,7 @@ describe("<IntakeHistoryListV2> — populated rows", () => {
   });
 
   it("renders the skipped chip in German without leaking the Eingenommen label", () => {
-    // v1.4.37 W3 — UAT echo. Marc reported a German row labelled
+    // v1.4.37 W3 — UAT echo. The maintainer reported a German row labelled
     // both "übersprungen" and "eingenommen". The fix means a
     // skipped-only fixture renders "Übersprungen" exactly once and
     // "Eingenommen" zero times.

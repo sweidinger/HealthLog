@@ -271,7 +271,7 @@ export function HealthScoreCard({
           accordion) instead of clumping under the disclaimer. The
           score number stays anchored at the top, the disclaimer at
           the bottom, and the card fills the row down to the
-          "Wirkt mein Medikament?" chip — closing Marc's "Karte hört
+          "Wirkt mein Medikament?" chip — closing the maintainer's "Karte hört
           bei der Trennlinie auf" report against v1.4.36. */}
       <div className="grid flex-1 grid-rows-[auto_auto_auto_auto_auto_1fr_auto] gap-3.5">
         <div className="flex items-center justify-between gap-2">

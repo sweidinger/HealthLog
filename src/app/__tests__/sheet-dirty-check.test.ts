@@ -17,7 +17,7 @@
  * convention (cf. the SSR-string tests elsewhere).
  */
 import { afterEach, describe, expect, it } from "vitest";
-import { sheetBodyHasUnsavedInput } from "../page";
+import { sheetBodyHasUnsavedInput } from "@/components/dashboard/quick-entry-sheets";
 
 const BODY_SELECTOR = '[data-slot="responsive-sheet-body"]';
 const MOOD_RADIO_SELECTOR = '[role="radio"][aria-checked="true"]';

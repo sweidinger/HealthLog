@@ -10,6 +10,7 @@ import { Switch } from "@/components/ui/switch";
 import { SettingsCardHeader } from "@/components/settings/_card-header";
 import { useTranslations } from "@/lib/i18n/context";
 import { queryKeys } from "@/lib/query-keys";
+import { apiGet, apiPatch } from "@/lib/api/api-fetch";
 
 /**
  * v1.15.0 — the cycle-tracking enable on-ramp.
@@ -39,21 +40,13 @@ export function CycleTrackingCard({
     queryKey: queryKeys.cyclePrefs(),
     enabled: isAuthenticated,
     queryFn: async () => {
-      const res = await fetch("/api/auth/me/cycle-prefs");
-      if (!res.ok) throw new Error(`Request failed: ${res.status}`);
-      return (await res.json()).data as CyclePrefsShape;
+      return apiGet<CyclePrefsShape>("/api/auth/me/cycle-prefs");
     },
   });
 
   const toggle = useMutation({
     mutationFn: async (enabled: boolean) => {
-      const res = await fetch("/api/auth/me/cycle-prefs", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ enabled }),
-      });
-      if (!res.ok) throw new Error(`Request failed: ${res.status}`);
-      return (await res.json()).data as CyclePrefsShape;
+      return apiPatch<CyclePrefsShape>("/api/auth/me/cycle-prefs", { enabled });
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: queryKeys.cyclePrefs() });

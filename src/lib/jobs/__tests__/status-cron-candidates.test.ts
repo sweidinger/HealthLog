@@ -190,9 +190,7 @@ describe("mood-status queue registration (dead-queue guard)", () => {
     expect(workerSrc).toMatch(
       /\[\s*MOOD_STATUS_QUEUE\s*,\s*MOOD_STATUS_CRON\s*,\s*insightRetryOptions\s*\]/,
     );
-    expect(workerSrc).toMatch(
-      /MOOD_STATUS_CRON\s*=\s*"30 2 \* \* \*"/,
-    );
+    expect(workerSrc).toMatch(/MOOD_STATUS_CRON\s*=\s*"30 2 \* \* \*"/);
   });
 
   it("registers a boss.work handler for the queue", () => {
@@ -200,12 +198,16 @@ describe("mood-status queue registration (dead-queue guard)", () => {
   });
 
   it("drives all seven status crons through the shared discovery", () => {
-    expect(workerSrc).toMatch(/findStatusCronCandidates\(prisma\)/);
+    const statusSrc = fs.readFileSync(
+      path.resolve(__dirname, "../reminder/insights-handlers.ts"),
+      "utf8",
+    );
+    expect(statusSrc).toMatch(/findStatusCronCandidates\(prisma\)/);
     // The old iterate-every-user discovery must be gone from the status
     // handlers (the WHOOP/data-backup cohort reads keep their own scans).
-    const statusBlock = workerSrc.slice(
-      workerSrc.indexOf("async function runStatusCronGenerate"),
-      workerSrc.indexOf("async function handleMoodLogSync"),
+    const statusBlock = statusSrc.slice(
+      statusSrc.indexOf("async function runStatusCronGenerate"),
+      statusSrc.indexOf("async function handleInsightPregenerateJob"),
     );
     expect(statusBlock).not.toMatch(/prisma\.user\.findMany/);
   });

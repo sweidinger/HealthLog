@@ -1,5 +1,5 @@
 /**
- * v1.15.18 — per-dose configurable on-time WINDOW helpers (Marc's
+ * v1.15.18 — per-dose configurable on-time WINDOW helpers (the maintainer's
  * headline lever).
  *
  * A dose time can be expressed two ways:

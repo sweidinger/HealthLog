@@ -58,7 +58,7 @@ vi.mock("next/navigation", () => ({
 
 vi.mock("@/hooks/use-auth", () => ({
   useAuth: () => ({
-    user: { id: "u1", username: "marc", role: "USER" },
+    user: { id: "u1", username: "testuser", role: "USER" },
     isAuthenticated: true,
     isLoading: false,
   }),

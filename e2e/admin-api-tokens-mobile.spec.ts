@@ -5,7 +5,7 @@ import { STORAGE_STATE_PATH } from "./setup/global-setup";
 /**
  * v1.4.16 A3 — `/admin/api-tokens` must not produce horizontal page
  * overflow on a Pixel-5 viewport (393 CSS px). v1.4.15 added column-
- * hide breakpoints + tighter card padding, but Marc still saw a
+ * hide breakpoints + tighter card padding, but the maintainer still saw a
  * scrollbar on prod. The v1.4.16 fix swaps the desktop `<table>` for a
  * mobile card-list at <md, mirroring `<UserManagementSection>`.
  *
@@ -23,7 +23,7 @@ test.describe("/admin/api-tokens mobile no-overflow", () => {
   }) => {
     // Mock the admin tokens endpoint with a moderately wide payload —
     // a token with multiple permissions, a long name, and timestamps.
-    // This is the realistic worst case Marc hit on prod.
+    // This is the realistic worst case the maintainer hit on prod.
     await page.route("**/api/admin/tokens", (route) =>
       route.fulfill({
         status: 200,
@@ -38,7 +38,7 @@ test.describe("/admin/api-tokens mobile no-overflow", () => {
               expiresAt: null,
               createdAt: "2026-05-01T08:00:00Z",
               revoked: false,
-              user: { id: "u1", username: "marc-the-very-long-username" },
+              user: { id: "u1", username: "user-the-very-long-username" },
             },
             {
               id: "tok2",
@@ -48,7 +48,7 @@ test.describe("/admin/api-tokens mobile no-overflow", () => {
               expiresAt: "2026-08-01T00:00:00Z",
               createdAt: "2026-04-15T08:00:00Z",
               revoked: false,
-              user: { id: "u1", username: "marc-the-very-long-username" },
+              user: { id: "u1", username: "user-the-very-long-username" },
             },
           ],
           error: null,
@@ -76,7 +76,7 @@ test.describe("/admin/api-tokens mobile no-overflow", () => {
   });
 
   // v1.4.18 phase A2 — production probe at Pixel-5 viewport pinned the
-  // visible "scrollbar" Marc reported for the third time as the
+  // visible "scrollbar" the maintainer reported for the third time as the
   // `<AdminShell>` mobile section strip, NOT the api-tokens table. The
   // strip carries 13 admin sections so its scrollWidth (~1700 CSS px)
   // permanently exceeds clientWidth (~360 CSS px). Adding the
@@ -120,7 +120,7 @@ test.describe("/admin/api-tokens mobile no-overflow", () => {
   });
 
   // v1.4.19 phase A7 (4th attempt) — even with the mobile-strip
-  // `no-scrollbar` fix from v1.4.18, Marc still reported a painted
+  // `no-scrollbar` fix from v1.4.18, the maintainer still reported a painted
   // scrollbar. The card body itself must not contribute any
   // horizontal-overflow culprit: every element inside the api-tokens
   // section must satisfy `scrollWidth <= clientWidth + 1`. Pads with
@@ -149,7 +149,7 @@ test.describe("/admin/api-tokens mobile no-overflow", () => {
               revoked: false,
               user: {
                 id: "u1",
-                username: "marc-the-very-long-username-that-overflows",
+                username: "user-the-very-long-username-that-overflows",
               },
             },
           ],
@@ -166,7 +166,7 @@ test.describe("/admin/api-tokens mobile no-overflow", () => {
 
     // Walk every element inside the mobile card-list and assert no
     // child has a wider scrollWidth than its container. This is the
-    // Pixel-5 worst-case Marc kept hitting.
+    // Pixel-5 worst-case the maintainer kept hitting.
     //
     // Elements clamped via `truncate` (Tailwind's `overflow:hidden +
     // text-overflow:ellipsis + white-space:nowrap` shorthand) are by

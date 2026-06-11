@@ -1570,6 +1570,11 @@ model MedicationIntakeEvent {
   /// is the only surface that writes this column). Existing rows stay
   /// NULL forever and the read paths treat NULL as "no site recorded".
   injectionSite  InjectionSite? @map("injection_site")
+  /// v1.16.4 — per-intake dose override. Free text (mirrors
+  /// `Medication.dose`), populated only when the user edits the dose at
+  /// log time (half tablet, titration day). NULL = the configured
+  /// medication / schedule dose applies; read paths fall back to it.
+  doseTaken      String?        @map("dose_taken")
   // v1.7.0 sync — server-set mutation timestamp. The model had no
   // `updatedAt`; the offline-sync keyset feed orders on it, so it is
   // added here. `@updatedAt` makes Prisma maintain it on every write.

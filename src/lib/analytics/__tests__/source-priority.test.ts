@@ -41,7 +41,7 @@ describe("pickCanonicalSourceRows — single-axis cumulative-metric picker", () 
   });
 
   it("picks APPLE_HEALTH over WITHINGS for cumulative steps (default priority)", () => {
-    // The Marc-directive default for cumulative metrics puts iOS first
+    // The maintainer-directive default for cumulative metrics puts iOS first
     // because HealthKit aggregates ScanWatch + iPhone sensors.
     const rows = [
       // Same day, both sources reported — naïvely summing would

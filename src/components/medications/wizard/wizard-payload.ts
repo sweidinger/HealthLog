@@ -91,7 +91,7 @@ export type WizardTreatmentRow =
   | "other";
 
 /**
- * The ten taxonomy rows in their visible order. Marc-confirmed (D-1
+ * The ten taxonomy rows in their visible order. maintainer-confirmed (D-1
  * §3 Step 2): Blutdruck · Diabetes · Hormone · GLP-1-Injektion ·
  * Schmerz · Allergie · Vitamine · Nahrungsergänzung · Antibiotikum ·
  * Sonstiges.
@@ -833,6 +833,11 @@ function cadenceLineFor(
 export function summariseCadence(
   payload: WizardPayload,
   t: (key: string, params?: Record<string, string | number>) => string,
+  // v1.16.4 — UI callers pass `useFormatters().date` so the course-window
+  // dates render in the active locale ("11.06.2026" / "Jun 11, 2026")
+  // instead of the raw ISO string. The ISO default keeps the helper pure
+  // for non-React callers.
+  formatDate: (d: Date) => string = dateToIsoString,
 ): string {
   const cadenceLine = cadenceLineFor(payload, t);
   const timesPhrase =
@@ -843,7 +848,7 @@ export function summariseCadence(
       : "";
   const startPhrase = payload.startsOn
     ? t("medications.wizard.summary.startsOn", {
-        date: dateToIsoString(payload.startsOn),
+        date: formatDate(payload.startsOn),
       })
     : "";
   const endPhrase =
@@ -851,7 +856,7 @@ export function summariseCadence(
       ? ""
       : payload.endsOn
         ? t("medications.wizard.summary.endsOn", {
-            date: dateToIsoString(payload.endsOn),
+            date: formatDate(payload.endsOn),
           })
         : t("medications.wizard.summary.noEndDate");
   return [cadenceLine, timesPhrase, startPhrase, endPhrase]

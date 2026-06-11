@@ -51,6 +51,7 @@ import {
   medicationDependentKeys,
   queryKeys,
 } from "@/lib/query-keys";
+import { apiDelete, apiPut } from "@/lib/api/api-fetch";
 
 const PAUSE_SWITCH_ID = "medication-detail-pause-switch";
 const PAUSE_TITLE_ID = "medication-detail-pause-title";
@@ -87,16 +88,7 @@ export function LifecycleManageBody({
     try {
       // v1.5.5 C-E3-2 — body carries `{ active }` only; server derives
       // pausedAt. No client-side pausedAt literal.
-      const res = await fetch(`/api/medications/${medicationId}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ active: !pauseNext }),
-      });
-      if (!res.ok) {
-        setPaused(previous);
-        toast.error(t("medications.detail.zone.pause.failed"));
-        return;
-      }
+      await apiPut(`/api/medications/${medicationId}`, { active: !pauseNext });
       await invalidateKeys(queryClient, medicationDependentKeys);
       toast.success(
         pauseNext
@@ -117,15 +109,7 @@ export function LifecycleManageBody({
     setTier2Busy(true);
     try {
       const today = new Date().toISOString();
-      const res = await fetch(`/api/medications/${medicationId}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ endsOn: today }),
-      });
-      if (!res.ok) {
-        toast.error(t("medications.detail.zone.end.failed"));
-        return;
-      }
+      await apiPut(`/api/medications/${medicationId}`, { endsOn: today });
       await invalidateKeys(queryClient, medicationDependentKeys);
       toast.success(t("medications.detail.zone.end.toast"));
       setEndDialogOpen(false);
@@ -261,13 +245,7 @@ export function DangerZoneBody({
     if (tier3aBusy) return;
     setTier3aBusy(true);
     try {
-      const res = await fetch(`/api/medications/${medicationId}/intake/purge`, {
-        method: "DELETE",
-      });
-      if (!res.ok) {
-        toast.error(t("medications.detail.zone.purge.failed"));
-        return;
-      }
+      await apiDelete(`/api/medications/${medicationId}/intake/purge`);
       await invalidateKeys(queryClient, medicationDependentKeys);
       toast.success(t("medications.detail.zone.purge.toast"));
       setPurgeDialogOpen(false);
@@ -283,14 +261,7 @@ export function DangerZoneBody({
     if (tier3bBusy) return;
     setTier3bBusy(true);
     try {
-      const res = await fetch(`/api/medications/${medicationId}`, {
-        method: "DELETE",
-      });
-      if (!res.ok) {
-        toast.error(t("medications.detail.zone.delete.failed"));
-        setTier3bBusy(false);
-        return;
-      }
+      await apiDelete(`/api/medications/${medicationId}`);
       // Drop the deleted medication's own detail query before the
       // prefix-invalidate below. `medicationDependentKeys` carries
       // `["medications"]`, which covers the active `["medications", id]`

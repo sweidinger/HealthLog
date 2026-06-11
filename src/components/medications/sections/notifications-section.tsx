@@ -34,6 +34,7 @@ import {
   medicationDependentKeys,
   queryKeys,
 } from "@/lib/query-keys";
+import { apiGet, apiPut } from "@/lib/api/api-fetch";
 
 export interface NotificationsSectionProps {
   medicationId: string;
@@ -103,9 +104,7 @@ export function NotificationsBody({
   const { data: status } = useQuery<NotificationStatusResponse>({
     queryKey: queryKeys.notificationsStatus(),
     queryFn: async () => {
-      const res = await fetch("/api/notifications/status");
-      if (!res.ok) throw new Error("status_failed");
-      return (await res.json()).data as NotificationStatusResponse;
+      return apiGet<NotificationStatusResponse>("/api/notifications/status");
     },
     enabled: isAuthenticated,
     staleTime: 60_000,
@@ -114,9 +113,7 @@ export function NotificationsBody({
   const { data: prefs } = useQuery<UserPrefsResponse>({
     queryKey: queryKeys.authMe(),
     queryFn: async () => {
-      const res = await fetch("/api/auth/me");
-      if (!res.ok) throw new Error("auth_failed");
-      return (await res.json()).data as UserPrefsResponse;
+      return apiGet<UserPrefsResponse>("/api/auth/me");
     },
     enabled: isAuthenticated,
     staleTime: 60_000,
@@ -131,16 +128,9 @@ export function NotificationsBody({
     const previous = localEnabled;
     setLocalEnabled(next);
     try {
-      const res = await fetch(`/api/medications/${medicationId}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ notificationsEnabled: next }),
+      await apiPut(`/api/medications/${medicationId}`, {
+        notificationsEnabled: next,
       });
-      if (!res.ok) {
-        setLocalEnabled(previous);
-        toast.error(t("medications.detail.notifications.toggleFailed"));
-        return;
-      }
       await invalidateKeys(queryClient, medicationDependentKeys);
       toast.success(
         next

@@ -119,7 +119,7 @@ export function formatDateOrRelative(
   // in the v1.4.43 sweep, so the bare `t("insights.relativeMinutesAgo",
   // { count })` and `t("insights.relativeHoursAgo", { count })` calls
   // returned the key itself — the translation bundle only carries the
-  // pluralised `*One` / `*Other` variants. Reported by Marc as raw
+  // pluralised `*One` / `*Other` variants. Reported by the maintainer as raw
   // `insights.relativeHoursAgo` leaking onto medication cards, recent-
   // achievements, admin sections, and every other consumer of
   // `formatDateOrRelative`.

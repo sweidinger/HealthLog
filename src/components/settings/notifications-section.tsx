@@ -13,6 +13,7 @@ import { NotificationStatusCard } from "@/components/settings/notification-statu
 import { NtfyCard } from "@/components/settings/ntfy-card";
 import { TelegramCard } from "@/components/settings/telegram-card";
 import { WebPushCard } from "@/components/settings/web-push-card";
+import { apiGet } from "@/lib/api/api-fetch";
 
 interface GlobalServiceAvailability {
   telegramGlobal: boolean;
@@ -29,9 +30,7 @@ export function NotificationsSection() {
   const { data: globalServices } = useQuery({
     queryKey: queryKeys.settingsGlobalServices(),
     queryFn: async () => {
-      const res = await fetch("/api/settings/global-services");
-      if (!res.ok) throw new Error("Failed");
-      return (await res.json()).data as GlobalServiceAvailability;
+      return apiGet<GlobalServiceAvailability>("/api/settings/global-services");
     },
     enabled: isAuthenticated,
   });

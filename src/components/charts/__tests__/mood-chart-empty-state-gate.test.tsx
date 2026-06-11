@@ -1,5 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
+// vi.doMock below invalidates the module registry, so the re-imported
+// provider gets a fresh (unprimed) locale cache — pass the DE bundle
+// explicitly instead of relying on the vitest.setup.ts seeding.
+import deMessages from "../../../../messages/de.json";
 
 /**
  * v1.4.43 W2-CHART-GATE — mood-chart empty-state copy split.
@@ -49,7 +53,7 @@ describe("<MoodChart> — empty-state gate by raw count", () => {
     const { MoodChart } = await import("../mood-chart");
 
     const html = renderToStaticMarkup(
-      <I18nProvider initialLocale="de">
+      <I18nProvider initialLocale="de" initialMessages={deMessages}>
         <MoodChart />
       </I18nProvider>,
     );
@@ -81,7 +85,7 @@ describe("<MoodChart> — empty-state gate by raw count", () => {
     const { MoodChart } = await import("../mood-chart");
 
     const html = renderToStaticMarkup(
-      <I18nProvider initialLocale="de">
+      <I18nProvider initialLocale="de" initialMessages={deMessages}>
         <MoodChart />
       </I18nProvider>,
     );

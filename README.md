@@ -22,7 +22,7 @@
   <a href="https://testflight.apple.com/join/bucuTBpa">iOS TestFlight</a>
 </p>
 
-<img width="2316" height="1207" alt="HealthLog dashboard: health metric tiles, trend charts, and medication overview" src="https://github.com/user-attachments/assets/aac0931d-5ea2-45b8-9a12-5f2f013d19e5" />
+<img width="2560" height="1600" alt="HealthLog dashboard: health metric tiles with 7-day trends and a weight chart, dark theme" src="docs/assets/dashboard-hero.png" />
 
 ## Why HealthLog
 

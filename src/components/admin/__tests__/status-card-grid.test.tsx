@@ -37,8 +37,8 @@ vi.mock("@/hooks/use-auth", () => ({
   useAuth: () => ({
     user: {
       id: "u1",
-      username: "marc",
-      email: "marc@example.com",
+      username: "testuser",
+      email: "user@example.com",
       role: "ADMIN",
     },
     isAuthenticated: true,
@@ -74,8 +74,8 @@ describe("/admin overview composition", () => {
   it("renders the welcome card with the admin's username", () => {
     const html = render(<AdminOverviewPage />);
     // `welcomeTitle` interpolates the username; the mocked auth hook
-    // returns "marc".
-    expect(html).toContain("Welcome, marc");
+    // returns "testuser".
+    expect(html).toContain("Welcome, testuser");
     expect(html).toContain("admin-overview-welcome-heading");
   });
 

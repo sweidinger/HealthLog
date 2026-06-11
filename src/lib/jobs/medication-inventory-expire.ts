@@ -12,7 +12,7 @@
  * user explicitly deletes it or marks it USED_UP.
  *
  * Notification surface: opt-in only. The W19b scope deliberately
- * leaves the push notification disabled by default — Marc directive
+ * leaves the push notification disabled by default — the maintainer directive
  * "notifications saturate the lock screen on first sync" applies
  * here too. Users opt in via Settings → Notifications (a future
  * preference toggle); until then the job is silent and the user
