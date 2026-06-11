@@ -180,7 +180,7 @@ export const POST = apiHandler(
       meta: { deleted_count: count, day_buckets: dayKeysToRefresh.size },
     });
 
-    invalidateUserMedications(user.id);
+    invalidateUserMedications(user.id, { evict: true });
 
     return apiSuccess({ deleted: count });
   },

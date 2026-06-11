@@ -213,6 +213,57 @@ describe("invalidateUserMedications", () => {
       caches.medicationCompliance.get(`${USER_B}|med-1|compliance`),
     ).not.toBeNull();
   });
+
+  it("marks the SWR buckets stale by default — background sync posture", async () => {
+    await primeAllCaches();
+    invalidateUserMedications(USER_A);
+
+    // v1.16.8 — the default (bulk sync / cron) path marks stale: the
+    // entries are gone for plain `get()` (asserted above) but stay
+    // serveable for the `cachedSwr` readers (medications list, both
+    // compliance routes, the dashboard snapshot), so a high-frequency
+    // iOS sync never busts every card into an inline cold rebuild.
+    expect(caches.medications.getAllowStale(USER_A)).toEqual({
+      value: { m: 1 },
+      stale: true,
+    });
+    expect(
+      caches.medicationCompliance.getAllowStale(`${USER_A}|med-1|compliance`),
+    ).toEqual({ value: { mc: 1 }, stale: true });
+    expect(
+      caches.analytics.getAllowStale(dashboardSnapshotCacheKey(USER_A)),
+    ).toEqual({ value: { snap: 1 }, stale: true });
+
+    // User B stays fresh.
+    expect(caches.medications.getAllowStale(USER_B)).toEqual({
+      value: { m: 2 },
+      stale: false,
+    });
+  });
+
+  it("hard-evicts the SWR buckets with { evict: true } — interactive write posture", async () => {
+    await primeAllCaches();
+    invalidateUserMedications(USER_A, { evict: true });
+
+    // v1.16.8 — an interactive take / skip / CRUD write must NOT leave a
+    // stale-serveable body behind: the SWR readers would hand the user
+    // back the pre-write card rates. The evict drops the entries.
+    expect(caches.medications.getAllowStale(USER_A)).toBeNull();
+    expect(
+      caches.medicationCompliance.getAllowStale(`${USER_A}|med-1|compliance`),
+    ).toBeNull();
+    expect(
+      caches.analytics.getAllowStale(dashboardSnapshotCacheKey(USER_A)),
+    ).toBeNull();
+
+    // User B stays warm; the non-SWR buckets evict as before.
+    expect(caches.medications.getAllowStale(USER_B)).not.toBeNull();
+    expect(
+      caches.medicationCompliance.getAllowStale(`${USER_B}|med-1|compliance`),
+    ).not.toBeNull();
+    expect(caches.medicationsIntake.get(`${USER_A}|compliance|30`)).toBeNull();
+    expect(caches.achievements.get(USER_A)).toBeNull();
+  });
 });
 
 describe("invalidateUserDashboardWidgets", () => {

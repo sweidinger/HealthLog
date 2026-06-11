@@ -12,7 +12,34 @@
  * lookup.
  */
 
+import { getDateTimeFormat } from "./intl-cache";
+
 export const DEFAULT_TIMEZONE = "Europe/Berlin";
+
+/**
+ * Hoisted option constants so the formatter memo's WeakMap signature
+ * lookup hits the same object identity on every call — see
+ * `./intl-cache`. `WALL_CLOCK_PARTS_OPTIONS` is shared by
+ * `wallClockParts` AND `tzOffsetMinutes`, so both resolve to the SAME
+ * memoised formatter per timezone.
+ */
+const VALIDATION_OPTIONS: Omit<Intl.DateTimeFormatOptions, "timeZone"> = {};
+
+const HOUR_MINUTE_OPTIONS: Omit<Intl.DateTimeFormatOptions, "timeZone"> = {
+  hour: "2-digit",
+  minute: "2-digit",
+  hour12: false,
+};
+
+const WALL_CLOCK_PARTS_OPTIONS: Omit<Intl.DateTimeFormatOptions, "timeZone"> = {
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+  hour: "2-digit",
+  minute: "2-digit",
+  second: "2-digit",
+  hour12: false,
+};
 
 /**
  * Validate a timezone string by asking `Intl.DateTimeFormat` to use it.
@@ -24,7 +51,10 @@ export function isValidTimezone(tz: string): boolean {
     return false;
   }
   try {
-    new Intl.DateTimeFormat("en-US", { timeZone: tz });
+    // The memo only caches successful constructions, so probing an
+    // invalid zone through it cannot poison the formatter map — and a
+    // valid zone leaves its formatter warm for the real callers.
+    getDateTimeFormat("en-US", tz, VALIDATION_OPTIONS);
     return true;
   } catch {
     return false;
@@ -133,12 +163,9 @@ export function formatInUserTz(
     case "iso-with-offset":
       return formatIsoWithOffset(date, safeTz);
     case "wall-clock":
-      return new Intl.DateTimeFormat("en-GB", {
-        timeZone: safeTz,
-        hour: "2-digit",
-        minute: "2-digit",
-        hour12: false,
-      }).format(date);
+      return getDateTimeFormat("en-GB", safeTz, HOUR_MINUTE_OPTIONS).format(
+        date,
+      );
     case "datetime": {
       const parts = wallClockParts(date, safeTz);
       return `${parts.year}-${parts.month}-${parts.day} ${parts.hour}:${parts.minute}`;
@@ -171,16 +198,7 @@ interface WallClockParts {
 }
 
 function wallClockParts(date: Date, tz: string): WallClockParts {
-  const fmt = new Intl.DateTimeFormat("en-CA", {
-    timeZone: tz,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-    hour12: false,
-  });
+  const fmt = getDateTimeFormat("en-CA", tz, WALL_CLOCK_PARTS_OPTIONS);
   const parts = fmt.formatToParts(date);
   const get = (type: Intl.DateTimeFormatPartTypes): string =>
     parts.find((p) => p.type === type)?.value ?? "00";
@@ -223,16 +241,7 @@ function formatIsoWithOffset(date: Date, tz: string): string {
  * difference between the wall-clock parts and the UTC parts.
  */
 function tzOffsetMinutes(date: Date, tz: string): number {
-  const fmt = new Intl.DateTimeFormat("en-CA", {
-    timeZone: tz,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-    hour12: false,
-  });
+  const fmt = getDateTimeFormat("en-CA", tz, WALL_CLOCK_PARTS_OPTIONS);
   const parts = fmt.formatToParts(date);
   const get = (type: Intl.DateTimeFormatPartTypes): number =>
     Number(parts.find((p) => p.type === type)?.value ?? "0");

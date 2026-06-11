@@ -363,10 +363,22 @@ export const caches = {
     ttlMs: 60_000,
     staleTtlMs: 600_000,
   }),
+  /**
+   * v1.16.8 — stale-while-revalidate on the list bucket. The 60 s fresh
+   * TTL meant every visit minutes apart paid the full cold list build
+   * (five parallel reads + the next-due engine per medication). The list
+   * GET reads via `cachedSwr` now: inside the 10-minute stale window the
+   * prior list serves immediately while one background recompute warms a
+   * fresh one. Interactive writes hard-evict the bucket through
+   * `invalidateUserMedications({ evict: true })`, so the window only
+   * bounds wall-clock drift (`todayEventCount`, `nextDueAt`), never
+   * user-action staleness.
+   */
   medications: new ServerCache<unknown>({
     name: "medications",
     maxEntries: 1000,
     ttlMs: 60_000,
+    staleTtlMs: 600_000,
   }),
   achievements: new ServerCache<unknown>({
     name: "achievements",
@@ -405,11 +417,21 @@ export const caches = {
    * `invalidateUserMedications`, so the 15-minute TTL only bounds
    * wall-clock drift (a dose flipping overdue), never user-action
    * staleness. Sized for a few hundred users × a handful of meds.
+   *
+   * v1.16.8 — stale-while-revalidate. Both compliance routes (the per-id
+   * detail read and the batched card read) consume via `cachedSwr`:
+   * inside the 10-minute stale window an expired cell serves the prior
+   * payload immediately while one coalesced rebuild warms it. Interactive
+   * intake / medication writes hard-evict (the user must see their own
+   * dose on the next read); background sync paths (iOS bulk intake, the
+   * auto-miss cron, slot dedup) mark stale so a high-frequency sync never
+   * busts every card into an inline cold rebuild.
    */
   medicationCompliance: new ServerCache<unknown>({
     name: "medicationCompliance",
     maxEntries: 2000,
     ttlMs: 900_000,
+    staleTtlMs: 600_000,
   }),
   moodAnalytics: new ServerCache<unknown>({
     name: "moodAnalytics",

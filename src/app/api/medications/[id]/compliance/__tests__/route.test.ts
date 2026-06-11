@@ -29,16 +29,14 @@ vi.mock("@/lib/db", () => ({
 
 vi.mock("@/lib/auth/session", () => ({ getSession: vi.fn() }));
 
-vi.mock("@/lib/medications/route-guards", () => ({
-  assertMedicationOwnership: vi.fn().mockResolvedValue(null),
-}));
-
 // v1.15.20 — the route reads through the per-user compliance cache and a
 // per-user rate limit. Pass-through mocks keep each test's fixture
 // isolated (the real module-scope cache would leak state across tests);
-// the rate-limit tests below flip `allowed` explicitly.
+// the rate-limit tests below flip `allowed` explicitly. v1.16.8 — the
+// read is SWR (`cachedSwr`) and the ownership guard lives INSIDE the
+// builder, so the pass-through exercises the guard on every call.
 vi.mock("@/lib/cache/server-cache", () => ({
-  cached: vi.fn(
+  cachedSwr: vi.fn(
     async (_cache: unknown, _key: string, builder: () => Promise<unknown>) =>
       builder(),
   ),
@@ -71,7 +69,7 @@ vi.mock("next/headers", () => ({
 import { GET } from "../route";
 import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/auth/session";
-import { cached } from "@/lib/cache/server-cache";
+import { cachedSwr } from "@/lib/cache/server-cache";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { getUserTodayBounds } from "@/lib/tz/local-day";
 import { userDayKey } from "@/lib/tz/format";
@@ -130,7 +128,7 @@ beforeEach(() => {
   vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
   // `resetAllMocks` clears the factory implementations — re-prime the
   // pass-through cache and the allowing rate limit for every test.
-  vi.mocked(cached).mockImplementation(
+  vi.mocked(cachedSwr).mockImplementation(
     async (_cache: unknown, _key: string, builder: () => Promise<unknown>) =>
       builder(),
   );
@@ -436,8 +434,8 @@ describe("GET /api/medications/[id]/compliance — caching and limits", () => {
     const res = await GET(new Request("http://localhost"), ROUTE_PARAMS);
     expect(res.status).toBe(200);
 
-    expect(vi.mocked(cached)).toHaveBeenCalledTimes(1);
-    const [, key] = vi.mocked(cached).mock.calls[0];
+    expect(vi.mocked(cachedSwr)).toHaveBeenCalledTimes(1);
+    const [, key] = vi.mocked(cachedSwr).mock.calls[0];
     // `${userId}|...` prefix is what `invalidateUserMedications` sweeps.
     // The trailing tz segment (v1.16.1) makes a timezone change miss the
     // old entry instead of serving day buckets computed for the prior zone.
@@ -469,5 +467,53 @@ describe("GET /api/medications/[id]/compliance — caching and limits", () => {
       autoMissed: true,
       attributionSource: true,
     });
+  });
+});
+
+// v1.16.8 — the ownership guard + medication read moved INSIDE the cache
+// builder: the key is `${userId}|${medicationId}|…`, so a warm hit is by
+// construction a payload this caller built for a medication they own, and
+// the pre-cache session→rate-limit path no longer pays two row reads per
+// card. The guard itself still runs on every cold build.
+describe("GET /api/medications/[id]/compliance — ownership inside the builder", () => {
+  it("returns the sealed 404 when the medication belongs to another user", async () => {
+    vi.mocked(prisma.medication.findUnique).mockResolvedValue({
+      ...medication([]),
+      userId: "user-2",
+    } as never);
+    vi.mocked(prisma.medicationIntakeEvent.findMany).mockResolvedValue(
+      [] as never,
+    );
+
+    const res = await GET(new Request("http://localhost"), ROUTE_PARAMS);
+    expect(res.status).toBe(404);
+    const body = await res.json();
+    // Same envelope as the absent case — the existence channel stays sealed.
+    expect(body.error).toBe("Medication not found");
+  });
+
+  it("returns the sealed 404 when the medication does not exist", async () => {
+    vi.mocked(prisma.medication.findUnique).mockResolvedValue(null as never);
+
+    const res = await GET(new Request("http://localhost"), ROUTE_PARAMS);
+    expect(res.status).toBe(404);
+    const body = await res.json();
+    expect(body.error).toBe("Medication not found");
+  });
+
+  it("never touches the medication tables on a warm cache hit", async () => {
+    // Simulate a warm cell: the SWR read resolves without invoking the
+    // builder, so neither the medication nor the intake table is read.
+    vi.mocked(cachedSwr).mockResolvedValue({
+      compliance7: { rate: 100 },
+      compliance30: { rate: 100 },
+      dailyCompliance: {},
+      complianceDisplay: { shortDays: 7, longDays: 30 },
+    } as never);
+
+    const res = await GET(new Request("http://localhost"), ROUTE_PARAMS);
+    expect(res.status).toBe(200);
+    expect(prisma.medication.findUnique).not.toHaveBeenCalled();
+    expect(prisma.medicationIntakeEvent.findMany).not.toHaveBeenCalled();
   });
 });

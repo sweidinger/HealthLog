@@ -117,24 +117,51 @@ export function invalidateUserMood(userId: string): void {
  * Invalidate every cache that may reflect a user's medication state.
  *
  * Covers the medications cache, the medication-intake compliance cache
- * (cached daily), and achievement progress.
+ * (cached daily), the per-medication compliance payload, and achievement
+ * progress.
+ *
+ * v1.16.8 — `evict` splits the SWR buckets (medications, the
+ * per-medication compliance payload, analytics) by write origin, the
+ * `invalidateUserMeasurements` pattern. Interactive writes (a card take /
+ * skip, a CRUD edit, an intake edit / delete / purge / import) pass
+ * `{ evict: true }`: the user must see their own action on the very next
+ * read, and a stale-serveable entry would hand back the pre-write body.
+ * Background paths (the iOS bulk-intake sync, the auto-miss cron, slot
+ * dedup) keep the default mark-stale so a high-frequency sync never busts
+ * the buckets into inline cold-rebuild storms — the `cachedSwr` readers
+ * serve the prior payload while one coalesced recompute warms each cell.
  */
-export function invalidateUserMedications(userId: string): void {
-  caches.medications.deleteByPrefix(userId);
+export function invalidateUserMedications(
+  userId: string,
+  opts?: { evict?: boolean },
+): void {
+  if (opts?.evict) {
+    caches.medications.deleteByPrefix(userId);
+    // v1.15.20 — the per-medication compliance payload is cached 15 min;
+    // an interactive intake / medication / schedule write must flush it
+    // so the card rates and the heatmap reflect the action on the next
+    // read.
+    caches.medicationCompliance.deleteByPrefix(`${userId}|`);
+    // v1.4.38 W-F — `/api/dashboard/summary` lives under the analytics
+    // cache and reads `medicationIntakeEvent` for both today's compliance
+    // tally and the 365-day streak feed. A taken / skipped event must
+    // evict the user-bucket so the next iOS poll reflects the change.
+    caches.analytics.deleteByPrefix(`${userId}|`);
+  } else {
+    // Mark-stale collapses the fresh TTL to "now": the SWR readers (the
+    // medications list, both compliance routes, the dashboard snapshot)
+    // serve the prior value while a single background recompute warms a
+    // fresh one; the plain `cached` readers in the analytics bucket see
+    // a clean miss — identical to the old evict for those keys.
+    caches.medications.markStaleByPrefix(userId);
+    caches.medicationCompliance.markStaleByPrefix(`${userId}|`);
+    caches.analytics.markStaleByPrefix(`${userId}|`);
+  }
   caches.medicationsIntake.deleteByPrefix(`${userId}|`);
-  // v1.15.20 — the per-medication compliance payload is cached 15 min;
-  // every intake / medication / schedule write must flush it so the card
-  // rates and the heatmap reflect the action on the next read.
-  caches.medicationCompliance.deleteByPrefix(`${userId}|`);
   caches.achievements.deleteByPrefix(userId);
   // v1.4.36 W1 — medication writes change the MEDICATION_COMPLIANCE
   // target rollup (compliance7 / compliance30 / consistency strip).
   caches.insightsTargets.deleteByPrefix(userId);
-  // v1.4.38 W-F — `/api/dashboard/summary` lives under the analytics
-  // cache and reads `medicationIntakeEvent` for both today's compliance
-  // tally and the 365-day streak feed. A taken / skipped event must
-  // evict the user-bucket so the next iOS poll reflects the change.
-  caches.analytics.deleteByPrefix(`${userId}|`);
 }
 
 /**

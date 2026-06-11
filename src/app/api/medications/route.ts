@@ -21,7 +21,7 @@ import {
 } from "@/lib/medications/scheduling/next-due";
 import { getUserTodayBounds } from "@/lib/tz/local-day";
 import { invalidateUserMedications } from "@/lib/cache/invalidate";
-import { cached, caches, type ServerCache } from "@/lib/cache/server-cache";
+import { cachedSwr, caches, type ServerCache } from "@/lib/cache/server-cache";
 import { NextRequest } from "next/server";
 
 type MedicationsListResult = Array<Record<string, unknown>>;
@@ -187,11 +187,16 @@ export const GET = apiHandler(async () => {
 
   const userTz = user.timezone || "Europe/Berlin";
 
-  // Cache the list shape on userId. The 60s TTL bounds the cross-midnight
-  // staleness window for `todayEventCount` (the only time-of-day-derived
-  // field in the response); writes via POST/PUT/DELETE flush through
-  // `invalidateUserMedications` before the next read lands.
-  const result = await cached(
+  // Cache the list shape on userId. The 60 s fresh TTL bounds the
+  // cross-midnight staleness window for `todayEventCount` and the
+  // next-due fields; v1.16.8 reads through `cachedSwr`, so a visit
+  // minutes after the last one serves the prior list immediately while
+  // one background recompute warms a fresh entry (the 10-minute stale
+  // window bounds how old that served list can be). Interactive writes
+  // via POST/PUT/DELETE hard-evict through
+  // `invalidateUserMedications({ evict: true })` before the next read
+  // lands; background sync paths mark the bucket stale instead.
+  const result = await cachedSwr(
     caches.medications as ServerCache<MedicationsListResult>,
     user.id,
     () => buildMedicationsList(user.id, userTz),
@@ -397,7 +402,7 @@ export const POST = apiHandler(async (request: NextRequest) => {
 
   // v1.4.34 IW-G — bust per-user medications + compliance + achievement
   // caches so the next read reflects the new schedule.
-  invalidateUserMedications(user.id);
+  invalidateUserMedications(user.id, { evict: true });
 
   return apiSuccess(
     {

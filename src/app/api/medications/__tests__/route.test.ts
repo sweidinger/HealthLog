@@ -31,6 +31,9 @@ vi.mock("@/lib/cache/server-cache", () => ({
   cached: vi.fn(async (_c: unknown, _k: string, f: () => Promise<unknown>) =>
     f(),
   ),
+  cachedSwr: vi.fn(async (_c: unknown, _k: string, f: () => Promise<unknown>) =>
+    f(),
+  ),
   caches: { medicationsList: {} },
   __resetAllCachesForTests: vi.fn(),
 }));

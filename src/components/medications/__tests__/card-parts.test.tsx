@@ -327,11 +327,20 @@ describe("streak-token parity — generic vs GLP-1 card", () => {
     ],
   };
 
+  // v1.16.8 — the cards read ONE batched summary key and `select` their
+  // own row, so seeding merges into the shared array.
   function seedStreak(client: QueryClient, medId: string) {
-    client.setQueryData(["medications", medId, "compliance"], {
-      compliance7: { rate: 90, streak: 4, totalExpected: 7, taken: 6 },
-      compliance30: { rate: 88 },
-    });
+    const key = ["medications", "compliance-summary"];
+    const existing =
+      (client.getQueryData(key) as Array<{ medicationId: string }>) ?? [];
+    client.setQueryData(key, [
+      ...existing.filter((row) => row.medicationId !== medId),
+      {
+        medicationId: medId,
+        compliance7: { rate: 90, streak: 4, totalExpected: 7, taken: 6 },
+        compliance30: { rate: 88 },
+      },
+    ]);
   }
 
   it("both cards render the flame with the canonical token, never the drift", () => {

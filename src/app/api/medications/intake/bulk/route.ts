@@ -569,7 +569,11 @@ async function postBulk(request: NextRequest): Promise<Response> {
 
   // v1.4.34 IW-G — bust per-user medications + compliance + achievement
   // caches when at least one row landed so the next read reflects the
-  // ingested batch.
+  // ingested batch. v1.16.8 — this is the background sync path (iOS bulk
+  // ingest), so the SWR buckets are marked stale rather than hard-evicted:
+  // the readers keep serving the prior list / compliance payloads while
+  // one coalesced recompute warms each cell, instead of a high-frequency
+  // sync busting every card into an inline cold rebuild.
   if (inserted > 0 || updated > 0) {
     invalidateUserMedications(user.id);
   }

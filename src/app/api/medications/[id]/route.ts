@@ -618,7 +618,7 @@ export const PUT = apiHandler(
 
     // v1.4.34 IW-G — bust per-user medications + compliance + achievement
     // caches so the next read reflects the schedule change.
-    invalidateUserMedications(user.id);
+    invalidateUserMedications(user.id, { evict: true });
 
     return apiSuccess({
       ...medication,
@@ -675,7 +675,7 @@ export const DELETE = apiHandler(
 
     // v1.4.34 IW-G — bust per-user medications + compliance + achievement
     // caches so the next read reflects the deletion.
-    invalidateUserMedications(user.id);
+    invalidateUserMedications(user.id, { evict: true });
 
     return apiSuccess({ deleted: true });
   },

@@ -34,11 +34,20 @@ function render(node: React.ReactNode, client: QueryClient) {
   );
 }
 
+// v1.16.8 — the cards read ONE batched summary key and `select` their
+// own row, so seeding merges into the shared array.
 function seedCompliance(client: QueryClient, medId: string) {
-  client.setQueryData(["medications", medId, "compliance"], {
-    compliance7: { rate: 90, streak: 0, totalExpected: 7, taken: 6 },
-    compliance30: { rate: 88 },
-  });
+  const key = ["medications", "compliance-summary"];
+  const existing =
+    (client.getQueryData(key) as Array<{ medicationId: string }>) ?? [];
+  client.setQueryData(key, [
+    ...existing.filter((row) => row.medicationId !== medId),
+    {
+      medicationId: medId,
+      compliance7: { rate: 90, streak: 0, totalExpected: 7, taken: 6 },
+      compliance30: { rate: 88 },
+    },
+  ]);
 }
 
 // A schedule whose window has already passed for today (01:00–02:00) so

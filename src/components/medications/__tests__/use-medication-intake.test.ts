@@ -379,9 +379,11 @@ describe("runUndoIntake — shared soft-delete", () => {
 
     await runUndoIntake({ medication, eventId: "evt-1", t, queryClient });
 
+    // Method + path are the contract; the shared fetch wrapper may attach
+    // transport details (e.g. an abort signal) the undo path doesn't own.
     expect(fetchMock).toHaveBeenCalledWith(
       "/api/medications/med-1/intake/evt-1",
-      { method: "DELETE" },
+      expect.objectContaining({ method: "DELETE" }),
     );
     expect(toast.success).toHaveBeenCalledWith("medications.intakeUndone");
     expect(queryClient.invalidateQueries).toHaveBeenCalled();

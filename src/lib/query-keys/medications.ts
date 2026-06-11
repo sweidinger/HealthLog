@@ -16,6 +16,18 @@ export const medicationKeys = {
    */
   medicationCompliance: (medicationId: string) =>
     ["medications", medicationId, "compliance"] as const,
+  /**
+   * v1.16.8 — the batched card-compliance read
+   * (`GET /api/medications/compliance`, one round trip for every card on
+   * the medications page). Replaces the per-card fan-out over the per-id
+   * endpoint; `medicationCompliance(id)` above stays for the detail page,
+   * which needs the per-id payload's heatmap grid. Rides under the
+   * `["medications"]` prefix so every intake / CRUD mutation reaches it
+   * through `medicationDependentKeys`. The static second segment cannot
+   * collide with `medicationDetail(id)` — ids are cuids.
+   */
+  medicationComplianceSummary: () =>
+    ["medications", "compliance-summary"] as const,
   medicationCadence: (medicationId: string) =>
     ["medications", medicationId, "cadence"] as const,
   medicationGlp1Details: (medicationId: string) =>

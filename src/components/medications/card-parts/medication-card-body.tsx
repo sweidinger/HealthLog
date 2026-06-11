@@ -160,19 +160,24 @@ export function MedicationCardBody({
         {/* Top status line. The in-window take-now pill (success) and the
             overdue escalation are mutually exclusive — a dose is either still
             in its take-window or past it. The overdue line wins when present
-            so a heavily-overdue dose reads loud at the top of the card. */}
-        {overdueLabel ? (
-          <p className="text-destructive flex items-center gap-1 text-sm font-medium">
-            <AlertTriangle className="size-3.5 shrink-0" aria-hidden="true" />
-            {overdueLabel}
-          </p>
-        ) : windowStatus ? (
-          <MedicationStatusPill
-            status={windowStatus.status}
-            windowStart={windowStatus.windowStart}
-            windowEnd={windowStatus.windowEnd}
-          />
-        ) : null}
+            so a heavily-overdue dose reads loud at the top of the card.
+            The slot keeps a constant one-line height even when empty: the
+            overdue tier arrives with the compliance query, and a line
+            popping in late used to shift every row below it (CLS). */}
+        <div className="min-h-5">
+          {overdueLabel ? (
+            <p className="text-destructive flex items-center gap-1 text-sm font-medium">
+              <AlertTriangle className="size-3.5 shrink-0" aria-hidden="true" />
+              {overdueLabel}
+            </p>
+          ) : windowStatus ? (
+            <MedicationStatusPill
+              status={windowStatus.status}
+              windowStart={windowStatus.windowStart}
+              windowEnd={windowStatus.windowEnd}
+            />
+          ) : null}
+        </div>
 
         {/* Next / last intake — the two decisive lines, each shown once. */}
         <MedicationNextLastSlot next={nextLine} last={lastLine} />
@@ -192,9 +197,14 @@ export function MedicationCardBody({
             <MedicationComplianceSkeleton />
           ))}
 
-        {/* Open-cycle status line — calm, rate-decoupled. */}
-        {active && currentCycle && (
-          <MedicationCycleStatus cycle={currentCycle} />
+        {/* Open-cycle status line — calm, rate-decoupled. The slot reserves
+            one xs text line on every active card: the descriptor rides the
+            compliance query, and a line appearing after the fetch resolved
+            used to grow the card and shift the grid row (CLS). */}
+        {active && (
+          <div className="min-h-4">
+            {currentCycle && <MedicationCycleStatus cycle={currentCycle} />}
+          </div>
         )}
 
         {/* Quick actions — bottom-pinned so the action rows align across a

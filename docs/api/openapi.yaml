@@ -2366,6 +2366,27 @@ paths:
                 $ref: "#/components/schemas/ErrorEnvelope"
         "422": *a3
         "429": *a4
+  /api/medications/compliance:
+    get:
+      tags:
+        - Medications
+      summary: Batched adherence read for every medication of the caller
+      description: Returns one compact adherence row per medication the caller owns (active + paused), ordered by `createdAt
+        DESC` — the single round trip the medication cards consume instead of fanning out one
+        `/api/medications/{id}/compliance` request per card. Each row carries the 7-/30-day summaries and the
+        cadence-scaled display block; the per-day grid stays on the per-medication endpoint. Pure computation — no
+        writes. Served through the same per-medication server cache as the per-id read, so the two endpoints warm each
+        other.
+      responses:
+        "200":
+          description: One adherence row per medication.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListMedicationComplianceResponse"
+        "401": *a1
+        "422": *a3
+        "429": *a4
   /api/medications/{id}/compliance:
     get:
       tags:
@@ -8897,11 +8918,13 @@ components:
       additionalProperties: false
       description: One expected-vs-actual dose slot for the cadence timeline chart. `status` is one of `taken | skipped |
         missed | pending | future` and drives the chip colour.
-    GetMedicationComplianceResponse:
+    ListMedicationComplianceResponse:
       type: object
       properties:
         data:
-          $ref: "#/components/schemas/MedicationComplianceResponse"
+          type: array
+          items:
+            $ref: "#/components/schemas/MedicationComplianceSummaryEntry"
         error:
           type: "null"
         meta:
@@ -8914,33 +8937,26 @@ components:
         - data
         - error
       additionalProperties: false
-    MedicationComplianceResponse:
+    MedicationComplianceSummaryEntry:
       type: object
       properties:
+        medicationId:
+          type: string
         compliance7:
           $ref: "#/components/schemas/ComplianceResult"
         compliance30:
           $ref: "#/components/schemas/ComplianceResult"
-        dailyCompliance:
-          type: object
-          propertyNames:
-            type: string
-          additionalProperties:
-            $ref: "#/components/schemas/DailyComplianceEntry"
-          description: Flat per-day map keyed `YYYY-MM-DD` in the user timezone, one entry per day for up to 90 days back, clamped
-            to the medication's `createdAt` (so a recently-created med has fewer entries). No weekly/monthly collapse —
-            this is the raw daily grid.
         complianceDisplay:
           $ref: "#/components/schemas/ComplianceDisplay"
       required:
+        - medicationId
         - compliance7
         - compliance30
-        - dailyCompliance
         - complianceDisplay
       additionalProperties: false
-      description: Adherence read for a single medication. `compliance30` is the authoritative 30-day taken-vs-expected
-        summary; `dailyCompliance` is the per-day grid for the history glyph track. The graded raw→week→month→year
-        series used elsewhere for AI prompts does NOT apply here — this response is never downsampled.
+      description: "Compact per-medication adherence row for the batched card read: the 7-/30-day summaries plus the
+        cadence-scaled display block. The per-day `dailyCompliance` grid is NOT on this shape — read the per-medication
+        `/compliance` endpoint for the history glyph track."
     ComplianceResult:
       type: object
       properties:
@@ -8984,62 +9000,6 @@ components:
       description: Rolling-window adherence summary. `compliance30` is the authoritative 'last 30 days, taken vs expected'
         read — clients should display `rate` and use `totalExpected` as the denominator rather than re-deriving it from
         the daily map.
-    DailyComplianceEntry:
-      type: object
-      properties:
-        expected:
-          type: integer
-          minimum: 0
-          maximum: 9007199254740991
-          description: Engine-computed due-slot count for the day. Equals `expectedCount`; kept for existing consumers.
-        expectedCount:
-          type: integer
-          minimum: 0
-          maximum: 9007199254740991
-          description: True due-slot count for the day (additive field clients key off so they don't infer due-ness from
-            `expected`).
-        due:
-          type: boolean
-          description: "`expectedCount > 0`. Paint a per-day glyph as expected/missed ONLY when `due === true`; off-cadence /
-            pre-creation / PRN days are not misses."
-        taken:
-          type: integer
-          minimum: 0
-          maximum: 9007199254740991
-        skipped:
-          type: integer
-          minimum: 0
-          maximum: 9007199254740991
-        onTime:
-          type: integer
-          minimum: 0
-          maximum: 9007199254740991
-          description: Doses taken in the on-time band, including the `early` bucket (early counts as compliant).
-        late:
-          type: integer
-          minimum: 0
-          maximum: 9007199254740991
-        veryLate:
-          type: integer
-          minimum: 0
-          maximum: 9007199254740991
-        early:
-          description: Doses taken before the on-time band's grace start; already folded into `onTime`, surfaced separately for
-            consumers that differentiate.
-          type: integer
-          minimum: 0
-          maximum: 9007199254740991
-      required:
-        - expected
-        - expectedCount
-        - due
-        - taken
-        - skipped
-        - onTime
-        - late
-        - veryLate
-      additionalProperties: false
-      description: Per-day compliance cell with the timing breakdown that drives the history glyph track.
     ComplianceDisplay:
       type: object
       properties:
@@ -9206,6 +9166,106 @@ components:
       additionalProperties: false
       description: The two-row card block whose windows scale with dosing cadence (dense meds keep 7 / 30 days, sparse meds
         step both windows up). NOT the 30-day denominator — read `compliance30.totalExpected` for that.
+    GetMedicationComplianceResponse:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/MedicationComplianceResponse"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    MedicationComplianceResponse:
+      type: object
+      properties:
+        compliance7:
+          $ref: "#/components/schemas/ComplianceResult"
+        compliance30:
+          $ref: "#/components/schemas/ComplianceResult"
+        dailyCompliance:
+          type: object
+          propertyNames:
+            type: string
+          additionalProperties:
+            $ref: "#/components/schemas/DailyComplianceEntry"
+          description: Flat per-day map keyed `YYYY-MM-DD` in the user timezone, one entry per day for up to 90 days back, clamped
+            to the medication's `createdAt` (so a recently-created med has fewer entries). No weekly/monthly collapse —
+            this is the raw daily grid.
+        complianceDisplay:
+          $ref: "#/components/schemas/ComplianceDisplay"
+      required:
+        - compliance7
+        - compliance30
+        - dailyCompliance
+        - complianceDisplay
+      additionalProperties: false
+      description: Adherence read for a single medication. `compliance30` is the authoritative 30-day taken-vs-expected
+        summary; `dailyCompliance` is the per-day grid for the history glyph track. The graded raw→week→month→year
+        series used elsewhere for AI prompts does NOT apply here — this response is never downsampled.
+    DailyComplianceEntry:
+      type: object
+      properties:
+        expected:
+          type: integer
+          minimum: 0
+          maximum: 9007199254740991
+          description: Engine-computed due-slot count for the day. Equals `expectedCount`; kept for existing consumers.
+        expectedCount:
+          type: integer
+          minimum: 0
+          maximum: 9007199254740991
+          description: True due-slot count for the day (additive field clients key off so they don't infer due-ness from
+            `expected`).
+        due:
+          type: boolean
+          description: "`expectedCount > 0`. Paint a per-day glyph as expected/missed ONLY when `due === true`; off-cadence /
+            pre-creation / PRN days are not misses."
+        taken:
+          type: integer
+          minimum: 0
+          maximum: 9007199254740991
+        skipped:
+          type: integer
+          minimum: 0
+          maximum: 9007199254740991
+        onTime:
+          type: integer
+          minimum: 0
+          maximum: 9007199254740991
+          description: Doses taken in the on-time band, including the `early` bucket (early counts as compliant).
+        late:
+          type: integer
+          minimum: 0
+          maximum: 9007199254740991
+        veryLate:
+          type: integer
+          minimum: 0
+          maximum: 9007199254740991
+        early:
+          description: Doses taken before the on-time band's grace start; already folded into `onTime`, surfaced separately for
+            consumers that differentiate.
+          type: integer
+          minimum: 0
+          maximum: 9007199254740991
+      required:
+        - expected
+        - expectedCount
+        - due
+        - taken
+        - skipped
+        - onTime
+        - late
+        - veryLate
+      additionalProperties: false
+      description: Per-day compliance cell with the timing breakdown that drives the history glyph track.
     ListScheduleRevisionsResponse:
       type: object
       properties:
