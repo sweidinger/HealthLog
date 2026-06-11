@@ -3,7 +3,7 @@ import { apiHandler, requireAuth } from "@/lib/api-handler";
 import { annotate } from "@/lib/logging/context";
 import { apiSuccess } from "@/lib/api-response";
 import { NO_STORE_BUT_BFCACHE } from "@/lib/http/cache-headers";
-import { cached, caches, type ServerCache } from "@/lib/cache/server-cache";
+import { cachedSwr, caches, type ServerCache } from "@/lib/cache/server-cache";
 import { summarize, type DataPoint } from "@/lib/analytics/trends";
 import { computeSummariesSlice } from "@/lib/analytics/summaries-slice";
 import { getBpTargets } from "@/lib/analytics/bp-targets";
@@ -55,7 +55,11 @@ export const GET = apiHandler(async (request?: Request) => {
     // (userId, slice). The slim slice is the dashboard tile strip's hot
     // path; multiple dashboard mounts inside a 60-second TTL all hit a
     // warm cache.
-    const slim = await cached(
+    // v1.16.7 — SWR read: a sync-write marks the cell stale, and the
+    // tile strip's next mount should repaint from the prior summaries
+    // instantly while one background recompute refreshes them, instead
+    // of paying the 2-SQL-pass rebuild inline.
+    const slim = await cachedSwr(
       caches.analytics as ServerCache<Awaited<ReturnType<typeof computeSummariesSlice>>>,
       `${user.id}|summaries`,
       () => computeSummariesSlice(user.id),
@@ -74,7 +78,11 @@ export const GET = apiHandler(async (request?: Request) => {
   // mount, and the Coach drawer all hit this endpoint within seconds
   // of each other; the 60s TTL converts the 7.99s combined dashboard
   // wait to a Map lookup on every subsequent caller.
-  const cachedBody = await cached(
+  // v1.16.7 — SWR read, same rationale as the slim slice above: the
+  // thick body is the 30-query chain feeding the dashboard + insights
+  // hero score; after a measurement sync the next mount serves the
+  // prior body instantly while one background recompute refreshes it.
+  const cachedBody = await cachedSwr(
     caches.analytics as ServerCache<Awaited<ReturnType<typeof buildAnalyticsResponse>>>,
     `${user.id}|default`,
     () => buildAnalyticsResponse(user),

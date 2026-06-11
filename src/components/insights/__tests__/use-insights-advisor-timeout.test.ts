@@ -78,3 +78,36 @@ describe("fetchAdvisor abort timeout — v1.4.31", () => {
     expect(result).toBe("untouched");
   });
 });
+
+// v1.16.7 — the read query polls (bounded) while the server reports a
+// stale-served briefing (`revalidating: true`) so a stale serve converges
+// in-session despite the 1 h staleTime + focus-refetch-off defaults.
+describe("nextAdvisorPollInterval — bounded revalidation poll", () => {
+  it("returns the interval while revalidating is true and under the cap", async () => {
+    const {
+      nextAdvisorPollInterval,
+      ADVISOR_REVALIDATE_POLL_MS,
+    } = await import("../use-insights-advisor");
+    expect(nextAdvisorPollInterval(true, 1)).toBe(ADVISOR_REVALIDATE_POLL_MS);
+    expect(nextAdvisorPollInterval(true, 5)).toBe(ADVISOR_REVALIDATE_POLL_MS);
+  });
+
+  it("stops once a response comes back with revalidating falsy", async () => {
+    const { nextAdvisorPollInterval } = await import("../use-insights-advisor");
+    expect(nextAdvisorPollInterval(false, 1)).toBe(false);
+    expect(nextAdvisorPollInterval(undefined, 1)).toBe(false);
+  });
+
+  it("stops at the attempt ceiling even while still revalidating", async () => {
+    const {
+      nextAdvisorPollInterval,
+      ADVISOR_REVALIDATE_POLL_MAX_ATTEMPTS,
+    } = await import("../use-insights-advisor");
+    expect(
+      nextAdvisorPollInterval(true, ADVISOR_REVALIDATE_POLL_MAX_ATTEMPTS),
+    ).toBe(false);
+    expect(
+      nextAdvisorPollInterval(true, ADVISOR_REVALIDATE_POLL_MAX_ATTEMPTS + 5),
+    ).toBe(false);
+  });
+});

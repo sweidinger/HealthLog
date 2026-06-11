@@ -28,6 +28,12 @@ const insightsComprehensiveResponse = z
       .array(z.record(z.string(), z.unknown()))
       .optional(),
     metricSource: z.record(z.string(), z.unknown()).optional(),
+    revalidating: z
+      .boolean()
+      .optional()
+      .describe(
+        "True when the body is served from last-good cache (stale-while-revalidate) while a fresh aggregation runs in the background. The client keeps polling on `revalidating` (bounded) so the open page converges on the fresh body.",
+      ),
   })
   .meta({
     id: "InsightsComprehensiveResponse",

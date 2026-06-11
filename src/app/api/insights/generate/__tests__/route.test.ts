@@ -443,17 +443,21 @@ describe("GET /api/insights/generate — read-only advisor read", () => {
       locale: "en",
     } as never);
 
-    const res = await (GET as () => Promise<Response>)();
+    const res = await (GET as unknown as (req: Request) => Promise<Response>)(
+      new Request("http://localhost/api/insights/generate"),
+    );
     expect(res.status).toBe(200);
     const body = (await res.json()) as {
-      data: { insights: unknown; cached: boolean };
+      data: { insights: unknown; cached: boolean; revalidating: boolean };
     };
     expect(body.data.cached).toBe(true);
     expect(body.data.insights).toEqual(cached);
     // No completion is ever run on the read path.
     expect(resolveProvider).not.toHaveBeenCalled();
-    // A fresh cache (just now) does not trigger a warm.
+    // A fresh cache (just now) does not trigger a warm — and the payload
+    // says so, so the client never starts a convergence poll.
     expect(enqueueForceWarm).not.toHaveBeenCalled();
+    expect(body.data.revalidating).toBe(false);
   });
 
   it("enqueues an out-of-band warm when the cache is stale and a provider exists", async () => {
@@ -464,13 +468,19 @@ describe("GET /api/insights/generate — read-only advisor read", () => {
       locale: "en",
     } as never);
 
-    const res = await (GET as () => Promise<Response>)();
+    const res = await (GET as unknown as (req: Request) => Promise<Response>)(
+      new Request("http://localhost/api/insights/generate"),
+    );
     expect(res.status).toBe(200);
     expect(enqueueForceWarm).toHaveBeenCalledWith({
       userId: "u-1",
       locale: "en",
     });
     expect(resolveProvider).not.toHaveBeenCalled();
+    // The stale serve is honest: `revalidating: true` rides on the
+    // payload so the client polls (bounded) until the warm lands.
+    const body = (await res.json()) as { data: { revalidating: boolean } };
+    expect(body.data.revalidating).toBe(true);
   });
 
   it("returns an empty payload (no warm) on a cold cache without a provider", async () => {
@@ -481,13 +491,17 @@ describe("GET /api/insights/generate — read-only advisor read", () => {
       locale: "en",
     } as never);
 
-    const res = await (GET as () => Promise<Response>)();
+    const res = await (GET as unknown as (req: Request) => Promise<Response>)(
+      new Request("http://localhost/api/insights/generate"),
+    );
     expect(res.status).toBe(200);
     const body = (await res.json()) as {
-      data: { insights: unknown; cached: boolean };
+      data: { insights: unknown; cached: boolean; revalidating: boolean };
     };
     expect(body.data.cached).toBe(false);
     expect(body.data.insights).toBeNull();
     expect(enqueueForceWarm).not.toHaveBeenCalled();
+    // No warm enqueued → no convergence poll for the client to run.
+    expect(body.data.revalidating).toBe(false);
   });
 });

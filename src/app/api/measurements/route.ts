@@ -916,8 +916,10 @@ async function postMeasurement(request: NextRequest) {
     });
 
     // v1.4.34 IW-G — flush every cache that reflects this user's
-    // measurement set so the next read paints the new rows.
-    invalidateUserMeasurements(user.id);
+    // measurement set so the next read paints the new rows. Interactive
+    // multi-entry create (combined BP + pulse form) — hard-evict so the
+    // SWR readers don't serve the pre-write body back to the user.
+    invalidateUserMeasurements(user.id, { evict: true });
 
     // v1.5.0 — refresh the persistent rollup table for every distinct
     // (type, day) the batch touched so the next analytics / coach read
@@ -1027,8 +1029,10 @@ async function postMeasurement(request: NextRequest) {
   });
 
   // v1.4.34 IW-G — flush every cache that reflects this user's
-  // measurement set so the next read paints the new row.
-  invalidateUserMeasurements(user.id);
+  // measurement set so the next read paints the new row. Interactive
+  // single-entry create — hard-evict so the SWR readers don't serve the
+  // pre-write body back to the user.
+  invalidateUserMeasurements(user.id, { evict: true });
 
   // v1.5.0 — refresh the persistent rollup row for the affected
   // (type, day) tuple. Runs inline so the next read of the

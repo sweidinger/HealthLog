@@ -41,14 +41,20 @@ vi.mock("@/hooks/use-auth", () => ({
   }),
 }));
 
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { I18nProvider } from "@/lib/i18n/context";
 import { BottomNav } from "../bottom-nav";
 
 function render() {
   return renderToStaticMarkup(
-    <I18nProvider initialLocale="en">
-      <BottomNav />
-    </I18nProvider>,
+    // The nav reads `useQueryClient()` for the medications intent
+    // prefetch (v1.16.7); a fresh client per render keeps the SSR
+    // markup assertions isolated.
+    <QueryClientProvider client={new QueryClient()}>
+      <I18nProvider initialLocale="en">
+        <BottomNav />
+      </I18nProvider>
+    </QueryClientProvider>,
   );
 }
 

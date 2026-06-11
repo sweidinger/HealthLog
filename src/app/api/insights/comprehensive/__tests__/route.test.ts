@@ -91,7 +91,7 @@ import { getSession } from "@/lib/auth/session";
 import { prisma } from "@/lib/db";
 import { buildComprehensiveAggregate } from "@/lib/insights/comprehensive-aggregator";
 import { checkAnalyticsReadRateLimit } from "@/lib/rate-limit";
-import { __resetAllCachesForTests } from "@/lib/cache/server-cache";
+import { __resetAllCachesForTests, caches } from "@/lib/cache/server-cache";
 
 const SESSION_OK = {
   session: { id: "sess-1", expiresAt: new Date(Date.now() + 3_600_000) },
@@ -436,5 +436,66 @@ describe("GET /api/insights/comprehensive — envelope shape", () => {
     // Perfect linear relationship → r === 1.
     expect(body.data.weightBpCorrelation?.r).toBe(1);
     expect(body.data.weightBpCorrelation?.n).toBe(5);
+  });
+});
+
+// v1.16.7 — the route serves a marked-stale cache entry immediately
+// (stale-while-revalidate) and must mark that body `revalidating: true`
+// so the client can poll until the background rebuild lands. A fresh
+// (cold or warm) read carries `revalidating: false`.
+describe("GET /api/insights/comprehensive — stale-while-revalidate marker", () => {
+  const EMPTY_AGGREGATE = {
+    summaries: {},
+    bpRawRows: { sys: [], dia: [] },
+    dailyByType: {},
+    firstMeasurementAt: null,
+    totalMeasurements: 0,
+  };
+
+  it("marks a cold (inline-computed) read revalidating: false", async () => {
+    vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
+    (
+      buildComprehensiveAggregate as ReturnType<typeof vi.fn>
+    ).mockResolvedValue(EMPTY_AGGREGATE);
+
+    const res = await callGet(makeReq());
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { data: { revalidating: boolean } };
+    expect(body.data.revalidating).toBe(false);
+  });
+
+  it("marks a stale-served read revalidating: true and a converged read false again", async () => {
+    vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
+    (
+      buildComprehensiveAggregate as ReturnType<typeof vi.fn>
+    ).mockResolvedValue(EMPTY_AGGREGATE);
+
+    // Prime the cache entry (cold compute).
+    await callGet(makeReq());
+
+    // A measurement sync marks the bucket stale (the invalidate helper's
+    // default posture) — the next read serves the prior body + the flag.
+    caches.analytics.markStaleByPrefix(`${SESSION_OK.user.id}|`);
+    const staleRes = await callGet(makeReq());
+    expect(staleRes.status).toBe(200);
+    const staleBody = (await staleRes.json()) as {
+      data: { revalidating: boolean };
+    };
+    expect(staleBody.data.revalidating).toBe(true);
+
+    // The stale read kicked off a background rebuild; once it settles
+    // (the cache entry is fresh again) the next read is a plain hit and
+    // the flag drops so the poll stops.
+    await vi.waitFor(() => {
+      const entry = caches.analytics.getAllowStale(
+        `${SESSION_OK.user.id}|comprehensive`,
+      );
+      expect(entry?.stale).toBe(false);
+    });
+    const freshRes = await callGet(makeReq());
+    const freshBody = (await freshRes.json()) as {
+      data: { revalidating: boolean };
+    };
+    expect(freshBody.data.revalidating).toBe(false);
   });
 });

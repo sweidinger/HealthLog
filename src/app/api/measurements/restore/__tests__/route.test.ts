@@ -122,7 +122,11 @@ describe("POST /api/measurements/restore", () => {
       syncVersion: { increment: 1 },
     });
 
-    expect(invalidateUserMeasurements).toHaveBeenCalledWith("user-1");
+    // v1.16.7 — interactive write: hard-evict so the SWR readers
+    // never serve the pre-write analytics body back to the user.
+    expect(invalidateUserMeasurements).toHaveBeenCalledWith("user-1", {
+      evict: true,
+    });
   });
 
   it("collapses the rollup recompute to the unique (type, day) set, not per-row", async () => {

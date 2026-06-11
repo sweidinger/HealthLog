@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: HealthLog API
-  version: 1.16.6
+  version: 1.16.7
   description: >-
     Self-hosted personal-health-tracking PWA — public API surface for the iOS native client and external ingest.
 
@@ -11769,6 +11769,11 @@ components:
           propertyNames:
             type: string
           additionalProperties: {}
+        revalidating:
+          description: True when the body is served from last-good cache (stale-while-revalidate) while a fresh aggregation runs
+            in the background. The client keeps polling on `revalidating` (bounded) so the open page converges on the
+            fresh body.
+          type: boolean
       required:
         - summary
         - recommendations

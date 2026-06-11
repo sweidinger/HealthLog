@@ -3,11 +3,16 @@
 import { useCallback } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { InsightResult } from "@/lib/ai/types";
-import {
-  dailyBriefingSchema,
-  trendAnnotationsSchema,
-  type DailyBriefing as DailyBriefingPayload,
-  type TrendAnnotations,
+// Type-only — the runtime schemas load lazily inside `fetchAdvisor` so
+// the zod module graph (`@/lib/ai/schema` is ~550 lines of zod builders)
+// stays out of the insights route-entry chunk. This hook is imported
+// eagerly by BOTH the insights page and the layout shell, so a value
+// import here landed zod in the chunk every insights visit downloads
+// before first paint; the schemas are only needed once a payload has
+// actually arrived, which is by definition after the network hop.
+import type {
+  DailyBriefing as DailyBriefingPayload,
+  TrendAnnotations,
 } from "@/lib/ai/schema";
 import { queryKeys } from "@/lib/query-keys";
 import { apiFetchRaw } from "@/lib/api/api-fetch";
@@ -49,6 +54,13 @@ export interface InsightAdvisorPayload {
    * left null when the cached payload predates PROMPT_VERSION 4.20.1.
    */
   trendAnnotations?: TrendAnnotations | null;
+  /**
+   * v1.16.7 — true when the GET served a stale / missing briefing AND
+   * enqueued an out-of-band warm. The query polls (bounded) while this
+   * is set so the fresh briefing reaches the open page in-session
+   * instead of waiting for the next mount.
+   */
+  revalidating?: boolean;
 }
 
 /**
@@ -74,6 +86,35 @@ const ADVISOR_TIMEOUT_MS = 8_000;
  * may wait. Per `.planning/v1.15.18-daily-briefing-audit.md` Fix 1b.
  */
 const FORCE_ADVISOR_TIMEOUT_MS = 45_000;
+
+/**
+ * v1.16.7 — poll cadence + ceiling while the server reports
+ * `revalidating: true` (stale briefing served, out-of-band warm in
+ * flight). The query's 1 h `staleTime` plus the app-default
+ * `refetchOnWindowFocus: false` means a stale-served briefing would
+ * otherwise never refresh in-session. 25 s comfortably covers the warm
+ * job's 45 s budget within two polls; the attempt ceiling stops a
+ * persistently failing generation from polling an open page forever.
+ * Same bounded-poll shape as `nextStatusPollInterval`
+ * (`src/hooks/use-insight-status.ts`).
+ */
+export const ADVISOR_REVALIDATE_POLL_MS = 25_000;
+export const ADVISOR_REVALIDATE_POLL_MAX_ATTEMPTS = 10;
+
+/**
+ * Decide whether the advisor query schedules its next poll. Pure so the
+ * ceiling + stop conditions are unit-testable: returns the interval
+ * while the last payload carries `revalidating: true`, `false` once a
+ * response comes back with the flag falsy OR the attempt cap is hit.
+ */
+export function nextAdvisorPollInterval(
+  revalidating: boolean | undefined,
+  dataUpdateCount: number,
+): number | false {
+  if (!revalidating) return false;
+  if (dataUpdateCount >= ADVISOR_REVALIDATE_POLL_MAX_ATTEMPTS) return false;
+  return ADVISOR_REVALIDATE_POLL_MS;
+}
 
 /**
  * v1.15.18 — the outcome of a force regenerate, so the UI can be HONEST:
@@ -157,6 +198,12 @@ async function fetchAdvisor(
   }
   const json = await res.json();
   const payload = json.data as InsightAdvisorPayload;
+  // Lazy schema load — see the type-only import note at the top. The
+  // module is cached after the first call, so this await is free from
+  // the second fetch on.
+  const { dailyBriefingSchema, trendAnnotationsSchema } = await import(
+    "@/lib/ai/schema"
+  );
   // The cached `insights` blob may carry a `dailyBriefing` from a fresh
   // PROMPT_VERSION 4.20.x generation. Lift it onto the payload so
   // consumers don't have to know the legacy shape.
@@ -233,6 +280,14 @@ export function useInsightsAdvisorQuery(
     // 24h cache window matches the server-side `insightsCachedAt` TTL.
     staleTime: 60 * 60 * 1000,
     retry: false,
+    // v1.16.7 — converge a stale-served briefing in-session: while the
+    // last GET reported `revalidating: true` (warm enqueued), poll on a
+    // bounded interval until a response comes back with the flag falsy.
+    refetchInterval: (query) =>
+      nextAdvisorPollInterval(
+        query.state.data?.payload?.revalidating,
+        query.state.dataUpdateCount,
+      ),
   });
 
   const mutation = useMutation({

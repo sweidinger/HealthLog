@@ -500,7 +500,7 @@ describe("runInsightPregenerate — generic metric warm pass (v1.8.7.1)", () => 
 });
 
 describe("forceWarmUser — on-demand single-user warm (v1.8.7.1)", () => {
-  it("warms ONLY the active locale, bypasses the budget gate, and tallies counts", async () => {
+  it("warms BOTH locale families, bypasses the budget gate, and tallies counts", async () => {
     const { prisma } = makePrisma([]);
     const generate = vi
       .fn()
@@ -516,27 +516,31 @@ describe("forceWarmUser — on-demand single-user warm (v1.8.7.1)", () => {
       warmGenericMetrics,
     });
 
-    // Comprehensive forced once, in the active locale only. The forced path
-    // also threads an AbortSignal so a timeout can cut the generation off.
+    // Comprehensive forced once, in the caller's active locale. The forced
+    // path also threads an AbortSignal so a timeout can cut the generation
+    // off.
     expect(generate).toHaveBeenCalledTimes(1);
     expect(generate).toHaveBeenCalledWith("u1", {
       locale: "en",
       force: true,
       signal: expect.any(AbortSignal),
     });
-    // Each specialised generator forced exactly once — the active locale,
-    // NOT both de+en like the nightly cron.
+    // v1.16.7 — each specialised generator runs once PER locale family
+    // (de+en, like the nightly cron): the comprehensive write above
+    // evicted both families, so refilling only one left the other cold.
+    // The generated comprehensive means eviction happened → force: true.
     for (const g of statusGenerators) {
-      expect(g).toHaveBeenCalledTimes(1);
+      expect(g).toHaveBeenCalledTimes(2);
+      expect(g).toHaveBeenCalledWith("u1", { locale: "de", force: true });
       expect(g).toHaveBeenCalledWith("u1", { locale: "en", force: true });
     }
-    // Generic warm pass runs for the single active locale.
-    expect(warmGenericMetrics).toHaveBeenCalledWith("u1", ["en"]);
+    // Generic warm pass covers both locale families too.
+    expect(warmGenericMetrics).toHaveBeenCalledWith("u1", ["de", "en"], true);
     // No 20 h budget bucket consulted on the forced path.
     expect(checkRateLimit).not.toHaveBeenCalled();
     expect(result).toMatchObject({
       comprehensive: "generated",
-      assessmentsWarmed: 7,
+      assessmentsWarmed: 14,
       metricAssessmentsWarmed: 5,
     });
   });
@@ -565,10 +569,13 @@ describe("forceWarmUser — on-demand single-user warm (v1.8.7.1)", () => {
     });
 
     for (const g of statusGenerators) {
-      expect(g).toHaveBeenCalledTimes(1);
-      expect(g).toHaveBeenCalledWith("u1", { locale: "de", force: true });
+      // Both locale families, refill-only: a skipped comprehensive ran no
+      // eviction, so cards already generated today short-circuit cheaply.
+      expect(g).toHaveBeenCalledTimes(2);
+      expect(g).toHaveBeenCalledWith("u1", { locale: "de", force: false });
+      expect(g).toHaveBeenCalledWith("u1", { locale: "en", force: false });
     }
-    expect(warmGenericMetrics).toHaveBeenCalledWith("u1", ["de"]);
+    expect(warmGenericMetrics).toHaveBeenCalledWith("u1", ["de", "en"], false);
     expect(result).toMatchObject({
       comprehensive: "skipped",
       assessmentsWarmed: 0,
@@ -597,12 +604,12 @@ describe("forceWarmUser — on-demand single-user warm (v1.8.7.1)", () => {
     });
 
     for (const g of statusGenerators) {
-      expect(g).toHaveBeenCalledTimes(1);
+      expect(g).toHaveBeenCalledTimes(2);
     }
-    expect(warmGenericMetrics).toHaveBeenCalledWith("u1", ["de"]);
+    expect(warmGenericMetrics).toHaveBeenCalledWith("u1", ["de", "en"], false);
     expect(result).toMatchObject({
       comprehensive: "failed",
-      assessmentsWarmed: 7,
+      assessmentsWarmed: 14,
       metricAssessmentsWarmed: 4,
     });
   });
@@ -641,12 +648,16 @@ describe("forceWarmUser — on-demand single-user warm (v1.8.7.1)", () => {
       const result = await promise;
 
       for (const g of statusGenerators) {
-        expect(g).toHaveBeenCalledTimes(1);
+        expect(g).toHaveBeenCalledTimes(2);
       }
-      expect(warmGenericMetrics).toHaveBeenCalledWith("u1", ["de"]);
+      expect(warmGenericMetrics).toHaveBeenCalledWith(
+        "u1",
+        ["de", "en"],
+        false,
+      );
       expect(result).toMatchObject({
         comprehensive: "timeout",
-        assessmentsWarmed: 7,
+        assessmentsWarmed: 14,
         metricAssessmentsWarmed: 3,
       });
     } finally {
@@ -704,14 +715,14 @@ describe("forceWarmUser — on-demand single-user warm (v1.8.7.1)", () => {
 
     // Comprehensive belongs to the `briefing` surface — skipped here.
     expect(generate).not.toHaveBeenCalled();
-    // But the per-status + generic passes warm.
+    // But the per-status + generic passes warm, both locale families.
     for (const g of statusGenerators) {
-      expect(g).toHaveBeenCalledTimes(1);
+      expect(g).toHaveBeenCalledTimes(2);
     }
-    expect(warmGenericMetrics).toHaveBeenCalledWith("u1", ["de"]);
+    expect(warmGenericMetrics).toHaveBeenCalledWith("u1", ["de", "en"], false);
     expect(result).toMatchObject({
       comprehensive: "skipped",
-      assessmentsWarmed: 7,
+      assessmentsWarmed: 14,
       metricAssessmentsWarmed: 2,
     });
   });
@@ -757,9 +768,9 @@ describe("forceWarmUser — on-demand single-user warm (v1.8.7.1)", () => {
       expect(result.comprehensive).toBe("timeout");
       // The warm passes ran and are not undone by the abandoned comprehensive.
       for (const g of statusGenerators) {
-        expect(g).toHaveBeenCalledTimes(1);
+        expect(g).toHaveBeenCalledTimes(2);
       }
-      expect(result.assessmentsWarmed).toBe(7);
+      expect(result.assessmentsWarmed).toBe(14);
       expect(result.metricAssessmentsWarmed).toBe(3);
     } finally {
       vi.useRealTimers();

@@ -23,6 +23,8 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
+import { medicationsPrefetchIntentProps } from "@/lib/queries/prefetch-medications";
 import { cn } from "@/lib/utils";
 import { Logo } from "@/components/ui/logo";
 import { useAuth, useLogout } from "@/hooks/use-auth";
@@ -267,6 +269,11 @@ export function SidebarNav() {
   const pathname = usePathname();
   const { t } = useTranslations();
   const { user } = useAuth();
+  const queryClient = useQueryClient();
+  // v1.16.7 — hover / focus intent on the medications link starts the
+  // list request before the navigation commits, so the due-time cells
+  // hydrate from a warm cache instead of serialising behind the chunk.
+  const medsIntent = medicationsPrefetchIntentProps(queryClient);
   const { bugReportEnabled } = useAppSettings();
   const isAdmin = user?.role === "ADMIN";
   // Match `/admin` exactly or any `/admin/...` sub-route for active-link
@@ -407,6 +414,7 @@ export function SidebarNav() {
                         href={item.href}
                         aria-current={isActive ? "page" : undefined}
                         data-tour-id={item.tourId}
+                        {...(item.href === "/medications" ? medsIntent : {})}
                         className={cn(
                           "flex items-center justify-center rounded-lg p-2.5 transition-colors",
                           isActive
@@ -430,6 +438,7 @@ export function SidebarNav() {
                   href={item.href}
                   aria-current={isActive ? "page" : undefined}
                   data-tour-id={item.tourId}
+                  {...(item.href === "/medications" ? medsIntent : {})}
                   className={cn(
                     "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
                     isActive

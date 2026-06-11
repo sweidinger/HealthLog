@@ -105,8 +105,10 @@ async function postBulkDelete(request: NextRequest): Promise<Response> {
 
   if (count > 0) {
     // v1.4.34 IW-G — bust per-user analytics + achievements + workouts
-    // caches so subsequent reads reflect the deletions.
-    invalidateUserMeasurements(user.id);
+    // caches so subsequent reads reflect the deletions. Interactive
+    // multi-select delete from the management list — hard-evict so the
+    // SWR readers don't serve the pre-delete body.
+    invalidateUserMeasurements(user.id, { evict: true });
 
     // Collapse the deleted rows to the unique `(type, day)` set BEFORE
     // recomputing so a 200-row delete spanning one day fires ~1 recompute

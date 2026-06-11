@@ -8,9 +8,8 @@
  * server-side (log annotation only) so we don't hand regular users a probe.
  */
 import { apiHandler, requireAuth } from "@/lib/api-handler";
-import { apiSuccess, apiError } from "@/lib/api-response";
+import { apiSuccess } from "@/lib/api-response";
 import { annotate } from "@/lib/logging/context";
-import { checkRateLimit } from "@/lib/rate-limit";
 import { prisma } from "@/lib/db";
 import { cached, caches, type ServerCache } from "@/lib/cache/server-cache";
 
@@ -47,12 +46,12 @@ async function buildBugreportStatusValue(): Promise<BugreportStatusCacheValue> {
 export const GET = apiHandler(async () => {
   const { user } = await requireAuth();
 
-  // Light rate limit — the endpoint is cheap, but no reason to let a logged-in
-  // client hammer Postgres in a loop.
-  const rl = await checkRateLimit(`bugreport-status:${user.id}`, 30, 60 * 1000);
-  if (!rl.allowed) {
-    return apiError("Rate limit exceeded", 429);
-  }
+  // No per-request rate limit: the payload rides the singleton server
+  // cache below, so a cache hit costs zero Postgres round-trips — while
+  // the former rate-limit bucket was an unconditional Postgres UPSERT
+  // per request, i.e. the limiter WAS the per-request DB load it claimed
+  // to prevent. The route stays authenticated; the only uncached work is
+  // one `appSettings` read per 10 min (the bucket's TTL) process-wide.
 
   // Cache the global app-settings shape on a singleton key (per blueprint §3).
   // `isAdmin` lives outside the cache because it varies per request. The

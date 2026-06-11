@@ -47,22 +47,39 @@ export function invalidateUserDashboardSnapshot(userId: string): void {
  * Covers: analytics aggregate, achievement progress, workouts cache.
  * Mood-analytics is invalidated separately via `invalidateUserMood`
  * because mood writes don't change measurement rows.
+ *
+ * v1.16.7 — `evict` splits the analytics bucket by write origin. The
+ * `cachedSwr` readers (dashboard snapshot, comprehensive) serve a
+ * marked-stale entry as-is, so a mark-stale right after an interactive
+ * write would hand the user back the pre-write body. Interactive
+ * single-entry routes (manual create / update / delete, bulk-delete,
+ * restore) pass `{ evict: true }` so the user's own entry is reflected
+ * on the very next read — matching the mood / medication hard-evict
+ * posture. Background batch syncs (Apple Health, Withings, workouts)
+ * keep the default mark-stale so a high-frequency sync never busts the
+ * bucket into inline cold-rebuild storms.
  */
-export function invalidateUserMeasurements(userId: string): void {
+export function invalidateUserMeasurements(
+  userId: string,
+  opts?: { evict?: boolean },
+): void {
   // The `${userId}|` prefix covers the slim / thick analytics cells, the
   // iOS summary cell, AND the v1.7.0 dashboard snapshot
   // (`${userId}|dashboard-snapshot`) in one pass.
-  //
-  // v1.12.7 — mark stale rather than hard-evict. Measurement writes are
-  // the highest-frequency dirty signal (every iOS Apple-Health sync
-  // posts a batch), and a hard evict busts the snapshot into a cold
-  // rebuild on the next read all day long. Marking stale lets the
-  // `cachedSwr` snapshot read serve the prior value immediately while a
-  // single background recompute warms a fresh one. The slim / thick /
-  // summary cells read via plain `cached` are unaffected: a marked-stale
-  // entry has `expiresAt === now`, so their next read is a clean miss and
-  // rebuilds fresh — identical to the old evict for those keys.
-  caches.analytics.markStaleByPrefix(`${userId}|`);
+  if (opts?.evict) {
+    caches.analytics.deleteByPrefix(`${userId}|`);
+  } else {
+    // v1.12.7 — mark stale rather than hard-evict. Measurement writes are
+    // the highest-frequency dirty signal (every iOS Apple-Health sync
+    // posts a batch), and a hard evict busts the snapshot into a cold
+    // rebuild on the next read all day long. Marking stale lets the
+    // `cachedSwr` snapshot read serve the prior value immediately while a
+    // single background recompute warms a fresh one. The slim / thick /
+    // summary cells read via plain `cached` are unaffected: a marked-stale
+    // entry has `expiresAt === now`, so their next read is a clean miss and
+    // rebuilds fresh — identical to the old evict for those keys.
+    caches.analytics.markStaleByPrefix(`${userId}|`);
+  }
   caches.achievements.deleteByPrefix(userId);
   caches.workouts.deleteByPrefix(`${userId}|`);
   // v1.4.36 W1 — measurement writes change the per-target consistency

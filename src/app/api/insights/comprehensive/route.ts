@@ -25,7 +25,11 @@ import { apiHandler, requireAuth, type AuthContext } from "@/lib/api-handler";
 import { annotate } from "@/lib/logging/context";
 import { requireAssistantSurface } from "@/lib/feature-flags";
 import { checkAnalyticsReadRateLimit } from "@/lib/rate-limit";
-import { cached, caches, type ServerCache } from "@/lib/cache/server-cache";
+import {
+  cachedSwrWithMeta,
+  caches,
+  type ServerCache,
+} from "@/lib/cache/server-cache";
 import { buildComprehensiveAggregate } from "@/lib/insights/comprehensive-aggregator";
 import {
   ensureUserMoodRollupsFresh,
@@ -52,9 +56,24 @@ export const GET = apiHandler(async () => {
   // fans out to this endpoint alongside the Coach drawer + the
   // recommendations grid; the 60s TTL converts every duplicate
   // mount within the window to a Map lookup. Invalidation is handled
-  // by `invalidateUserMeasurements` which already evicts every key
-  // under the `${userId}|` prefix (see `lib/cache/invalidate.ts`).
-  const body = await cached(
+  // by `invalidateUserMeasurements`, which marks every key under the
+  // `${userId}|` prefix stale (see `lib/cache/invalidate.ts`).
+  //
+  // v1.16.7 — stale-while-revalidate. This is the single heaviest
+  // SQL-side aggregation on the /insights mount; serving the prior
+  // body instantly while ONE background recompute refreshes it keeps
+  // the page interactive across the bucket's 10-minute stale window
+  // (a measurement sync used to bust the entry into a blocking cold
+  // rebuild on the very next mount, all day). The truly-cold first
+  // read of the day still computes inline — there is no prior body to
+  // serve — but it no longer recurs per visit.
+  //
+  // The `revalidating` flag marks a stale-served body honestly so the
+  // client can poll (bounded) until the background rebuild lands —
+  // mirroring the `/api/insights/generate` GET contract. It rides on
+  // the response, never inside the cached body, so a warmed entry
+  // doesn't freeze the flag.
+  const { value: body, outcome } = await cachedSwrWithMeta(
     caches.analytics as ServerCache<Awaited<
       ReturnType<typeof buildComprehensiveResponse>
     >>,
@@ -63,7 +82,7 @@ export const GET = apiHandler(async () => {
     annotate,
   );
 
-  return apiSuccess(body);
+  return apiSuccess({ ...body, revalidating: outcome === "stale" });
 });
 
 type AuthedUser = AuthContext["user"];

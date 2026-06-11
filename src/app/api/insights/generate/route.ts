@@ -257,7 +257,7 @@ async function buildComparisonSnapshotForUser(
  *
  * `userId` is narrowed from the session / Bearer — never a body field.
  */
-export const GET = apiHandler(async () => {
+export const GET = apiHandler(async (request: NextRequest) => {
   const { user } = await requireAuth();
   // Same surface gate as the POST + the read-only status routes: a user
   // with assessments enabled but Coach disabled still reads the cached
@@ -284,7 +284,18 @@ export const GET = apiHandler(async () => {
   // empty / connect-AI state instead of a wasted enqueue).
   let revalidating = false;
   if (!isFresh && (await hasUsableStatusProvider(userId))) {
-    const locale = (dbUser?.locale ?? user.locale) === "en" ? "en" : "de";
+    // Resolve the locale the caller is actually reading (cookie /
+    // Accept-Language fall-back when `User.locale` is unset) and narrow
+    // non-German to English — the same convention the nightly's
+    // `normalizeLocale` and the status routes follow. The previous
+    // `(locale) === "en" ? "en" : "de"` collapsed a NULL `User.locale`
+    // to German even for a client reading the app in English, so the
+    // visit-triggered warm filled the wrong cache family.
+    const resolved = await resolveServerLocale({
+      request,
+      userLocale: dbUser?.locale ?? user.locale ?? null,
+    });
+    const locale = resolved === "de" ? "de" : "en";
     void enqueueForceWarm({ userId, locale });
     revalidating = true;
   }
@@ -302,6 +313,11 @@ export const GET = apiHandler(async () => {
         cached: true,
         cachedAt,
         legacyPayload,
+        // Honest stale-serve marker: true while the out-of-band warm is
+        // in flight, so the client can poll (bounded) until the fresh
+        // briefing lands instead of sitting on the stale payload for the
+        // rest of the session.
+        revalidating,
       });
     } catch {
       // Invalid cache row — fall through to the empty payload below. The
@@ -314,7 +330,12 @@ export const GET = apiHandler(async () => {
     action: { name: "insights.generate.read" },
     meta: { cached: false, revalidating },
   });
-  return apiSuccess({ insights: null, cached: false, legacyPayload: false });
+  return apiSuccess({
+    insights: null,
+    cached: false,
+    legacyPayload: false,
+    revalidating,
+  });
 });
 
 export const POST = apiHandler(async (request: NextRequest) => {

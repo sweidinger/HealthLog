@@ -522,6 +522,29 @@ export async function cachedSwr<T>(
   annotateFn?: (fields: { meta: Record<string, unknown> }) => void,
   ttlMsOverride?: number,
 ): Promise<T> {
+  const { value } = await cachedSwrWithMeta(
+    cache,
+    key,
+    builder,
+    annotateFn,
+    ttlMsOverride,
+  );
+  return value;
+}
+
+/**
+ * v1.16.7 — `cachedSwr` variant that also surfaces the read outcome so
+ * a route can mark a stale-served response (`outcome === "stale"`) as
+ * `revalidating` for the client. Non-breaking addition: `cachedSwr`
+ * keeps its value-only shape and delegates here.
+ */
+export async function cachedSwrWithMeta<T>(
+  cache: ServerCache<T>,
+  key: string,
+  builder: () => Promise<T>,
+  annotateFn?: (fields: { meta: Record<string, unknown> }) => void,
+  ttlMsOverride?: number,
+): Promise<{ value: T; outcome: "hit" | "stale" | "miss" | "stampede" }> {
   const { value, outcome } = await cache.wrapSwr(key, builder, ttlMsOverride);
   if (annotateFn) {
     const name = cache.stats().name;
@@ -532,7 +555,7 @@ export async function cachedSwr<T>(
       },
     });
   }
-  return value;
+  return { value, outcome };
 }
 
 /** Test helper — reset every cache in the registry. */
