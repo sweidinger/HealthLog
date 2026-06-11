@@ -35,12 +35,17 @@ export interface InsightPregeneratePayload {
 
 /**
  * Fire-and-forget enqueue used by the on-demand warm route. A
- * `singletonKey` per `(user, locale)` collapses repeated requests within
- * a short window into one queued job, so a client that taps the button
- * twice (or the auto-trigger races a manual tap) can't double-warm. No-ops
- * cleanly when the global boss instance is not available (e.g. a web
- * process without an embedded worker) — the nightly cron remains the
- * catch-net.
+ * `singletonKey` per user collapses repeated requests within a short
+ * window into one queued job, so a client that taps the button twice
+ * (or the auto-trigger races a manual tap) can't double-warm. The key
+ * is deliberately locale-free: `forceWarmUser` warms BOTH locale
+ * families per job (v1.16.7), so a per-(user, locale) key would let a
+ * German web session and an English Accept-Language client enqueue two
+ * near-identical full warms back to back — the second one force-
+ * regenerating the comprehensive briefing and re-evicting the
+ * per-status rows the first job just wrote. No-ops cleanly when the
+ * global boss instance is not available (e.g. a web process without an
+ * embedded worker) — the nightly cron remains the catch-net.
  */
 export async function enqueueForceWarm(payload: {
   userId: string;
@@ -63,7 +68,7 @@ export async function enqueueForceWarm(payload: {
         locale: payload.locale,
       } satisfies InsightPregeneratePayload,
       {
-        singletonKey: `force:${payload.userId}:${payload.locale}`,
+        singletonKey: `force:${payload.userId}`,
         // De-dupe within a 2-minute window so a double tap or an
         // auto-trigger racing a manual tap enqueues one warm, not two.
         singletonSeconds: 120,

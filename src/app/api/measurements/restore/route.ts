@@ -106,8 +106,9 @@ async function postRestore(request: NextRequest): Promise<Response> {
 
   if (count > 0) {
     // Bust per-user analytics + achievements + workouts caches so
-    // subsequent reads reflect the restored rows.
-    invalidateUserMeasurements(user.id);
+    // subsequent reads reflect the restored rows. Interactive undo —
+    // hard-evict so the SWR readers don't serve the pre-restore body.
+    invalidateUserMeasurements(user.id, { evict: true });
 
     // Collapse the restored rows to the unique `(type, day)` set BEFORE
     // recomputing — mirrors the bulk-delete path. Best-effort: a

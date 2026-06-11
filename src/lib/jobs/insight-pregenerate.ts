@@ -691,15 +691,15 @@ export async function forceWarmUser(
   // outcome that has nothing to warm is a missing provider, and the
   // generators detect that themselves at near-zero cost.
   if (flags.insightStatus) {
-    // Mirror the nightly loop's force/refill split: only a `generated` /
-    // `cached` comprehensive ran `evictPerStatusInsightCache`, so only
-    // then must every card re-generate. On a failed / timed-out /
-    // skipped comprehensive the rows survived — refill-only (`force:
-    // false`) lets a card already generated today short-circuit to its
-    // cache, which is what keeps the second locale family cheap.
-    const evicted =
-      result.comprehensive === "generated" ||
-      result.comprehensive === "cached";
+    // Mirror the nightly loop's force/refill split: only a `generated`
+    // comprehensive ran `evictPerStatusInsightCache`, so only then must
+    // every card re-generate. (The forced generation above never returns
+    // `cached` — `force: true` skips the 24 h cache-hit branch.) On a
+    // failed / timed-out / skipped comprehensive the rows survived —
+    // refill-only (`force: false`) lets a card already generated today
+    // short-circuit to its cache, which is what keeps the second locale
+    // family cheap.
+    const evicted = result.comprehensive === "generated";
     result.assessmentsWarmed = await warmPerStatusCaches(
       userId,
       locales,

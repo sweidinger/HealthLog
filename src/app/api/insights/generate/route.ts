@@ -313,6 +313,11 @@ export const GET = apiHandler(async (request: NextRequest) => {
         cached: true,
         cachedAt,
         legacyPayload,
+        // Honest stale-serve marker: true while the out-of-band warm is
+        // in flight, so the client can poll (bounded) until the fresh
+        // briefing lands instead of sitting on the stale payload for the
+        // rest of the session.
+        revalidating,
       });
     } catch {
       // Invalid cache row — fall through to the empty payload below. The
@@ -325,7 +330,12 @@ export const GET = apiHandler(async (request: NextRequest) => {
     action: { name: "insights.generate.read" },
     meta: { cached: false, revalidating },
   });
-  return apiSuccess({ insights: null, cached: false, legacyPayload: false });
+  return apiSuccess({
+    insights: null,
+    cached: false,
+    legacyPayload: false,
+    revalidating,
+  });
 });
 
 export const POST = apiHandler(async (request: NextRequest) => {

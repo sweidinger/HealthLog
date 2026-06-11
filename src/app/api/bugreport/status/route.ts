@@ -51,7 +51,7 @@ export const GET = apiHandler(async () => {
   // the former rate-limit bucket was an unconditional Postgres UPSERT
   // per request, i.e. the limiter WAS the per-request DB load it claimed
   // to prevent. The route stays authenticated; the only uncached work is
-  // one `appSettings` read per 60 s process-wide.
+  // one `appSettings` read per 10 min (the bucket's TTL) process-wide.
 
   // Cache the global app-settings shape on a singleton key (per blueprint §3).
   // `isAdmin` lives outside the cache because it varies per request. The

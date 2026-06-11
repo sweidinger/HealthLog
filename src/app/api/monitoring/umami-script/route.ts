@@ -43,8 +43,19 @@ export const GET = apiHandler(async () => {
       // the input-time `isPublicUrl` accept and the socket connect.
       { requirePublicHost: true },
     );
-  } catch {
-    annotate({ meta: { umami_script_fetch_failed: true } });
+  } catch (err) {
+    // Fail-soft stays a 200, but the failure must stay observable:
+    // a proper action name keeps the degraded state visible on the
+    // wide-event dashboards instead of hiding behind a bare meta flag.
+    annotate({
+      action: { name: "monitoring.umami_script.fetch_failed" },
+      meta: {
+        reason:
+          err instanceof Error
+            ? err.message.slice(0, 200)
+            : String(err).slice(0, 200),
+      },
+    });
     return new NextResponse(NOOP_SCRIPT, {
       status: 200,
       headers: {

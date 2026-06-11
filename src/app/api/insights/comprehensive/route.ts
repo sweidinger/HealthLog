@@ -25,7 +25,11 @@ import { apiHandler, requireAuth, type AuthContext } from "@/lib/api-handler";
 import { annotate } from "@/lib/logging/context";
 import { requireAssistantSurface } from "@/lib/feature-flags";
 import { checkAnalyticsReadRateLimit } from "@/lib/rate-limit";
-import { cachedSwr, caches, type ServerCache } from "@/lib/cache/server-cache";
+import {
+  cachedSwrWithMeta,
+  caches,
+  type ServerCache,
+} from "@/lib/cache/server-cache";
 import { buildComprehensiveAggregate } from "@/lib/insights/comprehensive-aggregator";
 import {
   ensureUserMoodRollupsFresh,
@@ -63,7 +67,13 @@ export const GET = apiHandler(async () => {
   // rebuild on the very next mount, all day). The truly-cold first
   // read of the day still computes inline — there is no prior body to
   // serve — but it no longer recurs per visit.
-  const body = await cachedSwr(
+  //
+  // The `revalidating` flag marks a stale-served body honestly so the
+  // client can poll (bounded) until the background rebuild lands —
+  // mirroring the `/api/insights/generate` GET contract. It rides on
+  // the response, never inside the cached body, so a warmed entry
+  // doesn't freeze the flag.
+  const { value: body, outcome } = await cachedSwrWithMeta(
     caches.analytics as ServerCache<Awaited<
       ReturnType<typeof buildComprehensiveResponse>
     >>,
@@ -72,7 +82,7 @@ export const GET = apiHandler(async () => {
     annotate,
   );
 
-  return apiSuccess(body);
+  return apiSuccess({ ...body, revalidating: outcome === "stale" });
 });
 
 type AuthedUser = AuthContext["user"];

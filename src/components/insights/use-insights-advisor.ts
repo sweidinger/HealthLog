@@ -54,6 +54,13 @@ export interface InsightAdvisorPayload {
    * left null when the cached payload predates PROMPT_VERSION 4.20.1.
    */
   trendAnnotations?: TrendAnnotations | null;
+  /**
+   * v1.16.7 — true when the GET served a stale / missing briefing AND
+   * enqueued an out-of-band warm. The query polls (bounded) while this
+   * is set so the fresh briefing reaches the open page in-session
+   * instead of waiting for the next mount.
+   */
+  revalidating?: boolean;
 }
 
 /**
@@ -79,6 +86,35 @@ const ADVISOR_TIMEOUT_MS = 8_000;
  * may wait. Per `.planning/v1.15.18-daily-briefing-audit.md` Fix 1b.
  */
 const FORCE_ADVISOR_TIMEOUT_MS = 45_000;
+
+/**
+ * v1.16.7 — poll cadence + ceiling while the server reports
+ * `revalidating: true` (stale briefing served, out-of-band warm in
+ * flight). The query's 1 h `staleTime` plus the app-default
+ * `refetchOnWindowFocus: false` means a stale-served briefing would
+ * otherwise never refresh in-session. 25 s comfortably covers the warm
+ * job's 45 s budget within two polls; the attempt ceiling stops a
+ * persistently failing generation from polling an open page forever.
+ * Same bounded-poll shape as `nextStatusPollInterval`
+ * (`src/hooks/use-insight-status.ts`).
+ */
+export const ADVISOR_REVALIDATE_POLL_MS = 25_000;
+export const ADVISOR_REVALIDATE_POLL_MAX_ATTEMPTS = 10;
+
+/**
+ * Decide whether the advisor query schedules its next poll. Pure so the
+ * ceiling + stop conditions are unit-testable: returns the interval
+ * while the last payload carries `revalidating: true`, `false` once a
+ * response comes back with the flag falsy OR the attempt cap is hit.
+ */
+export function nextAdvisorPollInterval(
+  revalidating: boolean | undefined,
+  dataUpdateCount: number,
+): number | false {
+  if (!revalidating) return false;
+  if (dataUpdateCount >= ADVISOR_REVALIDATE_POLL_MAX_ATTEMPTS) return false;
+  return ADVISOR_REVALIDATE_POLL_MS;
+}
 
 /**
  * v1.15.18 — the outcome of a force regenerate, so the UI can be HONEST:
@@ -244,6 +280,14 @@ export function useInsightsAdvisorQuery(
     // 24h cache window matches the server-side `insightsCachedAt` TTL.
     staleTime: 60 * 60 * 1000,
     retry: false,
+    // v1.16.7 — converge a stale-served briefing in-session: while the
+    // last GET reported `revalidating: true` (warm enqueued), poll on a
+    // bounded interval until a response comes back with the flag falsy.
+    refetchInterval: (query) =>
+      nextAdvisorPollInterval(
+        query.state.data?.payload?.revalidating,
+        query.state.dataUpdateCount,
+      ),
   });
 
   const mutation = useMutation({

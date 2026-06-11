@@ -117,6 +117,44 @@ describe("invalidateUserMeasurements", () => {
     // Mood-analytics not touched by a measurement write.
     expect(caches.moodAnalytics.get(USER_A)).not.toBeNull();
   });
+
+  it("marks the analytics bucket stale (SWR-serveable) by default — background sync posture", async () => {
+    await primeAllCaches();
+    invalidateUserMeasurements(USER_A);
+
+    // v1.16.7 — the default (batch sync) path marks stale: the entry is
+    // gone for plain `get()` (asserted above) but stays serveable for
+    // the `cachedSwr` readers, so a high-frequency sync never busts the
+    // snapshot / comprehensive into an inline cold rebuild.
+    expect(caches.analytics.getAllowStale(`${USER_A}|default`)).toEqual({
+      value: { a: 1 },
+      stale: true,
+    });
+    expect(
+      caches.analytics.getAllowStale(dashboardSnapshotCacheKey(USER_A)),
+    ).toEqual({ value: { snap: 1 }, stale: true });
+  });
+
+  it("hard-evicts the analytics bucket with { evict: true } — interactive write posture", async () => {
+    await primeAllCaches();
+    invalidateUserMeasurements(USER_A, { evict: true });
+
+    // v1.16.7 — an interactive single-entry write must NOT leave a
+    // stale-serveable body behind: the SWR readers would hand the user
+    // back the pre-write payload. The evict drops the entries entirely.
+    expect(caches.analytics.getAllowStale(`${USER_A}|default`)).toBeNull();
+    expect(caches.analytics.getAllowStale(`${USER_A}|summaries`)).toBeNull();
+    expect(
+      caches.analytics.getAllowStale(dashboardSnapshotCacheKey(USER_A)),
+    ).toBeNull();
+
+    // User B stays warm; the non-analytics buckets evict as before.
+    expect(
+      caches.analytics.getAllowStale(`${USER_B}|default`),
+    ).not.toBeNull();
+    expect(caches.achievements.get(USER_A)).toBeNull();
+    expect(caches.workouts.get(`${USER_A}|3|0||`)).toBeNull();
+  });
 });
 
 describe("invalidateUserMood", () => {

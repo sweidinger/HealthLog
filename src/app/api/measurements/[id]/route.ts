@@ -148,8 +148,9 @@ export const PUT = apiHandler(
     });
 
     // v1.4.34 IW-G — bust per-user analytics + achievements + workouts
-    // caches so subsequent reads reflect the edited row.
-    invalidateUserMeasurements(user.id);
+    // caches so subsequent reads reflect the edited row. Interactive
+    // edit — hard-evict so the SWR readers don't serve the pre-edit body.
+    invalidateUserMeasurements(user.id, { evict: true });
 
     // v1.5.0 — refresh the rollup row for the affected day. When the
     // measuredAt moved across day boundaries (or the row was re-typed)
@@ -236,8 +237,10 @@ export const DELETE = apiHandler(
     });
 
     // v1.4.34 IW-G — bust per-user analytics + achievements + workouts
-    // caches so subsequent reads reflect the deletion.
-    invalidateUserMeasurements(user.id);
+    // caches so subsequent reads reflect the deletion. Interactive
+    // delete — hard-evict so the SWR readers don't serve the pre-delete
+    // body.
+    invalidateUserMeasurements(user.id, { evict: true });
 
     // v1.5.0 — refresh the rollup row for the affected day (the
     // recompute drops the row when the day's measurement count goes

@@ -10,7 +10,10 @@ import { useMounted } from "@/hooks/use-mounted";
 import { useFeatureFlags } from "@/hooks/use-feature-flags";
 import { useWorkouts } from "@/hooks/use-workouts";
 import { InsightsTabStrip } from "@/components/insights/insights-tab-strip";
-import { useInsightsAdvisorQuery } from "@/components/insights/use-insights-advisor";
+import {
+  nextAdvisorPollInterval,
+  useInsightsAdvisorQuery,
+} from "@/components/insights/use-insights-advisor";
 import { useAnalyticsQuery } from "@/lib/queries/use-analytics-query";
 import { useInsightsLayoutQuery } from "@/hooks/use-insights-layout";
 import { queryKeys } from "@/lib/query-keys";
@@ -41,6 +44,12 @@ import { apiGet } from "@/lib/api/api-fetch";
 interface ComprehensivePayload {
   moodSummary: { count: number } | null;
   medications: Array<{ id: string }>;
+  /**
+   * v1.16.7 — true when the route served a stale cache body while a
+   * background rebuild runs (stale-while-revalidate). The query polls
+   * (bounded) while set so the fresh aggregate lands in-session.
+   */
+  revalidating?: boolean;
 }
 
 export function InsightsLayoutShell({ children }: { children: ReactNode }) {
@@ -91,6 +100,14 @@ export function InsightsLayoutShell({ children }: { children: ReactNode }) {
       return apiGet<ComprehensivePayload>("/api/insights/comprehensive");
     },
     enabled: isAuthenticated,
+    // v1.16.7 — converge a stale-served (SWR) body in-session: while the
+    // route reports `revalidating: true`, poll on the same bounded
+    // cadence the advisor query uses until a fresh body lands.
+    refetchInterval: (query) =>
+      nextAdvisorPollInterval(
+        query.state.data?.revalidating,
+        query.state.dataUpdateCount,
+      ),
   });
 
   // v1.4.32 — workout-presence gate. The workouts pill gates on at
