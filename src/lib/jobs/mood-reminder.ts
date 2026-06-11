@@ -24,7 +24,7 @@ import type { PrismaClient } from "@/generated/prisma/client";
 import { getServerTranslator } from "@/lib/i18n/server-translator";
 import type { Locale } from "@/lib/i18n/config";
 import { defaultLocale, locales } from "@/lib/i18n/config";
-import { getLocalDateParts } from "@/lib/timezone";
+import { wallClockInTz } from "@/lib/tz/wall-clock";
 import { dispatchNotification } from "@/lib/notifications/dispatcher";
 import { getEvent } from "@/lib/logging/context";
 import {
@@ -92,7 +92,7 @@ export function evaluateMoodReminderWindow(
     return { fire: false, localDate: null, localHour: -1 };
   }
   const targetHour = user.reminderHour ?? MOOD_REMINDER_LOCAL_HOUR;
-  const parts = getLocalDateParts(now, user.timezone || "Europe/Berlin");
+  const parts = wallClockInTz(now, user.timezone || "Europe/Berlin");
   const inWindow = parts.hour === targetHour;
   const isoDate = `${parts.year.toString().padStart(4, "0")}-${parts.month
     .toString()

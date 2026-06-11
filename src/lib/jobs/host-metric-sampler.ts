@@ -2,8 +2,8 @@
  * Per-minute host-load sampler that backs the admin /admin/system-status
  * "last 2 hours" chart (v1.4.16 phase B3).
  *
- * the maintainer asked for a small at-a-glance graph above the system-status facts
- * grid showing CPU + memory + disk-IO so a glance at /admin tells him
+ * The maintainer asked for a small at-a-glance graph above the system-status facts
+ * grid showing CPU + memory + disk-IO so a glance at /admin tells them
  * whether the apps-01 host is healthy. We considered scraping Coolify's
  * Sentinel collector, but the Coolify HTTP API does not expose a clean
  * read endpoint for per-server metrics — every approach ended up either

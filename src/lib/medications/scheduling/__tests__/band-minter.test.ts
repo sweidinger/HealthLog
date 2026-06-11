@@ -28,7 +28,7 @@ import {
   type RecurrenceContext,
 } from "../recurrence";
 import { attributeIntakeToSlot } from "../attribution";
-import { localHmAsUtc } from "@/lib/timezone";
+import { localHmAsUtc } from "@/lib/tz/local-day";
 
 const TZ = "Europe/Berlin";
 const MIN = 60_000;
@@ -471,7 +471,7 @@ describe("multi-schedule — bands built PER SCHEDULE (no cross-clip)", () => {
 });
 
 // ────────────────────────────────────────────────────────────────────
-// 9. Per-dose configurable window (Marc's "07:00–09:00" lever, v1.15.18 W7)
+// 9. Per-dose configurable window (the maintainer's "07:00–09:00" lever, v1.15.18 W7)
 // ────────────────────────────────────────────────────────────────────
 
 describe("explicit per-dose window from schedule.doseWindows", () => {

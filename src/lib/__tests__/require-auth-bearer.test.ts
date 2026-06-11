@@ -54,8 +54,8 @@ const RAW_TOKEN = "hlk_" + "a".repeat(64);
 const FAKE_USER = {
   id: "user-1",
   role: "USER" as const,
-  username: "marc",
-  email: "marc@example.com",
+  username: "testuser",
+  email: "user@example.com",
 };
 
 function setBearerHeader(value: string | null): void {

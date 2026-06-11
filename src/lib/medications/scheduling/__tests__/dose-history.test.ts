@@ -21,7 +21,7 @@ import {
   suggestNearestSlot,
   type HistoryIntake,
 } from "../dose-history";
-import { localHmAsUtc } from "@/lib/timezone";
+import { localHmAsUtc } from "@/lib/tz/local-day";
 
 const TZ = "Europe/Berlin";
 const MIN = 60_000;

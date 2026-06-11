@@ -289,7 +289,7 @@ export const scheduleSchema = z
         "Cyclic \"off\" weeks (0..52). Required when `scheduleType` is CYCLIC; ignored otherwise.",
       ),
     /**
-     * v1.15.18 — per-dose configurable on-time intake window (Marc's
+     * v1.15.18 — per-dose configurable on-time intake window (the maintainer's
      * "07:00–09:00" lever). One entry per dose time the user wants an explicit
      * range for; a `timeOfDay` with no entry keeps the symmetric ±1h default.
      * Each `timeOfDay` MUST match one of the schedule's `timesOfDay` (or the

@@ -28,7 +28,7 @@ import { isMedicationReminderClientManaged } from "@/lib/validations/notificatio
 import {
   getUserTodayBounds as getUserTodayBoundsUtil,
   localHmAsUtc,
-} from "@/lib/timezone";
+} from "@/lib/tz/local-day";
 import { getWorkerPrisma, parseTimeToMinutes } from "./shared";
 
 export interface ReminderCheckPayload {

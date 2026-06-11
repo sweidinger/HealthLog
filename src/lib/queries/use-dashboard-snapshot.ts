@@ -28,7 +28,7 @@
  *   - The queryKey is the centralised factory entry
  *     `queryKeys.dashboardSnapshot()`.
  */
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "@/lib/query-keys";
 import { DASHBOARD_REFETCH_INTERVAL_MS } from "@/lib/queries/refetch-interval";
 import type { DashboardSnapshot } from "@/lib/dashboard/snapshot";
@@ -41,9 +41,26 @@ async function fetchDashboardSnapshot(): Promise<DashboardSnapshot> {
 }
 
 export function useDashboardSnapshot(enabled = true) {
+  const queryClient = useQueryClient();
   return useQuery({
     queryKey: queryKeys.dashboardSnapshot(),
-    queryFn: fetchDashboardSnapshot,
+    queryFn: async () => {
+      const snap = await fetchDashboardSnapshot();
+      // Cold-start de-waterfall: the snapshot already carries the
+      // resolved widget layout, and the per-chart overlay-prefs hook
+      // (`use-chart-overlay-prefs.ts`) fetches the SAME payload from
+      // `/api/dashboard/widgets` under `queryKeys.dashboardWidgets()`
+      // before the chart cells issue their measurement queries. Seeding
+      // that cache here removes one full request stage from the
+      // dashboard waterfall (snapshot → widgets → measurements becomes
+      // snapshot → measurements). Seed ONLY when the slot is empty so a
+      // later interval refetch never clobbers an optimistic overlay /
+      // compare-toggle mutation that wrote the key in the meantime.
+      if (!queryClient.getQueryData(queryKeys.dashboardWidgets())) {
+        queryClient.setQueryData(queryKeys.dashboardWidgets(), snap.layout);
+      }
+      return snap;
+    },
     enabled,
     staleTime: 60_000,
     refetchOnMount: false,

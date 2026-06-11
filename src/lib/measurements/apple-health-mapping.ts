@@ -877,7 +877,7 @@ export const HK_QUANTITY_TYPE_DEFERRED = new Set<string>([
   // `AppleSleepingBreathingDisturbances` (the per-night quantity) →
   // BREATHING_DISTURBANCES, and `HKCategoryTypeIdentifierSleepApneaEvent`
   // (the fired screening event) → BREATHING_DISTURBANCE_EVENT.
-  // Nutrition — Marc directive, indefinite hold
+  // Nutrition — the maintainer directive, indefinite hold
   "HKQuantityTypeIdentifierDietaryWater",
   "HKQuantityTypeIdentifierDietaryCaffeine",
   "HKQuantityTypeIdentifierDietaryEnergyConsumed",

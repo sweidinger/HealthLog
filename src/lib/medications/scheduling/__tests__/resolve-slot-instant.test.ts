@@ -15,7 +15,7 @@ import { describe, expect, it } from "vitest";
 import { resolveCanonicalSlotInstant } from "../resolve-slot-instant";
 import type { SlotResolverMedication } from "../resolve-slot-instant";
 import type { WorkerScheduleRow } from "../worker-helpers";
-import { localHmAsUtc } from "@/lib/timezone";
+import { localHmAsUtc } from "@/lib/tz/local-day";
 
 const TZ = "Europe/Berlin";
 

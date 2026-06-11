@@ -12,7 +12,7 @@ import type { Locale } from "@/lib/i18n/config";
 /**
  * v1.4.25 W14c — cross-locale refusal-probe matrix.
  *
- * Marc cannot review the FR/ES/IT/PL safety-critical translations
+ * The maintainer cannot review the FR/ES/IT/PL safety-critical translations
  * himself. Automated coverage is the only safety net, so this test
  * runs 20+ adversarial paraphrasings against every (ground-rule,
  * locale) pair — 14 rules x 6 locales x 20 paraphrasings = 1680

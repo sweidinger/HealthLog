@@ -5,6 +5,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   useCallback,
   useSyncExternalStore,
@@ -20,11 +21,25 @@ import {
   readStoredTimeFormat,
   subscribeTimeFormat,
 } from "../time-format";
-import { allMessages, resolveKey } from "./shared-resolve";
+import { resolveKey } from "./resolve-key";
+import {
+  fallbackMessages,
+  getCachedMessages,
+  loadMessages,
+  primeMessages,
+  type MessageBundle,
+} from "./load-locale";
 
 interface I18nContextValue {
   locale: Locale;
   setLocale: (locale: Locale) => void;
+  /**
+   * Non-null while a locale switch is waiting on its message bundle
+   * (dynamic import). The switcher uses it for a short pending state;
+   * `locale` / `t` only flip once the bundle is in so the UI never
+   * renders the new locale with the old (or fallback) strings.
+   */
+  pendingLocale: Locale | null;
   t: (key: string, params?: Record<string, string | number>) => string;
 }
 
@@ -65,33 +80,99 @@ function getSavedLocale(): Locale | null {
 export function I18nProvider({
   children,
   initialLocale,
+  initialMessages,
 }: {
   children: ReactNode;
   initialLocale?: Locale;
+  /**
+   * The active locale's message bundle, resolved server-side by the
+   * root layout and passed through the RSC payload. This is what keeps
+   * the client chunk free of every non-EN bundle WITHOUT reintroducing
+   * the EN→DE hydration flash: the first client render already holds
+   * the right strings, no async fetch on first paint. Only EN ships
+   * statically (the synchronous fallback floor of the t() chain).
+   */
+  initialMessages?: MessageBundle;
 }) {
-  const [locale, setLocaleState] = useState<Locale>(() => {
+  // Locale + messages live in ONE state cell so a locale switch flips
+  // both atomically — `locale` never points at a bundle that hasn't
+  // arrived yet.
+  const [active, setActive] = useState<{
+    locale: Locale;
+    messages: MessageBundle;
+  }>(() => {
     // Prefer the server-resolved initial locale to eliminate the hydration
     // flash where the server renders EN ("Loading…") and the client then
     // flips to DE ("Laden…") once localStorage/cookie is read at mount.
-    if (
-      initialLocale &&
-      (locales as readonly string[]).includes(initialLocale)
-    ) {
-      return initialLocale;
+    const locale =
+      initialLocale && (locales as readonly string[]).includes(initialLocale)
+        ? initialLocale
+        : (getSavedLocale() ?? detectSystemLocale());
+    if (initialMessages && locale === initialLocale) {
+      // Seed the switch cache too, so switching away and back is instant.
+      // Idempotent, so safe under StrictMode's double initializer call.
+      primeMessages(locale, initialMessages);
+      return { locale, messages: initialMessages };
     }
-    return getSavedLocale() ?? detectSystemLocale();
+    return { locale, messages: getCachedMessages(locale) ?? fallbackMessages };
   });
+  const { locale, messages } = active;
+  const [pendingLocale, setPendingLocale] = useState<Locale | null>(null);
+  // Tracks the most recent switch request so a slow bundle load can't
+  // clobber a newer one (last click wins).
+  const requestedLocaleRef = useRef<Locale | null>(null);
+
+  // Degenerate mount (no server-passed bundle, non-EN locale from
+  // localStorage / navigator): backfill the bundle asynchronously. In
+  // the app this path never runs — the root layout always passes the
+  // active locale's messages — but standalone mounts stay correct.
+  useEffect(() => {
+    if (getCachedMessages(locale)) return;
+    let cancelled = false;
+    void loadMessages(locale).then((loaded) => {
+      if (cancelled) return;
+      setActive((prev) =>
+        prev.locale === locale ? { locale, messages: loaded } : prev,
+      );
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [locale]);
 
   const setLocale = useCallback((newLocale: Locale) => {
-    if ((locales as readonly string[]).includes(newLocale)) {
-      setLocaleState(newLocale);
-      localStorage.setItem("healthlog-locale", newLocale);
-      // Also mirror to cookie so SSR (layout, metadata) renders in the
-      // user's language. 1-year expiry, Lax samesite, not HttpOnly so the
-      // client continues to own it.
-      document.cookie = `healthlog-locale=${newLocale}; path=/; max-age=${60 * 60 * 24 * 365}; SameSite=Lax`;
-      document.documentElement.lang = newLocale;
+    if (!(locales as readonly string[]).includes(newLocale)) return;
+    localStorage.setItem("healthlog-locale", newLocale);
+    // Also mirror to cookie so SSR (layout, metadata) renders in the
+    // user's language. 1-year expiry, Lax samesite, not HttpOnly so the
+    // client continues to own it.
+    document.cookie = `healthlog-locale=${newLocale}; path=/; max-age=${60 * 60 * 24 * 365}; SameSite=Lax`;
+    document.documentElement.lang = newLocale;
+
+    const cached = getCachedMessages(newLocale);
+    if (cached) {
+      requestedLocaleRef.current = null;
+      setPendingLocale(null);
+      setActive({ locale: newLocale, messages: cached });
+      return;
     }
+
+    requestedLocaleRef.current = newLocale;
+    setPendingLocale(newLocale);
+    loadMessages(newLocale)
+      .then((loaded) => {
+        if (requestedLocaleRef.current !== newLocale) return;
+        requestedLocaleRef.current = null;
+        setPendingLocale(null);
+        setActive({ locale: newLocale, messages: loaded });
+      })
+      .catch(() => {
+        // Bundle fetch failed (offline mid-session, …) — stay on the
+        // current locale rather than rendering the new one in EN.
+        if (requestedLocaleRef.current !== newLocale) return;
+        requestedLocaleRef.current = null;
+        setPendingLocale(null);
+      });
   }, []);
 
   // Keep the HTML lang and the cookie in sync with the active locale on
@@ -103,11 +184,11 @@ export function I18nProvider({
 
   const t = useCallback(
     (key: string, params?: Record<string, string | number>): string => {
-      let value = resolveKey(allMessages[locale], key);
+      let value = resolveKey(messages, key);
 
       // Fallback to English if key missing in current locale
       if (value === undefined && locale !== "en") {
-        value = resolveKey(allMessages.en, key);
+        value = resolveKey(fallbackMessages, key);
       }
 
       // Fallback to key itself
@@ -124,14 +205,15 @@ export function I18nProvider({
 
       return value;
     },
-    [locale],
+    [locale, messages],
   );
 
-  return (
-    <I18nContext.Provider value={{ locale, setLocale, t }}>
-      {children}
-    </I18nContext.Provider>
+  const value = useMemo(
+    () => ({ locale, setLocale, pendingLocale, t }),
+    [locale, setLocale, pendingLocale, t],
   );
+
+  return <I18nContext.Provider value={value}>{children}</I18nContext.Provider>;
 }
 
 export function useTranslations() {

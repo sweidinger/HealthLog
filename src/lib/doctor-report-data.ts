@@ -880,7 +880,7 @@ export async function collectDoctorReportData(
  * Per-measurement-type → section-toggle mapping. Keys not listed here
  * (e.g., glucose contexts, body fat, oxygen saturation) bypass the
  * toggles for now — those sections will get their own flags in a
- * future iteration. The current scope per Marc's directive is the
+ * future iteration. The current scope per the maintainer's directive is the
  * "big five" plus mood + compliance.
  */
 const MEASUREMENT_TYPE_SECTION: Record<string, keyof DoctorReportPrefs> = {

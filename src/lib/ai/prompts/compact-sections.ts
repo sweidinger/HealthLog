@@ -13,7 +13,7 @@
  *      framing.
  *   2. Some downstream prose composers render the block label without
  *      checking row count, producing the v1.4.35 "Hier sind die
- *      Schlafdaten: [keine]" anti-pattern Marc flagged in W3.
+ *      Schlafdaten: [keine]" anti-pattern the maintainer flagged in W3.
  *
  * `compactSections` walks the object once and drops any property whose
  * value is:

@@ -9,7 +9,7 @@
  * shape is preserved as `parseDoseMgOrNull` so the titration route
  * keeps its "no current step" semantics.
  *
- * Accepts comma OR dot as decimal separator (Marc-memory: the German
+ * Accepts comma OR dot as decimal separator (maintainer note: the German
  * UI lets the user type "0,25 mg"). Trailing unit text after the
  * number is ignored — the parser only owns the numeric extraction.
  */

@@ -92,7 +92,7 @@ describe("getStrictInsightsSystemPrompt — DE", () => {
 /**
  * v1.4.25 W5b — pin the enum-identifier ban rule (no internal metric
  * identifiers
- * in prose). Marc saw the "Metric Pressure_Sys" leak on the
+ * in prose). The maintainer saw the "Metric Pressure_Sys" leak on the
  * Einschätzungen surface 2026-05-14; the stripper covers the leak at
  * render time, the rule closes the loop at generation time so
  * the cleaned-up prose was the only version emitted in the first

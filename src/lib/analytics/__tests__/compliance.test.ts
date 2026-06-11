@@ -31,7 +31,7 @@ import {
 } from "../compliance";
 import type { IntakeTimingClass } from "../compliance";
 import { buildCadenceTimeline } from "@/lib/medications/scheduling/cadence";
-import { getUserTodayBounds } from "@/lib/timezone";
+import { getUserTodayBounds } from "@/lib/tz/local-day";
 import { userDayKey } from "@/lib/tz/format";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -2497,7 +2497,7 @@ describe("doseCadenceFamily", () => {
 // intake can't be "taken" in the % while the ledger calls it "ad_hoc".
 // ────────────────────────────────────────────────────────────────────
 
-import { localHmAsUtc } from "@/lib/timezone";
+import { localHmAsUtc } from "@/lib/tz/local-day";
 import {
   buildBandsForSchedules,
   type BandMinterMedication,
@@ -2728,7 +2728,7 @@ describe("tallyComplianceFromLedger — the unified % keystone", () => {
   });
 
   it("an off-schedule (ad-hoc) take is EXCLUDED + leaves its slot missed", () => {
-    // Marc's case: 07:00 dose logged at 11:29 → outside the band → ad-hoc;
+    // The maintainer's case: 07:00 dose logged at 11:29 → outside the band → ad-hoc;
     // the 07:00 slot is missed; the 19:00 slot is also missed (untouched).
     const events = [
       { scheduledFor: at(7, 0), takenAt: at(11, 29), skipped: false },

@@ -4,7 +4,7 @@
  * The state-machine threshold tests live in `status.test.ts` (when
  * does the alert fire?). This file proves WHAT the alert looks like
  * — the message body the maintainer sees on Telegram when an integration
- * starts crashing for one of his users.
+ * starts crashing for one of their users.
  *
  * The formatter is a pure function so we can test deterministically
  * without touching Prisma or the dispatcher.
@@ -96,9 +96,9 @@ describe("formatAdminAlertPayload — moodLog transient", () => {
       message: "moodLog sync HTTP 502",
       errorCode: "http_502",
       consecutiveFailures: 4,
-      subjectLabel: "marc@example.com",
+      subjectLabel: "user@example.com",
     });
-    expect(out.title).toBe("moodLog sync failing for marc@example.com");
+    expect(out.title).toBe("moodLog sync failing for user@example.com");
     expect(out.message).toContain("Action: investigate the upstream service.");
     expect(out.message).toContain("(http_502)");
   });

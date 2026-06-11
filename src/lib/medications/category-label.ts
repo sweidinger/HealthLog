@@ -5,7 +5,7 @@
  * `categoryLabel` into the same `<MedicationCardHeader>` outline badge.
  * Historically the generic card kept its own inline lookup table while
  * the GLP-1 card hard-coded `medications.treatmentClassGlp1` into the
- * slot — Marc reported the asymmetry during the v1.4.37 UX audit
+ * slot — the maintainer reported the asymmetry during the v1.4.37 UX audit
  * (audit item 11). The GLP-1 nature is already implied by the
  * rotation hint + injection metadata rows, so both surfaces should
  * paint the actual medication category instead.

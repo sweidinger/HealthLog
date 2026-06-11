@@ -11,7 +11,7 @@ import type { DataSummary } from "@/lib/analytics/trends";
  * inline merge used `slim?.summaries ?? thick?.summaries` which
  * short-circuited on a truthy-but-empty `{}` from the slim slice and
  * blanked the tile strip even when thick carried the full payload —
- * the regression Marc's v1.4.39.3 e2e CI flagged across eight
+ * the regression the maintainer's v1.4.39.3 e2e CI flagged across eight
  * dashboard / chart specs (chart-overlay-controls, dashboard,
  * measurement-flow, charts-mobile). The pure helper extracted in
  * v1.4.39.3 uses object emptiness as the discriminator so a populated

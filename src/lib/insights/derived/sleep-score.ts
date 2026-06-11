@@ -34,7 +34,7 @@
  */
 import type { MeasurementType, SleepStage } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db";
-import { getLocalDateParts } from "@/lib/timezone";
+import { wallClockInTz } from "@/lib/tz/wall-clock";
 import { resolveUserTimezone } from "@/lib/tz/resolver";
 import {
   buildInsufficient,
@@ -397,7 +397,7 @@ export function reconstructNights(
 
 function minutesOfDay(d: Date, tz: string): number {
   if (tz === "UTC") return d.getUTCHours() * 60 + d.getUTCMinutes();
-  const { hour, minute } = getLocalDateParts(d, tz);
+  const { hour, minute } = wallClockInTz(d, tz);
   return hour * 60 + minute;
 }
 

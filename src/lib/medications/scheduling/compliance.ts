@@ -4,7 +4,7 @@
  * Reuses `buildCadenceTimeline` to count taken vs missed slots over a
  * rolling window. The W19e detail page surfaces four chips: adherence
  * rate, current streak (days), longest streak (days), missed in last
- * 30 days. Each chip is monochrome — Marc-memory: no gamified badges.
+ * 30 days. Each chip is monochrome — maintainer note: no gamified badges.
  *
  * Distinct from `src/lib/analytics/compliance.ts.calculateCompliance`:
  * that helper computes against expected counts (schedules-per-day ×

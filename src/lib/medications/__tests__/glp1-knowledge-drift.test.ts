@@ -161,7 +161,7 @@ describe("glp1-knowledge drift guard", () => {
   });
 
   // Local-only soft pins: the research markdown lives under `.planning/`
-  // which is untracked, so the block is a no-op on CI. Marc's local
+  // which is untracked, so the block is a no-op on CI. The maintainer's local
   // working copy keeps the file and the assertions run there.
   describe.skipIf(!RESEARCH_AVAILABLE)("research-file citation presence", () => {
     it("references the EMA Mounjaro EPAR for tirzepatide", () => {

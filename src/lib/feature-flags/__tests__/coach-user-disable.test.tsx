@@ -305,7 +305,9 @@ describe("Coach per-user disableCoach invariant", () => {
     //   writes the flag does NOT read `user.disableCoach` (it reads
     //   `body.disableCoach`) and is intentionally not listed here.
     "src/app/api/auth/me/route.ts",
-    // - Settings → Insights toggle reads + writes the flag.
+    // - Settings → KI section: the toggle card reads + writes the
+    //   flag; the section shell reads it to gate the Coach sub-cards.
+    "src/components/settings/ai/disable-coach-card.tsx",
     "src/components/settings/ai-section.tsx",
     // v1.7.0 W6 — the unified dashboard snapshot builder reads
     // `user.disableCoach` to gate the embedded daily briefing to

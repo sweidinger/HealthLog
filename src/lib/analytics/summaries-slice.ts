@@ -825,7 +825,7 @@ async function computeFromLiveAggregate(
  * (count / min / max / mean / sum) over much larger windows — 1 y,
  * 2 y, 3 y. Hitting the live `measurements` table for a 3-year span
  * walks every row the user has ever logged for that type, which on
- * Marc's tenant is tens of thousands of rows per type.
+ * the maintainer's tenant is tens of thousands of rows per type.
  *
  * The WMY rollup tier already carries the per-bucket stats we need:
  * the writer mints WEEK / MONTH / YEAR buckets via pg-boss on every

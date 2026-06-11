@@ -3,7 +3,7 @@
  * Withings (activity + sleep v2 ingest) AND Apple Health (iOS
  * passthrough, v1.5) populate the same metric for the same day.
  *
- * The Marc-directive default priority (W8c — see
+ * The maintainer-directive default priority (W8c — see
  * `src/lib/validations/source-priority.ts`) picks APPLE_HEALTH first
  * for every cumulative metric (steps, active energy, walking-running
  * distance, flights climbed) because HealthKit aggregates iPhone +
@@ -105,7 +105,7 @@ describe("cross-source priority — Withings Activity + Apple Health", () => {
   });
 
   it("respects a user override that promotes WITHINGS above APPLE_HEALTH", () => {
-    // Marc could prefer his ScanWatch for steps even after iOS lands.
+    // The maintainer could prefer their ScanWatch for steps even after iOS lands.
     // The W5e flat-shape override (back-compat) is exercised here.
     const rows = [
       {
@@ -138,7 +138,7 @@ describe("cross-source priority — Withings Activity + Apple Health", () => {
 
 describe("cross-source priority — Withings Sleep v2 + Apple Health (per-stage)", () => {
   it("picks APPLE_HEALTH over WITHINGS for sleep when both sources reported the same night", () => {
-    // Marc's ScanWatch and iPhone both wrote per-stage rows for the
+    // The maintainer's ScanWatch and iPhone both wrote per-stage rows for the
     // same night. Sleep default (APPLE_HEALTH > WITHINGS) keeps only
     // the iOS rows in the aggregation.
     const measuredAt = new Date("2026-05-12T22:00:00Z");

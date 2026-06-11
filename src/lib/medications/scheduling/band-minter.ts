@@ -51,7 +51,7 @@ import {
   type Occurrence,
   type RecurrenceContext,
 } from "@/lib/medications/scheduling/recurrence";
-import { localHmAsUtc } from "@/lib/timezone";
+import { localHmAsUtc } from "@/lib/tz/local-day";
 
 const MINUTE_MS = 60_000;
 const HOUR_MS = 60 * MINUTE_MS;
@@ -82,7 +82,7 @@ export interface BandMinterMedication {
 /**
  * Per-dose window override. When absent the minter derives the on-time width +
  * late tail from `DOSE_WINDOW_DEFAULTS` keyed on the realised family. A caller
- * can widen the on-time band per Marc's configurable-window lever.
+ * can widen the on-time band per the maintainer's configurable-window lever.
  */
 export interface DoseWindowConfig {
   /** Daily on-time half-width around the slot instant (minutes). */
@@ -235,7 +235,7 @@ function mintBands(
   schedule: CanonicalSchedule,
 ): SlotBand[] {
   const w = resolveWindows(windowConfig);
-  // The persisted per-dose windows (Marc's "07:00–09:00" lever). When a slot's
+  // The persisted per-dose windows (the maintainer's "07:00–09:00" lever). When a slot's
   // `timeOfDay` matches an entry, the on-time band is the explicit `[start,
   // end]` range; otherwise the default symmetric ±width applies. The late tail
   // stays cadence-derived for every slot.

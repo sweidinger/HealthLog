@@ -11,7 +11,7 @@
  * time-in-daylight share the same physical shape — every iOS
  * HealthKit ingest writes minute-level slices that the dashboard
  * tile was rendering as the *latest slice* instead of the *day's
- * total*. Marc reported "Steps tile shows last-measurement-not-day-sum".
+ * total*. The maintainer reported "Steps tile shows last-measurement-not-day-sum".
  *
  * This helper extracts the per-day-sum reduction so the route can
  * call it for every cumulative metric without copy-pasting the

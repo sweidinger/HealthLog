@@ -12,7 +12,7 @@ const globalForPrisma = globalThis as unknown as {
  * The v1.4.39 empirical cold-mount trace
  * (`.planning/round-v1439-empirical-trace.md` § B2) showed thick
  * `/api/analytics` holding ≥ 8 of the 10 default pool slots for
- * 6.5 s on Marc's 347k-row tenant, starving every other Wave-B and
+ * 6.5 s on the maintainer's 347k-row tenant, starving every other Wave-B and
  * Wave-C useQuery fan-out for the duration. Coolify's Postgres
  * container runs the stock `max_connections` 100 ceiling, so a
  * 20-slot Node-side pool sits well under the server's hard cap with

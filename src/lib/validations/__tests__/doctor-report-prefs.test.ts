@@ -52,7 +52,7 @@ describe("parseDoctorReportPrefs", () => {
     );
   });
 
-  it("defaults mood to OFF (privacy directive per Marc)", () => {
+  it("defaults mood to OFF (privacy directive per the maintainer)", () => {
     const out = parseDoctorReportPrefs(null);
     expect(out.mood).toBe(false);
   });

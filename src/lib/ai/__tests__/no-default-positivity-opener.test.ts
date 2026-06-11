@@ -7,7 +7,7 @@ import {
 /**
  * v1.4.19 phase A4 — strip the default-positivity opener.
  *
- * the maintainer reported every insight summary started with the same
+ * The maintainer reported every insight summary started with the same
  * "Datengrundlage ist sehr stark" / "Your data foundation is strong"
  * filler sentence. The user does not see what fields the snapshot
  * carries, so this opener reads as awkward filler.

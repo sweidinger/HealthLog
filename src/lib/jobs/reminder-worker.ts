@@ -1564,7 +1564,7 @@ export async function startReminderWorker() {
   // into one `stats:…` row per calendar day. Idempotent — a second run
   // collapses zero buckets once every day is in the `stats:` shape.
   // Concurrency-1 so the drain never crowds the dashboard request pool
-  // and a long backfill on Marc's account (300 k+ measurement rows)
+  // and a long backfill on the maintainer's account (300 k+ measurement rows)
   // stays a single sequential walk.
   await boss.work<DrainCumulativePayload>(
     DRAIN_CUMULATIVE_QUEUE,

@@ -55,7 +55,7 @@ export interface DoctorReportPrefs {
 
 /**
  * Defaults applied when the user has never opened the dialog. Every
- * section is ON by default EXCEPT mood, which is opt-in per Marc's
+ * section is ON by default EXCEPT mood, which is opt-in per the maintainer's
  * privacy directive (2026-05-14): mental-health data should never appear
  * in a clinical PDF the user didn't explicitly check.
  */
@@ -64,7 +64,7 @@ export const DEFAULT_DOCTOR_REPORT_PREFS: DoctorReportPrefs = {
   weight: true,
   pulse: true,
   bmi: true,
-  mood: false, // privacy default per Marc
+  mood: false, // privacy default per the maintainer
   compliance: true,
   sleep: true,
   // Cycle data is opt-in: a user sharing a BP report with a cardiologist

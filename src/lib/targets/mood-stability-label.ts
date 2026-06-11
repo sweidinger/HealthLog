@@ -6,7 +6,7 @@
  * against translation entries `targets.mood.stability.{stable,
  * variable,highlyVariable}`.
  *
- * Thresholds (Marc-set, documented in the W3e implementation plan):
+ * Thresholds (maintainer-set, documented in the W3e implementation plan):
  *   σ <  1.0  →  "stable"           (stabil / stable)
  *   σ <  2.0  →  "variable"         (schwankend / variable)
  *   σ ≥  2.0  →  "highly-variable"  (sehr schwankend / highly variable)

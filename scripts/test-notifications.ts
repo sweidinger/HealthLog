@@ -18,7 +18,7 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import { decrypt } from "@/lib/crypto";
 import { dispatchNotification } from "@/lib/notifications/dispatcher";
 import { parseScheduleRecurrence } from "@/lib/medication-schedule";
-import { getUserTodayBounds, getDayOfWeekInTz } from "@/lib/timezone";
+import { getUserTodayBounds, getDayOfWeekInTz } from "@/lib/tz/local-day";
 
 const DATABASE_URL = process.env.DATABASE_URL!;
 
@@ -33,7 +33,7 @@ function parseTimeToMinutes(value: string): number {
   return h * 60 + m;
 }
 
-// getUserTodayBounds and getDayOfWeekInTz imported from @/lib/timezone
+// getUserTodayBounds and getDayOfWeekInTz imported from @/lib/tz/local-day
 
 const dayLabels = ["So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"];
 

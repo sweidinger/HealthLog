@@ -139,6 +139,25 @@ const bulkDeleteMeasurementsResponse = z
   })
   .meta({ id: "MeasurementsBulkDeleteResult" });
 
+// v1.16.4 — un-tombstone for the management list's delete-Undo
+// affordance. Same id-scoping rules as the bulk delete: forged /
+// foreign / not-deleted ids are silent no-ops.
+const restoreMeasurementsRequest = z
+  .object({
+    ids: z.array(z.string().min(1)).min(1).max(200),
+  })
+  .meta({
+    id: "MeasurementsRestoreRequest",
+    description:
+      "1..200 measurement ids, scoped to the caller. Forged / foreign / not-deleted ids are silently skipped (no existence leak).",
+  });
+
+const restoreMeasurementsResponse = z
+  .object({
+    restored: z.number().int().nonnegative(),
+  })
+  .meta({ id: "MeasurementsRestoreResult" });
+
 export const measurementResource = z
   .object({
     id: z.string(),
@@ -321,6 +340,34 @@ export const measurementPaths: NonNullable<ZodOpenApiObject["paths"]> = {
               schema: dataEnvelope(
                 bulkDeleteMeasurementsResponse,
                 "MeasurementsBulkDeleteResponse",
+              ),
+            },
+          },
+        },
+        ...stdResponses,
+      },
+    },
+  },
+  "/api/measurements/restore": {
+    post: {
+      tags: ["Measurements"],
+      summary: "Restore soft-deleted measurements",
+      description:
+        "Un-tombstones up to 200 of the caller's soft-deleted measurement rows in one call — the delete-Undo counterpart to `/api/measurements/bulk-delete`. Idempotent via the `Idempotency-Key` header; rate-limited `measurements:restore:<userId>`. Forged / foreign / not-deleted ids are silently skipped — `restored` is the count of rows actually un-tombstoned. The restored rows re-surface in `/api/sync/changes` as upserts.",
+      requestBody: {
+        required: true,
+        content: {
+          "application/json": { schema: restoreMeasurementsRequest },
+        },
+      },
+      responses: {
+        "200": {
+          description: "Restore processed.",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                restoreMeasurementsResponse,
+                "MeasurementsRestoreResponse",
               ),
             },
           },

@@ -9,7 +9,7 @@
  * mood 37 days, active medications) plus a fifth for intake events.
  * On a cold connection pool the round-trip latency stacks — the
  * v1.4.36 perf-verify recorded the bp_in_target + healthScore +
- * correlations fan-out at 111 s wall-clock against Marc's
+ * correlations fan-out at 111 s wall-clock against the maintainer's
  * 311 779-row tenant.
  *
  * Read shape (v1.4.37)

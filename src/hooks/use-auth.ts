@@ -2,7 +2,9 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import { queryKeys } from "@/lib/query-keys";
+import { useTranslations } from "@/lib/i18n/context";
 import type { TimeFormatPreference } from "@/lib/format-locale";
 import { isTimeFormatPreference, storeTimeFormat } from "@/lib/time-format";
 
@@ -137,6 +139,7 @@ export function useAuth() {
 export function useLogout() {
   const queryClient = useQueryClient();
   const router = useRouter();
+  const { t } = useTranslations();
 
   return useMutation({
     mutationFn: async () => {
@@ -147,5 +150,8 @@ export function useLogout() {
       queryClient.invalidateQueries({ queryKey: queryKeys.auth() });
       router.push("/auth/login");
     },
+    // v1.16.4 — a network-failed logout used to do nothing at all (the
+    // menu closed, the session stayed); a toast names the failure.
+    onError: () => toast.error(t("common.networkError")),
   });
 }

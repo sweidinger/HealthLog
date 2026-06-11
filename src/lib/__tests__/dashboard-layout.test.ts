@@ -124,7 +124,7 @@ describe("serializeDashboardLayout() — tileVisible persistence", () => {
 /**
  * v1.4.16 Fix A5 — top-tile selector real-fix.
  *
- * the maintainer reported the toggles in Settings → Dashboard didn't filter
+ * The maintainer reported the toggles in Settings → Dashboard didn't filter
  * the dashboard tile-strip. Root cause: the `widgetIdEnum` Zod schema
  * in `src/app/api/dashboard/widgets/route.ts` was missing
  * `achievements` even though the default layout has it. Every PUT
@@ -253,7 +253,7 @@ describe("resolveDashboardLayout() — comparisonBaseline (B8)", () => {
 /**
  * v1.4.18 — per-chart overlay-prefs persistence.
  *
- * the maintainer reverted v1.4.16's always-on chart overlays (gradient, baseline,
+ * The maintainer reverted v1.4.16's always-on chart overlays (gradient, baseline,
  * target-zone shading) and asked for per-chart switches that persist
  * per user. The prefs piggy-back on `User.dashboardWidgetsJson` so we
  * stay migration-free, mirroring the B8 comparisonBaseline pattern.

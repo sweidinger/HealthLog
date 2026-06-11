@@ -38,7 +38,7 @@ function tinyExportXml(): string {
           startDate="2026-05-14 08:00:00 +0200"
           endDate="2026-05-14 08:30:00 +0200"
           value="1500"
-          sourceName="Marc's iPhone"
+          sourceName="Test iPhone"
           sourceVersion="17.4.1"/>
 
   <Record type="HKQuantityTypeIdentifierStepCount"
@@ -46,7 +46,7 @@ function tinyExportXml(): string {
           startDate="2026-05-14 12:00:00 +0200"
           endDate="2026-05-14 12:30:00 +0200"
           value="3500"
-          sourceName="Marc's iPhone"
+          sourceName="Test iPhone"
           sourceVersion="17.4.1"/>
 
   <Record type="HKCategoryTypeIdentifierSleepAnalysis"

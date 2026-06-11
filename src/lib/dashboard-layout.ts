@@ -193,7 +193,7 @@ function isComparisonBaseline(
 /**
  * v1.4.18 — per-chart overlay-prefs.
  *
- * the maintainer rolled back B1a's always-on chart overlays (gradient fill,
+ * The maintainer rolled back B1a's always-on chart overlays (gradient fill,
  * personal-baseline reference line, target-zone shading) and asked for
  * a per-chart switch surface so each chart can be tuned independently.
  * The three toggles (7-day trend / Trend arrow / Target range) live in
