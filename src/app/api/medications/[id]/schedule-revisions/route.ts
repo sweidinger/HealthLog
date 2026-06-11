@@ -137,6 +137,14 @@ export const POST = apiHandler(
     const guard = await assertMedicationOwnership(id, user.id);
     if (guard) return guard;
 
+    const med = await prisma.medication.findUnique({
+      where: { id },
+      select: { createdAt: true },
+    });
+    if (!med) {
+      return apiError("Medication not found", 404);
+    }
+
     const { data: body, error: jsonError } = await safeJson(request, {
       maxBytes: 16 * 1024,
     });
@@ -162,13 +170,18 @@ export const POST = apiHandler(
     });
 
     // "Before the current plan": the live era began at the newest
-    // archived `validUntil`; with no archive it spans up to now, so a
-    // manual era may cover anything up to this instant.
+    // archived `validUntil`; with no archive the live plan has covered
+    // everything since the medication was created (the era splitter
+    // reads `[newest validUntil, ∞)` — or the whole range when no
+    // revision exists), so a manual era must end at or before
+    // `createdAt`. Allowing it to reach "now" would let the manual
+    // snapshot swallow tracked live history and re-score compliance
+    // against the wrong plan.
     const liveStart = existing.reduce(
       (latest, r) => (r.validUntil > latest ? r.validUntil : latest),
       new Date(0),
     );
-    const liveBoundary = existing.length > 0 ? liveStart : new Date();
+    const liveBoundary = existing.length > 0 ? liveStart : med.createdAt;
     if (validUntil.getTime() > liveBoundary.getTime()) {
       return apiError(
         "A manual era must end before the current plan begins",

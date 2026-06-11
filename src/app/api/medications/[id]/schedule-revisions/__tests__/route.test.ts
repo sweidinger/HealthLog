@@ -233,6 +233,25 @@ describe("POST /api/medications/[id]/schedule-revisions", () => {
     expect(json.error).toMatch(/current plan/i);
   });
 
+  it("422s when no revision exists and the era reaches past createdAt", async () => {
+    // With zero archived revisions the live plan has covered everything
+    // since `createdAt` (2026-01-10); a manual era ending inside the
+    // tracked window would re-score live compliance against the manual
+    // snapshot. The boundary is createdAt, not "now".
+    const res = await POST(
+      postReq({
+        ...VALID_BODY,
+        validFrom: "2026-01-01T00:00:00.000Z",
+        validUntil: "2026-02-01T00:00:00.000Z",
+      }),
+      ROUTE_CTX,
+    );
+    expect(res.status).toBe(422);
+    const json = await res.json();
+    expect(json.error).toMatch(/current plan/i);
+    expect(prisma.medicationScheduleRevision.create).not.toHaveBeenCalled();
+  });
+
   it("creates a MANUAL revision with a daily snapshot entry", async () => {
     vi.mocked(prisma.medicationScheduleRevision.create).mockResolvedValue({
       id: "rev-new",
