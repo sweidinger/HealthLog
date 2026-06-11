@@ -62,10 +62,12 @@ export function SelectionActionBar({
       // edge. A `sticky bottom-2` bar lands BEHIND the nav, hiding the
       // destructive "Delete (N)" button. Lift the bar to clear the nav band
       // + safe area using the same offset the Coach FAB uses
-      // (`layout-coach-fab.tsx`); at `sm:`/desktop the nav is gone, so drop
-      // back to `bottom-4`. z-30 keeps the bar above page content without
-      // needing to beat the (now-cleared) nav's z-50.
-      className="bg-card border-border sticky bottom-[calc(env(safe-area-inset-bottom,0px)+5rem)] z-30 mt-2 flex items-center justify-between gap-2 rounded-lg border p-2 shadow-lg sm:bottom-4"
+      // (`layout-coach-fab.tsx`); the nav only hides from `md:` up
+      // (`md:hidden`), so the drop back to `bottom-4` happens at `md:` —
+      // an `sm:` drop sat the bar behind the still-visible nav 640-767px.
+      // z-30 keeps the bar above page content without needing to beat the
+      // (now-cleared) nav's z-50.
+      className="bg-card border-border sticky bottom-[calc(env(safe-area-inset-bottom,0px)+5rem)] z-30 mt-2 flex items-center justify-between gap-2 rounded-lg border p-2 shadow-lg md:bottom-4"
     >
       <div className="flex items-center gap-1">
         <Button

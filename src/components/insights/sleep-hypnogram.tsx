@@ -66,7 +66,10 @@ export interface SleepHypnogramProps {
 
 /**
  * Lane order top → bottom. Awake highest, Deep lowest — depth increases
- * downward, matching Apple Health / Oura's "cityscape" convention.
+ * downward, matching Apple Health / Oura's "cityscape" convention. Only
+ * the stages actually present in the night's spans get a lane (the
+ * order is preserved) — painting all six lanes left an Apple night
+ * (AWAKE/REM/CORE/DEEP) with two permanently empty rows.
  */
 const LANE_ORDER = [
   "AWAKE",
@@ -76,10 +79,6 @@ const LANE_ORDER = [
   "CORE",
   "DEEP",
 ] as const;
-const LANE_OF: Record<string, number> = Object.fromEntries(
-  // Reverse-index so AWAKE (first) sits at the highest y value.
-  LANE_ORDER.map((s, i) => [s, LANE_ORDER.length - 1 - i]),
-);
 
 /** Breakdown order — deepest restorative first, matching the stacked bar. */
 const BREAKDOWN_ORDER = [
@@ -115,21 +114,33 @@ export function SleepHypnogram({ session }: SleepHypnogramProps) {
   // Build one coloured span per stage segment: its [start, end] clock range
   // at the stage's depth lane, in the stage's own palette token. Each span
   // renders as a `ReferenceArea` so the chart is multi-coloured (a single
-  // Recharts line can only carry one stroke).
-  const spans = useMemo(() => {
-    return [...session.segments]
-      .filter((seg) => seg.stage != null && LANE_OF[seg.stage] !== undefined)
-      .sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime())
-      .map((seg) => {
-        const stage = seg.stage as string;
-        return {
-          stage,
-          x1: new Date(seg.start).getTime(),
-          x2: new Date(seg.end).getTime(),
-          lane: LANE_OF[stage],
-          fill: STAGE_COLORS[stage],
-        };
-      });
+  // Recharts line can only carry one stroke). Lanes derive from the stages
+  // PRESENT in the spans (in `LANE_ORDER` order) so a four-stage night
+  // paints four lanes, not six.
+  const { spans, lanes } = useMemo(() => {
+    const known = new Set<string>(LANE_ORDER);
+    const segments = [...session.segments]
+      .filter((seg) => seg.stage != null && known.has(seg.stage))
+      .sort(
+        (a, b) => new Date(a.start).getTime() - new Date(b.start).getTime(),
+      );
+    const present = new Set(segments.map((seg) => seg.stage as string));
+    const lanes = LANE_ORDER.filter((stage) => present.has(stage));
+    const laneOf: Record<string, number> = Object.fromEntries(
+      // Reverse-index so the first present stage sits at the highest y.
+      lanes.map((s, i) => [s, lanes.length - 1 - i]),
+    );
+    const spans = segments.map((seg) => {
+      const stage = seg.stage as string;
+      return {
+        stage,
+        x1: new Date(seg.start).getTime(),
+        x2: new Date(seg.end).getTime(),
+        lane: laneOf[stage],
+        fill: STAGE_COLORS[stage],
+      };
+    });
+    return { spans, lanes };
   }, [session.segments]);
 
   const domain = useMemo<[number, number]>(
@@ -216,6 +227,20 @@ export function SleepHypnogram({ session }: SleepHypnogramProps) {
               asleep: formatMinutes(session.asleepMinutes, locale),
             })}
           </span>
+          {/* The night's measuring source rides the header as a muted
+              caption — it is already on the wire, and "which device
+              tracked this" is the first question a multi-tracker user
+              asks about a surprising night. */}
+          {session.source ? (
+            <span
+              data-slot="sleep-hypnogram-source"
+              className="text-muted-foreground/70 text-xs"
+            >
+              {t("insights.sleep.hypnogram.source", {
+                source: session.source,
+              })}
+            </span>
+          ) : null}
         </div>
       </CardHeader>
       <CardContent className="space-y-3">
@@ -253,16 +278,14 @@ export function SleepHypnogram({ session }: SleepHypnogramProps) {
                     <YAxis
                       type="number"
                       dataKey="lane"
-                      domain={[-0.5, LANE_ORDER.length - 0.5]}
-                      ticks={LANE_ORDER.map(
-                        (_, i) => LANE_ORDER.length - 1 - i,
-                      )}
+                      domain={[-0.5, lanes.length - 0.5]}
+                      ticks={lanes.map((_, i) => lanes.length - 1 - i)}
                       stroke="var(--muted-foreground)"
                       fontSize={10}
                       width={56}
                       tickFormatter={(v: number) => {
-                        const stage = LANE_ORDER[LANE_ORDER.length - 1 - v];
-                        return stageLabels[stage] ?? "";
+                        const stage = lanes[lanes.length - 1 - v];
+                        return stage ? (stageLabels[stage] ?? "") : "";
                       }}
                     />
                     {spans.map((span, i) => (

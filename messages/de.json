@@ -2480,7 +2480,8 @@
         "ariaLabel": "Schlafphasen-Verlauf der letzten Nacht: {asleep} geschlafen, {awakenings} Wachphasen",
         "asleepTotal": "Geschlafen {value}",
         "inBedTotal": "Im Bett {value}",
-        "awakenings": "{count} Wachphasen"
+        "awakenings": "{count} Wachphasen",
+        "source": "Quelle: {source}"
       },
       "stages": {
         "deep": "Tief",

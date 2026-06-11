@@ -2480,7 +2480,8 @@
         "ariaLabel": "Przebieg faz snu ostatniej nocy: {asleep} snu, {awakenings} przebudzeń",
         "asleepTotal": "Sen {value}",
         "inBedTotal": "W łóżku {value}",
-        "awakenings": "{count} przebudzeń"
+        "awakenings": "{count} przebudzeń",
+        "source": "Źródło: {source}"
       },
       "stages": {
         "deep": "Głęboki",

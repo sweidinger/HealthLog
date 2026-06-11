@@ -77,13 +77,21 @@ async function fetchLiveVersion(signal: AbortSignal): Promise<string | null> {
   }
 }
 
+// In-memory mirror of the session guard: under strict-privacy modes
+// sessionStorage throws, and without a fallback a persistent
+// shell/live mismatch (misconfigured build) would reload every poll.
+// Module scope survives re-renders but not the reload itself — after
+// a reload the storage read is retried first, so the mirror only has
+// to break the loop within one document lifetime.
+let inMemoryReloadGuard: string | null = null;
+
 async function evictAndReload(targetVersion: string): Promise<void> {
+  inMemoryReloadGuard = targetVersion;
   try {
     sessionStorage.setItem(SESSION_GUARD_KEY, targetVersion);
   } catch {
-    // sessionStorage can throw under strict-privacy modes; fall
-    // through to the reload anyway — worst case the next deploy
-    // re-triggers the same heal flow.
+    // sessionStorage can throw under strict-privacy modes; the
+    // in-memory mirror above still breaks same-document loops.
   }
 
   if ("serviceWorker" in navigator) {
@@ -120,8 +128,9 @@ export function VersionPoller(): null {
       try {
         lastReloadedFor = sessionStorage.getItem(SESSION_GUARD_KEY);
       } catch {
-        /* fall through — treat as "no attempt recorded" */
+        /* storage unavailable — the in-memory mirror still applies */
       }
+      lastReloadedFor ??= inMemoryReloadGuard;
       const decision = resolveVersionPollDecision(
         live,
         SHELL_VERSION,

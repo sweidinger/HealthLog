@@ -32,5 +32,16 @@ describe("<ChartEmptyState>", () => {
       <ChartEmptyState title="..." height={320} />,
     );
     expect(html).toContain("height:320px");
+    expect(html).not.toContain("h-[var(--chart-height,240px)]");
+  });
+
+  it("sizes through the chart-height variables by default", () => {
+    // The former hardcoded `style="height:240px"` ignored per-mount
+    // `--chart-height` overrides; the default now reads the same
+    // variables the painted chart does (240 px mobile / 280 px md+).
+    const html = renderToStaticMarkup(<ChartEmptyState title="..." />);
+    expect(html).toContain("h-[var(--chart-height,240px)]");
+    expect(html).toContain("md:h-[var(--chart-height-md,280px)]");
+    expect(html).not.toContain("height:240px");
   });
 });

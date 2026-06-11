@@ -424,6 +424,7 @@ export function MedicationComplianceChart({
         <ChartErrorState
           title={t("charts.errorTitle")}
           actionLabel={t("common.retry")}
+          actionContext={displayTitle}
           onAction={() => void refetch()}
         />
       ) : !hasData ? (

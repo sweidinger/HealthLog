@@ -226,8 +226,13 @@ export function SubPageShell({
               no numeric band registers nothing, so the gear stays hidden),
               and the Coach icon self-gates on the Coach flag + per-user
               opt-out — so the cluster collapses cleanly to one, both, or
-              neither control. */}
-            <div className="flex shrink-0 items-center gap-0.5">
+              neither control.
+
+              `gap-3` (12 px) keeps the siblings' extended hit areas
+              (`before:-inset-1.5`, 6 px per edge) from overlapping —
+              with a tighter gap the later sibling's invisible halo sat
+              on top of its neighbour's clickable edge. */}
+            <div className="flex shrink-0 items-center gap-3">
               {/* v1.16.8 — "show all readings" rides the header cluster
                 as an icon button, LEFT of the target-adjust gear (it
                 used to be a full-width outline button at the page foot).

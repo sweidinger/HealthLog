@@ -5,6 +5,7 @@ import { AlertTriangle, RotateCw } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { useTranslations } from "@/lib/i18n/context";
+import { cn } from "@/lib/utils";
 
 /**
  * Error-state card + per-chart error boundary.
@@ -31,30 +32,59 @@ export interface ChartErrorStateProps {
   /** Action handler — query `refetch` or a full page reload. */
   onAction: () => void;
   /**
-   * Optional explicit height in pixels to match the surrounding chart
-   * card. Defaults to 240 (matches `<ChartEmptyState>`).
+   * Optional explicit height in pixels for mini / mounted-in-a-strip
+   * contexts. Absent, the card sizes through the same
+   * `--chart-height` / `--chart-height-md` variables the painted chart
+   * reads, so a per-mount override resizes the error card too.
    */
   height?: number;
+  /**
+   * Optional translated context (usually the chart title). Joins the
+   * action label into the button's accessible name so several retry
+   * buttons on one page stay distinguishable for screen-reader users.
+   */
+  actionContext?: string;
+  /**
+   * Live-region semantics. `status` (default) announces politely when
+   * a data query fails inside an otherwise healthy card; the chunk
+   * boundary fallback passes `alert` because the surrounding chart is
+   * gone entirely.
+   */
+  role?: "status" | "alert";
 }
 
 export function ChartErrorState({
   title,
   actionLabel,
   onAction,
-  height = 240,
+  height,
+  actionContext,
+  role = "status",
 }: ChartErrorStateProps): ReactElement {
   return (
     <div
       data-slot="chart-error-state"
-      className="border-border/40 bg-muted/10 text-muted-foreground flex flex-col items-center justify-center gap-3 rounded-lg border border-dashed px-6 text-center"
-      style={{ height }}
+      role={role}
+      className={cn(
+        "border-border/40 bg-muted/10 text-muted-foreground flex flex-col items-center justify-center gap-3 rounded-lg border border-dashed px-6 text-center",
+        height === undefined &&
+          "h-[var(--chart-height,240px)] md:h-[var(--chart-height-md,280px)]",
+      )}
+      style={height === undefined ? undefined : { height }}
     >
       <AlertTriangle
         className="text-muted-foreground/60 h-8 w-8"
         aria-hidden="true"
       />
       <p className="text-sm font-medium">{title}</p>
-      <Button variant="outline" size="sm" onClick={onAction}>
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={onAction}
+        aria-label={
+          actionContext ? `${actionLabel} – ${actionContext}` : undefined
+        }
+      >
         <RotateCw className="h-3.5 w-3.5" aria-hidden="true" />
         {actionLabel}
       </Button>
@@ -111,11 +141,21 @@ export function ChartErrorBoundary({
   return (
     <Boundary
       fallback={
-        <ChartErrorState
-          title={t("charts.loadErrorTitle")}
-          actionLabel={t("charts.loadErrorReload")}
-          onAction={() => window.location.reload()}
-        />
+        // Wrapped in the chart-card shell so a chunk failure renders
+        // as one solid card among the other cards, not a bare dashed
+        // box; `role="alert"` because the whole chart is gone, not
+        // just its data.
+        <div
+          data-slot="chart-error-boundary-card"
+          className="bg-card border-border rounded-xl border p-4 md:p-6"
+        >
+          <ChartErrorState
+            title={t("charts.loadErrorTitle")}
+            actionLabel={t("charts.loadErrorReload")}
+            onAction={() => window.location.reload()}
+            role="alert"
+          />
+        </div>
       }
     >
       {children}

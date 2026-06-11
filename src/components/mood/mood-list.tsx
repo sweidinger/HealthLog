@@ -49,7 +49,7 @@ import {
   ChevronRight,
   MoreHorizontal,
 } from "lucide-react";
-import { useCallback, useId, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { toast } from "sonner";
 import { formatDateTime } from "@/lib/format";
@@ -997,9 +997,19 @@ export function MoodList({ onAddFirst }: MoodListProps = {}) {
 /**
  * v1.16.8 — expandable free-text note. Collapsed: a two-line clamped
  * preview. Expanded: the COMPLETE text, line breaks preserved, rendered as
- * plain text children. The whole block is one toggle button so the full
- * note is readable in place — previously the only full-text surface was
- * the edit sheet (plus a hover tooltip on desktop, unreachable on touch).
+ * plain text children. The full note is readable in place — previously the
+ * only full-text surface was the edit sheet (plus a hover tooltip on
+ * desktop, unreachable on touch).
+ *
+ * Structure: the note is a plain paragraph with an `id`; the toggle is a
+ * SMALL sibling button carrying `aria-expanded` + `aria-controls`. The
+ * earlier cut wrapped the whole paragraph in the button, which made the
+ * entire note text the button's accessible name and put block content
+ * inside a button (invalid content model).
+ *
+ * The toggle only renders when the collapsed paragraph actually
+ * overflows its two-line clamp (`scrollHeight > clientHeight`, re-checked
+ * on resize) — a one-line note gets no dangling "show more" control.
  */
 function MoodNoteText({
   note,
@@ -1011,15 +1021,36 @@ function MoodNoteText({
   onToggle: () => void;
 }) {
   const { t } = useTranslations();
+  const noteId = useId();
+  const paragraphRef = useRef<HTMLParagraphElement | null>(null);
+  const [clamped, setClamped] = useState(false);
+
+  const updateClamped = useCallback(() => {
+    const el = paragraphRef.current;
+    if (!el) return;
+    // +1 tolerates sub-pixel rounding on fractional zoom levels.
+    setClamped(el.scrollHeight > el.clientHeight + 1);
+  }, []);
+
+  useEffect(() => {
+    // Only the collapsed paragraph carries the clamp; measuring the
+    // expanded one would always read "fits" and drop the collapse
+    // affordance while it is needed most.
+    if (expanded) return;
+    updateClamped();
+    const el = paragraphRef.current;
+    if (!el) return;
+    const observer = new ResizeObserver(updateClamped);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [expanded, note, updateClamped]);
+
   return (
-    <button
-      type="button"
-      onClick={onToggle}
-      aria-expanded={expanded}
-      data-testid="mood-note-toggle"
-      className="mt-0.5 block w-full min-w-0 cursor-pointer text-left"
-    >
+    <div className="mt-0.5 min-w-0">
       <p
+        id={noteId}
+        ref={paragraphRef}
+        data-testid="mood-note-text"
         className={
           expanded
             ? "text-muted-foreground/80 text-xs break-words whitespace-pre-wrap italic"
@@ -1028,10 +1059,19 @@ function MoodNoteText({
       >
         {note}
       </p>
-      <span className="text-dracula-purple text-[11px] font-medium">
-        {expanded ? t("mood.noteCollapse") : t("mood.noteExpand")}
-      </span>
-    </button>
+      {(expanded || clamped) && (
+        <button
+          type="button"
+          onClick={onToggle}
+          aria-expanded={expanded}
+          aria-controls={noteId}
+          data-testid="mood-note-toggle"
+          className="text-dracula-purple cursor-pointer text-[11px] font-medium"
+        >
+          {expanded ? t("mood.noteCollapse") : t("mood.noteExpand")}
+        </button>
+      )}
+    </div>
   );
 }
 

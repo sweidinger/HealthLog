@@ -11,6 +11,7 @@ import {
 import {
   MedicationComplianceBars,
   MedicationComplianceError,
+  MedicationComplianceSkeleton,
 } from "@/components/medications/card-parts/medication-compliance-bars";
 import { MedicationStatusPill } from "@/components/medications/card-parts/medication-status-pill";
 import { MedicationIntakeActions } from "@/components/medications/card-parts/medication-intake-actions";
@@ -86,6 +87,25 @@ describe("medication card-parts — shared presentational components", () => {
       <MedicationComplianceBars rate7={90} rate30={88} streak={0} />,
     );
     expect(html).not.toContain("lucide-flame");
+  });
+
+  it("compliance bars reserve the streak row across loaded, zero-streak, skeleton, and error states", () => {
+    // A streak arriving used to ADD a row, growing the card and shifting
+    // the grid; the `min-h-4` slot is now always mounted in every state so
+    // the card height is invariant to the streak.
+    const withStreak = render(
+      <MedicationComplianceBars rate7={90} rate30={88} streak={5} />,
+    );
+    const withoutStreak = render(
+      <MedicationComplianceBars rate7={90} rate30={88} streak={0} />,
+    );
+    const skeleton = render(<MedicationComplianceSkeleton />);
+    const error = render(
+      <MedicationComplianceError onRetry={() => undefined} />,
+    );
+    for (const html of [withStreak, withoutStreak, skeleton, error]) {
+      expect(html).toContain("min-h-4");
+    }
   });
 
   it("compliance bars render the percentage only — no dose count beside it", () => {

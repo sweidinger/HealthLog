@@ -1531,6 +1531,7 @@ export function HealthChart({
         <ChartErrorState
           title={t("charts.errorTitle")}
           actionLabel={t("common.retry")}
+          actionContext={title}
           onAction={() => void refetch()}
         />
       ) : !chartData?.length ? (

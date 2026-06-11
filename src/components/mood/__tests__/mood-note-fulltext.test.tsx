@@ -83,24 +83,40 @@ function render(locale: "en" | "de" = "de") {
 }
 
 describe("MoodList — full-text note affordance", () => {
-  it("renders the note as a collapsed toggle with the COMPLETE text in the DOM", () => {
+  it("renders the note as a plain clamped paragraph with the COMPLETE text", () => {
     const html = render("de");
-    // One toggle per surface (desktop table + mobile card) for the noted row;
-    // the note-less row renders none.
-    const toggles = html.match(/data-testid="mood-note-toggle"/g);
-    expect(toggles?.length).toBe(2);
-    // Collapsed by default: clamped preview + expand affordance label.
-    expect(html).toContain('aria-expanded="false"');
+    // One note paragraph per surface (desktop table + mobile card) for the
+    // noted row; the note-less row renders none. The note is a PARAGRAPH
+    // sibling of the toggle — not button content — so the accessible name
+    // of the toggle never swallows the whole note.
+    const notes = html.match(/data-testid="mood-note-text"/g);
+    expect(notes?.length).toBe(2);
     expect(html).toContain("line-clamp-2");
-    expect(html).toContain("Notiz vollständig anzeigen");
     // The complete text is in the row (the clamp is visual), both paragraphs.
     expect(html).toContain("Erster Absatz der Notiz");
     expect(html).toContain("Zweiter Absatz mit weiteren Details");
+    // The toggle only mounts once the client measures an actual overflow
+    // (`scrollHeight > clientHeight`); static SSR has no layout, so no
+    // toggle — a short note never gets a dangling "show more" control.
+    expect(html).not.toContain('data-testid="mood-note-toggle"');
   });
 
-  it("localises the affordance label", () => {
-    const html = render("en");
-    expect(html).toContain("Show full note");
+  it("wires the toggle as a small sibling button with state + target", () => {
+    const src = readFileSync(
+      join(process.cwd(), "src/components/mood/mood-list.tsx"),
+      "utf8",
+    );
+    // The toggle carries the disclosure contract: aria-expanded for the
+    // state, aria-controls pointing at the paragraph's id.
+    expect(src).toContain("aria-expanded={expanded}");
+    expect(src).toContain("aria-controls={noteId}");
+    expect(src).toContain('data-testid="mood-note-toggle"');
+    // Clamp detection: measured overflow, re-checked on resize.
+    expect(src).toContain("scrollHeight > el.clientHeight");
+    expect(src).toContain("new ResizeObserver(updateClamped)");
+    // Rendered only when the text actually overflows the clamp (or while
+    // expanded, so it can collapse again).
+    expect(src).toContain("{(expanded || clamped) && (");
   });
 
   it("expanded branch preserves line breaks and renders plain text children", () => {

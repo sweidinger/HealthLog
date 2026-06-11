@@ -2480,7 +2480,8 @@
         "ariaLabel": "Progresión de las fases del sueño de la última noche: {asleep} dormido, {awakenings} despertares",
         "asleepTotal": "Dormido {value}",
         "inBedTotal": "En la cama {value}",
-        "awakenings": "{count} despertares"
+        "awakenings": "{count} despertares",
+        "source": "Fuente: {source}"
       },
       "stages": {
         "deep": "Profundo",

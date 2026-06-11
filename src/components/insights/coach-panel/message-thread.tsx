@@ -476,7 +476,9 @@ function ChatBubble({
             // Budget the avatar column (size-8 + gap-2.5 ≈ 2.625rem) out
             // of the 80% cap so the bubble + avatar together never
             // overflow a comfortable width on a narrow phone.
-            "flex max-w-[calc(80%-2.625rem)] flex-col items-end gap-1",
+            // `group/user-bubble` scopes the remember control's
+            // hover/focus reveal (see `RememberUserMessage`).
+            "group/user-bubble flex max-w-[calc(80%-2.625rem)] flex-col items-end gap-1",
           )}
         >
           <div
@@ -728,6 +730,14 @@ function ChatBubble({
 function RememberUserMessage({ content }: { content: string }) {
   const { t } = useTranslations();
   const [settled, setSettled] = useState<"adopted" | "duplicate" | null>(null);
+  // On settle the button unmounts while it holds focus, which would
+  // drop keyboard focus to <body>. The confirmation paragraph takes
+  // the focus instead (`tabIndex={-1}` + programmatic focus) so the
+  // reading position survives the swap.
+  const statusRef = useRef<HTMLParagraphElement | null>(null);
+  useEffect(() => {
+    if (settled) statusRef.current?.focus();
+  }, [settled]);
 
   const remember = useMutation({
     mutationFn: async () => {
@@ -747,8 +757,10 @@ function RememberUserMessage({ content }: { content: string }) {
     return (
       <p
         role="status"
+        ref={statusRef}
+        tabIndex={-1}
         data-slot="coach-remember-message-done"
-        className="text-muted-foreground flex items-center gap-1 text-xs"
+        className="text-muted-foreground flex items-center gap-1 text-xs outline-none"
       >
         <Check className="text-dracula-green size-3" aria-hidden="true" />
         {t(
@@ -770,6 +782,16 @@ function RememberUserMessage({ content }: { content: string }) {
         "text-muted-foreground hover:text-foreground focus-visible:ring-ring/50",
         "inline-flex min-h-8 items-center gap-1 rounded px-1.5 py-1 text-xs",
         "outline-none focus-visible:ring-2 disabled:opacity-50",
+        // Calmer thread on pointer devices: the control stays invisible
+        // until its bubble is hovered or holds focus. Touch viewports
+        // (no hover media) keep it always visible — there is nothing to
+        // hover. `opacity-0` (not `invisible`) keeps it focusable so
+        // keyboard users can reach it; focus then reveals it.
+        "sm:[@media(hover:hover)]:opacity-0",
+        "sm:[@media(hover:hover)]:group-hover/user-bubble:opacity-100",
+        "sm:[@media(hover:hover)]:group-focus-within/user-bubble:opacity-100",
+        "sm:[@media(hover:hover)]:focus-visible:opacity-100",
+        "transition-opacity duration-150 motion-reduce:transition-none",
       )}
     >
       {remember.isPending ? (

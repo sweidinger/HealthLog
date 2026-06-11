@@ -613,6 +613,7 @@ export function MoodChart({
     <ChartErrorState
       title={t("charts.errorTitle")}
       actionLabel={t("common.retry")}
+      actionContext={displayTitle}
       onAction={() => void refetch()}
       height={CHART_HEIGHT_PX}
     />

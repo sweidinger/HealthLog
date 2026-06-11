@@ -2480,7 +2480,8 @@
         "ariaLabel": "Sleep stage progression for last night: {asleep} asleep, {awakenings} awakenings",
         "asleepTotal": "Asleep {value}",
         "inBedTotal": "In bed {value}",
-        "awakenings": "{count} awakenings"
+        "awakenings": "{count} awakenings",
+        "source": "Source: {source}"
       },
       "stages": {
         "deep": "Deep",

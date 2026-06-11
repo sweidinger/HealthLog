@@ -406,4 +406,17 @@ describe("<InsightsTabStrip> — pill row clip box (v1.16.8)", () => {
     expect(scroller).toContain("py-1");
     expect(scroller).toContain("-my-1");
   });
+
+  it("keeps horizontal paint room so edge pills' focus rings survive", () => {
+    // Same clip mechanics sideways: without inner `px-1` the first/last
+    // pill's focus ring was cut at the scroller's horizontal edges. The
+    // matching `-mx-1` hands the width back to the layout.
+    const html = render(<InsightsTabStrip />);
+    const scroller = html.match(
+      /<div[^>]*data-slot="insights-tab-strip-scroller"[^>]*>/,
+    )?.[0];
+    expect(scroller).toBeTruthy();
+    expect(scroller).toContain("px-1");
+    expect(scroller).toContain("-mx-1");
+  });
 });

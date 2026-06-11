@@ -634,8 +634,9 @@ function InsightsTabStripImpl({
           // ring (+2 px offset) was cut on every side. `py-1` keeps
           // 4 px of paint room inside the clip box; the matching `-my-1`
           // gives that room back to the layout so the strip height is
-          // unchanged.
-          className="-my-1 flex min-w-0 flex-1 [scrollbar-width:none] gap-2 overflow-x-auto py-1 [&::-webkit-scrollbar]:hidden"
+          // unchanged. `px-1 -mx-1` does the same horizontally so the
+          // first/last pill's focus ring isn't clipped at the row edges.
+          className="-mx-1 -my-1 flex min-w-0 flex-1 [scrollbar-width:none] gap-2 overflow-x-auto px-1 py-1 [&::-webkit-scrollbar]:hidden"
         >
           {tabs.map((tab) => {
             if (tab.kind === "link") {

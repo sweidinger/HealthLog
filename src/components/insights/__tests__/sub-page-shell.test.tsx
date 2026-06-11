@@ -128,6 +128,12 @@ describe("<SubPageShell>", () => {
       html.lastIndexOf('data-slot="metric-show-all-values"'),
     );
     expect(html).not.toContain("w-full sm:w-auto");
+    // The cluster gap must clear the siblings' extended hit areas
+    // (`before:-inset-1.5` = 6 px per edge → ≥12 px gap): with the old
+    // `gap-0.5` the later sibling's invisible halo overlapped its
+    // neighbour's clickable edge.
+    expect(html).toContain("items-center gap-3");
+    expect(html).not.toContain("items-center gap-0.5");
   });
 
   it("omits the show-all-values control without a type", () => {

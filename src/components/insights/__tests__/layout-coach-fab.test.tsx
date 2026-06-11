@@ -55,11 +55,49 @@ describe("<LayoutCoachFab>", () => {
     expect(html).toContain('data-slot="coach-fab"');
     // Accessible name carries the launcher label, not the nudge copy.
     expect(html).toContain('aria-label="Open the Coach"');
-    // Fixed bottom-right, above the mobile bottom-nav band.
+    // Fixed bottom-right, above the mobile bottom-nav band. The plain
+    // desktop offset kicks in at `md:` — the same breakpoint where the
+    // bottom-nav hides (`md:hidden`) — so the FAB never floats mid-air
+    // in the 768-1023px band.
     expect(html).toContain("fixed right-4");
     expect(html).toContain(
       "bottom-[calc(env(safe-area-inset-bottom,0px)+5rem)]",
     );
+    expect(html).toContain("md:bottom-6");
+    expect(html).not.toContain("lg:bottom-6");
+  });
+
+  it("paints a dark glyph + offset focus ring on the gradient", () => {
+    mockPathname = "/";
+    const html = render(
+      <CoachLaunchProvider>
+        <LayoutCoachFab />
+      </CoachLaunchProvider>,
+    );
+    // White on the purple/pink gradient sat at ≈2.3:1; the background
+    // token reads ≈6.5:1.
+    expect(html).toContain("text-background");
+    expect(html).not.toContain("text-white");
+    // The offset ring draws a visible halo around the gradient circle.
+    expect(html).toContain("focus-visible:ring-offset-2");
+    expect(html).toContain("focus-visible:ring-offset-background");
+  });
+
+  it("carries a polite live region for the unread-nudge announcement", () => {
+    mockPathname = "/";
+    const html = render(
+      <CoachLaunchProvider>
+        <LayoutCoachFab />
+      </CoachLaunchProvider>,
+    );
+    // The swapped aria-label is not announced on mutation; the sr-only
+    // sibling emits the nudge copy once on the unread rising edge. It
+    // must be mounted (and empty) BEFORE a nudge arrives so the live
+    // region is registered with the accessibility tree.
+    const live = html.match(/<span[^>]*data-slot="coach-fab-live"[^>]*>/)?.[0];
+    expect(live).toBeTruthy();
+    expect(live).toContain('aria-live="polite"');
+    expect(live).toContain("sr-only");
   });
 
   it("paints no unread dot on first paint (no nudge-status data yet)", () => {
@@ -93,6 +131,31 @@ describe("<LayoutCoachFab>", () => {
     // The selection bar's delete action lands in the same lower-right
     // band; the FAB carries a CSS gate keyed off the bar's data-slot.
     expect(html).toContain("selection-action-bar");
+    // The gate must include `invisible` — `opacity-0` alone left the
+    // hidden button focusable and operable: a keyboard user could tab
+    // onto an unseeable control and trigger a navigation. (The `&` is
+    // HTML-escaped in static markup.)
+    expect(html).toContain(
+      "[body:has([data-slot=selection-action-bar])_&amp;]:invisible",
+    );
+    expect(html).toContain(
+      "[body:has([data-slot=selection-action-bar])_&amp;]:pointer-events-none",
+    );
+  });
+
+  it("yields to the onboarding tour overlay with the same robust gate", () => {
+    mockPathname = "/";
+    const html = render(
+      <CoachLaunchProvider>
+        <LayoutCoachFab />
+      </CoachLaunchProvider>,
+    );
+    expect(html).toContain(
+      "[body:has([data-testid=onboarding-tour])_&amp;]:invisible",
+    );
+    expect(html).toContain(
+      "[body:has([data-testid=onboarding-tour])_&amp;]:pointer-events-none",
+    );
   });
 });
 

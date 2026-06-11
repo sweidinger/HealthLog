@@ -2480,7 +2480,8 @@
         "ariaLabel": "Progression des phases de sommeil de la nuit dernière : {asleep} de sommeil, {awakenings} réveils",
         "asleepTotal": "Sommeil {value}",
         "inBedTotal": "Au lit {value}",
-        "awakenings": "{count} réveils"
+        "awakenings": "{count} réveils",
+        "source": "Source : {source}"
       },
       "stages": {
         "deep": "Profond",
