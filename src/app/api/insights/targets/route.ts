@@ -35,7 +35,7 @@ import type {
 } from "@/generated/prisma/client";
 import { apiHandler, requireAuth } from "@/lib/api-handler";
 import { annotate } from "@/lib/logging/context";
-import { cached, caches, type ServerCache } from "@/lib/cache/server-cache";
+import { cachedSwr, caches, type ServerCache } from "@/lib/cache/server-cache";
 import { NO_STORE_BUT_BFCACHE } from "@/lib/http/cache-headers";
 import {
   getEffectiveRange,
@@ -133,7 +133,14 @@ type AuthedUser = Awaited<ReturnType<typeof requireAuth>>["user"];
 
 export const GET = apiHandler(async () => {
   const { user } = await requireAuth();
-  const body = await cached(
+  // v1.16.8 — stale-while-revalidate read. The cold build is the
+  // multi-query walk below; past the 60 s fresh TTL the prior body now
+  // serves immediately while ONE background rebuild warms the cell,
+  // instead of every Insights mount more than a minute apart re-paying
+  // the >1 s compute inline. Writes still hard-evict the bucket
+  // (`invalidateUser*` → `deleteByPrefix`), so user actions always
+  // reflect on the next read.
+  const body = await cachedSwr(
     caches.insightsTargets as ServerCache<
       Awaited<ReturnType<typeof buildTargetsResponse>>
     >,
@@ -158,25 +165,6 @@ async function buildTargetsResponse(user: AuthedUser) {
   const userTz = user.timezone ?? DEFAULT_TIMEZONE;
   const dayKey = (d: Date): string => userDayKey(d, userTz);
 
-  // Fetch user profile
-  const dbUser = await prisma.user.findUnique({
-    where: { id: userId },
-    select: {
-      heightCm: true,
-      dateOfBirth: true,
-      gender: true,
-      glucoseUnit: true,
-      thresholdsJson: true,
-      // v1.11.5 — needed to collapse a dual-source sleep night to one
-      // canonical source before reconstructing per-night asleep totals.
-      sourcePriorityJson: true,
-    },
-  });
-
-  const age = dbUser?.dateOfBirth ? getAge(new Date(dbUser.dateOfBirth)) : null;
-  const gender = (dbUser?.gender as "MALE" | "FEMALE" | null) ?? null;
-  const heightCm = dbUser?.heightCm ?? null;
-
   // Fetch latest measurements for each type
   // v1.11.5 — SLEEP_DURATION is handled by a dedicated per-night
   // reconstruction read below (the generic per-type average treats each
@@ -198,47 +186,166 @@ async function buildTargetsResponse(user: AuthedUser) {
   ];
 
   const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-
-  // Fetch all measurements in the last 30 days + the latest for each type
-  // Soft-delete filter mirrors the W-DELETED pattern: tombstoned rows
-  // must not contribute to tile averages / latest values once iOS sync
-  // starts emitting deletions.
-  const recentMeasurements = await prisma.measurement.findMany({
-    where: {
-      userId,
-      type: { in: types },
-      measuredAt: { gte: thirtyDaysAgo },
-      deletedAt: null,
-    },
-    orderBy: { measuredAt: "desc" },
-    select: { type: true, value: true, measuredAt: true },
-  });
-
-  // Absolute latest measurement per type within a one-year floor.
-  //
-  // Prisma's `distinct` does not compile to Postgres `DISTINCT ON` — the
-  // driver dedups after pulling the rows, so an unbounded scan on a
-  // 347 k-row tenant pulls every measurement back to Node only to drop
-  // all but seven (audit Critical Finding #2, v1.4.40). The 365-day
-  // floor caps the planner-side walk to the existing
-  // `(user_id, type, measured_at)` index range; the trade-off is that a
-  // user who hasn't measured a metric in over a year sees the tile's
-  // `current` value as null instead of pulling a stale year-old reading
-  // forward — which is the correct behaviour for the consistency strip
-  // (the strip already gates on "fewer than 3 readings in 30 days" →
-  // insufficientData).
   const oneYearAgo = new Date(Date.now() - 365 * 24 * 60 * 60 * 1000);
-  const latestEverByType = await prisma.measurement.findMany({
-    where: {
-      userId,
-      type: { in: types },
-      measuredAt: { gte: oneYearAgo },
-      deletedAt: null,
-    },
-    orderBy: { measuredAt: "desc" },
-    distinct: ["type"],
-    select: { type: true, value: true },
-  });
+
+  // Mood-rollup warm-up fires before the parallel read below so a legacy
+  // account converges onto the rollup tier on a subsequent request; the
+  // read itself never blocks on the warm-up (fire-and-forget).
+  void ensureUserMoodRollupsFresh(userId);
+  // Five-year window mirrors `/api/mood/analytics` so existing rollup
+  // coverage is consulted; the trailing 30-day filter happens in JS
+  // because the consistency strip already walks per-day buckets.
+  const moodRollupWindowMs = 5 * 365 * 24 * 60 * 60 * 1000;
+  const moodSince = new Date(Date.now() - moodRollupWindowMs);
+
+  // v1.16.8 — ONE parallel round of every independent read. The cold
+  // build used to await eight queries strictly in sequence (profile →
+  // measurements → latest-per-type → sleep → medications → intakes →
+  // mood → glucose), stacking their round-trip latencies into the >1 s
+  // wall-clock the production trace showed. All of them are independent
+  // (the intake read depends only on the medication ids, so the pair
+  // chains inside its own slot); fan them out together and the cold
+  // build pays roughly the slowest query instead of the sum.
+  const [
+    dbUser,
+    recentMeasurements,
+    latestEverByType,
+    sleepStageRows,
+    medicationBundle,
+    moodRollups,
+    latestMoodEntry,
+    glucoseRows,
+  ] = await Promise.all([
+    // User profile (height / age / gender / thresholds / source priority).
+    prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        heightCm: true,
+        dateOfBirth: true,
+        gender: true,
+        glucoseUnit: true,
+        thresholdsJson: true,
+        // v1.11.5 — needed to collapse a dual-source sleep night to one
+        // canonical source before reconstructing per-night asleep totals.
+        sourcePriorityJson: true,
+      },
+    }),
+    // All measurements in the last 30 days for the generic type set.
+    // Soft-delete filter mirrors the W-DELETED pattern: tombstoned rows
+    // must not contribute to tile averages / latest values once iOS sync
+    // starts emitting deletions.
+    prisma.measurement.findMany({
+      where: {
+        userId,
+        type: { in: types },
+        measuredAt: { gte: thirtyDaysAgo },
+        deletedAt: null,
+      },
+      orderBy: { measuredAt: "desc" },
+      select: { type: true, value: true, measuredAt: true },
+    }),
+    // Absolute latest measurement per type within a one-year floor.
+    //
+    // Prisma's `distinct` does not compile to Postgres `DISTINCT ON` — the
+    // driver dedups after pulling the rows, so an unbounded scan on a
+    // 347 k-row tenant pulls every measurement back to Node only to drop
+    // all but seven (audit Critical Finding #2, v1.4.40). The 365-day
+    // floor caps the planner-side walk to the existing
+    // `(user_id, type, measured_at)` index range; the trade-off is that a
+    // user who hasn't measured a metric in over a year sees the tile's
+    // `current` value as null instead of pulling a stale year-old reading
+    // forward — which is the correct behaviour for the consistency strip
+    // (the strip already gates on "fewer than 3 readings in 30 days" →
+    // insufficientData).
+    prisma.measurement.findMany({
+      where: {
+        userId,
+        type: { in: types },
+        measuredAt: { gte: oneYearAgo },
+        deletedAt: null,
+      },
+      orderBy: { measuredAt: "desc" },
+      distinct: ["type"],
+      select: { type: true, value: true },
+    }),
+    // Sleep stage rows for the per-night reconstruction (section 4).
+    prisma.measurement.findMany({
+      where: {
+        userId,
+        type: "SLEEP_DURATION",
+        measuredAt: { gte: thirtyDaysAgo },
+        deletedAt: null,
+      },
+      orderBy: { measuredAt: "asc" },
+      select: { value: true, measuredAt: true, sleepStage: true, source: true },
+    }),
+    // Active medications + their 30-day intake events (section 8). The
+    // intake read depends on the medication ids, so the pair chains
+    // inside this slot while riding the outer fan-out.
+    (async () => {
+      const activeMedications = await prisma.medication.findMany({
+        where: { userId, active: true },
+        // v1.15.20 — schedules through the shared compliance select so the
+        // configured per-dose windows reach this surface like every other.
+        include: {
+          schedules: { select: SCHEDULE_COMPLIANCE_SELECT },
+          // v1.16.3 — archived schedule eras for era-aware compliance.
+          scheduleRevisions: { orderBy: { validFrom: "asc" } },
+        },
+        orderBy: { name: "asc" },
+      });
+      if (activeMedications.length === 0) {
+        return { activeMedications, intakeEvents: [] };
+      }
+      const intakeEvents = await prisma.medicationIntakeEvent.findMany({
+        where: {
+          userId,
+          // v1.7.0 sync — exclude tombstoned rows.
+          deletedAt: null,
+          medicationId: {
+            in: activeMedications.map((medication) => medication.id),
+          },
+          scheduledFor: { gte: thirtyDaysAgo },
+        },
+        orderBy: { scheduledFor: "desc" },
+        select: {
+          medicationId: true,
+          takenAt: true,
+          skipped: true,
+          scheduledFor: true,
+        },
+      });
+      return { activeMedications, intakeEvents };
+    })(),
+    // Mood day rollups (section 9).
+    readMoodDayRollups(userId, moodSince),
+    // Latest raw mood entry — bounded `take: 1` via the index.
+    prisma.moodEntry.findFirst({
+      // v1.7.0 sync — exclude tombstoned rows.
+      where: { userId, deletedAt: null },
+      orderBy: { moodLoggedAt: "desc" },
+      select: { score: true, moodLoggedAt: true },
+    }),
+    // Glucose rows (section 10). Same one-year floor as the
+    // latest-per-type read above — the previous unbounded scan pulled a
+    // heavy logger's full history back to Node on every cold build; a
+    // context whose newest reading is over a year old now reports no
+    // card, matching the per-type tile posture.
+    prisma.measurement.findMany({
+      where: {
+        userId,
+        type: "BLOOD_GLUCOSE",
+        measuredAt: { gte: oneYearAgo },
+        deletedAt: null,
+      },
+      orderBy: { measuredAt: "desc" },
+      select: { value: true, measuredAt: true, glucoseContext: true },
+    }),
+  ]);
+
+  const age = dbUser?.dateOfBirth ? getAge(new Date(dbUser.dateOfBirth)) : null;
+  const gender = (dbUser?.gender as "MALE" | "FEMALE" | null) ?? null;
+  const heightCm = dbUser?.heightCm ?? null;
 
   const latestByType: Record<string, number | null> = {};
   const avg30ByType: Record<string, number | null> = {};
@@ -813,16 +920,7 @@ async function buildTargetsResponse(user: AuthedUser) {
   // overview headline.
   const sleepRange = getSleepDurationRange();
   {
-    const sleepStageRows = await prisma.measurement.findMany({
-      where: {
-        userId,
-        type: "SLEEP_DURATION",
-        measuredAt: { gte: thirtyDaysAgo },
-        deletedAt: null,
-      },
-      orderBy: { measuredAt: "asc" },
-      select: { value: true, measuredAt: true, sleepStage: true, source: true },
-    });
+    // `sleepStageRows` resolved in the parallel read at the top.
     const nights = reconstructSleepNights(
       sleepStageRows as SleepStageRow[],
       userTz,
@@ -1002,40 +1100,12 @@ async function buildTargetsResponse(user: AuthedUser) {
     });
   }
 
-  // 8. Medication Compliance (average across active medications)
-  const activeMedications = await prisma.medication.findMany({
-    where: { userId, active: true },
-    // v1.15.20 — schedules through the shared compliance select so the
-    // configured per-dose windows reach this surface like every other.
-    include: {
-      schedules: { select: SCHEDULE_COMPLIANCE_SELECT },
-      // v1.16.3 — archived schedule eras for era-aware compliance.
-      scheduleRevisions: { orderBy: { validFrom: "asc" } },
-    },
-    orderBy: { name: "asc" },
-  });
+  // 8. Medication Compliance (average across active medications) —
+  // `activeMedications` + their 30-day `intakeEvents` resolved in the
+  // parallel read at the top.
+  const { activeMedications, intakeEvents } = medicationBundle;
 
   if (activeMedications.length > 0) {
-    const thirtyDaysAgoIntake = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-    const intakeEvents = await prisma.medicationIntakeEvent.findMany({
-      where: {
-        userId,
-        // v1.7.0 sync — exclude tombstoned rows.
-        deletedAt: null,
-        medicationId: {
-          in: activeMedications.map((medication) => medication.id),
-        },
-        scheduledFor: { gte: thirtyDaysAgoIntake },
-      },
-      orderBy: { scheduledFor: "desc" },
-      select: {
-        medicationId: true,
-        takenAt: true,
-        skipped: true,
-        scheduledFor: true,
-      },
-    });
-
     const medicationStats = activeMedications.map((medication) => {
       const medicationEvents = intakeEvents.filter(
         (event) => event.medicationId === medication.id,
@@ -1187,21 +1257,9 @@ async function buildTargetsResponse(user: AuthedUser) {
   // rows yet (legacy account before the boot-time backfill caught up)
   // we run the legacy live walk once and fire the warm-up so the next
   // request lands on the rollup tier. Same posture as
-  // `/api/mood/analytics`.
-  void ensureUserMoodRollupsFresh(userId);
+  // `/api/mood/analytics`. The warm-up trigger + the `moodRollups` /
+  // `latestMoodEntry` reads moved into the parallel round at the top.
   const thirtyDaysAgoMood = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-  // Five-year window mirrors `/api/mood/analytics` so existing rollup
-  // coverage is consulted; the trailing 30-day filter happens in JS
-  // because the consistency strip already walks per-day buckets.
-  const moodRollupWindowMs = 5 * 365 * 24 * 60 * 60 * 1000;
-  const moodSince = new Date(Date.now() - moodRollupWindowMs);
-  const moodRollups = await readMoodDayRollups(userId, moodSince);
-  const latestMoodEntry = await prisma.moodEntry.findFirst({
-    // v1.7.0 sync — exclude tombstoned rows.
-    where: { userId, deletedAt: null },
-    orderBy: { moodLoggedAt: "desc" },
-    select: { score: true, moodLoggedAt: true },
-  });
 
   // Build a per-day event list for the consistency strip + 30-day stats.
   // Use the rollup tier when populated; fall back to a bounded raw walk
@@ -1357,12 +1415,8 @@ async function buildTargetsResponse(user: AuthedUser) {
     dateOfBirth: dbUser?.dateOfBirth ?? null,
     gender: dbUser?.gender ?? null,
   };
+  // `glucoseRows` resolved (one-year floor) in the parallel read at the top.
   const thirtyDaysAgoGlucose = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-  const glucoseRows = await prisma.measurement.findMany({
-    where: { userId, type: "BLOOD_GLUCOSE", deletedAt: null },
-    orderBy: { measuredAt: "desc" },
-    select: { value: true, measuredAt: true, glucoseContext: true },
-  });
 
   const labelKeyByContext: Record<GlucoseContext, string> = {
     FASTING: "targets.glucoseFasting",

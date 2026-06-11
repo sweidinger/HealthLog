@@ -51,6 +51,11 @@ import { GET } from "../route";
 import { getSession } from "@/lib/auth/session";
 import { prisma } from "@/lib/db";
 import { computeDerivedMetric } from "@/lib/insights/derived";
+import { __resetAllCachesForTests } from "@/lib/cache/server-cache";
+import {
+  invalidateUserMeasurements,
+  invalidateUserMood,
+} from "@/lib/cache/invalidate";
 
 const SESSION_OK = {
   session: { id: "sess-1", expiresAt: new Date(Date.now() + 3_600_000) },
@@ -66,6 +71,9 @@ function makeReq(metrics?: string): NextRequest {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  // v1.16.8 — the route reads through the module-scope `insightsDerived`
+  // server cache; reset it so every test starts on a cold cell.
+  __resetAllCachesForTests();
   vi.mocked(prisma.appSettings.findUnique).mockResolvedValue(null as never);
   vi.mocked(prisma.user.findUnique).mockResolvedValue({
     dateOfBirth: new Date("1986-01-01"),
@@ -142,5 +150,77 @@ describe("GET /api/insights/derived/batch", () => {
     vi.mocked(getSession).mockResolvedValue(null);
     const res = await callGet(makeReq("READINESS"));
     expect(res.status).toBe(401);
+  });
+});
+
+describe("GET /api/insights/derived/batch — server cache (v1.16.8)", () => {
+  it("serves a warm repeat from the per-user cache without recomputing", async () => {
+    vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
+    const first = await callGet(makeReq("READINESS,BMI"));
+    expect(first.status).toBe(200);
+    expect(computeDerivedMetric).toHaveBeenCalledTimes(2);
+
+    const second = await callGet(makeReq("READINESS,BMI"));
+    expect(second.status).toBe(200);
+    // Cache hit — no second profile read, no second compute fan-out.
+    expect(computeDerivedMetric).toHaveBeenCalledTimes(2);
+    expect(prisma.user.findUnique).toHaveBeenCalledTimes(1);
+
+    const body = (await second.json()) as {
+      data: { metrics: Record<string, { status: string }> };
+    };
+    expect(Object.keys(body.data.metrics).sort()).toEqual([
+      "BMI",
+      "READINESS",
+    ]);
+  });
+
+  it("hits the same cell regardless of token order", async () => {
+    vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
+    await callGet(makeReq("READINESS,BMI"));
+    await callGet(makeReq("BMI,READINESS"));
+    // The key sorts the tokens, so the reordered request is a hit.
+    expect(computeDerivedMetric).toHaveBeenCalledTimes(2);
+  });
+
+  it("never serves one user's cell to another user", async () => {
+    vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
+    await callGet(makeReq("BMI"));
+    expect(computeDerivedMetric).toHaveBeenCalledTimes(1);
+
+    vi.mocked(getSession).mockResolvedValue({
+      ...SESSION_OK,
+      user: { ...SESSION_OK.user, id: "user-2" },
+    } as never);
+    await callGet(makeReq("BMI"));
+    // Different userId prefix → cold cell → fresh compute.
+    expect(computeDerivedMetric).toHaveBeenCalledTimes(2);
+  });
+
+  it("recomputes after an interactive measurement write evicts the bucket", async () => {
+    vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
+    await callGet(makeReq("BMI"));
+    expect(computeDerivedMetric).toHaveBeenCalledTimes(1);
+
+    invalidateUserMeasurements("user-1", { evict: true });
+    await callGet(makeReq("BMI"));
+    expect(computeDerivedMetric).toHaveBeenCalledTimes(2);
+  });
+
+  it("serves stale-while-revalidate after a background write marks the bucket stale", async () => {
+    vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
+    await callGet(makeReq("BMI"));
+    expect(computeDerivedMetric).toHaveBeenCalledTimes(1);
+
+    // Background sync posture (no evict): the entry is marked stale, so
+    // the next read serves the prior body immediately AND kicks off one
+    // background recompute.
+    invalidateUserMood("user-1");
+    const res = await callGet(makeReq("BMI"));
+    expect(res.status).toBe(200);
+    // The background rebuild runs detached; give the microtask queue a
+    // tick so the recompute lands before asserting.
+    await new Promise((resolve) => setImmediate(resolve));
+    expect(computeDerivedMetric).toHaveBeenCalledTimes(2);
   });
 });

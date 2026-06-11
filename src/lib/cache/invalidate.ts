@@ -87,6 +87,16 @@ export function invalidateUserMeasurements(
   // `/api/insights/targets` computes. Evict the user's bucket so the
   // next mount paints fresh data.
   caches.insightsTargets.deleteByPrefix(userId);
+  // v1.16.8 — the batched derived-wellness payload computes over the
+  // same measurement rollups. Same split as the analytics bucket:
+  // interactive writes evict (the user's own entry must reflect on the
+  // next read), background syncs mark stale so the SWR reader serves
+  // the prior grid while one recompute warms it.
+  if (opts?.evict) {
+    caches.insightsDerived.deleteByPrefix(`${userId}|`);
+  } else {
+    caches.insightsDerived.markStaleByPrefix(`${userId}|`);
+  }
 }
 
 /**
@@ -111,6 +121,11 @@ export function invalidateUserMood(userId: string): void {
   // the prior aggregate (within the SWR window) while a single
   // background recompute warms a fresh one.
   caches.moodInsights.markStaleByPrefix(userId);
+  // v1.16.8 — READINESS folds the mood series into the derived batch,
+  // so a mood write dirties the cached grid. Mark stale (not evict):
+  // the wellness strip is a glanceable aggregate, and the background
+  // recompute lands the new entry within one read cycle.
+  caches.insightsDerived.markStaleByPrefix(`${userId}|`);
 }
 
 /**

@@ -475,6 +475,15 @@ export default function InsightsPage() {
           coachLaunch ? (prompt) => coachLaunch.askCoach(prompt) : undefined
         }
         healthScore={analytics?.healthScore ?? undefined}
+        // v1.16.8 — reserve the score card's column while the thick
+        // analytics payload is in flight. Every overview query
+        // (comprehensive, advisor, analytics, derived batch, layout)
+        // already fires in parallel at mount; the "greeting first,
+        // score card later" stagger came from the right column not
+        // existing until the slowest payload resolved. `isPending`
+        // settles false on success AND error, so a no-score account
+        // collapses the column exactly once.
+        healthScorePending={analyticsQuery.isPending && !analytics}
       />
 
       {/* v1.15.18 — the inline "Anpassen" toggle was removed. Customising the

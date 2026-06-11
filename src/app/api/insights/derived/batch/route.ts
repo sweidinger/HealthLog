@@ -26,6 +26,11 @@ import pLimit from "p-limit";
 import { apiSuccess, apiError, returnAllZodIssues } from "@/lib/api-response";
 import { apiHandler, requireAuth } from "@/lib/api-handler";
 import { annotate } from "@/lib/logging/context";
+import {
+  cachedSwr,
+  caches,
+  type ServerCache,
+} from "@/lib/cache/server-cache";
 import { requireAssistantSurface } from "@/lib/feature-flags";
 import { prisma } from "@/lib/db";
 import {
@@ -139,10 +144,70 @@ export const GET = apiHandler(async (request: NextRequest) => {
     );
   }
 
+  // The deterministic per-score assessment is locale-dependent, so the
+  // locale joins the cache key below — a de / en pair never shares a cell.
+  const locale = await resolveServerLocale({
+    request,
+    userLocale: user.locale ?? null,
+    override: request.nextUrl.searchParams.get("locale"),
+  });
+  const assessmentLocale = locale === "de" ? "de" : "en";
+
+  // v1.16.8 — read-through the per-user derived cache with
+  // stale-while-revalidate. The cold build below walks the rollup tier
+  // once per metric (1–2 s wall-clock for the overview's ~16-token
+  // grid); the production trace showed the full recompute re-paid on
+  // every read past the client's 60 s staleTime. Tokens sort into the
+  // key so request order never splits cells; measurement writes evict /
+  // mark the `${userId}|` prefix stale via `invalidateUserMeasurements`
+  // and mood writes mark it stale (READINESS reads the mood series).
+  const cacheKey = `${user.id}|batch|${items
+    .map((item) => item.key)
+    .sort()
+    .join(",")}|${assessmentLocale}`;
+  const map = await cachedSwr(
+    caches.insightsDerived as ServerCache<
+      Awaited<ReturnType<typeof buildDerivedBatch>>
+    >,
+    cacheKey,
+    () =>
+      buildDerivedBatch({
+        userId: user.id,
+        items,
+        assessmentLocale,
+      }),
+    annotate,
+  );
+
+  annotate({
+    action: { name: "insights.derived.batch" },
+    meta: {
+      requested: items.length,
+      ok: Object.values(map).filter((entry) => entry.status === "ok").length,
+    },
+  });
+
+  // `metrics` is a map keyed by the per-request token so the client reads
+  // back exactly what it asked for (`VITALS_BASELINE:WEIGHT`, `READINESS`).
+  return apiSuccess({ metrics: map });
+});
+
+/**
+ * The cacheable batch body — profile load + bounded per-metric fan-out.
+ * Lifted out of the handler so `cachedSwr` can wrap it; everything here
+ * is pure compute over the rollup tier (no provider call).
+ */
+async function buildDerivedBatch(input: {
+  userId: string;
+  items: BatchItem[];
+  assessmentLocale: "de" | "en";
+}) {
+  const { userId, items, assessmentLocale } = input;
+
   // Profile read ONCE — the pool-contention mitigation; the same shared
   // loader the nightly score jobs use, so the batch never re-reads the
   // User row per metric.
-  const profile = await loadBaselineProfile(prisma, user.id);
+  const profile = await loadBaselineProfile(prisma, userId);
 
   // Fan out under a bounded limiter so a 17-item dashboard read resolves
   // four computes at a time against the shared pool, not seventeen.
@@ -156,12 +221,6 @@ export const GET = apiHandler(async (request: NextRequest) => {
   // null for non-assessable ids / non-`ok` status, so a non-score item still
   // gets `assessment: null`. A best-effort grid extra must NEVER fail the
   // whole batch, so each call is guarded → null on any unexpected shape.
-  const locale = await resolveServerLocale({
-    request,
-    userLocale: user.locale ?? null,
-    override: request.nextUrl.searchParams.get("locale"),
-  });
-  const assessmentLocale = locale === "de" ? "de" : "en";
   const safeAssessment = (
     metric: DerivedMetricId,
     derived: Parameters<typeof resolveDeterministicAssessment>[1],
@@ -182,7 +241,7 @@ export const GET = apiHandler(async (request: NextRequest) => {
       limit(async () => {
         const derived = await computeDerivedMetric({
           metric: item.metric,
-          userId: user.id,
+          userId,
           profile,
           type: item.type,
           now,
@@ -210,16 +269,5 @@ export const GET = apiHandler(async (request: NextRequest) => {
 
   const map: Record<string, (typeof results)[number]["payload"]> = {};
   for (const r of results) map[r.key] = r.payload;
-
-  annotate({
-    action: { name: "insights.derived.batch" },
-    meta: {
-      requested: items.length,
-      ok: results.filter((r) => r.payload.status === "ok").length,
-    },
-  });
-
-  // `metrics` is a map keyed by the per-request token so the client reads
-  // back exactly what it asked for (`VITALS_BASELINE:WEIGHT`, `READINESS`).
-  return apiSuccess({ metrics: map });
-});
+  return map;
+}

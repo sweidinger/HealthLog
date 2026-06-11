@@ -259,3 +259,35 @@ describe("v1.4.22 A3 — comparison toggle is global Settings only", () => {
     expect(hookSrc).toContain("compareBaseline");
   });
 });
+
+describe("v1.16.8 — insights overview cold paint", () => {
+  it("fires every overview query in parallel — none gated on another query's data", () => {
+    const src = load(INSIGHTS_PATH);
+    // The derived batch + analytics + comprehensive reads all gate on
+    // auth alone. Chaining any of them behind another query's resolved
+    // payload re-introduces the sequential reveal.
+    expect(src).toMatch(/useDashboardDerived\(isAuthenticated\)/);
+    expect(src).toMatch(/const analyticsQuery = useAnalyticsQuery\(\);/);
+    expect(src).toMatch(/enabled:\s*isAuthenticated/);
+    expect(src).not.toMatch(/useDashboardDerived\([^)]*data/);
+  });
+
+  it("reserves the health-score column while the analytics payload is pending", () => {
+    const src = load(INSIGHTS_PATH);
+    // The hero receives the pending flag so the score card's slot holds
+    // its footprint from first paint (skeleton in `<HeroStrip>`).
+    expect(src).toMatch(
+      /healthScorePending=\{analyticsQuery\.isPending && !analytics\}/,
+    );
+  });
+
+  it("hero strip renders the score-card skeleton in the reserved column", () => {
+    const heroSrc = readFileSync(
+      join(ROOT, "src/components/insights/hero-strip.tsx"),
+      "utf8",
+    );
+    expect(heroSrc).toContain('data-slot="health-score-card-skeleton"');
+    // The two-column split keys on score-or-pending, not score alone.
+    expect(heroSrc).toMatch(/\(healthScore \|\| healthScorePending\) &&/);
+  });
+});

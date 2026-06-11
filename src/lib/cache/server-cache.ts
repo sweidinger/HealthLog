@@ -466,11 +466,42 @@ export const caches = {
    * the analytics cache so multiple sub-page mounts inside a minute
    * all hit a warm cache. Invalidated alongside the analytics bucket
    * on measurement / mood / medication writes.
+   *
+   * v1.16.8 — stale-while-revalidate. The 60 s fresh TTL meant every
+   * Insights mount more than a minute after the last one re-paid the
+   * full multi-query build inline (>1 s cold). The route reads via
+   * `cachedSwr` now: inside the 10-minute stale window the prior body
+   * serves immediately while one coalesced background rebuild warms a
+   * fresh one. Writes keep their hard evict (`deleteByPrefix`) so a
+   * user's own measurement / mood / medication action is always
+   * reflected on the very next read — the window only bounds
+   * wall-clock drift, never user-action staleness.
    */
   insightsTargets: new ServerCache<unknown>({
     name: "insightsTargets",
     maxEntries: 1000,
     ttlMs: 60_000,
+    staleTtlMs: 600_000,
+  }),
+  /**
+   * v1.16.8 — batched derived-wellness payload
+   * (`GET /api/insights/derived/batch`). The Insights overview reads
+   * ~16 metric computes in one request; each cold build walks the
+   * rollup tier per metric and lands at 1–2 s wall-clock even under the
+   * bounded `p-limit(4)` fan-out. Keyed
+   * `${userId}|batch|${sortedTokens}|${locale}` so the overview's one
+   * canonical token set always lands on one cell. Measurement writes
+   * cover it through `invalidateUserMeasurements` (evict on interactive
+   * writes, mark-stale on background syncs); mood writes mark it stale
+   * (READINESS folds the mood series in). Stale-while-revalidate keeps
+   * any repeat read inside the 10-minute window instant while one
+   * background recompute refreshes the cell.
+   */
+  insightsDerived: new ServerCache<unknown>({
+    name: "insightsDerived",
+    maxEntries: 2000,
+    ttlMs: 60_000,
+    staleTtlMs: 600_000,
   }),
   /**
    * v1.5.5 — per-user insights tile layout cache. Mirrors

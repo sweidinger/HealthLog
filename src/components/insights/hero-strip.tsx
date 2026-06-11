@@ -2,6 +2,7 @@
 
 import { Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useTranslations } from "@/lib/i18n/context";
 import { formatRelativeTime } from "@/lib/i18n/relative-time";
 import { useFeatureFlags } from "@/hooks/use-feature-flags";
@@ -89,6 +90,18 @@ interface HeroStripProps {
     components: HealthScoreCardProps["components"];
     delta: HealthScoreCardProps["delta"];
   } | null;
+  /**
+   * v1.16.8 — true while the analytics payload that carries
+   * `healthScore` is still in flight. The right column then reserves the
+   * score card's footprint with a skeleton, so the hero band paints at
+   * roughly its final size from the first frame and the card landing is
+   * a swap, not a push. Pre-fix the column collapsed while loading and
+   * the whole overview reflowed when the (slow, thick-slice) analytics
+   * response arrived — the "greeting first, score card later" stagger.
+   * When the payload resolves WITHOUT a score (no data yet) the column
+   * collapses once, which is the legacy no-score shape.
+   */
+  healthScorePending?: boolean;
 }
 
 /**
@@ -118,6 +131,7 @@ export function HeroStrip({
   onAskCoach,
   now,
   healthScore,
+  healthScorePending = false,
 }: HeroStripProps) {
   const { t } = useTranslations();
   // v1.4.37 W5 — operator-level Coach gate. When the global Coach flag
@@ -180,10 +194,15 @@ export function HeroStrip({
        * `h-full` + `mt-auto` on its disclaimer to redistribute the
        * recovered space without visual jank.
        */}
+      {/* v1.16.8 — the split keys on `reserveScoreColumn`, not on the
+          resolved payload alone: while the analytics query is in flight
+          the right column already holds the score card's footprint (the
+          skeleton below), so the band's two-column geometry is stable
+          from first paint. */}
       <div
         className={cn(
           "flex flex-col gap-5",
-          healthScore &&
+          (healthScore || healthScorePending) &&
             "md:flex-row md:items-stretch md:gap-6 lg:flex-row lg:items-stretch lg:gap-6",
         )}
       >
@@ -287,6 +306,33 @@ export function HeroStrip({
           )}
         </div>
 
+        {!healthScore && healthScorePending && (
+          /* v1.16.8 — layout-stable placeholder mirroring the score
+             card's column footprint (same basis / stretch classes as
+             `<HealthScoreCard>`): label row, headline number, progress
+             bar, four component rows. Decorative — the card announces
+             nothing while loading. */
+          <div
+            data-slot="health-score-card-skeleton"
+            aria-hidden="true"
+            className={cn(
+              "bg-card/65 border-border/60 rounded-xl border px-4 py-4 shadow-sm backdrop-blur-sm",
+              "w-full md:basis-[22rem] md:shrink-0 md:grow-0 xl:basis-[26rem]",
+              "flex h-full min-h-64 flex-col gap-3.5",
+            )}
+          >
+            <Skeleton className="h-3 w-24" />
+            <Skeleton className="h-12 w-28" />
+            <Skeleton className="h-2 w-full rounded-full" />
+            <Skeleton className="h-3 w-32" />
+            <div className="space-y-2.5 border-t pt-3.5">
+              <Skeleton className="h-3 w-full" />
+              <Skeleton className="h-3 w-full" />
+              <Skeleton className="h-3 w-full" />
+              <Skeleton className="h-3 w-full" />
+            </div>
+          </div>
+        )}
         {healthScore && (
           <HealthScoreCard
             score={healthScore.score}

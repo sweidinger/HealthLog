@@ -277,4 +277,37 @@ describe("GET /api/insights/targets — mood-rollup tier swap", () => {
     expect(ageMs).toBeGreaterThan(oneYearMs - 3_600_000);
     expect(ageMs).toBeLessThan(oneYearMs + 3_600_000);
   });
+
+  it("bounds the glucose read with the same one-year floor (v1.16.8)", async () => {
+    // The glucose section used to scan the user's entire BLOOD_GLUCOSE
+    // history on every cold build (no `measuredAt` filter at all) just
+    // to read the latest value per context. The read now carries the
+    // same 365-day floor as the latest-ever-per-type query.
+    await callGet(makeReq());
+
+    const calls = (
+      prisma.measurement.findMany as ReturnType<typeof vi.fn>
+    ).mock.calls.map((c) => c[0]);
+    const glucoseCall = calls.find((c) => c?.where?.type === "BLOOD_GLUCOSE");
+    expect(glucoseCall).toBeDefined();
+    expect(glucoseCall?.where?.measuredAt?.gte).toBeInstanceOf(Date);
+  });
+
+  it("serves a warm repeat from the server cache without re-querying (v1.16.8)", async () => {
+    const first = await callGet(makeReq());
+    expect(first.status).toBe(200);
+    const queriesAfterFirst = (
+      prisma.measurement.findMany as ReturnType<typeof vi.fn>
+    ).mock.calls.length;
+    expect(queriesAfterFirst).toBeGreaterThan(0);
+
+    const second = await callGet(makeReq());
+    expect(second.status).toBe(200);
+    // Same user, warm cell — the SWR read serves the cached body and
+    // issues no further measurement queries inside the fresh TTL.
+    expect(
+      (prisma.measurement.findMany as ReturnType<typeof vi.fn>).mock.calls
+        .length,
+    ).toBe(queriesAfterFirst);
+  });
 });
