@@ -192,7 +192,13 @@ export function Glp1MedicationCard({
   // v1.16.8 — same batched compliance source as the generic card: one
   // `GET /api/medications/compliance` round trip shared by every card on
   // the page (the per-id endpoint stays for the detail page's heatmap).
-  const { data: compliance } = useMedicationComplianceSummary(medication.id);
+  // `isError` swaps the compliance slot to the quiet retry fallback so a
+  // failed batch read never leaves the card on a permanent skeleton.
+  const {
+    data: compliance,
+    isError: complianceError,
+    refetch: refetchCompliance,
+  } = useMedicationComplianceSummary(medication.id);
 
   // v1.4.37 W4b — same reminder-thresholds source as the generic
   // medication card so the take-now / overdue / very-overdue pill
@@ -442,6 +448,8 @@ export function Glp1MedicationCard({
       compliance={
         compliance ? { rate7, rate30, streak, shortDays, longDays } : null
       }
+      complianceError={complianceError}
+      onRetryCompliance={refetchCompliance}
       currentCycle={display?.currentCycle ?? null}
       intakeLoading={intakeLoading}
       onRecordIntake={(skipped) => recordIntake(skipped, displayedSlot)}

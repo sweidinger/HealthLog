@@ -4,14 +4,16 @@
  * The hash must be: deterministic across key order (so two structurally
  * equal snapshots always match), locale-agnostic and day-label-agnostic
  * (so a midnight rollover or a locale switch alone never forces a
- * regeneration), clock-offset-agnostic (dayOffset / *DaysAgo shift with
- * `now`, not with the data), and sensitive to every actual data value
- * the prompt narrates. All assertions use fixed inputs — no clocks, no
- * timezones.
+ * regeneration), clock-offset-agnostic for positional offsets (dayOffset
+ * shifts with `now`, not with the data), tier-bucketed for the `*DaysAgo`
+ * recency keys (stable within a staleness tier, flipping exactly at the
+ * 1/2, 7/8 and 30/31 boundaries so the staleness caveat can re-enter the
+ * text), and sensitive to every actual data value the prompt narrates.
+ * All assertions use fixed inputs — no clocks, no timezones.
  */
 import { describe, it, expect } from "vitest";
 
-import { hashInsightSnapshot } from "../snapshot-hash";
+import { hashInsightSnapshot, stalenessTier } from "../snapshot-hash";
 
 describe("hashInsightSnapshot", () => {
   it("is a sha256 hex digest", () => {
@@ -50,7 +52,7 @@ describe("hashInsightSnapshot", () => {
     expect(de).toBe(en);
   });
 
-  it("ignores clock-relative offsets (dayOffset, *DaysAgo) but not the values", () => {
+  it("ignores positional offsets (dayOffset) but not the values", () => {
     const yesterday = hashInsightSnapshot({
       dataCoverage: { totalMeasurements: 12, newestMeasurementDaysAgo: 0 },
       daily: [
@@ -65,7 +67,8 @@ describe("hashInsightSnapshot", () => {
         { dayOffset: 2, value: 80.4, n: 2 },
       ],
     });
-    // Same readings, one day later, nothing new logged → same fingerprint.
+    // Same readings, one day later, nothing new logged, recency still in
+    // the fresh tier (0 → 1 days) → same fingerprint.
     expect(yesterday).toBe(today);
 
     const newReading = hashInsightSnapshot({
@@ -77,6 +80,72 @@ describe("hashInsightSnapshot", () => {
       ],
     });
     expect(newReading).not.toBe(today);
+  });
+
+  describe("staleness tiers for *DaysAgo keys", () => {
+    /** Snapshot with identical data values and a varying recency. */
+    function snap(newestMeasurementDaysAgo: number | null) {
+      return {
+        dataCoverage: { totalMeasurements: 12, newestMeasurementDaysAgo },
+        weight: { mean: 80.2, n: 12 },
+      };
+    }
+
+    it("maps day counts onto the 0-1 / 2-7 / 8-30 / 30+ tiers", () => {
+      expect(stalenessTier(0)).toBe("0-1d");
+      expect(stalenessTier(1)).toBe("0-1d");
+      expect(stalenessTier(2)).toBe("2-7d");
+      expect(stalenessTier(7)).toBe("2-7d");
+      expect(stalenessTier(8)).toBe("8-30d");
+      expect(stalenessTier(30)).toBe("8-30d");
+      expect(stalenessTier(31)).toBe("30d+");
+      expect(stalenessTier(365)).toBe("30d+");
+    });
+
+    it("is stable while the recency stays within one tier", () => {
+      expect(hashInsightSnapshot(snap(0))).toBe(hashInsightSnapshot(snap(1)));
+      expect(hashInsightSnapshot(snap(2))).toBe(hashInsightSnapshot(snap(7)));
+      expect(hashInsightSnapshot(snap(8))).toBe(hashInsightSnapshot(snap(30)));
+      expect(hashInsightSnapshot(snap(31))).toBe(
+        hashInsightSnapshot(snap(120)),
+      );
+    });
+
+    it("flips exactly when the recency crosses a tier boundary", () => {
+      // The day a user's data goes from "fresh" to "going stale" to
+      // "stale" the fingerprint must change, so the cached text picks up
+      // (or escalates) the out-of-date caveat instead of being re-stamped
+      // as current forever.
+      expect(hashInsightSnapshot(snap(1))).not.toBe(
+        hashInsightSnapshot(snap(2)),
+      );
+      expect(hashInsightSnapshot(snap(7))).not.toBe(
+        hashInsightSnapshot(snap(8)),
+      );
+      expect(hashInsightSnapshot(snap(30))).not.toBe(
+        hashInsightSnapshot(snap(31)),
+      );
+    });
+
+    it("keeps a null recency (no dated reading) distinct from every tier", () => {
+      const noReading = hashInsightSnapshot(snap(null));
+      expect(noReading).not.toBe(hashInsightSnapshot(snap(0)));
+      expect(noReading).not.toBe(hashInsightSnapshot(snap(31)));
+    });
+
+    it("buckets nested *DaysAgo keys the same way (per-series, signal block)", () => {
+      const fresh = hashInsightSnapshot({
+        signal: { metric: "Pulse", newestDaysAgo: 3, current: 61 },
+      });
+      const sameTier = hashInsightSnapshot({
+        signal: { metric: "Pulse", newestDaysAgo: 6, current: 61 },
+      });
+      const staleTier = hashInsightSnapshot({
+        signal: { metric: "Pulse", newestDaysAgo: 9, current: 61 },
+      });
+      expect(fresh).toBe(sameTier);
+      expect(fresh).not.toBe(staleTier);
+    });
   });
 
   it("keeps absolute day keys in the fingerprint", () => {

@@ -70,9 +70,13 @@ import { compactSections } from "@/lib/ai/prompts/compact-sections";
 const FEATURES = {
   weight: { count: 12, latest: 81.4, mean30: 82.1 },
 };
-const FEATURES_HASH = hashInsightSnapshot(
-  compactSections(FEATURES as unknown as Record<string, unknown>),
-);
+// The fingerprint covers the compacted features AND the about-me text
+// (null here — the about-me module is mocked to no text), matching the
+// composite shape both the gate and the POST route hash.
+const FEATURES_HASH = hashInsightSnapshot({
+  features: compactSections(FEATURES as unknown as Record<string, unknown>),
+  aboutMe: null,
+});
 
 beforeEach(() => {
   vi.clearAllMocks();

@@ -9,6 +9,7 @@ import { MedicationCardHeader } from "@/components/medications/MedicationCardHea
 import { MedicationStatusPill } from "@/components/medications/card-parts/medication-status-pill";
 import {
   MedicationComplianceBars,
+  MedicationComplianceError,
   MedicationComplianceSkeleton,
 } from "@/components/medications/card-parts/medication-compliance-bars";
 import { MedicationCycleStatus } from "@/components/medications/card-parts/medication-cycle-status";
@@ -95,6 +96,16 @@ export interface MedicationCardBodyProps {
     longDays: number;
   } | null;
 
+  /**
+   * True when the batched compliance query FAILED (post-retry). The body
+   * then renders the quiet same-footprint error fallback instead of the
+   * skeleton — a permanent skeleton reads as "still loading" forever,
+   * while a failed read needs a visible (but calm) retry affordance.
+   */
+  complianceError?: boolean;
+  /** Refetch the shared compliance query (the error fallback's retry). */
+  onRetryCompliance?: () => void;
+
   /** The open-cycle descriptor, or null when the display block is absent. */
   currentCycle: CurrentCycle | null;
 
@@ -121,6 +132,8 @@ export function MedicationCardBody({
   nextLine,
   lastLine,
   compliance,
+  complianceError = false,
+  onRetryCompliance,
   currentCycle,
   intakeLoading,
   onRecordIntake,
@@ -183,7 +196,10 @@ export function MedicationCardBody({
         <MedicationNextLastSlot next={nextLine} last={lastLine} />
 
         {/* Compliance bars — always two rows; constant-height skeleton holds
-            the slot while the query is in flight so the grid row stays even. */}
+            the slot while the query is in flight so the grid row stays even.
+            A FAILED query swaps the skeleton for the same-footprint quiet
+            error fallback (no bars, one notice line + retry) instead of
+            sitting on the skeleton forever. */}
         {active &&
           (compliance ? (
             <MedicationComplianceBars
@@ -193,6 +209,8 @@ export function MedicationCardBody({
               shortDays={compliance.shortDays}
               longDays={compliance.longDays}
             />
+          ) : complianceError && onRetryCompliance ? (
+            <MedicationComplianceError onRetry={onRetryCompliance} />
           ) : (
             <MedicationComplianceSkeleton />
           ))}

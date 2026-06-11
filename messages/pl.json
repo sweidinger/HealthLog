@@ -735,6 +735,7 @@
     "compliance7d": "Przestrzeganie 7 dni",
     "compliance30d": "Przestrzeganie 30 dni",
     "complianceWindow": "Przestrzeganie {days} dni",
+    "complianceUnavailable": "Nie udało się wczytać danych o przestrzeganiu",
     "complianceInfo": "Udział zarejestrowanych dawek względem oczekiwanych. Plany tygodniowe liczone są tydzień po tygodniu.",
     "complianceInfoLabel": "Co oznacza przestrzeganie zaleceń?",
     "complianceDoses": "{count} dawek",

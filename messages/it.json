@@ -735,6 +735,7 @@
     "compliance7d": "Aderenza 7 giorni",
     "compliance30d": "Aderenza 30 giorni",
     "complianceWindow": "Aderenza {days} giorni",
+    "complianceUnavailable": "Impossibile caricare l'aderenza",
     "complianceInfo": "Quota delle dosi attese che hai registrato. I piani settimanali contano settimana per settimana.",
     "complianceInfoLabel": "Cosa significa aderenza?",
     "complianceDoses": "{count} dosi",

@@ -735,6 +735,7 @@
     "compliance7d": "Therapietreue (7 Tage)",
     "compliance30d": "Therapietreue (30 Tage)",
     "complianceWindow": "Therapietreue ({days} Tage)",
+    "complianceUnavailable": "Therapietreue konnte nicht geladen werden",
     "complianceInfo": "Anteil der erfassten an den erwarteten Dosen. Wöchentliche Pläne zählen wochenweise.",
     "complianceInfoLabel": "Was bedeutet Therapietreue?",
     "complianceDoses": "{count} Dosen",

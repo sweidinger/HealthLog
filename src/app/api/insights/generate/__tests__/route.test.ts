@@ -94,6 +94,13 @@ vi.mock("@/lib/jobs/insight-pregenerate-shared", () => ({
   enqueueForceWarm: vi.fn(async () => undefined),
 }));
 
+// The POST follows a successful generation with a hash-gated refill of the
+// per-status / generic-metric cards. Mocked at the module boundary — the
+// enqueue pipeline itself is covered by the comprehensive-generate tests.
+vi.mock("@/lib/insights/comprehensive-generate", () => ({
+  enqueueStatusRefillForUser: vi.fn(async () => 7),
+}));
+
 vi.mock("@/lib/logging/context", () => ({
   annotate: vi.fn(),
 }));
@@ -117,6 +124,7 @@ vi.mock("@/lib/i18n/server-locale", () => ({
 }));
 
 import { GET, POST, resolveInsightsRateLimit } from "../route";
+import { enqueueStatusRefillForUser } from "@/lib/insights/comprehensive-generate";
 import { resolveProvider } from "@/lib/ai/provider";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { prisma } from "@/lib/db";
@@ -388,6 +396,51 @@ describe("POST /api/insights/generate — cache write (v1.16.8)", () => {
     expect(body.data.cached).toBe(true);
     expect(prisma.user.update).not.toHaveBeenCalled();
     expect(prisma.auditLog.deleteMany).not.toHaveBeenCalled();
+  });
+
+  it("enqueues the hash-gated card refill after a successful generation", async () => {
+    makeWorkingProvider();
+
+    const res = await POST(jsonRequest({ force: true }) as never);
+    expect(res.status).toBe(200);
+
+    // The manual regenerate takes the cards along: one refill enqueue for
+    // the caller's resolved locale, annotated for the wide-event pipeline.
+    expect(enqueueStatusRefillForUser).toHaveBeenCalledTimes(1);
+    expect(enqueueStatusRefillForUser).toHaveBeenCalledWith("u-1", "en");
+    const refillAnnotate = vi
+      .mocked(annotate)
+      .mock.calls.find(
+        (call) =>
+          (call[0] as { action?: { name?: string } })?.action?.name ===
+          "insights.generate.cards_refill",
+      );
+    expect(refillAnnotate, "cards_refill annotate event").toBeTruthy();
+  });
+
+  it("does NOT enqueue the card refill when serving from the 24h DB cache", async () => {
+    vi.mocked(prisma.user.findUnique).mockResolvedValueOnce({
+      insightsPrivacyMode: "aggregated",
+      insightsCachedAt: new Date(),
+      insightsCachedText: JSON.stringify({ changed: "still fresh" }),
+      locale: "en",
+    } as never);
+
+    const res = await POST(jsonRequest({}) as never);
+    expect(res.status).toBe(200);
+    expect(enqueueStatusRefillForUser).not.toHaveBeenCalled();
+  });
+
+  it("does NOT enqueue the card refill when the provider fails", async () => {
+    makeProviderThatThrows(
+      Object.assign(new Error("OpenAI request failed (500)"), {
+        httpStatus: 500,
+      }),
+    );
+
+    const res = await POST(jsonRequest({ force: true }) as never);
+    expect(res.status).toBe(503);
+    expect(enqueueStatusRefillForUser).not.toHaveBeenCalled();
   });
 });
 

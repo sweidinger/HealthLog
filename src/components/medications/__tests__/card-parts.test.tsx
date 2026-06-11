@@ -8,7 +8,10 @@ import {
   Glp1MedicationCard,
   type Glp1Medication,
 } from "@/components/medications/glp1-medication-card";
-import { MedicationComplianceBars } from "@/components/medications/card-parts/medication-compliance-bars";
+import {
+  MedicationComplianceBars,
+  MedicationComplianceError,
+} from "@/components/medications/card-parts/medication-compliance-bars";
 import { MedicationStatusPill } from "@/components/medications/card-parts/medication-status-pill";
 import { MedicationIntakeActions } from "@/components/medications/card-parts/medication-intake-actions";
 import { MedicationStateBadges } from "@/components/medications/card-parts/medication-state-badges";
@@ -548,5 +551,89 @@ describe("compliance bars — fixed geometry (v1.16.6)", () => {
         .replace(/data-value="[^"]*"/g, 'data-value="V"')
         .replace(/data-max="[^"]*"/g, 'data-max="M"');
     expect(skeleton(a)).toBe(skeleton(b));
+  });
+});
+
+/**
+ * v1.16.8 — when the batched compliance query FAILS (post-retry), the
+ * card swaps the loading skeleton for a quiet error fallback: same
+ * two-row footprint (no layout jump), no bars (a failed read must not
+ * paint a 0 % adherence), one muted notice line + a small retry that
+ * refetches the shared query. Without it the swallowed-error path left
+ * every card on a permanent skeleton with no recovery affordance.
+ */
+describe("compliance error fallback (v1.16.8)", () => {
+  function renderBodyCompliance(args: {
+    compliance: boolean;
+    complianceError?: boolean;
+  }) {
+    return render(
+      <MedicationCardBody
+        name="Ramipril"
+        dose="5 mg"
+        categoryLabel="Blood Pressure"
+        active
+        href="/medications/m1"
+        linkLabel="Open"
+        stateBadges={null}
+        headerActions={null}
+        windowStatus={null}
+        doseStatus="upcoming"
+        nextLine="Tomorrow, 08:00"
+        lastLine="Today, 07:30"
+        compliance={
+          args.compliance
+            ? { rate7: 90, rate30: 88, streak: 0, shortDays: 7, longDays: 30 }
+            : null
+        }
+        complianceError={args.complianceError}
+        onRetryCompliance={() => {}}
+        currentCycle={null}
+        intakeLoading={null}
+        onRecordIntake={() => {}}
+      />,
+    );
+  }
+
+  it("renders the notice line and the retry affordance, no progress bars", () => {
+    const html = render(<MedicationComplianceError onRetry={() => {}} />);
+    expect(html).toContain("Adherence could not be loaded");
+    expect(html).toContain("Retry");
+    expect(html).not.toContain('data-slot="progress"');
+  });
+
+  it("mirrors the skeleton's two-row footprint so the card height holds", () => {
+    const error = render(<MedicationComplianceError onRetry={() => {}} />);
+    // Two h-5 label lines + two h-2 bar-height slots — exactly the
+    // skeleton's reserved geometry, so failed/loading/loaded states all
+    // occupy the same space.
+    expect((error.match(/flex h-5 items-center/g) ?? []).length).toBe(2);
+    expect((error.match(/h-2 rounded/g) ?? []).length).toBe(2);
+  });
+
+  it("the body shows the error fallback instead of the skeleton on a failed query", () => {
+    const html = renderBodyCompliance({
+      compliance: false,
+      complianceError: true,
+    });
+    expect(html).toContain("Adherence could not be loaded");
+    expect(html).toContain("Retry");
+    // Not the aria-hidden loading skeleton.
+    expect(html).not.toContain('aria-hidden="true"><div class="space-y-1.5"');
+  });
+
+  it("the body keeps the skeleton while the query is merely in flight", () => {
+    const html = renderBodyCompliance({ compliance: false });
+    expect(html).not.toContain("Adherence could not be loaded");
+  });
+
+  it("resolved data still renders the bars even when a stale error flag lingers", () => {
+    // A successful refetch clears the failure visually: data wins.
+    const html = renderBodyCompliance({
+      compliance: true,
+      complianceError: true,
+    });
+    expect(html).toContain('data-slot="progress"');
+    expect(html).not.toContain("Adherence could not be loaded");
   });
 });

@@ -735,6 +735,7 @@
     "compliance7d": "Adherence (7 days)",
     "compliance30d": "Adherence (30 days)",
     "complianceWindow": "Adherence ({days} days)",
+    "complianceUnavailable": "Adherence could not be loaded",
     "complianceInfo": "Share of expected doses you logged. Weekly schedules count week by week.",
     "complianceInfoLabel": "What does adherence mean?",
     "complianceDoses": "{count} doses",

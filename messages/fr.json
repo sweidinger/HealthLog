@@ -735,6 +735,7 @@
     "compliance7d": "Observance 7 jours",
     "compliance30d": "Observance 30 jours",
     "complianceWindow": "Observance {days} jours",
+    "complianceUnavailable": "Impossible de charger l'observance",
     "complianceInfo": "Part des doses attendues que vous avez enregistrées. Les plans hebdomadaires comptent semaine par semaine.",
     "complianceInfoLabel": "Que signifie l'observance ?",
     "complianceDoses": "{count} doses",

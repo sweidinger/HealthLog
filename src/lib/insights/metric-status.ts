@@ -245,7 +245,15 @@ export async function generateMetricStatus(args: {
         },
         orderBy: { measuredAt: "desc" },
         take: 365 * 6, // ≈ 5 stage rows/night × source-count for a year
-        select: { value: true, measuredAt: true, sleepStage: true, source: true },
+        // Writer-level collapse: two HealthKit apps behind one source
+        // (watch stages vs phone in-bed) must not blend into one night.
+        select: {
+          value: true,
+          measuredAt: true,
+          sleepStage: true,
+          source: true,
+          deviceType: true,
+        },
       }),
     ]);
     const nights = reconstructSleepNights(

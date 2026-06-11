@@ -1,3 +1,5 @@
+import pLimit from "p-limit";
+
 import { prisma } from "@/lib/db";
 import { apiHandler, requireAuth } from "@/lib/api-handler";
 import { annotate } from "@/lib/logging/context";
@@ -53,25 +55,32 @@ export const GET = apiHandler(async () => {
     orderBy: { createdAt: "desc" },
   });
 
-  // Sequential on purpose: each cold cell costs one bounded intake read +
-  // one band-expansion pass, and a sequential walk keeps a many-meds
-  // account from stampeding the pool. Warm / stale cells return without
-  // touching the database at all.
-  const items = [];
-  for (const medication of medications) {
-    const payload = await cachedSwr(
-      caches.medicationCompliance as ServerCache<CompliancePayload>,
-      complianceCacheKey(user.id, medication.id, userTz),
-      () => buildCompliancePayload(medication, user.id, userTz),
-      annotate,
-    );
-    items.push({
-      medicationId: medication.id,
-      compliance7: payload.compliance7,
-      compliance30: payload.compliance30,
-      complianceDisplay: payload.complianceDisplay,
-    });
-  }
+  // Bounded fan-out: each cold cell costs one bounded intake read + one
+  // band-expansion pass. Three at a time keeps a many-meds account from
+  // stampeding the pool while bounding the cold wall-clock — the client
+  // reads this through the shared fetch wrapper's 15 s default timeout,
+  // and a strictly sequential walk over a large cabinet could outlive it
+  // on a cold cache. Warm / stale cells return without touching the
+  // database at all; `Promise.all` keeps the response in list order.
+  const limit = pLimit(3);
+  const items = await Promise.all(
+    medications.map((medication) =>
+      limit(async () => {
+        const payload = await cachedSwr(
+          caches.medicationCompliance as ServerCache<CompliancePayload>,
+          complianceCacheKey(user.id, medication.id, userTz),
+          () => buildCompliancePayload(medication, user.id, userTz),
+          annotate,
+        );
+        return {
+          medicationId: medication.id,
+          compliance7: payload.compliance7,
+          compliance30: payload.compliance30,
+          complianceDisplay: payload.complianceDisplay,
+        };
+      }),
+    ),
+  );
 
   annotate({
     action: { name: "medication.compliance_summary.read" },

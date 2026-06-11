@@ -18,6 +18,7 @@ const deleteMany = vi.fn();
 const auditFindMany = vi.fn();
 const enqueueStatusGeneration = vi.fn();
 const userFindUnique = vi.fn();
+const measurementFindMany = vi.fn();
 
 vi.mock("@/lib/db", () => ({
   prisma: {
@@ -26,6 +27,7 @@ vi.mock("@/lib/db", () => ({
       findMany: (...a: unknown[]) => auditFindMany(...a),
     },
     user: { findUnique: (...a: unknown[]) => userFindUnique(...a) },
+    measurement: { findMany: (...a: unknown[]) => measurementFindMany(...a) },
   },
 }));
 
@@ -33,7 +35,10 @@ vi.mock("@/lib/jobs/insight-status-generate-shared", () => ({
   enqueueStatusGeneration: (...a: unknown[]) => enqueueStatusGeneration(...a),
 }));
 
-import { invalidateStatusInsightsForTypes } from "../comprehensive-generate";
+import {
+  enqueueStatusRefillForUser,
+  invalidateStatusInsightsForTypes,
+} from "../comprehensive-generate";
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -43,6 +48,7 @@ beforeEach(() => {
   auditFindMany.mockResolvedValue([]);
   enqueueStatusGeneration.mockResolvedValue(undefined);
   userFindUnique.mockResolvedValue({ locale: "de" });
+  measurementFindMany.mockResolvedValue([]);
 });
 
 /** Distinct scopes the invalidator enqueued a regenerate for. */
@@ -189,7 +195,7 @@ describe("invalidateStatusInsightsForTypes", () => {
     ).toBe(false);
   });
 
-  describe("ingest-invalidation debounce (v1.9.0, 6 h window since v1.16.8)", () => {
+  describe("ingest-invalidation debounce (v1.9.0; a 1 h minimum gap since v1.16.8)", () => {
     /** Build a recent (within-window) real assessment cache row. */
     function freshRow(scope: string, locale = "de") {
       return {
@@ -198,12 +204,24 @@ describe("invalidateStatusInsightsForTypes", () => {
       };
     }
 
-    it("skips a scope whose assessment was warmed within the window", async () => {
-      // `general` was regenerated within the window; a fresh WEIGHT sample
+    it("skips a scope whose assessment was warmed within the gap", async () => {
+      // `general` was regenerated within the gap; a fresh WEIGHT sample
       // must not re-enqueue it. weight + bmi are still stale, so they refresh.
       auditFindMany.mockResolvedValue([freshRow("general")]);
       await invalidateStatusInsightsForTypes("u1", ["WEIGHT"]);
       expect(enqueuedScopes()).toEqual(["bmi", "weight"]);
+    });
+
+    it("re-enqueues a scope warmed longer than the gap ago (the hash gate meters cost)", async () => {
+      // The DB probe is cutoff-filtered, so a scope last warmed before the
+      // gap simply does not come back as fresh — it re-enqueues even though
+      // a cache row exists. The worker's forced run lands on the content-
+      // hash gate, which makes a no-change run a free timestamp refresh —
+      // this is what lets same-day data be narrated same-day without
+      // reopening the per-batch regeneration storm.
+      auditFindMany.mockResolvedValue([]);
+      await invalidateStatusInsightsForTypes("u1", ["WEIGHT"]);
+      expect(enqueuedScopes()).toEqual(["bmi", "general", "weight"]);
     });
 
     it("is a complete no-op (no enqueue) when every scope is fresh", async () => {
@@ -229,7 +247,7 @@ describe("invalidateStatusInsightsForTypes", () => {
       expect(enqueuedScopes()).toEqual(["bmi", "general", "weight"]);
     });
 
-    it("scopes the freshness probe to the user's resolved locale and a 6 h window cutoff", async () => {
+    it("scopes the freshness probe to the user's resolved locale and a 1 h gap cutoff", async () => {
       userFindUnique.mockResolvedValue({ locale: "en" });
       const before = Date.now();
       await invalidateStatusInsightsForTypes("u1", ["WEIGHT"]);
@@ -243,14 +261,86 @@ describe("invalidateStatusInsightsForTypes", () => {
           "insights.general-status.en",
         ]),
       );
-      // The recency floor is six hours in the past (v1.16.8 — widened
-      // from 30 min so an all-day syncer refreshes a scope at most a few
-      // times, with the hash gate dropping unchanged refreshes to zero
-      // LLM calls).
+      // The recency floor is ONE hour in the past. The 6 h wall this
+      // started as kept same-day data from being narrated same-day (the
+      // nightly warm restarted the window, so a morning reading stayed
+      // un-narrated until tomorrow); the 1 h gap only bounds worker-run
+      // frequency, while the worker's content-hash gate keeps an
+      // unchanged re-run at zero LLM calls.
       const cutoff = (where.createdAt.gte as Date).getTime();
-      const sixHours = 6 * 60 * 60 * 1000;
-      expect(before - cutoff).toBeGreaterThanOrEqual(sixHours - 5_000);
-      expect(before - cutoff).toBeLessThanOrEqual(sixHours + 60_000);
+      const oneHour = 60 * 60 * 1000;
+      expect(before - cutoff).toBeGreaterThanOrEqual(oneHour - 5_000);
+      expect(before - cutoff).toBeLessThanOrEqual(oneHour + 60_000);
     });
+  });
+});
+
+// v1.16.8 — the manual comprehensive regenerate enqueues a hash-gated
+// refill of the assessment cards instead of blanket-evicting them. The
+// worker forces each enqueued scope past its same-day cache read, so the
+// content-hash gate regenerates changed cards and refreshes unchanged
+// ones for free — the hash baseline rows are never deleted.
+describe("enqueueStatusRefillForUser", () => {
+  it("enqueues the seven specialised scopes plus the user's data-bearing generic scopes", async () => {
+    measurementFindMany.mockResolvedValue([
+      { type: "WEIGHT" }, // specialised — no generic registry entry
+      { type: "BLOOD_GLUCOSE" }, // generic card
+      { type: "ACTIVE_ENERGY_BURNED" }, // generic card under a remapped id
+    ]);
+
+    const count = await enqueueStatusRefillForUser("u1", "de");
+
+    expect(enqueuedScopes()).toEqual([
+      "blood-pressure",
+      "bmi",
+      "general",
+      "medication-compliance",
+      "metric:ACTIVE_ENERGY",
+      "metric:BLOOD_GLUCOSE",
+      "mood",
+      "pulse",
+      "weight",
+    ]);
+    expect(count).toBe(9);
+    const locales = new Set(
+      enqueueStatusGeneration.mock.calls.map(
+        (c) => (c[0] as { locale: string }).locale,
+      ),
+    );
+    expect([...locales]).toEqual(["de"]);
+  });
+
+  it("never deletes cache rows (the hash baselines survive the refill)", async () => {
+    await enqueueStatusRefillForUser("u1", "en");
+    expect(deleteMany).not.toHaveBeenCalled();
+  });
+
+  it("bypasses the ingest debounce — an explicit regenerate refills even freshly-warmed scopes", async () => {
+    // Every scope reads as freshly warmed; the refill must NOT consult the
+    // freshness probe at all (the user is explicitly asking).
+    auditFindMany.mockResolvedValue([
+      {
+        action: "insights.general-status.en",
+        details: JSON.stringify({ text: "fresh assessment", model: "gpt" }),
+      },
+    ]);
+    await enqueueStatusRefillForUser("u1", "en");
+    expect(auditFindMany).not.toHaveBeenCalled();
+    expect(enqueuedScopes()).toContain("general");
+  });
+
+  it("still refills the specialised scopes when the generic-scope discovery read fails", async () => {
+    measurementFindMany.mockRejectedValue(new Error("pool exhausted"));
+    const count = await enqueueStatusRefillForUser("u1", "de");
+    expect(count).toBe(7);
+    expect(enqueuedScopes()).toEqual([
+      "blood-pressure",
+      "bmi",
+      "general",
+      "medication-compliance",
+      "mood",
+      "pulse",
+      "weight",
+    ]);
   });
 });

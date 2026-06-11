@@ -81,9 +81,10 @@ import { annotate } from "@/lib/logging/context";
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 
 /**
- * Debounce window for ingest-driven status invalidation. A scope whose
- * cached assessment was (re)generated within this window is left intact on
- * a fresh measurement ingest — not re-enqueued.
+ * Minimum gap between a scope's last cached (re)generation and the next
+ * ingest-driven re-enqueue. A scope whose cached assessment was
+ * (re)generated within this window is left intact on a fresh measurement
+ * ingest — not re-enqueued.
  *
  * A constantly-syncing client (Apple Health drips batches every few
  * minutes) used to delete + re-enqueue every dirtied scope on every batch,
@@ -95,15 +96,24 @@ const CACHE_TTL_MS = 24 * 60 * 60 * 1000;
  * still refreshes immediately, but a scope refreshed inside the window is
  * skipped, so a fresh assessment survives the day's sync drip.
  *
- * v1.16.8 — widened from 30 min to 6 h. An assessment is a daily prose
- * summary, not a live chart; a card that re-narrates the same day's data
- * every half hour burns provider budget with no informational gain. Six
- * hours bounds an all-day syncer to at most ~3 ingest-driven refreshes per
- * scope, and the content-hash gate in each generator drops even those to
- * zero LLM calls when the snapshot did not actually change. The 24 h TTL
- * and the nightly warm still guarantee a fresh narration every morning.
+ * v1.16.8 — first widened from 30 min to 6 h to bound provider spend, but
+ * a 6 h wall meant same-day data was not narrated same-day: the nightly
+ * warm at 04:30 restarted the window, so a notable 08:00 reading never
+ * re-enqueued its scopes and the card showed the pre-reading text until
+ * the next nightly tick. The window is now a ONE-HOUR minimum gap, and
+ * the budget role the 6 h wall carried moves to the worker's content-hash
+ * gate: every ingest that lands past the gap re-enqueues the dirtied
+ * scopes, the worker's forced run re-gathers the snapshot, and the gate
+ * (`refreshUnchangedStatusInsight`) turns an unchanged snapshot into a
+ * timestamp refresh with zero provider cost. So this clock only bounds
+ * the SQL-gather frequency — at most one worker run per scope per hour
+ * under a constant sync drip — while provider spend tracks actual data
+ * change, which is what the gate exists to meter. Comparing the hash
+ * inline at invalidation time was rejected: it would run the full
+ * per-scope data gather inside the ingest path, which is exactly the
+ * work the queue exists to keep off that path.
  */
-const INGEST_INVALIDATE_DEBOUNCE_MS = 6 * 60 * 60 * 1000;
+const INGEST_INVALIDATE_MIN_GAP_MS = 60 * 60 * 1000;
 
 const MAX_DOWNGRADE_TOKENS: ReadonlyArray<string> = [
   "anthropometrics",
@@ -181,6 +191,9 @@ export async function buildComparisonSnapshotForUser(
               value: true,
               sleepStage: true,
               source: true,
+              // Writer-level collapse: two HealthKit apps behind one
+              // source (watch stages vs phone in-bed) must not blend.
+              deviceType: true,
             },
           }),
           resolveUserTimezone(userId),
@@ -332,10 +345,12 @@ export async function invalidateStatusInsightsForTypes(
   // scope on every batch regenerated the same card several times an hour
   // (the per-(user,scope,locale) enqueue singleton is only 120 s, so it
   // could not coalesce across batches arriving minutes apart). Skip any
-  // scope whose cached assessment was (re)generated within the debounce
-  // window — leave its row intact and do NOT re-enqueue. A genuinely stale
+  // scope whose cached assessment was (re)generated within the minimum
+  // gap — leave its row intact and do NOT re-enqueue. A genuinely stale
   // or missing scope still refreshes immediately, so correctness holds;
-  // only the redundant churn is removed.
+  // only the redundant churn is removed. Past the gap the enqueue always
+  // goes through — the worker's content-hash gate decides whether the
+  // batch actually changed anything (see the constant's doc).
   const freshScopes = await findRecentlyWarmedScopes(userId, locale, scopes);
   const staleScopes = Array.from(scopes).filter(
     (scope) => !freshScopes.has(scope),
@@ -367,8 +382,53 @@ export async function invalidateStatusInsightsForTypes(
 }
 
 /**
+ * v1.16.8 — enqueue a hash-gated refill of every assessment card one user
+ * actually has: the seven specialised scopes plus the generic
+ * `metric:<ID>` scope of every measurement type with live rows. The
+ * worker regenerates each enqueued scope with `force: true`, so every
+ * card skips its same-day cache read, re-gathers its snapshot, and lands
+ * on the content-hash gate — a card whose data changed regenerates, an
+ * unchanged card gets a free timestamp refresh.
+ *
+ * This is the manual-regenerate path's card story: the POST regenerate
+ * used to blanket-evict every per-status row, which deleted the hash
+ * baselines and force-paid ~45 regenerations per click. Enqueuing through
+ * the gate keeps the baseline rows intact, so a user who noticed a stale
+ * card gets exactly the changed cards re-narrated — and nothing else.
+ * Deliberately NOT routed through the ingest debounce: an explicit
+ * regenerate is a user action, already bounded by the route's hourly
+ * rate limit and the queue's per-(user,scope,locale) singleton.
+ *
+ * Returns the number of scopes enqueued (best-effort — the generic-scope
+ * discovery read failing still refills the seven specialised cards).
+ */
+export async function enqueueStatusRefillForUser(
+  userId: string,
+  locale: "de" | "en",
+): Promise<number> {
+  const scopes = new Set<InsightStatusScope>(PER_STATUS_SCOPES);
+  try {
+    const rows = await prisma.measurement.findMany({
+      where: { userId, deletedAt: null },
+      distinct: ["type"],
+      select: { type: true },
+    });
+    for (const row of rows) {
+      const metricId = metricIdForMeasurementType(row.type);
+      if (metricId) scopes.add(metricStatusScope(metricId));
+    }
+  } catch {
+    // Discovery is best-effort; the specialised scopes still refill.
+  }
+  for (const scope of scopes) {
+    void enqueueStatusGeneration({ userId, metric: scope, locale });
+  }
+  return scopes.size;
+}
+
+/**
  * v1.9.0 — return the subset of `scopes` whose cached assessment for
- * `locale` was generated within `INGEST_INVALIDATE_DEBOUNCE_MS` and is a
+ * `locale` was generated within `INGEST_INVALIDATE_MIN_GAP_MS` and is a
  * real (non-stub) assessment. Those scopes are skipped by the ingest
  * invalidator so a fresh assessment survives the sync drip.
  *
@@ -383,7 +443,7 @@ async function findRecentlyWarmedScopes(
   locale: "de" | "en",
   scopes: ReadonlySet<InsightStatusScope>,
 ): Promise<Set<InsightStatusScope>> {
-  const cutoff = new Date(Date.now() - INGEST_INVALIDATE_DEBOUNCE_MS);
+  const cutoff = new Date(Date.now() - INGEST_INVALIDATE_MIN_GAP_MS);
   // Match exactly the cache actions for the candidate scopes in this locale.
   const candidateActions = Array.from(scopes, (scope) =>
     statusCacheAction(scope, locale),
@@ -546,7 +606,19 @@ export async function generateComprehensiveInsight(
   // sees has changed — refresh the cache timestamp and skip the provider
   // call. This runs on the forced paths too (nightly tick, on-demand
   // warm), which is exactly where the same-data regeneration waste lived.
-  const snapshotHash = hashInsightSnapshot(compactFeatures);
+  //
+  // The user-authored "about me" self-description joins the fingerprint:
+  // it is the one prompt input that can change with NO data change (the
+  // Coach remember action, a Settings → AI edit), and excluding it would
+  // pin the briefing to the pre-edit self-context until a measurement
+  // happens to move. The comparison + plateau blocks stay out — both are
+  // derived from the same measurement rows the feature snapshot already
+  // fingerprints. Fetched once here and reused for the prompt below.
+  const aboutMe = await getSelfContextTextForUser(userId, locale);
+  const snapshotHash = hashInsightSnapshot({
+    features: compactFeatures,
+    aboutMe: aboutMe ?? null,
+  });
   if (
     dbUser?.insightsCachedText &&
     dbUser.insightsSnapshotHash === snapshotHash
@@ -576,7 +648,7 @@ export async function generateComprehensiveInsight(
   // v1.15.20 — fold the user-authored "about me" self-description
   // (Settings → AI) into the nightly briefing exactly like the
   // on-demand route. Null (no text / undecryptable) costs nothing.
-  const aboutMe = await getSelfContextTextForUser(userId, locale);
+  // (Fetched above the hash gate — it is part of the fingerprint.)
   if (aboutMe) {
     userPrompt += buildAboutMeInsightBlock(aboutMe, locale);
   }

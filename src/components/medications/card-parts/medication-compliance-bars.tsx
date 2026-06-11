@@ -1,4 +1,4 @@
-import { Flame } from "lucide-react";
+import { Flame, RotateCw } from "lucide-react";
 
 import { ComplianceInfoTip } from "@/components/medications/card-parts/compliance-info-tip";
 import { Progress } from "@/components/ui/progress";
@@ -141,6 +141,48 @@ export function MedicationComplianceSkeleton() {
           <span className="bg-muted h-4 w-9 rounded" />
         </div>
         <div className="bg-muted h-2 rounded" />
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Quiet error fallback for the compliance block, shown when the batched
+ * `/api/medications/compliance` query failed after its retries. Mirrors
+ * the skeleton's two-row footprint exactly (same `h-5` label lines, same
+ * `h-2` bar slots, same gaps) so the card height never jumps between the
+ * loading, loaded, and failed states. No bars are drawn — a failed read
+ * must not paint a 0 % adherence — just one muted notice line and a small
+ * retry affordance that refetches the shared query for every card at once.
+ */
+export function MedicationComplianceError({
+  onRetry,
+}: {
+  onRetry: () => void;
+}) {
+  const { t } = useTranslations();
+  return (
+    <div className="space-y-2.5">
+      <div className="space-y-1.5">
+        <div className="flex h-5 items-center text-sm">
+          <span className="text-muted-foreground min-w-0 truncate">
+            {t("medications.complianceUnavailable")}
+          </span>
+        </div>
+        <div className="bg-muted/40 h-2 rounded" />
+      </div>
+      <div className="space-y-1.5">
+        <div className="flex h-5 items-center">
+          <button
+            type="button"
+            onClick={onRetry}
+            className="text-muted-foreground hover:text-foreground flex items-center gap-1 text-xs underline-offset-2 hover:underline"
+          >
+            <RotateCw className="h-3 w-3" aria-hidden="true" />
+            {t("common.retry")}
+          </button>
+        </div>
+        <div className="bg-muted/40 h-2 rounded" />
       </div>
     </div>
   );

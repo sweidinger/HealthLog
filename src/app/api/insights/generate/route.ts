@@ -61,6 +61,7 @@ import { resolveServerLocale } from "@/lib/i18n/server-locale";
 import { hasUsableStatusProvider } from "@/lib/insights/status-provider";
 import { hashInsightSnapshot } from "@/lib/insights/snapshot-hash";
 import { enqueueForceWarm } from "@/lib/jobs/insight-pregenerate-shared";
+import { enqueueStatusRefillForUser } from "@/lib/insights/comprehensive-generate";
 
 export const dynamic = "force-dynamic";
 
@@ -159,6 +160,9 @@ async function buildComparisonSnapshotForUser(
               value: true,
               sleepStage: true,
               source: true,
+              // Writer-level collapse: two HealthKit apps behind one
+              // source (watch stages vs phone in-bed) must not blend.
+              deviceType: true,
             },
           }),
           resolveUserTimezone(userId),
@@ -718,15 +722,37 @@ export const POST = apiHandler(async (request: NextRequest) => {
       // regeneration paths can detect "nothing changed" and skip the
       // provider call. The user-initiated POST itself stays un-gated: an
       // explicit regenerate request is honoured even on unchanged data
-      // (it is already bounded by the hourly rate limit above).
-      insightsSnapshotHash: hashInsightSnapshot(compactFeatures),
+      // (it is already bounded by the hourly rate limit above). The
+      // about-me text joins the fingerprint — it feeds the prompt and can
+      // change with no data change (Coach remember, Settings → AI edit) —
+      // and the shape MUST match the gate in `comprehensive-generate.ts`,
+      // or every off-request warm after a manual regenerate re-pays a
+      // full generation on unchanged data.
+      insightsSnapshotHash: hashInsightSnapshot({
+        features: compactFeatures,
+        aboutMe: aboutMe ?? null,
+      }),
     },
   });
 
-  // v1.16.8 — no blanket per-status eviction here any more. The cards
-  // track their own data through the ingest invalidator and their own
-  // content-hash gates; nuking ~45 cache rows per manual regenerate was
-  // the source of the post-regenerate card-regeneration storm.
+  // v1.16.8 — no blanket per-status eviction here any more (nuking ~45
+  // cache rows per manual regenerate deleted every hash baseline and was
+  // the source of the post-regenerate card-regeneration storm). Instead,
+  // the manual regenerate takes the cards along through the hash-gated
+  // queue: every scope the user has data for is enqueued, the worker
+  // forces each generator past its same-day cache read, and the content-
+  // hash gate regenerates exactly the cards whose data changed while
+  // refreshing the unchanged ones for free. This is the user's escape
+  // hatch for a card they can SEE is stale — without it the cards had no
+  // refresh path until the next nightly warm.
+  const refillScopes = await enqueueStatusRefillForUser(
+    userId,
+    locale === "de" ? "de" : "en",
+  );
+  annotate({
+    action: { name: "insights.generate.cards_refill" },
+    meta: { scopes: refillScopes },
+  });
 
   // v1.7.0 W6 — the dashboard snapshot embeds the pre-generated daily
   // briefing read-only; drop it so the next snapshot carries the fresh

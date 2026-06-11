@@ -34,28 +34,31 @@ export interface MedicationComplianceSummaryEntry {
  * Lives in one shared hook (not per-card `useQuery` calls) so the two
  * card variants can never register the same key with diverging fetch
  * shapes.
+ *
+ * Errors propagate — the queryFn deliberately does NOT catch. An earlier
+ * revision swallowed failures to `null`, which froze every card on the
+ * loading skeleton with no retry: the cached `null` looked like a
+ * resolved success, so TanStack neither retried nor refetched. Letting
+ * the rejection through restores the default retry/backoff, and `isError`
+ * lets the cards swap the skeleton for a quiet same-footprint fallback
+ * with a manual retry.
  */
 export function useMedicationComplianceSummary(medicationId: string): {
   data: MedicationComplianceSummaryEntry | null | undefined;
+  isError: boolean;
+  refetch: () => void;
 } {
-  const { data } = useQuery({
+  const { data, isError, refetch } = useQuery({
     queryKey: queryKeys.medicationComplianceSummary(),
-    queryFn: async () => {
-      try {
-        return await apiGet<MedicationComplianceSummaryEntry[]>(
-          "/api/medications/compliance",
-        );
-      } catch {
-        return null;
-      }
-    },
+    queryFn: () =>
+      apiGet<MedicationComplianceSummaryEntry[]>("/api/medications/compliance"),
     // Dose actions invalidate the key explicitly through
     // `medicationDependentKeys`; a shorter window would only re-fire the
     // batch on every list visit. Matches the reminder-thresholds query
     // the cards mount alongside.
     staleTime: 5 * 60 * 1000,
-    select: (rows: MedicationComplianceSummaryEntry[] | null) =>
-      rows?.find((row) => row.medicationId === medicationId) ?? null,
+    select: (rows: MedicationComplianceSummaryEntry[]) =>
+      rows.find((row) => row.medicationId === medicationId) ?? null,
   });
-  return { data };
+  return { data, isError, refetch };
 }

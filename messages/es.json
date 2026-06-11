@@ -735,6 +735,7 @@
     "compliance7d": "Cumplimiento 7 días",
     "compliance30d": "Cumplimiento 30 días",
     "complianceWindow": "Cumplimiento {days} días",
+    "complianceUnavailable": "No se pudo cargar el cumplimiento",
     "complianceInfo": "Proporción de dosis registradas respecto a las esperadas. Las pautas semanales se cuentan semana a semana.",
     "complianceInfoLabel": "¿Qué significa el cumplimiento?",
     "complianceDoses": "{count} dosis",

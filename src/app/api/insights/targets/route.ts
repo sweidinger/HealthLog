@@ -277,7 +277,15 @@ async function buildTargetsResponse(user: AuthedUser) {
         deletedAt: null,
       },
       orderBy: { measuredAt: "asc" },
-      select: { value: true, measuredAt: true, sleepStage: true, source: true },
+      // Writer-level collapse: two HealthKit apps behind one source (watch
+      // stages vs phone in-bed) must not blend into one night.
+      select: {
+        value: true,
+        measuredAt: true,
+        sleepStage: true,
+        source: true,
+        deviceType: true,
+      },
     }),
     // Active medications + their 30-day intake events (section 8). The
     // intake read depends on the medication ids, so the pair chains
