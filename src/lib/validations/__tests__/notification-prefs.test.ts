@@ -7,6 +7,7 @@ import {
   isMedicationReminderClientManaged,
   notificationPrefsSchema,
   parseNotificationPrefs,
+  resolveCoachNudgePrefs,
   resolveDeviceDelivery,
   resolveMoodReminderHour,
   resolveNotificationPrefs,
@@ -91,7 +92,13 @@ describe("parseNotificationPrefs", () => {
       medication: { clientManaged: true, deliveryDefault: "server" },
       mood: { reminderHour: DEFAULT_MOOD_REMINDER_HOUR },
       cycle: { clientManaged: false },
-      coach: { nudgesEnabled: true },
+      coach: {
+        nudgesEnabled: true,
+        nudgeMedication: true,
+        nudgeVitals: true,
+        nudgeRoutine: true,
+        nudgeFrequency: "weekly",
+      },
     });
   });
 
@@ -100,7 +107,13 @@ describe("parseNotificationPrefs", () => {
       medication: { clientManaged: false, deliveryDefault: "server" },
       mood: { reminderHour: DEFAULT_MOOD_REMINDER_HOUR },
       cycle: { clientManaged: false },
-      coach: { nudgesEnabled: true },
+      coach: {
+        nudgesEnabled: true,
+        nudgeMedication: true,
+        nudgeVitals: true,
+        nudgeRoutine: true,
+        nudgeFrequency: "weekly",
+      },
     });
   });
 
@@ -111,7 +124,13 @@ describe("parseNotificationPrefs", () => {
       medication: { clientManaged: true, deliveryDefault: "client" },
       mood: { reminderHour: DEFAULT_MOOD_REMINDER_HOUR },
       cycle: { clientManaged: false },
-      coach: { nudgesEnabled: true },
+      coach: {
+        nudgesEnabled: true,
+        nudgeMedication: true,
+        nudgeVitals: true,
+        nudgeRoutine: true,
+        nudgeFrequency: "weekly",
+      },
     });
   });
 
@@ -138,7 +157,13 @@ describe("resolveNotificationPrefs (deep-merge)", () => {
       medication: { clientManaged: true, deliveryDefault: "server" },
       mood: { reminderHour: DEFAULT_MOOD_REMINDER_HOUR },
       cycle: { clientManaged: false },
-      coach: { nudgesEnabled: true },
+      coach: {
+        nudgesEnabled: true,
+        nudgeMedication: true,
+        nudgeVitals: true,
+        nudgeRoutine: true,
+        nudgeFrequency: "weekly",
+      },
     });
   });
 
@@ -153,7 +178,13 @@ describe("resolveNotificationPrefs (deep-merge)", () => {
       medication: { clientManaged: true, deliveryDefault: "server" },
       mood: { reminderHour: DEFAULT_MOOD_REMINDER_HOUR },
       cycle: { clientManaged: false },
-      coach: { nudgesEnabled: true },
+      coach: {
+        nudgesEnabled: true,
+        nudgeMedication: true,
+        nudgeVitals: true,
+        nudgeRoutine: true,
+        nudgeFrequency: "weekly",
+      },
     });
   });
 
@@ -165,7 +196,13 @@ describe("resolveNotificationPrefs (deep-merge)", () => {
       medication: { clientManaged: true, deliveryDefault: "server" },
       mood: { reminderHour: DEFAULT_MOOD_REMINDER_HOUR },
       cycle: { clientManaged: false },
-      coach: { nudgesEnabled: true },
+      coach: {
+        nudgesEnabled: true,
+        nudgeMedication: true,
+        nudgeVitals: true,
+        nudgeRoutine: true,
+        nudgeFrequency: "weekly",
+      },
     });
   });
 
@@ -177,7 +214,13 @@ describe("resolveNotificationPrefs (deep-merge)", () => {
       medication: { clientManaged: true, deliveryDefault: "client" },
       mood: { reminderHour: DEFAULT_MOOD_REMINDER_HOUR },
       cycle: { clientManaged: false },
-      coach: { nudgesEnabled: true },
+      coach: {
+        nudgesEnabled: true,
+        nudgeMedication: true,
+        nudgeVitals: true,
+        nudgeRoutine: true,
+        nudgeFrequency: "weekly",
+      },
     });
   });
 
@@ -190,7 +233,13 @@ describe("resolveNotificationPrefs (deep-merge)", () => {
       medication: { clientManaged: true, deliveryDefault: "server" },
       mood: { reminderHour: 8 },
       cycle: { clientManaged: false },
-      coach: { nudgesEnabled: true },
+      coach: {
+        nudgesEnabled: true,
+        nudgeMedication: true,
+        nudgeVitals: true,
+        nudgeRoutine: true,
+        nudgeFrequency: "weekly",
+      },
     });
   });
 
@@ -333,5 +382,60 @@ describe("resolveDeviceDelivery — per-device override", () => {
         otherCategory: { enabled: true },
       } as unknown),
     ).toBe(false);
+  });
+});
+
+describe("resolveCoachNudgePrefs — v1.16.5 nudge cron gate", () => {
+  it("resolves the documented defaults for a null row", () => {
+    expect(resolveCoachNudgePrefs(null)).toEqual({
+      enabled: true,
+      groups: { medication: true, vitals: true, routine: true },
+      minIntervalDays: 7,
+    });
+  });
+
+  it("keeps legacy rows (master switch only) fully enabled", () => {
+    const out = resolveCoachNudgePrefs({ coach: { nudgesEnabled: true } });
+    expect(out.groups).toEqual({
+      medication: true,
+      vitals: true,
+      routine: true,
+    });
+    expect(out.minIntervalDays).toBe(7);
+  });
+
+  it("carries the master opt-out", () => {
+    expect(
+      resolveCoachNudgePrefs({ coach: { nudgesEnabled: false } }).enabled,
+    ).toBe(false);
+  });
+
+  it("resolves per-group opt-outs independently", () => {
+    const out = resolveCoachNudgePrefs({
+      coach: { nudgeMedication: false, nudgeRoutine: false },
+    });
+    expect(out.groups).toEqual({
+      medication: false,
+      vitals: true,
+      routine: false,
+    });
+    // Group opt-outs do not touch the master switch.
+    expect(out.enabled).toBe(true);
+  });
+
+  it("maps the biweekly frequency pref onto 14 days", () => {
+    expect(
+      resolveCoachNudgePrefs({ coach: { nudgeFrequency: "biweekly" } })
+        .minIntervalDays,
+    ).toBe(14);
+  });
+
+  it("rejects an unknown frequency by falling back to defaults", () => {
+    // A drifted enum value fails the schema; the whole blob resolves
+    // to the documented defaults rather than throwing in the cron.
+    expect(
+      resolveCoachNudgePrefs({ coach: { nudgeFrequency: "daily" } })
+        .minIntervalDays,
+    ).toBe(7);
   });
 });

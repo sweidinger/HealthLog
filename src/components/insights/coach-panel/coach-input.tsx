@@ -59,6 +59,12 @@ export interface CoachInputProps {
    * already-open drawer we do not steal focus back.
    */
   autoFocusOnOpen?: boolean;
+  /**
+   * v1.16.5 — placeholder override. The guided clarifying-questions
+   * flow swaps the generic "ask anything" prompt for an answer cue
+   * while a question is live. Falls back to the stock composer copy.
+   */
+  placeholder?: string;
 }
 
 /**
@@ -105,6 +111,7 @@ export function CoachInput({
   isStreaming = false,
   inputId = "coach-composer-textarea",
   autoFocusOnOpen = false,
+  placeholder,
 }: CoachInputProps) {
   const { t } = useTranslations();
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
@@ -202,7 +209,7 @@ export function CoachInput({
           value={value}
           onChange={(e) => onChange(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder={t("insights.coach.composerPlaceholder")}
+          placeholder={placeholder ?? t("insights.coach.composerPlaceholder")}
           disabled={disabled}
           // v1.4.27 MB3 / CF-30 — surface the "send" virtual-keyboard
           // return on iOS / Android instead of the generic newline

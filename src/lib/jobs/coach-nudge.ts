@@ -17,11 +17,14 @@
  *      the operator's shared key) — a nudge into a Coach that cannot
  *      answer is worse than silence.
  *   4. Per-user opt-out: `notificationPrefs.coach.nudgesEnabled`
- *      (default ON; Settings → Notifications).
- *   5. Frequency cap: at most one nudge per rolling 7 days, anchored
- *      on the `push_attempts` ledger (`eventType = COACH_NUDGE`,
+ *      (default ON; Settings → Notifications). v1.16.5 adds per-group
+ *      toggles underneath (medication / vitals / routine) — a disabled
+ *      group's triggers are never evaluated for that user.
+ *   5. Frequency cap: at most one nudge per rolling window — 7 days by
+ *      default, 14 when the user picked "biweekly" — anchored on the
+ *      `push_attempts` ledger (`eventType = COACH_NUDGE`,
  *      `result = "ok"`) — no new table, 90-day retention dwarfs the
- *      7-day lookback, and a failed dispatch leaves the slot free.
+ *      14-day lookback, and a failed dispatch leaves the slot free.
  *
  * Triggers (first hit wins, evaluated cheapest-first):
  *   - `compliance`: 7-day medication adherence < 60 % with at least
@@ -36,7 +39,29 @@
  *     incomplete or 60+ days stale AND the user actively talks to the
  *     Coach (a CoachUsage row in the last 14 days) — a gentle check-up
  *     nudge to refresh the personal context the Coach reads. Presence
- *     is checked on the encrypted columns only; nothing is decrypted.
+ *     is checked on the encrypted columns only; nothing is decrypted
+ *     during trigger evaluation.
+ *   - `weight` (v1.16.5): the weekly weight mean sits outside the
+ *     user's effective green range AND has drifted further away from
+ *     it than the previous week's mean (≥ 0.5 kg) — trend drift, not a
+ *     single outlier reading.
+ *   - `sleepDebt` (v1.16.5): at least 4 of the last 7 nights fall
+ *     clearly (0.5 h margin) under the user's effective sleep floor,
+ *     with at least 5 recorded nights so a sparse week stays silent.
+ *   - `measurementGap` (v1.16.5): a previously active account
+ *     (measurements on ≥ 10 distinct days in the preceding 3 weeks)
+ *     records NOTHING for 7 straight days — an abrupt stop, whether
+ *     disengagement or a silently broken sync, is worth a check-in.
+ *
+ * Trigger groups (v1.16.5, per-group opt-outs in the prefs blob):
+ *   medication → compliance; vitals → bp / score / weight / sleepDebt;
+ *   routine → measurementGap / selfContext.
+ *
+ * Personalisation (v1.16.5): when the user wrote a Coach focus in the
+ * self-context questionnaire, the nudge body appends a deterministic
+ * reference to it ("you wanted to keep an eye on …"). The focus is
+ * decrypted only AFTER a trigger fired and a nudge is actually about
+ * to dispatch — fail-closed, a decrypt error just drops the suffix.
  */
 import type { PrismaClient } from "@/generated/prisma/client";
 import { getAssistantFlags } from "@/lib/feature-flags";
@@ -46,7 +71,8 @@ import {
   type ThresholdOverridesJson,
 } from "@/lib/analytics/effective-range";
 import { dispatchNotification } from "@/lib/notifications/dispatcher";
-import { resolveCoachNudgesEnabled } from "@/lib/validations/notification-prefs";
+import { resolveCoachNudgePrefs } from "@/lib/validations/notification-prefs";
+import { decryptFromBytes } from "@/lib/ai/coach/bytes-codec";
 import { getServerTranslator } from "@/lib/i18n/server-translator";
 import type { Locale } from "@/lib/i18n/config";
 import { defaultLocale, locales } from "@/lib/i18n/config";
@@ -59,7 +85,12 @@ export const COACH_NUDGE_QUEUE = "coach-nudge";
 /** 05:15 Europe/Berlin — after the 04:45–04:55 score crons settled. */
 export const COACH_NUDGE_CRON = "15 5 * * *";
 
-/** Frequency cap: one nudge per user per rolling week. */
+/**
+ * Frequency cap default: one nudge per user per rolling week. v1.16.5 —
+ * the per-user `nudgeFrequency` pref ("weekly" | "biweekly") can widen
+ * this to 14 days; the constant remains the default and the unit-test
+ * anchor.
+ */
 export const COACH_NUDGE_MIN_INTERVAL_DAYS = 7;
 
 /** Compliance trigger: 7-day rate below this fires (0..1). */
@@ -76,8 +107,49 @@ export const COACH_NUDGE_SCORE_MIN_SAMPLES = 3;
 export const COACH_NUDGE_SELF_CONTEXT_STALE_DAYS = 60;
 /** Self-context trigger: Coach usage within this window counts as active. */
 export const COACH_NUDGE_COACH_ACTIVE_DAYS = 14;
+/** Weight trigger: minimum readings per weekly window. */
+export const COACH_NUDGE_WEIGHT_MIN_READINGS = 3;
+/** Weight trigger: minimum kg the weekly mean must drift AWAY from the range. */
+export const COACH_NUDGE_WEIGHT_DRIFT_KG = 0.5;
+/** Sleep trigger: minimum recorded nights in the 7-day window. */
+export const COACH_NUDGE_SLEEP_MIN_NIGHTS = 5;
+/** Sleep trigger: nights under the floor required to fire. */
+export const COACH_NUDGE_SLEEP_DEFICIT_NIGHTS = 4;
+/** Sleep trigger: a night must undershoot the floor by this margin (h). */
+export const COACH_NUDGE_SLEEP_DEFICIT_MARGIN_H = 0.5;
+/** Gap trigger: distinct active days required in the prior 3 weeks. */
+export const COACH_NUDGE_GAP_MIN_ACTIVE_DAYS = 10;
+/** Gap trigger: length of the silent window that fires (days). */
+export const COACH_NUDGE_GAP_SILENT_DAYS = 7;
+/** Gap trigger: activity lookback BEFORE the silent window (days). */
+export const COACH_NUDGE_GAP_LOOKBACK_DAYS = 21;
+/** Personalisation: max focus characters quoted in the nudge body. */
+export const COACH_NUDGE_FOCUS_MAX_CHARS = 80;
 
-export type CoachNudgeTrigger = "compliance" | "bp" | "score" | "selfContext";
+export type CoachNudgeTrigger =
+  | "compliance"
+  | "bp"
+  | "score"
+  | "selfContext"
+  | "weight"
+  | "sleepDebt"
+  | "measurementGap";
+
+/** v1.16.5 — per-group opt-outs map triggers onto three pref toggles. */
+export type CoachNudgeTriggerGroup = "medication" | "vitals" | "routine";
+
+export const COACH_NUDGE_TRIGGER_GROUPS: Record<
+  CoachNudgeTrigger,
+  CoachNudgeTriggerGroup
+> = {
+  compliance: "medication",
+  bp: "vitals",
+  score: "vitals",
+  weight: "vitals",
+  sleepDebt: "vitals",
+  measurementGap: "routine",
+  selfContext: "routine",
+};
 
 export interface CoachNudgeSummary {
   candidatesScanned: number;
@@ -193,42 +265,158 @@ export function evaluateScoreTrigger(
 }
 
 /**
+ * v1.16.5 — weight trend drift against the user's effective green
+ * range. Two conditions, both required, so a single heavy breakfast
+ * never nudges:
+ *   1. the recent 7-day mean sits OUTSIDE the green range, and
+ *   2. it has drifted at least `COACH_NUDGE_WEIGHT_DRIFT_KG` further
+ *      away from the range than the prior week's mean — direction-aware
+ *      via distance-to-range, so it fires for moving away on either
+ *      side and stays silent while the user converges back.
+ * Both windows need `COACH_NUDGE_WEIGHT_MIN_READINGS` readings; no
+ * resolvable range (no height, no override) never fires.
+ */
+export function evaluateWeightTrigger(
+  recentValues: number[],
+  priorValues: number[],
+  range: { greenMin: number; greenMax: number } | null,
+): boolean {
+  if (range === null) return false;
+  if (
+    recentValues.length < COACH_NUDGE_WEIGHT_MIN_READINGS ||
+    priorValues.length < COACH_NUDGE_WEIGHT_MIN_READINGS
+  ) {
+    return false;
+  }
+  const mean = (values: number[]) =>
+    values.reduce((sum, v) => sum + v, 0) / values.length;
+  const distance = (v: number) =>
+    Math.max(0, range.greenMin - v, v - range.greenMax);
+  const recentDistance = distance(mean(recentValues));
+  const priorDistance = distance(mean(priorValues));
+  return (
+    recentDistance > 0 &&
+    recentDistance - priorDistance >= COACH_NUDGE_WEIGHT_DRIFT_KG
+  );
+}
+
+/**
+ * v1.16.5 — sleep-deficit series. Fires when at least
+ * `COACH_NUDGE_SLEEP_DEFICIT_NIGHTS` of the recorded nights undershoot
+ * the effective sleep floor by a clear margin (0.5 h — a 6:55 night
+ * against a 7 h floor is not a deficit pattern). Requires at least
+ * `COACH_NUDGE_SLEEP_MIN_NIGHTS` recorded nights in the 7-day window so
+ * a sparsely tracked week stays silent; no resolvable floor never fires.
+ */
+export function evaluateSleepDebtTrigger(
+  nightlyHours: number[],
+  greenMin: number | null,
+): boolean {
+  if (greenMin === null) return false;
+  if (nightlyHours.length < COACH_NUDGE_SLEEP_MIN_NIGHTS) return false;
+  const deficits = nightlyHours.filter(
+    (h) => h < greenMin - COACH_NUDGE_SLEEP_DEFICIT_MARGIN_H,
+  ).length;
+  return deficits >= COACH_NUDGE_SLEEP_DEFICIT_NIGHTS;
+}
+
+/**
+ * v1.16.5 — measurement-gap series: a previously ACTIVE account that
+ * abruptly stops recording anything. Active means measurements on at
+ * least `COACH_NUDGE_GAP_MIN_ACTIVE_DAYS` distinct days across the
+ * three weeks BEFORE the silent window; the trigger fires only when the
+ * last `COACH_NUDGE_GAP_SILENT_DAYS` days hold zero measurements. A
+ * sporadically tracking account never qualifies as "active", so it is
+ * never nagged for being itself.
+ */
+export function evaluateMeasurementGapTrigger(
+  priorActiveDays: number,
+  recentMeasurementCount: number,
+): boolean {
+  return (
+    priorActiveDays >= COACH_NUDGE_GAP_MIN_ACTIVE_DAYS &&
+    recentMeasurementCount === 0
+  );
+}
+
+/**
  * Build the localised push payload for a trigger. Bodies stay
  * deliberately vague on numbers — a lock screen is not the place for
  * health figures; the Coach conversation carries the detail.
+ *
+ * v1.16.5 — `coachFocus` (the user's own "watch this" line from the
+ * self-context questionnaire, already decrypted by the caller) appends
+ * a deterministic personal suffix to the body. The focus is the user's
+ * own words about what to pay attention to — not a reading, not a
+ * figure — so quoting it on the lock screen stays within the
+ * no-health-figures rule. Clamped to `COACH_NUDGE_FOCUS_MAX_CHARS`.
+ * The self-context check-up nudge skips the suffix: quoting the focus
+ * while asking the user to refresh it would contradict itself.
  */
 export function buildCoachNudgePayload(
   trigger: CoachNudgeTrigger,
   locale: string | null | undefined,
+  coachFocus?: string | null,
 ): { title: string; body: string } {
   const t = getServerTranslator(resolveLocale(locale)).t;
-  switch (trigger) {
-    case "compliance":
-      return {
-        title: t("coachNudges.complianceTitle"),
-        body: t("coachNudges.complianceBody"),
-      };
-    case "bp":
-      return {
-        title: t("coachNudges.bpTitle"),
-        body: t("coachNudges.bpBody"),
-      };
-    case "score":
-      return {
-        title: t("coachNudges.scoreTitle"),
-        body: t("coachNudges.scoreBody"),
-      };
-    case "selfContext":
-      return {
-        title: t("coachNudges.selfContextTitle"),
-        body: t("coachNudges.selfContextBody"),
-      };
-  }
+  const base = ((): { title: string; body: string } => {
+    switch (trigger) {
+      case "compliance":
+        return {
+          title: t("coachNudges.complianceTitle"),
+          body: t("coachNudges.complianceBody"),
+        };
+      case "bp":
+        return {
+          title: t("coachNudges.bpTitle"),
+          body: t("coachNudges.bpBody"),
+        };
+      case "score":
+        return {
+          title: t("coachNudges.scoreTitle"),
+          body: t("coachNudges.scoreBody"),
+        };
+      case "selfContext":
+        return {
+          title: t("coachNudges.selfContextTitle"),
+          body: t("coachNudges.selfContextBody"),
+        };
+      case "weight":
+        return {
+          title: t("coachNudges.weightTitle"),
+          body: t("coachNudges.weightBody"),
+        };
+      case "sleepDebt":
+        return {
+          title: t("coachNudges.sleepDebtTitle"),
+          body: t("coachNudges.sleepDebtBody"),
+        };
+      case "measurementGap":
+        return {
+          title: t("coachNudges.measurementGapTitle"),
+          body: t("coachNudges.measurementGapBody"),
+        };
+    }
+  })();
+
+  const focus = coachFocus?.trim();
+  if (!focus || trigger === "selfContext") return base;
+  const clamped =
+    focus.length > COACH_NUDGE_FOCUS_MAX_CHARS
+      ? `${focus.slice(0, COACH_NUDGE_FOCUS_MAX_CHARS - 1).trimEnd()}…`
+      : focus;
+  return {
+    title: base.title,
+    body: `${base.body} ${t("coachNudges.focusSuffix", { focus: clamped })}`,
+  };
 }
 
 /**
  * Evaluate the triggers for one user. Exported for tests; the tick
- * below feeds it the pre-fetched rows.
+ * below feeds it the pre-fetched rows. v1.16.5 — `groups` carries the
+ * per-group opt-outs from the prefs blob: a disabled group's triggers
+ * are skipped entirely (no queries, no evaluation). Defaults to
+ * all-enabled so existing callers keep the old behaviour.
  */
 export async function findTriggerForUser(
   prisma: PrismaClient,
@@ -240,109 +428,216 @@ export async function findTriggerForUser(
     thresholdsJson: unknown;
   },
   now: Date,
+  groups: Record<CoachNudgeTriggerGroup, boolean> = {
+    medication: true,
+    vitals: true,
+    routine: true,
+  },
 ): Promise<CoachNudgeTrigger | null> {
   const sevenDaysAgo = new Date(now.getTime() - 7 * MS_PER_DAY);
   const fourteenDaysAgo = new Date(now.getTime() - 14 * MS_PER_DAY);
 
-  // 1) Medication compliance (7 d). `autoMissed` rides along so the
-  //    trigger can restrict its denominator to resolved slots — a
-  //    still-open pending is not a miss yet.
-  const intakeRows = await prisma.medicationIntakeEvent.findMany({
-    where: {
-      userId: user.id,
-      deletedAt: null,
-      scheduledFor: { gte: sevenDaysAgo, lte: now },
-    },
-    select: { takenAt: true, skipped: true, autoMissed: true },
-  });
-  if (evaluateComplianceTrigger(intakeRows)) return "compliance";
-
-  // 2) Systolic weekly mean vs the user's effective target.
-  const systolic = await prisma.measurement.findMany({
-    where: {
-      userId: user.id,
-      type: "BLOOD_PRESSURE_SYS",
-      deletedAt: null,
-      measuredAt: { gte: sevenDaysAgo, lte: now },
-    },
-    select: { value: true },
-  });
-  if (systolic.length >= COACH_NUDGE_BP_MIN_READINGS) {
-    const range = getEffectiveRange(
-      "BLOOD_PRESSURE_SYS",
+  const effectiveRange = (
+    metric: "BLOOD_PRESSURE_SYS" | "WEIGHT" | "SLEEP_DURATION",
+  ) =>
+    getEffectiveRange(
+      metric,
       {
         heightCm: user.heightCm,
         dateOfBirth: user.dateOfBirth,
         gender: user.gender,
       },
       (user.thresholdsJson ?? null) as ThresholdOverridesJson | null,
-    );
-    if (
-      evaluateBpTrigger(
-        systolic.map((m) => m.value),
-        range.range?.greenMax ?? null,
-      )
-    ) {
-      return "bp";
+    ).range;
+
+  // ── medication group ───────────────────────────────────────────────
+  if (groups.medication) {
+    // 1) Medication compliance (7 d). `autoMissed` rides along so the
+    //    trigger can restrict its denominator to resolved slots — a
+    //    still-open pending is not a miss yet.
+    const intakeRows = await prisma.medicationIntakeEvent.findMany({
+      where: {
+        userId: user.id,
+        deletedAt: null,
+        scheduledFor: { gte: sevenDaysAgo, lte: now },
+      },
+      select: { takenAt: true, skipped: true, autoMissed: true },
+    });
+    if (evaluateComplianceTrigger(intakeRows)) return "compliance";
+  }
+
+  // ── vitals group ───────────────────────────────────────────────────
+  if (groups.vitals) {
+    // 2) Systolic weekly mean vs the user's effective target.
+    const systolic = await prisma.measurement.findMany({
+      where: {
+        userId: user.id,
+        type: "BLOOD_PRESSURE_SYS",
+        deletedAt: null,
+        measuredAt: { gte: sevenDaysAgo, lte: now },
+      },
+      select: { value: true },
+    });
+    if (systolic.length >= COACH_NUDGE_BP_MIN_READINGS) {
+      if (
+        evaluateBpTrigger(
+          systolic.map((m) => m.value),
+          effectiveRange("BLOOD_PRESSURE_SYS")?.greenMax ?? null,
+        )
+      ) {
+        return "bp";
+      }
+    }
+
+    // 3) Recovery score falling sharply week-over-week.
+    const scores = await prisma.measurement.findMany({
+      where: {
+        userId: user.id,
+        type: "RECOVERY_SCORE",
+        deletedAt: null,
+        measuredAt: { gte: fourteenDaysAgo, lte: now },
+      },
+      select: { value: true, measuredAt: true },
+    });
+    const recent = scores
+      .filter((m) => m.measuredAt >= sevenDaysAgo)
+      .map((m) => m.value);
+    const prior = scores
+      .filter((m) => m.measuredAt < sevenDaysAgo)
+      .map((m) => m.value);
+    if (evaluateScoreTrigger(recent, prior)) return "score";
+
+    // 4) Weight weekly mean drifting away from the effective range.
+    const weightRange = effectiveRange("WEIGHT");
+    if (weightRange) {
+      const weights = await prisma.measurement.findMany({
+        where: {
+          userId: user.id,
+          type: "WEIGHT",
+          deletedAt: null,
+          measuredAt: { gte: fourteenDaysAgo, lte: now },
+        },
+        select: { value: true, measuredAt: true },
+      });
+      const recentWeights = weights
+        .filter((m) => m.measuredAt >= sevenDaysAgo)
+        .map((m) => m.value);
+      const priorWeights = weights
+        .filter((m) => m.measuredAt < sevenDaysAgo)
+        .map((m) => m.value);
+      if (
+        evaluateWeightTrigger(recentWeights, priorWeights, {
+          greenMin: weightRange.greenMin,
+          greenMax: weightRange.greenMax,
+        })
+      ) {
+        return "weight";
+      }
+    }
+
+    // 5) Sleep-deficit series: per-night hours over the last 7 days,
+    //    longest record per calendar night (multi-source rows collapse
+    //    to the fullest one).
+    const sleepRows = await prisma.measurement.findMany({
+      where: {
+        userId: user.id,
+        type: "SLEEP_DURATION",
+        deletedAt: null,
+        measuredAt: { gte: sevenDaysAgo, lte: now },
+      },
+      select: { value: true, measuredAt: true },
+    });
+    if (sleepRows.length > 0) {
+      const byNight = new Map<string, number>();
+      for (const row of sleepRows) {
+        const night = row.measuredAt.toISOString().slice(0, 10);
+        const prev = byNight.get(night);
+        if (prev === undefined || row.value > prev) {
+          byNight.set(night, row.value);
+        }
+      }
+      if (
+        evaluateSleepDebtTrigger(
+          [...byNight.values()],
+          effectiveRange("SLEEP_DURATION")?.greenMin ?? null,
+        )
+      ) {
+        return "sleepDebt";
+      }
     }
   }
 
-  // 3) Recovery score falling sharply week-over-week.
-  const scores = await prisma.measurement.findMany({
-    where: {
-      userId: user.id,
-      type: "RECOVERY_SCORE",
-      deletedAt: null,
-      measuredAt: { gte: fourteenDaysAgo, lte: now },
-    },
-    select: { value: true, measuredAt: true },
-  });
-  const recent = scores
-    .filter((m) => m.measuredAt >= sevenDaysAgo)
-    .map((m) => m.value);
-  const prior = scores
-    .filter((m) => m.measuredAt < sevenDaysAgo)
-    .map((m) => m.value);
-  if (evaluateScoreTrigger(recent, prior)) return "score";
-
-  // 4) Self-context incomplete / stale while the Coach is in active
-  //    use. Presence-only reads on the encrypted columns — nothing is
-  //    decrypted in this job.
-  const coachActiveCutoff = new Date(
-    now.getTime() - COACH_NUDGE_COACH_ACTIVE_DAYS * MS_PER_DAY,
-  );
-  const recentUsage = await prisma.coachUsage.findFirst({
-    where: { userId: user.id, updatedAt: { gte: coachActiveCutoff } },
-    orderBy: { updatedAt: "desc" },
-    select: { updatedAt: true },
-  });
-  if (recentUsage) {
-    const profileRow = await prisma.userHealthProfile.findUnique({
-      where: { userId: user.id },
-      select: {
-        aboutMeEncrypted: true,
-        conditionsEncrypted: true,
-        allergiesEncrypted: true,
-        coachFocusEncrypted: true,
-        updatedAt: true,
+  // ── routine group ──────────────────────────────────────────────────
+  if (groups.routine) {
+    // 6) Measurement gap: an active account going silent for a week.
+    //    The recent count is cheap; the distinct-day count over the
+    //    prior three weeks runs as one aggregate instead of pulling
+    //    every row (dense intraday sources would make that thousands).
+    const recentCount = await prisma.measurement.count({
+      where: {
+        userId: user.id,
+        deletedAt: null,
+        measuredAt: { gte: sevenDaysAgo, lte: now },
       },
     });
-    const triggered = evaluateSelfContextTrigger(
-      {
-        profile: profileRow
-          ? {
-              hasAboutMe: profileRow.aboutMeEncrypted !== null,
-              hasConditions: profileRow.conditionsEncrypted !== null,
-              hasAllergies: profileRow.allergiesEncrypted !== null,
-              hasCoachFocus: profileRow.coachFocusEncrypted !== null,
-              updatedAt: profileRow.updatedAt,
-            }
-          : null,
-        lastCoachUseAt: recentUsage.updatedAt,
-      },
-      now,
+    if (recentCount === 0) {
+      const gapWindowStart = new Date(
+        sevenDaysAgo.getTime() - COACH_NUDGE_GAP_LOOKBACK_DAYS * MS_PER_DAY,
+      );
+      const activeDayRows = await prisma.$queryRaw<{ days: number }[]>`
+        SELECT COUNT(DISTINCT (measured_at AT TIME ZONE 'UTC')::date)::int AS days
+        FROM measurements
+        WHERE user_id = ${user.id}
+          AND deleted_at IS NULL
+          AND measured_at >= ${gapWindowStart}
+          AND measured_at < ${sevenDaysAgo}
+      `;
+      if (
+        evaluateMeasurementGapTrigger(activeDayRows[0]?.days ?? 0, recentCount)
+      ) {
+        return "measurementGap";
+      }
+    }
+
+    // 7) Self-context incomplete / stale while the Coach is in active
+    //    use. Presence-only reads on the encrypted columns — nothing is
+    //    decrypted during trigger evaluation.
+    const coachActiveCutoff = new Date(
+      now.getTime() - COACH_NUDGE_COACH_ACTIVE_DAYS * MS_PER_DAY,
     );
-    if (triggered) return "selfContext";
+    const recentUsage = await prisma.coachUsage.findFirst({
+      where: { userId: user.id, updatedAt: { gte: coachActiveCutoff } },
+      orderBy: { updatedAt: "desc" },
+      select: { updatedAt: true },
+    });
+    if (recentUsage) {
+      const profileRow = await prisma.userHealthProfile.findUnique({
+        where: { userId: user.id },
+        select: {
+          aboutMeEncrypted: true,
+          conditionsEncrypted: true,
+          allergiesEncrypted: true,
+          coachFocusEncrypted: true,
+          updatedAt: true,
+        },
+      });
+      const triggered = evaluateSelfContextTrigger(
+        {
+          profile: profileRow
+            ? {
+                hasAboutMe: profileRow.aboutMeEncrypted !== null,
+                hasConditions: profileRow.conditionsEncrypted !== null,
+                hasAllergies: profileRow.allergiesEncrypted !== null,
+                hasCoachFocus: profileRow.coachFocusEncrypted !== null,
+                updatedAt: profileRow.updatedAt,
+              }
+            : null,
+          lastCoachUseAt: recentUsage.updatedAt,
+        },
+        now,
+      );
+      if (triggered) return "selfContext";
+    }
   }
 
   return null;
@@ -407,15 +702,19 @@ export async function runCoachNudgeTick(
   });
   const adminKeyConfigured = !!settings?.adminAiKeyEncrypted;
 
-  const capCutoff = new Date(
-    now.getTime() - COACH_NUDGE_MIN_INTERVAL_DAYS * MS_PER_DAY,
-  );
-
   for (const user of users) {
     summary.candidatesScanned += 1;
     try {
-      // Gate 4 — per-user opt-out.
-      if (!resolveCoachNudgesEnabled(user.notificationPrefs)) {
+      // Gate 4 — per-user opt-out: master switch plus the v1.16.5
+      // per-group toggles. A user with the master ON but every group
+      // OFF counts as opted out, not as "no trigger".
+      const nudgePrefs = resolveCoachNudgePrefs(user.notificationPrefs);
+      if (
+        !nudgePrefs.enabled ||
+        (!nudgePrefs.groups.medication &&
+          !nudgePrefs.groups.vitals &&
+          !nudgePrefs.groups.routine)
+      ) {
         summary.skippedOptedOut += 1;
         continue;
       }
@@ -426,10 +725,14 @@ export async function runCoachNudgeTick(
         continue;
       }
 
-      // Gate 5 — one nudge per rolling week, anchored on the
-      // push-attempts ledger. A delivered nudge writes an `ok` row per
-      // succeeding channel; a fully failed dispatch leaves the slot
-      // free so tomorrow's tick can retry.
+      // Gate 5 — one nudge per rolling window (7 d default, 14 d when
+      // the user picked "biweekly"), anchored on the push-attempts
+      // ledger. A delivered nudge writes an `ok` row per succeeding
+      // channel; a fully failed dispatch leaves the slot free so
+      // tomorrow's tick can retry.
+      const capCutoff = new Date(
+        now.getTime() - nudgePrefs.minIntervalDays * MS_PER_DAY,
+      );
       const recentNudge = await prisma.pushAttempt.findFirst({
         where: {
           userId: user.id,
@@ -444,13 +747,41 @@ export async function runCoachNudgeTick(
         continue;
       }
 
-      const trigger = await findTriggerForUser(prisma, user, now);
+      const trigger = await findTriggerForUser(
+        prisma,
+        user,
+        now,
+        nudgePrefs.groups,
+      );
       if (!trigger) {
         summary.skippedNoTrigger += 1;
         continue;
       }
 
-      const { title, body } = buildCoachNudgePayload(trigger, user.locale);
+      // Personalisation — decrypt the user's Coach focus only now that
+      // a nudge is actually about to dispatch. Fail-closed: a missing
+      // row or an undecryptable payload just drops the suffix.
+      let coachFocus: string | null = null;
+      if (trigger !== "selfContext") {
+        try {
+          const profileRow = await prisma.userHealthProfile.findUnique({
+            where: { userId: user.id },
+            select: { coachFocusEncrypted: true },
+          });
+          if (profileRow?.coachFocusEncrypted) {
+            coachFocus =
+              decryptFromBytes(profileRow.coachFocusEncrypted).trim() || null;
+          }
+        } catch {
+          coachFocus = null;
+        }
+      }
+
+      const { title, body } = buildCoachNudgePayload(
+        trigger,
+        user.locale,
+        coachFocus,
+      );
       const outcome = await dispatchImpl({
         eventType: "COACH_NUDGE",
         userId: user.id,

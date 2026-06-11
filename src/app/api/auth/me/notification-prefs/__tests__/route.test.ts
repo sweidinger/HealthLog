@@ -91,7 +91,7 @@ describe("GET /api/auth/me/notification-prefs", () => {
       medication: { clientManaged: false, deliveryDefault: "server" },
       mood: { reminderHour: 22 },
       cycle: { clientManaged: false },
-      coach: { nudgesEnabled: true },
+      coach: { nudgesEnabled: true, nudgeMedication: true, nudgeVitals: true, nudgeRoutine: true, nudgeFrequency: "weekly" },
     });
   });
 
@@ -112,7 +112,7 @@ describe("GET /api/auth/me/notification-prefs", () => {
       medication: { clientManaged: true, deliveryDefault: "server" },
       mood: { reminderHour: 22 },
       cycle: { clientManaged: false },
-      coach: { nudgesEnabled: true },
+      coach: { nudgesEnabled: true, nudgeMedication: true, nudgeVitals: true, nudgeRoutine: true, nudgeFrequency: "weekly" },
     });
   });
 
@@ -135,7 +135,7 @@ describe("GET /api/auth/me/notification-prefs", () => {
       medication: { clientManaged: false, deliveryDefault: "server" },
       mood: { reminderHour: 22 },
       cycle: { clientManaged: false },
-      coach: { nudgesEnabled: true },
+      coach: { nudgesEnabled: true, nudgeMedication: true, nudgeVitals: true, nudgeRoutine: true, nudgeFrequency: "weekly" },
     });
   });
 });
@@ -169,7 +169,7 @@ describe("PATCH /api/auth/me/notification-prefs", () => {
       medication: { clientManaged: true, deliveryDefault: "server" },
       mood: { reminderHour: 22 },
       cycle: { clientManaged: false },
-      coach: { nudgesEnabled: true },
+      coach: { nudgesEnabled: true, nudgeMedication: true, nudgeVitals: true, nudgeRoutine: true, nudgeFrequency: "weekly" },
     });
 
     expect(prisma.user.update).toHaveBeenCalledWith({
@@ -179,7 +179,7 @@ describe("PATCH /api/auth/me/notification-prefs", () => {
           medication: { clientManaged: true, deliveryDefault: "server" },
           mood: { reminderHour: 22 },
           cycle: { clientManaged: false },
-          coach: { nudgesEnabled: true },
+          coach: { nudgesEnabled: true, nudgeMedication: true, nudgeVitals: true, nudgeRoutine: true, nudgeFrequency: "weekly" },
         },
       },
     });
@@ -193,13 +193,13 @@ describe("PATCH /api/auth/me/notification-prefs", () => {
             medication: { clientManaged: false, deliveryDefault: "server" },
             mood: { reminderHour: 22 },
             cycle: { clientManaged: false },
-            coach: { nudgesEnabled: true },
+            coach: { nudgesEnabled: true, nudgeMedication: true, nudgeVitals: true, nudgeRoutine: true, nudgeFrequency: "weekly" },
           },
           next: {
             medication: { clientManaged: true, deliveryDefault: "server" },
             mood: { reminderHour: 22 },
             cycle: { clientManaged: false },
-            coach: { nudgesEnabled: true },
+            coach: { nudgesEnabled: true, nudgeMedication: true, nudgeVitals: true, nudgeRoutine: true, nudgeFrequency: "weekly" },
           },
           changed: ["medication"],
         }),
@@ -261,7 +261,7 @@ describe("PATCH /api/auth/me/notification-prefs", () => {
           medication: { clientManaged: true, deliveryDefault: "server" },
           mood: { reminderHour: 22 },
           cycle: { clientManaged: false },
-          coach: { nudgesEnabled: true },
+          coach: { nudgesEnabled: true, nudgeMedication: true, nudgeVitals: true, nudgeRoutine: true, nudgeFrequency: "weekly" },
         },
       },
     });
@@ -287,7 +287,7 @@ describe("PATCH /api/auth/me/notification-prefs", () => {
       medication: { clientManaged: true, deliveryDefault: "server" },
       mood: { reminderHour: 22 },
       cycle: { clientManaged: false },
-      coach: { nudgesEnabled: true },
+      coach: { nudgesEnabled: true, nudgeMedication: true, nudgeVitals: true, nudgeRoutine: true, nudgeFrequency: "weekly" },
     });
 
     expect(prisma.user.update).toHaveBeenCalledWith({
@@ -297,7 +297,7 @@ describe("PATCH /api/auth/me/notification-prefs", () => {
           medication: { clientManaged: true, deliveryDefault: "server" },
           mood: { reminderHour: 22 },
           cycle: { clientManaged: false },
-          coach: { nudgesEnabled: true },
+          coach: { nudgesEnabled: true, nudgeMedication: true, nudgeVitals: true, nudgeRoutine: true, nudgeFrequency: "weekly" },
         },
       },
     });
@@ -326,7 +326,7 @@ describe("PATCH /api/auth/me/notification-prefs", () => {
           medication: { clientManaged: false, deliveryDefault: "server" },
           mood: { reminderHour: 9 },
           cycle: { clientManaged: false },
-          coach: { nudgesEnabled: true },
+          coach: { nudgesEnabled: true, nudgeMedication: true, nudgeVitals: true, nudgeRoutine: true, nudgeFrequency: "weekly" },
         },
       },
     });

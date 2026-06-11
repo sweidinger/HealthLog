@@ -7,22 +7,66 @@
  * `notificationPrefs.coach.nudgesEnabled` through the roaming
  * notification-prefs blob so web + iOS share one source of truth.
  *
+ * v1.16.5 — per-group toggles (medication / vitals / routine) plus the
+ * frequency pref (weekly / biweekly) underneath the master switch. All
+ * of it rides the same `coach` sub-object of the prefs blob; the cron
+ * resolves it via `resolveCoachNudgePrefs`.
+ *
  * Mirrors `<MoodReminderCard>` (optimistic switch, auto-clearing inline
- * status line).
+ * status line, NativeSelect for the enum pref).
  */
 import { useEffect, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { MessageCircleHeart } from "lucide-react";
 
 import { Switch } from "@/components/ui/switch";
+import { NativeSelect } from "@/components/ui/native-select";
 import { SettingsCardHeader } from "@/components/settings/_card-header";
 import { useTranslations } from "@/lib/i18n/context";
 import { queryKeys } from "@/lib/query-keys";
 import { apiFetchRaw, apiGet } from "@/lib/api/api-fetch";
 
-interface NotificationPrefsShape {
-  coach: { nudgesEnabled: boolean };
+interface CoachPrefsShape {
+  nudgesEnabled: boolean;
+  nudgeMedication: boolean;
+  nudgeVitals: boolean;
+  nudgeRoutine: boolean;
+  nudgeFrequency: "weekly" | "biweekly";
 }
+
+interface NotificationPrefsShape {
+  coach: CoachPrefsShape;
+}
+
+const COACH_PREF_DEFAULTS: CoachPrefsShape = {
+  nudgesEnabled: true,
+  nudgeMedication: true,
+  nudgeVitals: true,
+  nudgeRoutine: true,
+  nudgeFrequency: "weekly",
+};
+
+const GROUP_FIELDS = [
+  "nudgeMedication",
+  "nudgeVitals",
+  "nudgeRoutine",
+] as const;
+type GroupField = (typeof GROUP_FIELDS)[number];
+
+const GROUP_I18N: Record<GroupField, { label: string; desc: string }> = {
+  nudgeMedication: {
+    label: "notifications.coachNudge.groupMedication",
+    desc: "notifications.coachNudge.groupMedicationDesc",
+  },
+  nudgeVitals: {
+    label: "notifications.coachNudge.groupVitals",
+    desc: "notifications.coachNudge.groupVitalsDesc",
+  },
+  nudgeRoutine: {
+    label: "notifications.coachNudge.groupRoutine",
+    desc: "notifications.coachNudge.groupRoutineDesc",
+  },
+};
 
 export function CoachNudgeCard({
   isAuthenticated,
@@ -31,7 +75,7 @@ export function CoachNudgeCard({
 }) {
   const { t } = useTranslations();
   const queryClient = useQueryClient();
-  const [optimistic, setOptimistic] = useState<boolean | null>(null);
+  const [optimistic, setOptimistic] = useState<Partial<CoachPrefsShape>>({});
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const [msgType, setMsgType] = useState<"success" | "error" | null>(null);
@@ -66,10 +110,23 @@ export function CoachNudgeCard({
     enabled: isAuthenticated,
   });
 
-  const enabled = optimistic ?? prefs?.coach?.nudgesEnabled ?? true;
+  const resolved: CoachPrefsShape = {
+    ...COACH_PREF_DEFAULTS,
+    ...(prefs?.coach ?? {}),
+    ...optimistic,
+  };
+  const enabled = resolved.nudgesEnabled;
 
-  async function handleToggle(next: boolean) {
-    setOptimistic(next);
+  /**
+   * One PATCH path for every knob on the card. `toast` carries the
+   * success line for the master toggle; the sub-prefs pass null and
+   * stay silent on success — the control itself shows the new state.
+   */
+  async function patchCoach(
+    partial: Partial<CoachPrefsShape>,
+    toast: string | null,
+  ) {
+    setOptimistic((prev) => ({ ...prev, ...partial }));
     setSaving(true);
     setMsg(null);
     setMsgType(null);
@@ -81,28 +138,35 @@ export function CoachNudgeCard({
     const res = await apiFetchRaw("/api/auth/me/notification-prefs", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ coach: { nudgesEnabled: next } }),
+      body: JSON.stringify({ coach: partial }),
     });
 
     if (res.ok) {
-      setMsg(
-        next
-          ? t("notifications.coachNudge.enabledToast")
-          : t("notifications.coachNudge.disabledToast"),
-      );
-      setMsgType("success");
+      if (toast) {
+        setMsg(toast);
+        setMsgType("success");
+        scheduleClear();
+      }
       await queryClient.invalidateQueries({
         queryKey: queryKeys.authNotificationPrefs(),
       });
-      setOptimistic(null);
-      scheduleClear();
+      setOptimistic({});
     } else {
-      setOptimistic(null);
+      setOptimistic({});
       setMsg(t("notifications.coachNudge.saveError"));
       setMsgType("error");
       scheduleClear();
     }
     setSaving(false);
+  }
+
+  async function handleToggle(next: boolean) {
+    await patchCoach(
+      { nudgesEnabled: next },
+      next
+        ? t("notifications.coachNudge.enabledToast")
+        : t("notifications.coachNudge.disabledToast"),
+    );
   }
 
   return (
@@ -132,6 +196,63 @@ export function CoachNudgeCard({
           </label>
         }
       />
+      {enabled && (
+        <div className="mt-4 space-y-3 pl-7">
+          <p className="text-sm font-medium">
+            {t("notifications.coachNudge.groupsLabel")}
+          </p>
+          {GROUP_FIELDS.map((field) => (
+            <div
+              key={field}
+              className="flex min-h-11 items-center justify-between gap-3"
+              data-testid={`coach-nudge-group-${field}`}
+            >
+              <div className="min-w-0">
+                <p className="text-sm">{t(GROUP_I18N[field].label)}</p>
+                <p className="text-muted-foreground text-xs">
+                  {t(GROUP_I18N[field].desc)}
+                </p>
+              </div>
+              <Switch
+                checked={resolved[field]}
+                onCheckedChange={(next) => patchCoach({ [field]: next }, null)}
+                disabled={!isAuthenticated || saving}
+                aria-label={t(GROUP_I18N[field].label)}
+              />
+            </div>
+          ))}
+          <div className="flex min-h-11 items-center gap-3">
+            <label
+              htmlFor="coach-nudge-frequency"
+              className="text-sm font-medium"
+            >
+              {t("notifications.coachNudge.frequencyLabel")}
+            </label>
+            <NativeSelect
+              id="coach-nudge-frequency"
+              className="w-auto"
+              value={resolved.nudgeFrequency}
+              disabled={!isAuthenticated || saving}
+              onChange={(e) =>
+                patchCoach(
+                  {
+                    nudgeFrequency: e.target.value as "weekly" | "biweekly",
+                  },
+                  null,
+                )
+              }
+              aria-label={t("notifications.coachNudge.frequencyAria")}
+            >
+              <option value="weekly">
+                {t("notifications.coachNudge.frequencyWeekly")}
+              </option>
+              <option value="biweekly">
+                {t("notifications.coachNudge.frequencyBiweekly")}
+              </option>
+            </NativeSelect>
+          </div>
+        </div>
+      )}
       {msg && (
         <p
           role="status"
