@@ -2,6 +2,29 @@
 
 ## [Unreleased]
 
+## [1.16.8] — 2026-06-12 — texts that follow your data, charts that never strand
+
+### Added
+
+- **The coach is one tap away on every page.** A round button sits bottom right, stays put while you scroll, shows a quiet dot when a nudge is waiting, and steps aside for the selection bar and the welcome tour.
+- **Tell the coach to remember something.** A remember action under your own chat messages stores the statement in the matching self-context field — allergies land under allergies, diagnoses under conditions — visible and editable in the settings, and fed into every future conversation. Statements phrased casually are recognised again, and remembered facts no longer drop out of the prompt on data-rich accounts.
+- **Mood notes in full.** Notes expand to their complete text right in the list — the toggle only appears when something is actually clipped — and the CSV export carries a note column.
+- **The hypnogram names its source** and paints only the stages the night actually contains.
+
+### Changed
+
+- **Insight texts regenerate when your data changes, not on a timer.** Every generated text stores a fingerprint of the data it describes; nightly runs, page visits and sync bursts skip the model call when nothing moved. A notable new reading is narrated the same morning, a manual regenerate refreshes the cards along with the briefing, and texts can no longer claim freshness over readings that crossed a staleness boundary. An active day drops from hundreds of model calls to a handful.
+- **Medication cards arrive in one piece.** All cards share a single compliance request instead of one each, the heavy date math runs about five times faster, and the status line, adherence bars, streak and cycle line keep reserved slots — nothing shifts when data lands. A dose logged from the phone app is reflected immediately.
+- **A cold start paints the page you'll actually get.** The chart row reserves its space before any data arrives, the tile silhouettes match the real layout, and the health-score card holds its column while the numbers compute. The insights overview runs its reads in parallel and serves repeat visits from cache — the targets and derived endpoints answered in well over a second before.
+- **Sleep nights pick the richest recorder.** Several apps writing through the same health platform no longer blend into one night — the writer with actual stage data wins, time in bed unions every writer's window, and nights that reach the sleep service late are fetched up to seven days back, so a wrong night heals itself on the next sync.
+
+### Fixed
+
+- Charts no longer strand on a skeleton after a deploy: the update check re-arms per version, a failed chart chunk retries and then degrades to a single card with a reload button, stalled requests time out and retry, and a failed data read shows an error with a retry instead of "no data in this period".
+- Screen readers hear chart failures and coach nudges, the floating button leaves the tab order when it hides, focus survives the remember confirmation, and the icon cluster on insight pages no longer has overlapping touch areas.
+- The duplicated customize entry and the per-chart target link are gone, show-all-values became an icon beside the target control, pill borders stop clipping in the tab strip, and the mood tag bars adopt the muted palette of the charts above them.
+- Changing a target range, profile detail or source priority is reflected in the analytics on the next read, AI consent is honoured before any stored text is reused, and CSV exports neutralise spreadsheet formula prefixes in free-text cells.
+
 ## [1.16.7] — 2026-06-11 — insights answer instantly, every evening
 
 ### Changed
