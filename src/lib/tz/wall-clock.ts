@@ -48,18 +48,21 @@ const WEEKDAY_MAP: Record<string, number> = {
  * Hoisted so the formatter memo's WeakMap signature lookup hits the same
  * object identity on every call — a warm `wallClockInTz` no longer pays
  * `Intl.DateTimeFormat` construction (the dominant cost of the band
- * expansion + rollup paths that call this in a tight loop).
+ * expansion + rollup paths that call this in a tight loop). Frozen: the
+ * memo serialises the signature ONCE per object identity, so a later
+ * mutation would leave the cached signature stale.
  */
-const WALL_CLOCK_OPTIONS: Omit<Intl.DateTimeFormatOptions, "timeZone"> = {
-  year: "numeric",
-  month: "2-digit",
-  day: "2-digit",
-  hour: "2-digit",
-  minute: "2-digit",
-  second: "2-digit",
-  hour12: false,
-  weekday: "short",
-};
+const WALL_CLOCK_OPTIONS: Omit<Intl.DateTimeFormatOptions, "timeZone"> =
+  Object.freeze({
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+    weekday: "short",
+  });
 
 export function wallClockInTz(
   date: Date,
@@ -76,9 +79,11 @@ export function wallClockInTz(
       weekday: date.getDay(),
     };
   }
-  const parts = getDateTimeFormat("en-US", tz, WALL_CLOCK_OPTIONS).formatToParts(
-    date,
-  );
+  const parts = getDateTimeFormat(
+    "en-US",
+    tz,
+    WALL_CLOCK_OPTIONS,
+  ).formatToParts(date);
   const get = (type: Intl.DateTimeFormatPartTypes): string =>
     parts.find((p) => p.type === type)?.value ?? "0";
   let hour = Number(get("hour"));

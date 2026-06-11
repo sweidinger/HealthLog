@@ -86,6 +86,18 @@
  * session, mirroring the per-(type, day) collapse the rest of the v1.11.x
  * numeric surfaces apply.
  *
+ * One exception: `inBedMinutes` ("Zeit im Bett") derives from the UNION
+ * of the IN_BED spans across ALL writers in the session, not from the
+ * winner alone. The common pairing is a watch that knows the stages but
+ * writes no IN_BED row and a phone whose bedtime detection writes only
+ * the long IN_BED window — the watch wins the night on richness, and a
+ * winner-only in-bed figure would shrink to nothing exactly when the
+ * stage data is best. Overlapping spans from two writers are merged
+ * interval-union style so a doubled export never double-counts. The
+ * asleep total, the `stages` map, and `awakeMinutes` stay winner-only —
+ * blending the phone's coarse AWAKE blocks into the watch's night was
+ * the original inflated-awake bug this collapse exists to prevent.
+ *
  * Unit
  * ----
  * Totals are returned in MINUTES — the canonical `SLEEP_DURATION` unit
@@ -176,6 +188,44 @@ function asleepMinutesOf(rows: readonly SleepStageRow[]): number {
 }
 
 /**
+ * Total minutes covered by the UNION of the IN_BED spans across EVERY
+ * writer in a session ("Zeit im Bett"). Each IN_BED row resolves to the
+ * absolute span `[measuredAt − value·60_000, measuredAt]`; overlapping
+ * spans (the same window exported by two writers) merge before summing
+ * so a doubled export never double-counts the night. Returns `null`
+ * when no IN_BED row exists anywhere in the session — the caller keeps
+ * the "no in-bed signal" semantics. Deliberately NOT winner-scoped: the
+ * stage-rich watch usually writes no IN_BED row while the phone writes
+ * only the envelope, and the headline must keep both facets.
+ */
+function inBedEnvelopeMinutes(rows: readonly SleepStageRow[]): number | null {
+  const intervals: Array<{ start: number; end: number }> = [];
+  for (const r of rows) {
+    if (r.sleepStage !== "IN_BED") continue;
+    const minutes = Number.isFinite(r.value) ? r.value : 0;
+    const end = r.measuredAt.getTime();
+    intervals.push({ start: end - minutes * 60_000, end });
+  }
+  if (intervals.length === 0) return null;
+  intervals.sort((a, b) => a.start - b.start);
+  let total = 0;
+  let curStart = intervals[0].start;
+  let curEnd = intervals[0].end;
+  for (let i = 1; i < intervals.length; i++) {
+    const { start, end } = intervals[i];
+    if (start <= curEnd) {
+      if (end > curEnd) curEnd = end;
+    } else {
+      total += curEnd - curStart;
+      curStart = start;
+      curEnd = end;
+    }
+  }
+  total += curEnd - curStart;
+  return Math.round(total / 60_000);
+}
+
+/**
  * Gap (ms) between consecutive stage segments that starts a new sleep
  * session. Stage segments within one night are contiguous (minutes to a
  * couple of hours apart); a > 3 h gap separates a nap from the overnight
@@ -214,11 +264,17 @@ export interface SleepNight {
   measuredAt: Date;
   /** Time asleep in minutes = CORE + DEEP + REM, or bare ASLEEP when granular stages are absent. */
   asleepMinutes: number;
-  /** In-bed minutes when an IN_BED row exists, else null. */
+  /**
+   * In-bed minutes when an IN_BED row exists ANYWHERE in the night's
+   * sessions, else null. Union envelope across ALL writers — not
+   * winner-scoped like `asleepMinutes` / `stages` / `awakeMinutes` —
+   * so a stage-rich watch winning the night never erases the phone's
+   * in-bed window. See the module doc's writer-de-dup exception.
+   */
   inBedMinutes: number | null;
   /** Awake-in-bed minutes when an AWAKE row exists, else null. */
   awakeMinutes: number | null;
-  /** Per-stage minutes for the night (only stages the device reported). */
+  /** Per-stage minutes for the night (only stages the winning writer reported). */
   stages: Partial<Record<SleepStage, number>>;
 }
 
@@ -353,7 +409,10 @@ export function reconstructSleepNights(
   priorityJson: unknown = null,
 ): SleepNight[] {
   if (rows.length === 0) return [];
-  const sleepLadder = getSourceLadder(parseSourcePriority(priorityJson), "sleep");
+  const sleepLadder = getSourceLadder(
+    parseSourcePriority(priorityJson),
+    "sleep",
+  );
 
   // Cluster into sessions by the gap between a segment's START and the latest
   // END seen so far in the current session. `measuredAt` is the segment END;
@@ -364,8 +423,7 @@ export function reconstructSleepNights(
   // (their gap is ≤ 0). Gaps are absolute-time, so the clustering is DST-immune.
   // Sort by START so contiguous segments compare end-to-start in order.
   const startOf = (r: SleepStageRow): number =>
-    r.measuredAt.getTime() -
-    (Number.isFinite(r.value) ? r.value : 0) * 60_000;
+    r.measuredAt.getTime() - (Number.isFinite(r.value) ? r.value : 0) * 60_000;
   const sorted = [...rows].sort((a, b) => startOf(a) - startOf(b));
   const sessions: SleepStageRow[][] = [];
   let current: SleepStageRow[] = [];
@@ -388,8 +446,14 @@ export function reconstructSleepNights(
   // wake-day key. The rows are grouped PER SESSION (not flattened) so the
   // granular-over-bare gate and the asleep total are decided per session — a
   // bare-only nap keeps its minutes even when the overnight session is
-  // granular (the v1.11.5 merged-night nap under-count fix).
-  const byNight = new Map<string, SleepStageRow[][]>();
+  // granular (the v1.11.5 merged-night nap under-count fix). The FULL
+  // session row set rides along because the in-bed envelope spans every
+  // writer, not just the winner (see the module doc's writer-de-dup
+  // exception).
+  const byNight = new Map<
+    string,
+    Array<{ pool: SleepStageRow[]; all: SleepStageRow[] }>
+  >();
   for (const session of sessions) {
     const canonical = pickSessionWriter(session, sleepLadder);
     const kept = session.filter((r) => writerKeyOf(r) === canonical);
@@ -402,7 +466,7 @@ export function reconstructSleepNights(
     );
     const key = userDayKey(wakeInstant, tz);
     const list = byNight.get(key) ?? [];
-    list.push(pool);
+    list.push({ pool, all: session });
     byNight.set(key, list);
   }
 
@@ -416,12 +480,21 @@ export function reconstructSleepNights(
     // `nightSessions` and each session pool are non-empty by construction: a
     // key is only added with a `pool` that has ≥ 1 row (the source-filter falls
     // back to the full session when the canonical filter empties it), so
-    // `nightSessions[0][0]` is safe. Unlike `reconstructSleepSessions`, this
-    // function never applies the granular-over-bare filter to the indexed pool,
-    // so it cannot empty the array here. Keep that invariant on future edits.
-    let latest = nightSessions[0][0].measuredAt;
+    // `nightSessions[0].pool[0]` is safe. Unlike `reconstructSleepSessions`,
+    // this function never applies the granular-over-bare filter to the indexed
+    // pool, so it cannot empty the array here. Keep that invariant on future
+    // edits.
+    let latest = nightSessions[0].pool[0].measuredAt;
     const stages: Partial<Record<SleepStage, number>> = {};
-    for (const sessionRows of nightSessions) {
+    for (const { pool: sessionRows, all } of nightSessions) {
+      // In-bed: union envelope across ALL writers in the session (sessions
+      // are > 3 h apart, so per-session envelopes never overlap and summing
+      // them per wake day is exact).
+      const envelope = inBedEnvelopeMinutes(all);
+      if (envelope !== null) {
+        inBed += envelope;
+        sawInBed = true;
+      }
       // v1.11.5 — decide the granular-over-bare gate PER SESSION. A granular
       // overnight does not strip a bare-only nap's minutes, and the per-stage
       // `stages` map drops the redundant bare ASLEEP aggregate only for the
@@ -441,10 +514,7 @@ export function reconstructSleepNights(
         if (stage) {
           stages[stage] = (stages[stage] ?? 0) + minutes;
         }
-        if (stage === "IN_BED") {
-          inBed += minutes;
-          sawInBed = true;
-        } else if (stage === "AWAKE") {
+        if (stage === "AWAKE") {
           awake += minutes;
           sawAwake = true;
         }
@@ -497,7 +567,11 @@ export interface SleepSession {
   end: Date;
   /** Time asleep in minutes (granular-over-bare rule). */
   asleepMinutes: number;
-  /** In-bed minutes when an IN_BED segment exists, else null. */
+  /**
+   * In-bed minutes when an IN_BED row exists anywhere in the session,
+   * else null. Union envelope across ALL writers (not just the
+   * canonical one) — see the module doc's writer-de-dup exception.
+   */
   inBedMinutes: number | null;
   /** Awake-in-bed minutes when an AWAKE segment exists, else null. */
   awakeMinutes: number | null;
@@ -570,11 +644,13 @@ export function reconstructSleepSessions(
   priorityJson: unknown = null,
 ): SleepSession[] {
   if (rows.length === 0) return [];
-  const sleepLadder = getSourceLadder(parseSourcePriority(priorityJson), "sleep");
+  const sleepLadder = getSourceLadder(
+    parseSourcePriority(priorityJson),
+    "sleep",
+  );
 
   const startOf = (r: SleepStageRow): number =>
-    r.measuredAt.getTime() -
-    (Number.isFinite(r.value) ? r.value : 0) * 60_000;
+    r.measuredAt.getTime() - (Number.isFinite(r.value) ? r.value : 0) * 60_000;
   const sorted = [...rows].sort((a, b) => startOf(a) - startOf(b));
   const rawSessions: SleepStageRow[][] = [];
   let current: SleepStageRow[] = [];
@@ -618,9 +694,7 @@ export function reconstructSleepSessions(
     // other consumer) returns a valid empty night, never a 500.
     if (segments.length === 0) continue;
 
-    let inBed = 0;
     let awake = 0;
-    let sawInBed = false;
     let sawAwake = false;
     const stages: Partial<Record<SleepStage, number>> = {};
     let earliest = segments[0].start;
@@ -630,14 +704,17 @@ export function reconstructSleepSessions(
       if (seg.end.getTime() > latest.getTime()) latest = seg.end;
       const stage = seg.stage;
       if (stage) stages[stage] = (stages[stage] ?? 0) + seg.minutes;
-      if (stage === "IN_BED") {
-        inBed += seg.minutes;
-        sawInBed = true;
-      } else if (stage === "AWAKE") {
+      if (stage === "AWAKE") {
         awake += seg.minutes;
         sawAwake = true;
       }
     }
+    // In-bed: union envelope across ALL writers in the RAW session — the
+    // canonical (winning) writer often carries no IN_BED row at all (a
+    // watch's stage export) while the losing writer holds the night's
+    // only in-bed window (the phone's bedtime detection). The hypnogram
+    // `segments` + `stages` stay winner-only.
+    const inBedEnvelope = inBedEnvelopeMinutes(session);
     const asleep = asleepMinutesOf(pool);
     const canonicalSource = sourceOfWriterKey(canonical);
     sessions.push({
@@ -649,7 +726,7 @@ export function reconstructSleepSessions(
       start: earliest,
       end: latest,
       asleepMinutes: asleep,
-      inBedMinutes: sawInBed ? inBed : null,
+      inBedMinutes: inBedEnvelope,
       awakeMinutes: sawAwake ? awake : null,
       stages,
       awakenings: countAwakenings(segments),

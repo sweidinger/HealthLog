@@ -70,12 +70,16 @@ import { compactSections } from "@/lib/ai/prompts/compact-sections";
 const FEATURES = {
   weight: { count: 12, latest: 81.4, mean30: 82.1 },
 };
-// The fingerprint covers the compacted features AND the about-me text
-// (null here — the about-me module is mocked to no text), matching the
+// The fingerprint covers the compacted features, the about-me text
+// (null here — the about-me module is mocked to no text), the
+// comparison-baseline setting ("none" — the mocked user row carries no
+// dashboardWidgetsJson) and the generation locale, matching the
 // composite shape both the gate and the POST route hash.
 const FEATURES_HASH = hashInsightSnapshot({
   features: compactSections(FEATURES as unknown as Record<string, unknown>),
   aboutMe: null,
+  comparisonBaseline: "none",
+  generationLocale: "de",
 });
 
 beforeEach(() => {

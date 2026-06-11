@@ -15,6 +15,8 @@ vi.mock("@/lib/db", () => ({
 
 vi.mock("@/lib/insights/status-provider", () => ({
   runStatusCompletion: vi.fn(),
+  // Consent never blocks in these fixtures — the gate has its own tests.
+  statusConsentBlocksGeneration: vi.fn(async () => false),
 }));
 
 vi.mock("@/lib/insights/memory", () => ({
@@ -192,14 +194,21 @@ describe("generateWeightStatusForUser — content-hash gate (v1.16.8)", () => {
     try {
       const now = new Date();
       const records = [
-        { type: "WEIGHT", value: 82, measuredAt: new Date(now.getTime() - dayMs) },
-        { type: "WEIGHT", value: 81.6, measuredAt: new Date(now.getTime() - 2 * dayMs) },
+        {
+          type: "WEIGHT",
+          value: 82,
+          measuredAt: new Date(now.getTime() - dayMs),
+        },
+        {
+          type: "WEIGHT",
+          value: 81.6,
+          measuredAt: new Date(now.getTime() - 2 * dayMs),
+        },
       ];
       // Fresh copy per call — the generator reverses the result array in
       // place, and a shared fixture would flip order between the two runs.
-      vi.mocked(prisma.measurement.findMany).mockImplementation(
-        (async () => records.map((r) => ({ ...r }))) as never,
-      );
+      vi.mocked(prisma.measurement.findMany).mockImplementation((async () =>
+        records.map((r) => ({ ...r }))) as never);
       vi.mocked(prisma.moodEntry.findMany).mockResolvedValue([] as never);
       vi.mocked(prisma.auditLog.findFirst).mockResolvedValue(null);
       vi.mocked(prisma.auditLog.create).mockResolvedValue({

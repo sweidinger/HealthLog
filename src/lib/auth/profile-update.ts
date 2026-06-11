@@ -8,6 +8,7 @@ import { auditLog } from "@/lib/auth/audit";
 import { profileSchema } from "@/lib/validations/auth";
 import { isValidTimezone } from "@/lib/tz/format";
 import { encrypt } from "@/lib/crypto";
+import { invalidateUserProfile } from "@/lib/cache/invalidate";
 import { z } from "zod/v4";
 
 const extendedProfileSchema = profileSchema.extend({
@@ -153,6 +154,19 @@ export async function applyProfileUpdate(
     where: { id: userId },
     data: updates,
   });
+
+  // Anthropometrics feed the cached targets grid (BMI band, BP-by-age
+  // range, body-fat band), the derived-score baseline profile (age /
+  // sex / height) and the analytics snapshot. Only those three fields
+  // matter here — a display-name or email edit must not cold-rebuild
+  // the analytics caches.
+  if (
+    data.heightCm !== undefined ||
+    data.dateOfBirth !== undefined ||
+    data.gender !== undefined
+  ) {
+    invalidateUserProfile(userId);
+  }
 
   await auditLog("profile.update", {
     userId: updatedUser.id,

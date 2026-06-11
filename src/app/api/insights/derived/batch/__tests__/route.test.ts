@@ -18,6 +18,10 @@ vi.mock("@/lib/auth/session", () => ({ getSession: vi.fn() }));
 vi.mock("@/lib/auth/audit", () => ({
   auditLog: vi.fn().mockResolvedValue(undefined),
 }));
+vi.mock("@/lib/rate-limit", () => ({
+  checkRateLimit: vi.fn(),
+  rateLimitHeaders: () => ({}),
+}));
 vi.mock("@/lib/logging/transports", () => ({ emitIfSampled: vi.fn() }));
 vi.mock("@/lib/db-compat", () => ({
   ensureDbCompatibility: vi.fn().mockResolvedValue(undefined),
@@ -40,15 +44,26 @@ vi.mock("@/lib/insights/derived", async (importOriginal) => {
     computeDerivedMetric: vi.fn(async (args: { metric: string }) => ({
       status: "ok",
       value: { metric: args.metric, n: 1 },
-      coverage: { requiredInputs: 1, presentInputs: 1, historyDays: 30, missing: [] },
+      coverage: {
+        requiredInputs: 1,
+        presentInputs: 1,
+        historyDays: 30,
+        missing: [],
+      },
       confidence: { score: 100, band: "high" },
-      provenance: { inputs: [], source: "DAY", windowDays: 30, computedAt: "2026-06-02T07:00:00+02:00" },
+      provenance: {
+        inputs: [],
+        source: "DAY",
+        windowDays: 30,
+        computedAt: "2026-06-02T07:00:00+02:00",
+      },
     })),
   };
 });
 
 import { GET } from "../route";
 import { getSession } from "@/lib/auth/session";
+import { checkRateLimit } from "@/lib/rate-limit";
 import { prisma } from "@/lib/db";
 import { computeDerivedMetric } from "@/lib/insights/derived";
 import { __resetAllCachesForTests } from "@/lib/cache/server-cache";
@@ -59,7 +74,12 @@ import {
 
 const SESSION_OK = {
   session: { id: "sess-1", expiresAt: new Date(Date.now() + 3_600_000) },
-  user: { id: "user-1", username: "testuser", role: "USER" as const, locale: "en" },
+  user: {
+    id: "user-1",
+    username: "testuser",
+    role: "USER" as const,
+    locale: "en",
+  },
 };
 
 const callGet = GET as unknown as (req: NextRequest) => Promise<Response>;
@@ -74,6 +94,7 @@ beforeEach(() => {
   // v1.16.8 — the route reads through the module-scope `insightsDerived`
   // server cache; reset it so every test starts on a cold cell.
   __resetAllCachesForTests();
+  vi.mocked(checkRateLimit).mockResolvedValue({ allowed: true } as never);
   vi.mocked(prisma.appSettings.findUnique).mockResolvedValue(null as never);
   vi.mocked(prisma.user.findUnique).mockResolvedValue({
     dateOfBirth: new Date("1986-01-01"),
@@ -85,9 +106,7 @@ beforeEach(() => {
 describe("GET /api/insights/derived/batch", () => {
   it("resolves several metrics into one keyed map", async () => {
     vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
-    const res = await callGet(
-      makeReq("READINESS,BMI,VITALS_BASELINE:WEIGHT"),
-    );
+    const res = await callGet(makeReq("READINESS,BMI,VITALS_BASELINE:WEIGHT"));
     expect(res.status).toBe(200);
     const body = (await res.json()) as {
       data: { metrics: Record<string, { metric: string; status: string }> };
@@ -132,6 +151,38 @@ describe("GET /api/insights/derived/batch", () => {
     expect(computeDerivedMetric).not.toHaveBeenCalled();
   });
 
+  it("422s when a sub-target type is outside the MeasurementType enum", async () => {
+    vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
+    // The colon sub-target must be a closed-enum member BEFORE it joins
+    // the compute dispatch and the cache key — an arbitrary token would
+    // mint unbounded cache cells and echo through coverage / provenance.
+    const res = await callGet(makeReq("VITALS_BASELINE:NOT_A_TYPE"));
+    expect(res.status).toBe(422);
+    expect(computeDerivedMetric).not.toHaveBeenCalled();
+  });
+
+  it("accepts a valid MeasurementType sub-target", async () => {
+    vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
+    const res = await callGet(makeReq("VITALS_BASELINE:RESTING_HEART_RATE"));
+    expect(res.status).toBe(200);
+    expect(computeDerivedMetric).toHaveBeenCalledWith(
+      expect.objectContaining({ type: "RESTING_HEART_RATE" }),
+    );
+  });
+
+  it("429s when the per-user rate limit is exhausted", async () => {
+    vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
+    vi.mocked(checkRateLimit).mockResolvedValue({ allowed: false } as never);
+    const res = await callGet(makeReq("BMI"));
+    expect(res.status).toBe(429);
+    expect(computeDerivedMetric).not.toHaveBeenCalled();
+    expect(checkRateLimit).toHaveBeenCalledWith(
+      "insights-derived-batch:user-1",
+      30,
+      60_000,
+    );
+  });
+
   it("422s on a missing metrics param", async () => {
     vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
     const res = await callGet(makeReq());
@@ -169,10 +220,7 @@ describe("GET /api/insights/derived/batch — server cache (v1.16.8)", () => {
     const body = (await second.json()) as {
       data: { metrics: Record<string, { status: string }> };
     };
-    expect(Object.keys(body.data.metrics).sort()).toEqual([
-      "BMI",
-      "READINESS",
-    ]);
+    expect(Object.keys(body.data.metrics).sort()).toEqual(["BMI", "READINESS"]);
   });
 
   it("hits the same cell regardless of token order", async () => {

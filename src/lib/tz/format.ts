@@ -21,25 +21,31 @@ export const DEFAULT_TIMEZONE = "Europe/Berlin";
  * lookup hits the same object identity on every call — see
  * `./intl-cache`. `WALL_CLOCK_PARTS_OPTIONS` is shared by
  * `wallClockParts` AND `tzOffsetMinutes`, so both resolve to the SAME
- * memoised formatter per timezone.
+ * memoised formatter per timezone. Frozen: the memo computes each
+ * constant's serialised signature ONCE per object identity, so a later
+ * mutation would leave the cached signature stale and silently hand
+ * callers a formatter built from the pre-mutation options.
  */
-const VALIDATION_OPTIONS: Omit<Intl.DateTimeFormatOptions, "timeZone"> = {};
+const VALIDATION_OPTIONS: Omit<Intl.DateTimeFormatOptions, "timeZone"> =
+  Object.freeze({});
 
-const HOUR_MINUTE_OPTIONS: Omit<Intl.DateTimeFormatOptions, "timeZone"> = {
-  hour: "2-digit",
-  minute: "2-digit",
-  hour12: false,
-};
+const HOUR_MINUTE_OPTIONS: Omit<Intl.DateTimeFormatOptions, "timeZone"> =
+  Object.freeze({
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  });
 
-const WALL_CLOCK_PARTS_OPTIONS: Omit<Intl.DateTimeFormatOptions, "timeZone"> = {
-  year: "numeric",
-  month: "2-digit",
-  day: "2-digit",
-  hour: "2-digit",
-  minute: "2-digit",
-  second: "2-digit",
-  hour12: false,
-};
+const WALL_CLOCK_PARTS_OPTIONS: Omit<Intl.DateTimeFormatOptions, "timeZone"> =
+  Object.freeze({
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  });
 
 /**
  * Validate a timezone string by asking `Intl.DateTimeFormat` to use it.

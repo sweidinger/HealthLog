@@ -11,6 +11,8 @@ vi.mock("@/lib/db", () => ({
 
 vi.mock("@/lib/insights/status-provider", () => ({
   runStatusCompletion: vi.fn(),
+  // Consent never blocks in these fixtures — the gate has its own tests.
+  statusConsentBlocksGeneration: vi.fn(async () => false),
 }));
 
 vi.mock("@/lib/insights/memory", () => ({
@@ -23,9 +25,10 @@ vi.mock("@/lib/insights/metric-correlation-context", () => ({
 }));
 
 vi.mock("@/lib/tz/resolver", async () => {
-  const actual = await vi.importActual<typeof import("@/lib/tz/resolver")>(
-    "@/lib/tz/resolver",
-  );
+  const actual =
+    await vi.importActual<typeof import("@/lib/tz/resolver")>(
+      "@/lib/tz/resolver",
+    );
   return { ...actual, resolveUserTimezone: vi.fn() };
 });
 
@@ -103,9 +106,24 @@ describe("generateMetricStatus — SLEEP_DURATION night reconstruction (iOS E2)"
     const wake = new Date("2026-06-04T06:30:00.000Z");
     const m = 60 * 1000;
     const stageRows = [
-      { value: 300, measuredAt: new Date(wake.getTime() - 90 * m), sleepStage: "CORE", source: "APPLE_HEALTH" },
-      { value: 90, measuredAt: new Date(wake.getTime() - 30 * m), sleepStage: "DEEP", source: "APPLE_HEALTH" },
-      { value: 75, measuredAt: wake, sleepStage: "REM", source: "APPLE_HEALTH" },
+      {
+        value: 300,
+        measuredAt: new Date(wake.getTime() - 90 * m),
+        sleepStage: "CORE",
+        source: "APPLE_HEALTH",
+      },
+      {
+        value: 90,
+        measuredAt: new Date(wake.getTime() - 30 * m),
+        sleepStage: "DEEP",
+        source: "APPLE_HEALTH",
+      },
+      {
+        value: 75,
+        measuredAt: wake,
+        sleepStage: "REM",
+        source: "APPLE_HEALTH",
+      },
     ];
     vi.mocked(prisma.measurement.count).mockResolvedValue(
       stageRows.length as never,
@@ -156,12 +174,42 @@ describe("generateMetricStatus — SLEEP_DURATION night reconstruction (iOS E2)"
     const wake = new Date(Date.now() - 6 * 60 * 60 * 1000);
     const m = 60 * 1000;
     const stageRows = [
-      { value: 480, measuredAt: wake, sleepStage: "ASLEEP", source: "APPLE_HEALTH" }, // bare aggregate
-      { value: 240, measuredAt: new Date(wake.getTime() - 240 * m), sleepStage: "CORE", source: "APPLE_HEALTH" },
-      { value: 120, measuredAt: new Date(wake.getTime() - 120 * m), sleepStage: "DEEP", source: "APPLE_HEALTH" },
-      { value: 120, measuredAt: wake, sleepStage: "REM", source: "APPLE_HEALTH" },
-      { value: 470, measuredAt: wake, sleepStage: "IN_BED", source: "APPLE_HEALTH" },
-      { value: 20, measuredAt: new Date(wake.getTime() - 200 * m), sleepStage: "AWAKE", source: "APPLE_HEALTH" },
+      {
+        value: 480,
+        measuredAt: wake,
+        sleepStage: "ASLEEP",
+        source: "APPLE_HEALTH",
+      }, // bare aggregate
+      {
+        value: 240,
+        measuredAt: new Date(wake.getTime() - 240 * m),
+        sleepStage: "CORE",
+        source: "APPLE_HEALTH",
+      },
+      {
+        value: 120,
+        measuredAt: new Date(wake.getTime() - 120 * m),
+        sleepStage: "DEEP",
+        source: "APPLE_HEALTH",
+      },
+      {
+        value: 120,
+        measuredAt: wake,
+        sleepStage: "REM",
+        source: "APPLE_HEALTH",
+      },
+      {
+        value: 470,
+        measuredAt: wake,
+        sleepStage: "IN_BED",
+        source: "APPLE_HEALTH",
+      },
+      {
+        value: 20,
+        measuredAt: new Date(wake.getTime() - 200 * m),
+        sleepStage: "AWAKE",
+        source: "APPLE_HEALTH",
+      },
     ];
     vi.mocked(prisma.measurement.count).mockResolvedValue(
       stageRows.length as never,
@@ -254,9 +302,9 @@ describe("metric-status registry", () => {
   });
 
   it("anchors a six-minute-walk normal range from the population reference", () => {
-    expect(getMetricStatusMeta("SIX_MINUTE_WALK_DISTANCE")?.normalRange).toEqual(
-      { low: 400, high: 700 },
-    );
+    expect(
+      getMetricStatusMeta("SIX_MINUTE_WALK_DISTANCE")?.normalRange,
+    ).toEqual({ low: 400, high: 700 });
   });
 });
 
@@ -273,9 +321,9 @@ describe("archetype prompt templates", () => {
     const meta = getMetricStatusMeta("SLEEP_DURATION")!;
     const sys = getMetricArchetypeSystemPrompt(meta, "en");
     expect(sys).toContain("SLEEP");
-    expect(getMetricArchetypeUserPrompt(meta, "{}", "2026-06-02", "en")).toContain(
-      "sleep duration",
-    );
+    expect(
+      getMetricArchetypeUserPrompt(meta, "{}", "2026-06-02", "en"),
+    ).toContain("sleep duration");
   });
 });
 
@@ -325,7 +373,10 @@ describe("generateMetricStatus — generation path", () => {
       systemPrompt: string | null;
       userPrompt: string | null;
     };
-    stubCompletion('{"summary":"Your resting heart rate is steady."}', captured);
+    stubCompletion(
+      '{"summary":"Your resting heart rate is steady."}',
+      captured,
+    );
 
     const result = await generateMetricStatus({
       metric: "RESTING_HEART_RATE",

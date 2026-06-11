@@ -38,6 +38,18 @@ export interface ExportableRecord {
  * Escapes RFC 4180 special characters: commas, double quotes, line
  * breaks (`\n` and `\r`). Values containing any of these are wrapped
  * in double quotes with embedded quotes doubled (`"` → `""`).
+ *
+ * Spreadsheet formula injection (CSV injection): free-TEXT cells whose
+ * value starts with `=`, `+`, `-`, `@`, TAB, or CR get a leading `'`
+ * (the OWASP single-quote neutralisation — Excel / LibreOffice /
+ * Google Sheets treat the cell as text and hide the quote). The guard
+ * is scoped to STRING-typed record values only: numeric columns
+ * (measurement values, mood scores) stay typed `number` all the way to
+ * this function, so a negative reading exports as `-5.2`, never
+ * `'-5.2`. The text columns are where third-party content can land —
+ * mood `note` originates from the moodLog webhook, measurement `notes`
+ * from arbitrary clients — and a crafted `=HYPERLINK(...)` /
+ * `=cmd|...` there must not execute when an operator opens the export.
  */
 export function toCSV(
   records: ExportableRecord[],
@@ -47,7 +59,11 @@ export function toCSV(
 
   const headers = Object.keys(records[0]);
   const headerLine = headerLabels
-    ? headers.map((h) => escapeCsvCell(headerLabels[h] ?? h)).join(",")
+    ? headers
+        .map((h) =>
+          escapeCsvCell(neutraliseFormulaPrefix(headerLabels[h] ?? h)),
+        )
+        .join(",")
     : headers.map(escapeCsvCell).join(",");
   const lines = [headerLine];
 
@@ -55,13 +71,29 @@ export function toCSV(
     const values = headers.map((h) => {
       const val = record[h];
       if (val === null || val === undefined) return "";
-      const str = val instanceof Date ? val.toISOString() : String(val);
-      return escapeCsvCell(str);
+      if (val instanceof Date) return escapeCsvCell(val.toISOString());
+      // Only genuine TEXT cells get the formula-prefix guard; numbers /
+      // booleans stringify verbatim so numeric columns are never mangled.
+      const str = String(val);
+      return escapeCsvCell(
+        typeof val === "string" ? neutraliseFormulaPrefix(str) : str,
+      );
     });
     lines.push(values.join(","));
   }
 
   return lines.join("\n");
+}
+
+/**
+ * OWASP CSV-injection neutralisation: prefix a text cell that starts
+ * with a formula trigger (`=`, `+`, `-`, `@`) or a control character
+ * Excel interprets as a field continuation (TAB, CR) with a single
+ * quote so the spreadsheet renders it as literal text. Applied to
+ * string cells only — see `toCSV`.
+ */
+function neutraliseFormulaPrefix(str: string): string {
+  return /^[=+\-@\t\r]/.test(str) ? `'${str}` : str;
 }
 
 /**

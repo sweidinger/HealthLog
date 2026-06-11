@@ -25,14 +25,12 @@ import { z } from "zod/v4";
 import pLimit from "p-limit";
 import { apiSuccess, apiError, returnAllZodIssues } from "@/lib/api-response";
 import { apiHandler, requireAuth } from "@/lib/api-handler";
+import { checkRateLimit } from "@/lib/rate-limit";
 import { annotate } from "@/lib/logging/context";
-import {
-  cachedSwr,
-  caches,
-  type ServerCache,
-} from "@/lib/cache/server-cache";
+import { cachedSwr, caches, type ServerCache } from "@/lib/cache/server-cache";
 import { requireAssistantSurface } from "@/lib/feature-flags";
 import { prisma } from "@/lib/db";
+import { MeasurementType } from "@/generated/prisma/client";
 import {
   computeDerivedMetric,
   loadBaselineProfile,
@@ -77,6 +75,10 @@ const batchQuerySchema = z.object({
  * sub-targets a VITALS_BASELINE vital; a bare `metric` carries no type.
  * Unknown ids are returned as `invalid` so the route 422s the whole
  * request rather than silently dropping a metric (the closed-enum rule).
+ * The `type` part is held to the SAME closed-enum rule: it must be a
+ * member of the `MeasurementType` enum BEFORE it joins the compute
+ * dispatch and the cache key — an arbitrary token would otherwise mint
+ * unbounded cache cells and be echoed through coverage / provenance.
  * Duplicate keys collapse to one item (last write wins) so a repeated
  * token can't inflate the fan-out.
  */
@@ -96,6 +98,13 @@ function parseBatchItems(csv: string): {
       invalid.push(metric);
       continue;
     }
+    if (
+      type !== null &&
+      !Object.prototype.hasOwnProperty.call(MeasurementType, type)
+    ) {
+      invalid.push(token);
+      continue;
+    }
     const key = type ? `${metric}:${type}` : metric;
     seen.set(key, { metric, type, key });
   }
@@ -105,6 +114,22 @@ function parseBatchItems(csv: string): {
 export const GET = apiHandler(async (request: NextRequest) => {
   const { user } = await requireAuth();
   await requireAssistantSurface("insightStatus");
+
+  // Per-user limiter, same posture as the compliance routes: the cold
+  // build fans out up to 24 rollup walks, so an unthrottled caller could
+  // hammer the pool past the cache. 30/min covers the dashboard's one
+  // canonical read plus retries with a wide margin.
+  const rl = await checkRateLimit(
+    `insights-derived-batch:${user.id}`,
+    30,
+    60_000,
+  );
+  if (!rl.allowed) {
+    return apiError(
+      "Too many derived-metric requests. Please retry later.",
+      429,
+    );
+  }
 
   const parsed = batchQuerySchema.safeParse({
     metrics: request.nextUrl.searchParams.get("metrics"),
@@ -126,10 +151,7 @@ export const GET = apiHandler(async (request: NextRequest) => {
       action: { name: "insights.derived.batch.invalid-metric" },
       meta: { invalid_count: invalid.length },
     });
-    return apiError(
-      `Unknown derived metric id(s): ${invalid.join(", ")}`,
-      422,
-    );
+    return apiError(`Unknown derived metric id(s): ${invalid.join(", ")}`, 422);
   }
   if (items.length === 0 || items.length > MAX_METRICS) {
     annotate({
@@ -255,8 +277,7 @@ async function buildDerivedBatch(input: {
             coverage: derived.coverage,
             confidence: derived.status === "ok" ? derived.confidence : null,
             provenance: derived.provenance,
-            reason:
-              derived.status === "insufficient" ? derived.reason : null,
+            reason: derived.status === "insufficient" ? derived.reason : null,
             // Deterministic assessment only (cheap, pure). The AI-warm prose
             // stays a single-route concern; here every assessable `ok` score
             // carries its template "why" text, everything else stays null.

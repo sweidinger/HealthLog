@@ -138,13 +138,14 @@ export function invalidateUserMood(userId: string): void {
  * v1.16.8 — `evict` splits the SWR buckets (medications, the
  * per-medication compliance payload, analytics) by write origin, the
  * `invalidateUserMeasurements` pattern. Interactive writes (a card take /
- * skip, a CRUD edit, an intake edit / delete / purge / import) pass
+ * skip, a CRUD edit, an intake edit / delete / purge / import, AND the
+ * iOS bulk-intake endpoint — it carries the phone user's own doses) pass
  * `{ evict: true }`: the user must see their own action on the very next
  * read, and a stale-serveable entry would hand back the pre-write body.
- * Background paths (the iOS bulk-intake sync, the auto-miss cron, slot
- * dedup) keep the default mark-stale so a high-frequency sync never busts
- * the buckets into inline cold-rebuild storms — the `cachedSwr` readers
- * serve the prior payload while one coalesced recompute warms each cell.
+ * Background paths (the auto-miss cron, slot dedup) keep the default
+ * mark-stale so a high-frequency pass never busts the buckets into
+ * inline cold-rebuild storms — the `cachedSwr` readers serve the prior
+ * payload while one coalesced recompute warms each cell.
  */
 export function invalidateUserMedications(
   userId: string,
@@ -177,6 +178,32 @@ export function invalidateUserMedications(
   // v1.4.36 W1 — medication writes change the MEDICATION_COMPLIANCE
   // target rollup (compliance7 / compliance30 / consistency strip).
   caches.insightsTargets.deleteByPrefix(userId);
+}
+
+/**
+ * v1.16.8 — invalidate every cache whose payload derives from the user's
+ * PROFILE-level settings rather than from measurement / mood / medication
+ * rows. The measurement-write invalidators never fire on a settings save,
+ * so before this helper a height / birth-date / gender edit, a threshold
+ * override, or a source-priority reorder kept serving the pre-edit
+ * targets grid (BMI band, BP-by-age range, glucose effective ranges),
+ * derived scores (baseline profile: age / sex / height), and analytics
+ * snapshot until the TTL lapsed.
+ *
+ * Hard-evict on every bucket: these are interactive Settings writes, and
+ * a marked-stale SWR cell would hand the user back the pre-edit payload
+ * on the very next read.
+ *
+ * Callers: `/api/user/thresholds` PUT + DELETE, `applyProfileUpdate`
+ * (only when heightCm / dateOfBirth / gender is in the update set), and
+ * `/api/auth/me/source-priority` PUT. The unit-preference toggle is NOT
+ * wired in: it only drives the client-side display transform, no
+ * server-cached payload reads it.
+ */
+export function invalidateUserProfile(userId: string): void {
+  caches.insightsTargets.deleteByPrefix(userId);
+  caches.insightsDerived.deleteByPrefix(`${userId}|`);
+  caches.analytics.deleteByPrefix(`${userId}|`);
 }
 
 /**

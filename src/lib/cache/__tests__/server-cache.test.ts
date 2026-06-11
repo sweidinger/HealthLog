@@ -62,7 +62,13 @@ describe("ServerCache per-key TTL override", () => {
   it("wrap()/cached() thread the TTL override and stay evictable by prefix", async () => {
     vi.useFakeTimers();
     const cache = new ServerCache<string>({ maxEntries: 4, ttlMs: 60_000 });
-    await cached(cache, "u1|dashboard-snapshot", async () => "snap", undefined, 180_000);
+    await cached(
+      cache,
+      "u1|dashboard-snapshot",
+      async () => "snap",
+      undefined,
+      180_000,
+    );
     // Default bucket TTL elapsed; the override keeps the entry warm so
     // the 120 s client refetch interval lands on a hit, not a miss.
     vi.advanceTimersByTime(120_000);
@@ -306,6 +312,51 @@ describe("ServerCache stale-while-revalidate (wrapSwr / cachedSwr)", () => {
     await vi.runAllTimersAsync();
     // Still exactly one cold build + one background rebuild.
     expect(builder).toHaveBeenCalledTimes(2);
+  });
+
+  it("logs a refresh_failed signal when the detached background rebuild rejects", async () => {
+    vi.useFakeTimers();
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    const cache = new ServerCache<string>({
+      name: "analytics",
+      maxEntries: 4,
+      ttlMs: 1000,
+      staleTtlMs: 600_000,
+    });
+    let calls = 0;
+    const builder = vi.fn(async () => {
+      calls += 1;
+      if (calls === 1) return "v1";
+      throw new Error("db gone");
+    });
+    await cache.wrapSwr("k", builder);
+    vi.advanceTimersByTime(1500);
+
+    // Stale serve succeeds for the caller…
+    const stale = await cache.wrapSwr("k", builder);
+    expect(stale.outcome).toBe("stale");
+    expect(stale.value).toBe("v1");
+    await vi.runAllTimersAsync();
+
+    // …but the failed background rebuild is surfaced, not swallowed:
+    // bucket-scoped event name + hashed key + the error message.
+    expect(consoleError).toHaveBeenCalledTimes(1);
+    const [event, payload] = consoleError.mock.calls[0] as [string, string];
+    expect(event).toBe("cache.analytics.refresh_failed");
+    const parsed = JSON.parse(payload) as {
+      key_hash: number;
+      error: string;
+    };
+    expect(parsed.key_hash).toBe(hashCacheKey("k"));
+    expect(parsed.error).toBe("db gone");
+
+    // The pending slot is clear — the next stale read retries the build.
+    const retry = await cache.wrapSwr("k", builder);
+    expect(retry.outcome).toBe("stale");
+    expect(builder).toHaveBeenCalledTimes(3);
+    consoleError.mockRestore();
   });
 
   it("treats an entry past the stale window as a hard miss", async () => {

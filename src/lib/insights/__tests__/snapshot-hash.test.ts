@@ -52,6 +52,35 @@ describe("hashInsightSnapshot", () => {
     expect(de).toBe(en);
   });
 
+  it("does NOT ignore generationLocale or comparisonBaseline (the comprehensive composite)", () => {
+    // The comprehensive fingerprint carries the generation language and
+    // the comparison toggle under non-volatile names so a reader-facing
+    // change regenerates the briefing exactly once. `locale` itself
+    // stays volatile (per-locale-keyed status caches rely on that).
+    const base = hashInsightSnapshot({
+      features: { weight: { mean: 80 } },
+      aboutMe: null,
+      comparisonBaseline: "none",
+      generationLocale: "de",
+    });
+    expect(
+      hashInsightSnapshot({
+        features: { weight: { mean: 80 } },
+        aboutMe: null,
+        comparisonBaseline: "none",
+        generationLocale: "en",
+      }),
+    ).not.toBe(base);
+    expect(
+      hashInsightSnapshot({
+        features: { weight: { mean: 80 } },
+        aboutMe: null,
+        comparisonBaseline: "lastMonth",
+        generationLocale: "de",
+      }),
+    ).not.toBe(base);
+  });
+
   it("ignores positional offsets (dayOffset) but not the values", () => {
     const yesterday = hashInsightSnapshot({
       dataCoverage: { totalMeasurements: 12, newestMeasurementDaysAgo: 0 },
@@ -149,8 +178,12 @@ describe("hashInsightSnapshot", () => {
   });
 
   it("keeps absolute day keys in the fingerprint", () => {
-    const a = hashInsightSnapshot({ recent: [{ date: "2026-06-09", mean: 80 }] });
-    const b = hashInsightSnapshot({ recent: [{ date: "2026-06-10", mean: 80 }] });
+    const a = hashInsightSnapshot({
+      recent: [{ date: "2026-06-09", mean: 80 }],
+    });
+    const b = hashInsightSnapshot({
+      recent: [{ date: "2026-06-10", mean: 80 }],
+    });
     expect(a).not.toBe(b);
   });
 

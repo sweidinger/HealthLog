@@ -63,6 +63,7 @@ import { POST } from "../route";
 import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/auth/session";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { invalidateUserMedications } from "@/lib/cache/invalidate";
 
 const SESSION_OK = {
   session: { id: "sess-1", expiresAt: new Date(Date.now() + 3_600_000) },
@@ -296,6 +297,12 @@ describe("POST /api/medications/intake/bulk — v1.8.2 reconcile", () => {
     };
     expect(body.data.updated).toBe(1);
     expect(body.data.entries[0].status).toBe("updated");
+    // The bulk endpoint is the iOS user's interactive intake path — the
+    // write must HARD-EVICT the SWR buckets so the next read shows the
+    // dose, never the pre-write stale payload.
+    expect(invalidateUserMedications).toHaveBeenCalledWith("user-1", {
+      evict: true,
+    });
   });
 
   it("C1 — a same-slot P2002 on create converges via re-find+update, not dropped as duplicate", async () => {
@@ -686,7 +693,10 @@ describe("POST /api/medications/intake/bulk — v1.15.20 band attribution", () =
     );
     expect(res.status).toBe(200);
     const body = (await res.json()) as {
-      data: { updated: number; entries: Array<{ status: string; id?: string }> };
+      data: {
+        updated: number;
+        entries: Array<{ status: string; id?: string }>;
+      };
     };
     expect(body.data.updated).toBe(1);
     expect(body.data.entries[0].status).toBe("updated");

@@ -1,5 +1,8 @@
 import { prisma } from "@/lib/db";
-import { hasUsableStatusProvider } from "@/lib/insights/status-provider";
+import {
+  hasUsableStatusProvider,
+  statusConsentBlocksGeneration,
+} from "@/lib/insights/status-provider";
 import {
   enqueueStatusGeneration,
   type InsightStatusScope,
@@ -142,6 +145,14 @@ export async function readFreshStatusText(args: {
  * the ingest-driven regeneration into no-ops on unchanged data: each of
  * those paths forces past the same-day cache read, gathers the
  * snapshot, and lands here.
+ *
+ * Consent comes BEFORE the hash compare (mirroring the comprehensive
+ * pipeline's consent-before-gate order): re-stamping a cached text
+ * under today's `dateKey` presents it as a current AI assessment, so a
+ * user who revoked the server-managed AI consent must not have old
+ * text re-dated by an unchanged-data refresh. On a blocked consent the
+ * gate misses, the generator proceeds to `runStatusCompletion`, and
+ * that gate returns the no-key fallback without persisting anything.
  */
 export async function refreshUnchangedStatusInsight(args: {
   userId: string;
@@ -149,6 +160,14 @@ export async function refreshUnchangedStatusInsight(args: {
   todayKey: string;
   snapshotHash: string;
 }): Promise<FreshStatusCacheHit | null> {
+  if (await statusConsentBlocksGeneration(args.userId, "insights")) {
+    annotate({
+      action: { name: "insights.status.consent_required" },
+      meta: { cache_action: args.cacheAction, gate: "unchanged-refresh" },
+    });
+    return null;
+  }
+
   const latest = await prisma.auditLog.findFirst({
     where: { userId: args.userId, action: args.cacheAction },
     orderBy: { createdAt: "desc" },

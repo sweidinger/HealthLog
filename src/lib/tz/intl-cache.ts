@@ -21,7 +21,10 @@ const formatterCache = new Map<string, Intl.DateTimeFormat>();
  * Hard cap. The realistic population is bounded (valid IANA zones × a
  * handful of option shapes), but the timezone segment is user-supplied
  * upstream of validation in `isValidTimezone`, so the memo carries a
- * safety valve: on overflow the whole map resets and re-warms.
+ * safety valve: on overflow the single OLDEST entry is evicted (Map
+ * iteration order is insertion order, so the first key is the oldest).
+ * A full-map reset on every insert past the cap would let one burst of
+ * unusual zones re-pay formatter construction for every hot signature.
  */
 const MAX_FORMATTERS = 1000;
 
@@ -61,7 +64,10 @@ export function getDateTimeFormat(
     locale,
     timeZone === undefined ? options : { ...options, timeZone },
   );
-  if (formatterCache.size >= MAX_FORMATTERS) formatterCache.clear();
+  if (formatterCache.size >= MAX_FORMATTERS) {
+    const oldest = formatterCache.keys().next().value;
+    if (oldest !== undefined) formatterCache.delete(oldest);
+  }
   formatterCache.set(key, formatter);
   return formatter;
 }

@@ -162,12 +162,20 @@ export class ServerCache<T> {
   /**
    * v1.12.1 — mark every entry under `prefix` stale without dropping it.
    * Collapses the fresh TTL to "now" so the next `wrapSwr` read serves
-   * the prior value immediately (within the stale window) while a single
-   * coalesced recompute warms a fresh value. This replaces the
-   * hard-evict on a mood write so an active logger no longer re-pays the
-   * cold compute on every entry. No-op for buckets without `staleTtlMs`
-   * (the entry is already at/over its hard TTL after this, so the next
-   * read is a clean miss — identical to the old evict behaviour).
+   * the prior value immediately while a single coalesced recompute warms
+   * a fresh value. This replaces the hard-evict on a mood write so an
+   * active logger no longer re-pays the cold compute on every entry.
+   *
+   * Stale-serve bound: marking does NOT touch `staleUntil`, which was
+   * fixed at insert time as `insert + ttlMs + staleTtlMs`. A marked
+   * entry can therefore keep serving stale until up to `ttlMs +
+   * staleTtlMs` after it was INSERTED — not `staleTtlMs` after the
+   * mark. (Marking near the end of the fresh window leaves close to
+   * `staleTtlMs` of serveability; marking right after insert leaves
+   * nearly the full `ttlMs + staleTtlMs`.) No-op for buckets without
+   * `staleTtlMs` (the entry is already at/over its hard TTL after this,
+   * so the next read is a clean miss — identical to the old evict
+   * behaviour).
    */
   markStaleByPrefix(prefix: string): number {
     let marked = 0;
@@ -295,9 +303,24 @@ export class ServerCache<T> {
           });
         this.pending.set(key, refresh);
         // Detach: the foreground caller does not await the rebuild.
-        // Swallow the rejection on the detached handle so an
-        // unhandled-rejection warning never fires.
-        refresh.catch(() => {});
+        // Handle the rejection on the detached handle so an
+        // unhandled-rejection warning never fires — but never silently:
+        // a refresh that keeps failing means the bucket serves an
+        // ever-older stale value until the SWR window finally lapses,
+        // so the failure must reach the logs. There is no request
+        // context here (the caller already returned), so a structured
+        // console.error stands in for the wide-event annotation; the
+        // key is logged as its djb2 hash, matching the cache-outcome
+        // meta convention, so the userId segment never reaches stdout.
+        refresh.catch((err) => {
+          console.error(
+            `cache.${this.opts.name ?? "unnamed"}.refresh_failed`,
+            JSON.stringify({
+              key_hash: hashCacheKey(key),
+              error: err instanceof Error ? err.message : String(err),
+            }),
+          );
+        });
       }
       return { value: cachedEntry.value, outcome: "stale" };
     }
@@ -422,10 +445,12 @@ export const caches = {
    * detail read and the batched card read) consume via `cachedSwr`:
    * inside the 10-minute stale window an expired cell serves the prior
    * payload immediately while one coalesced rebuild warms it. Interactive
-   * intake / medication writes hard-evict (the user must see their own
-   * dose on the next read); background sync paths (iOS bulk intake, the
-   * auto-miss cron, slot dedup) mark stale so a high-frequency sync never
-   * busts every card into an inline cold rebuild.
+   * intake / medication writes — including the iOS bulk-intake endpoint,
+   * which carries the phone user's own taken/skipped doses — hard-evict
+   * (the user must see their own dose on the next read); the genuinely
+   * background writers (the auto-miss cron, slot dedup) mark stale so a
+   * high-frequency pass never busts every card into an inline cold
+   * rebuild.
    */
   medicationCompliance: new ServerCache<unknown>({
     name: "medicationCompliance",

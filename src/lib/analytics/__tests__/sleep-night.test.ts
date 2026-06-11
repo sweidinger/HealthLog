@@ -1,8 +1,5 @@
 import { describe, it, expect } from "vitest";
-import type {
-  MeasurementSource,
-  SleepStage,
-} from "@/generated/prisma/client";
+import type { MeasurementSource, SleepStage } from "@/generated/prisma/client";
 import {
   reconstructSleepNights,
   reconstructSleepSessions,
@@ -33,7 +30,12 @@ function srcRow(
   minutes: number,
   source: MeasurementSource,
 ): SleepStageRow {
-  return { measuredAt: new Date(iso), sleepStage: stage, value: minutes, source };
+  return {
+    measuredAt: new Date(iso),
+    sleepStage: stage,
+    value: minutes,
+    source,
+  };
 }
 
 describe("reconstructSleepNights", () => {
@@ -81,9 +83,7 @@ describe("reconstructSleepNights", () => {
   });
 
   it("treats a bare SLEEP_DURATION row (no stage) as the night total", () => {
-    const rows: SleepStageRow[] = [
-      row("2026-06-04T06:00:00.000Z", null, 423),
-    ];
+    const rows: SleepStageRow[] = [row("2026-06-04T06:00:00.000Z", null, 423)];
     const nights = reconstructSleepNights(rows, "UTC");
     expect(nights).toHaveLength(1);
     expect(nights[0].asleepMinutes).toBe(423);
@@ -574,7 +574,10 @@ describe("summarizeSleepNights", () => {
       row("2026-06-03T23:30:00.000Z", "DEEP", 150), // 23:00 → 01:30 Jun 4
       row("2026-06-04T04:00:00.000Z", "REM", 270), //  23:30 → 06:00 Jun 4
     ];
-    const { summary, latestNight } = summarizeSleepNights(rows, "Europe/Berlin");
+    const { summary, latestNight } = summarizeSleepNights(
+      rows,
+      "Europe/Berlin",
+    );
     expect(summary.count).toBe(2);
     expect(latestNight?.night).toBe("2026-06-04");
     // Full last night = 150 + 150 + 270 = 570 (not just a post-midnight slice).
@@ -663,9 +666,7 @@ describe("reconstructSleepSessions total-safety (A5)", () => {
   it("never throws on a stage-less-only session", () => {
     // Legacy / manual stage-less rows only — no granular partition, so they are
     // the fallback signal and survive the filter; still must not throw.
-    const rows: SleepStageRow[] = [
-      row("2026-06-04T06:00:00.000Z", null, 480),
-    ];
+    const rows: SleepStageRow[] = [row("2026-06-04T06:00:00.000Z", null, 480)];
     expect(() => reconstructSleepSessions(rows, "UTC")).not.toThrow();
   });
 });
@@ -712,11 +713,15 @@ describe("per-night writer richness pick", () => {
     // The winner's own awake minutes survive; the coarse 400 must not.
     expect(nights[0].awakeMinutes).toBe(35);
     expect(nights[0].asleepMinutes).toBe(410);
+    // The losing writer's IN_BED envelope survives — "Zeit im Bett" is a
+    // union across writers, never erased by the stage-richness pick.
+    expect(nights[0].inBedMinutes).toBe(250);
 
     const sessions = reconstructSleepSessions(rows, "Europe/Berlin");
     expect(sessions).toHaveLength(1);
     expect(sessions[0].source).toBe("WHOOP");
     expect(sessions[0].stages.AWAKE).toBe(35);
+    expect(sessions[0].inBedMinutes).toBe(250);
   });
 
   it("separates writer apps behind ONE source: phone in-bed must not blend into watch stages", () => {
@@ -726,13 +731,49 @@ describe("per-night writer richness pick", () => {
     // both writers and inflate the night's awake total — the device-type
     // refinement must keep only the stage-bearing writer.
     const rows: SleepStageRow[] = [
-      writerRow("2026-06-04T00:30:00.000Z", "CORE", 120, "APPLE_HEALTH", "watch"),
-      writerRow("2026-06-04T02:30:00.000Z", "DEEP", 60, "APPLE_HEALTH", "watch"),
+      writerRow(
+        "2026-06-04T00:30:00.000Z",
+        "CORE",
+        120,
+        "APPLE_HEALTH",
+        "watch",
+      ),
+      writerRow(
+        "2026-06-04T02:30:00.000Z",
+        "DEEP",
+        60,
+        "APPLE_HEALTH",
+        "watch",
+      ),
       writerRow("2026-06-04T04:00:00.000Z", "REM", 80, "APPLE_HEALTH", "watch"),
-      writerRow("2026-06-04T04:30:00.000Z", "AWAKE", 15, "APPLE_HEALTH", "watch"),
-      writerRow("2026-06-04T04:30:00.000Z", "IN_BED", 460, "APPLE_HEALTH", "phone"),
-      writerRow("2026-06-04T00:35:00.000Z", "ASLEEP", 200, "APPLE_HEALTH", "phone"),
-      writerRow("2026-06-04T03:00:00.000Z", "AWAKE", 385, "APPLE_HEALTH", "phone"),
+      writerRow(
+        "2026-06-04T04:30:00.000Z",
+        "AWAKE",
+        15,
+        "APPLE_HEALTH",
+        "watch",
+      ),
+      writerRow(
+        "2026-06-04T04:30:00.000Z",
+        "IN_BED",
+        460,
+        "APPLE_HEALTH",
+        "phone",
+      ),
+      writerRow(
+        "2026-06-04T00:35:00.000Z",
+        "ASLEEP",
+        200,
+        "APPLE_HEALTH",
+        "phone",
+      ),
+      writerRow(
+        "2026-06-04T03:00:00.000Z",
+        "AWAKE",
+        385,
+        "APPLE_HEALTH",
+        "phone",
+      ),
     ];
     const nights = reconstructSleepNights(rows, "Europe/Berlin");
     expect(nights).toHaveLength(1);
@@ -743,6 +784,54 @@ describe("per-night writer richness pick", () => {
     expect(nights[0].awakeMinutes).toBe(15);
     // The phone's bare ASLEEP must not blend into the asleep total either.
     expect(nights[0].asleepMinutes).toBe(260);
+    // The night keeps the stages AND a sane in-bed figure: the watch wins
+    // the stage views, but "Zeit im Bett" is the union envelope across
+    // writers — the phone's 460-minute IN_BED window must not shrink to
+    // null just because the watch carried no IN_BED row.
+    expect(nights[0].inBedMinutes).toBe(460);
+
+    const sessions = reconstructSleepSessions(rows, "Europe/Berlin");
+    expect(sessions).toHaveLength(1);
+    // The session's hypnogram segments stay winner-only (no phone lanes)…
+    expect(sessions[0].segments.some((seg) => seg.stage === "IN_BED")).toBe(
+      false,
+    );
+    // …while the session-level in-bed figure keeps the phone's envelope.
+    expect(sessions[0].inBedMinutes).toBe(460);
+  });
+
+  it("merges overlapping IN_BED spans from two writers without double-counting", () => {
+    // Watch and phone both export an IN_BED window for the same night;
+    // the spans overlap by four hours. The union envelope is 22:00 →
+    // 06:00 (480 min), never the 360 + 360 = 720 sum.
+    const rows: SleepStageRow[] = [
+      writerRow(
+        "2026-06-04T02:00:00.000Z",
+        "CORE",
+        200,
+        "APPLE_HEALTH",
+        "watch",
+      ),
+      // Watch IN_BED 22:00 → 04:00 UTC.
+      writerRow(
+        "2026-06-04T04:00:00.000Z",
+        "IN_BED",
+        360,
+        "APPLE_HEALTH",
+        "watch",
+      ),
+      // Phone IN_BED 00:00 → 06:00 UTC — overlaps the watch span.
+      writerRow(
+        "2026-06-04T06:00:00.000Z",
+        "IN_BED",
+        360,
+        "APPLE_HEALTH",
+        "phone",
+      ),
+    ];
+    const nights = reconstructSleepNights(rows, "UTC");
+    expect(nights).toHaveLength(1);
+    expect(nights[0].inBedMinutes).toBe(480);
   });
 
   it("rows without a device-type collapse per source exactly as before", () => {
@@ -767,8 +856,20 @@ describe("per-night writer richness pick", () => {
     // richness must pick the watch.
     const rows: SleepStageRow[] = [
       srcRow("2026-06-04T04:30:00.000Z", "CORE", 300, "WHOOP"),
-      writerRow("2026-06-04T00:30:00.000Z", "CORE", 120, "APPLE_HEALTH", "watch"),
-      writerRow("2026-06-04T02:30:00.000Z", "DEEP", 60, "APPLE_HEALTH", "watch"),
+      writerRow(
+        "2026-06-04T00:30:00.000Z",
+        "CORE",
+        120,
+        "APPLE_HEALTH",
+        "watch",
+      ),
+      writerRow(
+        "2026-06-04T02:30:00.000Z",
+        "DEEP",
+        60,
+        "APPLE_HEALTH",
+        "watch",
+      ),
       writerRow("2026-06-04T04:00:00.000Z", "REM", 80, "APPLE_HEALTH", "watch"),
     ];
     const nights = reconstructSleepNights(rows, "Europe/Berlin");
@@ -784,8 +885,20 @@ describe("per-night writer richness pick", () => {
       srcRow("2026-06-04T01:00:00.000Z", "CORE", 240, "WHOOP"),
       srcRow("2026-06-04T03:00:00.000Z", "DEEP", 80, "WHOOP"),
       srcRow("2026-06-04T04:30:00.000Z", "REM", 90, "WHOOP"),
-      writerRow("2026-06-04T00:30:00.000Z", "CORE", 120, "APPLE_HEALTH", "watch"),
-      writerRow("2026-06-04T02:30:00.000Z", "DEEP", 60, "APPLE_HEALTH", "watch"),
+      writerRow(
+        "2026-06-04T00:30:00.000Z",
+        "CORE",
+        120,
+        "APPLE_HEALTH",
+        "watch",
+      ),
+      writerRow(
+        "2026-06-04T02:30:00.000Z",
+        "DEEP",
+        60,
+        "APPLE_HEALTH",
+        "watch",
+      ),
       writerRow("2026-06-04T04:00:00.000Z", "REM", 80, "APPLE_HEALTH", "watch"),
     ];
     const sessions = reconstructSleepSessions(rows, "Europe/Berlin");

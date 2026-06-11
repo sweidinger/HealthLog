@@ -7,8 +7,11 @@ vi.mock("@/lib/db", () => ({
 }));
 
 const hasUsableStatusProvider = vi.fn();
+const statusConsentBlocksGeneration = vi.fn();
 vi.mock("@/lib/insights/status-provider", () => ({
   hasUsableStatusProvider: (...a: unknown[]) => hasUsableStatusProvider(...a),
+  statusConsentBlocksGeneration: (...a: unknown[]) =>
+    statusConsentBlocksGeneration(...a),
 }));
 
 const enqueueStatusGeneration = vi.fn();
@@ -184,7 +187,11 @@ describe("resolveReadOnlyStatusMiss", () => {
     // A prior (e.g. yesterday's) real assessment is on record.
     vi.mocked(prisma.auditLog.findMany).mockResolvedValue([
       cacheRow(
-        { dateKey: "2026-05-30", text: "Steady upward trend.", model: "gpt-4o-mini" },
+        {
+          dateKey: "2026-05-30",
+          text: "Steady upward trend.",
+          model: "gpt-4o-mini",
+        },
         new Date("2026-05-30T04:30:00.000Z"),
       ),
     ] as never);
@@ -247,6 +254,30 @@ describe("resolveReadOnlyStatusMiss", () => {
 
 describe("refreshUnchangedStatusInsight (v1.16.8)", () => {
   const HASH = "a".repeat(64);
+
+  beforeEach(() => {
+    // Default: consent does not block (BYOK / consented chains).
+    statusConsentBlocksGeneration.mockResolvedValue(false);
+  });
+
+  it("misses (and writes nothing) when the server-managed consent is revoked, even on a hash match", async () => {
+    statusConsentBlocksGeneration.mockResolvedValue(true);
+    const hit = await refreshUnchangedStatusInsight({
+      userId: "u1",
+      cacheAction: "insights.weight-status.en",
+      todayKey: TODAY,
+      snapshotHash: HASH,
+    });
+    expect(hit).toBeNull();
+    // The gate must not even read the cache row — a revoked consent can
+    // never re-stamp old AI text as today's assessment.
+    expect(prisma.auditLog.findFirst).not.toHaveBeenCalled();
+    expect(prisma.auditLog.create).not.toHaveBeenCalled();
+    expect(statusConsentBlocksGeneration).toHaveBeenCalledWith(
+      "u1",
+      "insights",
+    );
+  });
 
   it("re-persists the row under today's dateKey and returns the text on a hash match", async () => {
     vi.mocked(prisma.auditLog.findFirst).mockResolvedValue(

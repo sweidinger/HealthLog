@@ -128,7 +128,10 @@ describe("getDateTimeFormat", () => {
 describe("memoised consumers stay output-identical to the pre-memo helpers", () => {
   it("wallClockInTz decomposes DST-transition instants correctly", () => {
     // 2026-03-29 01:30 UTC = 03:30 CEST (the EU spring-forward morning).
-    const parts = wallClockInTz(new Date("2026-03-29T01:30:00Z"), "Europe/Berlin");
+    const parts = wallClockInTz(
+      new Date("2026-03-29T01:30:00Z"),
+      "Europe/Berlin",
+    );
     expect(parts).toEqual({
       year: 2026,
       month: 3,
@@ -181,5 +184,59 @@ describe("memoised consumers stay output-identical to the pre-memo helpers", () 
     expect(isValidTimezone("Pacific/Kiritimati")).toBe(true);
     expect(isValidTimezone("Not/AZone")).toBe(false);
     expect(isValidTimezone("")).toBe(false);
+  });
+});
+
+describe("overflow eviction", () => {
+  it("evicts only the single oldest entry on overflow, never the whole map", () => {
+    // The memo caps at 1000 entries. Fill it to the cap with real
+    // signatures (IANA zones × option shapes), then overflow by one and
+    // assert the population stays at the cap with only the OLDEST
+    // signature gone — a full reset would re-pay construction for every
+    // hot signature after one burst of unusual zones.
+    const zones = (
+      Intl as unknown as { supportedValuesOf: (k: string) => string[] }
+    ).supportedValuesOf("timeZone");
+    const shapes: Array<Omit<Intl.DateTimeFormatOptions, "timeZone">> = [
+      { hour: "2-digit" },
+      { minute: "2-digit" },
+      { second: "2-digit" },
+    ];
+
+    const CAP = 1000;
+    const inserted: Array<{
+      zone: string;
+      opts: Omit<Intl.DateTimeFormatOptions, "timeZone">;
+      formatter: Intl.DateTimeFormat;
+    }> = [];
+    outer: for (const opts of shapes) {
+      for (const zone of zones) {
+        inserted.push({
+          zone,
+          opts,
+          formatter: getDateTimeFormat("en-US", zone, opts),
+        });
+        if (inserted.length === CAP) break outer;
+      }
+    }
+    expect(__intlCacheSizeForTests()).toBe(CAP);
+
+    // One more unique signature → exactly one eviction.
+    const overflowOpts: Omit<Intl.DateTimeFormatOptions, "timeZone"> = {
+      year: "numeric",
+    };
+    getDateTimeFormat("en-US", "UTC", overflowOpts);
+    expect(__intlCacheSizeForTests()).toBe(CAP);
+
+    // The SECOND-oldest entry survived (same memoised instance)…
+    const second = inserted[1];
+    expect(getDateTimeFormat("en-US", second.zone, second.opts)).toBe(
+      second.formatter,
+    );
+    // …while the oldest was evicted and re-constructs to a NEW instance.
+    const first = inserted[0];
+    expect(getDateTimeFormat("en-US", first.zone, first.opts)).not.toBe(
+      first.formatter,
+    );
   });
 });

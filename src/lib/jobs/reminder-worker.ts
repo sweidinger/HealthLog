@@ -1146,13 +1146,20 @@ export async function startReminderWorker() {
     { localConcurrency: 1 },
     handleMedicationInventoryExpire,
   );
-  // v1.7.0 — nightly comprehensive-insight pre-generation. Single-flight
-  // so two ticks can't double-generate the same user; the per-user
-  // budget gate inside the handler also covers the race, but
-  // serialising here avoids wasted chain-resolves.
+  // v1.7.0 — nightly comprehensive-insight pre-generation.
+  //
+  // v1.16.8 — localConcurrency 2 (was 1). The queue carries BOTH the
+  // scheduled 04:30 cohort walk AND the visit-triggered per-user force
+  // warms; with a single slot a force warm enqueued during the nightly
+  // batch sat behind the entire cohort and the visiting user stared at
+  // a cold dashboard for the duration. Two slots let one force warm run
+  // alongside the batch while still bounding provider-level concurrency
+  // (the cohort walk is itself sequential per user, and the content-hash
+  // gate + per-user budget gate inside the handler cover the rare
+  // double-tick overlap the old single slot serialised away).
   await boss.work<InsightPregeneratePayload>(
     INSIGHT_PREGENERATE_QUEUE,
-    { localConcurrency: 1 },
+    { localConcurrency: 2 },
     handleInsightPregenerateJob,
   );
   // v1.10.0 — computed scores (WX-C). Nightly Recovery-score compute +

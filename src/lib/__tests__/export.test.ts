@@ -47,6 +47,40 @@ describe("toCSV", () => {
     const csv = toCSV(records);
     expect(csv).toContain("2025-01-15T12:00:00.000Z");
   });
+
+  // Spreadsheet formula injection (OWASP CSV injection): text cells
+  // starting with a formula trigger are neutralised with a leading `'`.
+  // Third-party text reaches these cells (mood notes via the moodLog
+  // webhook), so a crafted payload must open as literal text.
+  it("neutralises formula prefixes in text cells", () => {
+    const records = [
+      { note: '=HYPERLINK("http://evil","x")' },
+      { note: "+SUM(A1:A9)" },
+      { note: "-2+3+cmd|' /C calc'!A0" },
+      { note: "@SUM(A1)" },
+      { note: "\tleading tab" },
+    ];
+    const lines = toCSV(records).split("\n");
+    // RFC 4180 quoting layers on top of the neutralised prefix (the
+    // payload carries commas + quotes).
+    expect(lines[1]).toBe('"\'=HYPERLINK(""http://evil"",""x"")"');
+    expect(lines[2]).toBe("'+SUM(A1:A9)");
+    expect(lines[3]).toBe("'-2+3+cmd|' /C calc'!A0");
+    expect(lines[4]).toBe("'@SUM(A1)");
+    expect(lines[5]).toBe("'\tleading tab");
+  });
+
+  it("does not mangle numeric or boolean cells (negative numbers stay bare)", () => {
+    const records = [{ delta: -5.2, count: 3, flagged: false }];
+    const lines = toCSV(records).split("\n");
+    // The number -5.2 is typed `number`, not text — no quote prefix.
+    expect(lines[1]).toBe("-5.2,3,false");
+  });
+
+  it("leaves benign text cells untouched", () => {
+    const records = [{ note: "felt fine after the walk" }];
+    expect(toCSV(records).split("\n")[1]).toBe("felt fine after the walk");
+  });
 });
 
 describe("formatMeasurementsForExport", () => {

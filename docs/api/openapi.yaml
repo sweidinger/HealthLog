@@ -4224,11 +4224,11 @@ paths:
             maxLength: 1024
             description: Comma-separated derived-metric tokens. Each is a `<DERIVED_METRIC_ID>` or
               `<DERIVED_METRIC_ID>:<MeasurementType>` (the colon sub-targets a VITALS_BASELINE vital). An unknown id
-              422s; at most 24 tokens; duplicates collapse.
+              422s; a `type` outside the MeasurementType enum 422s; at most 24 tokens; duplicates collapse.
           required: true
           description: Comma-separated derived-metric tokens. Each is a `<DERIVED_METRIC_ID>` or
             `<DERIVED_METRIC_ID>:<MeasurementType>` (the colon sub-targets a VITALS_BASELINE vital). An unknown id 422s;
-            at most 24 tokens; duplicates collapse.
+            a `type` outside the MeasurementType enum 422s; at most 24 tokens; duplicates collapse.
       responses:
         "200":
           description: The map of derived-metric values, keyed by token.

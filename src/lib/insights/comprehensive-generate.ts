@@ -57,20 +57,17 @@ import {
   AllProvidersFailedError,
   runRawCompletionWithFallback,
 } from "@/lib/ai/provider-runner";
-import { chainRequiresServerManagedConsent, hasActiveConsentForSurface } from "@/lib/ai/consent-guard";
+import {
+  chainRequiresServerManagedConsent,
+  hasActiveConsentForSurface,
+} from "@/lib/ai/consent-guard";
 import { invalidateUserInsights } from "@/lib/cache/invalidate";
 import {
   enqueueStatusGeneration,
   type InsightStatusScope,
 } from "@/lib/jobs/insight-status-generate-shared";
-import {
-  normalizeLocale,
-  stripJsonFences,
-} from "@/lib/insights/status-shared";
-import {
-  isTimeoutStub,
-  statusCacheAction,
-} from "@/lib/insights/status-cache";
+import { normalizeLocale, stripJsonFences } from "@/lib/insights/status-shared";
+import { isTimeoutStub, statusCacheAction } from "@/lib/insights/status-cache";
 import { hashInsightSnapshot } from "@/lib/insights/snapshot-hash";
 import {
   metricIdForMeasurementType,
@@ -273,7 +270,9 @@ export type PerStatusScope = (typeof PER_STATUS_SCOPES)[number];
  * type touches it. BMI rides on WEIGHT (it is weight ÷ height²), so a
  * new weight reading invalidates both the weight and the BMI card.
  */
-function statusScopesForMeasurementType(type: MeasurementType): PerStatusScope[] {
+function statusScopesForMeasurementType(
+  type: MeasurementType,
+): PerStatusScope[] {
   switch (type) {
     case "WEIGHT":
       return ["weight", "bmi", "general"];
@@ -532,6 +531,10 @@ export async function generateComprehensiveInsight(
       insightsCachedText: true,
       insightsExcludeMetrics: true,
       insightsSnapshotHash: true,
+      // The comparison-baseline setting joins the snapshot fingerprint
+      // (see the hash construction below), so it must be readable BEFORE
+      // the gate — the comparison snapshot itself is only built after.
+      dashboardWidgetsJson: true,
     },
   });
 
@@ -611,13 +614,33 @@ export async function generateComprehensiveInsight(
   // it is the one prompt input that can change with NO data change (the
   // Coach remember action, a Settings → AI edit), and excluding it would
   // pin the briefing to the pre-edit self-context until a measurement
-  // happens to move. The comparison + plateau blocks stay out — both are
-  // derived from the same measurement rows the feature snapshot already
-  // fingerprints. Fetched once here and reused for the prompt below.
+  // happens to move. The plateau block stays out — it derives from the
+  // same measurement rows the feature snapshot already fingerprints.
+  // Fetched once here and reused for the prompt below.
+  //
+  // Two more prompt inputs that can flip with no data change join the
+  // composite (the shape MUST stay identical to the POST route's hash
+  // write in `generate/route.ts`, or every nightly force-regenerates):
+  //   - `comparisonBaseline`: the user's comparison toggle. Switching it
+  //     adds/removes the prior-period context block, so the cached text
+  //     no longer matches what the prompt would produce.
+  //   - `generationLocale`: the locale the briefing renders in. Hashing
+  //     it means a locale switch regenerates ONCE — intended, the
+  //     briefing language must follow the reader; afterwards the new
+  //     locale's hash is the stored baseline and the gate holds again.
+  //     The key is named `generationLocale` (not `locale`) on purpose:
+  //     the canonicaliser in `snapshot-hash.ts` strips `locale` keys as
+  //     volatile, which is right for the per-locale-keyed status caches
+  //     but would silently drop the field from THIS composite.
   const aboutMe = await getSelfContextTextForUser(userId, locale);
+  const comparisonBaseline: ComparisonBaseline =
+    resolveDashboardLayout(dbUser?.dashboardWidgetsJson).comparisonBaseline ??
+    "none";
   const snapshotHash = hashInsightSnapshot({
     features: compactFeatures,
     aboutMe: aboutMe ?? null,
+    comparisonBaseline,
+    generationLocale: locale,
   });
   if (
     dbUser?.insightsCachedText &&

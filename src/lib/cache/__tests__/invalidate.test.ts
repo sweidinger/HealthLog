@@ -6,11 +6,7 @@
 
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-import {
-  __resetAllCachesForTests,
-  cached,
-  caches,
-} from "../server-cache";
+import { __resetAllCachesForTests, cached, caches } from "../server-cache";
 import {
   invalidateAppSettings,
   invalidateUserDashboardWidgets,
@@ -19,6 +15,7 @@ import {
   invalidateUserMeasurements,
   invalidateUserMedications,
   invalidateUserMood,
+  invalidateUserProfile,
   dashboardSnapshotCacheKey,
 } from "../invalidate";
 
@@ -43,12 +40,20 @@ async function primeAllCaches(): Promise<void> {
   await cached(caches.medications, USER_A, async () => ({ m: 1 }));
   await cached(caches.medications, USER_B, async () => ({ m: 2 }));
 
-  await cached(caches.medicationsIntake, `${USER_A}|compliance|30`, async () => ({
-    c: 1,
-  }));
-  await cached(caches.medicationsIntake, `${USER_B}|compliance|30`, async () => ({
-    c: 2,
-  }));
+  await cached(
+    caches.medicationsIntake,
+    `${USER_A}|compliance|30`,
+    async () => ({
+      c: 1,
+    }),
+  );
+  await cached(
+    caches.medicationsIntake,
+    `${USER_B}|compliance|30`,
+    async () => ({
+      c: 2,
+    }),
+  );
 
   // v1.15.20 — per-medication compliance payload cache.
   await cached(
@@ -149,9 +154,7 @@ describe("invalidateUserMeasurements", () => {
     ).toBeNull();
 
     // User B stays warm; the non-analytics buckets evict as before.
-    expect(
-      caches.analytics.getAllowStale(`${USER_B}|default`),
-    ).not.toBeNull();
+    expect(caches.analytics.getAllowStale(`${USER_B}|default`)).not.toBeNull();
     expect(caches.achievements.get(USER_A)).toBeNull();
     expect(caches.workouts.get(`${USER_A}|3|0||`)).toBeNull();
   });
@@ -197,7 +200,9 @@ describe("invalidateUserMedications", () => {
     // covers the snapshot key.
     expect(caches.analytics.get(dashboardSnapshotCacheKey(USER_A))).toBeNull();
     expect(caches.medications.get(USER_B)).not.toBeNull();
-    expect(caches.medicationsIntake.get(`${USER_B}|compliance|30`)).not.toBeNull();
+    expect(
+      caches.medicationsIntake.get(`${USER_B}|compliance|30`),
+    ).not.toBeNull();
   });
 
   it("evicts the per-medication compliance payload for the target user only", async () => {
@@ -305,6 +310,41 @@ describe("invalidateUserInsights", () => {
     expect(
       caches.analytics.get(dashboardSnapshotCacheKey(USER_B)),
     ).not.toBeNull();
+  });
+});
+
+describe("invalidateUserProfile", () => {
+  it("hard-evicts targets + derived + analytics for the target user only", async () => {
+    await primeAllCaches();
+    await cached(caches.insightsTargets, USER_A, async () => ({ t: 1 }));
+    await cached(caches.insightsTargets, USER_B, async () => ({ t: 2 }));
+    await cached(caches.insightsDerived, `${USER_A}|batch|x|en`, async () => ({
+      d: 1,
+    }));
+    await cached(caches.insightsDerived, `${USER_B}|batch|x|en`, async () => ({
+      d: 2,
+    }));
+
+    invalidateUserProfile(USER_A);
+
+    // Profile-derived payloads drop — including the SWR stale window
+    // (a Settings save is interactive; the pre-edit grid must not serve).
+    expect(caches.insightsTargets.getAllowStale(USER_A)).toBeNull();
+    expect(
+      caches.insightsDerived.getAllowStale(`${USER_A}|batch|x|en`),
+    ).toBeNull();
+    expect(
+      caches.analytics.getAllowStale(dashboardSnapshotCacheKey(USER_A)),
+    ).toBeNull();
+    expect(caches.analytics.getAllowStale(`${USER_A}|default`)).toBeNull();
+
+    // The other user's cells stay warm.
+    expect(caches.insightsTargets.get(USER_B)).not.toBeNull();
+    expect(caches.insightsDerived.get(`${USER_B}|batch|x|en`)).not.toBeNull();
+    expect(caches.analytics.get(`${USER_B}|default`)).not.toBeNull();
+
+    // Buckets a profile edit does not feed stay untouched.
+    expect(caches.medications.get(USER_A)).not.toBeNull();
   });
 });
 

@@ -27,6 +27,8 @@ vi.mock("@/lib/db", () => ({
 
 vi.mock("@/lib/insights/status-provider", () => ({
   runStatusCompletion: vi.fn(),
+  // Consent never blocks in these fixtures — the gate has its own tests.
+  statusConsentBlocksGeneration: vi.fn(async () => false),
 }));
 
 vi.mock("@/lib/insights/memory", () => ({

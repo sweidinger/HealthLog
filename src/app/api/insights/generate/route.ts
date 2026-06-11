@@ -723,14 +723,22 @@ export const POST = apiHandler(async (request: NextRequest) => {
       // provider call. The user-initiated POST itself stays un-gated: an
       // explicit regenerate request is honoured even on unchanged data
       // (it is already bounded by the hourly rate limit above). The
-      // about-me text joins the fingerprint — it feeds the prompt and can
-      // change with no data change (Coach remember, Settings → AI edit) —
-      // and the shape MUST match the gate in `comprehensive-generate.ts`,
+      // composite shape MUST match the gate in `comprehensive-generate.ts`,
       // or every off-request warm after a manual regenerate re-pays a
-      // full generation on unchanged data.
+      // full generation on unchanged data. Beyond the features, three
+      // prompt inputs that can change with NO data change join in:
+      //   - aboutMe (Coach remember / Settings → AI edit),
+      //   - comparisonBaseline (the comparison toggle adds/removes the
+      //     prior-period context block; `null` snapshot means "none"),
+      //   - generationLocale (the language the cached text renders in —
+      //     hashing it makes a locale switch regenerate exactly once, so
+      //     the briefing follows the reader; named `generationLocale`
+      //     because the canonicaliser strips `locale` keys as volatile).
       insightsSnapshotHash: hashInsightSnapshot({
         features: compactFeatures,
         aboutMe: aboutMe ?? null,
+        comparisonBaseline: comparisonSnapshot?.baseline ?? "none",
+        generationLocale: locale,
       }),
     },
   });
