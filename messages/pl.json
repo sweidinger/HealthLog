@@ -1667,7 +1667,6 @@
   "charts": {
     "loadingLabel": "Ładowanie wykresu…",
     "loadingSlowHint": "Obliczanie analiz — to może chwilę potrwać.",
-    "adjustTargets": "Dostosuj wartości docelowe",
     "weight": "Waga",
     "bloodPressure": "Ciśnienie tętnicze",
     "pulse": "Tętno",
@@ -2036,6 +2035,7 @@
       "thinking": "Myślę…",
       "composerPlaceholder": "Zapytaj o swoje dane…",
       "nudgeBubbleLabel": "Nowa wiadomość od trenera — otwórz czat",
+      "fabLabel": "Otwórz trenera",
       "selfContextAdopt": {
         "offer": "Dodać tę odpowiedź do Twoich informacji o sobie?",
         "confirm": "Dodaj",

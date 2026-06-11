@@ -1667,7 +1667,6 @@
   "charts": {
     "loadingLabel": "Cargando la gráfica…",
     "loadingSlowHint": "Calculando los análisis — puede tardar un momento.",
-    "adjustTargets": "Ajustar objetivos",
     "weight": "Peso",
     "bloodPressure": "Tensión arterial",
     "pulse": "Pulso",
@@ -2036,6 +2035,7 @@
       "thinking": "Pensando…",
       "composerPlaceholder": "Pregúntame sobre tus datos…",
       "nudgeBubbleLabel": "Nuevo mensaje del coach — abrir el chat",
+      "fabLabel": "Abrir el coach",
       "selfContextAdopt": {
         "offer": "¿Añadir esta respuesta a tu información personal?",
         "confirm": "Añadir",

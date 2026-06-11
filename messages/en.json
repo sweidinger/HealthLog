@@ -1667,7 +1667,6 @@
   "charts": {
     "loadingLabel": "Loading chart…",
     "loadingSlowHint": "Computing analytics — this can take a moment.",
-    "adjustTargets": "Adjust targets",
     "weight": "Weight",
     "bloodPressure": "Blood Pressure",
     "pulse": "Pulse",
@@ -2036,6 +2035,7 @@
       "thinking": "Thinking…",
       "composerPlaceholder": "Ask anything about your data…",
       "nudgeBubbleLabel": "New message from the Coach — open chat",
+      "fabLabel": "Open the Coach",
       "selfContextAdopt": {
         "offer": "Add this answer to your self-context?",
         "confirm": "Add",

@@ -17,21 +17,23 @@ import { useChartTooltipActive } from "./use-chart-tooltip-active";
 import { apiGet } from "@/lib/api/api-fetch";
 
 /**
- * v1.16.1 — the layout FAB is no longer a permanent launcher. It now
- * renders ONLY while an unseen Coach-initiated nudge exists (the
- * proactive `COACH_NUDGE` dispatch, surfaced by
- * `/api/insights/coach/nudge-status`): a floating circle at the bottom
- * right that opens the full-page Coach chat. It disappears once the
- * nudge counts as read — the user sent a Coach message after the
+ * v1.16.8 — the Coach FAB is a permanent launcher again, now on EVERY
+ * authenticated page (mounted once in `<AuthShell>`, no longer scoped
+ * to `/insights/**`). The v1.16.1 nudge-only bubble folded into it: the
+ * FAB always renders, and an unseen proactive `COACH_NUDGE` (surfaced
+ * by `/api/insights/coach/nudge-status`) paints a small unread dot on
+ * its corner instead of toggling the whole button. The dot clears once
+ * the nudge counts as read — the user sent a Coach message after the
  * nudge (server-derived), or opened the Coach on this device (local
  * seen stamp keyed by the nudge timestamp).
  *
- * The previous always-on mobile FAB drew attention to nothing; the
- * inline "Ask Coach" pill in each page's action row stays the everyday
- * entry point.
+ * The FAB hides inside the Coach view itself (`/insights/coach`) — a
+ * launcher pointing at the page the user is already on is noise.
  *
- * v1.4.33 (F15) — the bubble keeps the chart-tooltip auto-hide so it
- * never overlays a Recharts tooltip on the lower right.
+ * v1.4.33 (F15) — keeps the chart-tooltip auto-hide so it never
+ * overlays a Recharts tooltip on the lower right; it also yields while
+ * a data-list selection bar is mounted (CSS `:has()` gate) so it never
+ * covers the bar's delete action.
  */
 
 const NUDGE_SEEN_STORAGE_KEY = "healthlog-coach-nudge-seen";
@@ -83,7 +85,7 @@ export function LayoutCoachFab() {
     queryFn: async (): Promise<CoachNudgeStatus> => {
       return apiGet<CoachNudgeStatus>("/api/insights/coach/nudge-status");
     },
-    enabled: coachAvailable,
+    enabled: coachAvailable && !onCoachPage,
     staleTime: 5 * 60 * 1000,
   });
 
@@ -91,21 +93,24 @@ export function LayoutCoachFab() {
   const unread = isNudgeUnread(status, seenStamp);
 
   // Visiting the Coach page itself counts as reading the nudge on this
-  // device — persist the stamp so the bubble stays gone after leaving.
+  // device — persist the stamp so the dot stays gone after leaving.
   useEffect(() => {
     if (!onCoachPage || nudgedAt === null) return;
     try {
       window.localStorage.setItem(NUDGE_SEEN_STORAGE_KEY, nudgedAt);
     } catch {
       // Storage unavailable (private mode) — the server-side read
-      // signal still clears the bubble once the user sends a message.
+      // signal still clears the dot once the user sends a message.
     }
   }, [onCoachPage, nudgedAt]);
 
   if (!coachAvailable) return null;
-  if (onCoachPage || !unread) return null;
+  // The Coach chat page IS the destination — no launcher on top of it.
+  if (onCoachPage) return null;
 
-  const accessibleLabel = t("insights.coach.nudgeBubbleLabel");
+  const accessibleLabel = unread
+    ? t("insights.coach.nudgeBubbleLabel")
+    : t("insights.coach.fabLabel");
 
   const handleOpen = () => {
     if (nudgedAt !== null) {
@@ -123,7 +128,8 @@ export function LayoutCoachFab() {
     <Button
       type="button"
       size="icon"
-      data-slot="coach-nudge-bubble"
+      data-slot="coach-fab"
+      data-unread={unread ? "true" : undefined}
       data-chart-tooltip-active={tooltipActive ? "true" : undefined}
       onClick={handleOpen}
       aria-label={accessibleLabel}
@@ -139,10 +145,22 @@ export function LayoutCoachFab() {
         "hover:from-dracula-purple/90 hover:to-dracula-pink/90",
         // Fade out while a Recharts tooltip is open (see header note).
         "transition-opacity duration-150 motion-reduce:transition-none",
+        // Yield to the data-list selection bar: its delete action lands
+        // in the same lower-right band, and the destructive control
+        // wins. The `:has()` gate keys off the bar's `data-slot`.
+        "[body:has([data-slot=selection-action-bar])_&]:pointer-events-none",
+        "[body:has([data-slot=selection-action-bar])_&]:opacity-0",
         tooltipActive && "pointer-events-none opacity-0",
       )}
     >
       <Sparkles className="size-5" aria-hidden="true" />
+      {unread ? (
+        <span
+          data-slot="coach-fab-unread"
+          aria-hidden="true"
+          className="border-background bg-dracula-red absolute top-0.5 right-0.5 size-3 rounded-full border-2"
+        />
+      ) : null}
     </Button>
   );
 }

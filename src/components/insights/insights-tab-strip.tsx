@@ -626,7 +626,16 @@ function InsightsTabStripImpl({
         <div
           ref={scrollerRef}
           onScroll={updateScrollAffordance}
-          className="flex min-w-0 flex-1 [scrollbar-width:none] gap-2 overflow-x-auto [&::-webkit-scrollbar]:hidden"
+          data-slot="insights-tab-strip-scroller"
+          // `overflow-x-auto` clips vertically too (overflow-y computes
+          // to auto, and the row never scrolls vertically), so a pill
+          // border sitting exactly on the content-box edge lost its
+          // bottom 1 px at fractional zoom levels — and the 2 px focus
+          // ring (+2 px offset) was cut on every side. `py-1` keeps
+          // 4 px of paint room inside the clip box; the matching `-my-1`
+          // gives that room back to the layout so the strip height is
+          // unchanged.
+          className="-my-1 flex min-w-0 flex-1 [scrollbar-width:none] gap-2 overflow-x-auto py-1 [&::-webkit-scrollbar]:hidden"
         >
           {tabs.map((tab) => {
             if (tab.kind === "link") {

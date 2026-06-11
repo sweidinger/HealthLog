@@ -46,17 +46,24 @@ describe("v1.4.34 IW-B — CoachLaunchProvider hoist", () => {
     expect(source).toContain("<LayoutCoachMount />");
   });
 
-  it("no longer mounts the provider in the routed insights layout", () => {
+  it("mounts the LayoutCoachFab inside the auth-shell so the launcher exists on every authenticated route (v1.16.8)", () => {
+    const source = readFileSync(AUTH_SHELL_PATH, "utf8");
+    expect(source).toContain("<LayoutCoachFab />");
+  });
+
+  it("no longer mounts any Coach surface in the routed insights layout", () => {
     const source = readFileSync(INSIGHTS_LAYOUT_PATH, "utf8");
-    // The provider import drops; the FAB import stays because the FAB
-    // is still scoped to `/insights/**` only.
+    // The provider import drops; the drawer mount lives on the shell.
     expect(source).not.toContain(
       'from "@/lib/insights/coach-launch-context"',
     );
-    // The drawer mount lives on the shell now — verify the routed
-    // layout doesn't double-mount it.
     expect(source).not.toContain("import { LayoutCoachMount }");
-    // FAB stays scoped to the routed insights surface.
-    expect(source).toContain("LayoutCoachFab");
+    // v1.16.8 — the FAB moved to the shell too; the routed layout must
+    // not double-mount it. (The docblock may still narrate the move, so
+    // pin the import + JSX, not the bare name.)
+    expect(source).not.toContain(
+      'from "@/components/insights/layout-coach-fab"',
+    );
+    expect(source).not.toContain("<LayoutCoachFab");
   });
 });

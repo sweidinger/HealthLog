@@ -5,20 +5,21 @@ import { STORAGE_STATE_PATH } from "./setup/global-setup";
 /**
  * Coach launch surfaces on `/insights/{slug}` sub-pages.
  *
- * Contracts under test (v1.16.1):
+ * Contracts under test (v1.16.8):
  *
- *   1. The floating bubble (`data-slot="coach-nudge-bubble"`) renders
- *      ONLY while an unread Coach-initiated nudge exists
- *      (`GET /api/insights/coach/nudge-status`). By default no bubble
- *      mounts on any viewport; the everyday entry point is the inline
- *      launch the sub-page shell mounts in the header
- *      (`data-slot="coach-launch-icon"`, visible across breakpoints).
+ *   1. The floating Coach FAB (`data-slot="coach-fab"`) is a permanent
+ *      launcher on every authenticated page. An unread Coach-initiated
+ *      nudge (`GET /api/insights/coach/nudge-status`) paints an unread
+ *      dot (`data-slot="coach-fab-unread"`) on its corner; with nothing
+ *      unread the FAB renders without the dot. The inline launch the
+ *      sub-page shell mounts in the header
+ *      (`data-slot="coach-launch-icon"`) stays the contextual entry.
  *
  *   2. Clicking the inline launch opens the Coach drawer — as a
  *      bottom-sheet (`data-variant="bottom-sheet"`) on `<sm`, as a
  *      right-side sheet (`data-variant="side-sheet"`) on `>=sm`.
  *
- *   3. With an unread nudge the bubble mounts and clicking it
+ *   3. With an unread nudge the FAB carries the dot and clicking it
  *      navigates to the full-page chat at `/insights/coach`.
  *
  *   4. The drawer's "Conversations" button no longer opens an in-panel
@@ -124,7 +125,7 @@ test.describe("Coach launch surfaces on insights sub-pages", () => {
   });
 
   for (const slug of ["blutdruck", "gewicht", "schlaf"] as const) {
-    test(`/insights/${slug} mounts the inline Coach launch and no bubble by default on Pixel 5`, async ({
+    test(`/insights/${slug} mounts the inline Coach launch and the dot-free FAB on Pixel 5`, async ({
       page,
     }, testInfo) => {
       test.skip(
@@ -134,18 +135,20 @@ test.describe("Coach launch surfaces on insights sub-pages", () => {
 
       await page.goto(`/insights/${slug}`, { waitUntil: "domcontentloaded" });
 
-      // The header launch icon is the everyday entry point — visible
-      // on mobile too since the layout bubble is nudge-gated.
+      // The header launch icon stays the contextual entry point.
       const icon = page.locator('[data-slot="coach-launch-icon"]').first();
       await expect(icon).toBeVisible({ timeout: 10_000 });
 
-      // No unread nudge → no floating bubble in the DOM.
+      // The FAB is a permanent launcher; with no unread nudge it
+      // renders without the unread dot.
+      const fab = page.locator('[data-slot="coach-fab"]');
+      await expect(fab).toBeVisible({ timeout: 10_000 });
       await expect(
-        page.locator('[data-slot="coach-nudge-bubble"]'),
+        page.locator('[data-slot="coach-fab-unread"]'),
       ).toHaveCount(0);
     });
 
-    test(`/insights/${slug} mounts the inline Coach launch and no bubble by default on Desktop Chrome`, async ({
+    test(`/insights/${slug} mounts the inline Coach launch and the dot-free FAB on Desktop Chrome`, async ({
       page,
     }, testInfo) => {
       test.skip(
@@ -158,8 +161,10 @@ test.describe("Coach launch surfaces on insights sub-pages", () => {
       const icon = page.locator('[data-slot="coach-launch-icon"]').first();
       await expect(icon).toBeVisible({ timeout: 10_000 });
 
+      const fab = page.locator('[data-slot="coach-fab"]');
+      await expect(fab).toBeVisible({ timeout: 10_000 });
       await expect(
-        page.locator('[data-slot="coach-nudge-bubble"]'),
+        page.locator('[data-slot="coach-fab-unread"]'),
       ).toHaveCount(0);
     });
   }
@@ -202,10 +207,10 @@ test.describe("Coach launch surfaces on insights sub-pages", () => {
     await expect(drawer).toHaveAttribute("data-variant", "side-sheet");
   });
 
-  test("an unread Coach nudge mounts the floating bubble and clicking it opens the full-page chat", async ({
+  test("an unread Coach nudge paints the FAB dot and clicking the FAB opens the full-page chat", async ({
     page,
   }) => {
-    // The bubble contract is viewport-independent — the test runs on
+    // The FAB contract is viewport-independent — the test runs on
     // both projects. Override the default nudge mock with an unread
     // one (later registration wins).
     await page.route("**/api/insights/coach/nudge-status*", (route) =>
@@ -221,9 +226,15 @@ test.describe("Coach launch surfaces on insights sub-pages", () => {
 
     await page.goto("/insights/blutdruck", { waitUntil: "domcontentloaded" });
 
-    const bubble = page.locator('[data-slot="coach-nudge-bubble"]');
-    await expect(bubble).toBeVisible({ timeout: 10_000 });
-    await bubble.click();
+    const fab = page.locator('[data-slot="coach-fab"]');
+    await expect(fab).toBeVisible({ timeout: 10_000 });
+    await expect(fab).toHaveAttribute("data-unread", "true", {
+      timeout: 10_000,
+    });
+    await expect(
+      page.locator('[data-slot="coach-fab-unread"]'),
+    ).toBeVisible();
+    await fab.click();
 
     await page.waitForURL("**/insights/coach", { timeout: 10_000 });
     await expect(
