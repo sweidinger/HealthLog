@@ -481,6 +481,49 @@ describe("<MessageThread>", () => {
     expect(userIdx).toBeLessThan(assistantIdx);
   });
 
+  // v1.16.8 — the remember control under persisted user bubbles.
+  it("renders the remember control under a persisted user message", () => {
+    const html = render(<MessageThread conversation={baseConversation} />);
+    expect(html).toContain('data-slot="coach-remember-message"');
+    expect(html).toContain("Remember");
+  });
+
+  it("localises the remember control under 'de'", () => {
+    const html = render(<MessageThread conversation={baseConversation} />, "de");
+    expect(html).toContain('data-slot="coach-remember-message"');
+    expect(html).toContain("Merken");
+  });
+
+  it("omits the remember control on an optimistic user bubble (no id yet)", () => {
+    const html = render(
+      <MessageThread
+        conversation={null}
+        optimisticUser={{
+          localId: "local-1",
+          content: "Ich habe eine Erdnussallergie",
+          conversationId: null,
+        }}
+      />,
+    );
+    expect(html).toContain('data-slot="coach-bubble-user"');
+    expect(html).not.toContain('data-slot="coach-remember-message"');
+  });
+
+  it("omits the remember control when the message exceeds the field cap", () => {
+    const long = {
+      ...baseConversation,
+      messages: [
+        {
+          ...baseConversation.messages[0],
+          content: "x".repeat(501),
+        },
+      ],
+    };
+    const html = render(<MessageThread conversation={long} />);
+    expect(html).toContain('data-slot="coach-bubble-user"');
+    expect(html).not.toContain('data-slot="coach-remember-message"');
+  });
+
   // v1.4.25 W5 — distinct daily-limit vs provider-rate-limit copy.
   it("surfaces the daily-limit copy for coach.budget.exceeded", () => {
     const html = render(

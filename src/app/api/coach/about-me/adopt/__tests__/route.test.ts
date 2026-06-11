@@ -63,7 +63,7 @@ import { getSelfContextForUser } from "@/lib/ai/coach/about-me";
 const transaction = prisma.$transaction as ReturnType<typeof vi.fn>;
 const getCtx = getSelfContextForUser as ReturnType<typeof vi.fn>;
 
-function adoptRequest(body: { question: string; answer: string }): Request {
+function adoptRequest(body: { question?: string; answer: string }): Request {
   return new Request("http://localhost/api/coach/about-me/adopt", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -141,6 +141,39 @@ describe("POST /api/coach/about-me/adopt", () => {
     expect(Buffer.from(data.allergiesEncrypted).toString()).toBe(
       "pollen\npenicillin",
     );
+  });
+
+  // v1.16.8 — the remember action on a chat message sends only the
+  // message text; the target field is matched from the text itself.
+  it("matches the field from the answer text when no question is sent", async () => {
+    getCtx.mockResolvedValue(emptyCtx);
+
+    const res = await post(
+      adoptRequest({ answer: "Ich habe eine Erdnussallergie" }),
+    );
+
+    expect(res.status).toBe(200);
+    expect(res.data).toEqual({ adopted: true, field: "allergies" });
+    const data = tx.userHealthProfile.update.mock.calls[0][0].data;
+    expect(Object.keys(data)).toEqual(["allergiesEncrypted"]);
+  });
+
+  it("lands a question-less answer without keywords on coachFocus", async () => {
+    getCtx.mockResolvedValue(emptyCtx);
+
+    const res = await post(
+      adoptRequest({ answer: "Ich gehe abends gern spazieren" }),
+    );
+
+    expect(res.data).toEqual({ adopted: true, field: "coachFocus" });
+    const data = tx.userHealthProfile.update.mock.calls[0][0].data;
+    expect(Object.keys(data)).toEqual(["coachFocusEncrypted"]);
+  });
+
+  it("still 422s on an empty answer regardless of the question", async () => {
+    const res = await post(adoptRequest({ answer: "   " }));
+    expect(res.status).toBe(422);
+    expect(tx.userHealthProfile.update).not.toHaveBeenCalled();
   });
 
   it("422s when the overflow target aboutMe is full, still without a write", async () => {

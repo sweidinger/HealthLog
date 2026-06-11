@@ -13,6 +13,10 @@
  *   - The target field is picked from the QUESTION wording (allergy /
  *     condition keywords across the six UI locales; everything else
  *     lands on `coachFocus`, the "what the Coach should know" slot).
+ *     v1.16.8 — the question is optional: the remember action on a
+ *     chat message sends only the message text, and the field is then
+ *     matched from that text ("ich habe eine Erdnussallergie" lands on
+ *     `allergies` directly).
  *   - Dedupe: an answer already contained in the target field (or in
  *     the free-text `aboutMe`) is a no-op (`adopted: false`) — tapping
  *     the offer twice or re-answering the same chip cannot stack
@@ -49,11 +53,12 @@ const POST_WINDOW_MS = 60_000;
 type StructuredField = "conditions" | "allergies" | "coachFocus";
 
 /**
- * Keyword match against the question wording, covering the six UI
- * locales the question generator writes in (de / en / es / fr / it /
- * pl). Stems, not words, so inflections match. Anything that is not
- * clearly an allergy or condition question lands on `coachFocus` — the
- * generic "worth knowing for the Coach" slot.
+ * Keyword match against the question wording — or, for the
+ * message-remember path, against the message text itself — covering
+ * the six UI locales the question generator writes in (de / en / es /
+ * fr / it / pl). Stems, not words, so inflections match. Anything that
+ * is not clearly an allergy or condition statement lands on
+ * `coachFocus` — the generic "worth knowing for the Coach" slot.
  */
 function matchSelfContextField(question: string): StructuredField {
   const q = question.toLowerCase();
@@ -114,6 +119,11 @@ export const POST = apiHandler(async (req: Request) => {
 
   const { question, answer } = parsed.data;
   const normAnswer = normalise(answer);
+  // Question-led adoptions (guided dialog) match the field from the
+  // question wording; the message-remember path matches from the
+  // message text itself.
+  const matchSource = question ?? answer;
+  const adoptionSource = question ? "question" : "message";
 
   // Read-modify-write under a row lock: two concurrent adoptions used
   // to read the same base value and one append silently lost (or the
@@ -134,7 +144,7 @@ export const POST = apiHandler(async (req: Request) => {
     `;
     const ctx = await getSelfContextForUser(user.id, tx);
 
-    let field: StructuredField | "aboutMe" = matchSelfContextField(question);
+    let field: StructuredField | "aboutMe" = matchSelfContextField(matchSource);
 
     // Dedupe BEFORE any write: an answer already present in the target
     // field or in the free-text aboutMe never stacks a second copy.
@@ -181,7 +191,7 @@ export const POST = apiHandler(async (req: Request) => {
   if (outcome.kind === "duplicate") {
     annotate({
       action: { name: "coach.about_me.adopt_deduped" },
-      meta: { field },
+      meta: { field, source: adoptionSource },
     });
     return apiSuccess({ adopted: false, field, reason: "duplicate" });
   }
@@ -192,12 +202,12 @@ export const POST = apiHandler(async (req: Request) => {
   await auditLog("coach.about_me.adopted", {
     userId: user.id,
     ipAddress: getClientIp(req),
-    details: { field, answerLength: answer.length },
+    details: { field, answerLength: answer.length, source: adoptionSource },
   });
 
   annotate({
     action: { name: "coach.about_me.adopted" },
-    meta: { field, answer_length: answer.length },
+    meta: { field, answer_length: answer.length, source: adoptionSource },
   });
 
   return apiSuccess({ adopted: true, field });
