@@ -87,6 +87,16 @@ export function invalidateUserMeasurements(
   // `/api/insights/targets` computes. Evict the user's bucket so the
   // next mount paints fresh data.
   caches.insightsTargets.deleteByPrefix(userId);
+  // v1.16.8 — the batched derived-wellness payload computes over the
+  // same measurement rollups. Same split as the analytics bucket:
+  // interactive writes evict (the user's own entry must reflect on the
+  // next read), background syncs mark stale so the SWR reader serves
+  // the prior grid while one recompute warms it.
+  if (opts?.evict) {
+    caches.insightsDerived.deleteByPrefix(`${userId}|`);
+  } else {
+    caches.insightsDerived.markStaleByPrefix(`${userId}|`);
+  }
 }
 
 /**
@@ -111,29 +121,88 @@ export function invalidateUserMood(userId: string): void {
   // the prior aggregate (within the SWR window) while a single
   // background recompute warms a fresh one.
   caches.moodInsights.markStaleByPrefix(userId);
+  // v1.16.8 — READINESS folds the mood series into the derived batch,
+  // so a mood write dirties the cached grid. Mark stale (not evict):
+  // the wellness strip is a glanceable aggregate, and the background
+  // recompute lands the new entry within one read cycle.
+  caches.insightsDerived.markStaleByPrefix(`${userId}|`);
 }
 
 /**
  * Invalidate every cache that may reflect a user's medication state.
  *
  * Covers the medications cache, the medication-intake compliance cache
- * (cached daily), and achievement progress.
+ * (cached daily), the per-medication compliance payload, and achievement
+ * progress.
+ *
+ * v1.16.8 — `evict` splits the SWR buckets (medications, the
+ * per-medication compliance payload, analytics) by write origin, the
+ * `invalidateUserMeasurements` pattern. Interactive writes (a card take /
+ * skip, a CRUD edit, an intake edit / delete / purge / import, AND the
+ * iOS bulk-intake endpoint — it carries the phone user's own doses) pass
+ * `{ evict: true }`: the user must see their own action on the very next
+ * read, and a stale-serveable entry would hand back the pre-write body.
+ * Background paths (the auto-miss cron, slot dedup) keep the default
+ * mark-stale so a high-frequency pass never busts the buckets into
+ * inline cold-rebuild storms — the `cachedSwr` readers serve the prior
+ * payload while one coalesced recompute warms each cell.
  */
-export function invalidateUserMedications(userId: string): void {
-  caches.medications.deleteByPrefix(userId);
+export function invalidateUserMedications(
+  userId: string,
+  opts?: { evict?: boolean },
+): void {
+  if (opts?.evict) {
+    caches.medications.deleteByPrefix(userId);
+    // v1.15.20 — the per-medication compliance payload is cached 15 min;
+    // an interactive intake / medication / schedule write must flush it
+    // so the card rates and the heatmap reflect the action on the next
+    // read.
+    caches.medicationCompliance.deleteByPrefix(`${userId}|`);
+    // v1.4.38 W-F — `/api/dashboard/summary` lives under the analytics
+    // cache and reads `medicationIntakeEvent` for both today's compliance
+    // tally and the 365-day streak feed. A taken / skipped event must
+    // evict the user-bucket so the next iOS poll reflects the change.
+    caches.analytics.deleteByPrefix(`${userId}|`);
+  } else {
+    // Mark-stale collapses the fresh TTL to "now": the SWR readers (the
+    // medications list, both compliance routes, the dashboard snapshot)
+    // serve the prior value while a single background recompute warms a
+    // fresh one; the plain `cached` readers in the analytics bucket see
+    // a clean miss — identical to the old evict for those keys.
+    caches.medications.markStaleByPrefix(userId);
+    caches.medicationCompliance.markStaleByPrefix(`${userId}|`);
+    caches.analytics.markStaleByPrefix(`${userId}|`);
+  }
   caches.medicationsIntake.deleteByPrefix(`${userId}|`);
-  // v1.15.20 — the per-medication compliance payload is cached 15 min;
-  // every intake / medication / schedule write must flush it so the card
-  // rates and the heatmap reflect the action on the next read.
-  caches.medicationCompliance.deleteByPrefix(`${userId}|`);
   caches.achievements.deleteByPrefix(userId);
   // v1.4.36 W1 — medication writes change the MEDICATION_COMPLIANCE
   // target rollup (compliance7 / compliance30 / consistency strip).
   caches.insightsTargets.deleteByPrefix(userId);
-  // v1.4.38 W-F — `/api/dashboard/summary` lives under the analytics
-  // cache and reads `medicationIntakeEvent` for both today's compliance
-  // tally and the 365-day streak feed. A taken / skipped event must
-  // evict the user-bucket so the next iOS poll reflects the change.
+}
+
+/**
+ * v1.16.8 — invalidate every cache whose payload derives from the user's
+ * PROFILE-level settings rather than from measurement / mood / medication
+ * rows. The measurement-write invalidators never fire on a settings save,
+ * so before this helper a height / birth-date / gender edit, a threshold
+ * override, or a source-priority reorder kept serving the pre-edit
+ * targets grid (BMI band, BP-by-age range, glucose effective ranges),
+ * derived scores (baseline profile: age / sex / height), and analytics
+ * snapshot until the TTL lapsed.
+ *
+ * Hard-evict on every bucket: these are interactive Settings writes, and
+ * a marked-stale SWR cell would hand the user back the pre-edit payload
+ * on the very next read.
+ *
+ * Callers: `/api/user/thresholds` PUT + DELETE, `applyProfileUpdate`
+ * (only when heightCm / dateOfBirth / gender is in the update set), and
+ * `/api/auth/me/source-priority` PUT. The unit-preference toggle is NOT
+ * wired in: it only drives the client-side display transform, no
+ * server-cached payload reads it.
+ */
+export function invalidateUserProfile(userId: string): void {
+  caches.insightsTargets.deleteByPrefix(userId);
+  caches.insightsDerived.deleteByPrefix(`${userId}|`);
   caches.analytics.deleteByPrefix(`${userId}|`);
 }
 

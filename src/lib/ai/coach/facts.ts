@@ -405,63 +405,125 @@ interface DeterministicPattern {
   kind: "allergy" | "intolerance" | "diagnosis";
 }
 
+/**
+ * v1.16.8 — closed filler-word tolerance. The original patterns
+ * required the compound to follow "ich habe" immediately (modulo the
+ * article), so a single conversational adverb — "ich habe übrigens
+ * eine Erdnussallergie", "ich habe seit Jahren eine Pollenallergie" —
+ * defeated the always-remember pass entirely. The filler list is a
+ * CLOSED set of adverbs / temporal qualifiers / intensity adjectives:
+ * an open `\w+` gap would let third-party clauses through ("ich habe
+ * gehört dass seine …") and break the self-statement contract.
+ */
+const DE_FILLER =
+  "(?:übrigens|auch|noch|außerdem|zudem|leider|schon|immer|seit|jahren|jahrzehnten|kindheit|geburt|kurzem|langem|der|eine?|'?ne|starke|leichte|schwere|ausgeprägte|diagnostizierte)";
+const EN_FILLER =
+  "(?:also|still|actually|unfortunately|always|btw|a|an|severe|mild|bad|slight|known|diagnosed)";
+
 const DETERMINISTIC_PATTERNS: DeterministicPattern[] = [
   // German — allergies.
   {
-    // "ich habe eine Erdnussallergie" / "ich hab 'ne Erdnuss-Allergie".
-    // The capture must be compounded onto "-allergie" (no space) so the
-    // article in "eine Allergie gegen X" can never be captured — that
-    // phrasing belongs to the next pattern.
-    re: /\bich\s+hab(?:e)?\s+(?:eine?\s+|'?ne\s+)?([a-zäöüß][\wäöüß-]*?)-?allergie\b/i,
+    // "ich habe (übrigens / seit Jahren / …) eine Erdnussallergie" /
+    // "ich hab 'ne Erdnuss-Allergie". The capture must be compounded
+    // onto "-allergie" (no space) so the article in "eine Allergie
+    // gegen X" can never be captured — that phrasing belongs to the
+    // next pattern. Intervening words come only from the closed filler
+    // list above.
+    re: new RegExp(
+      `\\bich\\s+hab(?:e)?\\s+(?:${DE_FILLER}\\s+){0,5}([a-zäöüß][\\wäöüß-]*?)-?allergie\\b`,
+      "i",
+    ),
     kind: "allergy",
   },
   {
-    // "ich habe eine Allergie gegen Erdnüsse" / "ich bin allergisch gegen/auf Erdnüsse"
-    re: /\bich\s+(?:hab(?:e)?\s+(?:eine?\s+)?allergie\s+(?:gegen|auf)|bin\s+allergisch\s+(?:gegen|auf))\s+([a-zäöüß][\wäöüß -]{1,40}?)(?=[.,;!?]|$)/im,
+    // "ich habe (auch / noch / …) eine Allergie gegen Erdnüsse" /
+    // "ich bin (leider / auch / …) allergisch gegen/auf Erdnüsse"
+    re: new RegExp(
+      `\\bich\\s+(?:hab(?:e)?\\s+(?:${DE_FILLER}\\s+){0,5}allergie\\s+(?:gegen|auf)|bin\\s+(?:${DE_FILLER}\\s+){0,3}allergisch\\s+(?:gegen|auf))\\s+([a-zäöüß][\\wäöüß -]{1,40}?)(?=[.,;!?]|$)`,
+      "im",
+    ),
+    kind: "allergy",
+  },
+  {
+    // First-person possessive: "meine Erdnussallergie", "wegen meiner
+    // Pollenallergie". A third-party owner ("die Allergie meiner
+    // Schwester") never matches — the captured word must itself end in
+    // "-allergie" right after the possessive.
+    re: /\bmein(?:e|er)?\s+([a-zäöüß][\wäöüß-]*?)-?allergie\b/i,
     kind: "allergy",
   },
   // German — intolerances.
   {
     // "ich habe eine Laktoseunverträglichkeit / Laktose-Intoleranz".
     // Compound-only capture, same rationale as the allergy pattern.
-    re: /\bich\s+hab(?:e)?\s+(?:eine?\s+)?([a-zäöüß][\wäöüß-]*?)-?(?:unverträglichkeit|intoleranz)\b/i,
+    re: new RegExp(
+      `\\bich\\s+hab(?:e)?\\s+(?:${DE_FILLER}\\s+){0,5}([a-zäöüß][\\wäöüß-]*?)-?(?:unverträglichkeit|intoleranz)\\b`,
+      "i",
+    ),
     kind: "intolerance",
   },
   {
-    // "ich bin laktoseintolerant"
-    re: /\bich\s+bin\s+([a-zäöüß][\wäöüß-]*?)[-\s]?intolerant\b/i,
+    // "ich bin (übrigens / leider) laktoseintolerant"
+    re: new RegExp(
+      `\\bich\\s+bin\\s+(?:${DE_FILLER}\\s+){0,3}([a-zäöüß][\\wäöüß-]*?)[-\\s]?intolerant\\b`,
+      "i",
+    ),
+    kind: "intolerance",
+  },
+  {
+    // "meine Laktoseintoleranz" / "wegen meiner Histaminunverträglichkeit"
+    re: /\bmein(?:e|er)?\s+([a-zäöüß][\wäöüß-]*?)-?(?:unverträglichkeit|intoleranz)\b/i,
     kind: "intolerance",
   },
   // German — explicit self-reported diagnosis.
   {
-    // "bei mir wurde Asthma diagnostiziert"
-    re: /\bbei\s+mir\s+wurde\s+([a-zäöüß][\wäöüß -]{1,40}?)\s+diagnostiziert\b/i,
+    // "bei mir wurde (kürzlich / übrigens) Asthma diagnostiziert"
+    re: /\bbei\s+mir\s+wurde\s+(?:übrigens\s+|kürzlich\s+|gerade\s+|neulich\s+|letztes\s+jahr\s+)?([a-zäöüß][\wäöüß -]{1,40}?)\s+diagnostiziert\b/i,
     kind: "diagnosis",
   },
   // English — allergies.
   {
-    // "I'm allergic to peanuts"
-    re: /\bI(?:'m|\s+am)\s+allergic\s+to\s+([a-z][\w -]{1,40}?)(?=[.,;!?]|$)/im,
+    // "I'm (also / severely) allergic to peanuts"
+    re: new RegExp(
+      `\\bI(?:'m|\\s+am)\\s+(?:(?:also|really|severely|very|quite|unfortunately|actually|still)\\s+){0,2}allergic\\s+to\\s+([a-z][\\w -]{1,40}?)(?=[.,;!?]|$)`,
+      "im",
+    ),
     kind: "allergy",
   },
   {
-    // "I have a peanut allergy"
-    re: /\bI\s+have\s+an?\s+([a-z][\w-]*)\s+allergy\b/i,
+    // "I (also) have a (severe) peanut allergy"
+    re: new RegExp(
+      `\\bI\\s+(?:also\\s+|still\\s+|actually\\s+)?have\\s+(?:${EN_FILLER}\\s+){0,3}([a-z][\\w-]*)\\s+allergy\\b`,
+      "i",
+    ),
+    kind: "allergy",
+  },
+  {
+    // "my peanut allergy"
+    re: /\bmy\s+([a-z][\w-]*)\s+allergy\b/i,
     kind: "allergy",
   },
   // English — intolerances.
   {
     // "I have a lactose intolerance" / "I'm lactose intolerant"
-    re: /\bI\s+have\s+an?\s+([a-z][\w-]*)\s+intolerance\b/i,
+    re: new RegExp(
+      `\\bI\\s+(?:also\\s+|still\\s+|actually\\s+)?have\\s+(?:${EN_FILLER}\\s+){0,3}([a-z][\\w-]*)\\s+intolerance\\b`,
+      "i",
+    ),
     kind: "intolerance",
   },
   {
-    re: /\bI(?:'m|\s+am)\s+([a-z][\w-]*)[-\s]intolerant\b/i,
+    re: /\bI(?:'m|\s+am)\s+(?:(?:also|really|severely|very|quite|unfortunately|actually|still)\s+){0,2}([a-z][\w-]*)[-\s]intolerant\b/i,
+    kind: "intolerance",
+  },
+  {
+    // "my lactose intolerance"
+    re: /\bmy\s+([a-z][\w-]*)\s+intolerance\b/i,
     kind: "intolerance",
   },
   // English — explicit self-reported diagnosis.
   {
-    re: /\bI\s+(?:was|got)\s+diagnosed\s+with\s+([a-z][\w -]{1,40}?)(?=[.,;!?]|$)/im,
+    re: /\bI\s+(?:was|got)\s+(?:recently\s+|just\s+)?diagnosed\s+with\s+([a-z][\w -]{1,40}?)(?=[.,;!?]|$)/im,
     kind: "diagnosis",
   },
 ];

@@ -13,13 +13,17 @@
  *
  * Bearer-auth + cookie-auth both work via the shared `requireAuth()`
  * helper. The analytics aggregator reads this row on every call and
- * the read path is cheap (one column) — no caching layer to flush.
+ * the read path is cheap (one column). The PUT flushes the per-user
+ * profile-derived caches (`invalidateUserProfile`) because the ladder
+ * decides which source's rows the cached targets / derived / analytics
+ * payloads were built from.
  */
 import { apiHandler, requireAuth, HttpError } from "@/lib/api-handler";
 import { apiSuccess, getClientIp } from "@/lib/api-response";
 import { annotate } from "@/lib/logging/context";
 import { auditLog } from "@/lib/auth/audit";
 import { prisma } from "@/lib/db";
+import { invalidateUserProfile } from "@/lib/cache/invalidate";
 import {
   parseSourcePriority,
   sourcePrioritySchema,
@@ -76,6 +80,12 @@ export const PUT = apiHandler(async (req: Request) => {
     where: { id: user.id },
     data: { sourcePriorityJson: parsed.data },
   });
+
+  // The priority ladder drives every aggregator's source pick (the
+  // analytics rank SQL, the rollup read-swap, the targets grid's sleep
+  // dedup) — drop the cached payloads so the reorder reflects on the
+  // next read instead of after the TTL.
+  invalidateUserProfile(user.id);
 
   await auditLog("user.source-priority.update", {
     userId: user.id,

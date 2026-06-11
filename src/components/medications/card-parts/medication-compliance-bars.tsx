@@ -1,4 +1,4 @@
-import { Flame } from "lucide-react";
+import { Flame, RotateCw } from "lucide-react";
 
 import { ComplianceInfoTip } from "@/components/medications/card-parts/compliance-info-tip";
 import { Progress } from "@/components/ui/progress";
@@ -94,10 +94,13 @@ export function MedicationComplianceBars({
         <Progress value={rate30} className="h-2" aria-label={longLabel} />
       </div>
 
-      {/* Streak flame — only mounted when there's a streak so an empty
-          row doesn't leave a residual gap below the bars. */}
-      {streak > 0 && (
-        <div className="flex items-center gap-4 text-xs">
+      {/* Streak flame — the row is ALWAYS mounted at `min-h-4` so a
+          streak arriving (or expiring) never changes the card height
+          and the action row below stays on one baseline across a grid
+          row. The flame itself still gates on `streak > 0`; the
+          skeleton and error fallbacks reserve the same slot. */}
+      <div className="flex min-h-4 items-center gap-4 text-xs">
+        {streak > 0 && (
           <span className="text-warning flex items-center gap-1 font-medium">
             <Flame className="h-3.5 w-3.5" />
             {streak}{" "}
@@ -105,8 +108,8 @@ export function MedicationComplianceBars({
               ? t("medications.dayStreakOne")
               : t("medications.dayStreak")}
           </span>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }
@@ -121,9 +124,10 @@ export function MedicationComplianceBars({
  * footprint so the card body keeps a constant inventory and the action row
  * pins to the same baseline across the row.
  *
- * The streak-flame row height is intentionally NOT reserved — the flame is
- * gated on `streak > 0` on the loaded card too, so reserving it would make
- * every streak-less card taller than its own loaded self.
+ * The streak-flame slot IS reserved (`min-h-4`, matching the loaded card's
+ * always-mounted row) — the loaded card reserves it whether or not a streak
+ * exists, so the skeleton must too or a resolving card would grow by one
+ * row and shift the grid.
  */
 export function MedicationComplianceSkeleton() {
   return (
@@ -142,6 +146,51 @@ export function MedicationComplianceSkeleton() {
         </div>
         <div className="bg-muted h-2 rounded" />
       </div>
+      <div className="min-h-4" />
+    </div>
+  );
+}
+
+/**
+ * Quiet error fallback for the compliance block, shown when the batched
+ * `/api/medications/compliance` query failed after its retries. Mirrors
+ * the skeleton's two-row footprint exactly (same `h-5` label lines, same
+ * `h-2` bar slots, same gaps) so the card height never jumps between the
+ * loading, loaded, and failed states. No bars are drawn — a failed read
+ * must not paint a 0 % adherence — just one muted notice line and a small
+ * retry affordance that refetches the shared query for every card at once.
+ */
+export function MedicationComplianceError({
+  onRetry,
+}: {
+  onRetry: () => void;
+}) {
+  const { t } = useTranslations();
+  return (
+    <div className="space-y-2.5">
+      <div className="space-y-1.5">
+        <div className="flex h-5 items-center text-sm">
+          <span className="text-muted-foreground min-w-0 truncate">
+            {t("medications.complianceUnavailable")}
+          </span>
+        </div>
+        <div className="bg-muted/40 h-2 rounded" />
+      </div>
+      <div className="space-y-1.5">
+        <div className="flex h-5 items-center">
+          <button
+            type="button"
+            onClick={onRetry}
+            className="text-muted-foreground hover:text-foreground flex items-center gap-1 text-xs underline-offset-2 hover:underline"
+          >
+            <RotateCw className="h-3 w-3" aria-hidden="true" />
+            {t("common.retry")}
+          </button>
+        </div>
+        <div className="bg-muted/40 h-2 rounded" />
+      </div>
+      {/* Streak-slot parity with the loaded card + skeleton. */}
+      <div className="min-h-4" />
     </div>
   );
 }

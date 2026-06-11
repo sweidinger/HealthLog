@@ -64,7 +64,7 @@ export const DELETE = apiHandler(
     // post-purge counts rather than reading stale values for the
     // TTL of each cache. Matches the sibling routes (POST intake,
     // PUT medication, bulk-delete) that all fire this bundle.
-    invalidateUserMedications(user.id);
+    invalidateUserMedications(user.id, { evict: true });
 
     return apiSuccess({ purged: true, count });
   },

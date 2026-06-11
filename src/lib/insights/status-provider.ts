@@ -96,6 +96,29 @@ export async function hasUsableStatusProvider(
 }
 
 /**
+ * v1.16.8 — true when a status generation for `userId` would be blocked
+ * by the server-managed consent gate (the same check `runStatusCompletion`
+ * applies before egress). The content-hash gate
+ * (`refreshUnchangedStatusInsight`) consults this BEFORE re-stamping a
+ * cached assessment as current: after a consent revocation the unchanged-
+ * data refresh must fall through to the generator, whose own gate then
+ * serves the no-key fallback instead of presenting old AI text as fresh.
+ * `false` when no provider is configured at all — that path already
+ * resolves to the fallback via `{ kind: "none" }`.
+ */
+export async function statusConsentBlocksGeneration(
+  userId: string,
+  surface: ConsentSurface,
+): Promise<boolean> {
+  const chain = await resolveStatusChain(userId);
+  if (chain === null) return false;
+  return (
+    chainRequiresServerManagedConsent(chain) &&
+    !(await hasActiveConsentForSurface(userId, surface))
+  );
+}
+
+/**
  * Run a status generation across the user's provider chain, bounded by
  * `STATUS_PROVIDER_TIMEOUT_MS`. The result discriminates between
  * no-provider / timeout / provider-error / success so the caller can

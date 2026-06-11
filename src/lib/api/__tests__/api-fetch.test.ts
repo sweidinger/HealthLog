@@ -48,7 +48,9 @@ describe("apiFetch", () => {
     const data = await apiFetch<{ id: string }>("/api/measurements/m1");
 
     expect(data).toEqual({ id: "m1" });
-    expect(fetchMock).toHaveBeenCalledWith("/api/measurements/m1", undefined);
+    expect(fetchMock).toHaveBeenCalledWith("/api/measurements/m1", {
+      signal: expect.any(AbortSignal),
+    });
   });
 
   it("passes init through to fetch (signal, cache, headers)", async () => {
@@ -171,6 +173,67 @@ describe("apiFetchRaw", () => {
 
     await expect(apiFetchRaw("/api/foo")).resolves.toBe(res);
   });
+
+  it("applies NO default timeout — SSE streams outlive any fixed window", async () => {
+    fetchMock.mockResolvedValueOnce(new Response("stream", { status: 200 }));
+
+    await apiFetchRaw("/api/insights/chat", { method: "POST" });
+
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(init.signal).toBeUndefined();
+  });
+});
+
+describe("default timeout", () => {
+  it("attaches a default AbortSignal when the caller passes no signal", async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse({ data: null, error: null }));
+
+    await apiFetch("/api/foo", { cache: "no-store" });
+
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(init.cache).toBe("no-store");
+    expect(init.signal).toBeInstanceOf(AbortSignal);
+  });
+
+  it("a caller-supplied signal replaces the default", async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse({ data: null, error: null }));
+    const controller = new AbortController();
+
+    await apiFetch("/api/foo", { signal: controller.signal });
+
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(init.signal).toBe(controller.signal);
+  });
+
+  it("signal: null opts out of the default entirely", async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse({ data: null, error: null }));
+
+    await apiFetch("/api/foo", { signal: null });
+
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(init.signal).toBeNull();
+  });
+
+  it("apiFetchEnvelope carries the same default", async () => {
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse({ data: [], error: null, meta: {} }),
+    );
+
+    await apiFetchEnvelope("/api/items");
+
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(init.signal).toBeInstanceOf(AbortSignal);
+  });
+
+  it("the default signal carries through the verb helpers' body merge", async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse({ data: null, error: null }));
+
+    await apiPost("/api/foo", { a: 1 });
+
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(init.method).toBe("POST");
+    expect(init.signal).toBeInstanceOf(AbortSignal);
+  });
 });
 
 describe("verb helpers", () => {
@@ -179,7 +242,10 @@ describe("verb helpers", () => {
 
     await apiGet("/api/foo");
 
-    expect(fetchMock).toHaveBeenCalledWith("/api/foo", { method: "GET" });
+    expect(fetchMock).toHaveBeenCalledWith("/api/foo", {
+      method: "GET",
+      signal: expect.any(AbortSignal),
+    });
   });
 
   it.each([
@@ -206,7 +272,10 @@ describe("verb helpers", () => {
 
     await apiPost("/api/foo");
 
-    expect(fetchMock).toHaveBeenCalledWith("/api/foo", { method: "POST" });
+    expect(fetchMock).toHaveBeenCalledWith("/api/foo", {
+      method: "POST",
+      signal: expect.any(AbortSignal),
+    });
   });
 
   it("merges caller headers with the JSON Content-Type", async () => {

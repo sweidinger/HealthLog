@@ -562,6 +562,8 @@
     "nextPage": "Página siguiente",
     "loginRequired": "Inicia sesión para ver tus estados de ánimo.",
     "note": "Nota",
+    "noteCollapse": "Contraer nota",
+    "noteExpand": "Mostrar nota completa",
     "notePlaceholder": "Añade una nota sobre cómo te sientes…",
     "tagPicker": "Etiquetas",
     "tagCategory": {
@@ -733,6 +735,7 @@
     "compliance7d": "Cumplimiento 7 días",
     "compliance30d": "Cumplimiento 30 días",
     "complianceWindow": "Cumplimiento {days} días",
+    "complianceUnavailable": "No se pudo cargar el cumplimiento",
     "complianceInfo": "Proporción de dosis registradas respecto a las esperadas. Las pautas semanales se cuentan semana a semana.",
     "complianceInfoLabel": "¿Qué significa el cumplimiento?",
     "complianceDoses": "{count} dosis",
@@ -1665,7 +1668,6 @@
   "charts": {
     "loadingLabel": "Cargando la gráfica…",
     "loadingSlowHint": "Calculando los análisis — puede tardar un momento.",
-    "adjustTargets": "Ajustar objetivos",
     "weight": "Peso",
     "bloodPressure": "Tensión arterial",
     "pulse": "Pulso",
@@ -1740,6 +1742,9 @@
     "needMoreDistinctDaysDescription": "Registra en más días para desbloquear la línea de tendencia.",
     "noDataInRangeTitle": "Sin datos en este rango",
     "noDataInRangeDescription": "No hay mediciones en el rango seleccionado. Cambia el rango o registra una nueva medición.",
+    "errorTitle": "No se pudieron cargar los datos",
+    "loadErrorTitle": "No se pudo cargar el gráfico",
+    "loadErrorReload": "Recargar",
     "sparseDataCaption": "Más días completarán la tendencia.",
     "personalBaseline": "Tu media",
     "deltaVsBaseline": "{delta} vs. tu media",
@@ -2031,6 +2036,7 @@
       "thinking": "Pensando…",
       "composerPlaceholder": "Pregúntame sobre tus datos…",
       "nudgeBubbleLabel": "Nuevo mensaje del coach — abrir el chat",
+      "fabLabel": "Abrir el coach",
       "selfContextAdopt": {
         "offer": "¿Añadir esta respuesta a tu información personal?",
         "confirm": "Añadir",
@@ -2038,6 +2044,12 @@
         "done": "Añadido a tu información personal",
         "duplicate": "Ya está en tu información personal",
         "failed": "No se pudo añadir. Inténtalo de nuevo."
+      },
+      "rememberMessage": {
+        "action": "Recordar",
+        "done": "Guardado en tu información personal",
+        "duplicate": "Ya está en tu información personal",
+        "failed": "No se pudo guardar. Inténtalo de nuevo."
       },
       "guided": {
         "offerTitle": "El Coach tiene {count} preguntas para ti",
@@ -2468,7 +2480,8 @@
         "ariaLabel": "Progresión de las fases del sueño de la última noche: {asleep} dormido, {awakenings} despertares",
         "asleepTotal": "Dormido {value}",
         "inBedTotal": "En la cama {value}",
-        "awakenings": "{count} despertares"
+        "awakenings": "{count} despertares",
+        "source": "Fuente: {source}"
       },
       "stages": {
         "deep": "Profundo",

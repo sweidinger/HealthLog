@@ -40,6 +40,26 @@ vi.mock("./glp1-snapshot", () => ({
   buildGlp1SnapshotBlock: vi.fn().mockResolvedValue(null),
 }));
 
+// v1.16.8 — the memory block carries durable personal facts (a stated
+// allergy). The degrader may shed the bulky narrative recall but must
+// keep the facts list; the mock pins both shapes in one block.
+const MEMORY_FACT = {
+  category: "condition",
+  text: "Allergie: Erdnuss (eigene Angabe)",
+};
+vi.mock("../memory-snapshot", () => ({
+  buildCoachMemoryBlock: vi.fn().mockResolvedValue({
+    trendMemory: {},
+    priorNarrative: { headline: "n".repeat(600), drivers: [] },
+    facts: [
+      {
+        category: "condition",
+        text: "Allergie: Erdnuss (eigene Angabe)",
+      },
+    ],
+  }),
+}));
+
 import { prisma } from "@/lib/db";
 import { extractFeatures } from "@/lib/insights/features";
 
@@ -246,6 +266,27 @@ describe("buildCoachSnapshot — budgeting + progressive degradation", () => {
     // list, and the compliance block keeps its recent detail.
     expect(droppedBlocks).toContain("audioExposureEnvironment");
     expect(droppedBlocks).not.toContain("compliance");
+  });
+
+  it("keeps the durable facts when the memory block is shed", async () => {
+    const out = await buildCoachSnapshot("user-1", {
+      sources: ALL_SOURCES,
+      window: "allTime",
+    });
+    const truncated = annotateCalls.find(
+      (c) => c.name === "coach.snapshot.truncated",
+    );
+    const droppedBlocks = (truncated?.meta?.droppedBlocks ?? []) as string[];
+    // The memory block sits on the lowest-priority cluster and is shed
+    // under this dense load …
+    expect(droppedBlocks).toContain("memory");
+    const snapshot = JSON.parse(out.snapshotJson) as {
+      memory?: { facts?: unknown[]; priorNarrative?: unknown };
+    };
+    // … but the durable facts survive the drop while the bulky
+    // narrative recall goes.
+    expect(snapshot.memory?.facts).toEqual([MEMORY_FACT]);
+    expect(snapshot.memory?.priorNarrative).toBeUndefined();
   });
 
   it("does not truncate a small default-scope snapshot", async () => {

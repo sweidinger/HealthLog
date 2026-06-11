@@ -70,9 +70,11 @@ import { loadUserSourcePriority } from "@/lib/rollups/measurement-read";
 import { resolveUserTimezone } from "@/lib/tz/resolver";
 import {
   readFreshStatusText,
+  refreshUnchangedStatusInsight,
   resolveReadOnlyStatusMiss,
   statusCacheAction,
 } from "@/lib/insights/status-cache";
+import { hashInsightSnapshot } from "@/lib/insights/snapshot-hash";
 import { returnTimeoutFallback } from "@/lib/insights/timeout-fallback";
 import { annotate } from "@/lib/logging/context";
 import { toBerlinDayKey } from "@/lib/tz/resolver";
@@ -243,7 +245,15 @@ export async function generateMetricStatus(args: {
         },
         orderBy: { measuredAt: "desc" },
         take: 365 * 6, // ≈ 5 stage rows/night × source-count for a year
-        select: { value: true, measuredAt: true, sleepStage: true, source: true },
+        // Writer-level collapse: two HealthKit apps behind one source
+        // (watch stages vs phone in-bed) must not blend into one night.
+        select: {
+          value: true,
+          measuredAt: true,
+          sleepStage: true,
+          source: true,
+          deviceType: true,
+        },
       }),
     ]);
     const nights = reconstructSleepNights(
@@ -385,6 +395,24 @@ export async function generateMetricStatus(args: {
     },
   });
 
+  // Content-hash gate (v1.16.8): when the snapshot is unchanged since the
+  // last real assessment, refresh the cache timestamp and skip the LLM.
+  const snapshotHash = hashInsightSnapshot(snapshot);
+  const unchanged = await refreshUnchangedStatusInsight({
+    userId: args.userId,
+    cacheAction,
+    todayKey,
+    snapshotHash,
+  });
+  if (unchanged) {
+    return {
+      hasProvider: true,
+      text: unchanged.text,
+      cached: true,
+      updatedAt: unchanged.updatedAt,
+    };
+  }
+
   const previousContext = await getPreviousInsightContext(
     args.userId,
     // memory.ts keys previous context by the `insights.<scope>.<locale>`
@@ -480,6 +508,7 @@ export async function generateMetricStatus(args: {
     providerType: outcome.providerType,
     model: outcome.model,
     tokensUsed: outcome.tokensUsed,
+    snapshotHash,
   });
 
   return { hasProvider: true, text, cached: false, updatedAt };

@@ -21,15 +21,16 @@ import { convertGlucose, resolveGlucoseUnit } from "@/lib/glucose";
 import { cn } from "@/lib/utils";
 import {
   resolveDashboardLayout,
-  DASHBOARD_WIDGET_IDS,
   type DashboardLayout,
 } from "@/lib/dashboard-layout";
 import type { DashboardAnalyticsData as AnalyticsData } from "@/types/analytics";
 import dynamic from "next/dynamic";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
+import { ChartErrorBoundary } from "@/components/charts/chart-error-state";
 import { ChartSkeleton } from "@/components/charts/chart-skeleton";
 import { HealthChartDynamic } from "@/components/charts/health-chart-dynamic";
+import { importWithRetry } from "@/lib/retry-import";
 import {
   DashboardChartCell,
   useDashboardChartReveal,
@@ -64,19 +65,36 @@ const DASHBOARD_QUERY_OPTS = {
   refetchOnWindowFocus: false,
 } as const;
 
-const MoodChart = dynamic(
+// v1.16.8 — the loaders retry a rejected chunk import once (a lazy
+// import caches its rejection permanently, so a transient 404 from a
+// stale shell used to brick the card for the session) and each mount
+// wraps in `<ChartErrorBoundary>` so a chunk that still fails degrades
+// to ONE error card instead of bubbling to the route-level `error.tsx`.
+const MoodChartLazy = dynamic(
   () =>
-    import("@/components/charts/mood-chart").then((mod) => ({
-      default: mod.MoodChart,
-    })),
+    importWithRetry(() => import("@/components/charts/mood-chart")).then(
+      (mod) => ({ default: mod.MoodChart }),
+    ),
   { ssr: false, loading: () => <ChartSkeleton /> },
 );
-const MedicationComplianceChart = dynamic(
+const MoodChart = (props: React.ComponentProps<typeof MoodChartLazy>) => (
+  <ChartErrorBoundary>
+    <MoodChartLazy {...props} />
+  </ChartErrorBoundary>
+);
+const MedicationComplianceChartLazy = dynamic(
   () =>
-    import("@/components/charts/medication-compliance-chart").then((mod) => ({
-      default: mod.MedicationComplianceChart,
-    })),
+    importWithRetry(
+      () => import("@/components/charts/medication-compliance-chart"),
+    ).then((mod) => ({ default: mod.MedicationComplianceChart })),
   { ssr: false, loading: () => <ChartSkeleton /> },
+);
+const MedicationComplianceChart = (
+  props: React.ComponentProps<typeof MedicationComplianceChartLazy>,
+) => (
+  <ChartErrorBoundary>
+    <MedicationComplianceChartLazy {...props} />
+  </ChartErrorBoundary>
 );
 import { useTranslations, useFormatters } from "@/lib/i18n/context";
 import { queryKeys } from "@/lib/query-keys";
@@ -125,6 +143,86 @@ export function resolveDashboardFirstPaintGate(input: {
     !showTileStripSkeleton &&
     !input.primaryLoading;
   return { showTileStripSkeleton, showEmptyState };
+}
+
+/**
+ * v1.16.8 — widget ids that actually paint a tile in the strip on the
+ * web dashboard, mirrored from the per-id render blocks below.
+ * `medications` / `recentWorkouts` / `achievements` carry NO strip tile
+ * (chart-row cards only), and the iOS-pin-only ids have no web render
+ * path at all — counting any of them over-reserved the loading
+ * silhouette and made the strip reshuffle when the data landed.
+ */
+const TILE_CAPABLE_WIDGET_IDS = new Set<string>([
+  "weight",
+  "bp",
+  "pulse",
+  "bodyFat",
+  "mood",
+  "sleep",
+  "steps",
+  "glucose",
+  "bpInTarget",
+  "vo2Max",
+]);
+
+/**
+ * v1.16.8 — silhouette count for the tile-strip skeleton: one card per
+ * tile-capable, tile-visible widget. `bp` paints TWO tiles (sys + dia,
+ * see the render block below) so it counts double; `glucose` can fan
+ * out to one tile per logged context, but the contexts are unknown
+ * until the snapshot lands, so it reserves one card (the sane floor).
+ * Pure + exported for direct unit coverage.
+ */
+export function resolveConfiguredTileCount(layout: DashboardLayout): number {
+  let count = 0;
+  for (const widget of layout.widgets) {
+    if (!TILE_CAPABLE_WIDGET_IDS.has(widget.id)) continue;
+    if (!(widget.tileVisible ?? widget.visible)) continue;
+    count += widget.id === "bp" ? 2 : 1;
+  }
+  return count;
+}
+
+/**
+ * v1.16.8 — widget ids with a chart-row surface on the web dashboard,
+ * mirrored from the `charts[]` entries below. The achievements +
+ * recent-workouts cards stay out: they self-skeleton, carry no
+ * chart-shaped footprint, and gate on `layoutResolved`.
+ */
+const CHART_CAPABLE_WIDGET_IDS = new Set<string>([
+  "weight",
+  "bp",
+  "pulse",
+  "bodyFat",
+  "mood",
+  "sleep",
+  "steps",
+  "medications",
+]);
+
+/**
+ * v1.16.8 — expected chart-row card count while the snapshot is still
+ * in flight. Every chart gate below needs `count > 0` from snapshot
+ * data, so the cold page used to render NO chart row at all and then
+ * grow ~1000 px when the snapshot landed. The best available signal
+ * before data arrives is the layout config (the user's saved layout
+ * when cached, the default otherwise): one card per chart-visible
+ * widget, plus the BMI card that rides the weight gate when the
+ * profile carries a height. Pure + exported for direct unit coverage.
+ */
+export function resolveChartRowPlaceholderCount(
+  layout: DashboardLayout,
+  opts?: { hasHeightCm?: boolean },
+): number {
+  let count = 0;
+  for (const widget of layout.widgets) {
+    if (!CHART_CAPABLE_WIDGET_IDS.has(widget.id)) continue;
+    if (!widget.visible) continue;
+    count += 1;
+    if (widget.id === "weight" && opts?.hasHeightCm) count += 1;
+  }
+  return count;
 }
 
 export default function DashboardPage() {
@@ -622,12 +720,6 @@ export default function DashboardPage() {
         welcomeText={welcomeText}
         onQuickEntry={setQuickEntryDialog}
       />
-
-      {/* v1.4: Getting-started checklist for brand-new users.
-       * Self-gates visibility on (onboardingCompletedAt == null
-       * || measurementCount < 5) and disappears once dismissed
-       * or fully complete. See B2 in the v1.4 discovery summary. */}
-      <GettingStartedChecklist />
 
       {/* v1.4.15 Phase B5 — spotlight tour for first-time users.
        * Self-gates on `user.onboardingTourCompleted` (DB flag) plus
@@ -1305,10 +1397,12 @@ export default function DashboardPage() {
         // its merge workarounds), but the web dashboard has no tile
         // component for them; including them here would over-reserve the
         // skeleton silhouette by rows that never paint.
-        const webWidgetIds = new Set<string>(DASHBOARD_WIDGET_IDS);
-        const configuredTileCount = layout.widgets.filter(
-          (w) => webWidgetIds.has(w.id) && (w.tileVisible ?? w.visible),
-        ).length;
+        // v1.16.8 — narrowed further to the tile-CAPABLE set (see
+        // `resolveConfiguredTileCount`): the old count included
+        // `medications` + `recentWorkouts` (chart-row cards with no
+        // strip tile) and undercounted `bp` (one widget id, two tiles),
+        // so the silhouettes reshuffled when the data landed.
+        const configuredTileCount = resolveConfiguredTileCount(layout);
         // v1.7.0 — the primary data source differs by flag. In snapshot
         // mode `analyticsSlimQuery` is `enabled: false`, and a disabled
         // TanStack query reports `fetchStatus: "idle"` → `isLoading` is
@@ -1327,6 +1421,23 @@ export default function DashboardPage() {
           (snapshotEnabled
             ? snapshotQuery.isLoading
             : analyticsSlimQuery.isLoading);
+        // v1.16.8 — chart-row reservation while the snapshot is in
+        // flight. The chart visibility gates above need snapshot data
+        // (`count > 0`), so the cold chart row only carried the
+        // layout-gated medications card and then grew by ~1000 px when
+        // the snapshot landed. Reserve layout-stable ChartSkeleton
+        // cells for the charts the layout expects (minus the ones
+        // already mounted) so the page holds roughly its final
+        // footprint from first paint and the snapshot landing swaps
+        // content instead of growing the page.
+        const chartRowPlaceholderCount = primaryLoading
+          ? Math.max(
+              0,
+              resolveChartRowPlaceholderCount(layout, {
+                hasHeightCm: Boolean(user?.heightCm),
+              }) - charts.length,
+            )
+          : 0;
         const { showTileStripSkeleton, showEmptyState } =
           resolveDashboardFirstPaintGate({
             trendCardCount: trendCards.length,
@@ -1536,9 +1647,41 @@ export default function DashboardPage() {
                 )}
               </div>
             ))}
+            {/* v1.16.8 — layout-stable chart-row reservation. While the
+                snapshot is in flight the data-gated chart entries above
+                cannot exist yet, so these silhouettes carry the row's
+                footprint; the moment the snapshot lands the real cells
+                render in their place (same render pass — no growth, a
+                swap). `aria-hidden` like the tile-strip skeleton: the
+                mounted charts announce their own loading state. */}
+            {chartRowPlaceholderCount > 0 && (
+              <div
+                aria-hidden="true"
+                data-slot="dashboard-chart-row-skeleton"
+                className="space-y-6"
+              >
+                {Array.from({ length: chartRowPlaceholderCount }).map(
+                  (_, idx) => (
+                    <ChartSkeleton key={`chart-row-skeleton-${idx}`} />
+                  ),
+                )}
+              </div>
+            )}
           </>
         );
       })()}
+
+      {/* v1.4: Getting-started checklist for brand-new users. Self-gates
+       * visibility on (onboardingCompletedAt == null || measurementCount
+       * < 5) and disappears once dismissed or fully complete.
+       * v1.16.8 — moved BELOW the tile strip + chart row: the card only
+       * mounts once the snapshot resolves, and sitting above the strip
+       * it pushed every tile and chart down when it popped in. At the
+       * bottom its late arrival shifts nothing — the fold-priority
+       * content (tiles, charts) keeps a stable position, and the
+       * near-empty dashboards of the new accounts the card targets keep
+       * it visible without scrolling anyway. */}
+      <GettingStartedChecklist />
     </div>
   );
 }

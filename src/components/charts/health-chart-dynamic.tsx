@@ -1,8 +1,11 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import type { ComponentProps, ReactElement } from "react";
 
+import { ChartErrorBoundary } from "@/components/charts/chart-error-state";
 import { ChartSkeleton } from "@/components/charts/chart-skeleton";
+import { importWithRetry } from "@/lib/retry-import";
 
 /**
  * v1.4.28 (BK-F-M2) — single `next/dynamic` boundary for the
@@ -17,16 +20,32 @@ import { ChartSkeleton } from "@/components/charts/chart-skeleton";
  *
  * Re-exporting through this module gives every consumer the same
  * pre-configured `<ChartSkeleton>`-backed lazy boundary. Consumers
- * still forward the same props they did before — the type contract
- * mirrors `<HealthChart>` exactly via `dynamic()`'s own inference.
+ * still forward the same props they did before.
+ *
+ * v1.16.8 — the loader retries a rejected chunk import once (a lazy
+ * import caches its rejection permanently, so a transient 404 from a
+ * stale shell used to brick the card for the session) and every mount
+ * wraps in `<ChartErrorBoundary>` so a chunk that still fails degrades
+ * to ONE error card with a reload affordance instead of bubbling to the
+ * route-level `error.tsx`.
  */
-export const HealthChartDynamic = dynamic(
+const HealthChartLazy = dynamic(
   () =>
-    import("@/components/charts/health-chart").then((mod) => ({
-      default: mod.HealthChart,
-    })),
+    importWithRetry(() => import("@/components/charts/health-chart")).then(
+      (mod) => ({ default: mod.HealthChart }),
+    ),
   { ssr: false, loading: () => <ChartSkeleton /> },
 );
+
+export function HealthChartDynamic(
+  props: ComponentProps<typeof HealthChartLazy>,
+): ReactElement {
+  return (
+    <ChartErrorBoundary>
+      <HealthChartLazy {...props} />
+    </ChartErrorBoundary>
+  );
+}
 
 /**
  * v1.4.36 W2 — mini variant for the trends-row 140 px chart slot. Same
@@ -38,10 +57,20 @@ export const HealthChartDynamic = dynamic(
  * `trends-row.tsx`) pass `mini` on the chart itself; this wrapper
  * ensures the next/dynamic loader paints the matching skeleton.
  */
-export const HealthChartDynamicMini = dynamic(
+const HealthChartLazyMini = dynamic(
   () =>
-    import("@/components/charts/health-chart").then((mod) => ({
-      default: mod.HealthChart,
-    })),
+    importWithRetry(() => import("@/components/charts/health-chart")).then(
+      (mod) => ({ default: mod.HealthChart }),
+    ),
   { ssr: false, loading: () => <ChartSkeleton mini /> },
 );
+
+export function HealthChartDynamicMini(
+  props: ComponentProps<typeof HealthChartLazyMini>,
+): ReactElement {
+  return (
+    <ChartErrorBoundary>
+      <HealthChartLazyMini {...props} />
+    </ChartErrorBoundary>
+  );
+}

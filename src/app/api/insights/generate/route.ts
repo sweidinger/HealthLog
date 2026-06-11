@@ -59,7 +59,9 @@ import { invalidateUserInsights } from "@/lib/cache/invalidate";
 import { annotate } from "@/lib/logging/context";
 import { resolveServerLocale } from "@/lib/i18n/server-locale";
 import { hasUsableStatusProvider } from "@/lib/insights/status-provider";
+import { hashInsightSnapshot } from "@/lib/insights/snapshot-hash";
 import { enqueueForceWarm } from "@/lib/jobs/insight-pregenerate-shared";
+import { enqueueStatusRefillForUser } from "@/lib/insights/comprehensive-generate";
 
 export const dynamic = "force-dynamic";
 
@@ -89,32 +91,6 @@ export function resolveInsightsRateLimit(): number {
     return DEFAULT_INSIGHTS_RATE_LIMIT_PER_HOUR;
   }
   return parsed;
-}
-
-/**
- * Per-status insight cache rows live in `audit_logs` keyed by
- * `action = "insights.{scope}-status.{locale}"` (see
- * `src/lib/insights/memory.ts` for the canonical scope list and
- * `src/lib/insights/{general,blood-pressure,weight,pulse,bmi,
- * mood,medication-compliance}-status.ts` for the writers). Each scope
- * has its own per-day eviction, so before v1.4.16 a force-regeneration
- * of the comprehensive insight would leave yesterday's per-status
- * cards visible on the insights page until the next calendar day
- * flipped. Drop them here so the next status fetch has to call the
- * LLM again with the same fresh feature set the comprehensive blob
- * just used.
- */
-async function evictPerStatusInsightCache(userId: string): Promise<void> {
-  await prisma.auditLog.deleteMany({
-    where: {
-      userId,
-      action: { startsWith: "insights." },
-      // Keep the `insights.generate` row this request just wrote and
-      // the `insights.settings.*` rows — only the per-status cache
-      // entries (`insights.<scope>-status.<locale>`) carry stale text.
-      AND: [{ action: { contains: "-status." } }],
-    },
-  });
 }
 
 /**
@@ -184,6 +160,9 @@ async function buildComparisonSnapshotForUser(
               value: true,
               sleepStage: true,
               source: true,
+              // Writer-level collapse: two HealthKit apps behind one
+              // source (watch stages vs phone in-bed) must not blend.
+              deviceType: true,
             },
           }),
           resolveUserTimezone(userId),
@@ -739,14 +718,49 @@ export const POST = apiHandler(async (request: NextRequest) => {
     data: {
       insightsCachedAt: new Date(),
       insightsCachedText: JSON.stringify(insights),
+      // v1.16.8 — store the snapshot fingerprint so the nightly / forced
+      // regeneration paths can detect "nothing changed" and skip the
+      // provider call. The user-initiated POST itself stays un-gated: an
+      // explicit regenerate request is honoured even on unchanged data
+      // (it is already bounded by the hourly rate limit above). The
+      // composite shape MUST match the gate in `comprehensive-generate.ts`,
+      // or every off-request warm after a manual regenerate re-pays a
+      // full generation on unchanged data. Beyond the features, three
+      // prompt inputs that can change with NO data change join in:
+      //   - aboutMe (Coach remember / Settings → AI edit),
+      //   - comparisonBaseline (the comparison toggle adds/removes the
+      //     prior-period context block; `null` snapshot means "none"),
+      //   - generationLocale (the language the cached text renders in —
+      //     hashing it makes a locale switch regenerate exactly once, so
+      //     the briefing follows the reader; named `generationLocale`
+      //     because the canonicaliser strips `locale` keys as volatile).
+      insightsSnapshotHash: hashInsightSnapshot({
+        features: compactFeatures,
+        aboutMe: aboutMe ?? null,
+        comparisonBaseline: comparisonSnapshot?.baseline ?? "none",
+        generationLocale: locale,
+      }),
     },
   });
 
-  // v1.4.16 A7: a fresh comprehensive insight always supersedes the
-  // per-status cache. Otherwise the dashboard re-paints itself with the
-  // newly generated comprehensive while the insights-page status cards
-  // still show yesterday's text until midnight Berlin time.
-  await evictPerStatusInsightCache(userId);
+  // v1.16.8 — no blanket per-status eviction here any more (nuking ~45
+  // cache rows per manual regenerate deleted every hash baseline and was
+  // the source of the post-regenerate card-regeneration storm). Instead,
+  // the manual regenerate takes the cards along through the hash-gated
+  // queue: every scope the user has data for is enqueued, the worker
+  // forces each generator past its same-day cache read, and the content-
+  // hash gate regenerates exactly the cards whose data changed while
+  // refreshing the unchanged ones for free. This is the user's escape
+  // hatch for a card they can SEE is stale — without it the cards had no
+  // refresh path until the next nightly warm.
+  const refillScopes = await enqueueStatusRefillForUser(
+    userId,
+    locale === "de" ? "de" : "en",
+  );
+  annotate({
+    action: { name: "insights.generate.cards_refill" },
+    meta: { scopes: refillScopes },
+  });
 
   // v1.7.0 W6 — the dashboard snapshot embeds the pre-generated daily
   // briefing read-only; drop it so the next snapshot carries the fresh

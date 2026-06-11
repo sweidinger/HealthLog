@@ -1,7 +1,6 @@
 import type { ReactNode } from "react";
 
 import { InsightsLayoutShell } from "@/components/insights/insights-layout-shell";
-import { LayoutCoachFab } from "@/components/insights/layout-coach-fab";
 
 /**
  * v1.4.25 W4 — shared layout for the routed `/insights` sub-pages.
@@ -18,25 +17,16 @@ import { LayoutCoachFab } from "@/components/insights/layout-coach-fab";
  * the mother `/insights/page.tsx` consumes the same hook for its hero
  * strip + suggested-prompt chips.
  *
- * v1.4.28 R3c — the mobile FAB also lives here via `<LayoutCoachFab>`
- * (carved out of `<CoachLaunchButton>` so each sub-page mount no
- * longer duplicates the FAB into the a11y tree). The inline
- * `<CoachLaunchButton>` pill stays on the per-page action rows where
- * copy + position matter.
- *
  * v1.4.34 IW-B — `<CoachLaunchProvider>` + `<LayoutCoachMount>` now
  * live on the global `<AuthShell>` (`src/components/layout/auth-shell.tsx`)
  * so every authenticated route (dashboard included) can open the drawer
- * from the same context. The FAB stays scoped to `/insights/**` only —
- * the floating action would distract from the dashboard hero on
- * surfaces where a contextual inline button already covers the same
- * affordance.
+ * from the same context.
+ *
+ * v1.16.8 — the floating Coach launcher (`LayoutCoachFab`) moved to
+ * `<AuthShell>` as well: it renders once for every authenticated route
+ * and hides itself on the Coach page, so this layout no longer mounts
+ * any Coach surface of its own.
  */
 export default function InsightsLayout({ children }: { children: ReactNode }) {
-  return (
-    <>
-      <InsightsLayoutShell>{children}</InsightsLayoutShell>
-      <LayoutCoachFab />
-    </>
-  );
+  return <InsightsLayoutShell>{children}</InsightsLayoutShell>;
 }

@@ -770,7 +770,15 @@ async function buildCoachSnapshotImpl(
           deletedAt: null,
         },
         orderBy: { measuredAt: "asc" },
-        select: { value: true, measuredAt: true, sleepStage: true, source: true },
+        // Writer-level collapse: two HealthKit apps behind one source
+        // (watch stages vs phone in-bed) must not blend into one night.
+        select: {
+          value: true,
+          measuredAt: true,
+          sleepStage: true,
+          source: true,
+          deviceType: true,
+        },
       })
     : null;
   const workoutRowsPromise = sources.has("workouts")
@@ -1534,12 +1542,23 @@ function degradeToBudget(
 
   // Last resort: replace the whole block with a compact marker so the
   // model still knows the cluster exists without paying for its rows.
+  // v1.16.8 — the `memory` block's `facts` list survives the drop: it
+  // carries the durable personal facts (a stated allergy, a stated
+  // condition) and is tiny by construction (top-8, ≤160 chars each).
+  // Shedding it made the Coach forget a stated allergy exactly on the
+  // data-heavy accounts that hit the char cap; the bulky narrative +
+  // trend recall still goes.
   const dropBlock = (key: string): boolean => {
-    if (key in snapshot) {
-      snapshot[key] = { omitted: "trimmed for prompt budget" };
-      return true;
-    }
-    return false;
+    if (!(key in snapshot)) return false;
+    const block = asRecord(snapshot[key]);
+    const facts =
+      block && Array.isArray(block.facts) && block.facts.length > 0
+        ? block.facts
+        : null;
+    snapshot[key] = facts
+      ? { facts, omitted: "trimmed for prompt budget" }
+      : { omitted: "trimmed for prompt budget" };
+    return true;
   };
 
   // Degrade per-block, LOWEST priority first, collapsing each block as

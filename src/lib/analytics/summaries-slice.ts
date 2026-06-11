@@ -316,7 +316,15 @@ async function withSleepNightTotals(
       measuredAt: { gte: since },
     },
     orderBy: { measuredAt: "asc" },
-    select: { value: true, measuredAt: true, sleepStage: true, source: true },
+    // `deviceType` feeds the writer-level collapse: two HealthKit apps
+    // behind one source (watch stages vs phone in-bed) must not blend.
+    select: {
+      value: true,
+      measuredAt: true,
+      sleepStage: true,
+      source: true,
+      deviceType: true,
+    },
   })) as SleepStageRow[];
   if (rows.length === 0) return slice;
 

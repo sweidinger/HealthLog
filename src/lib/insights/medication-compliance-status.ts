@@ -37,6 +37,7 @@ import {
   resolveReadOnlyStatusMiss,
   statusCacheAction,
 } from "@/lib/insights/status-cache";
+import { hashInsightSnapshot } from "@/lib/insights/snapshot-hash";
 import { returnTimeoutFallback } from "@/lib/insights/timeout-fallback";
 import { annotate } from "@/lib/logging/context";
 import { toBerlinDayKey } from "@/lib/tz/resolver";
@@ -350,6 +351,57 @@ export async function generateMedicationComplianceStatusForUser(
     },
   });
 
+  // Content-hash gate (v1.16.8): when the snapshot is unchanged since the
+  // last real assessment, refresh the cache timestamp and skip the LLM.
+  // This generator caches the richer `{ summary, medications }` envelope,
+  // so it carries its own gate rather than the shared text-only one.
+  const snapshotHash = hashInsightSnapshot(snapshot);
+  const latestRow = await prisma.auditLog.findFirst({
+    where: { userId, action: cacheAction },
+    orderBy: { createdAt: "desc" },
+    select: { details: true },
+  });
+  if (latestRow?.details) {
+    try {
+      const parsed = JSON.parse(latestRow.details) as {
+        summary?: string;
+        medications?: MedicationSummaryItem[];
+        model?: string;
+        timeout?: boolean;
+        snapshotHash?: string;
+      };
+      if (
+        !isTimeoutStub(parsed) &&
+        typeof parsed.summary === "string" &&
+        parsed.summary.trim().length > 0 &&
+        Array.isArray(parsed.medications) &&
+        parsed.snapshotHash === snapshotHash
+      ) {
+        const refreshed = await prisma.auditLog.create({
+          data: {
+            userId,
+            action: cacheAction,
+            details: JSON.stringify({ ...parsed, dateKey: todayKey }),
+          },
+          select: { createdAt: true },
+        });
+        annotate({
+          action: { name: "insights.status.skipped_unchanged" },
+          meta: { cache_action: cacheAction },
+        });
+        return {
+          hasProvider: true,
+          summary: parsed.summary,
+          medications: parsed.medications,
+          cached: true,
+          updatedAt: refreshed.createdAt.toISOString(),
+        };
+      }
+    } catch {
+      // Malformed cache payload — fall through to a real generation.
+    }
+  }
+
   const previousContext = await getPreviousInsightContext(
     userId,
     "medication-compliance-status",
@@ -463,6 +515,7 @@ export async function generateMedicationComplianceStatusForUser(
         providerType: outcome.providerType,
         model: outcome.model,
         tokensUsed: outcome.tokensUsed,
+        snapshotHash,
       }),
     },
     select: { createdAt: true },

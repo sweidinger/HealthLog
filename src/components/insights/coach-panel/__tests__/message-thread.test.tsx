@@ -1,5 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 
 import { I18nProvider } from "@/lib/i18n/context";
 
@@ -479,6 +481,85 @@ describe("<MessageThread>", () => {
     expect(userIdx).toBeGreaterThan(-1);
     expect(assistantIdx).toBeGreaterThan(-1);
     expect(userIdx).toBeLessThan(assistantIdx);
+  });
+
+  // v1.16.8 — the remember control under persisted user bubbles.
+  it("renders the remember control under a persisted user message", () => {
+    const html = render(<MessageThread conversation={baseConversation} />);
+    expect(html).toContain('data-slot="coach-remember-message"');
+    expect(html).toContain("Remember");
+  });
+
+  it("localises the remember control under 'de'", () => {
+    const html = render(<MessageThread conversation={baseConversation} />, "de");
+    expect(html).toContain('data-slot="coach-remember-message"');
+    expect(html).toContain("Merken");
+  });
+
+  it("omits the remember control on an optimistic user bubble (no id yet)", () => {
+    const html = render(
+      <MessageThread
+        conversation={null}
+        optimisticUser={{
+          localId: "local-1",
+          content: "Ich habe eine Erdnussallergie",
+          conversationId: null,
+        }}
+      />,
+    );
+    expect(html).toContain('data-slot="coach-bubble-user"');
+    expect(html).not.toContain('data-slot="coach-remember-message"');
+  });
+
+  it("omits the remember control when the message exceeds the field cap", () => {
+    const long = {
+      ...baseConversation,
+      messages: [
+        {
+          ...baseConversation.messages[0],
+          content: "x".repeat(501),
+        },
+      ],
+    };
+    const html = render(<MessageThread conversation={long} />);
+    expect(html).toContain('data-slot="coach-bubble-user"');
+    expect(html).not.toContain('data-slot="coach-remember-message"');
+  });
+
+  it("reveals the remember control on bubble hover/focus at sm+, keeps it visible on touch", () => {
+    const html = render(<MessageThread conversation={baseConversation} />);
+    const button = html.match(
+      /<button[^>]*data-slot="coach-remember-message"[^>]*>/,
+    )?.[0];
+    expect(button).toBeTruthy();
+    // Hidden only behind BOTH gates — `sm:` viewport AND a
+    // hover-capable pointer — so touch devices (no hover media) keep
+    // the control always visible.
+    expect(button).toContain("sm:[@media(hover:hover)]:opacity-0");
+    expect(button).toContain(
+      "sm:[@media(hover:hover)]:group-hover/user-bubble:opacity-100",
+    );
+    expect(button).toContain(
+      "sm:[@media(hover:hover)]:group-focus-within/user-bubble:opacity-100",
+    );
+    // The bubble column is the named hover/focus group.
+    expect(html).toContain("group/user-bubble");
+  });
+
+  it("hands focus to the settled confirmation instead of dropping it to body", () => {
+    // The settled branch unmounts the button the user just activated;
+    // the status paragraph takes the focus (`tabIndex={-1}` +
+    // programmatic focus on settle). SSR cannot exercise the focus
+    // call, so the wiring is pinned structurally.
+    const src = readFileSync(
+      join(
+        process.cwd(),
+        "src/components/insights/coach-panel/message-thread.tsx",
+      ),
+      "utf8",
+    );
+    expect(src).toContain("statusRef.current?.focus()");
+    expect(src).toMatch(/ref=\{statusRef\}\s*\n\s*tabIndex=\{-1\}/);
   });
 
   // v1.4.25 W5 — distinct daily-limit vs provider-rate-limit copy.

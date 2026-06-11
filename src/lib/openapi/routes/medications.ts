@@ -507,6 +507,19 @@ const medicationComplianceResponse = z
       "Adherence read for a single medication. `compliance30` is the authoritative 30-day taken-vs-expected summary; `dailyCompliance` is the per-day grid for the history glyph track. The graded raw→week→month→year series used elsewhere for AI prompts does NOT apply here — this response is never downsampled.",
   });
 
+const medicationComplianceSummaryEntry = z
+  .object({
+    medicationId: z.string(),
+    compliance7: complianceResult,
+    compliance30: complianceResult,
+    complianceDisplay,
+  })
+  .meta({
+    id: "MedicationComplianceSummaryEntry",
+    description:
+      "Compact per-medication adherence row for the batched card read: the 7-/30-day summaries plus the cadence-scaled display block. The per-day `dailyCompliance` grid is NOT on this shape — read the per-medication `/compliance` endpoint for the history glyph track.",
+  });
+
 // v1.16.5 — schedule-era management (the Zeitplan-tab history timeline).
 // Archived eras come from two provenances: the wholesale-replace write
 // path (`ARCHIVED`, immutable) and the user-entered pre-tracking flow
@@ -851,6 +864,28 @@ export const medicationPaths: NonNullable<ZodOpenApiObject["paths"]> = {
         "404": {
           description: "Medication not found (or owned by another user).",
           content: { "application/json": { schema: errorEnvelope } },
+        },
+        ...stdResponses,
+      },
+    },
+  },
+  "/api/medications/compliance": {
+    get: {
+      tags: ["Medications"],
+      summary: "Batched adherence read for every medication of the caller",
+      description:
+        "Returns one compact adherence row per medication the caller owns (active + paused), ordered by `createdAt DESC` — the single round trip the medication cards consume instead of fanning out one `/api/medications/{id}/compliance` request per card. Each row carries the 7-/30-day summaries and the cadence-scaled display block; the per-day grid stays on the per-medication endpoint. Pure computation — no writes. Served through the same per-medication server cache as the per-id read, so the two endpoints warm each other.",
+      responses: {
+        "200": {
+          description: "One adherence row per medication.",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                z.array(medicationComplianceSummaryEntry),
+                "ListMedicationComplianceResponse",
+              ),
+            },
+          },
         },
         ...stdResponses,
       },

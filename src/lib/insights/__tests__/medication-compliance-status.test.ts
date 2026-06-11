@@ -10,6 +10,8 @@ vi.mock("@/lib/db", () => ({
 
 vi.mock("@/lib/insights/status-provider", () => ({
   runStatusCompletion: vi.fn(),
+  // Consent never blocks in these fixtures — the gate has its own tests.
+  statusConsentBlocksGeneration: vi.fn(async () => false),
 }));
 
 vi.mock("@/lib/insights/memory", () => ({
@@ -74,7 +76,12 @@ describe("generateMedicationComplianceStatusForUser — graded payload", () => {
       active: true,
       createdAt: new Date(now.getTime() - 1100 * dayMs),
       schedules: [
-        { id: "s1", windowStart: "08:00", windowEnd: "09:00", daysOfWeek: null },
+        {
+          id: "s1",
+          windowStart: "08:00",
+          windowEnd: "09:00",
+          daysOfWeek: null,
+        },
       ],
     };
 
@@ -197,7 +204,9 @@ describe("generateMedicationComplianceStatusForUser — cache-read skips a stub"
       createdAt: now,
     } as never);
 
-    stubCompletion('{"summary":"Fresh compliance assessment.","medications":[]}');
+    stubCompletion(
+      '{"summary":"Fresh compliance assessment.","medications":[]}',
+    );
 
     const result = await generateMedicationComplianceStatusForUser("user-1", {
       locale: "en",

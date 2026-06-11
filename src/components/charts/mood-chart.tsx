@@ -28,6 +28,7 @@ import {
 } from "@/lib/charts/bucket-time-series";
 import { RichChartTooltip, type RichTooltipRow } from "./chart-tooltip";
 import { ChartEmptyState } from "./chart-empty-state";
+import { ChartErrorState } from "./chart-error-state";
 import { prefersReducedMotion } from "@/lib/charts/reduced-motion";
 import { shiftDailySeriesForward } from "@/lib/charts/comparison-shift";
 import type {
@@ -346,7 +347,7 @@ export function MoodChart({
   // cache fresh; the chart's own subscription becomes the cache writer
   // for any insights / mood sub-page that mounts the chart without the
   // dashboard parent having fetched first.
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: queryKeys.moodAnalytics(),
     queryFn: async (): Promise<MoodAnalyticsData> => {
       return apiGet<MoodAnalyticsData>("/api/mood/analytics");
@@ -580,7 +581,11 @@ export function MoodChart({
 
   const animationsEnabled = !prefersReducedMotion();
 
-  if (!isLoading && !data?.entries?.length) return null;
+  // v1.16.8 — only an EMPTY success hides the card (the dashboard gates
+  // the mount on `hasMood` anyway). A failed query must keep the card
+  // mounted so the error state + retry affordance below can paint;
+  // pre-fix the `return null` made an outage erase the widget entirely.
+  if (!isLoading && !isError && !data?.entries?.length) return null;
 
   // v1.13.1 — TRENDS-ROW MOOD CARD HEIGHT. In mini mode the title +
   // chart body render inside the exact same flat shell `<HealthChart
@@ -601,6 +606,16 @@ export function MoodChart({
           ? "h-[var(--chart-height,140px)] w-full"
           : "h-[var(--chart-height,200px)] w-full md:h-[var(--chart-height-md,220px)]"
       }
+    />
+  ) : isError ? (
+    // v1.16.8 — a failed query paints as an ERROR with a retry
+    // affordance instead of unmounting the card (see the gate above).
+    <ChartErrorState
+      title={t("charts.errorTitle")}
+      actionLabel={t("common.retry")}
+      actionContext={displayTitle}
+      onAction={() => void refetch()}
+      height={CHART_HEIGHT_PX}
     />
   ) : !chartData?.length ? (
     <div className="text-muted-foreground flex h-48 items-center justify-center text-sm">

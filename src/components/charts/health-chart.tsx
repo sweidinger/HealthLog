@@ -18,8 +18,6 @@ import {
   ReferenceArea,
   ReferenceDot,
 } from "recharts";
-import { SlidersHorizontal } from "lucide-react";
-import Link from "next/link";
 import {
   useState,
   useMemo,
@@ -30,6 +28,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { RichChartTooltip, type RichTooltipRow } from "./chart-tooltip";
 import { ChartEmptyState } from "./chart-empty-state";
+import { ChartErrorState } from "./chart-error-state";
 import { TileHeader } from "@/components/insights/tile-header";
 import { prefersReducedMotion } from "@/lib/charts/reduced-motion";
 import { computePaddedYDomain } from "@/lib/insights/chart-y-domain";
@@ -110,15 +109,6 @@ interface HealthChartProps {
     textColor?: string;
     lineOpacity?: number;
   }>;
-  /**
-   * Optional href for a small "adjust targets" link in the chart
-   * header. Callers whose charts paint a target band / zones (weight,
-   * blood pressure) pass `/settings/thresholds` so the band's origin —
-   * and the page that edits personal target ranges — is one click
-   * away. Omitted (every other mount) renders no link. Ignored in
-   * `mini` mode, which has no header.
-   */
-  targetSettingsHref?: string;
   /**
    * v1.4.16 phase B5c — compact chart mode used by the Oura-style
    * rationale card. Drops the range tabs, the moving-average / trend
@@ -536,7 +526,6 @@ export function HealthChart({
   showYAxisUnit = true,
   valueBands,
   targetZones,
-  targetSettingsHref,
   mini = false,
   windowOverride,
   compareBaseline = "none",
@@ -631,7 +620,7 @@ export function HealthChart({
     };
   }, [rangePoints, effectiveCompareBaseline]);
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     // v1.4.40 W-RSC — route the chart-data key through `queryKeys.chartData`
     // so the `["chart-data"]` prefix lands in `measurementDependentKeys`
     // and a fresh measurement evicts every per-chart daily cache in one
@@ -708,16 +697,14 @@ export function HealthChart({
           "days",
           String(Math.max(1, Math.min(3650, Math.ceil(fetchWindow.windowDays)))),
         );
-        let points: Array<{ at: string; value: number }>;
-        try {
-          const data = await apiGet<{
-            points?: Array<{ at: string; value: number }>;
-          }>(`/api/measurements/series?${sleepParams}`);
-          points = data?.points ?? [];
-        } catch {
-          // Sleep overlay is additive — skip it on failure, as before.
-          return;
-        }
+        // v1.16.8 — a failed fetch rejects the whole query instead of
+        // silently resolving an empty series: the swallowed-catch
+        // variant cached the empty result as fresh success, so an
+        // outage painted "no data in this range" with no retry path.
+        const data = await apiGet<{
+          points?: Array<{ at: string; value: number }>;
+        }>(`/api/measurements/series?${sleepParams}`);
+        const points = data?.points ?? [];
         for (const point of points) {
           const value = point.value * valueScale;
           if (value == null || !Number.isFinite(value)) continue;
@@ -773,16 +760,16 @@ export function HealthChart({
           typeParams.set("source", "rollup");
         }
 
-        let page: MeasurementApiRow[];
-        try {
-          const data = await apiGet<{ measurements?: MeasurementApiRow[] }>(
-            `/api/measurements?${typeParams}`,
-          );
-          page = data?.measurements ?? [];
-        } catch {
-          // Per-type fetch failure degrades that series only, as before.
-          return;
-        }
+        // v1.16.8 — a failed per-type fetch rejects the whole query
+        // instead of silently dropping the series: the swallowed-catch
+        // variant cached the partial/empty result as fresh success, so
+        // an outage painted the empty state (or a half chart) with no
+        // retry path. Rejecting lets TanStack's retry semantics and the
+        // in-card error state below do their jobs.
+        const data = await apiGet<{ measurements?: MeasurementApiRow[] }>(
+          `/api/measurements?${typeParams}`,
+        );
+        const page = data?.measurements ?? [];
 
         for (const measurement of page) {
           // v1.7.0 — fold the display-time scale into the raw value at
@@ -1472,19 +1459,10 @@ export function HealthChart({
                 )}
               </span>
             )}
-            {/* Discoverability link from the painted target band to the
-                page that edits personal target ranges. Only mounts when
-                a caller passes `targetSettingsHref` (weight + BP). */}
-            {targetSettingsHref ? (
-              <Link
-                href={targetSettingsHref}
-                data-slot="chart-target-settings-link"
-                className="text-muted-foreground hover:text-foreground inline-flex min-h-11 items-center gap-1 text-xs underline underline-offset-2 transition-colors sm:min-h-9"
-              >
-                <SlidersHorizontal className="h-3 w-3" aria-hidden="true" />
-                {t("charts.adjustTargets")}
-              </Link>
-            ) : null}
+            {/* v1.16.8 — the in-header "adjust targets" link is gone.
+                The page-level target-adjust control in the sub-page
+                header (`<TargetAdjustButton>`) owns the affordance; the
+                chart card stays a read surface. */}
           </div>
           <div
             className="flex flex-nowrap items-center justify-end gap-1 self-end sm:self-auto"
@@ -1545,6 +1523,17 @@ export function HealthChart({
         // shared-reveal overlay and every insights mount stay
         // layout-shift-free.
         <Skeleton className={`w-full ${chartHeightClass}`} />
+      ) : isError ? (
+        // v1.16.8 — a failed query paints as an ERROR with a retry
+        // affordance, not as the "no data in this range" empty state.
+        // Pre-fix `isError` fell through to the empty branch and an
+        // outage read as "you have no measurements".
+        <ChartErrorState
+          title={t("charts.errorTitle")}
+          actionLabel={t("common.retry")}
+          actionContext={title}
+          onAction={() => void refetch()}
+        />
       ) : !chartData?.length ? (
         // v1.4.43 W11-M6 — empty-window state.
         //

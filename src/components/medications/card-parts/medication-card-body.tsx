@@ -9,6 +9,7 @@ import { MedicationCardHeader } from "@/components/medications/MedicationCardHea
 import { MedicationStatusPill } from "@/components/medications/card-parts/medication-status-pill";
 import {
   MedicationComplianceBars,
+  MedicationComplianceError,
   MedicationComplianceSkeleton,
 } from "@/components/medications/card-parts/medication-compliance-bars";
 import { MedicationCycleStatus } from "@/components/medications/card-parts/medication-cycle-status";
@@ -95,6 +96,16 @@ export interface MedicationCardBodyProps {
     longDays: number;
   } | null;
 
+  /**
+   * True when the batched compliance query FAILED (post-retry). The body
+   * then renders the quiet same-footprint error fallback instead of the
+   * skeleton — a permanent skeleton reads as "still loading" forever,
+   * while a failed read needs a visible (but calm) retry affordance.
+   */
+  complianceError?: boolean;
+  /** Refetch the shared compliance query (the error fallback's retry). */
+  onRetryCompliance?: () => void;
+
   /** The open-cycle descriptor, or null when the display block is absent. */
   currentCycle: CurrentCycle | null;
 
@@ -121,6 +132,8 @@ export function MedicationCardBody({
   nextLine,
   lastLine,
   compliance,
+  complianceError = false,
+  onRetryCompliance,
   currentCycle,
   intakeLoading,
   onRecordIntake,
@@ -160,25 +173,33 @@ export function MedicationCardBody({
         {/* Top status line. The in-window take-now pill (success) and the
             overdue escalation are mutually exclusive — a dose is either still
             in its take-window or past it. The overdue line wins when present
-            so a heavily-overdue dose reads loud at the top of the card. */}
-        {overdueLabel ? (
-          <p className="text-destructive flex items-center gap-1 text-sm font-medium">
-            <AlertTriangle className="size-3.5 shrink-0" aria-hidden="true" />
-            {overdueLabel}
-          </p>
-        ) : windowStatus ? (
-          <MedicationStatusPill
-            status={windowStatus.status}
-            windowStart={windowStatus.windowStart}
-            windowEnd={windowStatus.windowEnd}
-          />
-        ) : null}
+            so a heavily-overdue dose reads loud at the top of the card.
+            The slot keeps a constant one-line height even when empty: the
+            overdue tier arrives with the compliance query, and a line
+            popping in late used to shift every row below it (CLS). */}
+        <div className="min-h-5">
+          {overdueLabel ? (
+            <p className="text-destructive flex items-center gap-1 text-sm font-medium">
+              <AlertTriangle className="size-3.5 shrink-0" aria-hidden="true" />
+              {overdueLabel}
+            </p>
+          ) : windowStatus ? (
+            <MedicationStatusPill
+              status={windowStatus.status}
+              windowStart={windowStatus.windowStart}
+              windowEnd={windowStatus.windowEnd}
+            />
+          ) : null}
+        </div>
 
         {/* Next / last intake — the two decisive lines, each shown once. */}
         <MedicationNextLastSlot next={nextLine} last={lastLine} />
 
         {/* Compliance bars — always two rows; constant-height skeleton holds
-            the slot while the query is in flight so the grid row stays even. */}
+            the slot while the query is in flight so the grid row stays even.
+            A FAILED query swaps the skeleton for the same-footprint quiet
+            error fallback (no bars, one notice line + retry) instead of
+            sitting on the skeleton forever. */}
         {active &&
           (compliance ? (
             <MedicationComplianceBars
@@ -188,13 +209,20 @@ export function MedicationCardBody({
               shortDays={compliance.shortDays}
               longDays={compliance.longDays}
             />
+          ) : complianceError && onRetryCompliance ? (
+            <MedicationComplianceError onRetry={onRetryCompliance} />
           ) : (
             <MedicationComplianceSkeleton />
           ))}
 
-        {/* Open-cycle status line — calm, rate-decoupled. */}
-        {active && currentCycle && (
-          <MedicationCycleStatus cycle={currentCycle} />
+        {/* Open-cycle status line — calm, rate-decoupled. The slot reserves
+            one xs text line on every active card: the descriptor rides the
+            compliance query, and a line appearing after the fetch resolved
+            used to grow the card and shift the grid row (CLS). */}
+        {active && (
+          <div className="min-h-4">
+            {currentCycle && <MedicationCycleStatus cycle={currentCycle} />}
+          </div>
         )}
 
         {/* Quick actions — bottom-pinned so the action rows align across a

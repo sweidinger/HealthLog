@@ -94,6 +94,13 @@ vi.mock("@/lib/jobs/insight-pregenerate-shared", () => ({
   enqueueForceWarm: vi.fn(async () => undefined),
 }));
 
+// The POST follows a successful generation with a hash-gated refill of the
+// per-status / generic-metric cards. Mocked at the module boundary — the
+// enqueue pipeline itself is covered by the comprehensive-generate tests.
+vi.mock("@/lib/insights/comprehensive-generate", () => ({
+  enqueueStatusRefillForUser: vi.fn(async () => 7),
+}));
+
 vi.mock("@/lib/logging/context", () => ({
   annotate: vi.fn(),
 }));
@@ -117,6 +124,7 @@ vi.mock("@/lib/i18n/server-locale", () => ({
 }));
 
 import { GET, POST, resolveInsightsRateLimit } from "../route";
+import { enqueueStatusRefillForUser } from "@/lib/insights/comprehensive-generate";
 import { resolveProvider } from "@/lib/ai/provider";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { prisma } from "@/lib/db";
@@ -342,32 +350,39 @@ describe("POST /api/insights/generate — rate limit (v1.4.16 A7.1)", () => {
   });
 });
 
-// v1.4.16 A7.2: every fresh comprehensive insight evicts the per-
-// scope status cache so the dashboard and the insights-page status
-// cards never disagree. Without this, force-regeneration repaints
-// `/api/insights/generate` while `/api/insights/<scope>-status` keeps
-// returning yesterday's text until midnight Berlin time.
-describe("POST /api/insights/generate — per-status cache eviction (A7.2)", () => {
-  it("deletes per-status audit-log cache rows after a successful generation", async () => {
+// v1.16.8 — a fresh comprehensive insight no longer nukes the per-scope
+// status cache (the old A7.2 sweep). The cards track their own data via
+// the ingest invalidator + per-card content-hash gates; the route's job
+// is to store the snapshot fingerprint so the off-request regeneration
+// paths can detect "nothing changed" and skip the provider.
+describe("POST /api/insights/generate — cache write (v1.16.8)", () => {
+  it("does NOT delete per-status audit-log cache rows after a successful generation", async () => {
     makeWorkingProvider();
 
     const res = await POST(jsonRequest({ force: true }) as never);
     expect(res.status).toBe(200);
 
-    expect(prisma.auditLog.deleteMany).toHaveBeenCalledTimes(1);
-    const args = vi.mocked(prisma.auditLog.deleteMany).mock.calls[0][0];
-    expect(args).toMatchObject({
-      where: {
-        userId: "u-1",
-        action: { startsWith: "insights." },
-        AND: [{ action: { contains: "-status." } }],
-      },
-    });
+    expect(prisma.auditLog.deleteMany).not.toHaveBeenCalled();
   });
 
-  it("does NOT delete per-status cache when serving from the 24h DB cache", async () => {
+  it("stores the snapshot fingerprint alongside the cached text", async () => {
+    makeWorkingProvider();
+
+    const res = await POST(jsonRequest({ force: true }) as never);
+    expect(res.status).toBe(200);
+
+    expect(prisma.user.update).toHaveBeenCalledTimes(1);
+    const args = vi.mocked(prisma.user.update).mock.calls[0][0] as {
+      data: Record<string, unknown>;
+    };
+    expect(args.data.insightsCachedText).toEqual(expect.any(String));
+    // SHA-256 hex digest of the compacted feature snapshot.
+    expect(args.data.insightsSnapshotHash).toMatch(/^[0-9a-f]{64}$/);
+  });
+
+  it("does NOT touch the cache when serving from the 24h DB cache", async () => {
     // Cached path: route returns early without touching the LLM or the
-    // cache-eviction helper.
+    // cache write.
     vi.mocked(prisma.user.findUnique).mockResolvedValueOnce({
       insightsPrivacyMode: "aggregated",
       insightsCachedAt: new Date(),
@@ -379,7 +394,53 @@ describe("POST /api/insights/generate — per-status cache eviction (A7.2)", () 
     expect(res.status).toBe(200);
     const body = (await res.json()) as { data: { cached: boolean } };
     expect(body.data.cached).toBe(true);
+    expect(prisma.user.update).not.toHaveBeenCalled();
     expect(prisma.auditLog.deleteMany).not.toHaveBeenCalled();
+  });
+
+  it("enqueues the hash-gated card refill after a successful generation", async () => {
+    makeWorkingProvider();
+
+    const res = await POST(jsonRequest({ force: true }) as never);
+    expect(res.status).toBe(200);
+
+    // The manual regenerate takes the cards along: one refill enqueue for
+    // the caller's resolved locale, annotated for the wide-event pipeline.
+    expect(enqueueStatusRefillForUser).toHaveBeenCalledTimes(1);
+    expect(enqueueStatusRefillForUser).toHaveBeenCalledWith("u-1", "en");
+    const refillAnnotate = vi
+      .mocked(annotate)
+      .mock.calls.find(
+        (call) =>
+          (call[0] as { action?: { name?: string } })?.action?.name ===
+          "insights.generate.cards_refill",
+      );
+    expect(refillAnnotate, "cards_refill annotate event").toBeTruthy();
+  });
+
+  it("does NOT enqueue the card refill when serving from the 24h DB cache", async () => {
+    vi.mocked(prisma.user.findUnique).mockResolvedValueOnce({
+      insightsPrivacyMode: "aggregated",
+      insightsCachedAt: new Date(),
+      insightsCachedText: JSON.stringify({ changed: "still fresh" }),
+      locale: "en",
+    } as never);
+
+    const res = await POST(jsonRequest({}) as never);
+    expect(res.status).toBe(200);
+    expect(enqueueStatusRefillForUser).not.toHaveBeenCalled();
+  });
+
+  it("does NOT enqueue the card refill when the provider fails", async () => {
+    makeProviderThatThrows(
+      Object.assign(new Error("OpenAI request failed (500)"), {
+        httpStatus: 500,
+      }),
+    );
+
+    const res = await POST(jsonRequest({ force: true }) as never);
+    expect(res.status).toBe(503);
+    expect(enqueueStatusRefillForUser).not.toHaveBeenCalled();
   });
 });
 

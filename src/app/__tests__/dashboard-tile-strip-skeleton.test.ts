@@ -2,7 +2,15 @@ import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
-import { resolveDashboardFirstPaintGate } from "../page";
+import {
+  resolveChartRowPlaceholderCount,
+  resolveConfiguredTileCount,
+  resolveDashboardFirstPaintGate,
+} from "../page";
+import {
+  DEFAULT_DASHBOARD_LAYOUT,
+  type DashboardLayout,
+} from "@/lib/dashboard-layout";
 
 /**
  * v1.4.43 W11-M5 — dashboard tile-strip skeleton during slow first
@@ -94,12 +102,93 @@ describe("resolveDashboardFirstPaintGate", () => {
   });
 });
 
+describe("resolveConfiguredTileCount (v1.16.8)", () => {
+  it("counts only widgets that paint a strip tile, with bp counting double", () => {
+    // Default layout: weight, bp, pulse, bodyFat, mood, bpInTarget are
+    // tile-visible AND tile-capable; medications + recentWorkouts are
+    // tile-visible in the stored layout but paint NO strip tile, so
+    // they must not inflate the silhouette. bp paints sys + dia = 2.
+    expect(resolveConfiguredTileCount(DEFAULT_DASHBOARD_LAYOUT)).toBe(7);
+  });
+
+  it("ignores chart-only and iOS-pin-only widget ids", () => {
+    const layout: DashboardLayout = {
+      version: 1,
+      widgets: [
+        { id: "medications", visible: true, tileVisible: true, order: 0 },
+        { id: "recentWorkouts", visible: true, tileVisible: true, order: 1 },
+        { id: "achievements", visible: true, tileVisible: true, order: 2 },
+        { id: "cardioRecovery", visible: true, tileVisible: true, order: 3 },
+      ],
+    };
+    expect(resolveConfiguredTileCount(layout)).toBe(0);
+  });
+
+  it("falls back to `visible` for legacy entries without tileVisible", () => {
+    const layout: DashboardLayout = {
+      version: 1,
+      widgets: [
+        { id: "weight", visible: true, order: 0 },
+        { id: "pulse", visible: false, order: 1 },
+      ],
+    };
+    expect(resolveConfiguredTileCount(layout)).toBe(1);
+  });
+});
+
+describe("resolveChartRowPlaceholderCount (v1.16.8)", () => {
+  it("reserves one cell per chart-visible chart-capable widget", () => {
+    // Default layout chart row: weight, bp, pulse, bodyFat, mood,
+    // medications are `visible`; bpInTarget / achievements /
+    // recentWorkouts carry no chart-shaped footprint.
+    expect(resolveChartRowPlaceholderCount(DEFAULT_DASHBOARD_LAYOUT)).toBe(6);
+  });
+
+  it("adds the BMI cell riding the weight gate when a height is known", () => {
+    expect(
+      resolveChartRowPlaceholderCount(DEFAULT_DASHBOARD_LAYOUT, {
+        hasHeightCm: true,
+      }),
+    ).toBe(7);
+  });
+
+  it("respects a trimmed layout", () => {
+    const layout: DashboardLayout = {
+      version: 1,
+      widgets: [
+        { id: "weight", visible: true, tileVisible: true, order: 0 },
+        { id: "bp", visible: false, tileVisible: true, order: 1 },
+        { id: "steps", visible: true, tileVisible: false, order: 2 },
+      ],
+    };
+    expect(resolveChartRowPlaceholderCount(layout)).toBe(2);
+  });
+});
+
 describe("v1.4.43 W11 — dashboard tile-strip skeleton (wiring)", () => {
-  it("derives `configuredTileCount` from the resolved layout", () => {
+  it("derives `configuredTileCount` through the tile-capable resolver", () => {
     const src = readFileSync(PAGE_PATH, "utf8");
     expect(src).toMatch(
-      /const\s+configuredTileCount\s*=\s*layout\.widgets\.filter\([\s\S]*?w\.tileVisible\s*\?\?\s*w\.visible[\s\S]*?\)\.length;/,
+      /const\s+configuredTileCount\s*=\s*resolveConfiguredTileCount\(layout\);/,
     );
+  });
+
+  it("reserves the chart row while the primary query loads", () => {
+    const src = readFileSync(PAGE_PATH, "utf8");
+    // The placeholder count keys off the layout config minus the
+    // already-mounted (layout-gated) cells, and only while loading.
+    expect(src).toMatch(
+      /const\s+chartRowPlaceholderCount\s*=\s*primaryLoading[\s\S]*?resolveChartRowPlaceholderCount\(layout,[\s\S]*?hasHeightCm:\s*Boolean\(user\?\.heightCm\)/,
+    );
+    expect(src).toMatch(/-\s*charts\.length/);
+    // The reserved cells render as aria-hidden ChartSkeletons in their
+    // own slot.
+    const skeletonBlock = src.match(
+      /chartRowPlaceholderCount\s*>\s*0\s*&&\s*\([\s\S]*?dashboard-chart-row-skeleton[\s\S]*?\)\}/,
+    );
+    expect(skeletonBlock).not.toBeNull();
+    expect(skeletonBlock?.[0]).toContain('aria-hidden="true"');
+    expect(skeletonBlock?.[0]).toContain("<ChartSkeleton");
   });
 
   it("derives `primaryLoading` from the snapshot vs slim query", () => {

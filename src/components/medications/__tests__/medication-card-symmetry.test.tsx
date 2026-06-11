@@ -59,11 +59,21 @@ function render(
   );
 }
 
+// v1.16.8 — the cards read ONE batched summary key and `select` their
+// own row, so seeding merges into the shared array instead of writing a
+// per-medication key.
 function seedCompliance(client: QueryClient, medId: string) {
-  client.setQueryData(["medications", medId, "compliance"], {
-    compliance7: { rate: 90, streak: 0, totalExpected: 7, taken: 6 },
-    compliance30: { rate: 88 },
-  });
+  const key = ["medications", "compliance-summary"];
+  const existing =
+    (client.getQueryData(key) as Array<{ medicationId: string }>) ?? [];
+  client.setQueryData(key, [
+    ...existing.filter((row) => row.medicationId !== medId),
+    {
+      medicationId: medId,
+      compliance7: { rate: 90, streak: 0, totalExpected: 7, taken: 6 },
+      compliance30: { rate: 88 },
+    },
+  ]);
 }
 
 function seedGlp1Details(client: QueryClient, medId: string) {

@@ -23,10 +23,10 @@ import {
   queryKeys,
 } from "@/lib/query-keys";
 import { apiGet, apiPost } from "@/lib/api/api-fetch";
+import { useMedicationComplianceSummary } from "@/lib/queries/use-medication-compliance-summary";
 import { LogInjectionSiteDialog } from "@/components/medications/log-injection-site-dialog";
 import { useGlobalExcludedInjectionSites } from "@/lib/medications/use-injection-site-prefs";
 import type { InjectionSiteKey } from "@/lib/medications/injection-sites";
-import type { ComplianceDisplay } from "@/lib/analytics/compliance";
 
 interface Schedule {
   id: string;
@@ -87,25 +87,6 @@ interface Medication {
   schedules: Schedule[];
 }
 
-interface ComplianceData {
-  compliance7: {
-    rate: number;
-    streak: number;
-  };
-  compliance30: {
-    rate: number;
-  };
-  /**
-   * v1.8.6 — the two compliance windows scaled to the dosing cadence. The
-   * card always shows two percentage rows; `shortDays` / `longDays` name the
-   * windows and `short` / `long` carry their rates. v1.15.9 also carries the
-   * open dose's `currentDose.status` for the green / overdue presentation.
-   * Additive — older mocks omit it, in which case the card falls back to the
-   * static 7-/30-day `compliance7` / `compliance30` fields and a calm state.
-   */
-  complianceDisplay?: ComplianceDisplay;
-}
-
 interface MedicationCardProps {
   medication: Medication;
   onEdit: (med: Medication) => void;
@@ -147,24 +128,16 @@ export function MedicationCard({
     },
   });
 
-  const { data: compliance } = useQuery({
-    queryKey: queryKeys.medicationCompliance(medication.id),
-    queryFn: async () => {
-      try {
-        return await apiGet<ComplianceData>(
-          `/api/medications/${medication.id}/compliance`,
-        );
-      } catch {
-        return null;
-      }
-    },
-    // v1.15.20 — the card renders two percentage rows that move on a
-    // dose action (which invalidates this key through
-    // `medicationDependentKeys`) or over hours of wall-clock drift; a
-    // 30 s window only re-fired one request per card on every list
-    // visit. Five minutes matches the reminder-thresholds query below.
-    staleTime: 5 * 60 * 1000,
-  });
+  // v1.16.8 — the per-card compliance read rides the ONE batched
+  // `GET /api/medications/compliance` round trip every card on the page
+  // shares (the per-id endpoint stays for the detail page's heatmap).
+  // `isError` swaps the compliance slot to the quiet retry fallback so a
+  // failed batch read never leaves the card on a permanent skeleton.
+  const {
+    data: compliance,
+    isError: complianceError,
+    refetch: refetchCompliance,
+  } = useMedicationComplianceSummary(medication.id);
 
   const [, forceUpdate] = useReducer((x: number) => x + 1, 0);
 
@@ -419,6 +392,8 @@ export function MedicationCard({
       compliance={
         compliance ? { rate7, rate30, streak, shortDays, longDays } : null
       }
+      complianceError={complianceError}
+      onRetryCompliance={refetchCompliance}
       currentCycle={display?.currentCycle ?? null}
       intakeLoading={intakeLoading}
       onRecordIntake={(skipped) => recordIntake(skipped, displayedSlot)}

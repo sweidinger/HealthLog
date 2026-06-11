@@ -19,6 +19,7 @@ import { annotate } from "@/lib/logging/context";
 import { prisma } from "@/lib/db";
 import { auditLog } from "@/lib/auth/audit";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { invalidateUserProfile } from "@/lib/cache/invalidate";
 import {
   getAllEffectiveRanges,
   type ThresholdOverridesJson,
@@ -99,6 +100,11 @@ export const PUT = apiHandler(async (request: NextRequest) => {
     data: { thresholdsJson: merged },
   });
 
+  // Threshold overrides feed the targets grid's effective ranges and the
+  // analytics snapshot — drop the cached payloads so the next read
+  // reflects the new bands instead of serving the pre-edit grid.
+  invalidateUserProfile(user.id);
+
   await auditLog("thresholds.update", {
     userId: user.id,
     ipAddress: getClientIp(request),
@@ -141,6 +147,10 @@ export const DELETE = apiHandler(async (request: NextRequest) => {
       thresholdsJson: Object.keys(after).length === 0 ? Prisma.JsonNull : after,
     },
   });
+
+  // A reset changes the effective ranges back to the defaults — same
+  // eviction as the PUT above.
+  invalidateUserProfile(user.id);
 
   await auditLog("thresholds.reset", {
     userId: user.id,

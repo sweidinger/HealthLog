@@ -285,7 +285,7 @@ export const PUT = apiHandler(
 
     // v1.4.34 IW-G — bust per-user medications + compliance + achievement
     // caches so the next read reflects the edited event.
-    invalidateUserMedications(user.id);
+    invalidateUserMedications(user.id, { evict: true });
 
     // v1.4.39 W-MED — refresh the rollup row for both the old + new
     // scheduledFor day-keys when the dose moved across a day boundary
@@ -364,7 +364,7 @@ export const DELETE = apiHandler(
 
     // v1.4.34 IW-G — bust per-user medications + compliance + achievement
     // caches so the next read reflects the deletion.
-    invalidateUserMedications(user.id);
+    invalidateUserMedications(user.id, { evict: true });
 
     // v1.4.39 W-MED — refresh the rollup row for the day the deleted
     // event sat on. When that day now holds zero events the helper

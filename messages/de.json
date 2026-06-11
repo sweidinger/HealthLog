@@ -562,6 +562,8 @@
     "nextPage": "Nächste Seite",
     "loginRequired": "Bitte anmelden, um Stimmungseinträge zu sehen.",
     "note": "Notiz",
+    "noteCollapse": "Notiz einklappen",
+    "noteExpand": "Notiz vollständig anzeigen",
     "notePlaceholder": "Notiz dazu, wie du dich fühlst…",
     "tagPicker": "Tags",
     "tagCategory": {
@@ -733,6 +735,7 @@
     "compliance7d": "Therapietreue (7 Tage)",
     "compliance30d": "Therapietreue (30 Tage)",
     "complianceWindow": "Therapietreue ({days} Tage)",
+    "complianceUnavailable": "Therapietreue konnte nicht geladen werden",
     "complianceInfo": "Anteil der erfassten an den erwarteten Dosen. Wöchentliche Pläne zählen wochenweise.",
     "complianceInfoLabel": "Was bedeutet Therapietreue?",
     "complianceDoses": "{count} Dosen",
@@ -1665,7 +1668,6 @@
   "charts": {
     "loadingLabel": "Diagramm wird geladen…",
     "loadingSlowHint": "Auswertungen werden berechnet — das kann einen Moment dauern.",
-    "adjustTargets": "Zielwerte anpassen",
     "weight": "Gewicht",
     "bloodPressure": "Blutdruck",
     "pulse": "Puls",
@@ -1740,6 +1742,9 @@
     "needMoreDistinctDaysDescription": "Erfasse an mehreren Tagen, um eine Trendlinie freizuschalten.",
     "noDataInRangeTitle": "Keine Daten in diesem Zeitraum",
     "noDataInRangeDescription": "Für den gewählten Bereich liegen keine Messungen vor. Wechsle den Zeitraum oder erfasse einen neuen Wert.",
+    "errorTitle": "Daten konnten nicht geladen werden",
+    "loadErrorTitle": "Diagramm konnte nicht geladen werden",
+    "loadErrorReload": "Neu laden",
     "sparseDataCaption": "Mehr Messtage füllen den Trend.",
     "personalBaseline": "Dein Mittel",
     "deltaVsBaseline": "{delta} vs. dein Mittel",
@@ -2031,6 +2036,7 @@
       "thinking": "Denke nach…",
       "composerPlaceholder": "Frag mich etwas zu deinen Daten…",
       "nudgeBubbleLabel": "Neue Nachricht vom Coach — Chat öffnen",
+      "fabLabel": "Coach öffnen",
       "selfContextAdopt": {
         "offer": "Antwort in deine Selbstauskunft übernehmen?",
         "confirm": "Übernehmen",
@@ -2038,6 +2044,12 @@
         "done": "In die Selbstauskunft übernommen",
         "duplicate": "Bereits in der Selbstauskunft enthalten",
         "failed": "Übernahme fehlgeschlagen. Bitte erneut versuchen."
+      },
+      "rememberMessage": {
+        "action": "Merken",
+        "done": "Gemerkt — in deiner Selbstauskunft gespeichert",
+        "duplicate": "Schon in deiner Selbstauskunft enthalten",
+        "failed": "Merken fehlgeschlagen. Bitte erneut versuchen."
       },
       "guided": {
         "offerTitle": "Der Coach hat {count} Rückfragen an dich",
@@ -2468,7 +2480,8 @@
         "ariaLabel": "Schlafphasen-Verlauf der letzten Nacht: {asleep} geschlafen, {awakenings} Wachphasen",
         "asleepTotal": "Geschlafen {value}",
         "inBedTotal": "Im Bett {value}",
-        "awakenings": "{count} Wachphasen"
+        "awakenings": "{count} Wachphasen",
+        "source": "Quelle: {source}"
       },
       "stages": {
         "deep": "Tief",

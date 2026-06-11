@@ -102,12 +102,17 @@ const TOKEN_REFRESH_BUFFER_MS = 5 * 60 * 1000;
 
 /**
  * Overlap window for the incremental sync, in ms. WHOOP re-scores recovery
- * and sleep after the fact (the final recovery/sleep score can land hours
- * after the night), so the recovery/sleep overlap is a full 24 h to make sure
- * the re-scored record is re-fetched on the next tick. Workout/cycle settle
- * fast — a smaller overlap suffices and keeps the page count down.
+ * and sleep after the fact, and a night can reach the WHOOP cloud DAYS late
+ * (phone offline, app unopened, score pending). The collection endpoints
+ * filter on the record's own time range — not on when it arrived — so any
+ * record surfacing after the cursor moved past it is missed FOREVER by a
+ * narrow overlap; the night's per-stage rows then never reach the DB and
+ * every sleep surface keeps showing the parallel coarse source for that
+ * night. Seven days re-fetches a handful of records per tick (the upserts
+ * are idempotent) and closes the gap for every realistic lag. Workout/cycle
+ * settle fast — a smaller overlap suffices and keeps the page count down.
  */
-export const WHOOP_RECOVERY_SLEEP_OVERLAP_MS = 24 * 60 * 60 * 1000;
+export const WHOOP_RECOVERY_SLEEP_OVERLAP_MS = 7 * 24 * 60 * 60 * 1000;
 export const WHOOP_DEFAULT_OVERLAP_MS = 60 * 60 * 1000; // 1 h
 
 export interface WhoopTokenInfo {

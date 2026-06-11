@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { queryKeys } from "@/lib/query-keys";
 import { apiGet, apiFetchRaw } from "@/lib/api/api-fetch";
+import { retryOnceOnTransientError } from "@/lib/queries/retry-transient";
 import { useTranslations } from "@/lib/i18n/context";
 import type { TimeFormatPreference } from "@/lib/format-locale";
 import { isTimeFormatPreference, storeTimeFormat } from "@/lib/time-format";
@@ -127,7 +128,10 @@ export function useAuth() {
     // `queryKeys.auth()` invalidations.
     queryKey: queryKeys.authMe(),
     queryFn: fetchMe,
-    retry: false,
+    // v1.16.8 — one retry on network errors / 5xx (never 401/403). A
+    // single transient failure used to flip `isAuthenticated` false and
+    // send the shell to the redirect spinner mid-session.
+    retry: retryOnceOnTransientError,
     staleTime: 5 * 60 * 1000,
   });
 

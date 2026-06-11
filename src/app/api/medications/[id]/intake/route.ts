@@ -467,7 +467,7 @@ async function postIntake(request: NextRequest, { params }: RouteParams) {
 
   // v1.4.34 IW-G — bust per-user medications + compliance + achievement
   // caches so the next read reflects the dose event.
-  invalidateUserMedications(user.id);
+  invalidateUserMedications(user.id, { evict: true });
 
   // v1.4.39 W-MED — refresh the persistent compliance rollup for the
   // affected day. The hook is best-effort; failures annotate but never
@@ -488,7 +488,7 @@ async function postIntake(request: NextRequest, { params }: RouteParams) {
   // actually receive its dose.
   const reconcileAction = await reconcileOneShotState(prisma, id, user.id);
   if (reconcileAction !== "noop") {
-    invalidateUserMedications(user.id);
+    invalidateUserMedications(user.id, { evict: true });
   }
 
   return apiSuccess(event, 201);

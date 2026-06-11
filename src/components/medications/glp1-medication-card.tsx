@@ -26,7 +26,7 @@ import {
   toBerlinDate,
 } from "@/lib/medications/window-status";
 import { resolveDisplayedSlotInstant } from "@/components/medications/card-parts/displayed-slot-instant";
-import type { ComplianceDisplay } from "@/lib/analytics/compliance";
+import { useMedicationComplianceSummary } from "@/lib/queries/use-medication-compliance-summary";
 
 /**
  * v1.4.25 W4d — GLP-1 medication card variant.
@@ -110,19 +110,6 @@ export interface Glp1Medication {
   schedules: ScheduleLite[];
 }
 
-interface ComplianceData {
-  compliance7: { rate: number; streak: number };
-  compliance30: { rate: number };
-  /**
-   * v1.8.6 — the two compliance windows scaled to the dosing cadence. GLP-1
-   * injections are commonly weekly, so this card's windows step up to the
-   * 30-/90-day rung where the bars stay meaningful. Additive — older mocks
-   * omit it, in which case the card falls back to the static 7-/30-day
-   * fields.
-   */
-  complianceDisplay?: ComplianceDisplay;
-}
-
 interface DetailsResponse {
   doseChanges: DoseChangeLite[];
   recentIntakes: IntakeLite[];
@@ -202,22 +189,16 @@ export function Glp1MedicationCard({
     },
   });
 
-  const { data: compliance } = useQuery({
-    queryKey: queryKeys.medicationCompliance(medication.id),
-    queryFn: async () => {
-      try {
-        return await apiGet<ComplianceData>(
-          `/api/medications/${medication.id}/compliance`,
-        );
-      } catch {
-        return null;
-      }
-    },
-    // v1.15.20 — same 5-minute window as the generic card: dose actions
-    // invalidate the key explicitly, so a short staleTime only re-fired
-    // a request per card on every list visit.
-    staleTime: 5 * 60 * 1000,
-  });
+  // v1.16.8 — same batched compliance source as the generic card: one
+  // `GET /api/medications/compliance` round trip shared by every card on
+  // the page (the per-id endpoint stays for the detail page's heatmap).
+  // `isError` swaps the compliance slot to the quiet retry fallback so a
+  // failed batch read never leaves the card on a permanent skeleton.
+  const {
+    data: compliance,
+    isError: complianceError,
+    refetch: refetchCompliance,
+  } = useMedicationComplianceSummary(medication.id);
 
   // v1.4.37 W4b — same reminder-thresholds source as the generic
   // medication card so the take-now / overdue / very-overdue pill
@@ -467,6 +448,8 @@ export function Glp1MedicationCard({
       compliance={
         compliance ? { rate7, rate30, streak, shortDays, longDays } : null
       }
+      complianceError={complianceError}
+      onRetryCompliance={refetchCompliance}
       currentCycle={display?.currentCycle ?? null}
       intakeLoading={intakeLoading}
       onRecordIntake={(skipped) => recordIntake(skipped, displayedSlot)}

@@ -63,6 +63,16 @@ describe("extractDeterministicFacts", () => {
     ["Ich hab eine Erdnuss-Allergie, seit Jahren.", "Erdnuss"],
     ["übrigens: ich bin allergisch gegen Penicillin.", "Penicillin"],
     ["ich habe eine Allergie gegen Hausstaubmilben", "Hausstaubmilben"],
+    // v1.16.8 — conversational fillers no longer defeat the pass.
+    ["Ich habe übrigens eine Erdnussallergie.", "Erdnuss"],
+    ["Ich habe seit Jahren eine Pollenallergie.", "Pollen"],
+    ["Ich habe auch eine Allergie gegen Nüsse.", "Nüsse"],
+    ["Übrigens, ich habe noch eine Allergie gegen Penicillin.", "Penicillin"],
+    ["Ich habe eine starke Erdnussallergie.", "Erdnuss"],
+    ["Ich bin leider allergisch auf Erdnüsse.", "Erdnüsse"],
+    // v1.16.8 — first-person possessive.
+    ["Meine Erdnussallergie macht mir zu schaffen.", "Erdnuss"],
+    ["Wegen meiner Pollenallergie schlafe ich schlecht.", "Pollen"],
   ])("matches the German allergy statement %j", (message, subject) => {
     const facts = extractDeterministicFacts(message, "de");
     expect(facts).toHaveLength(1);
@@ -81,6 +91,19 @@ describe("extractDeterministicFacts", () => {
     expect(
       extractDeterministicFacts("ich bin laktoseintolerant", "de")[0]?.fact,
     ).toContain("laktose");
+    // v1.16.8 — fillers + possessive.
+    expect(
+      extractDeterministicFacts(
+        "ich habe übrigens eine Laktoseintoleranz",
+        "de",
+      )[0]?.fact,
+    ).toContain("Laktose");
+    expect(
+      extractDeterministicFacts(
+        "wegen meiner Histaminunverträglichkeit",
+        "de",
+      )[0]?.fact,
+    ).toContain("Histamin");
   });
 
   it("matches a German self-reported diagnosis", () => {
@@ -99,6 +122,11 @@ describe("extractDeterministicFacts", () => {
     ["I have a peanut allergy", "peanut"],
     ["I have a lactose intolerance", "lactose"],
     ["I was diagnosed with asthma", "asthma"],
+    // v1.16.8 — fillers + possessive no longer defeat the pass.
+    ["By the way, I also have a severe peanut allergy.", "peanut"],
+    ["I'm also allergic to penicillin.", "penicillin"],
+    ["My peanut allergy is acting up again.", "peanut"],
+    ["I was recently diagnosed with asthma.", "asthma"],
   ])("matches the English statement %j", (message, subject) => {
     const facts = extractDeterministicFacts(message, "en");
     expect(facts).toHaveLength(1);
@@ -115,6 +143,23 @@ describe("extractDeterministicFacts", () => {
     ).toEqual([]);
     expect(
       extractDeterministicFacts("what is an allergy exactly?", "en"),
+    ).toEqual([]);
+    // v1.16.8 — the filler tolerance is a closed list: open third-party
+    // clauses still never match.
+    expect(
+      extractDeterministicFacts(
+        "ich habe gehört dass seine Erdnussallergie schlimm ist",
+        "de",
+      ),
+    ).toEqual([]);
+    expect(
+      extractDeterministicFacts(
+        "ich habe eine Frage zu einer Erdnussallergie",
+        "de",
+      ),
+    ).toEqual([]);
+    expect(
+      extractDeterministicFacts("my friend has a peanut allergy", "en"),
     ).toEqual([]);
   });
 });

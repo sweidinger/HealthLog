@@ -57,21 +57,18 @@ import {
   AllProvidersFailedError,
   runRawCompletionWithFallback,
 } from "@/lib/ai/provider-runner";
-import { chainRequiresServerManagedConsent, hasActiveConsentForSurface } from "@/lib/ai/consent-guard";
+import {
+  chainRequiresServerManagedConsent,
+  hasActiveConsentForSurface,
+} from "@/lib/ai/consent-guard";
 import { invalidateUserInsights } from "@/lib/cache/invalidate";
 import {
   enqueueStatusGeneration,
   type InsightStatusScope,
 } from "@/lib/jobs/insight-status-generate-shared";
-import {
-  normalizeLocale,
-  stripJsonFences,
-} from "@/lib/insights/status-shared";
-import {
-  isTimeoutStub,
-  statusCacheAction,
-  statusCacheActionPrefix,
-} from "@/lib/insights/status-cache";
+import { normalizeLocale, stripJsonFences } from "@/lib/insights/status-shared";
+import { isTimeoutStub, statusCacheAction } from "@/lib/insights/status-cache";
+import { hashInsightSnapshot } from "@/lib/insights/snapshot-hash";
 import {
   metricIdForMeasurementType,
   metricStatusScope,
@@ -81,9 +78,10 @@ import { annotate } from "@/lib/logging/context";
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 
 /**
- * Debounce window for ingest-driven status invalidation. A scope whose
- * cached assessment was (re)generated within this window is left intact on
- * a fresh measurement ingest — neither evicted nor re-enqueued.
+ * Minimum gap between a scope's last cached (re)generation and the next
+ * ingest-driven re-enqueue. A scope whose cached assessment was
+ * (re)generated within this window is left intact on a fresh measurement
+ * ingest — not re-enqueued.
  *
  * A constantly-syncing client (Apple Health drips batches every few
  * minutes) used to delete + re-enqueue every dirtied scope on every batch,
@@ -93,14 +91,26 @@ const CACHE_TTL_MS = 24 * 60 * 60 * 1000;
  * times an hour and the assessment felt "regenerated on every visit". This
  * window coalesces the storm: a genuinely stale scope (no fresh assessment)
  * still refreshes immediately, but a scope refreshed inside the window is
- * skipped, so a fresh assessment survives the day's sync drip and a burst
- * of batches costs at most one regeneration per scope per window.
+ * skipped, so a fresh assessment survives the day's sync drip.
  *
- * 30 min is comfortably longer than a typical sync cadence yet far shorter
- * than the 24 h assessment TTL, so a card still tracks new data within the
- * same session without thrashing the provider.
+ * v1.16.8 — first widened from 30 min to 6 h to bound provider spend, but
+ * a 6 h wall meant same-day data was not narrated same-day: the nightly
+ * warm at 04:30 restarted the window, so a notable 08:00 reading never
+ * re-enqueued its scopes and the card showed the pre-reading text until
+ * the next nightly tick. The window is now a ONE-HOUR minimum gap, and
+ * the budget role the 6 h wall carried moves to the worker's content-hash
+ * gate: every ingest that lands past the gap re-enqueues the dirtied
+ * scopes, the worker's forced run re-gathers the snapshot, and the gate
+ * (`refreshUnchangedStatusInsight`) turns an unchanged snapshot into a
+ * timestamp refresh with zero provider cost. So this clock only bounds
+ * the SQL-gather frequency — at most one worker run per scope per hour
+ * under a constant sync drip — while provider spend tracks actual data
+ * change, which is what the gate exists to meter. Comparing the hash
+ * inline at invalidation time was rejected: it would run the full
+ * per-scope data gather inside the ingest path, which is exactly the
+ * work the queue exists to keep off that path.
  */
-const INGEST_INVALIDATE_DEBOUNCE_MS = 30 * 60 * 1000;
+const INGEST_INVALIDATE_MIN_GAP_MS = 60 * 60 * 1000;
 
 const MAX_DOWNGRADE_TOKENS: ReadonlyArray<string> = [
   "anthropometrics",
@@ -115,6 +125,13 @@ const MAX_DOWNGRADE_TOKENS: ReadonlyArray<string> = [
 export type GenerateOutcome =
   | { status: "cached" }
   | { status: "generated"; providerType: string }
+  /**
+   * v1.16.8 — the content-hash gate found the compacted feature snapshot
+   * unchanged since the cached text was generated. No provider call was
+   * made; only `insightsCachedAt` was refreshed so the freshness windows
+   * (GET read, nightly discovery) treat the cache as current.
+   */
+  | { status: "unchanged" }
   | { status: "skipped"; reason: "no-provider" | "no-consent" }
   | { status: "failed"; reason: string };
 
@@ -171,6 +188,9 @@ export async function buildComparisonSnapshotForUser(
               value: true,
               sleepStage: true,
               source: true,
+              // Writer-level collapse: two HealthKit apps behind one
+              // source (watch stages vs phone in-bed) must not blend.
+              deviceType: true,
             },
           }),
           resolveUserTimezone(userId),
@@ -225,25 +245,12 @@ export async function buildComparisonSnapshotForUser(
   return { baseline, metrics };
 }
 
-/** Evict the per-status insight cache rows (`insights.<scope>-status.<locale>`). */
-export async function evictPerStatusInsightCache(
-  userId: string,
-): Promise<void> {
-  await prisma.auditLog.deleteMany({
-    where: {
-      userId,
-      action: { startsWith: "insights." },
-      AND: [{ action: { contains: "-status." } }],
-    },
-  });
-}
-
 /**
  * The seven per-metric assessment scopes. Each generator persists its
- * cached text under `insights.<scope>-status.<locale>`; the warm-pass in
- * the nightly cron re-fills these after `evictPerStatusInsightCache`
- * clears them, and the targeted invalidator below drops only the scopes
- * a fresh measurement of a given type actually dirties.
+ * cached text under `insights.<scope>-status.<locale>`; the nightly warm
+ * pass refreshes them through each generator's content-hash gate, and the
+ * targeted invalidator below re-enqueues only the scopes a fresh
+ * measurement of a given type actually dirties.
  */
 export const PER_STATUS_SCOPES = [
   "blood-pressure",
@@ -263,7 +270,9 @@ export type PerStatusScope = (typeof PER_STATUS_SCOPES)[number];
  * type touches it. BMI rides on WEIGHT (it is weight ÷ height²), so a
  * new weight reading invalidates both the weight and the BMI card.
  */
-function statusScopesForMeasurementType(type: MeasurementType): PerStatusScope[] {
+function statusScopesForMeasurementType(
+  type: MeasurementType,
+): PerStatusScope[] {
   switch (type) {
     case "WEIGHT":
       return ["weight", "bmi", "general"];
@@ -281,16 +290,19 @@ function statusScopesForMeasurementType(type: MeasurementType): PerStatusScope[]
 }
 
 /**
- * Drop the cached per-metric assessment rows that a batch of fresh
+ * Re-warm the cached per-metric assessments that a batch of fresh
  * measurements dirties, so the next mount (or the next nightly warm
- * pass) regenerates them against the new data instead of serving the
- * pre-measurement text for the rest of the day.
+ * pass) reflects the new data instead of serving the pre-measurement
+ * text for the rest of the day.
  *
- * Fire-and-forget from the measurement ingest path — idempotent (a
- * redundant delete costs nothing) and never a blocker on the user's
- * write. Deletes every locale variant of each affected scope in one
- * sweep; the `-status.` substring guard keeps it from touching the
- * comprehensive cache or any unrelated `insights.*` audit row.
+ * Fire-and-forget from the measurement ingest path — idempotent and
+ * never a blocker on the user's write. v1.16.8 — the invalidator no
+ * longer DELETES the cache rows: the worker regenerates each enqueued
+ * scope with `force: true`, and the generator's content-hash gate
+ * decides whether the data actually changed. Keeping the row intact
+ * preserves the stale-while-revalidate read AND lets the gate skip the
+ * LLM entirely when the dirtying batch turned out to be a re-sync of
+ * known data.
  */
 export async function invalidateStatusInsightsForTypes(
   userId: string,
@@ -319,8 +331,8 @@ export async function invalidateStatusInsightsForTypes(
   // v1.8.7 — regenerate only the user's resolved locale, matching the
   // read-path (every `*-status` GET serves `normalizeLocale(user.locale)`).
   // Warming both locales doubled provider spend on every sync, half of it
-  // for a language the user never opens. The nightly warm pass still covers
-  // both locales for the rare locale switch.
+  // for a language the user never opens. A second locale a client actually
+  // reads warms lazily through the read-path enqueue on its first miss.
   const localeRow = await prisma.user.findUnique({
     where: { id: userId },
     select: { locale: true },
@@ -328,15 +340,16 @@ export async function invalidateStatusInsightsForTypes(
   const locale = normalizeLocale(localeRow?.locale);
 
   // v1.9.0 — debounce the ingest-invalidation storm. A constantly-syncing
-  // client drips batches every few minutes; deleting + re-enqueuing every
-  // dirtied scope on every batch regenerated the same card several times an
-  // hour (the per-(user,scope,locale) enqueue singleton is only 120 s, so it
-  // could not coalesce across batches arriving minutes apart, and each
-  // delete dropped the row a fresh enqueue would otherwise have found warm).
-  // Skip any scope whose cached assessment was (re)generated within the
-  // debounce window — leave its row intact and do NOT re-enqueue. A
-  // genuinely stale or missing scope still refreshes immediately, so
-  // correctness holds; only the redundant churn is removed.
+  // client drips batches every few minutes; re-enqueuing every dirtied
+  // scope on every batch regenerated the same card several times an hour
+  // (the per-(user,scope,locale) enqueue singleton is only 120 s, so it
+  // could not coalesce across batches arriving minutes apart). Skip any
+  // scope whose cached assessment was (re)generated within the minimum
+  // gap — leave its row intact and do NOT re-enqueue. A genuinely stale
+  // or missing scope still refreshes immediately, so correctness holds;
+  // only the redundant churn is removed. Past the gap the enqueue always
+  // goes through — the worker's content-hash gate decides whether the
+  // batch actually changed anything (see the constant's doc).
   const freshScopes = await findRecentlyWarmedScopes(userId, locale, scopes);
   const staleScopes = Array.from(scopes).filter(
     (scope) => !freshScopes.has(scope),
@@ -349,28 +362,14 @@ export async function invalidateStatusInsightsForTypes(
     return;
   }
 
-  // Drop the cached per-metric assessment rows that are actually stale, so
-  // the next mount / nightly warm pass regenerates them against the new
-  // data. The `-status.` substring guard keeps the sweep off the
-  // comprehensive cache and any unrelated `insights.*` audit row.
-  await prisma.auditLog.deleteMany({
-    where: {
-      userId,
-      OR: staleScopes.map((scope) => ({
-        action: { startsWith: statusCacheActionPrefix(scope) },
-      })),
-    },
-  });
-
-  // v1.8.7 — regenerate-on-invalidate. Deleting the today-row alone left
-  // the card to re-warm only on the user's next category open (a miss → a
-  // worker round-trip while they wait) or the nightly cron. Instead,
-  // proactively enqueue a debounced regenerate for each dirtied scope so
-  // the cache is re-warmed in the background. The enqueue is coalesced per
-  // `(user, metric, locale)` via the queue's `singletonKey` (120 s window);
-  // the debounce above is the second, wider coalescing layer that survives
-  // across the sync drip. The stale-while-revalidate read keeps the
-  // previous assessment visible until the fresh one lands.
+  // v1.8.7 — regenerate-on-invalidate: enqueue a debounced regenerate for
+  // each dirtied scope so the cache is re-warmed in the background. The
+  // enqueue is coalesced per `(user, metric, locale)` via the queue's
+  // `singletonKey` (120 s window); the debounce above is the second, wider
+  // coalescing layer that survives across the sync drip. The cache row
+  // stays in place (stale-while-revalidate keeps the previous assessment
+  // visible) — the worker forces the generator, whose content-hash gate
+  // skips the LLM when the batch did not actually change the snapshot.
   for (const scope of staleScopes) {
     void enqueueStatusGeneration({ userId, metric: scope, locale });
   }
@@ -382,8 +381,53 @@ export async function invalidateStatusInsightsForTypes(
 }
 
 /**
+ * v1.16.8 — enqueue a hash-gated refill of every assessment card one user
+ * actually has: the seven specialised scopes plus the generic
+ * `metric:<ID>` scope of every measurement type with live rows. The
+ * worker regenerates each enqueued scope with `force: true`, so every
+ * card skips its same-day cache read, re-gathers its snapshot, and lands
+ * on the content-hash gate — a card whose data changed regenerates, an
+ * unchanged card gets a free timestamp refresh.
+ *
+ * This is the manual-regenerate path's card story: the POST regenerate
+ * used to blanket-evict every per-status row, which deleted the hash
+ * baselines and force-paid ~45 regenerations per click. Enqueuing through
+ * the gate keeps the baseline rows intact, so a user who noticed a stale
+ * card gets exactly the changed cards re-narrated — and nothing else.
+ * Deliberately NOT routed through the ingest debounce: an explicit
+ * regenerate is a user action, already bounded by the route's hourly
+ * rate limit and the queue's per-(user,scope,locale) singleton.
+ *
+ * Returns the number of scopes enqueued (best-effort — the generic-scope
+ * discovery read failing still refills the seven specialised cards).
+ */
+export async function enqueueStatusRefillForUser(
+  userId: string,
+  locale: "de" | "en",
+): Promise<number> {
+  const scopes = new Set<InsightStatusScope>(PER_STATUS_SCOPES);
+  try {
+    const rows = await prisma.measurement.findMany({
+      where: { userId, deletedAt: null },
+      distinct: ["type"],
+      select: { type: true },
+    });
+    for (const row of rows) {
+      const metricId = metricIdForMeasurementType(row.type);
+      if (metricId) scopes.add(metricStatusScope(metricId));
+    }
+  } catch {
+    // Discovery is best-effort; the specialised scopes still refill.
+  }
+  for (const scope of scopes) {
+    void enqueueStatusGeneration({ userId, metric: scope, locale });
+  }
+  return scopes.size;
+}
+
+/**
  * v1.9.0 — return the subset of `scopes` whose cached assessment for
- * `locale` was generated within `INGEST_INVALIDATE_DEBOUNCE_MS` and is a
+ * `locale` was generated within `INGEST_INVALIDATE_MIN_GAP_MS` and is a
  * real (non-stub) assessment. Those scopes are skipped by the ingest
  * invalidator so a fresh assessment survives the sync drip.
  *
@@ -398,7 +442,7 @@ async function findRecentlyWarmedScopes(
   locale: "de" | "en",
   scopes: ReadonlySet<InsightStatusScope>,
 ): Promise<Set<InsightStatusScope>> {
-  const cutoff = new Date(Date.now() - INGEST_INVALIDATE_DEBOUNCE_MS);
+  const cutoff = new Date(Date.now() - INGEST_INVALIDATE_MIN_GAP_MS);
   // Match exactly the cache actions for the candidate scopes in this locale.
   const candidateActions = Array.from(scopes, (scope) =>
     statusCacheAction(scope, locale),
@@ -454,9 +498,8 @@ interface GenerateOptions {
    * The on-demand `forceWarmUser` path bounds the comprehensive step with a
    * timeout and then proceeds to warm the per-status caches itself. Without
    * this signal a comprehensive that resolves AFTER the timeout would still
-   * reach `evictPerStatusInsightCache` and delete the rows the warm passes
-   * had just written — undoing its own work. The signal lets the caller cut
-   * the generation off before the eviction so the warmed rows survive.
+   * write a cache row + timestamp the caller no longer expects. The signal
+   * lets the caller cut the generation off before the cache write.
    */
   signal?: AbortSignal;
 }
@@ -487,6 +530,11 @@ export async function generateComprehensiveInsight(
       insightsCachedAt: true,
       insightsCachedText: true,
       insightsExcludeMetrics: true,
+      insightsSnapshotHash: true,
+      // The comparison-baseline setting joins the snapshot fingerprint
+      // (see the hash construction below), so it must be readable BEFORE
+      // the gate — the comparison snapshot itself is only built after.
+      dashboardWidgetsJson: true,
     },
   });
 
@@ -555,6 +603,60 @@ export async function generateComprehensiveInsight(
   );
   const featuresJson = JSON.stringify(compactFeatures, null, 2);
 
+  // v1.16.8 — content-hash gate. When the compacted feature snapshot is
+  // byte-equivalent (modulo clock-relative offsets, see snapshot-hash.ts)
+  // to the one the cached text was generated from, nothing the prompt
+  // sees has changed — refresh the cache timestamp and skip the provider
+  // call. This runs on the forced paths too (nightly tick, on-demand
+  // warm), which is exactly where the same-data regeneration waste lived.
+  //
+  // The user-authored "about me" self-description joins the fingerprint:
+  // it is the one prompt input that can change with NO data change (the
+  // Coach remember action, a Settings → AI edit), and excluding it would
+  // pin the briefing to the pre-edit self-context until a measurement
+  // happens to move. The plateau block stays out — it derives from the
+  // same measurement rows the feature snapshot already fingerprints.
+  // Fetched once here and reused for the prompt below.
+  //
+  // Two more prompt inputs that can flip with no data change join the
+  // composite (the shape MUST stay identical to the POST route's hash
+  // write in `generate/route.ts`, or every nightly force-regenerates):
+  //   - `comparisonBaseline`: the user's comparison toggle. Switching it
+  //     adds/removes the prior-period context block, so the cached text
+  //     no longer matches what the prompt would produce.
+  //   - `generationLocale`: the locale the briefing renders in. Hashing
+  //     it means a locale switch regenerates ONCE — intended, the
+  //     briefing language must follow the reader; afterwards the new
+  //     locale's hash is the stored baseline and the gate holds again.
+  //     The key is named `generationLocale` (not `locale`) on purpose:
+  //     the canonicaliser in `snapshot-hash.ts` strips `locale` keys as
+  //     volatile, which is right for the per-locale-keyed status caches
+  //     but would silently drop the field from THIS composite.
+  const aboutMe = await getSelfContextTextForUser(userId, locale);
+  const comparisonBaseline: ComparisonBaseline =
+    resolveDashboardLayout(dbUser?.dashboardWidgetsJson).comparisonBaseline ??
+    "none";
+  const snapshotHash = hashInsightSnapshot({
+    features: compactFeatures,
+    aboutMe: aboutMe ?? null,
+    comparisonBaseline,
+    generationLocale: locale,
+  });
+  if (
+    dbUser?.insightsCachedText &&
+    dbUser.insightsSnapshotHash === snapshotHash
+  ) {
+    await prisma.user.update({
+      where: { id: userId },
+      data: { insightsCachedAt: new Date() },
+    });
+    annotate({
+      action: { name: "insights.generate.skipped_unchanged" },
+      meta: { locale },
+    });
+    return { status: "unchanged" };
+  }
+
   const comparisonSnapshot = await buildComparisonSnapshotForUser(userId);
   const plateauContext = await detectGlp1Plateau(userId);
   let userPrompt = buildUserPrompt(
@@ -569,7 +671,7 @@ export async function generateComprehensiveInsight(
   // v1.15.20 — fold the user-authored "about me" self-description
   // (Settings → AI) into the nightly briefing exactly like the
   // on-demand route. Null (no text / undecryptable) costs nothing.
-  const aboutMe = await getSelfContextTextForUser(userId, locale);
+  // (Fetched above the hash gate — it is part of the fingerprint.)
   if (aboutMe) {
     userPrompt += buildAboutMeInsightBlock(aboutMe, locale);
   }
@@ -622,8 +724,8 @@ export async function generateComprehensiveInsight(
 
   // v1.9.0 — the caller abandoned this generation (its bounded timeout
   // fired and it has moved on to warm the per-status caches itself). Bail
-  // out before the write + evict so a late-resolving comprehensive can never
-  // delete the rows the warm passes have since written. The provider call
+  // out before the cache write so a late-resolving comprehensive cannot
+  // stamp a timestamp/text the caller no longer expects. The provider call
   // already cost what it cost; what we must NOT do now is touch the cache.
   if (signal?.aborted) {
     return { status: "failed", reason: "aborted" };
@@ -634,9 +736,14 @@ export async function generateComprehensiveInsight(
     data: {
       insightsCachedAt: new Date(),
       insightsCachedText: JSON.stringify(insights),
+      insightsSnapshotHash: snapshotHash,
     },
   });
-  await evictPerStatusInsightCache(userId);
+  // v1.16.8 — no blanket per-status eviction here any more. The cards
+  // track their own data through the ingest invalidator and their own
+  // content-hash gates; a fresh comprehensive briefing does not change
+  // what a per-metric card should say, and the old sweep was the reason
+  // every warm had to regenerate ~45 cards across both locales.
   invalidateUserInsights(userId);
 
   return { status: "generated", providerType: workingProviderType };

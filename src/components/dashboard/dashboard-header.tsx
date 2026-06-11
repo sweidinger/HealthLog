@@ -40,7 +40,14 @@ export function DashboardHeader({
         <h1 className="text-2xl font-bold tracking-tight">
           {t("dashboard.title")}
         </h1>
-        <p className="text-muted-foreground mt-1 text-sm">{welcomeText}</p>
+        {/* v1.16.8 — `min-h-5` reserves the greeting's line box from the
+            SSR pass on: the text personalises (name appended) on the
+            first client re-render after hydration, and the reserved
+            line keeps the header from collapsing/growing around that
+            swap. */}
+        <p className="text-muted-foreground mt-1 min-h-5 text-sm">
+          {welcomeText}
+        </p>
       </div>
       <div className="flex items-center gap-2">
         {/* Customize shortcut to the dashboard-customization settings

@@ -599,7 +599,7 @@ export const POST = apiHandler(async (request: NextRequest) => {
 
   // v1.4.34 IW-G — bust the medications + compliance + achievement
   // caches for this user so the next read reflects the dose change.
-  invalidateUserMedications(user.id);
+  invalidateUserMedications(user.id, { evict: true });
 
   // v1.4.39 W-MED — refresh the persistent compliance rollup row for
   // the affected day so the next read after the cache miss returns

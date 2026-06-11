@@ -60,6 +60,17 @@ model User {
   insightsPrivacyMode        String    @default("aggregated") @map("insights_privacy_mode") // "aggregated" | "raw"
   insightsCachedAt           DateTime? @map("insights_cached_at")
   insightsCachedText         String?   @map("insights_cached_text") // cached JSON output
+  // v1.16.8 — SHA-256 fingerprint of the compacted feature snapshot the
+  // cached comprehensive text was generated from. Nightly / forced / lazy
+  // regenerations compare the fresh snapshot's hash against this and skip
+  // the provider call (refreshing only `insightsCachedAt`) when nothing
+  // the prompt sees has changed.
+  insightsSnapshotHash       String?   @map("insights_snapshot_hash")
+  // v1.16.8 — last time a forced full warm's comprehensive step failed or
+  // timed out. The forced warm path backs off for an hour after a failure
+  // so a persistently broken provider chain cannot be re-driven into a
+  // full generation attempt by every page-open.
+  insightsWarmFailedAt       DateTime? @map("insights_warm_failed_at")
   // v1.4.36 W3 T3 — per-user AI Insights exclude-metrics list, mirrors
   // `coachPrefsJson.excludeMetrics`. The /api/insights/generate route
   // filters matching keys off `features` before JSON.stringify so the

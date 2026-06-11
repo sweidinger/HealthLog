@@ -317,4 +317,61 @@ describe("<HeroStrip>", () => {
     const html = render(<HeroStrip briefing={null} now={morningLocal} />);
     expect(html).not.toContain("md:items-stretch");
   });
+
+  // ── v1.16.8 — score-column reservation while analytics is pending ──
+  it("reserves the score column with a skeleton while the payload is pending", () => {
+    const html = render(
+      <HeroStrip briefing={null} now={morningLocal} healthScorePending />,
+    );
+    // The placeholder mirrors the card's column footprint so the band
+    // paints at its final geometry from the first frame.
+    expect(html).toContain('data-slot="health-score-card-skeleton"');
+    expect(html).toContain("md:basis-[22rem]");
+    expect(html).toContain('aria-hidden="true"');
+    // The real card stays absent until the payload lands.
+    expect(html).not.toContain('data-slot="health-score-card" ');
+  });
+
+  it("keeps the two-column split active while pending", () => {
+    const html = render(
+      <HeroStrip briefing={null} now={morningLocal} healthScorePending />,
+    );
+    expect(html).toContain("md:flex-row");
+    expect(html).toContain("md:items-stretch");
+  });
+
+  it("drops the skeleton once the payload resolves without a score", () => {
+    const html = render(
+      <HeroStrip
+        briefing={null}
+        now={morningLocal}
+        healthScorePending={false}
+      />,
+    );
+    expect(html).not.toContain('data-slot="health-score-card-skeleton"');
+    expect(html).not.toContain("md:items-stretch");
+  });
+
+  it("renders the real card, never the skeleton, when a score is present", () => {
+    const html = render(
+      <HeroStrip
+        briefing={null}
+        now={morningLocal}
+        healthScorePending
+        healthScore={{
+          score: 86,
+          band: "green",
+          components: {
+            bp: { value: 80, weight: 0.3 },
+            weight: { value: 70, weight: 0.2 },
+            mood: { value: 90, weight: 0.2 },
+            compliance: { value: 100, weight: 0.3 },
+          },
+          delta: 5,
+        }}
+      />,
+    );
+    expect(html).toContain('data-slot="health-score-card"');
+    expect(html).not.toContain('data-slot="health-score-card-skeleton"');
+  });
 });

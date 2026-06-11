@@ -28,6 +28,11 @@
  *     callers can branch on `err.status === 429` for cooldown UX.
  *   - No toast / no global side effect ever originates here. Surfacing
  *     errors stays the call site's responsibility.
+ *   - Every request carries a default 15 s `AbortSignal.timeout` so a
+ *     stalled response can never hold a query in `isLoading` forever.
+ *     Passing `init.signal` (any value, including `null` to opt out)
+ *     replaces the default entirely — callers that need a longer
+ *     window or their own cancellation own the signal then.
  *
  * Verb helpers `apiGet` / `apiPost` / `apiPut` / `apiPatch` /
  * `apiDelete` JSON-encode an optional body and set `Content-Type:
@@ -39,7 +44,9 @@
  *     few callers that read success-side `meta` (pagination totals).
  *   - `apiFetchRaw` is a plain same-origin `fetch` passthrough for call
  *     sites that need the `Response` itself — blob downloads, SSE
- *     streams, manual status branching. No `.ok` check, no unwrap.
+ *     streams, manual status branching. No `.ok` check, no unwrap, and
+ *     deliberately NO default timeout: the Coach chat stream and other
+ *     long-lived responses ride this path with their own signals.
  */
 
 import { readError } from "./read-error";
@@ -91,6 +98,17 @@ async function parseEnvelope<T, M>(
   return JSON.parse(text) as Envelope<T, M>;
 }
 
+/** Default per-request timeout for the envelope helpers. */
+export const DEFAULT_TIMEOUT_MS = 15_000;
+
+function withDefaultTimeout(init?: RequestInit): RequestInit {
+  // An explicit caller signal wins — including `null`, which opts out
+  // of any timeout. Only the absent case gets the default so a stalled
+  // response cannot park a TanStack query in `isLoading` forever.
+  if (init?.signal !== undefined) return init;
+  return { ...init, signal: AbortSignal.timeout(DEFAULT_TIMEOUT_MS) };
+}
+
 /**
  * Same-origin API fetch — resolves with the unwrapped `data` payload,
  * throws {@link ApiError} on a non-OK response.
@@ -99,7 +117,7 @@ export async function apiFetch<T = unknown>(
   path: string,
   init?: RequestInit,
 ): Promise<T> {
-  const res = await fetch(path, init);
+  const res = await fetch(path, withDefaultTimeout(init));
   if (!res.ok) await throwApiError(res);
   const envelope = await parseEnvelope<T, unknown>(res);
   return (envelope === undefined ? undefined : envelope.data) as T;
@@ -113,7 +131,7 @@ export async function apiFetchEnvelope<
   T = unknown,
   M = Record<string, unknown>,
 >(path: string, init?: RequestInit): Promise<{ data: T; meta: M | undefined }> {
-  const res = await fetch(path, init);
+  const res = await fetch(path, withDefaultTimeout(init));
   if (!res.ok) await throwApiError(res);
   const envelope = await parseEnvelope<T, M>(res);
   return {
@@ -125,7 +143,8 @@ export async function apiFetchEnvelope<
 /**
  * Plain same-origin `fetch` passthrough for call sites that need the raw
  * `Response` — blob downloads, SSE streams, manual status branching.
- * Performs no `.ok` check and no envelope unwrap.
+ * Performs no `.ok` check, no envelope unwrap, and applies no default
+ * timeout (SSE streams legitimately outlive any fixed window).
  */
 export function apiFetchRaw(
   path: string,

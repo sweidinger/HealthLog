@@ -140,13 +140,22 @@ function seedCompliance(
     streak?: number;
   } = {},
 ) {
-  client.setQueryData(["medications", medId, "compliance"], {
-    compliance7: {
-      rate: payload.rate7 ?? 85,
-      streak: payload.streak ?? 0,
+  // v1.16.8 — the cards read ONE batched summary key and `select` their
+  // own row, so seeding merges into the shared array.
+  const key = ["medications", "compliance-summary"];
+  const existing =
+    (client.getQueryData(key) as Array<{ medicationId: string }>) ?? [];
+  client.setQueryData(key, [
+    ...existing.filter((row) => row.medicationId !== medId),
+    {
+      medicationId: medId,
+      compliance7: {
+        rate: payload.rate7 ?? 85,
+        streak: payload.streak ?? 0,
+      },
+      compliance30: { rate: payload.rate30 ?? 82 },
     },
-    compliance30: { rate: payload.rate30 ?? 82 },
-  });
+  ]);
 }
 
 function render(

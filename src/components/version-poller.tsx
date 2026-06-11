@@ -30,14 +30,40 @@ import { apiGet } from "@/lib/api/api-fetch";
  *   3. `window.location.reload()` — fetches the fresh shell + new
  *      chunk graph.
  *
- * `sessionStorage` gates the reload to once per session so a misset
- * version (server briefly serves a stale image, e.g. mid-deploy
- * webhook race) cannot loop.
+ * The reload guard is keyed on the TARGET version: `sessionStorage`
+ * records which live version we last reloaded for, and only a repeat
+ * mismatch against that SAME version is suppressed (a misset version —
+ * server briefly serves a stale image mid-deploy — cannot loop).
+ * Polling itself never stops, so on a multi-deploy day a SECOND
+ * release moves the live version past the recorded one and the heal
+ * flow re-arms. The pre-v1.16.8 guard disabled all polling for the
+ * rest of the session after one attempt, which left a stale shell
+ * with 404ing chunks stuck forever once the guard was spent.
  */
 
 const POLL_INTERVAL_MS = 60_000;
 const SESSION_GUARD_KEY = "healthlog:version-reload-attempted";
 const SHELL_VERSION = process.env.NEXT_PUBLIC_APP_VERSION ?? "";
+
+export type VersionPollDecision = "up-to-date" | "reload" | "already-attempted";
+
+/**
+ * Pure reload decision so the guard semantics carry direct unit
+ * coverage. `lastReloadedFor` is the live version recorded by the most
+ * recent heal attempt in this session (`null` when none happened);
+ * legacy guard values (the pre-v1.16.8 timestamp) never match a real
+ * version string, so a stuck session from before the change heals on
+ * its next mismatch.
+ */
+export function resolveVersionPollDecision(
+  liveVersion: string | null,
+  shellVersion: string,
+  lastReloadedFor: string | null,
+): VersionPollDecision {
+  if (!liveVersion || liveVersion === shellVersion) return "up-to-date";
+  if (lastReloadedFor === liveVersion) return "already-attempted";
+  return "reload";
+}
 
 async function fetchLiveVersion(signal: AbortSignal): Promise<string | null> {
   try {
@@ -51,13 +77,21 @@ async function fetchLiveVersion(signal: AbortSignal): Promise<string | null> {
   }
 }
 
-async function evictAndReload(): Promise<void> {
+// In-memory mirror of the session guard: under strict-privacy modes
+// sessionStorage throws, and without a fallback a persistent
+// shell/live mismatch (misconfigured build) would reload every poll.
+// Module scope survives re-renders but not the reload itself — after
+// a reload the storage read is retried first, so the mirror only has
+// to break the loop within one document lifetime.
+let inMemoryReloadGuard: string | null = null;
+
+async function evictAndReload(targetVersion: string): Promise<void> {
+  inMemoryReloadGuard = targetVersion;
   try {
-    sessionStorage.setItem(SESSION_GUARD_KEY, String(Date.now()));
+    sessionStorage.setItem(SESSION_GUARD_KEY, targetVersion);
   } catch {
-    // sessionStorage can throw under strict-privacy modes; fall
-    // through to the reload anyway — worst case the next deploy
-    // re-triggers the same heal flow.
+    // sessionStorage can throw under strict-privacy modes; the
+    // in-memory mirror above still breaks same-document loops.
   }
 
   if ("serviceWorker" in navigator) {
@@ -85,19 +119,25 @@ export function VersionPoller(): null {
   useEffect(() => {
     if (!SHELL_VERSION) return;
     if (typeof window === "undefined") return;
-    try {
-      if (sessionStorage.getItem(SESSION_GUARD_KEY)) return;
-    } catch {
-      /* fall through — we'll try the reload anyway if mismatch hits */
-    }
 
     const controller = new AbortController();
 
     async function checkOnce(): Promise<void> {
       const live = await fetchLiveVersion(controller.signal);
-      if (!live) return;
-      if (live === SHELL_VERSION) return;
-      await evictAndReload();
+      let lastReloadedFor: string | null = null;
+      try {
+        lastReloadedFor = sessionStorage.getItem(SESSION_GUARD_KEY);
+      } catch {
+        /* storage unavailable — the in-memory mirror still applies */
+      }
+      lastReloadedFor ??= inMemoryReloadGuard;
+      const decision = resolveVersionPollDecision(
+        live,
+        SHELL_VERSION,
+        lastReloadedFor,
+      );
+      if (decision !== "reload") return;
+      await evictAndReload(live as string);
     }
 
     // First check 5 s after mount — gives the app a chance to settle

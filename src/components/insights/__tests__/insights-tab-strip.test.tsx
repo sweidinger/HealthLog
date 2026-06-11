@@ -388,3 +388,35 @@ describe("<InsightsTabStrip> — saved-layout visibility gate (v1.15.14 W2)", ()
     expect(html).toContain(">Environment<");
   });
 });
+
+describe("<InsightsTabStrip> — pill row clip box (v1.16.8)", () => {
+  it("keeps vertical paint room inside the horizontal scroller", () => {
+    // `overflow-x-auto` clips vertically too (overflow-y computes to
+    // auto), so a pill border or focus ring sitting exactly on the
+    // content-box edge lost its bottom pixel at fractional zoom levels.
+    // The scroller reserves 4 px of inner padding (`py-1`) and hands the
+    // height back with `-my-1` — pinned here so a class cleanup doesn't
+    // resurrect the clipped borders.
+    const html = render(<InsightsTabStrip />);
+    const scroller = html.match(
+      /<div[^>]*data-slot="insights-tab-strip-scroller"[^>]*>/,
+    )?.[0];
+    expect(scroller).toBeTruthy();
+    expect(scroller).toContain("overflow-x-auto");
+    expect(scroller).toContain("py-1");
+    expect(scroller).toContain("-my-1");
+  });
+
+  it("keeps horizontal paint room so edge pills' focus rings survive", () => {
+    // Same clip mechanics sideways: without inner `px-1` the first/last
+    // pill's focus ring was cut at the scroller's horizontal edges. The
+    // matching `-mx-1` hands the width back to the layout.
+    const html = render(<InsightsTabStrip />);
+    const scroller = html.match(
+      /<div[^>]*data-slot="insights-tab-strip-scroller"[^>]*>/,
+    )?.[0];
+    expect(scroller).toBeTruthy();
+    expect(scroller).toContain("px-1");
+    expect(scroller).toContain("-mx-1");
+  });
+});

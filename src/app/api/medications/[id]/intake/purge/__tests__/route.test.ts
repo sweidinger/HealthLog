@@ -89,7 +89,11 @@ describe("DELETE /api/medications/[id]/intake/purge", () => {
 
   it("invalidates the user medication caches on success (F-1 C-3)", async () => {
     await DELETE(deleteReq(), ROUTE_PARAMS);
-    expect(invalidateUserMedications).toHaveBeenCalledWith("user-1");
+    // v1.16.8 — the purge is an interactive write, so it hard-evicts the
+    // SWR buckets instead of marking them stale.
+    expect(invalidateUserMedications).toHaveBeenCalledWith("user-1", {
+      evict: true,
+    });
   });
 
   it("returns the 404 from the shared ownership helper without invalidating", async () => {

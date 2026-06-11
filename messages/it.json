@@ -562,6 +562,8 @@
     "nextPage": "Pagina successiva",
     "loginRequired": "Accedi per vedere le voci dell’umore.",
     "note": "Nota",
+    "noteCollapse": "Comprimi nota",
+    "noteExpand": "Mostra nota completa",
     "notePlaceholder": "Aggiungi una nota su come ti senti…",
     "tagPicker": "Etichette",
     "tagCategory": {
@@ -733,6 +735,7 @@
     "compliance7d": "Aderenza 7 giorni",
     "compliance30d": "Aderenza 30 giorni",
     "complianceWindow": "Aderenza {days} giorni",
+    "complianceUnavailable": "Impossibile caricare l'aderenza",
     "complianceInfo": "Quota delle dosi attese che hai registrato. I piani settimanali contano settimana per settimana.",
     "complianceInfoLabel": "Cosa significa aderenza?",
     "complianceDoses": "{count} dosi",
@@ -1665,7 +1668,6 @@
   "charts": {
     "loadingLabel": "Caricamento del grafico…",
     "loadingSlowHint": "Calcolo delle analisi — può richiedere un momento.",
-    "adjustTargets": "Regola i valori target",
     "weight": "Peso",
     "bloodPressure": "Pressione arteriosa",
     "pulse": "Pulsazioni",
@@ -1740,6 +1742,9 @@
     "needMoreDistinctDaysDescription": "Registra in più giorni per sbloccare la linea di tendenza.",
     "noDataInRangeTitle": "Nessun dato in questo intervallo",
     "noDataInRangeDescription": "Nessuna misurazione rientra nell'intervallo selezionato. Cambia intervallo o registra una nuova misurazione.",
+    "errorTitle": "Impossibile caricare i dati",
+    "loadErrorTitle": "Impossibile caricare il grafico",
+    "loadErrorReload": "Ricarica",
     "sparseDataCaption": "Più giorni completeranno il trend.",
     "personalBaseline": "La tua media",
     "deltaVsBaseline": "{delta} vs. la tua media",
@@ -2031,6 +2036,7 @@
       "thinking": "Sto pensando…",
       "composerPlaceholder": "Chiedimi qualcosa sui tuoi dati…",
       "nudgeBubbleLabel": "Nuovo messaggio dal coach — apri la chat",
+      "fabLabel": "Apri il coach",
       "selfContextAdopt": {
         "offer": "Aggiungere questa risposta alle tue informazioni personali?",
         "confirm": "Aggiungi",
@@ -2038,6 +2044,12 @@
         "done": "Aggiunto alle tue informazioni personali",
         "duplicate": "Già presente nelle tue informazioni personali",
         "failed": "Aggiunta non riuscita. Riprova."
+      },
+      "rememberMessage": {
+        "action": "Memorizza",
+        "done": "Salvato nelle tue informazioni personali",
+        "duplicate": "Già presente nelle tue informazioni personali",
+        "failed": "Salvataggio non riuscito. Riprova."
       },
       "guided": {
         "offerTitle": "Il Coach ha {count} domande per te",
@@ -2468,7 +2480,8 @@
         "ariaLabel": "Andamento delle fasi del sonno dell'ultima notte: {asleep} di sonno, {awakenings} risvegli",
         "asleepTotal": "Sonno {value}",
         "inBedTotal": "A letto {value}",
-        "awakenings": "{count} risvegli"
+        "awakenings": "{count} risvegli",
+        "source": "Fonte: {source}"
       },
       "stages": {
         "deep": "Profondo",

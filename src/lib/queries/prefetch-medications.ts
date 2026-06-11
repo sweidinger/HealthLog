@@ -12,11 +12,20 @@ import { apiGet } from "@/lib/api/api-fetch";
  * puts `/api/medications` (the response carries the per-medication
  * `nextDueAt` due times) in flight while the navigation commits.
  *
+ * v1.16.8 — the batched card-compliance read
+ * (`/api/medications/compliance`) prefetches alongside the list, so the
+ * compliance bars + the status line resolve in the same paint as the
+ * cards instead of swapping in late. Two independent requests on
+ * purpose: the list response must stay fast (the due line never waits
+ * on a compliance ledger build), and the compliance prefetch rides the
+ * same server-side cache cells the page query would warm anyway.
+ *
  * The 15 s prefetch window only bounds how old a cache entry may be
  * before an intent re-fires the request — the mounted page query rides
  * the provider-default `staleTime` (5 min) and consumes whatever this
- * prefetch parked. The server caches the list 60 s per user, so even a
- * missed window stays cheap.
+ * prefetch parked. The server caches both reads per user (60 s list /
+ * 15 min compliance, each with an SWR window), so even a missed window
+ * stays cheap.
  */
 export const MEDICATIONS_LIST_STALE_TIME_MS = 15_000;
 
@@ -24,6 +33,11 @@ export function prefetchMedicationsList(queryClient: QueryClient): void {
   void queryClient.prefetchQuery({
     queryKey: queryKeys.medications(),
     queryFn: () => apiGet("/api/medications"),
+    staleTime: MEDICATIONS_LIST_STALE_TIME_MS,
+  });
+  void queryClient.prefetchQuery({
+    queryKey: queryKeys.medicationComplianceSummary(),
+    queryFn: () => apiGet("/api/medications/compliance"),
     staleTime: MEDICATIONS_LIST_STALE_TIME_MS,
   });
 }

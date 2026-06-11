@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { AchievementUnlockNotifier } from "@/components/gamification/achievement-unlock-notifier";
 import { MaintainershipBanner } from "@/components/i18n/maintainership-banner";
+import { LayoutCoachFab } from "@/components/insights/layout-coach-fab";
 import { LayoutCoachMount } from "@/components/insights/layout-coach-mount";
 import { useAuth } from "@/hooks/use-auth";
 import { useTranslations } from "@/lib/i18n/context";
@@ -194,10 +195,12 @@ export function AuthShell({
   // call `askCoach()` from the same context. Pre-hoist the drawer was
   // only reachable from `/insights/**`; the dashboard hero CTA now opens
   // it without a route hop. `<LayoutCoachMount>` consumes the same
-  // context to render the drawer once at the shell level — the
-  // insights-only mobile FAB stays where it is, inside the routed
-  // insights layout, so the bottom-right floating action sits beside
-  // the chart tooltips only on the surfaces that need it.
+  // context to render the drawer once at the shell level.
+  //
+  // v1.16.8 — `<LayoutCoachFab>` joins the shell too: the floating
+  // Coach launcher renders once here for every authenticated route
+  // (it hides itself on `/insights/coach` and carries the unread-nudge
+  // dot). The routed insights layout no longer mounts it.
   return (
     <CoachLaunchProvider>
       {showUnlockNotifier && user?.id ? (
@@ -255,8 +258,13 @@ export function AuthShell({
               settings/admin shells used `max-w-screen-xl`, producing a
               52 px lateral wobble on every route switch. Same audit
               note in `.planning/round-v1433-audit-polish.md` §4.2.
+
+              v1.16.8 — the bottom padding clears the always-on Coach
+              FAB (48 px button + its offset above the bottom-nav band /
+              the desktop bottom-6 anchor), so the last line of content
+              can always scroll out from under the floating button.
             */}
-            <div className="mx-auto max-w-screen-xl px-4 py-6 md:px-6">
+            <div className="mx-auto max-w-screen-xl px-4 pt-6 pb-20 md:px-6">
               {children}
             </div>
           </main>
@@ -264,6 +272,7 @@ export function AuthShell({
         <BottomNav />
       </div>
       <LayoutCoachMount />
+      <LayoutCoachFab />
     </CoachLaunchProvider>
   );
 }

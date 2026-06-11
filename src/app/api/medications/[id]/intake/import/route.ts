@@ -163,7 +163,7 @@ export const POST = apiHandler(
     // (list, intake caches, compliance payload). This write path was the
     // one intake surface missing the flush.
     if (imported > 0) {
-      invalidateUserMedications(user.id);
+      invalidateUserMedications(user.id, { evict: true });
     }
 
     await auditLog("medication.intake.import", {

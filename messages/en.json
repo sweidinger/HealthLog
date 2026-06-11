@@ -562,6 +562,8 @@
     "nextPage": "Next page",
     "loginRequired": "Please sign in to view mood entries.",
     "note": "Note",
+    "noteCollapse": "Collapse note",
+    "noteExpand": "Show full note",
     "notePlaceholder": "Add a note about how you're feeling…",
     "tagPicker": "Tags",
     "tagCategory": {
@@ -733,6 +735,7 @@
     "compliance7d": "Adherence (7 days)",
     "compliance30d": "Adherence (30 days)",
     "complianceWindow": "Adherence ({days} days)",
+    "complianceUnavailable": "Adherence could not be loaded",
     "complianceInfo": "Share of expected doses you logged. Weekly schedules count week by week.",
     "complianceInfoLabel": "What does adherence mean?",
     "complianceDoses": "{count} doses",
@@ -1665,7 +1668,6 @@
   "charts": {
     "loadingLabel": "Loading chart…",
     "loadingSlowHint": "Computing analytics — this can take a moment.",
-    "adjustTargets": "Adjust targets",
     "weight": "Weight",
     "bloodPressure": "Blood Pressure",
     "pulse": "Pulse",
@@ -1740,6 +1742,9 @@
     "needMoreDistinctDaysDescription": "Log on more days to unlock the trend line.",
     "noDataInRangeTitle": "No data in this range",
     "noDataInRangeDescription": "No measurements fall inside the selected range. Switch the range or log a new measurement.",
+    "errorTitle": "Data could not be loaded",
+    "loadErrorTitle": "Chart could not be loaded",
+    "loadErrorReload": "Reload",
     "sparseDataCaption": "More days will fill out the trend.",
     "personalBaseline": "Your normal",
     "deltaVsBaseline": "{delta} vs. your normal",
@@ -2031,6 +2036,7 @@
       "thinking": "Thinking…",
       "composerPlaceholder": "Ask anything about your data…",
       "nudgeBubbleLabel": "New message from the Coach — open chat",
+      "fabLabel": "Open the Coach",
       "selfContextAdopt": {
         "offer": "Add this answer to your self-context?",
         "confirm": "Add",
@@ -2038,6 +2044,12 @@
         "done": "Added to your self-context",
         "duplicate": "Already part of your self-context",
         "failed": "Could not add. Please try again."
+      },
+      "rememberMessage": {
+        "action": "Remember",
+        "done": "Saved to your self-context",
+        "duplicate": "Already part of your self-context",
+        "failed": "Could not save. Please try again."
       },
       "guided": {
         "offerTitle": "The Coach has {count} follow-up questions for you",
@@ -2468,7 +2480,8 @@
         "ariaLabel": "Sleep stage progression for last night: {asleep} asleep, {awakenings} awakenings",
         "asleepTotal": "Asleep {value}",
         "inBedTotal": "In bed {value}",
-        "awakenings": "{count} awakenings"
+        "awakenings": "{count} awakenings",
+        "source": "Source: {source}"
       },
       "stages": {
         "deep": "Deep",

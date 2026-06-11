@@ -33,15 +33,18 @@ import {
   useQueryClient,
   type QueryClient,
 } from "@tanstack/react-query";
+import { apiGet } from "@/lib/api/api-fetch";
 import { queryKeys } from "@/lib/query-keys";
 import { DASHBOARD_REFETCH_INTERVAL_MS } from "@/lib/queries/refetch-interval";
+import { retryOnceOnTransientError } from "@/lib/queries/retry-transient";
 import type { DashboardSnapshot } from "@/lib/dashboard/snapshot";
 
 async function fetchDashboardSnapshot(): Promise<DashboardSnapshot> {
-  const res = await fetch("/api/dashboard/snapshot");
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  const json = await res.json();
-  return json.data as DashboardSnapshot;
+  // Routed through the typed wrapper so a failure carries its HTTP
+  // status (`ApiError`) for the transient-retry predicate, and the
+  // default 15 s timeout keeps a stalled response from pinning the
+  // whole dashboard on its skeleton.
+  return apiGet<DashboardSnapshot>("/api/dashboard/snapshot");
 }
 
 /** Handoff freshness window — mirrors the hook's `staleTime`. */
@@ -162,6 +165,9 @@ export function useDashboardSnapshot(enabled = true) {
     refetchOnWindowFocus: false,
     refetchInterval: DASHBOARD_REFETCH_INTERVAL_MS,
     refetchIntervalInBackground: false,
-    retry: false,
+    // v1.16.8 — one retry on network errors / 5xx (never 401/403). A
+    // single transient failure used to flash the full-dashboard empty
+    // state under the former `retry: false`.
+    retry: retryOnceOnTransientError,
   });
 }

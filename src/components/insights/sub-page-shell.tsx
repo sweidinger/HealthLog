@@ -3,7 +3,7 @@
 import { useEffect, useRef, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ListOrdered, Settings2 } from "lucide-react";
+import { ListOrdered } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -112,10 +112,13 @@ export interface SubPageShellProps {
    */
   coachLaunch?: boolean;
   /**
-   * v1.8.5 W4b — a "show all readings" entry rendered at the foot of the
-   * page, after the chart + cards. Sub-pages pass the metric's
-   * `MeasurementType`; the shell renders a button that links to the
-   * dedicated `/insights/values/<type>` subpage.
+   * v1.8.5 W4b — a "show all readings" entry linking to the dedicated
+   * `/insights/values/<type>` subpage. Sub-pages pass the metric's
+   * `MeasurementType`.
+   *
+   * v1.16.8 — renders as an icon button in the header action cluster
+   * (left of the target-adjust gear), no longer as a full-width button
+   * at the page foot.
    */
   showAllValuesType?: string;
   children: ReactNode;
@@ -223,36 +226,48 @@ export function SubPageShell({
               no numeric band registers nothing, so the gear stays hidden),
               and the Coach icon self-gates on the Coach flag + per-user
               opt-out — so the cluster collapses cleanly to one, both, or
-              neither control. */}
-            <div className="flex shrink-0 items-center gap-0.5">
+              neither control.
+
+              `gap-3` (12 px) keeps the siblings' extended hit areas
+              (`before:-inset-1.5`, 6 px per edge) from overlapping —
+              with a tighter gap the later sibling's invisible halo sat
+              on top of its neighbour's clickable edge. */}
+            <div className="flex shrink-0 items-center gap-3">
+              {/* v1.16.8 — "show all readings" rides the header cluster
+                as an icon button, LEFT of the target-adjust gear (it
+                used to be a full-width outline button at the page foot).
+                Same 40 px box + extended hit area as its siblings; the
+                label travels via aria-label + title. */}
+              {showAllValuesType ? (
+                <Button
+                  asChild
+                  variant="ghost"
+                  size="icon"
+                  data-slot="metric-show-all-values"
+                  className={cn(
+                    // Match the cluster's 40 px icon box + extended hit
+                    // area (see `<TargetAdjustButton>` for the WCAG
+                    // 2.5.5 note).
+                    "text-muted-foreground hover:text-foreground relative size-10",
+                    "before:absolute before:-inset-1.5 before:content-['']",
+                  )}
+                >
+                  <Link
+                    href={`/insights/values/${showAllValuesType}${
+                      pathname ? `?from=${encodeURIComponent(pathname)}` : ""
+                    }`}
+                    aria-label={t("insights.subPage.showAllValues")}
+                    title={t("insights.subPage.showAllValues")}
+                  >
+                    <ListOrdered className="size-4" aria-hidden="true" />
+                  </Link>
+                </Button>
+              ) : null}
               <TargetAdjustButton />
               {coachLaunch ? <CoachLaunchButton variant="icon" /> : null}
-              {/* v1.16.4 — customise cog on every routed sub-page,
-                mirroring the mother page's tab-strip cog: same Settings2
-                glyph, same `/settings/insights` destination (overview
-                arrange + pill sort). Rightmost in the cluster so it sits
-                where the mother page's cog sits — far top-right — and
-                clearly apart from the self-gating target-adjust gear. */}
-              <Button
-                asChild
-                variant="ghost"
-                size="icon"
-                data-slot="insights-subpage-customize"
-                className={cn(
-                  // Match the cluster's 40 px icon box + extended hit area
-                  // (see `<TargetAdjustButton>` for the WCAG 2.5.5 note).
-                  "text-muted-foreground hover:text-foreground relative size-10",
-                  "before:absolute before:-inset-1.5 before:content-['']",
-                )}
-              >
-                <Link
-                  href="/settings/insights"
-                  aria-label={t("insights.customize")}
-                  title={t("insights.customize")}
-                >
-                  <Settings2 className="size-4" aria-hidden="true" />
-                </Link>
-              </Button>
+              {/* v1.16.8 — the v1.16.4 customise cog is gone: the sticky
+                tab strip above already carries the same control on every
+                insights surface, so the header copy was a duplicate. */}
             </div>
           </div>
           {explainerMetric ? (
@@ -298,29 +313,9 @@ export function SubPageShell({
           (above) → chart → target card → assessment. The page renders
           chart → target → assessment as `children`. */}
         {children}
-        {/* v1.8.5 W4b — "show all readings" entry at the foot, linking to
-          the dedicated per-metric values subpage.
-          v1.8.6 — normalised to the `h-10` secondary-button height so it
-          reads as a consistent control now that the foot-of-page Coach
-          button (which set the old visual baseline) has moved to the
-          header. */}
-        {showAllValuesType ? (
-          <Button
-            asChild
-            variant="outline"
-            data-slot="metric-show-all-values"
-            className="h-10 w-full sm:w-auto"
-          >
-            <Link
-              href={`/insights/values/${showAllValuesType}${
-                pathname ? `?from=${encodeURIComponent(pathname)}` : ""
-              }`}
-            >
-              <ListOrdered className="size-4" aria-hidden="true" />
-              {t("insights.subPage.showAllValues")}
-            </Link>
-          </Button>
-        ) : null}
+        {/* v1.16.8 — the foot-of-page "show all readings" button moved
+          into the header cluster as an icon button (left of the
+          target-adjust gear), so the page body ends on its content. */}
       </div>
     </TargetAdjustProvider>
   );

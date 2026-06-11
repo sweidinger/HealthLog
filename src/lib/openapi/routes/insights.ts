@@ -252,7 +252,7 @@ const derivedBatchQuery = z
       .min(1)
       .max(1024)
       .describe(
-        "Comma-separated derived-metric tokens. Each is a `<DERIVED_METRIC_ID>` or `<DERIVED_METRIC_ID>:<MeasurementType>` (the colon sub-targets a VITALS_BASELINE vital). An unknown id 422s; at most 24 tokens; duplicates collapse.",
+        "Comma-separated derived-metric tokens. Each is a `<DERIVED_METRIC_ID>` or `<DERIVED_METRIC_ID>:<MeasurementType>` (the colon sub-targets a VITALS_BASELINE vital). An unknown id 422s; a `type` outside the MeasurementType enum 422s; at most 24 tokens; duplicates collapse.",
       ),
   })
   .meta({ id: "DerivedBatchQuery" });

@@ -160,7 +160,6 @@ export default function InsightsBlutdruckPage() {
         unit="mmHg"
         yAxisUnit="mmHg"
         targetZones={bpTargetZones}
-        targetSettingsHref="/settings/thresholds"
         compareBaseline={compareBaseline}
         userTimezone={user?.timezone}
         onVisibleStats={onVisibleStats}

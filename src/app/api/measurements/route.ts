@@ -704,6 +704,9 @@ async function sleepListResponse(
       measuredAt: true,
       sleepStage: true,
       source: true,
+      // Writer-level collapse: two HealthKit apps behind one source (watch
+      // stages vs phone in-bed) must not blend into one night.
+      deviceType: true,
     },
   });
 

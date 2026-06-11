@@ -11,6 +11,8 @@ vi.mock("@/lib/db", () => ({
 
 vi.mock("@/lib/insights/status-provider", () => ({
   runStatusCompletion: vi.fn(),
+  // Consent never blocks in these fixtures — the gate has its own tests.
+  statusConsentBlocksGeneration: vi.fn(async () => false),
 }));
 
 vi.mock("@/lib/insights/memory", () => ({
@@ -108,7 +110,12 @@ describe("generateMoodStatusForUser — timeout/error never persists", () => {
     const t = new Date();
     vi.mocked(prisma.auditLog.findFirst).mockResolvedValue(null);
     vi.mocked(prisma.moodEntry.findMany).mockResolvedValue([
-      { date: t.toISOString().slice(0, 10), score: 4, tags: [], moodLoggedAt: t },
+      {
+        date: t.toISOString().slice(0, 10),
+        score: 4,
+        tags: [],
+        moodLoggedAt: t,
+      },
     ] as never);
     vi.mocked(prisma.measurement.findMany).mockResolvedValue([] as never);
     vi.mocked(prisma.auditLog.create).mockResolvedValue({
@@ -157,7 +164,12 @@ describe("generateMoodStatusForUser — cache-read skips a stub", () => {
       }),
     } as never);
     vi.mocked(prisma.moodEntry.findMany).mockResolvedValue([
-      { date: now.toISOString().slice(0, 10), score: 4, tags: [], moodLoggedAt: now },
+      {
+        date: now.toISOString().slice(0, 10),
+        score: 4,
+        tags: [],
+        moodLoggedAt: now,
+      },
     ] as never);
     vi.mocked(prisma.measurement.findMany).mockResolvedValue([] as never);
     vi.mocked(prisma.auditLog.create).mockResolvedValue({
@@ -179,7 +191,12 @@ describe("generateMoodStatusForUser — token-leak hardening (v1.4.27 F16)", () 
     const t = new Date();
     vi.mocked(prisma.auditLog.findFirst).mockResolvedValue(null);
     vi.mocked(prisma.moodEntry.findMany).mockResolvedValue([
-      { date: t.toISOString().slice(0, 10), score: 4, tags: [], moodLoggedAt: t },
+      {
+        date: t.toISOString().slice(0, 10),
+        score: 4,
+        tags: [],
+        moodLoggedAt: t,
+      },
     ] as never);
     vi.mocked(prisma.measurement.findMany).mockResolvedValue([] as never);
     vi.mocked(prisma.auditLog.create).mockResolvedValue({

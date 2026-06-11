@@ -4,8 +4,11 @@ import { Fragment, useEffect, useId, useMemo, useRef, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
+  BookmarkPlus,
   Bot,
+  Check,
   ChevronRight,
+  Loader2,
   Sparkles,
   ThumbsDown,
   ThumbsUp,
@@ -18,6 +21,7 @@ import { useTranslations } from "@/lib/i18n/context";
 import { ApiError, apiPost } from "@/lib/api/api-fetch";
 import { stripChartTokens } from "@/lib/insights/chart-tokens";
 import { useAuth } from "@/hooks/use-auth";
+import { ABOUT_ME_FIELD_MAX_CHARS } from "@/lib/validations/about-me";
 
 import { SourceChips } from "./source-chips";
 import type {
@@ -469,15 +473,34 @@ function ChatBubble({
       >
         <div
           className={cn(
-            "border-dose-accent/30 bg-dose-accent/12 text-foreground",
             // Budget the avatar column (size-8 + gap-2.5 ≈ 2.625rem) out
             // of the 80% cap so the bubble + avatar together never
             // overflow a comfortable width on a narrow phone.
-            "max-w-[calc(80%-2.625rem)] rounded-xl rounded-tr-sm border px-3.5 py-2.5",
-            "text-sm leading-relaxed",
+            // `group/user-bubble` scopes the remember control's
+            // hover/focus reveal (see `RememberUserMessage`).
+            "group/user-bubble flex max-w-[calc(80%-2.625rem)] flex-col items-end gap-1",
           )}
         >
-          {content}
+          <div
+            className={cn(
+              "border-dose-accent/30 bg-dose-accent/12 text-foreground",
+              "rounded-xl rounded-tr-sm border px-3.5 py-2.5",
+              "text-sm leading-relaxed",
+            )}
+          >
+            {content}
+          </div>
+          {/* v1.16.8 — explicit remember control. Stating an allergy in
+              chat used to leave no durable trace unless a narrow
+              pattern pass happened to match the phrasing; this stores
+              the message into the editable self-context (Settings → AI)
+              on one tap, so it rides every future system prompt. Only
+              persisted messages get the control (an optimistic bubble
+              has no id yet), and only when the text fits the
+              self-context field cap. */}
+          {messageId && content.length <= ABOUT_ME_FIELD_MAX_CHARS && (
+            <RememberUserMessage content={content} />
+          )}
         </div>
         {avatarUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
@@ -688,6 +711,99 @@ function ChatBubble({
           )}
       </div>
     </div>
+  );
+}
+
+/**
+ * v1.16.8 — per-message remember control under the user bubble.
+ *
+ * One tap stores the message text into the structured self-context via
+ * `POST /api/coach/about-me/adopt` (no `question` — the server matches
+ * the target field from the text itself: an allergy statement lands on
+ * the allergies field, a stated condition on conditions, everything
+ * else on the coach-focus slot). The stored text is visible and
+ * editable under Settings → AI and rides every future Coach system
+ * prompt. Settled states mirror `SelfContextAdoptOffer`: a short
+ * confirmation replaces the button after an adoption or a server-side
+ * dedupe; a failure surfaces a toast and the button stays tappable.
+ */
+function RememberUserMessage({ content }: { content: string }) {
+  const { t } = useTranslations();
+  const [settled, setSettled] = useState<"adopted" | "duplicate" | null>(null);
+  // On settle the button unmounts while it holds focus, which would
+  // drop keyboard focus to <body>. The confirmation paragraph takes
+  // the focus instead (`tabIndex={-1}` + programmatic focus) so the
+  // reading position survives the swap.
+  const statusRef = useRef<HTMLParagraphElement | null>(null);
+  useEffect(() => {
+    if (settled) statusRef.current?.focus();
+  }, [settled]);
+
+  const remember = useMutation({
+    mutationFn: async () => {
+      return apiPost<{ adopted: boolean }>("/api/coach/about-me/adopt", {
+        answer: content,
+      });
+    },
+    onSuccess: (data) => {
+      setSettled(data.adopted ? "adopted" : "duplicate");
+    },
+    onError: () => {
+      toast.error(t("insights.coach.rememberMessage.failed"));
+    },
+  });
+
+  if (settled) {
+    return (
+      <p
+        role="status"
+        ref={statusRef}
+        tabIndex={-1}
+        data-slot="coach-remember-message-done"
+        className="text-muted-foreground flex items-center gap-1 text-xs outline-none"
+      >
+        <Check className="text-dracula-green size-3" aria-hidden="true" />
+        {t(
+          settled === "adopted"
+            ? "insights.coach.rememberMessage.done"
+            : "insights.coach.rememberMessage.duplicate",
+        )}
+      </p>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      data-slot="coach-remember-message"
+      onClick={() => remember.mutate()}
+      disabled={remember.isPending}
+      className={cn(
+        "text-muted-foreground hover:text-foreground focus-visible:ring-ring/50",
+        "inline-flex min-h-8 items-center gap-1 rounded px-1.5 py-1 text-xs",
+        "outline-none focus-visible:ring-2 disabled:opacity-50",
+        // Calmer thread on pointer devices: the control stays invisible
+        // until its bubble is hovered or holds focus. Touch viewports
+        // (no hover media) keep it always visible — there is nothing to
+        // hover. `opacity-0` (not `invisible`) keeps it focusable so
+        // keyboard users can reach it; focus then reveals it.
+        "sm:[@media(hover:hover)]:opacity-0",
+        "sm:[@media(hover:hover)]:group-hover/user-bubble:opacity-100",
+        "sm:[@media(hover:hover)]:group-focus-within/user-bubble:opacity-100",
+        "sm:[@media(hover:hover)]:focus-visible:opacity-100",
+        "transition-opacity duration-150 motion-reduce:transition-none",
+      )}
+    >
+      {remember.isPending ? (
+        <Loader2
+          className="size-3 animate-spin motion-reduce:animate-none"
+          aria-hidden="true"
+        />
+      ) : (
+        <BookmarkPlus className="size-3" aria-hidden="true" />
+      )}
+      {t("insights.coach.rememberMessage.action")}
+    </button>
   );
 }
 

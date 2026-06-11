@@ -106,7 +106,6 @@ export default function InsightsGewichtPage() {
         colors={["#bd93f9"]}
         unit="kg"
         valueBands={weightBands}
-        targetSettingsHref="/settings/thresholds"
         compareBaseline={compareBaseline}
         userTimezone={user?.timezone}
         onVisibleStats={onVisibleStats}

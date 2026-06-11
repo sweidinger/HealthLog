@@ -109,6 +109,54 @@ describe("<SubPageShell>", () => {
     expect(backIdx).toBeLessThan(headerIdx);
   });
 
+  it("renders the show-all-values entry as an icon button inside the header cluster (v1.16.8)", () => {
+    const html = render(
+      <SubPageShell title="Weight" showAllValuesType="WEIGHT">
+        <span />
+      </SubPageShell>,
+    );
+    const idx = html.indexOf('data-slot="metric-show-all-values"');
+    expect(idx).toBeGreaterThan(-1);
+    // Lives in the header action cluster, not at the page foot.
+    expect(idx).toBeLessThan(html.indexOf("</header>"));
+    // Icon-only control: the label travels via aria-label + title.
+    expect(html).toContain('aria-label="Show all readings"');
+    expect(html).toContain('title="Show all readings"');
+    expect(html).toContain("/insights/values/WEIGHT");
+    // Exactly one entry — the old foot-of-page button must not return.
+    expect(html.indexOf('data-slot="metric-show-all-values"')).toBe(
+      html.lastIndexOf('data-slot="metric-show-all-values"'),
+    );
+    expect(html).not.toContain("w-full sm:w-auto");
+    // The cluster gap must clear the siblings' extended hit areas
+    // (`before:-inset-1.5` = 6 px per edge → ≥12 px gap): with the old
+    // `gap-0.5` the later sibling's invisible halo overlapped its
+    // neighbour's clickable edge.
+    expect(html).toContain("items-center gap-3");
+    expect(html).not.toContain("items-center gap-0.5");
+  });
+
+  it("omits the show-all-values control without a type", () => {
+    const html = render(
+      <SubPageShell title="BMI">
+        <span />
+      </SubPageShell>,
+    );
+    expect(html).not.toContain('data-slot="metric-show-all-values"');
+  });
+
+  it("no longer renders the duplicate customise cog in the header (v1.16.8)", () => {
+    const html = render(
+      <SubPageShell title="Weight" showAllValuesType="WEIGHT">
+        <span />
+      </SubPageShell>,
+    );
+    // The sticky tab strip above the page body owns the single
+    // "customise insights" entry point; the header copy was removed.
+    expect(html).not.toContain('data-slot="insights-subpage-customize"');
+    expect(html).not.toContain("/settings/insights");
+  });
+
   it("mounts no coach launch surface when coachLaunch is omitted", () => {
     const html = render(
       <SubPageShell title="Pulse">

@@ -38,14 +38,13 @@ export interface InsightPregeneratePayload {
  * `singletonKey` per user collapses repeated requests within a short
  * window into one queued job, so a client that taps the button twice
  * (or the auto-trigger races a manual tap) can't double-warm. The key
- * is deliberately locale-free: `forceWarmUser` warms BOTH locale
- * families per job (v1.16.7), so a per-(user, locale) key would let a
- * German web session and an English Accept-Language client enqueue two
- * near-identical full warms back to back — the second one force-
- * regenerating the comprehensive briefing and re-evicting the
- * per-status rows the first job just wrote. No-ops cleanly when the
- * global boss instance is not available (e.g. a web process without an
- * embedded worker) — the nightly cron remains the catch-net.
+ * is deliberately locale-free: a German web session and an English
+ * Accept-Language client racing each other would otherwise enqueue two
+ * near-identical full warms back to back; the first job's locale wins
+ * the window and the other locale warms lazily through the read-path
+ * enqueue (v1.16.8). No-ops cleanly when the global boss instance is
+ * not available (e.g. a web process without an embedded worker) — the
+ * nightly cron remains the catch-net.
  */
 export async function enqueueForceWarm(payload: {
   userId: string;
@@ -69,9 +68,14 @@ export async function enqueueForceWarm(payload: {
       } satisfies InsightPregeneratePayload,
       {
         singletonKey: `force:${payload.userId}`,
-        // De-dupe within a 2-minute window so a double tap or an
-        // auto-trigger racing a manual tap enqueues one warm, not two.
-        singletonSeconds: 120,
+        // De-dupe within a 6-minute window. v1.16.8 — widened from 120 s:
+        // the client's revalidation poll runs up to ~250 s after a stale
+        // page-open, so a 2-minute singleton let the tail of one poll
+        // cycle enqueue a second (and third) full warm while the first
+        // was still running. 360 s outlives the poll horizon, so a stale
+        // page-open collapses to exactly one queued warm; the worker-side
+        // freshness re-check in `forceWarmUser` is the second guard.
+        singletonSeconds: 360,
         // Transient provider / pool failures retry with backoff instead
         // of leaving every cache cold until the nightly cron.
         retryLimit: 3,

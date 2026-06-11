@@ -54,10 +54,18 @@ export type AboutMePutInput = z.infer<typeof aboutMePutSchema>;
  * stored self-context. The server picks the matching structured field
  * from the question wording, dedupes against the stored text, and
  * appends encrypted.
+ *
+ * v1.16.8 — `question` is optional: the remember action on a Coach
+ * chat message sends only the message text, and the server matches the
+ * target field from the text itself.
  */
 export const aboutMeAdoptSchema = z.object({
-  /** The clarifying question the answer belongs to (field matching). */
-  question: z.string().trim().min(1).max(500),
+  /**
+   * The clarifying question the answer belongs to (field matching).
+   * Absent for the message-remember path — the field is then matched
+   * from the answer text.
+   */
+  question: z.string().trim().min(1).max(500).optional(),
   /** The user's answer, as typed into the Coach composer. */
   answer: z.string().trim().min(1).max(ABOUT_ME_FIELD_MAX_CHARS),
 });

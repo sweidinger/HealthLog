@@ -1,5 +1,8 @@
 import { prisma } from "@/lib/db";
-import { hasUsableStatusProvider } from "@/lib/insights/status-provider";
+import {
+  hasUsableStatusProvider,
+  statusConsentBlocksGeneration,
+} from "@/lib/insights/status-provider";
 import {
   enqueueStatusGeneration,
   type InsightStatusScope,
@@ -35,17 +38,10 @@ import { annotate } from "@/lib/logging/context";
  * `action` is `insights.<scope>-status.<locale>`. The shape IS the cache
  * key, so building it by hand in multiple places risks the same silent
  * drift the queryKey factory guards against on the client. `statusCacheAction`
- * is the one builder; `statusCacheActionPrefix` is its locale-agnostic
- * sibling for the `startsWith` eviction that drops every locale variant of a
- * scope at once.
+ * is the one builder.
  */
 export function statusCacheAction(scope: string, locale: string): string {
   return `insights.${scope}-status.${locale}`;
-}
-
-/** Locale-agnostic prefix for `startsWith`-eviction of every locale of a scope. */
-export function statusCacheActionPrefix(scope: string): string {
-  return `insights.${scope}-status.`;
 }
 
 interface ParsedStatusCache {
@@ -59,6 +55,8 @@ interface ParsedStatusCache {
   timeout?: boolean;
   /** v1.8.3 — ISO timestamp before which a timeout stub suppresses re-enqueue. */
   retryAt?: string;
+  /** v1.16.8 — fingerprint of the data snapshot the text was generated from. */
+  snapshotHash?: string;
 }
 
 /**
@@ -119,6 +117,85 @@ export async function readFreshStatusText(args: {
     // Malformed cache payload — treat as a miss and regenerate.
     return null;
   }
+}
+
+/**
+ * v1.16.8 — the content-hash regeneration gate for the per-status and
+ * generic metric cards.
+ *
+ * A generator that has already gathered its data snapshot calls this
+ * BEFORE the provider round-trip. When the latest cached assessment for
+ * `(userId, cacheAction)` is a real (non-stub) text whose stored
+ * `snapshotHash` equals the fresh snapshot's hash, nothing the prompt
+ * sees has changed — so the gate re-persists the same text under
+ * today's `dateKey` (a pure timestamp refresh that keeps the read path
+ * and the ingest debounce satisfied) and returns it, and the caller
+ * skips the LLM call entirely. Returns `null` on any miss (no prior
+ * row, stub, empty text, missing or differing hash) — every one of
+ * those means the caller should generate for real.
+ *
+ * This single gate is what turns the nightly warm, the forced warm, and
+ * the ingest-driven regeneration into no-ops on unchanged data: each of
+ * those paths forces past the same-day cache read, gathers the
+ * snapshot, and lands here.
+ *
+ * Consent comes BEFORE the hash compare (mirroring the comprehensive
+ * pipeline's consent-before-gate order): re-stamping a cached text
+ * under today's `dateKey` presents it as a current AI assessment, so a
+ * user who revoked the server-managed AI consent must not have old
+ * text re-dated by an unchanged-data refresh. On a blocked consent the
+ * gate misses, the generator proceeds to `runStatusCompletion`, and
+ * that gate returns the no-key fallback without persisting anything.
+ */
+export async function refreshUnchangedStatusInsight(args: {
+  userId: string;
+  cacheAction: string;
+  todayKey: string;
+  snapshotHash: string;
+}): Promise<FreshStatusCacheHit | null> {
+  if (await statusConsentBlocksGeneration(args.userId, "insights")) {
+    annotate({
+      action: { name: "insights.status.consent_required" },
+      meta: { cache_action: args.cacheAction, gate: "unchanged-refresh" },
+    });
+    return null;
+  }
+
+  const latest = await prisma.auditLog.findFirst({
+    where: { userId: args.userId, action: args.cacheAction },
+    orderBy: { createdAt: "desc" },
+    select: { details: true },
+  });
+  if (!latest?.details) return null;
+
+  let parsed: ParsedStatusCache;
+  try {
+    parsed = JSON.parse(latest.details) as ParsedStatusCache;
+  } catch {
+    return null;
+  }
+  if (isTimeoutStub(parsed)) return null;
+  if (typeof parsed.text !== "string" || parsed.text.trim().length === 0) {
+    return null;
+  }
+  if (parsed.snapshotHash !== args.snapshotHash) return null;
+
+  // Same data, valid text — refresh the cache row's day key so the
+  // read path serves it as today's assessment and the ingest debounce
+  // window restarts, without touching the provider.
+  const created = await prisma.auditLog.create({
+    data: {
+      userId: args.userId,
+      action: args.cacheAction,
+      details: JSON.stringify({ ...parsed, dateKey: args.todayKey }),
+    },
+    select: { createdAt: true },
+  });
+  annotate({
+    action: { name: "insights.status.skipped_unchanged" },
+    meta: { cache_action: args.cacheAction },
+  });
+  return { text: parsed.text, updatedAt: created.createdAt.toISOString() };
 }
 
 export interface LastGoodStatusHit {
