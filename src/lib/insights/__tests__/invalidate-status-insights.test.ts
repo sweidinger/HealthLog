@@ -1,12 +1,16 @@
 /**
  * v1.8.0 — measurement-driven per-metric assessment invalidation.
  *
- * A fresh measurement of a given type must drop the cached
+ * A fresh measurement of a given type must re-warm the cached
  * `insights.<scope>-status.<locale>` rows for the scopes that reading
- * dirties, so the next mount / nightly warm pass regenerates them
- * against the new data instead of serving the pre-measurement text for
- * the rest of the day. These tests pin the type → scope mapping and the
- * delete shape without a live DB.
+ * dirties, so the next mount (or the next nightly warm pass) reflects
+ * the new data instead of serving the pre-measurement text for the rest
+ * of the day. These tests pin the type → scope mapping, the debounce,
+ * and (v1.16.8) that the invalidator enqueues regenerations WITHOUT
+ * deleting the cache rows — the worker's forced generation runs the
+ * generator's content-hash gate, which decides whether the data
+ * actually changed; keeping the row preserves stale-while-revalidate
+ * and lets a re-synced unchanged batch cost zero LLM calls.
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
@@ -52,20 +56,23 @@ function enqueuedScopes(): string[] {
   ].sort();
 }
 
-function deletedScopes(): string[] {
-  const arg = deleteMany.mock.calls[0][0];
-  // Each OR clause is `{ action: { startsWith: "insights.<scope>-status." } }`.
-  return (arg.where.OR as Array<{ action: { startsWith: string } }>)
-    .map((c) => c.action.startsWith.replace(/^insights\.(.+)-status\.$/, "$1"))
-    .sort();
-}
-
 describe("invalidateStatusInsightsForTypes", () => {
   it("maps WEIGHT to weight + bmi + general", async () => {
     await invalidateStatusInsightsForTypes("u1", ["WEIGHT"]);
-    expect(deleteMany).toHaveBeenCalledTimes(1);
-    expect(deletedScopes()).toEqual(["bmi", "general", "weight"]);
-    expect(deleteMany.mock.calls[0][0].where.userId).toBe("u1");
+    expect(enqueuedScopes()).toEqual(["bmi", "general", "weight"]);
+    expect(
+      enqueueStatusGeneration.mock.calls.every(
+        (c) => (c[0] as { userId: string }).userId === "u1",
+      ),
+    ).toBe(true);
+  });
+
+  it("never deletes the cached assessment rows (v1.16.8 — hash gate decides)", async () => {
+    await invalidateStatusInsightsForTypes("u1", ["WEIGHT"]);
+    // The rows stay for stale-while-revalidate AND for the content-hash
+    // gate the worker's forced regeneration runs; deleting them here would
+    // force a full LLM regeneration even for a re-synced unchanged batch.
+    expect(deleteMany).not.toHaveBeenCalled();
   });
 
   it("maps both blood-pressure components to blood-pressure + general", async () => {
@@ -73,7 +80,7 @@ describe("invalidateStatusInsightsForTypes", () => {
       "BLOOD_PRESSURE_SYS",
       "BLOOD_PRESSURE_DIA",
     ]);
-    expect(deletedScopes()).toEqual(["blood-pressure", "general"]);
+    expect(enqueuedScopes()).toEqual(["blood-pressure", "general"]);
   });
 
   it("maps PULSE and RESTING_HEART_RATE to pulse + general (+ the resting-HR generic scope)", async () => {
@@ -84,7 +91,7 @@ describe("invalidateStatusInsightsForTypes", () => {
     // PULSE feeds the specialised pulse + general scopes; RESTING_HEART_RATE
     // feeds those too AND carries its own generic assessment card
     // (`metric:RESTING_HEART_RATE`), so all three are dirtied.
-    expect(deletedScopes()).toEqual([
+    expect(enqueuedScopes()).toEqual([
       "general",
       "metric:RESTING_HEART_RATE",
       "pulse",
@@ -96,7 +103,7 @@ describe("invalidateStatusInsightsForTypes", () => {
     // generic `metric:BLOOD_GLUCOSE` card, so a fresh reading dirties the
     // general overview AND that generic scope.
     await invalidateStatusInsightsForTypes("u1", ["BLOOD_GLUCOSE"]);
-    expect(deletedScopes()).toEqual(["general", "metric:BLOOD_GLUCOSE"]);
+    expect(enqueuedScopes()).toEqual(["general", "metric:BLOOD_GLUCOSE"]);
   });
 
   it("dedupes scopes across a mixed batch", async () => {
@@ -107,7 +114,7 @@ describe("invalidateStatusInsightsForTypes", () => {
     ]);
     // weight + bmi + general (WEIGHT) ∪ pulse + general (PULSE) ∪
     // general + metric:BLOOD_GLUCOSE (BLOOD_GLUCOSE)
-    expect(deletedScopes()).toEqual([
+    expect(enqueuedScopes()).toEqual([
       "bmi",
       "general",
       "metric:BLOOD_GLUCOSE",
@@ -118,7 +125,7 @@ describe("invalidateStatusInsightsForTypes", () => {
 
   it("is a no-op for an empty type set (no DB call)", async () => {
     await invalidateStatusInsightsForTypes("u1", []);
-    expect(deleteMany).not.toHaveBeenCalled();
+    expect(auditFindMany).not.toHaveBeenCalled();
     expect(enqueueStatusGeneration).not.toHaveBeenCalled();
   });
 
@@ -147,12 +154,11 @@ describe("invalidateStatusInsightsForTypes", () => {
     expect([...locales]).toEqual(["en"]);
   });
 
-  it("does not blanket-evict general for an unrelated synced type", async () => {
+  it("does not blanket-dirty general for an unrelated synced type", async () => {
     // A steps sample touches only the general overview, never the weight /
     // pulse / bp scopes — the constant Apple-Health sync must not thrash
     // every card's cache.
     await invalidateStatusInsightsForTypes("u1", ["ACTIVITY_STEPS"]);
-    expect(deletedScopes()).toEqual(["general", "metric:STEPS"]);
     expect(enqueuedScopes()).toEqual(["general", "metric:STEPS"]);
   });
 
@@ -162,7 +168,6 @@ describe("invalidateStatusInsightsForTypes", () => {
     // freshly-synced metric's card refreshes in the background instead of
     // lagging until the nightly warm pass.
     await invalidateStatusInsightsForTypes("u1", ["BLOOD_GLUCOSE"]);
-    expect(deletedScopes()).toEqual(["general", "metric:BLOOD_GLUCOSE"]);
     expect(enqueuedScopes()).toEqual(["general", "metric:BLOOD_GLUCOSE"]);
   });
 
@@ -184,7 +189,7 @@ describe("invalidateStatusInsightsForTypes", () => {
     ).toBe(false);
   });
 
-  describe("ingest-invalidation debounce (v1.9.0)", () => {
+  describe("ingest-invalidation debounce (v1.9.0, 6 h window since v1.16.8)", () => {
     /** Build a recent (within-window) real assessment cache row. */
     function freshRow(scope: string, locale = "de") {
       return {
@@ -194,22 +199,20 @@ describe("invalidateStatusInsightsForTypes", () => {
     }
 
     it("skips a scope whose assessment was warmed within the window", async () => {
-      // `general` was regenerated minutes ago; a fresh WEIGHT sample must not
-      // delete or re-enqueue it. weight + bmi are still stale, so they refresh.
+      // `general` was regenerated within the window; a fresh WEIGHT sample
+      // must not re-enqueue it. weight + bmi are still stale, so they refresh.
       auditFindMany.mockResolvedValue([freshRow("general")]);
       await invalidateStatusInsightsForTypes("u1", ["WEIGHT"]);
-      expect(deletedScopes()).toEqual(["bmi", "weight"]);
       expect(enqueuedScopes()).toEqual(["bmi", "weight"]);
     });
 
-    it("is a complete no-op (no delete, no enqueue) when every scope is fresh", async () => {
+    it("is a complete no-op (no enqueue) when every scope is fresh", async () => {
       auditFindMany.mockResolvedValue([
         freshRow("weight"),
         freshRow("bmi"),
         freshRow("general"),
       ]);
       await invalidateStatusInsightsForTypes("u1", ["WEIGHT"]);
-      expect(deleteMany).not.toHaveBeenCalled();
       expect(enqueueStatusGeneration).not.toHaveBeenCalled();
     });
 
@@ -223,12 +226,12 @@ describe("invalidateStatusInsightsForTypes", () => {
         },
       ]);
       await invalidateStatusInsightsForTypes("u1", ["WEIGHT"]);
-      expect(deletedScopes()).toEqual(["bmi", "general", "weight"]);
       expect(enqueuedScopes()).toEqual(["bmi", "general", "weight"]);
     });
 
-    it("scopes the freshness probe to the user's resolved locale and the window cutoff", async () => {
+    it("scopes the freshness probe to the user's resolved locale and a 6 h window cutoff", async () => {
       userFindUnique.mockResolvedValue({ locale: "en" });
+      const before = Date.now();
       await invalidateStatusInsightsForTypes("u1", ["WEIGHT"]);
       const where = auditFindMany.mock.calls[0][0].where;
       expect(where.userId).toBe("u1");
@@ -240,9 +243,14 @@ describe("invalidateStatusInsightsForTypes", () => {
           "insights.general-status.en",
         ]),
       );
-      // A recency floor is applied (createdAt >= cutoff in the past).
-      expect(where.createdAt.gte).toBeInstanceOf(Date);
-      expect(where.createdAt.gte.getTime()).toBeLessThan(Date.now());
+      // The recency floor is six hours in the past (v1.16.8 — widened
+      // from 30 min so an all-day syncer refreshes a scope at most a few
+      // times, with the hash gate dropping unchanged refreshes to zero
+      // LLM calls).
+      const cutoff = (where.createdAt.gte as Date).getTime();
+      const sixHours = 6 * 60 * 60 * 1000;
+      expect(before - cutoff).toBeGreaterThanOrEqual(sixHours - 5_000);
+      expect(before - cutoff).toBeLessThanOrEqual(sixHours + 60_000);
     });
   });
 });

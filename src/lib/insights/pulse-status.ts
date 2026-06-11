@@ -37,9 +37,11 @@ import {
 import { runStatusCompletion } from "@/lib/insights/status-provider";
 import {
   readFreshStatusText,
+  refreshUnchangedStatusInsight,
   resolveReadOnlyStatusMiss,
   statusCacheAction,
 } from "@/lib/insights/status-cache";
+import { hashInsightSnapshot } from "@/lib/insights/snapshot-hash";
 import { returnTimeoutFallback } from "@/lib/insights/timeout-fallback";
 import { annotate } from "@/lib/logging/context";
 import { toBerlinDayKey, userDayKey, DEFAULT_TIMEZONE } from "@/lib/tz/resolver";
@@ -318,6 +320,24 @@ export async function generatePulseStatusForUser(
     },
   });
 
+  // Content-hash gate (v1.16.8): when the snapshot is unchanged since the
+  // last real assessment, refresh the cache timestamp and skip the LLM.
+  const snapshotHash = hashInsightSnapshot(snapshot);
+  const unchanged = await refreshUnchangedStatusInsight({
+    userId,
+    cacheAction,
+    todayKey,
+    snapshotHash,
+  });
+  if (unchanged) {
+    return {
+      hasProvider: true,
+      text: unchanged.text,
+      cached: true,
+      updatedAt: unchanged.updatedAt,
+    };
+  }
+
   const previousContext = await getPreviousInsightContext(
     userId,
     "pulse-status",
@@ -395,6 +415,7 @@ export async function generatePulseStatusForUser(
     providerType: outcome.providerType,
     model: outcome.model,
     tokensUsed: outcome.tokensUsed,
+    snapshotHash,
   });
 
   return {

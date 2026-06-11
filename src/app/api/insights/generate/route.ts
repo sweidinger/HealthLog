@@ -59,6 +59,7 @@ import { invalidateUserInsights } from "@/lib/cache/invalidate";
 import { annotate } from "@/lib/logging/context";
 import { resolveServerLocale } from "@/lib/i18n/server-locale";
 import { hasUsableStatusProvider } from "@/lib/insights/status-provider";
+import { hashInsightSnapshot } from "@/lib/insights/snapshot-hash";
 import { enqueueForceWarm } from "@/lib/jobs/insight-pregenerate-shared";
 
 export const dynamic = "force-dynamic";
@@ -89,32 +90,6 @@ export function resolveInsightsRateLimit(): number {
     return DEFAULT_INSIGHTS_RATE_LIMIT_PER_HOUR;
   }
   return parsed;
-}
-
-/**
- * Per-status insight cache rows live in `audit_logs` keyed by
- * `action = "insights.{scope}-status.{locale}"` (see
- * `src/lib/insights/memory.ts` for the canonical scope list and
- * `src/lib/insights/{general,blood-pressure,weight,pulse,bmi,
- * mood,medication-compliance}-status.ts` for the writers). Each scope
- * has its own per-day eviction, so before v1.4.16 a force-regeneration
- * of the comprehensive insight would leave yesterday's per-status
- * cards visible on the insights page until the next calendar day
- * flipped. Drop them here so the next status fetch has to call the
- * LLM again with the same fresh feature set the comprehensive blob
- * just used.
- */
-async function evictPerStatusInsightCache(userId: string): Promise<void> {
-  await prisma.auditLog.deleteMany({
-    where: {
-      userId,
-      action: { startsWith: "insights." },
-      // Keep the `insights.generate` row this request just wrote and
-      // the `insights.settings.*` rows — only the per-status cache
-      // entries (`insights.<scope>-status.<locale>`) carry stale text.
-      AND: [{ action: { contains: "-status." } }],
-    },
-  });
 }
 
 /**
@@ -739,14 +714,19 @@ export const POST = apiHandler(async (request: NextRequest) => {
     data: {
       insightsCachedAt: new Date(),
       insightsCachedText: JSON.stringify(insights),
+      // v1.16.8 — store the snapshot fingerprint so the nightly / forced
+      // regeneration paths can detect "nothing changed" and skip the
+      // provider call. The user-initiated POST itself stays un-gated: an
+      // explicit regenerate request is honoured even on unchanged data
+      // (it is already bounded by the hourly rate limit above).
+      insightsSnapshotHash: hashInsightSnapshot(compactFeatures),
     },
   });
 
-  // v1.4.16 A7: a fresh comprehensive insight always supersedes the
-  // per-status cache. Otherwise the dashboard re-paints itself with the
-  // newly generated comprehensive while the insights-page status cards
-  // still show yesterday's text until midnight Berlin time.
-  await evictPerStatusInsightCache(userId);
+  // v1.16.8 — no blanket per-status eviction here any more. The cards
+  // track their own data through the ingest invalidator and their own
+  // content-hash gates; nuking ~45 cache rows per manual regenerate was
+  // the source of the post-regenerate card-regeneration storm.
 
   // v1.7.0 W6 — the dashboard snapshot embeds the pre-generated daily
   // briefing read-only; drop it so the next snapshot carries the fresh

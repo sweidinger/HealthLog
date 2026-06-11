@@ -342,32 +342,39 @@ describe("POST /api/insights/generate — rate limit (v1.4.16 A7.1)", () => {
   });
 });
 
-// v1.4.16 A7.2: every fresh comprehensive insight evicts the per-
-// scope status cache so the dashboard and the insights-page status
-// cards never disagree. Without this, force-regeneration repaints
-// `/api/insights/generate` while `/api/insights/<scope>-status` keeps
-// returning yesterday's text until midnight Berlin time.
-describe("POST /api/insights/generate — per-status cache eviction (A7.2)", () => {
-  it("deletes per-status audit-log cache rows after a successful generation", async () => {
+// v1.16.8 — a fresh comprehensive insight no longer nukes the per-scope
+// status cache (the old A7.2 sweep). The cards track their own data via
+// the ingest invalidator + per-card content-hash gates; the route's job
+// is to store the snapshot fingerprint so the off-request regeneration
+// paths can detect "nothing changed" and skip the provider.
+describe("POST /api/insights/generate — cache write (v1.16.8)", () => {
+  it("does NOT delete per-status audit-log cache rows after a successful generation", async () => {
     makeWorkingProvider();
 
     const res = await POST(jsonRequest({ force: true }) as never);
     expect(res.status).toBe(200);
 
-    expect(prisma.auditLog.deleteMany).toHaveBeenCalledTimes(1);
-    const args = vi.mocked(prisma.auditLog.deleteMany).mock.calls[0][0];
-    expect(args).toMatchObject({
-      where: {
-        userId: "u-1",
-        action: { startsWith: "insights." },
-        AND: [{ action: { contains: "-status." } }],
-      },
-    });
+    expect(prisma.auditLog.deleteMany).not.toHaveBeenCalled();
   });
 
-  it("does NOT delete per-status cache when serving from the 24h DB cache", async () => {
+  it("stores the snapshot fingerprint alongside the cached text", async () => {
+    makeWorkingProvider();
+
+    const res = await POST(jsonRequest({ force: true }) as never);
+    expect(res.status).toBe(200);
+
+    expect(prisma.user.update).toHaveBeenCalledTimes(1);
+    const args = vi.mocked(prisma.user.update).mock.calls[0][0] as {
+      data: Record<string, unknown>;
+    };
+    expect(args.data.insightsCachedText).toEqual(expect.any(String));
+    // SHA-256 hex digest of the compacted feature snapshot.
+    expect(args.data.insightsSnapshotHash).toMatch(/^[0-9a-f]{64}$/);
+  });
+
+  it("does NOT touch the cache when serving from the 24h DB cache", async () => {
     // Cached path: route returns early without touching the LLM or the
-    // cache-eviction helper.
+    // cache write.
     vi.mocked(prisma.user.findUnique).mockResolvedValueOnce({
       insightsPrivacyMode: "aggregated",
       insightsCachedAt: new Date(),
@@ -379,6 +386,7 @@ describe("POST /api/insights/generate — per-status cache eviction (A7.2)", () 
     expect(res.status).toBe(200);
     const body = (await res.json()) as { data: { cached: boolean } };
     expect(body.data.cached).toBe(true);
+    expect(prisma.user.update).not.toHaveBeenCalled();
     expect(prisma.auditLog.deleteMany).not.toHaveBeenCalled();
   });
 });

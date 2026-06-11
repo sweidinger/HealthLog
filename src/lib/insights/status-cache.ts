@@ -59,6 +59,8 @@ interface ParsedStatusCache {
   timeout?: boolean;
   /** v1.8.3 — ISO timestamp before which a timeout stub suppresses re-enqueue. */
   retryAt?: string;
+  /** v1.16.8 — fingerprint of the data snapshot the text was generated from. */
+  snapshotHash?: string;
 }
 
 /**
@@ -119,6 +121,69 @@ export async function readFreshStatusText(args: {
     // Malformed cache payload — treat as a miss and regenerate.
     return null;
   }
+}
+
+/**
+ * v1.16.8 — the content-hash regeneration gate for the per-status and
+ * generic metric cards.
+ *
+ * A generator that has already gathered its data snapshot calls this
+ * BEFORE the provider round-trip. When the latest cached assessment for
+ * `(userId, cacheAction)` is a real (non-stub) text whose stored
+ * `snapshotHash` equals the fresh snapshot's hash, nothing the prompt
+ * sees has changed — so the gate re-persists the same text under
+ * today's `dateKey` (a pure timestamp refresh that keeps the read path
+ * and the ingest debounce satisfied) and returns it, and the caller
+ * skips the LLM call entirely. Returns `null` on any miss (no prior
+ * row, stub, empty text, missing or differing hash) — every one of
+ * those means the caller should generate for real.
+ *
+ * This single gate is what turns the nightly warm, the forced warm, and
+ * the ingest-driven regeneration into no-ops on unchanged data: each of
+ * those paths forces past the same-day cache read, gathers the
+ * snapshot, and lands here.
+ */
+export async function refreshUnchangedStatusInsight(args: {
+  userId: string;
+  cacheAction: string;
+  todayKey: string;
+  snapshotHash: string;
+}): Promise<FreshStatusCacheHit | null> {
+  const latest = await prisma.auditLog.findFirst({
+    where: { userId: args.userId, action: args.cacheAction },
+    orderBy: { createdAt: "desc" },
+    select: { details: true },
+  });
+  if (!latest?.details) return null;
+
+  let parsed: ParsedStatusCache;
+  try {
+    parsed = JSON.parse(latest.details) as ParsedStatusCache;
+  } catch {
+    return null;
+  }
+  if (isTimeoutStub(parsed)) return null;
+  if (typeof parsed.text !== "string" || parsed.text.trim().length === 0) {
+    return null;
+  }
+  if (parsed.snapshotHash !== args.snapshotHash) return null;
+
+  // Same data, valid text — refresh the cache row's day key so the
+  // read path serves it as today's assessment and the ingest debounce
+  // window restarts, without touching the provider.
+  const created = await prisma.auditLog.create({
+    data: {
+      userId: args.userId,
+      action: args.cacheAction,
+      details: JSON.stringify({ ...parsed, dateKey: args.todayKey }),
+    },
+    select: { createdAt: true },
+  });
+  annotate({
+    action: { name: "insights.status.skipped_unchanged" },
+    meta: { cache_action: args.cacheAction },
+  });
+  return { text: parsed.text, updatedAt: created.createdAt.toISOString() };
 }
 
 export interface LastGoodStatusHit {

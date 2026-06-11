@@ -166,6 +166,13 @@ export async function persistStatusInsight(args: {
   providerType: string;
   model: string;
   tokensUsed: number | null;
+  /**
+   * v1.16.8 — fingerprint of the data snapshot this assessment was
+   * generated from (see `snapshot-hash.ts`). The regeneration gate
+   * compares the fresh snapshot's hash against this and skips the
+   * provider call when nothing changed.
+   */
+  snapshotHash?: string;
 }): Promise<string> {
   const created = await prisma.auditLog.create({
     data: {
@@ -178,6 +185,7 @@ export async function persistStatusInsight(args: {
         providerType: args.providerType,
         model: args.model,
         tokensUsed: args.tokensUsed,
+        ...(args.snapshotHash ? { snapshotHash: args.snapshotHash } : {}),
       }),
     },
     select: { createdAt: true },

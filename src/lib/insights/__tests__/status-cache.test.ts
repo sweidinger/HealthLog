@@ -2,7 +2,7 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 
 vi.mock("@/lib/db", () => ({
   prisma: {
-    auditLog: { findFirst: vi.fn(), findMany: vi.fn() },
+    auditLog: { findFirst: vi.fn(), findMany: vi.fn(), create: vi.fn() },
   },
 }));
 
@@ -20,6 +20,7 @@ import { prisma } from "@/lib/db";
 import {
   isTimeoutStub,
   readFreshStatusText,
+  refreshUnchangedStatusInsight,
   resolveReadOnlyStatusMiss,
 } from "../status-cache";
 
@@ -241,5 +242,130 @@ describe("resolveReadOnlyStatusMiss", () => {
     });
     expect(outcome.kind).toBe("preparing");
     expect(enqueueStatusGeneration).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("refreshUnchangedStatusInsight (v1.16.8)", () => {
+  const HASH = "a".repeat(64);
+
+  it("re-persists the row under today's dateKey and returns the text on a hash match", async () => {
+    vi.mocked(prisma.auditLog.findFirst).mockResolvedValue(
+      cacheRow({
+        dateKey: "2026-05-30",
+        locale: "en",
+        text: "Stable weight, no concerns.",
+        providerType: "openai",
+        model: "gpt-4o-mini",
+        tokensUsed: 321,
+        snapshotHash: HASH,
+      }) as never,
+    );
+    vi.mocked(prisma.auditLog.create).mockResolvedValue({
+      createdAt: new Date("2026-05-31T04:30:00.000Z"),
+    } as never);
+
+    const hit = await refreshUnchangedStatusInsight({
+      userId: "u1",
+      cacheAction: "insights.weight-status.en",
+      todayKey: TODAY,
+      snapshotHash: HASH,
+    });
+
+    expect(hit?.text).toBe("Stable weight, no concerns.");
+    expect(hit?.updatedAt).toBe("2026-05-31T04:30:00.000Z");
+    // The refresh row carries the same payload re-keyed to today, so the
+    // read path and the ingest debounce both see a current assessment.
+    expect(prisma.auditLog.create).toHaveBeenCalledTimes(1);
+    const arg = vi.mocked(prisma.auditLog.create).mock.calls[0][0] as {
+      data: { userId: string; action: string; details: string };
+    };
+    expect(arg.data.userId).toBe("u1");
+    expect(arg.data.action).toBe("insights.weight-status.en");
+    const details = JSON.parse(arg.data.details) as Record<string, unknown>;
+    expect(details.dateKey).toBe(TODAY);
+    expect(details.text).toBe("Stable weight, no concerns.");
+    expect(details.snapshotHash).toBe(HASH);
+  });
+
+  it("misses (and writes nothing) when the stored hash differs", async () => {
+    vi.mocked(prisma.auditLog.findFirst).mockResolvedValue(
+      cacheRow({
+        dateKey: "2026-05-30",
+        text: "Older text.",
+        model: "gpt-4o-mini",
+        snapshotHash: "b".repeat(64),
+      }) as never,
+    );
+    const hit = await refreshUnchangedStatusInsight({
+      userId: "u1",
+      cacheAction: "insights.weight-status.en",
+      todayKey: TODAY,
+      snapshotHash: HASH,
+    });
+    expect(hit).toBeNull();
+    expect(prisma.auditLog.create).not.toHaveBeenCalled();
+  });
+
+  it("misses when the latest row carries no hash (pre-gate rows)", async () => {
+    vi.mocked(prisma.auditLog.findFirst).mockResolvedValue(
+      cacheRow({
+        dateKey: "2026-05-30",
+        text: "Older text.",
+        model: "gpt-4o-mini",
+      }) as never,
+    );
+    const hit = await refreshUnchangedStatusInsight({
+      userId: "u1",
+      cacheAction: "insights.weight-status.en",
+      todayKey: TODAY,
+      snapshotHash: HASH,
+    });
+    expect(hit).toBeNull();
+    expect(prisma.auditLog.create).not.toHaveBeenCalled();
+  });
+
+  it("never refreshes off a timeout stub, even with a matching hash", async () => {
+    vi.mocked(prisma.auditLog.findFirst).mockResolvedValue(
+      cacheRow({
+        dateKey: "2026-05-30",
+        text: "Generic fallback advice.",
+        model: "timeout-stub",
+        timeout: true,
+        snapshotHash: HASH,
+      }) as never,
+    );
+    const hit = await refreshUnchangedStatusInsight({
+      userId: "u1",
+      cacheAction: "insights.weight-status.en",
+      todayKey: TODAY,
+      snapshotHash: HASH,
+    });
+    expect(hit).toBeNull();
+    expect(prisma.auditLog.create).not.toHaveBeenCalled();
+  });
+
+  it("misses on no prior row and on malformed payloads", async () => {
+    vi.mocked(prisma.auditLog.findFirst).mockResolvedValueOnce(null as never);
+    expect(
+      await refreshUnchangedStatusInsight({
+        userId: "u1",
+        cacheAction: "insights.weight-status.en",
+        todayKey: TODAY,
+        snapshotHash: HASH,
+      }),
+    ).toBeNull();
+
+    vi.mocked(prisma.auditLog.findFirst).mockResolvedValueOnce({
+      details: "{not json",
+    } as never);
+    expect(
+      await refreshUnchangedStatusInsight({
+        userId: "u1",
+        cacheAction: "insights.weight-status.en",
+        todayKey: TODAY,
+        snapshotHash: HASH,
+      }),
+    ).toBeNull();
+    expect(prisma.auditLog.create).not.toHaveBeenCalled();
   });
 });

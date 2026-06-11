@@ -6,7 +6,10 @@
  *   - the per-user budget gate blocks a user already generated today;
  *   - the master assistant kill-switch short-circuits the whole run;
  *   - the generator outcomes tally correctly (generated / cached /
- *     skipped / failed);
+ *     unchanged / skipped / failed);
+ *   - the warm pass is single-locale + refill-only (v1.16.8);
+ *   - the forced single-user warm is idempotent (freshness re-check),
+ *     backs off after a failure, and is capped per day (v1.16.8);
  *   - the queue is registered in `allQueues` AND scheduled in
  *     reminder-worker.ts (the v1.4.37 W10 unregistered-queue catch).
  */
@@ -68,15 +71,26 @@ import {
   forceWarmUser,
   findPregenerateCandidates,
   PREGENERATE_STALE_MS,
+  FORCE_WARM_DAILY_LIMIT,
   INSIGHT_PREGENERATE_QUEUE,
   INSIGHT_PREGENERATE_CRON,
 } from "../insight-pregenerate";
 
 function makePrisma(users: Array<{ id: string; locale: string | null }>) {
   const findMany = vi.fn().mockResolvedValue(users);
+  // forceWarmUser reads `insightsCachedAt` / `insightsWarmFailedAt` at job
+  // start and maintains the failure marker; default: never warmed, never
+  // failed.
+  const findUnique = vi.fn().mockResolvedValue({
+    insightsCachedAt: null,
+    insightsWarmFailedAt: null,
+  });
+  const update = vi.fn().mockResolvedValue({});
   return {
-    prisma: { user: { findMany } },
+    prisma: { user: { findMany, findUnique, update } },
     findMany,
+    findUnique,
+    update,
   };
 }
 
@@ -170,7 +184,7 @@ describe("runInsightPregenerate — budget gate", () => {
     // assumption that the 04:30 pass warms their cards. A budget-blocked
     // candidate must therefore still get the warm — refill-only
     // (`force: false`), so a card already generated today is a cheap
-    // cache read while a cold card generates.
+    // cache read while a cold card generates behind its hash gate.
     const { prisma } = makePrisma([{ id: "u1", locale: "de" }]);
     checkRateLimit.mockResolvedValue({ allowed: false });
     const generate = vi.fn();
@@ -187,12 +201,13 @@ describe("runInsightPregenerate — budget gate", () => {
 
     expect(generate).not.toHaveBeenCalled();
     expect(result.budgetBlocked).toBe(1);
+    // v1.16.8 — single-locale warm: only the user's resolved locale.
     for (const g of statusGenerators) {
+      expect(g).toHaveBeenCalledTimes(1);
       expect(g).toHaveBeenCalledWith("u1", { locale: "de", force: false });
-      expect(g).toHaveBeenCalledWith("u1", { locale: "en", force: false });
     }
-    expect(warmGenericMetrics).toHaveBeenCalledWith("u1", ["de", "en"], false);
-    expect(result.assessmentsWarmed).toBe(14);
+    expect(warmGenericMetrics).toHaveBeenCalledWith("u1", ["de"]);
+    expect(result.assessmentsWarmed).toBe(7);
     expect(result.metricAssessmentsWarmed).toBe(2);
   });
 });
@@ -209,9 +224,10 @@ describe("runInsightPregenerate — force flag", () => {
     // The cron's discovery window (20 h) is shorter than the
     // generator's 24 h TTL; `force: true` bypasses the TTL re-check so
     // a 20-24h-old cache actually regenerates rather than returning
-    // `cached` and wasting the budget bucket. The nightly loop also
-    // threads an AbortSignal so its bounded budget can cut a stalled
-    // generation off.
+    // `cached` and wasting the budget bucket. The generator's own
+    // content-hash gate is what prevents a same-data force from
+    // reaching the provider. The nightly loop also threads an
+    // AbortSignal so its bounded budget can cut a stalled generation off.
     expect(generate).toHaveBeenCalledWith("u1", {
       locale: "de",
       force: true,
@@ -221,17 +237,19 @@ describe("runInsightPregenerate — force flag", () => {
 });
 
 describe("runInsightPregenerate — outcome tally", () => {
-  it("tallies generated / cached / skipped / failed", async () => {
+  it("tallies generated / cached / unchanged / skipped / failed", async () => {
     const { prisma } = makePrisma([
       { id: "a", locale: "de" },
       { id: "b", locale: "de" },
       { id: "c", locale: "de" },
-      { id: "d", locale: null },
+      { id: "d", locale: "de" },
+      { id: "e", locale: null },
     ]);
     const generate = vi
       .fn()
       .mockResolvedValueOnce({ status: "generated", providerType: "x" })
       .mockResolvedValueOnce({ status: "cached" })
+      .mockResolvedValueOnce({ status: "unchanged" })
       .mockResolvedValueOnce({ status: "skipped", reason: "no-provider" })
       .mockResolvedValueOnce({ status: "failed", reason: "provider-error" });
 
@@ -240,16 +258,17 @@ describe("runInsightPregenerate — outcome tally", () => {
     });
 
     expect(result).toMatchObject({
-      total: 4,
+      total: 5,
       generated: 1,
       cached: 1,
+      unchanged: 1,
       skipped: 1,
       failed: 1,
       budgetBlocked: 0,
     });
     // Locale defaulting: v1.15.20 — non-German (incl. null) → "en",
     // matching the no-key fallback routing.
-    expect(generate).toHaveBeenLastCalledWith("d", {
+    expect(generate).toHaveBeenLastCalledWith("e", {
       locale: "en",
       force: true,
       signal: expect.any(AbortSignal),
@@ -285,19 +304,15 @@ describe("runInsightPregenerate — outcome tally", () => {
       const result = await promise;
 
       // The timeout fired, aborted the still-running generation (so its
-      // late resolve cannot evict the rows the warm pass writes), and the
-      // refill-only warm still ran.
+      // late resolve cannot write a cache row the loop no longer expects),
+      // and the refill-only warm still ran.
       expect(observedSignal?.aborted).toBe(true);
       expect(result.failed).toBe(1);
       expect(result.generated).toBe(0);
       for (const g of statusGenerators) {
         expect(g).toHaveBeenCalledWith("u1", { locale: "de", force: false });
       }
-      expect(warmGenericMetrics).toHaveBeenCalledWith(
-        "u1",
-        ["de", "en"],
-        false,
-      );
+      expect(warmGenericMetrics).toHaveBeenCalledWith("u1", ["de"]);
     } finally {
       vi.useRealTimers();
     }
@@ -309,7 +324,7 @@ describe("runInsightPregenerate — per-metric warm pass", () => {
     return vi.fn().mockResolvedValue(result);
   }
 
-  it("forces all seven status generators in BOTH locales after a successful comprehensive generation", async () => {
+  it("runs all seven status generators refill-only in the user's locale after a successful comprehensive generation", async () => {
     const { prisma } = makePrisma([{ id: "u1", locale: "de" }]);
     const generate = vi
       .fn()
@@ -323,21 +338,42 @@ describe("runInsightPregenerate — per-metric warm pass", () => {
       statusGenerators,
     });
 
-    // v1.8.3 — each generator is forced once per supported locale (de + en)
-    // so the cache the client reads against (active UI locale, not the
-    // persisted User.locale) is always warm.
+    // v1.16.8 — single-locale, refill-only. The comprehensive write no
+    // longer evicts the per-status rows, so there is nothing to force;
+    // each generator's content-hash gate decides whether its data changed.
     for (const g of statusGenerators) {
-      expect(g).toHaveBeenCalledTimes(2);
-      expect(g).toHaveBeenCalledWith("u1", { locale: "de", force: true });
-      expect(g).toHaveBeenCalledWith("u1", { locale: "en", force: true });
+      expect(g).toHaveBeenCalledTimes(1);
+      expect(g).toHaveBeenCalledWith("u1", { locale: "de", force: false });
     }
-    // Seven generators × two locales = 14 fresh, provider-backed assessments.
-    expect(result.assessmentsWarmed).toBe(14);
+    expect(result.assessmentsWarmed).toBe(7);
   });
 
-  it("warms when the comprehensive pass returned `cached` (its write still evicted the per-status caches)", async () => {
+  it("warms in the user's resolved locale, not both families (v1.16.8)", async () => {
+    const { prisma } = makePrisma([{ id: "u1", locale: "en" }]);
+    const generate = vi
+      .fn()
+      .mockResolvedValue({ status: "generated", providerType: "x" });
+    const statusGenerators = Array.from({ length: 7 }, () =>
+      warmGen({ hasProvider: true, cached: false }),
+    );
+    const warmGenericMetrics = vi.fn().mockResolvedValue(0);
+
+    await runInsightPregenerate(prisma as never, {
+      generate,
+      statusGenerators,
+      warmGenericMetrics,
+    });
+
+    for (const g of statusGenerators) {
+      expect(g).toHaveBeenCalledTimes(1);
+      expect(g).toHaveBeenCalledWith("u1", { locale: "en", force: false });
+    }
+    expect(warmGenericMetrics).toHaveBeenCalledWith("u1", ["en"]);
+  });
+
+  it("warms when the comprehensive pass returned `unchanged` (hash gate skipped the provider)", async () => {
     const { prisma } = makePrisma([{ id: "u1", locale: "de" }]);
-    const generate = vi.fn().mockResolvedValue({ status: "cached" });
+    const generate = vi.fn().mockResolvedValue({ status: "unchanged" });
     const statusGenerators = Array.from({ length: 7 }, () =>
       warmGen({ hasProvider: true, cached: false }),
     );
@@ -347,10 +383,12 @@ describe("runInsightPregenerate — per-metric warm pass", () => {
       statusGenerators,
     });
 
+    expect(result.unchanged).toBe(1);
     for (const g of statusGenerators) {
-      expect(g).toHaveBeenCalledTimes(2);
+      expect(g).toHaveBeenCalledTimes(1);
+      expect(g).toHaveBeenCalledWith("u1", { locale: "de", force: false });
     }
-    expect(result.assessmentsWarmed).toBe(14);
+    expect(result.assessmentsWarmed).toBe(7);
   });
 
   it("does NOT warm when the comprehensive pass skipped (no provider)", async () => {
@@ -373,11 +411,11 @@ describe("runInsightPregenerate — per-metric warm pass", () => {
     expect(result.assessmentsWarmed).toBe(0);
   });
 
-  it("warms refill-only (force:false) when the comprehensive pass failed (v1.16.1)", async () => {
-    // A failed comprehensive means no eviction ran, so today's rows (if
-    // any) are still valid — the warm refills only the cold cards. Before
-    // v1.16.1 this path skipped the warm entirely, leaving every card of a
-    // 02:xx-skipped candidate cold until the first on-visit generation.
+  it("warms refill-only when the comprehensive pass failed (v1.16.1)", async () => {
+    // A failed comprehensive leaves today's rows (if any) valid — the warm
+    // refills only the cold cards. Before v1.16.1 this path skipped the
+    // warm entirely, leaving every card of a 02:xx-skipped candidate cold
+    // until the first on-visit generation.
     const { prisma } = makePrisma([{ id: "u1", locale: "de" }]);
     const generate = vi
       .fn()
@@ -392,11 +430,10 @@ describe("runInsightPregenerate — per-metric warm pass", () => {
     });
 
     for (const g of statusGenerators) {
-      expect(g).toHaveBeenCalledTimes(2);
+      expect(g).toHaveBeenCalledTimes(1);
       expect(g).toHaveBeenCalledWith("u1", { locale: "de", force: false });
-      expect(g).toHaveBeenCalledWith("u1", { locale: "en", force: false });
     }
-    expect(result.assessmentsWarmed).toBe(14);
+    expect(result.assessmentsWarmed).toBe(7);
   });
 
   it("warms refill-only when the comprehensive pass skipped for missing consent (v1.16.1)", async () => {
@@ -418,10 +455,10 @@ describe("runInsightPregenerate — per-metric warm pass", () => {
     });
 
     for (const g of statusGenerators) {
-      expect(g).toHaveBeenCalledTimes(2);
+      expect(g).toHaveBeenCalledTimes(1);
       expect(g).toHaveBeenCalledWith("u1", { locale: "de", force: false });
     }
-    expect(result.assessmentsWarmed).toBe(14);
+    expect(result.assessmentsWarmed).toBe(7);
   });
 
   it("counts only fresh provider-backed assessments and survives a thrown generator", async () => {
@@ -443,12 +480,12 @@ describe("runInsightPregenerate — per-metric warm pass", () => {
     });
 
     // The throw must not abort the loop — every generator was attempted
-    // once per supported locale (de + en).
+    // once (single-locale warm).
     for (const g of statusGenerators) {
-      expect(g).toHaveBeenCalledTimes(2);
+      expect(g).toHaveBeenCalledTimes(1);
     }
-    // Two counting generators × two locales = 4 fresh assessments.
-    expect(result.assessmentsWarmed).toBe(4);
+    // Two counting generators × one locale = 2 fresh assessments.
+    expect(result.assessmentsWarmed).toBe(2);
   });
 });
 
@@ -472,9 +509,8 @@ describe("runInsightPregenerate — generic metric warm pass (v1.8.7.1)", () => 
     });
 
     expect(warmGenericMetrics).toHaveBeenCalledTimes(1);
-    // Third arg `true` — the comprehensive write evicted the caches, so
-    // the warm forces fresh generations.
-    expect(warmGenericMetrics).toHaveBeenCalledWith("u1", ["de", "en"], true);
+    // Single-locale, refill-only (v1.16.8) — no force mode left.
+    expect(warmGenericMetrics).toHaveBeenCalledWith("u1", ["de"]);
     expect(result.metricAssessmentsWarmed).toBe(9);
   });
 
@@ -500,7 +536,7 @@ describe("runInsightPregenerate — generic metric warm pass (v1.8.7.1)", () => 
 });
 
 describe("forceWarmUser — on-demand single-user warm (v1.8.7.1)", () => {
-  it("warms BOTH locale families, bypasses the budget gate, and tallies counts", async () => {
+  it("warms the caller's locale only, under the daily forced-warm bucket", async () => {
     const { prisma } = makePrisma([]);
     const generate = vi
       .fn()
@@ -516,49 +552,50 @@ describe("forceWarmUser — on-demand single-user warm (v1.8.7.1)", () => {
       warmGenericMetrics,
     });
 
-    // Comprehensive forced once, in the caller's active locale. The forced
-    // path also threads an AbortSignal so a timeout can cut the generation
-    // off.
+    // Comprehensive forced once, in the caller's active locale, with an
+    // AbortSignal so a timeout can cut the generation off.
     expect(generate).toHaveBeenCalledTimes(1);
     expect(generate).toHaveBeenCalledWith("u1", {
       locale: "en",
       force: true,
       signal: expect.any(AbortSignal),
     });
-    // v1.16.7 — each specialised generator runs once PER locale family
-    // (de+en, like the nightly cron): the comprehensive write above
-    // evicted both families, so refilling only one left the other cold.
-    // The generated comprehensive means eviction happened → force: true.
+    // v1.16.8 — single-locale warm, refill-only: the comprehensive write
+    // no longer evicts the per-status rows, and the second locale family
+    // warms lazily through the read-path enqueue when actually read.
     for (const g of statusGenerators) {
-      expect(g).toHaveBeenCalledTimes(2);
-      expect(g).toHaveBeenCalledWith("u1", { locale: "de", force: true });
-      expect(g).toHaveBeenCalledWith("u1", { locale: "en", force: true });
+      expect(g).toHaveBeenCalledTimes(1);
+      expect(g).toHaveBeenCalledWith("u1", { locale: "en", force: false });
     }
-    // Generic warm pass covers both locale families too.
-    expect(warmGenericMetrics).toHaveBeenCalledWith("u1", ["de", "en"], true);
-    // No 20 h budget bucket consulted on the forced path.
-    expect(checkRateLimit).not.toHaveBeenCalled();
+    expect(warmGenericMetrics).toHaveBeenCalledWith("u1", ["en"]);
+    // The 20 h nightly bucket is bypassed; the forced path consults its
+    // own daily cap instead.
+    expect(checkRateLimit).toHaveBeenCalledTimes(1);
+    expect(checkRateLimit).toHaveBeenCalledWith(
+      "insight-pregenerate-daily:u1",
+      FORCE_WARM_DAILY_LIMIT,
+      expect.any(Number),
+    );
     expect(result).toMatchObject({
       comprehensive: "generated",
-      assessmentsWarmed: 14,
+      assessmentsWarmed: 7,
       metricAssessmentsWarmed: 5,
     });
   });
 
-  it("still runs the per-status + generic warm even when the comprehensive pass skipped (no provider)", async () => {
-    // v1.9.0 — the three sections are decoupled. A skipped comprehensive
-    // (no provider) must NOT short-circuit the per-status + generic passes:
-    // each generator resolves its own provider chain and no-ops cheaply when
-    // none is configured, so running them is safe and is what warms the cards
-    // when the comprehensive briefing is the only thing missing a provider.
-    const { prisma } = makePrisma([]);
-    const generate = vi
-      .fn()
-      .mockResolvedValue({ status: "skipped", reason: "no-provider" });
-    // Each generator independently reports no-provider — nothing warmed, but
-    // it WAS invoked (it is the generator, not the caller, that decides).
+  it("skips the comprehensive when the cache was warmed within the freshness window (idempotent re-enqueue)", async () => {
+    // A revalidation poll that outlives the enqueue singleton can stack
+    // several force jobs; the job-start freshness re-check collapses the
+    // stack into one real warm.
+    const now = new Date("2026-06-10T12:00:00.000Z");
+    const { prisma, findUnique } = makePrisma([]);
+    findUnique.mockResolvedValue({
+      insightsCachedAt: new Date(now.getTime() - 10 * 60 * 1000),
+      insightsWarmFailedAt: null,
+    });
+    const generate = vi.fn();
     const statusGenerators = Array.from({ length: 7 }, () =>
-      vi.fn().mockResolvedValue({ hasProvider: false, cached: true }),
+      vi.fn().mockResolvedValue({ hasProvider: true, cached: true }),
     );
     const warmGenericMetrics = vi.fn().mockResolvedValue(0);
 
@@ -566,29 +603,80 @@ describe("forceWarmUser — on-demand single-user warm (v1.8.7.1)", () => {
       generate,
       statusGenerators,
       warmGenericMetrics,
+      now,
     });
 
+    expect(generate).not.toHaveBeenCalled();
+    // The daily cap is not consumed by a freshness skip.
+    expect(checkRateLimit).not.toHaveBeenCalled();
+    expect(result.comprehensive).toBe("fresh");
+    // The refill-only card warm still runs (cheap cache reads).
     for (const g of statusGenerators) {
-      // Both locale families, refill-only: a skipped comprehensive ran no
-      // eviction, so cards already generated today short-circuit cheaply.
-      expect(g).toHaveBeenCalledTimes(2);
-      expect(g).toHaveBeenCalledWith("u1", { locale: "de", force: false });
-      expect(g).toHaveBeenCalledWith("u1", { locale: "en", force: false });
+      expect(g).toHaveBeenCalledTimes(1);
     }
-    expect(warmGenericMetrics).toHaveBeenCalledWith("u1", ["de", "en"], false);
-    expect(result).toMatchObject({
-      comprehensive: "skipped",
-      assessmentsWarmed: 0,
-      metricAssessmentsWarmed: 0,
+  });
+
+  it("backs off after a recent failed attempt instead of re-driving the provider chain", async () => {
+    const now = new Date("2026-06-10T12:00:00.000Z");
+    const { prisma, findUnique } = makePrisma([]);
+    findUnique.mockResolvedValue({
+      insightsCachedAt: null,
+      insightsWarmFailedAt: new Date(now.getTime() - 10 * 60 * 1000),
+    });
+    const generate = vi.fn();
+    const statusGenerators = Array.from({ length: 7 }, () =>
+      vi.fn().mockResolvedValue({ hasProvider: true, cached: true }),
+    );
+    const warmGenericMetrics = vi.fn().mockResolvedValue(0);
+
+    const result = await forceWarmUser(prisma as never, "u1", "de", {
+      generate,
+      statusGenerators,
+      warmGenericMetrics,
+      now,
+    });
+
+    expect(generate).not.toHaveBeenCalled();
+    expect(checkRateLimit).not.toHaveBeenCalled();
+    expect(result.comprehensive).toBe("backoff");
+    for (const g of statusGenerators) {
+      expect(g).toHaveBeenCalledTimes(1);
+    }
+  });
+
+  it("retries after the backoff window has elapsed and clears the marker on success", async () => {
+    const now = new Date("2026-06-10T12:00:00.000Z");
+    const { prisma, findUnique, update } = makePrisma([]);
+    findUnique.mockResolvedValue({
+      insightsCachedAt: null,
+      insightsWarmFailedAt: new Date(now.getTime() - 2 * 60 * 60 * 1000),
+    });
+    const generate = vi
+      .fn()
+      .mockResolvedValue({ status: "generated", providerType: "x" });
+    const statusGenerators = Array.from({ length: 7 }, () =>
+      vi.fn().mockResolvedValue({ hasProvider: true, cached: true }),
+    );
+    const warmGenericMetrics = vi.fn().mockResolvedValue(0);
+
+    const result = await forceWarmUser(prisma as never, "u1", "de", {
+      generate,
+      statusGenerators,
+      warmGenericMetrics,
+      now,
+    });
+
+    expect(generate).toHaveBeenCalledTimes(1);
+    expect(result.comprehensive).toBe("generated");
+    expect(update).toHaveBeenCalledWith({
+      where: { id: "u1" },
+      data: { insightsWarmFailedAt: null },
     });
   });
 
-  it("warms the per-status + generic caches even when the comprehensive pass fails", async () => {
-    // v1.9.0 — a failed comprehensive (provider chain unhealthy this run)
-    // is non-fatal: the cheaper per-status (7) + generic (~30) cards still
-    // warm so the user's first click is a cache read, not a 30–60 s lazy
-    // generation. This is the prod regression the stability wave closes.
-    const { prisma } = makePrisma([]);
+  it("stamps the failure marker when the comprehensive fails so the next page-open backs off", async () => {
+    const now = new Date("2026-06-10T12:00:00.000Z");
+    const { prisma, update } = makePrisma([]);
     const generate = vi
       .fn()
       .mockResolvedValue({ status: "failed", reason: "all-providers-failed" });
@@ -601,25 +689,85 @@ describe("forceWarmUser — on-demand single-user warm (v1.8.7.1)", () => {
       generate,
       statusGenerators,
       warmGenericMetrics,
+      now,
     });
 
+    expect(update).toHaveBeenCalledWith({
+      where: { id: "u1" },
+      data: { insightsWarmFailedAt: now },
+    });
+    // The per-status + generic passes still ran (decoupled sections).
     for (const g of statusGenerators) {
-      expect(g).toHaveBeenCalledTimes(2);
+      expect(g).toHaveBeenCalledTimes(1);
     }
-    expect(warmGenericMetrics).toHaveBeenCalledWith("u1", ["de", "en"], false);
     expect(result).toMatchObject({
       comprehensive: "failed",
-      assessmentsWarmed: 14,
+      assessmentsWarmed: 7,
       metricAssessmentsWarmed: 4,
     });
   });
 
-  it("reports a timed-out comprehensive distinctly and still warms the rest", async () => {
-    // A comprehensive generation that exceeds its bounded budget is
-    // abandoned and reported as `timeout`, but the per-status + generic
-    // passes run regardless. The prod incident was a 102 s comprehensive
-    // that aborted the whole warm with `assessments_warmed: 0`.
+  it("caps forced comprehensive attempts per day and still refills the cards", async () => {
     const { prisma } = makePrisma([]);
+    checkRateLimit.mockResolvedValue({ allowed: false });
+    const generate = vi.fn();
+    const statusGenerators = Array.from({ length: 7 }, () =>
+      vi.fn().mockResolvedValue({ hasProvider: true, cached: true }),
+    );
+    const warmGenericMetrics = vi.fn().mockResolvedValue(0);
+
+    const result = await forceWarmUser(prisma as never, "u1", "de", {
+      generate,
+      statusGenerators,
+      warmGenericMetrics,
+    });
+
+    expect(checkRateLimit).toHaveBeenCalledWith(
+      "insight-pregenerate-daily:u1",
+      FORCE_WARM_DAILY_LIMIT,
+      expect.any(Number),
+    );
+    expect(generate).not.toHaveBeenCalled();
+    expect(result.comprehensive).toBe("capped");
+    for (const g of statusGenerators) {
+      expect(g).toHaveBeenCalledTimes(1);
+    }
+  });
+
+  it("still runs the per-status + generic warm even when the comprehensive pass skipped (no provider)", async () => {
+    // v1.9.0 — the sections are decoupled. A skipped comprehensive
+    // (no provider) must NOT short-circuit the per-status + generic passes:
+    // each generator resolves its own provider chain and no-ops cheaply when
+    // none is configured.
+    const { prisma } = makePrisma([]);
+    const generate = vi
+      .fn()
+      .mockResolvedValue({ status: "skipped", reason: "no-provider" });
+    const statusGenerators = Array.from({ length: 7 }, () =>
+      vi.fn().mockResolvedValue({ hasProvider: false, cached: true }),
+    );
+    const warmGenericMetrics = vi.fn().mockResolvedValue(0);
+
+    const result = await forceWarmUser(prisma as never, "u1", "de", {
+      generate,
+      statusGenerators,
+      warmGenericMetrics,
+    });
+
+    for (const g of statusGenerators) {
+      expect(g).toHaveBeenCalledTimes(1);
+      expect(g).toHaveBeenCalledWith("u1", { locale: "de", force: false });
+    }
+    expect(warmGenericMetrics).toHaveBeenCalledWith("u1", ["de"]);
+    expect(result).toMatchObject({
+      comprehensive: "skipped",
+      assessmentsWarmed: 0,
+      metricAssessmentsWarmed: 0,
+    });
+  });
+
+  it("reports a timed-out comprehensive distinctly and still warms the rest", async () => {
+    const { prisma, update } = makePrisma([]);
     const generate = vi.fn().mockImplementation(
       () =>
         new Promise((resolve) => {
@@ -648,16 +796,17 @@ describe("forceWarmUser — on-demand single-user warm (v1.8.7.1)", () => {
       const result = await promise;
 
       for (const g of statusGenerators) {
-        expect(g).toHaveBeenCalledTimes(2);
+        expect(g).toHaveBeenCalledTimes(1);
       }
-      expect(warmGenericMetrics).toHaveBeenCalledWith(
-        "u1",
-        ["de", "en"],
-        false,
-      );
+      expect(warmGenericMetrics).toHaveBeenCalledWith("u1", ["de"]);
+      // A timeout counts as a failure for the backoff marker.
+      expect(update).toHaveBeenCalledWith({
+        where: { id: "u1" },
+        data: { insightsWarmFailedAt: expect.any(Date) },
+      });
       expect(result).toMatchObject({
         comprehensive: "timeout",
-        assessmentsWarmed: 14,
+        assessmentsWarmed: 7,
         metricAssessmentsWarmed: 3,
       });
     } finally {
@@ -715,24 +864,24 @@ describe("forceWarmUser — on-demand single-user warm (v1.8.7.1)", () => {
 
     // Comprehensive belongs to the `briefing` surface — skipped here.
     expect(generate).not.toHaveBeenCalled();
-    // But the per-status + generic passes warm, both locale families.
+    // But the per-status + generic passes warm, in the caller's locale.
     for (const g of statusGenerators) {
-      expect(g).toHaveBeenCalledTimes(2);
+      expect(g).toHaveBeenCalledTimes(1);
     }
-    expect(warmGenericMetrics).toHaveBeenCalledWith("u1", ["de", "en"], false);
+    expect(warmGenericMetrics).toHaveBeenCalledWith("u1", ["de"]);
     expect(result).toMatchObject({
       comprehensive: "skipped",
-      assessmentsWarmed: 14,
+      assessmentsWarmed: 7,
       metricAssessmentsWarmed: 2,
     });
   });
 
-  it("aborts the comprehensive on timeout so its late resolve cannot evict the warmed rows (M-1)", async () => {
+  it("aborts the comprehensive on timeout so its late resolve cannot write a stale cache row (M-1)", async () => {
     // v1.9.0 race fix: `withTimeout` cannot cancel the detached generation,
-    // so a comprehensive that resolves AFTER the timeout would reach its own
-    // `evictPerStatusInsightCache` and delete the rows the warm passes wrote.
-    // The forced path threads an AbortController; on timeout it must abort,
-    // and the generation observes `signal.aborted` before its evict.
+    // so a comprehensive that resolves AFTER the timeout would still write
+    // its cache row + timestamp. The forced path threads an AbortController;
+    // on timeout it must abort, and the generation observes `signal.aborted`
+    // before its cache write.
     const { prisma } = makePrisma([]);
     let observedSignal: AbortSignal | undefined;
     const generate = vi.fn().mockImplementation(
@@ -768,9 +917,9 @@ describe("forceWarmUser — on-demand single-user warm (v1.8.7.1)", () => {
       expect(result.comprehensive).toBe("timeout");
       // The warm passes ran and are not undone by the abandoned comprehensive.
       for (const g of statusGenerators) {
-        expect(g).toHaveBeenCalledTimes(2);
+        expect(g).toHaveBeenCalledTimes(1);
       }
-      expect(result.assessmentsWarmed).toBe(14);
+      expect(result.assessmentsWarmed).toBe(7);
       expect(result.metricAssessmentsWarmed).toBe(3);
     } finally {
       vi.useRealTimers();

@@ -184,6 +184,120 @@ describe("generateWeightStatusForUser — cache-read skips a stub", () => {
   });
 });
 
+describe("generateWeightStatusForUser — content-hash gate (v1.16.8)", () => {
+  it("skips the completion and refreshes the cache row when the snapshot is unchanged", async () => {
+    // Fixed clock so both generator runs build the identical snapshot.
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-06-10T10:00:00.000Z"));
+    try {
+      const now = new Date();
+      const records = [
+        { type: "WEIGHT", value: 82, measuredAt: new Date(now.getTime() - dayMs) },
+        { type: "WEIGHT", value: 81.6, measuredAt: new Date(now.getTime() - 2 * dayMs) },
+      ];
+      // Fresh copy per call — the generator reverses the result array in
+      // place, and a shared fixture would flip order between the two runs.
+      vi.mocked(prisma.measurement.findMany).mockImplementation(
+        (async () => records.map((r) => ({ ...r }))) as never,
+      );
+      vi.mocked(prisma.moodEntry.findMany).mockResolvedValue([] as never);
+      vi.mocked(prisma.auditLog.findFirst).mockResolvedValue(null);
+      vi.mocked(prisma.auditLog.create).mockResolvedValue({
+        createdAt: now,
+      } as never);
+      stubCompletion('{"summary":"First real assessment."}');
+
+      // First run: a real generation persists the snapshot fingerprint.
+      await generateWeightStatusForUser("user-1", {
+        locale: "en",
+        force: true,
+      });
+      expect(runStatusCompletion).toHaveBeenCalledTimes(1);
+      const persisted = JSON.parse(
+        (
+          vi.mocked(prisma.auditLog.create).mock.calls[0][0] as {
+            data: { details: string };
+          }
+        ).data.details,
+      ) as { text: string; snapshotHash: string };
+      expect(persisted.snapshotHash).toMatch(/^[0-9a-f]{64}$/);
+
+      // Second run, same data: the gate finds the matching fingerprint,
+      // re-persists the same text under today's dateKey, and never calls
+      // the provider — even though the run is forced.
+      vi.mocked(runStatusCompletion).mockClear();
+      vi.mocked(prisma.auditLog.create).mockClear();
+      vi.mocked(prisma.auditLog.findFirst).mockResolvedValue({
+        createdAt: now,
+        details: JSON.stringify({
+          // Yesterday's row — outside the same-day cache read.
+          dateKey: "2026-06-09",
+          locale: "en",
+          text: persisted.text,
+          providerType: "anthropic",
+          model: "x",
+          tokensUsed: 1,
+          snapshotHash: persisted.snapshotHash,
+        }),
+      } as never);
+
+      const result = await generateWeightStatusForUser("user-1", {
+        locale: "en",
+        force: true,
+      });
+
+      expect(runStatusCompletion).not.toHaveBeenCalled();
+      expect(result.cached).toBe(true);
+      expect(result.text).toBe(persisted.text);
+      // The refresh row re-keys the payload to today.
+      const refreshed = JSON.parse(
+        (
+          vi.mocked(prisma.auditLog.create).mock.calls[0][0] as {
+            data: { details: string };
+          }
+        ).data.details,
+      ) as { dateKey: string; snapshotHash: string };
+      expect(refreshed.snapshotHash).toBe(persisted.snapshotHash);
+      expect(refreshed.dateKey).not.toBe("2026-06-09");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("regenerates when the stored fingerprint differs from the fresh snapshot", async () => {
+    const now = new Date();
+    vi.mocked(prisma.measurement.findMany).mockResolvedValue([
+      { type: "WEIGHT", value: 82, measuredAt: now },
+    ] as never);
+    vi.mocked(prisma.moodEntry.findMany).mockResolvedValue([] as never);
+    vi.mocked(prisma.auditLog.findFirst).mockResolvedValue({
+      createdAt: now,
+      details: JSON.stringify({
+        dateKey: "2026-06-09",
+        locale: "en",
+        text: "Older assessment.",
+        providerType: "anthropic",
+        model: "x",
+        tokensUsed: 1,
+        snapshotHash: "f".repeat(64),
+      }),
+    } as never);
+    vi.mocked(prisma.auditLog.create).mockResolvedValue({
+      createdAt: now,
+    } as never);
+    stubCompletion('{"summary":"Fresh assessment for changed data."}');
+
+    const result = await generateWeightStatusForUser("user-1", {
+      locale: "en",
+      force: true,
+    });
+
+    expect(runStatusCompletion).toHaveBeenCalledTimes(1);
+    expect(result.text).toBe("Fresh assessment for changed data.");
+    expect(result.cached).toBe(false);
+  });
+});
+
 describe("generateWeightStatusForUser — token-leak hardening (v1.4.27 F16)", () => {
   it("strips metric: tokens out of the cached text before persisting", async () => {
     vi.mocked(prisma.auditLog.findFirst).mockResolvedValue(null);
