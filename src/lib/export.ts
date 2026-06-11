@@ -95,6 +95,8 @@ interface ExportMeasurement {
   notes: string | null;
   glucoseContext?: string | null;
   sleepStage?: SleepStage | null;
+  /** Writer tag for the per-night sleep collapse (watch vs phone). */
+  deviceType?: string | null;
 }
 
 /**
@@ -158,6 +160,7 @@ export function formatMeasurementsForExport(
     measuredAt: m.measuredAt,
     sleepStage: m.sleepStage ?? null,
     source: m.source as SleepStageRow["source"],
+    deviceType: m.deviceType ?? null,
   }));
   const sessions = reconstructSleepSessions(
     stageRows,
@@ -281,6 +284,8 @@ export function formatMoodEntriesForExport(
     mood: string;
     score: number;
     tags: string | null;
+    /** Free-text note — exported in full so the texts are readable offline. */
+    note?: string | null;
     source: string;
     moodLoggedAt: Date;
   }>,
@@ -291,6 +296,7 @@ export function formatMoodEntriesForExport(
     mood: e.mood,
     score: e.score,
     tags: e.tags ?? "",
+    note: e.note ?? "",
     source: e.source,
     loggedAt: formatTimestamp(e.moodLoggedAt, userTz),
   }));

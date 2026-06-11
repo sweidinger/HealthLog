@@ -62,18 +62,29 @@
  * and every other session on the same wake day is a NAP, surfaced separately
  * and never folded into the main night's headline.
  *
- * Source de-dup
+ * Writer de-dup
  * -------------
  * A user paired to more than one sleep source (e.g. WHOOP + Apple Health)
  * gets per-stage rows for the SAME night from each source. Summing them all
  * would ~double the night total. Before summing a session we collapse it to
- * ONE source using the user's `sleep` source-priority ladder
- * (`DEFAULT_SOURCE_PRIORITY.sleep` = WHOOP > APPLE_HEALTH > WITHINGS): pick the
- * highest-ranked source present in the session, falling back to the source
- * with the most asleep minutes (then source name) when none of the session's
- * sources sits on the ladder. Only that source's segments are summed — sources
- * are never blended within a night. This mirrors the per-(type, day) collapse
- * the rest of the v1.11.x numeric surfaces apply.
+ * ONE writer. A "writer" is `(source, deviceType)` — finer than `source`
+ * because several HealthKit writer apps land behind the SAME
+ * `source = APPLE_HEALTH` (the watch's granular stages, the phone's coarse
+ * in-bed detection, a wearable vendor app's re-export). Keying the collapse
+ * on source alone blends those writers into one bucket: the phone's
+ * awake/in-bed blocks inflate the night's awake total and sit on top of the
+ * watch's hypnogram. Rows without a `deviceType` collapse per source exactly
+ * as before, so legacy rows and single-writer sources are unaffected.
+ *
+ * The pick is per-night by STAGE RICHNESS first: the writer carrying the
+ * most distinct granular stages (CORE / DEEP / REM) wins, so a coarse
+ * awake/asleep-only export can never mask a writer that knows the night's
+ * phases. Among equally rich writers the user's `sleep` source-priority
+ * ladder decides (`DEFAULT_SOURCE_PRIORITY.sleep` = WHOOP > APPLE_HEALTH >
+ * WITHINGS), then most asleep minutes, then a stable key tiebreak. Only the
+ * winning writer's segments are summed — writers are never blended within a
+ * session, mirroring the per-(type, day) collapse the rest of the v1.11.x
+ * numeric surfaces apply.
  *
  * Unit
  * ----
@@ -184,6 +195,15 @@ export interface SleepStageRow {
    * the de-dup is a no-op for single-source nights).
    */
   source?: MeasurementSource | null;
+  /**
+   * Device-type tag of the stage row (`Measurement.deviceType`, v1.4.25
+   * W8c). Distinguishes WRITERS behind one source: several HealthKit apps
+   * write sleep under `source = APPLE_HEALTH` (watch granular stages, phone
+   * coarse in-bed, vendor-app re-exports), and collapsing on source alone
+   * blends them. Optional — callers that don't select the column (and every
+   * row stored before W8c) collapse per source exactly as before.
+   */
+  deviceType?: string | null;
 }
 
 /** One reconstructed night: the asleep total + the per-stage breakdown. */
@@ -206,63 +226,111 @@ export interface SleepNight {
 const NO_SOURCE = "__none__";
 
 /**
- * Pick the one canonical source for a session. STAGE GRANULARITY wins first:
- * a source carrying at least one granular stage (CORE / DEEP / REM) always
- * beats a coarse ASLEEP/AWAKE-only source, so a wearable's full hypnogram is
- * never masked by a parallel coarse export of the same night (e.g. Apple
- * Health's 6–9 AWAKE/ASLEEP blocks alongside WHOOP's per-stage rows). Among
- * equally granular (or equally coarse) sources the user's `sleep`
- * source-priority ladder decides (lowest ladder index = highest priority);
- * sources absent from the ladder fall back to "most asleep minutes", then a
- * stable source-name tiebreak. Single-source (or source-less) sessions
- * resolve to that one bucket with no work.
+ * Separator between the source and device-type parts of a writer key.
+ * ` ` cannot appear in a `MeasurementSource` enum literal or a
+ * device-type tag, so the split-back is unambiguous.
  */
-function pickSessionSource(
+const WRITER_KEY_SEP = " ";
+
+/**
+ * Writer-bucket key of a stage row: the source, refined by the device-type
+ * tag when one is stored. Two HealthKit writer apps behind the same
+ * `APPLE_HEALTH` source (watch vs phone) land in DIFFERENT buckets so the
+ * coarse writer's awake/in-bed blocks never blend into the granular
+ * writer's night. Rows without a device-type keep the bare source as their
+ * key — single-writer sources and legacy rows collapse exactly as before.
+ */
+function writerKeyOf(r: SleepStageRow): string {
+  const src = r.source ?? NO_SOURCE;
+  const dev = r.deviceType;
+  return dev ? `${src}${WRITER_KEY_SEP}${dev}` : src;
+}
+
+/** The source part of a writer key (for ladder ranking + display). */
+function sourceOfWriterKey(key: string): string {
+  const i = key.indexOf(WRITER_KEY_SEP);
+  return i === -1 ? key : key.slice(0, i);
+}
+
+/**
+ * Count of DISTINCT granular stages (CORE / DEEP / REM) in a row set — the
+ * stage-richness score of a writer's night. 3 = full hypnogram, 0 = coarse
+ * (bare ASLEEP / AWAKE / IN_BED only).
+ */
+function granularStageCount(rows: readonly SleepStageRow[]): number {
+  const seen = new Set<SleepStage>();
+  for (const r of rows) {
+    const stage = r.sleepStage;
+    if (stage != null && GRANULAR_ASLEEP_STAGES.has(stage)) seen.add(stage);
+  }
+  return seen.size;
+}
+
+/**
+ * Pick the one canonical WRITER for a session. STAGE RICHNESS wins first:
+ * the writer carrying the most distinct granular stages (CORE / DEEP / REM)
+ * always beats a coarser one, so neither a parallel coarse export of the
+ * same night (e.g. Apple Health's AWAKE/ASLEEP blocks alongside WHOOP's
+ * per-stage rows) nor a second writer app behind the same source (the
+ * phone's in-bed detection next to the watch's stages) can mask the
+ * fullest hypnogram available for the night. Among equally rich writers
+ * the user's `sleep` source-priority ladder decides (lowest ladder index =
+ * highest priority); writers whose source is absent from the ladder fall
+ * back to "most asleep minutes", then a stable key tiebreak. Single-writer
+ * (or source-less) sessions resolve to that one bucket with no work.
+ */
+function pickSessionWriter(
   rows: SleepStageRow[],
   sleepLadder: readonly MeasurementSource[],
 ): string {
-  // Group rows by source, then sum each source's asleep minutes with the
-  // granular-over-bare rule so a source that writes BOTH a bare ASLEEP
+  // Group rows by writer, then sum each writer's asleep minutes with the
+  // granular-over-bare rule so a writer that stores BOTH a bare ASLEEP
   // aggregate and the granular breakdown is not over-weighted in the tiebreak.
-  const rowsBySource = new Map<string, SleepStageRow[]>();
+  const rowsByWriter = new Map<string, SleepStageRow[]>();
   for (const r of rows) {
-    const src = r.source ?? NO_SOURCE;
-    const list = rowsBySource.get(src) ?? [];
+    const key = writerKeyOf(r);
+    const list = rowsByWriter.get(key) ?? [];
     list.push(r);
-    rowsBySource.set(src, list);
+    rowsByWriter.set(key, list);
   }
-  const asleepBySource = new Map<string, number>();
-  for (const [src, srcRows] of rowsBySource) {
-    const minutes = asleepMinutesOf(srcRows);
-    if (minutes > 0) asleepBySource.set(src, minutes);
+  const asleepByWriter = new Map<string, number>();
+  for (const [key, writerRows] of rowsByWriter) {
+    const minutes = asleepMinutesOf(writerRows);
+    if (minutes > 0) asleepByWriter.set(key, minutes);
   }
   // No asleep minutes anywhere (IN_BED / AWAKE only) — fall back to the set
-  // of all present sources so the session still resolves to a single bucket.
-  let sources =
-    asleepBySource.size > 0
-      ? [...asleepBySource.keys()]
-      : [...new Set(rows.map((r) => r.source ?? NO_SOURCE))];
-  // Granularity gate: a source with a CORE/DEEP/REM partition always beats a
-  // coarse ASLEEP-only source — otherwise a parallel coarse export of the
-  // same night masks the wearable's hypnogram. Coarse sources stay only as
-  // the fallback when NO granular source covers the session.
-  const granularSources = sources.filter((src) =>
-    sawGranularStage(rowsBySource.get(src) ?? []),
-  );
-  if (granularSources.length > 0) sources = granularSources;
-  if (sources.length <= 1) return sources[0] ?? NO_SOURCE;
+  // of all present writers so the session still resolves to a single bucket.
+  let writers =
+    asleepByWriter.size > 0
+      ? [...asleepByWriter.keys()]
+      : [...rowsByWriter.keys()];
+  // Richness gate: keep only the writers tied for the MOST distinct granular
+  // stages. A 3-stage hypnogram beats a 1-stage partial beats a coarse
+  // ASLEEP-only export; coarse writers survive only when NO writer carries a
+  // granular stage for the session.
+  const richnessOf = new Map<string, number>();
+  let maxRichness = 0;
+  for (const key of writers) {
+    const score = granularStageCount(rowsByWriter.get(key) ?? []);
+    richnessOf.set(key, score);
+    if (score > maxRichness) maxRichness = score;
+  }
+  if (maxRichness > 0) {
+    writers = writers.filter((key) => richnessOf.get(key) === maxRichness);
+  }
+  if (writers.length <= 1) return writers[0] ?? NO_SOURCE;
 
-  const rankOf = (src: string): number => {
-    const i = sleepLadder.indexOf(src as MeasurementSource);
+  const rankOf = (key: string): number => {
+    const i = sleepLadder.indexOf(sourceOfWriterKey(key) as MeasurementSource);
     return i === -1 ? Number.MAX_SAFE_INTEGER : i;
   };
-  return sources.sort((a, b) => {
+  return writers.sort((a, b) => {
     const ra = rankOf(a);
     const rb = rankOf(b);
     if (ra !== rb) return ra - rb;
-    // Neither (or both) on the ladder — most asleep minutes wins, then name.
-    const ma = asleepBySource.get(a) ?? 0;
-    const mb = asleepBySource.get(b) ?? 0;
+    // Neither (or both) on the ladder — most asleep minutes wins, then key.
+    const ma = asleepByWriter.get(a) ?? 0;
+    const mb = asleepByWriter.get(b) ?? 0;
     if (ma !== mb) return mb - ma;
     return a < b ? -1 : 1;
   })[0];
@@ -316,15 +384,15 @@ export function reconstructSleepNights(
   if (current.length > 0) sessions.push(current);
 
   // Two sessions can land on the same wake day (e.g. a genuine overnight plus
-  // a same-day nap); collect each session's canonical-source rows under one
+  // a same-day nap); collect each session's canonical-writer rows under one
   // wake-day key. The rows are grouped PER SESSION (not flattened) so the
   // granular-over-bare gate and the asleep total are decided per session — a
   // bare-only nap keeps its minutes even when the overnight session is
   // granular (the v1.11.5 merged-night nap under-count fix).
   const byNight = new Map<string, SleepStageRow[][]>();
   for (const session of sessions) {
-    const canonical = pickSessionSource(session, sleepLadder);
-    const kept = session.filter((r) => (r.source ?? NO_SOURCE) === canonical);
+    const canonical = pickSessionWriter(session, sleepLadder);
+    const kept = session.filter((r) => writerKeyOf(r) === canonical);
     const pool = kept.length > 0 ? kept : session;
     // The wake day is the LATEST segment END in the session (Apple Health
     // attributes a session to the morning you wake up).
@@ -526,8 +594,8 @@ export function reconstructSleepSessions(
 
   const sessions: SleepSession[] = [];
   for (const session of rawSessions) {
-    const canonical = pickSessionSource(session, sleepLadder);
-    const kept = session.filter((r) => (r.source ?? NO_SOURCE) === canonical);
+    const canonical = pickSessionWriter(session, sleepLadder);
+    const kept = session.filter((r) => writerKeyOf(r) === canonical);
     const pool = kept.length > 0 ? kept : session;
     // v1.11.5 — drop the redundant bare ASLEEP aggregate (and stage-less
     // rows) from the hypnogram segments AND the per-stage breakdown when the
@@ -571,10 +639,13 @@ export function reconstructSleepSessions(
       }
     }
     const asleep = asleepMinutesOf(pool);
+    const canonicalSource = sourceOfWriterKey(canonical);
     sessions.push({
       night: userDayKey(latest, tz),
       source:
-        canonical === NO_SOURCE ? null : (canonical as MeasurementSource),
+        canonicalSource === NO_SOURCE
+          ? null
+          : (canonicalSource as MeasurementSource),
       start: earliest,
       end: latest,
       asleepMinutes: asleep,

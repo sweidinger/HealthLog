@@ -562,6 +562,8 @@
     "nextPage": "Página siguiente",
     "loginRequired": "Inicia sesión para ver tus estados de ánimo.",
     "note": "Nota",
+    "noteCollapse": "Contraer nota",
+    "noteExpand": "Mostrar nota completa",
     "notePlaceholder": "Añade una nota sobre cómo te sientes…",
     "tagPicker": "Etiquetas",
     "tagCategory": {
@@ -2041,6 +2043,12 @@
         "done": "Añadido a tu información personal",
         "duplicate": "Ya está en tu información personal",
         "failed": "No se pudo añadir. Inténtalo de nuevo."
+      },
+      "rememberMessage": {
+        "action": "Recordar",
+        "done": "Guardado en tu información personal",
+        "duplicate": "Ya está en tu información personal",
+        "failed": "No se pudo guardar. Inténtalo de nuevo."
       },
       "guided": {
         "offerTitle": "El Coach tiene {count} preguntas para ti",

@@ -562,6 +562,8 @@
     "nextPage": "Page suivante",
     "loginRequired": "Connecte-toi pour voir tes entrées d’humeur.",
     "note": "Note",
+    "noteCollapse": "Réduire la note",
+    "noteExpand": "Afficher la note complète",
     "notePlaceholder": "Ajoutez une note sur votre ressenti…",
     "tagPicker": "Étiquettes",
     "tagCategory": {
@@ -2041,6 +2043,12 @@
         "done": "Ajouté à vos informations personnelles",
         "duplicate": "Déjà présent dans vos informations personnelles",
         "failed": "Échec de l’ajout. Veuillez réessayer."
+      },
+      "rememberMessage": {
+        "action": "Mémoriser",
+        "done": "Enregistré dans vos informations personnelles",
+        "duplicate": "Déjà présent dans vos informations personnelles",
+        "failed": "Échec de l’enregistrement. Veuillez réessayer."
       },
       "guided": {
         "offerTitle": "Le Coach a {count} questions pour vous",

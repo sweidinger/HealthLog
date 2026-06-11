@@ -60,8 +60,13 @@ describe("mood entries table — long-note truncation", () => {
     expect(src).toContain("max-w-[18rem]");
   });
 
-  it("clamps the note and exposes the full text via a tooltip", () => {
+  it("clamps the note by default and exposes the full text via the row toggle", () => {
+    // v1.16.8 — the desktop hover tooltip is replaced by an expandable
+    // toggle (works on touch, preserves line breaks via pre-wrap). The
+    // default presentation stays clamped so the table keeps its density.
     expect(src).toContain("line-clamp-2");
-    expect(src).toContain("TooltipContent");
+    expect(src).toContain("mood-note-toggle");
+    expect(src).toContain("whitespace-pre-wrap");
+    expect(src).not.toContain("TooltipContent");
   });
 });

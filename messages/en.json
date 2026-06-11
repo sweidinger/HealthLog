@@ -562,6 +562,8 @@
     "nextPage": "Next page",
     "loginRequired": "Please sign in to view mood entries.",
     "note": "Note",
+    "noteCollapse": "Collapse note",
+    "noteExpand": "Show full note",
     "notePlaceholder": "Add a note about how you're feeling…",
     "tagPicker": "Tags",
     "tagCategory": {
@@ -2041,6 +2043,12 @@
         "done": "Added to your self-context",
         "duplicate": "Already part of your self-context",
         "failed": "Could not add. Please try again."
+      },
+      "rememberMessage": {
+        "action": "Remember",
+        "done": "Saved to your self-context",
+        "duplicate": "Already part of your self-context",
+        "failed": "Could not save. Please try again."
       },
       "guided": {
         "offerTitle": "The Coach has {count} follow-up questions for you",

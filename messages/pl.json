@@ -562,6 +562,8 @@
     "nextPage": "Następna strona",
     "loginRequired": "Zaloguj się, aby zobaczyć wpisy nastroju.",
     "note": "Notatka",
+    "noteCollapse": "Zwiń notatkę",
+    "noteExpand": "Pokaż całą notatkę",
     "notePlaceholder": "Dodaj notatkę o swoim samopoczuciu…",
     "tagPicker": "Tagi",
     "tagCategory": {
@@ -2041,6 +2043,12 @@
         "done": "Dodano do informacji o sobie",
         "duplicate": "Już znajduje się w informacjach o sobie",
         "failed": "Nie udało się dodać. Spróbuj ponownie."
+      },
+      "rememberMessage": {
+        "action": "Zapamiętaj",
+        "done": "Zapisano w informacjach o sobie",
+        "duplicate": "Już znajduje się w informacjach o sobie",
+        "failed": "Nie udało się zapisać. Spróbuj ponownie."
       },
       "guided": {
         "offerTitle": "Coach ma {count} pytania do Ciebie",

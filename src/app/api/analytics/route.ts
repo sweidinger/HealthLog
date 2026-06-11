@@ -489,6 +489,7 @@ async function computeSleepStageBreakdown(
       measuredAt: true,
       sleepStage: true,
       source: true,
+      deviceType: true,
     },
   });
 

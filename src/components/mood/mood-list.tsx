@@ -29,12 +29,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import { DateTimeInput } from "@/components/ui/date-input";
 import { Label } from "@/components/ui/label";
 import {
@@ -139,6 +133,15 @@ export function MoodList({ onAddFirst }: MoodListProps = {}) {
 
   // v1.15.13 — page-scoped multi-select selection (current page ids only).
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
+
+  // v1.16.8 — per-entry note expansion. Notes were readable in full only
+  // through the edit sheet (desktop hover tooltip aside); the row now
+  // toggles between the clamped preview and the complete text.
+  const [expandedNoteIds, setExpandedNoteIds] = useState<Set<string>>(
+    () => new Set(),
+  );
+  const toggleNote = (id: string) =>
+    setExpandedNoteIds((prev) => toggleId(prev, id));
 
   const [editing, setEditing] = useState<MoodEntry | null>(null);
   const [editMood, setEditMood] = useState("");
@@ -599,20 +602,11 @@ export function MoodList({ onAddFirst }: MoodListProps = {}) {
                               : "-"}
                           </span>
                           {entry.note && (
-                            <TooltipProvider>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <p className="text-muted-foreground/80 mt-0.5 line-clamp-2 cursor-default text-xs italic">
-                                    {entry.note}
-                                  </p>
-                                </TooltipTrigger>
-                                <TooltipContent className="max-w-xs">
-                                  <p className="text-xs whitespace-pre-wrap">
-                                    {entry.note}
-                                  </p>
-                                </TooltipContent>
-                              </Tooltip>
-                            </TooltipProvider>
+                            <MoodNoteText
+                              note={entry.note}
+                              expanded={expandedNoteIds.has(entry.id)}
+                              onToggle={() => toggleNote(entry.id)}
+                            />
                           )}
                         </TableCell>
                         <TableCell className="text-muted-foreground text-sm">
@@ -710,9 +704,11 @@ export function MoodList({ onAddFirst }: MoodListProps = {}) {
                           </p>
                         )}
                         {entry.note && (
-                          <p className="text-muted-foreground/80 truncate text-xs italic">
-                            {entry.note}
-                          </p>
+                          <MoodNoteText
+                            note={entry.note}
+                            expanded={expandedNoteIds.has(entry.id)}
+                            onToggle={() => toggleNote(entry.id)}
+                          />
                         )}
                       </div>
                     </div>
@@ -995,6 +991,47 @@ export function MoodList({ onAddFirst }: MoodListProps = {}) {
         )}
       </ResponsiveSheet>
     </>
+  );
+}
+
+/**
+ * v1.16.8 — expandable free-text note. Collapsed: a two-line clamped
+ * preview. Expanded: the COMPLETE text, line breaks preserved, rendered as
+ * plain text children. The whole block is one toggle button so the full
+ * note is readable in place — previously the only full-text surface was
+ * the edit sheet (plus a hover tooltip on desktop, unreachable on touch).
+ */
+function MoodNoteText({
+  note,
+  expanded,
+  onToggle,
+}: {
+  note: string;
+  expanded: boolean;
+  onToggle: () => void;
+}) {
+  const { t } = useTranslations();
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      aria-expanded={expanded}
+      data-testid="mood-note-toggle"
+      className="mt-0.5 block w-full min-w-0 cursor-pointer text-left"
+    >
+      <p
+        className={
+          expanded
+            ? "text-muted-foreground/80 text-xs break-words whitespace-pre-wrap italic"
+            : "text-muted-foreground/80 line-clamp-2 text-xs italic"
+        }
+      >
+        {note}
+      </p>
+      <span className="text-dracula-purple text-[11px] font-medium">
+        {expanded ? t("mood.noteCollapse") : t("mood.noteExpand")}
+      </span>
+    </button>
   );
 }
 

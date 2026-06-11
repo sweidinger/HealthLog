@@ -669,3 +669,156 @@ describe("reconstructSleepSessions total-safety (A5)", () => {
     expect(() => reconstructSleepSessions(rows, "UTC")).not.toThrow();
   });
 });
+
+/** Build a stage row tagged with a source AND a writer device-type. */
+function writerRow(
+  iso: string,
+  stage: SleepStage | null,
+  minutes: number,
+  source: MeasurementSource,
+  deviceType: string | null,
+): SleepStageRow {
+  return {
+    measuredAt: new Date(iso),
+    sleepStage: stage,
+    value: minutes,
+    source,
+    deviceType,
+  };
+}
+
+describe("per-night writer richness pick", () => {
+  it("a coarse awake-heavy source never masks the source that knows the stages", () => {
+    // The reported night: one source contributes a huge AWAKE block plus a
+    // sliver of bare ASLEEP (a phone/in-bed detection mis-scoring the night),
+    // the other carries the full hypnogram. The stage-bearing source must
+    // win the night — the headline is NOT 400 awake minutes with no phases.
+    const rows: SleepStageRow[] = [
+      // Coarse export: 22:50 → 06:35 local, awake-dominant.
+      srcRow("2026-06-04T01:00:00.000Z", "IN_BED", 250, "APPLE_HEALTH"),
+      srcRow("2026-06-04T04:30:00.000Z", "AWAKE", 400, "APPLE_HEALTH"),
+      srcRow("2026-06-04T04:35:00.000Z", "ASLEEP", 30, "APPLE_HEALTH"),
+      // Detailed stages for the SAME night.
+      srcRow("2026-06-04T01:30:00.000Z", "CORE", 240, "WHOOP"),
+      srcRow("2026-06-04T03:00:00.000Z", "DEEP", 80, "WHOOP"),
+      srcRow("2026-06-04T04:30:00.000Z", "REM", 90, "WHOOP"),
+      srcRow("2026-06-04T04:30:00.000Z", "AWAKE", 35, "WHOOP"),
+    ];
+    const nights = reconstructSleepNights(rows, "Europe/Berlin");
+    expect(nights).toHaveLength(1);
+    expect(nights[0].stages.CORE).toBe(240);
+    expect(nights[0].stages.DEEP).toBe(80);
+    expect(nights[0].stages.REM).toBe(90);
+    // The winner's own awake minutes survive; the coarse 400 must not.
+    expect(nights[0].awakeMinutes).toBe(35);
+    expect(nights[0].asleepMinutes).toBe(410);
+
+    const sessions = reconstructSleepSessions(rows, "Europe/Berlin");
+    expect(sessions).toHaveLength(1);
+    expect(sessions[0].source).toBe("WHOOP");
+    expect(sessions[0].stages.AWAKE).toBe(35);
+  });
+
+  it("separates writer apps behind ONE source: phone in-bed must not blend into watch stages", () => {
+    // Several HealthKit apps write under source = APPLE_HEALTH. The watch
+    // carries the granular partition; the phone's bedtime detection writes a
+    // parallel IN_BED + a long AWAKE block. Collapsing per source would blend
+    // both writers and inflate the night's awake total — the device-type
+    // refinement must keep only the stage-bearing writer.
+    const rows: SleepStageRow[] = [
+      writerRow("2026-06-04T00:30:00.000Z", "CORE", 120, "APPLE_HEALTH", "watch"),
+      writerRow("2026-06-04T02:30:00.000Z", "DEEP", 60, "APPLE_HEALTH", "watch"),
+      writerRow("2026-06-04T04:00:00.000Z", "REM", 80, "APPLE_HEALTH", "watch"),
+      writerRow("2026-06-04T04:30:00.000Z", "AWAKE", 15, "APPLE_HEALTH", "watch"),
+      writerRow("2026-06-04T04:30:00.000Z", "IN_BED", 460, "APPLE_HEALTH", "phone"),
+      writerRow("2026-06-04T00:35:00.000Z", "ASLEEP", 200, "APPLE_HEALTH", "phone"),
+      writerRow("2026-06-04T03:00:00.000Z", "AWAKE", 385, "APPLE_HEALTH", "phone"),
+    ];
+    const nights = reconstructSleepNights(rows, "Europe/Berlin");
+    expect(nights).toHaveLength(1);
+    expect(nights[0].stages.CORE).toBe(120);
+    expect(nights[0].stages.DEEP).toBe(60);
+    expect(nights[0].stages.REM).toBe(80);
+    // The watch writer's awake sliver, not the phone's 385-minute block.
+    expect(nights[0].awakeMinutes).toBe(15);
+    // The phone's bare ASLEEP must not blend into the asleep total either.
+    expect(nights[0].asleepMinutes).toBe(260);
+  });
+
+  it("rows without a device-type collapse per source exactly as before", () => {
+    // Legacy rows (pre device-type column) and single-writer sources: one
+    // bucket per source — granular + in-bed from the same source stay one
+    // night with both facets.
+    const rows: SleepStageRow[] = [
+      srcRow("2026-06-04T00:30:00.000Z", "CORE", 120, "APPLE_HEALTH"),
+      srcRow("2026-06-04T04:30:00.000Z", "AWAKE", 15, "APPLE_HEALTH"),
+      srcRow("2026-06-04T04:30:00.000Z", "IN_BED", 460, "APPLE_HEALTH"),
+    ];
+    const nights = reconstructSleepNights(rows, "Europe/Berlin");
+    expect(nights).toHaveLength(1);
+    expect(nights[0].stages.CORE).toBe(120);
+    expect(nights[0].inBedMinutes).toBe(460);
+    expect(nights[0].awakeMinutes).toBe(15);
+  });
+
+  it("the RICHEST stage set wins: three granular stages beat one, regardless of ladder", () => {
+    // WHOOP sits first on the default ladder but only knows CORE for this
+    // night; the watch carries the full three-stage hypnogram. Per-night
+    // richness must pick the watch.
+    const rows: SleepStageRow[] = [
+      srcRow("2026-06-04T04:30:00.000Z", "CORE", 300, "WHOOP"),
+      writerRow("2026-06-04T00:30:00.000Z", "CORE", 120, "APPLE_HEALTH", "watch"),
+      writerRow("2026-06-04T02:30:00.000Z", "DEEP", 60, "APPLE_HEALTH", "watch"),
+      writerRow("2026-06-04T04:00:00.000Z", "REM", 80, "APPLE_HEALTH", "watch"),
+    ];
+    const nights = reconstructSleepNights(rows, "Europe/Berlin");
+    expect(nights).toHaveLength(1);
+    expect(nights[0].stages.REM).toBe(80);
+    expect(nights[0].stages.DEEP).toBe(60);
+    expect(nights[0].stages.CORE).toBe(120);
+    expect(nights[0].asleepMinutes).toBe(260);
+  });
+
+  it("equally rich writers fall back to the ladder (WHOOP beats Apple Health)", () => {
+    const rows: SleepStageRow[] = [
+      srcRow("2026-06-04T01:00:00.000Z", "CORE", 240, "WHOOP"),
+      srcRow("2026-06-04T03:00:00.000Z", "DEEP", 80, "WHOOP"),
+      srcRow("2026-06-04T04:30:00.000Z", "REM", 90, "WHOOP"),
+      writerRow("2026-06-04T00:30:00.000Z", "CORE", 120, "APPLE_HEALTH", "watch"),
+      writerRow("2026-06-04T02:30:00.000Z", "DEEP", 60, "APPLE_HEALTH", "watch"),
+      writerRow("2026-06-04T04:00:00.000Z", "REM", 80, "APPLE_HEALTH", "watch"),
+    ];
+    const sessions = reconstructSleepSessions(rows, "Europe/Berlin");
+    expect(sessions).toHaveLength(1);
+    expect(sessions[0].source).toBe("WHOOP");
+    expect(sessions[0].asleepMinutes).toBe(410);
+  });
+
+  it("a coarse-only night heals on the next read once the stage rows land", () => {
+    // The reconstruction is read-time: a night first assembled from coarse
+    // rows (detailed sync lagging) must flip to the stage partition as soon
+    // as the detailed rows exist — no manual repair, no cache to clear.
+    const coarseOnly: SleepStageRow[] = [
+      srcRow("2026-06-04T01:00:00.000Z", "IN_BED", 250, "APPLE_HEALTH"),
+      srcRow("2026-06-04T04:30:00.000Z", "AWAKE", 400, "APPLE_HEALTH"),
+      srcRow("2026-06-04T04:35:00.000Z", "ASLEEP", 30, "APPLE_HEALTH"),
+    ];
+    const before = reconstructSleepNights(coarseOnly, "Europe/Berlin");
+    expect(before[0].stages.REM).toBeUndefined();
+    expect(before[0].awakeMinutes).toBe(400);
+
+    const afterRows: SleepStageRow[] = [
+      ...coarseOnly,
+      srcRow("2026-06-04T01:30:00.000Z", "CORE", 240, "WHOOP"),
+      srcRow("2026-06-04T03:00:00.000Z", "DEEP", 80, "WHOOP"),
+      srcRow("2026-06-04T04:30:00.000Z", "REM", 90, "WHOOP"),
+    ];
+    const after = reconstructSleepNights(afterRows, "Europe/Berlin");
+    expect(after).toHaveLength(1);
+    expect(after[0].stages.REM).toBe(90);
+    expect(after[0].stages.DEEP).toBe(80);
+    expect(after[0].stages.CORE).toBe(240);
+    expect(after[0].awakeMinutes).toBeNull();
+    expect(after[0].asleepMinutes).toBe(410);
+  });
+});

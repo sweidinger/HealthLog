@@ -562,6 +562,8 @@
     "nextPage": "Pagina successiva",
     "loginRequired": "Accedi per vedere le voci dell’umore.",
     "note": "Nota",
+    "noteCollapse": "Comprimi nota",
+    "noteExpand": "Mostra nota completa",
     "notePlaceholder": "Aggiungi una nota su come ti senti…",
     "tagPicker": "Etichette",
     "tagCategory": {
@@ -2041,6 +2043,12 @@
         "done": "Aggiunto alle tue informazioni personali",
         "duplicate": "Già presente nelle tue informazioni personali",
         "failed": "Aggiunta non riuscita. Riprova."
+      },
+      "rememberMessage": {
+        "action": "Memorizza",
+        "done": "Salvato nelle tue informazioni personali",
+        "duplicate": "Già presente nelle tue informazioni personali",
+        "failed": "Salvataggio non riuscito. Riprova."
       },
       "guided": {
         "offerTitle": "Il Coach ha {count} domande per te",

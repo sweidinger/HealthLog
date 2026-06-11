@@ -562,6 +562,8 @@
     "nextPage": "Nächste Seite",
     "loginRequired": "Bitte anmelden, um Stimmungseinträge zu sehen.",
     "note": "Notiz",
+    "noteCollapse": "Notiz einklappen",
+    "noteExpand": "Notiz vollständig anzeigen",
     "notePlaceholder": "Notiz dazu, wie du dich fühlst…",
     "tagPicker": "Tags",
     "tagCategory": {
@@ -2041,6 +2043,12 @@
         "done": "In die Selbstauskunft übernommen",
         "duplicate": "Bereits in der Selbstauskunft enthalten",
         "failed": "Übernahme fehlgeschlagen. Bitte erneut versuchen."
+      },
+      "rememberMessage": {
+        "action": "Merken",
+        "done": "Gemerkt — in deiner Selbstauskunft gespeichert",
+        "duplicate": "Schon in deiner Selbstauskunft enthalten",
+        "failed": "Merken fehlgeschlagen. Bitte erneut versuchen."
       },
       "guided": {
         "offerTitle": "Der Coach hat {count} Rückfragen an dich",
