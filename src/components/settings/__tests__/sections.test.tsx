@@ -46,6 +46,13 @@ vi.mock("@tanstack/react-query", () => ({
 }));
 
 // Stub the auth hook — sections check `isAuthenticated` to enable queries.
+// v1.16.4 — AccountSection gates its content on `useMounted()` so the
+// SSR pass and the hydration render agree (React #418 family). The
+// smoke test asserts the post-mount content, so pin the flag to true.
+vi.mock("@/hooks/use-mounted", () => ({
+  useMounted: () => true,
+}));
+
 // We return `isAuthenticated: true` + a minimal user so the loading-spinner
 // branch in AccountSection paints the real form.
 vi.mock("@/hooks/use-auth", () => ({

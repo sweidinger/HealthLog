@@ -77,6 +77,19 @@ function getSavedLocale(): Locale | null {
   return null;
 }
 
+// Persist a locale choice everywhere the next render / request reads
+// it: localStorage (client preference), cookie (SSR handoff — layout +
+// metadata render in the user's language), <html lang>. Called ONLY
+// alongside the `setActive` flip so a failed bundle load never leaves
+// the persisted locale pointing at strings the UI isn't showing.
+function persistLocale(newLocale: Locale) {
+  localStorage.setItem("healthlog-locale", newLocale);
+  // 1-year expiry, Lax samesite, not HttpOnly so the client continues
+  // to own it.
+  document.cookie = `healthlog-locale=${newLocale}; path=/; max-age=${60 * 60 * 24 * 365}; SameSite=Lax`;
+  document.documentElement.lang = newLocale;
+}
+
 export function I18nProvider({
   children,
   initialLocale,
@@ -142,17 +155,12 @@ export function I18nProvider({
 
   const setLocale = useCallback((newLocale: Locale) => {
     if (!(locales as readonly string[]).includes(newLocale)) return;
-    localStorage.setItem("healthlog-locale", newLocale);
-    // Also mirror to cookie so SSR (layout, metadata) renders in the
-    // user's language. 1-year expiry, Lax samesite, not HttpOnly so the
-    // client continues to own it.
-    document.cookie = `healthlog-locale=${newLocale}; path=/; max-age=${60 * 60 * 24 * 365}; SameSite=Lax`;
-    document.documentElement.lang = newLocale;
 
     const cached = getCachedMessages(newLocale);
     if (cached) {
       requestedLocaleRef.current = null;
       setPendingLocale(null);
+      persistLocale(newLocale);
       setActive({ locale: newLocale, messages: cached });
       return;
     }
@@ -164,11 +172,16 @@ export function I18nProvider({
         if (requestedLocaleRef.current !== newLocale) return;
         requestedLocaleRef.current = null;
         setPendingLocale(null);
+        // Persist atomically with the flip — never before the bundle is
+        // in hand, so cookie / <html lang> / localStorage can't drift
+        // onto a locale the UI failed to load.
+        persistLocale(newLocale);
         setActive({ locale: newLocale, messages: loaded });
       })
       .catch(() => {
         // Bundle fetch failed (offline mid-session, …) — stay on the
-        // current locale rather than rendering the new one in EN.
+        // current locale rather than rendering the new one in EN, and
+        // leave cookie / <html lang> / localStorage untouched.
         if (requestedLocaleRef.current !== newLocale) return;
         requestedLocaleRef.current = null;
         setPendingLocale(null);

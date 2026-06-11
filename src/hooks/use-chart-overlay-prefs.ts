@@ -11,6 +11,7 @@ import {
   type DashboardLayout,
 } from "@/lib/dashboard-layout";
 import { queryKeys } from "@/lib/query-keys";
+import { apiGet, apiPut } from "@/lib/api/api-fetch";
 
 /**
  * v1.4.18 — TanStack Query hook that returns a single chart's overlay
@@ -43,12 +44,8 @@ export function useChartOverlayPrefs(
 
   const { data: layout } = useQuery({
     queryKey: queryKeys.dashboardWidgets(),
-    queryFn: async (): Promise<DashboardLayout> => {
-      const res = await fetch("/api/dashboard/widgets");
-      if (!res.ok) throw new Error("Failed to load dashboard layout");
-      const json = await res.json();
-      return json.data as DashboardLayout;
-    },
+    queryFn: async (): Promise<DashboardLayout> =>
+      apiGet<DashboardLayout>("/api/dashboard/widgets"),
     // Keep the cache warm — the dashboard page mounts a query against
     // the same key on first paint, so this hook just piggy-backs.
     staleTime: 60_000,
@@ -68,14 +65,10 @@ export function useChartOverlayPrefs(
       // No-op when no chartKey — the setter is wired up but the hook
       // is in "ad-hoc render" mode where overlays don't persist.
       if (!chartKey) return;
-      const res = await fetch("/api/dashboard/chart-overlay-prefs", {
-        method: "PUT",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ chartKey, prefs: next }),
+      await apiPut("/api/dashboard/chart-overlay-prefs", {
+        chartKey,
+        prefs: next,
       });
-      if (!res.ok) {
-        throw new Error("Failed to save chart overlay prefs");
-      }
     },
     onMutate: async (next) => {
       if (!chartKey) return { previous: undefined };

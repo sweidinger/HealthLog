@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
+import { useMounted } from "@/hooks/use-mounted";
 import { usePullToRefresh } from "@/hooks/use-pull-to-refresh";
 import {
   MeasurementForm,
@@ -18,6 +19,7 @@ import { useTranslations } from "@/lib/i18n/context";
 
 export default function MeasurementsPage() {
   const { isAuthenticated, isLoading } = useAuth();
+  const mounted = useMounted();
   const router = useRouter();
   const queryClient = useQueryClient();
   const searchParams = useSearchParams();
@@ -73,7 +75,10 @@ export default function MeasurementsPage() {
     }
   }, [isLoading, isAuthenticated, router]);
 
-  if (isLoading) {
+  // v1.16.4 — `!mounted` keeps the hydration render identical to the
+  // SSR HTML when this boundary hydrates after `/api/auth/me` settled
+  // (React #418 family); see `useMounted`.
+  if (!mounted || isLoading) {
     return (
       <div className="flex h-64 items-center justify-center">
         <Loader2 className="text-primary h-8 w-8 animate-spin motion-reduce:animate-none" />

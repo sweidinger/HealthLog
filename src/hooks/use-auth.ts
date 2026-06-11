@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { queryKeys } from "@/lib/query-keys";
+import { apiGet, apiFetchRaw } from "@/lib/api/api-fetch";
 import { useTranslations } from "@/lib/i18n/context";
 import type { TimeFormatPreference } from "@/lib/format-locale";
 import { isTimeFormatPreference, storeTimeFormat } from "@/lib/time-format";
@@ -81,18 +82,21 @@ export interface AuthUser {
 }
 
 async function fetchMe(): Promise<AuthUser> {
-  const res = await fetch("/api/auth/me");
-  if (!res.ok) throw new Error("Not authenticated");
-  const json = await res.json();
+  // v1.16.4 — routed through the typed wrapper; a non-OK /me (401)
+  // throws `ApiError`, which `useAuth` treats as "not authenticated"
+  // exactly like the old hand-rolled throw.
+  //
   // v1.4.47 W3 — coerce `disableCoach` against `undefined` so a stale
   // /me payload from a partial-deploy rollback (older server image
   // without the field) keeps the Coach surface visible by default.
-  const data = json.data as Partial<AuthUser> & {
-    id: string;
-    username: string;
-    role: string;
-    timezone: string;
-  };
+  const data = await apiGet<
+    Partial<AuthUser> & {
+      id: string;
+      username: string;
+      role: string;
+      timezone: string;
+    }
+  >("/api/auth/me");
   // Hour-cycle preference: coerce against a stale /me payload, then mirror
   // into localStorage so `useFormatters()` and the legacy format helpers
   // (which cannot reach the query cache) render the same clock.
@@ -143,7 +147,7 @@ export function useLogout() {
 
   return useMutation({
     mutationFn: async () => {
-      await fetch("/api/auth/logout", { method: "POST" });
+      await apiFetchRaw("/api/auth/logout", { method: "POST" });
     },
     onSuccess: () => {
       queryClient.setQueryData(queryKeys.authMe(), null);

@@ -104,8 +104,11 @@ describe("v1.4.43 W11 — dashboard tile-strip skeleton (wiring)", () => {
 
   it("derives `primaryLoading` from the snapshot vs slim query", () => {
     const src = readFileSync(PAGE_PATH, "utf8");
+    // v1.16.4 — `!mounted` pins SSR + the hydration render to the
+    // skeleton branch so a late-hydrating boundary can't disagree with
+    // the server HTML (React #418); see `useMounted`.
     expect(src).toMatch(
-      /const\s+primaryLoading\s*=\s*snapshotEnabled\s*\?\s*snapshotQuery\.isLoading\s*:\s*analyticsSlimQuery\.isLoading;/,
+      /const\s+primaryLoading\s*=\s*!mounted\s*\|\|\s*\(snapshotEnabled\s*\?\s*snapshotQuery\.isLoading\s*:\s*analyticsSlimQuery\.isLoading\);/,
     );
   });
 

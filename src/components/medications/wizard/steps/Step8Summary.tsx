@@ -7,7 +7,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { useTranslations } from "@/lib/i18n/context";
+import { useTranslations, useFormatters } from "@/lib/i18n/context";
 import { queryKeys } from "@/lib/query-keys";
 import { apiGet } from "@/lib/api/api-fetch";
 
@@ -56,7 +56,8 @@ export function Step8Summary({
   onAddSchedule,
 }: Step8SummaryProps) {
   const { t } = useTranslations();
-  const topSummary = summariseCadence(payload, t);
+  const formatters = useFormatters();
+  const topSummary = summariseCadence(payload, t, formatters.date);
   const canRemove = payload.schedules.length > 1;
 
   // Reminders need at least one delivery channel. Fetch the channel

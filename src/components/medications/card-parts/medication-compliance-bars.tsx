@@ -92,7 +92,10 @@ export function MedicationComplianceBars({
         <div className="flex items-center gap-4 text-xs">
           <span className="text-warning flex items-center gap-1 font-medium">
             <Flame className="h-3.5 w-3.5" />
-            {streak} {t("medications.dayStreak")}
+            {streak}{" "}
+            {streak === 1
+              ? t("medications.dayStreakOne")
+              : t("medications.dayStreak")}
           </span>
         </div>
       )}

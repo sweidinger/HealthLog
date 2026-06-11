@@ -289,10 +289,14 @@ export function SettingsShell({ active, children }: SettingsShellProps) {
             `/settings/account` (Geschlecht / Gender) and
             `/settings/ai` (Aktiver Provider) is not eaten by the
             floating mobile bottom-nav. Desktop reverts to the parent's
-            own padding because the bottom-nav doesn't render on `md+`. */}
-        <main className="min-h-[calc(100dvh-12rem)] min-w-0 pb-24 md:pb-0">
+            own padding because the bottom-nav doesn't render on `md+`.
+
+            v1.16.4 — a `<div>`, not `<main>`: the surrounding AuthShell
+            already provides the page's single `<main>` landmark and a
+            nested second one is an a11y violation. */}
+        <div className="min-h-[calc(100dvh-12rem)] min-w-0 pb-24 md:pb-0">
           {children}
-        </main>
+        </div>
       </div>
     </div>
   );

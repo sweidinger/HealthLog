@@ -3,6 +3,7 @@
 import React, { Suspense, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
+import { useMounted } from "@/hooks/use-mounted";
 import {
   Activity,
   Droplet,
@@ -128,6 +129,7 @@ export function resolveDashboardFirstPaintGate(input: {
 
 export default function DashboardPage() {
   const { isAuthenticated, user } = useAuth();
+  const mounted = useMounted();
   const { t } = useTranslations();
   const fmt = useFormatters();
   const [quickEntryDialog, setQuickEntryDialog] =
@@ -1310,9 +1312,17 @@ export default function DashboardPage() {
         // never fires under snapshot mode, so the empty-state branch
         // below flashes for the whole snapshot fetch. Key the loading
         // flag off whichever query is actually driving the tiles.
-        const primaryLoading = snapshotEnabled
-          ? snapshotQuery.isLoading
-          : analyticsSlimQuery.isLoading;
+        // v1.16.4 — `!mounted` pins the SSR pass AND the hydration
+        // render to the skeleton branch. Server-side the data queries
+        // are `enabled: false` (no auth) → `isLoading: false`, which
+        // used to select the empty state; a late-hydrating boundary
+        // then saw `isAuthenticated` already resolved and rendered the
+        // skeleton instead — React #418. See `useMounted`.
+        const primaryLoading =
+          !mounted ||
+          (snapshotEnabled
+            ? snapshotQuery.isLoading
+            : analyticsSlimQuery.isLoading);
         const { showTileStripSkeleton, showEmptyState } =
           resolveDashboardFirstPaintGate({
             trendCardCount: trendCards.length,

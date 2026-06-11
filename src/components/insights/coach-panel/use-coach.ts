@@ -400,10 +400,11 @@ export function useSendCoachMessage(opts: UseSendCoachMessageOptions = {}) {
           messageId: null,
           errorCode: structured ?? `coach.http.${response.status}`,
         });
-        // Drop the optimistic user bubble on the error path too so
-        // the next refetch — which still has the persisted user
-        // message — doesn't render the same bubble twice.
-        setOptimisticUser(null);
+        // v1.16.4 — KEEP the optimistic user bubble: a rejected turn
+        // (budget gate, 4xx) has no persisted twin coming, and dropping
+        // the bubble left the error standing next to an empty thread.
+        // The content-equality dedupe in <MessageThread> still
+        // suppresses the optimistic copy if a persisted twin lands.
         return;
       }
 
@@ -484,10 +485,16 @@ export function useSendCoachMessage(opts: UseSendCoachMessageOptions = {}) {
         optsRef.current.onDone?.(resolvedConversationId);
       }
       // v1.4.25 W5 — drop the optimistic user bubble; the persisted
-      // twin is on its way via the invalidate-refetch above. Drop on
-      // error too so the user message isn't doubled when the next
-      // refetch sees the server-persisted row.
-      setOptimisticUser(null);
+      // twin is on its way via the invalidate-refetch above.
+      // v1.16.4 — but only when a twin IS coming (the turn resolved a
+      // conversation) or the turn succeeded outright. An errored turn
+      // without a conversation id persisted nothing; dropping the
+      // bubble then erased the user's message next to the error bubble.
+      // The content-equality dedupe in <MessageThread> still suppresses
+      // the optimistic copy if a persisted twin does land later.
+      if (resolvedConversationId || !lastError) {
+        setOptimisticUser(null);
+      }
     },
     [queryClient],
   );

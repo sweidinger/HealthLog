@@ -3,6 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 
 import { queryKeys } from "@/lib/query-keys";
+import { apiGet } from "@/lib/api/api-fetch";
 import {
   DEFAULT_INSIGHTS_LAYOUT,
   resolveInsightsLayout,
@@ -39,11 +40,8 @@ export function useInsightsLayoutQuery(enabled: boolean): {
 } {
   const { data, isLoading, isSuccess } = useQuery({
     queryKey: queryKeys.insightsLayout(),
-    queryFn: async () => {
-      const res = await fetch("/api/insights/layout");
-      if (!res.ok) throw new Error("Failed to load insights layout");
-      return resolveInsightsLayout((await res.json()).data);
-    },
+    queryFn: async () =>
+      resolveInsightsLayout(await apiGet("/api/insights/layout")),
     enabled,
   });
   return {

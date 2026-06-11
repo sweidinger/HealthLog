@@ -42,6 +42,7 @@ import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
 import { PasswordInput } from "@/components/ui/password-input";
 import { useAuth } from "@/hooks/use-auth";
+import { useMounted } from "@/hooks/use-mounted";
 import { formatDate } from "@/lib/format";
 import { locales, localeLabels, type Locale } from "@/lib/i18n/config";
 import { useTranslations } from "@/lib/i18n/context";
@@ -110,9 +111,30 @@ export function resolveInitialTimezone(
   return shouldAutoSeed ? detectedBrowserTimezone : stored;
 }
 
+/**
+ * v1.16.4 — settings status hints store the i18n KEY (+ params), not
+ * the translated string: a locale switch re-renders the hint in the
+ * new language instead of freezing the old-language snapshot. Server-
+ * provided error text (which has no key) rides `text` verbatim.
+ */
+type StatusMessage =
+  | { key: string; params?: Record<string, string | number> }
+  | { text: string };
+
+function statusText(
+  msg: StatusMessage,
+  t: (key: string, params?: Record<string, string | number>) => string,
+): string {
+  return "key" in msg ? t(msg.key, msg.params) : msg.text;
+}
+
 export function AccountSection() {
   const { t, locale, setLocale, pendingLocale } = useTranslations();
   const { user, isLoading, isAuthenticated, refetch } = useAuth();
+  // v1.16.4 — see `useMounted`: keeps the hydration render identical to
+  // the SSR HTML when this boundary hydrates after `/api/auth/me`
+  // settled (React #418 family).
+  const mounted = useMounted();
   const router = useRouter();
 
   const [email, setEmail] = useState("");
@@ -125,7 +147,7 @@ export function AccountSection() {
   const [insurerName, setInsurerName] = useState("");
   const [insuranceNumber, setInsuranceNumber] = useState("");
   const [saving, setSaving] = useState(false);
-  const [saveMsg, setSaveMsg] = useState<string | null>(null);
+  const [saveMsg, setSaveMsg] = useState<StatusMessage | null>(null);
   const [saveMsgType, setSaveMsgType] = useState<"success" | "error" | null>(
     null,
   );
@@ -135,7 +157,7 @@ export function AccountSection() {
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [passwordSaving, setPasswordSaving] = useState(false);
-  const [passwordMsg, setPasswordMsg] = useState<string | null>(null);
+  const [passwordMsg, setPasswordMsg] = useState<StatusMessage | null>(null);
   const [passwordMsgType, setPasswordMsgType] = useState<
     "success" | "error" | null
   >(null);
@@ -153,13 +175,13 @@ export function AccountSection() {
   // replay button so the surface stays mirrored).
   const [tourRestarting, setTourRestarting] = useState(false);
   const [tourFeedback, setTourFeedback] = useState<{
-    text: string;
+    key: string;
     type: "success" | "error";
   } | null>(null);
 
   // Passkey registration state.
   const [passkeyLoading, setPasskeyLoading] = useState(false);
-  const [passkeyMsg, setPasskeyMsg] = useState<string | null>(null);
+  const [passkeyMsg, setPasskeyMsg] = useState<StatusMessage | null>(null);
   const [passkeyMsgType, setPasskeyMsgType] = useState<
     "success" | "error" | null
   >(null);
@@ -228,7 +250,7 @@ export function AccountSection() {
     ]);
 
     if (profileRes.ok && tzRes.ok) {
-      setSaveMsg(t("settings.profileSaved"));
+      setSaveMsg({ key: "settings.profileSaved" });
       setSaveMsgType("success");
       await refetch();
     } else if (!tzRes.ok) {
@@ -238,14 +260,20 @@ export function AccountSection() {
       // failure copy.
       try {
         const json = (await (tzRes as Response).json()) as { error?: string };
-        setSaveMsg(json.error || t("settings.timezoneInvalid"));
+        setSaveMsg(
+          json.error
+            ? { text: json.error }
+            : { key: "settings.timezoneInvalid" },
+        );
       } catch {
-        setSaveMsg(t("settings.timezoneInvalid"));
+        setSaveMsg({ key: "settings.timezoneInvalid" });
       }
       setSaveMsgType("error");
     } else {
       const json = await profileRes.json();
-      setSaveMsg(json.error || t("settings.savingError"));
+      setSaveMsg(
+        json.error ? { text: json.error } : { key: "settings.savingError" },
+      );
       setSaveMsgType("error");
     }
     setSaving(false);
@@ -262,7 +290,7 @@ export function AccountSection() {
       });
 
       if (!optRes.ok) {
-        setPasskeyMsg(t("settings.passkeyOptionsError"));
+        setPasskeyMsg({ key: "settings.passkeyOptionsError" });
         setPasskeyMsgType("error");
         setPasskeyLoading(false);
         return;
@@ -281,18 +309,20 @@ export function AccountSection() {
       });
 
       if (verifyRes.ok) {
-        setPasskeyMsg(t("settings.passkeyAdded"));
+        setPasskeyMsg({ key: "settings.passkeyAdded" });
         setPasskeyMsgType("success");
       } else {
         const verifyJson = await verifyRes.json();
         setPasskeyMsg(
-          verifyJson.error || t("settings.passkeyRegistrationFailed"),
+          verifyJson.error
+            ? { text: verifyJson.error }
+            : { key: "settings.passkeyRegistrationFailed" },
         );
         setPasskeyMsgType("error");
       }
     } catch (err) {
       const { key, params } = describePasskeyError(err);
-      setPasskeyMsg(t(key, params));
+      setPasskeyMsg({ key, params });
       setPasskeyMsgType("error");
     } finally {
       setPasskeyLoading(false);
@@ -313,11 +343,11 @@ export function AccountSection() {
     if (result.ok) {
       await refetch();
       setTourFeedback({
-        text: t("onboarding.tour.restartConfirmation"),
+        key: "onboarding.tour.restartConfirmation",
         type: "success",
       });
     } else {
-      setTourFeedback({ text: t(result.messageKey), type: "error" });
+      setTourFeedback({ key: result.messageKey, type: "error" });
     }
     setTourRestarting(false);
   }
@@ -329,7 +359,7 @@ export function AccountSection() {
     setPasswordMsgType(null);
 
     if (newPassword !== confirmPassword) {
-      setPasswordMsg(t("settings.passwordMismatch"));
+      setPasswordMsg({ key: "settings.passwordMismatch" });
       setPasswordMsgType("error");
       setPasswordSaving(false);
       return;
@@ -348,25 +378,27 @@ export function AccountSection() {
       const json = await res.json();
 
       if (!res.ok) {
-        setPasswordMsg(json.error || t("settings.savingError"));
+        setPasswordMsg(
+          json.error ? { text: json.error } : { key: "settings.savingError" },
+        );
         setPasswordMsgType("error");
         return;
       }
 
-      setPasswordMsg(t("settings.passwordUpdated"));
+      setPasswordMsg({ key: "settings.passwordUpdated" });
       setPasswordMsgType("success");
       setCurrentPassword("");
       setNewPassword("");
       setConfirmPassword("");
     } catch {
-      setPasswordMsg(t("common.networkError"));
+      setPasswordMsg({ key: "common.networkError" });
       setPasswordMsgType("error");
     } finally {
       setPasswordSaving(false);
     }
   }
 
-  if (isLoading) {
+  if (!mounted || isLoading) {
     return (
       <div className="flex h-64 items-center justify-center">
         <Loader2 className="text-primary h-8 w-8 animate-spin motion-reduce:animate-none" />
@@ -587,7 +619,7 @@ export function AccountSection() {
                 saveMsgType === "success" ? "text-success" : "text-destructive"
               }`}
             >
-              {saveMsg}
+              {statusText(saveMsg, t)}
             </p>
           )}
 
@@ -646,7 +678,7 @@ export function AccountSection() {
               passkeyMsgType === "success" ? "text-success" : "text-destructive"
             }`}
           >
-            {passkeyMsg}
+            {statusText(passkeyMsg, t)}
           </p>
         )}
       </div>
@@ -728,7 +760,7 @@ export function AccountSection() {
                 : "text-destructive"
             }`}
           >
-            {tourFeedback.text}
+            {t(tourFeedback.key)}
           </p>
         )}
       </div>
@@ -797,7 +829,7 @@ export function AccountSection() {
                     : "text-destructive"
                 }`}
               >
-                {passwordMsg}
+                {statusText(passwordMsg, t)}
               </p>
             )}
 
@@ -1084,7 +1116,7 @@ function AvatarSection() {
   const { t } = useTranslations();
   const { user, refetch } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [msg, setMsg] = useState<string | null>(null);
+  const [msg, setMsg] = useState<StatusMessage | null>(null);
   const [msgType, setMsgType] = useState<"success" | "error" | null>(null);
 
   const upload = useMutation({
@@ -1105,12 +1137,12 @@ function AvatarSection() {
     },
     onSuccess: async () => {
       setMsgType("success");
-      setMsg(t("settings.avatar.uploaded"));
+      setMsg({ key: "settings.avatar.uploaded" });
       await refetch();
     },
     onError: (err: Error) => {
       setMsgType("error");
-      setMsg(err.message);
+      setMsg({ text: err.message });
     },
   });
 
@@ -1124,12 +1156,12 @@ function AvatarSection() {
     },
     onSuccess: async () => {
       setMsgType("success");
-      setMsg(t("settings.avatar.removed"));
+      setMsg({ key: "settings.avatar.removed" });
       await refetch();
     },
     onError: (err: Error) => {
       setMsgType("error");
-      setMsg(err.message);
+      setMsg({ text: err.message });
     },
   });
 
@@ -1142,12 +1174,12 @@ function AvatarSection() {
     setMsgType(null);
     if (!ACCEPTED_AVATAR_TYPES.includes(file.type)) {
       setMsgType("error");
-      setMsg(t("settings.avatar.invalidType"));
+      setMsg({ key: "settings.avatar.invalidType" });
       return;
     }
     if (file.size > AVATAR_MAX_UPLOAD_BYTES) {
       setMsgType("error");
-      setMsg(t("settings.avatar.tooLarge"));
+      setMsg({ key: "settings.avatar.tooLarge" });
       return;
     }
     upload.mutate(file);
@@ -1227,7 +1259,7 @@ function AvatarSection() {
             msgType === "success" ? "text-success" : "text-destructive"
           }`}
         >
-          {msg}
+          {statusText(msg, t)}
         </p>
       )}
     </div>

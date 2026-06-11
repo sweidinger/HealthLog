@@ -459,15 +459,21 @@ function ChatBubble({
               a classic typing indicator (three pulsing dots) instead
               of the old whole-bubble pulse + "Thinking…" prose. The
               prose stays as the screen-reader announcement. */}
+          {/* v1.16.4 — a failed turn with no streamed prose renders the
+              error copy INSIDE the bubble instead of an empty bubble
+              with a caption below it. With partial prose the prose
+              keeps the bubble and the error stays a caption. */}
           {content ? (
             stripChartTokens(content)
           ) : inProgress ? (
             <TypingDots label={t("insights.coach.thinking")} />
+          ) : safeError ? (
+            <span className="text-warning/90">{safeError}</span>
           ) : (
             ""
           )}
         </div>
-        {safeError && (
+        {safeError && content && (
           <p className="text-warning/90 text-xs">{safeError}</p>
         )}
         {/* v1.12.0 — collapse the whole provenance block ("what was

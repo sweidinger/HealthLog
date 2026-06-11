@@ -41,8 +41,10 @@ const EXEMPT_FILES = ["src/lib/api/api-fetch.ts"];
 
 // Enforce across the client-facing source roots. `src/lib/` stays out:
 // server-side lib code never self-calls `/api/` routes, and the
-// safe-fetch rule already covers its outbound calls.
-const ENFORCED_ROOTS = ["src/components/", "src/app/"];
+// safe-fetch rule already covers its outbound calls. `src/hooks/` is
+// client-only by construction (v1.16.4) — its `/api/` reads route
+// through the wrapper like every component.
+const ENFORCED_ROOTS = ["src/components/", "src/app/", "src/hooks/"];
 
 function toPosix(filename) {
   return filename.replace(/\\/g, "/");

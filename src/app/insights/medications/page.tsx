@@ -218,7 +218,9 @@ export default function InsightsMedikamentePage() {
                   <span>{categoryLabel}</span>
                   {med.streak > 0 ? (
                     <Badge variant="outline" className="ml-auto shrink-0 text-xs">
-                      {t("insights.dayStreak", { count: med.streak })}
+                      {med.streak === 1
+                        ? t("insights.dayStreakOne", { count: med.streak })
+                        : t("insights.dayStreak", { count: med.streak })}
                     </Badge>
                   ) : null}
                 </div>

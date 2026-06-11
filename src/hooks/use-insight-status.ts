@@ -6,6 +6,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { useTranslations } from "@/lib/i18n/context";
 import type { MetricStatusMetricId } from "@/lib/insights/metric-status-registry";
 import { queryKeys } from "@/lib/query-keys";
+import { apiGet } from "@/lib/api/api-fetch";
 
 /**
  * Shape returned by every `/api/insights/<metric>-status` endpoint.
@@ -151,13 +152,10 @@ export function useInsightStatus(metric: InsightStatusMetric) {
         STATUS_TIMEOUT_MS,
       );
       try {
-        const res = await fetch(
+        return await apiGet<InsightStatusData>(
           `/api/insights/${metric}-status?locale=${locale}`,
           { signal: controller.signal },
         );
-        if (!res.ok) throw new Error("Failed");
-        const json = (await res.json()) as { data: InsightStatusData };
-        return json.data;
       } finally {
         clearTimeout(timeoutHandle);
       }
@@ -222,15 +220,12 @@ export function useInsightMetricStatus(
         STATUS_TIMEOUT_MS,
       );
       try {
-        const res = await fetch(
+        return await apiGet<InsightStatusData>(
           `/api/insights/metric-status?metric=${encodeURIComponent(
             metric,
           )}&locale=${locale}`,
           { signal: controller.signal },
         );
-        if (!res.ok) throw new Error("Failed");
-        const json = (await res.json()) as { data: InsightStatusData };
-        return json.data;
       } finally {
         clearTimeout(timeoutHandle);
       }

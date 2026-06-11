@@ -3,6 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 
 import { queryKeys } from "@/lib/query-keys";
+import { apiFetchRaw } from "@/lib/api/api-fetch";
 import { useQueryClientMounted } from "@/hooks/_internal/use-query-client-safe";
 
 /**
@@ -47,7 +48,9 @@ export const DEFAULT_ASSISTANT_FLAGS: AssistantFlagSet = Object.freeze({
 });
 
 async function fetchFeatureFlags(): Promise<FeatureFlagsPayload> {
-  const res = await fetch("/api/feature-flags");
+  // `apiFetchRaw` (no .ok throw) — this read soft-fails to the all-on
+  // default below instead of surfacing an error state.
+  const res = await apiFetchRaw("/api/feature-flags");
   if (!res.ok) {
     // Soft-fail: any HTTP error returns the all-on default so the
     // surface continues to render. The endpoint is a non-critical
