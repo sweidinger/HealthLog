@@ -42,10 +42,7 @@ export function ApiSection() {
   return (
     <section aria-labelledby="settings-section-api-title" className="space-y-6">
       <header className="space-y-1">
-        <h1
-          id="settings-section-api-title"
-          className="sr-only"
-        >
+        <h1 id="settings-section-api-title" className="sr-only">
           {t("settings.sections.api.title")}
         </h1>
         <p className="text-muted-foreground text-sm">
@@ -78,7 +75,7 @@ function ApiEndpointsCard() {
   ];
 
   return (
-    <div className="bg-card border-border rounded-xl border p-6">
+    <div className="bg-card border-border rounded-xl border p-4 sm:p-6">
       <SettingsCardHeader
         icon={Key}
         title={t("settings.apiEndpointsTitle")}
@@ -241,7 +238,7 @@ function ApiTokensCard() {
   }, null);
 
   return (
-    <div className="bg-card border-border rounded-xl border p-6">
+    <div className="bg-card border-border rounded-xl border p-4 sm:p-6">
       <SettingsCardHeader
         icon={Key}
         title={t("settings.apiTokens")}

@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Sparkles } from "lucide-react";
 import { toast } from "sonner";
 
+import { SettingsCardHeader } from "@/components/settings/_card-header";
 import { useTranslations } from "@/lib/i18n/context";
 import { queryKeys } from "@/lib/query-keys";
 import { SettingsToggle } from "./_shared";
@@ -49,7 +50,9 @@ function useAssistantFlags() {
   return useQuery({
     queryKey: queryKeys.adminAssistantFlags(),
     queryFn: async () => {
-      return apiGet<AssistantFlagsResponse>("/api/admin/settings/assistant-flags");
+      return apiGet<AssistantFlagsResponse>(
+        "/api/admin/settings/assistant-flags",
+      );
     },
   });
 }
@@ -61,13 +64,13 @@ function useUpdateAssistantFlags() {
     mutationFn: async (
       patch: Partial<AssistantFlagsResponse["raw"]>,
     ): Promise<AssistantFlagsResponse> => {
-      return apiPut<AssistantFlagsResponse>("/api/admin/settings/assistant-flags", patch);
+      return apiPut<AssistantFlagsResponse>(
+        "/api/admin/settings/assistant-flags",
+        patch,
+      );
     },
     onSuccess: (data) => {
-      client.setQueryData(
-        queryKeys.adminAssistantFlags(),
-        data,
-      );
+      client.setQueryData(queryKeys.adminAssistantFlags(), data);
       // Bust the runtime `/api/feature-flags` cache so the operator
       // sees the toggled surface react within the same session.
       client.invalidateQueries({ queryKey: queryKeys.featureFlags() });
@@ -96,73 +99,72 @@ export function AssistantSection() {
   const disabledSubs = !masterOn || mutation.isPending;
 
   return (
-    <div className="bg-card border-border space-y-6 rounded-xl border p-6">
-      <div className="flex items-center gap-2">
-        <Sparkles className="text-muted-foreground h-5 w-5" />
-        <div className="text-lg font-semibold">{t("admin.assistant.title")}</div>
-      </div>
-      <p className="text-muted-foreground pl-7 text-sm">
-        {t("admin.assistant.description")}
-      </p>
-
-      <SettingsToggle
-        label={t("admin.assistant.master.title")}
-        description={t("admin.assistant.master.description")}
-        checked={raw?.assistantEnabled ?? true}
-        onCheckedChange={(checked) =>
-          mutation.mutate({ assistantEnabled: checked })
-        }
-        disabled={mutation.isPending}
+    <div className="bg-card border-border rounded-xl border p-4 sm:p-6">
+      <SettingsCardHeader
+        icon={Sparkles}
+        title={t("admin.assistant.title")}
+        description={t("admin.assistant.description")}
       />
+      <div className="mt-4 space-y-4 pl-7">
+        <SettingsToggle
+          label={t("admin.assistant.master.title")}
+          description={t("admin.assistant.master.description")}
+          checked={raw?.assistantEnabled ?? true}
+          onCheckedChange={(checked) =>
+            mutation.mutate({ assistantEnabled: checked })
+          }
+          disabled={mutation.isPending}
+        />
 
-      <div className="border-border space-y-4 border-t pt-4">
-        <SettingsToggle
-          label={t("admin.assistant.coach.title")}
-          description={t("admin.assistant.coach.description")}
-          checked={raw?.assistantCoachEnabled ?? true}
-          onCheckedChange={(checked) =>
-            mutation.mutate({ assistantCoachEnabled: checked })
-          }
-          disabled={disabledSubs}
-        />
-        <SettingsToggle
-          label={t("admin.assistant.briefing.title")}
-          description={t("admin.assistant.briefing.description")}
-          checked={raw?.assistantBriefingEnabled ?? true}
-          onCheckedChange={(checked) =>
-            mutation.mutate({ assistantBriefingEnabled: checked })
-          }
-          disabled={disabledSubs}
-        />
-        <SettingsToggle
-          label={t("admin.assistant.insightStatus.title")}
-          description={t("admin.assistant.insightStatus.description")}
-          checked={raw?.assistantInsightStatusEnabled ?? true}
-          onCheckedChange={(checked) =>
-            mutation.mutate({ assistantInsightStatusEnabled: checked })
-          }
-          disabled={disabledSubs}
-        />
-        <SettingsToggle
-          label={t("admin.assistant.correlations.title")}
-          description={t("admin.assistant.correlations.description")}
-          checked={raw?.assistantCorrelationsEnabled ?? true}
-          onCheckedChange={(checked) =>
-            mutation.mutate({ assistantCorrelationsEnabled: checked })
-          }
-          disabled={disabledSubs}
-        />
-        <SettingsToggle
-          label={t("admin.assistant.healthScoreExplainer.title")}
-          description={t("admin.assistant.healthScoreExplainer.description")}
-          checked={raw?.assistantHealthScoreExplainerEnabled ?? true}
-          onCheckedChange={(checked) =>
-            mutation.mutate({
-              assistantHealthScoreExplainerEnabled: checked,
-            })
-          }
-          disabled={disabledSubs}
-        />
+        <div className="border-border space-y-4 border-t pt-4">
+          <SettingsToggle
+            label={t("admin.assistant.coach.title")}
+            description={t("admin.assistant.coach.description")}
+            checked={raw?.assistantCoachEnabled ?? true}
+            onCheckedChange={(checked) =>
+              mutation.mutate({ assistantCoachEnabled: checked })
+            }
+            disabled={disabledSubs}
+          />
+          <SettingsToggle
+            label={t("admin.assistant.briefing.title")}
+            description={t("admin.assistant.briefing.description")}
+            checked={raw?.assistantBriefingEnabled ?? true}
+            onCheckedChange={(checked) =>
+              mutation.mutate({ assistantBriefingEnabled: checked })
+            }
+            disabled={disabledSubs}
+          />
+          <SettingsToggle
+            label={t("admin.assistant.insightStatus.title")}
+            description={t("admin.assistant.insightStatus.description")}
+            checked={raw?.assistantInsightStatusEnabled ?? true}
+            onCheckedChange={(checked) =>
+              mutation.mutate({ assistantInsightStatusEnabled: checked })
+            }
+            disabled={disabledSubs}
+          />
+          <SettingsToggle
+            label={t("admin.assistant.correlations.title")}
+            description={t("admin.assistant.correlations.description")}
+            checked={raw?.assistantCorrelationsEnabled ?? true}
+            onCheckedChange={(checked) =>
+              mutation.mutate({ assistantCorrelationsEnabled: checked })
+            }
+            disabled={disabledSubs}
+          />
+          <SettingsToggle
+            label={t("admin.assistant.healthScoreExplainer.title")}
+            description={t("admin.assistant.healthScoreExplainer.description")}
+            checked={raw?.assistantHealthScoreExplainerEnabled ?? true}
+            onCheckedChange={(checked) =>
+              mutation.mutate({
+                assistantHealthScoreExplainerEnabled: checked,
+              })
+            }
+            disabled={disabledSubs}
+          />
+        </div>
       </div>
     </div>
   );

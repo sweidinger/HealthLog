@@ -28,12 +28,23 @@ export interface SelfContextAdoptOfferProps {
   answer: string;
   /** Remove the strip (declined, or confirmation elapsed). */
   onDismiss: () => void;
+  /**
+   * v1.16.5 — reports the offer's outcome once, so the guided
+   * clarifying-questions flow can count adoptions for its closing
+   * summary. Fired on server settle (adopted / duplicate), on a failed
+   * request, and on an explicit decline — never on the auto-fold
+   * timeout (the outcome was already reported by then).
+   */
+  onSettled?: (
+    outcome: "adopted" | "duplicate" | "declined" | "failed",
+  ) => void;
 }
 
 export function SelfContextAdoptOffer({
   question,
   answer,
   onDismiss,
+  onSettled,
 }: SelfContextAdoptOfferProps) {
   const { t } = useTranslations();
   const [settled, setSettled] = useState<"adopted" | "duplicate" | null>(null);
@@ -44,6 +55,10 @@ export function SelfContextAdoptOffer({
     },
     onSuccess: (data) => {
       setSettled(data.adopted ? "adopted" : "duplicate");
+      onSettled?.(data.adopted ? "adopted" : "duplicate");
+    },
+    onError: () => {
+      onSettled?.("failed");
     },
   });
 
@@ -108,7 +123,10 @@ export function SelfContextAdoptOffer({
             type="button"
             aria-label={t("insights.coach.selfContextAdopt.dismiss")}
             data-slot="coach-self-context-adopt-dismiss"
-            onClick={onDismiss}
+            onClick={() => {
+              onSettled?.("declined");
+              onDismiss();
+            }}
             className={cn(
               "text-muted-foreground hover:text-foreground flex min-h-8 items-center rounded-full px-1.5",
               "hover:bg-dracula-purple/15 focus-visible:ring-dracula-purple/40 focus-visible:ring-2 focus-visible:outline-none",

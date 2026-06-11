@@ -121,7 +121,9 @@ describe("<UpdateBadge> — a11y contract", () => {
         ariaLabel="A newer version is available: v1.4.99"
       />,
     );
-    expect(html).toContain('aria-label="A newer version is available: v1.4.99"');
+    expect(html).toContain(
+      'aria-label="A newer version is available: v1.4.99"',
+    );
     expect(html).toContain("min-h-11");
     expect(html).toContain("min-w-11");
     expect(html).toContain("focus-visible:ring-ring");
@@ -140,7 +142,9 @@ describe("<UpdateBadge> — a11y contract", () => {
       />,
     );
     expect(html).toContain('role="img"');
-    expect(html).toContain('aria-label="A newer version is available: v1.4.99"');
+    expect(html).toContain(
+      'aria-label="A newer version is available: v1.4.99"',
+    );
     expect(html).toContain("min-h-11");
     expect(html).toContain("min-w-11");
   });

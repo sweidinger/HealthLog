@@ -192,11 +192,13 @@ describe("verb helpers", () => {
 
     await helper("/api/foo", { a: 1 });
 
-    expect(fetchMock).toHaveBeenCalledWith("/api/foo", {
-      method,
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ a: 1 }),
-    });
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe("/api/foo");
+    expect(init.method).toBe(method);
+    expect(init.body).toBe(JSON.stringify({ a: 1 }));
+    expect(new Headers(init.headers).get("Content-Type")).toBe(
+      "application/json",
+    );
   });
 
   it("omits body and Content-Type when no body is given", async () => {
@@ -212,10 +214,44 @@ describe("verb helpers", () => {
 
     await apiPost("/api/foo", { a: 1 }, { headers: { "X-Req": "1" } });
 
-    expect(fetchMock).toHaveBeenCalledWith("/api/foo", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "X-Req": "1" },
-      body: JSON.stringify({ a: 1 }),
-    });
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    const headers = new Headers(init.headers);
+    expect(headers.get("Content-Type")).toBe("application/json");
+    expect(headers.get("X-Req")).toBe("1");
+    expect(init.body).toBe(JSON.stringify({ a: 1 }));
+  });
+
+  it("keeps caller headers passed as a Headers instance (no spread loss)", async () => {
+    // A `Headers` instance has no enumerable own properties, so the
+    // previous `{ ...init.headers }` merge silently dropped every
+    // caller header for this `HeadersInit` shape.
+    fetchMock.mockResolvedValueOnce(jsonResponse({ data: null, error: null }));
+
+    await apiPost(
+      "/api/foo",
+      { a: 1 },
+      { headers: new Headers({ "X-Req": "1", "Idempotency-Key": "k1" }) },
+    );
+
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    const headers = new Headers(init.headers);
+    expect(headers.get("X-Req")).toBe("1");
+    expect(headers.get("Idempotency-Key")).toBe("k1");
+    expect(headers.get("Content-Type")).toBe("application/json");
+  });
+
+  it("respects a caller-supplied Content-Type override", async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse({ data: null, error: null }));
+
+    await apiPost(
+      "/api/foo",
+      { a: 1 },
+      { headers: new Headers({ "Content-Type": "application/json-patch+json" }) },
+    );
+
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(new Headers(init.headers).get("Content-Type")).toBe(
+      "application/json-patch+json",
+    );
   });
 });

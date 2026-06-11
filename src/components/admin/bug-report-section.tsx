@@ -2,13 +2,18 @@
 
 import { useState } from "react";
 import { Bug, Loader2 } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
+import { SettingsCardHeader } from "@/components/settings/_card-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { useTranslations } from "@/lib/i18n/context";
-import { PasswordInput, useAdminSettings, useUpdateSettings } from "./_shared";
+import {
+  ConfiguredBadge,
+  PasswordInput,
+  useAdminSettings,
+  useUpdateSettings,
+} from "./_shared";
 
 export function BugReportSection() {
   const { t } = useTranslations();
@@ -45,27 +50,15 @@ export function BugReportSection() {
   }
 
   return (
-    <div className="bg-card border-border rounded-xl border p-6">
-      <div className="flex flex-wrap items-start justify-between gap-2">
-        <div className="flex items-center gap-2">
-          <Bug className="text-muted-foreground h-5 w-5" />
-          <h2 className="text-lg font-semibold">
-            {t("admin.bugReportGithub")}
-          </h2>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          {configured && (
-            <Badge className="border-dracula-green/30 bg-dracula-green/15 text-dracula-green">
-              {t("admin.configured")}
-            </Badge>
-          )}
-        </div>
-      </div>
-      <p className="text-muted-foreground mt-1 text-xs">
-        {t("admin.bugReportGithubDescription")}
-      </p>
+    <div className="bg-card border-border rounded-xl border p-4 sm:p-6">
+      <SettingsCardHeader
+        icon={Bug}
+        title={t("admin.bugReportGithub")}
+        description={t("admin.bugReportGithubDescription")}
+        status={configured ? <ConfiguredBadge /> : null}
+      />
 
-      <div className="bg-muted/40 mt-4 flex items-center justify-between gap-3 rounded-lg p-3">
+      <div className="bg-muted/40 mt-4 ml-7 flex items-center justify-between gap-3 rounded-lg p-3">
         <div>
           <p className="text-sm font-medium">
             {t("admin.bugReportEnabledLabel")}

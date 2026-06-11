@@ -81,6 +81,18 @@ const cyclePrefsSchema = z
 const coachPrefsSchema = z
   .object({
     nudgesEnabled: z.boolean(),
+    /**
+     * v1.16.5 — per-trigger-group opt-outs underneath the master
+     * switch. Groups, not individual triggers, so the UI stays three
+     * comprehensible toggles as the trigger list grows:
+     *   medication → compliance; vitals → bp / score / weight / sleep;
+     *   routine → measurement-gap / self-context check-up.
+     */
+    nudgeMedication: z.boolean(),
+    nudgeVitals: z.boolean(),
+    nudgeRoutine: z.boolean(),
+    /** v1.16.5 — frequency cap: one nudge per 7 or per 14 days. */
+    nudgeFrequency: z.enum(["weekly", "biweekly"]),
   })
   .partial();
 
@@ -137,6 +149,14 @@ export interface NotificationPrefs {
      * 05:15 nudge cron skips the user when `false`.
      */
     nudgesEnabled: boolean;
+    /** v1.16.5 — medication-group triggers (compliance). Default on. */
+    nudgeMedication: boolean;
+    /** v1.16.5 — vitals-group triggers (bp / score / weight / sleep). */
+    nudgeVitals: boolean;
+    /** v1.16.5 — routine-group triggers (measurement gap / self-context). */
+    nudgeRoutine: boolean;
+    /** v1.16.5 — cap interval: "weekly" (7 d) or "biweekly" (14 d). */
+    nudgeFrequency: "weekly" | "biweekly";
   };
 }
 
@@ -165,6 +185,10 @@ export const DEFAULT_NOTIFICATION_PREFS: NotificationPrefs = {
   },
   coach: {
     nudgesEnabled: true,
+    nudgeMedication: true,
+    nudgeVitals: true,
+    nudgeRoutine: true,
+    nudgeFrequency: "weekly",
   },
 };
 
@@ -293,13 +317,33 @@ export function resolveMoodReminderHour(raw: unknown): number {
 }
 
 /**
- * v1.15.20 — cron-side helper. Returns `true` when the proactive Coach
- * nudge may fire for this user (the default). Tolerates a null /
- * drifted prefs row. The nudge cron layers this on top of the
- * disableCoach / kill-switch / provider gates.
+ * v1.16.5 — fully-resolved Coach-nudge view for the cron: the master
+ * switch, the three per-group toggles, and the frequency cap mapped to
+ * days. One call so the nudge tick reads a single shape instead of
+ * threading the whole prefs object.
  */
-export function resolveCoachNudgesEnabled(raw: unknown): boolean {
-  return parseNotificationPrefs(raw).coach.nudgesEnabled;
+export interface CoachNudgePrefs {
+  enabled: boolean;
+  groups: {
+    medication: boolean;
+    vitals: boolean;
+    routine: boolean;
+  };
+  /** 7 for "weekly", 14 for "biweekly". */
+  minIntervalDays: number;
+}
+
+export function resolveCoachNudgePrefs(raw: unknown): CoachNudgePrefs {
+  const coach = parseNotificationPrefs(raw).coach;
+  return {
+    enabled: coach.nudgesEnabled,
+    groups: {
+      medication: coach.nudgeMedication,
+      vitals: coach.nudgeVitals,
+      routine: coach.nudgeRoutine,
+    },
+    minIntervalDays: coach.nudgeFrequency === "biweekly" ? 14 : 7,
+  };
 }
 
 function cloneDefaults(): NotificationPrefs {

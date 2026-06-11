@@ -27,13 +27,19 @@ vi.mock("@tanstack/react-query", () => ({
   }),
 }));
 
-import { useDashboardSnapshot } from "../use-dashboard-snapshot";
+import {
+  useDashboardSnapshot,
+  prefetchDashboardSnapshot,
+  _resetDashboardSnapshotPreloadForTests,
+} from "../use-dashboard-snapshot";
 import { queryKeys } from "@/lib/query-keys";
+import type { QueryClient } from "@tanstack/react-query";
 
 afterEach(() => {
   useQueryMock.mockClear();
   getQueryDataMock.mockReset();
   setQueryDataMock.mockClear();
+  _resetDashboardSnapshotPreloadForTests();
   vi.unstubAllGlobals();
 });
 
@@ -98,3 +104,83 @@ describe("useDashboardSnapshot — auto-refresh on an open page", () => {
     expect(setQueryDataMock).not.toHaveBeenCalled();
   });
 });
+
+describe("prefetchDashboardSnapshot — hydration-safe promise handoff", () => {
+  function fakeQueryClient(
+    state?: { data: unknown; dataUpdatedAt: number } | undefined,
+  ): QueryClient {
+    return {
+      getQueryState: vi.fn().mockReturnValue(state),
+      getQueryData: getQueryDataMock,
+      setQueryData: setQueryDataMock,
+    } as unknown as QueryClient;
+  }
+
+  function stubFetch(payload: unknown = { layout: { widgets: [] }, tiles: {} }) {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ data: payload }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    return fetchMock;
+  }
+
+  it("never writes the query cache itself — the response parks until the mounted queryFn consumes it", async () => {
+    const fetchMock = stubFetch();
+    getQueryDataMock.mockReturnValue({ widgets: [{ id: "existing" }] });
+    prefetchDashboardSnapshot(fakeQueryClient());
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    // The prefetch must not commit data: committing pre-hydration is the
+    // React #418 mismatch the handoff exists to prevent.
+    expect(setQueryDataMock).not.toHaveBeenCalled();
+
+    useDashboardSnapshot();
+    const opts = lastOptsOf(useQueryMock);
+    await (opts.queryFn as () => Promise<unknown>)();
+    // The mounted cell consumed the in-flight request — no second fetch.
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("is a no-op while a handoff is already parked", () => {
+    const fetchMock = stubFetch();
+    prefetchDashboardSnapshot(fakeQueryClient());
+    prefetchDashboardSnapshot(fakeQueryClient());
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("skips the fetch when the snapshot cache is still fresh", () => {
+    const fetchMock = stubFetch();
+    prefetchDashboardSnapshot(
+      fakeQueryClient({ data: { tiles: {} }, dataUpdatedAt: Date.now() }),
+    );
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("falls back to a fresh fetch when the preload failed — the mounted cell owns error surfacing", async () => {
+    const layout = { widgets: [] };
+    const fetchMock = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("HTTP 401"))
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ data: { layout, tiles: {} } }),
+      });
+    vi.stubGlobal("fetch", fetchMock);
+    getQueryDataMock.mockReturnValue({ widgets: [{ id: "existing" }] });
+
+    prefetchDashboardSnapshot(fakeQueryClient());
+    useDashboardSnapshot();
+    const opts = lastOptsOf(useQueryMock);
+    const snap = await (opts.queryFn as () => Promise<{ layout: unknown }>)();
+    expect(snap.layout).toEqual(layout);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+});
+
+function lastOptsOf(
+  mock: typeof useQueryMock,
+): Record<string, unknown> {
+  const call = mock.mock.calls.at(-1);
+  expect(call).toBeDefined();
+  return call![0];
+}

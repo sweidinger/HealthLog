@@ -87,7 +87,7 @@ export function TelegramCard({
   }
 
   return (
-    <div className="bg-card border-border rounded-xl border p-6">
+    <div className="bg-card border-border rounded-xl border p-4 sm:p-6">
       <SettingsCardHeader
         icon={MessageCircle}
         title={t("settings.telegram")}

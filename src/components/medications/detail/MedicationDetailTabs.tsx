@@ -50,6 +50,7 @@ import { MedicationDetailSection } from "@/components/medications/medication-det
 import { MedicationComplianceBars } from "@/components/medications/card-parts/medication-compliance-bars";
 import { DoseHistoryLedger } from "@/components/medications/dose-history-ledger";
 import { ScheduleTimesEditor } from "@/components/medications/scheduling/ScheduleTimesEditor";
+import { ScheduleHistoryTimeline } from "@/components/medications/scheduling/schedule-history-timeline";
 import type { DoseWindowEntry } from "@/components/medications/scheduling/dose-window";
 import { IntakeImportDialog } from "@/components/medications/intake-import-dialog";
 import { InventorySection } from "@/components/medications/sections/inventory-section";
@@ -535,6 +536,24 @@ export function MedicationDetailTabs({
                 </Link>
               </p>
             </div>
+          </MedicationDetailSection>
+
+          {/* PLANHISTORIE — archived schedule eras (v1.16.3 effective
+              dating) as a quiet collapsible timeline, plus the manual
+              pre-tracking-era flow. Read-only for write-path archives. */}
+          <MedicationDetailSection
+            titleId="medication-zeitplan-history-heading"
+            title={t("medications.detail.zeitplan.history.title")}
+            dataSlot="medication-zeitplan-history"
+          >
+            <ScheduleHistoryTimeline
+              medicationId={id}
+              currentTimes={medication.schedules.flatMap((s) =>
+                s.timesOfDay && s.timesOfDay.length > 0
+                  ? s.timesOfDay
+                  : [s.windowStart],
+              )}
+            />
           </MedicationDetailSection>
         </TabsContent>
 

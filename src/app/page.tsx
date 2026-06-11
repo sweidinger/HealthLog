@@ -591,7 +591,11 @@ export default function DashboardPage() {
   // changes when the user's timezone changes; recomputing it every
   // render churned the parts-array and walked the format ICU twice per
   // render across a 1 400-line component body.
-  const userTimezone = user?.timezone;
+  // Gated on `mounted`: `user` comes from the auth query, which can
+  // resolve before this boundary hydrates — the greeting text must
+  // match the name-less SSR output during hydration (React #418) and
+  // may only personalise from the first client re-render.
+  const userTimezone = mounted ? user?.timezone : undefined;
   const hour = useMemo(
     () => (userTimezone ? getHourForTimeZone(userTimezone) : null),
     [userTimezone],
@@ -605,7 +609,7 @@ export default function DashboardPage() {
           ? t("dashboard.greeting.day")
           : t("dashboard.greeting.evening");
   const welcomeText =
-    user?.username && user.username.trim().length > 0
+    mounted && user?.username && user.username.trim().length > 0
       ? t("dashboard.welcomeBackWithName", {
           greeting: timeGreeting,
           name: user.username,

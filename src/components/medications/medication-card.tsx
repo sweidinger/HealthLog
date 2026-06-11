@@ -251,6 +251,15 @@ export function MedicationCard({
     active: medication.active,
     lastTakenAt: medication.lastTakenAt,
     todayEventCount: medication.todayEventCount ?? 0,
+    // v1.16.6 — gate the pill on the server display-due so a rolling
+    // cadence whose next dose is tomorrow can never paint an overdue pill
+    // today. `undefined` (older payloads / fixtures) keeps legacy behaviour.
+    nextDue:
+      medication.nextDueAt === undefined
+        ? undefined
+        : nextAt !== undefined
+          ? { at: new Date(nextAt), overdue: medication.nextDueOverdue === true }
+          : null,
   });
 
   // v1.12.3 — the slot instant of the dose this card is currently showing

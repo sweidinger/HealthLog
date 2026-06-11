@@ -47,7 +47,9 @@ export function InjectionSitesCard({
 
   const mutation = useMutation({
     mutationFn: async (next: InjectionSiteKey[]) => {
-      await apiPatch("/api/auth/me/injection-site-prefs", { globalExcludedInjectionSites: next });
+      await apiPatch("/api/auth/me/injection-site-prefs", {
+        globalExcludedInjectionSites: next,
+      });
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({

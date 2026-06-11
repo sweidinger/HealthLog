@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { Fragment, useEffect, useId, useMemo, useRef, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
@@ -59,6 +59,74 @@ export interface MessageThreadProps {
   optimisticUser?: CoachOptimisticUserMessage | null;
   /** Empty-state copy when no conversation is loaded yet. */
   emptyHint?: string;
+  /**
+   * v1.16.5 — locally-rendered bubbles the guided clarifying-questions
+   * flow interleaves with the persisted history (deterministic Coach
+   * questions + the closing summary). Items anchored on an answer
+   * render immediately before the user message that answered them;
+   * unanchored items render at the thread tail. See `placeInterleaved`.
+   */
+  interleaved?: InterleavedThreadItem[];
+}
+
+/**
+ * v1.16.5 — one locally-rendered thread bubble contributed by the
+ * guided clarifying-questions flow. The thread owns only the placement;
+ * the node's behaviour lives with the flow in `coach-conversation`.
+ */
+export interface InterleavedThreadItem {
+  key: string;
+  /**
+   * Content of the user message this item precedes (a guided question
+   * renders above its answer). `null` → render at the thread tail
+   * (the current question / the summary).
+   */
+  anchorAnswer: string | null;
+  node: React.ReactNode;
+}
+
+/**
+ * Pure placement for interleaved items, exported for unit tests.
+ * Items are chronological by construction (the guided flow emits them
+ * in question order), so a single forward pointer suffices: each
+ * anchored item consumes the first remaining user message whose
+ * content equals its anchor. Anchors that never match (e.g. an errored
+ * turn whose message was never persisted) fall through to the tail so
+ * no bubble is ever silently dropped.
+ */
+export function placeInterleaved(
+  items: InterleavedThreadItem[],
+  messages: { id: string; role: string; content: string }[],
+  optimisticContent: string | null,
+): {
+  before: Map<string, InterleavedThreadItem>;
+  beforeOptimistic: InterleavedThreadItem[];
+  tail: InterleavedThreadItem[];
+} {
+  const anchored = items.filter((i) => i.anchorAnswer !== null);
+  const before = new Map<string, InterleavedThreadItem>();
+  let p = 0;
+  for (const m of messages) {
+    if (p >= anchored.length) break;
+    if (m.role === "user" && m.content === anchored[p].anchorAnswer) {
+      before.set(m.id, anchored[p]);
+      p += 1;
+    }
+  }
+  const beforeOptimistic: InterleavedThreadItem[] = [];
+  if (
+    p < anchored.length &&
+    optimisticContent !== null &&
+    optimisticContent === anchored[p].anchorAnswer
+  ) {
+    beforeOptimistic.push(anchored[p]);
+    p += 1;
+  }
+  const tail = [
+    ...anchored.slice(p),
+    ...items.filter((i) => i.anchorAnswer === null),
+  ];
+  return { before, beforeOptimistic, tail };
 }
 
 function isPinnedToBottom(el: HTMLElement, slack = 64): boolean {
@@ -112,6 +180,7 @@ export function MessageThread({
   streaming,
   optimisticUser,
   emptyHint,
+  interleaved,
 }: MessageThreadProps) {
   const { t } = useTranslations();
   const scrollerRef = useRef<HTMLDivElement | null>(null);
@@ -129,6 +198,8 @@ export function MessageThread({
     () => conversation?.messages ?? [],
     [conversation?.messages],
   );
+  // v1.16.5 — locally-rendered guided bubbles (see `placeInterleaved`).
+  const interleavedItems = interleaved ?? [];
   // v1.4.20.1 — once the SSE stream emits `done`, the route's
   // invalidate-then-refetch pulls the persisted assistant message into
   // `conversation.messages`. The streaming bubble was still rendering
@@ -187,6 +258,15 @@ export function MessageThread({
     return true;
   })();
 
+  // v1.16.5 — slot the guided bubbles around the persisted history,
+  // the optimistic user bubble, and the streaming tail. Cheap on every
+  // render: at most a handful of items over a single message walk.
+  const placement = placeInterleaved(
+    interleavedItems,
+    messages,
+    optimisticActive && optimisticUser ? optimisticUser.content : null,
+  );
+
   // Track scroll position so we don't yank the viewport when the user
   // is browsing earlier turns.
   useEffect(() => {
@@ -203,6 +283,7 @@ export function MessageThread({
   // when the user was already at the bottom. v1.4.25 W5 — the
   // optimistic user bubble counts as a new message; scroll on its
   // localId so the user sees their own bubble land at the bottom.
+  // v1.16.5 — guided bubbles count as new messages for the auto-scroll.
   useEffect(() => {
     const el = scrollerRef.current;
     if (!el) return;
@@ -210,7 +291,12 @@ export function MessageThread({
       // v1.4.43 W5-H5 — respect `prefers-reduced-motion`.
       el.scrollTo({ top: el.scrollHeight, behavior: scrollBehaviorForUser() });
     }
-  }, [messages.length, streaming?.content, optimisticUser?.localId]);
+  }, [
+    messages.length,
+    streaming?.content,
+    optimisticUser?.localId,
+    interleavedItems.length,
+  ]);
 
   // v1.4.27 R3d MB4 / CF-74 — re-pin to the bottom when the
   // visual viewport shrinks (typically the soft keyboard opening on
@@ -234,7 +320,12 @@ export function MessageThread({
     return () => vv.removeEventListener("resize", handleResize);
   }, []);
 
-  if (messages.length === 0 && !streamingActive && !optimisticActive) {
+  if (
+    messages.length === 0 &&
+    !streamingActive &&
+    !optimisticActive &&
+    interleavedItems.length === 0
+  ) {
     return (
       <div
         data-slot="coach-message-thread"
@@ -269,15 +360,20 @@ export function MessageThread({
         // twin during the 150ms grace window so the streaming bubble
         // stays alone on slow connections.
         if (m.id === suppressedTwinId) return null;
+        // v1.16.5 — a guided question renders directly above the user
+        // message that answered it.
+        const guidedBefore = placement.before.get(m.id);
         return (
-          <ChatBubble
-            key={m.id}
-            role={m.role}
-            content={m.content}
-            metricSource={m.metricSource}
-            providerType={m.providerType}
-            messageId={m.id}
-          />
+          <Fragment key={m.id}>
+            {guidedBefore?.node}
+            <ChatBubble
+              role={m.role}
+              content={m.content}
+              metricSource={m.metricSource}
+              providerType={m.providerType}
+              messageId={m.id}
+            />
+          </Fragment>
         );
       })}
       {/* v1.4.25 W5 — optimistic user bubble surfaces between the
@@ -285,6 +381,10 @@ export function MessageThread({
           the visible order matches the user's mental model. The
           send-hook drops it as soon as the SSE `done` frame fires +
           the invalidate-refetch lands the persisted twin. */}
+      {/* v1.16.5 — guided question whose answer is still optimistic-only. */}
+      {placement.beforeOptimistic.map((i) => (
+        <Fragment key={i.key}>{i.node}</Fragment>
+      ))}
       {optimisticActive && optimisticUser && (
         <ChatBubble
           key={optimisticUser.localId}
@@ -308,6 +408,11 @@ export function MessageThread({
           />
         </div>
       )}
+      {/* v1.16.5 — thread tail: the current guided question and/or the
+          closing summary follow the last completed turn. */}
+      {placement.tail.map((i) => (
+        <Fragment key={i.key}>{i.node}</Fragment>
+      ))}
     </div>
   );
 }
@@ -593,8 +698,12 @@ function ChatBubble({
  * with staggered delays so no custom keyframe is introduced;
  * `motion-reduce` freezes the dots and the `label` stays as the
  * screen-reader text either way.
+ *
+ * Exported since v1.16.5: the guided clarifying-question bubble replays
+ * the same indicator before a deterministic question reveals, so the
+ * scripted turns share one rhythm with the streamed ones.
  */
-function TypingDots({ label }: { label: string }) {
+export function TypingDots({ label }: { label: string }) {
   return (
     <span
       data-slot="coach-typing-indicator"

@@ -54,7 +54,9 @@ export function FeedbackInboxSection() {
   const { data, isLoading } = useQuery({
     queryKey: queryKeys.adminFeedback(activeStatus),
     queryFn: async () => {
-      return apiGet<FeedbackListResponse>(`/api/admin/feedback?status=${activeStatus}&limit=100`);
+      return apiGet<FeedbackListResponse>(
+        `/api/admin/feedback?status=${activeStatus}&limit=100`,
+      );
     },
   });
 
@@ -65,7 +67,7 @@ export function FeedbackInboxSection() {
   }
 
   return (
-    <div className="bg-card border-border rounded-xl border p-6">
+    <div className="bg-card border-border rounded-xl border p-4 sm:p-6">
       {/* v1.4.19 A8 / F-08 + F-20: this is the only card on
           `/admin/feedback`, so the page header already provides the
           title + description — the card-level repetition was just
@@ -287,7 +289,9 @@ function FeedbackDetailDialog({
 
   const publish = useMutation({
     mutationFn: async () => {
-      return apiPost<{ issueUrl: string }>(`/api/admin/feedback/${item.id}/github`);
+      return apiPost<{ issueUrl: string }>(
+        `/api/admin/feedback/${item.id}/github`,
+      );
     },
     onSuccess: (data) => {
       setIssueUrl(data.issueUrl);

@@ -40,6 +40,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { formatDateTime } from "@/lib/format";
+import { SettingsCardHeader } from "@/components/settings/_card-header";
 import { useFormatters, useTranslations } from "@/lib/i18n/context";
 import { queryKeys } from "@/lib/query-keys";
 import type { BackupRow, BackupsList } from "@/types/backups";
@@ -331,34 +332,34 @@ export function BackupsSection() {
   }
 
   return (
-    <div className="bg-card border-border rounded-xl border p-6">
-      <div className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
-          <Database className="text-muted-foreground h-5 w-5" />
-          <div className="text-lg font-semibold">
-            {t("admin.section.backups.title")}
-          </div>
-          {data && (
+    <div className="bg-card border-border rounded-xl border p-4 sm:p-6">
+      <SettingsCardHeader
+        icon={Database}
+        title={t("admin.section.backups.title")}
+        titleAccessory={
+          data ? (
             <Badge variant="secondary" className="text-xs">
               {rows.length}
             </Badge>
-          )}
-        </div>
-        <Button
-          size="sm"
-          disabled={runBackup.isPending}
-          onClick={() => runBackup.mutate()}
-          className="min-h-11"
-        >
-          {runBackup.isPending ? (
-            <Loader2 className="h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
-          ) : (
-            <PlayCircle className="h-3.5 w-3.5" />
-          )}
-          {t("admin.section.backups.runNow")}
-        </Button>
-      </div>
-      <p className="text-muted-foreground mt-1 text-xs">
+          ) : null
+        }
+        status={
+          <Button
+            size="sm"
+            disabled={runBackup.isPending}
+            onClick={() => runBackup.mutate()}
+            className="min-h-11"
+          >
+            {runBackup.isPending ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
+            ) : (
+              <PlayCircle className="h-3.5 w-3.5" />
+            )}
+            {t("admin.section.backups.runNow")}
+          </Button>
+        }
+      />
+      <p className="text-muted-foreground mt-1 pl-7 text-xs">
         {t("admin.section.backups.description")}{" "}
         {/* External docs link — Phase E will publish the matching page on
             the docs site. `noopener noreferrer` because this leaves the

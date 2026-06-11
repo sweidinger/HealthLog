@@ -119,7 +119,7 @@ export function AiInsightsCard({
   }
 
   return (
-    <div className="bg-card border-border space-y-4 rounded-xl border p-6">
+    <div className="bg-card border-border space-y-4 rounded-xl border p-4 sm:p-6">
       {/* The card used to render an icon-only header row (Sparkles +
           status badges, no title), which left the tile unanchored next
           to its titled siblings. It now follows the shared

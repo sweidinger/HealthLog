@@ -1,20 +1,33 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useReducer, useState } from "react";
 import Link from "next/link";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus, Settings, Sparkles } from "lucide-react";
+import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useTranslations } from "@/lib/i18n/context";
+import { queryKeys } from "@/lib/query-keys";
+import { apiDelete, apiGet } from "@/lib/api/api-fetch";
 
 import { CoachDrawerBody } from "./coach-drawer-body";
 import { CoachInput } from "./coach-input";
+import {
+  GuidedQuestionBubble,
+  GuidedSummaryBubble,
+} from "./guided-dialog-bubbles";
+import { GuidedQuestionsCard } from "./guided-questions-card";
+import {
+  deriveThreadItems,
+  GUIDED_IDLE,
+  guidedReducer,
+} from "./guided-questions-machine";
 import { HistoryRail } from "./history-rail";
-import { MessageThread } from "./message-thread";
+import { MessageThread, type InterleavedThreadItem } from "./message-thread";
 import { MobileRailTray } from "./mobile-rail-tray";
 import { SelfContextAdoptOffer } from "./self-context-adopt-offer";
-import { SelfContextChips } from "./self-context-chips";
 import { SourcesRail } from "./sources-rail";
 import { useResettableValue } from "./use-resettable-value";
 import { useCoachConversation, useSendCoachMessage } from "./use-coach";
@@ -114,17 +127,45 @@ export function CoachConversation({
   const [historyTrayOpen, setHistoryTrayOpen] = useState(false);
   const [sourcesTrayOpen, setSourcesTrayOpen] = useState(false);
   const [inputValue, setInputValue] = useResettableValue(prefill ?? "");
-  // v1.16.4 — self-context backflow. `activeChipQuestion` remembers the
-  // clarifying-question chip the user tapped (the chip pre-fills the
-  // composer); when the next message answers it, `pendingAdopt` raises a
-  // quiet offer to fold the answer back into the Selbstauskunft.
-  const [activeChipQuestion, setActiveChipQuestion] = useState<string | null>(
-    null,
-  );
+  // v1.16.4 — self-context backflow: `pendingAdopt` raises a quiet
+  // offer to fold a clarifying-question answer back into the
+  // Selbstauskunft. v1.16.5 — the answers now come from the guided
+  // flow; `guidedIndex` routes the offer's outcome back into the
+  // machine so the closing summary can say what was adopted.
   const [pendingAdopt, setPendingAdopt] = useState<{
     question: string;
     answer: string;
+    guidedIndex: number;
   } | null>(null);
+
+  // v1.16.5 — guided clarifying-questions flow (V2 of the v1.16.0
+  // chips). The machine is pure (`guided-questions-machine.ts`); this
+  // component owns the server round-trips: the pending-questions query
+  // feeding the entry card, the per-question dismiss on answer, and
+  // the dismiss-all behind "don't ask again".
+  const [guided, dispatchGuided] = useReducer(guidedReducer, GUIDED_IDLE);
+  const queryClient = useQueryClient();
+  const { data: questionsData } = useQuery({
+    queryKey: queryKeys.coachAboutMeQuestions(),
+    queryFn: async () =>
+      apiGet<{ questions: string[] }>("/api/coach/about-me/questions"),
+    staleTime: 60_000,
+  });
+  const pendingQuestions = questionsData?.questions ?? [];
+  const dismissQuestions = useMutation({
+    mutationKey: queryKeys.coachAboutMeQuestions(),
+    mutationFn: async (question?: string) =>
+      apiDelete<{ questions: string[] }>(
+        "/api/coach/about-me/questions",
+        question === undefined ? {} : { question },
+      ),
+    onSuccess: (next) => {
+      queryClient.setQueryData(queryKeys.coachAboutMeQuestions(), next);
+    },
+    onError: () => {
+      toast.error(t("insights.coach.guided.dismissError"));
+    },
+  });
 
   const { data: conversation } = useCoachConversation(currentConversationId);
   const send = useSendCoachMessage({
@@ -143,43 +184,104 @@ export function CoachConversation({
       send.cancel();
       setCurrentConversationId(null);
       setInputValue("");
+      setPendingAdopt(null);
+      dispatchGuided({ type: "RESET" });
     });
   }, [registerReset, send, setInputValue]);
 
   async function handleSubmit(value: string) {
     const trimmed = value.trim();
     if (!trimmed || send.isStreaming) return;
-    // v1.16.4 — when this message answers a tapped clarifying-question
-    // chip, peel the inserted question off the front so only the user's
-    // own words form the adoptable answer. An empty remainder (the user
-    // deleted their answer or sent the bare question) raises no offer.
-    const chipQuestion = activeChipQuestion;
-    setActiveChipQuestion(null);
-    const answer = chipQuestion
-      ? trimmed.startsWith(chipQuestion)
-        ? trimmed.slice(chipQuestion.length).trim()
-        : trimmed
-      : null;
+    // v1.16.5 — in the guided flow the composer message IS the answer
+    // to the current question. Mark it answered before the send so the
+    // question bubble anchors above the user's message, and dismiss the
+    // question server-side — answered questions never return.
+    const guidedQuestion =
+      guided.phase === "asking" ? guided.questions[guided.index] : null;
+    const guidedIndex = guided.phase === "asking" ? guided.index : null;
+    if (guidedQuestion !== null) {
+      dispatchGuided({ type: "ANSWER_SUBMITTED", answer: trimmed });
+      dismissQuestions.mutate(guidedQuestion);
+    }
     setInputValue("");
-    await send.send({
+    // v1.16.6 — hand the question to the turn so the Coach reaction is
+    // contextual (the question bubble itself is never persisted).
+    const resolvedId = await send.send({
       conversationId: currentConversationId ?? undefined,
       message: trimmed,
+      guidedQuestion: guidedQuestion ?? undefined,
     });
-    if (chipQuestion && answer) {
-      setPendingAdopt({ question: chipQuestion, answer });
+    if (guidedQuestion !== null && guidedIndex !== null) {
+      setPendingAdopt({
+        question: guidedQuestion,
+        answer: trimmed,
+        guidedIndex,
+      });
+      // v1.16.6 — sequence per answer: answer → Coach reaction
+      // (streamed above) → adopt offer → next question. A resolved id
+      // means the reaction landed; the machine then advances when the
+      // adopt offer settles (ADOPTION_SETTLED). A null id is the
+      // provider-less / errored turn — no reaction is coming, so keep
+      // the original silent flow and advance immediately.
+      if (resolvedId === null) {
+        dispatchGuided({ type: "TURN_COMPLETE" });
+      }
     }
   }
 
   function handleNewChat() {
     setCurrentConversationId(null);
     setInputValue("");
-    setActiveChipQuestion(null);
     setPendingAdopt(null);
+    dispatchGuided({ type: "RESET" });
     send.reset();
   }
 
   const title = conversation?.title ?? t("insights.coach.newChat");
   const tagline = t("insights.coach.tagline");
+
+  // v1.16.5 — materialise the machine's thread items into bubbles. The
+  // thread only places them (`placeInterleaved`); every behaviour stays
+  // here with the flow.
+  const interleaved: InterleavedThreadItem[] = deriveThreadItems(guided).map(
+    (item) => ({
+      key: item.key,
+      anchorAnswer: item.anchorAnswer,
+      node:
+        item.kind === "summary" ? (
+          <GuidedSummaryBubble
+            answered={item.summary?.answered ?? 0}
+            adopted={item.summary?.adopted ?? 0}
+            total={item.summary?.total ?? 0}
+          />
+        ) : (
+          <GuidedQuestionBubble
+            question={item.question ?? ""}
+            progress={item.progress ?? { current: 1, total: 1 }}
+            current={item.current}
+            actionsDisabled={send.isStreaming || dismissQuestions.isPending}
+            onSkip={
+              item.current
+                ? () => dispatchGuided({ type: "SKIP" })
+                : undefined
+            }
+            onLater={
+              item.current
+                ? () => dispatchGuided({ type: "EXIT" })
+                : undefined
+            }
+            onDismissRemaining={
+              item.current
+                ? () =>
+                    dismissQuestions.mutate(undefined, {
+                      onSuccess: () => dispatchGuided({ type: "EXIT" }),
+                    })
+                : undefined
+            }
+          />
+        ),
+    }),
+  );
 
   return (
     <div
@@ -250,7 +352,13 @@ export function CoachConversation({
           surface === "page" ? (
             <HistoryRail
               activeId={currentConversationId}
-              onSelect={(id) => setCurrentConversationId(id)}
+              onSelect={(id) => {
+                // v1.16.5 — switching conversations drops the guided
+                // session; unanswered questions stay pending.
+                setCurrentConversationId(id);
+                setPendingAdopt(null);
+                dispatchGuided({ type: "RESET" });
+              }}
             />
           ) : undefined
         }
@@ -259,30 +367,47 @@ export function CoachConversation({
             conversation={conversation ?? null}
             streaming={send.streaming}
             optimisticUser={send.optimisticUser}
+            interleaved={interleaved}
           />
         }
         composer={
           <div>
-            {/* v1.16.0 — pending self-context questions as tappable
-                chips. Tapping inserts the question into the composer
-                (the user answers it in their own words) and dismisses
-                the chip. Renders nothing when no questions pend. */}
-            {/* v1.16.4 — quiet adopt-into-self-context offer once a chip
-                question has been answered. Self-removes after settle. */}
+            {/* v1.16.4 — quiet adopt-into-self-context offer once a
+                clarifying question has been answered. Self-removes
+                after settle; v1.16.5 reports the outcome back into the
+                guided machine for the closing summary. */}
             {pendingAdopt && !send.isStreaming ? (
               <SelfContextAdoptOffer
                 question={pendingAdopt.question}
                 answer={pendingAdopt.answer}
                 onDismiss={() => setPendingAdopt(null)}
+                onSettled={(adoption) =>
+                  dispatchGuided({
+                    type: "ADOPTION_SETTLED",
+                    index: pendingAdopt.guidedIndex,
+                    adoption,
+                  })
+                }
               />
             ) : null}
-            <SelfContextChips
-              disabled={send.isStreaming}
-              onPick={(question) => {
-                setActiveChipQuestion(question);
-                setInputValue(`${question}\n`);
-              }}
-            />
+            {/* v1.16.5 — guided clarifying-questions entry card (V2 of
+                the v1.16.0 chips). Offers the in-chat sequence while
+                questions pend and the flow hasn't started. */}
+            {guided.phase === "idle" && pendingQuestions.length > 0 ? (
+              <GuidedQuestionsCard
+                count={pendingQuestions.length}
+                disabled={send.isStreaming || dismissQuestions.isPending}
+                onStart={() =>
+                  dispatchGuided({ type: "START", questions: pendingQuestions })
+                }
+                onLater={() => dispatchGuided({ type: "LATER" })}
+                onDismissAll={() =>
+                  dismissQuestions.mutate(undefined, {
+                    onSuccess: () => dispatchGuided({ type: "LATER" }),
+                  })
+                }
+              />
+            ) : null}
             <CoachInput
               value={inputValue}
               onChange={setInputValue}
@@ -291,6 +416,11 @@ export function CoachConversation({
               disabled={send.isStreaming}
               isStreaming={send.isStreaming}
               autoFocusOnOpen={autoFocusComposer}
+              placeholder={
+                guided.phase === "asking"
+                  ? t("insights.coach.guided.answerPlaceholder")
+                  : undefined
+              }
             />
           </div>
         }
@@ -311,6 +441,8 @@ export function CoachConversation({
             onSelect={(id) => {
               setCurrentConversationId(id);
               setHistoryTrayOpen(false);
+              setPendingAdopt(null);
+              dispatchGuided({ type: "RESET" });
             }}
           />
         }

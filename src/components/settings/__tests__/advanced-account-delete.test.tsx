@@ -30,9 +30,7 @@ vi.mock("@tanstack/react-query", () => ({
 }));
 
 vi.mock("@/components/medications/ResearchModeAcknowledgmentDialog", () => ({
-  ResearchModeAcknowledgmentDialog: () => (
-    <div data-slot="mock-ack-dialog" />
-  ),
+  ResearchModeAcknowledgmentDialog: () => <div data-slot="mock-ack-dialog" />,
 }));
 
 import { AdvancedSection } from "../advanced-section";

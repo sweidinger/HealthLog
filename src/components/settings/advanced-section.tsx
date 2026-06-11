@@ -19,6 +19,7 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { ResearchModeAcknowledgmentDialog } from "@/components/medications/ResearchModeAcknowledgmentDialog";
 import { formatDateTime } from "@/lib/format";
+import { SettingsCardHeader } from "@/components/settings/_card-header";
 import { useTranslations } from "@/lib/i18n/context";
 import { queryKeys } from "@/lib/query-keys";
 import {
@@ -56,10 +57,7 @@ export function AdvancedSection() {
       className="space-y-6"
     >
       <header className="space-y-1">
-        <h1
-          id="settings-section-advanced-title"
-          className="sr-only"
-        >
+        <h1 id="settings-section-advanced-title" className="sr-only">
           {t("settings.sections.advanced.title")}
         </h1>
         <p className="text-muted-foreground text-sm">
@@ -151,18 +149,14 @@ function ResearchModeCard() {
 
   return (
     <div
-      className="bg-card border-border rounded-xl border p-6"
+      className="bg-card border-border rounded-xl border p-4 sm:p-6"
       data-slot="settings-research-mode-card"
     >
-      <div className="flex items-center gap-2">
-        <BookOpenCheck className="text-muted-foreground h-5 w-5" />
-        <h2 className="text-lg font-semibold">
-          {t("settings.researchMode.sectionTitle")}
-        </h2>
-      </div>
-      <p className="text-muted-foreground mt-1 pl-7 text-xs">
-        {t("settings.researchMode.subtitle")}
-      </p>
+      <SettingsCardHeader
+        icon={BookOpenCheck}
+        title={t("settings.researchMode.sectionTitle")}
+        description={t("settings.researchMode.subtitle")}
+      />
 
       {showRePrompt && (
         <div
@@ -270,7 +264,7 @@ function DataResetCard() {
 
   return (
     <div
-      className="bg-card border-border rounded-xl border p-6"
+      className="bg-card border-border rounded-xl border p-4 sm:p-6"
       data-slot="settings-data-reset-card"
     >
       {/* v1.4.43 QoL (L5) — dropped the `AlertTriangle` icon and
@@ -418,7 +412,7 @@ function AccountDeleteCard() {
 
   return (
     <div
-      className="bg-card border-border rounded-xl border p-6"
+      className="bg-card border-border rounded-xl border p-4 sm:p-6"
       data-slot="settings-account-delete-card"
     >
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-2">

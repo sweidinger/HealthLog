@@ -61,12 +61,17 @@ function decryptOrNull(payload: Uint8Array | null): string | null {
 /**
  * Load + decrypt the caller's structured self-context. Every field is
  * independently fail-closed; a row that never existed yields all-null.
+ *
+ * `db` lets callers inside a transaction (the adopt endpoint's locked
+ * read-modify-write) read through their `tx` client; default is the
+ * global client.
  */
 export async function getSelfContextForUser(
   userId: string,
+  db: Pick<typeof prisma, "userHealthProfile"> = prisma,
 ): Promise<SelfContext> {
   try {
-    const row = await prisma.userHealthProfile.findUnique({
+    const row = await db.userHealthProfile.findUnique({
       where: { userId },
       select: {
         aboutMeEncrypted: true,

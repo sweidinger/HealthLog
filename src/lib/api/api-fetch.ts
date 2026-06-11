@@ -141,7 +141,15 @@ function withJsonBody(
 ): RequestInit {
   const merged: RequestInit = { ...init, method };
   if (body !== undefined) {
-    merged.headers = { "Content-Type": "application/json", ...init?.headers };
+    // `HeadersInit` is a union — a plain object spreads fine, but a
+    // `Headers` instance (or entries array) has no enumerable own
+    // properties, so `{ ...init.headers }` silently dropped every
+    // caller header. `new Headers(...)` normalises all three shapes.
+    const headers = new Headers(init?.headers);
+    if (!headers.has("Content-Type")) {
+      headers.set("Content-Type", "application/json");
+    }
+    merged.headers = headers;
     merged.body = JSON.stringify(body);
   }
   return merged;

@@ -21,6 +21,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { Sparkles, Loader2 } from "lucide-react";
+import { SettingsCardHeader } from "@/components/settings/_card-header";
 import { useTranslations, useFormatters } from "@/lib/i18n/context";
 import { queryKeys } from "@/lib/query-keys";
 import { apiGet } from "@/lib/api/api-fetch";
@@ -66,7 +67,7 @@ export function AiQualitySection() {
 
   if (query.isLoading) {
     return (
-      <div className="bg-card border-border flex items-center gap-2 rounded-xl border p-6">
+      <div className="bg-card border-border flex items-center gap-2 rounded-xl border p-4 sm:p-6">
         <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" />
         <span className="text-muted-foreground text-sm">
           {t("admin.aiQuality.loading")}
@@ -90,14 +91,12 @@ export function AiQualitySection() {
 
   if (!summary || summary.buckets.length === 0) {
     return (
-      <div className="bg-card border-border rounded-xl border p-6">
-        <div className="flex items-center gap-2">
-          <Sparkles className="text-dracula-purple h-5 w-5" />
-          <div className="text-lg font-semibold">
-            {t("admin.aiQuality.title")}
-          </div>
-        </div>
-        <p className="text-muted-foreground mt-3 text-sm">
+      <div className="bg-card border-border rounded-xl border p-4 sm:p-6">
+        <SettingsCardHeader
+          icon={Sparkles}
+          title={t("admin.aiQuality.title")}
+        />
+        <p className="text-muted-foreground mt-3 pl-7 text-sm">
           {t("admin.aiQuality.empty")}
         </p>
       </div>
@@ -105,23 +104,21 @@ export function AiQualitySection() {
   }
 
   return (
-    <div className="bg-card border-border space-y-4 rounded-xl border p-6">
-      <div className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
-          <Sparkles className="text-dracula-purple h-5 w-5" />
-          <div className="text-lg font-semibold">
-            {t("admin.aiQuality.title")}
-          </div>
-        </div>
-        <p className="text-muted-foreground text-xs">
-          {t("admin.aiQuality.windowLabel", {
-            days: String(summary.windowDays),
-          })}
-          {" · "}
-          {t("admin.aiQuality.generatedAtLabel")}{" "}
-          {fmt.dateTime(summary.generatedAt)}
-        </p>
-      </div>
+    <div className="bg-card border-border space-y-4 rounded-xl border p-4 sm:p-6">
+      <SettingsCardHeader
+        icon={Sparkles}
+        title={t("admin.aiQuality.title")}
+        status={
+          <p className="text-muted-foreground text-xs">
+            {t("admin.aiQuality.windowLabel", {
+              days: String(summary.windowDays),
+            })}
+            {" · "}
+            {t("admin.aiQuality.generatedAtLabel")}{" "}
+            {fmt.dateTime(summary.generatedAt)}
+          </p>
+        }
+      />
 
       <div className="overflow-x-auto">
         <table className="w-full text-sm" data-slot="ai-quality-table">

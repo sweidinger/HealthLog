@@ -143,7 +143,9 @@ export const GET = apiHandler(
     // the LIVE schedule rows, so it must not reach past the newest
     // revision boundary into a previous era's cadence.
     const latestRevision = await prisma.medicationScheduleRevision.findFirst({
-      where: { medicationId: id },
+      // Superseded rows are audit records — a correction may have
+      // shortened the era, so the boundary reads only active rows.
+      where: { medicationId: id, supersededByRevisionId: null },
       orderBy: { validUntil: "desc" },
       select: { validUntil: true },
     });
@@ -424,7 +426,9 @@ export const PUT = apiHandler(
         )
       ) {
         const lastRevision = await prisma.medicationScheduleRevision.findFirst({
-          where: { medicationId: id },
+          // Chain from the ACTIVE boundary: a superseded row is an
+          // audit record whose `validUntil` may sit past its correction.
+          where: { medicationId: id, supersededByRevisionId: null },
           orderBy: { validUntil: "desc" },
           select: { validUntil: true },
         });

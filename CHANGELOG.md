@@ -2,6 +2,42 @@
 
 ## [Unreleased]
 
+## [1.16.6] — 2026-06-11 — corrected eras, an honest weekly status and a faster first paint
+
+### Added
+
+- **Schedule eras can be corrected.** A recorded era can be edited through a superseding revision that keeps the original as an audit trail; manual eras edit in place, all era writes serialise per medication, and duplicate dose times collapse in validation.
+- **The server-wide assistant key has an admin home** — status, provider, model and base URL with the BYOK-first and consent rules stated where the operator works.
+
+### Changed
+
+- **The first paint got faster again.** The dashboard snapshot fires the moment login succeeds instead of waiting for the page chunk — its request starts about half a second earlier under throttled conditions — handed over so the server and client render never disagree.
+- **Guided coach follow-ups speak to your data.** Questions are personalised from your own snapshot when a provider is available, and an answer receives the coach's streamed reaction before the next question.
+- **Settings and admin finally share one face.** Twenty-seven hand-rolled card headers move onto the shared pattern, sixty containers normalise to one chrome, descriptions get a consistent one-sentence voice, and the one duplicated coach preference collapses onto a single owner.
+
+### Fixed
+
+- A rolling medication whose next dose is tomorrow no longer reads as heavily overdue — the card status derives strictly from the served next-due.
+- The adherence bars keep a fixed geometry in every state instead of growing with their status text.
+- The remaining hydration warnings on the dashboard, insights and AI settings are gone.
+
+## [1.16.5] — 2026-06-11 — a guided coach dialog and a schedule that shows its past
+
+### Added
+
+- **Open coach follow-ups run as a guided dialog.** A quiet card offers to start, the coach asks one question at a time with visible progress, answers can be adopted into the matching self-context field, skipping keeps a question pending, and a closing summary says what was taken over.
+- **The schedule shows its history.** Past eras appear as a collapsible timeline on the schedule tab, and an earlier era can be added manually for old history — validated against overlaps and bounded so it can never swallow tracked live history.
+- **Smarter proactive nudges.** Three new deterministic signals — weight drifting from its target band, a run of short nights, an active user falling silent — plus per-group toggles, a frequency preference and wording that addresses the focus you asked the coach to watch.
+- **Invites mint up to fifty uses** with a scrolling redemption list.
+
+### Changed
+
+- **A documented path away from the moving latest tag.** The compose image reference accepts a pinned digest via env var, and a promote script resolves the published digest, verifies its cosign signature and hands the operator the exact pinning call.
+
+### Fixed
+
+- The self-context adopt runs in one transaction, the admin area renders nothing before the role is confirmed, and the json-body helper keeps caller headers intact.
+
 ## [1.16.4] — 2026-06-11 — half the bundle, a typed client, and stock you can record
 
 ### Added

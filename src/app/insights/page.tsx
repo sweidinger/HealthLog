@@ -15,6 +15,7 @@ import {
   orderedVisibleSectionIds,
   type InsightsSectionId,
 } from "@/lib/insights-layout";
+import { useMounted } from "@/hooks/use-mounted";
 import { useScrollResetOnRoute } from "@/hooks/use-scroll-reset-on-route";
 import { useTranslations } from "@/lib/i18n/context";
 import { Button } from "@/components/ui/button";
@@ -221,6 +222,7 @@ interface ComprehensiveData {
 
 export default function InsightsPage() {
   const { isAuthenticated, user } = useAuth();
+  const mounted = useMounted();
   const { t } = useTranslations();
 
   // v1.4.33 IW9 — scroll-to-top on route mount centralised in the
@@ -340,8 +342,12 @@ export default function InsightsPage() {
     );
   }
 
+  // Gated on `mounted`: the auth query can resolve before this
+  // boundary hydrates, and a greeting that personalises during the
+  // hydration render disagrees with the name-less SSR text — React
+  // #418. See `useMounted`.
   const heroGreetingName =
-    user?.username?.trim() && user.username.trim().length > 0
+    mounted && user?.username?.trim() && user.username.trim().length > 0
       ? user.username.split(/\s+/)[0]
       : null;
   const briefingPayload = advisor.payload?.dailyBriefing ?? null;

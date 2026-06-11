@@ -179,7 +179,13 @@ async function handleChatRequest(request: NextRequest): Promise<Response> {
       { status: 422 },
     );
   }
-  const { conversationId, message, locale: bodyLocale, scope } = parsed.data;
+  const {
+    conversationId,
+    message,
+    locale: bodyLocale,
+    scope,
+    guidedQuestion,
+  } = parsed.data;
 
   // Per-user request-rate ceiling layered in front of the daily budget
   // gate. The budget catches the cost dimension; this catches the
@@ -206,7 +212,14 @@ async function handleChatRequest(request: NextRequest): Promise<Response> {
   });
 
   // ── Refusal short-circuit ────────────────────────────────────
-  const refusal = detectRefusal({ message, locale });
+  // v1.16.6 — the guided-flow question rides the prompt too, so it
+  // runs through the same regex bank as the message. The questions
+  // are server-derived in the honest case; this guards the dishonest
+  // one (a crafted client using the field as an unchecked channel).
+  const refusal = detectRefusal({
+    message: guidedQuestion ? `${guidedQuestion}\n${message}` : message,
+    locale,
+  });
   if (refusal.refuse && refusal.message) {
     annotate({
       action: { name: "insights.coach.refused" },
@@ -358,9 +371,20 @@ async function handleChatRequest(request: NextRequest): Promise<Response> {
   const transcript = window
     .map((t) => `${t.role.toUpperCase()}: ${t.content}`)
     .join("\n\n");
+  // v1.16.6 — guided clarifying-questions flow: the question the user
+  // is answering exists only as a client-side bubble, so hand it to
+  // the model as delimited context. The reaction should read as a
+  // natural reply to the answer, not as a re-ask.
+  const guidedBlock = guidedQuestion
+    ? `\nGUIDED QUESTION (user-provided context)
+The user's message answers this clarifying question from their self-context questionnaire:
+"""${guidedQuestion}"""
+React briefly and personally to the answer; do not repeat the question and do not ask it again.
+`
+    : "";
   const userPrompt = `SNAPSHOT
 ${snapshot.snapshotJson || "(no metric data in this user's log yet)"}
-
+${guidedBlock}
 CONVERSATION
 ${transcript}
 

@@ -23,6 +23,7 @@ import {
   Tag,
 } from "lucide-react";
 import { formatDateTime } from "@/lib/format";
+import { SettingsCardHeader } from "@/components/settings/_card-header";
 import { useTranslations } from "@/lib/i18n/context";
 import { StatusItem, usePublicVersion, useSystemStatus } from "./_shared";
 
@@ -34,20 +35,16 @@ export function SystemStatusSummary() {
   return (
     <section
       aria-labelledby="admin-overview-snapshot-heading"
-      className="bg-card border-border rounded-xl border p-6"
+      className="bg-card border-border rounded-xl border p-4 sm:p-6"
     >
-      <div className="flex items-center gap-2">
-        <Server className="text-muted-foreground h-5 w-5" aria-hidden="true" />
-        <h2
-          id="admin-overview-snapshot-heading"
-          className="text-lg font-semibold"
-        >
-          {t("admin.overview.snapshotTitle")}
-        </h2>
-      </div>
+      <SettingsCardHeader
+        icon={Server}
+        titleId="admin-overview-snapshot-heading"
+        title={t("admin.overview.snapshotTitle")}
+      />
 
       {status ? (
-        <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="mt-4 grid gap-3 pl-7 sm:grid-cols-2 lg:grid-cols-3">
           <StatusItem
             icon={Tag}
             label={t("admin.overview.snapshotVersion")}

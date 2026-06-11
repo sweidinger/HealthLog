@@ -35,6 +35,7 @@ import {
   clampPendingQuestions,
   type SelfContext,
 } from "@/lib/ai/coach/about-me";
+import { buildCoachSnapshot } from "@/lib/ai/coach/snapshot";
 import { getServerTranslator } from "@/lib/i18n/server-translator";
 import type { Locale } from "@/lib/i18n/config";
 import { defaultLocale, locales } from "@/lib/i18n/config";
@@ -93,12 +94,17 @@ export function parseQuestionsReply(content: string): string[] {
   }
 }
 
-function buildPrompts(
+export function buildPrompts(
   ctx: SelfContext,
   locale: Locale,
+  snapshotJson?: string | null,
 ): { systemPrompt: string; userPrompt: string } {
   const language = LANGUAGE_NAMES[locale];
-  const systemPrompt = `You help complete a health-app user's self-description for their AI health coach. Based on what the user has already shared, write AT MOST 3 short, specific follow-up questions that would best complete the picture (e.g. unstated conditions a stated medication implies, missing context for a stated goal). Never ask for anything already answered. Never ask for a diagnosis. Write the questions in ${language}, addressed informally to the user. Reply with ONLY a JSON array of strings — no prose, no code fences.`;
+  // v1.16.6 — the prompt carries the same health-data snapshot the
+  // Coach chat uses, so the questions can reference what the user
+  // actually tracks (a logged medication, a weight trend, the stated
+  // focus) instead of staying generic.
+  const systemPrompt = `You help complete a health-app user's self-description for their AI health coach. Based on what the user has already shared — and on the health-data snapshot of what they track in the app — write AT MOST 3 short, specific follow-up questions that would best complete the picture (e.g. unstated conditions a stated medication implies, missing context for a stated goal, a tracked metric the self-description does not explain). Prefer questions grounded in the user's own data and stated focus over generic ones. Never ask for anything already answered. Never ask for a diagnosis. Write the questions in ${language}, addressed informally to the user. Reply with ONLY a JSON array of strings — no prose, no code fences.`;
 
   const fieldLines = [
     `conditions: ${ctx.conditions ?? "(not answered)"}`,
@@ -106,7 +112,10 @@ function buildPrompts(
     `coach focus: ${ctx.coachFocus ?? "(not answered)"}`,
     `free text: ${ctx.aboutMe ?? "(not answered)"}`,
   ];
-  return { systemPrompt, userPrompt: fieldLines.join("\n") };
+  const userPrompt = snapshotJson
+    ? `${fieldLines.join("\n")}\n\nHEALTH DATA SNAPSHOT\n${snapshotJson}`
+    : fieldLines.join("\n");
+  return { systemPrompt, userPrompt };
 }
 
 /**
@@ -133,9 +142,17 @@ export async function deriveClarifyingQuestions(
     if (spent >= MAX_TOKENS_PER_USER_PER_DAY) return fallback();
 
     const provider = await resolveProvider(userId);
+    // v1.16.6 — same snapshot the Coach chat rides; lets the model
+    // ask about what the user actually tracks. Best-effort: a snapshot
+    // failure must not cost the AI path, the prompt just stays
+    // fields-only.
+    const snapshotJson = await buildCoachSnapshot(userId)
+      .then((s) => s.snapshotJson || null)
+      .catch(() => null);
     const { systemPrompt, userPrompt } = buildPrompts(
       ctx,
       resolveLocale(locale),
+      snapshotJson,
     );
     const result = await provider.generateCompletion({
       systemPrompt,

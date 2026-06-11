@@ -9,7 +9,14 @@
 
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { HeartPulse, Link2, Loader2, RefreshCw, Save, Unlink } from "lucide-react";
+import {
+  HeartPulse,
+  Link2,
+  Loader2,
+  RefreshCw,
+  Save,
+  Unlink,
+} from "lucide-react";
 
 import {
   AlertDialog,
@@ -182,7 +189,7 @@ export function FitbitCard({
   return (
     <div
       data-testid="fitbit-card"
-      className="bg-card border-border rounded-xl border p-6"
+      className="bg-card border-border rounded-xl border p-4 sm:p-6"
     >
       <SettingsCardHeader
         icon={HeartPulse}

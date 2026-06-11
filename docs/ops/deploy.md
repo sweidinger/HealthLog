@@ -121,19 +121,72 @@ image's only immutable identity, and it is what the signature actually
 covers. For any deploy where supply-chain integrity matters more than
 convenience:
 
-1. Resolve and verify the digest once:
+The compose file carries the hook for this: the `app` service image is
+`ghcr.io/mbombeck/healthlog${HEALTHLOG_IMAGE_REF:-:latest}`. Unset, the
+day-to-day `:latest` + `pull_policy: always` flow stays the documented
+default for self-hosters. Set `HEALTHLOG_IMAGE_REF` in the compose
+`.env` (or the deployment platform's env vars) to switch the reference
+without touching the file:
 
-   ```sh
-   cosign verify ... ghcr.io/mbombeck/healthlog:1.16.4 \
-     | jq -r '.[0].critical.image."docker-manifest-digest"'
-   ```
+- `HEALTHLOG_IMAGE_REF=:v1.16.5` — pin to a release tag (still mutable).
+- `HEALTHLOG_IMAGE_REF=@sha256:<digest>` — pin to the immutable digest.
 
-2. Pin the compose `image:` (or the Coolify image reference) to
-   `ghcr.io/mbombeck/healthlog@sha256:<digest>` instead of the tag.
+### Promote a release to a pinned digest
 
-The day-to-day `:latest` + `pull_policy: always` flow stays the
-documented default for self-hosters; digest pinning is the recommended
-hardening for operators with a threat model that includes the registry.
+`scripts/promote-digest.ts` automates the whole promotion after
+`docker-publish.yml` has pushed a tag:
+
+```sh
+pnpm dlx tsx scripts/promote-digest.ts v1.16.5
+```
+
+It resolves the multi-arch index digest from the GHCR registry API
+(anonymous pull token, no docker daemon), verifies the keyless cosign
+signature against the workflow identity (fails closed — no cosign, no
+promotion), and prints the resulting `HEALTHLOG_IMAGE_REF=@sha256:…`
+value.
+
+For a Coolify-managed deployment it can also apply the pin. Two facts
+about Coolify shape the mechanism (verified against the Coolify
+OpenAPI spec and a live instance):
+
+- For a git-based "Docker Compose" application, Coolify re-reads the
+  compose file from the repository checkout on every deploy.
+  `docker_compose_raw` is its stored copy of that file, and the
+  application-update API (`PATCH /api/v1/applications/{uuid}`) does not
+  accept the field — editing the stored compose is neither possible
+  via API nor durable.
+- Application **env vars** are durable, exposed via the documented
+  `/api/v1/applications/{uuid}/envs` endpoints, and interpolated into
+  the compose at deploy time.
+
+So the pin travels as the `HEALTHLOG_IMAGE_REF` env var. With
+`COOLIFY_API_TOKEN`, `COOLIFY_API_URL` and `COOLIFY_APP_UUID` in the
+environment the script creates/updates the var itself (add
+`PROMOTE_DEPLOY=1` to also trigger the redeploy); without a token it
+prints the equivalent curl commands:
+
+```sh
+curl -sS -X PATCH "https://<coolify-host>/api/v1/applications/<app-uuid>/envs" \
+  -H "Authorization: Bearer <token>" -H "Content-Type: application/json" \
+  -d '{"key":"HEALTHLOG_IMAGE_REF","value":"@sha256:<digest>"}'
+
+curl -sS "https://<coolify-host>/api/v1/deploy?uuid=<app-uuid>" \
+  -H "Authorization: Bearer <token>"
+```
+
+After the deploy settles, confirm `/api/version` reports the released
+`version` + `buildSha` on every target (see above).
+
+**Rollback:** re-run the script with the previous tag (or PATCH the env
+var back to the previous digest / to empty for `:latest`) and redeploy.
+Digest pinning trades the automatic `:latest` pickup for determinism —
+a pinned instance only moves when the var moves, so the promotion step
+becomes part of the release routine, not an optional extra.
+
+Digest pinning is the recommended hardening for operators with a
+threat model that includes the registry; `:latest` remains the
+low-friction default.
 
 ## Deploy-status webhook: replay protection
 

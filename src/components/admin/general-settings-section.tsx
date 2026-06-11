@@ -2,6 +2,7 @@
 
 import { useMemo } from "react";
 import { Settings } from "lucide-react";
+import { SettingsCardHeader } from "@/components/settings/_card-header";
 import { useTranslations } from "@/lib/i18n/context";
 import { NativeSelect } from "@/components/ui/native-select";
 import { SettingsToggle, useAdminSettings, useUpdateSettings } from "./_shared";
@@ -25,12 +26,13 @@ export function GeneralSettingsSection() {
   const currentDefaultTz = settings?.defaultUserTimezone ?? "";
 
   return (
-    <div className="bg-card border-border rounded-xl border p-6">
-      <div className="flex items-center gap-2">
-        <Settings className="text-muted-foreground h-5 w-5" />
-        <div className="text-lg font-semibold">{t("admin.appSettings")}</div>
-      </div>
-      <div className="mt-4 space-y-4">
+    <div className="bg-card border-border rounded-xl border p-4 sm:p-6">
+      <SettingsCardHeader
+        icon={Settings}
+        title={t("admin.appSettings")}
+        description={t("admin.appSettingsDescription")}
+      />
+      <div className="mt-4 space-y-4 pl-7">
         <SettingsToggle
           label={t("admin.registrationEnabled")}
           description={t("admin.registrationEnabledDescription")}

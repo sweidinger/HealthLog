@@ -39,6 +39,7 @@ import {
 
 import { cn } from "@/lib/utils";
 import { scrollBehaviorForUser } from "@/lib/motion";
+import { useAuth } from "@/hooks/use-auth";
 import { useTranslations } from "@/lib/i18n/context";
 import { isAdminSectionSlug, type AdminSectionSlug } from "./section-slugs";
 
@@ -172,6 +173,7 @@ function deriveActiveSlug(
 export function AdminShell({ active, children }: AdminShellProps) {
   const pathname = usePathname();
   const { t } = useTranslations();
+  const { user } = useAuth();
   const activeSlug = deriveActiveSlug(pathname, active);
 
   // v1.4.34 IW-G — mirror the settings-shell auto-scroll pattern so
@@ -198,6 +200,13 @@ export function AdminShell({ active, children }: AdminShellProps) {
       behavior: scrollBehaviorForUser(),
     });
   }, [activeSlug]);
+
+  // The section bodies are already role-gated, but the shell frame
+  // itself (the full section nav in two layouts) used to paint for a
+  // non-admin during the frames between auth resolving and AuthShell's
+  // redirect effect replacing the route. Render nothing — frame AND
+  // children — until the role is confirmed ADMIN.
+  if (!user || user.role !== "ADMIN") return null;
 
   // v1.4.25 W8 — AuthShell wraps the page in `px-4 py-6 md:px-6`
   // already, so this inner shell only carries the wider max-width.
@@ -252,9 +261,9 @@ export function AdminShell({ active, children }: AdminShellProps) {
                   aria-current={isActive ? "page" : undefined}
                   className={cn(
                     // v1.4.25 W8 — chip strip is the primary mobile-admin
-                // navigation surface. Pad to WCAG 2.5.5 44 px so the
-                // chips can be tapped without zoom on a Pixel-5.
-                "flex min-h-11 items-center gap-2 rounded-full border px-3 py-1.5 text-sm font-medium whitespace-nowrap transition-colors",
+                    // navigation surface. Pad to WCAG 2.5.5 44 px so the
+                    // chips can be tapped without zoom on a Pixel-5.
+                    "flex min-h-11 items-center gap-2 rounded-full border px-3 py-1.5 text-sm font-medium whitespace-nowrap transition-colors",
                     isActive
                       ? "border-primary/40 bg-primary/10 text-primary"
                       : "border-border text-foreground hover:bg-accent",

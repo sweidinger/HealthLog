@@ -290,17 +290,19 @@ describe("<DashboardLayoutSection> — iOS-pin-only ids hidden from web (v1.11.2
     const html = render(<DashboardLayoutSection id="dashboard-layout" />);
     // The pin-only ids reuse `measurements.type*` labels that resolve to
     // distinctive English strings; none should appear as a toggle aria-label.
-    const pinOnlyLabels: Record<(typeof IOS_PIN_ONLY_WIDGET_IDS)[number], string> =
-      {
-        cardioRecovery: "Cardio recovery",
-        sixMinuteWalk: "Six-minute walk distance",
-        stairAscentSpeed: "Stair ascent speed",
-        stairDescentSpeed: "Stair descent speed",
-        breathingDisturbances: "Breathing disturbances",
-        wristTemperature: "Wrist temperature",
-        falls: "Falls",
-        walkingSteadiness: "Walking steadiness",
-      };
+    const pinOnlyLabels: Record<
+      (typeof IOS_PIN_ONLY_WIDGET_IDS)[number],
+      string
+    > = {
+      cardioRecovery: "Cardio recovery",
+      sixMinuteWalk: "Six-minute walk distance",
+      stairAscentSpeed: "Stair ascent speed",
+      stairDescentSpeed: "Stair descent speed",
+      breathingDisturbances: "Breathing disturbances",
+      wristTemperature: "Wrist temperature",
+      falls: "Falls",
+      walkingSteadiness: "Walking steadiness",
+    };
     for (const id of IOS_PIN_ONLY_WIDGET_IDS) {
       // The widget label drives the switch aria-label; if the row were
       // rendered the localised label would show up in the markup.

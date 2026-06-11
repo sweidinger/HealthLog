@@ -68,11 +68,17 @@
     "docker",
     "docker-compose",
     "pg_isready",
-    "tsx"
+    "tsx",
+    "cosign"
   ],
   "ignoreExportsUsedInFile": true,
   "ignoreIssues": {
-    "src/components/ui/**": ["exports", "types"],
-    "src/lib/validations/**": ["types"]
+    "src/components/ui/**": [
+      "exports",
+      "types"
+    ],
+    "src/lib/validations/**": [
+      "types"
+    ]
   }
 }

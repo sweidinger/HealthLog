@@ -107,7 +107,9 @@ export function MoodReminderCard({
           : t("notifications.moodReminder.disabledToast"),
       );
       setMsgType("success");
-      await queryClient.invalidateQueries({ queryKey: queryKeys.userProfile() });
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.userProfile(),
+      });
       setOptimistic(null);
       scheduleClear();
     } else {
@@ -155,7 +157,7 @@ export function MoodReminderCard({
   return (
     <section
       aria-labelledby="settings-mood-reminder-title"
-      className="bg-card rounded-lg border p-4 sm:p-6"
+      className="bg-card border-border rounded-xl border p-4 sm:p-6"
     >
       <SettingsCardHeader
         icon={SmilePlus}
@@ -180,10 +182,7 @@ export function MoodReminderCard({
       />
       {enabled && (
         <div className="mt-4 flex min-h-11 items-center gap-3 pl-7">
-          <label
-            htmlFor="mood-reminder-hour"
-            className="text-sm font-medium"
-          >
+          <label htmlFor="mood-reminder-hour" className="text-sm font-medium">
             {t("notifications.moodReminder.hourLabel")}
           </label>
           <NativeSelect

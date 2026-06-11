@@ -236,6 +236,12 @@ export interface SendCoachMessageParams {
    * back to all-source last30days, matching the legacy behaviour.
    */
   scope?: CoachScope;
+  /**
+   * v1.16.6 — guided clarifying-questions flow: the pending question
+   * this message answers. Server-side prompt context only; never
+   * persisted with the message.
+   */
+  guidedQuestion?: string;
 }
 
 export interface UseSendCoachMessageOptions {
@@ -286,7 +292,9 @@ export function useSendCoachMessage(opts: UseSendCoachMessageOptions = {}) {
   }, []);
 
   const send = useCallback(
-    async (params: SendCoachMessageParams): Promise<void> => {
+    async (
+      params: SendCoachMessageParams,
+    ): Promise<string | null> => {
       // Cancel any prior in-flight request.
       abortRef.current?.abort();
       const controller = new AbortController();
@@ -322,7 +330,7 @@ export function useSendCoachMessage(opts: UseSendCoachMessageOptions = {}) {
           messageId: null,
           errorCode: "coach.network",
         });
-        return;
+        return null;
       }
 
       // apiFetchRaw: the chat POST streams SSE — the envelope helpers
@@ -341,11 +349,12 @@ export function useSendCoachMessage(opts: UseSendCoachMessageOptions = {}) {
             prefill: params.prefill,
             locale: params.locale,
             scope: params.scope,
+            guidedQuestion: params.guidedQuestion,
           }),
           signal: controller.signal,
         });
       } catch (err) {
-        if ((err as Error).name === "AbortError") return;
+        if ((err as Error).name === "AbortError") return null;
         setStreaming({
           content: "",
           metricSource: null,
@@ -353,7 +362,7 @@ export function useSendCoachMessage(opts: UseSendCoachMessageOptions = {}) {
           messageId: null,
           errorCode: "coach.network",
         });
-        return;
+        return null;
       }
 
       if (!response.body) {
@@ -364,7 +373,7 @@ export function useSendCoachMessage(opts: UseSendCoachMessageOptions = {}) {
           messageId: null,
           errorCode: `coach.http.${response.status}`,
         });
-        return;
+        return null;
       }
 
       // Even on `!response.ok`, the route may have emitted a structured
@@ -405,7 +414,7 @@ export function useSendCoachMessage(opts: UseSendCoachMessageOptions = {}) {
         // the bubble left the error standing next to an empty thread.
         // The content-equality dedupe in <MessageThread> still
         // suppresses the optimistic copy if a persisted twin lands.
-        return;
+        return null;
       }
 
       const reader = response.body.getReader();
@@ -495,6 +504,7 @@ export function useSendCoachMessage(opts: UseSendCoachMessageOptions = {}) {
       if (resolvedConversationId || !lastError) {
         setOptimisticUser(null);
       }
+      return resolvedConversationId;
     },
     [queryClient],
   );

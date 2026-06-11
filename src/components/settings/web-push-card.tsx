@@ -200,7 +200,7 @@ export function WebPushCard() {
   );
 
   return (
-    <div className="bg-card border-border rounded-xl border p-6">
+    <div className="bg-card border-border rounded-xl border p-4 sm:p-6">
       <SettingsCardHeader
         icon={BellRing}
         title={t("settings.webPush")}

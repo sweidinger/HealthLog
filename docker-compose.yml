@@ -4,15 +4,22 @@ services:
   # For horizontal scaling switch to the web/worker split below
   # (HEALTHLOG_PROCESS_TYPE=web on this service + uncomment app-worker).
   app:
-    # Tracks the GHCR `:latest` multi-arch image. `pull_policy: always`
-    # is the load-bearing line — without it, Docker keeps a stale
-    # `:latest` digest cached on the host and skips the registry round-
-    # trip on `compose up`, which is what kept Coolify re-deploying the
-    # previous image after every tag push. With pull_policy=always the
-    # compose-up always re-checks the registry digest and pulls when
-    # GHCR has a fresher manifest. The small bandwidth cost on every
-    # `compose up` is the price of digest-correctness.
-    image: ghcr.io/mbombeck/healthlog:latest
+    # Tracks the GHCR `:latest` multi-arch image by default.
+    # `pull_policy: always` is the load-bearing line — without it,
+    # Docker keeps a stale `:latest` digest cached on the host and
+    # skips the registry round-trip on `compose up`, which is what kept
+    # Coolify re-deploying the previous image after every tag push.
+    # With pull_policy=always the compose-up always re-checks the
+    # registry digest and pulls when GHCR has a fresher manifest.
+    #
+    # HEALTHLOG_IMAGE_REF pins the image deterministically without
+    # editing this file: set it in the compose `.env` (or the Coolify
+    # env vars) to `:vX.Y.Z` for a tag or `@sha256:<digest>` for an
+    # immutable digest reference (see docs/ops/deploy.md, "Digest
+    # pinning"; scripts/promote-digest.ts resolves + verifies the
+    # digest after a release). Unset, everything behaves exactly as
+    # before — `:latest` plus pull_policy.
+    image: ghcr.io/mbombeck/healthlog${HEALTHLOG_IMAGE_REF:-:latest}
     pull_policy: always
     container_name: healthlog-app
     # The app runs as the unprivileged `nextjs` user and never needs a
@@ -108,7 +115,7 @@ services:
   # See docs/self-hosting/scaling.md for the full guide.
   #
   # app-worker:
-  #   image: ghcr.io/mbombeck/healthlog:latest
+  #   image: ghcr.io/mbombeck/healthlog${HEALTHLOG_IMAGE_REF:-:latest}
   #   build:
   #     context: .
   #     dockerfile: Dockerfile

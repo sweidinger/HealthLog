@@ -52,7 +52,11 @@ vi.mock("@tanstack/react-query", () => ({
   }),
 }));
 
-import { MessageThread } from "../message-thread";
+import {
+  MessageThread,
+  placeInterleaved,
+  type InterleavedThreadItem,
+} from "../message-thread";
 import type { CoachConversationDetailDTO } from "@/lib/ai/coach/types";
 
 function render(node: React.ReactNode, locale: "en" | "de" = "en") {
@@ -597,5 +601,128 @@ describe("errorCodeToI18nKey", () => {
     expect(errorCodeToI18nKey("brand-new-code")).toBe(
       "insights.coach.brand-new-code",
     );
+  });
+});
+
+/**
+ * v1.16.5 — placement of guided-flow bubbles between the persisted
+ * messages, the optimistic user bubble, and the thread tail.
+ */
+describe("placeInterleaved", () => {
+  const item = (key: string, anchorAnswer: string | null): InterleavedThreadItem => ({
+    key,
+    anchorAnswer,
+    node: <span data-testid={key} />,
+  });
+  const user = (id: string, content: string) => ({
+    id,
+    role: "user",
+    content,
+  });
+  const assistant = (id: string, content: string) => ({
+    id,
+    role: "assistant",
+    content,
+  });
+
+  it("anchors an answered question before its persisted user message", () => {
+    const placed = placeInterleaved(
+      [item("q1", "My answer"), item("q2", null)],
+      [
+        user("m1", "Earlier turn"),
+        assistant("m2", "Earlier reply"),
+        user("m3", "My answer"),
+        assistant("m4", "Reply"),
+      ],
+      null,
+    );
+    expect(placed.before.get("m3")?.key).toBe("q1");
+    expect(placed.beforeOptimistic).toEqual([]);
+    expect(placed.tail.map((i) => i.key)).toEqual(["q2"]);
+  });
+
+  it("anchors before the optimistic bubble while the twin is in flight", () => {
+    const placed = placeInterleaved(
+      [item("q1", "My answer")],
+      [user("m1", "Earlier turn")],
+      "My answer",
+    );
+    expect(placed.before.size).toBe(0);
+    expect(placed.beforeOptimistic.map((i) => i.key)).toEqual(["q1"]);
+    expect(placed.tail).toEqual([]);
+  });
+
+  it("matches assistant-content collisions never (user messages only)", () => {
+    const placed = placeInterleaved(
+      [item("q1", "My answer")],
+      [assistant("m1", "My answer")],
+      null,
+    );
+    expect(placed.before.size).toBe(0);
+    expect(placed.tail.map((i) => i.key)).toEqual(["q1"]);
+  });
+
+  it("consumes duplicate answers in order", () => {
+    const placed = placeInterleaved(
+      [item("q1", "Yes"), item("q2", "Yes")],
+      [user("m1", "Yes"), assistant("m2", "r"), user("m3", "Yes")],
+      null,
+    );
+    expect(placed.before.get("m1")?.key).toBe("q1");
+    expect(placed.before.get("m3")?.key).toBe("q2");
+  });
+
+  it("falls back to the tail when an anchor never matches", () => {
+    const placed = placeInterleaved(
+      [item("q1", "Lost answer"), item("summary", null)],
+      [user("m1", "Something else")],
+      null,
+    );
+    expect(placed.before.size).toBe(0);
+    expect(placed.tail.map((i) => i.key)).toEqual(["q1", "summary"]);
+  });
+});
+
+describe("<MessageThread> interleaved guided bubbles", () => {
+  it("renders an unanchored item at the tail even on an empty thread", () => {
+    const html = render(
+      <MessageThread
+        conversation={null}
+        interleaved={[
+          {
+            key: "q1",
+            anchorAnswer: null,
+            node: <div data-slot="guided-test-bubble">First question?</div>,
+          },
+        ]}
+      />,
+    );
+    // The guided bubble suppresses the empty-state hero…
+    expect(html).not.toContain(
+      "Ask anything about your trends, medications, or readings",
+    );
+    // …and renders inside the scroller.
+    expect(html).toContain('data-slot="guided-test-bubble"');
+    expect(html).toContain("First question?");
+  });
+
+  it("renders an anchored item before the user message that answered it", () => {
+    const html = render(
+      <MessageThread
+        conversation={baseConversation}
+        interleaved={[
+          {
+            key: "q1",
+            anchorAnswer: "Why was BP higher on Monday?",
+            node: <div data-slot="guided-test-bubble">Guided question?</div>,
+          },
+        ]}
+      />,
+    );
+    const guidedAt = html.indexOf('data-slot="guided-test-bubble"');
+    const userAt = html.indexOf('data-slot="coach-bubble-user"');
+    expect(guidedAt).toBeGreaterThan(-1);
+    expect(userAt).toBeGreaterThan(-1);
+    expect(guidedAt).toBeLessThan(userAt);
   });
 });

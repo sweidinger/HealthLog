@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { AlertTriangle, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { Badge } from "@/components/ui/badge";
+import { SettingsCardHeader } from "@/components/settings/_card-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,6 +13,7 @@ import {
   SettingsToggle,
   useAdminSettings,
   useUpdateSettings,
+  ConfiguredBadge,
 } from "./_shared";
 import { apiPost } from "@/lib/api/api-fetch";
 
@@ -68,25 +69,15 @@ export function GlitchtipSection() {
   }
 
   return (
-    <div className="bg-card border-border rounded-xl border p-6">
-      <div className="flex flex-wrap items-start justify-between gap-2">
-        <div className="flex items-center gap-2">
-          <AlertTriangle className="text-muted-foreground h-5 w-5" />
-          <h2 className="text-lg font-semibold">{t("admin.glitchtipTitle")}</h2>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          {configured && (
-            <Badge className="border-dracula-green/30 bg-dracula-green/15 text-dracula-green">
-              {t("admin.configured")}
-            </Badge>
-          )}
-        </div>
-      </div>
-      <p className="text-muted-foreground mt-1 text-xs">
-        {t("admin.glitchtipDescription")}
-      </p>
+    <div className="bg-card border-border rounded-xl border p-4 sm:p-6">
+      <SettingsCardHeader
+        icon={AlertTriangle}
+        title={t("admin.glitchtipTitle")}
+        description={t("admin.glitchtipDescription")}
+        status={configured ? <ConfiguredBadge /> : null}
+      />
 
-      <div className="mt-4 space-y-3">
+      <div className="mt-4 space-y-3 pl-7">
         <SettingsToggle
           label={t("admin.glitchtipEnabled")}
           icon={AlertTriangle}

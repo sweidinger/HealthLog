@@ -27,11 +27,7 @@ vi.mock("next/navigation", () => ({
 }));
 
 import { I18nProvider } from "@/lib/i18n/context";
-import {
-  ImportPanel,
-  EXAMPLE_IMPORT,
-  parseImportJson,
-} from "../import-panel";
+import { ImportPanel, EXAMPLE_IMPORT, parseImportJson } from "../import-panel";
 
 function render(node: React.ReactElement, locale: "en" | "de" = "en") {
   const queryClient = new QueryClient({

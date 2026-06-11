@@ -18,6 +18,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { useTranslations } from "@/lib/i18n/context";
 import { AboutSection } from "@/components/settings/about-section";
 import { AiQualitySection } from "@/components/admin/ai-quality-section";
+import { AiServerKeySection } from "@/components/admin/ai-server-key-section";
 import { AssistantSection } from "@/components/admin/assistant-section";
 import { CoachFeedbackSection } from "@/components/admin/coach-feedback-section";
 import { ApiTokenOverviewSection } from "@/components/admin/api-token-overview-section";
@@ -104,6 +105,7 @@ export function AdminSectionRenderer({
           subtitle={t("admin.section.assistant.subtitle")}
         >
           <AssistantSection />
+          <AiServerKeySection />
         </SectionFrame>
       );
     case "coach-feedback":

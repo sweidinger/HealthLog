@@ -21,6 +21,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatDateTime } from "@/lib/format";
+import { SettingsCardHeader } from "@/components/settings/_card-header";
 import { useFormatters, useTranslations } from "@/lib/i18n/context";
 import { StatusItem, usePublicVersion, useSystemStatus } from "./_shared";
 
@@ -51,13 +52,14 @@ export function SystemStatusSection() {
   return (
     <div className="space-y-6">
       <HostMetricsChart />
-      <div className="bg-card border-border rounded-xl border p-6">
-        <div className="flex items-center gap-2">
-          <Server className="text-muted-foreground h-5 w-5" />
-          <div className="text-lg font-semibold">{t("admin.systemStatus")}</div>
-        </div>
+      <div className="bg-card border-border rounded-xl border p-4 sm:p-6">
+        <SettingsCardHeader
+          icon={Server}
+          title={t("admin.systemStatus")}
+          description={t("admin.systemStatusDescription")}
+        />
         {status ? (
-          <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="mt-4 grid gap-4 pl-7 sm:grid-cols-2 lg:grid-cols-4">
             <StatusItem
               icon={Database}
               label={t("admin.database")}

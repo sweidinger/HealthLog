@@ -294,7 +294,7 @@ export function DashboardLayoutSection({ id }: { id: string }) {
   return (
     <div
       id={id}
-      className="bg-card border-border scroll-mt-28 space-y-4 rounded-xl border p-6"
+      className="bg-card border-border scroll-mt-28 space-y-4 rounded-xl border p-4 sm:p-6"
     >
       {/* v1.4.19 A6 — title / action row uses the same stack-on-mobile,
           right-align-on-desktop contract as Account → Password +

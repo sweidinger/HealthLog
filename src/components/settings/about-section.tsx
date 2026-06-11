@@ -234,10 +234,7 @@ export function AboutSection() {
       className="space-y-6"
     >
       <header className="space-y-1">
-        <h1
-          id="settings-section-about-title"
-          className="sr-only"
-        >
+        <h1 id="settings-section-about-title" className="sr-only">
           {t("settings.sections.about.title")}
         </h1>
         <p className="text-muted-foreground text-sm">
@@ -249,7 +246,7 @@ export function AboutSection() {
           stacked the license under the version inside its own boxed Badge,
           which read as a separate field even though the two values belong
           on the same row. */}
-      <div className="bg-card border-border rounded-xl border p-6">
+      <div className="bg-card border-border rounded-xl border p-4 sm:p-6">
         <SettingsCardHeader icon={Info} title="HealthLog" className="mb-4" />
 
         {isLoading || !version ? (
@@ -319,7 +316,7 @@ export function AboutSection() {
           About surface, so the buttons floated alone with no heading
           telling the user what the section was for. */}
       {version && (
-        <div className="bg-card border-border rounded-xl border p-6">
+        <div className="bg-card border-border rounded-xl border p-4 sm:p-6">
           <SettingsCardHeader
             icon={BookOpen}
             title={t("settings.about.linksHeading")}
@@ -368,7 +365,7 @@ export function AboutSection() {
           links. Mirrors the stack-on-mobile / right-align-on-desktop
           contract used by the Account section's "Restart onboarding
           tour" card so the two surfaces feel consistent. */}
-      <div className="bg-card border-border rounded-xl border p-6">
+      <div className="bg-card border-border rounded-xl border p-4 sm:p-6">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-2">
           <div className="flex items-start gap-2">
             <Compass className="text-muted-foreground mt-0.5 h-5 w-5 shrink-0" />

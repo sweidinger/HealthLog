@@ -61,27 +61,35 @@ export function MedicationComplianceBars({
   const shortPct = fmt.number(Math.round(rate7));
   const longPct = fmt.number(Math.round(rate30));
 
+  // v1.16.6 — both rows carry an identical, FIXED geometry: the label line
+  // is pinned to one text line (`h-5` + `truncate`) and the bar to `h-2`,
+  // so neither a long locale label wrapping, nor the `?` trigger, nor any
+  // status-coloured caption can make the two rows differ in height. Status
+  // is colour / text only — never geometry; the two bars on a card (and
+  // across a grid row) always align.
   return (
     <div className="space-y-2.5">
       <div className="space-y-1.5">
-        <div className="flex items-center justify-between text-sm">
-          <span className="text-muted-foreground flex items-center gap-1">
-            {shortLabel}
+        <div className="flex h-5 items-center justify-between text-sm">
+          <span className="text-muted-foreground flex min-w-0 items-center gap-1">
+            <span className="truncate">{shortLabel}</span>
             {/* One `?` for the whole block — both rows measure the same
                 thing over different windows, so a second trigger on the
                 long row would only add noise. */}
             <ComplianceInfoTip />
           </span>
-          <span className="font-medium">{shortPct}%</span>
+          <span className="shrink-0 font-medium">{shortPct}%</span>
         </div>
         {/* aria-label so the bar has an accessible name. */}
         <Progress value={rate7} className="h-2" aria-label={shortLabel} />
       </div>
 
       <div className="space-y-1.5">
-        <div className="flex items-center justify-between text-sm">
-          <span className="text-muted-foreground">{longLabel}</span>
-          <span className="font-medium">{longPct}%</span>
+        <div className="flex h-5 items-center justify-between text-sm">
+          <span className="text-muted-foreground min-w-0 truncate">
+            {longLabel}
+          </span>
+          <span className="shrink-0 font-medium">{longPct}%</span>
         </div>
         <Progress value={rate30} className="h-2" aria-label={longLabel} />
       </div>
@@ -121,14 +129,14 @@ export function MedicationComplianceSkeleton() {
   return (
     <div className="space-y-2.5" aria-hidden>
       <div className="space-y-1.5">
-        <div className="flex items-center justify-between">
+        <div className="flex h-5 items-center justify-between">
           <span className="bg-muted h-4 w-20 rounded" />
           <span className="bg-muted h-4 w-9 rounded" />
         </div>
         <div className="bg-muted h-2 rounded" />
       </div>
       <div className="space-y-1.5">
-        <div className="flex items-center justify-between">
+        <div className="flex h-5 items-center justify-between">
           <span className="bg-muted h-4 w-20 rounded" />
           <span className="bg-muted h-4 w-9 rounded" />
         </div>

@@ -42,6 +42,7 @@ import {
 
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { SettingsCardHeader } from "@/components/settings/_card-header";
 import { useTranslations } from "@/lib/i18n/context";
 import { queryKeys } from "@/lib/query-keys";
 import {
@@ -285,10 +286,7 @@ export function SourcesSection() {
       className="space-y-6"
     >
       <header className="space-y-1">
-        <h1
-          id="settings-section-sources-title"
-          className="sr-only"
-        >
+        <h1 id="settings-section-sources-title" className="sr-only">
           {t("settings.sections.sources.title")}
         </h1>
         <p className="text-muted-foreground text-sm">
@@ -308,29 +306,23 @@ export function SourcesSection() {
         </p>
       </header>
 
-      <div className="bg-card border-border space-y-4 rounded-xl border p-6">
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
-          <div className="flex items-center gap-2">
-            <Layers className="text-muted-foreground h-5 w-5" />
-            <h2 className="text-lg font-semibold">
-              {t("settings.sections.sources.cardTitle")}
-            </h2>
-          </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => resetMutation.mutate()}
-            disabled={resetMutation.isPending || saveMutation.isPending}
-            className="self-end sm:self-auto"
-          >
-            <RotateCcw className="h-3.5 w-3.5" />
-            {t("settings.sections.sources.resetDefaults")}
-          </Button>
-        </div>
-
-        <p className="text-muted-foreground pl-7 text-xs">
-          {t("settings.sections.sources.help")}
-        </p>
+      <div className="bg-card border-border space-y-4 rounded-xl border p-4 sm:p-6">
+        <SettingsCardHeader
+          icon={Layers}
+          title={t("settings.sections.sources.cardTitle")}
+          description={t("settings.sections.sources.help")}
+          status={
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => resetMutation.mutate()}
+              disabled={resetMutation.isPending || saveMutation.isPending}
+            >
+              <RotateCcw className="h-3.5 w-3.5" />
+              {t("settings.sections.sources.resetDefaults")}
+            </Button>
+          }
+        />
 
         {isLoading || !priority ? (
           <SourcesSkeletonList />

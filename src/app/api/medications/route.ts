@@ -99,7 +99,9 @@ async function buildMedicationsList(
       // past this boundary into a previous era's cadence.
       prisma.medicationScheduleRevision.groupBy({
         by: ["medicationId"],
-        where: { medication: { userId } },
+        // Superseded rows are audit records — a correction may have
+        // shortened the era, so the boundary reads only active rows.
+        where: { medication: { userId }, supersededByRevisionId: null },
         _max: { validUntil: true },
       }),
     ]);

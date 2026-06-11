@@ -25,6 +25,7 @@ import {
 } from "../about-me";
 import {
   buildFallbackQuestions,
+  buildPrompts,
   parseQuestionsReply,
 } from "../self-context-questions";
 
@@ -174,5 +175,27 @@ describe("buildFallbackQuestions", () => {
         "en",
       ),
     ).toEqual([]);
+  });
+});
+
+describe("buildPrompts", () => {
+  // v1.16.6 — the questions completion rides the Coach snapshot so the
+  // model can ask about what the user actually tracks.
+  it("appends the health-data snapshot block when one is available", () => {
+    const { systemPrompt, userPrompt } = buildPrompts(
+      { ...emptyCtx, coachFocus: "sleep" },
+      "en",
+      '{"weight":{"trend":"down"}}',
+    );
+    expect(userPrompt).toContain("HEALTH DATA SNAPSHOT");
+    expect(userPrompt).toContain('{"weight":{"trend":"down"}}');
+    expect(userPrompt).toContain("coach focus: sleep");
+    expect(systemPrompt).toContain("health-data snapshot");
+  });
+
+  it("stays fields-only without a snapshot", () => {
+    const { userPrompt } = buildPrompts(emptyCtx, "en", null);
+    expect(userPrompt).not.toContain("HEALTH DATA SNAPSHOT");
+    expect(userPrompt).toContain("conditions: (not answered)");
   });
 });

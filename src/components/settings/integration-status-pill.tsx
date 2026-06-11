@@ -106,12 +106,9 @@ export function IntegrationStatusPill({
   // a reauth won't fix" vs "tried to keep going for 24h but the mismatch
   // persists, manual intervention required" — distinct from the red
   // reconnect pill (`error`).
-  const connectedChipClass =
-    "border-success/30 bg-success/15 text-success";
-  const warningChipClass =
-    "border-warning/30 bg-warning/15 text-warning";
-  const parkedChipClass =
-    "border-warning/30 bg-warning/15 text-warning";
+  const connectedChipClass = "border-success/30 bg-success/15 text-success";
+  const warningChipClass = "border-warning/30 bg-warning/15 text-warning";
+  const parkedChipClass = "border-warning/30 bg-warning/15 text-warning";
 
   let label: string;
   let icon: React.ReactNode;

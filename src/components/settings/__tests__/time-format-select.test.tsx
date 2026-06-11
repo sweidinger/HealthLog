@@ -113,7 +113,9 @@ describe("Settings — TimeFormatSelect", () => {
       isAuthenticated: true,
     }));
     const html = render();
-    expect(html).toMatch(/<option[^>]*selected[^>]*value="H24"|<option[^>]*value="H24"[^>]*selected/);
+    expect(html).toMatch(
+      /<option[^>]*selected[^>]*value="H24"|<option[^>]*value="H24"[^>]*selected/,
+    );
   });
 
   it("defaults to AUTO when the user has no stored preference", () => {
@@ -122,14 +124,14 @@ describe("Settings — TimeFormatSelect", () => {
       isAuthenticated: true,
     }));
     const html = render();
-    expect(html).toMatch(/<option[^>]*selected[^>]*value="AUTO"|<option[^>]*value="AUTO"[^>]*selected/);
+    expect(html).toMatch(
+      /<option[^>]*selected[^>]*value="AUTO"|<option[^>]*value="AUTO"[^>]*selected/,
+    );
   });
 
   it("disables the select when unauthenticated", () => {
     const html = render(false);
-    const select = html.match(
-      /<select[^>]*settings-time-format-select[^>]*>/,
-    );
+    const select = html.match(/<select[^>]*settings-time-format-select[^>]*>/);
     expect(select).not.toBeNull();
     expect(select![0]).toContain("disabled");
   });

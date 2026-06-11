@@ -16,9 +16,16 @@
  * (`/admin`), which gates on `requireAdmin()`.
  */
 
-import { ArrowUpCircle, CheckCircle2, Clock, GitCommit, Tag } from "lucide-react";
+import {
+  ArrowUpCircle,
+  CheckCircle2,
+  Clock,
+  GitCommit,
+  Tag,
+} from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { formatDateTime } from "@/lib/format";
+import { SettingsCardHeader } from "@/components/settings/_card-header";
 import { useTranslations } from "@/lib/i18n/context";
 import { queryKeys } from "@/lib/query-keys";
 import { ApiError, apiGet } from "@/lib/api/api-fetch";
@@ -77,42 +84,39 @@ export function VersionTileSection() {
   return (
     <section
       aria-labelledby="admin-overview-version-heading"
-      className="bg-card border-border rounded-xl border p-6"
+      className="bg-card border-border rounded-xl border p-4 sm:p-6"
     >
-      <div className="flex flex-wrap items-center gap-2">
-        <Tag className="text-muted-foreground h-5 w-5" aria-hidden="true" />
-        <h2
-          id="admin-overview-version-heading"
-          className="text-lg font-semibold"
-        >
-          {t("admin.overview.versionTileTitle")}
-        </h2>
+      <SettingsCardHeader
+        icon={Tag}
+        titleId="admin-overview-version-heading"
+        title={t("admin.overview.versionTileTitle")}
+        status={
+          newer ? (
+            <a
+              href={
+                (update.status === "newer_available" && update.html_url) ||
+                "https://github.com/MBombeck/HealthLog/releases/latest"
+              }
+              target="_blank"
+              rel="noopener noreferrer"
+              className="bg-dracula-yellow/15 text-dracula-yellow border-dracula-yellow/30 inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium transition-opacity hover:opacity-80"
+            >
+              <ArrowUpCircle className="h-3.5 w-3.5" aria-hidden="true" />
+              {t("admin.overview.versionTileUpdateAvailable", {
+                tag:
+                  update.status === "newer_available" ? update.latest_tag : "",
+              })}
+            </a>
+          ) : upToDate ? (
+            <span className="text-dracula-green inline-flex items-center gap-1.5 text-xs font-medium">
+              <CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" />
+              {t("admin.overview.versionTileUpToDate")}
+            </span>
+          ) : null
+        }
+      />
 
-        {newer ? (
-          <a
-            href={
-              (update.status === "newer_available" && update.html_url) ||
-              "https://github.com/MBombeck/HealthLog/releases/latest"
-            }
-            target="_blank"
-            rel="noopener noreferrer"
-            className="bg-dracula-yellow/15 text-dracula-yellow border-dracula-yellow/30 ml-auto inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium transition-opacity hover:opacity-80"
-          >
-            <ArrowUpCircle className="h-3.5 w-3.5" aria-hidden="true" />
-            {t("admin.overview.versionTileUpdateAvailable", {
-              tag:
-                update.status === "newer_available" ? update.latest_tag : "",
-            })}
-          </a>
-        ) : upToDate ? (
-          <span className="text-dracula-green ml-auto inline-flex items-center gap-1.5 text-xs font-medium">
-            <CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" />
-            {t("admin.overview.versionTileUpToDate")}
-          </span>
-        ) : null}
-      </div>
-
-      <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="mt-4 grid gap-3 pl-7 sm:grid-cols-2 lg:grid-cols-3">
         <StatusItem
           icon={Tag}
           label={t("admin.overview.versionTileVersion")}

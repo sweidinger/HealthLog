@@ -414,10 +414,7 @@ export function AccountSection() {
       className="space-y-6"
     >
       <header className="space-y-1">
-        <h1
-          id="settings-section-account-title"
-          className="sr-only"
-        >
+        <h1 id="settings-section-account-title" className="sr-only">
           {t("settings.sections.account.title")}
         </h1>
         <p className="text-muted-foreground text-sm">
@@ -429,7 +426,7 @@ export function AccountSection() {
       {/* Profile photo card */}
       <AvatarSection />
 
-      <div className="bg-card border-border rounded-xl border p-6">
+      <div className="bg-card border-border rounded-xl border p-4 sm:p-6">
         <SettingsCardHeader
           icon={User}
           title={t("settings.profile")}
@@ -648,7 +645,7 @@ export function AccountSection() {
       <CycleTrackingCard isAuthenticated={isAuthenticated} />
 
       {/* Passkeys card */}
-      <div className="bg-card border-border rounded-xl border p-6">
+      <div className="bg-card border-border rounded-xl border p-4 sm:p-6">
         <SettingsCardHeader
           icon={Shield}
           title={t("settings.passkeys")}
@@ -692,7 +689,7 @@ export function AccountSection() {
           (the German "Passwort ändern" already pushes it; the tour
           card's "Restart onboarding tour" actually broke through the
           right border by ~48 px). */}
-      <div className="bg-card border-border rounded-xl border p-6">
+      <div className="bg-card border-border rounded-xl border p-4 sm:p-6">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-2">
           <div className="flex items-start gap-2">
             <Shield className="text-muted-foreground mt-0.5 h-5 w-5 shrink-0" />
@@ -722,7 +719,7 @@ export function AccountSection() {
           background reopens the spotlight tour immediately. v1.4.19
           A6 — same stack-on-mobile / right-align-on-desktop contract
           as the password card so both action surfaces look identical. */}
-      <div className="bg-card border-border rounded-xl border p-6">
+      <div className="bg-card border-border rounded-xl border p-4 sm:p-6">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-2">
           <div className="flex items-start gap-2">
             <Compass className="text-muted-foreground mt-0.5 h-5 w-5 shrink-0" />
@@ -1190,7 +1187,7 @@ function AvatarSection() {
   const busy = upload.isPending || remove.isPending;
 
   return (
-    <div className="bg-card border-border rounded-xl border p-6">
+    <div className="bg-card border-border rounded-xl border p-4 sm:p-6">
       <SettingsCardHeader
         icon={ImageUp}
         title={t("settings.avatar.title")}

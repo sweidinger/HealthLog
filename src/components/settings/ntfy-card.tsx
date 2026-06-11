@@ -82,7 +82,7 @@ export function NtfyCard({ isAuthenticated }: { isAuthenticated: boolean }) {
   });
 
   return (
-    <div className="bg-card border-border rounded-xl border p-6">
+    <div className="bg-card border-border rounded-xl border p-4 sm:p-6">
       <SettingsCardHeader
         icon={Bell}
         title={t("settings.ntfy")}

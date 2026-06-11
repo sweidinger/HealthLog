@@ -61,11 +61,12 @@ beforeEach(() => {
   }));
   vi.stubGlobal(
     "fetch",
-    vi.fn(async () =>
-      new Response(JSON.stringify({ data: DEFAULT_INSIGHTS_LAYOUT }), {
-        status: 200,
-        headers: { "Content-Type": "application/json" },
-      }),
+    vi.fn(
+      async () =>
+        new Response(JSON.stringify({ data: DEFAULT_INSIGHTS_LAYOUT }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }),
     ),
   );
 });

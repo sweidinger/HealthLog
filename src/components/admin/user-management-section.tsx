@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useAuth } from "@/hooks/use-auth";
 import { formatDate } from "@/lib/format";
+import { SettingsCardHeader } from "@/components/settings/_card-header";
 import { useTranslations } from "@/lib/i18n/context";
 import { queryKeys } from "@/lib/query-keys";
 import { type AdminUser, PasswordInput } from "./_shared";
@@ -220,18 +221,12 @@ export function UserManagementSection() {
 
   return (
     <div className="bg-card border-border rounded-xl border p-4 sm:p-6">
-      {/* Header: stacks vertically on mobile so the filter pills get
-          their own row instead of overlapping the title. The audit
-          flagged this as CRITICAL #2 — at 393px the filter row was
-          colliding with the count Badge and the user-count digit was
-          floating into the title's gap. */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-2">
-        <div className="flex items-center gap-2">
-          <Users className="text-muted-foreground h-5 w-5" />
-          <div className="text-lg font-semibold">
-            {t("admin.userManagement")}
-          </div>
-          {filteredUsers && (
+      <SettingsCardHeader
+        icon={Users}
+        title={t("admin.userManagement")}
+        description={t("admin.userManagementDescription")}
+        titleAccessory={
+          filteredUsers ? (
             <Badge variant="secondary" className="text-xs">
               {filteredUsers.length}
               {filter !== "all" &&
@@ -242,24 +237,25 @@ export function UserManagementSection() {
                   </span>
                 )}
             </Badge>
-          )}
-        </div>
-        {/* Filters mirror the Settings-style horizontal pills */}
-        <div className="flex flex-wrap items-center gap-1.5">
-          {(["all", "admin", "user"] as const).map((value) => (
-            <Button
-              key={value}
-              variant={filter === value ? "default" : "ghost"}
-              size="sm"
-              className="min-h-11 min-w-11 px-3 text-xs"
-              onClick={() => setFilter(value)}
-              aria-pressed={filter === value}
-            >
-              {t(`admin.section.users.filter.${value}`)}
-            </Button>
-          ))}
-        </div>
-      </div>
+          ) : null
+        }
+        status={
+          <div className="flex flex-wrap items-center gap-1.5">
+            {(["all", "admin", "user"] as const).map((value) => (
+              <Button
+                key={value}
+                variant={filter === value ? "default" : "ghost"}
+                size="sm"
+                className="min-h-11 min-w-11 px-3 text-xs"
+                onClick={() => setFilter(value)}
+                aria-pressed={filter === value}
+              >
+                {t(`admin.section.users.filter.${value}`)}
+              </Button>
+            ))}
+          </div>
+        }
+      />
 
       {filteredUsers ? (
         filteredUsers.length === 0 ? (
