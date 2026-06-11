@@ -2,6 +2,20 @@
 
 ## [Unreleased]
 
+## [1.16.7] — 2026-06-11 — insights answer instantly, every evening
+
+### Changed
+
+- **Insights always answer instantly.** A stale briefing is served immediately with a regeneration kicked off in the background — the response carries a revalidating flag and the open page polls briefly until the fresh content lands, instead of blocking the visit on up to ten seconds of inline generation.
+- **The nightly pre-warm no longer skips evening readers.** The staleness threshold drops from twenty hours to one — previously an evening visit stamped the cache fresh, the night run skipped it, and it expired exactly the next evening, so the people who read insights after work were the ones who always hit cold generation. The visit-triggered warm fills both locale families and collapses to one job per user.
+- **The session resolves faster.** The profile read inside `/api/auth/me` runs in parallel with the cookie refresh, the bug-report status answer comes from a ten-minute cache without a write per request, and the medications page is prefetched the moment its nav entry is touched.
+- **The insights route ships less JavaScript.** The schema validator loads lazily and the mood charts split out of the main chunk, trimming the cold download that dominated an uncached first visit.
+
+### Fixed
+
+- A manually entered measurement is reflected in the analytics aggregates on the next read — interactive writes evict the cache instead of marking it stale, while background sync keeps the cheaper path.
+- The analytics script proxy degrades to a silent no-op instead of failing every page when the upstream is unreachable, and records the failure reason where the operator can find it.
+
 ## [1.16.6] — 2026-06-11 — corrected eras, an honest weekly status and a faster first paint
 
 ### Added
