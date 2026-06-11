@@ -317,16 +317,6 @@ export function resolveMoodReminderHour(raw: unknown): number {
 }
 
 /**
- * v1.15.20 — cron-side helper. Returns `true` when the proactive Coach
- * nudge may fire for this user (the default). Tolerates a null /
- * drifted prefs row. The nudge cron layers this on top of the
- * disableCoach / kill-switch / provider gates.
- */
-export function resolveCoachNudgesEnabled(raw: unknown): boolean {
-  return parseNotificationPrefs(raw).coach.nudgesEnabled;
-}
-
-/**
  * v1.16.5 — fully-resolved Coach-nudge view for the cron: the master
  * switch, the three per-group toggles, and the frequency cap mapped to
  * days. One call so the nudge tick reads a single shape instead of
