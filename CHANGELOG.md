@@ -2,6 +2,23 @@
 
 ## [Unreleased]
 
+## [1.16.5] — 2026-06-11 — a guided coach dialog and a schedule that shows its past
+
+### Added
+
+- **Open coach follow-ups run as a guided dialog.** A quiet card offers to start, the coach asks one question at a time with visible progress, answers can be adopted into the matching self-context field, skipping keeps a question pending, and a closing summary says what was taken over.
+- **The schedule shows its history.** Past eras appear as a collapsible timeline on the schedule tab, and an earlier era can be added manually for old history — validated against overlaps and bounded so it can never swallow tracked live history.
+- **Smarter proactive nudges.** Three new deterministic signals — weight drifting from its target band, a run of short nights, an active user falling silent — plus per-group toggles, a frequency preference and wording that addresses the focus you asked the coach to watch.
+- **Invites mint up to fifty uses** with a scrolling redemption list.
+
+### Changed
+
+- **A documented path away from the moving latest tag.** The compose image reference accepts a pinned digest via env var, and a promote script resolves the published digest, verifies its cosign signature and hands the operator the exact pinning call.
+
+### Fixed
+
+- The self-context adopt runs in one transaction, the admin area renders nothing before the role is confirmed, and the json-body helper keeps caller headers intact.
+
 ## [1.16.4] — 2026-06-11 — half the bundle, a typed client, and stock you can record
 
 ### Added
