@@ -38,17 +38,10 @@ import { annotate } from "@/lib/logging/context";
  * `action` is `insights.<scope>-status.<locale>`. The shape IS the cache
  * key, so building it by hand in multiple places risks the same silent
  * drift the queryKey factory guards against on the client. `statusCacheAction`
- * is the one builder; `statusCacheActionPrefix` is its locale-agnostic
- * sibling for the `startsWith` eviction that drops every locale variant of a
- * scope at once.
+ * is the one builder.
  */
 export function statusCacheAction(scope: string, locale: string): string {
   return `insights.${scope}-status.${locale}`;
-}
-
-/** Locale-agnostic prefix for `startsWith`-eviction of every locale of a scope. */
-export function statusCacheActionPrefix(scope: string): string {
-  return `insights.${scope}-status.`;
 }
 
 interface ParsedStatusCache {
