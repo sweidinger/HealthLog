@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { useTranslations } from "@/lib/i18n/context";
+import { apiDelete } from "@/lib/api/api-fetch";
 
 export function DangerZoneSection() {
   const { t } = useTranslations();
@@ -24,14 +25,7 @@ export function DangerZoneSection() {
 
   const wipeAllData = useMutation({
     mutationFn: async () => {
-      const res = await fetch("/api/admin/data", {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ confirm: "DELETE ALL" }),
-      });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error || t("common.error"));
-      return json.data as {
+      return apiDelete<{
         measurements: number;
         intakeEvents: number;
         medications: number;
@@ -41,7 +35,7 @@ export function DangerZoneSection() {
         notificationChannels: number;
         pushSubscriptions: number;
         telegramScheduledDeletions: number;
-      };
+      }>("/api/admin/data", { confirm: "DELETE ALL" });
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries();

@@ -1,0 +1,142 @@
+/**
+ * Shared types, constants, and pure helpers for the Settings → AI
+ * provider components. Extracted from the former 2k-LOC
+ * `ai-section.tsx` monolith; one provider form per file lives next to
+ * this module under `src/components/settings/ai/`.
+ */
+
+export interface InsightsSettings {
+  codexStatus: string;
+  codexConnectedAt: string | null;
+  hasAdminKey: boolean;
+  /** True when the operator has set `CODEX_OAUTH_CLIENT_ID` on this
+   *  instance. The UI hides the "Connect with ChatGPT" button when
+   *  false to avoid the v1.4.2 dead-end where the click bounced the
+   *  user to chatgpt.com without any OAuth flow. */
+  codexOauthConfigured?: boolean;
+  privacyMode: string;
+  lastInsightAt: string | null;
+}
+
+export interface UserAIProvider {
+  provider: string | null;
+  model: string | null;
+  baseUrl: string | null;
+  hasAnthropicKey: boolean;
+  anthropicKeyPreview: string | null;
+  hasLocalKey: boolean;
+  hasOpenaiKey: boolean;
+  openaiKeyPreview: string | null;
+}
+
+/**
+ * v1.4.16 phase B2 — provider tags exposed to the UI. Mirrors
+ * `PROVIDER_CHAIN_TYPES` server-side; kept as a const-array here to
+ * avoid pulling a server-only module into the client bundle.
+ */
+export const PROVIDER_TYPES = [
+  "codex",
+  "openai",
+  "anthropic",
+  "local",
+  "admin-openai",
+] as const;
+export type ProviderType = (typeof PROVIDER_TYPES)[number];
+
+export interface ChainEntry {
+  providerType: ProviderType;
+  enabled: boolean;
+}
+
+export interface ProviderChainData {
+  activeProvider: ProviderType | null;
+  cachedActiveProvider: ProviderType | null;
+  configuredChain: {
+    providerType: ProviderType;
+    enabled: boolean;
+    available: boolean;
+  }[];
+}
+
+export const DEFAULT_CHAIN: readonly ChainEntry[] = [
+  { providerType: "codex", enabled: true },
+  { providerType: "openai", enabled: true },
+  { providerType: "anthropic", enabled: true },
+  { providerType: "local", enabled: true },
+  { providerType: "admin-openai", enabled: true },
+];
+
+/**
+ * OpenAI model presets — the wire-up keeps users out of the freetext
+ * box for the common case. The `__custom__` sentinel surfaces a
+ * freetext input so power users can target preview models or
+ * fine-tunes (e.g. `gpt-5`, which is admitted via the env override on
+ * the Codex backend but not yet a documented OpenAI model id).
+ */
+export const OPENAI_MODEL_PRESETS = [
+  "gpt-4o",
+  "gpt-4o-mini",
+  "gpt-4-turbo",
+] as const;
+export const ANTHROPIC_MODEL_PRESETS = [
+  "claude-sonnet-4-6",
+  "claude-opus-4-7",
+  "claude-haiku-4-5",
+  "claude-3-5-sonnet-latest",
+] as const;
+export const LOCAL_MODEL_PRESETS = [
+  "llama3.1:8b",
+  "llama3.1:70b",
+  "mistral",
+  "qwen2.5",
+] as const;
+export const CUSTOM_MODEL_SENTINEL = "__custom__";
+
+/**
+ * Map UI provider tag → the `aiProvider` enum understood by the
+ * legacy single-result `resolveProvider()` resolver. `codex` and
+ * `admin-openai` aren't user-level provider columns (they're handled
+ * by Codex OAuth + admin-key fallback), so they map to null and the
+ * legacy column is left blank.
+ */
+export function uiToLegacyProviderEnum(p: ProviderType): string | null {
+  switch (p) {
+    case "openai":
+      return "OPENAI";
+    case "anthropic":
+      return "ANTHROPIC";
+    case "local":
+      return "LOCAL";
+    case "codex":
+    case "admin-openai":
+    default:
+      return null;
+  }
+}
+
+// Map the connection-test failure category (a stable, secret-free code from
+// /api/ai/test) to a localised message. Falls back to the server's plain
+// English `reason` for any unmapped / legacy code so a German operator never
+// sees an untranslated sentence in the otherwise-localised Settings panel.
+export function localiseTestReason(
+  t: (key: string, params?: Record<string, string | number>) => string,
+  reasonCode: string | undefined,
+  reason: string | undefined,
+): string | undefined {
+  switch (reasonCode) {
+    case "credentials":
+      return t("settings.ai.testReasonCredentials");
+    case "rate_limited":
+      return t("settings.ai.testReasonRateLimited");
+    case "server_error":
+      return t("settings.ai.testReasonServerError");
+    case "unreachable":
+      return t("settings.ai.testReasonUnreachable");
+    default:
+      return reason;
+  }
+}
+
+export function isProviderType(v: string | null): v is ProviderType {
+  return v != null && (PROVIDER_TYPES as readonly string[]).includes(v);
+}

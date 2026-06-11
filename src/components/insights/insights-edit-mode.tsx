@@ -33,6 +33,7 @@ import {
   type InsightsSectionConfig,
   type InsightsSectionId,
 } from "@/lib/insights-layout";
+import { apiDelete, apiPut } from "@/lib/api/api-fetch";
 
 /**
  * v1.15.11 W3 — inline "Anpassen" edit mode for the customizable Insights
@@ -114,17 +115,11 @@ export function InsightsEditMode({
 
   const saveMutation = useMutation({
     mutationFn: async (next: InsightsLayout) => {
-      const res = await fetch("/api/insights/layout", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+      return apiPut<InsightsLayout>("/api/insights/layout", {
           version: 2,
           sections: next.sections,
           tiles: next.tiles,
-        }),
-      });
-      if (!res.ok) throw new Error("save failed");
-      return (await res.json()).data as InsightsLayout;
+        });
     },
     onSuccess: (saved) => {
       // Optimistic-style settle: write the server-resolved layout into the
@@ -141,9 +136,7 @@ export function InsightsEditMode({
 
   const resetMutation = useMutation({
     mutationFn: async () => {
-      const res = await fetch("/api/insights/layout", { method: "DELETE" });
-      if (!res.ok) throw new Error("reset failed");
-      return (await res.json()).data as InsightsLayout;
+      return apiDelete<InsightsLayout>("/api/insights/layout");
     },
     onSuccess: (saved) => {
       queryClient.setQueryData(queryKeys.insightsLayout(), saved);

@@ -34,7 +34,7 @@ import {
   expectedSlotCountForDay,
   lastNonSkippedTakenAt,
 } from "@/lib/analytics/compliance";
-import { getUserTodayBounds } from "@/lib/timezone";
+import { getUserTodayBounds } from "@/lib/tz/local-day";
 import { projectTodayIntakesAndRecompute } from "@/lib/medications/scheduling/project-today-intakes";
 import {
   applyCanonicalSlotWrite,

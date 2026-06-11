@@ -23,6 +23,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Sparkles, Loader2 } from "lucide-react";
 import { useTranslations, useFormatters } from "@/lib/i18n/context";
 import { queryKeys } from "@/lib/query-keys";
+import { apiGet } from "@/lib/api/api-fetch";
 import { helpfulRateColour } from "./_shared";
 
 interface FeedbackBucket {
@@ -42,11 +43,6 @@ interface FeedbackSummary {
   buckets: FeedbackBucket[];
 }
 
-interface AiQualityResponse {
-  data: { summary: FeedbackSummary | null } | null;
-  error?: string | null;
-}
-
 const SEVERITY_TINT: Record<string, string> = {
   info: "text-dracula-cyan",
   suggestion: "text-dracula-purple",
@@ -61,10 +57,10 @@ export function AiQualitySection() {
   const query = useQuery({
     queryKey: queryKeys.adminAiQuality(),
     queryFn: async () => {
-      const res = await fetch("/api/admin/ai-quality");
-      const json = (await res.json()) as AiQualityResponse;
-      if (!res.ok) throw new Error(json.error ?? "ai_quality_failed");
-      return json.data?.summary ?? null;
+      const data = await apiGet<{ summary: FeedbackSummary | null } | null>(
+        "/api/admin/ai-quality",
+      );
+      return data?.summary ?? null;
     },
   });
 

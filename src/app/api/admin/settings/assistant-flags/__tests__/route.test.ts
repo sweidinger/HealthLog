@@ -33,7 +33,7 @@ import { prisma } from "@/lib/db";
 
 const ADMIN_OK = {
   session: { id: "sess-1", expiresAt: new Date(Date.now() + 3_600_000) },
-  user: { id: "admin-1", username: "marc", role: "ADMIN" as const },
+  user: { id: "admin-1", username: "testuser", role: "ADMIN" as const },
 };
 const USER_OK = {
   session: { id: "sess-2", expiresAt: new Date(Date.now() + 3_600_000) },

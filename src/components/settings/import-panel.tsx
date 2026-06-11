@@ -43,6 +43,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { queryKeys } from "@/lib/query-keys";
 import { useTranslations } from "@/lib/i18n/context";
 import { cn } from "@/lib/utils";
+import { apiFetchRaw, apiGet } from "@/lib/api/api-fetch";
 
 // ─────────────────────────── Section wrapper ───────────────────────────
 
@@ -143,14 +144,7 @@ function AppleHealthImportCard() {
       return 2000;
     },
     queryFn: async (): Promise<JobStatus> => {
-      const res = await fetch(
-        `/api/import/apple-health-export/${jobId}/status`,
-        { credentials: "include" },
-      );
-      if (!res.ok) {
-        throw new Error(`status-${res.status}`);
-      }
-      return (await res.json()).data as JobStatus;
+      return apiGet<JobStatus>(`/api/import/apple-health-export/${jobId}/status`, { credentials: "include" });
     },
   });
 
@@ -162,7 +156,7 @@ function AppleHealthImportCard() {
       try {
         const form = new FormData();
         form.append("file", file);
-        const res = await fetch("/api/import/apple-health-export", {
+        const res = await apiFetchRaw("/api/import/apple-health-export", {
           method: "POST",
           credentials: "include",
           body: form,
@@ -481,7 +475,7 @@ function JsonImportCard() {
     const payload = parsed.value;
     setBusy(true);
     try {
-      const res = await fetch("/api/import", {
+      const res = await apiFetchRaw("/api/import", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",

@@ -23,6 +23,7 @@ import { formatDateTime } from "@/lib/format";
 import { useTranslations } from "@/lib/i18n/context";
 import { queryKeys } from "@/lib/query-keys";
 import { type AdminAuditEntry, useAuthActionLabels } from "./_shared";
+import { apiGet } from "@/lib/api/api-fetch";
 
 const PREVIEW_LIMIT = 10;
 
@@ -37,11 +38,7 @@ export function RecentAuditPreview() {
   const { data, isLoading, isError } = useQuery({
     queryKey: queryKeys.adminAuditOverview(),
     queryFn: async () => {
-      const res = await fetch(
-        `/api/admin/audit-log?limit=${PREVIEW_LIMIT}&filter=auth`,
-      );
-      if (!res.ok) throw new Error("Failed to load audit log");
-      return (await res.json()).data as AuditLogResponse;
+      return apiGet<AuditLogResponse>(`/api/admin/audit-log?limit=${PREVIEW_LIMIT}&filter=auth`);
     },
     // Avoid hitting the DB on every page focus; the overview is the
     // type of page admins keep open and re-render frequently.

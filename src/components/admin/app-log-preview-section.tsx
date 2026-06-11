@@ -49,6 +49,7 @@ import { formatDateTime } from "@/lib/format";
 import { useTranslations } from "@/lib/i18n/context";
 import { queryKeys } from "@/lib/query-keys";
 import type { WideEvent, LogLevel } from "@/lib/logging/types";
+import { apiGet } from "@/lib/api/api-fetch";
 
 type RangePreset = "15m" | "1h" | "6h" | "all";
 
@@ -103,9 +104,7 @@ export function AppLogPreviewSection() {
   const { data, isLoading, refetch, isFetching } = useQuery({
     queryKey: queryKeys.adminAppLogs(traceId, actionFilter, level, range),
     queryFn: async () => {
-      const res = await fetch(`/api/admin/app-logs?${params.toString()}`);
-      if (!res.ok) throw new Error("Failed to load app logs");
-      return (await res.json()).data as AppLogsResponse;
+      return apiGet<AppLogsResponse>(`/api/admin/app-logs?${params.toString()}`);
     },
     refetchInterval: 30_000,
   });

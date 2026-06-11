@@ -52,8 +52,8 @@ vi.mock("@/hooks/use-auth", () => ({
   useAuth: () => ({
     user: {
       id: "u1",
-      username: "marc",
-      email: "marc@example.com",
+      username: "testuser",
+      email: "user@example.com",
       heightCm: 180,
       dateOfBirth: "1990-01-01",
       gender: "MALE",
@@ -153,7 +153,7 @@ describe("settings sections — SSR smoke", () => {
   });
 
   it("<AboutSection> renders the German Replay-tour label end-to-end", () => {
-    // Marc-voice + i18n parity: the W5 spec explicitly names this
+    // project-voice + i18n parity: the W5 spec explicitly names this
     // surface "Tour ansehen" in German. Lock the resolved copy so a
     // future locale-bundle drift doesn't silently fall back to English.
     const html = render(<AboutSection />, "de");

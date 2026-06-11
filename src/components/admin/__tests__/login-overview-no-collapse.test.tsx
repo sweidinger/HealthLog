@@ -37,8 +37,8 @@ vi.mock("@/hooks/use-auth", () => ({
   useAuth: () => ({
     user: {
       id: "u1",
-      username: "marc",
-      email: "marc@example.com",
+      username: "testuser",
+      email: "user@example.com",
       role: "ADMIN",
       timezone: "Europe/Berlin",
     },

@@ -98,7 +98,7 @@ const SESSION_OK = {
   session: { id: "sess-1", expiresAt: new Date(Date.now() + 3_600_000) },
   user: {
     id: "user-1",
-    username: "marc",
+    username: "testuser",
     role: "USER" as const,
     // Pin the user timezone so slot-instant resolution is deterministic
     // regardless of the host TZ (CI runs in UTC, local in Europe/Berlin).

@@ -19,6 +19,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { useFormatters, useTranslations } from "@/lib/i18n/context";
 import { restartOnboardingTour } from "@/lib/onboarding/tour-restart";
 import { queryKeys } from "@/lib/query-keys";
+import { apiFetchRaw, apiGet } from "@/lib/api/api-fetch";
 
 interface VersionPayload {
   version: string;
@@ -129,10 +130,7 @@ export function AboutSection() {
   const { data: version, isLoading } = useQuery({
     queryKey: queryKeys.apiVersion(),
     queryFn: async () => {
-      const res = await fetch("/api/version");
-      if (!res.ok) throw new Error("version-fetch-failed");
-      const json = await res.json();
-      return json.data as VersionPayload;
+      return apiGet<VersionPayload>("/api/version");
     },
     // The endpoint is `force-static` — version doesn't change at runtime.
     staleTime: Infinity,
@@ -187,7 +185,7 @@ export function AboutSection() {
 
   async function runCheck(): Promise<void> {
     try {
-      const res = await fetch("/api/version/check-updates");
+      const res = await apiFetchRaw("/api/version/check-updates");
       if (!res.ok) {
         setUpdateResult({
           status: "unknown",

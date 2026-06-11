@@ -39,7 +39,7 @@ import { DEFAULT_DOCTOR_REPORT_PREFS } from "@/lib/validations/doctor-report-pre
 
 const SESSION_OK = {
   session: { id: "sess-1", expiresAt: new Date(Date.now() + 3_600_000) },
-  user: { id: "user-1", username: "marc", role: "USER" as const },
+  user: { id: "user-1", username: "testuser", role: "USER" as const },
 };
 
 function mkPut(body: unknown): Request {
@@ -69,7 +69,7 @@ describe("GET /api/auth/me/doctor-report-prefs", () => {
       data: typeof DEFAULT_DOCTOR_REPORT_PREFS;
     };
     expect(env.data).toEqual(DEFAULT_DOCTOR_REPORT_PREFS);
-    expect(env.data.mood).toBe(false); // privacy default per Marc
+    expect(env.data.mood).toBe(false); // privacy default per the maintainer
   });
 });
 
@@ -145,7 +145,7 @@ describe("PUT /api/auth/me/doctor-report-prefs", () => {
   });
 
   // ── Case 4 — unauthenticated cross-user request ────────────────────
-  // Marc's spec mentions "cross-user 404" — the route layer returns 401
+  // the maintainer's spec mentions "cross-user 404" — the route layer returns 401
   // when there is no session at all, which is the only "you are not the
   // right user" surface available before requireAuth() resolves an
   // identity. `prisma.user.update` must NOT fire in this case.

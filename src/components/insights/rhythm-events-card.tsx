@@ -6,6 +6,7 @@ import type { LucideIcon } from "lucide-react";
 
 import { useAuth } from "@/hooks/use-auth";
 import { queryKeys } from "@/lib/query-keys";
+import { apiGet } from "@/lib/api/api-fetch";
 import { useTranslations, useFormatters } from "@/lib/i18n/context";
 import { cn } from "@/lib/utils";
 import { SectionHeading } from "@/components/insights/section-heading";
@@ -90,10 +91,13 @@ export function RhythmEventsCard({
   const { data, isLoading } = useQuery({
     queryKey: queryKeys.insightsRhythmEvents(),
     queryFn: async () => {
-      const res = await fetch("/api/insights/rhythm-events");
-      if (!res.ok) throw new Error(t("insights.rhythmEvents.loadError"));
-      const json = await res.json();
-      return json.data as RhythmEventsResponse;
+      try {
+        return await apiGet<RhythmEventsResponse>(
+          "/api/insights/rhythm-events",
+        );
+      } catch {
+        throw new Error(t("insights.rhythmEvents.loadError"));
+      }
     },
     enabled: enabled && isAuthenticated,
   });

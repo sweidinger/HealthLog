@@ -42,6 +42,7 @@ import {
   type ManagerGroup,
 } from "@/lib/insights/sub-page-metric";
 import { SUB_PAGE_TABS } from "@/components/insights/insights-tab-strip";
+import { apiPut } from "@/lib/api/api-fetch";
 
 /**
  * v1.15.18 — dedicated pill-sort control for the Insights settings section.
@@ -123,19 +124,13 @@ export function InsightsPillOrderSection({ id }: { id?: string }) {
 
   const saveMutation = useMutation({
     mutationFn: async (tiles: InsightsTileConfig[]) => {
-      const res = await fetch("/api/insights/layout", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+      return apiPut<InsightsLayout>("/api/insights/layout", {
           version: 2,
           // Preserve the overview section order/visibility verbatim — this
           // surface owns the PILL order only.
           sections: layout.sections,
           tiles,
-        }),
-      });
-      if (!res.ok) throw new Error("save failed");
-      return (await res.json()).data as InsightsLayout;
+        });
     },
     onSuccess: (saved) => {
       queryClient.setQueryData(queryKeys.insightsLayout(), saved);

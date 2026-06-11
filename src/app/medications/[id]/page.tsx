@@ -28,6 +28,7 @@ import {
   MedicationDetailTabs,
   type MedicationDetailSnapshot,
 } from "@/components/medications/detail/MedicationDetailTabs";
+import { apiGet } from "@/lib/api/api-fetch";
 
 export default function MedicationDetailPage({
   params,
@@ -52,9 +53,7 @@ export default function MedicationDetailPage({
   } = useQuery<MedicationDetailSnapshot>({
     queryKey: queryKeys.medicationDetail(id),
     queryFn: async () => {
-      const res = await fetch(`/api/medications/${id}`);
-      if (!res.ok) throw new Error("medication_detail_failed");
-      return (await res.json()).data as MedicationDetailSnapshot;
+      return apiGet<MedicationDetailSnapshot>(`/api/medications/${id}`);
     },
     // v1.15.20 — deliberately NOT gated on `isAuthenticated`: the session
     // cookie rides the fetch either way, so waiting for `/api/auth/me`

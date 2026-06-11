@@ -13,6 +13,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { apiGet } from "@/lib/api/api-fetch";
 
 /**
  * v1.11.0 W3 — period-narrative card (Pillar P1).
@@ -59,11 +60,7 @@ interface PeriodNarrativeCardProps {
 async function fetchNarrative(
   period: NarrativePeriod,
 ): Promise<NarrativeResponse> {
-  const res = await fetch(`/api/insights/narrative?period=${period}`);
-  if (!res.ok) {
-    throw new Error(`narrative ${res.status}`);
-  }
-  return (await res.json()).data as NarrativeResponse;
+  return apiGet<NarrativeResponse>(`/api/insights/narrative?period=${period}`);
 }
 
 function ProvenanceDisclosure({

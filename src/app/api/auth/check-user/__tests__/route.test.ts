@@ -102,7 +102,7 @@ describe("POST /api/auth/check-user — audit-log row (M-1)", () => {
       _count: { passkeys: 2 },
     } as never);
 
-    const res = await POST(makeRequest({ identifier: "marc" }));
+    const res = await POST(makeRequest({ identifier: "testuser" }));
     expect(res.status).toBe(200);
 
     expect(auditLog).toHaveBeenCalledTimes(1);
@@ -111,7 +111,7 @@ describe("POST /api/auth/check-user — audit-log row (M-1)", () => {
       ipAddress: "203.0.113.1",
       details: {
         branch: "passkey_only",
-        identifier_hash: expectedHash("marc"),
+        identifier_hash: expectedHash("testuser"),
       },
     });
   });
@@ -123,13 +123,13 @@ describe("POST /api/auth/check-user — audit-log row (M-1)", () => {
       _count: { passkeys: 0 },
     } as never);
 
-    const res = await POST(makeRequest({ identifier: "marc@example.com" }));
+    const res = await POST(makeRequest({ identifier: "user@example.com" }));
     expect(res.status).toBe(200);
 
     const args = vi.mocked(auditLog).mock.calls[0];
     expect(args[1]?.details).toEqual({
       branch: "email_fallback",
-      identifier_hash: expectedHash("marc@example.com"),
+      identifier_hash: expectedHash("user@example.com"),
     });
     expect(args[1]?.userId).toBe("user-2");
   });

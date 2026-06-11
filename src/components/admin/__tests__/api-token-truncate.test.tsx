@@ -4,7 +4,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 /**
  * v1.4.19 A7 — `/admin/api-tokens` 4th-attempt scrollbar fix.
  *
- * the maintainer reported a "minimaler Scrollbar" still painting at the
+ * The maintainer reported a "minimaler Scrollbar" still painting at the
  * bottom-right of the api-tokens page, even after the v1.4.18 phase
  * A2 mobile-strip `no-scrollbar` fix. The remaining culprits are
  * inside the section card itself: long token names, long usernames,
@@ -37,7 +37,7 @@ const sampleTokens = [
     revoked: false,
     user: {
       id: "u1",
-      username: "marc-the-very-long-username-that-overflows",
+      username: "user-the-very-long-username-that-overflows",
     },
   },
 ];
@@ -62,8 +62,8 @@ vi.mock("@/hooks/use-auth", () => ({
   useAuth: () => ({
     user: {
       id: "u1",
-      username: "marc",
-      email: "marc@example.com",
+      username: "testuser",
+      email: "user@example.com",
       role: "ADMIN",
     },
     isAuthenticated: true,

@@ -4,7 +4,7 @@ import { annotate, getEvent } from "@/lib/logging/context";
 import { apiSuccess } from "@/lib/api-response";
 import { parseScheduleRecurrence } from "@/lib/medication-schedule";
 import { dispatchLocalisedNotification } from "@/lib/notifications/dispatch-localised";
-import { getUserTodayBounds, getDayOfWeekInTz } from "@/lib/timezone";
+import { getUserTodayBounds, getDayOfWeekInTz } from "@/lib/tz/local-day";
 
 export const dynamic = "force-dynamic";
 

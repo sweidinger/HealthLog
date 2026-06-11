@@ -54,7 +54,7 @@ import { computeDerivedMetric } from "@/lib/insights/derived";
 
 const SESSION_OK = {
   session: { id: "sess-1", expiresAt: new Date(Date.now() + 3_600_000) },
-  user: { id: "user-1", username: "marc", role: "USER" as const, locale: "en" },
+  user: { id: "user-1", username: "testuser", role: "USER" as const, locale: "en" },
 };
 
 const callGet = GET as unknown as (req: NextRequest) => Promise<Response>;

@@ -17,7 +17,7 @@
  * straight into iOS-era analytics without an extra migration step.
  *
  * v1.4.25 W8c — two-axis extension. The same screen now hosts three
- * vertically-stacked sections (Marc no-split directive):
+ * vertically-stacked sections (the maintainer no-split directive):
  *   1. Global default ladder per metric class (existing).
  *   2. Per-metric override expander — collapsed by default; an
  *      explicit knob for power users (the global ladder already lives
@@ -53,6 +53,7 @@ import {
   SOURCE_PRIORITY_METRIC_KEYS,
   type SourcePriorityMetricKey,
 } from "@/lib/validations/source-priority";
+import { apiGet, apiPut } from "@/lib/api/api-fetch";
 
 /**
  * Resolved shape returned by `GET /api/auth/me/source-priority`. Mirrors
@@ -125,10 +126,7 @@ export function SourcesSection() {
   const { data: remote, isLoading } = useQuery({
     queryKey: queryKeys.sourcePriority(),
     queryFn: async () => {
-      const res = await fetch("/api/auth/me/source-priority");
-      if (!res.ok) throw new Error("failed");
-      const json = await res.json();
-      return json.data as ResolvedPriority;
+      return apiGet<ResolvedPriority>("/api/auth/me/source-priority");
     },
   });
 
@@ -151,13 +149,7 @@ export function SourcesSection() {
         metricPriority: next.metricPriority,
         deviceTypePriority: next.deviceTypePriority,
       };
-      const res = await fetch("/api/auth/me/source-priority", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
-      if (!res.ok) throw new Error("save failed");
-      return (await res.json()).data as ResolvedPriority;
+      return apiPut<ResolvedPriority>("/api/auth/me/source-priority", body);
     },
     onSuccess: (saved) => {
       queryClient.setQueryData(queryKeys.sourcePriority(), saved);
@@ -176,13 +168,7 @@ export function SourcesSection() {
       // Sending the empty W8c shape clears every per-user override; the
       // server's `parseSourcePriority` then returns the constant
       // defaults verbatim. Keeps the wire payload tiny.
-      const res = await fetch("/api/auth/me/source-priority", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({}),
-      });
-      if (!res.ok) throw new Error("reset failed");
-      return (await res.json()).data as ResolvedPriority;
+      return apiPut<ResolvedPriority>("/api/auth/me/source-priority", {});
     },
     onSuccess: (saved) => {
       queryClient.setQueryData(queryKeys.sourcePriority(), saved);

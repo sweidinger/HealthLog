@@ -7,6 +7,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { queryKeys } from "@/lib/query-keys";
 import { useTranslations } from "@/lib/i18n/context";
 import { moodTagIcon } from "./mood-tag-icons";
+import { apiGet } from "@/lib/api/api-fetch";
 
 /**
  * v1.8.5 / v1.12.0 — structured mood-tag capture surface (Daylio-style).
@@ -78,10 +79,7 @@ export function MoodTagPicker({
   const { data, isLoading } = useQuery({
     queryKey: queryKeys.moodTagCatalog(),
     queryFn: async () => {
-      const res = await fetch("/api/mood/tags");
-      if (!res.ok) throw new Error("Failed");
-      const json = await res.json();
-      return json.data as CatalogResponse;
+      return apiGet<CatalogResponse>("/api/mood/tags");
     },
     enabled: isAuthenticated,
     // The catalog only changes on a migration / admin edit.

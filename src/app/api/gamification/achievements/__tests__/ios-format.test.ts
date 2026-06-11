@@ -43,7 +43,7 @@ const SESSION_OK = {
   session: { id: "sess-1", expiresAt: new Date(Date.now() + 3_600_000) },
   user: {
     id: "user-1",
-    username: "marc",
+    username: "testuser",
     role: "USER" as const,
     createdAt: new Date("2026-03-01T00:00:00.000Z"),
     heightCm: null,

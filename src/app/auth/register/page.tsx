@@ -13,6 +13,7 @@ import { PasswordStrength } from "@/components/ui/password-strength";
 import { useTranslations } from "@/lib/i18n/context";
 import { detectBrowserTimezone } from "@/lib/tz/format";
 import { queryKeys } from "@/lib/query-keys";
+import { ApiError, apiPost } from "@/lib/api/api-fetch";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -47,29 +48,22 @@ export default function RegisterPage() {
       // bogus, so a tampered or proxied request can never poison
       // the user's stored zone.
       const timezone = detectBrowserTimezone();
-      const res = await fetch("/api/auth/register", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email,
-          username,
-          password,
-          timezone,
-          ...(inviteToken ? { inviteToken } : {}),
-        }),
+      await apiPost("/api/auth/register", {
+        email,
+        username,
+        password,
+        timezone,
+        ...(inviteToken ? { inviteToken } : {}),
       });
-
-      const json = await res.json();
-      if (!res.ok) {
-        setError(json.error);
-        setLoading(false);
-        return;
-      }
 
       await queryClient.invalidateQueries({ queryKey: queryKeys.auth() });
       router.push("/");
-    } catch {
-      setError(t("auth.registerFailed"));
+    } catch (err) {
+      setError(
+        err instanceof ApiError && err.message
+          ? err.message
+          : t("auth.registerFailed"),
+      );
     } finally {
       setLoading(false);
     }

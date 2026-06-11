@@ -50,7 +50,7 @@ describe("<CoachInput>", () => {
 
   it("no longer renders a mic button (W5 removed the placeholder)", () => {
     // v1.4.25 W5 — the mic icon used to be rendered + disabled with a
-    // "voice arrives with iOS" tooltip. Marc flagged it as a click-
+    // "voice arrives with iOS" tooltip. The maintainer flagged it as a click-
     // trap: nothing happened on tap. The composer now drops the icon
     // entirely; voice input remains a v1.5 iOS feature.
     const html = render(

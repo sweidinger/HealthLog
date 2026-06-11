@@ -9,6 +9,7 @@ import { Switch } from "@/components/ui/switch";
 import { SettingsCardHeader } from "@/components/settings/_card-header";
 import { useTranslations } from "@/lib/i18n/context";
 import { queryKeys } from "@/lib/query-keys";
+import { apiFetchRaw, apiGet } from "@/lib/api/api-fetch";
 
 interface ProfileShape {
   moodReminderEnabled: boolean;
@@ -65,9 +66,7 @@ export function MoodReminderCard({
   const { data: profile } = useQuery({
     queryKey: queryKeys.userProfile(),
     queryFn: async () => {
-      const res = await fetch("/api/user/profile");
-      if (!res.ok) throw new Error("Failed to load profile");
-      return (await res.json()).data as ProfileShape;
+      return apiGet<ProfileShape>("/api/user/profile");
     },
     enabled: isAuthenticated,
   });
@@ -77,9 +76,7 @@ export function MoodReminderCard({
   const { data: prefs } = useQuery({
     queryKey: queryKeys.authNotificationPrefs(),
     queryFn: async () => {
-      const res = await fetch("/api/auth/me/notification-prefs");
-      if (!res.ok) throw new Error("Failed to load notification prefs");
-      return (await res.json()).data as NotificationPrefsShape;
+      return apiGet<NotificationPrefsShape>("/api/auth/me/notification-prefs");
     },
     enabled: isAuthenticated,
   });
@@ -97,7 +94,7 @@ export function MoodReminderCard({
       clearTimerRef.current = null;
     }
 
-    const res = await fetch("/api/user/profile", {
+    const res = await apiFetchRaw("/api/user/profile", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ moodReminderEnabled: next }),
@@ -132,7 +129,7 @@ export function MoodReminderCard({
       clearTimerRef.current = null;
     }
 
-    const res = await fetch("/api/auth/me/notification-prefs", {
+    const res = await apiFetchRaw("/api/auth/me/notification-prefs", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ mood: { reminderHour: next } }),

@@ -10,6 +10,7 @@ import {
   type TrendAnnotations,
 } from "@/lib/ai/schema";
 import { queryKeys } from "@/lib/query-keys";
+import { apiFetchRaw } from "@/lib/api/api-fetch";
 
 /**
  * v1.4.16 phase D reconcile (CRITICAL C1 + C2) — shared TanStack Query
@@ -111,14 +112,17 @@ async function fetchAdvisor(
     // and enqueues an out-of-band warm on a stale / missing cache — it
     // never blocks the page-load path on the provider chain. Only the
     // user-initiated regenerate (`force`) POSTs to generate inline.
+    // apiFetchRaw: this path branches on raw status codes (422 / 429 /
+    // 503 are expected, non-throwing surfaces) — the unwrap helpers
+    // would turn them into thrown ApiErrors.
     res = options.force
-      ? await fetch("/api/insights/generate", {
+      ? await apiFetchRaw("/api/insights/generate", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ force: true }),
           signal: controller.signal,
         })
-      : await fetch("/api/insights/generate", {
+      : await apiFetchRaw("/api/insights/generate", {
           method: "GET",
           signal: controller.signal,
         });

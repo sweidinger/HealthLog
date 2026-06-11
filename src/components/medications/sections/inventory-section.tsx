@@ -42,6 +42,7 @@ import { Input } from "@/components/ui/input";
 import { SettingsGroup } from "@/components/medications/settings-group";
 import { useTranslations } from "@/lib/i18n/context";
 import { queryKeys } from "@/lib/query-keys";
+import { apiGet, apiPatch, apiPost } from "@/lib/api/api-fetch";
 
 type InventoryState = "ACTIVE" | "IN_USE" | "EXPIRED" | "USED_UP";
 
@@ -79,9 +80,7 @@ export function InventorySection({
   const { data, isLoading } = useQuery<InventoryResponse>({
     queryKey: queryKeys.medicationInventory(medicationId),
     queryFn: async () => {
-      const res = await fetch(`/api/medications/${medicationId}/inventory`);
-      if (!res.ok) throw new Error("inventory_failed");
-      return (await res.json()).data as InventoryResponse;
+      return apiGet<InventoryResponse>(`/api/medications/${medicationId}/inventory`);
     },
     staleTime: 30_000,
   });
@@ -242,20 +241,12 @@ function AddInventoryDialog({
     if (!quantityValid || busy) return;
     setBusy(true);
     try {
-      const res = await fetch(`/api/medications/${medicationId}/inventory`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          dosesTotal: parsed,
-          printedExpiry: expiry
-            ? new Date(`${expiry}T00:00:00`).toISOString()
-            : null,
-        }),
+      await apiPost(`/api/medications/${medicationId}/inventory`, {
+        dosesTotal: parsed,
+        printedExpiry: expiry
+          ? new Date(`${expiry}T00:00:00`).toISOString()
+          : null,
       });
-      if (!res.ok) {
-        toast.error(t("medications.detail.bestand.addFailed"));
-        return;
-      }
       await queryClient.invalidateQueries({
         queryKey: queryKeys.medicationInventory(medicationId),
       });
@@ -373,18 +364,9 @@ function AdjustInventoryDialog({
     if (!valid || busy) return;
     setBusy(true);
     try {
-      const res = await fetch(
-        `/api/medications/${medicationId}/inventory/${item.id}`,
-        {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ dosesRemaining: parsed }),
-        },
-      );
-      if (!res.ok) {
-        toast.error(t("medications.detail.bestand.adjustFailed"));
-        return;
-      }
+      await apiPatch(`/api/medications/${medicationId}/inventory/${item.id}`, {
+        dosesRemaining: parsed,
+      });
       await queryClient.invalidateQueries({
         queryKey: queryKeys.medicationInventory(medicationId),
       });

@@ -17,6 +17,7 @@ import {
   type EffectiveRange,
 } from "@/lib/analytics/effective-range";
 import { convertGlucose, toCanonicalMgdl } from "@/lib/glucose";
+import { apiDelete, apiGet, apiPut } from "@/lib/api/api-fetch";
 
 /**
  * Per-metric target editor, mounted inline on the Insights metric
@@ -145,10 +146,7 @@ function TargetEditSheetBody({
   const { data: thresholdsData } = useQuery({
     queryKey: ["user", "thresholds"],
     queryFn: async () => {
-      const res = await fetch("/api/user/thresholds");
-      if (!res.ok) throw new Error("failed");
-      const json = await res.json();
-      return json.data as ThresholdsApiResponse;
+      return apiGet<ThresholdsApiResponse>("/api/user/thresholds");
     },
   });
 
@@ -205,6 +203,10 @@ function TargetEditSheetBody({
   // primary input as soon as the portal paints.
   const firstInputRef = useRef<HTMLInputElement | null>(null);
   const dialogContentId = useId();
+  // v1.16.4 — the body is a real form and the footer save button
+  // associates via the `form` attribute (the footer renders in a
+  // separate slot), so Enter in any numeric field saves.
+  const formId = useId();
   useEffect(() => {
     // Defer one frame so Radix has finished placing the portal before
     // we steal focus — otherwise the focus jumps to the close-X on
@@ -222,15 +224,7 @@ function TargetEditSheetBody({
     mutationFn: async (
       payload: Partial<Record<ThresholdMetric, CurrentRange>>,
     ) => {
-      const res = await fetch("/api/user/thresholds", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      if (!res.ok) {
-        const err = await res.json().catch(() => null);
-        throw new Error(err?.error ?? "save failed");
-      }
+      await apiPut("/api/user/thresholds", payload);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["user", "thresholds"] });
@@ -251,18 +245,12 @@ function TargetEditSheetBody({
       if (isBp) {
         // Reset BOTH sys + dia.
         for (const m of ["BLOOD_PRESSURE_SYS", "BLOOD_PRESSURE_DIA"] as const) {
-          const res = await fetch(`/api/user/thresholds?metric=${m}`, {
-            method: "DELETE",
-          });
-          if (!res.ok) throw new Error("reset failed");
+          await apiDelete(`/api/user/thresholds?metric=${m}`);
         }
         return;
       }
       if (!metric) return;
-      const res = await fetch(`/api/user/thresholds?metric=${metric}`, {
-        method: "DELETE",
-      });
-      if (!res.ok) throw new Error("reset failed");
+      await apiDelete(`/api/user/thresholds?metric=${metric}`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["user", "thresholds"] });
@@ -388,8 +376,9 @@ function TargetEditSheetBody({
               {t("common.cancel")}
             </Button>
             <Button
+              type="submit"
+              form={formId}
               size="sm"
-              onClick={handleSave}
               disabled={!canSave}
               data-slot="target-edit-save"
             >
@@ -399,10 +388,15 @@ function TargetEditSheetBody({
         </div>
       }
     >
-      <div
+      <form
+        id={formId}
         data-slot="target-edit-sheet"
         data-target-type={targetType}
         aria-describedby={dialogContentId}
+        onSubmit={(e) => {
+          e.preventDefault();
+          handleSave();
+        }}
       >
         <p id={dialogContentId} className="sr-only">
           {isDerivedMetric
@@ -504,7 +498,7 @@ function TargetEditSheetBody({
             </p>
           </div>
         )}
-      </div>
+      </form>
     </ResponsiveSheet>
   );
 }

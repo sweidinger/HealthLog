@@ -2,6 +2,7 @@
 
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
+import { toast } from "sonner";
 import {
   Bot,
   ChevronRight,
@@ -14,6 +15,7 @@ import {
 import { cn } from "@/lib/utils";
 import { scrollBehaviorForUser } from "@/lib/motion";
 import { useTranslations } from "@/lib/i18n/context";
+import { ApiError, apiPost } from "@/lib/api/api-fetch";
 import { stripChartTokens } from "@/lib/insights/chart-tokens";
 import { useAuth } from "@/hooks/use-auth";
 
@@ -118,7 +120,7 @@ export function MessageThread({
   // v1.4.27 F14 — the evidence disclosure used to honour an opt-in
   // `coachPrefs.showEvidenceByDefault` flag that surfaced the raw
   // measurement values unconditionally. The flag created an UX trap
-  // (Marc 2026-05-15: "literal metric values exposed under every
+  // (the maintainer 2026-05-15: "literal metric values exposed under every
   // bubble") so the disclosure is now collapsed by default for every
   // reply. The user expands by click; the pref is retired in the
   // settings sheet so nothing flips it back on.
@@ -617,22 +619,25 @@ function CoachMessageFeedback({ messageId }: CoachMessageFeedbackProps) {
 
   const submit = useMutation({
     mutationFn: async (rating: "helpful" | "unhelpful") => {
-      const res = await fetch(
-        `/api/insights/chat/messages/${messageId}/feedback`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ rating }),
-        },
-      );
-      // Treat 409 (already_rated) as a successful no-op so the user
-      // never sees an error toast for double-clicking the same chip.
-      if (!res.ok && res.status !== 409) {
-        throw new Error("coach-feedback.failed");
+      try {
+        await apiPost(`/api/insights/chat/messages/${messageId}/feedback`, {
+          rating,
+        });
+      } catch (err) {
+        // Treat 409 (already_rated) as a successful no-op so the user
+        // never sees an error toast for double-clicking the same chip.
+        if (!(err instanceof ApiError && err.status === 409)) {
+          throw err;
+        }
       }
       return rating;
     },
     onSuccess: (rating) => setSubmittedRating(rating),
+    // v1.16.4 — a failed rating used to fail silently; the chips stayed
+    // tappable with no signal that nothing was recorded.
+    onError: () => {
+      toast.error(t("insights.coach.feedbackError"));
+    },
   });
 
   if (submittedRating) {

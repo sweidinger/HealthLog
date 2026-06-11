@@ -24,6 +24,7 @@ import { Loader2, MoreHorizontal, Plus, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
 import { useTranslations } from "@/lib/i18n/context";
 import { invalidateKeys, measurementDependentKeys } from "@/lib/query-keys";
+import { ApiError, apiPost } from "@/lib/api/api-fetch";
 import { MEASUREMENT_NOTES_MAX_LENGTH } from "@/lib/validations/measurement";
 
 const MAX_COMMENT_LENGTH = MEASUREMENT_NOTES_MAX_LENGTH;
@@ -255,38 +256,16 @@ export function MeasurementForm({
           });
         }
 
-        const res = await fetch("/api/measurements", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(batch),
-        });
-
-        const json = await res.json();
-        if (!res.ok) {
-          setError(json.error);
-          setLoading(false);
-          return;
-        }
+        await apiPost("/api/measurements", batch);
       } else {
         // Single measurement
-        const res = await fetch("/api/measurements", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            type,
-            value: parseFloat(value),
-            measuredAt: timestamp,
-            notes: notes || undefined,
-            ...(isGlucoseMode ? { glucoseContext } : {}),
-          }),
+        await apiPost("/api/measurements", {
+          type,
+          value: parseFloat(value),
+          measuredAt: timestamp,
+          notes: notes || undefined,
+          ...(isGlucoseMode ? { glucoseContext } : {}),
         });
-
-        const json = await res.json();
-        if (!res.ok) {
-          setError(json.error);
-          setLoading(false);
-          return;
-        }
       }
 
       // Reset form
@@ -298,8 +277,12 @@ export function MeasurementForm({
       await invalidateKeys(queryClient, measurementDependentKeys);
       toast.success(t("common.saved"));
       onSuccess?.();
-    } catch {
-      setError(t("measurements.saveError"));
+    } catch (err) {
+      setError(
+        err instanceof ApiError && err.message
+          ? err.message
+          : t("measurements.saveError"),
+      );
     } finally {
       setLoading(false);
     }

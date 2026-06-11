@@ -91,7 +91,7 @@ export type WizardTreatmentRow =
   | "other";
 
 /**
- * The ten taxonomy rows in their visible order. Marc-confirmed (D-1
+ * The ten taxonomy rows in their visible order. maintainer-confirmed (D-1
  * §3 Step 2): Blutdruck · Diabetes · Hormone · GLP-1-Injektion ·
  * Schmerz · Allergie · Vitamine · Nahrungsergänzung · Antibiotikum ·
  * Sonstiges.

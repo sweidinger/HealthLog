@@ -55,6 +55,7 @@ import { UnitPreferenceSelect } from "@/components/settings/unit-preference-sele
 import { InjectionSitesCard } from "@/components/settings/injection-sites-card";
 import { CycleTrackingCard } from "@/components/settings/cycle-tracking-card";
 import { detectBrowserTimezone, DEFAULT_TIMEZONE } from "@/lib/tz/format";
+import { apiDelete, apiFetchRaw, apiGet } from "@/lib/api/api-fetch";
 
 interface PasskeyInfo {
   id: string;
@@ -110,7 +111,7 @@ export function resolveInitialTimezone(
 }
 
 export function AccountSection() {
-  const { t, locale, setLocale } = useTranslations();
+  const { t, locale, setLocale, pendingLocale } = useTranslations();
   const { user, isLoading, isAuthenticated, refetch } = useAuth();
   const router = useRouter();
 
@@ -204,7 +205,7 @@ export function AccountSection() {
     // through the bigger profile patch path. Run the two PUTs in
     // parallel — they're independent.
     const [profileRes, tzRes] = await Promise.all([
-      fetch("/api/auth/profile", {
+      apiFetchRaw("/api/auth/profile", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -218,7 +219,7 @@ export function AccountSection() {
         }),
       }),
       user && timezone && timezone !== user.timezone
-        ? fetch("/api/auth/me/timezone", {
+        ? apiFetchRaw("/api/auth/me/timezone", {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ timezone }),
@@ -256,7 +257,7 @@ export function AccountSection() {
     setPasskeyMsgType(null);
 
     try {
-      const optRes = await fetch("/api/auth/passkey/register-options", {
+      const optRes = await apiFetchRaw("/api/auth/passkey/register-options", {
         method: "POST",
       });
 
@@ -273,7 +274,7 @@ export function AccountSection() {
       const { startRegistration } = await import("@simplewebauthn/browser");
       const credential = await startRegistration({ optionsJSON: options });
 
-      const verifyRes = await fetch("/api/auth/passkey/register-verify", {
+      const verifyRes = await apiFetchRaw("/api/auth/passkey/register-verify", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ challengeId, credential }),
@@ -335,7 +336,7 @@ export function AccountSection() {
     }
 
     try {
-      const res = await fetch("/api/auth/password", {
+      const res = await apiFetchRaw("/api/auth/password", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -490,9 +491,15 @@ export function AccountSection() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="language-select">{t("settings.language")}</Label>
+              {/* While a switch waits on its message bundle (dynamic
+                  import per locale), show the target value and lock the
+                  control — the context only flips locale + strings
+                  together once the bundle arrived. */}
               <NativeSelect
                 id="language-select"
-                value={locale}
+                value={pendingLocale ?? locale}
+                disabled={pendingLocale !== null}
+                aria-busy={pendingLocale !== null}
                 onChange={(e) => setLocale(e.target.value as Locale)}
               >
                 {locales.map((loc) => (
@@ -817,18 +824,14 @@ function PasskeyListSection({ isAuthenticated }: { isAuthenticated: boolean }) {
   const { data: passkeys } = useQuery({
     queryKey: queryKeys.passkeys(),
     queryFn: async () => {
-      const res = await fetch("/api/auth/passkeys");
-      if (!res.ok) throw new Error("Failed");
-      return (await res.json()).data as PasskeyInfo[];
+      return apiGet<PasskeyInfo[]>("/api/auth/passkeys");
     },
     enabled: isAuthenticated,
   });
 
   const deletePasskey = useMutation({
     mutationFn: async (id: string) => {
-      const res = await fetch(`/api/auth/passkeys/${id}`, { method: "DELETE" });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error || t("common.error"));
+      await apiDelete(`/api/auth/passkeys/${id}`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.passkeys() });
@@ -1088,7 +1091,10 @@ function AvatarSection() {
     mutationFn: async (file: File) => {
       const body = new FormData();
       body.append("file", file);
-      const res = await fetch("/api/user/avatar", { method: "POST", body });
+      const res = await apiFetchRaw("/api/user/avatar", {
+        method: "POST",
+        body,
+      });
       const json = await res.json().catch(() => ({}));
       if (!res.ok) {
         if (res.status === 415)
@@ -1110,7 +1116,7 @@ function AvatarSection() {
 
   const remove = useMutation({
     mutationFn: async () => {
-      const res = await fetch("/api/user/avatar", { method: "DELETE" });
+      const res = await apiFetchRaw("/api/user/avatar", { method: "DELETE" });
       if (!res.ok) {
         const json = await res.json().catch(() => ({}));
         throw new Error(json.error || t("settings.avatar.error"));

@@ -113,17 +113,10 @@ export function AuthShell({
   // previous `useEffect`-based redirect caused a brief dashboard flash
   // for users with `onboardingCompletedAt === null`.
 
-  // Loading state
-  if (isLoading) {
-    return (
-      <div className="flex h-dvh items-center justify-center" role="status">
-        <Loader2 className="text-primary h-6 w-6 animate-spin motion-reduce:animate-none" />
-        <span className="sr-only">{t("nav.loadingScreen")}</span>
-      </div>
-    );
-  }
-
-  // Public pages (login, register) — render without any nav
+  // Public pages (login, register) — render without any nav. Resolved
+  // BEFORE the auth-loading gate: a public page never needs the
+  // `/api/auth/me` round-trip to paint, so blocking it on `isLoading`
+  // only delayed the login form behind a spinner.
   if (isPublicPage) {
     // Long-form legal pages render edge-to-edge with their own chrome.
     if (isStandalonePublicPage) {
@@ -143,8 +136,11 @@ export function AuthShell({
     );
   }
 
-  // Not authenticated, waiting for redirect
-  if (!isAuthenticated) {
+  // Admin pages stay behind the auth gate while `/api/auth/me` is in
+  // flight: the role is unknown until the payload lands, and mounting
+  // `/admin/*` children early would fire admin queries that 403 for a
+  // non-admin before the redirect effect can move them away.
+  if (isLoading && isAdminPage) {
     return (
       <div className="flex h-dvh items-center justify-center" role="status">
         <Loader2 className="text-primary h-6 w-6 animate-spin motion-reduce:animate-none" />
@@ -152,6 +148,27 @@ export function AuthShell({
       </div>
     );
   }
+
+  // Auth RESOLVED as unauthenticated — hold a spinner while the
+  // redirect effect above replaces the route with /auth/login.
+  if (!isLoading && !isAuthenticated) {
+    return (
+      <div className="flex h-dvh items-center justify-center" role="status">
+        <Loader2 className="text-primary h-6 w-6 animate-spin motion-reduce:animate-none" />
+        <span className="sr-only">{t("nav.loadingScreen")}</span>
+      </div>
+    );
+  }
+
+  // While `/api/auth/me` is still in flight the shell renders the full
+  // app chrome + children immediately (the chrome components own their
+  // null-user skeletons, pages own their data skeletons). This takes the
+  // auth round-trip off the first-paint critical path: page-level
+  // queries fire in parallel with `/api/auth/me` instead of behind it.
+  // `src/proxy.ts` has already refused cookie-less requests to
+  // protected routes, so the unauthenticated-flash window is limited to
+  // expired/invalid sessions — those resolve into the redirect branch
+  // above as soon as the 401 lands.
 
   // Onboarding page — minimal shell, no sidebar/nav
   if (isOnboardingPage) {

@@ -25,6 +25,7 @@ import { formatDate } from "@/lib/format";
 import { useTranslations } from "@/lib/i18n/context";
 import { queryKeys } from "@/lib/query-keys";
 import { type AdminUser, PasswordInput } from "./_shared";
+import { apiGet, apiPost, apiPut } from "@/lib/api/api-fetch";
 
 /**
  * Filter values for the v1.5 users sub-route. The User model does NOT
@@ -52,9 +53,7 @@ export function UserManagementSection() {
   const { data: users } = useQuery({
     queryKey: queryKeys.adminUsers(),
     queryFn: async () => {
-      const res = await fetch("/api/admin/users");
-      if (!res.ok) throw new Error("Failed");
-      return (await res.json()).data as AdminUser[];
+      return apiGet<AdminUser[]>("/api/admin/users");
     },
   });
 
@@ -73,13 +72,7 @@ export function UserManagementSection() {
       id: string;
       data: Record<string, unknown>;
     }) => {
-      const res = await fetch(`/api/admin/users/${id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-      });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error || t("common.error"));
+      await apiPut(`/api/admin/users/${id}`, data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.adminUsers() });
@@ -97,13 +90,7 @@ export function UserManagementSection() {
 
   const resetPw = useMutation({
     mutationFn: async ({ id, password }: { id: string; password: string }) => {
-      const res = await fetch(`/api/admin/users/${id}/reset-password`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ password }),
-      });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error || t("common.error"));
+      await apiPost(`/api/admin/users/${id}/reset-password`, { password });
     },
     onSuccess: () => {
       setResetMsg(t("admin.passwordReset"));
@@ -116,12 +103,9 @@ export function UserManagementSection() {
 
   const forceLogout = useMutation({
     mutationFn: async ({ id }: { id: string }) => {
-      const res = await fetch(`/api/admin/users/${id}/force-logout`, {
-        method: "POST",
-      });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error || t("common.error"));
-      return json.data as { sessionsRevoked: number };
+      return apiPost<{ sessionsRevoked: number }>(
+        `/api/admin/users/${id}/force-logout`,
+      );
     },
     onSuccess: (result, vars) => {
       const username =
@@ -421,7 +405,22 @@ export function UserManagementSection() {
           <h3 className="mb-3 text-sm font-semibold">
             {t("admin.editUserTitle", { name: editingUser.username })}
           </h3>
-          <div className="space-y-3">
+          {/* v1.16.4 — a real form so Enter in the username / email
+              fields submits; mirrors the dialog convention. */}
+          <form
+            className="space-y-3"
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (updateUser.isPending) return;
+              updateUser.mutate({
+                id: editingUser.id,
+                data: {
+                  username: editUsername,
+                  email: editEmail || null,
+                },
+              });
+            }}
+          >
             <div className="space-y-1">
               <Label htmlFor="edit-username">{t("auth.username")}</Label>
               <Input
@@ -448,17 +447,10 @@ export function UserManagementSection() {
             </div>
             <div className="flex gap-2">
               <Button
+                type="submit"
                 size="sm"
                 disabled={updateUser.isPending}
-                onClick={() =>
-                  updateUser.mutate({
-                    id: editingUser.id,
-                    data: {
-                      username: editUsername,
-                      email: editEmail || null,
-                    },
-                  })
-                }
+                aria-busy={updateUser.isPending || undefined}
               >
                 {updateUser.isPending && (
                   <Loader2 className="h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
@@ -466,6 +458,7 @@ export function UserManagementSection() {
                 {t("common.save")}
               </Button>
               <Button
+                type="button"
                 variant="ghost"
                 size="sm"
                 onClick={() => setEditingUser(null)}
@@ -478,7 +471,7 @@ export function UserManagementSection() {
                 </span>
               )}
             </div>
-          </div>
+          </form>
         </div>
       )}
 

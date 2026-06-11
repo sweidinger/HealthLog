@@ -28,11 +28,12 @@ import {
   toBerlinDate,
   type ScheduleWindowInput,
 } from "@/lib/medications/window-status";
+import { ApiError, apiGet, apiPost } from "@/lib/api/api-fetch";
 
 /**
  * v1.4.37 W7b — dashboard "Hinzufügen" → "Medikamenteneinnahme" quick-add.
  *
- * Marc's brief: the dashboard's top-right "Hinzufügen" menu logs
+ * The maintainer's brief: the dashboard's top-right "Hinzufügen" menu logs
  * measurements and mood entries; add a medication-intake action so a
  * dose can be logged in a few taps without leaving the dashboard.
  *
@@ -157,10 +158,7 @@ export function MedicationIntakeQuickAdd({
   const { data: medicationsRaw, isLoading: medicationsLoading } = useQuery({
     queryKey: queryKeys.medications(),
     queryFn: async () => {
-      const res = await fetch("/api/medications");
-      if (!res.ok) throw new Error("Failed to load medications");
-      const json = await res.json();
-      return json.data as MedicationOption[];
+      return apiGet<MedicationOption[]>("/api/medications");
     },
     // v1.4.38 — share the parent dashboard's medications cache.
     // `queryKeys.medications()` resolves to `["medications"]` — the
@@ -241,26 +239,11 @@ export function MedicationIntakeQuickAdd({
       const doseDeviates =
         trimmedDose.length > 0 &&
         trimmedDose !== (selectedMedication?.dose ?? "").trim();
-      const res = await fetch(`/api/medications/${medicationId}/intake`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          takenAt: timestamp,
-          skipped: false,
-          ...(doseDeviates && { doseTaken: trimmedDose }),
-        }),
+      await apiPost(`/api/medications/${medicationId}/intake`, {
+        takenAt: timestamp,
+        skipped: false,
+        ...(doseDeviates && { doseTaken: trimmedDose }),
       });
-
-      const json = await res.json();
-      if (!res.ok) {
-        setError(
-          typeof json?.error === "string"
-            ? json.error
-            : t("dashboard.medicationIntakeQuickAdd.saveError"),
-        );
-        setLoading(false);
-        return;
-      }
 
       await invalidateKeys(queryClient, medicationDependentKeys);
       // Fan-out to every inline compliance chart key (one per medication)
@@ -271,8 +254,12 @@ export function MedicationIntakeQuickAdd({
 
       toast.success(t("common.saved"));
       onSuccess?.();
-    } catch {
-      setError(t("dashboard.medicationIntakeQuickAdd.saveError"));
+    } catch (err) {
+      setError(
+        err instanceof ApiError && err.message
+          ? err.message
+          : t("dashboard.medicationIntakeQuickAdd.saveError"),
+      );
     } finally {
       setLoading(false);
     }

@@ -58,14 +58,14 @@ import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/auth/session";
 import { assertMedicationOwnership } from "@/lib/medications/route-guards";
 import { checkRateLimit } from "@/lib/rate-limit";
-import { localHmAsUtc } from "@/lib/timezone";
+import { localHmAsUtc } from "@/lib/tz/local-day";
 
 const TZ = "Europe/Berlin";
 const SESSION_OK = {
   session: { id: "sess-1", expiresAt: new Date(Date.now() + 3_600_000) },
   user: {
     id: "user-1",
-    username: "marc",
+    username: "testuser",
     role: "USER" as const,
     timezone: TZ,
   },

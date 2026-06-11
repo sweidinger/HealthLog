@@ -23,7 +23,7 @@ vi.mock("next/navigation", () => ({
 const sampleEntries = [
   {
     id: "ev-1",
-    user: { id: "u1", username: "marc" },
+    user: { id: "u1", username: "testuser" },
     action: "auth.login.success",
     ipAddress: "203.0.113.10",
     location: "Berlin, DE",
@@ -55,8 +55,8 @@ vi.mock("@/hooks/use-auth", () => ({
   useAuth: () => ({
     user: {
       id: "u1",
-      username: "marc",
-      email: "marc@example.com",
+      username: "testuser",
+      email: "user@example.com",
       role: "ADMIN",
       timezone: "Europe/Berlin",
     },

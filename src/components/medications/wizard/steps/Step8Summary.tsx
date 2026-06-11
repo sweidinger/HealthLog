@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { useTranslations } from "@/lib/i18n/context";
 import { queryKeys } from "@/lib/query-keys";
+import { apiGet } from "@/lib/api/api-fetch";
 
 import {
   type MedicationPayload,
@@ -67,10 +68,10 @@ export function Step8Summary({
   const { data: notificationChannels } = useQuery({
     queryKey: queryKeys.notificationsStatus(),
     queryFn: async () => {
-      const res = await fetch("/api/notifications/status");
-      if (!res.ok) throw new Error("Failed");
-      return ((await res.json()).data as { channels: Array<{ enabled: boolean }> })
-        .channels;
+      const data = await apiGet<{ channels: Array<{ enabled: boolean }> }>(
+        "/api/notifications/status",
+      );
+      return data.channels;
     },
     enabled: payload.notificationsEnabled,
     staleTime: 60_000,

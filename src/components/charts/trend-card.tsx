@@ -208,7 +208,7 @@ export function TrendCard({
           to land at different heights when one tile had a one-line heading
           and another had a two-line wrap). The arrow slot is always
           present — when there is no signal yet, a muted "—" placeholder
-          renders so the value row keeps a deterministic width. Marc's
+          renders so the value row keeps a deterministic width. The maintainer's
           ask: "rechts neben der Zahl … der Pfeil [ist], wie gerade der
           Trend ist". */}
       <div

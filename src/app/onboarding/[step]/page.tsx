@@ -89,7 +89,7 @@ export default async function OnboardingStepPage({ params }: PageProps) {
   // Welcome (step 0)
   //   * Fresh user → value-prop carousel.
   //   * Returning user (onboarding already completed) → welcome-back
-  //     banner with "Open dashboard" CTA. Marc note 2026-05-14: the
+  //     banner with "Open dashboard" CTA. The maintainer note 2026-05-14: the
   //     "restart onboarding" affordance lives in Settings → Account in
   //     v1.4.26; for now the banner is informational only.
   if (requested === 0) {

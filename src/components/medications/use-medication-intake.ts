@@ -6,6 +6,7 @@ import { toast } from "sonner";
 
 import { useTranslations } from "@/lib/i18n/context";
 import { invalidateKeys, medicationDependentKeys } from "@/lib/query-keys";
+import { apiDelete, apiPost } from "@/lib/api/api-fetch";
 
 type Translator = (
   key: string,
@@ -97,37 +98,26 @@ export async function runRecordIntake(deps: {
 
   setIntakeLoading(skipped ? "skip" : "take");
   try {
-    const res = await fetch(`/api/medications/${medication.id}/intake`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      // The route's Zod schema accepts an ISO `scheduledFor`; the server
-      // snaps it to the canonical slot. Only send it when the card
-      // identified the displayed dose's slot — otherwise omit so the
-      // PRN / unscheduled now-snap path is preserved.
-      body: JSON.stringify(
-        scheduledFor
-          ? { skipped, scheduledFor: scheduledFor.toISOString() }
-          : { skipped },
-      ),
-    });
+    // The route's Zod schema accepts an ISO `scheduledFor`; the server
+    // snaps it to the canonical slot. Only send it when the card
+    // identified the displayed dose's slot — otherwise omit so the
+    // PRN / unscheduled now-snap path is preserved.
+    //
     // v1.11.3 C1 — a failed POST used to clear the spinner silently, so the
-    // user believed the dose was logged when it was not. Surface the failure
-    // and never show the success confirmation in that case. (The GLP-1 card
-    // missed this port until v1.12.2 lifted the logic here.)
-    if (!res.ok) {
-      toast.error(t("medications.intakeToastFailed", { name: medication.name }));
-      return;
-    }
+    // user believed the dose was logged when it was not. apiPost throws on
+    // non-OK, so the catch below surfaces the failure and the success
+    // confirmation never shows in that case.
+    //
     // The POST returns the created event (`apiSuccess(event, 201)`); its id
     // drives both the Undo affordance and the card's post-success hook
     // (the optional injection-site prompt).
-    let eventId: string | undefined;
-    try {
-      const json = await res.json();
-      eventId = json?.data?.id as string | undefined;
-    } catch {
-      /* dose recorded; the body is best-effort for the id */
-    }
+    const created = await apiPost<{ id?: string } | undefined>(
+      `/api/medications/${medication.id}/intake`,
+      scheduledFor
+        ? { skipped, scheduledFor: scheduledFor.toISOString() }
+        : { skipped },
+    );
+    const eventId: string | undefined = created?.id;
     // v1.11.3 C2 — the success toast carries an Undo action so a misclicked
     // take / skip no longer needs a history dive to correct.
     toast.success(
@@ -197,15 +187,7 @@ export async function runLogIntake(deps: {
     if (!skipped) body.takenAt = takenAt;
     if (scheduledFor) body.scheduledFor = scheduledFor;
     if (!skipped && doseTaken) body.doseTaken = doseTaken;
-    const res = await fetch(`/api/medications/${medication.id}/intake`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
-    if (!res.ok) {
-      toast.error(t("medications.intakeToastFailed", { name: medication.name }));
-      return false;
-    }
+    await apiPost(`/api/medications/${medication.id}/intake`, body);
     await invalidateKeys(queryClient, medicationDependentKeys);
     toast.success(
       t(
@@ -234,14 +216,7 @@ export async function runUndoIntake(deps: {
 }): Promise<void> {
   const { medication, eventId, t, queryClient } = deps;
   try {
-    const res = await fetch(
-      `/api/medications/${medication.id}/intake/${eventId}`,
-      { method: "DELETE" },
-    );
-    if (!res.ok) {
-      toast.error(t("medications.intakeUndoFailed"));
-      return;
-    }
+    await apiDelete(`/api/medications/${medication.id}/intake/${eventId}`);
     await invalidateKeys(queryClient, medicationDependentKeys);
     toast.success(t("medications.intakeUndone"));
   } catch {

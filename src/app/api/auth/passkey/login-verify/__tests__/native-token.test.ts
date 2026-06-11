@@ -60,8 +60,8 @@ import {
 
 const FAKE_USER = {
   id: "user-1",
-  username: "marc",
-  email: "marc@example.com",
+  username: "testuser",
+  email: "user@example.com",
 };
 
 function makeRequest(headers: Record<string, string> = {}): NextRequest {

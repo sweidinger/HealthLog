@@ -15,6 +15,7 @@ import { TargetStatusPill } from "@/components/targets/target-status-pill";
 import { TileHeader } from "@/components/insights/tile-header";
 import { useTargetAdjust } from "@/lib/insights/target-adjust-context";
 import { getTargetSourceLink } from "@/lib/targets/source-link";
+import { apiGet } from "@/lib/api/api-fetch";
 
 /**
  * v1.8.0 → v1.8.5 — surface the per-metric target reference panel on each
@@ -133,10 +134,7 @@ export function MetricTargetSummary({ slug }: MetricTargetSummaryProps) {
   const { data } = useQuery({
     queryKey: queryKeys.insightsTargets(),
     queryFn: async () => {
-      const res = await fetch("/api/insights/targets");
-      if (!res.ok) throw new Error("Failed");
-      const json = await res.json();
-      return json.data as TargetsResponse;
+      return apiGet<TargetsResponse>("/api/insights/targets");
     },
     enabled: isAuthenticated && (targetType != null || isGlucose),
   });

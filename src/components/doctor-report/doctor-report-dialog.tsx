@@ -8,13 +8,13 @@
  *   2. Practice / clinic name (optional, persisted between exports).
  *   3. Which data sections appear in the PDF (per-user persisted toggles).
  *
- * Hide-when-empty (Marc 2026-05-14): a section's toggle is only shown
+ * Hide-when-empty (the maintainer 2026-05-14): a section's toggle is only shown
  * when the selected date range actually has data for it — checking a box
  * for an empty section would produce a silently-empty PDF page. The
  * availability probe runs on every range change via
  * `/api/doctor-report/availability`.
  *
- * Privacy default: mood is OFF by default per Marc — mental-health data
+ * Privacy default: mood is OFF by default per the maintainer — mental-health data
  * is opt-in even within a single user's own surface. The API layer
  * filters mood out of the report payload server-side when the toggle is
  * off, so the data never leaves the DB row.
@@ -52,6 +52,7 @@ import {
   type DoctorReportPrefs,
 } from "@/lib/validations/doctor-report-prefs";
 import { useTranslations } from "@/lib/i18n/context";
+import { apiGet, apiPost, apiPut } from "@/lib/api/api-fetch";
 
 const ONE_DAY_MS = 86_400_000;
 const MAX_RANGE_DAYS = 730;
@@ -201,11 +202,12 @@ export function DoctorReportDialog({
   useEffect(() => {
     if (!open || prefsLoaded) return;
     let cancelled = false;
-    fetch("/api/auth/me/doctor-report-prefs", { credentials: "include" })
-      .then((res) => (res.ok ? res.json() : null))
-      .then((json) => {
+    apiGet<Partial<DoctorReportPrefs> | null | undefined>(
+      "/api/auth/me/doctor-report-prefs",
+      { credentials: "include" },
+    )
+      .then((incoming) => {
         if (cancelled) return;
-        const incoming = json?.data;
         if (incoming && typeof incoming === "object") {
           setPrefs({ ...DEFAULT_DOCTOR_REPORT_PREFS, ...incoming });
         }
@@ -236,18 +238,16 @@ export function DoctorReportDialog({
       .then(() => {
         if (cancelled) return null;
         setAvailabilityLoading(true);
-        return fetch("/api/doctor-report/availability", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-          body: JSON.stringify({ startDate: startIso, endDate: endIso }),
-        });
+        return apiPost<SectionAvailability>(
+          "/api/doctor-report/availability",
+          { startDate: startIso, endDate: endIso },
+          { credentials: "include" },
+        );
       })
-      .then(async (res) => {
-        if (cancelled || !res || !res.ok) return;
-        const json = (await res.json()) as { data: SectionAvailability };
+      .then((data) => {
+        if (cancelled || !data) return;
         if (requestId !== availabilityRequestId.current) return;
-        setAvailability(json.data);
+        setAvailability(data);
       })
       .catch(() => {
         // Best-effort — keep the previous availability snapshot.
@@ -320,11 +320,8 @@ export function DoctorReportDialog({
     // way, so the user gets the PDF they asked for even if persistence
     // failed (they'll just see the defaults next time).
     try {
-      await fetch("/api/auth/me/doctor-report-prefs", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
+      await apiPut("/api/auth/me/doctor-report-prefs", next, {
         credentials: "include",
-        body: JSON.stringify(next),
       });
     } catch {
       // ignore

@@ -204,7 +204,7 @@ describe("<MessageThread>", () => {
       />,
     );
     // v1.4.33 IW7 — copy rewritten from "AI provider" to "Insights
-    // provider" per the Marc-Voice rule (no "KI"/"AI" prefix in
+    // provider" per the project-voice rule (no "KI"/"AI" prefix in
     // user-facing strings).
     expect(html).toContain("could not reach an Insights provider");
   });
@@ -423,7 +423,7 @@ describe("<MessageThread>", () => {
     useAuthMock.mockReturnValueOnce({
       user: {
         id: "u-1",
-        username: "marc",
+        username: "testuser",
         role: "USER",
         avatarUrl: "/api/user/avatar/u-1?v=1700000000000",
       },

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Eye, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 
 import { Switch } from "@/components/ui/switch";
 import {
@@ -75,7 +76,12 @@ export function SourcesRail({ className }: SourcesRailProps) {
 
   function persist(next: CoachPrefs, marker: CoachDataCluster | "window") {
     setPending(marker);
-    save.mutate(next, { onSettled: () => setPending(null) });
+    save.mutate(next, {
+      onSettled: () => setPending(null),
+      // v1.16.4 — a failed save used to revert the switch silently once the
+      // spinner cleared; a toast names the rejection.
+      onError: () => toast.error(t("insights.coach.prefsSaveError")),
+    });
   }
 
   function toggleCluster(cluster: CoachDataCluster, next: boolean) {

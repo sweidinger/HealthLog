@@ -70,7 +70,7 @@ import { __resetAllCachesForTests } from "@/lib/cache/server-cache";
 
 const SESSION_USER = {
   id: "user-mood-1",
-  username: "marc",
+  username: "testuser",
   role: "USER" as const,
   timezone: "Europe/Berlin",
   heightCm: 180,

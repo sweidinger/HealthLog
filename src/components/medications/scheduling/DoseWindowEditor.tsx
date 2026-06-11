@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * v1.15.18 — per-dose configurable on-time WINDOW editor (Marc's headline
+ * v1.15.18 — per-dose configurable on-time WINDOW editor (the maintainer's headline
  * lever). Shared verbatim by the Zeitplan tab (everyday inline edit) and
  * the wizard's Step 7 (structural create / edit) so the window semantics
  * are identical wherever a dose time is set.

@@ -12,6 +12,7 @@ import {
   describeInjectionSite,
   type InjectionSiteKey,
 } from "@/lib/medications/injection-sites";
+import { apiFetchRaw, apiPatch } from "@/lib/api/api-fetch";
 
 /**
  * v1.8.5 — Settings → global injection-site exclusion.
@@ -33,7 +34,7 @@ export function InjectionSitesCard({
   const { data } = useQuery({
     queryKey: queryKeys.injectionSitePrefs(),
     queryFn: async () => {
-      const res = await fetch("/api/auth/me/injection-site-prefs");
+      const res = await apiFetchRaw("/api/auth/me/injection-site-prefs");
       if (!res.ok) return [] as InjectionSiteKey[];
       const json = await res.json();
       return (json.data?.globalExcludedInjectionSites ??
@@ -46,12 +47,7 @@ export function InjectionSitesCard({
 
   const mutation = useMutation({
     mutationFn: async (next: InjectionSiteKey[]) => {
-      const res = await fetch("/api/auth/me/injection-site-prefs", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ globalExcludedInjectionSites: next }),
-      });
-      if (!res.ok) throw new Error("patch_failed");
+      await apiPatch("/api/auth/me/injection-site-prefs", { globalExcludedInjectionSites: next });
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({

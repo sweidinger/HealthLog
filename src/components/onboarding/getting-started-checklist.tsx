@@ -27,6 +27,7 @@ import {
   visibleChecklist,
   type ChecklistItemId,
 } from "@/lib/onboarding/checklist";
+import { apiGet } from "@/lib/api/api-fetch";
 
 const DISMISSED_ITEMS_KEY = "healthlog-getting-started-dismissed";
 const DISMISSED_ALL_KEY = "healthlog-getting-started-hidden";
@@ -213,10 +214,7 @@ export function GettingStartedChecklist() {
   const { data: medsData } = useQuery<Array<{ id: string }>>({
     queryKey: queryKeys.medications(),
     queryFn: async () => {
-      const res = await fetch("/api/medications");
-      if (!res.ok) throw new Error("Failed");
-      const json = await res.json();
-      return json.data;
+      return apiGet("/api/medications");
     },
     enabled: checklistRelevant,
   });
@@ -232,10 +230,7 @@ export function GettingStartedChecklist() {
   const { data: withingsData } = useQuery<WithingsStatus>({
     queryKey: ["withings", "status"],
     queryFn: async () => {
-      const res = await fetch("/api/withings/status");
-      if (!res.ok) throw new Error("Failed");
-      const json = await res.json();
-      return json.data;
+      return apiGet("/api/withings/status");
     },
     enabled: onboardingPending,
   });
@@ -243,10 +238,7 @@ export function GettingStartedChecklist() {
   const { data: notificationsData } = useQuery<NotificationsPreferences>({
     queryKey: ["notifications", "preferences"],
     queryFn: async () => {
-      const res = await fetch("/api/notifications/preferences");
-      if (!res.ok) throw new Error("Failed");
-      const json = await res.json();
-      return json.data;
+      return apiGet("/api/notifications/preferences");
     },
     enabled: onboardingPending,
   });
@@ -329,7 +321,7 @@ export function GettingStartedChecklist() {
           aria-expanded={expanded}
           aria-controls="getting-started-body"
           // v1.4.37 W-CI — lift the toggle to clear the WCAG 2.5.5 mobile
-          // tap-target floor on Pixel-5 (Marc's iOS-textarea-zoom sweep
+          // tap-target floor on Pixel-5 (the maintainer's iOS-textarea-zoom sweep
           // pinned the floor at 44 px; the previous `p-1` padding left
           // the toggle at 32 px). `sm:min-h-10` returns to the desktop
           // 40 px tier so the dashboard header rhythm is unchanged.

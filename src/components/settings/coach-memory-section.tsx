@@ -38,6 +38,7 @@ import { formatDateOrRelative } from "@/lib/format";
 import { useTranslations } from "@/lib/i18n/context";
 import { queryKeys } from "@/lib/query-keys";
 import { toast } from "sonner";
+import { apiDelete, apiGet } from "@/lib/api/api-fetch";
 
 /** Closed enum mirrored from the server `CoachFact.category` column. */
 const FACT_CATEGORIES = [
@@ -66,12 +67,10 @@ const CATEGORY_LABEL_KEY: Record<FactCategory, string> = {
 };
 
 async function fetchFacts(): Promise<CoachFact[]> {
-  const res = await fetch("/api/insights/coach/facts");
-  if (!res.ok) {
-    throw new Error(`HTTP ${res.status}`);
-  }
-  const json = (await res.json()) as { data?: { facts?: CoachFact[] } };
-  return json.data?.facts ?? [];
+  const data = await apiGet<{ facts?: CoachFact[] } | undefined>(
+    "/api/insights/coach/facts",
+  );
+  return data?.facts ?? [];
 }
 
 export function CoachMemorySection({
@@ -91,13 +90,7 @@ export function CoachMemorySection({
   const forgetOne = useMutation({
     mutationKey: queryKeys.coachFacts(),
     mutationFn: async (id: string) => {
-      const res = await fetch(
-        `/api/insights/coach/facts/${encodeURIComponent(id)}`,
-        { method: "DELETE" },
-      );
-      if (!res.ok) {
-        throw new Error(`HTTP ${res.status}`);
-      }
+      await apiDelete(`/api/insights/coach/facts/${encodeURIComponent(id)}`);
       return id;
     },
     onSuccess: () => {
@@ -112,14 +105,10 @@ export function CoachMemorySection({
   const forgetAll = useMutation({
     mutationKey: queryKeys.coachFacts(),
     mutationFn: async () => {
-      const res = await fetch("/api/insights/coach/facts", {
-        method: "DELETE",
-      });
-      if (!res.ok) {
-        throw new Error(`HTTP ${res.status}`);
-      }
-      const json = (await res.json()) as { data?: { cleared?: number } };
-      return json.data?.cleared ?? 0;
+      const data = await apiDelete<{ cleared?: number } | undefined>(
+        "/api/insights/coach/facts",
+      );
+      return data?.cleared ?? 0;
     },
     onSuccess: (cleared) => {
       toast.success(

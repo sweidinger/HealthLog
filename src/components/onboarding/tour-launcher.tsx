@@ -51,6 +51,7 @@ import { useEffect, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 
 import { useAuth } from "@/hooks/use-auth";
+import { apiPost } from "@/lib/api/api-fetch";
 import { OnboardingTour } from "./tour";
 
 const POST_WIZARD_GRACE_MS = 1500;
@@ -360,11 +361,7 @@ export function TourLauncher({ ready }: TourLauncherProps) {
         setShowTour(false);
         if (user?.id) writeSessionDismissed(user.id);
         try {
-          await fetch("/api/onboarding/tour", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ completed: true, outcome }),
-          });
+          await apiPost("/api/onboarding/tour", { completed: true, outcome });
           await queryClient.invalidateQueries({ queryKey: ["auth"] });
         } catch {
           // Swallow — the session-dismiss flag prevents a re-open.

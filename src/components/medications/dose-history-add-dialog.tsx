@@ -7,7 +7,7 @@
  * medication whose ledger the user is editing, so it drops the medication
  * picker and adds the late-take nudge.
  *
- * The nudge (Marc decision): when the picked `takenAt` falls JUST OUTSIDE a
+ * The nudge (the maintainer decision): when the picked `takenAt` falls JUST OUTSIDE a
  * slot's on-time window — close enough that it is plausibly that dose, but
  * past the ±1h default band — the dialog offers "diesem Slot zuordnen?". On
  * accept the write carries `forceSlotInstant` (the nearest slot's instant on
@@ -36,6 +36,7 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { useTranslations } from "@/lib/i18n/context";
 import { invalidateKeys, medicationDependentKeys } from "@/lib/query-keys";
+import { apiPost } from "@/lib/api/api-fetch";
 import type { QueryKey } from "@tanstack/react-query";
 import type { LedgerSchedule } from "@/components/medications/dose-history-ledger";
 
@@ -163,19 +164,10 @@ export function LedgerAddDialog({
           body.forceSlotInstant = nearest.instant.toISOString();
         }
       }
-      const res = await fetch(`/api/medications/${medicationId}/intake`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
-      if (!res.ok) {
-        // A 422 here is the force-slot guard rejecting a non-slot instant;
-        // surface it rather than silently dropping the dose.
-        toast.error(
-          t("medications.intakeToastFailed", { name: medicationName }),
-        );
-        return;
-      }
+      // A 422 here is the force-slot guard rejecting a non-slot instant;
+      // apiPost throws so the catch below surfaces it rather than silently
+      // dropping the dose.
+      await apiPost(`/api/medications/${medicationId}/intake`, body);
       toast.success(
         t(
           skipped
@@ -219,69 +211,82 @@ export function LedgerAddDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-3">
-          <div className="space-y-2">
-            <Label htmlFor="ledger-add-taken-at">
-              {t("medications.detail.verlauf.addDialog.takenAtLabel")}
-            </Label>
-            <Input
-              id="ledger-add-taken-at"
-              type="datetime-local"
-              value={takenAt}
-              max={toDateTimeLocal(new Date())}
-              onChange={(e) => setTakenAt(e.target.value)}
-              disabled={skipped}
-            />
+        {/* v1.16.4 — a real form so Enter in the datetime field submits;
+            the buttons carry explicit types so cancel never submits. The
+            nested nudge dialog renders through a portal, so its buttons
+            never land inside this form. */}
+        <form
+          className="space-y-4"
+          onSubmit={(e) => {
+            e.preventDefault();
+            submit();
+          }}
+        >
+          <div className="space-y-3">
+            <div className="space-y-2">
+              <Label htmlFor="ledger-add-taken-at">
+                {t("medications.detail.verlauf.addDialog.takenAtLabel")}
+              </Label>
+              <Input
+                id="ledger-add-taken-at"
+                type="datetime-local"
+                value={takenAt}
+                max={toDateTimeLocal(new Date())}
+                onChange={(e) => setTakenAt(e.target.value)}
+                disabled={skipped}
+              />
+            </div>
+
+            <label
+              htmlFor="ledger-add-skipped"
+              className="flex items-center justify-between gap-3"
+            >
+              <span className="text-sm font-medium">
+                {t("medications.detail.verlauf.addDialog.skippedLabel")}
+              </span>
+              <Switch
+                id="ledger-add-skipped"
+                checked={skipped}
+                onCheckedChange={setSkipped}
+              />
+            </label>
+
+            {/* A near-miss take previews where it will land before the user
+              commits — calm, not alarming. */}
+            {!skipped && classification === "nudge" && nearest && (
+              <p
+                className="text-muted-foreground text-xs"
+                data-slot="ledger-add-nudge-hint"
+              >
+                {t("medications.detail.verlauf.addDialog.nudgeHint", {
+                  slot: nearest.slotHm,
+                })}
+              </p>
+            )}
           </div>
 
-          <label
-            htmlFor="ledger-add-skipped"
-            className="flex items-center justify-between gap-3"
-          >
-            <span className="text-sm font-medium">
-              {t("medications.detail.verlauf.addDialog.skippedLabel")}
-            </span>
-            <Switch
-              id="ledger-add-skipped"
-              checked={skipped}
-              onCheckedChange={setSkipped}
-            />
-          </label>
-
-          {/* A near-miss take previews where it will land before the user
-              commits — calm, not alarming. */}
-          {!skipped && classification === "nudge" && nearest && (
-            <p
-              className="text-muted-foreground text-xs"
-              data-slot="ledger-add-nudge-hint"
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => onOpenChange(false)}
+              disabled={busy}
             >
-              {t("medications.detail.verlauf.addDialog.nudgeHint", {
-                slot: nearest.slotHm,
-              })}
-            </p>
-          )}
-        </div>
-
-        <DialogFooter>
-          <Button
-            variant="outline"
-            onClick={() => onOpenChange(false)}
-            disabled={busy}
-          >
-            {t("medications.detail.verlauf.addDialog.cancel")}
-          </Button>
-          <Button
-            onClick={submit}
-            disabled={busy}
-            aria-busy={busy || undefined}
-            data-slot="ledger-add-submit"
-          >
-            {busy && (
-              <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" />
-            )}
-            {t("medications.detail.verlauf.addDialog.submit")}
-          </Button>
-        </DialogFooter>
+              {t("medications.detail.verlauf.addDialog.cancel")}
+            </Button>
+            <Button
+              type="submit"
+              disabled={busy}
+              aria-busy={busy || undefined}
+              data-slot="ledger-add-submit"
+            >
+              {busy && (
+                <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" />
+              )}
+              {t("medications.detail.verlauf.addDialog.submit")}
+            </Button>
+          </DialogFooter>
+        </form>
 
         {/* The "diesem Slot zuordnen?" nudge — pin onto the slot, or keep the
             take as a standalone ad-hoc entry. */}

@@ -145,7 +145,7 @@ describe("<ResearchModeAcknowledgmentDialog>", () => {
     expect(html).toContain("Sources");
 
     // Cited regulatory references must appear verbatim in the
-    // user-facing copy (Marc-Voice + research §11 + §12.4).
+    // user-facing copy (project-voice + research §11 + §12.4).
     expect(html).toContain("2017/745");
     expect(html).toContain("MDCG 2021-24");
     // Peer-reviewed citation.
@@ -172,6 +172,8 @@ describe("<ResearchModeAcknowledgmentDialog>", () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
       json: async () => ({ data: { enabled: true } }),
+      // The apiFetch wrapper reads the envelope via `text()`.
+      text: async () => JSON.stringify({ data: { enabled: true } }),
     });
     vi.stubGlobal("fetch", fetchMock);
 

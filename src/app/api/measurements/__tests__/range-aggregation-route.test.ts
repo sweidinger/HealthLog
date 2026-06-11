@@ -350,7 +350,7 @@ describe("GET /api/measurements — all-time semantics (SD-H1)", () => {
   });
 
   it("source=rollup folds the partition inline and re-reads when the rollup is under-converged (v1.4.39.2)", async () => {
-    // Marc's pre-fix production trace: 30-day BP_SYS window returned
+    // The maintainer's pre-fix production trace: 30-day BP_SYS window returned
     // `total: 2` from the rollup branch even though `measurements`
     // carried ~30 distinct days. The chart tripped its `< 3 daily
     // points` empty-state because the route short-circuited on

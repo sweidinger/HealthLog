@@ -37,6 +37,7 @@ import { SettingsCardHeader } from "@/components/settings/_card-header";
 import { useTranslations } from "@/lib/i18n/context";
 import { queryKeys } from "@/lib/query-keys";
 import { cn } from "@/lib/utils";
+import { apiGet, apiPut } from "@/lib/api/api-fetch";
 
 const FALLBACK_MAX_CHARS = 4000;
 const FALLBACK_FIELD_MAX_CHARS = 500;
@@ -55,11 +56,7 @@ interface AboutMeData {
 type StructuredKey = "conditions" | "allergies" | "coachFocus";
 
 async function fetchAboutMe(): Promise<AboutMeData> {
-  const res = await fetch("/api/coach/about-me");
-  if (!res.ok) {
-    throw new Error(`HTTP ${res.status}`);
-  }
-  return (await res.json()).data as AboutMeData;
+  return apiGet<AboutMeData>("/api/coach/about-me");
 }
 
 const FIELD_CLASSES =
@@ -129,15 +126,7 @@ export function AboutMeSection({
       allergies: string;
       coachFocus: string;
     }) => {
-      const res = await fetch("/api/coach/about-me", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(input),
-      });
-      if (!res.ok) {
-        throw new Error(`HTTP ${res.status}`);
-      }
-      return (await res.json()).data as AboutMeData;
+      return apiPut<AboutMeData>("/api/coach/about-me", input);
     },
     onSuccess: (next) => {
       const cleared =

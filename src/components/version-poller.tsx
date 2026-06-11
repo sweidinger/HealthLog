@@ -2,6 +2,8 @@
 
 import { useEffect } from "react";
 
+import { apiGet } from "@/lib/api/api-fetch";
+
 /**
  * v1.4.38.4 — runtime self-heal for the stale-shell post-deploy
  * paper-cut.
@@ -37,19 +39,13 @@ const POLL_INTERVAL_MS = 60_000;
 const SESSION_GUARD_KEY = "healthlog:version-reload-attempted";
 const SHELL_VERSION = process.env.NEXT_PUBLIC_APP_VERSION ?? "";
 
-type VersionEnvelope = {
-  data?: { version?: string };
-};
-
 async function fetchLiveVersion(signal: AbortSignal): Promise<string | null> {
   try {
-    const res = await fetch("/api/version", {
-      cache: "no-store",
-      signal,
-    });
-    if (!res.ok) return null;
-    const json = (await res.json()) as VersionEnvelope;
-    return json.data?.version ?? null;
+    const data = await apiGet<{ version?: string } | undefined>(
+      "/api/version",
+      { cache: "no-store", signal },
+    );
+    return data?.version ?? null;
   } catch {
     return null;
   }

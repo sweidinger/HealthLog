@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { UmamiScript } from "@/components/monitoring/umami-script";
 import { GlitchtipReporter } from "@/components/monitoring/glitchtip-reporter";
+import { apiGet } from "@/lib/api/api-fetch";
 
 interface MonitoringSettings {
   umamiEnabled: boolean;
@@ -16,11 +17,12 @@ export function MonitoringBootstrap() {
   useEffect(() => {
     let active = true;
 
-    fetch("/api/monitoring/settings", { cache: "no-store" })
-      .then((response) => (response.ok ? response.json() : null))
-      .then((json) => {
-        if (!active || !json?.data) return;
-        setSettings(json.data as MonitoringSettings);
+    apiGet<MonitoringSettings | undefined>("/api/monitoring/settings", {
+      cache: "no-store",
+    })
+      .then((data) => {
+        if (!active || !data) return;
+        setSettings(data);
       })
       .catch(() => {
         if (!active) return;

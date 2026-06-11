@@ -14,6 +14,7 @@ import { useAnalyticsQuery } from "@/lib/queries/use-analytics-query";
 import { useInsightsLayoutQuery } from "@/hooks/use-insights-layout";
 import { queryKeys } from "@/lib/query-keys";
 import type { InsightInputs } from "@/lib/insights/metric-availability";
+import { apiGet } from "@/lib/api/api-fetch";
 
 /**
  * v1.4.25 W4 — client shell for `src/app/insights/layout.tsx`.
@@ -81,10 +82,7 @@ export function InsightsLayoutShell({ children }: { children: ReactNode }) {
   const comprehensiveQuery = useQuery({
     queryKey: queryKeys.insightsComprehensive(),
     queryFn: async () => {
-      const res = await fetch("/api/insights/comprehensive");
-      if (!res.ok) throw new Error("Failed");
-      const json = await res.json();
-      return json.data as ComprehensivePayload;
+      return apiGet<ComprehensivePayload>("/api/insights/comprehensive");
     },
     enabled: isAuthenticated,
   });

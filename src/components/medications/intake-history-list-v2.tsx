@@ -36,13 +36,14 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { apiGet } from "@/lib/api/api-fetch";
 
 /**
  * v1.4.36 W4a — Lite intake-history surface.
  *
  * The 886-LoC v1 was retired in v1.4.28 (commit 8c81af10) with the
  * note "no other consumer". The standalone medication-history page
- * lost its dose timeline as a side effect — Marc reported the page
+ * lost its dose timeline as a side effect — the maintainer reported the page
  * now shows only the heading for non-GLP-1 meds. This v2 restores a
  * read-only timeline for ALL medication kinds without the inline CRUD
  * the v1 carried (edit / delete still happen through the regular
@@ -187,11 +188,7 @@ export function IntakeHistoryListV2({
         offset: String(offset),
         status: STATUS_FILTER,
       });
-      const res = await fetch(
-        `/api/medications/${medicationId}/intake?${params.toString()}`,
-      );
-      if (!res.ok) throw new Error("Failed to load intake history");
-      return (await res.json()).data as IntakeListResponse;
+      return apiGet<IntakeListResponse>(`/api/medications/${medicationId}/intake?${params.toString()}`);
     },
     enabled: isAuthenticated,
   });

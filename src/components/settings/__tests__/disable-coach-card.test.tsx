@@ -44,7 +44,7 @@ vi.mock("next/navigation", () => ({
 function buildUser(disableCoach: boolean): AuthUser {
   return {
     id: "user-1",
-    username: "marc",
+    username: "testuser",
     email: null,
     role: "USER",
     heightCm: null,
@@ -134,7 +134,7 @@ describe("Settings — DisableCoachCard", () => {
 
   it("Switch description string matches the QoL audit (M2) copy", () => {
     const html = render();
-    // The Marc-voice contract: "Hides the Coach button and drawer
+    // The project-voice contract: "Hides the Coach button and drawer
     // everywhere." (English) — must surface verbatim because the QoL
     // findings doc cites this exact phrasing.
     expect(html).toContain("Hides the Coach button and drawer everywhere.");

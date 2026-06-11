@@ -15,6 +15,7 @@ import {
   medicationDependentKeys,
   queryKeys,
 } from "@/lib/query-keys";
+import { apiGet, apiPost } from "@/lib/api/api-fetch";
 import { formatDateTime, formatTime } from "@/lib/format";
 import { getMedicationCategoryLabel } from "@/lib/medications/category-label";
 import { type InjectionSiteKey } from "@/lib/medications/injection-sites";
@@ -204,10 +205,13 @@ export function Glp1MedicationCard({
   const { data: compliance } = useQuery({
     queryKey: queryKeys.medicationCompliance(medication.id),
     queryFn: async () => {
-      const res = await fetch(`/api/medications/${medication.id}/compliance`);
-      if (!res.ok) return null;
-      const json = await res.json();
-      return json.data as ComplianceData;
+      try {
+        return await apiGet<ComplianceData>(
+          `/api/medications/${medication.id}/compliance`,
+        );
+      } catch {
+        return null;
+      }
     },
     // v1.15.20 — same 5-minute window as the generic card: dose actions
     // invalidate the key explicitly, so a short staleTime only re-fired
@@ -221,10 +225,13 @@ export function Glp1MedicationCard({
   const { data: thresholds } = useQuery({
     queryKey: queryKeys.settingsReminderThresholds(),
     queryFn: async () => {
-      const res = await fetch("/api/settings/reminder-thresholds");
-      if (!res.ok) return null;
-      const json = await res.json();
-      return json.data as { lateMinutes: number; missedMinutes: number };
+      try {
+        return await apiGet<{ lateMinutes: number; missedMinutes: number }>(
+          "/api/settings/reminder-thresholds",
+        );
+      } catch {
+        return null;
+      }
     },
     staleTime: 5 * 60 * 1000,
   });
@@ -235,10 +242,13 @@ export function Glp1MedicationCard({
   const { data: details } = useQuery({
     queryKey: queryKeys.medicationGlp1Details(medication.id),
     queryFn: async () => {
-      const res = await fetch(`/api/medications/${medication.id}/glp1`);
-      if (!res.ok) return null;
-      const json = await res.json();
-      return json.data as DetailsResponse;
+      try {
+        return await apiGet<DetailsResponse>(
+          `/api/medications/${medication.id}/glp1`,
+        );
+      } catch {
+        return null;
+      }
     },
     staleTime: 60 * 1000,
   });
@@ -257,14 +267,15 @@ export function Glp1MedicationCard({
     // v1.11.5 — keep the dialog open until the PATCH resolves. On failure
     // surface a toast and re-throw so the dialog stays mounted with the
     // chosen site instead of dismissing as though the site had been saved.
-    const res = await fetch("/api/medications/intake", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ intakeId, status: "taken", injectionSite: site }),
-    });
-    if (!res.ok) {
+    try {
+      await apiPost("/api/medications/intake", {
+        intakeId,
+        status: "taken",
+        injectionSite: site,
+      });
+    } catch (err) {
       toast.error(t("medications.logInjectionSiteSaveFailed"));
-      throw new Error("injection-site PATCH failed");
+      throw err;
     }
     await invalidateKeys(queryClient, medicationDependentKeys);
     setSiteIntakeId(null);

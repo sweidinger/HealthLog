@@ -1,5 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
+// vi.doMock below invalidates the module registry, so the re-imported
+// provider gets a fresh (unprimed) locale cache — pass the DE bundle
+// explicitly instead of relying on the vitest.setup.ts seeding.
+import deMessages from "../../../../messages/de.json";
 
 /**
  * Sparse-data render contract.
@@ -48,7 +52,7 @@ async function renderChart(data: unknown[]): Promise<string> {
   const { HealthChart } = await import("../health-chart");
 
   const html = renderToStaticMarkup(
-    <I18nProvider initialLocale="de">
+    <I18nProvider initialLocale="de" initialMessages={deMessages}>
       <HealthChart types={["PULSE"]} title="Pulse" unit="bpm" />
     </I18nProvider>,
   );

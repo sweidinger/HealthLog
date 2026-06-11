@@ -72,7 +72,7 @@ function setEmptyDataMocks() {
   );
   vi.mocked(prisma.moodEntry.findMany).mockResolvedValue([] as never);
   vi.mocked(prisma.user.findUnique).mockResolvedValue({
-    username: "marc",
+    username: "testuser",
     dateOfBirth: null,
     gender: null,
     heightCm: null,

@@ -24,7 +24,7 @@ import { useTranslations } from "@/lib/i18n/context";
  *
  * Hidden by the parent when the target's `insufficientData` flag is
  * true — there is no "— not enough data" empty-state mode here; the
- * card surfaces that copy in a different slot per Marc's "no empty hint
+ * card surfaces that copy in a different slot per the maintainer's "no empty hint
  * inside the strip" directive.
  *
  * Visual rationale (frontend-design skill): seven dots over the v1.4.22

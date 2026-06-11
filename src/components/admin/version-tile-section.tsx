@@ -21,6 +21,7 @@ import { useQuery } from "@tanstack/react-query";
 import { formatDateTime } from "@/lib/format";
 import { useTranslations } from "@/lib/i18n/context";
 import { queryKeys } from "@/lib/query-keys";
+import { ApiError, apiGet } from "@/lib/api/api-fetch";
 import { StatusItem, usePublicVersion } from "./_shared";
 
 type CheckUpdatesResult =
@@ -41,11 +42,13 @@ type CheckUpdatesResult =
   | { status: "unknown"; current: string; reason: string };
 
 async function fetchUpdateCheck(): Promise<CheckUpdatesResult> {
-  const res = await fetch("/api/version/check-updates");
-  if (!res.ok) {
-    return { status: "unknown", current: "", reason: `http_${res.status}` };
+  try {
+    return await apiGet<CheckUpdatesResult>("/api/version/check-updates");
+  } catch (err) {
+    const reason =
+      err instanceof ApiError ? `http_${err.status}` : "network_error";
+    return { status: "unknown", current: "", reason };
   }
-  return (await res.json()).data as CheckUpdatesResult;
 }
 
 function shortSha(sha: string | null): string | null {

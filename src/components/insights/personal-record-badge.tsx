@@ -29,6 +29,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { useFormatters, useTranslations } from "@/lib/i18n/context";
+import { apiGet } from "@/lib/api/api-fetch";
 import type { MeasurementType } from "@/generated/prisma/client";
 import { cn } from "@/lib/utils";
 
@@ -76,11 +77,15 @@ export function PersonalRecordBadge({
     // `feedback_react_query_key_collision`).
     queryKey: ["personal-records", "by-metric", metricType],
     queryFn: async () => {
-      const res = await fetch(
-        `/api/personal-records?metricType=${encodeURIComponent(metricType)}`,
-      );
-      if (!res.ok) return [] as PersonalRecordRow[];
-      return ((await res.json()).data ?? []) as PersonalRecordRow[];
+      try {
+        const data = await apiGet<PersonalRecordRow[] | null>(
+          `/api/personal-records?metricType=${encodeURIComponent(metricType)}`,
+        );
+        return data ?? [];
+      } catch {
+        // The badge is decorative — degrade to "no records", as before.
+        return [] as PersonalRecordRow[];
+      }
     },
     // Per-tile data: stale-while-revalidate cadence matches the
     // dashboard's existing trend queries. 5 minutes is enough to

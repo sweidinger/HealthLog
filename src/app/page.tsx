@@ -96,6 +96,7 @@ import {
   getAgeFromDateOfBirth,
   getPersonalizedPulseTarget,
 } from "@/lib/analytics/pulse-targets";
+import { apiGet } from "@/lib/api/api-fetch";
 
 /**
  * v1.7.0 — first-paint gate for the dashboard tile strip.
@@ -148,7 +149,7 @@ export default function DashboardPage() {
   // (thick slice) blocked every per-type tile until the heavy fan-out
   // resolved. Mood and medication tiles paint from their own dedicated
   // endpoints and arrived first; the per-type measurement tiles then
-  // arrived as one burst once the full slice landed — Marc reported
+  // arrived as one burst once the full slice landed — the maintainer reported
   // this "blocked-then-burst" pattern as "etwas nervig".
   //
   // Post-fix: two parallel queries. The slim slice (`?slice=summaries`)
@@ -205,7 +206,7 @@ export default function DashboardPage() {
     // coverage. Pre-fix the inline `slim?.summaries ?? thick?.summaries`
     // short-circuited on a truthy-but-empty `{}` from the slim slice
     // and blanked the tile strip even when thick carried the full
-    // payload — the regression Marc's v1.4.39.3 e2e CI flagged across
+    // payload — the regression the maintainer's v1.4.39.3 e2e CI flagged across
     // eight dashboard / chart specs. The helper falls back to thick
     // when slim resolves with no content and otherwise keeps the
     // v1.4.39.2 slim-wins-first progressive-paint contract.
@@ -237,10 +238,7 @@ export default function DashboardPage() {
   const { data: layoutDataLegacy } = useQuery({
     queryKey: queryKeys.dashboardWidgets(),
     queryFn: async () => {
-      const res = await fetch("/api/dashboard/widgets");
-      if (!res.ok) throw new Error("Failed");
-      const json = await res.json();
-      return json.data as DashboardLayout;
+      return apiGet<DashboardLayout>("/api/dashboard/widgets");
     },
     enabled: !snapshotEnabled && isAuthenticated,
     ...DASHBOARD_QUERY_OPTS,
@@ -252,13 +250,10 @@ export default function DashboardPage() {
   const { data: moodDataLegacy } = useQuery({
     queryKey: queryKeys.moodAnalytics(),
     queryFn: async () => {
-      const res = await fetch("/api/mood/analytics");
-      if (!res.ok) throw new Error("Failed");
-      const json = await res.json();
-      return json.data as {
+      return apiGet<{
         entries: Array<{ date: string; score: number; samples: number }>;
         summary: DataSummary;
-      };
+      }>("/api/mood/analytics");
     },
     enabled: !snapshotEnabled && isAuthenticated,
     ...DASHBOARD_QUERY_OPTS,
@@ -1362,7 +1357,7 @@ export default function DashboardPage() {
         return (
           <>
             {/* v1.4: dashboard tiles are *always* a single row.
-             * maintainer-explicit (per feedback_dashboard_one_row.md): a 2-row
+             * Maintainer-explicit (per feedback_dashboard_one_row.md): a 2-row
              * tile strip breaks the visual hierarchy and reads like an
              * Excel grid. Total width caps at the parent container —
              * exactly the chart-width below. When the active tile count

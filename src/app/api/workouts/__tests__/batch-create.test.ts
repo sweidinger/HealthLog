@@ -76,7 +76,7 @@ import { enqueuePrDetection } from "@/lib/jobs/pr-detection";
 
 const SESSION_OK = {
   session: { id: "sess-1", expiresAt: new Date(Date.now() + 3_600_000) },
-  user: { id: "user-1", username: "marc", role: "USER" as const },
+  user: { id: "user-1", username: "testuser", role: "USER" as const },
 };
 
 function makeRequest(

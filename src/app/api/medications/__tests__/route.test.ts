@@ -38,7 +38,7 @@ vi.mock("@/lib/medication-category", () => ({
   getMedicationCategories: vi.fn().mockResolvedValue({}),
   setMedicationCategory: vi.fn().mockResolvedValue(undefined),
 }));
-vi.mock("@/lib/timezone", () => ({
+vi.mock("@/lib/tz/local-day", () => ({
   getUserTodayBounds: vi
     .fn()
     .mockReturnValue({ start: new Date(), end: new Date() }),

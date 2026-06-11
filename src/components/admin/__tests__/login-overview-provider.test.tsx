@@ -55,7 +55,7 @@ describe("providerForAction", () => {
 
 describe("iconForAuthProvider", () => {
   it("maps each provider to the documented lucide glyph", () => {
-    // Marc's brief pinned the exact icon for each provider so the
+    // The maintainer's brief pinned the exact icon for each provider so the
     // visual language stays consistent across the admin surface.
     expect(iconForAuthProvider("password")).toBe(KeyRound);
     expect(iconForAuthProvider("passkey")).toBe(Fingerprint);

@@ -19,6 +19,7 @@ import { BookmarkPlus, Check, Loader2, X } from "lucide-react";
 
 import { useTranslations } from "@/lib/i18n/context";
 import { cn } from "@/lib/utils";
+import { apiPost } from "@/lib/api/api-fetch";
 
 export interface SelfContextAdoptOfferProps {
   /** The clarifying question the user just answered. */
@@ -39,13 +40,7 @@ export function SelfContextAdoptOffer({
 
   const adopt = useMutation({
     mutationFn: async () => {
-      const res = await fetch("/api/coach/about-me/adopt", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ question, answer }),
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      return (await res.json()).data as { adopted: boolean };
+      return apiPost<{ adopted: boolean }>("/api/coach/about-me/adopt", { question, answer });
     },
     onSuccess: (data) => {
       setSettled(data.adopted ? "adopted" : "duplicate");

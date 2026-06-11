@@ -215,6 +215,16 @@ export function LogIntakeDialog({
           </DialogDescription>
         </DialogHeader>
 
+        {/* v1.16.4 — a real form so Enter in the dose / datetime fields
+            submits; mirrors the intake-edit and dose-history-add dialogs. */}
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (busy || medications.length === 0 || !medicationId) return;
+            void submit();
+          }}
+          className="space-y-4"
+        >
         {medications.length === 0 ? (
           <p className="text-muted-foreground py-4 text-sm">
             {t("medications.logIntake.noMedications")}
@@ -318,6 +328,7 @@ export function LogIntakeDialog({
 
         <DialogFooter>
           <Button
+            type="button"
             variant="outline"
             onClick={() => onOpenChange(false)}
             disabled={busy}
@@ -325,7 +336,7 @@ export function LogIntakeDialog({
             {t("medications.logIntake.cancel")}
           </Button>
           <Button
-            onClick={() => void submit()}
+            type="submit"
             disabled={busy || medications.length === 0 || !medicationId}
             aria-busy={busy || undefined}
           >
@@ -335,6 +346,7 @@ export function LogIntakeDialog({
             {t("medications.logIntake.submit")}
           </Button>
         </DialogFooter>
+        </form>
       </DialogContent>
     </Dialog>
   );

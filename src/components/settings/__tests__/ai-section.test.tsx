@@ -187,7 +187,7 @@ describe("<AiSection> — dropdown-driven UX (B2)", () => {
     expect(html).toContain("Mit ChatGPT verbinden");
     expect(html).toContain("ChatGPT-Account (Codex)");
     // v1.4.33 IW7 — the active-provider heading and the parent section
-    // both ship without the "KI"/"AI" prefix per the Marc-Voice rule
+    // both ship without the "KI"/"AI" prefix per the project-voice rule
     // ("Aktiver KI-Provider" → "Aktiver Provider"). The heading and the
     // chain summary now share the same phrase, so we assert against the
     // explicit `activeProviderLabel` slot below it ("Primärer Provider")

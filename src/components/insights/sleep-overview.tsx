@@ -18,6 +18,7 @@ import {
 } from "./sleep-stage-stacked-bar";
 import { SleepHypnogram, type SleepHypnogramSession } from "./sleep-hypnogram";
 import { SleepDurationChart } from "./sleep-duration-chart";
+import { apiGet } from "@/lib/api/api-fetch";
 
 /**
  * v1.4.25 W4c — Sleep insights composition.
@@ -89,12 +90,10 @@ export function SleepOverview() {
   const nightQuery = useQuery({
     queryKey: queryKeys.sleepNight(),
     queryFn: async () => {
-      const res = await fetch("/api/sleep/night");
-      if (!res.ok) throw new Error("Failed to fetch sleep night");
-      return (await res.json()).data as {
+      return apiGet<{
         night: string | null;
         main: SleepHypnogramSession | null;
-      };
+      }>("/api/sleep/night");
     },
     enabled: isAuthenticated && totalCount > 0,
     staleTime: 60 * 1000,

@@ -16,6 +16,7 @@ import { MetricTargetSummary } from "@/components/insights/metric-target-summary
 import { MoodInsightsSections } from "@/components/insights/mood/mood-insights-sections";
 import { SlugInsightStatusCard } from "@/components/insights/slug-insight-status-card";
 import { SubPageShell } from "@/components/insights/sub-page-shell";
+import { apiGet } from "@/lib/api/api-fetch";
 
 /**
  * v1.4.25 W4 — `/insights/mood`.
@@ -49,10 +50,7 @@ export default function InsightsStimmungPage() {
   const { data: comprehensive } = useQuery({
     queryKey: queryKeys.insightsComprehensive(),
     queryFn: async () => {
-      const res = await fetch("/api/insights/comprehensive");
-      if (!res.ok) throw new Error("Failed");
-      const json = await res.json();
-      return json.data as ComprehensiveMoodData;
+      return apiGet<ComprehensiveMoodData>("/api/insights/comprehensive");
     },
     enabled: isAuthenticated,
   });

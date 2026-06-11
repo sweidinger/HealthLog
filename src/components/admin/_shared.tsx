@@ -8,6 +8,7 @@ import { Switch } from "@/components/ui/switch";
 import { useTranslations } from "@/lib/i18n/context";
 import { queryKeys } from "@/lib/query-keys";
 import { PasswordInput as SharedPasswordInput } from "@/components/ui/password-input";
+import { apiGet, apiPut } from "@/lib/api/api-fetch";
 
 /**
  * Re-export the canonical password input so admin sections have access to
@@ -228,9 +229,7 @@ export function useAdminSettings() {
   return useQuery({
     queryKey: queryKeys.adminSettings(),
     queryFn: async () => {
-      const res = await fetch("/api/admin/settings");
-      if (!res.ok) throw new Error("Failed");
-      return (await res.json()).data as AdminSettings;
+      return apiGet<AdminSettings>("/api/admin/settings");
     },
   });
 }
@@ -240,14 +239,7 @@ export function useUpdateSettings() {
   const { t } = useTranslations();
   return useMutation({
     mutationFn: async (data: Record<string, unknown>) => {
-      const res = await fetch("/api/admin/settings", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-      });
-      if (!res.ok) {
-        throw new Error(await getApiErrorMessage(res));
-      }
+      await apiPut("/api/admin/settings", data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.adminSettings() });
@@ -423,7 +415,7 @@ export function carrierShortLabel(rawAsnOrg: string): string {
  *
  * Pulled out of the section component so the column order, header
  * mapping, and provider/outcome derivation are reachable from a
- * pure unit test without rendering the React tree. Marc's spec pins
+ * pure unit test without rendering the React tree. The maintainer's spec pins
  * the column order at `timestamp → user → IP → location → provider
  * → outcome` (email is absent from the audit-log API and would
  * require schema/API changes that are out of scope). `action` and
@@ -526,9 +518,7 @@ export function useSystemStatus() {
   return useQuery({
     queryKey: queryKeys.adminStatus(),
     queryFn: async () => {
-      const res = await fetch("/api/admin/status");
-      if (!res.ok) throw new Error("Failed");
-      return (await res.json()).data as SystemStatus;
+      return apiGet<SystemStatus>("/api/admin/status");
     },
   });
 }
@@ -554,9 +544,7 @@ export function usePublicVersion() {
   return useQuery({
     queryKey: queryKeys.publicVersion(),
     queryFn: async () => {
-      const res = await fetch("/api/version");
-      if (!res.ok) throw new Error("Failed to load version");
-      return (await res.json()).data as PublicVersion;
+      return apiGet<PublicVersion>("/api/version");
     },
     staleTime: 5 * 60_000,
   });

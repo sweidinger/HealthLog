@@ -37,7 +37,7 @@ import { getSession } from "@/lib/auth/session";
 
 const OWNER_SESSION = {
   session: { id: "sess-1", expiresAt: new Date(Date.now() + 3_600_000) },
-  user: { id: "user-1", username: "marc", role: "USER" as const },
+  user: { id: "user-1", username: "testuser", role: "USER" as const },
 };
 const OTHER_SESSION = {
   session: { id: "sess-2", expiresAt: new Date(Date.now() + 3_600_000) },
@@ -45,7 +45,7 @@ const OTHER_SESSION = {
 };
 const ADMIN_SESSION = {
   session: { id: "sess-a", expiresAt: new Date(Date.now() + 3_600_000) },
-  user: { id: "admin-1", username: "marc-admin", role: "ADMIN" as const },
+  user: { id: "admin-1", username: "test-admin", role: "ADMIN" as const },
 };
 
 const NOW = new Date("2026-05-15T10:00:00.000Z");

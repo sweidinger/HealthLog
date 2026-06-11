@@ -36,6 +36,7 @@ import {
   medicationDependentKeys,
   queryKeys,
 } from "@/lib/query-keys";
+import { ApiError, apiGet, apiPut } from "@/lib/api/api-fetch";
 
 export interface ApiTokensRowProps {
   medicationId: string;
@@ -74,12 +75,13 @@ export function ApiTokensRow({
   const { data: status } = useQuery<ApiEndpointStatus>({
     queryKey,
     queryFn: async () => {
-      const res = await fetch(`/api/medications/${medicationId}/api-endpoint`);
-      if (!res.ok) throw new Error("status_failed");
-      const json = await res.json();
+      const data = await apiGet<{
+        enabled?: boolean;
+        activeTokenCount?: number;
+      }>(`/api/medications/${medicationId}/api-endpoint`);
       return {
-        enabled: json.data.enabled === true,
-        activeTokenCount: json.data.activeTokenCount ?? 0,
+        enabled: data.enabled === true,
+        activeTokenCount: data.activeTokenCount ?? 0,
       };
     },
     staleTime: 0,
@@ -149,21 +151,16 @@ export function ApiTokensRow({
     if (busy) return;
     setBusy(true);
     try {
-      const res = await fetch(`/api/medications/${medicationId}/api-endpoint`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ enabled: true }),
-      });
-      const json = await res.json();
-      if (!res.ok) {
-        toast.error(json.error ?? t("medications.detail.api.mintFailed"));
-        return;
-      }
-      if (json.data.token) {
-        setMintedToken(json.data.token);
+      const data = await apiPut<{
+        token?: string;
+        enabled?: boolean;
+        activeTokenCount?: number;
+      }>(`/api/medications/${medicationId}/api-endpoint`, { enabled: true });
+      if (data.token) {
+        setMintedToken(data.token);
         // Auto-copy on mint so the user has it without an extra tap.
         try {
-          await navigator.clipboard.writeText(json.data.token);
+          await navigator.clipboard.writeText(data.token);
         } catch {
           // Clipboard rejection is silent — the value is still visible
           // in the read-only one-shot panel below.
@@ -174,14 +171,18 @@ export function ApiTokensRow({
         queryKeys.tokens(),
       ]);
       queryClient.setQueryData<ApiEndpointStatus>(queryKey, {
-        enabled: json.data.enabled === true,
+        enabled: data.enabled === true,
         activeTokenCount:
-          typeof json.data.activeTokenCount === "number"
-            ? json.data.activeTokenCount
+          typeof data.activeTokenCount === "number"
+            ? data.activeTokenCount
             : (status?.activeTokenCount ?? 0) + 1,
       });
-    } catch {
-      toast.error(t("medications.detail.api.mintFailed"));
+    } catch (err) {
+      toast.error(
+        err instanceof ApiError && err.message
+          ? err.message
+          : t("medications.detail.api.mintFailed"),
+      );
     } finally {
       setBusy(false);
     }

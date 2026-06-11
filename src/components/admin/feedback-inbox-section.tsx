@@ -38,9 +38,9 @@ import {
   type FeedbackItem,
   type FeedbackListResponse,
   type FeedbackStatusType,
-  getApiErrorMessage,
   useSystemStatus,
 } from "./_shared";
+import { apiDelete, apiGet, apiPatch, apiPost } from "@/lib/api/api-fetch";
 
 export function FeedbackInboxSection() {
   const { t } = useTranslations();
@@ -54,11 +54,7 @@ export function FeedbackInboxSection() {
   const { data, isLoading } = useQuery({
     queryKey: queryKeys.adminFeedback(activeStatus),
     queryFn: async () => {
-      const res = await fetch(
-        `/api/admin/feedback?status=${activeStatus}&limit=100`,
-      );
-      if (!res.ok) throw new Error("Failed");
-      return (await res.json()).data as FeedbackListResponse;
+      return apiGet<FeedbackListResponse>(`/api/admin/feedback?status=${activeStatus}&limit=100`);
     },
   });
 
@@ -259,12 +255,7 @@ function FeedbackDetailDialog({
       status?: FeedbackStatusType;
       adminNote?: string | null;
     }) => {
-      const res = await fetch(`/api/admin/feedback/${item.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      if (!res.ok) throw new Error(await getApiErrorMessage(res));
+      await apiPatch(`/api/admin/feedback/${item.id}`, payload);
     },
     onSuccess: (_, vars) => {
       onMutated();
@@ -281,10 +272,7 @@ function FeedbackDetailDialog({
 
   const archive = useMutation({
     mutationFn: async () => {
-      const res = await fetch(`/api/admin/feedback/${item.id}`, {
-        method: "DELETE",
-      });
-      if (!res.ok) throw new Error(await getApiErrorMessage(res));
+      await apiDelete(`/api/admin/feedback/${item.id}`);
     },
     onSuccess: () => {
       onMutated();
@@ -299,11 +287,7 @@ function FeedbackDetailDialog({
 
   const publish = useMutation({
     mutationFn: async () => {
-      const res = await fetch(`/api/admin/feedback/${item.id}/github`, {
-        method: "POST",
-      });
-      if (!res.ok) throw new Error(await getApiErrorMessage(res));
-      return (await res.json()).data as { issueUrl: string };
+      return apiPost<{ issueUrl: string }>(`/api/admin/feedback/${item.id}/github`);
     },
     onSuccess: (data) => {
       setIssueUrl(data.issueUrl);

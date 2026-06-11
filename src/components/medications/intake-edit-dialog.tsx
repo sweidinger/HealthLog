@@ -39,6 +39,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { useFormatters, useTranslations } from "@/lib/i18n/context";
 import { invalidateKeys, medicationDependentKeys } from "@/lib/query-keys";
+import { apiPut } from "@/lib/api/api-fetch";
 
 export interface IntakeEditDialogProps {
   medicationId: string;
@@ -132,18 +133,7 @@ function IntakeEditDialogBody({
       } else {
         body.takenAt = null;
       }
-      const res = await fetch(
-        `/api/medications/${medicationId}/intake/${event.id}`,
-        {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(body),
-        },
-      );
-      if (!res.ok) {
-        toast.error(t("medications.detail.intake.edit.failed"));
-        return;
-      }
+      await apiPut(`/api/medications/${medicationId}/intake/${event.id}`, body);
       await invalidateKeys(queryClient, medicationDependentKeys);
       toast.success(t("medications.detail.intake.edit.savedToast"));
       onClose();
@@ -162,69 +152,80 @@ function IntakeEditDialogBody({
             {t("medications.detail.intake.edit.dialogTitle")}
           </DialogTitle>
         </DialogHeader>
-        <div className="space-y-3">
-          <div className="space-y-2">
-            <Label htmlFor="intake-edit-taken-at">
-              {t("medications.detail.intake.edit.takenAtLabel")}
-            </Label>
-            <Input
-              id="intake-edit-taken-at"
-              type="datetime-local"
-              value={takenAt}
-              max={toDateTimeLocal(new Date())}
-              onChange={(e) => setTakenAt(e.target.value)}
-              disabled={skipped}
-            />
-            {scheduledFor && (
-              <p
-                className="text-muted-foreground text-xs"
-                data-slot="intake-edit-scheduled-hint"
-              >
-                {t("medications.detail.intake.edit.scheduledForHint", {
-                  dateTime: fmt.dateTime(scheduledFor),
-                })}
-              </p>
-            )}
-            {/* Non-blocking: a 48h+ gap to the slot is almost always a
+        {/* v1.16.4 — a real form so Enter in the datetime field submits;
+            the buttons carry explicit types so cancel never submits. */}
+        <form
+          className="space-y-4"
+          onSubmit={(e) => {
+            e.preventDefault();
+            void save();
+          }}
+        >
+          <div className="space-y-3">
+            <div className="space-y-2">
+              <Label htmlFor="intake-edit-taken-at">
+                {t("medications.detail.intake.edit.takenAtLabel")}
+              </Label>
+              <Input
+                id="intake-edit-taken-at"
+                type="datetime-local"
+                value={takenAt}
+                max={toDateTimeLocal(new Date())}
+                onChange={(e) => setTakenAt(e.target.value)}
+                disabled={skipped}
+              />
+              {scheduledFor && (
+                <p
+                  className="text-muted-foreground text-xs"
+                  data-slot="intake-edit-scheduled-hint"
+                >
+                  {t("medications.detail.intake.edit.scheduledForHint", {
+                    dateTime: fmt.dateTime(scheduledFor),
+                  })}
+                </p>
+              )}
+              {/* Non-blocking: a 48h+ gap to the slot is almost always a
                 date typo, but a deliberate far edit stays saveable. */}
-            {showFarHint && (
-              <p
-                className="text-xs text-amber-600 dark:text-amber-400"
-                data-slot="intake-edit-far-hint"
-              >
-                {t("medications.detail.intake.edit.farFromScheduledWarning")}
-              </p>
-            )}
+              {showFarHint && (
+                <p
+                  className="text-xs text-amber-600 dark:text-amber-400"
+                  data-slot="intake-edit-far-hint"
+                >
+                  {t("medications.detail.intake.edit.farFromScheduledWarning")}
+                </p>
+              )}
+            </div>
+            <label
+              htmlFor="intake-edit-skipped"
+              className="flex items-center justify-between gap-3"
+            >
+              <span className="text-sm font-medium">
+                {t("medications.detail.intake.edit.skippedLabel")}
+              </span>
+              <Switch
+                id="intake-edit-skipped"
+                checked={skipped}
+                onCheckedChange={(checked) => setSkipped(checked)}
+              />
+            </label>
           </div>
-          <label
-            htmlFor="intake-edit-skipped"
-            className="flex items-center justify-between gap-3"
-          >
-            <span className="text-sm font-medium">
-              {t("medications.detail.intake.edit.skippedLabel")}
-            </span>
-            <Switch
-              id="intake-edit-skipped"
-              checked={skipped}
-              onCheckedChange={(checked) => setSkipped(checked)}
-            />
-          </label>
-        </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose} disabled={busy}>
-            {t("medications.detail.intake.edit.cancel")}
-          </Button>
-          <Button
-            onClick={() => void save()}
-            disabled={busy}
-            aria-busy={busy || undefined}
-          >
-            {busy && (
-              <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" />
-            )}
-            {t("medications.detail.intake.edit.save")}
-          </Button>
-        </DialogFooter>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={onClose}
+              disabled={busy}
+            >
+              {t("medications.detail.intake.edit.cancel")}
+            </Button>
+            <Button type="submit" disabled={busy} aria-busy={busy || undefined}>
+              {busy && (
+                <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" />
+              )}
+              {t("medications.detail.intake.edit.save")}
+            </Button>
+          </DialogFooter>
+        </form>
       </DialogContent>
     </Dialog>
   );

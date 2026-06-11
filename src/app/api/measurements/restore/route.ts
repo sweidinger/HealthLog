@@ -1,0 +1,144 @@
+/**
+ * `POST /api/measurements/restore` — un-tombstone for the management
+ * list's delete-Undo affordance (v1.16.4).
+ *
+ * Body:
+ *   { ids: string[] }   — 1..200 measurement ids, scoped to the caller.
+ *
+ * Clears `deletedAt` (+ bumps `syncVersion`) on every owned,
+ * currently-tombstoned row in one `updateMany`, so the row re-surfaces
+ * in normal reads and the `/api/sync/changes` delta feed carries it as
+ * an upsert to paired clients. A forged / foreign / not-deleted id is a
+ * silent no-op (never a 404 existence leak): the mutation `where` pins
+ * `userId` so it only ever touches the caller's rows.
+ *
+ * Response (200):
+ *   { restored: <number of rows un-tombstoned> }
+ */
+import { NextRequest } from "next/server";
+import { z } from "zod/v4";
+
+import { prisma } from "@/lib/db";
+import { apiHandler, requireAuth } from "@/lib/api-handler";
+import { annotate } from "@/lib/logging/context";
+import { auditLog } from "@/lib/auth/audit";
+import {
+  apiError,
+  apiSuccess,
+  getClientIp,
+  returnAllZodIssues,
+  safeJson,
+} from "@/lib/api-response";
+import { withIdempotency } from "@/lib/idempotency";
+import { checkRateLimit } from "@/lib/rate-limit";
+import { invalidateUserMeasurements } from "@/lib/cache/invalidate";
+import { invalidateStatusInsightsForTypes } from "@/lib/insights/comprehensive-generate";
+import {
+  recomputeBucketsForMeasurement,
+  collapseToTypeDayKeys,
+} from "@/lib/rollups/measurement-rollups";
+import type { MeasurementType } from "@/generated/prisma/client";
+
+const MAX_IDS_PER_BATCH = 200;
+const RATE_LIMIT_MAX = 60;
+const RATE_LIMIT_WINDOW_MS = 60 * 1000;
+
+const restoreSchema = z.object({
+  ids: z.array(z.string().min(1)).min(1).max(MAX_IDS_PER_BATCH),
+});
+
+export const POST = apiHandler(withIdempotency<[NextRequest]>(postRestore));
+
+async function postRestore(request: NextRequest): Promise<Response> {
+  const { user } = await requireAuth();
+
+  const rl = await checkRateLimit(
+    `measurements:restore:${user.id}`,
+    RATE_LIMIT_MAX,
+    RATE_LIMIT_WINDOW_MS,
+  );
+  if (!rl.allowed) {
+    return apiError("Too many restore requests, try again later", 429);
+  }
+
+  const { data: rawBody, error: jsonError } = await safeJson(request, {
+    maxBytes: 256 * 1024,
+  });
+  if (jsonError) return jsonError;
+
+  const parsed = restoreSchema.safeParse(rawBody);
+  if (!parsed.success) {
+    return returnAllZodIssues(parsed.error, 422, {
+      errorCode: "measurement.restore.invalid",
+    });
+  }
+
+  const { ids } = parsed.data;
+
+  // Read the soon-to-be-restored rows first so we know which
+  // `(type, day)` buckets need a rollup recompute and which types need
+  // a status-insight cache drop. Ownership-scoped + `deletedAt != null`
+  // so a forged / foreign / never-deleted id is excluded here exactly as
+  // it is from the mutation below — no existence leak.
+  const affected = await prisma.measurement.findMany({
+    where: { id: { in: ids }, userId: user.id, deletedAt: { not: null } },
+    select: { type: true, measuredAt: true },
+  });
+
+  // Un-tombstone in one statement. The `where` pins `userId` so a forged
+  // id for another user is silently a no-op; `deletedAt: { not: null }`
+  // keeps the count honest (a live row doesn't re-count).
+  const { count } = await prisma.measurement.updateMany({
+    where: { id: { in: ids }, userId: user.id, deletedAt: { not: null } },
+    data: { deletedAt: null, syncVersion: { increment: 1 } },
+  });
+
+  await auditLog("measurement.restore", {
+    userId: user.id,
+    ipAddress: getClientIp(request),
+    details: { count },
+  });
+
+  annotate({
+    action: { name: "measurement.restore" },
+    meta: { count },
+  });
+
+  if (count > 0) {
+    // Bust per-user analytics + achievements + workouts caches so
+    // subsequent reads reflect the restored rows.
+    invalidateUserMeasurements(user.id);
+
+    // Collapse the restored rows to the unique `(type, day)` set BEFORE
+    // recomputing — mirrors the bulk-delete path. Best-effort: a
+    // populator hiccup never fails the user's restore.
+    const keys = collapseToTypeDayKeys(
+      affected.map((row) => ({
+        type: row.type as MeasurementType,
+        measuredAt: row.measuredAt,
+      })),
+    );
+    try {
+      for (const k of keys) {
+        await recomputeBucketsForMeasurement(user.id, k.type, k.measuredAt);
+      }
+    } catch (err) {
+      console.warn("[measurements] restore rollup recompute failed", err);
+    }
+
+    // Drop the cached per-metric assessment rows the restore dirties so
+    // the next mount / nightly warm pass regenerates against the
+    // restored history. Fire-and-forget: never blocks the restore.
+    const affectedTypes = Array.from(new Set(keys.map((k) => k.type)));
+    if (affectedTypes.length > 0) {
+      invalidateStatusInsightsForTypes(user.id, affectedTypes).catch((err) => {
+        console.warn(
+          "[measurements] restore status-insight invalidate failed",
+          err,
+        );
+      });
+    }
+  }
+
+  return apiSuccess({ restored: count });
+}

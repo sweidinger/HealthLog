@@ -18,6 +18,7 @@ import {
   type ThresholdMetric,
   type EffectiveRange,
 } from "@/lib/analytics/effective-range";
+import { apiFetchRaw, apiGet } from "@/lib/api/api-fetch";
 
 interface ThresholdsApiResponse {
   effective: Record<ThresholdMetric, EffectiveRange>;
@@ -65,10 +66,7 @@ export function ThresholdsEditorSection({ id }: { id: string }) {
   const { data, isLoading } = useQuery({
     queryKey: queryKeys.userThresholds(),
     queryFn: async () => {
-      const res = await fetch("/api/user/thresholds");
-      if (!res.ok) throw new Error("failed");
-      const json = await res.json();
-      return json.data as ThresholdsApiResponse;
+      return apiGet<ThresholdsApiResponse>("/api/user/thresholds");
     },
   });
 
@@ -76,7 +74,7 @@ export function ThresholdsEditorSection({ id }: { id: string }) {
     mutationFn: async (
       payload: Partial<Record<ThresholdMetric, { min: number; max: number }>>,
     ) => {
-      const res = await fetch("/api/user/thresholds", {
+      const res = await apiFetchRaw("/api/user/thresholds", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),

@@ -14,6 +14,7 @@ import { formatDate, formatDateTime } from "@/lib/format";
 import { useTranslations } from "@/lib/i18n/context";
 import { queryKeys } from "@/lib/query-keys";
 import { type ApiTokenInfo } from "./_shared";
+import { apiGet } from "@/lib/api/api-fetch";
 
 /**
  * Wraps a string in `truncate` + tooltip so a long token name /
@@ -21,7 +22,7 @@ import { type ApiTokenInfo } from "./_shared";
  *
  * v1.4.19 phase A7 (4th attempt) — earlier fixes (column-hide,
  * mobile card-list, mobile-strip `no-scrollbar`) cleared every
- * scrollbar the maintainer reported except a residual painted bar he kept
+ * scrollbar the maintainer reported except a residual painted bar they kept
  * seeing at the bottom-right. Production probe confirmed no
  * remaining horizontal-overflow culprits, but the cards still
  * carried `break-all` next to `truncate` (dead code; `white-space:
@@ -150,9 +151,7 @@ export function ApiTokenOverviewSection() {
   const { data: tokens, isLoading } = useQuery({
     queryKey: queryKeys.adminTokens(),
     queryFn: async () => {
-      const res = await fetch("/api/admin/tokens");
-      if (!res.ok) throw new Error("Failed");
-      return (await res.json()).data as ApiTokenInfo[];
+      return apiGet<ApiTokenInfo[]>("/api/admin/tokens");
     },
   });
 

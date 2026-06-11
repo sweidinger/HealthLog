@@ -96,6 +96,7 @@ import {
   type LedgerPayload,
   type LedgerRow,
 } from "@/components/medications/dose-history-ledger-compute";
+import { apiDelete, apiGet, apiPost, apiPut } from "@/lib/api/api-fetch";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -190,11 +191,7 @@ export function DoseHistoryLedger({
     queryKey,
     queryFn: async () => {
       const search = new URLSearchParams({ from: fromIso, to: toIso });
-      const res = await fetch(
-        `/api/medications/${medicationId}/dose-history?${search.toString()}`,
-      );
-      if (!res.ok) throw new Error("dose_history_failed");
-      return (await res.json()).data as LedgerPayload;
+      return apiGet<LedgerPayload>(`/api/medications/${medicationId}/dose-history?${search.toString()}`);
     },
     staleTime: 15_000,
   });
@@ -245,37 +242,21 @@ export function DoseHistoryLedger({
       }
 
       try {
-        const res = await fetch(`/api/medications/${medicationId}/intake`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          // Pin the displayed slot so the server marks THAT dose (the canonical
-          // slot upsert), not a now-snap to the nearest one.
-          body: JSON.stringify(
-            action === "skipped"
-              ? { skipped: true, scheduledFor: row.at }
-              : {
-                  skipped: false,
-                  scheduledFor: row.at,
-                  takenAt: new Date().toISOString(),
-                },
-          ),
-        });
-        if (!res.ok) {
-          if (prev) queryClient.setQueryData(queryKey, prev);
-          toast.error(
-            t("medications.intakeToastFailed", { name: medicationName }),
-          );
-          return;
-        }
-        // The POST returns the created event; its id drives the Undo
-        // affordance (the same soft-delete route the cards use).
-        let eventId: string | undefined;
-        try {
-          const json = await res.json();
-          eventId = json?.data?.id as string | undefined;
-        } catch {
-          /* dose recorded; the body is best-effort for the id */
-        }
+        // Pin the displayed slot so the server marks THAT dose (the canonical
+        // slot upsert), not a now-snap to the nearest one. The POST returns
+        // the created event; its id drives the Undo affordance (the same
+        // soft-delete route the cards use).
+        const created = await apiPost<{ id?: string } | undefined>(
+          `/api/medications/${medicationId}/intake`,
+          action === "skipped"
+            ? { skipped: true, scheduledFor: row.at }
+            : {
+                skipped: false,
+                scheduledFor: row.at,
+                takenAt: new Date().toISOString(),
+              },
+        );
+        const eventId: string | undefined = created?.id;
         toast.success(
           t(
             action === "skipped"
@@ -333,18 +314,10 @@ export function DoseHistoryLedger({
               takenAt: intake.scheduledFor ?? new Date().toISOString(),
             }
           : { skipped: true, takenAt: null };
-        const res = await fetch(
+        await apiPut(
           `/api/medications/${medicationId}/intake/${intake.id}`,
-          {
-            method: "PUT",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(body),
-          },
+          body,
         );
-        if (!res.ok) {
-          toast.error(t("medications.detail.intake.edit.failed"));
-          return;
-        }
         await invalidateKeys(queryClient, [
           ...medicationDependentKeys,
           queryKey,
@@ -366,18 +339,9 @@ export function DoseHistoryLedger({
   const setAttribution = useCallback(
     async (eventId: string, slotAtIso: string | null) => {
       try {
-        const res = await fetch(
-          `/api/medications/${medicationId}/intake/${eventId}`,
-          {
-            method: "PUT",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ forceSlotInstant: slotAtIso }),
-          },
-        );
-        if (!res.ok) {
-          toast.error(t("medications.detail.intake.edit.failed"));
-          return;
-        }
+        await apiPut(`/api/medications/${medicationId}/intake/${eventId}`, {
+          forceSlotInstant: slotAtIso,
+        });
         toast.success(
           t(
             slotAtIso
@@ -401,14 +365,7 @@ export function DoseHistoryLedger({
     const id = pendingDeleteId;
     setPendingDeleteId(null);
     try {
-      const res = await fetch(
-        `/api/medications/${medicationId}/intake/${id}`,
-        { method: "DELETE" },
-      );
-      if (!res.ok) {
-        toast.error(t("medications.detail.intake.deleteRow.failed"));
-        return;
-      }
+      await apiDelete(`/api/medications/${medicationId}/intake/${id}`);
       toast.success(t("medications.detail.intake.deleteRow.toast"));
       await invalidateKeys(queryClient, [...medicationDependentKeys, queryKey]);
     } catch {

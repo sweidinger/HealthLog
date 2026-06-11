@@ -19,6 +19,7 @@ import { InsightStatusCard } from "@/components/insights/insight-status-card";
 import { MetricTargetSummary } from "@/components/insights/metric-target-summary";
 import { SubPageShell } from "@/components/insights/sub-page-shell";
 import { TileHeader } from "@/components/insights/tile-header";
+import { apiGet } from "@/lib/api/api-fetch";
 
 /**
  * v1.4.25 W4 — `/insights/medications`.
@@ -93,10 +94,7 @@ export default function InsightsMedikamentePage() {
   const { data: comprehensive, isLoading: isComprehensiveLoading } = useQuery({
     queryKey: queryKeys.insightsComprehensive(),
     queryFn: async () => {
-      const res = await fetch("/api/insights/comprehensive");
-      if (!res.ok) throw new Error("Failed");
-      const json = await res.json();
-      return json.data as ComprehensiveMedicationData;
+      return apiGet<ComprehensiveMedicationData>("/api/insights/comprehensive");
     },
     enabled: isAuthenticated,
   });
@@ -110,13 +108,7 @@ export default function InsightsMedikamentePage() {
         MED_STATUS_TIMEOUT_MS,
       );
       try {
-        const res = await fetch(
-          `/api/insights/medication-compliance-status?locale=${locale}`,
-          { signal: controller.signal },
-        );
-        if (!res.ok) throw new Error("Failed");
-        const json = await res.json();
-        return json.data as MedicationComplianceStatusData;
+        return apiGet<MedicationComplianceStatusData>(`/api/insights/medication-compliance-status?locale=${locale}`, { signal: controller.signal });
       } finally {
         clearTimeout(timeoutHandle);
       }
@@ -313,10 +305,15 @@ function MedicationComplianceCalendar({
   const { data, isLoading } = useQuery({
     queryKey: queryKeys.medicationComplianceChart(medicationId),
     queryFn: async () => {
-      const res = await fetch(`/api/medications/${medicationId}/compliance`);
-      if (!res.ok) return null;
-      const json = await res.json();
-      return json.data as MedicationComplianceDailyResponse;
+      try {
+        return await apiGet<MedicationComplianceDailyResponse>(
+          `/api/medications/${medicationId}/compliance`,
+        );
+      } catch {
+        // The calendar simply doesn't render — same as the raw
+        // `if (!res.ok) return null` did.
+        return null;
+      }
     },
     enabled: !!medicationId,
     staleTime: 60 * 1000,
