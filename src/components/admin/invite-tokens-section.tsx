@@ -123,6 +123,18 @@ export function deriveInviteStatus(
 const TTL_CHOICES = [7, 14, 30] as const;
 const MAX_USES_CAP = 50;
 
+/**
+ * Clamp the raw max-uses field to the mintable range (integer 1–50).
+ * Shared by the submit path and the blur echo so the admin always sees
+ * exactly what the POST will carry. Exported for unit tests.
+ */
+export function clampMaxUses(raw: string): number {
+  const parsed = Number.parseInt(raw, 10);
+  return Number.isFinite(parsed) && parsed >= 1
+    ? Math.min(parsed, MAX_USES_CAP)
+    : 1;
+}
+
 /** Whole days (ceil) from `now` until `iso`; negative when past. */
 function daysUntil(iso: string, now: Date): number {
   const ms = new Date(iso).getTime() - now.getTime();
@@ -253,12 +265,7 @@ export function InviteTokensSection() {
   }
 
   function submitCreate() {
-    const parsedMax = Number.parseInt(maxUses, 10);
-    const safeMax =
-      Number.isFinite(parsedMax) && parsedMax >= 1
-        ? Math.min(parsedMax, MAX_USES_CAP)
-        : 1;
-    create.mutate({ expiresInDays: ttlDays, maxUses: safeMax });
+    create.mutate({ expiresInDays: ttlDays, maxUses: clampMaxUses(maxUses) });
   }
 
   const now = new Date();
@@ -591,8 +598,14 @@ export function InviteTokensSection() {
                     inputMode="numeric"
                     min={1}
                     max={MAX_USES_CAP}
+                    step={1}
                     value={maxUses}
                     onChange={(e) => setMaxUses(e.target.value)}
+                    onBlur={() => {
+                      // Echo the submit-time clamp (1–50, integer) into
+                      // the field so the admin sees what will be minted.
+                      setMaxUses(String(clampMaxUses(maxUses)));
+                    }}
                     className="w-24 tabular-nums"
                     data-testid="admin-invites-max-uses"
                   />
@@ -753,7 +766,12 @@ function RedemptionsCell({
             count: invite.redemptions.length,
           })}
         </p>
-        <ul className="mt-2 space-y-2">
+        {/* v1.16.5 — a 50-use invite lists up to 50 signups; cap the
+            list height so the popover never outgrows the viewport. */}
+        <ul
+          className="mt-2 max-h-64 space-y-2 overflow-y-auto pr-1"
+          data-testid="admin-invite-redemptions-list"
+        >
           {invite.redemptions.map((entry) => (
             <li key={entry.id} className="text-sm leading-tight">
               <div>

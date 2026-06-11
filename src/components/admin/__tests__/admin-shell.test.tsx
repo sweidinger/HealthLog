@@ -21,6 +21,17 @@ vi.mock("next/navigation", () => ({
   usePathname: () => mockPathnameRef.value,
 }));
 
+// The shell gates its own frame on the confirmed ADMIN role — a
+// non-admin (or a still-loading auth state) must not see the section
+// nav while AuthShell's redirect effect is catching up.
+const mockUserRef = { value: { role: "ADMIN", username: "op" } as {
+  role: string;
+  username: string;
+} | null };
+vi.mock("@/hooks/use-auth", () => ({
+  useAuth: () => ({ user: mockUserRef.value }),
+}));
+
 import { readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 
@@ -31,8 +42,11 @@ import { ADMIN_SECTIONS, AdminShell } from "../admin-shell";
 function renderShell(props: {
   active?: (typeof ADMIN_SECTIONS)[number]["slug"];
   pathname?: string;
+  user?: { role: string; username: string } | null;
 }) {
   mockPathnameRef.value = props.pathname ?? "/admin/system-status";
+  mockUserRef.value =
+    props.user === undefined ? { role: "ADMIN", username: "op" } : props.user;
   return renderToStaticMarkup(
     <I18nProvider initialLocale="en">
       <AdminShell active={props.active}>
@@ -131,6 +145,22 @@ describe("<AdminShell>", () => {
         join(process.cwd(), "src/app/admin/[section]/page.tsx"),
       ).isFile(),
     ).toBe(true);
+  });
+
+  it("renders neither frame nor children until the role is confirmed ADMIN", () => {
+    // Non-admin: no section nav, no children — the frame must not
+    // flash while AuthShell's redirect effect moves the user away.
+    const asUser = renderShell({
+      active: "system-status",
+      user: { role: "USER", username: "u" },
+    });
+    expect(asUser).toBe("");
+    // Auth still in flight (user === null): same blank render.
+    const loading = renderShell({ active: "system-status", user: null });
+    expect(loading).toBe("");
+    // Admin: frame + children render.
+    const asAdmin = renderShell({ active: "system-status" });
+    expect(asAdmin).toContain("section body");
   });
 
   it("does NOT mark any section active on `/admin` overview", () => {

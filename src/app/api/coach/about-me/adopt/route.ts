@@ -113,55 +113,81 @@ export const POST = apiHandler(async (req: Request) => {
   }
 
   const { question, answer } = parsed.data;
-  const ctx = await getSelfContextForUser(user.id);
-
-  let field: StructuredField | "aboutMe" = matchSelfContextField(question);
   const normAnswer = normalise(answer);
 
-  // Dedupe BEFORE any write: an answer already present in the target
-  // field or in the free-text aboutMe never stacks a second copy.
-  const targetExisting = ctx[field];
-  if (
-    (targetExisting && normalise(targetExisting).includes(normAnswer)) ||
-    (ctx.aboutMe && normalise(ctx.aboutMe).includes(normAnswer))
-  ) {
+  // Read-modify-write under a row lock: two concurrent adoptions used
+  // to read the same base value and one append silently lost (or the
+  // dedupe missed the other's in-flight write). The empty upsert pins
+  // the row, `FOR UPDATE` serialises every adoption for this user, and
+  // the read happens through the same `tx` so it sees the locked state.
+  const outcome = await prisma.$transaction(async (tx) => {
+    await tx.userHealthProfile.upsert({
+      where: { userId: user.id },
+      create: { userId: user.id },
+      update: {},
+      select: { id: true },
+    });
+    await tx.$queryRaw`
+      SELECT id FROM user_health_profiles
+      WHERE user_id = ${user.id}
+      FOR UPDATE
+    `;
+    const ctx = await getSelfContextForUser(user.id, tx);
+
+    let field: StructuredField | "aboutMe" = matchSelfContextField(question);
+
+    // Dedupe BEFORE any write: an answer already present in the target
+    // field or in the free-text aboutMe never stacks a second copy.
+    const targetExisting = ctx[field];
+    if (
+      (targetExisting && normalise(targetExisting).includes(normAnswer)) ||
+      (ctx.aboutMe && normalise(ctx.aboutMe).includes(normAnswer))
+    ) {
+      return { kind: "duplicate" as const, field };
+    }
+
+    // Append on its own line; a structured field at its cap overflows
+    // into the free-text aboutMe (4000 chars) rather than failing the
+    // adoption outright.
+    let nextValue = targetExisting ? `${targetExisting}\n${answer}` : answer;
+    if (nextValue.length > ABOUT_ME_FIELD_MAX_CHARS) {
+      field = "aboutMe";
+      nextValue = ctx.aboutMe ? `${ctx.aboutMe}\n${answer}` : answer;
+      if (nextValue.length > ABOUT_ME_MAX_CHARS) {
+        return { kind: "full" as const, field };
+      }
+    }
+
+    // Field-by-field assembly (no mass assignment): exactly one
+    // encrypted column is written per adoption.
+    const column = (
+      {
+        conditions: "conditionsEncrypted",
+        allergies: "allergiesEncrypted",
+        coachFocus: "coachFocusEncrypted",
+        aboutMe: "aboutMeEncrypted",
+      } as const
+    )[field];
+
+    await tx.userHealthProfile.update({
+      where: { userId: user.id },
+      data: { [column]: encryptToBytes(nextValue) },
+      select: { updatedAt: true },
+    });
+    return { kind: "adopted" as const, field };
+  });
+
+  const { field } = outcome;
+  if (outcome.kind === "duplicate") {
     annotate({
       action: { name: "coach.about_me.adopt_deduped" },
       meta: { field },
     });
     return apiSuccess({ adopted: false, field, reason: "duplicate" });
   }
-
-  // Append on its own line; a structured field at its cap overflows
-  // into the free-text aboutMe (4000 chars) rather than failing the
-  // adoption outright.
-  let nextValue = targetExisting ? `${targetExisting}\n${answer}` : answer;
-  if (nextValue.length > ABOUT_ME_FIELD_MAX_CHARS) {
-    field = "aboutMe";
-    nextValue = ctx.aboutMe ? `${ctx.aboutMe}\n${answer}` : answer;
-    if (nextValue.length > ABOUT_ME_MAX_CHARS) {
-      return apiError("Self-context is full", 422);
-    }
+  if (outcome.kind === "full") {
+    return apiError("Self-context is full", 422);
   }
-
-  // Field-by-field assembly (no mass assignment): exactly one encrypted
-  // column is written per adoption.
-  const column = (
-    {
-      conditions: "conditionsEncrypted",
-      allergies: "allergiesEncrypted",
-      coachFocus: "coachFocusEncrypted",
-      aboutMe: "aboutMeEncrypted",
-    } as const
-  )[field];
-  const payload = { [column]: encryptToBytes(nextValue) };
-
-  await prisma.userHealthProfile.upsert({
-    where: { userId: user.id },
-    create: { userId: user.id, ...payload },
-    update: payload,
-    select: { updatedAt: true },
-  });
 
   await auditLog("coach.about_me.adopted", {
     userId: user.id,
