@@ -30,6 +30,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { RichChartTooltip, type RichTooltipRow } from "./chart-tooltip";
 import { ChartEmptyState } from "./chart-empty-state";
+import { ChartErrorState } from "./chart-error-state";
 import { TileHeader } from "@/components/insights/tile-header";
 import { prefersReducedMotion } from "@/lib/charts/reduced-motion";
 import { computePaddedYDomain } from "@/lib/insights/chart-y-domain";
@@ -631,7 +632,7 @@ export function HealthChart({
     };
   }, [rangePoints, effectiveCompareBaseline]);
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     // v1.4.40 W-RSC — route the chart-data key through `queryKeys.chartData`
     // so the `["chart-data"]` prefix lands in `measurementDependentKeys`
     // and a fresh measurement evicts every per-chart daily cache in one
@@ -708,16 +709,14 @@ export function HealthChart({
           "days",
           String(Math.max(1, Math.min(3650, Math.ceil(fetchWindow.windowDays)))),
         );
-        let points: Array<{ at: string; value: number }>;
-        try {
-          const data = await apiGet<{
-            points?: Array<{ at: string; value: number }>;
-          }>(`/api/measurements/series?${sleepParams}`);
-          points = data?.points ?? [];
-        } catch {
-          // Sleep overlay is additive — skip it on failure, as before.
-          return;
-        }
+        // v1.16.8 — a failed fetch rejects the whole query instead of
+        // silently resolving an empty series: the swallowed-catch
+        // variant cached the empty result as fresh success, so an
+        // outage painted "no data in this range" with no retry path.
+        const data = await apiGet<{
+          points?: Array<{ at: string; value: number }>;
+        }>(`/api/measurements/series?${sleepParams}`);
+        const points = data?.points ?? [];
         for (const point of points) {
           const value = point.value * valueScale;
           if (value == null || !Number.isFinite(value)) continue;
@@ -773,16 +772,16 @@ export function HealthChart({
           typeParams.set("source", "rollup");
         }
 
-        let page: MeasurementApiRow[];
-        try {
-          const data = await apiGet<{ measurements?: MeasurementApiRow[] }>(
-            `/api/measurements?${typeParams}`,
-          );
-          page = data?.measurements ?? [];
-        } catch {
-          // Per-type fetch failure degrades that series only, as before.
-          return;
-        }
+        // v1.16.8 — a failed per-type fetch rejects the whole query
+        // instead of silently dropping the series: the swallowed-catch
+        // variant cached the partial/empty result as fresh success, so
+        // an outage painted the empty state (or a half chart) with no
+        // retry path. Rejecting lets TanStack's retry semantics and the
+        // in-card error state below do their jobs.
+        const data = await apiGet<{ measurements?: MeasurementApiRow[] }>(
+          `/api/measurements?${typeParams}`,
+        );
+        const page = data?.measurements ?? [];
 
         for (const measurement of page) {
           // v1.7.0 — fold the display-time scale into the raw value at
@@ -1545,6 +1544,16 @@ export function HealthChart({
         // shared-reveal overlay and every insights mount stay
         // layout-shift-free.
         <Skeleton className={`w-full ${chartHeightClass}`} />
+      ) : isError ? (
+        // v1.16.8 — a failed query paints as an ERROR with a retry
+        // affordance, not as the "no data in this range" empty state.
+        // Pre-fix `isError` fell through to the empty branch and an
+        // outage read as "you have no measurements".
+        <ChartErrorState
+          title={t("charts.errorTitle")}
+          actionLabel={t("common.retry")}
+          onAction={() => void refetch()}
+        />
       ) : !chartData?.length ? (
         // v1.4.43 W11-M6 — empty-window state.
         //

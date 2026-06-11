@@ -28,8 +28,10 @@ import type { DashboardAnalyticsData as AnalyticsData } from "@/types/analytics"
 import dynamic from "next/dynamic";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
+import { ChartErrorBoundary } from "@/components/charts/chart-error-state";
 import { ChartSkeleton } from "@/components/charts/chart-skeleton";
 import { HealthChartDynamic } from "@/components/charts/health-chart-dynamic";
+import { importWithRetry } from "@/lib/retry-import";
 import {
   DashboardChartCell,
   useDashboardChartReveal,
@@ -64,19 +66,36 @@ const DASHBOARD_QUERY_OPTS = {
   refetchOnWindowFocus: false,
 } as const;
 
-const MoodChart = dynamic(
+// v1.16.8 — the loaders retry a rejected chunk import once (a lazy
+// import caches its rejection permanently, so a transient 404 from a
+// stale shell used to brick the card for the session) and each mount
+// wraps in `<ChartErrorBoundary>` so a chunk that still fails degrades
+// to ONE error card instead of bubbling to the route-level `error.tsx`.
+const MoodChartLazy = dynamic(
   () =>
-    import("@/components/charts/mood-chart").then((mod) => ({
-      default: mod.MoodChart,
-    })),
+    importWithRetry(() => import("@/components/charts/mood-chart")).then(
+      (mod) => ({ default: mod.MoodChart }),
+    ),
   { ssr: false, loading: () => <ChartSkeleton /> },
 );
-const MedicationComplianceChart = dynamic(
+const MoodChart = (props: React.ComponentProps<typeof MoodChartLazy>) => (
+  <ChartErrorBoundary>
+    <MoodChartLazy {...props} />
+  </ChartErrorBoundary>
+);
+const MedicationComplianceChartLazy = dynamic(
   () =>
-    import("@/components/charts/medication-compliance-chart").then((mod) => ({
-      default: mod.MedicationComplianceChart,
-    })),
+    importWithRetry(
+      () => import("@/components/charts/medication-compliance-chart"),
+    ).then((mod) => ({ default: mod.MedicationComplianceChart })),
   { ssr: false, loading: () => <ChartSkeleton /> },
+);
+const MedicationComplianceChart = (
+  props: React.ComponentProps<typeof MedicationComplianceChartLazy>,
+) => (
+  <ChartErrorBoundary>
+    <MedicationComplianceChartLazy {...props} />
+  </ChartErrorBoundary>
 );
 import { useTranslations, useFormatters } from "@/lib/i18n/context";
 import { queryKeys } from "@/lib/query-keys";

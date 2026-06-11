@@ -32,8 +32,17 @@ import {
   prefetchDashboardSnapshot,
   _resetDashboardSnapshotPreloadForTests,
 } from "../use-dashboard-snapshot";
+import { retryOnceOnTransientError } from "../retry-transient";
 import { queryKeys } from "@/lib/query-keys";
 import type { QueryClient } from "@tanstack/react-query";
+
+/** Envelope-shaped Response — the snapshot fetch rides `apiGet` now. */
+function envelopeResponse(data: unknown): Response {
+  return new Response(JSON.stringify({ data, error: null }), {
+    status: 200,
+    headers: { "Content-Type": "application/json" },
+  });
+}
 
 afterEach(() => {
   useQueryMock.mockClear();
@@ -70,14 +79,17 @@ describe("useDashboardSnapshot — auto-refresh on an open page", () => {
     expect(opts.queryKey).toEqual(queryKeys.dashboardSnapshot());
   });
 
+  it("retries once on transient failures only (network / 5xx, never 4xx)", () => {
+    useDashboardSnapshot();
+    const opts = lastOpts();
+    expect(opts.retry).toBe(retryOnceOnTransientError);
+  });
+
   it("seeds the widgets cache from the snapshot layout when the slot is empty", async () => {
     const layout = { widgets: [] };
     vi.stubGlobal(
       "fetch",
-      vi.fn().mockResolvedValue({
-        ok: true,
-        json: async () => ({ data: { layout, tiles: {} } }),
-      }),
+      vi.fn().mockResolvedValue(envelopeResponse({ layout, tiles: {} })),
     );
     getQueryDataMock.mockReturnValue(undefined);
     useDashboardSnapshot();
@@ -92,10 +104,9 @@ describe("useDashboardSnapshot — auto-refresh on an open page", () => {
   it("never clobbers an already-populated widgets cache", async () => {
     vi.stubGlobal(
       "fetch",
-      vi.fn().mockResolvedValue({
-        ok: true,
-        json: async () => ({ data: { layout: { widgets: [] }, tiles: {} } }),
-      }),
+      vi
+        .fn()
+        .mockResolvedValue(envelopeResponse({ layout: { widgets: [] }, tiles: {} })),
     );
     getQueryDataMock.mockReturnValue({ widgets: [{ id: "existing" }] });
     useDashboardSnapshot();
@@ -117,10 +128,9 @@ describe("prefetchDashboardSnapshot — hydration-safe promise handoff", () => {
   }
 
   function stubFetch(payload: unknown = { layout: { widgets: [] }, tiles: {} }) {
-    const fetchMock = vi.fn().mockResolvedValue({
-      ok: true,
-      json: async () => ({ data: payload }),
-    });
+    const fetchMock = vi
+      .fn()
+      .mockImplementation(() => Promise.resolve(envelopeResponse(payload)));
     vi.stubGlobal("fetch", fetchMock);
     return fetchMock;
   }
@@ -161,10 +171,7 @@ describe("prefetchDashboardSnapshot — hydration-safe promise handoff", () => {
     const fetchMock = vi
       .fn()
       .mockRejectedValueOnce(new Error("HTTP 401"))
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ data: { layout, tiles: {} } }),
-      });
+      .mockResolvedValueOnce(envelopeResponse({ layout, tiles: {} }));
     vi.stubGlobal("fetch", fetchMock);
     getQueryDataMock.mockReturnValue({ widgets: [{ id: "existing" }] });
 

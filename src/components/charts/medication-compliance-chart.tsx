@@ -56,6 +56,7 @@ import { makeFormatters } from "@/lib/format-locale";
 import { cn } from "@/lib/utils";
 import { RichChartTooltip, type RichTooltipRow } from "./chart-tooltip";
 import { ChartEmptyState } from "./chart-empty-state";
+import { ChartErrorState } from "./chart-error-state";
 import { ChartOverlayControls } from "./chart-overlay-controls";
 import { prefersReducedMotion } from "@/lib/charts/reduced-motion";
 import { useChartOverlayPrefs } from "@/hooks/use-chart-overlay-prefs";
@@ -242,7 +243,7 @@ export function MedicationComplianceChart({
   // `["dashboard-medication-compliance"]` lands in
   // `medicationDependentKeys` and an intake POST refreshes the chart
   // immediately rather than waiting for `staleTime` (audit L4).
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: queryKeys.dashboardMedicationCompliance(days),
     queryFn: async (): Promise<DailyCompliancePoint[]> => {
       return apiGet<DailyCompliancePoint[]>(`/api/medications/intake?scope=compliance&days=${days}`);
@@ -415,6 +416,16 @@ export function MedicationComplianceChart({
         // `h-48` spinner box; matches the painted chart body below so
         // the card never jumps when the data lands.
         <Skeleton className="h-[var(--chart-height,240px)] w-full md:h-[var(--chart-height-md,280px)]" />
+      ) : isError ? (
+        // v1.16.8 — a failed query paints as an ERROR with a retry
+        // affordance, not as the "no data" hint. Pre-fix `isError` fell
+        // through to the empty branch (data undefined → hasData false)
+        // and an outage read as "no doses tracked".
+        <ChartErrorState
+          title={t("charts.errorTitle")}
+          actionLabel={t("common.retry")}
+          onAction={() => void refetch()}
+        />
       ) : !hasData ? (
         <div className="text-muted-foreground flex h-48 items-center justify-center text-sm">
           {t("charts.noData")}
