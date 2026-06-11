@@ -278,12 +278,18 @@ async function buildScheduleAnchoredComplianceBuckets(
   });
 
   // Pre-compute each local day's [start, end) bounds + key, oldest → newest.
+  // Each day's representative instant anchors on the user's LOCAL NOON of
+  // the current day and steps back in 24-hour increments: noon stays inside
+  // the intended local day across DST shifts (23/25-hour days), and —
+  // unlike the previous `now − 12 h` anchor — it cannot slip into
+  // yesterday when the user's local time is before noon, which silently
+  // dropped TODAY from the buckets for every pre-noon read.
+  const { start: todayStart } = getUserTodayBounds(now, userTz);
+  const todayNoonMs = todayStart.getTime() + 12 * 60 * 60 * 1000;
   const dayKeys: string[] = [];
   const dayBounds = new Map<string, { start: Date; end: Date }>();
   for (let i = days - 1; i >= 0; i--) {
-    const representative = new Date(
-      nowMs - i * 86_400_000 - 12 * 60 * 60 * 1000,
-    );
+    const representative = new Date(todayNoonMs - i * 86_400_000);
     const { start: dayStart, end: dayEndInclusive } = getUserTodayBounds(
       representative,
       userTz,
