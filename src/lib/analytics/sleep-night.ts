@@ -360,10 +360,12 @@ function pickSessionWriter(
     asleepByWriter.size > 0
       ? [...asleepByWriter.keys()]
       : [...rowsByWriter.keys()];
-  // Richness gate: keep only the writers tied for the MOST distinct granular
-  // stages. A 3-stage hypnogram beats a 1-stage partial beats a coarse
-  // ASLEEP-only export; coarse writers survive only when NO writer carries a
-  // granular stage for the session.
+  // Three gates, in this order:
+  //   1. granular PRESENCE — writers carrying any granular stage eliminate
+  //      coarse ASLEEP-only writers (a phone aggregate must not mask a
+  //      watch's hypnogram), coarse survives only when nobody is granular;
+  //   2. timeline shape — see below;
+  //   3. max distinct-stage COUNT among the survivors.
   const richnessOf = new Map<string, number>();
   let maxRichness = 0;
   for (const key of writers) {
@@ -372,7 +374,34 @@ function pickSessionWriter(
     if (score > maxRichness) maxRichness = score;
   }
   if (maxRichness > 0) {
-    writers = writers.filter((key) => richnessOf.get(key) === maxRichness);
+    writers = writers.filter((key) => (richnessOf.get(key) ?? 0) > 0);
+  }
+  // Timeline gate — BETWEEN granular presence and the max-richness count.
+  // A writer whose stage rows carry ≥2 distinct measuredAt instants has
+  // real per-segment timing; a summary-shaped writer stamps every stage
+  // total on one instant (WHOOP's stage_summary stamps everything on the
+  // sleep END), and the hypnogram would reconstruct its "segments" as
+  // five spans all touching the night's right edge. When at least one
+  // timeline writer covers the session, summary-only writers are out of
+  // the running BEFORE the richness count — WHOOP's guaranteed full-house
+  // stage count must not eliminate a partial but genuinely-timed Apple
+  // night. A summary-only writer still wins nights nobody else recorded.
+  const distinctInstantsOf = (writerRows: readonly SleepStageRow[]): number =>
+    new Set(writerRows.map((r) => r.measuredAt.getTime())).size;
+  const timelineWriters = writers.filter(
+    (key) => distinctInstantsOf(rowsByWriter.get(key) ?? []) > 1,
+  );
+  if (timelineWriters.length > 0) {
+    writers = timelineWriters;
+  }
+  // Richness gate among the survivors: most distinct granular stages wins.
+  let maxTimedRichness = 0;
+  for (const key of writers) {
+    const score = richnessOf.get(key) ?? 0;
+    if (score > maxTimedRichness) maxTimedRichness = score;
+  }
+  if (maxTimedRichness > 0) {
+    writers = writers.filter((key) => richnessOf.get(key) === maxTimedRichness);
   }
   if (writers.length <= 1) return writers[0] ?? NO_SOURCE;
 

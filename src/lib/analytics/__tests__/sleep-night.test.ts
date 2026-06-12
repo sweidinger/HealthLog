@@ -403,6 +403,52 @@ describe("reconstructSleepSessions", () => {
     expect(s.inBedMinutes).toBe(510);
   });
 
+  it("prefers a per-segment timeline writer over a summary-shaped writer (v1.16.11)", () => {
+    // WHOOP's real wire shape: the v2 API exposes only stage_summary, so
+    // every stage row of a night lands with ONE shared measuredAt — the
+    // sleep END instant. Reconstructing those as segments yields five
+    // spans all touching the right edge of the night. When Apple Health
+    // carries genuinely timed per-segment rows for the same night, the
+    // timed writer must win even though WHOOP ties (or wins) on distinct
+    // stage count and outranks Apple on the default ladder.
+    const end = "2026-06-04T05:00:00.000Z";
+    const rows: SleepStageRow[] = [
+      // WHOOP: full-house stage summary, all stamped on the sleep end.
+      srcRow(end, "IN_BED", 510, "WHOOP"),
+      srcRow(end, "AWAKE", 30, "WHOOP"),
+      srcRow(end, "CORE", 240, "WHOOP"),
+      srcRow(end, "DEEP", 120, "WHOOP"),
+      srcRow(end, "REM", 120, "WHOOP"),
+      // Apple Health: a partial but genuinely timed timeline (2 stages).
+      srcRow("2026-06-04T01:00:00.000Z", "CORE", 240, "APPLE_HEALTH"),
+      srcRow("2026-06-04T03:00:00.000Z", "DEEP", 120, "APPLE_HEALTH"),
+    ];
+    const sessions = reconstructSleepSessions(rows, "UTC");
+    expect(sessions).toHaveLength(1);
+    expect(sessions[0].source).toBe("APPLE_HEALTH");
+    // The surviving segments carry a real timeline: more than one
+    // distinct end instant.
+    const ends = new Set(
+      sessions[0].segments.map((seg) => seg.end.getTime()),
+    );
+    expect(ends.size).toBeGreaterThan(1);
+  });
+
+  it("keeps a summary-shaped writer when nobody else covers the night (v1.16.11)", () => {
+    // WHOOP-only night — the stage summary is all there is, so it must
+    // still resolve (the timeline gate is conditional, not absolute).
+    const end = "2026-06-04T05:00:00.000Z";
+    const rows: SleepStageRow[] = [
+      srcRow(end, "CORE", 240, "WHOOP"),
+      srcRow(end, "DEEP", 120, "WHOOP"),
+      srcRow(end, "REM", 120, "WHOOP"),
+    ];
+    const sessions = reconstructSleepSessions(rows, "UTC");
+    expect(sessions).toHaveLength(1);
+    expect(sessions[0].source).toBe("WHOOP");
+    expect(sessions[0].asleepMinutes).toBe(480);
+  });
+
   it("keeps the bare ASLEEP segment when NO granular stage exists", () => {
     // Legacy ASLEEP-only night — the bare aggregate IS the timeline, so it
     // must survive as a segment (otherwise the hypnogram would have nothing).

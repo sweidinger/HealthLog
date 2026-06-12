@@ -209,7 +209,15 @@ export function SleepHypnogram({ session }: SleepHypnogramProps) {
   // need any positive per-stage minutes. A legacy stage-summary night (no
   // segment spans) still shows its breakdown rather than collapsing the
   // whole card. "Unavailable" is reserved for a truly empty session.
-  const hasTrack = spans.length > 0;
+  // Spans must also carry more than one distinct end instant: a summary-
+  // shaped writer (per-stage night totals all stamped on the sleep end)
+  // reconstructs into bars that all touch the night's right edge — that
+  // is a breakdown wearing a timeline costume, so paint it as the
+  // breakdown footer instead.
+  const hasTrack =
+    spans.length > 0 &&
+    (spans.length === 1 ||
+      new Set(spans.map((s) => s.x2)).size > 1);
   const hasBreakdown = breakdown.length > 0;
 
   return (
