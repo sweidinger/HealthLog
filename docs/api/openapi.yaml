@@ -11713,6 +11713,76 @@ components:
                 - glucoseByContext
               additionalProperties: false
             - type: "null"
+        medsToday:
+          type: object
+          properties:
+            activeCount:
+              type: integer
+              minimum: -9007199254740991
+              maximum: 9007199254740991
+            scheduledToday:
+              type: integer
+              minimum: -9007199254740991
+              maximum: 9007199254740991
+            takenToday:
+              type: integer
+              minimum: -9007199254740991
+              maximum: 9007199254740991
+            skippedToday:
+              type: integer
+              minimum: -9007199254740991
+              maximum: 9007199254740991
+            nextDueAt:
+              anyOf:
+                - type: string
+                - type: "null"
+            nextDueOverdue:
+              type: boolean
+            nextDueMedicationName:
+              anyOf:
+                - type: string
+                - type: "null"
+          required:
+            - activeCount
+            - scheduledToday
+            - takenToday
+            - skippedToday
+            - nextDueAt
+            - nextDueOverdue
+            - nextDueMedicationName
+          additionalProperties: false
+          description: "Today's medication block: active-medication count, today-window tally (scheduled / taken / skipped), and
+            the earliest next-due slot across active medications. `nextDueOverdue: true` marks an OPEN overdue slot
+            (anchor passed, still inside its catch-up band). Staleness contract: the snapshot is cache-served, so a
+            `nextDueAt` in the past with `nextDueOverdue: false` means the anchor passed after the snapshot was built —
+            render the plain day summary, never an overdue state."
+        healthScore:
+          anyOf:
+            - type: object
+              properties:
+                score:
+                  type: integer
+                  minimum: -9007199254740991
+                  maximum: 9007199254740991
+                band:
+                  type: string
+                  enum:
+                    - green
+                    - yellow
+                    - red
+                delta:
+                  anyOf:
+                    - type: number
+                    - type: "null"
+              required:
+                - score
+                - band
+                - delta
+              additionalProperties: false
+            - type: "null"
+          description: Personal health score summary (0..100 score, traffic-light band, week-over-week delta). Null on a
+            rollup-coverage miss (it rides the thick phase alongside `extras`) and when no pillar is computable.
+            Component breakdown is deliberately not serialised here.
         briefing:
           anyOf:
             - type: object
@@ -11745,6 +11815,8 @@ components:
         - metricStates
         - tiles
         - extras
+        - medsToday
+        - healthScore
         - briefing
         - briefingState
         - briefingUpdatedAt

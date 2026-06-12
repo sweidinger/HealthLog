@@ -56,7 +56,7 @@ import { getServerTranslator } from "@/lib/i18n/server-translator";
 import { defaultLocale, locales, type Locale } from "@/lib/i18n/config";
 import { userDayKey, DEFAULT_TIMEZONE } from "@/lib/tz/resolver";
 import { cached, caches, type ServerCache } from "@/lib/cache/server-cache";
-import { projectTodayIntakesAndRecompute } from "@/lib/medications/scheduling/project-today-intakes";
+import { buildMedsTodayBlock } from "@/lib/dashboard/meds-today";
 import {
   summarizeSleepNights,
   reconstructSleepNights,
@@ -211,20 +211,6 @@ function trendOf(values: number[]): MetricCard["trend"] {
   return delta > 0 ? "up" : "down";
 }
 
-function startOfDayInTz(date: Date, tz: string): Date {
-  // Compute midnight in the user's tz → UTC ms.
-  const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone: tz,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).formatToParts(date);
-  const y = parts.find((p) => p.type === "year")?.value ?? "1970";
-  const m = parts.find((p) => p.type === "month")?.value ?? "01";
-  const d = parts.find((p) => p.type === "day")?.value ?? "01";
-  return new Date(`${y}-${m}-${d}T00:00:00.000Z`);
-}
-
 interface StreakInfo {
   currentDays: number;
   longest: number;
@@ -373,41 +359,6 @@ function buildContext(
   return { greetingName, locale };
 }
 
-/**
- * v1.4.39 W-SERVER-FIX-2 — project today's active schedules, idempotently
- * backfill any missing `MedicationIntakeEvent` rows via the shared
- * helper, then re-read the today-window so the caller sees both
- * pre-existing rows + the freshly minted ones.
- *
- * Mirrors the behaviour of `/api/medications/intake?scope=today` (same
- * helper) so the iOS Dashboard tile (fed by this route) and the iOS
- * Erfassen sheet (fed by the intake route) converge on the same row
- * set the moment a daily med becomes active.
- */
-async function projectAndReadTodaysIntakes(
-  userId: string,
-  userTz: string,
-  todayStart: Date,
-  todayEnd: Date,
-): Promise<Array<{ id: string; takenAt: Date | null; skipped: boolean }>> {
-  await projectTodayIntakesAndRecompute({
-    userId,
-    userTz,
-    todayStart,
-    todayEnd,
-  });
-
-  return prisma.medicationIntakeEvent.findMany({
-    where: {
-      userId,
-      // v1.7.0 sync — exclude tombstoned rows from the today tile.
-      deletedAt: null,
-      scheduledFor: { gte: todayStart, lt: todayEnd },
-    },
-    select: { id: true, takenAt: true, skipped: true },
-  });
-}
-
 async function buildDashboardSummary(
   userId: string,
   userTz: string,
@@ -421,8 +372,6 @@ async function buildDashboardSummary(
   const streakWindowStart = new Date(
     now.getTime() - STREAK_WINDOW_DAYS * 86_400_000,
   );
-  const todayStart = startOfDayInTz(now, userTz);
-  const todayEnd = new Date(todayStart.getTime() + 86_400_000);
 
   // Derived from canonical enum so a new measurement type is auto-included
   // (V3 audit: enum drift cousins). Per-kind display blocks below decide
@@ -453,14 +402,15 @@ async function buildDashboardSummary(
   //                  REG-11: taken via ROW_NUMBER window, no calendar
   //                  filter, so a 60-day-old metric still paints a chart)
   //   - allTimeAggregate: ≤ N metric types (unchanged)
-  //   - todaysIntakes: ≤ daily intake schedule count (unchanged)
+  //   - medsToday: today-window tally via the shared projector
+  //                (≤ daily intake schedule count, unchanged semantics)
   //   - streakActivity: ≤ daily intake count × 365 (unchanged)
   //   - measurementStreakDays: ≤ 365 (was: every raw row in 365d)
   const [
     latestEver,
     sparkBuckets,
     allTimeAggregate,
-    todaysIntakes,
+    medsToday,
     streakActivity,
     measurementStreakDays,
     sleepStageRows,
@@ -513,13 +463,12 @@ async function buildDashboardSummary(
     // reminder worker entered the RED phase at the end of the dose
     // window, so the iOS Dashboard tile fell to "Heute nichts geplant"
     // even when the intake route (post-`expandTodayIntakes` fix) was
-    // already projecting + backfilling correctly. Re-uses the same
-    // helper + idempotent `createMany` (with `skipDuplicates: true`
-    // so a concurrent intake-route hit can't race a duplicate row in
-    // before the existence probe converges).
-    time("todaysIntakes", () =>
-      projectAndReadTodaysIntakes(userId, userTz, todayStart, todayEnd),
-    ),
+    // already projecting + backfilling correctly. The shared
+    // `buildMedsTodayBlock` runs the same idempotent projection
+    // (`skipDuplicates: true` so a concurrent intake-route hit can't
+    // race a duplicate row in) before its today-window tally, so this
+    // route and the dashboard snapshot count the identical row set.
+    time("medsToday", () => buildMedsTodayBlock(prisma, userId, userTz, now)),
     time("streakIntakes", () =>
       prisma.medicationIntakeEvent.findMany({
         where: {
@@ -887,10 +836,11 @@ async function buildDashboardSummary(
     });
   }
 
-  const scheduledToday = todaysIntakes.length;
-  const takenToday = todaysIntakes.filter(
-    (e) => e.takenAt !== null && !e.skipped,
-  ).length;
+  // Shared builder carries the exact tally semantics this tile always
+  // had (scheduled = every today-window row; taken = `takenAt` set and
+  // not skipped). The wire shape of `compliance` is locked for iOS.
+  const scheduledToday = medsToday.scheduledToday;
+  const takenToday = medsToday.takenToday;
 
   const t = getServerTranslator(ctx.locale).t;
 

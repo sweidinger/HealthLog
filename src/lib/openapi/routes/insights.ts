@@ -606,6 +606,35 @@ const dashboardSnapshotResponse = z
         glucoseByContext: dataSummaryRecord,
       })
       .nullable(),
+    // Dashboard hero — today's medication block (fast phase, always
+    // present). Projection-backed tally + earliest next-due across
+    // active medications.
+    medsToday: z
+      .object({
+        activeCount: z.number().int(),
+        scheduledToday: z.number().int(),
+        takenToday: z.number().int(),
+        skippedToday: z.number().int(),
+        nextDueAt: z.string().nullable(),
+        nextDueOverdue: z.boolean(),
+        nextDueMedicationName: z.string().nullable(),
+      })
+      .describe(
+        "Today's medication block: active-medication count, today-window tally (scheduled / taken / skipped), and the earliest next-due slot across active medications. `nextDueOverdue: true` marks an OPEN overdue slot (anchor passed, still inside its catch-up band). Staleness contract: the snapshot is cache-served, so a `nextDueAt` in the past with `nextDueOverdue: false` means the anchor passed after the snapshot was built — render the plain day summary, never an overdue state.",
+      ),
+    // Dashboard hero — health score (warm phase, nullable on a
+    // rollup-coverage miss). Score + band + delta only; the per-pillar
+    // component breakdown stays on the analytics route.
+    healthScore: z
+      .object({
+        score: z.number().int(),
+        band: z.enum(["green", "yellow", "red"]),
+        delta: z.number().nullable(),
+      })
+      .nullable()
+      .describe(
+        "Personal health score summary (0..100 score, traffic-light band, week-over-week delta). Null on a rollup-coverage miss (it rides the thick phase alongside `extras`) and when no pillar is computable. Component breakdown is deliberately not serialised here.",
+      ),
     briefing: z.record(z.string(), z.unknown()).nullable(),
     briefingState: z.enum(["ready", "preparing", "disabled", "no-provider"]),
     briefingUpdatedAt: z.string().nullable(),
