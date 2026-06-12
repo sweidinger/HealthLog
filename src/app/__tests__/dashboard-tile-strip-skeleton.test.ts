@@ -177,8 +177,11 @@ describe("v1.4.43 W11 — dashboard tile-strip skeleton (wiring)", () => {
     const src = readFileSync(PAGE_PATH, "utf8");
     // The placeholder count keys off the layout config minus the
     // already-mounted (layout-gated) cells, and only while loading.
+    // `mounted &&` pins the hydration render to the SSR output — the
+    // auth query can settle before the page boundary hydrates, and an
+    // extra BMI silhouette then mismatched the server HTML (React #418).
     expect(src).toMatch(
-      /const\s+chartRowPlaceholderCount\s*=\s*primaryLoading[\s\S]*?resolveChartRowPlaceholderCount\(layout,[\s\S]*?hasHeightCm:\s*Boolean\(user\?\.heightCm\)/,
+      /const\s+chartRowPlaceholderCount\s*=\s*primaryLoading[\s\S]*?resolveChartRowPlaceholderCount\(layout,[\s\S]*?hasHeightCm:\s*mounted\s*&&\s*Boolean\(user\?\.heightCm\)/,
     );
     expect(src).toMatch(/-\s*charts\.length/);
     // The reserved cells render as aria-hidden ChartSkeletons in their

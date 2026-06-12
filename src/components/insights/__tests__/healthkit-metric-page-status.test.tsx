@@ -104,7 +104,14 @@ describe("<HealthKitMetricPage> status mount", () => {
       />,
     );
 
-    expect(html).toContain("Your HRV has trended upward");
+    // The server pass renders the card's loading skeleton even when the
+    // mocked query reports settled data: `<MetricStatusCard>` pins SSR +
+    // the hydration render to the loading branch (`!mounted`) so a query
+    // that settles before a late-hydrating boundary replays its first
+    // render cannot mismatch the server HTML (React #418). The settled
+    // text swaps in on the first client re-render.
+    expect(html).toContain('data-testid="insight-status-card-loading"');
+    expect(html).not.toContain("Your HRV has trended upward");
     // The card fetch is enabled (statusMetric present + data present).
     expect(metricStatusMock).toHaveBeenCalledWith("HEART_RATE_VARIABILITY", true);
   });

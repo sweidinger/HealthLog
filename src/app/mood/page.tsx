@@ -4,6 +4,7 @@ import { useCallback, useState } from "react";
 import Link from "next/link";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
+import { useMounted } from "@/hooks/use-mounted";
 import { usePullToRefresh } from "@/hooks/use-pull-to-refresh";
 import { MoodForm } from "@/components/mood/mood-form";
 import { MoodList } from "@/components/mood/mood-list";
@@ -17,6 +18,7 @@ import { useTranslations } from "@/lib/i18n/context";
 
 export default function MoodPage() {
   const { isAuthenticated, isLoading } = useAuth();
+  const mounted = useMounted();
   const router = useRouter();
   const queryClient = useQueryClient();
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -45,7 +47,12 @@ export default function MoodPage() {
     }
   }, [isLoading, isAuthenticated, router]);
 
-  if (isLoading) {
+  // `!mounted` keeps the hydration render identical to the SSR HTML: the
+  // auth query is fired by the early-hydrating shell and can settle before
+  // this page boundary hydrates, so `isLoading` alone flipped the branch
+  // and React logged hydration error #418 — same fix as the measurements
+  // page; see `useMounted`.
+  if (!mounted || isLoading) {
     return (
       <div className="flex h-64 items-center justify-center">
         <Loader2 className="text-primary h-8 w-8 animate-spin motion-reduce:animate-none" />
