@@ -10,13 +10,15 @@ interface MedicationStatusPillProps {
   windowStart: string;
   windowEnd: string;
   /**
-   * v1.16.9 — day-scale early-take context. When true the dose was
+   * v1.16.9 — day-scale last-dose context. Non-null when a dose was
    * already taken earlier in the cadence period (a weekly shot days
-   * before its slot day), so the pill renders a calm "taken early" note
-   * instead of the take-now / overdue prompt — prompting a full take on
-   * the slot day would be a double-dose prompt.
+   * before its slot day, or the previous slot served late); the pill
+   * then renders a calm factual "last dose {n} days ago" note instead
+   * of the take-now / overdue prompt — prompting a full take on the
+   * slot day would be a double-dose prompt. The value is the whole
+   * local days since that take.
    */
-  takenEarly?: boolean;
+  takenEarlyDaysAgo?: number | null;
 }
 
 /**
@@ -31,16 +33,18 @@ export function MedicationStatusPill({
   status,
   windowStart,
   windowEnd,
-  takenEarly = false,
+  takenEarlyDaysAgo = null,
 }: MedicationStatusPillProps) {
   const { t, locale } = useTranslations();
 
-  if (takenEarly) {
+  if (takenEarlyDaysAgo != null) {
     return (
       <p className="text-sm">
         <span className="text-muted-foreground inline-flex items-center gap-1 font-medium">
           <CircleCheck className="size-3.5 shrink-0" aria-hidden="true" />
-          {t("medications.takenEarly")}
+          {takenEarlyDaysAgo === 1
+            ? t("medications.lastDoseYesterday")
+            : t("medications.lastDoseDaysAgo", { count: takenEarlyDaysAgo })}
         </span>
         <span className="text-muted-foreground hidden sm:inline">
           {" "}

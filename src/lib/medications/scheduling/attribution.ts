@@ -25,6 +25,8 @@
  * this module timezone-agnostic and trivially testable.
  */
 
+import { DOSE_WINDOW_DEFAULTS } from "@/lib/medications/scheduling/dose-window-defaults";
+
 /** Per-slot window the caller supplies (bounds already minted as instants). */
 export interface SlotWindowInput {
   /** Canonical anchor instant for the slot (labelling / next-due / pairing). */
@@ -46,9 +48,11 @@ export interface SlotWindowInput {
  * slot read missed. A take up to this far before `onTimeStart` still
  * credits the slot (as on-time); the reach is capped at the PREVIOUS
  * slot's `overdueEnd` so it can never claim a take that belongs to the
- * prior dose's late tail.
+ * prior dose's late tail. Sourced from the shared dose-window-defaults
+ * leaf (client-safe) so the card pill suppression reads the same width.
  */
-export const EARLY_GRACE_MS = 60 * 60 * 1000;
+export const EARLY_GRACE_MS =
+  DOSE_WINDOW_DEFAULTS.earlyGraceMinutes * 60 * 1000;
 
 /** A slot window with its (capped) late-tail cutoff resolved. */
 export interface SlotBand extends SlotWindowInput {

@@ -119,9 +119,7 @@ beforeEach(() => {
   vi.mocked(prisma.medicationIntakeEvent.updateMany).mockResolvedValue({
     count: 1,
   } as never);
-  vi.mocked(prisma.medicationIntakeEvent.update).mockResolvedValue(
-    {} as never,
-  );
+  vi.mocked(prisma.medicationIntakeEvent.update).mockResolvedValue({} as never);
 });
 
 describe("dedupeUserIntakeSlots — ad-hoc→pending convergence (v1.16.9)", () => {
@@ -157,6 +155,43 @@ describe("dedupeUserIntakeSlots — ad-hoc→pending convergence (v1.16.9)", () 
     expect(summary.rowsNormalised).toBe(1);
     expect(summary.slotsCollapsed).toBe(1);
     expect(summary.daysRecomputed).toBeGreaterThanOrEqual(1);
+  });
+
+  it("heals an early take ahead of an explicit window that starts AT the dose time", async () => {
+    // Explicit 09:00–10:00 dose window: the on-time band starts AT the
+    // dose time, so an 08:42 take sits only inside the bounded early
+    // grace below `onTimeStart`. The convergence must accept it exactly
+    // like the write-path attribution does — otherwise the actioned
+    // ad-hoc row stays beside the unactioned 09:00 REMINDER row and the
+    // slot later auto-misses a dose the user took.
+    vi.mocked(prisma.medication.findMany).mockResolvedValue([
+      {
+        ...MED,
+        schedules: [
+          {
+            ...SCHEDULE,
+            windowStart: "09:00",
+            windowEnd: "10:00",
+            doseWindows: [{ timeOfDay: "09:00", start: "09:00", end: "10:00" }],
+          },
+        ],
+      },
+    ] as never);
+    vi.mocked(prisma.medicationIntakeEvent.findMany).mockResolvedValue([
+      adhocRow(TAKEN_0842),
+      pendingRow(),
+    ] as never);
+
+    const summary = await dedupeUserIntakeSlots("u1");
+
+    const tombstone = vi.mocked(prisma.medicationIntakeEvent.updateMany).mock
+      .calls[0][0] as { where: { id: string } };
+    expect(tombstone.where.id).toBe("r-pending");
+    const normalise = vi.mocked(prisma.medicationIntakeEvent.update).mock
+      .calls[0][0] as { where: { id: string }; data: { scheduledFor: Date } };
+    expect(normalise.where.id).toBe("r-adhoc");
+    expect(normalise.data.scheduledFor.getTime()).toBe(SLOT_0900.getTime());
+    expect(summary.slotsCollapsed).toBe(1);
   });
 
   it("heals a take outside the legacy snap tolerance but inside the band's late tail", async () => {

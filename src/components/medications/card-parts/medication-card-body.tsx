@@ -71,8 +71,8 @@ export interface MedicationCardBodyProps {
     status: Exclude<MedicationWindowStatus, null>;
     windowStart: string;
     windowEnd: string;
-    /** v1.16.9 — day-scale early-take context (see the pill). */
-    takenEarly?: boolean;
+    /** v1.16.9 — day-scale last-dose context in whole days (see the pill). */
+    takenEarlyDaysAgo?: number | null;
   } | null;
 
   /**
@@ -180,15 +180,15 @@ export function MedicationCardBody({
             overdue tier arrives with the compliance query, and a line
             popping in late used to shift every row below it (CLS). */}
         <div className="min-h-5">
-          {windowStatus?.takenEarly ? (
-            // v1.16.9 — taken-early context outranks the overdue line: a
+          {windowStatus?.takenEarlyDaysAgo != null ? (
+            // v1.16.9 — last-dose context outranks the overdue line: a
             // day-scale dose already taken earlier in its period must never
             // escalate into a take prompt (double-dose risk).
             <MedicationStatusPill
               status={windowStatus.status}
               windowStart={windowStatus.windowStart}
               windowEnd={windowStatus.windowEnd}
-              takenEarly
+              takenEarlyDaysAgo={windowStatus.takenEarlyDaysAgo}
             />
           ) : overdueLabel ? (
             <p className="text-destructive flex items-center gap-1 text-sm font-medium">

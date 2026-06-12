@@ -446,7 +446,7 @@ export function Glp1MedicationCard({
               // legacy schedule window (which may be stale / degenerate).
               windowStart: currentWindowStatus.window!.start,
               windowEnd: currentWindowStatus.window!.end,
-              takenEarly: currentWindowStatus.takenEarly,
+              takenEarlyDaysAgo: currentWindowStatus.takenEarlyDaysAgo,
             }
           : null
       }

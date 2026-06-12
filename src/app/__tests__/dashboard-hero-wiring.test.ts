@@ -14,10 +14,10 @@ import { join } from "node:path";
  *     silhouettes use) a footprint-identical skeleton holds the band,
  *     so the hero and the tiles swap to content in the SAME render
  *     pass;
- *   - the greeting paragraph left the header for the hero. The header
- *     renders no name-bearing text at all any more, so the SSR pass
- *     stays name-free by construction (the hero itself only mounts
- *     once the snapshot resolved — post-hydration).
+ *   - the greeting paragraph lives in the hero when that renders; when
+ *     the hero does NOT render (snapshot flag off, or hidden via the
+ *     layout toggle) the header takes it back behind `showGreeting`,
+ *     fed from the page's hero gate — the greeting never disappears.
  */
 const PAGE_PATH = join(process.cwd(), "src/app/page.tsx");
 const HEADER_PATH = join(
@@ -69,9 +69,19 @@ describe("dashboard hero — page wiring", () => {
 describe("dashboard hero — header handoff", () => {
   const header = readFileSync(HEADER_PATH, "utf8");
 
-  it("the header dropped the greeting paragraph and its reservation", () => {
-    expect(header).not.toContain("welcomeText");
-    expect(header).not.toContain("min-h-5");
+  it("the header keeps the greeting behind showGreeting (hero-hidden fallback)", () => {
+    // The greeting renders here ONLY when the hero band does not — the
+    // prop gates the paragraph, and the `min-h-5` line-box reservation
+    // keeps the header stable through the post-hydration name swap.
+    expect(header).toContain("showGreeting");
+    expect(header).toMatch(/\{showGreeting\s*\?/);
+    expect(header).toContain("min-h-5");
+    expect(header).toContain('data-slot="dashboard-header-greeting"');
+  });
+
+  it("the page feeds showGreeting from the inverted hero gate", () => {
+    const src = readFileSync(PAGE_PATH, "utf8");
+    expect(src).toMatch(/showGreeting=\{!heroVisible\}/);
   });
 
   it("the header keeps the title + customize + add actions", () => {

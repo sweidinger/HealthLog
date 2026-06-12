@@ -393,7 +393,7 @@ describe("reduceCurrentWindowStatus — day-scale taken-early context", () => {
       todayEventCount: 0,
     });
     expect(res.status).toBe("in_window");
-    expect(res.takenEarly).toBe(true);
+    expect(res.takenEarlyDaysAgo).toBe(2);
   });
 
   it("does not flag takenEarly when the last take was a full period ago", () => {
@@ -406,7 +406,7 @@ describe("reduceCurrentWindowStatus — day-scale taken-early context", () => {
       todayEventCount: 0,
     });
     expect(res.status).toBe("in_window");
-    expect(res.takenEarly).toBe(false);
+    expect(res.takenEarlyDaysAgo).toBeNull();
   });
 
   it("does not flag a daily cadence (minute-scale periods stay untouched)", () => {
@@ -425,7 +425,7 @@ describe("reduceCurrentWindowStatus — day-scale taken-early context", () => {
       todayEventCount: 0,
     });
     expect(res.status).toBe("in_window");
-    expect(res.takenEarly).toBe(false);
+    expect(res.takenEarlyDaysAgo).toBeNull();
   });
 
   it("rides on the late tier too — an early take must not escalate to overdue", () => {
@@ -437,7 +437,7 @@ describe("reduceCurrentWindowStatus — day-scale taken-early context", () => {
       todayEventCount: 0,
     });
     expect(res.status).toBe("late");
-    expect(res.takenEarly).toBe(true);
+    expect(res.takenEarlyDaysAgo).toBe(2);
   });
 
   it("evaluates the early-take day in the supplied timezone", () => {
@@ -454,6 +454,6 @@ describe("reduceCurrentWindowStatus — day-scale taken-early context", () => {
       tz: "Pacific/Auckland",
     });
     expect(res.status).toBe("in_window");
-    expect(res.takenEarly).toBe(true);
+    expect(res.takenEarlyDaysAgo).toBe(1);
   });
 });

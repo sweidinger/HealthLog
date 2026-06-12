@@ -41,6 +41,13 @@ vi.mock("sonner", () => ({
   toast: { success: vi.fn(), error: vi.fn() },
 }));
 
+// v1.16.9 — the component reads the profile timezone for the auto-pick.
+vi.mock("@/hooks/use-auth", () => ({
+  useAuth: () => ({
+    user: { username: "tester", timezone: "Europe/Berlin" },
+  }),
+}));
+
 import {
   MedicationIntakeQuickAdd,
   pickDefaultMedicationId,
@@ -173,6 +180,36 @@ describe("pickDefaultMedicationId — auto-select heuristic", () => {
       now,
     );
     expect(result).toBe("a");
+  });
+
+  it("reasons in the supplied profile timezone, not Berlin (v1.16.9)", () => {
+    // 08:00 UTC = 10:00 Berlin (inside the 08:00–11:00 window) but only
+    // 04:00 in New York (hours before it). The same instant must flip
+    // the pick with the timezone — pinning that the tz threads through
+    // both the wall-clock conversion and the window reduction.
+    const now = new Date("2026-05-12T08:00:00Z");
+    const meds = [
+      makeMed("a", { name: "Aaa" }),
+      makeMed("b", {
+        name: "Bbb",
+        schedules: [
+          {
+            id: "s1",
+            windowStart: "08:00",
+            windowEnd: "11:00",
+            daysOfWeek: null,
+            label: null,
+            dose: null,
+          },
+        ],
+      }),
+    ];
+    expect(pickDefaultMedicationId(meds, now, undefined, "Europe/Berlin")).toBe(
+      "b",
+    );
+    expect(
+      pickDefaultMedicationId(meds, now, undefined, "America/New_York"),
+    ).toBe("a");
   });
 
   it("falls back to the alphabetical-first active medication when nothing is due", () => {

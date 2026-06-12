@@ -25,9 +25,10 @@ import {
 } from "@/lib/query-keys";
 import {
   reduceCurrentWindowStatus,
-  toBerlinDate,
+  toZonedDate,
   type ScheduleWindowInput,
 } from "@/lib/medications/window-status";
+import { useAuth } from "@/hooks/use-auth";
 import { ApiError, apiGet, apiPost } from "@/lib/api/api-fetch";
 
 /**
@@ -129,12 +130,18 @@ export function pickDefaultMedicationId(
     lateMinutes: 120,
     missedMinutes: 240,
   },
+  /**
+   * v1.16.9 — the profile timezone the "due now" heuristic reasons in
+   * (the same source the cards use). Berlin stays the last-resort
+   * fallback for logged-out mounts and legacy fixtures.
+   */
+  tz: string = "Europe/Berlin",
 ): string | null {
   const actives = options.filter((m) => m.active);
   if (actives.length === 0) return null;
   if (actives.length === 1) return actives[0].id;
 
-  const nowBerlin = toBerlinDate(now);
+  const nowLocal = toZonedDate(now, tz);
   const due = actives.find((m) => {
     // v1.16.9 — the same server display-due gate the cards apply: a
     // future (non-overdue) next-due suppresses the overdue tiers and a
@@ -142,12 +149,13 @@ export function pickDefaultMedicationId(
     const nextDueMs = m.nextDueAt ? new Date(m.nextDueAt).getTime() : NaN;
     const status = reduceCurrentWindowStatus({
       schedules: m.schedules,
-      nowBerlin,
+      nowBerlin: nowLocal,
       lateMinutes: thresholds.lateMinutes,
       missedMinutes: thresholds.missedMinutes,
       active: true,
       lastTakenAt: m.lastTakenAt,
       todayEventCount: m.todayEventCount ?? 0,
+      tz,
       nextDue:
         m.nextDueAt === undefined
           ? undefined
@@ -155,7 +163,7 @@ export function pickDefaultMedicationId(
             ? { at: new Date(nextDueMs), overdue: m.nextDueOverdue === true }
             : null,
     });
-    return status.status !== null && !status.takenEarly;
+    return status.status !== null && status.takenEarlyDaysAgo === null;
   });
   if (due) return due.id;
 
@@ -173,6 +181,11 @@ export function MedicationIntakeQuickAdd({
 }: MedicationIntakeQuickAddProps) {
   const { t } = useTranslations();
   const queryClient = useQueryClient();
+  // v1.16.9 — the auto-pick reasons in the PROFILE timezone (the same
+  // source the cards use); Berlin stays the last-resort fallback so
+  // logged-out mounts behave unchanged.
+  const { user } = useAuth();
+  const userTz = user?.timezone || "Europe/Berlin";
 
   const { data: medicationsRaw, isLoading: medicationsLoading } = useQuery({
     queryKey: queryKeys.medications(),
@@ -229,8 +242,8 @@ export function MedicationIntakeQuickAdd({
   const formId = useId();
 
   const defaultMedicationId = useMemo(
-    () => pickDefaultMedicationId(medications),
-    [medications],
+    () => pickDefaultMedicationId(medications, new Date(), undefined, userTz),
+    [medications, userTz],
   );
   const medicationId = medicationOverride ?? defaultMedicationId ?? "";
   const selectedMedication = medications.find((m) => m.id === medicationId);

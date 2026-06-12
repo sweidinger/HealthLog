@@ -7,7 +7,8 @@
  * against the current instant).
  *
  * Nine rungs, first hit wins. The ordering is a severity ladder:
- * actionable medication states first, then a fixed-floor BP emergency,
+ * the fixed-floor BP emergency first (a fresh crisis-level reading
+ * outranks an overdue dose), then the actionable medication states,
  * then trend nudges, then the briefing teaser, then the all-quiet
  * fallback. Threshold constants are imported from the client-safe
  * coach-nudge-thresholds leaf where one exists so the hero and the
@@ -21,7 +22,7 @@
  *
  * Defensive contract (cache staleness): a `medsToday.nextDueAt` in the
  * past with `nextDueOverdue: false` means the slot's anchor passed
- * after the snapshot was built. Rung 1 keys ONLY on the server-computed
+ * after the snapshot was built. Rung 2 keys ONLY on the server-computed
  * `nextDueOverdue` flag and rung 3 requires `nextDueAt >= now`, so that
  * state falls through to the plain summary — never renders as overdue.
  */
@@ -128,22 +129,12 @@ export function resolveDashboardVerdict(
   const summaries = snapshot.tiles.summaries;
   const lastSeen = snapshot.tiles.lastSeenByType;
 
-  // ── 1 · doseOverdue ────────────────────────────────────────────────
-  // Keys ONLY on the server-computed band-model flag. A stale cached
-  // `nextDueAt` in the past with `nextDueOverdue: false` falls through
-  // (defensive contract — see module doc).
-  if (meds.nextDueOverdue === true) {
-    return {
-      variant: "doseOverdue",
-      values: { name: meds.nextDueMedicationName ?? "" },
-      cta: { kind: "quickEntry", target: "medicationIntake" },
-    };
-  }
-
-  // ── 2 · bpCritical ─────────────────────────────────────────────────
+  // ── 1 · bpCritical ─────────────────────────────────────────────────
   // Fixed floors (sys ≥ 180 OR dia ≥ 110), never user thresholds, and
   // only while the reading is fresh (≤ 1 day, re-derived against the
-  // injected `now`).
+  // injected `now`). Sits ABOVE the overdue dose: a fresh crisis-level
+  // reading is the one item that must not hide behind a routine
+  // medication prompt.
   const sysLatest = summaries.BLOOD_PRESSURE_SYS?.latest ?? null;
   const diaLatest = summaries.BLOOD_PRESSURE_DIA?.latest ?? null;
   const sysSeen = lastSeen.BLOOD_PRESSURE_SYS;
@@ -159,6 +150,18 @@ export function resolveDashboardVerdict(
       variant: "bpCritical",
       values: { sys: sysLatest ?? 0, dia: diaLatest ?? 0 },
       cta: { kind: "link", href: "/insights/blood-pressure" },
+    };
+  }
+
+  // ── 2 · doseOverdue ────────────────────────────────────────────────
+  // Keys ONLY on the server-computed band-model flag. A stale cached
+  // `nextDueAt` in the past with `nextDueOverdue: false` falls through
+  // (defensive contract — see module doc).
+  if (meds.nextDueOverdue === true) {
+    return {
+      variant: "doseOverdue",
+      values: { name: meds.nextDueMedicationName ?? "" },
+      cta: { kind: "quickEntry", target: "medicationIntake" },
     };
   }
 

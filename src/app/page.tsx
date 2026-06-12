@@ -711,13 +711,19 @@ export default function DashboardPage() {
   // with it). The hero gates on the layout's `heroVisible` flag
   // (default on; anything but the literal `false` renders) and holds
   // a footprint-identical skeleton while the snapshot is in flight,
-  // so the band swaps in place — no growth, no greeting flash.
+  // so the band swaps in place — no growth, no greeting flash. When
+  // the hero does NOT render (toggle off, or snapshot flag off) the
+  // header takes the greeting back — it must never disappear with the
+  // band.
   const heroVisible = snapshotEnabled && layout.heroVisible !== false;
   const heroSnapshot = snapshotQuery.data;
 
   return (
     <div className="space-y-6">
-      <DashboardHeader onQuickEntry={setQuickEntryDialog} />
+      <DashboardHeader
+        onQuickEntry={setQuickEntryDialog}
+        showGreeting={!heroVisible}
+      />
 
       {heroVisible &&
         (primaryLoading || !heroSnapshot ? (

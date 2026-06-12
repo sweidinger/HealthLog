@@ -137,7 +137,13 @@ beforeEach(() => {
   vi.mocked(prisma.telegramScheduledDeletion.createMany).mockResolvedValue({
     count: 0,
   } as never);
-  vi.mocked(prisma.$transaction).mockResolvedValue([] as never);
+  // Interactive transactions run their callback against the same mock
+  // client (the route converges the intake write + snooze update inside
+  // one transaction); batch arrays resolve like Promise.all.
+  vi.mocked(prisma.$transaction).mockImplementation(((arg: unknown) =>
+    typeof arg === "function"
+      ? (arg as (tx: unknown) => unknown)(prisma)
+      : Promise.all(arg as Promise<unknown>[])) as never);
   vi.mocked(answerTelegramCallbackQuery).mockResolvedValue(undefined as never);
   vi.mocked(deleteMessage).mockResolvedValue(undefined as never);
   vi.mocked(sendTelegramMessage).mockResolvedValue({
@@ -249,6 +255,8 @@ describe("Telegram webhook — callback dispatch", () => {
       where: { id: "med-1" },
       data: { snoozedUntil: null },
     });
+    // Intake write + snooze reset commit atomically.
+    expect(prisma.$transaction).toHaveBeenCalledTimes(1);
 
     expect(answerTelegramCallbackQuery).toHaveBeenCalledTimes(1);
     expect(deleteMessage).toHaveBeenCalledWith(
@@ -319,6 +327,8 @@ describe("Telegram webhook — callback dispatch", () => {
       .snoozedUntil;
     expect(snoozedUntil.getHours()).toBe(23);
     expect(snoozedUntil.getMinutes()).toBe(59);
+    // Skip row + rest-of-day snooze commit atomically.
+    expect(prisma.$transaction).toHaveBeenCalledTimes(1);
   });
 
   it("'ack:<medId>' answers the callback without creating an intake event", async () => {

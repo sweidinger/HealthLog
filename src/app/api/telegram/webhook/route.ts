@@ -259,40 +259,53 @@ async function markMedicationTaken(
       canonicalSlot = attribution.slotInstant;
     }
 
-    if (canonicalSlot) {
-      const applied = await applyCanonicalSlotWrite({
-        client: prisma,
-        userId,
-        medicationId: medication.id,
-        canonicalSlot,
-        takenAt,
-        skipped: false,
-        isExplicitTaken: true,
-        isExplicitSkip: false,
-        idempotencyKey,
-        createSource: "REMINDER",
-        attributionSource: "AUTO",
-      });
-      scheduledFor = applied.row.scheduledFor;
-    } else {
-      // Ad-hoc / PRN — standalone row under the documented contract
-      // (`scheduledFor = takenAt`).
-      const created = await prisma.medicationIntakeEvent.create({
-        data: {
+    // The intake write and the snooze reset commit atomically — a
+    // recorded dose must never leave the medication snoozed-out of its
+    // own reminders, and a snooze reset must never land without the dose
+    // (the pre-band shape used a batch transaction here; the slot
+    // convergence dropped it). The canonical slot write accepts the
+    // transaction client; its P2002 race-recovery cannot continue inside
+    // an aborted Postgres transaction, so the rare create race rolls the
+    // whole write back instead of converging in place — Telegram
+    // redelivers the non-200 update and the retry finds the raced row.
+    scheduledFor = await prisma.$transaction(async (tx) => {
+      let slotScheduledFor: Date;
+      if (canonicalSlot) {
+        const applied = await applyCanonicalSlotWrite({
+          client: tx,
           userId,
           medicationId: medication.id,
-          scheduledFor: takenAt,
+          canonicalSlot,
           takenAt,
           skipped: false,
-          source: "REMINDER",
+          isExplicitTaken: true,
+          isExplicitSkip: false,
           idempotencyKey,
-        },
+          createSource: "REMINDER",
+          attributionSource: "AUTO",
+        });
+        slotScheduledFor = applied.row.scheduledFor;
+      } else {
+        // Ad-hoc / PRN — standalone row under the documented contract
+        // (`scheduledFor = takenAt`).
+        const created = await tx.medicationIntakeEvent.create({
+          data: {
+            userId,
+            medicationId: medication.id,
+            scheduledFor: takenAt,
+            takenAt,
+            skipped: false,
+            source: "REMINDER",
+            idempotencyKey,
+          },
+        });
+        slotScheduledFor = created.scheduledFor;
+      }
+      await tx.medication.update({
+        where: { id: medication.id },
+        data: { snoozedUntil: null },
       });
-      scheduledFor = created.scheduledFor;
-    }
-    await prisma.medication.update({
-      where: { id: medication.id },
-      data: { snoozedUntil: null },
+      return slotScheduledFor;
     });
     // The confirmation must reflect on the next read (today feed, card
     // pill, compliance) rather than wait out the cache TTL.
@@ -476,37 +489,46 @@ async function handleCallback(update: TelegramUpdate) {
         canonicalSlot = attribution.slotInstant;
       }
 
-      if (canonicalSlot) {
-        const applied = await applyCanonicalSlotWrite({
-          client: prisma,
-          userId: user.id,
-          medicationId: medication.id,
-          canonicalSlot,
-          takenAt: null,
-          skipped: true,
-          isExplicitTaken: false,
-          isExplicitSkip: true,
-          idempotencyKey,
-          createSource: "REMINDER",
-        });
-        skippedScheduledFor = applied.row.scheduledFor;
-      } else {
-        const created = await prisma.medicationIntakeEvent.create({
-          data: {
+      // Atomic like the take path: the skip row and the rest-of-day
+      // snooze commit together, so a failure can never leave the user
+      // re-reminded for a recorded skip or silenced without one. Same
+      // P2002 trade-off as the take path — the rare create race rolls
+      // back and Telegram's redelivery converges on the raced row.
+      skippedScheduledFor = await prisma.$transaction(async (tx) => {
+        let slotScheduledFor: Date;
+        if (canonicalSlot) {
+          const applied = await applyCanonicalSlotWrite({
+            client: tx,
             userId: user.id,
             medicationId: medication.id,
-            scheduledFor: skipMoment,
+            canonicalSlot,
             takenAt: null,
             skipped: true,
-            source: "REMINDER",
+            isExplicitTaken: false,
+            isExplicitSkip: true,
             idempotencyKey,
-          },
+            createSource: "REMINDER",
+          });
+          slotScheduledFor = applied.row.scheduledFor;
+        } else {
+          const created = await tx.medicationIntakeEvent.create({
+            data: {
+              userId: user.id,
+              medicationId: medication.id,
+              scheduledFor: skipMoment,
+              takenAt: null,
+              skipped: true,
+              source: "REMINDER",
+              idempotencyKey,
+            },
+          });
+          slotScheduledFor = created.scheduledFor;
+        }
+        await tx.medication.update({
+          where: { id: medication.id },
+          data: { snoozedUntil: endOfDay },
         });
-        skippedScheduledFor = created.scheduledFor;
-      }
-      await prisma.medication.update({
-        where: { id: medication.id },
-        data: { snoozedUntil: endOfDay },
+        return slotScheduledFor;
       });
       invalidateUserMedications(user.id, { evict: true });
     }

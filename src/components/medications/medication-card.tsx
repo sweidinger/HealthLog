@@ -238,7 +238,10 @@ export function MedicationCard({
       medication.nextDueAt === undefined
         ? undefined
         : nextAt !== undefined
-          ? { at: new Date(nextAt), overdue: medication.nextDueOverdue === true }
+          ? {
+              at: new Date(nextAt),
+              overdue: medication.nextDueOverdue === true,
+            }
           : null,
   });
 
@@ -389,14 +392,16 @@ export function MedicationCard({
               // legacy schedule window (which may be stale / degenerate).
               windowStart: currentWindowStatus.window!.start,
               windowEnd: currentWindowStatus.window!.end,
-              takenEarly: currentWindowStatus.takenEarly,
+              takenEarlyDaysAgo: currentWindowStatus.takenEarlyDaysAgo,
             }
           : null
       }
       doseStatus={doseStatus}
       nextLine={nextLine}
       lastLine={
-        medication.lastTakenAt ? formatLastTakenAt(medication.lastTakenAt) : null
+        medication.lastTakenAt
+          ? formatLastTakenAt(medication.lastTakenAt)
+          : null
       }
       compliance={
         compliance ? { rate7, rate30, streak, shortDays, longDays } : null

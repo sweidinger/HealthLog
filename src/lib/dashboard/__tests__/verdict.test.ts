@@ -5,7 +5,8 @@
  * injected), so the suite pins every rung, the first-hit-wins
  * precedence, and the exact boundaries the spec locked:
  *   - bpCritical fires at sys 180, not 179 (fixed floors, never user
- *     thresholds) and only on a fresh reading;
+ *     thresholds), only on a fresh reading, and outranks an overdue
+ *     dose (a crisis-level reading is rung 1);
  *   - weightDrift fires at a 0.50 kg distance delta, not 0.49;
  *   - silence fires at 7 days, not 6;
  *   - scoreDrop fires at −10, not −9;
@@ -111,7 +112,7 @@ const WATCH_FINDING = {
   sourceMetric: "bp" as const,
 };
 
-describe("rung 1 — doseOverdue", () => {
+describe("rung 2 — doseOverdue", () => {
   it("fires on nextDueOverdue with the medication name and a quick-entry CTA", () => {
     const verdict = resolveDashboardVerdict(
       baseSnapshot({
@@ -132,7 +133,9 @@ describe("rung 1 — doseOverdue", () => {
     });
   });
 
-  it("wins over a simultaneously critical BP reading (precedence)", () => {
+  it("yields to a simultaneously critical fresh BP reading (precedence)", () => {
+    // A crisis-level reading (≥ 180 / ≥ 110, ≤ 1 day old) is rung 1 —
+    // it must not hide behind a routine medication prompt.
     const verdict = resolveDashboardVerdict(
       baseSnapshot({
         medsToday: medsToday({
@@ -146,6 +149,29 @@ describe("rung 1 — doseOverdue", () => {
           },
           lastSeenByType: {
             BLOOD_PRESSURE_SYS: { lastSeenAt: isoHoursAgo(1), daysAgo: 0 },
+          },
+          mood: { summary: null, entries: [] },
+        },
+      }),
+      NOW,
+    );
+    expect(verdict.variant).toBe("bpCritical");
+  });
+
+  it("wins over the BP rung once the critical reading has aged past a day", () => {
+    const verdict = resolveDashboardVerdict(
+      baseSnapshot({
+        medsToday: medsToday({
+          nextDueOverdue: true,
+          nextDueMedicationName: "Metformin",
+        }),
+        tiles: {
+          summaries: {
+            BLOOD_PRESSURE_SYS: summary({ latest: 200, count: 5 }),
+            BLOOD_PRESSURE_DIA: summary({ latest: 120, count: 5 }),
+          },
+          lastSeenByType: {
+            BLOOD_PRESSURE_SYS: { lastSeenAt: isoHoursAgo(3 * 24), daysAgo: 3 },
           },
           mood: { summary: null, entries: [] },
         },
@@ -173,7 +199,7 @@ describe("rung 1 — doseOverdue", () => {
   });
 });
 
-describe("rung 2 — bpCritical", () => {
+describe("rung 1 — bpCritical", () => {
   function bpSnapshot(
     sys: number | null,
     dia: number | null,
@@ -392,14 +418,12 @@ describe("rung 4 — weightDrift", () => {
   });
 
   it("skips when avg7 or avg30 is null", () => {
+    expect(resolveDashboardVerdict(weightSnapshot(null, 75), NOW).variant).toBe(
+      "allQuiet",
+    );
     expect(
-      resolveDashboardVerdict(weightSnapshot(null, 75), NOW).variant,
-    ).toBe("allQuiet");
-    expect(
-      resolveDashboardVerdict(
-        weightSnapshot(GREEN_MAX_180 + 5, null),
-        NOW,
-      ).variant,
+      resolveDashboardVerdict(weightSnapshot(GREEN_MAX_180 + 5, null), NOW)
+        .variant,
     ).toBe("allQuiet");
   });
 
@@ -414,7 +438,10 @@ describe("rung 4 — weightDrift", () => {
 });
 
 describe("rung 5 — shortNights", () => {
-  function sleepSnapshot(avg7: number | null, count: number): DashboardSnapshot {
+  function sleepSnapshot(
+    avg7: number | null,
+    count: number,
+  ): DashboardSnapshot {
     return baseSnapshot({
       tiles: {
         summaries: {
@@ -540,8 +567,7 @@ describe("rung 7 — scoreDrop", () => {
       "allQuiet",
     );
     expect(
-      resolveDashboardVerdict(baseSnapshot({ healthScore: null }), NOW)
-        .variant,
+      resolveDashboardVerdict(baseSnapshot({ healthScore: null }), NOW).variant,
     ).toBe("allQuiet");
   });
 });

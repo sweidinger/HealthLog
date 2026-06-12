@@ -20,7 +20,7 @@
  * Defensive contract (cached snapshot): `medsToday.nextDueAt` in the
  * past with `nextDueOverdue: false` means the slot's anchor passed
  * after the snapshot was built. The verdict resolver already falls
- * through (rung 1 keys on the flag, rung 3 requires a future anchor),
+ * through (rung 2 keys on the flag, rung 3 requires a future anchor),
  * and the dose row below only prints "next at" for a FUTURE anchor on
  * the user's local today — the stale state renders as the plain day
  * summary, never as overdue.
@@ -134,11 +134,23 @@ export function DashboardHero({
       : t("dashboard.welcomeBack", { greeting: timeGreeting });
 
   // ── Verdict sentence + CTA ──────────────────────────────────────────
+  // The dose variants interpolate a medication name; a snapshot can carry
+  // none (the resolver emits `""`), and the named sentence would render
+  // with a hole ("Eine Dosis  ist überfällig."). Swap to the name-less
+  // sibling key instead of patching a generic word into the gap.
+  const verdictName =
+    typeof verdict.values.name === "string" ? verdict.values.name.trim() : "";
+  const messageKey = (variant: Exclude<DashboardVerdictVariant, "briefing">) =>
+    variant === "doseOverdue" && verdictName.length === 0
+      ? "dashboard.hero.verdict.doseOverdueNoName"
+      : variant === "doseUpcoming" && verdictName.length === 0
+        ? "dashboard.hero.verdict.doseUpcomingNoName"
+        : VERDICT_MESSAGE_KEY[variant];
   const sentence =
     verdict.variant === "briefing"
       ? // Model headline VERBATIM as a plain text child — no key.
         String(verdict.values.headline ?? "")
-      : t(VERDICT_MESSAGE_KEY[verdict.variant], {
+      : t(messageKey(verdict.variant), {
           ...verdict.values,
           // The resolver emits a fixed 24 h wall-clock string; re-format
           // the underlying instant through the user's hour-cycle

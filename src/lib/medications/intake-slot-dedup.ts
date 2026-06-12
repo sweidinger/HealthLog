@@ -540,8 +540,15 @@ async function convergeAdhocRowsOntoPendingSlots(input: {
       if (!hasExpectedSlots) continue;
 
       const t = takenAt.getTime();
+      // The lower bound honours the bounded early grace (`earlyStart`):
+      // an explicit window that starts AT the dose time ("09:00–10:00")
+      // must still converge an 08:42 take — the same reach the write-path
+      // attribution credits. Bands without the field keep the strict
+      // on-time start.
       const matching = bands.filter(
-        (b) => t >= b.onTimeStart.getTime() && t <= b.overdueEnd.getTime(),
+        (b) =>
+          t >= (b.earlyStart ?? b.onTimeStart).getTime() &&
+          t <= b.overdueEnd.getTime(),
       );
       if (matching.length !== 1) continue; // zero or ambiguous — leave alone.
       const anchor = matching[0].at;

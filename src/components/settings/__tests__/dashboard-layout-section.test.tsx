@@ -293,7 +293,7 @@ describe("<DashboardLayoutSection> — hero visibility switch", () => {
     const de = render(<DashboardLayoutSection id="dashboard-layout" />, "de");
     expect(de).toContain("Tagesüberblick");
     expect(de).toContain(
-      "Zeigt Score, Tagesfokus und Dosen-Status ganz oben auf dem Dashboard.",
+      "Zeigt Begrüßung, Score, Tagesfokus und Dosen-Status ganz oben auf dem Dashboard.",
     );
     const en = render(<DashboardLayoutSection id="dashboard-layout" />);
     expect(en).toContain("Daily overview");

@@ -147,6 +147,44 @@ describe("<DashboardHero> — verdict variants", () => {
     expect(html).toMatch(/<button[^>]*data-slot="dashboard-hero-cta"/);
   });
 
+  it("doseOverdue: a null medication name renders the name-less sentence (no hole)", () => {
+    const html = render(
+      baseSnapshot({
+        medsToday: medsToday({
+          scheduledToday: 2,
+          nextDueAt: isoHoursFromNow(-1),
+          nextDueOverdue: true,
+          nextDueMedicationName: null,
+        }),
+      }),
+    );
+    expect(html).toContain('data-verdict-variant="doseOverdue"');
+    expect(html).toContain("Eine Dosis ist überfällig.");
+    // The named template with an empty interpolation leaves a double
+    // space — it must never render.
+    expect(html).not.toContain("Eine Dosis  ist überfällig.");
+  });
+
+  it("doseUpcoming: a null medication name renders the name-less sentence (no hole)", () => {
+    const nextDueAt = isoHoursFromNow(1.5); // 13:30 Berlin
+    const html = render(
+      baseSnapshot({
+        medsToday: medsToday({
+          scheduledToday: 2,
+          takenToday: 1,
+          nextDueAt,
+          nextDueMedicationName: null,
+        }),
+      }),
+    );
+    const expectedTime = makeFormatters("de", "Europe/Berlin", "AUTO").time(
+      nextDueAt,
+    );
+    expect(html).toContain('data-verdict-variant="doseUpcoming"');
+    expect(html).toContain(`Um ${expectedTime} steht eine Dosis an.`);
+    expect(html).not.toContain(`steht  an`);
+  });
+
   it("bpCritical: fixed-floor sentence with the reading + link to the BP insight", () => {
     const html = render(
       baseSnapshot({

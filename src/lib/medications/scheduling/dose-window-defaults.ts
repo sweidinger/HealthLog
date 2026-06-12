@@ -21,6 +21,15 @@ export const DOSE_WINDOW_DEFAULTS = {
   /** Daily / intraday on-time half-width around the target instant (min). */
   dailyOnTimeMinutes: 60,
   /**
+   * Bounded early grace ahead of a dose's on-time window (min). A take up
+   * to this far before the window start still credits the slot (the
+   * attribution caps the reach at the previous slot's overdue end).
+   * Single source for the write-path attribution AND the card pill's
+   * last-intake suppression, so the two can never disagree on how early
+   * a take may land.
+   */
+  earlyGraceMinutes: 60,
+  /**
    * Daily / intraday overdue tail past the on-time window (min). A dose
    * taken inside `[onTime, onTime + overdue]` still counts; beyond it the
    * dose is missed.
