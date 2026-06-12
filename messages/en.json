@@ -1635,7 +1635,19 @@
         "quantityInUnits": "= {units} units",
         "quantityInDoses": "≈ {doses} doses",
         "quantityUnderOneDose": "< 1 dose",
-        "expiredSuffix": "+ {units} units expired"
+        "expiredSuffix": "+ {units} units expired",
+        "packagingTitle": "Packaging & dose",
+        "packagingUnitsPerDose": "1 dose = {units} units",
+        "packagingDefaultPack": "Default pack size: {units} units",
+        "packagingNoDefaultPack": "No default pack size set",
+        "packagingEdit": "Edit",
+        "packagingDescription": "Set how many units one dose consumes and how large a new pack usually is — e.g. after a manufacturer switch with a different blister size.",
+        "packagingUnitsPerDoseLabel": "Units per dose",
+        "packagingUnitsPerDoseHelper": "E.g. two 2 mg tablets for a 4 mg dose (1–100). Doses already recorded stay unchanged.",
+        "packagingDefaultPackLabel": "Default pack size (units)",
+        "packagingDefaultPackHelper": "Prefills the quantity when registering new packs (1–1000). Leave empty if none applies.",
+        "packagingSuccess": "Packaging details saved",
+        "packagingFailed": "Saving failed"
       },
       "erweitert": {
         "group": {

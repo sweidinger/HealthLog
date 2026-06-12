@@ -63,7 +63,13 @@ import {
 import { SettingsGroup } from "@/components/medications/settings-group";
 import { useTranslations } from "@/lib/i18n/context";
 import { queryKeys } from "@/lib/query-keys";
-import { apiDelete, apiGet, apiPatch, apiPost } from "@/lib/api/api-fetch";
+import {
+  apiDelete,
+  apiGet,
+  apiPatch,
+  apiPost,
+  apiPut,
+} from "@/lib/api/api-fetch";
 import { summariseSupply } from "@/lib/medications/inventory/summary";
 
 type InventoryState = "ACTIVE" | "IN_USE" | "EXPIRED" | "USED_UP";
@@ -123,6 +129,7 @@ export function InventorySection({
   const queryClient = useQueryClient();
   const [addOpen, setAddOpen] = useState(false);
   const [adjustItem, setAdjustItem] = useState<InventoryItem | null>(null);
+  const [packagingOpen, setPackagingOpen] = useState(false);
 
   async function deleteItem(item: InventoryItem) {
     try {
@@ -194,6 +201,14 @@ export function InventorySection({
           onClose={() => setAdjustItem(null)}
         />
       )}
+      {packagingOpen && (
+        <PackagingDialog
+          medicationId={medicationId}
+          unitsPerDose={perDose}
+          dosesPerUnit={dosesPerUnit ?? null}
+          onClose={() => setPackagingOpen(false)}
+        />
+      )}
     </>
   );
 
@@ -254,6 +269,39 @@ export function InventorySection({
           >
             <Plus aria-hidden="true" className="h-4 w-4" />
             {t("medications.detail.bestand.addButton")}
+          </Button>
+        </div>
+      </SettingsGroup>
+
+      {/* v1.16.11 — packaging economics surfaced where the stock lives:
+          the wizard's dose step owns these on create/edit, but a
+          manufacturer switch (a different blister size) happens while
+          looking at the supply, so the supply tab carries them too. */}
+      <SettingsGroup
+        label={t("medications.detail.bestand.packagingTitle")}
+        dataSlot="inventory-packaging-group"
+      >
+        <div className="flex items-center justify-between gap-3 py-3">
+          <p className="text-foreground text-sm font-medium">
+            {t("medications.detail.bestand.packagingUnitsPerDose", {
+              units: perDose,
+            })}
+            <span className="text-muted-foreground block text-xs font-normal">
+              {dosesPerUnit != null
+                ? t("medications.detail.bestand.packagingDefaultPack", {
+                    units: dosesPerUnit,
+                  })
+                : t("medications.detail.bestand.packagingNoDefaultPack")}
+            </span>
+          </p>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setPackagingOpen(true)}
+            className="min-h-11 shrink-0 sm:min-h-9"
+            data-slot="inventory-packaging-edit"
+          >
+            {t("medications.detail.bestand.packagingEdit")}
           </Button>
         </div>
       </SettingsGroup>
@@ -644,6 +692,159 @@ function AdjustInventoryDialog({
                 />
               )}
               {t("medications.detail.bestand.adjustSubmit")}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/**
+ * Edit the medication-level packaging economics from the supply tab:
+ * units one dose consumes, and the default container size the register
+ * flow prefills. Both PUT sparsely onto the medication — the wizard's
+ * dose step stays the source on create; this is the correction surface
+ * for a manufacturer switch (same medication, different blister size).
+ */
+function PackagingDialog({
+  medicationId,
+  unitsPerDose,
+  dosesPerUnit,
+  onClose,
+}: {
+  medicationId: string;
+  unitsPerDose: number;
+  dosesPerUnit: number | null;
+  onClose: () => void;
+}) {
+  const { t } = useTranslations();
+  const queryClient = useQueryClient();
+  const [perDoseValue, setPerDoseValue] = useState(String(unitsPerDose));
+  const [packValue, setPackValue] = useState(
+    dosesPerUnit === null ? "" : String(dosesPerUnit),
+  );
+  const [busy, setBusy] = useState(false);
+
+  const parsedPerDose = Number(perDoseValue);
+  const perDoseValid =
+    Number.isInteger(parsedPerDose) && parsedPerDose >= 1 && parsedPerDose <= 100;
+  const parsedPack = packValue.trim() === "" ? null : Number(packValue);
+  const packValid =
+    parsedPack === null ||
+    (Number.isInteger(parsedPack) && parsedPack >= 1 && parsedPack <= 1000);
+
+  async function submit(e: FormEvent) {
+    e.preventDefault();
+    if (!perDoseValid || !packValid || busy) return;
+    setBusy(true);
+    try {
+      await apiPut(`/api/medications/${medicationId}`, {
+        unitsPerDose: parsedPerDose,
+        dosesPerUnit: parsedPack,
+      });
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.medicationDetail(medicationId),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.medications(),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.medicationInventory(medicationId),
+        }),
+      ]);
+      toast.success(t("medications.detail.bestand.packagingSuccess"));
+      onClose();
+    } catch {
+      toast.error(t("medications.detail.bestand.packagingFailed"));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Dialog open onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>
+            {t("medications.detail.bestand.packagingTitle")}
+          </DialogTitle>
+          <DialogDescription>
+            {t("medications.detail.bestand.packagingDescription")}
+          </DialogDescription>
+        </DialogHeader>
+        <form onSubmit={submit} className="space-y-4">
+          <div className="space-y-2">
+            <label
+              htmlFor="packaging-units-per-dose"
+              className="text-sm font-medium"
+            >
+              {t("medications.detail.bestand.packagingUnitsPerDoseLabel")}
+            </label>
+            <Input
+              id="packaging-units-per-dose"
+              type="number"
+              inputMode="numeric"
+              min={1}
+              max={100}
+              step={1}
+              required
+              autoComplete="off"
+              value={perDoseValue}
+              onChange={(e) => setPerDoseValue(e.target.value)}
+              aria-describedby="packaging-units-per-dose-helper"
+            />
+            <p
+              id="packaging-units-per-dose-helper"
+              className="text-muted-foreground text-xs"
+            >
+              {t("medications.detail.bestand.packagingUnitsPerDoseHelper")}
+            </p>
+          </div>
+          <div className="space-y-2">
+            <label
+              htmlFor="packaging-default-pack"
+              className="text-sm font-medium"
+            >
+              {t("medications.detail.bestand.packagingDefaultPackLabel")}
+            </label>
+            <Input
+              id="packaging-default-pack"
+              type="number"
+              inputMode="numeric"
+              min={1}
+              max={1000}
+              step={1}
+              autoComplete="off"
+              value={packValue}
+              onChange={(e) => setPackValue(e.target.value)}
+              aria-describedby="packaging-default-pack-helper"
+            />
+            <p
+              id="packaging-default-pack-helper"
+              className="text-muted-foreground text-xs"
+            >
+              {t("medications.detail.bestand.packagingDefaultPackHelper")}
+            </p>
+          </div>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={onClose}
+              disabled={busy}
+            >
+              {t("common.cancel")}
+            </Button>
+            <Button type="submit" disabled={!perDoseValid || !packValid || busy}>
+              {busy && (
+                <Loader2
+                  aria-hidden="true"
+                  className="h-4 w-4 animate-spin motion-reduce:animate-none"
+                />
+              )}
+              {t("common.save")}
             </Button>
           </DialogFooter>
         </form>

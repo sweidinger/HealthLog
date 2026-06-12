@@ -1635,7 +1635,19 @@
         "quantityInUnits": "= {units} Einheiten",
         "quantityInDoses": "≈ {doses} Dosen",
         "quantityUnderOneDose": "< 1 Dosis",
-        "expiredSuffix": "+ {units} Einheiten abgelaufen"
+        "expiredSuffix": "+ {units} Einheiten abgelaufen",
+        "packagingTitle": "Packung & Dosis",
+        "packagingUnitsPerDose": "1 Dosis = {units} Einheiten",
+        "packagingDefaultPack": "Standard-Packungsgröße: {units} Einheiten",
+        "packagingNoDefaultPack": "Keine Standard-Packungsgröße hinterlegt",
+        "packagingEdit": "Bearbeiten",
+        "packagingDescription": "Lege fest, wie viele Einheiten eine Dosis verbraucht und wie groß eine neue Packung üblicherweise ist — z. B. nach einem Herstellerwechsel mit anderer Blistergröße.",
+        "packagingUnitsPerDoseLabel": "Einheiten pro Dosis",
+        "packagingUnitsPerDoseHelper": "Z. B. 2 Tabletten à 2 mg für eine 4-mg-Dosis (1–100). Bereits erfasste Einnahmen bleiben unverändert.",
+        "packagingDefaultPackLabel": "Standard-Packungsgröße (Einheiten)",
+        "packagingDefaultPackHelper": "Vorbefüllung beim Erfassen neuer Packungen (1–1000). Leer lassen, wenn keine üblich ist.",
+        "packagingSuccess": "Packungsangaben gespeichert",
+        "packagingFailed": "Speichern fehlgeschlagen"
       },
       "erweitert": {
         "group": {

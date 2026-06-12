@@ -1635,7 +1635,19 @@
         "quantityInUnits": "= {units} unità",
         "quantityInDoses": "≈ {doses} dosi",
         "quantityUnderOneDose": "< 1 dose",
-        "expiredSuffix": "+ {units} unità scadute"
+        "expiredSuffix": "+ {units} unità scadute",
+        "packagingTitle": "Confezione e dose",
+        "packagingUnitsPerDose": "1 dose = {units} unità",
+        "packagingDefaultPack": "Dimensione confezione predefinita: {units} unità",
+        "packagingNoDefaultPack": "Nessuna dimensione confezione predefinita",
+        "packagingEdit": "Modifica",
+        "packagingDescription": "Imposta quante unità consuma una dose e la dimensione abituale di una nuova confezione, ad es. dopo un cambio di produttore con blister diverso.",
+        "packagingUnitsPerDoseLabel": "Unità per dose",
+        "packagingUnitsPerDoseHelper": "Ad es. due compresse da 2 mg per una dose da 4 mg (1–100). Le assunzioni già registrate restano invariate.",
+        "packagingDefaultPackLabel": "Dimensione confezione predefinita (unità)",
+        "packagingDefaultPackHelper": "Precompila la quantità quando registri nuove confezioni (1–1000). Lascia vuoto se non applicabile.",
+        "packagingSuccess": "Dati confezione salvati",
+        "packagingFailed": "Salvataggio non riuscito"
       },
       "erweitert": {
         "group": {

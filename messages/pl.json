@@ -1635,7 +1635,19 @@
         "quantityInUnits": "= {units} jednostek",
         "quantityInDoses": "Dawki: ≈ {doses}",
         "quantityUnderOneDose": "< 1 dawka",
-        "expiredSuffix": "+ przeterminowane jednostki: {units}"
+        "expiredSuffix": "+ przeterminowane jednostki: {units}",
+        "packagingTitle": "Opakowanie i dawka",
+        "packagingUnitsPerDose": "1 dawka = {units} jedn.",
+        "packagingDefaultPack": "Domyślny rozmiar opakowania: {units} jedn.",
+        "packagingNoDefaultPack": "Brak domyślnego rozmiaru opakowania",
+        "packagingEdit": "Edytuj",
+        "packagingDescription": "Określ, ile jednostek zużywa jedna dawka i jaki jest typowy rozmiar nowego opakowania — np. po zmianie producenta z innym blistrem.",
+        "packagingUnitsPerDoseLabel": "Jednostki na dawkę",
+        "packagingUnitsPerDoseHelper": "Np. dwie tabletki 2 mg na dawkę 4 mg (1–100). Zarejestrowane dawki pozostają bez zmian.",
+        "packagingDefaultPackLabel": "Domyślny rozmiar opakowania (jednostki)",
+        "packagingDefaultPackHelper": "Wstępnie wypełnia ilość przy dodawaniu nowych opakowań (1–1000). Zostaw puste, jeśli nie dotyczy.",
+        "packagingSuccess": "Zapisano dane opakowania",
+        "packagingFailed": "Zapis nie powiódł się"
       },
       "erweitert": {
         "group": {

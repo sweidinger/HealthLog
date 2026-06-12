@@ -1635,7 +1635,19 @@
         "quantityInUnits": "= {units} unidades",
         "quantityInDoses": "≈ {doses} dosis",
         "quantityUnderOneDose": "< 1 dosis",
-        "expiredSuffix": "+ {units} unidades caducadas"
+        "expiredSuffix": "+ {units} unidades caducadas",
+        "packagingTitle": "Envase y dosis",
+        "packagingUnitsPerDose": "1 dosis = {units} unidades",
+        "packagingDefaultPack": "Tamaño de envase predeterminado: {units} unidades",
+        "packagingNoDefaultPack": "Sin tamaño de envase predeterminado",
+        "packagingEdit": "Editar",
+        "packagingDescription": "Define cuántas unidades consume una dosis y el tamaño habitual de un envase nuevo, p. ej. tras un cambio de fabricante con otro tamaño de blíster.",
+        "packagingUnitsPerDoseLabel": "Unidades por dosis",
+        "packagingUnitsPerDoseHelper": "P. ej. dos comprimidos de 2 mg para una dosis de 4 mg (1–100). Las tomas ya registradas no cambian.",
+        "packagingDefaultPackLabel": "Tamaño de envase predeterminado (unidades)",
+        "packagingDefaultPackHelper": "Rellena la cantidad al registrar envases nuevos (1–1000). Déjalo vacío si no aplica.",
+        "packagingSuccess": "Datos del envase guardados",
+        "packagingFailed": "Error al guardar"
       },
       "erweitert": {
         "group": {
