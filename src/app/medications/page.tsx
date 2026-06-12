@@ -15,7 +15,6 @@ import {
   MedicationTable,
   MedicationTableSkeleton,
 } from "@/components/medications/medication-table";
-import { MedicationViewToggle } from "@/components/medications/medication-view-toggle";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -26,7 +25,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
-import { CheckCircle2, Loader2, Pill, Plus, Settings2 } from "lucide-react";
+import { CheckCircle2, Loader2, Pill, Plus, Wrench } from "lucide-react";
 import { apiGet } from "@/lib/api/api-fetch";
 import { useMedicationListLayout } from "@/lib/queries/use-medication-list-layout";
 import { applyMedicationOrder } from "@/lib/medications/medication-order";
@@ -154,8 +153,7 @@ export default function MedicationsPage() {
   // manual medication order, server-side per user
   // (`GET`/`PUT /api/medications/layout`). The toggle writes
   // optimistically; the order editor lives at /settings/medications.
-  const { layout, isLayoutLoading, setView } =
-    useMedicationListLayout(isAuthenticated);
+  const { layout, isLayoutLoading } = useMedicationListLayout(isAuthenticated);
 
   useEffect(() => {
     if (shouldOpenFromUrl) {
@@ -264,14 +262,12 @@ export default function MedicationsPage() {
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-2">
-          {/* v1.16.10 — card ⇄ table view toggle, persisted server-side
-              per user. The Settings2 glyph next to it is the customize
-              shortcut to /settings/medications (view preference + the
-              manual-order editor), exactly like the dashboard and
-              insights headers link to their settings sections, in the
-              same slot (left of the add button) and with the same
-              responsive 44-px mobile tap floor. */}
-          <MedicationViewToggle view={layout.view} onChange={setView} />
+          {/* v1.16.11 — the wrench is the one customize entry point:
+              it links to /settings/medications, which owns the view
+              preference (cards ⇄ table) and the manual-order editor.
+              Same glyph, slot (left of the add button) and responsive
+              44-px mobile tap floor as the dashboard and insights
+              headers. */}
           <Button
             asChild
             variant="ghost"
@@ -283,7 +279,7 @@ export default function MedicationsPage() {
               aria-label={t("medications.customize")}
               title={t("medications.customize")}
             >
-              <Settings2 className="h-4 w-4" aria-hidden="true" />
+              <Wrench className="h-4 w-4" aria-hidden="true" />
             </Link>
           </Button>
           {/* v1.14.0 — the "Add" button is now a choice: log an intake

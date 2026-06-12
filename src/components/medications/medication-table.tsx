@@ -262,7 +262,12 @@ export function MedicationTable({
   }
 
   return (
-    <div className="bg-card border-border rounded-xl border">
+    // `overflow-hidden` is load-bearing: the sticky name column paints
+    // an opaque `bg-card` cell background that would otherwise square
+    // off the wrapper's rounded corners on the left edge. Horizontal
+    // scrolling lives on the inner table-container (`overflow-x-auto`),
+    // so clipping here costs nothing.
+    <div className="bg-card border-border overflow-hidden rounded-xl border">
       <Table>
         <caption className="sr-only">{t("medications.tableCaption")}</caption>
         <TableHeader>
@@ -636,7 +641,10 @@ function MedicationTableRowItem({
  */
 export function MedicationTableSkeleton({ rows = 4 }: { rows?: number }) {
   return (
-    <div className="bg-card border-border rounded-xl border" aria-hidden="true">
+    <div
+      className="bg-card border-border overflow-hidden rounded-xl border"
+      aria-hidden="true"
+    >
       <Table>
         <TableHeader>
           <TableRow>

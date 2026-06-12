@@ -111,29 +111,22 @@ describe("/medications — view renders from the persisted preference", () => {
 
     expect(html).not.toContain("<table");
     expect(html).toContain('data-slot="card"');
-    // Toggle present, group named, the cards segment pressed.
-    expect(html).toContain('aria-label="View"');
-    expect(html).toMatch(
-      /data-slot="medications-view-cards"[^>]*aria-pressed="true"|aria-pressed="true"[^>]*data-slot="medications-view-cards"/,
-    );
-    expect(html).toMatch(
-      /data-slot="medications-view-table"[^>]*aria-pressed="false"|aria-pressed="false"[^>]*data-slot="medications-view-table"/,
-    );
+    // v1.16.11 — the view choice lives in /settings/medications only;
+    // the page header carries no toggle.
+    expect(html).not.toContain('data-slot="medications-view-cards"');
   });
 
   it("renders the table for view=table", () => {
     const html = renderPage({ version: 1, view: "table", order: [] });
 
     expect(html).toContain("<table");
-    expect(html).toMatch(
-      /data-slot="medications-view-table"[^>]*aria-pressed="true"|aria-pressed="true"[^>]*data-slot="medications-view-table"/,
-    );
+    expect(html).not.toContain('data-slot="medications-view-table"');
   });
 
   it("links the header customize glyph to /settings/medications", () => {
-    // v1.16.10 — same entry-point logic as the dashboard and insights
-    // headers: the Settings2 ghost icon is a plain link to the page's
-    // settings section (view preference + manual order live there).
+    // v1.16.11 — same entry-point logic as the dashboard and insights
+    // headers: one wrench ghost icon linking to the page's settings
+    // section (view preference + manual order live there).
     const html = renderPage({ version: 1, view: "cards", order: [] });
     expect(html).toContain('href="/settings/medications"');
     expect(html).toContain('aria-label="Customize medications"');
