@@ -216,25 +216,29 @@
   /*
    * v1.14.0 — wellness-ring per-metric gradients (Dracula dark).
    * Five DISTINCT single-hue two-stop arcs (from = darker, to = lighter):
-   * readiness green · recovery teal · sleep indigo-blue · stress amber ·
-   * strain violet. Vivid on the dark `--card`. Each `to` doubles as the
-   * ring's bloom colour. The Alucard light set lives on `:root.light`.
+   * readiness green · recovery cyan · sleep purple · stress orange ·
+   * strain pink. Every `to` stop IS the matching Dracula palette colour
+   * and the `from` stop is a hand-darkened tone of the same hue, so the
+   * arcs read as Dracula rather than generic chart colours (the v1.14.0
+   * set leaned indigo/teal/violet, which sat next to the palette instead
+   * of on it). Each `to` doubles as the ring's bloom colour. The Alucard
+   * light set lives on `:root.light`.
    */
-  --ring-readiness-from: #1f9d57;
-  --ring-readiness-to: #5cf08f;
+  --ring-readiness-from: #1fa854;
+  --ring-readiness-to: #50fa7b;
   --tile-readiness: #50fa7b;
-  --ring-recovery-from: #0e9e94;
-  --ring-recovery-to: #4ff0d2;
+  --ring-recovery-from: #2fa8c4;
+  --ring-recovery-to: #8be9fd;
   --tile-recovery: #8be9fd;
-  --ring-sleep-from: #4f6ef0;
-  --ring-sleep-to: #8fb4ff;
-  --tile-sleep: #6f8bff;
-  --ring-stress-from: #e0922f;
-  --ring-stress-to: #ffce6b;
+  --ring-sleep-from: #8655d6;
+  --ring-sleep-to: #bd93f9;
+  --tile-sleep: #bd93f9;
+  --ring-stress-from: #d9842e;
+  --ring-stress-to: #ffb86c;
   --tile-stress: #ffb86c;
-  --ring-strain-from: #8f6bf0;
-  --ring-strain-to: #c4a8ff;
-  --tile-strain: #bd93f9;
+  --ring-strain-from: #d6429b;
+  --ring-strain-to: #ff79c6;
+  --tile-strain: #ff79c6;
   /* Band fallback (anatomy detail view, no per-metric hue). */
   --ring-green-from: #1f9d57;
   --ring-green-to: #5cf08f;
@@ -305,24 +309,24 @@
    * v1.14.0 — wellness-ring per-metric gradients (Alucard light). DEEPER +
    * more saturated than the dark set so each hue holds AA-grade presence on
    * the white `--card` (raw Dracula cyan/green wash out on white). Same five
-   * distinct hues: readiness green · recovery teal · sleep royal-blue ·
-   * stress amber · strain violet.
+   * Dracula hue families as the dark set: readiness green · recovery cyan ·
+   * sleep purple · stress orange · strain pink.
    */
   --ring-readiness-from: #0f7a3a;
   --ring-readiness-to: #18a34e;
   --tile-readiness: #14720a;
-  --ring-recovery-from: #07857c;
-  --ring-recovery-to: #0e9c8f;
-  --tile-recovery: #0a8f86;
-  --ring-sleep-from: #2d5fc4;
-  --ring-sleep-to: #4f7ae0;
-  --tile-sleep: #2d5fc4;
+  --ring-recovery-from: #067f96;
+  --ring-recovery-to: #0d95b0;
+  --tile-recovery: #08869e;
+  --ring-sleep-from: #5b2db8;
+  --ring-sleep-to: #7a45d6;
+  --tile-sleep: #6233c0;
   --ring-stress-from: #b06a16;
   --ring-stress-to: #c47a1e;
   --tile-stress: #a34d14;
-  --ring-strain-from: #6b4fd0;
-  --ring-strain-to: #8a6ff0;
-  --tile-strain: #644ac9;
+  --ring-strain-from: #ad1e6f;
+  --ring-strain-to: #cc2e88;
+  --tile-strain: #b0277d;
   --ring-green-from: #0f7a3a;
   --ring-green-to: #18a34e;
   --ring-yellow-from: #b06a16;
