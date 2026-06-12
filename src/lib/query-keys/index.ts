@@ -103,6 +103,14 @@ export const moodDependentKeys = [
  * `queryKeys.medicationDetail(id)` rides under the
  * `["medications"]` prefix already so a single medication invalidation
  * also evicts its detail-page read.
+ *
+ * v1.16.11 — `dashboardSnapshot` joins the bundle. The hero band, dose
+ * tally, verdict and checklist all read ONE snapshot query configured
+ * with refetchOnMount/WindowFocus off and a 120 s poll; without the key
+ * here a dose taken from the dashboard stayed visibly due for up to two
+ * minutes. The intake routes already hard-evict the server-side
+ * snapshot bucket, so the refetch this triggers returns post-write data
+ * immediately.
  */
 export const medicationDependentKeys = [
   queryKeys.medications(),
@@ -110,6 +118,7 @@ export const medicationDependentKeys = [
   queryKeys.insightsRoot(),
   queryKeys.insightsTargets(),
   queryKeys.gamificationAchievements(),
+  queryKeys.dashboardSnapshot(),
   ["dashboard-medication-compliance"] as const,
   ["compliance-chart-inline"] as const,
 ];

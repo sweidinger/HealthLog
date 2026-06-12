@@ -250,6 +250,15 @@ describe("dependent-key bundles", () => {
     const keyStrings = medicationDependentKeys.map((k) => JSON.stringify(k));
     expect(keyStrings).toContain(JSON.stringify(["compliance-chart-inline"]));
   });
+
+  // v1.16.11 — the dashboard snapshot feeds the hero band, dose tally,
+  // verdict and checklist from ONE query with refetch-on-mount/focus
+  // off and a 120 s poll. Without this key in the bundle a dose taken
+  // from the dashboard stayed visibly due until the next poll (#316).
+  it("medicationDependentKeys bundles the dashboard snapshot (v1.16.11)", () => {
+    const keyStrings = medicationDependentKeys.map((k) => JSON.stringify(k));
+    expect(keyStrings).toContain(JSON.stringify(["dashboard", "snapshot"]));
+  });
 });
 
 /**
