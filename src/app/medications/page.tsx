@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/hooks/use-auth";
 import { useTranslations } from "@/lib/i18n/context";
@@ -15,7 +16,6 @@ import {
   MedicationTableSkeleton,
 } from "@/components/medications/medication-table";
 import { MedicationViewToggle } from "@/components/medications/medication-view-toggle";
-import { MedicationReorderDialog } from "@/components/medications/medication-reorder-dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -149,16 +149,13 @@ export default function MedicationsPage() {
   // two paths: log an intake (incl. a backdated one) against an existing
   // medication, or create a new medication (the existing wizard).
   const [logIntakeOpen, setLogIntakeOpen] = useState(false);
-  // v1.16.10 — manual-order editor (shared by both views).
-  const [reorderOpen, setReorderOpen] = useState(false);
 
   // v1.16.10 — the persisted list presentation: cards vs table plus the
   // manual medication order, server-side per user
   // (`GET`/`PUT /api/medications/layout`). The toggle writes
-  // optimistically; the reorder dialog saves explicitly.
-  const { layout, isLayoutLoading, setView } = useMedicationListLayout(
-    isAuthenticated,
-  );
+  // optimistically; the order editor lives at /settings/medications.
+  const { layout, isLayoutLoading, setView } =
+    useMedicationListLayout(isAuthenticated);
 
   useEffect(() => {
     if (shouldOpenFromUrl) {
@@ -268,25 +265,27 @@ export default function MedicationsPage() {
         </div>
         <div className="flex shrink-0 items-center gap-2">
           {/* v1.16.10 — card ⇄ table view toggle, persisted server-side
-              per user; plus the manual-order editor shared by both
-              views. The editor opens behind the same Settings2 glyph
-              the dashboard and insights headers use for their
-              customize entry points, in the same slot (left of the
-              add button). It only earns its slot once there is
-              something to reorder. */}
+              per user. The Settings2 glyph next to it is the customize
+              shortcut to /settings/medications (view preference + the
+              manual-order editor), exactly like the dashboard and
+              insights headers link to their settings sections, in the
+              same slot (left of the add button) and with the same
+              responsive 44-px mobile tap floor. */}
           <MedicationViewToggle view={layout.view} onChange={setView} />
-          {medsArray.length > 1 && (
-            <Button
-              variant="ghost"
-              size="icon"
-              className="size-11 sm:size-9"
-              onClick={() => setReorderOpen(true)}
-              aria-label={t("medications.reorderTitle")}
-              title={t("medications.reorderTitle")}
+          <Button
+            asChild
+            variant="ghost"
+            size="icon"
+            className="min-h-11 min-w-11 sm:min-h-9 sm:min-w-9"
+          >
+            <Link
+              href="/settings/medications"
+              aria-label={t("medications.customize")}
+              title={t("medications.customize")}
             >
-              <Settings2 className="h-4 w-4" />
-            </Button>
-          )}
+              <Settings2 className="h-4 w-4" aria-hidden="true" />
+            </Link>
+          </Button>
           {/* v1.14.0 — the "Add" button is now a choice: log an intake
               (incl. a backdated one) against an existing medication, or
               create a new medication. v1.12.2 — match the dashboard Add
@@ -324,11 +323,7 @@ export default function MedicationsPage() {
         // persisted view (table rows vs card grid) so resolving the data
         // never swaps the footprint; while the view preference itself is
         // still loading the default cards skeleton stands in.
-        <div
-          role="status"
-          aria-busy="true"
-          aria-label={t("medications.title")}
-        >
+        <div role="status" aria-busy="true" aria-label={t("medications.title")}>
           {tableView && !isLayoutLoading ? (
             <MedicationTableSkeleton />
           ) : (
@@ -462,22 +457,6 @@ export default function MedicationsPage() {
           date+time that supports backdating. Submits to the existing
           per-medication intake route (same slot upsert as a live "Taken"
           tap) so the one-row-per-dose-slot invariant holds. */}
-      {/* v1.16.10 — manual-order editor. The list is the page's current
-          effective order (active block first, inactive after), so the
-          dialog opens showing exactly what both views render. */}
-      {reorderOpen && (
-        <MedicationReorderDialog
-          open={reorderOpen}
-          onOpenChange={setReorderOpen}
-          medications={[...activeMeds, ...inactiveMeds].map((m) => ({
-            id: m.id,
-            name: m.name,
-            dose: m.dose,
-            active: m.active,
-          }))}
-        />
-      )}
-
       {logIntakeOpen && (
         <LogIntakeDialog
           open={logIntakeOpen}

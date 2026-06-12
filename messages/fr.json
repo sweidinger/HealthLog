@@ -1718,6 +1718,7 @@
     "allowedSitesLabel": "Sites autorisés",
     "allowedSitesHint": "Laissez tout sélectionné pour aucune restriction. Les sites exclus globalement ne sont jamais proposés.",
     "viewToggleLabel": "Affichage",
+    "viewToggleHint": "Choisis si tes médicaments s'affichent sous forme de cartes ou de tableau.",
     "viewCards": "Vue cartes",
     "viewTable": "Vue tableau",
     "viewSaveFailed": "L'affichage n'a pas pu être enregistré",
@@ -1737,7 +1738,8 @@
     "reorderTitle": "Modifier l'ordre",
     "reorderDescription": "Définis l'ordre de tes médicaments – il s'applique à la vue cartes et à la vue tableau.",
     "reorderSaved": "Ordre enregistré",
-    "reorderSaveFailed": "L'ordre n'a pas pu être enregistré"
+    "reorderSaveFailed": "L'ordre n'a pas pu être enregistré",
+    "customize": "Personnaliser les médicaments"
   },
   "charts": {
     "loadingLabel": "Chargement du graphique…",
@@ -3767,6 +3769,10 @@
       "insights": {
         "title": "Analyses",
         "description": "Ordre de la vue d'ensemble et des onglets de navigation."
+      },
+      "medications": {
+        "title": "Médicaments",
+        "description": "Vue de la liste et ordre des médicaments."
       }
     },
     "profile": "Profil",

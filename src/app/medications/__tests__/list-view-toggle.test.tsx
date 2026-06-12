@@ -33,9 +33,6 @@ vi.mock("@/components/medications/wizard/MedicationWizardDialog", () => ({
 vi.mock("@/components/medications/log-intake-dialog", () => ({
   LogIntakeDialog: () => null,
 }));
-vi.mock("@/components/medications/medication-reorder-dialog", () => ({
-  MedicationReorderDialog: () => null,
-}));
 
 import MedicationsPage from "@/app/medications/page";
 import { I18nProvider } from "@/lib/i18n/context";
@@ -133,9 +130,15 @@ describe("/medications — view renders from the persisted preference", () => {
     );
   });
 
-  it("offers the manual-order editor from the header", () => {
+  it("links the header customize glyph to /settings/medications", () => {
+    // v1.16.10 — same entry-point logic as the dashboard and insights
+    // headers: the Settings2 ghost icon is a plain link to the page's
+    // settings section (view preference + manual order live there).
     const html = renderPage({ version: 1, view: "cards", order: [] });
-    expect(html).toContain('aria-label="Adjust order"');
+    expect(html).toContain('href="/settings/medications"');
+    expect(html).toContain('aria-label="Customize medications"');
+    // The in-page order dialog is gone — no dialog trigger remains.
+    expect(html).not.toContain('aria-label="Adjust order"');
   });
 });
 

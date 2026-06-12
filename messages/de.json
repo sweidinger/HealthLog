@@ -1718,6 +1718,7 @@
     "allowedSitesLabel": "Erlaubte Stellen",
     "allowedSitesHint": "Alle ausgewählt lassen für keine Einschränkung. Global ausgeschlossene Stellen werden nie angeboten.",
     "viewToggleLabel": "Ansicht",
+    "viewToggleHint": "Wähle, ob deine Medikamente als Karten oder als Tabelle angezeigt werden.",
     "viewCards": "Kartenansicht",
     "viewTable": "Tabellenansicht",
     "viewSaveFailed": "Ansicht konnte nicht gespeichert werden",
@@ -1737,7 +1738,8 @@
     "reorderTitle": "Reihenfolge anpassen",
     "reorderDescription": "Bestimme die Reihenfolge deiner Medikamente – sie gilt für die Karten- und die Tabellenansicht.",
     "reorderSaved": "Reihenfolge gespeichert",
-    "reorderSaveFailed": "Reihenfolge konnte nicht gespeichert werden"
+    "reorderSaveFailed": "Reihenfolge konnte nicht gespeichert werden",
+    "customize": "Medikamente anpassen"
   },
   "charts": {
     "loadingLabel": "Diagramm wird geladen…",
@@ -3767,6 +3769,10 @@
       "insights": {
         "title": "Insights",
         "description": "Reihenfolge der Übersicht und der Navigations-Pills."
+      },
+      "medications": {
+        "title": "Medikamente",
+        "description": "Listenansicht und Reihenfolge der Medikamente."
       }
     },
     "profile": "Profil",

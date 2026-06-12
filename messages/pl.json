@@ -1718,6 +1718,7 @@
     "allowedSitesLabel": "Dozwolone miejsca",
     "allowedSitesHint": "Pozostaw wszystkie zaznaczone, aby nie stosować ograniczeń. Miejsca wykluczone globalnie nigdy nie są proponowane.",
     "viewToggleLabel": "Widok",
+    "viewToggleHint": "Wybierz, czy leki mają być wyświetlane jako karty, czy jako tabela.",
     "viewCards": "Widok kart",
     "viewTable": "Widok tabeli",
     "viewSaveFailed": "Nie udało się zapisać widoku",
@@ -1737,7 +1738,8 @@
     "reorderTitle": "Zmień kolejność",
     "reorderDescription": "Ustal kolejność swoich leków – obowiązuje w widoku kart i w tabeli.",
     "reorderSaved": "Kolejność zapisana",
-    "reorderSaveFailed": "Nie udało się zapisać kolejności"
+    "reorderSaveFailed": "Nie udało się zapisać kolejności",
+    "customize": "Dostosuj leki"
   },
   "charts": {
     "loadingLabel": "Ładowanie wykresu…",
@@ -3767,6 +3769,10 @@
       "insights": {
         "title": "Analizy",
         "description": "Kolejność przeglądu i pigułek nawigacyjnych."
+      },
+      "medications": {
+        "title": "Leki",
+        "description": "Widok listy i kolejność leków."
       }
     },
     "profile": "Profil",

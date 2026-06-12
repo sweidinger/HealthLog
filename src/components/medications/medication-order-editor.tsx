@@ -20,14 +20,6 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { reorderById } from "@/lib/insights-layout-reorder";
 import { prefersReducedMotion } from "@/lib/charts/reduced-motion";
@@ -44,14 +36,21 @@ import { runSaveMedicationListOrder } from "@/lib/queries/use-medication-list-la
  * mode rides (the standalone extraction of the dashboard's
  * `reorderWidgets` contract), so the surfaces cannot drift.
  *
- * The dialog mirrors the page's grouping: an Aktiv section and an
+ * Hosted inline by the Medikamente settings section
+ * (`/settings/medications`), exactly like the dashboard layout editor
+ * lives under `/settings/dashboard` — the editor used to be a dialog on
+ * the /medications page; the page header now links here instead.
+ *
+ * The editor mirrors the page's grouping: an Aktiv section and an
  * Inaktiv section (muted heading), each with its own drag context and
  * arrow bounds, so a row can only move WITHIN its group — both views
  * pin inactive medications after the active block, and an order that
  * crossed the boundary could never render. Save persists the id order
  * (active ids first, then inactive ids) through
  * `PUT /api/medications/layout` (order-only, the stored view is
- * preserved server-side).
+ * preserved server-side). The Save / Cancel pair only appears once a
+ * draft exists, following the dashboard layout section's draft state
+ * machine.
  */
 
 export interface ReorderMedication {
@@ -61,9 +60,7 @@ export interface ReorderMedication {
   active: boolean;
 }
 
-interface MedicationReorderDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
+interface MedicationOrderEditorProps {
   /** The full list in its current effective order (active block first). */
   medications: ReorderMedication[];
 }
@@ -100,28 +97,24 @@ export function moveWithinSection(
   ).map((r) => r.id);
 }
 
-export function MedicationReorderDialog({
-  open,
-  onOpenChange,
+export function MedicationOrderEditor({
   medications,
-}: MedicationReorderDialogProps) {
+}: MedicationOrderEditorProps) {
   const { t } = useTranslations();
   const queryClient = useQueryClient();
   const dragHintId = useId();
   const [saving, setSaving] = useState(false);
-  // Per-section draft id order — null means "the order the page passed
-  // in". Created on the first move so an untouched dialog can cancel
-  // without churn.
+  // Per-section draft id order — null means "the order the host passed
+  // in". Created on the first move so an untouched editor renders the
+  // persisted order without churn; Cancel simply clears the drafts.
   const [draftActive, setDraftActive] = useState<string[] | null>(null);
   const [draftInactive, setDraftInactive] = useState<string[] | null>(null);
 
   const byId = new Map(medications.map((m) => [m.id, m]));
   const activeIds =
-    draftActive ??
-    medications.filter((m) => m.active).map((m) => m.id);
+    draftActive ?? medications.filter((m) => m.active).map((m) => m.id);
   const inactiveIds =
-    draftInactive ??
-    medications.filter((m) => !m.active).map((m) => m.id);
+    draftInactive ?? medications.filter((m) => !m.active).map((m) => m.id);
 
   const labels = {
     moveUp: t("dashboard.moveUp"),
@@ -141,79 +134,73 @@ export function MedicationReorderDialog({
     if (ok) {
       setDraftActive(null);
       setDraftInactive(null);
-      onOpenChange(false);
     }
   }
 
-  function close(next: boolean) {
-    if (!next) {
-      setDraftActive(null);
-      setDraftInactive(null);
-    }
-    onOpenChange(next);
+  function cancel() {
+    setDraftActive(null);
+    setDraftInactive(null);
   }
 
+  // Presence of a draft implies dirty — no JSON comparison needed.
   const dirty = draftActive !== null || draftInactive !== null;
 
   return (
-    <Dialog open={open} onOpenChange={close}>
-      <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>{t("medications.reorderTitle")}</DialogTitle>
-          <DialogDescription>
-            {t("medications.reorderDescription")}
-          </DialogDescription>
-        </DialogHeader>
+    <div className="space-y-4" data-slot="medication-order-editor">
+      {medications.length === 0 && (
+        <p className="text-muted-foreground text-sm">
+          {t("medications.emptyTitle")}
+        </p>
+      )}
+      {activeIds.length > 0 && (
+        <ReorderSection
+          heading={t("common.active")}
+          ids={activeIds}
+          byId={byId}
+          dragHintId={dragHintId}
+          disabled={saving}
+          labels={labels}
+          onChange={setDraftActive}
+          dataSlot="medication-reorder-section-active"
+        />
+      )}
+      {inactiveIds.length > 0 && (
+        <ReorderSection
+          heading={t("common.inactive")}
+          ids={inactiveIds}
+          byId={byId}
+          dragHintId={dragHintId}
+          disabled={saving}
+          labels={labels}
+          onChange={setDraftInactive}
+          dataSlot="medication-reorder-section-inactive"
+        />
+      )}
+      {activeIds.length + inactiveIds.length > 0 && (
+        <p id={dragHintId} className="text-muted-foreground sr-only">
+          {t("dashboard.dragHandleHint")}
+        </p>
+      )}
 
-        <div className="space-y-4">
-          {activeIds.length > 0 && (
-            <ReorderSection
-              heading={t("common.active")}
-              ids={activeIds}
-              byId={byId}
-              dragHintId={dragHintId}
-              disabled={saving}
-              labels={labels}
-              onChange={setDraftActive}
-              dataSlot="medication-reorder-section-active"
-            />
-          )}
-          {inactiveIds.length > 0 && (
-            <ReorderSection
-              heading={t("common.inactive")}
-              ids={inactiveIds}
-              byId={byId}
-              dragHintId={dragHintId}
-              disabled={saving}
-              labels={labels}
-              onChange={setDraftInactive}
-              dataSlot="medication-reorder-section-inactive"
-            />
-          )}
-          {activeIds.length + inactiveIds.length > 0 && (
-            <p id={dragHintId} className="text-muted-foreground sr-only">
-              {t("dashboard.dragHandleHint")}
-            </p>
-          )}
-        </div>
-
-        <DialogFooter>
+      {dirty && (
+        <div className="flex items-center justify-end gap-2">
           <Button
             variant="outline"
-            onClick={() => close(false)}
+            size="sm"
+            onClick={cancel}
             disabled={saving}
           >
             {t("common.cancel")}
           </Button>
-          <Button onClick={() => void save()} disabled={saving || !dirty}>
+          <Button size="sm" onClick={() => void save()} disabled={saving}>
             {saving && (
               <Loader2 className="h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
             )}
             {t("common.save")}
           </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        </div>
+      )}
+    </div>
   );
 }
 

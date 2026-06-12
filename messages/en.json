@@ -1718,6 +1718,7 @@
     "allowedSitesLabel": "Allowed sites",
     "allowedSitesHint": "Leave all selected for no restriction. Sites you excluded globally are never offered.",
     "viewToggleLabel": "View",
+    "viewToggleHint": "Choose whether your medications appear as cards or as a table.",
     "viewCards": "Card view",
     "viewTable": "Table view",
     "viewSaveFailed": "View could not be saved",
@@ -1737,7 +1738,8 @@
     "reorderTitle": "Adjust order",
     "reorderDescription": "Set the order of your medications – it applies to both the card and the table view.",
     "reorderSaved": "Order saved",
-    "reorderSaveFailed": "Order could not be saved"
+    "reorderSaveFailed": "Order could not be saved",
+    "customize": "Customize medications"
   },
   "charts": {
     "loadingLabel": "Loading chart…",
@@ -3767,6 +3769,10 @@
       "insights": {
         "title": "Insights",
         "description": "Overview and navigation-pill order."
+      },
+      "medications": {
+        "title": "Medications",
+        "description": "List view and medication order."
       }
     },
     "profile": "Profile",

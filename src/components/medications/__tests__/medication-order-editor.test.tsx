@@ -1,11 +1,14 @@
 /**
- * v1.16.10 — reorder dialog mirrors the page's grouping.
+ * v1.16.10 — the inline manual-order editor mirrors the page's grouping.
  *
  * Both /medications views pin inactive medications after the active
- * block, so the dialog drafts TWO sections (Aktiv / Inaktiv) with a
+ * block, so the editor drafts TWO sections (Aktiv / Inaktiv) with a
  * muted heading each: drag and arrows work within a section, and the
  * saved order is active ids first, inactive ids after — by
- * construction, not by validation.
+ * construction, not by validation. The editor renders inline in the
+ * Medikamente settings section (`/settings/medications`); it started
+ * life as a dialog on the /medications page and kept its contract when
+ * it moved.
  *
  * Project convention is SSR-only component tests (`renderToStaticMarkup`)
  * plus pure-helper tests for the interactive plumbing an SSR mount
@@ -17,24 +20,6 @@ import { describe, expect, it, vi } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 
 import { I18nProvider } from "@/lib/i18n/context";
-
-// Radix Dialog portals at runtime; collapse to plain wrappers so the
-// body materialises in static markup (same trick as the sibling suites).
-vi.mock("@/components/ui/dialog", () => {
-  const Pass = ({ children }: { children?: React.ReactNode }) => (
-    <div>{children}</div>
-  );
-  return {
-    Dialog: ({ children }: { children?: React.ReactNode }) => (
-      <div data-slot="mock-dialog">{children}</div>
-    ),
-    DialogContent: Pass,
-    DialogDescription: Pass,
-    DialogFooter: Pass,
-    DialogHeader: Pass,
-    DialogTitle: Pass,
-  };
-});
 
 vi.mock("@tanstack/react-query", () => ({
   useQueryClient: () => ({}),
@@ -48,8 +33,8 @@ vi.mock("@/lib/queries/use-medication-list-layout", () => ({
   runSaveMedicationListOrder: vi.fn().mockResolvedValue(true),
 }));
 
-const { MedicationReorderDialog, buildSavedOrder, moveWithinSection } =
-  await import("../medication-reorder-dialog");
+const { MedicationOrderEditor, buildSavedOrder, moveWithinSection } =
+  await import("../medication-order-editor");
 
 function render(node: React.ReactNode): string {
   return renderToStaticMarkup(
@@ -90,31 +75,23 @@ describe("buildSavedOrder — active ids always precede inactive ids", () => {
   });
 
   it("an inactive med can never land above an active one in the SAVED order", () => {
-    // Drive the dialog's own move primitive as far up as it allows and
+    // Drive the editor's own move primitive as far up as it allows and
     // compose the save payload exactly like save() does.
     let inactive = ["i1", "i2"];
     inactive = moveWithinSection(inactive, "i2", -1); // i2 to the top of its group
     inactive = moveWithinSection(inactive, "i2", -1); // edge — no-op
     const saved = buildSavedOrder(["a1", "a2"], inactive);
     expect(saved).toEqual(["a1", "a2", "i2", "i1"]);
-    const firstInactiveIdx = Math.min(
-      saved.indexOf("i1"),
-      saved.indexOf("i2"),
-    );
+    const firstInactiveIdx = Math.min(saved.indexOf("i1"), saved.indexOf("i2"));
     const lastActiveIdx = Math.max(saved.indexOf("a1"), saved.indexOf("a2"));
     expect(firstInactiveIdx).toBeGreaterThan(lastActiveIdx);
   });
 });
 
-describe("<MedicationReorderDialog> — two-section rendering", () => {
+describe("<MedicationOrderEditor> — two-section rendering", () => {
   it("renders an Aktiv and an Inaktiv section with the rows grouped", () => {
-    const html = render(
-      <MedicationReorderDialog
-        open
-        onOpenChange={() => {}}
-        medications={MEDS}
-      />,
-    );
+    const html = render(<MedicationOrderEditor medications={MEDS} />);
+    expect(html).toContain('data-slot="medication-order-editor"');
     expect(html).toContain('data-slot="medication-reorder-section-active"');
     expect(html).toContain('data-slot="medication-reorder-section-inactive"');
     // Muted group headings.
@@ -134,24 +111,26 @@ describe("<MedicationReorderDialog> — two-section rendering", () => {
 
   it("omits the Inaktiv section when every medication is active", () => {
     const html = render(
-      <MedicationReorderDialog
-        open
-        onOpenChange={() => {}}
-        medications={MEDS.filter((m) => m.active)}
-      />,
+      <MedicationOrderEditor medications={MEDS.filter((m) => m.active)} />,
     );
     expect(html).toContain('data-slot="medication-reorder-section-active"');
     expect(html).not.toContain(
       'data-slot="medication-reorder-section-inactive"',
     );
   });
+
+  it("hides the Save / Cancel pair until a draft exists (clean editor = no footer)", () => {
+    const html = render(<MedicationOrderEditor medications={MEDS} />);
+    expect(html).not.toContain(">Speichern<");
+    expect(html).not.toContain(">Abbrechen<");
+  });
 });
 
-describe("medication-reorder-dialog — structural guards (source)", () => {
+describe("medication-order-editor — structural guards (source)", () => {
   const src = readFileSync(
     join(
       process.cwd(),
-      "src/components/medications/medication-reorder-dialog.tsx",
+      "src/components/medications/medication-order-editor.tsx",
     ),
     "utf8",
   );
@@ -162,11 +141,11 @@ describe("medication-reorder-dialog — structural guards (source)", () => {
 
   it("each section owns its own DndContext, so a drag cannot cross groups", () => {
     // One <DndContext> inside the per-section component, none at the
-    // dialog level spanning both lists.
+    // editor level spanning both lists.
     const sectionBody = src.slice(src.indexOf("function ReorderSection"));
     expect(sectionBody).toContain("<DndContext");
-    expect(
-      src.slice(0, src.indexOf("function ReorderSection")),
-    ).not.toContain("<DndContext");
+    expect(src.slice(0, src.indexOf("function ReorderSection"))).not.toContain(
+      "<DndContext",
+    );
   });
 });

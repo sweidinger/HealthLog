@@ -1718,6 +1718,7 @@
     "allowedSitesLabel": "Sitios permitidos",
     "allowedSitesHint": "Deja todos seleccionados para no aplicar restricciones. Los sitios que excluiste globalmente nunca se ofrecen.",
     "viewToggleLabel": "Vista",
+    "viewToggleHint": "Elige si tus medicamentos se muestran como tarjetas o como tabla.",
     "viewCards": "Vista de tarjetas",
     "viewTable": "Vista de tabla",
     "viewSaveFailed": "No se pudo guardar la vista",
@@ -1737,7 +1738,8 @@
     "reorderTitle": "Ajustar orden",
     "reorderDescription": "Define el orden de tus medicamentos: se aplica a la vista de tarjetas y a la de tabla.",
     "reorderSaved": "Orden guardado",
-    "reorderSaveFailed": "No se pudo guardar el orden"
+    "reorderSaveFailed": "No se pudo guardar el orden",
+    "customize": "Personalizar medicamentos"
   },
   "charts": {
     "loadingLabel": "Cargando la gráfica…",
@@ -3767,6 +3769,10 @@
       "insights": {
         "title": "Análisis",
         "description": "Orden de la vista general y de las pestañas de navegación."
+      },
+      "medications": {
+        "title": "Medicamentos",
+        "description": "Vista de lista y orden de los medicamentos."
       }
     },
     "profile": "Perfil",

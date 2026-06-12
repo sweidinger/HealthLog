@@ -1718,6 +1718,7 @@
     "allowedSitesLabel": "Siti consentiti",
     "allowedSitesHint": "Lascia tutti selezionati per nessuna restrizione. I siti esclusi globalmente non vengono mai proposti.",
     "viewToggleLabel": "Vista",
+    "viewToggleHint": "Scegli se i tuoi farmaci vengono mostrati come schede o come tabella.",
     "viewCards": "Vista a schede",
     "viewTable": "Vista tabella",
     "viewSaveFailed": "Impossibile salvare la vista",
@@ -1737,7 +1738,8 @@
     "reorderTitle": "Modifica ordine",
     "reorderDescription": "Imposta l'ordine dei tuoi farmaci: vale per la vista a schede e per la tabella.",
     "reorderSaved": "Ordine salvato",
-    "reorderSaveFailed": "Impossibile salvare l’ordine"
+    "reorderSaveFailed": "Impossibile salvare l’ordine",
+    "customize": "Personalizza i farmaci"
   },
   "charts": {
     "loadingLabel": "Caricamento del grafico…",
@@ -3767,6 +3769,10 @@
       "insights": {
         "title": "Approfondimenti",
         "description": "Ordine della panoramica e delle schede di navigazione."
+      },
+      "medications": {
+        "title": "Farmaci",
+        "description": "Vista elenco e ordine dei farmaci."
       }
     },
     "profile": "Profilo",
