@@ -295,3 +295,75 @@ describe("<MedicationCard> — open overdue slot (v1.16.4)", () => {
     expect(html).not.toContain("can still be taken");
   });
 });
+
+/**
+ * v1.16.11 (#316) — as-needed (PRN) card presentation: a calm
+ * "As needed" marker where next-due normally sits, no due pill, no
+ * overdue escalation, and NO compliance block (neither bars nor an
+ * eternal skeleton — the batched compliance read excludes PRN rows).
+ * The last-intake line stays: the card is last-taken oriented.
+ */
+describe("<MedicationCard> — as-needed marker (v1.16.11, #316)", () => {
+  function makeAsNeededMed(overrides: Record<string, unknown> = {}) {
+    const lastTaken = new Date();
+    lastTaken.setHours(lastTaken.getHours() - 3);
+    return {
+      id: "med-prn-1",
+      name: "Ibuprofen",
+      dose: "400 mg",
+      category: "PAIN_RELIEF",
+      treatmentClass: undefined as string | undefined,
+      active: true,
+      notificationsEnabled: true,
+      pausedAt: null,
+      lastTakenAt: lastTaken.toISOString(),
+      todayEventCount: 1,
+      nextDueAt: null,
+      nextDueOverdue: false,
+      asNeeded: true,
+      schedules: [],
+      ...overrides,
+    };
+  }
+
+  it("renders the calm marker, the last-intake line, and no compliance block", () => {
+    const med = makeAsNeededMed();
+    const client = makeClient();
+    // Deliberately NOT seeding the compliance cache: the batched read
+    // excludes as-needed medications, so the card must not fall back to
+    // the loading skeleton.
+    const html = render(
+      <MedicationCard
+        medication={med}
+        onEdit={() => {}}
+        onOpenHistory={() => {}}
+      />,
+      client,
+    );
+
+    expect(html).toContain('data-slot="medication-as-needed-marker"');
+    expect(html).toContain("As needed");
+    expect(html).toContain("Last intake:");
+    // No due/overdue presentation, ever.
+    expect(html).not.toContain("Overdue");
+    expect(html).not.toContain("Take now");
+    // No compliance bars and no skeleton placeholder for them.
+    expect(html).not.toContain("Adherence (");
+  });
+
+  it("keeps the quick-log action row (intakes still record)", () => {
+    const med = makeAsNeededMed();
+    const client = makeClient();
+    const html = render(
+      <MedicationCard
+        medication={med}
+        onEdit={() => {}}
+        onOpenHistory={() => {}}
+      />,
+      client,
+    );
+    // The shared intake actions render (take/skip) — an as-needed dose
+    // is loggable from the card exactly like a scheduled one.
+    expect(html).toContain("Taken");
+  });
+});

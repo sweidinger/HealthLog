@@ -145,7 +145,11 @@ export function Step8Summary({
           </p>
         )}
 
-        {payload.mode !== "oneShot" && (
+        {/* v1.16.11 — an as-needed medication carries no parallel
+            schedules; the single "Bei Bedarf" card stays as the route
+            back into Step 5 (mirroring the one-shot edit path), but the
+            add affordance is hidden alongside one-shot. */}
+        {payload.mode !== "oneShot" && payload.mode !== "asNeeded" && (
           <button
             type="button"
             onClick={onAddSchedule}
@@ -163,6 +167,9 @@ export function Step8Summary({
         )}
       </div>
 
+      {/* v1.16.11 — an as-needed medication never reminds (no slots),
+          so the reminders toggle is hidden alongside the schedules. */}
+      {payload.mode !== "asNeeded" && (
       <div className="flex items-start justify-between gap-3">
         <div className="space-y-1">
           <Label
@@ -185,8 +192,9 @@ export function Step8Summary({
           aria-label={t("medications.wizard.steps.step8.remindersLabel")}
         />
       </div>
+      )}
 
-      {showNoChannelHint && (
+      {payload.mode !== "asNeeded" && showNoChannelHint && (
         <p
           className="text-muted-foreground text-xs"
           data-slot="wizard-no-channel-hint"

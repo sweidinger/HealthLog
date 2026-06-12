@@ -80,7 +80,15 @@ test.describe("Settings → AI provider dropdown UX (B2)", () => {
       }),
     );
 
+    // Hydration gate — the provider query is fired by the same client
+    // boundary that renders the select, so its response proves React
+    // has hydrated the card and attached the select's change handler.
+    // `selectOption` on the SSR-painted element any earlier flips the
+    // native value without React noticing, and the config form below
+    // never switches (CI failure at slow hydration).
+    const cardHydrated = page.waitForResponse("**/api/user/ai-provider");
     await page.goto("/settings/ai", { waitUntil: "domcontentloaded" });
+    await cardHydrated;
 
     // 1. Dropdown surfaces on the page.
     const select = page.getByTestId("ai-active-provider-select");

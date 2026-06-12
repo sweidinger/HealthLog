@@ -55,6 +55,25 @@ describe("<MoodBetterDays>", () => {
     expect(html).toContain('data-direction="up"');
   });
 
+  it("prefers a custom tag's decrypted label over its raw labelKey", () => {
+    const html = render(
+      <MoodBetterDays
+        factors={[
+          {
+            ...tagFactor,
+            key: "custom:abc-123",
+            labelKey: "custom:abc-123",
+            label: "Migraine",
+            categoryKey: "custom",
+            icon: "Tag",
+          },
+        ]}
+      />,
+    );
+    expect(html).toContain("Migraine");
+    expect(html).not.toContain("custom:abc-123");
+  });
+
   it("shows a metric factor with its labelled name and r value", () => {
     const html = render(<MoodBetterDays factors={[metricFactor]} />);
     // sleep maps to the localized correlation title, not the raw key

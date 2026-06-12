@@ -664,7 +664,58 @@
     "bulkDeleteSuccess": "{count} voci eliminate",
     "bulkDeleteError": "Errore durante l'eliminazione delle voci selezionate",
     "bulkDeleteConfirmTitle": "Eliminare {count} voci?",
-    "bulkDeleteConfirmBody": "Le {count} voci dell'umore selezionate verranno eliminate definitivamente."
+    "bulkDeleteConfirmBody": "Le {count} voci dell'umore selezionate verranno eliminate definitivamente.",
+    "customize": "Personalizza i tag dell’umore",
+    "addTagInline": "Aggiungi tag",
+    "manage": {
+      "groupsTitle": "Gruppi",
+      "groupsDescription": "Crea i tuoi gruppi e definisci il loro ordine nel selettore.",
+      "newGroup": "Nuovo gruppo",
+      "groupLabel": "Nome del gruppo",
+      "groupIcon": "Icona",
+      "groupCreated": "Gruppo creato",
+      "groupRenamed": "Gruppo salvato",
+      "groupDeleteTitle": "Eliminare il gruppo?",
+      "groupDeleteBody": "I tag di questo gruppo tornano nel loro gruppo originale. Nessuna voce viene eliminata.",
+      "groupDeleted": "Gruppo eliminato",
+      "groupEmpty": "Ancora nessun gruppo personale.",
+      "groupLimitReached": "Limite di gruppi raggiunto",
+      "tagsTitle": "Tag",
+      "tagsDescription": "Nascondi, riordina, sposta o modifica i tag del selettore.",
+      "newTag": "Nuovo tag",
+      "tagLabel": "Nome del tag",
+      "tagIcon": "Icona",
+      "tagGroup": "Gruppo",
+      "usageCount": "{count} voci",
+      "hideTag": "Nascondi tag",
+      "showTag": "Mostra tag",
+      "moveToGroup": "Sposta nel gruppo",
+      "archive": "Archivia",
+      "restore": "Ripristina",
+      "archivedTitle": "Tag archiviati",
+      "archivedDescription": "I tag archiviati restano nelle tue voci passate — scompaiono solo dal selettore.",
+      "archivedEmpty": "Niente in archivio.",
+      "purgeTitle": "Eliminare il tag definitivamente?",
+      "purgeBody": "Il tag verrà rimosso da {count} voci passate. L’operazione non può essere annullata.",
+      "purgeAction": "Elimina definitivamente",
+      "purged": "Tag eliminato",
+      "tagLimitReached": "Limite di tag raggiunto",
+      "iconPickerTitle": "Scegli un’icona",
+      "iconSearchPlaceholder": "Cerca icone…",
+      "iconSearchEmpty": "Nessuna icona corrisponde.",
+      "iconSearchClear": "Cancella ricerca",
+      "orderSave": "Salva ordine",
+      "orderSaved": "Ordine salvato",
+      "moveUp": "Sposta su",
+      "moveDown": "Sposta giù",
+      "iconGroupEmotions": "Emozioni",
+      "iconGroupActivities": "Attività",
+      "iconGroupHealth": "Salute",
+      "iconGroupFood": "Cibo e bevande",
+      "iconGroupWeather": "Meteo",
+      "iconGroupPlaces": "Luoghi",
+      "iconGroupMisc": "Altro"
+    }
   },
   "medications": {
     "title": "Farmaci",
@@ -677,6 +728,15 @@
     "addChoice": {
       "logIntake": "Registra un'assunzione",
       "newMedication": "Nuovo farmaco"
+    },
+    "takeAllDue": {
+      "button": "Assumi tutte le dosi in scadenza",
+      "dialogTitle": "Assumi i farmaci in scadenza",
+      "dialogDescription": "Questi farmaci sono da assumere adesso. Conferma per registrarli tutti come assunti.",
+      "confirm": "Assumi tutti ({count})",
+      "successToast": "{count} assunzioni registrate",
+      "partialToast": "{taken} registrate, {failed} non riuscite – riprova",
+      "failedToast": "Nessuna assunzione registrata – riprova"
     },
     "logIntake": {
       "dialogTitle": "Registra un'assunzione",
@@ -760,6 +820,7 @@
     "today": "Oggi",
     "yesterday": "Ieri",
     "tomorrow": "Domani",
+    "asNeededMarker": "Al bisogno",
     "withoutNotification": "Senza notifica",
     "pausedSince": "In pausa dal",
     "takeNow": "Assumi ora",
@@ -1147,6 +1208,10 @@
         "oneShot": {
           "label": "Dose singola",
           "description": "Una singola somministrazione, ad es. un vaccino o un ciclo di antibiotico."
+        },
+        "asNeeded": {
+          "label": "Al bisogno",
+          "description": "Nessun piano fisso: registra un'assunzione quando ti serve (ad es. antidolorifici)."
         }
       },
       "summary": {
@@ -1160,6 +1225,7 @@
           "yearly": "Una volta all’anno",
           "rolling": "Ogni {n} giorni dall’ultima assunzione",
           "oneShot": "Una dose singola",
+          "asNeeded": "Al bisogno",
           "everyNWeeks": "Ogni {n} settimane",
           "everyNMonths": "Ogni {n} mesi"
         },
@@ -1345,7 +1411,8 @@
       },
       "cadence": {
         "oneShotOn": "Dose singola il {date}.",
-        "oneShotPending": "Dose singola in sospeso."
+        "oneShotPending": "Dose singola in sospeso.",
+        "asNeeded": "Al bisogno — nessun piano fisso."
       },
       "intake": {
         "title": "Storico delle assunzioni",
@@ -1574,6 +1641,7 @@
         "statusTitle": "Stato",
         "nextDoseLabel": "Prossima dose",
         "nextDoseNone": "Nessuna dose in programma.",
+        "nextDoseAsNeeded": "Al bisogno — nessuna dose programmata.",
         "pausedHint": "In pausa — nessun promemoria.",
         "reminderLabel": "Promemoria",
         "reminderOn": "Attivo",
@@ -1581,6 +1649,7 @@
         "supplyLabel": "Scorta",
         "supplyRunway": "Copre ancora circa {days} giorni",
         "jumpToZeitplan": "Apri programma",
+        "jumpToVerlauf": "Apri cronologia",
         "jumpToBestand": "Apri scorta",
         "complianceTitle": "Aderenza",
         "complianceEmpty": "Ancora nessun dato sull'aderenza."
@@ -1600,6 +1669,8 @@
         "emptyHelper": "Registra una confezione o un contenitore per monitorare la scorta rimanente e l'autonomia.",
         "emptyCta": "Registra una confezione",
         "addButton": "Registra",
+        "lowStockLinkOn": "Avviso scorta bassa: sotto i {days} giorni",
+        "lowStockLinkOff": "Avviso scorta bassa: disattivato",
         "addTitle": "Registra una confezione o un contenitore",
         "addDescription": "Registra una nuova scorta con il numero di unità; la data di scadenza è facoltativa.",
         "addQuantityLabel": "Quantità (unità)",
@@ -1616,6 +1687,10 @@
         "adjustSubmit": "Salva",
         "adjustSuccess": "Scorta aggiornata.",
         "adjustFailed": "Impossibile aggiornare la scorta.",
+        "deleteTitle": "Eliminare la confezione?",
+        "deleteDescription": "Rimuove definitivamente questa confezione o contenitore dalla scorta. Le assunzioni registrate restano invariate.",
+        "deleteSuccess": "Scorta eliminata.",
+        "deleteFailed": "Impossibile eliminare la scorta.",
         "containerTypeLabel": "Tipo di contenitore",
         "containerType": {
           "PEN": "Penna",
@@ -1631,7 +1706,19 @@
         "quantityInUnits": "= {units} unità",
         "quantityInDoses": "≈ {doses} dosi",
         "quantityUnderOneDose": "< 1 dose",
-        "expiredSuffix": "+ {units} unità scadute"
+        "expiredSuffix": "+ {units} unità scadute",
+        "packagingTitle": "Confezione e dose",
+        "packagingUnitsPerDose": "1 dose = {units} unità",
+        "packagingDefaultPack": "Dimensione confezione predefinita: {units} unità",
+        "packagingNoDefaultPack": "Nessuna dimensione confezione predefinita",
+        "packagingEdit": "Modifica",
+        "packagingDescription": "Imposta quante unità consuma una dose e la dimensione abituale di una nuova confezione, ad es. dopo un cambio di produttore con blister diverso.",
+        "packagingUnitsPerDoseLabel": "Unità per dose",
+        "packagingUnitsPerDoseHelper": "Ad es. due compresse da 2 mg per una dose da 4 mg (1–100). Le assunzioni già registrate restano invariate.",
+        "packagingDefaultPackLabel": "Dimensione confezione predefinita (unità)",
+        "packagingDefaultPackHelper": "Precompila la quantità quando registri nuove confezioni (1–1000). Lascia vuoto se non applicabile.",
+        "packagingSuccess": "Dati confezione salvati",
+        "packagingFailed": "Salvataggio non riuscito"
       },
       "erweitert": {
         "group": {
@@ -1733,6 +1820,8 @@
     "tableComplianceDays": "{days} g",
     "tableStockDoseOne": "1 dose",
     "tableStockDoses": "{count} dosi",
+    "tableStockRunway": "≈ {days} giorni rimanenti",
+    "cardLowStockRunway": "Scorta: ≈ {days} giorni",
     "takeActionFor": "Assumi – {name}",
     "skipActionFor": "Salta – {name}",
     "reorderTitle": "Modifica ordine",
@@ -3773,6 +3862,10 @@
       "medications": {
         "title": "Farmaci",
         "description": "Vista elenco e ordine dei farmaci."
+      },
+      "mood": {
+        "title": "Tag dell’umore",
+        "description": "Gruppi, tag e ordine del selettore dell’umore."
       }
     },
     "profile": "Profilo",
@@ -5297,6 +5390,20 @@
       "disabledToast": "Avvisi proattivi del Coach disattivati.",
       "saveError": "Impossibile salvare. Riprova più tardi."
     },
+    "lowStock": {
+      "title": "Avviso scorte basse",
+      "description": "Controlla una volta al giorno le scorte tracciate dei tuoi farmaci e ti avvisa quando una copre meno giorni di questa soglia. Un avviso per carenza; si riattiva dopo il rifornimento.",
+      "toggleAria": "Attiva o disattiva gli avvisi di scorte basse",
+      "statusOn": "Attivo",
+      "statusOff": "Disattivato",
+      "daysLabel": "Avvisa sotto (giorni)",
+      "daysAria": "Seleziona la soglia delle scorte in giorni",
+      "savedToast": "Soglia delle scorte salvata.",
+      "enabledToast": "Avvisi di scorte basse attivati.",
+      "disabledToast": "Avvisi di scorte basse disattivati.",
+      "saveError": "Salvataggio non riuscito. Riprova.",
+      "medicationsLink": "Vai ai tuoi farmaci"
+    },
     "eventMedicationReminder": "Promemoria farmaco",
     "eventMedicationReminderDesc": "Inviato a ogni orario di dose programmato.",
     "eventMeasurementAnomaly": "Misurazione insolita",
@@ -5316,7 +5423,9 @@
     "eventCyclePeriodConfirm": "Il ciclo è iniziato?",
     "eventCyclePeriodConfirmDesc": "Un promemoria discreto dal giorno previsto in poi finché non registri il ciclo.",
     "eventCycleFertileSoon": "Finestra fertile in arrivo",
-    "eventCycleFertileSoonDesc": "Inviato alcuni giorni prima della finestra fertile stimata quando il tuo obiettivo è il concepimento."
+    "eventCycleFertileSoonDesc": "Inviato alcuni giorni prima della finestra fertile stimata quando il tuo obiettivo è il concepimento.",
+    "eventMedicationLowStock": "Scorte di farmaco in esaurimento",
+    "eventMedicationLowStockDesc": "Quando una scorta tracciata copre meno giorni della tua soglia di scorte"
   },
   "i18n": {
     "maintainershipBanner": {
@@ -5478,6 +5587,11 @@
     "buttonSnoozeOneHour": "🕐 1h",
     "buttonSnoozeThreeHours": "🕐 3h",
     "buttonSkip": "⏭ Salta"
+  },
+  "lowStockReminders": {
+    "title": "Scorte in esaurimento: {medName}",
+    "body": "{medName}: {units} unità rimaste — bastano per circa {days} giorni.",
+    "bodyToday": "{medName}: {units} unità rimaste — meno di un giorno di scorta."
   },
   "moodReminders": {
     "dailyTitle": "Registra il tuo umore",

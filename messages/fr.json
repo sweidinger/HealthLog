@@ -664,7 +664,58 @@
     "bulkDeleteSuccess": "{count} entrées supprimées",
     "bulkDeleteError": "Erreur lors de la suppression des entrées sélectionnées",
     "bulkDeleteConfirmTitle": "Supprimer {count} entrées ?",
-    "bulkDeleteConfirmBody": "Les {count} entrées d'humeur sélectionnées seront définitivement supprimées."
+    "bulkDeleteConfirmBody": "Les {count} entrées d'humeur sélectionnées seront définitivement supprimées.",
+    "customize": "Personnaliser les étiquettes d’humeur",
+    "addTagInline": "Ajouter une étiquette",
+    "manage": {
+      "groupsTitle": "Groupes",
+      "groupsDescription": "Crée tes propres groupes et définis leur ordre dans le sélecteur.",
+      "newGroup": "Nouveau groupe",
+      "groupLabel": "Nom du groupe",
+      "groupIcon": "Icône",
+      "groupCreated": "Groupe créé",
+      "groupRenamed": "Groupe enregistré",
+      "groupDeleteTitle": "Supprimer le groupe ?",
+      "groupDeleteBody": "Les étiquettes de ce groupe reviennent dans leur groupe d’origine. Aucune saisie n’est supprimée.",
+      "groupDeleted": "Groupe supprimé",
+      "groupEmpty": "Pas encore de groupe personnel.",
+      "groupLimitReached": "Limite de groupes atteinte",
+      "tagsTitle": "Étiquettes",
+      "tagsDescription": "Masque, réordonne, déplace ou modifie les étiquettes du sélecteur.",
+      "newTag": "Nouvelle étiquette",
+      "tagLabel": "Nom de l’étiquette",
+      "tagIcon": "Icône",
+      "tagGroup": "Groupe",
+      "usageCount": "{count} saisies",
+      "hideTag": "Masquer l’étiquette",
+      "showTag": "Afficher l’étiquette",
+      "moveToGroup": "Déplacer vers un groupe",
+      "archive": "Archiver",
+      "restore": "Restaurer",
+      "archivedTitle": "Étiquettes archivées",
+      "archivedDescription": "Les étiquettes archivées restent dans tes saisies passées — elles disparaissent seulement du sélecteur.",
+      "archivedEmpty": "Rien d’archivé.",
+      "purgeTitle": "Supprimer l’étiquette définitivement ?",
+      "purgeBody": "L’étiquette sera retirée de {count} saisies passées. Cette action est irréversible.",
+      "purgeAction": "Supprimer définitivement",
+      "purged": "Étiquette supprimée",
+      "tagLimitReached": "Limite d’étiquettes atteinte",
+      "iconPickerTitle": "Choisir une icône",
+      "iconSearchPlaceholder": "Rechercher des icônes…",
+      "iconSearchEmpty": "Aucune icône ne correspond.",
+      "iconSearchClear": "Effacer la recherche",
+      "orderSave": "Enregistrer l’ordre",
+      "orderSaved": "Ordre enregistré",
+      "moveUp": "Monter",
+      "moveDown": "Descendre",
+      "iconGroupEmotions": "Émotions",
+      "iconGroupActivities": "Activités",
+      "iconGroupHealth": "Santé",
+      "iconGroupFood": "Nourriture et boissons",
+      "iconGroupWeather": "Météo",
+      "iconGroupPlaces": "Lieux",
+      "iconGroupMisc": "Autres"
+    }
   },
   "medications": {
     "title": "Médicaments",
@@ -677,6 +728,15 @@
     "addChoice": {
       "logIntake": "Enregistrer une prise",
       "newMedication": "Nouveau médicament"
+    },
+    "takeAllDue": {
+      "button": "Prendre toutes les doses dues",
+      "dialogTitle": "Prendre les médicaments dus",
+      "dialogDescription": "Ces médicaments sont à prendre maintenant. Confirmez pour les enregistrer tous comme pris.",
+      "confirm": "Tout prendre ({count})",
+      "successToast": "{count} prises enregistrées",
+      "partialToast": "{taken} enregistrées, {failed} échouées – veuillez réessayer",
+      "failedToast": "Aucune prise enregistrée – veuillez réessayer"
     },
     "logIntake": {
       "dialogTitle": "Enregistrer une prise",
@@ -760,6 +820,7 @@
     "today": "Aujourd'hui",
     "yesterday": "Hier",
     "tomorrow": "Demain",
+    "asNeededMarker": "Au besoin",
     "withoutNotification": "Sans notification",
     "pausedSince": "En pause depuis",
     "takeNow": "Prendre maintenant",
@@ -1147,6 +1208,10 @@
         "oneShot": {
           "label": "Dose unique",
           "description": "Une seule administration, par exemple un vaccin ou une cure d’antibiotique."
+        },
+        "asNeeded": {
+          "label": "Au besoin",
+          "description": "Pas de plan fixe — enregistrez une prise quand vous en avez besoin (p. ex. antidouleur)."
         }
       },
       "summary": {
@@ -1160,6 +1225,7 @@
           "yearly": "Une fois par an",
           "rolling": "Tous les {n} jours depuis votre dernière prise",
           "oneShot": "Une dose unique",
+          "asNeeded": "Au besoin",
           "everyNWeeks": "Toutes les {n} semaines",
           "everyNMonths": "Tous les {n} mois"
         },
@@ -1345,7 +1411,8 @@
       },
       "cadence": {
         "oneShotOn": "Dose unique le {date}.",
-        "oneShotPending": "Dose unique en attente."
+        "oneShotPending": "Dose unique en attente.",
+        "asNeeded": "Au besoin — pas de plan fixe."
       },
       "intake": {
         "title": "Historique des prises",
@@ -1574,6 +1641,7 @@
         "statusTitle": "Statut",
         "nextDoseLabel": "Prochaine dose",
         "nextDoseNone": "Aucune dose à venir.",
+        "nextDoseAsNeeded": "Au besoin — aucune dose planifiée.",
         "pausedHint": "En pause — aucun rappel.",
         "reminderLabel": "Rappel",
         "reminderOn": "Activé",
@@ -1581,6 +1649,7 @@
         "supplyLabel": "Stock",
         "supplyRunway": "Couvre encore environ {days} jours",
         "jumpToZeitplan": "Voir l'horaire",
+        "jumpToVerlauf": "Voir l'historique",
         "jumpToBestand": "Voir le stock",
         "complianceTitle": "Observance",
         "complianceEmpty": "Aucune donnée d'observance pour l'instant."
@@ -1600,6 +1669,8 @@
         "emptyHelper": "Enregistrez une boîte ou un contenant pour suivre le stock restant et l'autonomie.",
         "emptyCta": "Enregistrer une boîte",
         "addButton": "Enregistrer",
+        "lowStockLinkOn": "Alerte de stock bas : en dessous de {days} jours",
+        "lowStockLinkOff": "Alerte de stock bas : désactivée",
         "addTitle": "Enregistrer une boîte ou un contenant",
         "addDescription": "Enregistrez un nouveau stock avec son nombre d'unités ; la date de péremption est facultative.",
         "addQuantityLabel": "Quantité (unités)",
@@ -1616,6 +1687,10 @@
         "adjustSubmit": "Enregistrer",
         "adjustSuccess": "Stock mis à jour.",
         "adjustFailed": "Le stock n'a pas pu être mis à jour.",
+        "deleteTitle": "Supprimer le contenant ?",
+        "deleteDescription": "Supprime définitivement cette boîte ou ce contenant du stock. Les prises enregistrées restent inchangées.",
+        "deleteSuccess": "Entrée de stock supprimée.",
+        "deleteFailed": "L'entrée de stock n'a pas pu être supprimée.",
         "containerTypeLabel": "Type de contenant",
         "containerType": {
           "PEN": "Stylo",
@@ -1631,7 +1706,19 @@
         "quantityInUnits": "= {units} unités",
         "quantityInDoses": "≈ {doses} doses",
         "quantityUnderOneDose": "< 1 dose",
-        "expiredSuffix": "+ {units} unités périmées"
+        "expiredSuffix": "+ {units} unités périmées",
+        "packagingTitle": "Conditionnement et dose",
+        "packagingUnitsPerDose": "1 dose = {units} unités",
+        "packagingDefaultPack": "Taille de boîte par défaut : {units} unités",
+        "packagingNoDefaultPack": "Aucune taille de boîte par défaut",
+        "packagingEdit": "Modifier",
+        "packagingDescription": "Définis combien d’unités consomme une dose et la taille habituelle d’une nouvelle boîte — p. ex. après un changement de fabricant avec une autre taille de plaquette.",
+        "packagingUnitsPerDoseLabel": "Unités par dose",
+        "packagingUnitsPerDoseHelper": "P. ex. deux comprimés de 2 mg pour une dose de 4 mg (1–100). Les prises déjà enregistrées restent inchangées.",
+        "packagingDefaultPackLabel": "Taille de boîte par défaut (unités)",
+        "packagingDefaultPackHelper": "Préremplit la quantité lors de l’enregistrement de nouvelles boîtes (1–1000). Laisse vide si aucune ne s’applique.",
+        "packagingSuccess": "Conditionnement enregistré",
+        "packagingFailed": "Échec de l’enregistrement"
       },
       "erweitert": {
         "group": {
@@ -1733,6 +1820,8 @@
     "tableComplianceDays": "{days} j",
     "tableStockDoseOne": "1 dose",
     "tableStockDoses": "{count} doses",
+    "tableStockRunway": "≈ {days} jours restants",
+    "cardLowStockRunway": "Réserve : ≈ {days} jours",
     "takeActionFor": "Prendre – {name}",
     "skipActionFor": "Passer – {name}",
     "reorderTitle": "Modifier l'ordre",
@@ -3773,6 +3862,10 @@
       "medications": {
         "title": "Médicaments",
         "description": "Vue de la liste et ordre des médicaments."
+      },
+      "mood": {
+        "title": "Étiquettes d’humeur",
+        "description": "Groupes, étiquettes et ordre du sélecteur d’humeur."
       }
     },
     "profile": "Profil",
@@ -5297,6 +5390,20 @@
       "disabledToast": "Rappels proactifs du Coach désactivés.",
       "saveError": "Impossible d'enregistrer. Veuillez réessayer plus tard."
     },
+    "lowStock": {
+      "title": "Alerte de stock faible",
+      "description": "Vérifie une fois par jour les stocks suivis de vos médicaments et vous prévient quand l’un d’eux couvre moins de jours que ce seuil. Une notification par pénurie ; elle se réarme après un réapprovisionnement.",
+      "toggleAria": "Activer ou désactiver les alertes de stock faible",
+      "statusOn": "Actif",
+      "statusOff": "Désactivé",
+      "daysLabel": "Prévenir en dessous de (jours)",
+      "daysAria": "Choisir le seuil de stock en jours",
+      "savedToast": "Seuil de stock enregistré.",
+      "enabledToast": "Alertes de stock faible activées.",
+      "disabledToast": "Alertes de stock faible désactivées.",
+      "saveError": "Échec de l’enregistrement. Réessayez.",
+      "medicationsLink": "Voir tes médicaments"
+    },
     "eventMedicationReminder": "Rappel de médicament",
     "eventMedicationReminderDesc": "Envoyé à chaque heure de prise prévue.",
     "eventMeasurementAnomaly": "Mesure inhabituelle",
@@ -5316,7 +5423,9 @@
     "eventCyclePeriodConfirm": "Vos règles ont-elles commencé ?",
     "eventCyclePeriodConfirmDesc": "Un rappel discret le jour prévu ou après, tant qu'aucune règle n'est enregistrée.",
     "eventCycleFertileSoon": "Fenêtre fertile à venir",
-    "eventCycleFertileSoonDesc": "Envoyé quelques jours avant votre fenêtre fertile estimée lorsque votre objectif est de concevoir."
+    "eventCycleFertileSoonDesc": "Envoyé quelques jours avant votre fenêtre fertile estimée lorsque votre objectif est de concevoir.",
+    "eventMedicationLowStock": "Stock de médicament faible",
+    "eventMedicationLowStockDesc": "Quand un stock suivi couvre moins de jours que votre seuil de stock"
   },
   "i18n": {
     "maintainershipBanner": {
@@ -5478,6 +5587,11 @@
     "buttonSnoozeOneHour": "🕐 1h",
     "buttonSnoozeThreeHours": "🕐 3h",
     "buttonSkip": "⏭ Ignorer"
+  },
+  "lowStockReminders": {
+    "title": "Stock faible : {medName}",
+    "body": "{medName} : {units} unités restantes — environ {days} jours de réserve.",
+    "bodyToday": "{medName} : {units} unités restantes — moins d’un jour de réserve."
   },
   "moodReminders": {
     "dailyTitle": "Enregistrer votre humeur",

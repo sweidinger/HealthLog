@@ -1,20 +1,20 @@
 /**
  * WHOOP body-measurement sync. The body endpoint is a single object (not a
  * paginated collection): one self-reported profile snapshot carrying weight,
- * max heart rate, and height. It fans out to three destinations:
+ * max heart rate, and height. Two destinations remain:
  *
- *   - `weight_kilogram` → a `WEIGHT` `Measurement` (source = WHOOP) keyed on a
- *     STABLE externalId (`whoop:body:weight`). Because the profile weight is a
- *     single value rather than a time series, the externalId never carries the
- *     fetch time — a re-sync overwrites the same row in place rather than
- *     accumulating a duplicate per poll. `measuredAt` is the fetch time so the
- *     read-time source-priority picker (a real scale outranks WHOOP) and the
- *     trend view treat it as "as of now".
  *   - `max_heart_rate` → `WhoopConnection.maxHeartRate` (a profile constant,
  *     not a time series — lives on the connection row, not a `Measurement`).
  *   - `height_meter` → `User.heightCm`, converted m→cm, written ONLY when the
  *     user has no height yet. A user-set height is never overwritten, and
  *     height is never minted as a `Measurement`.
+ *
+ * `weight_kilogram` is deliberately NOT ingested (v1.16.11). It is a
+ * self-reported profile field, not a reading — the previous overwrite-in-
+ * place row took a fresh `measuredAt` on every sync, so a stale manual
+ * entry kept resurfacing as the newest weight "measurement" no matter
+ * what the scale said. The sync now also removes the legacy
+ * `whoop:body:weight` row once, so existing accounts heal themselves.
  *
  * Every write is field-by-field and idempotent across reruns. A per-resource
  * 403 soft-skips this data class (returns 0, leaves the connection connected)
@@ -25,13 +25,14 @@ import {
   getValidToken,
   handleCollectionFetchError,
   markSynced,
-  upsertWhoopMeasurements,
-  type WhoopMeasurementUpsert,
 } from "./sync";
 import { prisma } from "@/lib/db";
 import { getEvent } from "@/lib/logging/context";
 
-/** Stable externalId for the single WHOOP profile weight row (overwrite). */
+/**
+ * Stable externalId the retired profile-weight ingestion wrote under —
+ * kept only so the sync can clean the legacy row off existing accounts.
+ */
 export const WHOOP_BODY_WEIGHT_EXTERNAL_ID = "whoop:body:weight";
 
 /**
@@ -57,19 +58,23 @@ export async function syncUserBody(
   }
 
   const mapped = mapBody(body);
-  const measuredAt = new Date();
 
-  // Weight → a single overwrite-in-place WEIGHT Measurement.
-  let imported = 0;
-  if (mapped.weightKg !== null) {
-    const reading: WhoopMeasurementUpsert = {
-      type: "WEIGHT",
-      value: mapped.weightKg,
-      unit: "kg",
-      measuredAt,
-      externalId: WHOOP_BODY_WEIGHT_EXTERNAL_ID,
-    };
-    imported += await upsertWhoopMeasurements(userId, [reading]);
+  // Profile weight is NOT ingested (see the module header). Remove the
+  // legacy overwrite row once; deleteMany is a no-op after the first
+  // pass, keeping the sync idempotent.
+  try {
+    await prisma.measurement.deleteMany({
+      where: {
+        userId,
+        type: "WEIGHT",
+        source: "WHOOP",
+        externalId: WHOOP_BODY_WEIGHT_EXTERNAL_ID,
+      },
+    });
+  } catch (err) {
+    getEvent()?.addWarning(
+      `whoop: failed to clear the legacy profile-weight row for ${userId}: ${err}`,
+    );
   }
 
   // Max heart rate → WhoopConnection.maxHeartRate (profile constant).
@@ -108,5 +113,6 @@ export async function syncUserBody(
   }
 
   await markSynced(userId);
-  return imported;
+  // No Measurement rows are minted here any more.
+  return 0;
 }

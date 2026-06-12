@@ -26,6 +26,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { MedicationStatusPill } from "@/components/medications/card-parts/medication-status-pill";
 import { useWeekdayLabel } from "@/components/medications/card-parts/medication-next-last-slot";
 import { resolveDisplayedSlotInstant } from "@/components/medications/card-parts/displayed-slot-instant";
+import { estimateRunwayDays } from "@/components/medications/detail/supply-runway";
 import { useMedicationIntake } from "@/components/medications/use-medication-intake";
 import {
   reduceCurrentWindowStatus,
@@ -70,6 +71,9 @@ interface TableSchedule {
   daysOfWeek: string | null;
   timesOfDay?: string[];
   doseWindows?: { timeOfDay: string; start: string; end: string }[] | null;
+  /** Cadence fields the supply-runway estimate reads (v1.16.11). */
+  rrule?: string | null;
+  rollingIntervalDays?: number | null;
 }
 
 export interface TableMedication {
@@ -83,6 +87,11 @@ export interface TableMedication {
   todayEventCount?: number;
   nextDueAt?: string | null;
   nextDueOverdue?: boolean;
+  /**
+   * v1.16.11 (#316) — as-needed (PRN): the next-dose cell shows a calm
+   * "Bei Bedarf" marker, the compliance column shows "–".
+   */
+  asNeeded?: boolean;
   /** v1.16.10 — dose-derived stock from the list payload; null = inventory tracking off. */
   stockDosesRemaining?: number | null;
   schedules: TableSchedule[];
@@ -158,8 +167,6 @@ export function sortMedicationRows<T extends TableMedication>(
   });
 }
 
-const LOW_STOCK_DOSES = 4;
-
 interface MedicationTableProps {
   /** Active medications, already in the page's manual order. */
   activeMedications: TableMedication[];
@@ -181,14 +188,19 @@ export function MedicationTable({
   const [, forceUpdate] = useReducer((x: number) => x + 1, 0);
 
   // Same reminder-thresholds source as the cards so the status pill
-  // tiers identically on both presentations.
+  // tiers identically on both presentations. The read also carries the
+  // per-user low-stock runway threshold (v1.16.11) so the stock cell's
+  // warn tier fires on the SAME days-of-runway predicate as the
+  // low-stock notification, not a legacy dose count.
   const { data: thresholds } = useQuery({
     queryKey: queryKeys.settingsReminderThresholds(),
     queryFn: async () => {
       try {
-        return await apiGet<{ lateMinutes: number; missedMinutes: number }>(
-          "/api/settings/reminder-thresholds",
-        );
+        return await apiGet<{
+          lateMinutes: number;
+          missedMinutes: number;
+          lowStockRunwayDays: number | null;
+        }>("/api/settings/reminder-thresholds");
       } catch {
         return null;
       }
@@ -228,6 +240,11 @@ export function MedicationTable({
 
   const lateMinutes = thresholds?.lateMinutes ?? 120;
   const missedMinutes = thresholds?.missedMinutes ?? 240;
+  // Per-user low-stock runway threshold: explicit `null` = the alert is
+  // OFF (no amber tier); a missing / failed read falls back to the
+  // server default (7 days), mirroring `resolveLowStockRunwayDays`.
+  const lowStockRunwayDays =
+    thresholds == null ? 7 : thresholds.lowStockRunwayDays;
 
   const columns: Array<{
     key: MedicationTableSortColumn | "status" | "actions";
@@ -262,7 +279,12 @@ export function MedicationTable({
   }
 
   return (
-    <div className="bg-card border-border rounded-xl border">
+    // `overflow-hidden` is load-bearing: the sticky name column paints
+    // an opaque `bg-card` cell background that would otherwise square
+    // off the wrapper's rounded corners on the left edge. Horizontal
+    // scrolling lives on the inner table-container (`overflow-x-auto`),
+    // so clipping here costs nothing.
+    <div className="bg-card border-border overflow-hidden rounded-xl border">
       <Table>
         <caption className="sr-only">{t("medications.tableCaption")}</caption>
         <TableHeader>
@@ -321,6 +343,7 @@ export function MedicationTable({
               userTz={userTz}
               lateMinutes={lateMinutes}
               missedMinutes={missedMinutes}
+              lowStockRunwayDays={lowStockRunwayDays}
             />
           ))}
           {sortedInactive.map((med) => (
@@ -330,6 +353,7 @@ export function MedicationTable({
               userTz={userTz}
               lateMinutes={lateMinutes}
               missedMinutes={missedMinutes}
+              lowStockRunwayDays={lowStockRunwayDays}
             />
           ))}
         </TableBody>
@@ -343,6 +367,8 @@ interface MedicationTableRowItemProps {
   userTz: string;
   lateMinutes: number;
   missedMinutes: number;
+  /** Per-user low-stock runway threshold in days; null = alert off. */
+  lowStockRunwayDays: number | null;
 }
 
 function MedicationTableRowItem({
@@ -350,6 +376,7 @@ function MedicationTableRowItem({
   userTz,
   lateMinutes,
   missedMinutes,
+  lowStockRunwayDays,
 }: MedicationTableRowItemProps) {
   const { t, locale } = useTranslations();
   const fmt = useFormatters();
@@ -413,8 +440,13 @@ function MedicationTableRowItem({
     timeZone: userTz,
   });
 
-  // Status cell — the card body's exact precedence: last-dose context
-  // outranks the overdue escalation, which outranks the window pill.
+  // Status cell — the card body's precedence with one DELIBERATE
+  // divergence: the card suppresses the taken-early pill on its
+  // next-intake row (the "last intake" line below already names the
+  // dose), while the table keeps it — the table has a dedicated Status
+  // column with no neighbouring last-intake context. Order here:
+  // last-dose context outranks the overdue escalation, which outranks
+  // the window pill.
   const overdueLabel =
     medication.active && doseStatus === "missed"
       ? t("medications.veryOverdue")
@@ -454,7 +486,18 @@ function MedicationTableRowItem({
   let nextCell: React.ReactNode = (
     <span className="text-muted-foreground">–</span>
   );
-  if (medication.active) {
+  if (medication.asNeeded) {
+    // v1.16.11 — a calm marker where next-due normally sits; no due
+    // pill, no overdue escalation, ever.
+    nextCell = (
+      <span
+        className="text-muted-foreground"
+        data-slot="medication-table-as-needed-marker"
+      >
+        {t("medications.asNeededMarker")}
+      </span>
+    );
+  } else if (medication.active) {
     if (medication.nextDueOverdue && nextAt) {
       nextCell = (
         <span className="font-medium text-amber-600 dark:text-amber-400">
@@ -542,23 +585,48 @@ function MedicationTableRowItem({
   );
 
   const stock = medication.stockDosesRemaining;
+  // Projected days the stock covers — the same coarse estimate the
+  // detail Übersicht renders, so the column answers "do I need a
+  // refill" without opening the medication.
+  const runwayDays =
+    stock === null || stock === undefined
+      ? null
+      : estimateRunwayDays(stock, medication.schedules);
+  // Warn tier (amber) on the SAME predicate as the low-stock
+  // notification: projected runway days strictly below the user's
+  // threshold. Threshold OFF (null) → no amber tier; an exhausted stock
+  // (0) stays destructive red regardless.
+  const lowStock =
+    runwayDays !== null &&
+    lowStockRunwayDays !== null &&
+    runwayDays < lowStockRunwayDays;
   const stockCell =
     stock === null || stock === undefined ? (
       <span className="text-muted-foreground">–</span>
     ) : (
-      <span
-        className={cn(
-          "tabular-nums",
-          stock === 0
-            ? "text-destructive font-medium"
-            : stock < LOW_STOCK_DOSES
-              ? "text-warning font-medium"
-              : undefined,
+      <span className="flex flex-col">
+        <span
+          className={cn(
+            "tabular-nums",
+            stock === 0
+              ? "text-destructive font-medium"
+              : lowStock
+                ? "text-warning font-medium"
+                : undefined,
+          )}
+        >
+          {stock === 1
+            ? t("medications.tableStockDoseOne")
+            : t("medications.tableStockDoses", { count: stock })}
+        </span>
+        {runwayDays !== null && (
+          <span
+            className="text-muted-foreground text-xs"
+            data-slot="medication-table-runway"
+          >
+            {t("medications.tableStockRunway", { days: runwayDays })}
+          </span>
         )}
-      >
-        {stock === 1
-          ? t("medications.tableStockDoseOne")
-          : t("medications.tableStockDoses", { count: stock })}
       </span>
     );
 
@@ -583,7 +651,7 @@ function MedicationTableRowItem({
       </TableCell>
       <TableCell>{statusCell}</TableCell>
       <TableCell className="text-sm">{nextCell}</TableCell>
-      <TableCell>{medication.active ? complianceCell : <span className="text-muted-foreground text-sm">–</span>}</TableCell>
+      <TableCell>{medication.active && !medication.asNeeded ? complianceCell : <span className="text-muted-foreground text-sm">–</span>}</TableCell>
       <TableCell className="text-sm">{stockCell}</TableCell>
       <TableCell>
         {medication.active ? (
@@ -636,7 +704,10 @@ function MedicationTableRowItem({
  */
 export function MedicationTableSkeleton({ rows = 4 }: { rows?: number }) {
   return (
-    <div className="bg-card border-border rounded-xl border" aria-hidden="true">
+    <div
+      className="bg-card border-border overflow-hidden rounded-xl border"
+      aria-hidden="true"
+    >
       <Table>
         <TableHeader>
           <TableRow>

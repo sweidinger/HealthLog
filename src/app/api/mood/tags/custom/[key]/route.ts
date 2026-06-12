@@ -15,20 +15,27 @@ import {
   decryptCustomLabel,
   isCustomTagKey,
 } from "@/lib/mood/custom-tags";
+import { resolveCategoryKeyForUser } from "@/lib/mood/tag-groups";
 
 export const dynamic = "force-dynamic";
 
 type RouteParams = { params: Promise<{ key: string }> };
 
 /**
- * v1.13.0 — update / delete a per-user custom mood tag.
+ * v1.13.0 / v1.17.0 — update / delete a per-user custom mood tag.
  *
  * Both handlers resolve the `custom:`-prefixed key against the CALLER's own
  * rows only — another user's key (or a catalogue key) is a 404, so a tag can
  * never be edited or removed across the ownership boundary.
  */
 
-/** `PATCH /api/mood/tags/custom/:key` — rename / recolour / (de)activate. */
+/**
+ * `PATCH /api/mood/tags/custom/:key` — rename / re-icon / (de)activate /
+ * move to another group (v1.17.0 `categoryKey`: any seeded category or an
+ * own `customcat:` group; unknown / foreign → 422). The move is a real
+ * `categoryId` update — custom tags belong relationally, only catalogue
+ * tags "move" via the layout blob.
+ */
 export const PATCH = apiHandler(
   async (request: NextRequest, { params }: RouteParams) => {
     const { user } = await requireAuth();
@@ -48,6 +55,16 @@ export const PATCH = apiHandler(
     });
     if (!owned) return apiError("Custom tag not found", 404);
 
+    let categoryId: string | undefined;
+    if (parsed.data.categoryKey !== undefined) {
+      const resolved = await resolveCategoryKeyForUser(
+        parsed.data.categoryKey,
+        user.id,
+      );
+      if (!resolved) return apiError("Unknown category", 422);
+      categoryId = resolved;
+    }
+
     const updated = await prisma.moodTag.update({
       where: { id: owned.id },
       data: {
@@ -58,6 +75,7 @@ export const PATCH = apiHandler(
         ...(parsed.data.isActive !== undefined
           ? { isActive: parsed.data.isActive }
           : {}),
+        ...(categoryId !== undefined ? { categoryId } : {}),
       },
       select: {
         key: true,

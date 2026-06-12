@@ -8,6 +8,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { useTranslations } from "@/lib/i18n/context";
 import { queryKeys } from "@/lib/query-keys";
 import { CoachNudgeCard } from "@/components/settings/coach-nudge-card";
+import { LowStockCard } from "@/components/settings/low-stock-card";
 import { MoodReminderCard } from "@/components/settings/mood-reminder-card";
 import { NotificationStatusCard } from "@/components/settings/notification-status-card";
 import { NtfyCard } from "@/components/settings/ntfy-card";
@@ -106,6 +107,10 @@ export function NotificationsSection() {
       )}
       <div id="mood-reminder" className="scroll-mt-28">
         <MoodReminderCard isAuthenticated={isAuthenticated} />
+      </div>
+      {/* v1.16.11 — medication low-stock runway threshold. */}
+      <div id="low-stock" className="scroll-mt-28">
+        <LowStockCard isAuthenticated={isAuthenticated} />
       </div>
       {/* v1.15.20 — proactive Coach nudge opt-out. */}
       <div id="coach-nudge" className="scroll-mt-28">

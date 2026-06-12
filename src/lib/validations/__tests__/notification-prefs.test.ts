@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  DEFAULT_LOW_STOCK_RUNWAY_DAYS,
   DEFAULT_MOOD_REMINDER_HOUR,
   DEFAULT_NOTIFICATION_PREFS,
   isCycleReminderClientManaged,
@@ -9,6 +10,7 @@ import {
   parseNotificationPrefs,
   resolveCoachNudgePrefs,
   resolveDeviceDelivery,
+  resolveLowStockRunwayDays,
   resolveMoodReminderHour,
   resolveNotificationPrefs,
 } from "../notification-prefs";
@@ -42,9 +44,9 @@ describe("notificationPrefsSchema", () => {
   });
 
   it("accepts a valid mood.reminderHour (0..23)", () => {
-    expect(notificationPrefsSchema.safeParse({ mood: { reminderHour: 0 } }).success).toBe(
-      true,
-    );
+    expect(
+      notificationPrefsSchema.safeParse({ mood: { reminderHour: 0 } }).success,
+    ).toBe(true);
     expect(
       notificationPrefsSchema.safeParse({ mood: { reminderHour: 23 } }).success,
     ).toBe(true);
@@ -61,7 +63,8 @@ describe("notificationPrefsSchema", () => {
 
   it("rejects a non-integer mood.reminderHour", () => {
     expect(
-      notificationPrefsSchema.safeParse({ mood: { reminderHour: 9.5 } }).success,
+      notificationPrefsSchema.safeParse({ mood: { reminderHour: 9.5 } })
+        .success,
     ).toBe(false);
   });
 });
@@ -89,7 +92,11 @@ describe("parseNotificationPrefs", () => {
     expect(
       parseNotificationPrefs({ medication: { clientManaged: true } }),
     ).toEqual({
-      medication: { clientManaged: true, deliveryDefault: "server" },
+      medication: {
+        clientManaged: true,
+        deliveryDefault: "server",
+        lowStockRunwayDays: 7,
+      },
       mood: { reminderHour: DEFAULT_MOOD_REMINDER_HOUR },
       cycle: { clientManaged: false },
       coach: {
@@ -104,7 +111,11 @@ describe("parseNotificationPrefs", () => {
 
   it("fills missing keys from the defaults", () => {
     expect(parseNotificationPrefs({ medication: {} })).toEqual({
-      medication: { clientManaged: false, deliveryDefault: "server" },
+      medication: {
+        clientManaged: false,
+        deliveryDefault: "server",
+        lowStockRunwayDays: 7,
+      },
       mood: { reminderHour: DEFAULT_MOOD_REMINDER_HOUR },
       cycle: { clientManaged: false },
       coach: {
@@ -121,7 +132,11 @@ describe("parseNotificationPrefs", () => {
     expect(
       parseNotificationPrefs({ medication: { deliveryDefault: "client" } }),
     ).toEqual({
-      medication: { clientManaged: true, deliveryDefault: "client" },
+      medication: {
+        clientManaged: true,
+        deliveryDefault: "client",
+        lowStockRunwayDays: 7,
+      },
       mood: { reminderHour: DEFAULT_MOOD_REMINDER_HOUR },
       cycle: { clientManaged: false },
       coach: {
@@ -154,7 +169,11 @@ describe("resolveNotificationPrefs (deep-merge)", () => {
       { medication: { clientManaged: true } },
     );
     expect(out).toEqual({
-      medication: { clientManaged: true, deliveryDefault: "server" },
+      medication: {
+        clientManaged: true,
+        deliveryDefault: "server",
+        lowStockRunwayDays: 7,
+      },
       mood: { reminderHour: DEFAULT_MOOD_REMINDER_HOUR },
       cycle: { clientManaged: false },
       coach: {
@@ -175,7 +194,11 @@ describe("resolveNotificationPrefs (deep-merge)", () => {
       { medication: {} },
     );
     expect(out).toEqual({
-      medication: { clientManaged: true, deliveryDefault: "server" },
+      medication: {
+        clientManaged: true,
+        deliveryDefault: "server",
+        lowStockRunwayDays: 7,
+      },
       mood: { reminderHour: DEFAULT_MOOD_REMINDER_HOUR },
       cycle: { clientManaged: false },
       coach: {
@@ -193,7 +216,11 @@ describe("resolveNotificationPrefs (deep-merge)", () => {
       medication: { clientManaged: true },
     });
     expect(out).toEqual({
-      medication: { clientManaged: true, deliveryDefault: "server" },
+      medication: {
+        clientManaged: true,
+        deliveryDefault: "server",
+        lowStockRunwayDays: 7,
+      },
       mood: { reminderHour: DEFAULT_MOOD_REMINDER_HOUR },
       cycle: { clientManaged: false },
       coach: {
@@ -211,7 +238,11 @@ describe("resolveNotificationPrefs (deep-merge)", () => {
       medication: { deliveryDefault: "client" },
     });
     expect(out).toEqual({
-      medication: { clientManaged: true, deliveryDefault: "client" },
+      medication: {
+        clientManaged: true,
+        deliveryDefault: "client",
+        lowStockRunwayDays: 7,
+      },
       mood: { reminderHour: DEFAULT_MOOD_REMINDER_HOUR },
       cycle: { clientManaged: false },
       coach: {
@@ -230,7 +261,11 @@ describe("resolveNotificationPrefs (deep-merge)", () => {
       { mood: { reminderHour: 8 } },
     );
     expect(out).toEqual({
-      medication: { clientManaged: true, deliveryDefault: "server" },
+      medication: {
+        clientManaged: true,
+        deliveryDefault: "server",
+        lowStockRunwayDays: 7,
+      },
       mood: { reminderHour: 8 },
       cycle: { clientManaged: false },
       coach: {
@@ -360,7 +395,10 @@ describe("resolveDeviceDelivery — per-device override", () => {
 
   it("a null override inherits the user-level roaming default", () => {
     expect(
-      resolveDeviceDelivery({ medication: { deliveryDefault: "client" } }, null),
+      resolveDeviceDelivery(
+        { medication: { deliveryDefault: "client" } },
+        null,
+      ),
     ).toBe("client");
   });
 
@@ -437,5 +475,72 @@ describe("resolveCoachNudgePrefs — v1.16.5 nudge cron gate", () => {
       resolveCoachNudgePrefs({ coach: { nudgeFrequency: "daily" } })
         .minIntervalDays,
     ).toBe(7);
+  });
+});
+
+describe("lowStockRunwayDays — v1.16.11 low-stock threshold", () => {
+  it("accepts the 1..60 range and the explicit null (off)", () => {
+    for (const value of [1, 7, 60, null]) {
+      expect(
+        notificationPrefsSchema.safeParse({
+          medication: { lowStockRunwayDays: value },
+        }).success,
+      ).toBe(true);
+    }
+  });
+
+  it("rejects out-of-range and non-integer values", () => {
+    for (const value of [0, 61, 7.5, "7"]) {
+      expect(
+        notificationPrefsSchema.safeParse({
+          medication: { lowStockRunwayDays: value },
+        }).success,
+      ).toBe(false);
+    }
+  });
+
+  it("resolves the default (7) for a null / drifted row", () => {
+    expect(resolveLowStockRunwayDays(null)).toBe(DEFAULT_LOW_STOCK_RUNWAY_DAYS);
+    expect(resolveLowStockRunwayDays(undefined)).toBe(
+      DEFAULT_LOW_STOCK_RUNWAY_DAYS,
+    );
+    expect(resolveLowStockRunwayDays({ unknown: "shape" })).toBe(
+      DEFAULT_LOW_STOCK_RUNWAY_DAYS,
+    );
+  });
+
+  it("returns the persisted custom threshold", () => {
+    expect(
+      resolveLowStockRunwayDays({ medication: { lowStockRunwayDays: 14 } }),
+    ).toBe(14);
+  });
+
+  it("returns null when the user switched the alert off", () => {
+    expect(
+      resolveLowStockRunwayDays({ medication: { lowStockRunwayDays: null } }),
+    ).toBe(null);
+  });
+
+  it("survives a deep-merge round-trip (PATCH semantics)", () => {
+    // PATCH { medication: { lowStockRunwayDays: 21 } } over a row that
+    // already opted into clientManaged must preserve the sibling.
+    const merged = resolveNotificationPrefs(
+      { medication: { clientManaged: true } },
+      { medication: { lowStockRunwayDays: 21 } },
+    );
+    expect(merged.medication).toEqual({
+      clientManaged: true,
+      deliveryDefault: "server",
+      lowStockRunwayDays: 21,
+    });
+    // ...and the next PATCH (threshold off) keeps the sibling again.
+    const off = resolveNotificationPrefs(merged, {
+      medication: { lowStockRunwayDays: null },
+    });
+    expect(off.medication).toEqual({
+      clientManaged: true,
+      deliveryDefault: "server",
+      lowStockRunwayDays: null,
+    });
   });
 });

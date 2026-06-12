@@ -89,6 +89,15 @@ export interface WideEvent {
     result?: Record<string, unknown>;
   };
 
+  // Prozess-Zustand zum Abschlusszeitpunkt (nur Node-Runtime; siehe
+  // observability/event-loop-lag.ts — das letzte Sampling-Fenster der
+  // Event-Loop-Verzoegerung, damit der erste Request nach einem Stall
+  // den Stall mitfuehrt)
+  runtime?: {
+    loop_max_ms: number;
+    loop_last_ms: number;
+  };
+
   // Fehler-Details
   error?: {
     type: string;

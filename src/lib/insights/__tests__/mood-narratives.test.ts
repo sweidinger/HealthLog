@@ -205,6 +205,35 @@ describe("computeMoodNarratives — anti-platitude thresholds", () => {
     expect(lift?.vars.tag).toBeUndefined();
   });
 
+  it("surfaces a custom structured tag via its decrypted label, never the raw key", () => {
+    const input: MoodNarrativeInput = {
+      ...emptyInput(),
+      daily: daily([
+        { dayOffset: 0, value: 3 },
+        { dayOffset: 1, value: 3 },
+        { dayOffset: 2, value: 3 },
+      ]),
+      structuredTags: [
+        {
+          key: "custom:abc-123",
+          categoryKey: "custom",
+          // A custom tag's labelKey mirrors its raw key — t() cannot
+          // resolve it, so the takeaway must carry the decrypted label
+          // verbatim instead.
+          labelKey: "custom:abc-123",
+          label: "Migraine",
+          icon: "Tag",
+          count: MOOD_NARRATIVE_MIN_TAG_COUNT,
+          avgScore: 1.5,
+        },
+      ],
+    };
+    const out = computeMoodNarratives(input);
+    const drop = out.find((n) => n.kind === "tag-drop");
+    expect(drop?.vars.tag).toBe("Migraine");
+    expect(drop?.vars.tagKey).toBeUndefined();
+  });
+
   it("ranks flat and structured tags in one shared pool", () => {
     const input: MoodNarrativeInput = {
       ...emptyInput(),

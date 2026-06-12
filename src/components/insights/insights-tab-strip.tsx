@@ -9,7 +9,7 @@ import {
   ChevronRight,
   Loader2,
   RefreshCw,
-  Settings2,
+  Wrench,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -806,7 +806,7 @@ function InsightsTabStripImpl({
               "focus-visible:ring-ring/50 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none",
             )}
           >
-            <Settings2 className="h-4 w-4" aria-hidden="true" />
+            <Wrench className="h-4 w-4" aria-hidden="true" />
           </Link>
         )}
         {onRegenerate && (

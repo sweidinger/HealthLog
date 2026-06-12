@@ -5,6 +5,7 @@ import { AlertTriangle } from "lucide-react";
 
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
+import { formatTimeWindowRange } from "@/lib/time-window-format";
 import { MedicationCardHeader } from "@/components/medications/MedicationCardHeader";
 import { MedicationStatusPill } from "@/components/medications/card-parts/medication-status-pill";
 import {
@@ -111,6 +112,25 @@ export interface MedicationCardBodyProps {
   /** The open-cycle descriptor, or null when the display block is absent. */
   currentCycle: CurrentCycle | null;
 
+  /**
+   * v1.16.11 (#316) — as-needed (PRN) medication. True suppresses the
+   * compliance block entirely (no bars, no skeleton, no error fallback —
+   * the batched compliance read excludes as-needed medications, so a
+   * skeleton would spin forever) and the open-cycle slot. The next/last
+   * lines carry the "Bei Bedarf" + last-taken presentation instead.
+   */
+  asNeeded?: boolean;
+
+  /**
+   * v1.16.11 — projected supply runway in whole days, set ONLY while it
+   * sits below the user's low-stock threshold (the variants gate it).
+   * Non-null renders one muted warning-toned "Vorrat: ≈ N Tage" line
+   * under the next/last slot; null keeps the card free of stock noise.
+   * Never set for as-needed medications (no consuming schedule, no
+   * runway).
+   */
+  lowStockRunwayDays?: number | null;
+
   /** "take" | "skip" while the matching request is in flight, else null. */
   intakeLoading: string | null;
   /** Record the displayed dose (the card binds the slot instant). */
@@ -137,11 +157,13 @@ export function MedicationCardBody({
   complianceError = false,
   onRetryCompliance,
   currentCycle,
+  asNeeded = false,
+  lowStockRunwayDays = null,
   intakeLoading,
   onRecordIntake,
   children,
 }: MedicationCardBodyProps) {
-  const { t } = useTranslations();
+  const { t, locale } = useTranslations();
 
   // Overdue escalation line: a dose past its on-time window. `missed` (at /
   // past the clinical miss cutoff) reads "Stark überfällig"; the still-takeable
@@ -153,6 +175,53 @@ export function MedicationCardBody({
       : active && doseStatus === "overdue"
         ? t("medications.overdue")
         : null;
+
+  // v1.16.11 — EVERY dose state rides the "next intake" row as its
+  // right-aligned value: green take-now, amber late, red escalation.
+  // The former standalone status line above the slot is gone — it
+  // reserved a blank row on every settled card (the overdue tier rides
+  // the async compliance query) and broke the card's label/value
+  // grammar. Urgency still reads at a glance through the value's
+  // colour + glyph.
+  //
+  // Taken-early (v1.16.9 double-dose guard) suppresses every prompt
+  // tier: the row falls through to the plain schedule value and the
+  // "last intake" line directly below already names the recent dose —
+  // the guard's job is that no take prompt renders, not a louder line.
+  //
+  // The escalation value keeps the due time: the red badge alone evicted
+  // the window / time the amber tier used to carry, leaving the user
+  // with urgency but no anchor. The matched window rides along when one
+  // is still open; otherwise the card's own next-intake value (the
+  // overdue slot time) fills the gap.
+  const nextValueOverride =
+    windowStatus?.takenEarlyDaysAgo != null ? null : overdueLabel ? (
+      <span className="inline-flex flex-wrap items-center gap-x-1 gap-y-0.5 text-sm">
+        <span className="text-destructive inline-flex items-center gap-1 font-medium">
+          <AlertTriangle className="size-3.5 shrink-0" aria-hidden="true" />
+          {overdueLabel}
+        </span>
+        {windowStatus !== null ? (
+          <span className="text-muted-foreground">
+            —{" "}
+            {formatTimeWindowRange(
+              windowStatus.windowStart,
+              windowStatus.windowEnd,
+              locale,
+            )}
+          </span>
+        ) : nextLine !== null ? (
+          <span className="text-muted-foreground">— {nextLine}</span>
+        ) : null}
+      </span>
+    ) : windowStatus !== null ? (
+      <MedicationStatusPill
+        status={windowStatus.status}
+        windowStart={windowStatus.windowStart}
+        windowEnd={windowStatus.windowEnd}
+        inline
+      />
+    ) : null;
 
   return (
     <Card
@@ -172,40 +241,29 @@ export function MedicationCardBody({
       />
 
       <CardContent className="flex h-full flex-col space-y-3.5">
-        {/* Top status line. The in-window take-now pill (success) and the
-            overdue escalation are mutually exclusive — a dose is either still
-            in its take-window or past it. The overdue line wins when present
-            so a heavily-overdue dose reads loud at the top of the card.
-            The slot keeps a constant one-line height even when empty: the
-            overdue tier arrives with the compliance query, and a line
-            popping in late used to shift every row below it (CLS). */}
-        <div className="min-h-5">
-          {windowStatus?.takenEarlyDaysAgo != null ? (
-            // v1.16.9 — last-dose context outranks the overdue line: a
-            // day-scale dose already taken earlier in its period must never
-            // escalate into a take prompt (double-dose risk).
-            <MedicationStatusPill
-              status={windowStatus.status}
-              windowStart={windowStatus.windowStart}
-              windowEnd={windowStatus.windowEnd}
-              takenEarlyDaysAgo={windowStatus.takenEarlyDaysAgo}
-            />
-          ) : overdueLabel ? (
-            <p className="text-destructive flex items-center gap-1 text-sm font-medium">
-              <AlertTriangle className="size-3.5 shrink-0" aria-hidden="true" />
-              {overdueLabel}
-            </p>
-          ) : windowStatus ? (
-            <MedicationStatusPill
-              status={windowStatus.status}
-              windowStart={windowStatus.windowStart}
-              windowEnd={windowStatus.windowEnd}
-            />
-          ) : null}
-        </div>
+        {/* Next / last intake — the two decisive lines, each shown once.
+            The dose state (take-now / overdue / taken-early) IS the
+            next-intake value when present; the schedule value fills the
+            row otherwise. */}
+        <MedicationNextLastSlot
+          next={nextValueOverride ?? nextLine}
+          last={lastLine}
+        />
 
-        {/* Next / last intake — the two decisive lines, each shown once. */}
-        <MedicationNextLastSlot next={nextLine} last={lastLine} />
+        {/* v1.16.11 — low-stock context, ONLY below the user's runway
+            threshold (the prop is pre-gated). One calm warning-toned
+            line, not a badge: the card stays quiet until the supply
+            actually needs attention. */}
+        {active && !asNeeded && lowStockRunwayDays != null && (
+          <p
+            className="text-warning text-xs"
+            data-slot="medication-card-low-stock"
+          >
+            {t("medications.cardLowStockRunway", {
+              days: lowStockRunwayDays,
+            })}
+          </p>
+        )}
 
         {/* Compliance bars — always two rows; constant-height skeleton holds
             the slot while the query is in flight so the grid row stays even.
@@ -213,6 +271,7 @@ export function MedicationCardBody({
             error fallback (no bars, one notice line + retry) instead of
             sitting on the skeleton forever. */}
         {active &&
+          !asNeeded &&
           (compliance ? (
             <MedicationComplianceBars
               rate7={compliance.rate7}
@@ -231,7 +290,7 @@ export function MedicationCardBody({
             one xs text line on every active card: the descriptor rides the
             compliance query, and a line appearing after the fetch resolved
             used to grow the card and shift the grid row (CLS). */}
-        {active && (
+        {active && !asNeeded && (
           <div className="min-h-4">
             {currentCycle && <MedicationCycleStatus cycle={currentCycle} />}
           </div>

@@ -664,7 +664,58 @@
     "bulkDeleteSuccess": "{count} entries deleted",
     "bulkDeleteError": "Error deleting the selected entries",
     "bulkDeleteConfirmTitle": "Delete {count} entries?",
-    "bulkDeleteConfirmBody": "The {count} selected mood entries will be permanently deleted."
+    "bulkDeleteConfirmBody": "The {count} selected mood entries will be permanently deleted.",
+    "customize": "Customize mood tags",
+    "addTagInline": "Add tag",
+    "manage": {
+      "groupsTitle": "Groups",
+      "groupsDescription": "Create your own groups and set the order the picker shows them in.",
+      "newGroup": "New group",
+      "groupLabel": "Group name",
+      "groupIcon": "Icon",
+      "groupCreated": "Group created",
+      "groupRenamed": "Group saved",
+      "groupDeleteTitle": "Delete group?",
+      "groupDeleteBody": "Tags in this group move back to their original group. No entries are deleted.",
+      "groupDeleted": "Group deleted",
+      "groupEmpty": "No own groups yet.",
+      "groupLimitReached": "Group limit reached",
+      "tagsTitle": "Tags",
+      "tagsDescription": "Hide, rearrange, move, or edit the tags the picker shows.",
+      "newTag": "New tag",
+      "tagLabel": "Tag name",
+      "tagIcon": "Icon",
+      "tagGroup": "Group",
+      "usageCount": "{count} entries",
+      "hideTag": "Hide tag",
+      "showTag": "Show tag",
+      "moveToGroup": "Move to group",
+      "archive": "Archive",
+      "restore": "Restore",
+      "archivedTitle": "Archived tags",
+      "archivedDescription": "Archived tags stay in your past entries — they only disappear from the picker.",
+      "archivedEmpty": "Nothing archived.",
+      "purgeTitle": "Delete tag permanently?",
+      "purgeBody": "This removes the tag from {count} past entries. This cannot be undone.",
+      "purgeAction": "Delete permanently",
+      "purged": "Tag deleted",
+      "tagLimitReached": "Tag limit reached",
+      "iconPickerTitle": "Choose an icon",
+      "iconSearchPlaceholder": "Search icons…",
+      "iconSearchEmpty": "No icon matches.",
+      "iconSearchClear": "Clear search",
+      "orderSave": "Save order",
+      "orderSaved": "Order saved",
+      "moveUp": "Move up",
+      "moveDown": "Move down",
+      "iconGroupEmotions": "Emotions",
+      "iconGroupActivities": "Activities",
+      "iconGroupHealth": "Health",
+      "iconGroupFood": "Food & drink",
+      "iconGroupWeather": "Weather",
+      "iconGroupPlaces": "Places",
+      "iconGroupMisc": "Other"
+    }
   },
   "medications": {
     "title": "Medications",
@@ -677,6 +728,15 @@
     "addChoice": {
       "logIntake": "Log an intake",
       "newMedication": "New medication"
+    },
+    "takeAllDue": {
+      "button": "Take all due",
+      "dialogTitle": "Take due medications",
+      "dialogDescription": "These medications are due now. Confirm to record all of them as taken.",
+      "confirm": "Take all ({count})",
+      "successToast": "{count} intakes recorded",
+      "partialToast": "{taken} recorded, {failed} failed – please try again",
+      "failedToast": "No intake recorded – please try again"
     },
     "logIntake": {
       "dialogTitle": "Log an intake",
@@ -760,6 +820,7 @@
     "today": "Today",
     "yesterday": "Yesterday",
     "tomorrow": "Tomorrow",
+    "asNeededMarker": "As needed",
     "withoutNotification": "Without notification",
     "pausedSince": "Paused since",
     "takeNow": "Take now",
@@ -1147,6 +1208,10 @@
         "oneShot": {
           "label": "Single dose",
           "description": "One administration, e.g. a vaccine or an antibiotic course."
+        },
+        "asNeeded": {
+          "label": "As needed",
+          "description": "No fixed plan — log an intake whenever you need one (e.g. pain relief)."
         }
       },
       "summary": {
@@ -1160,6 +1225,7 @@
           "yearly": "Once a year",
           "rolling": "Every {n} days from your last intake",
           "oneShot": "A single dose",
+          "asNeeded": "As needed",
           "everyNWeeks": "Every {n} weeks",
           "everyNMonths": "Every {n} months"
         },
@@ -1345,7 +1411,8 @@
       },
       "cadence": {
         "oneShotOn": "One-time dose on {date}.",
-        "oneShotPending": "One-time dose pending."
+        "oneShotPending": "One-time dose pending.",
+        "asNeeded": "As needed — no fixed plan."
       },
       "intake": {
         "title": "Intake history",
@@ -1574,6 +1641,7 @@
         "statusTitle": "Status",
         "nextDoseLabel": "Next dose",
         "nextDoseNone": "No upcoming dose.",
+        "nextDoseAsNeeded": "As needed — no planned dose.",
         "pausedHint": "Paused — no reminders.",
         "reminderLabel": "Reminder",
         "reminderOn": "On",
@@ -1581,6 +1649,7 @@
         "supplyLabel": "Supply",
         "supplyRunway": "Lasts about {days} more days",
         "jumpToZeitplan": "Open schedule",
+        "jumpToVerlauf": "Open history",
         "jumpToBestand": "Open supply",
         "complianceTitle": "Adherence",
         "complianceEmpty": "No adherence data yet."
@@ -1600,6 +1669,8 @@
         "emptyHelper": "Register a pack or container to track remaining supply and runway.",
         "emptyCta": "Register a pack",
         "addButton": "Register",
+        "lowStockLinkOn": "Low-stock notification: below {days} days",
+        "lowStockLinkOff": "Low-stock notification: off",
         "addTitle": "Register a pack or container",
         "addDescription": "Record a new supply with its unit count; the expiry date is optional.",
         "addQuantityLabel": "Quantity (units)",
@@ -1616,6 +1687,10 @@
         "adjustSubmit": "Save",
         "adjustSuccess": "Stock updated.",
         "adjustFailed": "The stock could not be updated.",
+        "deleteTitle": "Delete container?",
+        "deleteDescription": "Permanently removes this pack or container from the stock. Logged intakes stay unchanged.",
+        "deleteSuccess": "Stock entry deleted.",
+        "deleteFailed": "The stock entry could not be deleted.",
         "containerTypeLabel": "Container type",
         "containerType": {
           "PEN": "Pen",
@@ -1631,7 +1706,19 @@
         "quantityInUnits": "= {units} units",
         "quantityInDoses": "≈ {doses} doses",
         "quantityUnderOneDose": "< 1 dose",
-        "expiredSuffix": "+ {units} units expired"
+        "expiredSuffix": "+ {units} units expired",
+        "packagingTitle": "Packaging & dose",
+        "packagingUnitsPerDose": "1 dose = {units} units",
+        "packagingDefaultPack": "Default pack size: {units} units",
+        "packagingNoDefaultPack": "No default pack size set",
+        "packagingEdit": "Edit",
+        "packagingDescription": "Set how many units one dose consumes and how large a new pack usually is — e.g. after a manufacturer switch with a different blister size.",
+        "packagingUnitsPerDoseLabel": "Units per dose",
+        "packagingUnitsPerDoseHelper": "E.g. two 2 mg tablets for a 4 mg dose (1–100). Doses already recorded stay unchanged.",
+        "packagingDefaultPackLabel": "Default pack size (units)",
+        "packagingDefaultPackHelper": "Prefills the quantity when registering new packs (1–1000). Leave empty if none applies.",
+        "packagingSuccess": "Packaging details saved",
+        "packagingFailed": "Saving failed"
       },
       "erweitert": {
         "group": {
@@ -1733,6 +1820,8 @@
     "tableComplianceDays": "{days} d",
     "tableStockDoseOne": "1 dose",
     "tableStockDoses": "{count} doses",
+    "tableStockRunway": "≈ {days} days left",
+    "cardLowStockRunway": "Supply: ≈ {days} days",
     "takeActionFor": "Take – {name}",
     "skipActionFor": "Skip – {name}",
     "reorderTitle": "Adjust order",
@@ -3773,6 +3862,10 @@
       "medications": {
         "title": "Medications",
         "description": "List view and medication order."
+      },
+      "mood": {
+        "title": "Mood tags",
+        "description": "Groups, tags, and order of the mood picker."
       }
     },
     "profile": "Profile",
@@ -5297,6 +5390,20 @@
       "disabledToast": "Proactive Coach nudges disabled.",
       "saveError": "Could not save. Please try again later."
     },
+    "lowStock": {
+      "title": "Low-stock alert",
+      "description": "Checks your tracked medication supplies once a day and notifies you when one covers fewer days than this threshold. One notification per shortage; it re-arms after a refill.",
+      "toggleAria": "Toggle low-stock alerts",
+      "statusOn": "Active",
+      "statusOff": "Off",
+      "daysLabel": "Notify below (days)",
+      "daysAria": "Select the low-stock threshold in days",
+      "savedToast": "Low-stock threshold saved.",
+      "enabledToast": "Low-stock alerts enabled.",
+      "disabledToast": "Low-stock alerts disabled.",
+      "saveError": "Could not save. Please try again.",
+      "medicationsLink": "Go to your medications"
+    },
     "eventMedicationReminder": "Medication reminder",
     "eventMedicationReminderDesc": "Sent at each scheduled dose time.",
     "eventMeasurementAnomaly": "Unusual measurement",
@@ -5316,7 +5423,9 @@
     "eventCyclePeriodConfirm": "Did your period start?",
     "eventCyclePeriodConfirmDesc": "A gentle check-in on or after the predicted start while no period is logged.",
     "eventCycleFertileSoon": "Fertile window coming up",
-    "eventCycleFertileSoonDesc": "Sent a few days before your estimated fertile window when your goal is trying to conceive."
+    "eventCycleFertileSoonDesc": "Sent a few days before your estimated fertile window when your goal is trying to conceive.",
+    "eventMedicationLowStock": "Medication stock low",
+    "eventMedicationLowStockDesc": "When a tracked medication supply covers fewer days than your low-stock threshold"
   },
   "i18n": {
     "maintainershipBanner": {
@@ -5478,6 +5587,11 @@
     "buttonSnoozeOneHour": "🕐 1h",
     "buttonSnoozeThreeHours": "🕐 3h",
     "buttonSkip": "⏭ Skip"
+  },
+  "lowStockReminders": {
+    "title": "Low supply: {medName}",
+    "body": "{medName}: {units} units left — enough for about {days} more days.",
+    "bodyToday": "{medName}: {units} units left — less than one day of supply."
   },
   "moodReminders": {
     "dailyTitle": "Log your mood",

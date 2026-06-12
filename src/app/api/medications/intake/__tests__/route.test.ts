@@ -528,6 +528,25 @@ describe("v1.15.9 — schedule-anchored compliance buckets (BUG #1)", () => {
   // engine's expected-dose count per day (not the count of logged intake
   // rows). With partial adherence the per-day rate `taken / scheduled`
   // genuinely reflects taken-of-expected — it is NOT pinned at ~100%.
+  //
+  // The clock is pinned to a fixed midday instant: the fixtures mint one
+  // event per UTC day, but the route buckets by the user's local
+  // (Europe/Berlin) day — with a live clock, a run between 00:00 and
+  // ~01:59 local (UTC date still "yesterday") left the local TODAY
+  // bucket with `scheduled = 1, taken = 0` and failed the full-adherence
+  // assertion. At 12:00 UTC the UTC day and the Berlin day coincide, so
+  // the per-UTC-day fixture math is exact. Only `Date` is faked — the
+  // route awaits real promises.
+  beforeEach(() => {
+    vi.useFakeTimers({
+      now: new Date("2026-06-10T12:00:00Z"),
+      toFake: ["Date"],
+    });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
   function activeDailyMed(createdAt: Date) {
     return {
       id: "m1",

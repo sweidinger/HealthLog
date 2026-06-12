@@ -3,6 +3,7 @@
 import type { ReactNode } from "react";
 
 import { useInsightMetricStatus } from "@/hooks/use-insight-status";
+import { useMounted } from "@/hooks/use-mounted";
 import { useTranslations } from "@/lib/i18n/context";
 import type { MetricStatusMetricId } from "@/lib/insights/metric-status-registry";
 import { InsightStatusCard } from "@/components/insights/insight-status-card";
@@ -35,6 +36,7 @@ export function MetricStatusCard({
   enabled,
 }: MetricStatusCardProps) {
   const { t } = useTranslations();
+  const mounted = useMounted();
   const { data: status, isLoading } = useInsightMetricStatus(metric, enabled);
 
   return (
@@ -44,7 +46,11 @@ export function MetricStatusCard({
       text={status?.text ?? null}
       hasProvider={status?.hasProvider ?? false}
       updatedAt={status?.updatedAt ?? null}
-      loading={isLoading}
+      // Same hydration gate as `<SlugInsightStatusCard>`: the hook is
+      // `enabled: isAuthenticated && enabled`, and both inputs can settle
+      // before a late-hydrating boundary replays its first render — the
+      // loading branch then disagrees with the server HTML (React #418).
+      loading={!mounted || isLoading}
       preparing={status?.preparing ?? false}
     />
   );

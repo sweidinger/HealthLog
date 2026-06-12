@@ -55,6 +55,7 @@ import {
 import { hashInsightSnapshot } from "@/lib/insights/snapshot-hash";
 import { returnTimeoutFallback } from "@/lib/insights/timeout-fallback";
 import { annotate } from "@/lib/logging/context";
+import { createCustomLabelResolver } from "@/lib/mood/custom-tags";
 import { loadUserSourcePriority } from "@/lib/rollups/measurement-read";
 import { toBerlinDayKey } from "@/lib/tz/resolver";
 
@@ -180,6 +181,13 @@ export async function generateMoodStatusForUser(
               select: {
                 key: true,
                 labelKey: true,
+                // v1.16.11 — owner + ciphertext so a custom tag's decrypted
+                // label reaches the snapshot beside its labelKey (which just
+                // mirrors the raw `custom:<uuid>` key — the model would
+                // otherwise reason over an opaque uuid). Decrypted once per
+                // distinct tag, never per entry link.
+                userId: true,
+                labelEncrypted: true,
                 icon: true,
                 kind: true,
                 scaleMin: true,
@@ -192,8 +200,9 @@ export async function generateMoodStatusForUser(
         },
       },
     })
-    .then((rows) =>
-      rows.reverse().map((row) => ({
+    .then((rows) => {
+      const resolveLabel = createCustomLabelResolver();
+      return rows.reverse().map((row) => ({
         date: row.date,
         score: row.score,
         tags: row.tags,
@@ -205,6 +214,7 @@ export async function generateMoodStatusForUser(
             key: link.moodTag.key,
             categoryKey: link.moodTag.category.key,
             labelKey: link.moodTag.labelKey,
+            label: resolveLabel(link.moodTag),
             icon: link.moodTag.icon,
           })),
         ratedFactors: (row.tagLinks ?? [])
@@ -222,8 +232,8 @@ export async function generateMoodStatusForUser(
             scaleMax: link.moodTag.scaleMax,
             inverse: link.moodTag.inverse,
           })),
-      })),
-    );
+      }));
+    });
 
   const now = new Date();
 

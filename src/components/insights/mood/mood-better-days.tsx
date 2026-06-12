@@ -23,6 +23,13 @@ export interface MoodBetterDayFactor {
   source: "tag" | "metric";
   key: string;
   labelKey: string | null;
+  /**
+   * v1.16.11 — decrypted custom-tag label, resolved server-side. A custom
+   * tag's `labelKey` mirrors its raw `custom:<uuid>` key, so the label
+   * takes precedence over `t(labelKey)`. Null for catalogue / flat /
+   * metric rows.
+   */
+  label?: string | null;
   categoryKey: string | null;
   icon: string | null;
   direction: "up" | "down";
@@ -78,6 +85,11 @@ export function MoodBetterDays({
           let Icon: ReturnType<typeof moodTagIcon> | null = null;
           if (factor.source === "metric") {
             label = t(METRIC_LABEL_KEY[factor.key] ?? factor.key);
+          } else if (factor.label) {
+            // Custom tag — render the decrypted label verbatim (its
+            // labelKey is the raw `custom:<uuid>` key).
+            label = factor.label;
+            Icon = moodTagIcon(factor.icon);
           } else if (factor.labelKey) {
             label = t(factor.labelKey);
             Icon = moodTagIcon(factor.icon);

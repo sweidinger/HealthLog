@@ -22,13 +22,13 @@
   <a href="https://testflight.apple.com/join/bucuTBpa">iOS TestFlight</a>
 </p>
 
-<img width="2560" height="1600" alt="HealthLog dashboard: health metric tiles with 7-day trends and a weight chart, dark theme" src="docs/assets/dashboard-hero.png" />
+<img width="2434" height="1247" alt="HealthLog dashboard: health metric tiles with 7-day trends, blood-pressure and weight charts, dark theme" src="docs/assets/dashboard-hero.jpeg" />
 
 ## Why HealthLog
 
 HealthLog is a self-hosted health tracking app (PWA + native iOS client) that runs from a single `docker compose up` on a NAS, homelab, or small VPS. It brings weight, blood pressure, pulse, blood glucose, body composition, sleep, mood, menstrual cycle, and medications onto one timeline — synced from the devices you already own — and keeps everything encrypted at rest on hardware you control. No vendor cloud, no subscription, no telemetry.
 
-Try the [live demo](https://demo.healthlog.dev) to see a working install.
+Try the [live demo](https://demo.healthlog.dev) to see a working install — sign in with `demo` / `demo123demo123`.
 
 ## Highlights
 

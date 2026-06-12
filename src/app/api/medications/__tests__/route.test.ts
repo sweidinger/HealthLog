@@ -417,3 +417,85 @@ describe("GET /api/medications — todayEventCount counts only actioned rows (v1
     expect(where.OR).toEqual([{ takenAt: { not: null } }, { skipped: true }]);
   });
 });
+
+describe("POST /api/medications — as-needed (v1.16.11, #316)", () => {
+  function lastCreateData(): Record<string, unknown> & {
+    schedules: { create: Record<string, unknown>[] };
+  } {
+    const calls = vi.mocked(prisma.medication.create).mock.calls;
+    expect(calls.length).toBeGreaterThan(0);
+    return (calls[calls.length - 1][0] as { data: never }).data;
+  }
+
+  it("422s when asNeeded:true carries a schedules array", async () => {
+    const res = await POST(
+      postReq({
+        name: "Ibuprofen",
+        dose: "400 mg",
+        asNeeded: true,
+        schedules: [{ windowStart: "08:00", windowEnd: "09:00" }],
+      }),
+    );
+    expect(res.status).toBe(422);
+    const body = (await res.json()) as {
+      details: { issues: Array<{ path: string; message: string }> };
+    };
+    expect(
+      body.details.issues.some((i) =>
+        i.message.includes("as-needed medication cannot carry schedules"),
+      ),
+    ).toBe(true);
+    expect(prisma.medication.create).not.toHaveBeenCalled();
+  });
+
+  it("422s when asNeeded:true is combined with oneShot:true", async () => {
+    const res = await POST(
+      postReq({
+        name: "Ibuprofen",
+        dose: "400 mg",
+        asNeeded: true,
+        oneShot: true,
+        startsOn: "2026-06-01",
+      }),
+    );
+    expect(res.status).toBe(422);
+    const body = (await res.json()) as {
+      details: { issues: Array<{ message: string }> };
+    };
+    expect(
+      body.details.issues.some((i) =>
+        i.message.includes("mutually exclusive"),
+      ),
+    ).toBe(true);
+  });
+
+  it("creates an as-needed medication with ZERO schedules", async () => {
+    const res = await POST(
+      postReq({
+        name: "Ibuprofen",
+        dose: "400 mg",
+        category: "PAIN_RELIEF",
+        unitsPerDose: 2,
+        asNeeded: true,
+      }),
+    );
+    expect(res.status).toBe(201);
+    const data = lastCreateData();
+    expect(data.asNeeded).toBe(true);
+    expect(data.oneShot).toBeUndefined();
+    expect(data.schedules.create).toEqual([]);
+    // Dose fields stay first-class — they feed inventory consumption.
+    expect(data.unitsPerDose).toBe(2);
+  });
+
+  it("still 422s a scheduled create without any schedule (legacy contract)", async () => {
+    const res = await POST(postReq({ name: "Ramipril", dose: "5 mg" }));
+    expect(res.status).toBe(422);
+    const body = (await res.json()) as {
+      details: { issues: Array<{ path: string; message: string }> };
+    };
+    expect(
+      body.details.issues.some((i) => i.path.includes("schedules")),
+    ).toBe(true);
+  });
+});

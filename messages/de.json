@@ -664,7 +664,58 @@
     "bulkDeleteSuccess": "{count} Einträge gelöscht",
     "bulkDeleteError": "Fehler beim Löschen der ausgewählten Einträge",
     "bulkDeleteConfirmTitle": "{count} Einträge löschen?",
-    "bulkDeleteConfirmBody": "Die {count} ausgewählten Stimmungseinträge werden endgültig gelöscht."
+    "bulkDeleteConfirmBody": "Die {count} ausgewählten Stimmungseinträge werden endgültig gelöscht.",
+    "customize": "Stimmungs-Tags anpassen",
+    "addTagInline": "Tag hinzufügen",
+    "manage": {
+      "groupsTitle": "Gruppen",
+      "groupsDescription": "Lege eigene Gruppen an und bestimme ihre Reihenfolge in der Auswahl.",
+      "newGroup": "Neue Gruppe",
+      "groupLabel": "Gruppenname",
+      "groupIcon": "Symbol",
+      "groupCreated": "Gruppe erstellt",
+      "groupRenamed": "Gruppe gespeichert",
+      "groupDeleteTitle": "Gruppe löschen?",
+      "groupDeleteBody": "Tags aus dieser Gruppe wandern zurück in ihre ursprüngliche Gruppe. Es werden keine Einträge gelöscht.",
+      "groupDeleted": "Gruppe gelöscht",
+      "groupEmpty": "Noch keine eigenen Gruppen.",
+      "groupLimitReached": "Gruppen-Limit erreicht",
+      "tagsTitle": "Tags",
+      "tagsDescription": "Blende Tags aus, sortiere und verschiebe sie oder bearbeite sie.",
+      "newTag": "Neuer Tag",
+      "tagLabel": "Tag-Name",
+      "tagIcon": "Symbol",
+      "tagGroup": "Gruppe",
+      "usageCount": "{count} Einträge",
+      "hideTag": "Tag ausblenden",
+      "showTag": "Tag einblenden",
+      "moveToGroup": "In Gruppe verschieben",
+      "archive": "Archivieren",
+      "restore": "Wiederherstellen",
+      "archivedTitle": "Archivierte Tags",
+      "archivedDescription": "Archivierte Tags bleiben in deinen bisherigen Einträgen erhalten – sie verschwinden nur aus der Auswahl.",
+      "archivedEmpty": "Nichts archiviert.",
+      "purgeTitle": "Tag endgültig löschen?",
+      "purgeBody": "Der Tag wird aus {count} bisherigen Einträgen entfernt. Das lässt sich nicht rückgängig machen.",
+      "purgeAction": "Endgültig löschen",
+      "purged": "Tag gelöscht",
+      "tagLimitReached": "Tag-Limit erreicht",
+      "iconPickerTitle": "Symbol wählen",
+      "iconSearchPlaceholder": "Symbole durchsuchen…",
+      "iconSearchEmpty": "Kein passendes Symbol.",
+      "iconSearchClear": "Suche leeren",
+      "orderSave": "Reihenfolge speichern",
+      "orderSaved": "Reihenfolge gespeichert",
+      "moveUp": "Nach oben",
+      "moveDown": "Nach unten",
+      "iconGroupEmotions": "Gefühle",
+      "iconGroupActivities": "Aktivitäten",
+      "iconGroupHealth": "Gesundheit",
+      "iconGroupFood": "Essen & Trinken",
+      "iconGroupWeather": "Wetter",
+      "iconGroupPlaces": "Orte",
+      "iconGroupMisc": "Sonstiges"
+    }
   },
   "medications": {
     "title": "Medikamente",
@@ -677,6 +728,15 @@
     "addChoice": {
       "logIntake": "Einnahme erfassen",
       "newMedication": "Neues Medikament"
+    },
+    "takeAllDue": {
+      "button": "Alle fälligen einnehmen",
+      "dialogTitle": "Fällige Medikamente einnehmen",
+      "dialogDescription": "Diese Medikamente sind jetzt fällig. Bestätige, um sie alle als genommen zu erfassen.",
+      "confirm": "Alle einnehmen ({count})",
+      "successToast": "{count} Einnahmen erfasst",
+      "partialToast": "{taken} erfasst, {failed} fehlgeschlagen – bitte erneut versuchen",
+      "failedToast": "Keine Einnahme erfasst – bitte erneut versuchen"
     },
     "logIntake": {
       "dialogTitle": "Einnahme erfassen",
@@ -760,6 +820,7 @@
     "today": "Heute",
     "yesterday": "Gestern",
     "tomorrow": "Morgen",
+    "asNeededMarker": "Bei Bedarf",
     "withoutNotification": "Ohne Benachrichtigung",
     "pausedSince": "Pausiert seit",
     "takeNow": "Jetzt einnehmen",
@@ -1147,6 +1208,10 @@
         "oneShot": {
           "label": "Einmalig",
           "description": "Einzelgabe, zum Beispiel eine Impfung oder ein Antibiotikum."
+        },
+        "asNeeded": {
+          "label": "Bei Bedarf",
+          "description": "Kein fester Plan — du erfasst eine Einnahme, wenn du sie brauchst (z. B. Schmerzmittel)."
         }
       },
       "summary": {
@@ -1160,6 +1225,7 @@
           "yearly": "Einmal im Jahr",
           "rolling": "Alle {n} Tage seit der letzten Einnahme",
           "oneShot": "Eine Einmaldosis",
+          "asNeeded": "Bei Bedarf",
           "everyNWeeks": "Alle {n} Wochen",
           "everyNMonths": "Alle {n} Monate"
         },
@@ -1345,7 +1411,8 @@
       },
       "cadence": {
         "oneShotOn": "Einmalige Dosis am {date}.",
-        "oneShotPending": "Einmalige Dosis ausstehend."
+        "oneShotPending": "Einmalige Dosis ausstehend.",
+        "asNeeded": "Bei Bedarf — kein fester Plan."
       },
       "intake": {
         "title": "Einnahmeverlauf",
@@ -1574,6 +1641,7 @@
         "statusTitle": "Status",
         "nextDoseLabel": "Nächste Dosis",
         "nextDoseNone": "Keine anstehende Dosis.",
+        "nextDoseAsNeeded": "Bei Bedarf — keine geplante Dosis.",
         "pausedHint": "Pausiert — keine Erinnerungen.",
         "reminderLabel": "Erinnerung",
         "reminderOn": "Aktiv",
@@ -1581,6 +1649,7 @@
         "supplyLabel": "Bestand",
         "supplyRunway": "Reicht noch ca. {days} Tage",
         "jumpToZeitplan": "Zum Zeitplan",
+        "jumpToVerlauf": "Zum Verlauf",
         "jumpToBestand": "Zum Bestand",
         "complianceTitle": "Therapietreue",
         "complianceEmpty": "Noch keine Daten zur Therapietreue."
@@ -1600,6 +1669,8 @@
         "emptyHelper": "Erfasse eine Packung oder einen Behälter, um den verbleibenden Vorrat und die Reichweite zu verfolgen.",
         "emptyCta": "Packung erfassen",
         "addButton": "Erfassen",
+        "lowStockLinkOn": "Benachrichtigung bei niedrigem Bestand: unter {days} Tagen",
+        "lowStockLinkOff": "Benachrichtigung bei niedrigem Bestand: aus",
         "addTitle": "Packung oder Behälter erfassen",
         "addDescription": "Lege einen neuen Vorrat mit seiner Einheitenanzahl an; das Ablaufdatum ist optional.",
         "addQuantityLabel": "Menge (Einheiten)",
@@ -1616,6 +1687,10 @@
         "adjustSubmit": "Speichern",
         "adjustSuccess": "Bestand aktualisiert.",
         "adjustFailed": "Bestand konnte nicht aktualisiert werden.",
+        "deleteTitle": "Packung löschen?",
+        "deleteDescription": "Entfernt diese Packung oder diesen Behälter dauerhaft aus dem Bestand. Protokollierte Einnahmen bleiben unverändert.",
+        "deleteSuccess": "Bestand gelöscht.",
+        "deleteFailed": "Bestand konnte nicht gelöscht werden.",
         "containerTypeLabel": "Behälterart",
         "containerType": {
           "PEN": "Pen",
@@ -1631,7 +1706,19 @@
         "quantityInUnits": "= {units} Einheiten",
         "quantityInDoses": "≈ {doses} Dosen",
         "quantityUnderOneDose": "< 1 Dosis",
-        "expiredSuffix": "+ {units} Einheiten abgelaufen"
+        "expiredSuffix": "+ {units} Einheiten abgelaufen",
+        "packagingTitle": "Packung & Dosis",
+        "packagingUnitsPerDose": "1 Dosis = {units} Einheiten",
+        "packagingDefaultPack": "Standard-Packungsgröße: {units} Einheiten",
+        "packagingNoDefaultPack": "Keine Standard-Packungsgröße hinterlegt",
+        "packagingEdit": "Bearbeiten",
+        "packagingDescription": "Lege fest, wie viele Einheiten eine Dosis verbraucht und wie groß eine neue Packung üblicherweise ist — z. B. nach einem Herstellerwechsel mit anderer Blistergröße.",
+        "packagingUnitsPerDoseLabel": "Einheiten pro Dosis",
+        "packagingUnitsPerDoseHelper": "Z. B. 2 Tabletten à 2 mg für eine 4-mg-Dosis (1–100). Bereits erfasste Einnahmen bleiben unverändert.",
+        "packagingDefaultPackLabel": "Standard-Packungsgröße (Einheiten)",
+        "packagingDefaultPackHelper": "Vorbefüllung beim Erfassen neuer Packungen (1–1000). Leer lassen, wenn keine üblich ist.",
+        "packagingSuccess": "Packungsangaben gespeichert",
+        "packagingFailed": "Speichern fehlgeschlagen"
       },
       "erweitert": {
         "group": {
@@ -1733,6 +1820,8 @@
     "tableComplianceDays": "{days} T",
     "tableStockDoseOne": "1 Dosis",
     "tableStockDoses": "{count} Dosen",
+    "tableStockRunway": "≈ {days} Tage übrig",
+    "cardLowStockRunway": "Vorrat: ≈ {days} Tage",
     "takeActionFor": "Einnehmen – {name}",
     "skipActionFor": "Überspringen – {name}",
     "reorderTitle": "Reihenfolge anpassen",
@@ -3773,6 +3862,10 @@
       "medications": {
         "title": "Medikamente",
         "description": "Listenansicht und Reihenfolge der Medikamente."
+      },
+      "mood": {
+        "title": "Stimmungs-Tags",
+        "description": "Gruppen, Tags und Reihenfolge der Tag-Auswahl."
       }
     },
     "profile": "Profil",
@@ -5297,6 +5390,20 @@
       "disabledToast": "Proaktive Coach-Hinweise deaktiviert.",
       "saveError": "Speichern fehlgeschlagen. Bitte später erneut versuchen."
     },
+    "lowStock": {
+      "title": "Vorratswarnung",
+      "description": "Prüft deine erfassten Medikamentenvorräte einmal täglich und benachrichtigt dich, wenn einer weniger Tage abdeckt als diese Schwelle. Eine Benachrichtigung pro Engpass; nach dem Auffüllen meldet sie sich wieder.",
+      "toggleAria": "Vorratswarnungen umschalten",
+      "statusOn": "Aktiv",
+      "statusOff": "Aus",
+      "daysLabel": "Warnen unter (Tage)",
+      "daysAria": "Vorratsschwelle in Tagen wählen",
+      "savedToast": "Vorratsschwelle gespeichert.",
+      "enabledToast": "Vorratswarnungen aktiviert.",
+      "disabledToast": "Vorratswarnungen deaktiviert.",
+      "saveError": "Speichern fehlgeschlagen. Bitte später erneut versuchen.",
+      "medicationsLink": "Zu deinen Medikamenten"
+    },
     "eventMedicationReminder": "Medikamenten-Erinnerung",
     "eventMedicationReminderDesc": "Wird zu jeder geplanten Einnahmezeit gesendet.",
     "eventMeasurementAnomaly": "Auffälliger Messwert",
@@ -5316,7 +5423,9 @@
     "eventCyclePeriodConfirm": "Hat deine Periode begonnen?",
     "eventCyclePeriodConfirmDesc": "Eine sanfte Nachfrage am oder nach dem vorhergesagten Beginn, solange keine Periode erfasst ist.",
     "eventCycleFertileSoon": "Fruchtbares Fenster steht bevor",
-    "eventCycleFertileSoonDesc": "Wird einige Tage vor deinem geschätzten fruchtbaren Fenster gesendet, wenn dein Ziel die Empfängnis ist."
+    "eventCycleFertileSoonDesc": "Wird einige Tage vor deinem geschätzten fruchtbaren Fenster gesendet, wenn dein Ziel die Empfängnis ist.",
+    "eventMedicationLowStock": "Medikamentenvorrat niedrig",
+    "eventMedicationLowStockDesc": "Wenn ein erfasster Vorrat weniger Tage abdeckt als deine Vorratsschwelle"
   },
   "i18n": {
     "maintainershipBanner": {
@@ -5478,6 +5587,11 @@
     "buttonSnoozeOneHour": "🕐 1h",
     "buttonSnoozeThreeHours": "🕐 3h",
     "buttonSkip": "⏭ Überspringen"
+  },
+  "lowStockReminders": {
+    "title": "Vorrat niedrig: {medName}",
+    "body": "Dein Vorrat an {medName} reicht noch etwa {days} Tage ({units} Einheiten übrig).",
+    "bodyToday": "Dein Vorrat an {medName} reicht keinen ganzen Tag mehr ({units} Einheiten übrig)."
   },
   "moodReminders": {
     "dailyTitle": "Stimmung erfassen",

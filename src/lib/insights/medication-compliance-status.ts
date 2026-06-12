@@ -154,7 +154,9 @@ export async function generateMedicationComplianceStatusForUser(
   }
 
   const medications = await prisma.medication.findMany({
-    where: { userId, active: true },
+    // v1.16.11 — as-needed (PRN) medications never surface a compliance
+    // rate (no expected doses).
+    where: { userId, active: true, asNeeded: false },
     // v1.15.20 — schedules through the shared compliance select so the
     // configured per-dose windows reach this surface like every other.
     include: {

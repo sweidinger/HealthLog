@@ -279,9 +279,14 @@ function tagNarratives(input: MoodNarrativeInput): MoodNarrative[] {
   }
   for (const row of input.structuredTags) {
     if (row.count < MOOD_NARRATIVE_MIN_TAG_COUNT) continue;
+    // v1.16.11 — a custom tag carries its decrypted label (its labelKey
+    // just mirrors the raw `custom:<uuid>` key, which `t()` cannot
+    // resolve); it renders verbatim like a flat tag. Catalogue tags keep
+    // the i18n labelKey path.
+    const customLabel = row.label ?? null;
     candidates.push({
-      label: null,
-      labelKey: row.labelKey,
+      label: customLabel,
+      labelKey: customLabel != null ? null : row.labelKey,
       delta: round(row.avgScore - overall, 2),
       count: row.count,
     });

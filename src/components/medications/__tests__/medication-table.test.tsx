@@ -65,6 +65,20 @@ function seedCompliance(
   ]);
 }
 
+// Seed the SAME reminder-thresholds key the cards read — the stock
+// cell's amber tier rides the per-user low-stock runway threshold
+// (v1.16.11); `null` = the alert (and the tier) is off.
+function seedThresholds(
+  client: QueryClient,
+  lowStockRunwayDays: number | null,
+) {
+  client.setQueryData(["settings", "reminder-thresholds"], {
+    lateMinutes: 120,
+    missedMinutes: 240,
+    lowStockRunwayDays,
+  });
+}
+
 // A schedule whose window has already passed for today (01:00–02:00) so
 // the row shows the next-intake value rather than the take-now pill,
 // regardless of host clock.
@@ -217,6 +231,54 @@ describe("<MedicationTable> — structure + shared payloads", () => {
     expect(html).toContain("text-warning");
   });
 
+  it("warns on runway DAYS below the user's threshold, not a legacy dose count", () => {
+    const client = makeClient();
+    seedCompliance(client, "m1", 90, 88);
+    seedCompliance(client, "m2", 90, 88);
+    // Per-user threshold: 3 runway days (the same value the low-stock
+    // notification fires on).
+    seedThresholds(client, 3);
+    const html = render(
+      <MedicationTable
+        activeMedications={[
+          // Daily schedule → 5 doses = 5 runway days ≥ 3 → calm, even
+          // though the retired 4-dose constant would have tinted it.
+          med({ id: "m1", name: "Aspirin", stockDosesRemaining: 5 }),
+          // 2 doses = 2 runway days < 3 → amber.
+          med({ id: "m2", name: "Mounjaro", stockDosesRemaining: 2 }),
+        ]}
+        inactiveMedications={[]}
+      />,
+      client,
+    );
+
+    expect((html.match(/text-warning/g) ?? []).length).toBe(1);
+    expect(html.indexOf("text-warning")).toBeGreaterThan(
+      html.indexOf("Mounjaro"),
+    );
+  });
+
+  it("threshold OFF (null) disables the amber tier; an exhausted stock stays destructive", () => {
+    const client = makeClient();
+    seedCompliance(client, "m1", 90, 88);
+    seedCompliance(client, "m2", 90, 88);
+    seedThresholds(client, null);
+    const html = render(
+      <MedicationTable
+        activeMedications={[
+          med({ id: "m1", name: "Aspirin", stockDosesRemaining: 1 }),
+          med({ id: "m2", name: "Mounjaro", stockDosesRemaining: 0 }),
+        ]}
+        inactiveMedications={[]}
+      />,
+      client,
+    );
+
+    expect(html).not.toContain("text-warning");
+    // Stock 0 is destructive red regardless of the threshold switch.
+    expect(html).toContain("text-destructive");
+  });
+
   it("pins inactive rows after the active block, muted and without actions", () => {
     const client = makeClient();
     seedCompliance(client, "m1", 90, 88);
@@ -260,6 +322,43 @@ describe("<MedicationTable> — structure + shared payloads", () => {
     expect(html).toContain("Mounjaro");
     expect(html).toContain('aria-label="Take – Mounjaro"');
     expect(html).toContain("4 doses");
+  });
+
+  it("renders an as-needed row: calm marker, no compliance bars (v1.16.11 #316)", () => {
+    const client = makeClient();
+    // Deliberately NOT seeding compliance for the PRN row — the batched
+    // payload excludes as-needed medications, and the column must show
+    // the en-dash instead of an eternal skeleton.
+    const lastTaken = new Date();
+    lastTaken.setHours(lastTaken.getHours() - 3);
+    const html = render(
+      <MedicationTable
+        activeMedications={[
+          med({
+            id: "prn1",
+            name: "Ibuprofen",
+            asNeeded: true,
+            schedules: [],
+            nextDueAt: null,
+            lastTakenAt: lastTaken.toISOString(),
+            stockDosesRemaining: 10,
+          }),
+        ]}
+        inactiveMedications={[]}
+      />,
+      client,
+    );
+
+    expect(html).toContain('data-slot="medication-table-as-needed-marker"');
+    expect(html).toContain("As needed");
+    // No due/overdue presentation in the status or next-dose cells.
+    expect(html).not.toContain("Overdue");
+    // Compliance column shows the en-dash, not bars or a skeleton.
+    expect(html).not.toContain("Adherence (");
+    // The quick actions stay — an as-needed dose is loggable inline.
+    expect(html).toContain('aria-label="Take – Ibuprofen"');
+    // Stock column still renders (inventory tracking works for PRN).
+    expect(html).toContain("10 doses");
   });
 });
 

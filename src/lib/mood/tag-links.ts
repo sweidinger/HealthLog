@@ -221,12 +221,23 @@ export async function createTagLinks(
 }
 
 /**
- * Replace the full structured-tag link set for an entry. `keys` is the
- * desired set; the helper deletes links no longer present and inserts
- * the new ones, leaving unchanged links in place. Passing an empty array
- * clears every link. Asserts the entry belongs to `userId` before
+ * Replace the structured-tag link set for an entry. `keys` is the desired
+ * set; the helper deletes links no longer present and inserts the new
+ * ones, leaving unchanged links in place. Passing an empty array clears
+ * every ACTIVE link. Asserts the entry belongs to `userId` before
  * touching links — a defensive guard against editing links on an entry
  * the acting session does not own.
+ *
+ * The submitted keys govern ACTIVE tag links only. `resolveTagKeysToIds`
+ * pins `isActive: true`, so an archived tag's key can never resolve back
+ * into the desired set — without the `isActive` guard below, editing just
+ * the note of an old entry would land its archived-tag links in
+ * `toDelete` and silently destroy history the archive contract promises
+ * to keep (the picker cannot render an archived key as selected, so the
+ * client body never carries it). Links whose tag is archived
+ * (`isActive: false`) are therefore preserved untouched no matter what
+ * the body carries; a purge (`DELETE /api/mood/tags/custom/[key]?purge=true`)
+ * remains the only path that removes them.
  */
 export async function replaceTagLinks(
   moodEntryId: string,
@@ -238,11 +249,13 @@ export async function replaceTagLinks(
   const desiredIds = new Set(await resolveTagKeysToIds(keys, db, userId));
   const existing = await db.moodEntryTagLink.findMany({
     where: { moodEntryId },
-    select: { moodTagId: true },
+    select: { moodTagId: true, moodTag: { select: { isActive: true } } },
   });
   const existingIds = new Set(existing.map((row) => row.moodTagId));
 
-  const toDelete = [...existingIds].filter((id) => !desiredIds.has(id));
+  const toDelete = existing
+    .filter((row) => row.moodTag.isActive && !desiredIds.has(row.moodTagId))
+    .map((row) => row.moodTagId);
   const toCreate = [...desiredIds].filter((id) => !existingIds.has(id));
 
   if (toDelete.length > 0) {
@@ -283,9 +296,12 @@ export async function replaceRatedFactorLinks(
   const resolved = await resolveRatedFactors(factors, db);
 
   // Drop every existing RATED link for the entry (a `rating IS NOT NULL`
-  // row is, by construction, a rated-factor link).
+  // row is, by construction, a rated-factor link). Same archive contract
+  // as `replaceTagLinks`: a link whose tag has been archived since the
+  // entry was logged is history, not editable state — it survives the
+  // replace untouched.
   await db.moodEntryTagLink.deleteMany({
-    where: { moodEntryId, rating: { not: null } },
+    where: { moodEntryId, rating: { not: null }, moodTag: { isActive: true } },
   });
 
   if (resolved.length > 0) {

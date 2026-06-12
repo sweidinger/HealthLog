@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { Sparkles } from "lucide-react";
 
@@ -58,7 +58,6 @@ export function isNudgeUnread(
 
 export function LayoutCoachFab() {
   const { t } = useTranslations();
-  const router = useRouter();
   const pathname = usePathname();
   const launch = useCoachLaunch();
   const flags = useFeatureFlags();
@@ -137,7 +136,10 @@ export function LayoutCoachFab() {
         // Best effort — see above.
       }
     }
-    router.push("/insights/coach");
+    // v1.16.11 — open the side drawer in place (the launch context the
+    // layout mount consumes) instead of navigating to the chat page;
+    // the conversation arrives without losing the page underneath.
+    launch?.askCoach();
   };
 
   return (
@@ -157,7 +159,7 @@ export function LayoutCoachFab() {
           // not `lg:` — keeps the FAB from floating mid-air 768-1023px).
           // The right inset mirrors the desktop bottom inset so the
           // corner gap is even.
-          "fixed right-6 z-40 size-12 rounded-full shadow-lg",
+          "fixed right-6 z-40 size-14 rounded-full shadow-lg",
           "bottom-[calc(env(safe-area-inset-bottom,0px)+5rem)] md:bottom-6",
           // Dark glyph on the purple/pink gradient — white sat at
           // ≈2.3:1 against the gradient midpoint; the background token
@@ -185,7 +187,7 @@ export function LayoutCoachFab() {
           "[body:has([data-testid=onboarding-tour])_&]:invisible",
         )}
       >
-        <Sparkles className="size-5" aria-hidden="true" />
+        <Sparkles className="size-6" aria-hidden="true" />
         {unread ? (
           <span
             data-slot="coach-fab-unread"

@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: HealthLog API
-  version: 1.16.10
+  version: 1.16.11
   description: >-
     Self-hosted personal-health-tracking PWA — public API surface for the iOS native client and external ingest.
 
@@ -3564,6 +3564,49 @@ paths:
         "401": *a1
         "422": *a3
         "429": *a4
+  /api/auth/me/notification-prefs:
+    get:
+      tags:
+        - Notifications
+      summary: Read per-user notification preferences
+      description: Returns the fully-resolved preferences with the documented defaults filled in. A null persisted row
+        resolves to the defaults (server-managed reminders, low-stock threshold 7 days, mood reminder 22:00, Coach
+        nudges on).
+      responses:
+        "200":
+          description: Resolved preferences.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GetNotificationPrefsResponse"
+        "401": *a1
+        "422": *a3
+        "429": *a4
+    patch:
+      tags:
+        - Notifications
+      summary: Update per-user notification preferences
+      description: 'Deep-merges the supplied partial shape over the persisted row — a PATCH touching only one category leaves
+        the siblings intact. Always returns the fully-resolved next state so clients can hard-set their optimistic
+        update. `medication.clientManaged: true` (or `deliveryDefault: "client"`) suppresses server-side
+        MEDICATION_REMINDER APNs; `medication.lowStockRunwayDays` (1–60, nullable, default 7) tunes the low-stock alert
+        — null switches it off. Rate-limit 60/min per user.'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NotificationPrefsPatchRequest"
+      responses:
+        "200":
+          description: Resolved next-state preferences echoed back.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PatchNotificationPrefsResponse"
+        "401": *a1
+        "422": *a3
+        "429": *a4
   /api/insights/layout:
     get:
       tags:
@@ -4453,6 +4496,376 @@ paths:
         "401": *a1
         "422": *a3
         "429": *a4
+  /api/mood/tags:
+    get:
+      tags:
+        - Mood
+      summary: Effective per-user mood-tag tree (v1.8.5 / v1.13.0 / v1.17.0)
+      description: "The fully-resolved, ordered Category → Tag tree: seeded catalogue + the caller's custom tags and groups,
+        per-user layout (group order + placements) applied server-side, hidden catalogue tags omitted. `include` is a
+        comma list: `hidden` (hidden catalogue tags, `hidden:true`), `archived` (own inactive custom tags,
+        `archived:true`), `usage` (per-tag `usageCount`). With any flag set, the caller's own empty groups are kept; the
+        plain read drops empty categories."
+      parameters:
+        - in: query
+          name: include
+          schema:
+            description: Comma list of `hidden`, `archived`, `usage`.
+            type: string
+          description: Comma list of `hidden`, `archived`, `usage`.
+      responses:
+        "200":
+          description: The effective tag tree.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MoodTagTreeEnvelope"
+        "401": *a1
+        "422": *a3
+        "429": *a4
+  /api/mood/tags/custom:
+    post:
+      tags:
+        - Mood
+      summary: Create a custom mood tag (v1.13.0 / v1.17.0)
+      description: "Mints a `custom:<uuid>` key, encrypts the label at rest, stores a BINARY tag owned by the caller under the
+        chosen group (default: the seeded `custom` category). 422 over the 50-tag cap or on an unknown / foreign
+        `categoryKey`."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                label:
+                  type: string
+                  minLength: 1
+                  maxLength: 40
+                icon:
+                  anyOf:
+                    - type: string
+                    - type: "null"
+                categoryKey:
+                  type: string
+                  minLength: 1
+                  maxLength: 80
+              required:
+                - label
+      responses:
+        "201":
+          description: Custom tag created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MoodCustomTagCreatedEnvelope"
+        "401": *a1
+        "422": *a3
+        "429": *a4
+  /api/mood/tags/custom/{key}:
+    patch:
+      tags:
+        - Mood
+      summary: Update a custom mood tag (v1.13.0 / v1.17.0)
+      description: "Owner-scoped: another user's key or a catalogue key 404s. Rename (re-encrypts), re-icon, archive/restore
+        via `isActive`, or move groups via `categoryKey`."
+      parameters:
+        - in: path
+          name: key
+          schema:
+            type: string
+          required: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                label:
+                  type: string
+                  minLength: 1
+                  maxLength: 40
+                icon:
+                  anyOf:
+                    - type: string
+                    - type: "null"
+                isActive:
+                  type: boolean
+                categoryKey:
+                  type: string
+                  minLength: 1
+                  maxLength: 80
+      responses:
+        "200":
+          description: Custom tag updated.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MoodCustomTagPatchEnvelope"
+        "401": *a1
+        "404": &a5
+          description: Not found / not owned by the caller.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "422": *a3
+        "429": *a4
+    delete:
+      tags:
+        - Mood
+      summary: Archive or purge a custom mood tag (v1.13.0)
+      description: "Default: soft-deactivates (`isActive:false`) — history intact, restorable via PATCH. `?purge=true`:
+        hard-deletes the row; the FK cascade removes its entry links. Owner-scoped 404."
+      parameters:
+        - in: path
+          name: key
+          schema:
+            type: string
+          required: true
+        - in: query
+          name: purge
+          schema:
+            type: string
+            enum:
+              - "true"
+              - "false"
+      responses:
+        "200":
+          description: Archived (or purged).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MoodCustomTagDeleteEnvelope"
+        "401": *a1
+        "404": *a5
+        "422": *a3
+        "429": *a4
+  /api/mood/tags/{key}/hidden:
+    put:
+      tags:
+        - Mood
+      summary: Hide / show a catalogue mood tag (v1.13.0)
+      description: Per-user hide of a CATALOGUE tag (upserts / removes a `mood_tag_hidden` row). 400 on a `custom:` key —
+        custom tags archive via their own `isActive`.
+      parameters:
+        - in: path
+          name: key
+          schema:
+            type: string
+          required: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                hidden:
+                  type: boolean
+              required:
+                - hidden
+      responses:
+        "200":
+          description: Visibility updated.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MoodTagHiddenEnvelope"
+        "400":
+          description: Custom-tag key — use the custom PATCH instead.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "401": *a1
+        "404": *a5
+        "422": *a3
+        "429": *a4
+  /api/mood/tags/groups:
+    post:
+      tags:
+        - Mood
+      summary: Create a custom mood-tag group (v1.17.0)
+      description: Mints a `customcat:<uuid>` key, encrypts the label at rest, stores a group owned by the caller. 422 over
+        the 12-group cap.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                label:
+                  type: string
+                  minLength: 1
+                  maxLength: 40
+                icon:
+                  anyOf:
+                    - type: string
+                    - type: "null"
+              required:
+                - label
+      responses:
+        "201":
+          description: Custom group created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MoodTagGroupCreatedEnvelope"
+        "401": *a1
+        "422": *a3
+        "429": *a4
+  /api/mood/tags/groups/{key}:
+    patch:
+      tags:
+        - Mood
+      summary: Update a custom mood-tag group (v1.17.0)
+      description: "Owner-scoped: another user's key or a seeded category key 404s. Rename (re-encrypts), re-icon,
+        retire/restore via `isActive`."
+      parameters:
+        - in: path
+          name: key
+          schema:
+            type: string
+          required: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                label:
+                  type: string
+                  minLength: 1
+                  maxLength: 40
+                icon:
+                  anyOf:
+                    - type: string
+                    - type: "null"
+                isActive:
+                  type: boolean
+      responses:
+        "200":
+          description: Custom group updated.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MoodTagGroupPatchEnvelope"
+        "401": *a1
+        "404": *a5
+        "422": *a3
+        "429": *a4
+    delete:
+      tags:
+        - Mood
+      summary: Delete a custom mood-tag group (v1.17.0)
+      description: "Non-destructive: the group's custom tags re-home to the seeded `custom` category, catalogue-tag placements
+        evaporate back to their seeded category, the layout drops the group, then the row soft-deactivates (default) or
+        hard-deletes (`?purge=true`). No tag and no entry link is deleted."
+      parameters:
+        - in: path
+          name: key
+          schema:
+            type: string
+          required: true
+        - in: query
+          name: purge
+          schema:
+            type: string
+            enum:
+              - "true"
+              - "false"
+      responses:
+        "200":
+          description: Group deleted; `rehomedCount` custom tags moved.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MoodTagGroupDeleteEnvelope"
+        "401": *a1
+        "404": *a5
+        "422": *a3
+        "429": *a4
+  /api/mood/tags/layout:
+    get:
+      tags:
+        - Mood
+      summary: Read the per-user mood-tag layout (v1.17.0)
+      description: "Returns the stored blob merged over defaults: `groupOrder` resolved against the caller's effective
+        category set (seeded + own groups), `placements` as stored."
+      responses:
+        "200":
+          description: Resolved layout.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MoodTagLayoutGetEnvelope"
+        "401": *a1
+        "422": *a3
+        "429": *a4
+    put:
+      tags:
+        - Mood
+      summary: Update the per-user mood-tag layout (v1.17.0)
+      description: "Preserve-when-absent merge: a `groupOrder`-only PUT keeps the stored `placements` and vice versa. Bounded:
+        ≤ 50 groups, ≤ 400 placement entries, keys ≤ 80 chars. Returns the resolved layout."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                groupOrder:
+                  maxItems: 50
+                  type: array
+                  items:
+                    type: string
+                    minLength: 1
+                    maxLength: 80
+                placements:
+                  type: object
+                  propertyNames:
+                    type: string
+                    minLength: 1
+                    maxLength: 80
+                  additionalProperties:
+                    type: array
+                    items:
+                      type: string
+                      minLength: 1
+                      maxLength: 80
+      responses:
+        "200":
+          description: Merged + resolved layout.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MoodTagLayoutPutEnvelope"
+        "401": *a1
+        "422": *a3
+        "429": *a4
+  /api/settings/reminder-thresholds:
+    get:
+      tags:
+        - Notifications
+      summary: Read the medication reminder thresholds
+      description: Returns the operator-level late/missed minute thresholds that tier an open dose's status, plus the calling
+        user's low-stock runway threshold (days; null = alert off). One endpoint so every threshold consumer reads one
+        shape. Auth via cookie or Bearer.
+      responses:
+        "200":
+          description: Resolved thresholds.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GetReminderThresholdsResponse"
+        "401": *a1
+        "422": *a3
+        "429": *a4
 components:
   schemas:
     PasskeyLoginVerifyRequest:
@@ -4808,20 +5221,26 @@ components:
             one schedule with no `rrule` / `rollingIntervalDays`, and `active` auto-flips to false once the dose is
             logged (non-skipped).
           type: boolean
+        asNeeded:
+          description: "As-needed (PRN) medication (pain relief, rescue inhaler). When true the medication carries NO schedules
+            (supplying any schedule entry is a 422): it is never due, never reminded, and excluded from compliance
+            rates/streaks, but intakes still log (ad-hoc), inventory still consumes, and the history renders. Stays
+            active indefinitely. Mutually exclusive with `oneShot`."
+          type: boolean
         schedules:
-          minItems: 1
           type: array
           items:
             $ref: "#/components/schemas/MedicationScheduleInput"
       required:
         - name
         - dose
-        - schedules
       description: 'Create-medication body. The route enforces the v1.5 cross-field invariants on top of the per-schedule
         `rrule_xor_rolling` Zod refine: a `oneShot:true` medication may carry at most one schedule and that schedule
         must not declare a recurrence; `endsOn` is normalised to equal `startsOn` for one-shot doses; a recurring
         schedule with no `rrule`, `rollingIntervalDays`, or legacy `daysOfWeek` defaults to `rrule = "FREQ=DAILY"`; and
-        `timesOfDay` is dual-written from `windowStart` when the caller omits it.'
+        `timesOfDay` is dual-written from `windowStart` when the caller omits it. v1.16.11 — `asNeeded: true` creates a
+        PRN medication with ZERO schedules (`schedules` must be absent or empty, 422 otherwise); a scheduled medication
+        still requires at least one schedule entry.'
     MedicationScheduleInput:
       type: object
       properties:
@@ -5092,6 +5511,12 @@ components:
             one schedule with no `rrule` / `rollingIntervalDays`, and `active` auto-flips to false once the dose is
             logged (non-skipped).
           type: boolean
+        asNeeded:
+          description: "As-needed (PRN) medication (pain relief, rescue inhaler). When true the medication carries NO schedules
+            (supplying any schedule entry is a 422): it is never due, never reminded, and excluded from compliance
+            rates/streaks, but intakes still log (ad-hoc), inventory still consumes, and the history renders. Stays
+            active indefinitely. Mutually exclusive with `oneShot`."
+          type: boolean
         schedules:
           type: array
           items:
@@ -5104,10 +5529,12 @@ components:
               minimum: 0
               maximum: 1440
             - type: "null"
-      description: Update-medication body. Every field is optional; omitted fields are left untouched. Supplying `schedules`
+      description: "Update-medication body. Every field is optional; omitted fields are left untouched. Supplying `schedules`
         REPLACES the medication's full schedule list (the route deletes existing rows before re-creating). Flipping
         `active` to false records the current timestamp on `pausedAt`; flipping back to true clears it. v1.5 invariants
-        on the `schedules` array match the create path.
+        on the `schedules` array match the create path. v1.16.11 — `asNeeded: true` requires the medication to end
+        schedule-less: supply `schedules: []` to clear an existing plan (any schedule entry is a 422); an empty
+        `schedules` array without `asNeeded: true` is likewise a 422."
     MedicationIntakeRequest:
       type: object
       properties:
@@ -5387,6 +5814,57 @@ components:
             - type: "null"
       description: Partial profile update. Every field is optional; an omitted field is left untouched, an explicit null (or
         empty string) clears it. `userId` is never accepted — it is narrowed from the session/token.
+    NotificationPrefsPatchRequest:
+      type: object
+      properties:
+        medication:
+          type: object
+          properties:
+            clientManaged:
+              type: boolean
+            deliveryDefault:
+              type: string
+              enum:
+                - server
+                - client
+            lowStockRunwayDays:
+              anyOf:
+                - type: integer
+                  minimum: 1
+                  maximum: 60
+                - type: "null"
+        mood:
+          type: object
+          properties:
+            reminderHour:
+              type: integer
+              minimum: 0
+              maximum: 23
+        cycle:
+          type: object
+          properties:
+            clientManaged:
+              type: boolean
+        coach:
+          type: object
+          properties:
+            nudgesEnabled:
+              type: boolean
+            nudgeMedication:
+              type: boolean
+            nudgeVitals:
+              type: boolean
+            nudgeRoutine:
+              type: boolean
+            nudgeFrequency:
+              type: string
+              enum:
+                - weekly
+                - biweekly
+      description: Partial per-user notification preferences. Every category and field is optional; the server deep-merges the
+        supplied keys over the persisted row, so a PATCH touching only `medication` leaves the siblings intact.
+        `medication.lowStockRunwayDays` (1–60, nullable) is the low-stock alert threshold in remaining runway days —
+        `null` switches the alert off.
     InsightsLayoutBody:
       type: object
       properties:
@@ -8650,6 +9128,12 @@ components:
           type: boolean
           description: v1.5 single-administration flag. When true the medication has at most one schedule (no `rrule` /
             `rollingIntervalDays`), and `active` auto-flips to false once the dose is logged.
+        asNeeded:
+          type: boolean
+          description: "v1.16.11 as-needed (PRN) flag. When true the medication carries ZERO schedules (the write routes 422 on
+            any schedule entry alongside the flag): it is never due (`nextDueAt` stays null), never reminded, and
+            excluded from every compliance rate/streak — but intakes still log as ad-hoc rows, inventory still consumes
+            per `unitsPerDose`, and the history renders. Stays active indefinitely. Mutually exclusive with `oneShot`."
         createdAt:
           type: string
           format: date-time
@@ -8716,6 +9200,7 @@ components:
         - startsOn
         - endsOn
         - oneShot
+        - asNeeded
         - createdAt
         - updatedAt
         - schedules
@@ -8862,6 +9347,12 @@ components:
           type: boolean
           description: v1.5 single-administration flag. When true the medication has at most one schedule (no `rrule` /
             `rollingIntervalDays`), and `active` auto-flips to false once the dose is logged.
+        asNeeded:
+          type: boolean
+          description: "v1.16.11 as-needed (PRN) flag. When true the medication carries ZERO schedules (the write routes 422 on
+            any schedule entry alongside the flag): it is never due (`nextDueAt` stays null), never reminded, and
+            excluded from every compliance rate/streak — but intakes still log as ad-hoc rows, inventory still consumes
+            per `unitsPerDose`, and the history renders. Stays active indefinitely. Mutually exclusive with `oneShot`."
         createdAt:
           type: string
           format: date-time
@@ -8896,6 +9387,7 @@ components:
         - startsOn
         - endsOn
         - oneShot
+        - asNeeded
         - createdAt
         - updatedAt
         - schedules
@@ -11424,6 +11916,124 @@ components:
       additionalProperties: false
       description: Profile echo returned by the PATCH/PUT update path. Reports KVNR presence as a boolean rather than
         re-emitting the decrypted value.
+    GetNotificationPrefsResponse:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/NotificationPrefs"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    NotificationPrefs:
+      type: object
+      properties:
+        medication:
+          type: object
+          properties:
+            clientManaged:
+              type: boolean
+              description: True when the iOS app owns local medication reminders; the server-side MEDICATION_REMINDER APNs cron is
+                suppressed.
+            deliveryDefault:
+              type: string
+              enum:
+                - server
+                - client
+              description: 'Roaming user-level delivery default. "client" implies clientManaged: true.'
+            lowStockRunwayDays:
+              anyOf:
+                - type: integer
+                  minimum: 1
+                  maximum: 60
+                - type: "null"
+              description: Low-stock alert threshold as remaining runway days (1–60). null = alert off. Default 7.
+          required:
+            - clientManaged
+            - deliveryDefault
+            - lowStockRunwayDays
+          additionalProperties: false
+        mood:
+          type: object
+          properties:
+            reminderHour:
+              type: integer
+              minimum: 0
+              maximum: 23
+              description: Local-time hour for the daily mood reminder. Default 22.
+          required:
+            - reminderHour
+          additionalProperties: false
+        cycle:
+          type: object
+          properties:
+            clientManaged:
+              type: boolean
+              description: True when the iOS app owns local cycle reminders; the server-side cycle APNs cron is suppressed.
+          required:
+            - clientManaged
+          additionalProperties: false
+        coach:
+          type: object
+          properties:
+            nudgesEnabled:
+              type: boolean
+              description: Master switch for the proactive Coach nudge cron.
+            nudgeMedication:
+              type: boolean
+              description: Medication-group nudge triggers (compliance).
+            nudgeVitals:
+              type: boolean
+              description: Vitals-group nudge triggers (bp / score / weight / sleep).
+            nudgeRoutine:
+              type: boolean
+              description: Routine-group nudge triggers (measurement gap / self-context).
+            nudgeFrequency:
+              type: string
+              enum:
+                - weekly
+                - biweekly
+              description: "Nudge frequency cap: one per 7 or per 14 days."
+          required:
+            - nudgesEnabled
+            - nudgeMedication
+            - nudgeVitals
+            - nudgeRoutine
+            - nudgeFrequency
+          additionalProperties: false
+      required:
+        - medication
+        - mood
+        - cycle
+        - coach
+      additionalProperties: false
+      description: Fully-resolved per-user notification preferences. Every key is present — a null / drifted persisted row
+        resolves to the documented defaults.
+    PatchNotificationPrefsResponse:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/NotificationPrefs"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
     InsightsLayout:
       type: object
       properties:
@@ -13213,6 +13823,508 @@ components:
         - interpretation
         - lagDays
       additionalProperties: false
+    MoodTagTreeEnvelope:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            categories:
+              type: array
+              items:
+                $ref: "#/components/schemas/MoodTagCategoryDTO"
+          required:
+            - categories
+          additionalProperties: false
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    MoodTagCategoryDTO:
+      type: object
+      properties:
+        key:
+          type: string
+        labelKey:
+          anyOf:
+            - type: string
+            - type: "null"
+        label:
+          anyOf:
+            - type: string
+            - type: "null"
+        icon:
+          anyOf:
+            - type: string
+            - type: "null"
+        custom:
+          type: boolean
+        tags:
+          type: array
+          items:
+            $ref: "#/components/schemas/MoodTagDTO"
+      required:
+        - key
+        - labelKey
+        - label
+        - icon
+        - custom
+        - tags
+      additionalProperties: false
+      description: "One group of the effective tree, already per-user ordered (layout applied server-side). `custom: true` =
+        the caller's own group (render `label`); seeded groups resolve `labelKey`."
+    MoodTagDTO:
+      type: object
+      properties:
+        key:
+          type: string
+        labelKey:
+          anyOf:
+            - type: string
+            - type: "null"
+        label:
+          anyOf:
+            - type: string
+            - type: "null"
+        icon:
+          anyOf:
+            - type: string
+            - type: "null"
+        kind:
+          type: string
+          enum:
+            - BINARY
+            - RATED
+        scaleMin:
+          type: integer
+          minimum: -9007199254740991
+          maximum: 9007199254740991
+        scaleMax:
+          type: integer
+          minimum: -9007199254740991
+          maximum: 9007199254740991
+        inverse:
+          type: boolean
+        custom:
+          type: boolean
+        hidden:
+          description: Catalogue tags only, present when `include` contains `hidden`.
+          type: boolean
+        archived:
+          description: Custom tags only, present when `include` contains `archived`.
+          type: boolean
+        usageCount:
+          description: Live-entry link count for this user, present when `include` contains `usage`.
+          type: integer
+          minimum: -9007199254740991
+          maximum: 9007199254740991
+      required:
+        - key
+        - labelKey
+        - label
+        - icon
+        - kind
+        - scaleMin
+        - scaleMax
+        - inverse
+        - custom
+      additionalProperties: false
+      description: One effective mood tag. Render `label` when `custom`, else resolve `labelKey` against the locale.
+    MoodCustomTagCreatedEnvelope:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            key:
+              type: string
+            labelKey:
+              type: "null"
+            label:
+              anyOf:
+                - type: string
+                - type: "null"
+            icon:
+              anyOf:
+                - type: string
+                - type: "null"
+            kind:
+              type: string
+              enum:
+                - BINARY
+                - RATED
+            scaleMin:
+              type: integer
+              minimum: -9007199254740991
+              maximum: 9007199254740991
+            scaleMax:
+              type: integer
+              minimum: -9007199254740991
+              maximum: 9007199254740991
+            inverse:
+              type: boolean
+            custom:
+              type: boolean
+              const: true
+          required:
+            - key
+            - labelKey
+            - label
+            - icon
+            - kind
+            - scaleMin
+            - scaleMax
+            - inverse
+            - custom
+          additionalProperties: false
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    MoodCustomTagPatchEnvelope:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            key:
+              type: string
+            labelKey:
+              type: "null"
+            label:
+              anyOf:
+                - type: string
+                - type: "null"
+            icon:
+              anyOf:
+                - type: string
+                - type: "null"
+            kind:
+              type: string
+              enum:
+                - BINARY
+                - RATED
+            scaleMin:
+              type: integer
+              minimum: -9007199254740991
+              maximum: 9007199254740991
+            scaleMax:
+              type: integer
+              minimum: -9007199254740991
+              maximum: 9007199254740991
+            inverse:
+              type: boolean
+            custom:
+              type: boolean
+              const: true
+            isActive:
+              type: boolean
+          required:
+            - key
+            - labelKey
+            - label
+            - icon
+            - kind
+            - scaleMin
+            - scaleMax
+            - inverse
+            - custom
+            - isActive
+          additionalProperties: false
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    MoodCustomTagDeleteEnvelope:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            key:
+              type: string
+            purged:
+              type: boolean
+          required:
+            - key
+            - purged
+          additionalProperties: false
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    MoodTagHiddenEnvelope:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            key:
+              type: string
+            hidden:
+              type: boolean
+          required:
+            - key
+            - hidden
+          additionalProperties: false
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    MoodTagGroupCreatedEnvelope:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            key:
+              type: string
+            labelKey:
+              type: "null"
+            label:
+              anyOf:
+                - type: string
+                - type: "null"
+            icon:
+              anyOf:
+                - type: string
+                - type: "null"
+            custom:
+              type: boolean
+              const: true
+          required:
+            - key
+            - labelKey
+            - label
+            - icon
+            - custom
+          additionalProperties: false
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    MoodTagGroupPatchEnvelope:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            key:
+              type: string
+            labelKey:
+              type: "null"
+            label:
+              anyOf:
+                - type: string
+                - type: "null"
+            icon:
+              anyOf:
+                - type: string
+                - type: "null"
+            custom:
+              type: boolean
+              const: true
+            isActive:
+              type: boolean
+          required:
+            - key
+            - labelKey
+            - label
+            - icon
+            - custom
+            - isActive
+          additionalProperties: false
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    MoodTagGroupDeleteEnvelope:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            key:
+              type: string
+            purged:
+              type: boolean
+            rehomedCount:
+              type: integer
+              minimum: -9007199254740991
+              maximum: 9007199254740991
+          required:
+            - key
+            - purged
+            - rehomedCount
+          additionalProperties: false
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    MoodTagLayoutGetEnvelope:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/MoodTagLayoutResolved"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    MoodTagLayoutResolved:
+      type: object
+      properties:
+        groupOrder:
+          type: array
+          items:
+            type: string
+        placements:
+          type: object
+          propertyNames:
+            type: string
+          additionalProperties:
+            type: array
+            items:
+              type: string
+      required:
+        - groupOrder
+        - placements
+      additionalProperties: false
+      description: "The stored layout merged over defaults: `groupOrder` fully resolved against the user's effective category
+        set, `placements` as stored."
+    MoodTagLayoutPutEnvelope:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/MoodTagLayoutResolved"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    GetReminderThresholdsResponse:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/ReminderThresholdsResponse"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    ReminderThresholdsResponse:
+      type: object
+      properties:
+        lateMinutes:
+          type: integer
+          minimum: -9007199254740991
+          maximum: 9007199254740991
+          description: Minutes after the dose anchor at which an open dose tiers 'late' (operator-level singleton; default 120).
+        missedMinutes:
+          type: integer
+          minimum: -9007199254740991
+          maximum: 9007199254740991
+          description: Minutes after the dose anchor at which an open dose tiers 'missed' (operator-level singleton; default 240).
+        lowStockRunwayDays:
+          anyOf:
+            - type: integer
+              minimum: 1
+              maximum: 60
+            - type: "null"
+          description: Per-user low-stock alert threshold as remaining runway days (1–60). null = the alert is off. Default 7.
+            Written via PATCH /api/auth/me/notification-prefs.
+      required:
+        - lateMinutes
+        - missedMinutes
+        - lowStockRunwayDays
+      additionalProperties: false
+      description: "Medication reminder thresholds: the operator-level late/missed minute marks plus the calling user's
+        low-stock runway threshold (v1.16.11)."
     MedicationScheduleOutput:
       type: object
       properties:
@@ -13582,6 +14694,12 @@ components:
           type: boolean
           description: v1.5 single-administration flag. When true the medication has at most one schedule (no `rrule` /
             `rollingIntervalDays`), and `active` auto-flips to false once the dose is logged.
+        asNeeded:
+          type: boolean
+          description: "v1.16.11 as-needed (PRN) flag. When true the medication carries ZERO schedules (the write routes 422 on
+            any schedule entry alongside the flag): it is never due (`nextDueAt` stays null), never reminded, and
+            excluded from every compliance rate/streak — but intakes still log as ad-hoc rows, inventory still consumes
+            per `unitsPerDose`, and the history renders. Stays active indefinitely. Mutually exclusive with `oneShot`."
         createdAt:
           type: string
           format: date-time
@@ -13614,6 +14732,7 @@ components:
         - startsOn
         - endsOn
         - oneShot
+        - asNeeded
         - createdAt
         - updatedAt
         - schedules

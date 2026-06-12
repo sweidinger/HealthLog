@@ -264,7 +264,9 @@ export async function generateBloodPressureStatusForUser(
   const weightVsSystolicCorrelation = pearsonCorrelation(weightVsSystolicPairs);
 
   const activeMedications = await prisma.medication.findMany({
-    where: { userId, active: true },
+    // v1.16.11 — as-needed (PRN) medications never feed the BP-status
+    // compliance gate (no expected doses, no rate).
+    where: { userId, active: true, asNeeded: false },
     // v1.15.20 — schedules through the shared compliance select so the
     // configured per-dose windows reach this surface like every other.
     include: {

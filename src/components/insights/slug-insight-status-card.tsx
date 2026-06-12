@@ -6,6 +6,7 @@ import {
   useInsightStatus,
   type InsightStatusMetric,
 } from "@/hooks/use-insight-status";
+import { useMounted } from "@/hooks/use-mounted";
 import { useTranslations } from "@/lib/i18n/context";
 import { InsightStatusCard } from "@/components/insights/insight-status-card";
 
@@ -32,6 +33,7 @@ export function SlugInsightStatusCard({
   icon,
 }: SlugInsightStatusCardProps) {
   const { t } = useTranslations();
+  const mounted = useMounted();
   const { data: status, isLoading } = useInsightStatus(slug);
 
   return (
@@ -41,7 +43,12 @@ export function SlugInsightStatusCard({
       text={status?.text ?? null}
       hasProvider={status?.hasProvider ?? false}
       updatedAt={status?.updatedAt ?? null}
-      loading={isLoading}
+      // `!mounted ||` keeps the SSR pass and the hydration render on the
+      // same skeleton branch. The status query is `enabled: isAuthenticated`,
+      // and the auth query resolves from the early-hydrating shell — a
+      // late-hydrating page boundary then saw `isLoading` flip true while
+      // the server HTML carried the settled card (React #418).
+      loading={!mounted || isLoading}
       preparing={status?.preparing ?? false}
     />
   );

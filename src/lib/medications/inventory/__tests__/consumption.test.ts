@@ -444,6 +444,37 @@ describe("consumeForIntake", () => {
     );
   });
 
+  it("consumes for an as-needed (schedule-less) medication exactly like a scheduled one (v1.16.11 #316)", async () => {
+    // The consumption seam is MEDICATION-level: its only inputs are the
+    // event row, the medication's `unitsPerDose`, and the container
+    // pool — no schedule is read anywhere on the path (the fake client
+    // doesn't even model one). An ad-hoc PRN intake therefore decrements
+    // stock byte-identically to a slot-attributed dose.
+    const state: FakeState = {
+      unitsPerDose: 2,
+      events: [takenEvent()],
+      items: [
+        item({
+          id: "open",
+          state: "IN_USE",
+          unitsRemaining: 6,
+          firstUseAt: new Date(NOW.getTime() - 2 * MS_PER_DAY),
+          expiresAt: new Date(NOW.getTime() + 28 * MS_PER_DAY),
+        }),
+      ],
+    };
+    const client = makeClient(state);
+    await consumeForIntake(consumeArgs(client));
+
+    expect(state.items[0].unitsRemaining).toBe(4);
+    expect(state.events[0].inventoryConsumption).toEqual([
+      { itemId: "open", units: 2 },
+    ]);
+    // The hook never asked for a schedule — the medication read covers
+    // `unitsPerDose` only.
+    expect(client.medication.findFirst).toHaveBeenCalledTimes(1);
+  });
+
   it("stamps an empty consumption when no tracked stock exists (exactly-once gate)", async () => {
     const state: FakeState = {
       unitsPerDose: 1,

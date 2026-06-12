@@ -19,8 +19,9 @@ import { STORAGE_STATE_PATH } from "./setup/global-setup";
  *      bottom-sheet (`data-variant="bottom-sheet"`) on `<sm`, as a
  *      right-side sheet (`data-variant="side-sheet"`) on `>=sm`.
  *
- *   3. With an unread nudge the FAB carries the dot and clicking it
- *      navigates to the full-page chat at `/insights/coach`.
+ *   3. With an unread nudge the FAB carries the dot; clicking the FAB
+ *      opens the Coach drawer in place (v1.16.11 — no navigation, the
+ *      page underneath stays) and the dot clears.
  *
  *   4. The drawer's "Conversations" button no longer opens an in-panel
  *      tray; it hands off to the full-page route `/insights/coach`.
@@ -177,7 +178,15 @@ test.describe("Coach launch surfaces on insights sub-pages", () => {
       "drawer bottom-sheet branch is mobile-only",
     );
 
+    // Hydration gate — the status query is fired by the sub-page
+    // boundary itself, so its response proves React has hydrated the
+    // page and attached the launch icon's click handler. Clicking the
+    // SSR-painted icon any earlier is silently lost (CI flake).
+    const pageHydrated = page.waitForResponse(
+      /\/api\/insights\/blood-pressure-status/,
+    );
     await page.goto("/insights/blutdruck", { waitUntil: "domcontentloaded" });
+    await pageHydrated;
 
     const icon = page.locator('[data-slot="coach-launch-icon"]').first();
     await expect(icon).toBeVisible({ timeout: 10_000 });
@@ -196,7 +205,12 @@ test.describe("Coach launch surfaces on insights sub-pages", () => {
       "drawer side-sheet branch is desktop-only",
     );
 
+    // Hydration gate — see the bottom-sheet branch above.
+    const pageHydrated = page.waitForResponse(
+      /\/api\/insights\/blood-pressure-status/,
+    );
     await page.goto("/insights/blutdruck", { waitUntil: "domcontentloaded" });
+    await pageHydrated;
 
     const icon = page.locator('[data-slot="coach-launch-icon"]').first();
     await expect(icon).toBeVisible({ timeout: 10_000 });
@@ -207,9 +221,9 @@ test.describe("Coach launch surfaces on insights sub-pages", () => {
     await expect(drawer).toHaveAttribute("data-variant", "side-sheet");
   });
 
-  test("an unread Coach nudge paints the FAB dot and clicking the FAB opens the full-page chat", async ({
+  test("an unread Coach nudge paints the FAB dot and clicking the FAB opens the Coach drawer in place", async ({
     page,
-  }) => {
+  }, testInfo) => {
     // The FAB contract is viewport-independent — the test runs on
     // both projects. Override the default nudge mock with an unread
     // one (later registration wins).
@@ -224,7 +238,14 @@ test.describe("Coach launch surfaces on insights sub-pages", () => {
       }),
     );
 
+    // Hydration gate — the nudge-status query is fired by the FAB
+    // component itself, so its response proves the FAB's click handler
+    // is attached (the button paints from SSR HTML long before that).
+    const fabHydrated = page.waitForResponse(
+      /\/api\/insights\/coach\/nudge-status/,
+    );
     await page.goto("/insights/blutdruck", { waitUntil: "domcontentloaded" });
+    await fabHydrated;
 
     const fab = page.locator('[data-slot="coach-fab"]');
     await expect(fab).toBeVisible({ timeout: 10_000 });
@@ -236,10 +257,24 @@ test.describe("Coach launch surfaces on insights sub-pages", () => {
     ).toBeVisible();
     await fab.click();
 
-    await page.waitForURL("**/insights/coach", { timeout: 10_000 });
-    await expect(
-      page.locator('[data-slot="coach-page"]'),
-    ).toBeVisible({ timeout: 10_000 });
+    // v1.16.11 — the FAB opens the side drawer in place instead of
+    // navigating to `/insights/coach`; the page underneath stays.
+    const drawer = page.locator('[data-slot="coach-drawer"]');
+    await expect(drawer).toBeVisible({ timeout: 10_000 });
+    await expect(drawer).toHaveAttribute(
+      "data-variant",
+      testInfo.project.name === "chromium-mobile"
+        ? "bottom-sheet"
+        : "side-sheet",
+    );
+    expect(new URL(page.url()).pathname).not.toContain("/insights/coach");
+
+    // Opening the Coach counts as reading the nudge on this device —
+    // the dot clears and the unread flag drops off the FAB.
+    await expect(page.locator('[data-slot="coach-fab-unread"]')).toHaveCount(
+      0,
+    );
+    await expect(fab).not.toHaveAttribute("data-unread", "true");
   });
 
   test("the drawer's Conversations button hands off to the full-page chat on Desktop Chrome", async ({
@@ -253,7 +288,12 @@ test.describe("Coach launch surfaces on insights sub-pages", () => {
       "exercises the desktop drawer layout",
     );
 
+    // Hydration gate — see the bottom-sheet test above.
+    const pageHydrated = page.waitForResponse(
+      /\/api\/insights\/blood-pressure-status/,
+    );
     await page.goto("/insights/blutdruck", { waitUntil: "domcontentloaded" });
+    await pageHydrated;
 
     const icon = page.locator('[data-slot="coach-launch-icon"]').first();
     await expect(icon).toBeVisible({ timeout: 10_000 });

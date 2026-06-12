@@ -561,3 +561,123 @@ describe("POST /api/medications/[id]/intake — v1.8.2 reconcile (M2 inventory)"
     );
   });
 });
+
+// ────────────────────────────────────────────────────────────────────
+// v1.16.11 (#316) — as-needed (PRN, schedule-less) intakes
+// ────────────────────────────────────────────────────────────────────
+
+describe("POST /api/medications/[id]/intake — as-needed (schedule-less) medication", () => {
+  function postReq(body: unknown): NextRequest {
+    return new NextRequest("http://localhost/api/medications/med-1/intake", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(body),
+    });
+  }
+
+  it("records an ad-hoc row (scheduledFor = takenAt) and consumes inventory", async () => {
+    // One hour in the past — relative instant, no slot semantics.
+    const takenAt = new Date(Date.now() - 60 * 60 * 1000);
+    const createdEvent = {
+      id: "evt-prn-1",
+      userId: "user-1",
+      medicationId: "med-1",
+      scheduledFor: takenAt,
+      takenAt,
+      skipped: false,
+    };
+    vi.mocked(prisma.$transaction).mockResolvedValue([createdEvent] as never);
+    // Slot-snap resolver loads the med: an as-needed medication carries
+    // ZERO schedules, so band attribution yields no slot → standalone
+    // ad-hoc insert (the documented PRN path).
+    vi.mocked(prisma.medication.findFirst).mockResolvedValueOnce({
+      id: "med-1",
+      startsOn: null,
+      endsOn: null,
+      oneShot: false,
+      createdAt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
+      schedules: [],
+    } as never);
+    // Dedup probe — no recent duplicate.
+    vi.mocked(prisma.medicationIntakeEvent.findFirst).mockResolvedValueOnce(
+      null as never,
+    );
+    // One-shot reconcile probe — not a one-shot.
+    vi.mocked(prisma.medication.findUnique).mockResolvedValue({
+      id: "med-1",
+      userId: "user-1",
+      oneShot: false,
+      active: true,
+    } as never);
+    vi.mocked(prisma.medication.updateMany).mockResolvedValue({
+      count: 0,
+    } as never);
+
+    const res = await POST(
+      postReq({ takenAt: takenAt.toISOString(), skipped: false }),
+      ROUTE_PARAMS,
+    );
+    expect(res.status).toBe(201);
+
+    // Standalone insert anchored on the intake instant — the ad-hoc
+    // contract (`scheduledFor = takenAt`), no slot attribution.
+    const txArg = vi.mocked(prisma.$transaction).mock.calls[0][0];
+    expect(Array.isArray(txArg)).toBe(true);
+
+    // Inventory consumption fires exactly as for a scheduled medication —
+    // the seam is medication-level (eventId + intakeAt), no schedule input.
+    const { consumeForIntake } = await import(
+      "@/lib/medications/inventory/consumption"
+    );
+    expect(consumeForIntake).toHaveBeenCalledTimes(1);
+    expect(consumeForIntake).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: "user-1",
+        medicationId: "med-1",
+        eventId: "evt-prn-1",
+        intakeAt: takenAt,
+      }),
+    );
+  });
+
+  it("a skipped ad-hoc write never consumes", async () => {
+    const skipEvent = {
+      id: "evt-prn-2",
+      userId: "user-1",
+      medicationId: "med-1",
+      scheduledFor: new Date(),
+      takenAt: null,
+      skipped: true,
+    };
+    vi.mocked(prisma.$transaction).mockResolvedValue([skipEvent] as never);
+    vi.mocked(prisma.medication.findFirst).mockResolvedValue({
+      id: "med-1",
+      startsOn: null,
+      endsOn: null,
+      oneShot: false,
+      createdAt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
+      schedules: [],
+    } as never);
+    vi.mocked(prisma.medicationIntakeEvent.findFirst).mockResolvedValue(
+      null as never,
+    );
+    vi.mocked(prisma.medication.findUnique).mockResolvedValue({
+      id: "med-1",
+      userId: "user-1",
+      oneShot: false,
+      active: true,
+    } as never);
+    vi.mocked(prisma.medication.updateMany).mockResolvedValue({
+      count: 0,
+    } as never);
+
+    const res = await POST(postReq({ skipped: true }), ROUTE_PARAMS);
+    expect(res.status).toBe(201);
+
+    const { consumeForIntake, restoreForIntake } = await import(
+      "@/lib/medications/inventory/consumption"
+    );
+    expect(consumeForIntake).not.toHaveBeenCalled();
+    expect(restoreForIntake).toHaveBeenCalledTimes(1);
+  });
+});

@@ -14,7 +14,7 @@
  */
 import { useMemo } from "react";
 import Link from "next/link";
-import { Activity, Pill, Plus, Settings2, Waves } from "lucide-react";
+import { Activity, Pill, Plus, Waves, Wrench } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -114,7 +114,7 @@ export function DashboardHeader({
             aria-label={t("dashboard.customizeDashboard")}
             title={t("dashboard.customizeDashboard")}
           >
-            <Settings2 className="h-4 w-4" aria-hidden="true" />
+            <Wrench className="h-4 w-4" aria-hidden="true" />
           </Link>
         </Button>
         <DropdownMenu>

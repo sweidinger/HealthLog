@@ -145,6 +145,13 @@ model User {
   // once the user has explicitly toggled the view or saved an order.
   // Shape: { "version": 1, "view": "table", "order": ["<medicationId>", ...] }
   medicationListLayoutJson Json?  @map("medication_list_layout_json")
+  // v1.17.0 — per-user mood-tag presentation: group order + per-group tag
+  // placement (catalogue tags "moved" into a group live here only — their
+  // `categoryId` never changes). Display-only, preserve-when-absent PUT,
+  // unknown keys dropped at read. Null = seeded defaults.
+  // Shape: { "groupOrder": ["<categoryKey>", ...],
+  //          "placements": { "<categoryKey>": ["<tagKey>", ...] } }
+  moodTagLayoutJson       Json?   @map("mood_tag_layout_json")
   // Blood-glucose display unit preference. Canonical storage is mg/dL.
   glucoseUnit             String? @map("glucose_unit") // "mg/dL" | "mmol/L" | null = default "mg/dL"
   // v1.7.0 unit pref — global metric/imperial display preference.
@@ -402,6 +409,7 @@ model User {
   fitbitOAuthStates      FitbitOAuthState[]
   moodEntries            MoodEntry[]
   moodTagsCustom         MoodTag[]             @relation("UserMoodTags")
+  moodTagCategoriesCustom MoodTagCategory[]    @relation("UserMoodTagCategories")
   moodTagsHidden         MoodTagHidden[]
   notificationChannels   NotificationChannel[]
   pushSubscriptions      PushSubscription[]
@@ -1297,6 +1305,16 @@ model Medication {
   /// the migration backfills `oneShot = false` for every existing
   /// row.
   oneShot              Boolean            @default(false) @map("one_shot")
+  /// v1.16.11 (#316) — as-needed (PRN) medication. Taken only when the
+  /// user needs it (pain relief, rescue inhaler): no fixed schedule,
+  /// never due, never reminded, never counted in compliance, stays
+  /// active indefinitely — but intakes log, inventory consumes, and the
+  /// history renders. An as-needed medication carries ZERO
+  /// MedicationSchedule rows (the create/update routes 422 on a
+  /// schedules array alongside `asNeeded: true`); every "never due /
+  /// never reminded" surface follows structurally from the empty
+  /// schedule list. Mutually exclusive with `oneShot`.
+  asNeeded             Boolean            @default(false) @map("as_needed")
   /// v1.6.0 — route of administration. Decoupled from `treatmentClass`
   /// so the injection-site picker can surface for any INJECTION dose.
   /// A one-time injection is `oneShot = true` + `deliveryForm =
@@ -1337,6 +1355,15 @@ model Medication {
   /// under `http://www.nlm.nih.gov/research/umls/rxnorm` alongside any
   /// ATC code, never instead of the free-text `.text` anchor.
   rxNormCode           String?            @map("rxnorm_code")
+  /// v1.16.11 — low-stock notification stamp. Set when the daily
+  /// low-stock pass dispatched a notification for the current
+  /// threshold crossing; cleared (re-armed) when the projected runway
+  /// rises back to / above the user's threshold (refill). NULL = armed.
+  lowStockNotifiedAt   DateTime?          @map("low_stock_notified_at")
+  /// v1.16.11 — the user threshold (days) the stamp was written
+  /// against. A changed threshold re-arms the medication even while
+  /// the runway stays low, so the user hears about the new crossing.
+  lowStockNotifiedThresholdDays Int?      @map("low_stock_notified_threshold_days")
   createdAt            DateTime           @default(now()) @map("created_at")
   updatedAt            DateTime           @updatedAt @map("updated_at")
 
@@ -2362,8 +2389,19 @@ model MoodTagCategory {
   /// Soft-hide a category without deleting its historical links.
   isActive  Boolean @default(true) @map("is_active")
 
-  tags MoodTag[]
+  /// v1.17.0 — owner of a per-user custom group. NULL = the global seeded
+  /// catalogue (resolves `labelKey` against the locale). Set = a user's own
+  /// group, carrying a `customcat:<uuid>` key and a free-text label held in
+  /// `labelEncrypted` (mirrors the MoodTag custom-tag precedent).
+  userId         String? @map("user_id")
+  /// v1.17.0 — AES-256-GCM ciphertext of a custom group's free-text label
+  /// (user prose, possibly health-adjacent). NULL for seeded rows.
+  labelEncrypted String? @map("label_encrypted")
 
+  tags MoodTag[]
+  user User?     @relation("UserMoodTagCategories", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
   @@map("mood_tag_categories")
 }
 

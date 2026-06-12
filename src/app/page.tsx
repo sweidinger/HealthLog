@@ -1429,11 +1429,17 @@ export default function DashboardPage() {
         // already mounted) so the page holds roughly its final
         // footprint from first paint and the snapshot landing swaps
         // content instead of growing the page.
+        // `mounted &&` pins the hydration render to the SSR output: the
+        // auth query is fired by the early-hydrating shell, so `user`
+        // can already carry a heightCm when this late-hydrating page
+        // boundary replays its first render — the extra BMI silhouette
+        // then mismatched the server HTML (React #418). The count may
+        // only personalise from the first client re-render.
         const chartRowPlaceholderCount = primaryLoading
           ? Math.max(
               0,
               resolveChartRowPlaceholderCount(layout, {
-                hasHeightCm: Boolean(user?.heightCm),
+                hasHeightCm: mounted && Boolean(user?.heightCm),
               }) - charts.length,
             )
           : 0;

@@ -185,8 +185,36 @@ describe("pickCanonicalWorkoutRows", () => {
   it("falls through to keeping every row when sources aren't on the ladder at all", () => {
     // Theoretical safety net — no real source emits a value outside
     // the canonical enum, but the picker MUST NEVER drop signal it
-    // can't classify. Forcing a ladder of a single source the bucket
-    // doesn't carry exercises the fallback path.
+    // can't classify. Since v1.16.11 the resolver reconciles every
+    // stored ladder against the defaults, so ANY enum source is always
+    // ranked — the only unrankable rows carry a source outside the
+    // enum entirely (a future source reaching an old reader).
+    const rows = [
+      {
+        id: "a",
+        startedAt: new Date("2026-05-16T08:00:00Z"),
+        sportType: "running",
+        source: "SOMETHING_NEW" as never,
+      },
+      {
+        id: "b",
+        startedAt: new Date("2026-05-16T08:01:00Z"),
+        sportType: "running",
+        source: "SOMETHING_ELSE" as never,
+      },
+    ] as RowFixture[];
+    expect(
+      pickCanonicalWorkoutRows(rows, null)
+        .map((r) => r.id)
+        .sort(),
+    ).toEqual(["a", "b"]);
+  });
+
+  it("a stored single-source ladder still resolves a canonical row (reconciled defaults rank the rest)", () => {
+    // The pre-v1.16.11 contract for this input was "nothing ranked →
+    // keep both"; reconciliation now appends the default ladder after
+    // the stored entry, so the bucket resolves one canonical row like
+    // every ranked pick.
     const rows: RowFixture[] = [
       {
         id: "a",
@@ -201,15 +229,9 @@ describe("pickCanonicalWorkoutRows", () => {
         source: "WITHINGS",
       },
     ];
-    const oddPriority = {
-      metricPriority: {
-        steps: ["IMPORT"],
-      },
-    };
-    expect(
-      pickCanonicalWorkoutRows(rows, oddPriority)
-        .map((r) => r.id)
-        .sort(),
-    ).toEqual(["a", "b"]);
+    const picked = pickCanonicalWorkoutRows(rows, {
+      metricPriority: { steps: ["IMPORT"] },
+    }).map((r) => r.id);
+    expect(picked).toHaveLength(1);
   });
 });

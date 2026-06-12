@@ -199,7 +199,15 @@ export const PUT = apiHandler(
     if (guard) return guard;
     const existing = await prisma.medication.findUnique({
       where: { id },
-      select: { active: true, createdAt: true },
+      // v1.16.11 — `asNeeded` + the schedule count feed the as-needed
+      // invariants below: a flip to as-needed must end schedule-less,
+      // a flip back to scheduled must end with at least one schedule.
+      select: {
+        active: true,
+        createdAt: true,
+        asNeeded: true,
+        _count: { select: { schedules: true } },
+      },
     });
     if (!existing) {
       return apiError("Medication not found", 404);
@@ -236,8 +244,42 @@ export const PUT = apiHandler(
       startsOn,
       endsOn,
       oneShot,
+      asNeeded,
       reminderGraceMinutes: topLevelGraceMinutes,
     } = parsed.data;
+
+    // ── v1.16.11 (#316) — as-needed invariants ──────────────────────
+    //
+    // An as-needed medication ends schedule-less, always. The Zod layer
+    // already rejects a populated `schedules` array alongside
+    // `asNeeded: true`; the route covers the cross-row cases the schema
+    // cannot see:
+    //   - flipping an existing scheduled medication to as-needed
+    //     requires `schedules: []` in the same request (keeping the old
+    //     rows alongside the flag is a 422, per the feature contract);
+    //   - flipping as-needed OFF requires the medication to end with at
+    //     least one schedule (the wizard always sends the full array).
+    const effectiveAsNeeded = asNeeded ?? existing.asNeeded;
+    if (effectiveAsNeeded) {
+      const endsScheduleless = schedules
+        ? schedules.length === 0
+        : existing._count.schedules === 0;
+      if (!endsScheduleless) {
+        return apiError(
+          "An as-needed medication cannot carry schedules (send schedules: [] to clear them)",
+          422,
+        );
+      }
+    } else if (
+      asNeeded === false &&
+      existing.asNeeded &&
+      (!schedules || schedules.length === 0)
+    ) {
+      return apiError(
+        "A scheduled medication requires at least one schedule",
+        422,
+      );
+    }
 
     // ── v1.5.5 — primary-schedule grace bridge ──────────────────────
     //
@@ -452,6 +494,42 @@ export const PUT = apiHandler(
           },
           meta: { schedule_revision_rows: previousEntries.length },
         });
+      } else if (
+        previousRows.length === 0 &&
+        existing.asNeeded &&
+        asNeeded === false &&
+        normalisedSchedules.length > 0
+      ) {
+        // v1.16.11 — flipping as-needed OFF. The medication carried ZERO
+        // schedule rows while as-needed, so the wholesale-replace archive
+        // above never fires — and without a revision the live era would
+        // start at the PREVIOUS revision's `validUntil` (or `createdAt`),
+        // retro-painting the schedule-less as-needed stretch with the NEW
+        // schedule's expected slots: every PRN day would read as missed.
+        // Archive an EMPTY era covering the as-needed stretch instead; an
+        // empty payload expands to zero schedules, so era-aware compliance
+        // expects nothing there — exactly the as-needed contract.
+        const lastRevision = await prisma.medicationScheduleRevision.findFirst({
+          where: { medicationId: id, supersededByRevisionId: null },
+          orderBy: { validUntil: "desc" },
+          select: { validUntil: true },
+        });
+        await prisma.medicationScheduleRevision.create({
+          data: {
+            medicationId: id,
+            validFrom: lastRevision?.validUntil ?? existing.createdAt,
+            validUntil: new Date(),
+            payload: [] as unknown as Prisma.InputJsonValue,
+          },
+        });
+        annotate({
+          action: {
+            name: "medication.schedule.revision_archived",
+            entity_type: "medication",
+            entity_id: id,
+          },
+          meta: { schedule_revision_rows: 0 },
+        });
       }
       // A schedule replace invalidates the open slot anchors the projector /
       // reminder worker minted for the OLD times: a pending 08:00 row for a
@@ -540,6 +618,9 @@ export const PUT = apiHandler(
       ...(startsOn !== undefined && { startsOn }),
       ...(normalisedEndsOn !== undefined && { endsOn: normalisedEndsOn }),
       ...(oneShot !== undefined && { oneShot }),
+      // v1.16.11 — as-needed flag, field-by-field (the invariants above
+      // already guaranteed the medication ends schedule-consistent).
+      ...(asNeeded !== undefined && { asNeeded }),
       ...(normalisedSchedules && {
         schedules: {
           create: normalisedSchedules.map((n) => n.createData),

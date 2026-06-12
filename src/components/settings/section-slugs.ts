@@ -17,6 +17,9 @@
 // for the /medications list (view preference + manual order), following
 // the dashboard / insights pattern of a dedicated settings section
 // reached from the page header's Settings2 glyph.
+// v1.17 — `mood` sits after `medications`: the mood-tag management
+// surface (groups, custom tags, hide/archive, picker order), reached
+// from the /mood page header's wrench glyph.
 export const SETTINGS_SECTION_SLUGS = [
   "account",
   "integrations",
@@ -24,6 +27,7 @@ export const SETTINGS_SECTION_SLUGS = [
   "dashboard",
   "insights",
   "medications",
+  "mood",
   "thresholds",
   "sources",
   "ai",

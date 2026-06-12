@@ -15,6 +15,10 @@
  *     the count is set absolutely, clamped server-side to the item's
  *     capacity, and the canonical state machine derives the next state
  *     (0 ⇒ used up).
+ *   - DELETE: a per-item trash affordance behind a destructive confirm
+ *     (`DELETE …/inventory/[itemId]`). Consumption stamps on intake
+ *     events that referenced the container stay in place; a later
+ *     restore skips the missing item.
  *
  * v1.16.10 — items count UNITS (tablets / ampoules / puffs);
  * `Medication.unitsPerDose` maps units to doses. Every dose-facing
@@ -32,12 +36,14 @@
  */
 
 import { useState, type FormEvent } from "react";
+import Link from "next/link";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Loader2, PackageOpen, Plus } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { DeleteButton } from "@/components/data-list/delete-button";
 import {
   Dialog,
   DialogContent,
@@ -58,7 +64,13 @@ import {
 import { SettingsGroup } from "@/components/medications/settings-group";
 import { useTranslations } from "@/lib/i18n/context";
 import { queryKeys } from "@/lib/query-keys";
-import { apiGet, apiPatch, apiPost } from "@/lib/api/api-fetch";
+import {
+  apiDelete,
+  apiGet,
+  apiPatch,
+  apiPost,
+  apiPut,
+} from "@/lib/api/api-fetch";
 import { summariseSupply } from "@/lib/medications/inventory/summary";
 
 type InventoryState = "ACTIVE" | "IN_USE" | "EXPIRED" | "USED_UP";
@@ -115,8 +127,22 @@ export function InventorySection({
   deliveryForm?: string;
 }) {
   const { t } = useTranslations();
+  const queryClient = useQueryClient();
   const [addOpen, setAddOpen] = useState(false);
   const [adjustItem, setAdjustItem] = useState<InventoryItem | null>(null);
+  const [packagingOpen, setPackagingOpen] = useState(false);
+
+  async function deleteItem(item: InventoryItem) {
+    try {
+      await apiDelete(`/api/medications/${medicationId}/inventory/${item.id}`);
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.medicationInventory(medicationId),
+      });
+      toast.success(t("medications.detail.bestand.deleteSuccess"));
+    } catch {
+      toast.error(t("medications.detail.bestand.deleteFailed"));
+    }
+  }
 
   const perDose = Math.max(1, unitsPerDose ?? 1);
 
@@ -127,6 +153,26 @@ export function InventorySection({
     },
     staleTime: 30_000,
   });
+
+  // v1.16.11 — the low-stock alert threshold, for the cross-link row
+  // below the supply summary (same shared key + cache the cards read).
+  // Null on failure falls back to the server default (7 days).
+  const { data: thresholds } = useQuery({
+    queryKey: queryKeys.settingsReminderThresholds(),
+    queryFn: async () => {
+      try {
+        return await apiGet<{
+          lateMinutes: number;
+          missedMinutes: number;
+          lowStockRunwayDays: number | null;
+        }>("/api/settings/reminder-thresholds");
+      } catch {
+        return null;
+      }
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+  const lowStockDays = thresholds == null ? 7 : thresholds.lowStockRunwayDays;
 
   if (isLoading) {
     return (
@@ -174,6 +220,14 @@ export function InventorySection({
           medicationId={medicationId}
           item={adjustItem}
           onClose={() => setAdjustItem(null)}
+        />
+      )}
+      {packagingOpen && (
+        <PackagingDialog
+          medicationId={medicationId}
+          unitsPerDose={perDose}
+          dosesPerUnit={dosesPerUnit ?? null}
+          onClose={() => setPackagingOpen(false)}
         />
       )}
     </>
@@ -238,6 +292,55 @@ export function InventorySection({
             {t("medications.detail.bestand.addButton")}
           </Button>
         </div>
+        {/* v1.16.11 — cross-link to the low-stock alert setting: the
+            threshold lives in Settings → Notifications, but the question
+            "when will it warn me?" comes up here, where the stock lives. */}
+        <div className="py-2">
+          <Link
+            href="/settings/notifications#low-stock"
+            className="text-muted-foreground hover:text-foreground text-xs underline-offset-2 hover:underline"
+            data-slot="inventory-low-stock-link"
+          >
+            {lowStockDays !== null
+              ? t("medications.detail.bestand.lowStockLinkOn", {
+                  days: lowStockDays,
+                })
+              : t("medications.detail.bestand.lowStockLinkOff")}
+          </Link>
+        </div>
+      </SettingsGroup>
+
+      {/* v1.16.11 — packaging economics surfaced where the stock lives:
+          the wizard's dose step owns these on create/edit, but a
+          manufacturer switch (a different blister size) happens while
+          looking at the supply, so the supply tab carries them too. */}
+      <SettingsGroup
+        label={t("medications.detail.bestand.packagingTitle")}
+        dataSlot="inventory-packaging-group"
+      >
+        <div className="flex items-center justify-between gap-3 py-3">
+          <p className="text-foreground text-sm font-medium">
+            {t("medications.detail.bestand.packagingUnitsPerDose", {
+              units: perDose,
+            })}
+            <span className="text-muted-foreground block text-xs font-normal">
+              {dosesPerUnit != null
+                ? t("medications.detail.bestand.packagingDefaultPack", {
+                    units: dosesPerUnit,
+                  })
+                : t("medications.detail.bestand.packagingNoDefaultPack")}
+            </span>
+          </p>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setPackagingOpen(true)}
+            className="min-h-11 shrink-0 sm:min-h-9"
+            data-slot="inventory-packaging-edit"
+          >
+            {t("medications.detail.bestand.packagingEdit")}
+          </Button>
+        </div>
       </SettingsGroup>
 
       <SettingsGroup
@@ -256,28 +359,36 @@ export function InventorySection({
                   `medications.detail.bestand.containerType.${item.containerType}`,
                 )}
               </span>
-              <span className="text-muted-foreground block text-xs">
-                {t("medications.detail.bestand.doses", {
-                  remaining: Math.floor(item.unitsRemaining / perDose),
-                  total: Math.floor(item.unitsTotal / perDose),
-                })}
-                {perDose > 1 && (
-                  <>
-                    {" · "}
-                    {t("medications.detail.bestand.unitsDetail", {
-                      remaining: item.unitsRemaining,
-                      total: item.unitsTotal,
-                    })}
-                  </>
-                )}
+              {/* Meta line: per-container figures with the state badge
+                  inline at meta-text size — read-only, never a control. */}
+              <span className="text-muted-foreground flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs">
+                <span>
+                  {t("medications.detail.bestand.doses", {
+                    remaining: Math.floor(item.unitsRemaining / perDose),
+                    total: Math.floor(item.unitsTotal / perDose),
+                  })}
+                  {perDose > 1 && (
+                    <>
+                      {" · "}
+                      {t("medications.detail.bestand.unitsDetail", {
+                        remaining: item.unitsRemaining,
+                        total: item.unitsTotal,
+                      })}
+                    </>
+                  )}
+                </span>
+                <Badge
+                  variant={STATE_BADGE[item.state]}
+                  className="px-1.5 py-0 text-xs font-normal"
+                  data-slot="inventory-state-badge"
+                >
+                  {t(`medications.detail.bestand.state.${item.state}`)}
+                </Badge>
               </span>
             </span>
             <span className="flex shrink-0 items-center gap-1">
-              <Badge variant={STATE_BADGE[item.state]} className="text-xs">
-                {t(`medications.detail.bestand.state.${item.state}`)}
-              </Badge>
               <Button
-                variant="ghost"
+                variant="outline"
                 size="sm"
                 onClick={() => setAdjustItem(item)}
                 className="min-h-11 sm:min-h-9"
@@ -285,6 +396,11 @@ export function InventorySection({
               >
                 {t("medications.detail.bestand.adjustButton")}
               </Button>
+              <DeleteButton
+                onConfirm={() => void deleteItem(item)}
+                title={t("medications.detail.bestand.deleteTitle")}
+                description={t("medications.detail.bestand.deleteDescription")}
+              />
             </span>
           </div>
         ))}
@@ -613,6 +729,159 @@ function AdjustInventoryDialog({
                 />
               )}
               {t("medications.detail.bestand.adjustSubmit")}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/**
+ * Edit the medication-level packaging economics from the supply tab:
+ * units one dose consumes, and the default container size the register
+ * flow prefills. Both PUT sparsely onto the medication — the wizard's
+ * dose step stays the source on create; this is the correction surface
+ * for a manufacturer switch (same medication, different blister size).
+ */
+function PackagingDialog({
+  medicationId,
+  unitsPerDose,
+  dosesPerUnit,
+  onClose,
+}: {
+  medicationId: string;
+  unitsPerDose: number;
+  dosesPerUnit: number | null;
+  onClose: () => void;
+}) {
+  const { t } = useTranslations();
+  const queryClient = useQueryClient();
+  const [perDoseValue, setPerDoseValue] = useState(String(unitsPerDose));
+  const [packValue, setPackValue] = useState(
+    dosesPerUnit === null ? "" : String(dosesPerUnit),
+  );
+  const [busy, setBusy] = useState(false);
+
+  const parsedPerDose = Number(perDoseValue);
+  const perDoseValid =
+    Number.isInteger(parsedPerDose) && parsedPerDose >= 1 && parsedPerDose <= 100;
+  const parsedPack = packValue.trim() === "" ? null : Number(packValue);
+  const packValid =
+    parsedPack === null ||
+    (Number.isInteger(parsedPack) && parsedPack >= 1 && parsedPack <= 1000);
+
+  async function submit(e: FormEvent) {
+    e.preventDefault();
+    if (!perDoseValid || !packValid || busy) return;
+    setBusy(true);
+    try {
+      await apiPut(`/api/medications/${medicationId}`, {
+        unitsPerDose: parsedPerDose,
+        dosesPerUnit: parsedPack,
+      });
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.medicationDetail(medicationId),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.medications(),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.medicationInventory(medicationId),
+        }),
+      ]);
+      toast.success(t("medications.detail.bestand.packagingSuccess"));
+      onClose();
+    } catch {
+      toast.error(t("medications.detail.bestand.packagingFailed"));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Dialog open onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>
+            {t("medications.detail.bestand.packagingTitle")}
+          </DialogTitle>
+          <DialogDescription>
+            {t("medications.detail.bestand.packagingDescription")}
+          </DialogDescription>
+        </DialogHeader>
+        <form onSubmit={submit} className="space-y-4">
+          <div className="space-y-2">
+            <label
+              htmlFor="packaging-units-per-dose"
+              className="text-sm font-medium"
+            >
+              {t("medications.detail.bestand.packagingUnitsPerDoseLabel")}
+            </label>
+            <Input
+              id="packaging-units-per-dose"
+              type="number"
+              inputMode="numeric"
+              min={1}
+              max={100}
+              step={1}
+              required
+              autoComplete="off"
+              value={perDoseValue}
+              onChange={(e) => setPerDoseValue(e.target.value)}
+              aria-describedby="packaging-units-per-dose-helper"
+            />
+            <p
+              id="packaging-units-per-dose-helper"
+              className="text-muted-foreground text-xs"
+            >
+              {t("medications.detail.bestand.packagingUnitsPerDoseHelper")}
+            </p>
+          </div>
+          <div className="space-y-2">
+            <label
+              htmlFor="packaging-default-pack"
+              className="text-sm font-medium"
+            >
+              {t("medications.detail.bestand.packagingDefaultPackLabel")}
+            </label>
+            <Input
+              id="packaging-default-pack"
+              type="number"
+              inputMode="numeric"
+              min={1}
+              max={1000}
+              step={1}
+              autoComplete="off"
+              value={packValue}
+              onChange={(e) => setPackValue(e.target.value)}
+              aria-describedby="packaging-default-pack-helper"
+            />
+            <p
+              id="packaging-default-pack-helper"
+              className="text-muted-foreground text-xs"
+            >
+              {t("medications.detail.bestand.packagingDefaultPackHelper")}
+            </p>
+          </div>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={onClose}
+              disabled={busy}
+            >
+              {t("common.cancel")}
+            </Button>
+            <Button type="submit" disabled={!perDoseValid || !packValid || busy}>
+              {busy && (
+                <Loader2
+                  aria-hidden="true"
+                  className="h-4 w-4 animate-spin motion-reduce:animate-none"
+                />
+              )}
+              {t("common.save")}
             </Button>
           </DialogFooter>
         </form>

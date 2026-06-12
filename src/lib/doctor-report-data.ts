@@ -441,6 +441,7 @@ export async function collectDoctorReportData(
               atcCode: true,
               rxNormCode: true,
               deliveryForm: true,
+              asNeeded: true,
             },
           },
         },
@@ -502,9 +503,13 @@ export async function collectDoctorReportData(
     };
   }
 
-  // Medication compliance.
+  // Medication compliance. As-needed medications are excluded: they
+  // carry no schedule, so every logged intake is "taken" by definition
+  // and a 100% rate would be a fabricated number on a clinical report.
+  // The medication itself stays on the report's medication list.
   const compliance: Record<string, DoctorReportCompliance> = {};
   for (const event of intakeEvents) {
+    if (event.medication.asNeeded) continue;
     const name = event.medication.name;
     if (!compliance[name]) {
       compliance[name] = { total: 0, taken: 0, skipped: 0, missed: 0 };

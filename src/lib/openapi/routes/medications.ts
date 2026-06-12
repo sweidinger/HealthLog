@@ -207,6 +207,11 @@ export const medicationResource = z
       .describe(
         "v1.5 single-administration flag. When true the medication has at most one schedule (no `rrule` / `rollingIntervalDays`), and `active` auto-flips to false once the dose is logged.",
       ),
+    asNeeded: z
+      .boolean()
+      .describe(
+        "v1.16.11 as-needed (PRN) flag. When true the medication carries ZERO schedules (the write routes 422 on any schedule entry alongside the flag): it is never due (`nextDueAt` stays null), never reminded, and excluded from every compliance rate/streak — but intakes still log as ad-hoc rows, inventory still consumes per `unitsPerDose`, and the history renders. Stays active indefinitely. Mutually exclusive with `oneShot`.",
+      ),
     createdAt: z.iso.datetime({ offset: true }),
     updatedAt: z.iso.datetime({ offset: true }),
     schedules: z.array(medicationScheduleResource),

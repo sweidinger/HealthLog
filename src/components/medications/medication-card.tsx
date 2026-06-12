@@ -16,6 +16,10 @@ import {
   toZonedDate,
 } from "@/lib/medications/window-status";
 import { resolveDisplayedSlotInstant } from "@/components/medications/card-parts/displayed-slot-instant";
+import {
+  estimateDailyDoseCount,
+  estimateRunwayDays,
+} from "@/components/medications/detail/supply-runway";
 import { useTranslations, useFormatters } from "@/lib/i18n/context";
 import {
   invalidateKeys,
@@ -44,6 +48,9 @@ interface Schedule {
    */
   timesOfDay?: string[];
   doseWindows?: { timeOfDay: string; start: string; end: string }[] | null;
+  /** Cadence fields the supply-runway estimate reads (v1.16.11). */
+  rrule?: string | null;
+  rollingIntervalDays?: number | null;
 }
 
 interface Medication {
@@ -85,6 +92,15 @@ interface Medication {
    * still takeable" instead of the regular upcoming-intake phrasing.
    */
   nextDueOverdue?: boolean;
+  /**
+   * v1.16.11 (#316) — as-needed (PRN) medication: no schedules, never
+   * due, never reminded, no compliance. The card renders a calm
+   * "Bei Bedarf" marker where next-due normally sits and replaces the
+   * compliance bars with the last-taken oriented presentation.
+   */
+  asNeeded?: boolean;
+  /** v1.16.10 — dose-derived stock from the list payload; null = inventory tracking off. */
+  stockDosesRemaining?: number | null;
   schedules: Schedule[];
 }
 
@@ -151,9 +167,11 @@ export function MedicationCard({
     queryKey: queryKeys.settingsReminderThresholds(),
     queryFn: async () => {
       try {
-        return await apiGet<{ lateMinutes: number; missedMinutes: number }>(
-          "/api/settings/reminder-thresholds",
-        );
+        return await apiGet<{
+          lateMinutes: number;
+          missedMinutes: number;
+          lowStockRunwayDays: number | null;
+        }>("/api/settings/reminder-thresholds");
       } catch {
         return null;
       }
@@ -257,6 +275,33 @@ export function MedicationCard({
     timeZone: userTz,
   });
 
+  // v1.16.11 — low-stock card context. Runway days from the list
+  // payload's dose-derived stock over the same estimate the table /
+  // detail Übersicht / notification engine use; surfaced ONLY below the
+  // user's runway threshold (`lowStockRunwayDays`, default 7, null =
+  // alert off → no card line either). Stock 0 with a consuming schedule
+  // is runway 0 (mirrors `evaluateMedicationRunway`); as-needed has no
+  // runway, ever.
+  const lowStockThreshold =
+    thresholds == null ? 7 : thresholds.lowStockRunwayDays;
+  const stockRunwayDays =
+    medication.asNeeded || medication.stockDosesRemaining == null
+      ? null
+      : medication.stockDosesRemaining > 0
+        ? estimateRunwayDays(
+            medication.stockDosesRemaining,
+            medication.schedules,
+          )
+        : estimateDailyDoseCount(medication.schedules) > 0
+          ? 0
+          : null;
+  const lowStockRunwayDays =
+    stockRunwayDays !== null &&
+    lowStockThreshold !== null &&
+    stockRunwayDays < lowStockThreshold
+      ? stockRunwayDays
+      : null;
+
   function formatLastTakenAt(value: string): string {
     // Intentionally en-CA: gives YYYY-MM-DD which is locale-independent and
     // string-comparable for the today / yesterday / older bucketing below.
@@ -299,6 +344,15 @@ export function MedicationCard({
       onOpenHistory={() => onOpenHistory(medication)}
     />
   );
+
+  // v1.16.11 — as-needed: a calm marker where next-due normally sits.
+  // No due pill, no overdue escalation, ever (structurally there is no
+  // schedule, so the window status is already null).
+  const asNeededLine = medication.asNeeded ? (
+    <span className="text-muted-foreground" data-slot="medication-as-needed-marker">
+      {t("medications.asNeededMarker")}
+    </span>
+  ) : null;
 
   // The upcoming-intake line value — a day label + window range + optional
   // dose accent. The card owns this VALUE content (a daily med reads as a
@@ -396,19 +450,21 @@ export function MedicationCard({
             }
           : null
       }
-      doseStatus={doseStatus}
-      nextLine={nextLine}
+      doseStatus={medication.asNeeded ? "upcoming" : doseStatus}
+      nextLine={asNeededLine ?? nextLine}
       lastLine={
         medication.lastTakenAt
           ? formatLastTakenAt(medication.lastTakenAt)
           : null
       }
+      asNeeded={medication.asNeeded === true}
       compliance={
         compliance ? { rate7, rate30, streak, shortDays, longDays } : null
       }
       complianceError={complianceError}
       onRetryCompliance={refetchCompliance}
       currentCycle={display?.currentCycle ?? null}
+      lowStockRunwayDays={lowStockRunwayDays}
       intakeLoading={intakeLoading}
       onRecordIntake={(skipped) => recordIntake(skipped, displayedSlot)}
     >

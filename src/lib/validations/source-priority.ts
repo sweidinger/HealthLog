@@ -344,11 +344,33 @@ function buildResolved(
   deviceTypePriority: DeviceTypePriority,
 ): ResolvedSourcePriority {
   // Merge: defaults < flat (W5e) < nested (W8c).
-  const merged: Required<MetricPriority> = {
+  const replaced: Required<MetricPriority> = {
     ...DEFAULT_SOURCE_PRIORITY,
     ...flat,
     ...nested,
   };
+  // v1.16.11 — reconcile every stored ladder against the metric's
+  // default ladder. A stored ladder used to REPLACE the default
+  // wholesale, so a source integrated after the user last saved
+  // (WHOOP on a pre-v1.11 sleep ladder, Fitbit on pre-v1.12 ones)
+  // never surfaced again: the settings UI renders only the stored
+  // array and offers reorder, not add, and the picker ranked the
+  // invisible source last. The user's explicit order stays untouched;
+  // sources the default ladder knows and the stored ladder lacks
+  // append at the end — visible, reorderable, and ranked exactly where
+  // the old behaviour ranked them (after everything ranked).
+  const merged = {} as Required<MetricPriority>;
+  for (const key of Object.keys(replaced) as (keyof MetricPriority)[]) {
+    // First occurrence wins on duplicates — a duplicate-laden ladder
+    // written through the API directly would otherwise grow past the
+    // schema's 8-entry cap once the settings page echoes the resolved
+    // shape back through PUT.
+    const stored = [...new Set(replaced[key])];
+    const missing = DEFAULT_SOURCE_PRIORITY[key].filter(
+      (source) => !stored.includes(source),
+    );
+    merged[key] = missing.length > 0 ? [...stored, ...missing] : stored;
+  }
   const resolved: ResolvedSourcePriority = {
     ...merged,
     metricPriority: merged,

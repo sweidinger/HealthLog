@@ -309,6 +309,7 @@ export const POST = apiHandler(async (request: NextRequest) => {
     startsOn,
     endsOn,
     oneShot,
+    asNeeded,
   } = parsed.data;
 
   // ── v1.5 route invariants for the new scheduling primitives ───────
@@ -335,15 +336,24 @@ export const POST = apiHandler(async (request: NextRequest) => {
   //      always sees a populated `timesOfDay` while legacy iOS clients
   //      (v0.6.x) keep encoding the `windowStart` / `windowEnd` /
   //      `daysOfWeek` shape. Both shapes coexist through v1.5.x.
+  //   4. **As-needed (v1.16.11, #316)** — when `asNeeded === true` the
+  //      medication carries ZERO schedules (the Zod refine already
+  //      rejects a populated array, mutual exclusion with `oneShot`
+  //      included). Every "never due / never reminded / never scored"
+  //      surface follows structurally from the empty schedule list.
+  const scheduleInputs = schedules ?? [];
   if (oneShot === true) {
-    if (schedules.length > 1) {
+    if (scheduleInputs.length > 1) {
       return apiError(
         "A one-shot medication can have at most one schedule",
         422,
       );
     }
-    const s = schedules[0];
-    if (s.rrule !== undefined || s.rollingIntervalDays !== undefined) {
+    const s = scheduleInputs[0];
+    if (
+      s &&
+      (s.rrule !== undefined || s.rollingIntervalDays !== undefined)
+    ) {
       return apiError(
         "A one-shot medication cannot have a recurrence (rrule or rollingIntervalDays)",
         422,
@@ -387,8 +397,12 @@ export const POST = apiHandler(async (request: NextRequest) => {
       ...(startsOn !== undefined && { startsOn }),
       ...(normalisedEndsOn !== undefined && { endsOn: normalisedEndsOn }),
       ...(oneShot !== undefined && { oneShot }),
+      // v1.16.11 — as-needed flag, field-by-field. An asNeeded create
+      // carries an empty `scheduleInputs`, so the nested create below
+      // persists zero schedule rows.
+      ...(asNeeded !== undefined && { asNeeded }),
       schedules: {
-        create: schedules.map((s) => {
+        create: scheduleInputs.map((s) => {
           // Invariant 2 — default to FREQ=DAILY when nothing else is set.
           // v1.7.0 — PRN schedules carry no cadence, so never default
           // them to FREQ=DAILY (they would otherwise project + remind).

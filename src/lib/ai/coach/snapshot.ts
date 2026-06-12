@@ -769,7 +769,9 @@ async function buildCoachSnapshotImpl(
   // can be reconstructed per medication.
   const complianceMedsPromise = wantsCompliance
     ? prisma.medication.findMany({
-        where: { userId },
+        // v1.16.11 — as-needed (PRN) medications never reach the Coach
+        // compliance context (no expected doses, no rate).
+        where: { userId, asNeeded: false },
         select: {
           id: true,
           startsOn: true,

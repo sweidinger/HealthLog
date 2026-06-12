@@ -32,6 +32,16 @@ let catalogueSnapshot:
   | null = null;
 
 /**
+ * v1.17.0 — same treatment for the seeded mood-tag categories:
+ * `mood_tag_categories.user_id` now FKs to `users` (custom groups), so the
+ * users TRUNCATE cascades into the category table too. The categories must
+ * restore BEFORE the tags (tags FK into categories).
+ */
+let categorySnapshot:
+  | Awaited<ReturnType<PrismaClient["moodTagCategory"]["findMany"]>>
+  | null = null;
+
+/**
  * Truncate every user-facing table in dependency-safe order using
  * `TRUNCATE … RESTART IDENTITY CASCADE`. Call from beforeEach() to make
  * tests independent. The list mirrors `prisma/schema.prisma` minus
@@ -92,12 +102,24 @@ export async function truncateAllTables(client: PrismaClient): Promise<void> {
       where: { userId: null },
     });
   }
+  if (categorySnapshot === null) {
+    categorySnapshot = await client.moodTagCategory.findMany({
+      where: { userId: null },
+    });
+  }
 
   const quoted = tables.map((t) => `"${t}"`).join(", ");
   await client.$executeRawUnsafe(
     `TRUNCATE TABLE ${quoted} RESTART IDENTITY CASCADE;`,
   );
 
+  // Categories first — the tag rows FK into them.
+  if (categorySnapshot.length > 0) {
+    await client.moodTagCategory.createMany({
+      data: categorySnapshot,
+      skipDuplicates: true,
+    });
+  }
   if (catalogueSnapshot.length > 0) {
     await client.moodTag.createMany({
       data: catalogueSnapshot,

@@ -664,7 +664,58 @@
     "bulkDeleteSuccess": "Usunięto wpisy: {count}",
     "bulkDeleteError": "Błąd podczas usuwania wybranych wpisów",
     "bulkDeleteConfirmTitle": "Usunąć wpisy ({count})?",
-    "bulkDeleteConfirmBody": "Wybrane wpisy nastroju ({count}) zostaną trwale usunięte."
+    "bulkDeleteConfirmBody": "Wybrane wpisy nastroju ({count}) zostaną trwale usunięte.",
+    "customize": "Dostosuj tagi nastroju",
+    "addTagInline": "Dodaj tag",
+    "manage": {
+      "groupsTitle": "Grupy",
+      "groupsDescription": "Twórz własne grupy i ustal ich kolejność w wyborze.",
+      "newGroup": "Nowa grupa",
+      "groupLabel": "Nazwa grupy",
+      "groupIcon": "Ikona",
+      "groupCreated": "Grupa utworzona",
+      "groupRenamed": "Grupa zapisana",
+      "groupDeleteTitle": "Usunąć grupę?",
+      "groupDeleteBody": "Tagi z tej grupy wracają do swojej pierwotnej grupy. Żadne wpisy nie zostaną usunięte.",
+      "groupDeleted": "Grupa usunięta",
+      "groupEmpty": "Brak własnych grup.",
+      "groupLimitReached": "Osiągnięto limit grup",
+      "tagsTitle": "Tagi",
+      "tagsDescription": "Ukrywaj, porządkuj, przenoś lub edytuj tagi widoczne w wyborze.",
+      "newTag": "Nowy tag",
+      "tagLabel": "Nazwa tagu",
+      "tagIcon": "Ikona",
+      "tagGroup": "Grupa",
+      "usageCount": "{count} wpisów",
+      "hideTag": "Ukryj tag",
+      "showTag": "Pokaż tag",
+      "moveToGroup": "Przenieś do grupy",
+      "archive": "Archiwizuj",
+      "restore": "Przywróć",
+      "archivedTitle": "Zarchiwizowane tagi",
+      "archivedDescription": "Zarchiwizowane tagi pozostają w Twoich wcześniejszych wpisach — znikają tylko z wyboru.",
+      "archivedEmpty": "Nic nie zarchiwizowano.",
+      "purgeTitle": "Usunąć tag na zawsze?",
+      "purgeBody": "Tag zostanie usunięty z {count} wcześniejszych wpisów. Tej operacji nie można cofnąć.",
+      "purgeAction": "Usuń na zawsze",
+      "purged": "Tag usunięty",
+      "tagLimitReached": "Osiągnięto limit tagów",
+      "iconPickerTitle": "Wybierz ikonę",
+      "iconSearchPlaceholder": "Szukaj ikon…",
+      "iconSearchEmpty": "Brak pasującej ikony.",
+      "iconSearchClear": "Wyczyść wyszukiwanie",
+      "orderSave": "Zapisz kolejność",
+      "orderSaved": "Kolejność zapisana",
+      "moveUp": "W górę",
+      "moveDown": "W dół",
+      "iconGroupEmotions": "Emocje",
+      "iconGroupActivities": "Aktywności",
+      "iconGroupHealth": "Zdrowie",
+      "iconGroupFood": "Jedzenie i napoje",
+      "iconGroupWeather": "Pogoda",
+      "iconGroupPlaces": "Miejsca",
+      "iconGroupMisc": "Inne"
+    }
   },
   "medications": {
     "title": "Leki",
@@ -677,6 +728,15 @@
     "addChoice": {
       "logIntake": "Zarejestruj przyjęcie",
       "newMedication": "Nowy lek"
+    },
+    "takeAllDue": {
+      "button": "Przyjmij wszystkie zaległe",
+      "dialogTitle": "Przyjmij zaległe leki",
+      "dialogDescription": "Te leki są teraz do przyjęcia. Potwierdź, aby zarejestrować je wszystkie jako przyjęte.",
+      "confirm": "Przyjmij wszystkie ({count})",
+      "successToast": "Zarejestrowano przyjęcia: {count}",
+      "partialToast": "Zarejestrowano: {taken}, nieudane: {failed} – spróbuj ponownie",
+      "failedToast": "Nie zarejestrowano żadnego przyjęcia – spróbuj ponownie"
     },
     "logIntake": {
       "dialogTitle": "Zarejestruj przyjęcie",
@@ -760,6 +820,7 @@
     "today": "Dzisiaj",
     "yesterday": "Wczoraj",
     "tomorrow": "Jutro",
+    "asNeededMarker": "W razie potrzeby",
     "withoutNotification": "Bez powiadomienia",
     "pausedSince": "Wstrzymane od",
     "takeNow": "Przyjmij teraz",
@@ -1147,6 +1208,10 @@
         "oneShot": {
           "label": "Jednorazowo",
           "description": "Jednorazowe podanie, np. szczepionka lub kuracja antybiotykowa."
+        },
+        "asNeeded": {
+          "label": "W razie potrzeby",
+          "description": "Bez stałego planu — zapisz przyjęcie, gdy go potrzebujesz (np. lek przeciwbólowy)."
         }
       },
       "summary": {
@@ -1160,6 +1225,7 @@
           "yearly": "Raz w roku",
           "rolling": "Co {n} dni od ostatniego przyjęcia",
           "oneShot": "Pojedyncza dawka",
+          "asNeeded": "W razie potrzeby",
           "everyNWeeks": "Co {n} tygodni",
           "everyNMonths": "Co {n} miesięcy"
         },
@@ -1345,7 +1411,8 @@
       },
       "cadence": {
         "oneShotOn": "Dawka jednorazowa w dniu {date}.",
-        "oneShotPending": "Dawka jednorazowa oczekuje."
+        "oneShotPending": "Dawka jednorazowa oczekuje.",
+        "asNeeded": "W razie potrzeby — bez stałego planu."
       },
       "intake": {
         "title": "Historia przyjęć",
@@ -1574,6 +1641,7 @@
         "statusTitle": "Status",
         "nextDoseLabel": "Następna dawka",
         "nextDoseNone": "Brak nadchodzącej dawki.",
+        "nextDoseAsNeeded": "W razie potrzeby — brak zaplanowanej dawki.",
         "pausedHint": "Wstrzymano — brak przypomnień.",
         "reminderLabel": "Przypomnienie",
         "reminderOn": "Włączone",
@@ -1581,6 +1649,7 @@
         "supplyLabel": "Zapas",
         "supplyRunway": "Wystarczy na około {days} dni",
         "jumpToZeitplan": "Otwórz harmonogram",
+        "jumpToVerlauf": "Otwórz historię",
         "jumpToBestand": "Otwórz zapas",
         "complianceTitle": "Przestrzeganie",
         "complianceEmpty": "Brak danych o przestrzeganiu."
@@ -1600,6 +1669,8 @@
         "emptyHelper": "Zarejestruj opakowanie lub pojemnik, aby śledzić pozostały zapas i jego wystarczalność.",
         "emptyCta": "Zarejestruj opakowanie",
         "addButton": "Zarejestruj",
+        "lowStockLinkOn": "Powiadomienie o niskim zapasie: poniżej {days} dni",
+        "lowStockLinkOff": "Powiadomienie o niskim zapasie: wyłączone",
         "addTitle": "Zarejestruj opakowanie lub pojemnik",
         "addDescription": "Zapisz nowy zapas z liczbą jednostek; data ważności jest opcjonalna.",
         "addQuantityLabel": "Ilość (jednostki)",
@@ -1616,6 +1687,10 @@
         "adjustSubmit": "Zapisz",
         "adjustSuccess": "Zapas zaktualizowany.",
         "adjustFailed": "Nie udało się zaktualizować zapasu.",
+        "deleteTitle": "Usunąć opakowanie?",
+        "deleteDescription": "Trwale usuwa to opakowanie lub pojemnik z zapasu. Zarejestrowane dawki pozostają bez zmian.",
+        "deleteSuccess": "Zapas usunięty.",
+        "deleteFailed": "Nie udało się usunąć zapasu.",
         "containerTypeLabel": "Rodzaj pojemnika",
         "containerType": {
           "PEN": "Wstrzykiwacz",
@@ -1631,7 +1706,19 @@
         "quantityInUnits": "= {units} jednostek",
         "quantityInDoses": "Dawki: ≈ {doses}",
         "quantityUnderOneDose": "< 1 dawka",
-        "expiredSuffix": "+ przeterminowane jednostki: {units}"
+        "expiredSuffix": "+ przeterminowane jednostki: {units}",
+        "packagingTitle": "Opakowanie i dawka",
+        "packagingUnitsPerDose": "1 dawka = {units} jedn.",
+        "packagingDefaultPack": "Domyślny rozmiar opakowania: {units} jedn.",
+        "packagingNoDefaultPack": "Brak domyślnego rozmiaru opakowania",
+        "packagingEdit": "Edytuj",
+        "packagingDescription": "Określ, ile jednostek zużywa jedna dawka i jaki jest typowy rozmiar nowego opakowania — np. po zmianie producenta z innym blistrem.",
+        "packagingUnitsPerDoseLabel": "Jednostki na dawkę",
+        "packagingUnitsPerDoseHelper": "Np. dwie tabletki 2 mg na dawkę 4 mg (1–100). Zarejestrowane dawki pozostają bez zmian.",
+        "packagingDefaultPackLabel": "Domyślny rozmiar opakowania (jednostki)",
+        "packagingDefaultPackHelper": "Wstępnie wypełnia ilość przy dodawaniu nowych opakowań (1–1000). Zostaw puste, jeśli nie dotyczy.",
+        "packagingSuccess": "Zapisano dane opakowania",
+        "packagingFailed": "Zapis nie powiódł się"
       },
       "erweitert": {
         "group": {
@@ -1733,6 +1820,8 @@
     "tableComplianceDays": "{days} dni",
     "tableStockDoseOne": "1 dawka",
     "tableStockDoses": "Dawki: {count}",
+    "tableStockRunway": "≈ {days} dni zapasu",
+    "cardLowStockRunway": "Zapas: ≈ {days} dni",
     "takeActionFor": "Przyjmij – {name}",
     "skipActionFor": "Pomiń – {name}",
     "reorderTitle": "Zmień kolejność",
@@ -3773,6 +3862,10 @@
       "medications": {
         "title": "Leki",
         "description": "Widok listy i kolejność leków."
+      },
+      "mood": {
+        "title": "Tagi nastroju",
+        "description": "Grupy, tagi i kolejność w wyborze nastroju."
       }
     },
     "profile": "Profil",
@@ -5297,6 +5390,20 @@
       "disabledToast": "Proaktywne podpowiedzi Coacha wyłączone.",
       "saveError": "Nie udało się zapisać. Spróbuj ponownie później."
     },
+    "lowStock": {
+      "title": "Alert niskiego zapasu",
+      "description": "Raz dziennie sprawdza śledzone zapasy leków i powiadamia, gdy któryś wystarcza na mniej dni niż ten próg. Jedno powiadomienie na niedobór; po uzupełnieniu uzbraja się ponownie.",
+      "toggleAria": "Przełącz alerty niskiego zapasu",
+      "statusOn": "Aktywne",
+      "statusOff": "Wyłączone",
+      "daysLabel": "Powiadom poniżej (dni)",
+      "daysAria": "Wybierz próg zapasu w dniach",
+      "savedToast": "Próg zapasu zapisany.",
+      "enabledToast": "Alerty niskiego zapasu włączone.",
+      "disabledToast": "Alerty niskiego zapasu wyłączone.",
+      "saveError": "Zapis nieudany. Spróbuj ponownie.",
+      "medicationsLink": "Przejdź do swoich leków"
+    },
     "eventMedicationReminder": "Przypomnienie o leku",
     "eventMedicationReminderDesc": "Wysyłane o każdej zaplanowanej godzinie dawki.",
     "eventMeasurementAnomaly": "Nietypowy pomiar",
@@ -5316,7 +5423,9 @@
     "eventCyclePeriodConfirm": "Czy okres się zaczął?",
     "eventCyclePeriodConfirmDesc": "Delikatne przypomnienie w dniu przewidywanego początku lub później, gdy nie zarejestrowano okresu.",
     "eventCycleFertileSoon": "Zbliża się okno płodności",
-    "eventCycleFertileSoonDesc": "Wysyłane kilka dni przed szacowanym oknem płodności, gdy Twoim celem jest poczęcie."
+    "eventCycleFertileSoonDesc": "Wysyłane kilka dni przed szacowanym oknem płodności, gdy Twoim celem jest poczęcie.",
+    "eventMedicationLowStock": "Niski zapas leku",
+    "eventMedicationLowStockDesc": "Gdy śledzony zapas leku wystarcza na mniej dni niż twój próg zapasu"
   },
   "i18n": {
     "maintainershipBanner": {
@@ -5478,6 +5587,11 @@
     "buttonSnoozeOneHour": "🕐 1h",
     "buttonSnoozeThreeHours": "🕐 3h",
     "buttonSkip": "⏭ Pomiń"
+  },
+  "lowStockReminders": {
+    "title": "Niski zapas: {medName}",
+    "body": "{medName}: pozostało {units} jednostek — wystarczy na około {days} dni.",
+    "bodyToday": "{medName}: pozostało {units} jednostek — mniej niż jeden dzień zapasu."
   },
   "moodReminders": {
     "dailyTitle": "Zapisz nastrój",
