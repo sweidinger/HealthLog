@@ -26,6 +26,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { MedicationStatusPill } from "@/components/medications/card-parts/medication-status-pill";
 import { useWeekdayLabel } from "@/components/medications/card-parts/medication-next-last-slot";
 import { resolveDisplayedSlotInstant } from "@/components/medications/card-parts/displayed-slot-instant";
+import { estimateRunwayDays } from "@/components/medications/detail/supply-runway";
 import { useMedicationIntake } from "@/components/medications/use-medication-intake";
 import {
   reduceCurrentWindowStatus,
@@ -70,6 +71,9 @@ interface TableSchedule {
   daysOfWeek: string | null;
   timesOfDay?: string[];
   doseWindows?: { timeOfDay: string; start: string; end: string }[] | null;
+  /** Cadence fields the supply-runway estimate reads (v1.16.11). */
+  rrule?: string | null;
+  rollingIntervalDays?: number | null;
 }
 
 export interface TableMedication {
@@ -547,23 +551,40 @@ function MedicationTableRowItem({
   );
 
   const stock = medication.stockDosesRemaining;
+  // Projected days the stock covers — the same coarse estimate the
+  // detail Übersicht renders, so the column answers "do I need a
+  // refill" without opening the medication.
+  const runwayDays =
+    stock === null || stock === undefined
+      ? null
+      : estimateRunwayDays(stock, medication.schedules);
   const stockCell =
     stock === null || stock === undefined ? (
       <span className="text-muted-foreground">–</span>
     ) : (
-      <span
-        className={cn(
-          "tabular-nums",
-          stock === 0
-            ? "text-destructive font-medium"
-            : stock < LOW_STOCK_DOSES
-              ? "text-warning font-medium"
-              : undefined,
+      <span className="flex flex-col">
+        <span
+          className={cn(
+            "tabular-nums",
+            stock === 0
+              ? "text-destructive font-medium"
+              : stock < LOW_STOCK_DOSES
+                ? "text-warning font-medium"
+                : undefined,
+          )}
+        >
+          {stock === 1
+            ? t("medications.tableStockDoseOne")
+            : t("medications.tableStockDoses", { count: stock })}
+        </span>
+        {runwayDays !== null && (
+          <span
+            className="text-muted-foreground text-xs"
+            data-slot="medication-table-runway"
+          >
+            {t("medications.tableStockRunway", { days: runwayDays })}
+          </span>
         )}
-      >
-        {stock === 1
-          ? t("medications.tableStockDoseOne")
-          : t("medications.tableStockDoses", { count: stock })}
       </span>
     );
 
