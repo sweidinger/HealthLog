@@ -21,7 +21,6 @@ import { MOOD_TAG_ICON_NAMES } from "@/lib/mood/icon-catalog";
 export const CUSTOM_TAG_KEY_PREFIX = "custom:";
 
 /** Stable category key + seeded id every custom tag hangs under. */
-export const CUSTOM_CATEGORY_KEY = "custom";
 export const CUSTOM_CATEGORY_ID = "mtc_custom";
 
 /** Per-user ceiling on custom tags (422 over the cap). */

@@ -62,28 +62,11 @@ export interface ManageCatalog {
   categories: ManageCategory[];
 }
 
-export interface MoodTagLayout {
-  groupOrder?: string[];
-  placements?: Record<string, string[]>;
-}
-
-/** Per-user ceilings — mirror the server's 422 caps for friendly copy. */
-export const MAX_CUSTOM_TAGS = 50;
-export const MAX_CUSTOM_GROUPS = 12;
-
 export function useMoodTagManage(enabled: boolean) {
   return useQuery({
     queryKey: queryKeys.moodTagManage(),
     queryFn: async () =>
       apiGet<ManageCatalog>("/api/mood/tags?include=hidden,archived,usage"),
-    enabled,
-  });
-}
-
-export function useMoodTagLayout(enabled: boolean) {
-  return useQuery({
-    queryKey: queryKeys.moodTagLayout(),
-    queryFn: async () => apiGet<MoodTagLayout>("/api/mood/tags/layout"),
     enabled,
   });
 }
