@@ -33,6 +33,7 @@ import { medicationPaths, medicationResource } from "./medications";
 import { metaPaths } from "./meta";
 import { moodPaths } from "./mood";
 import { profilePaths } from "./profile";
+import { settingsPaths } from "./settings";
 import { syncPaths } from "./sync";
 import { workoutPaths } from "./workouts";
 
@@ -53,6 +54,7 @@ export const openApiPaths: NonNullable<ZodOpenApiObject["paths"]> = {
   ...adminDiagnosticPaths,
   ...insightsPaths,
   ...moodPaths,
+  ...settingsPaths,
 };
 
 export const openApiComponents: NonNullable<ZodOpenApiObject["components"]> = {

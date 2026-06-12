@@ -352,8 +352,10 @@ export async function runMedicationLowStockTick(
                 unitsRemaining: evaluation.unitsRemaining,
                 dosesRemaining: evaluation.dosesRemaining,
                 // Deep link — the web-push sender threads this into
-                // the service-worker payload's click target.
-                url: `/medications/${med.id}`,
+                // the service-worker payload's click target. Lands on
+                // the detail page's Bestand (supply) tab, the surface
+                // the alert is about.
+                url: `/medications/${med.id}?tab=bestand`,
               },
             });
             if (!outcome.dispatched) {

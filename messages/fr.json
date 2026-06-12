@@ -1669,6 +1669,8 @@
         "emptyHelper": "Enregistrez une boîte ou un contenant pour suivre le stock restant et l'autonomie.",
         "emptyCta": "Enregistrer une boîte",
         "addButton": "Enregistrer",
+        "lowStockLinkOn": "Alerte de stock bas : en dessous de {days} jours",
+        "lowStockLinkOff": "Alerte de stock bas : désactivée",
         "addTitle": "Enregistrer une boîte ou un contenant",
         "addDescription": "Enregistrez un nouveau stock avec son nombre d'unités ; la date de péremption est facultative.",
         "addQuantityLabel": "Quantité (unités)",
@@ -1819,6 +1821,7 @@
     "tableStockDoseOne": "1 dose",
     "tableStockDoses": "{count} doses",
     "tableStockRunway": "≈ {days} jours restants",
+    "cardLowStockRunway": "Réserve : ≈ {days} jours",
     "takeActionFor": "Prendre – {name}",
     "skipActionFor": "Passer – {name}",
     "reorderTitle": "Modifier l'ordre",
@@ -5398,7 +5401,8 @@
       "savedToast": "Seuil de stock enregistré.",
       "enabledToast": "Alertes de stock faible activées.",
       "disabledToast": "Alertes de stock faible désactivées.",
-      "saveError": "Échec de l’enregistrement. Réessayez."
+      "saveError": "Échec de l’enregistrement. Réessayez.",
+      "medicationsLink": "Voir tes médicaments"
     },
     "eventMedicationReminder": "Rappel de médicament",
     "eventMedicationReminderDesc": "Envoyé à chaque heure de prise prévue.",

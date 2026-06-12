@@ -1669,6 +1669,8 @@
         "emptyHelper": "Zarejestruj opakowanie lub pojemnik, aby śledzić pozostały zapas i jego wystarczalność.",
         "emptyCta": "Zarejestruj opakowanie",
         "addButton": "Zarejestruj",
+        "lowStockLinkOn": "Powiadomienie o niskim zapasie: poniżej {days} dni",
+        "lowStockLinkOff": "Powiadomienie o niskim zapasie: wyłączone",
         "addTitle": "Zarejestruj opakowanie lub pojemnik",
         "addDescription": "Zapisz nowy zapas z liczbą jednostek; data ważności jest opcjonalna.",
         "addQuantityLabel": "Ilość (jednostki)",
@@ -1819,6 +1821,7 @@
     "tableStockDoseOne": "1 dawka",
     "tableStockDoses": "Dawki: {count}",
     "tableStockRunway": "≈ {days} dni zapasu",
+    "cardLowStockRunway": "Zapas: ≈ {days} dni",
     "takeActionFor": "Przyjmij – {name}",
     "skipActionFor": "Pomiń – {name}",
     "reorderTitle": "Zmień kolejność",
@@ -5398,7 +5401,8 @@
       "savedToast": "Próg zapasu zapisany.",
       "enabledToast": "Alerty niskiego zapasu włączone.",
       "disabledToast": "Alerty niskiego zapasu wyłączone.",
-      "saveError": "Zapis nieudany. Spróbuj ponownie."
+      "saveError": "Zapis nieudany. Spróbuj ponownie.",
+      "medicationsLink": "Przejdź do swoich leków"
     },
     "eventMedicationReminder": "Przypomnienie o leku",
     "eventMedicationReminderDesc": "Wysyłane o każdej zaplanowanej godzinie dawki.",

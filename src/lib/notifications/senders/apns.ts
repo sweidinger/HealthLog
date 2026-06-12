@@ -766,6 +766,12 @@ const IOS_METADATA_ALLOWLIST = new Set([
   "scheduleId",
   "phase",
   "date",
+  // v1.16.11 — MEDICATION_LOW_STOCK deep link + context: the in-app
+  // path the push should open (`/medications/{id}?tab=bestand`) plus
+  // the runway / threshold figures the iOS handler can surface.
+  "url",
+  "runwayDays",
+  "thresholdDays",
 ]);
 
 function pickIosMetadata(

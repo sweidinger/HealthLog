@@ -55,6 +55,14 @@ export function MedicationStatusPill({
   const { t, locale } = useTranslations();
   const Root = inline ? "span" : "p";
 
+  // v1.16.11 — the inline (next-row) variant keeps its window-range
+  // suffix visible on mobile: the suffix is the row's only time anchor
+  // there, and hiding it left every prompt tier time-less below `sm`.
+  // The standalone `<p>` contexts keep the legacy truncation.
+  const suffixClass = inline
+    ? "text-muted-foreground"
+    : "text-muted-foreground hidden sm:inline";
+
   if (takenEarlyDaysAgo != null) {
     return (
       <Root className="text-sm">
@@ -65,7 +73,7 @@ export function MedicationStatusPill({
             : t("medications.lastDoseDaysAgo", { count: takenEarlyDaysAgo })}
         </span>
         {!compact && (
-          <span className="text-muted-foreground hidden sm:inline">
+          <span className={suffixClass}>
             {" "}
             — {formatTimeWindowRange(windowStart, windowEnd, locale)}
           </span>
@@ -106,7 +114,7 @@ export function MedicationStatusPill({
             : t("medications.veryOverdue")}
       </span>
       {!compact && (
-        <span className="text-muted-foreground hidden sm:inline">
+        <span className={suffixClass}>
           {" "}
           — {formatTimeWindowRange(windowStart, windowEnd, locale)}
         </span>

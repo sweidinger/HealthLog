@@ -1669,6 +1669,8 @@
         "emptyHelper": "Registra una confezione o un contenitore per monitorare la scorta rimanente e l'autonomia.",
         "emptyCta": "Registra una confezione",
         "addButton": "Registra",
+        "lowStockLinkOn": "Avviso scorta bassa: sotto i {days} giorni",
+        "lowStockLinkOff": "Avviso scorta bassa: disattivato",
         "addTitle": "Registra una confezione o un contenitore",
         "addDescription": "Registra una nuova scorta con il numero di unità; la data di scadenza è facoltativa.",
         "addQuantityLabel": "Quantità (unità)",
@@ -1819,6 +1821,7 @@
     "tableStockDoseOne": "1 dose",
     "tableStockDoses": "{count} dosi",
     "tableStockRunway": "≈ {days} giorni rimanenti",
+    "cardLowStockRunway": "Scorta: ≈ {days} giorni",
     "takeActionFor": "Assumi – {name}",
     "skipActionFor": "Salta – {name}",
     "reorderTitle": "Modifica ordine",
@@ -5398,7 +5401,8 @@
       "savedToast": "Soglia delle scorte salvata.",
       "enabledToast": "Avvisi di scorte basse attivati.",
       "disabledToast": "Avvisi di scorte basse disattivati.",
-      "saveError": "Salvataggio non riuscito. Riprova."
+      "saveError": "Salvataggio non riuscito. Riprova.",
+      "medicationsLink": "Vai ai tuoi farmaci"
     },
     "eventMedicationReminder": "Promemoria farmaco",
     "eventMedicationReminderDesc": "Inviato a ogni orario di dose programmato.",

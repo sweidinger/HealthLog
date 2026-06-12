@@ -16,6 +16,10 @@ import {
   toZonedDate,
 } from "@/lib/medications/window-status";
 import { resolveDisplayedSlotInstant } from "@/components/medications/card-parts/displayed-slot-instant";
+import {
+  estimateDailyDoseCount,
+  estimateRunwayDays,
+} from "@/components/medications/detail/supply-runway";
 import { useTranslations, useFormatters } from "@/lib/i18n/context";
 import {
   invalidateKeys,
@@ -44,6 +48,9 @@ interface Schedule {
    */
   timesOfDay?: string[];
   doseWindows?: { timeOfDay: string; start: string; end: string }[] | null;
+  /** Cadence fields the supply-runway estimate reads (v1.16.11). */
+  rrule?: string | null;
+  rollingIntervalDays?: number | null;
 }
 
 interface Medication {
@@ -92,6 +99,8 @@ interface Medication {
    * compliance bars with the last-taken oriented presentation.
    */
   asNeeded?: boolean;
+  /** v1.16.10 — dose-derived stock from the list payload; null = inventory tracking off. */
+  stockDosesRemaining?: number | null;
   schedules: Schedule[];
 }
 
@@ -158,9 +167,11 @@ export function MedicationCard({
     queryKey: queryKeys.settingsReminderThresholds(),
     queryFn: async () => {
       try {
-        return await apiGet<{ lateMinutes: number; missedMinutes: number }>(
-          "/api/settings/reminder-thresholds",
-        );
+        return await apiGet<{
+          lateMinutes: number;
+          missedMinutes: number;
+          lowStockRunwayDays: number | null;
+        }>("/api/settings/reminder-thresholds");
       } catch {
         return null;
       }
@@ -263,6 +274,33 @@ export function MedicationCard({
     now: new Date(),
     timeZone: userTz,
   });
+
+  // v1.16.11 — low-stock card context. Runway days from the list
+  // payload's dose-derived stock over the same estimate the table /
+  // detail Übersicht / notification engine use; surfaced ONLY below the
+  // user's runway threshold (`lowStockRunwayDays`, default 7, null =
+  // alert off → no card line either). Stock 0 with a consuming schedule
+  // is runway 0 (mirrors `evaluateMedicationRunway`); as-needed has no
+  // runway, ever.
+  const lowStockThreshold =
+    thresholds == null ? 7 : thresholds.lowStockRunwayDays;
+  const stockRunwayDays =
+    medication.asNeeded || medication.stockDosesRemaining == null
+      ? null
+      : medication.stockDosesRemaining > 0
+        ? estimateRunwayDays(
+            medication.stockDosesRemaining,
+            medication.schedules,
+          )
+        : estimateDailyDoseCount(medication.schedules) > 0
+          ? 0
+          : null;
+  const lowStockRunwayDays =
+    stockRunwayDays !== null &&
+    lowStockThreshold !== null &&
+    stockRunwayDays < lowStockThreshold
+      ? stockRunwayDays
+      : null;
 
   function formatLastTakenAt(value: string): string {
     // Intentionally en-CA: gives YYYY-MM-DD which is locale-independent and
@@ -426,6 +464,7 @@ export function MedicationCard({
       complianceError={complianceError}
       onRetryCompliance={refetchCompliance}
       currentCycle={display?.currentCycle ?? null}
+      lowStockRunwayDays={lowStockRunwayDays}
       intakeLoading={intakeLoading}
       onRecordIntake={(skipped) => recordIntake(skipped, displayedSlot)}
     >

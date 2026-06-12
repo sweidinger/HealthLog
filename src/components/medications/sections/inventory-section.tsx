@@ -36,6 +36,7 @@
  */
 
 import { useState, type FormEvent } from "react";
+import Link from "next/link";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Loader2, PackageOpen, Plus } from "lucide-react";
@@ -152,6 +153,26 @@ export function InventorySection({
     },
     staleTime: 30_000,
   });
+
+  // v1.16.11 — the low-stock alert threshold, for the cross-link row
+  // below the supply summary (same shared key + cache the cards read).
+  // Null on failure falls back to the server default (7 days).
+  const { data: thresholds } = useQuery({
+    queryKey: queryKeys.settingsReminderThresholds(),
+    queryFn: async () => {
+      try {
+        return await apiGet<{
+          lateMinutes: number;
+          missedMinutes: number;
+          lowStockRunwayDays: number | null;
+        }>("/api/settings/reminder-thresholds");
+      } catch {
+        return null;
+      }
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+  const lowStockDays = thresholds == null ? 7 : thresholds.lowStockRunwayDays;
 
   if (isLoading) {
     return (
@@ -270,6 +291,22 @@ export function InventorySection({
             <Plus aria-hidden="true" className="h-4 w-4" />
             {t("medications.detail.bestand.addButton")}
           </Button>
+        </div>
+        {/* v1.16.11 — cross-link to the low-stock alert setting: the
+            threshold lives in Settings → Notifications, but the question
+            "when will it warn me?" comes up here, where the stock lives. */}
+        <div className="py-2">
+          <Link
+            href="/settings/notifications#low-stock"
+            className="text-muted-foreground hover:text-foreground text-xs underline-offset-2 hover:underline"
+            data-slot="inventory-low-stock-link"
+          >
+            {lowStockDays !== null
+              ? t("medications.detail.bestand.lowStockLinkOn", {
+                  days: lowStockDays,
+                })
+              : t("medications.detail.bestand.lowStockLinkOff")}
+          </Link>
         </div>
       </SettingsGroup>
 

@@ -46,6 +46,7 @@ import {
   type ScheduleWindowInput,
 } from "@/lib/medications/window-status";
 import { resolveDisplayedSlotInstant } from "@/components/medications/card-parts/displayed-slot-instant";
+import type { DoseStatus } from "@/lib/analytics/compliance";
 
 type Translator = (
   key: string,
@@ -69,6 +70,8 @@ export interface DueDerivationMedication {
   /** Server display-due verdict from `GET /api/medications`. */
   nextDueAt?: string | null;
   nextDueOverdue?: boolean;
+  /** v1.16.11 (#316) — as-needed (PRN): never due, never in the set. */
+  asNeeded?: boolean;
   schedules: DueDerivationSchedule[];
 }
 
@@ -95,6 +98,21 @@ const DEFAULT_THRESHOLDS = { lateMinutes: 120, missedMinutes: 240 };
  * a non-null current-window status (in_window / late / very_late) that is
  * not the day-scale taken-early downgrade. Input order is preserved so
  * the dialog lists medications in the same order the page renders them.
+ *
+ * The due set ADDITIONALLY includes escalated medications: an active,
+ * unpaused, non-as-needed medication whose batched compliance
+ * `currentDose.status` (`doseStatusById`, the same
+ * `useMedicationComplianceSummaryAll` rows the page and the table hold)
+ * is `overdue` / `missed`. A dose whose band + catch-up tail have closed
+ * renders the red escalation value with an ACTIVE take button on its
+ * card, so it must be takeable from the batch too — the window-only
+ * derivation silently dropped it. The recorded slot for such an entry is
+ * exactly what the card's own take button records: the SAME
+ * `resolveDisplayedSlotInstant` call over the same (closed) window
+ * status, which resolves to the server's `nextDueAt` instant (or null,
+ * preserving the unscheduled now-snap path). Entries dedupe by
+ * construction — the window branch and the escalation branch are
+ * mutually exclusive per medication.
  */
 export function deriveDueMedications(
   medications: DueDerivationMedication[],
@@ -103,6 +121,12 @@ export function deriveDueMedications(
     /** IANA timezone (profile timezone; Berlin is the legacy fallback). */
     tz?: string;
     thresholds?: { lateMinutes: number; missedMinutes: number };
+    /**
+     * Batched compliance dose status per medication id (the page's
+     * `useMedicationComplianceSummaryAll` rows). Absent / unknown ids
+     * keep the window-only derivation — the legacy behaviour.
+     */
+    doseStatusById?: ReadonlyMap<string, DoseStatus>;
   } = {},
 ): DueMedication[] {
   const now = options.now ?? new Date();
@@ -114,8 +138,10 @@ export function deriveDueMedications(
   const due: DueMedication[] = [];
   for (const m of medications) {
     // Paused courses keep their schedules but must never surface here —
-    // the cards suppress their pills the same way.
-    if (!m.active || m.pausedAt) continue;
+    // the cards suppress their pills the same way. As-needed (PRN)
+    // medications are never due, structurally — even a (bogus)
+    // compliance row for one must not pull it into the set.
+    if (!m.active || m.pausedAt || m.asNeeded) continue;
 
     const nextDueMs = m.nextDueAt ? new Date(m.nextDueAt).getTime() : NaN;
     const status = reduceCurrentWindowStatus({
@@ -139,8 +165,17 @@ export function deriveDueMedications(
     });
     // `takenEarlyDaysAgo` non-null = a day-scale dose already on board
     // earlier in its period; including it would build a double-dose
-    // confirm list.
-    if (!status.status || status.takenEarlyDaysAgo !== null) continue;
+    // confirm list. The card suppresses every prompt tier (incl. the red
+    // escalation value) the same way.
+    if (status.takenEarlyDaysAgo !== null) continue;
+
+    // Escalation alignment with the card: a compliance-derived
+    // overdue / missed dose keeps an active take button on its card even
+    // after the band's catch-up tail closed (window status null).
+    const complianceStatus = options.doseStatusById?.get(m.id);
+    const escalated =
+      complianceStatus === "overdue" || complianceStatus === "missed";
+    if (!status.status && !escalated) continue;
 
     due.push({
       id: m.id,

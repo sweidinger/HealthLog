@@ -167,8 +167,6 @@ export function sortMedicationRows<T extends TableMedication>(
   });
 }
 
-const LOW_STOCK_DOSES = 4;
-
 interface MedicationTableProps {
   /** Active medications, already in the page's manual order. */
   activeMedications: TableMedication[];
@@ -190,14 +188,19 @@ export function MedicationTable({
   const [, forceUpdate] = useReducer((x: number) => x + 1, 0);
 
   // Same reminder-thresholds source as the cards so the status pill
-  // tiers identically on both presentations.
+  // tiers identically on both presentations. The read also carries the
+  // per-user low-stock runway threshold (v1.16.11) so the stock cell's
+  // warn tier fires on the SAME days-of-runway predicate as the
+  // low-stock notification, not a legacy dose count.
   const { data: thresholds } = useQuery({
     queryKey: queryKeys.settingsReminderThresholds(),
     queryFn: async () => {
       try {
-        return await apiGet<{ lateMinutes: number; missedMinutes: number }>(
-          "/api/settings/reminder-thresholds",
-        );
+        return await apiGet<{
+          lateMinutes: number;
+          missedMinutes: number;
+          lowStockRunwayDays: number | null;
+        }>("/api/settings/reminder-thresholds");
       } catch {
         return null;
       }
@@ -237,6 +240,11 @@ export function MedicationTable({
 
   const lateMinutes = thresholds?.lateMinutes ?? 120;
   const missedMinutes = thresholds?.missedMinutes ?? 240;
+  // Per-user low-stock runway threshold: explicit `null` = the alert is
+  // OFF (no amber tier); a missing / failed read falls back to the
+  // server default (7 days), mirroring `resolveLowStockRunwayDays`.
+  const lowStockRunwayDays =
+    thresholds == null ? 7 : thresholds.lowStockRunwayDays;
 
   const columns: Array<{
     key: MedicationTableSortColumn | "status" | "actions";
@@ -335,6 +343,7 @@ export function MedicationTable({
               userTz={userTz}
               lateMinutes={lateMinutes}
               missedMinutes={missedMinutes}
+              lowStockRunwayDays={lowStockRunwayDays}
             />
           ))}
           {sortedInactive.map((med) => (
@@ -344,6 +353,7 @@ export function MedicationTable({
               userTz={userTz}
               lateMinutes={lateMinutes}
               missedMinutes={missedMinutes}
+              lowStockRunwayDays={lowStockRunwayDays}
             />
           ))}
         </TableBody>
@@ -357,6 +367,8 @@ interface MedicationTableRowItemProps {
   userTz: string;
   lateMinutes: number;
   missedMinutes: number;
+  /** Per-user low-stock runway threshold in days; null = alert off. */
+  lowStockRunwayDays: number | null;
 }
 
 function MedicationTableRowItem({
@@ -364,6 +376,7 @@ function MedicationTableRowItem({
   userTz,
   lateMinutes,
   missedMinutes,
+  lowStockRunwayDays,
 }: MedicationTableRowItemProps) {
   const { t, locale } = useTranslations();
   const fmt = useFormatters();
@@ -427,8 +440,13 @@ function MedicationTableRowItem({
     timeZone: userTz,
   });
 
-  // Status cell — the card body's exact precedence: last-dose context
-  // outranks the overdue escalation, which outranks the window pill.
+  // Status cell — the card body's precedence with one DELIBERATE
+  // divergence: the card suppresses the taken-early pill on its
+  // next-intake row (the "last intake" line below already names the
+  // dose), while the table keeps it — the table has a dedicated Status
+  // column with no neighbouring last-intake context. Order here:
+  // last-dose context outranks the overdue escalation, which outranks
+  // the window pill.
   const overdueLabel =
     medication.active && doseStatus === "missed"
       ? t("medications.veryOverdue")
@@ -574,6 +592,14 @@ function MedicationTableRowItem({
     stock === null || stock === undefined
       ? null
       : estimateRunwayDays(stock, medication.schedules);
+  // Warn tier (amber) on the SAME predicate as the low-stock
+  // notification: projected runway days strictly below the user's
+  // threshold. Threshold OFF (null) → no amber tier; an exhausted stock
+  // (0) stays destructive red regardless.
+  const lowStock =
+    runwayDays !== null &&
+    lowStockRunwayDays !== null &&
+    runwayDays < lowStockRunwayDays;
   const stockCell =
     stock === null || stock === undefined ? (
       <span className="text-muted-foreground">–</span>
@@ -584,7 +610,7 @@ function MedicationTableRowItem({
             "tabular-nums",
             stock === 0
               ? "text-destructive font-medium"
-              : stock < LOW_STOCK_DOSES
+              : lowStock
                 ? "text-warning font-medium"
                 : undefined,
           )}

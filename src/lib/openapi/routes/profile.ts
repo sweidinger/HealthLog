@@ -8,6 +8,7 @@
 import { z } from "zod/v4";
 import type { ZodOpenApiObject } from "zod-openapi";
 import { coachPrefsSchema } from "@/lib/validations/coach-prefs";
+import { notificationPrefsSchema } from "@/lib/validations/notification-prefs";
 import { sourcePrioritySchema } from "@/lib/validations/source-priority";
 import { dataEnvelope, errorEnvelope, stdResponses } from "./shared";
 
@@ -27,6 +28,80 @@ const disableCoachFlag = z
     id: "DisableCoachFlag",
     description:
       "Per-account Coach opt-out toggle (v1.4.47 W3). `true` hides the Coach FAB and short-circuits its API gates.",
+  });
+
+// v1.16.11 — per-user notification preferences. The PATCH request body
+// is the REAL runtime validator (`notificationPrefsSchema` — every
+// category and field optional, deep-merged server-side); the response
+// is the fully-resolved shape with the documented defaults filled in.
+const notificationPrefsPatchRequest = notificationPrefsSchema.meta({
+  id: "NotificationPrefsPatchRequest",
+  description:
+    "Partial per-user notification preferences. Every category and field is optional; the server deep-merges the supplied keys over the persisted row, so a PATCH touching only `medication` leaves the siblings intact. `medication.lowStockRunwayDays` (1–60, nullable) is the low-stock alert threshold in remaining runway days — `null` switches the alert off.",
+});
+
+const notificationPrefsResolved = z
+  .object({
+    medication: z.object({
+      clientManaged: z
+        .boolean()
+        .describe(
+          "True when the iOS app owns local medication reminders; the server-side MEDICATION_REMINDER APNs cron is suppressed.",
+        ),
+      deliveryDefault: z
+        .enum(["server", "client"])
+        .describe(
+          "Roaming user-level delivery default. \"client\" implies clientManaged: true.",
+        ),
+      lowStockRunwayDays: z
+        .number()
+        .int()
+        .min(1)
+        .max(60)
+        .nullable()
+        .describe(
+          "Low-stock alert threshold as remaining runway days (1–60). null = alert off. Default 7.",
+        ),
+    }),
+    mood: z.object({
+      reminderHour: z
+        .number()
+        .int()
+        .min(0)
+        .max(23)
+        .describe("Local-time hour for the daily mood reminder. Default 22."),
+    }),
+    cycle: z.object({
+      clientManaged: z
+        .boolean()
+        .describe(
+          "True when the iOS app owns local cycle reminders; the server-side cycle APNs cron is suppressed.",
+        ),
+    }),
+    coach: z.object({
+      nudgesEnabled: z
+        .boolean()
+        .describe("Master switch for the proactive Coach nudge cron."),
+      nudgeMedication: z
+        .boolean()
+        .describe("Medication-group nudge triggers (compliance)."),
+      nudgeVitals: z
+        .boolean()
+        .describe("Vitals-group nudge triggers (bp / score / weight / sleep)."),
+      nudgeRoutine: z
+        .boolean()
+        .describe(
+          "Routine-group nudge triggers (measurement gap / self-context).",
+        ),
+      nudgeFrequency: z
+        .enum(["weekly", "biweekly"])
+        .describe("Nudge frequency cap: one per 7 or per 14 days."),
+    }),
+  })
+  .meta({
+    id: "NotificationPrefs",
+    description:
+      "Fully-resolved per-user notification preferences. Every key is present — a null / drifted persisted row resolves to the documented defaults.",
   });
 
 // v1.8.6 — profile read/write surface for the native client. The
@@ -405,6 +480,54 @@ export const profilePaths: NonNullable<ZodOpenApiObject["paths"]> = {
               schema: dataEnvelope(
                 profileUpdateResponse,
                 "PatchProfileResponse",
+              ),
+            },
+          },
+        },
+        ...stdResponses,
+      },
+    },
+  },
+  "/api/auth/me/notification-prefs": {
+    get: {
+      tags: ["Notifications"],
+      summary: "Read per-user notification preferences",
+      description:
+        "Returns the fully-resolved preferences with the documented defaults filled in. A null persisted row resolves to the defaults (server-managed reminders, low-stock threshold 7 days, mood reminder 22:00, Coach nudges on).",
+      responses: {
+        "200": {
+          description: "Resolved preferences.",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                notificationPrefsResolved,
+                "GetNotificationPrefsResponse",
+              ),
+            },
+          },
+        },
+        ...stdResponses,
+      },
+    },
+    patch: {
+      tags: ["Notifications"],
+      summary: "Update per-user notification preferences",
+      description:
+        "Deep-merges the supplied partial shape over the persisted row — a PATCH touching only one category leaves the siblings intact. Always returns the fully-resolved next state so clients can hard-set their optimistic update. `medication.clientManaged: true` (or `deliveryDefault: \"client\"`) suppresses server-side MEDICATION_REMINDER APNs; `medication.lowStockRunwayDays` (1–60, nullable, default 7) tunes the low-stock alert — null switches it off. Rate-limit 60/min per user.",
+      requestBody: {
+        required: true,
+        content: {
+          "application/json": { schema: notificationPrefsPatchRequest },
+        },
+      },
+      responses: {
+        "200": {
+          description: "Resolved next-state preferences echoed back.",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                notificationPrefsResolved,
+                "PatchNotificationPrefsResponse",
               ),
             },
           },

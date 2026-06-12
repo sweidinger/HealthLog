@@ -1669,6 +1669,8 @@
         "emptyHelper": "Registra un envase o recipiente para hacer seguimiento de las existencias restantes y la autonomía.",
         "emptyCta": "Registrar un envase",
         "addButton": "Registrar",
+        "lowStockLinkOn": "Aviso de reserva baja: por debajo de {days} días",
+        "lowStockLinkOff": "Aviso de reserva baja: desactivado",
         "addTitle": "Registrar un envase o recipiente",
         "addDescription": "Registra una nueva existencia con su número de unidades; la fecha de caducidad es opcional.",
         "addQuantityLabel": "Cantidad (unidades)",
@@ -1819,6 +1821,7 @@
     "tableStockDoseOne": "1 dosis",
     "tableStockDoses": "{count} dosis",
     "tableStockRunway": "≈ {days} días restantes",
+    "cardLowStockRunway": "Reserva: ≈ {days} días",
     "takeActionFor": "Tomar – {name}",
     "skipActionFor": "Omitir – {name}",
     "reorderTitle": "Ajustar orden",
@@ -5398,7 +5401,8 @@
       "savedToast": "Umbral de existencias guardado.",
       "enabledToast": "Avisos de existencias bajas activados.",
       "disabledToast": "Avisos de existencias bajas desactivados.",
-      "saveError": "No se pudo guardar. Inténtalo de nuevo."
+      "saveError": "No se pudo guardar. Inténtalo de nuevo.",
+      "medicationsLink": "Ir a tus medicamentos"
     },
     "eventMedicationReminder": "Recordatorio de medicación",
     "eventMedicationReminderDesc": "Se envía a cada hora de dosis programada.",

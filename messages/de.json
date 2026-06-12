@@ -1669,6 +1669,8 @@
         "emptyHelper": "Erfasse eine Packung oder einen Behälter, um den verbleibenden Vorrat und die Reichweite zu verfolgen.",
         "emptyCta": "Packung erfassen",
         "addButton": "Erfassen",
+        "lowStockLinkOn": "Benachrichtigung bei niedrigem Bestand: unter {days} Tagen",
+        "lowStockLinkOff": "Benachrichtigung bei niedrigem Bestand: aus",
         "addTitle": "Packung oder Behälter erfassen",
         "addDescription": "Lege einen neuen Vorrat mit seiner Einheitenanzahl an; das Ablaufdatum ist optional.",
         "addQuantityLabel": "Menge (Einheiten)",
@@ -1819,6 +1821,7 @@
     "tableStockDoseOne": "1 Dosis",
     "tableStockDoses": "{count} Dosen",
     "tableStockRunway": "≈ {days} Tage übrig",
+    "cardLowStockRunway": "Vorrat: ≈ {days} Tage",
     "takeActionFor": "Einnehmen – {name}",
     "skipActionFor": "Überspringen – {name}",
     "reorderTitle": "Reihenfolge anpassen",
@@ -5398,7 +5401,8 @@
       "savedToast": "Vorratsschwelle gespeichert.",
       "enabledToast": "Vorratswarnungen aktiviert.",
       "disabledToast": "Vorratswarnungen deaktiviert.",
-      "saveError": "Speichern fehlgeschlagen. Bitte später erneut versuchen."
+      "saveError": "Speichern fehlgeschlagen. Bitte später erneut versuchen.",
+      "medicationsLink": "Zu deinen Medikamenten"
     },
     "eventMedicationReminder": "Medikamenten-Erinnerung",
     "eventMedicationReminderDesc": "Wird zu jeder geplanten Einnahmezeit gesendet.",

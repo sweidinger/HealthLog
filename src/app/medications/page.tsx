@@ -36,6 +36,7 @@ import {
   Wrench,
 } from "lucide-react";
 import { apiGet } from "@/lib/api/api-fetch";
+import { useMedicationComplianceSummaryAll } from "@/lib/queries/use-medication-compliance-summary";
 import { useMedicationListLayout } from "@/lib/queries/use-medication-list-layout";
 import { applyMedicationOrder } from "@/lib/medications/medication-order";
 
@@ -204,9 +205,11 @@ export default function MedicationsPage() {
     queryKey: queryKeys.settingsReminderThresholds(),
     queryFn: async () => {
       try {
-        return await apiGet<{ lateMinutes: number; missedMinutes: number }>(
-          "/api/settings/reminder-thresholds",
-        );
+        return await apiGet<{
+          lateMinutes: number;
+          missedMinutes: number;
+          lowStockRunwayDays: number | null;
+        }>("/api/settings/reminder-thresholds");
       } catch {
         return null;
       }
@@ -214,6 +217,14 @@ export default function MedicationsPage() {
     enabled: isAuthenticated,
     staleTime: 5 * 60 * 1000,
   });
+
+  // v1.16.11 — the SAME batched compliance rows the cards / table read
+  // (shared key + cache, no extra round trip). The due-set derivation
+  // needs each medication's compliance dose status so an escalated
+  // (overdue / missed past its band tail) medication — which still
+  // renders an active take button on its red card — joins the
+  // take-all-due set.
+  const { data: complianceRows } = useMedicationComplianceSummaryAll();
 
   function openCreate() {
     setDialogOpen(true);
@@ -289,11 +300,19 @@ export default function MedicationsPage() {
 
   // v1.16.11 (#316) — the currently-due set, derived from the list payload
   // the page already holds via the SAME pipeline a card's pill runs (band
-  // model + server display-due gate + taken-early downgrade). Page order is
-  // preserved so the confirm dialog lists medications as rendered.
+  // model + server display-due gate + taken-early downgrade), plus the
+  // batched compliance dose status so escalated (overdue / missed)
+  // medications past their band tail stay takeable from the batch. Page
+  // order is preserved so the confirm dialog lists medications as rendered.
   const dueMeds = deriveDueMedications(activeMeds, {
     tz: user?.timezone || "Europe/Berlin",
     thresholds: thresholds ?? undefined,
+    doseStatusById: new Map(
+      (complianceRows ?? []).map((row) => [
+        row.medicationId,
+        row.complianceDisplay?.currentDose.status ?? "upcoming",
+      ]),
+    ),
   });
 
   return (

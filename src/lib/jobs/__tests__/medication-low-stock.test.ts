@@ -239,7 +239,8 @@ describe("runMedicationLowStockTick", () => {
           runwayDays: 5,
           thresholdDays: 7,
           unitsRemaining: 5,
-          url: "/medications/med-1",
+          // Deep link lands on the detail page's Bestand (supply) tab.
+          url: "/medications/med-1?tab=bestand",
         }),
       }),
     );

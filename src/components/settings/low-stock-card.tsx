@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { PackageOpen } from "lucide-react";
 
@@ -144,8 +145,11 @@ export function LowStockCard({
 
   return (
     <section
+      // `id` is the anchor target of the supply tab's cross-link
+      // (`/settings/notifications#low-stock`) — keep it stable.
+      id="low-stock"
       aria-labelledby="settings-low-stock-title"
-      className="bg-card border-border rounded-xl border p-4 sm:p-6"
+      className="bg-card border-border scroll-mt-20 rounded-xl border p-4 sm:p-6"
     >
       <SettingsCardHeader
         icon={PackageOpen}
@@ -207,6 +211,17 @@ export function LowStockCard({
           {msg}
         </p>
       )}
+      {/* v1.16.11 — back-link to the medications list, the surface the
+          alert is about (the supply tab links here the same way). */}
+      <p className="mt-3 pl-7">
+        <Link
+          href="/medications"
+          className="text-muted-foreground hover:text-foreground text-xs underline-offset-2 hover:underline"
+          data-slot="low-stock-medications-link"
+        >
+          {t("notifications.lowStock.medicationsLink")}
+        </Link>
+      </p>
     </section>
   );
 }

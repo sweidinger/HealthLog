@@ -280,6 +280,108 @@ describe("deriveDueMedications — only currently-due, active, unpaused", () => 
   });
 });
 
+describe("deriveDueMedications — compliance-escalated medications (band tail closed)", () => {
+  // 14:00 UTC: the 08:00 dose band's catch-up tail closed at 13:00
+  // (missedMinutes 240), so the window-derived status is null — but the
+  // card still renders the red escalation value with an ACTIVE take
+  // button when the batched compliance dose status says overdue/missed.
+  const now = todayAtUtc(14, 0);
+
+  const morning = () =>
+    makeMed({
+      id: "morning",
+      schedules: [
+        {
+          windowStart: "08:00",
+          windowEnd: "08:00",
+          daysOfWeek: null,
+          timesOfDay: ["08:00"],
+          dose: null,
+        },
+      ],
+      // The server still serves the open overdue slot as next-due.
+      nextDueAt: todayAtUtc(8, 0).toISOString(),
+      nextDueOverdue: true,
+    });
+
+  it("includes a missed dose past its catch-up tail, recording the card's own displayed slot", () => {
+    const due = deriveDueMedications([morning()], {
+      now,
+      tz: "UTC",
+      doseStatusById: new Map([["morning", "missed"]]),
+    });
+    expect(due).toHaveLength(1);
+    expect(due[0].id).toBe("morning");
+    // Band closed → no matched window for the dialog line.
+    expect(due[0].window).toBeNull();
+    // EXACTLY what the card's take button records: the same
+    // `resolveDisplayedSlotInstant` call resolves (status null) to the
+    // server's next-due instant.
+    expect(due[0].scheduledFor?.toISOString()).toBe(
+      todayAtUtc(8, 0).toISOString(),
+    );
+  });
+
+  it("matches the count of visible red/due cards: dedupes window-due + escalated, excludes calm doses", () => {
+    const inWindow = makeMed({
+      id: "in-window",
+      schedules: [
+        {
+          windowStart: "14:00",
+          windowEnd: "14:00",
+          daysOfWeek: null,
+          timesOfDay: ["14:00"],
+          dose: null,
+        },
+      ],
+    });
+    const evening = makeMed({
+      id: "evening",
+      schedules: [
+        {
+          windowStart: "20:00",
+          windowEnd: "20:00",
+          daysOfWeek: null,
+          timesOfDay: ["20:00"],
+          dose: null,
+        },
+      ],
+    });
+    const due = deriveDueMedications([inWindow, morning(), evening], {
+      now,
+      tz: "UTC",
+      doseStatusById: new Map([
+        // The open-window med is ALSO compliance-escalated — it must
+        // appear exactly once (the two branches are exclusive).
+        ["in-window", "overdue"],
+        ["morning", "missed"],
+        ["evening", "upcoming"],
+      ]),
+    });
+    expect(due.map((d) => d.id)).toEqual(["in-window", "morning"]);
+  });
+
+  it("never includes an as-needed medication, even with a (bogus) escalated compliance row", () => {
+    const prn = makeMed({
+      id: "prn",
+      asNeeded: true,
+      schedules: [],
+      nextDueAt: null,
+    });
+    const due = deriveDueMedications([prn], {
+      now,
+      tz: "UTC",
+      doseStatusById: new Map([["prn", "missed"]]),
+    });
+    expect(due).toEqual([]);
+  });
+
+  it("does not escalate without a compliance verdict (window-only derivation stays the floor)", () => {
+    const due = deriveDueMedications([morning()], { now, tz: "UTC" });
+    expect(due).toEqual([]);
+  });
+});
+
 describe("runTakeAllDue — per-medication loop with failure isolation", () => {
   const slotA = new Date(Date.now() - 60 * 60 * 1000);
   const slotB = new Date(Date.now() - 30 * 60 * 1000);

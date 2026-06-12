@@ -3564,6 +3564,49 @@ paths:
         "401": *a1
         "422": *a3
         "429": *a4
+  /api/auth/me/notification-prefs:
+    get:
+      tags:
+        - Notifications
+      summary: Read per-user notification preferences
+      description: Returns the fully-resolved preferences with the documented defaults filled in. A null persisted row
+        resolves to the defaults (server-managed reminders, low-stock threshold 7 days, mood reminder 22:00, Coach
+        nudges on).
+      responses:
+        "200":
+          description: Resolved preferences.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GetNotificationPrefsResponse"
+        "401": *a1
+        "422": *a3
+        "429": *a4
+    patch:
+      tags:
+        - Notifications
+      summary: Update per-user notification preferences
+      description: 'Deep-merges the supplied partial shape over the persisted row — a PATCH touching only one category leaves
+        the siblings intact. Always returns the fully-resolved next state so clients can hard-set their optimistic
+        update. `medication.clientManaged: true` (or `deliveryDefault: "client"`) suppresses server-side
+        MEDICATION_REMINDER APNs; `medication.lowStockRunwayDays` (1–60, nullable, default 7) tunes the low-stock alert
+        — null switches it off. Rate-limit 60/min per user.'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NotificationPrefsPatchRequest"
+      responses:
+        "200":
+          description: Resolved next-state preferences echoed back.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PatchNotificationPrefsResponse"
+        "401": *a1
+        "422": *a3
+        "429": *a4
   /api/insights/layout:
     get:
       tags:
@@ -4805,6 +4848,24 @@ paths:
         "401": *a1
         "422": *a3
         "429": *a4
+  /api/settings/reminder-thresholds:
+    get:
+      tags:
+        - Notifications
+      summary: Read the medication reminder thresholds
+      description: Returns the operator-level late/missed minute thresholds that tier an open dose's status, plus the calling
+        user's low-stock runway threshold (days; null = alert off). One endpoint so every threshold consumer reads one
+        shape. Auth via cookie or Bearer.
+      responses:
+        "200":
+          description: Resolved thresholds.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GetReminderThresholdsResponse"
+        "401": *a1
+        "422": *a3
+        "429": *a4
 components:
   schemas:
     PasskeyLoginVerifyRequest:
@@ -5753,6 +5814,57 @@ components:
             - type: "null"
       description: Partial profile update. Every field is optional; an omitted field is left untouched, an explicit null (or
         empty string) clears it. `userId` is never accepted — it is narrowed from the session/token.
+    NotificationPrefsPatchRequest:
+      type: object
+      properties:
+        medication:
+          type: object
+          properties:
+            clientManaged:
+              type: boolean
+            deliveryDefault:
+              type: string
+              enum:
+                - server
+                - client
+            lowStockRunwayDays:
+              anyOf:
+                - type: integer
+                  minimum: 1
+                  maximum: 60
+                - type: "null"
+        mood:
+          type: object
+          properties:
+            reminderHour:
+              type: integer
+              minimum: 0
+              maximum: 23
+        cycle:
+          type: object
+          properties:
+            clientManaged:
+              type: boolean
+        coach:
+          type: object
+          properties:
+            nudgesEnabled:
+              type: boolean
+            nudgeMedication:
+              type: boolean
+            nudgeVitals:
+              type: boolean
+            nudgeRoutine:
+              type: boolean
+            nudgeFrequency:
+              type: string
+              enum:
+                - weekly
+                - biweekly
+      description: Partial per-user notification preferences. Every category and field is optional; the server deep-merges the
+        supplied keys over the persisted row, so a PATCH touching only `medication` leaves the siblings intact.
+        `medication.lowStockRunwayDays` (1–60, nullable) is the low-stock alert threshold in remaining runway days —
+        `null` switches the alert off.
     InsightsLayoutBody:
       type: object
       properties:
@@ -11804,6 +11916,124 @@ components:
       additionalProperties: false
       description: Profile echo returned by the PATCH/PUT update path. Reports KVNR presence as a boolean rather than
         re-emitting the decrypted value.
+    GetNotificationPrefsResponse:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/NotificationPrefs"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    NotificationPrefs:
+      type: object
+      properties:
+        medication:
+          type: object
+          properties:
+            clientManaged:
+              type: boolean
+              description: True when the iOS app owns local medication reminders; the server-side MEDICATION_REMINDER APNs cron is
+                suppressed.
+            deliveryDefault:
+              type: string
+              enum:
+                - server
+                - client
+              description: 'Roaming user-level delivery default. "client" implies clientManaged: true.'
+            lowStockRunwayDays:
+              anyOf:
+                - type: integer
+                  minimum: 1
+                  maximum: 60
+                - type: "null"
+              description: Low-stock alert threshold as remaining runway days (1–60). null = alert off. Default 7.
+          required:
+            - clientManaged
+            - deliveryDefault
+            - lowStockRunwayDays
+          additionalProperties: false
+        mood:
+          type: object
+          properties:
+            reminderHour:
+              type: integer
+              minimum: 0
+              maximum: 23
+              description: Local-time hour for the daily mood reminder. Default 22.
+          required:
+            - reminderHour
+          additionalProperties: false
+        cycle:
+          type: object
+          properties:
+            clientManaged:
+              type: boolean
+              description: True when the iOS app owns local cycle reminders; the server-side cycle APNs cron is suppressed.
+          required:
+            - clientManaged
+          additionalProperties: false
+        coach:
+          type: object
+          properties:
+            nudgesEnabled:
+              type: boolean
+              description: Master switch for the proactive Coach nudge cron.
+            nudgeMedication:
+              type: boolean
+              description: Medication-group nudge triggers (compliance).
+            nudgeVitals:
+              type: boolean
+              description: Vitals-group nudge triggers (bp / score / weight / sleep).
+            nudgeRoutine:
+              type: boolean
+              description: Routine-group nudge triggers (measurement gap / self-context).
+            nudgeFrequency:
+              type: string
+              enum:
+                - weekly
+                - biweekly
+              description: "Nudge frequency cap: one per 7 or per 14 days."
+          required:
+            - nudgesEnabled
+            - nudgeMedication
+            - nudgeVitals
+            - nudgeRoutine
+            - nudgeFrequency
+          additionalProperties: false
+      required:
+        - medication
+        - mood
+        - cycle
+        - coach
+      additionalProperties: false
+      description: Fully-resolved per-user notification preferences. Every key is present — a null / drifted persisted row
+        resolves to the documented defaults.
+    PatchNotificationPrefsResponse:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/NotificationPrefs"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
     InsightsLayout:
       type: object
       properties:
@@ -14050,6 +14280,51 @@ components:
         - data
         - error
       additionalProperties: false
+    GetReminderThresholdsResponse:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/ReminderThresholdsResponse"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    ReminderThresholdsResponse:
+      type: object
+      properties:
+        lateMinutes:
+          type: integer
+          minimum: -9007199254740991
+          maximum: 9007199254740991
+          description: Minutes after the dose anchor at which an open dose tiers 'late' (operator-level singleton; default 120).
+        missedMinutes:
+          type: integer
+          minimum: -9007199254740991
+          maximum: 9007199254740991
+          description: Minutes after the dose anchor at which an open dose tiers 'missed' (operator-level singleton; default 240).
+        lowStockRunwayDays:
+          anyOf:
+            - type: integer
+              minimum: 1
+              maximum: 60
+            - type: "null"
+          description: Per-user low-stock alert threshold as remaining runway days (1–60). null = the alert is off. Default 7.
+            Written via PATCH /api/auth/me/notification-prefs.
+      required:
+        - lateMinutes
+        - missedMinutes
+        - lowStockRunwayDays
+      additionalProperties: false
+      description: "Medication reminder thresholds: the operator-level late/missed minute marks plus the calling user's
+        low-stock runway threshold (v1.16.11)."
     MedicationScheduleOutput:
       type: object
       properties:

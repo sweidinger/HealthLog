@@ -1669,6 +1669,8 @@
         "emptyHelper": "Register a pack or container to track remaining supply and runway.",
         "emptyCta": "Register a pack",
         "addButton": "Register",
+        "lowStockLinkOn": "Low-stock notification: below {days} days",
+        "lowStockLinkOff": "Low-stock notification: off",
         "addTitle": "Register a pack or container",
         "addDescription": "Record a new supply with its unit count; the expiry date is optional.",
         "addQuantityLabel": "Quantity (units)",
@@ -1819,6 +1821,7 @@
     "tableStockDoseOne": "1 dose",
     "tableStockDoses": "{count} doses",
     "tableStockRunway": "≈ {days} days left",
+    "cardLowStockRunway": "Supply: ≈ {days} days",
     "takeActionFor": "Take – {name}",
     "skipActionFor": "Skip – {name}",
     "reorderTitle": "Adjust order",
@@ -5398,7 +5401,8 @@
       "savedToast": "Low-stock threshold saved.",
       "enabledToast": "Low-stock alerts enabled.",
       "disabledToast": "Low-stock alerts disabled.",
-      "saveError": "Could not save. Please try again."
+      "saveError": "Could not save. Please try again.",
+      "medicationsLink": "Go to your medications"
     },
     "eventMedicationReminder": "Medication reminder",
     "eventMedicationReminderDesc": "Sent at each scheduled dose time.",

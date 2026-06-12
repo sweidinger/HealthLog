@@ -5,6 +5,7 @@ import { AlertTriangle } from "lucide-react";
 
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
+import { formatTimeWindowRange } from "@/lib/time-window-format";
 import { MedicationCardHeader } from "@/components/medications/MedicationCardHeader";
 import { MedicationStatusPill } from "@/components/medications/card-parts/medication-status-pill";
 import {
@@ -120,6 +121,16 @@ export interface MedicationCardBodyProps {
    */
   asNeeded?: boolean;
 
+  /**
+   * v1.16.11 — projected supply runway in whole days, set ONLY while it
+   * sits below the user's low-stock threshold (the variants gate it).
+   * Non-null renders one muted warning-toned "Vorrat: ≈ N Tage" line
+   * under the next/last slot; null keeps the card free of stock noise.
+   * Never set for as-needed medications (no consuming schedule, no
+   * runway).
+   */
+  lowStockRunwayDays?: number | null;
+
   /** "take" | "skip" while the matching request is in flight, else null. */
   intakeLoading: string | null;
   /** Record the displayed dose (the card binds the slot instant). */
@@ -147,11 +158,12 @@ export function MedicationCardBody({
   onRetryCompliance,
   currentCycle,
   asNeeded = false,
+  lowStockRunwayDays = null,
   intakeLoading,
   onRecordIntake,
   children,
 }: MedicationCardBodyProps) {
-  const { t } = useTranslations();
+  const { t, locale } = useTranslations();
 
   // Overdue escalation line: a dose past its on-time window. `missed` (at /
   // past the clinical miss cutoff) reads "Stark überfällig"; the still-takeable
@@ -176,11 +188,31 @@ export function MedicationCardBody({
   // tier: the row falls through to the plain schedule value and the
   // "last intake" line directly below already names the recent dose —
   // the guard's job is that no take prompt renders, not a louder line.
+  //
+  // The escalation value keeps the due time: the red badge alone evicted
+  // the window / time the amber tier used to carry, leaving the user
+  // with urgency but no anchor. The matched window rides along when one
+  // is still open; otherwise the card's own next-intake value (the
+  // overdue slot time) fills the gap.
   const nextValueOverride =
     windowStatus?.takenEarlyDaysAgo != null ? null : overdueLabel ? (
-      <span className="text-destructive inline-flex items-center gap-1 text-sm font-medium">
-        <AlertTriangle className="size-3.5 shrink-0" aria-hidden="true" />
-        {overdueLabel}
+      <span className="inline-flex flex-wrap items-center gap-x-1 gap-y-0.5 text-sm">
+        <span className="text-destructive inline-flex items-center gap-1 font-medium">
+          <AlertTriangle className="size-3.5 shrink-0" aria-hidden="true" />
+          {overdueLabel}
+        </span>
+        {windowStatus !== null ? (
+          <span className="text-muted-foreground">
+            —{" "}
+            {formatTimeWindowRange(
+              windowStatus.windowStart,
+              windowStatus.windowEnd,
+              locale,
+            )}
+          </span>
+        ) : nextLine !== null ? (
+          <span className="text-muted-foreground">— {nextLine}</span>
+        ) : null}
       </span>
     ) : windowStatus !== null ? (
       <MedicationStatusPill
@@ -217,6 +249,21 @@ export function MedicationCardBody({
           next={nextValueOverride ?? nextLine}
           last={lastLine}
         />
+
+        {/* v1.16.11 — low-stock context, ONLY below the user's runway
+            threshold (the prop is pre-gated). One calm warning-toned
+            line, not a badge: the card stays quiet until the supply
+            actually needs attention. */}
+        {active && !asNeeded && lowStockRunwayDays != null && (
+          <p
+            className="text-warning text-xs"
+            data-slot="medication-card-low-stock"
+          >
+            {t("medications.cardLowStockRunway", {
+              days: lowStockRunwayDays,
+            })}
+          </p>
+        )}
 
         {/* Compliance bars — always two rows; constant-height skeleton holds
             the slot while the query is in flight so the grid row stays even.
