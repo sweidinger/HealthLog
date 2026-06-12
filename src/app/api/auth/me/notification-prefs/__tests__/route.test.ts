@@ -7,7 +7,7 @@ vi.mock("@/lib/db", () => ({
       update: vi.fn(),
     },
   },
-  toJson: <T,>(v: T) => v,
+  toJson: <T>(v: T) => v,
 }));
 
 vi.mock("@/lib/auth/session", () => ({ getSession: vi.fn() }));
@@ -88,10 +88,20 @@ describe("GET /api/auth/me/notification-prefs", () => {
       data: { medication: { clientManaged: boolean } };
     };
     expect(env.data).toEqual({
-      medication: { clientManaged: false, deliveryDefault: "server" },
+      medication: {
+        clientManaged: false,
+        deliveryDefault: "server",
+        lowStockRunwayDays: 7,
+      },
       mood: { reminderHour: 22 },
       cycle: { clientManaged: false },
-      coach: { nudgesEnabled: true, nudgeMedication: true, nudgeVitals: true, nudgeRoutine: true, nudgeFrequency: "weekly" },
+      coach: {
+        nudgesEnabled: true,
+        nudgeMedication: true,
+        nudgeVitals: true,
+        nudgeRoutine: true,
+        nudgeFrequency: "weekly",
+      },
     });
   });
 
@@ -109,10 +119,20 @@ describe("GET /api/auth/me/notification-prefs", () => {
       data: { medication: { clientManaged: boolean } };
     };
     expect(env.data).toEqual({
-      medication: { clientManaged: true, deliveryDefault: "server" },
+      medication: {
+        clientManaged: true,
+        deliveryDefault: "server",
+        lowStockRunwayDays: 7,
+      },
       mood: { reminderHour: 22 },
       cycle: { clientManaged: false },
-      coach: { nudgesEnabled: true, nudgeMedication: true, nudgeVitals: true, nudgeRoutine: true, nudgeFrequency: "weekly" },
+      coach: {
+        nudgesEnabled: true,
+        nudgeMedication: true,
+        nudgeVitals: true,
+        nudgeRoutine: true,
+        nudgeFrequency: "weekly",
+      },
     });
   });
 
@@ -132,10 +152,20 @@ describe("GET /api/auth/me/notification-prefs", () => {
       data: { medication: { clientManaged: boolean } };
     };
     expect(env.data).toEqual({
-      medication: { clientManaged: false, deliveryDefault: "server" },
+      medication: {
+        clientManaged: false,
+        deliveryDefault: "server",
+        lowStockRunwayDays: 7,
+      },
       mood: { reminderHour: 22 },
       cycle: { clientManaged: false },
-      coach: { nudgesEnabled: true, nudgeMedication: true, nudgeVitals: true, nudgeRoutine: true, nudgeFrequency: "weekly" },
+      coach: {
+        nudgesEnabled: true,
+        nudgeMedication: true,
+        nudgeVitals: true,
+        nudgeRoutine: true,
+        nudgeFrequency: "weekly",
+      },
     });
   });
 });
@@ -166,20 +196,40 @@ describe("PATCH /api/auth/me/notification-prefs", () => {
       data: { medication: { clientManaged: boolean } };
     };
     expect(env.data).toEqual({
-      medication: { clientManaged: true, deliveryDefault: "server" },
+      medication: {
+        clientManaged: true,
+        deliveryDefault: "server",
+        lowStockRunwayDays: 7,
+      },
       mood: { reminderHour: 22 },
       cycle: { clientManaged: false },
-      coach: { nudgesEnabled: true, nudgeMedication: true, nudgeVitals: true, nudgeRoutine: true, nudgeFrequency: "weekly" },
+      coach: {
+        nudgesEnabled: true,
+        nudgeMedication: true,
+        nudgeVitals: true,
+        nudgeRoutine: true,
+        nudgeFrequency: "weekly",
+      },
     });
 
     expect(prisma.user.update).toHaveBeenCalledWith({
       where: { id: "user-1" },
       data: {
         notificationPrefs: {
-          medication: { clientManaged: true, deliveryDefault: "server" },
+          medication: {
+            clientManaged: true,
+            deliveryDefault: "server",
+            lowStockRunwayDays: 7,
+          },
           mood: { reminderHour: 22 },
           cycle: { clientManaged: false },
-          coach: { nudgesEnabled: true, nudgeMedication: true, nudgeVitals: true, nudgeRoutine: true, nudgeFrequency: "weekly" },
+          coach: {
+            nudgesEnabled: true,
+            nudgeMedication: true,
+            nudgeVitals: true,
+            nudgeRoutine: true,
+            nudgeFrequency: "weekly",
+          },
         },
       },
     });
@@ -190,16 +240,36 @@ describe("PATCH /api/auth/me/notification-prefs", () => {
         userId: "user-1",
         details: expect.objectContaining({
           previous: {
-            medication: { clientManaged: false, deliveryDefault: "server" },
+            medication: {
+              clientManaged: false,
+              deliveryDefault: "server",
+              lowStockRunwayDays: 7,
+            },
             mood: { reminderHour: 22 },
             cycle: { clientManaged: false },
-            coach: { nudgesEnabled: true, nudgeMedication: true, nudgeVitals: true, nudgeRoutine: true, nudgeFrequency: "weekly" },
+            coach: {
+              nudgesEnabled: true,
+              nudgeMedication: true,
+              nudgeVitals: true,
+              nudgeRoutine: true,
+              nudgeFrequency: "weekly",
+            },
           },
           next: {
-            medication: { clientManaged: true, deliveryDefault: "server" },
+            medication: {
+              clientManaged: true,
+              deliveryDefault: "server",
+              lowStockRunwayDays: 7,
+            },
             mood: { reminderHour: 22 },
             cycle: { clientManaged: false },
-            coach: { nudgesEnabled: true, nudgeMedication: true, nudgeVitals: true, nudgeRoutine: true, nudgeFrequency: "weekly" },
+            coach: {
+              nudgesEnabled: true,
+              nudgeMedication: true,
+              nudgeVitals: true,
+              nudgeRoutine: true,
+              nudgeFrequency: "weekly",
+            },
           },
           changed: ["medication"],
         }),
@@ -210,14 +280,11 @@ describe("PATCH /api/auth/me/notification-prefs", () => {
   it("rejects malformed JSON with 422", async () => {
     vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
 
-    const req = new Request(
-      "http://localhost/api/auth/me/notification-prefs",
-      {
-        method: "PATCH",
-        body: "{ not valid json",
-        headers: { "Content-Type": "application/json" },
-      },
-    );
+    const req = new Request("http://localhost/api/auth/me/notification-prefs", {
+      method: "PATCH",
+      body: "{ not valid json",
+      headers: { "Content-Type": "application/json" },
+    });
 
     const res = await (PATCH as (r: Request) => Promise<Response>)(req);
     expect(res.status).toBe(422);
@@ -258,10 +325,20 @@ describe("PATCH /api/auth/me/notification-prefs", () => {
       where: { id: "user-1" },
       data: {
         notificationPrefs: {
-          medication: { clientManaged: true, deliveryDefault: "server" },
+          medication: {
+            clientManaged: true,
+            deliveryDefault: "server",
+            lowStockRunwayDays: 7,
+          },
           mood: { reminderHour: 22 },
           cycle: { clientManaged: false },
-          coach: { nudgesEnabled: true, nudgeMedication: true, nudgeVitals: true, nudgeRoutine: true, nudgeFrequency: "weekly" },
+          coach: {
+            nudgesEnabled: true,
+            nudgeMedication: true,
+            nudgeVitals: true,
+            nudgeRoutine: true,
+            nudgeFrequency: "weekly",
+          },
         },
       },
     });
@@ -276,28 +353,46 @@ describe("PATCH /api/auth/me/notification-prefs", () => {
     } as never);
     vi.mocked(prisma.user.update).mockResolvedValue({} as never);
 
-    const res = await (PATCH as (r: Request) => Promise<Response>)(
-      mkPatch({}),
-    );
+    const res = await (PATCH as (r: Request) => Promise<Response>)(mkPatch({}));
     expect(res.status).toBe(200);
     const env = (await res.json()) as {
       data: { medication: { clientManaged: boolean } };
     };
     expect(env.data).toEqual({
-      medication: { clientManaged: true, deliveryDefault: "server" },
+      medication: {
+        clientManaged: true,
+        deliveryDefault: "server",
+        lowStockRunwayDays: 7,
+      },
       mood: { reminderHour: 22 },
       cycle: { clientManaged: false },
-      coach: { nudgesEnabled: true, nudgeMedication: true, nudgeVitals: true, nudgeRoutine: true, nudgeFrequency: "weekly" },
+      coach: {
+        nudgesEnabled: true,
+        nudgeMedication: true,
+        nudgeVitals: true,
+        nudgeRoutine: true,
+        nudgeFrequency: "weekly",
+      },
     });
 
     expect(prisma.user.update).toHaveBeenCalledWith({
       where: { id: "user-1" },
       data: {
         notificationPrefs: {
-          medication: { clientManaged: true, deliveryDefault: "server" },
+          medication: {
+            clientManaged: true,
+            deliveryDefault: "server",
+            lowStockRunwayDays: 7,
+          },
           mood: { reminderHour: 22 },
           cycle: { clientManaged: false },
-          coach: { nudgesEnabled: true, nudgeMedication: true, nudgeVitals: true, nudgeRoutine: true, nudgeFrequency: "weekly" },
+          coach: {
+            nudgesEnabled: true,
+            nudgeMedication: true,
+            nudgeVitals: true,
+            nudgeRoutine: true,
+            nudgeFrequency: "weekly",
+          },
         },
       },
     });
@@ -323,10 +418,20 @@ describe("PATCH /api/auth/me/notification-prefs", () => {
       where: { id: "user-1" },
       data: {
         notificationPrefs: {
-          medication: { clientManaged: false, deliveryDefault: "server" },
+          medication: {
+            clientManaged: false,
+            deliveryDefault: "server",
+            lowStockRunwayDays: 7,
+          },
           mood: { reminderHour: 9 },
           cycle: { clientManaged: false },
-          coach: { nudgesEnabled: true, nudgeMedication: true, nudgeVitals: true, nudgeRoutine: true, nudgeFrequency: "weekly" },
+          coach: {
+            nudgesEnabled: true,
+            nudgeMedication: true,
+            nudgeVitals: true,
+            nudgeRoutine: true,
+            nudgeFrequency: "weekly",
+          },
         },
       },
     });
@@ -339,6 +444,65 @@ describe("PATCH /api/auth/me/notification-prefs", () => {
       mkPatch({ mood: { reminderHour: 24 } }),
     );
     expect(res.status).toBe(422);
+    expect(prisma.user.update).not.toHaveBeenCalled();
+  });
+
+  it("v1.16.11 — round-trips a custom lowStockRunwayDays", async () => {
+    vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
+    vi.mocked(prisma.user.findUnique).mockResolvedValue({
+      notificationPrefs: null,
+    } as never);
+    vi.mocked(prisma.user.update).mockResolvedValue({} as never);
+
+    const res = await (PATCH as (r: Request) => Promise<Response>)(
+      mkPatch({ medication: { lowStockRunwayDays: 14 } }),
+    );
+    expect(res.status).toBe(200);
+    const env = (await res.json()) as {
+      data: { medication: { lowStockRunwayDays: number | null } };
+    };
+    expect(env.data.medication.lowStockRunwayDays).toBe(14);
+
+    expect(prisma.user.update).toHaveBeenCalledWith({
+      where: { id: "user-1" },
+      data: {
+        notificationPrefs: expect.objectContaining({
+          medication: {
+            clientManaged: false,
+            deliveryDefault: "server",
+            lowStockRunwayDays: 14,
+          },
+        }),
+      },
+    });
+  });
+
+  it("v1.16.11 — persists the explicit null (alert off)", async () => {
+    vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
+    vi.mocked(prisma.user.findUnique).mockResolvedValue({
+      notificationPrefs: { medication: { lowStockRunwayDays: 14 } },
+    } as never);
+    vi.mocked(prisma.user.update).mockResolvedValue({} as never);
+
+    const res = await (PATCH as (r: Request) => Promise<Response>)(
+      mkPatch({ medication: { lowStockRunwayDays: null } }),
+    );
+    expect(res.status).toBe(200);
+    const env = (await res.json()) as {
+      data: { medication: { lowStockRunwayDays: number | null } };
+    };
+    expect(env.data.medication.lowStockRunwayDays).toBe(null);
+  });
+
+  it("v1.16.11 — rejects a lowStockRunwayDays outside 1..60 with 422", async () => {
+    vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
+
+    for (const value of [0, 61]) {
+      const res = await (PATCH as (r: Request) => Promise<Response>)(
+        mkPatch({ medication: { lowStockRunwayDays: value } }),
+      );
+      expect(res.status).toBe(422);
+    }
     expect(prisma.user.update).not.toHaveBeenCalled();
   });
 

@@ -5301,6 +5301,19 @@
       "disabledToast": "Proaktywne podpowiedzi Coacha wyłączone.",
       "saveError": "Nie udało się zapisać. Spróbuj ponownie później."
     },
+    "lowStock": {
+      "title": "Alert niskiego zapasu",
+      "description": "Raz dziennie sprawdza śledzone zapasy leków i powiadamia, gdy któryś wystarcza na mniej dni niż ten próg. Jedno powiadomienie na niedobór; po uzupełnieniu uzbraja się ponownie.",
+      "toggleAria": "Przełącz alerty niskiego zapasu",
+      "statusOn": "Aktywne",
+      "statusOff": "Wyłączone",
+      "daysLabel": "Powiadom poniżej (dni)",
+      "daysAria": "Wybierz próg zapasu w dniach",
+      "savedToast": "Próg zapasu zapisany.",
+      "enabledToast": "Alerty niskiego zapasu włączone.",
+      "disabledToast": "Alerty niskiego zapasu wyłączone.",
+      "saveError": "Zapis nieudany. Spróbuj ponownie."
+    },
     "eventMedicationReminder": "Przypomnienie o leku",
     "eventMedicationReminderDesc": "Wysyłane o każdej zaplanowanej godzinie dawki.",
     "eventMeasurementAnomaly": "Nietypowy pomiar",
@@ -5320,7 +5333,9 @@
     "eventCyclePeriodConfirm": "Czy okres się zaczął?",
     "eventCyclePeriodConfirmDesc": "Delikatne przypomnienie w dniu przewidywanego początku lub później, gdy nie zarejestrowano okresu.",
     "eventCycleFertileSoon": "Zbliża się okno płodności",
-    "eventCycleFertileSoonDesc": "Wysyłane kilka dni przed szacowanym oknem płodności, gdy Twoim celem jest poczęcie."
+    "eventCycleFertileSoonDesc": "Wysyłane kilka dni przed szacowanym oknem płodności, gdy Twoim celem jest poczęcie.",
+    "eventMedicationLowStock": "Niski zapas leku",
+    "eventMedicationLowStockDesc": "Gdy śledzony zapas leku wystarcza na mniej dni niż twój próg zapasu"
   },
   "i18n": {
     "maintainershipBanner": {
@@ -5482,6 +5497,11 @@
     "buttonSnoozeOneHour": "🕐 1h",
     "buttonSnoozeThreeHours": "🕐 3h",
     "buttonSkip": "⏭ Pomiń"
+  },
+  "lowStockReminders": {
+    "title": "Niski zapas: {medName}",
+    "body": "{medName}: pozostało {units} jednostek — wystarczy na około {days} dni.",
+    "bodyToday": "{medName}: pozostało {units} jednostek — mniej niż jeden dzień zapasu."
   },
   "moodReminders": {
     "dailyTitle": "Zapisz nastrój",

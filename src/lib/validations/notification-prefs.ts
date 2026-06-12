@@ -40,6 +40,14 @@ const medicationPrefsSchema = z
      * backward compatibility so the cron keeps reading one boolean.
      */
     deliveryDefault: z.enum(["server", "client"]),
+    /**
+     * v1.16.11 — low-stock alert threshold as REMAINING RUNWAY: notify
+     * when a tracked medication's projected supply covers fewer than
+     * this many days. 1–60; `null` switches the alert off entirely.
+     * Default 7 (see `DEFAULT_NOTIFICATION_PREFS`). Read once daily by
+     * the medication-low-stock cron.
+     */
+    lowStockRunwayDays: z.number().int().min(1).max(60).nullable(),
   })
   .partial();
 
@@ -130,6 +138,11 @@ export interface NotificationPrefs {
     clientManaged: boolean;
     /** v1.7.0 — roaming user-level delivery default. */
     deliveryDefault: "server" | "client";
+    /**
+     * v1.16.11 — low-stock runway threshold in days (1–60), or `null`
+     * when the alert is off. Default 7.
+     */
+    lowStockRunwayDays: number | null;
   };
   mood: {
     /** v1.7.0 — local-time hour (0–23) for the daily mood reminder. */
@@ -167,6 +180,12 @@ export interface NotificationPrefs {
 export const DEFAULT_MOOD_REMINDER_HOUR = 22;
 
 /**
+ * v1.16.11 — default low-stock runway threshold: notify when the
+ * remaining supply covers fewer than 7 days.
+ */
+export const DEFAULT_LOW_STOCK_RUNWAY_DAYS = 7;
+
+/**
  * Safe defaults. Every category is off so the server reminders flow
  * unchanged for any user the iOS app has not explicitly opted in.
  * The maintainer's directive: zero regression for clients without working
@@ -176,6 +195,7 @@ export const DEFAULT_NOTIFICATION_PREFS: NotificationPrefs = {
   medication: {
     clientManaged: false,
     deliveryDefault: "server",
+    lowStockRunwayDays: DEFAULT_LOW_STOCK_RUNWAY_DAYS,
   },
   mood: {
     reminderHour: DEFAULT_MOOD_REMINDER_HOUR,
@@ -247,7 +267,9 @@ export function resolveNotificationPrefs(
  * The mapping never flips `clientManaged` back to false on its own —
  * an explicit `clientManaged` in the input still wins.
  */
-function applyDeliveryDefaultMapping(prefs: NotificationPrefs): NotificationPrefs {
+function applyDeliveryDefaultMapping(
+  prefs: NotificationPrefs,
+): NotificationPrefs {
   const clientManaged =
     prefs.medication.deliveryDefault === "client"
       ? true
@@ -317,6 +339,16 @@ export function resolveMoodReminderHour(raw: unknown): number {
 }
 
 /**
+ * Cron-side helper. Resolve the user's low-stock runway threshold in
+ * days from the persisted prefs blob: 1–60, or `null` when the user
+ * switched the alert off. A null / drifted row resolves to the default
+ * (7 days) so the alert works out of the box.
+ */
+export function resolveLowStockRunwayDays(raw: unknown): number | null {
+  return parseNotificationPrefs(raw).medication.lowStockRunwayDays;
+}
+
+/**
  * v1.16.5 — fully-resolved Coach-nudge view for the cron: the master
  * switch, the three per-group toggles, and the frequency cap mapped to
  * days. One call so the nudge tick reads a single shape instead of
@@ -355,9 +387,7 @@ function cloneDefaults(): NotificationPrefs {
   };
 }
 
-function mergeOverDefaults(
-  input: NotificationPrefsInput,
-): NotificationPrefs {
+function mergeOverDefaults(input: NotificationPrefsInput): NotificationPrefs {
   return applyDeliveryDefaultMapping({
     medication: {
       ...DEFAULT_NOTIFICATION_PREFS.medication,

@@ -1337,6 +1337,15 @@ model Medication {
   /// under `http://www.nlm.nih.gov/research/umls/rxnorm` alongside any
   /// ATC code, never instead of the free-text `.text` anchor.
   rxNormCode           String?            @map("rxnorm_code")
+  /// v1.16.11 — low-stock notification stamp. Set when the daily
+  /// low-stock pass dispatched a notification for the current
+  /// threshold crossing; cleared (re-armed) when the projected runway
+  /// rises back to / above the user's threshold (refill). NULL = armed.
+  lowStockNotifiedAt   DateTime?          @map("low_stock_notified_at")
+  /// v1.16.11 — the user threshold (days) the stamp was written
+  /// against. A changed threshold re-arms the medication even while
+  /// the runway stays low, so the user hears about the new crossing.
+  lowStockNotifiedThresholdDays Int?      @map("low_stock_notified_threshold_days")
   createdAt            DateTime           @default(now()) @map("created_at")
   updatedAt            DateTime           @updatedAt @map("updated_at")
 

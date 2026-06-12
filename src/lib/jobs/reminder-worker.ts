@@ -56,6 +56,11 @@ import {
   runCoachNudgeTick,
 } from "@/lib/jobs/coach-nudge";
 import {
+  MEDICATION_LOW_STOCK_QUEUE,
+  MEDICATION_LOW_STOCK_CRON,
+  runMedicationLowStockTick,
+} from "@/lib/jobs/medication-low-stock";
+import {
   STRESS_SCORE_QUEUE,
   STRESS_SCORE_CRON,
   runStressScore,
@@ -732,6 +737,10 @@ export async function startReminderWorker() {
     // contract; without this entry the daily 05:15 schedule silently
     // no-ops and no nudge ever fires.
     COACH_NUDGE_QUEUE,
+    // v1.16.11 — daily medication low-stock pass. Same pg-boss v12
+    // createQueue contract; without this entry the 09:00 schedule
+    // silently no-ops and no low-stock alert ever fires.
+    MEDICATION_LOW_STOCK_QUEUE,
   ];
 
   for (const q of allQueues) {
@@ -895,6 +904,11 @@ export async function startReminderWorker() {
     // the 04:45–04:55 score crons so the recovery-score trigger reads
     // settled rows. Deterministic triggers only — no AI call on this path.
     [COACH_NUDGE_QUEUE, COACH_NUDGE_CRON],
+    // v1.16.11 — medication low-stock pass at 09:00 Europe/Berlin: a
+    // supply alert is an errand prompt, so it fires at a time the user
+    // can act on it. Once daily; the per-medication stamp keeps it at
+    // one push per threshold crossing.
+    [MEDICATION_LOW_STOCK_QUEUE, MEDICATION_LOW_STOCK_CRON],
   ];
 
   for (const [name, cron, sendOptions] of schedules) {
@@ -1207,6 +1221,42 @@ export async function startReminderWorker() {
       }
     });
   });
+  // v1.16.11 — medication low-stock pass. Single-flight; the
+  // per-medication stamp makes a re-fire idempotent (already-notified
+  // crossings skip), so an overlapping tick would only waste reads.
+  await boss.work(
+    MEDICATION_LOW_STOCK_QUEUE,
+    { localConcurrency: 1 },
+    async () => {
+      await withBackgroundEvent("job.medication_low_stock", async (evt) => {
+        try {
+          const summary = await runMedicationLowStockTick(
+            getWorkerPrisma(),
+            new Date(),
+          );
+          evt.setBackground({
+            task_name: "job.medication_low_stock",
+            result: {
+              users_scanned: summary.usersScanned,
+              skipped_threshold_off: summary.skippedThresholdOff,
+              medications_evaluated: summary.medicationsEvaluated,
+              notified: summary.notified,
+              rearmed: summary.rearmed,
+              skipped_already_notified: summary.skippedAlreadyNotified,
+              skipped_above_threshold: summary.skippedAboveThreshold,
+              skipped_no_runway: summary.skippedNoRunway,
+              skipped_no_channel: summary.skippedNoChannel,
+              failed: summary.failed,
+            },
+          });
+        } catch (err) {
+          evt.setError(err);
+          recordError();
+          throw err;
+        }
+      });
+    },
+  );
   // v1.10.0 — computed scores (WX-E). Nightly Stress-score (HRV-derived
   // proxy) compute + store. Single-flight so two ticks never double-walk
   // the cohort. The runner iterates every eligible user and upserts one

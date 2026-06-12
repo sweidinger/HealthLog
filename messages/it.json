@@ -5301,6 +5301,19 @@
       "disabledToast": "Avvisi proattivi del Coach disattivati.",
       "saveError": "Impossibile salvare. Riprova più tardi."
     },
+    "lowStock": {
+      "title": "Avviso scorte basse",
+      "description": "Controlla una volta al giorno le scorte tracciate dei tuoi farmaci e ti avvisa quando una copre meno giorni di questa soglia. Un avviso per carenza; si riattiva dopo il rifornimento.",
+      "toggleAria": "Attiva o disattiva gli avvisi di scorte basse",
+      "statusOn": "Attivo",
+      "statusOff": "Disattivato",
+      "daysLabel": "Avvisa sotto (giorni)",
+      "daysAria": "Seleziona la soglia delle scorte in giorni",
+      "savedToast": "Soglia delle scorte salvata.",
+      "enabledToast": "Avvisi di scorte basse attivati.",
+      "disabledToast": "Avvisi di scorte basse disattivati.",
+      "saveError": "Salvataggio non riuscito. Riprova."
+    },
     "eventMedicationReminder": "Promemoria farmaco",
     "eventMedicationReminderDesc": "Inviato a ogni orario di dose programmato.",
     "eventMeasurementAnomaly": "Misurazione insolita",
@@ -5320,7 +5333,9 @@
     "eventCyclePeriodConfirm": "Il ciclo è iniziato?",
     "eventCyclePeriodConfirmDesc": "Un promemoria discreto dal giorno previsto in poi finché non registri il ciclo.",
     "eventCycleFertileSoon": "Finestra fertile in arrivo",
-    "eventCycleFertileSoonDesc": "Inviato alcuni giorni prima della finestra fertile stimata quando il tuo obiettivo è il concepimento."
+    "eventCycleFertileSoonDesc": "Inviato alcuni giorni prima della finestra fertile stimata quando il tuo obiettivo è il concepimento.",
+    "eventMedicationLowStock": "Scorte di farmaco in esaurimento",
+    "eventMedicationLowStockDesc": "Quando una scorta tracciata copre meno giorni della tua soglia di scorte"
   },
   "i18n": {
     "maintainershipBanner": {
@@ -5482,6 +5497,11 @@
     "buttonSnoozeOneHour": "🕐 1h",
     "buttonSnoozeThreeHours": "🕐 3h",
     "buttonSkip": "⏭ Salta"
+  },
+  "lowStockReminders": {
+    "title": "Scorte in esaurimento: {medName}",
+    "body": "{medName}: {units} unità rimaste — bastano per circa {days} giorni.",
+    "bodyToday": "{medName}: {units} unità rimaste — meno di un giorno di scorta."
   },
   "moodReminders": {
     "dailyTitle": "Registra il tuo umore",

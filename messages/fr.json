@@ -5301,6 +5301,19 @@
       "disabledToast": "Rappels proactifs du Coach désactivés.",
       "saveError": "Impossible d'enregistrer. Veuillez réessayer plus tard."
     },
+    "lowStock": {
+      "title": "Alerte de stock faible",
+      "description": "Vérifie une fois par jour les stocks suivis de vos médicaments et vous prévient quand l’un d’eux couvre moins de jours que ce seuil. Une notification par pénurie ; elle se réarme après un réapprovisionnement.",
+      "toggleAria": "Activer ou désactiver les alertes de stock faible",
+      "statusOn": "Actif",
+      "statusOff": "Désactivé",
+      "daysLabel": "Prévenir en dessous de (jours)",
+      "daysAria": "Choisir le seuil de stock en jours",
+      "savedToast": "Seuil de stock enregistré.",
+      "enabledToast": "Alertes de stock faible activées.",
+      "disabledToast": "Alertes de stock faible désactivées.",
+      "saveError": "Échec de l’enregistrement. Réessayez."
+    },
     "eventMedicationReminder": "Rappel de médicament",
     "eventMedicationReminderDesc": "Envoyé à chaque heure de prise prévue.",
     "eventMeasurementAnomaly": "Mesure inhabituelle",
@@ -5320,7 +5333,9 @@
     "eventCyclePeriodConfirm": "Vos règles ont-elles commencé ?",
     "eventCyclePeriodConfirmDesc": "Un rappel discret le jour prévu ou après, tant qu'aucune règle n'est enregistrée.",
     "eventCycleFertileSoon": "Fenêtre fertile à venir",
-    "eventCycleFertileSoonDesc": "Envoyé quelques jours avant votre fenêtre fertile estimée lorsque votre objectif est de concevoir."
+    "eventCycleFertileSoonDesc": "Envoyé quelques jours avant votre fenêtre fertile estimée lorsque votre objectif est de concevoir.",
+    "eventMedicationLowStock": "Stock de médicament faible",
+    "eventMedicationLowStockDesc": "Quand un stock suivi couvre moins de jours que votre seuil de stock"
   },
   "i18n": {
     "maintainershipBanner": {
@@ -5482,6 +5497,11 @@
     "buttonSnoozeOneHour": "🕐 1h",
     "buttonSnoozeThreeHours": "🕐 3h",
     "buttonSkip": "⏭ Ignorer"
+  },
+  "lowStockReminders": {
+    "title": "Stock faible : {medName}",
+    "body": "{medName} : {units} unités restantes — environ {days} jours de réserve.",
+    "bodyToday": "{medName} : {units} unités restantes — moins d’un jour de réserve."
   },
   "moodReminders": {
     "dailyTitle": "Enregistrer votre humeur",

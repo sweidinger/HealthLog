@@ -5301,6 +5301,19 @@
       "disabledToast": "Proactive Coach nudges disabled.",
       "saveError": "Could not save. Please try again later."
     },
+    "lowStock": {
+      "title": "Low-stock alert",
+      "description": "Checks your tracked medication supplies once a day and notifies you when one covers fewer days than this threshold. One notification per shortage; it re-arms after a refill.",
+      "toggleAria": "Toggle low-stock alerts",
+      "statusOn": "Active",
+      "statusOff": "Off",
+      "daysLabel": "Notify below (days)",
+      "daysAria": "Select the low-stock threshold in days",
+      "savedToast": "Low-stock threshold saved.",
+      "enabledToast": "Low-stock alerts enabled.",
+      "disabledToast": "Low-stock alerts disabled.",
+      "saveError": "Could not save. Please try again."
+    },
     "eventMedicationReminder": "Medication reminder",
     "eventMedicationReminderDesc": "Sent at each scheduled dose time.",
     "eventMeasurementAnomaly": "Unusual measurement",
@@ -5320,7 +5333,9 @@
     "eventCyclePeriodConfirm": "Did your period start?",
     "eventCyclePeriodConfirmDesc": "A gentle check-in on or after the predicted start while no period is logged.",
     "eventCycleFertileSoon": "Fertile window coming up",
-    "eventCycleFertileSoonDesc": "Sent a few days before your estimated fertile window when your goal is trying to conceive."
+    "eventCycleFertileSoonDesc": "Sent a few days before your estimated fertile window when your goal is trying to conceive.",
+    "eventMedicationLowStock": "Medication stock low",
+    "eventMedicationLowStockDesc": "When a tracked medication supply covers fewer days than your low-stock threshold"
   },
   "i18n": {
     "maintainershipBanner": {
@@ -5482,6 +5497,11 @@
     "buttonSnoozeOneHour": "🕐 1h",
     "buttonSnoozeThreeHours": "🕐 3h",
     "buttonSkip": "⏭ Skip"
+  },
+  "lowStockReminders": {
+    "title": "Low supply: {medName}",
+    "body": "{medName}: {units} units left — enough for about {days} more days.",
+    "bodyToday": "{medName}: {units} units left — less than one day of supply."
   },
   "moodReminders": {
     "dailyTitle": "Log your mood",

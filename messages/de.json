@@ -5301,6 +5301,19 @@
       "disabledToast": "Proaktive Coach-Hinweise deaktiviert.",
       "saveError": "Speichern fehlgeschlagen. Bitte später erneut versuchen."
     },
+    "lowStock": {
+      "title": "Vorratswarnung",
+      "description": "Prüft deine erfassten Medikamentenvorräte einmal täglich und benachrichtigt dich, wenn einer weniger Tage abdeckt als diese Schwelle. Eine Benachrichtigung pro Engpass; nach dem Auffüllen meldet sie sich wieder.",
+      "toggleAria": "Vorratswarnungen umschalten",
+      "statusOn": "Aktiv",
+      "statusOff": "Aus",
+      "daysLabel": "Warnen unter (Tage)",
+      "daysAria": "Vorratsschwelle in Tagen wählen",
+      "savedToast": "Vorratsschwelle gespeichert.",
+      "enabledToast": "Vorratswarnungen aktiviert.",
+      "disabledToast": "Vorratswarnungen deaktiviert.",
+      "saveError": "Speichern fehlgeschlagen. Bitte später erneut versuchen."
+    },
     "eventMedicationReminder": "Medikamenten-Erinnerung",
     "eventMedicationReminderDesc": "Wird zu jeder geplanten Einnahmezeit gesendet.",
     "eventMeasurementAnomaly": "Auffälliger Messwert",
@@ -5320,7 +5333,9 @@
     "eventCyclePeriodConfirm": "Hat deine Periode begonnen?",
     "eventCyclePeriodConfirmDesc": "Eine sanfte Nachfrage am oder nach dem vorhergesagten Beginn, solange keine Periode erfasst ist.",
     "eventCycleFertileSoon": "Fruchtbares Fenster steht bevor",
-    "eventCycleFertileSoonDesc": "Wird einige Tage vor deinem geschätzten fruchtbaren Fenster gesendet, wenn dein Ziel die Empfängnis ist."
+    "eventCycleFertileSoonDesc": "Wird einige Tage vor deinem geschätzten fruchtbaren Fenster gesendet, wenn dein Ziel die Empfängnis ist.",
+    "eventMedicationLowStock": "Medikamentenvorrat niedrig",
+    "eventMedicationLowStockDesc": "Wenn ein erfasster Vorrat weniger Tage abdeckt als deine Vorratsschwelle"
   },
   "i18n": {
     "maintainershipBanner": {
@@ -5482,6 +5497,11 @@
     "buttonSnoozeOneHour": "🕐 1h",
     "buttonSnoozeThreeHours": "🕐 3h",
     "buttonSkip": "⏭ Überspringen"
+  },
+  "lowStockReminders": {
+    "title": "Vorrat niedrig: {medName}",
+    "body": "Dein Vorrat an {medName} reicht noch etwa {days} Tage ({units} Einheiten übrig).",
+    "bodyToday": "Dein Vorrat an {medName} reicht keinen ganzen Tag mehr ({units} Einheiten übrig)."
   },
   "moodReminders": {
     "dailyTitle": "Stimmung erfassen",

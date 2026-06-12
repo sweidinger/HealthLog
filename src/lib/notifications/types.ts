@@ -48,6 +48,14 @@ export const EVENT_TYPES = [
   // per rolling week via the `push_attempts` ledger; per-user opt-out
   // lives in `notificationPrefs.coach.nudgesEnabled`.
   "COACH_NUDGE",
+  // v1.16.11 — medication low-stock alert. Fired by the daily
+  // medication-low-stock cron when a medication with tracked inventory
+  // projects fewer remaining-supply days than the user's per-user
+  // runway threshold (default 7 days, OFF possible). One notification
+  // per threshold crossing; the stamp on the medication row re-arms on
+  // refill or threshold change. ON at the channel layer — the real
+  // gate is the per-user threshold in `notificationPrefs.medication`.
+  "MEDICATION_LOW_STOCK",
 ] as const;
 export type EventType = (typeof EVENT_TYPES)[number];
 
@@ -88,6 +96,12 @@ export const EVENT_DEFAULT_ENABLED: Record<EventType, boolean> = {
   // server never surfaces fertile-window language unless the user has both
   // chosen the conception goal and opted the reminder in.
   CYCLE_FERTILE_SOON: false,
+  // v1.16.11 — ON at the channel layer; the per-user runway threshold
+  // (`notificationPrefs.medication.lowStockRunwayDays`, OFF-able) is the
+  // real gate, and the once-per-crossing stamp keeps the volume at one
+  // push per medication per crossing. An explicit per-channel
+  // `NotificationPreference` row still wins.
+  MEDICATION_LOW_STOCK: true,
 };
 
 export const CHANNEL_TYPE_LABELS: Record<ChannelType, string> = {

@@ -5301,6 +5301,19 @@
       "disabledToast": "Avisos proactivos del Coach desactivados.",
       "saveError": "No se pudo guardar. Inténtalo de nuevo más tarde."
     },
+    "lowStock": {
+      "title": "Aviso de existencias bajas",
+      "description": "Comprueba una vez al día las existencias registradas de tus medicamentos y te avisa cuando alguna cubre menos días que este umbral. Un aviso por escasez; se reactiva tras reponer.",
+      "toggleAria": "Activar o desactivar los avisos de existencias bajas",
+      "statusOn": "Activo",
+      "statusOff": "Desactivado",
+      "daysLabel": "Avisar por debajo de (días)",
+      "daysAria": "Seleccionar el umbral de existencias en días",
+      "savedToast": "Umbral de existencias guardado.",
+      "enabledToast": "Avisos de existencias bajas activados.",
+      "disabledToast": "Avisos de existencias bajas desactivados.",
+      "saveError": "No se pudo guardar. Inténtalo de nuevo."
+    },
     "eventMedicationReminder": "Recordatorio de medicación",
     "eventMedicationReminderDesc": "Se envía a cada hora de dosis programada.",
     "eventMeasurementAnomaly": "Medición inusual",
@@ -5320,7 +5333,9 @@
     "eventCyclePeriodConfirm": "¿Empezó tu período?",
     "eventCyclePeriodConfirmDesc": "Un recordatorio suave en o después del inicio previsto mientras no se registre ningún período.",
     "eventCycleFertileSoon": "Ventana fértil próxima",
-    "eventCycleFertileSoonDesc": "Se envía unos días antes de tu ventana fértil estimada cuando tu objetivo es concebir."
+    "eventCycleFertileSoonDesc": "Se envía unos días antes de tu ventana fértil estimada cuando tu objetivo es concebir.",
+    "eventMedicationLowStock": "Existencias de medicación bajas",
+    "eventMedicationLowStockDesc": "Cuando unas existencias registradas cubren menos días que tu umbral de existencias"
   },
   "i18n": {
     "maintainershipBanner": {
@@ -5482,6 +5497,11 @@
     "buttonSnoozeOneHour": "🕐 1h",
     "buttonSnoozeThreeHours": "🕐 3h",
     "buttonSkip": "⏭ Omitir"
+  },
+  "lowStockReminders": {
+    "title": "Quedan pocas existencias: {medName}",
+    "body": "{medName}: quedan {units} unidades — para unos {days} días más.",
+    "bodyToday": "{medName}: quedan {units} unidades — menos de un día de suministro."
   },
   "moodReminders": {
     "dailyTitle": "Registrar el ánimo",
