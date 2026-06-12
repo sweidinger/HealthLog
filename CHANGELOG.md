@@ -2,6 +2,31 @@
 
 ## [Unreleased]
 
+## [1.16.11] — 2026-06-12 — the supply speaks up, tags find their groups, and nothing asks twice
+
+### Added
+
+- **The app says so before the pack runs out.** A daily pass projects every tracked supply against its schedule and notifies on the configured channels when the runway falls below a per-account threshold — once per crossing, re-armed by a refill, re-announced when the threshold changes. The threshold lives beside the reminder settings (1–60 days, default 7, or off), the push deep-links straight into the supply tab, the table's stock column carries the projection as "≈ X Tage", and the card states the remaining runway once it crosses the threshold — only then.
+- **Mood tags get groups, icons and a home of their own.** Custom groups with encrypted labels, a searchable 75-icon picker, and a manage page under settings; tags archive without touching the entries that carry them — editing an old entry can no longer drop its archived tags either — the picker offers inline creation right where a tag is missing, custom labels finally render in the picker AND across insights, and the arrangement persists per account. The whole surface ships in the public API contract.
+- **Every due dose in one confirmed action.** When two or more doses are due — including a dose escalated past its catch-up window — a button on the medications list collects them into one confirm dialog and records each through the same path as the card buttons: slot attribution, stock consumption and every dependent surface included; failures are counted, not hidden.
+- **A medication can declare itself as-needed.** No schedules, never due, never reminded, excluded from every compliance rate — but intakes log normally, consume inventory exactly like scheduled doses, and the history stays. The wizard offers it as a cadence choice; switching it onto a fixed schedule later never repaints the schedule-less stretch as missed doses, and the doctor report lists it without inventing a rate. (#316)
+- **Units-per-dose and the default pack size are editable from the supply tab** — a manufacturer switch with a different blister size no longer requires walking back through the wizard.
+
+### Changed
+
+- **One wrench marks every customize entry point.** Dashboard, insights and medications share the glyph, the table corners clip to their container again, and the card/table view choice moves into its own settings section.
+- **The coach opens in place.** The button brings the side drawer over the page you were reading instead of navigating away, and grew to a comfortable tap size.
+- **The card's dose state lives on the next-intake row.** Take-now, late and the overdue escalation speak from the line that names the dose — with their time beside them, on mobile too — instead of a separately reserved status line that left a hole on every settled card.
+- A source ladder saved before a newer integration existed now lists and ranks the later-added sources everywhere — settings, charts, rollups and the sleep picker — instead of silently pinning them below every ranked one.
+- WHOOP's self-reported profile weight is no longer ingested as a measurement; the stale entry stops resurfacing as the newest weight, and existing accounts heal on the next sync.
+
+### Fixed
+
+- **The hypnogram keeps its timeline when a summary writer joins the night.** A stage summary stamping all its rows on one instant no longer evicts a per-segment night; when only summaries exist, the card shows the stage breakdown instead of a fake skyline.
+- **A dose taken on the dashboard updates the dashboard.** The snapshot band refetches with every intake path instead of waiting out its polling interval.
+- The supply tab can delete a container, its controls carry the outline they always implied, each container states its condition inline next to its figures, and the table's stock warning follows the user's runway threshold instead of a leftover four-dose constant.
+- Every wide event carries the recent event-loop lag, and a stalled loop emits its own warning event — the instance-level signal per-request durations cannot carry.
+
 ## [1.16.10] — 2026-06-12 — the stock follows every dose, and the list takes your order
 
 ### Added
