@@ -26,7 +26,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ArrowDownUp, CheckCircle2, Loader2, Pill, Plus } from "lucide-react";
+import { CheckCircle2, Loader2, Pill, Plus, Settings2 } from "lucide-react";
 import { apiGet } from "@/lib/api/api-fetch";
 import { useMedicationListLayout } from "@/lib/queries/use-medication-list-layout";
 import { applyMedicationOrder } from "@/lib/medications/medication-order";
@@ -269,8 +269,11 @@ export default function MedicationsPage() {
         <div className="flex shrink-0 items-center gap-2">
           {/* v1.16.10 — card ⇄ table view toggle, persisted server-side
               per user; plus the manual-order editor shared by both
-              views. The reorder affordance only earns its slot once
-              there is something to reorder. */}
+              views. The editor opens behind the same Settings2 glyph
+              the dashboard and insights headers use for their
+              customize entry points, in the same slot (left of the
+              add button). It only earns its slot once there is
+              something to reorder. */}
           <MedicationViewToggle view={layout.view} onChange={setView} />
           {medsArray.length > 1 && (
             <Button
@@ -281,7 +284,7 @@ export default function MedicationsPage() {
               aria-label={t("medications.reorderTitle")}
               title={t("medications.reorderTitle")}
             >
-              <ArrowDownUp className="h-4 w-4" />
+              <Settings2 className="h-4 w-4" />
             </Button>
           )}
           {/* v1.14.0 — the "Add" button is now a choice: log an intake
