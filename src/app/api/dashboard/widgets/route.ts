@@ -283,7 +283,7 @@ export const PUT = apiHandler(async (request: NextRequest) => {
       mergedChartOverlayPrefs = existingLayout.chartOverlayPrefs ?? {};
     }
     if (mergedHeroVisible === undefined) {
-      mergedHeroVisible = existingLayout.heroVisible !== false;
+      mergedHeroVisible = existingLayout.heroVisible === true;
     }
   }
   const normalized = serializeDashboardLayout({

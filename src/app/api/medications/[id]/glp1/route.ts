@@ -54,6 +54,13 @@ export const GET = apiHandler(
       where: { id },
       include: {
         doseChanges: { orderBy: { effectiveFrom: "asc" } },
+        // v1.16.10 — the inventory block reads the per-item entities
+        // (the same rows the Bestand tab and the intake consumption
+        // hook move). The legacy MedicationInventoryEvent running-sum
+        // ledger stays as a READ fallback for accounts that only ever
+        // posted deltas: when zero items exist, the ledger-derived
+        // numbers surface instead of a silent null.
+        inventoryItems: { orderBy: { createdAt: "asc" } },
         inventoryEvents: { orderBy: { occurredAt: "asc" } },
         intakeEvents: {
           where: { takenAt: { not: null } },
@@ -69,25 +76,56 @@ export const GET = apiHandler(
       return apiError("Medication not found", 404);
     }
 
-    // Inventory math: running sum of every inventory event. Negative
-    // when more doses were consumed than purchased — surfaces as a
-    // low-stock warning rather than a hard error so the UI keeps
-    // working when the user backdates an inventory event.
+    // Inventory math over the per-item entities. The response shape is
+    // locked for the iOS client: `pensRemaining` = count of usable
+    // containers (ACTIVE / IN_USE with units left), `dosesRemaining` =
+    // pooled units divided by `unitsPerDose` (floored — consumption
+    // spills across containers), `weeksOfSupply` keeps the weekly-
+    // cadence approximation (the canonical GLP-1 case).
     let inventory: {
       pensRemaining: number | null;
       dosesRemaining: number | null;
       weeksOfSupply: number | null;
       lowStock: boolean;
     } | null = null;
-    if (medication.dosesPerUnit && medication.inventoryEvents.length > 0) {
+    if (medication.inventoryItems.length > 0) {
+      const usable = medication.inventoryItems.filter(
+        (item) =>
+          (item.state === "ACTIVE" || item.state === "IN_USE") &&
+          item.unitsRemaining > 0,
+      );
+      const unitsRemaining = usable.reduce(
+        (sum, item) => sum + item.unitsRemaining,
+        0,
+      );
+      const pensRemaining = usable.length;
+      const dosesRemaining = Math.floor(
+        unitsRemaining / Math.max(1, medication.unitsPerDose),
+      );
+      const weeksOfSupply = dosesRemaining;
+      const lowStock = dosesRemaining < LOW_STOCK_DOSE_THRESHOLD;
+      inventory = {
+        pensRemaining,
+        dosesRemaining,
+        weeksOfSupply,
+        lowStock,
+      };
+    } else if (
+      medication.dosesPerUnit &&
+      medication.inventoryEvents.length > 0
+    ) {
+      // Read-side fallback for ledger-only accounts (pre-v1.16.10 the
+      // POST below was the only inventory writer). Items win whenever
+      // any exist — the ledger never overrides them and no item rows
+      // are fabricated from it. Math is the pre-item contract verbatim:
+      // running sum of deltas counts pens, `dosesPerUnit` maps pens to
+      // doses, weekly cadence approximates the supply horizon.
       const pens = medication.inventoryEvents.reduce(
         (sum, ev) => sum + ev.delta,
         0,
       );
       const pensRemaining = Math.max(0, pens);
       const dosesRemaining = pensRemaining * medication.dosesPerUnit;
-      // Approximate weeks-of-supply assuming weekly cadence (the
-      // canonical GLP-1 case). The Coach snapshot does the same.
       const weeksOfSupply = dosesRemaining;
       const lowStock = dosesRemaining < LOW_STOCK_DOSE_THRESHOLD;
       inventory = {
@@ -202,6 +240,14 @@ export const POST = apiHandler(
 
     // The schema's XOR refinement guarantees `inventory` is present
     // when `doseChange` is not, so the non-null assertion is safe.
+    //
+    // DEPRECATED branch (v1.16.10): this writes the legacy
+    // MedicationInventoryEvent running-sum ledger. The per-item
+    // endpoints (`POST /api/medications/[id]/inventory`,
+    // `PATCH /api/medications/[id]/inventory/[itemId]`) replaced it;
+    // GET above and the Coach snapshot read the ledger only while the
+    // medication has zero inventory items. New callers must register
+    // containers instead of posting deltas.
     const { delta, reason } = parsed.data.inventory!;
     const created = await prisma.medicationInventoryEvent.create({
       data: { medicationId: id, delta, reason },

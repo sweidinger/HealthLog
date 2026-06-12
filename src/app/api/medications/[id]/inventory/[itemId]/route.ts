@@ -6,9 +6,10 @@
  *     - mark-as-used-up (terminal — operator override when a pen is
  *       physically discarded but the dose ledger hasn't reached zero)
  *     - update printed expiry (e.g. carton label correction)
- *     - stock correction via `dosesRemaining` (v1.16.1 — the Bestand
- *       tab's adjust / withdraw flow; clamped to `dosesTotal`, state
- *       re-derived by the canonical state machine)
+ *     - stock correction via `unitsRemaining` (v1.16.1 — the Bestand
+ *       tab's adjust / withdraw flow; clamped to `unitsTotal`, state
+ *       re-derived by the canonical state machine; v1.16.10 renamed
+ *       the request field from `dosesRemaining` to match the response)
  *     - update notes
  *
  *   DELETE /api/medications/[id]/inventory/[itemId]
@@ -74,7 +75,7 @@ export const PATCH = apiHandler(
       markAsFirstUseAt,
       markAsUsedUp,
       printedExpiry,
-      dosesRemaining,
+      unitsRemaining,
       notes,
     } = parsed.data;
 
@@ -82,7 +83,7 @@ export const PATCH = apiHandler(
     // commutative — applying them in any order produces the same row.
     let nextFirstUseAt = existing.firstUseAt;
     let nextState = existing.state;
-    let nextDosesRemaining = existing.dosesRemaining;
+    let nextUnitsRemaining = existing.unitsRemaining;
     let nextPrintedExpiry = existing.printedExpiry;
 
     if (markAsFirstUseAt) {
@@ -96,16 +97,17 @@ export const PATCH = apiHandler(
       nextPrintedExpiry = printedExpiry;
     }
 
-    if (dosesRemaining !== undefined) {
+    if (unitsRemaining !== undefined) {
       // v1.16.1 — stock correction (Bestand tab adjust / withdraw).
-      // Clamp to the item's capacity; the state-machine re-run below
-      // owns every state consequence (0 ⇒ USED_UP, a raise out of 0
-      // re-evaluates against the expiry clocks).
-      nextDosesRemaining = Math.min(dosesRemaining, existing.dosesTotal);
+      // The wire field counts UNITS. Clamp to the item's capacity; the
+      // state-machine re-run below owns every state consequence (0 ⇒
+      // USED_UP, a raise out of 0 re-evaluates against the expiry
+      // clocks).
+      nextUnitsRemaining = Math.min(unitsRemaining, existing.unitsTotal);
     }
 
     if (markAsUsedUp === true) {
-      nextDosesRemaining = 0;
+      nextUnitsRemaining = 0;
       nextState = "USED_UP";
     }
 
@@ -119,13 +121,13 @@ export const PATCH = apiHandler(
     // pure and idempotent — running it once more with the composed view
     // collapses every edge case onto the same decision tree the intake
     // hook and the daily expire cron already share. USED_UP is terminal
-    // (dosesRemaining === 0 ⇒ USED_UP wins at clause 1), so the manual
+    // (unitsRemaining === 0 ⇒ USED_UP wins at clause 1), so the manual
     // override remains sticky.
     nextState = computeInventoryState(
       {
         state: nextState,
-        dosesTotal: existing.dosesTotal,
-        dosesRemaining: nextDosesRemaining,
+        unitsTotal: existing.unitsTotal,
+        unitsRemaining: nextUnitsRemaining,
         firstUseAt: nextFirstUseAt,
         printedExpiry: nextPrintedExpiry,
       },
@@ -137,7 +139,7 @@ export const PATCH = apiHandler(
       data: {
         state: nextState,
         firstUseAt: nextFirstUseAt,
-        dosesRemaining: nextDosesRemaining,
+        unitsRemaining: nextUnitsRemaining,
         printedExpiry: nextPrintedExpiry,
         expiresAt: nextExpiresAt,
         notes: notes === undefined ? existing.notes : notes,
@@ -185,7 +187,7 @@ export const DELETE = apiHandler(
         medicationId: id,
         itemId,
         finalState: existing.state,
-        dosesRemaining: existing.dosesRemaining,
+        unitsRemaining: existing.unitsRemaining,
       },
     });
 

@@ -220,6 +220,11 @@ export interface WizardPayload {
    */
   dosesPerUnit: string;
   /**
+   * v1.16.10 — inventory units one dose consumes (2 × 2 mg tablets for
+   * a 4 mg dose). Empty string / "1" both map to the server default 1.
+   */
+  unitsPerDose: string;
+  /**
    * v1.8.5 — per-medication injection-site tracking opt-in. Only
    * surfaced in Step 3 when `deliveryForm === "INJECTION"`. Default
    * false (opt-in). Toggling it off clears `allowedInjectionSites`.
@@ -283,6 +288,7 @@ export function emptyWizardPayload(): WizardPayload {
     treatmentRow: null,
     deliveryForm: "ORAL",
     dosesPerUnit: "",
+    unitsPerDose: "1",
     trackInjectionSites: false,
     allowedInjectionSites: [],
     mode: draft.mode,
@@ -528,6 +534,8 @@ export interface CreateMedicationBody {
   deliveryForm: MedicationDeliveryForm;
   /** v1.6.0 — doses per pen / vial. Omitted when inventory is off. */
   dosesPerUnit?: number;
+  /** v1.16.10 — inventory units per dose. Omitted at the default 1. */
+  unitsPerDose?: number;
   /** v1.8.5 — injection-site tracking opt-in. Omitted for non-injections. */
   trackInjectionSites?: boolean;
   /** v1.8.5 — per-medication allowed sites. Omitted when tracking is off. */
@@ -673,6 +681,7 @@ export function buildCreateBody(
     : committed.schedules;
 
   const parsedDosesPerUnit = Number.parseInt(committed.dosesPerUnit, 10);
+  const parsedUnitsPerDose = Number.parseInt(committed.unitsPerDose, 10);
   const body: CreateMedicationBody = {
     name: committed.name.trim(),
     dose,
@@ -682,6 +691,12 @@ export function buildCreateBody(
     ...(Number.isFinite(parsedDosesPerUnit) &&
       parsedDosesPerUnit >= 1 && {
         dosesPerUnit: parsedDosesPerUnit,
+      }),
+    // v1.16.10 — always sent when valid (an edit back to 1 must reach
+    // the server; the create default matches the schema default).
+    ...(Number.isFinite(parsedUnitsPerDose) &&
+      parsedUnitsPerDose >= 1 && {
+        unitsPerDose: parsedUnitsPerDose,
       }),
     // v1.8.5 — injection-site tracking is only meaningful for an
     // INJECTION delivery form. Always send the boolean for an injection
@@ -903,6 +918,8 @@ export interface MedicationPayload {
   deliveryForm?: string;
   /** v1.6.0 — doses per pen / vial. NULL = inventory tracking off. */
   dosesPerUnit?: number | null;
+  /** v1.16.10 — inventory units per dose (default 1). */
+  unitsPerDose?: number | null;
   /** v1.8.5 — injection-site tracking opt-in. */
   trackInjectionSites?: boolean;
   /** v1.8.5 — per-medication allowed / preferred injection sites. */
@@ -1014,6 +1031,10 @@ export function hydrateWizardPayload(initial: MedicationPayload): WizardPayload 
       typeof initial.dosesPerUnit === "number" && initial.dosesPerUnit >= 1
         ? String(initial.dosesPerUnit)
         : "",
+    unitsPerDose:
+      typeof initial.unitsPerDose === "number" && initial.unitsPerDose >= 1
+        ? String(initial.unitsPerDose)
+        : "1",
     trackInjectionSites: initial.trackInjectionSites ?? false,
     allowedInjectionSites: (initial.allowedInjectionSites ??
       []) as InjectionSiteKey[],

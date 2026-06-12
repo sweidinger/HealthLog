@@ -43,6 +43,10 @@ import {
 } from "@/lib/medications/scheduling/slot-upsert";
 import { resolveInjectionSiteForWrite } from "@/lib/medications/injection-site-write";
 import {
+  consumeForIntake,
+  restoreForIntake,
+} from "@/lib/medications/inventory/consumption";
+import {
   injectionSiteEnum,
   type InjectionSiteValue,
 } from "@/lib/validations/medication";
@@ -519,6 +523,12 @@ export const POST = apiHandler(async (request: NextRequest) => {
     const slotMoved =
       targetScheduledFor.getTime() !== existing.scheduledFor.getTime();
 
+    // v1.16.10 — transition gate for the inventory consume below. Only
+    // a row moving INTO taken may consume; a re-take of an already-
+    // taken row (e.g. a time correction) leaves its stamp frozen, and a
+    // pre-v1.16.10 taken row (NULL stamp, stock already moved by the
+    // legacy hook at take time) must never retro-consume.
+    const wasTaken = existing.takenAt !== null && !existing.skipped;
     if (!slotMoved) {
       [updated] = await prisma.$transaction([
         prisma.medicationIntakeEvent.update({
@@ -540,11 +550,33 @@ export const POST = apiHandler(async (request: NextRequest) => {
           data: { snoozedUntil: null },
         }),
       ]);
+      // v1.16.10 — the toggle recorded a take; consume inventory units
+      // on the genuine pending→taken (or skipped→taken) transition. The
+      // stamp additionally keeps a racing replay exactly-once.
+      if (!wasTaken) {
+        await consumeForIntake({
+          client: prisma,
+          userId: user.id,
+          medicationId: existing.medicationId,
+          eventId: intakeId,
+          intakeAt: resolvedTakenAt,
+        });
+      }
     } else {
       // The take re-attributed to a different slot. Tombstone the source row
       // and route the dose through the shared canonical-slot upsert, which
       // converges onto any row already at the target slot rather than
       // bare-updating into an occupied slot (P2002-safe).
+      //
+      // v1.16.10 — refund the source row's consumption stamp BEFORE the
+      // tombstone, then consume on the converged row below: a slot move
+      // is a re-binding of one real dose, so the stock nets exactly one
+      // consumption.
+      await restoreForIntake({
+        client: prisma,
+        userId: user.id,
+        eventId: intakeId,
+      });
       await prisma.medicationIntakeEvent.update({
         where: { id: intakeId },
         data: { deletedAt: new Date(), syncVersion: { increment: 1 } },
@@ -574,12 +606,33 @@ export const POST = apiHandler(async (request: NextRequest) => {
         where: { id: existing.medicationId },
         data: { snoozedUntil: null },
       });
+      // v1.16.10 — consume on the converged row (the old row's stamp
+      // was refunded above, so the move nets one consumption). A taken
+      // source WITHOUT a stamp is a pre-v1.16.10 row whose stock moved
+      // through the legacy hook: the refund above was a no-op, so
+      // consuming on the target would double-charge — skip it.
+      if (!wasTaken || existing.inventoryConsumption !== null) {
+        await consumeForIntake({
+          client: prisma,
+          userId: user.id,
+          medicationId: existing.medicationId,
+          eventId: applied.row.id,
+          intakeAt: resolvedTakenAt,
+        });
+      }
     }
   } else if (status === "skipped") {
     updated = await prisma.medicationIntakeEvent.update({
       where: { id: intakeId },
       // v1.7.0 sync — bump the reconciliation counter on the skip toggle.
       data: { takenAt: null, skipped: true, syncVersion: { increment: 1 } },
+    });
+    // v1.16.10 — the row stopped being taken; refund whatever its
+    // consumption stamp recorded (no-op for a never-consumed row).
+    await restoreForIntake({
+      client: prisma,
+      userId: user.id,
+      eventId: intakeId,
     });
   } else {
     // snoozed: snoozedUntil lives on the Medication row.

@@ -277,6 +277,7 @@
     "hero": {
       "scoreLabel": "Health Score",
       "scoreProvisional": "Aún no hay datos suficientes",
+      "scoreComputing": "Calculando la puntuación …",
       "doses": {
         "summary": "{taken} de {scheduled} dosis tomadas",
         "nextAt": "Próxima a las {time}",
@@ -1056,7 +1057,9 @@
           "dosesPerUnitHint": "Dosis por pluma / vial — déjalo vacío para no controlar el inventario.",
           "injectionSiteToggle": "Rotación del sitio de inyección",
           "injectionSiteHint": "Guía de rotación opcional. El sitio de cada dosis se registra al anotar la toma.",
-          "short": "Dosis"
+          "short": "Dosis",
+          "unitsPerDoseLabel": "Unidades por dosis",
+          "unitsPerDoseHint": "p. ej., 2 comprimidos de 2 mg para una dosis de 4 mg"
         },
         "step4": {
           "title": "¿Durante qué periodo lo tomas?",
@@ -1585,7 +1588,7 @@
       "bestand": {
         "title": "Existencias",
         "summary": "{remaining} de {total} dosis restantes",
-        "itemsTitle": "Plumas / viales",
+        "itemsTitle": "Envases y recipientes",
         "doses": "{remaining} / {total} dosis",
         "state": {
           "ACTIVE": "Sin abrir",
@@ -1594,25 +1597,41 @@
           "USED_UP": "Agotado"
         },
         "empty": "No hay existencias registradas.",
-        "emptyHelper": "Registra una pluma o un paquete para hacer seguimiento de las dosis restantes y las semanas de suministro.",
+        "emptyHelper": "Registra un envase o recipiente para hacer seguimiento de las existencias restantes y la autonomía.",
         "emptyCta": "Registrar un envase",
         "addButton": "Registrar",
-        "addTitle": "Registrar una pluma o un envase",
-        "addDescription": "Registra una nueva existencia con su número de dosis; la fecha de caducidad es opcional.",
-        "addQuantityLabel": "Cantidad (dosis / unidades)",
-        "addQuantityHelper": "1–100 dosis por pluma o envase.",
+        "addTitle": "Registrar un envase o recipiente",
+        "addDescription": "Registra una nueva existencia con su número de unidades; la fecha de caducidad es opcional.",
+        "addQuantityLabel": "Cantidad (unidades)",
+        "addQuantityHelper": "1–1000 unidades por envase o recipiente.",
         "addExpiryLabel": "Fecha de caducidad (opcional)",
         "addSubmit": "Registrar",
         "addSuccess": "Existencias registradas.",
         "addFailed": "No se pudieron registrar las existencias.",
         "adjustButton": "Ajustar",
         "adjustTitle": "Corregir existencias",
-        "adjustDescription": "Establece las dosis restantes — para correcciones o una retirada. 0 marca el envase como agotado.",
-        "adjustQuantityLabel": "Dosis restantes",
-        "adjustHelper": "Capacidad: {total} dosis.",
+        "adjustDescription": "Establece las unidades restantes — para correcciones o una retirada. 0 marca el envase como agotado.",
+        "adjustQuantityLabel": "Unidades restantes",
+        "adjustHelper": "Capacidad: {total} unidades.",
         "adjustSubmit": "Guardar",
         "adjustSuccess": "Existencias actualizadas.",
-        "adjustFailed": "No se pudieron actualizar las existencias."
+        "adjustFailed": "No se pudieron actualizar las existencias.",
+        "containerTypeLabel": "Tipo de envase",
+        "containerType": {
+          "PEN": "Pluma",
+          "AMPOULE": "Ampolla",
+          "BLISTER": "Envase de comprimidos",
+          "INHALER": "Inhalador",
+          "BOTTLE": "Frasco",
+          "OTHER": "Otro"
+        },
+        "unitsDetail": "{remaining} / {total} unidades",
+        "quantityModeDoses": "Dosis",
+        "quantityModeUnits": "Unidades",
+        "quantityInUnits": "= {units} unidades",
+        "quantityInDoses": "≈ {doses} dosis",
+        "quantityUnderOneDose": "< 1 dosis",
+        "expiredSuffix": "+ {units} unidades caducadas"
       },
       "erweitert": {
         "group": {
@@ -1697,7 +1716,30 @@
     "trackInjectionSitesToggle": "Registrar sitios de inyección",
     "trackInjectionSitesHint": "Tras administrar una dosis, pregunta qué sitio se usó y sugiere la siguiente rotación.",
     "allowedSitesLabel": "Sitios permitidos",
-    "allowedSitesHint": "Deja todos seleccionados para no aplicar restricciones. Los sitios que excluiste globalmente nunca se ofrecen."
+    "allowedSitesHint": "Deja todos seleccionados para no aplicar restricciones. Los sitios que excluiste globalmente nunca se ofrecen.",
+    "viewToggleLabel": "Vista",
+    "viewToggleHint": "Elige si tus medicamentos se muestran como tarjetas o como tabla.",
+    "viewCards": "Vista de tarjetas",
+    "viewTable": "Vista de tabla",
+    "viewSaveFailed": "No se pudo guardar la vista",
+    "tableCaption": "Medicamentos en tabla con estado, próxima toma, adherencia y existencias",
+    "tableColName": "Nombre",
+    "tableColStatus": "Estado",
+    "tableColNextDose": "Próxima toma",
+    "tableColCompliance": "Adherencia",
+    "tableColStock": "Existencias",
+    "tableColActions": "Acciones",
+    "tableSortBy": "Ordenar por {column}",
+    "tableComplianceDays": "{days} d",
+    "tableStockDoseOne": "1 dosis",
+    "tableStockDoses": "{count} dosis",
+    "takeActionFor": "Tomar – {name}",
+    "skipActionFor": "Omitir – {name}",
+    "reorderTitle": "Ajustar orden",
+    "reorderDescription": "Define el orden de tus medicamentos: se aplica a la vista de tarjetas y a la de tabla.",
+    "reorderSaved": "Orden guardado",
+    "reorderSaveFailed": "No se pudo guardar el orden",
+    "customize": "Personalizar medicamentos"
   },
   "charts": {
     "loadingLabel": "Cargando la gráfica…",
@@ -3727,6 +3769,10 @@
       "insights": {
         "title": "Análisis",
         "description": "Orden de la vista general y de las pestañas de navegación."
+      },
+      "medications": {
+        "title": "Medicamentos",
+        "description": "Vista de lista y orden de los medicamentos."
       }
     },
     "profile": "Perfil",

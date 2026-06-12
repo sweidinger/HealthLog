@@ -175,7 +175,14 @@ export function FilterBarSelect({
             <span className="text-muted-foreground">{label}</span>
           )}
         </SelectTrigger>
-        <SelectContent>
+        {/* `position="popper"` is load-bearing: this trigger paints its
+            own label spans and mounts no `SelectValue`, and Radix's
+            default item-aligned placement silently skips ALL positioning
+            when the value node is absent — the open menu then lays out
+            below the height-locked app shell, fully off-viewport. Popper
+            placement has no value-node dependency and anchors the menu
+            under the pill like the date-range popover next to it. */}
+        <SelectContent position="popper" align="start">
           <SelectItem value={allValue}>{allLabel}</SelectItem>
           {options.map((opt) => (
             <SelectItem key={opt.value} value={opt.value}>

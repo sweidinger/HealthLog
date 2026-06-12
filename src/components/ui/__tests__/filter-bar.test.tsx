@@ -1,4 +1,6 @@
 import { describe, expect, it } from "vitest";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { renderToStaticMarkup } from "react-dom/server";
 
 import { I18nProvider } from "@/lib/i18n/context";
@@ -139,5 +141,23 @@ describe("FilterBar shell", () => {
     );
     expect(html).toContain("Zurücksetzen");
     expect(html).toContain('aria-label="Filter entfernen: Quelle"');
+  });
+});
+
+describe("FilterBarSelect — menu positioning (source pin)", () => {
+  // The pill trigger paints its own label spans and mounts no
+  // `<SelectValue>`. Radix's default item-aligned placement silently
+  // skips ALL positioning when the value node is absent — the open
+  // menu then lays out below the height-locked app shell, fully
+  // off-viewport, which users report as "clicking does nothing". SSR
+  // markup cannot exercise an open portal, so this pins the source:
+  // the content must request popper placement, which has no
+  // value-node dependency.
+  it("requests popper placement on the select content", () => {
+    const src = readFileSync(
+      join(process.cwd(), "src/components/ui/filter-bar.tsx"),
+      "utf8",
+    );
+    expect(src).toMatch(/<SelectContent\s+position="popper"\s+align="start">/);
   });
 });

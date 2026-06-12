@@ -299,17 +299,7 @@ describe("<DashboardLayoutSection> — hero visibility switch", () => {
     expect(en).toContain("Daily overview");
   });
 
-  it("reflects heroVisible: default layout → checked, false → unchecked", () => {
-    const checkedHtml = render(
-      <DashboardLayoutSection id="dashboard-layout" />,
-    );
-    const checked = checkedHtml.match(
-      /<button[^>]*data-slot="hero-visible-switch"[^>]*>/,
-    );
-    expect(checked).not.toBeNull();
-    expect(checked![0]).toContain('data-state="checked"');
-
-    queryState.layout = { ...DEFAULT_DASHBOARD_LAYOUT, heroVisible: false };
+  it("reflects heroVisible: default layout → unchecked, true → checked", () => {
     const uncheckedHtml = render(
       <DashboardLayoutSection id="dashboard-layout" />,
     );
@@ -318,6 +308,16 @@ describe("<DashboardLayoutSection> — hero visibility switch", () => {
     );
     expect(unchecked).not.toBeNull();
     expect(unchecked![0]).toContain('data-state="unchecked"');
+
+    queryState.layout = { ...DEFAULT_DASHBOARD_LAYOUT, heroVisible: true };
+    const checkedHtml = render(
+      <DashboardLayoutSection id="dashboard-layout" />,
+    );
+    const checked = checkedHtml.match(
+      /<button[^>]*data-slot="hero-visible-switch"[^>]*>/,
+    );
+    expect(checked).not.toBeNull();
+    expect(checked![0]).toContain('data-state="checked"');
   });
 
   it("persists through the existing PUT draft flow (source pins)", () => {

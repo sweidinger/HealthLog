@@ -4,9 +4,10 @@
  * The premium signature is a SINGLE-hue, TWO-stop gradient per ring
  * (dark → light tones of the *same* colour), never a multi-hue rainbow.
  * Each metric leans toward one intentional, distinct hue (Oura's per-metric
- * move): readiness green, recovery teal/turquoise, sleep indigo-blue, stress
- * amber, strain violet — five clearly different hues so the strip never reads
- * as "a wash of green/cyan".
+ * move): readiness green, recovery cyan, sleep purple, stress orange,
+ * strain pink — five clearly different hues so the strip never reads as
+ * "a wash of green/cyan". In the dark theme every `to` stop sits exactly
+ * on the matching Dracula palette colour.
  *
  * The actual colours live as CSS custom properties in `globals.css`
  * (`--ring-<key>-from` / `--ring-<key>-to` / `--tile-<key>`) with a Dracula

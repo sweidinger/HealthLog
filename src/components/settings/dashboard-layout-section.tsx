@@ -408,7 +408,7 @@ export function DashboardLayoutSection({ id }: { id: string }) {
           </div>
           <Switch
             id={heroToggleId}
-            checked={layout.heroVisible !== false}
+            checked={layout.heroVisible === true}
             onCheckedChange={(v) => setHeroVisible(v)}
             disabled={saveMutation.isPending}
             data-slot="hero-visible-switch"

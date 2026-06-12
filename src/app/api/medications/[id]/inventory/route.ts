@@ -90,13 +90,18 @@ export const POST = apiHandler(
       return returnAllZodIssues(parsed.error, 422);
     }
 
-    const { dosesTotal, printedExpiry, purchasedAt, notes } = parsed.data;
+    const { unitsTotal, containerType, printedExpiry, purchasedAt, notes } =
+      parsed.data;
 
     const created = await prisma.medicationInventoryItem.create({
+      // The wire field `unitsTotal` counts UNITS (tablets / ampoules /
+      // puffs) — v1.16.10 renamed the request field to match the
+      // response side.
       data: buildCreateInventoryInput({
         userId: user.id,
         medicationId: id,
-        dosesTotal,
+        unitsTotal,
+        containerType: containerType ?? "OTHER",
         printedExpiry: printedExpiry ?? null,
         purchasedAt: purchasedAt ?? null,
         notes: notes ?? null,
@@ -109,7 +114,8 @@ export const POST = apiHandler(
       details: {
         medicationId: id,
         itemId: created.id,
-        dosesTotal,
+        unitsTotal,
+        containerType: created.containerType,
       },
     });
 

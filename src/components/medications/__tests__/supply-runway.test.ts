@@ -106,3 +106,27 @@ describe("estimateRunwayDays", () => {
     ).toBe(28);
   });
 });
+
+describe("estimateRunwayDays — v1.16.10 multi-unit doses", () => {
+  it("runs off the dose-derived count: floor(units / unitsPerDose) before dividing by daily consumption", () => {
+    // 9 units at 2 units per dose → floor(9 / 2) = 4 doses; a daily
+    // single-dose schedule then reads 4 days of runway. The call sites
+    // (Übersicht supply row, Bestand summary) derive the dose count this
+    // way before handing it to the estimator.
+    const unitsRemaining = 9;
+    const unitsPerDose = 2;
+    const dosesRemaining = Math.floor(unitsRemaining / unitsPerDose);
+    expect(
+      estimateRunwayDays(dosesRemaining, [schedule({ timesOfDay: ["08:00"] })]),
+    ).toBe(4);
+  });
+
+  it("a partial dose's worth of units never counts as a day", () => {
+    // 1 unit at 2 units per dose is not a dose → no runway.
+    expect(
+      estimateRunwayDays(Math.floor(1 / 2), [
+        schedule({ timesOfDay: ["08:00"] }),
+      ]),
+    ).toBeNull();
+  });
+});

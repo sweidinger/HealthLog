@@ -266,6 +266,12 @@ export async function buildGlp1SnapshotBlock(
     include: {
       schedules: true,
       doseChanges: { orderBy: { effectiveFrom: "asc" } },
+      // v1.16.10 — pen inventory reads the per-item entities (the rows
+      // the intake consumption hook moves). The legacy event ledger
+      // stays as a READ fallback for ledger-only accounts: when a
+      // medication has zero items, the running-sum numbers surface so
+      // the Coach still knows the pen count.
+      inventoryItems: { orderBy: { createdAt: "asc" } },
       inventoryEvents: { orderBy: { occurredAt: "asc" } },
       intakeEvents: {
         where: { takenAt: { not: null } },
@@ -368,22 +374,43 @@ export async function buildGlp1SnapshotBlock(
 
     const nextInjection = predictNextInjection(schedule, lastInjection, now);
 
-    // Inventory math: running sum of all inventory events for this med.
-    // Convert to "weeks of supply" via dosesPerUnit + the cadence so the
-    // Coach can answer "how long until my next refill?".
+    // Inventory math over the per-item entities (v1.16.10 — the same
+    // rows the Bestand tab and the consumption hook move).
+    // `pensRemaining` counts usable containers; `dosesRemaining` pools
+    // the units and divides by `unitsPerDose` so the Coach can answer
+    // "how long until my next refill?". Ledger-only accounts (the
+    // pre-item delta writer) fall back to the running sum — items win
+    // whenever any exist.
     let dosesRemaining: number | null = null;
     let pensRemaining: number | null = null;
     let weeksOfSupplyApprox: number | null = null;
-    if (med.inventoryEvents.length > 0 && med.dosesPerUnit) {
-      const units = med.inventoryEvents.reduce((sum, ev) => sum + ev.delta, 0);
-      pensRemaining = Math.max(0, units);
+    const dosesPerWeek =
+      schedule?.cadence === "weekly"
+        ? 1
+        : schedule?.cadence === "daily"
+          ? 7
+          : 1;
+    if (med.inventoryItems.length > 0) {
+      const usable = med.inventoryItems.filter(
+        (item) =>
+          (item.state === "ACTIVE" || item.state === "IN_USE") &&
+          item.unitsRemaining > 0,
+      );
+      const unitsRemaining = usable.reduce(
+        (sum, item) => sum + item.unitsRemaining,
+        0,
+      );
+      pensRemaining = usable.length;
+      dosesRemaining = Math.floor(
+        unitsRemaining / Math.max(1, med.unitsPerDose),
+      );
+      weeksOfSupplyApprox = Math.round(dosesRemaining / dosesPerWeek);
+    } else if (med.dosesPerUnit && med.inventoryEvents.length > 0) {
+      // Legacy-ledger fallback — the pre-item contract verbatim: the
+      // delta sum counts pens, `dosesPerUnit` maps pens to doses.
+      const pens = med.inventoryEvents.reduce((sum, ev) => sum + ev.delta, 0);
+      pensRemaining = Math.max(0, pens);
       dosesRemaining = pensRemaining * med.dosesPerUnit;
-      const dosesPerWeek =
-        schedule?.cadence === "weekly"
-          ? 1
-          : schedule?.cadence === "daily"
-            ? 7
-            : 1;
       weeksOfSupplyApprox = Math.round(dosesRemaining / dosesPerWeek);
     }
 

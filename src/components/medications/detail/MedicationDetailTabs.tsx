@@ -71,6 +71,7 @@ import { PhaseConfigSheet } from "@/components/medications/sections/phase-config
 import { SideEffectsSection } from "@/components/medications/SideEffectsSection";
 import { ChartSkeleton } from "@/components/charts/chart-skeleton";
 import { estimateRunwayDays } from "@/components/medications/detail/supply-runway";
+import { summariseSupply } from "@/lib/medications/inventory/summary";
 import { MedicationWizardDialog } from "@/components/medications/wizard/MedicationWizardDialog";
 import { parseScheduleRecurrence } from "@/lib/medication-schedule";
 import { useQuery } from "@tanstack/react-query";
@@ -125,6 +126,8 @@ export interface MedicationDetailSnapshot {
   treatmentClass?: string;
   deliveryForm?: string;
   dosesPerUnit?: number | null;
+  /** v1.16.10 — inventory units one dose consumes (default 1). */
+  unitsPerDose?: number | null;
   trackInjectionSites?: boolean;
   allowedInjectionSites?: string[];
   active: boolean;
@@ -179,6 +182,7 @@ function snapshotToWizardPayload(
     treatmentClass: med.treatmentClass,
     deliveryForm: med.deliveryForm,
     dosesPerUnit: med.dosesPerUnit ?? null,
+    unitsPerDose: med.unitsPerDose ?? 1,
     trackInjectionSites: med.trackInjectionSites ?? false,
     allowedInjectionSites: med.allowedInjectionSites ?? [],
     notificationsEnabled: med.notificationsEnabled,
@@ -314,8 +318,8 @@ export function MedicationDetailTabs({
         return await apiGet<{
           items: Array<{
             state: "ACTIVE" | "IN_USE" | "EXPIRED" | "USED_UP";
-            dosesTotal: number;
-            dosesRemaining: number;
+            unitsTotal: number;
+            unitsRemaining: number;
           }>;
         } | null>(`/api/medications/${id}/inventory`);
       } catch {
@@ -327,12 +331,21 @@ export function MedicationDetailTabs({
   });
 
   const inventoryItems = Array.isArray(inventory?.items) ? inventory.items : [];
-  const liveItems = inventoryItems.filter((i) => i.state !== "USED_UP");
-  const dosesRemaining = liveItems.reduce(
-    (sum, i) => sum + i.dosesRemaining,
-    0,
-  );
-  const dosesTotal = liveItems.reduce((sum, i) => sum + i.dosesTotal, 0);
+  // v1.16.10 — items count UNITS; the supply readout and the runway are
+  // dose-derived (floor over the pooled units — consumption spills
+  // across containers, so the pool is the honest dose count). The raw
+  // unit tally renders as secondary text when a dose spans > 1 unit.
+  // Availability rides the shared summary helper (ACTIVE / IN_USE with
+  // units only — the list / GLP-1 semantic); expired stock surfaces as
+  // a separate muted suffix and never feeds the runway.
+  const perDose = Math.max(1, medication.unitsPerDose ?? 1);
+  const {
+    unitsRemaining,
+    unitsTotal,
+    dosesRemaining,
+    dosesTotal,
+    expiredUnits,
+  } = summariseSupply(inventoryItems, perDose);
   const runwayDays = estimateRunwayDays(dosesRemaining, medication.schedules);
 
   return (
@@ -422,6 +435,24 @@ export function MedicationDetailTabs({
                         remaining: dosesRemaining,
                         total: dosesTotal,
                       })}
+                      {perDose > 1 && (
+                        <span className="text-muted-foreground">
+                          {" ("}
+                          {t("medications.detail.bestand.unitsDetail", {
+                            remaining: unitsRemaining,
+                            total: unitsTotal,
+                          })}
+                          {")"}
+                        </span>
+                      )}
+                      {expiredUnits > 0 && (
+                        <span className="text-muted-foreground">
+                          {" · "}
+                          {t("medications.detail.bestand.expiredSuffix", {
+                            units: expiredUnits,
+                          })}
+                        </span>
+                      )}
                       {runwayDays !== null && (
                         <span className="text-muted-foreground">
                           {" · "}
@@ -562,6 +593,8 @@ export function MedicationDetailTabs({
           <InventorySection
             medicationId={id}
             dosesPerUnit={medication.dosesPerUnit}
+            unitsPerDose={medication.unitsPerDose}
+            deliveryForm={medication.deliveryForm}
           />
         </TabsContent>
 

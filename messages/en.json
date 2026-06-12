@@ -277,6 +277,7 @@
     "hero": {
       "scoreLabel": "Health Score",
       "scoreProvisional": "Not enough data yet",
+      "scoreComputing": "Calculating score …",
       "doses": {
         "summary": "{taken} of {scheduled} doses taken",
         "nextAt": "Next at {time}",
@@ -1056,7 +1057,9 @@
           "dosesPerUnitHint": "Doses per pen / vial — leave empty for no inventory tracking.",
           "injectionSiteToggle": "Injection-site rotation",
           "injectionSiteHint": "Optional rotation guide. The site for each dose is recorded when you log the intake.",
-          "short": "Dose"
+          "short": "Dose",
+          "unitsPerDoseLabel": "Units per dose",
+          "unitsPerDoseHint": "e.g. 2 tablets of 2 mg for a 4 mg dose"
         },
         "step4": {
           "title": "Over what period are you taking it?",
@@ -1585,7 +1588,7 @@
       "bestand": {
         "title": "Supply",
         "summary": "{remaining} of {total} doses remaining",
-        "itemsTitle": "Pens / vials",
+        "itemsTitle": "Packs & containers",
         "doses": "{remaining} / {total} doses",
         "state": {
           "ACTIVE": "Unopened",
@@ -1594,25 +1597,41 @@
           "USED_UP": "Used up"
         },
         "empty": "No supply recorded.",
-        "emptyHelper": "Register a pen or pack to track doses remaining and weeks of supply.",
+        "emptyHelper": "Register a pack or container to track remaining supply and runway.",
         "emptyCta": "Register a pack",
         "addButton": "Register",
-        "addTitle": "Register a pen or pack",
-        "addDescription": "Record a new supply with its dose count; the expiry date is optional.",
-        "addQuantityLabel": "Quantity (doses / units)",
-        "addQuantityHelper": "1–100 doses per pen or pack.",
+        "addTitle": "Register a pack or container",
+        "addDescription": "Record a new supply with its unit count; the expiry date is optional.",
+        "addQuantityLabel": "Quantity (units)",
+        "addQuantityHelper": "1–1000 units per pack or container.",
         "addExpiryLabel": "Expiry date (optional)",
         "addSubmit": "Register",
         "addSuccess": "Supply registered.",
         "addFailed": "The supply could not be registered.",
         "adjustButton": "Adjust",
         "adjustTitle": "Correct stock",
-        "adjustDescription": "Set the remaining doses — for corrections or a withdrawal. 0 marks the item as used up.",
-        "adjustQuantityLabel": "Remaining doses",
-        "adjustHelper": "Capacity: {total} doses.",
+        "adjustDescription": "Set the remaining units — for corrections or a withdrawal. 0 marks the item as used up.",
+        "adjustQuantityLabel": "Remaining units",
+        "adjustHelper": "Capacity: {total} units.",
         "adjustSubmit": "Save",
         "adjustSuccess": "Stock updated.",
-        "adjustFailed": "The stock could not be updated."
+        "adjustFailed": "The stock could not be updated.",
+        "containerTypeLabel": "Container type",
+        "containerType": {
+          "PEN": "Pen",
+          "AMPOULE": "Ampoule",
+          "BLISTER": "Tablet pack",
+          "INHALER": "Inhaler",
+          "BOTTLE": "Bottle",
+          "OTHER": "Other"
+        },
+        "unitsDetail": "{remaining} / {total} units",
+        "quantityModeDoses": "Doses",
+        "quantityModeUnits": "Units",
+        "quantityInUnits": "= {units} units",
+        "quantityInDoses": "≈ {doses} doses",
+        "quantityUnderOneDose": "< 1 dose",
+        "expiredSuffix": "+ {units} units expired"
       },
       "erweitert": {
         "group": {
@@ -1697,7 +1716,30 @@
     "trackInjectionSitesToggle": "Track injection sites",
     "trackInjectionSitesHint": "After a dose is taken, ask which site was used and suggest the next rotation.",
     "allowedSitesLabel": "Allowed sites",
-    "allowedSitesHint": "Leave all selected for no restriction. Sites you excluded globally are never offered."
+    "allowedSitesHint": "Leave all selected for no restriction. Sites you excluded globally are never offered.",
+    "viewToggleLabel": "View",
+    "viewToggleHint": "Choose whether your medications appear as cards or as a table.",
+    "viewCards": "Card view",
+    "viewTable": "Table view",
+    "viewSaveFailed": "View could not be saved",
+    "tableCaption": "Medications as a table with status, next dose, adherence and stock",
+    "tableColName": "Name",
+    "tableColStatus": "Status",
+    "tableColNextDose": "Next dose",
+    "tableColCompliance": "Adherence",
+    "tableColStock": "Stock",
+    "tableColActions": "Actions",
+    "tableSortBy": "Sort by {column}",
+    "tableComplianceDays": "{days} d",
+    "tableStockDoseOne": "1 dose",
+    "tableStockDoses": "{count} doses",
+    "takeActionFor": "Take – {name}",
+    "skipActionFor": "Skip – {name}",
+    "reorderTitle": "Adjust order",
+    "reorderDescription": "Set the order of your medications – it applies to both the card and the table view.",
+    "reorderSaved": "Order saved",
+    "reorderSaveFailed": "Order could not be saved",
+    "customize": "Customize medications"
   },
   "charts": {
     "loadingLabel": "Loading chart…",
@@ -3727,6 +3769,10 @@
       "insights": {
         "title": "Insights",
         "description": "Overview and navigation-pill order."
+      },
+      "medications": {
+        "title": "Medications",
+        "description": "List view and medication order."
       }
     },
     "profile": "Profile",

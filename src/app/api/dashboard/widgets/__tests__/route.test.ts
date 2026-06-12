@@ -477,7 +477,7 @@ describe("PUT /api/dashboard/widgets — heroVisible thread-through", () => {
     expect(updateArg.data.dashboardWidgetsJson.heroVisible).toBe(false);
   });
 
-  it("defaults heroVisible to true for a first save with no stored layout", async () => {
+  it("defaults heroVisible to false for a first save with no stored layout", async () => {
     vi.mocked(prisma.user.findUnique).mockResolvedValue({
       dashboardWidgetsJson: null,
     } as never);
@@ -495,7 +495,7 @@ describe("PUT /api/dashboard/widgets — heroVisible thread-through", () => {
       .calls[0]?.[0] as unknown as {
       data: { dashboardWidgetsJson: { heroVisible: boolean } };
     };
-    expect(updateArg.data.dashboardWidgetsJson.heroVisible).toBe(true);
+    expect(updateArg.data.dashboardWidgetsJson.heroVisible).toBe(false);
   });
 
   it("422s on a non-boolean heroVisible", async () => {

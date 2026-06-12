@@ -1,0 +1,277 @@
+/**
+ * v1.16.10 — `/api/medications/layout` route.
+ *
+ * Mirrors the insights-layout test deck: GET returns the defaults for
+ * users who have not saved a blob, PUT round-trips through the
+ * serializer with preserve-when-absent semantics for `view` / `order`,
+ * 422s carry the multi-issue envelope, DELETE returns the canonical
+ * defaults.
+ */
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { NextRequest } from "next/server";
+
+vi.mock("@/lib/db", () => ({
+  prisma: {
+    user: {
+      findUnique: vi.fn(),
+      update: vi.fn(),
+    },
+    auditLog: {
+      create: vi.fn(),
+    },
+  },
+  toJson: (v: unknown) => v,
+}));
+
+vi.mock("@/lib/auth/session", () => ({
+  getSession: vi.fn(),
+}));
+
+vi.mock("@/lib/logging/transports", () => ({
+  emitIfSampled: vi.fn(),
+}));
+
+vi.mock("@/lib/db-compat", () => ({
+  ensureDbCompatibility: vi.fn().mockResolvedValue(undefined),
+}));
+
+vi.mock("next/headers", () => ({
+  headers: vi.fn(async () => ({ get: () => null })),
+  cookies: vi.fn(async () => ({
+    get: () => undefined,
+    set: () => {},
+    delete: () => {},
+  })),
+}));
+
+import { GET, PUT, DELETE } from "../route";
+import { prisma } from "@/lib/db";
+import { getSession } from "@/lib/auth/session";
+import { __resetAllCachesForTests } from "@/lib/cache/server-cache";
+import { __resetAuditDedupMemoForTests } from "@/lib/audit-dedup";
+import { DEFAULT_MEDICATION_LIST_LAYOUT } from "@/lib/medication-list-layout";
+
+const SESSION_OK = {
+  session: { id: "sess-1", expiresAt: new Date(Date.now() + 3_600_000) },
+  user: {
+    id: "user-1",
+    username: "tester",
+    role: "USER" as const,
+    displayName: null,
+  },
+};
+
+const callGet = GET as unknown as () => Promise<Response>;
+const callPut = PUT as unknown as (req: NextRequest) => Promise<Response>;
+const callDelete = DELETE as unknown as () => Promise<Response>;
+
+function makeReq(body: unknown): NextRequest {
+  return new NextRequest("http://localhost/api/medications/layout", {
+    method: "PUT",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+
+beforeEach(() => {
+  vi.resetAllMocks();
+  __resetAllCachesForTests();
+  __resetAuditDedupMemoForTests();
+  vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
+  vi.mocked(prisma.auditLog.create).mockResolvedValue({} as never);
+});
+
+describe("GET /api/medications/layout", () => {
+  it("returns the defaults when the user has no saved blob", async () => {
+    vi.mocked(prisma.user.findUnique).mockResolvedValue({
+      medicationListLayoutJson: null,
+    } as never);
+
+    const res = await callGet();
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      data: typeof DEFAULT_MEDICATION_LIST_LAYOUT;
+    };
+    expect(body.data).toEqual(DEFAULT_MEDICATION_LIST_LAYOUT);
+  });
+
+  it("does not lazy-write a row on GET", async () => {
+    vi.mocked(prisma.user.findUnique).mockResolvedValue({
+      medicationListLayoutJson: null,
+    } as never);
+
+    await callGet();
+    expect(prisma.user.update).not.toHaveBeenCalled();
+  });
+
+  it("returns the saved blob through the resolver", async () => {
+    vi.mocked(prisma.user.findUnique).mockResolvedValue({
+      medicationListLayoutJson: {
+        version: 1,
+        view: "table",
+        order: ["med-b", "med-a"],
+      },
+    } as never);
+
+    const res = await callGet();
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      data: { view: string; order: string[] };
+    };
+    expect(body.data.view).toBe("table");
+    expect(body.data.order).toEqual(["med-b", "med-a"]);
+  });
+
+  it("collapses a malformed stored blob onto the defaults instead of failing", async () => {
+    vi.mocked(prisma.user.findUnique).mockResolvedValue({
+      medicationListLayoutJson: { view: "kanban", order: "nope" },
+    } as never);
+
+    const res = await callGet();
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      data: { view: string; order: string[] };
+    };
+    expect(body.data.view).toBe("cards");
+    expect(body.data.order).toEqual([]);
+  });
+});
+
+describe("PUT /api/medications/layout — preserve-when-absent", () => {
+  it("persists a full blob and echoes the normalised result", async () => {
+    vi.mocked(prisma.user.update).mockResolvedValue({} as never);
+
+    const res = await callPut(
+      makeReq({ version: 1, view: "table", order: ["med-a", "med-b"] }),
+    );
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      data: { version: number; view: string; order: string[] };
+    };
+    expect(body.data).toEqual({
+      version: 1,
+      view: "table",
+      order: ["med-a", "med-b"],
+    });
+
+    expect(prisma.user.update).toHaveBeenCalledTimes(1);
+    const call = vi.mocked(prisma.user.update).mock.calls[0]?.[0] as {
+      where: { id: string };
+      data: { medicationListLayoutJson: unknown };
+    };
+    expect(call.where.id).toBe("user-1");
+    expect(call.data.medicationListLayoutJson).toEqual({
+      version: 1,
+      view: "table",
+      order: ["med-a", "med-b"],
+    });
+    // No stored-blob read needed — both fields were on the body.
+    expect(prisma.user.findUnique).not.toHaveBeenCalled();
+  });
+
+  it("a view-only PUT preserves the stored manual order", async () => {
+    vi.mocked(prisma.user.findUnique).mockResolvedValue({
+      medicationListLayoutJson: {
+        version: 1,
+        view: "cards",
+        order: ["med-z", "med-a"],
+      },
+    } as never);
+    vi.mocked(prisma.user.update).mockResolvedValue({} as never);
+
+    const res = await callPut(makeReq({ version: 1, view: "table" }));
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      data: { view: string; order: string[] };
+    };
+    expect(body.data.view).toBe("table");
+    expect(body.data.order).toEqual(["med-z", "med-a"]);
+  });
+
+  it("an order-only PUT preserves the stored view", async () => {
+    vi.mocked(prisma.user.findUnique).mockResolvedValue({
+      medicationListLayoutJson: { version: 1, view: "table", order: [] },
+    } as never);
+    vi.mocked(prisma.user.update).mockResolvedValue({} as never);
+
+    const res = await callPut(
+      makeReq({ version: 1, order: ["med-1", "med-2"] }),
+    );
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      data: { view: string; order: string[] };
+    };
+    expect(body.data.view).toBe("table");
+    expect(body.data.order).toEqual(["med-1", "med-2"]);
+  });
+
+  it("dedupes a repeated id in the submitted order", async () => {
+    vi.mocked(prisma.user.update).mockResolvedValue({} as never);
+
+    const res = await callPut(
+      makeReq({ version: 1, view: "cards", order: ["a", "b", "a"] }),
+    );
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { data: { order: string[] } };
+    expect(body.data.order).toEqual(["a", "b"]);
+  });
+});
+
+describe("PUT /api/medications/layout — 422 multi-issue envelope", () => {
+  it("rejects an unknown view and a malformed order in one envelope", async () => {
+    const res = await callPut(
+      makeReq({ version: 1, view: "kanban", order: [""] }),
+    );
+    expect(res.status).toBe(422);
+    const body = (await res.json()) as {
+      data: null;
+      error: string;
+      details: { issues: Array<{ path: string }> };
+    };
+    expect(body.data).toBeNull();
+    expect(body.error).toBe("Validation failed");
+    const paths = body.details.issues.map((i) => i.path);
+    expect(paths.some((p) => p.startsWith("view"))).toBe(true);
+    expect(paths.some((p) => p.startsWith("order"))).toBe(true);
+  });
+
+  it("rejects a wrong version", async () => {
+    const res = await callPut(makeReq({ version: 2, view: "table" }));
+    expect(res.status).toBe(422);
+  });
+
+  it("writes one deduped audit breadcrumb for repeated 422s", async () => {
+    const res1 = await callPut(makeReq({ version: 9 }));
+    const res2 = await callPut(makeReq({ version: 9 }));
+    expect(res1.status).toBe(422);
+    expect(res2.status).toBe(422);
+
+    await new Promise((r) => setTimeout(r, 5));
+
+    expect(prisma.auditLog.create).toHaveBeenCalledTimes(1);
+    const call = vi.mocked(prisma.auditLog.create).mock.calls[0]?.[0] as {
+      data: { userId: string; action: string };
+    };
+    expect(call.data.userId).toBe("user-1");
+    expect(call.data.action).toBe("medication.layout.validation-failed");
+  });
+});
+
+describe("DELETE /api/medications/layout", () => {
+  it("clears the saved blob and returns the defaults", async () => {
+    vi.mocked(prisma.user.update).mockResolvedValue({} as never);
+
+    const res = await callDelete();
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      data: typeof DEFAULT_MEDICATION_LIST_LAYOUT;
+    };
+    expect(body.data).toEqual(DEFAULT_MEDICATION_LIST_LAYOUT);
+
+    expect(prisma.user.update).toHaveBeenCalledTimes(1);
+    const call = vi.mocked(prisma.user.update).mock.calls[0]?.[0] as {
+      data: { medicationListLayoutJson: unknown };
+    };
+    expect(call.data.medicationListLayoutJson).toBeDefined();
+  });
+});

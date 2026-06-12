@@ -55,6 +55,11 @@ vi.mock("@/lib/logging/context", () => ({
   })),
 }));
 
+vi.mock("@/lib/medications/inventory/consumption", () => ({
+  consumeForIntake: vi.fn().mockResolvedValue(undefined),
+  restoreForIntake: vi.fn().mockResolvedValue(undefined),
+}));
+
 vi.mock("@/lib/cache/invalidate", () => ({
   invalidateUserMedications: vi.fn(),
 }));
@@ -257,6 +262,15 @@ describe("Telegram webhook — callback dispatch", () => {
     });
     // Intake write + snooze reset commit atomically.
     expect(prisma.$transaction).toHaveBeenCalledTimes(1);
+    // v1.16.10 — the confirmed take consumes inventory units (after the
+    // intake transaction committed, on the created row).
+    const { consumeForIntake } = await import(
+      "@/lib/medications/inventory/consumption"
+    );
+    expect(consumeForIntake).toHaveBeenCalledTimes(1);
+    expect(consumeForIntake).toHaveBeenCalledWith(
+      expect.objectContaining({ userId: "user-1", medicationId: "med-1" }),
+    );
 
     expect(answerTelegramCallbackQuery).toHaveBeenCalledTimes(1);
     expect(deleteMessage).toHaveBeenCalledWith(
@@ -329,6 +343,13 @@ describe("Telegram webhook — callback dispatch", () => {
     expect(snoozedUntil.getMinutes()).toBe(59);
     // Skip row + rest-of-day snooze commit atomically.
     expect(prisma.$transaction).toHaveBeenCalledTimes(1);
+    // v1.16.10 — an explicit skip refunds a previously-consumed stamp
+    // (no-op for a never-consumed row) and never consumes.
+    const { consumeForIntake, restoreForIntake } = await import(
+      "@/lib/medications/inventory/consumption"
+    );
+    expect(consumeForIntake).not.toHaveBeenCalled();
+    expect(restoreForIntake).toHaveBeenCalledTimes(1);
   });
 
   it("'ack:<medId>' answers the callback without creating an intake event", async () => {

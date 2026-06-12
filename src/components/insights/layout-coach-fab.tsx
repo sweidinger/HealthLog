@@ -13,7 +13,6 @@ import { useFeatureFlags } from "@/hooks/use-feature-flags";
 import { useDisableCoach } from "@/hooks/use-disable-coach";
 import { queryKeys } from "@/lib/query-keys";
 
-import { useChartTooltipActive } from "./use-chart-tooltip-active";
 import { apiGet } from "@/lib/api/api-fetch";
 
 /**
@@ -30,10 +29,11 @@ import { apiGet } from "@/lib/api/api-fetch";
  * The FAB hides inside the Coach view itself (`/insights/coach`) — a
  * launcher pointing at the page the user is already on is noise.
  *
- * v1.4.33 (F15) — keeps the chart-tooltip auto-hide so it never
- * overlays a Recharts tooltip on the lower right; it also yields while
- * a data-list selection bar is mounted (CSS `:has()` gate) so it never
- * covers the bar's delete action.
+ * It yields while a data-list selection bar is mounted (CSS `:has()`
+ * gate) so it never covers the bar's delete action. The v1.4.33
+ * chart-tooltip auto-hide is gone: blinking out on every chart hover
+ * read as a glitch, and a hover tooltip under the cursor never reaches
+ * the lower-right corner anyway.
  */
 
 const NUDGE_SEEN_STORAGE_KEY = "healthlog-coach-nudge-seen";
@@ -63,7 +63,6 @@ export function LayoutCoachFab() {
   const launch = useCoachLaunch();
   const flags = useFeatureFlags();
   const disableCoach = useDisableCoach();
-  const tooltipActive = useChartTooltipActive();
 
   // Local "seen on this device" stamp — the nudge timestamp the user
   // last dismissed by opening the chat. Lazy initialiser per the
@@ -109,16 +108,6 @@ export function LayoutCoachFab() {
     prevUnreadRef.current = unread;
   }, [unread, t]);
 
-  // While a chart tooltip hides the FAB it is `aria-hidden` +
-  // `tabIndex={-1}` — but an element that ALREADY holds focus keeps it.
-  // Drop the focus so a hidden control is never the active element.
-  const buttonRef = useRef<HTMLButtonElement | null>(null);
-  useEffect(() => {
-    if (tooltipActive && document.activeElement === buttonRef.current) {
-      buttonRef.current?.blur();
-    }
-  }, [tooltipActive]);
-
   // Visiting the Coach page itself counts as reading the nudge on this
   // device — persist the stamp so the dot stays gone after leaving.
   useEffect(() => {
@@ -154,23 +143,21 @@ export function LayoutCoachFab() {
   return (
     <>
       <Button
-        ref={buttonRef}
         type="button"
         size="icon"
         data-slot="coach-fab"
         data-unread={unread ? "true" : undefined}
-        data-chart-tooltip-active={tooltipActive ? "true" : undefined}
         onClick={handleOpen}
         aria-label={accessibleLabel}
         title={accessibleLabel}
-        aria-hidden={tooltipActive ? true : undefined}
-        tabIndex={tooltipActive ? -1 : undefined}
         className={cn(
           // Sit above the 64 px bottom-nav + the iPhone home-indicator
           // safe-area inset on mobile; plain bottom offset once the
           // bottom-nav hides (`md:hidden` on the nav, so `md:` here —
           // not `lg:` — keeps the FAB from floating mid-air 768-1023px).
-          "fixed right-4 z-40 size-12 rounded-full shadow-lg",
+          // The right inset mirrors the desktop bottom inset so the
+          // corner gap is even.
+          "fixed right-6 z-40 size-12 rounded-full shadow-lg",
           "bottom-[calc(env(safe-area-inset-bottom,0px)+5rem)] md:bottom-6",
           // Dark glyph on the purple/pink gradient — white sat at
           // ≈2.3:1 against the gradient midpoint; the background token
@@ -180,7 +167,6 @@ export function LayoutCoachFab() {
           // The default ring alone is hard to see against the gradient;
           // the offset ring draws a clear halo around the circle.
           "focus-visible:ring-offset-background focus-visible:ring-offset-2",
-          // Fade out while a Recharts tooltip is open (see header note).
           "transition-opacity duration-150 motion-reduce:transition-none",
           // Yield to the data-list selection bar: its delete action lands
           // in the same lower-right band, and the destructive control
@@ -197,7 +183,6 @@ export function LayoutCoachFab() {
           "[body:has([data-testid=onboarding-tour])_&]:pointer-events-none",
           "[body:has([data-testid=onboarding-tour])_&]:opacity-0",
           "[body:has([data-testid=onboarding-tour])_&]:invisible",
-          tooltipActive && "pointer-events-none opacity-0",
         )}
       >
         <Sparkles className="size-5" aria-hidden="true" />

@@ -222,6 +222,7 @@ export const PUT = apiHandler(
       category,
       treatmentClass,
       dosesPerUnit,
+      unitsPerDose,
       deliveryForm,
       trackInjectionSites,
       allowedInjectionSites,
@@ -515,6 +516,9 @@ export const PUT = apiHandler(
       ...(dose !== undefined && { dose }),
       ...(treatmentClass !== undefined && { treatmentClass }),
       ...(dosesPerUnit !== undefined && { dosesPerUnit }),
+      // v1.16.10 — units consumed per dose. Field-by-field; the stamp on
+      // already-taken intake events freezes their recorded consumption.
+      ...(unitsPerDose !== undefined && { unitsPerDose }),
       ...(deliveryForm !== undefined && { deliveryForm }),
       // v1.8.5 — injection-site tracking opt-in + per-medication allowed
       // sites. Field-by-field; `false` / `[]` are valid explicit values

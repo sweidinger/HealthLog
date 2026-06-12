@@ -25,6 +25,7 @@ import {
   Layers,
   LayoutDashboard,
   Link2,
+  Pill,
   Settings2,
   SlidersHorizontal,
   Sparkles,
@@ -99,6 +100,11 @@ export const SETTINGS_SECTIONS: readonly SettingsSection[] = [
     slug: "insights",
     titleKey: "settings.sections.insights.title",
     icon: TrendingUp,
+  },
+  {
+    slug: "medications",
+    titleKey: "settings.sections.medications.title",
+    icon: Pill,
   },
   {
     slug: "thresholds",

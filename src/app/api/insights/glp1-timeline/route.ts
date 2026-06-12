@@ -82,6 +82,15 @@ export const GET = apiHandler(async (request: NextRequest) => {
         orderBy: { takenAt: "desc" },
         take: 50,
       },
+      // v1.16.10 divergence note: the stock READOUTS (glp1 details
+      // endpoint, Coach snapshot) moved to the per-item
+      // MedicationInventoryItem entities, but this timeline renders the
+      // append-only MedicationInventoryEvent LEDGER as point-in-time
+      // entries ("+2 pens purchased") — a per-item swap is not
+      // mechanical (items carry no per-mutation history). The ledger
+      // only grows through the legacy `POST /api/medications/[id]/glp1`
+      // inventory branch, so timelines on item-tracked medications show
+      // no new inventory entries.
       inventoryEvents: { orderBy: { occurredAt: "desc" }, take: 20 },
     },
   });

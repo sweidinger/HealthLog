@@ -277,6 +277,7 @@
     "hero": {
       "scoreLabel": "Health Score",
       "scoreProvisional": "Dati ancora insufficienti",
+      "scoreComputing": "Calcolo del punteggio in corso …",
       "doses": {
         "summary": "{taken} dosi assunte su {scheduled}",
         "nextAt": "Prossima alle {time}",
@@ -1056,7 +1057,9 @@
           "dosesPerUnitHint": "Dosi per penna / fiala — lascia vuoto per non tracciare le scorte.",
           "injectionSiteToggle": "Rotazione del sito di iniezione",
           "injectionSiteHint": "Guida alla rotazione facoltativa. Il sito di ogni dose viene registrato al momento della registrazione dell'assunzione.",
-          "short": "Dose"
+          "short": "Dose",
+          "unitsPerDoseLabel": "Unità per dose",
+          "unitsPerDoseHint": "ad es. 2 compresse da 2 mg per una dose da 4 mg"
         },
         "step4": {
           "title": "Per quanto tempo lo assumi?",
@@ -1585,7 +1588,7 @@
       "bestand": {
         "title": "Scorta",
         "summary": "{remaining} dosi rimanenti su {total}",
-        "itemsTitle": "Penne / flaconi",
+        "itemsTitle": "Confezioni e contenitori",
         "doses": "{remaining} / {total} dosi",
         "state": {
           "ACTIVE": "Non aperto",
@@ -1594,25 +1597,41 @@
           "USED_UP": "Esaurito"
         },
         "empty": "Nessuna scorta registrata.",
-        "emptyHelper": "Registra una penna o una confezione per monitorare le dosi rimanenti e l'autonomia.",
+        "emptyHelper": "Registra una confezione o un contenitore per monitorare la scorta rimanente e l'autonomia.",
         "emptyCta": "Registra una confezione",
         "addButton": "Registra",
-        "addTitle": "Registra una penna o una confezione",
-        "addDescription": "Registra una nuova scorta con il numero di dosi; la data di scadenza è facoltativa.",
-        "addQuantityLabel": "Quantità (dosi / unità)",
-        "addQuantityHelper": "1–100 dosi per penna o confezione.",
+        "addTitle": "Registra una confezione o un contenitore",
+        "addDescription": "Registra una nuova scorta con il numero di unità; la data di scadenza è facoltativa.",
+        "addQuantityLabel": "Quantità (unità)",
+        "addQuantityHelper": "1–1000 unità per confezione o contenitore.",
         "addExpiryLabel": "Data di scadenza (facoltativa)",
         "addSubmit": "Registra",
         "addSuccess": "Scorta registrata.",
         "addFailed": "Impossibile registrare la scorta.",
         "adjustButton": "Correggi",
         "adjustTitle": "Correggi la scorta",
-        "adjustDescription": "Imposta le dosi rimanenti — per correzioni o un prelievo. 0 segna la scorta come esaurita.",
-        "adjustQuantityLabel": "Dosi rimanenti",
-        "adjustHelper": "Capacità: {total} dosi.",
+        "adjustDescription": "Imposta le unità rimanenti — per correzioni o un prelievo. 0 segna la scorta come esaurita.",
+        "adjustQuantityLabel": "Unità rimanenti",
+        "adjustHelper": "Capacità: {total} unità.",
         "adjustSubmit": "Salva",
         "adjustSuccess": "Scorta aggiornata.",
-        "adjustFailed": "Impossibile aggiornare la scorta."
+        "adjustFailed": "Impossibile aggiornare la scorta.",
+        "containerTypeLabel": "Tipo di contenitore",
+        "containerType": {
+          "PEN": "Penna",
+          "AMPOULE": "Fiala",
+          "BLISTER": "Confezione di compresse",
+          "INHALER": "Inalatore",
+          "BOTTLE": "Flacone",
+          "OTHER": "Altro"
+        },
+        "unitsDetail": "{remaining} / {total} unità",
+        "quantityModeDoses": "Dosi",
+        "quantityModeUnits": "Unità",
+        "quantityInUnits": "= {units} unità",
+        "quantityInDoses": "≈ {doses} dosi",
+        "quantityUnderOneDose": "< 1 dose",
+        "expiredSuffix": "+ {units} unità scadute"
       },
       "erweitert": {
         "group": {
@@ -1697,7 +1716,30 @@
     "trackInjectionSitesToggle": "Registra i siti di iniezione",
     "trackInjectionSitesHint": "Dopo l'assunzione di una dose, chiedi quale sito è stato usato e suggerisci la rotazione successiva.",
     "allowedSitesLabel": "Siti consentiti",
-    "allowedSitesHint": "Lascia tutti selezionati per nessuna restrizione. I siti esclusi globalmente non vengono mai proposti."
+    "allowedSitesHint": "Lascia tutti selezionati per nessuna restrizione. I siti esclusi globalmente non vengono mai proposti.",
+    "viewToggleLabel": "Vista",
+    "viewToggleHint": "Scegli se i tuoi farmaci vengono mostrati come schede o come tabella.",
+    "viewCards": "Vista a schede",
+    "viewTable": "Vista tabella",
+    "viewSaveFailed": "Impossibile salvare la vista",
+    "tableCaption": "Farmaci in tabella con stato, prossima assunzione, aderenza e scorte",
+    "tableColName": "Nome",
+    "tableColStatus": "Stato",
+    "tableColNextDose": "Prossima assunzione",
+    "tableColCompliance": "Aderenza",
+    "tableColStock": "Scorte",
+    "tableColActions": "Azioni",
+    "tableSortBy": "Ordina per {column}",
+    "tableComplianceDays": "{days} g",
+    "tableStockDoseOne": "1 dose",
+    "tableStockDoses": "{count} dosi",
+    "takeActionFor": "Assumi – {name}",
+    "skipActionFor": "Salta – {name}",
+    "reorderTitle": "Modifica ordine",
+    "reorderDescription": "Imposta l'ordine dei tuoi farmaci: vale per la vista a schede e per la tabella.",
+    "reorderSaved": "Ordine salvato",
+    "reorderSaveFailed": "Impossibile salvare l’ordine",
+    "customize": "Personalizza i farmaci"
   },
   "charts": {
     "loadingLabel": "Caricamento del grafico…",
@@ -3727,6 +3769,10 @@
       "insights": {
         "title": "Approfondimenti",
         "description": "Ordine della panoramica e delle schede di navigazione."
+      },
+      "medications": {
+        "title": "Farmaci",
+        "description": "Vista elenco e ordine dei farmaci."
       }
     },
     "profile": "Profilo",

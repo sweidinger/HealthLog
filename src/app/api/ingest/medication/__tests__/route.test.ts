@@ -40,6 +40,10 @@ vi.mock("@/lib/app-settings", () => ({
 vi.mock("@/lib/rollups/medication-compliance-rollups", () => ({
   recomputeMedicationComplianceForEvent: vi.fn().mockResolvedValue(undefined),
 }));
+vi.mock("@/lib/medications/inventory/consumption", () => ({
+  consumeForIntake: vi.fn().mockResolvedValue(undefined),
+}));
+
 vi.mock("@/lib/cache/invalidate", () => ({
   invalidateUserMedications: vi.fn(),
 }));
@@ -302,5 +306,50 @@ describe("POST /api/ingest/medication — slot attribution + convergence (v1.16.
     // Ad-hoc rows anchor on the intake instant (`scheduledFor = takenAt`).
     expect(create.data.scheduledFor.getTime()).toBe(offWindow.getTime());
     expect(create.data.takenAt.getTime()).toBe(offWindow.getTime());
+  });
+
+  // ── v1.16.10 — inventory consumption seam ───────────────────────────
+
+  it("consumes inventory exactly once on the landed row", async () => {
+    const { consumeForIntake } = await import(
+      "@/lib/medications/inventory/consumption"
+    );
+    wireHappyPath();
+    const res = await POST(
+      postReq({
+        medicationName: "Metformin",
+        takenAt: TAKEN_0842_BERLIN.toISOString(),
+        idempotencyKey: "ha-ingest-inv-1",
+      }),
+    );
+    expect(res.status).toBe(201);
+    expect(consumeForIntake).toHaveBeenCalledTimes(1);
+    expect(consumeForIntake).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: "user-1",
+        medicationId: "med-1",
+        eventId: "evt-pending-0900",
+      }),
+    );
+  });
+
+  it("an idempotency replay returns the original row without consuming", async () => {
+    const { consumeForIntake } = await import(
+      "@/lib/medications/inventory/consumption"
+    );
+    wireHappyPath();
+    // The replay probe finds the original event.
+    vi.mocked(prisma.medicationIntakeEvent.findFirst).mockResolvedValue({
+      id: "evt-original",
+    } as never);
+    const res = await POST(
+      postReq({
+        medicationName: "Metformin",
+        takenAt: TAKEN_0842_BERLIN.toISOString(),
+        idempotencyKey: "ha-ingest-inv-1",
+      }),
+    );
+    expect(res.status).toBe(200);
+    expect(consumeForIntake).not.toHaveBeenCalled();
   });
 });

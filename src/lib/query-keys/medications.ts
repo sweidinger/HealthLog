@@ -28,6 +28,14 @@ export const medicationKeys = {
    */
   medicationComplianceSummary: () =>
     ["medications", "compliance-summary"] as const,
+  /**
+   * v1.16.10 — the medications list presentation (cards/table view +
+   * manual order, `GET /api/medications/layout`). Deliberately OUTSIDE
+   * the `["medications"]` prefix: an intake mutation must not refetch a
+   * pure UI preference. Writes update the slot directly through the
+   * layout PUT's response.
+   */
+  medicationListLayout: () => ["medication-list-layout"] as const,
   medicationCadence: (medicationId: string) =>
     ["medications", medicationId, "cadence"] as const,
   medicationGlp1Details: (medicationId: string) =>

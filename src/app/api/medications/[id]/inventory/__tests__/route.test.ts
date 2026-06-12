@@ -124,19 +124,19 @@ describe("POST /api/medications/[id]/inventory", () => {
     vi.mocked(getSession).mockResolvedValue(null);
     const res = await POST(
       jsonReq("http://localhost/api/medications/med-1/inventory", {
-        dosesTotal: 4,
+        unitsTotal: 4,
       }),
       { params: Promise.resolve({ id: "med-1" }) },
     );
     expect(res.status).toBe(401);
   });
 
-  it("returns 422 when dosesTotal is missing or invalid", async () => {
+  it("returns 422 when unitsTotal is missing or invalid", async () => {
     vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
     vi.mocked(prisma.medication.findUnique).mockResolvedValue(MED_OK as never);
     const res = await POST(
       jsonReq("http://localhost/api/medications/med-1/inventory", {
-        dosesTotal: 0,
+        unitsTotal: 0,
       }),
       { params: Promise.resolve({ id: "med-1" }) },
     );
@@ -154,7 +154,7 @@ describe("POST /api/medications/[id]/inventory", () => {
     const printed = "2027-06-01T00:00:00Z";
     const res = await POST(
       jsonReq("http://localhost/api/medications/med-1/inventory", {
-        dosesTotal: 4,
+        unitsTotal: 4,
         printedExpiry: printed,
       }),
       { params: Promise.resolve({ id: "med-1" }) },
@@ -165,8 +165,9 @@ describe("POST /api/medications/[id]/inventory", () => {
         userId: "user-1",
         medicationId: "med-1",
         state: "ACTIVE",
-        dosesTotal: 4,
-        dosesRemaining: 4,
+        containerType: "OTHER",
+        unitsTotal: 4,
+        unitsRemaining: 4,
         firstUseAt: null,
         printedExpiry: new Date(printed),
         expiresAt: new Date(printed),
@@ -184,7 +185,7 @@ describe("POST /api/medications/[id]/inventory", () => {
     });
     const res = await POST(
       jsonReq("http://localhost/api/medications/med-1/inventory", {
-        dosesTotal: 4,
+        unitsTotal: 4,
       }),
       { params: Promise.resolve({ id: "med-1" }) },
     );
@@ -198,8 +199,8 @@ describe("PATCH /api/medications/[id]/inventory/[itemId]", () => {
     userId: "user-1",
     medicationId: "med-1",
     state: "ACTIVE" as const,
-    dosesTotal: 4,
-    dosesRemaining: 4,
+    unitsTotal: 4,
+    unitsRemaining: 4,
     firstUseAt: null,
     printedExpiry: null,
     purchasedAt: null,
@@ -243,12 +244,12 @@ describe("PATCH /api/medications/[id]/inventory/[itemId]", () => {
       ...existingActive,
       state: "IN_USE",
       firstUseAt: new Date("2026-05-01"),
-      dosesRemaining: 2,
+      unitsRemaining: 2,
     } as never);
     vi.mocked(prisma.medicationInventoryItem.update).mockResolvedValue({
       ...existingActive,
       state: "USED_UP",
-      dosesRemaining: 0,
+      unitsRemaining: 0,
     } as never);
 
     const res = await PATCH(
@@ -264,7 +265,7 @@ describe("PATCH /api/medications/[id]/inventory/[itemId]", () => {
       .calls[0][0];
     expect(updateCall.data).toMatchObject({
       state: "USED_UP",
-      dosesRemaining: 0,
+      unitsRemaining: 0,
     });
   });
 
@@ -331,7 +332,7 @@ describe("DELETE /api/medications/[id]/inventory/[itemId]", () => {
       userId: "user-1",
       medicationId: "med-1",
       state: "EXPIRED",
-      dosesRemaining: 2,
+      unitsRemaining: 2,
     } as never);
     vi.mocked(prisma.medicationInventoryItem.delete).mockResolvedValue({
       id: "inv-1",
@@ -356,7 +357,7 @@ describe("POST /api/medications/[id]/inventory — 422 multi-issue (v1.4.43 W6)"
     vi.mocked(prisma.medication.findUnique).mockResolvedValue(MED_OK as never);
     const res = await POST(
       jsonReq("http://localhost/api/medications/med-1/inventory", {
-        dosesTotal: "string",
+        unitsTotal: "string",
         printedExpiry: "not-iso",
       }),
       { params: Promise.resolve({ id: "med-1" }) },
@@ -382,7 +383,7 @@ describe("POST /api/medications/[id]/inventory — 422 multi-issue (v1.4.43 W6)"
     vi.mocked(prisma.medication.findUnique).mockResolvedValue(MED_OK as never);
     const res = await POST(
       jsonReq("http://localhost/api/medications/med-1/inventory", {
-        dosesTotal: "string",
+        unitsTotal: "string",
         printedExpiry: "not-iso",
         purchasedAt: "also-not-iso",
         notes: 123,

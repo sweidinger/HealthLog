@@ -380,59 +380,60 @@ describe("resolveDashboardLayout() — chartOverlayPrefs (v1.4.18)", () => {
 /**
  * Dashboard hero (daily verdict) visibility — `heroVisible` piggy-backs
  * on the layout blob like the B8 comparison baseline. Resolver contract:
- * anything that is not the literal `false` clamps back to `true`
- * (default-on for legacy blobs; a stale client cannot poison the field
- * with a non-boolean). Serializer persists the resolved boolean
- * explicitly so a re-read never has to guess the default.
+ * anything that is not the literal `true` clamps back to `false`
+ * (the hero is opt-in; legacy blobs keep it off and a stale client
+ * cannot poison the field with a non-boolean). Serializer persists the
+ * resolved boolean explicitly so a re-read never has to guess the
+ * default.
  */
 describe("resolveDashboardLayout() — heroVisible", () => {
-  it("defaults to true for legacy layouts (no field saved)", () => {
+  it("defaults to false for legacy layouts (no field saved)", () => {
     const legacy = {
       version: 1,
       widgets: [{ id: "weight", visible: true, order: 0 }],
     };
-    expect(resolveDashboardLayout(legacy).heroVisible).toBe(true);
+    expect(resolveDashboardLayout(legacy).heroVisible).toBe(false);
   });
 
-  it("respects an explicit heroVisible: false", () => {
+  it("respects an explicit heroVisible: true", () => {
     const saved = {
       version: 1,
       widgets: [{ id: "weight", visible: true, order: 0 }],
-      heroVisible: false,
+      heroVisible: true,
     };
-    expect(resolveDashboardLayout(saved).heroVisible).toBe(false);
+    expect(resolveDashboardLayout(saved).heroVisible).toBe(true);
   });
 
-  it("clamps non-boolean values back to true", () => {
-    for (const poisoned of ["false", 0, null, 1, {}]) {
+  it("clamps non-boolean values back to false", () => {
+    for (const poisoned of ["true", 0, null, 1, {}]) {
       const saved = {
         version: 1,
         widgets: [{ id: "weight", visible: true, order: 0 }],
         heroVisible: poisoned,
       };
-      expect(resolveDashboardLayout(saved).heroVisible).toBe(true);
+      expect(resolveDashboardLayout(saved).heroVisible).toBe(false);
     }
   });
 
-  it("defaults heroVisible to true in DEFAULT_DASHBOARD_LAYOUT", () => {
-    expect(DEFAULT_DASHBOARD_LAYOUT.heroVisible).toBe(true);
+  it("defaults heroVisible to false in DEFAULT_DASHBOARD_LAYOUT", () => {
+    expect(DEFAULT_DASHBOARD_LAYOUT.heroVisible).toBe(false);
   });
 
-  it("preserves heroVisible: false through serialize → resolve round-trip", () => {
+  it("preserves heroVisible: true through serialize → resolve round-trip", () => {
     const layout: DashboardLayout = {
       ...DEFAULT_DASHBOARD_LAYOUT,
-      heroVisible: false,
+      heroVisible: true,
     };
     const resolved = resolveDashboardLayout(serializeDashboardLayout(layout));
-    expect(resolved.heroVisible).toBe(false);
+    expect(resolved.heroVisible).toBe(true);
   });
 
-  it("serializer derives true when the field is missing on input", () => {
+  it("serializer derives false when the field is missing on input", () => {
     const layout: DashboardLayout = {
       version: 1,
       widgets: [{ id: "weight", visible: true, order: 0 }],
     };
-    expect(serializeDashboardLayout(layout).heroVisible).toBe(true);
+    expect(serializeDashboardLayout(layout).heroVisible).toBe(false);
   });
 });
 

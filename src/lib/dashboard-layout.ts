@@ -324,9 +324,9 @@ export interface DashboardLayout {
   /**
    * Dashboard hero (daily verdict) visibility. Piggy-backs on the
    * layout blob like the B8 comparison baseline — a UI affordance, not
-   * an analytical attribute, so no Prisma migration. The resolver
-   * clamps anything that is not the literal `false` back to `true`
-   * (legacy blobs without the field render the hero by default; a
+   * an analytical attribute, so no Prisma migration. Opt-in: the
+   * resolver clamps anything that is not the literal `true` back to
+   * `false` (legacy blobs without the field keep the hero off; a
    * stale client cannot poison it with a non-boolean), and the
    * serializer persists the resolved boolean explicitly.
    */
@@ -342,9 +342,9 @@ const DASHBOARD_LAYOUT_VERSION = 1;
  */
 export const DEFAULT_DASHBOARD_LAYOUT: DashboardLayout = {
   version: DASHBOARD_LAYOUT_VERSION,
-  // Hero (daily verdict) is on by default; users opt out via
+  // Hero (daily verdict) is off by default; users opt in via
   // Settings → Dashboard.
-  heroVisible: true,
+  heroVisible: false,
   widgets: [
     { id: "weight", visible: true, tileVisible: true, order: 0 },
     { id: "bp", visible: true, tileVisible: true, order: 1 },
@@ -462,10 +462,10 @@ export function resolveDashboardLayout(raw: unknown): DashboardLayout {
     // client cannot poison the dashboard with values the renderer
     // doesn't know how to draw.
     chartOverlayPrefs: coerceChartOverlayPrefsMap(candidate.chartOverlayPrefs),
-    // Hero visibility — anything that is not the literal `false`
-    // clamps to `true` (default-on for legacy blobs and malformed
-    // values alike).
-    heroVisible: candidate.heroVisible !== false,
+    // Hero visibility — anything that is not the literal `true`
+    // clamps to `false` (default-off for legacy blobs and malformed
+    // values alike; the hero is opt-in).
+    heroVisible: candidate.heroVisible === true,
   };
 }
 
@@ -495,6 +495,6 @@ export function serializeDashboardLayout(
     chartOverlayPrefs: coerceChartOverlayPrefsMap(layout.chartOverlayPrefs),
     // Persist hero visibility explicitly (same clamp as the resolver)
     // so a re-read never has to guess the default.
-    heroVisible: layout.heroVisible !== false,
+    heroVisible: layout.heroVisible === true,
   };
 }

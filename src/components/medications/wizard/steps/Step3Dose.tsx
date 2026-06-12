@@ -147,19 +147,47 @@ export function Step3Dose({ payload, applyPartial }: StepProps) {
             value={payload.dosesPerUnit}
             onChange={(e) =>
               applyPartial({
-                dosesPerUnit: e.target.value.replace(/[^0-9]/g, "").slice(0, 3),
+                // v1.16.10 — the cap rose to 1000, so four digits.
+                dosesPerUnit: e.target.value.replace(/[^0-9]/g, "").slice(0, 4),
               })
             }
             placeholder={t(
               "medications.wizard.steps.step3.dosesPerUnitPlaceholder",
             )}
-            maxLength={3}
+            maxLength={4}
             autoComplete="off"
           />
           <p className="text-muted-foreground text-xs">
             {t("medications.wizard.steps.step3.dosesPerUnitHint")}
           </p>
         </div>
+      </div>
+
+      {/* v1.16.10 — units consumed per dose. The inventory counts units
+          (tablets / ampoules); a multi-unit dose (2 × 2 mg for 4 mg)
+          decrements several per take and every dose-level readout
+          divides by this factor. */}
+      <div className="space-y-2">
+        <Label htmlFor="wizard-units-per-dose" className="text-sm">
+          {t("medications.wizard.steps.step3.unitsPerDoseLabel")}
+        </Label>
+        <Input
+          id="wizard-units-per-dose"
+          type="text"
+          inputMode="numeric"
+          value={payload.unitsPerDose}
+          onChange={(e) =>
+            applyPartial({
+              unitsPerDose: e.target.value.replace(/[^0-9]/g, "").slice(0, 3),
+            })
+          }
+          placeholder="1"
+          maxLength={3}
+          autoComplete="off"
+        />
+        <p className="text-muted-foreground text-xs">
+          {t("medications.wizard.steps.step3.unitsPerDoseHint")}
+        </p>
       </div>
 
       {/* v1.8.5 — injection-site tracking opt-in + allowed-sites editor.

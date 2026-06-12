@@ -53,8 +53,9 @@ vi.mock("@/lib/idempotency", () => ({
       fn(...args),
 }));
 
-vi.mock("@/lib/medications/inventory/service", () => ({
-  consumeOneDose: vi.fn().mockResolvedValue(null),
+vi.mock("@/lib/medications/inventory/consumption", () => ({
+  consumeForIntake: vi.fn().mockResolvedValue(undefined),
+  restoreForIntake: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock("@/lib/medications/route-guards", () => ({
@@ -412,8 +413,8 @@ describe("POST /api/medications/[id]/intake — v1.8.2 reconcile (M2 inventory)"
   });
 
   it("does NOT decrement inventory on a re-post of an already-taken slot (M2)", async () => {
-    const { consumeOneDose } = await import(
-      "@/lib/medications/inventory/service"
+    const { consumeForIntake } = await import(
+      "@/lib/medications/inventory/consumption"
     );
     // Resolver load → scheduled med.
     vi.mocked(prisma.medication.findFirst).mockResolvedValueOnce(
@@ -455,15 +456,15 @@ describe("POST /api/medications/[id]/intake — v1.8.2 reconcile (M2 inventory)"
     expect(res.status).toBe(201);
     // Re-post of an already-taken slot → no pending→taken transition →
     // inventory must NOT be consumed.
-    expect(consumeOneDose).not.toHaveBeenCalled();
+    expect(consumeForIntake).not.toHaveBeenCalled();
     // The row was updated, not duplicated.
     expect(prisma.medicationIntakeEvent.update).toHaveBeenCalledTimes(1);
     expect(prisma.medicationIntakeEvent.create).not.toHaveBeenCalled();
   });
 
   it("DOES decrement inventory on a genuine pending→taken move (M2)", async () => {
-    const { consumeOneDose } = await import(
-      "@/lib/medications/inventory/service"
+    const { consumeForIntake } = await import(
+      "@/lib/medications/inventory/consumption"
     );
     vi.mocked(prisma.medication.findFirst).mockResolvedValueOnce(
       SCHEDULED_MED as never,
@@ -501,7 +502,14 @@ describe("POST /api/medications/[id]/intake — v1.8.2 reconcile (M2 inventory)"
       ROUTE_PARAMS,
     );
     expect(res.status).toBe(201);
-    expect(consumeOneDose).toHaveBeenCalledTimes(1);
+    expect(consumeForIntake).toHaveBeenCalledTimes(1);
+    expect(consumeForIntake).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: "user-1",
+        medicationId: "med-1",
+        eventId: "row-pending",
+      }),
+    );
   });
 
   it("re-finds and updates the slot when the create races a P2002 (C1)", async () => {

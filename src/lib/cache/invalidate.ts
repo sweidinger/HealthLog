@@ -247,6 +247,16 @@ export function invalidateUserInsightsLayout(userId: string): void {
 }
 
 /**
+ * v1.16.10 — invalidate the medications list-presentation cache for a
+ * single user. Called from the medications-layout PUT / DELETE
+ * endpoints when the user toggles the view or saves a manual order so
+ * the next /medications mount paints the new presentation.
+ */
+export function invalidateUserMedicationListLayout(userId: string): void {
+  caches.medicationListLayout.deleteByPrefix(userId);
+}
+
+/**
  * v1.16.9 — full per-user cache eviction for the wipe / restore paths.
  * A data wipe or a backup restore replaces (or removes) every row the
  * cached payloads were built on, so every per-user bucket hard-evicts —
@@ -265,6 +275,7 @@ export function invalidateUserData(userId: string): void {
   caches.workouts.deleteByPrefix(`${userId}|`);
   caches.dashboardWidgets.deleteByPrefix(userId);
   caches.insightsLayout.deleteByPrefix(userId);
+  caches.medicationListLayout.deleteByPrefix(userId);
 }
 
 /**

@@ -610,6 +610,18 @@ export const caches = {
     maxEntries: 500,
     ttlMs: 300_000,
   }),
+  /**
+   * v1.16.10 — per-user medications list presentation (view choice +
+   * manual order). Mirrors `insightsLayout` (same 5-minute TTL, same
+   * per-user bucket size). Read on every /medications mount; changes
+   * only on a view toggle / order save, which invalidates via
+   * `invalidateUserMedicationListLayout()`.
+   */
+  medicationListLayout: new ServerCache<unknown>({
+    name: "medicationListLayout",
+    maxEntries: 500,
+    ttlMs: 300_000,
+  }),
 } as const;
 
 /**

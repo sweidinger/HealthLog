@@ -58,8 +58,9 @@ describe("<LayoutCoachFab>", () => {
     // Fixed bottom-right, above the mobile bottom-nav band. The plain
     // desktop offset kicks in at `md:` — the same breakpoint where the
     // bottom-nav hides (`md:hidden`) — so the FAB never floats mid-air
-    // in the 768-1023px band.
-    expect(html).toContain("fixed right-4");
+    // in the 768-1023px band. The right inset mirrors the desktop
+    // bottom inset so the corner gap is even.
+    expect(html).toContain("fixed right-6");
     expect(html).toContain(
       "bottom-[calc(env(safe-area-inset-bottom,0px)+5rem)]",
     );

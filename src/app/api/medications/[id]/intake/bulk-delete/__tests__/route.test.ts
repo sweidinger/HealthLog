@@ -53,6 +53,10 @@ vi.mock("@/lib/rollups/medication-compliance-rollups", () => ({
   recomputeMedicationComplianceForDay: vi.fn().mockResolvedValue(undefined),
 }));
 
+vi.mock("@/lib/medications/inventory/consumption", () => ({
+  restoreForIntake: vi.fn().mockResolvedValue(undefined),
+}));
+
 vi.mock("@/lib/cache/invalidate", () => ({
   invalidateUserMedications: vi.fn(),
 }));
@@ -239,5 +243,42 @@ describe("POST /api/medications/[id]/intake/bulk-delete — F-1 H-6 rate limit",
       30,
       60_000,
     );
+  });
+});
+
+describe("POST /api/medications/[id]/intake/bulk-delete — v1.16.10 inventory refund", () => {
+  it("restores each stamped row before the tombstone sweep and ignores unstamped rows", async () => {
+    const { restoreForIntake } = await import(
+      "@/lib/medications/inventory/consumption"
+    );
+    const day1 = new Date(Date.UTC(2026, 4, 27, 8, 0, 0));
+    vi.mocked(prisma.medicationIntakeEvent.findMany).mockResolvedValueOnce([
+      {
+        id: "evt-stamped",
+        scheduledFor: day1,
+        inventoryConsumption: [{ itemId: "item-1", units: 2 }],
+      },
+      { id: "evt-unstamped", scheduledFor: day1, inventoryConsumption: null },
+    ] as never);
+    vi.mocked(prisma.medicationIntakeEvent.updateMany).mockResolvedValueOnce({
+      count: 2,
+    } as never);
+
+    const res = await POST(
+      postWithBody({ eventIds: ["evt-stamped", "evt-unstamped"] }),
+      ROUTE_PARAMS,
+    );
+    expect(res.status).toBe(200);
+
+    expect(restoreForIntake).toHaveBeenCalledTimes(1);
+    expect(restoreForIntake).toHaveBeenCalledWith(
+      expect.objectContaining({ userId: "user-1", eventId: "evt-stamped" }),
+    );
+    // The refund runs BEFORE the soft-delete sweep.
+    const restoreOrder = vi.mocked(restoreForIntake).mock
+      .invocationCallOrder[0];
+    const sweepOrder = vi.mocked(prisma.medicationIntakeEvent.updateMany)
+      .mock.invocationCallOrder[0];
+    expect(restoreOrder).toBeLessThan(sweepOrder);
   });
 });

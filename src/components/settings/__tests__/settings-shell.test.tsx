@@ -50,12 +50,16 @@ describe("SETTINGS_SECTION_SLUGS", () => {
     // between `thresholds` (Targets) and `ai`.
     // v1.15.18 — `insights` sits between `dashboard` and `thresholds`: the
     // overview-arrange + pill-sort customise surface for `/insights`.
+    // v1.16.10 — `medications` sits between `insights` and `thresholds`:
+    // the view-preference + manual-order customise surface for
+    // `/medications`, reached from the page header's Settings2 glyph.
     expect([...SETTINGS_SECTION_SLUGS]).toEqual([
       "account",
       "integrations",
       "notifications",
       "dashboard",
       "insights",
+      "medications",
       "thresholds",
       "sources",
       "ai",
@@ -149,6 +153,10 @@ describe("<SettingsShell>", () => {
     expect(html).toContain("Notifications");
     expect(html).toContain("Dashboard");
     expect(html).toContain("Insights");
+    // v1.16.10 — the /medications customise surface is its own nav entry
+    // between Insights and Targets.
+    expect(html).toContain('href="/settings/medications"');
+    expect(html).toContain("Medications");
     // The ampersand is HTML-escaped by React SSR — assert on the encoded
     // form so we don't accidentally match a parser that double-escapes.
     expect(html).toContain("API &amp; Tokens");
@@ -181,6 +189,9 @@ describe("<SettingsShell>", () => {
     // per-metric overrides moved out into their own "Persönliche Zielwerte"
     // section, which is the new entry below the Dashboard one.
     expect(html).toContain("Dashboard");
+    // v1.16.10 — the /medications customise surface ("Medikamente").
+    expect(html).toContain('href="/settings/medications"');
+    expect(html).toContain("Medikamente");
     // v1.8.7.1 — Targets and Sources are two separate German nav
     // entries again: "Zielwerte" and "Quellen".
     expect(html).toContain("Zielwerte");

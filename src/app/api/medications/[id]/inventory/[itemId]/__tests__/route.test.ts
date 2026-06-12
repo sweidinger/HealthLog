@@ -2,8 +2,8 @@
  * v1.4.43 W6 — multi-issue 422 envelope on PATCH
  * /api/medications/[id]/inventory/[itemId].
  *
- * v1.16.1 — stock-correction contract: `dosesRemaining` sets the count
- * absolutely, clamps to `dosesTotal`, and the canonical state machine
+ * v1.16.1 — stock-correction contract: `unitsRemaining` sets the count
+ * absolutely, clamps to `unitsTotal`, and the canonical state machine
  * derives the next state (0 ⇒ USED_UP).
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
@@ -83,7 +83,7 @@ beforeEach(() => {
     userId: "user-1",
     firstUseAt: null,
     state: "ACTIVE",
-    dosesRemaining: 4,
+    unitsRemaining: 4,
     printedExpiry: null,
   } as never);
 });
@@ -129,7 +129,7 @@ describe("PATCH /api/medications/[id]/inventory/[itemId] — 422 multi-issue (v1
   });
 });
 
-describe("PATCH /api/medications/[id]/inventory/[itemId] — dosesRemaining stock correction (v1.16.1)", () => {
+describe("PATCH /api/medications/[id]/inventory/[itemId] — unitsRemaining stock correction (v1.16.1)", () => {
   beforeEach(() => {
     vi.mocked(prisma.medicationInventoryItem.findUnique).mockResolvedValue({
       id: "i1",
@@ -137,8 +137,8 @@ describe("PATCH /api/medications/[id]/inventory/[itemId] — dosesRemaining stoc
       userId: "user-1",
       firstUseAt: null,
       state: "IN_USE",
-      dosesTotal: 4,
-      dosesRemaining: 3,
+      unitsTotal: 4,
+      unitsRemaining: 3,
       printedExpiry: null,
       notes: null,
     } as never);
@@ -151,32 +151,32 @@ describe("PATCH /api/medications/[id]/inventory/[itemId] — dosesRemaining stoc
   });
 
   it("sets the remaining count absolutely", async () => {
-    const res = await PATCH(patchReq({ dosesRemaining: 1 }), ROUTE_CTX);
+    const res = await PATCH(patchReq({ unitsRemaining: 1 }), ROUTE_CTX);
     expect(res.status).toBe(200);
     const update = vi.mocked(prisma.medicationInventoryItem.update).mock
-      .calls[0][0] as { data: { dosesRemaining: number } };
-    expect(update.data.dosesRemaining).toBe(1);
+      .calls[0][0] as unknown as { data: { unitsRemaining: number } };
+    expect(update.data.unitsRemaining).toBe(1);
   });
 
   it("derives USED_UP when corrected to zero", async () => {
-    const res = await PATCH(patchReq({ dosesRemaining: 0 }), ROUTE_CTX);
+    const res = await PATCH(patchReq({ unitsRemaining: 0 }), ROUTE_CTX);
     expect(res.status).toBe(200);
     const update = vi.mocked(prisma.medicationInventoryItem.update).mock
-      .calls[0][0] as { data: { dosesRemaining: number; state: string } };
-    expect(update.data.dosesRemaining).toBe(0);
+      .calls[0][0] as unknown as { data: { unitsRemaining: number; state: string } };
+    expect(update.data.unitsRemaining).toBe(0);
     expect(update.data.state).toBe("USED_UP");
   });
 
-  it("clamps a raise above the item's capacity to dosesTotal", async () => {
-    const res = await PATCH(patchReq({ dosesRemaining: 99 }), ROUTE_CTX);
+  it("clamps a raise above the item's capacity to unitsTotal", async () => {
+    const res = await PATCH(patchReq({ unitsRemaining: 99 }), ROUTE_CTX);
     expect(res.status).toBe(200);
     const update = vi.mocked(prisma.medicationInventoryItem.update).mock
-      .calls[0][0] as { data: { dosesRemaining: number } };
-    expect(update.data.dosesRemaining).toBe(4);
+      .calls[0][0] as unknown as { data: { unitsRemaining: number } };
+    expect(update.data.unitsRemaining).toBe(4);
   });
 
   it("rejects a negative correction with 422", async () => {
-    const res = await PATCH(patchReq({ dosesRemaining: -1 }), ROUTE_CTX);
+    const res = await PATCH(patchReq({ unitsRemaining: -1 }), ROUTE_CTX);
     expect(res.status).toBe(422);
   });
 });

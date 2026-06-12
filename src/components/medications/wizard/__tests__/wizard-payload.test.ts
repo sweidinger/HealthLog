@@ -383,6 +383,50 @@ describe("buildCreateBody", () => {
     expect(body.schedules[0].windowEnd).toBe("09:00");
   });
 
+  it("carries unitsPerDose onto the body and round-trips it on edit-hydrate (v1.16.10)", () => {
+    const p: WizardPayload = {
+      ...withCadence("daily"),
+      treatmentRow: "bloodPressure",
+      timesOfDay: ["08:00"],
+      startsOn: new Date(Date.UTC(2026, 4, 28)),
+      endsOn: null,
+      unitsPerDose: "2",
+    };
+    expect(buildCreateBody(p).unitsPerDose).toBe(2);
+
+    // The default "1" still ships (an edit back to 1 must reach the server).
+    expect(buildCreateBody({ ...p, unitsPerDose: "1" }).unitsPerDose).toBe(1);
+    // An empty field omits it (server default applies).
+    expect(buildCreateBody({ ...p, unitsPerDose: "" }).unitsPerDose).toBeUndefined();
+
+    const hydrated = hydrateWizardPayload({
+      id: "m1",
+      name: "Foo",
+      dose: "5 mg",
+      category: "BLOOD_PRESSURE",
+      unitsPerDose: 2,
+      notificationsEnabled: true,
+      startsOn: null,
+      endsOn: null,
+      oneShot: false,
+      schedules: [],
+    });
+    expect(hydrated.unitsPerDose).toBe("2");
+    // Absent on the snapshot → the default 1.
+    const hydratedDefault = hydrateWizardPayload({
+      id: "m1",
+      name: "Foo",
+      dose: "5 mg",
+      category: "BLOOD_PRESSURE",
+      notificationsEnabled: true,
+      startsOn: null,
+      endsOn: null,
+      oneShot: false,
+      schedules: [],
+    });
+    expect(hydratedDefault.unitsPerDose).toBe("1");
+  });
+
   it("emits DIABETES category for the diabetes row", () => {
     const p: WizardPayload = {
       ...withCadence("daily"),

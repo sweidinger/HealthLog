@@ -456,8 +456,23 @@ export const createMedicationSchema = z
     category: z.enum(MEDICATION_CATEGORY_VALUES).optional(),
     /** v1.4.25 W4d — treatment-class discriminator (GENERIC | GLP1). */
     treatmentClass: z.enum(MEDICATION_TREATMENT_CLASS_VALUES).optional(),
-    /** v1.4.25 W4d — doses per pen/vial for inventory tracking. */
-    dosesPerUnit: z.number().int().min(1).max(100).optional(),
+    /** v1.4.25 W4d — doses per pen/vial for inventory tracking.
+     *  v1.16.10 raises the cap to 1000 (large tablet packs). */
+    dosesPerUnit: z.number().int().min(1).max(1000).optional(),
+    /**
+     * v1.16.10 — inventory units one dose consumes (2 × 2 mg tablets
+     * for a 4 mg dose). Default 1. Dose-level readouts divide the
+     * unit counts by this factor.
+     */
+    unitsPerDose: z
+      .number()
+      .int()
+      .min(1)
+      .max(100)
+      .optional()
+      .describe(
+        "Inventory units consumed per dose (e.g. 2 tablets of 2 mg for a 4 mg dose). Default 1. The intake consumption hook decrements this many units per taken dose; dose-derived readouts divide unit counts by it.",
+      ),
     /** v1.6.0 — route of administration (ORAL | INJECTION | OTHER). */
     deliveryForm: z.enum(MEDICATION_DELIVERY_FORM_VALUES).optional(),
     /**
@@ -528,7 +543,17 @@ export const updateMedicationSchema = z
     dose: z.string().min(1).max(50).optional(),
     category: z.enum(MEDICATION_CATEGORY_VALUES).optional(),
     treatmentClass: z.enum(MEDICATION_TREATMENT_CLASS_VALUES).optional(),
-    dosesPerUnit: z.number().int().min(1).max(100).nullable().optional(),
+    dosesPerUnit: z.number().int().min(1).max(1000).nullable().optional(),
+    /** v1.16.10 — inventory units one dose consumes. Default 1. */
+    unitsPerDose: z
+      .number()
+      .int()
+      .min(1)
+      .max(100)
+      .optional()
+      .describe(
+        "Inventory units consumed per dose (e.g. 2 tablets of 2 mg for a 4 mg dose). The intake consumption hook decrements this many units per taken dose; already-stamped intake events keep their recorded consumption.",
+      ),
     /** v1.6.0 — route of administration (ORAL | INJECTION | OTHER). */
     deliveryForm: z.enum(MEDICATION_DELIVERY_FORM_VALUES).optional(),
     /** v1.8.5 — per-medication injection-site tracking opt-in. */
@@ -799,41 +824,105 @@ export type BulkDeleteIntakeEventsInput = z.infer<
  * USED_UP (manual override). EXPIRED is owned by the daily cron and
  * the intake hook, so the PATCH schema deliberately omits it.
  */
-export const createInventoryItemSchema = z.object({
-  dosesTotal: z.number().int().min(1).max(100),
-  printedExpiry: z.iso
-    .datetime({ offset: true })
-    .transform((s) => new Date(s))
-    .nullable()
-    .optional(),
-  purchasedAt: z.iso
-    .datetime({ offset: true })
-    .transform((s) => new Date(s))
-    .nullable()
-    .optional(),
-  notes: z.string().max(200).nullable().optional(),
-});
+/**
+ * v1.16.10 — container kinds, mirrored from the Prisma
+ * `MedicationContainerType` enum. Display-level classification only.
+ */
+export const MEDICATION_CONTAINER_TYPE_VALUES = [
+  "PEN",
+  "AMPOULE",
+  "BLISTER",
+  "INHALER",
+  "BOTTLE",
+  "OTHER",
+] as const;
+export type MedicationContainerTypeValue =
+  (typeof MEDICATION_CONTAINER_TYPE_VALUES)[number];
 
-export const updateInventoryItemSchema = z.object({
-  markAsFirstUseAt: z.iso
-    .datetime({ offset: true })
-    .transform((s) => new Date(s))
-    .optional(),
-  markAsUsedUp: z.boolean().optional(),
-  printedExpiry: z.iso
-    .datetime({ offset: true })
-    .transform((s) => new Date(s))
-    .nullable()
-    .optional(),
-  /**
-   * v1.16.1 — stock correction (the Bestand tab's adjust / withdraw
-   * flow). Sets the remaining-dose count directly; the route clamps to
-   * `dosesTotal` and re-runs the canonical state machine (0 ⇒ USED_UP,
-   * a raise out of 0 re-evaluates against the expiry clocks).
-   */
-  dosesRemaining: z.number().int().min(0).max(100).optional(),
-  notes: z.string().max(200).nullable().optional(),
-});
+export const createInventoryItemSchema = z
+  .object({
+    /** Units the container ships with. v1.16.10 raises the cap from
+     *  100 to 1000 (large tablet packs) and renames the wire field to
+     *  `unitsTotal` — it counts units, mapped to doses via
+     *  `Medication.unitsPerDose`. */
+    unitsTotal: z
+      .number()
+      .int()
+      .min(1)
+      .max(1000)
+      .describe(
+        "Units the container ships with (tablets / ampoules / puffs; 1–1000). Dose-derived readouts divide by the medication's `unitsPerDose`.",
+      ),
+    /** v1.16.10 — container kind. Defaults to OTHER when absent. */
+    containerType: z
+      .enum(MEDICATION_CONTAINER_TYPE_VALUES)
+      .optional()
+      .describe(
+        "Kind of physical container (PEN / AMPOULE / BLISTER / INHALER / BOTTLE / OTHER). Display-level only; defaults to OTHER.",
+      ),
+    printedExpiry: z.iso
+      .datetime({ offset: true })
+      .transform((s) => new Date(s))
+      .nullable()
+      .optional(),
+    purchasedAt: z.iso
+      .datetime({ offset: true })
+      .transform((s) => new Date(s))
+      .nullable()
+      .optional(),
+    notes: z.string().max(200).nullable().optional(),
+  })
+  .meta({
+    id: "CreateMedicationInventoryItemRequest",
+    description:
+      "Register a new supply container (pen / blister pack / bottle). `unitsTotal` counts UNITS (1–1000); the item starts ACTIVE with `unitsRemaining = unitsTotal` and the intake consumption hook decrements it per taken dose.",
+  });
+
+export const updateInventoryItemSchema = z
+  .object({
+    markAsFirstUseAt: z.iso
+      .datetime({ offset: true })
+      .transform((s) => new Date(s))
+      .optional()
+      .describe(
+        "Manually start the 30-day in-use clock (the user opened the container without logging an intake). ACTIVE flips to IN_USE; a backdated instant whose window already lapsed lands EXPIRED.",
+      ),
+    markAsUsedUp: z
+      .boolean()
+      .optional()
+      .describe(
+        "Terminal override: zero the remaining units and mark the container USED_UP (physically discarded).",
+      ),
+    printedExpiry: z.iso
+      .datetime({ offset: true })
+      .transform((s) => new Date(s))
+      .nullable()
+      .optional(),
+    /**
+     * v1.16.1 — stock correction (the Bestand tab's adjust / withdraw
+     * flow). Sets the remaining-unit count directly; the route clamps to
+     * `unitsTotal` and re-runs the canonical state machine (0 ⇒ USED_UP,
+     * a raise out of 0 re-evaluates against the expiry clocks).
+     * v1.16.10 raises the cap to 1000 alongside the capacity cap and
+     * renames the wire field to `unitsRemaining` (it always counted
+     * units), matching the response side.
+     */
+    unitsRemaining: z
+      .number()
+      .int()
+      .min(0)
+      .max(1000)
+      .optional()
+      .describe(
+        "Absolute remaining-unit correction (0–1000). Clamped server-side to the item's `unitsTotal`; the canonical state machine re-derives the state (0 ⇒ USED_UP).",
+      ),
+    notes: z.string().max(200).nullable().optional(),
+  })
+  .meta({
+    id: "UpdateMedicationInventoryItemRequest",
+    description:
+      "Per-item inventory mutation: manual first-use, used-up override, printed-expiry correction, absolute remaining-unit correction, notes. Every field is optional and commutative.",
+  });
 
 export type CreateInventoryItemInput = z.infer<
   typeof createInventoryItemSchema
@@ -859,8 +948,9 @@ export type UpdateInventoryItemInput = z.infer<
  * - `effectiveFrom` is constrained to a ±5-year window around now —
  *   a paper-record back-fill or a planned future step both fit, but
  *   "1970" / "9999" do not.
- * - `delta` is a non-zero finite integer in [−100, 100] (the existing
- *   inventory route caps `dosesTotal` at 100 doses per pen).
+ * - `delta` is a non-zero finite integer in [−100, 100] — the legacy
+ *   ledger counts pens, and ±100 pens per correction stays plenty
+ *   (deliberately NOT raised with the v1.16.10 per-item unit cap).
  * - `reason` is a bounded string (the route logs it; raw blob bad).
  */
 const MAX_DOSE_MG = 100;
@@ -884,6 +974,14 @@ export const glp1DoseChangePostSchema = z.object({
   note: z.string().max(MAX_NOTE_CHARS).nullable().optional(),
 });
 
+/**
+ * DEPRECATED write path (v1.16.10) — the `inventory.delta` branch feeds
+ * the legacy `MedicationInventoryEvent` running-sum ledger. The per-item
+ * endpoints (`POST /api/medications/[id]/inventory`,
+ * `PATCH /api/medications/[id]/inventory/[itemId]`) replaced it; reads
+ * fall back to the ledger only while a medication has zero inventory
+ * items. New callers must register containers instead of posting deltas.
+ */
 export const glp1InventoryPostSchema = z.object({
   delta: z
     .number()
@@ -891,7 +989,10 @@ export const glp1InventoryPostSchema = z.object({
     .finite()
     .min(-100)
     .max(100)
-    .refine((n) => n !== 0, { message: "delta must be non-zero" }),
+    .refine((n) => n !== 0, { message: "delta must be non-zero" })
+    .describe(
+      "Deprecated since v1.16.10: pen-count delta on the legacy running-sum ledger. Register containers via the inventory endpoints instead; reads use the ledger only while the medication has no inventory items.",
+    ),
   reason: z.string().min(1).max(MAX_REASON_CHARS),
 });
 
