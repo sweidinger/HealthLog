@@ -154,17 +154,32 @@ export function MedicationCardBody({
         ? t("medications.overdue")
         : null;
 
-  // v1.16.11 — the plain take-now prompt rides the "next intake" row as
-  // its right-aligned value ("Nächste Einnahme: ✓ Jetzt einnehmen —
-  // 20:00–22:00") instead of a standalone line above the slot, so the
-  // card keeps one label/value grammar whether a window is open or not.
-  // The escalation tiers (late / very-late / taken-early) stay on the
-  // top line — they are interruptions, not schedule values.
-  const takeNowOnNextLine =
-    windowStatus !== null &&
-    windowStatus.status === "in_window" &&
-    windowStatus.takenEarlyDaysAgo == null &&
-    overdueLabel === null;
+  // v1.16.11 — EVERY dose state rides the "next intake" row as its
+  // right-aligned value: green take-now, amber late, red escalation.
+  // The former standalone status line above the slot is gone — it
+  // reserved a blank row on every settled card (the overdue tier rides
+  // the async compliance query) and broke the card's label/value
+  // grammar. Urgency still reads at a glance through the value's
+  // colour + glyph.
+  //
+  // Taken-early (v1.16.9 double-dose guard) suppresses every prompt
+  // tier: the row falls through to the plain schedule value and the
+  // "last intake" line directly below already names the recent dose —
+  // the guard's job is that no take prompt renders, not a louder line.
+  const nextValueOverride =
+    windowStatus?.takenEarlyDaysAgo != null ? null : overdueLabel ? (
+      <span className="text-destructive inline-flex items-center gap-1 text-sm font-medium">
+        <AlertTriangle className="size-3.5 shrink-0" aria-hidden="true" />
+        {overdueLabel}
+      </span>
+    ) : windowStatus !== null ? (
+      <MedicationStatusPill
+        status={windowStatus.status}
+        windowStart={windowStatus.windowStart}
+        windowEnd={windowStatus.windowEnd}
+        inline
+      />
+    ) : null;
 
   return (
     <Card
@@ -184,53 +199,12 @@ export function MedicationCardBody({
       />
 
       <CardContent className="flex h-full flex-col space-y-3.5">
-        {/* Top status line. The in-window take-now pill (success) and the
-            overdue escalation are mutually exclusive — a dose is either still
-            in its take-window or past it. The overdue line wins when present
-            so a heavily-overdue dose reads loud at the top of the card.
-            The slot keeps a constant one-line height even when empty: the
-            overdue tier arrives with the compliance query, and a line
-            popping in late used to shift every row below it (CLS). */}
-        <div className="min-h-5">
-          {windowStatus?.takenEarlyDaysAgo != null ? (
-            // v1.16.9 — last-dose context outranks the overdue line: a
-            // day-scale dose already taken earlier in its period must never
-            // escalate into a take prompt (double-dose risk).
-            <MedicationStatusPill
-              status={windowStatus.status}
-              windowStart={windowStatus.windowStart}
-              windowEnd={windowStatus.windowEnd}
-              takenEarlyDaysAgo={windowStatus.takenEarlyDaysAgo}
-            />
-          ) : overdueLabel ? (
-            <p className="text-destructive flex items-center gap-1 text-sm font-medium">
-              <AlertTriangle className="size-3.5 shrink-0" aria-hidden="true" />
-              {overdueLabel}
-            </p>
-          ) : windowStatus && !takeNowOnNextLine ? (
-            <MedicationStatusPill
-              status={windowStatus.status}
-              windowStart={windowStatus.windowStart}
-              windowEnd={windowStatus.windowEnd}
-            />
-          ) : null}
-        </div>
-
         {/* Next / last intake — the two decisive lines, each shown once.
-            An open take-window renders as the next-intake value. */}
+            The dose state (take-now / overdue / taken-early) IS the
+            next-intake value when present; the schedule value fills the
+            row otherwise. */}
         <MedicationNextLastSlot
-          next={
-            takeNowOnNextLine ? (
-              <MedicationStatusPill
-                status={windowStatus.status}
-                windowStart={windowStatus.windowStart}
-                windowEnd={windowStatus.windowEnd}
-                inline
-              />
-            ) : (
-              nextLine
-            )
-          }
+          next={nextValueOverride ?? nextLine}
           last={lastLine}
         />
 
