@@ -10,6 +10,12 @@ import { MedicationWizardDialog } from "@/components/medications/wizard/Medicati
 import { MedicationCard } from "@/components/medications/medication-card";
 import { Glp1MedicationCard } from "@/components/medications/glp1-medication-card";
 import { LogIntakeDialog } from "@/components/medications/log-intake-dialog";
+import {
+  MedicationTable,
+  MedicationTableSkeleton,
+} from "@/components/medications/medication-table";
+import { MedicationViewToggle } from "@/components/medications/medication-view-toggle";
+import { MedicationReorderDialog } from "@/components/medications/medication-reorder-dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -20,8 +26,10 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
-import { CheckCircle2, Loader2, Pill, Plus } from "lucide-react";
+import { ArrowDownUp, CheckCircle2, Loader2, Pill, Plus } from "lucide-react";
 import { apiGet } from "@/lib/api/api-fetch";
+import { useMedicationListLayout } from "@/lib/queries/use-medication-list-layout";
+import { applyMedicationOrder } from "@/lib/medications/medication-order";
 
 interface Schedule {
   id: string;
@@ -75,6 +83,14 @@ interface Medication {
   atcCode?: string | null;
   /** v1.9.0 — optional RxNorm RxCUI (secondary FHIR coding). */
   rxNormCode?: string | null;
+  /**
+   * v1.16.10 — usable inventory units left across the medication's
+   * containers (ACTIVE / IN_USE with units remaining). Null = inventory
+   * tracking off (no items ever registered).
+   */
+  stockUnitsRemaining?: number | null;
+  /** v1.16.10 — dose-derived stock (`stockUnitsRemaining / unitsPerDose`). */
+  stockDosesRemaining?: number | null;
   schedules: Schedule[];
 }
 
@@ -133,6 +149,16 @@ export default function MedicationsPage() {
   // two paths: log an intake (incl. a backdated one) against an existing
   // medication, or create a new medication (the existing wizard).
   const [logIntakeOpen, setLogIntakeOpen] = useState(false);
+  // v1.16.10 — manual-order editor (shared by both views).
+  const [reorderOpen, setReorderOpen] = useState(false);
+
+  // v1.16.10 — the persisted list presentation: cards vs table plus the
+  // manual medication order, server-side per user
+  // (`GET`/`PUT /api/medications/layout`). The toggle writes
+  // optimistically; the reorder dialog saves explicitly.
+  const { layout, isLayoutLoading, setView } = useMedicationListLayout(
+    isAuthenticated,
+  );
 
   useEffect(() => {
     if (shouldOpenFromUrl) {
@@ -211,18 +237,25 @@ export default function MedicationsPage() {
     );
   }
 
-  const byName = (a: Medication, b: Medication) =>
-    a.name.localeCompare(b.name, "de", { sensitivity: "base" });
-
   // Defensive against stale service-worker responses or any future API
   // shape change: only filter when we actually have an array.
   const medsArray = Array.isArray(medications) ? medications : [];
-  const activeMeds = medsArray.filter((m) => m.active).sort(byName);
-  const inactiveMeds = medsArray.filter((m) => !m.active).sort(byName);
+  // v1.16.10 — the user-defined manual order applies to BOTH views
+  // (cards and table). Medications not in the saved order keep the
+  // alphabetical default, appended after the ordered block.
+  const activeMeds = applyMedicationOrder(
+    medsArray.filter((m) => m.active),
+    layout.order,
+  );
+  const inactiveMeds = applyMedicationOrder(
+    medsArray.filter((m) => !m.active),
+    layout.order,
+  );
+  const tableView = layout.view === "table";
 
   return (
     <div className="space-y-6">
-      <div className="flex items-start justify-between gap-3">
+      <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="space-y-1">
           <h1 className="text-2xl font-bold tracking-tight">
             {t("medications.title")}
@@ -233,48 +266,75 @@ export default function MedicationsPage() {
             {t("medications.subtitle")}
           </p>
         </div>
-        {/* v1.14.0 — the "Add" button is now a choice: log an intake
-            (incl. a backdated one) against an existing medication, or
-            create a new medication. v1.12.2 — match the dashboard Add
-            button's responsive tap-target floor (`min-h-11 sm:min-h-9`) so
-            both primary "add" entry points clear the WCAG 2.5.5 44px mobile
-            minimum identically. */}
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button className="min-h-11 sm:min-h-9">
-              <Plus className="h-4 w-4" />
-              {t("medications.addMedication")}
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem
-              onSelect={() => setLogIntakeOpen(true)}
-              disabled={activeMeds.length === 0}
+        <div className="flex shrink-0 items-center gap-2">
+          {/* v1.16.10 — card ⇄ table view toggle, persisted server-side
+              per user; plus the manual-order editor shared by both
+              views. The reorder affordance only earns its slot once
+              there is something to reorder. */}
+          <MedicationViewToggle view={layout.view} onChange={setView} />
+          {medsArray.length > 1 && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="size-11 sm:size-9"
+              onClick={() => setReorderOpen(true)}
+              aria-label={t("medications.reorderTitle")}
+              title={t("medications.reorderTitle")}
             >
-              <CheckCircle2 className="mr-2 h-4 w-4" />
-              {t("medications.addChoice.logIntake")}
-            </DropdownMenuItem>
-            <DropdownMenuItem onSelect={openCreate}>
-              <Pill className="mr-2 h-4 w-4" />
-              {t("medications.addChoice.newMedication")}
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+              <ArrowDownUp className="h-4 w-4" />
+            </Button>
+          )}
+          {/* v1.14.0 — the "Add" button is now a choice: log an intake
+              (incl. a backdated one) against an existing medication, or
+              create a new medication. v1.12.2 — match the dashboard Add
+              button's responsive tap-target floor (`min-h-11 sm:min-h-9`) so
+              both primary "add" entry points clear the WCAG 2.5.5 44px mobile
+              minimum identically. */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button className="min-h-11 sm:min-h-9">
+                <Plus className="h-4 w-4" />
+                {t("medications.addMedication")}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem
+                onSelect={() => setLogIntakeOpen(true)}
+                disabled={activeMeds.length === 0}
+              >
+                <CheckCircle2 className="mr-2 h-4 w-4" />
+                {t("medications.addChoice.logIntake")}
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={openCreate}>
+                <Pill className="mr-2 h-4 w-4" />
+                {t("medications.addChoice.newMedication")}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </div>
 
-      {isLoading ? (
-        // v1.11.3 C4 — card skeletons instead of a bare centred spinner so
-        // the page reserves the loaded layout and does not jump when the
-        // medications resolve.
+      {isLoading || isLayoutLoading ? (
+        // v1.11.3 C4 — skeletons instead of a bare centred spinner so the
+        // page reserves the loaded layout and does not jump when the
+        // medications resolve. v1.16.10 — the skeleton follows the
+        // persisted view (table rows vs card grid) so resolving the data
+        // never swaps the footprint; while the view preference itself is
+        // still loading the default cards skeleton stands in.
         <div
-          className="grid gap-4 sm:grid-cols-2"
           role="status"
           aria-busy="true"
           aria-label={t("medications.title")}
         >
-          {Array.from({ length: 4 }).map((_, i) => (
-            <MedicationCardSkeleton key={i} />
-          ))}
+          {tableView && !isLayoutLoading ? (
+            <MedicationTableSkeleton />
+          ) : (
+            <div className="grid gap-4 sm:grid-cols-2">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <MedicationCardSkeleton key={i} />
+              ))}
+            </div>
+          )}
         </div>
       ) : isError ? (
         <div className="bg-card border-border flex h-64 items-center justify-center rounded-xl border">
@@ -306,6 +366,14 @@ export default function MedicationsPage() {
               {t("medications.firstMedication")}
             </Button>
           }
+        />
+      ) : tableView ? (
+        // v1.16.10 — the compact table view. Same payloads, same status
+        // gating, same mutation hooks as the cards; one row per
+        // medication, inactive rows pinned after the active block.
+        <MedicationTable
+          activeMedications={activeMeds}
+          inactiveMedications={inactiveMeds}
         />
       ) : (
         <div className="space-y-6">
@@ -391,6 +459,22 @@ export default function MedicationsPage() {
           date+time that supports backdating. Submits to the existing
           per-medication intake route (same slot upsert as a live "Taken"
           tap) so the one-row-per-dose-slot invariant holds. */}
+      {/* v1.16.10 — manual-order editor. The list is the page's current
+          effective order (active block first, inactive after), so the
+          dialog opens showing exactly what both views render. */}
+      {reorderOpen && (
+        <MedicationReorderDialog
+          open={reorderOpen}
+          onOpenChange={setReorderOpen}
+          medications={[...activeMeds, ...inactiveMeds].map((m) => ({
+            id: m.id,
+            name: m.name,
+            dose: m.dose,
+            active: m.active,
+          }))}
+        />
+      )}
+
       {logIntakeOpen && (
         <LogIntakeDialog
           open={logIntakeOpen}

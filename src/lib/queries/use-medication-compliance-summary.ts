@@ -43,6 +43,19 @@ export interface MedicationComplianceSummaryEntry {
  * lets the cards swap the skeleton for a quiet same-footprint fallback
  * with a manual retry.
  */
+/**
+ * The ONE fetcher behind the shared summary key. Both hooks below (and
+ * any future consumer) must ride this exact function so the key can
+ * never be registered with diverging fetch shapes.
+ */
+function fetchComplianceSummary(): Promise<
+  MedicationComplianceSummaryEntry[]
+> {
+  return apiGet<MedicationComplianceSummaryEntry[]>(
+    "/api/medications/compliance",
+  );
+}
+
 export function useMedicationComplianceSummary(medicationId: string): {
   data: MedicationComplianceSummaryEntry | null | undefined;
   isError: boolean;
@@ -50,8 +63,7 @@ export function useMedicationComplianceSummary(medicationId: string): {
 } {
   const { data, isError, refetch } = useQuery({
     queryKey: queryKeys.medicationComplianceSummary(),
-    queryFn: () =>
-      apiGet<MedicationComplianceSummaryEntry[]>("/api/medications/compliance"),
+    queryFn: fetchComplianceSummary,
     // Dose actions invalidate the key explicitly through
     // `medicationDependentKeys`; a shorter window would only re-fire the
     // batch on every list visit. Matches the reminder-thresholds query
@@ -61,4 +73,21 @@ export function useMedicationComplianceSummary(medicationId: string): {
       rows.find((row) => row.medicationId === medicationId) ?? null,
   });
   return { data, isError, refetch };
+}
+
+/**
+ * v1.16.10 — the whole batched array, for consumers that need every
+ * row at once (the table view's Therapietreue column sort). Same key,
+ * same fetcher, no `select` — the per-row hook and this one share one
+ * cache entry by construction.
+ */
+export function useMedicationComplianceSummaryAll(): {
+  data: MedicationComplianceSummaryEntry[] | undefined;
+} {
+  const { data } = useQuery({
+    queryKey: queryKeys.medicationComplianceSummary(),
+    queryFn: fetchComplianceSummary,
+    staleTime: 5 * 60 * 1000,
+  });
+  return { data };
 }

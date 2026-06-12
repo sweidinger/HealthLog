@@ -19,6 +19,11 @@ import {
 } from "@/lib/validations/medication";
 import { medicationExtractionSchema } from "@/lib/ai/coach/medication-extract-prompt";
 import {
+  MEDICATION_LIST_VIEWS,
+  MEDICATION_ORDER_ID_MAX_LENGTH,
+  MEDICATION_ORDER_MAX_ENTRIES,
+} from "@/lib/medication-list-layout";
+import {
   scheduleRevisionCreateSchema,
   scheduleRevisionUpdateSchema,
 } from "@/lib/validations/schedule-revision";
@@ -228,11 +233,25 @@ const medicationListEntry = medicationResource
       .describe(
         "Number of ACTIONED intake events for today (user-local day window): rows with a recorded `takenAt` or an explicit skip. Pending projector-minted rows do not count — the card overdue-pill suppression compares this against the passed-dose count, and a pending mint must not read as covered.",
       ),
+    stockUnitsRemaining: z
+      .number()
+      .int()
+      .nullable()
+      .describe(
+        "v1.16.10 — usable inventory units left across the medication's containers (sum of `unitsRemaining` over ACTIVE / IN_USE items with units left). NULL = inventory tracking off (no items ever registered); 0 = tracking on, supply ran out. Read-only — aggregated, not stored.",
+      ),
+    stockDosesRemaining: z
+      .number()
+      .int()
+      .nullable()
+      .describe(
+        "v1.16.10 — dose-derived stock: `floor(stockUnitsRemaining / max(1, unitsPerDose))`. NULL when inventory tracking is off. Drives the table view's Bestand column. Read-only — aggregated, not stored.",
+      ),
   })
   .meta({
     id: "MedicationListEntry",
     description:
-      "List-row variant of the medication resource enriched with the joined `category`, `lastTakenAt`, and `todayEventCount` fields the dashboard + iOS client consume. The base medication fields (`id`, `name`, `dose`, `treatmentClass`, `dosesPerUnit`, `active`, `notificationsEnabled`, `pausedAt`, `snoozedUntil`, `startsOn`, `endsOn`, `oneShot`, `createdAt`, `updatedAt`, `schedules`) are inlined; see the `Medication` component for their semantics.",
+      "List-row variant of the medication resource enriched with the joined `category`, `lastTakenAt`, `todayEventCount`, and the v1.16.10 aggregated stock fields (`stockUnitsRemaining`, `stockDosesRemaining`) the dashboard + iOS client consume. The base medication fields (`id`, `name`, `dose`, `treatmentClass`, `dosesPerUnit`, `active`, `notificationsEnabled`, `pausedAt`, `snoozedUntil`, `startsOn`, `endsOn`, `oneShot`, `createdAt`, `updatedAt`, `schedules`) are inlined; see the `Medication` component for their semantics.",
   });
 
 const medicationDetailEntry = medicationResource
@@ -677,6 +696,32 @@ medicationExtractionSchema.meta({
     "Citation-guarded partial extraction of medication scheduling fields. Every field is optional; the wizard merges what is present onto the form state and leaves the rest blank. `name` and `dose` are post-validated against the original free-text and dropped when not substring-matched, so the wizard cannot silently land a hallucinated brand or dose. `cadenceKind` / `doseUnit` / `weekdays` are closed enums; numeric fields are clamped to the wizard's wire bounds.",
 });
 
+// v1.16.10 — medications list presentation (cards/table view + manual
+// order), persisted per user in its own `User` column following the
+// dashboard-widgets / insights-layout per-surface convention.
+const medicationListLayoutSchema = z
+  .object({
+    version: z.literal(1),
+    view: z
+      .enum(MEDICATION_LIST_VIEWS)
+      .optional()
+      .describe(
+        'Which presentation /medications renders in. Default "cards". Optional on PUT — when omitted the stored value is preserved (preserve-when-absent, like `heroVisible` on the dashboard layout). Always present on responses.',
+      ),
+    order: z
+      .array(z.string().min(1).max(MEDICATION_ORDER_ID_MAX_LENGTH))
+      .max(MEDICATION_ORDER_MAX_ENTRIES)
+      .optional()
+      .describe(
+        "User-defined manual medication order (medication ids, first = top), shared by both views. Display-only — unknown / deleted ids are ignored at render time, never 422. Optional on PUT (preserve-when-absent); always present on responses.",
+      ),
+  })
+  .meta({
+    id: "MedicationListLayout",
+    description:
+      "Per-user /medications presentation: the card/table view choice plus the manual medication order shared by both views. Mirrors the dashboard-widgets / insights-layout contract.",
+  });
+
 export const medicationPaths: NonNullable<ZodOpenApiObject["paths"]> = {
   "/api/medications": {
     get: {
@@ -716,6 +761,75 @@ export const medicationPaths: NonNullable<ZodOpenApiObject["paths"]> = {
               schema: dataEnvelope(
                 medicationDetailEntry,
                 "CreateMedicationResponse",
+              ),
+            },
+          },
+        },
+        ...stdResponses,
+      },
+    },
+  },
+  "/api/medications/layout": {
+    get: {
+      tags: ["Medications"],
+      summary: "Read the calling user's medications list presentation",
+      description:
+        "Returns the per-user /medications presentation (card/table view + manual order). Falls back to the defaults (cards, empty order) when the user has not customised it. Mirrors the insights-layout contract.",
+      responses: {
+        "200": {
+          description: "The resolved presentation (custom or default).",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                medicationListLayoutSchema,
+                "MedicationListLayoutResponse",
+              ),
+            },
+          },
+        },
+        ...stdResponses,
+      },
+    },
+    put: {
+      tags: ["Medications"],
+      summary: "Update the calling user's medications list presentation",
+      description:
+        "Field-scoped update: `view` and `order` are each optional, and whichever the body omits is preserved from the stored blob — a view toggle can never wipe the manual order and vice versa. The normalised presentation is returned. Invalid bodies return the multi-issue 422 envelope.",
+      requestBody: {
+        required: true,
+        content: {
+          "application/json": { schema: medicationListLayoutSchema },
+        },
+      },
+      responses: {
+        "200": {
+          description:
+            "Presentation saved; the normalised blob is echoed back.",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                medicationListLayoutSchema,
+                "MedicationListLayoutSaved",
+              ),
+            },
+          },
+        },
+        ...stdResponses,
+      },
+    },
+    delete: {
+      tags: ["Medications"],
+      summary: "Reset the calling user's medications list presentation",
+      description:
+        "Clears the persisted presentation and returns the defaults (cards, empty order). Idempotent.",
+      responses: {
+        "200": {
+          description: "Presentation reset; the defaults are returned.",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                medicationListLayoutSchema,
+                "MedicationListLayoutReset",
               ),
             },
           },

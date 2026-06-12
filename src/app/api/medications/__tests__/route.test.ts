@@ -17,6 +17,9 @@ vi.mock("@/lib/db", () => ({
     medicationScheduleRevision: {
       groupBy: vi.fn().mockResolvedValue([]),
     },
+    medicationInventoryItem: {
+      groupBy: vi.fn().mockResolvedValue([]),
+    },
     medicationCategoryAssignment: {
       findMany: vi.fn().mockResolvedValue([]),
     },
@@ -388,6 +391,9 @@ describe("GET /api/medications — todayEventCount counts only actioned rows (v1
       [] as never,
     );
     vi.mocked(prisma.medicationScheduleRevision.groupBy).mockResolvedValue(
+      [] as never,
+    );
+    vi.mocked(prisma.medicationInventoryItem.groupBy).mockResolvedValue(
       [] as never,
     );
     // The handler body takes no parameters; `apiHandler` still receives

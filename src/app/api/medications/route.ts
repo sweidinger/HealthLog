@@ -54,8 +54,15 @@ async function buildMedicationsList(
     todayStartUtc.getTime() - OVERDUE_LOOKBACK_MS,
   );
 
-  const [medications, latestIntakes, todayEvents, resolvedEvents, eraFloors] =
-    await Promise.all([
+  const [
+    medications,
+    latestIntakes,
+    todayEvents,
+    resolvedEvents,
+    eraFloors,
+    usableStock,
+    inventoryCounts,
+  ] = await Promise.all([
       prisma.medication.findMany({
         where: { userId },
         include: { schedules: true },
@@ -117,6 +124,28 @@ async function buildMedicationsList(
         where: { medication: { userId }, supersededByRevisionId: null },
         _max: { validUntil: true },
       }),
+      // v1.16.10 — usable stock per medication (one batched aggregate,
+      // not per-row): the sum of `unitsRemaining` over ACTIVE / IN_USE
+      // containers with units left — the same usable-container filter
+      // the GLP-1 details endpoint applies. Feeds the list payload's
+      // `stockUnitsRemaining` / `stockDosesRemaining` for the table view.
+      prisma.medicationInventoryItem.groupBy({
+        by: ["medicationId"],
+        where: {
+          userId,
+          state: { in: ["ACTIVE", "IN_USE"] },
+          unitsRemaining: { gt: 0 },
+        },
+        _sum: { unitsRemaining: true },
+      }),
+      // …and the any-state item count, so a medication whose containers
+      // are all used up / expired reads as stock 0 (tracking is ON, the
+      // supply ran out) instead of null (tracking off).
+      prisma.medicationInventoryItem.groupBy({
+        by: ["medicationId"],
+        where: { userId },
+        _count: { id: true },
+      }),
     ]);
 
   const resolvedSlotsByMedId = new Map<string, ResolvedSlotMark[]>();
@@ -152,6 +181,15 @@ async function buildMedicationsList(
     ),
   );
 
+  const usableUnitsByMedId = new Map<string, number>();
+  for (const entry of usableStock) {
+    usableUnitsByMedId.set(
+      entry.medicationId,
+      entry._sum.unitsRemaining ?? 0,
+    );
+  }
+  const trackedMedIds = new Set(inventoryCounts.map((e) => e.medicationId));
+
   let categoryMap: Record<string, string> = {};
   try {
     categoryMap = await getMedicationCategories(medications.map((m) => m.id));
@@ -185,6 +223,17 @@ async function buildMedicationsList(
       resolvedSlots: resolvedSlotsByMedId.get(m.id) ?? [],
       eraStart: eraStartByMedId.get(m.id) ?? null,
     });
+    // v1.16.10 — dose-derived stock for the table view. NULL when the
+    // medication has no inventory items at all (tracking off); 0 when
+    // tracking is on but every container is used up / expired.
+    const tracksInventory = trackedMedIds.has(m.id);
+    const stockUnitsRemaining = tracksInventory
+      ? (usableUnitsByMedId.get(m.id) ?? 0)
+      : null;
+    const stockDosesRemaining =
+      stockUnitsRemaining === null
+        ? null
+        : Math.floor(stockUnitsRemaining / Math.max(1, m.unitsPerDose));
     return {
       ...m,
       category: categoryMap[m.id] ?? "OTHER",
@@ -192,6 +241,8 @@ async function buildMedicationsList(
       todayEventCount: todayEventCountByMedId[m.id] ?? 0,
       nextDueAt: display ? display.at.toISOString() : null,
       nextDueOverdue: display?.overdue ?? false,
+      stockUnitsRemaining,
+      stockDosesRemaining,
     };
   });
 }

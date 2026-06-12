@@ -19,6 +19,13 @@ interface MedicationStatusPillProps {
    * local days since that take.
    */
   takenEarlyDaysAgo?: number | null;
+  /**
+   * v1.16.10 — compact variant for the table view's Status column:
+   * suppresses the trailing window-range span so the cell stays one
+   * short phrase. Tier logic, colours and glyphs are byte-identical
+   * with the card pill — only the suffix is dropped.
+   */
+  compact?: boolean;
 }
 
 /**
@@ -34,6 +41,7 @@ export function MedicationStatusPill({
   windowStart,
   windowEnd,
   takenEarlyDaysAgo = null,
+  compact = false,
 }: MedicationStatusPillProps) {
   const { t, locale } = useTranslations();
 
@@ -46,10 +54,12 @@ export function MedicationStatusPill({
             ? t("medications.lastDoseYesterday")
             : t("medications.lastDoseDaysAgo", { count: takenEarlyDaysAgo })}
         </span>
-        <span className="text-muted-foreground hidden sm:inline">
-          {" "}
-          — {formatTimeWindowRange(windowStart, windowEnd, locale)}
-        </span>
+        {!compact && (
+          <span className="text-muted-foreground hidden sm:inline">
+            {" "}
+            — {formatTimeWindowRange(windowStart, windowEnd, locale)}
+          </span>
+        )}
       </p>
     );
   }
@@ -85,10 +95,12 @@ export function MedicationStatusPill({
             ? t("medications.overdue")
             : t("medications.veryOverdue")}
       </span>
-      <span className="text-muted-foreground hidden sm:inline">
-        {" "}
-        — {formatTimeWindowRange(windowStart, windowEnd, locale)}
-      </span>
+      {!compact && (
+        <span className="text-muted-foreground hidden sm:inline">
+          {" "}
+          — {formatTimeWindowRange(windowStart, windowEnd, locale)}
+        </span>
+      )}
     </p>
   );
 }

@@ -2153,6 +2153,61 @@ paths:
         "401": *a1
         "422": *a3
         "429": *a4
+  /api/medications/layout:
+    get:
+      tags:
+        - Medications
+      summary: Read the calling user's medications list presentation
+      description: Returns the per-user /medications presentation (card/table view + manual order). Falls back to the defaults
+        (cards, empty order) when the user has not customised it. Mirrors the insights-layout contract.
+      responses:
+        "200":
+          description: The resolved presentation (custom or default).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MedicationListLayoutResponse"
+        "401": *a1
+        "422": *a3
+        "429": *a4
+    put:
+      tags:
+        - Medications
+      summary: Update the calling user's medications list presentation
+      description: "Field-scoped update: `view` and `order` are each optional, and whichever the body omits is preserved from
+        the stored blob — a view toggle can never wipe the manual order and vice versa. The normalised presentation is
+        returned. Invalid bodies return the multi-issue 422 envelope."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MedicationListLayout"
+      responses:
+        "200":
+          description: Presentation saved; the normalised blob is echoed back.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MedicationListLayoutSaved"
+        "401": *a1
+        "422": *a3
+        "429": *a4
+    delete:
+      tags:
+        - Medications
+      summary: Reset the calling user's medications list presentation
+      description: Clears the persisted presentation and returns the defaults (cards, empty order). Idempotent.
+      responses:
+        "200":
+          description: Presentation reset; the defaults are returned.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MedicationListLayoutReset"
+        "401": *a1
+        "422": *a3
+        "429": *a4
   /api/medications/{id}:
     get:
       tags:
@@ -4888,6 +4943,34 @@ components:
       description: One explicit per-dose on-time intake window. `timeOfDay` matches a schedule dose time; `[start, end]`
         (HH:mm, user local, `start <= end`) is the on-time band. Outside it the cadence-derived late tail applies, then
         ad-hoc.
+    MedicationListLayout:
+      type: object
+      properties:
+        version:
+          type: number
+          const: 1
+        view:
+          description: Which presentation /medications renders in. Default "cards". Optional on PUT — when omitted the stored
+            value is preserved (preserve-when-absent, like `heroVisible` on the dashboard layout). Always present on
+            responses.
+          type: string
+          enum:
+            - cards
+            - table
+        order:
+          description: User-defined manual medication order (medication ids, first = top), shared by both views. Display-only —
+            unknown / deleted ids are ignored at render time, never 422. Optional on PUT (preserve-when-absent); always
+            present on responses.
+          maxItems: 200
+          type: array
+          items:
+            type: string
+            minLength: 1
+            maxLength: 64
+      required:
+        - version
+      description: "Per-user /medications presentation: the card/table view choice plus the manual medication order shared by
+        both views. Mirrors the dashboard-widgets / insights-layout contract."
     UpdateMedicationRequest:
       type: object
       properties:
@@ -8596,6 +8679,23 @@ components:
           description: "Number of ACTIONED intake events for today (user-local day window): rows with a recorded `takenAt` or an
             explicit skip. Pending projector-minted rows do not count — the card overdue-pill suppression compares this
             against the passed-dose count, and a pending mint must not read as covered."
+        stockUnitsRemaining:
+          anyOf:
+            - type: integer
+              minimum: -9007199254740991
+              maximum: 9007199254740991
+            - type: "null"
+          description: v1.16.10 — usable inventory units left across the medication's containers (sum of `unitsRemaining` over
+            ACTIVE / IN_USE items with units left). NULL = inventory tracking off (no items ever registered); 0 =
+            tracking on, supply ran out. Read-only — aggregated, not stored.
+        stockDosesRemaining:
+          anyOf:
+            - type: integer
+              minimum: -9007199254740991
+              maximum: 9007199254740991
+            - type: "null"
+          description: "v1.16.10 — dose-derived stock: `floor(stockUnitsRemaining / max(1, unitsPerDose))`. NULL when inventory
+            tracking is off. Drives the table view's Bestand column. Read-only — aggregated, not stored."
       required:
         - id
         - name
@@ -8622,12 +8722,14 @@ components:
         - category
         - lastTakenAt
         - todayEventCount
+        - stockUnitsRemaining
+        - stockDosesRemaining
       additionalProperties: false
-      description: List-row variant of the medication resource enriched with the joined `category`, `lastTakenAt`, and
-        `todayEventCount` fields the dashboard + iOS client consume. The base medication fields (`id`, `name`, `dose`,
-        `treatmentClass`, `dosesPerUnit`, `active`, `notificationsEnabled`, `pausedAt`, `snoozedUntil`, `startsOn`,
-        `endsOn`, `oneShot`, `createdAt`, `updatedAt`, `schedules`) are inlined; see the `Medication` component for
-        their semantics.
+      description: List-row variant of the medication resource enriched with the joined `category`, `lastTakenAt`,
+        `todayEventCount`, and the v1.16.10 aggregated stock fields (`stockUnitsRemaining`, `stockDosesRemaining`) the
+        dashboard + iOS client consume. The base medication fields (`id`, `name`, `dose`, `treatmentClass`,
+        `dosesPerUnit`, `active`, `notificationsEnabled`, `pausedAt`, `snoozedUntil`, `startsOn`, `endsOn`, `oneShot`,
+        `createdAt`, `updatedAt`, `schedules`) are inlined; see the `Medication` component for their semantics.
     MedicationCategory:
       type: string
       enum:
@@ -8801,6 +8903,57 @@ components:
       additionalProperties: false
       description: Detail variant of the medication resource enriched with the joined `category`. The base medication fields
         are inlined; see the `Medication` component for their semantics.
+    MedicationListLayoutResponse:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/MedicationListLayoutOutput"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    MedicationListLayoutSaved:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/MedicationListLayoutOutput"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    MedicationListLayoutReset:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/MedicationListLayoutOutput"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
     GetMedicationResponse:
       type: object
       properties:
@@ -13162,6 +13315,35 @@ components:
         primitives are mutually exclusive — enforced by the Zod refine on writes, the route layer, and a DB CHECK
         constraint (`medication_schedules_rrule_xor_rolling`). v1.7.0 adds `scheduleType` (SCHEDULED / PRN / CYCLIC) and
         the cyclic on/off-week fields.
+    MedicationListLayoutOutput:
+      type: object
+      properties:
+        version:
+          type: number
+          const: 1
+        view:
+          description: Which presentation /medications renders in. Default "cards". Optional on PUT — when omitted the stored
+            value is preserved (preserve-when-absent, like `heroVisible` on the dashboard layout). Always present on
+            responses.
+          type: string
+          enum:
+            - cards
+            - table
+        order:
+          description: User-defined manual medication order (medication ids, first = top), shared by both views. Display-only —
+            unknown / deleted ids are ignored at render time, never 422. Optional on PUT (preserve-when-absent); always
+            present on responses.
+          maxItems: 200
+          type: array
+          items:
+            type: string
+            minLength: 1
+            maxLength: 64
+      required:
+        - version
+      additionalProperties: false
+      description: "Per-user /medications presentation: the card/table view choice plus the manual medication order shared by
+        both views. Mirrors the dashboard-widgets / insights-layout contract."
     DisableCoachFlagOutput:
       type: object
       properties:

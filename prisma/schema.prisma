@@ -137,6 +137,14 @@ model User {
   // the user has explicitly saved a layout.
   // Shape: { "tiles": [{ "id": "blutdruck", "visible": true, "order": 0 }, ...], "version": 1 }
   insightsLayoutJson      Json?   @map("insights_layout_json")
+  // Per-user medications list presentation — the card/table view choice
+  // plus the user-defined manual medication order shared by BOTH views.
+  // Follows the per-surface-column convention of `dashboardWidgetsJson` /
+  // `insightsLayoutJson`. Null = defaults (cards, alphabetical order).
+  // The GET endpoint never lazy-writes — the column only carries data
+  // once the user has explicitly toggled the view or saved an order.
+  // Shape: { "version": 1, "view": "table", "order": ["<medicationId>", ...] }
+  medicationListLayoutJson Json?  @map("medication_list_layout_json")
   // Blood-glucose display unit preference. Canonical storage is mg/dL.
   glucoseUnit             String? @map("glucose_unit") // "mg/dL" | "mmol/L" | null = default "mg/dL"
   // v1.7.0 unit pref — global metric/imperial display preference.
