@@ -3,6 +3,14 @@ import type { Instrumentation } from "next";
 export async function register() {
   // Only start the worker on the Node.js server runtime (not Edge, not build)
   if (process.env.NEXT_RUNTIME === "nodejs") {
+    // Every Node process watches its own event loop — web-only
+    // containers included; a stall report from the process serving
+    // requests is the whole point.
+    const { startEventLoopLagMonitor } = await import(
+      "@/lib/observability/event-loop-lag"
+    );
+    startEventLoopLagMonitor();
+
     const { shouldRunWorker } = await import("@/lib/process-type");
     // Web-only container — the dedicated worker service runs the queues.
     if (!shouldRunWorker()) return;

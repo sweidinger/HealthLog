@@ -131,6 +131,16 @@ export class WideEventBuilder {
   /** Request/Operation beenden, Duration berechnen */
   finish(httpStatus?: number): this {
     this.event.duration_ms = Math.round(performance.now() - this.startTime);
+    // Event-Loop-Lag des letzten Sampling-Fensters anheften, falls der
+    // Monitor laeuft. Bewusst ueber den Global-Slot statt Import gelesen:
+    // dieser Builder wird in die Edge-Runtime gebuendelt, wo perf_hooks
+    // nicht existiert — der Slot ist dort einfach leer.
+    const lag = (
+      globalThis as unknown as {
+        [key: symbol]: { loop_max_ms: number; loop_p99_ms: number };
+      }
+    )[Symbol.for("healthlog.eventLoopLag")];
+    if (lag) this.event.runtime = lag;
     if (httpStatus !== undefined && this.event.http) {
       this.event.http.status = httpStatus;
     }
