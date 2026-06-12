@@ -28,7 +28,7 @@
 
 HealthLog is a self-hosted health tracking app (PWA + native iOS client) that runs from a single `docker compose up` on a NAS, homelab, or small VPS. It brings weight, blood pressure, pulse, blood glucose, body composition, sleep, mood, menstrual cycle, and medications onto one timeline — synced from the devices you already own — and keeps everything encrypted at rest on hardware you control. No vendor cloud, no subscription, no telemetry.
 
-Try the [live demo](https://demo.healthlog.dev) to see a working install.
+Try the [live demo](https://demo.healthlog.dev) to see a working install — sign in with `demo` / `demo123demo123`.
 
 ## Highlights
 
