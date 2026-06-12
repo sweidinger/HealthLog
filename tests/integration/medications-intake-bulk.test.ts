@@ -377,8 +377,11 @@ describe("POST /api/medications/intake/bulk (real Postgres)", () => {
       });
 
       const { POST } = await import("@/app/api/medications/intake/bulk/route");
-      const t1 = new Date("2026-06-15T09:00:00.000Z");
-      const t2 = new Date("2026-06-15T15:00:00.000Z");
+      // Relative past instants: takenAt now carries a no-future plausibility
+      // bound, so fixed calendar dates would rot into rejections.
+      const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000);
+      const t1 = new Date(yesterday.setUTCHours(9, 0, 0, 0));
+      const t2 = new Date(yesterday.setUTCHours(15, 0, 0, 0));
       await POST(
         makeRequest({
           entries: [
@@ -408,7 +411,14 @@ describe("POST /api/medications/intake/bulk (real Postgres)", () => {
     it("creates exactly one row for a fresh scheduled dose with no pre-existing slot row", async () => {
       const prisma = getPrismaClient();
       const medId = await makeScheduledMed(["19:00"]);
-      const slot = localHmAsUtc(new Date(), TZ, 19, 0);
+      // Yesterday's slot: today's 19:00 is in the future for any run before
+      // the evening, and a future takenAt is now rejected by design.
+      const slot = localHmAsUtc(
+        new Date(Date.now() - 24 * 60 * 60 * 1000),
+        TZ,
+        19,
+        0,
+      );
 
       const { POST } = await import("@/app/api/medications/intake/bulk/route");
       const res = await POST(
