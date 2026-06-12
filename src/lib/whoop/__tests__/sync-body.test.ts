@@ -23,6 +23,11 @@ const {
     whoopConnection: {
       update: vi.fn<(...a: unknown[]) => Promise<unknown>>(async () => ({})),
     },
+    measurement: {
+      deleteMany: vi.fn<(...a: unknown[]) => Promise<unknown>>(async () => ({
+        count: 0,
+      })),
+    },
     user: {
       findUnique: vi.fn(),
       update: vi.fn<(...a: unknown[]) => Promise<unknown>>(async () => ({})),
@@ -111,39 +116,31 @@ describe("mapBody", () => {
   });
 });
 
-describe("syncUserBody — weight overwrite", () => {
-  it("upserts weight against the stable externalId (no duplicate per sync)", async () => {
+describe("syncUserBody — profile weight is not ingested (v1.16.11)", () => {
+  it("never upserts a weight Measurement, even when WHOOP sends one", async () => {
     fetchBodyMeasurementMock.mockResolvedValue({ weight_kilogram: 80 });
-    prismaMock.user.findUnique.mockResolvedValue({ heightCm: 170 });
-
-    const imported = await syncUserBody("user1");
-
-    expect(imported).toBe(1);
-    expect(upsertWhoopMeasurementsMock).toHaveBeenCalledTimes(1);
-    const readings = upsertWhoopMeasurementsMock.mock
-      .calls[0]![1] as WhoopMeasurementUpsert[];
-    expect(readings).toHaveLength(1);
-    expect(readings[0]).toMatchObject({
-      type: "WEIGHT",
-      value: 80,
-      unit: "kg",
-      externalId: WHOOP_BODY_WEIGHT_EXTERNAL_ID,
-    });
-    // A second sync re-uses the SAME externalId — the upsert collapses it.
-    await syncUserBody("user1");
-    const readings2 = upsertWhoopMeasurementsMock.mock
-      .calls[1]![1] as WhoopMeasurementUpsert[];
-    expect(readings2[0]!.externalId).toBe(readings[0]!.externalId);
-  });
-
-  it("does not upsert a weight row when WHOOP omits weight", async () => {
-    fetchBodyMeasurementMock.mockResolvedValue({ max_heart_rate: 185 });
     prismaMock.user.findUnique.mockResolvedValue({ heightCm: 170 });
 
     const imported = await syncUserBody("user1");
 
     expect(imported).toBe(0);
     expect(upsertWhoopMeasurementsMock).not.toHaveBeenCalled();
+  });
+
+  it("clears the legacy overwrite row on every pass (idempotent no-op after the first)", async () => {
+    fetchBodyMeasurementMock.mockResolvedValue({ weight_kilogram: 80 });
+    prismaMock.user.findUnique.mockResolvedValue({ heightCm: 170 });
+
+    await syncUserBody("user1");
+
+    expect(prismaMock.measurement.deleteMany).toHaveBeenCalledWith({
+      where: {
+        userId: "user1",
+        type: "WEIGHT",
+        source: "WHOOP",
+        externalId: WHOOP_BODY_WEIGHT_EXTERNAL_ID,
+      },
+    });
   });
 });
 
