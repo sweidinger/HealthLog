@@ -92,6 +92,7 @@ import {
   enqueueRollupRecompute,
   ensureUserRollupsFresh,
   recomputeBucketsForMeasurement,
+  recomputeUserRollups,
 } from "../measurement-rollups";
 
 beforeEach(() => {
@@ -110,13 +111,23 @@ beforeEach(() => {
   // resolved promise does not short-circuit the next test's recompute
   // assertion.
   _resetEnsureUserRollupsFreshInFlightForTests();
-  // Default: $transaction takes an array of pre-built promises (the
-  // populator passes `[deleteMany(...), createMany(...)]`) and resolves
-  // them like the real client so the destructured create result is the
-  // resolved value, not a pending promise.
-  transaction.mockImplementation(async (operations: unknown[]) =>
-    Promise.all(operations),
-  );
+  // Default: $transaction supports both client shapes the populator
+  // uses — the batched array form (`[deleteMany(...), createMany(...)]`
+  // on the ≤CHUNK path) resolves the pre-built promises like the real
+  // client, and the interactive callback form (large path) invokes the
+  // callback with a tx proxy wired to the same delegate mocks so the
+  // assertions can observe the in-transaction calls.
+  transaction.mockImplementation(async (arg: unknown) => {
+    if (typeof arg === "function") {
+      return (arg as (tx: unknown) => Promise<unknown>)({
+        measurementRollup: {
+          deleteMany: mocks.deleteMany,
+          createMany: mocks.createMany,
+        },
+      });
+    }
+    return Promise.all(arg as unknown[]);
+  });
   // v1.11.1 — persistRollupRows writes via createMany; default the count.
   createMany.mockResolvedValue({ count: 1 });
 });
@@ -363,6 +374,93 @@ describe("recomputeBucketsForMeasurement", () => {
     expect(deleteMany.mock.calls[0][0].where.userId).toBe("user-1");
     expect(deleteMany.mock.calls[0][0].where.granularity).toBe("DAY");
     expect(upsert).not.toHaveBeenCalled();
+  });
+});
+
+describe("persistRollupRows — large path (via recomputeUserRollups)", () => {
+  /** One synthetic aggregate row per call — distinct bucket per index. */
+  function syntheticRows(n: number) {
+    return Array.from({ length: n }, (_, i) => ({
+      type: "WEIGHT",
+      source: "MANUAL",
+      bucket_start: new Date(Date.UTC(2024, 0, 1 + (i % 1800))),
+      count: BigInt(1),
+      mean: 80,
+      min_value: 80,
+      max_value: 80,
+      sum_value: 80,
+      sd: 0,
+      slope: 0,
+      r2: 0,
+    }));
+  }
+
+  it("wraps the delete + every insert chunk in ONE interactive transaction with skipDuplicates", async () => {
+    // 1200 rows → large path (> 500), 3 insert chunks (500/500/200).
+    queryRawUnsafe.mockResolvedValueOnce(syntheticRows(1200));
+    createMany.mockResolvedValue({ count: 400 });
+
+    const result = await recomputeUserRollups("user-1", {
+      granularities: ["DAY"],
+    });
+
+    // ONE interactive transaction — the callback form, not the batched
+    // array. The committed-delete-without-inserts window of the
+    // pre-v1.16.10 shape (delete commits, a concurrent write-hook
+    // P2002 aborts the chunk loop, the types lose ALL buckets) cannot
+    // exist when both legs share the transaction.
+    expect(transaction).toHaveBeenCalledTimes(1);
+    expect(typeof transaction.mock.calls[0][0]).toBe("function");
+    // A generous interactive timeout — the chunk loop on a multi-year
+    // fold outlives Prisma's 5 s default.
+    expect(transaction.mock.calls[0][1]).toMatchObject({
+      timeout: 120_000,
+    });
+
+    // Delete fired once over the full (types × bucket-range) partition.
+    expect(deleteMany).toHaveBeenCalledTimes(1);
+    expect(deleteMany.mock.calls[0][0].where.userId).toBe("user-1");
+    expect(deleteMany.mock.calls[0][0].where.granularity).toBe("DAY");
+
+    // 3 chunks, every one tolerant of a mid-transaction hook insert.
+    expect(createMany).toHaveBeenCalledTimes(3);
+    expect(createMany.mock.calls[0][0].data).toHaveLength(500);
+    expect(createMany.mock.calls[1][0].data).toHaveLength(500);
+    expect(createMany.mock.calls[2][0].data).toHaveLength(200);
+    for (const call of createMany.mock.calls) {
+      expect(call[0].skipDuplicates).toBe(true);
+    }
+
+    expect(result.rowsUpserted).toBe(1200);
+  });
+
+  it("a failing chunk rejects through the transaction so the delete rolls back with it", async () => {
+    queryRawUnsafe.mockResolvedValueOnce(syntheticRows(700));
+    createMany
+      .mockResolvedValueOnce({ count: 500 })
+      .mockRejectedValueOnce(new Error("connection reset"));
+
+    // The error must bubble (pg-boss retries the fold); the structural
+    // guarantee is that the delete ran INSIDE the same transaction, so
+    // the real client rolls it back — no standalone committed delete.
+    await expect(
+      recomputeUserRollups("user-1", { granularities: ["DAY"] }),
+    ).rejects.toThrow("connection reset");
+    expect(transaction).toHaveBeenCalledTimes(1);
+    expect(typeof transaction.mock.calls[0][0]).toBe("function");
+    // The delete was only ever issued through the transaction client —
+    // it cannot have committed ahead of the failed chunk.
+    expect(deleteMany).toHaveBeenCalledTimes(1);
+  });
+
+  it("the ≤500-row path keeps the batched two-statement transaction", async () => {
+    queryRawUnsafe.mockResolvedValueOnce(syntheticRows(2));
+    createMany.mockResolvedValue({ count: 2 });
+
+    await recomputeUserRollups("user-1", { granularities: ["DAY"] });
+
+    expect(transaction).toHaveBeenCalledTimes(1);
+    expect(Array.isArray(transaction.mock.calls[0][0])).toBe(true);
   });
 });
 
@@ -640,5 +738,32 @@ describe("enqueueBootTimeRollupBackfill", () => {
     expect(sqlText).toContain('date_trunc(\'day\', m."measured_at")');
     // LEFT JOIN now compares bucket_start on both sides.
     expect(sqlText).toContain('r."bucket_start" = mt."bucket_start"');
+  });
+
+  // v1.16.10 — discovery and fold share one trailing window. Unbounded
+  // discovery re-flagged accounts whose oldest measurement pre-dated
+  // the 5-year fold bound on EVERY worker boot: the fold can never
+  // write buckets for those days, so the per-day gap never closed and
+  // the full backfill re-ran forever.
+  it("bounds discovery to the fold window so pre-window history cannot re-flag accounts", async () => {
+    getGlobalBossMock.mockReturnValue({ send: bossSend });
+    queryRaw.mockResolvedValueOnce([]);
+    const before = Date.now();
+
+    await enqueueBootTimeRollupBackfill();
+
+    const after = Date.now();
+    const sqlParts = queryRaw.mock.calls[0][0] as TemplateStringsArray;
+    const sqlText = Array.isArray(sqlParts) ? sqlParts.join("?") : "";
+    // The inner scan filters on measured_at >= <fold window start>.
+    expect(sqlText).toContain('m."measured_at" >=');
+    // The bound parameter is now − ROLLUP_FOLD_WINDOW_MS (5 years),
+    // matching the `recomputeUserRollups` default the backfill worker
+    // runs with.
+    const boundArg = queryRaw.mock.calls[0][1] as Date;
+    expect(boundArg).toBeInstanceOf(Date);
+    const fiveYearsMs = 5 * 365 * 24 * 60 * 60 * 1000;
+    expect(boundArg.getTime()).toBeGreaterThanOrEqual(before - fiveYearsMs);
+    expect(boundArg.getTime()).toBeLessThanOrEqual(after - fiveYearsMs);
   });
 });

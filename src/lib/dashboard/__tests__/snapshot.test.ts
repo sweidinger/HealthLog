@@ -216,6 +216,110 @@ describe("buildDashboardSnapshot — two-phase null extras", () => {
   });
 });
 
+describe("buildDashboardSnapshot — per-type thick-phase gate", () => {
+  // The thick phase gates ONLY on the types it reads through the
+  // rollup tier (WEIGHT + BLOOD_PRESSURE_SYS/_DIA). An uncovered
+  // UNRELATED type (a fresh wearable reading whose async fold hasn't
+  // landed) must not null extras/healthScore — the all-types
+  // `isFullyCovered` AND was the bug, not the per-type misses.
+  it("an uncovered UNRELATED type no longer nulls extras + healthScore", async () => {
+    probeRollupCoverage.mockResolvedValue(
+      new Map([
+        ["WEIGHT", true],
+        ["BLOOD_PRESSURE_SYS", true],
+        ["BLOOD_PRESSURE_DIA", true],
+        // Fresh WHOOP recovery reading, no DAY bucket yet.
+        ["RECOVERY_SCORE", false],
+      ]),
+    );
+    // Pin that the builder no longer consults the all-types helper:
+    // even an explicit `false` from it must not cold the phase.
+    isFullyCovered.mockReturnValue(false);
+    computeBpInTargetFastPath.mockResolvedValue({
+      last7Days: { pct: 70 },
+      last30Days: { pct: 80 },
+      allTime: { pct: 75 },
+      priorMonth: { pct: 60 },
+      priorYear: { pct: 50 },
+      gradedScore: 84,
+    });
+    computeUserHealthScoreFastPath.mockResolvedValue({
+      score: 71,
+      band: "yellow",
+      delta: 3,
+      components: {},
+    });
+
+    const snap = await buildDashboardSnapshot(fakePrisma, baseUser());
+
+    expect(snap.extras).not.toBeNull();
+    expect(snap.extras!.bpInTargetPct).toBe(80);
+    expect(snap.healthScore).toEqual({ score: 71, band: "yellow", delta: 3 });
+    expect(computeBpInTargetFastPath).toHaveBeenCalledTimes(1);
+    expect(computeUserHealthScoreFastPath).toHaveBeenCalledTimes(1);
+  });
+
+  it("a fresh account with zero coverage entries stays null", async () => {
+    probeRollupCoverage.mockResolvedValue(new Map());
+    isFullyCovered.mockReturnValue(false);
+
+    const snap = await buildDashboardSnapshot(fakePrisma, baseUser());
+
+    expect(snap.extras).toBeNull();
+    expect(snap.healthScore).toBeNull();
+    expect(computeBpInTargetFastPath).not.toHaveBeenCalled();
+    expect(computeUserHealthScoreFastPath).not.toHaveBeenCalled();
+  });
+
+  it("a gated type ABSENT from the map (never logged) keeps the phase warm", async () => {
+    // BP never logged at all — the BP helper's live fallback is an
+    // empty read, so absence must not cold the phase.
+    probeRollupCoverage.mockResolvedValue(new Map([["WEIGHT", true]]));
+    isFullyCovered.mockReturnValue(false);
+    computeBpInTargetFastPath.mockResolvedValue({
+      last7Days: null,
+      last30Days: null,
+      allTime: null,
+      priorMonth: null,
+      priorYear: null,
+      gradedScore: null,
+    });
+    computeUserHealthScoreFastPath.mockResolvedValue(null);
+
+    const snap = await buildDashboardSnapshot(fakePrisma, baseUser());
+
+    expect(snap.extras).not.toBeNull();
+  });
+
+  it.each([
+    ["WEIGHT"],
+    ["BLOOD_PRESSURE_SYS"],
+    ["BLOOD_PRESSURE_DIA"],
+  ])(
+    "an uncovered %s (rows without buckets) keeps the phase cold",
+    async (uncoveredType) => {
+      const coverage = new Map([
+        ["WEIGHT", true],
+        ["BLOOD_PRESSURE_SYS", true],
+        ["BLOOD_PRESSURE_DIA", true],
+      ]);
+      coverage.set(uncoveredType, false);
+      probeRollupCoverage.mockResolvedValue(coverage);
+      isFullyCovered.mockReturnValue(false);
+
+      const snap = await buildDashboardSnapshot(fakePrisma, baseUser());
+
+      // Rows without buckets on a gated type would route the helper
+      // onto its multi-second live fallback — the snapshot must not
+      // wait on it. Null is acceptable here; the all-types poison was
+      // the bug.
+      expect(snap.extras).toBeNull();
+      expect(snap.healthScore).toBeNull();
+      expect(computeBpInTargetFastPath).not.toHaveBeenCalled();
+    },
+  );
+});
+
 describe("buildDashboardSnapshot — medsToday (fast phase)", () => {
   it("rides the fast phase and is present even on a rollup-coverage miss", async () => {
     probeRollupCoverage.mockResolvedValue(new Map([["WEIGHT", false]]));

@@ -11,11 +11,18 @@
  *
  *   - left column: greeting line (absorbed from the old header
  *     paragraph — the snapshot's server-computed `greetingHour` keeps
- *     the daypart free of any client `Intl` work), the verdict sentence
- *     with its single CTA button, and the dose row;
+ *     the daypart free of any client `Intl` work; typographically the
+ *     band's anchor, larger and heavier than the verdict so the
+ *     personalised line is not drowned by the content below it), the
+ *     verdict sentence with its single CTA button, and the dose row;
  *   - right column: the shared `<ScoreRing>` at `sm` geometry. A null
  *     score renders the ring's provisional state at the identical
- *     120 px footprint, so the column never collapses.
+ *     120 px footprint, so the column never collapses. The provisional
+ *     label is honest about WHY the score is null: when the snapshot
+ *     already carries score inputs (weight / BP summaries, mood
+ *     entries, active medications) the rollup tier is merely mid-fold
+ *     and the label reads "computing"; only an account with no score
+ *     inputs at all gets "not enough data".
  *
  * Defensive contract (cached snapshot): `medsToday.nextDueAt` in the
  * past with `nextDueOverdue: false` means the slot's anchor passed
@@ -167,6 +174,22 @@ export function DashboardHero({
   const cta = verdict.cta;
   const ctaLabelKey = CTA_LABEL_KEY[verdict.variant];
 
+  // ── Provisional score copy ──────────────────────────────────────────
+  // The score's four pillars are weight, BP, mood, and medication
+  // compliance. When ANY of them already carries data, a null score is
+  // a warm-up state (the rollup tier hasn't folded the buckets the
+  // warm-phase score rides on yet) — telling an account with weeks of
+  // readings "not enough data" would be a lie. Only an account with no
+  // score inputs at all keeps the genuine empty-state copy. Cheap
+  // heuristic over fields the snapshot already carries; no extra reads.
+  const summaries = snapshot.tiles.summaries;
+  const hasScoreInputs =
+    (summaries.WEIGHT?.count ?? 0) > 0 ||
+    (summaries.BLOOD_PRESSURE_SYS?.count ?? 0) > 0 ||
+    (summaries.BLOOD_PRESSURE_DIA?.count ?? 0) > 0 ||
+    snapshot.tiles.mood.entries.length > 0 ||
+    snapshot.medsToday.activeCount > 0;
+
   // ── Dose row ────────────────────────────────────────────────────────
   const meds = snapshot.medsToday;
   const now = new Date();
@@ -206,9 +229,15 @@ export function DashboardHero({
     >
       <div className="flex h-full flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div className="min-w-0 flex-1 space-y-3">
+          {/* Greeting leads the typographic hierarchy: larger + heavier
+              than the verdict so the personalised line reads first.
+              The verdict keeps its medium weight one step down — still
+              the content lead, clearly subordinate to the greeting.
+              Both stay on the existing foreground token; the band adds
+              no new colour. */}
           <p
             data-slot="dashboard-hero-greeting"
-            className="text-muted-foreground text-sm"
+            className="text-foreground text-lg font-semibold tracking-tight sm:text-xl"
           >
             {welcomeText}
           </p>
@@ -216,7 +245,7 @@ export function DashboardHero({
             <p
               data-slot="dashboard-hero-verdict"
               data-verdict-variant={verdict.variant}
-              className="text-foreground text-base font-medium"
+              className="text-foreground/90 text-base font-medium"
             >
               {sentence}
             </p>
@@ -276,7 +305,9 @@ export function DashboardHero({
             label={
               snapshot.healthScore
                 ? t("dashboard.hero.scoreLabel")
-                : t("dashboard.hero.scoreProvisional")
+                : hasScoreInputs
+                  ? t("dashboard.hero.scoreComputing")
+                  : t("dashboard.hero.scoreProvisional")
             }
           />
         </div>

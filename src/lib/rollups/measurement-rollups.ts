@@ -97,6 +97,17 @@ export interface RollupFullBackfillPayload {
   enqueuedAt: string;
 }
 
+/**
+ * Trailing fold window for `recomputeUserRollups` defaults AND the
+ * boot-time discovery scan. The two MUST share this bound: the fold
+ * only writes buckets inside it, so a discovery scan over unbounded
+ * history would re-flag any account whose oldest measurement pre-dates
+ * the window and re-run the full backfill on every worker boot without
+ * ever converging. Measurements older than the window deliberately
+ * never get buckets — the read tier falls back to live SQL for them.
+ */
+export const ROLLUP_FOLD_WINDOW_MS = 5 * 365 * 24 * 60 * 60 * 1000;
+
 /** Postgres `date_trunc` unit per granularity. */
 const DATE_TRUNC_UNIT: Record<RollupGranularity, string> = {
   DAY: "day",
@@ -141,7 +152,7 @@ export async function recomputeUserRollups(
 ): Promise<{ rowsUpserted: number; durationMs: number }> {
   const startedAt = Date.now();
   const granularities = opts.granularities ?? ALL_GRANULARITIES;
-  const fiveYearsAgo = new Date(Date.now() - 5 * 365 * 24 * 60 * 60 * 1000);
+  const fiveYearsAgo = new Date(Date.now() - ROLLUP_FOLD_WINDOW_MS);
   const from = opts.from ?? fiveYearsAgo;
   const to = opts.to ?? new Date();
 
@@ -526,19 +537,45 @@ async function persistRollupRows(
     }
   }
 
-  // Large backfill — delete the partition range once, then insert in chunks.
-  // The brief gap between delete and the first insert can only make a
-  // concurrent reader fall back to live SQL for those buckets (correct
-  // value), never serve a wrong one.
-  await prisma.measurementRollup.deleteMany({ where: deleteWhere });
+  // Large backfill — delete the partition range and insert the chunks
+  // inside ONE interactive transaction. Pre-v1.16.10 the deleteMany
+  // committed standalone before the chunk loop, and the chunks ran
+  // without the P2002 tolerance the ≤CHUNK path has: a concurrent
+  // write-hook insert landing mid-loop made a createMany throw, the
+  // loop aborted, the delete stayed committed — and every type in the
+  // window lost ALL its buckets until the next race-free fold (the
+  // coverage probe then cycled covered/uncovered as the boot backfill
+  // re-raced the hooks). The transaction keeps the delete invisible
+  // until every chunk landed; `skipDuplicates` (ON CONFLICT DO
+  // NOTHING) additionally absorbs a hook row that commits between two
+  // chunks — READ COMMITTED lets a later statement see it — without
+  // aborting the batch. The hook's row is the per-(type, day) loser of
+  // the same aggregate, so skipping the fold's duplicate is benign.
+  //
+  // Transaction sizing: one call covers ONE granularity, so the worst
+  // case is the full 5-year DAY fold of a multi-source power user —
+  // tens of thousands of rows in 500-row chunks, well inside Postgres
+  // limits but potentially slow on self-host disks. A per-type
+  // transaction was considered and rejected: it would re-open the
+  // committed-delete gap between types sharing the bucket range. The
+  // 120 s timeout (Prisma default: 5 s) covers the chunk round-trips
+  // with headroom; the fold runs on the serial backfill worker, so a
+  // long-held transaction cannot pile up behind itself.
   let touched = 0;
-  for (let i = 0; i < rows.length; i += CHUNK) {
-    const slice = rows.slice(i, i + CHUNK);
-    const res = await prisma.measurementRollup.createMany({
-      data: slice.map(toData),
-    });
-    touched += res.count;
-  }
+  await prisma.$transaction(
+    async (tx) => {
+      await tx.measurementRollup.deleteMany({ where: deleteWhere });
+      for (let i = 0; i < rows.length; i += CHUNK) {
+        const slice = rows.slice(i, i + CHUNK);
+        const res = await tx.measurementRollup.createMany({
+          data: slice.map(toData),
+          skipDuplicates: true,
+        });
+        touched += res.count;
+      }
+    },
+    { maxWait: 10_000, timeout: 120_000 },
+  );
   return touched;
 }
 
@@ -779,6 +816,15 @@ export async function enqueueBootTimeRollupBackfill(): Promise<{
     // has been retired. The maintainer's tenant converged at v1.4.40, so the
     // arm was a permanent no-op seq scan over `measurement_rollups`.
     // Per-day missing coverage remains the sole discovery anchor.
+    //
+    // v1.16.10 — discovery is bounded to the same trailing window the
+    // fold writes (`ROLLUP_FOLD_WINDOW_MS`). Unbounded, any account
+    // with measurements older than the window was re-flagged on every
+    // boot: the fold can never produce buckets for those days, so the
+    // per-day gap re-surfaced forever and the full backfill re-ran on
+    // every restart. Days outside the window are not foldable by
+    // design and must not anchor discovery.
+    const foldWindowStart = new Date(Date.now() - ROLLUP_FOLD_WINDOW_MS);
     const users = await prisma.$queryRaw<Array<{ id: string }>>`
       SELECT DISTINCT mt."user_id" AS id
       FROM (
@@ -788,6 +834,7 @@ export async function enqueueBootTimeRollupBackfill(): Promise<{
           date_trunc('day', m."measured_at") AS bucket_start
         FROM measurements m
         WHERE m."deleted_at" IS NULL
+          AND m."measured_at" >= ${foldWindowStart}
       ) mt
       LEFT JOIN measurement_rollups r
         ON  r."user_id"     = mt."user_id"

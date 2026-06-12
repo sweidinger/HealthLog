@@ -494,6 +494,77 @@ describe("<DashboardHero> — score column", () => {
     // collapses (the 120 px sm geometry rides an inline style).
     expect(html).toContain("width:120px");
   });
+
+  // A null score on an account that already carries score inputs is a
+  // warm-up state (the rollup tier is mid-fold), not a data gap — the
+  // copy must say "computing", never "not enough data".
+  it("null score WITH existing score inputs renders the computing label, not the data-gap one", () => {
+    const html = render(
+      baseSnapshot({
+        healthScore: null,
+        tiles: {
+          summaries: { WEIGHT: summary({ count: 12, latest: 80 }) },
+          lastSeenByType: {
+            WEIGHT: { lastSeenAt: isoHoursFromNow(-2), daysAgo: 0 },
+          },
+          mood: { summary: null, entries: [] },
+        },
+      }),
+    );
+    expect(html).toContain('data-provisional="true"');
+    expect(html).toContain("Score wird berechnet");
+    expect(html).not.toContain("Noch nicht genug Daten");
+  });
+
+  it("active medications alone count as a score input (compliance pillar)", () => {
+    const html = render(
+      baseSnapshot({
+        healthScore: null,
+        medsToday: medsToday({ activeCount: 1 }),
+      }),
+    );
+    expect(html).toContain("Score wird berechnet");
+    expect(html).not.toContain("Noch nicht genug Daten");
+  });
+
+  it("keeps the genuine data-gap label when no score input exists at all", () => {
+    // Empty summaries, no mood entries, no active medications — the
+    // baseSnapshot. A non-score-pillar summary (steps) must not flip
+    // the copy either.
+    const html = render(
+      baseSnapshot({
+        healthScore: null,
+        tiles: {
+          summaries: { ACTIVITY_STEPS: summary({ count: 30, latest: 9000 }) },
+          lastSeenByType: {},
+          mood: { summary: null, entries: [] },
+        },
+      }),
+    );
+    expect(html).toContain("Noch nicht genug Daten");
+    expect(html).not.toContain("Score wird berechnet");
+  });
+});
+
+describe("<DashboardHero> — typographic hierarchy", () => {
+  it("the greeting leads: larger + heavier than the verdict line", () => {
+    const html = render(baseSnapshot());
+    const greeting = html.match(
+      /<p[^>]*data-slot="dashboard-hero-greeting"[^>]*>/,
+    );
+    expect(greeting).not.toBeNull();
+    expect(greeting![0]).toContain("text-lg");
+    expect(greeting![0]).toContain("font-semibold");
+    expect(greeting![0]).not.toContain("text-muted-foreground");
+    const verdict = html.match(
+      /<p[^>]*data-slot="dashboard-hero-verdict"[^>]*>/,
+    );
+    expect(verdict).not.toBeNull();
+    // The verdict stays one step down — base size, medium weight.
+    expect(verdict![0]).toContain("text-base");
+    expect(verdict![0]).toContain("font-medium");
+    expect(verdict![0]).not.toContain("font-semibold");
+  });
 });
 
 describe("<DashboardHero> — source pins", () => {

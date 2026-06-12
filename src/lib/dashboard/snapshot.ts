@@ -49,7 +49,6 @@ import { getBpTargets } from "@/lib/analytics/bp-targets";
 import { computeBpInTargetFastPath } from "@/lib/analytics/bp-in-target-fast-path";
 import {
   probeRollupCoverage,
-  isFullyCovered,
   type RollupCoverageMap,
 } from "@/lib/rollups/measurement-coverage";
 import {
@@ -414,11 +413,12 @@ async function buildMoodBlock(
 
 /**
  * Thick slice — BD-Zielbereich + per-context glucose + health score.
- * Only called by the builder when the rollup tier is warm
- * (`isFullyCovered`); the BP fast-path then stays on the sub-second
- * rollup branch and never drops into the multi-second live fallback
- * that would make the whole strip wait. On a coverage miss the builder
- * skips this entirely and emits `extras: null` + `healthScore: null`
+ * Only called by the builder when the rollup tier is warm for the
+ * types this slice actually reads (`isThickPhaseWarm`); the BP
+ * fast-path then stays on the sub-second rollup branch and never drops
+ * into the multi-second live fallback that would make the whole strip
+ * wait. On a coverage miss for one of those types the builder skips
+ * this entirely and emits `extras: null` + `healthScore: null`
  * (per-tile shimmer until the boot backfill converges).
  *
  * The health score rides this warm phase because it reuses the BP
@@ -686,6 +686,37 @@ function buildLayoutCatalogue(
 }
 
 /**
+ * Per-type warm gate for the thick phase (extras + healthScore),
+ * replacing the all-types `isFullyCovered` AND. The all-types gate
+ * nulled the whole thick phase whenever ANY unrelated type lacked a
+ * DAY bucket — one fresh wearable reading whose async fold hadn't
+ * landed yet zeroed the hero score, while the insights analytics
+ * route (which calls the self-gating helpers unconditionally) kept
+ * showing a score for the same account. Mirrors the v1.4.38.8
+ * per-type pattern already inside `computeBpInTargetFastPath` and
+ * `computeUserHealthScoreFastPath`: gate only on the types the thick
+ * phase actually reads through the rollup tier — WEIGHT (score weight
+ * pillar) + BLOOD_PRESSURE_SYS / _DIA (BP windows + BP pillar).
+ *
+ * `!== false` rather than `=== true`: a type ABSENT from the map has
+ * zero measurements, so the helpers' own live fallbacks are trivially
+ * cheap (empty reads) and absence must not cold the phase. A type
+ * present-but-`false` has live rows without buckets — for the three
+ * gated types that is exactly the multi-second live fallback the
+ * snapshot must never wait on, so the phase stays `null` until the
+ * backfill converges. An empty map is a fresh account with no
+ * measurements at all — nothing to compute, stay `null`.
+ */
+function isThickPhaseWarm(coverage: RollupCoverageMap): boolean {
+  if (coverage.size === 0) return false;
+  return (
+    coverage.get("WEIGHT") !== false &&
+    coverage.get("BLOOD_PRESSURE_SYS") !== false &&
+    coverage.get("BLOOD_PRESSURE_DIA") !== false
+  );
+}
+
+/**
  * Assemble the full snapshot in ONE `Promise.all`. Every sub-read is
  * timed via the optional `time` wrapper so a regression is attributable
  * through `meta.snapshot.sub_*_ms` without re-instrumenting the route.
@@ -711,12 +742,14 @@ export async function buildDashboardSnapshot(
     options.time ?? (<T>(_label: string, fn: () => Promise<T>) => fn());
 
   // Probe coverage once up front so the thick `extras` phase only runs
-  // when the rollup tier is warm. A coverage miss returns `extras: null`
-  // immediately rather than dropping into the live-SQL fallback that
-  // would make the whole strip wait on the slowest read (R-firstpaint
-  // §6 — paint-together vs slowest-wins).
+  // when the rollup tier is warm for the types it reads. A coverage
+  // miss on one of those types returns `extras: null` immediately
+  // rather than dropping into the live-SQL fallback that would make
+  // the whole strip wait on the slowest read (R-firstpaint §6 —
+  // paint-together vs slowest-wins). Unrelated uncovered types do NOT
+  // cold the phase (see `isThickPhaseWarm`).
   const coverage = await time("coverage", () => probeRollupCoverage(user.id));
-  const warm = isFullyCovered(coverage);
+  const warm = isThickPhaseWarm(coverage);
 
   const [slim, mood, extrasResult, flags, medsToday] = await Promise.all([
     // A5 — reuse the coverage map already probed above so the slice
