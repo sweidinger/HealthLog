@@ -305,7 +305,10 @@ export async function computeUserHealthScoreFastPath(
       orderBy: { moodLoggedAt: "asc" },
     }),
     prisma.medication.findMany({
-      where: { userId, active: true },
+      // v1.16.11 — as-needed (PRN) medications carry no expected doses
+      // and are excluded from every compliance rate: they must
+      // contribute neither 0% nor 100% to the score pillar.
+      where: { userId, active: true, asNeeded: false },
       select: {
         id: true,
         createdAt: true,

@@ -133,9 +133,13 @@ export async function handleReminderCheck(jobs: Job<ReminderCheckPayload>[]) {
         data: { snoozedUntil: null },
       });
 
-      // Get all active medications with schedules and phase config
+      // Get all active medications with schedules and phase config.
+      // v1.16.11 — as-needed (PRN) medications never remind: they carry
+      // zero schedules anyway (the per-schedule loop below would be a
+      // no-op), but the explicit predicate keeps them out of the tick's
+      // per-medication intake reads entirely.
       const medications = await prisma.medication.findMany({
-        where: { active: true },
+        where: { active: true, asNeeded: false },
         include: {
           schedules: true,
           phaseConfig: true,

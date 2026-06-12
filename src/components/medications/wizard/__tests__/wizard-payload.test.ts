@@ -1036,3 +1036,93 @@ describe("v1.15.18 per-dose windows — encode + hydrate round-trip", () => {
     ]);
   });
 });
+
+// ────────────────────────────────────────────────────────────────────
+// v1.16.11 (#316) — as-needed (PRN) mode
+// ────────────────────────────────────────────────────────────────────
+
+describe("as-needed mode (v1.16.11, #316)", () => {
+  function asNeededPayload(): WizardPayload {
+    return {
+      ...emptyWizardPayload(),
+      mode: "asNeeded",
+      treatmentRow: "painRelief",
+      name: "Ibuprofen",
+      doseAmount: "400",
+      doseUnit: "mg",
+      unitsPerDose: "2",
+    };
+  }
+
+  it("progressIndices walks the one-shot-shaped path (no cadence detail, no times)", () => {
+    expect(progressIndices("asNeeded", "daily")).toEqual([1, 2, 3, 4, 8]);
+  });
+
+  it("buildCreateBody emits asNeeded:true with an EMPTY schedules array", () => {
+    const body = buildCreateBody(asNeededPayload());
+    expect(body.asNeeded).toBe(true);
+    expect(body.oneShot).toBe(false);
+    expect(body.schedules).toEqual([]);
+    // Dose fields stay first-class — they feed inventory consumption.
+    expect(body.dose).toBe("400 mg");
+    expect(body.unitsPerDose).toBe(2);
+    expect(body.category).toBe("PAIN_RELIEF");
+  });
+
+  it("a scheduled payload emits asNeeded:false (no accidental flag bleed)", () => {
+    const body = buildCreateBody(withCadence("daily"));
+    expect(body.asNeeded).toBe(false);
+    expect(body.schedules.length).toBeGreaterThan(0);
+  });
+
+  it("hydrateWizardPayload round-trips an as-needed snapshot back onto the mode", () => {
+    const hydrated = hydrateWizardPayload({
+      id: "m1",
+      name: "Ibuprofen",
+      dose: "400 mg",
+      category: "PAIN_RELIEF",
+      notificationsEnabled: true,
+      startsOn: null,
+      endsOn: null,
+      oneShot: false,
+      asNeeded: true,
+      schedules: [],
+    });
+    expect(hydrated.mode).toBe("asNeeded");
+    // Step 5 pre-selects "Bei Bedarf" via the mode; the placeholder
+    // draft carries it too so the flat mirror stays coherent.
+    expect(hydrated.schedules).toHaveLength(1);
+    expect(hydrated.schedules[0].mode).toBe("asNeeded");
+
+    // Full round-trip: hydrate → encode emits the same wire shape.
+    const body = buildCreateBody(hydrated, "edit");
+    expect(body.asNeeded).toBe(true);
+    expect(body.schedules).toEqual([]);
+    // Edit bodies never round-trip the reminders default (invariant 16).
+    expect(body.notificationsEnabled).toBeUndefined();
+  });
+
+  it("summariseCadence reads the asNeeded key with no times phrase", () => {
+    const t = makeStubT();
+    const line = summariseCadence(asNeededPayload(), t);
+    expect(line).toContain("medications.wizard.summary.cadence.asNeeded");
+    expect(line).not.toContain("medications.wizard.summary.times");
+  });
+
+  it("summariseScheduleDraft reads the asNeeded key with no times phrase", () => {
+    const t = makeStubT();
+    const line = summariseScheduleDraft(
+      { ...emptyWizardPayload().schedules[0], mode: "asNeeded" },
+      t,
+    );
+    expect(line).toContain("medications.wizard.summary.cadence.asNeeded");
+    expect(line).not.toContain("medications.wizard.summary.times");
+  });
+
+  it("validateStep gates: Step 5 passes once the mode is picked; review mirrors Step 4", () => {
+    const p = asNeededPayload();
+    expect(validateStep(p, 5)).toBe(true);
+    expect(validateStep(p, 8)).toBe(true);
+    expect(validateStep({ ...p, mode: null }, 5)).toBe(false);
+  });
+});

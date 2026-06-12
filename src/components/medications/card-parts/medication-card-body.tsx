@@ -111,6 +111,15 @@ export interface MedicationCardBodyProps {
   /** The open-cycle descriptor, or null when the display block is absent. */
   currentCycle: CurrentCycle | null;
 
+  /**
+   * v1.16.11 (#316) — as-needed (PRN) medication. True suppresses the
+   * compliance block entirely (no bars, no skeleton, no error fallback —
+   * the batched compliance read excludes as-needed medications, so a
+   * skeleton would spin forever) and the open-cycle slot. The next/last
+   * lines carry the "Bei Bedarf" + last-taken presentation instead.
+   */
+  asNeeded?: boolean;
+
   /** "take" | "skip" while the matching request is in flight, else null. */
   intakeLoading: string | null;
   /** Record the displayed dose (the card binds the slot instant). */
@@ -137,6 +146,7 @@ export function MedicationCardBody({
   complianceError = false,
   onRetryCompliance,
   currentCycle,
+  asNeeded = false,
   intakeLoading,
   onRecordIntake,
   children,
@@ -214,6 +224,7 @@ export function MedicationCardBody({
             error fallback (no bars, one notice line + retry) instead of
             sitting on the skeleton forever. */}
         {active &&
+          !asNeeded &&
           (compliance ? (
             <MedicationComplianceBars
               rate7={compliance.rate7}
@@ -232,7 +243,7 @@ export function MedicationCardBody({
             one xs text line on every active card: the descriptor rides the
             compliance query, and a line appearing after the fetch resolved
             used to grow the card and shift the grid row (CLS). */}
-        {active && (
+        {active && !asNeeded && (
           <div className="min-h-4">
             {currentCycle && <MedicationCycleStatus cycle={currentCycle} />}
           </div>

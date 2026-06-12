@@ -38,6 +38,20 @@
  * Pure functions, no DB access. Caller fetches `lastIntakeAt`
  * (latest `MedicationIntakeEvent.takenAt`) and threads it through
  * `RecurrenceContext`.
+ *
+ * **As-needed medications (v1.16.11, #316).** A medication with
+ * `Medication.asNeeded = true` carries ZERO schedule rows (enforced at
+ * the create/update routes), so this engine is never consulted for it:
+ * `computeNextDueAt` / `computeDisplayDue` return null on an empty
+ * schedule list by construction, the reminder worker iterates no
+ * schedules, the projector mints no slots, and compliance expands no
+ * expected doses. The MEDICATION_LOW_STOCK runway is likewise null (no
+ * consuming schedule) — that is correct and intended: an as-needed
+ * supply is not falling on a predictable cadence, so no runway-based
+ * alert can be honest. Intakes for such medications are ad-hoc rows
+ * (`scheduledFor = takenAt`, the documented standalone-insert
+ * contract); the schedule-level `scheduleType = "PRN"` early-returns
+ * below are the per-schedule prior art for the same semantics.
  */
 
 import { RRule } from "rrule";

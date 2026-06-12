@@ -195,6 +195,26 @@ describe("deriveDueMedications — only currently-due, active, unpaused", () => 
     expect(due).toEqual([]);
   });
 
+  it("excludes an as-needed medication (no schedules, never due) — v1.16.11 #316", () => {
+    // An as-needed (PRN) medication persists ZERO schedules and the
+    // server computes no next-due, so it can NEVER enter the due set —
+    // even with a recent ad-hoc intake on record.
+    const due = deriveDueMedications(
+      [
+        makeMed({
+          id: "prn",
+          schedules: [],
+          nextDueAt: null,
+          lastTakenAt: new Date(now.getTime() - 60 * 60 * 1000).toISOString(),
+          todayEventCount: 1,
+        }),
+        makeMed({ id: "scheduled" }),
+      ],
+      opts,
+    );
+    expect(due.map((m) => m.id)).toEqual(["scheduled"]);
+  });
+
   it("excludes a dose already covered by an actioned intake in its band", () => {
     // Taken 30 minutes ago — inside the open 12:00 band; the in-window
     // suppression (same as the card pill) keeps it out of the due set.

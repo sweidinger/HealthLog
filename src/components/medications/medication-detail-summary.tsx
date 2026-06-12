@@ -31,6 +31,8 @@ export interface MedicationDetailSummaryProps {
   /** Wizard payload used to derive the plain-language cadence line. */
   payload: MedicationPayload;
   oneShot: boolean;
+  /** v1.16.11 — as-needed (PRN): the cadence line reads "Bei Bedarf". */
+  asNeeded?: boolean;
   startsOn?: string | null;
 }
 
@@ -53,6 +55,7 @@ export function MedicationDetailSummary({
   endsOn,
   payload,
   oneShot,
+  asNeeded = false,
   startsOn,
 }: MedicationDetailSummaryProps) {
   const { t } = useTranslations();
@@ -83,7 +86,9 @@ export function MedicationDetailSummary({
           date: formatters.dateTime(startsOn),
         })
       : t("medications.detail.cadence.oneShotPending")
-    : summariseCadence(hydrateWizardPayload(payload), t, formatters.date);
+    : asNeeded
+      ? t("medications.detail.cadence.asNeeded")
+      : summariseCadence(hydrateWizardPayload(payload), t, formatters.date);
 
   return (
     <div className="space-y-1.5" data-slot="medication-detail-summary">

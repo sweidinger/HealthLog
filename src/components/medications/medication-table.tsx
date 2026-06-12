@@ -87,6 +87,11 @@ export interface TableMedication {
   todayEventCount?: number;
   nextDueAt?: string | null;
   nextDueOverdue?: boolean;
+  /**
+   * v1.16.11 (#316) — as-needed (PRN): the next-dose cell shows a calm
+   * "Bei Bedarf" marker, the compliance column shows "–".
+   */
+  asNeeded?: boolean;
   /** v1.16.10 — dose-derived stock from the list payload; null = inventory tracking off. */
   stockDosesRemaining?: number | null;
   schedules: TableSchedule[];
@@ -463,7 +468,18 @@ function MedicationTableRowItem({
   let nextCell: React.ReactNode = (
     <span className="text-muted-foreground">–</span>
   );
-  if (medication.active) {
+  if (medication.asNeeded) {
+    // v1.16.11 — a calm marker where next-due normally sits; no due
+    // pill, no overdue escalation, ever.
+    nextCell = (
+      <span
+        className="text-muted-foreground"
+        data-slot="medication-table-as-needed-marker"
+      >
+        {t("medications.asNeededMarker")}
+      </span>
+    );
+  } else if (medication.active) {
     if (medication.nextDueOverdue && nextAt) {
       nextCell = (
         <span className="font-medium text-amber-600 dark:text-amber-400">
@@ -609,7 +625,7 @@ function MedicationTableRowItem({
       </TableCell>
       <TableCell>{statusCell}</TableCell>
       <TableCell className="text-sm">{nextCell}</TableCell>
-      <TableCell>{medication.active ? complianceCell : <span className="text-muted-foreground text-sm">–</span>}</TableCell>
+      <TableCell>{medication.active && !medication.asNeeded ? complianceCell : <span className="text-muted-foreground text-sm">–</span>}</TableCell>
       <TableCell className="text-sm">{stockCell}</TableCell>
       <TableCell>
         {medication.active ? (

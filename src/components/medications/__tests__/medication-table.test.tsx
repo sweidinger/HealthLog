@@ -261,6 +261,43 @@ describe("<MedicationTable> — structure + shared payloads", () => {
     expect(html).toContain('aria-label="Take – Mounjaro"');
     expect(html).toContain("4 doses");
   });
+
+  it("renders an as-needed row: calm marker, no compliance bars (v1.16.11 #316)", () => {
+    const client = makeClient();
+    // Deliberately NOT seeding compliance for the PRN row — the batched
+    // payload excludes as-needed medications, and the column must show
+    // the en-dash instead of an eternal skeleton.
+    const lastTaken = new Date();
+    lastTaken.setHours(lastTaken.getHours() - 3);
+    const html = render(
+      <MedicationTable
+        activeMedications={[
+          med({
+            id: "prn1",
+            name: "Ibuprofen",
+            asNeeded: true,
+            schedules: [],
+            nextDueAt: null,
+            lastTakenAt: lastTaken.toISOString(),
+            stockDosesRemaining: 10,
+          }),
+        ]}
+        inactiveMedications={[]}
+      />,
+      client,
+    );
+
+    expect(html).toContain('data-slot="medication-table-as-needed-marker"');
+    expect(html).toContain("As needed");
+    // No due/overdue presentation in the status or next-dose cells.
+    expect(html).not.toContain("Overdue");
+    // Compliance column shows the en-dash, not bars or a skeleton.
+    expect(html).not.toContain("Adherence (");
+    // The quick actions stay — an as-needed dose is loggable inline.
+    expect(html).toContain('aria-label="Take – Ibuprofen"');
+    // Stock column still renders (inventory tracking works for PRN).
+    expect(html).toContain("10 doses");
+  });
 });
 
 describe("<MedicationTable> — manual order + aria-sort", () => {

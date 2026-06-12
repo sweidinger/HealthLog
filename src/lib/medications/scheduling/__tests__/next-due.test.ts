@@ -480,3 +480,37 @@ describe("resolved-slot marks — ad-hoc rows only match their own anchor", () =
     expect(due!.at.toISOString()).toBe("2026-06-10T08:00:00.000Z");
   });
 });
+
+/**
+ * v1.16.11 (#316) — as-needed (PRN) medications persist ZERO schedule
+ * rows, so every due surface (list cards, dashboard, reminder worker)
+ * resolves null by construction. Pin both the forward next-due and the
+ * display-due (open-overdue) paths on the empty schedule list, with a
+ * recent intake present — a logged ad-hoc take must not conjure a due.
+ */
+describe("as-needed (zero schedules) — never due", () => {
+  it("computeNextDueAt returns null even with a recent intake", () => {
+    const now = new Date();
+    const next = computeNextDueAt({
+      medication: makeMedication({ createdAt: new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000) }),
+      schedules: [],
+      now,
+      userTz: BERLIN,
+      lastIntakeAt: new Date(now.getTime() - 2 * 60 * 60 * 1000),
+    });
+    expect(next).toBeNull();
+  });
+
+  it("computeDisplayDue returns null — no overdue escalation can ever mint", () => {
+    const now = new Date();
+    const display = computeDisplayDue({
+      medication: makeMedication({ createdAt: new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000) }),
+      schedules: [],
+      now,
+      userTz: BERLIN,
+      lastIntakeAt: new Date(now.getTime() - 2 * 60 * 60 * 1000),
+      resolvedSlots: [],
+    });
+    expect(display).toBeNull();
+  });
+});

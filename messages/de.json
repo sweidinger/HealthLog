@@ -820,6 +820,7 @@
     "today": "Heute",
     "yesterday": "Gestern",
     "tomorrow": "Morgen",
+    "asNeededMarker": "Bei Bedarf",
     "withoutNotification": "Ohne Benachrichtigung",
     "pausedSince": "Pausiert seit",
     "takeNow": "Jetzt einnehmen",
@@ -1207,6 +1208,10 @@
         "oneShot": {
           "label": "Einmalig",
           "description": "Einzelgabe, zum Beispiel eine Impfung oder ein Antibiotikum."
+        },
+        "asNeeded": {
+          "label": "Bei Bedarf",
+          "description": "Kein fester Plan — du erfasst eine Einnahme, wenn du sie brauchst (z. B. Schmerzmittel)."
         }
       },
       "summary": {
@@ -1220,6 +1225,7 @@
           "yearly": "Einmal im Jahr",
           "rolling": "Alle {n} Tage seit der letzten Einnahme",
           "oneShot": "Eine Einmaldosis",
+          "asNeeded": "Bei Bedarf",
           "everyNWeeks": "Alle {n} Wochen",
           "everyNMonths": "Alle {n} Monate"
         },
@@ -1405,7 +1411,8 @@
       },
       "cadence": {
         "oneShotOn": "Einmalige Dosis am {date}.",
-        "oneShotPending": "Einmalige Dosis ausstehend."
+        "oneShotPending": "Einmalige Dosis ausstehend.",
+        "asNeeded": "Bei Bedarf — kein fester Plan."
       },
       "intake": {
         "title": "Einnahmeverlauf",
@@ -1634,6 +1641,7 @@
         "statusTitle": "Status",
         "nextDoseLabel": "Nächste Dosis",
         "nextDoseNone": "Keine anstehende Dosis.",
+        "nextDoseAsNeeded": "Bei Bedarf — keine geplante Dosis.",
         "pausedHint": "Pausiert — keine Erinnerungen.",
         "reminderLabel": "Erinnerung",
         "reminderOn": "Aktiv",
@@ -1641,6 +1649,7 @@
         "supplyLabel": "Bestand",
         "supplyRunway": "Reicht noch ca. {days} Tage",
         "jumpToZeitplan": "Zum Zeitplan",
+        "jumpToVerlauf": "Zum Verlauf",
         "jumpToBestand": "Zum Bestand",
         "complianceTitle": "Therapietreue",
         "complianceEmpty": "Noch keine Daten zur Therapietreue."

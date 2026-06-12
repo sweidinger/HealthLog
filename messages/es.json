@@ -820,6 +820,7 @@
     "today": "Hoy",
     "yesterday": "Ayer",
     "tomorrow": "Mañana",
+    "asNeededMarker": "Según necesidad",
     "withoutNotification": "Sin notificación",
     "pausedSince": "En pausa desde",
     "takeNow": "Tomar ahora",
@@ -1207,6 +1208,10 @@
         "oneShot": {
           "label": "Dosis única",
           "description": "Una sola administración, p. ej. una vacuna o un ciclo de antibiótico."
+        },
+        "asNeeded": {
+          "label": "Según necesidad",
+          "description": "Sin plan fijo: registra una toma cuando la necesites (p. ej. analgésicos)."
         }
       },
       "summary": {
@@ -1220,6 +1225,7 @@
           "yearly": "Una vez al año",
           "rolling": "Cada {n} días desde tu última toma",
           "oneShot": "Una dosis única",
+          "asNeeded": "Según necesidad",
           "everyNWeeks": "Cada {n} semanas",
           "everyNMonths": "Cada {n} meses"
         },
@@ -1405,7 +1411,8 @@
       },
       "cadence": {
         "oneShotOn": "Dosis única el {date}.",
-        "oneShotPending": "Dosis única pendiente."
+        "oneShotPending": "Dosis única pendiente.",
+        "asNeeded": "Según necesidad — sin plan fijo."
       },
       "intake": {
         "title": "Historial de tomas",
@@ -1634,6 +1641,7 @@
         "statusTitle": "Estado",
         "nextDoseLabel": "Próxima dosis",
         "nextDoseNone": "No hay dosis pendiente.",
+        "nextDoseAsNeeded": "Según necesidad — sin dosis programada.",
         "pausedHint": "En pausa — sin recordatorios.",
         "reminderLabel": "Recordatorio",
         "reminderOn": "Activado",
@@ -1641,6 +1649,7 @@
         "supplyLabel": "Existencias",
         "supplyRunway": "Alcanza para unos {days} días más",
         "jumpToZeitplan": "Ver horario",
+        "jumpToVerlauf": "Ver historial",
         "jumpToBestand": "Ver existencias",
         "complianceTitle": "Adherencia",
         "complianceEmpty": "Aún no hay datos de adherencia."

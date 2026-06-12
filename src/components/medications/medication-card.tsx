@@ -85,6 +85,13 @@ interface Medication {
    * still takeable" instead of the regular upcoming-intake phrasing.
    */
   nextDueOverdue?: boolean;
+  /**
+   * v1.16.11 (#316) — as-needed (PRN) medication: no schedules, never
+   * due, never reminded, no compliance. The card renders a calm
+   * "Bei Bedarf" marker where next-due normally sits and replaces the
+   * compliance bars with the last-taken oriented presentation.
+   */
+  asNeeded?: boolean;
   schedules: Schedule[];
 }
 
@@ -300,6 +307,15 @@ export function MedicationCard({
     />
   );
 
+  // v1.16.11 — as-needed: a calm marker where next-due normally sits.
+  // No due pill, no overdue escalation, ever (structurally there is no
+  // schedule, so the window status is already null).
+  const asNeededLine = medication.asNeeded ? (
+    <span className="text-muted-foreground" data-slot="medication-as-needed-marker">
+      {t("medications.asNeededMarker")}
+    </span>
+  ) : null;
+
   // The upcoming-intake line value — a day label + window range + optional
   // dose accent. The card owns this VALUE content (a daily med reads as a
   // clock-time window); the structure / labels live in the shared body.
@@ -396,13 +412,14 @@ export function MedicationCard({
             }
           : null
       }
-      doseStatus={doseStatus}
-      nextLine={nextLine}
+      doseStatus={medication.asNeeded ? "upcoming" : doseStatus}
+      nextLine={asNeededLine ?? nextLine}
       lastLine={
         medication.lastTakenAt
           ? formatLastTakenAt(medication.lastTakenAt)
           : null
       }
+      asNeeded={medication.asNeeded === true}
       compliance={
         compliance ? { rate7, rate30, streak, shortDays, longDays } : null
       }

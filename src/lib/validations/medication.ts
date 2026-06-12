@@ -447,7 +447,30 @@ const courseWindowFields = {
     .describe(
       "Single-administration medication (e.g. flu shot, post-op single dose). When true the medication has at most one schedule with no `rrule` / `rollingIntervalDays`, and `active` auto-flips to false once the dose is logged (non-skipped).",
     ),
+  /**
+   * v1.16.11 (#316) — as-needed (PRN) medication. No fixed schedule:
+   * never due, never reminded, excluded from compliance, active
+   * indefinitely. Intakes log ad-hoc and consume inventory. Carries
+   * ZERO schedules — a `schedules` array alongside `asNeeded: true` is
+   * a 422. Mutually exclusive with `oneShot`.
+   */
+  asNeeded: z
+    .boolean()
+    .optional()
+    .describe(
+      "As-needed (PRN) medication (pain relief, rescue inhaler). When true the medication carries NO schedules (supplying any schedule entry is a 422): it is never due, never reminded, and excluded from compliance rates/streaks, but intakes still log (ad-hoc), inventory still consumes, and the history renders. Stays active indefinitely. Mutually exclusive with `oneShot`.",
+    ),
 };
+
+/**
+ * v1.16.11 — shared as-needed cross-field refines for the create +
+ * update bodies: `asNeeded` and `oneShot` are mutually exclusive, and
+ * an as-needed medication cannot carry schedule entries.
+ */
+const AS_NEEDED_ONE_SHOT_MESSAGE =
+  "asNeeded and oneShot are mutually exclusive";
+const AS_NEEDED_SCHEDULES_MESSAGE =
+  "An as-needed medication cannot carry schedules";
 
 export const createMedicationSchema = z
   .object({
@@ -517,7 +540,12 @@ export const createMedicationSchema = z
     /** v1.9.0 — optional RxNorm RxCUI (secondary, US). */
     rxNormCode: rxNormCodeField,
     ...courseWindowFields,
-    schedules: z.array(scheduleSchema).min(1, "Mindestens ein Zeitfenster"),
+    /**
+     * v1.16.11 — optional at the type level so an `asNeeded: true`
+     * create can omit it; the refine below keeps the legacy
+     * at-least-one-schedule contract for every scheduled medication.
+     */
+    schedules: z.array(scheduleSchema).optional(),
   })
   .refine((b) => b.oneShot !== true || !!b.startsOn, {
     message: "startsOn is required when oneShot is true",
@@ -531,10 +559,30 @@ export const createMedicationSchema = z
       path: ["endsOn"],
     },
   )
+  .refine((b) => !(b.asNeeded === true && b.oneShot === true), {
+    message: AS_NEEDED_ONE_SHOT_MESSAGE,
+    path: ["asNeeded"],
+  })
+  .refine(
+    (b) =>
+      b.asNeeded === true || (!!b.schedules && b.schedules.length >= 1),
+    {
+      message: "Mindestens ein Zeitfenster",
+      path: ["schedules"],
+    },
+  )
+  .refine(
+    (b) =>
+      b.asNeeded !== true || !b.schedules || b.schedules.length === 0,
+    {
+      message: AS_NEEDED_SCHEDULES_MESSAGE,
+      path: ["schedules"],
+    },
+  )
   .meta({
     id: "CreateMedicationRequest",
     description:
-      "Create-medication body. The route enforces the v1.5 cross-field invariants on top of the per-schedule `rrule_xor_rolling` Zod refine: a `oneShot:true` medication may carry at most one schedule and that schedule must not declare a recurrence; `endsOn` is normalised to equal `startsOn` for one-shot doses; a recurring schedule with no `rrule`, `rollingIntervalDays`, or legacy `daysOfWeek` defaults to `rrule = \"FREQ=DAILY\"`; and `timesOfDay` is dual-written from `windowStart` when the caller omits it.",
+      "Create-medication body. The route enforces the v1.5 cross-field invariants on top of the per-schedule `rrule_xor_rolling` Zod refine: a `oneShot:true` medication may carry at most one schedule and that schedule must not declare a recurrence; `endsOn` is normalised to equal `startsOn` for one-shot doses; a recurring schedule with no `rrule`, `rollingIntervalDays`, or legacy `daysOfWeek` defaults to `rrule = \"FREQ=DAILY\"`; and `timesOfDay` is dual-written from `windowStart` when the caller omits it. v1.16.11 — `asNeeded: true` creates a PRN medication with ZERO schedules (`schedules` must be absent or empty, 422 otherwise); a scheduled medication still requires at least one schedule entry.",
   });
 
 export const updateMedicationSchema = z
@@ -626,10 +674,32 @@ export const updateMedicationSchema = z
       path: ["endsOn"],
     },
   )
+  .refine((b) => !(b.asNeeded === true && b.oneShot === true), {
+    message: AS_NEEDED_ONE_SHOT_MESSAGE,
+    path: ["asNeeded"],
+  })
+  .refine(
+    (b) =>
+      b.asNeeded !== true || !b.schedules || b.schedules.length === 0,
+    {
+      message: AS_NEEDED_SCHEDULES_MESSAGE,
+      path: ["schedules"],
+    },
+  )
+  .refine(
+    // An empty replace-list is only legal on the as-needed path — for a
+    // scheduled medication it would wipe every schedule and strand the
+    // row in a state no surface can reason about.
+    (b) => b.asNeeded === true || !b.schedules || b.schedules.length >= 1,
+    {
+      message: "Mindestens ein Zeitfenster",
+      path: ["schedules"],
+    },
+  )
   .meta({
     id: "UpdateMedicationRequest",
     description:
-      "Update-medication body. Every field is optional; omitted fields are left untouched. Supplying `schedules` REPLACES the medication's full schedule list (the route deletes existing rows before re-creating). Flipping `active` to false records the current timestamp on `pausedAt`; flipping back to true clears it. v1.5 invariants on the `schedules` array match the create path.",
+      "Update-medication body. Every field is optional; omitted fields are left untouched. Supplying `schedules` REPLACES the medication's full schedule list (the route deletes existing rows before re-creating). Flipping `active` to false records the current timestamp on `pausedAt`; flipping back to true clears it. v1.5 invariants on the `schedules` array match the create path. v1.16.11 — `asNeeded: true` requires the medication to end schedule-less: supply `schedules: []` to clear an existing plan (any schedule entry is a 422); an empty `schedules` array without `asNeeded: true` is likewise a 422.",
   });
 
 export const intakeSchema = z

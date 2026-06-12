@@ -176,7 +176,7 @@ export function rowFromTreatment(
  */
 export interface ScheduleDraft {
   id?: string;
-  mode: "oneShot" | "recurring" | null;
+  mode: "oneShot" | "recurring" | "asNeeded" | null;
   cadence: CadenceValue;
   subControls: CadenceSubControls;
   timesOfDay: string[];
@@ -237,7 +237,7 @@ export interface WizardPayload {
    */
   allowedInjectionSites: InjectionSiteKey[];
   /** Set in Step 5 — mirrors `schedules[activeScheduleIndex].mode`. */
-  mode: "oneShot" | "recurring" | null;
+  mode: "oneShot" | "recurring" | "asNeeded" | null;
   /** Mirrors `schedules[activeScheduleIndex].cadence`. */
   cadence: CadenceValue;
   /** Mirrors `schedules[activeScheduleIndex].subControls`. */
@@ -402,6 +402,14 @@ export function removeSchedule(
 // ────────────────────────────────────────────────────────────────────
 
 const ONE_SHOT_PATH: readonly number[] = [1, 2, 3, 4, 8];
+/**
+ * v1.16.11 — as-needed (PRN) walks the one-shot shape: picking
+ * "Bei Bedarf" in Step 5 skips the sub-cadence + times steps entirely
+ * (an as-needed medication carries no schedule), landing on the
+ * summary. The dose step stays — dose text + unitsPerDose still feed
+ * inventory consumption.
+ */
+const AS_NEEDED_PATH: readonly number[] = [1, 2, 3, 4, 8];
 const DAILY_PATH: readonly number[] = [1, 2, 3, 4, 5, 7, 8];
 const RECURRING_PATH: readonly number[] = [1, 2, 3, 4, 5, 6, 7, 8];
 
@@ -418,6 +426,7 @@ export function progressIndices(
   cadenceKind: CadenceKind,
 ): readonly number[] {
   if (mode === "oneShot") return ONE_SHOT_PATH;
+  if (mode === "asNeeded") return AS_NEEDED_PATH;
   if (mode === "recurring" && cadenceKind === "daily") return DAILY_PATH;
   return RECURRING_PATH;
 }
@@ -552,6 +561,11 @@ export interface CreateMedicationBody {
   startsOn?: string;
   endsOn?: string;
   oneShot: boolean;
+  /**
+   * v1.16.11 (#316) — as-needed (PRN) medication. True emits an EMPTY
+   * `schedules` array (the route 422s on any entry alongside the flag).
+   */
+  asNeeded: boolean;
   schedules: Array<{
     id?: string;
     windowStart: string;
@@ -675,10 +689,15 @@ export function buildCreateBody(
   // A one-shot medication carries exactly one schedule with no
   // recurrence. We honour the active draft (it carries the times the
   // user picked); the route enforces the one-schedule invariant.
+  // v1.16.11 — an as-needed medication carries NO schedule at all; the
+  // wizard clears the list client-side (the server 422s otherwise).
   const isOneShot = committed.mode === "oneShot";
-  const draftsToEmit = isOneShot
-    ? [committed.schedules[committed.activeScheduleIndex] ?? committed.schedules[0]]
-    : committed.schedules;
+  const isAsNeeded = committed.mode === "asNeeded";
+  const draftsToEmit = isAsNeeded
+    ? []
+    : isOneShot
+      ? [committed.schedules[committed.activeScheduleIndex] ?? committed.schedules[0]]
+      : committed.schedules;
 
   const parsedDosesPerUnit = Number.parseInt(committed.dosesPerUnit, 10);
   const parsedUnitsPerDose = Number.parseInt(committed.unitsPerDose, 10);
@@ -716,6 +735,7 @@ export function buildCreateBody(
       notificationsEnabled: committed.notificationsEnabled,
     }),
     oneShot: isOneShot,
+    asNeeded: isAsNeeded,
     schedules: draftsToEmit.map((draft) => encodeScheduleDraft(draft, isOneShot)),
   };
   if (committed.startsOn) {
@@ -739,6 +759,7 @@ function summaryKeyForDraft(
   sub: CadenceSubControls,
 ): string {
   if (mode === "oneShot") return "oneShot";
+  if (mode === "asNeeded") return "asNeeded";
   switch (cadence.kind) {
     case "daily":
       return "daily";
@@ -856,7 +877,9 @@ export function summariseCadence(
 ): string {
   const cadenceLine = cadenceLineFor(payload, t);
   const timesPhrase =
-    payload.mode !== "oneShot" && payload.timesOfDay.length > 0
+    payload.mode !== "oneShot" &&
+    payload.mode !== "asNeeded" &&
+    payload.timesOfDay.length > 0
       ? t("medications.wizard.summary.times", {
           times: sortTimes(payload.timesOfDay).join(", "),
         })
@@ -890,7 +913,9 @@ export function summariseScheduleDraft(
 ): string {
   const cadenceLine = cadenceLineFor(draft, t);
   const timesPhrase =
-    draft.mode !== "oneShot" && draft.timesOfDay.length > 0
+    draft.mode !== "oneShot" &&
+    draft.mode !== "asNeeded" &&
+    draft.timesOfDay.length > 0
       ? t("medications.wizard.summary.times", {
           times: sortTimes(draft.timesOfDay).join(", "),
         })
@@ -928,6 +953,8 @@ export interface MedicationPayload {
   startsOn: Date | null;
   endsOn: Date | null;
   oneShot: boolean;
+  /** v1.16.11 — as-needed (PRN) flag; hydrates the "Bei Bedarf" mode. */
+  asNeeded?: boolean;
   schedules: Array<{
     id?: string;
     windowStart: string;
@@ -1012,8 +1039,13 @@ export function hydrateWizardPayload(initial: MedicationPayload): WizardPayload 
   const base = emptyWizardPayload();
   const parsedDose = parseDoseExpression(initial.dose ?? "");
 
-  const drafts: ScheduleDraft[] =
-    initial.schedules.length > 0
+  // v1.16.11 — an as-needed medication persists ZERO schedules; hydrate
+  // one placeholder draft carrying the asNeeded mode so the flat mirror
+  // and Step-5 selection round-trip (the encode path emits no schedule).
+  const asNeeded = initial.asNeeded === true;
+  const drafts: ScheduleDraft[] = asNeeded
+    ? [{ ...emptyScheduleDraft(), mode: "asNeeded" }]
+    : initial.schedules.length > 0
       ? initial.schedules.map((schedule) =>
           hydrateScheduleDraft(schedule, initial.oneShot),
         )

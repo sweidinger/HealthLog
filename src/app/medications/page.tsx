@@ -93,6 +93,8 @@ interface Medication {
   endsOn?: string | null;
   /** v1.5 — single-administration medication. */
   oneShot?: boolean;
+  /** v1.16.11 (#316) — as-needed (PRN): no schedules, never due. */
+  asNeeded?: boolean;
   /** v1.9.0 — optional WHO ATC classification code for the FHIR export. */
   atcCode?: string | null;
   /** v1.9.0 — optional RxNorm RxCUI (secondary FHIR coding). */
@@ -438,7 +440,10 @@ export default function MedicationsPage() {
             <div className="space-y-3.5">
               <div className="grid gap-4 sm:grid-cols-2">
                 {activeMeds.map((med) =>
-                  med.treatmentClass === "GLP1" ? (
+                  // v1.16.11 — an as-needed medication always renders the
+                  // generic card: the GLP-1 variant is built around the
+                  // rolling injection cadence an as-needed med doesn't have.
+                  med.treatmentClass === "GLP1" && !med.asNeeded ? (
                     <Glp1MedicationCard
                       key={med.id}
                       medication={med}
@@ -466,7 +471,7 @@ export default function MedicationsPage() {
               </h2>
               <div className="grid gap-4 sm:grid-cols-2">
                 {inactiveMeds.map((med) =>
-                  med.treatmentClass === "GLP1" ? (
+                  med.treatmentClass === "GLP1" && !med.asNeeded ? (
                     <Glp1MedicationCard
                       key={med.id}
                       medication={med}

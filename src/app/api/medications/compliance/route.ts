@@ -46,7 +46,10 @@ export const GET = apiHandler(async () => {
   // Same ordering as the medications list so the page's card order and
   // this payload walk the same sequence.
   const medications = await prisma.medication.findMany({
-    where: { userId: user.id },
+    // v1.16.11 — as-needed (PRN) medications carry no compliance entry:
+    // the cards/table render a last-taken presentation for them instead
+    // of rates, and an empty expected set must not read as 0% or 100%.
+    where: { userId: user.id, asNeeded: false },
     include: {
       schedules: true,
       // v1.16.3 — archived schedule eras for era-aware compliance.

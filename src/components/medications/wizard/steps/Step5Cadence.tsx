@@ -8,9 +8,10 @@ import type { WizardPayload } from "../wizard-payload";
 import type { StepProps } from "./Step1Name";
 
 /**
- * The six cadence rows surfaced in Step 5. Each maps to a (mode,
+ * The seven cadence rows surfaced in Step 5. Each maps to a (mode,
  * cadenceKind) decision. "Einmalig" flips the wizard onto the
- * one-shot path; every other row stays recurring.
+ * one-shot path; "Bei Bedarf" (v1.16.11, #316) onto the as-needed
+ * path (no schedule at all); every other row stays recurring.
  */
 type Step5Row =
   | "daily"
@@ -18,7 +19,8 @@ type Step5Row =
   | "everyNWeeks"
   | "monthly"
   | "rolling"
-  | "oneShot";
+  | "oneShot"
+  | "asNeeded";
 
 const STEP5_ROWS: readonly Step5Row[] = [
   "daily",
@@ -27,10 +29,12 @@ const STEP5_ROWS: readonly Step5Row[] = [
   "monthly",
   "rolling",
   "oneShot",
+  "asNeeded",
 ];
 
 function rowFromPayload(payload: WizardPayload): Step5Row | null {
   if (payload.mode === "oneShot") return "oneShot";
+  if (payload.mode === "asNeeded") return "asNeeded";
   if (payload.mode === "recurring") {
     switch (payload.cadence.kind) {
       case "daily":
@@ -106,6 +110,13 @@ function applyRowPick(
       // same invariant on the server side.
       endsOn: payload.startsOn,
     });
+    return;
+  }
+  if (row === "asNeeded") {
+    // v1.16.11 — as-needed clears schedule configuration: the wizard
+    // emits an empty `schedules` array on save (`buildCreateBody`), so
+    // the cadence value left on the draft is inert.
+    applyPartial({ mode: "asNeeded" });
     return;
   }
   const cadenceKind: CadenceKind = row;

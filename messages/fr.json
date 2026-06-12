@@ -820,6 +820,7 @@
     "today": "Aujourd'hui",
     "yesterday": "Hier",
     "tomorrow": "Demain",
+    "asNeededMarker": "Au besoin",
     "withoutNotification": "Sans notification",
     "pausedSince": "En pause depuis",
     "takeNow": "Prendre maintenant",
@@ -1207,6 +1208,10 @@
         "oneShot": {
           "label": "Dose unique",
           "description": "Une seule administration, par exemple un vaccin ou une cure d’antibiotique."
+        },
+        "asNeeded": {
+          "label": "Au besoin",
+          "description": "Pas de plan fixe — enregistrez une prise quand vous en avez besoin (p. ex. antidouleur)."
         }
       },
       "summary": {
@@ -1220,6 +1225,7 @@
           "yearly": "Une fois par an",
           "rolling": "Tous les {n} jours depuis votre dernière prise",
           "oneShot": "Une dose unique",
+          "asNeeded": "Au besoin",
           "everyNWeeks": "Toutes les {n} semaines",
           "everyNMonths": "Tous les {n} mois"
         },
@@ -1405,7 +1411,8 @@
       },
       "cadence": {
         "oneShotOn": "Dose unique le {date}.",
-        "oneShotPending": "Dose unique en attente."
+        "oneShotPending": "Dose unique en attente.",
+        "asNeeded": "Au besoin — pas de plan fixe."
       },
       "intake": {
         "title": "Historique des prises",
@@ -1634,6 +1641,7 @@
         "statusTitle": "Statut",
         "nextDoseLabel": "Prochaine dose",
         "nextDoseNone": "Aucune dose à venir.",
+        "nextDoseAsNeeded": "Au besoin — aucune dose planifiée.",
         "pausedHint": "En pause — aucun rappel.",
         "reminderLabel": "Rappel",
         "reminderOn": "Activé",
@@ -1641,6 +1649,7 @@
         "supplyLabel": "Stock",
         "supplyRunway": "Couvre encore environ {days} jours",
         "jumpToZeitplan": "Voir l'horaire",
+        "jumpToVerlauf": "Voir l'historique",
         "jumpToBestand": "Voir le stock",
         "complianceTitle": "Observance",
         "complianceEmpty": "Aucune donnée d'observance pour l'instant."

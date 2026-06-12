@@ -1305,6 +1305,16 @@ model Medication {
   /// the migration backfills `oneShot = false` for every existing
   /// row.
   oneShot              Boolean            @default(false) @map("one_shot")
+  /// v1.16.11 (#316) — as-needed (PRN) medication. Taken only when the
+  /// user needs it (pain relief, rescue inhaler): no fixed schedule,
+  /// never due, never reminded, never counted in compliance, stays
+  /// active indefinitely — but intakes log, inventory consumes, and the
+  /// history renders. An as-needed medication carries ZERO
+  /// MedicationSchedule rows (the create/update routes 422 on a
+  /// schedules array alongside `asNeeded: true`); every "never due /
+  /// never reminded" surface follows structurally from the empty
+  /// schedule list. Mutually exclusive with `oneShot`.
+  asNeeded             Boolean            @default(false) @map("as_needed")
   /// v1.6.0 — route of administration. Decoupled from `treatmentClass`
   /// so the injection-site picker can surface for any INJECTION dose.
   /// A one-time injection is `oneShot = true` + `deliveryForm =

@@ -5160,20 +5160,26 @@ components:
             one schedule with no `rrule` / `rollingIntervalDays`, and `active` auto-flips to false once the dose is
             logged (non-skipped).
           type: boolean
+        asNeeded:
+          description: "As-needed (PRN) medication (pain relief, rescue inhaler). When true the medication carries NO schedules
+            (supplying any schedule entry is a 422): it is never due, never reminded, and excluded from compliance
+            rates/streaks, but intakes still log (ad-hoc), inventory still consumes, and the history renders. Stays
+            active indefinitely. Mutually exclusive with `oneShot`."
+          type: boolean
         schedules:
-          minItems: 1
           type: array
           items:
             $ref: "#/components/schemas/MedicationScheduleInput"
       required:
         - name
         - dose
-        - schedules
       description: 'Create-medication body. The route enforces the v1.5 cross-field invariants on top of the per-schedule
         `rrule_xor_rolling` Zod refine: a `oneShot:true` medication may carry at most one schedule and that schedule
         must not declare a recurrence; `endsOn` is normalised to equal `startsOn` for one-shot doses; a recurring
         schedule with no `rrule`, `rollingIntervalDays`, or legacy `daysOfWeek` defaults to `rrule = "FREQ=DAILY"`; and
-        `timesOfDay` is dual-written from `windowStart` when the caller omits it.'
+        `timesOfDay` is dual-written from `windowStart` when the caller omits it. v1.16.11 — `asNeeded: true` creates a
+        PRN medication with ZERO schedules (`schedules` must be absent or empty, 422 otherwise); a scheduled medication
+        still requires at least one schedule entry.'
     MedicationScheduleInput:
       type: object
       properties:
@@ -5444,6 +5450,12 @@ components:
             one schedule with no `rrule` / `rollingIntervalDays`, and `active` auto-flips to false once the dose is
             logged (non-skipped).
           type: boolean
+        asNeeded:
+          description: "As-needed (PRN) medication (pain relief, rescue inhaler). When true the medication carries NO schedules
+            (supplying any schedule entry is a 422): it is never due, never reminded, and excluded from compliance
+            rates/streaks, but intakes still log (ad-hoc), inventory still consumes, and the history renders. Stays
+            active indefinitely. Mutually exclusive with `oneShot`."
+          type: boolean
         schedules:
           type: array
           items:
@@ -5456,10 +5468,12 @@ components:
               minimum: 0
               maximum: 1440
             - type: "null"
-      description: Update-medication body. Every field is optional; omitted fields are left untouched. Supplying `schedules`
+      description: "Update-medication body. Every field is optional; omitted fields are left untouched. Supplying `schedules`
         REPLACES the medication's full schedule list (the route deletes existing rows before re-creating). Flipping
         `active` to false records the current timestamp on `pausedAt`; flipping back to true clears it. v1.5 invariants
-        on the `schedules` array match the create path.
+        on the `schedules` array match the create path. v1.16.11 — `asNeeded: true` requires the medication to end
+        schedule-less: supply `schedules: []` to clear an existing plan (any schedule entry is a 422); an empty
+        `schedules` array without `asNeeded: true` is likewise a 422."
     MedicationIntakeRequest:
       type: object
       properties:
@@ -9002,6 +9016,12 @@ components:
           type: boolean
           description: v1.5 single-administration flag. When true the medication has at most one schedule (no `rrule` /
             `rollingIntervalDays`), and `active` auto-flips to false once the dose is logged.
+        asNeeded:
+          type: boolean
+          description: "v1.16.11 as-needed (PRN) flag. When true the medication carries ZERO schedules (the write routes 422 on
+            any schedule entry alongside the flag): it is never due (`nextDueAt` stays null), never reminded, and
+            excluded from every compliance rate/streak — but intakes still log as ad-hoc rows, inventory still consumes
+            per `unitsPerDose`, and the history renders. Stays active indefinitely. Mutually exclusive with `oneShot`."
         createdAt:
           type: string
           format: date-time
@@ -9068,6 +9088,7 @@ components:
         - startsOn
         - endsOn
         - oneShot
+        - asNeeded
         - createdAt
         - updatedAt
         - schedules
@@ -9214,6 +9235,12 @@ components:
           type: boolean
           description: v1.5 single-administration flag. When true the medication has at most one schedule (no `rrule` /
             `rollingIntervalDays`), and `active` auto-flips to false once the dose is logged.
+        asNeeded:
+          type: boolean
+          description: "v1.16.11 as-needed (PRN) flag. When true the medication carries ZERO schedules (the write routes 422 on
+            any schedule entry alongside the flag): it is never due (`nextDueAt` stays null), never reminded, and
+            excluded from every compliance rate/streak — but intakes still log as ad-hoc rows, inventory still consumes
+            per `unitsPerDose`, and the history renders. Stays active indefinitely. Mutually exclusive with `oneShot`."
         createdAt:
           type: string
           format: date-time
@@ -9248,6 +9275,7 @@ components:
         - startsOn
         - endsOn
         - oneShot
+        - asNeeded
         - createdAt
         - updatedAt
         - schedules
@@ -14391,6 +14419,12 @@ components:
           type: boolean
           description: v1.5 single-administration flag. When true the medication has at most one schedule (no `rrule` /
             `rollingIntervalDays`), and `active` auto-flips to false once the dose is logged.
+        asNeeded:
+          type: boolean
+          description: "v1.16.11 as-needed (PRN) flag. When true the medication carries ZERO schedules (the write routes 422 on
+            any schedule entry alongside the flag): it is never due (`nextDueAt` stays null), never reminded, and
+            excluded from every compliance rate/streak — but intakes still log as ad-hoc rows, inventory still consumes
+            per `unitsPerDose`, and the history renders. Stays active indefinitely. Mutually exclusive with `oneShot`."
         createdAt:
           type: string
           format: date-time
@@ -14423,6 +14457,7 @@ components:
         - startsOn
         - endsOn
         - oneShot
+        - asNeeded
         - createdAt
         - updatedAt
         - schedules

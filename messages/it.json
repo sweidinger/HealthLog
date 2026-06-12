@@ -820,6 +820,7 @@
     "today": "Oggi",
     "yesterday": "Ieri",
     "tomorrow": "Domani",
+    "asNeededMarker": "Al bisogno",
     "withoutNotification": "Senza notifica",
     "pausedSince": "In pausa dal",
     "takeNow": "Assumi ora",
@@ -1207,6 +1208,10 @@
         "oneShot": {
           "label": "Dose singola",
           "description": "Una singola somministrazione, ad es. un vaccino o un ciclo di antibiotico."
+        },
+        "asNeeded": {
+          "label": "Al bisogno",
+          "description": "Nessun piano fisso: registra un'assunzione quando ti serve (ad es. antidolorifici)."
         }
       },
       "summary": {
@@ -1220,6 +1225,7 @@
           "yearly": "Una volta all’anno",
           "rolling": "Ogni {n} giorni dall’ultima assunzione",
           "oneShot": "Una dose singola",
+          "asNeeded": "Al bisogno",
           "everyNWeeks": "Ogni {n} settimane",
           "everyNMonths": "Ogni {n} mesi"
         },
@@ -1405,7 +1411,8 @@
       },
       "cadence": {
         "oneShotOn": "Dose singola il {date}.",
-        "oneShotPending": "Dose singola in sospeso."
+        "oneShotPending": "Dose singola in sospeso.",
+        "asNeeded": "Al bisogno — nessun piano fisso."
       },
       "intake": {
         "title": "Storico delle assunzioni",
@@ -1634,6 +1641,7 @@
         "statusTitle": "Stato",
         "nextDoseLabel": "Prossima dose",
         "nextDoseNone": "Nessuna dose in programma.",
+        "nextDoseAsNeeded": "Al bisogno — nessuna dose programmata.",
         "pausedHint": "In pausa — nessun promemoria.",
         "reminderLabel": "Promemoria",
         "reminderOn": "Attivo",
@@ -1641,6 +1649,7 @@
         "supplyLabel": "Scorta",
         "supplyRunway": "Copre ancora circa {days} giorni",
         "jumpToZeitplan": "Apri programma",
+        "jumpToVerlauf": "Apri cronologia",
         "jumpToBestand": "Apri scorta",
         "complianceTitle": "Aderenza",
         "complianceEmpty": "Ancora nessun dato sull'aderenza."

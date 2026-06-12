@@ -199,7 +199,15 @@ export const PUT = apiHandler(
     if (guard) return guard;
     const existing = await prisma.medication.findUnique({
       where: { id },
-      select: { active: true, createdAt: true },
+      // v1.16.11 — `asNeeded` + the schedule count feed the as-needed
+      // invariants below: a flip to as-needed must end schedule-less,
+      // a flip back to scheduled must end with at least one schedule.
+      select: {
+        active: true,
+        createdAt: true,
+        asNeeded: true,
+        _count: { select: { schedules: true } },
+      },
     });
     if (!existing) {
       return apiError("Medication not found", 404);
@@ -236,8 +244,42 @@ export const PUT = apiHandler(
       startsOn,
       endsOn,
       oneShot,
+      asNeeded,
       reminderGraceMinutes: topLevelGraceMinutes,
     } = parsed.data;
+
+    // ── v1.16.11 (#316) — as-needed invariants ──────────────────────
+    //
+    // An as-needed medication ends schedule-less, always. The Zod layer
+    // already rejects a populated `schedules` array alongside
+    // `asNeeded: true`; the route covers the cross-row cases the schema
+    // cannot see:
+    //   - flipping an existing scheduled medication to as-needed
+    //     requires `schedules: []` in the same request (keeping the old
+    //     rows alongside the flag is a 422, per the feature contract);
+    //   - flipping as-needed OFF requires the medication to end with at
+    //     least one schedule (the wizard always sends the full array).
+    const effectiveAsNeeded = asNeeded ?? existing.asNeeded;
+    if (effectiveAsNeeded) {
+      const endsScheduleless = schedules
+        ? schedules.length === 0
+        : existing._count.schedules === 0;
+      if (!endsScheduleless) {
+        return apiError(
+          "An as-needed medication cannot carry schedules (send schedules: [] to clear them)",
+          422,
+        );
+      }
+    } else if (
+      asNeeded === false &&
+      existing.asNeeded &&
+      (!schedules || schedules.length === 0)
+    ) {
+      return apiError(
+        "A scheduled medication requires at least one schedule",
+        422,
+      );
+    }
 
     // ── v1.5.5 — primary-schedule grace bridge ──────────────────────
     //
@@ -540,6 +582,9 @@ export const PUT = apiHandler(
       ...(startsOn !== undefined && { startsOn }),
       ...(normalisedEndsOn !== undefined && { endsOn: normalisedEndsOn }),
       ...(oneShot !== undefined && { oneShot }),
+      // v1.16.11 — as-needed flag, field-by-field (the invariants above
+      // already guaranteed the medication ends schedule-consistent).
+      ...(asNeeded !== undefined && { asNeeded }),
       ...(normalisedSchedules && {
         schedules: {
           create: normalisedSchedules.map((n) => n.createData),

@@ -136,6 +136,8 @@ export interface MedicationDetailSnapshot {
   startsOn?: string | null;
   endsOn?: string | null;
   oneShot?: boolean;
+  /** v1.16.11 (#316) — as-needed (PRN): no schedules, never due. */
+  asNeeded?: boolean;
   atcCode?: string | null;
   rxNormCode?: string | null;
   /**
@@ -189,6 +191,7 @@ function snapshotToWizardPayload(
     startsOn: med.startsOn ? new Date(med.startsOn) : null,
     endsOn: med.endsOn ? new Date(med.endsOn) : null,
     oneShot: med.oneShot ?? false,
+    asNeeded: med.asNeeded ?? false,
     schedules: med.schedules.map((s) => ({
       id: s.id,
       windowStart: s.windowStart,
@@ -226,6 +229,7 @@ export function MedicationDetailTabs({
 
   const id = medication.id;
   const oneShot = medication.oneShot === true;
+  const asNeeded = medication.asNeeded === true;
   const isGlp1 = !oneShot && medication.treatmentClass === "GLP1";
   const isInjectable = medication.deliveryForm === "INJECTION";
 
@@ -238,9 +242,18 @@ export function MedicationDetailTabs({
   // whatever `?tab=` carries — Injektion is absent for non-injectable
   // medications, so a stale `?tab=injektion` deep-link falls back to the
   // landing tab instead of rendering an empty surface.
+  // v1.16.11 — an as-needed medication has no schedule and never
+  // reminds, so the Zeitplan tab (times editor + reminder card +
+  // plan-history) does not apply and is dropped from the registry; a
+  // stale `?tab=zeitplan` deep-link falls back to the landing tab.
   const availableTabs = useMemo<TabSlug[]>(
-    () => TAB_SLUGS.filter((slug) => slug !== "injektion" || isInjectable),
-    [isInjectable],
+    () =>
+      TAB_SLUGS.filter(
+        (slug) =>
+          (slug !== "injektion" || isInjectable) &&
+          (slug !== "zeitplan" || !asNeeded),
+      ),
+    [isInjectable, asNeeded],
   );
 
   const requestedRaw = searchParams?.get("tab");
@@ -296,7 +309,9 @@ export function MedicationDetailTabs({
         return null;
       }
     },
-    enabled: activeTab === "uebersicht",
+    // v1.16.11 — no compliance read for an as-needed medication (the
+    // section is hidden; there is no rate to fetch).
+    enabled: activeTab === "uebersicht" && !asNeeded,
     staleTime: 30_000,
   });
 
@@ -368,6 +383,7 @@ export function MedicationDetailTabs({
         endsOn={medication.endsOn}
         payload={payload}
         oneShot={oneShot}
+        asNeeded={asNeeded}
         startsOn={medication.startsOn}
       />
 
@@ -407,25 +423,35 @@ export function MedicationDetailTabs({
                 value={
                   !medication.active
                     ? t("medications.detail.uebersicht.pausedHint")
-                    : medication.nextDueAt
-                      ? fmt.dateTime(medication.nextDueAt)
-                      : t("medications.detail.uebersicht.nextDoseNone")
+                    : asNeeded
+                      ? t("medications.detail.uebersicht.nextDoseAsNeeded")
+                      : medication.nextDueAt
+                        ? fmt.dateTime(medication.nextDueAt)
+                        : t("medications.detail.uebersicht.nextDoseNone")
                 }
-                jumpLabel={t("medications.detail.uebersicht.jumpToZeitplan")}
-                onJump={() => onTabChange("zeitplan")}
+                jumpLabel={
+                  asNeeded
+                    ? t("medications.detail.uebersicht.jumpToVerlauf")
+                    : t("medications.detail.uebersicht.jumpToZeitplan")
+                }
+                onJump={() => onTabChange(asNeeded ? "verlauf" : "zeitplan")}
                 dataSlot="uebersicht-next-dose"
               />
-              <StatusRow
-                label={t("medications.detail.uebersicht.reminderLabel")}
-                value={
-                  medication.notificationsEnabled
-                    ? t("medications.detail.uebersicht.reminderOn")
-                    : t("medications.detail.uebersicht.reminderOff")
-                }
-                jumpLabel={t("medications.detail.uebersicht.jumpToZeitplan")}
-                onJump={() => onTabChange("zeitplan")}
-                dataSlot="uebersicht-reminder"
-              />
+              {/* v1.16.11 — as-needed never reminds; the row would only
+                  mislead (the cron skips schedule-less medications). */}
+              {!asNeeded && (
+                <StatusRow
+                  label={t("medications.detail.uebersicht.reminderLabel")}
+                  value={
+                    medication.notificationsEnabled
+                      ? t("medications.detail.uebersicht.reminderOn")
+                      : t("medications.detail.uebersicht.reminderOff")
+                  }
+                  jumpLabel={t("medications.detail.uebersicht.jumpToZeitplan")}
+                  onJump={() => onTabChange("zeitplan")}
+                  dataSlot="uebersicht-reminder"
+                />
+              )}
               {inventoryItems.length > 0 && (
                 <StatusRow
                   label={t("medications.detail.uebersicht.supplyLabel")}
@@ -471,6 +497,7 @@ export function MedicationDetailTabs({
             </ul>
           </MedicationDetailSection>
 
+          {!asNeeded && (
           <MedicationDetailSection
             titleId="medication-uebersicht-compliance-heading"
             title={t("medications.detail.uebersicht.complianceTitle")}
@@ -490,6 +517,7 @@ export function MedicationDetailTabs({
               </p>
             )}
           </MedicationDetailSection>
+          )}
         </TabsContent>
 
         {/* ZEITPLAN — inline edit of the everyday levers: dose times +
