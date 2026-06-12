@@ -135,26 +135,30 @@ export async function consumeForIntake(input: {
   const { client, userId, medicationId, eventId, intakeAt } = input;
   try {
     await runAtomically(client, async (tx) => {
-      const event = await tx.medicationIntakeEvent.findFirst({
-        where: { id: eventId, userId },
-        select: {
-          id: true,
-          medicationId: true,
-          takenAt: true,
-          skipped: true,
-          deletedAt: true,
-          inventoryConsumption: true,
+      // Atomic claim — gate check and stamp reservation in ONE
+      // conditional UPDATE. A plain read-then-write gate is not safe
+      // under READ COMMITTED: two concurrent consume calls for the same
+      // event (a double tap racing an iOS sync replay) both read the
+      // NULL stamp and both decrement. The claim takes the event's row
+      // lock and re-evaluates the predicate after a blocking peer
+      // commits, so exactly one caller wins; the loser sees count 0 and
+      // returns. The placeholder `[]` is overwritten with the real
+      // stamp below inside the same transaction — and rolls back with
+      // it if the consumption fails, so a failed consume never leaves a
+      // row stamped.
+      const claimed = await tx.medicationIntakeEvent.updateMany({
+        where: {
+          id: eventId,
+          userId,
+          medicationId,
+          deletedAt: null,
+          takenAt: { not: null },
+          skipped: false,
+          inventoryConsumption: { equals: Prisma.AnyNull },
         },
+        data: { inventoryConsumption: [] },
       });
-      if (
-        !event ||
-        event.deletedAt !== null ||
-        event.takenAt === null ||
-        event.skipped ||
-        event.inventoryConsumption !== null
-      ) {
-        return;
-      }
+      if (claimed.count === 0) return;
 
       const medication = await tx.medication.findFirst({
         where: { id: medicationId, userId },
@@ -249,7 +253,7 @@ export async function consumeForIntake(input: {
       // with no tracked stock must not retro-consume containers
       // registered later when a sync replay revisits the row.
       await tx.medicationIntakeEvent.update({
-        where: { id: event.id },
+        where: { id: eventId },
         data: { inventoryConsumption: stamp as unknown as Prisma.InputJsonValue },
       });
 
@@ -302,17 +306,32 @@ export async function restoreForIntake(input: {
           inventoryConsumption: true,
         },
       });
-      if (!event) return;
-      const stamp = parseStamp(event.inventoryConsumption);
+      if (!event || event.inventoryConsumption === null) return;
+      const stampValue = event.inventoryConsumption;
+
+      // Atomic claim — clear the stamp ONLY while it still holds the
+      // exact value just read (jsonb structural equality). The claim
+      // takes the event's row lock, so two concurrent restores cannot
+      // both refund: the loser blocks, re-evaluates against the
+      // now-NULL stamp, sees count 0 and returns. The refund below then
+      // applies the captured stamp inside the same transaction; a
+      // mid-refund failure rolls the clear back with it.
+      const claimed = await tx.medicationIntakeEvent.updateMany({
+        where: {
+          id: eventId,
+          userId,
+          inventoryConsumption: {
+            equals: stampValue as Prisma.InputJsonValue,
+          },
+        },
+        data: { inventoryConsumption: Prisma.DbNull },
+      });
+      if (claimed.count === 0) return;
+
+      const stamp = parseStamp(stampValue);
       if (stamp === null || stamp.length === 0) {
-        // Clear an empty/malformed stamp so a later re-take can
-        // consume afresh; a NULL stamp is already clear.
-        if (event.inventoryConsumption !== null) {
-          await tx.medicationIntakeEvent.update({
-            where: { id: event.id },
-            data: { inventoryConsumption: Prisma.DbNull },
-          });
-        }
+        // Empty / malformed stamp — the claim already cleared it so a
+        // later re-take can consume afresh; nothing to refund.
         return;
       }
 
@@ -350,11 +369,6 @@ export async function restoreForIntake(input: {
         refunded += refundedHere;
         itemIds.push(item.id);
       }
-
-      await tx.medicationIntakeEvent.update({
-        where: { id: event.id },
-        data: { inventoryConsumption: Prisma.DbNull },
-      });
 
       annotate({
         action: { name: "medication.inventory.restored" },

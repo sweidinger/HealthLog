@@ -422,11 +422,16 @@ async function postBulk(request: NextRequest): Promise<Response> {
           inserted += 1;
           results.push({ index: i, status: "inserted", id: applied.row.id });
         }
-        // v1.16.10 — inventory: a taken write consumes (the stamp on the
-        // row makes a replayed sync batch exactly-once), an explicit skip
-        // refunds a previously-taken row's stamp. Pending echoes carry
-        // neither flag and never touch stock.
-        if (!applied.noDowngradeNoOp && isExplicitTaken) {
+        // v1.16.10 — inventory: only the genuine pending→taken
+        // transition consumes (the upsert's `consumedTransition` flag —
+        // the ONLY transition that may move stock). The stamp keeps a
+        // replayed batch exactly-once for post-v1.16.10 rows; the
+        // transition gate additionally protects pre-stamp rows: a full
+        // journal replay re-posting historical taken doses must not
+        // drain today's stock through their NULL stamps. An explicit
+        // skip refunds a previously-taken row's stamp. Pending echoes
+        // carry neither flag and never touch stock.
+        if (applied.consumedTransition && isExplicitTaken) {
           await consumeForIntake({
             client: prisma,
             userId: user.id,
@@ -509,8 +514,9 @@ async function postBulk(request: NextRequest): Promise<Response> {
             inserted += 1;
             results.push({ index: i, status: "inserted", id: applied.row.id });
           }
-          // v1.16.10 — same inventory rule as the canonical-slot branch.
-          if (!applied.noDowngradeNoOp && isExplicitTaken) {
+          // v1.16.10 — same inventory rule as the canonical-slot branch:
+          // gate on the upsert's pending→taken transition flag.
+          if (applied.consumedTransition && isExplicitTaken) {
             await consumeForIntake({
               client: prisma,
               userId: user.id,

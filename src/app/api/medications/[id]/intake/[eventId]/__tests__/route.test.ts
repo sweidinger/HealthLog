@@ -623,6 +623,40 @@ describe("PUT / DELETE — v1.16.10 inventory consumption", () => {
     expect(restoreForIntake).not.toHaveBeenCalled();
   });
 
+  it("an in-place time correction on an already-taken row never consumes (pre-stamp legacy rows must not retro-charge)", async () => {
+    const { consumeForIntake, restoreForIntake } = await import(
+      "@/lib/medications/inventory/consumption"
+    );
+    vi.mocked(prisma.medicationIntakeEvent.findFirst)
+      // PUT lookup — a row already taken BEFORE the edit, stamp NULL
+      // (pre-v1.16.10: its stock moved through the legacy hook at take
+      // time). The edit only corrects the takenAt minute.
+      .mockResolvedValueOnce({
+        id: "e1",
+        userId: "user-1",
+        medicationId: "m1",
+        scheduledFor: at(7, 0),
+        takenAt: at(7, 5),
+        skipped: false,
+        inventoryConsumption: null,
+      } as never)
+      .mockResolvedValue(null as never);
+    vi.mocked(prisma.medicationIntakeEvent.update).mockResolvedValue({
+      id: "e1",
+      scheduledFor: at(7, 0),
+      takenAt: at(7, 10),
+      skipped: false,
+    } as never);
+
+    const res = await PUT(
+      putReq({ takenAt: at(7, 10).toISOString() }),
+      ROUTE_CTX,
+    );
+    expect(res.status).toBe(200);
+    expect(consumeForIntake).not.toHaveBeenCalled();
+    expect(restoreForIntake).not.toHaveBeenCalled();
+  });
+
   it("a taken → skipped edit restores the row's stamp and never consumes", async () => {
     const { consumeForIntake, restoreForIntake } = await import(
       "@/lib/medications/inventory/consumption"

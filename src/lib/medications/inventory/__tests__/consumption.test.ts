@@ -90,6 +90,55 @@ function makeClient(state: FakeState) {
             (e) => e.id === args.where.id && e.userId === args.where.userId,
           ) ?? null,
       ),
+      // The hooks' atomic claim — evaluate the conditional WHERE the way
+      // Postgres would (the gate fields plus the stamp predicate:
+      // `Prisma.AnyNull` matches a NULL stamp, a JSON value matches by
+      // structural equality) and apply the data to every matching row.
+      updateMany: vi.fn(
+        async (args: {
+          where: {
+            id?: string;
+            userId?: string;
+            medicationId?: string;
+            deletedAt?: null;
+            takenAt?: { not: null };
+            skipped?: boolean;
+            inventoryConsumption?: { equals: unknown };
+          };
+          data: Record<string, unknown>;
+        }) => {
+          const w = args.where;
+          const matches = state.events.filter((e) => {
+            if (w.id !== undefined && e.id !== w.id) return false;
+            if (w.userId !== undefined && e.userId !== w.userId) return false;
+            if (w.medicationId !== undefined && e.medicationId !== w.medicationId)
+              return false;
+            if ("deletedAt" in w && e.deletedAt !== null) return false;
+            if (w.takenAt !== undefined && e.takenAt === null) return false;
+            if (w.skipped !== undefined && e.skipped !== w.skipped) return false;
+            if (w.inventoryConsumption !== undefined) {
+              const eq = w.inventoryConsumption.equals;
+              if (eq === Prisma.AnyNull) {
+                if (e.inventoryConsumption !== null) return false;
+              } else if (
+                JSON.stringify(e.inventoryConsumption) !== JSON.stringify(eq)
+              ) {
+                return false;
+              }
+            }
+            return true;
+          });
+          for (const event of matches) {
+            if ("inventoryConsumption" in args.data) {
+              event.inventoryConsumption =
+                args.data.inventoryConsumption === Prisma.DbNull
+                  ? null
+                  : args.data.inventoryConsumption;
+            }
+          }
+          return { count: matches.length };
+        },
+      ),
       update: vi.fn(
         async (args: {
           where: { id: string };
@@ -651,5 +700,68 @@ describe("restoreForIntake", () => {
     expect(state.events[0].inventoryConsumption).toEqual([
       { itemId: "open", units: 1 },
     ]);
+  });
+});
+
+describe("claim atomicity (concurrent duplicate calls)", () => {
+  it("two interleaved consumes decrement exactly once — the claim, not a read, is the gate", async () => {
+    const state: FakeState = {
+      unitsPerDose: 1,
+      events: [takenEvent()],
+      items: [
+        item({
+          id: "open",
+          state: "IN_USE",
+          unitsRemaining: 4,
+          firstUseAt: new Date(NOW.getTime() - MS_PER_DAY),
+          expiresAt: new Date(NOW.getTime() + 29 * MS_PER_DAY),
+        }),
+      ],
+    };
+    const client = makeClient(state);
+
+    // Both calls pass any plain read of the (still NULL) stamp; only the
+    // conditional claim UPDATE — atomic per statement, like Postgres
+    // under the row lock — lets exactly one through.
+    await Promise.all([
+      consumeForIntake(consumeArgs(client)),
+      consumeForIntake(consumeArgs(client)),
+    ]);
+
+    expect(state.items[0].unitsRemaining).toBe(3);
+    expect(state.events[0].inventoryConsumption).toEqual([
+      { itemId: "open", units: 1 },
+    ]);
+  });
+
+  it("two interleaved restores refund exactly once", async () => {
+    const state: FakeState = {
+      unitsPerDose: 1,
+      events: [
+        takenEvent({
+          inventoryConsumption: [{ itemId: "open", units: 1 }],
+        }),
+      ],
+      items: [
+        item({
+          id: "open",
+          state: "IN_USE",
+          unitsRemaining: 3,
+          firstUseAt: new Date(NOW.getTime() - MS_PER_DAY),
+          expiresAt: new Date(NOW.getTime() + 29 * MS_PER_DAY),
+        }),
+      ],
+    };
+    const client = makeClient(state);
+
+    const args = {
+      client: client as never,
+      userId: "user-1",
+      eventId: "evt-1",
+    };
+    await Promise.all([restoreForIntake(args), restoreForIntake(args)]);
+
+    expect(state.items[0].unitsRemaining).toBe(4);
+    expect(state.events[0].inventoryConsumption).toBeNull();
   });
 });

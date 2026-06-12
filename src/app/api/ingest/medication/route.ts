@@ -191,6 +191,12 @@ export const POST = apiHandler(async (request: NextRequest) => {
   });
 
   let event;
+  // v1.16.10 — only the genuine pending→taken transition consumes
+  // inventory units (the slot upsert's `consumedTransition` flag). A
+  // re-post converging onto an already-taken slot row — including a
+  // pre-v1.16.10 row that predates the consumption stamp — must not
+  // decrement stock again. A fresh ad-hoc create is always a take.
+  let consumed = true;
   if (attribution.slotInstant) {
     // Scheduled dose — converge onto the one canonical slot row (the
     // pending REMINDER row when one exists) through the shared upsert:
@@ -209,6 +215,7 @@ export const POST = apiHandler(async (request: NextRequest) => {
       attributionSource: "AUTO",
     });
     event = applied.row;
+    consumed = applied.consumedTransition;
   } else {
     // Ad-hoc / PRN / off-window — standalone row under the documented
     // contract (`scheduledFor = takenAt`).
@@ -227,14 +234,18 @@ export const POST = apiHandler(async (request: NextRequest) => {
 
   // v1.16.10 — the external ingest records a take; consume inventory
   // units. The stamp on the row keeps a retried POST exactly-once (the
-  // idempotency probe above already short-circuits the common replay).
-  await consumeForIntake({
-    client: prisma,
-    userId: apiToken.userId,
-    medicationId: medication.id,
-    eventId: event.id,
-    intakeAt: effectiveTakenAt,
-  });
+  // idempotency probe above already short-circuits the common replay)
+  // and the transition gate keeps a slot-converged re-post from
+  // double-decrementing through a pre-stamp row.
+  if (consumed) {
+    await consumeForIntake({
+      client: prisma,
+      userId: apiToken.userId,
+      medicationId: medication.id,
+      eventId: event.id,
+      intakeAt: effectiveTakenAt,
+    });
+  }
 
   await auditLog("medication.ingest.external", {
     userId: apiToken.userId,

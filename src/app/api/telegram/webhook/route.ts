@@ -275,6 +275,10 @@ async function markMedicationTaken(
     const written = await prisma.$transaction(async (tx) => {
       let slotScheduledFor: Date;
       let eventId: string;
+      // v1.16.10 — only a genuine pending→taken transition may consume
+      // inventory units; a redelivered button press converging onto an
+      // already-taken slot row (including a pre-stamp row) must not.
+      let consumedTransition = true;
       if (canonicalSlot) {
         const applied = await applyCanonicalSlotWrite({
           client: tx,
@@ -291,6 +295,7 @@ async function markMedicationTaken(
         });
         slotScheduledFor = applied.row.scheduledFor;
         eventId = applied.row.id;
+        consumedTransition = applied.consumedTransition;
       } else {
         // Ad-hoc / PRN — standalone row under the documented contract
         // (`scheduledFor = takenAt`).
@@ -312,20 +317,24 @@ async function markMedicationTaken(
         where: { id: medication.id },
         data: { snoozedUntil: null },
       });
-      return { slotScheduledFor, eventId };
+      return { slotScheduledFor, eventId, consumedTransition };
     });
     scheduledFor = written.slotScheduledFor;
     // v1.16.10 — the button confirmed a take; consume inventory units.
     // Runs after the intake transaction committed (the dose record must
     // never hinge on the stock write); the stamp keeps a Telegram
-    // redelivery exactly-once.
-    await consumeForIntake({
-      client: prisma,
-      userId,
-      medicationId: medication.id,
-      eventId: written.eventId,
-      intakeAt: takenAt,
-    });
+    // redelivery exactly-once and the transition gate keeps a re-press
+    // on an already-taken slot from decrementing through a pre-stamp
+    // row.
+    if (written.consumedTransition) {
+      await consumeForIntake({
+        client: prisma,
+        userId,
+        medicationId: medication.id,
+        eventId: written.eventId,
+        intakeAt: takenAt,
+      });
+    }
     // The confirmation must reflect on the next read (today feed, card
     // pill, compliance) rather than wait out the cache TTL.
     invalidateUserMedications(userId, { evict: true });

@@ -926,6 +926,43 @@ describe("POST /api/medications/intake/bulk — v1.16.10 inventory consumption",
     expect(restoreForIntake).not.toHaveBeenCalled();
   });
 
+  it("a taken re-post onto an already-taken slot (journal replay) never reaches consume", async () => {
+    // The replayed row pre-dates the consumption stamp (NULL) — exactly
+    // the shape a full client journal re-sync re-posts for historical
+    // doses. The upsert reports no pending→taken transition, so the
+    // consume hook must not run: the stamp cannot gate a pre-v1.16.10
+    // row and the replay must not drain today's stock.
+    vi.mocked(prisma.medicationIntakeEvent.findMany).mockResolvedValueOnce([
+      {
+        id: "row-taken",
+        takenAt: new Date("2026-06-15T05:01:00Z"),
+        skipped: false,
+        idempotencyKey: null,
+        scheduledFor: new Date("2026-06-15T05:00:00Z"),
+        source: "WEB",
+        createdAt: new Date("2026-06-15T05:01:00Z"),
+      },
+    ] as never);
+    vi.mocked(prisma.medicationIntakeEvent.update).mockResolvedValueOnce({
+      id: "row-taken",
+    } as never);
+
+    const res = await POST(
+      postReq({
+        entries: [
+          {
+            medicationId: "med-1",
+            scheduledFor: "2026-06-15T05:00:30.000Z",
+            takenAt: "2026-06-15T05:02:00.000Z",
+          },
+        ],
+      }),
+    );
+    expect(res.status).toBe(200);
+    expect(consumeForIntake).not.toHaveBeenCalled();
+    expect(restoreForIntake).not.toHaveBeenCalled();
+  });
+
   it("an explicit skip entry restores the slot row's stamp instead of consuming", async () => {
     vi.mocked(prisma.medicationIntakeEvent.findMany).mockResolvedValueOnce([
       {

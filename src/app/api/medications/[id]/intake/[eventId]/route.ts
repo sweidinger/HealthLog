@@ -225,6 +225,14 @@ export const PUT = apiHandler(
     const slotMoved =
       targetScheduledFor.getTime() !== event.scheduledFor.getTime();
 
+    // v1.16.10 — transition gate for the inventory hooks below. Only an
+    // edit moving the row INTO taken may consume; a row that was
+    // already taken keeps its stamp frozen (a stamped row would no-op
+    // anyway, and a pre-v1.16.10 taken row — NULL stamp, stock already
+    // moved by the legacy hook at take time — must never retro-consume
+    // on a time correction).
+    const wasTaken = event.takenAt !== null && !event.skipped;
+
     let updated;
     if (!slotMoved) {
       // The slot is unchanged — a bare in-place update can never collide with
@@ -245,19 +253,22 @@ export const PUT = apiHandler(
           syncVersion: { increment: 1 },
         },
       });
-      // v1.16.10 — inventory follows the post-edit state: a row that is
-      // (now) taken consumes (the stamp keeps an already-consumed row
-      // untouched — the stamp freezes what the original take pulled,
-      // even when `unitsPerDose` changed since); a row edited out of
-      // taken (skip flip, takenAt cleared) refunds its stamp.
+      // v1.16.10 — inventory follows the post-edit state: an edit that
+      // moves the row INTO taken consumes; a row that stays taken keeps
+      // its stamp untouched (the stamp freezes what the original take
+      // pulled, even when `unitsPerDose` changed since, and a pre-stamp
+      // legacy row must not retro-consume); a row edited out of taken
+      // (skip flip, takenAt cleared) refunds its stamp.
       if (nextTakenAt !== null && !nextSkipped) {
-        await consumeForIntake({
-          client: prisma,
-          userId: user.id,
-          medicationId: id,
-          eventId,
-          intakeAt: nextTakenAt,
-        });
+        if (!wasTaken) {
+          await consumeForIntake({
+            client: prisma,
+            userId: user.id,
+            medicationId: id,
+            eventId,
+            intakeAt: nextTakenAt,
+          });
+        }
       } else {
         await restoreForIntake({
           client: prisma,
@@ -304,7 +315,16 @@ export const PUT = apiHandler(
         doseTaken: event.doseTaken,
       });
       updated = applied.row;
-      if (nextTakenAt !== null && !nextSkipped) {
+      // A taken source WITHOUT a stamp is a pre-v1.16.10 row whose
+      // stock moved through the legacy hook: the refund above was a
+      // no-op, so consuming on the converged row would double-charge —
+      // skip it. Every other taken outcome nets the move to exactly one
+      // consumption.
+      if (
+        nextTakenAt !== null &&
+        !nextSkipped &&
+        (!wasTaken || event.inventoryConsumption !== null)
+      ) {
         await consumeForIntake({
           client: prisma,
           userId: user.id,
