@@ -44,6 +44,7 @@
  */
 import { prisma } from "@/lib/db";
 import { invalidateUserMedications } from "@/lib/cache/invalidate";
+import { restoreForIntake } from "@/lib/medications/inventory/consumption";
 import { isP2002 } from "@/lib/prisma-errors";
 import { annotate } from "@/lib/logging/context";
 import { getGlobalBoss } from "@/lib/jobs/boss-instance";
@@ -119,6 +120,12 @@ interface DedupIntakeRow {
    * takenAt`); a WEB or IMPORT ad-hoc row is a deliberate user shape.
    */
   source: string;
+  /**
+   * v1.16.10 — inventory consumption stamp. A stamped LOSER row refunds
+   * its consumed units before the tombstone (the winner keeps its own
+   * stamp untouched), so collapsing a duplicate never strands stock.
+   */
+  inventoryConsumption: unknown;
 }
 
 /**
@@ -266,6 +273,8 @@ export async function dedupeUserIntakeSlots(
         attributionSource: true,
         // v1.16.9 — write origin for the ad-hoc→pending convergence gate.
         source: true,
+        // v1.16.10 — stamped losers refund their consumption on collapse.
+        inventoryConsumption: true,
       },
       orderBy: { scheduledFor: "asc" },
     })) as DedupIntakeRow[];
@@ -346,6 +355,20 @@ export async function dedupeUserIntakeSlots(
       try {
         const winner = pickWinner(slotRows);
         const losers = slotRows.filter((r) => r.id !== winner.id);
+
+        // v1.16.10 — a stamped loser (a real taken row losing to a pin)
+        // refunds its consumed units before the tombstone; unstamped
+        // losers (pending / skipped / pre-stamp rows) skip the round
+        // trip. The winner keeps its own stamp untouched.
+        for (const loser of losers) {
+          if (loser.inventoryConsumption !== null) {
+            await restoreForIntake({
+              client: prisma,
+              userId,
+              eventId: loser.id,
+            });
+          }
+        }
 
         // Soft-delete every loser in one shot. Bump syncVersion so the
         // sync feed echoes a monotonic value and iOS drops the tombstone.

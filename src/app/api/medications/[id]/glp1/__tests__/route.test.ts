@@ -404,10 +404,11 @@ describe("GET /api/medications/[id]/glp1 — ownership helper (F-1 C-4)", () => 
       id: "med-1",
       userId: "user-1",
       doseChanges: [],
-      inventoryEvents: [],
+      inventoryItems: [],
       intakeEvents: [],
       schedules: [],
       dosesPerUnit: null,
+      unitsPerDose: 1,
     } as never);
     const res = await GET(getReq(), {
       params: Promise.resolve({ id: "med-1" }),
@@ -426,5 +427,77 @@ describe("GET /api/medications/[id]/glp1 — ownership helper (F-1 C-4)", () => 
     });
     expect(res.status).toBe(404);
     expect(prisma.medication.findUnique).not.toHaveBeenCalled();
+  });
+});
+
+describe("GET /api/medications/[id]/glp1 — v1.16.10 item-backed inventory", () => {
+  function getReq(): NextRequest {
+    return new NextRequest("http://localhost/api/medications/med-1/glp1");
+  }
+
+  it("sums usable inventory items and derives doses via unitsPerDose", async () => {
+    vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
+    vi.mocked(prisma.medication.findUnique).mockResolvedValue({
+      id: "med-1",
+      userId: "user-1",
+      doseChanges: [],
+      intakeEvents: [],
+      schedules: [],
+      dosesPerUnit: 4,
+      unitsPerDose: 2,
+      inventoryItems: [
+        // Usable: open container with 3 units.
+        { state: "IN_USE", unitsTotal: 4, unitsRemaining: 3 },
+        // Usable: unopened container with 4 units.
+        { state: "ACTIVE", unitsTotal: 4, unitsRemaining: 4 },
+        // Not usable: drained.
+        { state: "USED_UP", unitsTotal: 4, unitsRemaining: 0 },
+        // Not usable: expired stock is not supply.
+        { state: "EXPIRED", unitsTotal: 4, unitsRemaining: 4 },
+      ],
+    } as never);
+
+    const res = await GET(getReq(), {
+      params: Promise.resolve({ id: "med-1" }),
+    });
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      data: {
+        inventory: {
+          pensRemaining: number;
+          dosesRemaining: number;
+          weeksOfSupply: number;
+          lowStock: boolean;
+        };
+      };
+    };
+    // 2 usable containers; 7 pooled units / 2 units per dose = 3 doses.
+    expect(body.data.inventory).toEqual({
+      pensRemaining: 2,
+      dosesRemaining: 3,
+      weeksOfSupply: 3,
+      lowStock: true,
+    });
+  });
+
+  it("returns a null inventory block when no items exist", async () => {
+    vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
+    vi.mocked(prisma.medication.findUnique).mockResolvedValue({
+      id: "med-1",
+      userId: "user-1",
+      doseChanges: [],
+      intakeEvents: [],
+      schedules: [],
+      dosesPerUnit: null,
+      unitsPerDose: 1,
+      inventoryItems: [],
+    } as never);
+
+    const res = await GET(getReq(), {
+      params: Promise.resolve({ id: "med-1" }),
+    });
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { data: { inventory: unknown } };
+    expect(body.data.inventory).toBeNull();
   });
 });

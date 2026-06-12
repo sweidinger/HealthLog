@@ -54,7 +54,11 @@ export const GET = apiHandler(
       where: { id },
       include: {
         doseChanges: { orderBy: { effectiveFrom: "asc" } },
-        inventoryEvents: { orderBy: { occurredAt: "asc" } },
+        // v1.16.10 — the inventory block reads the per-item entities
+        // (the same rows the Bestand tab and the intake consumption
+        // hook move), replacing the legacy MedicationInventoryEvent
+        // running-sum ledger that no write path feeds any more.
+        inventoryItems: { orderBy: { createdAt: "asc" } },
         intakeEvents: {
           where: { takenAt: { not: null } },
           orderBy: { takenAt: "desc" },
@@ -69,25 +73,32 @@ export const GET = apiHandler(
       return apiError("Medication not found", 404);
     }
 
-    // Inventory math: running sum of every inventory event. Negative
-    // when more doses were consumed than purchased — surfaces as a
-    // low-stock warning rather than a hard error so the UI keeps
-    // working when the user backdates an inventory event.
+    // Inventory math over the per-item entities. The response shape is
+    // locked for the iOS client: `pensRemaining` = count of usable
+    // containers (ACTIVE / IN_USE with units left), `dosesRemaining` =
+    // pooled units divided by `unitsPerDose` (floored — consumption
+    // spills across containers), `weeksOfSupply` keeps the weekly-
+    // cadence approximation (the canonical GLP-1 case).
     let inventory: {
       pensRemaining: number | null;
       dosesRemaining: number | null;
       weeksOfSupply: number | null;
       lowStock: boolean;
     } | null = null;
-    if (medication.dosesPerUnit && medication.inventoryEvents.length > 0) {
-      const pens = medication.inventoryEvents.reduce(
-        (sum, ev) => sum + ev.delta,
+    if (medication.inventoryItems.length > 0) {
+      const usable = medication.inventoryItems.filter(
+        (item) =>
+          (item.state === "ACTIVE" || item.state === "IN_USE") &&
+          item.unitsRemaining > 0,
+      );
+      const unitsRemaining = usable.reduce(
+        (sum, item) => sum + item.unitsRemaining,
         0,
       );
-      const pensRemaining = Math.max(0, pens);
-      const dosesRemaining = pensRemaining * medication.dosesPerUnit;
-      // Approximate weeks-of-supply assuming weekly cadence (the
-      // canonical GLP-1 case). The Coach snapshot does the same.
+      const pensRemaining = usable.length;
+      const dosesRemaining = Math.floor(
+        unitsRemaining / Math.max(1, medication.unitsPerDose),
+      );
       const weeksOfSupply = dosesRemaining;
       const lowStock = dosesRemaining < LOW_STOCK_DOSE_THRESHOLD;
       inventory = {

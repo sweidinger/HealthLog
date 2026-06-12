@@ -90,13 +90,17 @@ export const POST = apiHandler(
       return returnAllZodIssues(parsed.error, 422);
     }
 
-    const { dosesTotal, printedExpiry, purchasedAt, notes } = parsed.data;
+    const { dosesTotal, containerType, printedExpiry, purchasedAt, notes } =
+      parsed.data;
 
     const created = await prisma.medicationInventoryItem.create({
+      // The wire field `dosesTotal` counts UNITS (tablets / ampoules /
+      // puffs) — the v1.16.10 rename to `unitsTotal` happens here.
       data: buildCreateInventoryInput({
         userId: user.id,
         medicationId: id,
-        dosesTotal,
+        unitsTotal: dosesTotal,
+        containerType: containerType ?? "OTHER",
         printedExpiry: printedExpiry ?? null,
         purchasedAt: purchasedAt ?? null,
         notes: notes ?? null,
@@ -109,7 +113,8 @@ export const POST = apiHandler(
       details: {
         medicationId: id,
         itemId: created.id,
-        dosesTotal,
+        unitsTotal: dosesTotal,
+        containerType: created.containerType,
       },
     });
 

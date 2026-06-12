@@ -165,8 +165,9 @@ describe("POST /api/medications/[id]/inventory", () => {
         userId: "user-1",
         medicationId: "med-1",
         state: "ACTIVE",
-        dosesTotal: 4,
-        dosesRemaining: 4,
+        containerType: "OTHER",
+        unitsTotal: 4,
+        unitsRemaining: 4,
         firstUseAt: null,
         printedExpiry: new Date(printed),
         expiresAt: new Date(printed),
@@ -198,8 +199,8 @@ describe("PATCH /api/medications/[id]/inventory/[itemId]", () => {
     userId: "user-1",
     medicationId: "med-1",
     state: "ACTIVE" as const,
-    dosesTotal: 4,
-    dosesRemaining: 4,
+    unitsTotal: 4,
+    unitsRemaining: 4,
     firstUseAt: null,
     printedExpiry: null,
     purchasedAt: null,
@@ -243,12 +244,12 @@ describe("PATCH /api/medications/[id]/inventory/[itemId]", () => {
       ...existingActive,
       state: "IN_USE",
       firstUseAt: new Date("2026-05-01"),
-      dosesRemaining: 2,
+      unitsRemaining: 2,
     } as never);
     vi.mocked(prisma.medicationInventoryItem.update).mockResolvedValue({
       ...existingActive,
       state: "USED_UP",
-      dosesRemaining: 0,
+      unitsRemaining: 0,
     } as never);
 
     const res = await PATCH(
@@ -264,7 +265,7 @@ describe("PATCH /api/medications/[id]/inventory/[itemId]", () => {
       .calls[0][0];
     expect(updateCall.data).toMatchObject({
       state: "USED_UP",
-      dosesRemaining: 0,
+      unitsRemaining: 0,
     });
   });
 
@@ -331,7 +332,7 @@ describe("DELETE /api/medications/[id]/inventory/[itemId]", () => {
       userId: "user-1",
       medicationId: "med-1",
       state: "EXPIRED",
-      dosesRemaining: 2,
+      unitsRemaining: 2,
     } as never);
     vi.mocked(prisma.medicationInventoryItem.delete).mockResolvedValue({
       id: "inv-1",

@@ -11,7 +11,10 @@ import {
   createMedicationSchema,
   updateMedicationSchema,
   intakeSchema,
+  createInventoryItemSchema,
+  updateInventoryItemSchema,
   MEDICATION_CATEGORY_VALUES,
+  MEDICATION_CONTAINER_TYPE_VALUES,
   MEDICATION_TREATMENT_CLASS_VALUES,
 } from "@/lib/validations/medication";
 import { medicationExtractionSchema } from "@/lib/ai/coach/medication-extract-prompt";
@@ -139,6 +142,12 @@ export const medicationResource = z
       .describe(
         "Doses per pen / vial for inventory tracking. NULL = inventory tracking off.",
       ),
+    unitsPerDose: z
+      .number()
+      .int()
+      .describe(
+        "v1.16.10 — inventory units one dose consumes (e.g. 2 tablets of 2 mg for a 4 mg dose). Default 1. The intake consumption hook decrements this many units per taken dose; dose-derived readouts divide unit counts by it.",
+      ),
     active: z.boolean(),
     notificationsEnabled: z.boolean(),
     liveActivityEnabled: z
@@ -234,6 +243,61 @@ const medicationDetailEntry = medicationResource
     id: "MedicationDetail",
     description:
       "Detail variant of the medication resource enriched with the joined `category`. The base medication fields are inlined; see the `Medication` component for their semantics.",
+  });
+
+// v1.16.10 — per-container inventory entity (pen / blister pack /
+// bottle). Counts UNITS; the medication's `unitsPerDose` maps units to
+// doses. The intake consumption hook decrements `unitsRemaining` per
+// taken dose and stamps the intake event with what it consumed.
+const medicationInventoryItemResource = z
+  .object({
+    id: z.string(),
+    userId: z.string(),
+    medicationId: z.string(),
+    state: z
+      .enum(["ACTIVE", "IN_USE", "EXPIRED", "USED_UP"])
+      .describe(
+        "Container lifecycle state. ACTIVE = unopened; IN_USE = opened (30-day in-use clock running); EXPIRED = printed expiry or in-use window lapsed with units left; USED_UP = drained (terminal).",
+      ),
+    containerType: z
+      .enum(MEDICATION_CONTAINER_TYPE_VALUES)
+      .describe(
+        "Kind of physical container (PEN / AMPOULE / BLISTER / INHALER / BOTTLE / OTHER). Display-level classification; defaults to OTHER.",
+      ),
+    unitsTotal: z
+      .number()
+      .int()
+      .describe(
+        "Units the container shipped with (tablets / ampoules / puffs; 1–1000). Dose-derived readouts divide by the medication's `unitsPerDose`.",
+      ),
+    unitsRemaining: z
+      .number()
+      .int()
+      .describe(
+        "Units left in the container. Decremented by the intake consumption hook (FEFO with spillover across containers); refunded when a taken dose is skipped, edited away, or deleted.",
+      ),
+    firstUseAt: z.iso
+      .datetime({ offset: true })
+      .nullable()
+      .describe(
+        "Instant the container was first used. NULL until opened; starts the 30-day in-use clock.",
+      ),
+    expiresAt: z.iso
+      .datetime({ offset: true })
+      .nullable()
+      .describe(
+        "Persisted MIN(firstUseAt + 30 days, printedExpiry). NULL when neither clock has started.",
+      ),
+    printedExpiry: z.iso.datetime({ offset: true }).nullable(),
+    purchasedAt: z.iso.datetime({ offset: true }).nullable(),
+    notes: z.string().nullable(),
+    createdAt: z.iso.datetime({ offset: true }),
+    updatedAt: z.iso.datetime({ offset: true }),
+  })
+  .meta({
+    id: "MedicationInventoryItem",
+    description:
+      "One supply container (pen / blister pack / bottle) of a medication. Counts UNITS — the medication's `unitsPerDose` maps units to doses. The intake write paths consume from the open container first, then first-expiry-first-out over unopened stock.",
   });
 
 const medicationIntakeEventResource = z
@@ -786,6 +850,135 @@ export const medicationPaths: NonNullable<ZodOpenApiObject["paths"]> = {
         },
         "404": {
           description: "Medication not found (or owned by another user).",
+          content: { "application/json": { schema: errorEnvelope } },
+        },
+        ...stdResponses,
+      },
+    },
+  },
+  "/api/medications/{id}/inventory": {
+    get: {
+      tags: ["Medications"],
+      summary: "List a medication's supply containers",
+      description:
+        "Returns every inventory item (all states) for the medication, ordered by state, then `expiresAt`, then `createdAt`. Items count UNITS; divide by the medication's `unitsPerDose` for dose-level figures.",
+      requestParams: {
+        path: z.object({ id: z.string() }),
+      },
+      responses: {
+        "200": {
+          description: "Inventory item list.",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                z.object({
+                  items: z.array(medicationInventoryItemResource),
+                  meta: z.object({ total: z.number().int().nonnegative() }),
+                }),
+                "ListMedicationInventoryResponse",
+              ),
+            },
+          },
+        },
+        "404": {
+          description: "Medication not found (or owned by another user).",
+          content: { "application/json": { schema: errorEnvelope } },
+        },
+        ...stdResponses,
+      },
+    },
+    post: {
+      tags: ["Medications"],
+      summary: "Register a new supply container",
+      description:
+        "Creates an ACTIVE inventory item with `unitsRemaining = unitsTotal`. The request's `dosesTotal` field carries UNITS (1–1000). Rate-limited 30/min/user. Audits as `medication.inventory.create`.",
+      requestParams: {
+        path: z.object({ id: z.string() }),
+      },
+      requestBody: {
+        required: true,
+        content: {
+          "application/json": { schema: createInventoryItemSchema },
+        },
+      },
+      responses: {
+        "201": {
+          description: "Created inventory item.",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                medicationInventoryItemResource,
+                "CreateMedicationInventoryItemResponse",
+              ),
+            },
+          },
+        },
+        "404": {
+          description: "Medication not found (or owned by another user).",
+          content: { "application/json": { schema: errorEnvelope } },
+        },
+        ...stdResponses,
+      },
+    },
+  },
+  "/api/medications/{id}/inventory/{itemId}": {
+    patch: {
+      tags: ["Medications"],
+      summary: "Mutate a supply container",
+      description:
+        "Per-item operations: manual first-use (`markAsFirstUseAt`), used-up override (`markAsUsedUp`), printed-expiry correction, absolute remaining-unit correction (`dosesRemaining`, clamped to the item's capacity), notes. The canonical state machine re-derives the state after every mutation. Audits as `medication.inventory.update`.",
+      requestParams: {
+        path: z.object({ id: z.string(), itemId: z.string() }),
+      },
+      requestBody: {
+        required: true,
+        content: {
+          "application/json": { schema: updateInventoryItemSchema },
+        },
+      },
+      responses: {
+        "200": {
+          description: "Updated inventory item.",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                medicationInventoryItemResource,
+                "UpdateMedicationInventoryItemResponse",
+              ),
+            },
+          },
+        },
+        "404": {
+          description:
+            "Inventory item not found (or owned by another user / medication).",
+          content: { "application/json": { schema: errorEnvelope } },
+        },
+        ...stdResponses,
+      },
+    },
+    delete: {
+      tags: ["Medications"],
+      summary: "Delete a supply container",
+      description:
+        "Hard-deletes the inventory item. The audit log captures the before-state (`medication.inventory.delete`) so a row can be reconstructed if needed. Consumption stamps on intake events that reference the item stay in place; a later restore skips the missing container.",
+      requestParams: {
+        path: z.object({ id: z.string(), itemId: z.string() }),
+      },
+      responses: {
+        "200": {
+          description: "Deletion succeeded.",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(
+                z.object({ id: z.string(), deleted: z.boolean() }),
+                "DeleteMedicationInventoryItemResponse",
+              ),
+            },
+          },
+        },
+        "404": {
+          description:
+            "Inventory item not found (or owned by another user / medication).",
           content: { "application/json": { schema: errorEnvelope } },
         },
         ...stdResponses,

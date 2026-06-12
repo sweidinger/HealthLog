@@ -11,6 +11,10 @@ import {
   sanitiseZodIssues,
 } from "@/lib/api-response";
 import { updateIntakeEventSchema } from "@/lib/validations/medication";
+import {
+  consumeForIntake,
+  restoreForIntake,
+} from "@/lib/medications/inventory/consumption";
 import { reconcileOneShotState } from "@/lib/medications/lifecycle";
 import { invalidateUserMedications } from "@/lib/cache/invalidate";
 import { recomputeMedicationComplianceForEvent } from "@/lib/rollups/medication-compliance-rollups";
@@ -241,6 +245,26 @@ export const PUT = apiHandler(
           syncVersion: { increment: 1 },
         },
       });
+      // v1.16.10 — inventory follows the post-edit state: a row that is
+      // (now) taken consumes (the stamp keeps an already-consumed row
+      // untouched — the stamp freezes what the original take pulled,
+      // even when `unitsPerDose` changed since); a row edited out of
+      // taken (skip flip, takenAt cleared) refunds its stamp.
+      if (nextTakenAt !== null && !nextSkipped) {
+        await consumeForIntake({
+          client: prisma,
+          userId: user.id,
+          medicationId: id,
+          eventId,
+          intakeAt: nextTakenAt,
+        });
+      } else {
+        await restoreForIntake({
+          client: prisma,
+          userId: user.id,
+          eventId,
+        });
+      }
     } else {
       // The edit moved the dose to a different slot. Tombstone the original
       // row (the iOS "a correction is a tombstone + re-insert" model the
@@ -248,6 +272,15 @@ export const PUT = apiHandler(
       // shared canonical-slot upsert, which converges onto any row already at
       // the target slot (a pending REMINDER row) rather than bare-updating
       // into an occupied slot and risking a P2002 (audit HIGH-4).
+      //
+      // v1.16.10 — refund the source row's consumption stamp BEFORE the
+      // tombstone; the consume on the converged row below nets the move
+      // to exactly one consumption.
+      await restoreForIntake({
+        client: prisma,
+        userId: user.id,
+        eventId,
+      });
       await prisma.medicationIntakeEvent.update({
         where: { id: eventId },
         data: { deletedAt: new Date(), syncVersion: { increment: 1 } },
@@ -271,6 +304,15 @@ export const PUT = apiHandler(
         doseTaken: event.doseTaken,
       });
       updated = applied.row;
+      if (nextTakenAt !== null && !nextSkipped) {
+        await consumeForIntake({
+          client: prisma,
+          userId: user.id,
+          medicationId: id,
+          eventId: applied.row.id,
+          intakeAt: nextTakenAt,
+        });
+      }
     }
 
     await auditLog("medication.intake.update", {
@@ -334,6 +376,14 @@ export const DELETE = apiHandler(
     if (!event || event.userId !== user.id || event.medicationId !== id) {
       return apiError("Intake not found", 404);
     }
+
+    // v1.16.10 — a deleted dose record refunds its consumption stamp
+    // (no-op for a never-consumed row; a re-delete finds it cleared).
+    await restoreForIntake({
+      client: prisma,
+      userId: user.id,
+      eventId,
+    });
 
     // v1.7.0 sync — soft-delete instead of a hard `delete`. An intake is
     // an immutable fact, so a "correction" is a tombstone + re-insert

@@ -266,7 +266,9 @@ export async function buildGlp1SnapshotBlock(
     include: {
       schedules: true,
       doseChanges: { orderBy: { effectiveFrom: "asc" } },
-      inventoryEvents: { orderBy: { occurredAt: "asc" } },
+      // v1.16.10 — pen inventory reads the per-item entities (the rows
+      // the intake consumption hook moves), not the legacy event ledger.
+      inventoryItems: { orderBy: { createdAt: "asc" } },
       intakeEvents: {
         where: { takenAt: { not: null } },
         orderBy: { takenAt: "desc" },
@@ -368,16 +370,29 @@ export async function buildGlp1SnapshotBlock(
 
     const nextInjection = predictNextInjection(schedule, lastInjection, now);
 
-    // Inventory math: running sum of all inventory events for this med.
-    // Convert to "weeks of supply" via dosesPerUnit + the cadence so the
-    // Coach can answer "how long until my next refill?".
+    // Inventory math over the per-item entities (v1.16.10 — the same
+    // rows the Bestand tab and the consumption hook move; the legacy
+    // event ledger no longer receives writes). `pensRemaining` counts
+    // usable containers; `dosesRemaining` pools the units and divides
+    // by `unitsPerDose` so the Coach can answer "how long until my
+    // next refill?".
     let dosesRemaining: number | null = null;
     let pensRemaining: number | null = null;
     let weeksOfSupplyApprox: number | null = null;
-    if (med.inventoryEvents.length > 0 && med.dosesPerUnit) {
-      const units = med.inventoryEvents.reduce((sum, ev) => sum + ev.delta, 0);
-      pensRemaining = Math.max(0, units);
-      dosesRemaining = pensRemaining * med.dosesPerUnit;
+    if (med.inventoryItems.length > 0) {
+      const usable = med.inventoryItems.filter(
+        (item) =>
+          (item.state === "ACTIVE" || item.state === "IN_USE") &&
+          item.unitsRemaining > 0,
+      );
+      const unitsRemaining = usable.reduce(
+        (sum, item) => sum + item.unitsRemaining,
+        0,
+      );
+      pensRemaining = usable.length;
+      dosesRemaining = Math.floor(
+        unitsRemaining / Math.max(1, med.unitsPerDose),
+      );
       const dosesPerWeek =
         schedule?.cadence === "weekly"
           ? 1

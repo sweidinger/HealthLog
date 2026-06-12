@@ -30,7 +30,8 @@ function fakeMedication(overrides: Partial<Record<string, unknown>> = {}) {
         note: null,
       },
     ],
-    inventoryEvents: [],
+    unitsPerDose: 1,
+    inventoryItems: [],
     intakeEvents: [],
     ...overrides,
   };
@@ -133,5 +134,26 @@ describe("buildGlp1SnapshotBlock", () => {
     expect(out?.medications[0].name).toBe("Ozempic");
     expect(out?.medications[0].genericName).toBe("Semaglutide");
     expect(out?.medications[0].currentDose?.unit).toBe("mg");
+  });
+
+  it("derives pen inventory from the per-item entities (v1.16.10)", async () => {
+    prismaMock.medication.findMany.mockResolvedValue([
+      fakeMedication({
+        unitsPerDose: 2,
+        inventoryItems: [
+          { state: "IN_USE", unitsTotal: 4, unitsRemaining: 3 },
+          { state: "ACTIVE", unitsTotal: 4, unitsRemaining: 4 },
+          { state: "USED_UP", unitsTotal: 4, unitsRemaining: 0 },
+          { state: "EXPIRED", unitsTotal: 4, unitsRemaining: 4 },
+        ],
+      }),
+    ]);
+    const out = await buildGlp1SnapshotBlock("user-1");
+    // 2 usable containers; 7 pooled units / 2 units per dose = 3 doses.
+    expect(out?.medications[0].penInventory).toEqual({
+      pensRemaining: 2,
+      dosesRemaining: 3,
+      weeksOfSupplyApprox: 3,
+    });
   });
 });

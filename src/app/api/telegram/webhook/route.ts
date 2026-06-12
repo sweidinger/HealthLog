@@ -20,6 +20,10 @@ import {
   resolveSlotForWriteByBand,
 } from "@/lib/medications/scheduling/slot-upsert";
 import { invalidateUserMedications } from "@/lib/cache/invalidate";
+import {
+  consumeForIntake,
+  restoreForIntake,
+} from "@/lib/medications/inventory/consumption";
 import { localHmAsUtc } from "@/lib/tz/local-day";
 import { wallClockInTz } from "@/lib/tz/wall-clock";
 import { DEFAULT_TIMEZONE } from "@/lib/tz/format";
@@ -268,8 +272,9 @@ async function markMedicationTaken(
     // an aborted Postgres transaction, so the rare create race rolls the
     // whole write back instead of converging in place — Telegram
     // redelivers the non-200 update and the retry finds the raced row.
-    scheduledFor = await prisma.$transaction(async (tx) => {
+    const written = await prisma.$transaction(async (tx) => {
       let slotScheduledFor: Date;
+      let eventId: string;
       if (canonicalSlot) {
         const applied = await applyCanonicalSlotWrite({
           client: tx,
@@ -285,6 +290,7 @@ async function markMedicationTaken(
           attributionSource: "AUTO",
         });
         slotScheduledFor = applied.row.scheduledFor;
+        eventId = applied.row.id;
       } else {
         // Ad-hoc / PRN — standalone row under the documented contract
         // (`scheduledFor = takenAt`).
@@ -300,12 +306,25 @@ async function markMedicationTaken(
           },
         });
         slotScheduledFor = created.scheduledFor;
+        eventId = created.id;
       }
       await tx.medication.update({
         where: { id: medication.id },
         data: { snoozedUntil: null },
       });
-      return slotScheduledFor;
+      return { slotScheduledFor, eventId };
+    });
+    scheduledFor = written.slotScheduledFor;
+    // v1.16.10 — the button confirmed a take; consume inventory units.
+    // Runs after the intake transaction committed (the dose record must
+    // never hinge on the stock write); the stamp keeps a Telegram
+    // redelivery exactly-once.
+    await consumeForIntake({
+      client: prisma,
+      userId,
+      medicationId: medication.id,
+      eventId: written.eventId,
+      intakeAt: takenAt,
     });
     // The confirmation must reflect on the next read (today feed, card
     // pill, compliance) rather than wait out the cache TTL.
@@ -494,8 +513,9 @@ async function handleCallback(update: TelegramUpdate) {
       // re-reminded for a recorded skip or silenced without one. Same
       // P2002 trade-off as the take path — the rare create race rolls
       // back and Telegram's redelivery converges on the raced row.
-      skippedScheduledFor = await prisma.$transaction(async (tx) => {
+      const writtenSkip = await prisma.$transaction(async (tx) => {
         let slotScheduledFor: Date;
+        let eventId: string;
         if (canonicalSlot) {
           const applied = await applyCanonicalSlotWrite({
             client: tx,
@@ -510,6 +530,7 @@ async function handleCallback(update: TelegramUpdate) {
             createSource: "REMINDER",
           });
           slotScheduledFor = applied.row.scheduledFor;
+          eventId = applied.row.id;
         } else {
           const created = await tx.medicationIntakeEvent.create({
             data: {
@@ -523,12 +544,22 @@ async function handleCallback(update: TelegramUpdate) {
             },
           });
           slotScheduledFor = created.scheduledFor;
+          eventId = created.id;
         }
         await tx.medication.update({
           where: { id: medication.id },
           data: { snoozedUntil: endOfDay },
         });
-        return slotScheduledFor;
+        return { slotScheduledFor, eventId };
+      });
+      skippedScheduledFor = writtenSkip.slotScheduledFor;
+      // v1.16.10 — an explicit skip can downgrade a previously-taken
+      // slot row (last-write-wins); refund whatever its consumption
+      // stamp recorded. No-op for a never-consumed row.
+      await restoreForIntake({
+        client: prisma,
+        userId: user.id,
+        eventId: writtenSkip.eventId,
       });
       invalidateUserMedications(user.id, { evict: true });
     }

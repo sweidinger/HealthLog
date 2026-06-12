@@ -33,6 +33,10 @@ vi.mock("@/lib/auth/audit", () => ({
 vi.mock("@/lib/cache/invalidate", () => ({
   invalidateUserMedications: vi.fn(),
 }));
+vi.mock("@/lib/medications/inventory/consumption", () => ({
+  consumeForIntake: vi.fn().mockResolvedValue(undefined),
+  restoreForIntake: vi.fn().mockResolvedValue(undefined),
+}));
 vi.mock("@/lib/rollups/medication-compliance-rollups", () => ({
   recomputeMedicationComplianceForEvent: vi.fn().mockResolvedValue(undefined),
 }));
@@ -565,5 +569,175 @@ describe("PUT — v1.15.18 band re-attribution", () => {
       ROUTE_CTX,
     );
     expect(res.status).toBe(422);
+  });
+});
+
+// ────────────────────────────────────────────────────────────────────
+// v1.16.10 — inventory consumption seams on PUT / DELETE
+// ────────────────────────────────────────────────────────────────────
+
+describe("PUT / DELETE — v1.16.10 inventory consumption", () => {
+  beforeEach(() => {
+    vi.mocked(getSession).mockResolvedValue(SESSION_TZ as never);
+    vi.mocked(prisma.medication.findUnique).mockResolvedValue({
+      oneShot: false,
+      active: true,
+    } as never);
+    vi.mocked(prisma.medication.update).mockResolvedValue({} as never);
+    stubTwiceDailyMed();
+  });
+
+  it("an edit into taken consumes on the row (no slot move)", async () => {
+    const { consumeForIntake, restoreForIntake } = await import(
+      "@/lib/medications/inventory/consumption"
+    );
+    vi.mocked(prisma.medicationIntakeEvent.findFirst)
+      // PUT lookup — pending row anchored on the 07:00 slot.
+      .mockResolvedValueOnce({
+        id: "e1",
+        userId: "user-1",
+        medicationId: "m1",
+        scheduledFor: at(7, 0),
+        takenAt: null,
+        skipped: false,
+      } as never)
+      // lifecycle liveIntake probe
+      .mockResolvedValue(null as never);
+    vi.mocked(prisma.medicationIntakeEvent.update).mockResolvedValue({
+      id: "e1",
+      scheduledFor: at(7, 0),
+      takenAt: at(7, 5),
+      skipped: false,
+    } as never);
+
+    const res = await PUT(putReq({ takenAt: at(7, 5).toISOString() }), ROUTE_CTX);
+    expect(res.status).toBe(200);
+    expect(consumeForIntake).toHaveBeenCalledTimes(1);
+    expect(consumeForIntake).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: "user-1",
+        medicationId: "m1",
+        eventId: "e1",
+      }),
+    );
+    expect(restoreForIntake).not.toHaveBeenCalled();
+  });
+
+  it("a taken → skipped edit restores the row's stamp and never consumes", async () => {
+    const { consumeForIntake, restoreForIntake } = await import(
+      "@/lib/medications/inventory/consumption"
+    );
+    vi.mocked(prisma.medicationIntakeEvent.findFirst)
+      .mockResolvedValueOnce({
+        id: "e1",
+        userId: "user-1",
+        medicationId: "m1",
+        scheduledFor: at(7, 0),
+        takenAt: at(7, 5),
+        skipped: false,
+      } as never)
+      .mockResolvedValue(null as never);
+    vi.mocked(prisma.medicationIntakeEvent.update).mockResolvedValue({
+      id: "e1",
+      scheduledFor: at(7, 0),
+      takenAt: null,
+      skipped: true,
+    } as never);
+
+    const res = await PUT(putReq({ skipped: true, takenAt: null }), ROUTE_CTX);
+    expect(res.status).toBe(200);
+    expect(restoreForIntake).toHaveBeenCalledTimes(1);
+    expect(restoreForIntake).toHaveBeenCalledWith(
+      expect.objectContaining({ userId: "user-1", eventId: "e1" }),
+    );
+    expect(consumeForIntake).not.toHaveBeenCalled();
+  });
+
+  it("a slot-moving taken edit refunds the old row before tombstoning and consumes the converged row — net one", async () => {
+    const { consumeForIntake, restoreForIntake } = await import(
+      "@/lib/medications/inventory/consumption"
+    );
+    vi.mocked(prisma.medicationIntakeEvent.findFirst)
+      .mockResolvedValueOnce({
+        id: "e1",
+        userId: "user-1",
+        medicationId: "m1",
+        scheduledFor: at(7, 0),
+        takenAt: at(7, 5),
+        skipped: false,
+      } as never)
+      .mockResolvedValue(null as never);
+    vi.mocked(prisma.medicationIntakeEvent.findMany).mockResolvedValue(
+      [] as never,
+    );
+    vi.mocked(prisma.medicationIntakeEvent.update).mockResolvedValue(
+      {} as never,
+    );
+    vi.mocked(prisma.medicationIntakeEvent.create).mockResolvedValue({
+      id: "e2",
+      userId: "user-1",
+      medicationId: "m1",
+      scheduledFor: at(19, 0),
+      takenAt: at(19, 5),
+      skipped: false,
+    } as never);
+
+    const res = await PUT(
+      putReq({ takenAt: at(19, 5).toISOString() }),
+      ROUTE_CTX,
+    );
+    expect(res.status).toBe(200);
+    expect(restoreForIntake).toHaveBeenCalledTimes(1);
+    expect(restoreForIntake).toHaveBeenCalledWith(
+      expect.objectContaining({ eventId: "e1" }),
+    );
+    expect(consumeForIntake).toHaveBeenCalledTimes(1);
+    expect(consumeForIntake).toHaveBeenCalledWith(
+      expect.objectContaining({ eventId: "e2" }),
+    );
+    // The refund runs BEFORE the tombstone write.
+    const restoreOrder = vi.mocked(restoreForIntake).mock
+      .invocationCallOrder[0];
+    const tombstoneOrder = vi.mocked(prisma.medicationIntakeEvent.update)
+      .mock.invocationCallOrder[0];
+    expect(restoreOrder).toBeLessThan(tombstoneOrder);
+  });
+
+  it("DELETE refunds the row's stamp before the tombstone", async () => {
+    const { consumeForIntake, restoreForIntake } = await import(
+      "@/lib/medications/inventory/consumption"
+    );
+    vi.mocked(prisma.medicationIntakeEvent.findUnique).mockResolvedValue({
+      id: "e1",
+      userId: "user-1",
+      medicationId: "m1",
+      scheduledFor: at(7, 0),
+      takenAt: at(7, 5),
+      skipped: false,
+    } as never);
+    vi.mocked(prisma.medicationIntakeEvent.findFirst).mockResolvedValue(
+      null as never,
+    );
+    vi.mocked(prisma.medicationIntakeEvent.update).mockResolvedValue(
+      {} as never,
+    );
+
+    const res = await DELETE(
+      new NextRequest("http://localhost/api/medications/m1/intake/e1", {
+        method: "DELETE",
+      }),
+      ROUTE_CTX,
+    );
+    expect(res.status).toBe(200);
+    expect(restoreForIntake).toHaveBeenCalledTimes(1);
+    expect(restoreForIntake).toHaveBeenCalledWith(
+      expect.objectContaining({ userId: "user-1", eventId: "e1" }),
+    );
+    expect(consumeForIntake).not.toHaveBeenCalled();
+    const restoreOrder = vi.mocked(restoreForIntake).mock
+      .invocationCallOrder[0];
+    const tombstoneOrder = vi.mocked(prisma.medicationIntakeEvent.update)
+      .mock.invocationCallOrder[0];
+    expect(restoreOrder).toBeLessThan(tombstoneOrder);
   });
 });

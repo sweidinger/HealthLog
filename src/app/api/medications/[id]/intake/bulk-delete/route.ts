@@ -11,6 +11,7 @@ import {
 } from "@/lib/api-response";
 import { checkRateLimit, rateLimitHeaders } from "@/lib/rate-limit";
 import { bulkDeleteIntakeEventsSchema } from "@/lib/validations/medication";
+import { restoreForIntake } from "@/lib/medications/inventory/consumption";
 import { assertMedicationOwnership } from "@/lib/medications/route-guards";
 import {
   dayKeyForScheduledFor,
@@ -106,7 +107,7 @@ export const POST = apiHandler(
         userId: user.id,
         medicationId: id,
       },
-      select: { id: true, scheduledFor: true },
+      select: { id: true, scheduledFor: true, inventoryConsumption: true },
     });
 
     if (targetRows.length === 0) {
@@ -116,6 +117,19 @@ export const POST = apiHandler(
     const dayKeysToRefresh = new Set<string>();
     for (const row of targetRows) {
       dayKeysToRefresh.add(dayKeyForScheduledFor(row.scheduledFor, tz));
+    }
+
+    // v1.16.10 — refund each stamped row's inventory consumption before
+    // the tombstone sweep. Only stamped rows pay the round trip; the
+    // hook is best-effort and never blocks the delete.
+    for (const row of targetRows) {
+      if (row.inventoryConsumption !== null) {
+        await restoreForIntake({
+          client: prisma,
+          userId: user.id,
+          eventId: row.id,
+        });
+      }
     }
 
     // v1.15.18 LOW-6 — soft-delete to match the single-event DELETE handler

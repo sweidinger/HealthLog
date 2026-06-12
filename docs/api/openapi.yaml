@@ -2289,6 +2289,145 @@ paths:
                 $ref: "#/components/schemas/ErrorEnvelope"
         "422": *a3
         "429": *a4
+  /api/medications/{id}/inventory:
+    get:
+      tags:
+        - Medications
+      summary: List a medication's supply containers
+      description: Returns every inventory item (all states) for the medication, ordered by state, then `expiresAt`, then
+        `createdAt`. Items count UNITS; divide by the medication's `unitsPerDose` for dose-level figures.
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+          required: true
+      responses:
+        "200":
+          description: Inventory item list.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListMedicationInventoryResponse"
+        "401": *a1
+        "404":
+          description: Medication not found (or owned by another user).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "422": *a3
+        "429": *a4
+    post:
+      tags:
+        - Medications
+      summary: Register a new supply container
+      description: Creates an ACTIVE inventory item with `unitsRemaining = unitsTotal`. The request's `dosesTotal` field
+        carries UNITS (1–1000). Rate-limited 30/min/user. Audits as `medication.inventory.create`.
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+          required: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateMedicationInventoryItemRequest"
+      responses:
+        "201":
+          description: Created inventory item.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreateMedicationInventoryItemResponse"
+        "401": *a1
+        "404":
+          description: Medication not found (or owned by another user).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "422": *a3
+        "429": *a4
+  /api/medications/{id}/inventory/{itemId}:
+    patch:
+      tags:
+        - Medications
+      summary: Mutate a supply container
+      description: "Per-item operations: manual first-use (`markAsFirstUseAt`), used-up override (`markAsUsedUp`),
+        printed-expiry correction, absolute remaining-unit correction (`dosesRemaining`, clamped to the item's
+        capacity), notes. The canonical state machine re-derives the state after every mutation. Audits as
+        `medication.inventory.update`."
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+          required: true
+        - in: path
+          name: itemId
+          schema:
+            type: string
+          required: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateMedicationInventoryItemRequest"
+      responses:
+        "200":
+          description: Updated inventory item.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UpdateMedicationInventoryItemResponse"
+        "401": *a1
+        "404":
+          description: Inventory item not found (or owned by another user / medication).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "422": *a3
+        "429": *a4
+    delete:
+      tags:
+        - Medications
+      summary: Delete a supply container
+      description: Hard-deletes the inventory item. The audit log captures the before-state (`medication.inventory.delete`) so
+        a row can be reconstructed if needed. Consumption stamps on intake events that reference the item stay in place;
+        a later restore skips the missing container.
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+          required: true
+        - in: path
+          name: itemId
+          schema:
+            type: string
+          required: true
+      responses:
+        "200":
+          description: Deletion succeeded.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeleteMedicationInventoryItemResponse"
+        "401": *a1
+        "404":
+          description: Inventory item not found (or owned by another user / medication).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "422": *a3
+        "429": *a4
   /api/medications/extract:
     post:
       tags:
@@ -4532,6 +4671,12 @@ components:
         dosesPerUnit:
           type: integer
           minimum: 1
+          maximum: 1000
+        unitsPerDose:
+          description: Inventory units consumed per dose (e.g. 2 tablets of 2 mg for a 4 mg dose). Default 1. The intake
+            consumption hook decrements this many units per taken dose; dose-derived readouts divide unit counts by it.
+          type: integer
+          minimum: 1
           maximum: 100
         deliveryForm:
           type: string
@@ -4779,8 +4924,14 @@ components:
           anyOf:
             - type: integer
               minimum: 1
-              maximum: 100
+              maximum: 1000
             - type: "null"
+        unitsPerDose:
+          description: Inventory units consumed per dose (e.g. 2 tablets of 2 mg for a 4 mg dose). The intake consumption hook
+            decrements this many units per taken dose; already-stamped intake events keep their recorded consumption.
+          type: integer
+          minimum: 1
+          maximum: 100
         deliveryForm:
           type: string
           enum:
@@ -4940,6 +5091,78 @@ components:
         the per-day compliance rollup, and — for one-shot medications — flip `active` to false. The optional
         `injectionSite` is persisted only for an INJECTION medication with site-tracking enabled and is validated
         against the medication's effective allowed set (422 on a disallowed value).
+    CreateMedicationInventoryItemRequest:
+      type: object
+      properties:
+        dosesTotal:
+          type: integer
+          minimum: 1
+          maximum: 1000
+          description: Units the container ships with (tablets / ampoules / puffs; 1–1000). Stored as `unitsTotal`; dose-derived
+            readouts divide by the medication's `unitsPerDose`.
+        containerType:
+          description: Kind of physical container (PEN / AMPOULE / BLISTER / INHALER / BOTTLE / OTHER). Display-level only;
+            defaults to OTHER.
+          type: string
+          enum:
+            - PEN
+            - AMPOULE
+            - BLISTER
+            - INHALER
+            - BOTTLE
+            - OTHER
+        printedExpiry:
+          anyOf:
+            - type: string
+              format: date-time
+              pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
+            - type: "null"
+        purchasedAt:
+          anyOf:
+            - type: string
+              format: date-time
+              pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
+            - type: "null"
+        notes:
+          anyOf:
+            - type: string
+              maxLength: 200
+            - type: "null"
+      required:
+        - dosesTotal
+      description: Register a new supply container (pen / blister pack / bottle). `dosesTotal` counts UNITS (1–1000); the item
+        starts ACTIVE with `unitsRemaining = unitsTotal` and the intake consumption hook decrements it per taken dose.
+    UpdateMedicationInventoryItemRequest:
+      type: object
+      properties:
+        markAsFirstUseAt:
+          description: Manually start the 30-day in-use clock (the user opened the container without logging an intake). ACTIVE
+            flips to IN_USE; a backdated instant whose window already lapsed lands EXPIRED.
+          type: string
+          format: date-time
+          pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
+        markAsUsedUp:
+          description: "Terminal override: zero the remaining units and mark the container USED_UP (physically discarded)."
+          type: boolean
+        printedExpiry:
+          anyOf:
+            - type: string
+              format: date-time
+              pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
+            - type: "null"
+        dosesRemaining:
+          description: Absolute remaining-unit correction (0–1000). Clamped server-side to the item's `unitsTotal`; the canonical
+            state machine re-derives the state (0 ⇒ USED_UP).
+          type: integer
+          minimum: 0
+          maximum: 1000
+        notes:
+          anyOf:
+            - type: string
+              maxLength: 200
+            - type: "null"
+      description: "Per-item inventory mutation: manual first-use, used-up override, printed-expiry correction, absolute
+        remaining-unit correction, notes. Every field is optional and commutative."
     MedicationExtractRequest:
       type: object
       properties:
@@ -8264,6 +8487,13 @@ components:
               maximum: 9007199254740991
             - type: "null"
           description: Doses per pen / vial for inventory tracking. NULL = inventory tracking off.
+        unitsPerDose:
+          type: integer
+          minimum: -9007199254740991
+          maximum: 9007199254740991
+          description: v1.16.10 — inventory units one dose consumes (e.g. 2 tablets of 2 mg for a 4 mg dose). Default 1. The
+            intake consumption hook decrements this many units per taken dose; dose-derived readouts divide unit counts
+            by it.
         active:
           type: boolean
         notificationsEnabled:
@@ -8372,6 +8602,7 @@ components:
         - dose
         - treatmentClass
         - dosesPerUnit
+        - unitsPerDose
         - active
         - notificationsEnabled
         - liveActivityEnabled
@@ -8449,6 +8680,13 @@ components:
               maximum: 9007199254740991
             - type: "null"
           description: Doses per pen / vial for inventory tracking. NULL = inventory tracking off.
+        unitsPerDose:
+          type: integer
+          minimum: -9007199254740991
+          maximum: 9007199254740991
+          description: v1.16.10 — inventory units one dose consumes (e.g. 2 tablets of 2 mg for a 4 mg dose). Default 1. The
+            intake consumption hook decrements this many units per taken dose; dose-derived readouts divide unit counts
+            by it.
         active:
           type: boolean
         notificationsEnabled:
@@ -8542,6 +8780,7 @@ components:
         - dose
         - treatmentClass
         - dosesPerUnit
+        - unitsPerDose
         - active
         - notificationsEnabled
         - liveActivityEnabled
@@ -8690,6 +8929,200 @@ components:
       properties:
         data:
           $ref: "#/components/schemas/MedicationIntakeEvent"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    ListMedicationInventoryResponse:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            items:
+              type: array
+              items:
+                $ref: "#/components/schemas/MedicationInventoryItem"
+            meta:
+              type: object
+              properties:
+                total:
+                  type: integer
+                  minimum: 0
+                  maximum: 9007199254740991
+              required:
+                - total
+              additionalProperties: false
+          required:
+            - items
+            - meta
+          additionalProperties: false
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    MedicationInventoryItem:
+      type: object
+      properties:
+        id:
+          type: string
+        userId:
+          type: string
+        medicationId:
+          type: string
+        state:
+          type: string
+          enum:
+            - ACTIVE
+            - IN_USE
+            - EXPIRED
+            - USED_UP
+          description: Container lifecycle state. ACTIVE = unopened; IN_USE = opened (30-day in-use clock running); EXPIRED =
+            printed expiry or in-use window lapsed with units left; USED_UP = drained (terminal).
+        containerType:
+          type: string
+          enum:
+            - PEN
+            - AMPOULE
+            - BLISTER
+            - INHALER
+            - BOTTLE
+            - OTHER
+          description: Kind of physical container (PEN / AMPOULE / BLISTER / INHALER / BOTTLE / OTHER). Display-level
+            classification; defaults to OTHER.
+        unitsTotal:
+          type: integer
+          minimum: -9007199254740991
+          maximum: 9007199254740991
+          description: Units the container shipped with (tablets / ampoules / puffs; 1–1000). Dose-derived readouts divide by the
+            medication's `unitsPerDose`.
+        unitsRemaining:
+          type: integer
+          minimum: -9007199254740991
+          maximum: 9007199254740991
+          description: Units left in the container. Decremented by the intake consumption hook (FEFO with spillover across
+            containers); refunded when a taken dose is skipped, edited away, or deleted.
+        firstUseAt:
+          anyOf:
+            - type: string
+              format: date-time
+              pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
+            - type: "null"
+          description: Instant the container was first used. NULL until opened; starts the 30-day in-use clock.
+        expiresAt:
+          anyOf:
+            - type: string
+              format: date-time
+              pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
+            - type: "null"
+          description: Persisted MIN(firstUseAt + 30 days, printedExpiry). NULL when neither clock has started.
+        printedExpiry:
+          anyOf:
+            - type: string
+              format: date-time
+              pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
+            - type: "null"
+        purchasedAt:
+          anyOf:
+            - type: string
+              format: date-time
+              pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
+            - type: "null"
+        notes:
+          anyOf:
+            - type: string
+            - type: "null"
+        createdAt:
+          type: string
+          format: date-time
+          pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
+        updatedAt:
+          type: string
+          format: date-time
+          pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
+      required:
+        - id
+        - userId
+        - medicationId
+        - state
+        - containerType
+        - unitsTotal
+        - unitsRemaining
+        - firstUseAt
+        - expiresAt
+        - printedExpiry
+        - purchasedAt
+        - notes
+        - createdAt
+        - updatedAt
+      additionalProperties: false
+      description: One supply container (pen / blister pack / bottle) of a medication. Counts UNITS — the medication's
+        `unitsPerDose` maps units to doses. The intake write paths consume from the open container first, then
+        first-expiry-first-out over unopened stock.
+    CreateMedicationInventoryItemResponse:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/MedicationInventoryItem"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    UpdateMedicationInventoryItemResponse:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/MedicationInventoryItem"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    DeleteMedicationInventoryItemResponse:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            id:
+              type: string
+            deleted:
+              type: boolean
+          required:
+            - id
+            - deleted
+          additionalProperties: false
         error:
           type: "null"
         meta:
@@ -12887,6 +13320,13 @@ components:
               maximum: 9007199254740991
             - type: "null"
           description: Doses per pen / vial for inventory tracking. NULL = inventory tracking off.
+        unitsPerDose:
+          type: integer
+          minimum: -9007199254740991
+          maximum: 9007199254740991
+          description: v1.16.10 — inventory units one dose consumes (e.g. 2 tablets of 2 mg for a 4 mg dose). Default 1. The
+            intake consumption hook decrements this many units per taken dose; dose-derived readouts divide unit counts
+            by it.
         active:
           type: boolean
         notificationsEnabled:
@@ -12978,6 +13418,7 @@ components:
         - dose
         - treatmentClass
         - dosesPerUnit
+        - unitsPerDose
         - active
         - notificationsEnabled
         - liveActivityEnabled

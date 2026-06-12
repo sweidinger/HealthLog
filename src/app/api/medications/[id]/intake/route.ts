@@ -17,7 +17,10 @@ import {
 import { resolveInjectionSiteForWrite } from "@/lib/medications/injection-site-write";
 import type { InjectionSiteKey } from "@/lib/medications/injection-sites";
 import { withIdempotency } from "@/lib/idempotency";
-import { consumeOneDose } from "@/lib/medications/inventory/service";
+import {
+  consumeForIntake,
+  restoreForIntake,
+} from "@/lib/medications/inventory/consumption";
 import { reconcileOneShotState } from "@/lib/medications/lifecycle";
 import { assertMedicationOwnership } from "@/lib/medications/route-guards";
 import { invalidateUserMedications } from "@/lib/cache/invalidate";
@@ -415,35 +418,27 @@ async function postIntake(request: NextRequest, { params }: RouteParams) {
     }
   }
 
-  // v1.4.25 W19b — pen-inventory dose decrement. Only fires for
-  // non-skipped intakes; a skipped event is not a consumption event.
-  // No-op when the medication has no tracked pens (most non-GLP-1
-  // meds). Failures here must never block the intake write, so
-  // errors are swallowed and logged — the intake is the source of
-  // truth, the inventory is an opt-in companion.
-  //
-  // v1.8.2 M2 — gate on an ACTUAL pending→taken transition. An idempotent
-  // re-post of an already-taken slot updates the row in place but must NOT
-  // decrement again, else a repeated iOS sync drifts the GLP-1 pen count
-  // down on every replay. `consumedTransition` is false when the slot was
-  // already taken (or on a no-downgrade no-op).
-  let inventoryOutcome: Awaited<ReturnType<typeof consumeOneDose>> = null;
+  // v1.16.10 — inventory consumption / restore. A taken write consumes
+  // `unitsPerDose` units (the stamp on the event row makes replays and
+  // re-posts exactly-once; `consumedTransition` skips the read for the
+  // no-op echo cases the slot upsert already classified). An explicit
+  // skip can downgrade a previously-taken row (last-write-wins), so it
+  // refunds whatever that row's stamp recorded. Both hooks are
+  // best-effort and never block the intake write.
   if (!skipped && consumedTransition) {
-    try {
-      inventoryOutcome = await consumeOneDose({
-        userId: user.id,
-        medicationId: id,
-        intakeAt: event.takenAt ?? event.scheduledFor,
-      });
-    } catch (err) {
-      annotate({
-        action: { name: "medication.inventory.consume_error" },
-        meta: {
-          medication_id: id,
-          message: err instanceof Error ? err.message : String(err),
-        },
-      });
-    }
+    await consumeForIntake({
+      client: prisma,
+      userId: user.id,
+      medicationId: id,
+      eventId: event.id,
+      intakeAt: event.takenAt ?? event.scheduledFor,
+    });
+  } else if (skipped) {
+    await restoreForIntake({
+      client: prisma,
+      userId: user.id,
+      eventId: event.id,
+    });
   }
 
   await auditLog("medication.intake", {
@@ -453,12 +448,6 @@ async function postIntake(request: NextRequest, { params }: RouteParams) {
       medicationId: id,
       eventId: event.id,
       skipped,
-      ...(inventoryOutcome
-        ? {
-            inventoryItemId: inventoryOutcome.itemId,
-            inventoryChange: inventoryOutcome.change,
-          }
-        : {}),
     },
   });
 
@@ -471,12 +460,6 @@ async function postIntake(request: NextRequest, { params }: RouteParams) {
     meta: {
       medication_id: id,
       skipped,
-      ...(inventoryOutcome
-        ? {
-            inventory_item_id: inventoryOutcome.itemId,
-            inventory_change: inventoryOutcome.change,
-          }
-        : {}),
     },
   });
 

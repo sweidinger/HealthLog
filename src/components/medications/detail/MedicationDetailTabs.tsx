@@ -125,6 +125,8 @@ export interface MedicationDetailSnapshot {
   treatmentClass?: string;
   deliveryForm?: string;
   dosesPerUnit?: number | null;
+  /** v1.16.10 — inventory units one dose consumes (default 1). */
+  unitsPerDose?: number | null;
   trackInjectionSites?: boolean;
   allowedInjectionSites?: string[];
   active: boolean;
@@ -179,6 +181,7 @@ function snapshotToWizardPayload(
     treatmentClass: med.treatmentClass,
     deliveryForm: med.deliveryForm,
     dosesPerUnit: med.dosesPerUnit ?? null,
+    unitsPerDose: med.unitsPerDose ?? 1,
     trackInjectionSites: med.trackInjectionSites ?? false,
     allowedInjectionSites: med.allowedInjectionSites ?? [],
     notificationsEnabled: med.notificationsEnabled,
@@ -314,8 +317,8 @@ export function MedicationDetailTabs({
         return await apiGet<{
           items: Array<{
             state: "ACTIVE" | "IN_USE" | "EXPIRED" | "USED_UP";
-            dosesTotal: number;
-            dosesRemaining: number;
+            unitsTotal: number;
+            unitsRemaining: number;
           }>;
         } | null>(`/api/medications/${id}/inventory`);
       } catch {
@@ -328,11 +331,18 @@ export function MedicationDetailTabs({
 
   const inventoryItems = Array.isArray(inventory?.items) ? inventory.items : [];
   const liveItems = inventoryItems.filter((i) => i.state !== "USED_UP");
-  const dosesRemaining = liveItems.reduce(
-    (sum, i) => sum + i.dosesRemaining,
+  // v1.16.10 — items count UNITS; the supply readout and the runway are
+  // dose-derived (floor over the pooled units — consumption spills
+  // across containers, so the pool is the honest dose count). The raw
+  // unit tally renders as secondary text when a dose spans > 1 unit.
+  const perDose = Math.max(1, medication.unitsPerDose ?? 1);
+  const unitsRemaining = liveItems.reduce(
+    (sum, i) => sum + i.unitsRemaining,
     0,
   );
-  const dosesTotal = liveItems.reduce((sum, i) => sum + i.dosesTotal, 0);
+  const unitsTotal = liveItems.reduce((sum, i) => sum + i.unitsTotal, 0);
+  const dosesRemaining = Math.floor(unitsRemaining / perDose);
+  const dosesTotal = Math.floor(unitsTotal / perDose);
   const runwayDays = estimateRunwayDays(dosesRemaining, medication.schedules);
 
   return (
@@ -422,6 +432,16 @@ export function MedicationDetailTabs({
                         remaining: dosesRemaining,
                         total: dosesTotal,
                       })}
+                      {perDose > 1 && (
+                        <span className="text-muted-foreground">
+                          {" ("}
+                          {t("medications.detail.bestand.unitsDetail", {
+                            remaining: unitsRemaining,
+                            total: unitsTotal,
+                          })}
+                          {")"}
+                        </span>
+                      )}
                       {runwayDays !== null && (
                         <span className="text-muted-foreground">
                           {" · "}
@@ -562,6 +582,8 @@ export function MedicationDetailTabs({
           <InventorySection
             medicationId={id}
             dosesPerUnit={medication.dosesPerUnit}
+            unitsPerDose={medication.unitsPerDose}
+            deliveryForm={medication.deliveryForm}
           />
         </TabsContent>
 

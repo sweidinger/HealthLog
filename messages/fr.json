@@ -277,6 +277,7 @@
     "hero": {
       "scoreLabel": "Health Score",
       "scoreProvisional": "Pas encore assez de données",
+      "scoreComputing": "Calcul du score en cours …",
       "doses": {
         "summary": "{taken} dose(s) prise(s) sur {scheduled}",
         "nextAt": "Prochaine à {time}",
@@ -1056,7 +1057,9 @@
           "dosesPerUnitHint": "Doses par stylo / flacon — laisser vide pour ne pas suivre le stock.",
           "injectionSiteToggle": "Rotation des sites d'injection",
           "injectionSiteHint": "Guide de rotation facultatif. Le site de chaque dose est enregistré lors de la saisie de la prise.",
-          "short": "Dose"
+          "short": "Dose",
+          "unitsPerDoseLabel": "Unités par dose",
+          "unitsPerDoseHint": "p. ex. 2 comprimés de 2 mg pour une dose de 4 mg"
         },
         "step4": {
           "title": "Sur quelle période le prenez-vous ?",
@@ -1585,7 +1588,7 @@
       "bestand": {
         "title": "Stock",
         "summary": "{remaining} doses restantes sur {total}",
-        "itemsTitle": "Stylos / flacons",
+        "itemsTitle": "Boîtes et contenants",
         "doses": "{remaining} / {total} doses",
         "state": {
           "ACTIVE": "Non ouvert",
@@ -1594,25 +1597,39 @@
           "USED_UP": "Épuisé"
         },
         "empty": "Aucun stock enregistré.",
-        "emptyHelper": "Enregistrez un stylo ou une boîte pour suivre les doses restantes et l'autonomie.",
+        "emptyHelper": "Enregistrez une boîte ou un contenant pour suivre le stock restant et l'autonomie.",
         "emptyCta": "Enregistrer une boîte",
         "addButton": "Enregistrer",
-        "addTitle": "Enregistrer un stylo ou une boîte",
-        "addDescription": "Enregistrez un nouveau stock avec son nombre de doses ; la date de péremption est facultative.",
-        "addQuantityLabel": "Quantité (doses / unités)",
-        "addQuantityHelper": "1–100 doses par stylo ou boîte.",
+        "addTitle": "Enregistrer une boîte ou un contenant",
+        "addDescription": "Enregistrez un nouveau stock avec son nombre d'unités ; la date de péremption est facultative.",
+        "addQuantityLabel": "Quantité (unités)",
+        "addQuantityHelper": "1–1000 unités par boîte ou contenant.",
         "addExpiryLabel": "Date de péremption (facultatif)",
         "addSubmit": "Enregistrer",
         "addSuccess": "Stock enregistré.",
         "addFailed": "Le stock n'a pas pu être enregistré.",
         "adjustButton": "Ajuster",
         "adjustTitle": "Corriger le stock",
-        "adjustDescription": "Définissez les doses restantes — pour une correction ou un prélèvement. 0 marque l'article comme épuisé.",
-        "adjustQuantityLabel": "Doses restantes",
-        "adjustHelper": "Capacité : {total} doses.",
+        "adjustDescription": "Définissez les unités restantes — pour une correction ou un prélèvement. 0 marque l'article comme épuisé.",
+        "adjustQuantityLabel": "Unités restantes",
+        "adjustHelper": "Capacité : {total} unités.",
         "adjustSubmit": "Enregistrer",
         "adjustSuccess": "Stock mis à jour.",
-        "adjustFailed": "Le stock n'a pas pu être mis à jour."
+        "adjustFailed": "Le stock n'a pas pu être mis à jour.",
+        "containerTypeLabel": "Type de contenant",
+        "containerType": {
+          "PEN": "Stylo",
+          "AMPOULE": "Ampoule",
+          "BLISTER": "Plaquette de comprimés",
+          "INHALER": "Inhalateur",
+          "BOTTLE": "Flacon",
+          "OTHER": "Autre"
+        },
+        "unitsDetail": "{remaining} / {total} unités",
+        "quantityModeDoses": "Doses",
+        "quantityModeUnits": "Unités",
+        "quantityInUnits": "= {units} unités",
+        "quantityInDoses": "≈ {doses} doses"
       },
       "erweitert": {
         "group": {

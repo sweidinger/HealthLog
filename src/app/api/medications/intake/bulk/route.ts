@@ -59,6 +59,10 @@ import {
 } from "@/lib/medications/scheduling/slot-upsert";
 import { resolveInjectionSiteForWrite } from "@/lib/medications/injection-site-write";
 import {
+  consumeForIntake,
+  restoreForIntake,
+} from "@/lib/medications/inventory/consumption";
+import {
   boundedTakenAtSchema,
   injectionSiteEnum,
   type InjectionSiteValue,
@@ -407,7 +411,8 @@ async function postBulk(request: NextRequest): Promise<Response> {
         if (applied.noDowngradeNoOp) {
           // C2 — pending echo onto an already-actioned slot. Report it as a
           // duplicate so the iOS cursor advances WITHOUT downgrading the
-          // recorded dose.
+          // recorded dose. A pending echo is never a taken write, so it
+          // must never reach the inventory consume below.
           duplicates += 1;
           results.push({ index: i, status: "duplicate", id: applied.row.id });
         } else if (applied.outcome === "updated") {
@@ -416,6 +421,25 @@ async function postBulk(request: NextRequest): Promise<Response> {
         } else {
           inserted += 1;
           results.push({ index: i, status: "inserted", id: applied.row.id });
+        }
+        // v1.16.10 — inventory: a taken write consumes (the stamp on the
+        // row makes a replayed sync batch exactly-once), an explicit skip
+        // refunds a previously-taken row's stamp. Pending echoes carry
+        // neither flag and never touch stock.
+        if (!applied.noDowngradeNoOp && isExplicitTaken) {
+          await consumeForIntake({
+            client: prisma,
+            userId: user.id,
+            medicationId: entry.medicationId,
+            eventId: applied.row.id,
+            intakeAt: entry.takenAt as Date,
+          });
+        } else if (!applied.noDowngradeNoOp && isExplicitSkip) {
+          await restoreForIntake({
+            client: prisma,
+            userId: user.id,
+            eventId: applied.row.id,
+          });
         }
       } else {
         // Resolver-null: PRN / off-slot / future-slot-guarded. Before the
@@ -485,6 +509,22 @@ async function postBulk(request: NextRequest): Promise<Response> {
             inserted += 1;
             results.push({ index: i, status: "inserted", id: applied.row.id });
           }
+          // v1.16.10 — same inventory rule as the canonical-slot branch.
+          if (!applied.noDowngradeNoOp && isExplicitTaken) {
+            await consumeForIntake({
+              client: prisma,
+              userId: user.id,
+              medicationId: entry.medicationId,
+              eventId: applied.row.id,
+              intakeAt: entry.takenAt as Date,
+            });
+          } else if (!applied.noDowngradeNoOp && isExplicitSkip) {
+            await restoreForIntake({
+              client: prisma,
+              userId: user.id,
+              eventId: applied.row.id,
+            });
+          }
         } else {
           // Genuinely standalone. Anchor the row on the intake instant —
           // the documented ad-hoc contract (`scheduledFor = takenAt`) — so
@@ -515,6 +555,18 @@ async function postBulk(request: NextRequest): Promise<Response> {
           });
           inserted += 1;
           results.push({ index: i, status: "inserted", id: row.id });
+          // v1.16.10 — a fresh standalone taken row consumes inventory
+          // units (a fresh skip / pending row has nothing to consume or
+          // refund).
+          if (isExplicitTaken) {
+            await consumeForIntake({
+              client: prisma,
+              userId: user.id,
+              medicationId: entry.medicationId,
+              eventId: row.id,
+              intakeAt: entry.takenAt as Date,
+            });
+          }
         }
       }
       const dayKey = dayKeyForScheduledFor(

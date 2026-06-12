@@ -277,6 +277,7 @@
     "hero": {
       "scoreLabel": "Health Score",
       "scoreProvisional": "Za mało danych",
+      "scoreComputing": "Trwa obliczanie wyniku …",
       "doses": {
         "summary": "Przyjęto {taken} z {scheduled} dawek",
         "nextAt": "Następna o {time}",
@@ -1056,7 +1057,9 @@
           "dosesPerUnitHint": "Dawki na wstrzykiwacz / fiolkę — zostaw puste, aby nie śledzić zapasów.",
           "injectionSiteToggle": "Rotacja miejsc wstrzyknięcia",
           "injectionSiteHint": "Opcjonalny przewodnik rotacji. Miejsce każdej dawki zapisywane jest przy rejestrowaniu przyjęcia.",
-          "short": "Dawka"
+          "short": "Dawka",
+          "unitsPerDoseLabel": "Jednostki na dawkę",
+          "unitsPerDoseHint": "np. 2 tabletki po 2 mg na dawkę 4 mg"
         },
         "step4": {
           "title": "Przez jaki okres go przyjmujesz?",
@@ -1585,7 +1588,7 @@
       "bestand": {
         "title": "Zapas",
         "summary": "Pozostało {remaining} z {total} dawek",
-        "itemsTitle": "Wstrzykiwacze / fiolki",
+        "itemsTitle": "Opakowania i pojemniki",
         "doses": "{remaining} / {total} dawek",
         "state": {
           "ACTIVE": "Nieotwarte",
@@ -1594,25 +1597,39 @@
           "USED_UP": "Zużyte"
         },
         "empty": "Nie zarejestrowano zapasu.",
-        "emptyHelper": "Zarejestruj wstrzykiwacz lub opakowanie, aby śledzić pozostałe dawki i zapas na tygodnie.",
+        "emptyHelper": "Zarejestruj opakowanie lub pojemnik, aby śledzić pozostały zapas i jego wystarczalność.",
         "emptyCta": "Zarejestruj opakowanie",
         "addButton": "Zarejestruj",
-        "addTitle": "Zarejestruj wstrzykiwacz lub opakowanie",
-        "addDescription": "Zapisz nowy zapas z liczbą dawek; data ważności jest opcjonalna.",
-        "addQuantityLabel": "Ilość (dawki / jednostki)",
-        "addQuantityHelper": "1–100 dawek na wstrzykiwacz lub opakowanie.",
+        "addTitle": "Zarejestruj opakowanie lub pojemnik",
+        "addDescription": "Zapisz nowy zapas z liczbą jednostek; data ważności jest opcjonalna.",
+        "addQuantityLabel": "Ilość (jednostki)",
+        "addQuantityHelper": "1–1000 jednostek na opakowanie lub pojemnik.",
         "addExpiryLabel": "Data ważności (opcjonalnie)",
         "addSubmit": "Zarejestruj",
         "addSuccess": "Zapas zarejestrowany.",
         "addFailed": "Nie udało się zarejestrować zapasu.",
         "adjustButton": "Skoryguj",
         "adjustTitle": "Skoryguj zapas",
-        "adjustDescription": "Ustaw pozostałe dawki — przy korekcie lub pobraniu. 0 oznacza zapas jako zużyty.",
-        "adjustQuantityLabel": "Pozostałe dawki",
-        "adjustHelper": "Pojemność: {total} dawek.",
+        "adjustDescription": "Ustaw pozostałe jednostki — przy korekcie lub pobraniu. 0 oznacza zapas jako zużyty.",
+        "adjustQuantityLabel": "Pozostałe jednostki",
+        "adjustHelper": "Pojemność: {total} jednostek.",
         "adjustSubmit": "Zapisz",
         "adjustSuccess": "Zapas zaktualizowany.",
-        "adjustFailed": "Nie udało się zaktualizować zapasu."
+        "adjustFailed": "Nie udało się zaktualizować zapasu.",
+        "containerTypeLabel": "Rodzaj pojemnika",
+        "containerType": {
+          "PEN": "Wstrzykiwacz",
+          "AMPOULE": "Ampułka",
+          "BLISTER": "Opakowanie tabletek",
+          "INHALER": "Inhalator",
+          "BOTTLE": "Butelka",
+          "OTHER": "Inne"
+        },
+        "unitsDetail": "{remaining} / {total} jednostek",
+        "quantityModeDoses": "Dawki",
+        "quantityModeUnits": "Jednostki",
+        "quantityInUnits": "= {units} jednostek",
+        "quantityInDoses": "≈ {doses} dawek"
       },
       "erweitert": {
         "group": {

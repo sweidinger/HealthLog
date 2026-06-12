@@ -277,6 +277,7 @@
     "hero": {
       "scoreLabel": "Health Score",
       "scoreProvisional": "Noch nicht genug Daten",
+      "scoreComputing": "Score wird berechnet …",
       "doses": {
         "summary": "{taken} von {scheduled} Dosen genommen",
         "nextAt": "Nächste um {time}",
@@ -1056,7 +1057,9 @@
           "dosesPerUnitHint": "Dosen pro Pen / Ampulle — leer lassen, wenn kein Bestand getrackt wird.",
           "injectionSiteToggle": "Injektionsstellen-Rotation",
           "injectionSiteHint": "Optionaler Rotationshelfer. Die Stelle jeder Dosis wird beim Eintragen der Einnahme erfasst.",
-          "short": "Dosis"
+          "short": "Dosis",
+          "unitsPerDoseLabel": "Einheiten pro Dosis",
+          "unitsPerDoseHint": "z. B. 2 Tabletten à 2 mg für eine 4-mg-Dosis"
         },
         "step4": {
           "title": "Über welchen Zeitraum nimmst du es?",
@@ -1585,7 +1588,7 @@
       "bestand": {
         "title": "Bestand",
         "summary": "{remaining} von {total} Dosen übrig",
-        "itemsTitle": "Pens / Ampullen",
+        "itemsTitle": "Packungen & Behälter",
         "doses": "{remaining} / {total} Dosen",
         "state": {
           "ACTIVE": "Ungeöffnet",
@@ -1594,25 +1597,39 @@
           "USED_UP": "Aufgebraucht"
         },
         "empty": "Kein Bestand erfasst.",
-        "emptyHelper": "Erfasse einen Pen oder eine Packung, um verbleibende Dosen und Reichweite zu verfolgen.",
+        "emptyHelper": "Erfasse eine Packung oder einen Behälter, um den verbleibenden Vorrat und die Reichweite zu verfolgen.",
         "emptyCta": "Packung erfassen",
         "addButton": "Erfassen",
-        "addTitle": "Pen oder Packung erfassen",
-        "addDescription": "Lege einen neuen Vorrat mit seiner Dosenanzahl an; das Ablaufdatum ist optional.",
-        "addQuantityLabel": "Menge (Dosen / Einheiten)",
-        "addQuantityHelper": "1–100 Dosen pro Pen oder Packung.",
+        "addTitle": "Packung oder Behälter erfassen",
+        "addDescription": "Lege einen neuen Vorrat mit seiner Einheitenanzahl an; das Ablaufdatum ist optional.",
+        "addQuantityLabel": "Menge (Einheiten)",
+        "addQuantityHelper": "1–1000 Einheiten pro Packung oder Behälter.",
         "addExpiryLabel": "Ablaufdatum (optional)",
         "addSubmit": "Erfassen",
         "addSuccess": "Bestand erfasst.",
         "addFailed": "Bestand konnte nicht erfasst werden.",
         "adjustButton": "Anpassen",
         "adjustTitle": "Bestand korrigieren",
-        "adjustDescription": "Setze die verbleibenden Dosen neu — für Korrekturen oder eine Entnahme. 0 markiert den Vorrat als aufgebraucht.",
-        "adjustQuantityLabel": "Verbleibende Dosen",
-        "adjustHelper": "Kapazität: {total} Dosen.",
+        "adjustDescription": "Setze die verbleibenden Einheiten neu — für Korrekturen oder eine Entnahme. 0 markiert den Vorrat als aufgebraucht.",
+        "adjustQuantityLabel": "Verbleibende Einheiten",
+        "adjustHelper": "Kapazität: {total} Einheiten.",
         "adjustSubmit": "Speichern",
         "adjustSuccess": "Bestand aktualisiert.",
-        "adjustFailed": "Bestand konnte nicht aktualisiert werden."
+        "adjustFailed": "Bestand konnte nicht aktualisiert werden.",
+        "containerTypeLabel": "Behälterart",
+        "containerType": {
+          "PEN": "Pen",
+          "AMPOULE": "Ampulle",
+          "BLISTER": "Tablettenpackung",
+          "INHALER": "Inhalator",
+          "BOTTLE": "Flasche",
+          "OTHER": "Sonstiges"
+        },
+        "unitsDetail": "{remaining} / {total} Einheiten",
+        "quantityModeDoses": "Dosen",
+        "quantityModeUnits": "Einheiten",
+        "quantityInUnits": "= {units} Einheiten",
+        "quantityInDoses": "≈ {doses} Dosen"
       },
       "erweitert": {
         "group": {

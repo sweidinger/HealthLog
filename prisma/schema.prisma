@@ -1261,6 +1261,12 @@ model Medication {
   /// (Mounjaro KwikPen = 4, Ozempic 0.25/0.5 mg = 4, Wegovy single-dose
   /// pen = 1). NULL = inventory tracking off.
   dosesPerUnit         Int?               @map("doses_per_unit")
+  /// v1.16.10 — units consumed per dose. The inventory items count UNITS
+  /// (tablets, ampoules, puffs); a single dose may consume several of
+  /// them (2 × 2 mg tablets for a 4 mg dose). The intake consumption
+  /// hook multiplies by this factor; dose-level readouts divide by it.
+  /// Default 1 = one unit per dose (the overwhelmingly common case).
+  unitsPerDose         Int                @default(1) @map("units_per_dose")
   active               Boolean            @default(true)
   notificationsEnabled Boolean            @default(true) @map("notifications_enabled")
   pausedAt             DateTime?          @map("paused_at")
@@ -1599,6 +1605,15 @@ model MedicationIntakeEvent {
   /// log time (half tablet, titration day). NULL = the configured
   /// medication / schedule dose applies; read paths fall back to it.
   doseTaken      String?        @map("dose_taken")
+  /// v1.16.10 — inventory consumption stamp: `[{itemId, units}]` for the
+  /// containers this taken event decremented. NULL = never consumed
+  /// (pending / skipped / pre-v1.16.10 rows). The stamp is the exactly-
+  /// once gate for the consume hook (a stamped row never decrements
+  /// again, however often a sync replays it) and the refund ledger for
+  /// the restore hook (taken → skipped / deleted refunds per item). The
+  /// stamp freezes history: editing `Medication.unitsPerDose` later
+  /// never changes what an already-taken dose consumed.
+  inventoryConsumption Json?    @map("inventory_consumption")
   // v1.7.0 sync — server-set mutation timestamp. The model had no
   // `updatedAt`; the offline-sync keyset feed orders on it, so it is
   // added here. `@updatedAt` makes Prisma maintain it on every write.
@@ -1706,16 +1721,38 @@ enum MedicationInventoryState {
   @@map("medication_inventory_state")
 }
 
+/// v1.16.10 — what kind of physical container an inventory item is.
+/// Display-level only (no state-machine behaviour hangs off it); the
+/// register dialog defaults it from the medication's delivery form
+/// (INJECTION → PEN, ORAL → BLISTER, else OTHER).
+enum MedicationContainerType {
+  PEN
+  AMPOULE
+  BLISTER
+  INHALER
+  BOTTLE
+  OTHER
+
+  @@map("medication_container_type")
+}
+
 model MedicationInventoryItem {
   id             String                   @id @default(cuid())
   userId         String                   @map("user_id")
   medicationId   String                   @map("medication_id")
   state          MedicationInventoryState @default(ACTIVE)
-  /// Doses the pen / vial shipped with. Mounjaro KwikPen = 4,
-  /// Trulicity single-dose = 1, Byetta = 60.
-  dosesTotal     Int                      @map("doses_total")
-  /// Remaining doses; decremented by the intake hook.
-  dosesRemaining Int                      @map("doses_remaining")
+  /// v1.16.10 — container kind (pen / ampoule / blister pack / …).
+  /// Backfilled PEN for items on INJECTION medications, OTHER otherwise.
+  containerType  MedicationContainerType  @default(OTHER) @map("container_type")
+  /// Units the container shipped with (v1.16.10 — renamed from
+  /// `dosesTotal`; the DB column stays `doses_total`). A unit is one
+  /// tablet / ampoule / puff; `Medication.unitsPerDose` maps units to
+  /// doses. Mounjaro KwikPen = 4, Trulicity single-dose = 1.
+  unitsTotal     Int                      @map("doses_total")
+  /// Remaining units; decremented by the intake consumption hook
+  /// (v1.16.10 — renamed from `dosesRemaining`; column stays
+  /// `doses_remaining`).
+  unitsRemaining Int                      @map("doses_remaining")
   /// NULL until the pen is first opened. Sets the 30-day in-use
   /// clock per EMA EPAR §6.3.
   firstUseAt     DateTime?                @map("first_use_at")

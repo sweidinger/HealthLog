@@ -19,6 +19,7 @@ import {
   applyCanonicalSlotWrite,
   resolveSlotForWriteByBand,
 } from "@/lib/medications/scheduling/slot-upsert";
+import { consumeForIntake } from "@/lib/medications/inventory/consumption";
 import { invalidateUserMedications } from "@/lib/cache/invalidate";
 import { DEFAULT_TIMEZONE } from "@/lib/tz/format";
 import { NextRequest, NextResponse } from "next/server";
@@ -223,6 +224,17 @@ export const POST = apiHandler(async (request: NextRequest) => {
       },
     });
   }
+
+  // v1.16.10 — the external ingest records a take; consume inventory
+  // units. The stamp on the row keeps a retried POST exactly-once (the
+  // idempotency probe above already short-circuits the common replay).
+  await consumeForIntake({
+    client: prisma,
+    userId: apiToken.userId,
+    medicationId: medication.id,
+    eventId: event.id,
+    intakeAt: effectiveTakenAt,
+  });
 
   await auditLog("medication.ingest.external", {
     userId: apiToken.userId,

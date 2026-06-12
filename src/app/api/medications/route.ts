@@ -245,6 +245,7 @@ export const POST = apiHandler(async (request: NextRequest) => {
     category,
     treatmentClass,
     dosesPerUnit,
+    unitsPerDose,
     deliveryForm,
     trackInjectionSites,
     allowedInjectionSites,
@@ -312,6 +313,8 @@ export const POST = apiHandler(async (request: NextRequest) => {
       // wire schema; Prisma fills the default GENERIC when omitted.
       ...(treatmentClass !== undefined && { treatmentClass }),
       ...(dosesPerUnit !== undefined && { dosesPerUnit }),
+      // v1.16.10 — units consumed per dose; Prisma defaults to 1 when omitted.
+      ...(unitsPerDose !== undefined && { unitsPerDose }),
       // v1.6.0 — route of administration; Prisma defaults to ORAL when omitted.
       ...(deliveryForm !== undefined && { deliveryForm }),
       // v1.8.5 — injection-site tracking opt-in + per-medication allowed

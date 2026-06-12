@@ -4,8 +4,6 @@ import {
   computeExpiresAt,
   computeInventoryState,
   daysRemainingInUse,
-  decrementDose,
-  DEFAULT_IN_USE_WINDOW_DAYS,
   type InventoryItemView,
 } from "../state-machine";
 
@@ -16,8 +14,8 @@ const NOW_MS = NOW.getTime();
 function makeItem(overrides: Partial<InventoryItemView> = {}): InventoryItemView {
   return {
     state: "ACTIVE",
-    dosesTotal: 4,
-    dosesRemaining: 4,
+    unitsTotal: 4,
+    unitsRemaining: 4,
     firstUseAt: null,
     printedExpiry: null,
     ...overrides,
@@ -58,17 +56,17 @@ describe("computeInventoryState", () => {
     expect(computeInventoryState(item, NOW_MS)).toBe("EXPIRED");
   });
 
-  it("returns USED_UP when dosesRemaining is zero (terminal — outranks EXPIRED)", () => {
+  it("returns USED_UP when unitsRemaining is zero (terminal — outranks EXPIRED)", () => {
     const item = makeItem({
-      dosesRemaining: 0,
+      unitsRemaining: 0,
       firstUseAt: new Date(NOW_MS - 31 * MS_PER_DAY),
     });
     expect(computeInventoryState(item, NOW_MS)).toBe("USED_UP");
   });
 
-  it("returns USED_UP even when printed expiry has lapsed (dosesRemaining wins)", () => {
+  it("returns USED_UP even when printed expiry has lapsed (unitsRemaining wins)", () => {
     const item = makeItem({
-      dosesRemaining: 0,
+      unitsRemaining: 0,
       printedExpiry: new Date(NOW_MS - 5 * MS_PER_DAY),
     });
     expect(computeInventoryState(item, NOW_MS)).toBe("USED_UP");
@@ -122,74 +120,6 @@ describe("computeExpiresAt", () => {
   });
 });
 
-describe("decrementDose", () => {
-  it("first_use — flips ACTIVE → IN_USE and sets firstUseAt", () => {
-    const item = makeItem();
-    const result = decrementDose(item, NOW);
-
-    expect(result.change).toBe("first_use");
-    expect(result.item.state).toBe("IN_USE");
-    expect(result.item.firstUseAt).toEqual(NOW);
-    expect(result.item.dosesRemaining).toBe(3);
-    expect(result.item.expiresAt?.getTime()).toBe(
-      NOW_MS + DEFAULT_IN_USE_WINDOW_DAYS * MS_PER_DAY,
-    );
-  });
-
-  it("consumed — IN_USE pen with doses left stays IN_USE", () => {
-    const firstUse = new Date(NOW_MS - 3 * MS_PER_DAY);
-    const item = makeItem({
-      state: "IN_USE",
-      dosesRemaining: 3,
-      firstUseAt: firstUse,
-    });
-    const result = decrementDose(item, NOW);
-
-    expect(result.change).toBe("consumed");
-    expect(result.item.state).toBe("IN_USE");
-    expect(result.item.firstUseAt).toEqual(firstUse);
-    expect(result.item.dosesRemaining).toBe(2);
-  });
-
-  it("depleted — final dose flips state to USED_UP", () => {
-    const firstUse = new Date(NOW_MS - 3 * MS_PER_DAY);
-    const item = makeItem({
-      state: "IN_USE",
-      dosesRemaining: 1,
-      firstUseAt: firstUse,
-    });
-    const result = decrementDose(item, NOW);
-
-    expect(result.change).toBe("depleted");
-    expect(result.item.state).toBe("USED_UP");
-    expect(result.item.dosesRemaining).toBe(0);
-  });
-
-  it("does not mutate its input", () => {
-    const firstUse = new Date(NOW_MS - 3 * MS_PER_DAY);
-    const item = makeItem({
-      state: "IN_USE",
-      dosesRemaining: 3,
-      firstUseAt: firstUse,
-    });
-    const snapshot = JSON.stringify(item);
-    decrementDose(item, NOW);
-    expect(JSON.stringify(item)).toBe(snapshot);
-  });
-
-  it("clamps dosesRemaining at zero even if called on an already-empty pen", () => {
-    const item = makeItem({
-      state: "USED_UP",
-      dosesRemaining: 0,
-      firstUseAt: new Date(NOW_MS - 5 * MS_PER_DAY),
-    });
-    const result = decrementDose(item, NOW);
-
-    expect(result.item.dosesRemaining).toBe(0);
-    expect(result.item.state).toBe("USED_UP");
-  });
-});
-
 describe("daysRemainingInUse", () => {
   it("returns null for an ACTIVE (unopened) pen", () => {
     expect(daysRemainingInUse(makeItem(), NOW_MS)).toBeNull();
@@ -204,7 +134,7 @@ describe("daysRemainingInUse", () => {
 
   it("returns null for a USED_UP pen", () => {
     const item = makeItem({
-      dosesRemaining: 0,
+      unitsRemaining: 0,
       firstUseAt: new Date(NOW_MS - 5 * MS_PER_DAY),
     });
     expect(daysRemainingInUse(item, NOW_MS)).toBeNull();

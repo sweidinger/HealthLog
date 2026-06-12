@@ -42,6 +42,10 @@ vi.mock("@/lib/idempotency", () => ({
 vi.mock("@/lib/cache/invalidate", () => ({
   invalidateUserMedications: vi.fn(),
 }));
+vi.mock("@/lib/medications/inventory/consumption", () => ({
+  consumeForIntake: vi.fn().mockResolvedValue(undefined),
+  restoreForIntake: vi.fn().mockResolvedValue(undefined),
+}));
 vi.mock("@/lib/rollups/medication-compliance-rollups", () => ({
   recomputeMedicationComplianceForDay: vi.fn().mockResolvedValue(undefined),
   dayKeyForScheduledFor: vi.fn().mockReturnValue("2026-01-01"),
@@ -64,6 +68,10 @@ import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/auth/session";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { invalidateUserMedications } from "@/lib/cache/invalidate";
+import {
+  consumeForIntake,
+  restoreForIntake,
+} from "@/lib/medications/inventory/consumption";
 
 const SESSION_OK = {
   session: { id: "sess-1", expiresAt: new Date(Date.now() + 3_600_000) },
@@ -803,5 +811,182 @@ describe("POST /api/medications/intake/bulk — v1.15.20 band attribution", () =
         }),
       }),
     );
+  });
+});
+
+// ────────────────────────────────────────────────────────────────────
+// v1.16.10 — inventory consumption seams
+// ────────────────────────────────────────────────────────────────────
+
+describe("POST /api/medications/intake/bulk — v1.16.10 inventory consumption", () => {
+  const SCHEDULED_MED = {
+    id: "med-1",
+    startsOn: null,
+    endsOn: null,
+    oneShot: false,
+    createdAt: new Date("2026-01-01T00:00:00Z"),
+    schedules: [
+      {
+        id: "s1",
+        windowStart: "07:00",
+        windowEnd: "07:00",
+        daysOfWeek: null,
+        timesOfDay: ["07:00", "19:00"],
+        reminderGraceMinutes: null,
+        rrule: null,
+        rollingIntervalDays: null,
+        scheduleType: "SCHEDULED",
+        cyclicOnWeeks: null,
+        cyclicOffWeeks: null,
+        doseWindows: null,
+      },
+    ],
+  };
+
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-06-15T18:00:00.000Z"));
+    vi.mocked(prisma.medication.findMany).mockResolvedValue([
+      { id: "med-1" },
+    ] as never);
+    vi.mocked(prisma.medication.findFirst).mockResolvedValue(
+      SCHEDULED_MED as never,
+    );
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("consumes exactly once per taken entry, on the landed row id", async () => {
+    vi.mocked(prisma.medicationIntakeEvent.findMany).mockResolvedValueOnce([
+      {
+        id: "row-pending",
+        takenAt: null,
+        skipped: false,
+        idempotencyKey: null,
+        scheduledFor: new Date("2026-06-15T05:00:00Z"),
+        source: "REMINDER",
+        createdAt: new Date("2026-06-15T00:00:00Z"),
+      },
+    ] as never);
+    vi.mocked(prisma.medicationIntakeEvent.update).mockResolvedValueOnce({
+      id: "row-pending",
+    } as never);
+
+    const res = await POST(
+      postReq({
+        entries: [
+          {
+            medicationId: "med-1",
+            scheduledFor: "2026-06-15T05:00:30.000Z",
+            takenAt: "2026-06-15T05:02:00.000Z",
+          },
+        ],
+      }),
+    );
+    expect(res.status).toBe(200);
+    expect(consumeForIntake).toHaveBeenCalledTimes(1);
+    expect(consumeForIntake).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: "user-1",
+        medicationId: "med-1",
+        eventId: "row-pending",
+      }),
+    );
+    expect(restoreForIntake).not.toHaveBeenCalled();
+  });
+
+  it("C2 — a pending echo onto an already-taken slot never reaches consume", async () => {
+    vi.mocked(prisma.medicationIntakeEvent.findMany).mockResolvedValueOnce([
+      {
+        id: "row-taken",
+        takenAt: new Date("2026-06-15T05:01:00Z"),
+        skipped: false,
+        idempotencyKey: null,
+        scheduledFor: new Date("2026-06-15T05:00:00Z"),
+        source: "WEB",
+        createdAt: new Date("2026-06-15T05:01:00Z"),
+      },
+    ] as never);
+
+    const res = await POST(
+      postReq({
+        entries: [
+          {
+            medicationId: "med-1",
+            scheduledFor: "2026-06-15T05:00:30.000Z",
+            // no takenAt, skipped defaults false → pending echo
+          },
+        ],
+      }),
+    );
+    expect(res.status).toBe(200);
+    expect(consumeForIntake).not.toHaveBeenCalled();
+    expect(restoreForIntake).not.toHaveBeenCalled();
+  });
+
+  it("an explicit skip entry restores the slot row's stamp instead of consuming", async () => {
+    vi.mocked(prisma.medicationIntakeEvent.findMany).mockResolvedValueOnce([
+      {
+        id: "row-taken",
+        takenAt: new Date("2026-06-15T05:01:00Z"),
+        skipped: false,
+        idempotencyKey: null,
+        scheduledFor: new Date("2026-06-15T05:00:00Z"),
+        source: "WEB",
+        createdAt: new Date("2026-06-15T05:01:00Z"),
+      },
+    ] as never);
+    vi.mocked(prisma.medicationIntakeEvent.update).mockResolvedValueOnce({
+      id: "row-taken",
+    } as never);
+
+    const res = await POST(
+      postReq({
+        entries: [
+          {
+            medicationId: "med-1",
+            scheduledFor: "2026-06-15T05:00:30.000Z",
+            skipped: true,
+          },
+        ],
+      }),
+    );
+    expect(res.status).toBe(200);
+    expect(consumeForIntake).not.toHaveBeenCalled();
+    expect(restoreForIntake).toHaveBeenCalledTimes(1);
+    expect(restoreForIntake).toHaveBeenCalledWith(
+      expect.objectContaining({ userId: "user-1", eventId: "row-taken" }),
+    );
+  });
+
+  it("an idempotency-key replay (duplicate) never consumes again", async () => {
+    // An off-window take (00:20 local night, no scheduledFor) resolves
+    // ad-hoc → the resolver-null branch runs its replay pre-check and
+    // classifies the re-submission as a duplicate.
+    vi.setSystemTime(new Date("2026-06-15T00:30:00.000Z"));
+    vi.mocked(prisma.medicationIntakeEvent.findUnique).mockResolvedValueOnce({
+      id: "row-existing",
+    } as never);
+
+    const res = await POST(
+      postReq({
+        entries: [
+          {
+            medicationId: "med-1",
+            takenAt: "2026-06-15T00:20:00.000Z",
+            idempotencyKey: "ios-replay-1",
+          },
+        ],
+      }),
+    );
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      data: { duplicates: number; entries: Array<{ status: string }> };
+    };
+    expect(body.data.duplicates).toBe(1);
+    expect(body.data.entries[0].status).toBe("duplicate");
+    expect(consumeForIntake).not.toHaveBeenCalled();
   });
 });
