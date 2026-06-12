@@ -1616,6 +1616,10 @@
         "adjustSubmit": "Zapisz",
         "adjustSuccess": "Zapas zaktualizowany.",
         "adjustFailed": "Nie udało się zaktualizować zapasu.",
+        "deleteTitle": "Usunąć opakowanie?",
+        "deleteDescription": "Trwale usuwa to opakowanie lub pojemnik z zapasu. Zarejestrowane dawki pozostają bez zmian.",
+        "deleteSuccess": "Zapas usunięty.",
+        "deleteFailed": "Nie udało się usunąć zapasu.",
         "containerTypeLabel": "Rodzaj pojemnika",
         "containerType": {
           "PEN": "Wstrzykiwacz",

@@ -1616,6 +1616,10 @@
         "adjustSubmit": "Enregistrer",
         "adjustSuccess": "Stock mis à jour.",
         "adjustFailed": "Le stock n'a pas pu être mis à jour.",
+        "deleteTitle": "Supprimer le contenant ?",
+        "deleteDescription": "Supprime définitivement cette boîte ou ce contenant du stock. Les prises enregistrées restent inchangées.",
+        "deleteSuccess": "Entrée de stock supprimée.",
+        "deleteFailed": "L'entrée de stock n'a pas pu être supprimée.",
         "containerTypeLabel": "Type de contenant",
         "containerType": {
           "PEN": "Stylo",

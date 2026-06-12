@@ -1616,6 +1616,10 @@
         "adjustSubmit": "Salva",
         "adjustSuccess": "Scorta aggiornata.",
         "adjustFailed": "Impossibile aggiornare la scorta.",
+        "deleteTitle": "Eliminare la confezione?",
+        "deleteDescription": "Rimuove definitivamente questa confezione o contenitore dalla scorta. Le assunzioni registrate restano invariate.",
+        "deleteSuccess": "Scorta eliminata.",
+        "deleteFailed": "Impossibile eliminare la scorta.",
         "containerTypeLabel": "Tipo di contenitore",
         "containerType": {
           "PEN": "Penna",

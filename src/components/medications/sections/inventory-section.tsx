@@ -15,6 +15,10 @@
  *     the count is set absolutely, clamped server-side to the item's
  *     capacity, and the canonical state machine derives the next state
  *     (0 ⇒ used up).
+ *   - DELETE: a per-item trash affordance behind a destructive confirm
+ *     (`DELETE …/inventory/[itemId]`). Consumption stamps on intake
+ *     events that referenced the container stay in place; a later
+ *     restore skips the missing item.
  *
  * v1.16.10 — items count UNITS (tablets / ampoules / puffs);
  * `Medication.unitsPerDose` maps units to doses. Every dose-facing
@@ -38,6 +42,7 @@ import { Loader2, PackageOpen, Plus } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { DeleteButton } from "@/components/data-list/delete-button";
 import {
   Dialog,
   DialogContent,
@@ -58,7 +63,7 @@ import {
 import { SettingsGroup } from "@/components/medications/settings-group";
 import { useTranslations } from "@/lib/i18n/context";
 import { queryKeys } from "@/lib/query-keys";
-import { apiGet, apiPatch, apiPost } from "@/lib/api/api-fetch";
+import { apiDelete, apiGet, apiPatch, apiPost } from "@/lib/api/api-fetch";
 import { summariseSupply } from "@/lib/medications/inventory/summary";
 
 type InventoryState = "ACTIVE" | "IN_USE" | "EXPIRED" | "USED_UP";
@@ -115,8 +120,21 @@ export function InventorySection({
   deliveryForm?: string;
 }) {
   const { t } = useTranslations();
+  const queryClient = useQueryClient();
   const [addOpen, setAddOpen] = useState(false);
   const [adjustItem, setAdjustItem] = useState<InventoryItem | null>(null);
+
+  async function deleteItem(item: InventoryItem) {
+    try {
+      await apiDelete(`/api/medications/${medicationId}/inventory/${item.id}`);
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.medicationInventory(medicationId),
+      });
+      toast.success(t("medications.detail.bestand.deleteSuccess"));
+    } catch {
+      toast.error(t("medications.detail.bestand.deleteFailed"));
+    }
+  }
 
   const perDose = Math.max(1, unitsPerDose ?? 1);
 
@@ -256,28 +274,36 @@ export function InventorySection({
                   `medications.detail.bestand.containerType.${item.containerType}`,
                 )}
               </span>
-              <span className="text-muted-foreground block text-xs">
-                {t("medications.detail.bestand.doses", {
-                  remaining: Math.floor(item.unitsRemaining / perDose),
-                  total: Math.floor(item.unitsTotal / perDose),
-                })}
-                {perDose > 1 && (
-                  <>
-                    {" · "}
-                    {t("medications.detail.bestand.unitsDetail", {
-                      remaining: item.unitsRemaining,
-                      total: item.unitsTotal,
-                    })}
-                  </>
-                )}
+              {/* Meta line: per-container figures with the state badge
+                  inline at meta-text size — read-only, never a control. */}
+              <span className="text-muted-foreground flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs">
+                <span>
+                  {t("medications.detail.bestand.doses", {
+                    remaining: Math.floor(item.unitsRemaining / perDose),
+                    total: Math.floor(item.unitsTotal / perDose),
+                  })}
+                  {perDose > 1 && (
+                    <>
+                      {" · "}
+                      {t("medications.detail.bestand.unitsDetail", {
+                        remaining: item.unitsRemaining,
+                        total: item.unitsTotal,
+                      })}
+                    </>
+                  )}
+                </span>
+                <Badge
+                  variant={STATE_BADGE[item.state]}
+                  className="px-1.5 py-0 text-xs font-normal"
+                  data-slot="inventory-state-badge"
+                >
+                  {t(`medications.detail.bestand.state.${item.state}`)}
+                </Badge>
               </span>
             </span>
             <span className="flex shrink-0 items-center gap-1">
-              <Badge variant={STATE_BADGE[item.state]} className="text-xs">
-                {t(`medications.detail.bestand.state.${item.state}`)}
-              </Badge>
               <Button
-                variant="ghost"
+                variant="outline"
                 size="sm"
                 onClick={() => setAdjustItem(item)}
                 className="min-h-11 sm:min-h-9"
@@ -285,6 +311,11 @@ export function InventorySection({
               >
                 {t("medications.detail.bestand.adjustButton")}
               </Button>
+              <DeleteButton
+                onConfirm={() => void deleteItem(item)}
+                title={t("medications.detail.bestand.deleteTitle")}
+                description={t("medications.detail.bestand.deleteDescription")}
+              />
             </span>
           </div>
         ))}

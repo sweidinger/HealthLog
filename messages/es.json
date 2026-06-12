@@ -1616,6 +1616,10 @@
         "adjustSubmit": "Guardar",
         "adjustSuccess": "Existencias actualizadas.",
         "adjustFailed": "No se pudieron actualizar las existencias.",
+        "deleteTitle": "¿Eliminar envase?",
+        "deleteDescription": "Elimina permanentemente este envase o recipiente de las existencias. Las tomas registradas no cambian.",
+        "deleteSuccess": "Entrada de existencias eliminada.",
+        "deleteFailed": "No se pudo eliminar la entrada de existencias.",
         "containerTypeLabel": "Tipo de envase",
         "containerType": {
           "PEN": "Pluma",

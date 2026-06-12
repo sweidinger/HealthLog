@@ -1616,6 +1616,10 @@
         "adjustSubmit": "Speichern",
         "adjustSuccess": "Bestand aktualisiert.",
         "adjustFailed": "Bestand konnte nicht aktualisiert werden.",
+        "deleteTitle": "Packung löschen?",
+        "deleteDescription": "Entfernt diese Packung oder diesen Behälter dauerhaft aus dem Bestand. Protokollierte Einnahmen bleiben unverändert.",
+        "deleteSuccess": "Bestand gelöscht.",
+        "deleteFailed": "Bestand konnte nicht gelöscht werden.",
         "containerTypeLabel": "Behälterart",
         "containerType": {
           "PEN": "Pen",

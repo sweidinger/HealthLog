@@ -1616,6 +1616,10 @@
         "adjustSubmit": "Save",
         "adjustSuccess": "Stock updated.",
         "adjustFailed": "The stock could not be updated.",
+        "deleteTitle": "Delete container?",
+        "deleteDescription": "Permanently removes this pack or container from the stock. Logged intakes stay unchanged.",
+        "deleteSuccess": "Stock entry deleted.",
+        "deleteFailed": "The stock entry could not be deleted.",
         "containerTypeLabel": "Container type",
         "containerType": {
           "PEN": "Pen",
