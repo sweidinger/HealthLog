@@ -124,19 +124,19 @@ describe("POST /api/medications/[id]/inventory", () => {
     vi.mocked(getSession).mockResolvedValue(null);
     const res = await POST(
       jsonReq("http://localhost/api/medications/med-1/inventory", {
-        dosesTotal: 4,
+        unitsTotal: 4,
       }),
       { params: Promise.resolve({ id: "med-1" }) },
     );
     expect(res.status).toBe(401);
   });
 
-  it("returns 422 when dosesTotal is missing or invalid", async () => {
+  it("returns 422 when unitsTotal is missing or invalid", async () => {
     vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
     vi.mocked(prisma.medication.findUnique).mockResolvedValue(MED_OK as never);
     const res = await POST(
       jsonReq("http://localhost/api/medications/med-1/inventory", {
-        dosesTotal: 0,
+        unitsTotal: 0,
       }),
       { params: Promise.resolve({ id: "med-1" }) },
     );
@@ -154,7 +154,7 @@ describe("POST /api/medications/[id]/inventory", () => {
     const printed = "2027-06-01T00:00:00Z";
     const res = await POST(
       jsonReq("http://localhost/api/medications/med-1/inventory", {
-        dosesTotal: 4,
+        unitsTotal: 4,
         printedExpiry: printed,
       }),
       { params: Promise.resolve({ id: "med-1" }) },
@@ -185,7 +185,7 @@ describe("POST /api/medications/[id]/inventory", () => {
     });
     const res = await POST(
       jsonReq("http://localhost/api/medications/med-1/inventory", {
-        dosesTotal: 4,
+        unitsTotal: 4,
       }),
       { params: Promise.resolve({ id: "med-1" }) },
     );
@@ -357,7 +357,7 @@ describe("POST /api/medications/[id]/inventory — 422 multi-issue (v1.4.43 W6)"
     vi.mocked(prisma.medication.findUnique).mockResolvedValue(MED_OK as never);
     const res = await POST(
       jsonReq("http://localhost/api/medications/med-1/inventory", {
-        dosesTotal: "string",
+        unitsTotal: "string",
         printedExpiry: "not-iso",
       }),
       { params: Promise.resolve({ id: "med-1" }) },
@@ -383,7 +383,7 @@ describe("POST /api/medications/[id]/inventory — 422 multi-issue (v1.4.43 W6)"
     vi.mocked(prisma.medication.findUnique).mockResolvedValue(MED_OK as never);
     const res = await POST(
       jsonReq("http://localhost/api/medications/med-1/inventory", {
-        dosesTotal: "string",
+        unitsTotal: "string",
         printedExpiry: "not-iso",
         purchasedAt: "also-not-iso",
         notes: 123,

@@ -2377,7 +2377,7 @@ paths:
       tags:
         - Medications
       summary: Register a new supply container
-      description: Creates an ACTIVE inventory item with `unitsRemaining = unitsTotal`. The request's `dosesTotal` field
+      description: Creates an ACTIVE inventory item with `unitsRemaining = unitsTotal`. The request's `unitsTotal` field
         carries UNITS (1–1000). Rate-limited 30/min/user. Audits as `medication.inventory.create`.
       parameters:
         - in: path
@@ -2413,7 +2413,7 @@ paths:
         - Medications
       summary: Mutate a supply container
       description: "Per-item operations: manual first-use (`markAsFirstUseAt`), used-up override (`markAsUsedUp`),
-        printed-expiry correction, absolute remaining-unit correction (`dosesRemaining`, clamped to the item's
+        printed-expiry correction, absolute remaining-unit correction (`unitsRemaining`, clamped to the item's
         capacity), notes. The canonical state machine re-derives the state after every mutation. Audits as
         `medication.inventory.update`."
       parameters:
@@ -5177,12 +5177,12 @@ components:
     CreateMedicationInventoryItemRequest:
       type: object
       properties:
-        dosesTotal:
+        unitsTotal:
           type: integer
           minimum: 1
           maximum: 1000
-          description: Units the container ships with (tablets / ampoules / puffs; 1–1000). Stored as `unitsTotal`; dose-derived
-            readouts divide by the medication's `unitsPerDose`.
+          description: Units the container ships with (tablets / ampoules / puffs; 1–1000). Dose-derived readouts divide by the
+            medication's `unitsPerDose`.
         containerType:
           description: Kind of physical container (PEN / AMPOULE / BLISTER / INHALER / BOTTLE / OTHER). Display-level only;
             defaults to OTHER.
@@ -5212,8 +5212,8 @@ components:
               maxLength: 200
             - type: "null"
       required:
-        - dosesTotal
-      description: Register a new supply container (pen / blister pack / bottle). `dosesTotal` counts UNITS (1–1000); the item
+        - unitsTotal
+      description: Register a new supply container (pen / blister pack / bottle). `unitsTotal` counts UNITS (1–1000); the item
         starts ACTIVE with `unitsRemaining = unitsTotal` and the intake consumption hook decrements it per taken dose.
     UpdateMedicationInventoryItemRequest:
       type: object
@@ -5233,7 +5233,7 @@ components:
               format: date-time
               pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
             - type: "null"
-        dosesRemaining:
+        unitsRemaining:
           description: Absolute remaining-unit correction (0–1000). Clamped server-side to the item's `unitsTotal`; the canonical
             state machine re-derives the state (0 ⇒ USED_UP).
           type: integer

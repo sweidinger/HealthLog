@@ -6,9 +6,10 @@
  *     - mark-as-used-up (terminal — operator override when a pen is
  *       physically discarded but the dose ledger hasn't reached zero)
  *     - update printed expiry (e.g. carton label correction)
- *     - stock correction via `dosesRemaining` (v1.16.1 — the Bestand
- *       tab's adjust / withdraw flow; clamped to `dosesTotal`, state
- *       re-derived by the canonical state machine)
+ *     - stock correction via `unitsRemaining` (v1.16.1 — the Bestand
+ *       tab's adjust / withdraw flow; clamped to `unitsTotal`, state
+ *       re-derived by the canonical state machine; v1.16.10 renamed
+ *       the request field from `dosesRemaining` to match the response)
  *     - update notes
  *
  *   DELETE /api/medications/[id]/inventory/[itemId]
@@ -74,7 +75,7 @@ export const PATCH = apiHandler(
       markAsFirstUseAt,
       markAsUsedUp,
       printedExpiry,
-      dosesRemaining,
+      unitsRemaining,
       notes,
     } = parsed.data;
 
@@ -96,13 +97,13 @@ export const PATCH = apiHandler(
       nextPrintedExpiry = printedExpiry;
     }
 
-    if (dosesRemaining !== undefined) {
+    if (unitsRemaining !== undefined) {
       // v1.16.1 — stock correction (Bestand tab adjust / withdraw).
       // The wire field counts UNITS. Clamp to the item's capacity; the
       // state-machine re-run below owns every state consequence (0 ⇒
       // USED_UP, a raise out of 0 re-evaluates against the expiry
       // clocks).
-      nextUnitsRemaining = Math.min(dosesRemaining, existing.unitsTotal);
+      nextUnitsRemaining = Math.min(unitsRemaining, existing.unitsTotal);
     }
 
     if (markAsUsedUp === true) {
@@ -120,7 +121,7 @@ export const PATCH = apiHandler(
     // pure and idempotent — running it once more with the composed view
     // collapses every edge case onto the same decision tree the intake
     // hook and the daily expire cron already share. USED_UP is terminal
-    // (dosesRemaining === 0 ⇒ USED_UP wins at clause 1), so the manual
+    // (unitsRemaining === 0 ⇒ USED_UP wins at clause 1), so the manual
     // override remains sticky.
     nextState = computeInventoryState(
       {

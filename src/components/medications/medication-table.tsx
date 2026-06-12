@@ -125,6 +125,8 @@ export function sortMedicationRows<T extends TableMedication>(
   rows: readonly T[],
   sort: MedicationTableSort | null,
   shortRateById?: ReadonlyMap<string, number>,
+  /** Active UI locale for name collation; omitted = runtime default. */
+  locale?: string,
 ): T[] {
   if (!sort) return [...rows];
   const dir = sort.direction === "asc" ? 1 : -1;
@@ -150,7 +152,7 @@ export function sortMedicationRows<T extends TableMedication>(
     if (va === null) return 1;
     if (vb === null) return -1;
     if (typeof va === "string" && typeof vb === "string") {
-      return va.localeCompare(vb, "de", { sensitivity: "base" }) * dir;
+      return va.localeCompare(vb, locale, { sensitivity: "base" }) * dir;
     }
     return ((va as number) - (vb as number)) * dir;
   });
@@ -172,7 +174,7 @@ export function MedicationTable({
   inactiveMedications,
   initialSort = null,
 }: MedicationTableProps) {
-  const { t } = useTranslations();
+  const { t, locale } = useTranslations();
   const { user } = useAuth();
   const userTz = user?.timezone || "Europe/Berlin";
   const [sort, setSort] = useState<MedicationTableSort | null>(initialSort);
@@ -211,11 +213,17 @@ export function MedicationTable({
     return () => clearInterval(interval);
   }, []);
 
-  const sortedActive = sortMedicationRows(activeMedications, sort, shortRateById);
+  const sortedActive = sortMedicationRows(
+    activeMedications,
+    sort,
+    shortRateById,
+    locale,
+  );
   const sortedInactive = sortMedicationRows(
     inactiveMedications,
     sort,
     shortRateById,
+    locale,
   );
 
   const lateMinutes = thresholds?.lateMinutes ?? 120;

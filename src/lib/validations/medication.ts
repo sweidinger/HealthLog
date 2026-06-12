@@ -842,16 +842,16 @@ export type MedicationContainerTypeValue =
 export const createInventoryItemSchema = z
   .object({
     /** Units the container ships with. v1.16.10 raises the cap from
-     *  100 to 1000 (large tablet packs); the wire field name stays
-     *  `dosesTotal` — it counts units, mapped to doses via
+     *  100 to 1000 (large tablet packs) and renames the wire field to
+     *  `unitsTotal` — it counts units, mapped to doses via
      *  `Medication.unitsPerDose`. */
-    dosesTotal: z
+    unitsTotal: z
       .number()
       .int()
       .min(1)
       .max(1000)
       .describe(
-        "Units the container ships with (tablets / ampoules / puffs; 1–1000). Stored as `unitsTotal`; dose-derived readouts divide by the medication's `unitsPerDose`.",
+        "Units the container ships with (tablets / ampoules / puffs; 1–1000). Dose-derived readouts divide by the medication's `unitsPerDose`.",
       ),
     /** v1.16.10 — container kind. Defaults to OTHER when absent. */
     containerType: z
@@ -875,7 +875,7 @@ export const createInventoryItemSchema = z
   .meta({
     id: "CreateMedicationInventoryItemRequest",
     description:
-      "Register a new supply container (pen / blister pack / bottle). `dosesTotal` counts UNITS (1–1000); the item starts ACTIVE with `unitsRemaining = unitsTotal` and the intake consumption hook decrements it per taken dose.",
+      "Register a new supply container (pen / blister pack / bottle). `unitsTotal` counts UNITS (1–1000); the item starts ACTIVE with `unitsRemaining = unitsTotal` and the intake consumption hook decrements it per taken dose.",
   });
 
 export const updateInventoryItemSchema = z
@@ -903,9 +903,11 @@ export const updateInventoryItemSchema = z
      * flow). Sets the remaining-unit count directly; the route clamps to
      * `unitsTotal` and re-runs the canonical state machine (0 ⇒ USED_UP,
      * a raise out of 0 re-evaluates against the expiry clocks).
-     * v1.16.10 raises the cap to 1000 alongside the capacity cap.
+     * v1.16.10 raises the cap to 1000 alongside the capacity cap and
+     * renames the wire field to `unitsRemaining` (it always counted
+     * units), matching the response side.
      */
-    dosesRemaining: z
+    unitsRemaining: z
       .number()
       .int()
       .min(0)
@@ -972,6 +974,14 @@ export const glp1DoseChangePostSchema = z.object({
   note: z.string().max(MAX_NOTE_CHARS).nullable().optional(),
 });
 
+/**
+ * DEPRECATED write path (v1.16.10) — the `inventory.delta` branch feeds
+ * the legacy `MedicationInventoryEvent` running-sum ledger. The per-item
+ * endpoints (`POST /api/medications/[id]/inventory`,
+ * `PATCH /api/medications/[id]/inventory/[itemId]`) replaced it; reads
+ * fall back to the ledger only while a medication has zero inventory
+ * items. New callers must register containers instead of posting deltas.
+ */
 export const glp1InventoryPostSchema = z.object({
   delta: z
     .number()
@@ -979,7 +989,10 @@ export const glp1InventoryPostSchema = z.object({
     .finite()
     .min(-100)
     .max(100)
-    .refine((n) => n !== 0, { message: "delta must be non-zero" }),
+    .refine((n) => n !== 0, { message: "delta must be non-zero" })
+    .describe(
+      "Deprecated since v1.16.10: pen-count delta on the legacy running-sum ledger. Register containers via the inventory endpoints instead; reads use the ledger only while the medication has no inventory items.",
+    ),
   reason: z.string().min(1).max(MAX_REASON_CHARS),
 });
 

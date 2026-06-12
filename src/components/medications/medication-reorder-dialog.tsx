@@ -44,10 +44,14 @@ import { runSaveMedicationListOrder } from "@/lib/queries/use-medication-list-la
  * mode rides (the standalone extraction of the dashboard's
  * `reorderWidgets` contract), so the surfaces cannot drift.
  *
- * The dialog edits a draft of the full medication list (active first,
- * inactive after — matching the page's render grouping); Save persists
- * the id order through `PUT /api/medications/layout` (order-only, the
- * stored view is preserved server-side).
+ * The dialog mirrors the page's grouping: an Aktiv section and an
+ * Inaktiv section (muted heading), each with its own drag context and
+ * arrow bounds, so a row can only move WITHIN its group — both views
+ * pin inactive medications after the active block, and an order that
+ * crossed the boundary could never render. Save persists the id order
+ * (active ids first, then inactive ids) through
+ * `PUT /api/medications/layout` (order-only, the stored view is
+ * preserved server-side).
  */
 
 export interface ReorderMedication {
@@ -64,6 +68,38 @@ interface MedicationReorderDialogProps {
   medications: ReorderMedication[];
 }
 
+/**
+ * Saved-order composition: active ids always precede inactive ids,
+ * matching the render grouping of both list views. Exported so tests
+ * can pin that an inactive id cannot land above an active one.
+ */
+export function buildSavedOrder(
+  activeIds: readonly string[],
+  inactiveIds: readonly string[],
+): string[] {
+  return [...activeIds, ...inactiveIds];
+}
+
+/**
+ * Arrow-button move, bounded to the section: swapping past either end
+ * returns the input untouched, so the boundary between the groups is
+ * unreachable by construction.
+ */
+export function moveWithinSection(
+  ids: readonly string[],
+  id: string,
+  delta: -1 | 1,
+): string[] {
+  const idx = ids.indexOf(id);
+  const targetIdx = idx + delta;
+  if (idx < 0 || targetIdx < 0 || targetIdx >= ids.length) return [...ids];
+  return reorderById(
+    ids.map((rowId, order) => ({ id: rowId, order })),
+    id,
+    ids[targetIdx],
+  ).map((r) => r.id);
+}
+
 export function MedicationReorderDialog({
   open,
   onOpenChange,
@@ -73,66 +109,51 @@ export function MedicationReorderDialog({
   const queryClient = useQueryClient();
   const dragHintId = useId();
   const [saving, setSaving] = useState(false);
-  // Draft id order — null means "the order the page passed in". Created
-  // on the first move so an untouched dialog can cancel without churn.
-  const [draft, setDraft] = useState<string[] | null>(null);
-
-  const sensors = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: { distance: 6 },
-    }),
-    useSensor(KeyboardSensor, {
-      coordinateGetter: sortableKeyboardCoordinates,
-    }),
-  );
+  // Per-section draft id order — null means "the order the page passed
+  // in". Created on the first move so an untouched dialog can cancel
+  // without churn.
+  const [draftActive, setDraftActive] = useState<string[] | null>(null);
+  const [draftInactive, setDraftInactive] = useState<string[] | null>(null);
 
   const byId = new Map(medications.map((m) => [m.id, m]));
-  const ids =
-    draft ?? medications.map((m) => m.id);
-  const rows = ids
-    .map((id) => byId.get(id))
-    .filter((m): m is ReorderMedication => m !== undefined);
+  const activeIds =
+    draftActive ??
+    medications.filter((m) => m.active).map((m) => m.id);
+  const inactiveIds =
+    draftInactive ??
+    medications.filter((m) => !m.active).map((m) => m.id);
 
-  function applyReorder(fromId: string, toId: string) {
-    const reordered = reorderById(
-      ids.map((id, order) => ({ id, order })),
-      fromId,
-      toId,
-    );
-    setDraft(reordered.map((r) => r.id));
-  }
-
-  function move(id: string, delta: -1 | 1) {
-    const idx = ids.indexOf(id);
-    const targetIdx = idx + delta;
-    if (idx < 0 || targetIdx < 0 || targetIdx >= ids.length) return;
-    applyReorder(id, ids[targetIdx]);
-  }
-
-  function handleDragEnd(event: DragEndEvent) {
-    const { active, over } = event;
-    if (!over || active.id === over.id) return;
-    applyReorder(String(active.id), String(over.id));
-  }
+  const labels = {
+    moveUp: t("dashboard.moveUp"),
+    moveDown: t("dashboard.moveDown"),
+    dragHandle: t("dashboard.dragHandle"),
+    inactive: t("common.inactive"),
+  };
 
   async function save() {
     setSaving(true);
     const ok = await runSaveMedicationListOrder({
-      order: ids,
+      order: buildSavedOrder(activeIds, inactiveIds),
       queryClient,
       t,
     });
     setSaving(false);
     if (ok) {
-      setDraft(null);
+      setDraftActive(null);
+      setDraftInactive(null);
       onOpenChange(false);
     }
   }
 
   function close(next: boolean) {
-    if (!next) setDraft(null);
+    if (!next) {
+      setDraftActive(null);
+      setDraftInactive(null);
+    }
     onOpenChange(next);
   }
+
+  const dirty = draftActive !== null || draftInactive !== null;
 
   return (
     <Dialog open={open} onOpenChange={close}>
@@ -144,33 +165,32 @@ export function MedicationReorderDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-2">
-          <DndContext
-            sensors={sensors}
-            collisionDetection={closestCenter}
-            onDragEnd={handleDragEnd}
-          >
-            <SortableContext items={ids} strategy={verticalListSortingStrategy}>
-              {rows.map((med, index) => (
-                <SortableMedicationRow
-                  key={med.id}
-                  medication={med}
-                  index={index}
-                  total={rows.length}
-                  dragHintId={dragHintId}
-                  disabled={saving}
-                  labels={{
-                    moveUp: t("dashboard.moveUp"),
-                    moveDown: t("dashboard.moveDown"),
-                    dragHandle: t("dashboard.dragHandle"),
-                    inactive: t("common.inactive"),
-                  }}
-                  onMove={move}
-                />
-              ))}
-            </SortableContext>
-          </DndContext>
-          {rows.length > 0 && (
+        <div className="space-y-4">
+          {activeIds.length > 0 && (
+            <ReorderSection
+              heading={t("common.active")}
+              ids={activeIds}
+              byId={byId}
+              dragHintId={dragHintId}
+              disabled={saving}
+              labels={labels}
+              onChange={setDraftActive}
+              dataSlot="medication-reorder-section-active"
+            />
+          )}
+          {inactiveIds.length > 0 && (
+            <ReorderSection
+              heading={t("common.inactive")}
+              ids={inactiveIds}
+              byId={byId}
+              dragHintId={dragHintId}
+              disabled={saving}
+              labels={labels}
+              onChange={setDraftInactive}
+              dataSlot="medication-reorder-section-inactive"
+            />
+          )}
+          {activeIds.length + inactiveIds.length > 0 && (
             <p id={dragHintId} className="text-muted-foreground sr-only">
               {t("dashboard.dragHandleHint")}
             </p>
@@ -185,7 +205,7 @@ export function MedicationReorderDialog({
           >
             {t("common.cancel")}
           </Button>
-          <Button onClick={() => void save()} disabled={saving || !draft}>
+          <Button onClick={() => void save()} disabled={saving || !dirty}>
             {saving && (
               <Loader2 className="h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
             )}
@@ -194,6 +214,99 @@ export function MedicationReorderDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+interface ReorderSectionProps {
+  heading: string;
+  ids: string[];
+  byId: ReadonlyMap<string, ReorderMedication>;
+  dragHintId: string;
+  disabled: boolean;
+  labels: {
+    moveUp: string;
+    moveDown: string;
+    dragHandle: string;
+    inactive: string;
+  };
+  onChange: (ids: string[]) => void;
+  dataSlot: string;
+}
+
+/**
+ * One group (Aktiv or Inaktiv) with its OWN DndContext + SortableContext:
+ * a drag started in one section cannot drop into the other, and the
+ * arrow buttons stop at the section bounds — the saved order keeps the
+ * active block first by construction.
+ */
+function ReorderSection({
+  heading,
+  ids,
+  byId,
+  dragHintId,
+  disabled,
+  labels,
+  onChange,
+  dataSlot,
+}: ReorderSectionProps) {
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: { distance: 6 },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    }),
+  );
+
+  const rows = ids
+    .map((id) => byId.get(id))
+    .filter((m): m is ReorderMedication => m !== undefined);
+
+  function applyReorder(fromId: string, toId: string) {
+    onChange(
+      reorderById(
+        ids.map((id, order) => ({ id, order })),
+        fromId,
+        toId,
+      ).map((r) => r.id),
+    );
+  }
+
+  function move(id: string, delta: -1 | 1) {
+    const next = moveWithinSection(ids, id, delta);
+    if (next.some((v, i) => v !== ids[i])) onChange(next);
+  }
+
+  function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    applyReorder(String(active.id), String(over.id));
+  }
+
+  return (
+    <div className="space-y-2" data-slot={dataSlot}>
+      <p className="text-muted-foreground text-xs font-medium">{heading}</p>
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragEnd={handleDragEnd}
+      >
+        <SortableContext items={ids} strategy={verticalListSortingStrategy}>
+          {rows.map((med, index) => (
+            <SortableMedicationRow
+              key={med.id}
+              medication={med}
+              index={index}
+              total={rows.length}
+              dragHintId={dragHintId}
+              disabled={disabled}
+              labels={labels}
+              onMove={move}
+            />
+          ))}
+        </SortableContext>
+      </DndContext>
+    </div>
   );
 }
 

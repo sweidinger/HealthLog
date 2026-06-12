@@ -152,12 +152,28 @@ describe("<AddInventoryDialog>", () => {
   it("always submits UNITS: dose-mode input multiplies by unitsPerDose before the POST", () => {
     // Interactive mode-switching is out of SSR reach; the structural
     // contract lives in the source: the submitted value is the converted
-    // unit count, and the wire field stays `dosesTotal`.
+    // unit count on the v1.16.10 symmetric wire field `unitsTotal`.
     expect(src).toMatch(
       /const units =\s*\n?\s*effectiveMode === "doses" \? parsed \* unitsPerDose : parsed;/,
     );
-    expect(src).toMatch(/dosesTotal: units,/);
+    expect(src).toMatch(/unitsTotal: units,/);
     expect(src).toMatch(/containerType,/);
+  });
+
+  it("renders '< 1 Dosis' instead of '≈ 0 Dosen' for a sub-dose unit count", () => {
+    // 3 units at 4 units per dose is less than one dose — the
+    // conversion line must say so rather than rounding to zero.
+    const html = render(
+      <AddInventoryDialog
+        medicationId="med-1"
+        defaultUnitsTotal={3}
+        unitsPerDose={4}
+        initialContainerType="BLISTER"
+        onClose={() => {}}
+      />,
+    );
+    expect(html).toContain("&lt; 1 Dosis");
+    expect(html).not.toContain("≈ 0 Dosen");
   });
 
   it("bounds the quantity to 1000 units (dose mode scales the max down)", () => {

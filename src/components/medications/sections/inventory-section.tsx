@@ -11,7 +11,7 @@
  *     optional printed expiry. The quantity prefills from the
  *     medication's `dosesPerUnit` when configured.
  *   - CORRECT: a per-item adjust flow (`PATCH …/inventory/[itemId]` with
- *     `dosesRemaining`) for stock corrections and manual withdrawals —
+ *     `unitsRemaining`) for stock corrections and manual withdrawals —
  *     the count is set absolutely, clamped server-side to the item's
  *     capacity, and the canonical state machine derives the next state
  *     (0 ⇒ used up).
@@ -59,6 +59,7 @@ import { SettingsGroup } from "@/components/medications/settings-group";
 import { useTranslations } from "@/lib/i18n/context";
 import { queryKeys } from "@/lib/query-keys";
 import { apiGet, apiPatch, apiPost } from "@/lib/api/api-fetch";
+import { summariseSupply } from "@/lib/medications/inventory/summary";
 
 type InventoryState = "ACTIVE" | "IN_USE" | "EXPIRED" | "USED_UP";
 
@@ -144,13 +145,18 @@ export function InventorySection({
   }
 
   const items = Array.isArray(data?.items) ? data.items : [];
-  // Active supply: units left across every non-terminal (not used-up) item.
-  const live = items.filter((i) => i.state !== "USED_UP");
-  const remainingUnits = live.reduce((sum, i) => sum + i.unitsRemaining, 0);
-  const totalUnits = live.reduce((sum, i) => sum + i.unitsTotal, 0);
+  // Available supply: ACTIVE / IN_USE containers with units left — the
+  // shared summary helper keeps this row, the Übersicht row, the list
+  // payload and the GLP-1 endpoint on one predicate. Expired stock is
+  // never available; it renders as a separate muted suffix.
   // Dose-derived headline (floor — a partial dose is not a dose).
-  const remaining = Math.floor(remainingUnits / perDose);
-  const total = Math.floor(totalUnits / perDose);
+  const {
+    unitsRemaining: remainingUnits,
+    unitsTotal: totalUnits,
+    dosesRemaining: remaining,
+    dosesTotal: total,
+    expiredUnits,
+  } = summariseSupply(items, perDose);
 
   const dialogs = (
     <>
@@ -207,6 +213,16 @@ export function InventorySection({
                 {t("medications.detail.bestand.unitsDetail", {
                   remaining: remainingUnits,
                   total: totalUnits,
+                })}
+              </span>
+            )}
+            {expiredUnits > 0 && (
+              <span
+                className="text-muted-foreground block text-xs font-normal"
+                data-slot="inventory-expired-suffix"
+              >
+                {t("medications.detail.bestand.expiredSuffix", {
+                  units: expiredUnits,
                 })}
               </span>
             )}
@@ -328,8 +344,8 @@ export function AddInventoryDialog({
     setBusy(true);
     try {
       await apiPost(`/api/medications/${medicationId}/inventory`, {
-        // Wire field name is `dosesTotal`; it carries UNITS.
-        dosesTotal: units,
+        // The wire field carries UNITS (v1.16.10 symmetric naming).
+        unitsTotal: units,
         containerType,
         printedExpiry: expiry
           ? new Date(`${expiry}T00:00:00`).toISOString()
@@ -440,9 +456,13 @@ export function AddInventoryDialog({
               >
                 {effectiveMode === "doses"
                   ? t("medications.detail.bestand.quantityInUnits", { units })
-                  : t("medications.detail.bestand.quantityInDoses", {
-                      doses: Math.floor(parsed / unitsPerDose),
-                    })}
+                  : // A unit count below one dose must not read "≈ 0 doses" —
+                    // it is simply less than one dose.
+                    Math.floor(parsed / unitsPerDose) === 0
+                    ? t("medications.detail.bestand.quantityUnderOneDose")
+                    : t("medications.detail.bestand.quantityInDoses", {
+                        doses: Math.floor(parsed / unitsPerDose),
+                      })}
               </p>
             )}
             <p
@@ -521,8 +541,8 @@ function AdjustInventoryDialog({
     setBusy(true);
     try {
       await apiPatch(`/api/medications/${medicationId}/inventory/${item.id}`, {
-        // Wire field name is `dosesRemaining`; it carries UNITS.
-        dosesRemaining: parsed,
+        // The wire field carries UNITS (v1.16.10 symmetric naming).
+        unitsRemaining: parsed,
       });
       await queryClient.invalidateQueries({
         queryKey: queryKeys.medicationInventory(medicationId),

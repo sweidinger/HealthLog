@@ -403,6 +403,20 @@ describe("sortMedicationRows — null-last semantics", () => {
       }).map((m) => m.id),
     ).toEqual(["b", "c", "a"]);
   });
+
+  it("collates names by the active locale, not a hardcoded one", () => {
+    // Swedish sorts Ö after Z; German folds Ö next to O. The same two
+    // rows must order differently under the two locales.
+    const oe = med({ id: "oe", name: "Övriga" });
+    const z = med({ id: "z", name: "Zyrtec" });
+    const sort = { column: "name", direction: "asc" } as const;
+    expect(
+      sortMedicationRows([z, oe], sort, undefined, "sv").map((m) => m.id),
+    ).toEqual(["z", "oe"]);
+    expect(
+      sortMedicationRows([z, oe], sort, undefined, "de").map((m) => m.id),
+    ).toEqual(["oe", "z"]);
+  });
 });
 
 describe("<MedicationTableSkeleton> — reserved footprint", () => {

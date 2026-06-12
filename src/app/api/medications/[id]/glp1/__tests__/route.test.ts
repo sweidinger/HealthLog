@@ -405,6 +405,7 @@ describe("GET /api/medications/[id]/glp1 — ownership helper (F-1 C-4)", () => 
       userId: "user-1",
       doseChanges: [],
       inventoryItems: [],
+      inventoryEvents: [],
       intakeEvents: [],
       schedules: [],
       dosesPerUnit: null,
@@ -455,6 +456,9 @@ describe("GET /api/medications/[id]/glp1 — v1.16.10 item-backed inventory", ()
         // Not usable: expired stock is not supply.
         { state: "EXPIRED", unitsTotal: 4, unitsRemaining: 4 },
       ],
+      // Items exist, so the legacy ledger below must be IGNORED — a
+      // stale delta history cannot override the per-item truth.
+      inventoryEvents: [{ delta: 9 }],
     } as never);
 
     const res = await GET(getReq(), {
@@ -480,7 +484,7 @@ describe("GET /api/medications/[id]/glp1 — v1.16.10 item-backed inventory", ()
     });
   });
 
-  it("returns a null inventory block when no items exist", async () => {
+  it("returns a null inventory block when no items and no ledger rows exist", async () => {
     vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
     vi.mocked(prisma.medication.findUnique).mockResolvedValue({
       id: "med-1",
@@ -491,6 +495,7 @@ describe("GET /api/medications/[id]/glp1 — v1.16.10 item-backed inventory", ()
       dosesPerUnit: null,
       unitsPerDose: 1,
       inventoryItems: [],
+      inventoryEvents: [],
     } as never);
 
     const res = await GET(getReq(), {
@@ -498,6 +503,70 @@ describe("GET /api/medications/[id]/glp1 — v1.16.10 item-backed inventory", ()
     });
     expect(res.status).toBe(200);
     const body = (await res.json()) as { data: { inventory: unknown } };
+    expect(body.data.inventory).toBeNull();
+  });
+
+  // W1 — the legacy delta ledger the POST below still accepts must stay
+  // readable: an account that only ever posted `{inventory: {delta}}`
+  // sees its pen count on GET instead of a silent null.
+  it("falls back to the legacy ledger when the user has zero inventory items", async () => {
+    vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
+    vi.mocked(prisma.medication.findUnique).mockResolvedValue({
+      id: "med-1",
+      userId: "user-1",
+      doseChanges: [],
+      intakeEvents: [],
+      schedules: [],
+      dosesPerUnit: 4,
+      unitsPerDose: 1,
+      inventoryItems: [],
+      // Running sum: +2 purchased, −1 used ⇒ 1 pen ⇒ 4 doses.
+      inventoryEvents: [{ delta: 2 }, { delta: -1 }],
+    } as never);
+
+    const res = await GET(getReq(), {
+      params: Promise.resolve({ id: "med-1" }),
+    });
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      data: {
+        inventory: {
+          pensRemaining: number;
+          dosesRemaining: number;
+          weeksOfSupply: number;
+          lowStock: boolean;
+        };
+      };
+    };
+    expect(body.data.inventory).toEqual({
+      pensRemaining: 1,
+      dosesRemaining: 4,
+      weeksOfSupply: 4,
+      lowStock: false,
+    });
+  });
+
+  it("ignores the ledger fallback when dosesPerUnit is not configured", async () => {
+    vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
+    vi.mocked(prisma.medication.findUnique).mockResolvedValue({
+      id: "med-1",
+      userId: "user-1",
+      doseChanges: [],
+      intakeEvents: [],
+      schedules: [],
+      dosesPerUnit: null,
+      unitsPerDose: 1,
+      inventoryItems: [],
+      inventoryEvents: [{ delta: 2 }],
+    } as never);
+
+    const res = await GET(getReq(), {
+      params: Promise.resolve({ id: "med-1" }),
+    });
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { data: { inventory: unknown } };
+    // Pre-item contract: without `dosesPerUnit` the ledger never
+    // produced an inventory block either.
     expect(body.data.inventory).toBeNull();
   });
 });

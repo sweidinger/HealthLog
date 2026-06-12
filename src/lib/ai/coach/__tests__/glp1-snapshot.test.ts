@@ -32,6 +32,7 @@ function fakeMedication(overrides: Partial<Record<string, unknown>> = {}) {
     ],
     unitsPerDose: 1,
     inventoryItems: [],
+    inventoryEvents: [],
     intakeEvents: [],
     ...overrides,
   };
@@ -155,5 +156,48 @@ describe("buildGlp1SnapshotBlock", () => {
       dosesRemaining: 3,
       weeksOfSupplyApprox: 3,
     });
+  });
+
+  // W1 — ledger-only accounts (the pre-item delta writer) keep their
+  // pen count in the Coach prompt instead of a silent omission.
+  it("falls back to the legacy ledger when the medication has zero items", async () => {
+    prismaMock.medication.findMany.mockResolvedValue([
+      fakeMedication({
+        dosesPerUnit: 4,
+        inventoryItems: [],
+        // +2 purchased, −1 used ⇒ 1 pen ⇒ 4 doses.
+        inventoryEvents: [{ delta: 2 }, { delta: -1 }],
+      }),
+    ]);
+    const out = await buildGlp1SnapshotBlock("user-1");
+    expect(out?.medications[0].penInventory).toEqual({
+      pensRemaining: 1,
+      dosesRemaining: 4,
+      weeksOfSupplyApprox: 4,
+    });
+  });
+
+  it("ignores the ledger whenever items exist (items win)", async () => {
+    prismaMock.medication.findMany.mockResolvedValue([
+      fakeMedication({
+        dosesPerUnit: 4,
+        unitsPerDose: 1,
+        inventoryItems: [{ state: "ACTIVE", unitsTotal: 4, unitsRemaining: 4 }],
+        // Stale delta history must not override the per-item truth.
+        inventoryEvents: [{ delta: 9 }],
+      }),
+    ]);
+    const out = await buildGlp1SnapshotBlock("user-1");
+    expect(out?.medications[0].penInventory).toEqual({
+      pensRemaining: 1,
+      dosesRemaining: 4,
+      weeksOfSupplyApprox: 4,
+    });
+  });
+
+  it("omits pen inventory when neither items nor ledger rows exist", async () => {
+    prismaMock.medication.findMany.mockResolvedValue([fakeMedication()]);
+    const out = await buildGlp1SnapshotBlock("user-1");
+    expect(out?.medications[0].penInventory).toBeNull();
   });
 });

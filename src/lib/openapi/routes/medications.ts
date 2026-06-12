@@ -1005,7 +1005,7 @@ export const medicationPaths: NonNullable<ZodOpenApiObject["paths"]> = {
       tags: ["Medications"],
       summary: "Register a new supply container",
       description:
-        "Creates an ACTIVE inventory item with `unitsRemaining = unitsTotal`. The request's `dosesTotal` field carries UNITS (1–1000). Rate-limited 30/min/user. Audits as `medication.inventory.create`.",
+        "Creates an ACTIVE inventory item with `unitsRemaining = unitsTotal`. The request's `unitsTotal` field carries UNITS (1–1000). Rate-limited 30/min/user. Audits as `medication.inventory.create`.",
       requestParams: {
         path: z.object({ id: z.string() }),
       },
@@ -1040,7 +1040,7 @@ export const medicationPaths: NonNullable<ZodOpenApiObject["paths"]> = {
       tags: ["Medications"],
       summary: "Mutate a supply container",
       description:
-        "Per-item operations: manual first-use (`markAsFirstUseAt`), used-up override (`markAsUsedUp`), printed-expiry correction, absolute remaining-unit correction (`dosesRemaining`, clamped to the item's capacity), notes. The canonical state machine re-derives the state after every mutation. Audits as `medication.inventory.update`.",
+        "Per-item operations: manual first-use (`markAsFirstUseAt`), used-up override (`markAsUsedUp`), printed-expiry correction, absolute remaining-unit correction (`unitsRemaining`, clamped to the item's capacity), notes. The canonical state machine re-derives the state after every mutation. Audits as `medication.inventory.update`.",
       requestParams: {
         path: z.object({ id: z.string(), itemId: z.string() }),
       },

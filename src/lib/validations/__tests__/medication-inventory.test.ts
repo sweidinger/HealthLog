@@ -2,10 +2,11 @@
  * v1.16.10 — inventory + units-per-dose validation bounds.
  *
  * Pins the raised unit caps (100 → 1000 on container capacity and the
- * stock correction; `dosesPerUnit` rides along) and the new
- * `unitsPerDose` (1–100) and `containerType` fields. The GLP-1 legacy
- * ledger delta deliberately KEEPS its ±100 bound — it counts pens, not
- * units.
+ * stock correction; `dosesPerUnit` rides along), the new
+ * `unitsPerDose` (1–100) and `containerType` fields, and the symmetric
+ * request field names (`unitsTotal` / `unitsRemaining` — the response
+ * always carried them). The GLP-1 legacy ledger delta deliberately
+ * KEEPS its ±100 bound — it counts pens, not units.
  */
 import { describe, expect, it } from "vitest";
 
@@ -30,17 +31,17 @@ const MINIMAL_MEDICATION = {
 
 describe("createInventoryItemSchema — unit cap 1000", () => {
   it("accepts 1000 units", () => {
-    const r = createInventoryItemSchema.safeParse({ dosesTotal: 1000 });
+    const r = createInventoryItemSchema.safeParse({ unitsTotal: 1000 });
     expect(r.success).toBe(true);
   });
 
   it("rejects 1001 units", () => {
-    const r = createInventoryItemSchema.safeParse({ dosesTotal: 1001 });
+    const r = createInventoryItemSchema.safeParse({ unitsTotal: 1001 });
     expect(r.success).toBe(false);
   });
 
   it("rejects zero", () => {
-    const r = createInventoryItemSchema.safeParse({ dosesTotal: 0 });
+    const r = createInventoryItemSchema.safeParse({ unitsTotal: 0 });
     expect(r.success).toBe(false);
   });
 
@@ -54,19 +55,19 @@ describe("createInventoryItemSchema — unit cap 1000", () => {
       "OTHER",
     ]) {
       const r = createInventoryItemSchema.safeParse({
-        dosesTotal: 4,
+        unitsTotal: 4,
         containerType: ct,
       });
       expect(r.success).toBe(true);
     }
-    const r = createInventoryItemSchema.safeParse({ dosesTotal: 4 });
+    const r = createInventoryItemSchema.safeParse({ unitsTotal: 4 });
     expect(r.success).toBe(true);
     expect(r.success && r.data.containerType).toBeUndefined();
   });
 
   it("rejects an unknown container type", () => {
     const r = createInventoryItemSchema.safeParse({
-      dosesTotal: 4,
+      unitsTotal: 4,
       containerType: "BAG",
     });
     expect(r.success).toBe(false);
@@ -75,12 +76,12 @@ describe("createInventoryItemSchema — unit cap 1000", () => {
 
 describe("updateInventoryItemSchema — stock correction cap 1000", () => {
   it("accepts 1000", () => {
-    const r = updateInventoryItemSchema.safeParse({ dosesRemaining: 1000 });
+    const r = updateInventoryItemSchema.safeParse({ unitsRemaining: 1000 });
     expect(r.success).toBe(true);
   });
 
   it("rejects 1001", () => {
-    const r = updateInventoryItemSchema.safeParse({ dosesRemaining: 1001 });
+    const r = updateInventoryItemSchema.safeParse({ unitsRemaining: 1001 });
     expect(r.success).toBe(false);
   });
 });
