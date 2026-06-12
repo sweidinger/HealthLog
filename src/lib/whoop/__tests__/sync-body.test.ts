@@ -8,7 +8,6 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { WhoopApiError } from "../response-classifier";
-import type { WhoopMeasurementUpsert } from "../sync";
 
 // ── Module mocks ────────────────────────────────────────────────
 const {
