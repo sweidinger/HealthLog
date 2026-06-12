@@ -361,7 +361,11 @@ function buildResolved(
   // the old behaviour ranked them (after everything ranked).
   const merged = {} as Required<MetricPriority>;
   for (const key of Object.keys(replaced) as (keyof MetricPriority)[]) {
-    const stored = replaced[key];
+    // First occurrence wins on duplicates — a duplicate-laden ladder
+    // written through the API directly would otherwise grow past the
+    // schema's 8-entry cap once the settings page echoes the resolved
+    // shape back through PUT.
+    const stored = [...new Set(replaced[key])];
     const missing = DEFAULT_SOURCE_PRIORITY[key].filter(
       (source) => !stored.includes(source),
     );

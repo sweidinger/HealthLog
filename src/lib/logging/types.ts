@@ -95,7 +95,7 @@ export interface WideEvent {
   // den Stall mitfuehrt)
   runtime?: {
     loop_max_ms: number;
-    loop_p99_ms: number;
+    loop_last_ms: number;
   };
 
   // Fehler-Details

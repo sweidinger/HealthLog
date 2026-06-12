@@ -137,7 +137,7 @@ export class WideEventBuilder {
     // nicht existiert — der Slot ist dort einfach leer.
     const lag = (
       globalThis as unknown as {
-        [key: symbol]: { loop_max_ms: number; loop_p99_ms: number };
+        [key: symbol]: { loop_max_ms: number; loop_last_ms: number };
       }
     )[Symbol.for("healthlog.eventLoopLag")];
     if (lag) this.event.runtime = lag;

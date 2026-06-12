@@ -457,3 +457,23 @@ describe("parseSourcePriority — stored-ladder reconciliation (v1.16.11)", () =
     expect(resolved.metricPriority.sleep).toContain("WITHINGS");
   });
 });
+
+describe("parseSourcePriority — duplicate tolerance (v1.16.11)", () => {
+  it("collapses duplicates so a resolved ladder can never overflow the schema cap", () => {
+    const resolved = parseSourcePriority({
+      metricPriority: {
+        weight: [
+          "MANUAL",
+          "MANUAL",
+          "WITHINGS",
+          "MANUAL",
+          "WITHINGS",
+        ],
+      },
+    });
+    const ladder = resolved.metricPriority.weight;
+    expect(new Set(ladder).size).toBe(ladder.length);
+    expect(ladder.slice(0, 2)).toEqual(["MANUAL", "WITHINGS"]);
+    expect(ladder.length).toBeLessThanOrEqual(8);
+  });
+});
