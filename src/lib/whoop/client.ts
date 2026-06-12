@@ -34,8 +34,10 @@ export interface WhoopCredentials {
 }
 
 function getRedirectUri(): string {
+  // `||`, not `??`: the compose whitelist materialises the var as an empty
+  // string when unset, which must still fall through to the derived URI.
   return (
-    process.env.WHOOP_REDIRECT_URI ??
+    process.env.WHOOP_REDIRECT_URI ||
     `${process.env.NEXT_PUBLIC_APP_URL}/api/whoop/callback`
   );
 }
