@@ -1,8 +1,10 @@
 "use client";
 
 /**
- * Dashboard page header: title + greeting line, the customize shortcut,
- * and the quick-add dropdown that opens the quick-entry sheets.
+ * Dashboard page header: title, the customize shortcut, and the
+ * quick-add dropdown that opens the quick-entry sheets. The greeting
+ * line moved into the hero band (`<DashboardHero>`), which derives it
+ * from the snapshot's server-computed `greetingHour`.
  *
  * Extracted from the dashboard page; the page owns the open-state the
  * dropdown items set via `onQuickEntry`.
@@ -20,35 +22,16 @@ import { useTranslations } from "@/lib/i18n/context";
 import type { QuickEntryDialog } from "@/components/dashboard/quick-entry-sheets";
 
 export function DashboardHeader({
-  welcomeText,
   onQuickEntry,
 }: {
-  welcomeText: string;
   onQuickEntry: (dialog: NonNullable<QuickEntryDialog>) => void;
 }) {
   const { t } = useTranslations();
   return (
-    /* v1.4.37 W4a item 7 — centre-align the Hinzufügen button
-       against the 2-line title block on mobile (< sm). The
-       `welcomeText` line wraps under the title at < 380 px so the
-       button used to float at the top of the row without a
-       baseline anchor; `items-center sm:items-start` keeps the
-       mobile vertical centre while preserving the original
-       top-aligned posture on sm+ (where the title is one line). */
-    <div className="flex items-center justify-between gap-4 sm:items-start">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">
-          {t("dashboard.title")}
-        </h1>
-        {/* v1.16.8 — `min-h-5` reserves the greeting's line box from the
-            SSR pass on: the text personalises (name appended) on the
-            first client re-render after hydration, and the reserved
-            line keeps the header from collapsing/growing around that
-            swap. */}
-        <p className="text-muted-foreground mt-1 min-h-5 text-sm">
-          {welcomeText}
-        </p>
-      </div>
+    <div className="flex items-center justify-between gap-4">
+      <h1 className="text-2xl font-bold tracking-tight">
+        {t("dashboard.title")}
+      </h1>
       <div className="flex items-center gap-2">
         {/* Customize shortcut to the dashboard-customization settings
             (the tile/layout editor at /settings/dashboard). Sits to

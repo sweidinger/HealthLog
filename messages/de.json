@@ -274,6 +274,34 @@
     },
     "welcomeBack": "{greeting}, willkommen zurück.",
     "welcomeBackWithName": "{greeting} {name}, willkommen zurück.",
+    "hero": {
+      "scoreLabel": "Health Score",
+      "scoreProvisional": "Noch nicht genug Daten",
+      "doses": {
+        "summary": "{taken} von {scheduled} Dosen genommen",
+        "nextAt": "Nächste um {time}",
+        "allDone": "Alle Dosen für heute erledigt",
+        "none": "Heute keine Dosen geplant"
+      },
+      "verdict": {
+        "doseOverdue": "Eine Dosis {name} ist überfällig.",
+        "bpHigh": "Dein letzter Blutdruck war sehr hoch ({sys}/{dia}). Miss in Ruhe noch einmal nach.",
+        "doseUpcoming": "Um {time} steht {name} an.",
+        "weightDrift": "Dein Gewicht bewegt sich diese Woche vom Zielbereich weg.",
+        "shortNights": "Deine Nächte waren zuletzt kurz — im Schnitt {hours} h.",
+        "silence": "Seit {days} Tagen keine Messung. Ein kurzer Eintrag hält dein Bild aktuell.",
+        "scoreDrop": "Dein Score liegt {points} Punkte unter der Vorwoche.",
+        "allQuiet": "Alles ruhig — heute gibt es nichts, das deine Aufmerksamkeit braucht."
+      },
+      "action": {
+        "takeDose": "Jetzt eintragen",
+        "viewBp": "Blutdruck ansehen",
+        "viewWeight": "Gewicht ansehen",
+        "viewSleep": "Schlaf ansehen",
+        "logMeasurement": "Messung erfassen",
+        "viewInsights": "Insights öffnen"
+      }
+    },
     "greetingSalutation": "Hallo, {name}",
     "streakLabel": "Tage in Folge",
     "weight": "Gewicht",
@@ -323,6 +351,8 @@
     "compliance7d": "Therapietreue (7 Tage)",
     "mood": "Stimmung",
     "customizeTitle": "Dashboard-Layout",
+    "heroToggleLabel": "Tagesüberblick",
+    "heroToggleDescription": "Zeigt Score, Tagesfokus und Dosen-Status ganz oben auf dem Dashboard.",
     "layoutReset": "Auf Defaults zurücksetzen",
     "layoutSaveSuccess": "Dashboard-Layout gespeichert",
     "layoutSaveError": "Layout konnte nicht gespeichert werden",

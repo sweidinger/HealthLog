@@ -274,6 +274,34 @@
     },
     "welcomeBack": "{greeting}, welcome back.",
     "welcomeBackWithName": "{greeting} {name}, welcome back.",
+    "hero": {
+      "scoreLabel": "Health Score",
+      "scoreProvisional": "Not enough data yet",
+      "doses": {
+        "summary": "{taken} of {scheduled} doses taken",
+        "nextAt": "Next at {time}",
+        "allDone": "All doses done for today",
+        "none": "No doses scheduled today"
+      },
+      "verdict": {
+        "doseOverdue": "A dose of {name} is overdue.",
+        "bpHigh": "Your last blood pressure was very high ({sys}/{dia}). Take another reading at rest.",
+        "doseUpcoming": "{name} is due at {time}.",
+        "weightDrift": "Your weight is moving away from the target range this week.",
+        "shortNights": "Your nights have been short lately — {hours} h on average.",
+        "silence": "No measurement for {days} days. A quick entry keeps your picture current.",
+        "scoreDrop": "Your score sits {points} points below last week.",
+        "allQuiet": "All quiet — nothing needs your attention today."
+      },
+      "action": {
+        "takeDose": "Log it now",
+        "viewBp": "View blood pressure",
+        "viewWeight": "View weight",
+        "viewSleep": "View sleep",
+        "logMeasurement": "Log measurement",
+        "viewInsights": "Open Insights"
+      }
+    },
     "greetingSalutation": "Hi, {name}",
     "streakLabel": "days in a row",
     "weight": "Weight",
@@ -323,6 +351,8 @@
     "compliance7d": "Adherence (7 days)",
     "mood": "Mood",
     "customizeTitle": "Dashboard layout",
+    "heroToggleLabel": "Daily overview",
+    "heroToggleDescription": "Shows your score, daily focus and dose status at the top of the dashboard.",
     "layoutReset": "Reset to defaults",
     "layoutSaveSuccess": "Dashboard layout saved",
     "layoutSaveError": "Could not save dashboard layout",

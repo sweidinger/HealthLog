@@ -274,6 +274,34 @@
     },
     "welcomeBack": "{greeting}, witaj ponownie.",
     "welcomeBackWithName": "{greeting} {name}, witaj ponownie.",
+    "hero": {
+      "scoreLabel": "Health Score",
+      "scoreProvisional": "Za mało danych",
+      "doses": {
+        "summary": "Przyjęto {taken} z {scheduled} dawek",
+        "nextAt": "Następna o {time}",
+        "allDone": "Wszystkie dzisiejsze dawki przyjęte",
+        "none": "Brak zaplanowanych dawek na dziś"
+      },
+      "verdict": {
+        "doseOverdue": "Dawka {name} jest zaległa.",
+        "bpHigh": "Twoje ostatnie ciśnienie było bardzo wysokie ({sys}/{dia}). Zmierz je ponownie w spokoju.",
+        "doseUpcoming": "O {time} pora na {name}.",
+        "weightDrift": "Twoja waga oddala się w tym tygodniu od zakresu docelowego.",
+        "shortNights": "Twoje noce były ostatnio krótkie — średnio {hours} h.",
+        "silence": "Brak pomiarów od {days} dni. Szybki wpis utrzyma aktualny obraz.",
+        "scoreDrop": "Twój wynik jest o {points} punktów niższy niż w zeszłym tygodniu.",
+        "allQuiet": "Spokojnie — dziś nic nie wymaga Twojej uwagi."
+      },
+      "action": {
+        "takeDose": "Zapisz teraz",
+        "viewBp": "Zobacz ciśnienie",
+        "viewWeight": "Zobacz wagę",
+        "viewSleep": "Zobacz sen",
+        "logMeasurement": "Zapisz pomiar",
+        "viewInsights": "Otwórz Insights"
+      }
+    },
     "greetingSalutation": "Cześć, {name}",
     "streakLabel": "dni z rzędu",
     "weight": "Waga",
@@ -323,6 +351,8 @@
     "compliance7d": "Przestrzeganie (7 dni)",
     "mood": "Nastrój",
     "customizeTitle": "Układ panelu",
+    "heroToggleLabel": "Przegląd dnia",
+    "heroToggleDescription": "Pokazuje wynik, fokus dnia i status dawek na górze pulpitu.",
     "layoutReset": "Przywróć wartości domyślne",
     "layoutSaveSuccess": "Układ panelu zapisany",
     "layoutSaveError": "Nie udało się zapisać układu",

@@ -274,6 +274,34 @@
     },
     "welcomeBack": "{greeting}, te damos la bienvenida de nuevo.",
     "welcomeBackWithName": "{greeting} {name}, te damos la bienvenida de nuevo.",
+    "hero": {
+      "scoreLabel": "Health Score",
+      "scoreProvisional": "Aún no hay datos suficientes",
+      "doses": {
+        "summary": "{taken} de {scheduled} dosis tomadas",
+        "nextAt": "Próxima a las {time}",
+        "allDone": "Todas las dosis de hoy completadas",
+        "none": "Hoy no hay dosis programadas"
+      },
+      "verdict": {
+        "doseOverdue": "Una dosis de {name} está pendiente desde hace rato.",
+        "bpHigh": "Tu última tensión arterial fue muy alta ({sys}/{dia}). Vuelve a medirla con calma.",
+        "doseUpcoming": "A las {time} toca {name}.",
+        "weightDrift": "Tu peso se está alejando del rango objetivo esta semana.",
+        "shortNights": "Tus noches han sido cortas últimamente — {hours} h de media.",
+        "silence": "Sin mediciones desde hace {days} días. Un registro rápido mantiene tu panorama al día.",
+        "scoreDrop": "Tu puntuación está {points} puntos por debajo de la semana pasada.",
+        "allQuiet": "Todo tranquilo — hoy no hay nada que requiera tu atención."
+      },
+      "action": {
+        "takeDose": "Registrar ahora",
+        "viewBp": "Ver tensión arterial",
+        "viewWeight": "Ver peso",
+        "viewSleep": "Ver sueño",
+        "logMeasurement": "Registrar medición",
+        "viewInsights": "Abrir Insights"
+      }
+    },
     "greetingSalutation": "Hola, {name}",
     "streakLabel": "días seguidos",
     "weight": "Peso",
@@ -323,6 +351,8 @@
     "compliance7d": "Cumplimiento (7 días)",
     "mood": "Estado de ánimo",
     "customizeTitle": "Diseño del panel",
+    "heroToggleLabel": "Resumen del día",
+    "heroToggleDescription": "Muestra la puntuación, el foco del día y el estado de las dosis en la parte superior del panel.",
     "layoutReset": "Restablecer valores por defecto",
     "layoutSaveSuccess": "Diseño del panel guardado",
     "layoutSaveError": "No se ha podido guardar el diseño",

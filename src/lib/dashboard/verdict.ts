@@ -9,9 +9,11 @@
  * Nine rungs, first hit wins. The ordering is a severity ladder:
  * actionable medication states first, then a fixed-floor BP emergency,
  * then trend nudges, then the briefing teaser, then the all-quiet
- * fallback. Threshold constants are imported from the coach-nudge
- * module where one exists so the hero and the nudge cron can never
- * disagree on what "drift" or "deficit" means.
+ * fallback. Threshold constants are imported from the client-safe
+ * coach-nudge-thresholds leaf where one exists so the hero and the
+ * nudge cron can never disagree on what "drift" or "deficit" means —
+ * and so this module never pulls the cron's server graph into a
+ * client bundle (this resolver runs inside `"use client"` code).
  *
  * Freshness is re-derived from the snapshot's ISO timestamps against
  * the injected `now` (not the snapshot's own `daysAgo` fields) so a
@@ -26,7 +28,7 @@
 import {
   COACH_NUDGE_WEIGHT_DRIFT_KG,
   COACH_NUDGE_SLEEP_DEFICIT_MARGIN_H,
-} from "@/lib/jobs/coach-nudge";
+} from "@/lib/jobs/coach-nudge-thresholds";
 import { buildWeightRangeFromHeight } from "@/lib/analytics/value-bands";
 import type { DashboardSnapshot } from "@/lib/dashboard/snapshot";
 

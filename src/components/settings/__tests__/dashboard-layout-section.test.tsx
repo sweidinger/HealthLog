@@ -1,5 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 
 import {
   DEFAULT_DASHBOARD_LAYOUT,
@@ -266,6 +268,76 @@ describe("<DashboardLayoutSection> — iOS-only id skip (v1.7.0)", () => {
     const tileSwitches = html.match(/data-slot="widget-tile-switch"/g) ?? [];
     expect(tileSwitches).toHaveLength(0);
     expect(html).toContain("dashboard-layout");
+  });
+});
+
+/**
+ * Dashboard hero (Tagesüberblick) visibility switch — one toggle above
+ * the widget list, persisted as `heroVisible` on the layout blob through
+ * the SAME PUT mutation the widget rows use (the Save button flushes the
+ * draft). SSR smoke assertions + source pins, matching the rest of this
+ * suite (no DOM runtime for state mutation).
+ */
+describe("<DashboardLayoutSection> — hero visibility switch", () => {
+  it("renders one hero switch above the widget list", () => {
+    const html = render(<DashboardLayoutSection id="dashboard-layout" />);
+    const switches = html.match(/data-slot="hero-visible-switch"/g) ?? [];
+    expect(switches).toHaveLength(1);
+    // Above the list: the hero switch markup precedes the first widget row.
+    expect(html.indexOf('data-slot="hero-visible-switch"')).toBeLessThan(
+      html.indexOf('data-slot="widget-row"'),
+    );
+  });
+
+  it("labels the switch with the localised copy + description", () => {
+    const de = render(<DashboardLayoutSection id="dashboard-layout" />, "de");
+    expect(de).toContain("Tagesüberblick");
+    expect(de).toContain(
+      "Zeigt Score, Tagesfokus und Dosen-Status ganz oben auf dem Dashboard.",
+    );
+    const en = render(<DashboardLayoutSection id="dashboard-layout" />);
+    expect(en).toContain("Daily overview");
+  });
+
+  it("reflects heroVisible: default layout → checked, false → unchecked", () => {
+    const checkedHtml = render(
+      <DashboardLayoutSection id="dashboard-layout" />,
+    );
+    const checked = checkedHtml.match(
+      /<button[^>]*data-slot="hero-visible-switch"[^>]*>/,
+    );
+    expect(checked).not.toBeNull();
+    expect(checked![0]).toContain('data-state="checked"');
+
+    queryState.layout = { ...DEFAULT_DASHBOARD_LAYOUT, heroVisible: false };
+    const uncheckedHtml = render(
+      <DashboardLayoutSection id="dashboard-layout" />,
+    );
+    const unchecked = uncheckedHtml.match(
+      /<button[^>]*data-slot="hero-visible-switch"[^>]*>/,
+    );
+    expect(unchecked).not.toBeNull();
+    expect(unchecked![0]).toContain('data-state="unchecked"');
+  });
+
+  it("persists through the existing PUT draft flow (source pins)", () => {
+    const src = readFileSync(
+      join(
+        process.cwd(),
+        "src/components/settings/dashboard-layout-section.tsx",
+      ),
+      "utf8",
+    );
+    // The toggle writes the flag onto the layout draft…
+    expect(src).toMatch(
+      /setDraft\(\{\s*\.\.\.layout,\s*heroVisible:\s*value\s*\}\)/,
+    );
+    // …which the Save button flushes via the one save mutation
+    // (`apiPut("/api/dashboard/widgets", …)`) every other control uses.
+    expect(src).toMatch(/onCheckedChange=\{\(v\) => setHeroVisible\(v\)\}/);
+    expect(src).toMatch(
+      /apiPut<DashboardLayout>\("\/api\/dashboard\/widgets", next\)/,
+    );
   });
 });
 
