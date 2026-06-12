@@ -494,6 +494,42 @@ export const PUT = apiHandler(
           },
           meta: { schedule_revision_rows: previousEntries.length },
         });
+      } else if (
+        previousRows.length === 0 &&
+        existing.asNeeded &&
+        asNeeded === false &&
+        normalisedSchedules.length > 0
+      ) {
+        // v1.16.11 — flipping as-needed OFF. The medication carried ZERO
+        // schedule rows while as-needed, so the wholesale-replace archive
+        // above never fires — and without a revision the live era would
+        // start at the PREVIOUS revision's `validUntil` (or `createdAt`),
+        // retro-painting the schedule-less as-needed stretch with the NEW
+        // schedule's expected slots: every PRN day would read as missed.
+        // Archive an EMPTY era covering the as-needed stretch instead; an
+        // empty payload expands to zero schedules, so era-aware compliance
+        // expects nothing there — exactly the as-needed contract.
+        const lastRevision = await prisma.medicationScheduleRevision.findFirst({
+          where: { medicationId: id, supersededByRevisionId: null },
+          orderBy: { validUntil: "desc" },
+          select: { validUntil: true },
+        });
+        await prisma.medicationScheduleRevision.create({
+          data: {
+            medicationId: id,
+            validFrom: lastRevision?.validUntil ?? existing.createdAt,
+            validUntil: new Date(),
+            payload: [] as unknown as Prisma.InputJsonValue,
+          },
+        });
+        annotate({
+          action: {
+            name: "medication.schedule.revision_archived",
+            entity_type: "medication",
+            entity_id: id,
+          },
+          meta: { schedule_revision_rows: 0 },
+        });
       }
       // A schedule replace invalidates the open slot anchors the projector /
       // reminder worker minted for the OLD times: a pending 08:00 row for a

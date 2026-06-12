@@ -700,6 +700,61 @@ describe("PUT /api/medications/[id] — as-needed (v1.16.11, #316)", () => {
     expect(updateData.data.asNeeded).toBe(false);
   });
 
+  it("archives an EMPTY era for the as-needed stretch on the flip back", async () => {
+    // Without the empty revision the live era would start at the previous
+    // revision boundary (or createdAt) and the NEW schedule's slots would
+    // retro-paint every schedule-less as-needed day as missed.
+    mockExisting({ asNeeded: true, scheduleCount: 0 });
+    vi.mocked(getMedicationCategories).mockResolvedValue({} as never);
+    const previousBoundary = new Date("2026-05-01T08:00:00Z");
+    vi.mocked(prisma.medicationScheduleRevision.findFirst).mockResolvedValue({
+      validUntil: previousBoundary,
+    } as never);
+    vi.mocked(prisma.medication.update).mockResolvedValue({
+      id: "m1",
+      userId: "user-1",
+      asNeeded: false,
+      schedules: [{ id: "s1" }],
+    } as never);
+    const res = await PUT(
+      putReq({
+        asNeeded: false,
+        schedules: [{ windowStart: "08:00", windowEnd: "09:00" }],
+      }),
+      ROUTE_CTX,
+    );
+    expect(res.status).toBe(200);
+    expect(prisma.medicationScheduleRevision.create).toHaveBeenCalledTimes(1);
+    const createArg = vi.mocked(prisma.medicationScheduleRevision.create).mock
+      .calls[0][0] as {
+      data: { payload: unknown; validFrom: Date; validUntil: Date };
+    };
+    expect(createArg.data.payload).toEqual([]);
+    expect(createArg.data.validFrom).toEqual(previousBoundary);
+    expect(createArg.data.validUntil).toBeInstanceOf(Date);
+  });
+
+  it("does NOT archive an era when a scheduled medication replaces schedules from zero rows", async () => {
+    // A non-as-needed medication with no previous rows (fresh create path)
+    // keeps the v1.16.3 behaviour: nothing to archive.
+    mockExisting({ asNeeded: false, scheduleCount: 0 });
+    vi.mocked(getMedicationCategories).mockResolvedValue({} as never);
+    vi.mocked(prisma.medication.update).mockResolvedValue({
+      id: "m1",
+      userId: "user-1",
+      asNeeded: false,
+      schedules: [{ id: "s1" }],
+    } as never);
+    const res = await PUT(
+      putReq({
+        schedules: [{ windowStart: "08:00", windowEnd: "09:00" }],
+      }),
+      ROUTE_CTX,
+    );
+    expect(res.status).toBe(200);
+    expect(prisma.medicationScheduleRevision.create).not.toHaveBeenCalled();
+  });
+
   it("422s an empty schedules array WITHOUT asNeeded:true (Zod)", async () => {
     mockExisting({ scheduleCount: 1 });
     const res = await PUT(putReq({ schedules: [] }), ROUTE_CTX);
