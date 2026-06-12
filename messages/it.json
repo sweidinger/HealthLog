@@ -729,6 +729,15 @@
       "logIntake": "Registra un'assunzione",
       "newMedication": "Nuovo farmaco"
     },
+    "takeAllDue": {
+      "button": "Assumi tutte le dosi in scadenza",
+      "dialogTitle": "Assumi i farmaci in scadenza",
+      "dialogDescription": "Questi farmaci sono da assumere adesso. Conferma per registrarli tutti come assunti.",
+      "confirm": "Assumi tutti ({count})",
+      "successToast": "{count} assunzioni registrate",
+      "partialToast": "{taken} registrate, {failed} non riuscite – riprova",
+      "failedToast": "Nessuna assunzione registrata – riprova"
+    },
     "logIntake": {
       "dialogTitle": "Registra un'assunzione",
       "dialogDescription": "Registra una dose per un farmaco esistente. Puoi retrodatarla a una data e un'ora passate.",

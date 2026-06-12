@@ -729,6 +729,15 @@
       "logIntake": "Zarejestruj przyjęcie",
       "newMedication": "Nowy lek"
     },
+    "takeAllDue": {
+      "button": "Przyjmij wszystkie zaległe",
+      "dialogTitle": "Przyjmij zaległe leki",
+      "dialogDescription": "Te leki są teraz do przyjęcia. Potwierdź, aby zarejestrować je wszystkie jako przyjęte.",
+      "confirm": "Przyjmij wszystkie ({count})",
+      "successToast": "Zarejestrowano przyjęcia: {count}",
+      "partialToast": "Zarejestrowano: {taken}, nieudane: {failed} – spróbuj ponownie",
+      "failedToast": "Nie zarejestrowano żadnego przyjęcia – spróbuj ponownie"
+    },
     "logIntake": {
       "dialogTitle": "Zarejestruj przyjęcie",
       "dialogDescription": "Zarejestruj dawkę istniejącego leku. Możesz wstawić ją wstecznie na przeszłą datę i godzinę.",

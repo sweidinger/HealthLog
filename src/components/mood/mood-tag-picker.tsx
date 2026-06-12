@@ -1,12 +1,15 @@
 "use client";
 
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { Plus, Tag } from "lucide-react";
 
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/hooks/use-auth";
 import { queryKeys } from "@/lib/query-keys";
 import { useTranslations } from "@/lib/i18n/context";
 import { moodTagIcon } from "./mood-tag-icons";
+import { TagEditorSheet } from "./manage/tag-editor-sheet";
 import { apiGet } from "@/lib/api/api-fetch";
 
 /**
@@ -27,22 +30,36 @@ import { apiGet } from "@/lib/api/api-fetch";
  * Additive next to the legacy free-text tag input: a user can use
  * either or both. Renders nothing if the catalog is empty so a
  * deployment that cleared the taxonomy degrades to the free-text field.
+ *
+ * v1.17 — three management-suite additions: (1) a custom tag renders
+ * its decrypted `label` (the v1.13 API field the web picker previously
+ * ignored — a custom tag used to paint its raw key through the `t()`
+ * fallback); (2) a trailing ghost "+" tile per group opens the shared
+ * create sheet with that group preselected, and the fresh tag is
+ * selected in the form right away; (3) the render order is exactly the
+ * server-resolved per-user order — no client-side sorting.
  */
 
 interface CatalogTag {
   key: string;
   labelKey: string;
+  /** Decrypted custom label (v1.13+); null/absent for catalogue tags. */
+  label?: string | null;
   icon: string | null;
   kind: "BINARY" | "RATED";
   scaleMin: number;
   scaleMax: number;
   inverse: boolean;
+  custom?: boolean;
 }
 
 interface CatalogCategory {
   key: string;
   labelKey: string;
+  /** Decrypted custom group label; null/absent for seeded categories. */
+  label?: string | null;
   icon: string | null;
+  custom?: boolean;
   tags: CatalogTag[];
 }
 
@@ -75,6 +92,9 @@ export function MoodTagPicker({
 }) {
   const { isAuthenticated } = useAuth();
   const { t } = useTranslations();
+  // v1.17 — inline-create sheet state: the group key the tapped "+"
+  // tile belongs to, or null when closed.
+  const [createGroupKey, setCreateGroupKey] = useState<string | null>(null);
 
   const { data, isLoading } = useQuery({
     queryKey: queryKeys.moodTagCatalog(),
@@ -97,6 +117,16 @@ export function MoodTagPicker({
   const selectedSet = new Set(selected);
   const ratingByKey = new Map(ratedFactors.map((f) => [f.key, f.rating]));
 
+  const groupOptions = data.categories.map((category) => ({
+    key: category.key,
+    name: category.label ?? t(category.labelKey),
+  }));
+  // The plain read drops empty categories, so before the first custom
+  // tag exists there is no Custom node to hang the "+" tile on —
+  // synthesize the bootstrap group so inline creation is always
+  // reachable.
+  const hasCustomGroup = data.categories.some((c) => c.key === "custom");
+
   return (
     <div className="space-y-4" data-slot="mood-tag-picker">
       {data.categories.map((category) => {
@@ -114,15 +144,17 @@ export function MoodTagPicker({
           <div key={category.key} className="space-y-2">
             <div className="text-muted-foreground flex items-center gap-1.5 text-xs font-medium">
               <CategoryIcon className="h-3.5 w-3.5" aria-hidden="true" />
-              <span>{t(category.labelKey)}</span>
+              <span>{category.label ?? t(category.labelKey)}</span>
             </div>
 
-            {binaryTags.length > 0 && (
+            {
               <div className="flex flex-wrap gap-2">
                 {binaryTags.map((tag) => {
                   const TagIcon = moodTagIcon(tag.icon);
                   const isActive = selectedSet.has(tag.key);
-                  const label = t(tag.labelKey);
+                  // v1.17 — a custom tag carries its decrypted label;
+                  // catalogue tags keep resolving their i18n key.
+                  const label = tag.label ?? t(tag.labelKey);
                   return (
                     <button
                       key={tag.key}
@@ -141,14 +173,18 @@ export function MoodTagPicker({
                     </button>
                   );
                 })}
+                <AddTagTile
+                  label={t("mood.addTagInline")}
+                  onClick={() => setCreateGroupKey(category.key)}
+                />
               </div>
-            )}
+            }
 
             {ratedTags.length > 0 && onRateFactor && (
               <div className="space-y-2" data-slot="mood-factor-ratings">
                 {ratedTags.map((tag) => {
                   const TagIcon = moodTagIcon(tag.icon);
-                  const label = t(tag.labelKey);
+                  const label = tag.label ?? t(tag.labelKey);
                   const current = ratingByKey.get(tag.key);
                   const isBinaryScale = tag.scaleMax - tag.scaleMin === 1;
                   const steps: number[] = [];
@@ -223,6 +259,69 @@ export function MoodTagPicker({
           </div>
         );
       })}
+
+      {/* Bootstrap node for the seeded Custom group: before the first
+          custom tag exists the plain read carries no `custom` category,
+          so the inline-create entry point renders synthetically. */}
+      {!hasCustomGroup && (
+        <div className="space-y-2" data-slot="mood-tag-custom-bootstrap">
+          <div className="text-muted-foreground flex items-center gap-1.5 text-xs font-medium">
+            <Tag className="h-3.5 w-3.5" aria-hidden="true" />
+            <span>{t("mood.tagCategory.custom")}</span>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <AddTagTile
+              label={t("mood.addTagInline")}
+              onClick={() => setCreateGroupKey("custom")}
+            />
+          </div>
+        </div>
+      )}
+
+      {createGroupKey !== null && (
+        <TagEditorSheet
+          open
+          onOpenChange={(open) => {
+            if (!open) setCreateGroupKey(null);
+          }}
+          groups={
+            hasCustomGroup
+              ? groupOptions
+              : [
+                  ...groupOptions,
+                  { key: "custom", name: t("mood.tagCategory.custom") },
+                ]
+          }
+          initialGroupKey={createGroupKey}
+          onCreated={(created) => onToggle(created.key)}
+        />
+      )}
     </div>
+  );
+}
+
+/**
+ * v1.17 — trailing ghost "+" tile: same footprint as a tag tile,
+ * dashed border, opens the inline create sheet for its group.
+ */
+function AddTagTile({
+  label,
+  onClick,
+}: {
+  label: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={label}
+      title={label}
+      data-slot="mood-tag-add-tile"
+      className="border-border/70 text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:ring-ring focus-visible:ring-offset-background flex min-h-16 w-[4.5rem] flex-col items-center justify-center gap-1 rounded-xl border border-dashed p-2 text-center transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
+    >
+      <Plus className="h-5 w-5" aria-hidden="true" />
+      <span className="text-[11px] leading-tight">{label}</span>
+    </button>
   );
 }

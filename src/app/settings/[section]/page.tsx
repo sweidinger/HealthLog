@@ -11,6 +11,7 @@ import { ExportSection } from "@/components/settings/export-section";
 import { InsightsSection } from "@/components/settings/insights-section";
 import { IntegrationsSection } from "@/components/settings/integrations-section";
 import { MedicationsSection } from "@/components/settings/medications-section";
+import { MoodSection } from "@/components/settings/mood-section";
 import { NotificationsSection } from "@/components/settings/notifications-section";
 import { SectionPlaceholder } from "@/components/settings/section-placeholder";
 // v1.8.7.1 — `thresholds` (Targets) and `sources` (Sources) are two
@@ -53,6 +54,7 @@ const SECTION_COMPONENTS: Record<
   dashboard: DashboardSection,
   insights: InsightsSection,
   medications: MedicationsSection,
+  mood: MoodSection,
   thresholds: ThresholdsSection,
   sources: () => <SourcesSection />,
   api: ApiSection,

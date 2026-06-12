@@ -230,6 +230,50 @@ async function main() {
     results.push(r);
   }
 
+  // ───── MoodTag.labelEncrypted ─────
+  // v1.13.0 — AES-256-GCM ciphertext of a custom mood tag's free-text
+  // label (catalogue rows carry NULL and are skipped by `shouldRotate`).
+  const moodTags = await prisma.moodTag.findMany({
+    where: { labelEncrypted: { not: null } },
+    select: { id: true, labelEncrypted: true },
+  });
+  results.push(
+    await rotateField(
+      "MoodTag",
+      "labelEncrypted",
+      moodTags,
+      (t) => t.labelEncrypted,
+      async (id, ciphertext) => {
+        await prisma.moodTag.update({
+          where: { id },
+          data: { labelEncrypted: ciphertext },
+        });
+      },
+    ),
+  );
+
+  // ───── MoodTagCategory.labelEncrypted ─────
+  // v1.17.0 — AES-256-GCM ciphertext of a custom mood-tag group's
+  // free-text label (seeded rows carry NULL and are skipped).
+  const moodTagCategories = await prisma.moodTagCategory.findMany({
+    where: { labelEncrypted: { not: null } },
+    select: { id: true, labelEncrypted: true },
+  });
+  results.push(
+    await rotateField(
+      "MoodTagCategory",
+      "labelEncrypted",
+      moodTagCategories,
+      (c) => c.labelEncrypted,
+      async (id, ciphertext) => {
+        await prisma.moodTagCategory.update({
+          where: { id },
+          data: { labelEncrypted: ciphertext },
+        });
+      },
+    ),
+  );
+
   // ───── NotificationChannel.config ─────
   // Channel config (Telegram chat id, ntfy topic, etc.) is encrypted JSON.
   // Skipping these on rotation would leave channels permanently undecryptable

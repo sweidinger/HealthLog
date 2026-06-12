@@ -729,6 +729,15 @@
       "logIntake": "Enregistrer une prise",
       "newMedication": "Nouveau médicament"
     },
+    "takeAllDue": {
+      "button": "Prendre toutes les doses dues",
+      "dialogTitle": "Prendre les médicaments dus",
+      "dialogDescription": "Ces médicaments sont à prendre maintenant. Confirmez pour les enregistrer tous comme pris.",
+      "confirm": "Tout prendre ({count})",
+      "successToast": "{count} prises enregistrées",
+      "partialToast": "{taken} enregistrées, {failed} échouées – veuillez réessayer",
+      "failedToast": "Aucune prise enregistrée – veuillez réessayer"
+    },
     "logIntake": {
       "dialogTitle": "Enregistrer une prise",
       "dialogDescription": "Enregistrez une dose pour un médicament existant. Vous pouvez l’antidater à une date et une heure passées.",

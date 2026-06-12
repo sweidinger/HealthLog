@@ -729,6 +729,15 @@
       "logIntake": "Log an intake",
       "newMedication": "New medication"
     },
+    "takeAllDue": {
+      "button": "Take all due",
+      "dialogTitle": "Take due medications",
+      "dialogDescription": "These medications are due now. Confirm to record all of them as taken.",
+      "confirm": "Take all ({count})",
+      "successToast": "{count} intakes recorded",
+      "partialToast": "{taken} recorded, {failed} failed – please try again",
+      "failedToast": "No intake recorded – please try again"
+    },
     "logIntake": {
       "dialogTitle": "Log an intake",
       "dialogDescription": "Record a dose against an existing medication. You can backdate it to a past date and time.",

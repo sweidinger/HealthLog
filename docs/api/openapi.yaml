@@ -4453,6 +4453,358 @@ paths:
         "401": *a1
         "422": *a3
         "429": *a4
+  /api/mood/tags:
+    get:
+      tags:
+        - Mood
+      summary: Effective per-user mood-tag tree (v1.8.5 / v1.13.0 / v1.17.0)
+      description: "The fully-resolved, ordered Category → Tag tree: seeded catalogue + the caller's custom tags and groups,
+        per-user layout (group order + placements) applied server-side, hidden catalogue tags omitted. `include` is a
+        comma list: `hidden` (hidden catalogue tags, `hidden:true`), `archived` (own inactive custom tags,
+        `archived:true`), `usage` (per-tag `usageCount`). With any flag set, the caller's own empty groups are kept; the
+        plain read drops empty categories."
+      parameters:
+        - in: query
+          name: include
+          schema:
+            description: Comma list of `hidden`, `archived`, `usage`.
+            type: string
+          description: Comma list of `hidden`, `archived`, `usage`.
+      responses:
+        "200":
+          description: The effective tag tree.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MoodTagTreeEnvelope"
+        "401": *a1
+        "422": *a3
+        "429": *a4
+  /api/mood/tags/custom:
+    post:
+      tags:
+        - Mood
+      summary: Create a custom mood tag (v1.13.0 / v1.17.0)
+      description: "Mints a `custom:<uuid>` key, encrypts the label at rest, stores a BINARY tag owned by the caller under the
+        chosen group (default: the seeded `custom` category). 422 over the 50-tag cap or on an unknown / foreign
+        `categoryKey`."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                label:
+                  type: string
+                  minLength: 1
+                  maxLength: 40
+                icon:
+                  anyOf:
+                    - type: string
+                    - type: "null"
+                categoryKey:
+                  type: string
+                  minLength: 1
+                  maxLength: 80
+              required:
+                - label
+      responses:
+        "201":
+          description: Custom tag created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MoodCustomTagCreatedEnvelope"
+        "401": *a1
+        "422": *a3
+        "429": *a4
+  /api/mood/tags/custom/{key}:
+    patch:
+      tags:
+        - Mood
+      summary: Update a custom mood tag (v1.13.0 / v1.17.0)
+      description: "Owner-scoped: another user's key or a catalogue key 404s. Rename (re-encrypts), re-icon, archive/restore
+        via `isActive`, or move groups via `categoryKey`."
+      parameters:
+        - in: path
+          name: key
+          schema:
+            type: string
+          required: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                label:
+                  type: string
+                  minLength: 1
+                  maxLength: 40
+                icon:
+                  anyOf:
+                    - type: string
+                    - type: "null"
+                isActive:
+                  type: boolean
+                categoryKey:
+                  type: string
+                  minLength: 1
+                  maxLength: 80
+      responses:
+        "200":
+          description: Custom tag updated.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MoodCustomTagPatchEnvelope"
+        "401": *a1
+        "404": &a5
+          description: Not found / not owned by the caller.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "422": *a3
+        "429": *a4
+    delete:
+      tags:
+        - Mood
+      summary: Archive or purge a custom mood tag (v1.13.0)
+      description: "Default: soft-deactivates (`isActive:false`) — history intact, restorable via PATCH. `?purge=true`:
+        hard-deletes the row; the FK cascade removes its entry links. Owner-scoped 404."
+      parameters:
+        - in: path
+          name: key
+          schema:
+            type: string
+          required: true
+        - in: query
+          name: purge
+          schema:
+            type: string
+            enum:
+              - "true"
+              - "false"
+      responses:
+        "200":
+          description: Archived (or purged).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MoodCustomTagDeleteEnvelope"
+        "401": *a1
+        "404": *a5
+        "422": *a3
+        "429": *a4
+  /api/mood/tags/{key}/hidden:
+    put:
+      tags:
+        - Mood
+      summary: Hide / show a catalogue mood tag (v1.13.0)
+      description: Per-user hide of a CATALOGUE tag (upserts / removes a `mood_tag_hidden` row). 400 on a `custom:` key —
+        custom tags archive via their own `isActive`.
+      parameters:
+        - in: path
+          name: key
+          schema:
+            type: string
+          required: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                hidden:
+                  type: boolean
+              required:
+                - hidden
+      responses:
+        "200":
+          description: Visibility updated.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MoodTagHiddenEnvelope"
+        "400":
+          description: Custom-tag key — use the custom PATCH instead.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "401": *a1
+        "404": *a5
+        "422": *a3
+        "429": *a4
+  /api/mood/tags/groups:
+    post:
+      tags:
+        - Mood
+      summary: Create a custom mood-tag group (v1.17.0)
+      description: Mints a `customcat:<uuid>` key, encrypts the label at rest, stores a group owned by the caller. 422 over
+        the 12-group cap.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                label:
+                  type: string
+                  minLength: 1
+                  maxLength: 40
+                icon:
+                  anyOf:
+                    - type: string
+                    - type: "null"
+              required:
+                - label
+      responses:
+        "201":
+          description: Custom group created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MoodTagGroupCreatedEnvelope"
+        "401": *a1
+        "422": *a3
+        "429": *a4
+  /api/mood/tags/groups/{key}:
+    patch:
+      tags:
+        - Mood
+      summary: Update a custom mood-tag group (v1.17.0)
+      description: "Owner-scoped: another user's key or a seeded category key 404s. Rename (re-encrypts), re-icon,
+        retire/restore via `isActive`."
+      parameters:
+        - in: path
+          name: key
+          schema:
+            type: string
+          required: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                label:
+                  type: string
+                  minLength: 1
+                  maxLength: 40
+                icon:
+                  anyOf:
+                    - type: string
+                    - type: "null"
+                isActive:
+                  type: boolean
+      responses:
+        "200":
+          description: Custom group updated.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MoodTagGroupPatchEnvelope"
+        "401": *a1
+        "404": *a5
+        "422": *a3
+        "429": *a4
+    delete:
+      tags:
+        - Mood
+      summary: Delete a custom mood-tag group (v1.17.0)
+      description: "Non-destructive: the group's custom tags re-home to the seeded `custom` category, catalogue-tag placements
+        evaporate back to their seeded category, the layout drops the group, then the row soft-deactivates (default) or
+        hard-deletes (`?purge=true`). No tag and no entry link is deleted."
+      parameters:
+        - in: path
+          name: key
+          schema:
+            type: string
+          required: true
+        - in: query
+          name: purge
+          schema:
+            type: string
+            enum:
+              - "true"
+              - "false"
+      responses:
+        "200":
+          description: Group deleted; `rehomedCount` custom tags moved.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MoodTagGroupDeleteEnvelope"
+        "401": *a1
+        "404": *a5
+        "422": *a3
+        "429": *a4
+  /api/mood/tags/layout:
+    get:
+      tags:
+        - Mood
+      summary: Read the per-user mood-tag layout (v1.17.0)
+      description: "Returns the stored blob merged over defaults: `groupOrder` resolved against the caller's effective
+        category set (seeded + own groups), `placements` as stored."
+      responses:
+        "200":
+          description: Resolved layout.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MoodTagLayoutGetEnvelope"
+        "401": *a1
+        "422": *a3
+        "429": *a4
+    put:
+      tags:
+        - Mood
+      summary: Update the per-user mood-tag layout (v1.17.0)
+      description: "Preserve-when-absent merge: a `groupOrder`-only PUT keeps the stored `placements` and vice versa. Bounded:
+        ≤ 50 groups, ≤ 400 placement entries, keys ≤ 80 chars. Returns the resolved layout."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                groupOrder:
+                  maxItems: 50
+                  type: array
+                  items:
+                    type: string
+                    minLength: 1
+                    maxLength: 80
+                placements:
+                  type: object
+                  propertyNames:
+                    type: string
+                    minLength: 1
+                    maxLength: 80
+                  additionalProperties:
+                    type: array
+                    items:
+                      type: string
+                      minLength: 1
+                      maxLength: 80
+      responses:
+        "200":
+          description: Merged + resolved layout.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MoodTagLayoutPutEnvelope"
+        "401": *a1
+        "422": *a3
+        "429": *a4
 components:
   schemas:
     PasskeyLoginVerifyRequest:
@@ -13212,6 +13564,463 @@ components:
         - qValue
         - interpretation
         - lagDays
+      additionalProperties: false
+    MoodTagTreeEnvelope:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            categories:
+              type: array
+              items:
+                $ref: "#/components/schemas/MoodTagCategoryDTO"
+          required:
+            - categories
+          additionalProperties: false
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    MoodTagCategoryDTO:
+      type: object
+      properties:
+        key:
+          type: string
+        labelKey:
+          anyOf:
+            - type: string
+            - type: "null"
+        label:
+          anyOf:
+            - type: string
+            - type: "null"
+        icon:
+          anyOf:
+            - type: string
+            - type: "null"
+        custom:
+          type: boolean
+        tags:
+          type: array
+          items:
+            $ref: "#/components/schemas/MoodTagDTO"
+      required:
+        - key
+        - labelKey
+        - label
+        - icon
+        - custom
+        - tags
+      additionalProperties: false
+      description: "One group of the effective tree, already per-user ordered (layout applied server-side). `custom: true` =
+        the caller's own group (render `label`); seeded groups resolve `labelKey`."
+    MoodTagDTO:
+      type: object
+      properties:
+        key:
+          type: string
+        labelKey:
+          anyOf:
+            - type: string
+            - type: "null"
+        label:
+          anyOf:
+            - type: string
+            - type: "null"
+        icon:
+          anyOf:
+            - type: string
+            - type: "null"
+        kind:
+          type: string
+          enum:
+            - BINARY
+            - RATED
+        scaleMin:
+          type: integer
+          minimum: -9007199254740991
+          maximum: 9007199254740991
+        scaleMax:
+          type: integer
+          minimum: -9007199254740991
+          maximum: 9007199254740991
+        inverse:
+          type: boolean
+        custom:
+          type: boolean
+        hidden:
+          description: Catalogue tags only, present when `include` contains `hidden`.
+          type: boolean
+        archived:
+          description: Custom tags only, present when `include` contains `archived`.
+          type: boolean
+        usageCount:
+          description: Live-entry link count for this user, present when `include` contains `usage`.
+          type: integer
+          minimum: -9007199254740991
+          maximum: 9007199254740991
+      required:
+        - key
+        - labelKey
+        - label
+        - icon
+        - kind
+        - scaleMin
+        - scaleMax
+        - inverse
+        - custom
+      additionalProperties: false
+      description: One effective mood tag. Render `label` when `custom`, else resolve `labelKey` against the locale.
+    MoodCustomTagCreatedEnvelope:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            key:
+              type: string
+            labelKey:
+              type: "null"
+            label:
+              anyOf:
+                - type: string
+                - type: "null"
+            icon:
+              anyOf:
+                - type: string
+                - type: "null"
+            kind:
+              type: string
+              enum:
+                - BINARY
+                - RATED
+            scaleMin:
+              type: integer
+              minimum: -9007199254740991
+              maximum: 9007199254740991
+            scaleMax:
+              type: integer
+              minimum: -9007199254740991
+              maximum: 9007199254740991
+            inverse:
+              type: boolean
+            custom:
+              type: boolean
+              const: true
+          required:
+            - key
+            - labelKey
+            - label
+            - icon
+            - kind
+            - scaleMin
+            - scaleMax
+            - inverse
+            - custom
+          additionalProperties: false
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    MoodCustomTagPatchEnvelope:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            key:
+              type: string
+            labelKey:
+              type: "null"
+            label:
+              anyOf:
+                - type: string
+                - type: "null"
+            icon:
+              anyOf:
+                - type: string
+                - type: "null"
+            kind:
+              type: string
+              enum:
+                - BINARY
+                - RATED
+            scaleMin:
+              type: integer
+              minimum: -9007199254740991
+              maximum: 9007199254740991
+            scaleMax:
+              type: integer
+              minimum: -9007199254740991
+              maximum: 9007199254740991
+            inverse:
+              type: boolean
+            custom:
+              type: boolean
+              const: true
+            isActive:
+              type: boolean
+          required:
+            - key
+            - labelKey
+            - label
+            - icon
+            - kind
+            - scaleMin
+            - scaleMax
+            - inverse
+            - custom
+            - isActive
+          additionalProperties: false
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    MoodCustomTagDeleteEnvelope:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            key:
+              type: string
+            purged:
+              type: boolean
+          required:
+            - key
+            - purged
+          additionalProperties: false
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    MoodTagHiddenEnvelope:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            key:
+              type: string
+            hidden:
+              type: boolean
+          required:
+            - key
+            - hidden
+          additionalProperties: false
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    MoodTagGroupCreatedEnvelope:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            key:
+              type: string
+            labelKey:
+              type: "null"
+            label:
+              anyOf:
+                - type: string
+                - type: "null"
+            icon:
+              anyOf:
+                - type: string
+                - type: "null"
+            custom:
+              type: boolean
+              const: true
+          required:
+            - key
+            - labelKey
+            - label
+            - icon
+            - custom
+          additionalProperties: false
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    MoodTagGroupPatchEnvelope:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            key:
+              type: string
+            labelKey:
+              type: "null"
+            label:
+              anyOf:
+                - type: string
+                - type: "null"
+            icon:
+              anyOf:
+                - type: string
+                - type: "null"
+            custom:
+              type: boolean
+              const: true
+            isActive:
+              type: boolean
+          required:
+            - key
+            - labelKey
+            - label
+            - icon
+            - custom
+            - isActive
+          additionalProperties: false
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    MoodTagGroupDeleteEnvelope:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            key:
+              type: string
+            purged:
+              type: boolean
+            rehomedCount:
+              type: integer
+              minimum: -9007199254740991
+              maximum: 9007199254740991
+          required:
+            - key
+            - purged
+            - rehomedCount
+          additionalProperties: false
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    MoodTagLayoutGetEnvelope:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/MoodTagLayoutResolved"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    MoodTagLayoutResolved:
+      type: object
+      properties:
+        groupOrder:
+          type: array
+          items:
+            type: string
+        placements:
+          type: object
+          propertyNames:
+            type: string
+          additionalProperties:
+            type: array
+            items:
+              type: string
+      required:
+        - groupOrder
+        - placements
+      additionalProperties: false
+      description: "The stored layout merged over defaults: `groupOrder` fully resolved against the user's effective category
+        set, `placements` as stored."
+    MoodTagLayoutPutEnvelope:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/MoodTagLayoutResolved"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
       additionalProperties: false
     MedicationScheduleOutput:
       type: object

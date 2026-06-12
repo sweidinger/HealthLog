@@ -145,6 +145,13 @@ model User {
   // once the user has explicitly toggled the view or saved an order.
   // Shape: { "version": 1, "view": "table", "order": ["<medicationId>", ...] }
   medicationListLayoutJson Json?  @map("medication_list_layout_json")
+  // v1.17.0 — per-user mood-tag presentation: group order + per-group tag
+  // placement (catalogue tags "moved" into a group live here only — their
+  // `categoryId` never changes). Display-only, preserve-when-absent PUT,
+  // unknown keys dropped at read. Null = seeded defaults.
+  // Shape: { "groupOrder": ["<categoryKey>", ...],
+  //          "placements": { "<categoryKey>": ["<tagKey>", ...] } }
+  moodTagLayoutJson       Json?   @map("mood_tag_layout_json")
   // Blood-glucose display unit preference. Canonical storage is mg/dL.
   glucoseUnit             String? @map("glucose_unit") // "mg/dL" | "mmol/L" | null = default "mg/dL"
   // v1.7.0 unit pref — global metric/imperial display preference.
@@ -402,6 +409,7 @@ model User {
   fitbitOAuthStates      FitbitOAuthState[]
   moodEntries            MoodEntry[]
   moodTagsCustom         MoodTag[]             @relation("UserMoodTags")
+  moodTagCategoriesCustom MoodTagCategory[]    @relation("UserMoodTagCategories")
   moodTagsHidden         MoodTagHidden[]
   notificationChannels   NotificationChannel[]
   pushSubscriptions      PushSubscription[]
@@ -2371,8 +2379,19 @@ model MoodTagCategory {
   /// Soft-hide a category without deleting its historical links.
   isActive  Boolean @default(true) @map("is_active")
 
-  tags MoodTag[]
+  /// v1.17.0 — owner of a per-user custom group. NULL = the global seeded
+  /// catalogue (resolves `labelKey` against the locale). Set = a user's own
+  /// group, carrying a `customcat:<uuid>` key and a free-text label held in
+  /// `labelEncrypted` (mirrors the MoodTag custom-tag precedent).
+  userId         String? @map("user_id")
+  /// v1.17.0 — AES-256-GCM ciphertext of a custom group's free-text label
+  /// (user prose, possibly health-adjacent). NULL for seeded rows.
+  labelEncrypted String? @map("label_encrypted")
 
+  tags MoodTag[]
+  user User?     @relation("UserMoodTagCategories", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
   @@map("mood_tag_categories")
 }
 

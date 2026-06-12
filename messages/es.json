@@ -729,6 +729,15 @@
       "logIntake": "Registrar una toma",
       "newMedication": "Nuevo medicamento"
     },
+    "takeAllDue": {
+      "button": "Tomar todas las pendientes",
+      "dialogTitle": "Tomar medicamentos pendientes",
+      "dialogDescription": "Estos medicamentos están pendientes ahora. Confirma para registrarlos todos como tomados.",
+      "confirm": "Tomar todos ({count})",
+      "successToast": "{count} tomas registradas",
+      "partialToast": "{taken} registradas, {failed} fallidas – inténtalo de nuevo",
+      "failedToast": "No se registró ninguna toma – inténtalo de nuevo"
+    },
     "logIntake": {
       "dialogTitle": "Registrar una toma",
       "dialogDescription": "Registra una dosis de un medicamento existente. Puedes posfecharla a una fecha y hora pasadas.",

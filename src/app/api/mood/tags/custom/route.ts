@@ -16,15 +16,20 @@ import {
   CUSTOM_CATEGORY_ID,
   MAX_CUSTOM_TAGS_PER_USER,
 } from "@/lib/mood/custom-tags";
+import { resolveCategoryKeyForUser } from "@/lib/mood/tag-groups";
 
 export const dynamic = "force-dynamic";
 
 /**
- * v1.13.0 — create a per-user custom mood tag.
+ * v1.13.0 / v1.17.0 — create a per-user custom mood tag.
  *
  * `POST /api/mood/tags/custom` — body `{ label, icon?, categoryKey? }`. Mints
  * a `custom:<uuid>` key, encrypts the label at rest, and stores a BINARY tag
- * under the global `custom` category owned by the caller. Capped per user.
+ * owned by the caller. `categoryKey` (v1.17.0) picks the home group — any
+ * seeded category key or one of the caller's own `customcat:` groups; an
+ * unknown or foreign key is a 422. Omitted → the seeded `custom` category
+ * (the v1.13.0 behaviour, byte-identical for existing clients). Capped per
+ * user.
  */
 export const POST = apiHandler(async (request: NextRequest) => {
   const { user } = await requireAuth();
@@ -46,10 +51,20 @@ export const POST = apiHandler(async (request: NextRequest) => {
     );
   }
 
+  let categoryId = CUSTOM_CATEGORY_ID;
+  if (parsed.data.categoryKey !== undefined) {
+    const resolved = await resolveCategoryKeyForUser(
+      parsed.data.categoryKey,
+      user.id,
+    );
+    if (!resolved) return apiError("Unknown category", 422);
+    categoryId = resolved;
+  }
+
   const key = mintCustomTagKey();
   const created = await prisma.moodTag.create({
     data: {
-      categoryId: CUSTOM_CATEGORY_ID,
+      categoryId,
       key,
       // Catalogue rows resolve `labelKey` against the locale; a custom tag
       // renders its decrypted `label` instead, so labelKey just mirrors the

@@ -28,6 +28,7 @@ import {
   Pill,
   Settings2,
   SlidersHorizontal,
+  Smile,
   Sparkles,
   TrendingUp,
   User,
@@ -105,6 +106,11 @@ export const SETTINGS_SECTIONS: readonly SettingsSection[] = [
     slug: "medications",
     titleKey: "settings.sections.medications.title",
     icon: Pill,
+  },
+  {
+    slug: "mood",
+    titleKey: "settings.sections.mood.title",
+    icon: Smile,
   },
   {
     slug: "thresholds",

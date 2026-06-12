@@ -729,6 +729,15 @@
       "logIntake": "Einnahme erfassen",
       "newMedication": "Neues Medikament"
     },
+    "takeAllDue": {
+      "button": "Alle fälligen einnehmen",
+      "dialogTitle": "Fällige Medikamente einnehmen",
+      "dialogDescription": "Diese Medikamente sind jetzt fällig. Bestätige, um sie alle als genommen zu erfassen.",
+      "confirm": "Alle einnehmen ({count})",
+      "successToast": "{count} Einnahmen erfasst",
+      "partialToast": "{taken} erfasst, {failed} fehlgeschlagen – bitte erneut versuchen",
+      "failedToast": "Keine Einnahme erfasst – bitte erneut versuchen"
+    },
     "logIntake": {
       "dialogTitle": "Einnahme erfassen",
       "dialogDescription": "Erfasse eine Dosis für ein vorhandenes Medikament. Du kannst sie auf ein vergangenes Datum und eine vergangene Uhrzeit zurückdatieren.",

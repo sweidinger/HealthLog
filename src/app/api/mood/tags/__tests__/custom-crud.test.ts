@@ -14,6 +14,7 @@ const db = vi.hoisted(() => ({
     update: vi.fn(),
     delete: vi.fn(),
   },
+  moodTagCategory: { findFirst: vi.fn() },
   moodTagHidden: { upsert: vi.fn(), deleteMany: vi.fn() },
 }));
 
@@ -74,6 +75,42 @@ describe("POST /api/mood/tags/custom", () => {
     expect(res.status).toBe(422);
     expect(db.moodTag.create).not.toHaveBeenCalled();
   });
+
+  it("defaults to the seeded custom category without a categoryKey (v1.13 contract)", async () => {
+    db.moodTag.count.mockResolvedValue(0);
+    db.moodTag.create.mockResolvedValue({
+      key: "custom:x", icon: null, kind: "BINARY", scaleMin: 1, scaleMax: 5, inverse: false,
+    });
+    await POST(jsonReq("http://localhost/api/mood/tags/custom", "POST", { label: "X" }));
+    expect(db.moodTagCategory.findFirst).not.toHaveBeenCalled();
+    expect(db.moodTag.create.mock.calls[0][0].data.categoryId).toBe("mtc_custom");
+  });
+
+  it("resolves categoryKey to a seeded OR own group (v1.17.0) and 422s an unknown one", async () => {
+    db.moodTag.count.mockResolvedValue(0);
+    db.moodTagCategory.findFirst.mockResolvedValue({ id: "cg1" });
+    db.moodTag.create.mockResolvedValue({
+      key: "custom:x", icon: null, kind: "BINARY", scaleMin: 1, scaleMax: 5, inverse: false,
+    });
+    const ok = await POST(
+      jsonReq("http://localhost/api/mood/tags/custom", "POST", { label: "X", categoryKey: "customcat:g1" }),
+    );
+    expect(ok.status).toBe(201);
+    expect(db.moodTag.create.mock.calls[0][0].data.categoryId).toBe("cg1");
+    // Resolution is owner-scoped: seeded (userId null) OR the caller's own.
+    const catWhere = db.moodTagCategory.findFirst.mock.calls[0][0].where;
+    expect(catWhere).toEqual({
+      key: "customcat:g1",
+      isActive: true,
+      OR: [{ userId: null }, { userId: "user-1" }],
+    });
+
+    db.moodTagCategory.findFirst.mockResolvedValue(null);
+    const bad = await POST(
+      jsonReq("http://localhost/api/mood/tags/custom", "POST", { label: "X", categoryKey: "customcat:theirs" }),
+    );
+    expect(bad.status).toBe(422);
+  });
 });
 
 describe("PATCH/DELETE /api/mood/tags/custom/:key", () => {
@@ -92,6 +129,32 @@ describe("PATCH/DELETE /api/mood/tags/custom/:key", () => {
     const res = await DELETE(new NextRequest("http://localhost/api/mood/tags/custom/happy"), params("happy"));
     expect(res.status).toBe(404);
     expect(db.moodTag.findFirst).not.toHaveBeenCalled();
+  });
+
+  it("moves a custom tag to another group via categoryKey (v1.17.0)", async () => {
+    db.moodTag.findFirst.mockResolvedValue({ id: "id1" });
+    db.moodTagCategory.findFirst.mockResolvedValue({ id: "cg1" });
+    db.moodTag.update.mockResolvedValue({
+      key: "custom:x", icon: null, kind: "BINARY", scaleMin: 1, scaleMax: 5,
+      inverse: false, isActive: true, labelEncrypted: "enc:X",
+    });
+    const res = await PATCH(
+      jsonReq("http://localhost/api/mood/tags/custom/custom:x", "PATCH", { categoryKey: "customcat:g1" }),
+      params("custom:x"),
+    );
+    expect(res.status).toBe(200);
+    expect(db.moodTag.update.mock.calls[0][0].data).toEqual({ categoryId: "cg1" });
+  });
+
+  it("422s a move to an unknown / foreign group without writing", async () => {
+    db.moodTag.findFirst.mockResolvedValue({ id: "id1" });
+    db.moodTagCategory.findFirst.mockResolvedValue(null);
+    const res = await PATCH(
+      jsonReq("http://localhost/api/mood/tags/custom/custom:x", "PATCH", { categoryKey: "ghost" }),
+      params("custom:x"),
+    );
+    expect(res.status).toBe(422);
+    expect(db.moodTag.update).not.toHaveBeenCalled();
   });
 
   it("soft-deactivates by default and hard-deletes on ?purge=true", async () => {

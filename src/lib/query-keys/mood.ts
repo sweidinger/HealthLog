@@ -48,4 +48,21 @@ export const moodKeys = {
    * `staleTime` is fine.
    */
   moodTagCatalog: () => ["mood-tag-catalog"] as const,
+  /**
+   * v1.17 — the tag-MANAGEMENT read (`/api/mood/tags?include=
+   * hidden,archived,usage`). Rides under the `["mood-tag-catalog"]`
+   * prefix so one `invalidateQueries({ queryKey: ["mood-tag-catalog"] })`
+   * after any management mutation refreshes both this read and the
+   * picker read above (same trick as `moodEntriesList` under
+   * `["mood-entries"]`). The scope segment keeps the two queryFn shapes
+   * on different keys — same-key/different-shape silently poisons the
+   * cache.
+   */
+  moodTagManage: () => ["mood-tag-catalog", "manage"] as const,
+  /**
+   * v1.17 — the per-user picker layout blob (`/api/mood/tags/layout`):
+   * group order + per-group tag placement. Its own root key — layout
+   * writes invalidate it alongside the catalog prefix.
+   */
+  moodTagLayout: () => ["mood-tag-layout"] as const,
 };

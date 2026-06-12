@@ -11,13 +11,20 @@ vi.mock("@/lib/crypto", () => ({
 import {
   isCustomTagKey,
   mintCustomTagKey,
+  isCustomCategoryKey,
+  mintCustomCategoryKey,
   encryptCustomLabel,
   decryptCustomLabel,
   createCustomTagSchema,
   updateCustomTagSchema,
+  createCustomGroupSchema,
+  updateCustomGroupSchema,
   hideCatalogueTagSchema,
   CUSTOM_TAG_KEY_PREFIX,
+  CUSTOM_CATEGORY_KEY_PREFIX,
+  CUSTOM_TAG_ICON_ALLOWLIST,
 } from "@/lib/mood/custom-tags";
+import { MOOD_TAG_ICON_CATALOG } from "@/lib/mood/icon-catalog";
 import { resolveTagKeysToIds } from "@/lib/mood/tag-links";
 
 describe("custom-tag helpers", () => {
@@ -52,6 +59,81 @@ describe("custom-tag schemas", () => {
     expect(updateCustomTagSchema.safeParse({ isActive: false }).success).toBe(true);
     expect(hideCatalogueTagSchema.safeParse({ hidden: true }).success).toBe(true);
     expect(hideCatalogueTagSchema.safeParse({ hidden: "yes" }).success).toBe(false);
+  });
+
+  it("accepts a categoryKey on create + update (v1.17.0) within bounds", () => {
+    expect(
+      createCustomTagSchema.safeParse({ label: "x", categoryKey: "feelings" })
+        .success,
+    ).toBe(true);
+    expect(
+      createCustomTagSchema.safeParse({
+        label: "x",
+        categoryKey: `customcat:${"a".repeat(36)}`,
+      }).success,
+    ).toBe(true);
+    expect(
+      createCustomTagSchema.safeParse({
+        label: "x",
+        categoryKey: "k".repeat(81),
+      }).success,
+    ).toBe(false);
+    // A lone categoryKey satisfies the at-least-one-field update refine.
+    expect(
+      updateCustomTagSchema.safeParse({ categoryKey: "custom" }).success,
+    ).toBe(true);
+  });
+});
+
+describe("custom-group helpers + schemas (v1.17.0)", () => {
+  it("mints prefixed, unique group keys and recognises them", () => {
+    const a = mintCustomCategoryKey();
+    const b = mintCustomCategoryKey();
+    expect(a.startsWith(CUSTOM_CATEGORY_KEY_PREFIX)).toBe(true);
+    expect(a).not.toBe(b);
+    expect(isCustomCategoryKey(a)).toBe(true);
+    expect(isCustomCategoryKey("feelings")).toBe(false);
+    // A custom TAG key is not a custom GROUP key and vice versa.
+    expect(isCustomCategoryKey(mintCustomTagKey())).toBe(false);
+    expect(isCustomTagKey(a)).toBe(false);
+  });
+
+  it("validates group create / update bodies like the tag schemas", () => {
+    expect(createCustomGroupSchema.safeParse({ label: "Hobbies 2" }).success).toBe(true);
+    expect(
+      createCustomGroupSchema.safeParse({ label: "x", icon: "Stethoscope" }).success,
+    ).toBe(true);
+    expect(
+      createCustomGroupSchema.safeParse({ label: "x", icon: "NotAnIcon" }).success,
+    ).toBe(false);
+    expect(createCustomGroupSchema.safeParse({ label: "" }).success).toBe(false);
+    expect(
+      createCustomGroupSchema.safeParse({ label: "a".repeat(41) }).success,
+    ).toBe(false);
+    expect(updateCustomGroupSchema.safeParse({}).success).toBe(false);
+    expect(updateCustomGroupSchema.safeParse({ isActive: false }).success).toBe(true);
+  });
+});
+
+describe("icon catalog → allowlist seam (v1.17.0)", () => {
+  it("derives the allowlist from the catalog and keeps the pre-v1.17 names", () => {
+    expect(CUSTOM_TAG_ICON_ALLOWLIST).toEqual(
+      MOOD_TAG_ICON_CATALOG.map((e) => e.name),
+    );
+    // The v1.13 22-name allowlist must survive — icons already stored on
+    // rows keep validating.
+    const legacy = [
+      "Tag", "Heart", "Smile", "Frown", "Dumbbell", "Moon", "Sun", "Wine",
+      "Coffee", "House", "Briefcase", "Book", "Music", "Plane", "Car",
+      "Users", "Pill", "Activity", "Brain", "Cloud", "Star", "Zap",
+    ];
+    for (const name of legacy) {
+      expect(CUSTOM_TAG_ICON_ALLOWLIST).toContain(name);
+    }
+    // No duplicate names in the catalog (the picker keys on them).
+    expect(new Set(CUSTOM_TAG_ICON_ALLOWLIST).size).toBe(
+      CUSTOM_TAG_ICON_ALLOWLIST.length,
+    );
   });
 });
 
