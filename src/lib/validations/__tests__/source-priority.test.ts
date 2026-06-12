@@ -266,8 +266,16 @@ describe("parseSourcePriority", () => {
       weight: ["MANUAL", "WITHINGS"] as const,
     };
     const out = parseSourcePriority(partial);
-    expect(out.weight).toEqual(["MANUAL", "WITHINGS"]);
-    expect(out.metricPriority.weight).toEqual(["MANUAL", "WITHINGS"]);
+    // v1.16.11 — the stored order leads; default-ladder sources the
+    // stored array lacks append after it (reconciliation).
+    expect(out.weight.slice(0, 2)).toEqual(["MANUAL", "WITHINGS"]);
+    expect(out.metricPriority.weight.slice(0, 2)).toEqual([
+      "MANUAL",
+      "WITHINGS",
+    ]);
+    for (const source of DEFAULT_SOURCE_PRIORITY.weight) {
+      expect(out.weight).toContain(source);
+    }
     // Other keys keep their defaults.
     expect(out.steps).toEqual(DEFAULT_SOURCE_PRIORITY.steps);
     expect(out.bloodPressure).toEqual(DEFAULT_SOURCE_PRIORITY.bloodPressure);
@@ -281,8 +289,14 @@ describe("parseSourcePriority", () => {
       },
     };
     const out = parseSourcePriority(partial);
-    expect(out.metricPriority.weight).toEqual(["MANUAL", "APPLE_HEALTH"]);
-    expect(out.metricPriority.steps).toEqual(["WITHINGS"]);
+    expect(out.metricPriority.weight.slice(0, 2)).toEqual([
+      "MANUAL",
+      "APPLE_HEALTH",
+    ]);
+    expect(out.metricPriority.steps[0]).toBe("WITHINGS");
+    for (const source of DEFAULT_SOURCE_PRIORITY.steps) {
+      expect(out.metricPriority.steps).toContain(source);
+    }
     // Unchanged metrics keep the constant default.
     expect(out.metricPriority.bloodPressure).toEqual(
       DEFAULT_SOURCE_PRIORITY.bloodPressure,
@@ -298,8 +312,11 @@ describe("parseSourcePriority", () => {
         weight: ["MANUAL", "WITHINGS"],
       },
     });
-    expect(out.weight).toEqual(["MANUAL", "WITHINGS"]);
-    expect(out.metricPriority.weight).toEqual(["MANUAL", "WITHINGS"]);
+    expect(out.weight.slice(0, 2)).toEqual(["MANUAL", "WITHINGS"]);
+    expect(out.metricPriority.weight.slice(0, 2)).toEqual([
+      "MANUAL",
+      "WITHINGS",
+    ]);
   });
 
   it("surfaces `deviceTypePriority` round-trip unchanged", () => {
@@ -319,7 +336,10 @@ describe("parseSourcePriority", () => {
       weight: ["MANUAL", "APPLE_HEALTH"] as const,
     };
     const out = parseSourcePriority(input);
-    expect(out.weight).toEqual(["MANUAL", "APPLE_HEALTH"]);
+    expect(out.weight.slice(0, 2)).toEqual(["MANUAL", "APPLE_HEALTH"]);
+    for (const source of DEFAULT_SOURCE_PRIORITY.weight) {
+      expect(out.weight).toContain(source);
+    }
   });
 });
 
@@ -351,7 +371,7 @@ describe("getSourceLadder + getDeviceTypeLadder helpers", () => {
     const resolved = parseSourcePriority({
       metricPriority: { weight: ["MANUAL"] },
     });
-    expect(getSourceLadder(resolved, "weight")).toEqual(["MANUAL"]);
+    expect(getSourceLadder(resolved, "weight")[0]).toBe("MANUAL");
     expect(getSourceLadder(resolved, "bloodPressure")).toEqual(
       DEFAULT_SOURCE_PRIORITY.bloodPressure,
     );
@@ -387,5 +407,53 @@ describe("getSourceLadder + getDeviceTypeLadder helpers", () => {
     expect(getDeviceTypeLadder(resolved, "ACTIVITY_STEPS")).toEqual(
       DEFAULT_DEVICE_TYPE_PRIORITY,
     );
+  });
+});
+
+describe("parseSourcePriority — stored-ladder reconciliation (v1.16.11)", () => {
+  // A ladder saved before a source existed used to hide that source
+  // forever: the stored array replaced the default wholesale, the
+  // settings UI offers reorder but not add, and the picker ranked the
+  // invisible source last. The resolver now appends default-ladder
+  // sources missing from the stored ladder AFTER the user's explicit
+  // order — visible, reorderable, same effective rank as before.
+  it("appends sources the default ladder gained after the user saved", () => {
+    // A pre-v1.11 sleep ladder: no WHOOP, no FITBIT.
+    const resolved = parseSourcePriority({
+      metricPriority: {
+        sleep: ["APPLE_HEALTH", "MANUAL", "WITHINGS", "IMPORT"],
+      },
+    });
+    expect(resolved.metricPriority.sleep.slice(0, 4)).toEqual([
+      "APPLE_HEALTH",
+      "MANUAL",
+      "WITHINGS",
+      "IMPORT",
+    ]);
+    // Appended in default-ladder order, after the stored entries.
+    expect(resolved.metricPriority.sleep).toContain("WHOOP");
+    expect(resolved.metricPriority.sleep).toContain("FITBIT");
+    expect(resolved.metricPriority.sleep.indexOf("WHOOP")).toBeGreaterThan(3);
+    expect(
+      resolved.metricPriority.sleep.indexOf("WHOOP"),
+    ).toBeLessThan(resolved.metricPriority.sleep.indexOf("FITBIT"));
+  });
+
+  it("leaves a complete stored ladder byte-identical", () => {
+    const full = [...DEFAULT_SOURCE_PRIORITY.sleep].reverse();
+    const resolved = parseSourcePriority({
+      metricPriority: { sleep: full },
+    });
+    expect(resolved.metricPriority.sleep).toEqual(full);
+  });
+
+  it("keeps stored entries the default ladder does not know", () => {
+    const resolved = parseSourcePriority({
+      metricPriority: { sleep: ["MANUAL", "WHOOP"] },
+    });
+    expect(resolved.metricPriority.sleep[0]).toBe("MANUAL");
+    expect(resolved.metricPriority.sleep[1]).toBe("WHOOP");
+    expect(resolved.metricPriority.sleep).toContain("APPLE_HEALTH");
+    expect(resolved.metricPriority.sleep).toContain("WITHINGS");
   });
 });
