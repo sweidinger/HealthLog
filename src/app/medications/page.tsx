@@ -11,6 +11,8 @@ import { MedicationWizardDialog } from "@/components/medications/wizard/Medicati
 import { MedicationCard } from "@/components/medications/medication-card";
 import { Glp1MedicationCard } from "@/components/medications/glp1-medication-card";
 import { LogIntakeDialog } from "@/components/medications/log-intake-dialog";
+import { TakeAllDueDialog } from "@/components/medications/take-all-due-dialog";
+import { deriveDueMedications } from "@/components/medications/take-all-due";
 import {
   MedicationTable,
   MedicationTableSkeleton,
@@ -25,7 +27,14 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
-import { CheckCircle2, Loader2, Pill, Plus, Wrench } from "lucide-react";
+import {
+  CheckCheck,
+  CheckCircle2,
+  Loader2,
+  Pill,
+  Plus,
+  Wrench,
+} from "lucide-react";
 import { apiGet } from "@/lib/api/api-fetch";
 import { useMedicationListLayout } from "@/lib/queries/use-medication-list-layout";
 import { applyMedicationOrder } from "@/lib/medications/medication-order";
@@ -45,6 +54,8 @@ interface Schedule {
   rollingIntervalDays?: number | null;
   /** v1.5 — reminder grace window in minutes. */
   reminderGraceMinutes?: number | null;
+  /** v1.16.1 — explicit per-dose on-time windows (band model). */
+  doseWindows?: { timeOfDay: string; start: string; end: string }[] | null;
 }
 
 interface Medication {
@@ -66,12 +77,16 @@ interface Medication {
   notificationsEnabled: boolean;
   pausedAt: string | null;
   lastTakenAt: string | null;
+  /** List-only count of today's ACTIONED intake events (taken/skipped). */
+  todayEventCount?: number;
   /**
    * v1.8.4 — server-computed next due instant (canonical recurrence
    * engine). Threaded straight through to both card variants, which render
    * it instead of re-deriving the timestamp client-side.
    */
   nextDueAt?: string | null;
+  /** v1.16.4 — true when `nextDueAt` is an OPEN overdue slot. */
+  nextDueOverdue?: boolean;
   /** v1.5 — medication-level course start date (ISO string). */
   startsOn?: string | null;
   /** v1.5 — medication-level course end date (ISO string). */
@@ -132,7 +147,7 @@ function MedicationCardSkeleton() {
 }
 
 export default function MedicationsPage() {
-  const { isAuthenticated, isLoading: authLoading } = useAuth();
+  const { user, isAuthenticated, isLoading: authLoading } = useAuth();
   const { t } = useTranslations();
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -148,6 +163,9 @@ export default function MedicationsPage() {
   // two paths: log an intake (incl. a backdated one) against an existing
   // medication, or create a new medication (the existing wizard).
   const [logIntakeOpen, setLogIntakeOpen] = useState(false);
+  // v1.16.11 (#316) — "Alle fälligen einnehmen" confirm dialog. The header
+  // button earns its slot only while ≥ 2 medications are currently due.
+  const [takeAllOpen, setTakeAllOpen] = useState(false);
 
   // v1.16.10 — the persisted list presentation: cards vs table plus the
   // manual medication order, server-side per user
@@ -174,6 +192,25 @@ export default function MedicationsPage() {
       return apiGet<Medication[]>("/api/medications");
     },
     enabled: isAuthenticated,
+  });
+
+  // v1.16.11 — the same reminder-thresholds read the cards make (shared
+  // key + cache), so the header's due-set derivation tiers late /
+  // very_late exactly like the card pills. Null on failure keeps the
+  // derivation on the 120/240 defaults the cards also fall back to.
+  const { data: thresholds } = useQuery({
+    queryKey: queryKeys.settingsReminderThresholds(),
+    queryFn: async () => {
+      try {
+        return await apiGet<{ lateMinutes: number; missedMinutes: number }>(
+          "/api/settings/reminder-thresholds",
+        );
+      } catch {
+        return null;
+      }
+    },
+    enabled: isAuthenticated,
+    staleTime: 5 * 60 * 1000,
   });
 
   function openCreate() {
@@ -248,6 +285,15 @@ export default function MedicationsPage() {
   );
   const tableView = layout.view === "table";
 
+  // v1.16.11 (#316) — the currently-due set, derived from the list payload
+  // the page already holds via the SAME pipeline a card's pill runs (band
+  // model + server display-due gate + taken-early downgrade). Page order is
+  // preserved so the confirm dialog lists medications as rendered.
+  const dueMeds = deriveDueMedications(activeMeds, {
+    tz: user?.timezone || "Europe/Berlin",
+    thresholds: thresholds ?? undefined,
+  });
+
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -262,6 +308,22 @@ export default function MedicationsPage() {
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-2">
+          {/* v1.16.11 (#316) — "Alle fälligen einnehmen". Contextual, not a
+              permanent fixture: it renders only while at least TWO
+              medications are currently due (a single due dose is the
+              card's own one-tap job). Calm outline variant so the primary
+              Add button keeps the visual lead; same responsive 44-px
+              mobile tap floor as its neighbours. */}
+          {dueMeds.length >= 2 && (
+            <Button
+              variant="outline"
+              onClick={() => setTakeAllOpen(true)}
+              className="min-h-11 sm:min-h-9"
+            >
+              <CheckCheck className="h-4 w-4" aria-hidden="true" />
+              {t("medications.takeAllDue.button")}
+            </Button>
+          )}
           {/* v1.16.11 — the wrench is the one customize entry point:
               it links to /settings/medications, which owns the view
               preference (cards ⇄ table) and the manual-order editor.
@@ -453,6 +515,18 @@ export default function MedicationsPage() {
           date+time that supports backdating. Submits to the existing
           per-medication intake route (same slot upsert as a live "Taken"
           tap) so the one-row-per-dose-slot invariant holds. */}
+      {/* v1.16.11 (#316) — confirm-all dialog for the due set. Records
+          through the per-medication intake route in a loop (slot
+          attribution + inventory consumption identical to N individual
+          taps — see take-all-due.ts); failed medications stay due. */}
+      {takeAllOpen && (
+        <TakeAllDueDialog
+          open={takeAllOpen}
+          onOpenChange={setTakeAllOpen}
+          dueMedications={dueMeds}
+        />
+      )}
+
       {logIntakeOpen && (
         <LogIntakeDialog
           open={logIntakeOpen}
