@@ -709,13 +709,13 @@ export default function DashboardPage() {
   // hero band (it derives from the snapshot's server-computed
   // `greetingHour`, so the old client-side Intl hour walk retired
   // with it). The hero gates on the layout's `heroVisible` flag
-  // (default on; anything but the literal `false` renders) and holds
+  // (opt-in; only the literal `true` renders) and holds
   // a footprint-identical skeleton while the snapshot is in flight,
   // so the band swaps in place — no growth, no greeting flash. When
   // the hero does NOT render (toggle off, or snapshot flag off) the
   // header takes the greeting back — it must never disappear with the
   // band.
-  const heroVisible = snapshotEnabled && layout.heroVisible !== false;
+  const heroVisible = snapshotEnabled && layout.heroVisible === true;
   const heroSnapshot = snapshotQuery.data;
 
   return (

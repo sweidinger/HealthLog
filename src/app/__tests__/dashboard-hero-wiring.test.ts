@@ -7,9 +7,9 @@ import { join } from "node:path";
  *
  * The hero band mounts between the page header and the tile strip:
  *
- *   - it gates on the layout's `heroVisible` flag (anything but the
- *     literal `false` renders — the resolver's clamp) AND on snapshot
- *     mode (the verdict needs the snapshot payload);
+ *   - it gates on the layout's `heroVisible` flag (only the literal
+ *     `true` renders — the hero is opt-in) AND on snapshot mode (the
+ *     verdict needs the snapshot payload);
  *   - while `primaryLoading` is true (same `!mounted ||` pin the tile
  *     silhouettes use) a footprint-identical skeleton holds the band,
  *     so the hero and the tiles swap to content in the SAME render
@@ -30,7 +30,7 @@ describe("dashboard hero — page wiring", () => {
 
   it("gates the hero on snapshot mode + the layout's heroVisible flag", () => {
     expect(src).toMatch(
-      /const\s+heroVisible\s*=\s*snapshotEnabled\s*&&\s*layout\.heroVisible\s*!==\s*false;/,
+      /const\s+heroVisible\s*=\s*snapshotEnabled\s*&&\s*layout\.heroVisible\s*===\s*true;/,
     );
   });
 
