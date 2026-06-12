@@ -2,6 +2,29 @@
 
 ## [Unreleased]
 
+## [1.16.10] — 2026-06-12 — the stock follows every dose, and the list takes your order
+
+### Added
+
+- **A medication can declare how many units one dose consumes.** Two 2 mg tablets for a 4 mg dose register as one dose taken and decrement two units, the supply dialog accepts quantities in doses or units with live conversion, containers carry a type (pen, ampoule, blister pack, inhaler, bottle) and hold up to 1000 units — a 200-dose inhaler canister finally fits. (#316)
+- **The medication list has a table view and an order of your choosing.** A toggle beside the add button switches between cards and a compact, per-column sortable table; both views share a manual order, and the whole arrangement lives in its own settings section behind the same gear icon the dashboard and insights pages use. The choice persists per account. (#316)
+
+### Changed
+
+- **The daily-overview band is opt-in now.** New accounts and accounts that never chose it start without the band and keep the plain greeting; it switches on under dashboard settings.
+- **Expired containers count as available nowhere.** Every surface — overview row, supply tab, list, table, GLP-1 card and the runway estimate — agrees on the same figure and shows expired stock separately instead of mixing it in.
+- The wellness rings sit exactly on the theme palette now — readiness green, recovery cyan, sleep purple, stress orange, strain pink — instead of neighbouring tones, and the light theme follows the same five hue families.
+- The inventory endpoints speak one wire dialect: request fields renamed to `unitsTotal` / `unitsRemaining` to match the responses they always returned.
+
+### Fixed
+
+- **Every taken dose now moves the tracked stock.** Only one of the six intake paths decremented the supply before — web, the status toggle, the phone sync, the external API and the Telegram button all consume now, the next container opens automatically, and undoing, skipping or deleting a dose refunds exactly what it consumed. Each dose carries its consumption stamp, so a double tap racing a sync replay decrements once, and a re-posted history never drains the shelf. Doses recorded before this release stay untouched — the count starts moving with the next dose, or correct a container once under the supply tab. (#316)
+- **A dashboard full of readings no longer claims "not enough data".** While the score warms up the band says it is being computed, and a first reading of a new data type — a fresh wearable metric, a first glucose value — can no longer knock the score out, because the gate checks only the types the score actually reads.
+- **The score stops flickering on busy accounts.** The pre-aggregation rebuild deleted its window before inserting the replacement without a transaction — a concurrent sync write could abort the insert and leave whole types empty until the next pass. Delete and insert run atomically now, and the boot-time backfill shares the fold horizon, so an account with years of history stops re-backfilling on every deploy.
+- **The filter pills on the mood and measurements lists open their menu on screen again.** The menu opened off-viewport below the page since v1.16.1 — selecting a mood, type or source read as a dead control.
+- **The coach button stops blinking out on chart hovers.** It no longer hides whenever a chart tooltip is open anywhere on the page, and it sits evenly in the corner.
+- The pre-item GLP-1 supply ledger reads again: accounts that tracked pens through the older ledger see their count on the card and in the coach until they register containers, which then take over.
+
 ## [1.16.9] — 2026-06-12 — the day opens with a verdict, and every dose path tells the truth
 
 ### Added
