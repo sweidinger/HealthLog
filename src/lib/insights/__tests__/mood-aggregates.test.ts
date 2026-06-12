@@ -129,6 +129,7 @@ describe("computeStructuredTagSummary", () => {
       key: "happy",
       categoryKey: "feelings",
       labelKey: "mood.tag.happy",
+      label: null,
       icon: "Smile",
       count: 2,
       avgScore: 4,
@@ -139,6 +140,25 @@ describe("computeStructuredTagSummary", () => {
     expect(rows.find((r) => r.key === "worked_out")?.categoryKey).toBe("health");
     // ranked by frequency desc.
     expect(rows[0].key).toBe("happy");
+  });
+
+  it("carries a custom tag's decrypted label beside its labelKey", () => {
+    // A custom tag's labelKey mirrors its raw `custom:<uuid>` key; the
+    // decrypted `label` must survive the summary so the UI never renders
+    // the raw uuid.
+    const customRef: StructuredTagRef = {
+      key: "custom:abc-123",
+      categoryKey: "custom",
+      labelKey: "custom:abc-123",
+      label: "Migraine",
+      icon: "Tag",
+    };
+    const rows = computeStructuredTagSummary(
+      [entryWithStructured(1, 4, [customRef])],
+      NOW,
+    );
+    expect(rows[0].label).toBe("Migraine");
+    expect(rows[0].labelKey).toBe("custom:abc-123");
   });
 
   it("excludes entries older than the window and ignores entries without structured tags", () => {
@@ -595,6 +615,38 @@ describe("computeTagInfluence", () => {
     expect(Math.abs(result.structured[0].delta)).toBeGreaterThanOrEqual(
       Math.abs(result.structured[1].delta),
     );
+  });
+
+  it("threads a custom tag's decrypted label into the influence row and the better-days board", () => {
+    const customRef: StructuredTagRef = {
+      key: "custom:abc-123",
+      categoryKey: "custom",
+      labelKey: "custom:abc-123",
+      label: "Migraine",
+      icon: "Tag",
+    };
+    const e = (offset: number, score: number, withTag: boolean): MoodAggregateEntry => ({
+      ...entry(offset, score, null),
+      structuredTags: withTag ? [customRef] : [],
+    });
+    const entries: MoodAggregateEntry[] = [];
+    for (let i = 0; i < 6; i++) entries.push(e(i, 2, true));
+    for (let i = 6; i < 12; i++) entries.push(e(i, 4, false));
+    const influence = computeTagInfluence(entries, NOW);
+    const row = influence.structured.find((r) => r.tag === "custom:abc-123");
+    expect(row?.label).toBe("Migraine");
+    expect(row?.labelKey).toBe("custom:abc-123");
+
+    const emptyCorr: MoodMetricCorrelation = { result: null, points: [], n: 0 };
+    const board = computeBetterDays(influence, {
+      sleep: emptyCorr,
+      steps: emptyCorr,
+      pulse: emptyCorr,
+      weight: emptyCorr,
+      bloodPressureSystolic: emptyCorr,
+    });
+    const factor = board.find((f) => f.key === "custom:abc-123");
+    expect(factor?.label).toBe("Migraine");
   });
 
   it("caps each axis at the max-rows limit", () => {

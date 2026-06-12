@@ -83,6 +83,30 @@ export function decryptCustomLabel(encoded: string | null): string | null {
   }
 }
 
+/**
+ * Memoised per-tag label resolver for read paths that fan a tag's
+ * catalogue row out across many entry links (insights aggregates, status
+ * snapshots). Decrypts a custom tag's label at most once per tag key —
+ * never per entry — and returns null for catalogue rows (whose `labelKey`
+ * resolves via i18n) or an undecryptable ciphertext (the caller falls
+ * back to the labelKey).
+ */
+export function createCustomLabelResolver(): (tag: {
+  key: string;
+  userId: string | null;
+  labelEncrypted: string | null;
+}) => string | null {
+  const cache = new Map<string, string | null>();
+  return (tag) => {
+    if (!tag.userId) return null;
+    const hit = cache.get(tag.key);
+    if (hit !== undefined) return hit;
+    const label = decryptCustomLabel(tag.labelEncrypted);
+    cache.set(tag.key, label);
+    return label;
+  };
+}
+
 const labelSchema = z
   .string()
   .trim()

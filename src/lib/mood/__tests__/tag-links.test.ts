@@ -11,6 +11,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 const moodTagFindMany = vi.fn();
 const linkCreateMany = vi.fn().mockResolvedValue({ count: 0 });
 const linkDeleteMany = vi.fn().mockResolvedValue({ count: 0 });
+const linkFindMany = vi.fn().mockResolvedValue([]);
 const moodEntryFindUnique = vi.fn();
 
 vi.mock("@/lib/db", () => ({
@@ -20,6 +21,7 @@ vi.mock("@/lib/db", () => ({
     moodEntryTagLink: {
       createMany: (...a: unknown[]) => linkCreateMany(...a),
       deleteMany: (...a: unknown[]) => linkDeleteMany(...a),
+      findMany: (...a: unknown[]) => linkFindMany(...a),
     },
   },
 }));
@@ -27,6 +29,7 @@ vi.mock("@/lib/db", () => ({
 import {
   resolveRatedFactors,
   createTagLinks,
+  replaceTagLinks,
   replaceRatedFactorLinks,
   RatedFactorOutOfRangeError,
   MoodEntryOwnershipError,
@@ -36,9 +39,15 @@ beforeEach(() => {
   moodTagFindMany.mockReset();
   linkCreateMany.mockReset().mockResolvedValue({ count: 0 });
   linkDeleteMany.mockReset().mockResolvedValue({ count: 0 });
+  linkFindMany.mockReset().mockResolvedValue([]);
   // Default: the acting user owns the entry under test.
   moodEntryFindUnique.mockReset().mockResolvedValue({ userId: "user-1" });
 });
+
+/** Existing-link row as `replaceTagLinks` selects it. */
+function link(moodTagId: string, isActive: boolean) {
+  return { moodTagId, moodTag: { isActive } };
+}
 
 describe("resolveRatedFactors", () => {
   it("resolves a valid factor to its catalog id + rating", async () => {
@@ -117,6 +126,100 @@ describe("createTagLinks with rated factors", () => {
       ]),
     ).rejects.toBeInstanceOf(RatedFactorOutOfRangeError);
     expect(linkCreateMany).not.toHaveBeenCalled();
+  });
+});
+
+describe("replaceTagLinks — archived-tag links survive an entry edit", () => {
+  it("preserves an archived-tag link when the body omits its key (note-only edit)", async () => {
+    // The entry carries an archived custom tag + an active catalogue tag.
+    // The web edit re-sends only the keys the picker can render — the
+    // active one — so the archived key is absent from the body.
+    linkFindMany.mockResolvedValue([
+      link("mt_custom_archived", false),
+      link("mt_happy", true),
+    ]);
+    // `resolveTagKeysToIds` (isActive: true pinned) resolves the body keys.
+    moodTagFindMany.mockResolvedValue([{ id: "mt_happy" }]);
+
+    await replaceTagLinks("entry-1", "user-1", ["happy"]);
+
+    expect(linkDeleteMany).not.toHaveBeenCalled();
+    expect(linkCreateMany).not.toHaveBeenCalled();
+  });
+
+  it("preserves archived links even when the body clears every tag", async () => {
+    linkFindMany.mockResolvedValue([
+      link("mt_custom_archived", false),
+      link("mt_happy", true),
+    ]);
+    moodTagFindMany.mockResolvedValue([]);
+
+    await replaceTagLinks("entry-1", "user-1", []);
+
+    // Only the ACTIVE link is cleared; the archived link is history.
+    expect(linkDeleteMany).toHaveBeenCalledWith({
+      where: { moodEntryId: "entry-1", moodTagId: { in: ["mt_happy"] } },
+    });
+  });
+
+  it("removes an active tag the body dropped", async () => {
+    linkFindMany.mockResolvedValue([link("mt_happy", true), link("mt_tired", true)]);
+    moodTagFindMany.mockResolvedValue([{ id: "mt_happy" }]);
+
+    await replaceTagLinks("entry-1", "user-1", ["happy"]);
+
+    expect(linkDeleteMany).toHaveBeenCalledWith({
+      where: { moodEntryId: "entry-1", moodTagId: { in: ["mt_tired"] } },
+    });
+    expect(linkCreateMany).not.toHaveBeenCalled();
+  });
+
+  it("adds a new tag while the archived link stays intact", async () => {
+    linkFindMany.mockResolvedValue([
+      link("mt_custom_archived", false),
+      link("mt_happy", true),
+    ]);
+    moodTagFindMany.mockResolvedValue([{ id: "mt_happy" }, { id: "mt_calm" }]);
+
+    await replaceTagLinks("entry-1", "user-1", ["happy", "calm"]);
+
+    expect(linkCreateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: [{ moodEntryId: "entry-1", moodTagId: "mt_calm" }],
+      }),
+    );
+    expect(linkDeleteMany).not.toHaveBeenCalled();
+  });
+
+  it("createTagLinks (the bulk-ingest path) is additive — it never deletes a link", async () => {
+    // The bulk route re-posts an entry via `createTagLinks`; an archived
+    // key cannot resolve (isActive pinned) but no existing link is ever
+    // deleted, so archived history survives a re-ingest by construction.
+    moodTagFindMany.mockResolvedValue([{ id: "mt_happy" }]);
+
+    await createTagLinks("entry-1", "user-1", ["happy", "custom:gone"]);
+
+    expect(linkDeleteMany).not.toHaveBeenCalled();
+    expect(linkCreateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: [{ moodEntryId: "entry-1", moodTagId: "mt_happy" }],
+        skipDuplicates: true,
+      }),
+    );
+  });
+
+  it("replaceRatedFactorLinks scopes its delete to active tags", async () => {
+    moodTagFindMany.mockResolvedValue([]);
+
+    await replaceRatedFactorLinks("entry-1", "user-1", []);
+
+    expect(linkDeleteMany).toHaveBeenCalledWith({
+      where: {
+        moodEntryId: "entry-1",
+        rating: { not: null },
+        moodTag: { isActive: true },
+      },
+    });
   });
 });
 

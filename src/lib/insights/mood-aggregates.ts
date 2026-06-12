@@ -35,6 +35,7 @@ import { benjaminiHochberg as fdrAdjust } from "@/lib/insights/correlation-disco
 import { toBerlinYmd } from "@/lib/tz/resolver";
 import { annotate } from "@/lib/logging/context";
 import { pickCanonicalSourceRows } from "@/lib/analytics/source-priority";
+import { createCustomLabelResolver } from "@/lib/mood/custom-tags";
 import { metricKeyForType } from "@/lib/measurements/cumulative-day-sum";
 import { loadUserSourcePriority } from "@/lib/rollups/measurement-read";
 import type { MeasurementType } from "@/generated/prisma/enums";
@@ -81,6 +82,14 @@ export interface StructuredTagRef {
   categoryKey: string;
   /** i18n message key for the tag label. */
   labelKey: string;
+  /**
+   * v1.16.11 — decrypted free-text label for a per-user custom tag
+   * (`custom:` key), resolved server-side. `null` / absent for catalogue
+   * tags, whose `labelKey` resolves via i18n — a custom tag's `labelKey`
+   * just mirrors its key, so without this field every insights surface
+   * renders the raw `custom:<uuid>`. Renderers use `label ?? t(labelKey)`.
+   */
+  label?: string | null;
   /** Lucide icon name, or null. */
   icon: string | null;
 }
@@ -281,6 +290,8 @@ export interface StructuredTagRow {
   key: string;
   categoryKey: string;
   labelKey: string;
+  /** Decrypted custom-tag label; null for catalogue tags (see `StructuredTagRef`). */
+  label?: string | null;
   icon: string | null;
   count: number;
   avgScore: number;
@@ -307,6 +318,7 @@ export function computeStructuredTagSummary(
     {
       categoryKey: string;
       labelKey: string;
+      label: string | null;
       icon: string | null;
       count: number;
       scoreSum: number;
@@ -319,6 +331,7 @@ export function computeStructuredTagSummary(
       const current = byKey.get(tag.key) ?? {
         categoryKey: tag.categoryKey,
         labelKey: tag.labelKey,
+        label: tag.label ?? null,
         icon: tag.icon,
         count: 0,
         scoreSum: 0,
@@ -333,6 +346,7 @@ export function computeStructuredTagSummary(
       key,
       categoryKey: stats.categoryKey,
       labelKey: stats.labelKey,
+      label: stats.label,
       icon: stats.icon,
       count: stats.count,
       avgScore: round(stats.scoreSum / stats.count, 2),
@@ -374,6 +388,8 @@ export interface TagInfluenceRow {
    * (rendered verbatim).
    */
   labelKey: string | null;
+  /** Decrypted custom-tag label; null for catalogue / flat tags. */
+  label?: string | null;
   categoryKey: string | null;
   icon: string | null;
   /** Days the tag was present (daily-mean convention). */
@@ -485,7 +501,13 @@ function collapseToTaggedDays(
 function influenceForTag(
   days: TaggedDay[],
   presentOn: (day: TaggedDay) => boolean,
-  meta: { tag: string; labelKey: string | null; categoryKey: string | null; icon: string | null },
+  meta: {
+    tag: string;
+    labelKey: string | null;
+    label: string | null;
+    categoryKey: string | null;
+    icon: string | null;
+  },
 ): TagInfluenceRow | null {
   const withVals: number[] = [];
   const withoutVals: number[] = [];
@@ -535,6 +557,7 @@ function influenceForTag(
   return {
     tag: meta.tag,
     labelKey: meta.labelKey,
+    label: meta.label,
     categoryKey: meta.categoryKey,
     icon: meta.icon,
     withDays: withVals.length,
@@ -591,6 +614,7 @@ export function computeTagInfluence(
     const row = influenceForTag(days, (d) => d.flatTags.has(key), {
       tag: key,
       labelKey: null,
+      label: null,
       categoryKey: null,
       icon: null,
     });
@@ -610,6 +634,7 @@ export function computeTagInfluence(
     const row = influenceForTag(days, (d) => d.structuredTags.has(key), {
       tag: key,
       labelKey: ref.labelKey,
+      label: ref.label ?? null,
       categoryKey: ref.categoryKey,
       icon: ref.icon,
     });
@@ -640,6 +665,8 @@ export interface BetterDayFactor {
   key: string;
   /** Flat tags / metrics: null. Structured tags: the i18n label key. */
   labelKey: string | null;
+  /** Decrypted custom-tag label; null for catalogue / flat / metric rows. */
+  label?: string | null;
   categoryKey: string | null;
   icon: string | null;
   /** "up" = associated with higher mood; "down" = with lower mood. */
@@ -706,6 +733,7 @@ export function computeBetterDays(
       source: "tag",
       key: row.tag,
       labelKey: row.labelKey,
+      label: row.label ?? null,
       categoryKey: row.categoryKey,
       icon: row.icon,
       direction: row.delta >= 0 ? "up" : "down",
@@ -732,6 +760,7 @@ export function computeBetterDays(
       source: "metric",
       key,
       labelKey: null,
+      label: null,
       categoryKey: null,
       icon: null,
       // Mood is the x-axis: positive r = higher metric on higher-mood days,
@@ -837,6 +866,8 @@ export interface TagMetricCrosstabRow {
   tag: string;
   /** i18n label key for the tag (structured tags only — never flat). */
   labelKey: string;
+  /** Decrypted custom-tag label; null for catalogue tags. */
+  label?: string | null;
   /** Parent category key, for grouping/icon. */
   categoryKey: string;
   /** Lucide icon name, or null. */
@@ -1045,6 +1076,7 @@ export function computeTagMetricCrosstab(args: {
         row: {
           tag: tagKey,
           labelKey: ref.labelKey,
+          label: ref.label ?? null,
           categoryKey: ref.categoryKey,
           icon: ref.icon,
           metricKey,
@@ -2016,6 +2048,11 @@ export async function fetchMoodAggregates(
               select: {
                 key: true,
                 labelKey: true,
+                // v1.16.11 — owner + ciphertext so a custom tag's decrypted
+                // label can ride beside its labelKey (which just mirrors the
+                // raw `custom:<uuid>` key). Decrypted once per tag below.
+                userId: true,
+                labelEncrypted: true,
                 icon: true,
                 kind: true,
                 scaleMin: true,
@@ -2028,8 +2065,11 @@ export async function fetchMoodAggregates(
         },
       },
     })
-    .then((rows) =>
-      rows.reverse().map((row) => ({
+    .then((rows) => {
+      // Memoised per-tag decrypt — once per distinct custom tag, never per
+      // entry link, so a 2000-row read costs at most one decrypt per tag.
+      const resolveLabel = createCustomLabelResolver();
+      return rows.reverse().map((row) => ({
         date: row.date,
         score: row.score,
         tags: parseTags(row.tags),
@@ -2043,6 +2083,7 @@ export async function fetchMoodAggregates(
             key: link.moodTag.key,
             categoryKey: link.moodTag.category.key,
             labelKey: link.moodTag.labelKey,
+            label: resolveLabel(link.moodTag),
             icon: link.moodTag.icon,
           })),
         ratedFactors: row.tagLinks
@@ -2060,8 +2101,8 @@ export async function fetchMoodAggregates(
             scaleMax: link.moodTag.scaleMax,
             inverse: link.moodTag.inverse,
           })),
-      })),
-    );
+      }));
+    });
 
   const measurements = await prisma.measurement
     .findMany({

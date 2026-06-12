@@ -21,6 +21,12 @@ export type MoodInfluenceConfidence = "low" | "medium" | "high";
 export interface MoodTagInfluenceRow {
   tag: string;
   labelKey: string | null;
+  /**
+   * v1.16.11 — decrypted custom-tag label, resolved server-side. A custom
+   * tag's `labelKey` mirrors its raw `custom:<uuid>` key, so the label
+   * takes precedence over `t(labelKey)`. Null for catalogue / flat tags.
+   */
+  label?: string | null;
   categoryKey: string | null;
   icon: string | null;
   withDays: number;
@@ -67,7 +73,8 @@ export function MoodTagInfluence({
       <ul className="divide-border divide-y">
         {rows.map((row) => {
           const Icon = row.labelKey ? moodTagIcon(row.icon) : null;
-          const label = row.labelKey ? t(row.labelKey) : row.tag;
+          const label =
+            row.label ?? (row.labelKey ? t(row.labelKey) : row.tag);
           const up = row.delta >= 0;
           const deltaText = `${up ? "+" : ""}${row.delta.toFixed(1)}`;
           return (

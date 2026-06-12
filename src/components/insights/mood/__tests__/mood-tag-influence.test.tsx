@@ -79,6 +79,26 @@ describe("<MoodTagInfluence>", () => {
     expect(html).not.toContain("charts.weekdaysFull.mon");
   });
 
+  it("prefers a custom tag's decrypted label over its raw labelKey", () => {
+    // A custom tag's labelKey mirrors its raw `custom:<uuid>` key — the
+    // decrypted label must win or the row prints the uuid.
+    const html = render(
+      <MoodTagInfluence
+        rows={[
+          flatRow({
+            tag: "custom:abc-123",
+            labelKey: "custom:abc-123",
+            label: "Migraine",
+            categoryKey: "custom",
+            icon: "Tag",
+          }),
+        ]}
+      />,
+    );
+    expect(html).toContain("Migraine");
+    expect(html).not.toContain("custom:abc-123");
+  });
+
   it("does not render a local generic disclaimer", () => {
     const html = render(
       <MoodTagInfluence rows={[flatRow(), flatRow({ tag: "social" })]} />,

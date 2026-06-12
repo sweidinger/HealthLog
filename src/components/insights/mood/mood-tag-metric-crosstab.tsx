@@ -24,6 +24,12 @@ export type MoodCrosstabMode = "sameDay" | "nextDay";
 export interface MoodTagMetricCrosstabRow {
   tag: string;
   labelKey: string;
+  /**
+   * v1.16.11 — decrypted custom-tag label, resolved server-side. A custom
+   * tag's `labelKey` mirrors its raw `custom:<uuid>` key, so the label
+   * takes precedence over `t(labelKey)`. Null for catalogue tags.
+   */
+  label?: string | null;
   categoryKey: string;
   icon: string | null;
   metricKey: string;
@@ -88,7 +94,7 @@ export function MoodTagMetricCrosstab({
       <ul className="divide-border divide-y">
         {rows.map((row) => {
           const Icon = moodTagIcon(row.icon);
-          const tagLabel = t(row.labelKey);
+          const tagLabel = row.label ?? t(row.labelKey);
           const metricLabel = t(
             METRIC_LABEL_KEY[row.metricKey] ?? row.metricKey,
           );

@@ -16,6 +16,12 @@ export interface MoodStructuredTagRow {
   key: string;
   categoryKey: string;
   labelKey: string;
+  /**
+   * v1.16.11 — decrypted custom-tag label, resolved server-side. A custom
+   * tag's `labelKey` mirrors its raw `custom:<uuid>` key, so the label
+   * takes precedence over `t(labelKey)`. Null for catalogue tags.
+   */
+  label?: string | null;
   icon: string | null;
   count: number;
   avgScore: number;
@@ -47,7 +53,7 @@ export function MoodStructuredTagBreakdown({
               aria-hidden="true"
             />
             <span className="text-foreground w-28 shrink-0 truncate">
-              {t(row.labelKey)}
+              {row.label ?? t(row.labelKey)}
             </span>
             <div className="bg-secondary relative h-3 flex-1 overflow-hidden rounded-full">
               {/* v1.16.8 — `opacity-55` matches the `fillOpacity={0.55}`
