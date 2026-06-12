@@ -365,3 +365,95 @@ describe("reduceCurrentWindowStatus — display-due gate (v1.16.6)", () => {
     expect(res.status).toBeNull();
   });
 });
+
+/**
+ * v1.16.9 — day-scale early-take downgrade. A weekly injectable taken two
+ * days before its slot day is already on board; on the slot day the
+ * in-window pill must carry taken-early context instead of prompting a
+ * full take (a "take now" there is a double-dose prompt).
+ */
+describe("reduceCurrentWindowStatus — day-scale taken-early context", () => {
+  // Weekly Wednesday 09:00 (2026-06-10 is a Wednesday). daysOfWeek "3" =
+  // Wednesday in the legacy CSV encoding.
+  const weeklyWedSchedule = {
+    windowStart: "09:00",
+    windowEnd: "09:00",
+    daysOfWeek: "3",
+    timesOfDay: ["09:00"],
+  };
+  // Monday 2026-06-08, 08:00 Berlin (CEST) — two days before the slot day.
+  const MONDAY_TAKE = "2026-06-08T06:00:00.000Z";
+
+  it("flags takenEarly on the slot day after a Monday take (Mon-take/Wed-slot)", () => {
+    const res = reduceCurrentWindowStatus({
+      ...BASE,
+      schedules: [weeklyWedSchedule],
+      nowBerlin: localClock(9, 15),
+      lastTakenAt: MONDAY_TAKE,
+      todayEventCount: 0,
+    });
+    expect(res.status).toBe("in_window");
+    expect(res.takenEarly).toBe(true);
+  });
+
+  it("does not flag takenEarly when the last take was a full period ago", () => {
+    // Previous Wednesday — the prior cycle's regular dose.
+    const res = reduceCurrentWindowStatus({
+      ...BASE,
+      schedules: [weeklyWedSchedule],
+      nowBerlin: localClock(9, 15),
+      lastTakenAt: "2026-06-03T07:05:00.000Z",
+      todayEventCount: 0,
+    });
+    expect(res.status).toBe("in_window");
+    expect(res.takenEarly).toBe(false);
+  });
+
+  it("does not flag a daily cadence (minute-scale periods stay untouched)", () => {
+    const res = reduceCurrentWindowStatus({
+      ...BASE,
+      schedules: [
+        {
+          windowStart: "09:00",
+          windowEnd: "09:00",
+          daysOfWeek: null,
+          timesOfDay: ["09:00"],
+        },
+      ],
+      nowBerlin: localClock(9, 15),
+      lastTakenAt: "2026-06-09T07:05:00.000Z", // yesterday — normal daily take
+      todayEventCount: 0,
+    });
+    expect(res.status).toBe("in_window");
+    expect(res.takenEarly).toBe(false);
+  });
+
+  it("rides on the late tier too — an early take must not escalate to overdue", () => {
+    const res = reduceCurrentWindowStatus({
+      ...BASE,
+      schedules: [weeklyWedSchedule],
+      nowBerlin: localClock(11, 30), // past the band + inside lateMinutes
+      lastTakenAt: MONDAY_TAKE,
+      todayEventCount: 0,
+    });
+    expect(res.status).toBe("late");
+    expect(res.takenEarly).toBe(true);
+  });
+
+  it("evaluates the early-take day in the supplied timezone", () => {
+    // Pacific/Auckland (UTC+12): the same instant lands on different local
+    // days in Berlin vs Auckland near midnight. 2026-06-08T13:00:00Z is
+    // 2026-06-09 01:00 in Auckland (one day before the Wed slot day) —
+    // still inside the weekly period → takenEarly.
+    const res = reduceCurrentWindowStatus({
+      ...BASE,
+      schedules: [weeklyWedSchedule],
+      nowBerlin: localClock(9, 15), // interpreted as Auckland wall clock
+      lastTakenAt: "2026-06-08T13:00:00.000Z",
+      todayEventCount: 0,
+      tz: "Pacific/Auckland",
+    });
+    expect(res.status).toBe("in_window");
+    expect(res.takenEarly).toBe(true);
+  });
+});

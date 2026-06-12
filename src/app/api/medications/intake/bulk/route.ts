@@ -59,6 +59,7 @@ import {
 } from "@/lib/medications/scheduling/slot-upsert";
 import { resolveInjectionSiteForWrite } from "@/lib/medications/injection-site-write";
 import {
+  boundedTakenAtSchema,
   injectionSiteEnum,
   type InjectionSiteValue,
 } from "@/lib/validations/medication";
@@ -74,10 +75,9 @@ const bulkEntrySchema = z.object({
     .datetime({ offset: true })
     .transform((s) => new Date(s))
     .optional(),
-  takenAt: z.iso
-    .datetime({ offset: true })
-    .transform((s) => new Date(s))
-    .optional(),
+  // v1.16.9 — shared plausibility bounds (no future beyond clock skew,
+  // 5-year floor), matching the single-intake create + edit paths.
+  takenAt: boundedTakenAtSchema.optional(),
   skipped: z.boolean().optional().default(false),
   idempotencyKey: z.string().min(1).max(128).optional(),
   // v1.8.5 — optional per-entry injection site. Validated against the
@@ -313,6 +313,21 @@ async function postBulk(request: NextRequest): Promise<Response> {
         });
         canonicalSlot = attribution.slotInstant;
         attributionSource = "AUTO";
+      } else if (isExplicitSkip && entry.scheduledFor === undefined) {
+        // v1.16.9 — a slot-less deliberate skip resolves by band
+        // membership on the skip moment, exactly like a take does. The
+        // defaulted-now snap below only reaches the tight reminder-grace
+        // window, so a skip tapped 20 minutes past the dose time inserted
+        // an orphan ad-hoc skip row while the slot's pending REMINDER row
+        // stayed open and later auto-missed — the user's deliberate skip
+        // recorded as a miss.
+        const attribution = await resolveSlotForWriteByBand({
+          userId: user.id,
+          medicationId: entry.medicationId,
+          userTz: user.timezone,
+          takenAt: incomingScheduledFor,
+        });
+        canonicalSlot = attribution.slotInstant;
       } else {
         // v1.8.2 — source-agnostic anchor snap for pending echoes + skips.
         // iOS posts the reminder actions here (source API); without this

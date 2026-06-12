@@ -12,6 +12,7 @@ vi.mock("@/lib/db", () => ({
     measurement: { findMany: vi.fn() },
     moodEntry: { findMany: vi.fn() },
     medicationIntakeEvent: { findMany: vi.fn() },
+    medication: { findMany: vi.fn() },
     workout: { findMany: vi.fn() },
     user: { findUnique: vi.fn() },
   },
@@ -67,6 +68,7 @@ const prismaMock = prisma as unknown as {
   measurement: { findMany: ReturnType<typeof vi.fn> };
   moodEntry: { findMany: ReturnType<typeof vi.fn> };
   medicationIntakeEvent: { findMany: ReturnType<typeof vi.fn> };
+  medication: { findMany: ReturnType<typeof vi.fn> };
   workout: { findMany: ReturnType<typeof vi.fn> };
   user: { findUnique: ReturnType<typeof vi.fn> };
 };
@@ -170,12 +172,51 @@ describe("buildCoachSnapshot — budgeting + progressive degradation", () => {
         score: 3 + (i % 3),
       })),
     );
-    prismaMock.medicationIntakeEvent.findMany.mockResolvedValue(
-      Array.from({ length: 360 }, (_, i) => ({
-        scheduledFor: new Date(Date.now() - i * 24 * 60 * 60 * 1000),
-        takenAt: new Date(Date.now() - i * 24 * 60 * 60 * 1000),
-        skipped: false,
-      })),
+    prismaMock.medicationIntakeEvent.findMany.mockResolvedValue([]);
+    // v1.16.9 — the compliance timeline derives from the band-engine
+    // ledger now; the snapshot loads medications (schedules + window
+    // events) instead of raw intake rows.
+    // Branch on the caller: the GLP-1 block filters on
+    // `treatmentClass: "GLP1"` (no GLP-1 therapy in this fixture); the
+    // compliance loader reads every medication.
+    const complianceMedRows = [
+      {
+        id: "med-1",
+        startsOn: null,
+        endsOn: null,
+        oneShot: false,
+        createdAt: new Date(Date.now() - 400 * 24 * 60 * 60 * 1000),
+        schedules: [
+          {
+            id: "sched-1",
+            windowStart: "09:00",
+            windowEnd: "09:00",
+            daysOfWeek: null,
+            timesOfDay: ["09:00"],
+            reminderGraceMinutes: null,
+            rrule: "FREQ=DAILY",
+            rollingIntervalDays: null,
+            scheduleType: "SCHEDULED",
+            cyclicOnWeeks: null,
+            cyclicOffWeeks: null,
+            doseWindows: null,
+          },
+        ],
+        scheduleRevisions: [],
+        intakeEvents: Array.from({ length: 360 }, (_, i) => ({
+          scheduledFor: new Date(Date.now() - i * 24 * 60 * 60 * 1000),
+          takenAt: new Date(Date.now() - i * 24 * 60 * 60 * 1000),
+          skipped: false,
+          autoMissed: false,
+          attributionSource: "AUTO",
+        })),
+      },
+    ];
+    prismaMock.medication.findMany.mockImplementation(
+      (args: { where?: { treatmentClass?: string } }) =>
+        Promise.resolve(
+          args?.where?.treatmentClass === "GLP1" ? [] : complianceMedRows,
+        ),
     );
     prismaMock.workout.findMany.mockResolvedValue(
       Array.from({ length: 80 }, (_, i) => ({
@@ -295,6 +336,7 @@ describe("buildCoachSnapshot — budgeting + progressive degradation", () => {
     prismaMock.measurement.findMany.mockResolvedValue([]);
     prismaMock.moodEntry.findMany.mockResolvedValue([]);
     prismaMock.medicationIntakeEvent.findMany.mockResolvedValue([]);
+    prismaMock.medication.findMany.mockResolvedValue([]);
     prismaMock.workout.findMany.mockResolvedValue([]);
     prismaMock.user.findUnique.mockResolvedValue({
       coachPrefsJson: null,

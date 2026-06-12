@@ -10,6 +10,7 @@ vi.mock("@/lib/db", () => ({
     measurement: { findMany: vi.fn() },
     moodEntry: { findMany: vi.fn() },
     medicationIntakeEvent: { findMany: vi.fn() },
+    medication: { findMany: vi.fn() },
     workout: { findMany: vi.fn() },
     user: { findUnique: vi.fn() },
   },
@@ -26,6 +27,7 @@ const prismaMock = prisma as unknown as {
   measurement: { findMany: ReturnType<typeof vi.fn> };
   moodEntry: { findMany: ReturnType<typeof vi.fn> };
   medicationIntakeEvent: { findMany: ReturnType<typeof vi.fn> };
+  medication: { findMany: ReturnType<typeof vi.fn> };
   workout: { findMany: ReturnType<typeof vi.fn> };
   user: { findUnique: ReturnType<typeof vi.fn> };
 };
@@ -60,6 +62,7 @@ describe("buildCoachSnapshot — Apple Health additive metrics (v1.4.23)", () =>
     __resetCoachSnapshotCacheForTests();
     prismaMock.moodEntry.findMany.mockResolvedValue([]);
     prismaMock.medicationIntakeEvent.findMany.mockResolvedValue([]);
+    prismaMock.medication.findMany.mockResolvedValue([]);
     prismaMock.workout.findMany.mockResolvedValue([]);
     // v1.4.23 H4 — snapshot now reads `User.coachPrefsJson`. Default
     // null = legacy defaults so the existing test fixtures stay

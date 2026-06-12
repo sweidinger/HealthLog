@@ -9,6 +9,14 @@ interface MedicationStatusPillProps {
   status: Exclude<MedicationWindowStatus, null>;
   windowStart: string;
   windowEnd: string;
+  /**
+   * v1.16.9 — day-scale early-take context. When true the dose was
+   * already taken earlier in the cadence period (a weekly shot days
+   * before its slot day), so the pill renders a calm "taken early" note
+   * instead of the take-now / overdue prompt — prompting a full take on
+   * the slot day would be a double-dose prompt.
+   */
+  takenEarly?: boolean;
 }
 
 /**
@@ -23,8 +31,24 @@ export function MedicationStatusPill({
   status,
   windowStart,
   windowEnd,
+  takenEarly = false,
 }: MedicationStatusPillProps) {
   const { t, locale } = useTranslations();
+
+  if (takenEarly) {
+    return (
+      <p className="text-sm">
+        <span className="text-muted-foreground inline-flex items-center gap-1 font-medium">
+          <CircleCheck className="size-3.5 shrink-0" aria-hidden="true" />
+          {t("medications.takenEarly")}
+        </span>
+        <span className="text-muted-foreground hidden sm:inline">
+          {" "}
+          — {formatTimeWindowRange(windowStart, windowEnd, locale)}
+        </span>
+      </p>
+    );
+  }
 
   return (
     <p className="text-sm">

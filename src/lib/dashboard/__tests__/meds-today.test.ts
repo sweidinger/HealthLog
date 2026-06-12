@@ -77,7 +77,11 @@ function medication(
 let callOrder: string[];
 let medications: Array<Record<string, unknown>>;
 let todayRows: FakeIntakeRow[];
-let resolvedRows: Array<{ medicationId: string; scheduledFor: Date }>;
+let resolvedRows: Array<{
+  medicationId: string;
+  scheduledFor: Date;
+  takenAt: Date | null;
+}>;
 let latestIntakeGroups: Array<{
   medicationId: string;
   _max: { takenAt: Date | null };
@@ -298,6 +302,8 @@ describe("buildMedsTodayBlock — next due (real engine)", () => {
       {
         medicationId: "med-1",
         scheduledFor: new Date("2026-06-10T09:00:00.000Z"),
+        // Slot-anchored take (attributed): takenAt differs from the anchor.
+        takenAt: new Date("2026-06-10T09:05:00.000Z"),
       },
     ];
 

@@ -39,6 +39,8 @@ import { projectTodayIntakesAndRecompute } from "@/lib/medications/scheduling/pr
 import {
   computeDisplayDue,
   OVERDUE_LOOKBACK_MS,
+  toResolvedSlotMark,
+  type ResolvedSlotMark,
 } from "@/lib/medications/scheduling/next-due";
 import { getUserTodayBounds } from "@/lib/tz/local-day";
 
@@ -136,7 +138,9 @@ export async function buildMedsTodayBlock(
             { autoMissed: true },
           ],
         },
-        select: { medicationId: true, scheduledFor: true },
+        // v1.16.9 — `takenAt` rides along so an ad-hoc row (`scheduledFor
+        // === takenAt`) cannot ±6h-resolve a different slot.
+        select: { medicationId: true, scheduledFor: true, takenAt: true },
       }),
       // Current-era floor per medication: the newest revision's
       // `validUntil` is where the LIVE schedule rows became valid; the
@@ -157,11 +161,12 @@ export async function buildMedsTodayBlock(
   const lastTakenAtByMedId = new Map<string, Date | null>(
     latestIntakes.map((entry) => [entry.medicationId, entry._max.takenAt]),
   );
-  const resolvedSlotsByMedId = new Map<string, Date[]>();
+  const resolvedSlotsByMedId = new Map<string, ResolvedSlotMark[]>();
   for (const e of resolvedEvents) {
+    const mark = toResolvedSlotMark(e);
     const list = resolvedSlotsByMedId.get(e.medicationId);
-    if (list) list.push(e.scheduledFor);
-    else resolvedSlotsByMedId.set(e.medicationId, [e.scheduledFor]);
+    if (list) list.push(mark);
+    else resolvedSlotsByMedId.set(e.medicationId, [mark]);
   }
   const eraStartByMedId = new Map<string, Date>();
   for (const f of eraFloors) {

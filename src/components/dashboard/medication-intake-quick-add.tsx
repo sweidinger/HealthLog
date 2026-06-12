@@ -80,6 +80,15 @@ export interface MedicationOption {
   schedules: Schedule[];
   lastTakenAt: string | null;
   todayEventCount: number | null;
+  /**
+   * v1.16.9 — the server display-due verdict from `GET /api/medications`
+   * (`nextDueAt` + `nextDueOverdue`). Threaded into the default pick so
+   * the quick-add gates its "due now" heuristic exactly like the cards:
+   * a rolling cadence whose next dose is days away must not pre-select.
+   * Optional for older mocks; absent keeps the legacy band-only pick.
+   */
+  nextDueAt?: string | null;
+  nextDueOverdue?: boolean;
 }
 
 interface MedicationIntakeQuickAddProps {
@@ -127,6 +136,10 @@ export function pickDefaultMedicationId(
 
   const nowBerlin = toBerlinDate(now);
   const due = actives.find((m) => {
+    // v1.16.9 — the same server display-due gate the cards apply: a
+    // future (non-overdue) next-due suppresses the overdue tiers and a
+    // day-scale dose taken early in its period must not pre-select.
+    const nextDueMs = m.nextDueAt ? new Date(m.nextDueAt).getTime() : NaN;
     const status = reduceCurrentWindowStatus({
       schedules: m.schedules,
       nowBerlin,
@@ -135,8 +148,14 @@ export function pickDefaultMedicationId(
       active: true,
       lastTakenAt: m.lastTakenAt,
       todayEventCount: m.todayEventCount ?? 0,
+      nextDue:
+        m.nextDueAt === undefined
+          ? undefined
+          : Number.isFinite(nextDueMs)
+            ? { at: new Date(nextDueMs), overdue: m.nextDueOverdue === true }
+            : null,
     });
-    return status.status !== null;
+    return status.status !== null && !status.takenEarly;
   });
   if (due) return due.id;
 

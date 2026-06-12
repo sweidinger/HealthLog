@@ -4,6 +4,7 @@ import { apiSuccess, apiError, getClientIp } from "@/lib/api-response";
 import { NextRequest } from "next/server";
 import { apiHandler, requireAuth } from "@/lib/api-handler";
 import { annotate } from "@/lib/logging/context";
+import { invalidateUserData } from "@/lib/cache/invalidate";
 
 export const dynamic = "force-dynamic";
 
@@ -118,6 +119,10 @@ export const DELETE = apiHandler(async (request: NextRequest) => {
   });
 
   annotate({ action: { name: "settings.data.clear" }, meta: result });
+
+  // v1.16.9 — every cached payload was built on the rows just deleted;
+  // hard-evict the user's buckets so no surface serves pre-wipe data.
+  invalidateUserData(userId);
 
   return apiSuccess({ cleared: true, ...result });
 });

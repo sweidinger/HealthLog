@@ -14,6 +14,15 @@ import { annotate, getEvent } from "@/lib/logging/context";
 import { getServerTranslator } from "@/lib/i18n/server-translator";
 import { locales, type Locale } from "@/lib/i18n/config";
 import { recomputeMedicationComplianceForEvent } from "@/lib/rollups/medication-compliance-rollups";
+import {
+  applyCanonicalSlotWrite,
+  resolveForcedSlotForWrite,
+  resolveSlotForWriteByBand,
+} from "@/lib/medications/scheduling/slot-upsert";
+import { invalidateUserMedications } from "@/lib/cache/invalidate";
+import { localHmAsUtc } from "@/lib/tz/local-day";
+import { wallClockInTz } from "@/lib/tz/wall-clock";
+import { DEFAULT_TIMEZONE } from "@/lib/tz/format";
 
 interface TelegramUpdate {
   update_id: number;
@@ -123,12 +132,88 @@ async function findTelegramUser(chatId: string) {
   });
 }
 
+/**
+ * v1.16.9 — the slot a Telegram action should converge onto.
+ *
+ * The reminder context knows its own slot: the dispatcher records every
+ * reminder message as a `TelegramReminderMessage` row carrying the
+ * local `date` + `timeOfDay` of the dose it fired for. When the action
+ * callback carries the chat/message ids, that row names the EXACT slot
+ * — preferred over band attribution, which would orphan a confirmation
+ * tapped hours after the reminder (band closed → ad-hoc) even though
+ * the user is answering a specific dose prompt.
+ *
+ * Returns the canonical band anchor (validated against the schedule's
+ * real slots), or `null` when no reminder row matches / the instant is
+ * not a real slot — the caller then falls back to band attribution.
+ */
+async function resolveReminderSlot(input: {
+  userId: string;
+  medicationId: string;
+  userTz: string;
+  chatId: string;
+  messageId: number;
+}): Promise<Date | null> {
+  const reminder = await prisma.telegramReminderMessage.findFirst({
+    where: {
+      medicationId: input.medicationId,
+      chatId: input.chatId,
+      messageId: input.messageId,
+    },
+    select: { date: true, timeOfDay: true },
+  });
+  if (!reminder) return null;
+  const instant = reminderLocalInstant(
+    reminder.date,
+    reminder.timeOfDay,
+    input.userTz,
+  );
+  if (!instant) return null;
+  // Validate against the medication's real band anchors so a stale or
+  // malformed reminder row can never park a dose on a non-slot instant.
+  return resolveForcedSlotForWrite({
+    userId: input.userId,
+    medicationId: input.medicationId,
+    userTz: input.userTz,
+    slotInstant: instant,
+  });
+}
+
+/**
+ * Mint the UTC instant of local `timeOfDay` on the local calendar day
+ * `date` (YYYY-MM-DD) in `tz`. Probes a reference instant a day either
+ * side of UTC noon so the result is correct in every zone offset, then
+ * derives the DST-correct instant via `localHmAsUtc`.
+ */
+function reminderLocalInstant(
+  date: string,
+  timeOfDay: string,
+  tz: string,
+): Date | null {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !/^\d{2}:\d{2}$/.test(timeOfDay)) {
+    return null;
+  }
+  const [hour, minute] = timeOfDay.split(":").map(Number);
+  const base = new Date(`${date}T12:00:00.000Z`);
+  if (Number.isNaN(base.getTime())) return null;
+  for (const shiftDays of [0, -1, 1]) {
+    const ref = new Date(base.getTime() + shiftDays * 24 * 60 * 60 * 1000);
+    const parts = wallClockInTz(ref, tz);
+    const localDay = `${parts.year}-${String(parts.month).padStart(2, "0")}-${String(
+      parts.day,
+    ).padStart(2, "0")}`;
+    if (localDay === date) return localHmAsUtc(ref, tz, hour, minute);
+  }
+  return null;
+}
+
 async function markMedicationTaken(
   userId: string,
   medicationId: string,
   idempotencyKey: string,
   locale: Locale,
   userTz: string | null,
+  reminderRef?: { chatId: string; messageId: number },
 ): Promise<{ ok: boolean; message: string; medicationName?: string }> {
   const { t } = getServerTranslator(locale);
   const medication = await prisma.medication.findFirst({
@@ -146,29 +231,77 @@ async function markMedicationTaken(
 
   let scheduledFor: Date | null = null;
   if (!existing) {
-    scheduledFor = new Date();
-    await prisma.$transaction([
-      prisma.medicationIntakeEvent.create({
+    const takenAt = new Date();
+    const tz = userTz || DEFAULT_TIMEZONE;
+
+    // v1.16.9 — converge onto the slot's canonical row instead of bare-
+    // creating a second row anchored at `now`. The old shape left the
+    // worker-minted pending REMINDER row open: the slot later auto-missed
+    // and compliance punished a dose the user explicitly confirmed.
+    // Prefer the reminder's own slot (the message names the dose it fired
+    // for); fall back to band attribution on the tap instant.
+    let canonicalSlot: Date | null = reminderRef
+      ? await resolveReminderSlot({
+          userId,
+          medicationId: medication.id,
+          userTz: tz,
+          chatId: reminderRef.chatId,
+          messageId: reminderRef.messageId,
+        })
+      : null;
+    if (canonicalSlot === null) {
+      const attribution = await resolveSlotForWriteByBand({
+        userId,
+        medicationId: medication.id,
+        userTz: tz,
+        takenAt,
+      });
+      canonicalSlot = attribution.slotInstant;
+    }
+
+    if (canonicalSlot) {
+      const applied = await applyCanonicalSlotWrite({
+        client: prisma,
+        userId,
+        medicationId: medication.id,
+        canonicalSlot,
+        takenAt,
+        skipped: false,
+        isExplicitTaken: true,
+        isExplicitSkip: false,
+        idempotencyKey,
+        createSource: "REMINDER",
+        attributionSource: "AUTO",
+      });
+      scheduledFor = applied.row.scheduledFor;
+    } else {
+      // Ad-hoc / PRN — standalone row under the documented contract
+      // (`scheduledFor = takenAt`).
+      const created = await prisma.medicationIntakeEvent.create({
         data: {
           userId,
           medicationId: medication.id,
-          scheduledFor,
-          takenAt: scheduledFor,
+          scheduledFor: takenAt,
+          takenAt,
           skipped: false,
           source: "REMINDER",
           idempotencyKey,
         },
-      }),
-      prisma.medication.update({
-        where: { id: medication.id },
-        data: { snoozedUntil: null },
-      }),
-    ]);
+      });
+      scheduledFor = created.scheduledFor;
+    }
+    await prisma.medication.update({
+      where: { id: medication.id },
+      data: { snoozedUntil: null },
+    });
+    // The confirmation must reflect on the next read (today feed, card
+    // pill, compliance) rather than wait out the cache TTL.
+    invalidateUserMedications(userId, { evict: true });
   }
 
   // v1.4.39 W-MED — refresh the compliance rollup for the
   // affected day so the next read after the cache miss reflects the
-  // new dose. Only fires when the create-path landed a new row.
+  // new dose. Only fires when the write landed a row.
   if (scheduledFor) {
     await recomputeMedicationComplianceForEvent({
       userId,
@@ -225,6 +358,7 @@ async function handleCallback(update: TelegramUpdate) {
       idempotencyKey,
       locale,
       user.timezone,
+      messageId !== undefined ? { chatId, messageId } : undefined,
     );
     await answerTelegramCallbackQuery(botToken, callback.id, result.message);
     if (messageId) {
@@ -313,25 +447,68 @@ async function handleCallback(update: TelegramUpdate) {
     if (!existing) {
       const endOfDay = new Date();
       endOfDay.setHours(23, 59, 59, 999);
-      skippedScheduledFor = new Date();
+      const skipMoment = new Date();
+      const tz = user.timezone || DEFAULT_TIMEZONE;
 
-      await prisma.$transaction([
-        prisma.medicationIntakeEvent.create({
+      // v1.16.9 — a Telegram skip answers a specific dose prompt, so it
+      // must converge onto the slot's pending row like a take does. The
+      // old shape inserted a second row anchored at `now` and left the
+      // pending REMINDER row open to auto-miss — the user's deliberate
+      // skip recorded as a miss AND an orphan. Prefer the reminder's own
+      // slot; fall back to the band the skip moment falls in.
+      let canonicalSlot: Date | null =
+        messageId !== undefined
+          ? await resolveReminderSlot({
+              userId: user.id,
+              medicationId: medication.id,
+              userTz: tz,
+              chatId,
+              messageId,
+            })
+          : null;
+      if (canonicalSlot === null) {
+        const attribution = await resolveSlotForWriteByBand({
+          userId: user.id,
+          medicationId: medication.id,
+          userTz: tz,
+          takenAt: skipMoment,
+        });
+        canonicalSlot = attribution.slotInstant;
+      }
+
+      if (canonicalSlot) {
+        const applied = await applyCanonicalSlotWrite({
+          client: prisma,
+          userId: user.id,
+          medicationId: medication.id,
+          canonicalSlot,
+          takenAt: null,
+          skipped: true,
+          isExplicitTaken: false,
+          isExplicitSkip: true,
+          idempotencyKey,
+          createSource: "REMINDER",
+        });
+        skippedScheduledFor = applied.row.scheduledFor;
+      } else {
+        const created = await prisma.medicationIntakeEvent.create({
           data: {
             userId: user.id,
             medicationId: medication.id,
-            scheduledFor: skippedScheduledFor,
+            scheduledFor: skipMoment,
             takenAt: null,
             skipped: true,
             source: "REMINDER",
             idempotencyKey,
           },
-        }),
-        prisma.medication.update({
-          where: { id: medication.id },
-          data: { snoozedUntil: endOfDay },
-        }),
-      ]);
+        });
+        skippedScheduledFor = created.scheduledFor;
+      }
+      await prisma.medication.update({
+        where: { id: medication.id },
+        data: { snoozedUntil: endOfDay },
+      });
+      invalidateUserMedications(user.id, { evict: true });
     }
 
     // v1.4.39 W-MED — refresh the compliance rollup for the skipped

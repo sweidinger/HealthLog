@@ -11,11 +11,21 @@
  */
 import { describe, expect, it } from "vitest";
 
-import { computeDisplayDue, computeNextDueAt } from "../next-due";
+import {
+  computeDisplayDue,
+  computeNextDueAt,
+  toResolvedSlotMark,
+  type ResolvedSlotMark,
+} from "../next-due";
 import type {
   WorkerMedicationRow,
   WorkerScheduleRow,
 } from "../worker-helpers";
+
+/** A slot-anchored resolved mark (the write paths' canonical shape). */
+function mark(at: Date): ResolvedSlotMark {
+  return { at, slotAnchored: true };
+}
 
 function d(iso: string): Date {
   return new Date(iso);
@@ -155,8 +165,8 @@ describe("computeNextDueAt — skip resolved slots (twice-daily)", () => {
       userTz: BERLIN,
       lastIntakeAt: d("2026-06-10T15:30:00Z"),
       resolvedSlots: [
-        d("2026-06-10T05:00:00Z"), // today 07:00 Berlin
-        d("2026-06-10T17:00:00Z"), // today 19:00 Berlin
+        mark(d("2026-06-10T05:00:00Z")), // today 07:00 Berlin
+        mark(d("2026-06-10T17:00:00Z")), // today 19:00 Berlin
       ],
     });
     expect(next).not.toBeNull();
@@ -173,7 +183,7 @@ describe("computeNextDueAt — skip resolved slots (twice-daily)", () => {
       now,
       userTz: BERLIN,
       lastIntakeAt: d("2026-06-10T07:13:00Z"),
-      resolvedSlots: [d("2026-06-10T05:00:00Z")], // only today 07:00
+      resolvedSlots: [mark(d("2026-06-10T05:00:00Z"))], // only today 07:00
     });
     expect(next).not.toBeNull();
     expect(next!.toISOString()).toBe("2026-06-10T17:00:00.000Z"); // today 19:00
@@ -315,7 +325,7 @@ describe("computeDisplayDue — open overdue slot", () => {
       now,
       userTz: BERLIN,
       lastIntakeAt: null,
-      resolvedSlots: [d("2026-06-10T19:00:00Z")],
+      resolvedSlots: [mark(d("2026-06-10T19:00:00Z"))],
     });
     expect(due).not.toBeNull();
     expect(due!.overdue).toBe(false);
@@ -334,5 +344,139 @@ describe("computeDisplayDue — open overdue slot", () => {
     });
     expect(due).not.toBeNull();
     expect(due!.overdue).toBe(false);
+  });
+});
+
+/**
+ * v1.16.9 — an AD-HOC row (`scheduledFor === takenAt`) must never
+ * ±6h-resolve a DIFFERENT slot. The proven failure: twice-daily 08:00 /
+ * 20:00 Berlin, an ad-hoc take at 14:30 sat within 6h of tonight's 20:00
+ * anchor and resolved it — the genuinely-due dose disappeared from the
+ * card while the ledger still counted the slot missed.
+ */
+describe("resolved-slot marks — ad-hoc rows only match their own anchor", () => {
+  const medication = makeMedication();
+  // 08:00 / 20:00 Berlin (CEST): 06:00Z / 18:00Z.
+  function schedule(): WorkerScheduleRow {
+    return {
+      id: "sched-2x",
+      windowStart: "08:00",
+      windowEnd: "20:00",
+      daysOfWeek: null,
+      timesOfDay: ["08:00", "20:00"],
+      reminderGraceMinutes: null,
+      rrule: null,
+      rollingIntervalDays: null,
+      scheduleType: "SCHEDULED",
+      cyclicOnWeeks: null,
+      cyclicOffWeeks: null,
+    };
+  }
+  const ADHOC_1430 = d("2026-06-10T12:30:00Z"); // 14:30 Berlin
+
+  it("a 14:30 ad-hoc take leaves tonight's 20:00 slot due", () => {
+    const now = d("2026-06-10T15:00:00Z"); // 17:00 Berlin
+    const next = computeNextDueAt({
+      medication,
+      schedules: [schedule()],
+      now,
+      userTz: BERLIN,
+      lastIntakeAt: ADHOC_1430,
+      resolvedSlots: [
+        // The morning slot was genuinely taken (slot-anchored row)…
+        mark(d("2026-06-10T06:00:00Z")),
+        // …and the 14:30 take recorded ad-hoc (`scheduledFor === takenAt`).
+        toResolvedSlotMark({ scheduledFor: ADHOC_1430, takenAt: ADHOC_1430 }),
+      ],
+    });
+    expect(next).not.toBeNull();
+    // Tonight's 20:00 Berlin (18:00Z) stays due — the ad-hoc row must not
+    // resolve it across the radius.
+    expect(next!.toISOString()).toBe("2026-06-10T18:00:00.000Z");
+  });
+
+  it("a 14:30 ad-hoc take does not suppress the 20:00 overdue pill either", () => {
+    const now = d("2026-06-10T19:00:00Z"); // 21:00 Berlin — inside the late tail
+    const due = computeDisplayDue({
+      medication,
+      schedules: [schedule()],
+      now,
+      userTz: BERLIN,
+      lastIntakeAt: ADHOC_1430,
+      resolvedSlots: [
+        mark(d("2026-06-10T06:00:00Z")),
+        toResolvedSlotMark({ scheduledFor: ADHOC_1430, takenAt: ADHOC_1430 }),
+      ],
+    });
+    expect(due).not.toBeNull();
+    expect(due!.overdue).toBe(true);
+    expect(due!.at.toISOString()).toBe("2026-06-10T18:00:00.000Z");
+  });
+
+  it("a slot-anchored attributed row still resolves its slot across drift", () => {
+    const now = d("2026-06-10T19:00:00Z"); // 21:00 Berlin
+    const due = computeDisplayDue({
+      medication,
+      schedules: [schedule()],
+      now,
+      userTz: BERLIN,
+      lastIntakeAt: d("2026-06-10T18:05:00Z"),
+      resolvedSlots: [
+        mark(d("2026-06-10T06:00:00Z")),
+        // Attributed take: scheduledFor on the anchor, takenAt 20:05.
+        toResolvedSlotMark({
+          scheduledFor: d("2026-06-10T18:00:00Z"),
+          takenAt: d("2026-06-10T18:05:00Z"),
+        }),
+      ],
+    });
+    expect(due).not.toBeNull();
+    expect(due!.overdue).toBe(false);
+    // Both today's slots resolved → tomorrow's 08:00 Berlin (06:00Z).
+    expect(due!.at.toISOString()).toBe("2026-06-11T06:00:00.000Z");
+  });
+
+  it("an ad-hoc row sitting exactly on the anchor still resolves that slot", () => {
+    const now = d("2026-06-10T19:00:00Z");
+    const due = computeDisplayDue({
+      medication,
+      schedules: [schedule()],
+      now,
+      userTz: BERLIN,
+      lastIntakeAt: d("2026-06-10T18:00:00Z"),
+      resolvedSlots: [
+        mark(d("2026-06-10T06:00:00Z")),
+        // Take recorded at the exact anchor instant — ad-hoc shaped but ON
+        // the slot; the near-exact epsilon keeps it resolving.
+        toResolvedSlotMark({
+          scheduledFor: d("2026-06-10T18:00:00Z"),
+          takenAt: d("2026-06-10T18:00:00Z"),
+        }),
+      ],
+    });
+    expect(due).not.toBeNull();
+    expect(due!.overdue).toBe(false);
+    expect(due!.at.toISOString()).toBe("2026-06-11T06:00:00.000Z");
+  });
+
+  it("behaves identically in a non-European zone (Pacific/Auckland)", () => {
+    const AUCKLAND = "Pacific/Auckland"; // UTC+12 in June (NZST)
+    // 08:00 / 20:00 Auckland on 2026-06-10 = 2026-06-09T20:00Z / 2026-06-10T08:00Z.
+    const adhoc = d("2026-06-10T02:30:00Z"); // 14:30 Auckland
+    const now = d("2026-06-10T09:00:00Z"); // 21:00 Auckland
+    const due = computeDisplayDue({
+      medication,
+      schedules: [schedule()],
+      now,
+      userTz: AUCKLAND,
+      lastIntakeAt: adhoc,
+      resolvedSlots: [
+        mark(d("2026-06-09T20:00:00Z")),
+        toResolvedSlotMark({ scheduledFor: adhoc, takenAt: adhoc }),
+      ],
+    });
+    expect(due).not.toBeNull();
+    expect(due!.overdue).toBe(true);
+    expect(due!.at.toISOString()).toBe("2026-06-10T08:00:00.000Z");
   });
 });

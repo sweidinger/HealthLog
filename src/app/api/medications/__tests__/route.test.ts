@@ -10,6 +10,13 @@ vi.mock("@/lib/db", () => ({
       findMany: vi.fn().mockResolvedValue([]),
       create: vi.fn(),
     },
+    medicationIntakeEvent: {
+      groupBy: vi.fn().mockResolvedValue([]),
+      findMany: vi.fn().mockResolvedValue([]),
+    },
+    medicationScheduleRevision: {
+      groupBy: vi.fn().mockResolvedValue([]),
+    },
     medicationCategoryAssignment: {
       findMany: vi.fn().mockResolvedValue([]),
     },
@@ -59,9 +66,11 @@ vi.mock("next/headers", () => ({
   })),
 }));
 
-import { POST } from "../route";
+import { GET, POST } from "../route";
 import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/auth/session";
+import { cachedSwr } from "@/lib/cache/server-cache";
+import { getUserTodayBounds } from "@/lib/tz/local-day";
 
 const SESSION_OK = {
   session: { id: "sess-1", expiresAt: new Date(Date.now() + 3_600_000) },
@@ -351,5 +360,54 @@ describe("POST /api/medications — v1.5.4 clinical category extension", () => {
       }),
     );
     expect(res.status).toBe(422);
+  });
+});
+
+describe("GET /api/medications — todayEventCount counts only actioned rows (v1.16.9)", () => {
+  it("filters the today-count groupBy to taken-or-skipped rows", async () => {
+    // The dashboard projector mints a pending row per slot of the day, so
+    // an unfiltered count covered every passed dose after any dashboard
+    // visit and the cards' overdue pill went dark. The count read must
+    // exclude pending rows.
+    // (`vi.resetAllMocks()` in beforeEach clears the factory defaults, so
+    // re-wire the pass-through + empty result sets here.)
+    vi.mocked(cachedSwr).mockImplementation((async (
+      _c: unknown,
+      _k: string,
+      f: () => Promise<unknown>,
+    ) => f()) as never);
+    vi.mocked(getUserTodayBounds).mockReturnValue({
+      start: new Date("2026-06-10T00:00:00Z"),
+      end: new Date("2026-06-10T23:59:59Z"),
+    } as never);
+    vi.mocked(prisma.medication.findMany).mockResolvedValue([] as never);
+    vi.mocked(prisma.medicationIntakeEvent.groupBy).mockResolvedValue(
+      [] as never,
+    );
+    vi.mocked(prisma.medicationIntakeEvent.findMany).mockResolvedValue(
+      [] as never,
+    );
+    vi.mocked(prisma.medicationScheduleRevision.groupBy).mockResolvedValue(
+      [] as never,
+    );
+    // The handler body takes no parameters; `apiHandler` still receives
+    // the request through the wrapper's rest args.
+    const res = await (
+      GET as unknown as (req: NextRequest) => Promise<Response>
+    )(new NextRequest("http://localhost/api/medications"));
+    expect(res.status).toBe(200);
+
+    const groupByCalls = vi.mocked(prisma.medicationIntakeEvent.groupBy).mock
+      .calls;
+    const countCall = groupByCalls.find(
+      (c) => (c[0] as { _count?: unknown })._count !== undefined,
+    );
+    expect(countCall).toBeDefined();
+    const where = (
+      countCall![0] as {
+        where: { OR?: unknown };
+      }
+    ).where;
+    expect(where.OR).toEqual([{ takenAt: { not: null } }, { skipped: true }]);
   });
 });

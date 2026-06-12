@@ -217,7 +217,7 @@ const medicationListEntry = medicationResource
       .int()
       .nonnegative()
       .describe(
-        "Number of intake events scheduled for today (user-local day window).",
+        "Number of ACTIONED intake events for today (user-local day window): rows with a recorded `takenAt` or an explicit skip. Pending projector-minted rows do not count — the card overdue-pill suppression compares this against the passed-dose count, and a pending mint must not read as covered.",
       ),
   })
   .meta({
@@ -619,7 +619,7 @@ export const medicationPaths: NonNullable<ZodOpenApiObject["paths"]> = {
       tags: ["Medications"],
       summary: "List medications for the calling user",
       description:
-        "Returns every medication owned by the caller (active + paused), ordered by `createdAt DESC`. Each row carries its nested `schedules`, the joined clinical `category`, the latest non-skipped `lastTakenAt`, and the count of intake events scheduled for today (`todayEventCount`). The response is cached server-side for 60 s per user; writes flush the cache.",
+        "Returns every medication owned by the caller (active + paused), ordered by `createdAt DESC`. Each row carries its nested `schedules`, the joined clinical `category`, the latest non-skipped `lastTakenAt`, and the count of today's actioned intake events (`todayEventCount`). The response is cached server-side for 60 s per user; writes flush the cache.",
       responses: {
         "200": {
           description: "Medication list.",

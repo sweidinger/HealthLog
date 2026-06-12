@@ -25,6 +25,7 @@ import type { Prisma } from "@/generated/prisma/client";
 import {
   computeDisplayDue,
   OVERDUE_LOOKBACK_MS,
+  toResolvedSlotMark,
 } from "@/lib/medications/scheduling/next-due";
 import {
   dayKeyForScheduledFor,
@@ -137,7 +138,9 @@ export const GET = apiHandler(
           { autoMissed: true },
         ],
       },
-      select: { scheduledFor: true },
+      // v1.16.9 — `takenAt` rides along so an ad-hoc row (`scheduledFor
+      // === takenAt`) cannot ±6h-resolve a different slot.
+      select: { scheduledFor: true, takenAt: true },
     });
     // v1.16.4 — current-era floor: the open-overdue search mints from
     // the LIVE schedule rows, so it must not reach past the newest
@@ -161,7 +164,7 @@ export const GET = apiHandler(
       now,
       userTz: user.timezone || "Europe/Berlin",
       lastIntakeAt: lastIntake?.takenAt ?? null,
-      resolvedSlots: resolvedRows.map((r) => r.scheduledFor),
+      resolvedSlots: resolvedRows.map(toResolvedSlotMark),
       eraStart: latestRevision?.validUntil ?? null,
     });
 

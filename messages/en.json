@@ -760,6 +760,7 @@
     "withoutNotification": "Without notification",
     "pausedSince": "Paused since",
     "takeNow": "Take now",
+    "takenEarly": "Already taken early",
     "overdue": "Overdue",
     "veryOverdue": "Very overdue",
     "compliance7d": "Adherence (7 days)",

@@ -451,6 +451,165 @@ describe("ServerCache stale-while-revalidate (wrapSwr / cachedSwr)", () => {
   });
 });
 
+describe("ServerCache invalidation vs in-flight builders", () => {
+  it("a read right after an evict does NOT join the pre-write builder", async () => {
+    const cache = new ServerCache<string>({ maxEntries: 4, ttlMs: 60_000 });
+    let releaseFirst: ((v: string) => void) | null = null;
+    let calls = 0;
+    const builder = vi.fn(() => {
+      calls += 1;
+      if (calls === 1) {
+        return new Promise<string>((r) => {
+          releaseFirst = r;
+        });
+      }
+      return Promise.resolve("post-write");
+    });
+
+    // Builder 1 starts (reads pre-write state) and is still in flight…
+    const first = cache.wrap("u1|list", builder);
+    // …when a write evicts the key.
+    cache.delete("u1|list");
+
+    // The next read must start a FRESH build, not join the stale one.
+    const second = await cache.wrap("u1|list", builder);
+    expect(second.outcome).toBe("miss");
+    expect(second.value).toBe("post-write");
+    expect(builder).toHaveBeenCalledTimes(2);
+
+    // The detached pre-write builder resolves AFTER the fresh one — its
+    // commit must be discarded, never overwriting the post-write entry.
+    releaseFirst!("pre-write");
+    const firstResult = await first;
+    expect(firstResult.value).toBe("pre-write");
+    expect(cache.get("u1|list")).toBe("post-write");
+  });
+
+  it("deleteByPrefix fences an in-flight builder the same way", async () => {
+    const cache = new ServerCache<string>({ maxEntries: 4, ttlMs: 60_000 });
+    let release: ((v: string) => void) | null = null;
+    const builder = vi.fn(
+      () =>
+        new Promise<string>((r) => {
+          release = r;
+        }),
+    );
+    const inFlight = cache.wrap("u1|compliance", builder);
+    cache.deleteByPrefix("u1|");
+    release!("pre-write");
+    await inFlight;
+    // The pre-write result never entered the cache.
+    expect(cache.get("u1|compliance")).toBeNull();
+  });
+
+  it("an SWR refresh that completes after an evict does not re-cache the pre-write body", async () => {
+    vi.useFakeTimers();
+    const cache = new ServerCache<string>({
+      maxEntries: 4,
+      ttlMs: 1000,
+      staleTtlMs: 600_000,
+    });
+    let releaseRefresh: ((v: string) => void) | null = null;
+    let calls = 0;
+    const builder = vi.fn(() => {
+      calls += 1;
+      if (calls === 1) return Promise.resolve("v1");
+      if (calls === 2) {
+        return new Promise<string>((r) => {
+          releaseRefresh = r;
+        });
+      }
+      return Promise.resolve("post-write");
+    });
+
+    await cache.wrapSwr("u1|list", builder);
+    vi.advanceTimersByTime(1500);
+
+    // Stale read kicks off the detached background refresh (pre-write).
+    const stale = await cache.wrapSwr("u1|list", builder);
+    expect(stale.outcome).toBe("stale");
+
+    // A write evicts the bucket while the refresh is still in flight…
+    cache.deleteByPrefix("u1|");
+    // …then the pre-write refresh completes. Without the fence it would
+    // re-insert the pre-write body as FRESH for the full TTL.
+    releaseRefresh!("pre-write");
+    await vi.runAllTimersAsync();
+
+    expect(cache.get("u1|list")).toBeNull();
+    const next = await cache.wrapSwr("u1|list", builder);
+    expect(next.outcome).toBe("miss");
+    expect(next.value).toBe("post-write");
+  });
+
+  it("markStaleByPrefix discards an in-flight refresh and keeps SWR semantics", async () => {
+    vi.useFakeTimers();
+    const cache = new ServerCache<string>({
+      maxEntries: 4,
+      ttlMs: 1000,
+      staleTtlMs: 600_000,
+    });
+    let releaseRefresh: ((v: string) => void) | null = null;
+    let calls = 0;
+    const builder = vi.fn(() => {
+      calls += 1;
+      if (calls === 1) return Promise.resolve("v1");
+      if (calls === 2) {
+        return new Promise<string>((r) => {
+          releaseRefresh = r;
+        });
+      }
+      return Promise.resolve("post-write");
+    });
+
+    await cache.wrapSwr("u1|k", builder);
+    vi.advanceTimersByTime(1500);
+    const stale = await cache.wrapSwr("u1|k", builder);
+    expect(stale.outcome).toBe("stale");
+
+    // Background write marks the bucket stale mid-refresh; the pre-write
+    // refresh result must not land as a fresh entry.
+    cache.markStaleByPrefix("u1|");
+    releaseRefresh!("pre-write");
+    await vi.runAllTimersAsync();
+
+    // SWR semantics hold: the prior value still serves stale and a NEW
+    // (post-write) recompute is kicked off.
+    const next = await cache.wrapSwr("u1|k", builder);
+    expect(next.outcome).toBe("stale");
+    expect(next.value).toBe("v1");
+    await vi.runAllTimersAsync();
+    expect(builder).toHaveBeenCalledTimes(3);
+    const warm = await cache.wrapSwr("u1|k", builder);
+    expect(warm.outcome).toBe("hit");
+    expect(warm.value).toBe("post-write");
+  });
+
+  it("invalidation between two stampeding readers gives the later reader fresh data", async () => {
+    const cache = new ServerCache<string>({ maxEntries: 4, ttlMs: 60_000 });
+    let release: ((v: string) => void) | null = null;
+    let calls = 0;
+    const builder = vi.fn(() => {
+      calls += 1;
+      if (calls === 1) {
+        return new Promise<string>((r) => {
+          release = r;
+        });
+      }
+      return Promise.resolve("fresh");
+    });
+
+    const a = cache.wrap("k", builder); // pre-write build in flight
+    cache.delete("k"); // write
+    const b = cache.wrap("k", builder); // post-write read → fresh build
+    release!("stale");
+    const [ra, rb] = await Promise.all([a, b]);
+    expect(ra.value).toBe("stale"); // joined its own (pre-write) build
+    expect(rb.value).toBe("fresh");
+    expect(cache.get("k")).toBe("fresh");
+  });
+});
+
 describe("global cache registry", () => {
   it("exposes the eight blueprint caches as module-scope singletons", () => {
     expect(caches.analytics).toBeDefined();
