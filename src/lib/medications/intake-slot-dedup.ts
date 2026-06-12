@@ -49,6 +49,11 @@ import { annotate } from "@/lib/logging/context";
 import { getGlobalBoss } from "@/lib/jobs/boss-instance";
 import { DEFAULT_TIMEZONE } from "@/lib/tz/format";
 import { resolveCanonicalSlotInstant } from "@/lib/medications/scheduling/resolve-slot-instant";
+import {
+  buildMedicationDayBands,
+  type AttributeIntakeMedication,
+} from "@/lib/medications/scheduling/attribute-intake";
+import type { ScheduleRevisionLike } from "@/lib/medications/scheduling/schedule-eras";
 import type {
   WorkerMedicationRow,
   WorkerScheduleRow,
@@ -89,6 +94,8 @@ type DedupMedication = WorkerMedicationRow & {
   userId: string;
   timezone: string;
   schedules: WorkerScheduleRow[];
+  /** v1.16.9 — archived eras so the band convergence honours old times. */
+  scheduleRevisions: ScheduleRevisionLike[];
 };
 
 interface DedupIntakeRow {
@@ -105,6 +112,13 @@ interface DedupIntakeRow {
    * ad-hoc). Such a row never joins a snap cluster.
    */
   attributionSource: string;
+  /**
+   * v1.16.9 — write origin. The ad-hoc→pending band convergence only
+   * touches API / REMINDER rows (external ingest + the Telegram webhook,
+   * the two paths that historically bare-created `scheduledFor =
+   * takenAt`); a WEB or IMPORT ad-hoc row is a deliberate user shape.
+   */
+  source: string;
 }
 
 /**
@@ -197,6 +211,21 @@ export async function dedupeUserIntakeSlots(
           scheduleType: true,
           cyclicOnWeeks: true,
           cyclicOffWeeks: true,
+          // v1.16.9 — the band convergence honours the persisted per-dose
+          // windows (the same lever the write path + read ledger consume).
+          doseWindows: true,
+        },
+      },
+      // v1.16.9 — archived eras: an old ad-hoc row converges against the
+      // schedule that was live at its takenAt, not today's times.
+      scheduleRevisions: {
+        orderBy: { validFrom: "asc" },
+        select: {
+          id: true,
+          validFrom: true,
+          validUntil: true,
+          payload: true,
+          supersededByRevisionId: true,
         },
       },
     },
@@ -235,9 +264,30 @@ export async function dedupeUserIntakeSlots(
         createdAt: true,
         // v1.16.0 — pin-awareness: a USER_PIN row never joins a cluster.
         attributionSource: true,
+        // v1.16.9 — write origin for the ad-hoc→pending convergence gate.
+        source: true,
       },
       orderBy: { scheduledFor: "asc" },
     })) as DedupIntakeRow[];
+
+    if (rows.length < 2) continue;
+
+    // v1.16.9 — heal pass FIRST: converge ad-hoc actioned API/REMINDER
+    // rows onto the pending row of the slot whose minted band contains
+    // the takenAt. The legacy snap pass below only reaches a ±half-window
+    // tolerance, so an 18-minute-early API ingest beside its pending
+    // 09:00 REMINDER row never clustered — the production damage this
+    // backfill exists to repair. The pass mutates `rows` in place
+    // (tombstoned pending rows removed, the winner's `scheduledFor`
+    // normalised) so the snap pass below operates on the healed state.
+    await convergeAdhocRowsOntoPendingSlots({
+      med,
+      rows,
+      userTz,
+      lastIntakeAt,
+      summary,
+      daysToRecompute,
+    });
 
     if (rows.length < 2) continue;
 
@@ -403,6 +453,168 @@ export async function dedupeUserIntakeSlots(
 }
 
 /**
+ * v1.16.9 — converge ad-hoc actioned rows onto their slot's pending row.
+ *
+ * The healed shape: an external-API or Telegram take historically
+ * bare-created `scheduledFor = takenAt`, leaving the worker-minted
+ * pending REMINDER row open. The pending row later auto-missed, so the
+ * ledger showed an ad-hoc take PLUS a missed slot for one real dose.
+ * The write paths converge since v1.16.9; this pass repairs the rows
+ * already written.
+ *
+ * Deliberately conservative — a pair converges ONLY when:
+ *   - the actioned row is ad-hoc shaped (`scheduledFor === takenAt`,
+ *     taken, not skipped), source API or REMINDER, and not USER_PIN;
+ *   - exactly ONE minted band contains the takenAt (the bands are
+ *     disjoint by construction, but a zero- or ambiguous-match take is
+ *     left alone);
+ *   - the band's anchor carries exactly ONE live row and that row is
+ *     unactioned (no takenAt, not skipped — a cron auto-miss flag does
+ *     not count as an action: the take proves the miss wrong).
+ *
+ * The actioned row is the dose of record: its `scheduledFor` normalises
+ * to the band anchor and the pending row is tombstoned (soft-deleted,
+ * syncVersion bumped) per the canonical pattern. `rows` is mutated in
+ * place so the caller's snap pass sees the healed state.
+ */
+async function convergeAdhocRowsOntoPendingSlots(input: {
+  med: DedupMedication;
+  rows: DedupIntakeRow[];
+  userTz: string;
+  lastIntakeAt: Date | null;
+  summary: IntakeSlotDedupSummary;
+  daysToRecompute: Set<string>;
+}): Promise<void> {
+  const { med, rows, userTz, lastIntakeAt, summary, daysToRecompute } = input;
+
+  const isRolling = med.schedules.some((s) => s.rollingIntervalDays !== null);
+
+  const adhocCandidates = rows.filter(
+    (r) =>
+      r.takenAt !== null &&
+      !r.skipped &&
+      r.scheduledFor.getTime() === r.takenAt.getTime() &&
+      r.attributionSource !== "USER_PIN" &&
+      (r.source === "API" || r.source === "REMINDER"),
+  );
+  if (adhocCandidates.length === 0) return;
+
+  const medication: AttributeIntakeMedication = {
+    id: med.id,
+    startsOn: med.startsOn,
+    endsOn: med.endsOn,
+    oneShot: med.oneShot,
+    createdAt: med.createdAt,
+    schedules: med.schedules,
+    scheduleRevisions: med.scheduleRevisions ?? [],
+  };
+
+  for (const adhoc of adhocCandidates) {
+    try {
+      const takenAt = adhoc.takenAt as Date;
+      // Rolling cadences anchor their retrospective grid AT each intake;
+      // build the instants from the rows already in memory, EXCLUDING the
+      // candidate itself (its own ad-hoc anchor must not mint the band it
+      // is judged against).
+      const intakeInstants = isRolling
+        ? rows
+            .filter(
+              (r) =>
+                r.id !== adhoc.id &&
+                r.takenAt !== null &&
+                !r.skipped &&
+                r.takenAt.getTime() <= takenAt.getTime(),
+            )
+            .map((r) => r.takenAt as Date)
+            .sort((a, b) => a.getTime() - b.getTime())
+        : undefined;
+
+      const { bands, hasExpectedSlots } = buildMedicationDayBands({
+        medication,
+        userTz,
+        around: takenAt,
+        lastIntakeAt,
+        intakeInstants,
+        now: takenAt,
+      });
+      if (!hasExpectedSlots) continue;
+
+      const t = takenAt.getTime();
+      // The lower bound honours the bounded early grace (`earlyStart`):
+      // an explicit window that starts AT the dose time ("09:00–10:00")
+      // must still converge an 08:42 take — the same reach the write-path
+      // attribution credits. Bands without the field keep the strict
+      // on-time start.
+      const matching = bands.filter(
+        (b) =>
+          t >= (b.earlyStart ?? b.onTimeStart).getTime() &&
+          t <= b.overdueEnd.getTime(),
+      );
+      if (matching.length !== 1) continue; // zero or ambiguous — leave alone.
+      const anchor = matching[0].at;
+      if (anchor.getTime() === adhoc.scheduledFor.getTime()) continue; // same instant — the snap pass owns it.
+
+      const anchorRows = rows.filter(
+        (r) =>
+          r.id !== adhoc.id && r.scheduledFor.getTime() === anchor.getTime(),
+      );
+      if (anchorRows.length !== 1) continue; // empty or double-slot — leave alone.
+      const pending = anchorRows[0];
+      if (pending.takenAt !== null || pending.skipped) continue; // already served.
+
+      // Tombstone the pending row; the take is the dose of record.
+      await prisma.medicationIntakeEvent.updateMany({
+        where: { id: pending.id, deletedAt: null },
+        data: { deletedAt: new Date(), syncVersion: { increment: 1 } },
+      });
+      summary.rowsSoftDeleted += 1;
+
+      const adhocDayInstant = adhoc.scheduledFor;
+      // Normalise the take onto the canonical anchor. Same P2002 guard as
+      // the snap pass: a tombstoned row may already occupy
+      // `(anchor, source)`; when it does the take keeps its own anchor —
+      // the pending row is already gone, so the slot no longer double-counts.
+      try {
+        await prisma.medicationIntakeEvent.update({
+          where: { id: adhoc.id },
+          data: { scheduledFor: anchor, syncVersion: { increment: 1 } },
+        });
+        summary.rowsNormalised += 1;
+        adhoc.scheduledFor = anchor;
+      } catch (normErr) {
+        if (!isP2002(normErr)) throw normErr;
+        annotate({
+          meta: {
+            intake_slot_dedup_converge_collision: true,
+            intake_slot_dedup_medication: med.id,
+            intake_slot_dedup_slot: anchor.toISOString(),
+          },
+        });
+      }
+
+      summary.slotsCollapsed += 1;
+
+      // Both local days can differ for day-scale bands — recompute each.
+      daysToRecompute.add(`${med.id}|${anchor.toISOString()}`);
+      daysToRecompute.add(`${med.id}|${adhocDayInstant.toISOString()}`);
+
+      // Mutate the in-memory rows so the snap pass sees the healed state.
+      const pendingIdx = rows.findIndex((r) => r.id === pending.id);
+      if (pendingIdx >= 0) rows.splice(pendingIdx, 1);
+    } catch (pairErr) {
+      annotate({
+        meta: {
+          intake_slot_dedup_converge_failed: true,
+          intake_slot_dedup_medication: med.id,
+          intake_slot_dedup_error:
+            pairErr instanceof Error ? pairErr.message : String(pairErr),
+        },
+      });
+    }
+  }
+}
+
+/**
  * Discovery pass — runs at worker boot and on the daily cron tick (the
  * cron payload omits `userId`; the worker handler dispatches here). Finds
  * every user that holds more than one live
@@ -444,6 +656,15 @@ export async function enqueueBootTimeIntakeSlotDedup(): Promise<{
     // `(user_id, medication_id, scheduled_for)`. The window absorbs the
     // sub-minute iOS-vs-server drift; the per-user pass re-checks
     // precisely so a wider-than-needed window only costs idle jobs.
+    //
+    // v1.16.9 — second arm: the ad-hoc→pending heal pattern. An actioned
+    // ad-hoc row (`scheduled_for = taken_at`) beside an unactioned row on
+    // the same medication can sit up to the widest band reach apart
+    // (weekly on-time 1d + overdue 4d ≈ 5 days; 475200 s adds half a day
+    // of slack) — far outside the 2-minute drift arm, which is why the
+    // 18-minute API/REMINDER pairs were never enqueued. The per-user pass
+    // re-checks by exact band membership, so the wide arm only costs idle
+    // jobs.
     const users = await prisma.$queryRaw<Array<{ id: string }>>`
       SELECT DISTINCT a."user_id" AS id
       FROM "medication_intake_events" a
@@ -453,7 +674,18 @@ export async function enqueueBootTimeIntakeSlotDedup(): Promise<{
        AND a."id"           <> b."id"
        AND a."deleted_at"    IS NULL
        AND b."deleted_at"    IS NULL
-       AND abs(extract(epoch FROM (a."scheduled_for" - b."scheduled_for"))) <= 120
+       AND (
+         abs(extract(epoch FROM (a."scheduled_for" - b."scheduled_for"))) <= 120
+         OR (
+           a."taken_at" IS NOT NULL
+           AND a."scheduled_for" = a."taken_at"
+           AND a."skipped" = false
+           AND a."source" IN ('API', 'REMINDER')
+           AND b."taken_at" IS NULL
+           AND b."skipped" = false
+           AND abs(extract(epoch FROM (a."scheduled_for" - b."scheduled_for"))) <= 475200
+         )
+       )
     `;
 
     if (users.length === 0) {

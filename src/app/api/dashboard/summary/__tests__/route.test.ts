@@ -14,11 +14,18 @@ vi.mock("@/lib/db", () => ({
       // Dashboard compliance tile leaves "Heute nichts geplant" the
       // moment a daily med is configured.
       createMany: vi.fn(),
+      // Shared meds-today builder — latest non-skipped intake per
+      // medication (next-due re-anchor for rolling cadences).
+      groupBy: vi.fn(),
     },
     medication: {
       // v1.4.39 W-SERVER-FIX-2 — projection source for the today's-
       // intakes backfill.
       findMany: vi.fn(),
+    },
+    // Shared meds-today builder — current-era floor per medication.
+    medicationScheduleRevision: {
+      groupBy: vi.fn(),
     },
     // v1.4.38 W-F — the route now uses `$queryRaw` for the per-type
     // latest reading, the 7-day rollup-bucket sparkline, and the
@@ -105,6 +112,14 @@ beforeEach(() => {
   vi.mocked(prisma.medicationIntakeEvent.createMany).mockResolvedValue({
     count: 0,
   } as never);
+  // Shared meds-today builder feeder reads — default to empty so the
+  // legacy tests keep their "no medications" branch.
+  vi.mocked(prisma.medicationIntakeEvent.groupBy).mockResolvedValue(
+    [] as never,
+  );
+  vi.mocked(prisma.medicationScheduleRevision.groupBy).mockResolvedValue(
+    [] as never,
+  );
 });
 
 // v1.4.48 L13 — restore real timers no matter how a test exits. A failed
@@ -620,25 +635,25 @@ describe("GET /api/dashboard/summary", () => {
         ],
       },
     ] as never);
-    // The dashboard route now issues three findMany calls in the
-    // today path:
-    //   1. existence probe (no `OR`) → empty (no rows yet)
-    //   2. final read after backfill (no `OR`) → one minted row
-    //   3. streak fetch (with `OR`) → empty
+    // The shared meds-today builder issues four findMany shapes:
+    //   1. projector existence probe (no `OR`, selects medicationId +
+    //      scheduledFor) → empty (no rows yet)
+    //   2. today tally read after backfill (no `OR`, selects takenAt +
+    //      skipped) → one minted row
+    //   3. resolved-slot read + streak fetch (with `OR`) → empty
     vi.mocked(prisma.medicationIntakeEvent.findMany).mockImplementation(((
       args: unknown,
     ) => {
       const a = args as {
         where: { OR?: unknown };
-        select?: { id?: boolean };
+        select?: { medicationId?: boolean };
       };
       if (a.where.OR) return Promise.resolve([]) as never;
-      // No `id` field on the existence-probe `select` → the route
-      // only asked for `(medicationId, scheduledFor)`.
-      if (!a.select?.id) return Promise.resolve([]) as never;
+      // The existence probe asks for `(medicationId, scheduledFor)`;
+      // the tally read asks for `(takenAt, skipped)`.
+      if (a.select?.medicationId) return Promise.resolve([]) as never;
       return Promise.resolve([
         {
-          id: "e-new",
           takenAt: null,
           skipped: false,
         },
@@ -712,14 +727,9 @@ describe("GET /api/dashboard/summary", () => {
         ],
       },
     ] as never);
-    vi.mocked(prisma.medicationIntakeEvent.findMany).mockImplementation(((
-      args: unknown,
-    ) => {
-      const a = args as { where: { OR?: unknown }; select?: { id?: boolean } };
-      if (a.where.OR) return Promise.resolve([]) as never;
-      if (!a.select?.id) return Promise.resolve([]) as never;
-      return Promise.resolve([]) as never;
-    }) as never);
+    vi.mocked(prisma.medicationIntakeEvent.findMany).mockResolvedValue(
+      [] as never,
+    );
     vi.mocked(prisma.medicationIntakeEvent.createMany).mockResolvedValue({
       count: 2,
     } as never);
@@ -783,18 +793,17 @@ describe("GET /api/dashboard/summary", () => {
     ) => {
       const a = args as {
         where: { OR?: unknown };
-        select?: { id?: boolean };
+        select?: { medicationId?: boolean };
       };
       if (a.where.OR) return Promise.resolve([]) as never;
-      if (!a.select?.id) {
+      if (a.select?.medicationId) {
         // Existence probe — the projected slot already exists.
         return Promise.resolve([
           { medicationId: "med-ramipril", scheduledFor },
         ]) as never;
       }
-      return Promise.resolve([
-        { id: "e-existing", takenAt: null, skipped: false },
-      ]) as never;
+      // Today tally read — the pre-existing pending row.
+      return Promise.resolve([{ takenAt: null, skipped: false }]) as never;
     }) as never);
 
     const res = await callGet(makeReq());
@@ -809,14 +818,16 @@ describe("GET /api/dashboard/summary", () => {
 
   it("computes intake compliance for today", async () => {
     vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
+    // No active medications (default) → the projector early-outs, so
+    // the only no-`OR` read is the meds-today tally over the window.
     vi.mocked(prisma.medicationIntakeEvent.findMany).mockImplementation(((
       args: unknown,
     ) => {
       const a = args as { where: { OR?: unknown } };
       if (!a.where.OR) {
         return Promise.resolve([
-          { id: "e1", takenAt: new Date(), skipped: false },
-          { id: "e2", takenAt: null, skipped: false },
+          { takenAt: new Date(), skipped: false },
+          { takenAt: null, skipped: false },
         ]) as never;
       }
       return Promise.resolve([]) as never;

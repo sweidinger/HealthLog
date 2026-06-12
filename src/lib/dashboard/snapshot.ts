@@ -66,6 +66,12 @@ import { dailyBriefingSchema, type DailyBriefing } from "@/lib/ai/schema";
 import { getAssistantFlags } from "@/lib/feature-flags";
 import { hasAnyConfiguredProvider } from "@/lib/ai/provider";
 import { DEFAULT_TIMEZONE } from "@/lib/tz/resolver";
+import {
+  buildMedsTodayBlock,
+  type MedsTodayBlock,
+} from "@/lib/dashboard/meds-today";
+import { computeUserHealthScoreFastPath } from "@/lib/analytics/health-score-fast-path";
+import type { HealthScoreBand } from "@/lib/analytics/health-score";
 
 /** Briefing freshness window — mirrors the 24 h TTL on the advisor cache. */
 const BRIEFING_TTL_MS = 24 * 60 * 60 * 1000;
@@ -213,6 +219,18 @@ export interface DashboardLayoutCatalogueEntry {
   order: number;
 }
 
+/**
+ * Health-score summary for the hero — score + band + week-over-week
+ * delta ONLY. The per-pillar component breakdown is deliberately NOT
+ * serialised here; the analytics route remains the one surface that
+ * exposes components.
+ */
+export interface DashboardSnapshotHealthScore {
+  score: number;
+  band: HealthScoreBand;
+  delta: number | null;
+}
+
 export interface DashboardSnapshot {
   user: DashboardSnapshotUser;
   layout: DashboardLayout;
@@ -241,6 +259,24 @@ export interface DashboardSnapshot {
   };
   /** Thick phase — null on a rollup-coverage miss. */
   extras: DashboardSnapshotExtras | null;
+  /**
+   * Fast phase — today's medication block (projection-backed tally +
+   * earliest next-due across active medications).
+   *
+   * Caching contract: the snapshot is served read-through a cache, so
+   * `medsToday.nextDueAt` can sit in the past with
+   * `medsToday.nextDueOverdue: false` when the slot's anchor passed
+   * AFTER the snapshot was built. Consumers MUST render that state as
+   * the plain day summary — never as overdue — until a fresh snapshot
+   * carries `nextDueOverdue: true` from the band model itself.
+   */
+  medsToday: MedsTodayBlock;
+  /**
+   * Warm-phase health score (score + band + delta only — no
+   * components). `null` on a rollup-coverage miss (the score rides the
+   * thick phase alongside `extras`) and when no pillar is computable.
+   */
+  healthScore: DashboardSnapshotHealthScore | null;
   briefing: DailyBriefing | null;
   briefingState: BriefingState;
   briefingUpdatedAt: string | null;
@@ -377,29 +413,40 @@ async function buildMoodBlock(
 }
 
 /**
- * Thick slice — BD-Zielbereich + per-context glucose. Only called by
- * the builder when the rollup tier is warm (`isFullyCovered`); the BP
- * fast-path then stays on the sub-second rollup branch and never drops
- * into the multi-second live fallback that would make the whole strip
- * wait. On a coverage miss the builder skips this entirely and emits
- * `extras: null` (per-tile shimmer until the boot backfill converges).
+ * Thick slice — BD-Zielbereich + per-context glucose + health score.
+ * Only called by the builder when the rollup tier is warm
+ * (`isFullyCovered`); the BP fast-path then stays on the sub-second
+ * rollup branch and never drops into the multi-second live fallback
+ * that would make the whole strip wait. On a coverage miss the builder
+ * skips this entirely and emits `extras: null` + `healthScore: null`
+ * (per-tile shimmer until the boot backfill converges).
+ *
+ * The health score rides this warm phase because it reuses the BP
+ * windows already computed here (`gradedScore` + `last30Days.pct`) and
+ * the same coverage map, so the score's weight pillar also stays on
+ * the rollup branch.
  */
 async function buildExtras(
   prisma: PrismaClient,
   user: SnapshotUserInput,
   userTz: string,
   coverage: RollupCoverageMap,
-): Promise<DashboardSnapshotExtras> {
+  now: Date,
+  time: <T>(label: string, fn: () => Promise<T>) => Promise<T>,
+): Promise<{
+  extras: DashboardSnapshotExtras;
+  healthScore: DashboardSnapshotHealthScore | null;
+}> {
   let bpInTargetPct: number | null = null;
   let bpInTargetPct7d: number | null = null;
   let bpInTargetPct30d: number | null = null;
   let bpInTargetPctAllTime: number | null = null;
   let bpInTargetPctPriorMonth: number | null = null;
   let bpInTargetPctPriorYear: number | null = null;
+  let bpGradedScore: number | null = null;
 
   const bpTargets = getBpTargets(user.dateOfBirth);
   if (bpTargets) {
-    const now = new Date();
     const windows = await computeBpInTargetFastPath({
       userId: user.id,
       targets: bpTargets,
@@ -413,7 +460,29 @@ async function buildExtras(
     bpInTargetPctAllTime = windows.allTime?.pct ?? null;
     bpInTargetPctPriorMonth = windows.priorMonth?.pct ?? null;
     bpInTargetPctPriorYear = windows.priorYear?.pct ?? null;
+    bpGradedScore = windows.gradedScore ?? null;
   }
+
+  // Health score — reuses the BP windows captured above plus the
+  // already-probed coverage map (no second probe). Score + band +
+  // delta only; the component breakdown stays off this wire.
+  const scoreResult = await time("healthScore", () =>
+    computeUserHealthScoreFastPath({
+      userId: user.id,
+      bpInTargetPct,
+      bpGradedScore,
+      heightCm: user.heightCm,
+      now,
+      coverage,
+    }),
+  );
+  const healthScore: DashboardSnapshotHealthScore | null = scoreResult
+    ? {
+        score: scoreResult.score,
+        band: scoreResult.band,
+        delta: scoreResult.delta,
+      }
+    : null;
 
   const glucoseSince = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
   const glucoseRows = await prisma.measurement.findMany({
@@ -440,13 +509,16 @@ async function buildExtras(
   }
 
   return {
-    bpInTargetPct,
-    bpInTargetPct7d,
-    bpInTargetPct30d,
-    bpInTargetPctAllTime,
-    bpInTargetPctPriorMonth,
-    bpInTargetPctPriorYear,
-    glucoseByContext,
+    extras: {
+      bpInTargetPct,
+      bpInTargetPct7d,
+      bpInTargetPct30d,
+      bpInTargetPctAllTime,
+      bpInTargetPctPriorMonth,
+      bpInTargetPctPriorYear,
+      glucoseByContext,
+    },
+    healthScore,
   };
 }
 
@@ -646,15 +718,19 @@ export async function buildDashboardSnapshot(
   const coverage = await time("coverage", () => probeRollupCoverage(user.id));
   const warm = isFullyCovered(coverage);
 
-  const [slim, mood, extras, flags] = await Promise.all([
+  const [slim, mood, extrasResult, flags, medsToday] = await Promise.all([
     // A5 — reuse the coverage map already probed above so the slice
     // doesn't re-run the identical `probeRollupCoverage` query.
     time("summaries", () => computeSummariesSlice(user.id, coverage)),
     time("mood", () => buildMoodBlock(prisma, user.id)),
     warm
-      ? time("extras", () => buildExtras(prisma, user, userTz, coverage))
+      ? time("extras", () =>
+          buildExtras(prisma, user, userTz, coverage, now, time),
+        )
       : Promise.resolve(null),
     time("flags", () => getAssistantFlags()),
+    // Fast phase — projection-backed today tally + earliest next-due.
+    time("medsToday", () => buildMedsTodayBlock(prisma, user.id, userTz, now)),
   ]);
 
   const layout = resolveDashboardLayout(user.dashboardWidgetsJson);
@@ -689,7 +765,9 @@ export async function buildDashboardSnapshot(
         entries: mood.entries,
       },
     },
-    extras,
+    extras: extrasResult?.extras ?? null,
+    medsToday,
+    healthScore: extrasResult?.healthScore ?? null,
     briefing: briefing.briefing,
     briefingState: briefing.briefingState,
     briefingUpdatedAt: briefing.briefingUpdatedAt,

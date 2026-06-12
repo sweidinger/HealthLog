@@ -67,18 +67,89 @@ export interface ServerCacheStats {
   readonly stampedes: number;
 }
 
+/**
+ * v1.16.9 — single-flight slot with invalidation fencing. A builder that
+ * was in flight when an invalidation (`delete` / `deleteByPrefix` /
+ * `markStaleByPrefix`) hit its key must NOT commit its result: the build
+ * read pre-write data, and committing it after the eviction would
+ * re-cache the pre-write body as fresh for the full TTL. The slot is the
+ * fence — invalidation flips `invalidated` and detaches the slot from
+ * `pending`, so (a) the builder's `.then` skips the `set()` and (b) the
+ * next read starts a fresh build instead of joining the stale one.
+ * Callers already awaiting the detached promise still receive its value
+ * (equivalent to having read a moment before the write); it just never
+ * enters the cache.
+ */
+interface PendingBuild<T> {
+  promise: Promise<T>;
+  invalidated: boolean;
+}
+
 export class ServerCache<T> {
   private readonly map = new Map<
     string,
     { expiresAt: number; staleUntil: number; value: T }
   >();
-  private readonly pending = new Map<string, Promise<T>>();
+  private readonly pending = new Map<string, PendingBuild<T>>();
   private hits = 0;
   private misses = 0;
   private evictions = 0;
   private stampedes = 0;
 
   constructor(private readonly opts: ServerCacheOptions) {}
+
+  /**
+   * Fence + detach the in-flight builder for one key (no-op when none).
+   * Part of every invalidation op — see `PendingBuild`.
+   */
+  private detachPending(key: string): void {
+    const slot = this.pending.get(key);
+    if (slot) {
+      slot.invalidated = true;
+      this.pending.delete(key);
+    }
+  }
+
+  /** Fence + detach every in-flight builder under `prefix`. */
+  private detachPendingByPrefix(prefix: string): void {
+    for (const [key, slot] of this.pending) {
+      if (key.startsWith(prefix)) {
+        slot.invalidated = true;
+        this.pending.delete(key);
+      }
+    }
+  }
+
+  /**
+   * Register a fenced single-flight build for `key`. The commit only
+   * lands when no invalidation hit the key while the builder ran; the
+   * `finally` only clears the slot it owns (an invalidation may already
+   * have detached it and a newer build may occupy the key).
+   */
+  private startBuild(
+    key: string,
+    builder: () => Promise<T>,
+    ttlMsOverride?: number,
+  ): PendingBuild<T> {
+    const slot: PendingBuild<T> = {
+      promise: undefined as unknown as Promise<T>,
+      invalidated: false,
+    };
+    slot.promise = builder()
+      .then((value) => {
+        if (!slot.invalidated) {
+          this.set(key, value, ttlMsOverride);
+        }
+        return value;
+      })
+      .finally(() => {
+        if (this.pending.get(key) === slot) {
+          this.pending.delete(key);
+        }
+      });
+    this.pending.set(key, slot);
+    return slot;
+  }
 
   /**
    * Read a key. Returns null on miss, expired entry, or absent entry.
@@ -178,6 +249,12 @@ export class ServerCache<T> {
    * behaviour).
    */
   markStaleByPrefix(prefix: string): number {
+    // v1.16.9 — fence in-flight builders too: a refresh that started
+    // before the write would otherwise complete after this mark and
+    // re-cache the pre-write body as FRESH for the full TTL. Detaching
+    // keeps the SWR contract — the marked entry still serves stale, and
+    // the next read kicks off a fresh (post-write) recompute.
+    this.detachPendingByPrefix(prefix);
     let marked = 0;
     const now = Date.now();
     for (const [key, entry] of this.map) {
@@ -191,6 +268,9 @@ export class ServerCache<T> {
 
   /** Single-key eviction. Returns true when the key was present. */
   delete(key: string): boolean {
+    // v1.16.9 — fence the in-flight builder so a pre-write build can
+    // neither be joined by post-evict reads nor commit its result.
+    this.detachPending(key);
     return this.map.delete(key);
   }
 
@@ -203,6 +283,8 @@ export class ServerCache<T> {
    * possible cache-key variant the user might have warmed.
    */
   deleteByPrefix(prefix: string): number {
+    // v1.16.9 — fence in-flight builders under the prefix (see `delete`).
+    this.detachPendingByPrefix(prefix);
     let removed = 0;
     for (const key of this.map.keys()) {
       if (key.startsWith(prefix)) {
@@ -238,21 +320,13 @@ export class ServerCache<T> {
     const inFlight = this.pending.get(key);
     if (inFlight) {
       this.stampedes += 1;
-      const value = await inFlight;
+      const value = await inFlight.promise;
       return { value, outcome: "stampede" };
     }
 
     this.misses += 1;
-    const promise = builder()
-      .then((value) => {
-        this.set(key, value, ttlMsOverride);
-        return value;
-      })
-      .finally(() => {
-        this.pending.delete(key);
-      });
-    this.pending.set(key, promise);
-    const value = await promise;
+    const slot = this.startBuild(key, builder, ttlMsOverride);
+    const value = await slot.promise;
     return { value, outcome: "miss" };
   }
 
@@ -288,20 +362,11 @@ export class ServerCache<T> {
       // single-flight slot so concurrent stale reads share one rebuild.
       this.hits += 1;
       if (!this.pending.has(key)) {
-        const refresh = builder()
-          .then((value) => {
-            this.set(key, value, ttlMsOverride);
-            return value;
-          })
-          .catch((err) => {
-            // The stale value already went out; don't crash the worker.
-            // Re-throw so the join path of any awaiting caller sees it.
-            throw err;
-          })
-          .finally(() => {
-            this.pending.delete(key);
-          });
-        this.pending.set(key, refresh);
+        // v1.16.9 — the background refresh runs through the same fenced
+        // single-flight slot as `wrap`, so an invalidation that lands
+        // while it is in flight discards its (pre-write) result instead
+        // of re-caching it as fresh.
+        const refresh = this.startBuild(key, builder, ttlMsOverride).promise;
         // Detach: the foreground caller does not await the rebuild.
         // Handle the rejection on the detached handle so an
         // unhandled-rejection warning never fires — but never silently:
@@ -344,6 +409,11 @@ export class ServerCache<T> {
   /** Reset every counter + entry. Test-only escape hatch. */
   __resetForTests(): void {
     this.map.clear();
+    // Fence any in-flight builder so a build crossing a test boundary
+    // cannot commit into the next test's clean cache.
+    for (const slot of this.pending.values()) {
+      slot.invalidated = true;
+    }
     this.pending.clear();
     this.hits = 0;
     this.misses = 0;

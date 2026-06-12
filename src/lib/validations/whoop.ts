@@ -7,8 +7,10 @@ import { z } from "zod/v4";
  * multi-operator product). Stored encrypted on `User`.
  */
 export const whoopCredentialsSchema = z.object({
-  clientId: z.string().min(1).max(200),
-  clientSecret: z.string().min(1).max(200),
+  // Trimmed: a trailing space or newline from the portal's copy button
+  // reaches WHOOP verbatim and answers as "unknown client".
+  clientId: z.string().trim().min(1).max(200),
+  clientSecret: z.string().trim().min(1).max(200),
 });
 
 export type WhoopCredentialsInput = z.infer<typeof whoopCredentialsSchema>;

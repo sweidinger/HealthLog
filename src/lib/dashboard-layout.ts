@@ -321,6 +321,16 @@ export interface DashboardLayout {
   comparisonBaseline?: ComparisonBaseline;
   /** v1.4.18 — per-chart overlay-prefs (3 toggles per chart card). */
   chartOverlayPrefs?: ChartOverlayPrefsMap;
+  /**
+   * Dashboard hero (daily verdict) visibility. Piggy-backs on the
+   * layout blob like the B8 comparison baseline — a UI affordance, not
+   * an analytical attribute, so no Prisma migration. The resolver
+   * clamps anything that is not the literal `false` back to `true`
+   * (legacy blobs without the field render the hero by default; a
+   * stale client cannot poison it with a non-boolean), and the
+   * serializer persists the resolved boolean explicitly.
+   */
+  heroVisible?: boolean;
 }
 
 const DASHBOARD_LAYOUT_VERSION = 1;
@@ -332,6 +342,9 @@ const DASHBOARD_LAYOUT_VERSION = 1;
  */
 export const DEFAULT_DASHBOARD_LAYOUT: DashboardLayout = {
   version: DASHBOARD_LAYOUT_VERSION,
+  // Hero (daily verdict) is on by default; users opt out via
+  // Settings → Dashboard.
+  heroVisible: true,
   widgets: [
     { id: "weight", visible: true, tileVisible: true, order: 0 },
     { id: "bp", visible: true, tileVisible: true, order: 1 },
@@ -449,6 +462,10 @@ export function resolveDashboardLayout(raw: unknown): DashboardLayout {
     // client cannot poison the dashboard with values the renderer
     // doesn't know how to draw.
     chartOverlayPrefs: coerceChartOverlayPrefsMap(candidate.chartOverlayPrefs),
+    // Hero visibility — anything that is not the literal `false`
+    // clamps to `true` (default-on for legacy blobs and malformed
+    // values alike).
+    heroVisible: candidate.heroVisible !== false,
   };
 }
 
@@ -476,5 +493,8 @@ export function serializeDashboardLayout(
     // v1.4.18 — persist per-chart overlay prefs verbatim through the
     // same coercion the resolver runs so the wire shape is stable.
     chartOverlayPrefs: coerceChartOverlayPrefsMap(layout.chartOverlayPrefs),
+    // Persist hero visibility explicitly (same clamp as the resolver)
+    // so a re-read never has to guess the default.
+    heroVisible: layout.heroVisible !== false,
   };
 }

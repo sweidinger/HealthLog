@@ -23,9 +23,10 @@ import { LogInjectionSiteDialog } from "@/components/medications/log-injection-s
 import { useGlobalExcludedInjectionSites } from "@/lib/medications/use-injection-site-prefs";
 import {
   reduceCurrentWindowStatus,
-  toBerlinDate,
+  toZonedDate,
 } from "@/lib/medications/window-status";
 import { resolveDisplayedSlotInstant } from "@/components/medications/card-parts/displayed-slot-instant";
+import { useAuth } from "@/hooks/use-auth";
 import { useMedicationComplianceSummary } from "@/lib/queries/use-medication-compliance-summary";
 
 /**
@@ -166,6 +167,10 @@ export function Glp1MedicationCard({
 }: Glp1MedicationCardProps) {
   const queryClient = useQueryClient();
   const { t } = useTranslations();
+  // v1.16.9 — the card reasons in the PROFILE timezone; Berlin stays the
+  // last-resort fallback for logged-out mounts and legacy fixtures.
+  const { user } = useAuth();
+  const userTz = user?.timezone || "Europe/Berlin";
   const fmt = useFormatters();
   const weekdayLabel = useWeekdayLabel();
   const [, forceUpdate] = useReducer((x: number) => x + 1, 0);
@@ -288,7 +293,7 @@ export function Glp1MedicationCard({
       a.windowStart.localeCompare(b.windowStart) ||
       a.windowEnd.localeCompare(b.windowEnd),
   );
-  const nowBerlin = toBerlinDate(now);
+  const nowBerlin = toZonedDate(now, userTz);
   const lateMinutes = thresholds?.lateMinutes ?? 120;
   const missedMinutes = thresholds?.missedMinutes ?? 240;
   const currentWindowStatus = reduceCurrentWindowStatus({
@@ -299,6 +304,7 @@ export function Glp1MedicationCard({
     active: medication.active,
     lastTakenAt: medication.lastTakenAt,
     todayEventCount: medication.todayEventCount ?? 0,
+    tz: userTz,
     // v1.16.6 — gate the pill on the server display-due so a rolling
     // cadence whose next injection is days away can never paint an overdue
     // pill today. `undefined` (older payloads / fixtures) keeps legacy
@@ -319,6 +325,7 @@ export function Glp1MedicationCard({
     currentWindowStatus,
     nextDueAt: medication.nextDueAt,
     now,
+    timeZone: userTz,
   });
 
   // v1.15.9 — the recent-injection list now feeds ONLY the post-dose
@@ -439,6 +446,7 @@ export function Glp1MedicationCard({
               // legacy schedule window (which may be stale / degenerate).
               windowStart: currentWindowStatus.window!.start,
               windowEnd: currentWindowStatus.window!.end,
+              takenEarlyDaysAgo: currentWindowStatus.takenEarlyDaysAgo,
             }
           : null
       }

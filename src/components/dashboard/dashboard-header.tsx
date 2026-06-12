@@ -1,12 +1,18 @@
 "use client";
 
 /**
- * Dashboard page header: title + greeting line, the customize shortcut,
- * and the quick-add dropdown that opens the quick-entry sheets.
+ * Dashboard page header: title, the customize shortcut, and the
+ * quick-add dropdown that opens the quick-entry sheets. The greeting
+ * line lives in the hero band (`<DashboardHero>`) when that renders —
+ * but the hero is optional (snapshot flag off, or hidden via the
+ * dashboard-layout toggle), and the greeting must never disappear with
+ * it. `showGreeting` (fed from the page's hero gate) restores the
+ * pre-hero greeting paragraph under the title for exactly those mounts.
  *
  * Extracted from the dashboard page; the page owns the open-state the
  * dropdown items set via `onQuickEntry`.
  */
+import { useMemo } from "react";
 import Link from "next/link";
 import { Activity, Pill, Plus, Settings2, Waves } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -17,37 +23,77 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useTranslations } from "@/lib/i18n/context";
+import { useAuth } from "@/hooks/use-auth";
+import { useMounted } from "@/hooks/use-mounted";
+import { getHourForTimeZone } from "@/components/dashboard/range-display";
+import { cn } from "@/lib/utils";
 import type { QuickEntryDialog } from "@/components/dashboard/quick-entry-sheets";
 
 export function DashboardHeader({
-  welcomeText,
   onQuickEntry,
+  showGreeting = false,
 }: {
-  welcomeText: string;
   onQuickEntry: (dialog: NonNullable<QuickEntryDialog>) => void;
+  /** Render the greeting line here because the hero band does not. */
+  showGreeting?: boolean;
 }) {
   const { t } = useTranslations();
+  const { user } = useAuth();
+  const mounted = useMounted();
+
+  // The pre-hero greeting derivation, kept hydration-safe: `user` comes
+  // from the auth query, which can resolve before this boundary
+  // hydrates — the text must match the name-less SSR output during
+  // hydration (React #418) and may only personalise from the first
+  // client re-render.
+  const userTimezone = mounted ? user?.timezone : undefined;
+  const hour = useMemo(
+    () => (userTimezone ? getHourForTimeZone(userTimezone) : null),
+    [userTimezone],
+  );
+  const timeGreeting =
+    hour == null
+      ? t("dashboard.greeting.day")
+      : hour >= 5 && hour < 12
+        ? t("dashboard.greeting.morning")
+        : hour >= 12 && hour < 18
+          ? t("dashboard.greeting.day")
+          : t("dashboard.greeting.evening");
+  const welcomeText =
+    mounted && user?.username && user.username.trim().length > 0
+      ? t("dashboard.welcomeBackWithName", {
+          greeting: timeGreeting,
+          name: user.username,
+        })
+      : t("dashboard.welcomeBack", { greeting: timeGreeting });
+
   return (
-    /* v1.4.37 W4a item 7 — centre-align the Hinzufügen button
-       against the 2-line title block on mobile (< sm). The
-       `welcomeText` line wraps under the title at < 380 px so the
-       button used to float at the top of the row without a
-       baseline anchor; `items-center sm:items-start` keeps the
-       mobile vertical centre while preserving the original
-       top-aligned posture on sm+ (where the title is one line). */
-    <div className="flex items-center justify-between gap-4 sm:items-start">
+    /* With the greeting the title block is two lines on narrow
+       viewports: centre the buttons against it on mobile, top-align on
+       sm+ (the pre-hero posture). Without the greeting the single-line
+       centre alignment stands. */
+    <div
+      className={cn(
+        "flex items-center justify-between gap-4",
+        showGreeting && "sm:items-start",
+      )}
+    >
       <div>
         <h1 className="text-2xl font-bold tracking-tight">
           {t("dashboard.title")}
         </h1>
-        {/* v1.16.8 — `min-h-5` reserves the greeting's line box from the
-            SSR pass on: the text personalises (name appended) on the
-            first client re-render after hydration, and the reserved
-            line keeps the header from collapsing/growing around that
-            swap. */}
-        <p className="text-muted-foreground mt-1 min-h-5 text-sm">
-          {welcomeText}
-        </p>
+        {showGreeting ? (
+          /* `min-h-5` reserves the greeting's line box from the SSR
+             pass on: the text personalises (name appended) on the first
+             client re-render after hydration, and the reserved line
+             keeps the header from collapsing/growing around that swap. */
+          <p
+            data-slot="dashboard-header-greeting"
+            className="text-muted-foreground mt-1 min-h-5 text-sm"
+          >
+            {welcomeText}
+          </p>
+        ) : null}
       </div>
       <div className="flex items-center gap-2">
         {/* Customize shortcut to the dashboard-customization settings

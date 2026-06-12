@@ -40,9 +40,12 @@ describe("prompt reads exclude tombstoned rows", () => {
   });
 
   it("the Coach snapshot filters its intake read", () => {
+    // v1.16.9 — the compliance timeline reads intake events through the
+    // medication relation (`intakeEvents`) so the ledger can be rebuilt
+    // per medication; the tombstone filter must ride on that nested read.
     const src = read("../../ai/coach/snapshot.ts");
     const intakeRead = src.match(
-      /medicationIntakeEvent\.findMany\(\{[\s\S]{0,200}?where:\s*\{[^}]*\}/,
+      /intakeEvents:\s*\{[\s\S]{0,300}?where:\s*\{[^}]*\}/,
     );
     expect(intakeRead).not.toBeNull();
     expect(intakeRead![0]).toContain("deletedAt: null");

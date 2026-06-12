@@ -87,6 +87,18 @@ export interface CurrentWindowStatus<Schedule extends ScheduleWindowInput> {
   schedule: Schedule | null;
   /** Non-null exactly when `status` is non-null. */
   window: MatchedDoseWindow | null;
+  /**
+   * v1.16.9 — non-null when the matched schedule is a DAY-SCALE cadence
+   * (weekly / N-weekly injectable) and a recent actioned take exists
+   * inside the current cadence period but on an earlier day. The dose is
+   * already on board: the card must render last-dose context instead of
+   * the "take now" / overdue prompt — a full take prompt on the slot day
+   * is a double-dose prompt. The value is the whole local days since
+   * that take, so the pill copy stays factual (the take may have been an
+   * early shot OR the previous slot served late — the day distance does
+   * not distinguish). Always null when `status` is null.
+   */
+  takenEarlyDaysAgo: number | null;
 }
 
 /**
@@ -303,11 +315,28 @@ function getScheduleStatus(
   return best;
 }
 
+/**
+ * v1.16.9 — the attribution module's bounded early grace: a take
+ * slightly before the on-time band still credits the slot, so the pill
+ * suppression must accept it too (an 08:42 take for a 09:00-window slot
+ * must not leave "take now" burning at 09:05). Read from the shared
+ * dose-window-defaults leaf — the same constant the write-path
+ * attribution derives `EARLY_GRACE_MS` from — so the two surfaces can
+ * never disagree.
+ */
+const EARLY_GRACE_MINUTES = DOSE_WINDOW_DEFAULTS.earlyGraceMinutes;
+
 function isLastIntakeInBand(
   lastTakenAt: string | null,
   band: DoseWindowBounds,
   nowLocal: Date,
   tz: string,
+  /**
+   * Lower bound (minutes-of-day) the early grace may not cross — the end
+   * of the schedule's previous dose band, so a take belonging to the
+   * prior dose never suppresses this one. Defaults to 0 (no earlier band).
+   */
+  earlyFloorMins = 0,
 ): boolean {
   if (!lastTakenAt) return false;
 
@@ -330,7 +359,81 @@ function isLastIntakeInBand(
       ? intakeMins + 24 * 60
       : intakeMins;
 
-  return adjustedIntake >= band.startMins && adjustedIntake <= band.endMins;
+  const startWithGrace = Math.max(
+    band.startMins - EARLY_GRACE_MINUTES,
+    earlyFloorMins,
+    0,
+  );
+  return adjustedIntake >= startWithGrace && adjustedIntake <= band.endMins;
+}
+
+/**
+ * v1.16.9 — day-scale cadence detection for the taken-early downgrade.
+ *
+ * A schedule whose dose days sit ≥ 2 days apart (a single weekday, a
+ * sparse Mo/Th pattern, an N-weekly interval) is day-scale: one dose
+ * covers a multi-day period, so a take earlier in the period must inform
+ * the slot-day pill. Daily / near-daily patterns (minute-scale) return
+ * `dayScale: false` — their period is a day and the same-day band checks
+ * already cover them. `periodDays` is the smallest gap between
+ * consecutive dose days (the span one dose covers).
+ */
+function dayScaleCadence(daysOfWeek: string | null): {
+  dayScale: boolean;
+  periodDays: number;
+} {
+  const recurrence = parseScheduleRecurrence(daysOfWeek);
+  const days = [...new Set(recurrence.daysOfWeek)].sort((a, b) => a - b);
+  if (days.length === 0) return { dayScale: false, periodDays: 0 };
+  const intervalWeeks = Math.max(1, recurrence.intervalWeeks ?? 1);
+  if (days.length === 1) {
+    return { dayScale: true, periodDays: 7 * intervalWeeks };
+  }
+  let minGap = Infinity;
+  for (let i = 1; i < days.length; i++) {
+    minGap = Math.min(minGap, days[i] - days[i - 1]);
+  }
+  // Wrap from the week's last dose day to the next cycle's first.
+  const wrapGap = days[0] + 7 * intervalWeeks - days[days.length - 1];
+  minGap = Math.min(minGap, wrapGap);
+  return { dayScale: minGap >= 2, periodDays: minGap };
+}
+
+/**
+ * Whole local days since the last actioned take when it lies on an
+ * EARLIER local day inside the current cadence period — the shape the
+ * taken-early downgrade fires on — else `null`. A same-day take is the
+ * in-band suppression's job; a take a full period (or more) ago is the
+ * previous cycle's dose. The day count rides into the pill copy, which
+ * stays neutral ("last dose {n} days ago"): the period may have opened
+ * with an early shot OR the previous slot served late, and the distance
+ * alone cannot tell the two apart.
+ */
+function earlyTakeDaysAgo(
+  lastTakenAt: string | null,
+  nowLocal: Date,
+  tz: string,
+  periodDays: number,
+): number | null {
+  if (!lastTakenAt || periodDays < 2) return null;
+  const intake = toZonedDate(new Date(lastTakenAt), tz);
+  const dayMs = 24 * 60 * 60 * 1000;
+  const intakeDay = Math.floor(
+    new Date(
+      intake.getFullYear(),
+      intake.getMonth(),
+      intake.getDate(),
+    ).getTime() / dayMs,
+  );
+  const nowDay = Math.floor(
+    new Date(
+      nowLocal.getFullYear(),
+      nowLocal.getMonth(),
+      nowLocal.getDate(),
+    ).getTime() / dayMs,
+  );
+  const diff = nowDay - intakeDay;
+  return diff >= 1 && diff < periodDays ? diff : null;
 }
 
 /**
@@ -388,32 +491,39 @@ function countPassedDoses<Schedule extends ScheduleWindowInput>(
  * the default are the legacy Berlin contract — callers that serve other
  * timezones pass their own.
  */
-export function reduceCurrentWindowStatus<Schedule extends ScheduleWindowInput>(
-  options: {
-    schedules: Schedule[];
-    nowBerlin: Date;
-    lateMinutes: number;
-    missedMinutes: number;
-    active: boolean;
-    lastTakenAt: string | null;
-    todayEventCount: number;
-    /** IANA timezone matching `nowBerlin`'s conversion; defaults to Berlin. */
-    tz?: string;
-    /**
-     * v1.16.6 — the server display-due gate. `undefined` keeps the legacy
-     * purely band-derived behaviour (callers without the list payload);
-     * `null` means the server found NO upcoming slot (paused / ended /
-     * one-shot past) so no pill renders at all. With a gate present:
-     *   - `overdue: false` (next unresolved slot in the future) suppresses
-     *     late / very_late outright and allows in_window only when the due
-     *     instant falls on the current local day — a rolling cadence whose
-     *     next dose is tomorrow stays calm today;
-     *   - `overdue: true` keeps the band-derived escalation (the slot is
-     *     genuinely in its catch-up tail).
-     */
-    nextDue?: NextDueGate | null;
-  },
-): CurrentWindowStatus<Schedule> {
+export function reduceCurrentWindowStatus<
+  Schedule extends ScheduleWindowInput,
+>(options: {
+  schedules: Schedule[];
+  nowBerlin: Date;
+  lateMinutes: number;
+  missedMinutes: number;
+  active: boolean;
+  lastTakenAt: string | null;
+  /**
+   * v1.16.9 — number of ACTIONED intake events today (taken or
+   * explicitly skipped). The server list feeder counts only actioned
+   * rows: the dashboard projector mints a pending row for every slot of
+   * the day, so an all-rows count covered every passed dose after any
+   * dashboard visit and the overdue pill went dark nondeterministically.
+   */
+  todayEventCount: number;
+  /** IANA timezone matching `nowBerlin`'s conversion; defaults to Berlin. */
+  tz?: string;
+  /**
+   * v1.16.6 — the server display-due gate. `undefined` keeps the legacy
+   * purely band-derived behaviour (callers without the list payload);
+   * `null` means the server found NO upcoming slot (paused / ended /
+   * one-shot past) so no pill renders at all. With a gate present:
+   *   - `overdue: false` (next unresolved slot in the future) suppresses
+   *     late / very_late outright and allows in_window only when the due
+   *     instant falls on the current local day — a rolling cadence whose
+   *     next dose is tomorrow stays calm today;
+   *   - `overdue: true` keeps the band-derived escalation (the slot is
+   *     genuinely in its catch-up tail).
+   */
+  nextDue?: NextDueGate | null;
+}): CurrentWindowStatus<Schedule> {
   const {
     schedules,
     nowBerlin,
@@ -430,6 +540,7 @@ export function reduceCurrentWindowStatus<Schedule extends ScheduleWindowInput>(
     status: null,
     schedule: null,
     window: null,
+    takenEarlyDaysAgo: null,
   };
   if (!active) return none;
   if (nextDue === null) return none;
@@ -465,14 +576,36 @@ export function reduceCurrentWindowStatus<Schedule extends ScheduleWindowInput>(
     // intake events for the day.
     if (hit.status !== "in_window" && !hasUncoveredOverdue) return best;
     // Don't show in_window if last intake is already within this band
-    // today.
+    // today (including the bounded early grace, floored at the end of
+    // the schedule's previous dose band so a prior dose's take never
+    // suppresses this one).
+    const earlyFloorMins = resolveDoseWindows(s).reduce(
+      (floor, b) =>
+        b.endMins <= hit.band.startMins && b.endMins > floor
+          ? b.endMins
+          : floor,
+      0,
+    );
     if (
       hit.status === "in_window" &&
-      isLastIntakeInBand(lastTakenAt, hit.band, nowBerlin, tz)
+      isLastIntakeInBand(lastTakenAt, hit.band, nowBerlin, tz, earlyFloorMins)
     ) {
       return best;
     }
-    if (!best.status || STATUS_PRIORITY[hit.status] > STATUS_PRIORITY[best.status]) {
+    if (
+      !best.status ||
+      STATUS_PRIORITY[hit.status] > STATUS_PRIORITY[best.status]
+    ) {
+      // v1.16.9 — day-scale early-take downgrade: a weekly injectable
+      // taken days before its slot day is already on board, so the pill
+      // must carry last-dose context instead of prompting a full take
+      // (a "Jetzt einnehmen" / overdue prompt here is a double-dose
+      // prompt). The server next-due stays canonical — only the pill's
+      // framing changes; the day count rides along for the copy.
+      const cadence = dayScaleCadence(s.daysOfWeek);
+      const takenEarlyDaysAgo = cadence.dayScale
+        ? earlyTakeDaysAgo(lastTakenAt, nowBerlin, tz, cadence.periodDays)
+        : null;
       return {
         status: hit.status,
         schedule: s,
@@ -481,6 +614,7 @@ export function reduceCurrentWindowStatus<Schedule extends ScheduleWindowInput>(
           start: hit.band.startHm,
           end: hit.band.endHm,
         },
+        takenEarlyDaysAgo,
       };
     }
     return best;

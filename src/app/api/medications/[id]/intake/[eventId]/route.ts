@@ -264,6 +264,11 @@ export const PUT = apiHandler(
         idempotencyKey: null,
         createSource: "WEB",
         attributionSource,
+        // v1.16.9 — a slot move is a re-binding, not a new dose: the
+        // original row's recorded injection site and dose override ride
+        // along onto the converged row instead of being tombstoned away.
+        injectionSite: event.injectionSite,
+        doseTaken: event.doseTaken,
       });
       updated = applied.row;
     }

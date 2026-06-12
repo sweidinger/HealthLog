@@ -247,6 +247,38 @@ export function invalidateUserInsightsLayout(userId: string): void {
 }
 
 /**
+ * v1.16.9 — full per-user cache eviction for the wipe / restore paths.
+ * A data wipe or a backup restore replaces (or removes) every row the
+ * cached payloads were built on, so every per-user bucket hard-evicts —
+ * a marked-stale SWR cell would keep serving the pre-wipe body.
+ */
+export function invalidateUserData(userId: string): void {
+  caches.analytics.deleteByPrefix(`${userId}|`);
+  caches.medications.deleteByPrefix(userId);
+  caches.medicationCompliance.deleteByPrefix(`${userId}|`);
+  caches.medicationsIntake.deleteByPrefix(`${userId}|`);
+  caches.achievements.deleteByPrefix(userId);
+  caches.insightsTargets.deleteByPrefix(userId);
+  caches.insightsDerived.deleteByPrefix(`${userId}|`);
+  caches.moodAnalytics.deleteByPrefix(userId);
+  caches.moodInsights.deleteByPrefix(userId);
+  caches.workouts.deleteByPrefix(`${userId}|`);
+  caches.dashboardWidgets.deleteByPrefix(userId);
+  caches.insightsLayout.deleteByPrefix(userId);
+}
+
+/**
+ * v1.16.9 — bucket-wide clear for the admin all-user wipe. Every cache
+ * empties; the next read per user is a cold build over the (now empty /
+ * restored) tables. Acceptable for an operation this rare.
+ */
+export function invalidateAllCaches(): void {
+  for (const cache of Object.values(caches)) {
+    cache.deleteByPrefix("");
+  }
+}
+
+/**
  * Global eviction of the bug-report-status cache.
  *
  * The cache is keyed on the singleton `"singleton"` slot because the

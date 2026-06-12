@@ -50,6 +50,7 @@ import {
 } from "@/lib/rollups/medication-compliance-rollups";
 import { recomputeUserRollups } from "@/lib/rollups/measurement-rollups";
 import { restoreCycleData } from "@/lib/cycle/backup";
+import { invalidateUserData } from "@/lib/cache/invalidate";
 
 export const dynamic = "force-dynamic";
 
@@ -535,6 +536,10 @@ const handler = apiHandler(
         },
       },
     });
+
+    // v1.16.9 — the restore replaced every row the owner's cached
+    // payloads were built on; hard-evict all of that user's buckets.
+    invalidateUserData(ownerId);
 
     const response: RestoreResponse = {
       restored: true,

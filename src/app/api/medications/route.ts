@@ -18,6 +18,8 @@ import { serializeScheduleRecurrence } from "@/lib/medication-schedule";
 import {
   computeDisplayDue,
   OVERDUE_LOOKBACK_MS,
+  toResolvedSlotMark,
+  type ResolvedSlotMark,
 } from "@/lib/medications/scheduling/next-due";
 import { getUserTodayBounds } from "@/lib/tz/local-day";
 import { invalidateUserMedications } from "@/lib/cache/invalidate";
@@ -73,10 +75,17 @@ async function buildMedicationsList(
       prisma.medicationIntakeEvent.groupBy({
         by: ["medicationId"],
         // v1.7.0 sync — exclude tombstoned rows from the today-count map.
+        // v1.16.9 — count only ACTIONED rows (taken or skipped). The
+        // dashboard projector mints pending rows for every slot of the
+        // day, so counting all rows made `todayEventCount` cover every
+        // passed dose after any dashboard visit — and the cards'
+        // overdue-pill suppression (`todayEventCount < passedDoseCount`)
+        // went dark nondeterministically for genuinely overdue doses.
         where: {
           userId,
           deletedAt: null,
           scheduledFor: { gte: todayStartUtc, lte: todayEndUtc },
+          OR: [{ takenAt: { not: null } }, { skipped: true }],
         },
         _count: { id: true },
       }),
@@ -91,7 +100,11 @@ async function buildMedicationsList(
             { autoMissed: true },
           ],
         },
-        select: { medicationId: true, scheduledFor: true },
+        // v1.16.9 — `takenAt` rides along so the ad-hoc shape
+        // (`scheduledFor === takenAt`) is detectable: such a row must not
+        // ±6h-resolve a DIFFERENT slot (a 14:30 ad-hoc take hid tonight's
+        // genuinely-due 20:00 dose).
+        select: { medicationId: true, scheduledFor: true, takenAt: true },
       }),
       // v1.16.4 — current-era floor per medication: the newest revision's
       // `validUntil` is where the LIVE schedule rows became valid. The
@@ -106,11 +119,12 @@ async function buildMedicationsList(
       }),
     ]);
 
-  const resolvedSlotsByMedId = new Map<string, Date[]>();
+  const resolvedSlotsByMedId = new Map<string, ResolvedSlotMark[]>();
   for (const e of resolvedEvents) {
+    const mark = toResolvedSlotMark(e);
     const list = resolvedSlotsByMedId.get(e.medicationId);
-    if (list) list.push(e.scheduledFor);
-    else resolvedSlotsByMedId.set(e.medicationId, [e.scheduledFor]);
+    if (list) list.push(mark);
+    else resolvedSlotsByMedId.set(e.medicationId, [mark]);
   }
 
   const eraStartByMedId = new Map<string, Date>();

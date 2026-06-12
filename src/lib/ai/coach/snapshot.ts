@@ -35,6 +35,13 @@ import { buildCoachMemoryBlock } from "./memory-snapshot";
 import { buildTrajectorySnapshotBlock } from "./trajectory-snapshot";
 import { buildCycleSnapshotBlock } from "./cycle-snapshot";
 import { isCycleEnabled } from "@/lib/cycle/gate";
+import {
+  buildComplianceLedgerRows,
+  buildComplianceMedicationContext,
+  lastNonSkippedTakenAt,
+  SCHEDULE_COMPLIANCE_SELECT,
+} from "@/lib/analytics/compliance";
+import type { DoseHistoryRow } from "@/lib/medications/scheduling/dose-history";
 import type { BaselineProfile } from "@/lib/insights/derived";
 import {
   CLUSTER_PRIORITY,
@@ -753,12 +760,46 @@ async function buildCoachSnapshotImpl(
           select: { moodLoggedAt: true, score: true },
         })
       : null;
-  const intakeRowsPromise = wantsCompliance
-    ? prisma.medicationIntakeEvent.findMany({
-        // Tombstoned intake rows must never reach the Coach snapshot.
-        where: { userId, deletedAt: null, scheduledFor: { gte: cutoff } },
-        orderBy: { scheduledFor: "asc" },
-        select: { scheduledFor: true, takenAt: true, skipped: true },
+  // v1.16.9 — the adherence timeline derives from the LEDGER tally (the
+  // same band engine the compliance % + dose history consume), not from a
+  // raw intake-row count. The raw count read a worker-minted pending row
+  // as "not taken" (today's later doses dragged the day's rate down all
+  // morning) and double-counted cross-source duplicate rows on one slot.
+  // Load each medication's schedules + eras + window events so the ledger
+  // can be reconstructed per medication.
+  const complianceMedsPromise = wantsCompliance
+    ? prisma.medication.findMany({
+        where: { userId },
+        select: {
+          id: true,
+          startsOn: true,
+          endsOn: true,
+          oneShot: true,
+          createdAt: true,
+          schedules: { select: SCHEDULE_COMPLIANCE_SELECT },
+          scheduleRevisions: {
+            orderBy: { validFrom: "asc" },
+            select: {
+              id: true,
+              validFrom: true,
+              validUntil: true,
+              payload: true,
+              supersededByRevisionId: true,
+            },
+          },
+          intakeEvents: {
+            // Tombstoned intake rows must never reach the Coach snapshot.
+            where: { deletedAt: null, scheduledFor: { gte: cutoff } },
+            orderBy: { scheduledFor: "asc" },
+            select: {
+              scheduledFor: true,
+              takenAt: true,
+              skipped: true,
+              autoMissed: true,
+              attributionSource: true,
+            },
+          },
+        },
       })
     : null;
   const sleepRowsPromise = sources.has("sleep")
@@ -826,7 +867,7 @@ async function buildCoachSnapshotImpl(
 
   const [
     moodRows,
-    intakeRows,
+    complianceMeds,
     sleepRows,
     workoutRows,
     glp1Block,
@@ -836,7 +877,7 @@ async function buildCoachSnapshotImpl(
     cycleBlock,
   ] = await Promise.all([
     moodRowsPromise,
-    intakeRowsPromise,
+    complianceMedsPromise,
     sleepRowsPromise,
     workoutRowsPromise,
     glp1BlockPromise,
@@ -939,31 +980,60 @@ async function buildCoachSnapshotImpl(
     registerBlock("mood", "mood");
   }
 
-  if (wantsCompliance && intakeRows) {
-    // Medication compliance lives outside the structured features
-    // today — the legacy Coach surface labelled it as "general"
-    // provenance only. v1.4.20.1 ships a per-day adherence row built
-    // from the intake-event log so the Coach can answer "did I miss
-    // my dose on Tuesday?" without inventing the schedule. The read is
-    // issued in parallel above.
-    if (intakeRows.length > 0) {
-      // Per-day adherence rate within the recent window. Older days
-      // collapse into a single weekly bucket.
-      const recent = intakeRows.filter((r) => r.scheduledFor >= recentCutoff);
-      const olderRows = intakeRows.filter((r) => r.scheduledFor < recentCutoff);
+  if (wantsCompliance && complianceMeds) {
+    // Medication compliance lives outside the structured features today —
+    // the legacy Coach surface labelled it as "general" provenance only.
+    // v1.4.20.1 shipped a per-day adherence row; v1.16.9 derives it from
+    // the band-engine LEDGER (the same expansion the compliance % and the
+    // dose-history view consume): a slot counts against the rate only once
+    // it is genuinely missed, a pending/upcoming slot never reads as "not
+    // taken", deliberate skips and ad-hoc takes stay out of the
+    // denominator, and cross-source duplicate rows collapse onto one slot.
+    const ledgerRows: DoseHistoryRow[] = [];
+    for (const med of complianceMeds) {
+      if (med.schedules.length === 0) continue;
+      const ctx = buildComplianceMedicationContext(
+        med,
+        lastNonSkippedTakenAt(med.intakeEvents),
+        userTz,
+      );
+      ledgerRows.push(
+        ...buildComplianceLedgerRows(
+          med.intakeEvents,
+          med.schedules,
+          ctx,
+          cutoff,
+          now,
+          now,
+        ),
+      );
+    }
+    // Countable rows: taken (on-time or late) or genuinely missed. The
+    // pending / upcoming / skipped / ad-hoc rows carry no adherence signal.
+    const countable = ledgerRows.filter(
+      (r) =>
+        r.status === "taken_on_time" ||
+        r.status === "taken_late" ||
+        r.status === "missed",
+    );
+    if (countable.length > 0) {
+      const recent = countable.filter((r) => r.at >= recentCutoff);
+      const olderRows = countable.filter((r) => r.at < recentCutoff);
+      const isTaken = (r: DoseHistoryRow) =>
+        r.status === "taken_on_time" || r.status === "taken_late";
       const recentByDay = new Map<
         string,
         { date: Date; total: number; taken: number }
       >();
       for (const r of recent) {
-        const key = tzDayKey(r.scheduledFor, userTz);
+        const key = tzDayKey(r.at, userTz);
         const e = recentByDay.get(key) ?? {
-          date: r.scheduledFor,
+          date: r.at,
           total: 0,
           taken: 0,
         };
         e.total += 1;
-        if (r.takenAt && !r.skipped) e.taken += 1;
+        if (isTaken(r)) e.taken += 1;
         recentByDay.set(key, e);
       }
       const recentRows = Array.from(recentByDay.entries())
@@ -977,10 +1047,10 @@ async function buildCoachSnapshotImpl(
         .sort((a, b) => a.date.localeCompare(b.date));
       const olderByWeek = new Map<string, { taken: number; total: number }>();
       for (const r of olderRows) {
-        const key = isoWeekKey(r.scheduledFor, userTz);
+        const key = isoWeekKey(r.at, userTz);
         const e = olderByWeek.get(key) ?? { taken: 0, total: 0 };
         e.total += 1;
-        if (r.takenAt && !r.skipped) e.taken += 1;
+        if (isTaken(r)) e.taken += 1;
         olderByWeek.set(key, e);
       }
       const weeklyRows = Array.from(olderByWeek.entries())
@@ -995,7 +1065,7 @@ async function buildCoachSnapshotImpl(
         timeline: { recent: recentRows, weekly: weeklyRows },
       };
       metrics.add("compliance");
-      counts.compliance = intakeRows.length;
+      counts.compliance = countable.length;
       registerBlock("compliance", "compliance");
     } else {
       // v1.7.0 — toggled-on cluster with no rows. Annotate so the

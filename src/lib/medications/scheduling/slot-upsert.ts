@@ -54,8 +54,13 @@ export interface ApplyCanonicalSlotWriteInput {
   isExplicitTaken: boolean;
   isExplicitSkip: boolean;
   idempotencyKey: string | null;
-  /** Source to stamp on a freshly-created slot row. */
-  createSource: "WEB" | "API";
+  /**
+   * Source to stamp on a freshly-created slot row. `REMINDER` is the
+   * Telegram-webhook path — its take / skip confirmations converge onto
+   * the worker-minted pending row like every other write, and a fresh
+   * create keeps the historical reminder provenance.
+   */
+  createSource: "WEB" | "API" | "REMINDER";
   /**
    * v1.8.5 — resolved + server-validated injection site to persist on a
    * taken write. `null` = no site (the column stays / is set NULL). Only

@@ -12,7 +12,9 @@ vi.mock("@/lib/db", () => ({
     },
     medicationIntakeEvent: {
       findFirst: vi.fn(),
+      findMany: vi.fn(),
       create: vi.fn(),
+      update: vi.fn(),
     },
     medication: {
       findFirst: vi.fn(),
@@ -38,6 +40,9 @@ vi.mock("@/lib/app-settings", () => ({
 vi.mock("@/lib/rollups/medication-compliance-rollups", () => ({
   recomputeMedicationComplianceForEvent: vi.fn().mockResolvedValue(undefined),
 }));
+vi.mock("@/lib/cache/invalidate", () => ({
+  invalidateUserMedications: vi.fn(),
+}));
 vi.mock("@/lib/logging/transports", () => ({ emitIfSampled: vi.fn() }));
 vi.mock("@/lib/db-compat", () => ({
   ensureDbCompatibility: vi.fn().mockResolvedValue(undefined),
@@ -55,6 +60,7 @@ import { POST } from "../route";
 import { prisma } from "@/lib/db";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { isApiGloballyEnabled } from "@/lib/app-settings";
+import { invalidateUserMedications } from "@/lib/cache/invalidate";
 
 function postReq(body: unknown): NextRequest {
   return new NextRequest("http://localhost/api/ingest/medication", {
@@ -143,5 +149,158 @@ describe("POST /api/ingest/medication — 422 multi-issue (v1.4.43 W6)", () => {
     );
     const res = await POST(postReq({ medicationName: "" }));
     expect(res.status).toBe(422);
+  });
+});
+
+describe("POST /api/ingest/medication — slot attribution + convergence (v1.16.9)", () => {
+  // The maintainer's live bug: a daily 09:00 med, the worker pre-minted the
+  // pending REMINDER row at 09:00 Berlin, the user ingested the take at
+  // 08:42 Berlin via the external API. The bare create anchored a SECOND
+  // row at 08:42 and left the 09:00 pending row open — reminder kept
+  // firing, ledger showed ad-hoc + later missed, today feed said "due".
+  const SLOT_0900_BERLIN = new Date("2026-06-10T07:00:00.000Z"); // 09:00 CEST
+  const TAKEN_0842_BERLIN = new Date("2026-06-10T06:42:00.000Z"); // 08:42 CEST
+
+  const scheduleRow = {
+    id: "sched-1",
+    windowStart: "09:00",
+    windowEnd: "09:00",
+    daysOfWeek: null,
+    timesOfDay: ["09:00"],
+    reminderGraceMinutes: null,
+    rrule: "FREQ=DAILY",
+    rollingIntervalDays: null,
+    scheduleType: "SCHEDULED",
+    cyclicOnWeeks: null,
+    cyclicOffWeeks: null,
+    doseWindows: null,
+  };
+
+  const pendingReminderRow = {
+    id: "evt-pending-0900",
+    takenAt: null,
+    skipped: false,
+    idempotencyKey: null,
+    scheduledFor: SLOT_0900_BERLIN,
+    source: "REMINDER",
+    createdAt: new Date("2026-06-10T05:00:00.000Z"),
+  };
+
+  function wireHappyPath() {
+    vi.mocked(checkRateLimit).mockResolvedValue({ allowed: true } as never);
+    vi.mocked(isApiGloballyEnabled).mockResolvedValue(true);
+    vi.mocked(prisma.apiToken.findUnique).mockResolvedValue({
+      id: "tok-1",
+      userId: "user-1",
+      permissions: ["*"],
+      revoked: false,
+      expiresAt: null,
+      lastUsedAt: null,
+    } as never);
+    vi.mocked(prisma.apiToken.update).mockResolvedValue({} as never);
+    vi.mocked(prisma.user.findUnique).mockResolvedValue({
+      timezone: "Europe/Berlin",
+    } as never);
+    // First findFirst (by name) returns the bare medication; the slot
+    // resolver's findFirst (selects schedules) returns the projection.
+    vi.mocked(prisma.medication.findFirst).mockImplementation(((args: {
+      where: Record<string, unknown>;
+    }) => {
+      if (args.where && "name" in args.where) {
+        return Promise.resolve({ id: "med-1", name: "Metformin" });
+      }
+      return Promise.resolve({
+        id: "med-1",
+        startsOn: null,
+        endsOn: null,
+        oneShot: false,
+        createdAt: new Date("2026-01-01T00:00:00.000Z"),
+        schedules: [scheduleRow],
+        scheduleRevisions: [],
+      });
+    }) as never);
+    // Idempotency probe → no replay.
+    vi.mocked(prisma.medicationIntakeEvent.findFirst).mockResolvedValue(null);
+    // The slot's live rows: the worker-minted pending REMINDER row.
+    vi.mocked(prisma.medicationIntakeEvent.findMany).mockResolvedValue([
+      pendingReminderRow,
+    ] as never);
+    vi.mocked(prisma.medicationIntakeEvent.update).mockImplementation(((args: {
+      where: { id: string };
+      data: Record<string, unknown>;
+    }) =>
+      Promise.resolve({
+        ...pendingReminderRow,
+        ...args.data,
+        syncVersion: 2,
+      })) as never);
+  }
+
+  it("converges an 08:42 take onto the pending 09:00 REMINDER row (no second row)", async () => {
+    wireHappyPath();
+    const res = await POST(
+      postReq({
+        medicationName: "Metformin",
+        takenAt: TAKEN_0842_BERLIN.toISOString(),
+        idempotencyKey: "ha-ingest-1",
+      }),
+    );
+    expect(res.status).toBe(201);
+    const body = (await res.json()) as { data: { id: string } };
+    // The pending REMINDER row was updated in place — never a bare create.
+    expect(body.data.id).toBe("evt-pending-0900");
+    expect(prisma.medicationIntakeEvent.create).not.toHaveBeenCalled();
+    expect(prisma.medicationIntakeEvent.update).toHaveBeenCalledTimes(1);
+    const update = vi.mocked(prisma.medicationIntakeEvent.update).mock
+      .calls[0][0] as {
+      where: { id: string };
+      data: { takenAt: Date; skipped: boolean; autoMissed?: boolean };
+    };
+    expect(update.where.id).toBe("evt-pending-0900");
+    expect(update.data.takenAt?.getTime()).toBe(TAKEN_0842_BERLIN.getTime());
+    expect(update.data.skipped).toBe(false);
+    // A recorded take clears a prior cron auto-miss.
+    expect(update.data.autoMissed).toBe(false);
+  });
+
+  it("hard-evicts the user's medication caches after the write", async () => {
+    wireHappyPath();
+    await POST(
+      postReq({
+        medicationName: "Metformin",
+        takenAt: TAKEN_0842_BERLIN.toISOString(),
+        idempotencyKey: "ha-ingest-2",
+      }),
+    );
+    expect(invalidateUserMedications).toHaveBeenCalledWith("user-1", {
+      evict: true,
+    });
+  });
+
+  it("keeps the standalone ad-hoc contract for an off-window take", async () => {
+    wireHappyPath();
+    // 14:30 Berlin — outside the 09:00 band and its late tail.
+    const offWindow = new Date("2026-06-10T12:30:00.000Z");
+    vi.mocked(prisma.medicationIntakeEvent.create).mockResolvedValue({
+      id: "evt-adhoc",
+      scheduledFor: offWindow,
+      takenAt: offWindow,
+      skipped: false,
+      source: "API",
+    } as never);
+    const res = await POST(
+      postReq({
+        medicationName: "Metformin",
+        takenAt: offWindow.toISOString(),
+        idempotencyKey: "ha-ingest-3",
+      }),
+    );
+    expect(res.status).toBe(201);
+    expect(prisma.medicationIntakeEvent.update).not.toHaveBeenCalled();
+    const create = vi.mocked(prisma.medicationIntakeEvent.create).mock
+      .calls[0][0] as { data: { scheduledFor: Date; takenAt: Date } };
+    // Ad-hoc rows anchor on the intake instant (`scheduledFor = takenAt`).
+    expect(create.data.scheduledFor.getTime()).toBe(offWindow.getTime());
+    expect(create.data.takenAt.getTime()).toBe(offWindow.getTime());
   });
 });

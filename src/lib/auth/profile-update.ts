@@ -8,7 +8,10 @@ import { auditLog } from "@/lib/auth/audit";
 import { profileSchema } from "@/lib/validations/auth";
 import { isValidTimezone } from "@/lib/tz/format";
 import { encrypt } from "@/lib/crypto";
-import { invalidateUserProfile } from "@/lib/cache/invalidate";
+import {
+  invalidateUserMedications,
+  invalidateUserProfile,
+} from "@/lib/cache/invalidate";
 import { z } from "zod/v4";
 
 const extendedProfileSchema = profileSchema.extend({
@@ -166,6 +169,14 @@ export async function applyProfileUpdate(
     data.gender !== undefined
   ) {
     invalidateUserProfile(userId);
+  }
+
+  // v1.16.9 — the medication payloads (list next-due, today counts, the
+  // compliance day buckets) are computed in the user's timezone, but the
+  // list cache key carries only the userId. A timezone change must evict
+  // the bucket or the next read serves the previous zone's day grid.
+  if (data.timezone !== undefined) {
+    invalidateUserMedications(userId, { evict: true });
   }
 
   await auditLog("profile.update", {

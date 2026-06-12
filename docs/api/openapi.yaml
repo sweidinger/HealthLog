@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: HealthLog API
-  version: 1.16.8
+  version: 1.16.9
   description: >-
     Self-hosted personal-health-tracking PWA — public API surface for the iOS native client and external ingest.
 
@@ -2118,7 +2118,7 @@ paths:
       summary: List medications for the calling user
       description: Returns every medication owned by the caller (active + paused), ordered by `createdAt DESC`. Each row
         carries its nested `schedules`, the joined clinical `category`, the latest non-skipped `lastTakenAt`, and the
-        count of intake events scheduled for today (`todayEventCount`). The response is cached server-side for 60 s per
+        count of today's actioned intake events (`todayEventCount`). The response is cached server-side for 60 s per
         user; writes flush the cache.
       responses:
         "200":
@@ -4890,6 +4890,7 @@ components:
           pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
         takenAt:
           description: When the dose was actually taken. NULL when `skipped` is true; defaults to `now()` for non-skipped intakes.
+            Must not lie in the future (5-minute clock-skew allowance) nor more than 5 years in the past.
           type: string
           format: date-time
           pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
@@ -8362,7 +8363,9 @@ components:
           type: integer
           minimum: 0
           maximum: 9007199254740991
-          description: Number of intake events scheduled for today (user-local day window).
+          description: "Number of ACTIONED intake events for today (user-local day window): rows with a recorded `takenAt` or an
+            explicit skip. Pending projector-minted rows do not count — the card overdue-pill suppression compares this
+            against the passed-dose count, and a pending mint must not read as covered."
       required:
         - id
         - name
@@ -11713,6 +11716,76 @@ components:
                 - glucoseByContext
               additionalProperties: false
             - type: "null"
+        medsToday:
+          type: object
+          properties:
+            activeCount:
+              type: integer
+              minimum: -9007199254740991
+              maximum: 9007199254740991
+            scheduledToday:
+              type: integer
+              minimum: -9007199254740991
+              maximum: 9007199254740991
+            takenToday:
+              type: integer
+              minimum: -9007199254740991
+              maximum: 9007199254740991
+            skippedToday:
+              type: integer
+              minimum: -9007199254740991
+              maximum: 9007199254740991
+            nextDueAt:
+              anyOf:
+                - type: string
+                - type: "null"
+            nextDueOverdue:
+              type: boolean
+            nextDueMedicationName:
+              anyOf:
+                - type: string
+                - type: "null"
+          required:
+            - activeCount
+            - scheduledToday
+            - takenToday
+            - skippedToday
+            - nextDueAt
+            - nextDueOverdue
+            - nextDueMedicationName
+          additionalProperties: false
+          description: "Today's medication block: active-medication count, today-window tally (scheduled / taken / skipped), and
+            the earliest next-due slot across active medications. `nextDueOverdue: true` marks an OPEN overdue slot
+            (anchor passed, still inside its catch-up band). Staleness contract: the snapshot is cache-served, so a
+            `nextDueAt` in the past with `nextDueOverdue: false` means the anchor passed after the snapshot was built —
+            render the plain day summary, never an overdue state."
+        healthScore:
+          anyOf:
+            - type: object
+              properties:
+                score:
+                  type: integer
+                  minimum: -9007199254740991
+                  maximum: 9007199254740991
+                band:
+                  type: string
+                  enum:
+                    - green
+                    - yellow
+                    - red
+                delta:
+                  anyOf:
+                    - type: number
+                    - type: "null"
+              required:
+                - score
+                - band
+                - delta
+              additionalProperties: false
+            - type: "null"
+          description: Personal health score summary (0..100 score, traffic-light band, week-over-week delta). Null on a
+            rollup-coverage miss (it rides the thick phase alongside `extras`) and when no pillar is computable.
+            Component breakdown is deliberately not serialised here.
         briefing:
           anyOf:
             - type: object
@@ -11745,6 +11818,8 @@ components:
         - metricStates
         - tiles
         - extras
+        - medsToday
+        - healthScore
         - briefing
         - briefingState
         - briefingUpdatedAt

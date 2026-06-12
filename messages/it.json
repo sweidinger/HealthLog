@@ -274,6 +274,36 @@
     },
     "welcomeBack": "{greeting}, bentornato.",
     "welcomeBackWithName": "{greeting} {name}, bentornato.",
+    "hero": {
+      "scoreLabel": "Health Score",
+      "scoreProvisional": "Dati ancora insufficienti",
+      "doses": {
+        "summary": "{taken} dosi assunte su {scheduled}",
+        "nextAt": "Prossima alle {time}",
+        "allDone": "Tutte le dosi di oggi completate",
+        "none": "Nessuna dose in programma oggi"
+      },
+      "verdict": {
+        "doseOverdue": "Una dose di {name} è in ritardo.",
+        "doseOverdueNoName": "Una dose è in ritardo.",
+        "bpHigh": "L’ultima pressione era molto alta ({sys}/{dia}). Misurala di nuovo con calma.",
+        "doseUpcoming": "Alle {time} è prevista {name}.",
+        "doseUpcomingNoName": "Alle {time} è prevista una dose.",
+        "weightDrift": "Questa settimana il tuo peso si sta allontanando dall’intervallo obiettivo.",
+        "shortNights": "Le tue notti sono state corte di recente — in media {hours} h.",
+        "silence": "Nessuna misurazione da {days} giorni. Una voce rapida tiene aggiornato il quadro.",
+        "scoreDrop": "Il tuo punteggio è {points} punti sotto la settimana scorsa.",
+        "allQuiet": "Tutto tranquillo — oggi non c’è nulla che richieda la tua attenzione."
+      },
+      "action": {
+        "takeDose": "Registra ora",
+        "viewBp": "Vedi pressione",
+        "viewWeight": "Vedi peso",
+        "viewSleep": "Vedi sonno",
+        "logMeasurement": "Registra misurazione",
+        "viewInsights": "Apri Insights"
+      }
+    },
     "greetingSalutation": "Ciao, {name}",
     "streakLabel": "giorni di fila",
     "weight": "Peso",
@@ -323,6 +353,8 @@
     "compliance7d": "Aderenza (7 giorni)",
     "mood": "Umore",
     "customizeTitle": "Layout della dashboard",
+    "heroToggleLabel": "Panoramica del giorno",
+    "heroToggleDescription": "Mostra saluto, punteggio, focus del giorno e stato delle dosi in cima alla dashboard.",
     "layoutReset": "Ripristina i valori predefiniti",
     "layoutSaveSuccess": "Layout della dashboard salvato",
     "layoutSaveError": "Impossibile salvare il layout",
@@ -730,6 +762,8 @@
     "withoutNotification": "Senza notifica",
     "pausedSince": "In pausa dal",
     "takeNow": "Assumi ora",
+    "lastDoseYesterday": "Ultima dose ieri",
+    "lastDoseDaysAgo": "Ultima dose {count} giorni fa",
     "overdue": "In ritardo",
     "veryOverdue": "Molto in ritardo",
     "compliance7d": "Aderenza 7 giorni",

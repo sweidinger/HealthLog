@@ -179,14 +179,29 @@ async function postIntake(request: NextRequest, { params }: RouteParams) {
   // Skips carry no binding decision (undefined → column untouched/default).
   let attributionSource: "AUTO" | "USER_PIN" | undefined;
   if (skipped) {
-    canonicalSlot = await resolveSlotInstantForWrite({
-      userId: user.id,
-      medicationId: id,
-      userTz: user.timezone,
-      incoming: incomingScheduledFor,
-      instantIsExplicit: scheduledFor !== undefined,
-      isTakenWrite: false,
-    });
+    if (scheduledFor === undefined) {
+      // v1.16.9 — a slot-less deliberate skip resolves by band membership
+      // on the skip moment, like a take does. The defaulted-now snap only
+      // reached the tight reminder-grace window, so a skip tapped past it
+      // landed as an orphan ad-hoc row while the slot's pending REMINDER
+      // row stayed open to auto-miss.
+      const attribution = await resolveSlotForWriteByBand({
+        userId: user.id,
+        medicationId: id,
+        userTz: user.timezone,
+        takenAt: incomingScheduledFor,
+      });
+      canonicalSlot = attribution.slotInstant;
+    } else {
+      canonicalSlot = await resolveSlotInstantForWrite({
+        userId: user.id,
+        medicationId: id,
+        userTz: user.timezone,
+        incoming: incomingScheduledFor,
+        instantIsExplicit: true,
+        isTakenWrite: false,
+      });
+    }
   } else if (forceSlotInstant !== undefined) {
     canonicalSlot = await resolveForcedSlotForWrite({
       userId: user.id,

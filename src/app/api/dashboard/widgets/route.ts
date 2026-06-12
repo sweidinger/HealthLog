@@ -115,6 +115,12 @@ const layoutSchema = z.object({
       }),
     )
     .optional(),
+  // Dashboard hero (daily verdict) visibility. Optional so clients
+  // that predate the field can still PUT; when omitted the handler
+  // preserves the stored value (same preserve-when-absent contract as
+  // `chartOverlayPrefs` — a Settings save that doesn't know the field
+  // must not silently reset the user's choice).
+  heroVisible: z.boolean().optional(),
 });
 
 async function buildDashboardLayout(userId: string): Promise<DashboardLayout> {
@@ -258,21 +264,32 @@ export const PUT = apiHandler(async (request: NextRequest) => {
   // didn't send. The dashboard-layout PUT typically saves widget
   // visibility / order; chart prefs are PUT through their own route
   // (`/api/dashboard/chart-overlay-prefs`) and would otherwise be
-  // wiped here on a subsequent layout save.
+  // wiped here on a subsequent layout save. `heroVisible` rides the
+  // same preserve-when-absent contract — an older client's layout
+  // save must not reset the hero toggle. One stored-layout read
+  // covers both fallbacks.
   let mergedChartOverlayPrefs: ChartOverlayPrefsMap | undefined = parsed.data
     .chartOverlayPrefs as ChartOverlayPrefsMap | undefined;
-  if (mergedChartOverlayPrefs === undefined) {
+  let mergedHeroVisible: boolean | undefined = parsed.data.heroVisible;
+  if (mergedChartOverlayPrefs === undefined || mergedHeroVisible === undefined) {
     const existing = await prisma.user.findUnique({
       where: { id: user.id },
       select: { dashboardWidgetsJson: true },
     });
-    mergedChartOverlayPrefs =
-      resolveDashboardLayout(existing?.dashboardWidgetsJson)
-        .chartOverlayPrefs ?? {};
+    const existingLayout = resolveDashboardLayout(
+      existing?.dashboardWidgetsJson,
+    );
+    if (mergedChartOverlayPrefs === undefined) {
+      mergedChartOverlayPrefs = existingLayout.chartOverlayPrefs ?? {};
+    }
+    if (mergedHeroVisible === undefined) {
+      mergedHeroVisible = existingLayout.heroVisible !== false;
+    }
   }
   const normalized = serializeDashboardLayout({
     ...parsed.data,
     chartOverlayPrefs: mergedChartOverlayPrefs,
+    heroVisible: mergedHeroVisible,
   } as DashboardLayout);
 
   await prisma.user.update({

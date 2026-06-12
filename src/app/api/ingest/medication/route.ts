@@ -15,6 +15,12 @@ import { checkRateLimit, rateLimitHeaders } from "@/lib/rate-limit";
 import { externalIntakeSchema } from "@/lib/validations/medication";
 import { isApiGloballyEnabled } from "@/lib/app-settings";
 import { recomputeMedicationComplianceForEvent } from "@/lib/rollups/medication-compliance-rollups";
+import {
+  applyCanonicalSlotWrite,
+  resolveSlotForWriteByBand,
+} from "@/lib/medications/scheduling/slot-upsert";
+import { invalidateUserMedications } from "@/lib/cache/invalidate";
+import { DEFAULT_TIMEZONE } from "@/lib/tz/format";
 import { NextRequest, NextResponse } from "next/server";
 
 /**
@@ -159,17 +165,64 @@ export const POST = apiHandler(async (request: NextRequest) => {
     return apiError("API endpoint for this medication is disabled", 403);
   }
 
-  const event = await prisma.medicationIntakeEvent.create({
-    data: {
+  // The external ingest path runs without a User record in scope;
+  // resolve the timezone once — band attribution and the compliance
+  // recompute below both anchor on the user's local day.
+  const ingestUser = await prisma.user.findUnique({
+    where: { id: apiToken.userId },
+    select: { timezone: true },
+  });
+  const userTz = ingestUser?.timezone || DEFAULT_TIMEZONE;
+
+  const effectiveTakenAt = takenAt ?? new Date();
+
+  // v1.16.9 — attribute the take to its scheduled slot by window-band
+  // membership, the SAME engine the per-medication intake route and the
+  // read ledger consume. The bare create this replaces anchored every
+  // ingest at `scheduledFor = takenAt`, leaving the slot's pending
+  // REMINDER row open: the reminder kept firing, the ledger showed an
+  // ad-hoc take PLUS a missed slot, and the today feed still said "due".
+  const attribution = await resolveSlotForWriteByBand({
+    userId: apiToken.userId,
+    medicationId: medication.id,
+    userTz,
+    takenAt: effectiveTakenAt,
+  });
+
+  let event;
+  if (attribution.slotInstant) {
+    // Scheduled dose — converge onto the one canonical slot row (the
+    // pending REMINDER row when one exists) through the shared upsert:
+    // H1 deterministic selection, C2 no-downgrade, P2002-safe create.
+    const applied = await applyCanonicalSlotWrite({
+      client: prisma,
       userId: apiToken.userId,
       medicationId: medication.id,
-      scheduledFor: takenAt ?? new Date(),
-      takenAt: takenAt ?? new Date(),
+      canonicalSlot: attribution.slotInstant,
+      takenAt: effectiveTakenAt,
       skipped: false,
-      source: "API",
+      isExplicitTaken: true,
+      isExplicitSkip: false,
       idempotencyKey,
-    },
-  });
+      createSource: "API",
+      attributionSource: "AUTO",
+    });
+    event = applied.row;
+  } else {
+    // Ad-hoc / PRN / off-window — standalone row under the documented
+    // contract (`scheduledFor = takenAt`).
+    event = await prisma.medicationIntakeEvent.create({
+      data: {
+        userId: apiToken.userId,
+        medicationId: medication.id,
+        scheduledFor: effectiveTakenAt,
+        takenAt: effectiveTakenAt,
+        skipped: false,
+        source: "API",
+        idempotencyKey,
+      },
+    });
+  }
 
   await auditLog("medication.ingest.external", {
     userId: apiToken.userId,
@@ -181,15 +234,21 @@ export const POST = apiHandler(async (request: NextRequest) => {
     },
   });
 
-  annotate({ meta: { medication_id: medication.id, event_id: event.id } });
+  annotate({
+    meta: {
+      medication_id: medication.id,
+      event_id: event.id,
+      slot_resolved: attribution.slotInstant !== null,
+    },
+  });
+
+  // v1.16.9 — the ingest is an interactive dose record; the next read
+  // (today feed, card pill, compliance heatmap) must reflect it rather
+  // than wait out the TTL.
+  invalidateUserMedications(apiToken.userId, { evict: true });
 
   // v1.4.39 W-MED — refresh the compliance rollup for the ingested
-  // event's user-day. The external ingest path runs without a User
-  // record in scope; resolve the tz once for the recompute.
-  const ingestUser = await prisma.user.findUnique({
-    where: { id: apiToken.userId },
-    select: { timezone: true },
-  });
+  // event's user-day.
   await recomputeMedicationComplianceForEvent({
     userId: apiToken.userId,
     medicationId: medication.id,

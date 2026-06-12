@@ -13,7 +13,7 @@ import { formatDateTime, formatTime } from "@/lib/format";
 import { getMedicationCategoryLabel } from "@/lib/medications/category-label";
 import {
   reduceCurrentWindowStatus,
-  toBerlinDate,
+  toZonedDate,
 } from "@/lib/medications/window-status";
 import { resolveDisplayedSlotInstant } from "@/components/medications/card-parts/displayed-slot-instant";
 import { useTranslations, useFormatters } from "@/lib/i18n/context";
@@ -26,6 +26,7 @@ import { apiGet, apiPost } from "@/lib/api/api-fetch";
 import { useMedicationComplianceSummary } from "@/lib/queries/use-medication-compliance-summary";
 import { LogInjectionSiteDialog } from "@/components/medications/log-injection-site-dialog";
 import { useGlobalExcludedInjectionSites } from "@/lib/medications/use-injection-site-prefs";
+import { useAuth } from "@/hooks/use-auth";
 import type { InjectionSiteKey } from "@/lib/medications/injection-sites";
 
 interface Schedule {
@@ -104,6 +105,11 @@ export function MedicationCard({
 }: MedicationCardProps) {
   const queryClient = useQueryClient();
   const { t, locale } = useTranslations();
+  // v1.16.9 — the card reasons in the PROFILE timezone (the snapshot the
+  // session carries); Berlin stays the last-resort fallback so logged-out
+  // mounts and legacy fixtures behave unchanged.
+  const { user } = useAuth();
+  const userTz = user?.timezone || "Europe/Berlin";
   const fmt = useFormatters();
   const weekdayLabel = useWeekdayLabel();
   // v1.8.5 — post-dose injection-site prompt state. Holds the intake
@@ -199,7 +205,7 @@ export function MedicationCard({
       a.windowStart.localeCompare(b.windowStart) ||
       a.windowEnd.localeCompare(b.windowEnd),
   );
-  const nowBerlin = toBerlinDate(new Date());
+  const nowBerlin = toZonedDate(new Date(), userTz);
   // v1.8.4 — the next-due instant comes from the server (`nextDueAt`,
   // computed by the canonical recurrence engine anchored on the last
   // intake). The day label below derives from it; the window-range /
@@ -224,6 +230,7 @@ export function MedicationCard({
     active: medication.active,
     lastTakenAt: medication.lastTakenAt,
     todayEventCount: medication.todayEventCount ?? 0,
+    tz: userTz,
     // v1.16.6 — gate the pill on the server display-due so a rolling
     // cadence whose next dose is tomorrow can never paint an overdue pill
     // today. `undefined` (older payloads / fixtures) keeps legacy behaviour.
@@ -231,7 +238,10 @@ export function MedicationCard({
       medication.nextDueAt === undefined
         ? undefined
         : nextAt !== undefined
-          ? { at: new Date(nextAt), overdue: medication.nextDueOverdue === true }
+          ? {
+              at: new Date(nextAt),
+              overdue: medication.nextDueOverdue === true,
+            }
           : null,
   });
 
@@ -244,6 +254,7 @@ export function MedicationCard({
     currentWindowStatus,
     nextDueAt: medication.nextDueAt,
     now: new Date(),
+    timeZone: userTz,
   });
 
   function formatLastTakenAt(value: string): string {
@@ -251,7 +262,7 @@ export function MedicationCard({
     // string-comparable for the today / yesterday / older bucketing below.
     // The actual user-facing display goes through formatTime / formatDateTime.
     const dayFormatter = new Intl.DateTimeFormat("en-CA", {
-      timeZone: "Europe/Berlin",
+      timeZone: userTz,
       year: "numeric",
       month: "2-digit",
       day: "2-digit",
@@ -314,7 +325,7 @@ export function MedicationCard({
           // Format day label relative to today
           let dayLabel = "";
           if (nextAt) {
-            const nextDate = toBerlinDate(new Date(nextAt));
+            const nextDate = toZonedDate(new Date(nextAt), userTz);
             const todayStr = `${nowBerlin.getFullYear()}-${nowBerlin.getMonth()}-${nowBerlin.getDate()}`;
             const nextStr = `${nextDate.getFullYear()}-${nextDate.getMonth()}-${nextDate.getDate()}`;
             const tomorrow = new Date(nowBerlin);
@@ -381,13 +392,16 @@ export function MedicationCard({
               // legacy schedule window (which may be stale / degenerate).
               windowStart: currentWindowStatus.window!.start,
               windowEnd: currentWindowStatus.window!.end,
+              takenEarlyDaysAgo: currentWindowStatus.takenEarlyDaysAgo,
             }
           : null
       }
       doseStatus={doseStatus}
       nextLine={nextLine}
       lastLine={
-        medication.lastTakenAt ? formatLastTakenAt(medication.lastTakenAt) : null
+        medication.lastTakenAt
+          ? formatLastTakenAt(medication.lastTakenAt)
+          : null
       }
       compliance={
         compliance ? { rate7, rate30, streak, shortDays, longDays } : null

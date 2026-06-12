@@ -163,6 +163,30 @@ function hhmmToMinutes(hhmm: string): number {
   return Number(h) * 60 + Number(m);
 }
 
+/**
+ * v1.15.19 introduced `takenAt` plausibility bounds on the EDIT path
+ * (audit P0-4); v1.16.9 lifts them onto every CREATE path too (the
+ * per-medication intake POST, the bulk endpoint, the external ingest) so
+ * the retro-add dialog and a hand-rolled API call can't insert a row a
+ * decade in the past or hours in the future. Future allowance covers
+ * client clock skew; the 5-year floor matches the GLP-1 dose-change
+ * validator's window. Slot-distance / medication-start checks stay in
+ * the routes — the schema cannot see the medication.
+ */
+export const TAKEN_AT_CLOCK_SKEW_MS = 5 * 60 * 1000;
+export const TAKEN_AT_MAX_AGE_MS = 5 * 365 * 24 * 60 * 60 * 1000;
+
+/** ISO `takenAt` → `Date` with the shared plausibility bounds applied. */
+export const boundedTakenAtSchema = z.iso
+  .datetime({ offset: true })
+  .transform((s) => new Date(s))
+  .refine((d) => d.getTime() <= Date.now() + TAKEN_AT_CLOCK_SKEW_MS, {
+    message: "takenAt must not be in the future",
+  })
+  .refine((d) => d.getTime() >= Date.now() - TAKEN_AT_MAX_AGE_MS, {
+    message: "takenAt must be within the last 5 years",
+  });
+
 export const scheduleSchema = z
   .object({
     windowStart: z
@@ -598,12 +622,10 @@ export const intakeSchema = z
       .describe(
         "Slot the dose belongs to. Defaults to `takenAt` (or `now()` when both are absent) so the compliance pairing logic can pin the dose to a schedule slot.",
       ),
-    takenAt: z.iso
-      .datetime({ offset: true })
-      .transform((s) => new Date(s))
+    takenAt: boundedTakenAtSchema
       .optional()
       .describe(
-        "When the dose was actually taken. NULL when `skipped` is true; defaults to `now()` for non-skipped intakes.",
+        "When the dose was actually taken. NULL when `skipped` is true; defaults to `now()` for non-skipped intakes. Must not lie in the future (5-minute clock-skew allowance) nor more than 5 years in the past.",
       ),
     skipped: z
       .boolean()
@@ -673,10 +695,8 @@ export const intakeSchema = z
 
 export const externalIntakeSchema = z.object({
   medicationName: z.string().min(1).max(200),
-  takenAt: z.iso
-    .datetime({ offset: true })
-    .transform((s) => new Date(s))
-    .optional(),
+  // v1.16.9 — same plausibility bounds as the interactive create paths.
+  takenAt: boundedTakenAtSchema.optional(),
   idempotencyKey: z.string().max(128),
 });
 
@@ -718,22 +738,9 @@ export const listIntakeEventsSchema = z.object({
  * checks stay out of the schema — it cannot see the medication — and live
  * in the route (start-date guard) + the edit dialog (non-blocking hint).
  */
-const TAKEN_AT_CLOCK_SKEW_MS = 5 * 60 * 1000;
-const TAKEN_AT_MAX_AGE_MS = 5 * 365 * 24 * 60 * 60 * 1000;
-
 export const updateIntakeEventSchema = z
   .object({
-    takenAt: z.iso
-      .datetime({ offset: true })
-      .transform((s) => new Date(s))
-      .refine((d) => d.getTime() <= Date.now() + TAKEN_AT_CLOCK_SKEW_MS, {
-        message: "takenAt must not be in the future",
-      })
-      .refine((d) => d.getTime() >= Date.now() - TAKEN_AT_MAX_AGE_MS, {
-        message: "takenAt must be within the last 5 years",
-      })
-      .nullable()
-      .optional(),
+    takenAt: boundedTakenAtSchema.nullable().optional(),
     skipped: z.boolean().optional(),
     scheduledFor: z.iso
       .datetime({ offset: true })

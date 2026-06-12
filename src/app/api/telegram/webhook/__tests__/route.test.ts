@@ -18,9 +18,12 @@ vi.mock("@/lib/db", () => ({
     medicationIntakeEvent: {
       create: vi.fn(),
       findFirst: vi.fn(),
+      findMany: vi.fn(),
+      update: vi.fn(),
     },
     telegramReminderMessage: {
       deleteMany: vi.fn(),
+      findFirst: vi.fn(),
     },
     telegramScheduledDeletion: {
       createMany: vi.fn(),
@@ -52,8 +55,17 @@ vi.mock("@/lib/logging/context", () => ({
   })),
 }));
 
+vi.mock("@/lib/cache/invalidate", () => ({
+  invalidateUserMedications: vi.fn(),
+}));
+
+vi.mock("@/lib/rollups/medication-compliance-rollups", () => ({
+  recomputeMedicationComplianceForEvent: vi.fn().mockResolvedValue(undefined),
+}));
+
 import { POST, GET } from "../route";
 import { prisma } from "@/lib/db";
+import { invalidateUserMedications } from "@/lib/cache/invalidate";
 import {
   answerTelegramCallbackQuery,
   deleteMessage,
@@ -67,9 +79,39 @@ const TG_USER = {
   id: "user-1",
   telegramBotToken: "ENC(token-blob)",
   locale: "en",
+  timezone: "Europe/Berlin",
 };
 
 const MEDICATION = { id: "med-1", name: "Ramipril" };
+
+/**
+ * The slot-attribution load (`loadAttributeMedication`) selects the full
+ * schedule projection (distinguishable by `select.schedules`); every other
+ * `medication.findFirst` in the webhook wants the bare id/name shape. The
+ * default projection carries no schedules, so the generic dispatch tests
+ * exercise the ad-hoc (standalone create) path unchanged.
+ */
+function wireMedicationFindFirst(
+  schedules: unknown[] = [],
+  scheduleRevisions: unknown[] = [],
+) {
+  vi.mocked(prisma.medication.findFirst).mockImplementation(((args: {
+    select?: Record<string, unknown>;
+  }) => {
+    if (args?.select && "schedules" in args.select) {
+      return Promise.resolve({
+        id: "med-1",
+        startsOn: null,
+        endsOn: null,
+        oneShot: false,
+        createdAt: new Date("2026-01-01T00:00:00.000Z"),
+        schedules,
+        scheduleRevisions,
+      });
+    }
+    return Promise.resolve(MEDICATION);
+  }) as never);
+}
 
 beforeEach(() => {
   vi.resetAllMocks();
@@ -80,18 +122,28 @@ beforeEach(() => {
     resetAt: Date.now() + 60_000,
   } as never);
   vi.mocked(prisma.user.findFirst).mockResolvedValue(TG_USER as never);
-  vi.mocked(prisma.medication.findFirst).mockResolvedValue(MEDICATION as never);
+  wireMedicationFindFirst();
   vi.mocked(prisma.medication.findMany).mockResolvedValue([] as never);
   vi.mocked(prisma.medication.update).mockResolvedValue({} as never);
   vi.mocked(prisma.medicationIntakeEvent.findFirst).mockResolvedValue(null);
   vi.mocked(prisma.medicationIntakeEvent.create).mockResolvedValue({} as never);
+  vi.mocked(prisma.medicationIntakeEvent.findMany).mockResolvedValue(
+    [] as never,
+  );
   vi.mocked(prisma.telegramReminderMessage.deleteMany).mockResolvedValue({
     count: 0,
   } as never);
+  vi.mocked(prisma.telegramReminderMessage.findFirst).mockResolvedValue(null);
   vi.mocked(prisma.telegramScheduledDeletion.createMany).mockResolvedValue({
     count: 0,
   } as never);
-  vi.mocked(prisma.$transaction).mockResolvedValue([] as never);
+  // Interactive transactions run their callback against the same mock
+  // client (the route converges the intake write + snooze update inside
+  // one transaction); batch arrays resolve like Promise.all.
+  vi.mocked(prisma.$transaction).mockImplementation(((arg: unknown) =>
+    typeof arg === "function"
+      ? (arg as (tx: unknown) => unknown)(prisma)
+      : Promise.all(arg as Promise<unknown>[])) as never);
   vi.mocked(answerTelegramCallbackQuery).mockResolvedValue(undefined as never);
   vi.mocked(deleteMessage).mockResolvedValue(undefined as never);
   vi.mocked(sendTelegramMessage).mockResolvedValue({
@@ -185,15 +237,7 @@ describe("Telegram webhook — callback dispatch", () => {
     const res = await POST(tgRequest(callbackUpdate("taken:med-1")));
     expect(res.status).toBe(200);
 
-    // $transaction is invoked with [create-intake, update-medication]. Inspect
-    // its argument list for both writes.
-    expect(prisma.$transaction).toHaveBeenCalledTimes(1);
-    const txOps = vi.mocked(prisma.$transaction).mock.calls[0][0] as unknown;
-    expect(Array.isArray(txOps)).toBe(true);
-
-    // The route calls prisma.medicationIntakeEvent.create + medication.update
-    // synchronously while building the transaction array, so these mocks
-    // record the arguments the way it built them.
+    // No schedules wired → the take is ad-hoc and inserts standalone.
     expect(prisma.medicationIntakeEvent.create).toHaveBeenCalledTimes(1);
     const intakeArgs = vi.mocked(prisma.medicationIntakeEvent.create).mock
       .calls[0][0];
@@ -211,6 +255,8 @@ describe("Telegram webhook — callback dispatch", () => {
       where: { id: "med-1" },
       data: { snoozedUntil: null },
     });
+    // Intake write + snooze reset commit atomically.
+    expect(prisma.$transaction).toHaveBeenCalledTimes(1);
 
     expect(answerTelegramCallbackQuery).toHaveBeenCalledTimes(1);
     expect(deleteMessage).toHaveBeenCalledWith(
@@ -226,7 +272,7 @@ describe("Telegram webhook — callback dispatch", () => {
       null,
     );
     await POST(tgRequest(callbackUpdate("taken:med-1")));
-    expect(prisma.$transaction).toHaveBeenCalledTimes(1);
+    expect(prisma.medicationIntakeEvent.create).toHaveBeenCalledTimes(1);
 
     // Second call: existing-row lookup hits → no second write.
     vi.mocked(prisma.medicationIntakeEvent.findFirst).mockResolvedValueOnce({
@@ -234,7 +280,7 @@ describe("Telegram webhook — callback dispatch", () => {
     } as never);
     const res2 = await POST(tgRequest(callbackUpdate("taken:med-1")));
     expect(res2.status).toBe(200);
-    expect(prisma.$transaction).toHaveBeenCalledTimes(1); // unchanged
+    expect(prisma.medicationIntakeEvent.create).toHaveBeenCalledTimes(1); // unchanged
   });
 
   it("'snooze:<medId>:60' updates the medication's snoozedUntil and answers with the locale-translated message", async () => {
@@ -281,6 +327,8 @@ describe("Telegram webhook — callback dispatch", () => {
       .snoozedUntil;
     expect(snoozedUntil.getHours()).toBe(23);
     expect(snoozedUntil.getMinutes()).toBe(59);
+    // Skip row + rest-of-day snooze commit atomically.
+    expect(prisma.$transaction).toHaveBeenCalledTimes(1);
   });
 
   it("'ack:<medId>' answers the callback without creating an intake event", async () => {
@@ -596,6 +644,159 @@ describe("Telegram webhook — text-message dispatch", () => {
     expect(res.status).toBe(200);
     const body = (await res.json()) as { status: string };
     expect(body.status).toBe("invalid json");
+  });
+});
+
+describe("Telegram webhook — slot convergence (v1.16.9)", () => {
+  // Daily 09:00 Berlin med; the worker pre-minted the pending REMINDER row
+  // at the canonical slot instant. A Telegram take/skip must converge onto
+  // that row instead of inserting a second row anchored at `now` — the old
+  // shape left the pending row open to auto-miss, punishing compliance for
+  // a dose the user explicitly confirmed.
+  const SLOT_0900_BERLIN = new Date("2026-06-10T07:00:00.000Z"); // 09:00 CEST
+  const NOW_0903_BERLIN = new Date("2026-06-10T07:03:00.000Z"); // 09:03 CEST
+
+  const scheduleRow = {
+    id: "sched-1",
+    windowStart: "09:00",
+    windowEnd: "09:00",
+    daysOfWeek: null,
+    timesOfDay: ["09:00"],
+    reminderGraceMinutes: null,
+    rrule: "FREQ=DAILY",
+    rollingIntervalDays: null,
+    scheduleType: "SCHEDULED",
+    cyclicOnWeeks: null,
+    cyclicOffWeeks: null,
+    doseWindows: null,
+  };
+
+  const pendingReminderRow = {
+    id: "evt-pending-0900",
+    takenAt: null,
+    skipped: false,
+    idempotencyKey: null,
+    scheduledFor: SLOT_0900_BERLIN,
+    source: "REMINDER",
+    createdAt: new Date("2026-06-10T05:00:00.000Z"),
+  };
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(NOW_0903_BERLIN);
+    wireMedicationFindFirst([scheduleRow]);
+    vi.mocked(prisma.medicationIntakeEvent.findMany).mockResolvedValue([
+      pendingReminderRow,
+    ] as never);
+    vi.mocked(prisma.medicationIntakeEvent.update).mockImplementation(((args: {
+      data: Record<string, unknown>;
+    }) =>
+      Promise.resolve({
+        ...pendingReminderRow,
+        ...args.data,
+        syncVersion: 2,
+      })) as never);
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("a take converges onto the pending REMINDER row via the reminder's own slot", async () => {
+    vi.mocked(prisma.telegramReminderMessage.findFirst).mockResolvedValue({
+      date: "2026-06-10",
+      timeOfDay: "09:00",
+    } as never);
+
+    const res = await POST(tgRequest(callbackUpdate("taken:med-1")));
+    expect(res.status).toBe(200);
+
+    // The pending row was updated in place — never a duplicate insert.
+    expect(prisma.medicationIntakeEvent.create).not.toHaveBeenCalled();
+    expect(prisma.medicationIntakeEvent.update).toHaveBeenCalledTimes(1);
+    const update = vi.mocked(prisma.medicationIntakeEvent.update).mock
+      .calls[0][0] as {
+      where: { id: string };
+      data: { takenAt: Date; skipped: boolean; autoMissed?: boolean };
+    };
+    expect(update.where.id).toBe("evt-pending-0900");
+    expect(update.data.takenAt?.getTime()).toBe(NOW_0903_BERLIN.getTime());
+    expect(update.data.skipped).toBe(false);
+    expect(update.data.autoMissed).toBe(false);
+    expect(invalidateUserMedications).toHaveBeenCalledWith("user-1", {
+      evict: true,
+    });
+  });
+
+  it("a take converges via band attribution when no reminder row matches", async () => {
+    vi.mocked(prisma.telegramReminderMessage.findFirst).mockResolvedValue(null);
+    const res = await POST(tgRequest(callbackUpdate("taken:med-1")));
+    expect(res.status).toBe(200);
+    // 09:03 sits inside the 09:00 band → same convergence, no second row.
+    expect(prisma.medicationIntakeEvent.create).not.toHaveBeenCalled();
+    expect(prisma.medicationIntakeEvent.update).toHaveBeenCalledTimes(1);
+    expect(
+      (
+        vi.mocked(prisma.medicationIntakeEvent.update).mock.calls[0][0] as {
+          where: { id: string };
+        }
+      ).where.id,
+    ).toBe("evt-pending-0900");
+  });
+
+  it("a skip converges onto the pending REMINDER row as skipped (no orphan + no miss)", async () => {
+    vi.mocked(prisma.telegramReminderMessage.findFirst).mockResolvedValue({
+      date: "2026-06-10",
+      timeOfDay: "09:00",
+    } as never);
+
+    const res = await POST(tgRequest(callbackUpdate("skip:med-1")));
+    expect(res.status).toBe(200);
+
+    expect(prisma.medicationIntakeEvent.create).not.toHaveBeenCalled();
+    expect(prisma.medicationIntakeEvent.update).toHaveBeenCalledTimes(1);
+    const update = vi.mocked(prisma.medicationIntakeEvent.update).mock
+      .calls[0][0] as {
+      where: { id: string };
+      data: { takenAt: Date | null; skipped: boolean };
+    };
+    expect(update.where.id).toBe("evt-pending-0900");
+    expect(update.data.takenAt).toBeNull();
+    expect(update.data.skipped).toBe(true);
+    expect(invalidateUserMedications).toHaveBeenCalledWith("user-1", {
+      evict: true,
+    });
+  });
+
+  it("an exotic-zone reminder slot reconstructs on the correct local day", async () => {
+    // Pacific/Kiritimati (UTC+14): 09:00 on 2026-06-10 local is
+    // 2026-06-09T19:00Z — a naive UTC-noon reference would land a day off.
+    const slotKiritimati = new Date("2026-06-09T19:00:00.000Z");
+    const nowKiritimati = new Date("2026-06-09T19:05:00.000Z");
+    vi.setSystemTime(nowKiritimati);
+    vi.mocked(prisma.user.findFirst).mockResolvedValue({
+      ...TG_USER,
+      timezone: "Pacific/Kiritimati",
+    } as never);
+    const pendingRow = {
+      ...pendingReminderRow,
+      scheduledFor: slotKiritimati,
+    };
+    vi.mocked(prisma.medicationIntakeEvent.findMany).mockResolvedValue([
+      pendingRow,
+    ] as never);
+    vi.mocked(prisma.telegramReminderMessage.findFirst).mockResolvedValue({
+      date: "2026-06-10",
+      timeOfDay: "09:00",
+    } as never);
+
+    const res = await POST(tgRequest(callbackUpdate("taken:med-1")));
+    expect(res.status).toBe(200);
+    expect(prisma.medicationIntakeEvent.create).not.toHaveBeenCalled();
+    expect(prisma.medicationIntakeEvent.update).toHaveBeenCalledTimes(1);
+    const update = vi.mocked(prisma.medicationIntakeEvent.update).mock
+      .calls[0][0] as { where: { id: string } };
+    expect(update.where.id).toBe("evt-pending-0900");
   });
 });
 

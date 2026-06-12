@@ -560,7 +560,14 @@ export const POST = apiHandler(async (request: NextRequest) => {
         isExplicitSkip: false,
         idempotencyKey: null,
         createSource: "WEB",
-        injectionSite: resolvedInjectionSite,
+        // v1.16.9 — carry the recorded site / dose override across the
+        // tombstone + re-insert: a slot move is a re-binding, not a new
+        // dose, so the original row's documentation must survive when the
+        // toggle write itself carries none.
+        injectionSite:
+          resolvedInjectionSite ??
+          (existing.injectionSite as InjectionSiteValue | null),
+        doseTaken: existing.doseTaken,
       });
       updated = applied.row;
       await prisma.medication.update({
@@ -611,6 +618,18 @@ export const POST = apiHandler(async (request: NextRequest) => {
     scheduledFor: existing.scheduledFor,
     tz: userTzForHook,
   });
+  // v1.16.9 — a slot move re-binds the dose onto a DIFFERENT instant,
+  // possibly a different local day. Recompute the target day too, or the
+  // source day self-corrects while the destination keeps its stale tuple.
+  const movedTo = updated?.scheduledFor;
+  if (movedTo && movedTo.getTime() !== existing.scheduledFor.getTime()) {
+    await recomputeMedicationComplianceForEvent({
+      userId: user.id,
+      medicationId: existing.medicationId,
+      scheduledFor: movedTo,
+      tz: userTzForHook,
+    });
+  }
 
   return apiSuccess(updated);
 });

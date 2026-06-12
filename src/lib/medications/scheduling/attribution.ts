@@ -25,6 +25,8 @@
  * this module timezone-agnostic and trivially testable.
  */
 
+import { DOSE_WINDOW_DEFAULTS } from "@/lib/medications/scheduling/dose-window-defaults";
+
 /** Per-slot window the caller supplies (bounds already minted as instants). */
 export interface SlotWindowInput {
   /** Canonical anchor instant for the slot (labelling / next-due / pairing). */
@@ -39,10 +41,29 @@ export interface SlotWindowInput {
   lateGraceMs: number;
 }
 
+/**
+ * v1.16.9 — bounded early grace ahead of the on-time band. A user who
+ * configures a window to start AT the dose time ("09:00–10:00") would
+ * otherwise have an 08:42 take refused and orphaned ad-hoc while the
+ * slot read missed. A take up to this far before `onTimeStart` still
+ * credits the slot (as on-time); the reach is capped at the PREVIOUS
+ * slot's `overdueEnd` so it can never claim a take that belongs to the
+ * prior dose's late tail. Sourced from the shared dose-window-defaults
+ * leaf (client-safe) so the card pill suppression reads the same width.
+ */
+export const EARLY_GRACE_MS =
+  DOSE_WINDOW_DEFAULTS.earlyGraceMinutes * 60 * 1000;
+
 /** A slot window with its (capped) late-tail cutoff resolved. */
 export interface SlotBand extends SlotWindowInput {
   /** Cutoff past which a take no longer pairs to this slot (capped). */
   overdueEnd: Date;
+  /**
+   * Earliest instant a take still credits this slot (the bounded early
+   * grace before `onTimeStart`, capped at the previous slot's
+   * `overdueEnd`).
+   */
+  earlyStart: Date;
 }
 
 export type AttributionStatus = "on_time" | "late";
@@ -59,7 +80,7 @@ export interface AttributionResult {
  */
 export function buildSlotBands(slots: SlotWindowInput[]): SlotBand[] {
   const sorted = [...slots].sort((a, b) => a.at.getTime() - b.at.getTime());
-  return sorted.map((slot, i) => {
+  const withTails = sorted.map((slot, i) => {
     let overdueEnd = slot.onTimeEnd.getTime() + slot.lateGraceMs;
     const next = sorted[i + 1];
     if (next) {
@@ -70,6 +91,19 @@ export function buildSlotBands(slots: SlotWindowInput[]): SlotBand[] {
     // A degenerate/negative tail collapses to the on-time end.
     overdueEnd = Math.max(overdueEnd, slot.onTimeEnd.getTime());
     return { ...slot, overdueEnd: new Date(overdueEnd) };
+  });
+  // Second pass — the early reach is bounded by the PREVIOUS slot's
+  // resolved tail, so it never claims a take inside the prior dose's
+  // band. The previous `overdueEnd` is already capped at this slot's
+  // `onTimeStart`, so `earlyStart <= onTimeStart` holds by construction.
+  return withTails.map((band, i) => {
+    let earlyStart = band.onTimeStart.getTime() - EARLY_GRACE_MS;
+    const prev = withTails[i - 1];
+    if (prev) {
+      earlyStart = Math.max(earlyStart, prev.overdueEnd.getTime());
+    }
+    earlyStart = Math.min(earlyStart, band.onTimeStart.getTime());
+    return { ...band, earlyStart: new Date(earlyStart) };
   });
 }
 
@@ -90,7 +124,10 @@ export function attributeIntakeToSlot(
     null;
 
   for (const band of bands) {
-    const onStart = band.onTimeStart.getTime();
+    // v1.16.9 — the bounded early grace extends the on-time capture below
+    // `onTimeStart` (never into the previous slot's band — `buildSlotBands`
+    // caps it). Hand-built bands without the field keep the strict start.
+    const onStart = (band.earlyStart ?? band.onTimeStart).getTime();
     const onEnd = band.onTimeEnd.getTime();
     const overdueEnd = band.overdueEnd.getTime();
 

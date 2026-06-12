@@ -36,12 +36,13 @@ import {
   useDashboardChartReveal,
 } from "@/components/dashboard/chart-reveal";
 import { DashboardHeader } from "@/components/dashboard/dashboard-header";
+import { DashboardHero } from "@/components/dashboard/hero/dashboard-hero";
+import { DashboardHeroSkeleton } from "@/components/dashboard/hero/dashboard-hero-skeleton";
 import {
   QuickEntrySheets,
   type QuickEntryDialog,
 } from "@/components/dashboard/quick-entry-sheets";
 import {
-  getHourForTimeZone,
   getRangeColorClass,
   getRangeHint,
   toHoursSummary,
@@ -684,42 +685,55 @@ export default function DashboardPage() {
       upperBound: 55,
     },
   );
-  // v1.4.40 W-RSC — memoise the per-render `Intl.DateTimeFormat`
-  // instantiation (audit-H4). The greeting derived from the hour only
-  // changes when the user's timezone changes; recomputing it every
-  // render churned the parts-array and walked the format ICU twice per
-  // render across a 1 400-line component body.
-  // Gated on `mounted`: `user` comes from the auth query, which can
-  // resolve before this boundary hydrates — the greeting text must
-  // match the name-less SSR output during hydration (React #418) and
-  // may only personalise from the first client re-render.
-  const userTimezone = mounted ? user?.timezone : undefined;
-  const hour = useMemo(
-    () => (userTimezone ? getHourForTimeZone(userTimezone) : null),
-    [userTimezone],
-  );
-  const timeGreeting =
-    hour == null
-      ? t("dashboard.greeting.day")
-      : hour >= 5 && hour < 12
-        ? t("dashboard.greeting.morning")
-        : hour >= 12 && hour < 18
-          ? t("dashboard.greeting.day")
-          : t("dashboard.greeting.evening");
-  const welcomeText =
-    mounted && user?.username && user.username.trim().length > 0
-      ? t("dashboard.welcomeBackWithName", {
-          greeting: timeGreeting,
-          name: user.username,
-        })
-      : t("dashboard.welcomeBack", { greeting: timeGreeting });
+  // v1.7.0 — the primary data source differs by flag. In snapshot
+  // mode `analyticsSlimQuery` is `enabled: false`, and a disabled
+  // TanStack query reports `fetchStatus: "idle"` → `isLoading` is
+  // always `false`. Gating the skeleton on the slim query then
+  // never fires under snapshot mode, so the empty-state branch
+  // below flashes for the whole snapshot fetch. Key the loading
+  // flag off whichever query is actually driving the tiles.
+  // v1.16.4 — `!mounted` pins the SSR pass AND the hydration
+  // render to the skeleton branch. Server-side the data queries
+  // are `enabled: false` (no auth) → `isLoading: false`, which
+  // used to select the empty state; a late-hydrating boundary
+  // then saw `isAuthenticated` already resolved and rendered the
+  // skeleton instead — React #418. See `useMounted`.
+  // v1.16.9 — hoisted out of the strip IIFE: the hero band below
+  // shares the same gate so its skeleton and the tile silhouettes
+  // swap to content in the same render pass.
+  const primaryLoading =
+    !mounted ||
+    (snapshotEnabled ? snapshotQuery.isLoading : analyticsSlimQuery.isLoading);
+
+  // v1.16.9 — the greeting paragraph moved off the header into the
+  // hero band (it derives from the snapshot's server-computed
+  // `greetingHour`, so the old client-side Intl hour walk retired
+  // with it). The hero gates on the layout's `heroVisible` flag
+  // (default on; anything but the literal `false` renders) and holds
+  // a footprint-identical skeleton while the snapshot is in flight,
+  // so the band swaps in place — no growth, no greeting flash. When
+  // the hero does NOT render (toggle off, or snapshot flag off) the
+  // header takes the greeting back — it must never disappear with the
+  // band.
+  const heroVisible = snapshotEnabled && layout.heroVisible !== false;
+  const heroSnapshot = snapshotQuery.data;
 
   return (
     <div className="space-y-6">
       <DashboardHeader
-        welcomeText={welcomeText}
         onQuickEntry={setQuickEntryDialog}
+        showGreeting={!heroVisible}
       />
+
+      {heroVisible &&
+        (primaryLoading || !heroSnapshot ? (
+          <DashboardHeroSkeleton />
+        ) : (
+          <DashboardHero
+            snapshot={heroSnapshot}
+            onQuickEntry={setQuickEntryDialog}
+          />
+        ))}
 
       {/* v1.4.15 Phase B5 — spotlight tour for first-time users.
        * Self-gates on `user.onboardingTourCompleted` (DB flag) plus
@@ -1403,24 +1417,9 @@ export default function DashboardPage() {
         // strip tile) and undercounted `bp` (one widget id, two tiles),
         // so the silhouettes reshuffled when the data landed.
         const configuredTileCount = resolveConfiguredTileCount(layout);
-        // v1.7.0 — the primary data source differs by flag. In snapshot
-        // mode `analyticsSlimQuery` is `enabled: false`, and a disabled
-        // TanStack query reports `fetchStatus: "idle"` → `isLoading` is
-        // always `false`. Gating the skeleton on the slim query then
-        // never fires under snapshot mode, so the empty-state branch
-        // below flashes for the whole snapshot fetch. Key the loading
-        // flag off whichever query is actually driving the tiles.
-        // v1.16.4 — `!mounted` pins the SSR pass AND the hydration
-        // render to the skeleton branch. Server-side the data queries
-        // are `enabled: false` (no auth) → `isLoading: false`, which
-        // used to select the empty state; a late-hydrating boundary
-        // then saw `isAuthenticated` already resolved and rendered the
-        // skeleton instead — React #418. See `useMounted`.
-        const primaryLoading =
-          !mounted ||
-          (snapshotEnabled
-            ? snapshotQuery.isLoading
-            : analyticsSlimQuery.isLoading);
+        // `primaryLoading` is derived once in the component body (above
+        // the return) — the hero band and this strip share the same
+        // gate so both surfaces swap in the same render pass.
         // v1.16.8 — chart-row reservation while the snapshot is in
         // flight. The chart visibility gates above need snapshot data
         // (`count > 0`), so the cold chart row only carried the

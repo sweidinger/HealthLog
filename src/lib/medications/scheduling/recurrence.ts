@@ -117,6 +117,18 @@ export interface RecurrenceContext {
    * Latest `MedicationIntakeEvent.takenAt` for this medication.
    * Used only by rolling schedules. Null when the user has never
    * logged an intake (rolling then anchors on `startsOn ?? createdAt`).
+   *
+   * Skip semantics (documented decision, v1.16.9): a deliberate SKIP
+   * does NOT advance the rolling anchor. A skipped row carries
+   * `takenAt: null`, so every `lastIntakeAt` feeder query
+   * (`takenAt: { not: null }`) excludes it by construction, and the
+   * next due stays `previous take + N` — the skipped dose keeps
+   * surfacing as due until a real take re-anchors the grid. Advancing
+   * the anchor from the skipped instant instead would silently shift
+   * the whole future grid off the user's established rhythm; if that
+   * trade-off is ever revisited, every `lastIntakeAt` feeder (the
+   * projector, the reminder worker, the list route, the write-path
+   * resolvers, the dedup pass) must change together.
    */
   lastIntakeAt: Date | null;
 }

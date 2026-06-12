@@ -274,6 +274,36 @@
     },
     "welcomeBack": "{greeting}, content de te revoir.",
     "welcomeBackWithName": "{greeting} {name}, content de te revoir.",
+    "hero": {
+      "scoreLabel": "Health Score",
+      "scoreProvisional": "Pas encore assez de données",
+      "doses": {
+        "summary": "{taken} dose(s) prise(s) sur {scheduled}",
+        "nextAt": "Prochaine à {time}",
+        "allDone": "Toutes les doses du jour sont prises",
+        "none": "Aucune dose prévue aujourd’hui"
+      },
+      "verdict": {
+        "doseOverdue": "Une dose de {name} est en retard.",
+        "doseOverdueNoName": "Une dose est en retard.",
+        "bpHigh": "Votre dernière tension était très élevée ({sys}/{dia}). Reprenez une mesure au calme.",
+        "doseUpcoming": "{name} est prévu à {time}.",
+        "doseUpcomingNoName": "Une dose est prévue à {time}.",
+        "weightDrift": "Votre poids s’éloigne de la plage cible cette semaine.",
+        "shortNights": "Vos nuits ont été courtes récemment — {hours} h en moyenne.",
+        "silence": "Aucune mesure depuis {days} jours. Une saisie rapide garde votre tableau à jour.",
+        "scoreDrop": "Votre score est {points} points sous la semaine dernière.",
+        "allQuiet": "Tout est calme — rien ne demande votre attention aujourd’hui."
+      },
+      "action": {
+        "takeDose": "Enregistrer maintenant",
+        "viewBp": "Voir la tension",
+        "viewWeight": "Voir le poids",
+        "viewSleep": "Voir le sommeil",
+        "logMeasurement": "Saisir une mesure",
+        "viewInsights": "Ouvrir Insights"
+      }
+    },
     "greetingSalutation": "Bonjour, {name}",
     "streakLabel": "jours d’affilée",
     "weight": "Poids",
@@ -323,6 +353,8 @@
     "compliance7d": "Observance (7 jours)",
     "mood": "Humeur",
     "customizeTitle": "Mise en page du tableau",
+    "heroToggleLabel": "Aperçu du jour",
+    "heroToggleDescription": "Affiche le message d’accueil, le score, le focus du jour et l’état des doses tout en haut du tableau de bord.",
     "layoutReset": "Rétablir les valeurs par défaut",
     "layoutSaveSuccess": "Mise en page enregistrée",
     "layoutSaveError": "Impossible d’enregistrer la mise en page",
@@ -730,6 +762,8 @@
     "withoutNotification": "Sans notification",
     "pausedSince": "En pause depuis",
     "takeNow": "Prendre maintenant",
+    "lastDoseYesterday": "Dernière dose hier",
+    "lastDoseDaysAgo": "Dernière dose il y a {count} jours",
     "overdue": "En retard",
     "veryOverdue": "Très en retard",
     "compliance7d": "Observance 7 jours",

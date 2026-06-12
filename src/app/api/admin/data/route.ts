@@ -5,6 +5,7 @@ import { apiSuccess, apiError, getClientIp } from "@/lib/api-response";
 import { annotate } from "@/lib/logging/context";
 import { checkRateLimit, rateLimitHeaders } from "@/lib/rate-limit";
 import { NextRequest, NextResponse } from "next/server";
+import { invalidateAllCaches } from "@/lib/cache/invalidate";
 
 export const dynamic = "force-dynamic";
 
@@ -104,6 +105,10 @@ export const DELETE = apiHandler(async (request: NextRequest) => {
     ipAddress: getClientIp(request),
     details: result,
   });
+
+  // v1.16.9 — the wipe touched every user's rows; clear every cache
+  // bucket so no per-user payload survives the reset.
+  invalidateAllCaches();
 
   return apiSuccess({ cleared: true, ...result });
 });

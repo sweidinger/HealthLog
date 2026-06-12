@@ -30,6 +30,63 @@ import { DOSE_WINDOW_DEFAULTS } from "@/lib/medications/scheduling/dose-window-d
 const RESOLVE_RADIUS_MS = 6 * 60 * 60 * 1000;
 
 /**
+ * v1.16.9 — exact-match slop for an AD-HOC row. An ad-hoc take anchors
+ * `scheduledFor = takenAt` on its own instant, so it can only resolve a
+ * slot it actually sits on (sub-minute drift absorbed); letting it use
+ * the ±6h radius hid genuinely-due slots — a 14:30 ad-hoc take resolved
+ * tonight's 20:00 dose while the ledger still counted that slot missed.
+ */
+const ADHOC_RESOLVE_EPSILON_MS = 60 * 1000;
+
+/**
+ * A row that resolves a slot (taken / deliberately skipped /
+ * cron-auto-missed), with its anchoring shape preserved.
+ *
+ * `slotAnchored: false` marks the ad-hoc shape (`scheduledFor ===
+ * takenAt`): such a row resolves a slot only on a near-exact anchor
+ * match, never across the ±6h radius. Slot-anchored rows (the write
+ * paths snap their `scheduledFor` to the canonical slot instant) keep
+ * the defensive radius.
+ */
+export interface ResolvedSlotMark {
+  at: Date;
+  slotAnchored: boolean;
+}
+
+/**
+ * Map a resolved intake row to its `ResolvedSlotMark`. The ad-hoc shape
+ * is detectable only for taken rows (`scheduledFor === takenAt` to the
+ * millisecond — the documented standalone-insert contract); skips and
+ * auto-misses anchor on their slot by construction.
+ */
+export function toResolvedSlotMark(row: {
+  scheduledFor: Date;
+  takenAt: Date | null;
+}): ResolvedSlotMark {
+  return {
+    at: row.scheduledFor,
+    slotAnchored:
+      row.takenAt === null ||
+      row.takenAt.getTime() !== row.scheduledFor.getTime(),
+  };
+}
+
+function buildIsResolved(
+  resolved: ResolvedSlotMark[],
+): (slotAt: Date) => boolean {
+  return (slotAt: Date): boolean => {
+    const slot = slotAt.getTime();
+    for (const r of resolved) {
+      const radius = r.slotAnchored
+        ? RESOLVE_RADIUS_MS
+        : ADHOC_RESOLVE_EPSILON_MS;
+      if (Math.abs(r.at.getTime() - slot) <= radius) return true;
+    }
+    return false;
+  };
+}
+
+/**
  * v1.16.4 — how far back the open-overdue search mints bands. The widest
  * possible band reach is a weekly slot's on-time half-width plus its
  * overdue tail (1 + 4 days); one spare day absorbs DST / timezone skew.
@@ -57,21 +114,15 @@ export function computeNextDueAt(input: {
    * these so a twice-daily med whose remaining slots today are all logged
    * advances to the next genuinely-open slot (tomorrow's first dose) instead
    * of re-surfacing a resolved present/past slot. Omit for the legacy
-   * purely-time-anchored next-due.
+   * purely-time-anchored next-due. v1.16.9 — each mark carries its
+   * anchoring shape; ad-hoc rows only resolve on a near-exact match.
    */
-  resolvedSlots?: Date[];
+  resolvedSlots?: ResolvedSlotMark[];
 }): Date | null {
   const { medication, schedules, now, userTz, lastIntakeAt } = input;
   if (schedules.length === 0) return null;
 
-  const resolved = input.resolvedSlots ?? [];
-  const isResolved = (slotAt: Date): boolean => {
-    const slot = slotAt.getTime();
-    for (const r of resolved) {
-      if (Math.abs(r.getTime() - slot) <= RESOLVE_RADIUS_MS) return true;
-    }
-    return false;
-  };
+  const isResolved = buildIsResolved(input.resolvedSlots ?? []);
 
   const ctx = buildRecurrenceContext({ medication, userTz, lastIntakeAt });
   let earliest: Date | null = null;
@@ -113,7 +164,7 @@ export interface ComputeDisplayDueInput {
   now: Date;
   userTz: string;
   lastIntakeAt: Date | null;
-  resolvedSlots?: Date[];
+  resolvedSlots?: ResolvedSlotMark[];
   /**
    * Floor of the CURRENT schedule era (the newest revision's `validUntil`),
    * when the medication has archived revisions. The overdue search mints
@@ -148,14 +199,7 @@ function findOpenOverdueSlot(input: ComputeDisplayDueInput): Date | null {
   const { medication, schedules, now, userTz, lastIntakeAt } = input;
   if (schedules.length === 0) return null;
 
-  const resolved = input.resolvedSlots ?? [];
-  const isResolved = (slotAt: Date): boolean => {
-    const slot = slotAt.getTime();
-    for (const r of resolved) {
-      if (Math.abs(r.getTime() - slot) <= RESOLVE_RADIUS_MS) return true;
-    }
-    return false;
-  };
+  const isResolved = buildIsResolved(input.resolvedSlots ?? []);
 
   let floor = new Date(now.getTime() - OVERDUE_LOOKBACK_MS);
   if (input.eraStart && input.eraStart.getTime() > floor.getTime()) {

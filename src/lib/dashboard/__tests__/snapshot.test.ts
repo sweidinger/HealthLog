@@ -21,6 +21,8 @@ const ensureUserMoodRollupsFresh = vi.fn();
 const computeBpInTargetFastPath = vi.fn();
 const getAssistantFlags = vi.fn();
 const hasAnyConfiguredProvider = vi.fn();
+const buildMedsTodayBlock = vi.fn();
+const computeUserHealthScoreFastPath = vi.fn();
 
 vi.mock("@/lib/analytics/summaries-slice", () => ({
   computeSummariesSlice: (...a: unknown[]) => computeSummariesSlice(...a),
@@ -45,6 +47,15 @@ vi.mock("@/lib/feature-flags", () => ({
 // test never touches the real provider module (prisma / crypto imports).
 vi.mock("@/lib/ai/provider", () => ({
   hasAnyConfiguredProvider: (...a: unknown[]) => hasAnyConfiguredProvider(...a),
+}));
+// Meds-today + health-score builders are tested in their own suites;
+// here only the assembly contract (fast vs warm phase) is pinned.
+vi.mock("@/lib/dashboard/meds-today", () => ({
+  buildMedsTodayBlock: (...a: unknown[]) => buildMedsTodayBlock(...a),
+}));
+vi.mock("@/lib/analytics/health-score-fast-path", () => ({
+  computeUserHealthScoreFastPath: (...a: unknown[]) =>
+    computeUserHealthScoreFastPath(...a),
 }));
 
 import {
@@ -112,6 +123,16 @@ beforeEach(() => {
   fakePrisma.measurement.findMany.mockResolvedValue([]);
   fakePrisma.moodEntry.findMany.mockResolvedValue([]);
   hasAnyConfiguredProvider.mockResolvedValue(true);
+  buildMedsTodayBlock.mockResolvedValue({
+    activeCount: 1,
+    scheduledToday: 2,
+    takenToday: 1,
+    skippedToday: 0,
+    nextDueAt: null,
+    nextDueOverdue: false,
+    nextDueMedicationName: null,
+  });
+  computeUserHealthScoreFastPath.mockResolvedValue(null);
 });
 
 describe("buildDashboardSnapshot — envelope shape", () => {
@@ -192,6 +213,104 @@ describe("buildDashboardSnapshot — two-phase null extras", () => {
     expect(computeBpInTargetFastPath).not.toHaveBeenCalled();
     // The glucose findMany (part of the thick read) must NOT have fired.
     expect(fakePrisma.measurement.findMany).not.toHaveBeenCalled();
+  });
+});
+
+describe("buildDashboardSnapshot — medsToday (fast phase)", () => {
+  it("rides the fast phase and is present even on a rollup-coverage miss", async () => {
+    probeRollupCoverage.mockResolvedValue(new Map([["WEIGHT", false]]));
+    isFullyCovered.mockReturnValue(false);
+
+    const snap = await buildDashboardSnapshot(fakePrisma, baseUser());
+
+    expect(snap.medsToday).toEqual({
+      activeCount: 1,
+      scheduledToday: 2,
+      takenToday: 1,
+      skippedToday: 0,
+      nextDueAt: null,
+      nextDueOverdue: false,
+      nextDueMedicationName: null,
+    });
+    // Built from the user's id + timezone, not from any body field.
+    expect(buildMedsTodayBlock).toHaveBeenCalledWith(
+      fakePrisma,
+      "user-1",
+      "Europe/Berlin",
+      expect.any(Date),
+    );
+  });
+});
+
+describe("buildDashboardSnapshot — healthScore (warm phase only)", () => {
+  it("is null on a rollup-coverage miss and the fast path never runs", async () => {
+    probeRollupCoverage.mockResolvedValue(new Map([["WEIGHT", false]]));
+    isFullyCovered.mockReturnValue(false);
+
+    const snap = await buildDashboardSnapshot(fakePrisma, baseUser());
+
+    expect(snap.healthScore).toBeNull();
+    expect(computeUserHealthScoreFastPath).not.toHaveBeenCalled();
+  });
+
+  it("serialises score + band + delta — and ONLY those — when warm", async () => {
+    const coverageMap = new Map([["WEIGHT", true]]);
+    probeRollupCoverage.mockResolvedValue(coverageMap);
+    isFullyCovered.mockReturnValue(true);
+    computeBpInTargetFastPath.mockResolvedValue({
+      last7Days: { pct: 70 },
+      last30Days: { pct: 80 },
+      allTime: { pct: 75 },
+      priorMonth: { pct: 60 },
+      priorYear: { pct: 50 },
+      gradedScore: 88,
+    });
+    computeUserHealthScoreFastPath.mockResolvedValue({
+      score: 72,
+      band: "yellow",
+      delta: -12,
+      components: { bp: {}, weight: {}, mood: {}, compliance: {} },
+    });
+
+    const snap = await buildDashboardSnapshot(fakePrisma, baseUser());
+
+    // Score + band + delta only — components never reach the wire.
+    expect(snap.healthScore).toEqual({ score: 72, band: "yellow", delta: -12 });
+
+    // The fast path reuses the BP windows + coverage map already
+    // computed for `extras` (no re-probe, graded score threaded).
+    expect(computeUserHealthScoreFastPath).toHaveBeenCalledTimes(1);
+    const arg = computeUserHealthScoreFastPath.mock.calls[0][0] as {
+      userId: string;
+      bpInTargetPct: number | null;
+      bpGradedScore: number | null;
+      heightCm: number | null;
+      coverage: unknown;
+    };
+    expect(arg.userId).toBe("user-1");
+    expect(arg.bpInTargetPct).toBe(80);
+    expect(arg.bpGradedScore).toBe(88);
+    expect(arg.heightCm).toBe(180);
+    expect(arg.coverage).toBe(coverageMap);
+  });
+
+  it("is null when warm but no pillar is computable (fast path returns null)", async () => {
+    probeRollupCoverage.mockResolvedValue(new Map([["WEIGHT", true]]));
+    isFullyCovered.mockReturnValue(true);
+    computeBpInTargetFastPath.mockResolvedValue({
+      last7Days: null,
+      last30Days: null,
+      allTime: null,
+      priorMonth: null,
+      priorYear: null,
+      gradedScore: null,
+    });
+    computeUserHealthScoreFastPath.mockResolvedValue(null);
+
+    const snap = await buildDashboardSnapshot(fakePrisma, baseUser());
+
+    expect(snap.extras).not.toBeNull();
+    expect(snap.healthScore).toBeNull();
   });
 });
 
@@ -507,6 +626,8 @@ describe("buildDashboardSnapshot — additive proof", () => {
     expect(snap).toHaveProperty("metricStates");
     expect(snap).toHaveProperty("layoutCatalogue");
     expect(snap).toHaveProperty("briefingStale");
+    expect(snap).toHaveProperty("medsToday");
+    expect(snap).toHaveProperty("healthScore");
 
     // The web-consumed `layout` block is the resolved per-user layout —
     // NOT replaced by the 35-id catalogue.
