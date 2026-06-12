@@ -154,6 +154,18 @@ export function MedicationCardBody({
         ? t("medications.overdue")
         : null;
 
+  // v1.16.11 — the plain take-now prompt rides the "next intake" row as
+  // its right-aligned value ("Nächste Einnahme: ✓ Jetzt einnehmen —
+  // 20:00–22:00") instead of a standalone line above the slot, so the
+  // card keeps one label/value grammar whether a window is open or not.
+  // The escalation tiers (late / very-late / taken-early) stay on the
+  // top line — they are interruptions, not schedule values.
+  const takeNowOnNextLine =
+    windowStatus !== null &&
+    windowStatus.status === "in_window" &&
+    windowStatus.takenEarlyDaysAgo == null &&
+    overdueLabel === null;
+
   return (
     <Card
       // The card surface is a constant neutral surface — dose status is never
@@ -195,7 +207,7 @@ export function MedicationCardBody({
               <AlertTriangle className="size-3.5 shrink-0" aria-hidden="true" />
               {overdueLabel}
             </p>
-          ) : windowStatus ? (
+          ) : windowStatus && !takeNowOnNextLine ? (
             <MedicationStatusPill
               status={windowStatus.status}
               windowStart={windowStatus.windowStart}
@@ -204,8 +216,23 @@ export function MedicationCardBody({
           ) : null}
         </div>
 
-        {/* Next / last intake — the two decisive lines, each shown once. */}
-        <MedicationNextLastSlot next={nextLine} last={lastLine} />
+        {/* Next / last intake — the two decisive lines, each shown once.
+            An open take-window renders as the next-intake value. */}
+        <MedicationNextLastSlot
+          next={
+            takeNowOnNextLine ? (
+              <MedicationStatusPill
+                status={windowStatus.status}
+                windowStart={windowStatus.windowStart}
+                windowEnd={windowStatus.windowEnd}
+                inline
+              />
+            ) : (
+              nextLine
+            )
+          }
+          last={lastLine}
+        />
 
         {/* Compliance bars — always two rows; constant-height skeleton holds
             the slot while the query is in flight so the grid row stays even.
