@@ -2,6 +2,21 @@
 
 ## [Unreleased]
 
+## [1.16.9] — 2026-06-12 — the day opens with a verdict, and every dose path tells the truth
+
+### Added
+
+- **The dashboard opens with a daily band.** Greeting, the one item that matters right now — a fresh crisis-level blood-pressure reading, an overdue or upcoming dose, weight drifting from its range, a run of short nights, a quiet stretch, a score drop, or the briefing's key finding — with a single action, today's dose tally beside the next due time, and the health score as a ring. The verdict resolves from a fixed ladder with crisis floors that ignore personal target ranges, it never invites a dose the server has not called due, and the band can be turned off under dashboard settings, where the plain greeting then returns to the header.
+
+### Fixed
+
+- **An intake recorded through the external API now credits the due slot.** The ingest endpoint was the one intake path that stored a bare row beside the pending slot — the card showed the intake as the last dose while still demanding it, and the ledger later counted a miss. It attributes to the dose band like every other path now, the Telegram confirm and skip buttons converge onto the reminder's own slot, and a nightly pass heals the pairs this has already produced — both days' history and compliance recompute, no manual repair needed.
+- **A cached page can no longer contradict an action you just took.** Invalidation now fences in-flight cache builds, so a read can neither join a build that started before your write nor have a background refresh re-store the pre-write state as fresh.
+- **Dose prompts err on the safe side everywhere.** A take shortly before the window credits the slot instead of floating loose, an off-schedule intake can no longer silently resolve a different slot and hide a genuinely due dose, a long-interval dose taken on an earlier day downgrades the slot-day prompt to "last dose n days ago" instead of inviting a double dose, and the overdue badge no longer disappears because the day's pending entries were counted as actions.
+- Intake times entered retroactively carry the same plausibility bounds as edits, moving a dose across a slot boundary keeps its recorded injection site and dose, both affected days recompute, and schedule corrections, data wipes and backup restores refresh the caches they feed.
+- The medication cards, the quick-entry preselection and the dose pills compute their clock in the profile timezone instead of a fixed one.
+- WHOOP credentials are trimmed on save — a stray space from the portal's copy button read as an unknown client — and an empty redirect override falls back to the derived callback URL.
+
 ## [1.16.8] — 2026-06-12 — texts that follow your data, charts that never strand
 
 ### Added
