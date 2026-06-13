@@ -283,6 +283,41 @@ describe("consumeForIntake", () => {
     );
   });
 
+  it("consumes a FRACTION of a unit for a split-pill dose, stamps the fraction, and refunds it exactly on undo (v1.16.12 #316)", async () => {
+    const state: FakeState = {
+      unitsPerDose: 0.5,
+      events: [takenEvent()],
+      items: [
+        item({
+          id: "open",
+          state: "IN_USE",
+          unitsTotal: 30,
+          unitsRemaining: 30,
+          firstUseAt: new Date(NOW.getTime() - 3 * MS_PER_DAY),
+          expiresAt: new Date(NOW.getTime() + 27 * MS_PER_DAY),
+        }),
+      ],
+    };
+    const client = makeClient(state);
+    await consumeForIntake(consumeArgs(client));
+
+    // 30 tablets dosed at ½ each leaves 29.5 — the fraction is NOT floored.
+    expect(state.items[0].unitsRemaining).toBe(29.5);
+    expect(state.items[0].state).toBe("IN_USE");
+    expect(state.events[0].inventoryConsumption).toEqual([
+      { itemId: "open", units: 0.5 },
+    ]);
+
+    // Undo refunds exactly the 0.5 it consumed and clears the stamp.
+    await restoreForIntake({
+      client: client as never,
+      userId: "user-1",
+      eventId: "evt-1",
+    });
+    expect(state.items[0].unitsRemaining).toBe(30);
+    expect(state.events[0].inventoryConsumption).toBeNull();
+  });
+
   it("prefers the IN_USE container over fresher ACTIVE stock", async () => {
     const state: FakeState = {
       unitsPerDose: 1,

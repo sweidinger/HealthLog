@@ -700,7 +700,9 @@ export function buildCreateBody(
       : committed.schedules;
 
   const parsedDosesPerUnit = Number.parseInt(committed.dosesPerUnit, 10);
-  const parsedUnitsPerDose = Number.parseInt(committed.unitsPerDose, 10);
+  // v1.16.12 — fractional dosing: parse as a float (½ → 0.5) and gate at
+  // > 0, not the old integer `>= 1`, so a split-pill dose survives.
+  const parsedUnitsPerDose = Number.parseFloat(committed.unitsPerDose);
   const body: CreateMedicationBody = {
     name: committed.name.trim(),
     dose,
@@ -714,7 +716,7 @@ export function buildCreateBody(
     // v1.16.10 — always sent when valid (an edit back to 1 must reach
     // the server; the create default matches the schema default).
     ...(Number.isFinite(parsedUnitsPerDose) &&
-      parsedUnitsPerDose >= 1 && {
+      parsedUnitsPerDose > 0 && {
         unitsPerDose: parsedUnitsPerDose,
       }),
     // v1.8.5 — injection-site tracking is only meaningful for an
@@ -1064,7 +1066,7 @@ export function hydrateWizardPayload(initial: MedicationPayload): WizardPayload 
         ? String(initial.dosesPerUnit)
         : "",
     unitsPerDose:
-      typeof initial.unitsPerDose === "number" && initial.unitsPerDose >= 1
+      typeof initial.unitsPerDose === "number" && initial.unitsPerDose > 0
         ? String(initial.unitsPerDose)
         : "1",
     trackInjectionSites: initial.trackInjectionSites ?? false,

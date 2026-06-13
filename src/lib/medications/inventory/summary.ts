@@ -47,7 +47,9 @@ export function summariseSupply(
   items: readonly SupplyItem[],
   unitsPerDose: number,
 ): SupplySummary {
-  const perDose = Math.max(1, unitsPerDose);
+  // v1.16.12 — guard at > 0, NOT ≥ 1: a fractional unitsPerDose (½ tablet
+  // per dose) must stay fractional, else the dose-derived counts halve.
+  const perDose = unitsPerDose > 0 ? unitsPerDose : 1;
   const available = items.filter(isAvailableSupply);
   const unitsRemaining = available.reduce(
     (sum, item) => sum + item.unitsRemaining,

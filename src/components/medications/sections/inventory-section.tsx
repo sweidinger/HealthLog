@@ -64,6 +64,7 @@ import {
 import { SettingsGroup } from "@/components/medications/settings-group";
 import { useTranslations } from "@/lib/i18n/context";
 import { queryKeys } from "@/lib/query-keys";
+import { formatUnitCount } from "@/components/medications/units-per-dose";
 import {
   apiDelete,
   apiGet,
@@ -144,7 +145,9 @@ export function InventorySection({
     }
   }
 
-  const perDose = Math.max(1, unitsPerDose ?? 1);
+  // v1.16.12 — guard at > 0, NOT ≥ 1: a fractional unitsPerDose (½ tablet
+  // per dose) must stay fractional or the dose-derived counts halve.
+  const perDose = unitsPerDose && unitsPerDose > 0 ? unitsPerDose : 1;
 
   const { data, isLoading } = useQuery<InventoryResponse>({
     queryKey: queryKeys.medicationInventory(medicationId),
@@ -152,6 +155,10 @@ export function InventorySection({
       return apiGet<InventoryResponse>(`/api/medications/${medicationId}/inventory`);
     },
     staleTime: 30_000,
+    // v1.16.12 (#316) — fresh on every mount so reopening the supply tab
+    // reflects stock changed elsewhere (a dose on another device, a
+    // refill) without a manual reload.
+    refetchOnMount: "always",
   });
 
   // v1.16.11 — the low-stock alert threshold, for the cross-link row
@@ -262,11 +269,11 @@ export function InventorySection({
         <div className="flex items-center justify-between gap-3 py-3">
           <p className="text-foreground text-sm font-medium">
             {t("medications.detail.bestand.summary", { remaining, total })}
-            {perDose > 1 && (
+            {perDose !== 1 && (
               <span className="text-muted-foreground block text-xs font-normal">
                 {t("medications.detail.bestand.unitsDetail", {
-                  remaining: remainingUnits,
-                  total: totalUnits,
+                  remaining: formatUnitCount(remainingUnits),
+                  total: formatUnitCount(totalUnits),
                 })}
               </span>
             )}
@@ -367,12 +374,12 @@ export function InventorySection({
                     remaining: Math.floor(item.unitsRemaining / perDose),
                     total: Math.floor(item.unitsTotal / perDose),
                   })}
-                  {perDose > 1 && (
+                  {perDose !== 1 && (
                     <>
                       {" · "}
                       {t("medications.detail.bestand.unitsDetail", {
-                        remaining: item.unitsRemaining,
-                        total: item.unitsTotal,
+                        remaining: formatUnitCount(item.unitsRemaining),
+                        total: formatUnitCount(item.unitsTotal),
                       })}
                     </>
                   )}
@@ -648,8 +655,9 @@ function AdjustInventoryDialog({
   const [busy, setBusy] = useState(false);
 
   const parsed = Number(value);
+  // v1.16.12 — fractional remaining allowed (a ½-tablet dose leaves 29.5).
   const valid =
-    Number.isInteger(parsed) && parsed >= 0 && parsed <= item.unitsTotal;
+    Number.isFinite(parsed) && parsed >= 0 && parsed <= item.unitsTotal;
 
   async function submit(e: FormEvent) {
     e.preventDefault();
@@ -694,10 +702,10 @@ function AdjustInventoryDialog({
             <Input
               id="inventory-adjust-remaining"
               type="number"
-              inputMode="numeric"
+              inputMode="decimal"
               min={0}
               max={item.unitsTotal}
-              step={1}
+              step="any"
               required
               autoComplete="off"
               value={value}

@@ -51,6 +51,28 @@ export async function expireStaleInUseItems(input: {
 }
 
 /**
+ * v1.16.12 (#316) — Prisma serialises a Decimal column to a JSON STRING,
+ * but the API contract (and the iOS client) read an inventory item's
+ * `unitsTotal` / `unitsRemaining` as numbers. Convert at every response
+ * boundary that returns an item, so a fractional remainder (29.5 after a
+ * half-tablet dose) lands as a JSON number, never `"29.5"`.
+ */
+export function serializeInventoryItem<
+  T extends { unitsTotal: unknown; unitsRemaining: unknown },
+>(
+  item: T,
+): Omit<T, "unitsTotal" | "unitsRemaining"> & {
+  unitsTotal: number;
+  unitsRemaining: number;
+} {
+  return {
+    ...item,
+    unitsTotal: Number(item.unitsTotal),
+    unitsRemaining: Number(item.unitsRemaining),
+  };
+}
+
+/**
  * Helper for the POST /[medId]/inventory route. Composes the
  * Prisma-create with the computed `expiresAt` so the caller doesn't
  * have to re-derive it.

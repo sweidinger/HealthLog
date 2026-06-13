@@ -394,15 +394,15 @@ export async function buildGlp1SnapshotBlock(
       const usable = med.inventoryItems.filter(
         (item) =>
           (item.state === "ACTIVE" || item.state === "IN_USE") &&
-          item.unitsRemaining > 0,
+          Number(item.unitsRemaining) > 0,
       );
       const unitsRemaining = usable.reduce(
-        (sum, item) => sum + item.unitsRemaining,
+        (sum, item) => sum + Number(item.unitsRemaining),
         0,
       );
       pensRemaining = usable.length;
       dosesRemaining = Math.floor(
-        unitsRemaining / Math.max(1, med.unitsPerDose),
+        unitsRemaining / (Number(med.unitsPerDose) || 1),
       );
       weeksOfSupplyApprox = Math.round(dosesRemaining / dosesPerWeek);
     } else if (med.dosesPerUnit && med.inventoryEvents.length > 0) {

@@ -1120,7 +1120,7 @@
           "injectionSiteHint": "Guía de rotación opcional. El sitio de cada dosis se registra al anotar la toma.",
           "short": "Dosis",
           "unitsPerDoseLabel": "Unidades por dosis",
-          "unitsPerDoseHint": "p. ej., 2 comprimidos de 2 mg para una dosis de 4 mg"
+          "unitsPerDoseHint": "p. ej., 2 comprimidos de 2 mg para una dosis de 4 mg, o ½ comprimido para una dosis partida"
         },
         "step4": {
           "title": "¿Durante qué periodo lo tomas?",

@@ -94,7 +94,10 @@ function parseStamp(value: Prisma.JsonValue | null): InventoryConsumptionEntry[]
     ) {
       entries.push({
         itemId: (raw as { itemId: string }).itemId,
-        units: Math.floor((raw as { units: number }).units),
+        // v1.16.12 — the stamp carries FRACTIONAL units (½ tablet per
+        // dose), so it is no longer floored: refunding a split-pill dose
+        // must return the exact 0.5 it consumed.
+        units: (raw as { units: number }).units,
       });
     }
   }
@@ -165,7 +168,13 @@ export async function consumeForIntake(input: {
         select: { unitsPerDose: true },
       });
       if (!medication) return;
-      const unitsPerDose = Math.max(1, medication.unitsPerDose);
+      // v1.16.12 — Decimal column; a dose may consume a FRACTION of a
+      // unit (½ / ¼ tablet for a split pill). Convert to a JS number for
+      // the arithmetic below (unit counts stay well within double
+      // precision) and gate at > 0, NOT at ≥ 1 — the old `Math.max(1, …)`
+      // clamp would silently turn a half-tablet dose back into a whole one.
+      const unitsPerDose = Number(medication.unitsPerDose);
+      if (!(unitsPerDose > 0)) return;
 
       // Candidate containers, in consumption order: the open container
       // first (earliest in-use deadline), then FEFO over unopened
@@ -211,12 +220,12 @@ export async function consumeForIntake(input: {
 
       for (const item of [...inUse, ...active]) {
         if (owed <= 0) break;
-        const take = Math.min(owed, item.unitsRemaining);
+        const take = Math.min(owed, Number(item.unitsRemaining));
         if (take <= 0) continue;
 
         const wasUnopened = item.firstUseAt === null;
         const nextFirstUseAt = item.firstUseAt ?? intakeAt;
-        const nextUnitsRemaining = item.unitsRemaining - take;
+        const nextUnitsRemaining = Number(item.unitsRemaining) - take;
         const nextExpiresAt = computeExpiresAt(
           nextFirstUseAt,
           item.printedExpiry,
@@ -224,7 +233,7 @@ export async function consumeForIntake(input: {
         const nextState = computeInventoryState(
           {
             state: item.state,
-            unitsTotal: item.unitsTotal,
+            unitsTotal: Number(item.unitsTotal),
             unitsRemaining: nextUnitsRemaining,
             firstUseAt: nextFirstUseAt,
             printedExpiry: item.printedExpiry,
@@ -345,14 +354,14 @@ export async function restoreForIntake(input: {
         if (!item) continue; // container deleted since — nothing to refund.
 
         const nextUnitsRemaining = Math.min(
-          item.unitsTotal,
-          item.unitsRemaining + entry.units,
+          Number(item.unitsTotal),
+          Number(item.unitsRemaining) + entry.units,
         );
-        const refundedHere = nextUnitsRemaining - item.unitsRemaining;
+        const refundedHere = nextUnitsRemaining - Number(item.unitsRemaining);
         const nextState = computeInventoryState(
           {
             state: item.state,
-            unitsTotal: item.unitsTotal,
+            unitsTotal: Number(item.unitsTotal),
             unitsRemaining: nextUnitsRemaining,
             firstUseAt: item.firstUseAt,
             printedExpiry: item.printedExpiry,

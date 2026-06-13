@@ -1120,7 +1120,7 @@
           "injectionSiteHint": "Guida alla rotazione facoltativa. Il sito di ogni dose viene registrato al momento della registrazione dell'assunzione.",
           "short": "Dose",
           "unitsPerDoseLabel": "Unità per dose",
-          "unitsPerDoseHint": "ad es. 2 compresse da 2 mg per una dose da 4 mg"
+          "unitsPerDoseHint": "ad es. 2 compresse da 2 mg per una dose da 4 mg, oppure ½ compressa per una dose divisa"
         },
         "step4": {
           "title": "Per quanto tempo lo assumi?",

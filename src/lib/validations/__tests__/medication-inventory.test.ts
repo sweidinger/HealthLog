@@ -155,6 +155,43 @@ describe("medication schemas — dosesPerUnit cap 1000 + unitsPerDose 1–100", 
       updateMedicationSchema.safeParse({ unitsPerDose: 101 }).success,
     ).toBe(false);
   });
+
+  // v1.16.12 (#316) — fractional dosing: a curated set of split-pill
+  // fractions is accepted alongside the whole numbers; an arbitrary
+  // decimal is NOT (the UI only ever sends a curated value).
+  it("accepts every curated unitsPerDose fraction on create + update", () => {
+    for (const v of [0.25, 0.3333, 0.5, 0.6667, 0.75]) {
+      expect(
+        createMedicationSchema.safeParse({
+          ...MINIMAL_MEDICATION,
+          unitsPerDose: v,
+        }).success,
+      ).toBe(true);
+      expect(updateMedicationSchema.safeParse({ unitsPerDose: v }).success).toBe(
+        true,
+      );
+    }
+  });
+
+  it("rejects an uncurated fractional unitsPerDose", () => {
+    for (const v of [0.333, 0.1, 0.4, 1.5, 2.5]) {
+      expect(
+        createMedicationSchema.safeParse({
+          ...MINIMAL_MEDICATION,
+          unitsPerDose: v,
+        }).success,
+      ).toBe(false);
+    }
+  });
+
+  it("accepts a fractional remaining-stock correction (½-tablet leftover)", () => {
+    expect(
+      updateInventoryItemSchema.safeParse({ unitsRemaining: 29.5 }).success,
+    ).toBe(true);
+    expect(
+      createInventoryItemSchema.safeParse({ unitsTotal: 1.5 }).success,
+    ).toBe(true);
+  });
 });
 
 describe("glp1InventoryPostSchema — the legacy pen-ledger delta keeps ±100", () => {

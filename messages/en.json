@@ -1120,7 +1120,7 @@
           "injectionSiteHint": "Optional rotation guide. The site for each dose is recorded when you log the intake.",
           "short": "Dose",
           "unitsPerDoseLabel": "Units per dose",
-          "unitsPerDoseHint": "e.g. 2 tablets of 2 mg for a 4 mg dose"
+          "unitsPerDoseHint": "e.g. 2 tablets of 2 mg for a 4 mg dose, or ½ a tablet for a split dose"
         },
         "step4": {
           "title": "Over what period are you taking it?",

@@ -28,7 +28,10 @@ import {
 } from "@/lib/api-response";
 import { checkRateLimit, rateLimitHeaders } from "@/lib/rate-limit";
 import { createInventoryItemSchema } from "@/lib/validations/medication";
-import { buildCreateInventoryInput } from "@/lib/medications/inventory/service";
+import {
+  buildCreateInventoryInput,
+  serializeInventoryItem,
+} from "@/lib/medications/inventory/service";
 import { assertMedicationOwnership } from "@/lib/medications/route-guards";
 
 type RouteParams = { params: Promise<{ id: string }> };
@@ -54,7 +57,10 @@ export const GET = apiHandler(
       meta: { medication_id: id, total: items.length },
     });
 
-    return apiSuccess({ items, meta: { total: items.length } });
+    return apiSuccess({
+      items: items.map(serializeInventoryItem),
+      meta: { total: items.length },
+    });
   },
 );
 
@@ -128,6 +134,6 @@ export const POST = apiHandler(
       meta: { medication_id: id },
     });
 
-    return apiSuccess(created, 201);
+    return apiSuccess(serializeInventoryItem(created), 201);
   },
 );

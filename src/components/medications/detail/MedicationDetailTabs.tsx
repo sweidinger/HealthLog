@@ -76,6 +76,7 @@ import { MedicationWizardDialog } from "@/components/medications/wizard/Medicati
 import { parseScheduleRecurrence } from "@/lib/medication-schedule";
 import { useQuery } from "@tanstack/react-query";
 import { queryKeys } from "@/lib/query-keys";
+import { formatUnitCount } from "@/components/medications/units-per-dose";
 import { apiGet } from "@/lib/api/api-fetch";
 import { useTranslations, useFormatters } from "@/lib/i18n/context";
 import type { MedicationPayload } from "@/components/medications/wizard/wizard-payload";
@@ -353,7 +354,12 @@ export function MedicationDetailTabs({
   // Availability rides the shared summary helper (ACTIVE / IN_USE with
   // units only — the list / GLP-1 semantic); expired stock surfaces as
   // a separate muted suffix and never feeds the runway.
-  const perDose = Math.max(1, medication.unitsPerDose ?? 1);
+  // v1.16.12 — guard at > 0, NOT ≥ 1, so a fractional unitsPerDose (½
+  // tablet per dose) stays fractional instead of halving the dose counts.
+  const perDose =
+    medication.unitsPerDose && medication.unitsPerDose > 0
+      ? medication.unitsPerDose
+      : 1;
   const {
     unitsRemaining,
     unitsTotal,
@@ -461,12 +467,12 @@ export function MedicationDetailTabs({
                         remaining: dosesRemaining,
                         total: dosesTotal,
                       })}
-                      {perDose > 1 && (
+                      {perDose !== 1 && (
                         <span className="text-muted-foreground">
                           {" ("}
                           {t("medications.detail.bestand.unitsDetail", {
-                            remaining: unitsRemaining,
-                            total: unitsTotal,
+                            remaining: formatUnitCount(unitsRemaining),
+                            total: formatUnitCount(unitsTotal),
                           })}
                           {")"}
                         </span>

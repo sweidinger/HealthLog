@@ -1282,7 +1282,12 @@ model Medication {
   /// them (2 × 2 mg tablets for a 4 mg dose). The intake consumption
   /// hook multiplies by this factor; dose-level readouts divide by it.
   /// Default 1 = one unit per dose (the overwhelmingly common case).
-  unitsPerDose         Int                @default(1) @map("units_per_dose")
+  /// v1.16.12 (#316) — Decimal, so a dose can consume a FRACTION of a
+  /// unit (½ / ⅓ / ¼ tablet for a split pill). The UI offers a curated
+  /// set of common fractions; the column stores their decimal value
+  /// (¼=0.25, ⅓≈0.3333, ½=0.5, ⅔≈0.6667, ¾=0.75) plus whole numbers.
+  /// Existing integer rows cast losslessly.
+  unitsPerDose         Decimal            @default(1) @map("units_per_dose") @db.Decimal(10, 4)
   active               Boolean            @default(true)
   notificationsEnabled Boolean            @default(true) @map("notifications_enabled")
   pausedAt             DateTime?          @map("paused_at")
@@ -1783,11 +1788,14 @@ model MedicationInventoryItem {
   /// `dosesTotal`; the DB column stays `doses_total`). A unit is one
   /// tablet / ampoule / puff; `Medication.unitsPerDose` maps units to
   /// doses. Mounjaro KwikPen = 4, Trulicity single-dose = 1.
-  unitsTotal     Int                      @map("doses_total")
+  /// v1.16.12 (#316) — Decimal so a split-pill consumption can leave a
+  /// fractional remainder (30 tablets dosed at ½ each reads 29.5 after
+  /// one dose). Existing integer rows cast losslessly.
+  unitsTotal     Decimal                  @map("doses_total") @db.Decimal(12, 4)
   /// Remaining units; decremented by the intake consumption hook
   /// (v1.16.10 — renamed from `dosesRemaining`; column stays
-  /// `doses_remaining`).
-  unitsRemaining Int                      @map("doses_remaining")
+  /// `doses_remaining`). v1.16.12 (#316) — Decimal for fractional dosing.
+  unitsRemaining Decimal                  @map("doses_remaining") @db.Decimal(12, 4)
   /// NULL until the pen is first opened. Sets the 30-day in-use
   /// clock per EMA EPAR §6.3.
   firstUseAt     DateTime?                @map("first_use_at")

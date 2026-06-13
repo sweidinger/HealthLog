@@ -178,6 +178,7 @@ export const GET = apiHandler(
 
     return apiSuccess({
       ...medication,
+      unitsPerDose: Number(medication.unitsPerDose),
       category,
       nextDueAt: display ? display.at.toISOString() : null,
       nextDueOverdue: display?.overdue ?? false,
@@ -710,6 +711,7 @@ export const PUT = apiHandler(
 
     return apiSuccess({
       ...medication,
+      unitsPerDose: Number(medication.unitsPerDose),
       category: normalizedCategory,
     });
   },

@@ -290,8 +290,13 @@ export async function runMedicationLowStockTick(
         summary.medicationsEvaluated += 1;
 
         const evaluation = evaluateMedicationRunway(
-          med.inventoryItems,
-          med.unitsPerDose,
+          // v1.16.12 — Decimal columns → JS numbers for the runway math.
+          med.inventoryItems.map((it) => ({
+            state: it.state,
+            unitsTotal: Number(it.unitsTotal),
+            unitsRemaining: Number(it.unitsRemaining),
+          })),
+          Number(med.unitsPerDose),
           med.schedules,
         );
         const decision = decideLowStockAction({
