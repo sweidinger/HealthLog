@@ -2,6 +2,21 @@
 
 ## [Unreleased]
 
+## [1.16.12] — 2026-06-13 — split doses, steady cards, and a read that stays warm
+
+### Added
+
+- **A dose can consume a fraction of a unit.** Split-pill medications now declare ½, ⅓ or ¼ of a tablet per dose — the wizard offers a curated set of fractions alongside the whole numbers, the most error-resistant input. The supply tracks the fractional remainder (30 tablets dosed at a half each reads 29.5 after one dose), the days-left projection follows, and undoing a dose refunds exactly what it consumed. Existing whole-number doses are untouched; the inventory unit counts widen to decimals across the API contract. (#316)
+
+### Changed
+
+- **The medication cards hold one shape.** The low-supply notice moves onto the adherence row beside the streak — a slot every card already reserves — so a card that is low on stock no longer pushes its bars out of line with the card beside it. The gap between the drug class and the first line tightens at the same time.
+- **The dashboard and insights stay warm between visits.** The analytics and derived-insight reads keep a served-stale snapshot for an hour rather than ten minutes, so returning after a normal break paints instantly and refreshes in the background instead of paying the full cold rebuild — which a visit spaced more than ten minutes apart hit almost every time.
+
+### Fixed
+
+- **The medications list refreshes when you return to it.** Navigating back to the page — or reopening the supply tab — now refetches the list, compliance and stock instead of serving a client cache that could be minutes stale, so a dose logged on another device shows up without a manual reload.
+
 ## [1.16.11] — 2026-06-12 — the supply speaks up, tags find their groups, and nothing asks twice
 
 ### Added
