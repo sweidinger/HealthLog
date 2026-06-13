@@ -447,14 +447,25 @@ export const caches = {
    * via plain `cached` are unaffected: a marked-stale entry has
    * `expiresAt === now`, so their next `cached` read is a clean miss and
    * rebuilds fresh — only the `cachedSwr` snapshot serves stale + warms a
-   * background recompute. The 10-minute stale window bounds how old a
-   * served snapshot can be when no reader triggers a revalidation.
+   * background recompute. The stale window bounds how old a served
+   * snapshot can be when no reader triggers a revalidation.
+   *
+   * v1.16.12 — stale window widened 10 min → 1 h. A single self-hoster
+   * visits the dashboard / insights every ~20-30 min; the old 10-minute
+   * window meant nearly every return landed PAST it (a `miss`, ~1.5 s of
+   * synchronous rebuild) instead of inside it (a `stale`, instant + one
+   * background refresh). Each stale-serve re-inserts, so an active session
+   * stays warm regardless of the exact window; the value only governs how
+   * long an ABSENCE still gets an instant response. 1 h covers a normal
+   * break while keeping the dashboard's time-derived `nextDueOverdue` /
+   * tally drift bounded — and that field already self-corrects within the
+   * snapshot client's 120 s poll and the immediate background refresh.
    */
   analytics: new ServerCache<unknown>({
     name: "analytics",
     maxEntries: 1000,
     ttlMs: 60_000,
-    staleTtlMs: 600_000,
+    staleTtlMs: 3_600_000,
   }),
   /**
    * v1.16.8 — stale-while-revalidate on the list bucket. The 60 s fresh
@@ -596,7 +607,11 @@ export const caches = {
     name: "insightsDerived",
     maxEntries: 2000,
     ttlMs: 60_000,
-    staleTtlMs: 600_000,
+    // v1.16.12 — 10 min → 1 h, same rationale as the analytics bucket: the
+    // derived-insight aggregates are trend data (no time-critical due
+    // state), so a returning visitor serves an instant stale payload +
+    // background refresh instead of a ~1.1 s cold rebuild.
+    staleTtlMs: 3_600_000,
   }),
   /**
    * v1.5.5 — per-user insights tile layout cache. Mirrors
