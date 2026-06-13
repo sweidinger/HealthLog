@@ -99,6 +99,36 @@ export type MedicationTreatmentClass =
   (typeof MEDICATION_TREATMENT_CLASS_VALUES)[number];
 
 /**
+ * v1.16.12 (#316) — fractional dosing. A dose may consume a sub-unit
+ * fraction of a tablet (split pills). The UI offers a CURATED set of
+ * common fractions (¼ ⅓ ½ ⅔ ¾), stored as their decimal value; thirds
+ * are inexact in decimal (⅓ ≈ 0.3333, ⅔ ≈ 0.6667) — the @db.Decimal(10,4)
+ * column and the runway floor absorb the sub-0.0001 drift. Whole numbers
+ * 1..100 (multi-tablet doses, the pre-v1.16.12 contract) stay valid
+ * alongside the fractions. One source of truth — the UI selector and the
+ * tests import this set so the allowed values can never drift from the
+ * validator.
+ */
+export const UNITS_PER_DOSE_FRACTIONS = [
+  0.25, 0.3333, 0.5, 0.6667, 0.75,
+] as const;
+export const UNITS_PER_DOSE_MAX_WHOLE = 100;
+
+export function isSupportedUnitsPerDose(value: number): boolean {
+  if (
+    (UNITS_PER_DOSE_FRACTIONS as readonly number[]).includes(value)
+  ) {
+    return true;
+  }
+  return (
+    Number.isInteger(value) && value >= 1 && value <= UNITS_PER_DOSE_MAX_WHOLE
+  );
+}
+
+const UNITS_PER_DOSE_MESSAGE =
+  "unitsPerDose must be a whole number 1–100 or a supported fraction (¼, ⅓, ½, ⅔, ¾)";
+
+/**
  * v1.6.0 — route of administration. Decoupled from `treatmentClass`:
  * the injection-site picker surfaces for any `INJECTION` dose, and a
  * one-time injection is `oneShot: true` + `deliveryForm: "INJECTION"`.
@@ -489,12 +519,10 @@ export const createMedicationSchema = z
      */
     unitsPerDose: z
       .number()
-      .int()
-      .min(1)
-      .max(100)
+      .refine(isSupportedUnitsPerDose, { message: UNITS_PER_DOSE_MESSAGE })
       .optional()
       .describe(
-        "Inventory units consumed per dose (e.g. 2 tablets of 2 mg for a 4 mg dose). Default 1. The intake consumption hook decrements this many units per taken dose; dose-derived readouts divide unit counts by it.",
+        "Inventory units consumed per dose. A whole number 1–100 (e.g. 2 tablets of 2 mg for a 4 mg dose) or a supported fraction for a split pill (¼ / ⅓ / ½ / ⅔ / ¾). Default 1. The intake consumption hook decrements this many units per taken dose; dose-derived readouts divide unit counts by it.",
       ),
     /** v1.6.0 — route of administration (ORAL | INJECTION | OTHER). */
     deliveryForm: z.enum(MEDICATION_DELIVERY_FORM_VALUES).optional(),
@@ -592,15 +620,14 @@ export const updateMedicationSchema = z
     category: z.enum(MEDICATION_CATEGORY_VALUES).optional(),
     treatmentClass: z.enum(MEDICATION_TREATMENT_CLASS_VALUES).optional(),
     dosesPerUnit: z.number().int().min(1).max(1000).nullable().optional(),
-    /** v1.16.10 — inventory units one dose consumes. Default 1. */
+    /** v1.16.10 — inventory units one dose consumes. Default 1.
+     *  v1.16.12 — whole number 1–100 or a curated fraction (½ / ⅓ / ¼ …). */
     unitsPerDose: z
       .number()
-      .int()
-      .min(1)
-      .max(100)
+      .refine(isSupportedUnitsPerDose, { message: UNITS_PER_DOSE_MESSAGE })
       .optional()
       .describe(
-        "Inventory units consumed per dose (e.g. 2 tablets of 2 mg for a 4 mg dose). The intake consumption hook decrements this many units per taken dose; already-stamped intake events keep their recorded consumption.",
+        "Inventory units consumed per dose — a whole number 1–100 or a supported split-pill fraction (¼ / ⅓ / ½ / ⅔ / ¾). The intake consumption hook decrements this many units per taken dose; already-stamped intake events keep their recorded consumption.",
       ),
     /** v1.6.0 — route of administration (ORAL | INJECTION | OTHER). */
     deliveryForm: z.enum(MEDICATION_DELIVERY_FORM_VALUES).optional(),
@@ -917,11 +944,10 @@ export const createInventoryItemSchema = z
      *  `Medication.unitsPerDose`. */
     unitsTotal: z
       .number()
-      .int()
       .min(1)
       .max(1000)
       .describe(
-        "Units the container ships with (tablets / ampoules / puffs; 1–1000). Dose-derived readouts divide by the medication's `unitsPerDose`.",
+        "Units the container ships with (tablets / ampoules / puffs; 1–1000, fractional allowed for split-pill packs). Dose-derived readouts divide by the medication's `unitsPerDose`.",
       ),
     /** v1.16.10 — container kind. Defaults to OTHER when absent. */
     containerType: z
@@ -979,12 +1005,11 @@ export const updateInventoryItemSchema = z
      */
     unitsRemaining: z
       .number()
-      .int()
       .min(0)
       .max(1000)
       .optional()
       .describe(
-        "Absolute remaining-unit correction (0–1000). Clamped server-side to the item's `unitsTotal`; the canonical state machine re-derives the state (0 ⇒ USED_UP).",
+        "Absolute remaining-unit correction (0–1000, fractional allowed). Clamped server-side to the item's `unitsTotal`; the canonical state machine re-derives the state (0 ⇒ USED_UP).",
       ),
     notes: z.string().max(200).nullable().optional(),
   })

@@ -35,6 +35,7 @@ import {
   computeExpiresAt,
   computeInventoryState,
 } from "@/lib/medications/inventory/state-machine";
+import { serializeInventoryItem } from "@/lib/medications/inventory/service";
 
 type RouteParams = { params: Promise<{ id: string; itemId: string }> };
 
@@ -83,7 +84,10 @@ export const PATCH = apiHandler(
     // commutative — applying them in any order produces the same row.
     let nextFirstUseAt = existing.firstUseAt;
     let nextState = existing.state;
-    let nextUnitsRemaining = existing.unitsRemaining;
+    // v1.16.12 — Decimal column; work in JS numbers locally (the
+    // arithmetic below stays well within double precision) and let
+    // Prisma re-widen on write.
+    let nextUnitsRemaining: number = Number(existing.unitsRemaining);
     let nextPrintedExpiry = existing.printedExpiry;
 
     if (markAsFirstUseAt) {
@@ -103,7 +107,7 @@ export const PATCH = apiHandler(
       // state-machine re-run below owns every state consequence (0 ⇒
       // USED_UP, a raise out of 0 re-evaluates against the expiry
       // clocks).
-      nextUnitsRemaining = Math.min(unitsRemaining, existing.unitsTotal);
+      nextUnitsRemaining = Math.min(unitsRemaining, Number(existing.unitsTotal));
     }
 
     if (markAsUsedUp === true) {
@@ -126,7 +130,7 @@ export const PATCH = apiHandler(
     nextState = computeInventoryState(
       {
         state: nextState,
-        unitsTotal: existing.unitsTotal,
+        unitsTotal: Number(existing.unitsTotal),
         unitsRemaining: nextUnitsRemaining,
         firstUseAt: nextFirstUseAt,
         printedExpiry: nextPrintedExpiry,
@@ -166,7 +170,7 @@ export const PATCH = apiHandler(
       meta: { medication_id: id, prev: existing.state, next: updated.state },
     });
 
-    return apiSuccess(updated);
+    return apiSuccess(serializeInventoryItem(updated));
   },
 );
 

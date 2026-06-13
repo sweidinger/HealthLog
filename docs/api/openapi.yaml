@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: HealthLog API
-  version: 1.16.11
+  version: 1.16.12
   description: >-
     Self-hosted personal-health-tracking PWA — public API surface for the iOS native client and external ingest.
 
@@ -5141,11 +5141,10 @@ components:
           minimum: 1
           maximum: 1000
         unitsPerDose:
-          description: Inventory units consumed per dose (e.g. 2 tablets of 2 mg for a 4 mg dose). Default 1. The intake
-            consumption hook decrements this many units per taken dose; dose-derived readouts divide unit counts by it.
-          type: integer
-          minimum: 1
-          maximum: 100
+          description: Inventory units consumed per dose. A whole number 1–100 (e.g. 2 tablets of 2 mg for a 4 mg dose) or a
+            supported fraction for a split pill (¼ / ⅓ / ½ / ⅔ / ¾). Default 1. The intake consumption hook decrements
+            this many units per taken dose; dose-derived readouts divide unit counts by it.
+          type: number
         deliveryForm:
           type: string
           enum:
@@ -5429,11 +5428,10 @@ components:
               maximum: 1000
             - type: "null"
         unitsPerDose:
-          description: Inventory units consumed per dose (e.g. 2 tablets of 2 mg for a 4 mg dose). The intake consumption hook
-            decrements this many units per taken dose; already-stamped intake events keep their recorded consumption.
-          type: integer
-          minimum: 1
-          maximum: 100
+          description: Inventory units consumed per dose — a whole number 1–100 or a supported split-pill fraction (¼ / ⅓ / ½ / ⅔
+            / ¾). The intake consumption hook decrements this many units per taken dose; already-stamped intake events
+            keep their recorded consumption.
+          type: number
         deliveryForm:
           type: string
           enum:
@@ -5605,11 +5603,11 @@ components:
       type: object
       properties:
         unitsTotal:
-          type: integer
+          type: number
           minimum: 1
           maximum: 1000
-          description: Units the container ships with (tablets / ampoules / puffs; 1–1000). Dose-derived readouts divide by the
-            medication's `unitsPerDose`.
+          description: Units the container ships with (tablets / ampoules / puffs; 1–1000, fractional allowed for split-pill
+            packs). Dose-derived readouts divide by the medication's `unitsPerDose`.
         containerType:
           description: Kind of physical container (PEN / AMPOULE / BLISTER / INHALER / BOTTLE / OTHER). Display-level only;
             defaults to OTHER.
@@ -5661,9 +5659,9 @@ components:
               pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
             - type: "null"
         unitsRemaining:
-          description: Absolute remaining-unit correction (0–1000). Clamped server-side to the item's `unitsTotal`; the canonical
-            state machine re-derives the state (0 ⇒ USED_UP).
-          type: integer
+          description: Absolute remaining-unit correction (0–1000, fractional allowed). Clamped server-side to the item's
+            `unitsTotal`; the canonical state machine re-derives the state (0 ⇒ USED_UP).
+          type: number
           minimum: 0
           maximum: 1000
         notes:
@@ -9049,12 +9047,10 @@ components:
             - type: "null"
           description: Doses per pen / vial for inventory tracking. NULL = inventory tracking off.
         unitsPerDose:
-          type: integer
-          minimum: -9007199254740991
-          maximum: 9007199254740991
-          description: v1.16.10 — inventory units one dose consumes (e.g. 2 tablets of 2 mg for a 4 mg dose). Default 1. The
-            intake consumption hook decrements this many units per taken dose; dose-derived readouts divide unit counts
-            by it.
+          type: number
+          description: v1.16.10 — inventory units one dose consumes (e.g. 2 tablets of 2 mg for a 4 mg dose). v1.16.12 — may be a
+            split-pill fraction (¼ / ⅓ / ½ / ⅔ / ¾); thirds carry as ≈0.3333 / 0.6667. Default 1. The intake consumption
+            hook decrements this many units per taken dose; dose-derived readouts divide unit counts by it.
         active:
           type: boolean
         notificationsEnabled:
@@ -9178,8 +9174,9 @@ components:
               minimum: -9007199254740991
               maximum: 9007199254740991
             - type: "null"
-          description: "v1.16.10 — dose-derived stock: `floor(stockUnitsRemaining / max(1, unitsPerDose))`. NULL when inventory
-            tracking is off. Drives the table view's Bestand column. Read-only — aggregated, not stored."
+          description: "v1.16.10 — dose-derived stock: `floor(stockUnitsRemaining / unitsPerDose)`, where `unitsPerDose` may be a
+            fraction (½ tablet ⇒ twice the doses). Stays a whole-dose count. NULL when inventory tracking is off. Drives
+            the table view's Bestand column. Read-only — aggregated, not stored."
       required:
         - id
         - name
@@ -9268,12 +9265,10 @@ components:
             - type: "null"
           description: Doses per pen / vial for inventory tracking. NULL = inventory tracking off.
         unitsPerDose:
-          type: integer
-          minimum: -9007199254740991
-          maximum: 9007199254740991
-          description: v1.16.10 — inventory units one dose consumes (e.g. 2 tablets of 2 mg for a 4 mg dose). Default 1. The
-            intake consumption hook decrements this many units per taken dose; dose-derived readouts divide unit counts
-            by it.
+          type: number
+          description: v1.16.10 — inventory units one dose consumes (e.g. 2 tablets of 2 mg for a 4 mg dose). v1.16.12 — may be a
+            split-pill fraction (¼ / ⅓ / ½ / ⅔ / ¾); thirds carry as ≈0.3333 / 0.6667. Default 1. The intake consumption
+            hook decrements this many units per taken dose; dose-derived readouts divide unit counts by it.
         active:
           type: boolean
         notificationsEnabled:
@@ -9652,17 +9647,14 @@ components:
           description: Kind of physical container (PEN / AMPOULE / BLISTER / INHALER / BOTTLE / OTHER). Display-level
             classification; defaults to OTHER.
         unitsTotal:
-          type: integer
-          minimum: -9007199254740991
-          maximum: 9007199254740991
-          description: Units the container shipped with (tablets / ampoules / puffs; 1–1000). Dose-derived readouts divide by the
-            medication's `unitsPerDose`.
+          type: number
+          description: Units the container shipped with (tablets / ampoules / puffs; 1–1000). v1.16.12 — fractional, so a
+            split-pill remainder reads cleanly. Dose-derived readouts divide by the medication's `unitsPerDose`.
         unitsRemaining:
-          type: integer
-          minimum: -9007199254740991
-          maximum: 9007199254740991
-          description: Units left in the container. Decremented by the intake consumption hook (FEFO with spillover across
-            containers); refunded when a taken dose is skipped, edited away, or deleted.
+          type: number
+          description: Units left in the container. v1.16.12 — fractional (a ½-tablet dose leaves 29.5 of 30). Decremented by the
+            intake consumption hook (FEFO with spillover across containers); refunded when a taken dose is skipped,
+            edited away, or deleted.
         firstUseAt:
           anyOf:
             - type: string
@@ -14615,12 +14607,10 @@ components:
             - type: "null"
           description: Doses per pen / vial for inventory tracking. NULL = inventory tracking off.
         unitsPerDose:
-          type: integer
-          minimum: -9007199254740991
-          maximum: 9007199254740991
-          description: v1.16.10 — inventory units one dose consumes (e.g. 2 tablets of 2 mg for a 4 mg dose). Default 1. The
-            intake consumption hook decrements this many units per taken dose; dose-derived readouts divide unit counts
-            by it.
+          type: number
+          description: v1.16.10 — inventory units one dose consumes (e.g. 2 tablets of 2 mg for a 4 mg dose). v1.16.12 — may be a
+            split-pill fraction (¼ / ⅓ / ½ / ⅔ / ¾); thirds carry as ≈0.3333 / 0.6667. Default 1. The intake consumption
+            hook decrements this many units per taken dose; dose-derived readouts divide unit counts by it.
         active:
           type: boolean
         notificationsEnabled:

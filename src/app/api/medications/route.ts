@@ -185,7 +185,7 @@ async function buildMedicationsList(
   for (const entry of usableStock) {
     usableUnitsByMedId.set(
       entry.medicationId,
-      entry._sum.unitsRemaining ?? 0,
+      Number(entry._sum.unitsRemaining ?? 0),
     );
   }
   const trackedMedIds = new Set(inventoryCounts.map((e) => e.medicationId));
@@ -233,9 +233,12 @@ async function buildMedicationsList(
     const stockDosesRemaining =
       stockUnitsRemaining === null
         ? null
-        : Math.floor(stockUnitsRemaining / Math.max(1, m.unitsPerDose));
+        : Math.floor(stockUnitsRemaining / (Number(m.unitsPerDose) || 1));
     return {
       ...m,
+      // v1.16.12 — Decimal → number so the wire stays a JSON number, not
+      // the string Prisma would otherwise serialise a Decimal to.
+      unitsPerDose: Number(m.unitsPerDose),
       category: categoryMap[m.id] ?? "OTHER",
       lastTakenAt: lastTakenAtByMedicationId[m.id] ?? null,
       todayEventCount: todayEventCountByMedId[m.id] ?? 0,
@@ -489,6 +492,7 @@ export const POST = apiHandler(async (request: NextRequest) => {
   return apiSuccess(
     {
       ...medication,
+      unitsPerDose: Number(medication.unitsPerDose),
       category: normalizedCategory,
     },
     201,

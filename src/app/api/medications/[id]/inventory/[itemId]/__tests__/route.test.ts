@@ -27,6 +27,10 @@ vi.mock("@/lib/auth/audit", () => ({
 vi.mock("@/lib/medications/inventory/service", () => ({
   computeExpiresAt: vi.fn().mockReturnValue(null),
   buildPatchInventoryUpdate: vi.fn().mockReturnValue({}),
+  // v1.16.12 — the route serialises its Decimal unit columns to numbers
+  // on the way out; a passthrough keeps these update-logic assertions
+  // focused on the Prisma call, not the response shape.
+  serializeInventoryItem: <T,>(item: T) => item,
 }));
 vi.mock("@/lib/medications/route-guards", () => ({
   assertMedicationOwnership: vi.fn().mockResolvedValue(null),

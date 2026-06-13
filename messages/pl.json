@@ -1120,7 +1120,7 @@
           "injectionSiteHint": "Opcjonalny przewodnik rotacji. Miejsce każdej dawki zapisywane jest przy rejestrowaniu przyjęcia.",
           "short": "Dawka",
           "unitsPerDoseLabel": "Jednostki na dawkę",
-          "unitsPerDoseHint": "np. 2 tabletki po 2 mg na dawkę 4 mg"
+          "unitsPerDoseHint": "np. 2 tabletki po 2 mg na dawkę 4 mg lub ½ tabletki przy dzielonej dawce"
         },
         "step4": {
           "title": "Przez jaki okres go przyjmujesz?",

@@ -64,11 +64,14 @@ export function useMedicationComplianceSummary(medicationId: string): {
   const { data, isError, refetch } = useQuery({
     queryKey: queryKeys.medicationComplianceSummary(),
     queryFn: fetchComplianceSummary,
-    // Dose actions invalidate the key explicitly through
-    // `medicationDependentKeys`; a shorter window would only re-fire the
-    // batch on every list visit. Matches the reminder-thresholds query
-    // the cards mount alongside.
+    // Dose actions in this tab invalidate the key through
+    // `medicationDependentKeys`. v1.16.12 (#316) — but a dose logged on
+    // another surface (the iOS app) leaves this stale for up to the
+    // window, so refetch on every mount: returning to the page reflects
+    // cross-device intakes without a manual reload. The batched read is
+    // one request per visit, server-cached.
     staleTime: 5 * 60 * 1000,
+    refetchOnMount: "always",
     select: (rows: MedicationComplianceSummaryEntry[]) =>
       rows.find((row) => row.medicationId === medicationId) ?? null,
   });
@@ -88,6 +91,8 @@ export function useMedicationComplianceSummaryAll(): {
     queryKey: queryKeys.medicationComplianceSummary(),
     queryFn: fetchComplianceSummary,
     staleTime: 5 * 60 * 1000,
+    // v1.16.12 (#316) — fresh on return-navigation (see the per-row hook).
+    refetchOnMount: "always",
   });
   return { data };
 }

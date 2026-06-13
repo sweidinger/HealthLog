@@ -92,15 +92,15 @@ export const GET = apiHandler(
       const usable = medication.inventoryItems.filter(
         (item) =>
           (item.state === "ACTIVE" || item.state === "IN_USE") &&
-          item.unitsRemaining > 0,
+          Number(item.unitsRemaining) > 0,
       );
       const unitsRemaining = usable.reduce(
-        (sum, item) => sum + item.unitsRemaining,
+        (sum, item) => sum + Number(item.unitsRemaining),
         0,
       );
       const pensRemaining = usable.length;
       const dosesRemaining = Math.floor(
-        unitsRemaining / Math.max(1, medication.unitsPerDose),
+        unitsRemaining / (Number(medication.unitsPerDose) || 1),
       );
       const weeksOfSupply = dosesRemaining;
       const lowStock = dosesRemaining < LOW_STOCK_DOSE_THRESHOLD;

@@ -18,6 +18,54 @@ interface MedicationComplianceBarsProps {
   shortDays?: number;
   /** v1.8.6 — the span of the long row in days. */
   longDays?: number;
+  /**
+   * Projected supply runway in whole days, set ONLY while it sits below the
+   * user's low-stock threshold (the card variants gate it). Non-null renders
+   * the muted warning-toned "Vorrat: ≈ N Tage" notice on the meta row, flush
+   * right beside the streak flame; null keeps the row free of stock noise.
+   */
+  lowStockRunwayDays?: number | null;
+}
+
+/**
+ * The always-mounted `min-h-4` meta row beneath the two bars. It carries the
+ * streak flame (left) and, when supply has dropped below the user's runway
+ * threshold, the low-stock notice (right, `ml-auto`). Both ride the SAME
+ * reserved slot every compliance state already holds, so the low-stock line
+ * no longer inserts a flow row above the bars — the two bars stay aligned
+ * across a grid row whether or not a card is low on supply. The row stays
+ * mounted at `min-h-4` even when empty so a streak / low-stock state arriving
+ * or expiring never changes the card height.
+ */
+function ComplianceMetaRow({
+  streak,
+  lowStockRunwayDays,
+}: {
+  streak: number;
+  lowStockRunwayDays: number | null;
+}) {
+  const { t } = useTranslations();
+  return (
+    <div className="flex min-h-4 items-center gap-4 text-xs">
+      {streak > 0 && (
+        <span className="text-warning flex items-center gap-1 font-medium">
+          <Flame className="h-3.5 w-3.5" />
+          {streak}{" "}
+          {streak === 1
+            ? t("medications.dayStreakOne")
+            : t("medications.dayStreak")}
+        </span>
+      )}
+      {lowStockRunwayDays != null && (
+        <span
+          className="text-warning ml-auto font-medium"
+          data-slot="medication-card-low-stock"
+        >
+          {t("medications.cardLowStockRunway", { days: lowStockRunwayDays })}
+        </span>
+      )}
+    </div>
+  );
 }
 
 /**
@@ -48,6 +96,7 @@ export function MedicationComplianceBars({
   streak,
   shortDays = 7,
   longDays = 30,
+  lowStockRunwayDays = null,
 }: MedicationComplianceBarsProps) {
   const { t } = useTranslations();
   const fmt = useFormatters();
@@ -94,22 +143,12 @@ export function MedicationComplianceBars({
         <Progress value={rate30} className="h-2" aria-label={longLabel} />
       </div>
 
-      {/* Streak flame — the row is ALWAYS mounted at `min-h-4` so a
-          streak arriving (or expiring) never changes the card height
-          and the action row below stays on one baseline across a grid
-          row. The flame itself still gates on `streak > 0`; the
-          skeleton and error fallbacks reserve the same slot. */}
-      <div className="flex min-h-4 items-center gap-4 text-xs">
-        {streak > 0 && (
-          <span className="text-warning flex items-center gap-1 font-medium">
-            <Flame className="h-3.5 w-3.5" />
-            {streak}{" "}
-            {streak === 1
-              ? t("medications.dayStreakOne")
-              : t("medications.dayStreak")}
-          </span>
-        )}
-      </div>
+      {/* Streak flame + low-stock notice — the shared meta row, always
+          mounted at `min-h-4` so a streak or low-stock state arriving (or
+          expiring) never changes the card height and the action row below
+          stays on one baseline across a grid row. The skeleton and error
+          fallbacks reserve the same slot through the same component. */}
+      <ComplianceMetaRow streak={streak} lowStockRunwayDays={lowStockRunwayDays} />
     </div>
   );
 }
@@ -129,24 +168,34 @@ export function MedicationComplianceBars({
  * exists, so the skeleton must too or a resolving card would grow by one
  * row and shift the grid.
  */
-export function MedicationComplianceSkeleton() {
+export function MedicationComplianceSkeleton({
+  lowStockRunwayDays = null,
+}: {
+  lowStockRunwayDays?: number | null;
+}) {
   return (
-    <div className="space-y-2.5" aria-hidden>
-      <div className="space-y-1.5">
-        <div className="flex h-5 items-center justify-between">
-          <span className="bg-muted h-4 w-20 rounded" />
-          <span className="bg-muted h-4 w-9 rounded" />
+    <div className="space-y-2.5">
+      {/* Only the bars are a placeholder; the meta row below is real (the
+          low-stock runway is independent of the in-flight compliance query),
+          so a card that sits on the skeleton still surfaces low supply and
+          announces it. */}
+      <div className="space-y-2.5" aria-hidden>
+        <div className="space-y-1.5">
+          <div className="flex h-5 items-center justify-between">
+            <span className="bg-muted h-4 w-20 rounded" />
+            <span className="bg-muted h-4 w-9 rounded" />
+          </div>
+          <div className="bg-muted h-2 rounded" />
         </div>
-        <div className="bg-muted h-2 rounded" />
-      </div>
-      <div className="space-y-1.5">
-        <div className="flex h-5 items-center justify-between">
-          <span className="bg-muted h-4 w-20 rounded" />
-          <span className="bg-muted h-4 w-9 rounded" />
+        <div className="space-y-1.5">
+          <div className="flex h-5 items-center justify-between">
+            <span className="bg-muted h-4 w-20 rounded" />
+            <span className="bg-muted h-4 w-9 rounded" />
+          </div>
+          <div className="bg-muted h-2 rounded" />
         </div>
-        <div className="bg-muted h-2 rounded" />
       </div>
-      <div className="min-h-4" />
+      <ComplianceMetaRow streak={0} lowStockRunwayDays={lowStockRunwayDays} />
     </div>
   );
 }
@@ -162,8 +211,10 @@ export function MedicationComplianceSkeleton() {
  */
 export function MedicationComplianceError({
   onRetry,
+  lowStockRunwayDays = null,
 }: {
   onRetry: () => void;
+  lowStockRunwayDays?: number | null;
 }) {
   const { t } = useTranslations();
   return (
@@ -189,8 +240,9 @@ export function MedicationComplianceError({
         </div>
         <div className="bg-muted/40 h-2 rounded" />
       </div>
-      {/* Streak-slot parity with the loaded card + skeleton. */}
-      <div className="min-h-4" />
+      {/* Meta-row parity with the loaded card + skeleton — still surfaces
+          low supply even when the compliance read failed. */}
+      <ComplianceMetaRow streak={0} lowStockRunwayDays={lowStockRunwayDays} />
     </div>
   );
 }

@@ -149,9 +149,8 @@ export const medicationResource = z
       ),
     unitsPerDose: z
       .number()
-      .int()
       .describe(
-        "v1.16.10 — inventory units one dose consumes (e.g. 2 tablets of 2 mg for a 4 mg dose). Default 1. The intake consumption hook decrements this many units per taken dose; dose-derived readouts divide unit counts by it.",
+        "v1.16.10 — inventory units one dose consumes (e.g. 2 tablets of 2 mg for a 4 mg dose). v1.16.12 — may be a split-pill fraction (¼ / ⅓ / ½ / ⅔ / ¾); thirds carry as ≈0.3333 / 0.6667. Default 1. The intake consumption hook decrements this many units per taken dose; dose-derived readouts divide unit counts by it.",
       ),
     active: z.boolean(),
     notificationsEnabled: z.boolean(),
@@ -250,7 +249,7 @@ const medicationListEntry = medicationResource
       .int()
       .nullable()
       .describe(
-        "v1.16.10 — dose-derived stock: `floor(stockUnitsRemaining / max(1, unitsPerDose))`. NULL when inventory tracking is off. Drives the table view's Bestand column. Read-only — aggregated, not stored.",
+        "v1.16.10 — dose-derived stock: `floor(stockUnitsRemaining / unitsPerDose)`, where `unitsPerDose` may be a fraction (½ tablet ⇒ twice the doses). Stays a whole-dose count. NULL when inventory tracking is off. Drives the table view's Bestand column. Read-only — aggregated, not stored.",
       ),
   })
   .meta({
@@ -290,15 +289,13 @@ const medicationInventoryItemResource = z
       ),
     unitsTotal: z
       .number()
-      .int()
       .describe(
-        "Units the container shipped with (tablets / ampoules / puffs; 1–1000). Dose-derived readouts divide by the medication's `unitsPerDose`.",
+        "Units the container shipped with (tablets / ampoules / puffs; 1–1000). v1.16.12 — fractional, so a split-pill remainder reads cleanly. Dose-derived readouts divide by the medication's `unitsPerDose`.",
       ),
     unitsRemaining: z
       .number()
-      .int()
       .describe(
-        "Units left in the container. Decremented by the intake consumption hook (FEFO with spillover across containers); refunded when a taken dose is skipped, edited away, or deleted.",
+        "Units left in the container. v1.16.12 — fractional (a ½-tablet dose leaves 29.5 of 30). Decremented by the intake consumption hook (FEFO with spillover across containers); refunded when a taken dose is skipped, edited away, or deleted.",
       ),
     firstUseAt: z.iso
       .datetime({ offset: true })

@@ -1120,7 +1120,7 @@
           "injectionSiteHint": "Optionaler Rotationshelfer. Die Stelle jeder Dosis wird beim Eintragen der Einnahme erfasst.",
           "short": "Dosis",
           "unitsPerDoseLabel": "Einheiten pro Dosis",
-          "unitsPerDoseHint": "z. B. 2 Tabletten à 2 mg für eine 4-mg-Dosis"
+          "unitsPerDoseHint": "z. B. 2 Tabletten à 2 mg für eine 4-mg-Dosis – oder ½ Tablette bei geteilter Dosis"
         },
         "step4": {
           "title": "Über welchen Zeitraum nimmst du es?",
