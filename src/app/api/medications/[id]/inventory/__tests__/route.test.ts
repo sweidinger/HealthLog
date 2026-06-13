@@ -220,7 +220,11 @@ describe("PATCH /api/medications/[id]/inventory/[itemId]", () => {
       state: "IN_USE",
     } as never);
 
-    const intake = "2026-05-14T12:00:00Z";
+    // Anchor first-use to one day ago so the 30-day in-use window is
+    // always open relative to "now" — a previously hardcoded date
+    // (2026-05-14) silently aged past its window and flipped the expected
+    // state to EXPIRED once the wall clock crossed firstUseAt + 30 days.
+    const intake = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
     const res = await PATCH(
       jsonReq(
         "http://localhost/api/medications/med-1/inventory/inv-1",
