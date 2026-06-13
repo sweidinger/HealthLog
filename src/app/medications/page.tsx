@@ -195,6 +195,15 @@ export default function MedicationsPage() {
       return apiGet<Medication[]>("/api/medications");
     },
     enabled: isAuthenticated,
+    // v1.16.12 (#316) — refetch on every mount, even inside the global
+    // staleTime window. App Router unmounts this page on navigation away
+    // and remounts it on return; without this, a return within 5 min
+    // serves the cached list and shows nothing the user changed on
+    // another surface (the iOS app, a Withings sync, a second tab) — the
+    // client cache can't know to invalidate a cross-device write. "always"
+    // makes a return-visit fetch fresh; the per-user server cache keeps it
+    // cheap. Mutation-driven invalidation still covers same-tab writes.
+    refetchOnMount: "always",
   });
 
   // v1.16.11 — the same reminder-thresholds read the cards make (shared

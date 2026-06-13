@@ -124,10 +124,12 @@ export interface MedicationCardBodyProps {
   /**
    * v1.16.11 — projected supply runway in whole days, set ONLY while it
    * sits below the user's low-stock threshold (the variants gate it).
-   * Non-null renders one muted warning-toned "Vorrat: ≈ N Tage" line
-   * under the next/last slot; null keeps the card free of stock noise.
-   * Never set for as-needed medications (no consuming schedule, no
-   * runway).
+   * Non-null renders the muted warning-toned "Vorrat: ≈ N Tage" notice on
+   * the compliance bars' meta row (beside the streak flame); null keeps the
+   * card free of stock noise. Never set for as-needed medications (no
+   * consuming schedule, no runway). v1.16.12 moved it off the standalone
+   * line above the bars onto the reserved meta row to stop it shifting the
+   * two-bar baseline across a grid row.
    */
   lowStockRunwayDays?: number | null;
 
@@ -228,7 +230,13 @@ export function MedicationCardBody({
       // The card surface is a constant neutral surface — dose status is never
       // expressed as a background / border tint (the maintainer, recurring): only the
       // discreet status line / pill below communicates take-now / overdue.
-      className={cn("h-full", active ? "" : "opacity-60")}
+      //
+      // v1.16.12 — the shadcn card primitive's airy `gap-4 md:gap-6` between
+      // header and content read as a wide gulf below the category badge before
+      // the first content line; tightened to a uniform `gap-3` here (the
+      // header keeps its own `pb-2.5`) so the name / class / next-intake block
+      // reads as one tight stack without touching the shared primitive.
+      className={cn("h-full gap-3 md:gap-3", active ? "" : "opacity-60")}
     >
       <MedicationCardHeader
         name={name}
@@ -250,26 +258,19 @@ export function MedicationCardBody({
           last={lastLine}
         />
 
-        {/* v1.16.11 — low-stock context, ONLY below the user's runway
-            threshold (the prop is pre-gated). One calm warning-toned
-            line, not a badge: the card stays quiet until the supply
-            actually needs attention. */}
-        {active && !asNeeded && lowStockRunwayDays != null && (
-          <p
-            className="text-warning text-xs"
-            data-slot="medication-card-low-stock"
-          >
-            {t("medications.cardLowStockRunway", {
-              days: lowStockRunwayDays,
-            })}
-          </p>
-        )}
-
         {/* Compliance bars — always two rows; constant-height skeleton holds
             the slot while the query is in flight so the grid row stays even.
             A FAILED query swaps the skeleton for the same-footprint quiet
             error fallback (no bars, one notice line + retry) instead of
-            sitting on the skeleton forever. */}
+            sitting on the skeleton forever.
+
+            v1.16.12 — the low-stock runway notice rides the bars' always-
+            mounted meta row (beside the streak flame, flush right) rather
+            than a standalone line above the bars. The former line inserted
+            a conditional flow row only on low-supply cards, pushing their
+            bars down and breaking the two-bar baseline across a grid row;
+            the meta row is reserved on every card in every state, so the
+            notice now costs zero layout shift. */}
         {active &&
           !asNeeded &&
           (compliance ? (
@@ -279,11 +280,17 @@ export function MedicationCardBody({
               streak={compliance.streak}
               shortDays={compliance.shortDays}
               longDays={compliance.longDays}
+              lowStockRunwayDays={lowStockRunwayDays}
             />
           ) : complianceError && onRetryCompliance ? (
-            <MedicationComplianceError onRetry={onRetryCompliance} />
+            <MedicationComplianceError
+              onRetry={onRetryCompliance}
+              lowStockRunwayDays={lowStockRunwayDays}
+            />
           ) : (
-            <MedicationComplianceSkeleton />
+            <MedicationComplianceSkeleton
+              lowStockRunwayDays={lowStockRunwayDays}
+            />
           ))}
 
         {/* Open-cycle status line — calm, rate-decoupled. The slot reserves
