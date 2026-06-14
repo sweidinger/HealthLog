@@ -38,6 +38,7 @@ import { isCycleEnabled } from "@/lib/cycle/gate";
 import {
   buildComplianceLedgerRows,
   buildComplianceMedicationContext,
+  calculateCompliance,
   lastNonSkippedTakenAt,
   SCHEDULE_COMPLIANCE_SELECT,
 } from "@/lib/analytics/compliance";
@@ -992,6 +993,20 @@ async function buildCoachSnapshotImpl(
     // taken", deliberate skips and ad-hoc takes stay out of the
     // denominator, and cross-source duplicate rows collapse onto one slot.
     const ledgerRows: DoseHistoryRow[] = [];
+    // v1.17 W1c — the coach's headline adherence figure routes through the
+    // SAME `calculateCompliance(...).rate` authority the medication card
+    // shows (the ledger path, `medicationContext` supplied), so the coach
+    // can never quote a denominator the card doesn't use. We tally
+    // numerator (on-time + late takes) and denominator (taken + missed)
+    // across every compliance medication over the coach window, exactly the
+    // ledger arithmetic the card's per-med rate uses; the per-day / per-week
+    // timeline below stays as supplementary context.
+    let complianceTaken = 0;
+    let complianceDenominator = 0;
+    const windowDaysForRate = Math.max(
+      1,
+      Math.round((now.getTime() - cutoff.getTime()) / (24 * 60 * 60 * 1000)),
+    );
     for (const med of complianceMeds) {
       if (med.schedules.length === 0) continue;
       const ctx = buildComplianceMedicationContext(
@@ -1009,6 +1024,18 @@ async function buildCoachSnapshotImpl(
           now,
         ),
       );
+      // The card's rate IS `calculateCompliance(...).rate` over the ledger;
+      // aggregate the same taken / (taken + missed) counts here so the
+      // coach's single headline % equals what the card renders.
+      const result = calculateCompliance(
+        med.intakeEvents,
+        med.schedules,
+        windowDaysForRate,
+        med.createdAt,
+        { now, medicationContext: ctx },
+      );
+      complianceTaken += result.taken;
+      complianceDenominator += result.taken + result.missed;
     }
     // Countable rows: taken (on-time or late) or genuinely missed. The
     // pending / upcoming / skipped / ad-hoc rows carry no adherence signal.
@@ -1064,6 +1091,15 @@ async function buildCoachSnapshotImpl(
         }))
         .sort((a, b) => a.weekISO.localeCompare(b.weekISO));
       snapshot.compliance = {
+        // v1.17 W1c — headline adherence % from the SAME ledger authority
+        // (`calculateCompliance(...).rate`) the medication card shows, so the
+        // coach quotes the exact figure on the card rather than a per-day /
+        // per-week rate built off a different denominator. Integer 0-100 to
+        // match the card's rounding.
+        rate:
+          complianceDenominator > 0
+            ? Math.round((complianceTaken / complianceDenominator) * 100)
+            : null,
         timeline: { recent: recentRows, weekly: weeklyRows },
       };
       metrics.add("compliance");
