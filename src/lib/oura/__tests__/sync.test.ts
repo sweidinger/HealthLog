@@ -31,6 +31,7 @@ const {
 vi.mock("../credentials", () => ({
   getOuraConnection: getConnMock,
   storeOuraTokens: storeTokensMock,
+  getOuraClientCredentials: getCredsMock,
 }));
 
 vi.mock("@/lib/db", () => ({
@@ -57,7 +58,6 @@ vi.mock("../client", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../client")>();
   return {
     ...actual,
-    getOuraCredentials: getCredsMock,
     fetchReadiness: fetchReadinessMock,
     fetchSleep: fetchSleepMock,
     fetchDailyActivity: fetchActivityMock,
@@ -73,7 +73,9 @@ const CONN = { accessToken: "acc", refreshToken: "ref" };
 beforeEach(() => {
   getConnMock.mockReset();
   storeTokensMock.mockReset().mockResolvedValue(undefined);
-  getCredsMock.mockReset().mockReturnValue({ clientId: "c", clientSecret: "s" });
+  getCredsMock
+    .mockReset()
+    .mockResolvedValue({ clientId: "c", clientSecret: "s" });
   fetchReadinessMock.mockReset().mockResolvedValue([]);
   fetchSleepMock.mockReset().mockResolvedValue([]);
   fetchActivityMock.mockReset().mockResolvedValue([]);

@@ -4,7 +4,8 @@ import { getSession } from "@/lib/auth/session";
 import { annotate, getEvent } from "@/lib/logging/context";
 import { auditLog } from "@/lib/auth/audit";
 import { encrypt } from "@/lib/crypto";
-import { exchangeCode, getOuraCredentials } from "@/lib/oura/client";
+import { exchangeCode } from "@/lib/oura/client";
+import { getOuraClientCredentials } from "@/lib/oura/credentials";
 import {
   oauthStateCookieName,
   stateMatchesCookie,
@@ -65,7 +66,7 @@ export const GET = apiHandler(async (request: NextRequest) => {
   if (!code) return ERR("nocode");
 
   try {
-    const creds = getOuraCredentials();
+    const creds = await getOuraClientCredentials(userId);
     if (!creds) return ERR("nocreds");
 
     const tokens = await exchangeCode(code, creds);

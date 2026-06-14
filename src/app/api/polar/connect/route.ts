@@ -3,7 +3,8 @@ import { apiError } from "@/lib/api-response";
 import { annotate } from "@/lib/logging/context";
 import { shouldEmitSecureCookie } from "@/lib/auth/secure-cookie";
 import { checkRateLimit } from "@/lib/rate-limit";
-import { getAuthorizationUrl, getPolarCredentials } from "@/lib/polar/client";
+import { getAuthorizationUrl } from "@/lib/polar/client";
+import { getPolarClientCredentials } from "@/lib/polar/credentials";
 import {
   OAUTH_STATE_TTL_MS,
   mintSignedState,
@@ -44,7 +45,7 @@ export const GET = apiHandler(async () => {
     );
   }
 
-  const creds = getPolarCredentials();
+  const creds = await getPolarClientCredentials(user.id);
   if (!creds) {
     return apiError(
       "Polar integration is not configured on this server.",

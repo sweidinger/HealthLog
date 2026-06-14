@@ -1,7 +1,8 @@
 "use client";
 
 // v1.17.0 (F4) — Polar AccessLink integration card. Thin wrapper over the
-// shared env-based OAuth card.
+// shared OAuth card.
+// v1.17.1 — per-user BYO OAuth credentials (DB-first then env).
 
 import { Watch } from "lucide-react";
 
@@ -16,6 +17,7 @@ export function PolarCard({ enabled = true }: { enabled?: boolean }) {
       i18nPrefix="settings.polar"
       icon={Watch}
       dataHref="/insights/sleep"
+      credentials
       enabled={enabled}
     />
   );
