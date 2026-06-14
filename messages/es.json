@@ -482,6 +482,7 @@
     "pulseLabel": "Pulso (lpm)",
     "valueWithUnit": "Valor ({unit})",
     "timestamp": "Hora",
+    "timestampBackdateHint": "Ajusta la fecha y la hora para registrar una lectura pasada.",
     "notesPlaceholder": "p. ej. después de comer",
     "formReset": "Restablecer formulario",
     "saveError": "Error al guardar",
@@ -3958,6 +3959,27 @@
             "failed": "La importación falló. Inténtalo de nuevo.",
             "readFailed": "No se pudo leer ese archivo.",
             "resultSummary": "{measurements} mediciones y {moods} entradas de ánimo importadas, {skipped} omitidas."
+          },
+          "csv": {
+            "title": "Archivo CSV",
+            "description": "Importa mediciones desde una hoja de cálculo o la exportación de un medidor. Una fila por lectura.",
+            "pasteLabel": "Pegar CSV",
+            "fileInputLabel": "Elegir un archivo CSV para importar",
+            "schemaHint": "Columnas: type, value, unit, measuredAt (con desfase de zona horaria) y opcionales glucoseContext, notes, externalId.",
+            "docsLink": "Ver el esquema de columnas y un ejemplo.",
+            "uploadFile": "Subir archivo",
+            "downloadExample": "Descargar ejemplo",
+            "preview": "Vista previa",
+            "import": "Importar",
+            "empty": "Añade al menos una fila CSV antes de importar.",
+            "rateLimited": "Demasiadas importaciones esta hora (límite 5). Inténtalo más tarde.",
+            "tooLarge": "Ese archivo es demasiado grande (límite 16 MB).",
+            "invalidPayload": "No se pudo analizar el CSV. Revisa la fila de encabezado e inténtalo de nuevo.",
+            "failed": "La importación falló. Inténtalo de nuevo.",
+            "readFailed": "No se pudo leer ese archivo.",
+            "previewSummary": "Vista previa: {inserted} se importarían, {skipped} omitidas.",
+            "resultSummary": "{inserted} nuevas importadas y {updated} actualizadas, {skipped} omitidas.",
+            "rowError": "Línea {line}: {reason}"
           }
         }
       },

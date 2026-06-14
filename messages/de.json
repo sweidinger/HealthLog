@@ -482,6 +482,7 @@
     "pulseLabel": "Puls (bpm)",
     "valueWithUnit": "Wert ({unit})",
     "timestamp": "Zeitpunkt",
+    "timestampBackdateHint": "Datum und Uhrzeit anpassen, um einen vergangenen Wert zu erfassen.",
     "notesPlaceholder": "z.B. nach dem Essen",
     "formReset": "Formular zurücksetzen",
     "saveError": "Fehler beim Speichern",
@@ -3958,6 +3959,27 @@
             "failed": "Der Import ist fehlgeschlagen. Bitte erneut versuchen.",
             "readFailed": "Diese Datei konnte nicht gelesen werden.",
             "resultSummary": "{measurements} Messwerte und {moods} Stimmungseinträge importiert, {skipped} übersprungen."
+          },
+          "csv": {
+            "title": "CSV-Datei",
+            "description": "Messwerte aus einer Tabelle oder einem Messgerät-Export importieren. Eine Zeile pro Wert.",
+            "pasteLabel": "CSV einfügen",
+            "fileInputLabel": "CSV-Datei zum Importieren auswählen",
+            "schemaHint": "Spalten: type, value, unit, measuredAt (mit Zeitzonen-Offset) sowie optional glucoseContext, notes, externalId.",
+            "docsLink": "Spaltenschema und Beispiel ansehen.",
+            "uploadFile": "Datei hochladen",
+            "downloadExample": "Beispiel herunterladen",
+            "preview": "Vorschau",
+            "import": "Importieren",
+            "empty": "Bitte vor dem Import mindestens eine CSV-Zeile hinzufügen.",
+            "rateLimited": "Zu viele Importe in dieser Stunde (Limit 5). Bitte später erneut versuchen.",
+            "tooLarge": "Diese Datei ist zu groß (Limit 16 MB).",
+            "invalidPayload": "Die CSV konnte nicht gelesen werden. Bitte die Kopfzeile prüfen und erneut versuchen.",
+            "failed": "Der Import ist fehlgeschlagen. Bitte erneut versuchen.",
+            "readFailed": "Diese Datei konnte nicht gelesen werden.",
+            "previewSummary": "Vorschau: {inserted} würden importiert, {skipped} übersprungen.",
+            "resultSummary": "{inserted} neu importiert und {updated} aktualisiert, {skipped} übersprungen.",
+            "rowError": "Zeile {line}: {reason}"
           }
         }
       },

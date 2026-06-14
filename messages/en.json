@@ -482,6 +482,7 @@
     "pulseLabel": "Pulse (bpm)",
     "valueWithUnit": "Value ({unit})",
     "timestamp": "Time",
+    "timestampBackdateHint": "Adjust the date and time to log a past reading.",
     "notesPlaceholder": "e.g. after a meal",
     "formReset": "Reset form",
     "saveError": "Error saving",
@@ -3919,7 +3920,7 @@
         },
         "import": {
           "heading": "Import",
-          "description": "Bring data into HealthLog from an Apple Health export or a JSON file. Imports skip rows that already exist, so re-running one is safe.",
+          "description": "Bring data into HealthLog from an Apple Health export, a JSON file, or a CSV. Imports skip rows that already exist, so re-running one is safe.",
           "appleHealth": {
             "title": "Apple Health",
             "description": "Upload the export.zip from the Health app on iPhone (Profile → Export All Health Data).",
@@ -3958,6 +3959,27 @@
             "failed": "The import failed. Please try again.",
             "readFailed": "Couldn't read that file.",
             "resultSummary": "Imported {measurements} measurements and {moods} mood entries, {skipped} skipped."
+          },
+          "csv": {
+            "title": "CSV file",
+            "description": "Import measurements from a spreadsheet or meter export. One row per reading.",
+            "pasteLabel": "Paste CSV",
+            "fileInputLabel": "Choose a CSV file to import",
+            "schemaHint": "Columns: type, value, unit, measuredAt (with timezone offset), and optional glucoseContext, notes, externalId.",
+            "docsLink": "See the column schema and an example.",
+            "uploadFile": "Upload file",
+            "downloadExample": "Download example",
+            "preview": "Preview",
+            "import": "Import",
+            "empty": "Add at least one CSV row before importing.",
+            "rateLimited": "Too many imports this hour (limit 5). Please try again later.",
+            "tooLarge": "That file is too large (limit 16 MB).",
+            "invalidPayload": "The CSV could not be parsed. Check the header row and try again.",
+            "failed": "The import failed. Please try again.",
+            "readFailed": "Couldn't read that file.",
+            "previewSummary": "Preview: {inserted} would import, {skipped} skipped.",
+            "resultSummary": "Imported {inserted} new and updated {updated}, {skipped} skipped.",
+            "rowError": "Line {line}: {reason}"
           }
         }
       },

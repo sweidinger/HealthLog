@@ -27,7 +27,13 @@ vi.mock("next/navigation", () => ({
 }));
 
 import { I18nProvider } from "@/lib/i18n/context";
-import { ImportPanel, EXAMPLE_IMPORT, parseImportJson } from "../import-panel";
+import {
+  ImportPanel,
+  EXAMPLE_IMPORT,
+  EXAMPLE_CSV,
+  parseImportJson,
+} from "../import-panel";
+import { parseCsvMeasurements } from "@/lib/import/csv-measurements";
 
 function render(node: React.ReactElement, locale: "en" | "de" = "en") {
   const queryClient = new QueryClient({
@@ -46,6 +52,7 @@ describe("<ImportPanel> — SSR smoke", () => {
     expect(html).toContain('id="settings-section-import-title"');
     expect(html).toContain('data-testid="import-card-apple-health"');
     expect(html).toContain('data-testid="import-card-json"');
+    expect(html).toContain('data-testid="import-card-csv"');
     // Raw i18n keys never leak past the provider.
     expect(html).not.toContain("settings.sections.export.import.");
   });
@@ -58,6 +65,11 @@ describe("<ImportPanel> — SSR smoke", () => {
       "import-json-choose-file",
       "import-json-download-example",
       "import-action-json",
+      "import-csv-textarea",
+      "import-csv-choose-file",
+      "import-csv-download-example",
+      "import-csv-preview",
+      "import-action-csv",
     ]) {
       expect(html).toContain(`data-testid="${id}"`);
     }
@@ -109,6 +121,19 @@ describe("EXAMPLE_IMPORT payload", () => {
     expect(["SUPER_GUT", "GUT", "OKAY", "SCHLECHT", "LAUSIG"]).toContain(
       mood.mood,
     );
+  });
+});
+
+describe("EXAMPLE_CSV", () => {
+  it("parses entirely to ok rows (example must not drift from the schema)", () => {
+    // Pin the clock well past the fixture timestamps so the entry-instant
+    // bound never rejects the example as future-dated.
+    const out = parseCsvMeasurements(EXAMPLE_CSV, {
+      now: new Date("2026-06-01T00:00:00Z").getTime(),
+    });
+    expect(out.fatal).toBeUndefined();
+    expect(out.rows.length).toBeGreaterThan(0);
+    expect(out.rows.every((r) => r.status === "ok")).toBe(true);
   });
 });
 

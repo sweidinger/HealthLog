@@ -482,6 +482,7 @@
     "pulseLabel": "Pouls (bpm)",
     "valueWithUnit": "Valeur ({unit})",
     "timestamp": "Heure",
+    "timestampBackdateHint": "Ajustez la date et l'heure pour enregistrer un relevé passé.",
     "notesPlaceholder": "p. ex. après le repas",
     "formReset": "Réinitialiser le formulaire",
     "saveError": "Erreur lors de l’enregistrement",
@@ -3958,6 +3959,27 @@
             "failed": "L'import a échoué. Veuillez réessayer.",
             "readFailed": "Impossible de lire ce fichier.",
             "resultSummary": "{measurements} mesures et {moods} entrées d'humeur importées, {skipped} ignorées."
+          },
+          "csv": {
+            "title": "Fichier CSV",
+            "description": "Importez des mesures depuis un tableur ou l'export d'un appareil. Une ligne par relevé.",
+            "pasteLabel": "Coller le CSV",
+            "fileInputLabel": "Choisir un fichier CSV à importer",
+            "schemaHint": "Colonnes : type, value, unit, measuredAt (avec décalage horaire) et, en option, glucoseContext, notes, externalId.",
+            "docsLink": "Voir le schéma des colonnes et un exemple.",
+            "uploadFile": "Téléverser un fichier",
+            "downloadExample": "Télécharger un exemple",
+            "preview": "Aperçu",
+            "import": "Importer",
+            "empty": "Ajoutez au moins une ligne CSV avant d'importer.",
+            "rateLimited": "Trop d'imports cette heure (limite 5). Veuillez réessayer plus tard.",
+            "tooLarge": "Ce fichier est trop volumineux (limite 16 Mo).",
+            "invalidPayload": "Le CSV n'a pas pu être analysé. Vérifiez la ligne d'en-tête et réessayez.",
+            "failed": "L'import a échoué. Veuillez réessayer.",
+            "readFailed": "Impossible de lire ce fichier.",
+            "previewSummary": "Aperçu : {inserted} seraient importées, {skipped} ignorées.",
+            "resultSummary": "{inserted} nouvelles importées et {updated} mises à jour, {skipped} ignorées.",
+            "rowError": "Ligne {line} : {reason}"
           }
         }
       },

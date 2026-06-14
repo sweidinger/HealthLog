@@ -482,6 +482,7 @@
     "pulseLabel": "Pulsazioni (bpm)",
     "valueWithUnit": "Valore ({unit})",
     "timestamp": "Ora",
+    "timestampBackdateHint": "Regola data e ora per registrare una lettura passata.",
     "notesPlaceholder": "es. dopo il pasto",
     "formReset": "Reimposta modulo",
     "saveError": "Errore durante il salvataggio",
@@ -3958,6 +3959,27 @@
             "failed": "L'importazione non è riuscita. Riprova.",
             "readFailed": "Impossibile leggere il file.",
             "resultSummary": "{measurements} misurazioni e {moods} voci dell'umore importate, {skipped} saltate."
+          },
+          "csv": {
+            "title": "File CSV",
+            "description": "Importa misurazioni da un foglio di calcolo o dall'esportazione di un dispositivo. Una riga per lettura.",
+            "pasteLabel": "Incolla CSV",
+            "fileInputLabel": "Scegli un file CSV da importare",
+            "schemaHint": "Colonne: type, value, unit, measuredAt (con offset del fuso orario) e, facoltative, glucoseContext, notes, externalId.",
+            "docsLink": "Vedi lo schema delle colonne e un esempio.",
+            "uploadFile": "Carica file",
+            "downloadExample": "Scarica esempio",
+            "preview": "Anteprima",
+            "import": "Importa",
+            "empty": "Aggiungi almeno una riga CSV prima di importare.",
+            "rateLimited": "Troppe importazioni in questa ora (limite 5). Riprova più tardi.",
+            "tooLarge": "Questo file è troppo grande (limite 16 MB).",
+            "invalidPayload": "Impossibile analizzare il CSV. Controlla la riga di intestazione e riprova.",
+            "failed": "L'importazione non è riuscita. Riprova.",
+            "readFailed": "Impossibile leggere questo file.",
+            "previewSummary": "Anteprima: {inserted} verrebbero importate, {skipped} saltate.",
+            "resultSummary": "{inserted} nuove importate e {updated} aggiornate, {skipped} saltate.",
+            "rowError": "Riga {line}: {reason}"
           }
         }
       },
