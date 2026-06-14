@@ -198,9 +198,19 @@ export function toCyclePredictionDTO(
     nextPeriodStart: result.nextPeriodStart,
     nextPeriodStartLow: result.nextPeriodStartLow,
     nextPeriodStartHigh: result.nextPeriodStartHigh,
-    fertileWindowStart: goalAllowsFertile ? result.fertileWindowStart : null,
-    fertileWindowEnd: goalAllowsFertile ? result.fertileWindowEnd : null,
-    predictedOvulation: goalAllowsFertile ? result.predictedOvulation : null,
+    // Fertile-window + predicted ovulation are suppressed both when the goal
+    // forbids them AND while still learning (<3 cycles): below that we would be
+    // emitting a population-prior guess, not a data-grounded estimate. Making
+    // the gate structural here (not just in the web panels / calendar grid)
+    // means iOS — and any client reading `prediction.*` directly — cannot paint
+    // a fertile window the rest of the app refuses to show. `ovulationConfirmed`
+    // stays goal-gated only: a confirmed shift is observed data, not a prior.
+    fertileWindowStart:
+      goalAllowsFertile && !result.stillLearning ? result.fertileWindowStart : null,
+    fertileWindowEnd:
+      goalAllowsFertile && !result.stillLearning ? result.fertileWindowEnd : null,
+    predictedOvulation:
+      goalAllowsFertile && !result.stillLearning ? result.predictedOvulation : null,
     ovulationConfirmed: goalAllowsFertile ? result.ovulationConfirmed : false,
     confidence: result.confidence,
     cyclesObserved: result.cyclesObserved,

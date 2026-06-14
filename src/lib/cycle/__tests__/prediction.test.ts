@@ -16,9 +16,11 @@ import {
   predictCycle,
   resolveLuteal,
 } from "../prediction";
+import { toCyclePredictionDTO } from "../dto";
 import type {
   CycleInput,
   CycleProfileInput,
+  CyclePredictionResult,
   DayLogInput,
   NightlyTempInput,
 } from "../types";
@@ -934,5 +936,73 @@ describe("cycle/prediction — luteal clamp single source of truth (QA HIGH)", (
     const result = predictCycle(cycles, [], profile, addDays(lastStart, 5));
     // predictedOvulation = nextStart − clampedLuteal(10).
     expect(result.predictedOvulation).toBe(addDays(result.nextPeriodStart, -10));
+  });
+});
+
+describe("cycle/dto — toCyclePredictionDTO still-learning honesty gate (M-1)", () => {
+  /** A fully-populated engine result; `stillLearning` is overridden per case. */
+  function makeResult(
+    overrides: Partial<CyclePredictionResult> = {},
+  ): CyclePredictionResult {
+    return {
+      method: "CALENDAR",
+      nextPeriodStart: "2024-02-01",
+      nextPeriodStartLow: "2024-01-30",
+      nextPeriodStartHigh: "2024-02-03",
+      predictedPeriodLength: 5,
+      fertileWindowStart: "2024-01-14",
+      fertileWindowEnd: "2024-01-20",
+      predictedOvulation: "2024-01-18",
+      ovulationConfirmed: true,
+      confidence: 0.6,
+      confidenceLabel: "medium",
+      cyclesObserved: 5,
+      stillLearning: false,
+      estimatedCycleLength: 28,
+      estimatedCycleSd: 1.5,
+      ...overrides,
+    };
+  }
+
+  it("suppresses the fertile window + predicted ovulation on the wire while still learning (<3 cycles), even when the goal allows it", () => {
+    const result = makeResult({ stillLearning: true, cyclesObserved: 2 });
+    const dto = toCyclePredictionDTO(result, /* goalAllowsFertile */ true, "d");
+
+    expect(dto.fertileWindowStart).toBeNull();
+    expect(dto.fertileWindowEnd).toBeNull();
+    expect(dto.predictedOvulation).toBeNull();
+    // The honesty flag still reaches the client so it can paint the calm state.
+    expect(dto.stillLearning).toBe(true);
+  });
+
+  it("populates the fertile window + predicted ovulation once learning completes (>=3 cycles) and the goal allows it", () => {
+    const result = makeResult({ stillLearning: false, cyclesObserved: 3 });
+    const dto = toCyclePredictionDTO(result, /* goalAllowsFertile */ true, "d");
+
+    expect(dto.fertileWindowStart).toBe("2024-01-14");
+    expect(dto.fertileWindowEnd).toBe("2024-01-20");
+    expect(dto.predictedOvulation).toBe("2024-01-18");
+    expect(dto.stillLearning).toBe(false);
+  });
+
+  it("keeps ovulationConfirmed goal-gated only — unchanged by the still-learning gate", () => {
+    // Still learning but goal allows: a confirmed shift is observed data, not a
+    // prior, so it stays surfaced even while the predicted window is suppressed.
+    const learning = toCyclePredictionDTO(
+      makeResult({ stillLearning: true, ovulationConfirmed: true }),
+      true,
+      "d",
+    );
+    expect(learning.ovulationConfirmed).toBe(true);
+
+    // Goal forbids the fertile window → confirmation drops regardless of learning.
+    const goalGated = toCyclePredictionDTO(
+      makeResult({ stillLearning: false, ovulationConfirmed: true }),
+      false,
+      "d",
+    );
+    expect(goalGated.ovulationConfirmed).toBe(false);
+    expect(goalGated.fertileWindowStart).toBeNull();
+    expect(goalGated.predictedOvulation).toBeNull();
   });
 });
