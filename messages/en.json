@@ -6208,5 +6208,56 @@
     "deleteN": "Delete ({count})",
     "clearSelection": "Clear selection",
     "selectionBarLabel": "Selection actions"
+  },
+  "measurementReminders": {
+    "sectionTitle": "Preventive care",
+    "sectionDescription": "Reminders for what to measure or check, when, and where.",
+    "addButton": "Add reminder",
+    "markDone": "Done",
+    "delete": "Delete",
+    "disabledBadge": "Off",
+    "nextDue": {
+      "none": "Not scheduled",
+      "today": "Due today",
+      "tomorrow": "Due tomorrow",
+      "inDays": "In {days} days"
+    },
+    "overdueByDays": "Overdue by {days} days",
+    "cadence": {
+      "everyNDays": "Every {days} days",
+      "custom": "Custom schedule"
+    },
+    "location": {
+      "prefix": "At: {location}"
+    },
+    "types": {
+      "WEIGHT": "Weight",
+      "BLOOD_PRESSURE_SYS": "Blood pressure",
+      "PULSE": "Pulse",
+      "BLOOD_GLUCOSE": "Blood glucose",
+      "OXYGEN_SATURATION": "Oxygen saturation",
+      "BODY_FAT": "Body fat",
+      "BODY_TEMPERATURE": "Body temperature"
+    },
+    "empty": {
+      "title": "No reminders yet",
+      "description": "Add a reminder to measure your blood pressure on a cadence, or to schedule an annual blood panel."
+    },
+    "form": {
+      "label": "Label",
+      "labelPlaceholder": "e.g. Measure blood pressure",
+      "kind": "Type",
+      "kindType": "Linked to a measurement",
+      "kindFreeText": "Free-text check",
+      "measurementType": "Measurement",
+      "cadence": "Repeat",
+      "notifyHour": "Remind at",
+      "location": "Where (optional)",
+      "locationPlaceholder": "e.g. GP, Lab",
+      "save": "Save"
+    },
+    "pushTitle": "Preventive-care reminder",
+    "pushBody": "Time for: {label}",
+    "pushLocation": "(at {location})"
   }
 }

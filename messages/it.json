@@ -6208,5 +6208,56 @@
     "deleteN": "Elimina ({count})",
     "clearSelection": "Cancella selezione",
     "selectionBarLabel": "Azioni di selezione"
+  },
+  "measurementReminders": {
+    "sectionTitle": "Prevenzione",
+    "sectionDescription": "Promemoria su cosa misurare o controllare, quando e dove.",
+    "addButton": "Aggiungi promemoria",
+    "markDone": "Fatto",
+    "delete": "Elimina",
+    "disabledBadge": "Disattivato",
+    "nextDue": {
+      "none": "Non pianificato",
+      "today": "In scadenza oggi",
+      "tomorrow": "In scadenza domani",
+      "inDays": "Tra {days} giorni"
+    },
+    "overdueByDays": "In ritardo di {days} giorni",
+    "cadence": {
+      "everyNDays": "Ogni {days} giorni",
+      "custom": "Pianificazione personalizzata"
+    },
+    "location": {
+      "prefix": "Presso: {location}"
+    },
+    "types": {
+      "WEIGHT": "Peso",
+      "BLOOD_PRESSURE_SYS": "Pressione sanguigna",
+      "PULSE": "Battito",
+      "BLOOD_GLUCOSE": "Glicemia",
+      "OXYGEN_SATURATION": "Saturazione di ossigeno",
+      "BODY_FAT": "Grasso corporeo",
+      "BODY_TEMPERATURE": "Temperatura corporea"
+    },
+    "empty": {
+      "title": "Ancora nessun promemoria",
+      "description": "Aggiungi un promemoria per misurare regolarmente la pressione o pianificare un esame del sangue annuale."
+    },
+    "form": {
+      "label": "Etichetta",
+      "labelPlaceholder": "es. Misurare la pressione",
+      "kind": "Tipo",
+      "kindType": "Collegato a una misurazione",
+      "kindFreeText": "Controllo a testo libero",
+      "measurementType": "Misurazione",
+      "cadence": "Ripeti",
+      "notifyHour": "Ricorda alle",
+      "location": "Dove (facoltativo)",
+      "locationPlaceholder": "es. Medico, Laboratorio",
+      "save": "Salva"
+    },
+    "pushTitle": "Promemoria di prevenzione",
+    "pushBody": "È ora di: {label}",
+    "pushLocation": "(presso {location})"
   }
 }

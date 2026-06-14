@@ -6208,5 +6208,56 @@
     "deleteN": "Usuń ({count})",
     "clearSelection": "Wyczyść zaznaczenie",
     "selectionBarLabel": "Akcje zaznaczenia"
+  },
+  "measurementReminders": {
+    "sectionTitle": "Profilaktyka",
+    "sectionDescription": "Przypomnienia, co, kiedy i gdzie zmierzyć lub sprawdzić.",
+    "addButton": "Dodaj przypomnienie",
+    "markDone": "Gotowe",
+    "delete": "Usuń",
+    "disabledBadge": "Wył.",
+    "nextDue": {
+      "none": "Niezaplanowane",
+      "today": "Termin dzisiaj",
+      "tomorrow": "Termin jutro",
+      "inDays": "Za {days} dni"
+    },
+    "overdueByDays": "Zaległe od {days} dni",
+    "cadence": {
+      "everyNDays": "Co {days} dni",
+      "custom": "Własny harmonogram"
+    },
+    "location": {
+      "prefix": "U: {location}"
+    },
+    "types": {
+      "WEIGHT": "Waga",
+      "BLOOD_PRESSURE_SYS": "Ciśnienie krwi",
+      "PULSE": "Tętno",
+      "BLOOD_GLUCOSE": "Glukoza we krwi",
+      "OXYGEN_SATURATION": "Saturacja tlenem",
+      "BODY_FAT": "Tkanka tłuszczowa",
+      "BODY_TEMPERATURE": "Temperatura ciała"
+    },
+    "empty": {
+      "title": "Brak przypomnień",
+      "description": "Dodaj przypomnienie, aby regularnie mierzyć ciśnienie krwi lub zaplanować coroczne badanie krwi."
+    },
+    "form": {
+      "label": "Etykieta",
+      "labelPlaceholder": "np. Zmierz ciśnienie krwi",
+      "kind": "Typ",
+      "kindType": "Powiązane z pomiarem",
+      "kindFreeText": "Sprawdzenie tekstowe",
+      "measurementType": "Pomiar",
+      "cadence": "Powtarzaj",
+      "notifyHour": "Przypomnij o",
+      "location": "Gdzie (opcjonalnie)",
+      "locationPlaceholder": "np. Lekarz, Laboratorium",
+      "save": "Zapisz"
+    },
+    "pushTitle": "Przypomnienie profilaktyczne",
+    "pushBody": "Czas na: {label}",
+    "pushLocation": "(u {location})"
   }
 }

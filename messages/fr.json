@@ -6208,5 +6208,56 @@
     "deleteN": "Supprimer ({count})",
     "clearSelection": "Effacer la sélection",
     "selectionBarLabel": "Actions de sélection"
+  },
+  "measurementReminders": {
+    "sectionTitle": "Prévention",
+    "sectionDescription": "Rappels de ce qu'il faut mesurer ou vérifier, quand et où.",
+    "addButton": "Ajouter un rappel",
+    "markDone": "Terminé",
+    "delete": "Supprimer",
+    "disabledBadge": "Désactivé",
+    "nextDue": {
+      "none": "Non planifié",
+      "today": "À faire aujourd'hui",
+      "tomorrow": "À faire demain",
+      "inDays": "Dans {days} jours"
+    },
+    "overdueByDays": "En retard de {days} jours",
+    "cadence": {
+      "everyNDays": "Tous les {days} jours",
+      "custom": "Planning personnalisé"
+    },
+    "location": {
+      "prefix": "Chez : {location}"
+    },
+    "types": {
+      "WEIGHT": "Poids",
+      "BLOOD_PRESSURE_SYS": "Tension artérielle",
+      "PULSE": "Pouls",
+      "BLOOD_GLUCOSE": "Glycémie",
+      "OXYGEN_SATURATION": "Saturation en oxygène",
+      "BODY_FAT": "Masse grasse",
+      "BODY_TEMPERATURE": "Température corporelle"
+    },
+    "empty": {
+      "title": "Aucun rappel pour l'instant",
+      "description": "Ajoutez un rappel pour mesurer régulièrement votre tension ou planifier un bilan sanguin annuel."
+    },
+    "form": {
+      "label": "Libellé",
+      "labelPlaceholder": "ex. Mesurer la tension",
+      "kind": "Type",
+      "kindType": "Lié à une mesure",
+      "kindFreeText": "Vérification libre",
+      "measurementType": "Mesure",
+      "cadence": "Répétition",
+      "notifyHour": "Rappeler à",
+      "location": "Où (facultatif)",
+      "locationPlaceholder": "ex. Médecin, Laboratoire",
+      "save": "Enregistrer"
+    },
+    "pushTitle": "Rappel de prévention",
+    "pushBody": "C'est l'heure : {label}",
+    "pushLocation": "(chez {location})"
   }
 }
