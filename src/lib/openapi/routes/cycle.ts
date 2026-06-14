@@ -101,6 +101,7 @@ const cycleDayLogDto = z
     flow: flowLevelEnum.nullable(),
     intermenstrualBleeding: z.boolean(),
     basalBodyTempC: z.number().nullable(),
+    temperatureExcluded: z.boolean(),
     ovulationTest: ovulationTestEnum.nullable(),
     cervicalMucus: cervicalMucusEnum.nullable(),
     sexualActivity: z.boolean(),
@@ -175,6 +176,7 @@ const cycleCalendarDayDto = z.object({
   // so the web BBT chart renders from the calendar read (the values are already
   // loaded server-side for the symptothermal layer; no extra query).
   basalBodyTempC: z.number().nullable(),
+  temperatureExcluded: z.boolean(),
   ovulationTest: ovulationTestEnum.nullable(),
   cervicalMucus: cervicalMucusEnum.nullable(),
 });

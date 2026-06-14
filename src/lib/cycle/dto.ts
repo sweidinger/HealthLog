@@ -29,6 +29,8 @@ export interface CycleDayLogDTO {
   flow: string | null;
   intermenstrualBleeding: boolean;
   basalBodyTempC: number | null;
+  /** Whether the day's BBT is marked disturbed (excluded from the engine). */
+  temperatureExcluded: boolean;
   ovulationTest: string | null;
   cervicalMucus: string | null;
   sexualActivity: boolean;
@@ -107,6 +109,7 @@ export function toCycleDayLogDTO(row: DayLogWithLinks): CycleDayLogDTO {
     flow: row.flow,
     intermenstrualBleeding: row.intermenstrualBleeding,
     basalBodyTempC: row.basalBodyTempC,
+    temperatureExcluded: row.temperatureExcluded,
     ovulationTest: row.ovulationTest,
     cervicalMucus: row.cervicalMucus,
     sexualActivity: hasEnvelope

@@ -40,6 +40,7 @@ export interface CycleBackupSection {
     flow: string | null;
     intermenstrualBleeding: boolean;
     basalBodyTempC: number | null;
+    temperatureExcluded: boolean;
     ovulationTest: string | null;
     cervicalMucus: string | null;
     sexualActivity: boolean;
@@ -108,6 +109,7 @@ export async function buildCycleBackupSection(
       flow: d.flow,
       intermenstrualBleeding: d.intermenstrualBleeding,
       basalBodyTempC: d.basalBodyTempC,
+      temperatureExcluded: d.temperatureExcluded,
       ovulationTest: d.ovulationTest,
       cervicalMucus: d.cervicalMucus,
       sexualActivity: d.sexualActivity,
@@ -289,6 +291,7 @@ export async function restoreCycleData(
         flow: enumOrNull(d.flow, FLOW_LEVELS) as never,
         intermenstrualBleeding: d.intermenstrualBleeding ?? false,
         basalBodyTempC: d.basalBodyTempC ?? null,
+        temperatureExcluded: d.temperatureExcluded ?? false,
         ovulationTest: enumOrNull(d.ovulationTest, OVULATION_TESTS) as never,
         cervicalMucus: enumOrNull(d.cervicalMucus, CERVICAL_MUCUS) as never,
         sexualActivity: d.sexualActivity ?? false,

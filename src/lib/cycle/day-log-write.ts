@@ -140,6 +140,7 @@ type ExistingRow = {
   flow: string | null;
   intermenstrualBleeding: boolean;
   basalBodyTempC: number | null;
+  temperatureExcluded: boolean;
   ovulationTest: string | null;
   cervicalMucus: string | null;
   sexualActivity: boolean;
@@ -158,6 +159,7 @@ const EXISTING_SELECT = {
   flow: true,
   intermenstrualBleeding: true,
   basalBodyTempC: true,
+  temperatureExcluded: true,
   ovulationTest: true,
   cervicalMucus: true,
   sexualActivity: true,
@@ -309,6 +311,10 @@ async function writeDayLog(args: WriteArgs): Promise<DayLogWriteResult> {
     entry.basalBodyTempC !== undefined
       ? (entry.basalBodyTempC ?? null)
       : (existing?.basalBodyTempC ?? null);
+  const temperatureExcluded =
+    entry.temperatureExcluded !== undefined
+      ? entry.temperatureExcluded
+      : (existing?.temperatureExcluded ?? false);
   const ovulationTest =
     entry.ovulationTest !== undefined
       ? (entry.ovulationTest ?? null)
@@ -338,6 +344,7 @@ async function writeDayLog(args: WriteArgs): Promise<DayLogWriteResult> {
     flow: flow as never,
     intermenstrualBleeding,
     basalBodyTempC,
+    temperatureExcluded,
     ovulationTest: ovulationTest as never,
     cervicalMucus: cervicalMucus as never,
     sexualActivity: sensitivePlaintext.sexualActivity,
@@ -357,6 +364,7 @@ async function writeDayLog(args: WriteArgs): Promise<DayLogWriteResult> {
       (existing.flow ?? null) !== flow ||
       existing.intermenstrualBleeding !== intermenstrualBleeding ||
       (existing.basalBodyTempC ?? null) !== basalBodyTempC ||
+      existing.temperatureExcluded !== temperatureExcluded ||
       (existing.ovulationTest ?? null) !== ovulationTest ||
       (existing.cervicalMucus ?? null) !== cervicalMucus ||
       storedSensitive.sexualActivity !== resolvedSensitive.sexualActivity ||
@@ -395,6 +403,7 @@ async function writeDayLog(args: WriteArgs): Promise<DayLogWriteResult> {
         flow: baseData.flow as never,
         intermenstrualBleeding: baseData.intermenstrualBleeding as never,
         basalBodyTempC: baseData.basalBodyTempC as never,
+        temperatureExcluded: baseData.temperatureExcluded as never,
         ovulationTest: baseData.ovulationTest as never,
         cervicalMucus: baseData.cervicalMucus as never,
         sexualActivity: sensitivePlaintext.sexualActivity,

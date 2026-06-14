@@ -141,6 +141,7 @@ const cycleDayLogSchema = z
     flow: z.string().nullable().optional(),
     intermenstrualBleeding: z.boolean().optional(),
     basalBodyTempC: z.number().nullable().optional(),
+    temperatureExcluded: z.boolean().optional(),
     ovulationTest: z.string().nullable().optional(),
     cervicalMucus: z.string().nullable().optional(),
     sexualActivity: z.boolean().optional(),

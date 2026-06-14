@@ -154,6 +154,8 @@ export interface DayLogFormState {
   intermenstrual: boolean;
   /** Raw text from the BBT input; "" / non-finite resolves to null. */
   bbt: string;
+  /** Whether the BBT reading is marked disturbed (fever/late) — engine skips it. */
+  bbtDisturbed: boolean;
   opk: OvulationTest | null;
   mucus: CervicalMucus | null;
   intercourse: boolean;
@@ -189,6 +191,8 @@ export function buildDayLogPatch(s: DayLogFormState): CycleDayLogPatch {
     flow: s.flow ?? null,
     intermenstrualBleeding: s.intermenstrual,
     basalBodyTempC: resolveBbt(s.bbt),
+    // Only meaningful with a BBT present; a cleared reading resets the flag.
+    temperatureExcluded: resolveBbt(s.bbt) != null ? s.bbtDisturbed : false,
     ovulationTest: s.opk ?? null,
     cervicalMucus: s.mucus ?? null,
     sexualActivity: s.intercourse,
@@ -214,7 +218,9 @@ export function buildDayLogInput(
     source: "MANUAL",
     ...(s.flow ? { flow: s.flow } : {}),
     intermenstrualBleeding: s.intermenstrual,
-    ...(bbtVal != null ? { basalBodyTempC: bbtVal } : {}),
+    ...(bbtVal != null
+      ? { basalBodyTempC: bbtVal, temperatureExcluded: s.bbtDisturbed }
+      : {}),
     ...(s.opk ? { ovulationTest: s.opk } : {}),
     ...(s.mucus ? { cervicalMucus: s.mucus } : {}),
     sexualActivity: s.intercourse,
@@ -292,6 +298,7 @@ export function LogDaySheet({
     new Map(),
   );
   const [bbt, setBbt] = useState<string>("");
+  const [bbtDisturbed, setBbtDisturbed] = useState(false);
   const [opk, setOpk] = useState<OvulationTest | null>(null);
   const [mucus, setMucus] = useState<CervicalMucus | null>(null);
   const [intercourse, setIntercourse] = useState(false);
@@ -324,6 +331,7 @@ export function LogDaySheet({
     setIntermenstrual(dto?.intermenstrualBleeding ?? false);
     setSymptoms(new Map((dto?.symptoms ?? []).map((s) => [s.key, s.severity])));
     setBbt(dto?.basalBodyTempC != null ? String(dto.basalBodyTempC) : "");
+    setBbtDisturbed(dto?.temperatureExcluded ?? false);
     setOpk((dto?.ovulationTest ?? null) as OvulationTest | null);
     setMucus((dto?.cervicalMucus ?? null) as CervicalMucus | null);
     setIntercourse(dto?.sexualActivity ?? false);
@@ -359,6 +367,7 @@ export function LogDaySheet({
       flow,
       intermenstrual,
       bbt,
+      bbtDisturbed,
       opk,
       mucus,
       intercourse,
@@ -601,6 +610,23 @@ export function LogDaySheet({
           className="border-input bg-background focus-visible:ring-ring/50 w-32 rounded-md border px-3 py-2 text-sm focus-visible:ring-2 focus-visible:outline-none"
           aria-label={t("cycle.sheet.temperature")}
         />
+        {resolveBbt(bbt) != null && (
+          <div className="mt-3 flex items-start justify-between gap-3">
+            <div className="flex flex-col">
+              <span className="text-sm">
+                {t("cycle.sheet.temperatureDisturbed")}
+              </span>
+              <span className="text-muted-foreground text-xs">
+                {t("cycle.sheet.temperatureDisturbedHint")}
+              </span>
+            </div>
+            <Switch
+              checked={bbtDisturbed}
+              onCheckedChange={setBbtDisturbed}
+              aria-label={t("cycle.sheet.temperatureDisturbed")}
+            />
+          </div>
+        )}
       </Field>
 
       {/* Ovulation test */}

@@ -37,6 +37,8 @@ export interface CalendarDayDTO {
   confidence: number;
   /** Logged basal body temperature (°C), or null. Feeds the web BBT chart. */
   basalBodyTempC: number | null;
+  /** Whether the day's BBT is marked disturbed (excluded from the engine). */
+  temperatureExcluded: boolean;
   /** Logged ovulation-test result, or null. */
   ovulationTest: string | null;
   /** Logged cervical-mucus quality, or null. */
@@ -46,7 +48,12 @@ export interface CalendarDayDTO {
 /** Rows the calendar needs from each day-log. */
 export type CalendarDayLogRow = Pick<
   CycleDayLog,
-  "date" | "flow" | "basalBodyTempC" | "ovulationTest" | "cervicalMucus"
+  | "date"
+  | "flow"
+  | "basalBodyTempC"
+  | "temperatureExcluded"
+  | "ovulationTest"
+  | "cervicalMucus"
 > & { hasSymptoms: boolean };
 
 /** Map MenstrualCycle rows (oldest→newest) to engine `CycleInput`. */
@@ -73,13 +80,19 @@ export function toCycleInputs(
 export function toDayLogInputs(
   logs: readonly Pick<
     CycleDayLog,
-    "date" | "flow" | "basalBodyTempC" | "ovulationTest" | "cervicalMucus"
+    | "date"
+    | "flow"
+    | "basalBodyTempC"
+    | "temperatureExcluded"
+    | "ovulationTest"
+    | "cervicalMucus"
   >[],
 ): DayLogInput[] {
   return logs.map((l) => ({
     date: l.date,
     flow: l.flow,
     basalBodyTempC: l.basalBodyTempC,
+    temperatureExcluded: l.temperatureExcluded,
     ovulationTest: l.ovulationTest,
     cervicalMucus: l.cervicalMucus,
   }));
@@ -337,6 +350,7 @@ export function buildCalendar(
       hasSymptoms: log?.hasSymptoms ?? false,
       confidence: prediction?.confidence ?? 0,
       basalBodyTempC: log?.basalBodyTempC ?? null,
+      temperatureExcluded: log?.temperatureExcluded ?? false,
       ovulationTest: log?.ovulationTest ?? null,
       cervicalMucus: log?.cervicalMucus ?? null,
     });

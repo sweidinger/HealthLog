@@ -103,6 +103,9 @@ export const cycleDayLogInputSchema = z.object({
   flow: flowLevelEnum.optional(),
   intermenstrualBleeding: z.boolean().optional(),
   basalBodyTempC: z.number().min(30).max(45).optional(),
+  // Marks the day's BBT as disturbed (fever / illness / late reading): the
+  // symptothermal engine drops it from the cover line + shift evaluation.
+  temperatureExcluded: z.boolean().optional(),
   ovulationTest: ovulationTestEnum.optional(),
   cervicalMucus: cervicalMucusEnum.optional(),
   sexualActivity: z.boolean().optional(),
@@ -132,6 +135,7 @@ export const cycleDayLogPatchSchema = z.object({
   flow: flowLevelEnum.nullable().optional(),
   intermenstrualBleeding: z.boolean().optional(),
   basalBodyTempC: z.number().min(30).max(45).nullable().optional(),
+  temperatureExcluded: z.boolean().optional(),
   ovulationTest: ovulationTestEnum.nullable().optional(),
   cervicalMucus: cervicalMucusEnum.nullable().optional(),
   sexualActivity: z.boolean().optional(),

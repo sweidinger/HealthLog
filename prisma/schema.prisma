@@ -3749,6 +3749,13 @@ model CycleDayLog {
   /// symptothermal confirmation. BBT also lands in Measurement
   /// (BODY_TEMPERATURE) for charting; this column is the cycle-local copy.
   basalBodyTempC Float?         @map("basal_body_temp_c")
+  /// Whether this day's BBT is a disturbed/unreliable reading (fever,
+  /// illness, alcohol, a late or short-sleep measurement) the user marked
+  /// excluded. When true the symptothermal engine drops the reading from the
+  /// cover-line baseline AND the shift evaluation, so a spike neither
+  /// fabricates nor masks a temperature rise (Sensiplan: the cover line is
+  /// drawn over the last six *unbracketed* values).
+  temperatureExcluded Boolean @default(false) @map("temperature_excluded")
   /// Ovulation predictor-kit (OPK) reading.
   ovulationTest  OvulationTest? @map("ovulation_test")
   /// Cervical-mucus quality.

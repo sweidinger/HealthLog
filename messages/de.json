@@ -5882,6 +5882,8 @@
       "symptoms": "Symptome",
       "temperature": "Basaltemperatur",
       "temperaturePlaceholder": "°C",
+      "temperatureDisturbed": "Messwert als gestört markieren",
+      "temperatureDisturbedHint": "Fieber, Krankheit, Alkohol oder eine späte Messung — wird von der Temperaturauswertung ausgeschlossen.",
       "ovulationTest": "Ovulationstest",
       "mucus": "Zervixschleim",
       "intercourse": "Geschlechtsverkehr",

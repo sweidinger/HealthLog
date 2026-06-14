@@ -237,6 +237,7 @@ export interface CycleDayLogPatch {
   flow?: FlowLevel | null;
   intermenstrualBleeding?: boolean;
   basalBodyTempC?: number | null;
+  temperatureExcluded?: boolean;
   ovulationTest?: OvulationTest | null;
   cervicalMucus?: CervicalMucus | null;
   sexualActivity?: boolean;

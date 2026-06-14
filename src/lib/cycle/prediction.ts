@@ -272,8 +272,11 @@ interface TempShiftResult {
  * published Ausnahmeregeln (exception rules).
  *
  * Cover line (Hüllkurve) = the highest of the 6 measured low values immediately
- * preceding the rise. Ovulation = the last low day before the rise (the day
- * BEFORE the first elevated reading).
+ * preceding the rise. Excluded (disturbed) readings are dropped before the cover
+ * line and the rise are evaluated, so a fever / late reading neither raises the
+ * cover line nor masks a true shift (Sensiplan: the line is drawn over the last
+ * six *unbracketed* values). Ovulation = the last low day before the rise (the
+ * day BEFORE the first elevated reading).
  *
  * Rules (Arbeitsgruppe NFP / Raith-Paula & Frank-Herrmann; myNFP "Temperatur­kurve
  * auswerten"; Generation-Pille "Die wichtigsten NFP-Regeln"):
@@ -291,7 +294,7 @@ export function detectTempShift(
   thresholdC: number,
 ): TempShiftResult | null {
   const temps = dayLogs
-    .filter((l) => l.basalBodyTempC != null)
+    .filter((l) => l.basalBodyTempC != null && l.temperatureExcluded !== true)
     .map((l) => ({ date: l.date, t: l.basalBodyTempC as number }))
     .sort((a, b) => dayDiff(a.date, b.date));
 

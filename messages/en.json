@@ -5882,6 +5882,8 @@
       "symptoms": "Symptoms",
       "temperature": "Basal body temperature",
       "temperaturePlaceholder": "°C",
+      "temperatureDisturbed": "Mark reading as disturbed",
+      "temperatureDisturbedHint": "Fever, illness, alcohol or a late measurement — excluded from the temperature evaluation.",
       "ovulationTest": "Ovulation test",
       "mucus": "Cervical mucus",
       "intercourse": "Intercourse",

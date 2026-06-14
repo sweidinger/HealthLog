@@ -176,6 +176,7 @@ export async function buildCycleSnapshotBlock(
           date: true,
           flow: true,
           basalBodyTempC: true,
+          temperatureExcluded: true,
           ovulationTest: true,
           cervicalMucus: true,
         },

@@ -5882,6 +5882,8 @@
       "symptoms": "Symptômes",
       "temperature": "Température basale",
       "temperaturePlaceholder": "°C",
+      "temperatureDisturbed": "Marquer la mesure comme perturbée",
+      "temperatureDisturbedHint": "Fièvre, maladie, alcool ou mesure tardive — exclue de l'évaluation de la température.",
       "ovulationTest": "Test d'ovulation",
       "mucus": "Glaire cervicale",
       "intercourse": "Rapports",

@@ -117,6 +117,8 @@ paths:
                   type: number
                   minimum: 30
                   maximum: 45
+                temperatureExcluded:
+                  type: boolean
                 ovulationTest:
                   type: string
                   enum:
@@ -252,6 +254,8 @@ paths:
                       minimum: 30
                       maximum: 45
                     - type: "null"
+                temperatureExcluded:
+                  type: boolean
                 ovulationTest:
                   anyOf:
                     - type: string
@@ -412,6 +416,8 @@ paths:
                         type: number
                         minimum: 30
                         maximum: 45
+                      temperatureExcluded:
+                        type: boolean
                       ovulationTest:
                         type: string
                         enum:
@@ -6240,6 +6246,8 @@ components:
           anyOf:
             - type: number
             - type: "null"
+        temperatureExcluded:
+          type: boolean
         ovulationTest:
           anyOf:
             - type: string
@@ -6333,6 +6341,7 @@ components:
         - flow
         - intermenstrualBleeding
         - basalBodyTempC
+        - temperatureExcluded
         - ovulationTest
         - cervicalMucus
         - sexualActivity
@@ -6647,6 +6656,8 @@ components:
                     anyOf:
                       - type: number
                       - type: "null"
+                  temperatureExcluded:
+                    type: boolean
                   ovulationTest:
                     anyOf:
                       - type: string
@@ -6677,6 +6688,7 @@ components:
                   - hasSymptoms
                   - confidence
                   - basalBodyTempC
+                  - temperatureExcluded
                   - ovulationTest
                   - cervicalMucus
                 additionalProperties: false

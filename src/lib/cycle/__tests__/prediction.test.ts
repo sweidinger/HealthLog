@@ -389,6 +389,52 @@ describe("cycle/prediction — symptothermal confirmation (§4.2)", () => {
     expect(shift?.evaluationCompleteDate).toBe(addDays(start, 9));
   });
 
+  it("detectTempShift: an excluded (disturbed) baseline spike no longer masks a true rise", () => {
+    const start = "2024-01-01";
+    // 6 baseline days; the LAST (immediately before the rise) is a fever spike,
+    // so it sits in the cover-line window. Unexcluded it raises the cover line
+    // and contaminates detection; excluded it is dropped and the remaining lows
+    // form the real (lower) cover line.
+    const baseline = [36.4, 36.42, 36.38, 36.41, 36.4, 37.5];
+    const extraLow = 36.39; // a 6th valid low so exclusion still leaves 6
+    const rise = [36.55, 36.6, 36.62];
+    const build = (excludeFever: boolean): DayLogInput[] => {
+      const logs: DayLogInput[] = [];
+      logs.push(bbtDay(addDays(start, 0), extraLow));
+      baseline.forEach((t, i) => {
+        const day = bbtDay(addDays(start, 1 + i), t);
+        if (i === 5 && excludeFever) day.temperatureExcluded = true;
+        logs.push(day);
+      });
+      rise.forEach((t, i) => logs.push(bbtDay(addDays(start, 7 + i), t)));
+      return logs;
+    };
+    // Fever NOT excluded: the 37.5 spike contaminates detection — it does NOT
+    // yield the correct shift (ovulation = day before the real rise).
+    const corrupted = detectTempShift(build(false), 0.2);
+    expect(corrupted?.ovulationDate).not.toBe(addDays(start, 6));
+    // Fever excluded: cover line falls to the real baseline max and the genuine
+    // rise confirms with ovulation the day before it (2024-01-07).
+    const shift = detectTempShift(build(true), 0.2);
+    expect(shift?.rule).toBe(0);
+    expect(shift?.ovulationDate).toBe(addDays(start, 6));
+  });
+
+  it("detectTempShift: an excluded fever spike inside the rise no longer fabricates a shift", () => {
+    const start = "2024-01-01";
+    const logs: DayLogInput[] = [];
+    [36.4, 36.4, 36.4, 36.4, 36.4, 36.4].forEach((t, i) =>
+      logs.push(bbtDay(addDays(start, i), t)),
+    );
+    const fever = bbtDay(addDays(start, 6), 38.0);
+    fever.temperatureExcluded = true;
+    logs.push(fever);
+    logs.push(bbtDay(addDays(start, 7), 36.41));
+    logs.push(bbtDay(addDays(start, 8), 36.4));
+    // The excluded fever is dropped; the remaining readings show no rise.
+    expect(detectTempShift(logs, 0.2)).toBeNull();
+  });
+
   it("detectMucusPeak: confirms the last best-quality day followed by 3 drier days", () => {
     const m = (date: string, q: DayLogInput["cervicalMucus"]): DayLogInput => ({
       date,

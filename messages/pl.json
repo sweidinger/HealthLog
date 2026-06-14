@@ -5882,6 +5882,8 @@
       "symptoms": "Objawy",
       "temperature": "Podstawowa temperatura ciała",
       "temperaturePlaceholder": "°C",
+      "temperatureDisturbed": "Oznacz pomiar jako zakłócony",
+      "temperatureDisturbedHint": "Gorączka, choroba, alkohol lub spóźniony pomiar — wykluczony z oceny temperatury.",
       "ovulationTest": "Test owulacyjny",
       "mucus": "Śluz szyjkowy",
       "intercourse": "Współżycie",

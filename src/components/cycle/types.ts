@@ -138,6 +138,7 @@ export interface CycleDayLogInput {
   flow?: FlowLevel;
   intermenstrualBleeding?: boolean;
   basalBodyTempC?: number;
+  temperatureExcluded?: boolean;
   ovulationTest?: OvulationTest;
   cervicalMucus?: CervicalMucus;
   sexualActivity?: boolean;
@@ -159,6 +160,7 @@ export interface CycleDayLogDTO {
   flow: FlowLevel | null;
   intermenstrualBleeding: boolean;
   basalBodyTempC: number | null;
+  temperatureExcluded: boolean;
   ovulationTest: OvulationTest | null;
   cervicalMucus: CervicalMucus | null;
   sexualActivity: boolean;

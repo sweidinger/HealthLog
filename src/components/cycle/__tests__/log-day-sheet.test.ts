@@ -11,6 +11,7 @@ function blank(): DayLogFormState {
     flow: null,
     intermenstrual: false,
     bbt: "",
+    bbtDisturbed: false,
     opk: null,
     mucus: null,
     intercourse: false,
@@ -89,5 +90,28 @@ describe("buildDayLogInput (new row → omit empties)", () => {
     );
     expect(input.flow).toBe("LIGHT");
     expect(input.basalBodyTempC).toBe(36.5);
+  });
+
+  it("carries the disturbed flag alongside a BBT reading", () => {
+    const input = buildDayLogInput(
+      { ...blank(), bbt: "36.5", bbtDisturbed: true },
+      "2026-06-06",
+    );
+    expect(input.basalBodyTempC).toBe(36.5);
+    expect(input.temperatureExcluded).toBe(true);
+    const patch = buildDayLogPatch({ ...blank(), bbt: "36.5", bbtDisturbed: true });
+    expect(patch.temperatureExcluded).toBe(true);
+  });
+
+  it("never marks an absent BBT reading disturbed", () => {
+    // A disturbed flag with no temperature is meaningless — it must reset.
+    const patch = buildDayLogPatch({ ...blank(), bbt: "", bbtDisturbed: true });
+    expect(patch.basalBodyTempC).toBeNull();
+    expect(patch.temperatureExcluded).toBe(false);
+    const input = buildDayLogInput(
+      { ...blank(), bbt: "", bbtDisturbed: true },
+      "2026-06-06",
+    );
+    expect("temperatureExcluded" in input).toBe(false);
   });
 });

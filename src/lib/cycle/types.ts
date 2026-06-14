@@ -192,6 +192,15 @@ export interface DayLogInput {
   flow: FlowLevel | null;
   /** Basal body temperature in °C, already rounded to 2 dp before input. */
   basalBodyTempC: number | null;
+  /**
+   * Whether this day's BBT is a disturbed/unreliable reading (fever, illness,
+   * alcohol, a late or short-sleep measurement) the user marked excluded. When
+   * true the engine drops the reading from the cover-line baseline AND the shift
+   * evaluation, so a spike neither fabricates nor masks a temperature rise
+   * (Sensiplan: the cover line is drawn over the last six *unbracketed* values).
+   * Optional for back-compat; treated as `false` when absent.
+   */
+  temperatureExcluded?: boolean | null;
   ovulationTest: OvulationTest | null;
   cervicalMucus: CervicalMucus | null;
 }

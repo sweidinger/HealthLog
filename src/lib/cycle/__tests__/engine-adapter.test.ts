@@ -55,7 +55,7 @@ describe("buildCalendar", () => {
 
   it("labels logged-flow days and emits a forecast for ≥2 cycles", () => {
     const dayLogs: CalendarDayLogRow[] = [
-      { date: "2026-02-26", flow: "MEDIUM", basalBodyTempC: null, ovulationTest: null, cervicalMucus: null, hasSymptoms: true },
+      { date: "2026-02-26", flow: "MEDIUM", basalBodyTempC: null, temperatureExcluded: false, ovulationTest: null, cervicalMucus: null, hasSymptoms: true },
     ];
     const { prediction, days } = buildCalendar(
       profile(),
