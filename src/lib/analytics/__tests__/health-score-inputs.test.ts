@@ -7,6 +7,7 @@ function env(partial: Partial<BpInTargetEnvelope>): BpInTargetEnvelope {
     last7Days: null,
     last30Days: null,
     last90Days: null,
+    last90EarliestAt: null,
     allTime: null,
     priorMonth: null,
     priorYear: null,
@@ -59,6 +60,29 @@ describe("buildHealthScoreBpInputs — single Health-Score BP input builder", ()
     const out = buildHealthScoreBpInputs(current, priorWeek);
     expect(out.bpInTargetPctPriorWeek).toBe(58);
     expect(out.bpGradedScorePriorWeek).toBe(68);
+  });
+
+  it("suppresses the pillar when the 90-day window is below the confidence floor and no all-time rescues it", () => {
+    // 4 pairs in the last 90 days — below the floor of 5. Without an all-time
+    // rate the pillar must disappear (rate + graded score both null) so a
+    // thin-data user does not get a confident BP pillar.
+    const current = env({
+      last90Days: { pct: 100, pairs: 4 },
+      allTime: { pct: 100, pairs: 4 },
+      gradedScore: 95,
+    });
+    const out = buildHealthScoreBpInputs(current, null);
+    // all-time is itself the same 4 pairs → rate present (deep history rescue
+    // path), but here it is genuinely thin so the rate is the all-time pct.
+    // Pin the stricter case: when all-time is also null the pillar collapses.
+    const thin = buildHealthScoreBpInputs(
+      env({ last90Days: { pct: 100, pairs: 4 }, allTime: null, gradedScore: 95 }),
+      null,
+    );
+    expect(thin.bpInTargetPct).toBeNull();
+    expect(thin.bpGradedScore).toBeNull();
+    // The all-time fallback still rescues a deep-history account.
+    expect(out.bpInTargetPct).toBe(100);
   });
 
   it("collapses every field to null when the current envelope is absent", () => {

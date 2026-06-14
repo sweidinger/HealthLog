@@ -46,6 +46,8 @@ export interface AnalyticsThickLike extends AnalyticsSlimLike {
   bpInTargetPctAllTime?: number | null;
   bpInTargetPctPriorMonth?: number | null;
   bpInTargetPctPriorYear?: number | null;
+  bpInTargetCount90?: number | null;
+  bpInTargetSpanDays90?: number | null;
   glucoseByContext?: Record<string, unknown> | null;
 }
 
@@ -60,6 +62,8 @@ export interface MergedDashboardAnalytics {
   bpInTargetPctAllTime: number | null;
   bpInTargetPctPriorMonth: number | null;
   bpInTargetPctPriorYear: number | null;
+  bpInTargetCount90: number | null;
+  bpInTargetSpanDays90: number | null;
   glucoseByContext: Record<string, unknown> | undefined;
 }
 
@@ -109,6 +113,8 @@ export function mergeSlimAndThickAnalytics(
     bpInTargetPctAllTime: thick?.bpInTargetPctAllTime ?? null,
     bpInTargetPctPriorMonth: thick?.bpInTargetPctPriorMonth ?? null,
     bpInTargetPctPriorYear: thick?.bpInTargetPctPriorYear ?? null,
+    bpInTargetCount90: thick?.bpInTargetCount90 ?? null,
+    bpInTargetSpanDays90: thick?.bpInTargetSpanDays90 ?? null,
     glucoseByContext: thick?.glucoseByContext ?? undefined,
   };
 }

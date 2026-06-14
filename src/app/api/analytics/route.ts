@@ -18,6 +18,7 @@ import {
 } from "@/lib/analytics/bp-in-target-fast-path";
 import { computeUserHealthScoreFastPath } from "@/lib/analytics/health-score-fast-path";
 import { buildHealthScoreBpInputs } from "@/lib/analytics/health-score-inputs";
+import { computeWindowConfidence } from "@/lib/analytics/window-confidence";
 import { computeCorrelationHypothesesFastPath } from "@/lib/analytics/correlations-fast-path";
 
 export const dynamic = "force-dynamic";
@@ -257,6 +258,11 @@ async function buildAnalyticsResponse(user: AuthedUser) {
    */
   let bpInTargetPctPriorMonth: number | null = null;
   let bpInTargetPctPriorYear: number | null = null;
+  // v1.17 W1b — 90-day pair count + effective label span for the tile's
+  // thin-data gate. Surfaced so the BD-Zielbereich tile renders "collecting
+  // data" until the window holds enough readings, with a dynamic span label.
+  let bpInTargetCount90: number | null = null;
+  let bpInTargetSpanDays90: number | null = null;
   // v1.17 W1b — hold the current + prior-week BP envelopes so the shared
   // Health-Score input builder grades the pillar off the identical shape the
   // dashboard snapshot uses (one builder, no per-surface assembly drift).
@@ -319,6 +325,15 @@ async function buildAnalyticsResponse(user: AuthedUser) {
     bpInTargetPctAllTime = windows.allTime?.pct ?? null;
     bpInTargetPctPriorMonth = windows.priorMonth?.pct ?? null;
     bpInTargetPctPriorYear = windows.priorYear?.pct ?? null;
+    // v1.17 W1b — count + effective span for the BD-Zielbereich tile's
+    // confidence gate (thin-data → "collecting data"; dynamic span label).
+    bpInTargetCount90 = windows.last90Days?.pairs ?? 0;
+    bpInTargetSpanDays90 = computeWindowConfidence({
+      windowDays: 90,
+      readingCount: bpInTargetCount90,
+      earliestReadingAt: windows.last90EarliestAt,
+      now,
+    }).effectiveSpanDays;
   }
 
   // Per-context glucose summaries (canonical mg/dL).
@@ -401,6 +416,8 @@ async function buildAnalyticsResponse(user: AuthedUser) {
     bpInTargetPctAllTime,
     bpInTargetPctPriorMonth,
     bpInTargetPctPriorYear,
+    bpInTargetCount90,
+    bpInTargetSpanDays90,
     glucoseByContext,
     correlations,
     healthScore,

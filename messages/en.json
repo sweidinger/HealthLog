@@ -328,6 +328,8 @@
     "vo2MaxShort": "VO₂ max",
     "bpInTargetShort": "BP in Target",
     "bpInTargetWindow90": "BP in Target · 90d",
+    "bpInTargetWindowDynamic": "BP in Target · {days}d",
+    "bpInTargetCollecting": "collecting data",
     "medications": "Medications",
     "quickAddMeasurement": "Log measurement",
     "quickAddMood": "Log mood",

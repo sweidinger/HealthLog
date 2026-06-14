@@ -25,6 +25,7 @@
  * envelopes in.
  */
 import type { BpInTargetEnvelope } from "./bp-in-target-fast-path";
+import { isWindowSufficient } from "./window-confidence";
 
 /**
  * The BP-pillar slice of `HealthScoreFastPathInput`. Both Health-Score
@@ -46,6 +47,12 @@ export interface HealthScoreBpInputs {
  *   trailing-90-day window (W1d), falling back to the all-time rate only when
  *   the 90-day window is itself null so a sparse-but-historical account keeps
  *   its BP pillar.
+ * - v1.17 W1b — when the 90-day window holds fewer than the confidence floor
+ *   (`isWindowSufficient`) the pillar collapses to `null` so a thin-data user
+ *   does not get a confident BP pillar grading off a handful of readings. The
+ *   dashboard tile shows "collecting data" for the same input; the pillar and
+ *   the tile agree on the gate. The all-time fallback still rescues an account
+ *   with a deep history but a quiet last quarter.
  * - The prior-week rate uses the prior-week run's 90-day window so the
  *   week-over-week delta compares the same window on both ends.
  * - The graded clinical-proximity score (the pillar VALUE) and its prior-week
@@ -66,13 +73,32 @@ export function buildHealthScoreBpInputs(
       bpGradedScorePriorWeek: null,
     };
   }
-  const bpInTargetPct = current.last90Days?.pct ?? current.allTime?.pct ?? null;
-  const bpInTargetPctPriorWeek =
-    priorWeek?.last90Days?.pct ?? priorWeek?.allTime?.pct ?? null;
+  // v1.17 W1b — a thin 90-day window (below the confidence floor) is not a
+  // trustworthy pillar input. Fall through to the all-time rate when the
+  // 90-day window is itself sparse so a deep-history account survives a quiet
+  // quarter, but never grade off a sub-floor 90-day sample.
+  const last90Sufficient =
+    current.last90Days !== null &&
+    isWindowSufficient(current.last90Days.pairs);
+  const bpInTargetPct = last90Sufficient
+    ? (current.last90Days?.pct ?? null)
+    : (current.allTime?.pct ?? null);
+  const priorWeek90Sufficient =
+    priorWeek?.last90Days != null &&
+    isWindowSufficient(priorWeek.last90Days.pairs);
+  const bpInTargetPctPriorWeek = priorWeek90Sufficient
+    ? (priorWeek?.last90Days?.pct ?? null)
+    : (priorWeek?.allTime?.pct ?? null);
+  // The graded clinical score is the pillar VALUE; suppress it together with
+  // the rate when the 90-day window is thin AND no all-time rate rescues the
+  // pillar, so the pillar disappears cleanly instead of grading a thin sample.
+  const pillarPresent = bpInTargetPct !== null;
   return {
     bpInTargetPct,
     bpInTargetPctPriorWeek,
-    bpGradedScore: current.gradedScore,
-    bpGradedScorePriorWeek: priorWeek?.gradedScore ?? null,
+    bpGradedScore: pillarPresent ? current.gradedScore : null,
+    bpGradedScorePriorWeek: pillarPresent
+      ? (priorWeek?.gradedScore ?? null)
+      : null,
   };
 }

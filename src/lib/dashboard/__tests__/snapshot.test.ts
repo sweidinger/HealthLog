@@ -368,13 +368,16 @@ describe("buildDashboardSnapshot — healthScore (warm phase only)", () => {
     probeRollupCoverage.mockResolvedValue(coverageMap);
     isFullyCovered.mockReturnValue(true);
     computeBpInTargetFastPath.mockResolvedValue({
-      last7Days: { pct: 70 },
-      last30Days: { pct: 80 },
+      last7Days: { pct: 70, pairs: 6 },
+      last30Days: { pct: 80, pairs: 12 },
       // v1.17 W1d — the BP pillar reads this 90-day window, NOT last30Days.
-      last90Days: { pct: 77 },
-      allTime: { pct: 75 },
-      priorMonth: { pct: 60 },
-      priorYear: { pct: 50 },
+      // v1.17 W1b — `pairs` above the confidence floor so the pillar grades
+      // the 90-day rate rather than falling back to all-time.
+      last90Days: { pct: 77, pairs: 30 },
+      last90EarliestAt: new Date("2026-01-01T00:00:00.000Z"),
+      allTime: { pct: 75, pairs: 200 },
+      priorMonth: { pct: 60, pairs: 10 },
+      priorYear: { pct: 50, pairs: 40 },
       gradedScore: 88,
     });
     computeUserHealthScoreFastPath.mockResolvedValue({

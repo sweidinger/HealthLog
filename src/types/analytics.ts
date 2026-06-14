@@ -86,6 +86,15 @@ export interface DashboardAnalyticsData {
    */
   bpInTargetPctPriorMonth?: number | null;
   bpInTargetPctPriorYear?: number | null;
+  /**
+   * v1.17 W1b — paired BP readings inside the trailing-90-day window, and
+   * the EFFECTIVE label span (real calendar span capped at 90 days). The
+   * BD-Zielbereich tile compares the count against the confidence floor to
+   * decide between a percentage and a "collecting data" placeholder, and
+   * renders the span in the label ("· 23 T" until ~90 days of history exist).
+   */
+  bpInTargetCount90?: number | null;
+  bpInTargetSpanDays90?: number | null;
   glucoseByContext?: Record<string, DataSummary>;
   /**
    * v1.4.34 IW-B — per-type freshness map from `/api/analytics`. The

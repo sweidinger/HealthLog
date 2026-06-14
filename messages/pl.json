@@ -328,6 +328,8 @@
     "vo2MaxShort": "VO₂ max",
     "bpInTargetShort": "RR-cel",
     "bpInTargetWindow90": "RR-cel · 90 d",
+    "bpInTargetWindowDynamic": "RR-cel · {days} d",
+    "bpInTargetCollecting": "zbieranie danych",
     "medications": "Leki",
     "quickAddMeasurement": "Zarejestruj pomiar",
     "quickAddMood": "Zarejestruj nastrój",

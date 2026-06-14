@@ -328,6 +328,8 @@
     "vo2MaxShort": "VO₂ max",
     "bpInTargetShort": "BD-Ziel",
     "bpInTargetWindow90": "BD-Ziel · 90 T",
+    "bpInTargetWindowDynamic": "BD-Ziel · {days} T",
+    "bpInTargetCollecting": "sammelt noch Daten",
     "medications": "Medikamente",
     "quickAddMeasurement": "Messung erfassen",
     "quickAddMood": "Stimmung erfassen",

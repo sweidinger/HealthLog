@@ -328,6 +328,8 @@
     "vo2MaxShort": "VO₂ max",
     "bpInTargetShort": "TA-cible",
     "bpInTargetWindow90": "TA-cible · 90 j",
+    "bpInTargetWindowDynamic": "TA-cible · {days} j",
+    "bpInTargetCollecting": "collecte de données",
     "medications": "Médicaments",
     "quickAddMeasurement": "Saisir une mesure",
     "quickAddMood": "Saisir une humeur",

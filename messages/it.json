@@ -328,6 +328,8 @@
     "vo2MaxShort": "VO₂ max",
     "bpInTargetShort": "PA-target",
     "bpInTargetWindow90": "PA-target · 90 gg",
+    "bpInTargetWindowDynamic": "PA-target · {days} gg",
+    "bpInTargetCollecting": "raccolta dati in corso",
     "medications": "Farmaci",
     "quickAddMeasurement": "Registra misurazione",
     "quickAddMood": "Registra umore",

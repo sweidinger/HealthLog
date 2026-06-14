@@ -51,6 +51,7 @@ import {
   type BpInTargetEnvelope,
 } from "@/lib/analytics/bp-in-target-fast-path";
 import { buildHealthScoreBpInputs } from "@/lib/analytics/health-score-inputs";
+import { computeWindowConfidence } from "@/lib/analytics/window-confidence";
 import {
   probeRollupCoverage,
   type RollupCoverageMap,
@@ -194,6 +195,16 @@ export interface DashboardSnapshotExtras {
   bpInTargetPctAllTime: number | null;
   bpInTargetPctPriorMonth: number | null;
   bpInTargetPctPriorYear: number | null;
+  /**
+   * v1.17 W1b — number of paired BP readings inside the trailing-90-day
+   * window, and the EFFECTIVE label span (real calendar span capped at 90
+   * days, or `null` when the window is empty). The BD-Zielbereich tile reads
+   * the count against the confidence floor to decide between a percentage and
+   * the "collecting data" placeholder, and renders the span in the label so a
+   * thin-history user never sees a dishonest static "· 90 T".
+   */
+  bpInTargetCount90: number | null;
+  bpInTargetSpanDays90: number | null;
   glucoseByContext: Record<string, DataSummary>;
 }
 
@@ -447,6 +458,8 @@ async function buildExtras(
   let bpInTargetPctAllTime: number | null = null;
   let bpInTargetPctPriorMonth: number | null = null;
   let bpInTargetPctPriorYear: number | null = null;
+  let bpInTargetCount90: number | null = null;
+  let bpInTargetSpanDays90: number | null = null;
   // v1.17 W1b — hold the current + prior-week BP envelopes so the shared
   // Health-Score input builder grades the pillar off the identical shape the
   // analytics route uses.
@@ -489,6 +502,14 @@ async function buildExtras(
     bpInTargetPctAllTime = windows.allTime?.pct ?? null;
     bpInTargetPctPriorMonth = windows.priorMonth?.pct ?? null;
     bpInTargetPctPriorYear = windows.priorYear?.pct ?? null;
+    // v1.17 W1b — count + effective span for the tile's confidence gate.
+    bpInTargetCount90 = windows.last90Days?.pairs ?? 0;
+    bpInTargetSpanDays90 = computeWindowConfidence({
+      windowDays: 90,
+      readingCount: bpInTargetCount90,
+      earliestReadingAt: windows.last90EarliestAt,
+      now,
+    }).effectiveSpanDays;
   }
 
   // Health score — reuses the BP windows captured above plus the
@@ -550,6 +571,8 @@ async function buildExtras(
       bpInTargetPctAllTime,
       bpInTargetPctPriorMonth,
       bpInTargetPctPriorYear,
+      bpInTargetCount90,
+      bpInTargetSpanDays90,
       glucoseByContext,
     },
     healthScore,

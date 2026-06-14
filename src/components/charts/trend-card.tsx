@@ -89,6 +89,16 @@ interface TrendCardProps {
    * `null` / `undefined` suppresses the caption (current data path).
    */
   staleDays?: number | null;
+  /**
+   * v1.17 W1b — short text shown in the headline slot in place of the
+   * "—" placeholder when `latest === null`. Used by the BD-Zielbereich
+   * tile to render "collecting data" while the trailing window has too
+   * few readings to narrate a confident percentage. When omitted the
+   * legacy "—" placeholder renders. Rendered at a smaller size than a
+   * numeric headline so the longer string fits the deterministic tile
+   * height.
+   */
+  emptyHint?: string | null;
 }
 
 export function TrendCard({
@@ -109,6 +119,7 @@ export function TrendCard({
   compareBaseline = "none",
   compareDelta = null,
   staleDays = null,
+  emptyHint = null,
 }: TrendCardProps) {
   const { t } = useTranslations();
   const fmt = useFormatters();
@@ -215,6 +226,20 @@ export function TrendCard({
         className="mt-2 flex items-baseline gap-x-1.5"
         data-slot="trend-card-value-row"
       >
+        {latest === null && emptyHint ? (
+          // v1.17 W1b — thin-data placeholder. Renders the caller's short
+          // text (e.g. "collecting data") where the numeric headline would
+          // sit, at a smaller size so the longer phrase fits the tile's
+          // deterministic height. No unit; the arrow slot below still
+          // renders its muted placeholder so the row width stays stable.
+          <span
+            className="text-muted-foreground min-w-0 truncate text-base font-medium leading-none"
+            data-slot="trend-card-empty-hint"
+          >
+            {emptyHint}
+          </span>
+        ) : (
+          <>
         <span
           className={cn(
             "shrink-0 whitespace-nowrap font-semibold tracking-tight tabular-nums",
@@ -253,6 +278,8 @@ export function TrendCard({
         <span className="text-muted-foreground min-w-0 truncate text-sm tabular-nums">
           {unit}
         </span>
+          </>
+        )}
         <span
           className="ml-auto inline-flex h-4 w-4 shrink-0 items-center justify-center"
           data-slot="trend-card-arrow"
