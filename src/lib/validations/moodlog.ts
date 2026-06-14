@@ -1,5 +1,6 @@
 import { z } from "zod/v4";
 import { isPublicUrl } from "@/lib/validations/notifications";
+import { validateEntryInstant } from "@/lib/validations/entry-instant";
 
 /**
  * @deprecated The standalone moodLog integration is superseded by native
@@ -135,7 +136,12 @@ export const createMoodEntrySchema = z.object({
   // `tags: ["note:<text>"]` workaround. Capped at 500 chars so the
   // Coach evidence shelf renders cleanly without truncating chips.
   note: z.string().max(500).optional(),
-  moodLoggedAt: z.iso.datetime({ offset: true }).transform((s) => new Date(s)),
+  // v1.17 W1b — plausibility bound (shared `validateEntryInstant`): no
+  // future instants beyond a 5-min clock-skew tolerance, no instant before
+  // 1900. Mirrors the measurement + medication-intake bound.
+  moodLoggedAt: validateEntryInstant(
+    z.iso.datetime({ offset: true }).transform((s) => new Date(s)),
+  ),
   source: moodSourceEnum.optional().default("MANUAL"),
   // v1.12.1 — optional source-stable id (e.g. an iOS SwiftData row UUID).
   // When present, the create upserts on `(userId, source, externalId)`
@@ -157,10 +163,10 @@ export const updateMoodEntrySchema = z.object({
   // `null` clears every rated link; omit to leave them untouched.
   ratedFactors: ratedFactors.nullable().optional(),
   note: z.string().max(500).nullable().optional(),
-  moodLoggedAt: z.iso
-    .datetime({ offset: true })
-    .transform((s) => new Date(s))
-    .optional(),
+  // v1.17 W1b — same plausibility bound on the edit path.
+  moodLoggedAt: validateEntryInstant(
+    z.iso.datetime({ offset: true }).transform((s) => new Date(s)),
+  ).optional(),
 });
 
 export const listMoodEntriesSchema = z.object({

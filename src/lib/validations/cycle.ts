@@ -10,6 +10,21 @@
  * instants are ISO-8601 with offset.
  */
 import { z } from "zod/v4";
+import { isPlausibleEntryInstant } from "@/lib/validations/entry-instant";
+
+/**
+ * v1.17 W1b — `loggedAt` instant on the cycle wire stays a string (the iOS
+ * contract reads it back verbatim), so the plausibility bound is applied as
+ * a `.refine` over the parsed instant rather than the date-typed
+ * `validateEntryInstant` wrapper. Same `isPlausibleEntryInstant` predicate
+ * the measurement / mood / medication-intake paths use: no future instant
+ * beyond the 5-min skew, no instant before 1900.
+ */
+const boundedLoggedAt = z.iso
+  .datetime({ offset: true })
+  .refine((s) => isPlausibleEntryInstant(new Date(s)), {
+    message: "loggedAt must be a plausible instant (not future, not pre-1900)",
+  });
 
 /* ── enums (mirror the Prisma enums) ─────────────────────────────── */
 
@@ -105,7 +120,7 @@ export const cycleDayLogInputSchema = z.object({
     .max(40)
     .optional(),
   note: z.string().max(500).optional(),
-  loggedAt: z.iso.datetime({ offset: true }),
+  loggedAt: boundedLoggedAt,
   source: cycleSourceEnum.optional().default("MANUAL"),
   externalId: z.string().min(1).max(120).optional(),
 });
@@ -134,7 +149,7 @@ export const cycleDayLogPatchSchema = z.object({
     .max(40)
     .optional(),
   note: z.string().max(500).nullable().optional(),
-  loggedAt: z.iso.datetime({ offset: true }).optional(),
+  loggedAt: boundedLoggedAt.optional(),
 });
 
 export const MAX_CYCLE_BULK_ENTRIES = 500;
@@ -149,7 +164,7 @@ export const cyclePeriodSchema = z.object({
   action: z.enum(["start", "end"]),
   date: dateString,
   externalId: z.string().min(1).max(120).optional(),
-  loggedAt: z.iso.datetime({ offset: true }),
+  loggedAt: boundedLoggedAt,
 });
 
 /* ── calendar + history queries ──────────────────────────────────── */

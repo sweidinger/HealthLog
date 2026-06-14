@@ -2,6 +2,7 @@ import { z } from "zod/v4";
 
 import { SCHEDULE_TYPES } from "@/lib/medications/scheduling/recurrence";
 import { INJECTION_SITE_KEYS } from "@/lib/medications/injection-sites";
+import { validateEntryInstant } from "@/lib/validations/entry-instant";
 
 /**
  * v1.8.5 — the eight injection-site enum values, mirrored from the
@@ -206,16 +207,22 @@ function hhmmToMinutes(hhmm: string): number {
 export const TAKEN_AT_CLOCK_SKEW_MS = 5 * 60 * 1000;
 export const TAKEN_AT_MAX_AGE_MS = 5 * 365 * 24 * 60 * 60 * 1000;
 
-/** ISO `takenAt` → `Date` with the shared plausibility bounds applied. */
-export const boundedTakenAtSchema = z.iso
-  .datetime({ offset: true })
-  .transform((s) => new Date(s))
-  .refine((d) => d.getTime() <= Date.now() + TAKEN_AT_CLOCK_SKEW_MS, {
-    message: "takenAt must not be in the future",
-  })
-  .refine((d) => d.getTime() >= Date.now() - TAKEN_AT_MAX_AGE_MS, {
-    message: "takenAt must be within the last 5 years",
-  });
+/**
+ * ISO `takenAt` → `Date` with the plausibility bounds applied.
+ *
+ * v1.17 W1b — delegates to the shared `validateEntryInstant` helper (the
+ * same bound now guarding `measuredAt` + `moodLoggedAt`), passing the
+ * five-year window so a stale backdated dose is rejected well before the
+ * 1900 floor. The 5-min clock-skew tolerance is the shared default.
+ */
+export const boundedTakenAtSchema = validateEntryInstant(
+  z.iso.datetime({ offset: true }).transform((s) => new Date(s)),
+  {
+    maxAgeMs: TAKEN_AT_MAX_AGE_MS,
+    // Preserve the established wording so the iOS contract + tests stay stable.
+    pastMessage: "takenAt must be within the last 5 years",
+  },
+);
 
 export const scheduleSchema = z
   .object({

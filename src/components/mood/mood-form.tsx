@@ -328,6 +328,8 @@ export function MoodForm({ onSuccess, onCancel, footerSlot }: MoodFormProps) {
               id="mood-logged-at"
               value={moodLoggedAt}
               onChange={(e) => setMoodLoggedAt(e.target.value)}
+              // v1.17 W1b — match the server bound: no future instant.
+              max={getDefaultMoodLoggedAtValue()}
               required
               aria-required="true"
               aria-invalid={!!error || undefined}

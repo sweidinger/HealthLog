@@ -472,6 +472,10 @@ export function MeasurementForm({
           id="measuredAt"
           value={measuredAt}
           onChange={(e) => setMeasuredAt(e.target.value)}
+          // v1.17 W1b — mirror the server-side plausibility bound: the
+          // picker cannot select a future instant. Matches the
+          // `validateEntryInstant` refine on `measuredAt`.
+          max={getDefaultMeasuredAtValue()}
           required
           aria-required="true"
           aria-invalid={!!error || undefined}

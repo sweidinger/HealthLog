@@ -44,6 +44,31 @@ describe("createMoodEntrySchema — note + structured tagKeys (v1.8.5)", () => {
     expect(r.success).toBe(true);
     if (r.success) expect(r.data.tagKeys).toBeNull();
   });
+
+  // v1.17 W1b — shared `validateEntryInstant` plausibility bound.
+  it("rejects a future-dated mood entry", () => {
+    const future = new Date(Date.now() + 60 * 60 * 1000).toISOString();
+    expect(
+      createMoodEntrySchema.safeParse({ ...base, moodLoggedAt: future })
+        .success,
+    ).toBe(false);
+  });
+
+  it("accepts a sane backdated mood entry", () => {
+    const past = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+    expect(
+      createMoodEntrySchema.safeParse({ ...base, moodLoggedAt: past }).success,
+    ).toBe(true);
+  });
+
+  it("rejects a mood entry dated before 1900", () => {
+    expect(
+      createMoodEntrySchema.safeParse({
+        ...base,
+        moodLoggedAt: "1899-12-31T00:00:00.000Z",
+      }).success,
+    ).toBe(false);
+  });
 });
 
 describe("moodLogCredentialsSchema SSRF guard", () => {
