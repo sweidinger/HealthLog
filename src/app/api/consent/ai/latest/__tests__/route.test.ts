@@ -1,15 +1,29 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { NextRequest } from "next/server";
 
-vi.mock("@/lib/db", () => ({
-  prisma: {
-    consentReceipt: {
-      create: vi.fn(),
-      findFirst: vi.fn(),
-      findMany: vi.fn(),
-      update: vi.fn(),
+// v1.16.16 — `createReceipt` + `revokeLatest` run inside a transaction; the
+// mock runs the callback against the same proxy.
+type TxFn = (tx: unknown) => unknown;
+
+vi.mock("@/lib/db", () => {
+  const consentReceipt = {
+    create: vi.fn(),
+    findFirst: vi.fn(),
+    findMany: vi.fn(),
+    update: vi.fn(),
+    updateMany: vi.fn(),
+  };
+  return {
+    prisma: {
+      consentReceipt,
+      $transaction: vi.fn((fn: TxFn) => fn({ consentReceipt })),
     },
-  },
+  };
+});
+
+vi.mock("@/lib/rate-limit", () => ({
+  checkConsentRateLimit: vi.fn(),
+  rateLimitHeaders: vi.fn(() => ({})),
 }));
 
 vi.mock("@/lib/auth/session", () => ({ getSession: vi.fn() }));
@@ -38,6 +52,13 @@ import { POST as POST_GRANT } from "../../route";
 import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/auth/session";
 import { auditLog } from "@/lib/auth/audit";
+import { checkConsentRateLimit } from "@/lib/rate-limit";
+
+const RL_OK = { allowed: true, remaining: 19, resetAt: Date.now() + 60_000 };
+
+const $transaction = vi.mocked(prisma.$transaction) as unknown as {
+  mockImplementation: (impl: (fn: TxFn) => unknown) => void;
+};
 
 const SESSION_OK = {
   session: { id: "sess-1", expiresAt: new Date(Date.now() + 3_600_000) },
@@ -50,6 +71,11 @@ beforeEach(() => {
   // on `auditLog`. Re-arm so the route's fire-and-forget `.catch()`
   // chain doesn't NPE on an undefined return.
   vi.mocked(auditLog).mockResolvedValue(undefined);
+  // Re-arm rate-limit + transaction pass-throughs cleared by reset.
+  vi.mocked(checkConsentRateLimit).mockResolvedValue(RL_OK);
+  $transaction.mockImplementation((fn: TxFn) =>
+    fn({ consentReceipt: prisma.consentReceipt }),
+  );
 });
 
 describe("GET /api/consent/ai/latest", () => {
@@ -67,6 +93,20 @@ describe("GET /api/consent/ai/latest", () => {
       new NextRequest("http://localhost/api/consent/ai/latest?kind=invalid"),
     );
     expect(res.status).toBe(400);
+  });
+
+  it("returns 429 when the per-user consent bucket is exhausted", async () => {
+    vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
+    vi.mocked(checkConsentRateLimit).mockResolvedValue({
+      allowed: false,
+      remaining: 0,
+      resetAt: Date.now() + 60_000,
+    });
+    const res = await GET(
+      new NextRequest("http://localhost/api/consent/ai/latest?kind=ai_full"),
+    );
+    expect(res.status).toBe(429);
+    expect(prisma.consentReceipt.findFirst).not.toHaveBeenCalled();
   });
 
   it("returns null receipt when nothing has been granted", async () => {
@@ -153,21 +193,33 @@ describe("DELETE /api/consent/ai/latest", () => {
     expect(res.status).toBe(401);
   });
 
+  it("returns 429 when the per-user consent bucket is exhausted", async () => {
+    vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
+    vi.mocked(checkConsentRateLimit).mockResolvedValue({
+      allowed: false,
+      remaining: 0,
+      resetAt: Date.now() + 60_000,
+    });
+    const res = await DELETE(
+      new NextRequest("http://localhost/api/consent/ai/latest?kind=ai_full", {
+        method: "DELETE",
+      }),
+    );
+    expect(res.status).toBe(429);
+    expect(prisma.consentReceipt.updateMany).not.toHaveBeenCalled();
+  });
+
   it("marks the latest receipt as revoked and returns it", async () => {
     vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
     const signedAt = new Date("2026-05-18T10:00:00.000Z");
     const createdAt = new Date("2026-05-18T10:00:01.000Z");
     const revokedAt = new Date("2026-05-18T11:00:00.000Z");
-    vi.mocked(prisma.consentReceipt.findFirst).mockResolvedValue({
-      id: "rcpt-1",
-      userId: "user-1",
-      kind: "ai_full",
-      artefact: "PDF",
-      signedAt,
-      revokedAt: null,
-      createdAt,
+    // v1.16.16 — `revokeLatest` atomically flips `revoked_at` via
+    // `updateMany` (count) then re-reads the revoked row for the audit id.
+    vi.mocked(prisma.consentReceipt.updateMany).mockResolvedValue({
+      count: 1,
     } as never);
-    vi.mocked(prisma.consentReceipt.update).mockResolvedValue({
+    vi.mocked(prisma.consentReceipt.findFirst).mockResolvedValue({
       id: "rcpt-1",
       userId: "user-1",
       kind: "ai_full",
@@ -188,15 +240,17 @@ describe("DELETE /api/consent/ai/latest", () => {
     };
     expect(body.data.receipt?.id).toBe("rcpt-1");
     expect(body.data.receipt?.revokedAt).toBe(revokedAt.toISOString());
-    expect(prisma.consentReceipt.update).toHaveBeenCalledWith({
-      where: { id: "rcpt-1" },
+    expect(prisma.consentReceipt.updateMany).toHaveBeenCalledWith({
+      where: { userId: "user-1", kind: "ai_full", revokedAt: null },
       data: { revokedAt: expect.any(Date) },
     });
   });
 
-  it("is idempotent — returns null receipt without writing when nothing to revoke", async () => {
+  it("is idempotent — returns null receipt without re-reading when nothing to revoke", async () => {
     vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
-    vi.mocked(prisma.consentReceipt.findFirst).mockResolvedValue(null);
+    vi.mocked(prisma.consentReceipt.updateMany).mockResolvedValue({
+      count: 0,
+    } as never);
 
     const res = await DELETE(
       new NextRequest("http://localhost/api/consent/ai/latest?kind=ai_full", {
@@ -208,7 +262,7 @@ describe("DELETE /api/consent/ai/latest", () => {
       data: { kind: string; receipt: unknown | null };
     };
     expect(body.data.receipt).toBeNull();
-    expect(prisma.consentReceipt.update).not.toHaveBeenCalled();
+    expect(prisma.consentReceipt.findFirst).not.toHaveBeenCalled();
   });
 
   it("master toggle revokes the latest active row per kind", async () => {
@@ -217,8 +271,14 @@ describe("DELETE /api/consent/ai/latest", () => {
     const createdAt = new Date("2026-05-18T10:00:01.000Z");
     const revokedAt = new Date("2026-05-18T11:00:00.000Z");
 
-    // First call (ai_full) finds a row, second (ai_insights_only)
-    // finds none, third (ai_coach) finds a row.
+    // v1.16.16 — `revokeLatest` runs per kind in `consentKindEnum.options`
+    // order: ai_full → ai_insights_only → ai_coach. The `updateMany` count
+    // gates the follow-up re-read. ai_full + ai_coach revoke a row;
+    // ai_insights_only has none (count 0, no re-read).
+    vi.mocked(prisma.consentReceipt.updateMany)
+      .mockResolvedValueOnce({ count: 1 } as never) // ai_full
+      .mockResolvedValueOnce({ count: 0 } as never) // ai_insights_only
+      .mockResolvedValueOnce({ count: 1 } as never); // ai_coach
     vi.mocked(prisma.consentReceipt.findFirst)
       .mockResolvedValueOnce({
         id: "rcpt-full",
@@ -226,32 +286,18 @@ describe("DELETE /api/consent/ai/latest", () => {
         kind: "ai_full",
         artefact: "PDF",
         signedAt,
-        revokedAt: null,
+        revokedAt,
         createdAt,
       } as never)
-      .mockResolvedValueOnce(null)
       .mockResolvedValueOnce({
         id: "rcpt-coach",
         userId: "user-1",
         kind: "ai_coach",
         artefact: "PDF",
         signedAt,
-        revokedAt: null,
+        revokedAt,
         createdAt,
       } as never);
-
-    vi.mocked(prisma.consentReceipt.update).mockImplementation(
-      ((args: { where: { id: string }; data: { revokedAt: Date } }) =>
-        Promise.resolve({
-          id: args.where.id,
-          userId: "user-1",
-          kind: args.where.id === "rcpt-full" ? "ai_full" : "ai_coach",
-          artefact: "PDF",
-          signedAt,
-          revokedAt,
-          createdAt,
-        })) as never,
-    );
 
     const res = await DELETE(
       new NextRequest("http://localhost/api/consent/ai/latest", {
@@ -287,7 +333,11 @@ describe("append-only invariant", () => {
     const signedAt2 = new Date("2026-05-18T12:00:00.000Z");
     const createdAt2 = new Date("2026-05-18T12:00:01.000Z");
 
-    // Step 1: initial grant.
+    // Step 1: initial grant. `createReceipt` supersedes any active row
+    // (none yet → count 0) then inserts.
+    vi.mocked(prisma.consentReceipt.updateMany).mockResolvedValue({
+      count: 0,
+    } as never);
     vi.mocked(prisma.consentReceipt.create).mockResolvedValueOnce({
       id: "rcpt-1",
       userId: "user-1",
@@ -311,17 +361,13 @@ describe("append-only invariant", () => {
     );
     expect(grant1.status).toBe(200);
 
-    // Step 2: revoke. The DELETE handler reads + updates.
-    vi.mocked(prisma.consentReceipt.findFirst).mockResolvedValueOnce({
-      id: "rcpt-1",
-      userId: "user-1",
-      kind: "ai_full",
-      artefact: "PDF-v1",
-      signedAt: signedAt1,
-      revokedAt: null,
-      createdAt: createdAt1,
+    // Step 2: revoke. `revokeLatest` atomically flips `revoked_at` via
+    // `updateMany` (count 1) then re-reads the revoked row. The row is
+    // NEVER deleted — only marked revoked, so the audit chain survives.
+    vi.mocked(prisma.consentReceipt.updateMany).mockResolvedValueOnce({
+      count: 1,
     } as never);
-    vi.mocked(prisma.consentReceipt.update).mockResolvedValueOnce({
+    vi.mocked(prisma.consentReceipt.findFirst).mockResolvedValueOnce({
       id: "rcpt-1",
       userId: "user-1",
       kind: "ai_full",
@@ -337,12 +383,11 @@ describe("append-only invariant", () => {
       }),
     );
     expect(revokeRes.status).toBe(200);
-    expect(prisma.consentReceipt.update).toHaveBeenCalledTimes(1);
-    // Critical invariant — `delete` was NEVER called on the receipt.
-    // Only an update setting `revokedAt`. The old row stays in place.
-    const updateCall = vi.mocked(prisma.consentReceipt.update).mock.calls[0][0];
-    expect(updateCall).toMatchObject({
-      where: { id: "rcpt-1" },
+    // Critical invariant — `delete` was NEVER called on the receipt. The
+    // revoke is an in-place `updateMany` setting `revokedAt`.
+    expect(prisma.consentReceipt.delete).toBeUndefined();
+    expect(prisma.consentReceipt.updateMany).toHaveBeenLastCalledWith({
+      where: { userId: "user-1", kind: "ai_full", revokedAt: null },
       data: { revokedAt: expect.any(Date) },
     });
 

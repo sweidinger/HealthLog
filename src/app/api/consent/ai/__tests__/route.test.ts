@@ -1,15 +1,31 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { NextRequest } from "next/server";
 
-vi.mock("@/lib/db", () => ({
-  prisma: {
-    consentReceipt: {
-      create: vi.fn(),
-      findFirst: vi.fn(),
-      findMany: vi.fn(),
-      update: vi.fn(),
+// v1.16.16 — `createReceipt` runs its supersede + insert inside a
+// transaction; run the callback against the same mock proxy.
+type TxFn = (tx: unknown) => unknown;
+
+vi.mock("@/lib/db", () => {
+  const consentReceipt = {
+    create: vi.fn(),
+    findFirst: vi.fn(),
+    findMany: vi.fn(),
+    update: vi.fn(),
+    updateMany: vi.fn(),
+  };
+  return {
+    prisma: {
+      consentReceipt,
+      $transaction: vi.fn((fn: TxFn) => fn({ consentReceipt })),
     },
-  },
+  };
+});
+
+// v1.16.16 — rate limit is exercised by its own suite; here we default to
+// "allowed" and flip a single test to assert the 429 wiring.
+vi.mock("@/lib/rate-limit", () => ({
+  checkConsentRateLimit: vi.fn(),
+  rateLimitHeaders: vi.fn(() => ({})),
 }));
 
 vi.mock("@/lib/auth/session", () => ({ getSession: vi.fn() }));
@@ -38,6 +54,13 @@ import { POST } from "../route";
 import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/auth/session";
 import { auditLog } from "@/lib/auth/audit";
+import { checkConsentRateLimit } from "@/lib/rate-limit";
+
+const RL_OK = { allowed: true, remaining: 19, resetAt: Date.now() + 60_000 };
+
+const $transaction = vi.mocked(prisma.$transaction) as unknown as {
+  mockImplementation: (impl: (fn: TxFn) => unknown) => void;
+};
 
 const SESSION_OK = {
   session: { id: "sess-1", expiresAt: new Date(Date.now() + 3_600_000) },
@@ -59,6 +82,15 @@ beforeEach(() => {
   // Re-arm it here so the fire-and-forget `.catch()` in the route
   // doesn't crash on an undefined return.
   vi.mocked(auditLog).mockResolvedValue(undefined);
+  // Re-arm the rate-limit + transaction pass-throughs cleared by
+  // `resetAllMocks`.
+  vi.mocked(checkConsentRateLimit).mockResolvedValue(RL_OK);
+  $transaction.mockImplementation((fn: TxFn) =>
+    fn({ consentReceipt: prisma.consentReceipt }),
+  );
+  vi.mocked(prisma.consentReceipt.updateMany).mockResolvedValue({
+    count: 0,
+  } as never);
 });
 
 describe("POST /api/consent/ai", () => {
@@ -72,6 +104,25 @@ describe("POST /api/consent/ai", () => {
       }),
     );
     expect(res.status).toBe(401);
+  });
+
+  it("returns 429 when the per-user consent bucket is exhausted", async () => {
+    vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
+    vi.mocked(checkConsentRateLimit).mockResolvedValue({
+      allowed: false,
+      remaining: 0,
+      resetAt: Date.now() + 60_000,
+    });
+    const res = await POST(
+      req({
+        kind: "ai_full",
+        artefact: "PDF",
+        signedAt: "2026-05-18T10:00:00.000Z",
+      }),
+    );
+    expect(res.status).toBe(429);
+    // The throttle fires before any write touches the receipts table.
+    expect(prisma.consentReceipt.create).not.toHaveBeenCalled();
   });
 
   it("returns 400 for an invalid kind", async () => {
