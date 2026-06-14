@@ -26,8 +26,4 @@ export const labKeys = {
       params.page,
       params.sortDir,
     ] as const,
-
-  /** Per-analyte trend series (≥2 values) shown inline on a grouped card. */
-  labAnalyteTrend: (analyte: string) =>
-    ["lab-results", "trend", analyte] as const,
 };
