@@ -319,6 +319,15 @@ export const GET = apiHandler(async (request: NextRequest) => {
         updatedAt: row.updatedAt.toISOString(),
       });
     } else {
+      // Every row carries its `source`. RECOVERY_SCORE is written by BOTH the
+      // WHOOP-native sync (`source = WHOOP`) and the COMPUTED proxy job
+      // (`source = COMPUTED`) for the same day; the client must resolve to ONE
+      // canonical recovery series — WHOOP wins when present, COMPUTED is the
+      // fallback — and never chart the proxy and the native value as two
+      // competing series. The feed faithfully mirrors both rows (a delta-sync
+      // mirror cannot drop a row mid-keyset without a tombstone); the
+      // canonical pick is the same WHOOP-over-COMPUTED rule the server's
+      // wellness tile + doctor PDF apply (`resolveCanonicalRecovery`).
       measurementUpserts.push({
         id: row.id,
         externalId: row.externalId,

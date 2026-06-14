@@ -25,6 +25,7 @@ import type { MeasurementType, SleepStage } from "@/generated/prisma/client";
 import { reconstructSleepNights } from "@/lib/analytics/sleep-night";
 import { loadUserSourcePriority } from "@/lib/rollups/measurement-read";
 import { resolveUserTimezone } from "@/lib/tz/resolver";
+import { convertGlucose, resolveGlucoseUnit } from "@/lib/glucose";
 
 /**
  * v1.11.4 — sleep is read row-per-stage (not from the day rollup), so its
@@ -87,6 +88,12 @@ const KIND_TO_TYPE: Record<z.infer<typeof kindEnum>, MeasurementType> = {
  * the systolic type's unit (mmHg, same for both lines). `sleep` is
  * overridden at request time to `"h"` because the route returns per-night
  * TIME-ASLEEP in hours rather than the canonical per-stage minutes.
+ *
+ * v1.16.16 — `glucose` is the canonical-stored unit (mg/dL) here; it is
+ * overridden at request time to the user's `glucoseUnit` preference and the
+ * point values are converted to match, so this wire DTO reads in the SAME
+ * unit as the CSV + FHIR exports and the blood-glucose detail page (one
+ * number, one engine).
  */
 const SERIES_UNIT: Record<z.infer<typeof kindEnum>, string> = {
   weight: "kg",
@@ -182,6 +189,16 @@ export const GET = apiHandler(async (request: NextRequest) => {
   let unit = SERIES_UNIT[kind];
 
   let points: SeriesPoint[] = [];
+  // v1.16.16 — when glucose stats are computed over RAW mg/dL (parity with the
+  // detail page + FHIR), the branch fills this so the response below skips the
+  // generic over-points path that would double-round mmol/L figures.
+  let glucoseStats: {
+    mean: number;
+    min: number;
+    max: number;
+    stdDev: number;
+    count: number;
+  } | null = null;
   if (kind === "sleep") {
     // SLEEP_DURATION is stored one row per STAGE per night (minutes).
     // Collapse the stage rows into ONE point per night carrying the
@@ -300,12 +317,66 @@ export const GET = apiHandler(async (request: NextRequest) => {
       orderBy: { measuredAt: "asc" },
       select: { id: true, value: true, measuredAt: true },
     });
-    points = rows.map((r) => ({
-      id: r.id,
-      at: r.measuredAt.toISOString(),
-      value: r.value,
-      secondary: null,
-    }));
+    if (kind === "glucose") {
+      // v1.16.16 — glucose is stored canonical mg/dL; convert each point to
+      // the user's display unit AT SERIALIZATION so the wire DTO is unit-
+      // coherent with the CSV + FHIR exports (one number, one engine). The
+      // top-level `unit` token follows. mg/dL-preference users are unchanged
+      // (convertGlucose rounds the integer); mmol/L users see 1-decimal
+      // values (100 → 5.5) and `unit: "mmol/L"`.
+      const profile = await prisma.user.findUnique({
+        where: { id: user.id },
+        select: { glucoseUnit: true },
+      });
+      const glucoseUnit = resolveGlucoseUnit(profile?.glucoseUnit ?? null);
+      unit = glucoseUnit;
+      points = rows.map((r) => ({
+        id: r.id,
+        at: r.measuredAt.toISOString(),
+        value: convertGlucose(r.value, glucoseUnit),
+        secondary: null,
+      }));
+      // v1.16.16 — stat parity. The stat strip's mean/min/max/stdDev must
+      // match the detail-page + FHIR convention: aggregate over RAW mg/dL,
+      // then convert each resulting figure ONCE. Deriving the stats from the
+      // already-converted+rounded points double-rounds the mean and stdDev
+      // for mmol/L users, drifting the last decimal off the detail page.
+      // Single-reading sets stay identical (100 → 5.5). Hand back stats here
+      // so the shared block below leaves a populated `glucoseStats` alone.
+      const rawDataPoints: DataPoint[] = rows.map((r) => ({
+        date: r.measuredAt,
+        value: r.value,
+      }));
+      if (rawDataPoints.length > 0) {
+        const rawSummary = summarize(rawDataPoints);
+        const rawValues = rawDataPoints.map((p) => p.value);
+        glucoseStats = {
+          mean:
+            rawSummary.mean === null
+              ? 0
+              : convertGlucose(rawSummary.mean, glucoseUnit),
+          min:
+            rawSummary.min === null
+              ? 0
+              : convertGlucose(rawSummary.min, glucoseUnit),
+          max:
+            rawSummary.max === null
+              ? 0
+              : convertGlucose(rawSummary.max, glucoseUnit),
+          // Glucose mg/dL↔mmol/L is purely multiplicative (no offset), so a
+          // spread converts with the same factor as a level.
+          stdDev: convertGlucose(stdDev(rawValues), glucoseUnit),
+          count: rawSummary.count,
+        };
+      }
+    } else {
+      points = rows.map((r) => ({
+        id: r.id,
+        at: r.measuredAt.toISOString(),
+        value: r.value,
+        secondary: null,
+      }));
+    }
   }
 
   const dataPoints: DataPoint[] = points.map((p) => ({
@@ -324,14 +395,16 @@ export const GET = apiHandler(async (request: NextRequest) => {
     kind,
     unit,
     points,
-    stats: summary
-      ? {
-          mean: summary.mean,
-          min: summary.min,
-          max: summary.max,
-          stdDev: stdDev(values),
-          count: summary.count,
-        }
-      : { mean: 0, min: 0, max: 0, stdDev: 0, count: 0 },
+    stats:
+      glucoseStats ??
+      (summary
+        ? {
+            mean: summary.mean,
+            min: summary.min,
+            max: summary.max,
+            stdDev: stdDev(values),
+            count: summary.count,
+          }
+        : { mean: 0, min: 0, max: 0, stdDev: 0, count: 0 }),
   });
 });

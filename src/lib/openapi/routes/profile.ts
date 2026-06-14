@@ -215,7 +215,73 @@ const profileUpdateResponse = z
       "Profile echo returned by the PATCH/PUT update path. Reports KVNR presence as a boolean rather than re-emitting the decrypted value.",
   });
 
+// v1.16.16 — AI-provider read surface. iOS gates Coach visibility off
+// `aiAvailable` + `managedBy` so a server-managed (operator-key) provider
+// is no longer invisible to the client. The response reports key PRESENCE
+// + a 4-char masked preview only; no plaintext key or admin endpoint is
+// ever surfaced. `managedBy` reports the resolved provider origin: `user`
+// (BYOK), `local` (self-hosted Ollama/LM Studio), `server` (operator's
+// shared key), or null when no provider can serve the caller.
+const aiProviderResponse = z
+  .object({
+    provider: z
+      .enum(["OPENAI", "ANTHROPIC", "LOCAL", "CHATGPT_OAUTH"])
+      .nullable()
+      .describe("The user's selected provider, or null when none is set."),
+    model: z.string().nullable(),
+    baseUrl: z
+      .string()
+      .nullable()
+      .describe("Custom base URL (LOCAL provider only); null otherwise."),
+    aiAvailable: z
+      .boolean()
+      .describe(
+        "True when ANY provider can serve this user — including the operator's server-managed key when the user set none. iOS keys Coach visibility off this.",
+      ),
+    managedBy: z
+      .enum(["user", "local", "server"])
+      .nullable()
+      .describe(
+        "Resolved provider origin: `user` (BYOK), `local` (self-hosted), `server` (operator key), or null when no provider is available.",
+      ),
+    hasAnthropicKey: z.boolean(),
+    anthropicKeyPreview: z
+      .string()
+      .nullable()
+      .describe("`...` + last 4 chars of the stored Anthropic key, or null."),
+    hasLocalKey: z.boolean(),
+    hasOpenaiKey: z.boolean(),
+    openaiKeyPreview: z
+      .string()
+      .nullable()
+      .describe("`...` + last 4 chars of the stored OpenAI key, or null."),
+  })
+  .meta({
+    id: "AiProviderResponse",
+    description:
+      "The calling user's AI-provider configuration plus the effective availability (`aiAvailable` + `managedBy`). Reports key presence + a masked preview only — never a plaintext key.",
+  });
+
 export const profilePaths: NonNullable<ZodOpenApiObject["paths"]> = {
+  "/api/user/ai-provider": {
+    get: {
+      tags: ["Auth"],
+      summary: "Read the calling user's AI-provider configuration",
+      description:
+        "Returns the user's selected provider/model/baseUrl plus the effective availability: `aiAvailable` is true when any provider can serve the user (BYOK, self-hosted, or the operator's server-managed key), and `managedBy` reports which. iOS gates Coach visibility off these two fields. Key material is reported as presence + a 4-char masked preview only.",
+      responses: {
+        "200": {
+          description: "Resolved AI-provider configuration.",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(aiProviderResponse, "GetAiProviderResponse"),
+            },
+          },
+        },
+        ...stdResponses,
+      },
+    },
+  },
   "/api/auth/me/coach-prefs": {
     get: {
       tags: ["Auth"],

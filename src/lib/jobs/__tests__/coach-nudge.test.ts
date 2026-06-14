@@ -29,6 +29,7 @@ import {
   evaluateSelfContextTrigger,
   evaluateSleepDebtTrigger,
   evaluateWeightTrigger,
+  findTriggerForUser,
   runCoachNudgeTick,
 } from "../coach-nudge";
 import { getAssistantFlags } from "@/lib/feature-flags";
@@ -162,6 +163,82 @@ describe("evaluateScoreTrigger", () => {
   it("requires enough samples in both windows", () => {
     expect(evaluateScoreTrigger([40, 40], [70, 70, 70])).toBe(false);
     expect(evaluateScoreTrigger([40, 40, 40], [70, 70])).toBe(false);
+  });
+});
+
+describe("findTriggerForUser RECOVERY_SCORE canonical resolution", () => {
+  const NOW = new Date("2026-06-15T08:00:00Z");
+  const DAY = 24 * 60 * 60 * 1000;
+  // Vitals-only so the recovery branch is the only one with data; no height /
+  // dob / gender → the WEIGHT range can't resolve and that branch is skipped.
+  const VITALS_ONLY = { medication: false, vitals: true, routine: false };
+  const baseUser = {
+    id: "u-recovery",
+    heightCm: null,
+    dateOfBirth: null,
+    gender: null,
+    thresholdsJson: null,
+    timezone: "Europe/Berlin",
+  };
+
+  /** A prisma stub serving ONLY the supplied RECOVERY_SCORE rows; every other
+   *  measurement read comes back empty so no other vitals trigger fires. */
+  function recoveryPrisma(recoveryRows: unknown[]) {
+    return {
+      measurement: {
+        findMany: vi.fn(async (args: { where: { type?: string } }) =>
+          args.where.type === "RECOVERY_SCORE" ? recoveryRows : [],
+        ),
+      },
+    } as unknown as PrismaClient;
+  }
+
+  /** A recovery row on a source's realistic clock. */
+  function rec(iso: string, value: number, source: "WHOOP" | "COMPUTED") {
+    return { value, measuredAt: new Date(iso), source };
+  }
+
+  it("does not fire when the canonical WHOOP series is stable but stray COMPUTED proxies dip", async () => {
+    // Healthy, flat WHOOP-native recovery across both windows (~70). For the
+    // SAME nights a low COMPUTED proxy (~40) also sits in the table. Blending
+    // both — the pre-fix behaviour — would drag the recent mean down enough to
+    // trip the drop trigger. Canonical resolution keeps only the WHOOP rows.
+    const rows: unknown[] = [];
+    for (let d = 1; d <= 12; d++) {
+      const day = new Date(NOW.getTime() - d * DAY);
+      const iso = day.toISOString().slice(0, 10);
+      rows.push(rec(`${iso}T06:00:00Z`, 70, "WHOOP"));
+      // COMPUTED proxy for the same night, filed one day earlier at noon UTC.
+      const prevIso = new Date(day.getTime() - DAY).toISOString().slice(0, 10);
+      rows.push(rec(`${prevIso}T12:00:00Z`, 40, "COMPUTED"));
+    }
+    const trigger = await findTriggerForUser(
+      recoveryPrisma(rows),
+      baseUser,
+      NOW,
+      VITALS_ONLY,
+    );
+    expect(trigger).not.toBe("score");
+  });
+
+  it("still fires on a genuine WHOOP-native week-over-week recovery drop", async () => {
+    // No COMPUTED rows — a real native collapse from ~72 to ~50 must trigger.
+    const rows: unknown[] = [];
+    for (let d = 1; d <= 6; d++) {
+      const day = new Date(NOW.getTime() - d * DAY).toISOString().slice(0, 10);
+      rows.push(rec(`${day}T06:00:00Z`, 50, "WHOOP"));
+    }
+    for (let d = 8; d <= 13; d++) {
+      const day = new Date(NOW.getTime() - d * DAY).toISOString().slice(0, 10);
+      rows.push(rec(`${day}T06:00:00Z`, 72, "WHOOP"));
+    }
+    const trigger = await findTriggerForUser(
+      recoveryPrisma(rows),
+      baseUser,
+      NOW,
+      VITALS_ONLY,
+    );
+    expect(trigger).toBe("score");
   });
 });
 

@@ -21,7 +21,11 @@ vi.mock("@/lib/ai/codex-oauth", () => ({
   decryptCodexCreds: vi.fn(),
 }));
 
-import { resolveProvider, resolveProviderForTest } from "../provider";
+import {
+  resolveProvider,
+  resolveProviderForTest,
+  resolveProviderAvailability,
+} from "../provider";
 import { OpenAIClient } from "../openai-client";
 import { prisma } from "@/lib/db";
 import { decrypt, encrypt } from "@/lib/crypto";
@@ -347,5 +351,96 @@ describe("resolveProviderForTest — empty override resolves via the chain", () 
     // chain was bypassed.
     expect(provider.type).not.toBe("none");
     expect(provider).toBeInstanceOf(OpenAIClient);
+  });
+});
+
+describe("resolveProviderAvailability", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+  });
+
+  const emptyUserRow = {
+    aiProvider: null,
+    aiProviderChain: null,
+    aiAnthropicKeyEncrypted: null,
+    aiLocalKeyEncrypted: null,
+    aiOpenaiKeyEncrypted: null,
+    aiBaseUrl: null,
+    codexConnectionStatus: null,
+    codexAccessTokenEncrypted: null,
+    codexRefreshTokenEncrypted: null,
+  };
+
+  it("returns managedBy:user when the user holds a BYO key", async () => {
+    vi.mocked(prisma.user.findUnique).mockResolvedValue({
+      ...emptyUserRow,
+      aiOpenaiKeyEncrypted: "enc-user-openai",
+    } as never);
+    vi.mocked(prisma.appSettings.findUnique).mockResolvedValue({
+      adminAiKeyEncrypted: null,
+    } as never);
+
+    const result = await resolveProviderAvailability("user-123");
+    expect(result).toEqual({ aiAvailable: true, managedBy: "user" });
+  });
+
+  it("returns managedBy:server when only an admin-managed key is present", async () => {
+    vi.mocked(prisma.user.findUnique).mockResolvedValue({
+      ...emptyUserRow,
+    } as never);
+    vi.mocked(prisma.appSettings.findUnique).mockResolvedValue({
+      adminAiKeyEncrypted: "enc-admin-key",
+    } as never);
+
+    const result = await resolveProviderAvailability("user-123");
+    expect(result).toEqual({ aiAvailable: true, managedBy: "server" });
+  });
+
+  it("returns managedBy:local when the user set a self-hosted base URL", async () => {
+    vi.mocked(prisma.user.findUnique).mockResolvedValue({
+      ...emptyUserRow,
+      aiProvider: "LOCAL",
+      aiBaseUrl: "https://ollama.example/v1",
+    } as never);
+    vi.mocked(prisma.appSettings.findUnique).mockResolvedValue({
+      adminAiKeyEncrypted: null,
+    } as never);
+
+    const result = await resolveProviderAvailability("user-123");
+    expect(result).toEqual({ aiAvailable: true, managedBy: "local" });
+  });
+
+  it("prefers a personal credential over the admin key", async () => {
+    vi.mocked(prisma.user.findUnique).mockResolvedValue({
+      ...emptyUserRow,
+      aiAnthropicKeyEncrypted: "enc-anthropic",
+    } as never);
+    vi.mocked(prisma.appSettings.findUnique).mockResolvedValue({
+      adminAiKeyEncrypted: "enc-admin-key",
+    } as never);
+
+    const result = await resolveProviderAvailability("user-123");
+    expect(result).toEqual({ aiAvailable: true, managedBy: "user" });
+  });
+
+  it("returns aiAvailable:false + managedBy:null when nothing is configured", async () => {
+    vi.mocked(prisma.user.findUnique).mockResolvedValue({
+      ...emptyUserRow,
+    } as never);
+    vi.mocked(prisma.appSettings.findUnique).mockResolvedValue({
+      adminAiKeyEncrypted: null,
+    } as never);
+
+    const result = await resolveProviderAvailability("user-123");
+    expect(result).toEqual({ aiAvailable: false, managedBy: null });
+  });
+
+  it("returns aiAvailable:false when the user row is missing", async () => {
+    vi.mocked(prisma.user.findUnique).mockResolvedValue(null as never);
+
+    const result = await resolveProviderAvailability("user-123");
+    expect(result).toEqual({ aiAvailable: false, managedBy: null });
+    // No admin lookup needed once the user row is absent.
+    expect(prisma.appSettings.findUnique).not.toHaveBeenCalled();
   });
 });

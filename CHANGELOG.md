@@ -2,6 +2,31 @@
 
 ## [Unreleased]
 
+## [1.16.16] — 2026-06-14 — one engine for sleep, recovery and glucose
+
+This release continues the work of making one number mean one thing everywhere. Sleep, recovery and blood glucose are now read from a single source on every surface — the dashboard, the coach, the doctor-report, the CSV and FHIR exports, and the companion app — so the figure you act on is the same wherever you look. Several displayed numbers become correct-but-different; each is called out below. No breaking changes.
+
+### Added
+
+- **Per-stage sleep on the night feed.** The sleep-night feed now rounds every duration to whole minutes and carries the per-stage breakdown (deep, core, REM, awake), so the companion app renders the same night the web does.
+
+### Changed
+
+- **Sleep is reconstructed once, from one engine.** The sleep score now reads each night through the same reconstruction the rest of the app uses, with source de-duplication: a night recorded by more than one source (for example a watch and a ring) is counted once instead of summed. For multi-source nights the score — and the readiness that builds on it — drops to its true figure rather than an inflated one.
+- **WHOOP recovery is the recovery you see.** When a WHOOP-native recovery exists it is now the single canonical value on the tile, the chart, the doctor-report, and the coach; the computed proxy is the fallback when there is no native score. A connected account no longer sees the proxy and the native value as two competing numbers, and the night each belongs to is resolved consistently, so one night reads as one recovery. A WHOOP user's recovery figure can change to the native one.
+- **Blood glucose speaks your unit everywhere.** Glucose is converted once, at the point it is served, through a single helper — so the series the companion app charts, the CSV export, the dashboard tile, the detail page, and the coach all read the unit you chose. The CSV export now matches the FHIR document instead of emitting raw mg/dL against a converted clinical export. If you read in mmol/L, these surfaces now show the converted value (for example 100 mg/dL as 5.5 mmol/L); mg/dL readers see no change. The blood-glucose median no longer claims a fixed window its value does not hold.
+- **The coach reads the canonical numbers.** The coach now quotes recovery from the same resolved series as every other surface rather than a blend of sources, and states blood glucose in your unit instead of a bare mg/dL number.
+- **WHOOP sync keeps a cursor per data type.** Recovery, sleep, workouts and cycles each track their own sync position, so a single slow or rejecting collection no longer holds the others back; a change notification refreshes just the affected record, and a full sync can backfill the deep history an incremental tick skips.
+
+### Fixed
+
+- **The coach appears when a shared model is configured.** A self-hoster who runs the coach from a server- or operator-managed model — with no personal key — now sees the coach instead of an "unconfigured" state, because the provider endpoint reports whether the coach can actually answer.
+- **A consent receipt cannot double-mint.** Two requests arriving together can no longer leave two active consent grants; the active receipt is enforced unique and minted atomically, and a concurrent first grant resolves to the winning receipt instead of an error.
+
+### Security
+
+- **Consent endpoints are rate-limited.** The consent grant, read and revoke routes share a per-user limit, so the receipt path can no longer be driven in a tight loop.
+
 ## [1.16.15] — 2026-06-14 — an honest calendar that learns before it predicts
 
 A focused release on the cycle calendar: it leans on observed data, names its

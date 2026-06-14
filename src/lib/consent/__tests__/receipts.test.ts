@@ -1,15 +1,25 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-vi.mock("@/lib/db", () => ({
-  prisma: {
-    consentReceipt: {
-      create: vi.fn(),
-      findFirst: vi.fn(),
-      findMany: vi.fn(),
-      update: vi.fn(),
+// `createReceipt` + `revokeLatest` run their supersede/revoke logic inside
+// a transaction. Run the callback against the same mock proxy. The Prisma
+// `$transaction` signature is generic; the mock takes a loose callback.
+type TxFn = (tx: unknown) => unknown;
+
+vi.mock("@/lib/db", () => {
+  const consentReceipt = {
+    create: vi.fn(),
+    findFirst: vi.fn(),
+    findMany: vi.fn(),
+    update: vi.fn(),
+    updateMany: vi.fn(),
+  };
+  return {
+    prisma: {
+      consentReceipt,
+      $transaction: vi.fn((fn: TxFn) => fn({ consentReceipt })),
     },
-  },
-}));
+  };
+});
 
 import { prisma } from "@/lib/db";
 import {
@@ -19,8 +29,15 @@ import {
   revokeLatest,
 } from "../receipts";
 
+const $transaction = vi.mocked(prisma.$transaction) as unknown as {
+  mockImplementation: (impl: (fn: TxFn) => unknown) => void;
+};
+
 beforeEach(() => {
   vi.resetAllMocks();
+  $transaction.mockImplementation((fn: TxFn) =>
+    fn({ consentReceipt: prisma.consentReceipt }),
+  );
 });
 
 function row(overrides: Partial<Record<string, unknown>> = {}) {
@@ -37,12 +54,23 @@ function row(overrides: Partial<Record<string, unknown>> = {}) {
 }
 
 describe("createReceipt", () => {
-  it("inserts a row scoped to (userId, kind) with the artefact + signedAt", async () => {
+  it("supersedes any active row then inserts scoped to (userId, kind)", async () => {
+    vi.mocked(prisma.consentReceipt.updateMany).mockResolvedValue({
+      count: 0,
+    } as never);
     vi.mocked(prisma.consentReceipt.create).mockResolvedValue(row() as never);
 
     const signedAt = new Date("2026-05-18T10:00:00.000Z");
     const result = await createReceipt("user-1", "ai_full", "PDF…", signedAt);
 
+    // Revokes any currently-active receipt of the same kind first, so the
+    // fresh grant doesn't collide with the partial unique index. The
+    // supersede marker uses a server clock (NOT the client `signedAt`) so a
+    // backdated grant can't invert the prior row's audit timestamps.
+    expect(prisma.consentReceipt.updateMany).toHaveBeenCalledWith({
+      where: { userId: "user-1", kind: "ai_full", revokedAt: null },
+      data: { revokedAt: expect.any(Date) },
+    });
     expect(prisma.consentReceipt.create).toHaveBeenCalledWith({
       data: {
         userId: "user-1",
@@ -52,6 +80,76 @@ describe("createReceipt", () => {
       },
     });
     expect(result.id).toBe("rcpt-1");
+    // The whole mint runs in a transaction.
+    expect(prisma.$transaction).toHaveBeenCalledTimes(1);
+  });
+
+  it("resolves a concurrent first-grant P2002 to the winning active row (no 500)", async () => {
+    // Two concurrent FIRST grants: both `updateMany` calls match 0 rows (no
+    // prior active receipt, no lock under Read Committed), both reach
+    // `create`, and the second trips the partial unique index with P2002.
+    vi.mocked(prisma.consentReceipt.updateMany).mockResolvedValue({
+      count: 0,
+    } as never);
+    const p2002 = Object.assign(new Error("Unique constraint failed"), {
+      code: "P2002",
+      name: "PrismaClientKnownRequestError",
+      clientVersion: "x",
+    });
+    vi.mocked(prisma.consentReceipt.create).mockRejectedValue(p2002 as never);
+    // The concurrent grant that won is now the single active receipt.
+    const winner = row({ id: "winner-row" });
+    vi.mocked(prisma.consentReceipt.findFirst).mockResolvedValue(
+      winner as never,
+    );
+
+    const signedAt = new Date("2026-05-18T10:00:00.000Z");
+    const result = await createReceipt("user-1", "ai_full", "PDF…", signedAt);
+
+    // Success-shaped: returns the row the concurrent grant produced, not a
+    // propagated P2002 (which the route would surface as a generic 500).
+    expect(result.id).toBe("winner-row");
+    expect(prisma.consentReceipt.findFirst).toHaveBeenCalledWith({
+      where: { userId: "user-1", kind: "ai_full", revokedAt: null },
+      orderBy: { createdAt: "desc" },
+    });
+  });
+
+  it("re-throws a non-P2002 create failure", async () => {
+    vi.mocked(prisma.consentReceipt.updateMany).mockResolvedValue({
+      count: 0,
+    } as never);
+    vi.mocked(prisma.consentReceipt.create).mockRejectedValue(
+      new Error("connection reset") as never,
+    );
+
+    await expect(
+      createReceipt("user-1", "ai_full", "PDF…", new Date()),
+    ).rejects.toThrow("connection reset");
+  });
+
+  it("uses a server clock (not a backdated client signedAt) for the supersede marker", async () => {
+    vi.mocked(prisma.consentReceipt.updateMany).mockResolvedValue({
+      count: 1,
+    } as never);
+    vi.mocked(prisma.consentReceipt.create).mockResolvedValue(row() as never);
+
+    // A client backdates the grant well into the past.
+    const backdated = new Date("2000-01-01T00:00:00.000Z");
+    const before = Date.now();
+    await createReceipt("user-1", "ai_full", "PDF…", backdated);
+    const after = Date.now();
+
+    const supersedeArg = vi.mocked(prisma.consentReceipt.updateMany).mock
+      .calls[0][0] as { data: { revokedAt: Date } };
+    // The prior row's revocation must be stamped "now", never the backdated
+    // client value, so the audit chain can't be inverted.
+    expect(supersedeArg.data.revokedAt.getTime()).not.toBe(backdated.getTime());
+    expect(supersedeArg.data.revokedAt.getTime()).toBeGreaterThanOrEqual(before);
+    expect(supersedeArg.data.revokedAt.getTime()).toBeLessThanOrEqual(after);
+    // The new row still carries the client signedAt.
+    const createArg = vi.mocked(prisma.consentReceipt.create).mock.calls[0][0];
+    expect(createArg.data.signedAt).toEqual(backdated);
   });
 });
 
@@ -96,28 +194,37 @@ describe("latestActiveReceiptsByKind", () => {
 });
 
 describe("revokeLatest", () => {
-  it("flips revokedAt on the latest active row and returns the updated row", async () => {
-    vi.mocked(prisma.consentReceipt.findFirst).mockResolvedValue(row() as never);
-    vi.mocked(prisma.consentReceipt.update).mockResolvedValue(
-      row({ revokedAt: new Date("2026-05-18T11:00:00.000Z") }) as never,
+  it("atomically revokes the active row via updateMany and returns it", async () => {
+    const now = new Date("2026-05-18T11:00:00.000Z");
+    vi.mocked(prisma.consentReceipt.updateMany).mockResolvedValue({
+      count: 1,
+    } as never);
+    vi.mocked(prisma.consentReceipt.findFirst).mockResolvedValue(
+      row({ revokedAt: now }) as never,
     );
 
-    const now = new Date("2026-05-18T11:00:00.000Z");
     const result = await revokeLatest("user-1", "ai_full", now);
 
-    expect(prisma.consentReceipt.update).toHaveBeenCalledWith({
-      where: { id: "rcpt-1" },
+    expect(prisma.consentReceipt.updateMany).toHaveBeenCalledWith({
+      where: { userId: "user-1", kind: "ai_full", revokedAt: null },
       data: { revokedAt: now },
+    });
+    // Re-reads the just-revoked row so the audit log keeps the receipt id.
+    expect(prisma.consentReceipt.findFirst).toHaveBeenCalledWith({
+      where: { userId: "user-1", kind: "ai_full", revokedAt: now },
+      orderBy: { createdAt: "desc" },
     });
     expect(result?.revokedAt).toEqual(now);
   });
 
-  it("returns null without writing when no active receipt exists", async () => {
-    vi.mocked(prisma.consentReceipt.findFirst).mockResolvedValue(null);
+  it("returns null without re-reading when no active receipt exists", async () => {
+    vi.mocked(prisma.consentReceipt.updateMany).mockResolvedValue({
+      count: 0,
+    } as never);
 
     const result = await revokeLatest("user-1", "ai_full");
 
     expect(result).toBeNull();
-    expect(prisma.consentReceipt.update).not.toHaveBeenCalled();
+    expect(prisma.consentReceipt.findFirst).not.toHaveBeenCalled();
   });
 });

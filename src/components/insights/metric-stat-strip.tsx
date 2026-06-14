@@ -92,6 +92,16 @@ export interface MetricStatSeries {
    * single-series mode omits it.
    */
   dataKey?: string;
+  /**
+   * v1.16.16 — optional override for the "Median" cell label. The median
+   * cell follows the chart's ACTIVE range (`windowStats`) when a range is
+   * selected and only falls back to the full-range `summary` p50 otherwise,
+   * so the label must NOT assert a fixed day-count it can't honor. Blood
+   * glucose passes a metric-naming string (e.g. "Median glucose") so the
+   * number reads as that metric's median for the visible range, not an
+   * all-time central value. Omit it to keep the generic label.
+   */
+  medianLabel?: string;
 }
 
 type MetricStatStripProps = Partial<MetricStatSeries> & {
@@ -129,6 +139,7 @@ function SeriesBlock({
   icon,
   windowStats,
   dataKey,
+  medianLabel,
 }: MetricStatSeries) {
   const { t } = useTranslations();
   const fmt = useFormatters();
@@ -154,7 +165,7 @@ function SeriesBlock({
     { key: "max", label: t("insights.subPage.stats.max"), value: source.max },
     {
       key: "median",
-      label: t("insights.subPage.stats.median"),
+      label: medianLabel ?? t("insights.subPage.stats.median"),
       value: source.median,
     },
     {
@@ -203,6 +214,7 @@ export function MetricStatStrip({
   icon,
   windowStats,
   dataKey,
+  medianLabel,
   series,
   groupLabel,
 }: MetricStatStripProps) {
@@ -264,6 +276,7 @@ export function MetricStatStrip({
           icon={icon}
           windowStats={windowStats}
           dataKey={dataKey}
+          medianLabel={medianLabel}
         />
       </CardContent>
     </Card>

@@ -2168,6 +2168,15 @@ model WhoopConnection {
   /// a refresh token. Null = legacy connection that predates scope tracking.
   scope          String?   @map("scope")
   lastSyncedAt   DateTime? @map("last_synced_at")
+  /// v1.16.16 (iOS #17) — per-resource sync cursors. A JSON map
+  /// `{ "recovery": "<iso>", "sleep": "<iso>", "workout": "<iso>",
+  /// "cycle": "<iso>" }` of each resource's own last-synced instant. The
+  /// incremental `start` for a resource is `cursor − overlap`; a resource
+  /// advances ONLY its own key on a successful fetch+upsert, so a slow or
+  /// 403-ing collection never drags the cursor forward for its siblings and
+  /// its own late-arriving records stay inside the window. Null / a missing
+  /// key falls back to the shared `lastSyncedAt` (legacy connection).
+  resourceCursors Json?    @map("resource_cursors")
   /// Set once the self-converging history backfill walks every collection to
   /// completion. Null = backfill still in flight (or never started).
   backfillCompletedAt DateTime? @map("backfill_completed_at")
@@ -3354,6 +3363,14 @@ model ConsentReceipt {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, createdAt(sort: Desc)])
+  // `consent_receipts_user_id_kind_active_key` is a partial UNIQUE index
+  // over (user_id, kind) `WHERE revoked_at IS NULL` — see migration 0159.
+  // It enforces at most one *active* receipt per (user, kind) so two
+  // concurrent web-grant heals can't both mint an active row. Prisma can't
+  // express a partial-predicate unique in the schema language, so it's
+  // introduced via raw SQL and intentionally omitted here. The append-only
+  // history (revoked rows) stays unconstrained because revoked rows carry a
+  // non-NULL `revoked_at` and fall outside the predicate.
   @@map("consent_receipts")
 }
 

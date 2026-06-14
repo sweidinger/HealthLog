@@ -4,6 +4,7 @@ import { NextRequest } from "next/server";
 vi.mock("@/lib/db", () => ({
   prisma: {
     measurement: { findMany: vi.fn() },
+    user: { findUnique: vi.fn() },
     auditLog: { create: vi.fn() },
   },
 }));
@@ -66,6 +67,9 @@ beforeEach(() => {
   vi.resetAllMocks();
   vi.mocked(prisma.measurement.findMany).mockResolvedValue([] as never);
   vi.mocked(prisma.auditLog.create).mockResolvedValue({} as never);
+  vi.mocked(prisma.user.findUnique).mockResolvedValue({
+    glucoseUnit: "mg/dL",
+  } as never);
 });
 
 describe("GET /api/measurements/series", () => {
@@ -171,6 +175,104 @@ describe("GET /api/measurements/series", () => {
     const res = await GET(req("kind=weight&days=7"));
     const body = (await res.json()) as { data: { unit: string } };
     expect(body.data.unit).toBe("kg");
+  });
+
+  it("returns glucose in mg/dL with raw values for a mg/dL-preference user (v1.16.16)", async () => {
+    vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
+    vi.mocked(prisma.user.findUnique).mockResolvedValue({
+      glucoseUnit: "mg/dL",
+    } as never);
+    vi.mocked(prisma.measurement.findMany).mockResolvedValue([
+      { id: "g1", value: 100, measuredAt: new Date("2026-06-01T08:00:00Z") },
+      { id: "g2", value: 126, measuredAt: new Date("2026-06-02T08:00:00Z") },
+    ] as never);
+    const res = await GET(req("kind=glucose&days=30"));
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      data: { unit: string; points: Array<{ value: number }> };
+    };
+    expect(body.data.unit).toBe("mg/dL");
+    expect(body.data.points.map((p) => p.value)).toEqual([100, 126]);
+  });
+
+  it("converts glucose to mmol/L (value + unit) for a mmol/L-preference user (v1.16.16)", async () => {
+    vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
+    vi.mocked(prisma.user.findUnique).mockResolvedValue({
+      glucoseUnit: "mmol/L",
+    } as never);
+    vi.mocked(prisma.measurement.findMany).mockResolvedValue([
+      { id: "g1", value: 100, measuredAt: new Date("2026-06-01T08:00:00Z") },
+      { id: "g2", value: 126, measuredAt: new Date("2026-06-02T08:00:00Z") },
+    ] as never);
+    const res = await GET(req("kind=glucose&days=30"));
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      data: {
+        unit: string;
+        points: Array<{ value: number }>;
+        stats: { min: number; max: number };
+      };
+    };
+    expect(body.data.unit).toBe("mmol/L");
+    // 100 mg/dL → 5.5 mmol/L, 126 mg/dL → 7.0 mmol/L (1-decimal).
+    expect(body.data.points[0].value).toBe(5.5);
+    expect(body.data.points[1].value).toBe(7);
+    // Stats are derived from the converted points → also in mmol/L.
+    expect(body.data.stats.min).toBe(5.5);
+    expect(body.data.stats.max).toBe(7);
+  });
+
+  it("computes mmol/L stats over raw mg/dL then converts once (v1.16.16 parity)", async () => {
+    // Parity with the detail page + FHIR convention: aggregate the raw mg/dL
+    // values, then convert each stat figure ONCE. Deriving the mean from the
+    // already-converted points (5.5, 7.0 → 6.25) double-rounds; the raw path
+    // (mean 113 mg/dL → 6.3 mmol/L) matches the detail page.
+    vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
+    vi.mocked(prisma.user.findUnique).mockResolvedValue({
+      glucoseUnit: "mmol/L",
+    } as never);
+    vi.mocked(prisma.measurement.findMany).mockResolvedValue([
+      { id: "g1", value: 100, measuredAt: new Date("2026-06-01T08:00:00Z") },
+      { id: "g2", value: 126, measuredAt: new Date("2026-06-02T08:00:00Z") },
+    ] as never);
+    const res = await GET(req("kind=glucose&days=30"));
+    const body = (await res.json()) as {
+      data: { stats: { mean: number } };
+    };
+    // mean(100,126) = 113 mg/dL → 6.3 mmol/L (NOT mean(5.5,7.0) = 6.25).
+    expect(body.data.stats.mean).toBe(6.3);
+  });
+
+  it("keeps a single mmol/L reading's stats identical to its point (v1.16.16)", async () => {
+    vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
+    vi.mocked(prisma.user.findUnique).mockResolvedValue({
+      glucoseUnit: "mmol/L",
+    } as never);
+    vi.mocked(prisma.measurement.findMany).mockResolvedValue([
+      { id: "g1", value: 100, measuredAt: new Date("2026-06-01T08:00:00Z") },
+    ] as never);
+    const res = await GET(req("kind=glucose&days=30"));
+    const body = (await res.json()) as {
+      data: { points: Array<{ value: number }>; stats: { mean: number } };
+    };
+    expect(body.data.points[0].value).toBe(5.5);
+    expect(body.data.stats.mean).toBe(5.5);
+  });
+
+  it("defaults glucose to mg/dL when the user has no preference (v1.16.16)", async () => {
+    vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
+    vi.mocked(prisma.user.findUnique).mockResolvedValue({
+      glucoseUnit: null,
+    } as never);
+    vi.mocked(prisma.measurement.findMany).mockResolvedValue([
+      { id: "g1", value: 100, measuredAt: new Date("2026-06-01T08:00:00Z") },
+    ] as never);
+    const res = await GET(req("kind=glucose&days=30"));
+    const body = (await res.json()) as {
+      data: { unit: string; points: Array<{ value: number }> };
+    };
+    expect(body.data.unit).toBe("mg/dL");
+    expect(body.data.points[0].value).toBe(100);
   });
 
   it("accepts the ten-year window (days=3650 — iOS 'Alle'-range)", async () => {

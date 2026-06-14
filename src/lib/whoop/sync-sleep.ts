@@ -7,12 +7,13 @@
  * Per-stage rows carry the `sleepStage` axis so the five stage rows for one
  * night stay distinct under the dedup key. externalId = `<sleep_id>:<fieldTag>`.
  */
-import { fetchSleeps, mapSleep } from "./client";
+import { fetchSleeps, fetchSleepById, mapSleep } from "./client";
 import {
   getValidToken,
   incrementalStart,
   handleCollectionFetchError,
-  markSynced,
+  markResourceSynced,
+  resolveResourceCursor,
   upsertWhoopMeasurements,
   WHOOP_RECOVERY_SLEEP_OVERLAP_MS,
   type WhoopMeasurementUpsert,
@@ -28,11 +29,11 @@ export async function syncUserSleep(
 
   const connection = await prisma.whoopConnection.findUnique({
     where: { userId },
-    select: { lastSyncedAt: true },
+    select: { lastSyncedAt: true, resourceCursors: true },
   });
   if (!connection) return 0;
 
-  const start = incrementalStart(connection.lastSyncedAt, {
+  const start = incrementalStart(resolveResourceCursor(connection, "sleep"), {
     fullSync: opts.fullSync,
     overlapMs: WHOOP_RECOVERY_SLEEP_OVERLAP_MS,
   });
@@ -59,6 +60,42 @@ export async function syncUserSleep(
   }
 
   const imported = await upsertWhoopMeasurements(userId, readings);
-  await markSynced(userId);
+  await markResourceSynced(userId, "sleep");
   return imported;
+}
+
+/**
+ * Webhook-driven targeted refresh: resolve ONE sleep activity by its uuid and
+ * upsert its readings, instead of re-walking the whole collection. An unscored
+ * / since-deleted record yields nothing. Does NOT advance the resource cursor
+ * (a single-id refresh proves nothing about the records between the cursor and
+ * now).
+ */
+export async function syncWhoopSleepById(
+  userId: string,
+  sleepId: string,
+): Promise<number> {
+  const tokenInfo = await getValidToken(userId);
+  if (!tokenInfo) return 0;
+
+  let record: Awaited<ReturnType<typeof fetchSleepById>>;
+  try {
+    record = await fetchSleepById(tokenInfo.accessToken, sleepId);
+  } catch (err) {
+    return handleCollectionFetchError("sleep", userId, err);
+  }
+
+  const readings: WhoopMeasurementUpsert[] = [];
+  for (const m of mapSleep(record)) {
+    readings.push({
+      type: m.type,
+      value: m.value,
+      unit: m.unit,
+      measuredAt: m.measuredAt,
+      externalId: `${record.id}:${m.fieldTag}`,
+      sleepStage: m.sleepStage ?? null,
+    });
+  }
+
+  return upsertWhoopMeasurements(userId, readings);
 }

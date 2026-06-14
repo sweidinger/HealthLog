@@ -13,12 +13,18 @@
  * rows (different `source`); the read-time `pickCanonicalWorkoutRows` picker
  * (E-slice, W6) collapses the cross-source twin at read time.
  */
-import { fetchWorkouts, KJ_TO_KCAL } from "./client";
+import {
+  fetchWorkouts,
+  fetchWorkoutById,
+  KJ_TO_KCAL,
+  type WhoopWorkout,
+} from "./client";
 import {
   getValidToken,
   incrementalStart,
   handleCollectionFetchError,
-  markSynced,
+  markResourceSynced,
+  resolveResourceCursor,
   WHOOP_RECOVERY_SLEEP_OVERLAP_MS,
 } from "./sync";
 import { prisma } from "@/lib/db";
@@ -41,7 +47,7 @@ export async function syncUserWorkout(
 
   const connection = await prisma.whoopConnection.findUnique({
     where: { userId },
-    select: { lastSyncedAt: true },
+    select: { lastSyncedAt: true, resourceCursors: true },
   });
   if (!connection) return 0;
 
@@ -53,10 +59,13 @@ export async function syncUserWorkout(
   // the same window recovery/sleep already use for their late re-scores. The
   // `(userId, WHOOP, externalId)` upsert keeps the re-fetch idempotent and a
   // handful of workouts/day keeps the page count down.
-  const start = incrementalStart(connection.lastSyncedAt, {
-    fullSync: opts.fullSync,
-    overlapMs: WHOOP_RECOVERY_SLEEP_OVERLAP_MS,
-  });
+  const start = incrementalStart(
+    resolveResourceCursor(connection, "workout"),
+    {
+      fullSync: opts.fullSync,
+      overlapMs: WHOOP_RECOVERY_SLEEP_OVERLAP_MS,
+    },
+  );
 
   let records: Awaited<ReturnType<typeof fetchWorkouts>>;
   try {
@@ -67,75 +76,108 @@ export async function syncUserWorkout(
 
   let imported = 0;
   for (const w of records) {
-    if (!w.score) continue; // unscored workout — nothing to store yet
-    const startedAt = new Date(w.start);
-    const endedAt = new Date(w.end);
-    const durationSec = Math.max(
-      0,
-      Math.round((endedAt.getTime() - startedAt.getTime()) / 1000),
-    );
-    const energyKcal =
-      typeof w.score.kilojoule === "number"
-        ? Math.round(w.score.kilojoule * KJ_TO_KCAL)
-        : null;
+    imported += await upsertWhoopWorkout(userId, w);
+  }
 
-    const metadata: Prisma.InputJsonValue = {
-      whoopWorkoutStrain: w.score.strain,
-      percentRecorded: w.score.percent_recorded,
-      ...(w.score.altitude_gain_meter != null
-        ? { altitudeGainMeter: w.score.altitude_gain_meter }
-        : {}),
-      ...(w.score.altitude_change_meter != null
-        ? { altitudeChangeMeter: w.score.altitude_change_meter }
-        : {}),
-      ...(w.score.zone_durations
-        ? { zoneDurations: w.score.zone_durations }
-        : {}),
-    };
+  await markResourceSynced(userId, "workout");
+  return imported;
+}
 
-    try {
-      await prisma.workout.upsert({
-        where: {
-          userId_source_externalId: {
-            userId,
-            source: "WHOOP",
-            externalId: w.id,
-          },
-        },
-        create: {
+/**
+ * Webhook-driven targeted refresh: resolve ONE workout by its uuid and upsert
+ * it, instead of re-walking the whole collection. This is the direct fix for
+ * iOS #17 — a `workout.updated` webhook lands the exact workout immediately,
+ * with no dependence on the overlap window catching it. An unscored /
+ * since-deleted record yields nothing. Does NOT advance the resource cursor.
+ */
+export async function syncWhoopWorkoutById(
+  userId: string,
+  workoutId: string,
+): Promise<number> {
+  const tokenInfo = await getValidToken(userId);
+  if (!tokenInfo) return 0;
+
+  let record: WhoopWorkout;
+  try {
+    record = await fetchWorkoutById(tokenInfo.accessToken, workoutId);
+  } catch (err) {
+    return handleCollectionFetchError("workout", userId, err);
+  }
+
+  return upsertWhoopWorkout(userId, record);
+}
+
+/**
+ * Upsert one WHOOP workout into the `Workout` table keyed on
+ * `(userId, source = WHOOP, externalId)`. Returns 1 when a row was written, 0
+ * for an unscored record (nothing to store yet) or an upsert failure (logged,
+ * never thrown — a single bad record must not fail the surrounding sync).
+ * Shared by the collection walk and the webhook-driven fetch-by-id refresh so
+ * both write an identical row shape.
+ */
+export async function upsertWhoopWorkout(
+  userId: string,
+  w: WhoopWorkout,
+): Promise<number> {
+  if (!w.score) return 0; // unscored workout — nothing to store yet
+  const startedAt = new Date(w.start);
+  const endedAt = new Date(w.end);
+  const durationSec = Math.max(
+    0,
+    Math.round((endedAt.getTime() - startedAt.getTime()) / 1000),
+  );
+  const energyKcal =
+    typeof w.score.kilojoule === "number"
+      ? Math.round(w.score.kilojoule * KJ_TO_KCAL)
+      : null;
+
+  const metadata: Prisma.InputJsonValue = {
+    whoopWorkoutStrain: w.score.strain,
+    percentRecorded: w.score.percent_recorded,
+    ...(w.score.altitude_gain_meter != null
+      ? { altitudeGainMeter: w.score.altitude_gain_meter }
+      : {}),
+    ...(w.score.altitude_change_meter != null
+      ? { altitudeChangeMeter: w.score.altitude_change_meter }
+      : {}),
+    ...(w.score.zone_durations
+      ? { zoneDurations: w.score.zone_durations }
+      : {}),
+  };
+
+  const row = {
+    sportType: sportLabel(w.sport_id, w.sport_name),
+    startedAt,
+    endedAt,
+    durationSec,
+    totalEnergyKcal: energyKcal,
+    totalDistanceM: w.score.distance_meter ?? null,
+    avgHeartRate: w.score.average_heart_rate ?? null,
+    maxHeartRate: w.score.max_heart_rate ?? null,
+    elevationM: w.score.altitude_gain_meter ?? null,
+    metadata,
+  };
+
+  try {
+    await prisma.workout.upsert({
+      where: {
+        userId_source_externalId: {
           userId,
           source: "WHOOP",
           externalId: w.id,
-          sportType: sportLabel(w.sport_id, w.sport_name),
-          startedAt,
-          endedAt,
-          durationSec,
-          totalEnergyKcal: energyKcal,
-          totalDistanceM: w.score.distance_meter ?? null,
-          avgHeartRate: w.score.average_heart_rate ?? null,
-          maxHeartRate: w.score.max_heart_rate ?? null,
-          elevationM: w.score.altitude_gain_meter ?? null,
-          metadata,
         },
-        update: {
-          sportType: sportLabel(w.sport_id, w.sport_name),
-          startedAt,
-          endedAt,
-          durationSec,
-          totalEnergyKcal: energyKcal,
-          totalDistanceM: w.score.distance_meter ?? null,
-          avgHeartRate: w.score.average_heart_rate ?? null,
-          maxHeartRate: w.score.max_heart_rate ?? null,
-          elevationM: w.score.altitude_gain_meter ?? null,
-          metadata,
-        },
-      });
-      imported++;
-    } catch (err) {
-      getEvent()?.addWarning(`WHOOP: failed to upsert workout: ${err}`);
-    }
+      },
+      create: {
+        userId,
+        source: "WHOOP",
+        externalId: w.id,
+        ...row,
+      },
+      update: row,
+    });
+    return 1;
+  } catch (err) {
+    getEvent()?.addWarning(`WHOOP: failed to upsert workout: ${err}`);
+    return 0;
   }
-
-  await markSynced(userId);
-  return imported;
 }

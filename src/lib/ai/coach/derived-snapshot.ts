@@ -20,6 +20,14 @@ import {
   type DerivedMetricId,
   type BaselineProfile,
 } from "@/lib/insights/derived";
+import { prisma } from "@/lib/db";
+
+/**
+ * Trailing window the recovery dedup probes for a WHOOP-native row — matches
+ * the wellness reader's default trend window so "is the resolved recovery the
+ * COMPUTED proxy?" is answered against the same set of days.
+ */
+const RECOVERY_DEDUP_WINDOW_DAYS = 14;
 
 /** The high-signal derived metrics worth a Coach prompt slot. The vitals
  *  baseline is omitted — the per-vital aggregate block already carries those
@@ -122,6 +130,34 @@ export async function buildDerivedSnapshotBlock(
       confidence: derived.confidence.score,
       historyDays: derived.coverage.historyDays,
     };
+  }
+
+  // Recovery dedup (one number, one engine). The COMPUTED recovery proxy IS the
+  // readiness blend verbatim, so when no WHOOP-native row exists the resolved
+  // recovery equals readiness — feeding both labels would hand the model the
+  // identical score under two names. Drop the redundant recovery line ONLY when
+  // the resolved recovery is that COMPUTED proxy (no WHOOP-native row present).
+  // A genuine WHOOP recovery stays even if it coincidentally equals readiness —
+  // a numeric tie must never silence the device's ground-truth number.
+  if (block.READINESS !== undefined && block.RECOVERY_SCORE !== undefined) {
+    const whoopRecovery = await prisma.measurement.findFirst({
+      where: {
+        userId,
+        type: "RECOVERY_SCORE",
+        source: "WHOOP",
+        deletedAt: null,
+        measuredAt: {
+          gte: new Date(
+            now.getTime() - RECOVERY_DEDUP_WINDOW_DAYS * 24 * 60 * 60 * 1000,
+          ),
+          lte: now,
+        },
+      },
+      select: { id: true },
+    });
+    if (whoopRecovery === null) {
+      delete block.RECOVERY_SCORE;
+    }
   }
 
   return Object.keys(block).length > 0 ? block : null;

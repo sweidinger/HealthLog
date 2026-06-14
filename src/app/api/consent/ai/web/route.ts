@@ -14,13 +14,28 @@
  * revoke) lives in `../route.ts` + `../latest/route.ts`.
  */
 import { apiHandler, requireAuth } from "@/lib/api-handler";
-import { apiSuccess } from "@/lib/api-response";
+import { apiError, apiSuccess } from "@/lib/api-response";
 import { annotate } from "@/lib/logging/context";
 import { auditLog } from "@/lib/auth/audit";
+import { checkConsentRateLimit, rateLimitHeaders } from "@/lib/rate-limit";
 import { ensureWebAiConsentReceipt } from "@/lib/consent/web-grant";
 
 export const POST = apiHandler(async () => {
   const { user } = await requireAuth();
+
+  // The web AI-settings surface calls this on every mount; the bucket is
+  // generous enough that the heal path is never throttled in normal use,
+  // tight enough to cap a scripted loop.
+  const rl = await checkConsentRateLimit(user.id);
+  if (!rl.allowed) {
+    annotate({
+      action: { name: "consent.ai.rate-limited" },
+      meta: { userId: user.id, resetAt: rl.resetAt },
+    });
+    return apiError("Too many consent requests, please wait a moment", 429, {
+      headers: rateLimitHeaders(rl),
+    });
+  }
 
   const result = await ensureWebAiConsentReceipt(user.id);
 

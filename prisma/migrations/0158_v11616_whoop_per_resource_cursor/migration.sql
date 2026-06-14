@@ -1,0 +1,18 @@
+-- v1.16.16 (iOS #17) — per-resource WHOOP sync cursors.
+--
+-- WHOOP's collection endpoints filter on a record's OWN time range, not on
+-- when it reached the cloud, and each resource (recovery / sleep / workout /
+-- cycle) re-scores and arrives on its own latency. A single shared
+-- `last_synced_at` cursor advanced by the fastest resource then drags the
+-- incremental `start` forward for a slow or failing resource too, so its
+-- late-arriving records fall permanently before the window and are never
+-- ingested. A 403/timeout on ONE collection likewise must not poison the
+-- cursor every sibling reads.
+--
+-- `resource_cursors` is a small JSON map `{ "recovery": "<iso>", ... }` of the
+-- per-resource last-synced instant. Each resource advances only its own key on
+-- a successful fetch+upsert; a stalled resource leaves its key untouched and
+-- keeps re-fetching from where it left off without holding back the others.
+-- Null = legacy connection — the readers fall back to the shared
+-- `last_synced_at` so no historical state is lost.
+ALTER TABLE "whoop_connections" ADD COLUMN "resource_cursors" JSONB;

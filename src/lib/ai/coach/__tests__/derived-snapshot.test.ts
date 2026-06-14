@@ -5,10 +5,21 @@ vi.mock("@/lib/insights/derived", async (importOriginal) => {
   return { ...actual, computeDerivedMetric: vi.fn() };
 });
 
+vi.mock("@/lib/db", () => ({
+  prisma: { measurement: { findFirst: vi.fn() } },
+}));
+
 import { computeDerivedMetric } from "@/lib/insights/derived";
+import { prisma } from "@/lib/db";
 import { buildDerivedSnapshotBlock } from "../derived-snapshot";
 
 const compute = computeDerivedMetric as unknown as ReturnType<typeof vi.fn>;
+const whoopFindFirst = prisma.measurement
+  .findFirst as unknown as ReturnType<typeof vi.fn>;
+/** Make the WHOOP-native recovery probe report present / absent. */
+function setWhoopNativePresent(present: boolean) {
+  whoopFindFirst.mockResolvedValue(present ? { id: "whoop-1" } : null);
+}
 const PROFILE = { ageYears: 40, sex: "MALE" as const, heightCm: 180 };
 const NOW = new Date("2026-06-02T08:00:00Z");
 
@@ -28,7 +39,13 @@ const insufficient = {
   reason: "no_score_in_window",
 };
 
-beforeEach(() => compute.mockReset());
+beforeEach(() => {
+  compute.mockReset();
+  whoopFindFirst.mockReset();
+  // Default: no WHOOP-native recovery row in the window. Tests that exercise
+  // the native-present path flip this explicitly.
+  setWhoopNativePresent(false);
+});
 
 describe("buildDerivedSnapshotBlock", () => {
   it("returns null when every metric is insufficient", async () => {
@@ -38,6 +55,9 @@ describe("buildDerivedSnapshotBlock", () => {
   });
 
   it("emits compact value + band + confidence per ok metric, omits insufficient", async () => {
+    // A WHOOP-native recovery is present, so the recovery line survives
+    // alongside readiness (the dedup only drops the COMPUTED proxy).
+    setWhoopNativePresent(true);
     compute.mockImplementation(async (args?: { metric?: string }) => {
       if (args?.metric === "READINESS") return ok({ score: 64, band: "yellow" });
       if (args?.metric === "RECOVERY_SCORE") return ok({ score: 72, band: "green" });
@@ -59,6 +79,49 @@ describe("buildDerivedSnapshotBlock", () => {
       "historyDays",
       "value",
     ]);
+  });
+
+  it("drops RECOVERY_SCORE when it is the COMPUTED proxy (no WHOOP-native row)", async () => {
+    // No WHOOP-native recovery in the window → the resolved recovery IS the
+    // COMPUTED proxy, which equals readiness. Feeding both hands the model the
+    // same number twice, so the recovery line is dropped.
+    setWhoopNativePresent(false);
+    compute.mockImplementation(async (args?: { metric?: string }) => {
+      if (args?.metric === "READINESS") return ok({ score: 64, band: "yellow" });
+      if (args?.metric === "RECOVERY_SCORE") return ok({ score: 64, band: "yellow" });
+      return insufficient;
+    });
+    const block = await buildDerivedSnapshotBlock("u1", PROFILE, NOW);
+    expect(block).not.toBeNull();
+    expect(block!.READINESS).toBeDefined();
+    expect(block!.RECOVERY_SCORE).toBeUndefined();
+  });
+
+  it("keeps a WHOOP-native RECOVERY_SCORE that coincidentally equals READINESS (L4)", async () => {
+    // A genuine WHOOP recovery happens to match readiness on the nose. The old
+    // numeric-equality drop would silence the device's ground-truth number; the
+    // source-aware drop keeps it because a WHOOP-native row exists.
+    setWhoopNativePresent(true);
+    compute.mockImplementation(async (args?: { metric?: string }) => {
+      if (args?.metric === "READINESS") return ok({ score: 64, band: "yellow" });
+      if (args?.metric === "RECOVERY_SCORE") return ok({ score: 64, band: "yellow" });
+      return insufficient;
+    });
+    const block = await buildDerivedSnapshotBlock("u1", PROFILE, NOW);
+    expect(block!.READINESS?.value).toBe(64);
+    expect(block!.RECOVERY_SCORE?.value).toBe(64);
+  });
+
+  it("keeps RECOVERY_SCORE when a WHOOP-native value differs from READINESS", async () => {
+    setWhoopNativePresent(true);
+    compute.mockImplementation(async (args?: { metric?: string }) => {
+      if (args?.metric === "READINESS") return ok({ score: 64, band: "yellow" });
+      if (args?.metric === "RECOVERY_SCORE") return ok({ score: 80, band: "green" });
+      return insufficient;
+    });
+    const block = await buildDerivedSnapshotBlock("u1", PROFILE, NOW);
+    expect(block!.READINESS?.value).toBe(64);
+    expect(block!.RECOVERY_SCORE?.value).toBe(80);
   });
 
   it("isolates a per-metric compute failure", async () => {

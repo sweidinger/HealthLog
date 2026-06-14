@@ -77,6 +77,7 @@ import { getServerTranslator } from "@/lib/i18n/server-translator";
 import type { Locale } from "@/lib/i18n/config";
 import { defaultLocale, locales } from "@/lib/i18n/config";
 import { getEvent } from "@/lib/logging/context";
+import { resolveCanonicalRecovery } from "@/lib/insights/derived/recovery-resolve";
 // Trend thresholds shared with the dashboard hero's verdict resolver
 // live in a client-safe leaf module; re-exported below so server-side
 // imports keep their path.
@@ -434,6 +435,7 @@ export async function findTriggerForUser(
     dateOfBirth: Date | null;
     gender: string | null;
     thresholdsJson: unknown;
+    timezone?: string | null;
   },
   now: Date,
   groups: Record<CoachNudgeTriggerGroup, boolean> = {
@@ -497,16 +499,22 @@ export async function findTriggerForUser(
       }
     }
 
-    // 3) Recovery score falling sharply week-over-week.
-    const scores = await prisma.measurement.findMany({
+    // 3) Recovery score falling sharply week-over-week. RECOVERY_SCORE is
+    //    written by TWO sources (WHOOP-native + the COMPUTED proxy); reading
+    //    the raw rows would blend both series into the trend windows and let a
+    //    single night appear twice. Resolve to the ONE canonical row per night
+    //    (WHOOP wins when present) before the recent/prior split — the same
+    //    "one number, one engine" rule the wellness tile applies.
+    const scoreRows = await prisma.measurement.findMany({
       where: {
         userId: user.id,
         type: "RECOVERY_SCORE",
         deletedAt: null,
         measuredAt: { gte: fourteenDaysAgo, lte: now },
       },
-      select: { value: true, measuredAt: true },
+      select: { value: true, measuredAt: true, source: true },
     });
+    const scores = resolveCanonicalRecovery(scoreRows, user.timezone ?? null);
     const recent = scores
       .filter((m) => m.measuredAt >= sevenDaysAgo)
       .map((m) => m.value);
@@ -691,6 +699,7 @@ export async function runCoachNudgeTick(
       dateOfBirth: true,
       gender: true,
       thresholdsJson: true,
+      timezone: true,
       aiProvider: true,
       aiProviderChain: true,
       aiAnthropicKeyEncrypted: true,

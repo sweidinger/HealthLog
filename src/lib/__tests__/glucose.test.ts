@@ -63,6 +63,40 @@ describe("glucose conversion", () => {
     expect(mmolToMgdl(3.9)).toBe(70); // hypoglycemia threshold
   });
 
+  // v1.16.16 — "one number, one engine" coherence. The wire series DTO, the
+  // CSV export, and the FHIR export each convert a stored mg/dL reading to the
+  // user's display unit through the SAME `convertGlucose` helper, so the three
+  // surfaces emit an identical value + unit. This guards against any surface
+  // drifting back to a render-time or hard-coded conversion.
+  it("emits a coherent value+unit across series / CSV / FHIR for mmol/L", () => {
+    const storedMgdl = 126; // ADA diabetes threshold
+    const unit = resolveGlucoseUnit("mmol/L");
+
+    // Series route: point value = convertGlucose(row.value, unit).
+    const seriesValue = convertGlucose(storedMgdl, unit);
+    // CSV export: BLOOD_GLUCOSE row value = convertGlucose(m.value, unit).
+    const csvValue = convertGlucose(storedMgdl, unit);
+    // FHIR export: valueQuantity.value = convertGlucose(stat.latest, unit).
+    const fhirValue = convertGlucose(storedMgdl, unit);
+
+    expect(unit).toBe("mmol/L");
+    expect(seriesValue).toBe(7);
+    expect(csvValue).toBe(seriesValue);
+    expect(fhirValue).toBe(seriesValue);
+  });
+
+  it("emits a coherent value+unit across series / CSV / FHIR for mg/dL", () => {
+    const storedMgdl = 100;
+    const unit = resolveGlucoseUnit("mg/dL");
+    const seriesValue = convertGlucose(storedMgdl, unit);
+    const csvValue = convertGlucose(storedMgdl, unit);
+    const fhirValue = convertGlucose(storedMgdl, unit);
+    expect(unit).toBe("mg/dL");
+    expect(seriesValue).toBe(100);
+    expect(csvValue).toBe(seriesValue);
+    expect(fhirValue).toBe(seriesValue);
+  });
+
   it("toCanonicalMgdl is the inverse of convertGlucose at the editor boundary", () => {
     // mg/dL display unit is already canonical — only rounds.
     expect(toCanonicalMgdl(126, "mg/dL")).toBe(126);

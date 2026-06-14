@@ -1,9 +1,7 @@
 "use client";
 
 import { use } from "react";
-import Link from "next/link";
 import { notFound, useSearchParams } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
 
 import { useTranslations } from "@/lib/i18n/context";
 import {
@@ -12,7 +10,7 @@ import {
 } from "@/lib/insights/values-back-link";
 import { measurementTypeEnum } from "@/lib/validations/measurement";
 import { MEASUREMENT_TYPE_LABEL_KEYS } from "@/components/measurements/measurement-list-meta";
-import { Button } from "@/components/ui/button";
+import { BackLink } from "@/components/ui/back-link";
 import { MeasurementList } from "@/components/measurements/measurement-list";
 import { SubPageShell } from "@/components/insights/sub-page-shell";
 
@@ -63,22 +61,17 @@ export default function InsightsMetricValuesPage({
       title={t("insights.subPage.valuesPageTitle", { metric: metricLabel })}
       description={t("insights.subPage.valuesPageDescription")}
       backLink={
-        <Button
-          asChild
-          variant="ghost"
-          size="sm"
-          data-slot="metric-values-back"
-          className="-ml-2 w-fit"
-        >
-          <Link href={backHref}>
-            <ArrowLeft className="size-4" aria-hidden="true" />
-            {backToOrigin
+        <BackLink
+          href={backHref}
+          label={
+            backToOrigin
               ? t("insights.subPage.valuesBackToMetric", {
                   metric: metricLabel,
                 })
-              : t("insights.subPage.valuesBack")}
-          </Link>
-        </Button>
+              : t("insights.subPage.valuesBack")
+          }
+          dataSlot="metric-values-back"
+        />
       }
     >
       <MeasurementList lockedType={type} />

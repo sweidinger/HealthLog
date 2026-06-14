@@ -70,6 +70,37 @@ describe("<MetricStatStrip>", () => {
     expect(html).toBe("");
   });
 
+  it("renders the default 'Median' label when no override is given", () => {
+    const html = render(<MetricStatStrip summary={populated} unit="bpm" />);
+    expect(html).toContain("Median");
+  });
+
+  // v1.16.16 — the median cell follows the chart's active range, so the label
+  // names the metric without asserting a fixed window it can't honor.
+  it("renders an overridden median label when medianLabel is provided", () => {
+    const html = render(
+      <MetricStatStrip
+        summary={populated}
+        unit="mg/dL"
+        medianLabel="Median glucose"
+      />,
+    );
+    expect(html).toContain("Median glucose");
+  });
+
+  it("honours fractionDigits for integer-unit metrics (0 decimals)", () => {
+    const html = render(
+      <MetricStatStrip
+        summary={{ ...populated, min: 100, max: 180, median: 126 }}
+        unit="mg/dL"
+        fractionDigits={0}
+      />,
+    );
+    // No "100.0" — integer precision.
+    expect(html).toContain("100 mg/dL");
+    expect(html).not.toContain("100.0");
+  });
+
   it("falls back to mean when median is absent (older payload)", () => {
     const noMedian: DataSummary = { ...populated, median: null };
     const html = render(<MetricStatStrip summary={noMedian} unit="bpm" />);

@@ -23,6 +23,7 @@ import {
   type CoachDataCluster,
 } from "@/lib/validations/coach-prefs";
 import { DEFAULT_TIMEZONE } from "@/lib/tz/resolver";
+import { convertGlucose, resolveGlucoseUnit } from "@/lib/glucose";
 import {
   reconstructSleepNights,
   type SleepStageRow,
@@ -481,6 +482,10 @@ async function buildCoachSnapshotImpl(
       // both columns here so a non-cycle account pays no extra round-trip.
       gender: true,
       cycleProfile: { select: { cycleTrackingEnabled: true } },
+      // v1.16.16 — the glucose block converts canonical mg/dL to the user's
+      // display unit so the Coach reads the same number every other surface
+      // shows. Read it on this existing prefs hop (no extra round-trip).
+      glucoseUnit: true,
     },
   });
   const prefs = parseCoachPrefs(prefsRow?.coachPrefsJson);
@@ -494,6 +499,7 @@ async function buildCoachSnapshotImpl(
     clusterDefault,
   );
   const userTz = prefsRow?.timezone ?? DEFAULT_TIMEZONE;
+  const glucoseUnit = resolveGlucoseUnit(prefsRow?.glucoseUnit ?? null);
   const excluded = new Set<CoachExcludeMetric>(prefs.excludeMetrics);
   // v1.4.36 W3 T2 — `medications` and `anthropometrics` are
   // exclude-only toggles (not in `CoachScopeSource`); they gate the
@@ -1317,15 +1323,30 @@ async function buildCoachSnapshotImpl(
       }
       const contexts: Record<string, unknown> = {};
       for (const [ctx, rows] of byContext) {
-        contexts[ctx] = {
-          recent: buildDailyValueRows(rows, recentCutoff, userTz),
-          weekly: bucketWeekly(
-            rows.filter((r) => r.measuredAt < recentCutoff),
-            userTz,
-          ),
-        };
+        // v1.16.16 — glucose is stored canonical mg/dL. A mmol/L-preference
+        // user's Coach must read the same number every other surface shows
+        // (5.5, not 100). Aggregate the per-day / weekly means in raw mg/dL,
+        // then convert each resulting figure ONCE (parity with the series
+        // DTO + detail page + FHIR). mg/dL users stay byte-identical because
+        // the conversion is skipped entirely.
+        const recent = buildDailyValueRows(rows, recentCutoff, userTz).map((d) =>
+          glucoseUnit === "mmol/L"
+            ? { ...d, value: convertGlucose(d.value, glucoseUnit) }
+            : d,
+        );
+        const weekly = bucketWeekly(
+          rows.filter((r) => r.measuredAt < recentCutoff),
+          userTz,
+        ).map((w) =>
+          glucoseUnit === "mmol/L"
+            ? { ...w, mean: convertGlucose(w.mean, glucoseUnit) }
+            : w,
+        );
+        contexts[ctx] = { recent, weekly };
       }
-      snapshot.glucose = { byContext: contexts };
+      // The display unit travels with the block so the prompt renders
+      // "<value> <unit>" and the EVIDENCE BLOCK tags glucose lines correctly.
+      snapshot.glucose = { unit: glucoseUnit, byContext: contexts };
       metrics.add("glucose");
       counts.glucose = glucoseRows.length;
       registerBlock("glucose", "glucose");

@@ -64,7 +64,14 @@ function serializeSession(s: SleepSession) {
     inBedMinutes: s.inBedMinutes === null ? null : Math.round(s.inBedMinutes),
     awakeMinutes: s.awakeMinutes === null ? null : Math.round(s.awakeMinutes),
     awakenings: s.awakenings,
-    stages: s.stages,
+    // iOS #18 — round the per-stage map too; the underlying totals sum
+    // second-precision segments and otherwise serialise as e.g. 88.4999.
+    stages: Object.fromEntries(
+      Object.entries(s.stages).map(([stage, minutes]) => [
+        stage,
+        Math.round(minutes),
+      ]),
+    ),
     segments: s.segments.map((seg) => ({
       stage: seg.stage,
       start: seg.start.toISOString(),

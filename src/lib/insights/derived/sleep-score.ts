@@ -32,10 +32,19 @@
  * are not rolled up by stage, so the night reconstruction reads raw, but
  * bounded to the window). The pure scorers are exported for unit tests.
  */
-import type { MeasurementType, SleepStage } from "@/generated/prisma/client";
+import type {
+  MeasurementSource,
+  MeasurementType,
+  SleepStage,
+} from "@/generated/prisma/client";
 import { prisma } from "@/lib/db";
 import { wallClockInTz } from "@/lib/tz/wall-clock";
 import { resolveUserTimezone } from "@/lib/tz/resolver";
+import {
+  reconstructSleepNights,
+  type SleepStageRow,
+} from "@/lib/analytics/sleep-night";
+import { loadUserSourcePriority } from "@/lib/rollups/measurement-read";
 import {
   buildInsufficient,
   buildOk,
@@ -48,8 +57,6 @@ import type { Derived } from "./types";
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 /** Default trailing window for the consistency/timing baseline (days). */
 const DEFAULT_WINDOW_DAYS = 30;
-/** A night needs ≥ this many stage rows to score at all. */
-const MIN_STAGE_ROWS_PER_NIGHT = 1;
 
 /** Transparent sub-score weights (shown to the user, sum to 1 over present). */
 export const SLEEP_SUBSCORE_WEIGHTS = {
@@ -87,13 +94,6 @@ export interface SleepScoreValue {
   /** Nights in the window that backed the consistency/timing baseline. */
   windowNights: number;
 }
-
-const ASLEEP_STAGES: ReadonlySet<SleepStage> = new Set<SleepStage>([
-  "ASLEEP",
-  "REM",
-  "CORE",
-  "DEEP",
-]);
 
 // ── pure scorers (exported for tests) ─────────────────────────────────
 
@@ -300,6 +300,14 @@ interface SleepRow {
   value: number;
   measuredAt: Date;
   sleepStage: SleepStage | null;
+  /**
+   * Ingest source + device-type — fed to the canonical `reconstructSleepNights`
+   * writer-dedup so a multi-source night (WHOOP + Apple Health) collapses to
+   * ONE writer before summing instead of double-counting. Optional: a legacy
+   * fixture or single-source caller that omits them dedups as before.
+   */
+  source?: MeasurementSource | null;
+  deviceType?: string | null;
 }
 
 export interface NightSummary {
@@ -316,83 +324,85 @@ export interface NightSummary {
 }
 
 /**
- * Group raw stage rows into per-night summaries. A "night" is keyed by the
- * latest stage row's calendar day (the wake day). Pure — the caller does
- * the bounded DB read and passes rows in.
+ * Adapt the canonical per-night reconstruction (`reconstructSleepNights`) into
+ * the `NightSummary` shape the Sleep Score scorers consume. ONE ENGINE: the
+ * same session-clustering, local-wake-day keying, and multi-source writer
+ * dedup the dashboard / hypnogram / doctor surfaces use now also backs the
+ * Sleep Score, so a multi-source night (WHOOP + Apple Health) is counted ONCE,
+ * not summed across writers.
+ *
+ * This is an ADAPTER, not a drop-in: `reconstructSleepNights` returns the
+ * canonical asleep total + per-stage map + in-bed/awake totals, and this
+ * function derives the score-only fields the canonical engine does not carry —
+ * `remMinutes` / `deepMinutes` from the stage map, `hasStageBreakdown` from the
+ * presence of any granular stage, and `midpoint` from the asleep span (the
+ * canonical night's wake instant minus half the asleep minutes), expressed in
+ * the user's wall clock.
  *
  * `tz` is the IANA zone the midpoint is expressed against: a sleeper's
  * 03:00-local midpoint must read as minutes-of-day in THEIR wall clock, not
  * UTC, so a non-UTC user's consistency / timing sub-scores don't drift with
- * the offset. Defaults to UTC for back-compatible pure use.
+ * the offset. Defaults to UTC for back-compatible pure use. `priorityJson` is
+ * the user's persisted source priority (or null for the defaults) so the
+ * writer-dedup ladder matches every other sleep surface.
  */
 export function reconstructNights(
   rows: SleepRow[],
   tz: string = "UTC",
+  priorityJson: unknown = null,
 ): NightSummary[] {
-  // Bucket rows by the wake-day key (UTC day of the row's measuredAt).
-  const byNight = new Map<string, SleepRow[]>();
-  for (const row of rows) {
-    const key = row.measuredAt.toISOString().slice(0, 10);
-    const list = byNight.get(key) ?? [];
-    list.push(row);
-    byNight.set(key, list);
-  }
-  const nights: NightSummary[] = [];
-  for (const [night, nightRows] of byNight) {
-    let asleep = 0;
-    let awake = 0;
-    let rem = 0;
-    let deep = 0;
-    let inBed = 0;
-    let sawInBed = false;
-    let sawStageBreakdown = false;
-    let earliest = Infinity;
-    let latest = -Infinity;
-    for (const r of nightRows) {
-      const stage = r.sleepStage;
-      const minutes = Number.isFinite(r.value) ? r.value : 0;
-      const t = r.measuredAt.getTime();
-      if (t < earliest) earliest = t;
-      if (t > latest) latest = t;
-      if (stage === "IN_BED") {
-        inBed += minutes;
-        sawInBed = true;
-        continue;
-      }
-      if (stage === "AWAKE") {
-        awake += minutes;
-        continue;
-      }
-      if (stage && ASLEEP_STAGES.has(stage)) {
-        asleep += minutes;
-        if (stage === "REM") rem += minutes;
-        if (stage === "DEEP") deep += minutes;
-        if (stage === "REM" || stage === "CORE" || stage === "DEEP") {
-          sawStageBreakdown = true;
-        }
-      } else if (stage == null) {
-        // A bare SLEEP_DURATION row (no stage) is the night's total asleep.
-        asleep += minutes;
-      }
-    }
-    // In-bed = explicit IN_BED rows when present, else asleep + awake.
-    const inBedMinutes = sawInBed ? inBed : awake > 0 ? asleep + awake : null;
+  const stageRows: SleepStageRow[] = rows.map((r) => ({
+    value: r.value,
+    measuredAt: r.measuredAt,
+    sleepStage: r.sleepStage,
+    source: r.source ?? null,
+    deviceType: r.deviceType ?? null,
+  }));
+  const nights = reconstructSleepNights(stageRows, tz, priorityJson);
+  return nights.map((n) => {
+    const rem = n.stages.REM ?? 0;
+    const deep = n.stages.DEEP ?? 0;
+    const core = n.stages.CORE ?? 0;
+    const hasStageBreakdown = rem > 0 || deep > 0 || core > 0;
+    const awakeMinutes = n.awakeMinutes ?? 0;
+    // Efficiency denominator ("in bed"). The canonical engine sets
+    // `inBedMinutes` to null unless a real IN_BED row exists anywhere in the
+    // night — but a very common Apple-Health shape carries AWAKE rows and NO
+    // IN_BED row, for which the legacy reconstructor synthesised a denominator
+    // as `asleep + awake`. Taking the canonical null straight through silently
+    // dropped the efficiency sub-score for that whole class of night, which
+    // reweights the composite and shifts historical Sleep Scores. Restore the
+    // synthesised fallback ON TOP of the (correctly deduped) canonical totals:
+    // keep the real IN_BED figure when present, else synthesise `asleep + awake`
+    // when both are positive, else keep null (neither signal — no honest
+    // efficiency).
+    const inBedMinutes =
+      n.inBedMinutes != null
+        ? n.inBedMinutes
+        : n.asleepMinutes > 0 && awakeMinutes > 0
+          ? n.asleepMinutes + awakeMinutes
+          : null;
+    // Midpoint = centre of the asleep span. The canonical night's `measuredAt`
+    // is the wake instant (latest stage END); the asleep span is
+    // `asleepMinutes` long ending there, so its centre is wake − asleep/2.
     const midpoint =
-      Number.isFinite(earliest) && Number.isFinite(latest) && latest > earliest
-        ? minutesOfDay(new Date((earliest + latest) / 2), tz)
+      n.asleepMinutes > 0
+        ? minutesOfDay(
+            new Date(n.measuredAt.getTime() - (n.asleepMinutes / 2) * 60_000),
+            tz,
+          )
         : null;
-    nights.push({
-      night,
-      asleepMinutes: asleep,
-      awakeMinutes: awake,
+    return {
+      night: n.night,
+      asleepMinutes: n.asleepMinutes,
+      awakeMinutes,
       remMinutes: rem,
       deepMinutes: deep,
       inBedMinutes,
-      hasStageBreakdown: sawStageBreakdown,
+      hasStageBreakdown,
       midpoint,
-    });
-  }
-  return nights.sort((a, b) => (a.night < b.night ? -1 : 1));
+    };
+  });
 }
 
 function minutesOfDay(d: Date, tz: string): number {
@@ -430,6 +440,10 @@ export async function computeSleepScore(
   // non-UTC sleeper's consistency / timing sub-scores don't drift with the
   // offset. Resolve the stored zone unless a caller pins one.
   const tz = opts.tz ?? (await resolveUserTimezone(userId));
+  // The canonical writer-dedup ladder needs the user's source priority — read
+  // it alongside so a multi-source night collapses to the SAME writer the
+  // dashboard / hypnogram pick.
+  const priorityJson = await loadUserSourcePriority(userId);
   const inputs = ["SLEEP_DURATION"];
   const required = 1;
   const since = new Date(now.getTime() - windowDays * MS_PER_DAY);
@@ -442,7 +456,15 @@ export async function computeSleepScore(
       measuredAt: { gte: since },
     },
     orderBy: { measuredAt: "asc" },
-    select: { value: true, measuredAt: true, sleepStage: true },
+    // `source` + `deviceType` feed the canonical writer-dedup so a multi-source
+    // night is counted ONCE, not summed across writers.
+    select: {
+      value: true,
+      measuredAt: true,
+      sleepStage: true,
+      source: true,
+      deviceType: true,
+    },
   })) as SleepRow[];
 
   if (rows.length === 0) {
@@ -460,11 +482,13 @@ export async function computeSleepScore(
     });
   }
 
-  const nights = reconstructNights(rows, tz).filter(
+  // Reconstruct via the canonical engine (session-clustering, local-wake-day
+  // keying, multi-source writer dedup) so the Sleep Score reads the SAME night
+  // totals the dashboard / hypnogram / doctor surfaces do. Every reconstructed
+  // night derives from ≥ 1 contributing row by construction, so a scorable
+  // night is just one that carries asleep minutes.
+  const scorableNights = reconstructNights(rows, tz, priorityJson).filter(
     (n) => n.asleepMinutes > 0,
-  );
-  const scorableNights = nights.filter(
-    (n) => countNightRows(rows, n.night) >= MIN_STAGE_ROWS_PER_NIGHT,
   );
 
   if (scorableNights.length === 0) {
@@ -527,8 +551,12 @@ export async function computeSleepScore(
       score,
       band: bandForScore(score),
       night: latest.night,
-      asleepMinutes: latest.asleepMinutes,
-      inBedMinutes: latest.inBedMinutes,
+      // Emit whole minutes (iOS #18) — the canonical totals sum second-
+      // precision segments and can otherwise serialise as e.g. 433.4999.
+      // Null-preserving on the in-bed signal.
+      asleepMinutes: Math.round(latest.asleepMinutes),
+      inBedMinutes:
+        latest.inBedMinutes === null ? null : Math.round(latest.inBedMinutes),
       subScores,
       windowNights: scorableNights.length,
     },
@@ -541,12 +569,4 @@ export async function computeSleepScore(
       computedAt,
     },
   });
-}
-
-function countNightRows(rows: SleepRow[], night: string): number {
-  let c = 0;
-  for (const r of rows) {
-    if (r.measuredAt.toISOString().slice(0, 10) === night) c += 1;
-  }
-  return c;
 }

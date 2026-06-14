@@ -1,7 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 vi.mock("@/lib/db", () => ({
-  prisma: { measurement: { findMany: vi.fn() } },
+  prisma: {
+    measurement: { findMany: vi.fn() },
+    // `computeSleepScore` reads the user's source priority for the canonical
+    // writer-dedup ladder; default to no override (null → default ladder).
+    user: { findUnique: vi.fn().mockResolvedValue(null) },
+  },
 }));
 vi.mock("@/lib/tz/resolver", () => ({
   resolveUserTimezone: vi.fn().mockResolvedValue("UTC"),
@@ -36,6 +41,22 @@ function night(day: string, stages: Array<[string | null, number, string]>) {
     value,
     measuredAt: new Date(`${day}T${hhmm}:00Z`),
     sleepStage: sleepStage as never,
+  }));
+}
+
+/** Build per-stage rows tagged with an ingest source + device-type. */
+function srcNight(
+  day: string,
+  source: string,
+  stages: Array<[string | null, number, string]>,
+  deviceType?: string,
+) {
+  return stages.map(([sleepStage, value, hhmm]) => ({
+    value,
+    measuredAt: new Date(`${day}T${hhmm}:00Z`),
+    sleepStage: sleepStage as never,
+    source: source as never,
+    deviceType: deviceType ?? null,
   }));
 }
 
@@ -154,8 +175,9 @@ describe("reconstructNights", () => {
     expect(nights[0].deepMinutes).toBe(60);
   });
 
-  it("expresses the midpoint in UTC by default", () => {
-    // Earliest 01:00Z, latest 05:00Z → midpoint 03:00Z = 180 min-of-day.
+  it("expresses the midpoint in the user's wall clock (asleep span centred on wake)", () => {
+    // Asleep span ends 05:00Z, 240 asleep minutes → midpoint at wake −
+    // 120 min = 03:00Z = 180 min-of-day in UTC.
     const rows = night("2026-06-02", [
       ["CORE", 120, "01:00"],
       ["CORE", 120, "05:00"],
@@ -173,6 +195,87 @@ describe("reconstructNights", () => {
     ]);
     const nights = reconstructNights(rows, "Asia/Kolkata");
     expect(nights[0].midpoint).toBe(8 * 60 + 30);
+  });
+
+  it("synthesises the efficiency denominator from asleep + awake when no IN_BED row exists", () => {
+    // A common Apple-Health shape: granular asleep stages + an AWAKE row but
+    // NO IN_BED row. The canonical engine leaves `inBedMinutes` null; the
+    // adapter must synthesise `asleep + awake` so the efficiency sub-score
+    // survives and historical scores for this night class are preserved.
+    const rows = night("2026-06-02", [
+      ["REM", 90, "02:00"],
+      ["CORE", 240, "03:00"],
+      ["DEEP", 60, "04:00"],
+      ["AWAKE", 30, "05:00"],
+    ]);
+    const nights = reconstructNights(rows);
+    expect(nights).toHaveLength(1);
+    expect(nights[0].asleepMinutes).toBe(390);
+    // 390 asleep + 30 awake = 420 synthesised in-bed denominator.
+    expect(nights[0].inBedMinutes).toBe(420);
+    // The efficiency sub-score is non-null and stable (390 / 420 ≈ 93 %).
+    expect(scoreEfficiency(nights[0].asleepMinutes, nights[0].inBedMinutes)).toBe(
+      93,
+    );
+  });
+
+  it("keeps the real IN_BED figure when present (synthesis does not override)", () => {
+    // An explicit IN_BED row coexists with an AWAKE row — the real envelope
+    // wins, NOT the synthesised asleep + awake.
+    const rows = night("2026-06-02", [
+      ["IN_BED", 480, "06:00"],
+      ["REM", 90, "02:00"],
+      ["CORE", 240, "03:00"],
+      ["DEEP", 60, "04:00"],
+      ["AWAKE", 30, "05:00"],
+    ]);
+    const nights = reconstructNights(rows);
+    expect(nights[0].inBedMinutes).toBe(480);
+  });
+
+  it("leaves in-bed null when neither an IN_BED row nor awake minutes exist", () => {
+    // Asleep stages only, no IN_BED and no AWAKE row — no honest efficiency
+    // denominator, so it stays null and the sub-score drops as before.
+    const rows = night("2026-06-02", [
+      ["CORE", 240, "03:00"],
+      ["DEEP", 60, "04:00"],
+    ]);
+    const nights = reconstructNights(rows);
+    expect(nights[0].inBedMinutes).toBeNull();
+    expect(scoreEfficiency(nights[0].asleepMinutes, nights[0].inBedMinutes)).toBeNull();
+  });
+
+  it("deduplicates a multi-source night to ONE canonical total (no double-count)", () => {
+    // The SAME physical night written by both Apple Health AND WHOOP. The
+    // divergent UTC-day reconstructor used to SUM both writers (~doubling the
+    // night). The canonical engine collapses to one writer (WHOOP wins the
+    // sleep ladder) before summing.
+    const apple = srcNight(
+      "2026-06-02",
+      "APPLE_HEALTH",
+      [
+        ["CORE", 240, "03:00"],
+        ["DEEP", 60, "04:00"],
+        ["REM", 90, "05:00"],
+      ],
+      "watch",
+    );
+    const whoop = srcNight(
+      "2026-06-02",
+      "WHOOP",
+      [
+        ["CORE", 250, "03:00"],
+        ["DEEP", 65, "04:00"],
+        ["REM", 95, "05:00"],
+      ],
+      "strap",
+    );
+    const nights = reconstructNights([...apple, ...whoop]);
+    expect(nights).toHaveLength(1);
+    // ONE writer's total, NOT apple + whoop summed (~780).
+    expect(nights[0].asleepMinutes).toBeLessThan(500);
+    // WHOOP wins the default sleep ladder → its 250+65+95 = 410 total.
+    expect(nights[0].asleepMinutes).toBe(410);
   });
 });
 

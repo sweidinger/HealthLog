@@ -203,13 +203,18 @@ export async function processWhoopNotification(
   }
 
   // `*.updated` (creates arrive as updates too). Enqueue the per-user
-  // resource sync; the worker re-fetches by id (payload carries no data).
+  // resource sync. The payload carries the resource id so the worker can do a
+  // targeted fetch-by-id refresh — landing the exact record immediately rather
+  // than waiting for the next overlap window to re-walk the collection.
   const boss = getGlobalBoss();
   if (!boss) {
     getEvent()?.addWarning("whoop-webhook: pg-boss not initialised");
     return NextResponse.json({ status: "ok" }, { status: 200 });
   }
-  await boss.send(queue, { userId: connection.userId });
+  await boss.send(queue, {
+    userId: connection.userId,
+    resourceId: resourceId ?? undefined,
+  });
 
   annotate({
     action: { name: "whoop.webhook.enqueued" },

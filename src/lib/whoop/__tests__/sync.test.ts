@@ -25,6 +25,7 @@ const {
     measurement: {
       upsert: vi.fn(),
     },
+    $executeRaw: vi.fn(),
   },
   refreshAccessTokenMock: vi.fn(),
   fetchRecoveriesMock: vi.fn(),
@@ -88,8 +89,11 @@ import {
   getValidToken,
   incrementalStart,
   isCollectionForbidden,
+  markResourceSynced,
+  resolveResourceCursor,
   upsertWhoopMeasurements,
   WHOOP_DEFAULT_OVERLAP_MS,
+  WHOOP_FULL_SYNC_ANCHOR,
   WHOOP_RECOVERY_SLEEP_OVERLAP_MS,
 } from "../sync";
 import { WhoopApiError } from "../response-classifier";
@@ -172,8 +176,11 @@ describe("getValidToken — rotating refresh", () => {
 });
 
 describe("incrementalStart", () => {
-  it("returns undefined for a full sync", () => {
-    expect(incrementalStart(new Date(), { fullSync: true })).toBeUndefined();
+  it("anchors a full sync at the deep-history anchor, ignoring the cursor", () => {
+    const got = incrementalStart(new Date("2026-06-01T12:00:00Z"), {
+      fullSync: true,
+    });
+    expect(got).toEqual(WHOOP_FULL_SYNC_ANCHOR);
   });
 
   it("subtracts the overlap from lastSyncedAt", () => {
@@ -190,6 +197,109 @@ describe("incrementalStart", () => {
     const last = new Date("2026-06-01T12:00:00Z");
     const got = incrementalStart(last);
     expect(got!.getTime()).toBe(last.getTime() - WHOOP_DEFAULT_OVERLAP_MS);
+  });
+
+  it("a fullSync reaches a span an incremental tick would skip", () => {
+    // Incremental from a recent cursor only looks back the overlap (days); a
+    // fullSync anchors years back, so it covers history the incremental misses.
+    const recentCursor = new Date("2026-06-01T12:00:00Z");
+    const incremental = incrementalStart(recentCursor, {
+      overlapMs: WHOOP_RECOVERY_SLEEP_OVERLAP_MS,
+    });
+    const full = incrementalStart(recentCursor, { fullSync: true });
+    const yearOld = new Date("2025-01-01T00:00:00Z");
+    // A year-old record is BEFORE the incremental start (skipped) but AFTER
+    // the full-sync anchor (covered).
+    expect(yearOld.getTime()).toBeLessThan(incremental!.getTime());
+    expect(yearOld.getTime()).toBeGreaterThan(full!.getTime());
+  });
+});
+
+describe("resolveResourceCursor — per-resource cursor", () => {
+  it("prefers the per-resource cursor over the shared lastSyncedAt", () => {
+    const got = resolveResourceCursor(
+      {
+        resourceCursors: { workout: "2026-06-10T00:00:00.000Z" },
+        lastSyncedAt: new Date("2026-06-12T00:00:00.000Z"),
+      },
+      "workout",
+    );
+    expect(got?.toISOString()).toBe("2026-06-10T00:00:00.000Z");
+  });
+
+  it("falls back to lastSyncedAt for a resource with no cursor key (legacy)", () => {
+    const shared = new Date("2026-06-12T00:00:00.000Z");
+    const got = resolveResourceCursor(
+      { resourceCursors: { recovery: "2026-06-10T00:00:00.000Z" }, lastSyncedAt: shared },
+      "workout",
+    );
+    expect(got).toEqual(shared);
+  });
+
+  it("falls back to lastSyncedAt when the column is null", () => {
+    const shared = new Date("2026-06-12T00:00:00.000Z");
+    expect(
+      resolveResourceCursor({ resourceCursors: null, lastSyncedAt: shared }, "sleep"),
+    ).toEqual(shared);
+  });
+
+  it("a stalled resource cursor does not advance with a sibling's", () => {
+    // workout last synced a week ago; recovery synced an hour ago. Resolving
+    // workout must still return the OLD workout cursor — a sibling's progress
+    // never drags the stalled resource's window forward.
+    const connection = {
+      resourceCursors: {
+        recovery: "2026-06-12T11:00:00.000Z",
+        workout: "2026-06-05T12:00:00.000Z",
+      },
+      lastSyncedAt: new Date("2026-06-12T11:00:00.000Z"),
+    };
+    const workoutStart = incrementalStart(
+      resolveResourceCursor(connection, "workout"),
+      { overlapMs: WHOOP_RECOVERY_SLEEP_OVERLAP_MS },
+    );
+    // Workout still re-fetches from a week-old cursor minus the overlap, NOT
+    // from recovery's recent one — the late-synced workout stays in range.
+    expect(workoutStart!.getTime()).toBe(
+      new Date("2026-06-05T12:00:00.000Z").getTime() -
+        WHOOP_RECOVERY_SLEEP_OVERLAP_MS,
+    );
+  });
+});
+
+describe("markResourceSynced — atomic, independent cursor advance", () => {
+  it("issues ONE atomic jsonb_set upsert binding the resource key + instant", async () => {
+    prismaMock.$executeRaw.mockResolvedValue(1);
+
+    const at = new Date("2026-06-14T08:00:00.000Z");
+    await markResourceSynced("user1", "workout", at);
+
+    // A single atomic statement, never a read-then-write (which would race the
+    // concurrent sibling resource queues).
+    expect(prismaMock.whoopConnection.findUnique).not.toHaveBeenCalled();
+    expect(prismaMock.whoopConnection.update).not.toHaveBeenCalled();
+    expect(prismaMock.$executeRaw).toHaveBeenCalledTimes(1);
+
+    const call = prismaMock.$executeRaw.mock.calls[0]!;
+    const sql = (call[0] as TemplateStringsArray).join("?");
+    const values = call.slice(1);
+    // Merge-in-place + monotonic last_synced_at + scoped to the user.
+    expect(sql).toContain("jsonb_set");
+    expect(sql).toContain("GREATEST");
+    // Resource key + ISO instant are parameter-bound, not spliced.
+    expect(values).toContain("workout");
+    expect(values).toContain(at.toISOString());
+    expect(values).toContain(at);
+    expect(values).toContain("user1");
+  });
+
+  it("refuses a resource outside the closed whitelist (no statement issued)", async () => {
+    await markResourceSynced(
+      "user1",
+      "evil" as unknown as Parameters<typeof markResourceSynced>[1],
+      new Date(),
+    );
+    expect(prismaMock.$executeRaw).not.toHaveBeenCalled();
   });
 });
 

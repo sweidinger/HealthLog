@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { apiSuccess, apiError, safeJson } from "@/lib/api-response";
 import { isPublicUrl } from "@/lib/validations/notifications";
 import { encrypt, decrypt } from "@/lib/crypto";
+import { resolveProviderAvailability } from "@/lib/ai/provider";
 import { annotate } from "@/lib/logging/context";
 
 export const dynamic = "force-dynamic";
@@ -26,10 +27,19 @@ export const GET = apiHandler(async () => {
     },
   });
 
+  // Effective availability: surfaces whether ANY provider can serve this
+  // user — including the operator's admin-managed key when the user has set
+  // no personal provider. iOS keys its Coach visibility off `aiAvailable` so
+  // a server-managed provider is no longer invisible to the client.
+  // `managedBy` reports the origin only; no admin keys/endpoints are leaked.
+  const { aiAvailable, managedBy } = await resolveProviderAvailability(user.id);
+
   return apiSuccess({
     provider: u?.aiProvider ?? null,
     model: u?.aiModel ?? null,
     baseUrl: u?.aiBaseUrl ?? null,
+    aiAvailable,
+    managedBy,
     hasAnthropicKey: Boolean(u?.aiAnthropicKeyEncrypted),
     anthropicKeyPreview: u?.aiAnthropicKeyEncrypted
       ? `...${decrypt(u.aiAnthropicKeyEncrypted).slice(-4)}`

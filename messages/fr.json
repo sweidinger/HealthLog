@@ -2791,6 +2791,7 @@
       "title": "Glycémie",
       "description": "Vos relevés de glycémie au fil du temps, en mg/dL.",
       "chartTitle": "Glycémie",
+      "medianLabel": "Glycémie médiane",
       "emptyState": {
         "title": "Aucune donnée de glycémie",
         "description": "Les relevés de glycémie apparaissent ici dès que vous en saisissez un ou qu’un appareil se synchronise."
