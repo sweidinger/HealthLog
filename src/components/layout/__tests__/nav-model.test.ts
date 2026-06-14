@@ -16,9 +16,18 @@ import {
 } from "../nav-model";
 
 describe("nav-model destination list", () => {
-  it("lists Workouts as a first-class destination on both surfaces", () => {
+  it("lists Workouts and Coach as first-class destinations", () => {
     const hrefs = NAV_DESTINATIONS.map((d) => d.href);
     expect(hrefs).toContain("/insights/workouts");
+    expect(hrefs).toContain("/insights/coach");
+  });
+
+  it("gives the Coach exactly one nav home (F-3)", () => {
+    const coach = NAV_DESTINATIONS.filter(
+      (d) => d.href === "/insights/coach",
+    );
+    expect(coach).toHaveLength(1);
+    expect(coach[0]!.tKey).toBe("nav.coach");
   });
 
   it("orders the core spine: dashboard → measurements → mood → medications", () => {
@@ -55,6 +64,13 @@ describe("isNavDestinationActive most-specific resolution", () => {
   it("matches the dashboard only on an exact path", () => {
     expect(isNavDestinationActive("/", "/")).toBe(true);
     expect(isNavDestinationActive("/", "/measurements")).toBe(false);
+  });
+
+  it("does not light up Insights when on its Coach sibling", () => {
+    expect(isNavDestinationActive("/insights/coach", "/insights/coach")).toBe(
+      true,
+    );
+    expect(isNavDestinationActive("/insights", "/insights/coach")).toBe(false);
   });
 
   it("does not light up Insights when on its Workouts sibling", () => {

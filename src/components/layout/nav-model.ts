@@ -5,6 +5,7 @@ import {
   FlaskConical,
   Home,
   Lightbulb,
+  MessagesSquare,
   Pill,
   Trophy,
   Waves,
@@ -86,6 +87,16 @@ export const NAV_DESTINATIONS: ReadonlyArray<NavDestination> = [
     tKey: "nav.insights",
     icon: Lightbulb,
     tourId: "nav-insights",
+  },
+  // v1.17.1 (F-3) — the Coach finally gets a single labeled nav home. It
+  // was reachable from seven scattered entry points (FAB, hero CTA, empty
+  // states, per-metric icons …) but nowhere in the nav, so a new user
+  // could miss the differentiator entirely. The other entry points stay.
+  {
+    href: "/insights/coach",
+    tKey: "nav.coach",
+    icon: MessagesSquare,
+    tourId: "nav-coach",
   },
   {
     href: "/achievements",
