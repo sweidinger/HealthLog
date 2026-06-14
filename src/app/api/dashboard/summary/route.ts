@@ -64,6 +64,15 @@ import {
 } from "@/lib/analytics/sleep-night";
 import { loadUserSourcePriority } from "@/lib/rollups/measurement-read";
 import type { SleepStage } from "@/generated/prisma/client";
+import { loadBaselineProfile } from "@/lib/insights/derived/baseline";
+import {
+  reconstructNights,
+  sleepNeedMinutes,
+} from "@/lib/insights/derived/sleep-score";
+import {
+  computeSleepRhythmFromNights,
+  type SleepRhythmDto,
+} from "@/lib/insights/derived/sleep-rhythm";
 
 const SPARK_DAYS = 7;
 const STREAK_WINDOW_DAYS = 365;
@@ -534,8 +543,13 @@ async function buildDashboardSummary(
 
   // v1.11.4 — the user's sleep source-priority ladder, used to collapse a
   // dual-source night (e.g. WHOOP + Apple Health) to one canonical source
-  // before the per-night reconstruction sums it.
-  const sleepPriorityJson = await loadUserSourcePriority(userId);
+  // before the per-night reconstruction sums it. v1.17.0 — the baseline
+  // profile rides along (one read) so the sleep-rhythm block resolves the
+  // age-based sleep need the cumulative-debt deficit uses.
+  const [sleepPriorityJson, sleepProfile] = await Promise.all([
+    loadUserSourcePriority(userId),
+    loadBaselineProfile(prisma, userId),
+  ]);
 
   // Per-type metadata lookup — typed Map so a metric with no readings
   // at all falls through `metaForType` to the `{ allTimeCount: 0,
@@ -630,6 +644,23 @@ async function buildDashboardSummary(
     sleepStageRows as SleepStageRow[],
     userTz,
     sleepPriorityJson,
+  );
+
+  // v1.17.0 — server-authoritative sleep-rhythm DTO (sleep-debt + chronotype)
+  // off the SAME canonical reconstruction the Sleep page + Sleep Score read,
+  // so iOS renders identical values. Reuses the rows already loaded above —
+  // `reconstructNights` adapts them into the asleep + wall-clock-midpoint
+  // shape the foundation modules consume, then `computeSleepRhythmFromNights`
+  // forwards them to `computeSleepDebt` / `computeChronotype` (the one place
+  // the math lives). Both signals carry a calm partial / learning state below
+  // their night thresholds — never an assertion off thin data.
+  const sleepRhythm: SleepRhythmDto = computeSleepRhythmFromNights(
+    reconstructNights(
+      sleepStageRows as SleepStageRow[],
+      userTz,
+      sleepPriorityJson,
+    ),
+    sleepNeedMinutes(sleepProfile.ageYears),
   );
 
   const metrics: MetricCard[] = [];
@@ -862,6 +893,9 @@ async function buildDashboardSummary(
     },
     highlightInsight: null,
     metrics,
+    // v1.17.0 — sleep-debt + chronotype, server-authoritative. Same values
+    // the Sleep page's `/api/sleep/rhythm` read returns.
+    sleepRhythm,
     lastUpdated: now.toISOString(),
   };
 }

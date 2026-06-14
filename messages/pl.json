@@ -2671,6 +2671,32 @@
         "title": "Brak danych o śnie",
         "description": "Synchronizacja Apple Health pojawi się w v1.5 i wypełni ten widok automatycznie.",
         "action": "Zarządzaj urządzeniami"
+      },
+      "debt": {
+        "title": "Dług snu",
+        "value": "{hours} godz. {minutes} min niedoboru",
+        "caption": "Skumulowany niedobór z ostatnich {nights} nocy",
+        "clearValue": "Na bieżąco",
+        "clearCaption": "Brak skumulowanego niedoboru w ostatnich {nights} nocach",
+        "learning": "Wciąż analizujemy Twój sen — {counted} nocy do tej pory, jeszcze {remaining}, aby uzyskać wiarygodny bilans."
+      },
+      "chronotype": {
+        "title": "Chronotyp",
+        "learning": "Wciąż poznajemy Twój rytm — {counted} z {total} wolnych nocy. Chronotyp wymaga kilku poranków bez budzika, aby coś znaczył.",
+        "midSleepCaption": "Środek snu w dni wolne około {clock}",
+        "advancedToggle": "Zaawansowane",
+        "socialJetlagValue": "{hours} godz. {minutes} min jet lagu społecznego",
+        "socialJetlagCaption": "Różnica między porą snu w dni robocze i wolne — jak niewielka cotygodniowa zmiana strefy czasowej.",
+        "msfScValue": "Skorygowany środek snu {clock}",
+        "msfScCaption": "Skorygowany o sen nadrabiany w weekend (MSFsc).",
+        "dayTypeNote": "Dni wolne przyjmuje się jako weekendy, dopóki nie zostanie dodane śledzenie typu dnia.",
+        "band": {
+          "extreme_early": "Wyraźny typ poranny",
+          "early": "Typ poranny",
+          "intermediate": "Typ pośredni",
+          "late": "Typ wieczorny",
+          "extreme_late": "Wyraźny typ wieczorny"
+        }
       }
     },
     "correlations": "Korelacje",

@@ -2671,6 +2671,32 @@
         "title": "Pas encore de données de sommeil",
         "description": "La synchro Apple Health arrive avec la v1.5 et remplira automatiquement cette vue.",
         "action": "Gérer les appareils"
+      },
+      "debt": {
+        "title": "Dette de sommeil",
+        "value": "{hours} h {minutes} min de déficit",
+        "caption": "Déficit cumulé sur les {nights} dernières nuits",
+        "clearValue": "À jour",
+        "clearCaption": "Aucun déficit cumulé sur les {nights} dernières nuits",
+        "learning": "Votre sommeil est encore en cours d'analyse — {counted} nuits jusqu'ici, encore {remaining} pour un bilan fiable."
+      },
+      "chronotype": {
+        "title": "Chronotype",
+        "learning": "Votre rythme est encore en cours d'analyse — {counted} sur {total} nuits libres. Un chronotype a besoin de quelques matins sans réveil pour avoir du sens.",
+        "midSleepCaption": "Milieu de sommeil les jours libres vers {clock}",
+        "advancedToggle": "Avancé",
+        "socialJetlagValue": "{hours} h {minutes} min de jet lag social",
+        "socialJetlagCaption": "L'écart entre vos horaires de sommeil les jours travaillés et les jours libres — comme un petit décalage horaire hebdomadaire.",
+        "msfScValue": "Milieu de sommeil corrigé {clock}",
+        "msfScCaption": "Ajusté pour le sommeil rattrapé le week-end (MSFsc).",
+        "dayTypeNote": "Les jours libres sont supposés être les week-ends jusqu'à l'ajout du suivi du type de jour.",
+        "band": {
+          "extreme_early": "Type du matin marqué",
+          "early": "Type du matin",
+          "intermediate": "Type intermédiaire",
+          "late": "Type du soir",
+          "extreme_late": "Type du soir marqué"
+        }
       }
     },
     "correlations": "Corrélations",
