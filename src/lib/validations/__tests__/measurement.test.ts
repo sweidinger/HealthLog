@@ -132,6 +132,39 @@ describe("measurement validation", () => {
       expect(parsed.success).toBe(false);
     });
 
+    // v1.17 W1b — shared `validateEntryInstant` plausibility bound.
+    it("rejects a future-dated measurement", () => {
+      const future = new Date(Date.now() + 60 * 60 * 1000).toISOString();
+      const parsed = createMeasurementSchema.safeParse({
+        ...validBase,
+        type: "WEIGHT",
+        value: 80,
+        measuredAt: future,
+      });
+      expect(parsed.success).toBe(false);
+    });
+
+    it("accepts a sane backdated measurement", () => {
+      const past = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+      const parsed = createMeasurementSchema.safeParse({
+        ...validBase,
+        type: "WEIGHT",
+        value: 80,
+        measuredAt: past,
+      });
+      expect(parsed.success).toBe(true);
+    });
+
+    it("rejects a measurement dated before 1900", () => {
+      const parsed = createMeasurementSchema.safeParse({
+        ...validBase,
+        type: "WEIGHT",
+        value: 80,
+        measuredAt: "1899-06-01T00:00:00.000Z",
+      });
+      expect(parsed.success).toBe(false);
+    });
+
     // v1.4.25 W10 reconcile (code-review M4): `deviceType` was a
     // batch-only field; the single-entry schema silently dropped it.
     // Now it parses through so the column is populated whether the

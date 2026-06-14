@@ -842,6 +842,8 @@ export function MoodList({ onAddFirst }: MoodListProps = {}) {
                 id="edit-mood-logged-at"
                 value={editMoodLoggedAt}
                 onChange={(e) => setEditMoodLoggedAt(e.target.value)}
+                // v1.17 W1b — match the server bound: no future instant.
+                max={toDateTimeLocalValue(new Date().toISOString())}
                 required
               />
             </div>

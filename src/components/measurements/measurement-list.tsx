@@ -1273,6 +1273,8 @@ export function MeasurementList({
                 id="edit-measuredAt"
                 value={editMeasuredAt}
                 onChange={(e) => setEditMeasuredAt(e.target.value)}
+                // v1.17 W1b — match the server bound: no future instant.
+                max={toDateTimeLocalValue(new Date().toISOString())}
                 required
                 aria-required="true"
                 aria-invalid={!!editError || undefined}

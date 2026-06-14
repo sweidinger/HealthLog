@@ -104,6 +104,7 @@ import { useDashboardSnapshot } from "@/lib/queries/use-dashboard-snapshot";
 import { isDashboardSnapshotEnabled } from "@/lib/dashboard/snapshot-flag";
 import type { DataSummary } from "@/lib/analytics/trends";
 import { mergeSlimAndThickAnalytics } from "@/lib/analytics/merge-slim-thick";
+import { isWindowSufficient } from "@/lib/analytics/window-confidence";
 import { getBpTargets } from "@/lib/analytics/bp-targets";
 import {
   buildTrafficLightBands,
@@ -297,6 +298,8 @@ export default function DashboardPage() {
         bpInTargetPctAllTime: snap.extras?.bpInTargetPctAllTime ?? null,
         bpInTargetPctPriorMonth: snap.extras?.bpInTargetPctPriorMonth ?? null,
         bpInTargetPctPriorYear: snap.extras?.bpInTargetPctPriorYear ?? null,
+        bpInTargetCount90: snap.extras?.bpInTargetCount90 ?? null,
+        bpInTargetSpanDays90: snap.extras?.bpInTargetSpanDays90 ?? null,
         glucoseByContext: snap.extras?.glucoseByContext as
           | Record<string, DataSummary>
           | undefined,
@@ -325,6 +328,8 @@ export default function DashboardPage() {
       bpInTargetPctAllTime: merged.bpInTargetPctAllTime,
       bpInTargetPctPriorMonth: merged.bpInTargetPctPriorMonth,
       bpInTargetPctPriorYear: merged.bpInTargetPctPriorYear,
+      bpInTargetCount90: merged.bpInTargetCount90,
+      bpInTargetSpanDays90: merged.bpInTargetSpanDays90,
       glucoseByContext: merged.glucoseByContext as
         | Record<string, DataSummary>
         | undefined,
@@ -1092,23 +1097,46 @@ export default function DashboardPage() {
             bpComparePrior === null
               ? null
               : Math.round((bp30 - bpComparePrior) * 10) / 10;
+          // v1.17 W1b — thin-data gate + dynamic span label. Below the
+          // confidence floor the tile narrates "collecting data" instead of
+          // a hard percentage, and the label names the EFFECTIVE span
+          // ("· 23 T" until ~90 days of history exist) rather than a
+          // dishonest static "· 90 T". When the count is unknown (snapshot
+          // still on the slim phase) the tile keeps the legacy 90-day label
+          // and shows whatever percentage arrived.
+          const bpCount90 = data?.bpInTargetCount90 ?? null;
+          const bpSpanDays90 = data?.bpInTargetSpanDays90 ?? null;
+          const bpSufficient =
+            bpCount90 === null || isWindowSufficient(bpCount90);
+          const bpLabel =
+            bpSpanDays90 != null
+              ? t("dashboard.bpInTargetWindowDynamic", { days: bpSpanDays90 })
+              : t("dashboard.bpInTargetWindow90");
           trendCards.push({
             id: "bpInTarget",
             order: widgetOrder("bpInTarget"),
             node: (
               <TrendCard
                 key="bpInTarget"
-                label={t("dashboard.bpInTargetShort")}
-                latest={data?.bpInTargetPct ?? null}
+                // v1.17 W1d — the headline is the trailing-90-day in-target
+                // rate; the label names the window so the tile never
+                // narrates an unlabelled scope. The `30T:` caption below
+                // still surfaces the 30-day figure for short-horizon context.
+                // v1.17 W1b — span is dynamic until ~90 days of history exist.
+                label={bpLabel}
+                latest={bpSufficient ? (data?.bpInTargetPct ?? null) : null}
+                emptyHint={
+                  bpSufficient ? null : t("dashboard.bpInTargetCollecting")
+                }
                 unit="%"
-                avg7={bp7}
-                avg30={bp30}
+                avg7={bpSufficient ? bp7 : null}
+                avg30={bpSufficient ? bp30 : null}
                 slope30={null}
-                trend7Delta={bpTrendDelta}
+                trend7Delta={bpSufficient ? bpTrendDelta : null}
                 icon={Target}
                 directionSentiment="up-good"
                 compareBaseline={compareBaseline}
-                compareDelta={bpCompareDelta}
+                compareDelta={bpSufficient ? bpCompareDelta : null}
               />
             ),
           });

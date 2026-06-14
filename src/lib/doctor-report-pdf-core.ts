@@ -870,6 +870,11 @@ export function buildDoctorReportPdfDocument(
     y += 6;
 
     const compRows = complianceEntries.map(([name, c]) => {
+      // v1.17 W1a — `total` is the ledger rate denominator (taken + missed,
+      // deliberate skips excluded), so `taken / total` matches the app's
+      // detail-page adherence %. The column is labelled "Expected" rather
+      // than "Total" so the row stays internally coherent: Taken + Missed =
+      // Expected, with Skipped shown alongside as informational.
       const rate = c.total > 0 ? `${num((c.taken / c.total) * 100, 1)}%` : "—";
       return [
         name,
@@ -889,7 +894,7 @@ export function buildDoctorReportPdfDocument(
           t("doctorReport.colTaken"),
           t("doctorReport.colSkipped"),
           t("doctorReport.colMissed"),
-          t("doctorReport.colTotal"),
+          t("doctorReport.colExpected"),
           t("doctorReport.colComplianceRate"),
         ],
       ],

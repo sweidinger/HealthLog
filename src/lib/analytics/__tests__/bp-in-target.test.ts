@@ -301,6 +301,64 @@ describe("computeBpInTargetWindows — all-time headline (v1.4.19 A1)", () => {
     expect(result.allTime).toBeNull();
   });
 
+  /**
+   * v1.17 W1d — the BD-Zielbereich headline, the Health-Score BP pillar
+   * and the coach grounding number standardise on a **90-day** window.
+   * The helper must surface a `last90Days` window distinct from both the
+   * 30-day and the all-time aggregate so the route can route the headline
+   * through it while leaving all-time available for the detail page.
+   */
+  it("returns a last90Days window distinct from 30-day and all-time", () => {
+    // 10 pairs inside 30d (50 % in target), 10 pairs at 45-60 days old
+    // (all OUT of target), 20 pairs older than 90 days (all OUT).
+    const sys: Array<ReturnType<typeof reading>> = [];
+    const dia: Array<ReturnType<typeof reading>> = [];
+    // 0-30d: 5 IN, 5 OUT.
+    for (let i = 0; i < 10; i++) {
+      const at = new Date(
+        NOW_19.getTime() - (i + 0.5) * 24 * 60 * 60 * 1000,
+      ).toISOString();
+      const inTarget = i % 2 === 0;
+      sys.push(reading(at, inTarget ? 122 : 145));
+      dia.push(reading(at, inTarget ? 75 : 95));
+    }
+    // 45-60d (inside 90d, outside 30d): 10 OUT.
+    for (let i = 0; i < 10; i++) {
+      const at = new Date(
+        NOW_19.getTime() - (45 + i) * 24 * 60 * 60 * 1000,
+      ).toISOString();
+      sys.push(reading(at, 160));
+      dia.push(reading(at, 100));
+    }
+    // >90d: 20 OUT.
+    for (let i = 0; i < 20; i++) {
+      const at = new Date(
+        NOW_19.getTime() - (100 + i) * 24 * 60 * 60 * 1000,
+      ).toISOString();
+      sys.push(reading(at, 160));
+      dia.push(reading(at, 100));
+    }
+
+    const result = computeBpInTargetWindows(sys, dia, TARGETS_UNDER_65, NOW_19);
+
+    // 30d = 5 / 10 = 50 %.
+    expect(result.last30Days).toEqual({ pct: 50, pairs: 10 });
+    // 90d = 5 / 20 = 25 % (10 in-target-eligible + 10 OUT from 45-60d).
+    expect(result.last90Days).not.toBeNull();
+    expect(result.last90Days!.pairs).toBe(20);
+    expect(result.last90Days!.pct).toBe(Math.round((5 / 20) * 100));
+    // all-time = 5 / 40 ≈ 13 %.
+    expect(result.allTime!.pairs).toBe(40);
+    // The three windows must be genuinely different numbers.
+    expect(result.last90Days!.pct).not.toBe(result.last30Days!.pct);
+    expect(result.last90Days!.pct).not.toBe(result.allTime!.pct);
+  });
+
+  it("returns null last90Days when both series are empty", () => {
+    const result = computeBpInTargetWindows([], [], TARGETS_UNDER_65, NOW_19);
+    expect(result.last90Days).toBeNull();
+  });
+
   it("regression: the live tenant's 30-day fixture mirrors the live tenant's prod headline bug", () => {
     // Reuse the maintainer's production fixture (10 pairs, 5 in target = 50 %).
     // When the input is JUST those 10 pairs, allTime equals 30d == 50 %

@@ -195,22 +195,26 @@ describe("GET /api/analytics — Health Score", () => {
     expect(hs.components.compliance.value).toBeGreaterThanOrEqual(95);
   });
 
-  it("scores the BP pillar from all-time history even with no readings in the trailing 30 days", async () => {
-    // Regression pin: the BD-Zielbereich tile headline reads the trailing
-    // 30 days, but the Health-Score BP pillar must read the all-time
-    // window. A prior change fed the 30-day value into the score, so an
-    // account whose BP readings predate the trailing month lost the
-    // 0.30-weight BP pillar entirely and rendered "no rating" despite
-    // having BP data. This pins the all-time feed.
+  it("scores the BP pillar from the trailing-90-day window when readings predate the last 30 days", async () => {
+    // v1.17 W1d regression pin: the BD-Zielbereich tile headline, the
+    // Health-Score BP pillar and the coach number all read the SAME
+    // trailing-90-day window. A prior shape fed the 30-day value into the
+    // score, so an account whose BP readings predate the trailing month
+    // lost the 0.30-weight BP pillar entirely and rendered "no rating"
+    // despite having recent-enough BP data. This pins the 90-day feed:
+    // readings 60–80 days ago sit OUTSIDE the trailing 30 days but INSIDE
+    // the 90-day window, so both the pillar and the headline must surface
+    // them.
     const prisma = getPrismaClient();
     const user = await seedSession("hs-bp-old");
 
     const now = Date.now();
     const DAY = 24 * 60 * 60 * 1000;
 
-    // 20 paired in-target readings, all ~60–80 days ago (outside the
-    // trailing-30-day window the tile headline uses, inside the all-time
-    // window the score should use).
+    // 20 paired in-target readings, all ~60–80 days ago: outside the
+    // trailing-30-day window, inside the trailing-90-day window the score
+    // and headline now share. Well above the 5-reading confidence floor,
+    // so the pillar grades rather than suppressing as thin data.
     for (let i = 0; i < 20; i++) {
       const at = new Date(now - (60 + i) * DAY);
       await prisma.measurement.create({
@@ -243,19 +247,21 @@ describe("GET /api/analytics — Health Score", () => {
     };
     expect(env.data!.healthScore).not.toBeNull();
     const hs = env.data!.healthScore!;
-    // The BP pillar must score from the all-time window (recency-weighted)…
+    // The BP pillar scores from the 90-day window (recency-weighted).
     // 122/78 sits just inside the under-65 target ceiling (129/79), so the
-    // graded clinical-proximity score lands high (worst-of-axis ≈ 86) rather
-    // than the old binary 100. The point of this test is that the pillar still
-    // SCORES from all-time history when the trailing-30-day window is empty —
-    // a clearly in-target history must read as a strong (≥ 80) pillar, not drop
+    // graded clinical-proximity score lands high (worst-of-axis ≈ 86)
+    // rather than the old binary 100. The point: the pillar still SCORES
+    // from history when the trailing-30-day window is empty — a clearly
+    // in-target 90-day history reads as a strong (≥ 80) pillar, not drop
     // out entirely (the regression this test pins).
     expect(hs.components.bp.value).not.toBeNull();
     expect(hs.components.bp.value).toBeGreaterThanOrEqual(80);
     expect(hs.components.bp.weight).toBeGreaterThan(0);
-    // …while the tile headline stays scoped to the trailing 30 days
-    // (no readings there → null), proving the two are decoupled.
-    expect(env.data!.bpInTargetPct).toBeNull();
+    // …and the tile headline now reads the SAME 90-day window, so it
+    // surfaces the in-target rate (all 20 pairs in target = 100 %) rather
+    // than dropping to null. The pillar and headline are unified on the
+    // window — that is the v1.17 W1d contract.
+    expect(env.data!.bpInTargetPct).toBe(100);
   });
 
   it("returns null healthScore for a user with no data", async () => {

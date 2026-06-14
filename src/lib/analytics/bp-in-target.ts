@@ -237,6 +237,22 @@ export function computeBpInTargetWindows(
 ): {
   last7Days: { pct: number; pairs: number } | null;
   last30Days: { pct: number; pairs: number } | null;
+  /**
+   * v1.17 W1d — the trailing-90-day window. This is the canonical window
+   * the BD-Zielbereich headline, the Health-Score BP pillar and the coach
+   * grounding number all standardise on (a 90-day arc balances recency
+   * against enough pairs to be stable). The all-time aggregate stays
+   * available below but is reserved for the BP detail page's long view.
+   */
+  last90Days: { pct: number; pairs: number } | null;
+  /**
+   * v1.17 W1b — timestamp of the oldest accepted pair inside the
+   * trailing-90-day window, or `null` when the window holds no pairs.
+   * Feeds `computeWindowConfidence` so the BD-Zielbereich tile can label
+   * the EFFECTIVE span ("· 23 T" until ~90 days of history exist) rather
+   * than a dishonest static "· 90 T".
+   */
+  last90EarliestAt: Date | null;
   allTime: { pct: number; pairs: number } | null;
   /**
    * v1.4.22 W5 reconcile (Code-H2) — period-aligned 30-day window
@@ -254,6 +270,7 @@ export function computeBpInTargetWindows(
 } {
   const sevenDaysAgoMs = now.getTime() - 7 * DAY_MS;
   const thirtyDaysAgoMs = now.getTime() - 30 * DAY_MS;
+  const ninetyDaysAgoMs = now.getTime() - 90 * DAY_MS;
   const sixtyDaysAgoMs = now.getTime() - 60 * DAY_MS;
   const oneYearMinus30DaysAgoMs = now.getTime() - 365 * DAY_MS;
   const oneYearAgoMs = now.getTime() - 395 * DAY_MS;
@@ -269,6 +286,12 @@ export function computeBpInTargetWindows(
   );
   const diaLast30 = diaSeries.filter(
     (r) => r.measuredAt.getTime() >= thirtyDaysAgoMs,
+  );
+  const sysLast90 = sysSeries.filter(
+    (r) => r.measuredAt.getTime() >= ninetyDaysAgoMs,
+  );
+  const diaLast90 = diaSeries.filter(
+    (r) => r.measuredAt.getTime() >= ninetyDaysAgoMs,
   );
 
   // Period-aligned prior windows. Same 30-day arc, shifted by 30 / 365
@@ -296,9 +319,24 @@ export function computeBpInTargetWindows(
       r.measuredAt.getTime() < oneYearMinus30DaysAgoMs,
   );
 
+  // v1.17 W1b — oldest accepted pair inside the 90-day window for the
+  // effective-span label. `collectBpPairs` applies the same pairing rules
+  // as `computeBpInTargetPct`, so the anchor matches the counted pairs.
+  const pairsLast90 = collectBpPairs(sysLast90, diaLast90);
+  const last90EarliestAt =
+    pairsLast90.length === 0
+      ? null
+      : pairsLast90.reduce(
+          (min, p) => (p.at.getTime() < min.getTime() ? p.at : min),
+          pairsLast90[0].at,
+        );
+
   return {
     last7Days: computeBpInTargetPct(sysLast7, diaLast7, targets),
     last30Days: computeBpInTargetPct(sysLast30, diaLast30, targets),
+    // v1.17 W1d — canonical headline / score / coach window.
+    last90Days: computeBpInTargetPct(sysLast90, diaLast90, targets),
+    last90EarliestAt,
     // v1.4.19 A1 — independent aggregate over EVERY paired reading. The
     // analytics route now routes the dashboard tile's headline through
     // this so it stops mirroring `last30Days`.

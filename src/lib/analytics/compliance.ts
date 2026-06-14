@@ -53,7 +53,7 @@ import {
   type ScheduleType,
 } from "@/lib/medications/scheduling/recurrence";
 
-interface IntakeEvent {
+export interface IntakeEvent {
   takenAt: Date | null;
   skipped: boolean;
   scheduledFor: Date;

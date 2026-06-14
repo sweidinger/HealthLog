@@ -24,6 +24,14 @@ import {
   type DoctorReportPrefs,
 } from "@/lib/validations/doctor-report-prefs";
 import { buildCycleExportSummary } from "@/lib/cycle/export-data";
+import {
+  buildComplianceMedicationContext,
+  lastNonSkippedTakenAt,
+  tallyComplianceFromLedger,
+  type ComplianceSchedule,
+  type IntakeEvent,
+} from "@/lib/analytics/compliance";
+import type { ScheduleRevisionLike } from "@/lib/medications/scheduling/schedule-eras";
 
 export interface DoctorReportStats {
   avg: number;
@@ -376,6 +384,102 @@ export interface CollectDoctorReportOptions {
 }
 
 /**
+ * v1.17 W1a — the medication row shape the ledger compliance builder needs.
+ * Carries the cadence-engine context fields (course window + creation +
+ * archived schedule eras) so the same band minter the detail page uses can
+ * reconstruct expected slots.
+ */
+export interface DoctorReportComplianceMedication {
+  id: string;
+  name: string;
+  asNeeded: boolean;
+  startsOn: Date | null;
+  endsOn: Date | null;
+  oneShot: boolean;
+  createdAt: Date;
+  schedules: ComplianceSchedule[];
+  scheduleRevisions?: ScheduleRevisionLike[];
+}
+
+/** A window-bounded intake row keyed to its medication. */
+export interface DoctorReportComplianceIntake extends IntakeEvent {
+  medicationId: string;
+}
+
+/**
+ * v1.17 W1a — doctor-report medication adherence through the dose-ledger
+ * authority.
+ *
+ * The previous implementation tallied RAW intake rows: `taken = takenAt != null`,
+ * else `skipped`, else `missed`, with the denominator being every row. That
+ * double-counted cross-source duplicate rows (a REMINDER row + an API row for
+ * the same slot both counted as taken), ignored band timing (a pre-window or
+ * ad-hoc take counted as a plain "taken", a pending row counted as "missed"
+ * regardless of the miss cutoff), and honoured no cadence (rolling / cyclic /
+ * RRULE off-weeks could enter the tally). A clinician comparing the PDF % to
+ * the app detail page could see two different adherence numbers for one drug.
+ *
+ * Route the report through the SAME ledger the detail page uses: per
+ * medication, mint the cadence-aware bands over the report window
+ * `[start, end]` and tally `taken` (on-time + late), `missed` and `skipped`
+ * from the unified dose-history ledger. `total = taken + missed` so the
+ * renderers' `taken / total` rate equals the ledger rate the detail page
+ * shows. PRN / as-needed medications are excluded exactly as before (no
+ * schedule, no expected dose — a fabricated 100 % on a clinical report).
+ *
+ * Pure / synchronous — bands come from pre-fetched schedules + intake
+ * instants. Keyed by medication name to match the renderer contract.
+ */
+export function buildLedgerCompliance(
+  medications: DoctorReportComplianceMedication[],
+  intakeEvents: DoctorReportComplianceIntake[],
+  userTz: string,
+  start: Date,
+  end: Date,
+  now: Date,
+): Record<string, DoctorReportCompliance> {
+  const eventsByMedId = new Map<string, DoctorReportComplianceIntake[]>();
+  for (const event of intakeEvents) {
+    const list = eventsByMedId.get(event.medicationId);
+    if (list) list.push(event);
+    else eventsByMedId.set(event.medicationId, [event]);
+  }
+
+  const compliance: Record<string, DoctorReportCompliance> = {};
+  for (const med of medications) {
+    // PRN / as-needed carry no schedule and no expected dose — excluded so
+    // the report never prints a fabricated 100 %.
+    if (med.asNeeded) continue;
+    if (med.schedules.length === 0) continue;
+
+    const events = eventsByMedId.get(med.id) ?? [];
+    const ctx = buildComplianceMedicationContext(
+      med,
+      lastNonSkippedTakenAt(events),
+      userTz,
+    );
+    const tally = tallyComplianceFromLedger(
+      events,
+      med.schedules,
+      ctx,
+      start,
+      end,
+      now,
+    );
+    // `total = taken + missed` (the ledger denominator) so the renderer's
+    // `taken / total` equals `tally.rate` — the exact number the detail page
+    // shows. Deliberate skips are reported separately but stay out of `total`.
+    compliance[med.name] = {
+      total: tally.denominator,
+      taken: tally.taken,
+      skipped: tally.skipped,
+      missed: tally.missed,
+    };
+  }
+  return compliance;
+}
+
+/**
  * Aggregate the doctor-report payload for a user over a `[start, end]` range.
  * Pure data assembly — no auth, no rate-limit, no audit. Idempotent.
  *
@@ -414,6 +518,19 @@ export async function collectDoctorReportData(
         where: { userId, active: true },
         include: {
           schedules: true,
+          // v1.17 W1a — archived schedule eras so the ledger compliance
+          // builder segments expected-slot expansion against the schedule
+          // that was live on each past day (matches the detail page).
+          scheduleRevisions: {
+            orderBy: { validFrom: "asc" },
+            select: {
+              id: true,
+              validFrom: true,
+              validUntil: true,
+              payload: true,
+              supersededByRevisionId: true,
+            },
+          },
           // v1.4.25 W4d — eager-load dose history + recent intake site
           // for any active medication. Generic meds carry empty arrays
           // so the legacy data path is byte-identical.
@@ -467,6 +584,9 @@ export async function collectDoctorReportData(
           heightCm: true,
           glucoseUnit: true,
           thresholdsJson: true,
+          // v1.17 W1a — the user timezone anchors the ledger compliance
+          // band minter (matches the detail page's dose-day attribution).
+          timezone: true,
           // v1.7.0 — patient-identity fields for the export cover + FHIR
           // Patient. KVNR is encrypted (and not selected here) — the route
           // decrypts it and hands it to the builders.
@@ -503,26 +623,39 @@ export async function collectDoctorReportData(
     };
   }
 
-  // Medication compliance. As-needed medications are excluded: they
-  // carry no schedule, so every logged intake is "taken" by definition
-  // and a 100% rate would be a fabricated number on a clinical report.
-  // The medication itself stays on the report's medication list.
-  const compliance: Record<string, DoctorReportCompliance> = {};
-  for (const event of intakeEvents) {
-    if (event.medication.asNeeded) continue;
-    const name = event.medication.name;
-    if (!compliance[name]) {
-      compliance[name] = { total: 0, taken: 0, skipped: 0, missed: 0 };
-    }
-    compliance[name].total++;
-    if (event.takenAt) {
-      compliance[name].taken++;
-    } else if (event.skipped) {
-      compliance[name].skipped++;
-    } else {
-      compliance[name].missed++;
-    }
-  }
+  // v1.17 W1a — medication compliance through the dose-ledger authority (the
+  // same engine the detail page uses), NOT a raw-row tally. Routes each
+  // scheduled medication's intake rows through the cadence-aware band minter
+  // over the report window so the PDF / FHIR adherence % matches the app's
+  // detail page (slot dedup, band timing, cadence honoured). As-needed / PRN
+  // medications are excluded — no schedule, no expected dose, no fabricated
+  // 100 % on a clinical report. The medication itself stays on the list.
+  const reportTz = userProfile?.timezone ?? "Europe/Berlin";
+  const compliance = buildLedgerCompliance(
+    medications.map((m) => ({
+      id: m.id,
+      name: m.name,
+      asNeeded: m.asNeeded,
+      startsOn: m.startsOn,
+      endsOn: m.endsOn,
+      oneShot: m.oneShot,
+      createdAt: m.createdAt,
+      schedules: m.schedules,
+      scheduleRevisions: m.scheduleRevisions,
+    })),
+    intakeEvents.map((e) => ({
+      medicationId: e.medicationId,
+      scheduledFor: e.scheduledFor,
+      takenAt: e.takenAt,
+      skipped: e.skipped,
+      autoMissed: e.autoMissed ?? false,
+      attributionSource: e.attributionSource ?? undefined,
+    })),
+    reportTz,
+    start,
+    end,
+    end,
+  );
 
   // v1.9.0 — MedicationAdministration source rows. One entry per acted
   // intake (taken OR explicitly skipped); pending / missed rows are

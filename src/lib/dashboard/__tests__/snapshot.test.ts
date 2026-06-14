@@ -142,6 +142,8 @@ describe("buildDashboardSnapshot — envelope shape", () => {
     computeBpInTargetFastPath.mockResolvedValue({
       last7Days: { pct: 70 },
       last30Days: { pct: 80 },
+      last90Days: { pct: 80, pairs: 20 },
+      last90EarliestAt: new Date("2026-03-01T00:00:00.000Z"),
       allTime: { pct: 75 },
       priorMonth: { pct: 60 },
       priorYear: { pct: 50 },
@@ -182,6 +184,8 @@ describe("buildDashboardSnapshot — envelope shape", () => {
     computeBpInTargetFastPath.mockResolvedValue({
       last7Days: { pct: 70 },
       last30Days: { pct: 80 },
+      last90Days: { pct: 80, pairs: 20 },
+      last90EarliestAt: new Date("2026-03-01T00:00:00.000Z"),
       allTime: { pct: 75 },
       priorMonth: { pct: 60 },
       priorYear: { pct: 50 },
@@ -238,6 +242,8 @@ describe("buildDashboardSnapshot — per-type thick-phase gate", () => {
     computeBpInTargetFastPath.mockResolvedValue({
       last7Days: { pct: 70 },
       last30Days: { pct: 80 },
+      last90Days: { pct: 80, pairs: 20 },
+      last90EarliestAt: new Date("2026-03-01T00:00:00.000Z"),
       allTime: { pct: 75 },
       priorMonth: { pct: 60 },
       priorYear: { pct: 50 },
@@ -255,7 +261,9 @@ describe("buildDashboardSnapshot — per-type thick-phase gate", () => {
     expect(snap.extras).not.toBeNull();
     expect(snap.extras!.bpInTargetPct).toBe(80);
     expect(snap.healthScore).toEqual({ score: 71, band: "yellow", delta: 3 });
-    expect(computeBpInTargetFastPath).toHaveBeenCalledTimes(1);
+    // v1.17 W1b — two runs (current + prior-week), identical to the analytics
+    // route, so the ring's delta reflects BP movement.
+    expect(computeBpInTargetFastPath).toHaveBeenCalledTimes(2);
     expect(computeUserHealthScoreFastPath).toHaveBeenCalledTimes(1);
   });
 
@@ -279,6 +287,7 @@ describe("buildDashboardSnapshot — per-type thick-phase gate", () => {
     computeBpInTargetFastPath.mockResolvedValue({
       last7Days: null,
       last30Days: null,
+      last90Days: null,
       allTime: null,
       priorMonth: null,
       priorYear: null,
@@ -362,11 +371,16 @@ describe("buildDashboardSnapshot — healthScore (warm phase only)", () => {
     probeRollupCoverage.mockResolvedValue(coverageMap);
     isFullyCovered.mockReturnValue(true);
     computeBpInTargetFastPath.mockResolvedValue({
-      last7Days: { pct: 70 },
-      last30Days: { pct: 80 },
-      allTime: { pct: 75 },
-      priorMonth: { pct: 60 },
-      priorYear: { pct: 50 },
+      last7Days: { pct: 70, pairs: 6 },
+      last30Days: { pct: 80, pairs: 12 },
+      // v1.17 W1d — the BP pillar reads this 90-day window, NOT last30Days.
+      // v1.17 W1b — `pairs` above the confidence floor so the pillar grades
+      // the 90-day rate rather than falling back to all-time.
+      last90Days: { pct: 77, pairs: 30 },
+      last90EarliestAt: new Date("2026-01-01T00:00:00.000Z"),
+      allTime: { pct: 75, pairs: 200 },
+      priorMonth: { pct: 60, pairs: 10 },
+      priorYear: { pct: 50, pairs: 40 },
       gradedScore: 88,
     });
     computeUserHealthScoreFastPath.mockResolvedValue({
@@ -392,7 +406,10 @@ describe("buildDashboardSnapshot — healthScore (warm phase only)", () => {
       coverage: unknown;
     };
     expect(arg.userId).toBe("user-1");
-    expect(arg.bpInTargetPct).toBe(80);
+    // v1.17 W1d — the BP pillar reads the 90-day window, identical to the
+    // analytics route, so dashboard ring and insights card score off one
+    // number. Previously this was last30Days (80).
+    expect(arg.bpInTargetPct).toBe(77);
     expect(arg.bpGradedScore).toBe(88);
     expect(arg.heightCm).toBe(180);
     expect(arg.coverage).toBe(coverageMap);
@@ -404,6 +421,7 @@ describe("buildDashboardSnapshot — healthScore (warm phase only)", () => {
     computeBpInTargetFastPath.mockResolvedValue({
       last7Days: null,
       last30Days: null,
+      last90Days: null,
       allTime: null,
       priorMonth: null,
       priorYear: null,
@@ -705,6 +723,8 @@ describe("buildDashboardSnapshot — additive proof", () => {
     computeBpInTargetFastPath.mockResolvedValue({
       last7Days: { pct: 70 },
       last30Days: { pct: 80 },
+      last90Days: { pct: 80, pairs: 20 },
+      last90EarliestAt: new Date("2026-03-01T00:00:00.000Z"),
       allTime: { pct: 75 },
       priorMonth: { pct: 60 },
       priorYear: { pct: 50 },

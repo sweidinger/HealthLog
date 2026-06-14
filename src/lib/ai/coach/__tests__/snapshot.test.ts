@@ -211,6 +211,91 @@ describe("buildCoachSnapshot", () => {
     expect(parsed.scope.sources).not.toContain("compliance");
   });
 
+  // v1.17 W1c — the coach's headline adherence % must route through the
+  // SAME `calculateCompliance(...).rate` authority the medication card
+  // shows, never a per-day / per-week denominator of its own. A daily med
+  // with 7 of 10 expected doses taken reads 70 % on the card; the coach
+  // snapshot must surface the identical figure on `compliance.rate`.
+  it("surfaces a headline compliance rate equal to calculateCompliance().rate", async () => {
+    const { calculateCompliance, buildComplianceMedicationContext } =
+      await import("@/lib/analytics/compliance");
+
+    const dayMs = 24 * 60 * 60 * 1000;
+    const createdAt = new Date(Date.now() - 40 * dayMs);
+    // Ten daily doses 1..10 days ago at 08:00 UTC; the 3 most recent
+    // confirmed-late and the rest taken on time, except days 4/7/9 missed.
+    const schedule = {
+      id: "sched-1",
+      windowStart: "08:00",
+      windowEnd: "09:00",
+      daysOfWeek: null,
+      timesOfDay: ["08:00"],
+      reminderGraceMinutes: null,
+      rrule: null,
+      rollingIntervalDays: null,
+      scheduleType: null,
+      cyclicOnWeeks: null,
+      cyclicOffWeeks: null,
+      doseWindows: null,
+    };
+    const missedDays = new Set([4, 7, 9]);
+    const intakeEvents = [];
+    for (let n = 1; n <= 10; n++) {
+      const scheduledFor = new Date(Date.now() - n * dayMs);
+      scheduledFor.setUTCHours(8, 0, 0, 0);
+      const missed = missedDays.has(n);
+      intakeEvents.push({
+        scheduledFor,
+        takenAt: missed ? null : scheduledFor,
+        skipped: false,
+        autoMissed: missed,
+      });
+    }
+    const medication = {
+      id: "med-1",
+      name: "Testdrug",
+      startsOn: null,
+      endsOn: null,
+      oneShot: false,
+      createdAt,
+      schedules: [schedule],
+      scheduleRevisions: [],
+      intakeEvents,
+    };
+    // The compliance query and the GLP-1 query share this mock; only the
+    // compliance one (no `treatmentClass` filter) gets the fixture so the
+    // GLP-1 block — which selects `doseChanges` etc. — sees no rows.
+    prismaMock.medication.findMany.mockImplementation((args?: {
+      where?: { treatmentClass?: string };
+    }) => {
+      if (args?.where?.treatmentClass === "GLP1") return Promise.resolve([]);
+      return Promise.resolve([medication]);
+    });
+    prismaMock.user.findUnique.mockResolvedValue({
+      coachPrefsJson: null,
+      timezone: "Europe/Berlin",
+    });
+
+    const out = await buildCoachSnapshot("user-1");
+    const parsed = JSON.parse(out.snapshotJson);
+
+    expect(parsed.compliance).toBeDefined();
+    expect(parsed.compliance.rate).not.toBeNull();
+
+    // Independent authority over the same window the coach uses (30-day
+    // default scope), same ledger context — the coach rate must equal it.
+    const now = new Date();
+    const ctx = buildComplianceMedicationContext(medication, null, "Europe/Berlin");
+    const authority = calculateCompliance(
+      intakeEvents,
+      [schedule],
+      30,
+      createdAt,
+      { now, medicationContext: ctx },
+    );
+    expect(parsed.compliance.rate).toBe(authority.rate);
+  });
+
   // v1.4.36 W3 T2 — `anthropometrics` exclusion drops the profile
   // block even when features.context has populated fields.
   it("omits anthropometrics when excludeMetrics contains 'anthropometrics'", async () => {

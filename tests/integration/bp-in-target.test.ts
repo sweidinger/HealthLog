@@ -529,23 +529,24 @@ describe("BP-in-target % — windowed (7-day + 30-day) — production data shape
 });
 
 /**
- * v1.4.22 A1 — re-anchor the headline to last-30 days.
+ * v1.17 W1d — re-anchor the headline to the trailing 90 days.
  *
- * Up to v1.4.19 the headline was the all-time figure. That made the
- * tile correct (no algorithmic 50/50/50 pin) but emotionally wrong:
- * the headline was the slowest-moving aggregate possible, so a user
- * who had genuinely improved their last-30-day discipline saw a
- * stubbornly low number that took years of further compliance to
- * budge. v1.4.22 routes the headline through `last30Days` and surfaces
- * `7d` / `30d` / `Allzeit` as a 3-line sub-row instead.
+ * Up to v1.4.19 the headline was the all-time figure (slowest-moving
+ * aggregate possible); v1.4.22 swung it to the trailing 30 days (recency
+ * but a thin denominator that whipsaws on a single reading). v1.17 W1d
+ * standardises the headline, the Health-Score BP pillar and the coach
+ * grounding number all on the SAME trailing-90-day window — long enough
+ * to be stable, recent enough to move. The route routes `bpInTargetPct`
+ * through `windows.last90Days` and keeps `7d` / `30d` / `Allzeit` as the
+ * sub-rows.
  *
- * The integration assertion: with three legitimately divergent
- * windows (recent 50 % vs all-time 13 %) the route's `bpInTargetPct`
- * field equals `windows.last30Days.pct` (50 %), and a separate
- * `bpInTargetPctAllTime` carries the long-arc number (13 %) so the
- * tile can render the third sub-line.
+ * The integration assertion: with divergent windows the headline equals
+ * neither the 30-day window (50 %) nor the all-time aggregate (13 %) —
+ * it is the genuinely independent 90-day number — and the separate
+ * `bpInTargetPctAllTime` still carries the long-arc figure for the tile's
+ * sub-line.
  */
-describe("GET /api/analytics — BP-in-target headline (v1.4.22 A1)", () => {
+describe("GET /api/analytics — BP-in-target headline (v1.17 W1d)", () => {
   async function seedSession(username: string) {
     const prisma = getPrismaClient();
     const user = await prisma.user.create({
@@ -566,7 +567,7 @@ describe("GET /api/analytics — BP-in-target headline (v1.4.22 A1)", () => {
     return user;
   }
 
-  it("routes the headline through last-30-days and exposes all-time as a separate field", async () => {
+  it("routes the headline through the trailing 90 days and exposes all-time as a separate field", async () => {
     const prisma = getPrismaClient();
     const user = await seedSession("bp-headline-fixture");
 
@@ -574,7 +575,7 @@ describe("GET /api/analytics — BP-in-target headline (v1.4.22 A1)", () => {
     const DAY = 24 * 60 * 60 * 1000;
 
     // Seed exactly the v1.4.19-A1 production-shape regression: 7d and
-    // 30d both ~50 %, all-time ~13 %.
+    // 30d both ~50 %, all-time ~13 %, with a third distinct 90-day figure.
     const seed: Array<{ daysAgo: number; sys: number; dia: number }> = [
       // Last 7 days: 1 IN, 1 OUT.
       { daysAgo: 1.5, sys: 118, dia: 78 },
@@ -633,11 +634,15 @@ describe("GET /api/analytics — BP-in-target headline (v1.4.22 A1)", () => {
     expect(env.data).not.toBeNull();
     const data = env.data!;
 
-    // The headline now equals the 30-day window — not the all-time aggregate.
-    // 30-day = 5/10 in target = 50 %.
-    expect(data.bpInTargetPct).toBe(50);
+    // The headline now equals the trailing-90-day window. In-window pairs:
+    //   2 (last 7 days) + 8 (7–30 days) + the older OUT readings whose
+    //   `daysAgo = 60 + i*3 < 90` (i = 0..9, the reading at exactly 90 d
+    //   sits on the exclusive boundary) = 20 paired readings, of which 5
+    //   are in target (the recent 5 IN). 5/20 = 25 %.
+    expect(data.bpInTargetPct).toBe(Math.round((5 / 20) * 100));
+
+    // 30-day window stays its own number: 5/10 in target = 50 %.
     expect(data.bpInTargetPct30d).toBe(50);
-    expect(data.bpInTargetPct).toBe(data.bpInTargetPct30d);
 
     // 7-day window: 2 paired readings, 1 in target = 50 %.
     expect(data.bpInTargetPct7d).toBe(50);
@@ -646,9 +651,10 @@ describe("GET /api/analytics — BP-in-target headline (v1.4.22 A1)", () => {
     // separate field so the tile can render it as a sub-row.
     expect(data.bpInTargetPctAllTime).toBe(Math.round((5 / 40) * 100));
 
-    // Smoking gun: the headline must NOT equal the all-time number now
-    // that the route re-anchored to last-30. This is the v1.4.22 A1
-    // contract pin.
+    // Smoking gun: the headline is now the independent 90-day window — it
+    // must equal neither the 30-day window nor the all-time aggregate.
+    // This is the v1.17 W1d contract pin.
+    expect(data.bpInTargetPct).not.toBe(data.bpInTargetPct30d);
     expect(data.bpInTargetPct).not.toBe(data.bpInTargetPctAllTime);
   });
 
@@ -730,9 +736,13 @@ describe("GET /api/analytics — BP-in-target headline (v1.4.22 A1)", () => {
       };
     };
     const data = env.data;
-    // 30-day headline: 15 of 30 in target = 50 %.
+    // 30-day window: 15 of 30 in target = 50 %.
     expect(data.bpInTargetPct30d).toBe(50);
-    expect(data.bpInTargetPct).toBe(50);
+    // 90-day headline (v1.17 W1d): the 30 recent pairs (15 IN) plus the
+    // older out-of-target rows whose `daysAgo = 40 + i < 90` (i = 0..49,
+    // 50 rows; the reading at exactly 90 d sits on the exclusive boundary)
+    // = 80 paired readings, 15 in target. 15/80 = 19 % (rounded).
+    expect(data.bpInTargetPct).toBe(Math.round((15 / 80) * 100));
     // All-time aggregate diluted by 2970 out-of-target older rows ≈ 1 %.
     expect(data.bpInTargetPctAllTime).toBeLessThan(5);
   }, 30_000);

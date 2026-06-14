@@ -1,4 +1,5 @@
 import { z } from "zod/v4";
+import { validateEntryInstant } from "./entry-instant";
 
 export const measurementTypeEnum = z.enum([
   "WEIGHT",
@@ -499,7 +500,13 @@ export const createMeasurementSchema = z
   .object({
     type: measurementTypeEnum,
     value: z.number(),
-    measuredAt: z.iso.datetime({ offset: true }).transform((s) => new Date(s)),
+    // v1.17 W1b — plausibility bound (shared `validateEntryInstant`): no
+    // future instants beyond a 5-min clock-skew tolerance, no instant before
+    // 1900. Closes the data-portability gap where a hand-rolled POST could
+    // backdate or forward-date a reading arbitrarily.
+    measuredAt: validateEntryInstant(
+      z.iso.datetime({ offset: true }).transform((s) => new Date(s)),
+    ),
     notes: z.string().max(MEASUREMENT_NOTES_MAX_LENGTH).optional(),
     // v1.10.0 QA — validate against the client-writable subset, not the full
     // `MeasurementSource` enum. A client may attribute only `MANUAL` or
@@ -534,10 +541,11 @@ export const createMeasurementSchema = z
 
 export const updateMeasurementSchema = z.object({
   value: z.number().min(0).max(500000).optional(),
-  measuredAt: z.iso
-    .datetime({ offset: true })
-    .transform((s) => new Date(s))
-    .optional(),
+  // v1.17 W1b — same plausibility bound on the edit path; an edit cannot
+  // forward-date a reading into the future nor before 1900.
+  measuredAt: validateEntryInstant(
+    z.iso.datetime({ offset: true }).transform((s) => new Date(s)),
+  ).optional(),
   notes: z
     .string()
     .max(

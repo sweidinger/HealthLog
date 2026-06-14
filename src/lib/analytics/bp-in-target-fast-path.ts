@@ -76,6 +76,19 @@ import type { BpTargets } from "./bp-targets";
 export interface BpInTargetEnvelope {
   last7Days: { pct: number; pairs: number } | null;
   last30Days: { pct: number; pairs: number } | null;
+  /**
+   * v1.17 W1d — trailing-90-day window. Canonical window for the
+   * BD-Zielbereich headline, the Health-Score BP pillar and the coach
+   * grounding number. See `computeBpInTargetWindows` for the rationale.
+   */
+  last90Days: { pct: number; pairs: number } | null;
+  /**
+   * v1.17 W1b — oldest accepted pair inside the trailing-90-day window
+   * (or `null` when empty). Feeds `computeWindowConfidence` so the
+   * BD-Zielbereich tile labels the effective span rather than a static
+   * "· 90 T". On the rollup path this is the oldest in-window DAY bucket.
+   */
+  last90EarliestAt: Date | null;
   allTime: { pct: number; pairs: number } | null;
   priorMonth: { pct: number; pairs: number } | null;
   priorYear: { pct: number; pairs: number } | null;
@@ -274,12 +287,26 @@ async function computeFromRollups(
 
   const sevenDaysAgo = new Date(now.getTime() - 7 * DAY_MS);
   const thirtyDaysAgo = new Date(now.getTime() - 30 * DAY_MS);
+  const ninetyDaysAgo = new Date(now.getTime() - 90 * DAY_MS);
   const sixtyDaysAgo = new Date(now.getTime() - 60 * DAY_MS);
   const threeSixtyFiveDaysAgo = new Date(now.getTime() - 365 * DAY_MS);
   const threeNinetyFiveDaysAgo = new Date(now.getTime() - 395 * DAY_MS);
 
   const last7 = bucketWindow(pairsByDay, sevenDaysAgo, now, targets);
   const last30 = bucketWindow(pairsByDay, thirtyDaysAgo, now, targets);
+  // v1.17 W1d — canonical headline / score / coach window.
+  const last90 = bucketWindow(pairsByDay, ninetyDaysAgo, now, targets);
+  // v1.17 W1b — oldest in-window DAY bucket for the effective-span label.
+  const ninetyDaysAgoMs = ninetyDaysAgo.getTime();
+  const nowMs = now.getTime();
+  let last90EarliestAt: Date | null = null;
+  for (const p of pairsByDay) {
+    const dayMs = p.day.getTime();
+    if (dayMs < ninetyDaysAgoMs || dayMs >= nowMs) continue;
+    if (last90EarliestAt === null || dayMs < last90EarliestAt.getTime()) {
+      last90EarliestAt = p.day;
+    }
+  }
   // All-time on the rollup path is bounded to the 395-day read window.
   // Documented above — same trade-off the per-event path makes when the
   // user's history extends beyond 365 days.
@@ -339,6 +366,8 @@ async function computeFromRollups(
   return {
     last7Days: last7,
     last30Days: last30,
+    last90Days: last90,
+    last90EarliestAt,
     allTime,
     priorMonth,
     priorYear,
@@ -453,6 +482,8 @@ async function computeFromLive(
   return {
     last7Days: windows.last7Days,
     last30Days: windows.last30Days,
+    last90Days: windows.last90Days,
+    last90EarliestAt: windows.last90EarliestAt,
     allTime: windows.allTime,
     priorMonth: windows.priorMonth,
     priorYear: windows.priorYear,
