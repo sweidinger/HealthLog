@@ -3814,6 +3814,26 @@
         "title": "Notifiche",
         "description": "Panoramica in tempo reale di ogni canale configurato."
       },
+      "layout": {
+        "title": "Layout e personalizzazione",
+        "description": "Organizza la disposizione della tua app — un unico posto per cruscotto, approfondimenti, farmaci e umore.",
+        "dashboard": {
+          "title": "Cruscotto",
+          "description": "Layout e ordine dei riquadri."
+        },
+        "insights": {
+          "title": "Approfondimenti",
+          "description": "Ordine della panoramica e delle schede di navigazione."
+        },
+        "medications": {
+          "title": "Farmaci",
+          "description": "Vista elenco e ordine dei farmaci."
+        },
+        "mood": {
+          "title": "Tag dell’umore",
+          "description": "Gruppi, tag e ordine del selettore dell’umore."
+        }
+      },
       "dashboard": {
         "title": "Cruscotto",
         "description": "Layout e ordine dei riquadri."

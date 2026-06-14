@@ -3814,6 +3814,26 @@
         "title": "Powiadomienia",
         "description": "Podgląd na żywo każdego skonfigurowanego kanału."
       },
+      "layout": {
+        "title": "Układ i personalizacja",
+        "description": "Ustal, jak rozłożona jest Twoja aplikacja — jedno miejsce dla pulpitu, analiz, leków i nastroju.",
+        "dashboard": {
+          "title": "Pulpit",
+          "description": "Układ i kolejność kafelków."
+        },
+        "insights": {
+          "title": "Analizy",
+          "description": "Kolejność przeglądu i pigułek nawigacyjnych."
+        },
+        "medications": {
+          "title": "Leki",
+          "description": "Widok listy i kolejność leków."
+        },
+        "mood": {
+          "title": "Tagi nastroju",
+          "description": "Grupy, tagi i kolejność w wyborze nastroju."
+        }
+      },
       "dashboard": {
         "title": "Pulpit",
         "description": "Układ i kolejność kafelków."

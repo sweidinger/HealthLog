@@ -3814,6 +3814,26 @@
         "title": "Notifications",
         "description": "Aperçu en direct de chaque canal configuré."
       },
+      "layout": {
+        "title": "Disposition et personnalisation",
+        "description": "Organisez la disposition de votre application — un seul endroit pour le tableau de bord, les analyses, les médicaments et l’humeur.",
+        "dashboard": {
+          "title": "Tableau de bord",
+          "description": "Disposition et ordre des tuiles."
+        },
+        "insights": {
+          "title": "Analyses",
+          "description": "Ordre de la vue d'ensemble et des onglets de navigation."
+        },
+        "medications": {
+          "title": "Médicaments",
+          "description": "Vue de la liste et ordre des médicaments."
+        },
+        "mood": {
+          "title": "Étiquettes d’humeur",
+          "description": "Groupes, étiquettes et ordre du sélecteur d’humeur."
+        }
+      },
       "dashboard": {
         "title": "Tableau de bord",
         "description": "Disposition et ordre des tuiles."

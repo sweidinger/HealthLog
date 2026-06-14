@@ -37,6 +37,7 @@ const SLUG_ICON: Record<SettingsSectionSlug, LucideIcon> = {
   account: User,
   integrations: Link2,
   notifications: Bell,
+  layout: LayoutDashboard,
   dashboard: LayoutDashboard,
   insights: TrendingUp,
   medications: Pill,
