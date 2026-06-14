@@ -135,6 +135,66 @@ describe("GET /api/export/measurements", () => {
       }),
     );
   });
+
+  // v1.16.16 — glucose unit-at-source. A mmol/L-preference user's CSV emits
+  // BLOOD_GLUCOSE converted (100 → 5.5) with `mmol/L` in the unit column.
+  it("exports BLOOD_GLUCOSE in the user's mmol/L preference", async () => {
+    vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
+    vi.mocked(checkRateLimit).mockResolvedValue({
+      allowed: true,
+      remaining: 9,
+      resetAt: Date.now() + 3600_000,
+    });
+    vi.mocked(prisma.user.findUnique).mockResolvedValue({
+      glucoseUnit: "mmol/L",
+    } as never);
+    vi.mocked(prisma.measurement.findMany).mockResolvedValue([
+      {
+        type: "BLOOD_GLUCOSE",
+        value: 100,
+        unit: "mg/dL",
+        measuredAt: new Date("2026-05-01T08:00:00.000Z"),
+        source: "MANUAL",
+        notes: null,
+        glucoseContext: "FASTING",
+      },
+    ] as never);
+
+    const { GET } = await import("../measurements/route");
+    const res = await GET(mkReq("http://localhost/api/export/measurements"));
+    expect(res.status).toBe(200);
+    const body = await res.text();
+    expect(body).toContain("BLOOD_GLUCOSE,5.5,mmol/L");
+    expect(body).not.toContain("100,mg/dL");
+  });
+
+  it("exports BLOOD_GLUCOSE in raw mg/dL for a mg/dL-preference user", async () => {
+    vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
+    vi.mocked(checkRateLimit).mockResolvedValue({
+      allowed: true,
+      remaining: 9,
+      resetAt: Date.now() + 3600_000,
+    });
+    vi.mocked(prisma.user.findUnique).mockResolvedValue({
+      glucoseUnit: "mg/dL",
+    } as never);
+    vi.mocked(prisma.measurement.findMany).mockResolvedValue([
+      {
+        type: "BLOOD_GLUCOSE",
+        value: 100,
+        unit: "mg/dL",
+        measuredAt: new Date("2026-05-01T08:00:00.000Z"),
+        source: "MANUAL",
+        notes: null,
+        glucoseContext: "FASTING",
+      },
+    ] as never);
+
+    const { GET } = await import("../measurements/route");
+    const res = await GET(mkReq("http://localhost/api/export/measurements"));
+    const body = await res.text();
+    expect(body).toContain("BLOOD_GLUCOSE,100,mg/dL");
+  });
 });
 
 describe("GET /api/export/medications", () => {

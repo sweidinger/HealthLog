@@ -25,6 +25,7 @@ import type { MeasurementType, SleepStage } from "@/generated/prisma/client";
 import { reconstructSleepNights } from "@/lib/analytics/sleep-night";
 import { loadUserSourcePriority } from "@/lib/rollups/measurement-read";
 import { resolveUserTimezone } from "@/lib/tz/resolver";
+import { convertGlucose, resolveGlucoseUnit } from "@/lib/glucose";
 
 /**
  * v1.11.4 — sleep is read row-per-stage (not from the day rollup), so its
@@ -87,6 +88,12 @@ const KIND_TO_TYPE: Record<z.infer<typeof kindEnum>, MeasurementType> = {
  * the systolic type's unit (mmHg, same for both lines). `sleep` is
  * overridden at request time to `"h"` because the route returns per-night
  * TIME-ASLEEP in hours rather than the canonical per-stage minutes.
+ *
+ * v1.16.16 — `glucose` is the canonical-stored unit (mg/dL) here; it is
+ * overridden at request time to the user's `glucoseUnit` preference and the
+ * point values are converted to match, so this wire DTO reads in the SAME
+ * unit as the CSV + FHIR exports and the blood-glucose detail page (one
+ * number, one engine).
  */
 const SERIES_UNIT: Record<z.infer<typeof kindEnum>, string> = {
   weight: "kg",
@@ -300,12 +307,33 @@ export const GET = apiHandler(async (request: NextRequest) => {
       orderBy: { measuredAt: "asc" },
       select: { id: true, value: true, measuredAt: true },
     });
-    points = rows.map((r) => ({
-      id: r.id,
-      at: r.measuredAt.toISOString(),
-      value: r.value,
-      secondary: null,
-    }));
+    if (kind === "glucose") {
+      // v1.16.16 — glucose is stored canonical mg/dL; convert each point to
+      // the user's display unit AT SERIALIZATION so the wire DTO is unit-
+      // coherent with the CSV + FHIR exports (one number, one engine). The
+      // top-level `unit` token follows. mg/dL-preference users are unchanged
+      // (convertGlucose rounds the integer); mmol/L users see 1-decimal
+      // values (100 → 5.5) and `unit: "mmol/L"`.
+      const profile = await prisma.user.findUnique({
+        where: { id: user.id },
+        select: { glucoseUnit: true },
+      });
+      const glucoseUnit = resolveGlucoseUnit(profile?.glucoseUnit ?? null);
+      unit = glucoseUnit;
+      points = rows.map((r) => ({
+        id: r.id,
+        at: r.measuredAt.toISOString(),
+        value: convertGlucose(r.value, glucoseUnit),
+        secondary: null,
+      }));
+    } else {
+      points = rows.map((r) => ({
+        id: r.id,
+        at: r.measuredAt.toISOString(),
+        value: r.value,
+        secondary: null,
+      }));
+    }
   }
 
   const dataPoints: DataPoint[] = points.map((p) => ({

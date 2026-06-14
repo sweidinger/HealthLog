@@ -70,6 +70,37 @@ describe("<MetricStatStrip>", () => {
     expect(html).toBe("");
   });
 
+  it("renders the default 'Median' label when no override is given", () => {
+    const html = render(<MetricStatStrip summary={populated} unit="bpm" />);
+    expect(html).toContain("Median");
+  });
+
+  // v1.16.16 — glucose declares the trailing-90-day p50 window in the label
+  // so the median is not read as an all-time central value.
+  it("renders an overridden median label when medianLabel is provided", () => {
+    const html = render(
+      <MetricStatStrip
+        summary={populated}
+        unit="mg/dL"
+        medianLabel="Median glucose (90 days)"
+      />,
+    );
+    expect(html).toContain("Median glucose (90 days)");
+  });
+
+  it("honours fractionDigits for integer-unit metrics (0 decimals)", () => {
+    const html = render(
+      <MetricStatStrip
+        summary={{ ...populated, min: 100, max: 180, median: 126 }}
+        unit="mg/dL"
+        fractionDigits={0}
+      />,
+    );
+    // No "100.0" — integer precision.
+    expect(html).toContain("100 mg/dL");
+    expect(html).not.toContain("100.0");
+  });
+
   it("falls back to mean when median is absent (older payload)", () => {
     const noMedian: DataSummary = { ...populated, median: null };
     const html = render(<MetricStatStrip summary={noMedian} unit="bpm" />);

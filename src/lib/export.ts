@@ -20,6 +20,7 @@ import {
   pickMainNightAndNaps,
   type SleepStageRow,
 } from "./analytics/sleep-night";
+import { convertGlucose, type GlucoseUnit } from "./glucose";
 import type { SleepStage } from "@/generated/prisma/client";
 
 export interface ExportableRecord {
@@ -160,18 +161,33 @@ export function formatMeasurementsForExport(
      * night — without it the export silently fell back to the default ladder.
      */
     sourcePriorityJson?: unknown;
+    /**
+     * v1.16.16 — the user's resolved glucose display unit. BLOOD_GLUCOSE is
+     * stored canonical mg/dL; when this is `"mmol/L"` the export converts the
+     * value (1 decimal) and emits `mmol/L` in the `unit` column, matching the
+     * FHIR export (`src/lib/fhir/resources.ts`) so the CSV reads in ONE unit.
+     * Defaults to `"mg/dL"` (the canonical-stored unit) → byte-identical for
+     * mg/dL-preference users.
+     */
+    glucoseUnit?: GlucoseUnit;
   } = {},
 ): ExportableRecord[] {
   const granularity = opts.granularity ?? "night";
-  const toRecord = (m: ExportMeasurement): ExportableRecord => ({
-    type: m.type,
-    value: m.value,
-    unit: m.unit,
-    measuredAt: formatTimestamp(m.measuredAt, userTz),
-    source: m.source,
-    notes: m.notes ?? "",
-    glucoseContext: m.glucoseContext ?? "",
-  });
+  const glucoseUnit: GlucoseUnit = opts.glucoseUnit ?? "mg/dL";
+  const toRecord = (m: ExportMeasurement): ExportableRecord => {
+    // BLOOD_GLUCOSE is stored mg/dL; convert to the user's display unit at
+    // serialization so the value + unit column agree and match FHIR.
+    const isGlucose = m.type === "BLOOD_GLUCOSE";
+    return {
+      type: m.type,
+      value: isGlucose ? convertGlucose(m.value, glucoseUnit) : m.value,
+      unit: isGlucose ? glucoseUnit : m.unit,
+      measuredAt: formatTimestamp(m.measuredAt, userTz),
+      source: m.source,
+      notes: m.notes ?? "",
+      glucoseContext: m.glucoseContext ?? "",
+    };
+  };
 
   if (granularity === "raw") {
     return measurements.map(toRecord);
