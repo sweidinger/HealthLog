@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { CheckCircle2 } from "lucide-react";
+import { CheckCircle2, FileUp, PlusCircle, Plug } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { useTranslations } from "@/lib/i18n/context";
@@ -46,11 +46,42 @@ export function DoneScreen() {
         <p className="text-muted-foreground mx-auto max-w-md text-base leading-relaxed">
           {t("onboarding.done.body")}
         </p>
+        <p className="text-muted-foreground mx-auto max-w-md text-sm leading-relaxed">
+          {t("onboarding.done.learning")}
+        </p>
       </header>
 
-      <Button asChild size="lg">
-        <Link href="/">{t("onboarding.done.returnCta")}</Link>
-      </Button>
+      <div className="flex w-full max-w-xs flex-col gap-2">
+        <Button asChild size="lg">
+          <Link
+            href="/settings/integrations"
+            className="inline-flex items-center gap-2"
+          >
+            <Plug className="size-4" />
+            {t("onboarding.done.connectCta")}
+          </Link>
+        </Button>
+        <Button asChild size="lg" variant="outline">
+          <Link
+            href="/measurements"
+            className="inline-flex items-center gap-2"
+          >
+            <PlusCircle className="size-4" />
+            {t("onboarding.done.logCta")}
+          </Link>
+        </Button>
+        <Button asChild variant="ghost">
+          <Link href="/">{t("onboarding.done.returnCta")}</Link>
+        </Button>
+      </div>
+
+      <Link
+        href="/settings/export"
+        className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1.5 text-sm underline-offset-4 hover:underline"
+      >
+        <FileUp className="size-3.5" />
+        {t("onboarding.done.importCta")}
+      </Link>
     </section>
   );
 }
