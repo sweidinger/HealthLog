@@ -399,6 +399,22 @@ describe("reconstructSleepSessions", () => {
     expect(new Set(ends).size).toBe(ends.length);
   });
 
+  it("flags a Polar-won night as reconstructed (synthetic stage order)", () => {
+    // Polar exposes only per-stage duration totals, so its mapper reconstructs
+    // a contiguous CORE→DEEP→REM order exactly like WHOOP. The reader must label
+    // such a night reconstructed so the UI never presents the synthetic order as
+    // measured timing.
+    const rows: SleepStageRow[] = [
+      srcRow("2026-06-04T01:00:00.000Z", "CORE", 240, "POLAR"),
+      srcRow("2026-06-04T03:00:00.000Z", "DEEP", 120, "POLAR"),
+      srcRow("2026-06-04T05:00:00.000Z", "REM", 120, "POLAR"),
+    ];
+    const sessions = reconstructSleepSessions(rows, "UTC");
+    expect(sessions).toHaveLength(1);
+    expect(sessions[0].source).toBe("POLAR");
+    expect(sessions[0].reconstructed).toBe(true);
+  });
+
   it("does NOT flag an Apple-Health night as reconstructed (measured timeline)", () => {
     const rows: SleepStageRow[] = [
       srcRow("2026-06-04T01:00:00.000Z", "CORE", 240, "APPLE_HEALTH"),

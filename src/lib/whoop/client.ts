@@ -17,6 +17,7 @@
  */
 import { getEvent } from "@/lib/logging/context";
 import { safeFetch } from "@/lib/safe-fetch";
+import { reconstructContiguousSleepTimeline } from "@/lib/sleep/reconstruct-timeline";
 import { WhoopApiError, classifyWhoopResponse } from "./response-classifier";
 
 const WHOOP_API_BASE = "https://api.prod.whoop.com/developer";
@@ -611,55 +612,38 @@ export function mapSleep(s: WhoopSleep): MappedMeasurement[] {
   // the remaining window.
   const onset = new Date(s.start).getTime();
   // Order the laid-out stages: a brief AWAKE settling-in block, then the asleep
-  // stages CORE → DEEP → REM. Each carries its own duration; the cursor walks
-  // forward so the spans are contiguous and non-overlapping.
-  const TIMELINE_ORDER: ReadonlyArray<{
-    key: keyof typeof stages;
-    stage: NonNullable<MappedMeasurement["sleepStage"]>;
-    tag: string;
-  }> = [
-    { key: "total_awake_time_milli", stage: "AWAKE", tag: "sleep_awake" },
-    { key: "total_light_sleep_time_milli", stage: "CORE", tag: "sleep_core" },
-    { key: "total_slow_wave_sleep_time_milli", stage: "DEEP", tag: "sleep_deep" },
-    { key: "total_rem_sleep_time_milli", stage: "REM", tag: "sleep_rem" },
-  ];
-  let cursor = onset;
-  let segIndex = 0;
-  for (const { key, stage, tag } of TIMELINE_ORDER) {
-    const ms = stages[key];
-    if (typeof ms !== "number" || ms <= 0) continue;
-    const segEnd = cursor + ms;
-    out.push({
-      type: "SLEEP_DURATION",
-      value: round2(ms * MS_TO_MIN),
-      unit: "minutes",
-      measuredAt: new Date(segEnd),
+  // stages CORE → DEEP → REM. Each carries its own duration; the shared builder
+  // walks the cursor forward so the spans are contiguous and non-overlapping,
+  // and lays the IN_BED envelope over the whole window. The order is synthetic
+  // (WHOOP gives no per-stage onset), so every laid segment is flagged
+  // reconstructed; the same algorithm backs Polar's `mapSleep`.
+  out.push(
+    ...reconstructContiguousSleepTimeline({
+      startMs: onset,
+      stages: [
+        { durationMs: stages.total_awake_time_milli, stage: "AWAKE", fieldTag: "sleep_awake" },
+        { durationMs: stages.total_light_sleep_time_milli, stage: "CORE", fieldTag: "sleep_core" },
+        {
+          durationMs: stages.total_slow_wave_sleep_time_milli,
+          stage: "DEEP",
+          fieldTag: "sleep_deep",
+        },
+        { durationMs: stages.total_rem_sleep_time_milli, stage: "REM", fieldTag: "sleep_rem" },
+      ],
+      // IN_BED — single envelope row over the whole sleep window. `measuredAt`
+      // is the sleep END so `segmentOf` resolves the span back to [start, end];
+      // the in-bed union-envelope reader consumes the full window.
+      inBed: {
+        durationMs: stages.total_in_bed_time_milli,
+        measuredAt,
+        fieldTag: "sleep_in_bed",
+      },
       // The sync layer keys reconstructed rows by this externalId verbatim; the
       // index keeps the several rows of one night distinct under
       // userId_type_source_externalId.
-      fieldTag: tag,
-      externalId: `${s.id}:seg:${tag}:${segIndex}`,
-      sleepStage: stage,
-      reconstructed: true,
-    });
-    cursor = segEnd;
-    segIndex += 1;
-  }
-
-  // IN_BED — single envelope row over the whole sleep window. `measuredAt` is
-  // the sleep END so `segmentOf` resolves the span back to [start, end]; the
-  // in-bed union-envelope reader consumes the full window.
-  const inBedMs = stages.total_in_bed_time_milli;
-  if (typeof inBedMs === "number" && inBedMs > 0) {
-    out.push({
-      type: "SLEEP_DURATION",
-      value: round2(inBedMs * MS_TO_MIN),
-      unit: "minutes",
-      measuredAt,
-      fieldTag: "sleep_in_bed",
-      sleepStage: "IN_BED",
-    });
-  }
+      externalIdFor: (tag, index) => `${s.id}:seg:${tag}:${index}`,
+    }),
+  );
 
   const need = s.score.sleep_needed;
   const totalNeedMilli =
