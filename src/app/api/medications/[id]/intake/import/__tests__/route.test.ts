@@ -24,6 +24,12 @@ vi.mock("@/lib/auth/session", () => ({ getSession: vi.fn() }));
 vi.mock("@/lib/auth/audit", () => ({
   auditLog: vi.fn().mockResolvedValue(undefined),
 }));
+vi.mock("@/lib/cache/invalidate", () => ({
+  invalidateUserMedications: vi.fn(),
+}));
+vi.mock("@/lib/medications/inventory/consumption", () => ({
+  consumeForIntake: vi.fn().mockResolvedValue(undefined),
+}));
 vi.mock("@/lib/rollups/medication-compliance-rollups", () => ({
   recomputeMedicationComplianceForDay: vi.fn().mockResolvedValue(undefined),
   dayKeyForScheduledFor: vi.fn().mockReturnValue("2026-01-01"),
@@ -44,6 +50,7 @@ vi.mock("next/headers", () => ({
 import { POST } from "../route";
 import { prisma } from "@/lib/db";
 import { getSession } from "@/lib/auth/session";
+import { consumeForIntake } from "@/lib/medications/inventory/consumption";
 
 const SESSION_OK = {
   session: { id: "sess-1", expiresAt: new Date(Date.now() + 3_600_000) },
@@ -152,5 +159,60 @@ describe("POST /api/medications/[id]/intake/import — 422 multi-issue (v1.4.43 
       ROUTE_CTX,
     );
     expect(res.status).toBe(422);
+  });
+});
+
+describe("POST /api/medications/[id]/intake/import — inventory consumption", () => {
+  beforeEach(() => {
+    // Fresh imports: no pre-existing dedup row, and create echoes an id.
+    vi.mocked(prisma.medicationIntakeEvent.findUnique).mockResolvedValue(
+      null as never,
+    );
+    let n = 0;
+    vi.mocked(prisma.medicationIntakeEvent.create).mockImplementation(
+      (async () => ({ id: `evt-${++n}`, takenAt: new Date() })) as never,
+    );
+  });
+
+  it("consumes stock once per freshly imported taken dose", async () => {
+    const res = await POST(
+      postReq([
+        { datum: "2026-01-01", uhrzeit: "07:00:00" },
+        { datum: "2026-01-01", uhrzeit: "19:00:00" },
+        { datum: "2026-01-02", uhrzeit: "07:00:00" },
+      ]),
+      ROUTE_CTX,
+    );
+    expect(res.status).toBe(201);
+    const body = (await res.json()) as { data: { imported: number } };
+    expect(body.data.imported).toBe(3);
+    expect(consumeForIntake).toHaveBeenCalledTimes(3);
+    const call = vi.mocked(consumeForIntake).mock.calls[0]?.[0];
+    expect(call?.medicationId).toBe("m1");
+    expect(call?.userId).toBe("user-1");
+    expect(call?.eventId).toBe("evt-1");
+  });
+
+  it("does not consume for duplicate (already-imported) rows", async () => {
+    // First entry is a duplicate (existing dedup row), second is fresh.
+    vi.mocked(prisma.medicationIntakeEvent.findUnique)
+      .mockResolvedValueOnce({ id: "existing" } as never)
+      .mockResolvedValueOnce(null as never);
+    const res = await POST(
+      postReq([
+        { datum: "2026-01-01", uhrzeit: "07:00:00" },
+        { datum: "2026-01-01", uhrzeit: "19:00:00" },
+      ]),
+      ROUTE_CTX,
+    );
+    expect(res.status).toBe(201);
+    const body = (await res.json()) as {
+      data: { imported: number; skippedDuplicates: number };
+    };
+    expect(body.data.imported).toBe(1);
+    expect(body.data.skippedDuplicates).toBe(1);
+    // Only the fresh row consumes — the duplicate never re-creates an event,
+    // so re-import cannot double-decrement.
+    expect(consumeForIntake).toHaveBeenCalledTimes(1);
   });
 });
