@@ -236,6 +236,51 @@ describe("buildCoachSnapshot — Apple Health additive metrics (v1.4.23)", () =>
     expect(out.provenance.metrics).toContain("glucose");
   });
 
+  it("carries glucose in the user's display unit (mmol/L) — v1.16.16", async () => {
+    // A mmol/L-preference user's Coach must read 5.5, not the stored 100.
+    prismaMock.user.findUnique.mockResolvedValue({
+      coachPrefsJson: null,
+      glucoseUnit: "mmol/L",
+    });
+    prismaMock.measurement.findMany.mockResolvedValue([
+      { ...daysAgo(1, 100, "BLOOD_GLUCOSE"), glucoseContext: "FASTING" },
+    ]);
+    const out = await buildCoachSnapshot("user-1", {
+      sources: ["glucose"],
+      window: "last30days",
+    });
+    const snapshot = JSON.parse(out.snapshotJson) as {
+      glucose?: {
+        unit?: string;
+        byContext?: Record<string, { recent?: Array<{ value: number }> }>;
+      };
+    };
+    expect(snapshot.glucose?.unit).toBe("mmol/L");
+    expect(snapshot.glucose?.byContext?.fasting?.recent?.[0]?.value).toBe(5.5);
+  });
+
+  it("keeps mg/dL glucose values byte-identical with a unit token — v1.16.16", async () => {
+    prismaMock.user.findUnique.mockResolvedValue({
+      coachPrefsJson: null,
+      glucoseUnit: "mg/dL",
+    });
+    prismaMock.measurement.findMany.mockResolvedValue([
+      { ...daysAgo(1, 100, "BLOOD_GLUCOSE"), glucoseContext: "FASTING" },
+    ]);
+    const out = await buildCoachSnapshot("user-1", {
+      sources: ["glucose"],
+      window: "last30days",
+    });
+    const snapshot = JSON.parse(out.snapshotJson) as {
+      glucose?: {
+        unit?: string;
+        byContext?: Record<string, { recent?: Array<{ value: number }> }>;
+      };
+    };
+    expect(snapshot.glucose?.unit).toBe("mg/dL");
+    expect(snapshot.glucose?.byContext?.fasting?.recent?.[0]?.value).toBe(100);
+  });
+
   it("caps the workouts block and rolls up per sport", async () => {
     const workouts = Array.from({ length: 25 }, (_, i) => ({
       sportType: i % 2 === 0 ? "RUNNING" : "CYCLING",

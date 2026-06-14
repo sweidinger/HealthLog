@@ -93,11 +93,12 @@ export interface MetricStatSeries {
    */
   dataKey?: string;
   /**
-   * v1.16.16 — optional override for the "Median" cell label. The strip's
-   * median is a trailing-90-day p50 (see `DataSummary.median` /
-   * `summaries-slice.ts`); the default generic "Median" label leaves that
-   * window undeclared. Blood glucose passes a window- + context-declaring
-   * string (e.g. "Median glucose (90 days)") so the number is not read as an
+   * v1.16.16 — optional override for the "Median" cell label. The median
+   * cell follows the chart's ACTIVE range (`windowStats`) when a range is
+   * selected and only falls back to the full-range `summary` p50 otherwise,
+   * so the label must NOT assert a fixed day-count it can't honor. Blood
+   * glucose passes a metric-naming string (e.g. "Median glucose") so the
+   * number reads as that metric's median for the visible range, not an
    * all-time central value. Omit it to keep the generic label.
    */
   medianLabel?: string;
