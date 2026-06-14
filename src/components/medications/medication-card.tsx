@@ -19,6 +19,7 @@ import { resolveDisplayedSlotInstant } from "@/components/medications/card-parts
 import {
   estimateDailyDoseCount,
   estimateRunwayDays,
+  lowStockTriggerDays,
 } from "@/components/medications/detail/supply-runway";
 import { useTranslations, useFormatters } from "@/lib/i18n/context";
 import {
@@ -101,6 +102,12 @@ interface Medication {
   asNeeded?: boolean;
   /** v1.16.10 — dose-derived stock from the list payload; null = inventory tracking off. */
   stockDosesRemaining?: number | null;
+  /**
+   * v1.17.0 — optional per-medication reorder lead override (days); null /
+   * absent = inherit the user-level reorderLeadDays default. Widens the
+   * low-stock trigger so the notice lands before the last dose.
+   */
+  reorderLeadDays?: number | null;
   schedules: Schedule[];
 }
 
@@ -171,6 +178,7 @@ export function MedicationCard({
           lateMinutes: number;
           missedMinutes: number;
           lowStockRunwayDays: number | null;
+          reorderLeadDays?: number;
         }>("/api/settings/reminder-thresholds");
       } catch {
         return null;
@@ -282,8 +290,18 @@ export function MedicationCard({
   // alert off → no card line either). Stock 0 with a consuming schedule
   // is runway 0 (mirrors `evaluateMedicationRunway`); as-needed has no
   // runway, ever.
-  const lowStockThreshold =
+  // v1.17.0 — the trigger is reorder-lead-aware: max(floor, lead +
+  // cadenceIntervalDays). The bare floor (`lowStockRunwayDays`) and the
+  // user-level lead default come from the thresholds endpoint; a per-med
+  // `reorderLeadDays` overrides the default. The notice lights at runway
+  // ≤ trigger (matching the daily cron), so a weekly med is warned before
+  // its last dose, not at it.
+  const lowStockFloor =
     thresholds == null ? 7 : thresholds.lowStockRunwayDays;
+  const leadDays =
+    medication.reorderLeadDays != null
+      ? medication.reorderLeadDays
+      : (thresholds?.reorderLeadDays ?? 10);
   const stockRunwayDays =
     medication.asNeeded || medication.stockDosesRemaining == null
       ? null
@@ -295,10 +313,18 @@ export function MedicationCard({
         : estimateDailyDoseCount(medication.schedules) > 0
           ? 0
           : null;
+  const lowStockTrigger =
+    lowStockFloor === null
+      ? null
+      : lowStockTriggerDays({
+          lowStockRunwayDays: lowStockFloor,
+          leadDays,
+          schedules: medication.schedules,
+        });
   const lowStockRunwayDays =
     stockRunwayDays !== null &&
-    lowStockThreshold !== null &&
-    stockRunwayDays < lowStockThreshold
+    lowStockTrigger !== null &&
+    stockRunwayDays <= lowStockTrigger
       ? stockRunwayDays
       : null;
 

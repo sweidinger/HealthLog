@@ -37,6 +37,14 @@ const reminderThresholdsResponse = z
       .describe(
         "Per-user low-stock alert threshold as remaining runway days (1–60). null = the alert is off. Default 7. Written via PATCH /api/auth/me/notification-prefs.",
       ),
+    reorderLeadDays: z
+      .number()
+      .int()
+      .min(0)
+      .max(60)
+      .describe(
+        "v1.17.0 — per-user reorder lead default in days (0–60, default 10). The low-stock alert fires this lead plus one dose-interval before the supply runs out so a refill arrives before the last dose; a per-medication reorderLeadDays overrides it. Written via PATCH /api/auth/me/notification-prefs.",
+      ),
   })
   .meta({
     id: "ReminderThresholdsResponse",

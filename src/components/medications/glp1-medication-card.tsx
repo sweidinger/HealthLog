@@ -29,6 +29,7 @@ import { resolveDisplayedSlotInstant } from "@/components/medications/card-parts
 import {
   estimateDailyDoseCount,
   estimateRunwayDays,
+  lowStockTriggerDays,
 } from "@/components/medications/detail/supply-runway";
 import { useAuth } from "@/hooks/use-auth";
 import { useMedicationComplianceSummary } from "@/lib/queries/use-medication-compliance-summary";
@@ -117,6 +118,8 @@ export interface Glp1Medication {
   nextDueOverdue?: boolean;
   /** v1.16.10 — dose-derived stock from the list payload; null = inventory tracking off. */
   stockDosesRemaining?: number | null;
+  /** v1.17.0 — per-medication reorder lead override (days); null = inherit the user default. */
+  reorderLeadDays?: number | null;
   schedules: ScheduleLite[];
 }
 
@@ -225,6 +228,7 @@ export function Glp1MedicationCard({
           lateMinutes: number;
           missedMinutes: number;
           lowStockRunwayDays: number | null;
+          reorderLeadDays?: number;
         }>("/api/settings/reminder-thresholds");
       } catch {
         return null;
@@ -339,13 +343,18 @@ export function Glp1MedicationCard({
     timeZone: userTz,
   });
 
-  // v1.16.11 — low-stock card context, identical to the generic card:
-  // runway days from the list payload's dose-derived stock, surfaced
-  // ONLY below the user's runway threshold (`lowStockRunwayDays`,
-  // default 7, null = alert off → no card line). Stock 0 with a
-  // consuming schedule is runway 0 (mirrors `evaluateMedicationRunway`).
-  const lowStockThreshold =
+  // v1.16.11 / v1.17.0 — low-stock card context, identical to the generic
+  // card: runway days from the list payload's dose-derived stock, surfaced
+  // ONLY at runway ≤ the reorder-lead-aware trigger
+  // (max(lowStockRunwayDays, lead + cadenceIntervalDays)), so the weekly
+  // GLP-1 cadence is warned before its last dose. Stock 0 with a consuming
+  // schedule is runway 0 (mirrors `evaluateMedicationRunway`).
+  const lowStockFloor =
     thresholds == null ? 7 : thresholds.lowStockRunwayDays;
+  const leadDays =
+    medication.reorderLeadDays != null
+      ? medication.reorderLeadDays
+      : (thresholds?.reorderLeadDays ?? 10);
   const stockRunwayDays =
     medication.stockDosesRemaining == null
       ? null
@@ -357,10 +366,18 @@ export function Glp1MedicationCard({
         : estimateDailyDoseCount(medication.schedules) > 0
           ? 0
           : null;
+  const lowStockTrigger =
+    lowStockFloor === null
+      ? null
+      : lowStockTriggerDays({
+          lowStockRunwayDays: lowStockFloor,
+          leadDays,
+          schedules: medication.schedules,
+        });
   const lowStockRunwayDays =
     stockRunwayDays !== null &&
-    lowStockThreshold !== null &&
-    stockRunwayDays < lowStockThreshold
+    lowStockTrigger !== null &&
+    stockRunwayDays <= lowStockTrigger
       ? stockRunwayDays
       : null;
 

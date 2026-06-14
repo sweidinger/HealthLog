@@ -152,6 +152,13 @@ export const medicationResource = z
       .describe(
         "v1.16.10 — inventory units one dose consumes (e.g. 2 tablets of 2 mg for a 4 mg dose). v1.16.12 — may be a split-pill fraction (¼ / ⅓ / ½ / ⅔ / ¾); thirds carry as ≈0.3333 / 0.6667. Default 1. The intake consumption hook decrements this many units per taken dose; dose-derived readouts divide unit counts by it.",
       ),
+    reorderLeadDays: z
+      .number()
+      .int()
+      .nullable()
+      .describe(
+        "v1.17.0 — optional per-medication reorder lead time in days (0–60). The low-stock alert widens its trigger by this lead plus one dose-interval so a refill arrives before the last dose. null = inherit the user-level notificationPrefs.medication.reorderLeadDays default (10).",
+      ),
     active: z.boolean(),
     notificationsEnabled: z.boolean(),
     liveActivityEnabled: z

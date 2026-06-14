@@ -5559,6 +5559,10 @@
       "statusOff": "Desactivado",
       "daysLabel": "Avisar por debajo de (días)",
       "daysAria": "Seleccionar el umbral de existencias en días",
+      "leadLabel": "Plazo de reposición (días)",
+      "leadAria": "Plazo de reposición en días",
+      "leadHelp": "El aviso se envía estos días más un intervalo de dosis antes, para que la reposición llegue antes de tu última dosis. Un medicamento concreto puede anular este valor en su pestaña de existencias.",
+      "leadSavedToast": "Plazo de reposición guardado.",
       "savedToast": "Umbral de existencias guardado.",
       "enabledToast": "Avisos de existencias bajas activados.",
       "disabledToast": "Avisos de existencias bajas desactivados.",
@@ -5752,7 +5756,9 @@
   "lowStockReminders": {
     "title": "Quedan pocas existencias: {medName}",
     "body": "{medName}: quedan {units} unidades — para unos {days} días más.",
-    "bodyToday": "{medName}: quedan {units} unidades — menos de un día de suministro."
+    "bodyToday": "{medName}: quedan {units} unidades — menos de un día de suministro.",
+    "bodyReorder": "{medName}: quedan {units} unidades. Las existencias se agotan hacia el {runsOutOn} — vuelve a pedir antes del {reorderBy}.",
+    "bodyLastDose": "{medName}: quedan {units} unidades — alrededor de tu última dosis. Las existencias se agotan hacia el {runsOutOn}."
   },
   "moodReminders": {
     "dailyTitle": "Registrar el ánimo",

@@ -5559,6 +5559,10 @@
       "statusOff": "Aus",
       "daysLabel": "Warnen unter (Tage)",
       "daysAria": "Vorratsschwelle in Tagen wählen",
+      "leadLabel": "Vorlaufzeit zum Nachbestellen (Tage)",
+      "leadAria": "Vorlaufzeit zum Nachbestellen in Tagen",
+      "leadHelp": "Die Warnung kommt um so viele Tage plus ein Dosisintervall früher, damit der Nachschub vor deiner letzten Dosis eintrifft. Ein einzelnes Medikament kann diesen Wert auf seinem Bestand-Tab überschreiben.",
+      "leadSavedToast": "Vorlaufzeit gespeichert.",
       "savedToast": "Vorratsschwelle gespeichert.",
       "enabledToast": "Vorratswarnungen aktiviert.",
       "disabledToast": "Vorratswarnungen deaktiviert.",
@@ -5752,7 +5756,9 @@
   "lowStockReminders": {
     "title": "Vorrat niedrig: {medName}",
     "body": "Dein Vorrat an {medName} reicht noch etwa {days} Tage ({units} Einheiten übrig).",
-    "bodyToday": "Dein Vorrat an {medName} reicht keinen ganzen Tag mehr ({units} Einheiten übrig)."
+    "bodyToday": "Dein Vorrat an {medName} reicht keinen ganzen Tag mehr ({units} Einheiten übrig).",
+    "bodyReorder": "Dein Vorrat an {medName} ({units} Einheiten) ist um den {runsOutOn} aufgebraucht — bestelle bis zum {reorderBy} nach.",
+    "bodyLastDose": "Dein Vorrat an {medName} ({units} Einheiten) reicht noch etwa für die letzte Dosis. Aufgebraucht um den {runsOutOn}."
   },
   "moodReminders": {
     "dailyTitle": "Stimmung erfassen",

@@ -6,8 +6,12 @@
 import { describe, it, expect } from "vitest";
 
 import {
+  cadenceIntervalDays,
+  classifyLowStockState,
   estimateDailyDoseCount,
   estimateRunwayDays,
+  lowStockTriggerDays,
+  supplyRunwayDates,
   type RunwaySchedule,
 } from "@/components/medications/detail/supply-runway";
 
@@ -128,5 +132,98 @@ describe("estimateRunwayDays — v1.16.10 multi-unit doses", () => {
         schedule({ timesOfDay: ["08:00"] }),
       ]),
     ).toBeNull();
+  });
+});
+
+describe("cadenceIntervalDays — v1.17.0", () => {
+  it("is ≈1 for a daily med", () => {
+    expect(cadenceIntervalDays([schedule({ timesOfDay: ["08:00"] })])).toBe(1);
+  });
+
+  it("is ≈7 for a weekly injection", () => {
+    expect(
+      cadenceIntervalDays([
+        schedule({ timesOfDay: ["09:00"], rollingIntervalDays: 7 }),
+      ]),
+    ).toBe(7);
+  });
+
+  it("is null for a schedule-less (as-needed) medication", () => {
+    expect(cadenceIntervalDays([])).toBeNull();
+  });
+});
+
+describe("lowStockTriggerDays — v1.17.0", () => {
+  const daily = [schedule({ timesOfDay: ["08:00"] })];
+  const weekly = [schedule({ timesOfDay: ["09:00"], rollingIntervalDays: 7 })];
+
+  it("keeps a daily med with no lead at the bare floor (never shrinks)", () => {
+    expect(
+      lowStockTriggerDays({ lowStockRunwayDays: 7, leadDays: 0, schedules: daily }),
+    ).toBe(7);
+  });
+
+  it("widens a weekly med to cover the reorder lead PLUS one dose-interval", () => {
+    // max(7, 10 lead + 7 interval) = 17 → fires ~10 days before the last dose.
+    expect(
+      lowStockTriggerDays({ lowStockRunwayDays: 7, leadDays: 10, schedules: weekly }),
+    ).toBe(17);
+  });
+
+  it("never drops below the user floor even when lead + cadence are small", () => {
+    expect(
+      lowStockTriggerDays({ lowStockRunwayDays: 14, leadDays: 2, schedules: daily }),
+    ).toBe(14);
+  });
+
+  it("falls back to the bare floor for a schedule-less medication", () => {
+    expect(
+      lowStockTriggerDays({ lowStockRunwayDays: 7, leadDays: 10, schedules: [] }),
+    ).toBe(7);
+  });
+});
+
+describe("classifyLowStockState — v1.17.0", () => {
+  const weekly = [schedule({ timesOfDay: ["09:00"], rollingIntervalDays: 7 })];
+
+  it("returns null when comfortably above the trigger", () => {
+    expect(
+      classifyLowStockState({ runwayDays: 20, triggerDays: 17, schedules: weekly }),
+    ).toBeNull();
+  });
+
+  it("flags running_low within the trigger but above one cadence interval", () => {
+    expect(
+      classifyLowStockState({ runwayDays: 14, triggerDays: 17, schedules: weekly }),
+    ).toBe("running_low");
+  });
+
+  it("flags last_dose at one cadence interval", () => {
+    expect(
+      classifyLowStockState({ runwayDays: 7, triggerDays: 17, schedules: weekly }),
+    ).toBe("last_dose");
+  });
+});
+
+describe("supplyRunwayDates — v1.17.0", () => {
+  const today = new Date(Date.UTC(2026, 5, 1)); // 1 Jun 2026
+
+  it("computes runsOutOn = today + runway and reorderBy = runsOutOn − lead", () => {
+    const { runsOutOn, reorderBy } = supplyRunwayDates({
+      today,
+      runwayDays: 14,
+      leadDays: 10,
+    });
+    expect(runsOutOn.toISOString().slice(0, 10)).toBe("2026-06-15");
+    expect(reorderBy.toISOString().slice(0, 10)).toBe("2026-06-05");
+  });
+
+  it("clamps reorderBy to today when the lead pushes it into the past", () => {
+    const { reorderBy } = supplyRunwayDates({
+      today,
+      runwayDays: 3,
+      leadDays: 10,
+    });
+    expect(reorderBy.toISOString().slice(0, 10)).toBe("2026-06-01");
   });
 });

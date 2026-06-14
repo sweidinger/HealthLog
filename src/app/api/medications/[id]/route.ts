@@ -232,6 +232,7 @@ export const PUT = apiHandler(
       treatmentClass,
       dosesPerUnit,
       unitsPerDose,
+      reorderLeadDays,
       deliveryForm,
       trackInjectionSites,
       allowedInjectionSites,
@@ -598,6 +599,9 @@ export const PUT = apiHandler(
       // v1.16.10 — units consumed per dose. Field-by-field; the stamp on
       // already-taken intake events freezes their recorded consumption.
       ...(unitsPerDose !== undefined && { unitsPerDose }),
+      // v1.17.0 — reorder lead override. Field-by-field; `null` is a
+      // valid explicit value (clears the override → user-level default).
+      ...(reorderLeadDays !== undefined && { reorderLeadDays }),
       ...(deliveryForm !== undefined && { deliveryForm }),
       // v1.8.5 — injection-site tracking opt-in + per-medication allowed
       // sites. Field-by-field; `false` / `[]` are valid explicit values

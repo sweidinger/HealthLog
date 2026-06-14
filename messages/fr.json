@@ -5559,6 +5559,10 @@
       "statusOff": "Désactivé",
       "daysLabel": "Prévenir en dessous de (jours)",
       "daysAria": "Choisir le seuil de stock en jours",
+      "leadLabel": "Délai de réapprovisionnement (jours)",
+      "leadAria": "Délai de réapprovisionnement en jours",
+      "leadHelp": "L’alerte est envoyée ce nombre de jours plus un intervalle de dose plus tôt, pour qu’un réapprovisionnement arrive avant ta dernière dose. Un médicament donné peut remplacer cette valeur dans son onglet stock.",
+      "leadSavedToast": "Délai de réapprovisionnement enregistré.",
       "savedToast": "Seuil de stock enregistré.",
       "enabledToast": "Alertes de stock faible activées.",
       "disabledToast": "Alertes de stock faible désactivées.",
@@ -5752,7 +5756,9 @@
   "lowStockReminders": {
     "title": "Stock faible : {medName}",
     "body": "{medName} : {units} unités restantes — environ {days} jours de réserve.",
-    "bodyToday": "{medName} : {units} unités restantes — moins d’un jour de réserve."
+    "bodyToday": "{medName} : {units} unités restantes — moins d’un jour de réserve.",
+    "bodyReorder": "{medName} : {units} unités restantes. Le stock sera épuisé vers le {runsOutOn} — recommandez avant le {reorderBy}.",
+    "bodyLastDose": "{medName} : {units} unités restantes — environ votre dernière dose. Le stock sera épuisé vers le {runsOutOn}."
   },
   "moodReminders": {
     "dailyTitle": "Enregistrer votre humeur",
