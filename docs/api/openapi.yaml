@@ -39,6 +39,7 @@ tags:
   - name: Export
   - name: Sync
   - name: Cycle
+  - name: Labs
   - name: Admin
   - name: Meta
 paths:
@@ -937,6 +938,8 @@ paths:
                       type: boolean
                     cycle:
                       type: boolean
+                    labs:
+                      type: boolean
                 locale:
                   type: string
                   enum:
@@ -1064,6 +1067,8 @@ paths:
                     bmi:
                       type: boolean
                     cycle:
+                      type: boolean
+                    labs:
                       type: boolean
                 resourceTypes:
                   maxItems: 8
@@ -5200,6 +5205,249 @@ paths:
               schema:
                 $ref: "#/components/schemas/WebConsentGrantResponseEnvelope"
         "401": *a1
+        "422": *a3
+        "429": *a4
+  /api/labs:
+    get:
+      tags:
+        - Labs
+      summary: List the caller's lab results
+      description: Returns the caller's live (non-deleted) lab results, newest first, with optional analyte / panel /
+        date-range filters. Each row carries a server-computed neutral `rangeStatus` and a `hasNote` flag (the encrypted
+        note itself is not echoed).
+      parameters:
+        - in: query
+          name: analyte
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 120
+        - in: query
+          name: panel
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 120
+        - in: query
+          name: from
+          schema:
+            type: string
+            format: date-time
+            pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z))$
+        - in: query
+          name: to
+          schema:
+            type: string
+            format: date-time
+            pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z))$
+        - in: query
+          name: limit
+          schema:
+            default: 100
+            type: integer
+            minimum: 1
+            maximum: 500
+        - in: query
+          name: offset
+          schema:
+            default: 0
+            type: integer
+            minimum: 0
+            maximum: 9007199254740991
+        - in: query
+          name: sortDir
+          schema:
+            default: desc
+            type: string
+            enum:
+              - asc
+              - desc
+      responses:
+        "200":
+          description: Lab-result list.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListLabResultsEnvelope"
+        "401": *a1
+        "422": *a3
+        "429": *a4
+    post:
+      tags:
+        - Labs
+      summary: Record a lab result
+      description: Creates a single lab result for the caller. `source` is hardcoded MANUAL on this path. The optional note is
+        AES-256-GCM encrypted before write. Audits as `labResult.create`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                panel:
+                  anyOf:
+                    - type: string
+                      minLength: 1
+                      maxLength: 120
+                    - type: string
+                      const: ""
+                analyte:
+                  type: string
+                  minLength: 1
+                  maxLength: 120
+                value:
+                  type: number
+                unit:
+                  type: string
+                  minLength: 1
+                  maxLength: 40
+                referenceLow:
+                  type: number
+                referenceHigh:
+                  type: number
+                takenAt:
+                  type: string
+                  format: date-time
+                  pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z))$
+                note:
+                  anyOf:
+                    - type: string
+                      maxLength: 2000
+                    - type: string
+                      const: ""
+              required:
+                - analyte
+                - value
+                - unit
+                - takenAt
+      responses:
+        "201":
+          description: Created lab result.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreateLabResultResponse"
+        "401": *a1
+        "422": *a3
+        "429": *a4
+  /api/labs/{id}:
+    get:
+      tags:
+        - Labs
+      summary: Fetch a single lab result
+      description: Returns the lab result including its decrypted `note`. Cross-user rows surface as 404.
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+          required: true
+      responses:
+        "200":
+          description: Lab-result detail.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GetLabResultResponse"
+        "401": *a1
+        "404": &a6
+          description: Lab result not found (or owned by another user).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "422": *a3
+        "429": *a4
+    put:
+      tags:
+        - Labs
+      summary: Edit a lab result
+      description: Partial edit; omitted fields are untouched, an explicit null clears `panel` / `note` / a reference bound.
+        Audits as `labResult.update`.
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+          required: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                panel:
+                  anyOf:
+                    - anyOf:
+                        - type: string
+                          minLength: 1
+                          maxLength: 120
+                        - type: string
+                          const: ""
+                    - type: "null"
+                analyte:
+                  type: string
+                  minLength: 1
+                  maxLength: 120
+                value:
+                  type: number
+                unit:
+                  type: string
+                  minLength: 1
+                  maxLength: 40
+                referenceLow:
+                  anyOf:
+                    - type: number
+                    - type: "null"
+                referenceHigh:
+                  anyOf:
+                    - type: number
+                    - type: "null"
+                takenAt:
+                  type: string
+                  format: date-time
+                  pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z))$
+                note:
+                  anyOf:
+                    - anyOf:
+                        - type: string
+                          maxLength: 2000
+                        - type: string
+                          const: ""
+                    - type: "null"
+      responses:
+        "200":
+          description: Updated lab result.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UpdateLabResultResponse"
+        "401": *a1
+        "404": *a6
+        "422": *a3
+        "429": *a4
+    delete:
+      tags:
+        - Labs
+      summary: Delete a lab result
+      description: Soft-deletes the lab result (stamps `deletedAt`). Idempotent. Audits as `labResult.delete`.
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+          required: true
+      responses:
+        "200":
+          description: Deletion succeeded.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeleteLabResultResponse"
+        "401": *a1
+        "404": *a6
         "422": *a3
         "429": *a4
 components:
@@ -15570,6 +15818,237 @@ components:
         - kind
       additionalProperties: false
       description: Outcome of the idempotent web `ai_full` grant. Safe to call on every AI-settings mount.
+    ListLabResultsEnvelope:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/ListLabResultsResponse"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    ListLabResultsResponse:
+      type: object
+      properties:
+        results:
+          type: array
+          items:
+            $ref: "#/components/schemas/LabResult"
+        meta:
+          type: object
+          properties:
+            total:
+              type: number
+            limit:
+              type: number
+            offset:
+              type: number
+          required:
+            - total
+            - limit
+            - offset
+          additionalProperties: false
+      required:
+        - results
+        - meta
+      additionalProperties: false
+    LabResult:
+      type: object
+      properties:
+        id:
+          type: string
+        panel:
+          anyOf:
+            - type: string
+            - type: "null"
+        analyte:
+          type: string
+        value:
+          type: number
+        unit:
+          type: string
+        referenceLow:
+          anyOf:
+            - type: number
+            - type: "null"
+        referenceHigh:
+          anyOf:
+            - type: number
+            - type: "null"
+        takenAt:
+          type: string
+        source:
+          type: string
+        hasNote:
+          type: boolean
+        rangeStatus:
+          $ref: "#/components/schemas/LabReferenceRangeStatus"
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+      required:
+        - id
+        - panel
+        - analyte
+        - value
+        - unit
+        - referenceLow
+        - referenceHigh
+        - takenAt
+        - source
+        - hasNote
+        - rangeStatus
+        - createdAt
+        - updatedAt
+      additionalProperties: false
+      description: A stored lab result. The encrypted note is never echoed in list rows; `hasNote` flags its presence and the
+        single-resource GET returns the decrypted `note`.
+    LabReferenceRangeStatus:
+      type: string
+      enum:
+        - in-range
+        - below
+        - above
+        - unknown
+      description: "Server-computed, NEUTRAL reference-range verdict. `unknown` when the lab reported no usable bounds.
+        Inclusive bounds: a value on the limit reads in-range. The badge that renders this must stay calm and
+        informative — not an alarming red."
+    CreateLabResultResponse:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/LabResult"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    GetLabResultResponse:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/LabResultDetail"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    LabResultDetail:
+      type: object
+      properties:
+        id:
+          type: string
+        panel:
+          anyOf:
+            - type: string
+            - type: "null"
+        analyte:
+          type: string
+        value:
+          type: number
+        unit:
+          type: string
+        referenceLow:
+          anyOf:
+            - type: number
+            - type: "null"
+        referenceHigh:
+          anyOf:
+            - type: number
+            - type: "null"
+        takenAt:
+          type: string
+        source:
+          type: string
+        rangeStatus:
+          $ref: "#/components/schemas/LabReferenceRangeStatus"
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+        note:
+          anyOf:
+            - type: string
+            - type: "null"
+      required:
+        - id
+        - panel
+        - analyte
+        - value
+        - unit
+        - referenceLow
+        - referenceHigh
+        - takenAt
+        - source
+        - rangeStatus
+        - createdAt
+        - updatedAt
+        - note
+      additionalProperties: false
+      description: Single lab result including its decrypted free-text `note` (or null).
+    UpdateLabResultResponse:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/LabResult"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    DeleteLabResultResponse:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            deleted:
+              type: boolean
+          required:
+            - deleted
+          additionalProperties: false
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
     MedicationScheduleOutput:
       type: object
       properties:

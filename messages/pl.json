@@ -151,7 +151,8 @@
       "sleep": "Czas snu",
       "cycle": "Cykl menstruacyjny",
       "empty": "Brak danych dla wybranego okresu. Raport zachowa stronę tytułową.",
-      "unavailableHint": "Brak danych w tym okresie"
+      "unavailableHint": "Brak danych w tym okresie",
+      "labs": "Wyniki badań"
     },
     "insurer": "Ubezpieczyciel zdrowotny",
     "insuranceNumber": "Nr ubezpieczonego",
@@ -182,7 +183,13 @@
       "FOLLICULAR": "Folikularna",
       "OVULATORY": "Owulacyjna",
       "LUTEAL": "Lutealna"
-    }
+    },
+    "labsTitle": "Wyniki badań",
+    "labsColAnalyte": "Biomarker",
+    "labsColValue": "Wartość",
+    "labsColReference": "Norma",
+    "labsColStatus": "Status",
+    "labsColDate": "Data"
   },
   "errorBoundary": {
     "title": "Coś poszło nie tak",
@@ -240,7 +247,8 @@
       "mood": "Nastrój",
       "moodDescription": "Zapisz nastrój i tagi"
     },
-    "cycle": "Cykl"
+    "cycle": "Cykl",
+    "labs": "Wyniki badań"
   },
   "auth": {
     "login": "Zaloguj się",
@@ -4537,7 +4545,8 @@
       "includeAiSummary": "Dołącz podsumowanie AI (niezweryfikowane klinicznie)",
       "fhirNote": "Dane ustrukturyzowane są zgodne ze standardem FHIR R4 (kompatybilne z ePA).",
       "generate": "Generuj",
-      "error": "Eksport nie powiódł się ({code})."
+      "error": "Eksport nie powiódł się ({code}).",
+      "labs": "Wyniki badań"
     },
     "globalExcludedInjectionSitesLabel": "Globalnie wykluczone miejsca iniekcji",
     "globalExcludedInjectionSitesHint": "Miejsca wymienione tutaj nie są proponowane dla żadnego leku i są odrzucane przy rejestrowaniu dawki, nawet jeśli lek je preferuje.",
@@ -6208,5 +6217,48 @@
     "deleteN": "Usuń ({count})",
     "clearSelection": "Wyczyść zaznaczenie",
     "selectionBarLabel": "Akcje zaznaczenia"
+  },
+  "labs": {
+    "title": "Wyniki badań",
+    "subtitle": "Badania krwi i biomarkery",
+    "addResult": "Dodaj",
+    "addDescription": "Zapisz biomarker z wyniku laboratoryjnego.",
+    "addFirst": "Dodaj pierwszy wynik",
+    "emptyTitle": "Brak wyników badań",
+    "emptyDescription": "Zapisuj badania takie jak HbA1c, LDL czy ferrytyna, aby śledzić je w czasie i udostępniać lekarzowi.",
+    "referenceLabel": "Norma",
+    "readingsCount": "{count} wyników",
+    "deleteLatest": "Usuń ostatni wynik",
+    "deletedToast": "Wynik usunięty",
+    "deleteError": "Nie udało się usunąć wyniku",
+    "loadError": "Nie udało się wczytać wyników",
+    "range": {
+      "inRange": "W normie",
+      "below": "Poniżej normy",
+      "above": "Powyżej normy"
+    },
+    "form": {
+      "analyte": "Biomarker",
+      "analytePlaceholder": "np. HbA1c, LDL, ferrytyna",
+      "value": "Wartość",
+      "unit": "Jednostka",
+      "unitPlaceholder": "np. mg/dl, %, ng/ml",
+      "takenAt": "Data pobrania",
+      "optionalGroup": "Opcjonalne",
+      "panel": "Panel",
+      "panelPlaceholder": "np. Morfologia krwi",
+      "referenceLow": "Norma dolna",
+      "referenceHigh": "Norma górna",
+      "referenceLowPlaceholder": "Dolna granica",
+      "referenceHighPlaceholder": "Górna granica",
+      "referenceHint": "Przepisz zakres referencyjny z wyniku laboratoryjnego. Każda z granic jest opcjonalna.",
+      "note": "Notatka",
+      "notePlaceholder": "Opcjonalny kontekst tego wyniku",
+      "requiredError": "Biomarker, wartość i jednostka są wymagane.",
+      "rangeOrderError": "Norma dolna nie może przekraczać górnej.",
+      "save": "Zapisz",
+      "savedToast": "Wynik zapisany",
+      "saveError": "Nie udało się zapisać wyniku"
+    }
   }
 }

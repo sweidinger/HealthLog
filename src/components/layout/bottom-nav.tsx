@@ -6,6 +6,7 @@ import {
   Bug,
   Droplets,
   Dumbbell,
+  FlaskConical,
   Home,
   Lightbulb,
   MoreHorizontal,
@@ -70,6 +71,7 @@ const PRIMARY_RIGHT: ReadonlyArray<NavLink> = [
 const MORE_HUB: ReadonlyArray<NavLink> = [
   { href: "/measurements", tKey: "nav.measurements", icon: Activity },
   { href: "/mood", tKey: "nav.mood", icon: Waves },
+  { href: "/labs", tKey: "nav.labs", icon: FlaskConical },
   { href: "/insights/workouts", tKey: "nav.workouts", icon: Dumbbell },
   { href: "/achievements", tKey: "nav.achievements", icon: Trophy },
   { href: "/notifications", tKey: "nav.notifications", icon: Bell },

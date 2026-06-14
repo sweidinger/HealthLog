@@ -151,7 +151,8 @@
       "sleep": "Sleep duration",
       "cycle": "Menstrual cycle",
       "empty": "No data was recorded in this date range yet. The report will still include the cover page.",
-      "unavailableHint": "No data in this period"
+      "unavailableHint": "No data in this period",
+      "labs": "Lab results"
     },
     "insurer": "Health insurer",
     "insuranceNumber": "Insurance no.",
@@ -182,7 +183,13 @@
       "FOLLICULAR": "Follicular",
       "OVULATORY": "Ovulatory",
       "LUTEAL": "Luteal"
-    }
+    },
+    "labsTitle": "Lab results",
+    "labsColAnalyte": "Biomarker",
+    "labsColValue": "Value",
+    "labsColReference": "Reference",
+    "labsColStatus": "Status",
+    "labsColDate": "Date"
   },
   "errorBoundary": {
     "title": "Something went wrong",
@@ -240,7 +247,8 @@
       "mood": "Mood",
       "moodDescription": "Log your mood and tags"
     },
-    "cycle": "Cycle"
+    "cycle": "Cycle",
+    "labs": "Labs"
   },
   "auth": {
     "login": "Sign in",
@@ -4537,7 +4545,8 @@
       "includeAiSummary": "Append AI summary (not clinically validated)",
       "fhirNote": "The structured output follows the FHIR R4 standard (ePA-compatible).",
       "generate": "Generate",
-      "error": "Export failed ({code})."
+      "error": "Export failed ({code}).",
+      "labs": "Lab results"
     },
     "globalExcludedInjectionSitesLabel": "Globally excluded injection sites",
     "globalExcludedInjectionSitesHint": "Sites listed here are never offered for any medication and rejected when logging a dose, even if a medication prefers them.",
@@ -6208,5 +6217,48 @@
     "deleteN": "Delete ({count})",
     "clearSelection": "Clear selection",
     "selectionBarLabel": "Selection actions"
+  },
+  "labs": {
+    "title": "Lab results",
+    "subtitle": "Bloodwork and biomarker readings",
+    "addResult": "Add",
+    "addDescription": "Record a biomarker reading from a lab report.",
+    "addFirst": "Add your first result",
+    "emptyTitle": "No lab results yet",
+    "emptyDescription": "Record bloodwork like HbA1c, LDL or ferritin to track it over time and share it with your doctor.",
+    "referenceLabel": "Reference",
+    "readingsCount": "{count} readings",
+    "deleteLatest": "Delete latest reading",
+    "deletedToast": "Result deleted",
+    "deleteError": "Could not delete the result",
+    "loadError": "Could not load lab results",
+    "range": {
+      "inRange": "In range",
+      "below": "Below range",
+      "above": "Above range"
+    },
+    "form": {
+      "analyte": "Biomarker",
+      "analytePlaceholder": "e.g. HbA1c, LDL, Ferritin",
+      "value": "Value",
+      "unit": "Unit",
+      "unitPlaceholder": "e.g. mg/dL, %, ng/mL",
+      "takenAt": "Sample date",
+      "optionalGroup": "Optional",
+      "panel": "Panel",
+      "panelPlaceholder": "e.g. Complete blood count",
+      "referenceLow": "Reference low",
+      "referenceHigh": "Reference high",
+      "referenceLowPlaceholder": "Lower bound",
+      "referenceHighPlaceholder": "Upper bound",
+      "referenceHint": "Copy the reference range from your lab report. Either bound is optional.",
+      "note": "Note",
+      "notePlaceholder": "Optional context for this result",
+      "requiredError": "Biomarker, value and unit are required.",
+      "rangeOrderError": "The reference low must not exceed the reference high.",
+      "save": "Save",
+      "savedToast": "Result saved",
+      "saveError": "Could not save the result"
+    }
   }
 }

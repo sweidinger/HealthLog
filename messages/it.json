@@ -151,7 +151,8 @@
       "sleep": "Durata del sonno",
       "cycle": "Ciclo mestruale",
       "empty": "Nessun dato per il periodo selezionato. Il referto manterrà comunque la copertina.",
-      "unavailableHint": "Nessun dato in questo periodo"
+      "unavailableHint": "Nessun dato in questo periodo",
+      "labs": "Risultati degli esami"
     },
     "insurer": "Assicurazione sanitaria",
     "insuranceNumber": "N. assicurato",
@@ -182,7 +183,13 @@
       "FOLLICULAR": "Follicolare",
       "OVULATORY": "Ovulatoria",
       "LUTEAL": "Luteale"
-    }
+    },
+    "labsTitle": "Risultati degli esami",
+    "labsColAnalyte": "Biomarcatore",
+    "labsColValue": "Valore",
+    "labsColReference": "Riferimento",
+    "labsColStatus": "Stato",
+    "labsColDate": "Data"
   },
   "errorBoundary": {
     "title": "Qualcosa è andato storto",
@@ -240,7 +247,8 @@
       "mood": "Umore",
       "moodDescription": "Registra umore e tag"
     },
-    "cycle": "Ciclo"
+    "cycle": "Ciclo",
+    "labs": "Esami"
   },
   "auth": {
     "login": "Accedi",
@@ -4537,7 +4545,8 @@
       "includeAiSummary": "Aggiungi riepilogo IA (non validato clinicamente)",
       "fhirNote": "L’output strutturato segue lo standard FHIR R4 (compatibile ePA).",
       "generate": "Genera",
-      "error": "Esportazione non riuscita ({code})."
+      "error": "Esportazione non riuscita ({code}).",
+      "labs": "Risultati degli esami"
     },
     "globalExcludedInjectionSitesLabel": "Siti di iniezione esclusi globalmente",
     "globalExcludedInjectionSitesHint": "I siti elencati qui non vengono proposti per alcun farmaco e vengono rifiutati al momento della registrazione di una dose, anche se un farmaco li preferisce.",
@@ -6208,5 +6217,48 @@
     "deleteN": "Elimina ({count})",
     "clearSelection": "Cancella selezione",
     "selectionBarLabel": "Azioni di selezione"
+  },
+  "labs": {
+    "title": "Risultati degli esami",
+    "subtitle": "Analisi del sangue e biomarcatori",
+    "addResult": "Aggiungi",
+    "addDescription": "Registra un biomarcatore da un referto di laboratorio.",
+    "addFirst": "Aggiungi il primo risultato",
+    "emptyTitle": "Ancora nessun risultato",
+    "emptyDescription": "Registra esami come HbA1c, LDL o ferritina per seguirli nel tempo e condividerli con il tuo medico.",
+    "referenceLabel": "Riferimento",
+    "readingsCount": "{count} valori",
+    "deleteLatest": "Elimina l'ultimo valore",
+    "deletedToast": "Risultato eliminato",
+    "deleteError": "Impossibile eliminare il risultato",
+    "loadError": "Impossibile caricare i risultati",
+    "range": {
+      "inRange": "Nella norma",
+      "below": "Sotto la norma",
+      "above": "Sopra la norma"
+    },
+    "form": {
+      "analyte": "Biomarcatore",
+      "analytePlaceholder": "es. HbA1c, LDL, Ferritina",
+      "value": "Valore",
+      "unit": "Unità",
+      "unitPlaceholder": "es. mg/dL, %, ng/mL",
+      "takenAt": "Data del prelievo",
+      "optionalGroup": "Facoltativo",
+      "panel": "Pannello",
+      "panelPlaceholder": "es. Emocromo completo",
+      "referenceLow": "Riferimento minimo",
+      "referenceHigh": "Riferimento massimo",
+      "referenceLowPlaceholder": "Limite inferiore",
+      "referenceHighPlaceholder": "Limite superiore",
+      "referenceHint": "Copia l'intervallo di riferimento dal referto. Ciascun limite è facoltativo.",
+      "note": "Nota",
+      "notePlaceholder": "Contesto facoltativo per questo risultato",
+      "requiredError": "Biomarcatore, valore e unità sono obbligatori.",
+      "rangeOrderError": "Il riferimento minimo non può superare quello massimo.",
+      "save": "Salva",
+      "savedToast": "Risultato salvato",
+      "saveError": "Impossibile salvare il risultato"
+    }
   }
 }

@@ -8,6 +8,7 @@ import {
   ChevronsLeft,
   ChevronsRight,
   Droplets,
+  FlaskConical,
   Home,
   Lightbulb,
   LogOut,
@@ -66,6 +67,9 @@ const navItems = [
     icon: Pill,
     tourId: "nav-medications",
   },
+  // v1.17.1 — structured lab-result store. Pairs with the Vorsorge
+  // annual-blood-panel reminder (which records its result here).
+  { href: "/labs", tKey: "nav.labs", icon: FlaskConical, tourId: "nav-labs" },
   // v1.4.15 Phase B5: `tourId` values match `data-tour-id` lookups
   // performed by the onboarding tour. Keep these stable — renaming
   // them silently breaks the spotlight cutout for that step.
