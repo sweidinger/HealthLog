@@ -15,6 +15,7 @@
 import { prisma } from "@/lib/db";
 import type { ConsentReceiptModel } from "@/generated/prisma/models/ConsentReceipt";
 import type { ConsentKind } from "@/lib/validations/consent";
+import { isP2002 } from "@/lib/prisma-errors";
 
 export type ConsentReceipt = ConsentReceiptModel;
 
@@ -44,23 +45,38 @@ export async function createReceipt(
   // old row's `revoked_at` earlier than its own `signed_at`, inverting the
   // audit chain. Use a server clock for the revocation instead.
   const supersededAt = new Date();
-  return prisma.$transaction(async (tx) => {
-    // Supersede any currently-active receipt of this kind so the fresh
-    // grant doesn't collide with the partial unique index. `updateMany`
-    // over the active predicate is a no-op when none is active.
-    await tx.consentReceipt.updateMany({
-      where: { userId, kind, revokedAt: null },
-      data: { revokedAt: supersededAt },
+  try {
+    return await prisma.$transaction(async (tx) => {
+      // Supersede any currently-active receipt of this kind so the fresh
+      // grant doesn't collide with the partial unique index. `updateMany`
+      // over the active predicate is a no-op when none is active.
+      await tx.consentReceipt.updateMany({
+        where: { userId, kind, revokedAt: null },
+        data: { revokedAt: supersededAt },
+      });
+      return tx.consentReceipt.create({
+        data: {
+          userId,
+          kind,
+          artefact,
+          signedAt,
+        },
+      });
     });
-    return tx.consentReceipt.create({
-      data: {
-        userId,
-        kind,
-        artefact,
-        signedAt,
-      },
-    });
-  });
+  } catch (err) {
+    // Two concurrent FIRST grants (no prior active row) both see
+    // `updateMany` match zero rows under Read Committed — neither takes a
+    // lock — so both reach `create` and the second trips the partial unique
+    // index (migration 0159, `WHERE revoked_at IS NULL`) with P2002. That is
+    // success-shaped: the concurrent grant already produced the single active
+    // receipt the caller wants. Re-read it and return it rather than letting
+    // the violation surface as a generic 500.
+    if (isP2002(err)) {
+      const winner = await latestActiveReceipt(userId, kind);
+      if (winner) return winner;
+    }
+    throw err;
+  }
 }
 
 /**

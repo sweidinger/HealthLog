@@ -20,6 +20,14 @@
 -- (latest `created_at`) is the one `latestActiveReceipt` already returns, so
 -- the surviving active grant matches current read behaviour; the superseded
 -- duplicates get a `revoked_at` marker and stay in the audit history.
+--
+-- The sibling predicate breaks on `(created_at, id)`, not `created_at` alone:
+-- two active rows with an EXACT `created_at` tie would otherwise leave each
+-- without a strictly-greater sibling, so neither is revoked and the
+-- `CREATE UNIQUE INDEX` below aborts (23505), failing the deploy on exactly
+-- the tenants this migration heals. The `id` tie-break is total (PK), so each
+-- duplicate set keeps precisely one survivor — the row with the greatest
+-- `(created_at, id)`, preserving the "newest survives" intent.
 UPDATE "consent_receipts" c
   SET "revoked_at" = now()
   WHERE "revoked_at" IS NULL
@@ -28,7 +36,10 @@ UPDATE "consent_receipts" c
       WHERE n."user_id" = c."user_id"
         AND n."kind" = c."kind"
         AND n."revoked_at" IS NULL
-        AND n."created_at" > c."created_at"
+        AND (
+          n."created_at" > c."created_at"
+          OR (n."created_at" = c."created_at" AND n."id" > c."id")
+        )
     );
 
 CREATE UNIQUE INDEX IF NOT EXISTS "consent_receipts_user_id_kind_active_key"
