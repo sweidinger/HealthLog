@@ -76,6 +76,20 @@ function rankOf(source: MeasurementSource): number {
  * shifted forward by one before the local-day read — aligning it onto the same
  * wake day the WHOOP row for that night carries. Reading the key in the user's
  * timezone keeps a near-midnight or late re-score on the same night.
+ *
+ * KNOWN LIMITATION (05-M2, deferred to v1.17.2). OURA and POLAR are bucketed by
+ * the local day of their raw `measuredAt` on the assumption that both stamp the
+ * wake morning. Polar always anchors `measuredAt = ${date}T00:00:00.000Z`
+ * (UTC-midnight of the wake date); Oura prefers a real `bedtimeEnd` wake instant
+ * but FALLS BACK to the same UTC-midnight anchor. For a user in a far-negative
+ * UTC zone, a UTC-midnight anchor reads as the PREVIOUS local evening, so a
+ * Polar (or Oura-fallback) night can land one day earlier than the WHOOP/Oura
+ * night it should align with — splitting one physiological night across two
+ * recovery days near the date line. A correct fix needs an "anchor kind"
+ * (date-midnight vs real-instant) threaded through the recovery read so the
+ * date-anchored sources read their wake-day in UTC while WHOOP / Oura-bedtimeEnd
+ * stay local; that DTO change is out of scope for v1.17.1. Europe / positive-UTC
+ * users (the common case) are unaffected.
  */
 function wakeDayKeyOf(d: Date, source: MeasurementSource, tz: string): string {
   const anchor =

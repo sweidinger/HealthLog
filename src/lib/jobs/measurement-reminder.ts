@@ -41,6 +41,14 @@ import {
   type ReminderScheduleInput,
 } from "@/lib/measurement-reminders/scheduling";
 
+/**
+ * Slack added to `now` when scanning for due reminders, so a `nextDueAt`
+ * stamped just ahead of a tick still falls inside the same hour window.
+ * One tick interval (15 min) — small enough that the in-Node hour gate stays
+ * the authoritative fire decision.
+ */
+const DUE_QUERY_SLACK_MS = 15 * 60_000;
+
 export interface MeasurementReminderSummary {
   candidatesScanned: number;
   inWindow: number;
@@ -141,8 +149,22 @@ export async function runMeasurementReminderTick(
     failed: 0,
   };
 
+  // Bound the scan to reminders that could plausibly fire this tick so Postgres
+  // uses `measurement_reminders_user_id_next_due_at_idx` instead of loading the
+  // whole cross-tenant enabled set 4×/hour. `nextDueAt` is stamped at the
+  // notify-hour boundary, so anything due is already <= now; the small slack
+  // (one tick interval) covers a stamp landing just ahead of a :00 tick. A
+  // null `nextDueAt` is a non-recurring reminder that can never fire — the
+  // in-Node `evaluateMeasurementReminderDue` short-circuits it anyway, so
+  // excluding it here is parity. Reminders satisfied early re-anchor once they
+  // cross due, before any nudge fires, so dropping future rows is safe.
+  const dueFloor = new Date(now.getTime() + DUE_QUERY_SLACK_MS);
   const reminders = await prisma.measurementReminder.findMany({
-    where: { deletedAt: null, enabled: true },
+    where: {
+      deletedAt: null,
+      enabled: true,
+      nextDueAt: { not: null, lte: dueFloor },
+    },
     include: {
       user: {
         select: {

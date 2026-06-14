@@ -4936,6 +4936,8 @@
     "webPushVapidGenerated": "Klucze VAPID wygenerowane. Zapisz temat, aby zakończyć.",
     "webPushVapidGenerateFailed": "Nie udało się wygenerować kluczy VAPID.",
     "webPushVapidGenerateConfirm": "Klucze VAPID są już skonfigurowane. Wygenerowanie nowej pary unieważnia wszystkie subskrypcje push w przeglądarce — każde urządzenie musi zasubskrybować ponownie. Kontynuować?",
+    "webPushVapidGenerateConfirmTitle": "Wygenerować nowe klucze VAPID?",
+    "webPushVapidRegenerate": "Wygeneruj ponownie",
     "configured": "Skonfigurowano",
     "monitoringTestSuccess": "Wysłano zdarzenie testowe",
     "monitoringTestFailed": "Test monitorowania nie powiódł się",

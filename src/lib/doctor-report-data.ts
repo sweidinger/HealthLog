@@ -28,6 +28,10 @@ import type {
 } from "@/generated/prisma/client";
 import { resolveCanonicalRecovery } from "@/lib/insights/derived/recovery-resolve";
 import {
+  reconstructSleepNights,
+  type SleepStageRow,
+} from "@/lib/analytics/sleep-night";
+import {
   DEFAULT_DOCTOR_REPORT_PREFS,
   type DoctorReportPrefs,
 } from "@/lib/validations/doctor-report-prefs";
@@ -685,6 +689,10 @@ export async function collectDoctorReportData(
           // v1.17 W1a — the user timezone anchors the ledger compliance
           // band minter (matches the detail page's dose-day attribution).
           timezone: true,
+          // v1.17.1 — source-priority feeds the per-night sleep reconstruction
+          // so the report's SLEEP_DURATION resolves the same canonical night
+          // (multi-source de-dup) the dashboard + iOS feed show.
+          sourcePriorityJson: true,
           // v1.7.0 — patient-identity fields for the export cover + FHIR
           // Patient. KVNR is encrypted (and not selected here) — the route
           // decrypts it and hands it to the builders.
@@ -708,6 +716,36 @@ export async function collectDoctorReportData(
     });
   }
 
+  // v1.17.1 parity — SLEEP_DURATION enters `byType` as RAW per-stage rows (a
+  // 40-min DEEP block, a 12-min AWAKE block, …). Every other sleep surface
+  // (dashboard slim slice, /insights/sleep, /api/sleep/night, the iOS feed)
+  // shows the per-night reconstructed asleep total via `summarizeSleepNights`,
+  // and the v1.17.1 stamping fixes rewrite exactly those raw stage rows. Route
+  // the report's sleep value through the same engine — one number, one surface
+  // — exactly as RECOVERY_SCORE routes through `summariseCanonicalRecovery`.
+  const reportTz = userProfile?.timezone ?? "Europe/Berlin";
+  const sleepRows = measurements.filter(
+    (m) => m.type === "SLEEP_DURATION",
+  ) as unknown as SleepStageRow[];
+  if (sleepRows.length > 0) {
+    const nights = reconstructSleepNights(
+      sleepRows,
+      reportTz,
+      userProfile?.sourcePriorityJson ?? null,
+    ).filter((n) => n.asleepMinutes > 0);
+    // Per-night asleep totals, ascending by night, replace the raw per-stage
+    // rows so the clinical vitals table reads time-asleep hours, not stage-row
+    // minutes. Empty (no scorable night) drops SLEEP_DURATION entirely.
+    if (nights.length > 0) {
+      byType.SLEEP_DURATION = nights.map((n) => ({
+        value: n.asleepMinutes,
+        measuredAt: n.measuredAt.toISOString(),
+      }));
+    } else {
+      delete byType.SLEEP_DURATION;
+    }
+  }
+
   // Per-type stats.
   const stats: Record<string, DoctorReportStats> = {};
   for (const [type, entries] of Object.entries(byType)) {
@@ -728,7 +766,6 @@ export async function collectDoctorReportData(
   // detail page (slot dedup, band timing, cadence honoured). As-needed / PRN
   // medications are excluded — no schedule, no expected dose, no fabricated
   // 100 % on a clinical report. The medication itself stays on the list.
-  const reportTz = userProfile?.timezone ?? "Europe/Berlin";
   const compliance = buildLedgerCompliance(
     medications.map((m) => ({
       id: m.id,

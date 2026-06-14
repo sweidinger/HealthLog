@@ -4936,6 +4936,8 @@
     "webPushVapidGenerated": "VAPID keys generated. Save the subject to finish.",
     "webPushVapidGenerateFailed": "Could not generate VAPID keys.",
     "webPushVapidGenerateConfirm": "VAPID keys are already configured. Generating a new pair invalidates every browser push subscription — each device must re-subscribe. Continue?",
+    "webPushVapidGenerateConfirmTitle": "Regenerate VAPID keys?",
+    "webPushVapidRegenerate": "Regenerate",
     "configured": "Configured",
     "monitoringTestSuccess": "Test event sent",
     "monitoringTestFailed": "Monitoring test failed",
