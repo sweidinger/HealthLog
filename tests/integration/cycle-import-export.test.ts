@@ -176,6 +176,9 @@ describe("cycle backup — round-trips through build + restore", () => {
         date: "2026-03-02",
         flow: "MEDIUM",
         cycleId: cycle.id,
+        cervixPosition: "HIGH",
+        cervixFirmness: "SOFT",
+        cervixOpening: "OPEN",
         notesEncrypted: "v1:abc123:cipher-envelope",
         source: "MANUAL",
       },
@@ -187,7 +190,12 @@ describe("cycle backup — round-trips through build + restore", () => {
       data: { dayLogId: dayLog.id, symptomId: symptom.id },
     });
     await prisma.cycleProfile.create({
-      data: { userId: USER_ID, goal: "TRYING_TO_CONCEIVE", cycleTrackingEnabled: true },
+      data: {
+        userId: USER_ID,
+        goal: "TRYING_TO_CONCEIVE",
+        cycleTrackingEnabled: true,
+        secondarySymptom: "CERVIX",
+      },
     });
 
     // Build the backup section, then assert it round-trips through the schema.
@@ -217,6 +225,9 @@ describe("cycle backup — round-trips through build + restore", () => {
     });
     expect(restored).toHaveLength(1);
     expect(restored[0].notesEncrypted).toBe("v1:abc123:cipher-envelope");
+    expect(restored[0].cervixPosition).toBe("HIGH");
+    expect(restored[0].cervixFirmness).toBe("SOFT");
+    expect(restored[0].cervixOpening).toBe("OPEN");
     expect(restored[0].cycleId).not.toBeNull();
     expect(restored[0].symptomLinks.map((l) => l.symptom.key)).toEqual([
       "cramps",
@@ -226,5 +237,6 @@ describe("cycle backup — round-trips through build + restore", () => {
       where: { userId: USER_ID },
     });
     expect(profile.goal).toBe("TRYING_TO_CONCEIVE");
+    expect(profile.secondarySymptom).toBe("CERVIX");
   });
 });

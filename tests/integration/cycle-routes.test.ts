@@ -202,6 +202,30 @@ describe("cycle day-logs — single read (GET)", () => {
     const res = await GET(jsonRequest("/api/cycle/day-logs?date=nope", "GET"));
     expect(res.status).toBe(422);
   });
+
+  it("round-trips the cervix observation signs through POST → GET", async () => {
+    await loginAs(FEMALE_USER_ID);
+    const route = await import("@/app/api/cycle/day-logs/route");
+
+    await route.POST(
+      jsonRequest("/api/cycle/day-logs", "POST", {
+        date: "2026-05-02",
+        cervixPosition: "HIGH",
+        cervixFirmness: "SOFT",
+        cervixOpening: "OPEN",
+        loggedAt: "2026-05-02T08:00:00.000Z",
+      }),
+    );
+
+    const hit = await route.GET(
+      jsonRequest("/api/cycle/day-logs?date=2026-05-02", "GET"),
+    );
+    expect(hit.status).toBe(200);
+    const { data } = await hit.json();
+    expect(data.cervixPosition).toBe("HIGH");
+    expect(data.cervixFirmness).toBe("SOFT");
+    expect(data.cervixOpening).toBe("OPEN");
+  });
 });
 
 describe("cycle day-logs — symptom severity", () => {
@@ -487,6 +511,24 @@ describe("cycle-prefs gate flip", () => {
       }),
     );
     expect(res.status).toBe(201);
+  });
+
+  it("defaults secondarySymptom to MUCUS and persists a switch to CERVIX", async () => {
+    await loginAs(FEMALE_USER_ID);
+    const { GET, PATCH } = await import(
+      "@/app/api/auth/me/cycle-prefs/route"
+    );
+
+    const initial = await GET();
+    expect((await initial.json()).data.secondarySymptom).toBe("MUCUS");
+
+    const patched = await PATCH(
+      jsonRequest("/api/auth/me/cycle-prefs", "PATCH", {
+        secondarySymptom: "CERVIX",
+      }),
+    );
+    expect(patched.status).toBe(200);
+    expect((await patched.json()).data.secondarySymptom).toBe("CERVIX");
   });
 });
 
