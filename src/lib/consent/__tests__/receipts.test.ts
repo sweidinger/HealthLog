@@ -84,6 +84,50 @@ describe("createReceipt", () => {
     expect(prisma.$transaction).toHaveBeenCalledTimes(1);
   });
 
+  it("resolves a concurrent first-grant P2002 to the winning active row (no 500)", async () => {
+    // Two concurrent FIRST grants: both `updateMany` calls match 0 rows (no
+    // prior active receipt, no lock under Read Committed), both reach
+    // `create`, and the second trips the partial unique index with P2002.
+    vi.mocked(prisma.consentReceipt.updateMany).mockResolvedValue({
+      count: 0,
+    } as never);
+    const p2002 = Object.assign(new Error("Unique constraint failed"), {
+      code: "P2002",
+      name: "PrismaClientKnownRequestError",
+      clientVersion: "x",
+    });
+    vi.mocked(prisma.consentReceipt.create).mockRejectedValue(p2002 as never);
+    // The concurrent grant that won is now the single active receipt.
+    const winner = row({ id: "winner-row" });
+    vi.mocked(prisma.consentReceipt.findFirst).mockResolvedValue(
+      winner as never,
+    );
+
+    const signedAt = new Date("2026-05-18T10:00:00.000Z");
+    const result = await createReceipt("user-1", "ai_full", "PDF…", signedAt);
+
+    // Success-shaped: returns the row the concurrent grant produced, not a
+    // propagated P2002 (which the route would surface as a generic 500).
+    expect(result.id).toBe("winner-row");
+    expect(prisma.consentReceipt.findFirst).toHaveBeenCalledWith({
+      where: { userId: "user-1", kind: "ai_full", revokedAt: null },
+      orderBy: { createdAt: "desc" },
+    });
+  });
+
+  it("re-throws a non-P2002 create failure", async () => {
+    vi.mocked(prisma.consentReceipt.updateMany).mockResolvedValue({
+      count: 0,
+    } as never);
+    vi.mocked(prisma.consentReceipt.create).mockRejectedValue(
+      new Error("connection reset") as never,
+    );
+
+    await expect(
+      createReceipt("user-1", "ai_full", "PDF…", new Date()),
+    ).rejects.toThrow("connection reset");
+  });
+
   it("uses a server clock (not a backdated client signedAt) for the supersede marker", async () => {
     vi.mocked(prisma.consentReceipt.updateMany).mockResolvedValue({
       count: 1,

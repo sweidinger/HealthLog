@@ -216,7 +216,112 @@ const sleepNightResponse = z
       "One reconstructed sleep night: the main session's hypnogram segments + breakdown, plus same-wake-day naps surfaced separately.",
   });
 
+// ── Time-series adapter (iOS chart source) ───────────────────────────
+//
+// v1.16.16 — documents the long-shipped `GET /api/measurements/series`
+// the iOS charts read off. The response is described AS-IS: `points`
+// carry `id`/`at`/`value`/`secondary` (the route's wire field names),
+// not the canonical `measuredAt`. `secondary` pairs the diastolic value
+// for `bloodPressure`; `sleepStages` is per-night stage hours for `sleep`
+// and null otherwise. `unit` is the resolved per-kind token (glucose +
+// sleep resolve at request time to the user's display unit / hours).
+const seriesKindEnum = z.enum([
+  "weight",
+  "bloodPressure",
+  "pulse",
+  "bodyFat",
+  "glucose",
+  "sleep",
+  "steps",
+  "totalBodyWater",
+  "boneMass",
+  "oxygenSaturation",
+  "restingHeartRate",
+  "heartRateVariability",
+  "vo2Max",
+]);
+
+const seriesQuerySchema = z.object({
+  kind: seriesKindEnum,
+  days: z.coerce
+    .number()
+    .int()
+    .min(1)
+    .max(3650)
+    .optional()
+    .default(30)
+    .describe(
+      "Look-back window in days (1..3650, default 30). `sleep` is internally capped to 365 regardless of the requested range.",
+    ),
+});
+
+const seriesPointSchema = z.object({
+  id: z.string().describe("Measurement row id, or `sleep:<wake-day>` for a sleep night."),
+  at: z.iso.datetime({ offset: true }).describe("Point timestamp (ISO-8601)."),
+  value: z.number().describe("Primary value in the top-level `unit`."),
+  secondary: z
+    .number()
+    .nullable()
+    .describe(
+      "Diastolic value for `kind=bloodPressure` (paired within ±5 min); null for every other kind.",
+    ),
+  sleepStages: z
+    .record(z.string(), z.number())
+    .nullable()
+    .optional()
+    .describe(
+      "Per-stage hours for a `kind=sleep` night (CORE/DEEP/REM/…); null/absent for non-sleep kinds.",
+    ),
+});
+
+const seriesResponse = z
+  .object({
+    kind: seriesKindEnum,
+    unit: z
+      .string()
+      .describe(
+        "Resolved unit token for `value`. `glucose` follows the user's mg/dL|mmol/L preference; `sleep` is `h` (per-night time-asleep in hours).",
+      ),
+    points: z.array(seriesPointSchema),
+    stats: z
+      .object({
+        mean: z.number(),
+        min: z.number(),
+        max: z.number(),
+        stdDev: z.number(),
+        count: z.number().int().nonnegative(),
+      })
+      .describe("Summary over the returned points; all-zero when empty."),
+  })
+  .meta({
+    id: "MeasurementsSeriesResponse",
+    description:
+      "iOS-friendly per-kind time series: one point per reading (or per reconstructed night for `sleep`), an explicit `unit` token, and a summary `stats` block.",
+  });
+
 export const measurementPaths: NonNullable<ZodOpenApiObject["paths"]> = {
+  "/api/measurements/series": {
+    get: {
+      tags: ["Measurements"],
+      summary: "Per-kind time series (iOS chart source)",
+      description:
+        "Maps a camelCase `kind` to the canonical MeasurementType(s) and returns an ordered point series with an explicit `unit` token and a summary `stats` block. `bloodPressure` pairs systolic + diastolic (`secondary`) within ±5 min so one fetch renders the dual-line chart; `sleep` collapses per-stage rows into one per-night point carrying time-asleep in hours (`sleepStages` holds the per-stage breakdown) and is internally capped to 365 days. `glucose` values + `unit` resolve to the user's mg/dL|mmol/L preference. Auth via cookie or Bearer.",
+      requestParams: {
+        query: seriesQuerySchema,
+      },
+      responses: {
+        "200": {
+          description: "Resolved series.",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(seriesResponse, "GetMeasurementsSeriesResponse"),
+            },
+          },
+        },
+        ...stdResponses,
+      },
+    },
+  },
   "/api/measurements": {
     get: {
       tags: ["Measurements"],
