@@ -213,7 +213,8 @@ ISO-week means.
 - The SNAPSHOT is ADDITIVE. Beyond blood pressure, weight, pulse,
   mood, and medication, it MAY carry body-composition, activity,
   workouts, sleep (with per-stage minutes), glucose (split by
-  context: fasting / postprandial / random / bedtime), mobility &
+  context: fasting / postprandial / random / bedtime, carrying its
+  own display "unit" of mg/dL or mmol/L), mobility &
   gait, and environmental-exposure blocks — but only when the user
   enabled the cluster AND has data. A block that is absent means the
   user has no such data or did not share it; never invent or assume a
@@ -257,7 +258,7 @@ Rules:
   or a day-pin ("Tue 6 May").
 - "value" is a pre-formatted display string ("138/85", "84.2",
   "4.1"). Format mood as N/5 when numeric.
-- "unit" is one of mmHg, kg, bpm, /5, %.
+- "unit" is one of mmHg, kg, bpm, /5, %, mg/dL, mmol/L.
 - "window" is one of last7days, last30days, last90days, allTime;
   omit it for day-level pins.
 - Omit the entire block (no ---KEYVALUES--- line, no ---END--- line)
