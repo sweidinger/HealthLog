@@ -364,6 +364,24 @@ export function reconstructNights(
     const deep = n.stages.DEEP ?? 0;
     const core = n.stages.CORE ?? 0;
     const hasStageBreakdown = rem > 0 || deep > 0 || core > 0;
+    const awakeMinutes = n.awakeMinutes ?? 0;
+    // Efficiency denominator ("in bed"). The canonical engine sets
+    // `inBedMinutes` to null unless a real IN_BED row exists anywhere in the
+    // night — but a very common Apple-Health shape carries AWAKE rows and NO
+    // IN_BED row, for which the legacy reconstructor synthesised a denominator
+    // as `asleep + awake`. Taking the canonical null straight through silently
+    // dropped the efficiency sub-score for that whole class of night, which
+    // reweights the composite and shifts historical Sleep Scores. Restore the
+    // synthesised fallback ON TOP of the (correctly deduped) canonical totals:
+    // keep the real IN_BED figure when present, else synthesise `asleep + awake`
+    // when both are positive, else keep null (neither signal — no honest
+    // efficiency).
+    const inBedMinutes =
+      n.inBedMinutes != null
+        ? n.inBedMinutes
+        : n.asleepMinutes > 0 && awakeMinutes > 0
+          ? n.asleepMinutes + awakeMinutes
+          : null;
     // Midpoint = centre of the asleep span. The canonical night's `measuredAt`
     // is the wake instant (latest stage END); the asleep span is
     // `asleepMinutes` long ending there, so its centre is wake − asleep/2.
@@ -377,10 +395,10 @@ export function reconstructNights(
     return {
       night: n.night,
       asleepMinutes: n.asleepMinutes,
-      awakeMinutes: n.awakeMinutes ?? 0,
+      awakeMinutes,
       remMinutes: rem,
       deepMinutes: deep,
-      inBedMinutes: n.inBedMinutes,
+      inBedMinutes,
       hasStageBreakdown,
       midpoint,
     };
