@@ -91,6 +91,7 @@ describe("PUT /api/auth/me/doctor-report-prefs", () => {
       compliance: true,
       sleep: false,
       cycle: false,
+      labs: true,
     };
     const res = await (PUT as (r: Request) => Promise<Response>)(mkPut(body));
     expect(res.status).toBe(200);
@@ -114,6 +115,7 @@ describe("PUT /api/auth/me/doctor-report-prefs", () => {
       compliance: false,
       sleep: false,
       cycle: false,
+      labs: false,
     };
     vi.mocked(prisma.user.findUnique).mockResolvedValue({
       doctorReportPrefsJson: current,

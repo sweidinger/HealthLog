@@ -85,6 +85,18 @@ export interface FhirObservation {
   component?: FhirObservationComponent[];
   /** v1.10.0 — descriptive note (e.g. the wellness-score disclaimer). */
   note?: FhirAnnotation[];
+  /**
+   * v1.17.1 — R4 `Observation.referenceRange`. Carries the lab's reported
+   * normal bounds for a structured lab result; either bound may be absent
+   * (a lab may report only an upper or lower limit).
+   */
+  referenceRange?: FhirObservationReferenceRange[];
+}
+
+/** R4 `Observation.referenceRange` element. */
+export interface FhirObservationReferenceRange {
+  low?: FhirQuantity;
+  high?: FhirQuantity;
 }
 
 export interface FhirDosage {

@@ -32,6 +32,7 @@ export const doctorReportPrefsSchema = z
     compliance: z.boolean(),
     sleep: z.boolean(),
     cycle: z.boolean(),
+    labs: z.boolean(),
   })
   .partial();
 
@@ -51,6 +52,7 @@ export interface DoctorReportPrefs {
   compliance: boolean;
   sleep: boolean;
   cycle: boolean;
+  labs: boolean;
 }
 
 /**
@@ -70,6 +72,9 @@ export const DEFAULT_DOCTOR_REPORT_PREFS: DoctorReportPrefs = {
   // Cycle data is opt-in: a user sharing a BP report with a cardiologist
   // should not auto-leak reproductive data. Same privacy stance as mood.
   cycle: false,
+  // Lab results the user recorded for exactly this purpose — sharing
+  // bloodwork with a clinician. ON by default, like BP / weight.
+  labs: true,
 };
 
 /**

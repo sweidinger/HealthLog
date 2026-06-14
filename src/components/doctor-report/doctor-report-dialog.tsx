@@ -87,6 +87,11 @@ interface SectionAvailability {
   // the cycle toggle. Present so `keyof DoctorReportPrefs` indexing
   // typechecks. Optional — the availability endpoint may not provide it.
   cycle?: boolean;
+  // v1.17.1 — labs section. Like cycle, not rendered by this legacy dialog;
+  // the flagship export panel surfaces the toggle. Optional — the
+  // availability endpoint may not provide it. Present so the
+  // `keyof DoctorReportPrefs` indexing typechecks.
+  labs?: boolean;
 }
 
 export interface DoctorReportSubmitPayload {
@@ -547,6 +552,9 @@ const SECTION_LABEL_KEYS: Record<keyof DoctorReportPrefs, string> = {
   // v1.15.0 — not rendered by this legacy dialog (SECTION_ORDER omits it);
   // present so the `keyof DoctorReportPrefs` record stays exhaustive.
   cycle: "doctorReport.sections.cycle",
+  // v1.17.1 — labs section; the flagship export panel drives the toggle,
+  // present here so the `keyof DoctorReportPrefs` record stays exhaustive.
+  labs: "doctorReport.sections.labs",
 };
 
 /**

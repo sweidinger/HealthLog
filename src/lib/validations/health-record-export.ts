@@ -74,6 +74,9 @@ export const exportSectionsSchema = z
     bmi: z.boolean(),
     // Cycle / reproductive health — opt-in (privacy default OFF, like mood).
     cycle: z.boolean(),
+    // Structured lab results — ON by default (recorded to share with a
+    // clinician, same stance as BP / weight).
+    labs: z.boolean(),
   })
   .partial();
 
@@ -135,5 +138,6 @@ export function toDoctorReportPrefs(
     sleep: a.sleep ?? fallback.sleep,
     // Cycle is opt-in: only true when explicitly requested (privacy).
     cycle: s.cycle === true,
+    labs: s.labs ?? fallback.labs,
   };
 }
