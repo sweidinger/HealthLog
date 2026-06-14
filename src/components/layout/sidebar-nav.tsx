@@ -3,7 +3,6 @@
 import { useMemo, useState } from "react";
 import {
   Bell,
-  Bug,
   ChevronsLeft,
   ChevronsRight,
   LogOut,
@@ -21,6 +20,7 @@ import { medicationsPrefetchIntentProps } from "@/lib/queries/prefetch-medicatio
 import {
   isNavDestinationActive,
   visibleNavDestinations,
+  visibleUtilityDestinations,
 } from "@/components/layout/nav-model";
 import { cn } from "@/lib/utils";
 import { Logo } from "@/components/ui/logo";
@@ -266,6 +266,118 @@ export function SidebarNav() {
     });
   }
 
+  // v1.17.1 (F-1 residue) — the sidebar footer utility links derive from
+  // the SAME shared list the mobile More-hub tail consumes, so the two
+  // surfaces can no longer drift into two hand-curated utility lists.
+  // Notifications is surfaced in the avatar menu (not the footer), so the
+  // footer takes every utility entry except `/notifications`; Admin is the
+  // role-gated, sidebar-only surface and is inserted separately below.
+  const footerUtilityItems = useMemo(
+    () =>
+      visibleUtilityDestinations(bugReportEnabled).filter(
+        (d) => d.href !== "/notifications",
+      ),
+    [bugReportEnabled],
+  );
+
+  function isUtilityActive(href: string) {
+    // Settings matches the whole `/settings/*` shell; the rest match exact.
+    return href === "/settings/account"
+      ? pathname.startsWith("/settings")
+      : pathname === href;
+  }
+
+  function renderUtilityLink(
+    item: { href: string; tKey: string; icon: typeof Settings },
+  ) {
+    const Icon = item.icon;
+    const isActive = isUtilityActive(item.href);
+    const tourId = item.href === "/settings/account" ? "nav-settings" : undefined;
+    if (collapsed) {
+      return (
+        <Tooltip key={item.href}>
+          <TooltipTrigger asChild>
+            <Link
+              href={item.href}
+              aria-current={isActive ? "page" : undefined}
+              data-tour-id={tourId}
+              className={cn(
+                "flex items-center justify-center rounded-lg p-2.5 transition-colors",
+                isActive
+                  ? "bg-primary/10 text-primary"
+                  : "text-foreground hover:bg-accent",
+              )}
+            >
+              <Icon className="h-4 w-4" />
+            </Link>
+          </TooltipTrigger>
+          <TooltipContent side="right" sideOffset={8}>
+            {t(item.tKey)}
+          </TooltipContent>
+        </Tooltip>
+      );
+    }
+    return (
+      <Link
+        key={item.href}
+        href={item.href}
+        aria-current={isActive ? "page" : undefined}
+        data-tour-id={tourId}
+        className={cn(
+          "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
+          isActive
+            ? "bg-primary/10 text-primary"
+            : "text-foreground hover:bg-accent",
+        )}
+      >
+        <Icon className="h-4 w-4" />
+        {t(item.tKey)}
+      </Link>
+    );
+  }
+
+  function renderAdminLink() {
+    if (!isAdmin) return null;
+    if (collapsed) {
+      return (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Link
+              href="/admin"
+              aria-current={onAdminPage ? "page" : undefined}
+              className={cn(
+                "flex items-center justify-center rounded-lg p-2.5 transition-colors",
+                onAdminPage
+                  ? "bg-primary/10 text-primary"
+                  : "text-foreground hover:bg-accent",
+              )}
+            >
+              <Shield className="h-4 w-4" />
+            </Link>
+          </TooltipTrigger>
+          <TooltipContent side="right" sideOffset={8}>
+            {t("nav.admin")}
+          </TooltipContent>
+        </Tooltip>
+      );
+    }
+    return (
+      <Link
+        href="/admin"
+        aria-current={onAdminPage ? "page" : undefined}
+        className={cn(
+          "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
+          onAdminPage
+            ? "bg-primary/10 text-primary"
+            : "text-foreground hover:bg-accent",
+        )}
+      >
+        <Shield className="h-4 w-4" />
+        {t("nav.admin")}
+      </Link>
+    );
+  }
+
   function renderCollapseToggle(className?: string) {
     return (
       <Tooltip>
@@ -402,127 +514,17 @@ export function SidebarNav() {
           </div>
         </nav>
 
-        {/* Bottom utility links */}
+        {/* Bottom utility links — the shared utility tail (minus
+            Notifications, which lives in the avatar menu) with the
+            role-gated Admin entry inserted before Settings. */}
         <div className={cn("space-y-1 pb-1", collapsed ? "px-1.5" : "px-3")}>
-          {collapsed ? (
-            <>
-              {bugReportEnabled && (
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Link
-                      href="/bugreport"
-                      aria-current={
-                        pathname === "/bugreport" ? "page" : undefined
-                      }
-                      className={cn(
-                        "flex items-center justify-center rounded-lg p-2.5 transition-colors",
-                        pathname === "/bugreport"
-                          ? "bg-primary/10 text-primary"
-                          : "text-foreground hover:bg-accent",
-                      )}
-                    >
-                      <Bug className="h-4 w-4" />
-                    </Link>
-                  </TooltipTrigger>
-                  <TooltipContent side="right" sideOffset={8}>
-                    {t("nav.bugreport")}
-                  </TooltipContent>
-                </Tooltip>
-              )}
-              {isAdmin && (
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Link
-                      href="/admin"
-                      aria-current={onAdminPage ? "page" : undefined}
-                      className={cn(
-                        "flex items-center justify-center rounded-lg p-2.5 transition-colors",
-                        onAdminPage
-                          ? "bg-primary/10 text-primary"
-                          : "text-foreground hover:bg-accent",
-                      )}
-                    >
-                      <Shield className="h-4 w-4" />
-                    </Link>
-                  </TooltipTrigger>
-                  <TooltipContent side="right" sideOffset={8}>
-                    {t("nav.admin")}
-                  </TooltipContent>
-                </Tooltip>
-              )}
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Link
-                    href="/settings/account"
-                    aria-current={
-                      pathname.startsWith("/settings") ? "page" : undefined
-                    }
-                    data-tour-id="nav-settings"
-                    className={cn(
-                      "flex items-center justify-center rounded-lg p-2.5 transition-colors",
-                      pathname.startsWith("/settings")
-                        ? "bg-primary/10 text-primary"
-                        : "text-foreground hover:bg-accent",
-                    )}
-                  >
-                    <Settings className="h-4 w-4" />
-                  </Link>
-                </TooltipTrigger>
-                <TooltipContent side="right" sideOffset={8}>
-                  {t("nav.settings")}
-                </TooltipContent>
-              </Tooltip>
-            </>
-          ) : (
-            <>
-              {bugReportEnabled && (
-                <Link
-                  href="/bugreport"
-                  aria-current={pathname === "/bugreport" ? "page" : undefined}
-                  className={cn(
-                    "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
-                    pathname === "/bugreport"
-                      ? "bg-primary/10 text-primary"
-                      : "text-foreground hover:bg-accent",
-                  )}
-                >
-                  <Bug className="h-4 w-4" />
-                  {t("nav.bugreport")}
-                </Link>
-              )}
-              {isAdmin && (
-                <Link
-                  href="/admin"
-                  aria-current={onAdminPage ? "page" : undefined}
-                  className={cn(
-                    "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
-                    onAdminPage
-                      ? "bg-primary/10 text-primary"
-                      : "text-foreground hover:bg-accent",
-                  )}
-                >
-                  <Shield className="h-4 w-4" />
-                  {t("nav.admin")}
-                </Link>
-              )}
-              <Link
-                href="/settings/account"
-                aria-current={
-                  pathname.startsWith("/settings") ? "page" : undefined
-                }
-                data-tour-id="nav-settings"
-                className={cn(
-                  "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
-                  pathname.startsWith("/settings")
-                    ? "bg-primary/10 text-primary"
-                    : "text-foreground hover:bg-accent",
-                )}
-              >
-                <Settings className="h-4 w-4" />
-                {t("nav.settings")}
-              </Link>
-            </>
-          )}
+          {footerUtilityItems
+            .filter((item) => item.href !== "/settings/account")
+            .map((item) => renderUtilityLink(item))}
+          {renderAdminLink()}
+          {footerUtilityItems
+            .filter((item) => item.href === "/settings/account")
+            .map((item) => renderUtilityLink(item))}
         </div>
 
         <SidebarUserSection collapsed={collapsed} />
