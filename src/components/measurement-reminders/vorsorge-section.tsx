@@ -18,11 +18,18 @@ import { CheckCircle2, Plus, Trash2 } from "lucide-react";
 import { useTranslations } from "@/lib/i18n/context";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import {
+  Card,
+  CardAction,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { NativeSelect } from "@/components/ui/native-select";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   useMeasurementReminders,
   useMeasurementReminderMutations,
@@ -137,7 +144,7 @@ export function VorsorgeSection({ enabled = true }: { enabled?: boolean }) {
 
       {showForm && (
         <Card>
-          <CardContent className="space-y-4 pt-6">
+          <CardContent className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="vorsorge-label">
                 {t("measurementReminders.form.label")}
@@ -263,10 +270,32 @@ export function VorsorgeSection({ enabled = true }: { enabled?: boolean }) {
         </Card>
       )}
 
+      {isLoading && !showForm && (
+        <div className="space-y-3" data-slot="vorsorge-loading">
+          {Array.from({ length: 3 }, (_, i) => (
+            <Card key={i} aria-hidden="true">
+              <CardContent className="flex items-start justify-between gap-3">
+                <div className="min-w-0 space-y-2">
+                  <Skeleton className="h-4 w-40" />
+                  <Skeleton className="h-3 w-28" />
+                </div>
+                <Skeleton className="h-8 w-24 shrink-0" />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+
       {!isLoading && (reminders?.length ?? 0) === 0 && !showForm && (
         <EmptyState
+          icon={<Plus className="size-6" />}
           title={t("measurementReminders.empty.title")}
           description={t("measurementReminders.empty.description")}
+          action={
+            <Button type="button" onClick={() => setShowForm(true)}>
+              {t("measurementReminders.addButton")}
+            </Button>
+          }
         />
       )}
 
@@ -315,31 +344,16 @@ function VorsorgeCard({
       {/* NEUTRAL card — no status-driven colour. The due state reads only
           through the discreet badge below. */}
       <Card>
-        <CardContent className="flex items-start justify-between gap-3 pt-6">
-          <div className="min-w-0 space-y-1">
-            <div className="flex items-center gap-2">
-              <p className="truncate font-medium">{reminder.label}</p>
-              {!reminder.enabled && (
-                <Badge variant="outline">
-                  {t("measurementReminders.disabledBadge")}
-                </Badge>
-              )}
-            </div>
-            <p className="text-muted-foreground text-sm">
-              <Badge variant="secondary" className="mr-2">
-                {t(`measurementReminders.${due.key}`, { days: due.days })}
+        <CardHeader>
+          <CardTitle className="flex min-w-0 items-center gap-2 text-sm">
+            <span className="truncate font-medium">{reminder.label}</span>
+            {!reminder.enabled && (
+              <Badge variant="outline">
+                {t("measurementReminders.disabledBadge")}
               </Badge>
-              {cadence}
-            </p>
-            {reminder.location && (
-              <p className="text-muted-foreground text-sm">
-                {t("measurementReminders.location.prefix", {
-                  location: reminder.location,
-                })}
-              </p>
             )}
-          </div>
-          <div className="flex shrink-0 gap-1">
+          </CardTitle>
+          <CardAction className="flex gap-1">
             <Button
               type="button"
               size="sm"
@@ -361,7 +375,22 @@ function VorsorgeCard({
             >
               <Trash2 className="h-4 w-4" />
             </Button>
-          </div>
+          </CardAction>
+        </CardHeader>
+        <CardContent className="space-y-1">
+          <p className="text-muted-foreground text-sm">
+            <Badge variant="secondary" className="mr-2">
+              {t(`measurementReminders.${due.key}`, { days: due.days })}
+            </Badge>
+            {cadence}
+          </p>
+          {reminder.location && (
+            <p className="text-muted-foreground text-sm">
+              {t("measurementReminders.location.prefix", {
+                location: reminder.location,
+              })}
+            </p>
+          )}
         </CardContent>
       </Card>
     </li>
