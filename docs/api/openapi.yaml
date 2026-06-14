@@ -8661,7 +8661,9 @@ components:
                       - CORE
                       - DEEP
                   additionalProperties:
-                    type: number
+                    type: integer
+                    minimum: 0
+                    maximum: 9007199254740991
                   required:
                     - IN_BED
                     - AWAKE
@@ -8776,7 +8778,9 @@ components:
                     - CORE
                     - DEEP
                 additionalProperties:
-                  type: number
+                  type: integer
+                  minimum: 0
+                  maximum: 9007199254740991
                 required:
                   - IN_BED
                   - AWAKE
