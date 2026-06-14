@@ -2795,6 +2795,71 @@
       "emptyState": {
         "title": "Noch keine Glukosedaten",
         "description": "Blutzuckerwerte erscheinen hier, sobald du einen erfasst oder ein Gerät synchronisiert."
+      },
+      "clinical": {
+        "title": "Glukose-Überblick",
+        "subtitle": "Ein Blick auf deine letzten {days} Tage, aus {count} Messungen.",
+        "spotCaveat": "Das sind Schätzungen aus einzelnen Stichproben-Messungen, kein Profil eines kontinuierlichen Sensors – lies sie als Richtung, nicht als klinisches Urteil.",
+        "learningTitle": "Lerne deine Glukose noch kennen",
+        "learningBody": "Bisher sind das {count} über {days}. Mit etwas mehr Verlauf wird das Bild klarer – mess weiter oder lass es ein verbundenes Gerät ergänzen.",
+        "learningBodyEmpty": "Sobald ein paar Messungen vorliegen – von dir erfasst oder von einem Gerät synchronisiert – nehmen Zeit-im-Zielbereich, Durchschnitt und Schwankung hier Gestalt an.",
+        "readingsCount": "{count} Messungen",
+        "readingsCountOne": "1 Messung",
+        "daysCount": "{days} Tage",
+        "daysCountOne": "1 Tag",
+        "tir": {
+          "title": "Zeit im Zielbereich",
+          "caption": "Anteil der Messungen je Bereich (70–180 mg/dl ist das Ziel).",
+          "veryLow": "Sehr niedrig",
+          "low": "Niedrig",
+          "inRange": "Im Zielbereich",
+          "high": "Hoch",
+          "veryHigh": "Sehr hoch",
+          "ariaLabel": "Zeit im Zielbereich: {tir}% im Ziel, {below}% darunter, {above}% darüber.",
+          "empty": "Noch keine Messungen für das Diagramm."
+        },
+        "gmi": {
+          "label": "Glukose-Management-Indikator",
+          "help": "Eine HbA1c-ähnliche Schätzung aus deiner durchschnittlichen Glukose."
+        },
+        "eA1c": {
+          "label": "Geschätzter HbA1c",
+          "help": "Eine HbA1c-Schätzung aus deinem mittleren Glukosewert (ADAG)."
+        },
+        "mean": {
+          "label": "Durchschnittliche Glukose"
+        },
+        "cv": {
+          "label": "Schwankung",
+          "steady": "Stabil",
+          "unstable": "Instabil",
+          "help": "Variationskoeffizient. Ab 36 % gilt die Glukose als instabil; niedriger ist stabiler."
+        },
+        "advanced": {
+          "toggle": "Erweiterte Indizes",
+          "intro": "Forschungsnahe Kennzahlen für den genaueren Blick. Jede fasst deine Messungen zu einer risikogewichteten Zahl zusammen.",
+          "jIndex": {
+            "label": "J-Index",
+            "help": "Ein einzelner Wert aus Durchschnitt und Streuung – niedriger steht für engere Kontrolle."
+          },
+          "lbgi": {
+            "label": "Risiko für Tiefwerte (LBGI)",
+            "help": "Kovatchevs Index, gewichtet danach, wie oft und wie tief Werte ins Tief rutschen."
+          },
+          "hbgi": {
+            "label": "Risiko für Hochwerte (HBGI)",
+            "help": "Kovatchevs Index, gewichtet danach, wie oft und wie hoch Werte steigen."
+          },
+          "byContext": {
+            "title": "Nach Kontext",
+            "fasting": "Nüchtern",
+            "postprandial": "Nach dem Essen",
+            "random": "Beliebig",
+            "bedtime": "Vor dem Schlafen",
+            "readingsShort": "{count} Messungen",
+            "readingsShortOne": "1 Messung"
+          }
+        }
       }
     },
     "navBloodGlucose": "Glukose",

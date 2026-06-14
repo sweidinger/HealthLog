@@ -2795,6 +2795,71 @@
       "emptyState": {
         "title": "Aún no hay datos de glucosa",
         "description": "Las lecturas de glucosa aparecen aquí cuando registras una o un dispositivo sincroniza."
+      },
+      "clinical": {
+        "title": "Resumen de glucosa",
+        "subtitle": "Una lectura de tus últimos {days} días, a partir de {count} mediciones.",
+        "spotCaveat": "Son estimaciones a partir de mediciones puntuales, no un perfil de un sensor continuo: léelas como una tendencia, no como un veredicto clínico.",
+        "learningTitle": "Aún conociendo tu glucosa",
+        "learningBody": "De momento son {count} en {days}. Con algo más de historial el panorama se aclara: sigue registrando o deja que lo complete un dispositivo conectado.",
+        "learningBodyEmpty": "En cuanto lleguen unas cuantas mediciones —registradas por ti o sincronizadas desde un dispositivo— tu tiempo en rango, promedio y variabilidad tomarán forma aquí.",
+        "readingsCount": "{count} mediciones",
+        "readingsCountOne": "1 medición",
+        "daysCount": "{days} días",
+        "daysCountOne": "1 día",
+        "tir": {
+          "title": "Tiempo en rango",
+          "caption": "Proporción de mediciones en cada banda (70–180 mg/dl es el objetivo).",
+          "veryLow": "Muy bajo",
+          "low": "Bajo",
+          "inRange": "En rango",
+          "high": "Alto",
+          "veryHigh": "Muy alto",
+          "ariaLabel": "Tiempo en rango: {tir}% en objetivo, {below}% por debajo, {above}% por encima.",
+          "empty": "Aún no hay mediciones para el gráfico."
+        },
+        "gmi": {
+          "label": "Indicador de gestión de la glucosa",
+          "help": "Una estimación tipo HbA1c derivada de tu glucosa promedio."
+        },
+        "eA1c": {
+          "label": "HbA1c estimada",
+          "help": "Una estimación de HbA1c a partir de tu glucosa media (ADAG)."
+        },
+        "mean": {
+          "label": "Glucosa promedio"
+        },
+        "cv": {
+          "label": "Variabilidad",
+          "steady": "Estable",
+          "unstable": "Inestable",
+          "help": "Coeficiente de variación. A partir del 36 % la glucosa se considera inestable; menos es más estable."
+        },
+        "advanced": {
+          "toggle": "Índices avanzados",
+          "intro": "Compuestos de nivel investigador para mirar más de cerca. Cada uno reduce tus mediciones a un único número ponderado por riesgo.",
+          "jIndex": {
+            "label": "Índice J",
+            "help": "Una puntuación única que combina tu promedio y su dispersión: cuanto más bajo, más ajustado el control."
+          },
+          "lbgi": {
+            "label": "Riesgo de hipoglucemia (LBGI)",
+            "help": "Índice de Kovatchev que pondera con qué frecuencia y profundidad bajan las lecturas."
+          },
+          "hbgi": {
+            "label": "Riesgo de hiperglucemia (HBGI)",
+            "help": "Índice de Kovatchev que pondera con qué frecuencia y altura suben las lecturas."
+          },
+          "byContext": {
+            "title": "Por contexto",
+            "fasting": "En ayunas",
+            "postprandial": "Después de comer",
+            "random": "Aleatorio",
+            "bedtime": "Antes de dormir",
+            "readingsShort": "{count} mediciones",
+            "readingsShortOne": "1 medición"
+          }
+        }
       }
     },
     "navBloodGlucose": "Glucosa",

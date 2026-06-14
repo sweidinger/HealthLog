@@ -2795,6 +2795,71 @@
       "emptyState": {
         "title": "No glucose data yet",
         "description": "Blood-glucose readings appear here once you log one or a connected device syncs."
+      },
+      "clinical": {
+        "title": "Glucose overview",
+        "subtitle": "A read on your last {days} days, from {count} readings.",
+        "spotCaveat": "These are spot-reading estimates from individual measurements, not a continuous-monitor profile — read them as a direction of travel rather than a clinical verdict.",
+        "learningTitle": "Still learning your glucose",
+        "learningBody": "So far that's {count} over {days}. A little more history and a fuller picture comes into focus — keep logging, or let a connected device fill it in.",
+        "learningBodyEmpty": "Once a handful of readings come in — logged by you or synced from a device — your time-in-range, average, and variability take shape here.",
+        "readingsCount": "{count} readings",
+        "readingsCountOne": "1 reading",
+        "daysCount": "{days} days",
+        "daysCountOne": "1 day",
+        "tir": {
+          "title": "Time in range",
+          "caption": "Share of readings in each band (70–180 mg/dL is the target).",
+          "veryLow": "Very low",
+          "low": "Low",
+          "inRange": "In range",
+          "high": "High",
+          "veryHigh": "Very high",
+          "ariaLabel": "Time in range: {tir}% in target, {below}% below, {above}% above.",
+          "empty": "No readings to chart yet."
+        },
+        "gmi": {
+          "label": "Glucose Management Indicator",
+          "help": "An A1C-like estimate derived from your average glucose."
+        },
+        "eA1c": {
+          "label": "Estimated A1C",
+          "help": "An A1C estimate from your mean glucose (ADAG)."
+        },
+        "mean": {
+          "label": "Average glucose"
+        },
+        "cv": {
+          "label": "Variability",
+          "steady": "Steady",
+          "unstable": "Unstable",
+          "help": "Coefficient of variation. At or above 36% glucose is considered unstable; lower is steadier."
+        },
+        "advanced": {
+          "toggle": "Advanced indices",
+          "intro": "Research-grade composites for a closer look. Each folds your readings into a single risk-weighted number.",
+          "jIndex": {
+            "label": "J-index",
+            "help": "A single score blending your average and its spread — lower reads as tighter control."
+          },
+          "lbgi": {
+            "label": "Low-glucose risk (LBGI)",
+            "help": "Kovatchev's index weighting how often and how deeply readings dip low."
+          },
+          "hbgi": {
+            "label": "High-glucose risk (HBGI)",
+            "help": "Kovatchev's index weighting how often and how high readings climb."
+          },
+          "byContext": {
+            "title": "By context",
+            "fasting": "Fasting",
+            "postprandial": "After meals",
+            "random": "Random",
+            "bedtime": "Bedtime",
+            "readingsShort": "{count} readings",
+            "readingsShortOne": "1 reading"
+          }
+        }
       }
     },
     "navBloodGlucose": "Glucose",

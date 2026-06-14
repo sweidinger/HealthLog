@@ -2795,6 +2795,71 @@
       "emptyState": {
         "title": "Nessun dato di glicemia",
         "description": "Le letture di glicemia appaiono qui quando ne registri una o un dispositivo si sincronizza."
+      },
+      "clinical": {
+        "title": "Panoramica della glicemia",
+        "subtitle": "Una lettura dei tuoi ultimi {days} giorni, da {count} misurazioni.",
+        "spotCaveat": "Sono stime da singole misurazioni puntuali, non il profilo di un sensore continuo: leggile come una tendenza, non come un verdetto clinico.",
+        "learningTitle": "Stiamo ancora imparando la tua glicemia",
+        "learningBody": "Per ora sono {count} su {days}. Con un po’ più di storico il quadro si chiarisce: continua a registrare o lascia che lo completi un dispositivo connesso.",
+        "learningBodyEmpty": "Appena arrivano alcune misurazioni — registrate da te o sincronizzate da un dispositivo — il tempo nel range, la media e la variabilità prendono forma qui.",
+        "readingsCount": "{count} misurazioni",
+        "readingsCountOne": "1 misurazione",
+        "daysCount": "{days} giorni",
+        "daysCountOne": "1 giorno",
+        "tir": {
+          "title": "Tempo nel range",
+          "caption": "Quota di misurazioni in ciascuna fascia (70–180 mg/dl è l’obiettivo).",
+          "veryLow": "Molto basso",
+          "low": "Basso",
+          "inRange": "Nel range",
+          "high": "Alto",
+          "veryHigh": "Molto alto",
+          "ariaLabel": "Tempo nel range: {tir}% a target, {below}% sotto, {above}% sopra.",
+          "empty": "Ancora nessuna misurazione da mostrare."
+        },
+        "gmi": {
+          "label": "Indicatore di gestione della glicemia",
+          "help": "Una stima simile all’HbA1c derivata dalla tua glicemia media."
+        },
+        "eA1c": {
+          "label": "HbA1c stimata",
+          "help": "Una stima dell’HbA1c dalla tua glicemia media (ADAG)."
+        },
+        "mean": {
+          "label": "Glicemia media"
+        },
+        "cv": {
+          "label": "Variabilità",
+          "steady": "Stabile",
+          "unstable": "Instabile",
+          "help": "Coefficiente di variazione. Dal 36 % la glicemia è considerata instabile; più basso è più stabile."
+        },
+        "advanced": {
+          "toggle": "Indici avanzati",
+          "intro": "Indicatori di livello scientifico per uno sguardo più ravvicinato. Ognuno riduce le tue misurazioni a un singolo numero ponderato sul rischio.",
+          "jIndex": {
+            "label": "Indice J",
+            "help": "Un punteggio unico che combina media e dispersione: più è basso, più stretto è il controllo."
+          },
+          "lbgi": {
+            "label": "Rischio di ipoglicemia (LBGI)",
+            "help": "Indice di Kovatchev che pesa quanto spesso e quanto in basso scendono le letture."
+          },
+          "hbgi": {
+            "label": "Rischio di iperglicemia (HBGI)",
+            "help": "Indice di Kovatchev che pesa quanto spesso e quanto in alto salgono le letture."
+          },
+          "byContext": {
+            "title": "Per contesto",
+            "fasting": "A digiuno",
+            "postprandial": "Dopo i pasti",
+            "random": "Casuale",
+            "bedtime": "Prima di dormire",
+            "readingsShort": "{count} misurazioni",
+            "readingsShortOne": "1 misurazione"
+          }
+        }
       }
     },
     "navBloodGlucose": "Glucosio",

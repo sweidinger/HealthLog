@@ -1,0 +1,254 @@
+"use client";
+
+import { Activity, Droplet, TrendingUp } from "lucide-react";
+
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useAuth } from "@/hooks/use-auth";
+import { useAnalyticsQuery } from "@/lib/queries/use-analytics-query";
+import { useTranslations } from "@/lib/i18n/context";
+import { convertGlucose, resolveGlucoseUnit } from "@/lib/glucose";
+import type { DataSummary } from "@/lib/analytics/trends";
+import { GlucoseTirBar } from "./glucose-tir-bar";
+import { GlucoseAdvancedDisclosure } from "./glucose-advanced-disclosure";
+
+/**
+ * v1.17.0 — glucose clinical panel.
+ *
+ * The default view leads with the three numbers that matter to a person
+ * managing glucose: time-in-range (Battelino bands, as a stacked bar), a GMI +
+ * estimated-A1C pair, and a variability badge that flags "unstable" at CV% ≥ 36
+ * (Monnier). The advanced indices (J-index, LBGI/HBGI) sit behind a calm
+ * disclosure. Every number is server-computed by the one literature-locked
+ * engine — the panel renders verbatim and never re-derives.
+ *
+ * Honesty contract: HealthLog stores SPOT readings, not a CGM trace, so the
+ * copy always carries the "spot-reading estimate" caveat, and a thin window
+ * shows a warm "still learning" state instead of asserting a clinical profile.
+ * Tone follows the cycle-phase texts: warm, professional, grounded — never
+ * alarmist, never breezy.
+ *
+ * Reads the thick `/api/analytics` payload directly (the slim slice does not
+ * carry `glucoseClinical`); the cache cell is shared with the dashboard so the
+ * mount is usually a free hit.
+ */
+export function GlucoseClinicalPanel() {
+  const { user, isAuthenticated } = useAuth();
+  const { t } = useTranslations();
+  const query = useAnalyticsQuery({});
+
+  const glucoseUnit = resolveGlucoseUnit(user?.glucoseUnit ?? null);
+  const isMmol = glucoseUnit === "mmol/L";
+
+  if (!isAuthenticated) return null;
+
+  if (query.isLoading) {
+    return (
+      <Card data-slot="glucose-clinical-panel-skeleton">
+        <CardHeader className="pb-2">
+          <Skeleton className="h-5 w-40" />
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <Skeleton className="h-6 w-full" />
+          <div className="grid grid-cols-3 gap-3">
+            <Skeleton className="h-12" />
+            <Skeleton className="h-12" />
+            <Skeleton className="h-12" />
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const clinical = query.data?.glucoseClinical;
+  // No glucose data at all, or the thick slice did not carry the block — the
+  // page's own empty state already covers the truly-no-data case, so render
+  // nothing rather than a redundant card.
+  if (!clinical) return null;
+
+  const byContext = query.data?.glucoseByContext as
+    | Record<string, DataSummary>
+    | undefined;
+
+  const formatGlucoseValue = (mgdl: number): string => {
+    const v = convertGlucose(mgdl, glucoseUnit);
+    return isMmol ? v.toFixed(1) : String(Math.round(v));
+  };
+
+  // Learning state — calm, never asserting TIR / GMI off thin data.
+  if (clinical.stillLearning) {
+    const hasAny = clinical.readingCount > 0;
+    const readingsLabel =
+      clinical.readingCount === 1
+        ? t("insights.bloodGlucose.clinical.readingsCountOne")
+        : t("insights.bloodGlucose.clinical.readingsCount", {
+            count: clinical.readingCount,
+          });
+    const spanDays = Math.max(1, Math.round(clinical.actualSpanDays));
+    const daysLabel =
+      spanDays === 1
+        ? t("insights.bloodGlucose.clinical.daysCountOne")
+        : t("insights.bloodGlucose.clinical.daysCount", { days: spanDays });
+
+    return (
+      <Card data-slot="glucose-clinical-panel" data-state="learning">
+        <CardHeader className="pb-2">
+          <CardTitle className="flex items-center gap-2 text-base font-semibold">
+            <Droplet className="h-4 w-4" aria-hidden="true" />
+            {t("insights.bloodGlucose.clinical.learningTitle")}
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <p className="text-muted-foreground text-sm" data-slot="glucose-learning-body">
+            {hasAny
+              ? t("insights.bloodGlucose.clinical.learningBody", {
+                  count: readingsLabel,
+                  days: daysLabel,
+                })
+              : t("insights.bloodGlucose.clinical.learningBodyEmpty")}
+          </p>
+          <p className="text-muted-foreground/80 text-xs">
+            {t("insights.bloodGlucose.clinical.spotCaveat")}
+          </p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // Asserted view.
+  const dist = clinical.distribution;
+  const cv = clinical.variability;
+
+  return (
+    <Card data-slot="glucose-clinical-panel" data-state="asserted">
+      <CardHeader className="pb-2">
+        <div className="flex flex-col gap-0.5">
+          <CardTitle className="flex items-center gap-2 text-base font-semibold">
+            <Droplet className="h-4 w-4" aria-hidden="true" />
+            {t("insights.bloodGlucose.clinical.title")}
+          </CardTitle>
+          <span className="text-muted-foreground text-xs">
+            {t("insights.bloodGlucose.clinical.subtitle", {
+              days: Math.max(1, Math.round(clinical.actualSpanDays)),
+              count: clinical.readingCount,
+            })}
+          </span>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-5">
+        {/* Time in range */}
+        {dist ? (
+          <section className="space-y-2" data-slot="glucose-tir-section">
+            <div className="flex items-center justify-between gap-2">
+              <h3 className="text-foreground text-sm font-medium">
+                {t("insights.bloodGlucose.clinical.tir.title")}
+              </h3>
+            </div>
+            <GlucoseTirBar distribution={dist} />
+            <p className="text-muted-foreground text-xs">
+              {t("insights.bloodGlucose.clinical.tir.caption")}
+            </p>
+          </section>
+        ) : null}
+
+        {/* Headline metrics */}
+        <section className="grid grid-cols-2 gap-3 sm:grid-cols-4" data-slot="glucose-headline">
+          {clinical.meanMgdl !== null ? (
+            <Metric
+              icon={<Droplet className="h-3.5 w-3.5" aria-hidden="true" />}
+              label={t("insights.bloodGlucose.clinical.mean.label")}
+              value={formatGlucoseValue(clinical.meanMgdl)}
+              unit={glucoseUnit}
+            />
+          ) : null}
+          {clinical.gmi !== null ? (
+            <Metric
+              icon={<Activity className="h-3.5 w-3.5" aria-hidden="true" />}
+              label={t("insights.bloodGlucose.clinical.gmi.label")}
+              help={t("insights.bloodGlucose.clinical.gmi.help")}
+              value={clinical.gmi.toFixed(1)}
+              unit="%"
+            />
+          ) : null}
+          {clinical.estimatedA1c !== null ? (
+            <Metric
+              icon={<TrendingUp className="h-3.5 w-3.5" aria-hidden="true" />}
+              label={t("insights.bloodGlucose.clinical.eA1c.label")}
+              help={t("insights.bloodGlucose.clinical.eA1c.help")}
+              value={clinical.estimatedA1c.toFixed(1)}
+              unit="%"
+            />
+          ) : null}
+          {cv ? (
+            <div className="space-y-0.5" data-slot="glucose-cv">
+              <span
+                className="text-muted-foreground flex items-center gap-1 text-xs"
+                title={t("insights.bloodGlucose.clinical.cv.help")}
+              >
+                {t("insights.bloodGlucose.clinical.cv.label")}
+              </span>
+              <div className="flex items-center gap-1.5">
+                <span className="text-foreground text-lg font-semibold tabular-nums">
+                  {Math.round(cv.cv)}%
+                </span>
+                <Badge
+                  variant={cv.unstable ? "destructive" : "secondary"}
+                  data-slot="glucose-cv-badge"
+                  data-unstable={cv.unstable}
+                >
+                  {cv.unstable
+                    ? t("insights.bloodGlucose.clinical.cv.unstable")
+                    : t("insights.bloodGlucose.clinical.cv.steady")}
+                </Badge>
+              </div>
+            </div>
+          ) : null}
+        </section>
+
+        {/* Spot-reading honesty caveat — always present. */}
+        <p className="text-muted-foreground/80 text-xs" data-slot="glucose-spot-caveat">
+          {t("insights.bloodGlucose.clinical.spotCaveat")}
+        </p>
+
+        {/* Advanced indices behind a disclosure. */}
+        {clinical.advanced ? (
+          <GlucoseAdvancedDisclosure
+            advanced={clinical.advanced}
+            byContext={byContext}
+          />
+        ) : null}
+      </CardContent>
+    </Card>
+  );
+}
+
+function Metric({
+  icon,
+  label,
+  help,
+  value,
+  unit,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  help?: string;
+  value: string;
+  unit: string;
+}) {
+  return (
+    <div className="space-y-0.5">
+      <span
+        className="text-muted-foreground flex items-center gap-1 text-xs"
+        title={help}
+      >
+        {icon}
+        {label}
+      </span>
+      <span className="text-foreground flex items-baseline gap-1">
+        <span className="text-lg font-semibold tabular-nums">{value}</span>
+        <span className="text-muted-foreground text-xs">{unit}</span>
+      </span>
+    </div>
+  );
+}

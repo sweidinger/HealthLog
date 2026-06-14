@@ -2795,6 +2795,71 @@
       "emptyState": {
         "title": "Aucune donnée de glycémie",
         "description": "Les relevés de glycémie apparaissent ici dès que vous en saisissez un ou qu’un appareil se synchronise."
+      },
+      "clinical": {
+        "title": "Aperçu du glucose",
+        "subtitle": "Un point sur vos {days} derniers jours, à partir de {count} mesures.",
+        "spotCaveat": "Ce sont des estimations issues de mesures ponctuelles, pas le profil d’un capteur continu : lisez-les comme une tendance, non comme un verdict clinique.",
+        "learningTitle": "Votre glucose se découvre encore",
+        "learningBody": "Pour l’instant, cela fait {count} sur {days}. Avec un peu plus d’historique, le tableau se précise : continuez à enregistrer ou laissez un appareil connecté compléter.",
+        "learningBodyEmpty": "Dès que quelques mesures arrivent — saisies par vous ou synchronisées depuis un appareil — votre temps dans la cible, votre moyenne et votre variabilité prennent forme ici.",
+        "readingsCount": "{count} mesures",
+        "readingsCountOne": "1 mesure",
+        "daysCount": "{days} jours",
+        "daysCountOne": "1 jour",
+        "tir": {
+          "title": "Temps dans la cible",
+          "caption": "Part des mesures dans chaque plage (70–180 mg/dl est la cible).",
+          "veryLow": "Très bas",
+          "low": "Bas",
+          "inRange": "Dans la cible",
+          "high": "Élevé",
+          "veryHigh": "Très élevé",
+          "ariaLabel": "Temps dans la cible : {tir}% dans la cible, {below}% en dessous, {above}% au-dessus.",
+          "empty": "Pas encore de mesures à afficher."
+        },
+        "gmi": {
+          "label": "Indicateur de gestion du glucose",
+          "help": "Une estimation de type HbA1c dérivée de votre glucose moyen."
+        },
+        "eA1c": {
+          "label": "HbA1c estimée",
+          "help": "Une estimation d’HbA1c à partir de votre glucose moyen (ADAG)."
+        },
+        "mean": {
+          "label": "Glucose moyen"
+        },
+        "cv": {
+          "label": "Variabilité",
+          "steady": "Stable",
+          "unstable": "Instable",
+          "help": "Coefficient de variation. À partir de 36 %, le glucose est considéré comme instable ; plus bas est plus stable."
+        },
+        "advanced": {
+          "toggle": "Indices avancés",
+          "intro": "Des indicateurs de niveau recherche pour regarder de plus près. Chacun condense vos mesures en un seul chiffre pondéré par le risque.",
+          "jIndex": {
+            "label": "Indice J",
+            "help": "Un score unique mêlant votre moyenne et sa dispersion — plus il est bas, plus le contrôle est serré."
+          },
+          "lbgi": {
+            "label": "Risque d’hypoglycémie (LBGI)",
+            "help": "Indice de Kovatchev pondérant la fréquence et la profondeur des baisses."
+          },
+          "hbgi": {
+            "label": "Risque d’hyperglycémie (HBGI)",
+            "help": "Indice de Kovatchev pondérant la fréquence et la hauteur des hausses."
+          },
+          "byContext": {
+            "title": "Par contexte",
+            "fasting": "À jeun",
+            "postprandial": "Après les repas",
+            "random": "Aléatoire",
+            "bedtime": "Au coucher",
+            "readingsShort": "{count} mesures",
+            "readingsShortOne": "1 mesure"
+          }
+        }
       }
     },
     "navBloodGlucose": "Glucose",
