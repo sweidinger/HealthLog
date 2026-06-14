@@ -20,6 +20,7 @@ import {
   classifyHttpStatus,
   classifyIntegrationError,
   IntegrationApiError,
+  isOAuthInvalidGrant,
   type ClassifiedHttpResponse,
   type IntegrationClassification,
 } from "@/lib/integrations/http-status-classifier";
@@ -49,11 +50,23 @@ export class PolarApiError extends IntegrationApiError {
 }
 
 /**
+ * True when a caught error is an OAuth `invalid_grant` on the token endpoint —
+ * a stale/replayed authorization code on Polar's only token call
+ * (`exchangeCode`). Lifts a 400 carrying `invalid_grant` from `persistent` to
+ * `reauth_required` so the connection surfaces the reconnect prompt instead of
+ * silently parking after 24 h.
+ */
+export function isInvalidGrant(err: unknown): boolean {
+  return isOAuthInvalidGrant(err, "Polar");
+}
+
+/**
  * Read the classification from any caught error. A non-`PolarApiError` defaults
  * to `transient` so a plain `Error` retries rather than disabling the
  * integration. Falls back to parsing the status out of the message shape for a
  * caller that lost the prototype across a pg-boss retry.
  */
 export function classifyPolarError(err: unknown): PolarClassification {
+  if (isInvalidGrant(err)) return "reauth_required";
   return classifyIntegrationError(err, "Polar");
 }
