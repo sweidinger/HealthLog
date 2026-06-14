@@ -30,6 +30,10 @@
  *   Bergenstal 2018, Diabetes Care 41(11):2275-2280, DOI 10.2337/dc18-1581.
  *   Nathan 2008 (ADAG), Diabetes Care 31(8):1473-1478, DOI 10.2337/dc08-0545.
  *   Monnier 2017, Diabetes Care 40(7):832-838, DOI 10.2337/dc16-1769.
+ *   Wojcicki 1995 (J-index), Horm Metab Res 27(1):41-42, DOI 10.1055/s-2007-979906.
+ *   Kovatchev 1997 (symmetrization + BGI), Diabetes Care 20(11):1655-1658,
+ *     DOI 10.2337/diacare.20.11.1655; Kovatchev 2006 (LBGI/HBGI risk model),
+ *     Diabetes Care 29(11):2433-2438, DOI 10.2337/dc06-1085.
  */
 
 // ── Inputs ───────────────────────────────────────────────
@@ -118,6 +122,41 @@ export interface TimeInRangeDistribution {
   };
 }
 
+/**
+ * Advanced glycaemic indices — the "advanced" disclosure tier of the panel.
+ * Each is a single scalar over the in-window readings; all are derivable from
+ * spot samples (unlike the dense-stream MAGE/CONGA/MODD family this module
+ * deliberately defers). Surfaced behind a progressive disclosure because they
+ * read as research-grade composites a casual user does not need up front.
+ */
+export interface GlucoseAdvancedIndices {
+  /**
+   * J-index — a single number folding central tendency AND variability:
+   *   J = 0.001 × (mean + SD)²,   mean & SD in mg/dL.
+   * Reference bands (Wojcicki 1995): ~10–20 ideal/non-diabetic,
+   * 20–30 good control, 30–40 fair, > 40 poor. Reported here as an estimate
+   * over spot data, not a continuous-trace J.
+   * Wojcicki 1995, Horm Metab Res 27(1):41-42, DOI 10.1055/s-2007-979906.
+   */
+  jIndex: number;
+  /**
+   * Low Blood Glucose Index — Kovatchev hypoglycaemia risk. Mean of the
+   * left-branch risk values `rl(BG)` over all readings; higher = more / deeper
+   * lows. Interpretation bands (Kovatchev 2006): < 1.1 minimal, 1.1–2.5 low,
+   * 2.5–5 moderate, > 5 high hypo risk.
+   * Kovatchev 2006, Diabetes Care 29(11):2433-2438, DOI 10.2337/dc06-1085.
+   */
+  lbgi: number;
+  /**
+   * High Blood Glucose Index — Kovatchev hyperglycaemia risk. Mean of the
+   * right-branch risk values `rh(BG)`; higher = more / higher highs.
+   * Interpretation bands (Kovatchev 2006): < 4.5 low, 4.5–9 moderate,
+   * > 9 high hyper risk.
+   * Kovatchev 2006, Diabetes Care 29(11):2433-2438, DOI 10.2337/dc06-1085.
+   */
+  hbgi: number;
+}
+
 /** Variability summary: SD + CV% with the Monnier stability flag. */
 export interface GlucoseVariability {
   /** Sample standard deviation (n−1), mg/dL. */
@@ -159,6 +198,18 @@ export interface GlucoseClinicalMetrics {
   estimatedA1c: number | null;
   /** SD + CV% + instability flag (null if < 2 readings). */
   variability: GlucoseVariability | null;
+
+  /**
+   * Advanced indices (J-index + LBGI/HBGI). Null when there are no readings;
+   * the J-index additionally needs ≥ 2 readings (it consumes the sample SD), so
+   * `jIndex` is held back to null inside the object when only one reading
+   * exists. Shown behind the panel's "advanced" disclosure.
+   */
+  advanced: {
+    jIndex: number | null;
+    lbgi: number;
+    hbgi: number;
+  } | null;
 
   /**
    * Always true for this module: every number is a spot-reading estimate, not a
@@ -226,6 +277,65 @@ export function gmi(meanMgdl: number): number {
  */
 export function estimatedA1c(meanMgdl: number): number {
   return (meanMgdl + 46.7) / 28.7;
+}
+
+/**
+ * J-index — a single composite of central tendency and variability:
+ *   J = 0.001 × (mean + SD)²,   both in mg/dL.
+ * Returns null for n < 2 (the sample SD is undefined). Approximation bands are
+ * documented on {@link GlucoseAdvancedIndices.jIndex}.
+ * Wojcicki 1995, Horm Metab Res 27(1):41-42, DOI 10.1055/s-2007-979906.
+ */
+export function jIndex(values: number[]): number | null {
+  const sd = glucoseSD(values);
+  if (sd === null) return null;
+  const m = mean(values);
+  const s = m + sd;
+  return 0.001 * s * s;
+}
+
+/**
+ * Kovatchev symmetrization transform for a single mg/dL reading:
+ *   f(BG) = 1.509 × ( (ln BG)^1.084 − 5.381 ).
+ * The transform maps the asymmetric mg/dL scale onto a symmetric axis where
+ * the clinical centre (~112.5 mg/dL) is 0; lows go negative, highs positive.
+ * Kovatchev 1997, Diabetes Care 20(11):1655-1658,
+ * DOI 10.2337/diacare.20.11.1655.
+ */
+function kovatchevSymmetrize(bgMgdl: number): number {
+  return 1.509 * (Math.pow(Math.log(bgMgdl), 1.084) - 5.381);
+}
+
+/**
+ * Low / High Blood Glucose Index (LBGI / HBGI) — Kovatchev risk model.
+ * Per reading the risk is `r(BG) = 10 × f(BG)²` (f = symmetrization above);
+ * it is assigned to the LOW branch when f < 0 and the HIGH branch when f > 0
+ * (f = 0 contributes 0 to both). LBGI = mean of the low-branch risks across
+ * ALL readings (zeros included), HBGI = mean of the high-branch risks.
+ * Readings ≤ 0 mg/dL (ln undefined) are skipped from the denominator.
+ * Returns null when no usable reading remains.
+ * Kovatchev 2006, Diabetes Care 29(11):2433-2438, DOI 10.2337/dc06-1085.
+ */
+export function bloodGlucoseRiskIndices(
+  values: number[],
+): { lbgi: number; hbgi: number } | null {
+  let lowSum = 0;
+  let highSum = 0;
+  let n = 0;
+  for (const bg of values) {
+    if (!Number.isFinite(bg) || bg <= 0) continue;
+    const f = kovatchevSymmetrize(bg);
+    const r = 10 * f * f;
+    if (f < 0) {
+      lowSum += r;
+    } else if (f > 0) {
+      highSum += r;
+    }
+    // f === 0 contributes 0 to both branches but still counts in n.
+    n += 1;
+  }
+  if (n === 0) return null;
+  return { lbgi: lowSum / n, hbgi: highSum / n };
 }
 
 /**
@@ -334,6 +444,19 @@ export function computeGlucoseClinicalMetrics(
   const gmiValue = meanMgdl !== null ? gmi(meanMgdl) : null;
   const eA1cValue = meanMgdl !== null ? estimatedA1c(meanMgdl) : null;
 
+  // Advanced indices — null when no readings. The risk indices need ≥ 1 usable
+  // reading; the J-index needs ≥ 2 (sample SD), so it is held to null inside
+  // the object for a single-reading window while LBGI/HBGI still resolve.
+  const risk = bloodGlucoseRiskIndices(values);
+  const advanced =
+    risk !== null
+      ? {
+          jIndex: jIndex(values),
+          lbgi: risk.lbgi,
+          hbgi: risk.hbgi,
+        }
+      : null;
+
   // Learning/adequacy gate. Spot data cannot meet the CGM adequacy bar; this
   // is the honest "is the estimate worth asserting yet" check. Order matters:
   // report the most actionable reason first.
@@ -370,6 +493,7 @@ export function computeGlucoseClinicalMetrics(
     gmi: gmiValue,
     estimatedA1c: eA1cValue,
     variability,
+    advanced,
     isSpotEstimate: true,
   };
 }
