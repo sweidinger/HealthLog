@@ -7,9 +7,10 @@
 // consolidated envelope. Warm copy, mobile-first, the private-network opt-in
 // toggle maps to `nightscoutAllowPrivateHost`.
 
-import { useState } from "react";
+import { useRef, useState } from "react";
+import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Activity, Link2, Loader2, Save, Unlink } from "lucide-react";
+import { ArrowRight, Droplet, Link2, Loader2, Save, Unlink } from "lucide-react";
 
 import {
   AlertDialog,
@@ -32,6 +33,7 @@ import {
   IntegrationStatusPill,
   type IntegrationPillState,
 } from "@/components/settings/integration-status-pill";
+import { TestConnectionButton } from "@/components/settings/test-connection-button";
 import { apiFetchRaw, apiGet, apiPost } from "@/lib/api/api-fetch";
 import { useTranslations } from "@/lib/i18n/context";
 import { invalidateKeys, measurementDependentKeys, queryKeys } from "@/lib/query-keys";
@@ -82,6 +84,8 @@ export function NightscoutCard({ enabled = true }: { enabled?: boolean }) {
     refetchOnWindowFocus: true,
   });
 
+  const formRef = useRef<HTMLFormElement | null>(null);
+
   const disconnect = useMutation({
     mutationFn: async () => {
       await apiPost("/api/nightscout/disconnect");
@@ -90,7 +94,15 @@ export function NightscoutCard({ enabled = true }: { enabled?: boolean }) {
       setUrl("");
       setToken("");
       setAllowPrivateHost(false);
-      queryClient.invalidateQueries({ queryKey: queryKeys.nightscout() });
+      // The status read keys on `nightscoutStatus()`; invalidate it so the
+      // pill flips back after a disconnect (matching the Withings / WHOOP
+      // pattern), alongside the cross-integration envelope.
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.nightscoutStatus(),
+      });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.integrationsStatus(),
+      });
     },
   });
 
@@ -114,7 +126,12 @@ export function NightscoutCard({ enabled = true }: { enabled?: boolean }) {
         setMsgType("success");
         setToken("");
         void invalidateKeys(queryClient, measurementDependentKeys);
-        queryClient.invalidateQueries({ queryKey: queryKeys.nightscout() });
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.nightscoutStatus(),
+        });
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.integrationsStatus(),
+        });
       } else {
         let detail = t("settings.nightscoutConnectFailed");
         try {
@@ -145,7 +162,7 @@ export function NightscoutCard({ enabled = true }: { enabled?: boolean }) {
       className="bg-card border-border rounded-xl border p-4 sm:p-6"
     >
       <SettingsCardHeader
-        icon={Activity}
+        icon={Droplet}
         title={t("settings.nightscout")}
         titleAccessory={
           <span className="bg-muted text-foreground rounded-full px-2 py-0.5 text-[0.6875rem] font-medium">
@@ -166,11 +183,46 @@ export function NightscoutCard({ enabled = true }: { enabled?: boolean }) {
       <div className="mt-4 space-y-4 pl-7">
         {errorMessage && <IntegrationErrorMessage message={errorMessage} />}
 
+        {/* Parked-integration resume CTA. Surfaces only when the row state
+            is `parked` (>24h of persistent failures). Nightscout has no OAuth
+            redirect — the user re-validates by re-submitting the connect form,
+            so "reconnect" scrolls the form into view + focuses the URL field.
+            Markup matches the WHOOP card byte for byte. */}
+        {pillState === "parked" && (
+          <div
+            data-testid="nightscout-parked-banner"
+            className="border-warning/30 bg-warning/10 flex flex-wrap items-center justify-between gap-2 rounded-md border px-3 py-2 text-sm"
+          >
+            <span className="text-warning min-w-0 text-xs break-words">
+              {t("settings.integrationPill.parkedReconnect")}
+            </span>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                formRef.current?.scrollIntoView({
+                  behavior: "smooth",
+                  block: "center",
+                });
+                formRef.current
+                  ?.querySelector<HTMLInputElement>("#nightscout-url")
+                  ?.focus();
+              }}
+              data-testid="nightscout-resume-button"
+              className="min-h-11"
+            >
+              <Link2 className="h-3.5 w-3.5" />
+              {t("settings.integrationPill.resumeCta")}
+            </Button>
+          </div>
+        )}
+
         <p className="text-muted-foreground text-xs">
           {t("settings.nightscoutHelp")}
         </p>
 
-        <form onSubmit={handleConnect} className="space-y-3">
+        <form ref={formRef} onSubmit={handleConnect} className="space-y-3">
           <div className="space-y-1.5">
             <Label htmlFor="nightscout-url">{t("settings.nightscoutUrl")}</Label>
             <Input
@@ -263,37 +315,56 @@ export function NightscoutCard({ enabled = true }: { enabled?: boolean }) {
         </form>
 
         {status?.connected && (
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button
-                variant="outline"
-                size="sm"
-                className="text-destructive min-h-11"
-              >
-                <Unlink className="h-3.5 w-3.5" />
-                {t("settings.nightscoutDisconnect")}
-              </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>
-                  {t("settings.nightscoutDisconnectTitle")}
-                </AlertDialogTitle>
-                <AlertDialogDescription>
-                  {t("settings.nightscoutDisconnectDescription")}
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
-                <AlertDialogAction
-                  variant="destructive"
-                  onClick={() => disconnect.mutate()}
-                >
-                  {t("settings.nightscoutDisconnect")}
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
+          <>
+            <div className="flex flex-wrap items-start gap-2 [&>*]:min-w-[10rem] sm:[&>*]:min-w-0">
+              <TestConnectionButton
+                endpoint="/api/nightscout/test"
+                disabled={!status?.connected}
+              />
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="text-destructive min-h-11"
+                  >
+                    <Unlink className="h-3.5 w-3.5" />
+                    {t("settings.nightscoutDisconnect")}
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>
+                      {t("settings.nightscoutDisconnectTitle")}
+                    </AlertDialogTitle>
+                    <AlertDialogDescription>
+                      {t("settings.nightscoutDisconnectDescription")}
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
+                    <AlertDialogAction
+                      variant="destructive"
+                      onClick={() => disconnect.mutate()}
+                    >
+                      {t("settings.nightscoutDisconnect")}
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </div>
+            {/* connect→data loop: a discreet link to where the glucose
+                readings now surface — doubles as the "your data is richer"
+                cue. */}
+            <Link
+              href="/insights/blood-glucose"
+              data-testid="nightscout-data-link"
+              className="text-primary inline-flex items-center gap-1 text-xs underline-offset-2 hover:underline"
+            >
+              {t("settings.nightscoutViewData")}
+              <ArrowRight className="h-3 w-3" />
+            </Link>
+          </>
         )}
       </div>
     </div>
