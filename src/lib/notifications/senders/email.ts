@@ -55,6 +55,14 @@ function getTransporter(): { transporter: Transporter; from: string } | null {
     port: config.port,
     secure: config.secure,
     ...(config.auth ? { auth: config.auth } : {}),
+    // Bound every phase of the SMTP exchange. nodemailer's defaults (2 min
+    // connect, 30 s greeting, 10 min socket) would let a hung/blackholed relay
+    // pin a dispatch worker for minutes per send. These caps map a stall to the
+    // transient `SendOutcome` `classifySmtpError` already retries, matching the
+    // webhook sender's 5 s ethos.
+    connectionTimeout: 10_000,
+    greetingTimeout: 10_000,
+    socketTimeout: 20_000,
   });
   cachedTransportKey = key;
   return { transporter: cachedTransporter, from: config.from };

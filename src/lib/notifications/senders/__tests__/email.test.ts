@@ -8,15 +8,16 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const sendMailMock = vi.fn();
-const createTransportMock = vi.fn((..._args: unknown[]) => ({
-  sendMail: sendMailMock,
-}));
+const createTransportMock = vi.fn((options: unknown) => {
+  void options;
+  return { sendMail: sendMailMock };
+});
 const loadEmailConfigMock = vi.fn();
 const recordPushAttemptMock = vi.fn();
 
 vi.mock("nodemailer", () => ({
   default: {
-    createTransport: (...args: unknown[]) => createTransportMock(...args),
+    createTransport: (options: unknown) => createTransportMock(options),
   },
 }));
 
@@ -84,6 +85,23 @@ describe("sendViaEmail", () => {
     expect(recordPushAttemptMock).toHaveBeenCalledWith(
       expect.objectContaining({ channel: "EMAIL", result: "ok" }),
     );
+  });
+
+  it("builds the transport with explicit SMTP timeouts (no unbounded hang)", async () => {
+    loadEmailConfigMock.mockReturnValue(transport);
+    sendMailMock.mockResolvedValue({ messageId: "1" });
+
+    await sendViaEmail({ recipient: "you@example.com" }, payload());
+
+    expect(createTransportMock).toHaveBeenCalledTimes(1);
+    const opts = createTransportMock.mock.calls[0][0] as {
+      connectionTimeout?: number;
+      greetingTimeout?: number;
+      socketTimeout?: number;
+    };
+    expect(opts.connectionTimeout).toBe(10_000);
+    expect(opts.greetingTimeout).toBe(10_000);
+    expect(opts.socketTimeout).toBe(20_000);
   });
 
   it("soft-skips when SMTP is unconfigured (no channel burn)", async () => {
