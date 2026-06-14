@@ -552,6 +552,8 @@
     "typeSleepDisturbanceCount": "Zakłócenia snu",
     "typeAnsCharge": "Ładunek ANS",
     "typeCardioLoad": "Obciążenie kardio",
+    "typeSleepScore": "Wynik snu",
+    "typeBodyTemperatureDeviation": "Odchylenie temperatury ciała",
     "filterBySource": "Filtruj według źródła",
     "sourceComputed": "Obliczone",
     "sourceWhoop": "WHOOP",

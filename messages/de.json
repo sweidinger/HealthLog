@@ -552,6 +552,8 @@
     "typeSleepDisturbanceCount": "Schlafstörungen",
     "typeAnsCharge": "ANS-Ladung",
     "typeCardioLoad": "Kardio-Belastung",
+    "typeSleepScore": "Schlafscore",
+    "typeBodyTemperatureDeviation": "Körpertemperaturabweichung",
     "filterBySource": "Nach Quelle filtern",
     "sourceComputed": "Berechnet",
     "sourceWhoop": "WHOOP",

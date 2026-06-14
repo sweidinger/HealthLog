@@ -552,6 +552,8 @@
     "typeSleepDisturbanceCount": "Disturbi del sonno",
     "typeAnsCharge": "Carica SNA",
     "typeCardioLoad": "Carico cardio",
+    "typeSleepScore": "Punteggio del sonno",
+    "typeBodyTemperatureDeviation": "Deviazione della temperatura corporea",
     "filterBySource": "Filtra per fonte",
     "sourceComputed": "Calcolato",
     "sourceWhoop": "WHOOP",

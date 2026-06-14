@@ -1,17 +1,22 @@
 /**
  * v1.17.0 (F4) — Oura Cloud v2 sync.
  *
- * Pulls daily readiness (→ RECOVERY_SCORE), sleep (per-stage durations,
- * efficiency, HRV, RHR, respiratory rate), and daily activity (steps + active
- * energy) for one connected user, mapping each into `Measurement` rows tagged
- * `source = OURA`.
+ * Pulls daily readiness (→ RECOVERY_SCORE + BODY_TEMPERATURE_DEVIATION), sleep
+ * (real per-segment hypnogram timeline when present, else per-stage totals;
+ * efficiency, HRV, RHR, respiratory rate), daily activity (steps, active
+ * energy, equivalent walking distance), the daily Sleep Score (→ SLEEP_SCORE),
+ * and daily SpO2 (→ OXYGEN_SATURATION) for one connected user, mapping each into
+ * `Measurement` rows tagged `source = OURA`.
  *
  * Token model: Oura uses refresh tokens. The merged schema has no expiry
  * column, so the sync refreshes REACTIVELY — the first read that 401s triggers
  * one refresh (persisting BOTH rotated tokens) and a single retry. A failed
  * refresh (`invalid_grant`) records `reauth_required` on the `oura` ledger.
  *
- * Idempotency: `externalId = <resource>:<day>:<fieldTag>`, upsert keyed on
+ * Idempotency: `externalId = <resource>:<day>:<fieldTag>` for the day-keyed
+ * collections; sleep rows carry a record-scoped `sleep:<record-id>:<fieldTag>`
+ * key (per-segment timeline + nightly scalars) so a nap and the main sleep on
+ * one day stay distinct instead of overwriting each other (B2). Upsert keyed on
  * `(userId, type, source = OURA, externalId)`. Oura finalises a day's scores
  * after the night, so the `update` branch overwrites in place (re-score).
  *
@@ -33,9 +38,13 @@ import {
 import { invalidateStatusInsightsForTypes } from "@/lib/insights/comprehensive-generate";
 import {
   fetchDailyActivity,
+  fetchDailySleep,
+  fetchDailySpo2,
   fetchReadiness,
   fetchSleep,
   mapDailyActivity,
+  mapDailySleep,
+  mapDailySpo2,
   mapReadiness,
   mapSleep,
   refreshAccessToken,
@@ -79,7 +88,11 @@ function toUpsert(
     value: m.value,
     unit: m.unit,
     measuredAt: m.measuredAt,
-    externalId: `${resourcePrefix}:${ymd(m.measuredAt)}:${m.fieldTag}`,
+    // A mapper that needs a record-scoped key (sleep rows — per-segment timeline
+    // + nightly scalars) carries its own externalId; everything else falls back
+    // to the day-keyed `<resource>:<day>:<fieldTag>` shape.
+    externalId:
+      m.externalId ?? `${resourcePrefix}:${ymd(m.measuredAt)}:${m.fieldTag}`,
     sleepStage: m.sleepStage ?? null,
   }));
 }
@@ -101,15 +114,19 @@ async function fetchAll(
   const query = { startDate: ymd(start), endDate: ymd(now) };
 
   const run = async (token: string): Promise<OuraMeasurementUpsert[]> => {
-    const [readiness, sleeps, activities] = await Promise.all([
+    const [readiness, sleeps, activities, dailySleep, spo2] = await Promise.all([
       fetchReadiness(token, query),
       fetchSleep(token, query),
       fetchDailyActivity(token, query),
+      fetchDailySleep(token, query),
+      fetchDailySpo2(token, query),
     ]);
     const out: OuraMeasurementUpsert[] = [];
     for (const r of readiness) out.push(...toUpsert(mapReadiness(r), "readiness"));
     for (const s of sleeps) out.push(...toUpsert(mapSleep(s), "sleep"));
     for (const a of activities) out.push(...toUpsert(mapDailyActivity(a), "activity"));
+    for (const d of dailySleep) out.push(...toUpsert(mapDailySleep(d), "daily_sleep"));
+    for (const s of spo2) out.push(...toUpsert(mapDailySpo2(s), "spo2"));
     return out;
   };
 

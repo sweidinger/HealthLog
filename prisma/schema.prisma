@@ -784,6 +784,18 @@ enum MeasurementType {
   // each device-native value keeps its own bucket and native scale.
   ANS_CHARGE // score — Polar Nightly Recharge `ans_charge`. The HRV-based autonomic-nervous-system charge (typically ~-10..+10 around the personal baseline; higher = more recovered). Descriptive, not a clinical assessment.
   CARDIO_LOAD // score — Polar Training Load Pro `cardio_load`. The session/day cardiovascular load (TRIMP-lineage strain). Distinct from WHOOP DAY_STRAIN (0–21) and the COMPUTED STRAIN_SCORE so the device-native value never shares a bucket.
+  // ── v1.17.1 — Oura coverage completion (additive) ──
+  // Oura's headline 0–100 Sleep Score from the `daily_sleep` collection
+  // (distinct from the per-stage `sleep` detail). Stored as `source = OURA`,
+  // unit `score`. Kept apart from SLEEP_PERFORMANCE / SLEEP_EFFICIENCY (WHOOP
+  // sub-scores) so two vendors' headline numbers never share a bucket.
+  SLEEP_SCORE // score (0–100) — Oura `daily_sleep.score`. Per-night sleep quality headline.
+  // Oura nightly body-temperature deviation from the user's personal baseline
+  // (`daily_readiness.temperature_deviation`), in °C. NOT an absolute
+  // temperature — a signed offset (illness / luteal-phase / stress signal),
+  // so it cannot share the BODY_TEMPERATURE / SKIN_TEMPERATURE / WRIST_TEMPERATURE
+  // absolute-reading buckets. Plausible band is small and centred on 0.
+  BODY_TEMPERATURE_DEVIATION // celsius (signed deviation) — Oura `daily_readiness.temperature_deviation`.
 
   @@map("measurement_type")
 }

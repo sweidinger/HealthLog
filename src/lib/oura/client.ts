@@ -26,7 +26,12 @@ export interface OuraCredentials {
   clientSecret: string;
 }
 
-/** Env-configured shared OAuth credentials (F4 = full OAuth from env). */
+/**
+ * Env-configured shared OAuth credentials — the FALLBACK app used when a user
+ * has not registered their own BYO Oura client id/secret. As of v1.17.1 the
+ * per-user resolver `getOuraClientCredentials` (DB-first) is the primary path
+ * and calls this only when no per-user pair is stored.
+ */
 export function getOuraCredentials(): OuraCredentials | null {
   const clientId = process.env.OURA_CLIENT_ID;
   const clientSecret = process.env.OURA_CLIENT_SECRET;
@@ -143,6 +148,9 @@ export interface OuraCollection<T> {
 export interface OuraSleep {
   id: string;
   day: string;
+  /** `long` | `short` | `nap` | `rest` — disambiguates a nap from the main sleep. */
+  type?: string | null;
+  bedtime_start?: string;
   bedtime_end?: string;
   total_sleep_duration?: number | null;
   time_in_bed?: number | null;
@@ -155,6 +163,33 @@ export interface OuraSleep {
   lowest_heart_rate?: number | null;
   average_hrv?: number | null;
   average_breath?: number | null;
+  /**
+   * 5-minute hypnogram: one digit per 5-min interval from `bedtime_start`.
+   * Oura's measured per-stage timeline — `1`=deep, `2`=light, `3`=rem,
+   * `4`=awake. Re-verify the digit→stage mapping against
+   * `cloud.ouraring.com/v2/docs` at build time (the encoding is published in
+   * the `Sleep` model; cross-checked against the `oura-api`/`@pinta365/oura-api`
+   * client libraries). Unlike WHOOP — which exposes only stage totals and must
+   * synthesise an order — Oura gives the real onsets, so we emit timed
+   * per-segment rows (`reconstructed: false`).
+   */
+  sleep_phase_5_min?: string | null;
+}
+
+/**
+ * Oura `daily_readiness` contributors — each a 1–100 sub-score that explains
+ * the headline readiness number. All optional (a record may predate a
+ * contributor or carry a null for a missing input).
+ */
+export interface OuraReadinessContributors {
+  activity_balance?: number | null;
+  body_temperature?: number | null;
+  hrv_balance?: number | null;
+  previous_day_activity?: number | null;
+  previous_night?: number | null;
+  recovery_index?: number | null;
+  resting_heart_rate?: number | null;
+  sleep_balance?: number | null;
 }
 
 export interface OuraReadiness {
@@ -162,6 +197,26 @@ export interface OuraReadiness {
   day: string;
   timestamp?: string;
   score?: number | null;
+  contributors?: OuraReadinessContributors | null;
+  /** Nightly body-temperature deviation from the personal baseline, °C (signed). */
+  temperature_deviation?: number | null;
+  /** Long-term body-temperature trend deviation, °C (signed). */
+  temperature_trend_deviation?: number | null;
+}
+
+/** Oura `daily_sleep` — the headline Sleep Score (distinct from `sleep` detail). */
+export interface OuraDailySleep {
+  id: string;
+  day: string;
+  timestamp?: string;
+  score?: number | null;
+}
+
+/** Oura `daily_spo2` — average overnight blood-oxygen saturation. */
+export interface OuraDailySpo2 {
+  id: string;
+  day: string;
+  spo2_percentage?: { average?: number | null } | null;
 }
 
 export interface OuraDailyActivity {
@@ -171,6 +226,8 @@ export interface OuraDailyActivity {
   steps?: number | null;
   active_calories?: number | null;
   total_calories?: number | null;
+  /** Equivalent walking distance for the day, metres. */
+  equivalent_walking_distance?: number | null;
 }
 
 interface DateRangeQuery {
@@ -269,6 +326,30 @@ export function fetchDailyActivity(
   );
 }
 
+export function fetchDailySleep(
+  accessToken: string,
+  query: DateRangeQuery,
+): Promise<OuraDailySleep[]> {
+  return fetchCollection<OuraDailySleep>(
+    "/v2/usercollection/daily_sleep",
+    accessToken,
+    "fetchDailySleep",
+    query,
+  );
+}
+
+export function fetchDailySpo2(
+  accessToken: string,
+  query: DateRangeQuery,
+): Promise<OuraDailySpo2[]> {
+  return fetchCollection<OuraDailySpo2>(
+    "/v2/usercollection/daily_spo2",
+    accessToken,
+    "fetchDailySpo2",
+    query,
+  );
+}
+
 // ─── Field → Measurement mapping ───────────────────────────────
 
 const SEC_TO_MIN = 1 / 60;
@@ -284,6 +365,15 @@ export interface MappedMeasurement {
   measuredAt: Date;
   fieldTag: string;
   sleepStage?: "CORE" | "DEEP" | "REM" | "AWAKE";
+  /**
+   * Per-row externalId override. Most rows derive their externalId from the
+   * resource prefix + day + fieldTag in the sync layer, but the per-segment
+   * sleep-timeline rows (and any other row that needs a record-scoped key)
+   * carry their own here so several rows of one night stay distinct under
+   * `userId_type_source_externalId`. The sync layer uses `m.externalId ??`
+   * the default key.
+   */
+  externalId?: string;
 }
 
 function dayAnchor(day: string, bedtimeEnd?: string): Date | null {
@@ -294,48 +384,157 @@ function dayAnchor(day: string, bedtimeEnd?: string): Date | null {
   return Number.isNaN(d.getTime()) ? null : d;
 }
 
-/** Map one Oura readiness record: `score` → `RECOVERY_SCORE` (source OURA,
- * feeding the recovery ladder below WHOOP). */
+/**
+ * Map one Oura readiness record:
+ *   - `score` → `RECOVERY_SCORE` (source OURA, feeding the recovery ladder
+ *     below WHOOP).
+ *   - `temperature_deviation` → `BODY_TEMPERATURE_DEVIATION` (signed °C offset
+ *     from the personal baseline — illness / luteal-phase / stress signal).
+ *
+ * The eight readiness `contributors` are the *why* behind the score; they are
+ * carried back to the caller separately (not minted as Measurement rows here
+ * since each is a sub-score, not a stored metric) — see the dropped-field note.
+ * `temperature_trend_deviation` is the long-term trend twin; we keep only the
+ * nightly deviation as the actionable signal.
+ */
 export function mapReadiness(r: OuraReadiness): MappedMeasurement[] {
-  if (typeof r.score !== "number") return [];
   const measuredAt = dayAnchor(r.day, r.timestamp);
   if (!measuredAt) return [];
-  return [
-    {
+  const out: MappedMeasurement[] = [];
+  if (typeof r.score === "number") {
+    out.push({
       type: "RECOVERY_SCORE",
       value: round2(r.score),
       unit: "score",
       measuredAt,
       fieldTag: "recovery",
-    },
-  ];
+    });
+  }
+  if (typeof r.temperature_deviation === "number") {
+    out.push({
+      type: "BODY_TEMPERATURE_DEVIATION",
+      value: round2(r.temperature_deviation),
+      unit: "celsius",
+      measuredAt,
+      fieldTag: "temp_deviation",
+    });
+  }
+  return out;
 }
 
-/** Map one Oura sleep record: per-stage durations (s→min), efficiency, HRV,
- * RHR (lowest_heart_rate), respiratory rate. */
+/**
+ * Oura 5-minute hypnogram digit → our `SleepStage`. Oura encodes one digit per
+ * 5-min interval from `bedtime_start`: `1`=deep, `2`=light, `3`=rem, `4`=awake.
+ * Light maps to our CORE stage (the granular-asleep stage the sleep-night
+ * reader scores), matching the `light_sleep_duration → CORE` convention the
+ * stage-totals path already uses. Re-verify against `cloud.ouraring.com/v2/docs`.
+ */
+const HYPNOGRAM_STAGE: Record<string, NonNullable<MappedMeasurement["sleepStage"]>> =
+  {
+    "1": "DEEP",
+    "2": "CORE",
+    "3": "REM",
+    "4": "AWAKE",
+  };
+
+/** Each hypnogram digit covers 5 minutes. */
+const HYPNOGRAM_INTERVAL_MIN = 5;
+const HYPNOGRAM_INTERVAL_MS = HYPNOGRAM_INTERVAL_MIN * 60_000;
+
+/**
+ * Build timed per-segment `SLEEP_DURATION` rows from Oura's real measured
+ * `sleep_phase_5_min` hypnogram. Consecutive identical digits collapse into one
+ * segment; each segment is stamped at its own END instant (start + duration)
+ * relative to `bedtime_start`, so the sleep-night reader (which derives
+ * `start = end − value·60_000`) reconstructs the actual clock-time timeline —
+ * NOT the degraded all-on-`bedtime_end` shape. The rows are `reconstructed:
+ * false` by virtue of OURA being absent from the reader's
+ * `RECONSTRUCTED_TIMELINE_SOURCES` set (WHOOP only). Returns `null` when the
+ * hypnogram is absent / unusable so the caller falls back to stage totals.
+ */
+function mapSleepTimeline(s: OuraSleep): MappedMeasurement[] | null {
+  const hyp = s.sleep_phase_5_min;
+  if (typeof hyp !== "string" || hyp.length === 0 || !s.bedtime_start) {
+    return null;
+  }
+  const onset = new Date(s.bedtime_start);
+  if (Number.isNaN(onset.getTime())) return null;
+
+  const out: MappedMeasurement[] = [];
+  let segIndex = 0;
+  let i = 0;
+  while (i < hyp.length) {
+    const digit = hyp[i];
+    const stage = HYPNOGRAM_STAGE[digit];
+    // Walk the run of identical digits.
+    let run = 1;
+    while (i + run < hyp.length && hyp[i + run] === digit) run += 1;
+    if (stage) {
+      const segStartMs = onset.getTime() + i * HYPNOGRAM_INTERVAL_MS;
+      const segEndMs = segStartMs + run * HYPNOGRAM_INTERVAL_MS;
+      const fieldTag = `seg:${segIndex}`;
+      out.push({
+        type: "SLEEP_DURATION",
+        value: round2(run * HYPNOGRAM_INTERVAL_MIN),
+        unit: "minutes",
+        measuredAt: new Date(segEndMs),
+        fieldTag,
+        sleepStage: stage,
+        // Record-scoped + segment-indexed so a nap's segments never collide
+        // with the main sleep's and a re-fetch overwrites in place.
+        externalId: `sleep:${s.id}:${fieldTag}`,
+      });
+      segIndex += 1;
+    }
+    i += run;
+  }
+  return out.length > 0 ? out : null;
+}
+
+/**
+ * Map one Oura sleep record. When the real `sleep_phase_5_min` hypnogram is
+ * present we emit timed per-segment `SLEEP_DURATION` rows (Oura's measured
+ * timeline); otherwise we fall back to the four per-stage totals stamped on the
+ * sleep END. Either way we add efficiency, HRV, RHR (`lowest_heart_rate`), and
+ * respiratory rate.
+ */
 export function mapSleep(s: OuraSleep): MappedMeasurement[] {
   const measuredAt = dayAnchor(s.day, s.bedtime_end);
   if (!measuredAt) return [];
   const out: MappedMeasurement[] = [];
 
-  const stages: Array<[number | null | undefined, MappedMeasurement["sleepStage"], string]> = [
-    [s.light_sleep_duration, "CORE", "sleep_core"],
-    [s.deep_sleep_duration, "DEEP", "sleep_deep"],
-    [s.rem_sleep_duration, "REM", "sleep_rem"],
-    [s.awake_time, "AWAKE", "sleep_awake"],
-  ];
-  for (const [sec, stage, fieldTag] of stages) {
-    if (typeof sec === "number" && sec >= 0) {
-      out.push({
-        type: "SLEEP_DURATION",
-        value: round2(sec * SEC_TO_MIN),
-        unit: "minutes",
-        measuredAt,
-        fieldTag,
-        sleepStage: stage,
-      });
+  const timeline = mapSleepTimeline(s);
+  if (timeline) {
+    out.push(...timeline);
+  } else {
+    // Fallback: no hypnogram — stamp the four stage totals on the sleep END.
+    const stages: Array<
+      [number | null | undefined, MappedMeasurement["sleepStage"], string]
+    > = [
+      [s.light_sleep_duration, "CORE", "sleep_core"],
+      [s.deep_sleep_duration, "DEEP", "sleep_deep"],
+      [s.rem_sleep_duration, "REM", "sleep_rem"],
+      [s.awake_time, "AWAKE", "sleep_awake"],
+    ];
+    for (const [sec, stage, fieldTag] of stages) {
+      if (typeof sec === "number" && sec >= 0) {
+        out.push({
+          type: "SLEEP_DURATION",
+          value: round2(sec * SEC_TO_MIN),
+          unit: "minutes",
+          measuredAt,
+          fieldTag,
+          sleepStage: stage,
+          // Record-scoped so a nap and the main sleep on the same day don't
+          // collapse onto one key (B2) — the legacy day-keyed key did.
+          externalId: `sleep:${s.id}:${fieldTag}`,
+        });
+      }
     }
   }
+  // The nightly scalars are record-scoped too (B2): a nap and the main sleep on
+  // the same day would otherwise overwrite each other's efficiency / HRV / RHR /
+  // respiratory rate on a shared day key.
   if (typeof s.efficiency === "number") {
     out.push({
       type: "SLEEP_EFFICIENCY",
@@ -343,6 +542,7 @@ export function mapSleep(s: OuraSleep): MappedMeasurement[] {
       unit: "%",
       measuredAt,
       fieldTag: "sleep_eff",
+      externalId: `sleep:${s.id}:sleep_eff`,
     });
   }
   if (typeof s.average_hrv === "number" && s.average_hrv > 0) {
@@ -352,6 +552,7 @@ export function mapSleep(s: OuraSleep): MappedMeasurement[] {
       unit: "ms",
       measuredAt,
       fieldTag: "hrv_rmssd",
+      externalId: `sleep:${s.id}:hrv_rmssd`,
     });
   }
   if (typeof s.lowest_heart_rate === "number" && s.lowest_heart_rate > 0) {
@@ -361,6 +562,7 @@ export function mapSleep(s: OuraSleep): MappedMeasurement[] {
       unit: "bpm",
       measuredAt,
       fieldTag: "rhr",
+      externalId: `sleep:${s.id}:rhr`,
     });
   }
   if (typeof s.average_breath === "number" && s.average_breath > 0) {
@@ -370,12 +572,49 @@ export function mapSleep(s: OuraSleep): MappedMeasurement[] {
       unit: "breaths/min",
       measuredAt,
       fieldTag: "resp_rate",
+      externalId: `sleep:${s.id}:resp_rate`,
     });
   }
   return out;
 }
 
-/** Map one Oura daily-activity record: steps + active energy. */
+/** Map one Oura daily-sleep record: the headline Sleep Score → `SLEEP_SCORE`. */
+export function mapDailySleep(d: OuraDailySleep): MappedMeasurement[] {
+  if (typeof d.score !== "number") return [];
+  const measuredAt = dayAnchor(d.day, d.timestamp);
+  if (!measuredAt) return [];
+  return [
+    {
+      type: "SLEEP_SCORE",
+      value: round2(d.score),
+      unit: "score",
+      measuredAt,
+      fieldTag: "sleep_score",
+    },
+  ];
+}
+
+/** Map one Oura daily-spo2 record: average overnight SpO2 → `OXYGEN_SATURATION`. */
+export function mapDailySpo2(s: OuraDailySpo2): MappedMeasurement[] {
+  const avg = s.spo2_percentage?.average;
+  if (typeof avg !== "number" || avg <= 0) return [];
+  // Anchor SpO2 at the day's UTC midnight (no per-record instant in the
+  // daily_spo2 collection); the recovery / rollup readers key off the local day.
+  const measuredAt = dayAnchor(s.day);
+  if (!measuredAt) return [];
+  return [
+    {
+      type: "OXYGEN_SATURATION",
+      value: round2(avg),
+      unit: "%",
+      measuredAt,
+      fieldTag: "spo2",
+    },
+  ];
+}
+
+/** Map one Oura daily-activity record: steps, active energy, and the
+ * equivalent walking distance (B5 — the OURA distance ladder slot was dead). */
 export function mapDailyActivity(a: OuraDailyActivity): MappedMeasurement[] {
   const measuredAt = dayAnchor(a.day, a.timestamp);
   if (!measuredAt) return [];
@@ -396,6 +635,20 @@ export function mapDailyActivity(a: OuraDailyActivity): MappedMeasurement[] {
       unit: "kcal",
       measuredAt,
       fieldTag: "active_energy",
+    });
+  }
+  if (
+    typeof a.equivalent_walking_distance === "number" &&
+    a.equivalent_walking_distance >= 0
+  ) {
+    out.push({
+      type: "WALKING_RUNNING_DISTANCE",
+      // Oura reports the equivalent walking distance in metres — the canonical
+      // WALKING_RUNNING_DISTANCE unit (no conversion).
+      value: round2(a.equivalent_walking_distance),
+      unit: "m",
+      measuredAt,
+      fieldTag: "distance",
     });
   }
   return out;

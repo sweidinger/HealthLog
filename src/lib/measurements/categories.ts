@@ -194,6 +194,12 @@ export const MEASUREMENT_CATEGORIES: ReadonlyMap<
   // so they join the scores cluster alongside DAY_STRAIN.
   ["ANS_CHARGE", "scores"],
   ["CARDIO_LOAD", "scores"],
+  // ── v1.17.1 — Oura coverage completion ──
+  // The Sleep Score is a per-night sleep-quality index → sleep cluster.
+  ["SLEEP_SCORE", "sleep"],
+  // Body-temperature deviation is an overnight thermal signal that pairs with
+  // skin / wrist temperature in the metabolic cluster.
+  ["BODY_TEMPERATURE_DEVIATION", "metabolic"],
 ]);
 
 /**
