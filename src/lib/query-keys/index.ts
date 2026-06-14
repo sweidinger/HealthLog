@@ -21,6 +21,7 @@ import { cycleKeys } from "./cycle";
 import { dashboardKeys } from "./dashboard";
 import { insightsKeys } from "./insights";
 import { integrationKeys } from "./integrations";
+import { labKeys } from "./labs";
 import { measurementKeys } from "./measurements";
 import { medicationKeys } from "./medications";
 import { moodKeys } from "./mood";
@@ -40,6 +41,7 @@ export const queryKeys = {
   ...workoutKeys,
   ...settingsKeys,
   ...cycleKeys,
+  ...labKeys,
 };
 
 /**
