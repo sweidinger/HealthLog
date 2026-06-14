@@ -3,6 +3,7 @@ import { apiHandler, requireAuth } from "@/lib/api-handler";
 import { auditLog } from "@/lib/auth/audit";
 import { apiSuccess, apiError } from "@/lib/api-response";
 import { annotate } from "@/lib/logging/context";
+import { checkRateLimit, rateLimitHeaders } from "@/lib/rate-limit";
 import { markDisconnected } from "@/lib/integrations/status";
 
 /**
@@ -15,6 +16,13 @@ import { markDisconnected } from "@/lib/integrations/status";
 export const POST = apiHandler(async () => {
   const { user } = await requireAuth();
   annotate({ action: { name: "oura.disconnect" } });
+
+  const rl = await checkRateLimit(`oura-disconnect:${user.id}`, 20, 60_000);
+  if (!rl.allowed) {
+    return apiError("Too many requests", 429, {
+      headers: rateLimitHeaders(rl),
+    });
+  }
 
   const dbUser = await prisma.user.findUnique({
     where: { id: user.id },

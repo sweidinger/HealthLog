@@ -222,12 +222,48 @@ describe("computeGlucoseClinicalMetrics — window + adequacy", () => {
     expect(m.advanced).not.toBeNull();
   });
 
-  it("always marks the result as a spot estimate", () => {
-    const m = computeGlucoseClinicalMetrics(
-      dailyReadings([100], now),
-      { now },
-    );
-    expect(m.isSpotEstimate).toBe(true);
+  describe("isSpotEstimate — density-derived", () => {
+    it("marks sparse spot data as a spot estimate (one reading/day)", () => {
+      // 14 readings across 14 days = 1/day, far below the hourly CGM bar.
+      const m = computeGlucoseClinicalMetrics(
+        dailyReadings(Array(14).fill(120), now),
+        { now },
+      );
+      expect(m.readingCount).toBe(14);
+      expect(m.isSpotEstimate).toBe(true);
+    });
+
+    it("marks a dense CGM-density stream as continuous (false)", () => {
+      // ~288 readings/day over 2 days, every 5 minutes — a Nightscout CGM.
+      const FIVE_MIN = 5 * 60 * 1000;
+      const total = 2 * 288;
+      const readings: GlucoseReading[] = Array.from(
+        { length: total },
+        (_, i) => ({
+          mgdl: 110,
+          measuredAt: new Date(now.getTime() - (total - 1 - i) * FIVE_MIN),
+        }),
+      );
+      const m = computeGlucoseClinicalMetrics(readings, { now });
+      expect(m.readingCount).toBe(total);
+      expect(m.isSpotEstimate).toBe(false);
+    });
+
+    it("does not let a single-day burst masquerade as continuous", () => {
+      // 30 readings all inside one day → span floors at 1 day, so density is
+      // 30/day. That clears the bar legitimately, but a handful in a day must
+      // not: 10 readings in one day = 10/day < 24 → still a spot estimate.
+      const HOUR = 60 * 60 * 1000;
+      const readings: GlucoseReading[] = Array.from(
+        { length: 10 },
+        (_, i) => ({
+          mgdl: 115,
+          measuredAt: new Date(now.getTime() - i * HOUR),
+        }),
+      );
+      const m = computeGlucoseClinicalMetrics(readings, { now });
+      expect(m.isSpotEstimate).toBe(true);
+    });
   });
 
   describe("learning gate", () => {

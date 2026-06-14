@@ -149,6 +149,34 @@ describe("syncUserNightscout", () => {
     expect(recordFailureMock.mock.calls[0]![0].kind).toBe("transient");
   });
 
+  it("redacts the token from the recorded lastError message", async () => {
+    // A SafeFetchError embeds the full target URL — including `?token=<secret>`
+    // — in its message; the recorded lastError must never leak it.
+    fetchSgvEntriesMock.mockRejectedValue(
+      new Error(
+        "safeFetch network error: https://ns.example.com/api/v1/entries.json?count=576&type=sgv&token=ns-secret-abc123",
+      ),
+    );
+    await expect(syncUserNightscout("u1")).rejects.toThrow();
+    const message = recordFailureMock.mock.calls[0]![0].message as string;
+    expect(message).not.toContain("ns-secret-abc123");
+    expect(message).toContain("token=REDACTED");
+    // The rest of the diagnostic is preserved.
+    expect(message).toContain("ns.example.com");
+  });
+
+  it("also redacts a classic api-secret query param", async () => {
+    fetchSgvEntriesMock.mockRejectedValue(
+      new Error(
+        "safeFetch refused private or non-public host: https://ns.lan/api/v1/entries.json?api-secret=deadbeef",
+      ),
+    );
+    await expect(syncUserNightscout("u1")).rejects.toThrow();
+    const message = recordFailureMock.mock.calls[0]![0].message as string;
+    expect(message).not.toContain("deadbeef");
+    expect(message).toContain("api-secret=REDACTED");
+  });
+
   it("recomputes rollup buckets for the imported readings", async () => {
     fetchSgvEntriesMock.mockResolvedValue([ENTRY_A, ENTRY_B]);
     await syncUserNightscout("u1");

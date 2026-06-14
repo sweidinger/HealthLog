@@ -48,6 +48,28 @@ import { getUserNightscoutCredentials } from "./credentials";
  */
 export const NIGHTSCOUT_SYNC_COUNT = 576;
 
+/**
+ * Redact the Nightscout auth secret from an error message before it reaches the
+ * integration ledger / the `/api/nightscout/status` response.
+ *
+ * The entries URL carries the access token as a `?token=<secret>` query param
+ * (and a classic instance may carry `api-secret`). A `SafeFetchError` embeds the
+ * full target URL verbatim in its message — a private-host refusal, a timeout,
+ * or a network failure would otherwise persist the token into `lastError` and
+ * echo it back through the status endpoint. Rewrite any URL in the message so
+ * the secret-bearing params read `=REDACTED`; everything else is preserved so
+ * the operator still sees a useful diagnostic.
+ */
+export function redactNightscoutSecret(message: string): string {
+  // Match `token=...` / `api-secret=...` up to the next param / whitespace /
+  // quote boundary. Case-insensitive on the key; the value is whatever a URL
+  // query value can hold short of a delimiter.
+  return message.replace(
+    /\b(token|api-secret)=[^\s&"']+/gi,
+    "$1=REDACTED",
+  );
+}
+
 /** Map a Nightscout HTTP status / network error onto the shared ledger kind. */
 export function classifyNightscoutFailure(err: unknown): FailureKind {
   if (err instanceof NightscoutApiError && err.status != null) {
@@ -85,7 +107,9 @@ export async function syncUserNightscout(
       userId,
       integration: "nightscout",
       kind: classifyNightscoutFailure(err),
-      message: err instanceof Error ? err.message : String(err),
+      message: redactNightscoutSecret(
+        err instanceof Error ? err.message : String(err),
+      ),
       errorCode:
         err instanceof NightscoutApiError && err.status != null
           ? String(err.status)

@@ -206,10 +206,15 @@ export function GlucoseClinicalPanel() {
           ) : null}
         </section>
 
-        {/* Spot-reading honesty caveat — always present. */}
-        <p className="text-muted-foreground/80 text-xs" data-slot="glucose-spot-caveat">
-          {t("insights.bloodGlucose.clinical.spotCaveat")}
-        </p>
+        {/* Spot-reading honesty caveat — only for sparse spot data. A dense
+            continuous stream (a CGM such as Nightscout) clears the density bar
+            and reports `isSpotEstimate: false`, so the caveat would undersell
+            the data. */}
+        {clinical.isSpotEstimate ? (
+          <p className="text-muted-foreground/80 text-xs" data-slot="glucose-spot-caveat">
+            {t("insights.bloodGlucose.clinical.spotCaveat")}
+          </p>
+        ) : null}
 
         {/* Advanced indices behind a disclosure. */}
         {clinical.advanced ? (

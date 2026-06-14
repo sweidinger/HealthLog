@@ -9,14 +9,17 @@
  * it never recomputes — keeping the clinical math in one literature-locked
  * place.
  *
- * IMPORTANT honesty contract: HealthLog stores SPOT readings (FASTING /
- * POSTPRANDIAL / RANDOM / BEDTIME), NOT a dense CGM stream. The classic
- * CGM-adequacy bar (Battelino 2019: 14 days with ≥70% of possible readings)
- * cannot be met by spot data. Therefore every TIR / GMI / eA1C produced here
- * is a SPOT-READING ESTIMATE — a "% of readings" distribution, NOT a "% of
- * time" AGP report. The {@link GlucoseClinicalMetrics.stillLearning} gate and
- * the per-metric labelling exist so callers never assert a clinical AGP off
- * thin spot data.
+ * IMPORTANT honesty contract: HealthLog ingests both SPOT readings (manual
+ * FASTING / POSTPRANDIAL / RANDOM / BEDTIME entries) AND, since v1.17, a dense
+ * Nightscout CGM stream (~288 readings/day). The classic CGM-adequacy bar
+ * (Battelino 2019: 14 days with ≥70% of possible readings) cannot be met by
+ * spot data, so for a sparse series every TIR / GMI / eA1C is a SPOT-READING
+ * ESTIMATE — a "% of readings" distribution, NOT a "% of time" AGP report.
+ * {@link GlucoseClinicalMetrics.isSpotEstimate} is derived from reading DENSITY
+ * (see {@link CGM_READINGS_PER_DAY_THRESHOLD}): a continuous CGM stream reads
+ * `false` and the spot caveat comes off; sparse spot data stays `true`. The
+ * {@link GlucoseClinicalMetrics.stillLearning} gate additionally holds back any
+ * assertion off thin data regardless of source.
  *
  * Thresholds and formulas are clean-room from the primary literature (the
  * consensus band values and coefficients are mathematical facts, not
@@ -90,6 +93,17 @@ export const CV_INSTABILITY_THRESHOLD = 36;
 export const DEFAULT_WINDOW_DAYS = 14;
 const DEFAULT_MIN_READINGS = 14;
 const DEFAULT_MIN_SPAN_DAYS = 7;
+
+/**
+ * Readings-per-day at or above which the series is treated as a CONTINUOUS
+ * stream (a CGM such as Nightscout, ~288/day) rather than spot fingersticks (a
+ * handful/day). Roughly hourly — wide enough that a real CGM (≈288/day) clears
+ * it by an order of magnitude while no realistic spot-checking cadence reaches
+ * it. Above the threshold the TIR/GMI/eA1C are no longer framed as a
+ * spot-reading estimate (`isSpotEstimate: false`); below it the conservative
+ * spot caveat stays.
+ */
+const CGM_READINGS_PER_DAY_THRESHOLD = 24;
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
@@ -212,11 +226,15 @@ export interface GlucoseClinicalMetrics {
   } | null;
 
   /**
-   * Always true for this module: every number is a spot-reading estimate, not a
-   * CGM AGP. Surfaced explicitly so serializers (panel/coach/PDF/iOS) carry the
-   * caveat without re-deriving it.
+   * Whether every number here should be framed as a SPOT-READING ESTIMATE (a
+   * "% of readings") rather than a CGM time-in-range AGP. Derived from reading
+   * DENSITY, not hard-coded: a continuous stream (a Nightscout CGM at ~288
+   * readings/day) clears the {@link CGM_READINGS_PER_DAY_THRESHOLD} hourly bar
+   * and reports `false`; sparse spot fingersticks stay `true`. Surfaced
+   * explicitly so serializers (panel/coach/PDF/iOS) carry the caveat without
+   * re-deriving it.
    */
-  isSpotEstimate: true;
+  isSpotEstimate: boolean;
 }
 
 // ── Core formulas ────────────────────────────────────────
@@ -488,6 +506,13 @@ export function computeGlucoseClinicalMetrics(
     }; at least ${minSpanDays} days of coverage are needed.`;
   }
 
+  // Density-derived spot vs continuous framing. Readings/day = count over the
+  // covered span (floored at one day so a single-day burst can't divide by a
+  // sub-day span and look continuous). At or above the hourly CGM bar the
+  // series is a continuous stream and the spot-reading caveat comes off.
+  const readingsPerDay = readingCount / Math.max(actualSpanDays, 1);
+  const isSpotEstimate = readingsPerDay < CGM_READINGS_PER_DAY_THRESHOLD;
+
   return {
     stillLearning,
     stillLearningReason,
@@ -500,7 +525,7 @@ export function computeGlucoseClinicalMetrics(
     estimatedA1c: eA1cValue,
     variability,
     advanced,
-    isSpotEstimate: true,
+    isSpotEstimate,
   };
 }
 

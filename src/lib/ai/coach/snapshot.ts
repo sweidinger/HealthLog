@@ -1539,9 +1539,10 @@ async function buildCoachSnapshotImpl(
               ? Math.round(clinicalRaw.variability.cv)
               : null,
             unstable: clinicalRaw.variability?.unstable ?? null,
-            // Spot-reading estimate, never a CGM AGP — pinned so the model
-            // never narrates these as continuous-trace clinical figures.
-            isSpotEstimate: true as const,
+            // Density-derived: a sparse spot series stays a spot-reading
+            // estimate, a continuous CGM stream (Nightscout) reads false so the
+            // model can narrate the TIR/GMI as continuous-trace figures.
+            isSpotEstimate: clinicalRaw.isSpotEstimate,
           };
       // The display unit travels with the block so the prompt renders
       // "<value> <unit>" and the EVIDENCE BLOCK tags glucose lines correctly.
