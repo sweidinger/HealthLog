@@ -4475,7 +4475,26 @@
       "enable": "Zyklus-Tracking aktivieren",
       "manage": "Zyklus-Tracking öffnen",
       "error": "Zyklus-Tracking konnte nicht aktualisiert werden."
-    }
+    },
+    "nightscout": "Nightscout",
+    "nightscoutTag": "CGM",
+    "nightscoutDescription": "Verbinde deine eigene Nightscout-Seite, um kontinuierliche Glukosewerte für das Glukose-Panel zu synchronisieren.",
+    "nightscoutHelp": "Richte HealthLog auf deine Nightscout-Instanz aus. Werte werden stündlich im Hintergrund abgerufen.",
+    "nightscoutUrl": "Nightscout-URL",
+    "nightscoutUrlSavedPlaceholder": "Gespeichert — neue URL eingeben zum Ersetzen",
+    "nightscoutToken": "API-Token",
+    "nightscoutTokenOptional": "Optional bei einer öffentlichen Seite",
+    "nightscoutTokenSavedPlaceholder": "Gespeichert — neuen Token eingeben zum Ersetzen",
+    "nightscoutTokenHelp": "Füge einen Zugriffstoken aus deinen Nightscout-Admin-Tools ein. Leer lassen, wenn deine Seite öffentlich lesbar ist.",
+    "nightscoutPrivateHost": "Diese Seite läuft in einem privaten Netzwerk",
+    "nightscoutPrivateHostHelp": "Nur aktivieren, wenn deine Nightscout-Instanz unter einer LAN-, VPN- oder Tailscale-Adresse läuft. Aus bei öffentlichen Seiten.",
+    "nightscoutConnect": "Verbinden",
+    "nightscoutUpdate": "Änderungen speichern",
+    "nightscoutConnected": "Nightscout verbunden.",
+    "nightscoutConnectFailed": "Verbindung zu Nightscout fehlgeschlagen.",
+    "nightscoutDisconnect": "Trennen",
+    "nightscoutDisconnectTitle": "Nightscout trennen?",
+    "nightscoutDisconnectDescription": "Künftige Synchronisierungen stoppen. Bereits importierte Glukosewerte bleiben in deinem Verlauf."
   },
   "admin": {
     "title": "Administration",

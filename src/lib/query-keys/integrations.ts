@@ -28,6 +28,12 @@ export const integrationKeys = {
    */
   fitbitStatus: () => ["fitbit", "status"] as const,
 
+  // v1.17.0 — Nightscout CGM integration card. Self-contained status read
+  // (not the consolidated /api/integrations/status envelope), so the
+  // connect/disconnect mutations invalidate this single key.
+  nightscout: () => ["nightscout"] as const,
+  nightscoutStatus: () => ["nightscout", "status"] as const,
+
   moodlogStatus: () => ["moodlog-status"] as const,
   integrationsStatus: () => ["integrations", "status"] as const,
 

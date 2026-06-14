@@ -4475,7 +4475,26 @@
       "enable": "Activar el seguimiento del ciclo",
       "manage": "Abrir seguimiento del ciclo",
       "error": "No se pudo actualizar el seguimiento del ciclo."
-    }
+    },
+    "nightscout": "Nightscout",
+    "nightscoutTag": "CGM",
+    "nightscoutDescription": "Conecta tu propio sitio Nightscout para sincronizar lecturas continuas de glucosa en el panel de glucosa.",
+    "nightscoutHelp": "Apunta HealthLog a tu instancia de Nightscout. Las lecturas se obtienen en segundo plano una vez por hora.",
+    "nightscoutUrl": "URL de Nightscout",
+    "nightscoutUrlSavedPlaceholder": "Guardado: introduce una URL nueva para reemplazarla",
+    "nightscoutToken": "Token de API",
+    "nightscoutTokenOptional": "Opcional para un sitio público",
+    "nightscoutTokenSavedPlaceholder": "Guardado: introduce un token nuevo para reemplazarlo",
+    "nightscoutTokenHelp": "Pega un token de acceso de las herramientas de administración de Nightscout. Déjalo vacío si tu sitio es de lectura pública.",
+    "nightscoutPrivateHost": "Este sitio funciona en una red privada",
+    "nightscoutPrivateHostHelp": "Actívalo solo si tu instancia de Nightscout está en una dirección LAN, VPN o Tailscale. Desactivado para sitios públicos.",
+    "nightscoutConnect": "Conectar",
+    "nightscoutUpdate": "Guardar cambios",
+    "nightscoutConnected": "Nightscout conectado.",
+    "nightscoutConnectFailed": "No se pudo conectar con Nightscout.",
+    "nightscoutDisconnect": "Desconectar",
+    "nightscoutDisconnectTitle": "¿Desconectar Nightscout?",
+    "nightscoutDisconnectDescription": "Las sincronizaciones futuras se detienen. Las lecturas de glucosa ya importadas permanecen en tu historial."
   },
   "admin": {
     "title": "Administration",

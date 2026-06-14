@@ -4475,7 +4475,26 @@
       "enable": "Włącz śledzenie cyklu",
       "manage": "Otwórz śledzenie cyklu",
       "error": "Nie udało się zaktualizować śledzenia cyklu."
-    }
+    },
+    "nightscout": "Nightscout",
+    "nightscoutTag": "CGM",
+    "nightscoutDescription": "Połącz własną witrynę Nightscout, aby synchronizować ciągłe odczyty glukozy w panelu glukozy.",
+    "nightscoutHelp": "Wskaż HealthLog na swoją instancję Nightscout. Odczyty są pobierane w tle raz na godzinę.",
+    "nightscoutUrl": "Adres URL Nightscout",
+    "nightscoutUrlSavedPlaceholder": "Zapisano — wpisz nowy adres URL, aby go zastąpić",
+    "nightscoutToken": "Token API",
+    "nightscoutTokenOptional": "Opcjonalny dla witryny publicznej",
+    "nightscoutTokenSavedPlaceholder": "Zapisano — wpisz nowy token, aby go zastąpić",
+    "nightscoutTokenHelp": "Wklej token dostępu z narzędzi administracyjnych Nightscout. Pozostaw puste, jeśli witryna jest publicznie czytelna.",
+    "nightscoutPrivateHost": "Ta witryna działa w sieci prywatnej",
+    "nightscoutPrivateHostHelp": "Włącz tylko, jeśli instancja Nightscout znajduje się pod adresem LAN, VPN lub Tailscale. Wyłączone dla witryn publicznych.",
+    "nightscoutConnect": "Połącz",
+    "nightscoutUpdate": "Zapisz zmiany",
+    "nightscoutConnected": "Nightscout połączony.",
+    "nightscoutConnectFailed": "Nie można połączyć z Nightscout.",
+    "nightscoutDisconnect": "Rozłącz",
+    "nightscoutDisconnectTitle": "Rozłączyć Nightscout?",
+    "nightscoutDisconnectDescription": "Przyszłe synchronizacje zostaną zatrzymane. Już zaimportowane odczyty glukozy pozostaną w historii."
   },
   "admin": {
     "title": "Administracja",

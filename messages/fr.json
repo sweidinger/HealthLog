@@ -4475,7 +4475,26 @@
       "enable": "Activer le suivi du cycle",
       "manage": "Ouvrir le suivi du cycle",
       "error": "Impossible de mettre à jour le suivi du cycle."
-    }
+    },
+    "nightscout": "Nightscout",
+    "nightscoutTag": "CGM",
+    "nightscoutDescription": "Connectez votre propre site Nightscout pour synchroniser les mesures de glycémie en continu dans le panneau glucose.",
+    "nightscoutHelp": "Pointez HealthLog vers votre instance Nightscout. Les mesures sont récupérées en arrière-plan une fois par heure.",
+    "nightscoutUrl": "URL Nightscout",
+    "nightscoutUrlSavedPlaceholder": "Enregistré — saisissez une nouvelle URL pour la remplacer",
+    "nightscoutToken": "Jeton d'API",
+    "nightscoutTokenOptional": "Facultatif pour un site public",
+    "nightscoutTokenSavedPlaceholder": "Enregistré — saisissez un nouveau jeton pour le remplacer",
+    "nightscoutTokenHelp": "Collez un jeton d'accès depuis les outils d'administration de Nightscout. Laissez vide si votre site est lisible publiquement.",
+    "nightscoutPrivateHost": "Ce site fonctionne sur un réseau privé",
+    "nightscoutPrivateHostHelp": "Activez uniquement si votre instance Nightscout est sur une adresse LAN, VPN ou Tailscale. Désactivé pour les sites publics.",
+    "nightscoutConnect": "Connecter",
+    "nightscoutUpdate": "Enregistrer les modifications",
+    "nightscoutConnected": "Nightscout connecté.",
+    "nightscoutConnectFailed": "Impossible de se connecter à Nightscout.",
+    "nightscoutDisconnect": "Déconnecter",
+    "nightscoutDisconnectTitle": "Déconnecter Nightscout ?",
+    "nightscoutDisconnectDescription": "Les synchronisations futures s'arrêtent. Les mesures de glycémie déjà importées restent dans votre historique."
   },
   "admin": {
     "title": "Administration",
