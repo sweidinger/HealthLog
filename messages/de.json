@@ -6255,5 +6255,56 @@
     "deleteN": "Löschen ({count})",
     "clearSelection": "Auswahl aufheben",
     "selectionBarLabel": "Auswahlaktionen"
+  },
+  "measurementReminders": {
+    "sectionTitle": "Vorsorge",
+    "sectionDescription": "Erinnerungen, was wann und wo zu messen oder zu prüfen ist.",
+    "addButton": "Erinnerung hinzufügen",
+    "markDone": "Erledigt",
+    "delete": "Löschen",
+    "disabledBadge": "Aus",
+    "nextDue": {
+      "none": "Nicht geplant",
+      "today": "Heute fällig",
+      "tomorrow": "Morgen fällig",
+      "inDays": "In {days} Tagen"
+    },
+    "overdueByDays": "Überfällig seit {days} Tagen",
+    "cadence": {
+      "everyNDays": "Alle {days} Tage",
+      "custom": "Eigener Zeitplan"
+    },
+    "location": {
+      "prefix": "Bei: {location}"
+    },
+    "types": {
+      "WEIGHT": "Gewicht",
+      "BLOOD_PRESSURE_SYS": "Blutdruck",
+      "PULSE": "Puls",
+      "BLOOD_GLUCOSE": "Blutzucker",
+      "OXYGEN_SATURATION": "Sauerstoffsättigung",
+      "BODY_FAT": "Körperfett",
+      "BODY_TEMPERATURE": "Körpertemperatur"
+    },
+    "empty": {
+      "title": "Noch keine Erinnerungen",
+      "description": "Füge eine Erinnerung hinzu, um z. B. regelmäßig den Blutdruck zu messen oder ein jährliches Blutbild zu planen."
+    },
+    "form": {
+      "label": "Bezeichnung",
+      "labelPlaceholder": "z. B. Blutdruck messen",
+      "kind": "Art",
+      "kindType": "Mit einer Messung verknüpft",
+      "kindFreeText": "Freitext-Prüfung",
+      "measurementType": "Messwert",
+      "cadence": "Wiederholung",
+      "notifyHour": "Erinnern um",
+      "location": "Wo (optional)",
+      "locationPlaceholder": "z. B. Hausarzt, Labor",
+      "save": "Speichern"
+    },
+    "pushTitle": "Vorsorge-Erinnerung",
+    "pushBody": "Fällig: {label}",
+    "pushLocation": "(bei {location})"
   }
 }

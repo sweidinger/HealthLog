@@ -6255,5 +6255,56 @@
     "deleteN": "Eliminar ({count})",
     "clearSelection": "Borrar selección",
     "selectionBarLabel": "Acciones de selección"
+  },
+  "measurementReminders": {
+    "sectionTitle": "Prevención",
+    "sectionDescription": "Recordatorios de qué medir o revisar, cuándo y dónde.",
+    "addButton": "Añadir recordatorio",
+    "markDone": "Hecho",
+    "delete": "Eliminar",
+    "disabledBadge": "Apagado",
+    "nextDue": {
+      "none": "Sin programar",
+      "today": "Vence hoy",
+      "tomorrow": "Vence mañana",
+      "inDays": "En {days} días"
+    },
+    "overdueByDays": "Vencido hace {days} días",
+    "cadence": {
+      "everyNDays": "Cada {days} días",
+      "custom": "Programación personalizada"
+    },
+    "location": {
+      "prefix": "En: {location}"
+    },
+    "types": {
+      "WEIGHT": "Peso",
+      "BLOOD_PRESSURE_SYS": "Presión arterial",
+      "PULSE": "Pulso",
+      "BLOOD_GLUCOSE": "Glucosa en sangre",
+      "OXYGEN_SATURATION": "Saturación de oxígeno",
+      "BODY_FAT": "Grasa corporal",
+      "BODY_TEMPERATURE": "Temperatura corporal"
+    },
+    "empty": {
+      "title": "Aún no hay recordatorios",
+      "description": "Añade un recordatorio para medir la presión arterial con regularidad o programar un análisis de sangre anual."
+    },
+    "form": {
+      "label": "Etiqueta",
+      "labelPlaceholder": "p. ej. Medir la presión arterial",
+      "kind": "Tipo",
+      "kindType": "Vinculado a una medición",
+      "kindFreeText": "Comprobación de texto libre",
+      "measurementType": "Medición",
+      "cadence": "Repetir",
+      "notifyHour": "Recordar a las",
+      "location": "Dónde (opcional)",
+      "locationPlaceholder": "p. ej. Médico, Laboratorio",
+      "save": "Guardar"
+    },
+    "pushTitle": "Recordatorio de prevención",
+    "pushBody": "Toca: {label}",
+    "pushLocation": "(en {location})"
   }
 }
