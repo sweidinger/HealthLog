@@ -3648,7 +3648,7 @@
     },
     "goals": {
       "title": "Co chcesz śledzić?",
-      "body": "Wybierz obszary, które są dla Ciebie ważne — to pomaga zdecydować, co śledzić i co skonfigurować w następnej kolejności.",
+      "body": "Wybierz obszary, które są dla Ciebie ważne — pokażemy je najpierw na pulpicie i pomogą Ci zdecydować, co skonfigurować dalej.",
       "helpHint": "Od jednego do trzech priorytetów zwykle sprawdza się najlepiej — możesz dodać kolejne w dowolnej chwili.",
       "options": {
         "weightManagement": "Kontrola wagi",
@@ -3733,6 +3733,17 @@
         "title": "Zobacz wzorce",
         "body": "Codzienne podsumowania, wykresy trendów i coach, który wskazuje co się zmieniło — wszystko na Twoim urządzeniu."
       }
+    },
+    "anamnesis": {
+      "title": "O Twoim zdrowiu (opcjonalnie)",
+      "subtitle": "Trochę kontekstu, aby HealthLog rzetelniej odczytywał Twoje wyniki.",
+      "intro": "Podziel się tym, czym chcesz — każde pole jest opcjonalne i możesz je zmienić w dowolnej chwili w Ustawieniach.",
+      "conditionsLabel": "Aktualne schorzenia",
+      "conditionsPlaceholder": "np. nadciśnienie, cukrzyca typu 2",
+      "conditionsHint": "Pomaga HealthLog ujmować Twoje pomiary w kontekście, zamiast oznaczać to, czego należy się spodziewać.",
+      "allergiesLabel": "Alergie lub nietolerancje",
+      "allergiesPlaceholder": "np. penicylina, laktoza",
+      "privacyNote": "Przechowywane w postaci zaszyfrowanej i używane tylko po to, by dać Ci lepszy kontekst. Nie pytamy tu o leki — dodasz je w dowolnej chwili na stronie Leki."
     }
   },
   "gettingStarted": {

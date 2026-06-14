@@ -10,9 +10,14 @@ import {
 } from "@/lib/api-response";
 import { auditLog } from "@/lib/auth/audit";
 import { setOnboardingPendingCookie } from "@/lib/auth/session";
-import { prisma } from "@/lib/db";
+import { prisma, toJson } from "@/lib/db";
+import { Prisma } from "@/generated/prisma/client";
 import { annotate } from "@/lib/logging/context";
 import { checkRateLimit } from "@/lib/rate-limit";
+import {
+  ONBOARDING_GOAL_SLUGS,
+  buildGoalSeededDashboardLayout,
+} from "@/lib/onboarding/goals";
 
 /**
  * v1.4.25 W14b — POST /api/onboarding/step.
@@ -42,6 +47,16 @@ import { checkRateLimit } from "@/lib/rate-limit";
 
 const stepBodySchema = z.object({
   step: z.number().int().min(1).max(4),
+  // v1.17.1 — optional goal slugs from the GoalsChipPicker (step 2
+  // submit). Validated against the closed slug enum so an unknown slug
+  // 422s; deduped + capped at the full set size. Persisted to
+  // `User.onboardingGoals` (field-by-field, no mass assignment) and on
+  // completion (step 4) seeds the dashboard layout when the user never
+  // customized it. Omitted leaves the stored goals untouched.
+  goals: z
+    .array(z.enum(ONBOARDING_GOAL_SLUGS))
+    .max(ONBOARDING_GOAL_SLUGS.length)
+    .optional(),
 });
 
 export const POST = apiHandler(async (request: NextRequest) => {
@@ -74,7 +89,7 @@ export const POST = apiHandler(async (request: NextRequest) => {
     });
     return apiError("Invalid step payload", 422);
   }
-  const { step } = parsed.data;
+  const { step, goals } = parsed.data;
 
   // Re-fetch the fresh User row so concurrent step submissions in
   // separate tabs can't race past each other — the session.user
@@ -126,9 +141,14 @@ export const POST = apiHandler(async (request: NextRequest) => {
       onboardingCompletedAt: null,
       onboardingStep: { in: [current] },
     },
+    // Field-by-field assembly — no mass assignment. `goals` only
+    // lands when the client sent it (the step-2 submit); it is already
+    // validated against the closed slug enum by the Zod schema, so the
+    // array reaching Prisma can never contain an out-of-set value.
     data: {
       onboardingStep: step,
       ...(completing ? { onboardingCompletedAt: new Date() } : {}),
+      ...(goals !== undefined ? { onboardingGoals: goals } : {}),
     },
   });
   if (claimed.count !== 1) {
@@ -149,11 +169,41 @@ export const POST = apiHandler(async (request: NextRequest) => {
     },
   });
 
+  let goalsSeeded = false;
   if (completing) {
     // Mirror /api/onboarding/complete — clear the proxy-readable
     // pending cookie so the next navigation drops the /onboarding
     // redirect immediately.
     await setOnboardingPendingCookie(false);
+
+    // v1.17.1 — seed the dashboard from the stored goal selection.
+    // ONE-TIME, gated on `dashboardWidgetsJson == null` so a user who
+    // already arranged tiles is never clobbered. The seed promotes the
+    // goal-mapped tiles to the top and forces them visible; an empty /
+    // general-wellness-only selection produces null and leaves the
+    // column untouched (default layout). The resulting layout is what
+    // both the web dashboard and the iOS widgets contract read —
+    // server-authoritative, no client recompute.
+    const seedRow = await prisma.user.findUnique({
+      where: { id: user.id },
+      select: { onboardingGoals: true, dashboardWidgetsJson: true },
+    });
+    if (seedRow && seedRow.dashboardWidgetsJson == null) {
+      const seededLayout = buildGoalSeededDashboardLayout(
+        seedRow.onboardingGoals,
+      );
+      if (seededLayout) {
+        // updateMany so the `dashboardWidgetsJson: null` precondition
+        // rides in the WHERE clause — a concurrent Settings → Dashboard
+        // save that lands first leaves `count = 0` and the seed is
+        // skipped rather than overwriting the user's fresh layout.
+        const seeded = await prisma.user.updateMany({
+          where: { id: user.id, dashboardWidgetsJson: { equals: Prisma.JsonNull } },
+          data: { dashboardWidgetsJson: toJson(seededLayout) },
+        });
+        goalsSeeded = seeded.count === 1;
+      }
+    }
   }
 
   await auditLog("onboarding.step", {
@@ -167,7 +217,12 @@ export const POST = apiHandler(async (request: NextRequest) => {
 
   annotate({
     action: { name: "onboarding.step" },
-    meta: { outcome: completing ? "completed" : "advanced", step },
+    meta: {
+      outcome: completing ? "completed" : "advanced",
+      step,
+      ...(goals !== undefined ? { goals_count: goals.length } : {}),
+      ...(completing ? { goals_seeded: goalsSeeded } : {}),
+    },
   });
 
   return apiSuccess({

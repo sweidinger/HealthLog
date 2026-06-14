@@ -3648,7 +3648,7 @@
     },
     "goals": {
       "title": "What would you like to track?",
-      "body": "Pick the areas you care about — it helps you decide what to track and set up next.",
+      "body": "Pick the areas you care about — we'll surface them first on your dashboard, and they help you decide what to set up next.",
       "helpHint": "One to three priorities tend to work best — you can always add more later.",
       "options": {
         "weightManagement": "Weight management",
@@ -3733,6 +3733,17 @@
         "title": "See the pattern",
         "body": "Daily summaries, trend charts, and a coach that surfaces what changed — all on your own device."
       }
+    },
+    "anamnesis": {
+      "title": "About your health (optional)",
+      "subtitle": "A little context so HealthLog reads your numbers more fairly.",
+      "intro": "Share as much or as little as you like — every field is optional and you can edit it anytime in Settings.",
+      "conditionsLabel": "Ongoing conditions",
+      "conditionsPlaceholder": "e.g. high blood pressure, type 2 diabetes",
+      "conditionsHint": "Helps HealthLog frame your readings in context rather than flagging the expected.",
+      "allergiesLabel": "Allergies or intolerances",
+      "allergiesPlaceholder": "e.g. penicillin, lactose",
+      "privacyNote": "Stored encrypted and used only to give you better context. We don't ask for your medications here — add those anytime from the Medications page."
     }
   },
   "gettingStarted": {

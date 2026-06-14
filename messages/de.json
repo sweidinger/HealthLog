@@ -3648,7 +3648,7 @@
     },
     "goals": {
       "title": "Was möchtest du erfassen?",
-      "body": "Wähle die Bereiche, die dir wichtig sind – das hilft dir zu entscheiden, was du verfolgen und als Nächstes einrichten willst.",
+      "body": "Wähle die Bereiche, die dir wichtig sind – wir zeigen sie zuerst auf deinem Dashboard an, und sie helfen dir zu entscheiden, was du als Nächstes einrichtest.",
       "helpHint": "Ein bis drei Schwerpunkte funktionieren erfahrungsgemäß am besten – mehr geht aber jederzeit.",
       "options": {
         "weightManagement": "Gewicht im Griff",
@@ -3733,6 +3733,17 @@
         "title": "Erkenne das Muster",
         "body": "Tageszusammenfassungen, Trend-Diagramme und ein Coach, der zeigt was sich verändert hat — alles auf deinem Gerät."
       }
+    },
+    "anamnesis": {
+      "title": "Zu deiner Gesundheit (optional)",
+      "subtitle": "Etwas Kontext, damit HealthLog deine Werte fairer einordnet.",
+      "intro": "Teile so viel oder so wenig, wie du möchtest – jedes Feld ist optional und jederzeit in den Einstellungen änderbar.",
+      "conditionsLabel": "Bestehende Erkrankungen",
+      "conditionsPlaceholder": "z. B. Bluthochdruck, Typ-2-Diabetes",
+      "conditionsHint": "Hilft HealthLog, deine Werte im Kontext einzuordnen, statt Erwartbares zu melden.",
+      "allergiesLabel": "Allergien oder Unverträglichkeiten",
+      "allergiesPlaceholder": "z. B. Penicillin, Laktose",
+      "privacyNote": "Verschlüsselt gespeichert und nur für besseren Kontext genutzt. Medikamente fragen wir hier nicht ab – die kannst du jederzeit auf der Medikamenten-Seite ergänzen."
     }
   },
   "gettingStarted": {

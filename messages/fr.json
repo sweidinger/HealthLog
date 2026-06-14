@@ -3648,7 +3648,7 @@
     },
     "goals": {
       "title": "Que souhaitez-vous suivre ?",
-      "body": "Sélectionnez les domaines qui comptent pour vous : cela vous aide à décider quoi suivre et configurer ensuite.",
+      "body": "Sélectionnez les domaines qui comptent pour vous : nous les afficherons en premier sur votre tableau de bord, et ils vous aident à décider quoi configurer ensuite.",
       "helpHint": "Un à trois axes prioritaires fonctionnent généralement le mieux, mais vous pourrez en ajouter plus tard.",
       "options": {
         "weightManagement": "Gestion du poids",
@@ -3733,6 +3733,17 @@
         "title": "Repérez les tendances",
         "body": "Résumés quotidiens, graphiques de tendances et un coach qui met en avant ce qui a changé — le tout sur votre appareil."
       }
+    },
+    "anamnesis": {
+      "title": "À propos de votre santé (facultatif)",
+      "subtitle": "Un peu de contexte pour que HealthLog interprète vos valeurs plus justement.",
+      "intro": "Partagez autant ou aussi peu que vous le souhaitez : chaque champ est facultatif et modifiable à tout moment dans les Réglages.",
+      "conditionsLabel": "Affections en cours",
+      "conditionsPlaceholder": "p. ex. hypertension, diabète de type 2",
+      "conditionsHint": "Aide HealthLog à replacer vos mesures dans leur contexte plutôt que de signaler l'attendu.",
+      "allergiesLabel": "Allergies ou intolérances",
+      "allergiesPlaceholder": "p. ex. pénicilline, lactose",
+      "privacyNote": "Stocké chiffré et utilisé uniquement pour un meilleur contexte. Nous ne demandons pas vos médicaments ici — ajoutez-les quand vous voulez depuis la page Médicaments."
     }
   },
   "gettingStarted": {

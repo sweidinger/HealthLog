@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
@@ -19,7 +19,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useTranslations } from "@/lib/i18n/context";
-import { apiPost, apiPut } from "@/lib/api/api-fetch";
+import { apiGet, apiPost, apiPut } from "@/lib/api/api-fetch";
+import {
+  AnamnesisCard,
+  buildAnamnesisAboutMeBody,
+  type AnamnesisValue,
+} from "@/components/onboarding/AnamnesisCard";
 
 /**
  * v1.4.25 W14b-Content — onboarding step 3 (baseline).
@@ -35,9 +40,12 @@ import { apiPost, apiPut } from "@/lib/api/api-fetch";
  *
  * Submit flow on "Save and continue":
  *   1. PUT profile (best-effort — empty fields are skipped).
- *   2. POST step:4 — flips `onboardingCompletedAt` server-side and
+ *   2. PUT /api/coach/about-me — only when the optional anamnesis card
+ *      (v1.17.1) was filled; preserves any existing `aboutMe` and
+ *      writes conditions / allergies encrypted at rest.
+ *   3. POST step:4 — flips `onboardingCompletedAt` server-side and
  *      clears the proxy cookie.
- *   3. router.push("/onboarding/4") — the done screen.
+ *   4. router.push("/onboarding/4") — the done screen.
  *
  * "Skip" advances without writing profile data; the wizard still
  * completes onboarding (the user can fill profile later from
@@ -66,6 +74,37 @@ export function BaselineForm() {
   const [form, setForm] = useState<BaselineFormState>(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
 
+  // v1.17.1 — optional anamnesis (conditions + allergies). Persisted
+  // through the existing encrypted self-context path
+  // (`PUT /api/coach/about-me`). We read the current self-context once
+  // so a returning/resuming user's free-text `aboutMe` is preserved on
+  // save (the PUT schema requires `aboutMe`, and an empty value clears
+  // it). A fresh user has no self-context, so `baseAboutMe` stays "".
+  const [anamnesis, setAnamnesis] = useState<AnamnesisValue>({
+    conditions: "",
+    allergies: "",
+  });
+  const [baseAboutMe, setBaseAboutMe] = useState("");
+
+  useEffect(() => {
+    let active = true;
+    void apiGet<{ aboutMe: string | null }>("/api/coach/about-me")
+      .then((ctx) => {
+        if (active && typeof ctx.aboutMe === "string") {
+          setBaseAboutMe(ctx.aboutMe);
+        }
+      })
+      .catch(() => {
+        // Non-fatal — onboarding must never block on the self-context
+        // read. A fresh user has none; on error we keep the "" base,
+        // which the PUT below only sends when the user actually typed
+        // an anamnesis answer.
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
+
   function patch<K extends keyof BaselineFormState>(
     key: K,
     value: BaselineFormState[K],
@@ -91,6 +130,14 @@ export function BaselineForm() {
         }
         if (Object.keys(profileBody).length > 0) {
           await apiPut("/api/auth/profile", profileBody);
+        }
+
+        // Anamnesis — only write when the user actually filled a field
+        // (the helper returns null for an untouched card, so a
+        // collapsed card never round-trips).
+        const aboutMeBody = buildAnamnesisAboutMeBody(baseAboutMe, anamnesis);
+        if (aboutMeBody) {
+          await apiPut("/api/coach/about-me", aboutMeBody);
         }
       }
       await apiPost("/api/onboarding/step", { step: 4 });
@@ -209,6 +256,12 @@ export function BaselineForm() {
           </p>
         </div>
       </fieldset>
+
+      <AnamnesisCard
+        value={anamnesis}
+        onChange={setAnamnesis}
+        disabled={saving}
+      />
 
       <div className="flex items-center justify-between gap-2 pt-2">
         <Button asChild variant="ghost" className="min-h-11 min-w-11">

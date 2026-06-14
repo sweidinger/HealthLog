@@ -3648,7 +3648,7 @@
     },
     "goals": {
       "title": "Cosa vuoi monitorare?",
-      "body": "Scegli gli ambiti che ti interessano: ti aiuta a decidere cosa monitorare e configurare in seguito.",
+      "body": "Scegli gli ambiti che ti interessano: li mostreremo per primi nella tua dashboard e ti aiutano a decidere cosa configurare in seguito.",
       "helpHint": "Da una a tre priorità funzionano di solito meglio — potrai aggiungerne altre in qualsiasi momento.",
       "options": {
         "weightManagement": "Gestione del peso",
@@ -3733,6 +3733,17 @@
         "title": "Scopri lo schema",
         "body": "Riepiloghi giornalieri, grafici di tendenza e un coach che evidenzia i cambiamenti — tutto sul tuo dispositivo."
       }
+    },
+    "anamnesis": {
+      "title": "Sulla tua salute (facoltativo)",
+      "subtitle": "Un po' di contesto perché HealthLog interpreti i tuoi valori in modo più equo.",
+      "intro": "Condividi quanto vuoi: ogni campo è facoltativo e modificabile in qualsiasi momento nelle Impostazioni.",
+      "conditionsLabel": "Condizioni in corso",
+      "conditionsPlaceholder": "es. ipertensione, diabete di tipo 2",
+      "conditionsHint": "Aiuta HealthLog a inquadrare le tue misurazioni nel contesto invece di segnalare l'atteso.",
+      "allergiesLabel": "Allergie o intolleranze",
+      "allergiesPlaceholder": "es. penicillina, lattosio",
+      "privacyNote": "Memorizzato cifrato e usato solo per darti un contesto migliore. Qui non chiediamo i tuoi farmaci: aggiungili quando vuoi dalla pagina Farmaci."
     }
   },
   "gettingStarted": {
