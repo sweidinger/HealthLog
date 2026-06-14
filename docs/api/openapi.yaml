@@ -13451,7 +13451,8 @@ components:
               description: Raw invite token (`hlv_<64hex>`). Shown exactly once — never persisted in plaintext.
             url:
               type: string
-              description: Composed registration deep link (`/auth/register?invite=…`).
+              description: Composed invite universal-link (`/invite/<hlv_token>`). On iOS it opens the app onto onboarding
+                registration; in a browser it redirects to `/auth/register?invite=…`.
           required:
             - id
             - createdAt
