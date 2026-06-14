@@ -123,13 +123,21 @@ async function seedUserWithEveryDataType(username: string): Promise<string> {
     },
   });
 
-  // Medication compliance — one taken intake event.
+  // Medication compliance — one taken intake event against a scheduled
+  // medication. The ledger compliance builder (v1.17 W1a) only tallies
+  // medications that carry a schedule (no schedule = PRN/as-needed = no
+  // expected dose = excluded so the report never prints a fabricated
+  // 100 %), so the fixture must seed a window for the drug to appear in
+  // `data.compliance`.
   const med = await prisma.medication.create({
     data: {
       userId: user.id,
       name: "Metformin",
       dose: "500 mg",
       active: true,
+      schedules: {
+        create: [{ windowStart: "08:00", windowEnd: "10:00" }],
+      },
     },
   });
   await prisma.medicationIntakeEvent.create({
