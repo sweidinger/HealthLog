@@ -2,6 +2,7 @@
 
 import { useAuth } from "@/hooks/use-auth";
 import { Skeleton } from "@/components/ui/skeleton";
+import { cn } from "@/lib/utils";
 import { useTranslations } from "@/lib/i18n/context";
 import { useSleepRhythm } from "./use-sleep-rhythm";
 import { SleepDebtCard } from "./sleep-debt-card";
@@ -52,8 +53,22 @@ export function SleepRhythmSection({ enabled }: { enabled: boolean }) {
     );
   }
 
+  // Both cards are compact; when each carries a settled (non-learning) readout
+  // they sit two-up. A lone card with data spans full width so it never leaves
+  // a half-width orphan with dead space beside it (mirrors the mood Einordnung
+  // tiles). The cards' own learning/partial states stay stacked full-width.
+  const debtHasData = data.sleepDebt.state === "ready";
+  const chronotypeHasData =
+    data.chronotype.state === "ready" && data.chronotype.band != null;
+  const bothHaveData = debtHasData && chronotypeHasData;
+
   return (
-    <div className="space-y-4">
+    <div
+      className={cn(
+        "grid gap-4",
+        bothHaveData ? "lg:grid-cols-2 lg:items-start" : "grid-cols-1",
+      )}
+    >
       <SleepDebtCard debt={data.sleepDebt} />
       <ChronotypeCard chronotype={data.chronotype} />
     </div>
