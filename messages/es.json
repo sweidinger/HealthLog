@@ -250,7 +250,8 @@
     },
     "cycle": "Ciclo",
     "labs": "Análisis",
-    "recovery": "Recuperación"
+    "recovery": "Recuperación",
+    "vorsorge": "Prevención"
   },
   "auth": {
     "login": "Iniciar sesión",
@@ -3862,6 +3863,7 @@
       "layout": {
         "title": "Diseño y personalización",
         "description": "Organiza cómo está dispuesta tu app — un único lugar para el panel, los análisis, los medicamentos y el ánimo.",
+        "backToHub": "Volver a Diseño y personalización",
         "dashboard": {
           "title": "Panel",
           "description": "Diseño y orden de los mosaicos."

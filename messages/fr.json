@@ -250,7 +250,8 @@
     },
     "cycle": "Cycle",
     "labs": "Analyses",
-    "recovery": "Récupération"
+    "recovery": "Récupération",
+    "vorsorge": "Prévention"
   },
   "auth": {
     "login": "Se connecter",
@@ -3862,6 +3863,7 @@
       "layout": {
         "title": "Disposition et personnalisation",
         "description": "Organisez la disposition de votre application — un seul endroit pour le tableau de bord, les analyses, les médicaments et l’humeur.",
+        "backToHub": "Retour à Disposition et personnalisation",
         "dashboard": {
           "title": "Tableau de bord",
           "description": "Disposition et ordre des tuiles."

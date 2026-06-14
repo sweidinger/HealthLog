@@ -250,7 +250,8 @@
     },
     "cycle": "Zyklus",
     "labs": "Laborwerte",
-    "recovery": "Erholung"
+    "recovery": "Erholung",
+    "vorsorge": "Vorsorge"
   },
   "auth": {
     "login": "Anmelden",
@@ -3862,6 +3863,7 @@
       "layout": {
         "title": "Layout & Personalisierung",
         "description": "Lege fest, wie deine App aufgebaut ist — ein Ort für Dashboard, Insights, Medikamente und Stimmung.",
+        "backToHub": "Zurück zu Layout & Personalisierung",
         "dashboard": {
           "title": "Dashboard",
           "description": "Kachel-Layout und Reihenfolge."

@@ -250,7 +250,8 @@
     },
     "cycle": "Cykl",
     "labs": "Wyniki badań",
-    "recovery": "Regeneracja"
+    "recovery": "Regeneracja",
+    "vorsorge": "Profilaktyka"
   },
   "auth": {
     "login": "Zaloguj się",
@@ -3862,6 +3863,7 @@
       "layout": {
         "title": "Układ i personalizacja",
         "description": "Ustal, jak rozłożona jest Twoja aplikacja — jedno miejsce dla pulpitu, analiz, leków i nastroju.",
+        "backToHub": "Powrót do Układ i personalizacja",
         "dashboard": {
           "title": "Pulpit",
           "description": "Układ i kolejność kafelków."

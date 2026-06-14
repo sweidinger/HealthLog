@@ -250,7 +250,8 @@
     },
     "cycle": "Ciclo",
     "labs": "Esami",
-    "recovery": "Recupero"
+    "recovery": "Recupero",
+    "vorsorge": "Prevenzione"
   },
   "auth": {
     "login": "Accedi",
@@ -3862,6 +3863,7 @@
       "layout": {
         "title": "Layout e personalizzazione",
         "description": "Organizza la disposizione della tua app — un unico posto per cruscotto, approfondimenti, farmaci e umore.",
+        "backToHub": "Torna a Layout e personalizzazione",
         "dashboard": {
           "title": "Cruscotto",
           "description": "Layout e ordine dei riquadri."

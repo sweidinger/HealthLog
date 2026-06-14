@@ -1,14 +1,11 @@
 "use client";
 
 import {
-  Bell,
-  Bug,
   Home,
   Lightbulb,
   MoreHorizontal,
   Pill,
   Plus,
-  Settings,
   type LucideIcon,
 } from "lucide-react";
 import Link from "next/link";
@@ -17,7 +14,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { medicationsPrefetchIntentProps } from "@/lib/queries/prefetch-medications";
 import {
   isNavDestinationActive,
-  visibleNavDestinations,
+  mobileMoreHubDestinations,
 } from "@/components/layout/nav-model";
 import { useMemo, useState } from "react";
 import { useAppSettings } from "@/components/app-settings-provider";
@@ -50,11 +47,11 @@ interface NavLink {
 // v1.17.1 (F-1) — the two always-visible flanking anchors and the "More"
 // hub are now BOTH derived from the one shared destination model
 // (`nav-model.ts`), the same ordered list the desktop sidebar renders.
-// The bar keeps its ergonomic 5-slot shape, but every destination that
-// isn't a primary slot falls into the hub in the model's order — so the
-// two surfaces tell one story instead of two hand-curated ones that drift.
-const PRIMARY_SLOT_HREFS = ["/", "/medications", "/insights"] as const;
-
+// The bar keeps its ergonomic 5-slot shape, but the hub is computed by the
+// model's `mobileMoreHubDestinations()` (feature list minus the primary
+// slots, plus the shared utility tail) — so the two surfaces tell one story
+// instead of two hand-curated ones that drift, and the headline invariant
+// is a tested model function rather than inline bar logic.
 const PRIMARY_LEFT: ReadonlyArray<NavLink> = [
   { href: "/", tKey: "nav.dashboard", icon: Home },
   { href: "/medications", tKey: "nav.medications", icon: Pill },
@@ -63,29 +60,6 @@ const PRIMARY_LEFT: ReadonlyArray<NavLink> = [
 const PRIMARY_RIGHT: ReadonlyArray<NavLink> = [
   { href: "/insights", tKey: "nav.insights", icon: Lightbulb },
 ];
-
-// Mobile-only hub conveniences that have no main-list home on desktop
-// (the sidebar reaches them through its footer + avatar menu). They sit
-// at the tail of the hub, after every shared destination.
-const NOTIFICATIONS_HUB_ITEM: NavLink = {
-  href: "/notifications",
-  tKey: "nav.notifications",
-  icon: Bell,
-};
-const SETTINGS_HUB_ITEM: NavLink = {
-  href: "/settings/account",
-  tKey: "nav.settings",
-  icon: Settings,
-};
-
-// The bug-report entry, appended under the same `bugReportEnabled`
-// operator flag that gates the desktop sidebar entry. Pre-splice the
-// route was desktop-only — a phone user had no path to `/bugreport`.
-const BUGREPORT_HUB_ITEM: NavLink = {
-  href: "/bugreport",
-  tKey: "nav.bugreport",
-  icon: Bug,
-};
 
 export function BottomNav() {
   const pathname = usePathname();
@@ -99,19 +73,18 @@ export function BottomNav() {
   const [moreOpen, setMoreOpen] = useState(false);
   const [captureOpen, setCaptureOpen] = useState(false);
 
-  // v1.17.1 (F-1) — the More hub is every shared destination that isn't an
-  // always-visible primary slot, in the model's order, plus the mobile-only
-  // Notifications / Settings conveniences (and Bug Report behind its flag).
-  // Cycle is filtered by the same account gate the sidebar uses, so the two
-  // surfaces gate it identically.
-  const moreHub = useMemo<ReadonlyArray<NavLink>>(() => {
-    const shared = visibleNavDestinations(user?.cycleTrackingEnabled)
-      .filter((d) => !PRIMARY_SLOT_HREFS.includes(d.href as never))
-      .map((d) => ({ href: d.href, tKey: d.tKey, icon: d.icon }));
-    const tail: NavLink[] = [NOTIFICATIONS_HUB_ITEM, SETTINGS_HUB_ITEM];
-    if (bugReportEnabled) tail.unshift(BUGREPORT_HUB_ITEM);
-    return [...shared, ...tail];
-  }, [user?.cycleTrackingEnabled, bugReportEnabled]);
+  // v1.17.1 (F-1) — the More hub is the model-computed hub: every visible
+  // feature destination that isn't a primary slot, plus the shared utility
+  // tail. Cycle + Bug Report are gated by the same flags the sidebar uses,
+  // so the two surfaces gate identically and cannot drift.
+  const moreHub = useMemo<ReadonlyArray<NavLink>>(
+    () =>
+      mobileMoreHubDestinations({
+        cycleTrackingEnabled: user?.cycleTrackingEnabled,
+        bugReportEnabled,
+      }),
+    [user?.cycleTrackingEnabled, bugReportEnabled],
+  );
 
   function isActiveLink(href: string) {
     return isNavDestinationActive(href, pathname);
