@@ -14,7 +14,11 @@ import {
   VITALS_BASELINE_TYPES,
 } from "@/lib/insights/derived/registry";
 import { ANALYTICS_RANGES } from "@/lib/analytics/range-delta";
-import { dataEnvelope, stdResponses } from "./shared";
+import {
+  consentRequiredResponse,
+  dataEnvelope,
+  stdResponses,
+} from "./shared";
 
 const insightsComprehensiveResponse = z
   .object({
@@ -679,7 +683,7 @@ export const insightsPaths: NonNullable<ZodOpenApiObject["paths"]> = {
       tags: ["Insights"],
       summary: "Comprehensive AI insights bundle",
       description:
-        "Full Insights surface — daily briefing, recommendations with rationale, optional weekly report + storyboard annotations. Strict-schema validated server-side.",
+        "Full Insights surface — daily briefing, recommendations with rationale, optional weekly report + storyboard annotations. Strict-schema validated server-side. Requires an active ConsentReceipt when the resolved provider chain egresses via the operator's server-managed key (see POST /api/consent/ai).",
       responses: {
         "200": {
           description: "Insights bundle.",
@@ -693,6 +697,7 @@ export const insightsPaths: NonNullable<ZodOpenApiObject["paths"]> = {
           },
         },
         ...stdResponses,
+        ...consentRequiredResponse,
       },
     },
   },

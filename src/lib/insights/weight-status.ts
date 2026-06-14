@@ -143,7 +143,9 @@ export async function generateWeightStatusForUser(
       metric: "weight",
       locale,
     });
-    if (outcome.kind === "no-provider") {
+    // v1.16.13 — `consent-missing` serves the same no-key fallback (see
+    // bmi-status); no enqueue happens for it.
+    if (outcome.kind === "no-provider" || outcome.kind === "consent-missing") {
       return {
         hasProvider: false,
         text: getNoKeyWeightStatusText(locale),

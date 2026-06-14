@@ -13,7 +13,7 @@
  * they were editing.
  */
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Sparkles } from "lucide-react";
@@ -86,6 +86,20 @@ export function AiInsightsCard({
     },
     enabled: isAuthenticated,
   });
+
+  // v1.16.13 — heal the web AI-consent receipt on mount. The server-side
+  // consent gate (admin-openai egress) requires an active `ai_full`
+  // receipt; the web client never minted one, so existing web users on a
+  // shared-key deployment saw the no-key fallback. This mirrors the iOS
+  // shell-mount heal: idempotent server-side mint (a user with an active
+  // receipt is a no-op), fire-and-forget so a failure never blocks the
+  // settings UI. Runs once per mount of the AI-settings surface.
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    void apiFetchRaw("/api/consent/ai/web", { method: "POST" }).catch(() => {
+      /* best-effort heal — the explicit grant path stays available */
+    });
+  }, [isAuthenticated]);
 
   // The Select is URL-driven so the SSR test can pick the branch and
   // a deep link works. Default = `?provider=…` query param when the

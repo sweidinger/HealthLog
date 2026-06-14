@@ -32,6 +32,7 @@ tags:
   - name: Mood
   - name: Analytics
   - name: Insights
+  - name: Consent
   - name: Dashboard
   - name: Notifications
   - name: Devices
@@ -3979,7 +3980,8 @@ paths:
         - Insights
       summary: Comprehensive AI insights bundle
       description: Full Insights surface — daily briefing, recommendations with rationale, optional weekly report + storyboard
-        annotations. Strict-schema validated server-side.
+        annotations. Strict-schema validated server-side. Requires an active ConsentReceipt when the resolved provider
+        chain egresses via the operator's server-managed key (see POST /api/consent/ai).
       responses:
         "200":
           description: Insights bundle.
@@ -3988,6 +3990,13 @@ paths:
               schema:
                 $ref: "#/components/schemas/InsightsComprehensiveResponseEnvelope"
         "401": *a1
+        "403":
+          description: "AI consent required: no active ConsentReceipt for the server-managed provider. `meta.errorCode` =
+            `consent.ai.required`. Mint a receipt via POST /api/consent/ai before retrying."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
         "422": *a3
         "429": *a4
   /api/insights/pregenerate:
@@ -4863,6 +4872,72 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/GetReminderThresholdsResponse"
+        "401": *a1
+        "422": *a3
+        "429": *a4
+  /api/consent/ai:
+    post:
+      tags:
+        - Consent
+      summary: Grant AI consent (signed artefact)
+      description: Persist a fresh AI-consent receipt. Required before server-managed AI egress (the operator's global LLM
+        key); BYOK / local / ChatGPT-OAuth chains are the user's own egress and are not gated. Append-only audit trail.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                kind:
+                  type: string
+                  enum:
+                    - ai_full
+                    - ai_insights_only
+                    - ai_coach
+                artefact:
+                  type: string
+                  minLength: 1
+                signedAt:
+                  type: string
+                  format: date-time
+                  pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
+              required:
+                - kind
+                - artefact
+                - signedAt
+      responses:
+        "200":
+          description: The minted receipt.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConsentReceiptResponseEnvelope"
+        "400":
+          description: Request validation failed (consent routes use 400).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConsentValidationErrorEnvelope"
+        "401": *a1
+        "422": *a3
+        "429": *a4
+  /api/consent/ai/web:
+    post:
+      tags:
+        - Consent
+      summary: Grant web AI consent (idempotent ai_full)
+      description: Mint an `ai_full` consent receipt for the calling web user if none is active; a no-op when one already
+        exists. Mirrors the iOS master grant; the web AI-settings surface calls this on mount so existing web accounts
+        on a shared-key deployment gain a receipt without a re-consent step. Revocation flows through DELETE
+        /api/consent/ai/latest.
+      responses:
+        "200":
+          description: Grant outcome.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WebConsentGrantResponseEnvelope"
         "401": *a1
         "422": *a3
         "429": *a4
@@ -14317,6 +14392,111 @@ components:
       additionalProperties: false
       description: "Medication reminder thresholds: the operator-level late/missed minute marks plus the calling user's
         low-stock runway threshold (v1.16.11)."
+    ConsentReceiptResponseEnvelope:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/ConsentReceiptResponse"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    ConsentReceiptResponse:
+      type: object
+      properties:
+        id:
+          type: string
+        receipt:
+          type: object
+          properties:
+            id:
+              type: string
+            userId:
+              type: string
+            kind:
+              type: string
+              enum:
+                - ai_full
+                - ai_insights_only
+                - ai_coach
+            signedAt:
+              type: string
+            revokedAt:
+              anyOf:
+                - type: string
+                - type: "null"
+            createdAt:
+              type: string
+          required:
+            - id
+            - userId
+            - kind
+            - signedAt
+            - revokedAt
+            - createdAt
+          additionalProperties: false
+      required:
+        - id
+        - receipt
+      additionalProperties: false
+      description: The minted receipt. `artefact` is deliberately stripped from the response — it is opaque and only read at
+        audit time directly from the DB.
+    ConsentValidationErrorEnvelope:
+      type: object
+      properties:
+        data:
+          type: "null"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    WebConsentGrantResponseEnvelope:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/WebConsentGrantResponse"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    WebConsentGrantResponse:
+      type: object
+      properties:
+        minted:
+          type: boolean
+          description: True when a new `ai_full` receipt was minted; false when an active one already existed (idempotent no-op).
+        kind:
+          type: string
+          const: ai_full
+      required:
+        - minted
+        - kind
+      additionalProperties: false
+      description: Outcome of the idempotent web `ai_full` grant. Safe to call on every AI-settings mount.
     MedicationScheduleOutput:
       type: object
       properties:

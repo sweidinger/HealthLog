@@ -65,6 +65,7 @@ const openApiBase: Pick<
     { name: "Mood" },
     { name: "Analytics" },
     { name: "Insights" },
+    { name: "Consent" },
     { name: "Dashboard" },
     { name: "Notifications" },
     { name: "Devices" },

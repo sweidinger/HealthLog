@@ -107,3 +107,20 @@ export const stdResponses = {
     content: { "application/json": { schema: errorEnvelope } },
   },
 };
+
+// ── AI-consent precondition (v1.16.13) ───────────────────────────────
+// The server-managed AI-egress gate requires an active ConsentReceipt
+// (`ai_full`, or the surface-specific `ai_insights_only` / `ai_coach`)
+// before any health snapshot leaves for the operator's global LLM key.
+// Interactive routes surface this as a 403 with
+// `meta.errorCode = "consent.ai.required"`; clients render an inline
+// grant-consent notice and call POST /api/consent/ai (or, on web, POST
+// /api/consent/ai/web) to mint the receipt. BYOK / local / ChatGPT-OAuth
+// chains are the user's own egress and never trip this gate.
+export const consentRequiredResponse = {
+  "403": {
+    description:
+      "AI consent required: no active ConsentReceipt for the server-managed provider. `meta.errorCode` = `consent.ai.required`. Mint a receipt via POST /api/consent/ai before retrying.",
+    content: { "application/json": { schema: errorEnvelope } },
+  },
+};
