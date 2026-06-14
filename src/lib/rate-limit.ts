@@ -88,6 +88,25 @@ export async function checkAnalyticsReadRateLimit(
 }
 
 /**
+ * v1.16.16 — per-user ceiling for the AI-consent surfaces
+ * (`POST /api/consent/ai`, `POST /api/consent/ai/web`,
+ * `GET/DELETE /api/consent/ai/latest`). The web client calls the heal
+ * endpoint on every AI-settings mount and the iOS toggle hits grant/revoke
+ * per flip, so the bucket is generous — 20/min only caps a scripted loop or
+ * a stolen session pinning the receipts table, mirroring the coach-chat
+ * ceiling. One shared bucket keyed by `userId` (not per-route) keeps the cap
+ * meaningful when a loop rotates across the four endpoints.
+ */
+const CONSENT_LIMIT = 20;
+const CONSENT_WINDOW_MS = 60 * 1000;
+
+export async function checkConsentRateLimit(
+  userId: string,
+): Promise<RateLimitResult> {
+  return checkRateLimit(`consent:${userId}`, CONSENT_LIMIT, CONSENT_WINDOW_MS);
+}
+
+/**
  * v1.4.43 W13 M-4 — anonymous/trust-violation bucket key shared by every
  * caller of `checkAuthSurfaceRateLimit`. When `TRUST_PROXY_HOPS` and the
  * actual proxy chain don't agree, `getClientIp` returns null and every

@@ -1,12 +1,10 @@
 "use client";
 
 import { use } from "react";
-import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
 
 import { useTranslations } from "@/lib/i18n/context";
 import { useWorkoutDetail } from "@/hooks/use-workouts";
-import { Button } from "@/components/ui/button";
+import { BackLink } from "@/components/ui/back-link";
 import { CoachLaunchButton } from "@/components/insights/coach-launch-button";
 import { SubPageShell } from "@/components/insights/sub-page-shell";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -41,18 +39,11 @@ export default function InsightsWorkoutDetailPage({
       title={t("insights.workouts.title")}
       description={t("insights.workouts.description")}
       backLink={
-        <Button
-          asChild
-          variant="ghost"
-          size="sm"
-          data-slot="workout-detail-back"
-          className="-ml-2 w-fit"
-        >
-          <Link href="/insights/workouts">
-            <ArrowLeft className="size-4" aria-hidden="true" />
-            {t("insights.workouts.detail.backToList")}
-          </Link>
-        </Button>
+        <BackLink
+          href="/insights/workouts"
+          label={t("insights.workouts.detail.backToList")}
+          dataSlot="workout-detail-back"
+        />
       }
     >
       {isLoading ? (

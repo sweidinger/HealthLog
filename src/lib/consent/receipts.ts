@@ -19,9 +19,17 @@ import type { ConsentKind } from "@/lib/validations/consent";
 export type ConsentReceipt = ConsentReceiptModel;
 
 /**
- * Insert a fresh consent receipt for (userId, kind). Always appends;
- * never collides with an earlier row. The caller has already
- * Zod-validated `artefact` (≤ 64 KB) and `signedAt` (ISO-8601).
+ * Insert a fresh consent receipt for (userId, kind). The caller has
+ * already Zod-validated `artefact` (≤ 64 KB) and `signedAt` (ISO-8601).
+ *
+ * v1.16.16 — the partial unique index `consent_receipts_user_id_kind_
+ * active_key` (`WHERE revoked_at IS NULL`, migration 0159) caps the table
+ * at one *active* receipt per (user, kind). A plain re-grant of an already
+ * active kind would otherwise collide, so the mint runs in a transaction
+ * that first revokes any active row of the same kind, then appends the new
+ * one. The append-only audit chain is preserved — the superseded row keeps
+ * its history with a `revoked_at` marker — and the constraint is satisfied
+ * because at most one active row ever exists.
  */
 export async function createReceipt(
   userId: string,
@@ -29,13 +37,29 @@ export async function createReceipt(
   artefact: string,
   signedAt: Date,
 ): Promise<ConsentReceipt> {
-  return prisma.consentReceipt.create({
-    data: {
-      userId,
-      kind,
-      artefact,
-      signedAt,
-    },
+  // `signedAt` is the client-supplied wall-clock for the NEW grant and is
+  // only validated as well-formed ISO-8601 — it can legitimately be in the
+  // past or out of order with existing rows. The supersede marker on the
+  // PRIOR active row must NOT use it: a backdated `signedAt` would stamp the
+  // old row's `revoked_at` earlier than its own `signed_at`, inverting the
+  // audit chain. Use a server clock for the revocation instead.
+  const supersededAt = new Date();
+  return prisma.$transaction(async (tx) => {
+    // Supersede any currently-active receipt of this kind so the fresh
+    // grant doesn't collide with the partial unique index. `updateMany`
+    // over the active predicate is a no-op when none is active.
+    await tx.consentReceipt.updateMany({
+      where: { userId, kind, revokedAt: null },
+      data: { revokedAt: supersededAt },
+    });
+    return tx.consentReceipt.create({
+      data: {
+        userId,
+        kind,
+        artefact,
+        signedAt,
+      },
+    });
   });
 }
 
@@ -81,25 +105,34 @@ export async function latestActiveReceiptsByKind(
 }
 
 /**
- * Mark the latest active receipt for (userId, kind) as revoked.
- * Returns the updated row, or `null` if no active receipt exists.
+ * Mark the active receipt for (userId, kind) as revoked. Returns the
+ * updated row, or `null` if no active receipt exists.
  *
- * Implementation note: a two-step "read latest → update by id" is
- * race-tolerant for the single-user revoke flow (iOS toggle is a
- * per-device action; no concurrent revoke from a second device is
- * plausible inside the same millisecond). If two devices race we end
- * up writing `revokedAt` to the same row twice with identical
- * timestamps — semantically idempotent.
+ * v1.16.16 — the partial unique index guarantees at most one active row
+ * per (user, kind), so a single atomic `updateMany` over the active
+ * predicate revokes "the" active receipt without a separate read. Two
+ * concurrent revokes converge: the first flips `revoked_at`, the second's
+ * predicate no longer matches and writes nothing. The follow-up read
+ * returns the row the caller (audit log) needs; it is `null` only when no
+ * active receipt existed at all.
  */
 export async function revokeLatest(
   userId: string,
   kind: ConsentKind,
   now: Date = new Date(),
 ): Promise<ConsentReceipt | null> {
-  const latest = await latestActiveReceipt(userId, kind);
-  if (!latest) return null;
-  return prisma.consentReceipt.update({
-    where: { id: latest.id },
-    data: { revokedAt: now },
+  return prisma.$transaction(async (tx) => {
+    const updated = await tx.consentReceipt.updateMany({
+      where: { userId, kind, revokedAt: null },
+      data: { revokedAt: now },
+    });
+    if (updated.count === 0) return null;
+    // Re-read the just-revoked row (revoked at exactly `now`) so the audit
+    // trail keeps the receipt id. The active predicate guaranteed a single
+    // row, so this resolves it unambiguously.
+    return tx.consentReceipt.findFirst({
+      where: { userId, kind, revokedAt: now },
+      orderBy: { createdAt: "desc" },
+    });
   });
 }

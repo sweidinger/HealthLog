@@ -17,11 +17,13 @@
 import { NextRequest } from "next/server";
 import { apiHandler, requireAuth } from "@/lib/api-handler";
 import {
+  apiError,
   apiSuccess,
   returnAllZodIssues,
 } from "@/lib/api-response";
 import { annotate } from "@/lib/logging/context";
 import { auditLog } from "@/lib/auth/audit";
+import { checkConsentRateLimit, rateLimitHeaders } from "@/lib/rate-limit";
 import {
   consentKindEnum,
   consentLatestQuery,
@@ -36,6 +38,17 @@ import { serialiseReceipt } from "../route";
 
 export const GET = apiHandler(async (request: NextRequest) => {
   const { user } = await requireAuth();
+
+  const rl = await checkConsentRateLimit(user.id);
+  if (!rl.allowed) {
+    annotate({
+      action: { name: "consent.ai.rate-limited" },
+      meta: { userId: user.id, resetAt: rl.resetAt },
+    });
+    return apiError("Too many consent requests, please wait a moment", 429, {
+      headers: rateLimitHeaders(rl),
+    });
+  }
 
   const parsed = consentLatestQuery.safeParse(
     Object.fromEntries(request.nextUrl.searchParams),
@@ -85,6 +98,17 @@ export const GET = apiHandler(async (request: NextRequest) => {
 
 export const DELETE = apiHandler(async (request: NextRequest) => {
   const { user } = await requireAuth();
+
+  const rl = await checkConsentRateLimit(user.id);
+  if (!rl.allowed) {
+    annotate({
+      action: { name: "consent.ai.rate-limited" },
+      meta: { userId: user.id, resetAt: rl.resetAt },
+    });
+    return apiError("Too many consent requests, please wait a moment", 429, {
+      headers: rateLimitHeaders(rl),
+    });
+  }
 
   const parsed = consentLatestQuery.safeParse(
     Object.fromEntries(request.nextUrl.searchParams),

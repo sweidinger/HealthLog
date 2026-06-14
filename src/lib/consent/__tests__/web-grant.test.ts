@@ -1,19 +1,40 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-vi.mock("@/lib/db", () => ({
-  prisma: {
-    consentReceipt: {
-      create: vi.fn(),
-      findFirst: vi.fn(),
+// The web-grant mint runs its re-check + insert inside a transaction. The
+// mock runs the callback against the same `prisma` proxy so the in-tx
+// reads/writes share the test's mock surface. The Prisma `$transaction`
+// signature is generic; the mock takes a loose callback and casts.
+type TxFn = (tx: unknown) => unknown;
+
+vi.mock("@/lib/db", () => {
+  const consentReceipt = {
+    create: vi.fn(),
+    findFirst: vi.fn(),
+    updateMany: vi.fn(),
+  };
+  return {
+    prisma: {
+      consentReceipt,
+      $transaction: vi.fn((fn: TxFn) => fn({ consentReceipt })),
     },
-  },
-}));
+  };
+});
 
 import { prisma } from "@/lib/db";
 import { ensureWebAiConsentReceipt } from "../web-grant";
 
+const $transaction = vi.mocked(prisma.$transaction) as unknown as {
+  mockImplementation: (impl: (fn: TxFn) => unknown) => void;
+  mockReset: () => void;
+};
+
 beforeEach(() => {
   vi.resetAllMocks();
+  // `resetAllMocks` clears the `$transaction` pass-through implementation;
+  // re-arm it so the mint callback still runs against the mock surface.
+  $transaction.mockImplementation((fn: TxFn) =>
+    fn({ consentReceipt: prisma.consentReceipt }),
+  );
 });
 
 function row(overrides: Partial<Record<string, unknown>> = {}) {
@@ -38,11 +59,14 @@ describe("ensureWebAiConsentReceipt", () => {
     const result = await ensureWebAiConsentReceipt("user-1", now);
 
     expect(result.minted).toBe(true);
-    // Reads the active master grant first.
+    // Reads the active master grant first (fast-path + in-tx re-check both
+    // hit the same predicate).
     expect(prisma.consentReceipt.findFirst).toHaveBeenCalledWith({
       where: { userId: "user-1", kind: "ai_full", revokedAt: null },
       orderBy: { createdAt: "desc" },
     });
+    // The mint is wrapped in a transaction (TOCTOU close).
+    expect(prisma.$transaction).toHaveBeenCalledTimes(1);
     // Mints ai_full with a web-source artefact + the supplied timestamp.
     const createArg = vi.mocked(prisma.consentReceipt.create).mock.calls[0][0];
     expect(createArg.data.userId).toBe("user-1");
@@ -60,5 +84,83 @@ describe("ensureWebAiConsentReceipt", () => {
 
     expect(result.minted).toBe(false);
     expect(prisma.consentReceipt.create).not.toHaveBeenCalled();
+    // No transaction is opened on the already-granted fast path.
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+  });
+
+  it("re-checks inside the transaction: a row that appears between the fast-path read and the mint short-circuits the insert", async () => {
+    // Fast-path read sees nothing; the in-tx re-check sees a row a
+    // concurrent grant inserted. The mint must no-op rather than insert a
+    // second active row.
+    vi.mocked(prisma.consentReceipt.findFirst)
+      .mockResolvedValueOnce(null) // fast path
+      .mockResolvedValueOnce(row() as never); // in-tx re-check
+
+    const result = await ensureWebAiConsentReceipt("user-1");
+
+    expect(result.minted).toBe(false);
+    expect(prisma.consentReceipt.create).not.toHaveBeenCalled();
+  });
+
+  it("maps the partial-unique violation (P2002) to a no-op when two grants race to the insert", async () => {
+    // Both reads miss (the re-check loses the race too); the partial unique
+    // index rejects the second insert. The structural backstop must surface
+    // as success-shaped — the user ends with exactly one active receipt.
+    vi.mocked(prisma.consentReceipt.findFirst).mockResolvedValue(null);
+    vi.mocked(prisma.consentReceipt.create).mockRejectedValue({
+      code: "P2002",
+    } as never);
+
+    const result = await ensureWebAiConsentReceipt("user-1");
+
+    expect(result.minted).toBe(false);
+  });
+
+  it("rethrows non-P2002 errors", async () => {
+    vi.mocked(prisma.consentReceipt.findFirst).mockResolvedValue(null);
+    vi.mocked(prisma.consentReceipt.create).mockRejectedValue(
+      new Error("connection reset") as never,
+    );
+
+    await expect(ensureWebAiConsentReceipt("user-1")).rejects.toThrow(
+      "connection reset",
+    );
+  });
+});
+
+describe("ensureWebAiConsentReceipt — two concurrent grants", () => {
+  it("yields exactly one active receipt across parallel mounts", async () => {
+    // Model the race at the DB layer: a single shared "active row" slot.
+    // Both callers pass the fast-path read (slot empty). The transaction
+    // serialises their re-checks: the first sees the empty slot and
+    // inserts; the second sees the now-filled slot and no-ops.
+    let activeRow: ReturnType<typeof row> | null = null;
+
+    vi.mocked(prisma.consentReceipt.findFirst).mockImplementation((async () =>
+      activeRow) as never);
+    vi.mocked(prisma.consentReceipt.create).mockImplementation((async () => {
+      activeRow = row();
+      return activeRow;
+    }) as never);
+    // Serialise the two transactions so the second observes the first's
+    // committed insert (Serializable isolation in production).
+    let chain: Promise<unknown> = Promise.resolve();
+    $transaction.mockImplementation((fn: TxFn) => {
+      const run = chain.then(() =>
+        fn({ consentReceipt: prisma.consentReceipt }),
+      );
+      chain = run.catch(() => {});
+      return run;
+    });
+
+    const [a, b] = await Promise.all([
+      ensureWebAiConsentReceipt("user-1"),
+      ensureWebAiConsentReceipt("user-1"),
+    ]);
+
+    // Exactly one mint, exactly one row inserted.
+    const mintedCount = [a, b].filter((r) => r.minted).length;
+    expect(mintedCount).toBe(1);
+    expect(prisma.consentReceipt.create).toHaveBeenCalledTimes(1);
   });
 });

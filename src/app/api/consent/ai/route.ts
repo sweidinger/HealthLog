@@ -9,14 +9,34 @@
  */
 import { NextRequest } from "next/server";
 import { apiHandler, requireAuth } from "@/lib/api-handler";
-import { apiSuccess, returnAllZodIssues, safeJson } from "@/lib/api-response";
+import {
+  apiError,
+  apiSuccess,
+  returnAllZodIssues,
+  safeJson,
+} from "@/lib/api-response";
 import { annotate } from "@/lib/logging/context";
 import { auditLog } from "@/lib/auth/audit";
+import { checkConsentRateLimit, rateLimitHeaders } from "@/lib/rate-limit";
 import { consentPostBody } from "@/lib/validations/consent";
 import { createReceipt } from "@/lib/consent/receipts";
 
 export const POST = apiHandler(async (request: NextRequest) => {
   const { user } = await requireAuth();
+
+  // Per-user ceiling in front of the receipts write. 20/min is well outside
+  // any legitimate grant cadence; it caps a scripted loop from filling the
+  // audit table.
+  const rl = await checkConsentRateLimit(user.id);
+  if (!rl.allowed) {
+    annotate({
+      action: { name: "consent.ai.rate-limited" },
+      meta: { userId: user.id, resetAt: rl.resetAt },
+    });
+    return apiError("Too many consent requests, please wait a moment", 429, {
+      headers: rateLimitHeaders(rl),
+    });
+  }
 
   const { data: body, error } = await safeJson(request, {
     maxBytes: 128 * 1024,

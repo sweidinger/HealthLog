@@ -13,16 +13,15 @@
  */
 
 import { use, useEffect } from "react";
-import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 
 import { useAuth } from "@/hooks/use-auth";
 import { useTranslations } from "@/lib/i18n/context";
 import { queryKeys } from "@/lib/query-keys";
 
-import { Button } from "@/components/ui/button";
+import { BackLink } from "@/components/ui/back-link";
 import { Card } from "@/components/ui/card";
 import {
   MedicationDetailTabs,
@@ -87,12 +86,7 @@ export default function MedicationDetailPage({
   if (isError || !medication) {
     return (
       <div className="space-y-6">
-        <Button variant="ghost" size="sm" className="-ml-2 w-fit" asChild>
-          <Link href="/medications">
-            <ArrowLeft className="size-4" aria-hidden="true" />
-            {t("medications.back")}
-          </Link>
-        </Button>
+        <BackLink href="/medications" label={t("medications.back")} />
         <Card
           className="p-6"
           role="alert"
