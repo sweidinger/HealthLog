@@ -56,6 +56,27 @@ export interface WindowConfidence {
 }
 
 /**
+ * v1.17 W1b — derive the BD-Zielbereich tile's confidence inputs (90-day
+ * pair count + effective label span) from a BP envelope's 90-day window.
+ * Shared by the dashboard snapshot and the `/api/analytics` thick slice so
+ * the two surfaces can never compute the tile's gate or span differently.
+ */
+export function deriveBpWindow90(
+  last90: { pairs: number } | null,
+  last90EarliestAt: Date | null,
+  now: Date,
+): { count: number; spanDays: number | null } {
+  const count = last90?.pairs ?? 0;
+  const spanDays = computeWindowConfidence({
+    windowDays: 90,
+    readingCount: count,
+    earliestReadingAt: last90EarliestAt,
+    now,
+  }).effectiveSpanDays;
+  return { count, spanDays };
+}
+
+/**
  * Compute the effective label span + sufficiency flag for a windowed
  * metric.
  *

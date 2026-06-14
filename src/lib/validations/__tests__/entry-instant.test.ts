@@ -87,4 +87,15 @@ describe("validateEntryInstant — Zod integration", () => {
   it("rejects an instant before 1900", () => {
     expect(schema.safeParse("1899-12-31T00:00:00.000Z").success).toBe(false);
   });
+
+  it("emits ONLY the future message for a future instant, not a spurious past-bound error", () => {
+    const future = new Date(Date.now() + 60 * 60 * 1000).toISOString();
+    const r = schema.safeParse(future);
+    expect(r.success).toBe(false);
+    if (!r.success) {
+      const messages = r.error.issues.map((i) => i.message);
+      expect(messages).toContain("Timestamp must not be in the future");
+      expect(messages.some((m) => /past|1900/.test(m))).toBe(false);
+    }
+  });
 });

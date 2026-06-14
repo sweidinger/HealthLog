@@ -92,12 +92,16 @@ export function buildHealthScoreBpInputs(
   // The graded clinical score is the pillar VALUE; suppress it together with
   // the rate when the 90-day window is thin AND no all-time rate rescues the
   // pillar, so the pillar disappears cleanly instead of grading a thin sample.
+  // The prior-week graded score keys off the PRIOR-WEEK window's own presence
+  // (not the current one) so the week-over-week delta never pairs a confident
+  // current value against a thin-sample prior value.
   const pillarPresent = bpInTargetPct !== null;
+  const priorPillarPresent = bpInTargetPctPriorWeek !== null;
   return {
     bpInTargetPct,
     bpInTargetPctPriorWeek,
     bpGradedScore: pillarPresent ? current.gradedScore : null,
-    bpGradedScorePriorWeek: pillarPresent
+    bpGradedScorePriorWeek: priorPillarPresent
       ? (priorWeek?.gradedScore ?? null)
       : null,
   };

@@ -51,7 +51,7 @@ import {
   type BpInTargetEnvelope,
 } from "@/lib/analytics/bp-in-target-fast-path";
 import { buildHealthScoreBpInputs } from "@/lib/analytics/health-score-inputs";
-import { computeWindowConfidence } from "@/lib/analytics/window-confidence";
+import { deriveBpWindow90 } from "@/lib/analytics/window-confidence";
 import {
   probeRollupCoverage,
   type RollupCoverageMap,
@@ -502,14 +502,16 @@ async function buildExtras(
     bpInTargetPctAllTime = windows.allTime?.pct ?? null;
     bpInTargetPctPriorMonth = windows.priorMonth?.pct ?? null;
     bpInTargetPctPriorYear = windows.priorYear?.pct ?? null;
-    // v1.17 W1b — count + effective span for the tile's confidence gate.
-    bpInTargetCount90 = windows.last90Days?.pairs ?? 0;
-    bpInTargetSpanDays90 = computeWindowConfidence({
-      windowDays: 90,
-      readingCount: bpInTargetCount90,
-      earliestReadingAt: windows.last90EarliestAt,
+    // v1.17 W1b — count + effective span for the tile's confidence gate,
+    // derived through the shared helper so this surface and `/api/analytics`
+    // can never disagree on the gate or the label span.
+    const bpWindow = deriveBpWindow90(
+      windows.last90Days,
+      windows.last90EarliestAt,
       now,
-    }).effectiveSpanDays;
+    );
+    bpInTargetCount90 = bpWindow.count;
+    bpInTargetSpanDays90 = bpWindow.spanDays;
   }
 
   // Health score — reuses the BP windows captured above plus the

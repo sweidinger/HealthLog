@@ -85,6 +85,25 @@ describe("buildHealthScoreBpInputs — single Health-Score BP input builder", ()
     expect(out.bpInTargetPct).toBe(100);
   });
 
+  it("suppresses the prior-week graded score when the prior-week window is thin and no all-time rescues it", () => {
+    // Current window healthy, prior-week 90-day window below the floor with no
+    // all-time fallback → the prior-week graded score must not grade off the
+    // thin sample, so the week-over-week graded delta stays consistent.
+    const current = env({
+      last90Days: { pct: 65, pairs: 40 },
+      gradedScore: 72,
+    });
+    const priorWeek = env({
+      last90Days: { pct: 90, pairs: 2 },
+      allTime: null,
+      gradedScore: 95,
+    });
+    const out = buildHealthScoreBpInputs(current, priorWeek);
+    expect(out.bpGradedScore).toBe(72);
+    expect(out.bpInTargetPctPriorWeek).toBeNull();
+    expect(out.bpGradedScorePriorWeek).toBeNull();
+  });
+
   it("collapses every field to null when the current envelope is absent", () => {
     const out = buildHealthScoreBpInputs(null, null);
     expect(out).toEqual({

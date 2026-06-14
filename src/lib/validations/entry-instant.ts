@@ -93,14 +93,24 @@ export function validateEntryInstant<T extends z.ZodType<Date>>(
       ? "Timestamp is too far in the past"
       : "Timestamp must not predate 1900");
   return schema
+    .refine((d) => d.getTime() <= Date.now() + ENTRY_INSTANT_CLOCK_SKEW_MS, {
+      message: "Timestamp must not be in the future",
+    })
     .refine(
-      (d) =>
-        d.getTime() <= Date.now() + ENTRY_INSTANT_CLOCK_SKEW_MS,
-      { message: "Timestamp must not be in the future" },
-    )
-    .refine(
-      (d) =>
-        isPlausibleEntryInstant(d, { ...bounds, now: Date.now() }),
+      // Past-floor check ONLY — a future instant already fails the refine
+      // above, and re-running the full plausibility predicate here would
+      // make a future-dated value emit BOTH messages (the second being a
+      // nonsensical "too far in the past"). Compare against the floor alone.
+      (d) => d.getTime() >= pastFloorMs(bounds),
       { message: pastMessage },
     ) as T;
+}
+
+/** Resolve the effective past floor (ms) for the given bounds at call time. */
+function pastFloorMs(bounds: Omit<EntryInstantBounds, "now">): number {
+  if (bounds.maxAgeMs === undefined) return ENTRY_INSTANT_FAR_PAST.getTime();
+  return Math.max(
+    ENTRY_INSTANT_FAR_PAST.getTime(),
+    Date.now() - bounds.maxAgeMs,
+  );
 }

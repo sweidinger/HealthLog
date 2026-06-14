@@ -18,7 +18,7 @@ import {
 } from "@/lib/analytics/bp-in-target-fast-path";
 import { computeUserHealthScoreFastPath } from "@/lib/analytics/health-score-fast-path";
 import { buildHealthScoreBpInputs } from "@/lib/analytics/health-score-inputs";
-import { computeWindowConfidence } from "@/lib/analytics/window-confidence";
+import { deriveBpWindow90 } from "@/lib/analytics/window-confidence";
 import { computeCorrelationHypothesesFastPath } from "@/lib/analytics/correlations-fast-path";
 
 export const dynamic = "force-dynamic";
@@ -327,13 +327,14 @@ async function buildAnalyticsResponse(user: AuthedUser) {
     bpInTargetPctPriorYear = windows.priorYear?.pct ?? null;
     // v1.17 W1b — count + effective span for the BD-Zielbereich tile's
     // confidence gate (thin-data → "collecting data"; dynamic span label).
-    bpInTargetCount90 = windows.last90Days?.pairs ?? 0;
-    bpInTargetSpanDays90 = computeWindowConfidence({
-      windowDays: 90,
-      readingCount: bpInTargetCount90,
-      earliestReadingAt: windows.last90EarliestAt,
+    // Shared helper keeps this identical to the dashboard snapshot.
+    const bpWindow = deriveBpWindow90(
+      windows.last90Days,
+      windows.last90EarliestAt,
       now,
-    }).effectiveSpanDays;
+    );
+    bpInTargetCount90 = bpWindow.count;
+    bpInTargetSpanDays90 = bpWindow.spanDays;
   }
 
   // Per-context glucose summaries (canonical mg/dL).

@@ -142,7 +142,8 @@ describe("buildDashboardSnapshot — envelope shape", () => {
     computeBpInTargetFastPath.mockResolvedValue({
       last7Days: { pct: 70 },
       last30Days: { pct: 80 },
-      last90Days: { pct: 80 },
+      last90Days: { pct: 80, pairs: 20 },
+      last90EarliestAt: new Date("2026-03-01T00:00:00.000Z"),
       allTime: { pct: 75 },
       priorMonth: { pct: 60 },
       priorYear: { pct: 50 },
@@ -183,7 +184,8 @@ describe("buildDashboardSnapshot — envelope shape", () => {
     computeBpInTargetFastPath.mockResolvedValue({
       last7Days: { pct: 70 },
       last30Days: { pct: 80 },
-      last90Days: { pct: 80 },
+      last90Days: { pct: 80, pairs: 20 },
+      last90EarliestAt: new Date("2026-03-01T00:00:00.000Z"),
       allTime: { pct: 75 },
       priorMonth: { pct: 60 },
       priorYear: { pct: 50 },
@@ -240,7 +242,8 @@ describe("buildDashboardSnapshot — per-type thick-phase gate", () => {
     computeBpInTargetFastPath.mockResolvedValue({
       last7Days: { pct: 70 },
       last30Days: { pct: 80 },
-      last90Days: { pct: 80 },
+      last90Days: { pct: 80, pairs: 20 },
+      last90EarliestAt: new Date("2026-03-01T00:00:00.000Z"),
       allTime: { pct: 75 },
       priorMonth: { pct: 60 },
       priorYear: { pct: 50 },
@@ -720,7 +723,8 @@ describe("buildDashboardSnapshot — additive proof", () => {
     computeBpInTargetFastPath.mockResolvedValue({
       last7Days: { pct: 70 },
       last30Days: { pct: 80 },
-      last90Days: { pct: 80 },
+      last90Days: { pct: 80, pairs: 20 },
+      last90EarliestAt: new Date("2026-03-01T00:00:00.000Z"),
       allTime: { pct: 75 },
       priorMonth: { pct: 60 },
       priorYear: { pct: 50 },
