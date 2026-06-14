@@ -45,6 +45,7 @@ import { queryKeys } from "@/lib/query-keys";
 import { useTranslations } from "@/lib/i18n/context";
 import { cn } from "@/lib/utils";
 import { apiFetchRaw, apiGet } from "@/lib/api/api-fetch";
+import { CSV_EXAMPLE_COLUMNS } from "@/lib/import/csv-measurements";
 
 // ─────────────────────────── Section wrapper ───────────────────────────
 
@@ -641,7 +642,7 @@ function JsonImportCard() {
  * drift. Exported so a test can assert it stays a valid header.
  */
 export const EXAMPLE_CSV = [
-  "type,value,unit,measuredAt,glucoseContext,notes,externalId",
+  CSV_EXAMPLE_COLUMNS.join(","),
   "WEIGHT,80.5,kg,2026-05-01T08:00:00Z,,morning,",
   "BLOOD_GLUCOSE,5.3,mmol/L,2026-05-01T08:05:00+02:00,FASTING,,meter-001",
   "BLOOD_PRESSURE_SYS,120,mmHg,2026-05-01T08:05:00+02:00,,,",
