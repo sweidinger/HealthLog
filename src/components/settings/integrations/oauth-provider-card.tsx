@@ -1,16 +1,17 @@
 "use client";
 
-// v1.17.0 (F4) — shared OAuth integration card for env-based providers (Polar,
-// Oura). Unlike WHOOP / Fitbit (per-user BYO client id/secret), these use a
-// single shared OAuth app the operator configures via env, so the card has NO
-// credential inputs — just a connect button that redirects to the provider, a
-// status pill off the self-contained status read, and a disconnect action.
+// v1.17.0 (F4) — shared OAuth integration card for Polar / Oura.
+// v1.17.1 — these are now per-user BYO-key integrations (like WHOOP / Fitbit):
+// the card renders an optional "your OAuth app credentials" form (driven by the
+// `credentials` prop) above the connect button. Credentials resolve DB-first
+// then env on the server, so a user who pastes their own client id/secret uses
+// their own app while existing env-configured deploys keep working unchanged.
 // Mirrors the Nightscout card's self-contained status pattern.
 
 import { useState } from "react";
 import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowRight, Link2, Unlink, type LucideIcon } from "lucide-react";
+import { ArrowRight, Link2, Loader2, Save, Unlink, type LucideIcon } from "lucide-react";
 
 import {
   AlertDialog,
@@ -24,13 +25,16 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { PasswordInput } from "@/components/ui/password-input";
 import { SettingsCardHeader } from "@/components/settings/_card-header";
 import {
   IntegrationStatusPill,
   type IntegrationPillState,
 } from "@/components/settings/integration-status-pill";
 import { TestConnectionButton } from "@/components/settings/test-connection-button";
-import { apiGet, apiPost } from "@/lib/api/api-fetch";
+import { apiFetchRaw, apiGet, apiPost } from "@/lib/api/api-fetch";
 import { useTranslations } from "@/lib/i18n/context";
 import { invalidateKeys, measurementDependentKeys } from "@/lib/query-keys";
 
@@ -38,6 +42,8 @@ export interface OAuthProviderStatus {
   connected: boolean;
   configured: boolean;
   available: boolean;
+  /** Whether the user has stored their own BYO client id/secret pair. */
+  hasOwnCredentials?: boolean;
   state?:
     | "connected"
     | "error_transient"
@@ -74,6 +80,9 @@ export interface OAuthProviderCardProps {
   icon: LucideIcon;
   /** Where this provider's synced data surfaces (e.g. `/insights/sleep`). */
   dataHref: string;
+  /** When set, render a per-user BYO OAuth-credentials form above the connect
+   * button. The endpoint is the PUT target (e.g. `/api/polar/credentials`). */
+  credentials?: boolean;
   enabled?: boolean;
 }
 
@@ -83,11 +92,19 @@ export function OAuthProviderCard({
   i18nPrefix,
   icon,
   dataHref,
+  credentials = false,
   enabled = true,
 }: OAuthProviderCardProps) {
   const { t } = useTranslations();
   const queryClient = useQueryClient();
   const [msg, setMsg] = useState<string | null>(null);
+  const [clientId, setClientId] = useState("");
+  const [clientSecret, setClientSecret] = useState("");
+  const [credsSaving, setCredsSaving] = useState(false);
+  const [credsMsg, setCredsMsg] = useState<string | null>(null);
+  const [credsMsgType, setCredsMsgType] = useState<"success" | "error" | null>(
+    null,
+  );
 
   const { data: status } = useQuery({
     queryKey: statusQueryKey,
@@ -95,6 +112,42 @@ export function OAuthProviderCard({
     enabled,
     refetchOnWindowFocus: true,
   });
+
+  async function handleSaveCredentials(e: React.FormEvent) {
+    e.preventDefault();
+    setCredsSaving(true);
+    setCredsMsg(null);
+    setCredsMsgType(null);
+    try {
+      const res = await apiFetchRaw(`/api/${provider}/credentials`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          clientId: clientId.trim(),
+          clientSecret: clientSecret.trim(),
+        }),
+      });
+      if (res.ok) {
+        setCredsMsg(t(`${i18nPrefix}CredentialsSaved`));
+        setCredsMsgType("success");
+        setClientId("");
+        setClientSecret("");
+        queryClient.invalidateQueries({ queryKey: statusQueryKey });
+      } else {
+        try {
+          const json = await res.json();
+          setCredsMsg(json.error || t("settings.savingError"));
+        } catch {
+          setCredsMsg(t("settings.savingError"));
+        }
+        setCredsMsgType("error");
+      }
+    } catch {
+      setCredsMsg(t("common.networkError"));
+      setCredsMsgType("error");
+    }
+    setCredsSaving(false);
+  }
 
   const disconnect = useMutation({
     mutationFn: async () => {
@@ -181,6 +234,89 @@ export function OAuthProviderCard({
         <p className="text-muted-foreground text-xs">
           {t(`${i18nPrefix}Help`)}
         </p>
+
+        {credentials && (
+          <div className="space-y-3" data-testid={`${provider}-credentials`}>
+            <h3 className="text-sm font-semibold">
+              {t(`${i18nPrefix}Credentials`)}
+            </h3>
+            <p className="text-muted-foreground text-xs">
+              {t(`${i18nPrefix}CredentialsHelp`)}
+            </p>
+            <form onSubmit={handleSaveCredentials} className="space-y-3">
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="space-y-1.5">
+                  <Label htmlFor={`${provider}-clientid`}>
+                    {t(`${i18nPrefix}ClientId`)}
+                  </Label>
+                  <Input
+                    id={`${provider}-clientid`}
+                    value={clientId}
+                    onChange={(e) => setClientId(e.target.value)}
+                    placeholder={
+                      status?.hasOwnCredentials
+                        ? t(`${i18nPrefix}CredentialsSavedPlaceholder`)
+                        : t(`${i18nPrefix}ClientId`)
+                    }
+                    maxLength={200}
+                    autoComplete="off"
+                    inputMode="text"
+                    spellCheck={false}
+                    autoCapitalize="none"
+                    enterKeyHint="next"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor={`${provider}-secret`}>
+                    {t(`${i18nPrefix}ClientSecret`)}
+                  </Label>
+                  <PasswordInput
+                    id={`${provider}-secret`}
+                    value={clientSecret}
+                    onChange={(e) => setClientSecret(e.target.value)}
+                    placeholder={
+                      status?.hasOwnCredentials
+                        ? t(`${i18nPrefix}CredentialsSavedPlaceholder`)
+                        : t(`${i18nPrefix}ClientSecret`)
+                    }
+                    maxLength={200}
+                    autoComplete="off"
+                    inputMode="text"
+                    spellCheck={false}
+                    autoCapitalize="none"
+                    enterKeyHint="done"
+                  />
+                </div>
+              </div>
+              <div className="flex justify-end">
+                <Button
+                  type="submit"
+                  variant="outline"
+                  size="sm"
+                  className="min-h-11 w-full sm:w-auto"
+                  disabled={
+                    credsSaving || !clientId.trim() || !clientSecret.trim()
+                  }
+                >
+                  {credsSaving ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
+                  ) : (
+                    <Save className="h-3.5 w-3.5" />
+                  )}
+                  {t(`${i18nPrefix}SaveCredentials`)}
+                </Button>
+              </div>
+              {credsMsg && (
+                <p
+                  role="alert"
+                  className={`text-sm ${credsMsgType === "success" ? "text-success" : "text-destructive"}`}
+                >
+                  {credsMsg}
+                </p>
+              )}
+            </form>
+          </div>
+        )}
 
         {serverUnavailable && (
           <p

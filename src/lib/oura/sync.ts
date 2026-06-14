@@ -35,14 +35,17 @@ import {
   fetchDailyActivity,
   fetchReadiness,
   fetchSleep,
-  getOuraCredentials,
   mapDailyActivity,
   mapReadiness,
   mapSleep,
   refreshAccessToken,
   type MappedMeasurement,
 } from "./client";
-import { getOuraConnection, storeOuraTokens } from "./credentials";
+import {
+  getOuraClientCredentials,
+  getOuraConnection,
+  storeOuraTokens,
+} from "./credentials";
 import { OuraApiError, classifyOuraError } from "./response-classifier";
 
 /** Default lookback window (days) for an incremental sync. Oura finalises a
@@ -118,7 +121,7 @@ async function fetchAll(
     // case — rethrow so the caller classifies it.
     if (!(err instanceof OuraApiError) || err.httpStatus !== 401) throw err;
 
-    const creds = getOuraCredentials();
+    const creds = await getOuraClientCredentials(userId);
     if (!creds) throw err;
 
     const rotated = await refreshAccessToken(refreshToken, creds);

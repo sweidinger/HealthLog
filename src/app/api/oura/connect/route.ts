@@ -3,7 +3,8 @@ import { apiError } from "@/lib/api-response";
 import { annotate } from "@/lib/logging/context";
 import { shouldEmitSecureCookie } from "@/lib/auth/secure-cookie";
 import { checkRateLimit } from "@/lib/rate-limit";
-import { getAuthorizationUrl, getOuraCredentials } from "@/lib/oura/client";
+import { getAuthorizationUrl } from "@/lib/oura/client";
+import { getOuraClientCredentials } from "@/lib/oura/credentials";
 import {
   OAUTH_STATE_TTL_MS,
   mintSignedState,
@@ -40,7 +41,7 @@ export const GET = apiHandler(async () => {
     );
   }
 
-  const creds = getOuraCredentials();
+  const creds = await getOuraClientCredentials(user.id);
   if (!creds) {
     return apiError("Oura integration is not configured on this server.", 400);
   }

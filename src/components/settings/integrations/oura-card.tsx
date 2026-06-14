@@ -1,7 +1,8 @@
 "use client";
 
 // v1.17.0 (F4) — Oura Cloud integration card. Thin wrapper over the shared
-// env-based OAuth card.
+// OAuth card.
+// v1.17.1 — per-user BYO OAuth credentials (DB-first then env).
 
 import { CircleDot } from "lucide-react";
 
@@ -16,6 +17,7 @@ export function OuraCard({ enabled = true }: { enabled?: boolean }) {
       i18nPrefix="settings.oura"
       icon={CircleDot}
       dataHref="/insights/sleep"
+      credentials
       enabled={enabled}
     />
   );

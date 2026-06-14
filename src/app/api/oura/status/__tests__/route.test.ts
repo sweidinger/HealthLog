@@ -15,8 +15,11 @@ vi.mock("@/lib/api-response", () => ({
   apiSuccess: (data: unknown) => ({ data, error: null }),
 }));
 
-vi.mock("@/lib/oura/client", () => ({
-  getOuraCredentials: vi.fn(() => ({ clientId: "c", clientSecret: "s" })),
+vi.mock("@/lib/oura/credentials", () => ({
+  getOuraClientCredentials: vi.fn(async () => ({
+    clientId: "c",
+    clientSecret: "s",
+  })),
 }));
 
 vi.mock("@/lib/integrations/status", () => ({
@@ -32,10 +35,10 @@ vi.mock("@/lib/integrations/status", () => ({
 
 import { GET } from "../route";
 import { prisma } from "@/lib/db";
-import { getOuraCredentials } from "@/lib/oura/client";
+import { getOuraClientCredentials } from "@/lib/oura/credentials";
 
 const userFind = prisma.user.findUnique as ReturnType<typeof vi.fn>;
-const credsMock = getOuraCredentials as ReturnType<typeof vi.fn>;
+const credsMock = getOuraClientCredentials as ReturnType<typeof vi.fn>;
 
 type Body = {
   connected: boolean;
@@ -49,7 +52,7 @@ const call = () =>
 describe("GET /api/oura/status", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    credsMock.mockReturnValue({ clientId: "c", clientSecret: "s" });
+    credsMock.mockResolvedValue({ clientId: "c", clientSecret: "s" });
   });
 
   it("reports not-connected but available", async () => {

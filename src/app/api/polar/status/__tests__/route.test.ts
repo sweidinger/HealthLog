@@ -15,8 +15,11 @@ vi.mock("@/lib/api-response", () => ({
   apiSuccess: (data: unknown) => ({ data, error: null }),
 }));
 
-vi.mock("@/lib/polar/client", () => ({
-  getPolarCredentials: vi.fn(() => ({ clientId: "c", clientSecret: "s" })),
+vi.mock("@/lib/polar/credentials", () => ({
+  getPolarClientCredentials: vi.fn(async () => ({
+    clientId: "c",
+    clientSecret: "s",
+  })),
 }));
 
 vi.mock("@/lib/integrations/status", () => ({
@@ -32,10 +35,10 @@ vi.mock("@/lib/integrations/status", () => ({
 
 import { GET } from "../route";
 import { prisma } from "@/lib/db";
-import { getPolarCredentials } from "@/lib/polar/client";
+import { getPolarClientCredentials } from "@/lib/polar/credentials";
 
 const userFind = prisma.user.findUnique as ReturnType<typeof vi.fn>;
-const credsMock = getPolarCredentials as ReturnType<typeof vi.fn>;
+const credsMock = getPolarClientCredentials as ReturnType<typeof vi.fn>;
 
 type Body = {
   connected: boolean;
@@ -49,7 +52,7 @@ const call = () =>
 describe("GET /api/polar/status", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    credsMock.mockReturnValue({ clientId: "c", clientSecret: "s" });
+    credsMock.mockResolvedValue({ clientId: "c", clientSecret: "s" });
   });
 
   it("reports not-connected but available when env is set and no token stored", async () => {
@@ -60,7 +63,7 @@ describe("GET /api/polar/status", () => {
   });
 
   it("reports available=false when the server has no Polar app configured", async () => {
-    credsMock.mockReturnValue(null);
+    credsMock.mockResolvedValue(null);
     userFind.mockResolvedValue(null);
     const res = await call();
     expect(res.available).toBe(false);
