@@ -16,4 +16,4 @@
 -- up without a migration of its own.
 
 ALTER TABLE "medications"
-  ADD COLUMN "reorder_lead_days" INTEGER;
+  ADD COLUMN IF NOT EXISTS "reorder_lead_days" INTEGER;
