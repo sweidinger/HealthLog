@@ -10,13 +10,18 @@ import { HealthKitMetricPage } from "@/components/insights/healthkit-metric-page
  * Heart-rate variability sub-page. Pairs with the iOS HKQuantityType
  * `heartRateVariabilitySDNN` ingest path; the user typically logs one
  * sample per night during sleep, so the chart is sparse but the
- * weekly trend is the load-bearing signal. Stored as millisecond
- * `HEART_RATE_VARIABILITY` rows by every existing ingest path.
+ * weekly trend is the load-bearing signal. Apple Health / Fitbit store
+ * SDNN as millisecond `HEART_RATE_VARIABILITY` rows; Oura / Polar / WHOOP
+ * store nightly RMSSD as `HRV_RMSSD`. The page renders SDNN when present
+ * and falls back to the RMSSD series (labelled "RMSSD") otherwise, so a
+ * ring / strap user's stored HRV always surfaces.
  */
 export default function InsightsHrvPage() {
   return (
     <HealthKitMetricPage
       measurementType="HEART_RATE_VARIABILITY"
+      fallbackMeasurementType="HRV_RMSSD"
+      fallbackMeasureLabel="RMSSD"
       statusMetric="HEART_RATE_VARIABILITY"
       insightMetric="HEART_RATE_VARIABILITY"
       chartKey="hrv"

@@ -247,6 +247,49 @@ describe("DEFAULT_SOURCE_PRIORITY", () => {
       expect(ladder.indexOf("WHOOP")).toBeLessThan(ladder.indexOf("OURA"));
     }
   });
+
+  it("appends Oura + Polar to the activity ladders below Apple Health (v1.17)", () => {
+    // v1.17.0 — Oura + Polar write ACTIVITY_STEPS + ACTIVE_ENERGY_BURNED;
+    // they belong on the activity ladders as legitimate sources, ranked
+    // below the phone-aggregated APPLE_HEALTH but above a MANUAL entry, so
+    // an Oura/Polar-only day is not dropped when another source coexists.
+    for (const key of [
+      "steps",
+      "activeEnergy",
+      "walkingRunningDistance",
+    ] as const) {
+      const ladder = DEFAULT_SOURCE_PRIORITY[key];
+      expect(ladder).toContain("OURA");
+      expect(ladder).toContain("POLAR");
+      // Below the phone-aggregated all-day Apple Health stream.
+      expect(ladder.indexOf("APPLE_HEALTH")).toBeLessThan(
+        ladder.indexOf("OURA"),
+      );
+      expect(ladder.indexOf("APPLE_HEALTH")).toBeLessThan(
+        ladder.indexOf("POLAR"),
+      );
+      // Above a hand-typed MANUAL entry — a real device beats nothing.
+      expect(ladder.indexOf("OURA")).toBeLessThan(ladder.indexOf("MANUAL"));
+      expect(ladder.indexOf("POLAR")).toBeLessThan(ladder.indexOf("MANUAL"));
+      // No existing source loses its rank: Apple Health still leads.
+      expect(ladder[0]).toBe("APPLE_HEALTH");
+    }
+  });
+
+  it("ranks the pulse wearables above a MANUAL reading (v1.17)", () => {
+    // v1.17.0 — a copy-paste slip had Polar / Oura ranked BELOW a hand-typed
+    // MANUAL pulse. Continuous optical-HR wearables must sit above MANUAL,
+    // matching the device-source order on the rhr / hrv ladders.
+    const ladder = DEFAULT_SOURCE_PRIORITY.pulse;
+    for (const device of ["FITBIT", "OURA", "POLAR"] as const) {
+      expect(ladder.indexOf(device)).toBeLessThan(ladder.indexOf("MANUAL"));
+    }
+    // Device-source order matches the rhr / hrv ladders (FITBIT > OURA > POLAR).
+    expect(ladder.indexOf("FITBIT")).toBeLessThan(ladder.indexOf("OURA"));
+    expect(ladder.indexOf("OURA")).toBeLessThan(ladder.indexOf("POLAR"));
+    // Withings stays the primary point-measurement source.
+    expect(ladder[0]).toBe("WITHINGS");
+  });
 });
 
 describe("DEFAULT_DEVICE_TYPE_PRIORITY", () => {
