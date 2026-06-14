@@ -720,7 +720,12 @@
       "iconGroupWeather": "Tiempo",
       "iconGroupPlaces": "Lugares",
       "iconGroupMisc": "Otros"
-    }
+    },
+    "sectionMoreTags": "Más etiquetas",
+    "sectionFactors": "Factores",
+    "sectionNoteDetails": "Nota y detalles",
+    "quickTagsHelp": "Tus etiquetas frecuentes: un toque",
+    "quickTagsExpand": "Más"
   },
   "medications": {
     "title": "Medicamentos",
@@ -2666,6 +2671,35 @@
         "title": "Aún no hay datos de sueño",
         "description": "La sincronización con Apple Health llega con la v1.5 y llenará esta vista automáticamente.",
         "action": "Gestionar dispositivos"
+      },
+      "debt": {
+        "title": "Deuda de sueño",
+        "value": "{hours} h {minutes} min de déficit",
+        "caption": "Déficit acumulado de las últimas {nights} noches",
+        "clearValue": "Al día",
+        "clearCaption": "Sin déficit acumulado en las últimas {nights} noches",
+        "learning": "Aún estamos midiendo tu sueño — {counted} noches hasta ahora, faltan {remaining} para un balance fiable."
+      },
+      "chronotype": {
+        "title": "Cronotipo",
+        "learning": "Aún estamos aprendiendo tu ritmo — {counted} de {total} noches libres. Un cronotipo necesita varias mañanas sin despertador para tener sentido.",
+        "midSleepCaption": "Punto medio del sueño en días libres en torno a las {clock}",
+        "advancedToggle": "Avanzado",
+        "socialJetlagValue": "{hours} h {minutes} min de jet lag social",
+        "socialJetlagCaption": "La diferencia entre el horario de sueño laboral y el de los días libres — como un pequeño cambio de huso horario semanal.",
+        "msfScValue": "Punto medio corregido {clock}",
+        "msfScCaption": "Ajustado por el sueño que recuperas el fin de semana (MSFsc).",
+        "dayTypeNote": "Se asume que los días libres son los fines de semana hasta que se añada el registro del tipo de día.",
+        "band": {
+          "extreme_early": "Matutino marcado",
+          "early": "Matutino",
+          "intermediate": "Intermedio",
+          "late": "Vespertino",
+          "extreme_late": "Vespertino marcado"
+        }
+      },
+      "rhythm": {
+        "loadError": "Tu ritmo de sueño no pudo cargarse ahora mismo. Reaparecerá en cuanto se estabilice la conexión."
       }
     },
     "correlations": "Correlaciones",
@@ -2795,6 +2829,71 @@
       "emptyState": {
         "title": "Aún no hay datos de glucosa",
         "description": "Las lecturas de glucosa aparecen aquí cuando registras una o un dispositivo sincroniza."
+      },
+      "clinical": {
+        "title": "Resumen de glucosa",
+        "subtitle": "Una lectura de tus últimos {days} días, a partir de {count} mediciones.",
+        "spotCaveat": "Son estimaciones a partir de mediciones puntuales, no un perfil de un sensor continuo: léelas como una tendencia, no como un veredicto clínico.",
+        "learningTitle": "Aún conociendo tu glucosa",
+        "learningBody": "De momento son {count} en {days}. Con algo más de historial el panorama se aclara: sigue registrando o deja que lo complete un dispositivo conectado.",
+        "learningBodyEmpty": "En cuanto lleguen unas cuantas mediciones —registradas por ti o sincronizadas desde un dispositivo— tu tiempo en rango, promedio y variabilidad tomarán forma aquí.",
+        "readingsCount": "{count} mediciones",
+        "readingsCountOne": "1 medición",
+        "daysCount": "{days} días",
+        "daysCountOne": "1 día",
+        "tir": {
+          "title": "Tiempo en rango",
+          "caption": "Proporción de mediciones en cada banda (70–180 mg/dl es el objetivo).",
+          "veryLow": "Muy bajo",
+          "low": "Bajo",
+          "inRange": "En rango",
+          "high": "Alto",
+          "veryHigh": "Muy alto",
+          "ariaLabel": "Tiempo en rango: {tir}% en objetivo, {below}% por debajo, {above}% por encima.",
+          "empty": "Aún no hay mediciones para el gráfico."
+        },
+        "gmi": {
+          "label": "Indicador de gestión de la glucosa",
+          "help": "Una estimación tipo HbA1c derivada de tu glucosa promedio."
+        },
+        "eA1c": {
+          "label": "HbA1c estimada",
+          "help": "Una estimación de HbA1c a partir de tu glucosa media (ADAG)."
+        },
+        "mean": {
+          "label": "Glucosa promedio"
+        },
+        "cv": {
+          "label": "Variabilidad",
+          "steady": "Estable",
+          "unstable": "Inestable",
+          "help": "Coeficiente de variación. A partir del 36 % la glucosa se considera inestable; menos es más estable."
+        },
+        "advanced": {
+          "toggle": "Índices avanzados",
+          "intro": "Compuestos de nivel investigador para mirar más de cerca. Cada uno reduce tus mediciones a un único número ponderado por riesgo.",
+          "jIndex": {
+            "label": "Índice J",
+            "help": "Una puntuación única que combina tu promedio y su dispersión: cuanto más bajo, más ajustado el control."
+          },
+          "lbgi": {
+            "label": "Riesgo de hipoglucemia (LBGI)",
+            "help": "Índice de Kovatchev que pondera con qué frecuencia y profundidad bajan las lecturas."
+          },
+          "hbgi": {
+            "label": "Riesgo de hiperglucemia (HBGI)",
+            "help": "Índice de Kovatchev que pondera con qué frecuencia y altura suben las lecturas."
+          },
+          "byContext": {
+            "title": "Por contexto",
+            "fasting": "En ayunas",
+            "postprandial": "Después de comer",
+            "random": "Aleatorio",
+            "bedtime": "Antes de dormir",
+            "readingsShort": "{count} mediciones",
+            "readingsShortOne": "1 medición"
+          }
+        }
       }
     },
     "navBloodGlucose": "Glucosa",
@@ -3549,7 +3648,7 @@
     },
     "goals": {
       "title": "¿Qué te gustaría registrar?",
-      "body": "Elige las áreas que te interesan. El panel y los recordatorios se ajustarán a tu elección.",
+      "body": "Elige las áreas que te interesan: te ayuda a decidir qué seguir y qué configurar a continuación.",
       "helpHint": "Una a tres prioridades suelen funcionar mejor — siempre podrás añadir más más adelante.",
       "options": {
         "weightManagement": "Control del peso",
@@ -3562,7 +3661,7 @@
     },
     "source": {
       "title": "Conectar una fuente",
-      "body": "Importa las mediciones automáticamente o sigue con la entrada manual, tú decides.",
+      "body": "Importa las mediciones automáticamente o sigue con la entrada manual. Aquí no se configura nada por ti: cada tarjeta solo muestra dónde conectarla.",
       "recommended": "Recomendado",
       "manual": {
         "title": "Entrada manual",
@@ -3573,12 +3672,17 @@
         "body": "Las básculas, los tensiómetros y los trackers de Withings se sincronizan automáticamente.",
         "cta": "Conectar Withings"
       },
-      "appleHealth": {
-        "title": "Apple Health",
-        "body": "Los datos del iPhone y el Apple Watch llegan a través de la app de HealthLog para iOS.",
-        "badge": "Con la v1.5 (iOS)",
-        "disabledHint": "Disponible cuando se publique la app de iOS."
-      }
+      "more": {
+        "title": "Más fuentes",
+        "body": "Conecta cualquiera de ellas en Ajustes cuando quieras.",
+        "appleHealth": "Apple Health",
+        "whoop": "WHOOP",
+        "oura": "Oura",
+        "polar": "Polar",
+        "nightscout": "Nightscout",
+        "fitbit": "Fitbit"
+      },
+      "import": "Importar historial existente"
     },
     "baseline": {
       "title": "Cuéntanos sobre ti",
@@ -3598,7 +3702,11 @@
     "done": {
       "title": "Todo listo",
       "body": "Bienvenido a bordo. Tu panel ya está preparado.",
-      "returnCta": "Abrir el panel"
+      "returnCta": "Abrir el panel",
+      "learning": "Algunas conclusiones —glucosa, ritmo de sueño, tendencias de presión arterial, ciclo— se afinan durante la primera semana o dos a medida que se acumulan tus datos. Las casillas vacías ahora solo significan que aún estamos aprendiendo tu línea base.",
+      "connectCta": "Conectar un dispositivo",
+      "logCta": "Registra tu primera medición",
+      "importCta": "Importar historial existente"
     },
     "welcomeBack": {
       "title": "Bienvenido de nuevo",
@@ -3643,9 +3751,9 @@
       "medicationTitle": "Añadir medicamento",
       "medicationDescription": "Sigue el cumplimiento y recibe recordatorios justo cuando los necesites.",
       "medicationCta": "Añadir medicamento",
-      "withingsTitle": "Conectar Withings (opcional)",
-      "withingsDescription": "Sincroniza peso, tensión arterial y pulso automáticamente desde tus dispositivos Withings.",
-      "withingsCta": "Conectar",
+      "dataSourceTitle": "Conectar una fuente de datos (opcional)",
+      "dataSourceDescription": "Sincroniza peso, presión, sueño y más desde Withings, WHOOP, Oura, Polar, Nightscout, Fitbit o Apple Health.",
+      "dataSourceCta": "Conectar",
       "notificationsTitle": "Configurar notificaciones",
       "notificationsDescription": "Elige cómo te recuerda HealthLog — Telegram, ntfy o Web Push.",
       "notificationsCta": "Abrir notificaciones"
@@ -4470,6 +4578,68 @@
       "enable": "Activar el seguimiento del ciclo",
       "manage": "Abrir seguimiento del ciclo",
       "error": "No se pudo actualizar el seguimiento del ciclo."
+    },
+    "nightscout": "Nightscout",
+    "nightscoutTag": "CGM",
+    "nightscoutDescription": "Conecta tu propio sitio Nightscout para sincronizar lecturas continuas de glucosa en el panel de glucosa.",
+    "nightscoutViewData": "Ver tu glucosa",
+    "nightscoutHelp": "Apunta HealthLog a tu instancia de Nightscout. Las lecturas se obtienen en segundo plano una vez por hora.",
+    "nightscoutUrl": "URL de Nightscout",
+    "nightscoutUrlSavedPlaceholder": "Guardado: introduce una URL nueva para reemplazarla",
+    "nightscoutToken": "Token de API",
+    "nightscoutTokenOptional": "Opcional para un sitio público",
+    "nightscoutTokenSavedPlaceholder": "Guardado: introduce un token nuevo para reemplazarlo",
+    "nightscoutTokenHelp": "Pega un token de acceso de las herramientas de administración de Nightscout. Déjalo vacío si tu sitio es de lectura pública.",
+    "nightscoutPrivateHost": "Este sitio funciona en una red privada",
+    "nightscoutPrivateHostHelp": "Actívalo solo si tu instancia de Nightscout está en una dirección LAN, VPN o Tailscale. Desactivado para sitios públicos.",
+    "nightscoutConnect": "Conectar",
+    "nightscoutUpdate": "Guardar cambios",
+    "nightscoutConnected": "Nightscout conectado.",
+    "nightscoutConnectFailed": "No se pudo conectar con Nightscout.",
+    "nightscoutDisconnect": "Desconectar",
+    "nightscoutDisconnectTitle": "¿Desconectar Nightscout?",
+    "nightscoutDisconnectDescription": "Las sincronizaciones futuras se detienen. Las lecturas de glucosa ya importadas permanecen en tu historial.",
+    "polar": "Polar",
+    "polarDescription": "Conecta tu cuenta de Polar para sincronizar la recuperación Nightly Recharge, las fases de sueño y la actividad diaria.",
+    "polarViewData": "Ver tu sueño y recuperación",
+    "polarHelp": "Inicia sesión en Polar para conceder acceso. Los datos se obtienen en segundo plano una vez por hora.",
+    "polarUnavailable": "Polar no está configurado en este servidor. Pide a tu administrador que añada las credenciales OAuth de Polar.",
+    "polarConnect": "Conectar Polar",
+    "polarDisconnect": "Desconectar",
+    "polarDisconnectTitle": "¿Desconectar Polar?",
+    "polarDisconnectDescription": "Las sincronizaciones futuras se detienen. Las lecturas ya importadas permanecen en tu historial.",
+    "polarOauthConnected": "Polar conectado: la primera sincronización empieza en segundo plano.",
+    "polarOauthFailed": "Error al conectar con Polar",
+    "polarOauthError": {
+      "csrf1": "La verificación de seguridad falló porque faltaba la cookie del navegador. Inicia la conexión de nuevo en el mismo navegador.",
+      "state": "La respuesta de Polar no coincidió con ninguna solicitud de conexión abierta. Inicia la conexión de nuevo.",
+      "cross_user": "La respuesta pertenece a una solicitud de otra cuenta. Reinicia la conexión desde tu propia cuenta.",
+      "nocode": "Polar no devolvió un código de autorización. Inténtalo de nuevo y permite el acceso en el diálogo de Polar.",
+      "nocreds": "Polar no está configurado en este servidor. Pide a tu administrador que añada las credenciales OAuth de Polar.",
+      "token": "El intercambio de token con Polar falló. Inicia la conexión de nuevo.",
+      "rate_limited": "Demasiados intentos de conexión. Espera un momento e inténtalo de nuevo.",
+      "generic": "Error desconocido al conectar. Inicia la conexión de nuevo."
+    },
+    "oura": "Oura",
+    "ouraDescription": "Conecta tu cuenta de Oura para sincronizar readiness, fases de sueño, VFC y actividad diaria.",
+    "ouraViewData": "Ver tu sueño y recuperación",
+    "ouraHelp": "Inicia sesión en Oura para conceder acceso. Los datos se obtienen en segundo plano una vez por hora.",
+    "ouraUnavailable": "Oura no está configurado en este servidor. Pide a tu administrador que añada las credenciales OAuth de Oura.",
+    "ouraConnect": "Conectar Oura",
+    "ouraDisconnect": "Desconectar",
+    "ouraDisconnectTitle": "¿Desconectar Oura?",
+    "ouraDisconnectDescription": "Las sincronizaciones futuras se detienen. Las lecturas ya importadas permanecen en tu historial.",
+    "ouraOauthConnected": "Oura conectado: la primera sincronización empieza en segundo plano.",
+    "ouraOauthFailed": "Error al conectar con Oura",
+    "ouraOauthError": {
+      "csrf1": "La verificación de seguridad falló porque faltaba la cookie del navegador. Inicia la conexión de nuevo en el mismo navegador.",
+      "state": "La respuesta de Oura no coincidió con ninguna solicitud de conexión abierta. Inicia la conexión de nuevo.",
+      "cross_user": "La respuesta pertenece a una solicitud de otra cuenta. Reinicia la conexión desde tu propia cuenta.",
+      "nocode": "Oura no devolvió un código de autorización. Inténtalo de nuevo y permite el acceso en el diálogo de Oura.",
+      "nocreds": "Oura no está configurado en este servidor. Pide a tu administrador que añada las credenciales OAuth de Oura.",
+      "token": "El intercambio de token con Oura falló. Inicia la conexión de nuevo.",
+      "rate_limited": "Demasiados intentos de conexión. Espera un momento e inténtalo de nuevo.",
+      "generic": "Error desconocido al conectar. Inicia la conexión de nuevo."
     }
   },
   "admin": {
@@ -5404,6 +5574,10 @@
       "statusOff": "Desactivado",
       "daysLabel": "Avisar por debajo de (días)",
       "daysAria": "Seleccionar el umbral de existencias en días",
+      "leadLabel": "Plazo de reposición (días)",
+      "leadAria": "Plazo de reposición en días",
+      "leadHelp": "El aviso se envía estos días más un intervalo de dosis antes, para que la reposición llegue antes de tu última dosis. Un medicamento concreto puede anular este valor en su pestaña de existencias.",
+      "leadSavedToast": "Plazo de reposición guardado.",
       "savedToast": "Umbral de existencias guardado.",
       "enabledToast": "Avisos de existencias bajas activados.",
       "disabledToast": "Avisos de existencias bajas desactivados.",
@@ -5597,7 +5771,9 @@
   "lowStockReminders": {
     "title": "Quedan pocas existencias: {medName}",
     "body": "{medName}: quedan {units} unidades — para unos {days} días más.",
-    "bodyToday": "{medName}: quedan {units} unidades — menos de un día de suministro."
+    "bodyToday": "{medName}: quedan {units} unidades — menos de un día de suministro.",
+    "bodyReorder": "{medName}: quedan {units} unidades. Las existencias se agotan hacia el {runsOutOn} — vuelve a pedir antes del {reorderBy}.",
+    "bodyLastDose": "{medName}: quedan {units} unidades — alrededor de tu última dosis. Las existencias se agotan hacia el {runsOutOn}."
   },
   "moodReminders": {
     "dailyTitle": "Registrar el ánimo",
@@ -5926,7 +6102,10 @@
       "contraceptive": "Anticonceptivo",
       "severity": "Intensidad",
       "severityLevel": "Intensidad {level} de 4",
-      "delete": "Eliminar"
+      "delete": "Eliminar",
+      "temperatureSection": "Temperatura y ovulación",
+      "intimacySection": "Intimidad y anticoncepción",
+      "testsSection": "Pruebas"
     },
     "settings": {
       "title": "Ajustes del ciclo",

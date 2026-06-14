@@ -54,6 +54,24 @@ import { SubPageShell } from "@/components/insights/sub-page-shell";
 export interface HealthKitMetricPageProps {
   /** The MeasurementType that backs the chart. */
   measurementType: string;
+  /**
+   * v1.17.0 — optional secondary MeasurementType the page falls back to
+   * when the primary type has no rows but the fallback does. Used by HRV:
+   * the primary `HEART_RATE_VARIABILITY` (SDNN, Apple / Fitbit) is empty
+   * for a ring / strap user whose nightly HRV is stored as `HRV_RMSSD`
+   * (Oura / Polar / WHOOP). When the swap is active the chart, stat strip,
+   * "all values" list, and diversity nudge key off the fallback type and
+   * `fallbackMeasureLabel` names the measure so the two are never silently
+   * merged. Omit it and every other page renders byte-identically.
+   */
+  fallbackMeasurementType?: string;
+  /**
+   * v1.17.0 — short label naming the fallback measure (e.g. "RMSSD") shown
+   * beneath the chart title when the fallback series is active, so the user
+   * sees which measure their reading is. Required in practice whenever
+   * `fallbackMeasurementType` is set.
+   */
+  fallbackMeasureLabel?: string;
   /** The InsightMetric key used by `useInsightsAnalytics()`. */
   insightMetric: InsightMetric;
   /** The chart-overlay slot id. */
@@ -154,10 +172,21 @@ export interface HealthKitMetricPageProps {
    * 90-day p50 is not read as an all-time central value.
    */
   statMedianLabel?: string;
+  /**
+   * v1.17.0 — optional extra content rendered beneath the chart + target
+   * summary, before the metric-status card. Blood glucose mounts its clinical
+   * panel (TIR / GMI / eA1C / CV% + advanced indices) here. Only rendered on
+   * the data-bearing branch (the empty / loading / error branches skip it, so
+   * a no-data metric never shows a void panel). Additive: every other page
+   * omits it and renders byte-identically.
+   */
+  afterChart?: ReactNode;
 }
 
 export function HealthKitMetricPage({
   measurementType,
+  fallbackMeasurementType,
+  fallbackMeasureLabel,
   insightMetric,
   chartKey,
   i18nPrefix,
@@ -176,6 +205,7 @@ export function HealthKitMetricPage({
   forecast = false,
   statFractionDigits,
   statMedianLabel,
+  afterChart,
 }: HealthKitMetricPageProps) {
   const { user, isAuthenticated } = useAuth();
   const { t } = useTranslations();
@@ -194,7 +224,22 @@ export function HealthKitMetricPage({
   // stat strip reads it back for this page's single series.
   const { statsByType, onVisibleStats } = useChartDomainStats();
 
-  const rawSummary = analytics?.summaries?.[measurementType] ?? null;
+  // v1.17.0 — fallback-type swap. When the primary type has no rows but the
+  // declared fallback does (HRV: SDNN empty, RMSSD present), key the chart,
+  // stat strip, and "all values" list off the fallback so a ring / strap
+  // user's stored HRV renders instead of an empty state. The swap only
+  // triggers once analytics has loaded and the primary is genuinely empty.
+  const primaryCount = analytics?.summaries?.[measurementType]?.count ?? 0;
+  const fallbackCount = fallbackMeasurementType
+    ? (analytics?.summaries?.[fallbackMeasurementType]?.count ?? 0)
+    : 0;
+  const usingFallback =
+    primaryCount === 0 && fallbackCount > 0 && !!fallbackMeasurementType;
+  const effectiveType = usingFallback
+    ? (fallbackMeasurementType as string)
+    : measurementType;
+
+  const rawSummary = analytics?.summaries?.[effectiveType] ?? null;
   // The stat strip renders display-unit values. The summary holds stored
   // values, so when the page renders a scaled unit (e.g. WALKING_SPEED
   // stores m/s but displays km/h via `valueScale`), fold the same scale
@@ -306,24 +351,28 @@ export function HealthKitMetricPage({
           fractionDigits={statFractionDigits}
           seriesLabel={title}
           icon={statIcon}
-          windowStats={statsByType?.[measurementType] ?? null}
+          windowStats={statsByType?.[effectiveType] ?? null}
           medianLabel={statMedianLabel}
         />
       }
       diversityNudge={
         <MeasurementDiversityNudge
-          measurementType={measurementType}
+          measurementType={effectiveType}
           metricLabel={title}
           timeZone={user?.timezone ?? undefined}
         />
       }
       coachLaunch
-      showAllValuesType={measurementType}
+      showAllValuesType={effectiveType}
     >
       <HealthChartDynamic
         chartKey={chartKey}
-        types={[measurementType]}
-        title={t(`${i18nPrefix}.chartTitle`)}
+        types={[effectiveType]}
+        title={
+          usingFallback && fallbackMeasureLabel
+            ? `${t(`${i18nPrefix}.chartTitle`)} · ${fallbackMeasureLabel}`
+            : t(`${i18nPrefix}.chartTitle`)
+        }
         titleIcon={statIcon}
         colors={[color]}
         unit={unit}
@@ -337,6 +386,9 @@ export function HealthKitMetricPage({
       {targetSummarySlug ? (
         <MetricTargetSummary slug={targetSummarySlug} />
       ) : null}
+      {/* v1.17.0 — page-specific extra block (blood glucose: the clinical
+          panel). Mounted on the data-bearing branch only. */}
+      {afterChart}
       {forecast && isTrajectoryType(measurementType) ? (
         <TrajectoryForecastCard
           type={measurementType}

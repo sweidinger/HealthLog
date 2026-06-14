@@ -216,6 +216,94 @@ const sleepNightResponse = z
       "One reconstructed sleep night: the main session's hypnogram segments + breakdown, plus same-wake-day naps surfaced separately.",
   });
 
+// ── Sleep rhythm (sleep-debt + chronotype, v1.17.0) ──────────────────
+//
+// Server-authoritative timing signals computed off the SAME canonical night
+// reconstruction the Sleep Score reads. Both carry a calm not-yet-ready state
+// (`partial` / `learning`) below their night thresholds — they never assert a
+// total / band off thin data.
+const sleepDebtResource = z.object({
+  state: z
+    .enum(["partial", "ready"])
+    .describe(
+      "`partial` until enough tracked nights exist (calm 'still learning'); `ready` once the rolling window can assert a cumulative debt.",
+    ),
+  debtMinutes: z
+    .number()
+    .int()
+    .nonnegative()
+    .describe("Cumulative sleep debt over the window, in minutes, after caps."),
+  needMinutes: z
+    .number()
+    .int()
+    .nonnegative()
+    .describe("Age-based sleep need (minutes) used for the per-night deficit."),
+  nightsCounted: z.number().int().nonnegative(),
+  windowNights: z
+    .number()
+    .int()
+    .positive()
+    .describe("Rolling window length in nights."),
+  nightsUntilReady: z
+    .number()
+    .int()
+    .nonnegative()
+    .describe("Nights still needed before the debt is asserted (0 when ready)."),
+});
+
+const chronotypeBandEnum = z.enum([
+  "extreme_early",
+  "early",
+  "intermediate",
+  "late",
+  "extreme_late",
+]);
+
+const chronotypeResource = z.object({
+  state: z
+    .enum(["learning", "ready"])
+    .describe(
+      "`learning` until enough free-day nights exist (no band asserted); `ready` once the free-day sample is large enough.",
+    ),
+  msfMinutes: z
+    .number()
+    .nullable()
+    .describe("Mid-sleep on free days (minutes-of-day), null while learning."),
+  msfScMinutes: z
+    .number()
+    .nullable()
+    .describe(
+      "Sleep-debt-corrected mid-sleep on free days (MSFsc, minutes-of-day), null while learning.",
+    ),
+  band: chronotypeBandEnum
+    .nullable()
+    .describe("MCTQ chronotype band off MSFsc, null while learning."),
+  socialJetlagMinutes: z
+    .number()
+    .nullable()
+    .describe(
+      "Social jetlag = circular |MSF_work − MSF_free| in minutes, null when one side is missing.",
+    ),
+  freeNightsCounted: z.number().int().nonnegative(),
+  workNightsCounted: z.number().int().nonnegative(),
+  freeNightsUntilReady: z
+    .number()
+    .int()
+    .nonnegative()
+    .describe("Free-day nights still needed before a band is asserted."),
+});
+
+const sleepRhythmResponse = z
+  .object({
+    sleepDebt: sleepDebtResource,
+    chronotype: chronotypeResource,
+  })
+  .meta({
+    id: "SleepRhythmResource",
+    description:
+      "Server-authoritative sleep-rhythm read: cumulative sleep debt over the rolling window + MCTQ chronotype (MSF/MSFsc band, social jetlag). Free vs work nights default to weekend = free in the user's timezone (no work calendar). A view over existing per-stage SLEEP_DURATION rows — no schema, no new type.",
+  });
+
 // ── Time-series adapter (iOS chart source) ───────────────────────────
 //
 // v1.16.16 — documents the long-shipped `GET /api/measurements/series`
@@ -504,6 +592,25 @@ export const measurementPaths: NonNullable<ZodOpenApiObject["paths"]> = {
           content: {
             "application/json": {
               schema: dataEnvelope(sleepNightResponse, "SleepNightResponse"),
+            },
+          },
+        },
+        ...stdResponses,
+      },
+    },
+  },
+  "/api/sleep/rhythm": {
+    get: {
+      tags: ["Measurements"],
+      summary: "Sleep rhythm — sleep-debt + chronotype (v1.17.0)",
+      description:
+        "Returns the two server-authoritative sleep-timing signals the Sleep page + iOS render off the same canonical night reconstruction the Sleep Score uses: cumulative `sleepDebt` over the rolling window (calm `partial` state under the night threshold) and MCTQ `chronotype` (MSF/MSFsc band + social jetlag, `learning` state until enough free-day nights exist). Free vs work nights default to weekend = free in the user's timezone (no work calendar). A read-only view over existing per-stage SLEEP_DURATION rows — no schema, no new measurement type.",
+      responses: {
+        "200": {
+          description: "Sleep-debt + chronotype DTO.",
+          content: {
+            "application/json": {
+              schema: dataEnvelope(sleepRhythmResponse, "SleepRhythmResponse"),
             },
           },
         },

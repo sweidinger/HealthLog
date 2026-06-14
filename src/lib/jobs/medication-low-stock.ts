@@ -27,6 +27,16 @@
  * `GET /api/settings/reminder-thresholds`, written through
  * `PATCH /api/auth/me/notification-prefs`.
  *
+ * v1.17.0 — reorder lead time. The bare runway floor fired a sparse
+ * cadence (e.g. a weekly injection) only when ~1 dose was left — too
+ * late to reorder. The effective trigger widens the floor to
+ * `max(lowStockRunwayDays, leadDays + cadenceIntervalDays)` so the
+ * warning lands BEFORE the last dose for any cadence. `leadDays` is the
+ * per-medication `Medication.reorderLeadDays` override, else the
+ * user-level `notificationPrefs.medication.reorderLeadDays` default
+ * (0–60, default 10). Because the trigger is a `max(...)` over the
+ * user's floor it never shrinks anyone's current threshold.
+ *
  * Anti-spam: notify ONCE per threshold crossing. The stamp lives on
  * the medication row (`lowStockNotifiedAt` +
  * `lowStockNotifiedThresholdDays`); the pass clears it (re-arms) when
@@ -46,8 +56,11 @@
  */
 import type { PrismaClient } from "@/generated/prisma/client";
 import {
+  classifyLowStockState,
   estimateDailyDoseCount,
   estimateRunwayDays,
+  lowStockTriggerDays,
+  supplyRunwayDates,
   type RunwaySchedule,
 } from "@/components/medications/detail/supply-runway";
 import {
@@ -55,7 +68,10 @@ import {
   type SupplyItem,
 } from "@/lib/medications/inventory/summary";
 import { dispatchNotification } from "@/lib/notifications/dispatcher";
-import { resolveLowStockRunwayDays } from "@/lib/validations/notification-prefs";
+import {
+  resolveLowStockRunwayDays,
+  resolveReorderLeadDays,
+} from "@/lib/validations/notification-prefs";
 import { getServerTranslator } from "@/lib/i18n/server-translator";
 import type { Locale } from "@/lib/i18n/config";
 import { defaultLocale, locales } from "@/lib/i18n/config";
@@ -132,28 +148,48 @@ export type LowStockDecision =
  * Pure crossing logic — exported for the unit tests so the boundary /
  * dedupe / re-arm semantics stay pinned without a DB.
  *
- *   runway < threshold  → notify, unless the stamp already records THIS
- *                         threshold's crossing (`skip_already_notified`).
- *                         A stamp written against a DIFFERENT threshold
- *                         counts as re-armed and notifies again.
- *   runway ≥ threshold  → re-arm (clear the stamp) when one is set;
- *                         otherwise nothing to do.
- *   runway null         → no runway derivable (schedule-less) — never
- *                         notifies, stamp untouched.
+ * v1.17.0 — the comparison is against the EFFECTIVE trigger
+ * (`triggerDays`), which the caller derives via `lowStockTriggerDays`
+ * from the user's `lowStockRunwayDays` floor, the reorder lead time, and
+ * the cadence interval. The boundary is now `runway ≤ triggerDays` (was
+ * strictly-below the bare floor): a weekly cadence whose runway equals
+ * one dose-interval still fires with reorder headroom.
+ *
+ * Every cadence WIDENS by the lead (the default lead is 10, so a daily
+ * med's trigger becomes max(7, 10 + 1) = 11 and it now alerts ~4 days
+ * earlier than the pre-v1.17.0 `< 7`). The boundary only ever moves the
+ * alert EARLIER, never later — `triggerDays` is `max(floor, …)`, so it
+ * can never drop below the user's floor and no one's current threshold
+ * shrinks. A daily med keeps the old `< 7` boundary ONLY at lead 0
+ * (trigger stays 7); the "unchanged daily" case in the tests pins that
+ * lead-0 corner, not the default.
+ *
+ *   runway ≤ trigger  → notify, unless the stamp already records THIS
+ *                       trigger's crossing (`skip_already_notified`).
+ *                       A stamp written against a DIFFERENT trigger
+ *                       counts as re-armed and notifies again.
+ *   runway > trigger  → re-arm (clear the stamp) when one is set;
+ *                       otherwise nothing to do.
+ *   runway null       → no runway derivable (schedule-less) — never
+ *                       notifies, stamp untouched.
+ *
+ * The re-arm stamp records `triggerDays`, not the bare floor, so a
+ * change to EITHER the user threshold or the reorder lead re-arms the
+ * medication and the user hears the next crossing.
  */
 export function decideLowStockAction(input: {
   runwayDays: number | null;
-  thresholdDays: number;
+  triggerDays: number;
   notifiedAt: Date | null;
   notifiedThresholdDays: number | null;
 }): LowStockDecision {
   if (input.runwayDays === null) return "skip_no_runway";
-  if (input.runwayDays >= input.thresholdDays) {
+  if (input.runwayDays > input.triggerDays) {
     return input.notifiedAt !== null ? "rearm" : "skip_above_threshold";
   }
   if (
     input.notifiedAt !== null &&
-    input.notifiedThresholdDays === input.thresholdDays
+    input.notifiedThresholdDays === input.triggerDays
   ) {
     return "skip_already_notified";
   }
@@ -167,30 +203,80 @@ function resolveLocale(locale: string | null | undefined): Locale {
 }
 
 /**
- * Localised push copy: factual, names the medication and the remaining
- * days / units. Runway 0 gets its own line — "about 0 more days" reads
- * broken in every locale.
+ * v1.17.0 — localised push copy. When the supply data is rich enough to
+ * date (`runwayDays >= 1` with a derivable cadence) the body names the
+ * two concrete dates — "Supply runs out ~<date> — reorder by <date>" —
+ * so the user can act without doing the arithmetic. The `last_dose`
+ * state gets its own calmer line (the final dose is imminent; the
+ * reorder-by date has already passed). Runway 0 keeps the depleted line;
+ * a thin / undatable supply keeps the days/units fallback so the push
+ * never reads broken.
  */
-export function buildLowStockPayload(
-  locale: string | null | undefined,
-  medName: string,
-  runwayDays: number,
-  unitsRemaining: number,
-): { title: string; body: string } {
-  const t = getServerTranslator(resolveLocale(locale)).t;
+export function buildLowStockPayload(input: {
+  locale: string | null | undefined;
+  medName: string;
+  runwayDays: number;
+  unitsRemaining: number;
+  leadDays: number;
+  triggerDays: number;
+  schedules: RunwaySchedule[];
+  today: Date;
+}): { title: string; body: string } {
+  const t = getServerTranslator(resolveLocale(input.locale)).t;
+  const title = t("lowStockReminders.title", { medName: input.medName });
+
+  if (input.runwayDays < 1) {
+    return {
+      title,
+      body: t("lowStockReminders.bodyToday", {
+        medName: input.medName,
+        units: input.unitsRemaining,
+      }),
+    };
+  }
+
+  const state = classifyLowStockState({
+    runwayDays: input.runwayDays,
+    triggerDays: input.triggerDays,
+    schedules: input.schedules,
+  });
+  const { runsOutOn, reorderBy } = supplyRunwayDates({
+    today: input.today,
+    runwayDays: input.runwayDays,
+    leadDays: input.leadDays,
+  });
+  // Day-only, UTC: the runway dates are UTC-midnight calendar days, so a
+  // UTC formatter renders the intended day in every locale. A medium
+  // style stays compact and unambiguous for a push body.
+  const dateFmt = new Intl.DateTimeFormat(resolveLocale(input.locale), {
+    timeZone: "UTC",
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+  const fmt = (d: Date) => dateFmt.format(d);
+
+  if (state === "last_dose") {
+    // Final dose imminent — informational. No "reorder by" date: the
+    // lead window has lapsed, so the line names only the run-out date.
+    return {
+      title,
+      body: t("lowStockReminders.bodyLastDose", {
+        medName: input.medName,
+        units: input.unitsRemaining,
+        runsOutOn: fmt(runsOutOn),
+      }),
+    };
+  }
+
   return {
-    title: t("lowStockReminders.title", { medName }),
-    body:
-      runwayDays >= 1
-        ? t("lowStockReminders.body", {
-            medName,
-            days: runwayDays,
-            units: unitsRemaining,
-          })
-        : t("lowStockReminders.bodyToday", {
-            medName,
-            units: unitsRemaining,
-          }),
+    title,
+    body: t("lowStockReminders.bodyReorder", {
+      medName: input.medName,
+      units: input.unitsRemaining,
+      runsOutOn: fmt(runsOutOn),
+      reorderBy: fmt(reorderBy),
+    }),
   };
 }
 
@@ -269,6 +355,9 @@ export async function runMedicationLowStockTick(
           id: true,
           name: true,
           unitsPerDose: true,
+          // v1.17.0 — per-medication reorder lead override (null =
+          // inherit the user-level default).
+          reorderLeadDays: true,
           lowStockNotifiedAt: true,
           lowStockNotifiedThresholdDays: true,
           inventoryItems: {
@@ -299,9 +388,24 @@ export async function runMedicationLowStockTick(
           Number(med.unitsPerDose),
           med.schedules,
         );
+
+        // v1.17.0 — effective reorder lead (per-med override beats the
+        // user default) widens the bare runway floor by lead + one
+        // dose-interval so the alert lands before the last dose. The
+        // trigger never shrinks below the user's `lowStockRunwayDays`.
+        const leadDays = resolveReorderLeadDays(
+          user.notificationPrefs,
+          med.reorderLeadDays,
+        );
+        const triggerDays = lowStockTriggerDays({
+          lowStockRunwayDays: thresholdDays,
+          leadDays,
+          schedules: med.schedules,
+        });
+
         const decision = decideLowStockAction({
           runwayDays: evaluation.runwayDays,
-          thresholdDays,
+          triggerDays,
           notifiedAt: med.lowStockNotifiedAt,
           notifiedThresholdDays: med.lowStockNotifiedThresholdDays,
         });
@@ -310,7 +414,9 @@ export async function runMedicationLowStockTick(
           user_id: user.id,
           medication_id: med.id,
           runway_days: evaluation.runwayDays,
-          threshold_days: thresholdDays,
+          // The effective trigger (post lead + cadence widening), so the
+          // wide event reflects the threshold the crossing fired against.
+          threshold_days: triggerDays,
           doses_remaining: evaluation.dosesRemaining,
           units_remaining: evaluation.unitsRemaining,
         };
@@ -338,12 +444,16 @@ export async function runMedicationLowStockTick(
             summary.rearmed += 1;
             break;
           case "notify": {
-            const { title, body } = buildLowStockPayload(
-              user.locale,
-              med.name,
-              evaluation.runwayDays ?? 0,
-              evaluation.unitsRemaining,
-            );
+            const { title, body } = buildLowStockPayload({
+              locale: user.locale,
+              medName: med.name,
+              runwayDays: evaluation.runwayDays ?? 0,
+              unitsRemaining: evaluation.unitsRemaining,
+              leadDays,
+              triggerDays,
+              schedules: med.schedules,
+              today: now,
+            });
             const outcome = await dispatchImpl({
               eventType: "MEDICATION_LOW_STOCK",
               userId: user.id,
@@ -354,6 +464,10 @@ export async function runMedicationLowStockTick(
                 medicationId: med.id,
                 runwayDays: evaluation.runwayDays,
                 thresholdDays,
+                // v1.17.0 — the effective trigger + reorder lead so the
+                // client can render the same dates the push body names.
+                triggerDays,
+                leadDays,
                 unitsRemaining: evaluation.unitsRemaining,
                 dosesRemaining: evaluation.dosesRemaining,
                 // Deep link — the web-push sender threads this into
@@ -374,7 +488,10 @@ export async function runMedicationLowStockTick(
               where: { id: med.id },
               data: {
                 lowStockNotifiedAt: now,
-                lowStockNotifiedThresholdDays: thresholdDays,
+                // v1.17.0 — stamp the EFFECTIVE trigger so a later change
+                // to the user threshold OR the reorder lead re-arms the
+                // medication (the decision compares against this value).
+                lowStockNotifiedThresholdDays: triggerDays,
               },
             });
             summary.notified += 1;

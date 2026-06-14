@@ -3,6 +3,11 @@ import { describe, it, expect } from "vitest";
 import {
   buildDayLogPatch,
   buildDayLogInput,
+  symptomsCount,
+  temperatureCount,
+  intimacyCount,
+  testsCount,
+  noteCount,
   type DayLogFormState,
 } from "../log-day-sheet";
 
@@ -134,5 +139,58 @@ describe("buildDayLogInput (new row → omit empties)", () => {
       "2026-06-06",
     );
     expect("temperatureExcluded" in input).toBe(false);
+  });
+});
+
+describe("section summary-badge counts (v1.17.0)", () => {
+  it("counts each logged symptom", () => {
+    expect(symptomsCount(blank())).toBe(0);
+    const s = { ...blank(), symptoms: new Map([["cramps", 2], ["headache", null]]) };
+    expect(symptomsCount(s)).toBe(2);
+  });
+
+  it("counts only the rendered symptothermal sign alongside BBT and OPK", () => {
+    expect(temperatureCount(blank(), false)).toBe(0);
+    // A non-finite / empty BBT string does not count.
+    expect(temperatureCount({ ...blank(), bbt: "abc" }, false)).toBe(0);
+    const s: DayLogFormState = {
+      ...blank(),
+      bbt: "36.5",
+      opk: "POSITIVE_LH_SURGE",
+      mucus: "EGG_WHITE",
+      cervixPosition: "HIGH",
+      cervixFirmness: "SOFT",
+      cervixOpening: "OPEN",
+    };
+    // Mucus surface (showCervix=false): BBT + OPK + mucus = 3; cervix signs
+    // are not rendered, so they don't count.
+    expect(temperatureCount(s, false)).toBe(3);
+    // Cervix surface (showCervix=true): BBT + OPK + 3 cervix signs = 5; the
+    // stale mucus value is not rendered, so it doesn't count.
+    expect(temperatureCount(s, true)).toBe(5);
+  });
+
+  it("counts intercourse and contraceptive", () => {
+    expect(intimacyCount(blank())).toBe(0);
+    expect(
+      intimacyCount({ ...blank(), intercourse: true, contraceptive: "ORAL" }),
+    ).toBe(2);
+  });
+
+  it("counts each home-test result", () => {
+    expect(testsCount(blank())).toBe(0);
+    expect(
+      testsCount({
+        ...blank(),
+        pregnancyTest: "NEGATIVE",
+        progesteroneTest: "POSITIVE",
+      }),
+    ).toBe(2);
+  });
+
+  it("counts a note only when it carries non-whitespace content", () => {
+    expect(noteCount(blank())).toBe(0);
+    expect(noteCount({ ...blank(), note: "   " })).toBe(0);
+    expect(noteCount({ ...blank(), note: "tired today" })).toBe(1);
   });
 });

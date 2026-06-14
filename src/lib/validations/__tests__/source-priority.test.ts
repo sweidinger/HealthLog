@@ -217,11 +217,78 @@ describe("DEFAULT_SOURCE_PRIORITY", () => {
     }
   });
 
-  it("ranks WHOOP native recovery above the COMPUTED proxy (v1.11)", () => {
-    // v1.11.0 — native-vs-derived: the device-native Recovery outranks
+  it("ranks device-native recovery above the COMPUTED proxy (v1.11/v1.17)", () => {
+    // v1.11.0 — native-vs-derived: a device-native Recovery outranks
     // HealthLog's COMPUTED proxy when both exist, with the proxy as the
-    // fallback for users without a strap.
-    expect(DEFAULT_SOURCE_PRIORITY.recovery).toEqual(["WHOOP", "COMPUTED"]);
+    // fallback for users without a wearable. v1.17.0 — Oura readiness and
+    // Polar nightly recovery slot between WHOOP and the proxy.
+    expect(DEFAULT_SOURCE_PRIORITY.recovery).toEqual([
+      "WHOOP",
+      "OURA",
+      "POLAR",
+      "COMPUTED",
+    ]);
+    // The COMPUTED proxy stays the last resort regardless of how many
+    // native wearables precede it.
+    expect(DEFAULT_SOURCE_PRIORITY.recovery.at(-1)).toBe("COMPUTED");
+  });
+
+  it("slots Polar + Oura below the established wearables (v1.17)", () => {
+    // v1.17.0 — Polar / Oura are worn wearables in the same overnight class
+    // as WHOOP/Fitbit; they rank below the established straps but above the
+    // iPhone-relayed HealthKit summary and the Withings nightly summary on
+    // the recovery-input ladders.
+    for (const key of ["sleep", "hrv", "restingHeartRate"] as const) {
+      const ladder = DEFAULT_SOURCE_PRIORITY[key];
+      expect(ladder).toContain("OURA");
+      expect(ladder).toContain("POLAR");
+      expect(ladder.indexOf("OURA")).toBeLessThan(ladder.indexOf("APPLE_HEALTH"));
+      expect(ladder.indexOf("POLAR")).toBeLessThan(ladder.indexOf("APPLE_HEALTH"));
+      expect(ladder.indexOf("WHOOP")).toBeLessThan(ladder.indexOf("OURA"));
+    }
+  });
+
+  it("appends Oura + Polar to the activity ladders below Apple Health (v1.17)", () => {
+    // v1.17.0 — Oura + Polar write ACTIVITY_STEPS + ACTIVE_ENERGY_BURNED;
+    // they belong on the activity ladders as legitimate sources, ranked
+    // below the phone-aggregated APPLE_HEALTH but above a MANUAL entry, so
+    // an Oura/Polar-only day is not dropped when another source coexists.
+    for (const key of [
+      "steps",
+      "activeEnergy",
+      "walkingRunningDistance",
+    ] as const) {
+      const ladder = DEFAULT_SOURCE_PRIORITY[key];
+      expect(ladder).toContain("OURA");
+      expect(ladder).toContain("POLAR");
+      // Below the phone-aggregated all-day Apple Health stream.
+      expect(ladder.indexOf("APPLE_HEALTH")).toBeLessThan(
+        ladder.indexOf("OURA"),
+      );
+      expect(ladder.indexOf("APPLE_HEALTH")).toBeLessThan(
+        ladder.indexOf("POLAR"),
+      );
+      // Above a hand-typed MANUAL entry — a real device beats nothing.
+      expect(ladder.indexOf("OURA")).toBeLessThan(ladder.indexOf("MANUAL"));
+      expect(ladder.indexOf("POLAR")).toBeLessThan(ladder.indexOf("MANUAL"));
+      // No existing source loses its rank: Apple Health still leads.
+      expect(ladder[0]).toBe("APPLE_HEALTH");
+    }
+  });
+
+  it("ranks the pulse wearables above a MANUAL reading (v1.17)", () => {
+    // v1.17.0 — a copy-paste slip had Polar / Oura ranked BELOW a hand-typed
+    // MANUAL pulse. Continuous optical-HR wearables must sit above MANUAL,
+    // matching the device-source order on the rhr / hrv ladders.
+    const ladder = DEFAULT_SOURCE_PRIORITY.pulse;
+    for (const device of ["FITBIT", "OURA", "POLAR"] as const) {
+      expect(ladder.indexOf(device)).toBeLessThan(ladder.indexOf("MANUAL"));
+    }
+    // Device-source order matches the rhr / hrv ladders (FITBIT > OURA > POLAR).
+    expect(ladder.indexOf("FITBIT")).toBeLessThan(ladder.indexOf("OURA"));
+    expect(ladder.indexOf("OURA")).toBeLessThan(ladder.indexOf("POLAR"));
+    // Withings stays the primary point-measurement source.
+    expect(ladder[0]).toBe("WITHINGS");
   });
 });
 

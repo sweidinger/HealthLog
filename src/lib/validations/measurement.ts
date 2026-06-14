@@ -143,6 +143,18 @@ export const measurementSourceEnum = z.enum([
   // (no client write path), exactly like WHOOP. Part of this enum so the
   // read/response shapes (and the iOS decoder) can decode the rows it surfaces.
   "FITBIT",
+  // v1.17.0 — Nightscout glucose integration (F1). Server-owned (no client
+  // write path), exactly like WHOOP/FITBIT. Part of this enum so the
+  // read/response shapes (and the iOS decoder) can decode the rows it surfaces.
+  "NIGHTSCOUT",
+  // v1.17.0 — Polar OAuth integration (F4). Server-owned (no client write
+  // path), exactly like WHOOP/FITBIT. Part of this enum so the read/response
+  // shapes (and the iOS decoder) can decode the rows it surfaces.
+  "POLAR",
+  // v1.17.0 — Oura OAuth integration (F4). Server-owned (no client write
+  // path), exactly like WHOOP/FITBIT. Part of this enum so the read/response
+  // shapes (and the iOS decoder) can decode the rows it surfaces.
+  "OURA",
 ]);
 
 /**

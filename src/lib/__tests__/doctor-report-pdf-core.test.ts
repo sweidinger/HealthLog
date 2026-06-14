@@ -10,6 +10,7 @@ import {
 } from "../doctor-report-pdf-core";
 import { measurementTypeEnum } from "../validations/measurement";
 import type { DoctorReportData } from "../doctor-report-data";
+import { computeGlucoseClinicalMetrics } from "@/lib/analytics/glucose-metrics";
 import { getServerTranslator } from "../i18n/server-translator";
 
 async function extractText(bytes: Uint8Array): Promise<string> {
@@ -67,6 +68,7 @@ function makeData(overrides?: Partial<DoctorReportData>): DoctorReportData {
       FASTING: { avg: 92, min: 85, max: 100, count: 4, latest: 90 },
     },
     glucoseRanges: { FASTING: { min: 70, max: 99 } },
+    glucoseClinical: computeGlucoseClinicalMetrics([], { now: FIXED_NOW }),
     glucoseUnit: "mg/dL",
     bmi: 24.1,
     compliance: {

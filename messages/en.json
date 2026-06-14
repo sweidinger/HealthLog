@@ -720,7 +720,12 @@
       "iconGroupWeather": "Weather",
       "iconGroupPlaces": "Places",
       "iconGroupMisc": "Other"
-    }
+    },
+    "sectionMoreTags": "More tags",
+    "sectionFactors": "Factors",
+    "sectionNoteDetails": "Note & details",
+    "quickTagsHelp": "Your frequent tags — one tap",
+    "quickTagsExpand": "More"
   },
   "medications": {
     "title": "Medications",
@@ -2666,6 +2671,35 @@
         "title": "No sleep data yet",
         "description": "Apple Health sync arrives in v1.5 and will fill this in automatically.",
         "action": "Manage devices"
+      },
+      "debt": {
+        "title": "Sleep debt",
+        "value": "{hours}h {minutes}m short",
+        "caption": "Cumulative shortfall over the last {nights} nights",
+        "clearValue": "All caught up",
+        "clearCaption": "No accumulated shortfall over the last {nights} nights",
+        "learning": "Still learning your sleep — {counted} nights so far, {remaining} more to read a reliable balance."
+      },
+      "chronotype": {
+        "title": "Chronotype",
+        "learning": "Still learning your rhythm — {counted} of {total} free nights. A chronotype needs a few alarm-free mornings before it means anything.",
+        "midSleepCaption": "Mid-sleep on free days around {clock}",
+        "advancedToggle": "Advanced",
+        "socialJetlagValue": "{hours}h {minutes}m social jetlag",
+        "socialJetlagCaption": "The gap between your work-day and free-day sleep timing — like a small weekly time-zone shift.",
+        "msfScValue": "Corrected mid-sleep {clock}",
+        "msfScCaption": "Adjusted for the sleep you catch up on at the weekend (MSFsc).",
+        "dayTypeNote": "Free days are assumed to be weekends until day-type tracking is added.",
+        "band": {
+          "extreme_early": "Strong morning type",
+          "early": "Morning type",
+          "intermediate": "Intermediate type",
+          "late": "Evening type",
+          "extreme_late": "Strong evening type"
+        }
+      },
+      "rhythm": {
+        "loadError": "Your sleep rhythm couldn't load just now. It'll reappear once the connection settles."
       }
     },
     "correlations": "Correlations",
@@ -2795,6 +2829,71 @@
       "emptyState": {
         "title": "No glucose data yet",
         "description": "Blood-glucose readings appear here once you log one or a connected device syncs."
+      },
+      "clinical": {
+        "title": "Glucose overview",
+        "subtitle": "A read on your last {days} days, from {count} readings.",
+        "spotCaveat": "These are spot-reading estimates from individual measurements, not a continuous-monitor profile — read them as a direction of travel rather than a clinical verdict.",
+        "learningTitle": "Still learning your glucose",
+        "learningBody": "So far that's {count} over {days}. A little more history and a fuller picture comes into focus — keep logging, or let a connected device fill it in.",
+        "learningBodyEmpty": "Once a handful of readings come in — logged by you or synced from a device — your time-in-range, average, and variability take shape here.",
+        "readingsCount": "{count} readings",
+        "readingsCountOne": "1 reading",
+        "daysCount": "{days} days",
+        "daysCountOne": "1 day",
+        "tir": {
+          "title": "Time in range",
+          "caption": "Share of readings in each band (70–180 mg/dL is the target).",
+          "veryLow": "Very low",
+          "low": "Low",
+          "inRange": "In range",
+          "high": "High",
+          "veryHigh": "Very high",
+          "ariaLabel": "Time in range: {tir}% in target, {below}% below, {above}% above.",
+          "empty": "No readings to chart yet."
+        },
+        "gmi": {
+          "label": "Glucose Management Indicator",
+          "help": "An A1C-like estimate derived from your average glucose."
+        },
+        "eA1c": {
+          "label": "Estimated A1C",
+          "help": "An A1C estimate from your mean glucose (ADAG)."
+        },
+        "mean": {
+          "label": "Average glucose"
+        },
+        "cv": {
+          "label": "Variability",
+          "steady": "Steady",
+          "unstable": "Unstable",
+          "help": "Coefficient of variation. At or above 36% glucose is considered unstable; lower is steadier."
+        },
+        "advanced": {
+          "toggle": "Advanced indices",
+          "intro": "Research-grade composites for a closer look. Each folds your readings into a single risk-weighted number.",
+          "jIndex": {
+            "label": "J-index",
+            "help": "A single score blending your average and its spread — lower reads as tighter control."
+          },
+          "lbgi": {
+            "label": "Low-glucose risk (LBGI)",
+            "help": "Kovatchev's index weighting how often and how deeply readings dip low."
+          },
+          "hbgi": {
+            "label": "High-glucose risk (HBGI)",
+            "help": "Kovatchev's index weighting how often and how high readings climb."
+          },
+          "byContext": {
+            "title": "By context",
+            "fasting": "Fasting",
+            "postprandial": "After meals",
+            "random": "Random",
+            "bedtime": "Bedtime",
+            "readingsShort": "{count} readings",
+            "readingsShortOne": "1 reading"
+          }
+        }
       }
     },
     "navBloodGlucose": "Glucose",
@@ -3549,7 +3648,7 @@
     },
     "goals": {
       "title": "What would you like to track?",
-      "body": "Pick the areas you care about. Your dashboard and the default reminders follow your choice.",
+      "body": "Pick the areas you care about — it helps you decide what to track and set up next.",
       "helpHint": "One to three priorities tend to work best — you can always add more later.",
       "options": {
         "weightManagement": "Weight management",
@@ -3562,7 +3661,7 @@
     },
     "source": {
       "title": "Connect a source",
-      "body": "Bring in measurements automatically, or stay on manual entry — your call.",
+      "body": "Bring in measurements automatically, or stay on manual entry. Nothing here is configured for you — each card just shows where to connect it.",
       "recommended": "Recommended",
       "manual": {
         "title": "Manual entry",
@@ -3573,12 +3672,17 @@
         "body": "Scales, blood-pressure cuffs and trackers from Withings sync automatically.",
         "cta": "Connect Withings"
       },
-      "appleHealth": {
-        "title": "Apple Health",
-        "body": "iPhone and Apple Watch data flow in via the HealthLog iOS app.",
-        "badge": "Coming with v1.5 (iOS)",
-        "disabledHint": "Available once the iOS app ships."
-      }
+      "more": {
+        "title": "More sources",
+        "body": "Connect any of these in Settings whenever you're ready.",
+        "appleHealth": "Apple Health",
+        "whoop": "WHOOP",
+        "oura": "Oura",
+        "polar": "Polar",
+        "nightscout": "Nightscout",
+        "fitbit": "Fitbit"
+      },
+      "import": "Import existing history"
     },
     "baseline": {
       "title": "A bit about you",
@@ -3598,7 +3702,11 @@
     "done": {
       "title": "You're all set",
       "body": "Welcome aboard. Your dashboard is ready.",
-      "returnCta": "Open dashboard"
+      "returnCta": "Open dashboard",
+      "learning": "Some insights — glucose, sleep rhythm, blood-pressure trends, cycle — sharpen over the first week or two as your data builds up. Empty tiles now just mean we're still learning your baseline.",
+      "connectCta": "Connect a device",
+      "logCta": "Log your first measurement",
+      "importCta": "Import existing history"
     },
     "welcomeBack": {
       "title": "Welcome back",
@@ -3643,9 +3751,9 @@
       "medicationTitle": "Add a medication",
       "medicationDescription": "Track adherence and get reminders right when you need them.",
       "medicationCta": "Add medication",
-      "withingsTitle": "Connect Withings (optional)",
-      "withingsDescription": "Auto-sync weight, BP and pulse from your Withings devices.",
-      "withingsCta": "Connect",
+      "dataSourceTitle": "Connect a data source (optional)",
+      "dataSourceDescription": "Auto-sync weight, BP, sleep and more from Withings, WHOOP, Oura, Polar, Nightscout, Fitbit or Apple Health.",
+      "dataSourceCta": "Connect",
       "notificationsTitle": "Configure notifications",
       "notificationsDescription": "Choose how HealthLog should remind you — Telegram, ntfy or Web Push.",
       "notificationsCta": "Open notifications"
@@ -4470,6 +4578,68 @@
       "enable": "Enable cycle tracking",
       "manage": "Open cycle tracking",
       "error": "Couldn't update cycle tracking."
+    },
+    "nightscout": "Nightscout",
+    "nightscoutTag": "CGM",
+    "nightscoutDescription": "Connect your own Nightscout site to sync continuous glucose readings for the glucose panel.",
+    "nightscoutViewData": "View your glucose",
+    "nightscoutHelp": "Point HealthLog at your Nightscout instance. Readings are pulled in the background once an hour.",
+    "nightscoutUrl": "Nightscout URL",
+    "nightscoutUrlSavedPlaceholder": "Saved — enter a new URL to replace it",
+    "nightscoutToken": "API token",
+    "nightscoutTokenOptional": "Optional for a public site",
+    "nightscoutTokenSavedPlaceholder": "Saved — enter a new token to replace it",
+    "nightscoutTokenHelp": "Paste an access token from your Nightscout admin tools. Leave empty if your site is publicly readable.",
+    "nightscoutPrivateHost": "This site runs on a private network",
+    "nightscoutPrivateHostHelp": "Enable only if your Nightscout instance is on a LAN, VPN, or Tailscale address. Off for public sites.",
+    "nightscoutConnect": "Connect",
+    "nightscoutUpdate": "Save changes",
+    "nightscoutConnected": "Nightscout connected.",
+    "nightscoutConnectFailed": "Could not connect to Nightscout.",
+    "nightscoutDisconnect": "Disconnect",
+    "nightscoutDisconnectTitle": "Disconnect Nightscout?",
+    "nightscoutDisconnectDescription": "Future syncs stop. Glucose readings already imported stay in your history.",
+    "polar": "Polar",
+    "polarDescription": "Connect your Polar account to sync Nightly Recharge recovery, sleep stages, and daily activity.",
+    "polarViewData": "View your sleep & recovery",
+    "polarHelp": "Sign in with Polar to grant access. Data is pulled in the background once an hour.",
+    "polarUnavailable": "Polar is not configured on this server. Ask your administrator to add the Polar OAuth credentials.",
+    "polarConnect": "Connect Polar",
+    "polarDisconnect": "Disconnect",
+    "polarDisconnectTitle": "Disconnect Polar?",
+    "polarDisconnectDescription": "Future syncs stop. Readings already imported stay in your history.",
+    "polarOauthConnected": "Polar connected — the first sync starts in the background.",
+    "polarOauthFailed": "Polar connection failed",
+    "polarOauthError": {
+      "csrf1": "The security check failed because the browser cookie was missing. Please start the connection again in the same browser.",
+      "state": "The response from Polar did not match any open connection request. Please start the connection again.",
+      "cross_user": "The response belongs to a request from a different account. Please restart the connection from your own account.",
+      "nocode": "Polar did not return an authorization code. Try again and allow access in the Polar dialog.",
+      "nocreds": "Polar is not configured on this server. Ask your administrator to add the Polar OAuth credentials.",
+      "token": "The token exchange with Polar failed. Please start the connection again.",
+      "rate_limited": "Too many connection attempts. Wait a moment and try again.",
+      "generic": "Unknown error while connecting. Please start the connection again."
+    },
+    "oura": "Oura",
+    "ouraDescription": "Connect your Oura account to sync readiness, sleep stages, HRV, and daily activity.",
+    "ouraViewData": "View your sleep & recovery",
+    "ouraHelp": "Sign in with Oura to grant access. Data is pulled in the background once an hour.",
+    "ouraUnavailable": "Oura is not configured on this server. Ask your administrator to add the Oura OAuth credentials.",
+    "ouraConnect": "Connect Oura",
+    "ouraDisconnect": "Disconnect",
+    "ouraDisconnectTitle": "Disconnect Oura?",
+    "ouraDisconnectDescription": "Future syncs stop. Readings already imported stay in your history.",
+    "ouraOauthConnected": "Oura connected — the first sync starts in the background.",
+    "ouraOauthFailed": "Oura connection failed",
+    "ouraOauthError": {
+      "csrf1": "The security check failed because the browser cookie was missing. Please start the connection again in the same browser.",
+      "state": "The response from Oura did not match any open connection request. Please start the connection again.",
+      "cross_user": "The response belongs to a request from a different account. Please restart the connection from your own account.",
+      "nocode": "Oura did not return an authorization code. Try again and allow access in the Oura dialog.",
+      "nocreds": "Oura is not configured on this server. Ask your administrator to add the Oura OAuth credentials.",
+      "token": "The token exchange with Oura failed. Please start the connection again.",
+      "rate_limited": "Too many connection attempts. Wait a moment and try again.",
+      "generic": "Unknown error while connecting. Please start the connection again."
     }
   },
   "admin": {
@@ -5404,6 +5574,10 @@
       "statusOff": "Off",
       "daysLabel": "Notify below (days)",
       "daysAria": "Select the low-stock threshold in days",
+      "leadLabel": "Reorder lead time (days)",
+      "leadAria": "Reorder lead time in days",
+      "leadHelp": "The alert fires this many days plus one dose-interval earlier so a refill arrives before your last dose. A single medication can override this on its supply tab.",
+      "leadSavedToast": "Reorder lead time saved.",
       "savedToast": "Low-stock threshold saved.",
       "enabledToast": "Low-stock alerts enabled.",
       "disabledToast": "Low-stock alerts disabled.",
@@ -5597,7 +5771,9 @@
   "lowStockReminders": {
     "title": "Low supply: {medName}",
     "body": "{medName}: {units} units left — enough for about {days} more days.",
-    "bodyToday": "{medName}: {units} units left — less than one day of supply."
+    "bodyToday": "{medName}: {units} units left — less than one day of supply.",
+    "bodyReorder": "{medName}: {units} units left. Supply runs out around {runsOutOn} — reorder by {reorderBy}.",
+    "bodyLastDose": "{medName}: {units} units left — about your final dose. Supply runs out around {runsOutOn}."
   },
   "moodReminders": {
     "dailyTitle": "Log your mood",
@@ -5926,7 +6102,10 @@
       "saved": "Day saved",
       "saveError": "Could not save. Try again.",
       "periodStarted": "Period start logged",
-      "clear": "None"
+      "clear": "None",
+      "temperatureSection": "Temperature & ovulation",
+      "intimacySection": "Intimacy & contraception",
+      "testsSection": "Tests"
     },
     "testResult": {
       "POSITIVE": "Positive",

@@ -47,6 +47,11 @@ import {
 } from "@/lib/analytics/trends";
 import { getBpTargets } from "@/lib/analytics/bp-targets";
 import {
+  computeGlucoseClinicalMetrics,
+  GLUCOSE_PANEL_WINDOW_DAYS,
+  type GlucoseClinicalMetrics,
+} from "@/lib/analytics/glucose-metrics";
+import {
   computeBpInTargetFastPath,
   type BpInTargetEnvelope,
 } from "@/lib/analytics/bp-in-target-fast-path";
@@ -206,6 +211,17 @@ export interface DashboardSnapshotExtras {
   bpInTargetCount90: number | null;
   bpInTargetSpanDays90: number | null;
   glucoseByContext: Record<string, DataSummary>;
+  /**
+   * v1.17.0 — server-authoritative glucose clinical panel over the trailing
+   * 30-day window: the learning gate (+ reason), window/span/count, mean,
+   * Battelino TIR distribution, GMI, estimated A1C, SD/CV%/instability, and the
+   * advanced J-index + LBGI/HBGI tier. Computed ONCE by
+   * `computeGlucoseClinicalMetrics` so the iOS client renders the same numbers
+   * the web panel, the coach, and the doctor report do — iOS never re-derives.
+   * Always present (even with zero readings) so the native client paints the
+   * calm "still learning" state from a populated object.
+   */
+  glucoseClinical: GlucoseClinicalMetrics;
 }
 
 /**
@@ -541,7 +557,9 @@ async function buildExtras(
       }
     : null;
 
-  const glucoseSince = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+  const glucoseSince = new Date(
+    Date.now() - GLUCOSE_PANEL_WINDOW_DAYS * 24 * 60 * 60 * 1000,
+  );
   const glucoseRows = await prisma.measurement.findMany({
     where: {
       userId: user.id,
@@ -565,6 +583,14 @@ async function buildExtras(
     }
   }
 
+  // v1.17.0 — clinical panel from the SAME 30-day glucose rows already read
+  // above (no extra DB hop), computed by the one literature-locked engine so
+  // the iOS cold-launch seed matches the web panel / coach / doctor report.
+  const glucoseClinical = computeGlucoseClinicalMetrics(
+    glucoseRows.map((r) => ({ measuredAt: r.measuredAt, mgdl: r.value })),
+    { windowDays: GLUCOSE_PANEL_WINDOW_DAYS, now },
+  );
+
   return {
     extras: {
       bpInTargetPct,
@@ -576,6 +602,7 @@ async function buildExtras(
       bpInTargetCount90,
       bpInTargetSpanDays90,
       glucoseByContext,
+      glucoseClinical,
     },
     healthScore,
   };

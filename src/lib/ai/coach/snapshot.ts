@@ -25,9 +25,21 @@ import {
 import { DEFAULT_TIMEZONE } from "@/lib/tz/resolver";
 import { convertGlucose, resolveGlucoseUnit } from "@/lib/glucose";
 import {
+  computeGlucoseClinicalMetrics,
+  GLUCOSE_PANEL_WINDOW_DAYS,
+} from "@/lib/analytics/glucose-metrics";
+import {
   reconstructSleepNights,
   type SleepStageRow,
 } from "@/lib/analytics/sleep-night";
+import {
+  reconstructNights,
+  sleepNeedMinutes,
+} from "@/lib/insights/derived/sleep-score";
+import {
+  computeSleepRhythmFromNights,
+  type SleepRhythmDto,
+} from "@/lib/insights/derived/sleep-rhythm";
 import { compactSections } from "@/lib/ai/prompts/compact-sections";
 import { annotate } from "@/lib/logging/context";
 import { buildGlp1SnapshotBlock } from "./glp1-snapshot";
@@ -79,6 +91,27 @@ const DAILY_TIMELINE_DAYS = 14;
 
 /** Default window when the caller doesn't pass a scope. */
 const DEFAULT_WINDOW: CoachScopeWindow = "last30days";
+
+/**
+ * v1.17.0 — the glucose clinical panel is a fixed trailing-30-day artifact,
+ * identical across the insights panel, the dashboard snapshot, the doctor
+ * report, and (here) the coach. Pinned independently of the coach's variable
+ * narration window so the coach's TIR/GMI/CV% always equals what the panel
+ * renders.
+ */
+const GLUCOSE_CLINICAL_WINDOW_DAYS = GLUCOSE_PANEL_WINDOW_DAYS;
+
+/**
+ * v1.17.0 — the sleep-rhythm read (sleep-debt + chronotype) is a fixed
+ * trailing-window artifact, identical across the Sleep page, the dashboard
+ * summary, and (here) the coach. Pinned independently of the coach's variable
+ * narration window (7/30/90/365) so the coach's debt + chronotype band always
+ * equal what the page renders. Mirrors `DEFAULT_WINDOW_DAYS` in
+ * `sleep-rhythm.ts`: 42 days gives the 14-night debt window full coverage and
+ * ~12 weekend nights for a stable MSF — the assembler self-caps each signal to
+ * its own window, so feeding the same 42-day rows yields the page's DTO.
+ */
+const SLEEP_RHYTHM_WINDOW_DAYS = 42;
 
 /**
  * v1.7.0 — assembled-snapshot soft char cap. After the snapshot is
@@ -831,6 +864,37 @@ async function buildCoachSnapshotImpl(
         },
       })
     : null;
+  // v1.17.0 — sleep-rhythm rows. The sleep-debt + chronotype DTO is a fixed
+  // trailing-42-day artifact (the Sleep page + dashboard read the same window),
+  // so it must NOT ride the coach's variable narration window or the
+  // multi-cluster timeline cap, or the coach would quote a debt / chronotype
+  // band the page never shows. Read the rhythm's own trailing-42-day rows
+  // directly (one indexed query, only when the sleep cluster is active) and
+  // hand them to the SAME assembler the dashboard route uses. The per-stage
+  // narration timeline above keeps using the coach-window `sleepRows`.
+  const sleepRhythmCutoff = new Date(
+    now.getTime() - SLEEP_RHYTHM_WINDOW_DAYS * 24 * 60 * 60 * 1000,
+  );
+  const sleepRhythmRowsPromise = sources.has("sleep")
+    ? prisma.measurement.findMany({
+        where: {
+          userId,
+          type: "SLEEP_DURATION" as never,
+          measuredAt: { gte: sleepRhythmCutoff },
+          deletedAt: null,
+        },
+        orderBy: { measuredAt: "asc" },
+        // source + deviceType feed the canonical writer-dedup so a multi-source
+        // night is counted ONCE, matching every other sleep surface.
+        select: {
+          value: true,
+          measuredAt: true,
+          sleepStage: true,
+          source: true,
+          deviceType: true,
+        },
+      })
+    : null;
   const workoutRowsPromise = sources.has("workouts")
     ? prisma.workout.findMany({
         where: { userId, startedAt: { gte: additiveCutoff("workouts") } },
@@ -846,11 +910,51 @@ async function buildCoachSnapshotImpl(
         },
       })
     : null;
+  // v1.17.0 — the glucose CLINICAL panel is a fixed 30-day clinical artifact,
+  // identical to the one the insights panel + doctor report render. It must NOT
+  // ride the coach's variable narration window (7/30/90/365) or the
+  // multi-cluster timeline cap, or the coach would quote a TIR/GMI/CV% the panel
+  // never shows. So read the panel's own trailing-30-day glucose rows directly
+  // (one indexed query, only when glucose is active) and compute the clinical
+  // block off THOSE rows. The per-context narration timelines below keep using
+  // the coach-window rows — only the clinical summary is pinned to 30 days.
+  const glucoseClinicalCutoff = new Date(
+    now.getTime() - GLUCOSE_CLINICAL_WINDOW_DAYS * 24 * 60 * 60 * 1000,
+  );
+  const glucoseClinicalRowsPromise = sources.has("glucose")
+    ? prisma.measurement.findMany({
+        where: {
+          userId,
+          type: "BLOOD_GLUCOSE" as never,
+          measuredAt: { gte: glucoseClinicalCutoff },
+          deletedAt: null,
+        },
+        orderBy: { measuredAt: "asc" },
+        select: { value: true, measuredAt: true },
+      })
+    : null;
   const glp1BlockPromise = excludesMedications
     ? null
     : buildGlp1SnapshotBlock(userId, now);
   const derivedBlockPromise = derivedActive
     ? buildDerivedSnapshotBlock(userId, derivedProfile, now)
+    : null;
+  // v1.17.0 — WHOOP-native day strain (0–21), distinct from the COMPUTED
+  // STRAIN_SCORE (0–100) the derived block carries. Gated on the same
+  // wellness/activity signals so it rides the existing parallel batch; the
+  // block is omitted when the account has no DAY_STRAIN rows (every
+  // non-WHOOP account). Native-over-computed mirrors how recovery resolves.
+  const dayStrainRowsPromise = derivedActive
+    ? prisma.measurement.findMany({
+        where: {
+          userId,
+          type: "DAY_STRAIN",
+          measuredAt: { gte: cutoff },
+          deletedAt: null,
+        },
+        orderBy: { measuredAt: "asc" },
+        select: { value: true, measuredAt: true },
+      })
     : null;
   const trajectoryBlockPromise = derivedActive
     ? buildTrajectorySnapshotBlock(userId, derivedProfile, now)
@@ -878,9 +982,12 @@ async function buildCoachSnapshotImpl(
     moodRows,
     complianceMeds,
     sleepRows,
+    sleepRhythmRows,
     workoutRows,
+    glucoseClinicalRows,
     glp1Block,
     derivedBlock,
+    dayStrainRows,
     trajectoryBlock,
     memoryBlock,
     cycleBlock,
@@ -888,9 +995,12 @@ async function buildCoachSnapshotImpl(
     moodRowsPromise,
     complianceMedsPromise,
     sleepRowsPromise,
+    sleepRhythmRowsPromise,
     workoutRowsPromise,
+    glucoseClinicalRowsPromise,
     glp1BlockPromise,
     derivedBlockPromise,
+    dayStrainRowsPromise,
     trajectoryBlockPromise,
     memoryBlockPromise,
     cycleBlockPromise,
@@ -1292,6 +1402,56 @@ async function buildCoachSnapshotImpl(
     }
   }
 
+  // ── v1.17.0 sleep-rhythm block (sleep-debt + chronotype) ──────────
+  //
+  // The two server-authoritative timing signals the Sleep page + the
+  // dashboard summary render — cumulative sleep debt and the MCTQ
+  // chronotype band + social jetlag. Built from the SAME assembler the
+  // dashboard route uses (`reconstructNights` → `computeSleepRhythmFromNights`),
+  // over the rhythm's OWN fixed trailing-42-day rows, so the coach quotes the
+  // exact debt + band the page shows regardless of the coach's narration
+  // window. ONE ENGINE: this never recomputes sleep-debt or chronotype inline —
+  // the math lives in `sleep-debt.ts` / `chronotype.ts`, reached through the
+  // assembler. The `needMinutes` is the SAME age-resolved need the derived
+  // block + Sleep Score read (`sleepNeedMinutes(ageYears)`), and the
+  // `sourcePriorityJson` is the one already loaded for the per-stage sleep
+  // block above — no extra read beyond the rhythm rows.
+  //
+  // LEARNING-GATE HONESTY: both signals carry a calm `partial` / `learning`
+  // state below their night thresholds. The chronotype `band` is emitted ONLY
+  // when the state is `ready` — a learning chronotype is surfaced as
+  // "still calibrating", never asserted as a band the data can't support.
+  if (sources.has("sleep") && sleepRhythmRows && sleepRhythmRows.length > 0) {
+    const rhythm: SleepRhythmDto = computeSleepRhythmFromNights(
+      reconstructNights(
+        sleepRhythmRows as SleepStageRow[],
+        userTz,
+        prefsRow?.sourcePriorityJson ?? null,
+      ),
+      sleepNeedMinutes(derivedProfile.ageYears),
+    );
+    const chronotypeReady = rhythm.chronotype.state === "ready";
+    snapshot.sleepRhythm = {
+      sleepDebt: {
+        state: rhythm.sleepDebt.state,
+        debtMinutes: rhythm.sleepDebt.debtMinutes,
+        needMinutes: rhythm.sleepDebt.needMinutes,
+      },
+      chronotype: {
+        state: rhythm.chronotype.state,
+        // Only assert a band + social jetlag once the chronotype is `ready`.
+        // A `learning` chronotype carries no band the data supports — the
+        // model treats it as "still calibrating", never a typed assertion.
+        band: chronotypeReady ? rhythm.chronotype.band : null,
+        socialJetlagMinutes: chronotypeReady
+          ? rhythm.chronotype.socialJetlagMinutes
+          : null,
+      },
+    };
+    metrics.add("sleep");
+    registerBlock("sleepRhythm", "sleep");
+  }
+
   // ── v1.7.0 glucose block (per-context daily means) ────────────────
   //
   // Glucose is summarised per `GlucoseContext` so the Coach can tell
@@ -1344,9 +1504,71 @@ async function buildCoachSnapshotImpl(
         );
         contexts[ctx] = { recent, weekly };
       }
+      // v1.17.0 — clinical panel summary from the ONE literature-locked engine
+      // the insights panel + doctor report also consume, computed over the SAME
+      // fixed trailing-30-day window + rows the panel uses (`glucoseClinicalRows`,
+      // not the coach-window / cap-trimmed `glucoseRows`), so the coach can never
+      // quote a TIR / GMI / CV% figure the panel doesn't show — true numeric
+      // parity, independent of the user's coach scope. Gated by `stillLearning`
+      // so a thin spot-data window is offered as a calm "still learning" note
+      // rather than asserted as a clinical AGP. The headline mean is converted
+      // ONCE to the user's display unit; the unit-agnostic fractions / indices
+      // travel as-is.
+      const clinicalRaw = computeGlucoseClinicalMetrics(
+        (glucoseClinicalRows ?? []).map((r) => ({
+          measuredAt: r.measuredAt,
+          mgdl: r.value,
+        })),
+        { windowDays: GLUCOSE_CLINICAL_WINDOW_DAYS, now },
+      );
+      const clinical = clinicalRaw.stillLearning
+        ? {
+            stillLearning: true as const,
+            reason: clinicalRaw.stillLearningReason,
+            readingCount: clinicalRaw.readingCount,
+            spanDays: Math.round(clinicalRaw.actualSpanDays),
+          }
+        : {
+            stillLearning: false as const,
+            windowDays: clinicalRaw.windowDays,
+            spanDays: Math.round(clinicalRaw.actualSpanDays),
+            readingCount: clinicalRaw.readingCount,
+            meanInRange:
+              clinicalRaw.meanMgdl !== null
+                ? Math.round(
+                    convertGlucose(clinicalRaw.meanMgdl, glucoseUnit) *
+                      (glucoseUnit === "mmol/L" ? 10 : 1),
+                  ) / (glucoseUnit === "mmol/L" ? 10 : 1)
+                : null,
+            tirPercent: clinicalRaw.distribution
+              ? Math.round(clinicalRaw.distribution.tir * 100)
+              : null,
+            timeBelowPercent: clinicalRaw.distribution
+              ? Math.round(clinicalRaw.distribution.tbrLevel1 * 100)
+              : null,
+            timeAbovePercent: clinicalRaw.distribution
+              ? Math.round(clinicalRaw.distribution.tarLevel1 * 100)
+              : null,
+            gmi:
+              clinicalRaw.gmi !== null
+                ? Math.round(clinicalRaw.gmi * 10) / 10
+                : null,
+            estimatedA1c:
+              clinicalRaw.estimatedA1c !== null
+                ? Math.round(clinicalRaw.estimatedA1c * 10) / 10
+                : null,
+            cvPercent: clinicalRaw.variability
+              ? Math.round(clinicalRaw.variability.cv)
+              : null,
+            unstable: clinicalRaw.variability?.unstable ?? null,
+            // Density-derived: a sparse spot series stays a spot-reading
+            // estimate, a continuous CGM stream (Nightscout) reads false so the
+            // model can narrate the TIR/GMI as continuous-trace figures.
+            isSpotEstimate: clinicalRaw.isSpotEstimate,
+          };
       // The display unit travels with the block so the prompt renders
       // "<value> <unit>" and the EVIDENCE BLOCK tags glucose lines correctly.
-      snapshot.glucose = { unit: glucoseUnit, byContext: contexts };
+      snapshot.glucose = { unit: glucoseUnit, byContext: contexts, clinical };
       metrics.add("glucose");
       counts.glucose = glucoseRows.length;
       registerBlock("glucose", "glucose");
@@ -1475,6 +1697,33 @@ async function buildCoachSnapshotImpl(
       snapshot.derived = derivedBlock;
       metrics.add("hrv");
       registerBlock("derived", "hrv");
+    }
+
+    // ── v1.17.0 — WHOOP-native day strain ────────────────────────────────
+    // The device's gold-standard strain on its native 0–21 scale, kept
+    // distinct from the COMPUTED `derived.STRAIN_SCORE` (0–100). When both
+    // exist we surface the native number AND flag it as the device signal
+    // so the model prefers it (native-over-computed, mirroring recovery).
+    // Omitted for every account without a DAY_STRAIN row.
+    if (dayStrainRows && dayStrainRows.length > 0) {
+      const latest = dayStrainRows[dayStrainRows.length - 1];
+      const recent = dayStrainRows.filter((r) => r.measuredAt >= recentCutoff);
+      const mean =
+        recent.length > 0
+          ? Math.round(
+              (recent.reduce((sum, r) => sum + r.value, 0) / recent.length) *
+                10,
+            ) / 10
+          : Math.round(latest.value * 10) / 10;
+      snapshot.dayStrain = {
+        source: "WHOOP-native",
+        scale: "0-21",
+        latest: Math.round(latest.value * 10) / 10,
+        recentMean: mean,
+        days: dayStrainRows.length,
+        note: "Device-native day strain; prefer over derived.STRAIN_SCORE (computed 0-100 proxy).",
+      };
+      registerBlock("dayStrain", "hrv");
     }
 
     // ── v1.11.0 (Epic B, Pillar 3) — short-horizon trajectory block ──────

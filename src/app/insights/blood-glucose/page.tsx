@@ -3,6 +3,7 @@
 import { Droplet } from "lucide-react";
 
 import { HealthKitMetricPage } from "@/components/insights/healthkit-metric-page";
+import { GlucoseClinicalPanel } from "@/components/insights/glucose/glucose-clinical-panel";
 import { useAuth } from "@/hooks/use-auth";
 import { useTranslations } from "@/lib/i18n/context";
 import { resolveGlucoseUnit } from "@/lib/glucose";
@@ -51,6 +52,7 @@ export default function InsightsBlutzuckerPage() {
       emptyStateIcon={<Droplet className="size-6" />}
       emptyStateCtaType={null}
       targetSummarySlug="blood-glucose"
+      afterChart={<GlucoseClinicalPanel />}
       coachPrefill="I haven't logged any blood glucose yet — what does this metric tell me about my health, and how do I improve it?"
     />
   );

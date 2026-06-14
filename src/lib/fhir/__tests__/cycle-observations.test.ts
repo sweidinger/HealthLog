@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { DoctorReportData } from "@/lib/doctor-report-data";
+import { computeGlucoseClinicalMetrics } from "@/lib/analytics/glucose-metrics";
 import { cycleObservationsFromReportData } from "@/lib/fhir/resources";
 import { buildFhirDocumentBundle } from "@/lib/fhir/build-bundle";
 import {
@@ -28,6 +29,9 @@ function baseData(overrides?: Partial<DoctorReportData>): DoctorReportData {
     stats: {},
     glucoseStats: {},
     glucoseRanges: {},
+    glucoseClinical: computeGlucoseClinicalMetrics([], {
+      now: new Date("2026-05-03T12:00:00.000Z"),
+    }),
     glucoseUnit: "mg/dL",
     bmi: null,
     compliance: {},

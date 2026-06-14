@@ -37,7 +37,7 @@ const ITEM_ICONS: Record<ChecklistItemId, LucideIcon> = {
   profile: User2,
   measurement: Activity,
   medication: Pill,
-  withings: Wifi,
+  dataSource: Wifi,
   notifications: Bell,
 };
 
@@ -60,10 +60,10 @@ const ITEM_LABEL_KEYS: Record<
     description: "gettingStarted.items.medicationDescription",
     cta: "gettingStarted.items.medicationCta",
   },
-  withings: {
-    title: "gettingStarted.items.withingsTitle",
-    description: "gettingStarted.items.withingsDescription",
-    cta: "gettingStarted.items.withingsCta",
+  dataSource: {
+    title: "gettingStarted.items.dataSourceTitle",
+    description: "gettingStarted.items.dataSourceDescription",
+    cta: "gettingStarted.items.dataSourceCta",
   },
   notifications: {
     title: "gettingStarted.items.notificationsTitle",
@@ -72,8 +72,8 @@ const ITEM_LABEL_KEYS: Record<
   },
 };
 
-interface WithingsStatus {
-  connected?: boolean;
+interface IntegrationsStatus {
+  integrations?: Array<{ connected?: boolean; enabled?: boolean }>;
 }
 
 interface NotificationChannel {
@@ -227,10 +227,13 @@ export function GettingStartedChecklist() {
   // for established users. See docs/audit/v15-performance.md.
   const onboardingPending = !!user && user.onboardingCompletedAt == null;
 
-  const { data: withingsData } = useQuery<WithingsStatus>({
-    queryKey: ["withings", "status"],
+  // v1.17.0 — any connected data source satisfies the step, so we read
+  // the consolidated integrations envelope (Withings / WHOOP / Fitbit /
+  // moodLog) rather than the Withings-only status route.
+  const { data: integrationsData } = useQuery<IntegrationsStatus>({
+    queryKey: queryKeys.integrationsStatus(),
     queryFn: async () => {
-      return apiGet("/api/withings/status");
+      return apiGet("/api/integrations/status");
     },
     enabled: onboardingPending,
   });
@@ -244,7 +247,10 @@ export function GettingStartedChecklist() {
   });
 
   const medicationCount = medsData?.length ?? 0;
-  const withingsConnected = withingsData?.connected === true;
+  const dataSourceConnected = (integrationsData?.integrations ?? []).some(
+    (integration) =>
+      integration?.connected === true || integration?.enabled === true,
+  );
   const notificationsConfigured = (notificationsData?.channels ?? []).some(
     (channel) => channel?.enabled === true,
   );
@@ -259,7 +265,7 @@ export function GettingStartedChecklist() {
         },
         measurementCount,
         medicationCount,
-        withingsConnected,
+        dataSourceConnected,
         notificationsConfigured,
         dismissedIds,
       }),
@@ -269,7 +275,7 @@ export function GettingStartedChecklist() {
       user?.gender,
       measurementCount,
       medicationCount,
-      withingsConnected,
+      dataSourceConnected,
       notificationsConfigured,
       dismissedIds,
     ],

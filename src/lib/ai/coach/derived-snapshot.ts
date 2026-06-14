@@ -112,15 +112,22 @@ export async function buildDerivedSnapshotBlock(
 ): Promise<Record<string, DerivedSnapshotEntry> | null> {
   const block: Record<string, DerivedSnapshotEntry> = {};
 
-  for (const metric of SNAPSHOT_METRICS) {
-    // Per-metric fault isolation: a transient compute failure on one metric
-    // must never sink the whole Coach turn — drop it and carry on.
-    let derived;
-    try {
-      derived = await computeDerivedMetric({ metric, userId, profile, now });
-    } catch {
-      continue;
-    }
+  // The metrics are independent passthrough reads off the one shared profile —
+  // no ordering dependency — so compute them concurrently. Per-metric fault
+  // isolation: a transient failure on one must never sink the whole Coach turn,
+  // so each compute resolves to null on throw rather than rejecting the batch.
+  const computed = await Promise.all(
+    SNAPSHOT_METRICS.map(async (metric) => {
+      try {
+        return { metric, derived: await computeDerivedMetric({ metric, userId, profile, now }) };
+      } catch {
+        return { metric, derived: null };
+      }
+    }),
+  );
+
+  for (const { metric, derived } of computed) {
+    if (derived === null) continue;
     if (!isDerivedOk(derived)) continue; // omit insufficient — no noise
     const summary = summariseValue(metric, derived.value);
     if (!summary) continue;

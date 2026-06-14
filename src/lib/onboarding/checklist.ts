@@ -10,7 +10,7 @@ export const CHECKLIST_ITEM_IDS = [
   "profile",
   "measurement",
   "medication",
-  "withings",
+  "dataSource",
   "notifications",
 ] as const;
 
@@ -41,8 +41,12 @@ export interface ChecklistInputs {
   measurementCount: number;
   /** Number of medications the user has created. */
   medicationCount: number;
-  /** True iff Withings OAuth is connected (status.connected). */
-  withingsConnected: boolean;
+  /**
+   * True iff at least one data source is connected — Withings, WHOOP,
+   * Oura, Polar, Nightscout, Fitbit, or Apple Health. Any one satisfies
+   * the "connect a data source" step.
+   */
+  dataSourceConnected: boolean;
   /**
    * True iff the user has set up at least one notification channel
    * (Telegram, ntfy, or Web Push).
@@ -54,7 +58,7 @@ export interface ChecklistInputs {
 
 /**
  * Compute the ordered checklist for the dashboard hero. Stable order:
- * profile → measurement → medication → withings → notifications. Each
+ * profile → measurement → medication → dataSource → notifications. Each
  * item carries the deep-link the row's CTA should navigate to.
  */
 export function buildChecklist(inputs: ChecklistInputs): ChecklistItem[] {
@@ -79,10 +83,10 @@ export function buildChecklist(inputs: ChecklistInputs): ChecklistItem[] {
       dismissed: inputs.dismissedIds.has("medication"),
     },
     {
-      id: "withings",
-      done: inputs.withingsConnected,
+      id: "dataSource",
+      done: inputs.dataSourceConnected,
       href: "/settings/integrations",
-      dismissed: inputs.dismissedIds.has("withings"),
+      dismissed: inputs.dismissedIds.has("dataSource"),
     },
     {
       id: "notifications",

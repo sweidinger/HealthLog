@@ -41,6 +41,7 @@
 import type { MeasurementSource } from "@/generated/prisma/client";
 import { dayKeyForUserTz } from "@/lib/measurements/consolidation-tz";
 import { resolveUserTimezone } from "@/lib/measurements/consolidation-base";
+import { DEFAULT_SOURCE_PRIORITY } from "@/lib/validations/source-priority";
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
@@ -52,17 +53,20 @@ export interface RecoveryRow {
 }
 
 /**
- * The per-source preference for `RECOVERY_SCORE`: a native WHOOP row outranks
- * the COMPUTED proxy for the same day. Lower number = higher authority. A
- * source not listed (there is none today) falls back below both.
+ * The per-source preference for `RECOVERY_SCORE`: a native device row outranks
+ * the COMPUTED proxy for the same day. Authority is read straight off
+ * `DEFAULT_SOURCE_PRIORITY.recovery` (`WHOOP > OURA > POLAR > COMPUTED`) — that
+ * ordered ladder is the single source of truth, so adding a recovery source
+ * updates only the priority list and this resolver inherits the new rank for
+ * free. WHOOP's all-night strap leads, then the Oura ring readiness and the
+ * Polar Nightly Recharge band, then the computed proxy as the fallback for
+ * users without a wearable. A source not on the ladder falls below all of them.
  */
-const RECOVERY_SOURCE_RANK: Partial<Record<MeasurementSource, number>> = {
-  WHOOP: 0,
-  COMPUTED: 1,
-};
+const RECOVERY_LADDER = DEFAULT_SOURCE_PRIORITY.recovery;
 
 function rankOf(source: MeasurementSource): number {
-  return RECOVERY_SOURCE_RANK[source] ?? Number.MAX_SAFE_INTEGER;
+  const idx = RECOVERY_LADDER.indexOf(source);
+  return idx === -1 ? Number.MAX_SAFE_INTEGER : idx;
 }
 
 /**

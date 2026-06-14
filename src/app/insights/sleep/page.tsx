@@ -12,6 +12,7 @@ import { MetricStatusCard } from "@/components/insights/metric-status-card";
 import { MetricEmptyState } from "@/components/insights/metric-empty-state";
 import { MetricTargetSummary } from "@/components/insights/metric-target-summary";
 import { SleepOverview } from "@/components/insights/sleep-overview";
+import { SleepRhythmSection } from "@/components/insights/sleep/sleep-rhythm-section";
 import { SubPageShell } from "@/components/insights/sub-page-shell";
 
 /**
@@ -24,7 +25,7 @@ import { SubPageShell } from "@/components/insights/sub-page-shell";
  *
  * v1.4.27 F17 — when `summaries.SLEEP_DURATION.count === 0` (no
  * Apple-Health / Withings sleep rows yet), the page short-circuits
- * to an empty-state CTA pointing at `/settings/data-sources` so the
+ * to an empty-state CTA pointing at `/settings/integrations` so the
  * user can connect a sleep source.
  *
  * v1.4.28 R3d (BK-F-H1 + BK-F-M1) — analytics fetch + empty-state
@@ -49,7 +50,7 @@ export default function InsightsSchlafPage() {
           description={t("insights.emptyState.sleep.description")}
           cta={
             <Button size="sm" asChild>
-              <Link href="/settings/data-sources">
+              <Link href="/settings/integrations">
                 {t("insights.emptyState.sleep.cta")}
               </Link>
             </Button>
@@ -80,6 +81,13 @@ export default function InsightsSchlafPage() {
          awkward unit. */
     >
       <SleepOverview />
+
+      {/*
+        v1.17.0 — sleep-debt headline + chronotype card. Server-authoritative
+        (the same DTO iOS renders), gated on the data-bearing branch so a
+        source-less account never fetches.
+      */}
+      <SleepRhythmSection enabled={!isEmpty} />
 
       <MetricTargetSummary slug="sleep" />
 

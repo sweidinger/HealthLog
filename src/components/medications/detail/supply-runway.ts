@@ -67,3 +67,90 @@ export function estimateRunwayDays(
   if (perDay <= 0) return null;
   return Math.floor(dosesRemaining / perDay);
 }
+
+/**
+ * v1.17.0 — one dose-interval in whole days for a cadence: the inverse
+ * of the daily-dose rate, rounded up. ≈1 for a daily med, ≈7 for a
+ * weekly injection, ≈30 for a monthly RRULE. Returns `null` for a
+ * schedule with no derivable consumption (as-needed / empty).
+ */
+export function cadenceIntervalDays(schedules: RunwaySchedule[]): number | null {
+  const perDay = estimateDailyDoseCount(schedules);
+  if (perDay <= 0) return null;
+  return Math.ceil(1 / perDay);
+}
+
+/**
+ * v1.17.0 — reorder-lead-aware low-stock trigger threshold in days.
+ *
+ * The bare `lowStockRunwayDays` floor fired the alert only when the
+ * runway dropped below it; for a sparse cadence (a weekly injection's
+ * 7-day floor ≈ one dose-interval) that warning landed with ~1 dose
+ * left — too late to reorder. The effective trigger widens the floor to
+ * cover the reorder lead PLUS one dose-interval:
+ *
+ *   trigger = max(lowStockRunwayDays, leadDays + cadenceIntervalDays)
+ *
+ * so the alert lands before the LAST dose for any cadence. Because the
+ * result is `max(...)` over the user's own floor, it NEVER shrinks
+ * anyone's current threshold — only widens it when the lead + cadence
+ * demand more headroom. A schedule with no derivable cadence falls back
+ * to the bare floor (it has no runway anyway, so it never fires).
+ */
+export function lowStockTriggerDays(input: {
+  lowStockRunwayDays: number;
+  leadDays: number;
+  schedules: RunwaySchedule[];
+}): number {
+  const interval = cadenceIntervalDays(input.schedules);
+  if (interval === null) return input.lowStockRunwayDays;
+  return Math.max(input.lowStockRunwayDays, input.leadDays + interval);
+}
+
+/** v1.17.0 — informational vs actionable low-stock presentation state. */
+export type LowStockState = "running_low" | "last_dose";
+
+/**
+ * v1.17.0 — classify a runway against its cadence + trigger for the
+ * card / push copy. Returns `null` when the supply is comfortably above
+ * the trigger (no notice). `"last_dose"` when the runway is down to one
+ * dose-interval (informational — about to take the final dose);
+ * `"running_low"` otherwise within the trigger (actionable — reorder
+ * now). `last_dose` wins when both apply so the final-dose case reads
+ * as the calmer, more specific line.
+ */
+export function classifyLowStockState(input: {
+  runwayDays: number;
+  triggerDays: number;
+  schedules: RunwaySchedule[];
+}): LowStockState | null {
+  if (input.runwayDays > input.triggerDays) return null;
+  const interval = cadenceIntervalDays(input.schedules);
+  if (interval !== null && input.runwayDays <= interval) return "last_dose";
+  return "running_low";
+}
+
+/** A calendar date as a UTC-midnight `Date` — the copy renders day-only. */
+function addDaysUtc(base: Date, days: number): Date {
+  const d = new Date(base);
+  d.setUTCDate(d.getUTCDate() + days);
+  return d;
+}
+
+/**
+ * v1.17.0 — the two concrete dates the low-stock copy surfaces:
+ *   runsOutOn = today + runwayDays  (supply depletes)
+ *   reorderBy = runsOutOn − leadDays (order by this date to avoid a gap)
+ * Both are clamped to never precede `today` (a deep low-stock state can
+ * push `reorderBy` into the past — surface today instead of a past date).
+ */
+export function supplyRunwayDates(input: {
+  today: Date;
+  runwayDays: number;
+  leadDays: number;
+}): { runsOutOn: Date; reorderBy: Date } {
+  const runsOutOn = addDaysUtc(input.today, Math.max(0, input.runwayDays));
+  const reorderRaw = addDaysUtc(runsOutOn, -input.leadDays);
+  const reorderBy = reorderRaw < input.today ? new Date(input.today) : reorderRaw;
+  return { runsOutOn, reorderBy };
+}

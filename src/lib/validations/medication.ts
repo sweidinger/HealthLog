@@ -530,6 +530,22 @@ export const createMedicationSchema = z
       .describe(
         "Inventory units consumed per dose. A whole number 1–100 (e.g. 2 tablets of 2 mg for a 4 mg dose) or a supported fraction for a split pill (¼ / ⅓ / ½ / ⅔ / ¾). Default 1. The intake consumption hook decrements this many units per taken dose; dose-derived readouts divide unit counts by it.",
       ),
+    /**
+     * v1.17.0 — optional per-medication reorder lead time in days. The
+     * low-stock alert widens its trigger by this lead plus one
+     * dose-interval so a sparse cadence is warned before its last dose.
+     * Omitted = inherit the user-level
+     * `notificationPrefs.medication.reorderLeadDays` default.
+     */
+    reorderLeadDays: z
+      .number()
+      .int()
+      .min(0)
+      .max(60)
+      .optional()
+      .describe(
+        "Per-medication reorder lead time in days (0–60). The low-stock alert fires the supply early enough to reorder before the last dose. Omitted = inherit the user-level reorderLeadDays default (10).",
+      ),
     /** v1.6.0 — route of administration (ORAL | INJECTION | OTHER). */
     deliveryForm: z.enum(MEDICATION_DELIVERY_FORM_VALUES).optional(),
     /**
@@ -634,6 +650,20 @@ export const updateMedicationSchema = z
       .optional()
       .describe(
         "Inventory units consumed per dose — a whole number 1–100 or a supported split-pill fraction (¼ / ⅓ / ½ / ⅔ / ¾). The intake consumption hook decrements this many units per taken dose; already-stamped intake events keep their recorded consumption.",
+      ),
+    /**
+     * v1.17.0 — per-medication reorder lead time in days (0–60). `null`
+     * clears the override and reverts to the user-level default.
+     */
+    reorderLeadDays: z
+      .number()
+      .int()
+      .min(0)
+      .max(60)
+      .nullable()
+      .optional()
+      .describe(
+        "Per-medication reorder lead time in days (0–60). null clears the override and reverts to the user-level reorderLeadDays default.",
       ),
     /** v1.6.0 — route of administration (ORAL | INJECTION | OTHER). */
     deliveryForm: z.enum(MEDICATION_DELIVERY_FORM_VALUES).optional(),

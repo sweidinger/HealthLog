@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: HealthLog API
-  version: 1.16.17
+  version: 1.17.0
   description: >-
     Self-hosted personal-health-tracking PWA — public API surface for the iOS native client and external ingest.
 
@@ -1634,6 +1634,9 @@ paths:
               - COMPUTED
               - WHOOP
               - FITBIT
+              - NIGHTSCOUT
+              - POLAR
+              - OURA
         - in: query
           name: groupBy
           schema:
@@ -1903,6 +1906,27 @@ paths:
         "401": *a1
         "422": *a3
         "429": *a4
+  /api/sleep/rhythm:
+    get:
+      tags:
+        - Measurements
+      summary: Sleep rhythm — sleep-debt + chronotype (v1.17.0)
+      description: "Returns the two server-authoritative sleep-timing signals the Sleep page + iOS render off the same
+        canonical night reconstruction the Sleep Score uses: cumulative `sleepDebt` over the rolling window (calm
+        `partial` state under the night threshold) and MCTQ `chronotype` (MSF/MSFsc band + social jetlag, `learning`
+        state until enough free-day nights exist). Free vs work nights default to weekend = free in the user's timezone
+        (no work calendar). A read-only view over existing per-stage SLEEP_DURATION rows — no schema, no new measurement
+        type."
+      responses:
+        "200":
+          description: Sleep-debt + chronotype DTO.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SleepRhythmResponse"
+        "401": *a1
+        "422": *a3
+        "429": *a4
   /api/workouts:
     get:
       tags:
@@ -2080,6 +2104,9 @@ paths:
                           - COMPUTED
                           - WHOOP
                           - FITBIT
+                          - NIGHTSCOUT
+                          - POLAR
+                          - OURA
                       externalId:
                         type: string
                         maxLength: 128
@@ -3083,6 +3110,9 @@ paths:
                       - COMPUTED
                       - WHOOP
                       - FITBIT
+                      - NIGHTSCOUT
+                      - POLAR
+                      - OURA
                 activeEnergy:
                   maxItems: 8
                   type: array
@@ -3096,6 +3126,9 @@ paths:
                       - COMPUTED
                       - WHOOP
                       - FITBIT
+                      - NIGHTSCOUT
+                      - POLAR
+                      - OURA
                 walkingRunningDistance:
                   maxItems: 8
                   type: array
@@ -3109,6 +3142,9 @@ paths:
                       - COMPUTED
                       - WHOOP
                       - FITBIT
+                      - NIGHTSCOUT
+                      - POLAR
+                      - OURA
                 flightsClimbed:
                   maxItems: 8
                   type: array
@@ -3122,6 +3158,9 @@ paths:
                       - COMPUTED
                       - WHOOP
                       - FITBIT
+                      - NIGHTSCOUT
+                      - POLAR
+                      - OURA
                 sleep:
                   maxItems: 8
                   type: array
@@ -3135,6 +3174,9 @@ paths:
                       - COMPUTED
                       - WHOOP
                       - FITBIT
+                      - NIGHTSCOUT
+                      - POLAR
+                      - OURA
                 weight:
                   maxItems: 8
                   type: array
@@ -3148,6 +3190,9 @@ paths:
                       - COMPUTED
                       - WHOOP
                       - FITBIT
+                      - NIGHTSCOUT
+                      - POLAR
+                      - OURA
                 bloodPressure:
                   maxItems: 8
                   type: array
@@ -3161,6 +3206,9 @@ paths:
                       - COMPUTED
                       - WHOOP
                       - FITBIT
+                      - NIGHTSCOUT
+                      - POLAR
+                      - OURA
                 pulse:
                   maxItems: 8
                   type: array
@@ -3174,6 +3222,9 @@ paths:
                       - COMPUTED
                       - WHOOP
                       - FITBIT
+                      - NIGHTSCOUT
+                      - POLAR
+                      - OURA
                 bodyFat:
                   maxItems: 8
                   type: array
@@ -3187,6 +3238,9 @@ paths:
                       - COMPUTED
                       - WHOOP
                       - FITBIT
+                      - NIGHTSCOUT
+                      - POLAR
+                      - OURA
                 bodyTemperature:
                   maxItems: 8
                   type: array
@@ -3200,6 +3254,9 @@ paths:
                       - COMPUTED
                       - WHOOP
                       - FITBIT
+                      - NIGHTSCOUT
+                      - POLAR
+                      - OURA
                 spo2:
                   maxItems: 8
                   type: array
@@ -3213,6 +3270,9 @@ paths:
                       - COMPUTED
                       - WHOOP
                       - FITBIT
+                      - NIGHTSCOUT
+                      - POLAR
+                      - OURA
                 hrv:
                   maxItems: 8
                   type: array
@@ -3226,6 +3286,9 @@ paths:
                       - COMPUTED
                       - WHOOP
                       - FITBIT
+                      - NIGHTSCOUT
+                      - POLAR
+                      - OURA
                 restingHeartRate:
                   maxItems: 8
                   type: array
@@ -3239,6 +3302,9 @@ paths:
                       - COMPUTED
                       - WHOOP
                       - FITBIT
+                      - NIGHTSCOUT
+                      - POLAR
+                      - OURA
                 vo2Max:
                   maxItems: 8
                   type: array
@@ -3252,6 +3318,9 @@ paths:
                       - COMPUTED
                       - WHOOP
                       - FITBIT
+                      - NIGHTSCOUT
+                      - POLAR
+                      - OURA
                 skinTemperature:
                   maxItems: 8
                   type: array
@@ -3265,6 +3334,9 @@ paths:
                       - COMPUTED
                       - WHOOP
                       - FITBIT
+                      - NIGHTSCOUT
+                      - POLAR
+                      - OURA
                 respiratoryRate:
                   maxItems: 8
                   type: array
@@ -3278,6 +3350,9 @@ paths:
                       - COMPUTED
                       - WHOOP
                       - FITBIT
+                      - NIGHTSCOUT
+                      - POLAR
+                      - OURA
                 recovery:
                   maxItems: 8
                   type: array
@@ -3291,6 +3366,9 @@ paths:
                       - COMPUTED
                       - WHOOP
                       - FITBIT
+                      - NIGHTSCOUT
+                      - POLAR
+                      - OURA
                 metricPriority:
                   type: object
                   properties:
@@ -3307,6 +3385,9 @@ paths:
                           - COMPUTED
                           - WHOOP
                           - FITBIT
+                          - NIGHTSCOUT
+                          - POLAR
+                          - OURA
                     activeEnergy:
                       maxItems: 8
                       type: array
@@ -3320,6 +3401,9 @@ paths:
                           - COMPUTED
                           - WHOOP
                           - FITBIT
+                          - NIGHTSCOUT
+                          - POLAR
+                          - OURA
                     walkingRunningDistance:
                       maxItems: 8
                       type: array
@@ -3333,6 +3417,9 @@ paths:
                           - COMPUTED
                           - WHOOP
                           - FITBIT
+                          - NIGHTSCOUT
+                          - POLAR
+                          - OURA
                     flightsClimbed:
                       maxItems: 8
                       type: array
@@ -3346,6 +3433,9 @@ paths:
                           - COMPUTED
                           - WHOOP
                           - FITBIT
+                          - NIGHTSCOUT
+                          - POLAR
+                          - OURA
                     sleep:
                       maxItems: 8
                       type: array
@@ -3359,6 +3449,9 @@ paths:
                           - COMPUTED
                           - WHOOP
                           - FITBIT
+                          - NIGHTSCOUT
+                          - POLAR
+                          - OURA
                     weight:
                       maxItems: 8
                       type: array
@@ -3372,6 +3465,9 @@ paths:
                           - COMPUTED
                           - WHOOP
                           - FITBIT
+                          - NIGHTSCOUT
+                          - POLAR
+                          - OURA
                     bloodPressure:
                       maxItems: 8
                       type: array
@@ -3385,6 +3481,9 @@ paths:
                           - COMPUTED
                           - WHOOP
                           - FITBIT
+                          - NIGHTSCOUT
+                          - POLAR
+                          - OURA
                     pulse:
                       maxItems: 8
                       type: array
@@ -3398,6 +3497,9 @@ paths:
                           - COMPUTED
                           - WHOOP
                           - FITBIT
+                          - NIGHTSCOUT
+                          - POLAR
+                          - OURA
                     bodyFat:
                       maxItems: 8
                       type: array
@@ -3411,6 +3513,9 @@ paths:
                           - COMPUTED
                           - WHOOP
                           - FITBIT
+                          - NIGHTSCOUT
+                          - POLAR
+                          - OURA
                     bodyTemperature:
                       maxItems: 8
                       type: array
@@ -3424,6 +3529,9 @@ paths:
                           - COMPUTED
                           - WHOOP
                           - FITBIT
+                          - NIGHTSCOUT
+                          - POLAR
+                          - OURA
                     spo2:
                       maxItems: 8
                       type: array
@@ -3437,6 +3545,9 @@ paths:
                           - COMPUTED
                           - WHOOP
                           - FITBIT
+                          - NIGHTSCOUT
+                          - POLAR
+                          - OURA
                     hrv:
                       maxItems: 8
                       type: array
@@ -3450,6 +3561,9 @@ paths:
                           - COMPUTED
                           - WHOOP
                           - FITBIT
+                          - NIGHTSCOUT
+                          - POLAR
+                          - OURA
                     restingHeartRate:
                       maxItems: 8
                       type: array
@@ -3463,6 +3577,9 @@ paths:
                           - COMPUTED
                           - WHOOP
                           - FITBIT
+                          - NIGHTSCOUT
+                          - POLAR
+                          - OURA
                     vo2Max:
                       maxItems: 8
                       type: array
@@ -3476,6 +3593,9 @@ paths:
                           - COMPUTED
                           - WHOOP
                           - FITBIT
+                          - NIGHTSCOUT
+                          - POLAR
+                          - OURA
                     skinTemperature:
                       maxItems: 8
                       type: array
@@ -3489,6 +3609,9 @@ paths:
                           - COMPUTED
                           - WHOOP
                           - FITBIT
+                          - NIGHTSCOUT
+                          - POLAR
+                          - OURA
                     respiratoryRate:
                       maxItems: 8
                       type: array
@@ -3502,6 +3625,9 @@ paths:
                           - COMPUTED
                           - WHOOP
                           - FITBIT
+                          - NIGHTSCOUT
+                          - POLAR
+                          - OURA
                     recovery:
                       maxItems: 8
                       type: array
@@ -3515,6 +3641,9 @@ paths:
                           - COMPUTED
                           - WHOOP
                           - FITBIT
+                          - NIGHTSCOUT
+                          - POLAR
+                          - OURA
                 deviceTypePriority:
                   type: object
                   properties:
@@ -5352,6 +5481,12 @@ components:
             supported fraction for a split pill (¼ / ⅓ / ½ / ⅔ / ¾). Default 1. The intake consumption hook decrements
             this many units per taken dose; dose-derived readouts divide unit counts by it.
           type: number
+        reorderLeadDays:
+          description: Per-medication reorder lead time in days (0–60). The low-stock alert fires the supply early enough to
+            reorder before the last dose. Omitted = inherit the user-level reorderLeadDays default (10).
+          type: integer
+          minimum: 0
+          maximum: 60
         deliveryForm:
           type: string
           enum:
@@ -5639,6 +5774,14 @@ components:
             / ¾). The intake consumption hook decrements this many units per taken dose; already-stamped intake events
             keep their recorded consumption.
           type: number
+        reorderLeadDays:
+          description: Per-medication reorder lead time in days (0–60). null clears the override and reverts to the user-level
+            reorderLeadDays default.
+          anyOf:
+            - type: integer
+              minimum: 0
+              maximum: 60
+            - type: "null"
         deliveryForm:
           type: string
           enum:
@@ -6038,6 +6181,10 @@ components:
                   minimum: 1
                   maximum: 60
                 - type: "null"
+            reorderLeadDays:
+              type: integer
+              minimum: 0
+              maximum: 60
         mood:
           type: object
           properties:
@@ -8157,6 +8304,9 @@ components:
             - COMPUTED
             - WHOOP
             - FITBIT
+            - NIGHTSCOUT
+            - POLAR
+            - OURA
         notes:
           anyOf:
             - type: string
@@ -8583,6 +8733,9 @@ components:
             - COMPUTED
             - WHOOP
             - FITBIT
+            - NIGHTSCOUT
+            - POLAR
+            - OURA
         notes:
           anyOf:
             - type: string
@@ -8797,6 +8950,9 @@ components:
                         - COMPUTED
                         - WHOOP
                         - FITBIT
+                        - NIGHTSCOUT
+                        - POLAR
+                        - OURA
                     - type: "null"
                 start:
                   type: string
@@ -8914,6 +9070,9 @@ components:
                       - COMPUTED
                       - WHOOP
                       - FITBIT
+                      - NIGHTSCOUT
+                      - POLAR
+                      - OURA
                   - type: "null"
               start:
                 type: string
@@ -9018,6 +9177,134 @@ components:
       additionalProperties: false
       description: "One reconstructed sleep night: the main session's hypnogram segments + breakdown, plus same-wake-day naps
         surfaced separately."
+    SleepRhythmResponse:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/SleepRhythmResource"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    SleepRhythmResource:
+      type: object
+      properties:
+        sleepDebt:
+          type: object
+          properties:
+            state:
+              type: string
+              enum:
+                - partial
+                - ready
+              description: "`partial` until enough tracked nights exist (calm 'still learning'); `ready` once the rolling window can
+                assert a cumulative debt."
+            debtMinutes:
+              type: integer
+              minimum: 0
+              maximum: 9007199254740991
+              description: Cumulative sleep debt over the window, in minutes, after caps.
+            needMinutes:
+              type: integer
+              minimum: 0
+              maximum: 9007199254740991
+              description: Age-based sleep need (minutes) used for the per-night deficit.
+            nightsCounted:
+              type: integer
+              minimum: 0
+              maximum: 9007199254740991
+            windowNights:
+              type: integer
+              exclusiveMinimum: 0
+              maximum: 9007199254740991
+              description: Rolling window length in nights.
+            nightsUntilReady:
+              type: integer
+              minimum: 0
+              maximum: 9007199254740991
+              description: Nights still needed before the debt is asserted (0 when ready).
+          required:
+            - state
+            - debtMinutes
+            - needMinutes
+            - nightsCounted
+            - windowNights
+            - nightsUntilReady
+          additionalProperties: false
+        chronotype:
+          type: object
+          properties:
+            state:
+              type: string
+              enum:
+                - learning
+                - ready
+              description: "`learning` until enough free-day nights exist (no band asserted); `ready` once the free-day sample is
+                large enough."
+            msfMinutes:
+              anyOf:
+                - type: number
+                - type: "null"
+              description: Mid-sleep on free days (minutes-of-day), null while learning.
+            msfScMinutes:
+              anyOf:
+                - type: number
+                - type: "null"
+              description: Sleep-debt-corrected mid-sleep on free days (MSFsc, minutes-of-day), null while learning.
+            band:
+              anyOf:
+                - type: string
+                  enum:
+                    - extreme_early
+                    - early
+                    - intermediate
+                    - late
+                    - extreme_late
+                - type: "null"
+              description: MCTQ chronotype band off MSFsc, null while learning.
+            socialJetlagMinutes:
+              anyOf:
+                - type: number
+                - type: "null"
+              description: Social jetlag = circular |MSF_work − MSF_free| in minutes, null when one side is missing.
+            freeNightsCounted:
+              type: integer
+              minimum: 0
+              maximum: 9007199254740991
+            workNightsCounted:
+              type: integer
+              minimum: 0
+              maximum: 9007199254740991
+            freeNightsUntilReady:
+              type: integer
+              minimum: 0
+              maximum: 9007199254740991
+              description: Free-day nights still needed before a band is asserted.
+          required:
+            - state
+            - msfMinutes
+            - msfScMinutes
+            - band
+            - socialJetlagMinutes
+            - freeNightsCounted
+            - workNightsCounted
+            - freeNightsUntilReady
+          additionalProperties: false
+      required:
+        - sleepDebt
+        - chronotype
+      additionalProperties: false
+      description: "Server-authoritative sleep-rhythm read: cumulative sleep debt over the rolling window + MCTQ chronotype
+        (MSF/MSFsc band, social jetlag). Free vs work nights default to weekend = free in the user's timezone (no work
+        calendar). A view over existing per-stage SLEEP_DURATION rows — no schema, no new type."
     ListWorkoutsResponse:
       type: object
       properties:
@@ -9120,6 +9407,9 @@ components:
             - COMPUTED
             - WHOOP
             - FITBIT
+            - NIGHTSCOUT
+            - POLAR
+            - OURA
         externalId:
           anyOf:
             - type: string
@@ -9225,6 +9515,9 @@ components:
             - COMPUTED
             - WHOOP
             - FITBIT
+            - NIGHTSCOUT
+            - POLAR
+            - OURA
         externalId:
           anyOf:
             - type: string
@@ -9432,6 +9725,15 @@ components:
           description: v1.16.10 — inventory units one dose consumes (e.g. 2 tablets of 2 mg for a 4 mg dose). v1.16.12 — may be a
             split-pill fraction (¼ / ⅓ / ½ / ⅔ / ¾); thirds carry as ≈0.3333 / 0.6667. Default 1. The intake consumption
             hook decrements this many units per taken dose; dose-derived readouts divide unit counts by it.
+        reorderLeadDays:
+          anyOf:
+            - type: integer
+              minimum: -9007199254740991
+              maximum: 9007199254740991
+            - type: "null"
+          description: v1.17.0 — optional per-medication reorder lead time in days (0–60). The low-stock alert widens its trigger
+            by this lead plus one dose-interval so a refill arrives before the last dose. null = inherit the user-level
+            notificationPrefs.medication.reorderLeadDays default (10).
         active:
           type: boolean
         notificationsEnabled:
@@ -9565,6 +9867,7 @@ components:
         - treatmentClass
         - dosesPerUnit
         - unitsPerDose
+        - reorderLeadDays
         - active
         - notificationsEnabled
         - liveActivityEnabled
@@ -9650,6 +9953,15 @@ components:
           description: v1.16.10 — inventory units one dose consumes (e.g. 2 tablets of 2 mg for a 4 mg dose). v1.16.12 — may be a
             split-pill fraction (¼ / ⅓ / ½ / ⅔ / ¾); thirds carry as ≈0.3333 / 0.6667. Default 1. The intake consumption
             hook decrements this many units per taken dose; dose-derived readouts divide unit counts by it.
+        reorderLeadDays:
+          anyOf:
+            - type: integer
+              minimum: -9007199254740991
+              maximum: 9007199254740991
+            - type: "null"
+          description: v1.17.0 — optional per-medication reorder lead time in days (0–60). The low-stock alert widens its trigger
+            by this lead plus one dose-interval so a refill arrives before the last dose. null = inherit the user-level
+            notificationPrefs.medication.reorderLeadDays default (10).
         active:
           type: boolean
         notificationsEnabled:
@@ -9750,6 +10062,7 @@ components:
         - treatmentClass
         - dosesPerUnit
         - unitsPerDose
+        - reorderLeadDays
         - active
         - notificationsEnabled
         - liveActivityEnabled
@@ -11176,6 +11489,9 @@ components:
                   - COMPUTED
                   - WHOOP
                   - FITBIT
+                  - NIGHTSCOUT
+                  - POLAR
+                  - OURA
             activeEnergy:
               maxItems: 8
               type: array
@@ -11189,6 +11505,9 @@ components:
                   - COMPUTED
                   - WHOOP
                   - FITBIT
+                  - NIGHTSCOUT
+                  - POLAR
+                  - OURA
             walkingRunningDistance:
               maxItems: 8
               type: array
@@ -11202,6 +11521,9 @@ components:
                   - COMPUTED
                   - WHOOP
                   - FITBIT
+                  - NIGHTSCOUT
+                  - POLAR
+                  - OURA
             flightsClimbed:
               maxItems: 8
               type: array
@@ -11215,6 +11537,9 @@ components:
                   - COMPUTED
                   - WHOOP
                   - FITBIT
+                  - NIGHTSCOUT
+                  - POLAR
+                  - OURA
             sleep:
               maxItems: 8
               type: array
@@ -11228,6 +11553,9 @@ components:
                   - COMPUTED
                   - WHOOP
                   - FITBIT
+                  - NIGHTSCOUT
+                  - POLAR
+                  - OURA
             weight:
               maxItems: 8
               type: array
@@ -11241,6 +11569,9 @@ components:
                   - COMPUTED
                   - WHOOP
                   - FITBIT
+                  - NIGHTSCOUT
+                  - POLAR
+                  - OURA
             bloodPressure:
               maxItems: 8
               type: array
@@ -11254,6 +11585,9 @@ components:
                   - COMPUTED
                   - WHOOP
                   - FITBIT
+                  - NIGHTSCOUT
+                  - POLAR
+                  - OURA
             pulse:
               maxItems: 8
               type: array
@@ -11267,6 +11601,9 @@ components:
                   - COMPUTED
                   - WHOOP
                   - FITBIT
+                  - NIGHTSCOUT
+                  - POLAR
+                  - OURA
             bodyFat:
               maxItems: 8
               type: array
@@ -11280,6 +11617,9 @@ components:
                   - COMPUTED
                   - WHOOP
                   - FITBIT
+                  - NIGHTSCOUT
+                  - POLAR
+                  - OURA
             bodyTemperature:
               maxItems: 8
               type: array
@@ -11293,6 +11633,9 @@ components:
                   - COMPUTED
                   - WHOOP
                   - FITBIT
+                  - NIGHTSCOUT
+                  - POLAR
+                  - OURA
             spo2:
               maxItems: 8
               type: array
@@ -11306,6 +11649,9 @@ components:
                   - COMPUTED
                   - WHOOP
                   - FITBIT
+                  - NIGHTSCOUT
+                  - POLAR
+                  - OURA
             hrv:
               maxItems: 8
               type: array
@@ -11319,6 +11665,9 @@ components:
                   - COMPUTED
                   - WHOOP
                   - FITBIT
+                  - NIGHTSCOUT
+                  - POLAR
+                  - OURA
             restingHeartRate:
               maxItems: 8
               type: array
@@ -11332,6 +11681,9 @@ components:
                   - COMPUTED
                   - WHOOP
                   - FITBIT
+                  - NIGHTSCOUT
+                  - POLAR
+                  - OURA
             vo2Max:
               maxItems: 8
               type: array
@@ -11345,6 +11697,9 @@ components:
                   - COMPUTED
                   - WHOOP
                   - FITBIT
+                  - NIGHTSCOUT
+                  - POLAR
+                  - OURA
             skinTemperature:
               maxItems: 8
               type: array
@@ -11358,6 +11713,9 @@ components:
                   - COMPUTED
                   - WHOOP
                   - FITBIT
+                  - NIGHTSCOUT
+                  - POLAR
+                  - OURA
             respiratoryRate:
               maxItems: 8
               type: array
@@ -11371,6 +11729,9 @@ components:
                   - COMPUTED
                   - WHOOP
                   - FITBIT
+                  - NIGHTSCOUT
+                  - POLAR
+                  - OURA
             recovery:
               maxItems: 8
               type: array
@@ -11384,6 +11745,9 @@ components:
                   - COMPUTED
                   - WHOOP
                   - FITBIT
+                  - NIGHTSCOUT
+                  - POLAR
+                  - OURA
             metricPriority:
               type: object
               properties:
@@ -11400,6 +11764,9 @@ components:
                       - COMPUTED
                       - WHOOP
                       - FITBIT
+                      - NIGHTSCOUT
+                      - POLAR
+                      - OURA
                 activeEnergy:
                   maxItems: 8
                   type: array
@@ -11413,6 +11780,9 @@ components:
                       - COMPUTED
                       - WHOOP
                       - FITBIT
+                      - NIGHTSCOUT
+                      - POLAR
+                      - OURA
                 walkingRunningDistance:
                   maxItems: 8
                   type: array
@@ -11426,6 +11796,9 @@ components:
                       - COMPUTED
                       - WHOOP
                       - FITBIT
+                      - NIGHTSCOUT
+                      - POLAR
+                      - OURA
                 flightsClimbed:
                   maxItems: 8
                   type: array
@@ -11439,6 +11812,9 @@ components:
                       - COMPUTED
                       - WHOOP
                       - FITBIT
+                      - NIGHTSCOUT
+                      - POLAR
+                      - OURA
                 sleep:
                   maxItems: 8
                   type: array
@@ -11452,6 +11828,9 @@ components:
                       - COMPUTED
                       - WHOOP
                       - FITBIT
+                      - NIGHTSCOUT
+                      - POLAR
+                      - OURA
                 weight:
                   maxItems: 8
                   type: array
@@ -11465,6 +11844,9 @@ components:
                       - COMPUTED
                       - WHOOP
                       - FITBIT
+                      - NIGHTSCOUT
+                      - POLAR
+                      - OURA
                 bloodPressure:
                   maxItems: 8
                   type: array
@@ -11478,6 +11860,9 @@ components:
                       - COMPUTED
                       - WHOOP
                       - FITBIT
+                      - NIGHTSCOUT
+                      - POLAR
+                      - OURA
                 pulse:
                   maxItems: 8
                   type: array
@@ -11491,6 +11876,9 @@ components:
                       - COMPUTED
                       - WHOOP
                       - FITBIT
+                      - NIGHTSCOUT
+                      - POLAR
+                      - OURA
                 bodyFat:
                   maxItems: 8
                   type: array
@@ -11504,6 +11892,9 @@ components:
                       - COMPUTED
                       - WHOOP
                       - FITBIT
+                      - NIGHTSCOUT
+                      - POLAR
+                      - OURA
                 bodyTemperature:
                   maxItems: 8
                   type: array
@@ -11517,6 +11908,9 @@ components:
                       - COMPUTED
                       - WHOOP
                       - FITBIT
+                      - NIGHTSCOUT
+                      - POLAR
+                      - OURA
                 spo2:
                   maxItems: 8
                   type: array
@@ -11530,6 +11924,9 @@ components:
                       - COMPUTED
                       - WHOOP
                       - FITBIT
+                      - NIGHTSCOUT
+                      - POLAR
+                      - OURA
                 hrv:
                   maxItems: 8
                   type: array
@@ -11543,6 +11940,9 @@ components:
                       - COMPUTED
                       - WHOOP
                       - FITBIT
+                      - NIGHTSCOUT
+                      - POLAR
+                      - OURA
                 restingHeartRate:
                   maxItems: 8
                   type: array
@@ -11556,6 +11956,9 @@ components:
                       - COMPUTED
                       - WHOOP
                       - FITBIT
+                      - NIGHTSCOUT
+                      - POLAR
+                      - OURA
                 vo2Max:
                   maxItems: 8
                   type: array
@@ -11569,6 +11972,9 @@ components:
                       - COMPUTED
                       - WHOOP
                       - FITBIT
+                      - NIGHTSCOUT
+                      - POLAR
+                      - OURA
                 skinTemperature:
                   maxItems: 8
                   type: array
@@ -11582,6 +11988,9 @@ components:
                       - COMPUTED
                       - WHOOP
                       - FITBIT
+                      - NIGHTSCOUT
+                      - POLAR
+                      - OURA
                 respiratoryRate:
                   maxItems: 8
                   type: array
@@ -11595,6 +12004,9 @@ components:
                       - COMPUTED
                       - WHOOP
                       - FITBIT
+                      - NIGHTSCOUT
+                      - POLAR
+                      - OURA
                 recovery:
                   maxItems: 8
                   type: array
@@ -11608,6 +12020,9 @@ components:
                       - COMPUTED
                       - WHOOP
                       - FITBIT
+                      - NIGHTSCOUT
+                      - POLAR
+                      - OURA
               additionalProperties: false
             deviceTypePriority:
               type: object
@@ -11670,6 +12085,9 @@ components:
                   - COMPUTED
                   - WHOOP
                   - FITBIT
+                  - NIGHTSCOUT
+                  - POLAR
+                  - OURA
             activeEnergy:
               maxItems: 8
               type: array
@@ -11683,6 +12101,9 @@ components:
                   - COMPUTED
                   - WHOOP
                   - FITBIT
+                  - NIGHTSCOUT
+                  - POLAR
+                  - OURA
             walkingRunningDistance:
               maxItems: 8
               type: array
@@ -11696,6 +12117,9 @@ components:
                   - COMPUTED
                   - WHOOP
                   - FITBIT
+                  - NIGHTSCOUT
+                  - POLAR
+                  - OURA
             flightsClimbed:
               maxItems: 8
               type: array
@@ -11709,6 +12133,9 @@ components:
                   - COMPUTED
                   - WHOOP
                   - FITBIT
+                  - NIGHTSCOUT
+                  - POLAR
+                  - OURA
             sleep:
               maxItems: 8
               type: array
@@ -11722,6 +12149,9 @@ components:
                   - COMPUTED
                   - WHOOP
                   - FITBIT
+                  - NIGHTSCOUT
+                  - POLAR
+                  - OURA
             weight:
               maxItems: 8
               type: array
@@ -11735,6 +12165,9 @@ components:
                   - COMPUTED
                   - WHOOP
                   - FITBIT
+                  - NIGHTSCOUT
+                  - POLAR
+                  - OURA
             bloodPressure:
               maxItems: 8
               type: array
@@ -11748,6 +12181,9 @@ components:
                   - COMPUTED
                   - WHOOP
                   - FITBIT
+                  - NIGHTSCOUT
+                  - POLAR
+                  - OURA
             pulse:
               maxItems: 8
               type: array
@@ -11761,6 +12197,9 @@ components:
                   - COMPUTED
                   - WHOOP
                   - FITBIT
+                  - NIGHTSCOUT
+                  - POLAR
+                  - OURA
             bodyFat:
               maxItems: 8
               type: array
@@ -11774,6 +12213,9 @@ components:
                   - COMPUTED
                   - WHOOP
                   - FITBIT
+                  - NIGHTSCOUT
+                  - POLAR
+                  - OURA
             bodyTemperature:
               maxItems: 8
               type: array
@@ -11787,6 +12229,9 @@ components:
                   - COMPUTED
                   - WHOOP
                   - FITBIT
+                  - NIGHTSCOUT
+                  - POLAR
+                  - OURA
             spo2:
               maxItems: 8
               type: array
@@ -11800,6 +12245,9 @@ components:
                   - COMPUTED
                   - WHOOP
                   - FITBIT
+                  - NIGHTSCOUT
+                  - POLAR
+                  - OURA
             hrv:
               maxItems: 8
               type: array
@@ -11813,6 +12261,9 @@ components:
                   - COMPUTED
                   - WHOOP
                   - FITBIT
+                  - NIGHTSCOUT
+                  - POLAR
+                  - OURA
             restingHeartRate:
               maxItems: 8
               type: array
@@ -11826,6 +12277,9 @@ components:
                   - COMPUTED
                   - WHOOP
                   - FITBIT
+                  - NIGHTSCOUT
+                  - POLAR
+                  - OURA
             vo2Max:
               maxItems: 8
               type: array
@@ -11839,6 +12293,9 @@ components:
                   - COMPUTED
                   - WHOOP
                   - FITBIT
+                  - NIGHTSCOUT
+                  - POLAR
+                  - OURA
             skinTemperature:
               maxItems: 8
               type: array
@@ -11852,6 +12309,9 @@ components:
                   - COMPUTED
                   - WHOOP
                   - FITBIT
+                  - NIGHTSCOUT
+                  - POLAR
+                  - OURA
             respiratoryRate:
               maxItems: 8
               type: array
@@ -11865,6 +12325,9 @@ components:
                   - COMPUTED
                   - WHOOP
                   - FITBIT
+                  - NIGHTSCOUT
+                  - POLAR
+                  - OURA
             recovery:
               maxItems: 8
               type: array
@@ -11878,6 +12341,9 @@ components:
                   - COMPUTED
                   - WHOOP
                   - FITBIT
+                  - NIGHTSCOUT
+                  - POLAR
+                  - OURA
             metricPriority:
               type: object
               properties:
@@ -11894,6 +12360,9 @@ components:
                       - COMPUTED
                       - WHOOP
                       - FITBIT
+                      - NIGHTSCOUT
+                      - POLAR
+                      - OURA
                 activeEnergy:
                   maxItems: 8
                   type: array
@@ -11907,6 +12376,9 @@ components:
                       - COMPUTED
                       - WHOOP
                       - FITBIT
+                      - NIGHTSCOUT
+                      - POLAR
+                      - OURA
                 walkingRunningDistance:
                   maxItems: 8
                   type: array
@@ -11920,6 +12392,9 @@ components:
                       - COMPUTED
                       - WHOOP
                       - FITBIT
+                      - NIGHTSCOUT
+                      - POLAR
+                      - OURA
                 flightsClimbed:
                   maxItems: 8
                   type: array
@@ -11933,6 +12408,9 @@ components:
                       - COMPUTED
                       - WHOOP
                       - FITBIT
+                      - NIGHTSCOUT
+                      - POLAR
+                      - OURA
                 sleep:
                   maxItems: 8
                   type: array
@@ -11946,6 +12424,9 @@ components:
                       - COMPUTED
                       - WHOOP
                       - FITBIT
+                      - NIGHTSCOUT
+                      - POLAR
+                      - OURA
                 weight:
                   maxItems: 8
                   type: array
@@ -11959,6 +12440,9 @@ components:
                       - COMPUTED
                       - WHOOP
                       - FITBIT
+                      - NIGHTSCOUT
+                      - POLAR
+                      - OURA
                 bloodPressure:
                   maxItems: 8
                   type: array
@@ -11972,6 +12456,9 @@ components:
                       - COMPUTED
                       - WHOOP
                       - FITBIT
+                      - NIGHTSCOUT
+                      - POLAR
+                      - OURA
                 pulse:
                   maxItems: 8
                   type: array
@@ -11985,6 +12472,9 @@ components:
                       - COMPUTED
                       - WHOOP
                       - FITBIT
+                      - NIGHTSCOUT
+                      - POLAR
+                      - OURA
                 bodyFat:
                   maxItems: 8
                   type: array
@@ -11998,6 +12488,9 @@ components:
                       - COMPUTED
                       - WHOOP
                       - FITBIT
+                      - NIGHTSCOUT
+                      - POLAR
+                      - OURA
                 bodyTemperature:
                   maxItems: 8
                   type: array
@@ -12011,6 +12504,9 @@ components:
                       - COMPUTED
                       - WHOOP
                       - FITBIT
+                      - NIGHTSCOUT
+                      - POLAR
+                      - OURA
                 spo2:
                   maxItems: 8
                   type: array
@@ -12024,6 +12520,9 @@ components:
                       - COMPUTED
                       - WHOOP
                       - FITBIT
+                      - NIGHTSCOUT
+                      - POLAR
+                      - OURA
                 hrv:
                   maxItems: 8
                   type: array
@@ -12037,6 +12536,9 @@ components:
                       - COMPUTED
                       - WHOOP
                       - FITBIT
+                      - NIGHTSCOUT
+                      - POLAR
+                      - OURA
                 restingHeartRate:
                   maxItems: 8
                   type: array
@@ -12050,6 +12552,9 @@ components:
                       - COMPUTED
                       - WHOOP
                       - FITBIT
+                      - NIGHTSCOUT
+                      - POLAR
+                      - OURA
                 vo2Max:
                   maxItems: 8
                   type: array
@@ -12063,6 +12568,9 @@ components:
                       - COMPUTED
                       - WHOOP
                       - FITBIT
+                      - NIGHTSCOUT
+                      - POLAR
+                      - OURA
                 skinTemperature:
                   maxItems: 8
                   type: array
@@ -12076,6 +12584,9 @@ components:
                       - COMPUTED
                       - WHOOP
                       - FITBIT
+                      - NIGHTSCOUT
+                      - POLAR
+                      - OURA
                 respiratoryRate:
                   maxItems: 8
                   type: array
@@ -12089,6 +12600,9 @@ components:
                       - COMPUTED
                       - WHOOP
                       - FITBIT
+                      - NIGHTSCOUT
+                      - POLAR
+                      - OURA
                 recovery:
                   maxItems: 8
                   type: array
@@ -12102,6 +12616,9 @@ components:
                       - COMPUTED
                       - WHOOP
                       - FITBIT
+                      - NIGHTSCOUT
+                      - POLAR
+                      - OURA
               additionalProperties: false
             deviceTypePriority:
               type: object
@@ -12412,10 +12929,18 @@ components:
                   maximum: 60
                 - type: "null"
               description: Low-stock alert threshold as remaining runway days (1–60). null = alert off. Default 7.
+            reorderLeadDays:
+              type: integer
+              minimum: 0
+              maximum: 60
+              description: Reorder lead time in days (0–60) the low-stock alert assumes. The alert fires this lead plus one
+                dose-interval before the supply runs out so a refill arrives before the last dose. Default 10; a
+                per-medication reorderLeadDays overrides it.
           required:
             - clientManaged
             - deliveryDefault
             - lowStockRunwayDays
+            - reorderLeadDays
           additionalProperties: false
         mood:
           type: object
@@ -12972,7 +13497,8 @@ components:
               description: Raw invite token (`hlv_<64hex>`). Shown exactly once — never persisted in plaintext.
             url:
               type: string
-              description: Composed registration deep link (`/auth/register?invite=…`).
+              description: Composed invite universal-link (`/invite/<hlv_token>`). On iOS it opens the app onto onboarding
+                registration; in a browser it redirects to `/auth/register?invite=…`.
           required:
             - id
             - createdAt
@@ -13353,11 +13879,25 @@ components:
                   anyOf:
                     - type: number
                     - type: "null"
+                bpInTargetCount90:
+                  anyOf:
+                    - type: integer
+                      minimum: -9007199254740991
+                      maximum: 9007199254740991
+                    - type: "null"
+                bpInTargetSpanDays90:
+                  anyOf:
+                    - type: integer
+                      minimum: -9007199254740991
+                      maximum: 9007199254740991
+                    - type: "null"
                 glucoseByContext:
                   type: object
                   propertyNames:
                     type: string
                   additionalProperties: {}
+                glucoseClinical:
+                  $ref: "#/components/schemas/GlucoseClinicalMetrics"
               required:
                 - bpInTargetPct
                 - bpInTargetPct7d
@@ -13365,7 +13905,10 @@ components:
                 - bpInTargetPctAllTime
                 - bpInTargetPctPriorMonth
                 - bpInTargetPctPriorYear
+                - bpInTargetCount90
+                - bpInTargetSpanDays90
                 - glucoseByContext
+                - glucoseClinical
               additionalProperties: false
             - type: "null"
         medsToday:
@@ -13487,6 +14030,139 @@ components:
         `briefingStale: true`. `layoutCatalogue` (full 27-id widget catalogue) and `metricStates` (latest reading per
         metric, keyed by iOS `MetricKind` raw value) are additive cold-launch seeds for the native client; both derive
         in-process from data already fetched, adding no DB round-trip."
+    GlucoseClinicalMetrics:
+      type: object
+      properties:
+        stillLearning:
+          type: boolean
+        stillLearningReason:
+          anyOf:
+            - type: string
+            - type: "null"
+        windowDays:
+          type: integer
+          minimum: -9007199254740991
+          maximum: 9007199254740991
+        actualSpanDays:
+          type: number
+        readingCount:
+          type: integer
+          minimum: -9007199254740991
+          maximum: 9007199254740991
+        meanMgdl:
+          anyOf:
+            - type: number
+            - type: "null"
+        distribution:
+          anyOf:
+            - type: object
+              properties:
+                tir:
+                  type: number
+                tbrLevel1:
+                  type: number
+                tbrLevel2:
+                  type: number
+                tarLevel1:
+                  type: number
+                tarLevel2:
+                  type: number
+                minutesEquivalent:
+                  type: object
+                  properties:
+                    tir:
+                      type: number
+                    tbrLevel1:
+                      type: number
+                    tbrLevel2:
+                      type: number
+                    tarLevel1:
+                      type: number
+                    tarLevel2:
+                      type: number
+                  required:
+                    - tir
+                    - tbrLevel1
+                    - tbrLevel2
+                    - tarLevel1
+                    - tarLevel2
+                  additionalProperties: false
+              required:
+                - tir
+                - tbrLevel1
+                - tbrLevel2
+                - tarLevel1
+                - tarLevel2
+                - minutesEquivalent
+              additionalProperties: false
+            - type: "null"
+        gmi:
+          anyOf:
+            - type: number
+            - type: "null"
+        estimatedA1c:
+          anyOf:
+            - type: number
+            - type: "null"
+        variability:
+          anyOf:
+            - type: object
+              properties:
+                sd:
+                  type: number
+                cv:
+                  type: number
+                unstable:
+                  type: boolean
+              required:
+                - sd
+                - cv
+                - unstable
+              additionalProperties: false
+            - type: "null"
+        advanced:
+          anyOf:
+            - type: object
+              properties:
+                jIndex:
+                  anyOf:
+                    - type: number
+                    - type: "null"
+                lbgi:
+                  type: number
+                hbgi:
+                  type: number
+              required:
+                - jIndex
+                - lbgi
+                - hbgi
+              additionalProperties: false
+            - type: "null"
+        isSpotEstimate:
+          type: boolean
+      required:
+        - stillLearning
+        - stillLearningReason
+        - windowDays
+        - actualSpanDays
+        - readingCount
+        - meanMgdl
+        - distribution
+        - gmi
+        - estimatedA1c
+        - variability
+        - advanced
+        - isSpotEstimate
+      additionalProperties: false
+      description: Server-authoritative glucose clinical panel over the trailing 30-day window. Figures from sparse spot data
+        are a SPOT-READING ESTIMATE (a % of readings), not a CGM time-in-range AGP; `isSpotEstimate` is derived from
+        reading density (true below ~hourly, false for a continuous CGM stream such as Nightscout) and `stillLearning`
+        gates assertion when the window has too few readings or too short a span. `distribution` carries the Battelino
+        2019 TIR/TBR/TAR fractions (level-2 nested in level-1) plus minutes-of-a-day equivalents; `gmi` (Bergenstal
+        2018) + `estimatedA1c` (Nathan 2008 ADAG) derive from the mean; `variability` is SD + CV% with the Monnier 2017
+        ≥36% instability flag; `advanced` is the disclosure tier — J-index (Wojcicki 1995) + LBGI/HBGI (Kovatchev
+        hypo/hyper risk). All blocks are null when there are no readings; `advanced.jIndex` is null for a single-reading
+        window.
     InsightsComprehensiveResponseEnvelope:
       type: object
       properties:
@@ -14774,10 +15450,18 @@ components:
             - type: "null"
           description: Per-user low-stock alert threshold as remaining runway days (1–60). null = the alert is off. Default 7.
             Written via PATCH /api/auth/me/notification-prefs.
+        reorderLeadDays:
+          type: integer
+          minimum: 0
+          maximum: 60
+          description: v1.17.0 — per-user reorder lead default in days (0–60, default 10). The low-stock alert fires this lead
+            plus one dose-interval before the supply runs out so a refill arrives before the last dose; a per-medication
+            reorderLeadDays overrides it. Written via PATCH /api/auth/me/notification-prefs.
       required:
         - lateMinutes
         - missedMinutes
         - lowStockRunwayDays
+        - reorderLeadDays
       additionalProperties: false
       description: "Medication reminder thresholds: the operator-level late/missed minute marks plus the calling user's
         low-stock runway threshold (v1.16.11)."
@@ -15180,6 +15864,15 @@ components:
           description: v1.16.10 — inventory units one dose consumes (e.g. 2 tablets of 2 mg for a 4 mg dose). v1.16.12 — may be a
             split-pill fraction (¼ / ⅓ / ½ / ⅔ / ¾); thirds carry as ≈0.3333 / 0.6667. Default 1. The intake consumption
             hook decrements this many units per taken dose; dose-derived readouts divide unit counts by it.
+        reorderLeadDays:
+          anyOf:
+            - type: integer
+              minimum: -9007199254740991
+              maximum: 9007199254740991
+            - type: "null"
+          description: v1.17.0 — optional per-medication reorder lead time in days (0–60). The low-stock alert widens its trigger
+            by this lead plus one dose-interval so a refill arrives before the last dose. null = inherit the user-level
+            notificationPrefs.medication.reorderLeadDays default (10).
         active:
           type: boolean
         notificationsEnabled:
@@ -15278,6 +15971,7 @@ components:
         - treatmentClass
         - dosesPerUnit
         - unitsPerDose
+        - reorderLeadDays
         - active
         - notificationsEnabled
         - liveActivityEnabled

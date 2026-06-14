@@ -21,7 +21,7 @@ function inputs(overrides: Partial<Parameters<typeof buildChecklist>[0]> = {}) {
     profile: completeProfile,
     measurementCount: 0,
     medicationCount: 0,
-    withingsConnected: false,
+    dataSourceConnected: false,
     notificationsConfigured: false,
     dismissedIds: new Set<ChecklistItemId>(),
     ...overrides,
@@ -49,7 +49,7 @@ describe("buildChecklist", () => {
       "profile",
       "measurement",
       "medication",
-      "withings",
+      "dataSource",
       "notifications",
     ]);
   });
@@ -64,12 +64,21 @@ describe("buildChecklist", () => {
     expect(items.find((i) => i.id === "measurement")?.done).toBe(true);
   });
 
-  it("flags medication and withings independently", () => {
+  it("flags medication and dataSource independently", () => {
     const items = buildChecklist(
-      inputs({ medicationCount: 2, withingsConnected: true }),
+      inputs({ medicationCount: 2, dataSourceConnected: true }),
     );
     expect(items.find((i) => i.id === "medication")?.done).toBe(true);
-    expect(items.find((i) => i.id === "withings")?.done).toBe(true);
+    expect(items.find((i) => i.id === "dataSource")?.done).toBe(true);
+  });
+
+  it("dataSource is satisfied by any connected source", () => {
+    // The predicate is source-agnostic — a single boolean stands in for
+    // Withings, WHOOP, Oura, Polar, Nightscout, Fitbit or Apple Health.
+    const off = buildChecklist(inputs({ dataSourceConnected: false }));
+    expect(off.find((i) => i.id === "dataSource")?.done).toBe(false);
+    const on = buildChecklist(inputs({ dataSourceConnected: true }));
+    expect(on.find((i) => i.id === "dataSource")?.done).toBe(true);
   });
 
   it("propagates per-item dismissal", () => {
@@ -86,7 +95,7 @@ describe("buildChecklist", () => {
     expect(hrefs.profile).toBe("/settings/account");
     expect(hrefs.measurement).toBe("/measurements");
     expect(hrefs.medication).toBe("/medications");
-    expect(hrefs.withings).toBe("/settings/integrations");
+    expect(hrefs.dataSource).toBe("/settings/integrations");
     expect(hrefs.notifications).toBe("/settings/notifications");
   });
 });
@@ -94,10 +103,10 @@ describe("buildChecklist", () => {
 describe("visibleChecklist + checklistProgress", () => {
   it("hides per-item dismissed rows from the visible list", () => {
     const items = buildChecklist(
-      inputs({ dismissedIds: new Set<ChecklistItemId>(["withings"]) }),
+      inputs({ dismissedIds: new Set<ChecklistItemId>(["dataSource"]) }),
     );
     const visible = visibleChecklist(items);
-    expect(visible.map((i) => i.id)).not.toContain("withings");
+    expect(visible.map((i) => i.id)).not.toContain("dataSource");
   });
 
   it("counts done items inside the visible subset", () => {
@@ -106,7 +115,7 @@ describe("visibleChecklist + checklistProgress", () => {
         measurementCount: 3,
         medicationCount: 1,
         // dismiss the only one not done so percent jumps to 100
-        dismissedIds: new Set<ChecklistItemId>(["withings", "notifications"]),
+        dismissedIds: new Set<ChecklistItemId>(["dataSource", "notifications"]),
       }),
     );
     const progress = checklistProgress(items);
@@ -121,7 +130,7 @@ describe("visibleChecklist + checklistProgress", () => {
       profile: { heightCm: null, dateOfBirth: null, gender: null },
       measurementCount: 0,
       medicationCount: 0,
-      withingsConnected: false,
+      dataSourceConnected: false,
       notificationsConfigured: false,
       dismissedIds: new Set(),
     });
@@ -185,7 +194,7 @@ describe("shouldShowChecklist", () => {
       inputs({
         measurementCount: 3,
         medicationCount: 1,
-        withingsConnected: true,
+        dataSourceConnected: true,
         notificationsConfigured: true,
       }),
     );

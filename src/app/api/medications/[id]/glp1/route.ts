@@ -28,11 +28,20 @@ import {
 import { checkRateLimit, rateLimitHeaders } from "@/lib/rate-limit";
 import { glp1PostBodySchema } from "@/lib/validations/medication";
 import { assertMedicationOwnership } from "@/lib/medications/route-guards";
+import {
+  estimateDailyDoseCount,
+  estimateRunwayDays,
+  lowStockTriggerDays,
+  type RunwaySchedule,
+} from "@/components/medications/detail/supply-runway";
+import {
+  resolveLowStockRunwayDays,
+  resolveReorderLeadDays,
+} from "@/lib/validations/notification-prefs";
 import { NextRequest } from "next/server";
 
 type RouteParams = { params: Promise<{ id: string }> };
 
-const LOW_STOCK_DOSE_THRESHOLD = 4;
 const POST_RATE_LIMIT = 30;
 const POST_WINDOW_MS = 60_000;
 
@@ -76,6 +85,47 @@ export const GET = apiHandler(
       return apiError("Medication not found", 404);
     }
 
+    // v1.17.0 — the card `lowStock` flag rides the SAME reorder-lead-aware
+    // runway evaluation as the daily low-stock cron, so the GLP-1 card and
+    // the notification can never disagree. The legacy fixed 4-dose count
+    // threshold (`LOW_STOCK_DOSE_THRESHOLD`) is retired: a weekly cadence's
+    // "4 doses" was ~28 days — far too eager — while a daily med at 4 doses
+    // was ~4 days — far too late. Runway days ≤ the effective trigger
+    // (`max(lowStockRunwayDays, leadDays + cadenceIntervalDays)`) is the one
+    // truth. `lowStockRunwayDays === null` (alert off) ⇒ flag never lights.
+    const prefsRow = await prisma.user.findUnique({
+      where: { id: user.id },
+      select: { notificationPrefs: true },
+    });
+    const runwayFloor = resolveLowStockRunwayDays(
+      prefsRow?.notificationPrefs ?? null,
+    );
+    const leadDays = resolveReorderLeadDays(
+      prefsRow?.notificationPrefs ?? null,
+      medication.reorderLeadDays,
+    );
+    const schedules: RunwaySchedule[] = medication.schedules;
+    /** runway ≤ effective trigger AND the alert is enabled. */
+    const isLowStock = (dosesRemaining: number): boolean => {
+      if (runwayFloor === null) return false;
+      // No consuming schedule ⇒ no runway ⇒ never low (matches the cron's
+      // `evaluateMedicationRunway` null branch).
+      if (estimateDailyDoseCount(schedules) <= 0) return false;
+      const triggerDays = lowStockTriggerDays({
+        lowStockRunwayDays: runwayFloor,
+        leadDays,
+        schedules,
+      });
+      // Exhausted supply with a consuming schedule is runway 0 (below
+      // every trigger); otherwise the cadence-aware days of supply. Same
+      // semantics the cron's `evaluateMedicationRunway` applies.
+      const runwayDays =
+        dosesRemaining > 0
+          ? (estimateRunwayDays(dosesRemaining, schedules) ?? 0)
+          : 0;
+      return runwayDays <= triggerDays;
+    };
+
     // Inventory math over the per-item entities. The response shape is
     // locked for the iOS client: `pensRemaining` = count of usable
     // containers (ACTIVE / IN_USE with units left), `dosesRemaining` =
@@ -103,7 +153,7 @@ export const GET = apiHandler(
         unitsRemaining / (Number(medication.unitsPerDose) || 1),
       );
       const weeksOfSupply = dosesRemaining;
-      const lowStock = dosesRemaining < LOW_STOCK_DOSE_THRESHOLD;
+      const lowStock = isLowStock(dosesRemaining);
       inventory = {
         pensRemaining,
         dosesRemaining,
@@ -127,7 +177,7 @@ export const GET = apiHandler(
       const pensRemaining = Math.max(0, pens);
       const dosesRemaining = pensRemaining * medication.dosesPerUnit;
       const weeksOfSupply = dosesRemaining;
-      const lowStock = dosesRemaining < LOW_STOCK_DOSE_THRESHOLD;
+      const lowStock = isLowStock(dosesRemaining);
       inventory = {
         pensRemaining,
         dosesRemaining,

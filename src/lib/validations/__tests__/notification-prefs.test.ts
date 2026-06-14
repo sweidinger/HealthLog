@@ -4,6 +4,7 @@ import {
   DEFAULT_LOW_STOCK_RUNWAY_DAYS,
   DEFAULT_MOOD_REMINDER_HOUR,
   DEFAULT_NOTIFICATION_PREFS,
+  DEFAULT_REORDER_LEAD_DAYS,
   isCycleReminderClientManaged,
   isMedicationReminderClientManaged,
   notificationPrefsSchema,
@@ -13,6 +14,7 @@ import {
   resolveLowStockRunwayDays,
   resolveMoodReminderHour,
   resolveNotificationPrefs,
+  resolveReorderLeadDays,
 } from "../notification-prefs";
 
 /**
@@ -96,6 +98,7 @@ describe("parseNotificationPrefs", () => {
         clientManaged: true,
         deliveryDefault: "server",
         lowStockRunwayDays: 7,
+        reorderLeadDays: 10,
       },
       mood: { reminderHour: DEFAULT_MOOD_REMINDER_HOUR },
       cycle: { clientManaged: false },
@@ -115,6 +118,7 @@ describe("parseNotificationPrefs", () => {
         clientManaged: false,
         deliveryDefault: "server",
         lowStockRunwayDays: 7,
+        reorderLeadDays: 10,
       },
       mood: { reminderHour: DEFAULT_MOOD_REMINDER_HOUR },
       cycle: { clientManaged: false },
@@ -136,6 +140,7 @@ describe("parseNotificationPrefs", () => {
         clientManaged: true,
         deliveryDefault: "client",
         lowStockRunwayDays: 7,
+        reorderLeadDays: 10,
       },
       mood: { reminderHour: DEFAULT_MOOD_REMINDER_HOUR },
       cycle: { clientManaged: false },
@@ -173,6 +178,7 @@ describe("resolveNotificationPrefs (deep-merge)", () => {
         clientManaged: true,
         deliveryDefault: "server",
         lowStockRunwayDays: 7,
+        reorderLeadDays: 10,
       },
       mood: { reminderHour: DEFAULT_MOOD_REMINDER_HOUR },
       cycle: { clientManaged: false },
@@ -198,6 +204,7 @@ describe("resolveNotificationPrefs (deep-merge)", () => {
         clientManaged: true,
         deliveryDefault: "server",
         lowStockRunwayDays: 7,
+        reorderLeadDays: 10,
       },
       mood: { reminderHour: DEFAULT_MOOD_REMINDER_HOUR },
       cycle: { clientManaged: false },
@@ -220,6 +227,7 @@ describe("resolveNotificationPrefs (deep-merge)", () => {
         clientManaged: true,
         deliveryDefault: "server",
         lowStockRunwayDays: 7,
+        reorderLeadDays: 10,
       },
       mood: { reminderHour: DEFAULT_MOOD_REMINDER_HOUR },
       cycle: { clientManaged: false },
@@ -242,6 +250,7 @@ describe("resolveNotificationPrefs (deep-merge)", () => {
         clientManaged: true,
         deliveryDefault: "client",
         lowStockRunwayDays: 7,
+        reorderLeadDays: 10,
       },
       mood: { reminderHour: DEFAULT_MOOD_REMINDER_HOUR },
       cycle: { clientManaged: false },
@@ -265,6 +274,7 @@ describe("resolveNotificationPrefs (deep-merge)", () => {
         clientManaged: true,
         deliveryDefault: "server",
         lowStockRunwayDays: 7,
+        reorderLeadDays: 10,
       },
       mood: { reminderHour: 8 },
       cycle: { clientManaged: false },
@@ -515,6 +525,29 @@ describe("lowStockRunwayDays — v1.16.11 low-stock threshold", () => {
     ).toBe(14);
   });
 
+  it("resolves the reorder lead default (10) for a null / drifted row", () => {
+    expect(resolveReorderLeadDays(null, null)).toBe(DEFAULT_REORDER_LEAD_DAYS);
+    expect(resolveReorderLeadDays({ unknown: "shape" }, undefined)).toBe(
+      DEFAULT_REORDER_LEAD_DAYS,
+    );
+  });
+
+  it("reads the persisted user-level reorder lead when no per-med override", () => {
+    expect(
+      resolveReorderLeadDays({ medication: { reorderLeadDays: 21 } }, null),
+    ).toBe(21);
+  });
+
+  it("a per-medication reorder-lead override beats the user default", () => {
+    // User default 21, per-med 0 → the per-med value wins (incl. 0).
+    expect(
+      resolveReorderLeadDays({ medication: { reorderLeadDays: 21 } }, 0),
+    ).toBe(0);
+    expect(
+      resolveReorderLeadDays({ medication: { reorderLeadDays: 21 } }, 5),
+    ).toBe(5);
+  });
+
   it("returns null when the user switched the alert off", () => {
     expect(
       resolveLowStockRunwayDays({ medication: { lowStockRunwayDays: null } }),
@@ -532,6 +565,7 @@ describe("lowStockRunwayDays — v1.16.11 low-stock threshold", () => {
       clientManaged: true,
       deliveryDefault: "server",
       lowStockRunwayDays: 21,
+      reorderLeadDays: 10,
     });
     // ...and the next PATCH (threshold off) keeps the sibling again.
     const off = resolveNotificationPrefs(merged, {
@@ -541,6 +575,7 @@ describe("lowStockRunwayDays — v1.16.11 low-stock threshold", () => {
       clientManaged: true,
       deliveryDefault: "server",
       lowStockRunwayDays: null,
+      reorderLeadDays: 10,
     });
   });
 });

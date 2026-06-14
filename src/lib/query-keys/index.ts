@@ -67,6 +67,8 @@ export const measurementDependentKeys = [
   ["trend-series"] as const,
   // v1.11.5 — refresh the last-night hypnogram when sleep rows change.
   ["sleep-night"] as const,
+  // v1.17.0 — refresh the sleep-debt + chronotype read when sleep rows change.
+  ["sleep-rhythm"] as const,
 ];
 
 /**

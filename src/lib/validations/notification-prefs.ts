@@ -48,6 +48,17 @@ const medicationPrefsSchema = z
      * the medication-low-stock cron.
      */
     lowStockRunwayDays: z.number().int().min(1).max(60).nullable(),
+    /**
+     * v1.17.0 — reorder lead time (days) the low-stock alert assumes
+     * between placing a refill order and the new supply arriving. The
+     * engine fires the alert when the projected runway drops to or below
+     * `max(lowStockRunwayDays, reorderLeadDays + one dose-interval)`, so
+     * the warning lands BEFORE the last dose for any cadence (a weekly
+     * injection no longer alerts only when ~1 dose is left). 0–60;
+     * default 10. A per-medication `Medication.reorderLeadDays` overrides
+     * this user default when set.
+     */
+    reorderLeadDays: z.number().int().min(0).max(60),
   })
   .partial();
 
@@ -143,6 +154,11 @@ export interface NotificationPrefs {
      * when the alert is off. Default 7.
      */
     lowStockRunwayDays: number | null;
+    /**
+     * v1.17.0 — reorder lead time (days) the low-stock alert assumes.
+     * 0–60; default 10. Per-medication `reorderLeadDays` overrides it.
+     */
+    reorderLeadDays: number;
   };
   mood: {
     /** v1.7.0 — local-time hour (0–23) for the daily mood reminder. */
@@ -186,6 +202,14 @@ export const DEFAULT_MOOD_REMINDER_HOUR = 22;
 export const DEFAULT_LOW_STOCK_RUNWAY_DAYS = 7;
 
 /**
+ * v1.17.0 — default reorder lead time: assume 10 days between ordering a
+ * refill and the new supply arriving. The alert engine widens the
+ * trigger by this lead plus one dose-interval so a sparse cadence is
+ * warned before its last dose.
+ */
+export const DEFAULT_REORDER_LEAD_DAYS = 10;
+
+/**
  * Safe defaults. Every category is off so the server reminders flow
  * unchanged for any user the iOS app has not explicitly opted in.
  * The maintainer's directive: zero regression for clients without working
@@ -196,6 +220,7 @@ export const DEFAULT_NOTIFICATION_PREFS: NotificationPrefs = {
     clientManaged: false,
     deliveryDefault: "server",
     lowStockRunwayDays: DEFAULT_LOW_STOCK_RUNWAY_DAYS,
+    reorderLeadDays: DEFAULT_REORDER_LEAD_DAYS,
   },
   mood: {
     reminderHour: DEFAULT_MOOD_REMINDER_HOUR,
@@ -346,6 +371,23 @@ export function resolveMoodReminderHour(raw: unknown): number {
  */
 export function resolveLowStockRunwayDays(raw: unknown): number | null {
   return parseNotificationPrefs(raw).medication.lowStockRunwayDays;
+}
+
+/**
+ * v1.17.0 — resolve the EFFECTIVE reorder lead time (days) for one
+ * medication: the per-medication override when set, otherwise the
+ * user-level default from the prefs blob (a null / drifted row resolves
+ * to the documented 10-day default). The low-stock alert adds this lead
+ * plus one dose-interval on top of the runway threshold.
+ */
+export function resolveReorderLeadDays(
+  raw: unknown,
+  medicationOverride: number | null | undefined,
+): number {
+  if (typeof medicationOverride === "number" && medicationOverride >= 0) {
+    return medicationOverride;
+  }
+  return parseNotificationPrefs(raw).medication.reorderLeadDays;
 }
 
 /**

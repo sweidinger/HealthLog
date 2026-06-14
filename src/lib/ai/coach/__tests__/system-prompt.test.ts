@@ -98,6 +98,26 @@ describe("getCoachSystemPrompt — EN", () => {
     // appear.
     expect(prompt).not.toMatch(/@.+\.(com|net|org|de|test)/);
   });
+
+  it("documents the glucose.clinical panel sub-key and its gates", () => {
+    // v1.17.0 — the model must know the `clinical` sub-key exists, how to
+    // read TIR/GMI/eA1C/CV, and must NOT assert a clinical figure when the
+    // learning-gate or the spot-estimate caveat is set.
+    expect(prompt).toMatch(/"clinical"/);
+    expect(prompt).toMatch(/tirPercent/);
+    expect(prompt).toMatch(/\bgmi\b/);
+    expect(prompt).toMatch(/estimatedA1c/);
+    expect(prompt).toMatch(/cvPercent/);
+    expect(prompt).toMatch(/stillLearning/);
+    expect(prompt).toMatch(/isSpotEstimate/);
+  });
+
+  it("documents the WHOOP-native dayStrain block vs the computed proxy", () => {
+    // v1.17.0 — native 0–21 strain preferred over the computed 0–100 proxy.
+    expect(prompt).toMatch(/dayStrain/);
+    expect(prompt).toMatch(/0–21/);
+    expect(prompt).toMatch(/0–100/);
+  });
 });
 
 describe("getCoachSystemPrompt — DE", () => {
@@ -152,6 +172,14 @@ describe("getCoachSystemPrompt — DE", () => {
     expect(exampleOpens).toBe(exampleCloses);
     expect(prompt).toMatch(/Bewegung sehe ich in deinem Tracking gerade nicht/);
     expect(prompt).toMatch(/außerhalb dessen, womit ich helfen kann/);
+  });
+
+  it("lists glucose + duration units in the evidence-block enumeration", () => {
+    // v1.17.0 — the DE unit list must sanction mg/dL, mmol/L and min so a
+    // German coach can cite glucose + duration values with a valid token.
+    expect(prompt).toMatch(/mg\/dL/);
+    expect(prompt).toMatch(/mmol\/L/);
+    expect(prompt).toMatch(/min[\s\S]*\(Schlafdefizit/);
   });
 });
 

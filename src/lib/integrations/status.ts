@@ -38,8 +38,17 @@ import { encrypt, decrypt } from "@/lib/crypto";
 import { auditLog } from "@/lib/auth/audit";
 import { getEvent } from "@/lib/logging/context";
 import { dispatchNotification } from "@/lib/notifications/dispatcher";
+import type { IntegrationClassification } from "@/lib/integrations/http-status-classifier";
 
-export type IntegrationKey = "withings" | "whoop" | "fitbit" | "moodlog";
+export type IntegrationKey =
+  | "withings"
+  | "whoop"
+  | "fitbit"
+  // v1.17.0 — Nightscout glucose (F1) + Polar / Oura OAuth (F4).
+  | "nightscout"
+  | "polar"
+  | "oura"
+  | "moodlog";
 
 /**
  * Failure kinds carried into `recordSyncFailure`.
@@ -65,6 +74,23 @@ export type IntegrationKey = "withings" | "whoop" | "fitbit" | "moodlog";
  * kind so operations can filter.
  */
 export type FailureKind = "transient" | "reauth_required" | "persistent";
+
+/**
+ * Map a shared `IntegrationClassification` onto the ledger `FailureKind`.
+ *
+ * `success` never reaches a failure path, so it collapses into `transient`
+ * alongside the genuinely-retryable verdicts; `reauth_required` and
+ * `persistent` pass through unchanged. Lifted out of the per-vendor
+ * `classifyXFailure` adapters (Polar / Oura / Nightscout), which each carried a
+ * byte-identical copy of this mapping.
+ */
+export function toFailureKind(
+  classification: IntegrationClassification,
+): FailureKind {
+  if (classification === "reauth_required") return "reauth_required";
+  if (classification === "persistent") return "persistent";
+  return "transient";
+}
 
 /**
  * Recognised IntegrationStatus states.
@@ -774,6 +800,22 @@ export interface AlertInput {
  * kind is a one-row table edit instead of two more arms in two
  * different ternary stacks (the style-guide forbids nested ternaries).
  */
+/**
+ * Display label per `IntegrationKey`. A one-row table edit replaces the
+ * nested-ternary chain the admin-alert formatter used to carry — adding
+ * a new integration is a single line here instead of another arm in a
+ * ternary stack (the style-guide forbids nested ternaries).
+ */
+const INTEGRATION_LABELS: Record<IntegrationKey, string> = {
+  withings: "Withings",
+  whoop: "WHOOP",
+  fitbit: "Fitbit",
+  nightscout: "Nightscout",
+  polar: "Polar",
+  oura: "Oura",
+  moodlog: "moodLog",
+};
+
 const FAILURE_KIND_COPY: Record<
   FailureKind,
   { reason: string; action: string }
@@ -819,14 +861,7 @@ export function formatAdminAlertPayload(input: AlertInput): {
   message: string;
   metadata: Record<string, unknown>;
 } {
-  const integrationLabel =
-    input.integration === "withings"
-      ? "Withings"
-      : input.integration === "whoop"
-        ? "WHOOP"
-        : input.integration === "fitbit"
-          ? "Fitbit"
-          : "moodLog";
+  const integrationLabel = INTEGRATION_LABELS[input.integration];
   const subjectLabel = input.subjectLabel ?? input.userId;
   const { reason: reasonLabel, action: actionLabel } =
     FAILURE_KIND_COPY[input.kind];

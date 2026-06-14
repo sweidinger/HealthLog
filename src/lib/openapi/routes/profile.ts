@@ -62,6 +62,14 @@ const notificationPrefsResolved = z
         .describe(
           "Low-stock alert threshold as remaining runway days (1–60). null = alert off. Default 7.",
         ),
+      reorderLeadDays: z
+        .number()
+        .int()
+        .min(0)
+        .max(60)
+        .describe(
+          "Reorder lead time in days (0–60) the low-stock alert assumes. The alert fires this lead plus one dose-interval before the supply runs out so a refill arrives before the last dose. Default 10; a per-medication reorderLeadDays overrides it.",
+        ),
     }),
     mood: z.object({
       reminderHour: z

@@ -62,6 +62,11 @@ export type InsightMetric =
   | "ACTIVE_ENERGY"
   // v1.4.32 — wave-A HealthKit metrics promoted to first-class sub-pages.
   | "HEART_RATE_VARIABILITY"
+  // v1.17.0 — RMSSD-flavoured HRV. Oura / Polar / WHOOP write nightly HRV
+  // as `HRV_RMSSD`; Apple Health / Fitbit write SDNN as
+  // `HEART_RATE_VARIABILITY`. The `hrv` sub-page gates on either so a
+  // ring / strap user's stored HRV lights the tab, pill, and dashboard.
+  | "HRV_RMSSD"
   | "RESTING_HEART_RATE"
   | "OXYGEN_SATURATION"
   | "BODY_TEMPERATURE"
@@ -148,6 +153,15 @@ export function hasMetricData(
     // BMI is derived from WEIGHT + the profile height. The chart
     // mounts even at one weight reading; the gate matches.
     return (inputs.summaries?.WEIGHT?.count ?? 0) > 0;
+  }
+  if (metric === "HEART_RATE_VARIABILITY") {
+    // v1.17.0 — surface SDNN (`HEART_RATE_VARIABILITY`, Apple / Fitbit)
+    // OR RMSSD (`HRV_RMSSD`, Oura / Polar / WHOOP). Either stream lights
+    // the HRV tab, pill, and dashboard tile.
+    return (
+      (inputs.summaries?.HEART_RATE_VARIABILITY?.count ?? 0) > 0 ||
+      (inputs.summaries?.HRV_RMSSD?.count ?? 0) > 0
+    );
   }
   return (inputs.summaries?.[metric]?.count ?? 0) > 0;
 }

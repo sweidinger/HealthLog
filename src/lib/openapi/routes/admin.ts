@@ -152,7 +152,7 @@ export const adminInvitePaths: NonNullable<ZodOpenApiObject["paths"]> = {
                   url: z
                     .string()
                     .describe(
-                      "Composed registration deep link (`/auth/register?invite=…`).",
+                      "Composed invite universal-link (`/invite/<hlv_token>`). On iOS it opens the app onto onboarding registration; in a browser it redirects to `/auth/register?invite=…`.",
                     ),
                 }),
                 "AdminInviteCreated",

@@ -260,6 +260,12 @@ import {
   handleFitbitOAuthStateCleanup,
 } from "./reminder/fitbit-sync";
 import {
+  NightscoutSyncPayload,
+  handleNightscoutSync,
+} from "./reminder/nightscout-sync";
+import { PolarSyncPayload, handlePolarSync } from "./reminder/polar-sync";
+import { OuraSyncPayload, handleOuraSync } from "./reminder/oura-sync";
+import {
   handleMedicationInventoryExpire,
   handleIntakeAutoSkip,
 } from "./reminder/medication-maintenance";
@@ -390,6 +396,23 @@ const FITBIT_SYNC_CRON = "8 * * * *"; // every hour at :08
 const FITBIT_OAUTH_STATE_CLEANUP_QUEUE = "fitbit-oauth-state-cleanup";
 
 const FITBIT_OAUTH_STATE_CLEANUP_CRON = "24 3 * * *";
+// v1.17.0 — Nightscout CGM poll sync. Poll-only (no webhook): one hourly tick
+// pulls the recent SGV window per configured instance. :11 staggers off the
+// WHOOP (:05), Fitbit (:08), and Withings sync ticks so the hourly polls don't
+// pile up on one boss poll.
+const NIGHTSCOUT_SYNC_QUEUE = "nightscout-sync";
+
+const NIGHTSCOUT_SYNC_CRON = "11 * * * *"; // every hour at :11
+// v1.17.0 (F4) — Polar + Oura OAuth poll sync. Poll-only (one hourly tick per
+// provider re-walks every connected user). :13 / :15 stagger off the other
+// hourly sync ticks (WHOOP :05, Fitbit :08, Nightscout :11) so the polls don't
+// pile up on one boss poll. The queues MUST be registered in `allQueues` below
+// or pg-boss never provisions them and the schedule silently no-ops (the
+// v1.4.37 dead-queue class).
+const POLAR_SYNC_QUEUE = "polar-sync";
+const POLAR_SYNC_CRON = "13 * * * *"; // every hour at :13
+const OURA_SYNC_QUEUE = "oura-sync";
+const OURA_SYNC_CRON = "15 * * * *"; // every hour at :15
 // v1.15.19 — daily duplicate dose-slot dedup discovery tick. The boot-time
 // pass only ran on worker restart, so a cross-source duplicate slot created
 // between deploys (a pending REMINDER row plus a standalone API/WEB row on
@@ -606,6 +629,15 @@ export async function startReminderWorker() {
     FITBIT_SYNC_QUEUE,
     FITBIT_BACKFILL_QUEUE,
     FITBIT_OAUTH_STATE_CLEANUP_QUEUE,
+    // v1.17.0 — Nightscout CGM poll sync. Poll-only (no webhook, no OAuth, no
+    // backfill queue — the hourly window walks the recent SGV set). The queue
+    // MUST be registered here or pg-boss never provisions it and the schedule
+    // below silently no-ops (the v1.4.37 dead-queue class).
+    NIGHTSCOUT_SYNC_QUEUE,
+    // v1.17.0 (F4) — Polar + Oura OAuth poll sync. Registered here or pg-boss
+    // never provisions them and the hourly schedule below silently no-ops.
+    POLAR_SYNC_QUEUE,
+    OURA_SYNC_QUEUE,
     OFFHOST_BACKUP_QUEUE,
     RESTORE_DRILL_QUEUE,
     HOST_METRIC_QUEUE,
@@ -826,6 +858,12 @@ export async function startReminderWorker() {
     // daily 03:24 Europe/Berlin prune for expired Fitbit OAuth states.
     [FITBIT_SYNC_QUEUE, FITBIT_SYNC_CRON],
     [FITBIT_OAUTH_STATE_CLEANUP_QUEUE, FITBIT_OAUTH_STATE_CLEANUP_CRON],
+    // v1.17.0 — hourly Nightscout CGM poll (:11, staggered off the other sync
+    // ticks).
+    [NIGHTSCOUT_SYNC_QUEUE, NIGHTSCOUT_SYNC_CRON],
+    // v1.17.0 (F4) — hourly Polar (:13) + Oura (:15) OAuth polls.
+    [POLAR_SYNC_QUEUE, POLAR_SYNC_CRON],
+    [OURA_SYNC_QUEUE, OURA_SYNC_CRON],
     [OFFHOST_BACKUP_QUEUE, OFFHOST_BACKUP_CRON],
     [RESTORE_DRILL_QUEUE, RESTORE_DRILL_CRON],
     [HOST_METRIC_QUEUE, HOST_METRIC_CRON],
@@ -1017,6 +1055,27 @@ export async function startReminderWorker() {
     FITBIT_OAUTH_STATE_CLEANUP_QUEUE,
     { localConcurrency: 1 },
     handleFitbitOAuthStateCleanup,
+  );
+  // v1.17.0 — Nightscout CGM poll-cohort sync. The hourly cron tick (no
+  // `userId`) walks every configured instance; one user's unreachable host is
+  // warned, not fatal.
+  await boss.work<NightscoutSyncPayload>(
+    NIGHTSCOUT_SYNC_QUEUE,
+    { localConcurrency: 1 },
+    handleNightscoutSync,
+  );
+  // v1.17.0 (F4) — Polar + Oura OAuth poll-cohort sync. The hourly cron tick
+  // (no `userId`) re-walks every connected user; one user's revoked grant is
+  // warned, not fatal.
+  await boss.work<PolarSyncPayload>(
+    POLAR_SYNC_QUEUE,
+    { localConcurrency: 1 },
+    handlePolarSync,
+  );
+  await boss.work<OuraSyncPayload>(
+    OURA_SYNC_QUEUE,
+    { localConcurrency: 1 },
+    handleOuraSync,
   );
   await boss.work<GeneralStatusPayload>(
     GENERAL_STATUS_QUEUE,

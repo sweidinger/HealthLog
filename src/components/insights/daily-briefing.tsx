@@ -59,7 +59,7 @@ const METRIC_HREF: Record<
   // the category pages use to drill into a single type). Every other
   // briefing finding with a real destination is already tappable; steps
   // was the lone static row.
-  steps: "/insights/values/ACTIVITY_STEPS",
+  steps: "/insights/steps",
   active_energy: null,
   flights: null,
   distance: null,
