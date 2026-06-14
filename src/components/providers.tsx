@@ -19,6 +19,7 @@ import type { Locale } from "@/lib/i18n/config";
 import { Toaster } from "@/components/ui/sonner";
 import { AppSettingsProvider } from "@/components/app-settings-provider";
 import { VersionPoller } from "@/components/version-poller";
+import { ServiceWorkerRegistrar } from "@/components/service-worker-registrar";
 import { isDashboardSnapshotEnabled } from "@/lib/dashboard/snapshot-flag";
 import { prefetchDashboardSnapshot } from "@/lib/queries/use-dashboard-snapshot";
 import { prefetchMedicationsList } from "@/lib/queries/prefetch-medications";
@@ -184,6 +185,7 @@ export function Providers({
             {children}
             <Toaster position="bottom-right" richColors />
             <VersionPoller />
+            <ServiceWorkerRegistrar />
           </AppSettingsProvider>
         </I18nProvider>
       </ThemeProvider>
