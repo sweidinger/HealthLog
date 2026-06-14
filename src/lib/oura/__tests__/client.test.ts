@@ -7,10 +7,14 @@ import {
   getAuthorizationUrl,
   getOuraCredentials,
   mapDailyActivity,
+  mapDailySleep,
+  mapDailySpo2,
   mapReadiness,
   mapSleep,
   refreshAccessToken,
   type OuraDailyActivity,
+  type OuraDailySleep,
+  type OuraDailySpo2,
   type OuraReadiness,
   type OuraSleep,
 } from "../client";
@@ -122,18 +126,41 @@ describe("mapReadiness", () => {
   it("maps score -> RECOVERY_SCORE", () => {
     const r: OuraReadiness = { id: "1", day: "2026-06-10", score: 84 };
     const mapped = mapReadiness(r);
-    expect(mapped).toHaveLength(1);
-    expect(mapped[0]).toMatchObject({ type: "RECOVERY_SCORE", value: 84, fieldTag: "recovery" });
+    expect(mapped.find((m) => m.type === "RECOVERY_SCORE")).toMatchObject({
+      value: 84,
+      fieldTag: "recovery",
+    });
   });
-  it("skips a record with no score", () => {
+  it("maps temperature_deviation -> BODY_TEMPERATURE_DEVIATION (signed °C)", () => {
+    const r: OuraReadiness = {
+      id: "1",
+      day: "2026-06-10",
+      score: 70,
+      temperature_deviation: -0.42,
+    };
+    const mapped = mapReadiness(r);
+    const dev = mapped.find((m) => m.type === "BODY_TEMPERATURE_DEVIATION");
+    expect(dev).toMatchObject({ value: -0.42, unit: "celsius", fieldTag: "temp_deviation" });
+  });
+  it("emits the temperature deviation even when the score is absent", () => {
+    const mapped = mapReadiness({
+      id: "1",
+      day: "2026-06-10",
+      score: null,
+      temperature_deviation: 0.3,
+    });
+    expect(mapped).toHaveLength(1);
+    expect(mapped[0].type).toBe("BODY_TEMPERATURE_DEVIATION");
+  });
+  it("skips a record with no score and no temperature", () => {
     expect(mapReadiness({ id: "1", day: "2026-06-10", score: null })).toEqual([]);
   });
 });
 
 describe("mapSleep", () => {
-  it("maps stages s->min, efficiency, hrv, rhr, breath", () => {
+  it("falls back to stage totals (no hypnogram) and record-scopes the externalId", () => {
     const s: OuraSleep = {
-      id: "1",
+      id: "rec-9",
       day: "2026-06-10",
       light_sleep_duration: 3600,
       deep_sleep_duration: 1800,
@@ -151,22 +178,114 @@ describe("mapSleep", () => {
     expect(mapped.find((m) => m.type === "HRV_RMSSD")?.value).toBe(48);
     expect(mapped.find((m) => m.type === "RESTING_HEART_RATE")?.value).toBe(49);
     expect(mapped.find((m) => m.type === "RESPIRATORY_RATE")?.value).toBe(14.5);
+    // B2 — every sleep row is record-scoped so a nap never overwrites the main.
+    expect(
+      mapped.every((m) => m.externalId?.startsWith("sleep:rec-9:")),
+    ).toBe(true);
+  });
+
+  it("emits a real timed timeline from sleep_phase_5_min (reconstructed=false)", () => {
+    // 2× deep (1), 3× light (2), 1× rem (3), 1× awake (4) = 7 five-min intervals.
+    const s: OuraSleep = {
+      id: "rec-T",
+      day: "2026-06-10",
+      bedtime_start: "2026-06-09T23:00:00.000Z",
+      bedtime_end: "2026-06-10T07:00:00.000Z",
+      sleep_phase_5_min: "1122234",
+    };
+    const mapped = mapSleep(s).filter((m) => m.type === "SLEEP_DURATION");
+    // Four contiguous runs → four segments, in onset order.
+    expect(mapped.map((m) => m.sleepStage)).toEqual([
+      "DEEP",
+      "CORE",
+      "REM",
+      "AWAKE",
+    ]);
+    // Run lengths × 5 min: 2→10, 3→15, 1→5, 1→5.
+    expect(mapped.map((m) => m.value)).toEqual([10, 15, 5, 5]);
+    // Each segment stamped at its own END instant relative to bedtime_start.
+    const onset = new Date("2026-06-09T23:00:00.000Z").getTime();
+    expect(mapped[0].measuredAt.getTime()).toBe(onset + 10 * 60_000);
+    expect(mapped[1].measuredAt.getTime()).toBe(onset + 25 * 60_000);
+    // Distinct, record-scoped, segment-indexed externalIds (no collapse).
+    const ids = mapped.map((m) => m.externalId);
+    expect(new Set(ids).size).toBe(ids.length);
+    expect(ids[0]).toBe("sleep:rec-T:seg:0");
+  });
+
+  it("ignores an empty / malformed hypnogram and uses stage totals", () => {
+    const s: OuraSleep = {
+      id: "rec-E",
+      day: "2026-06-10",
+      bedtime_start: "2026-06-09T23:00:00.000Z",
+      sleep_phase_5_min: "",
+      deep_sleep_duration: 1800,
+    };
+    const mapped = mapSleep(s).filter((m) => m.type === "SLEEP_DURATION");
+    expect(mapped).toHaveLength(1);
+    expect(mapped[0].sleepStage).toBe("DEEP");
+    expect(mapped[0].fieldTag).toBe("sleep_deep");
   });
 });
 
 describe("mapDailyActivity", () => {
-  it("maps steps and active energy", () => {
+  it("maps steps, active energy, and equivalent walking distance (m)", () => {
     const a: OuraDailyActivity = {
       id: "1",
       day: "2026-06-10",
       steps: 9001,
       active_calories: 412,
+      equivalent_walking_distance: 6543,
     };
     const mapped = mapDailyActivity(a);
     expect(mapped.find((m) => m.type === "ACTIVITY_STEPS")?.value).toBe(9001);
     expect(mapped.find((m) => m.type === "ACTIVE_ENERGY_BURNED")?.value).toBe(
       412,
     );
+    const dist = mapped.find((m) => m.type === "WALKING_RUNNING_DISTANCE");
+    expect(dist).toMatchObject({ value: 6543, unit: "m", fieldTag: "distance" });
+  });
+});
+
+describe("mapDailySleep", () => {
+  it("maps the Sleep Score -> SLEEP_SCORE", () => {
+    const d: OuraDailySleep = { id: "1", day: "2026-06-10", score: 82 };
+    const mapped = mapDailySleep(d);
+    expect(mapped).toHaveLength(1);
+    expect(mapped[0]).toMatchObject({
+      type: "SLEEP_SCORE",
+      value: 82,
+      unit: "score",
+      fieldTag: "sleep_score",
+    });
+  });
+  it("skips a record with no score", () => {
+    expect(mapDailySleep({ id: "1", day: "2026-06-10", score: null })).toEqual(
+      [],
+    );
+  });
+});
+
+describe("mapDailySpo2", () => {
+  it("maps the average SpO2 -> OXYGEN_SATURATION", () => {
+    const s: OuraDailySpo2 = {
+      id: "1",
+      day: "2026-06-10",
+      spo2_percentage: { average: 96.8 },
+    };
+    const mapped = mapDailySpo2(s);
+    expect(mapped).toHaveLength(1);
+    expect(mapped[0]).toMatchObject({
+      type: "OXYGEN_SATURATION",
+      value: 96.8,
+      unit: "%",
+      fieldTag: "spo2",
+    });
+  });
+  it("skips a record with no average", () => {
+    expect(
+      mapDailySpo2({ id: "1", day: "2026-06-10", spo2_percentage: { average: null } }),
+    ).toEqual([]);
   });
 });
 
