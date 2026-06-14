@@ -2,6 +2,19 @@
 
 ## [Unreleased]
 
+## [1.16.14] — 2026-06-14 — one number everywhere: the score, the coach, and the doctor-report agree
+
+### Changed
+
+- **Blood-pressure in-target speaks one window everywhere.** The in-target tile, the health-score blood-pressure pillar, and the coach now read a single 90-day window — labeled on the tile, so it is no longer hidden. The tile shows its real span ("· 23 T") until 90 days of history have accrued, and holds back a percentage ("sammelt noch Daten") until it has at least a handful of readings, so a single measurement can never imply a confident share. The all-time view stays on the detail page. The headline figure can differ from the previous unlabeled 30-day number — it is now the correct, consistent one.
+
+### Fixed
+
+- **The dashboard ring and the insights card show the same health score.** Both assemble the score from one shared input builder over identical windows, so the same account can no longer see two different scores or a pillar present on one surface and absent on the other; the ring's day-delta now also reflects blood-pressure movement.
+- **The coach quotes the adherence the card shows.** Medication compliance routes through the same authority as every other surface instead of the coach's own per-day tally, so it can no longer reason from a number you never see — it matters most on irregular, rolling and as-needed schedules.
+- **The doctor-report matches the app.** The adherence in the PDF/FHIR export is computed from the same dose history — slot attribution, cadence and cross-source dedup honoured — as the detail page, instead of a raw intake-row count, so the figure a clinician reads on paper agrees with the screen.
+- **Measurement and mood entries reject implausible timestamps.** A future date beyond a small clock-skew allowance, or anything before 1900, is refused — matching the medication-intake guard — so a stray future-dated reading can no longer distort the recent-window metrics.
+
 ## [1.16.13] — 2026-06-14 — installable and offline, doses that find the right day, and headers that hold their line
 
 ### Added
