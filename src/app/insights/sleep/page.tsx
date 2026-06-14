@@ -12,6 +12,7 @@ import { MetricStatusCard } from "@/components/insights/metric-status-card";
 import { MetricEmptyState } from "@/components/insights/metric-empty-state";
 import { MetricTargetSummary } from "@/components/insights/metric-target-summary";
 import { SleepOverview } from "@/components/insights/sleep-overview";
+import { SleepRhythmSection } from "@/components/insights/sleep/sleep-rhythm-section";
 import { SubPageShell } from "@/components/insights/sub-page-shell";
 
 /**
@@ -80,6 +81,13 @@ export default function InsightsSchlafPage() {
          awkward unit. */
     >
       <SleepOverview />
+
+      {/*
+        v1.17.0 — sleep-debt headline + chronotype card. Server-authoritative
+        (the same DTO iOS renders), gated on the data-bearing branch so a
+        source-less account never fetches.
+      */}
+      <SleepRhythmSection enabled={!isEmpty} />
 
       <MetricTargetSummary slug="sleep" />
 

@@ -2666,6 +2666,32 @@
         "title": "No sleep data yet",
         "description": "Apple Health sync arrives in v1.5 and will fill this in automatically.",
         "action": "Manage devices"
+      },
+      "debt": {
+        "title": "Sleep debt",
+        "value": "{hours}h {minutes}m short",
+        "caption": "Cumulative shortfall over the last {nights} nights",
+        "clearValue": "All caught up",
+        "clearCaption": "No accumulated shortfall over the last {nights} nights",
+        "learning": "Still learning your sleep — {counted} nights so far, {remaining} more to read a reliable balance."
+      },
+      "chronotype": {
+        "title": "Chronotype",
+        "learning": "Still learning your rhythm — {counted} of {total} free nights. A chronotype needs a few alarm-free mornings before it means anything.",
+        "midSleepCaption": "Mid-sleep on free days around {clock}",
+        "advancedToggle": "Advanced",
+        "socialJetlagValue": "{hours}h {minutes}m social jetlag",
+        "socialJetlagCaption": "The gap between your work-day and free-day sleep timing — like a small weekly time-zone shift.",
+        "msfScValue": "Corrected mid-sleep {clock}",
+        "msfScCaption": "Adjusted for the sleep you catch up on at the weekend (MSFsc).",
+        "dayTypeNote": "Free days are assumed to be weekends until day-type tracking is added.",
+        "band": {
+          "extreme_early": "Strong morning type",
+          "early": "Morning type",
+          "intermediate": "Intermediate type",
+          "late": "Evening type",
+          "extreme_late": "Strong evening type"
+        }
       }
     },
     "correlations": "Correlations",

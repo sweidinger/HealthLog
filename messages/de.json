@@ -2666,6 +2666,32 @@
         "title": "Noch keine Schlafdaten",
         "description": "Apple-Health-Sync folgt mit v1.5 und füllt diese Ansicht automatisch.",
         "action": "Geräte verwalten"
+      },
+      "debt": {
+        "title": "Schlafschuld",
+        "value": "{hours} Std. {minutes} Min. zu wenig",
+        "caption": "Kumuliertes Defizit der letzten {nights} Nächte",
+        "clearValue": "Ausgeglichen",
+        "clearCaption": "Kein aufgelaufenes Defizit über die letzten {nights} Nächte",
+        "learning": "Dein Schlaf wird noch erfasst — {counted} Nächte bisher, noch {remaining} für eine verlässliche Bilanz."
+      },
+      "chronotype": {
+        "title": "Chronotyp",
+        "learning": "Dein Rhythmus wird noch erfasst — {counted} von {total} freien Nächten. Ein Chronotyp braucht ein paar weckerfreie Morgen, um aussagekräftig zu sein.",
+        "midSleepCaption": "Schlafmitte an freien Tagen gegen {clock}",
+        "advancedToggle": "Mehr Details",
+        "socialJetlagValue": "{hours} Std. {minutes} Min. sozialer Jetlag",
+        "socialJetlagCaption": "Der Unterschied zwischen deinem Schlaf an Arbeits- und freien Tagen — wie eine kleine wöchentliche Zeitzonenverschiebung.",
+        "msfScValue": "Korrigierte Schlafmitte {clock}",
+        "msfScCaption": "Bereinigt um den Schlaf, den du am Wochenende nachholst (MSFsc).",
+        "dayTypeNote": "Freie Tage werden als Wochenenden angenommen, bis eine Tagestyp-Erfassung ergänzt wird.",
+        "band": {
+          "extreme_early": "Ausgeprägter Morgentyp",
+          "early": "Morgentyp",
+          "intermediate": "Mischtyp",
+          "late": "Abendtyp",
+          "extreme_late": "Ausgeprägter Abendtyp"
+        }
       }
     },
     "correlations": "Korrelationen",

@@ -27,6 +27,11 @@ vi.mock("@/lib/db", () => ({
     medicationScheduleRevision: {
       groupBy: vi.fn(),
     },
+    // v1.17.0 — the sleep-rhythm block resolves the user's age-based sleep
+    // need via the baseline profile (`User` row).
+    user: {
+      findUnique: vi.fn(),
+    },
     // v1.4.38 W-F — the route now uses `$queryRaw` for the per-type
     // latest reading, the 7-day rollup-bucket sparkline, and the
     // 365-day distinct-day streak set. Three raw calls per request,
@@ -120,6 +125,13 @@ beforeEach(() => {
   vi.mocked(prisma.medicationScheduleRevision.groupBy).mockResolvedValue(
     [] as never,
   );
+  // v1.17.0 — baseline profile read for the sleep-rhythm need. Default to a
+  // 40-year-old adult (need = 420 min) so the rhythm block resolves.
+  vi.mocked(prisma.user.findUnique).mockResolvedValue({
+    dateOfBirth: new Date("1986-01-01"),
+    gender: null,
+    heightCm: null,
+  } as never);
 });
 
 // v1.4.48 L13 — restore real timers no matter how a test exits. A failed
@@ -513,6 +525,59 @@ describe("GET /api/dashboard/summary", () => {
     expect(sleep?.sleepStages?.CORE).toBeCloseTo(4, 2);
     expect(sleep?.sleepStages?.DEEP).toBeCloseTo(1.5, 2);
     expect(sleep?.sleepStages?.REM).toBeCloseTo(80 / 60, 2);
+  });
+
+  it("emits the sleep-rhythm DTO (sleep-debt + chronotype) computed from the foundation modules (v1.17.0)", async () => {
+    vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
+    // Ten consecutive 6 h (360 min) nights. Need = 420 (40-year-old default in
+    // beforeEach) → a 60-min deficit per night, 10 nights ≥ the 7-night floor.
+    const rows = [];
+    for (let d = 1; d <= 10; d++) {
+      const day = String(d).padStart(2, "0");
+      rows.push({
+        value: 360,
+        measuredAt: new Date(`2026-06-${day}T06:00:00.000Z`),
+        sleepStage: "ASLEEP",
+        source: "APPLE_HEALTH",
+        deviceType: null,
+      });
+    }
+    vi.mocked(prisma.measurement.findMany).mockResolvedValue(rows as never);
+
+    const res = await callGet(makeReq());
+    const body = (await res.json()) as {
+      data: {
+        sleepRhythm: {
+          sleepDebt: {
+            state: string;
+            debtMinutes: number;
+            needMinutes: number;
+            nightsCounted: number;
+            windowNights: number;
+            nightsUntilReady: number;
+          };
+          chronotype: {
+            state: string;
+            freeNightsCounted: number;
+            workNightsCounted: number;
+            freeNightsUntilReady: number;
+          };
+        };
+      };
+    };
+    const { sleepDebt, chronotype } = body.data.sleepRhythm;
+    // Debt DTO is the computeSleepDebt result: ready, 10 × 60 = 600 min, need
+    // forwarded as 420 — proves the route reused the module, not a recompute.
+    expect(sleepDebt.state).toBe("ready");
+    expect(sleepDebt.debtMinutes).toBe(600);
+    expect(sleepDebt.needMinutes).toBe(420);
+    expect(sleepDebt.nightsCounted).toBe(10);
+    expect(sleepDebt.nightsUntilReady).toBe(0);
+    // Chronotype DTO carries every wiring field; the calm learning state holds
+    // until enough free-day nights exist (these are all weekday wake days).
+    expect(chronotype.state).toBe("learning");
+    expect(typeof chronotype.freeNightsCounted).toBe("number");
+    expect(typeof chronotype.freeNightsUntilReady).toBe("number");
   });
 
   it("paints the steps sparkline from rollup sum_value, not mean (v1.4.39 W-SUM)", async () => {

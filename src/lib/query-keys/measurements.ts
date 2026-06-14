@@ -46,6 +46,14 @@ export const measurementKeys = {
   sleepNight: (date?: string) => ["sleep-night", date ?? "latest"] as const,
 
   /**
+   * v1.17.0 — sleep-rhythm read (`GET /api/sleep/rhythm`): the
+   * server-authoritative sleep-debt + chronotype DTO. Reads the same raw
+   * SLEEP_DURATION rows the night view does, so a sleep write invalidates
+   * it through the shared measurement-dependent set.
+   */
+  sleepRhythm: () => ["sleep-rhythm"] as const,
+
+  /**
    * v1.4.40 W-RSC — per-chart daily-aggregate fetch from the dashboard
    * + insights chart row. Pre-fix the key was bare `["chart-data", …]`
    * across the codebase, which excluded it from

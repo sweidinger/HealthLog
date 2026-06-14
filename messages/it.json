@@ -2666,6 +2666,32 @@
         "title": "Ancora nessun dato sul sonno",
         "description": "La sync con Apple Health arriva con v1.5 e riempirà questa vista in automatico.",
         "action": "Gestisci dispositivi"
+      },
+      "debt": {
+        "title": "Debito di sonno",
+        "value": "{hours} h {minutes} min in meno",
+        "caption": "Deficit cumulato nelle ultime {nights} notti",
+        "clearValue": "In pari",
+        "clearCaption": "Nessun deficit accumulato nelle ultime {nights} notti",
+        "learning": "Stiamo ancora misurando il tuo sonno — {counted} notti finora, ne mancano {remaining} per un bilancio affidabile."
+      },
+      "chronotype": {
+        "title": "Cronotipo",
+        "learning": "Stiamo ancora imparando il tuo ritmo — {counted} di {total} notti libere. Un cronotipo richiede alcune mattine senza sveglia per avere significato.",
+        "midSleepCaption": "Metà del sonno nei giorni liberi intorno alle {clock}",
+        "advancedToggle": "Avanzate",
+        "socialJetlagValue": "{hours} h {minutes} min di jet lag sociale",
+        "socialJetlagCaption": "La differenza tra gli orari del sonno nei giorni lavorativi e in quelli liberi — come un piccolo cambio di fuso orario settimanale.",
+        "msfScValue": "Metà del sonno corretta {clock}",
+        "msfScCaption": "Corretta per il sonno recuperato nel fine settimana (MSFsc).",
+        "dayTypeNote": "Si presume che i giorni liberi siano i fine settimana finché non verrà aggiunto il tracciamento del tipo di giorno.",
+        "band": {
+          "extreme_early": "Tipo mattutino marcato",
+          "early": "Tipo mattutino",
+          "intermediate": "Tipo intermedio",
+          "late": "Tipo serale",
+          "extreme_late": "Tipo serale marcato"
+        }
       }
     },
     "correlations": "Correlazioni",

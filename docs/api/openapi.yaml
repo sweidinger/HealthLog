@@ -1906,6 +1906,27 @@ paths:
         "401": *a1
         "422": *a3
         "429": *a4
+  /api/sleep/rhythm:
+    get:
+      tags:
+        - Measurements
+      summary: Sleep rhythm — sleep-debt + chronotype (v1.17.0)
+      description: "Returns the two server-authoritative sleep-timing signals the Sleep page + iOS render off the same
+        canonical night reconstruction the Sleep Score uses: cumulative `sleepDebt` over the rolling window (calm
+        `partial` state under the night threshold) and MCTQ `chronotype` (MSF/MSFsc band + social jetlag, `learning`
+        state until enough free-day nights exist). Free vs work nights default to weekend = free in the user's timezone
+        (no work calendar). A read-only view over existing per-stage SLEEP_DURATION rows — no schema, no new measurement
+        type."
+      responses:
+        "200":
+          description: Sleep-debt + chronotype DTO.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SleepRhythmResponse"
+        "401": *a1
+        "422": *a3
+        "429": *a4
   /api/workouts:
     get:
       tags:
@@ -9138,6 +9159,134 @@ components:
       additionalProperties: false
       description: "One reconstructed sleep night: the main session's hypnogram segments + breakdown, plus same-wake-day naps
         surfaced separately."
+    SleepRhythmResponse:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/SleepRhythmResource"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    SleepRhythmResource:
+      type: object
+      properties:
+        sleepDebt:
+          type: object
+          properties:
+            state:
+              type: string
+              enum:
+                - partial
+                - ready
+              description: "`partial` until enough tracked nights exist (calm 'still learning'); `ready` once the rolling window can
+                assert a cumulative debt."
+            debtMinutes:
+              type: integer
+              minimum: 0
+              maximum: 9007199254740991
+              description: Cumulative sleep debt over the window, in minutes, after caps.
+            needMinutes:
+              type: integer
+              minimum: 0
+              maximum: 9007199254740991
+              description: Age-based sleep need (minutes) used for the per-night deficit.
+            nightsCounted:
+              type: integer
+              minimum: 0
+              maximum: 9007199254740991
+            windowNights:
+              type: integer
+              exclusiveMinimum: 0
+              maximum: 9007199254740991
+              description: Rolling window length in nights.
+            nightsUntilReady:
+              type: integer
+              minimum: 0
+              maximum: 9007199254740991
+              description: Nights still needed before the debt is asserted (0 when ready).
+          required:
+            - state
+            - debtMinutes
+            - needMinutes
+            - nightsCounted
+            - windowNights
+            - nightsUntilReady
+          additionalProperties: false
+        chronotype:
+          type: object
+          properties:
+            state:
+              type: string
+              enum:
+                - learning
+                - ready
+              description: "`learning` until enough free-day nights exist (no band asserted); `ready` once the free-day sample is
+                large enough."
+            msfMinutes:
+              anyOf:
+                - type: number
+                - type: "null"
+              description: Mid-sleep on free days (minutes-of-day), null while learning.
+            msfScMinutes:
+              anyOf:
+                - type: number
+                - type: "null"
+              description: Sleep-debt-corrected mid-sleep on free days (MSFsc, minutes-of-day), null while learning.
+            band:
+              anyOf:
+                - type: string
+                  enum:
+                    - extreme_early
+                    - early
+                    - intermediate
+                    - late
+                    - extreme_late
+                - type: "null"
+              description: MCTQ chronotype band off MSFsc, null while learning.
+            socialJetlagMinutes:
+              anyOf:
+                - type: number
+                - type: "null"
+              description: Social jetlag = circular |MSF_work − MSF_free| in minutes, null when one side is missing.
+            freeNightsCounted:
+              type: integer
+              minimum: 0
+              maximum: 9007199254740991
+            workNightsCounted:
+              type: integer
+              minimum: 0
+              maximum: 9007199254740991
+            freeNightsUntilReady:
+              type: integer
+              minimum: 0
+              maximum: 9007199254740991
+              description: Free-day nights still needed before a band is asserted.
+          required:
+            - state
+            - msfMinutes
+            - msfScMinutes
+            - band
+            - socialJetlagMinutes
+            - freeNightsCounted
+            - workNightsCounted
+            - freeNightsUntilReady
+          additionalProperties: false
+      required:
+        - sleepDebt
+        - chronotype
+      additionalProperties: false
+      description: "Server-authoritative sleep-rhythm read: cumulative sleep debt over the rolling window + MCTQ chronotype
+        (MSF/MSFsc band, social jetlag). Free vs work nights default to weekend = free in the user's timezone (no work
+        calendar). A view over existing per-stage SLEEP_DURATION rows — no schema, no new type."
     ListWorkoutsResponse:
       type: object
       properties:
