@@ -25,7 +25,7 @@ import { SubPageShell } from "@/components/insights/sub-page-shell";
  *
  * v1.4.27 F17 — when `summaries.SLEEP_DURATION.count === 0` (no
  * Apple-Health / Withings sleep rows yet), the page short-circuits
- * to an empty-state CTA pointing at `/settings/data-sources` so the
+ * to an empty-state CTA pointing at `/settings/integrations` so the
  * user can connect a sleep source.
  *
  * v1.4.28 R3d (BK-F-H1 + BK-F-M1) — analytics fetch + empty-state
@@ -50,7 +50,7 @@ export default function InsightsSchlafPage() {
           description={t("insights.emptyState.sleep.description")}
           cta={
             <Button size="sm" asChild>
-              <Link href="/settings/data-sources">
+              <Link href="/settings/integrations">
                 {t("insights.emptyState.sleep.cta")}
               </Link>
             </Button>
