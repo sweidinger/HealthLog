@@ -550,6 +550,8 @@
     "typeAverageHeartRate": "Średnie tętno",
     "typeMaxHeartRate": "Maksymalne tętno",
     "typeSleepDisturbanceCount": "Zakłócenia snu",
+    "typeSleepScore": "Wynik snu",
+    "typeBodyTemperatureDeviation": "Odchylenie temperatury ciała",
     "filterBySource": "Filtruj według źródła",
     "sourceComputed": "Obliczone",
     "sourceWhoop": "WHOOP",

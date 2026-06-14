@@ -550,6 +550,8 @@
     "typeAverageHeartRate": "Frequenza cardiaca media",
     "typeMaxHeartRate": "Frequenza cardiaca massima",
     "typeSleepDisturbanceCount": "Disturbi del sonno",
+    "typeSleepScore": "Punteggio del sonno",
+    "typeBodyTemperatureDeviation": "Deviazione della temperatura corporea",
     "filterBySource": "Filtra per fonte",
     "sourceComputed": "Calcolato",
     "sourceWhoop": "WHOOP",

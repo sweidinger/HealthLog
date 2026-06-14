@@ -188,6 +188,11 @@ export const DOCTOR_REPORT_TYPE_UNIT_KEYS: Record<string, string | null> = {
  * and carry a "descriptive, not a clinical assessment" disclaimer. They stay
  * out of this table by design (paired with `PDF_VITAL_EXCLUSIONS` in
  * `measurement-type-enum-coverage.test.ts`).
+ *
+ * v1.17.1 — Oura coverage completion. `SLEEP_SCORE` (a nightly derived
+ * composite) and `BODY_TEMPERATURE_DEVIATION` (a signed baseline offset, not an
+ * absolute reading) are excluded for the same reason as the other derived /
+ * lifestyle signals — they are descriptive, not measured clinical vitals.
  */
 export const DOCTOR_REPORT_VITAL_TYPES = [
   "WEIGHT",

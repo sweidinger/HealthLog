@@ -114,6 +114,9 @@ export const MEASUREMENT_TYPE_LABEL_KEYS: Record<string, string> = {
   AVERAGE_HEART_RATE: "measurements.typeAverageHeartRate",
   MAX_HEART_RATE: "measurements.typeMaxHeartRate",
   SLEEP_DISTURBANCE_COUNT: "measurements.typeSleepDisturbanceCount",
+  // ── v1.17.1 — Oura coverage completion ──
+  SLEEP_SCORE: "measurements.typeSleepScore",
+  BODY_TEMPERATURE_DEVIATION: "measurements.typeBodyTemperatureDeviation",
 };
 
 export const MEASUREMENT_TYPE_ICONS: Record<string, LucideIcon> = {
@@ -225,6 +228,9 @@ export const MEASUREMENT_TYPE_ICONS: Record<string, LucideIcon> = {
   AVERAGE_HEART_RATE: HeartPulse,
   MAX_HEART_RATE: Heart,
   SLEEP_DISTURBANCE_COUNT: Waves,
+  // ── v1.17.1 — Oura coverage completion ──
+  SLEEP_SCORE: Moon,
+  BODY_TEMPERATURE_DEVIATION: Thermometer,
 };
 
 export const MEASUREMENT_TYPE_COLORS: Record<string, string> = {
@@ -326,4 +332,9 @@ export const MEASUREMENT_TYPE_COLORS: Record<string, string> = {
   AVERAGE_HEART_RATE: "bg-chart-3/20 text-chart-3",
   MAX_HEART_RATE: "bg-chart-3/20 text-chart-3",
   SLEEP_DISTURBANCE_COUNT: "bg-chart-2/20 text-chart-2",
+  // ── v1.17.1 — Oura coverage completion ──
+  // chart-2 (sleep family) for the Sleep Score; chart-5 (metabolic/thermal)
+  // for the body-temperature deviation.
+  SLEEP_SCORE: "bg-chart-2/20 text-chart-2",
+  BODY_TEMPERATURE_DEVIATION: "bg-chart-5/20 text-chart-5",
 };

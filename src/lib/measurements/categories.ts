@@ -188,6 +188,13 @@ export const MEASUREMENT_CATEGORIES: ReadonlyMap<
   ["AVERAGE_HEART_RATE", "cardiovascular"],
   ["MAX_HEART_RATE", "cardiovascular"],
   ["SLEEP_DISTURBANCE_COUNT", "sleep"],
+
+  // ── v1.17.1 — Oura coverage completion ──
+  // The Sleep Score is a per-night sleep-quality index → sleep cluster.
+  ["SLEEP_SCORE", "sleep"],
+  // Body-temperature deviation is an overnight thermal signal that pairs with
+  // skin / wrist temperature in the metabolic cluster.
+  ["BODY_TEMPERATURE_DEVIATION", "metabolic"],
 ]);
 
 /**

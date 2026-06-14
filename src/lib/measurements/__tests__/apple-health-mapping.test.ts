@@ -60,6 +60,13 @@ const MEASUREMENT_TYPES_WITHOUT_HK_COUNTERPART = new Set<MeasurementType>([
   "AVERAGE_HEART_RATE",
   "MAX_HEART_RATE",
   "SLEEP_DISTURBANCE_COUNT",
+  // v1.17.1 — Oura coverage completion. The Sleep Score and the body-temperature
+  // deviation ingest server-side from the Oura API (source = OURA), never from
+  // HealthKit: Apple ships no headline 0–100 sleep score and surfaces only an
+  // absolute wrist temperature, not a signed baseline deviation. No HK mapping
+  // by design.
+  "SLEEP_SCORE",
+  "BODY_TEMPERATURE_DEVIATION",
 ]);
 
 describe("APPLE_HEALTH_TYPE_MAP", () => {

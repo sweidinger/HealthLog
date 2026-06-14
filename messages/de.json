@@ -550,6 +550,8 @@
     "typeAverageHeartRate": "Durchschnittlicher Puls",
     "typeMaxHeartRate": "Maximaler Puls",
     "typeSleepDisturbanceCount": "Schlafstörungen",
+    "typeSleepScore": "Schlafscore",
+    "typeBodyTemperatureDeviation": "Körpertemperaturabweichung",
     "filterBySource": "Nach Quelle filtern",
     "sourceComputed": "Berechnet",
     "sourceWhoop": "WHOOP",

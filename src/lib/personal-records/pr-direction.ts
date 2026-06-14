@@ -176,6 +176,12 @@ export function getPRDirection(
     // WALKING_HEART_RATE_AVERAGE case above. Defer to a null PR direction.
     case "AVERAGE_HEART_RATE":
     case "MAX_HEART_RATE":
+    // v1.17.1 — Oura coverage. The Sleep Score is a nightly derived composite
+    // (like the other sleep-quality indices), and the body-temperature
+    // deviation is a homeostatic signed offset centred on 0 — neither has a
+    // goal axis, so both stay null like the rest of the derived/homeostatic set.
+    case "SLEEP_SCORE":
+    case "BODY_TEMPERATURE_DEVIATION":
       return null;
   }
 }
