@@ -75,17 +75,17 @@ describe("<MetricStatStrip>", () => {
     expect(html).toContain("Median");
   });
 
-  // v1.16.16 — glucose declares the trailing-90-day p50 window in the label
-  // so the median is not read as an all-time central value.
+  // v1.16.16 — the median cell follows the chart's active range, so the label
+  // names the metric without asserting a fixed window it can't honor.
   it("renders an overridden median label when medianLabel is provided", () => {
     const html = render(
       <MetricStatStrip
         summary={populated}
         unit="mg/dL"
-        medianLabel="Median glucose (90 days)"
+        medianLabel="Median glucose"
       />,
     );
-    expect(html).toContain("Median glucose (90 days)");
+    expect(html).toContain("Median glucose");
   });
 
   it("honours fractionDigits for integer-unit metrics (0 decimals)", () => {

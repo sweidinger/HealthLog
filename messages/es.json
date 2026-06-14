@@ -2791,7 +2791,7 @@
       "title": "Glucosa en sangre",
       "description": "Tus lecturas de glucosa en el tiempo, en mg/dL.",
       "chartTitle": "Glucosa en sangre",
-      "medianLabel": "Glucosa mediana (90 días)",
+      "medianLabel": "Glucosa mediana",
       "emptyState": {
         "title": "Aún no hay datos de glucosa",
         "description": "Las lecturas de glucosa aparecen aquí cuando registras una o un dispositivo sincroniza."
