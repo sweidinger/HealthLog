@@ -526,7 +526,7 @@ describe("sleep-stage mapping", () => {
     expect(mapFitbitSleepStage(42)).toBeNull();
   });
 
-  it("maps a session into per-stage SLEEP_DURATION rows with measuredAt = stage END", () => {
+  it("maps a session into per-SEGMENT SLEEP_DURATION rows with measuredAt = segment END (real timeline)", () => {
     const session = {
       sleep: {
         startTime: "2026-05-10T22:00:00.000Z",
@@ -556,23 +556,31 @@ describe("sleep-stage mapping", () => {
       },
     };
     const out = mapSleepSession(session);
-    const byStage = Object.fromEntries(out.map((m) => [m.sleepStage, m]));
 
-    // CORE = the two light segments summed (30 + 45 = 75 min).
-    expect(byStage.CORE!.value).toBe(75);
-    expect(byStage.CORE!.type).toBe("SLEEP_DURATION");
-    expect(byStage.CORE!.unit).toBe("minutes");
-    // measuredAt is the LATEST end for that stage (the second light segment).
-    expect(byStage.CORE!.measuredAt.toISOString()).toBe(
+    // One row PER segment (no collapse) — 4 segments → 4 rows.
+    expect(out).toHaveLength(4);
+    expect(out.every((m) => m.type === "SLEEP_DURATION")).toBe(true);
+    expect(out.every((m) => m.unit === "minutes")).toBe(true);
+
+    // Each row carries its OWN end instant + duration — a real clock-time
+    // timeline, not a stage collapse.
+    const core = out.filter((m) => m.sleepStage === "CORE");
+    expect(core.map((m) => m.value)).toEqual([30, 45]);
+    expect(core.map((m) => m.measuredAt.toISOString())).toEqual([
+      "2026-05-10T22:30:00.000Z",
       "2026-05-11T00:15:00.000Z",
-    );
-    expect(byStage.DEEP!.value).toBe(60);
-    expect(byStage.REM!.value).toBe(45);
+    ]);
+    const deep = out.find((m) => m.sleepStage === "DEEP")!;
+    expect(deep.value).toBe(60);
+    expect(deep.measuredAt.toISOString()).toBe("2026-05-10T23:30:00.000Z");
+    const rem = out.find((m) => m.sleepStage === "REM")!;
+    expect(rem.value).toBe(45);
 
-    // externalId field-tag is session-anchored so a re-score overwrites in place.
-    expect(byStage.DEEP!.fieldTag).toBe(
-      "2026-05-11T06:00:00.000Z:sleep_deep",
-    );
+    // Every fieldTag is distinct (session anchor + stage + segment index) so
+    // the several segments of one stage never collide under the dedup key.
+    const tags = out.map((m) => m.fieldTag);
+    expect(new Set(tags).size).toBe(tags.length);
+    expect(tags).toContain("2026-05-11T06:00:00.000Z:sleep_deep:1");
   });
 
   it("anchors the session externalId on sleep.interval.end_time for an INTERVAL-shaped point", () => {
@@ -592,7 +600,7 @@ describe("sleep-stage mapping", () => {
       },
     });
     const deep = out.find((m) => m.sleepStage === "DEEP");
-    expect(deep!.fieldTag).toBe("2026-05-11T06:00:00.000Z:sleep_deep");
+    expect(deep!.fieldTag).toBe("2026-05-11T06:00:00.000Z:sleep_deep:0");
   });
 
   it("yields nothing for a session with no parseable segments", () => {
