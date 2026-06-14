@@ -45,7 +45,7 @@ CREATE TABLE IF NOT EXISTS "measurement_reminders" (
     "id"                TEXT NOT NULL,
     "user_id"           TEXT NOT NULL,
     "label"             TEXT NOT NULL,
-    "measurement_type"  "MeasurementType",
+    "measurement_type"  "measurement_type",
     "interval_days"     INTEGER,
     "rrule"             TEXT,
     "anchor_date"       TIMESTAMP(3),
