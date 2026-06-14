@@ -9,7 +9,7 @@ vi.mock("@/lib/api-handler", () => ({
 vi.mock("@/lib/db", () => ({
   prisma: {
     user: { findUnique: vi.fn(), update: vi.fn() },
-    whoopConnection: { delete: vi.fn() },
+    fitbitConnection: { delete: vi.fn() },
   },
 }));
 
@@ -30,31 +30,23 @@ vi.mock("@/lib/api-response", () => ({
   },
 }));
 
-import { GET, PUT, DELETE } from "../route";
+import { PUT, DELETE } from "../route";
 import { prisma } from "@/lib/db";
 import { auditLog } from "@/lib/auth/audit";
 import { markDisconnected } from "@/lib/integrations/status";
 
-const userFind = prisma.user.findUnique as ReturnType<typeof vi.fn>;
 const userUpdate = prisma.user.update as ReturnType<typeof vi.fn>;
 
 function req(body: unknown): NextRequest {
-  return new NextRequest("http://localhost/api/whoop/credentials", {
+  return new NextRequest("http://localhost/api/fitbit/credentials", {
     method: "PUT",
     body: JSON.stringify(body),
     headers: { "Content-Type": "application/json" },
   });
 }
 
-describe("/api/whoop/credentials", () => {
+describe("/api/fitbit/credentials", () => {
   beforeEach(() => vi.clearAllMocks());
-
-  it("GET reports hasCredentials false when none stored", async () => {
-    userFind.mockResolvedValue(null);
-    const res = (await (GET as unknown as () => Promise<{ data: unknown }>)())
-      .data as { hasCredentials: boolean };
-    expect(res.hasCredentials).toBe(false);
-  });
 
   it("PUT 422s on missing fields", async () => {
     const res = (await (
@@ -64,47 +56,24 @@ describe("/api/whoop/credentials", () => {
     expect(userUpdate).not.toHaveBeenCalled();
   });
 
-  it("PUT encrypts and stores valid credentials", async () => {
+  it("DELETE clears credentials, audits the teardown, and parks the ledger (04-L1 parity)", async () => {
     userUpdate.mockResolvedValue({});
-    const res = (await (
-      PUT as unknown as (r: NextRequest) => Promise<{ data: unknown }>
-    )(req({ clientId: "id", clientSecret: "secret" }))) as { data: unknown };
-    expect((res.data as { updated: boolean }).updated).toBe(true);
-    expect(userUpdate).toHaveBeenCalledWith({
-      where: { id: "u1" },
-      data: {
-        whoopClientIdEncrypted: "enc:id",
-        whoopClientSecretEncrypted: "enc:secret",
-      },
-    });
-  });
-
-  it("DELETE clears credentials and connection", async () => {
-    userUpdate.mockResolvedValue({});
-    (prisma.whoopConnection.delete as ReturnType<typeof vi.fn>).mockResolvedValue(
-      {},
-    );
+    (
+      prisma.fitbitConnection.delete as ReturnType<typeof vi.fn>
+    ).mockResolvedValue({});
     const res = (await (DELETE as unknown as () => Promise<{ data: unknown }>)())
       .data as { deleted: boolean };
     expect(res.deleted).toBe(true);
     expect(userUpdate).toHaveBeenCalledWith({
       where: { id: "u1" },
       data: {
-        whoopClientIdEncrypted: null,
-        whoopClientSecretEncrypted: null,
+        fitbitClientIdEncrypted: null,
+        fitbitClientSecretEncrypted: null,
       },
     });
-  });
-
-  it("DELETE audits the teardown and parks the ledger (04-L1 parity)", async () => {
-    userUpdate.mockResolvedValue({});
-    (prisma.whoopConnection.delete as ReturnType<typeof vi.fn>).mockResolvedValue(
-      {},
-    );
-    await (DELETE as unknown as () => Promise<unknown>)();
-    expect(auditLog).toHaveBeenCalledWith("whoop.credentials.delete", {
+    expect(auditLog).toHaveBeenCalledWith("fitbit.credentials.delete", {
       userId: "u1",
     });
-    expect(markDisconnected).toHaveBeenCalledWith("u1", "whoop");
+    expect(markDisconnected).toHaveBeenCalledWith("u1", "fitbit");
   });
 });

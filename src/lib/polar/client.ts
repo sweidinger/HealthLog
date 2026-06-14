@@ -22,6 +22,7 @@
  */
 import { getEvent } from "@/lib/logging/context";
 import { safeFetch } from "@/lib/safe-fetch";
+import { reconstructContiguousSleepTimeline } from "@/lib/sleep/reconstruct-timeline";
 import { PolarApiError, classifyPolarResponse } from "./response-classifier";
 
 const POLAR_API_BASE = "https://www.polaraccesslink.com";
@@ -481,51 +482,47 @@ export function mapSleep(s: PolarSleep): MappedMeasurement[] {
     Number.isFinite(startMs) && Number.isFinite(endMs) && endMs > startMs;
 
   const stages: Array<
-    [number | null | undefined, NonNullable<MappedMeasurement["sleepStage"]>, string]
+    [number | null | undefined, "CORE" | "DEEP" | "REM" | "AWAKE", string]
   > = [
+    // AWAKE first — Polar reports the night's total interruption time, but no
+    // per-stage onset. Lay it as a leading settling-in/awake block so the asleep
+    // stages partition the remaining window and the night reader can surface a
+    // real awakeMinutes / efficiency rather than reading the night as fully
+    // consolidated. Matches WHOOP's leading-AWAKE ordering.
+    [s.total_interruption_duration, "AWAKE", "sleep_awake"],
     [s.light_sleep, "CORE", "sleep_core"],
     [s.deep_sleep, "DEEP", "sleep_deep"],
     [s.rem_sleep, "REM", "sleep_rem"],
   ];
 
   if (haveWindow) {
-    // Reconstructed timeline: lay each asleep stage contiguously from onset, one
-    // timed row per segment ending at the running cursor. The order is
-    // synthetic (Polar gives no per-stage onset), so flag every segment.
-    let cursor = startMs;
-    let segIndex = 0;
-    for (const [sec, stage, fieldTag] of stages) {
-      if (typeof sec !== "number" || sec <= 0) continue;
-      const segEnd = cursor + sec * 1000;
-      out.push({
-        type: "SLEEP_DURATION",
-        value: round2(sec * SEC_TO_MIN),
-        unit: "minutes",
-        measuredAt: new Date(segEnd),
-        fieldTag,
+    // Reconstructed timeline: lay each stage contiguously from onset, one timed
+    // row per segment ending at the running cursor. The order is synthetic
+    // (Polar gives no per-stage onset), so the shared builder flags every
+    // segment reconstructed; the same algorithm backs WHOOP's `mapSleep`.
+    out.push(
+      ...reconstructContiguousSleepTimeline({
+        startMs,
+        stages: stages.map(([sec, stage, fieldTag]) => ({
+          durationMs:
+            typeof sec === "number" && Number.isFinite(sec) ? sec * 1000 : sec,
+          stage,
+          fieldTag,
+        })),
+        // IN_BED — single envelope row over the whole sleep window, stamped at
+        // the sleep END so the in-bed reader resolves the span back to
+        // [start, end].
+        inBed: {
+          durationMs: endMs - startMs,
+          measuredAt: new Date(endMs),
+          fieldTag: "sleep_in_bed",
+        },
         // Indexed externalId keeps the several segment rows of one night
         // distinct under userId_type_source_externalId.
-        externalId: `sleep:${s.date}:seg:${fieldTag}:${segIndex}`,
-        sleepStage: stage,
-        reconstructed: true,
-      });
-      cursor = segEnd;
-      segIndex += 1;
-    }
-
-    // IN_BED — single envelope row over the whole sleep window, stamped at the
-    // sleep END so the in-bed reader resolves the span back to [start, end].
-    const inBedSec = (endMs - startMs) / 1000;
-    if (inBedSec > 0) {
-      out.push({
-        type: "SLEEP_DURATION",
-        value: round2(inBedSec * SEC_TO_MIN),
-        unit: "minutes",
-        measuredAt: new Date(endMs),
-        fieldTag: "sleep_in_bed",
-        sleepStage: "IN_BED",
-      });
-    }
+        externalIdFor: (fieldTag, index) =>
+          `sleep:${s.date}:seg:${fieldTag}:${index}`,
+      }),
+    );
 
     if (typeof s.sleep_score === "number") {
       out.push({

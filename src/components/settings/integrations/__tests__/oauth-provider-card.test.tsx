@@ -23,7 +23,13 @@ vi.mock("@tanstack/react-query", () => ({
 import { I18nProvider } from "@/lib/i18n/context";
 import { OAuthProviderCard } from "../oauth-provider-card";
 
-function render({ credentials = false }: { credentials?: boolean } = {}) {
+function render({
+  credentials = false,
+  viewModel,
+}: {
+  credentials?: boolean;
+  viewModel?: Parameters<typeof OAuthProviderCard>[0]["viewModel"];
+} = {}) {
   return renderToStaticMarkup(
     <I18nProvider initialLocale="en">
       <OAuthProviderCard
@@ -33,6 +39,7 @@ function render({ credentials = false }: { credentials?: boolean } = {}) {
         icon={Watch}
         dataHref="/insights/sleep"
         credentials={credentials}
+        viewModel={viewModel}
       />
     </I18nProvider>,
   );
@@ -72,6 +79,25 @@ describe("OAuthProviderCard — parked + test + data-link parity", () => {
     // connect→data link points at the provider's insight surface.
     expect(html).toContain('data-testid="polar-data-link"');
     expect(html).toContain('href="/insights/sleep"');
+  });
+
+  it("reads off the passed view-model instead of the per-card fetch (04-M2)", () => {
+    // The per-card useQuery mock returns null; the card must render the
+    // connected state from the supplied envelope view-model alone, proving the
+    // /api/<provider>/status round-trip is no longer the source.
+    statusPayload = null;
+    const html = render({
+      viewModel: {
+        connected: true,
+        configured: true,
+        available: true,
+        state: "connected",
+        lastSuccessAt: "2026-06-01T00:00:00.000Z",
+        lastError: null,
+      },
+    });
+    expect(html).toContain('data-testid="polar-data-link"');
+    expect(html).toContain("Test connection");
   });
 
   it("does not render the data link or test button when disconnected", () => {

@@ -4467,6 +4467,18 @@
     "whoopConnect": "Connect with WHOOP",
     "whoopNoCredentials": "Please enter your API credentials above to connect WHOOP.",
     "whoopBackfillInProgress": "Importing your WHOOP history in the background…",
+    "whoopOauthConnected": "WHOOP connected — the first sync starts in the background.",
+    "whoopOauthFailed": "WHOOP connection failed",
+    "whoopOauthError": {
+      "csrf1": "The security check failed because the browser cookie was missing. Please start the connection again in the same browser.",
+      "state": "The response from WHOOP did not match any open connection request. Please start the connection again.",
+      "expired": "The connection request expired before it completed. Please start the connection again.",
+      "cross_user": "The response belongs to a request from a different account. Please restart the connection from your own account.",
+      "nocode": "WHOOP did not return an authorization code. Try again and allow access in the WHOOP dialog.",
+      "nocreds": "WHOOP is not configured. Add your WHOOP OAuth credentials above and try again.",
+      "token": "The token exchange with WHOOP failed. Please start the connection again.",
+      "generic": "Unknown error while connecting. Please start the connection again."
+    },
     "fitbit": "Google Health",
     "fitbitTag": "Fitbit & Pixel",
     "fitbitDescription": "Connect Google Health to sync your Fitbit and Pixel Watch metrics — weight, body fat, resting heart rate, blood oxygen, heart-rate variability and more.",
@@ -4494,6 +4506,18 @@
     "fitbitConnect": "Connect with Google Health",
     "fitbitNoCredentials": "Please enter your API credentials above to connect Google Health.",
     "fitbitBackfillInProgress": "Importing your Google Health history in the background…",
+    "fitbitOauthConnected": "Google Health connected — the first sync starts in the background.",
+    "fitbitOauthFailed": "Google Health connection failed",
+    "fitbitOauthError": {
+      "csrf1": "The security check failed because the browser cookie was missing. Please start the connection again in the same browser.",
+      "state": "The response from Google did not match any open connection request. Please start the connection again.",
+      "expired": "The connection request expired before it completed. Please start the connection again.",
+      "cross_user": "The response belongs to a request from a different account. Please restart the connection from your own account.",
+      "nocode": "Google did not return an authorization code. Try again and allow access in the Google dialog.",
+      "nocreds": "Google Health is not configured. Add your Google OAuth credentials above and try again.",
+      "token": "The token exchange with Google failed. Please start the connection again.",
+      "generic": "Unknown error while connecting. Please start the connection again."
+    },
     "integrations": {
       "withings": {
         "reconnect": {

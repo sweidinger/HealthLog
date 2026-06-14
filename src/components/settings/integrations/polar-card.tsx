@@ -6,10 +6,19 @@
 
 import { Watch } from "lucide-react";
 
-import { OAuthProviderCard } from "@/components/settings/integrations/oauth-provider-card";
+import {
+  OAuthProviderCard,
+  type OAuthProviderStatus,
+} from "@/components/settings/integrations/oauth-provider-card";
 import { queryKeys } from "@/lib/query-keys";
 
-export function PolarCard({ enabled = true }: { enabled?: boolean }) {
+export function PolarCard({
+  enabled = true,
+  viewModel,
+}: {
+  enabled?: boolean;
+  viewModel?: OAuthProviderStatus;
+}) {
   return (
     <OAuthProviderCard
       provider="polar"
@@ -19,6 +28,7 @@ export function PolarCard({ enabled = true }: { enabled?: boolean }) {
       dataHref="/insights/sleep"
       credentials
       enabled={enabled}
+      viewModel={viewModel}
     />
   );
 }

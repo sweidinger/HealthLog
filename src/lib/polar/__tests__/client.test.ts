@@ -265,6 +265,53 @@ describe("mapSleep", () => {
     ).toBe(endMs);
   });
 
+  it("emits an AWAKE segment from total_interruption_duration", () => {
+    const start = "2026-06-09T23:00:00+02:00"; // 21:00 UTC
+    const s: PolarSleep = {
+      date: "2026-06-10",
+      sleep_start_time: start,
+      sleep_end_time: "2026-06-10T07:00:00+02:00",
+      total_interruption_duration: 900, // 15 min awake
+      light_sleep: 3600, // 60 min
+      deep_sleep: 1800, // 30 min
+      rem_sleep: 5400, // 90 min
+      sleep_score: 82,
+    };
+    const mapped = mapSleep(s);
+    const onset = Date.parse(start);
+
+    // AWAKE is laid first (leading settling-in block), so the asleep stages
+    // partition the rest of the window and the night reader can surface real
+    // awake time + efficiency rather than a fully consolidated night.
+    const awake = mapped.find((m) => m.sleepStage === "AWAKE")!;
+    expect(awake).toBeDefined();
+    expect(awake.value).toBe(15);
+    expect(awake.reconstructed).toBe(true);
+    expect(awake.externalId).toBe("sleep:2026-06-10:seg:sleep_awake:0");
+    // AWAKE ends at +15m; CORE then starts there and is index 1.
+    expect(awake.measuredAt.getTime()).toBe(onset + 15 * 60_000);
+
+    const core = mapped.find((m) => m.sleepStage === "CORE")!;
+    expect(core.externalId).toBe("sleep:2026-06-10:seg:sleep_core:1");
+    expect(core.measuredAt.getTime()).toBe(onset + (15 + 60) * 60_000);
+  });
+
+  it("omits AWAKE when no interruption time is reported", () => {
+    const mapped = mapSleep({
+      date: "2026-06-10",
+      sleep_start_time: "2026-06-09T23:00:00+02:00",
+      sleep_end_time: "2026-06-10T07:00:00+02:00",
+      light_sleep: 3600,
+      deep_sleep: 1800,
+      rem_sleep: 5400,
+    });
+    expect(mapped.find((m) => m.sleepStage === "AWAKE")).toBeUndefined();
+    // CORE stays index 0 when AWAKE is absent.
+    expect(mapped.find((m) => m.sleepStage === "CORE")!.externalId).toBe(
+      "sleep:2026-06-10:seg:sleep_core:0",
+    );
+  });
+
   it("falls back to a midnight-UTC anchor when the window is missing", () => {
     const mapped = mapSleep({
       date: "2026-06-10",

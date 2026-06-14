@@ -4467,6 +4467,18 @@
     "whoopConnect": "Połącz z WHOOP",
     "whoopNoCredentials": "Wprowadź powyżej swoje dane API, aby połączyć WHOOP.",
     "whoopBackfillInProgress": "Importowanie historii WHOOP w tle…",
+    "whoopOauthConnected": "WHOOP połączony — pierwsza synchronizacja startuje w tle.",
+    "whoopOauthFailed": "Połączenie z WHOOP nie powiodło się",
+    "whoopOauthError": {
+      "csrf1": "Kontrola bezpieczeństwa nie powiodła się, ponieważ brakowało pliku cookie przeglądarki. Rozpocznij połączenie ponownie w tej samej przeglądarce.",
+      "state": "Odpowiedź z WHOOP nie pasowała do żadnego otwartego żądania połączenia. Rozpocznij połączenie ponownie.",
+      "expired": "Żądanie połączenia wygasło przed zakończeniem. Rozpocznij połączenie ponownie.",
+      "cross_user": "Odpowiedź należy do żądania z innego konta. Rozpocznij połączenie ponownie z własnego konta.",
+      "nocode": "WHOOP nie zwrócił kodu autoryzacji. Spróbuj ponownie i zezwól na dostęp w oknie WHOOP.",
+      "nocreds": "WHOOP nie jest skonfigurowany. Dodaj powyżej swoje dane OAuth WHOOP i spróbuj ponownie.",
+      "token": "Wymiana tokena z WHOOP nie powiodła się. Rozpocznij połączenie ponownie.",
+      "generic": "Nieznany błąd podczas łączenia. Rozpocznij połączenie ponownie."
+    },
     "fitbit": "Google Health",
     "fitbitTag": "Fitbit i Pixel",
     "fitbitDescription": "Połącz Google Health, aby synchronizować dane z Fitbita i Pixel Watch — wagę, tkankę tłuszczową, tętno spoczynkowe, saturację, zmienność rytmu serca i więcej.",
@@ -4494,6 +4506,18 @@
     "fitbitConnect": "Połącz z Google Health",
     "fitbitNoCredentials": "Wprowadź powyżej swoje dane uwierzytelniające API, aby połączyć Google Health.",
     "fitbitBackfillInProgress": "Importowanie historii Google Health w tle…",
+    "fitbitOauthConnected": "Google Health połączony — pierwsza synchronizacja startuje w tle.",
+    "fitbitOauthFailed": "Połączenie z Google Health nie powiodło się",
+    "fitbitOauthError": {
+      "csrf1": "Kontrola bezpieczeństwa nie powiodła się, ponieważ brakowało pliku cookie przeglądarki. Rozpocznij połączenie ponownie w tej samej przeglądarce.",
+      "state": "Odpowiedź z Google nie pasowała do żadnego otwartego żądania połączenia. Rozpocznij połączenie ponownie.",
+      "expired": "Żądanie połączenia wygasło przed zakończeniem. Rozpocznij połączenie ponownie.",
+      "cross_user": "Odpowiedź należy do żądania z innego konta. Rozpocznij połączenie ponownie z własnego konta.",
+      "nocode": "Google nie zwrócił kodu autoryzacji. Spróbuj ponownie i zezwól na dostęp w oknie Google.",
+      "nocreds": "Google Health nie jest skonfigurowany. Dodaj powyżej swoje dane OAuth Google i spróbuj ponownie.",
+      "token": "Wymiana tokena z Google nie powiodła się. Rozpocznij połączenie ponownie.",
+      "generic": "Nieznany błąd podczas łączenia. Rozpocznij połączenie ponownie."
+    },
     "integrations": {
       "withings": {
         "reconnect": {

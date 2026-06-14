@@ -285,13 +285,15 @@ const NO_SOURCE = "__none__";
  * Sources whose per-segment stage ORDER is synthesised, not measured. WHOOP's
  * v2 API exposes only per-stage duration totals (no onset timestamps), so the
  * ingest mapper reconstructs a contiguous timeline in a fixed physiological
- * order (`whoop/client.ts` `mapSleep`). A session won by such a source carries
- * `reconstructed: true` so the UI labels it as an approximate layout. Apple
- * Health / Withings / Fitbit all store a real per-segment series and stay off
- * this set.
+ * order (`whoop/client.ts` + `polar/client.ts` `mapSleep`, both via the shared
+ * `reconstructContiguousSleepTimeline` builder). A session won by such a source
+ * carries `reconstructed: true` so the UI labels it as an approximate layout.
+ * Apple Health / Oura / Withings / Fitbit all store a real per-segment series
+ * and stay off this set.
  */
 const RECONSTRUCTED_TIMELINE_SOURCES: ReadonlySet<string> = new Set<string>([
   "WHOOP",
+  "POLAR",
 ]);
 
 /**

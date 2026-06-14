@@ -18,7 +18,13 @@ import { queryKeys } from "@/lib/query-keys";
 // v1.4.19 Phase A5: the redundant in-card status banner is gone — the
 // IntegrationStatusPill now owns state + last-sync presentation, and
 // the actionable error message is shown inline above the action row.
-export type IntegrationKey = "withings" | "whoop" | "fitbit" | "moodlog";
+export type IntegrationKey =
+  | "withings"
+  | "whoop"
+  | "fitbit"
+  | "moodlog"
+  | "polar"
+  | "oura";
 export type IntegrationState =
   | "connected"
   | "error_transient"
@@ -52,6 +58,11 @@ export interface IntegrationStatusViewModel {
   // moodLog webhook secret + entry count.
   webhookSecret?: string | null;
   entryCount?: number;
+  // Polar / Oura OAuth card: usable-credentials + BYO-key flags. `available`
+  // greys out the connect button when no credentials resolve; `hasOwnCredentials`
+  // drives the saved-placeholder UI.
+  available?: boolean;
+  hasOwnCredentials?: boolean;
 }
 
 export interface IntegrationStatusEnvelope {
