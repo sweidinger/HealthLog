@@ -12,8 +12,12 @@ import { reconstructSleepNights } from "@/lib/analytics/sleep-night";
 import { loadUserSourcePriority } from "@/lib/rollups/measurement-read";
 import { ensureUserRollupsFresh } from "@/lib/rollups/measurement-rollups";
 import { probeRollupCoverage } from "@/lib/rollups/measurement-coverage";
-import { computeBpInTargetFastPath } from "@/lib/analytics/bp-in-target-fast-path";
+import {
+  computeBpInTargetFastPath,
+  type BpInTargetEnvelope,
+} from "@/lib/analytics/bp-in-target-fast-path";
 import { computeUserHealthScoreFastPath } from "@/lib/analytics/health-score-fast-path";
+import { buildHealthScoreBpInputs } from "@/lib/analytics/health-score-inputs";
 import { computeCorrelationHypothesesFastPath } from "@/lib/analytics/correlations-fast-path";
 
 export const dynamic = "force-dynamic";
@@ -242,8 +246,6 @@ async function buildAnalyticsResponse(user: AuthedUser) {
   let bpInTargetPct: number | null = null;
   let bpInTargetPct7d: number | null = null;
   let bpInTargetPct30d: number | null = null;
-  // v1.17 W1d — the canonical 90-day window for the headline / score / coach.
-  let bpInTargetPct90d: number | null = null;
   let bpInTargetPctAllTime: number | null = null;
   /**
    * v1.4.22 W5 reconcile (Code-H2) — period-aligned prior-window
@@ -255,25 +257,13 @@ async function buildAnalyticsResponse(user: AuthedUser) {
    */
   let bpInTargetPctPriorMonth: number | null = null;
   let bpInTargetPctPriorYear: number | null = null;
-  /**
-   * v1.4.38 — prior-week BP-in-target pct so the Health-Score
-   * week-over-week delta reflects BP movement. Pre-v1.4.38 the
-   * Health-Score helper pinned both windows to the same value, so the
-   * BP pillar always zeroed out of the delta. Computed by running a
-   * second `computeBpInTargetFastPath` against `now - 7d` and reading
-   * the resulting `last30Days.pct`.
-   */
-  let bpInTargetPctPriorWeek: number | null = null;
-  // v1.17 W1d — prior-week 90-day BP pct. Feeds the Health-Score delta so
-  // its BP pillar compares the same 90-day window on both ends, identical
-  // to the headline scope. (Pre-v1.17 the score read all-time; W1d
-  // unifies headline + score + coach on 90 days.)
-  let windowsPriorWeekForScore: number | null = null;
-  // v1.15.12 A1 — graded clinical-proximity BP score (recency-weighted
-  // representative reading) for the Health-Score BP pillar value, plus
-  // the prior-week run for the week-over-week delta.
-  let bpGradedScore: number | null = null;
-  let bpGradedScorePriorWeek: number | null = null;
+  // v1.17 W1b — hold the current + prior-week BP envelopes so the shared
+  // Health-Score input builder grades the pillar off the identical shape the
+  // dashboard snapshot uses (one builder, no per-surface assembly drift).
+  // The graded score + prior-week BP figures the score consumes are read off
+  // these envelopes inside `buildHealthScoreBpInputs`.
+  let bpEnvelope: BpInTargetEnvelope | null = null;
+  let bpEnvelopePriorWeek: BpInTargetEnvelope | null = null;
   const bpTargets = getBpTargets(user.dateOfBirth);
   if (bpTargets) {
     const now = new Date();
@@ -318,24 +308,17 @@ async function buildAnalyticsResponse(user: AuthedUser) {
         userTz,
       }),
     ]);
+    bpEnvelope = windows;
+    bpEnvelopePriorWeek = windowsPriorWeek;
     // v1.17 W1d — the BD-Zielbereich headline standardises on the
     // trailing-90-day window (labelled "· 90 T" in the tile). All-time
     // remains carried below for the BP detail page's long view only.
     bpInTargetPct = windows.last90Days?.pct ?? null;
     bpInTargetPct7d = windows.last7Days?.pct ?? null;
     bpInTargetPct30d = windows.last30Days?.pct ?? null;
-    bpInTargetPct90d = windows.last90Days?.pct ?? null;
     bpInTargetPctAllTime = windows.allTime?.pct ?? null;
     bpInTargetPctPriorMonth = windows.priorMonth?.pct ?? null;
     bpInTargetPctPriorYear = windows.priorYear?.pct ?? null;
-    bpInTargetPctPriorWeek = windowsPriorWeek.last90Days?.pct ?? null;
-    bpGradedScore = windows.gradedScore;
-    bpGradedScorePriorWeek = windowsPriorWeek.gradedScore;
-    // v1.17 W1d — the Health-Score BP pillar reads the same 90-day window
-    // as the headline (see `bpInTargetPctForScore` below). Capture the
-    // prior-week run's 90-day pct so the week-over-week delta compares the
-    // same window on both ends.
-    windowsPriorWeekForScore = windowsPriorWeek.last90Days?.pct ?? null;
   }
 
   // Per-context glucose summaries (canonical mg/dL).
@@ -393,41 +376,17 @@ async function buildAnalyticsResponse(user: AuthedUser) {
   // 2-column projection from `measurements` for the ingest-path
   // pills. Falls back to the legacy 37-day raw read on partial /
   // missing coverage. Path annotate sits on `meta.healthScore.path`.
-  // The Health-Score BP pillar reads the **all-time** in-target rate, not
-  // the BD-Zielbereich tile headline (which v1.4.x deliberately scopes to
-  // the trailing 30 days). Feeding the tile's `bpInTargetPct` (last-30d)
-  // here regressed the pillar to null for any account with BP history but
-  // no readings inside the trailing month — the score then dropped the
-  // 0.30-weight BP pillar entirely and rendered "no rating" despite the
-  // user having BP data. `health-score.ts` documents the field as the
-  // all-time rate, so route the all-time window through; fall back to the
-  // 30-day window only when the all-time window is itself null (it never
-  // is when 30-day has data), so a brand-new account is unaffected.
-  // v1.17 W1d — the Health-Score BP pillar reads the SAME 90-day window as
-  // the BD-Zielbereich tile headline, so the dashboard ring and the
-  // insights card grade the BP pillar off one number. Fall back to the
-  // all-time rate only when the 90-day window is itself null so a
-  // sparse-but-historical account still surfaces a BP pillar.
-  const bpInTargetPctForScore = bpInTargetPct90d ?? bpInTargetPctAllTime;
-  const bpInTargetPctPriorWeekForScore =
-    windowsPriorWeekForScore ?? bpInTargetPctPriorWeek;
+  //
+  // v1.17 W1b — the BP-pillar inputs come from the ONE shared
+  // `buildHealthScoreBpInputs` builder the dashboard snapshot also uses, so
+  // the ring and the insights card grade the pillar off identical inputs
+  // (same 90-day window via W1d, same all-time fallback, same graded score,
+  // same prior-week delta values). The hand-rolled per-surface assembly that
+  // let the two diverge is gone.
+  const bpInputs = buildHealthScoreBpInputs(bpEnvelope, bpEnvelopePriorWeek);
   const healthScore = await computeUserHealthScoreFastPath({
     userId: user.id,
-    bpInTargetPct: bpInTargetPctForScore,
-    // v1.4.38 — feed the prior-week BP pct into the Health-Score
-    // helper's previous-window snapshot so the week-over-week delta
-    // reflects BP movement instead of zeroing out of the BP pillar.
-    // Computed alongside the current windows via a second
-    // `computeBpInTargetFastPath` run anchored at `now - 7d`. Uses the
-    // same all-time window as the current snapshot so the delta is
-    // apples-to-apples.
-    bpInTargetPctPriorWeek: bpInTargetPctPriorWeekForScore,
-    // v1.15.12 A1 — graded clinical-proximity BP score drives the pillar
-    // VALUE; the binary in-target rate above only gates presence and is
-    // surfaced as a secondary stat. Closes the "borderline-stage-1 reads
-    // 16/100" trust bug.
-    bpGradedScore,
-    bpGradedScorePriorWeek,
+    ...bpInputs,
     heightCm: user.heightCm ?? null,
     now: new Date(),
     coverage,

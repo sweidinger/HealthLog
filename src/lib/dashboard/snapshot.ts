@@ -46,7 +46,11 @@ import {
   type DataSummary,
 } from "@/lib/analytics/trends";
 import { getBpTargets } from "@/lib/analytics/bp-targets";
-import { computeBpInTargetFastPath } from "@/lib/analytics/bp-in-target-fast-path";
+import {
+  computeBpInTargetFastPath,
+  type BpInTargetEnvelope,
+} from "@/lib/analytics/bp-in-target-fast-path";
+import { buildHealthScoreBpInputs } from "@/lib/analytics/health-score-inputs";
 import {
   probeRollupCoverage,
   type RollupCoverageMap,
@@ -440,22 +444,40 @@ async function buildExtras(
   let bpInTargetPct: number | null = null;
   let bpInTargetPct7d: number | null = null;
   let bpInTargetPct30d: number | null = null;
-  // v1.17 W1d — canonical 90-day headline / score window.
-  let bpInTargetPct90d: number | null = null;
   let bpInTargetPctAllTime: number | null = null;
   let bpInTargetPctPriorMonth: number | null = null;
   let bpInTargetPctPriorYear: number | null = null;
-  let bpGradedScore: number | null = null;
+  // v1.17 W1b — hold the current + prior-week BP envelopes so the shared
+  // Health-Score input builder grades the pillar off the identical shape the
+  // analytics route uses.
+  let bpEnvelope: BpInTargetEnvelope | null = null;
+  let bpEnvelopePriorWeek: BpInTargetEnvelope | null = null;
 
   const bpTargets = getBpTargets(user.dateOfBirth);
   if (bpTargets) {
-    const windows = await computeBpInTargetFastPath({
-      userId: user.id,
-      targets: bpTargets,
-      now,
-      coverage,
-      userTz,
-    });
+    // v1.17 W1b — two runs (current + prior-week), identical to the
+    // analytics route, so the dashboard ring's week-over-week delta reflects
+    // BP movement instead of zeroing it out. Both reuse the already-probed
+    // coverage map and share the rollup/live branch decision.
+    const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const [windows, windowsPriorWeek] = await Promise.all([
+      computeBpInTargetFastPath({
+        userId: user.id,
+        targets: bpTargets,
+        now,
+        coverage,
+        userTz,
+      }),
+      computeBpInTargetFastPath({
+        userId: user.id,
+        targets: bpTargets,
+        now: sevenDaysAgo,
+        coverage,
+        userTz,
+      }),
+    ]);
+    bpEnvelope = windows;
+    bpEnvelopePriorWeek = windowsPriorWeek;
     // v1.17 W1d — the headline standardises on the trailing-90-day
     // window (labelled "· 90 T" in the tile), identical to the analytics
     // route, so the dashboard tile and the insights surface never narrate
@@ -464,28 +486,25 @@ async function buildExtras(
     bpInTargetPct = windows.last90Days?.pct ?? null;
     bpInTargetPct7d = windows.last7Days?.pct ?? null;
     bpInTargetPct30d = windows.last30Days?.pct ?? null;
-    bpInTargetPct90d = windows.last90Days?.pct ?? null;
     bpInTargetPctAllTime = windows.allTime?.pct ?? null;
     bpInTargetPctPriorMonth = windows.priorMonth?.pct ?? null;
     bpInTargetPctPriorYear = windows.priorYear?.pct ?? null;
-    bpGradedScore = windows.gradedScore ?? null;
   }
 
   // Health score — reuses the BP windows captured above plus the
   // already-probed coverage map (no second probe). Score + band +
   // delta only; the component breakdown stays off this wire.
   //
-  // v1.17 W1b/W1d — the BP pillar reads the SAME 90-day window as the
-  // analytics route, so the dashboard ring and the insights card compute
-  // the score from identical inputs (closing the dashboard-vs-insights
-  // score divergence). Fall back to all-time only when the 90-day window
-  // is null so a sparse-but-historical account keeps its BP pillar.
-  const bpInTargetPctForScore = bpInTargetPct90d ?? bpInTargetPctAllTime;
+  // v1.17 W1b — the BP-pillar inputs come from the ONE shared
+  // `buildHealthScoreBpInputs` builder the analytics route also uses, so the
+  // ring and the insights card grade the pillar off identical inputs (same
+  // 90-day window via W1d, same all-time fallback, same graded score, same
+  // prior-week delta values). Closes the dashboard-vs-insights divergence.
+  const bpInputs = buildHealthScoreBpInputs(bpEnvelope, bpEnvelopePriorWeek);
   const scoreResult = await time("healthScore", () =>
     computeUserHealthScoreFastPath({
       userId: user.id,
-      bpInTargetPct: bpInTargetPctForScore,
-      bpGradedScore,
+      ...bpInputs,
       heightCm: user.heightCm,
       now,
       coverage,

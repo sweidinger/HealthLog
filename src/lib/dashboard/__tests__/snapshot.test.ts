@@ -258,7 +258,9 @@ describe("buildDashboardSnapshot — per-type thick-phase gate", () => {
     expect(snap.extras).not.toBeNull();
     expect(snap.extras!.bpInTargetPct).toBe(80);
     expect(snap.healthScore).toEqual({ score: 71, band: "yellow", delta: 3 });
-    expect(computeBpInTargetFastPath).toHaveBeenCalledTimes(1);
+    // v1.17 W1b — two runs (current + prior-week), identical to the analytics
+    // route, so the ring's delta reflects BP movement.
+    expect(computeBpInTargetFastPath).toHaveBeenCalledTimes(2);
     expect(computeUserHealthScoreFastPath).toHaveBeenCalledTimes(1);
   });
 
