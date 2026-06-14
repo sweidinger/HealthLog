@@ -495,6 +495,12 @@ async function loadAttributeMedication(input: {
       oneShot: medication.oneShot,
       createdAt: medication.createdAt,
       schedules: medication.schedules as WorkerScheduleRow[],
+      // v1.16.13 — thread the archived eras into the attributor projection.
+      // `MEDICATION_SELECT` fetches them, but dropping them here made the
+      // write/edit path attribute a historical intake against the LIVE
+      // schedule, not the era valid at the dose's `takenAt` — the read side
+      // (dose-history, compliance) already era-resolves. Now both match.
+      scheduleRevisions: medication.scheduleRevisions,
     },
     lastIntakeAt,
   };
