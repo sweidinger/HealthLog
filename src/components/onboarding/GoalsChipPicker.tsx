@@ -24,22 +24,19 @@ import { apiPost } from "@/lib/api/api-fetch";
  * v1.4.25 W14b-Content — onboarding step 1 (goals).
  *
  * Multi-select chip picker for the metrics the user wants to track.
- * The goal slugs match a stable enum that v1.4.26 will land on the
- * `User` row (`User.onboardingGoals`). Until that column ships the
- * picker holds selection in component state only — there's no
- * persistence layer to drop into. The earlier localStorage block
- * had no consumer (no other surface reads the same key) and the
- * single-step wizard makes pre-selection on resume unnecessary, so
- * leaning on component state until the column lands keeps the code
- * surface honest.
+ * The goal slugs are the closed enum `ONBOARDING_GOAL_SLUGS`
+ * (`src/lib/onboarding/goals.ts`). Selection lives in component state
+ * while the step is open; on advance it is persisted server-side to
+ * `User.onboardingGoals` (v1.17.1), which seeds the dashboard tile
+ * layout on completion and feeds reminder suggestions.
  *
  * CTAs:
  *   - Back   → `/onboarding/0`
- *   - Skip   → advance with empty goal set
+ *   - Skip   → advance with empty goal set (explicit "no preference")
  *   - Next   → advance with chosen goal set
  *
- * Both Skip and Next call POST `/api/onboarding/step` with `{ step: 2 }`
- * and `router.push("/onboarding/2")`.
+ * Both Skip and Next call POST `/api/onboarding/step` with
+ * `{ step: 2, goals }` and `router.push("/onboarding/2")`.
  */
 
 export type OnboardingGoalSlug =
@@ -122,7 +119,14 @@ export function GoalsChipPicker({ userId: _userId }: GoalsChipPickerProps) {
     if (advancing) return;
     setAdvancing(true);
     try {
-      await apiPost("/api/onboarding/step", { step: 2 });
+      // v1.17.1 — persist the chosen goal slugs alongside the step
+      // write. Skip sends an empty array (explicit "no preference"),
+      // not omission, so a resume can read the deliberate empty choice.
+      // The server seeds the dashboard from these on completion.
+      await apiPost("/api/onboarding/step", {
+        step: 2,
+        goals: Array.from(selected),
+      });
       await queryClient.invalidateQueries({ queryKey: ["auth"] });
       router.push("/onboarding/2");
     } catch (err) {

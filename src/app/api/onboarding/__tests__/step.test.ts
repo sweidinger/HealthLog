@@ -21,6 +21,7 @@ vi.mock("@/lib/db", () => ({
       updateMany: vi.fn(),
     },
   },
+  toJson: (v: unknown) => v,
 }));
 
 vi.mock("@/lib/auth/session", () => ({
@@ -247,5 +248,149 @@ describe("POST /api/onboarding/step — rate limit", () => {
     });
     const res = await POST(req({ step: 1 }));
     expect(res.status).toBe(429);
+  });
+});
+
+describe("POST /api/onboarding/step — goal persistence (v1.17.1)", () => {
+  it("persists the selected goal slugs on the step-2 submit", async () => {
+    vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
+    vi.mocked(prisma.user.findUnique).mockResolvedValue({
+      onboardingStep: 1,
+      onboardingCompletedAt: null,
+    } as never);
+    vi.mocked(prisma.user.updateMany).mockResolvedValue({ count: 1 } as never);
+    vi.mocked(prisma.user.findUniqueOrThrow).mockResolvedValue({
+      onboardingStep: 2,
+      onboardingCompletedAt: null,
+    } as never);
+
+    const res = await POST(
+      req({ step: 2, goals: ["weight-management", "bp-tracking"] }),
+    );
+    expect(res.status).toBe(200);
+    const data = vi.mocked(prisma.user.updateMany).mock.calls[0][0].data;
+    expect(data).toMatchObject({
+      onboardingStep: 2,
+      onboardingGoals: ["weight-management", "bp-tracking"],
+    });
+  });
+
+  it("persists an explicit empty array on skip (no preference)", async () => {
+    vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
+    vi.mocked(prisma.user.findUnique).mockResolvedValue({
+      onboardingStep: 1,
+      onboardingCompletedAt: null,
+    } as never);
+    vi.mocked(prisma.user.updateMany).mockResolvedValue({ count: 1 } as never);
+    vi.mocked(prisma.user.findUniqueOrThrow).mockResolvedValue({
+      onboardingStep: 2,
+      onboardingCompletedAt: null,
+    } as never);
+
+    await POST(req({ step: 2, goals: [] }));
+    const data = vi.mocked(prisma.user.updateMany).mock.calls[0][0].data;
+    expect(data).toMatchObject({ onboardingGoals: [] });
+  });
+
+  it("rejects an unknown goal slug with 422", async () => {
+    vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
+    const res = await POST(req({ step: 2, goals: ["not-a-real-goal"] }));
+    expect(res.status).toBe(422);
+    expect(prisma.user.updateMany).not.toHaveBeenCalled();
+  });
+
+  it("does NOT write onboardingGoals when the field is omitted", async () => {
+    vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
+    vi.mocked(prisma.user.findUnique).mockResolvedValue({
+      onboardingStep: 1,
+      onboardingCompletedAt: null,
+    } as never);
+    vi.mocked(prisma.user.updateMany).mockResolvedValue({ count: 1 } as never);
+    vi.mocked(prisma.user.findUniqueOrThrow).mockResolvedValue({
+      onboardingStep: 2,
+      onboardingCompletedAt: null,
+    } as never);
+
+    await POST(req({ step: 2 }));
+    const data = vi.mocked(prisma.user.updateMany).mock.calls[0][0].data;
+    expect(data).not.toHaveProperty("onboardingGoals");
+  });
+});
+
+describe("POST /api/onboarding/step — dashboard seeding on completion", () => {
+  it("seeds the dashboard from stored goals when dashboardWidgetsJson is null", async () => {
+    vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
+    // 1st findUnique = the fresh step-read; 2nd = the seed-read.
+    vi.mocked(prisma.user.findUnique)
+      .mockResolvedValueOnce({
+        onboardingStep: 3,
+        onboardingCompletedAt: null,
+      } as never)
+      .mockResolvedValueOnce({
+        onboardingGoals: ["glucose-tracking"],
+        dashboardWidgetsJson: null,
+      } as never);
+    // 1st updateMany = the step claim; 2nd = the gated seed write.
+    vi.mocked(prisma.user.updateMany)
+      .mockResolvedValueOnce({ count: 1 } as never)
+      .mockResolvedValueOnce({ count: 1 } as never);
+    vi.mocked(prisma.user.findUniqueOrThrow).mockResolvedValue({
+      onboardingStep: 4,
+      onboardingCompletedAt: new Date("2026-06-14T12:00:00Z"),
+    } as never);
+
+    const res = await POST(req({ step: 4 }));
+    expect(res.status).toBe(200);
+    // The second updateMany is the seed; its WHERE pins the null gate
+    // and its data carries a dashboard layout.
+    expect(prisma.user.updateMany).toHaveBeenCalledTimes(2);
+    const seedCall = vi.mocked(prisma.user.updateMany).mock.calls[1][0];
+    expect(seedCall.data).toHaveProperty("dashboardWidgetsJson");
+    expect(seedCall.where).toHaveProperty("dashboardWidgetsJson");
+  });
+
+  it("does NOT seed when dashboardWidgetsJson is already set (gate holds)", async () => {
+    vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
+    vi.mocked(prisma.user.findUnique)
+      .mockResolvedValueOnce({
+        onboardingStep: 3,
+        onboardingCompletedAt: null,
+      } as never)
+      .mockResolvedValueOnce({
+        onboardingGoals: ["glucose-tracking"],
+        dashboardWidgetsJson: { version: 1, widgets: [] },
+      } as never);
+    vi.mocked(prisma.user.updateMany).mockResolvedValue({ count: 1 } as never);
+    vi.mocked(prisma.user.findUniqueOrThrow).mockResolvedValue({
+      onboardingStep: 4,
+      onboardingCompletedAt: new Date("2026-06-14T12:00:00Z"),
+    } as never);
+
+    const res = await POST(req({ step: 4 }));
+    expect(res.status).toBe(200);
+    // Only the step-claim updateMany fired — the seed was gated out
+    // because the user already has a layout.
+    expect(prisma.user.updateMany).toHaveBeenCalledTimes(1);
+  });
+
+  it("does NOT seed when stored goals are empty (no preference)", async () => {
+    vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
+    vi.mocked(prisma.user.findUnique)
+      .mockResolvedValueOnce({
+        onboardingStep: 3,
+        onboardingCompletedAt: null,
+      } as never)
+      .mockResolvedValueOnce({
+        onboardingGoals: [],
+        dashboardWidgetsJson: null,
+      } as never);
+    vi.mocked(prisma.user.updateMany).mockResolvedValue({ count: 1 } as never);
+    vi.mocked(prisma.user.findUniqueOrThrow).mockResolvedValue({
+      onboardingStep: 4,
+      onboardingCompletedAt: new Date("2026-06-14T12:00:00Z"),
+    } as never);
+
+    await POST(req({ step: 4 }));
+    expect(prisma.user.updateMany).toHaveBeenCalledTimes(1);
   });
 });
