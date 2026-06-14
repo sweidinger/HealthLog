@@ -2697,6 +2697,9 @@
           "late": "Type du soir",
           "extreme_late": "Type du soir marqué"
         }
+      },
+      "rhythm": {
+        "loadError": "Votre rythme de sommeil n'a pas pu se charger pour l'instant. Il réapparaîtra dès que la connexion sera rétablie."
       }
     },
     "correlations": "Corrélations",

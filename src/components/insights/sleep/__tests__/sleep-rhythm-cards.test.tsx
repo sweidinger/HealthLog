@@ -72,6 +72,18 @@ describe("<SleepDebtCard>", () => {
     expect(html).toContain("14 nights");
   });
 
+  it("inherits the standard Card rhythm (no compact override)", () => {
+    const partial = render(<SleepDebtCard debt={PARTIAL_DEBT} />);
+    const ready = render(<SleepDebtCard debt={READY_DEBT} />);
+    for (const html of [partial, ready]) {
+      expect(html).not.toContain("gap-2 py-4 md:gap-2 md:py-4");
+      expect(html).toContain("md:py-6");
+      // Semantic info token, not the raw Dracula cyan.
+      expect(html).toContain("text-info");
+      expect(html).not.toContain("text-dracula-cyan");
+    }
+  });
+
   it("shows the caught-up state at zero debt", () => {
     const html = render(
       <SleepDebtCard debt={{ ...READY_DEBT, debtMinutes: 0 }} />,
@@ -96,6 +108,17 @@ describe("<ChronotypeCard>", () => {
     const html = render(<ChronotypeCard chronotype={READY_CHRONO} />);
     expect(html).toContain("Intermediate type");
     expect(html).toContain("04:30");
+  });
+
+  it("inherits the standard Card rhythm (no compact override)", () => {
+    const learning = render(<ChronotypeCard chronotype={LEARNING_CHRONO} />);
+    const ready = render(<ChronotypeCard chronotype={READY_CHRONO} />);
+    for (const html of [learning, ready]) {
+      expect(html).not.toContain("gap-2 py-4 md:gap-2 md:py-4");
+      expect(html).toContain("md:py-6");
+      expect(html).toContain("text-info");
+      expect(html).not.toContain("text-dracula-cyan");
+    }
   });
 
   it("keeps social jetlag + MSFsc behind the advanced disclosure (collapsed by default)", () => {

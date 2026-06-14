@@ -2697,6 +2697,9 @@
           "late": "Tipo serale",
           "extreme_late": "Tipo serale marcato"
         }
+      },
+      "rhythm": {
+        "loadError": "Non è stato possibile caricare il tuo ritmo del sonno in questo momento. Riapparirà non appena la connessione sarà stabile."
       }
     },
     "correlations": "Correlazioni",

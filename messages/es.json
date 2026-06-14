@@ -2697,6 +2697,9 @@
           "late": "Vespertino",
           "extreme_late": "Vespertino marcado"
         }
+      },
+      "rhythm": {
+        "loadError": "Tu ritmo de sueño no pudo cargarse ahora mismo. Reaparecerá en cuanto se estabilice la conexión."
       }
     },
     "correlations": "Correlaciones",
