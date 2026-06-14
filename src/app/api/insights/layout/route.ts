@@ -170,7 +170,12 @@ export const PUT = apiHandler(async (request: NextRequest) => {
     return returnAllZodIssues(parsed.error, 422);
   }
 
-  const normalized = serializeInsightsLayout(parsed.data);
+  // v1.16.13 — load the user's stored layout so a PUT that omits a
+  // dimension (iOS reorders tiles with a tiles-only body, no `sections`
+  // key) preserves the other dimension's customization instead of
+  // resetting it to defaults.
+  const previous = await buildInsightsLayout(user.id);
+  const normalized = serializeInsightsLayout(parsed.data, previous);
 
   await prisma.user.update({
     where: { id: user.id },

@@ -300,7 +300,15 @@ export interface InsightsLayoutInput {
 
 export function serializeInsightsLayout(
   layout: InsightsLayoutInput,
+  previous?: InsightsLayout,
 ): InsightsLayout {
+  // v1.16.13 — a PUT that omits a dimension must KEEP the user's stored
+  // value for it, not reset it to defaults. iOS reorders tiles with a
+  // tiles-only PUT (no `sections` key); without the stored fallback that
+  // PUT silently wipes the user's section customization (and vice-versa
+  // for a section-only PUT against stored tiles). When no stored layout
+  // is supplied we still fall back to defaults so a first-ever PUT on a
+  // single dimension persists a complete blob.
   // v1.8.0 — normalise legacy German tile ids onto canonical English
   // before persisting so the stored blob is always canonical even when
   // the PUT body carried the old ids (the Zod enum accepts both via
@@ -308,18 +316,21 @@ export function serializeInsightsLayout(
   // legacy and canonical id for one tile collapses to a single entry,
   // keeping the dense 0-based order contiguous.
   const seen = new Set<string>();
-  // An omitted `tiles` (a section-only PUT) falls back to the canonical
-  // default tile set so the persisted blob is always complete.
+  // An omitted `tiles` (a section-only PUT) keeps the stored tiles when
+  // available, else falls back to the canonical default tile set so the
+  // persisted blob is always complete.
   if (!layout.tiles) {
     return {
       version: INSIGHTS_LAYOUT_VERSION,
-      sections: serializeInsightsSections(layout.sections),
-      tiles: DEFAULT_INSIGHTS_LAYOUT.tiles.map((t) => ({ ...t })),
+      sections: serializeInsightsSections(layout.sections, previous),
+      tiles: (previous?.tiles ?? DEFAULT_INSIGHTS_LAYOUT.tiles).map((t) => ({
+        ...t,
+      })),
     };
   }
   return {
     version: INSIGHTS_LAYOUT_VERSION,
-    sections: serializeInsightsSections(layout.sections),
+    sections: serializeInsightsSections(layout.sections, previous),
     tiles: layout.tiles
       .slice()
       .sort((a, b) => a.order - b.order)
@@ -340,14 +351,19 @@ export function serializeInsightsLayout(
 /**
  * v1.15.11 — normalise an optional `sections` input: drop unknown ids,
  * dedupe (first occurrence by order wins), re-number to a dense 0-based
- * order. If the input omits `sections` entirely, fill from defaults so a
- * current iOS client PUTting only `tiles` still persists a valid v2 blob.
+ * order. If the input omits `sections` entirely, keep the user's stored
+ * sections when supplied (v1.16.13 — a tiles-only PUT must not wipe the
+ * section customization), else fill from defaults so a first-ever
+ * tiles-only PUT still persists a valid v2 blob.
  */
 function serializeInsightsSections(
   sections: InsightsLayoutInput["sections"],
+  previous?: InsightsLayout,
 ): InsightsSectionConfig[] {
   if (!sections) {
-    return DEFAULT_INSIGHTS_LAYOUT.sections.map((s) => ({ ...s }));
+    return (previous?.sections ?? DEFAULT_INSIGHTS_LAYOUT.sections).map((s) => ({
+      ...s,
+    }));
   }
 
   const knownIds = new Set<string>(INSIGHTS_SECTION_IDS);
