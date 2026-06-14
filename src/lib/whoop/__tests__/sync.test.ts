@@ -25,6 +25,7 @@ const {
     measurement: {
       upsert: vi.fn(),
     },
+    $executeRaw: vi.fn(),
   },
   refreshAccessTokenMock: vi.fn(),
   fetchRecoveriesMock: vi.fn(),
@@ -266,38 +267,39 @@ describe("resolveResourceCursor — per-resource cursor", () => {
   });
 });
 
-describe("markResourceSynced — independent cursor advance", () => {
-  it("advances ONLY the named resource's key, preserving siblings", async () => {
-    prismaMock.whoopConnection.findUnique.mockResolvedValue({
-      resourceCursors: { recovery: "2026-06-01T00:00:00.000Z" },
-    });
-    prismaMock.whoopConnection.update.mockResolvedValue({});
+describe("markResourceSynced — atomic, independent cursor advance", () => {
+  it("issues ONE atomic jsonb_set upsert binding the resource key + instant", async () => {
+    prismaMock.$executeRaw.mockResolvedValue(1);
 
     const at = new Date("2026-06-14T08:00:00.000Z");
     await markResourceSynced("user1", "workout", at);
 
-    const data = prismaMock.whoopConnection.update.mock.calls[0]![0].data;
-    // recovery's older cursor is preserved; workout is set to `at`.
-    expect(data.resourceCursors).toEqual({
-      recovery: "2026-06-01T00:00:00.000Z",
-      workout: at.toISOString(),
-    });
-    // The shared cursor keeps moving for any legacy reader.
-    expect(data.lastSyncedAt).toEqual(at);
+    // A single atomic statement, never a read-then-write (which would race the
+    // concurrent sibling resource queues).
+    expect(prismaMock.whoopConnection.findUnique).not.toHaveBeenCalled();
+    expect(prismaMock.whoopConnection.update).not.toHaveBeenCalled();
+    expect(prismaMock.$executeRaw).toHaveBeenCalledTimes(1);
+
+    const call = prismaMock.$executeRaw.mock.calls[0]!;
+    const sql = (call[0] as TemplateStringsArray).join("?");
+    const values = call.slice(1);
+    // Merge-in-place + monotonic last_synced_at + scoped to the user.
+    expect(sql).toContain("jsonb_set");
+    expect(sql).toContain("GREATEST");
+    // Resource key + ISO instant are parameter-bound, not spliced.
+    expect(values).toContain("workout");
+    expect(values).toContain(at.toISOString());
+    expect(values).toContain(at);
+    expect(values).toContain("user1");
   });
 
-  it("seeds the map from empty when the column is null", async () => {
-    prismaMock.whoopConnection.findUnique.mockResolvedValue({
-      resourceCursors: null,
-    });
-    prismaMock.whoopConnection.update.mockResolvedValue({});
-
-    const at = new Date("2026-06-14T08:00:00.000Z");
-    await markResourceSynced("user1", "sleep", at);
-
-    expect(
-      prismaMock.whoopConnection.update.mock.calls[0]![0].data.resourceCursors,
-    ).toEqual({ sleep: at.toISOString() });
+  it("refuses a resource outside the closed whitelist (no statement issued)", async () => {
+    await markResourceSynced(
+      "user1",
+      "evil" as unknown as Parameters<typeof markResourceSynced>[1],
+      new Date(),
+    );
+    expect(prismaMock.$executeRaw).not.toHaveBeenCalled();
   });
 });
 

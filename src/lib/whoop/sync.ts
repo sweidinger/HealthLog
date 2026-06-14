@@ -24,7 +24,7 @@
  */
 import { AsyncLocalStorage } from "node:async_hooks";
 import { prisma } from "@/lib/db";
-import type { MeasurementType, Prisma } from "@/generated/prisma/client";
+import type { MeasurementType } from "@/generated/prisma/client";
 import { encrypt, decrypt } from "@/lib/crypto";
 import { getEvent } from "@/lib/logging/context";
 import {
@@ -378,38 +378,57 @@ export async function markSynced(userId: string): Promise<void> {
 }
 
 /**
- * Advance ONE resource's cursor after its successful fetch+upsert. Reads the
- * current `resourceCursors` map, sets only this resource's key to `now`, and
- * writes the merged map back — sibling cursors are preserved untouched, so a
- * resource that errored or soft-skipped this tick keeps its own (older) cursor
- * and re-fetches from there next time. Also keeps the shared `lastSyncedAt`
- * moving for any legacy reader still on it.
+ * The closed set of resources allowed in the `resourceCursors` JSON path. The
+ * key is passed to `jsonb_set` below — assert it against this whitelist so a
+ * caller can never splice an arbitrary path, even though `resource` is already
+ * the typed `WhoopResource` union.
+ */
+const WHOOP_CURSOR_RESOURCES: ReadonlySet<WhoopResource> = new Set([
+  "recovery",
+  "sleep",
+  "workout",
+  "cycle",
+]);
+
+/**
+ * Advance ONE resource's cursor after its successful fetch+upsert. Sibling
+ * cursors are preserved untouched, so a resource that errored or soft-skipped
+ * this tick keeps its own (older) cursor and re-fetches from there next time.
+ * Also keeps the shared `lastSyncedAt` moving (monotonically) for any legacy
+ * reader still on it.
  *
- * Best-effort merge: the read+write is not transactional, but each resource
- * runs serially within a user's sync (the per-resource pg-boss queues are
- * `localConcurrency: 1`), so two cursors for the same user never race.
+ * The merge is a SINGLE atomic `jsonb_set` upsert, not a read-modify-write. The
+ * four WHOOP resources are independent pg-boss queues that run concurrently for
+ * the same user (a cron tick fans out all four at once), so a read-then-write
+ * would let two resources read the same map and the second write clobber the
+ * first's cursor. `jsonb_set` merges in-place under the row lock, and
+ * `GREATEST` keeps `last_synced_at` from being dragged backward by a slower
+ * sibling finishing with an older `at`.
  */
 export async function markResourceSynced(
   userId: string,
   resource: WhoopResource,
   at: Date = new Date(),
 ): Promise<void> {
-  const connection = await prisma.whoopConnection.findUnique({
-    where: { userId },
-    select: { resourceCursors: true },
-  });
-  if (!connection) return;
+  // Defence-in-depth: the typed union already bounds `resource`, but the value
+  // reaches a JSON path, so refuse anything outside the closed whitelist.
+  if (!WHOOP_CURSOR_RESOURCES.has(resource)) return;
 
-  const map = parseResourceCursors(connection.resourceCursors);
-  const next: ResourceCursorMap = { ...map, [resource]: at.toISOString() };
-
-  await prisma.whoopConnection.update({
-    where: { userId },
-    data: {
-      resourceCursors: next as Prisma.InputJsonValue,
-      lastSyncedAt: at,
-    },
-  });
+  const iso = at.toISOString();
+  // `resource` is parameter-bound ($2), never string-spliced. `jsonb_set`
+  // builds the path array from it; `coalesce` seeds an empty object for a
+  // legacy null column; `GREATEST` advances `last_synced_at` only forward.
+  await prisma.$executeRaw`
+    UPDATE "whoop_connections"
+    SET "resource_cursors" = jsonb_set(
+          coalesce("resource_cursors", '{}'::jsonb),
+          ARRAY[${resource}],
+          to_jsonb(${iso}::text),
+          true
+        ),
+        "last_synced_at" = GREATEST("last_synced_at", ${at})
+    WHERE "user_id" = ${userId}
+  `;
 }
 
 /**
