@@ -4470,7 +4470,26 @@
       "enable": "Attiva il monitoraggio del ciclo",
       "manage": "Apri il monitoraggio del ciclo",
       "error": "Impossibile aggiornare il monitoraggio del ciclo."
-    }
+    },
+    "nightscout": "Nightscout",
+    "nightscoutTag": "CGM",
+    "nightscoutDescription": "Collega il tuo sito Nightscout per sincronizzare le letture continue della glicemia nel pannello glicemia.",
+    "nightscoutHelp": "Punta HealthLog alla tua istanza Nightscout. Le letture vengono recuperate in background una volta all'ora.",
+    "nightscoutUrl": "URL Nightscout",
+    "nightscoutUrlSavedPlaceholder": "Salvato — inserisci un nuovo URL per sostituirlo",
+    "nightscoutToken": "Token API",
+    "nightscoutTokenOptional": "Facoltativo per un sito pubblico",
+    "nightscoutTokenSavedPlaceholder": "Salvato — inserisci un nuovo token per sostituirlo",
+    "nightscoutTokenHelp": "Incolla un token di accesso dagli strumenti di amministrazione di Nightscout. Lascia vuoto se il tuo sito è leggibile pubblicamente.",
+    "nightscoutPrivateHost": "Questo sito è su una rete privata",
+    "nightscoutPrivateHostHelp": "Attiva solo se la tua istanza Nightscout è su un indirizzo LAN, VPN o Tailscale. Disattivato per i siti pubblici.",
+    "nightscoutConnect": "Connetti",
+    "nightscoutUpdate": "Salva modifiche",
+    "nightscoutConnected": "Nightscout connesso.",
+    "nightscoutConnectFailed": "Impossibile connettersi a Nightscout.",
+    "nightscoutDisconnect": "Disconnetti",
+    "nightscoutDisconnectTitle": "Disconnettere Nightscout?",
+    "nightscoutDisconnectDescription": "Le sincronizzazioni future si interrompono. Le letture della glicemia già importate restano nella tua cronologia."
   },
   "admin": {
     "title": "Administration",

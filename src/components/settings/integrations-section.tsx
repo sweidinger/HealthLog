@@ -7,6 +7,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
 import { FitbitCard } from "@/components/settings/integrations/fitbit-card";
+import { NightscoutCard } from "@/components/settings/integrations/nightscout-card";
 import {
   pickStatus,
   useIntegrationStatuses,
@@ -124,6 +125,7 @@ export function IntegrationsSection() {
       <WithingsCard viewModel={withingsViewModel} />
       <WhoopCard viewModel={whoopViewModel} />
       <FitbitCard viewModel={fitbitViewModel} />
+      <NightscoutCard enabled={isAuthenticated} />
     </section>
   );
 }
