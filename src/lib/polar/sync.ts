@@ -26,6 +26,7 @@ import { getEvent } from "@/lib/logging/context";
 import {
   recordSyncFailure,
   recordSyncSuccess,
+  toFailureKind,
   type FailureKind,
 } from "@/lib/integrations/status";
 import {
@@ -47,10 +48,7 @@ import { PolarApiError, classifyPolarError } from "./response-classifier";
 
 /** Map a Polar error onto the shared integration-ledger failure kind. */
 export function classifyPolarFailure(err: unknown): FailureKind {
-  const c = classifyPolarError(err);
-  if (c === "reauth_required") return "reauth_required";
-  if (c === "persistent") return "persistent";
-  return "transient";
+  return toFailureKind(classifyPolarError(err));
 }
 
 /** One mapped reading with its `externalId` resolved. */

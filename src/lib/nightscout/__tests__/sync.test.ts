@@ -26,7 +26,8 @@ vi.mock("@/lib/db", () => ({
   prisma: { measurement: { upsert: upsertMock } },
 }));
 
-vi.mock("@/lib/integrations/status", () => ({
+vi.mock("@/lib/integrations/status", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/integrations/status")>()),
   recordSyncSuccess: recordSuccessMock,
   recordSyncFailure: recordFailureMock,
 }));
