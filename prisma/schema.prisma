@@ -1408,6 +1408,14 @@ model Medication {
   /// against. A changed threshold re-arms the medication even while
   /// the runway stays low, so the user hears about the new crossing.
   lowStockNotifiedThresholdDays Int?      @map("low_stock_notified_threshold_days")
+  /// v1.17.0 — optional per-medication reorder lead time in days (how
+  /// long between placing a refill order and the new supply arriving).
+  /// The low-stock alert adds this lead plus one dose-interval on top of
+  /// the user threshold so the warning lands BEFORE the last dose for any
+  /// cadence. NULL = inherit the per-user
+  /// `notificationPrefs.medication.reorderLeadDays` default. Additive; no
+  /// backfill.
+  reorderLeadDays      Int?               @map("reorder_lead_days")
   createdAt            DateTime           @default(now()) @map("created_at")
   updatedAt            DateTime           @updatedAt @map("updated_at")
 

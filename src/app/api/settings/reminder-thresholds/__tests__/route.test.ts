@@ -77,12 +77,15 @@ describe("GET /api/settings/reminder-thresholds", () => {
         lateMinutes: number;
         missedMinutes: number;
         lowStockRunwayDays: number | null;
+        reorderLeadDays: number;
       };
     };
     expect(env.data).toEqual({
       lateMinutes: 120,
       missedMinutes: 240,
       lowStockRunwayDays: 7,
+      // v1.17.0 — the per-user reorder lead default rides along.
+      reorderLeadDays: 10,
     });
   });
 

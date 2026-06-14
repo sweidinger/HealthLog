@@ -5519,6 +5519,10 @@
       "statusOff": "Wyłączone",
       "daysLabel": "Powiadom poniżej (dni)",
       "daysAria": "Wybierz próg zapasu w dniach",
+      "leadLabel": "Czas na ponowne zamówienie (dni)",
+      "leadAria": "Czas na ponowne zamówienie w dniach",
+      "leadHelp": "Alert pojawia się o tyle dni plus jeden interwał dawki wcześniej, aby nowy zapas dotarł przed Twoją ostatnią dawką. Pojedynczy lek może nadpisać tę wartość na swojej karcie zapasu.",
+      "leadSavedToast": "Czas na ponowne zamówienie zapisany.",
       "savedToast": "Próg zapasu zapisany.",
       "enabledToast": "Alerty niskiego zapasu włączone.",
       "disabledToast": "Alerty niskiego zapasu wyłączone.",
@@ -5712,7 +5716,9 @@
   "lowStockReminders": {
     "title": "Niski zapas: {medName}",
     "body": "{medName}: pozostało {units} jednostek — wystarczy na około {days} dni.",
-    "bodyToday": "{medName}: pozostało {units} jednostek — mniej niż jeden dzień zapasu."
+    "bodyToday": "{medName}: pozostało {units} jednostek — mniej niż jeden dzień zapasu.",
+    "bodyReorder": "{medName}: pozostało {units} jednostek. Zapas skończy się około {runsOutOn} — zamów ponownie do {reorderBy}.",
+    "bodyLastDose": "{medName}: pozostało {units} jednostek — to mniej więcej Twoja ostatnia dawka. Zapas skończy się około {runsOutOn}."
   },
   "moodReminders": {
     "dailyTitle": "Zapisz nastrój",

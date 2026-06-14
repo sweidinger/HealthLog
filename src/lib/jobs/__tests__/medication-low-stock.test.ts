@@ -80,21 +80,21 @@ describe("evaluateMedicationRunway", () => {
 describe("decideLowStockAction — boundary / dedupe / re-arm", () => {
   const armed = { notifiedAt: null, notifiedThresholdDays: null };
 
-  it("notifies just below the threshold", () => {
+  it("notifies just below the trigger", () => {
     expect(
-      decideLowStockAction({ runwayDays: 6, thresholdDays: 7, ...armed }),
+      decideLowStockAction({ runwayDays: 6, triggerDays: 7, ...armed }),
     ).toBe("notify");
   });
 
-  it("stays silent AT the threshold (strictly-below contract)", () => {
+  it("notifies AT the trigger (v1.17.0 ≤ boundary — lands before the last dose)", () => {
     expect(
-      decideLowStockAction({ runwayDays: 7, thresholdDays: 7, ...armed }),
-    ).toBe("skip_above_threshold");
+      decideLowStockAction({ runwayDays: 7, triggerDays: 7, ...armed }),
+    ).toBe("notify");
   });
 
-  it("stays silent above the threshold", () => {
+  it("stays silent above the trigger", () => {
     expect(
-      decideLowStockAction({ runwayDays: 8, thresholdDays: 7, ...armed }),
+      decideLowStockAction({ runwayDays: 8, triggerDays: 7, ...armed }),
     ).toBe("skip_above_threshold");
   });
 
@@ -102,29 +102,29 @@ describe("decideLowStockAction — boundary / dedupe / re-arm", () => {
     expect(
       decideLowStockAction({
         runwayDays: 5,
-        thresholdDays: 7,
+        triggerDays: 7,
         notifiedAt: daysAgo(1),
         notifiedThresholdDays: 7,
       }),
     ).toBe("skip_already_notified");
   });
 
-  it("re-arms when the runway rises back above the threshold (refill)", () => {
+  it("re-arms when the runway rises back above the trigger (refill)", () => {
     expect(
       decideLowStockAction({
         runwayDays: 30,
-        thresholdDays: 7,
+        triggerDays: 7,
         notifiedAt: daysAgo(2),
         notifiedThresholdDays: 7,
       }),
     ).toBe("rearm");
   });
 
-  it("a changed threshold re-arms even while the runway stays low", () => {
+  it("a changed trigger (threshold OR lead) re-arms even while the runway stays low", () => {
     expect(
       decideLowStockAction({
         runwayDays: 10,
-        thresholdDays: 14,
+        triggerDays: 14,
         notifiedAt: daysAgo(3),
         notifiedThresholdDays: 7,
       }),
@@ -133,33 +133,58 @@ describe("decideLowStockAction — boundary / dedupe / re-arm", () => {
 
   it("never notifies when no runway is derivable", () => {
     expect(
-      decideLowStockAction({ runwayDays: null, thresholdDays: 7, ...armed }),
+      decideLowStockAction({ runwayDays: null, triggerDays: 7, ...armed }),
     ).toBe("skip_no_runway");
   });
 });
 
+const payloadArgs = (over: Partial<Parameters<typeof buildLowStockPayload>[0]>) =>
+  buildLowStockPayload({
+    locale: "en",
+    medName: "Metformin",
+    runwayDays: 5,
+    unitsRemaining: 10,
+    leadDays: 0,
+    triggerDays: 7,
+    schedules: [dailySchedule],
+    today: new Date(Date.UTC(2026, 5, 1)),
+    ...over,
+  });
+
 describe("buildLowStockPayload", () => {
-  it("names the medication and the remaining days / units (en)", () => {
-    const out = buildLowStockPayload("en", "Metformin", 5, 10);
+  it("names the medication and reorder dates when supply is datable (en)", () => {
+    const out = payloadArgs({ runwayDays: 5, leadDays: 3, triggerDays: 9 });
     expect(out.title).toContain("Metformin");
     expect(out.body).toContain("Metformin");
-    expect(out.body).toContain("5");
-    expect(out.body).toContain("10");
+    // runsOutOn = 1 Jun + 5 = 6 Jun; reorderBy = 6 Jun − 3 = 3 Jun.
+    // The "en" bundle resolves to the en-US date style ("Jun 6, 2026").
+    expect(out.body).toContain("Jun 6, 2026");
+    expect(out.body).toContain("Jun 3, 2026");
   });
 
   it("uses the du-Form German copy", () => {
-    const out = buildLowStockPayload("de", "Metformin", 5, 10);
+    const out = payloadArgs({ locale: "de", leadDays: 3, triggerDays: 9 });
     expect(out.body).toContain("Dein Vorrat an Metformin");
-    expect(out.body).toContain("5");
   });
 
   it("switches to the depleted line at runway 0", () => {
-    const out = buildLowStockPayload("en", "Metformin", 0, 1);
+    const out = payloadArgs({ runwayDays: 0, unitsRemaining: 1 });
     expect(out.body).toContain("less than one day");
   });
 
+  it("renders the last-dose line when the runway is one cadence interval", () => {
+    // Weekly cadence, runway 7 ≈ one dose-interval → last-dose state.
+    const out = payloadArgs({
+      runwayDays: 7,
+      leadDays: 10,
+      triggerDays: 17,
+      schedules: [weeklySchedule],
+    });
+    expect(out.body).toContain("final dose");
+  });
+
   it("falls back to the app default locale for unknown locales", () => {
-    const out = buildLowStockPayload("xx", "Metformin", 5, 10);
+    const out = payloadArgs({ locale: "xx" });
     expect(out.title).toBe("Low supply: Metformin");
   });
 });
@@ -170,6 +195,11 @@ describe("runMedicationLowStockTick", () => {
       id: "med-1",
       name: "Metformin",
       unitsPerDose: 1,
+      // v1.17.0 — daily fixtures pin lead 0 so the effective trigger stays
+      // the bare 7-day floor (max(7, 0 + 1 dose-interval) = 7); a daily med
+      // with no reorder lead is UNCHANGED from the pre-v1.17.0 behaviour.
+      // The weekly + lead scenarios opt into a non-zero lead explicitly.
+      reorderLeadDays: 0,
       lowStockNotifiedAt: null,
       lowStockNotifiedThresholdDays: null,
       inventoryItems: [item(5)],
@@ -425,5 +455,87 @@ describe("runMedicationLowStockTick", () => {
     expect(summary.skippedNoChannel).toBe(1);
     expect(summary.notified).toBe(0);
     expect(prisma.medication.update).not.toHaveBeenCalled();
+  });
+
+  it("a daily med with no reorder lead is UNCHANGED (trigger stays the 7-day floor)", async () => {
+    const dispatch = okDispatch();
+    // Runway 8 (8 daily doses) sits above the bare floor of 7; with lead 0
+    // and a 1-day cadence the trigger is max(7, 0 + 1) = 7, so 8 > 7 stays
+    // silent — exactly the pre-v1.17.0 boundary.
+    const prisma = prismaMock({
+      users: [userRow()],
+      medications: [medRow({ inventoryItems: [item(8)], reorderLeadDays: 0 })],
+    });
+
+    const summary = await runMedicationLowStockTick(
+      prisma as unknown as PrismaClient,
+      now,
+      { dispatch },
+    );
+
+    expect(summary.skippedAboveThreshold).toBe(1);
+    expect(summary.notified).toBe(0);
+    expect(dispatch).not.toHaveBeenCalled();
+  });
+
+  it("a WEEKLY med with one dose left now fires with reorder headroom (the maintainer's scenario)", async () => {
+    const dispatch = okDispatch();
+    // One weekly dose left ≈ 7 days of runway. Under the old strict-below
+    // 7-day floor this fired only AT the last dose; with the default lead
+    // (10) the trigger is max(7, 10 + 7) = 17, so runway 7 ≤ 17 fires with
+    // ~10 days of reorder headroom before the supply runs out.
+    const prisma = prismaMock({
+      users: [userRow()],
+      medications: [
+        medRow({
+          schedules: [weeklySchedule],
+          inventoryItems: [item(1)],
+          reorderLeadDays: null, // inherit the user-level default (10)
+        }),
+      ],
+    });
+
+    const summary = await runMedicationLowStockTick(
+      prisma as unknown as PrismaClient,
+      now,
+      { dispatch },
+    );
+
+    expect(summary.notified).toBe(1);
+    expect(dispatch).toHaveBeenCalledWith(
+      expect.objectContaining({
+        metadata: expect.objectContaining({
+          runwayDays: 7,
+          triggerDays: 17,
+          leadDays: 10,
+        }),
+      }),
+    );
+    // The stamp records the EFFECTIVE trigger, not the bare floor.
+    expect(prisma.medication.update).toHaveBeenCalledWith({
+      where: { id: "med-1" },
+      data: { lowStockNotifiedAt: now, lowStockNotifiedThresholdDays: 17 },
+    });
+  });
+
+  it("a per-med reorder-lead override beats the user-level default", async () => {
+    const dispatch = okDispatch();
+    // User default lead 10; this med overrides it with 0. Daily cadence →
+    // trigger max(7, 0 + 1) = 7. Runway 9 (9 daily doses) > 7 stays silent,
+    // proving the per-med 0 override displaced the user's 10 (which would
+    // have given trigger 11 and fired).
+    const prisma = prismaMock({
+      users: [userRow()],
+      medications: [medRow({ inventoryItems: [item(9)], reorderLeadDays: 0 })],
+    });
+
+    const summary = await runMedicationLowStockTick(
+      prisma as unknown as PrismaClient,
+      now,
+      { dispatch },
+    );
+
+    expect(summary.skippedAboveThreshold).toBe(1);
+    expect(dispatch).not.toHaveBeenCalled();
   });
 });

@@ -300,6 +300,7 @@ export const POST = apiHandler(async (request: NextRequest) => {
     treatmentClass,
     dosesPerUnit,
     unitsPerDose,
+    reorderLeadDays,
     deliveryForm,
     trackInjectionSites,
     allowedInjectionSites,
@@ -379,6 +380,9 @@ export const POST = apiHandler(async (request: NextRequest) => {
       ...(dosesPerUnit !== undefined && { dosesPerUnit }),
       // v1.16.10 — units consumed per dose; Prisma defaults to 1 when omitted.
       ...(unitsPerDose !== undefined && { unitsPerDose }),
+      // v1.17.0 — optional reorder lead override; null/omitted = inherit
+      // the user-level default in the low-stock alert.
+      ...(reorderLeadDays !== undefined && { reorderLeadDays }),
       // v1.6.0 — route of administration; Prisma defaults to ORAL when omitted.
       ...(deliveryForm !== undefined && { deliveryForm }),
       // v1.8.5 — injection-site tracking opt-in + per-medication allowed

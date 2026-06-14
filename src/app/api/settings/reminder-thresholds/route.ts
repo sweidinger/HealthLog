@@ -3,7 +3,7 @@ import { getReminderThresholds } from "@/lib/app-settings";
 import { apiHandler, requireAuth } from "@/lib/api-handler";
 import { annotate } from "@/lib/logging/context";
 import { prisma } from "@/lib/db";
-import { resolveLowStockRunwayDays } from "@/lib/validations/notification-prefs";
+import { parseNotificationPrefs } from "@/lib/validations/notification-prefs";
 
 export const dynamic = "force-dynamic";
 
@@ -22,11 +22,15 @@ export const GET = apiHandler(async () => {
     where: { id: user.id },
     select: { notificationPrefs: true },
   });
-  const lowStockRunwayDays = resolveLowStockRunwayDays(
-    row?.notificationPrefs ?? null,
-  );
+  const prefs = parseNotificationPrefs(row?.notificationPrefs ?? null);
+  const lowStockRunwayDays = prefs.medication.lowStockRunwayDays;
+  // v1.17.0 — the user-level reorder lead default rides along so the
+  // medication cards can derive the same reorder-lead-aware trigger the
+  // daily cron uses (per-medication overrides come from the list payload's
+  // own `reorderLeadDays`).
+  const reorderLeadDays = prefs.medication.reorderLeadDays;
 
   annotate({ action: { name: "settings.reminder-thresholds.get" } });
 
-  return apiSuccess({ ...thresholds, lowStockRunwayDays });
+  return apiSuccess({ ...thresholds, lowStockRunwayDays, reorderLeadDays });
 });

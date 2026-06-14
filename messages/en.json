@@ -5519,6 +5519,10 @@
       "statusOff": "Off",
       "daysLabel": "Notify below (days)",
       "daysAria": "Select the low-stock threshold in days",
+      "leadLabel": "Reorder lead time (days)",
+      "leadAria": "Reorder lead time in days",
+      "leadHelp": "The alert fires this many days plus one dose-interval earlier so a refill arrives before your last dose. A single medication can override this on its supply tab.",
+      "leadSavedToast": "Reorder lead time saved.",
       "savedToast": "Low-stock threshold saved.",
       "enabledToast": "Low-stock alerts enabled.",
       "disabledToast": "Low-stock alerts disabled.",
@@ -5712,7 +5716,9 @@
   "lowStockReminders": {
     "title": "Low supply: {medName}",
     "body": "{medName}: {units} units left — enough for about {days} more days.",
-    "bodyToday": "{medName}: {units} units left — less than one day of supply."
+    "bodyToday": "{medName}: {units} units left — less than one day of supply.",
+    "bodyReorder": "{medName}: {units} units left. Supply runs out around {runsOutOn} — reorder by {reorderBy}.",
+    "bodyLastDose": "{medName}: {units} units left — about your final dose. Supply runs out around {runsOutOn}."
   },
   "moodReminders": {
     "dailyTitle": "Log your mood",

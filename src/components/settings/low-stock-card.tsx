@@ -24,12 +24,17 @@ import { apiFetchRaw, apiGet } from "@/lib/api/api-fetch";
  */
 
 interface NotificationPrefsShape {
-  medication: { lowStockRunwayDays: number | null };
+  medication: { lowStockRunwayDays: number | null; reorderLeadDays?: number };
 }
 
 const DEFAULT_DAYS = 7;
 const MIN_DAYS = 1;
 const MAX_DAYS = 60;
+// v1.17.0 — reorder lead time. The alert widens its trigger by this lead
+// plus one dose-interval so a refill arrives before the last dose.
+const DEFAULT_LEAD = 10;
+const MIN_LEAD = 0;
+const MAX_LEAD = 60;
 
 export function LowStockCard({
   isAuthenticated,
@@ -42,6 +47,10 @@ export function LowStockCard({
     undefined,
   );
   const [draft, setDraft] = useState<string | null>(null);
+  const [leadDraft, setLeadDraft] = useState<string | null>(null);
+  const [leadOptimistic, setLeadOptimistic] = useState<number | undefined>(
+    undefined,
+  );
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const [msgType, setMsgType] = useState<"success" | "error" | null>(null);
@@ -87,8 +96,16 @@ export function LowStockCard({
   const enabled = current !== null;
   const days = current ?? DEFAULT_DAYS;
 
-  async function persist(next: number | null, successMsg: string) {
-    setOptimistic(next);
+  const persistedLead =
+    prefs?.medication?.reorderLeadDays === undefined
+      ? DEFAULT_LEAD
+      : prefs.medication.reorderLeadDays;
+  const leadDays = leadOptimistic === undefined ? persistedLead : leadOptimistic;
+
+  async function patchPrefs(
+    body: Record<string, unknown>,
+    successMsg: string,
+  ): Promise<boolean> {
     setSaving(true);
     setMsg(null);
     setMsgType(null);
@@ -100,7 +117,7 @@ export function LowStockCard({
     const res = await apiFetchRaw("/api/auth/me/notification-prefs", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ medication: { lowStockRunwayDays: next } }),
+      body: JSON.stringify(body),
     });
 
     if (res.ok) {
@@ -114,14 +131,33 @@ export function LowStockCard({
           queryKey: queryKeys.settingsReminderThresholds(),
         }),
       ]);
-      setOptimistic(undefined);
     } else {
-      setOptimistic(undefined);
       setMsg(t("notifications.lowStock.saveError"));
       setMsgType("error");
     }
     scheduleClear();
     setSaving(false);
+    return res.ok;
+  }
+
+  async function persist(next: number | null, successMsg: string) {
+    setOptimistic(next);
+    const ok = await patchPrefs(
+      { medication: { lowStockRunwayDays: next } },
+      successMsg,
+    );
+    setOptimistic(undefined);
+    void ok;
+  }
+
+  async function persistLead(next: number, successMsg: string) {
+    setLeadOptimistic(next);
+    const ok = await patchPrefs(
+      { medication: { reorderLeadDays: next } },
+      successMsg,
+    );
+    setLeadOptimistic(undefined);
+    void ok;
   }
 
   async function handleToggle(next: boolean) {
@@ -141,6 +177,16 @@ export function LowStockCard({
     const clamped = Math.min(MAX_DAYS, Math.max(MIN_DAYS, parsed));
     if (clamped === days) return;
     void persist(clamped, t("notifications.lowStock.savedToast"));
+  }
+
+  function commitLeadDraft() {
+    if (leadDraft === null) return;
+    const parsed = Number(leadDraft);
+    setLeadDraft(null);
+    if (!Number.isInteger(parsed)) return;
+    const clamped = Math.min(MAX_LEAD, Math.max(MIN_LEAD, parsed));
+    if (clamped === leadDays) return;
+    void persistLead(clamped, t("notifications.lowStock.leadSavedToast"));
   }
 
   return (
@@ -196,6 +242,41 @@ export function LowStockCard({
             data-lpignore="true"
             data-1p-ignore="true"
           />
+        </div>
+      )}
+      {/* v1.17.0 — reorder lead time. Progressive disclosure: shown only
+          while the alert is enabled, with a sensible default (10) most
+          users never touch. A single medication can override this on its
+          own supply tab. */}
+      {enabled && (
+        <div className="mt-4 pl-7">
+          <div className="flex min-h-11 items-center gap-3">
+            <label htmlFor="low-stock-lead" className="text-sm font-medium">
+              {t("notifications.lowStock.leadLabel")}
+            </label>
+            <Input
+              id="low-stock-lead"
+              type="number"
+              inputMode="numeric"
+              min={MIN_LEAD}
+              max={MAX_LEAD}
+              className="w-24"
+              value={leadDraft ?? String(leadDays)}
+              disabled={!isAuthenticated || saving}
+              onChange={(e) => setLeadDraft(e.target.value)}
+              onBlur={commitLeadDraft}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") commitLeadDraft();
+              }}
+              aria-label={t("notifications.lowStock.leadAria")}
+              autoComplete="off"
+              data-lpignore="true"
+              data-1p-ignore="true"
+            />
+          </div>
+          <p className="text-muted-foreground mt-1.5 max-w-prose text-xs">
+            {t("notifications.lowStock.leadHelp")}
+          </p>
         </div>
       )}
       {msg && (

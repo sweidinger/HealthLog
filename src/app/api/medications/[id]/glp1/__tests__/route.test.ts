@@ -14,6 +14,10 @@ import { NextRequest } from "next/server";
 vi.mock("@/lib/db", () => ({
   prisma: {
     medication: { findUnique: vi.fn() },
+    // v1.17.0 — the GET reads the caller's notificationPrefs to resolve
+    // the reorder-lead-aware low-stock trigger. Default null = the
+    // documented defaults (alert on, 7-day floor, 10-day lead).
+    user: { findUnique: vi.fn().mockResolvedValue({ notificationPrefs: null }) },
     medicationDoseChange: { create: vi.fn() },
     medicationInventoryEvent: { create: vi.fn() },
   },
@@ -443,7 +447,19 @@ describe("GET /api/medications/[id]/glp1 — v1.16.10 item-backed inventory", ()
       userId: "user-1",
       doseChanges: [],
       intakeEvents: [],
-      schedules: [],
+      // Weekly cadence — the canonical GLP-1 case. 3 doses ≈ 21 days of
+      // runway, comfortably above the reorder-lead-aware trigger
+      // (max(7, 10 + 7) = 17), so the flag is FALSE.
+      schedules: [
+        {
+          windowStart: "08:00",
+          daysOfWeek: "6",
+          timesOfDay: ["08:00"],
+          rrule: null,
+          rollingIntervalDays: null,
+        },
+      ],
+      reorderLeadDays: null,
       dosesPerUnit: 4,
       unitsPerDose: 2,
       inventoryItems: [
@@ -476,12 +492,88 @@ describe("GET /api/medications/[id]/glp1 — v1.16.10 item-backed inventory", ()
       };
     };
     // 2 usable containers; 7 pooled units / 2 units per dose = 3 doses.
+    // v1.17.0 — lowStock now rides the runway model: 3 weekly doses ≈ 21
+    // days > trigger 17 ⇒ false.
     expect(body.data.inventory).toEqual({
       pensRemaining: 2,
       dosesRemaining: 3,
       weeksOfSupply: 3,
-      lowStock: true,
+      lowStock: false,
     });
+  });
+
+  it("v1.17.0 — lowStock flag matches the reorder-lead-aware runway decision (fires before the last weekly dose)", async () => {
+    vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
+    vi.mocked(prisma.medication.findUnique).mockResolvedValue({
+      id: "med-1",
+      userId: "user-1",
+      doseChanges: [],
+      intakeEvents: [],
+      // Weekly cadence, ONE dose left ≈ 7 days of runway. With the default
+      // 10-day reorder lead the trigger is max(7, 10 + 7) = 17, so runway
+      // 7 ≤ 17 ⇒ the card flag lights with reorder headroom — exactly the
+      // cron's decision (no longer "at the last dose").
+      schedules: [
+        {
+          windowStart: "08:00",
+          daysOfWeek: "6",
+          timesOfDay: ["08:00"],
+          rrule: null,
+          rollingIntervalDays: null,
+        },
+      ],
+      reorderLeadDays: null,
+      dosesPerUnit: 1,
+      unitsPerDose: 1,
+      inventoryItems: [{ state: "ACTIVE", unitsTotal: 4, unitsRemaining: 1 }],
+      inventoryEvents: [],
+    } as never);
+
+    const res = await GET(getReq(), {
+      params: Promise.resolve({ id: "med-1" }),
+    });
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      data: { inventory: { dosesRemaining: number; lowStock: boolean } };
+    };
+    expect(body.data.inventory.dosesRemaining).toBe(1);
+    expect(body.data.inventory.lowStock).toBe(true);
+  });
+
+  it("v1.17.0 — lowStock is false when the alert is switched off (null threshold)", async () => {
+    vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
+    vi.mocked(prisma.user.findUnique).mockResolvedValueOnce({
+      notificationPrefs: { medication: { lowStockRunwayDays: null } },
+    } as never);
+    vi.mocked(prisma.medication.findUnique).mockResolvedValue({
+      id: "med-1",
+      userId: "user-1",
+      doseChanges: [],
+      intakeEvents: [],
+      schedules: [
+        {
+          windowStart: "08:00",
+          daysOfWeek: "6",
+          timesOfDay: ["08:00"],
+          rrule: null,
+          rollingIntervalDays: null,
+        },
+      ],
+      reorderLeadDays: null,
+      dosesPerUnit: 1,
+      unitsPerDose: 1,
+      inventoryItems: [{ state: "ACTIVE", unitsTotal: 4, unitsRemaining: 1 }],
+      inventoryEvents: [],
+    } as never);
+
+    const res = await GET(getReq(), {
+      params: Promise.resolve({ id: "med-1" }),
+    });
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      data: { inventory: { lowStock: boolean } };
+    };
+    expect(body.data.inventory.lowStock).toBe(false);
   });
 
   it("returns a null inventory block when no items and no ledger rows exist", async () => {

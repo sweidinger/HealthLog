@@ -5519,6 +5519,10 @@
       "statusOff": "Disattivato",
       "daysLabel": "Avvisa sotto (giorni)",
       "daysAria": "Seleziona la soglia delle scorte in giorni",
+      "leadLabel": "Tempo di riordino (giorni)",
+      "leadAria": "Tempo di riordino in giorni",
+      "leadHelp": "L’avviso arriva questo numero di giorni più un intervallo di dose in anticipo, così la fornitura arriva prima dell’ultima dose. Un singolo farmaco può sovrascrivere questo valore nella sua scheda scorte.",
+      "leadSavedToast": "Tempo di riordino salvato.",
       "savedToast": "Soglia delle scorte salvata.",
       "enabledToast": "Avvisi di scorte basse attivati.",
       "disabledToast": "Avvisi di scorte basse disattivati.",
@@ -5712,7 +5716,9 @@
   "lowStockReminders": {
     "title": "Scorte in esaurimento: {medName}",
     "body": "{medName}: {units} unità rimaste — bastano per circa {days} giorni.",
-    "bodyToday": "{medName}: {units} unità rimaste — meno di un giorno di scorta."
+    "bodyToday": "{medName}: {units} unità rimaste — meno di un giorno di scorta.",
+    "bodyReorder": "{medName}: {units} unità rimaste. Le scorte finiscono intorno al {runsOutOn} — riordina entro il {reorderBy}.",
+    "bodyLastDose": "{medName}: {units} unità rimaste — circa la tua ultima dose. Le scorte finiscono intorno al {runsOutOn}."
   },
   "moodReminders": {
     "dailyTitle": "Registra il tuo umore",
