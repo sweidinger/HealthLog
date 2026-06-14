@@ -107,6 +107,18 @@ services:
       # container (the `environment:` block is a whitelist). See
       # docs/ops/tls-cert-pin.md.
       TLS_LEAF_SPKI_PINS: "${TLS_LEAF_SPKI_PINS:-}"
+      # v1.17.1 — SMTP transport for the email notification channel (optional,
+      # all-or-none: HOST + PORT + FROM enable it; USER/PASS optional; SECURE
+      # toggles implicit TLS). Listed here so operator values in .env reach the
+      # container (the `environment:` block is a whitelist — vars not listed
+      # never propagate from .env, even with `${VAR}` substitution at
+      # compose-up). Per-user recipient is stored in the DB, not here.
+      SMTP_HOST: "${SMTP_HOST:-}"
+      SMTP_PORT: "${SMTP_PORT:-}"
+      SMTP_FROM: "${SMTP_FROM:-}"
+      SMTP_USER: "${SMTP_USER:-}"
+      SMTP_PASS: "${SMTP_PASS:-}"
+      SMTP_SECURE: "${SMTP_SECURE:-}"
     depends_on:
       db:
         condition: service_healthy
