@@ -9,21 +9,23 @@
 --
 -- Operator walked the capture sheet and asked for:
 --   - deactivate the redundant default tags `happy`, `excited`,
---     `hydrated` ("Wasser getrunken") and `music`;
+--     `hydrated` ("Wasser getrunken"), `music`, and the
+--     `factor_sleep_quality` RATED factor;
 --   - keep `overtime` active — 0126 had deactivated it as a low-signal
 --     day-type tag, but the operator wants it back in the work picker;
 --   - add a new default tag `praise` ("Lob" / "Praise") under the work
 --     category, Lucide `ThumbsUp` (already in the iOS Lucide→SF table).
 --
--- factor_sleep_quality is deliberately LEFT untouched: the curation note
--- premised its removal on a dedicated sleep-quality slider elsewhere, but
--- no such slider exists in the capture surface. It stays one of the three
--- surviving RATED factors (work / sleep quality / sadness) seeded by 0126.
+-- factor_sleep_quality is deactivated alongside the rest: a manual 1–5
+-- sleep rating is redundant with the measured sleep-tracking surface, so
+-- it leaves the seeded factor set — work / sadness stay as the RATED
+-- factors from 0126. Historical entries keep resolving (read joins by id,
+-- not `is_active`).
 
--- ─── Deactivate the four redundant default tags ──────────────────────
+-- ─── Deactivate the redundant default tags + sleep-quality factor ─────
 UPDATE "mood_tags"
 SET "is_active" = false
-WHERE "key" IN ('happy', 'excited', 'hydrated', 'music');
+WHERE "key" IN ('happy', 'excited', 'hydrated', 'music', 'factor_sleep_quality');
 
 -- ─── Re-activate overtime in the work category ───────────────────────
 UPDATE "mood_tags"
