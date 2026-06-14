@@ -3602,6 +3602,7 @@
     "recovery": {
       "title": "Erholung",
       "description": "Wie gut sich dein Körper erholt hat – die Erholungs-, Belastungs- und Load-Signale, die dein Wearable über Nacht aufzeichnet.",
+      "emptyTitle": "Noch keine Erholungsdaten",
       "empty": "Noch keine Erholungsdaten. Verbinde ein WHOOP-, Polar- oder Oura-Konto, dann füllen sich diese Werte, sobald dein Gerät synchronisiert.",
       "recharge": {
         "title": "Recharge",

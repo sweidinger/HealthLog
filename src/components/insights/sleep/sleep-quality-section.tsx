@@ -6,6 +6,7 @@ import { useInsightsAnalytics } from "@/hooks/use-insights-analytics";
 import { useTranslations } from "@/lib/i18n/context";
 import { SectionHeading } from "@/components/insights/section-heading";
 import { DeviceScoreTile } from "@/components/insights/device-score-tile";
+import { DeviceScoreGridSkeleton } from "@/components/insights/device-score-tile-skeleton";
 
 /**
  * v1.17.1 — "Sleep quality" block on `/insights/sleep`.
@@ -23,12 +24,26 @@ import { DeviceScoreTile } from "@/components/insights/device-score-tile";
  */
 export function SleepQualitySection({ enabled }: { enabled: boolean }) {
   const { t } = useTranslations();
-  const { data } = useInsightsAnalytics("SLEEP_DURATION");
+  const { data, isLoading } = useInsightsAnalytics("SLEEP_DURATION");
 
   if (!enabled) return null;
 
   const summaries = data?.summaries;
-  if (!summaries) return null;
+
+  // While the shared slice loads, paint the tile-shaped Skeleton grid (same
+  // primitive the recovery + labs surfaces use) rather than nothing, so the
+  // section does not pop in. Once data lands the section either renders its
+  // present tiles or collapses to null — an in-page sub-section never shows a
+  // standalone empty card (the page-level empties on /insights/recovery and
+  // /labs own that treatment via <EmptyState>).
+  if (isLoading || !summaries) {
+    return (
+      <section data-slot="sleep-quality-loading" className="space-y-3">
+        <SectionHeading icon={Moon} title={t("insights.sleepQuality.title")} />
+        <DeviceScoreGridSkeleton count={2} />
+      </section>
+    );
+  }
 
   const tiles: Array<{
     type: string;

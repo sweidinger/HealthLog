@@ -3602,6 +3602,7 @@
     "recovery": {
       "title": "Recovery",
       "description": "How well your body has bounced back — the recovery, strain and load signals your wearable records overnight.",
+      "emptyTitle": "No recovery data yet",
       "empty": "No recovery data yet. Connect a WHOOP, Polar or Oura account and these scores fill in once your device syncs.",
       "recharge": {
         "title": "Recharge",

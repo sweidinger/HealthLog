@@ -6,8 +6,13 @@ import { useAuth } from "@/hooks/use-auth";
 import { useInsightsAnalytics } from "@/hooks/use-insights-analytics";
 import { useTranslations } from "@/lib/i18n/context";
 import type { DataSummary } from "@/lib/analytics/trends";
-import { cn } from "@/lib/utils";
-import { Card, CardContent } from "@/components/ui/card";
+import {
+  Card,
+  CardAction,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { LearningGate } from "@/components/ui/learning-gate";
 import { HealthChartDynamicMini } from "@/components/charts/health-chart-dynamic";
 import { SectionHeading } from "@/components/insights/section-heading";
@@ -92,32 +97,31 @@ export function DeviceScoreTile({
     <Card
       data-slot="device-score-tile"
       data-metric={type}
-      className={cn("gap-2 py-3 md:py-4", className)}
+      className={className}
     >
+      <CardHeader>
+        <CardTitle className="flex min-w-0 items-center gap-2 text-sm">
+          <Icon
+            className="text-muted-foreground h-4 w-4 shrink-0"
+            aria-hidden="true"
+          />
+          <span className="truncate">{title}</span>
+        </CardTitle>
+        {latest != null ? (
+          <CardAction
+            data-slot="device-score-latest"
+            className="text-foreground self-baseline text-lg font-semibold tabular-nums"
+          >
+            {fmt(latest)}
+            {unit ? (
+              <span className="text-muted-foreground ml-1 text-xs font-normal">
+                {unit}
+              </span>
+            ) : null}
+          </CardAction>
+        ) : null}
+      </CardHeader>
       <CardContent className="space-y-3">
-        <div className="flex items-baseline justify-between gap-3">
-          <div className="flex min-w-0 items-center gap-2">
-            <Icon
-              className="text-muted-foreground h-4 w-4 shrink-0"
-              aria-hidden="true"
-            />
-            <span className="truncate text-sm font-medium">{title}</span>
-          </div>
-          {latest != null ? (
-            <span
-              data-slot="device-score-latest"
-              className="text-foreground shrink-0 text-lg font-semibold tabular-nums"
-            >
-              {fmt(latest)}
-              {unit ? (
-                <span className="text-muted-foreground ml-1 text-xs font-normal">
-                  {unit}
-                </span>
-              ) : null}
-            </span>
-          ) : null}
-        </div>
-
         {isLearning ? (
           <LearningGate
             compact

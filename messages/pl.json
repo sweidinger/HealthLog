@@ -3602,6 +3602,7 @@
     "recovery": {
       "title": "Regeneracja",
       "description": "Jak dobrze Twój organizm się zregenerował – sygnały regeneracji, obciążenia i load, które Twoje urządzenie rejestruje w nocy.",
+      "emptyTitle": "Brak danych o regeneracji",
       "empty": "Brak danych o regeneracji. Połącz konto WHOOP, Polar lub Oura, a te wyniki uzupełnią się po synchronizacji urządzenia.",
       "recharge": {
         "title": "Recharge",

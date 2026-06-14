@@ -13,8 +13,10 @@ import {
 
 import { useInsightsAnalytics } from "@/hooks/use-insights-analytics";
 import { useTranslations } from "@/lib/i18n/context";
+import { EmptyState } from "@/components/ui/empty-state";
 import { SectionHeading } from "@/components/insights/section-heading";
 import { DeviceScoreTile } from "@/components/insights/device-score-tile";
+import { DeviceScoreGridSkeleton } from "@/components/insights/device-score-tile-skeleton";
 
 interface TileSpec {
   type: string;
@@ -142,14 +144,26 @@ export function RecoverySection() {
 
   const hasRecoveryScore = (summaries?.RECOVERY_SCORE?.count ?? 0) > 0;
 
-  if (!isLoading && summaries != null && !hasAny && !hasRecoveryScore) {
+  if (isLoading || summaries == null) {
     return (
-      <div
-        data-slot="recovery-empty"
-        className="bg-card border-border text-muted-foreground rounded-xl border p-4 text-sm"
-      >
-        {t("insights.recovery.empty")}
+      <div className="space-y-3" data-slot="recovery-loading">
+        <SectionHeading
+          icon={Battery}
+          title={t("insights.recovery.recharge.title")}
+        />
+        <DeviceScoreGridSkeleton count={2} />
       </div>
+    );
+  }
+
+  if (!hasAny && !hasRecoveryScore) {
+    return (
+      <EmptyState
+        data-slot="recovery-empty"
+        icon={<Heart className="size-6" />}
+        title={t("insights.recovery.emptyTitle")}
+        description={t("insights.recovery.empty")}
+      />
     );
   }
 
