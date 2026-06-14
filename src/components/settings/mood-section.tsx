@@ -6,6 +6,7 @@ import { ArchivedTagsCard } from "@/components/mood/manage/archived-tags-card";
 import { TagGroupsCard } from "@/components/mood/manage/tag-groups-card";
 import { TagManagerCard } from "@/components/mood/manage/tag-manager-card";
 import { useMoodTagManage } from "@/components/mood/manage/use-mood-tag-manage";
+import { SettingsHubBackLink } from "@/components/settings/settings-hub-back-link";
 import { useAuth } from "@/hooks/use-auth";
 import { useTranslations } from "@/lib/i18n/context";
 
@@ -44,7 +45,11 @@ export function MoodSection() {
       aria-labelledby="settings-section-mood-title"
       className="space-y-6"
     >
-      <header className="space-y-1">
+      <header className="space-y-2">
+        <SettingsHubBackLink
+          href="/settings/layout"
+          labelKey="settings.sections.layout.backToHub"
+        />
         <h1 id="settings-section-mood-title" className="sr-only">
           {t("settings.sections.mood.title")}
         </h1>

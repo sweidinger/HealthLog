@@ -2,6 +2,7 @@
 
 import { InsightsOverviewArrangeSection } from "@/components/settings/insights-overview-arrange-section";
 import { InsightsPillOrderSection } from "@/components/settings/insights-pill-order-section";
+import { SettingsHubBackLink } from "@/components/settings/settings-hub-back-link";
 import { useTranslations } from "@/lib/i18n/context";
 
 /**
@@ -23,7 +24,11 @@ export function InsightsSection() {
       aria-labelledby="settings-section-insights-title"
       className="space-y-6"
     >
-      <header className="space-y-1">
+      <header className="space-y-2">
+        <SettingsHubBackLink
+          href="/settings/layout"
+          labelKey="settings.sections.layout.backToHub"
+        />
         <h1 id="settings-section-insights-title" className="sr-only">
           {t("settings.sections.insights.title")}
         </h1>
