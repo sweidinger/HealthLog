@@ -268,6 +268,33 @@ describe("runMeasurementReminderTick", () => {
     expect(updates[0].data.nextDueAt).toBeInstanceOf(Date);
   });
 
+  it("bounds the scan with a nextDueAt filter so the index is used", async () => {
+    const { prisma } = makePrisma({
+      reminders: [reminder({})],
+      measurementMatch: null,
+    });
+    const dispatch = vi.fn<DispatchFn>(async () => OK);
+
+    await runMeasurementReminderTick(prisma as never, NINE_LOCAL, { dispatch });
+
+    const calls = prisma.measurementReminder.findMany.mock
+      .calls as unknown as unknown[][];
+    const args = calls[0][0] as {
+      where: {
+        deletedAt: null;
+        enabled: boolean;
+        nextDueAt: { not: null; lte: Date };
+      };
+    };
+    expect(args.where.enabled).toBe(true);
+    expect(args.where.deletedAt).toBeNull();
+    expect(args.where.nextDueAt.not).toBeNull();
+    // Floor is now + one tick of slack; anything due (<= floor) is included.
+    expect(args.where.nextDueAt.lte.getTime()).toBe(
+      NINE_LOCAL.getTime() + 15 * 60_000,
+    );
+  });
+
   it("skips a reminder outside its notify-hour window", async () => {
     const { prisma } = makePrisma({
       reminders: [reminder({ measurementType: null })],
