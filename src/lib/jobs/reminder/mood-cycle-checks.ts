@@ -9,6 +9,7 @@ import { recordError } from "@/lib/jobs/worker-status";
 import { withBackgroundEvent } from "@/lib/logging/background";
 import { runMoodReminderTick } from "@/lib/jobs/mood-reminder";
 import { runCycleReminderTick } from "@/lib/jobs/cycle-reminder";
+import { runMeasurementReminderTick } from "@/lib/jobs/measurement-reminder";
 import { getWorkerPrisma } from "./shared";
 
 export interface MoodReminderPayload {
@@ -16,6 +17,10 @@ export interface MoodReminderPayload {
 }
 
 export interface CycleReminderPayload {
+  triggeredAt: string;
+}
+
+export interface MeasurementReminderPayload {
   triggeredAt: string;
 }
 
@@ -71,6 +76,41 @@ export async function handleCycleReminderCheck(
           suppressed_discreet: summary.suppressedDiscreet,
           skipped_already_notified: summary.skippedAlreadyNotified,
           skipped_outside_window: summary.skippedOutsideWindow,
+        },
+      });
+    } catch (err) {
+      evt.setError(err);
+      recordError();
+      throw err;
+    }
+  });
+}
+
+/**
+ * v1.17.1 — every-15-min Vorsorge (measurement) reminder tick. Thin shim
+ * around `runMeasurementReminderTick` so the unit tests exercise the
+ * due-predicate + auto-resolve + advance logic without pg-boss.
+ */
+export async function handleMeasurementReminderCheck(
+  jobs: Job<MeasurementReminderPayload>[],
+) {
+  void jobs;
+  await withBackgroundEvent("job.measurement_reminder", async (evt) => {
+    const prisma = getWorkerPrisma();
+    try {
+      const summary = await runMeasurementReminderTick(prisma, new Date());
+      evt.setBackground({
+        task_name: "job.measurement_reminder",
+        result: {
+          candidates_scanned: summary.candidatesScanned,
+          in_window: summary.inWindow,
+          dispatched: summary.dispatched,
+          auto_resolved: summary.autoResolved,
+          skipped_not_due: summary.skippedNotDue,
+          skipped_outside_window: summary.skippedOutsideWindow,
+          skipped_client_managed: summary.skippedClientManaged,
+          skipped_no_channel: summary.skippedNoChannel,
+          failed: summary.failed,
         },
       });
     } catch (err) {

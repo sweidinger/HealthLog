@@ -239,8 +239,10 @@ import {
 import {
   MoodReminderPayload,
   CycleReminderPayload,
+  MeasurementReminderPayload,
   handleMoodReminderCheck,
   handleCycleReminderCheck,
+  handleMeasurementReminderCheck,
 } from "./reminder/mood-cycle-checks";
 import {
   HostMetricSamplePayload,
@@ -500,6 +502,17 @@ const MEASUREMENT_TOMBSTONE_CLEANUP_CRON = "40 3 * * *";
 const CYCLE_REMINDER_QUEUE = "cycle-reminder-check";
 
 const CYCLE_REMINDER_CRON = "*/15 * * * *";
+
+// v1.17.1 — every-15-min tick for Vorsorge (measurement) reminders.
+// Same cadence + short-circuit shape as the mood / cycle reminders: the
+// handler only fires a reminder whose `nextDueAt` is past AND whose local
+// time is the reminder's `notifyHour`, so the 15-min cadence picks up
+// every IANA timezone crossing that hour without one cron entry per zone.
+// Dedup is the reminder's own `nextDueAt` advance — no ledger table.
+
+const MEASUREMENT_REMINDER_QUEUE = "measurement-reminder-check";
+
+const MEASUREMENT_REMINDER_CRON = "*/15 * * * *";
 // v1.4.38 — the per-sample cutoff hours constant now lives on the
 // helper module so the worker, the admin route, and the CLI all read
 // the same source of truth. Re-export pulled in alongside
@@ -716,6 +729,11 @@ export async function startReminderWorker() {
     // without this entry the every-15-min schedule silently no-ops and the
     // cycle dispatcher never fires (the v1.4.37 dead-queue class).
     CYCLE_REMINDER_QUEUE,
+    // v1.17.1 — Vorsorge (measurement) reminder cron tick. Same pg-boss
+    // v12 createQueue contract; without this entry pg-boss never
+    // provisions the queue and the every-15-min schedule silently no-ops
+    // (the v1.4.37 dead-queue class).
+    MEASUREMENT_REMINDER_QUEUE,
     // v1.4.49 — push-attempt ledger cleanup. Same createQueue contract
     // as the other cleanup jobs; the daily schedule below would
     // silently no-op without this entry.
@@ -908,6 +926,11 @@ export async function startReminderWorker() {
     // hour, so the cron costs ~one prediction-row scan per tick for the
     // opted-in cohort.
     [CYCLE_REMINDER_QUEUE, CYCLE_REMINDER_CRON],
+    // v1.17.1 — every-15-min tick for the Vorsorge (measurement) reminder.
+    // The handler short-circuits unless a reminder is past-due AND the
+    // user's local time matches the reminder's notifyHour, so the cron
+    // costs ~one reminder-row scan per tick for the active cohort.
+    [MEASUREMENT_REMINDER_QUEUE, MEASUREMENT_REMINDER_CRON],
     // v1.4.49 — daily 03:35 Europe/Berlin prune for push_attempts.
     [PUSH_ATTEMPT_CLEANUP_QUEUE, PUSH_ATTEMPT_CLEANUP_CRON],
     // v1.7.0 — nightly 04:30 Europe/Berlin comprehensive-insight
@@ -1192,6 +1215,15 @@ export async function startReminderWorker() {
     CYCLE_REMINDER_QUEUE,
     { localConcurrency: 1 },
     handleCycleReminderCheck,
+  );
+  // v1.17.1 — single-flight Vorsorge (measurement) reminder worker.
+  // localConcurrency=1 keeps two ticks from racing the `nextDueAt`
+  // advance that anchors the per-cycle idempotency, exactly like the
+  // mood / cycle reminder workers.
+  await boss.work<MeasurementReminderPayload>(
+    MEASUREMENT_REMINDER_QUEUE,
+    { localConcurrency: 1 },
+    handleMeasurementReminderCheck,
   );
   // v1.4.49 — daily prune of the push-attempt ledger. Single-flight
   // matches every other cleanup queue; two ticks racing on the same
