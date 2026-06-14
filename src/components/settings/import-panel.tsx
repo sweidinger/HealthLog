@@ -26,6 +26,7 @@
  */
 
 import { useCallback, useId, useRef, useState } from "react";
+import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import {
   AlertCircle,
@@ -67,7 +68,7 @@ export function ImportPanel() {
           {t("settings.sections.export.import.description")}
         </p>
       </div>
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         <AppleHealthImportCard />
         <JsonImportCard />
         <CsvImportCard />
@@ -553,12 +554,12 @@ function JsonImportCard() {
 
       <p className="text-muted-foreground text-xs">
         {t("settings.sections.export.import.json.schemaHint")}{" "}
-        <a
+        <Link
           href="/docs/integrations/data-import"
           className="text-primary underline underline-offset-2"
         >
           {t("settings.sections.export.import.json.docsLink")}
-        </a>
+        </Link>
       </p>
 
       <div aria-live="polite" className="space-y-2">
@@ -778,12 +779,12 @@ function CsvImportCard() {
 
       <p className="text-muted-foreground text-xs">
         {t("settings.sections.export.import.csv.schemaHint")}{" "}
-        <a
+        <Link
           href="/docs/integrations/data-import"
           className="text-primary underline underline-offset-2"
         >
           {t("settings.sections.export.import.csv.docsLink")}
-        </a>
+        </Link>
       </p>
 
       <div aria-live="polite" className="space-y-2">
