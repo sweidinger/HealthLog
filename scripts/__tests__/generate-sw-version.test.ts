@@ -43,8 +43,11 @@ describe("public/sw.js CACHE_VERSION wiring", () => {
     const sw = readFileSync(SW_PATH, "utf8");
     // The fallback OR-expression keeps the SW functional in dev mode
     // where the build script has not run. Pin the shape so the fallback
-    // can never silently vanish.
-    expect(sw).toMatch(/self\.__APP_VERSION__\s*\)?\s*\|\|\s*"v\d/);
+    // can never silently vanish. The optional block comment is the
+    // `@sw-version-fallback` rewrite anchor the prebuild generator keys on.
+    expect(sw).toMatch(
+      /self\.__APP_VERSION__\s*\)?\s*\|\|\s*(?:\/\*[^]*?\*\/\s*)?"v\d/,
+    );
   });
 });
 
