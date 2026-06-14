@@ -2697,6 +2697,9 @@
           "late": "Typ wieczorny",
           "extreme_late": "Wyraźny typ wieczorny"
         }
+      },
+      "rhythm": {
+        "loadError": "Nie udało się teraz wczytać Twojego rytmu snu. Pojawi się ponownie, gdy połączenie się ustabilizuje."
       }
     },
     "correlations": "Korelacje",

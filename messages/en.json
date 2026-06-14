@@ -2697,6 +2697,9 @@
           "late": "Evening type",
           "extreme_late": "Strong evening type"
         }
+      },
+      "rhythm": {
+        "loadError": "Your sleep rhythm couldn't load just now. It'll reappear once the connection settles."
       }
     },
     "correlations": "Correlations",

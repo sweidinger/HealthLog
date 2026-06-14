@@ -38,10 +38,10 @@ export function ChronotypeCard({ chronotype }: { chronotype: ChronotypeDto }) {
     const need =
       chronotype.freeNightsCounted + chronotype.freeNightsUntilReady;
     return (
-      <Card className="gap-2 py-4 md:gap-2 md:py-4">
+      <Card>
         <CardHeader className="pb-0">
           <div className="flex items-center gap-2">
-            <Clock className="text-dracula-cyan h-4 w-4" />
+            <Clock className="text-info h-4 w-4" />
             <CardTitle className="text-base font-semibold">
               {t("insights.sleep.chronotype.title")}
             </CardTitle>
@@ -64,10 +64,10 @@ export function ChronotypeCard({ chronotype }: { chronotype: ChronotypeDto }) {
     chronotype.msfMinutes != null ? clockLabel(chronotype.msfMinutes) : null;
 
   return (
-    <Card className="gap-2 py-4 md:gap-2 md:py-4">
+    <Card>
       <CardHeader className="pb-0">
         <div className="flex items-center gap-2">
-          <Clock className="text-dracula-cyan h-4 w-4" />
+          <Clock className="text-info h-4 w-4" />
           <CardTitle className="text-base font-semibold">
             {t("insights.sleep.chronotype.title")}
           </CardTitle>

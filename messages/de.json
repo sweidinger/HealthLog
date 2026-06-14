@@ -2697,6 +2697,9 @@
           "late": "Abendtyp",
           "extreme_late": "Ausgeprägter Abendtyp"
         }
+      },
+      "rhythm": {
+        "loadError": "Dein Schlafrhythmus konnte gerade nicht geladen werden. Er erscheint wieder, sobald die Verbindung steht."
       }
     },
     "correlations": "Korrelationen",
