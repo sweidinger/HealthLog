@@ -250,17 +250,41 @@ export function estimatePeriodLength(
 /* §4 — symptothermal + temperature-trend ovulation detection         */
 /* ------------------------------------------------------------------ */
 
+/** Which sensiplan temperature rule confirmed the shift (provenance). */
+export type TempShiftRule = 0 | 1 | 2;
+
 interface TempShiftResult {
   /** Confirmed ovulation day = day before the first of the 3 elevated readings. */
   ovulationDate: string;
+  /**
+   * Which rule confirmed the rise: 0 = the regular 3-over-6 rule (3rd reading
+   * ≥0.2°C above the cover line), 1 = the 1. Ausnahmeregel (slow/staircase rise,
+   * 4th reading required), 2 = the 2. Ausnahmeregel (one of the 3 falls back to
+   * the line, 4th reading required ≥0.2°C above).
+   */
+  rule: TempShiftRule;
+  /** Day the evaluation completed (evening of the 3rd or 4th high reading). */
+  evaluationCompleteDate: string;
 }
 
 /**
- * §4.2(a) — sensiplan 3-over-6 BBT rule on manual basal temperatures.
- * The first day of 3 consecutive temps each strictly above the highest of the
- * immediately preceding 6 temps, AND the 3rd is >= 0.2°C above that 6-day max.
- * Ovulation = the last low-temp day before the rise (the day BEFORE the first
- * elevated reading).
+ * §4.2(a) — sensiplan 3-over-6 BBT rule on manual basal temperatures, with both
+ * published Ausnahmeregeln (exception rules).
+ *
+ * Cover line (Hüllkurve) = the highest of the 6 measured low values immediately
+ * preceding the rise. Ovulation = the last low day before the rise (the day
+ * BEFORE the first elevated reading).
+ *
+ * Rules (Arbeitsgruppe NFP / Raith-Paula & Frank-Herrmann; myNFP "Temperatur­kurve
+ * auswerten"; Generation-Pille "Die wichtigsten NFP-Regeln"):
+ *  - **Regular rule (0):** 3 consecutive readings strictly above the cover line,
+ *    the 3rd ≥0.2°C above it. Evaluation completes on the 3rd high day.
+ *  - **1. Ausnahmeregel (1):** if the 3rd reading is not ≥0.2°C above the line,
+ *    await a 4th reading which need only be above the line. Completes on the 4th.
+ *  - **2. Ausnahmeregel (2):** if exactly one of the 3 readings falls back to/below
+ *    the line, it is discounted and a 4th reading is required which must again be
+ *    ≥0.2°C above the line. Completes on the 4th.
+ * The two exception rules are mutually exclusive by construction.
  */
 export function detectTempShift(
   dayLogs: readonly DayLogInput[],
@@ -274,17 +298,58 @@ export function detectTempShift(
   // Need 6 baseline + 3 elevated = 9 readings minimum. Scan from the END and
   // return the LATEST qualifying shift — for a multi-cycle BBT series the most
   // recent rise is the one that belongs to the current cycle; the earliest
-  // match would confirm a months-old ovulation (QA: window scoping).
+  // match would confirm a months-old ovulation (QA: window scoping). When a 4th
+  // reading is needed (exception rules) the candidate's start index may run to
+  // temps.length - 4; the loop starts there and skips candidates without enough
+  // following readings for the rule that fires.
   for (let i = temps.length - 3; i >= 6; i--) {
     const baseline = temps.slice(i - 6, i);
     const sixMax = Math.max(...baseline.map((x) => x.t));
-    const rise = [temps[i], temps[i + 1], temps[i + 2]];
-    const allAbove = rise.every((r) => r.t > sixMax);
-    // The 3rd elevated reading must clear the 6-day max by the threshold.
-    const thirdClears = roundHalf(rise[2].t - sixMax, 2) >= thresholdC;
-    if (allAbove && thirdClears) {
-      // Ovulation = day before the first elevated reading.
-      return { ovulationDate: addDays(rise[0].date, -1) };
+    const r1 = temps[i];
+    const r2 = temps[i + 1];
+    const r3 = temps[i + 2];
+    const r4 = temps[i + 3]; // may be undefined (no 4th reading available)
+
+    const above = (t: number) => t > sixMax;
+    const clears = (t: number) => roundHalf(t - sixMax, 2) >= thresholdC;
+
+    // Regular rule (0): 3 above, 3rd clears the threshold.
+    if (above(r1.t) && above(r2.t) && above(r3.t) && clears(r3.t)) {
+      return {
+        ovulationDate: addDays(r1.date, -1),
+        rule: 0,
+        evaluationCompleteDate: r3.date,
+      };
+    }
+
+    // 1. Ausnahmeregel (1): all 3 above the line but the 3rd does not clear
+    // 0.2°C → require a 4th reading that is merely above the line.
+    if (
+      above(r1.t) &&
+      above(r2.t) &&
+      above(r3.t) &&
+      !clears(r3.t) &&
+      r4 != null &&
+      above(r4.t)
+    ) {
+      return {
+        ovulationDate: addDays(r1.date, -1),
+        rule: 1,
+        evaluationCompleteDate: r4.date,
+      };
+    }
+
+    // 2. Ausnahmeregel (2): the 1st is above the line and EXACTLY ONE of the
+    // 2nd/3rd falls back to/below the line → that value is discounted and a 4th
+    // reading is required which must again clear 0.2°C above the line. (The 1st
+    // high measurement itself must stay above the line — it anchors the rise.)
+    const oneFellBack = above(r1.t) && above(r2.t) !== above(r3.t);
+    if (oneFellBack && r4 != null && above(r4.t) && clears(r4.t)) {
+      return {
+        ovulationDate: addDays(r1.date, -1),
+        rule: 2,
+        evaluationCompleteDate: r4.date,
+      };
     }
   }
   return null;

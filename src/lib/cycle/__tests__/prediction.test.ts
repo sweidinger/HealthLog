@@ -325,6 +325,69 @@ describe("cycle/prediction — symptothermal confirmation (§4.2)", () => {
     expect(detectTempShift(logs, 0.2)).toBeNull();
   });
 
+  it("detectTempShift rule 0: the regular rule reports rule:0 + evaluation on the 3rd day", () => {
+    const logs: DayLogInput[] = [];
+    const start = "2024-01-01";
+    [36.4, 36.42, 36.38, 36.41, 36.4, 36.39].forEach((t, i) =>
+      logs.push(bbtDay(addDays(start, i), t)),
+    );
+    logs.push(bbtDay(addDays(start, 6), 36.55));
+    logs.push(bbtDay(addDays(start, 7), 36.6));
+    logs.push(bbtDay(addDays(start, 8), 36.62)); // 3rd clears 0.2 over 36.42
+
+    const shift = detectTempShift(logs, 0.2);
+    expect(shift?.rule).toBe(0);
+    expect(shift?.ovulationDate).toBe(addDays(start, 5));
+    expect(shift?.evaluationCompleteDate).toBe(addDays(start, 8));
+  });
+
+  it("detectTempShift 1. Ausnahmeregel: slow/staircase rise confirms on the 4th reading", () => {
+    // 1. Ausnahmeregel: 3rd high reading is above the line but NOT 0.2°C above;
+    // a 4th reading above the line confirms (need only be above the line).
+    const logs: DayLogInput[] = [];
+    const start = "2024-01-01";
+    [36.4, 36.42, 36.38, 36.41, 36.4, 36.39].forEach((t, i) =>
+      logs.push(bbtDay(addDays(start, i), t)),
+    );
+    // cover line = 36.42. Staircase: all above the line, 3rd only +0.1.
+    logs.push(bbtDay(addDays(start, 6), 36.45));
+    logs.push(bbtDay(addDays(start, 7), 36.49));
+    logs.push(bbtDay(addDays(start, 8), 36.52)); // +0.1 → regular rule fails
+    // Without a 4th reading the strict + 1. rule cannot confirm.
+    expect(detectTempShift([...logs], 0.2)).toBeNull();
+    // 4th reading merely above the line (no 0.2 requirement) → confirmed by rule 1.
+    logs.push(bbtDay(addDays(start, 9), 36.5));
+    const shift = detectTempShift(logs, 0.2);
+    expect(shift?.rule).toBe(1);
+    expect(shift?.ovulationDate).toBe(addDays(start, 5));
+    expect(shift?.evaluationCompleteDate).toBe(addDays(start, 9));
+  });
+
+  it("detectTempShift 2. Ausnahmeregel: a single fall-back day confirms on a 4th ≥0.2°C reading", () => {
+    // 2. Ausnahmeregel: one of the 3 readings falls back to/below the line; it
+    // is discounted and a 4th reading is required that again clears 0.2°C.
+    const logs: DayLogInput[] = [];
+    const start = "2024-01-01";
+    [36.4, 36.42, 36.38, 36.41, 36.4, 36.39].forEach((t, i) =>
+      logs.push(bbtDay(addDays(start, i), t)),
+    );
+    // cover line = 36.42. 1st + 2nd above, 3rd falls back below the line.
+    logs.push(bbtDay(addDays(start, 6), 36.6));
+    logs.push(bbtDay(addDays(start, 7), 36.62));
+    logs.push(bbtDay(addDays(start, 8), 36.4)); // falls back below 36.42
+    // Without a 4th reading nothing confirms.
+    expect(detectTempShift([...logs], 0.2)).toBeNull();
+    // 4th reading that does NOT clear 0.2 must not confirm.
+    const tooLow = [...logs, bbtDay(addDays(start, 9), 36.5)]; // +0.08 only
+    expect(detectTempShift(tooLow, 0.2)).toBeNull();
+    // 4th reading ≥0.2°C above the line → confirmed by rule 2.
+    logs.push(bbtDay(addDays(start, 9), 36.63)); // +0.21 over 36.42
+    const shift = detectTempShift(logs, 0.2);
+    expect(shift?.rule).toBe(2);
+    expect(shift?.ovulationDate).toBe(addDays(start, 5));
+    expect(shift?.evaluationCompleteDate).toBe(addDays(start, 9));
+  });
+
   it("confirmSymptothermal requires temp-shift and mucus-peak within ±2 days", () => {
     const logs: DayLogInput[] = [];
     const start = "2024-01-01";
