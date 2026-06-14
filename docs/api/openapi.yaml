@@ -5874,6 +5874,16 @@ components:
                 - server
                 - client
             - type: "null"
+        liveActivityPushToken:
+          description: v1.17.1 (#22) hex-encoded ActivityKit Live Activity push token (distinct from the device APNs token). The
+            server addresses a Live Activity update / end push on a medication-intake mutation. Omitted = keep the prior
+            value; null = clear it when the Activity ends.
+          anyOf:
+            - type: string
+              minLength: 8
+              maxLength: 256
+              pattern: ^[A-Fa-f0-9]+$
+            - type: "null"
       required:
         - token
         - bundleId

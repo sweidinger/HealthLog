@@ -250,6 +250,52 @@ describe("POST /api/devices", () => {
     );
     expect(res.status).toBe(201);
   });
+
+  // v1.17.1 (#22) — Live Activity push-token registration.
+  it("persists liveActivityPushToken on create when supplied", async () => {
+    vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
+    const res = await POST(
+      req({
+        token: "abcd1234efgh5678",
+        bundleId: "io.healthlog.app",
+        liveActivityPushToken: "cafebabe".repeat(8),
+      }),
+    );
+    expect(res.status).toBe(201);
+    const data = vi.mocked(prisma.device.create).mock.calls[0][0].data;
+    expect(data.liveActivityPushToken).toBe("cafebabe".repeat(8));
+  });
+
+  it("clears liveActivityPushToken on re-register when null is sent", async () => {
+    vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
+    vi.mocked(prisma.device.findUnique).mockResolvedValue({
+      id: "dev-1",
+      userId: "user-1",
+      token: "abcd1234efgh5678",
+    } as never);
+    const res = await POST(
+      req({
+        token: "abcd1234efgh5678",
+        bundleId: "io.healthlog.app",
+        liveActivityPushToken: null,
+      }),
+    );
+    expect(res.status).toBe(201);
+    const data = vi.mocked(prisma.device.update).mock.calls[0][0].data;
+    expect(data.liveActivityPushToken).toBeNull();
+  });
+
+  it("rejects a non-hex liveActivityPushToken with 422", async () => {
+    vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
+    const res = await POST(
+      req({
+        token: "abcd1234efgh5678",
+        bundleId: "io.healthlog.app",
+        liveActivityPushToken: "not-hex-!!!",
+      }),
+    );
+    expect(res.status).toBe(422);
+  });
 });
 
 describe("POST /api/devices — 422 multi-issue envelope (v1.4.43 W6)", () => {

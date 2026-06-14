@@ -63,6 +63,19 @@ const deviceSchema = z
     // server APNs for this device; "client" forces local. Stored +
     // echoed; cron suppression stays user-level.
     medicationDelivery: z.enum(["server", "client"]).nullable().optional(),
+    // v1.17.1 (#22) — ActivityKit issues a per-Activity push token distinct
+    // from the device APNs token. The iOS client registers the current one
+    // here so the server can address a Live Activity update / end push on a
+    // medication-intake mutation; it sends `null` to clear the token when no
+    // Activity is running. Hex, like the APNs token. Only touched when the
+    // field is present so an ordinary re-register keeps the prior value.
+    liveActivityPushToken: z
+      .string()
+      .min(8)
+      .max(256)
+      .regex(/^[A-Fa-f0-9]+$/, "liveActivityPushToken must be hex")
+      .nullable()
+      .optional(),
   })
   .refine(
     (v) =>
@@ -146,6 +159,7 @@ export const POST = apiHandler(async (request: NextRequest) => {
     apnsToken,
     apnsEnvironment,
     medicationDelivery,
+    liveActivityPushToken,
   } = parsed.data;
 
   // APNs-token collision lookup. Two cases:
@@ -212,6 +226,9 @@ export const POST = apiHandler(async (request: NextRequest) => {
         // v1.7.0 — only touch the override when the client sends the
         // field, so a re-register that omits it keeps the prior value.
         ...(medicationDelivery !== undefined && { medicationDelivery }),
+        // v1.17.1 (#22) — same omit-keeps-prior rule; `null` explicitly
+        // clears the token when the Activity ends.
+        ...(liveActivityPushToken !== undefined && { liveActivityPushToken }),
         lastSeen: new Date(),
       },
       select: { id: true },
@@ -231,6 +248,8 @@ export const POST = apiHandler(async (request: NextRequest) => {
         apnsEnvironment: apnsEnvironment ?? null,
         // v1.7.0 — per-device delivery override (null = inherit default).
         ...(medicationDelivery !== undefined && { medicationDelivery }),
+        // v1.17.1 (#22) — Live Activity push token (null = no Activity).
+        ...(liveActivityPushToken !== undefined && { liveActivityPushToken }),
       },
       select: { id: true },
     });
