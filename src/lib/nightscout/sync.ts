@@ -33,10 +33,9 @@ import {
 } from "@/lib/rollups/measurement-rollups";
 import { invalidateStatusInsightsForTypes } from "@/lib/insights/comprehensive-generate";
 import {
-  externalIdFor,
   fetchSgvEntries,
+  mapSgvEntryToMeasurement,
   NightscoutApiError,
-  NIGHTSCOUT_GLUCOSE_UNIT,
   type ParsedSgvEntry,
 } from "./client";
 import { getUserNightscoutCredentials } from "./credentials";
@@ -119,8 +118,7 @@ export async function upsertNightscoutEntries(
   const touched: Array<{ type: MeasurementType; measuredAt: Date }> = [];
 
   for (const entry of entries) {
-    const externalId = externalIdFor(entry);
-    const measuredAt = new Date(entry.date);
+    const mapped = mapSgvEntryToMeasurement(entry);
     try {
       await prisma.measurement.upsert({
         where: {
@@ -128,23 +126,23 @@ export async function upsertNightscoutEntries(
             userId,
             type,
             source: "NIGHTSCOUT",
-            externalId,
+            externalId: mapped.externalId,
           },
         },
         create: {
           userId,
           type,
           source: "NIGHTSCOUT",
-          value: entry.sgv,
-          unit: NIGHTSCOUT_GLUCOSE_UNIT,
-          measuredAt,
-          externalId,
+          value: mapped.value,
+          unit: mapped.unit,
+          measuredAt: mapped.measuredAt,
+          externalId: mapped.externalId,
         },
         // First-write-wins: a CGM sample is immutable, so a re-sync of the
         // same reading must not rewrite the stored value or measuredAt.
         update: {},
       });
-      touched.push({ type, measuredAt });
+      touched.push({ type, measuredAt: mapped.measuredAt });
       imported++;
     } catch (err) {
       getEvent()?.addWarning(

@@ -73,8 +73,12 @@ describe("parseSgvEntries", () => {
 });
 
 describe("mapSgvEntryToMeasurement", () => {
-  it("maps an SGV entry to a BLOOD_GLUCOSE mg/dL measurement", () => {
-    const m = mapSgvEntryToMeasurement(SAMPLE[0]!);
+  it("maps a parsed SGV entry to a BLOOD_GLUCOSE mg/dL measurement", () => {
+    const m = mapSgvEntryToMeasurement({
+      id: "abc123",
+      sgv: 112,
+      date: 1718000000000,
+    });
     expect(m.type).toBe("BLOOD_GLUCOSE");
     expect(m.unit).toBe("mg/dL");
     expect(m.value).toBe(112);
@@ -82,15 +86,16 @@ describe("mapSgvEntryToMeasurement", () => {
   });
 
   it("derives a stable externalId so re-sync is idempotent", () => {
-    const a = mapSgvEntryToMeasurement(SAMPLE[0]!);
-    const b = mapSgvEntryToMeasurement(SAMPLE[0]!);
+    const entry = { id: "abc123", sgv: 112, date: 1718000000000 };
+    const a = mapSgvEntryToMeasurement(entry);
+    const b = mapSgvEntryToMeasurement(entry);
     expect(a.externalId).toBe(b.externalId);
-    expect(a.externalId).toContain("abc123");
+    expect(a.externalId).toBe("ns:abc123");
   });
 
-  it("falls back to the timestamp when the entry has no _id", () => {
+  it("falls back to the timestamp when the entry has no id", () => {
     const m = mapSgvEntryToMeasurement({
-      type: "sgv",
+      id: null,
       sgv: 90,
       date: 1718000000000,
     });

@@ -135,32 +135,31 @@ export function parseSgvEntries(payload: unknown): ParsedSgvEntry[] {
   return out;
 }
 
-/**
- * Map one SGV entry to a `BLOOD_GLUCOSE` mg/dL measurement. The `externalId`
- * is `ns:<id>` when the entry carries Nightscout's `_id`, falling back to
- * `ns:date:<epochMs>` — both stable per reading, so a re-sync collapses onto
- * the existing row via the `(userId, type, source, externalId)` unique. mg/dL
- * is stored canonical (Nightscout always reports mg/dL; the display unit is a
- * user preference resolved elsewhere).
- */
-export function mapSgvEntryToMeasurement(
-  entry: NightscoutSgvEntry,
-): NightscoutMeasurement {
-  const externalId = entry._id
-    ? `ns:${entry._id}`
-    : `ns:date:${entry.date ?? 0}`;
-  return {
-    type: "BLOOD_GLUCOSE",
-    value: entry.sgv as number,
-    unit: NIGHTSCOUT_GLUCOSE_UNIT,
-    measuredAt: new Date(entry.date as number),
-    externalId,
-  };
-}
-
 /** Externalid for a parsed entry — the canonical idempotency key. */
 export function externalIdFor(entry: ParsedSgvEntry): string {
   return entry.id ? `ns:${entry.id}` : `ns:date:${entry.date}`;
+}
+
+/**
+ * Map one parsed SGV entry to a `BLOOD_GLUCOSE` mg/dL measurement. The
+ * `externalId` is `ns:<_id>` when the entry carries Nightscout's `_id`, falling
+ * back to `ns:date:<epochMs>` (via `externalIdFor`) — both stable per reading,
+ * so a re-sync collapses onto the existing row via the
+ * `(userId, type, source, externalId)` unique. mg/dL is stored canonical
+ * (Nightscout always reports mg/dL; the display unit is a user preference
+ * resolved elsewhere). This is the SINGLE entry→measurement mapping — the sync
+ * write path consumes it, so the shape can never drift between two copies.
+ */
+export function mapSgvEntryToMeasurement(
+  entry: ParsedSgvEntry,
+): NightscoutMeasurement {
+  return {
+    type: "BLOOD_GLUCOSE",
+    value: entry.sgv,
+    unit: NIGHTSCOUT_GLUCOSE_UNIT,
+    measuredAt: new Date(entry.date),
+    externalId: externalIdFor(entry),
+  };
 }
 
 /**
