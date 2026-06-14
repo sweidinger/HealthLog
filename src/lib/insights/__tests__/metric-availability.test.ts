@@ -191,4 +191,37 @@ describe("hasMetricData", () => {
       }),
     ).toBe(false);
   });
+
+  // v1.17.0 — HRV surfaces SDNN OR RMSSD. Oura / Polar / WHOOP store nightly
+  // HRV as `HRV_RMSSD`; the HRV tab must light up for a ring / strap user
+  // whose only HRV stream is RMSSD.
+  it("returns true for HEART_RATE_VARIABILITY when only HRV_RMSSD has data", () => {
+    expect(
+      hasMetricData("HEART_RATE_VARIABILITY", {
+        ...emptyInputs,
+        summaries: { HRV_RMSSD: fakeSummary(7) },
+      }),
+    ).toBe(true);
+  });
+
+  it("returns true for HEART_RATE_VARIABILITY when only SDNN has data", () => {
+    expect(
+      hasMetricData("HEART_RATE_VARIABILITY", {
+        ...emptyInputs,
+        summaries: { HEART_RATE_VARIABILITY: fakeSummary(7) },
+      }),
+    ).toBe(true);
+  });
+
+  it("returns false for HEART_RATE_VARIABILITY when neither HRV stream has data", () => {
+    expect(
+      hasMetricData("HEART_RATE_VARIABILITY", {
+        ...emptyInputs,
+        summaries: {
+          HEART_RATE_VARIABILITY: fakeSummary(0),
+          HRV_RMSSD: fakeSummary(0),
+        },
+      }),
+    ).toBe(false);
+  });
 });

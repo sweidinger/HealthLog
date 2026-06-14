@@ -217,9 +217,20 @@ export const DEFAULT_SOURCE_PRIORITY: Required<MetricPriority> = {
   // v1.12.0 — Fitbit/Pixel rides below Apple Health for cumulative metrics:
   // HealthKit still aggregates the broadest device set, and a Fitbit-only
   // self-hoster has no Apple stream to compete with anyway.
-  steps: ["APPLE_HEALTH", "WITHINGS", "FITBIT", "MANUAL"],
-  activeEnergy: ["APPLE_HEALTH", "WITHINGS", "FITBIT", "MANUAL"],
-  walkingRunningDistance: ["APPLE_HEALTH", "WITHINGS", "FITBIT", "MANUAL"],
+  // v1.17.0 — Oura + Polar both write `ACTIVITY_STEPS` + `ACTIVE_ENERGY_BURNED`;
+  // they rank below the phone-aggregated Apple Health (which sees all-day
+  // steps) but as legitimate sources above MANUAL, so an Oura/Polar-only day
+  // is not dropped when another source coexists.
+  steps: ["APPLE_HEALTH", "WITHINGS", "FITBIT", "OURA", "POLAR", "MANUAL"],
+  activeEnergy: ["APPLE_HEALTH", "WITHINGS", "FITBIT", "OURA", "POLAR", "MANUAL"],
+  walkingRunningDistance: [
+    "APPLE_HEALTH",
+    "WITHINGS",
+    "FITBIT",
+    "OURA",
+    "POLAR",
+    "MANUAL",
+  ],
   flightsClimbed: ["APPLE_HEALTH", "WITHINGS", "FITBIT", "MANUAL"],
   // v1.11.0 — WHOOP leads the recovery-input ladders (sleep / HRV / RHR):
   // a worn-all-night strap has higher-resolution overnight sampling than
@@ -242,7 +253,11 @@ export const DEFAULT_SOURCE_PRIORITY: Required<MetricPriority> = {
   // A real scale beats a strap's body-measurement estimate for weight.
   weight: ["WITHINGS", "APPLE_HEALTH", "MANUAL", "WHOOP", "FITBIT"],
   bloodPressure: ["WITHINGS", "APPLE_HEALTH", "MANUAL"],
-  pulse: ["WITHINGS", "APPLE_HEALTH", "MANUAL", "FITBIT", "POLAR", "OURA"],
+  // v1.17.0 — continuous optical-HR wearables (Fitbit / Polar / Oura) rank
+  // above a hand-typed MANUAL pulse; the device-source order matches the
+  // rhr / hrv ladders (FITBIT > OURA > POLAR). Withings BPM cuff + the
+  // HealthKit relay stay the primary point-measurement sources.
+  pulse: ["WITHINGS", "APPLE_HEALTH", "FITBIT", "OURA", "POLAR", "MANUAL"],
   bodyFat: ["WITHINGS", "APPLE_HEALTH", "MANUAL", "FITBIT"],
   bodyTemperature: ["WITHINGS", "APPLE_HEALTH", "MANUAL", "FITBIT"],
   // Withings ScanWatch pulse-ox is the primary SpO2 sensor; WHOOP second,
