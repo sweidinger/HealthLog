@@ -115,7 +115,7 @@ Règles :
 - Chaque ligne : "<label> : <value> [<unit>] (<window>)". L'unité et la fenêtre sont optionnelles ; omettez les crochets si vous n'en avez pas.
 - "label" ≤ 40 caractères — un nom d'agrégat ("avg30 systolique") ou un pin-jour ("Mar 6 mai").
 - "value" est une chaîne pré-formatée ("138/85", "84,2", "4,1"). Formatez l'humeur en N/5 si numérique.
-- "unit" est l'un de : mmHg, kg, bpm, /5, %.
+- "unit" est l'un de : mmHg, kg, bpm, /5, %, mg/dL, mmol/L, min (dette de sommeil / décalage social).
 - "window" est l'un de : last7days, last30days, last90days, allTime ; omettez-la pour les pins-jour.
 - Omettez tout le bloc (pas de ---KEYVALUES---, pas de ---END---) quand la réponse est qualitative et qu'aucun chiffre précis ne portait la réponse. Le bloc est invisible pour l'utilisateur — l'UI le rend comme une boîte déroulante "Sur quoi je m'appuie ?" sous votre message. Ne le mentionnez pas dans votre texte.`,
   es: `Después de su texto, añada los números determinantes como un bloque-centinela en su propia línea. Formato exacto:
@@ -130,7 +130,7 @@ Reglas:
 - Cada línea: "<label>: <value> [<unit>] (<window>)". La unidad y la ventana son opcionales; omita los corchetes si no las tiene.
 - "label" ≤ 40 caracteres — un nombre de agregado ("avg30 sistólica") o un pin-día ("Mar 6 may").
 - "value" es una cadena preformateada ("138/85", "84,2", "4,1"). Formatee el estado de ánimo como N/5 si es numérico.
-- "unit" es uno de: mmHg, kg, bpm, /5, %.
+- "unit" es uno de: mmHg, kg, bpm, /5, %, mg/dL, mmol/L, min (deuda de sueño / jet lag social).
 - "window" es uno de: last7days, last30days, last90days, allTime; omítala en los pin-día.
 - Omita todo el bloque (sin ---KEYVALUES---, sin ---END---) cuando la respuesta sea cualitativa y ningún número concreto haya portado la respuesta. El bloque es invisible para el usuario — la UI lo presenta como un desplegable "¿En qué me apoyo?" bajo su mensaje. No lo mencione en su texto.`,
   it: `Dopo il suo testo, aggiunga i numeri portanti come blocco-sentinella su una riga propria. Formato esatto:
@@ -145,7 +145,7 @@ Regole:
 - Ogni riga: "<label>: <value> [<unit>] (<window>)". L'unità e la finestra sono opzionali; ometta le parentesi se non le ha.
 - "label" ≤ 40 caratteri — un nome di aggregato ("avg30 sistolica") o un pin-giorno ("Mar 6 mag").
 - "value" è una stringa pre-formattata ("138/85", "84,2", "4,1"). Formatti l'umore come N/5 se numerico.
-- "unit" è uno di: mmHg, kg, bpm, /5, %.
+- "unit" è uno di: mmHg, kg, bpm, /5, %, mg/dL, mmol/L, min (debito di sonno / jet lag sociale).
 - "window" è uno di: last7days, last30days, last90days, allTime; lo ometta per i pin-giorno.
 - Ometta l'intero blocco (niente ---KEYVALUES---, niente ---END---) quando la risposta è qualitativa e nessun numero specifico ha portato la risposta. Il blocco è invisibile all'utente — l'UI lo rende come un menù a tendina "Su cosa mi baso?" sotto il suo messaggio. Non lo menzioni nel testo.`,
   pl: `Po tekście proszę dodać kluczowe liczby jako blok-sentinel w osobnej linii. Format dokładnie:
@@ -160,7 +160,7 @@ Zasady:
 - Każda linia: "<label>: <value> [<unit>] (<window>)". Jednostka i okno są opcjonalne; proszę pominąć nawiasy, gdy ich nie ma.
 - "label" ≤ 40 znaków — nazwa agregatu ("avg30 skurczowe") lub pin-dnia ("Wt 6 maja").
 - "value" to wstępnie sformatowany ciąg ("138/85", "84,2", "4,1"). Nastrój proszę formatować jako N/5, jeśli liczbowy.
-- "unit" to jeden z: mmHg, kg, bpm, /5, %.
+- "unit" to jeden z: mmHg, kg, bpm, /5, %, mg/dL, mmol/L, min (deficyt snu / jet lag społeczny).
 - "window" to jeden z: last7days, last30days, last90days, allTime; proszę pominąć przy pinach-dnia.
 - Proszę pominąć cały blok (bez ---KEYVALUES---, bez ---END---), gdy odpowiedź była jakościowa i żadna konkretna liczba nie nosiła odpowiedzi. Blok jest niewidoczny dla użytkownika — UI renderuje go jako rozwijaną sekcję "Na czym się opieram?" pod wiadomością. Proszę go nie wspominać w tekście.`,
 };

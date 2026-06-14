@@ -48,6 +48,7 @@ import {
 import { getBpTargets } from "@/lib/analytics/bp-targets";
 import {
   computeGlucoseClinicalMetrics,
+  GLUCOSE_PANEL_WINDOW_DAYS,
   type GlucoseClinicalMetrics,
 } from "@/lib/analytics/glucose-metrics";
 import {
@@ -556,7 +557,9 @@ async function buildExtras(
       }
     : null;
 
-  const glucoseSince = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+  const glucoseSince = new Date(
+    Date.now() - GLUCOSE_PANEL_WINDOW_DAYS * 24 * 60 * 60 * 1000,
+  );
   const glucoseRows = await prisma.measurement.findMany({
     where: {
       userId: user.id,
@@ -585,7 +588,7 @@ async function buildExtras(
   // the iOS cold-launch seed matches the web panel / coach / doctor report.
   const glucoseClinical = computeGlucoseClinicalMetrics(
     glucoseRows.map((r) => ({ measuredAt: r.measuredAt, mgdl: r.value })),
-    { windowDays: 30, now },
+    { windowDays: GLUCOSE_PANEL_WINDOW_DAYS, now },
   );
 
   return {
