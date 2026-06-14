@@ -56,6 +56,16 @@ export const EVENT_TYPES = [
   // refill or threshold change. ON at the channel layer — the real
   // gate is the per-user threshold in `notificationPrefs.medication`.
   "MEDICATION_LOW_STOCK",
+  // v1.17.1 — Vorsorge (measurement / preventive-care) reminder. Fired by
+  // the every-15-min measurement-reminder cron when a user-created
+  // reminder ("measure BP every 7 days", "annual blood panel") is due
+  // inside the user's local notify-hour window. ON by default at the
+  // channel layer (see EVENT_DEFAULT_ENABLED): these are reminders the
+  // user explicitly created, so silence-by-default would be surprising.
+  // The real gate is the per-reminder `enabled` flag plus the per-user
+  // `notificationPrefs.measurementReminder.clientManaged` suppression.
+  // NOT time-sensitive — a Vorsorge nudge is not a Focus-bypass case.
+  "MEASUREMENT_REMINDER",
 ] as const;
 export type EventType = (typeof EVENT_TYPES)[number];
 
@@ -102,6 +112,11 @@ export const EVENT_DEFAULT_ENABLED: Record<EventType, boolean> = {
   // push per medication per crossing. An explicit per-channel
   // `NotificationPreference` row still wins.
   MEDICATION_LOW_STOCK: true,
+  // v1.17.1 — ON at the channel layer; the real gates are the per-reminder
+  // `enabled` flag and the per-user `measurementReminder.clientManaged`
+  // suppression the cron reads. An explicit per-channel
+  // `NotificationPreference` row still wins.
+  MEASUREMENT_REMINDER: true,
 };
 
 export const CHANNEL_TYPE_LABELS: Record<ChannelType, string> = {

@@ -90,6 +90,19 @@ const cyclePrefsSchema = z
   .partial();
 
 /**
+ * v1.17.1 — measurement / Vorsorge reminder category schema.
+ * `clientManaged` mirrors the medication + cycle gate: when the iOS app
+ * owns local Vorsorge reminders it flips this to `true` and the
+ * server-side measurement-reminder cron suppresses its APNs send for that
+ * user. Sub-object form keeps the layout open for future Vorsorge knobs.
+ */
+const measurementReminderPrefsSchema = z
+  .object({
+    clientManaged: z.boolean(),
+  })
+  .partial();
+
+/**
  * v1.15.20 — coach category schema. `nudgesEnabled` gates the proactive
  * Coach nudge cron (05:15 Europe/Berlin): default ON (the nudge is an
  * opt-out surface — it only fires for users who kept the Coach enabled
@@ -134,6 +147,7 @@ export const notificationPrefsSchema = z
     mood: moodPrefsSchema,
     cycle: cyclePrefsSchema,
     coach: coachPrefsSchema,
+    measurementReminder: measurementReminderPrefsSchema,
   })
   .partial();
 
@@ -187,6 +201,14 @@ export interface NotificationPrefs {
     /** v1.16.5 — cap interval: "weekly" (7 d) or "biweekly" (14 d). */
     nudgeFrequency: "weekly" | "biweekly";
   };
+  measurementReminder: {
+    /**
+     * v1.17.1 — when true the iOS app owns local Vorsorge reminders and
+     * the server-side measurement-reminder cron suppresses its APNs send
+     * (the medication / cycle `clientManaged` precedent).
+     */
+    clientManaged: boolean;
+  };
 }
 
 /**
@@ -235,6 +257,9 @@ export const DEFAULT_NOTIFICATION_PREFS: NotificationPrefs = {
     nudgeRoutine: true,
     nudgeFrequency: "weekly",
   },
+  measurementReminder: {
+    clientManaged: false,
+  },
 };
 
 /**
@@ -279,6 +304,10 @@ export function resolveNotificationPrefs(
       ...base.coach,
       ...(incoming.coach ?? {}),
     },
+    measurementReminder: {
+      ...base.measurementReminder,
+      ...(incoming.measurementReminder ?? {}),
+    },
   });
 }
 
@@ -307,6 +336,7 @@ function applyDeliveryDefaultMapping(
     mood: { ...prefs.mood },
     cycle: { ...prefs.cycle },
     coach: { ...prefs.coach },
+    measurementReminder: { ...prefs.measurementReminder },
   };
 }
 
@@ -333,6 +363,16 @@ export function isMedicationReminderClientManaged(raw: unknown): boolean {
  */
 export function isCycleReminderClientManaged(raw: unknown): boolean {
   return parseNotificationPrefs(raw).cycle.clientManaged === true;
+}
+
+/**
+ * v1.17.1 — cron-side helper. Returns `true` when the user has opted in
+ * to client-managed Vorsorge (measurement) reminders so the server-side
+ * push should be suppressed. Tolerates a null / missing prefs row.
+ * Mirrors `isMedicationReminderClientManaged` / `isCycleReminderClientManaged`.
+ */
+export function isMeasurementReminderClientManaged(raw: unknown): boolean {
+  return parseNotificationPrefs(raw).measurementReminder.clientManaged === true;
 }
 
 /**
@@ -426,6 +466,9 @@ function cloneDefaults(): NotificationPrefs {
     mood: { ...DEFAULT_NOTIFICATION_PREFS.mood },
     cycle: { ...DEFAULT_NOTIFICATION_PREFS.cycle },
     coach: { ...DEFAULT_NOTIFICATION_PREFS.coach },
+    measurementReminder: {
+      ...DEFAULT_NOTIFICATION_PREFS.measurementReminder,
+    },
   };
 }
 
@@ -446,6 +489,10 @@ function mergeOverDefaults(input: NotificationPrefsInput): NotificationPrefs {
     coach: {
       ...DEFAULT_NOTIFICATION_PREFS.coach,
       ...(input.coach ?? {}),
+    },
+    measurementReminder: {
+      ...DEFAULT_NOTIFICATION_PREFS.measurementReminder,
+      ...(input.measurementReminder ?? {}),
     },
   });
 }
