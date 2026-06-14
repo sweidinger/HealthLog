@@ -2,6 +2,38 @@
 
 ## [Unreleased]
 
+## [1.17.0] — 2026-06-14 — clinical depth for glucose and sleep, and three new sources
+
+This release builds new depth on the coherent foundation laid over the v1.16 line. Blood glucose gains a clinical panel, sleep gains a debt and chronotype reading, and three new data sources — Nightscout, Polar and Oura — join Withings, WHOOP, Fitbit and Apple Health. Every new metric is computed once on the server and read the same way on the dashboard, the coach, the doctor-report and the companion app, and each holds back a confident reading behind a calm "still learning" state until it has enough data. No breaking changes.
+
+### Added
+
+- **Blood-glucose clinical panel.** Beneath the glucose chart, a panel reads time-in-range on the consensus bands, the glucose management indicator and an estimated A1C, and the coefficient of variation with an instability flag — with the J-index and the low/high blood-glucose risk indices behind an advanced view. It is honest about its limits: a panel built from spot readings says so, and it waits until enough readings over enough days have accrued before asserting anything.
+- **Nightscout.** Connect a self-hosted Nightscout instance and its continuous glucose readings flow in — the density that makes the clinical panel meaningful. Public instances work by default; a per-connection toggle allows a private or home-network instance.
+- **Sleep debt and chronotype.** The sleep page now shows a rolling sleep debt against your age-based need and an MCTQ chronotype with your mid-sleep, social jetlag and a type band — the deeper detail behind an advanced view, and the type held back until enough free-day nights are recorded.
+- **Polar and Oura.** Connect either over OAuth to bring in sleep, heart rate, respiratory rate, activity and recovery. Recovery now reads from the strongest connected source — WHOOP, then Oura, then Polar, then the computed proxy.
+- **Reorder-aware medication supply.** The low-stock warning now accounts for how long a refill takes, so a weekly medication is flagged before its last dose rather than after, with a concrete "runs out on … — reorder by …" date. A reorder lead time is configurable globally and per medication.
+- **Invite deep-link.** Invites open through a link the companion app can intercept to start a prefilled registration, with a browser fallback.
+
+### Changed
+
+- **The coach reasons from the new signals.** Glucose time-in-range, sleep debt and chronotype, and a connected device's native recovery and strain now reach the coach, which prefers the device's gold-standard number over a computed proxy and respects each metric's still-learning state.
+- **Mood and cycle entry is one sectioned sheet.** A quick row of your recent tags stays open, the rest folds into collapsible sections with a count of what's set inside — fast by default, deep on demand.
+- **Wearable data you already had now surfaces.** Heart-rate variability from a ring or strap appears on the HRV view, and Oura and Polar steps, energy and pulse are ranked as real sources.
+- **Onboarding tells the truth.** The setup flow now presents the sources that actually shipped, signposts importing existing history, and sets the expectation that some insights sharpen over the first week or two — instead of promising a configuration that did not happen.
+
+### Fixed
+
+- The sleep "last night" timeline bar returns for nights whose stages share an end instant, and the dashboard clears a recorded dose without a reload (carried forward from v1.16.17).
+
+### Security
+
+- Outbound Nightscout calls pin a public host by default with an explicit private opt-in, the stored token is kept out of any recorded error, and the new OAuth connections verify a signed, expiring state before exchanging a code.
+
+### Operator note
+
+- On the first nightly low-stock check after deploy, a medication already flagged low re-notifies once as the warning threshold moves to its lead-time-aware value. Expected and bounded.
+
 ## [1.16.17] — 2026-06-14 — the sleep timeline returns, and the dashboard clears after a dose
 
 Two fixes to behaviour that surfaced in daily use. No breaking changes.

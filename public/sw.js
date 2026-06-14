@@ -36,7 +36,7 @@ try {
 // v1.4.38.4 → v1.4.42. Do not hand-edit; bump `package.json` and rebuild.
 const CACHE_VERSION =
   (typeof self !== "undefined" && self.__APP_VERSION__) ||
-  /* @sw-version-fallback */ "v1.16.17";
+  /* @sw-version-fallback */ "v1.17.0";
 const STATIC_CACHE = `healthlog-static-${CACHE_VERSION}`;
 const PAGE_CACHE = `healthlog-pages-${CACHE_VERSION}`;
 const MAX_STATIC_ENTRIES = 150;
