@@ -226,27 +226,46 @@ export const DEFAULT_SOURCE_PRIORITY: Required<MetricPriority> = {
   // the iPhone-relayed HealthKit summary or the Withings nightly summary.
   // v1.12.0 — Fitbit is a wrist wearable in the same class as WHOOP but with
   // a lower-fidelity nightly estimate, so it ranks just below it.
-  sleep: ["WHOOP", "FITBIT", "APPLE_HEALTH", "WITHINGS"],
-  hrv: ["WHOOP", "FITBIT", "APPLE_HEALTH", "WITHINGS"],
-  restingHeartRate: ["WHOOP", "FITBIT", "APPLE_HEALTH", "WITHINGS"],
+  // v1.17.0 — Polar + Oura are worn wearables in the same overnight-sampling
+  // class as WHOOP/Fitbit; they rank below the established straps but above
+  // the iPhone-relayed HealthKit summary and the Withings nightly summary.
+  sleep: ["WHOOP", "FITBIT", "OURA", "POLAR", "APPLE_HEALTH", "WITHINGS"],
+  hrv: ["WHOOP", "FITBIT", "OURA", "POLAR", "APPLE_HEALTH", "WITHINGS"],
+  restingHeartRate: [
+    "WHOOP",
+    "FITBIT",
+    "OURA",
+    "POLAR",
+    "APPLE_HEALTH",
+    "WITHINGS",
+  ],
   // A real scale beats a strap's body-measurement estimate for weight.
   weight: ["WITHINGS", "APPLE_HEALTH", "MANUAL", "WHOOP", "FITBIT"],
   bloodPressure: ["WITHINGS", "APPLE_HEALTH", "MANUAL"],
-  pulse: ["WITHINGS", "APPLE_HEALTH", "MANUAL", "FITBIT"],
+  pulse: ["WITHINGS", "APPLE_HEALTH", "MANUAL", "FITBIT", "POLAR", "OURA"],
   bodyFat: ["WITHINGS", "APPLE_HEALTH", "MANUAL", "FITBIT"],
   bodyTemperature: ["WITHINGS", "APPLE_HEALTH", "MANUAL", "FITBIT"],
   // Withings ScanWatch pulse-ox is the primary SpO2 sensor; WHOOP second,
-  // Fitbit third.
-  spo2: ["WITHINGS", "WHOOP", "FITBIT", "APPLE_HEALTH", "MANUAL"],
+  // Fitbit third, Oura's ring fourth.
+  spo2: ["WITHINGS", "WHOOP", "FITBIT", "OURA", "APPLE_HEALTH", "MANUAL"],
   vo2Max: ["WITHINGS", "APPLE_HEALTH", "FITBIT", "MANUAL"],
   // v1.11.0 — new WHOOP-overlapping keys. ScanWatch dermal reading is the
-  // primary skin-temperature sensor; WHOOP's strap is second, Fitbit third.
-  skinTemperature: ["WITHINGS", "WHOOP", "FITBIT", "APPLE_HEALTH"],
-  respiratoryRate: ["WHOOP", "FITBIT", "APPLE_HEALTH", "WITHINGS"],
+  // primary skin-temperature sensor; WHOOP's strap is second, Fitbit third,
+  // Oura's ring fourth.
+  skinTemperature: ["WITHINGS", "WHOOP", "FITBIT", "OURA", "APPLE_HEALTH"],
+  respiratoryRate: [
+    "WHOOP",
+    "FITBIT",
+    "OURA",
+    "POLAR",
+    "APPLE_HEALTH",
+    "WITHINGS",
+  ],
   // v1.11.0 — native-vs-derived recovery. WHOOP's device-native Recovery
   // outranks HealthLog's COMPUTED proxy when both exist; the proxy is the
-  // fallback for users without a strap.
-  recovery: ["WHOOP", "COMPUTED"],
+  // fallback for users without a strap. v1.17.0 — Oura readiness + Polar
+  // nightly recovery slot below WHOOP and above the computed proxy.
+  recovery: ["WHOOP", "OURA", "POLAR", "COMPUTED"],
 };
 
 /**
