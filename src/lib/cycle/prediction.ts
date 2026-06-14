@@ -356,20 +356,70 @@ export function detectTempShift(
 }
 
 /**
- * §4.2(b) — cervical-mucus peak: the LAST day of egg-white/watery mucus.
- * Infertile phase confirmed on peak+3; ovulation is taken at the peak day for
- * the agreement check.
+ * Mucus quality magnitude on the Sensiplan t/f/S/+S ladder (0 = driest,
+ * 4 = best/peak quality). EGG_WHITE/WATERY are the peak-quality (+S) classes;
+ * STICKY/CREAMY are lower fertile-mucus, DRY is t. A null reading is not a
+ * "drier day" — it is an unobserved day and does not count toward the post-peak
+ * run (the run is over observed mucus days only).
+ */
+function mucusQuality(m: DayLogInput["cervicalMucus"]): number {
+  switch (m) {
+    case "EGG_WHITE":
+      return 4;
+    case "WATERY":
+      return 3;
+    case "CREAMY":
+      return 2;
+    case "STICKY":
+      return 1;
+    case "DRY":
+      return 0;
+    default:
+      return -1; // not observed
+  }
+}
+
+/** Peak-quality mucus = the best (+S) classes: egg-white / watery. */
+const MUCUS_PEAK_QUALITY = 3;
+
+/**
+ * §4.2(b) — sensiplan mucus peak (Höhepunkt). The peak day is the LAST day of
+ * best-quality (egg-white / watery / spinnbar) mucus that is FOLLOWED by at
+ * least 3 consecutive drier observed days (each strictly lower quality than the
+ * peak). The peak is only confirmable retrospectively, after those 3 days — so a
+ * stray late egg-white entry that is NOT yet followed by 3 drier days cannot
+ * move an already-confirmed peak.
+ *
+ * Returns the confirmed peak day, or null when no best-quality day has yet been
+ * followed by 3 drier observed days.
+ *
+ * Citation: "Höhepunkt = the last day of best-quality (S+) mucus; evaluation
+ * completes on the evening of the 3rd day after the change to poorer quality."
+ * Arbeitsgruppe NFP / Raith-Paula & Frank-Herrmann; myNFP "Zervixschleim
+ * beobachten".
  */
 export function detectMucusPeak(
   dayLogs: readonly DayLogInput[],
 ): string | null {
-  const peakDays = dayLogs
-    .filter(
-      (l) => l.cervicalMucus === "EGG_WHITE" || l.cervicalMucus === "WATERY",
-    )
-    .map((l) => l.date)
-    .sort((a, b) => dayDiff(a, b));
-  return peakDays.length > 0 ? peakDays[peakDays.length - 1] : null;
+  // Observed mucus days only, oldest→newest. Unobserved days are skipped so a
+  // gap in logging doesn't break the 3-drier-day post-peak run.
+  const observed = dayLogs
+    .filter((l) => mucusQuality(l.cervicalMucus) >= 0)
+    .map((l) => ({ date: l.date, q: mucusQuality(l.cervicalMucus) }))
+    .sort((a, b) => dayDiff(a.date, b.date));
+
+  // Walk every best-quality day; a candidate peak is confirmed iff the next 3
+  // observed days are all strictly lower quality. Scan forward and keep the
+  // LATEST confirmed peak (a true later peak supersedes an earlier one).
+  let confirmedPeak: string | null = null;
+  for (let i = 0; i < observed.length; i++) {
+    if (observed[i].q < MUCUS_PEAK_QUALITY) continue;
+    const following = observed.slice(i + 1, i + 4);
+    if (following.length < 3) continue; // not yet evaluable
+    const allDrier = following.every((d) => d.q < observed[i].q);
+    if (allDrier) confirmedPeak = observed[i].date;
+  }
+  return confirmedPeak;
 }
 
 /**

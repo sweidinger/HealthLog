@@ -4,6 +4,7 @@ import { addDays } from "../day-math";
 import {
   clampLuteal,
   confirmSymptothermal,
+  detectMucusPeak,
   detectTempShift,
   detectTemperatureTrend,
   estimateCycleLength,
@@ -388,6 +389,67 @@ describe("cycle/prediction — symptothermal confirmation (§4.2)", () => {
     expect(shift?.evaluationCompleteDate).toBe(addDays(start, 9));
   });
 
+  it("detectMucusPeak: confirms the last best-quality day followed by 3 drier days", () => {
+    const m = (date: string, q: DayLogInput["cervicalMucus"]): DayLogInput => ({
+      date,
+      flow: null,
+      basalBodyTempC: null,
+      ovulationTest: null,
+      cervicalMucus: q,
+    });
+    const start = "2024-01-01";
+    const logs = [
+      m(addDays(start, 0), "STICKY"),
+      m(addDays(start, 1), "CREAMY"),
+      m(addDays(start, 2), "EGG_WHITE"), // peak candidate
+      m(addDays(start, 3), "CREAMY"),
+      m(addDays(start, 4), "STICKY"),
+      m(addDays(start, 5), "DRY"),
+    ];
+    expect(detectMucusPeak(logs)).toBe(addDays(start, 2));
+  });
+
+  it("detectMucusPeak: returns null until 3 drier days follow the best-quality day", () => {
+    const m = (date: string, q: DayLogInput["cervicalMucus"]): DayLogInput => ({
+      date,
+      flow: null,
+      basalBodyTempC: null,
+      ovulationTest: null,
+      cervicalMucus: q,
+    });
+    const start = "2024-01-01";
+    // egg-white then only 2 drier observed days → not yet confirmable.
+    const logs = [
+      m(addDays(start, 0), "EGG_WHITE"),
+      m(addDays(start, 1), "CREAMY"),
+      m(addDays(start, 2), "DRY"),
+    ];
+    expect(detectMucusPeak(logs)).toBeNull();
+  });
+
+  it("detectMucusPeak: a stray late egg-white entry no longer moves a confirmed peak", () => {
+    const m = (date: string, q: DayLogInput["cervicalMucus"]): DayLogInput => ({
+      date,
+      flow: null,
+      basalBodyTempC: null,
+      ovulationTest: null,
+      cervicalMucus: q,
+    });
+    const start = "2024-01-01";
+    const logs = [
+      m(addDays(start, 0), "EGG_WHITE"), // true peak
+      m(addDays(start, 1), "CREAMY"),
+      m(addDays(start, 2), "STICKY"),
+      m(addDays(start, 3), "DRY"),
+      // a stray late egg-white with NO 3 drier days after it (only 1 logged
+      // day follows) — must not be confirmed as a new peak.
+      m(addDays(start, 8), "EGG_WHITE"),
+      m(addDays(start, 9), "DRY"),
+    ];
+    // The confirmed peak stays on the true (early) egg-white day, not the stray.
+    expect(detectMucusPeak(logs)).toBe(addDays(start, 0));
+  });
+
   it("confirmSymptothermal requires temp-shift and mucus-peak within ±2 days", () => {
     const logs: DayLogInput[] = [];
     const start = "2024-01-01";
@@ -397,14 +459,19 @@ describe("cycle/prediction — symptothermal confirmation (§4.2)", () => {
     logs.push(bbtDay(addDays(start, 6), 36.55));
     logs.push(bbtDay(addDays(start, 7), 36.6));
     logs.push(bbtDay(addDays(start, 8), 36.62));
-    // temp ovulation = 2024-01-06. Add a mucus peak (EGG_WHITE) on 2024-01-06.
-    logs.push({
-      date: "2024-01-06",
+    // temp ovulation = 2024-01-06. Add a mucus peak (EGG_WHITE) on 2024-01-06,
+    // confirmed by 3 drier days after it (Sensiplan post-peak count).
+    const mucusDay = (date: string, m: DayLogInput["cervicalMucus"]): DayLogInput => ({
+      date,
       flow: null,
       basalBodyTempC: null,
       ovulationTest: null,
-      cervicalMucus: "EGG_WHITE",
+      cervicalMucus: m,
     });
+    logs.push(mucusDay("2024-01-06", "EGG_WHITE"));
+    logs.push(mucusDay("2024-01-07", "STICKY"));
+    logs.push(mucusDay("2024-01-08", "DRY"));
+    logs.push(mucusDay("2024-01-09", "DRY"));
     expect(confirmSymptothermal(logs)).toBe("2024-01-06");
   });
 
@@ -425,14 +492,18 @@ describe("cycle/prediction — symptothermal confirmation (§4.2)", () => {
     logs.push(bbtDay(riseStart, 36.6));
     logs.push(bbtDay(addDays(riseStart, 1), 36.62));
     logs.push(bbtDay(addDays(riseStart, 2), 36.63));
-    // mucus peak agreeing with the temp ovulation.
-    logs.push({
-      date: ovDay,
+    // mucus peak agreeing with the temp ovulation, confirmed by 3 drier days.
+    const mucusDay = (date: string, m: DayLogInput["cervicalMucus"]): DayLogInput => ({
+      date,
       flow: null,
       basalBodyTempC: null,
       ovulationTest: null,
-      cervicalMucus: "EGG_WHITE",
+      cervicalMucus: m,
     });
+    logs.push(mucusDay(ovDay, "EGG_WHITE"));
+    logs.push(mucusDay(addDays(ovDay, 1), "STICKY"));
+    logs.push(mucusDay(addDays(ovDay, 2), "DRY"));
+    logs.push(mucusDay(addDays(ovDay, 3), "DRY"));
 
     const result = predictCycle(cycles, logs, BASE_PROFILE, addDays(lastStart, 16));
     expect(result.ovulationConfirmed).toBe(true);
@@ -494,13 +565,18 @@ describe("cycle/prediction — multi-cycle window scoping (QA HIGH)", () => {
     logs.push(bbtDay(riseStart, 36.6));
     logs.push(bbtDay(addDays(riseStart, 1), 36.62));
     logs.push(bbtDay(addDays(riseStart, 2), 36.63));
-    logs.push({
-      date: ovDay,
+    const mucusDay = (date: string, m: DayLogInput["cervicalMucus"]): DayLogInput => ({
+      date,
       flow: null,
       basalBodyTempC: null,
       ovulationTest: null,
-      cervicalMucus: "EGG_WHITE",
+      cervicalMucus: m,
     });
+    // Peak on ovDay confirmed by 3 drier observed days (Sensiplan post-peak count).
+    logs.push(mucusDay(ovDay, "EGG_WHITE"));
+    logs.push(mucusDay(addDays(ovDay, 1), "STICKY"));
+    logs.push(mucusDay(addDays(ovDay, 2), "DRY"));
+    logs.push(mucusDay(addDays(ovDay, 3), "DRY"));
     return logs;
   }
 
