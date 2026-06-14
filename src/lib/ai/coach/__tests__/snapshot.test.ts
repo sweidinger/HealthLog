@@ -32,6 +32,11 @@ vi.mock("../memory-snapshot", () => ({
 
 import { prisma } from "@/lib/db";
 import { extractFeatures } from "@/lib/insights/features";
+import {
+  reconstructNights,
+  sleepNeedMinutes,
+} from "@/lib/insights/derived/sleep-score";
+import { computeSleepRhythmFromNights } from "@/lib/insights/derived/sleep-rhythm";
 
 const prismaMock = prisma as unknown as {
   measurement: { findMany: ReturnType<typeof vi.fn> };
@@ -403,6 +408,119 @@ describe("buildCoachSnapshot", () => {
 
     // Two distinct window keys → two cache slots → two Prisma reads.
     expect(prismaMock.measurement.findMany).toHaveBeenCalledTimes(2);
+  });
+
+  // ── v1.17.0 sleep-rhythm block (sleep-debt + chronotype) ──────────
+  //
+  // The coach reads the SAME computed values the Sleep page + dashboard
+  // show: it hands the canonical per-night reconstruction to the SAME
+  // assembler (`computeSleepRhythmFromNights`) the dashboard route uses,
+  // never recomputing sleep-debt or chronotype inline. These tests pin
+  // the reuse contract + the learning-gate honesty.
+
+  /**
+   * One night's bare-ASLEEP block, wake instant in UTC. `reconstructNights`
+   * reads asleep = `asleepMinutes` and a midpoint at wake − asleep/2 — the
+   * same fixture shape the sleep-rhythm unit suite uses.
+   */
+  function nightRow(wakeIso: string, asleepMinutes: number) {
+    return {
+      type: "SLEEP_DURATION",
+      value: asleepMinutes,
+      measuredAt: new Date(wakeIso),
+      sleepStage: "ASLEEP" as const,
+      source: null,
+      deviceType: null,
+    };
+  }
+
+  it("emits a ready sleepRhythm block equal to the assembler's DTO", async () => {
+    // 14 consecutive nights across two weekends → debt ready (≥7 nights)
+    // and chronotype ready (≥3 free/weekend nights). 2026-06-01 is a Monday.
+    const rows = Array.from({ length: 14 }, (_, i) => {
+      const day = 1 + i; // 2026-06-01 .. 2026-06-14
+      const dd = String(day).padStart(2, "0");
+      return nightRow(`2026-06-${dd}T06:00:00Z`, 360 + (i % 3) * 20);
+    });
+    prismaMock.measurement.findMany.mockResolvedValue(rows);
+    featuresMock.mockResolvedValue({
+      context: { heightCm: null, ageYears: 40, gender: null },
+    });
+    prismaMock.user.findUnique.mockResolvedValue({
+      coachPrefsJson: null,
+      timezone: "UTC",
+    });
+
+    const out = await buildCoachSnapshot("user-1", { sources: ["sleep"] });
+    const parsed = JSON.parse(out.snapshotJson);
+
+    // Independently run the SAME engine over the SAME rows + need — the
+    // snapshot must equal it field-for-field (reuse, never recompute).
+    const expected = computeSleepRhythmFromNights(
+      reconstructNights(rows, "UTC", null),
+      sleepNeedMinutes(40),
+    );
+    expect(expected.sleepDebt.state).toBe("ready");
+    expect(expected.chronotype.state).toBe("ready");
+    expect(expected.chronotype.band).not.toBeNull();
+
+    expect(parsed.sleepRhythm.sleepDebt).toEqual({
+      state: expected.sleepDebt.state,
+      debtMinutes: expected.sleepDebt.debtMinutes,
+      needMinutes: expected.sleepDebt.needMinutes,
+    });
+    expect(parsed.sleepRhythm.chronotype).toEqual({
+      state: expected.chronotype.state,
+      band: expected.chronotype.band,
+      socialJetlagMinutes: expected.chronotype.socialJetlagMinutes,
+    });
+  });
+
+  it("never asserts a band for a learning chronotype", async () => {
+    // 8 weekday nights (2026-06-15 Mon .. 2026-06-22 Mon, weekends 06-20/21
+    // are the only free days) — enough for debt to be ready but the
+    // chronotype stays learning until it has ≥3 free-day nights. With only
+    // two weekend nights here, the band must NOT be asserted.
+    const weekdayRows = [15, 16, 17, 18, 19, 22].map((d) =>
+      nightRow(`2026-06-${String(d).padStart(2, "0")}T06:00:00Z`, 380),
+    );
+    prismaMock.measurement.findMany.mockResolvedValue(weekdayRows);
+    featuresMock.mockResolvedValue({
+      context: { heightCm: null, ageYears: 40, gender: null },
+    });
+    prismaMock.user.findUnique.mockResolvedValue({
+      coachPrefsJson: null,
+      timezone: "UTC",
+    });
+
+    const out = await buildCoachSnapshot("user-1", { sources: ["sleep"] });
+    const parsed = JSON.parse(out.snapshotJson);
+
+    const expected = computeSleepRhythmFromNights(
+      reconstructNights(weekdayRows, "UTC", null),
+      sleepNeedMinutes(40),
+    );
+    expect(expected.chronotype.state).toBe("learning");
+
+    expect(parsed.sleepRhythm.chronotype.state).toBe("learning");
+    // A learning chronotype carries no band the data supports.
+    expect(parsed.sleepRhythm.chronotype.band).toBeNull();
+    expect(parsed.sleepRhythm.chronotype.socialJetlagMinutes).toBeNull();
+  });
+
+  it("omits the sleepRhythm block when no sleep rows exist", async () => {
+    prismaMock.measurement.findMany.mockResolvedValue([]);
+    featuresMock.mockResolvedValue({
+      context: { heightCm: null, ageYears: 40, gender: null },
+    });
+    prismaMock.user.findUnique.mockResolvedValue({
+      coachPrefsJson: null,
+      timezone: "UTC",
+    });
+
+    const out = await buildCoachSnapshot("user-1", { sources: ["sleep"] });
+    const parsed = JSON.parse(out.snapshotJson);
+    expect(parsed.sleepRhythm).toBeUndefined();
   });
 });
 

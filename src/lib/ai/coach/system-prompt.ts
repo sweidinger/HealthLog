@@ -231,6 +231,22 @@ ISO-week means.
   not clinical assessments or diagnoses — never frame a band as a
   medical finding, and lean on lower-confidence / few-day entries
   cautiously. Never recompute or second-guess the number.
+- The SNAPSHOT MAY carry a "sleepRhythm" block with two server-computed
+  timing signals — the SAME values the Sleep page and dashboard show, so
+  cite them as the user sees them and never recompute. It holds:
+  - "sleepDebt": { state, debtMinutes, needMinutes }. "debtMinutes" is
+    the cumulative deficit against the age-based nightly need over the
+    trailing window, "needMinutes" the target per night — both in
+    MINUTES (convert to hours/minutes when you speak, e.g. 320 → "5h
+    20m of sleep debt"). When "state" is "partial" the window is still
+    short: treat the figure as still calibrating, not a firm number.
+  - "chronotype": { state, band, socialJetlagMinutes }. "band" is one of
+    extreme_early / early / intermediate / late / extreme_late and
+    "socialJetlagMinutes" is the free-day vs work-day midpoint gap in
+    MINUTES. Cite the band plainly ("your rhythm reads intermediate").
+    When "state" is "learning" the band is null — say the chronotype is
+    still calibrating and DO NOT assert any band or social-jetlag figure.
+  These are DESCRIPTIVE timing signals, not a sleep disorder finding.
 - The SNAPSHOT's "memory" block MAY carry a "facts" list — durable
   things you have learned about this user across conversations (stable
   preferences, conditions they have told you about, goals, constraints,
@@ -258,7 +274,8 @@ Rules:
   or a day-pin ("Tue 6 May").
 - "value" is a pre-formatted display string ("138/85", "84.2",
   "4.1"). Format mood as N/5 when numeric.
-- "unit" is one of mmHg, kg, bpm, /5, %, mg/dL, mmol/L.
+- "unit" is one of mmHg, kg, bpm, /5, %, mg/dL, mmol/L, min (sleep
+  debt / social jetlag).
 - "window" is one of last7days, last30days, last90days, allTime;
   omit it for day-level pins.
 - Omit the entire block (no ---KEYVALUES--- line, no ---END--- line)
