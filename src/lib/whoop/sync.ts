@@ -24,7 +24,7 @@
  */
 import { AsyncLocalStorage } from "node:async_hooks";
 import { prisma } from "@/lib/db";
-import type { MeasurementType } from "@/generated/prisma/client";
+import type { MeasurementType, Prisma } from "@/generated/prisma/client";
 import { encrypt, decrypt } from "@/lib/crypto";
 import { getEvent } from "@/lib/logging/context";
 import {
@@ -117,6 +117,61 @@ const TOKEN_REFRESH_BUFFER_MS = 5 * 60 * 1000;
 export const WHOOP_RECOVERY_SLEEP_OVERLAP_MS = 7 * 24 * 60 * 60 * 1000;
 export const WHOOP_DEFAULT_OVERLAP_MS = 60 * 60 * 1000; // 1 h
 
+/**
+ * The far-past anchor a `fullSync` walks from. Incremental ticks start at
+ * `cursor − overlap` (days at most); a fullSync deliberately ignores the
+ * cursor and re-walks the deep history WHOOP retains (multi-year), which an
+ * incremental run would never reach. WHOOP's first public data predates this,
+ * so a fixed anchor covers every realistic account; the client's `next_token`
+ * pagination + the idempotent upsert keep the re-walk bounded and safe.
+ */
+export const WHOOP_FULL_SYNC_ANCHOR = new Date("2020-01-01T00:00:00.000Z");
+
+/**
+ * The four pollable WHOOP collections that carry an independent sync cursor.
+ * Body-measurement is a single profile object (no time-range cursor) and is
+ * excluded. Each resource advances ONLY its own cursor key so a slow/failing
+ * collection never drags the incremental window forward for its siblings.
+ */
+export type WhoopResource = "recovery" | "sleep" | "workout" | "cycle";
+
+/**
+ * Shape of the `WhoopConnection.resourceCursors` JSON map: a partial
+ * `resource → ISO-8601 last-synced instant`. A missing key (or a legacy null
+ * column) means the resource has no per-resource cursor yet and falls back to
+ * the shared `lastSyncedAt`.
+ */
+type ResourceCursorMap = Partial<Record<WhoopResource, string>>;
+
+function parseResourceCursors(raw: unknown): ResourceCursorMap {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
+  return raw as ResourceCursorMap;
+}
+
+/**
+ * Resolve the incremental cursor for one resource. Prefers the per-resource
+ * cursor; falls back to the connection's shared `lastSyncedAt` for a legacy
+ * connection (or a resource that has never synced under the new column) so no
+ * historical state is lost on the first tick after the migration. Returns null
+ * when neither exists (the very first sync — `incrementalStart` then anchors 30
+ * days back).
+ */
+export function resolveResourceCursor(
+  connection: {
+    resourceCursors?: unknown;
+    lastSyncedAt?: Date | null;
+  },
+  resource: WhoopResource,
+): Date | null {
+  const map = parseResourceCursors(connection.resourceCursors);
+  const iso = map[resource];
+  if (iso) {
+    const parsed = new Date(iso);
+    if (!Number.isNaN(parsed.getTime())) return parsed;
+  }
+  return connection.lastSyncedAt ?? null;
+}
+
 export interface WhoopTokenInfo {
   accessToken: string;
   connection: { id: string; whoopUserId: string };
@@ -200,18 +255,24 @@ export async function getValidToken(
 }
 
 /**
- * Compute the incremental `start` for a resource sync. `fullSync` returns
- * undefined (the backfill anchor handles the deep history). Otherwise start
- * from `lastSyncedAt - overlap`, or 30 days back on the very first incremental
- * tick.
+ * Compute the `start` bound for a resource fetch.
+ *
+ * A `fullSync` deliberately ignores the cursor and anchors at
+ * `WHOOP_FULL_SYNC_ANCHOR` — the deep historical backfill an incremental run
+ * would never reach. (It previously returned `undefined`; an explicit anchor
+ * pins the lower bound so the walk is reproducible and the cursor a stalled
+ * incremental left behind cannot silently narrow a backfill.)
+ *
+ * Otherwise it is an incremental tick: start from `cursor − overlap`, or 30
+ * days back on the very first sync (no cursor yet).
  */
 export function incrementalStart(
-  lastSyncedAt: Date | null,
+  cursor: Date | null,
   opts: { fullSync?: boolean; overlapMs?: number } = {},
 ): Date | undefined {
-  if (opts.fullSync) return undefined;
+  if (opts.fullSync) return WHOOP_FULL_SYNC_ANCHOR;
   const overlap = opts.overlapMs ?? WHOOP_DEFAULT_OVERLAP_MS;
-  if (lastSyncedAt) return new Date(lastSyncedAt.getTime() - overlap);
+  if (cursor) return new Date(cursor.getTime() - overlap);
   return new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
 }
 
@@ -313,6 +374,41 @@ export async function markSynced(userId: string): Promise<void> {
   await prisma.whoopConnection.update({
     where: { userId },
     data: { lastSyncedAt: new Date() },
+  });
+}
+
+/**
+ * Advance ONE resource's cursor after its successful fetch+upsert. Reads the
+ * current `resourceCursors` map, sets only this resource's key to `now`, and
+ * writes the merged map back — sibling cursors are preserved untouched, so a
+ * resource that errored or soft-skipped this tick keeps its own (older) cursor
+ * and re-fetches from there next time. Also keeps the shared `lastSyncedAt`
+ * moving for any legacy reader still on it.
+ *
+ * Best-effort merge: the read+write is not transactional, but each resource
+ * runs serially within a user's sync (the per-resource pg-boss queues are
+ * `localConcurrency: 1`), so two cursors for the same user never race.
+ */
+export async function markResourceSynced(
+  userId: string,
+  resource: WhoopResource,
+  at: Date = new Date(),
+): Promise<void> {
+  const connection = await prisma.whoopConnection.findUnique({
+    where: { userId },
+    select: { resourceCursors: true },
+  });
+  if (!connection) return;
+
+  const map = parseResourceCursors(connection.resourceCursors);
+  const next: ResourceCursorMap = { ...map, [resource]: at.toISOString() };
+
+  await prisma.whoopConnection.update({
+    where: { userId },
+    data: {
+      resourceCursors: next as Prisma.InputJsonValue,
+      lastSyncedAt: at,
+    },
   });
 }
 

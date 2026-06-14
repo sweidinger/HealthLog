@@ -10,7 +10,8 @@ import {
   getValidToken,
   incrementalStart,
   handleCollectionFetchError,
-  markSynced,
+  markResourceSynced,
+  resolveResourceCursor,
   upsertWhoopMeasurements,
   type WhoopMeasurementUpsert,
 } from "./sync";
@@ -25,11 +26,11 @@ export async function syncUserCycle(
 
   const connection = await prisma.whoopConnection.findUnique({
     where: { userId },
-    select: { lastSyncedAt: true },
+    select: { lastSyncedAt: true, resourceCursors: true },
   });
   if (!connection) return 0;
 
-  const start = incrementalStart(connection.lastSyncedAt, {
+  const start = incrementalStart(resolveResourceCursor(connection, "cycle"), {
     fullSync: opts.fullSync,
   });
 
@@ -54,6 +55,6 @@ export async function syncUserCycle(
   }
 
   const imported = await upsertWhoopMeasurements(userId, readings);
-  await markSynced(userId);
+  await markResourceSynced(userId, "cycle");
   return imported;
 }

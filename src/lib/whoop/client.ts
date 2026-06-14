@@ -402,6 +402,67 @@ export function fetchWorkouts(
   );
 }
 
+// ─── Single-record reads (webhook-driven fetch-by-id) ──────────
+// A `*.updated` webhook carries only the resource id, not the data. Re-fetch
+// that ONE record by id for a targeted refresh — far cheaper than re-walking
+// the whole collection, and it lands the record immediately rather than on the
+// next overlap window. WHOOP v2 single-record paths (re-verify at build):
+//   sleep    GET /v2/activity/sleep/{sleepId}
+//   workout  GET /v2/activity/workout/{workoutId}
+//   cycle    GET /v2/cycle/{cycleId}
+//   recovery GET /v2/cycle/{cycleId}/recovery   (no recovery-by-recovery-id)
+// `fetchSingle` throws a `WhoopApiError` on a non-2xx (incl. a 404 for a since-
+// deleted id) so the caller's existing classify/soft-skip path handles it.
+
+export function fetchSleepById(
+  accessToken: string,
+  sleepId: string,
+): Promise<WhoopSleep> {
+  return fetchSingle<WhoopSleep>(
+    `/v2/activity/sleep/${encodeURIComponent(sleepId)}`,
+    accessToken,
+    "fetchSleepById",
+  );
+}
+
+export function fetchWorkoutById(
+  accessToken: string,
+  workoutId: string,
+): Promise<WhoopWorkout> {
+  return fetchSingle<WhoopWorkout>(
+    `/v2/activity/workout/${encodeURIComponent(workoutId)}`,
+    accessToken,
+    "fetchWorkoutById",
+  );
+}
+
+export function fetchCycleById(
+  accessToken: string,
+  cycleId: string,
+): Promise<WhoopCycle> {
+  return fetchSingle<WhoopCycle>(
+    `/v2/cycle/${encodeURIComponent(cycleId)}`,
+    accessToken,
+    "fetchCycleById",
+  );
+}
+
+/**
+ * WHOOP v2 has no recovery-by-recovery-id route — a recovery is read through
+ * its cycle (`GET /v2/cycle/{cycleId}/recovery`). The recovery webhook carries
+ * the cycle id, so the targeted refresh resolves the recovery from there.
+ */
+export function fetchRecoveryByCycleId(
+  accessToken: string,
+  cycleId: string,
+): Promise<WhoopRecovery> {
+  return fetchSingle<WhoopRecovery>(
+    `/v2/cycle/${encodeURIComponent(cycleId)}/recovery`,
+    accessToken,
+    "fetchRecoveryByCycleId",
+  );
+}
+
 export function fetchBodyMeasurement(
   accessToken: string,
 ): Promise<WhoopBodyMeasurement> {

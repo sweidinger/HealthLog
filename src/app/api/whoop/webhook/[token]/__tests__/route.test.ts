@@ -162,8 +162,11 @@ describe("POST /api/whoop/webhook/[token]", () => {
       where: { whoopUserId: "42" },
       select: { userId: true },
     });
+    // v1.16.16 (iOS #17) — the resource id rides through so the worker can do
+    // a targeted fetch-by-id refresh instead of re-walking the collection.
     expect(send).toHaveBeenCalledWith("whoop-recovery-sync", {
       userId: "user-1",
+      resourceId: "abc",
     });
   });
 
