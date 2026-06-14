@@ -3648,7 +3648,7 @@
     },
     "goals": {
       "title": "¿Qué te gustaría registrar?",
-      "body": "Elige las áreas que te interesan: te ayuda a decidir qué seguir y qué configurar a continuación.",
+      "body": "Elige las áreas que te interesan: las mostraremos primero en tu panel y te ayudarán a decidir qué configurar a continuación.",
       "helpHint": "Una a tres prioridades suelen funcionar mejor — siempre podrás añadir más más adelante.",
       "options": {
         "weightManagement": "Control del peso",
@@ -3733,6 +3733,17 @@
         "title": "Descubre los patrones",
         "body": "Resúmenes diarios, gráficas de tendencias y un coach que destaca lo que cambió — todo en tu propio dispositivo."
       }
+    },
+    "anamnesis": {
+      "title": "Sobre tu salud (opcional)",
+      "subtitle": "Un poco de contexto para que HealthLog interprete tus valores de forma más justa.",
+      "intro": "Comparte lo que quieras: cada campo es opcional y puedes editarlo cuando quieras en Ajustes.",
+      "conditionsLabel": "Afecciones actuales",
+      "conditionsPlaceholder": "p. ej. hipertensión, diabetes tipo 2",
+      "conditionsHint": "Ayuda a HealthLog a interpretar tus lecturas en contexto en lugar de marcar lo esperado.",
+      "allergiesLabel": "Alergias o intolerancias",
+      "allergiesPlaceholder": "p. ej. penicilina, lactosa",
+      "privacyNote": "Se almacena cifrado y solo se usa para darte mejor contexto. Aquí no te pedimos tu medicación: puedes añadirla cuando quieras desde la página de Medicación."
     }
   },
   "gettingStarted": {
