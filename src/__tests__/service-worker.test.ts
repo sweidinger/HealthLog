@@ -238,6 +238,44 @@ describe("sw.js — networkFirst offline fallback", () => {
   });
 });
 
+describe("sw.js — networkFirst privacy gate", () => {
+  it("does not cache a navigation response that carries Cache-Control: no-store", async () => {
+    const harness = bootServiceWorker();
+    harness.context.fetch = async () =>
+      new Response("private shell", {
+        headers: { "Cache-Control": "no-store" },
+      });
+
+    const res = await dispatchNavigationFetch(harness, "/");
+    expect(await res.clone().text()).toBe("private shell");
+
+    const pages = await harness.cacheStorage.open(CURRENT_PAGE_CACHE);
+    expect(await pages.match(`${ORIGIN}/`)).toBeUndefined();
+  });
+
+  it("does not cache the /c/ clinician-share view even without no-store", async () => {
+    const harness = bootServiceWorker();
+    harness.context.fetch = async () => new Response("share shell");
+
+    const res = await dispatchNavigationFetch(harness, "/c/hls_abc123");
+    expect(await res.clone().text()).toBe("share shell");
+
+    const pages = await harness.cacheStorage.open(CURRENT_PAGE_CACHE);
+    expect(await pages.match(`${ORIGIN}/c/hls_abc123`)).toBeUndefined();
+  });
+
+  it("still caches an ordinary navigation response", async () => {
+    const harness = bootServiceWorker();
+    harness.context.fetch = async () => new Response("app shell");
+
+    const res = await dispatchNavigationFetch(harness, "/measurements");
+    expect(await res.clone().text()).toBe("app shell");
+
+    const pages = await harness.cacheStorage.open(CURRENT_PAGE_CACHE);
+    expect(await pages.match(`${ORIGIN}/measurements`)).toBeDefined();
+  });
+});
+
 describe("sw.js — trimCache", () => {
   it("reads the key list once and deletes only the oldest excess entries", async () => {
     const harness = bootServiceWorker();

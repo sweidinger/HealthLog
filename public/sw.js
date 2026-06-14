@@ -119,6 +119,32 @@ async function cacheFirst(request, cacheName) {
 }
 
 /**
+ * Privacy gate for the navigation page cache. Most app routes are
+ * client-fetch-only shells with no server-rendered PII (health JSON loads
+ * over `/api/*`, which is network-only here), so caching their HTML is
+ * safe. Two carve-outs:
+ *
+ *   1. A `Cache-Control: no-store` response opts itself out — the
+ *      principled, future-proof rule for any current/future server RSC
+ *      that renders user data and sets the header.
+ *   2. `/c/*` (the clinician-share view) renders health values + wellness
+ *      scores straight into the HTML and emits `no-store`; the explicit
+ *      path skip is belt-and-braces so a revoked share can never linger in
+ *      CacheStorage and render back offline.
+ */
+function isCacheableNavigation(request, response) {
+  const cacheControl = response.headers.get("Cache-Control") || "";
+  if (/no-store/i.test(cacheControl)) return false;
+  try {
+    const { pathname } = new URL(request.url);
+    if (pathname === "/c" || pathname.startsWith("/c/")) return false;
+  } catch {
+    // Unparseable URL — fall through; the no-store check already ran.
+  }
+  return true;
+}
+
+/**
  * Network-first: try network (preferring the navigation-preload response
  * when the browser already started it), fall back to cache.
  *
@@ -134,7 +160,7 @@ async function networkFirst(event, cacheName) {
     const response =
       (event.preloadResponse ? await event.preloadResponse : null) ||
       (await fetch(request));
-    if (response.ok) {
+    if (response.ok && isCacheableNavigation(request, response)) {
       const cache = await caches.open(cacheName);
       cache.put(request, response.clone());
       trimCache(cacheName, MAX_PAGE_ENTRIES);
