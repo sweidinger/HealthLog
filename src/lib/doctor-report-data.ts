@@ -18,6 +18,10 @@ import {
   thresholdMetricForContext,
   type GlucoseUnit,
 } from "@/lib/glucose";
+import {
+  computeGlucoseClinicalMetrics,
+  type GlucoseClinicalMetrics,
+} from "@/lib/analytics/glucose-metrics";
 import type {
   GlucoseContext,
   MeasurementSource,
@@ -96,6 +100,16 @@ export interface DoctorReportData {
   glucoseStats: Record<string, DoctorReportStats>;
   glucoseRanges: Record<string, { min: number; max: number }>;
   glucoseUnit: GlucoseUnit;
+  /**
+   * v1.17.0 — server-authoritative glucose clinical panel over the report
+   * period (TIR / GMI / estimated A1C / CV% + the advanced J-index + LBGI/HBGI
+   * tier), computed by `computeGlucoseClinicalMetrics` so the PDF/FHIR export
+   * carries the SAME numbers the insights panel and the coach show. Values are
+   * canonical mg/dL; `glucoseUnit` drives display conversion at render. Carried
+   * as a spot-reading estimate (`isSpotEstimate: true`), gated by
+   * `stillLearning` when the period is too thin to assert clinically.
+   */
+  glucoseClinical: GlucoseClinicalMetrics;
   bmi: number | null;
   compliance: Record<string, DoctorReportCompliance>;
   medications: Array<{
@@ -869,6 +883,18 @@ export async function collectDoctorReportData(
     }
   }
 
+  // v1.17.0 — clinical panel over the WHOLE report period (all contexts
+  // pooled), computed by the one literature-locked engine the insights panel
+  // and the coach also consume. `windowDays` is the report's own period so the
+  // TIR / GMI / eA1C / CV% reflect exactly the readings the rest of the report
+  // tabulates; `now: end` anchors the window to the report's upper bound. The
+  // learning gate keeps a thin period from asserting a clinical AGP off spot
+  // data. Values stay canonical mg/dL; the renderer converts with `glucoseUnit`.
+  const glucoseClinical = computeGlucoseClinicalMetrics(
+    glucoseRows.map((r) => ({ measuredAt: r.measuredAt, mgdl: r.value })),
+    { windowDays: days, now: end },
+  );
+
   // `practiceName` is sanitised to a single-line string with a hard length
   // cap. The PDF cover prints it verbatim — never let unbounded input land in
   // a layout-sensitive header.
@@ -1056,6 +1082,7 @@ export async function collectDoctorReportData(
     stats: filteredStats,
     glucoseStats,
     glucoseRanges,
+    glucoseClinical,
     glucoseUnit: resolveGlucoseUnit(userProfile?.glucoseUnit ?? null),
     bmi: filteredBmi,
     compliance: filteredCompliance,

@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { buildFhirDocumentBundle } from "../build-bundle";
 import type { DoctorReportData } from "@/lib/doctor-report-data";
+import { computeGlucoseClinicalMetrics } from "@/lib/analytics/glucose-metrics";
 import type {
   FhirObservation,
   FhirMedicationStatement,
@@ -77,6 +78,9 @@ function makeData(overrides?: Partial<DoctorReportData>): DoctorReportData {
       FASTING: { avg: 92, min: 85, max: 100, count: 4, latest: 90 },
     },
     glucoseRanges: { FASTING: { min: 70, max: 99 } },
+    glucoseClinical: computeGlucoseClinicalMetrics([], {
+      now: new Date("2026-05-03T12:00:00.000Z"),
+    }),
     glucoseUnit: "mg/dL",
     bmi: 24.1,
     compliance: {

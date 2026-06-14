@@ -12,6 +12,7 @@ import { ClinicianView } from "../clinician-view";
 import { getServerTranslator } from "@/lib/i18n/server-translator";
 import { DEFAULT_DOCTOR_REPORT_PREFS } from "@/lib/validations/doctor-report-prefs";
 import type { DoctorReportData } from "@/lib/doctor-report-data";
+import { computeGlucoseClinicalMetrics } from "@/lib/analytics/glucose-metrics";
 
 function makeReport(
   overrides: Partial<DoctorReportData> = {},
@@ -36,6 +37,9 @@ function makeReport(
     },
     glucoseStats: {},
     glucoseRanges: {},
+    glucoseClinical: computeGlucoseClinicalMetrics([], {
+      now: new Date("2026-01-31T00:00:00.000Z"),
+    }),
     glucoseUnit: "mg/dL",
     bmi: 24.5,
     compliance: {},

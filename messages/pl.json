@@ -2826,6 +2826,71 @@
       "emptyState": {
         "title": "Brak danych o glukozie",
         "description": "Odczyty glukozy pojawią się tutaj po zapisaniu jednego lub synchronizacji urządzenia."
+      },
+      "clinical": {
+        "title": "Przegląd glukozy",
+        "subtitle": "Spojrzenie na ostatnie {days} dni, na podstawie {count} pomiarów.",
+        "spotCaveat": "To szacunki z pojedynczych pomiarów punktowych, a nie profil z czujnika ciągłego — traktuj je jako kierunek, nie jako diagnozę.",
+        "learningTitle": "Wciąż poznajemy Twoją glukozę",
+        "learningBody": "Na razie to {count} w ciągu {days}. Przy nieco dłuższej historii obraz się wyostrza — rejestruj dalej lub pozwól uzupełnić to podłączonemu urządzeniu.",
+        "learningBodyEmpty": "Gdy pojawi się kilka pomiarów — wpisanych przez Ciebie lub zsynchronizowanych z urządzenia — czas w zakresie, średnia i zmienność nabiorą tu kształtu.",
+        "readingsCount": "{count} pomiarów",
+        "readingsCountOne": "1 pomiar",
+        "daysCount": "{days} dni",
+        "daysCountOne": "1 dzień",
+        "tir": {
+          "title": "Czas w zakresie",
+          "caption": "Udział pomiarów w każdym przedziale (70–180 mg/dl to cel).",
+          "veryLow": "Bardzo niski",
+          "low": "Niski",
+          "inRange": "W zakresie",
+          "high": "Wysoki",
+          "veryHigh": "Bardzo wysoki",
+          "ariaLabel": "Czas w zakresie: {tir}% w celu, {below}% poniżej, {above}% powyżej.",
+          "empty": "Brak pomiarów do wykresu."
+        },
+        "gmi": {
+          "label": "Wskaźnik zarządzania glukozą",
+          "help": "Szacunek zbliżony do HbA1c na podstawie średniej glukozy."
+        },
+        "eA1c": {
+          "label": "Szacowane HbA1c",
+          "help": "Szacunek HbA1c na podstawie średniej glukozy (ADAG)."
+        },
+        "mean": {
+          "label": "Średnia glukoza"
+        },
+        "cv": {
+          "label": "Zmienność",
+          "steady": "Stabilna",
+          "unstable": "Niestabilna",
+          "help": "Współczynnik zmienności. Od 36 % glukozę uznaje się za niestabilną; niżej znaczy stabilniej."
+        },
+        "advanced": {
+          "toggle": "Wskaźniki zaawansowane",
+          "intro": "Złożone miary o poziomie badawczym dla bliższego spojrzenia. Każda sprowadza Twoje pomiary do jednej liczby ważonej ryzykiem.",
+          "jIndex": {
+            "label": "Indeks J",
+            "help": "Pojedynczy wynik łączący średnią i jej rozrzut — niższy oznacza ściślejszą kontrolę."
+          },
+          "lbgi": {
+            "label": "Ryzyko niedocukrzeń (LBGI)",
+            "help": "Indeks Kovatcheva ważący, jak często i jak głęboko odczyty spadają."
+          },
+          "hbgi": {
+            "label": "Ryzyko przecukrzeń (HBGI)",
+            "help": "Indeks Kovatcheva ważący, jak często i jak wysoko odczyty rosną."
+          },
+          "byContext": {
+            "title": "Wg kontekstu",
+            "fasting": "Na czczo",
+            "postprandial": "Po posiłku",
+            "random": "Losowy",
+            "bedtime": "Przed snem",
+            "readingsShort": "{count} pomiarów",
+            "readingsShortOne": "1 pomiar"
+          }
+        }
       }
     },
     "navBloodGlucose": "Glukoza",

@@ -24,6 +24,7 @@ import {
 } from "@/lib/validations/coach-prefs";
 import { DEFAULT_TIMEZONE } from "@/lib/tz/resolver";
 import { convertGlucose, resolveGlucoseUnit } from "@/lib/glucose";
+import { computeGlucoseClinicalMetrics } from "@/lib/analytics/glucose-metrics";
 import {
   reconstructSleepNights,
   type SleepStageRow,
@@ -79,6 +80,15 @@ const DAILY_TIMELINE_DAYS = 14;
 
 /** Default window when the caller doesn't pass a scope. */
 const DEFAULT_WINDOW: CoachScopeWindow = "last30days";
+
+/**
+ * v1.17.0 — the glucose clinical panel is a fixed trailing-30-day artifact,
+ * identical across the insights panel, the dashboard snapshot, the doctor
+ * report, and (here) the coach. Pinned independently of the coach's variable
+ * narration window so the coach's TIR/GMI/CV% always equals what the panel
+ * renders.
+ */
+const GLUCOSE_CLINICAL_WINDOW_DAYS = 30;
 
 /**
  * v1.7.0 — assembled-snapshot soft char cap. After the snapshot is
@@ -846,6 +856,29 @@ async function buildCoachSnapshotImpl(
         },
       })
     : null;
+  // v1.17.0 — the glucose CLINICAL panel is a fixed 30-day clinical artifact,
+  // identical to the one the insights panel + doctor report render. It must NOT
+  // ride the coach's variable narration window (7/30/90/365) or the
+  // multi-cluster timeline cap, or the coach would quote a TIR/GMI/CV% the panel
+  // never shows. So read the panel's own trailing-30-day glucose rows directly
+  // (one indexed query, only when glucose is active) and compute the clinical
+  // block off THOSE rows. The per-context narration timelines below keep using
+  // the coach-window rows — only the clinical summary is pinned to 30 days.
+  const glucoseClinicalCutoff = new Date(
+    now.getTime() - GLUCOSE_CLINICAL_WINDOW_DAYS * 24 * 60 * 60 * 1000,
+  );
+  const glucoseClinicalRowsPromise = sources.has("glucose")
+    ? prisma.measurement.findMany({
+        where: {
+          userId,
+          type: "BLOOD_GLUCOSE" as never,
+          measuredAt: { gte: glucoseClinicalCutoff },
+          deletedAt: null,
+        },
+        orderBy: { measuredAt: "asc" },
+        select: { value: true, measuredAt: true },
+      })
+    : null;
   const glp1BlockPromise = excludesMedications
     ? null
     : buildGlp1SnapshotBlock(userId, now);
@@ -879,6 +912,7 @@ async function buildCoachSnapshotImpl(
     complianceMeds,
     sleepRows,
     workoutRows,
+    glucoseClinicalRows,
     glp1Block,
     derivedBlock,
     trajectoryBlock,
@@ -889,6 +923,7 @@ async function buildCoachSnapshotImpl(
     complianceMedsPromise,
     sleepRowsPromise,
     workoutRowsPromise,
+    glucoseClinicalRowsPromise,
     glp1BlockPromise,
     derivedBlockPromise,
     trajectoryBlockPromise,
@@ -1344,9 +1379,70 @@ async function buildCoachSnapshotImpl(
         );
         contexts[ctx] = { recent, weekly };
       }
+      // v1.17.0 — clinical panel summary from the ONE literature-locked engine
+      // the insights panel + doctor report also consume, computed over the SAME
+      // fixed trailing-30-day window + rows the panel uses (`glucoseClinicalRows`,
+      // not the coach-window / cap-trimmed `glucoseRows`), so the coach can never
+      // quote a TIR / GMI / CV% figure the panel doesn't show — true numeric
+      // parity, independent of the user's coach scope. Gated by `stillLearning`
+      // so a thin spot-data window is offered as a calm "still learning" note
+      // rather than asserted as a clinical AGP. The headline mean is converted
+      // ONCE to the user's display unit; the unit-agnostic fractions / indices
+      // travel as-is.
+      const clinicalRaw = computeGlucoseClinicalMetrics(
+        (glucoseClinicalRows ?? []).map((r) => ({
+          measuredAt: r.measuredAt,
+          mgdl: r.value,
+        })),
+        { windowDays: GLUCOSE_CLINICAL_WINDOW_DAYS, now },
+      );
+      const clinical = clinicalRaw.stillLearning
+        ? {
+            stillLearning: true as const,
+            reason: clinicalRaw.stillLearningReason,
+            readingCount: clinicalRaw.readingCount,
+            spanDays: Math.round(clinicalRaw.actualSpanDays),
+          }
+        : {
+            stillLearning: false as const,
+            windowDays: clinicalRaw.windowDays,
+            spanDays: Math.round(clinicalRaw.actualSpanDays),
+            readingCount: clinicalRaw.readingCount,
+            meanInRange:
+              clinicalRaw.meanMgdl !== null
+                ? Math.round(
+                    convertGlucose(clinicalRaw.meanMgdl, glucoseUnit) *
+                      (glucoseUnit === "mmol/L" ? 10 : 1),
+                  ) / (glucoseUnit === "mmol/L" ? 10 : 1)
+                : null,
+            tirPercent: clinicalRaw.distribution
+              ? Math.round(clinicalRaw.distribution.tir * 100)
+              : null,
+            timeBelowPercent: clinicalRaw.distribution
+              ? Math.round(clinicalRaw.distribution.tbrLevel1 * 100)
+              : null,
+            timeAbovePercent: clinicalRaw.distribution
+              ? Math.round(clinicalRaw.distribution.tarLevel1 * 100)
+              : null,
+            gmi:
+              clinicalRaw.gmi !== null
+                ? Math.round(clinicalRaw.gmi * 10) / 10
+                : null,
+            estimatedA1c:
+              clinicalRaw.estimatedA1c !== null
+                ? Math.round(clinicalRaw.estimatedA1c * 10) / 10
+                : null,
+            cvPercent: clinicalRaw.variability
+              ? Math.round(clinicalRaw.variability.cv)
+              : null,
+            unstable: clinicalRaw.variability?.unstable ?? null,
+            // Spot-reading estimate, never a CGM AGP — pinned so the model
+            // never narrates these as continuous-trace clinical figures.
+            isSpotEstimate: true as const,
+          };
       // The display unit travels with the block so the prompt renders
       // "<value> <unit>" and the EVIDENCE BLOCK tags glucose lines correctly.
-      snapshot.glucose = { unit: glucoseUnit, byContext: contexts };
+      snapshot.glucose = { unit: glucoseUnit, byContext: contexts, clinical };
       metrics.add("glucose");
       counts.glucose = glucoseRows.length;
       registerBlock("glucose", "glucose");

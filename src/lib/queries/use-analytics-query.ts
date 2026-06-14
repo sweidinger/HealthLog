@@ -6,6 +6,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { queryKeys } from "@/lib/query-keys";
 import { DASHBOARD_REFETCH_INTERVAL_MS } from "@/lib/queries/refetch-interval";
 import type { DataSummary } from "@/lib/analytics/trends";
+import type { GlucoseClinicalMetrics } from "@/lib/analytics/glucose-metrics";
 
 /**
  * v1.4.33 IW2 — single TanStack-Query wrapper for `/api/analytics`.
@@ -71,6 +72,14 @@ export interface AnalyticsRawPayload {
   bpInTargetPctPriorMonth?: number | null;
   bpInTargetPctPriorYear?: number | null;
   glucoseByContext?: Record<string, unknown>;
+  /**
+   * v1.17.0 — server-authoritative glucose clinical panel (TIR / GMI / eA1C /
+   * CV% headline + the advanced J-index + LBGI/HBGI tier), computed once over
+   * the trailing-30-day window. Present on the thick default slice; absent on
+   * the slim `?slice=summaries` branch. The panel renders this verbatim and
+   * never re-derives a clinical number client-side.
+   */
+  glucoseClinical?: GlucoseClinicalMetrics;
   correlations?: unknown;
   healthScore?: unknown;
   sleepStages?: unknown;

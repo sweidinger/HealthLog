@@ -154,6 +154,15 @@ export interface HealthKitMetricPageProps {
    * 90-day p50 is not read as an all-time central value.
    */
   statMedianLabel?: string;
+  /**
+   * v1.17.0 — optional extra content rendered beneath the chart + target
+   * summary, before the metric-status card. Blood glucose mounts its clinical
+   * panel (TIR / GMI / eA1C / CV% + advanced indices) here. Only rendered on
+   * the data-bearing branch (the empty / loading / error branches skip it, so
+   * a no-data metric never shows a void panel). Additive: every other page
+   * omits it and renders byte-identically.
+   */
+  afterChart?: ReactNode;
 }
 
 export function HealthKitMetricPage({
@@ -176,6 +185,7 @@ export function HealthKitMetricPage({
   forecast = false,
   statFractionDigits,
   statMedianLabel,
+  afterChart,
 }: HealthKitMetricPageProps) {
   const { user, isAuthenticated } = useAuth();
   const { t } = useTranslations();
@@ -337,6 +347,9 @@ export function HealthKitMetricPage({
       {targetSummarySlug ? (
         <MetricTargetSummary slug={targetSummarySlug} />
       ) : null}
+      {/* v1.17.0 — page-specific extra block (blood glucose: the clinical
+          panel). Mounted on the data-bearing branch only. */}
+      {afterChart}
       {forecast && isTrajectoryType(measurementType) ? (
         <TrajectoryForecastCard
           type={measurementType}

@@ -10,11 +10,13 @@ import { describe, expect, it } from "vitest";
 import {
   CV_INSTABILITY_THRESHOLD,
   DEFAULT_WINDOW_DAYS,
+  bloodGlucoseRiskIndices,
   computeGlucoseClinicalMetrics,
   estimatedA1c,
   glucoseSD,
   glucoseVariability,
   gmi,
+  jIndex,
   timeInRange,
   type GlucoseReading,
 } from "../glucose-metrics";
@@ -128,6 +130,51 @@ describe("timeInRange (Battelino 2019 bands)", () => {
   });
 });
 
+describe("jIndex (Wojcicki 1995)", () => {
+  it("returns null for fewer than two values", () => {
+    expect(jIndex([])).toBeNull();
+    expect(jIndex([120])).toBeNull();
+  });
+
+  it("folds mean + SD: J = 0.001 × (mean + SD)²", () => {
+    // 14 identical 154 readings → SD 0 → J = 0.001 × 154² = 23.716
+    expect(jIndex(Array.from({ length: 14 }, () => 154))).toBeCloseTo(
+      23.716,
+      3,
+    );
+    // {100,110,120,130,140}: mean 120, sample SD √250 = 15.81139 →
+    // J = 0.001 × 135.81139² = 18.444733
+    expect(jIndex([100, 110, 120, 130, 140])).toBeCloseTo(18.444733, 5);
+  });
+});
+
+describe("bloodGlucoseRiskIndices (Kovatchev 1997/2006)", () => {
+  it("returns null when no usable reading remains", () => {
+    expect(bloodGlucoseRiskIndices([])).toBeNull();
+    // non-positive / non-finite readings are skipped (ln undefined)
+    expect(bloodGlucoseRiskIndices([0, -5, NaN])).toBeNull();
+  });
+
+  it("splits a low/high pair onto the correct branches", () => {
+    // f(50) = -1.500015 → low branch r = 22.500445
+    // f(300) = 1.842607 → high branch r = 33.951988
+    // n = 2 → LBGI = 22.500445/2 = 11.250223, HBGI = 33.951988/2 = 16.975994
+    const r = bloodGlucoseRiskIndices([50, 300]);
+    expect(r).not.toBeNull();
+    expect(r!.lbgi).toBeCloseTo(11.250223, 5);
+    expect(r!.hbgi).toBeCloseTo(16.975994, 5);
+  });
+
+  it("reads near-zero hypo risk and zero hyper risk for a stable normoglycaemic set", () => {
+    // every reading sits below the ~112.5 symmetrization centre, so HBGI = 0
+    const r = bloodGlucoseRiskIndices([100, 110, 95, 105, 100]);
+    expect(r!.hbgi).toBe(0);
+    expect(r!.lbgi).toBeCloseTo(0.427869, 5);
+    // minimal-risk band (< 1.1)
+    expect(r!.lbgi).toBeLessThan(1.1);
+  });
+});
+
 describe("computeGlucoseClinicalMetrics — window + adequacy", () => {
   const now = new Date("2026-06-14T12:00:00Z");
 
@@ -155,6 +202,26 @@ describe("computeGlucoseClinicalMetrics — window + adequacy", () => {
     expect(m.readingCount).toBe(1);
   });
 
+  it("excludes non-positive readings so every index shares one denominator", () => {
+    // a 0 / negative glucose is non-physiological and ln-undefined; it must be
+    // dropped from readingCount AND from the risk-index denominator so the
+    // advanced indices never use a different N than mean / TIR.
+    const readings: GlucoseReading[] = [
+      { mgdl: 120, measuredAt: new Date(now.getTime() - 1 * DAY) },
+      { mgdl: 0, measuredAt: new Date(now.getTime() - 2 * DAY) },
+      { mgdl: -5, measuredAt: new Date(now.getTime() - 3 * DAY) },
+    ];
+    const m = computeGlucoseClinicalMetrics(readings, {
+      now,
+      minReadings: 1,
+      minSpanDays: 0,
+    });
+    expect(m.readingCount).toBe(1);
+    expect(m.meanMgdl).toBe(120);
+    // advanced indices resolve from the single usable reading
+    expect(m.advanced).not.toBeNull();
+  });
+
   it("always marks the result as a spot estimate", () => {
     const m = computeGlucoseClinicalMetrics(
       dailyReadings([100], now),
@@ -173,6 +240,7 @@ describe("computeGlucoseClinicalMetrics — window + adequacy", () => {
       expect(m.gmi).toBeNull();
       expect(m.estimatedA1c).toBeNull();
       expect(m.variability).toBeNull();
+      expect(m.advanced).toBeNull();
     });
 
     it("fires below the minimum reading count, reporting N and D", () => {
@@ -220,6 +288,26 @@ describe("computeGlucoseClinicalMetrics — window + adequacy", () => {
       expect(m.distribution!.tir).toBeCloseTo(1, 10); // all in range
       expect(m.variability!.sd).toBe(0);
       expect(m.variability!.unstable).toBe(false);
+      // advanced tier: J-index from mean+SD, LBGI/HBGI from the risk model.
+      // mean 154, SD 0 → J = 0.001 × 154² = 23.716.
+      expect(m.advanced).not.toBeNull();
+      expect(m.advanced!.jIndex).toBeCloseTo(23.716, 3);
+      // 154 mg/dL sits above the symmetrization centre → all hyper risk,
+      // zero hypo risk.
+      expect(m.advanced!.lbgi).toBe(0);
+      expect(m.advanced!.hbgi).toBeGreaterThan(0);
+    });
+
+    it("resolves LBGI/HBGI but holds J-index null for a single reading", () => {
+      const m = computeGlucoseClinicalMetrics(dailyReadings([100], now), {
+        now,
+      });
+      expect(m.advanced).not.toBeNull();
+      // one reading → sample SD undefined → J held null
+      expect(m.advanced!.jIndex).toBeNull();
+      // the risk indices still resolve from the lone reading
+      expect(m.advanced!.hbgi).toBe(0);
+      expect(m.advanced!.lbgi).toBeGreaterThan(0);
     });
 
     it("honours configurable thresholds", () => {

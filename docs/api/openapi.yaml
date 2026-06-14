@@ -13837,6 +13837,8 @@ components:
                   propertyNames:
                     type: string
                   additionalProperties: {}
+                glucoseClinical:
+                  $ref: "#/components/schemas/GlucoseClinicalMetrics"
               required:
                 - bpInTargetPct
                 - bpInTargetPct7d
@@ -13845,6 +13847,7 @@ components:
                 - bpInTargetPctPriorMonth
                 - bpInTargetPctPriorYear
                 - glucoseByContext
+                - glucoseClinical
               additionalProperties: false
             - type: "null"
         medsToday:
@@ -13966,6 +13969,139 @@ components:
         `briefingStale: true`. `layoutCatalogue` (full 27-id widget catalogue) and `metricStates` (latest reading per
         metric, keyed by iOS `MetricKind` raw value) are additive cold-launch seeds for the native client; both derive
         in-process from data already fetched, adding no DB round-trip."
+    GlucoseClinicalMetrics:
+      type: object
+      properties:
+        stillLearning:
+          type: boolean
+        stillLearningReason:
+          anyOf:
+            - type: string
+            - type: "null"
+        windowDays:
+          type: integer
+          minimum: -9007199254740991
+          maximum: 9007199254740991
+        actualSpanDays:
+          type: number
+        readingCount:
+          type: integer
+          minimum: -9007199254740991
+          maximum: 9007199254740991
+        meanMgdl:
+          anyOf:
+            - type: number
+            - type: "null"
+        distribution:
+          anyOf:
+            - type: object
+              properties:
+                tir:
+                  type: number
+                tbrLevel1:
+                  type: number
+                tbrLevel2:
+                  type: number
+                tarLevel1:
+                  type: number
+                tarLevel2:
+                  type: number
+                minutesEquivalent:
+                  type: object
+                  properties:
+                    tir:
+                      type: number
+                    tbrLevel1:
+                      type: number
+                    tbrLevel2:
+                      type: number
+                    tarLevel1:
+                      type: number
+                    tarLevel2:
+                      type: number
+                  required:
+                    - tir
+                    - tbrLevel1
+                    - tbrLevel2
+                    - tarLevel1
+                    - tarLevel2
+                  additionalProperties: false
+              required:
+                - tir
+                - tbrLevel1
+                - tbrLevel2
+                - tarLevel1
+                - tarLevel2
+                - minutesEquivalent
+              additionalProperties: false
+            - type: "null"
+        gmi:
+          anyOf:
+            - type: number
+            - type: "null"
+        estimatedA1c:
+          anyOf:
+            - type: number
+            - type: "null"
+        variability:
+          anyOf:
+            - type: object
+              properties:
+                sd:
+                  type: number
+                cv:
+                  type: number
+                unstable:
+                  type: boolean
+              required:
+                - sd
+                - cv
+                - unstable
+              additionalProperties: false
+            - type: "null"
+        advanced:
+          anyOf:
+            - type: object
+              properties:
+                jIndex:
+                  anyOf:
+                    - type: number
+                    - type: "null"
+                lbgi:
+                  type: number
+                hbgi:
+                  type: number
+              required:
+                - jIndex
+                - lbgi
+                - hbgi
+              additionalProperties: false
+            - type: "null"
+        isSpotEstimate:
+          type: boolean
+          const: true
+      required:
+        - stillLearning
+        - stillLearningReason
+        - windowDays
+        - actualSpanDays
+        - readingCount
+        - meanMgdl
+        - distribution
+        - gmi
+        - estimatedA1c
+        - variability
+        - advanced
+        - isSpotEstimate
+      additionalProperties: false
+      description: Server-authoritative glucose clinical panel over the trailing 30-day window. Every figure is a SPOT-READING
+        ESTIMATE (a % of readings), not a CGM time-in-range AGP — `isSpotEstimate` is always true and `stillLearning`
+        gates assertion when the window has too few readings or too short a span. `distribution` carries the Battelino
+        2019 TIR/TBR/TAR fractions (level-2 nested in level-1) plus minutes-of-a-day equivalents; `gmi` (Bergenstal
+        2018) + `estimatedA1c` (Nathan 2008 ADAG) derive from the mean; `variability` is SD + CV% with the Monnier 2017
+        ≥36% instability flag; `advanced` is the disclosure tier — J-index (Wojcicki 1995) + LBGI/HBGI (Kovatchev
+        hypo/hyper risk). All blocks are null when there are no readings; `advanced.jIndex` is null for a single-reading
+        window.
     InsightsComprehensiveResponseEnvelope:
       type: object
       properties:

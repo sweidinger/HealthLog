@@ -541,6 +541,60 @@ const insightsPregenerateResponse = z
 // modules and the iOS client does not consume this web-only route.
 const dataSummaryRecord = z.record(z.string(), z.unknown());
 
+// v1.17.0 — server-authoritative glucose clinical panel. Mirrors
+// `GlucoseClinicalMetrics` from `@/lib/analytics/glucose-metrics`: the
+// trailing-30-day TIR / GMI / eA1C / CV% headline plus the advanced
+// J-index + LBGI/HBGI tier, gated by a `stillLearning` flag so a thin
+// spot-data window is never asserted as a clinical AGP. The iOS client
+// renders these numbers verbatim and never re-derives them.
+const glucoseClinicalSchema = z
+  .object({
+    stillLearning: z.boolean(),
+    stillLearningReason: z.string().nullable(),
+    windowDays: z.number().int(),
+    actualSpanDays: z.number(),
+    readingCount: z.number().int(),
+    meanMgdl: z.number().nullable(),
+    distribution: z
+      .object({
+        tir: z.number(),
+        tbrLevel1: z.number(),
+        tbrLevel2: z.number(),
+        tarLevel1: z.number(),
+        tarLevel2: z.number(),
+        minutesEquivalent: z.object({
+          tir: z.number(),
+          tbrLevel1: z.number(),
+          tbrLevel2: z.number(),
+          tarLevel1: z.number(),
+          tarLevel2: z.number(),
+        }),
+      })
+      .nullable(),
+    gmi: z.number().nullable(),
+    estimatedA1c: z.number().nullable(),
+    variability: z
+      .object({
+        sd: z.number(),
+        cv: z.number(),
+        unstable: z.boolean(),
+      })
+      .nullable(),
+    advanced: z
+      .object({
+        jIndex: z.number().nullable(),
+        lbgi: z.number(),
+        hbgi: z.number(),
+      })
+      .nullable(),
+    isSpotEstimate: z.literal(true),
+  })
+  .meta({
+    id: "GlucoseClinicalMetrics",
+    description:
+      "Server-authoritative glucose clinical panel over the trailing 30-day window. Every figure is a SPOT-READING ESTIMATE (a % of readings), not a CGM time-in-range AGP — `isSpotEstimate` is always true and `stillLearning` gates assertion when the window has too few readings or too short a span. `distribution` carries the Battelino 2019 TIR/TBR/TAR fractions (level-2 nested in level-1) plus minutes-of-a-day equivalents; `gmi` (Bergenstal 2018) + `estimatedA1c` (Nathan 2008 ADAG) derive from the mean; `variability` is SD + CV% with the Monnier 2017 ≥36% instability flag; `advanced` is the disclosure tier — J-index (Wojcicki 1995) + LBGI/HBGI (Kovatchev hypo/hyper risk). All blocks are null when there are no readings; `advanced.jIndex` is null for a single-reading window.",
+  });
+
 const dashboardSnapshotResponse = z
   .object({
     user: z.object({
@@ -608,6 +662,7 @@ const dashboardSnapshotResponse = z
         bpInTargetPctPriorMonth: z.number().nullable(),
         bpInTargetPctPriorYear: z.number().nullable(),
         glucoseByContext: dataSummaryRecord,
+        glucoseClinical: glucoseClinicalSchema,
       })
       .nullable(),
     // Dashboard hero — today's medication block (fast phase, always
