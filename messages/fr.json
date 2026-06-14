@@ -4463,6 +4463,18 @@
     "whoopConnect": "Se connecter avec WHOOP",
     "whoopNoCredentials": "Veuillez saisir vos identifiants API ci-dessus pour connecter WHOOP.",
     "whoopBackfillInProgress": "Importation de votre historique WHOOP en arrière-plan…",
+    "whoopOauthConnected": "WHOOP connecté — la première synchronisation démarre en arrière-plan.",
+    "whoopOauthFailed": "Échec de la connexion à WHOOP",
+    "whoopOauthError": {
+      "csrf1": "La vérification de sécurité a échoué car le cookie du navigateur était absent. Veuillez relancer la connexion dans le même navigateur.",
+      "state": "La réponse de WHOOP ne correspondait à aucune demande de connexion en cours. Veuillez relancer la connexion.",
+      "expired": "La demande de connexion a expiré avant d'aboutir. Veuillez relancer la connexion.",
+      "cross_user": "La réponse appartient à une demande d'un autre compte. Veuillez relancer la connexion depuis votre propre compte.",
+      "nocode": "WHOOP n'a pas renvoyé de code d'autorisation. Réessayez et autorisez l'accès dans la fenêtre WHOOP.",
+      "nocreds": "WHOOP n'est pas configuré. Ajoutez vos identifiants OAuth WHOOP ci-dessus et réessayez.",
+      "token": "L'échange de jeton avec WHOOP a échoué. Veuillez relancer la connexion.",
+      "generic": "Erreur inconnue lors de la connexion. Veuillez relancer la connexion."
+    },
     "fitbit": "Google Health",
     "fitbitTag": "Fitbit et Pixel",
     "fitbitDescription": "Connectez Google Health pour synchroniser vos données Fitbit et Pixel Watch : poids, masse grasse, fréquence cardiaque au repos, saturation en oxygène, variabilité de la fréquence cardiaque et plus encore.",
@@ -4490,6 +4502,18 @@
     "fitbitConnect": "Se connecter à Google Health",
     "fitbitNoCredentials": "Veuillez saisir vos identifiants d'API ci-dessus pour connecter Google Health.",
     "fitbitBackfillInProgress": "Importation de votre historique Google Health en arrière-plan…",
+    "fitbitOauthConnected": "Google Health connecté — la première synchronisation démarre en arrière-plan.",
+    "fitbitOauthFailed": "Échec de la connexion à Google Health",
+    "fitbitOauthError": {
+      "csrf1": "La vérification de sécurité a échoué car le cookie du navigateur était absent. Veuillez relancer la connexion dans le même navigateur.",
+      "state": "La réponse de Google ne correspondait à aucune demande de connexion en cours. Veuillez relancer la connexion.",
+      "expired": "La demande de connexion a expiré avant d'aboutir. Veuillez relancer la connexion.",
+      "cross_user": "La réponse appartient à une demande d'un autre compte. Veuillez relancer la connexion depuis votre propre compte.",
+      "nocode": "Google n'a pas renvoyé de code d'autorisation. Réessayez et autorisez l'accès dans la fenêtre Google.",
+      "nocreds": "Google Health n'est pas configuré. Ajoutez vos identifiants OAuth Google ci-dessus et réessayez.",
+      "token": "L'échange de jeton avec Google a échoué. Veuillez relancer la connexion.",
+      "generic": "Erreur inconnue lors de la connexion. Veuillez relancer la connexion."
+    },
     "integrations": {
       "withings": {
         "reconnect": {

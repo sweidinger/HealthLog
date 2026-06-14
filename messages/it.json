@@ -4463,6 +4463,18 @@
     "whoopConnect": "Connetti con WHOOP",
     "whoopNoCredentials": "Inserisci le tue credenziali API qui sopra per connettere WHOOP.",
     "whoopBackfillInProgress": "Importazione dello storico WHOOP in background…",
+    "whoopOauthConnected": "WHOOP collegato — la prima sincronizzazione parte in background.",
+    "whoopOauthFailed": "Connessione a WHOOP non riuscita",
+    "whoopOauthError": {
+      "csrf1": "Il controllo di sicurezza è fallito perché il cookie del browser era assente. Riavvia la connessione nello stesso browser.",
+      "state": "La risposta di WHOOP non corrispondeva a nessuna richiesta di connessione aperta. Riavvia la connessione.",
+      "expired": "La richiesta di connessione è scaduta prima di completarsi. Riavvia la connessione.",
+      "cross_user": "La risposta appartiene a una richiesta di un altro account. Riavvia la connessione dal tuo account.",
+      "nocode": "WHOOP non ha restituito un codice di autorizzazione. Riprova e concedi l'accesso nella finestra di WHOOP.",
+      "nocreds": "WHOOP non è configurato. Aggiungi le tue credenziali OAuth di WHOOP qui sopra e riprova.",
+      "token": "Lo scambio del token con WHOOP è fallito. Riavvia la connessione.",
+      "generic": "Errore sconosciuto durante la connessione. Riavvia la connessione."
+    },
     "fitbit": "Google Health",
     "fitbitTag": "Fitbit e Pixel",
     "fitbitDescription": "Collega Google Health per sincronizzare i dati di Fitbit e Pixel Watch: peso, massa grassa, frequenza cardiaca a riposo, saturazione di ossigeno, variabilità della frequenza cardiaca e altro.",
@@ -4490,6 +4502,18 @@
     "fitbitConnect": "Connetti con Google Health",
     "fitbitNoCredentials": "Inserisci le tue credenziali API qui sopra per connettere Google Health.",
     "fitbitBackfillInProgress": "Importazione dello storico Google Health in background…",
+    "fitbitOauthConnected": "Google Health collegato — la prima sincronizzazione parte in background.",
+    "fitbitOauthFailed": "Connessione a Google Health non riuscita",
+    "fitbitOauthError": {
+      "csrf1": "Il controllo di sicurezza è fallito perché il cookie del browser era assente. Riavvia la connessione nello stesso browser.",
+      "state": "La risposta di Google non corrispondeva a nessuna richiesta di connessione aperta. Riavvia la connessione.",
+      "expired": "La richiesta di connessione è scaduta prima di completarsi. Riavvia la connessione.",
+      "cross_user": "La risposta appartiene a una richiesta di un altro account. Riavvia la connessione dal tuo account.",
+      "nocode": "Google non ha restituito un codice di autorizzazione. Riprova e concedi l'accesso nella finestra di Google.",
+      "nocreds": "Google Health non è configurato. Aggiungi le tue credenziali OAuth di Google qui sopra e riprova.",
+      "token": "Lo scambio del token con Google è fallito. Riavvia la connessione.",
+      "generic": "Errore sconosciuto durante la connessione. Riavvia la connessione."
+    },
     "integrations": {
       "withings": {
         "reconnect": {

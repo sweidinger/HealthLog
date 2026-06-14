@@ -36,7 +36,11 @@ import {
 import { TestConnectionButton } from "@/components/settings/test-connection-button";
 import { apiFetchRaw, apiGet, apiPost } from "@/lib/api/api-fetch";
 import { useTranslations } from "@/lib/i18n/context";
-import { invalidateKeys, measurementDependentKeys } from "@/lib/query-keys";
+import {
+  invalidateKeys,
+  measurementDependentKeys,
+  queryKeys,
+} from "@/lib/query-keys";
 import { IntegrationSetupGuideLink } from "./setup-guide-link";
 
 export interface OAuthProviderStatus {
@@ -85,6 +89,13 @@ export interface OAuthProviderCardProps {
    * button. The endpoint is the PUT target (e.g. `/api/polar/credentials`). */
   credentials?: boolean;
   enabled?: boolean;
+  /**
+   * When provided, the card reads its status from this view-model (sourced off
+   * the consolidated `/api/integrations/status` envelope) instead of firing its
+   * own `/api/<provider>/status` round-trip. v1.17.1 folds Polar/Oura onto the
+   * same envelope WHOOP/Fitbit already use, so the page reads from one source.
+   */
+  viewModel?: OAuthProviderStatus;
 }
 
 export function OAuthProviderCard({
@@ -95,6 +106,7 @@ export function OAuthProviderCard({
   dataHref,
   credentials = false,
   enabled = true,
+  viewModel,
 }: OAuthProviderCardProps) {
   const { t } = useTranslations();
   const queryClient = useQueryClient();
@@ -107,12 +119,17 @@ export function OAuthProviderCard({
     null,
   );
 
-  const { data: status } = useQuery({
+  // Read off the consolidated envelope when a view-model is passed; otherwise
+  // fall back to the per-card status fetch (still used by any caller that has
+  // not been migrated onto the envelope). The fetch is disabled once a
+  // view-model is supplied so the page makes one request, not one-per-card.
+  const { data: fetchedStatus } = useQuery({
     queryKey: statusQueryKey,
     queryFn: async () => apiGet<OAuthProviderStatus>(`/api/${provider}/status`),
-    enabled,
+    enabled: enabled && !viewModel,
     refetchOnWindowFocus: true,
   });
+  const status = viewModel ?? fetchedStatus;
 
   async function handleSaveCredentials(e: React.FormEvent) {
     e.preventDefault();
@@ -134,6 +151,11 @@ export function OAuthProviderCard({
         setClientId("");
         setClientSecret("");
         queryClient.invalidateQueries({ queryKey: statusQueryKey });
+        // The card may read off the consolidated envelope — invalidate it too
+        // so the saved-credentials state repaints regardless of the source.
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.integrationsStatus(),
+        });
       } else {
         try {
           const json = await res.json();
@@ -156,6 +178,9 @@ export function OAuthProviderCard({
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: statusQueryKey });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.integrationsStatus(),
+      });
     },
   });
 
