@@ -511,6 +511,47 @@ export function observationsFromReportData(
     });
   }
 
+  // --- Lab-result Observations (v1.17.1) ---------------------------------
+  // One `laboratory` Observation per recorded analyte. `analyte` + `unit`
+  // are user-recorded free text (no closed LOINC enum), so the code is a
+  // text-only `CodeableConcept` — honest about what we have rather than
+  // asserting a LOINC mapping we can't validate. The lab's reference bounds
+  // map onto R4 `referenceRange`. UCUM `code` is omitted (the free-text
+  // unit can't be asserted as a UCUM symbol); `unit` carries the display.
+  for (const lab of data.labResults ?? []) {
+    obsSeq += 1;
+    const referenceRange =
+      lab.referenceLow !== null || lab.referenceHigh !== null
+        ? [
+            {
+              ...(lab.referenceLow !== null
+                ? { low: { value: lab.referenceLow, unit: lab.unit } }
+                : {}),
+              ...(lab.referenceHigh !== null
+                ? { high: { value: lab.referenceHigh, unit: lab.unit } }
+                : {}),
+            },
+          ]
+        : undefined;
+    push({
+      resourceType: "Observation",
+      id: `obs-${obsSeq}`,
+      status: "final",
+      category: [categoryConcept("laboratory")],
+      code: {
+        text: lab.panel ? `${lab.analyte} (${lab.panel})` : lab.analyte,
+      },
+      subject: patientRef,
+      effectiveDateTime: lab.takenAt,
+      valueQuantity: {
+        value: lab.value,
+        unit: lab.unit,
+        system: UCUM_SYSTEM,
+      },
+      ...(referenceRange ? { referenceRange } : {}),
+    });
+  }
+
   // --- Medication-adherence Observations (one per medication) ------------
   for (const [name, comp] of Object.entries(data.compliance)) {
     if (comp.total <= 0) continue;

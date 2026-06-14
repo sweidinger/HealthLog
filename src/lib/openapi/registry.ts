@@ -73,6 +73,7 @@ const openApiBase: Pick<
     { name: "Sync" },
     { name: "Cycle" },
     { name: "MeasurementReminders" },
+    { name: "Labs" },
     { name: "Admin" },
     { name: "Meta" },
   ],

@@ -57,6 +57,11 @@ describe("parseDoctorReportPrefs", () => {
     expect(out.mood).toBe(false);
   });
 
+  it("defaults labs to ON (recorded to share with a clinician)", () => {
+    const out = parseDoctorReportPrefs(null);
+    expect(out.labs).toBe(true);
+  });
+
   it("fills missing keys from defaults", () => {
     const out = parseDoctorReportPrefs({ bp: false });
     expect(out).toEqual({
@@ -86,6 +91,7 @@ describe("resolveDoctorReportPrefs", () => {
       compliance: false,
       sleep: false,
       cycle: false,
+      labs: false,
     };
     const out = resolveDoctorReportPrefs(current, { mood: false });
     expect(out).toEqual({ ...current, mood: false });

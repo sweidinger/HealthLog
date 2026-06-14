@@ -151,7 +151,8 @@
       "sleep": "Schlafdauer",
       "cycle": "Menstruationszyklus",
       "empty": "Für den gewählten Zeitraum liegen noch keine Daten vor. Der Bericht enthält dennoch das Deckblatt.",
-      "unavailableHint": "Keine Daten in diesem Zeitraum"
+      "unavailableHint": "Keine Daten in diesem Zeitraum",
+      "labs": "Laborwerte"
     },
     "insurer": "Krankenkasse",
     "insuranceNumber": "Versichertennr.",
@@ -182,7 +183,13 @@
       "FOLLICULAR": "Follikelphase",
       "OVULATORY": "Ovulation",
       "LUTEAL": "Lutealphase"
-    }
+    },
+    "labsTitle": "Laborwerte",
+    "labsColAnalyte": "Biomarker",
+    "labsColValue": "Wert",
+    "labsColReference": "Referenz",
+    "labsColStatus": "Status",
+    "labsColDate": "Datum"
   },
   "errorBoundary": {
     "title": "Da ist etwas schiefgelaufen",
@@ -240,7 +247,8 @@
       "mood": "Stimmung",
       "moodDescription": "Stimmung und Tags erfassen"
     },
-    "cycle": "Zyklus"
+    "cycle": "Zyklus",
+    "labs": "Laborwerte"
   },
   "auth": {
     "login": "Anmelden",
@@ -4570,7 +4578,8 @@
       "includeAiSummary": "KI-Zusammenfassung anhängen (nicht klinisch validiert)",
       "fhirNote": "Die strukturierte Ausgabe folgt dem FHIR-R4-Standard (ePA-kompatibel).",
       "generate": "Erstellen",
-      "error": "Export fehlgeschlagen ({code})."
+      "error": "Export fehlgeschlagen ({code}).",
+      "labs": "Laborwerte"
     },
     "globalExcludedInjectionSitesLabel": "Global ausgeschlossene Injektionsstellen",
     "globalExcludedInjectionSitesHint": "Hier gelistete Stellen werden für keine Medikation angeboten und beim Erfassen einer Dosis abgelehnt — auch wenn eine Medikation sie bevorzugt.",
@@ -6306,5 +6315,48 @@
     "pushTitle": "Vorsorge-Erinnerung",
     "pushBody": "Fällig: {label}",
     "pushLocation": "(bei {location})"
+  },
+  "labs": {
+    "title": "Laborwerte",
+    "subtitle": "Blutwerte und Biomarker",
+    "addResult": "Hinzufügen",
+    "addDescription": "Erfasse einen Biomarker aus deinem Laborbefund.",
+    "addFirst": "Ersten Wert erfassen",
+    "emptyTitle": "Noch keine Laborwerte",
+    "emptyDescription": "Erfasse Blutwerte wie HbA1c, LDL oder Ferritin, um sie über die Zeit zu verfolgen und mit deiner Ärztin oder deinem Arzt zu teilen.",
+    "referenceLabel": "Referenz",
+    "readingsCount": "{count} Werte",
+    "deleteLatest": "Letzten Wert löschen",
+    "deletedToast": "Wert gelöscht",
+    "deleteError": "Wert konnte nicht gelöscht werden",
+    "loadError": "Laborwerte konnten nicht geladen werden",
+    "range": {
+      "inRange": "Im Bereich",
+      "below": "Unter Bereich",
+      "above": "Über Bereich"
+    },
+    "form": {
+      "analyte": "Biomarker",
+      "analytePlaceholder": "z. B. HbA1c, LDL, Ferritin",
+      "value": "Wert",
+      "unit": "Einheit",
+      "unitPlaceholder": "z. B. mg/dl, %, ng/ml",
+      "takenAt": "Probendatum",
+      "optionalGroup": "Optional",
+      "panel": "Panel",
+      "panelPlaceholder": "z. B. Großes Blutbild",
+      "referenceLow": "Referenz unten",
+      "referenceHigh": "Referenz oben",
+      "referenceLowPlaceholder": "Untere Grenze",
+      "referenceHighPlaceholder": "Obere Grenze",
+      "referenceHint": "Übernimm den Referenzbereich aus deinem Laborbefund. Beide Grenzen sind optional.",
+      "note": "Notiz",
+      "notePlaceholder": "Optionaler Kontext zu diesem Wert",
+      "requiredError": "Biomarker, Wert und Einheit sind erforderlich.",
+      "rangeOrderError": "Die untere Referenz darf nicht über der oberen liegen.",
+      "save": "Speichern",
+      "savedToast": "Wert gespeichert",
+      "saveError": "Wert konnte nicht gespeichert werden"
+    }
   }
 }

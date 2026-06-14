@@ -230,6 +230,31 @@ export interface DoctorReportData {
    * still typecheck.
    */
   cycle?: import("@/lib/cycle/export-data").CycleExportSummary | null;
+  /**
+   * v1.17.1 — structured lab results recorded over the report window.
+   * Populated when the `labs` section toggle is ON (default) and the user
+   * recorded at least one result in the period. Statistics + the single
+   * latest reading per analyte; free-text notes never reach this surface.
+   * Each entry carries the lab's reference bounds so the PDF can print an
+   * in/out-of-range marker and the FHIR exporter can emit `referenceRange`.
+   * Null/absent otherwise; both the PDF and FHIR builders skip the section.
+   * Optional so pre-v1.17.1 fixtures still typecheck.
+   */
+  labResults?: Array<{
+    /** Optional grouping label (e.g. "Großes Blutbild"); null = standalone. */
+    panel: string | null;
+    /** Biomarker name as the user recorded it. */
+    analyte: string;
+    /** Latest recorded value for this analyte over the window. */
+    value: number;
+    unit: string;
+    referenceLow: number | null;
+    referenceHigh: number | null;
+    /** ISO timestamp of the latest reading. */
+    takenAt: string;
+    /** Count of readings for this analyte in the window (≥ 1). */
+    count: number;
+  }> | null;
 }
 
 /** The three persisted score types surfaced in the wellness summary. */
@@ -1057,6 +1082,50 @@ export async function collectDoctorReportData(
     );
   }
 
+  // v1.17.1 — structured lab results over the window. ON by default; the
+  // user recorded these specifically to share with a clinician, so the
+  // privacy stance matches BP / weight, not mood / cycle. We reduce to the
+  // latest reading per analyte (with a count) so the report is a concise
+  // panel, not a raw dump; notes are never read here.
+  let labResults: DoctorReportData["labResults"] = null;
+  if (sections.labs) {
+    const labRows = await prisma.labResult.findMany({
+      where: { userId, takenAt: { gte: start, lte: end }, deletedAt: null },
+      orderBy: { takenAt: "asc" },
+      select: {
+        panel: true,
+        analyte: true,
+        value: true,
+        unit: true,
+        referenceLow: true,
+        referenceHigh: true,
+        takenAt: true,
+      },
+    });
+    // Latest-per-analyte, keyed case-insensitively so "LDL" / "ldl" fold
+    // together; rows are ascending so the last seen wins as the latest.
+    const byAnalyte = new Map<
+      string,
+      NonNullable<DoctorReportData["labResults"]>[number]
+    >();
+    for (const r of labRows) {
+      const key = r.analyte.toLowerCase();
+      const prev = byAnalyte.get(key);
+      byAnalyte.set(key, {
+        panel: r.panel,
+        analyte: r.analyte,
+        value: r.value,
+        unit: r.unit,
+        referenceLow: r.referenceLow,
+        referenceHigh: r.referenceHigh,
+        takenAt: r.takenAt.toISOString(),
+        count: (prev?.count ?? 0) + 1,
+      });
+    }
+    const collapsed = Array.from(byAnalyte.values());
+    labResults = collapsed.length > 0 ? collapsed : null;
+  }
+
   return {
     period: {
       days,
@@ -1109,6 +1178,7 @@ export async function collectDoctorReportData(
     glp1,
     wellnessScores,
     cycle,
+    labResults,
   };
 }
 
