@@ -424,6 +424,101 @@ export async function hasAnyConfiguredProvider(
 }
 
 /**
+ * Origin of the provider that would serve a given user, surfaced to
+ * clients that need to show or hide an AI surface (the iOS Coach gate).
+ *
+ *   - "user"   — a personal cloud credential resolves (Codex OAuth, or a
+ *                BYO OpenAI / Anthropic key).
+ *   - "local"  — a per-user self-hosted base URL (Ollama / LM Studio).
+ *   - "server" — no personal config, but the operator's admin-managed
+ *                key serves the user. This is the case iOS #24 missed:
+ *                the Coach works server-side yet the client saw `null`.
+ *   - null     — nothing configured anywhere; no provider can serve.
+ *
+ * Presence-only, mirroring `userRowHasProviderCredential`: it never
+ * decrypts a key, builds a client, or probes liveness.
+ */
+export type ProviderManagedBy = "user" | "local" | "server";
+
+function resolveManagedByFromRow(
+  row: ProviderCredentialRow,
+  adminKeyConfigured: boolean,
+): ProviderManagedBy | null {
+  const codexConnected =
+    row.codexConnectionStatus === "connected" &&
+    !!row.codexAccessTokenEncrypted &&
+    !!row.codexRefreshTokenEncrypted;
+
+  const chain = parseProviderChain(row.aiProviderChain ?? null).filter(
+    (e) => e.enabled,
+  );
+  for (const entry of chain) {
+    switch (entry.providerType) {
+      case "codex":
+        if (codexConnected) return "user";
+        break;
+      case "openai":
+        if (row.aiOpenaiKeyEncrypted) return "user";
+        break;
+      case "anthropic":
+        if (row.aiAnthropicKeyEncrypted) return "user";
+        break;
+      case "local":
+        if (row.aiBaseUrl) return "local";
+        break;
+      case "admin-openai":
+        if (adminKeyConfigured) return "server";
+        break;
+    }
+  }
+
+  // Legacy `resolveProvider()` fallback — only reached when the chain
+  // resolves empty. Mirrors buildUserProvider → codex → admin in order.
+  const choice = row.aiProvider?.toUpperCase();
+  if (choice === "ANTHROPIC" && row.aiAnthropicKeyEncrypted) return "user";
+  if (choice === "LOCAL" && row.aiBaseUrl) return "local";
+  if (choice === "OPENAI" && row.aiOpenaiKeyEncrypted) return "user";
+  if ((choice === "CHATGPT_OAUTH" || !choice) && codexConnected) return "user";
+  return adminKeyConfigured ? "server" : null;
+}
+
+/**
+ * Effective AI availability for a user: whether any provider can serve
+ * them, and which origin manages it. One narrow user read plus the
+ * shared admin-key flag — no decrypt, no network. Feeds the
+ * `GET /api/user/ai-provider` response so the iOS Coach surfaces even
+ * when the operator's admin-managed key is the only thing configured.
+ */
+export async function resolveProviderAvailability(
+  userId: string,
+): Promise<{ aiAvailable: boolean; managedBy: ProviderManagedBy | null }> {
+  const userRow = await prisma.user.findUnique({
+    where: { id: userId },
+    select: {
+      aiProvider: true,
+      aiProviderChain: true,
+      aiAnthropicKeyEncrypted: true,
+      aiLocalKeyEncrypted: true,
+      aiOpenaiKeyEncrypted: true,
+      aiBaseUrl: true,
+      codexConnectionStatus: true,
+      codexAccessTokenEncrypted: true,
+      codexRefreshTokenEncrypted: true,
+    },
+  });
+  if (!userRow) return { aiAvailable: false, managedBy: null };
+  const settings = await prisma.appSettings.findUnique({
+    where: { id: "singleton" },
+    select: { adminAiKeyEncrypted: true },
+  });
+  const managedBy = resolveManagedByFromRow(
+    userRow,
+    !!settings?.adminAiKeyEncrypted,
+  );
+  return { aiAvailable: managedBy !== null, managedBy };
+}
+
+/**
  * Materialise a single chain entry. Returns null when the user lacks
  * the matching credential — the chain runner skips null entries.
  */
