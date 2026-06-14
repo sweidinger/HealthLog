@@ -250,7 +250,7 @@ export function HeroStrip({
            * disappears rather than collapsing to an empty flex shell.
            */}
           {coachEnabled && (
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="flex flex-wrap items-center justify-end gap-2">
               {/* B2b wires this into the Coach drawer. The button is
                 enabled whenever the parent supplies an `onAskCoach`
                 handler; older parents that haven't adopted B2b yet
