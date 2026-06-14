@@ -14,11 +14,35 @@
  * doctor PDF, the iOS feed — must resolve to the SAME canonical row per day so
  * none of them shows the proxy and the native value as two competing series.
  *
- * Pure resolution: group rows by their calendar day and, per day, keep the
- * WHOOP row when one exists, else the COMPUTED one. No DB access here — the
- * caller does the bounded read and passes rows in.
+ * Pure resolution: group rows by the physiological NIGHT they describe and,
+ * per night, keep the WHOOP row when one exists, else the COMPUTED one. No DB
+ * access here — the caller does the bounded read and passes rows in.
+ *
+ * THE DAY-ANCHOR PROBLEM (v1.16.16). The two sources stamp the SAME night on
+ * opposite clocks:
+ *   - WHOOP    stamps `measuredAt = updated_at` — the MORNING instant WHOOP
+ *              finished scoring the night → the WAKE day D.
+ *   - COMPUTED stamps `measuredAt = noon-UTC of scoreDayKey` where
+ *              `scoreDayKey = (run morning) − 1 day` → the day-that-ENDED, D−1
+ *              (`src/lib/insights/score-row.ts`). The 04:45 Europe/Berlin cron
+ *              scores last night's signals but files them under the prior day.
+ * So for ONE night the WHOOP row lands on day D and the COMPUTED proxy on day
+ * D−1 — a systematic off-by-one. Bucketing raw `measuredAt` by calendar day
+ * therefore leaves BOTH alive as two competing recovery days.
+ *
+ * The fix is a SOURCE-AWARE wake-day key: the COMPUTED proxy's day stamp is
+ * shifted forward one day (the readiness of the day that ended IS the readiness
+ * you wake with the next morning), and both keys are read in the user's LOCAL
+ * timezone so a near-midnight / late re-score can't split a single night. The
+ * COMPUTED proxy's own stored stamp (shared with stress / strain) is NOT
+ * touched — the shift is a pure read-time alignment, so no ingest change and no
+ * backfill are needed and two genuinely different nights stay separate.
  */
 import type { MeasurementSource } from "@/generated/prisma/client";
+import { dayKeyForUserTz } from "@/lib/measurements/consolidation-tz";
+import { resolveUserTimezone } from "@/lib/measurements/consolidation-base";
+
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
 /** A `RECOVERY_SCORE` row as read for resolution. */
 export interface RecoveryRow {
@@ -41,23 +65,43 @@ function rankOf(source: MeasurementSource): number {
   return RECOVERY_SOURCE_RANK[source] ?? Number.MAX_SAFE_INTEGER;
 }
 
-/** The UTC calendar-day key a recovery row is filed under. */
-function dayKeyOf(d: Date): string {
-  return d.toISOString().slice(0, 10);
+/**
+ * The local WAKE-day key a recovery row describes. WHOOP's stamp already IS the
+ * wake morning, so its local day is the night's wake day directly. The COMPUTED
+ * proxy stamps the day-that-ended (`scoreDayKey = run − 1 day`), so its day is
+ * shifted forward by one before the local-day read — aligning it onto the same
+ * wake day the WHOOP row for that night carries. Reading the key in the user's
+ * timezone keeps a near-midnight or late re-score on the same night.
+ */
+function wakeDayKeyOf(d: Date, source: MeasurementSource, tz: string): string {
+  const anchor =
+    source === "COMPUTED" ? new Date(d.getTime() + MS_PER_DAY) : d;
+  return dayKeyForUserTz(anchor, tz);
 }
 
 /**
- * Collapse a mixed-source `RECOVERY_SCORE` set to ONE canonical row per day:
- * the WHOOP-native row wins when present, else the COMPUTED proxy. Within a
- * source the latest `measuredAt` wins (a same-day re-score). Returns the
+ * Collapse a mixed-source `RECOVERY_SCORE` set to ONE canonical row per
+ * physiological NIGHT: the WHOOP-native row wins when present, else the
+ * COMPUTED proxy. Within a source the latest `measuredAt` wins (a same-night
+ * re-score). Rows are bucketed by their local WAKE-day (the COMPUTED proxy's
+ * day-that-ended stamp is shifted forward one day to meet WHOOP's wake-morning
+ * stamp) so a single night never splits into two competing days. Returns the
  * canonical rows in the same shape, sorted by `measuredAt` DESCENDING so the
- * first element is the most recent canonical day — matching the order the
+ * first element is the most recent canonical night — matching the order the
  * wellness reader already expects.
+ *
+ * `timezone` is the user's IANA zone (falls back to `Europe/Berlin` when
+ * null/empty); the wake-day key is read in it so the bucket boundary tracks the
+ * user's midnight, not UTC's.
  */
-export function resolveCanonicalRecovery(rows: RecoveryRow[]): RecoveryRow[] {
+export function resolveCanonicalRecovery(
+  rows: RecoveryRow[],
+  timezone?: string | null,
+): RecoveryRow[] {
+  const tz = resolveUserTimezone(timezone ?? null);
   const byDay = new Map<string, RecoveryRow>();
   for (const row of rows) {
-    const key = dayKeyOf(row.measuredAt);
+    const key = wakeDayKeyOf(row.measuredAt, row.source, tz);
     const incumbent = byDay.get(key);
     if (incumbent === undefined) {
       byDay.set(key, row);

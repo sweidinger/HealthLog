@@ -90,6 +90,13 @@ export interface WellnessScoreOpts {
   /** Trailing window for the trend mean (days). Defaults to 14. */
   windowDays?: number;
   now?: Date;
+  /**
+   * The user's IANA timezone, used only by the RECOVERY canonical-night
+   * resolver to bucket WHOOP + COMPUTED rows by the local wake-day. When
+   * omitted, the reader loads it from the user row (falling back to
+   * `Europe/Berlin`). STRESS / STRAIN ignore it.
+   */
+  timezone?: string | null;
 }
 
 /**
@@ -132,6 +139,17 @@ export async function computeWellnessScore(
   // wins over COMPUTED). Non-recovery sets are already single-source, so the
   // resolver is recovery-only — the tile, doctor PDF, and iOS feed all read the
   // SAME canonical value.
+  let timezone = opts.timezone ?? null;
+  if (isRecovery && timezone === null) {
+    // The canonical-night resolver buckets by the user's local wake-day, so the
+    // off-by-one between WHOOP's wake-morning stamp and the COMPUTED proxy's
+    // day-that-ended stamp collapses onto one night. Load the zone once.
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { timezone: true },
+    });
+    timezone = user?.timezone ?? null;
+  }
   const rows = isRecovery
     ? resolveCanonicalRecovery(
         rawRows.map((r) => ({
@@ -139,6 +157,7 @@ export async function computeWellnessScore(
           measuredAt: r.measuredAt,
           source: r.source,
         })),
+        timezone,
       )
     : rawRows;
 
