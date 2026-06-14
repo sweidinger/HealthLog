@@ -176,6 +176,16 @@ export function getPRDirection(
     // WALKING_HEART_RATE_AVERAGE case above. Defer to a null PR direction.
     case "AVERAGE_HEART_RATE":
     case "MAX_HEART_RATE":
+    // Derived / homeostatic device composites with no goal axis. ANS
+    // charge, cardio load, and the sleep score are recomputed daily from
+    // their own underlying signals (a PR on them would double-count the
+    // inputs' PRs), and the body-temperature deviation is a baseline-
+    // relative reading where neither direction is an achievement — they
+    // stay null like the other derived scores + temperature metrics above.
+    case "ANS_CHARGE":
+    case "CARDIO_LOAD":
+    case "SLEEP_SCORE":
+    case "BODY_TEMPERATURE_DEVIATION":
       return null;
   }
 }
