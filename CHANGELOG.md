@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+## [1.16.17] — 2026-06-14 — the sleep timeline returns, and the dashboard clears after a dose
+
+Two fixes to behaviour that surfaced in daily use. No breaking changes.
+
+### Fixed
+
+- **The "Last night" sleep timeline bar returns.** The staged hypnogram — which lays the night out across deep, core, REM and awake by clock time — had collapsed to just the numbers for nights whose stages share an end instant, leaving the breakdown without its bar. The bar now appears whenever the night carries timed stages; only a session recorded on a single instant falls back to the breakdown alone.
+- **The dashboard clears a dose the moment it is recorded.** After recording an intake from the medication card or detail page, the dashboard kept prompting for that dose until a full page reload, because the home view was refreshed only while it was on screen. It now refreshes as soon as the dose is recorded, with no reload.
+
 ## [1.16.16] — 2026-06-14 — one engine for sleep, recovery and glucose
 
 This release continues the work of making one number mean one thing everywhere. Sleep, recovery and blood glucose are now read from a single source on every surface — the dashboard, the coach, the doctor-report, the CSV and FHIR exports, and the companion app — so the figure you act on is the same wherever you look. Several displayed numbers become correct-but-different; each is called out below. No breaking changes.

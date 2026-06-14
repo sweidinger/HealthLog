@@ -7,6 +7,7 @@ import {
   runRecordIntake,
   runUndoIntake,
 } from "@/components/medications/use-medication-intake";
+import { queryKeys } from "@/lib/query-keys";
 
 /**
  * v1.12.2 — the shared intake orchestration consumed by both the generic
@@ -142,6 +143,38 @@ describe("runRecordIntake — shared C1 failure toast + C2 Undo", () => {
 
     // The post-success follow-up receives the event id + skipped flag.
     expect(onRecorded).toHaveBeenCalledWith("evt-99", false);
+  });
+
+  it("forces the inactive dashboard snapshot to refetch so the due prompt clears without a reload", async () => {
+    // The dashboard snapshot is unmounted while the user is on the medication
+    // card/detail, so a default ("active") invalidation marks it stale but
+    // never refetches it; on navigating back, refetchOnMount:false serves the
+    // pre-write cache and the "due" prompt lingers until a hard reload.
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: vi.fn().mockResolvedValue({ data: { id: "evt-1" } }),
+        text: vi
+          .fn()
+          .mockResolvedValue(JSON.stringify({ data: { id: "evt-1" } })),
+      }),
+    );
+    const queryClient = fakeQueryClient();
+
+    await runRecordIntake({
+      medication,
+      skipped: false,
+      t,
+      queryClient,
+      setIntakeLoading: vi.fn(),
+      undoIntake: vi.fn(),
+    });
+
+    expect(queryClient.invalidateQueries).toHaveBeenCalledWith({
+      queryKey: queryKeys.dashboardSnapshot(),
+      refetchType: "inactive",
+    });
   });
 
   it("sends the displayed dose's scheduledFor on the POST so the server marks THAT slot (v1.12.3)", async () => {
