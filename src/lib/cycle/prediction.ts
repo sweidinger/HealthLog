@@ -57,6 +57,7 @@ import {
   type CycleProfileInput,
   type DayLogInput,
   type NightlyTempInput,
+  type SecondarySymptom,
   type PredictionMethod,
 } from "./types";
 
@@ -427,16 +428,89 @@ export function detectMucusPeak(
 }
 
 /**
- * §4.2 — symptothermal CONFIRMATION: ovulation is confirmed only when the
- * temp-shift day and the mucus-peak agree within ±2 days. Returns the
- * temp-derived ovulation day when confirmed, else null.
+ * §4.2(b') — sensiplan cervix peak (Höhepunkt), the CERVIX-secondary-symptom
+ * analogue of `detectMucusPeak`. The cervix is a fertile sign while it is HIGH,
+ * SOFT, or OPEN (any of the three Sensiplan cervix signs in its fertile state);
+ * it is infertile only when fully closed — LOW + FIRM + CLOSED. The peak day is
+ * the LAST fertile-cervix day FOLLOWED by at least 3 consecutive closed
+ * (infertile) observed days (the cervix-closure rule). Like the mucus peak it is
+ * only confirmable retrospectively, so a stray late fertile-cervix entry not yet
+ * followed by 3 closed days cannot move an already-confirmed peak.
+ *
+ * A cervix "day" counts as observed when at least one of the three signs is
+ * logged (an unlogged sign is treated as its fertile/uncertain state so a
+ * partial entry never fabricates a closure). Returns the confirmed peak day, or
+ * null when no fertile-cervix day has yet been followed by 3 closed days.
+ *
+ * Citation: cervix observation as a Sensiplan secondary sign — the cervix opens,
+ * softens and rises around ovulation and closes, firms and lowers afterward;
+ * evaluation follows the same "last fertile day + 3 confirming days" shape as
+ * mucus. Arbeitsgruppe NFP / Raith-Paula & Frank-Herrmann; myNFP "Den
+ * Gebärmutterhals beobachten".
+ */
+export function detectCervixPeak(
+  dayLogs: readonly DayLogInput[],
+): string | null {
+  // Observed cervix days only (at least one sign logged), oldest→newest.
+  const observed = dayLogs
+    .filter(
+      (l) =>
+        l.cervixPosition != null ||
+        l.cervixFirmness != null ||
+        l.cervixOpening != null,
+    )
+    .map((l) => ({ date: l.date, closed: isCervixClosed(l) }))
+    .sort((a, b) => dayDiff(a.date, b.date));
+
+  // Walk every fertile-cervix day; a candidate peak is confirmed iff the next 3
+  // observed cervix days are all closed (infertile). Scan forward and keep the
+  // LATEST confirmed peak (a true later peak supersedes an earlier one).
+  let confirmedPeak: string | null = null;
+  for (let i = 0; i < observed.length; i++) {
+    if (observed[i].closed) continue; // only a fertile-cervix day can be a peak
+    const following = observed.slice(i + 1, i + 4);
+    if (following.length < 3) continue; // not yet evaluable
+    if (following.every((d) => d.closed)) confirmedPeak = observed[i].date;
+  }
+  return confirmedPeak;
+}
+
+/**
+ * A cervix is in its infertile (closed) state only when ALL three signs read
+ * infertile: LOW + FIRM + CLOSED. Any fertile sign (HIGH / SOFT / OPEN) — or an
+ * unlogged sign, treated conservatively as not-yet-closed — keeps the day
+ * fertile, so a partial entry never fabricates a closure.
+ */
+function isCervixClosed(log: DayLogInput): boolean {
+  return (
+    log.cervixPosition === "LOW" &&
+    log.cervixFirmness === "FIRM" &&
+    log.cervixOpening === "CLOSED"
+  );
+}
+
+/**
+ * §4.2 — symptothermal CONFIRMATION (the Sensiplan double-check): ovulation is
+ * confirmed only when the temperature primary sign AND the chosen SECONDARY sign
+ * both confirm and agree within ±2 days. The secondary sign is the cervical
+ * mucus peak by default, or the cervix peak when `secondarySymptom` is `CERVIX`.
+ * Returns the temp-derived ovulation day when confirmed, else null.
+ *
+ * A single sign never confirms — no temperature shift returns null regardless of
+ * the secondary sign, and no secondary peak returns null regardless of the
+ * temperature. This is the honesty principle: the double-check requires two
+ * indicators, never one.
  */
 export function confirmSymptothermal(
   dayLogs: readonly DayLogInput[],
+  secondarySymptom: SecondarySymptom = "MUCUS",
 ): string | null {
   const shift = detectTempShift(dayLogs, TEMP_SHIFT_C_MANUAL);
   if (!shift) return null;
-  const peak = detectMucusPeak(dayLogs);
+  const peak =
+    secondarySymptom === "CERVIX"
+      ? detectCervixPeak(dayLogs)
+      : detectMucusPeak(dayLogs);
   if (!peak) return null;
   if (
     Math.abs(dayDiff(shift.ovulationDate, peak)) <= SYMPTOTHERMAL_AGREE_DAYS
@@ -671,7 +745,10 @@ export function predictCycle(
     dayDiff(date, windowStart) >= 0 && dayDiff(today, date) >= 0;
   const currentDayLogs = dayLogs.filter((l) => isInCurrentWindow(l.date));
   const currentNights = nights.filter((n) => isInCurrentWindow(n.date));
-  const symptoOvulation = confirmSymptothermal(currentDayLogs);
+  const symptoOvulation = confirmSymptothermal(
+    currentDayLogs,
+    profile.secondarySymptom,
+  );
   const trendOvulation = symptoOvulation
     ? null
     : detectTemperatureTrend(currentNights);

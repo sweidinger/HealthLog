@@ -142,6 +142,7 @@ export async function buildCycleSnapshotBlock(
       lutealPhaseLength: true,
       typicalCycleLength: true,
       typicalPeriodLength: true,
+      secondarySymptom: true,
     },
   });
   if (!profile) return null;
@@ -153,6 +154,7 @@ export async function buildCycleSnapshotBlock(
     lutealPhaseLength: profile.lutealPhaseLength,
     predictionEnabled: profile.predictionEnabled,
     rawChartMode: profile.rawChartMode,
+    secondarySymptom: profile.secondarySymptom,
   };
 
   // Derive "today" from the user's timezone — matches how the calendar
@@ -179,6 +181,9 @@ export async function buildCycleSnapshotBlock(
           temperatureExcluded: true,
           ovulationTest: true,
           cervicalMucus: true,
+          cervixPosition: true,
+          cervixFirmness: true,
+          cervixOpening: true,
         },
       }),
       prisma.measurement.findMany({

@@ -34,6 +34,22 @@ export type CervicalMucus =
   | "WATERY"
   | "EGG_WHITE";
 
+/**
+ * Which symptothermal SECONDARY sign pairs with the temperature primary sign
+ * for the Sensiplan double-check. `MUCUS` (cervical-mucus quality) is the
+ * default; `CERVIX` swaps in the cervix observation.
+ */
+export type SecondarySymptom = "MUCUS" | "CERVIX";
+
+/** Cervix vertical position — fertile = HIGH, infertile = LOW. */
+export type CervixPosition = "LOW" | "HIGH";
+
+/** Cervix firmness — fertile = SOFT, infertile = FIRM. */
+export type CervixFirmness = "FIRM" | "SOFT";
+
+/** Cervix os / opening — fertile = OPEN, infertile = CLOSED. */
+export type CervixOpening = "CLOSED" | "OPEN";
+
 export type CyclePhase = "MENSTRUAL" | "FOLLICULAR" | "OVULATORY" | "LUTEAL";
 
 export type PredictionMethod =
@@ -215,6 +231,15 @@ export interface DayLogInput {
   temperatureExcluded?: boolean | null;
   ovulationTest: OvulationTest | null;
   cervicalMucus: CervicalMucus | null;
+  /**
+   * Cervix observation — the three Sensiplan cervix signs. Used as the
+   * symptothermal SECONDARY indicator when the profile's `secondarySymptom`
+   * is `CERVIX`; ignored on the default (mucus) path. All optional for
+   * back-compat; an unobserved sign is `null`/absent.
+   */
+  cervixPosition?: CervixPosition | null;
+  cervixFirmness?: CervixFirmness | null;
+  cervixOpening?: CervixOpening | null;
 }
 
 /**
@@ -240,6 +265,13 @@ export interface CycleProfileInput {
   predictionEnabled: boolean;
   /** Read-Your-Body mode: suppress all interpretation. */
   rawChartMode: boolean;
+  /**
+   * Which symptothermal SECONDARY sign the double-check uses — `MUCUS`
+   * (default) or `CERVIX`. Optional for back-compat; the engine treats an
+   * absent value as `MUCUS`, so existing callers keep the mucus path
+   * unchanged.
+   */
+  secondarySymptom?: SecondarySymptom;
 }
 
 /* ------------------------------------------------------------------ */

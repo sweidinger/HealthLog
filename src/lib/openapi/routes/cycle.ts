@@ -11,6 +11,10 @@ import {
   flowLevelEnum,
   ovulationTestEnum,
   cervicalMucusEnum,
+  secondarySymptomEnum,
+  cervixPositionEnum,
+  cervixFirmnessEnum,
+  cervixOpeningEnum,
   homeTestResultEnum,
   cycleTrackingGoalEnum,
   cycleDayLogInputSchema,
@@ -104,6 +108,9 @@ const cycleDayLogDto = z
     temperatureExcluded: z.boolean(),
     ovulationTest: ovulationTestEnum.nullable(),
     cervicalMucus: cervicalMucusEnum.nullable(),
+    cervixPosition: cervixPositionEnum.nullable(),
+    cervixFirmness: cervixFirmnessEnum.nullable(),
+    cervixOpening: cervixOpeningEnum.nullable(),
     sexualActivity: z.boolean(),
     protectedSex: z.boolean().nullable(),
     pregnancyTest: homeTestResultEnum.nullable(),
@@ -179,12 +186,16 @@ const cycleCalendarDayDto = z.object({
   temperatureExcluded: z.boolean(),
   ovulationTest: ovulationTestEnum.nullable(),
   cervicalMucus: cervicalMucusEnum.nullable(),
+  cervixPosition: cervixPositionEnum.nullable(),
+  cervixFirmness: cervixFirmnessEnum.nullable(),
+  cervixOpening: cervixOpeningEnum.nullable(),
 });
 
 const cycleProfileDto = z
   .object({
     goal: cycleTrackingGoalEnum,
     cycleTrackingEnabled: z.boolean(),
+    secondarySymptom: secondarySymptomEnum,
     rawChartMode: z.boolean(),
     predictionEnabled: z.boolean(),
     discreetNotifications: z.boolean(),

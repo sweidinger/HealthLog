@@ -54,6 +54,9 @@ export type CalendarDayLogRow = Pick<
   | "temperatureExcluded"
   | "ovulationTest"
   | "cervicalMucus"
+  | "cervixPosition"
+  | "cervixFirmness"
+  | "cervixOpening"
 > & { hasSymptoms: boolean };
 
 /** Map MenstrualCycle rows (oldest→newest) to engine `CycleInput`. */
@@ -86,6 +89,9 @@ export function toDayLogInputs(
     | "temperatureExcluded"
     | "ovulationTest"
     | "cervicalMucus"
+    | "cervixPosition"
+    | "cervixFirmness"
+    | "cervixOpening"
   >[],
 ): DayLogInput[] {
   return logs.map((l) => ({
@@ -95,6 +101,9 @@ export function toDayLogInputs(
     temperatureExcluded: l.temperatureExcluded,
     ovulationTest: l.ovulationTest,
     cervicalMucus: l.cervicalMucus,
+    cervixPosition: l.cervixPosition,
+    cervixFirmness: l.cervixFirmness,
+    cervixOpening: l.cervixOpening,
   }));
 }
 
@@ -107,6 +116,7 @@ export function toProfileInput(profile: CycleProfile): CycleProfileInput {
     lutealPhaseLength: profile.lutealPhaseLength,
     predictionEnabled: profile.predictionEnabled,
     rawChartMode: profile.rawChartMode,
+    secondarySymptom: profile.secondarySymptom,
   };
 }
 

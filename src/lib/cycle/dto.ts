@@ -33,6 +33,10 @@ export interface CycleDayLogDTO {
   temperatureExcluded: boolean;
   ovulationTest: string | null;
   cervicalMucus: string | null;
+  /** Cervix observation signs (symptothermal secondary indicator). */
+  cervixPosition: string | null;
+  cervixFirmness: string | null;
+  cervixOpening: string | null;
   sexualActivity: boolean;
   protectedSex: boolean | null;
   pregnancyTest: string | null;
@@ -112,6 +116,9 @@ export function toCycleDayLogDTO(row: DayLogWithLinks): CycleDayLogDTO {
     temperatureExcluded: row.temperatureExcluded,
     ovulationTest: row.ovulationTest,
     cervicalMucus: row.cervicalMucus,
+    cervixPosition: row.cervixPosition,
+    cervixFirmness: row.cervixFirmness,
+    cervixOpening: row.cervixOpening,
     sexualActivity: hasEnvelope
       ? (enc.sexualActivity ?? false)
       : row.sexualActivity,
@@ -206,6 +213,8 @@ export function toCyclePredictionDTO(
 export interface CycleProfileDTO {
   goal: string;
   cycleTrackingEnabled: boolean;
+  /** Symptothermal secondary symptom — MUCUS (default) or CERVIX. */
+  secondarySymptom: string;
   rawChartMode: boolean;
   predictionEnabled: boolean;
   discreetNotifications: boolean;
@@ -223,6 +232,7 @@ export function toCycleProfileDTO(
   return {
     goal: row.goal,
     cycleTrackingEnabled,
+    secondarySymptom: row.secondarySymptom,
     rawChartMode: row.rawChartMode,
     predictionEnabled: row.predictionEnabled,
     discreetNotifications: row.discreetNotifications,
@@ -236,6 +246,7 @@ export function toCycleProfileDTO(
 
 type MenstrualCycleProfileRow = {
   goal: string;
+  secondarySymptom: string;
   rawChartMode: boolean;
   predictionEnabled: boolean;
   discreetNotifications: boolean;

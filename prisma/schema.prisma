@@ -3615,6 +3615,47 @@ enum CyclePhase {
   @@map("cycle_phase")
 }
 
+/// Which symptothermal SECONDARY sign the user observes alongside the
+/// temperature primary sign for the Sensiplan double-check. `MUCUS`
+/// (cervical-mucus quality) is the default; `CERVIX` swaps in the cervix
+/// observation (position / firmness / opening). The temperature primary
+/// sign is unchanged either way — only the second indicator of the
+/// double-check differs. Mirrors the `drip` app's Settings →
+/// Customization → Secondary symptom choice.
+enum SecondarySymptom {
+  MUCUS
+  CERVIX
+
+  @@map("secondary_symptom")
+}
+
+/// Cervix vertical position, a Sensiplan cervix sign. Fertile = `HIGH`
+/// (the cervix rises around ovulation); infertile = `LOW`.
+enum CervixPosition {
+  LOW
+  HIGH
+
+  @@map("cervix_position")
+}
+
+/// Cervix firmness, a Sensiplan cervix sign. Fertile = `SOFT` (the cervix
+/// softens around ovulation); infertile = `FIRM`.
+enum CervixFirmness {
+  FIRM
+  SOFT
+
+  @@map("cervix_firmness")
+}
+
+/// Cervix os / opening, a Sensiplan cervix sign. Fertile = `OPEN`;
+/// infertile = `CLOSED`.
+enum CervixOpening {
+  CLOSED
+  OPEN
+
+  @@map("cervix_opening")
+}
+
 /// Which method produced a cached CyclePrediction. `CALENDAR` is the
 /// median+MAD variability predictor; `SYMPTOTHERMAL` folds the
 /// sensiplan BBT + mucus confirmation; `TEMPERATURE_TREND` is the
@@ -3653,6 +3694,12 @@ model CycleProfile {
   typicalCycleLength  Int? @map("typical_cycle_length")
   typicalPeriodLength Int? @map("typical_period_length")
   lutealPhaseLength   Int? @map("luteal_phase_length")
+
+  /// Which symptothermal SECONDARY sign the user observes for the Sensiplan
+  /// double-check: `MUCUS` (default) or `CERVIX`. Lives behind the advanced
+  /// cycle settings — the casual user keeps temperature + mucus and never
+  /// sees the choice. The temperature primary sign is unchanged either way.
+  secondarySymptom SecondarySymptom @default(MUCUS) @map("secondary_symptom")
 
   /// When false, the app computes / stores NO predictions — pure logging
   /// (the Read-Your-Body posture for users who distrust algorithmic
@@ -3760,6 +3807,16 @@ model CycleDayLog {
   ovulationTest  OvulationTest? @map("ovulation_test")
   /// Cervical-mucus quality.
   cervicalMucus  CervicalMucus? @map("cervical_mucus")
+
+  /// Cervix observation — the three standard Sensiplan cervix signs, used
+  /// as the symptothermal secondary indicator when
+  /// CycleProfile.secondarySymptom is CERVIX. All NULL = not observed.
+  /// The fertile combination is HIGH + SOFT + OPEN; the infertile
+  /// (closure) combination is LOW + FIRM + CLOSED. Queryable-plaintext like
+  /// the other physiology signs (mucus / BBT / OPK).
+  cervixPosition CervixPosition? @map("cervix_position")
+  cervixFirmness CervixFirmness? @map("cervix_firmness")
+  cervixOpening  CervixOpening?  @map("cervix_opening")
 
   /// Intent-revealing fields. When CycleProfile.sensitiveCategoryEncryption
   /// is ON these are encrypted at the application layer (the dispatch

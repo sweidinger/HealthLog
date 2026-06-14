@@ -4,6 +4,7 @@ import { addDays } from "../day-math";
 import {
   clampLuteal,
   confirmSymptothermal,
+  detectCervixPeak,
   detectLhSurgeOvulation,
   detectMucusPeak,
   detectTempShift,
@@ -297,6 +298,24 @@ describe("cycle/prediction — symptothermal confirmation (§4.2)", () => {
     return { date, flow: null, basalBodyTempC: t, ovulationTest: null, cervicalMucus: mucus };
   }
 
+  function cervixDay(
+    date: string,
+    cervixPosition: DayLogInput["cervixPosition"],
+    cervixFirmness: DayLogInput["cervixFirmness"],
+    cervixOpening: DayLogInput["cervixOpening"],
+  ): DayLogInput {
+    return {
+      date,
+      flow: null,
+      basalBodyTempC: null,
+      ovulationTest: null,
+      cervicalMucus: null,
+      cervixPosition,
+      cervixFirmness,
+      cervixOpening,
+    };
+  }
+
   it("detectTempShift: 3-over-6 with the 3rd reading >= 0.2°C over the 6-day max", () => {
     // 6 low baseline ~36.40, then 3 elevated clearing the max by 0.2.
     const logs: DayLogInput[] = [];
@@ -520,6 +539,115 @@ describe("cycle/prediction — symptothermal confirmation (§4.2)", () => {
     logs.push(mucusDay("2024-01-08", "DRY"));
     logs.push(mucusDay("2024-01-09", "DRY"));
     expect(confirmSymptothermal(logs)).toBe("2024-01-06");
+  });
+
+  it("confirmSymptothermal defaults to the mucus secondary symptom (cervix ignored)", () => {
+    // A confirmed temp shift + a confirmed CERVIX peak but NO mucus must NOT
+    // confirm on the default (mucus) path — the default behaviour is unchanged.
+    const logs: DayLogInput[] = [];
+    const start = "2024-01-01";
+    [36.4, 36.42, 36.38, 36.41, 36.4, 36.39].forEach((t, i) =>
+      logs.push(bbtDay(addDays(start, i), t)),
+    );
+    logs.push(bbtDay(addDays(start, 6), 36.55));
+    logs.push(bbtDay(addDays(start, 7), 36.6));
+    logs.push(bbtDay(addDays(start, 8), 36.62));
+    // cervix peak on 2024-01-06, confirmed by 3 closed days — but no mucus.
+    logs.push(cervixDay("2024-01-06", "HIGH", "SOFT", "OPEN"));
+    logs.push(cervixDay("2024-01-07", "LOW", "FIRM", "CLOSED"));
+    logs.push(cervixDay("2024-01-08", "LOW", "FIRM", "CLOSED"));
+    logs.push(cervixDay("2024-01-09", "LOW", "FIRM", "CLOSED"));
+    // Default secondary = mucus → no mucus peak → no confirmation.
+    expect(confirmSymptothermal(logs)).toBeNull();
+  });
+
+  it("detectCervixPeak: confirms the last fertile-cervix day followed by 3 closed days", () => {
+    const start = "2024-01-01";
+    const logs = [
+      cervixDay(addDays(start, 0), "LOW", "FIRM", "CLOSED"),
+      cervixDay(addDays(start, 1), "HIGH", "SOFT", "OPEN"), // fertile peak
+      cervixDay(addDays(start, 2), "LOW", "FIRM", "CLOSED"),
+      cervixDay(addDays(start, 3), "LOW", "FIRM", "CLOSED"),
+      cervixDay(addDays(start, 4), "LOW", "FIRM", "CLOSED"),
+    ];
+    expect(detectCervixPeak(logs)).toBe(addDays(start, 1));
+  });
+
+  it("detectCervixPeak: returns null until 3 closed days follow the fertile peak", () => {
+    const start = "2024-01-01";
+    const logs = [
+      cervixDay(addDays(start, 0), "HIGH", "SOFT", "OPEN"),
+      cervixDay(addDays(start, 1), "LOW", "FIRM", "CLOSED"),
+      cervixDay(addDays(start, 2), "LOW", "FIRM", "CLOSED"),
+    ];
+    expect(detectCervixPeak(logs)).toBeNull();
+  });
+
+  it("confirmSymptothermal(CERVIX): a cervix peak + temp shift confirms like mucus does", () => {
+    const logs: DayLogInput[] = [];
+    const start = "2024-01-01";
+    [36.4, 36.42, 36.38, 36.41, 36.4, 36.39].forEach((t, i) =>
+      logs.push(bbtDay(addDays(start, i), t)),
+    );
+    logs.push(bbtDay(addDays(start, 6), 36.55));
+    logs.push(bbtDay(addDays(start, 7), 36.6));
+    logs.push(bbtDay(addDays(start, 8), 36.62));
+    // temp ovulation = 2024-01-06. Cervix peak on 2024-01-06, confirmed by 3
+    // closed days after it (cervix-closure rule).
+    logs.push(cervixDay("2024-01-06", "HIGH", "SOFT", "OPEN"));
+    logs.push(cervixDay("2024-01-07", "LOW", "FIRM", "CLOSED"));
+    logs.push(cervixDay("2024-01-08", "LOW", "FIRM", "CLOSED"));
+    logs.push(cervixDay("2024-01-09", "LOW", "FIRM", "CLOSED"));
+    expect(confirmSymptothermal(logs, "CERVIX")).toBe("2024-01-06");
+  });
+
+  it("confirmSymptothermal(CERVIX): a cervix sign alone (no temp shift) never confirms", () => {
+    const start = "2024-01-01";
+    // A confirmed cervix peak but a FLAT temperature series (no rise).
+    const logs: DayLogInput[] = [];
+    [36.4, 36.41, 36.39, 36.4, 36.42, 36.4, 36.41, 36.4, 36.39].forEach(
+      (t, i) => logs.push(bbtDay(addDays(start, i), t)),
+    );
+    logs.push(cervixDay(addDays(start, 4), "HIGH", "SOFT", "OPEN"));
+    logs.push(cervixDay(addDays(start, 5), "LOW", "FIRM", "CLOSED"));
+    logs.push(cervixDay(addDays(start, 6), "LOW", "FIRM", "CLOSED"));
+    logs.push(cervixDay(addDays(start, 7), "LOW", "FIRM", "CLOSED"));
+    // Single sign (cervix) without the temperature double-check → no confirmation.
+    expect(confirmSymptothermal(logs, "CERVIX")).toBeNull();
+  });
+
+  it("predictCycle(CERVIX): a cervix-peak + temp shift confirms the same boundary as mucus", () => {
+    const cervixProfile: CycleProfileInput = {
+      ...BASE_PROFILE,
+      secondarySymptom: "CERVIX",
+    };
+    const cycles = cyclesFromGaps("2024-01-01", [28, 28, 28]);
+    const lastStart = cycles[cycles.length - 1].startDate;
+    const logs: DayLogInput[] = [];
+    const ovDay = addDays(lastStart, 13);
+    const riseStart = addDays(ovDay, 1);
+    const baselineStart = addDays(riseStart, -6);
+    [36.4, 36.41, 36.39, 36.4, 36.42, 36.4].forEach((t, i) =>
+      logs.push(bbtDay(addDays(baselineStart, i), t)),
+    );
+    logs.push(bbtDay(riseStart, 36.6));
+    logs.push(bbtDay(addDays(riseStart, 1), 36.62));
+    logs.push(bbtDay(addDays(riseStart, 2), 36.63));
+    // cervix peak agreeing with the temp ovulation, confirmed by 3 closed days.
+    logs.push(cervixDay(ovDay, "HIGH", "SOFT", "OPEN"));
+    logs.push(cervixDay(addDays(ovDay, 1), "LOW", "FIRM", "CLOSED"));
+    logs.push(cervixDay(addDays(ovDay, 2), "LOW", "FIRM", "CLOSED"));
+    logs.push(cervixDay(addDays(ovDay, 3), "LOW", "FIRM", "CLOSED"));
+
+    const result = predictCycle(
+      cycles,
+      logs,
+      cervixProfile,
+      addDays(lastStart, 16),
+    );
+    expect(result.ovulationConfirmed).toBe(true);
+    expect(result.method).toBe("BLENDED");
+    expect(result.predictedOvulation).toBe(ovDay);
   });
 
   it("predictCycle: a confirmed symptothermal ovulation overrides next-start and tightens the band", () => {

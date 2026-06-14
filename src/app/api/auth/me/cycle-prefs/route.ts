@@ -92,6 +92,9 @@ export const PATCH = apiHandler(async (req: Request) => {
     data: {
       ...(p.enabled !== undefined && { cycleTrackingEnabled: p.enabled }),
       ...(p.goal !== undefined && { goal: p.goal }),
+      ...(p.secondarySymptom !== undefined && {
+        secondarySymptom: p.secondarySymptom,
+      }),
       ...(p.rawChartMode !== undefined && { rawChartMode: p.rawChartMode }),
       ...(p.predictionEnabled !== undefined && {
         predictionEnabled: p.predictionEnabled,

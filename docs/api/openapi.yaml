@@ -134,6 +134,21 @@ paths:
                     - CREAMY
                     - WATERY
                     - EGG_WHITE
+                cervixPosition:
+                  type: string
+                  enum:
+                    - LOW
+                    - HIGH
+                cervixFirmness:
+                  type: string
+                  enum:
+                    - FIRM
+                    - SOFT
+                cervixOpening:
+                  type: string
+                  enum:
+                    - CLOSED
+                    - OPEN
                 sexualActivity:
                   type: boolean
                 protectedSex:
@@ -274,6 +289,27 @@ paths:
                         - CREAMY
                         - WATERY
                         - EGG_WHITE
+                    - type: "null"
+                cervixPosition:
+                  anyOf:
+                    - type: string
+                      enum:
+                        - LOW
+                        - HIGH
+                    - type: "null"
+                cervixFirmness:
+                  anyOf:
+                    - type: string
+                      enum:
+                        - FIRM
+                        - SOFT
+                    - type: "null"
+                cervixOpening:
+                  anyOf:
+                    - type: string
+                      enum:
+                        - CLOSED
+                        - OPEN
                     - type: "null"
                 sexualActivity:
                   type: boolean
@@ -433,6 +469,21 @@ paths:
                           - CREAMY
                           - WATERY
                           - EGG_WHITE
+                      cervixPosition:
+                        type: string
+                        enum:
+                          - LOW
+                          - HIGH
+                      cervixFirmness:
+                        type: string
+                        enum:
+                          - FIRM
+                          - SOFT
+                      cervixOpening:
+                        type: string
+                        enum:
+                          - CLOSED
+                          - OPEN
                       sexualActivity:
                         type: boolean
                       protectedSex:
@@ -730,6 +781,11 @@ paths:
                     - TRYING_TO_CONCEIVE
                     - PERIMENOPAUSE
                     - OFF
+                secondarySymptom:
+                  type: string
+                  enum:
+                    - MUCUS
+                    - CERVIX
                 rawChartMode:
                   type: boolean
                 predictionEnabled:
@@ -6267,6 +6323,27 @@ components:
                 - WATERY
                 - EGG_WHITE
             - type: "null"
+        cervixPosition:
+          anyOf:
+            - type: string
+              enum:
+                - LOW
+                - HIGH
+            - type: "null"
+        cervixFirmness:
+          anyOf:
+            - type: string
+              enum:
+                - FIRM
+                - SOFT
+            - type: "null"
+        cervixOpening:
+          anyOf:
+            - type: string
+              enum:
+                - CLOSED
+                - OPEN
+            - type: "null"
         sexualActivity:
           type: boolean
         protectedSex:
@@ -6344,6 +6421,9 @@ components:
         - temperatureExcluded
         - ovulationTest
         - cervicalMucus
+        - cervixPosition
+        - cervixFirmness
+        - cervixOpening
         - sexualActivity
         - protectedSex
         - pregnancyTest
@@ -6677,6 +6757,27 @@ components:
                           - WATERY
                           - EGG_WHITE
                       - type: "null"
+                  cervixPosition:
+                    anyOf:
+                      - type: string
+                        enum:
+                          - LOW
+                          - HIGH
+                      - type: "null"
+                  cervixFirmness:
+                    anyOf:
+                      - type: string
+                        enum:
+                          - FIRM
+                          - SOFT
+                      - type: "null"
+                  cervixOpening:
+                    anyOf:
+                      - type: string
+                        enum:
+                          - CLOSED
+                          - OPEN
+                      - type: "null"
                 required:
                   - date
                   - phase
@@ -6691,6 +6792,9 @@ components:
                   - temperatureExcluded
                   - ovulationTest
                   - cervicalMucus
+                  - cervixPosition
+                  - cervixFirmness
+                  - cervixOpening
                 additionalProperties: false
             meta:
               type: object
@@ -7156,6 +7260,11 @@ components:
             - OFF
         cycleTrackingEnabled:
           type: boolean
+        secondarySymptom:
+          type: string
+          enum:
+            - MUCUS
+            - CERVIX
         rawChartMode:
           type: boolean
         predictionEnabled:
@@ -7189,6 +7298,7 @@ components:
       required:
         - goal
         - cycleTrackingEnabled
+        - secondarySymptom
         - rawChartMode
         - predictionEnabled
         - discreetNotifications

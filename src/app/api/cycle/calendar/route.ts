@@ -102,6 +102,9 @@ export const GET = apiHandler(async (request: NextRequest) => {
         temperatureExcluded: true,
         ovulationTest: true,
         cervicalMucus: true,
+        cervixPosition: true,
+        cervixFirmness: true,
+        cervixOpening: true,
         _count: { select: { symptomLinks: true } },
       },
     }),
@@ -129,6 +132,9 @@ export const GET = apiHandler(async (request: NextRequest) => {
     temperatureExcluded: l.temperatureExcluded,
     ovulationTest: l.ovulationTest,
     cervicalMucus: l.cervicalMucus,
+    cervixPosition: l.cervixPosition,
+    cervixFirmness: l.cervixFirmness,
+    cervixOpening: l.cervixOpening,
     hasSymptoms: l._count.symptomLinks > 0,
   }));
 
