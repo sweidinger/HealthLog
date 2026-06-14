@@ -105,9 +105,23 @@ export const FERTILE_POST = 1;
 export const OUTLIER_K = 3.0;
 export const OUTLIER_K_PERIMENOPAUSE = 4.0;
 
-/** §5 — hard physiological cycle-length bounds (always outlier candidates). */
+/**
+ * §5 — hard physiological cycle-length bounds (always outlier candidates).
+ *
+ * The ceiling is a deliberately generous outlier *backstop*, not a clinical
+ * "normal" cap — the robust MAD fence + missed-log heuristic do the real
+ * outlier work. ACOG flags cycles > 35 d as oligomenorrhea, but such cycles are
+ * still genuine, and adolescents / perimenopausal users routinely run to ~50+ d.
+ * A hard cap of 45 force-excluded those legitimate long cycles, biasing the
+ * estimate toward the population middle for exactly the irregular users who most
+ * need an honest estimate. 60 d keeps the rare gross-error guard (a length this
+ * long is almost always a missed log, which the missed-log rule also catches)
+ * while letting real long cycles reach the MAD fence. The MAD fence is
+ * computed pre-exclusion, so raising the ceiling does not move the fence — it
+ * only stops the hard rule from pre-empting it on long but consistent cycles.
+ */
 export const HARD_CYCLE_MIN = 21;
-export const HARD_CYCLE_MAX = 45;
+export const HARD_CYCLE_MAX = 60;
 
 /** §5 — a single length ≥ this × median is treated as a probable missed-log. */
 export const MISSED_LOG_FACTOR = 1.75;

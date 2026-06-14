@@ -88,6 +88,17 @@ describe("cycle/prediction — cycle-length estimator (§1, §5)", () => {
     expect(est.lengthRounded).toBe(28);
   });
 
+  it("keeps a legitimate long (oligomenorrhea) cycle inside the hard bound", () => {
+    // A run of long-but-real cycles (ACOG: > 35 d is oligomenorrhea, still a
+    // real cycle; perimenopause routinely runs longer). A 52-day length must
+    // not be force-excluded by the hard ceiling — only the MAD fence / missed-
+    // log heuristic should ever drop it. Here the whole run is long, so the
+    // robust median sits near 50 and 52 is well inside the fence.
+    const est = estimateCycleLength([48, 50, 52, 49, 51], "PERIMENOPAUSE");
+    expect(est.cyclesObserved).toBe(5); // none clipped by HARD_CYCLE_MAX
+    expect(est.lengthRounded).toBe(50);
+  });
+
   it("perimenopause widens the fence (OUTLIER_K 4 keeps more)", () => {
     const lengths = [28, 30, 26, 40, 24, 32];
     const normal = estimateCycleLength(lengths, "TRYING_TO_CONCEIVE");
