@@ -131,10 +131,10 @@ describe("IntegrationsSection — single-status-display contract (A5)", () => {
     });
 
     const html = render();
-    // Exactly one pill per card → 5 pills total (Withings, WHOOP,
-    // Fitbit / Google Health, Polar, Nightscout). The moodLog integration was
-    // removed; Polar (F4) was added in v1.17.0.
-    expect(count(html, 'data-testid="integration-status-pill"')).toBe(5);
+    // Exactly one pill per card → 6 pills total (Withings, WHOOP,
+    // Fitbit / Google Health, Polar, Oura, Nightscout). The moodLog integration
+    // was removed; Polar + Oura (F4) were added in v1.17.0.
+    expect(count(html, 'data-testid="integration-status-pill"')).toBe(6);
     // The redundant banner from v1.4.15 is gone.
     expect(html).not.toContain('data-testid="integration-status-banner"');
     // Card-body "letzter Sync" repetition is gone — no

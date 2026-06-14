@@ -4605,6 +4605,26 @@
       "token": "L'échange de jeton avec Polar a échoué. Veuillez relancer la connexion.",
       "rate_limited": "Trop de tentatives de connexion. Patientez un instant et réessayez.",
       "generic": "Erreur inconnue lors de la connexion. Veuillez relancer la connexion."
+    },
+    "oura": "Oura",
+    "ouraDescription": "Connectez votre compte Oura pour synchroniser le readiness, les phases de sommeil, la VFC et l'activité quotidienne.",
+    "ouraHelp": "Connectez-vous à Oura pour accorder l'accès. Les données sont récupérées en arrière-plan une fois par heure.",
+    "ouraUnavailable": "Oura n'est pas configuré sur ce serveur. Demandez à votre administrateur d'ajouter les identifiants OAuth Oura.",
+    "ouraConnect": "Connecter Oura",
+    "ouraDisconnect": "Déconnecter",
+    "ouraDisconnectTitle": "Déconnecter Oura ?",
+    "ouraDisconnectDescription": "Les synchronisations futures s'arrêtent. Les mesures déjà importées restent dans votre historique.",
+    "ouraOauthConnected": "Oura connecté — la première synchronisation démarre en arrière-plan.",
+    "ouraOauthFailed": "Échec de la connexion à Oura",
+    "ouraOauthError": {
+      "csrf1": "La vérification de sécurité a échoué car le cookie du navigateur était absent. Veuillez relancer la connexion dans le même navigateur.",
+      "state": "La réponse d'Oura ne correspondait à aucune demande de connexion en cours. Veuillez relancer la connexion.",
+      "cross_user": "La réponse appartient à une demande d'un autre compte. Veuillez relancer la connexion depuis votre propre compte.",
+      "nocode": "Oura n'a pas renvoyé de code d'autorisation. Réessayez et autorisez l'accès dans la fenêtre Oura.",
+      "nocreds": "Oura n'est pas configuré sur ce serveur. Demandez à votre administrateur d'ajouter les identifiants OAuth Oura.",
+      "token": "L'échange de jeton avec Oura a échoué. Veuillez relancer la connexion.",
+      "rate_limited": "Trop de tentatives de connexion. Patientez un instant et réessayez.",
+      "generic": "Erreur inconnue lors de la connexion. Veuillez relancer la connexion."
     }
   },
   "admin": {

@@ -71,6 +71,22 @@
       ]
     },
     {
+      "name": "Oura OAuth",
+      "description": "Required to enable the Oura Cloud v2 integration. App boots without these but the Oura connect button stays disabled. Register an app at https://cloud.ouraring.com/oauth/applications and set the redirect URI to ${NEXT_PUBLIC_APP_URL}/api/oura/callback.",
+      "required": false,
+      "allOrNone": true,
+      "variables": [
+        {
+          "name": "OURA_CLIENT_ID",
+          "purpose": "Oura Cloud OAuth client id."
+        },
+        {
+          "name": "OURA_CLIENT_SECRET",
+          "purpose": "Oura Cloud OAuth client secret."
+        }
+      ]
+    },
+    {
       "name": "APNs (iOS push)",
       "description": "All four core APNS_* vars together. Missing any disables APNs silently — the v1.4.40 AP-2 gap that motivated this manifest. allOrNone trips the synthetic <all-or-none> required row whenever 1-3 of the 4 are set.",
       "required": false,

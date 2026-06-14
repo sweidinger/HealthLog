@@ -8,6 +8,7 @@ import { toast } from "sonner";
 
 import { FitbitCard } from "@/components/settings/integrations/fitbit-card";
 import { NightscoutCard } from "@/components/settings/integrations/nightscout-card";
+import { OuraCard } from "@/components/settings/integrations/oura-card";
 import { PolarCard } from "@/components/settings/integrations/polar-card";
 import {
   pickStatus,
@@ -92,15 +93,15 @@ export function IntegrationsSection() {
   }, [withingsOauthOutcome, router, queryClient, t]);
 
   // v1.17.0 (F4) — generic OAuth-callback toast for the env-based providers.
-  // The Polar callback redirects back with `?polar=connected` or
-  // `?polar=error&reason=<tag>`; surface the outcome as a toast and scrub the
-  // one-shot params so a reload doesn't replay it.
+  // The Polar / Oura callbacks redirect back with `?<provider>=connected` or
+  // `?<provider>=error&reason=<tag>`; surface the outcome as a toast and scrub
+  // the one-shot params so a reload doesn't replay it.
   const [oauthOutcome] = useState<
-    { provider: "polar"; kind: "connected" } | { provider: "polar"; kind: "error"; reason: string } | null
+    { provider: "polar" | "oura"; kind: "connected" } | { provider: "polar" | "oura"; kind: "error"; reason: string } | null
   >(() => {
     if (typeof window === "undefined") return null;
     const params = new URLSearchParams(window.location.search);
-    for (const provider of ["polar"] as const) {
+    for (const provider of ["polar", "oura"] as const) {
       const v = params.get(provider);
       if (v === "connected") return { provider, kind: "connected" };
       if (v === "error") {
@@ -117,7 +118,7 @@ export function IntegrationsSection() {
     url.searchParams.delete(provider);
     url.searchParams.delete("reason");
     router.replace(`${url.pathname}${url.search}`, { scroll: false });
-    const key = queryKeys.polar();
+    const key = provider === "polar" ? queryKeys.polar() : queryKeys.oura();
     if (oauthOutcome.kind === "connected") {
       toast.success(t(`settings.${provider}OauthConnected`));
       queryClient.invalidateQueries({ queryKey: key });
@@ -179,6 +180,7 @@ export function IntegrationsSection() {
       <WhoopCard viewModel={whoopViewModel} />
       <FitbitCard viewModel={fitbitViewModel} />
       <PolarCard enabled={isAuthenticated} />
+      <OuraCard enabled={isAuthenticated} />
       <NightscoutCard enabled={isAuthenticated} />
     </section>
   );

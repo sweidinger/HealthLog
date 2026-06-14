@@ -4605,6 +4605,26 @@
       "token": "Wymiana tokena z Polar nie powiodła się. Rozpocznij połączenie ponownie.",
       "rate_limited": "Zbyt wiele prób połączenia. Poczekaj chwilę i spróbuj ponownie.",
       "generic": "Nieznany błąd podczas łączenia. Rozpocznij połączenie ponownie."
+    },
+    "oura": "Oura",
+    "ouraDescription": "Połącz konto Oura, aby synchronizować readiness, fazy snu, HRV i aktywność dzienną.",
+    "ouraHelp": "Zaloguj się w Oura, aby przyznać dostęp. Dane są pobierane w tle raz na godzinę.",
+    "ouraUnavailable": "Oura nie jest skonfigurowana na tym serwerze. Poproś administratora o dodanie danych OAuth Oura.",
+    "ouraConnect": "Połącz Oura",
+    "ouraDisconnect": "Rozłącz",
+    "ouraDisconnectTitle": "Rozłączyć Oura?",
+    "ouraDisconnectDescription": "Przyszłe synchronizacje zostaną zatrzymane. Już zaimportowane odczyty pozostaną w historii.",
+    "ouraOauthConnected": "Oura połączona — pierwsza synchronizacja startuje w tle.",
+    "ouraOauthFailed": "Połączenie z Oura nie powiodło się",
+    "ouraOauthError": {
+      "csrf1": "Kontrola bezpieczeństwa nie powiodła się, ponieważ brakowało pliku cookie przeglądarki. Rozpocznij połączenie ponownie w tej samej przeglądarce.",
+      "state": "Odpowiedź z Oura nie pasowała do żadnego otwartego żądania połączenia. Rozpocznij połączenie ponownie.",
+      "cross_user": "Odpowiedź należy do żądania z innego konta. Rozpocznij połączenie ponownie z własnego konta.",
+      "nocode": "Oura nie zwróciła kodu autoryzacji. Spróbuj ponownie i zezwól na dostęp w oknie Oura.",
+      "nocreds": "Oura nie jest skonfigurowana na tym serwerze. Poproś administratora o dodanie danych OAuth Oura.",
+      "token": "Wymiana tokena z Oura nie powiodła się. Rozpocznij połączenie ponownie.",
+      "rate_limited": "Zbyt wiele prób połączenia. Poczekaj chwilę i spróbuj ponownie.",
+      "generic": "Nieznany błąd podczas łączenia. Rozpocznij połączenie ponownie."
     }
   },
   "admin": {
