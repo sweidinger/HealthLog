@@ -249,7 +249,8 @@
       "moodDescription": "Stimmung und Tags erfassen"
     },
     "cycle": "Zyklus",
-    "labs": "Laborwerte"
+    "labs": "Laborwerte",
+    "recovery": "Erholung"
   },
   "auth": {
     "login": "Anmelden",
@@ -2633,7 +2634,9 @@
         "sleepScoreBody": "Dein Schlafscore fasst eine ganze Nacht in einer Zahl zusammen — aus Dauer, Effizienz, Regelmäßigkeit und der Verteilung von Leicht-, Tief- und REM-Schlaf. Achte eher auf das Muster über Wochen als auf einen perfekten Wert in einer einzelnen Nacht.",
         "recoveryBody": "Die Erholung zeigt, wie gut sich dein Körper regeneriert hat — gestützt auf nächtliche Signale wie Herzfrequenzvariabilität und Ruhepuls. Ein hoher Wert ist grünes Licht, mehr zu geben; ein niedrigerer deutet an, dass dein System noch aufbaut.",
         "strainBody": "Die Belastung erfasst, wie viel kardiovaskuläre und körperliche Last du deinem Körper zugemutet hast — von Workouts bis zu einem aktiven Tag auf den Beinen. Sobald genügend Verlauf vorliegt, wird sie an deinem eigenen üblichen Aufwand gemessen, nicht an einem fremden Maßstab.",
-        "stressBody": "Stress ist hier eine Schätzung der körperlichen Last auf deinem Nervensystem, vor allem aus Mustern der Herzfrequenzvariabilität abgelesen — nicht daraus, wie du dich bewusst fühlst. Ein niedrigerer Wert deutet auf einen ruhigen, gut regulierten Zustand hin; ein höherer ist eine Einladung, Erholung einzuplanen."
+        "stressBody": "Stress ist hier eine Schätzung der körperlichen Last auf deinem Nervensystem, vor allem aus Mustern der Herzfrequenzvariabilität abgelesen — nicht daraus, wie du dich bewusst fühlst. Ein niedrigerer Wert deutet auf einen ruhigen, gut regulierten Zustand hin; ein höherer ist eine Einladung, Erholung einzuplanen.",
+        "recoveryPageTitle": "Erholung",
+        "recoveryPageBody": "Die Erholung fasst die nächtlichen Signale deines Wearables zusammen – Recharge, Belastung, Load sowie deine Herzfrequenz- und Energiewerte des Tages – und zeigt, wie gut sich dein Körper erholt hat. Achte eher auf das Muster über mehrere Tage als auf einen einzelnen Wert; ein schwächerer Wert ist eine Einladung, kürzerzutreten, kein Alarm."
       },
       "stats": {
         "label": "Zusammenfassende Statistik",
@@ -3583,7 +3586,45 @@
     "customize": "Insights anpassen",
     "regenerateRateLimited": "Aktualisierungslimit erreicht — bitte später erneut versuchen.",
     "regenerateUnavailable": "Keine neue Analyse erhalten — bitte später erneut versuchen.",
-    "regenerateError": "Aktualisierung läuft noch — bitte gleich erneut versuchen."
+    "regenerateError": "Aktualisierung läuft noch — bitte gleich erneut versuchen.",
+    "deviceScore": {
+      "learning": "Deine Basislinie wird noch gelernt – ein paar weitere Nächte vervollständigen den Verlauf.",
+      "average": "30-Tage-Durchschnitt {value}",
+      "unitScore": "Punkte",
+      "unitMinutes": "Min.",
+      "unitBpm": "bpm",
+      "unitKj": "kJ"
+    },
+    "sleepQuality": {
+      "title": "Schlafqualität",
+      "subtitle": "Nächtliche Werte deines Wearables"
+    },
+    "recovery": {
+      "title": "Erholung",
+      "description": "Wie gut sich dein Körper erholt hat – die Erholungs-, Belastungs- und Load-Signale, die dein Wearable über Nacht aufzeichnet.",
+      "empty": "Noch keine Erholungsdaten. Verbinde ein WHOOP-, Polar- oder Oura-Konto, dann füllen sich diese Werte, sobald dein Gerät synchronisiert.",
+      "recharge": {
+        "title": "Recharge",
+        "subtitle": "Ladung des autonomen Nervensystems"
+      },
+      "strain": {
+        "title": "Belastung & Load",
+        "subtitle": "Tägliche kardiovaskuläre Belastung"
+      },
+      "cardio": {
+        "title": "Herz & Energie pro Tag",
+        "subtitle": "Herz- und Energiewerte des ganzen Tages"
+      },
+      "scoreLink": {
+        "title": "Erholungs-Score",
+        "subtitle": "Sieh dir an, wie sich der nächtliche Score zusammensetzt",
+        "cta": "Ansehen"
+      }
+    },
+    "bodyTempDeviation": {
+      "title": "Körpertemperatur-Abweichung",
+      "subtitle": "Nächtliche Abweichung von deiner Basislinie"
+    }
   },
   "thresholds": {
     "defaultLabel": "Default",

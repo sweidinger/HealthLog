@@ -3,6 +3,7 @@ import {
   Droplets,
   Dumbbell,
   FlaskConical,
+  HeartPulse,
   Home,
   Lightbulb,
   MessagesSquare,
@@ -81,6 +82,17 @@ export const NAV_DESTINATIONS: ReadonlyArray<NavDestination> = [
     tKey: "nav.workouts",
     icon: Dumbbell,
     tourId: "nav-workouts",
+  },
+  // v1.17.1 — the Recovery surface gets a nav home alongside Workouts. It
+  // hosts the WHOOP / Polar device-native recovery + strain scores that were
+  // stored end-to-end but had no page. Like Workouts it is shown to every
+  // account (the page itself data-gates each block, so a non-wearable user
+  // lands on a calm empty note rather than a broken surface).
+  {
+    href: "/insights/recovery",
+    tKey: "nav.recovery",
+    icon: HeartPulse,
+    tourId: "nav-recovery",
   },
   {
     href: "/insights",

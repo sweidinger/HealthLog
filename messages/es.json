@@ -249,7 +249,8 @@
       "moodDescription": "Registrar estado de ánimo y etiquetas"
     },
     "cycle": "Ciclo",
-    "labs": "Análisis"
+    "labs": "Análisis",
+    "recovery": "Recuperación"
   },
   "auth": {
     "login": "Iniciar sesión",
@@ -2633,7 +2634,9 @@
         "sleepScoreBody": "Tu puntuación de sueño resume toda una noche en un solo número — duración, eficiencia, regularidad y el equilibrio entre sueño ligero, profundo y REM. Fíjate en el patrón a lo largo de las semanas en lugar de perseguir una puntuación perfecta una sola noche.",
         "recoveryBody": "La recuperación refleja lo bien que tu cuerpo se ha repuesto, a partir de señales nocturnas como la variabilidad de la frecuencia cardíaca y la frecuencia en reposo. Una puntuación alta es luz verde para exigirte; una más baja sugiere que tu organismo aún se está reconstruyendo.",
         "strainBody": "El esfuerzo capta cuánta carga cardiovascular y física le has impuesto a tu cuerpo, desde los entrenamientos hasta un día activo de pie. Cuando ya hay suficiente historial, se valora frente a tu propio esfuerzo habitual, no frente a un estándar ajeno.",
-        "stressBody": "El estrés aquí es una estimación de la carga fisiológica sobre tu sistema nervioso, leída sobre todo a partir de patrones de variabilidad de la frecuencia cardíaca y no de cómo te sientes conscientemente. Una puntuación más baja apunta a un estado calmado y bien regulado; una más alta es una invitación a incorporar recuperación."
+        "stressBody": "El estrés aquí es una estimación de la carga fisiológica sobre tu sistema nervioso, leída sobre todo a partir de patrones de variabilidad de la frecuencia cardíaca y no de cómo te sientes conscientemente. Una puntuación más baja apunta a un estado calmado y bien regulado; una más alta es una invitación a incorporar recuperación.",
+        "recoveryPageTitle": "Recuperación",
+        "recoveryPageBody": "La recuperación reúne las señales nocturnas que registra tu wearable —recarga, esfuerzo, carga y los totales de frecuencia cardiaca y energía del día— para mostrar cómo se ha recuperado tu cuerpo. Fíjate en el patrón a lo largo de los días más que en un solo número; un valor más bajo es una invitación a bajar el ritmo, no una alarma."
       },
       "stats": {
         "label": "Estadísticas resumidas",
@@ -3583,7 +3586,45 @@
     "customize": "Personalizar Análisis",
     "regenerateRateLimited": "Límite de actualizaciones alcanzado: inténtalo de nuevo más tarde.",
     "regenerateUnavailable": "No llegó un análisis nuevo: inténtalo de nuevo más tarde.",
-    "regenerateError": "Aún se está actualizando: inténtalo de nuevo en un momento."
+    "regenerateError": "Aún se está actualizando: inténtalo de nuevo en un momento.",
+    "deviceScore": {
+      "learning": "Aún estamos aprendiendo tu línea base: unas noches más completarán la tendencia.",
+      "average": "Media de 30 días {value}",
+      "unitScore": "puntos",
+      "unitMinutes": "min",
+      "unitBpm": "ppm",
+      "unitKj": "kJ"
+    },
+    "sleepQuality": {
+      "title": "Calidad del sueño",
+      "subtitle": "Puntuaciones nocturnas de tu wearable"
+    },
+    "recovery": {
+      "title": "Recuperación",
+      "description": "Cómo se ha recuperado tu cuerpo: las señales de recuperación, esfuerzo y carga que tu wearable registra durante la noche.",
+      "empty": "Aún no hay datos de recuperación. Conecta una cuenta de WHOOP, Polar u Oura y estas puntuaciones se completarán cuando tu dispositivo sincronice.",
+      "recharge": {
+        "title": "Recarga",
+        "subtitle": "Carga del sistema nervioso autónomo"
+      },
+      "strain": {
+        "title": "Esfuerzo y carga",
+        "subtitle": "Carga cardiovascular diaria"
+      },
+      "cardio": {
+        "title": "Corazón y energía del día",
+        "subtitle": "Totales cardiacos y de energía de todo el día"
+      },
+      "scoreLink": {
+        "title": "Puntuación de recuperación",
+        "subtitle": "Mira cómo se descompone la puntuación nocturna",
+        "cta": "Ver"
+      }
+    },
+    "bodyTempDeviation": {
+      "title": "Desviación de la temperatura corporal",
+      "subtitle": "Variación nocturna respecto a tu línea base"
+    }
   },
   "thresholds": {
     "defaultLabel": "Por defecto",
