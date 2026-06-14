@@ -4006,6 +4006,7 @@
         "import": {
           "heading": "Import",
           "description": "Zaimportuj dane do HealthLog z eksportu Apple Health lub pliku JSON. Import pomija wiersze, które już istnieją, więc ponowne uruchomienie jest bezpieczne.",
+          "charCount": "{used} / {max} znaków",
           "appleHealth": {
             "title": "Apple Health",
             "description": "Prześlij plik export.zip z aplikacji Zdrowie na iPhonie (Profil → Eksportuj wszystkie dane zdrowotne).",

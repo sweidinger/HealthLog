@@ -4006,6 +4006,7 @@
         "import": {
           "heading": "Import",
           "description": "Bring data into HealthLog from an Apple Health export, a JSON file, or a CSV. Imports skip rows that already exist, so re-running one is safe.",
+          "charCount": "{used} / {max} characters",
           "appleHealth": {
             "title": "Apple Health",
             "description": "Upload the export.zip from the Health app on iPhone (Profile → Export All Health Data).",

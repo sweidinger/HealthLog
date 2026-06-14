@@ -48,6 +48,13 @@ import { cn } from "@/lib/utils";
 import { apiFetchRaw, apiGet } from "@/lib/api/api-fetch";
 import { CSV_EXAMPLE_COLUMNS } from "@/lib/import/csv-measurements";
 
+/**
+ * Upper bound for the paste textareas, mirroring the 16 MB server-side body
+ * ceiling on `/api/import` and `/api/import/csv`. Caps an accidental over-paste
+ * before it ever reaches the route and feeds the live character counter.
+ */
+const MAX_PASTE_CHARS = 16 * 1024 * 1024;
+
 // ─────────────────────────── Section wrapper ───────────────────────────
 
 export function ImportPanel() {
@@ -537,10 +544,17 @@ function JsonImportCard() {
           value={text}
           onChange={(e) => setText(e.target.value)}
           rows={5}
+          maxLength={MAX_PASTE_CHARS}
           spellCheck={false}
           placeholder='{"measurements":[…],"moodEntries":[…]}'
           className="font-mono text-xs"
         />
+        <p className="text-muted-foreground text-right text-xs tabular-nums">
+          {t("settings.sections.export.import.charCount", {
+            used: text.length,
+            max: MAX_PASTE_CHARS,
+          })}
+        </p>
       </div>
 
       <input
@@ -762,10 +776,17 @@ function CsvImportCard() {
           value={text}
           onChange={(e) => setText(e.target.value)}
           rows={5}
+          maxLength={MAX_PASTE_CHARS}
           spellCheck={false}
           placeholder="type,value,unit,measuredAt,…"
           className="font-mono text-xs"
         />
+        <p className="text-muted-foreground text-right text-xs tabular-nums">
+          {t("settings.sections.export.import.charCount", {
+            used: text.length,
+            max: MAX_PASTE_CHARS,
+          })}
+        </p>
       </div>
 
       <input
@@ -865,6 +886,9 @@ function CsvImportCard() {
           onClick={() => void send(true)}
           data-testid="import-csv-preview"
         >
+          {busy && (
+            <Loader2 className="h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
+          )}
           {t("settings.sections.export.import.csv.preview")}
         </Button>
         <Button
