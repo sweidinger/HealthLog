@@ -102,6 +102,41 @@ describe("<SleepRhythmSection>", () => {
     expect(html).toContain("md:py-6");
   });
 
+  it("places the two cards side by side when both carry settled data", () => {
+    rhythmMock.mockReturnValue({
+      data: READY_DTO,
+      isLoading: false,
+      isError: false,
+    });
+    const html = render(<SleepRhythmSection enabled />);
+    // Two-up on large screens, single column below.
+    expect(html).toContain("lg:grid-cols-2");
+  });
+
+  it("keeps a lone data-bearing card full width when the other is still learning", () => {
+    rhythmMock.mockReturnValue({
+      data: {
+        ...READY_DTO,
+        // Sleep-debt settled, chronotype still learning → no two-up grid.
+        chronotype: {
+          state: "learning",
+          msfMinutes: null,
+          msfScMinutes: null,
+          band: null,
+          socialJetlagMinutes: null,
+          freeNightsCounted: 2,
+          workNightsCounted: 5,
+          freeNightsUntilReady: 4,
+        },
+      } satisfies SleepRhythmDto,
+      isLoading: false,
+      isError: false,
+    });
+    const html = render(<SleepRhythmSection enabled />);
+    expect(html).toContain("grid-cols-1");
+    expect(html).not.toContain("lg:grid-cols-2");
+  });
+
   it("renders nothing when disabled", () => {
     rhythmMock.mockReturnValue({
       data: undefined,
