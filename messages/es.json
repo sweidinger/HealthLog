@@ -228,6 +228,7 @@
     "accountSettings": "Ajustes de cuenta",
     "mood": "Estado de ánimo",
     "workouts": "Entrenamientos",
+    "coach": "Coach",
     "skipToContent": "Saltar al contenido",
     "sidebar": "Barra lateral",
     "mainNavigation": "Navegación principal",
@@ -3816,6 +3817,26 @@
       "notifications": {
         "title": "Notificaciones",
         "description": "Vista en vivo de cada canal configurado."
+      },
+      "layout": {
+        "title": "Diseño y personalización",
+        "description": "Organiza cómo está dispuesta tu app — un único lugar para el panel, los análisis, los medicamentos y el ánimo.",
+        "dashboard": {
+          "title": "Panel",
+          "description": "Diseño y orden de los mosaicos."
+        },
+        "insights": {
+          "title": "Análisis",
+          "description": "Orden de la vista general y de las pestañas de navegación."
+        },
+        "medications": {
+          "title": "Medicamentos",
+          "description": "Vista de lista y orden de los medicamentos."
+        },
+        "mood": {
+          "title": "Etiquetas de ánimo",
+          "description": "Grupos, etiquetas y orden del selector de ánimo."
+        }
       },
       "dashboard": {
         "title": "Panel",

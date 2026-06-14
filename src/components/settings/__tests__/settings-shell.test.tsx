@@ -56,10 +56,16 @@ describe("SETTINGS_SECTION_SLUGS", () => {
     // v1.17 — `mood` sits between `medications` and `thresholds`: the
     // mood-tag management surface (groups, custom tags, hide/archive,
     // picker order), reached from the /mood page header's wrench glyph.
+    // v1.17.1 (F-2) — `layout` is the one "Layout & Personalization" home
+    // and sits after `notifications`. The four personalization editor
+    // slugs (`dashboard`, `insights`, `medications`, `mood`) keep their
+    // routes so deep links resolve, but they are reached through the
+    // Layout hub instead of four standalone nav entries.
     expect([...SETTINGS_SECTION_SLUGS]).toEqual([
       "account",
       "integrations",
       "notifications",
+      "layout",
       "dashboard",
       "insights",
       "medications",
@@ -140,6 +146,32 @@ describe("<SettingsShell>", () => {
     expect(html.match(activeLinkRegex)?.length ?? 0).toBe(2);
   });
 
+  it("highlights the Layout hub when on a Layout child editor (v1.17.1 F-2)", () => {
+    // On `/settings/dashboard` (a Layout child reached through the hub) the
+    // Layout nav entry must read active even though Dashboard has no nav
+    // entry of its own. Both layouts emit the active link → two matches.
+    for (const child of [
+      "/settings/dashboard",
+      "/settings/insights",
+      "/settings/medications",
+      "/settings/mood",
+    ]) {
+      const html = renderShell({ pathname: child });
+      const layoutActive =
+        /<a\b[^>]*\baria-current="page"[^>]*\bhref="\/settings\/layout"|<a\b[^>]*\bhref="\/settings\/layout"[^>]*\baria-current="page"/g;
+      expect(html.match(layoutActive)?.length ?? 0).toBe(2);
+    }
+  });
+
+  it("highlights the Layout hub when the active prop is a Layout child", () => {
+    // The page passes `active={section}` explicitly; a child slug must
+    // still resolve onto the Layout hub for nav highlighting.
+    const html = renderShell({ active: "mood", pathname: "/settings/mood" });
+    const layoutActive =
+      /<a\b[^>]*\baria-current="page"[^>]*\bhref="\/settings\/layout"|<a\b[^>]*\bhref="\/settings\/layout"[^>]*\baria-current="page"/g;
+    expect(html.match(layoutActive)?.length ?? 0).toBe(2);
+  });
+
   it("falls back to `account` when the pathname doesn't match a known slug", () => {
     const html = renderShell({ pathname: "/settings/totally-bogus" });
     const activeLinkRegex =
@@ -155,16 +187,14 @@ describe("<SettingsShell>", () => {
     // (single-line; the longer "Notification channels" wrapped). The
     // `/notifications` inbox now shares the "Notifications" label.
     expect(html).toContain("Notifications");
-    expect(html).toContain("Dashboard");
-    expect(html).toContain("Insights");
-    // v1.16.10 — the /medications customise surface is its own nav entry
-    // between Insights and Targets.
-    expect(html).toContain('href="/settings/medications"');
-    expect(html).toContain("Medications");
-    // v1.17 — the mood-tag management surface sits between Medications
-    // and Targets.
-    expect(html).toContain('href="/settings/mood"');
-    expect(html).toContain("Mood tags");
+    // v1.17.1 (F-2) — the four personalization editors (Dashboard,
+    // Insights, Medications, Mood) are reached through one Layout hub
+    // entry; the hub itself is the single nav entry for the concept.
+    expect(html).toContain('href="/settings/layout"');
+    expect(html).toContain("Layout &amp; Personalization");
+    // The four editors are no longer standalone nav entries.
+    expect(html).not.toContain('href="/settings/medications"');
+    expect(html).not.toContain('href="/settings/mood"');
     // The ampersand is HTML-escaped by React SSR — assert on the encoded
     // form so we don't accidentally match a parser that double-escapes.
     expect(html).toContain("API &amp; Tokens");
@@ -192,17 +222,13 @@ describe("<SettingsShell>", () => {
     // compound "Benachrichtigungs-Kanäle" wrapped). The `/notifications`
     // inbox now shares the "Benachrichtigungen" label.
     expect(html).toContain("Benachrichtigungen");
-    // v1.4.3: the Settings sub-section formerly labelled "Übersicht" is now
-    // "Dashboard" (matching the term users see in the main nav). The
-    // per-metric overrides moved out into their own "Persönliche Zielwerte"
-    // section, which is the new entry below the Dashboard one.
-    expect(html).toContain("Dashboard");
-    // v1.16.10 — the /medications customise surface ("Medikamente").
-    expect(html).toContain('href="/settings/medications"');
-    expect(html).toContain("Medikamente");
-    // v1.17 — the mood-tag management surface ("Stimmungs-Tags").
-    expect(html).toContain('href="/settings/mood"');
-    expect(html).toContain("Stimmungs-Tags");
+    // v1.17.1 (F-2) — the four personalization editors are reached through
+    // one Layout hub entry ("Layout & Personalisierung"); they are no
+    // longer standalone German nav entries.
+    expect(html).toContain('href="/settings/layout"');
+    expect(html).toContain("Layout &amp; Personalisierung");
+    expect(html).not.toContain('href="/settings/medications"');
+    expect(html).not.toContain('href="/settings/mood"');
     // v1.8.7.1 — Targets and Sources are two separate German nav
     // entries again: "Zielwerte" and "Quellen".
     expect(html).toContain("Zielwerte");

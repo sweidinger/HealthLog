@@ -228,6 +228,7 @@
     "accountSettings": "Account settings",
     "mood": "Mood",
     "workouts": "Workouts",
+    "coach": "Coach",
     "skipToContent": "Skip to content",
     "sidebar": "Sidebar",
     "mainNavigation": "Main navigation",
@@ -3816,6 +3817,26 @@
       "notifications": {
         "title": "Notifications",
         "description": "Live overview of every configured channel."
+      },
+      "layout": {
+        "title": "Layout & Personalization",
+        "description": "Arrange how your app is laid out — one home for the dashboard, insights, medications, and mood.",
+        "dashboard": {
+          "title": "Dashboard",
+          "description": "Tile layout and order."
+        },
+        "insights": {
+          "title": "Insights",
+          "description": "Overview sections and navigation-pill order."
+        },
+        "medications": {
+          "title": "Medications",
+          "description": "List view and medication order."
+        },
+        "mood": {
+          "title": "Mood tags",
+          "description": "Groups, tags, and order of the mood picker."
+        }
       },
       "dashboard": {
         "title": "Dashboard",

@@ -25,12 +25,9 @@ import {
   Layers,
   LayoutDashboard,
   Link2,
-  Pill,
   Settings2,
   SlidersHorizontal,
-  Smile,
   Sparkles,
-  TrendingUp,
   User,
   type LucideIcon,
 } from "lucide-react";
@@ -92,25 +89,15 @@ export const SETTINGS_SECTIONS: readonly SettingsSection[] = [
     titleKey: "settings.sections.notifications.title",
     icon: Bell,
   },
+  // v1.17.1 (F-2) — one "Layout & Personalization" nav entry replaces the
+  // four scattered Dashboard / Insights / Medications / Mood "arrange"
+  // entries. Those routes still resolve (deep links, page-header cogs, and
+  // the hub's own links all work); they are simply reached through the
+  // Layout hub now, so "how my app is laid out" reads as one home.
   {
-    slug: "dashboard",
-    titleKey: "settings.sections.dashboard.title",
+    slug: "layout",
+    titleKey: "settings.sections.layout.title",
     icon: LayoutDashboard,
-  },
-  {
-    slug: "insights",
-    titleKey: "settings.sections.insights.title",
-    icon: TrendingUp,
-  },
-  {
-    slug: "medications",
-    titleKey: "settings.sections.medications.title",
-    icon: Pill,
-  },
-  {
-    slug: "mood",
-    titleKey: "settings.sections.mood.title",
-    icon: Smile,
   },
   {
     slug: "thresholds",
@@ -151,16 +138,33 @@ export interface SettingsShellProps {
   children: React.ReactNode;
 }
 
+// v1.17.1 (F-2) — the four personalization editors live under the Layout
+// hub. They keep their own routes but are NOT standalone nav entries, so
+// when the user is on one of them the Layout nav entry is the one that
+// reads active.
+const LAYOUT_CHILD_SLUGS: ReadonlySet<string> = new Set([
+  "dashboard",
+  "insights",
+  "medications",
+  "mood",
+]);
+
+/** Map a Layout child editor onto the Layout hub for nav highlighting. */
+function navHighlightSlug(slug: SettingsSectionSlug): SettingsSectionSlug {
+  return LAYOUT_CHILD_SLUGS.has(slug) ? "layout" : slug;
+}
+
 function deriveActiveSlug(
   pathname: string | null,
   override?: SettingsSectionSlug,
 ): SettingsSectionSlug {
-  if (override) return override;
+  if (override) return navHighlightSlug(override);
   if (!pathname) return "account";
   // Match `/settings/<slug>` and ignore any trailing segments (none today,
   // but cheap insurance for future nested routes).
   const match = pathname.match(/^\/settings\/([^/]+)/);
   const candidate = match?.[1] ?? "";
+  if (LAYOUT_CHILD_SLUGS.has(candidate)) return "layout";
   return isSettingsSectionSlug(candidate) ? candidate : "account";
 }
 

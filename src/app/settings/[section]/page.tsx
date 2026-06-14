@@ -10,6 +10,7 @@ import { DashboardSection } from "@/components/settings/dashboard-section";
 import { ExportSection } from "@/components/settings/export-section";
 import { InsightsSection } from "@/components/settings/insights-section";
 import { IntegrationsSection } from "@/components/settings/integrations-section";
+import { LayoutSection } from "@/components/settings/layout-section";
 import { MedicationsSection } from "@/components/settings/medications-section";
 import { MoodSection } from "@/components/settings/mood-section";
 import { NotificationsSection } from "@/components/settings/notifications-section";
@@ -51,6 +52,7 @@ const SECTION_COMPONENTS: Record<
   ai: AiSection,
   integrations: IntegrationsSection,
   notifications: NotificationsSection,
+  layout: LayoutSection,
   dashboard: DashboardSection,
   insights: InsightsSection,
   medications: MedicationsSection,

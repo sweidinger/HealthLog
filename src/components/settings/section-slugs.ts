@@ -20,10 +20,18 @@
 // v1.17 — `mood` sits after `medications`: the mood-tag management
 // surface (groups, custom tags, hide/archive, picker order), reached
 // from the /mood page header's wrench glyph.
+// v1.17.1 (F-2) — `layout` is the one "Layout & Personalization" home.
+// The dashboard / insights / medications / mood personalization editors
+// each keep their own route (deep links, page-header cogs, and the hub's
+// own links all resolve), but the settings NAV now surfaces a single
+// `layout` entry instead of four scattered "arrange" entries, so the
+// concept reads as one place. The four editor slugs stay in this list so
+// their routes still resolve; they are simply not listed in the shell nav.
 export const SETTINGS_SECTION_SLUGS = [
   "account",
   "integrations",
   "notifications",
+  "layout",
   "dashboard",
   "insights",
   "medications",

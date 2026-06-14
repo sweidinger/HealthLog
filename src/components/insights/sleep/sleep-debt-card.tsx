@@ -4,6 +4,7 @@ import { Moon } from "lucide-react";
 
 import { useTranslations } from "@/lib/i18n/context";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { LearningGate } from "@/components/ui/learning-gate";
 import type { SleepDebtDto } from "./use-sleep-rhythm";
 
 /** Whole hours + minutes from a minute total, for the headline figure. */
@@ -36,12 +37,12 @@ export function SleepDebtCard({ debt }: { debt: SleepDebtDto }) {
           </div>
         </CardHeader>
         <CardContent>
-          <p className="text-muted-foreground text-sm">
-            {t("insights.sleep.debt.learning", {
+          <LearningGate
+            message={t("insights.sleep.debt.learning", {
               counted: debt.nightsCounted,
               remaining: debt.nightsUntilReady,
             })}
-          </p>
+          />
         </CardContent>
       </Card>
     );

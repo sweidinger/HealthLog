@@ -228,6 +228,7 @@
     "accountSettings": "Kontoeinstellungen",
     "mood": "Stimmung",
     "workouts": "Workouts",
+    "coach": "Coach",
     "skipToContent": "Zum Inhalt springen",
     "sidebar": "Sidebar",
     "mainNavigation": "Hauptnavigation",
@@ -3816,6 +3817,26 @@
       "notifications": {
         "title": "Benachrichtigungen",
         "description": "Live-Übersicht aller konfigurierten Kanäle."
+      },
+      "layout": {
+        "title": "Layout & Personalisierung",
+        "description": "Lege fest, wie deine App aufgebaut ist — ein Ort für Dashboard, Insights, Medikamente und Stimmung.",
+        "dashboard": {
+          "title": "Dashboard",
+          "description": "Kachel-Layout und Reihenfolge."
+        },
+        "insights": {
+          "title": "Insights",
+          "description": "Reihenfolge der Übersicht und der Navigations-Pills."
+        },
+        "medications": {
+          "title": "Medikamente",
+          "description": "Listenansicht und Reihenfolge der Medikamente."
+        },
+        "mood": {
+          "title": "Stimmungs-Tags",
+          "description": "Gruppen, Tags und Reihenfolge der Tag-Auswahl."
+        }
       },
       "dashboard": {
         "title": "Dashboard",
