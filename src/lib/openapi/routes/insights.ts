@@ -587,12 +587,12 @@ const glucoseClinicalSchema = z
         hbgi: z.number(),
       })
       .nullable(),
-    isSpotEstimate: z.literal(true),
+    isSpotEstimate: z.boolean(),
   })
   .meta({
     id: "GlucoseClinicalMetrics",
     description:
-      "Server-authoritative glucose clinical panel over the trailing 30-day window. Every figure is a SPOT-READING ESTIMATE (a % of readings), not a CGM time-in-range AGP — `isSpotEstimate` is always true and `stillLearning` gates assertion when the window has too few readings or too short a span. `distribution` carries the Battelino 2019 TIR/TBR/TAR fractions (level-2 nested in level-1) plus minutes-of-a-day equivalents; `gmi` (Bergenstal 2018) + `estimatedA1c` (Nathan 2008 ADAG) derive from the mean; `variability` is SD + CV% with the Monnier 2017 ≥36% instability flag; `advanced` is the disclosure tier — J-index (Wojcicki 1995) + LBGI/HBGI (Kovatchev hypo/hyper risk). All blocks are null when there are no readings; `advanced.jIndex` is null for a single-reading window.",
+      "Server-authoritative glucose clinical panel over the trailing 30-day window. Figures from sparse spot data are a SPOT-READING ESTIMATE (a % of readings), not a CGM time-in-range AGP; `isSpotEstimate` is derived from reading density (true below ~hourly, false for a continuous CGM stream such as Nightscout) and `stillLearning` gates assertion when the window has too few readings or too short a span. `distribution` carries the Battelino 2019 TIR/TBR/TAR fractions (level-2 nested in level-1) plus minutes-of-a-day equivalents; `gmi` (Bergenstal 2018) + `estimatedA1c` (Nathan 2008 ADAG) derive from the mean; `variability` is SD + CV% with the Monnier 2017 ≥36% instability flag; `advanced` is the disclosure tier — J-index (Wojcicki 1995) + LBGI/HBGI (Kovatchev hypo/hyper risk). All blocks are null when there are no readings; `advanced.jIndex` is null for a single-reading window.",
   });
 
 const dashboardSnapshotResponse = z
