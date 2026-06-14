@@ -3648,7 +3648,7 @@
     },
     "goals": {
       "title": "What would you like to track?",
-      "body": "Pick the areas you care about. Your dashboard and the default reminders follow your choice.",
+      "body": "Pick the areas you care about — it helps you decide what to track and set up next.",
       "helpHint": "One to three priorities tend to work best — you can always add more later.",
       "options": {
         "weightManagement": "Weight management",
@@ -3661,7 +3661,7 @@
     },
     "source": {
       "title": "Connect a source",
-      "body": "Bring in measurements automatically, or stay on manual entry — your call.",
+      "body": "Bring in measurements automatically, or stay on manual entry. Nothing here is configured for you — each card just shows where to connect it.",
       "recommended": "Recommended",
       "manual": {
         "title": "Manual entry",
@@ -3672,12 +3672,17 @@
         "body": "Scales, blood-pressure cuffs and trackers from Withings sync automatically.",
         "cta": "Connect Withings"
       },
-      "appleHealth": {
-        "title": "Apple Health",
-        "body": "iPhone and Apple Watch data flow in via the HealthLog iOS app.",
-        "badge": "Coming with v1.5 (iOS)",
-        "disabledHint": "Available once the iOS app ships."
-      }
+      "more": {
+        "title": "More sources",
+        "body": "Connect any of these in Settings whenever you're ready.",
+        "appleHealth": "Apple Health",
+        "whoop": "WHOOP",
+        "oura": "Oura",
+        "polar": "Polar",
+        "nightscout": "Nightscout",
+        "fitbit": "Fitbit"
+      },
+      "import": "Import existing history"
     },
     "baseline": {
       "title": "A bit about you",
@@ -3697,7 +3702,11 @@
     "done": {
       "title": "You're all set",
       "body": "Welcome aboard. Your dashboard is ready.",
-      "returnCta": "Open dashboard"
+      "returnCta": "Open dashboard",
+      "learning": "Some insights — glucose, sleep rhythm, blood-pressure trends, cycle — sharpen over the first week or two as your data builds up. Empty tiles now just mean we're still learning your baseline.",
+      "connectCta": "Connect a device",
+      "logCta": "Log your first measurement",
+      "importCta": "Import existing history"
     },
     "welcomeBack": {
       "title": "Welcome back",
@@ -3742,9 +3751,9 @@
       "medicationTitle": "Add a medication",
       "medicationDescription": "Track adherence and get reminders right when you need them.",
       "medicationCta": "Add medication",
-      "withingsTitle": "Connect Withings (optional)",
-      "withingsDescription": "Auto-sync weight, BP and pulse from your Withings devices.",
-      "withingsCta": "Connect",
+      "dataSourceTitle": "Connect a data source (optional)",
+      "dataSourceDescription": "Auto-sync weight, BP, sleep and more from Withings, WHOOP, Oura, Polar, Nightscout, Fitbit or Apple Health.",
+      "dataSourceCta": "Connect",
       "notificationsTitle": "Configure notifications",
       "notificationsDescription": "Choose how HealthLog should remind you — Telegram, ntfy or Web Push.",
       "notificationsCta": "Open notifications"

@@ -6,8 +6,9 @@ import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
-  Apple,
   ClipboardCheck,
+  FileUp,
+  Plug,
   Watch,
   Wifi,
   type LucideIcon,
@@ -19,29 +20,31 @@ import { cn } from "@/lib/utils";
 import { apiPost } from "@/lib/api/api-fetch";
 
 /**
- * v1.4.25 W14b-Content — onboarding step 2 (source).
+ * Onboarding step 2 (source).
  *
- * Four-card grid presenting the data sources HealthLog supports today
- * plus the announce-only Apple Health card so users land on v1.5 with
- * the right expectation.
- *
- * Cards:
- *   1. Manual entry (enabled, recommended)
+ * Presents the data sources HealthLog ships today. The headline cards
+ * cover the two paths most people start on:
+ *   1. Manual entry (enabled, recommended — works on any device)
  *   2. Withings (enabled — opens OAuth `/api/withings/connect` in a new
- *      tab; the popup hands control back via the existing callback)
- *   3. Apple Health (DISABLED — "Coming with v1.5 iOS app")
- *   4. Garmin — omitted entirely. Not on the v1.5 roadmap so showing
- *      a disabled card adds noise without conveying a real promise.
+ *      tab; the callback flips the connection server-side)
+ *
+ * Below them a calm "more sources" row lists the remaining shipped
+ * integrations (Apple Health, WHOOP, Oura, Polar, Nightscout, Fitbit),
+ * each linking to Settings → Integrations where it is actually
+ * connected. We don't try to run six OAuth flows inside the wizard;
+ * the row sets the expectation and hands off. A discreet import link
+ * points at the Apple Health export.zip path — the cold-start escape
+ * hatch for users with existing history.
+ *
+ * Garmin is omitted: not shipped, so a card would over-claim.
  *
  * Selection is non-binding — Manual is the implicit default and the
- * Next CTA always advances. The Withings card opens the OAuth flow in
- * a new tab; the user returns to this step to click Next when they're
- * back (callback handler flips the connection server-side, no client
- * polling needed for the wizard contract).
+ * Next CTA always advances. Nothing here is auto-configured; the step
+ * only signposts where each source is connected.
  */
 
 interface SourceCard {
-  slug: "manual" | "withings" | "apple-health";
+  slug: "manual" | "withings";
   Icon: LucideIcon;
   titleKey: string;
   bodyKey: string;
@@ -49,14 +52,11 @@ interface SourceCard {
    * One of:
    *   - "enabled-select": tap selects the card (Manual)
    *   - "enabled-oauth":  tap opens OAuth in a new tab (Withings)
-   *   - "disabled":       semi-transparent, badge, no-op (Apple Health)
    */
-  state: "enabled-select" | "enabled-oauth" | "disabled";
+  state: "enabled-select" | "enabled-oauth";
   /** External href for `enabled-oauth`. */
   href?: string;
-  /** Optional badge under the title (e.g. "Coming with v1.5"). */
-  badgeKey?: string;
-  /** Optional recommended badge ("Most popular"). */
+  /** Optional recommended badge. */
   recommendedKey?: string;
 }
 
@@ -77,14 +77,19 @@ const SOURCE_CARDS: ReadonlyArray<SourceCard> = [
     state: "enabled-oauth",
     href: "/api/withings/connect",
   },
-  {
-    slug: "apple-health",
-    Icon: Apple,
-    titleKey: "onboarding.source.appleHealth.title",
-    bodyKey: "onboarding.source.appleHealth.body",
-    state: "disabled",
-    badgeKey: "onboarding.source.appleHealth.badge",
-  },
+];
+
+/**
+ * The remaining shipped integrations. Listed compactly so the step
+ * stays calm — the full connect flow for each lives in Settings.
+ */
+const MORE_SOURCES: ReadonlyArray<{ slug: string; labelKey: string }> = [
+  { slug: "apple-health", labelKey: "onboarding.source.more.appleHealth" },
+  { slug: "whoop", labelKey: "onboarding.source.more.whoop" },
+  { slug: "oura", labelKey: "onboarding.source.more.oura" },
+  { slug: "polar", labelKey: "onboarding.source.more.polar" },
+  { slug: "nightscout", labelKey: "onboarding.source.more.nightscout" },
+  { slug: "fitbit", labelKey: "onboarding.source.more.fitbit" },
 ];
 
 export function SourceCardGrid() {
@@ -140,12 +145,57 @@ export function SourceCardGrid() {
             recommendedLabel={
               card.recommendedKey ? t(card.recommendedKey) : null
             }
-            badgeLabel={card.badgeKey ? t(card.badgeKey) : null}
             withingsCtaLabel={t("onboarding.source.withings.cta")}
-            disabledHintLabel={t("onboarding.source.appleHealth.disabledHint")}
           />
         ))}
       </div>
+
+      <div className="space-y-3 rounded-lg border border-dashed border-border p-4">
+        <div className="flex items-start gap-3">
+          <span
+            aria-hidden="true"
+            className="bg-muted text-muted-foreground flex size-9 shrink-0 items-center justify-center rounded-md"
+          >
+            <Plug className="size-4" />
+          </span>
+          <div className="min-w-0 flex-1 space-y-1">
+            <h2 className="text-base font-semibold tracking-tight">
+              {t("onboarding.source.more.title")}
+            </h2>
+            <p className="text-muted-foreground text-sm leading-relaxed">
+              {t("onboarding.source.more.body")}
+            </p>
+          </div>
+        </div>
+        <ul className="flex flex-wrap gap-2" data-testid="source-more-list">
+          {MORE_SOURCES.map((item) => (
+            <li key={item.slug}>
+              <Button
+                asChild
+                variant="outline"
+                size="sm"
+                className="min-h-9"
+              >
+                <Link
+                  href="/settings/integrations"
+                  data-testid={`source-more-${item.slug}`}
+                >
+                  {t(item.labelKey)}
+                </Link>
+              </Button>
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      <Link
+        href="/settings/export"
+        className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1.5 text-sm underline-offset-4 hover:underline"
+        data-testid="source-import-link"
+      >
+        <FileUp className="size-3.5" />
+        {t("onboarding.source.import")}
+      </Link>
 
       <div className="flex items-center justify-between gap-2 pt-2">
         <Button asChild variant="ghost" className="min-h-11 min-w-11">
@@ -182,9 +232,7 @@ interface SourceCardItemProps {
   titleLabel: string;
   bodyLabel: string;
   recommendedLabel: string | null;
-  badgeLabel: string | null;
   withingsCtaLabel: string;
-  disabledHintLabel: string;
 }
 
 function SourceCardItem({
@@ -194,9 +242,7 @@ function SourceCardItem({
   titleLabel,
   bodyLabel,
   recommendedLabel,
-  badgeLabel,
   withingsCtaLabel,
-  disabledHintLabel,
 }: SourceCardItemProps) {
   const Icon = card.Icon;
 
@@ -211,7 +257,7 @@ function SourceCardItem({
         aria-hidden="true"
         className={cn(
           "flex size-10 shrink-0 items-center justify-center rounded-md",
-          selected && card.state !== "disabled"
+          selected
             ? "bg-primary text-primary-foreground"
             : "bg-muted text-muted-foreground",
         )}
@@ -220,14 +266,7 @@ function SourceCardItem({
       </span>
       <div className="min-w-0 flex-1">
         <h2 className="text-base font-semibold tracking-tight">{titleLabel}</h2>
-        {badgeLabel ? (
-          <span
-            className="bg-muted text-foreground mt-1 inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide"
-            data-testid={`source-badge-${card.slug}`}
-          >
-            {badgeLabel}
-          </span>
-        ) : recommendedLabel ? (
+        {recommendedLabel ? (
           <span className="bg-primary/10 text-primary mt-1 inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide">
             {recommendedLabel}
           </span>
@@ -239,22 +278,6 @@ function SourceCardItem({
   const body = (
     <p className="text-muted-foreground text-sm leading-relaxed">{bodyLabel}</p>
   );
-
-  if (card.state === "disabled") {
-    return (
-      <div
-        aria-disabled="true"
-        className={cn(baseClasses, "cursor-not-allowed opacity-60")}
-        data-testid={`source-card-${card.slug}`}
-      >
-        {headerRow}
-        {body}
-        <p className="text-muted-foreground text-xs italic">
-          {disabledHintLabel}
-        </p>
-      </div>
-    );
-  }
 
   if (card.state === "enabled-oauth") {
     return (

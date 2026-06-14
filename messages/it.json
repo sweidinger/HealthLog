@@ -3648,7 +3648,7 @@
     },
     "goals": {
       "title": "Cosa vuoi monitorare?",
-      "body": "Scegli gli ambiti che ti interessano. Dashboard e promemoria si adatteranno alle tue scelte.",
+      "body": "Scegli gli ambiti che ti interessano: ti aiuta a decidere cosa monitorare e configurare in seguito.",
       "helpHint": "Da una a tre priorità funzionano di solito meglio — potrai aggiungerne altre in qualsiasi momento.",
       "options": {
         "weightManagement": "Gestione del peso",
@@ -3661,7 +3661,7 @@
     },
     "source": {
       "title": "Connetti una sorgente",
-      "body": "Importa le misurazioni in automatico oppure resta sull'inserimento manuale, decidi tu.",
+      "body": "Importa le misurazioni in automatico oppure resta sull'inserimento manuale. Qui non viene configurato nulla al posto tuo: ogni scheda mostra solo dove collegarla.",
       "recommended": "Consigliato",
       "manual": {
         "title": "Inserimento manuale",
@@ -3672,12 +3672,17 @@
         "body": "Bilance, misuratori di pressione e tracker Withings si sincronizzano automaticamente.",
         "cta": "Connetti Withings"
       },
-      "appleHealth": {
-        "title": "Apple Health",
-        "body": "I dati di iPhone e Apple Watch arrivano tramite l'app HealthLog per iOS.",
-        "badge": "Con la v1.5 (iOS)",
-        "disabledHint": "Disponibile al rilascio dell'app iOS."
-      }
+      "more": {
+        "title": "Altre fonti",
+        "body": "Collega una di queste nelle Impostazioni quando vuoi.",
+        "appleHealth": "Apple Health",
+        "whoop": "WHOOP",
+        "oura": "Oura",
+        "polar": "Polar",
+        "nightscout": "Nightscout",
+        "fitbit": "Fitbit"
+      },
+      "import": "Importa la cronologia esistente"
     },
     "baseline": {
       "title": "Qualcosa su di te",
@@ -3697,7 +3702,11 @@
     "done": {
       "title": "Tutto pronto",
       "body": "Benvenuto a bordo. La tua dashboard è pronta.",
-      "returnCta": "Apri la dashboard"
+      "returnCta": "Apri la dashboard",
+      "learning": "Alcune analisi — glicemia, ritmo del sonno, tendenze della pressione, ciclo — si affinano nella prima settimana o due man mano che i tuoi dati si accumulano. Le caselle vuote ora indicano solo che stiamo ancora imparando il tuo riferimento.",
+      "connectCta": "Collega un dispositivo",
+      "logCta": "Registra la tua prima misurazione",
+      "importCta": "Importa la cronologia esistente"
     },
     "welcomeBack": {
       "title": "Bentornato",
@@ -3742,9 +3751,9 @@
       "medicationTitle": "Aggiungi un farmaco",
       "medicationDescription": "Monitora l’aderenza e ricevi promemoria proprio quando ti servono.",
       "medicationCta": "Aggiungi farmaco",
-      "withingsTitle": "Collega Withings (opzionale)",
-      "withingsDescription": "Sincronizza peso, pressione e pulsazioni automaticamente dai tuoi dispositivi Withings.",
-      "withingsCta": "Collega",
+      "dataSourceTitle": "Collega una fonte di dati (opzionale)",
+      "dataSourceDescription": "Sincronizza peso, pressione, sonno e altro da Withings, WHOOP, Oura, Polar, Nightscout, Fitbit o Apple Health.",
+      "dataSourceCta": "Collega",
       "notificationsTitle": "Configura le notifiche",
       "notificationsDescription": "Scegli come HealthLog ti ricorda — Telegram, ntfy o Web Push.",
       "notificationsCta": "Apri notifiche"

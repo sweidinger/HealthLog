@@ -3648,7 +3648,7 @@
     },
     "goals": {
       "title": "Que souhaitez-vous suivre ?",
-      "body": "Sélectionnez les domaines qui comptent pour vous. Le tableau de bord et les rappels s'y adapteront.",
+      "body": "Sélectionnez les domaines qui comptent pour vous : cela vous aide à décider quoi suivre et configurer ensuite.",
       "helpHint": "Un à trois axes prioritaires fonctionnent généralement le mieux, mais vous pourrez en ajouter plus tard.",
       "options": {
         "weightManagement": "Gestion du poids",
@@ -3661,7 +3661,7 @@
     },
     "source": {
       "title": "Connecter une source",
-      "body": "Importez les mesures automatiquement ou conservez la saisie manuelle, c'est vous qui décidez.",
+      "body": "Importez les mesures automatiquement ou conservez la saisie manuelle. Rien n'est configuré à votre place : chaque carte indique simplement où la connecter.",
       "recommended": "Recommandé",
       "manual": {
         "title": "Saisie manuelle",
@@ -3672,12 +3672,17 @@
         "body": "Balances, tensiomètres et trackers Withings se synchronisent automatiquement.",
         "cta": "Connecter Withings"
       },
-      "appleHealth": {
-        "title": "Apple Health",
-        "body": "Les données de l'iPhone et de l'Apple Watch arrivent via l'application iOS HealthLog.",
-        "badge": "Avec la v1.5 (iOS)",
-        "disabledHint": "Disponible dès la sortie de l'application iOS."
-      }
+      "more": {
+        "title": "Autres sources",
+        "body": "Connectez l'une d'elles dans les Réglages quand vous le souhaitez.",
+        "appleHealth": "Apple Health",
+        "whoop": "WHOOP",
+        "oura": "Oura",
+        "polar": "Polar",
+        "nightscout": "Nightscout",
+        "fitbit": "Fitbit"
+      },
+      "import": "Importer un historique existant"
     },
     "baseline": {
       "title": "Quelques informations",
@@ -3697,7 +3702,11 @@
     "done": {
       "title": "Tout est prêt",
       "body": "Bienvenue à bord. Votre tableau de bord vous attend.",
-      "returnCta": "Ouvrir le tableau de bord"
+      "returnCta": "Ouvrir le tableau de bord",
+      "learning": "Certaines analyses — glycémie, rythme de sommeil, tendances de tension, cycle — s'affinent au cours de la première semaine ou deux à mesure que vos données s'accumulent. Des tuiles vides signifient simplement que nous apprenons encore votre référence.",
+      "connectCta": "Connecter un appareil",
+      "logCta": "Enregistrez votre première mesure",
+      "importCta": "Importer un historique existant"
     },
     "welcomeBack": {
       "title": "Bon retour",
@@ -3742,9 +3751,9 @@
       "medicationTitle": "Ajouter un médicament",
       "medicationDescription": "Suis l’observance et reçois des rappels au moment où tu en as besoin.",
       "medicationCta": "Ajouter un médicament",
-      "withingsTitle": "Connecter Withings (optionnel)",
-      "withingsDescription": "Synchronise automatiquement poids, tension et pouls depuis tes appareils Withings.",
-      "withingsCta": "Connecter",
+      "dataSourceTitle": "Connecter une source de données (facultatif)",
+      "dataSourceDescription": "Synchronisez poids, tension, sommeil et plus depuis Withings, WHOOP, Oura, Polar, Nightscout, Fitbit ou Apple Health.",
+      "dataSourceCta": "Connecter",
       "notificationsTitle": "Configurer les notifications",
       "notificationsDescription": "Choisis comment HealthLog te prévient — Telegram, ntfy ou Web Push.",
       "notificationsCta": "Ouvrir les notifications"
