@@ -249,7 +249,8 @@
       "moodDescription": "Enregistrer l'humeur et les tags"
     },
     "cycle": "Cycle",
-    "labs": "Analyses"
+    "labs": "Analyses",
+    "recovery": "Récupération"
   },
   "auth": {
     "login": "Se connecter",
@@ -2633,7 +2634,9 @@
         "sleepScoreBody": "Votre score de sommeil résume toute une nuit en un seul chiffre — durée, efficacité, régularité des horaires et équilibre entre sommeil léger, profond et paradoxal. Observez la tendance sur plusieurs semaines plutôt que de courir après un score parfait sur une seule nuit.",
         "recoveryBody": "La récupération reflète la qualité du rétablissement de votre corps, à partir de signaux nocturnes comme la variabilité de la fréquence cardiaque et la fréquence au repos. Un score élevé est un feu vert pour pousser ; un score plus bas suggère que votre organisme se reconstruit encore.",
         "strainBody": "La charge mesure l'effort cardiovasculaire et physique que vous avez imposé à votre corps, des entraînements à une journée active debout. Dès qu'il y a assez d'historique, elle est évaluée par rapport à votre propre effort habituel, pas à un standard extérieur.",
-        "stressBody": "Le stress est ici une estimation de la charge physiologique sur votre système nerveux, lue surtout à partir des schémas de variabilité de la fréquence cardiaque et non de ce que vous ressentez consciemment. Un score plus bas indique un état calme et bien régulé ; un score plus élevé invite à prévoir de la récupération."
+        "stressBody": "Le stress est ici une estimation de la charge physiologique sur votre système nerveux, lue surtout à partir des schémas de variabilité de la fréquence cardiaque et non de ce que vous ressentez consciemment. Un score plus bas indique un état calme et bien régulé ; un score plus élevé invite à prévoir de la récupération.",
+        "recoveryPageTitle": "Récupération",
+        "recoveryPageBody": "La récupération rassemble les signaux nocturnes enregistrés par votre wearable — recharge, effort, charge ainsi que vos totaux de fréquence cardiaque et d'énergie du jour — pour montrer à quel point votre corps a récupéré. Observez la tendance sur plusieurs jours plutôt qu'un seul chiffre ; une valeur plus faible invite à lever le pied, ce n'est pas une alarme."
       },
       "stats": {
         "label": "Statistiques récapitulatives",
@@ -3583,7 +3586,45 @@
     "customize": "Personnaliser les Analyses",
     "regenerateRateLimited": "Limite d'actualisation atteinte — réessayez plus tard.",
     "regenerateUnavailable": "Aucune nouvelle analyse reçue — réessayez plus tard.",
-    "regenerateError": "Actualisation en cours — réessayez dans un instant."
+    "regenerateError": "Actualisation en cours — réessayez dans un instant.",
+    "deviceScore": {
+      "learning": "Nous apprenons encore votre référence : quelques nuits de plus compléteront la tendance.",
+      "average": "Moyenne sur 30 jours {value}",
+      "unitScore": "points",
+      "unitMinutes": "min",
+      "unitBpm": "bpm",
+      "unitKj": "kJ"
+    },
+    "sleepQuality": {
+      "title": "Qualité du sommeil",
+      "subtitle": "Scores nocturnes de votre wearable"
+    },
+    "recovery": {
+      "title": "Récupération",
+      "description": "À quel point votre corps a récupéré : les signaux de récupération, de charge et d'effort que votre wearable enregistre la nuit.",
+      "empty": "Pas encore de données de récupération. Connectez un compte WHOOP, Polar ou Oura et ces scores se rempliront dès que votre appareil se synchronise.",
+      "recharge": {
+        "title": "Recharge",
+        "subtitle": "Charge du système nerveux autonome"
+      },
+      "strain": {
+        "title": "Effort et charge",
+        "subtitle": "Charge cardiovasculaire quotidienne"
+      },
+      "cardio": {
+        "title": "Cœur et énergie du jour",
+        "subtitle": "Totaux cardiaques et énergétiques de la journée"
+      },
+      "scoreLink": {
+        "title": "Score de récupération",
+        "subtitle": "Voyez comment se décompose le score nocturne",
+        "cta": "Voir"
+      }
+    },
+    "bodyTempDeviation": {
+      "title": "Écart de température corporelle",
+      "subtitle": "Écart nocturne par rapport à votre référence"
+    }
   },
   "thresholds": {
     "defaultLabel": "Par défaut",

@@ -249,7 +249,8 @@
       "moodDescription": "Zapisz nastrój i tagi"
     },
     "cycle": "Cykl",
-    "labs": "Wyniki badań"
+    "labs": "Wyniki badań",
+    "recovery": "Regeneracja"
   },
   "auth": {
     "login": "Zaloguj się",
@@ -2633,7 +2634,9 @@
         "sleepScoreBody": "Twój wynik snu streszcza całą noc w jednej liczbie — długość, efektywność, regularność pór oraz proporcje snu lekkiego, głębokiego i REM. Obserwuj wzorzec w ujęciu tygodni, zamiast gonić za idealnym wynikiem jednej nocy.",
         "recoveryBody": "Regeneracja odzwierciedla, jak dobrze Twoje ciało się odbudowało — opiera się na nocnych sygnałach, takich jak zmienność rytmu serca i tętno spoczynkowe. Wysoki wynik to zielone światło, by przyspieszyć; niższy sugeruje, że organizm wciąż się regeneruje.",
         "strainBody": "Obciążenie ujmuje, ile wysiłku sercowo-naczyniowego i fizycznego nałożyłeś na swoje ciało — od treningów po aktywny dzień na nogach. Gdy zbierze się wystarczająco danych, jest oceniane względem Twojego własnego typowego wysiłku, a nie cudzej miary.",
-        "stressBody": "Stres jest tu szacunkiem fizjologicznego obciążenia Twojego układu nerwowego, odczytywanym głównie ze wzorców zmienności rytmu serca, a nie z tego, jak się świadomie czujesz. Niższy wynik wskazuje na spokojny, dobrze regulowany stan; wyższy to zachęta, by wpleść regenerację."
+        "stressBody": "Stres jest tu szacunkiem fizjologicznego obciążenia Twojego układu nerwowego, odczytywanym głównie ze wzorców zmienności rytmu serca, a nie z tego, jak się świadomie czujesz. Niższy wynik wskazuje na spokojny, dobrze regulowany stan; wyższy to zachęta, by wpleść regenerację.",
+        "recoveryPageTitle": "Regeneracja",
+        "recoveryPageBody": "Regeneracja łączy nocne sygnały rejestrowane przez Twoje urządzenie – recharge, obciążenie, load oraz dzienne sumy tętna i energii – aby pokazać, jak dobrze Twój organizm się zregenerował. Patrz na wzorzec w ciągu kilku dni, a nie na pojedynczą liczbę; niższy wynik to zaproszenie do zwolnienia tempa, a nie alarm."
       },
       "stats": {
         "label": "Statystyki podsumowujące",
@@ -3583,7 +3586,45 @@
     "customize": "Dostosuj Analizy",
     "regenerateRateLimited": "Osiągnięto limit odświeżeń — spróbuj ponownie później.",
     "regenerateUnavailable": "Nie otrzymano nowej analizy — spróbuj ponownie później.",
-    "regenerateError": "Trwa odświeżanie — spróbuj ponownie za chwilę."
+    "regenerateError": "Trwa odświeżanie — spróbuj ponownie za chwilę.",
+    "deviceScore": {
+      "learning": "Wciąż poznajemy Twoją linię bazową – kilka kolejnych nocy uzupełni trend.",
+      "average": "Średnia z 30 dni {value}",
+      "unitScore": "pkt",
+      "unitMinutes": "min",
+      "unitBpm": "ud./min",
+      "unitKj": "kJ"
+    },
+    "sleepQuality": {
+      "title": "Jakość snu",
+      "subtitle": "Nocne wyniki z Twojego urządzenia"
+    },
+    "recovery": {
+      "title": "Regeneracja",
+      "description": "Jak dobrze Twój organizm się zregenerował – sygnały regeneracji, obciążenia i load, które Twoje urządzenie rejestruje w nocy.",
+      "empty": "Brak danych o regeneracji. Połącz konto WHOOP, Polar lub Oura, a te wyniki uzupełnią się po synchronizacji urządzenia.",
+      "recharge": {
+        "title": "Recharge",
+        "subtitle": "Ładowanie autonomicznego układu nerwowego"
+      },
+      "strain": {
+        "title": "Obciążenie i load",
+        "subtitle": "Dzienne obciążenie sercowo-naczyniowe"
+      },
+      "cardio": {
+        "title": "Serce i energia w ciągu dnia",
+        "subtitle": "Całodobowe sumy sercowe i energetyczne"
+      },
+      "scoreLink": {
+        "title": "Wynik regeneracji",
+        "subtitle": "Zobacz, jak rozkłada się nocny wynik",
+        "cta": "Zobacz"
+      }
+    },
+    "bodyTempDeviation": {
+      "title": "Odchylenie temperatury ciała",
+      "subtitle": "Nocne odchylenie od Twojej linii bazowej"
+    }
   },
   "thresholds": {
     "defaultLabel": "Domyślne",

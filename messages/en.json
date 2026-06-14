@@ -249,7 +249,8 @@
       "moodDescription": "Log your mood and tags"
     },
     "cycle": "Cycle",
-    "labs": "Labs"
+    "labs": "Labs",
+    "recovery": "Recovery"
   },
   "auth": {
     "login": "Sign in",
@@ -2633,7 +2634,9 @@
         "sleepScoreBody": "Your sleep score distils a whole night into one number — duration, efficiency, regularity, and the balance of light, deep, and REM. Watch the pattern across weeks rather than chasing a perfect score on any single night.",
         "recoveryBody": "Recovery reflects how well your body has bounced back, drawing on overnight signals like heart-rate variability and resting heart rate. A strong score is a green light to push; a softer one suggests your system is still rebuilding.",
         "strainBody": "Strain captures how much cardiovascular and physical load you have put on your body, from workouts to an active day on your feet. Once you have enough history it is judged against your own typical effort, not someone else's baseline.",
-        "stressBody": "Stress here is an estimate of physiological load on your nervous system, read mainly from heart-rate-variability patterns rather than how you consciously feel. A lower score points to a calm, well-regulated state; a higher one is an invitation to build in recovery."
+        "stressBody": "Stress here is an estimate of physiological load on your nervous system, read mainly from heart-rate-variability patterns rather than how you consciously feel. A lower score points to a calm, well-regulated state; a higher one is an invitation to build in recovery.",
+        "recoveryPageTitle": "Recovery",
+        "recoveryPageBody": "Recovery brings together the overnight signals your wearable records — recharge, strain, load and your day's heart-rate and energy totals — to show how well your body has bounced back. Read the pattern across days rather than any single number; a softer reading is an invitation to ease off, not an alarm."
       },
       "stats": {
         "label": "Summary statistics",
@@ -3583,7 +3586,45 @@
     "customize": "Customize Insights",
     "regenerateRateLimited": "Refresh limit reached — please try again later.",
     "regenerateUnavailable": "No fresh analysis arrived — please try again later.",
-    "regenerateError": "Still refreshing — please try again in a moment."
+    "regenerateError": "Still refreshing — please try again in a moment.",
+    "deviceScore": {
+      "learning": "Still learning your baseline — a few more nights will fill in the trend.",
+      "average": "30-day average {value}",
+      "unitScore": "score",
+      "unitMinutes": "min",
+      "unitBpm": "bpm",
+      "unitKj": "kJ"
+    },
+    "sleepQuality": {
+      "title": "Sleep quality",
+      "subtitle": "Nightly scores from your wearable"
+    },
+    "recovery": {
+      "title": "Recovery",
+      "description": "How well your body has bounced back — the recovery, strain and load signals your wearable records overnight.",
+      "empty": "No recovery data yet. Connect a WHOOP, Polar or Oura account and these scores fill in once your device syncs.",
+      "recharge": {
+        "title": "Recharge",
+        "subtitle": "Autonomic-nervous-system charge"
+      },
+      "strain": {
+        "title": "Strain & load",
+        "subtitle": "Daily cardiovascular load"
+      },
+      "cardio": {
+        "title": "Daily heart & energy",
+        "subtitle": "Whole-day cardiac and energy totals"
+      },
+      "scoreLink": {
+        "title": "Recovery score",
+        "subtitle": "See how the nightly score breaks down",
+        "cta": "View"
+      }
+    },
+    "bodyTempDeviation": {
+      "title": "Body temperature deviation",
+      "subtitle": "Overnight delta from your baseline"
+    }
   },
   "thresholds": {
     "defaultLabel": "Default",

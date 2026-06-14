@@ -249,7 +249,8 @@
       "moodDescription": "Registra umore e tag"
     },
     "cycle": "Ciclo",
-    "labs": "Esami"
+    "labs": "Esami",
+    "recovery": "Recupero"
   },
   "auth": {
     "login": "Accedi",
@@ -2633,7 +2634,9 @@
         "sleepScoreBody": "Il tuo punteggio del sonno riassume un'intera notte in un solo numero — durata, efficienza, regolarità degli orari ed equilibrio tra sonno leggero, profondo e REM. Osserva l'andamento nell'arco delle settimane invece di rincorrere un punteggio perfetto in una singola notte.",
         "recoveryBody": "Il recupero riflette quanto bene il tuo corpo si è ripreso, basandosi su segnali notturni come la variabilità della frequenza cardiaca e la frequenza a riposo. Un punteggio alto è il via libera per spingere; uno più basso suggerisce che il tuo organismo si sta ancora ricostruendo.",
         "strainBody": "Lo sforzo misura quanto carico cardiovascolare e fisico hai imposto al tuo corpo, dagli allenamenti a una giornata attiva in piedi. Quando c'è abbastanza storico, viene valutato rispetto al tuo sforzo abituale, non rispetto a uno standard esterno.",
-        "stressBody": "Lo stress qui è una stima del carico fisiologico sul tuo sistema nervoso, letto soprattutto dagli schemi di variabilità della frequenza cardiaca e non da come ti senti consapevolmente. Un punteggio più basso indica uno stato calmo e ben regolato; uno più alto è un invito a inserire del recupero."
+        "stressBody": "Lo stress qui è una stima del carico fisiologico sul tuo sistema nervoso, letto soprattutto dagli schemi di variabilità della frequenza cardiaca e non da come ti senti consapevolmente. Un punteggio più basso indica uno stato calmo e ben regolato; uno più alto è un invito a inserire del recupero.",
+        "recoveryPageTitle": "Recupero",
+        "recoveryPageBody": "Il recupero riunisce i segnali notturni registrati dal tuo wearable — ricarica, sforzo, carico e i totali di frequenza cardiaca ed energia della giornata — per mostrare quanto bene il tuo corpo si è ripreso. Guarda l'andamento su più giorni piuttosto che un singolo numero; un valore più basso è un invito a rallentare, non un allarme."
       },
       "stats": {
         "label": "Statistiche riepilogative",
@@ -3583,7 +3586,45 @@
     "customize": "Personalizza gli Approfondimenti",
     "regenerateRateLimited": "Limite di aggiornamento raggiunto — riprova più tardi.",
     "regenerateUnavailable": "Nessuna nuova analisi ricevuta — riprova più tardi.",
-    "regenerateError": "Aggiornamento ancora in corso — riprova tra un momento."
+    "regenerateError": "Aggiornamento ancora in corso — riprova tra un momento.",
+    "deviceScore": {
+      "learning": "Stiamo ancora imparando la tua linea di base: qualche notte in più completerà l'andamento.",
+      "average": "Media a 30 giorni {value}",
+      "unitScore": "punti",
+      "unitMinutes": "min",
+      "unitBpm": "bpm",
+      "unitKj": "kJ"
+    },
+    "sleepQuality": {
+      "title": "Qualità del sonno",
+      "subtitle": "Punteggi notturni del tuo wearable"
+    },
+    "recovery": {
+      "title": "Recupero",
+      "description": "Quanto bene il tuo corpo si è ripreso: i segnali di recupero, sforzo e carico che il tuo wearable registra durante la notte.",
+      "empty": "Ancora nessun dato di recupero. Collega un account WHOOP, Polar o Oura e questi punteggi si popoleranno appena il dispositivo si sincronizza.",
+      "recharge": {
+        "title": "Ricarica",
+        "subtitle": "Carica del sistema nervoso autonomo"
+      },
+      "strain": {
+        "title": "Sforzo e carico",
+        "subtitle": "Carico cardiovascolare giornaliero"
+      },
+      "cardio": {
+        "title": "Cuore ed energia del giorno",
+        "subtitle": "Totali cardiaci ed energetici dell'intera giornata"
+      },
+      "scoreLink": {
+        "title": "Punteggio di recupero",
+        "subtitle": "Vedi come si scompone il punteggio notturno",
+        "cta": "Apri"
+      }
+    },
+    "bodyTempDeviation": {
+      "title": "Deviazione della temperatura corporea",
+      "subtitle": "Scostamento notturno dalla tua linea di base"
+    }
   },
   "thresholds": {
     "defaultLabel": "Predefinito",
