@@ -4,8 +4,14 @@
  * `mapSleep` (per-stage SLEEP_DURATION rows, SLEEP_NEED, the SLEEP_*
  * percentages, RESPIRATORY_RATE), and upserts as `source = WHOOP`.
  *
- * Per-stage rows carry the `sleepStage` axis so the five stage rows for one
- * night stay distinct under the dedup key. externalId = `<sleep_id>:<fieldTag>`.
+ * Sleep rows carry the `sleepStage` axis so the night's rows stay distinct
+ * under the dedup key. WHOOP exposes only per-stage DURATION totals (no onset
+ * timestamps), so `mapSleep` RECONSTRUCTS an ordered, contiguous per-segment
+ * timeline (CORE/DEEP/REM/AWAKE laid back-to-back from sleep onset) and flags
+ * those rows `reconstructed`; each reconstructed segment carries its own
+ * indexed externalId `<sleep_id>:seg:<tag>:<i>`. IN_BED stays a single
+ * envelope row keyed `<sleep_id>:sleep_in_bed`. The non-segment scores keep
+ * the `<sleep_id>:<fieldTag>` shape.
  */
 import { fetchSleeps, fetchSleepById, mapSleep } from "./client";
 import {
@@ -53,7 +59,10 @@ export async function syncUserSleep(
         value: m.value,
         unit: m.unit,
         measuredAt: m.measuredAt,
-        externalId: `${s.id}:${m.fieldTag}`,
+        // Reconstructed sleep segments carry their own indexed externalId so
+        // the several rows of one stage stay distinct; everything else keeps
+        // the `<sleep_id>:<fieldTag>` shape.
+        externalId: m.externalId ?? `${s.id}:${m.fieldTag}`,
         sleepStage: m.sleepStage ?? null,
       });
     }
@@ -92,7 +101,9 @@ export async function syncWhoopSleepById(
       value: m.value,
       unit: m.unit,
       measuredAt: m.measuredAt,
-      externalId: `${record.id}:${m.fieldTag}`,
+      // Reconstructed sleep segments carry their own indexed externalId
+      // (see syncUserSleep).
+      externalId: m.externalId ?? `${record.id}:${m.fieldTag}`,
       sleepStage: m.sleepStage ?? null,
     });
   }

@@ -200,6 +200,11 @@ const sleepSessionResource = z.object({
   inBedMinutes: z.number().int().nonnegative().nullable(),
   awakeMinutes: z.number().int().nonnegative().nullable(),
   awakenings: z.number().int().nonnegative(),
+  reconstructed: z
+    .boolean()
+    .describe(
+      "True when the source has no per-stage onset timestamps and the server synthesised a contiguous timeline in a fixed physiological order (WHOOP). The client renders the hypnogram but labels it an approximate layout and never recomputes. False for real-series sources (Apple Health / Withings / Fitbit).",
+    ),
   stages: z.record(sleepStageEnum, z.number().int().nonnegative()),
   segments: z.array(sleepSegmentResource),
 });

@@ -21,6 +21,13 @@ import {
   enqueueBootTimeFitbitBackfill,
   type FitbitBackfillPayload,
 } from "@/lib/jobs/fitbit-backfill";
+import {
+  SLEEP_TIMELINE_BACKFILL_QUEUE,
+  SLEEP_TIMELINE_BACKFILL_CONCURRENCY,
+  runSleepTimelineBackfillForUser,
+  enqueueBootTimeSleepTimelineBackfill,
+  type SleepTimelineBackfillPayload,
+} from "@/lib/jobs/sleep-timeline-backfill";
 import { reportWorkerError } from "@/lib/jobs/report-worker-error";
 import { markWorkerStarted, recordError } from "@/lib/jobs/worker-status";
 import { setGlobalBoss } from "@/lib/jobs/boss-instance";
@@ -629,6 +636,13 @@ export async function startReminderWorker() {
     FITBIT_SYNC_QUEUE,
     FITBIT_BACKFILL_QUEUE,
     FITBIT_OAUTH_STATE_CLEANUP_QUEUE,
+    // v1.17.1 — one-shot sleep-timeline backfill for WHOOP + Withings.
+    // Discovery enqueues one job per connection whose sleep rows predate the
+    // stamp/shape fix; the pass deletes the affected SLEEP_DURATION rows and
+    // re-syncs. Idempotent across reboots. The queue MUST be registered here or
+    // pg-boss never provisions it and the boot enqueue silently never drains
+    // (the v1.4.37 dead-queue class).
+    SLEEP_TIMELINE_BACKFILL_QUEUE,
     // v1.17.0 — Nightscout CGM poll sync. Poll-only (no webhook, no OAuth, no
     // backfill queue — the hourly window walks the recent SGV set). The queue
     // MUST be registered here or pg-boss never provisions it and the schedule
@@ -1055,6 +1069,27 @@ export async function startReminderWorker() {
     FITBIT_OAUTH_STATE_CLEANUP_QUEUE,
     { localConcurrency: 1 },
     handleFitbitOAuthStateCleanup,
+  );
+  // v1.17.1 — one-shot sleep-timeline backfill. The boot enqueue below sends
+  // one job per (user, provider) whose sleep rows predate the stamp/shape fix;
+  // this handler deletes the affected rows, re-syncs, and stamps the marker so
+  // the discovery query drops the connection.
+  await boss.work<SleepTimelineBackfillPayload>(
+    SLEEP_TIMELINE_BACKFILL_QUEUE,
+    { localConcurrency: SLEEP_TIMELINE_BACKFILL_CONCURRENCY },
+    async (jobs) => {
+      for (const job of jobs) {
+        const { userId, provider } = job.data;
+        const { deleted, imported } = await runSleepTimelineBackfillForUser(
+          userId,
+          provider,
+        );
+        workerLog(
+          "info",
+          `[sleep-timeline-backfill] user=${userId} provider=${provider} deleted=${deleted} imported=${imported}`,
+        );
+      }
+    },
   );
   // v1.17.0 — Nightscout CGM poll-cohort sync. The hourly cron tick (no
   // `userId`) walks every configured instance; one user's unreachable host is
@@ -1878,6 +1913,34 @@ export async function startReminderWorker() {
     workerLog(
       "error",
       "[fitbit-backfill] boot discovery threw an unexpected error",
+      err,
+    );
+  }
+
+  // v1.17.1 — fire-and-forget boot discovery for the one-shot sleep-timeline
+  // backfill. Finds every WHOOP + Withings connection whose sleep rows predate
+  // the stamp/shape fix and enqueues one job per (user, provider). Idempotent
+  // across reboots: a completed pass stamps `sleepTimelineBackfillAt`, dropping
+  // the connection from the discovery set. Errors come back through the
+  // helper's result value — the worker boot never fails because of a miss.
+  try {
+    const { enqueued, skipped, error } =
+      await enqueueBootTimeSleepTimelineBackfill();
+    if (error) {
+      workerLog(
+        "error",
+        `[sleep-timeline-backfill] boot discovery failed: ${error}`,
+      );
+    } else {
+      workerLog(
+        "info",
+        `[sleep-timeline-backfill] boot discovery: enqueued=${enqueued} skipped=${skipped}`,
+      );
+    }
+  } catch (err) {
+    workerLog(
+      "error",
+      "[sleep-timeline-backfill] boot discovery threw an unexpected error",
       err,
     );
   }

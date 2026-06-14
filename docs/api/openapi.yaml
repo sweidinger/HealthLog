@@ -8982,6 +8982,11 @@ components:
                   type: integer
                   minimum: 0
                   maximum: 9007199254740991
+                reconstructed:
+                  type: boolean
+                  description: True when the source has no per-stage onset timestamps and the server synthesised a contiguous timeline in
+                    a fixed physiological order (WHOOP). The client renders the hypnogram but labels it an approximate
+                    layout and never recomputes. False for real-series sources (Apple Health / Withings / Fitbit).
                 stages:
                   type: object
                   propertyNames:
@@ -9047,6 +9052,7 @@ components:
                 - inBedMinutes
                 - awakeMinutes
                 - awakenings
+                - reconstructed
                 - stages
                 - segments
               additionalProperties: false
@@ -9102,6 +9108,11 @@ components:
                 type: integer
                 minimum: 0
                 maximum: 9007199254740991
+              reconstructed:
+                type: boolean
+                description: True when the source has no per-stage onset timestamps and the server synthesised a contiguous timeline in
+                  a fixed physiological order (WHOOP). The client renders the hypnogram but labels it an approximate
+                  layout and never recomputes. False for real-series sources (Apple Health / Withings / Fitbit).
               stages:
                 type: object
                 propertyNames:
@@ -9167,6 +9178,7 @@ components:
               - inBedMinutes
               - awakeMinutes
               - awakenings
+              - reconstructed
               - stages
               - segments
             additionalProperties: false
