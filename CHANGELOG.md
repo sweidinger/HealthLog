@@ -2,6 +2,45 @@
 
 ## [Unreleased]
 
+## [1.17.1] — 2026-06-15 — preventive care, lab results, and more of the data you already have
+
+This release closes the loop from tracking to acting. Preventive-care reminders tell you when to measure or check what, structured lab results give your bloodwork a home, and a new recovery view surfaces signals that were already being collected but never shown. Sleep timelines now read in real clock times, marking a dose on one device clears its reminder on the others within seconds, and self-hosters gain a generic webhook channel, email, one-tap Web Push setup and a proper notifications guide. Every new number is computed once on the server and read the same way on the dashboard, the coach, the doctor-report and the companion app. No breaking changes.
+
+### Added
+
+- **Preventive-care reminders.** Set a reminder to measure your blood pressure on a cadence or to schedule an annual blood panel, with a clear next-due date and where to do it. A matching measurement marks it done on its own; the rest you tick off. Reminders reach you over every notification channel, and the cards stay calm — status is a quiet badge, never an alarming colour.
+- **Structured lab results.** Record bloodwork and biomarkers with their reference range, see each one trend over time, and carry them into the doctor-report PDF and the FHIR export. An out-of-range value is shown plainly, not in red.
+- **A recovery view, and sleep quality in depth.** A new recovery page gathers strain, training load and autonomic-charge readings, and the sleep page gains an efficiency, performance and sleep-score block — metrics a connected device was already sending that nothing surfaced before. Each appears only once it has data and stays calm until it has enough to be sure.
+- **Import and backdated entry.** Import a CSV of past measurements with a previewed, per-row result and unit conversion, and log an entry with a past date and time — the cold-start escape hatches for bringing existing history in.
+- **Onboarding that does what it says.** A short, skippable health-baseline step, and the goals you pick now actually seed your dashboard.
+- **Polar and Oura credentials in the browser.** Both connect with your own developer-app credentials entered in settings, like the other integrations — no environment file needed.
+- **More ways to be notified.** A generic webhook channel reaches a self-hosted notifier or a chat service, an email channel sends over your own SMTP server, and an operator can see delivery health across every channel. Web Push keys can be generated in one click from the admin panel.
+
+### Changed
+
+- **Sleep reads in real clock times.** Per-stage rows now carry their own start and end, so the "last night" timeline lays out across the night instead of stacking — measured where the device reports stage timing, and an honestly-labelled reconstruction where it only reports stage totals. Nights logged by more than one source resolve to a single total.
+- **A dose taken on one device clears the others in seconds.** Marking a dose sends a silent sync to your other devices, so a lock-screen reminder ends without waiting for the next app open.
+- **More of a connected device's data flows in.** Readiness contributors, body-temperature deviation, blood-oxygen, a sleep score and autonomic-charge and training-load now come through where the source provides them. Body weight is never taken from a wearable strap.
+- **One product across every screen.** Desktop and mobile navigation now tell the same story, the coach has a single home, the layout and reminder settings each gather under one hub, and every integration card links to its setup guide.
+
+### Fixed
+
+- Sleep nights from some sources were stamped at the wrong instant and sat shifted earlier in the day; corrected, with a one-time backfill that re-syncs affected nights.
+- The doctor-report sleep figure now matches the dashboard and the companion app, reading the same reconstructed per-night total as every other surface.
+- Polish across the new surfaces: consistent loading and empty states, design-token colours, responsive grids, and a calm confirmation for regenerating Web Push keys.
+
+### Security
+
+- The webhook channel pins a public host and refuses a private or loopback address unless explicitly allowed; webhook secrets, SMTP credentials and the Web Push private key are kept out of any recorded error; the key-generation and delivery-health endpoints are reachable only from an authenticated admin session, never a token.
+
+### Self-hosting
+
+- A notifications guide spells out that no Apple account is needed — Web Push, Telegram, ntfy, the new webhook and email all work without one — alongside a backup-and-restore callout and a clearer note on which variables must be whitelisted to reach the container.
+
+### Operator note
+
+- Migrations 0162–0166 are additive. A boot-time backfill re-syncs sleep nights from the affected sources to the corrected timeline once; it is idempotent and bounded.
+
 ## [1.17.0] — 2026-06-14 — clinical depth for glucose and sleep, and three new sources
 
 This release builds new depth on the coherent foundation laid over the v1.16 line. Blood glucose gains a clinical panel, sleep gains a debt and chronotype reading, and three new data sources — Nightscout, Polar and Oura — join Withings, WHOOP, Fitbit and Apple Health. Every new metric is computed once on the server and read the same way on the dashboard, the coach, the doctor-report and the companion app, and each holds back a confident reading behind a calm "still learning" state until it has enough data. No breaking changes.
