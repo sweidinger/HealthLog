@@ -204,7 +204,6 @@ function hhmmToMinutes(hhmm: string): number {
  * validator's window. Slot-distance / medication-start checks stay in
  * the routes — the schema cannot see the medication.
  */
-export const TAKEN_AT_CLOCK_SKEW_MS = 5 * 60 * 1000;
 export const TAKEN_AT_MAX_AGE_MS = 5 * 365 * 24 * 60 * 60 * 1000;
 
 /**
