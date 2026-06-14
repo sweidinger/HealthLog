@@ -77,6 +77,18 @@ services:
       # container (the `environment:` block is a whitelist).
       WHOOP_WEBHOOK_SECRET: "${WHOOP_WEBHOOK_SECRET:-}"
       WHOOP_REDIRECT_URI: "${WHOOP_REDIRECT_URI:-}"
+      # v1.17.0 (F4) — Polar AccessLink + Oura Cloud OAuth (shared app from
+      # env). Both pairs together enable each connect button; an unset pair
+      # leaves that integration disabled. The optional *_REDIRECT_URI overrides
+      # the derived `${NEXT_PUBLIC_APP_URL}/api/{polar,oura}/callback`. Listed
+      # here so operator values in .env reach the container (the `environment:`
+      # block is a whitelist).
+      POLAR_CLIENT_ID: "${POLAR_CLIENT_ID:-}"
+      POLAR_CLIENT_SECRET: "${POLAR_CLIENT_SECRET:-}"
+      POLAR_REDIRECT_URI: "${POLAR_REDIRECT_URI:-}"
+      OURA_CLIENT_ID: "${OURA_CLIENT_ID:-}"
+      OURA_CLIENT_SECRET: "${OURA_CLIENT_SECRET:-}"
+      OURA_REDIRECT_URI: "${OURA_REDIRECT_URI:-}"
       # Deploy-result webhook (optional). DEPLOY_WEBHOOK_SECRET authenticates
       # POST /api/internal/deploy-webhook; DEPLOY_LOGS_URL is the
       # deployment-dashboard URL (e.g. the Coolify UI) linked in

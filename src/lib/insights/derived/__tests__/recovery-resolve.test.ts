@@ -81,6 +81,38 @@ describe("resolveCanonicalRecovery", () => {
     expect(resolved[0].value).toBe(82);
   });
 
+  it("ranks native OURA + POLAR readiness above the COMPUTED proxy", () => {
+    // Same night (wake Jun 02): an Oura readiness and a Polar Nightly Recharge
+    // row both stamped on the wake day, plus the COMPUTED proxy filed under the
+    // day-that-ended (Jun 01). Oura must win over Polar, and both must win over
+    // COMPUTED — the v1.17.0 (F4) ladder WHOOP > OURA > POLAR > COMPUTED.
+    const oura = [
+      row("2026-06-02T00:00:00Z", 84, "OURA"),
+      row("2026-06-01T12:00:00Z", 50, "COMPUTED"),
+    ];
+    const resolvedOura = resolveCanonicalRecovery(oura);
+    expect(resolvedOura).toHaveLength(1);
+    expect(resolvedOura[0].source).toBe("OURA");
+    expect(resolvedOura[0].value).toBe(84);
+
+    const ouraVsPolar = [
+      row("2026-06-02T00:00:00Z", 84, "OURA"),
+      row("2026-06-02T00:00:00Z", 60, "POLAR"),
+      row("2026-06-01T12:00:00Z", 50, "COMPUTED"),
+    ];
+    const resolvedBoth = resolveCanonicalRecovery(ouraVsPolar);
+    expect(resolvedBoth).toHaveLength(1);
+    expect(resolvedBoth[0].source).toBe("OURA");
+
+    const polarOnly = [
+      row("2026-06-02T00:00:00Z", 60, "POLAR"),
+      row("2026-06-01T12:00:00Z", 50, "COMPUTED"),
+    ];
+    const resolvedPolar = resolveCanonicalRecovery(polarOnly);
+    expect(resolvedPolar).toHaveLength(1);
+    expect(resolvedPolar[0].source).toBe("POLAR");
+  });
+
   it("returns an empty list for no rows", () => {
     expect(resolveCanonicalRecovery([])).toEqual([]);
   });

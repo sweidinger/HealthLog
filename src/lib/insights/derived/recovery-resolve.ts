@@ -52,13 +52,19 @@ export interface RecoveryRow {
 }
 
 /**
- * The per-source preference for `RECOVERY_SCORE`: a native WHOOP row outranks
- * the COMPUTED proxy for the same day. Lower number = higher authority. A
- * source not listed (there is none today) falls back below both.
+ * The per-source preference for `RECOVERY_SCORE`: a native device row outranks
+ * the COMPUTED proxy for the same day. Lower number = higher authority. The
+ * ladder mirrors `DEFAULT_SOURCE_PRIORITY.recovery`
+ * (`WHOOP > OURA > POLAR > COMPUTED`): WHOOP's all-night strap leads, then the
+ * Oura ring readiness and the Polar Nightly Recharge band, then the computed
+ * proxy as the fallback for users without a wearable. A source not listed falls
+ * below all of them.
  */
 const RECOVERY_SOURCE_RANK: Partial<Record<MeasurementSource, number>> = {
   WHOOP: 0,
-  COMPUTED: 1,
+  OURA: 1,
+  POLAR: 2,
+  COMPUTED: 3,
 };
 
 function rankOf(source: MeasurementSource): number {

@@ -34,6 +34,14 @@ export const integrationKeys = {
   nightscout: () => ["nightscout"] as const,
   nightscoutStatus: () => ["nightscout", "status"] as const,
 
+  // v1.17.0 (F4) — Polar + Oura OAuth integration cards. Self-contained status
+  // reads (not the consolidated /api/integrations/status envelope), so the
+  // connect/disconnect mutations invalidate these single keys.
+  polar: () => ["polar"] as const,
+  polarStatus: () => ["polar", "status"] as const,
+  oura: () => ["oura"] as const,
+  ouraStatus: () => ["oura", "status"] as const,
+
   moodlogStatus: () => ["moodlog-status"] as const,
   integrationsStatus: () => ["integrations", "status"] as const,
 
