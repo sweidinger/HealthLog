@@ -4,6 +4,7 @@ import { Activity, Droplet, TrendingUp } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { LearningGate } from "@/components/ui/learning-gate";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/hooks/use-auth";
 import { useAnalyticsQuery } from "@/lib/queries/use-analytics-query";
@@ -99,18 +100,19 @@ export function GlucoseClinicalPanel() {
             {t("insights.bloodGlucose.clinical.learningTitle")}
           </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-3">
-          <p className="text-muted-foreground text-sm" data-slot="glucose-learning-body">
-            {hasAny
-              ? t("insights.bloodGlucose.clinical.learningBody", {
-                  count: readingsLabel,
-                  days: daysLabel,
-                })
-              : t("insights.bloodGlucose.clinical.learningBodyEmpty")}
-          </p>
-          <p className="text-muted-foreground/80 text-xs">
-            {t("insights.bloodGlucose.clinical.spotCaveat")}
-          </p>
+        <CardContent>
+          <LearningGate
+            bodySlot="glucose-learning-body"
+            message={
+              hasAny
+                ? t("insights.bloodGlucose.clinical.learningBody", {
+                    count: readingsLabel,
+                    days: daysLabel,
+                  })
+                : t("insights.bloodGlucose.clinical.learningBodyEmpty")
+            }
+            caveat={t("insights.bloodGlucose.clinical.spotCaveat")}
+          />
         </CardContent>
       </Card>
     );

@@ -6,6 +6,7 @@ import { Clock, ChevronDown, ChevronUp } from "lucide-react";
 import { useTranslations } from "@/lib/i18n/context";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { LearningGate } from "@/components/ui/learning-gate";
 import type { ChronotypeDto } from "./use-sleep-rhythm";
 
 /** Minutes-of-day → "HH:MM" wall-clock label (24 h, zero-padded). */
@@ -48,12 +49,12 @@ export function ChronotypeCard({ chronotype }: { chronotype: ChronotypeDto }) {
           </div>
         </CardHeader>
         <CardContent>
-          <p className="text-muted-foreground text-sm">
-            {t("insights.sleep.chronotype.learning", {
+          <LearningGate
+            message={t("insights.sleep.chronotype.learning", {
               counted: chronotype.freeNightsCounted,
               total: need,
             })}
-          </p>
+          />
         </CardContent>
       </Card>
     );

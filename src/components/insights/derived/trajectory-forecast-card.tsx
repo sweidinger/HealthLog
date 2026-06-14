@@ -6,6 +6,7 @@ import { TrendingUp, TrendingDown, Minus } from "lucide-react";
 
 import { useTranslations } from "@/lib/i18n/context";
 import { cn } from "@/lib/utils";
+import { LearningGate } from "@/components/ui/learning-gate";
 import { CoverageMeter } from "@/components/insights/derived/coverage-meter";
 import { ProvenanceExplainer } from "@/components/insights/derived/provenance-explainer";
 import { METRIC_PROVENANCE } from "@/components/insights/derived/standards";
@@ -237,25 +238,18 @@ export function TrajectoryForecastCard({
     return (
       <div className={className}>
         <CardShell provenance={data.provenance} compact={compact}>
-          <p
-            className={cn(
-              "text-muted-foreground",
-              compact ? "text-xs leading-snug" : "text-sm",
-            )}
-            data-slot="trajectory-insufficient"
-          >
-            {t("insights.derived.trajectory.insufficient")}
-          </p>
-          {daysNeeded > 0 ? (
-            <p
-              className="text-muted-foreground text-xs leading-snug"
-              data-slot="trajectory-days-needed"
-            >
-              {t("insights.derived.trajectory.daysNeeded", {
-                count: daysNeeded,
-              })}
-            </p>
-          ) : null}
+          <LearningGate
+            compact={compact}
+            bodySlot="trajectory-insufficient"
+            message={t("insights.derived.trajectory.insufficient")}
+            caveat={
+              daysNeeded > 0
+                ? t("insights.derived.trajectory.daysNeeded", {
+                    count: daysNeeded,
+                  })
+                : undefined
+            }
+          />
           <CoverageMeter coverage={data.coverage} />
         </CardShell>
       </div>
