@@ -29,6 +29,14 @@ import {
   reconstructSleepNights,
   type SleepStageRow,
 } from "@/lib/analytics/sleep-night";
+import {
+  reconstructNights,
+  sleepNeedMinutes,
+} from "@/lib/insights/derived/sleep-score";
+import {
+  computeSleepRhythmFromNights,
+  type SleepRhythmDto,
+} from "@/lib/insights/derived/sleep-rhythm";
 import { compactSections } from "@/lib/ai/prompts/compact-sections";
 import { annotate } from "@/lib/logging/context";
 import { buildGlp1SnapshotBlock } from "./glp1-snapshot";
@@ -89,6 +97,18 @@ const DEFAULT_WINDOW: CoachScopeWindow = "last30days";
  * renders.
  */
 const GLUCOSE_CLINICAL_WINDOW_DAYS = 30;
+
+/**
+ * v1.17.0 — the sleep-rhythm read (sleep-debt + chronotype) is a fixed
+ * trailing-window artifact, identical across the Sleep page, the dashboard
+ * summary, and (here) the coach. Pinned independently of the coach's variable
+ * narration window (7/30/90/365) so the coach's debt + chronotype band always
+ * equal what the page renders. Mirrors `DEFAULT_WINDOW_DAYS` in
+ * `sleep-rhythm.ts`: 42 days gives the 14-night debt window full coverage and
+ * ~12 weekend nights for a stable MSF — the assembler self-caps each signal to
+ * its own window, so feeding the same 42-day rows yields the page's DTO.
+ */
+const SLEEP_RHYTHM_WINDOW_DAYS = 42;
 
 /**
  * v1.7.0 — assembled-snapshot soft char cap. After the snapshot is
@@ -841,6 +861,37 @@ async function buildCoachSnapshotImpl(
         },
       })
     : null;
+  // v1.17.0 — sleep-rhythm rows. The sleep-debt + chronotype DTO is a fixed
+  // trailing-42-day artifact (the Sleep page + dashboard read the same window),
+  // so it must NOT ride the coach's variable narration window or the
+  // multi-cluster timeline cap, or the coach would quote a debt / chronotype
+  // band the page never shows. Read the rhythm's own trailing-42-day rows
+  // directly (one indexed query, only when the sleep cluster is active) and
+  // hand them to the SAME assembler the dashboard route uses. The per-stage
+  // narration timeline above keeps using the coach-window `sleepRows`.
+  const sleepRhythmCutoff = new Date(
+    now.getTime() - SLEEP_RHYTHM_WINDOW_DAYS * 24 * 60 * 60 * 1000,
+  );
+  const sleepRhythmRowsPromise = sources.has("sleep")
+    ? prisma.measurement.findMany({
+        where: {
+          userId,
+          type: "SLEEP_DURATION" as never,
+          measuredAt: { gte: sleepRhythmCutoff },
+          deletedAt: null,
+        },
+        orderBy: { measuredAt: "asc" },
+        // source + deviceType feed the canonical writer-dedup so a multi-source
+        // night is counted ONCE, matching every other sleep surface.
+        select: {
+          value: true,
+          measuredAt: true,
+          sleepStage: true,
+          source: true,
+          deviceType: true,
+        },
+      })
+    : null;
   const workoutRowsPromise = sources.has("workouts")
     ? prisma.workout.findMany({
         where: { userId, startedAt: { gte: additiveCutoff("workouts") } },
@@ -911,6 +962,7 @@ async function buildCoachSnapshotImpl(
     moodRows,
     complianceMeds,
     sleepRows,
+    sleepRhythmRows,
     workoutRows,
     glucoseClinicalRows,
     glp1Block,
@@ -922,6 +974,7 @@ async function buildCoachSnapshotImpl(
     moodRowsPromise,
     complianceMedsPromise,
     sleepRowsPromise,
+    sleepRhythmRowsPromise,
     workoutRowsPromise,
     glucoseClinicalRowsPromise,
     glp1BlockPromise,
@@ -1325,6 +1378,56 @@ async function buildCoachSnapshotImpl(
       counts.sleep = sleepRows.length;
       registerBlock("sleep", "sleep");
     }
+  }
+
+  // ── v1.17.0 sleep-rhythm block (sleep-debt + chronotype) ──────────
+  //
+  // The two server-authoritative timing signals the Sleep page + the
+  // dashboard summary render — cumulative sleep debt and the MCTQ
+  // chronotype band + social jetlag. Built from the SAME assembler the
+  // dashboard route uses (`reconstructNights` → `computeSleepRhythmFromNights`),
+  // over the rhythm's OWN fixed trailing-42-day rows, so the coach quotes the
+  // exact debt + band the page shows regardless of the coach's narration
+  // window. ONE ENGINE: this never recomputes sleep-debt or chronotype inline —
+  // the math lives in `sleep-debt.ts` / `chronotype.ts`, reached through the
+  // assembler. The `needMinutes` is the SAME age-resolved need the derived
+  // block + Sleep Score read (`sleepNeedMinutes(ageYears)`), and the
+  // `sourcePriorityJson` is the one already loaded for the per-stage sleep
+  // block above — no extra read beyond the rhythm rows.
+  //
+  // LEARNING-GATE HONESTY: both signals carry a calm `partial` / `learning`
+  // state below their night thresholds. The chronotype `band` is emitted ONLY
+  // when the state is `ready` — a learning chronotype is surfaced as
+  // "still calibrating", never asserted as a band the data can't support.
+  if (sources.has("sleep") && sleepRhythmRows && sleepRhythmRows.length > 0) {
+    const rhythm: SleepRhythmDto = computeSleepRhythmFromNights(
+      reconstructNights(
+        sleepRhythmRows as SleepStageRow[],
+        userTz,
+        prefsRow?.sourcePriorityJson ?? null,
+      ),
+      sleepNeedMinutes(derivedProfile.ageYears),
+    );
+    const chronotypeReady = rhythm.chronotype.state === "ready";
+    snapshot.sleepRhythm = {
+      sleepDebt: {
+        state: rhythm.sleepDebt.state,
+        debtMinutes: rhythm.sleepDebt.debtMinutes,
+        needMinutes: rhythm.sleepDebt.needMinutes,
+      },
+      chronotype: {
+        state: rhythm.chronotype.state,
+        // Only assert a band + social jetlag once the chronotype is `ready`.
+        // A `learning` chronotype carries no band the data supports — the
+        // model treats it as "still calibrating", never a typed assertion.
+        band: chronotypeReady ? rhythm.chronotype.band : null,
+        socialJetlagMinutes: chronotypeReady
+          ? rhythm.chronotype.socialJetlagMinutes
+          : null,
+      },
+    };
+    metrics.add("sleep");
+    registerBlock("sleepRhythm", "sleep");
   }
 
   // ── v1.7.0 glucose block (per-context daily means) ────────────────
