@@ -61,10 +61,13 @@ describe("SETTINGS_SECTION_SLUGS", () => {
     // slugs (`dashboard`, `insights`, `medications`, `mood`) keep their
     // routes so deep links resolve, but they are reached through the
     // Layout hub instead of four standalone nav entries.
+    // v1.17.1 — `reminders` is the one "Reminders & Notifications" home and
+    // sits right after `notifications`.
     expect([...SETTINGS_SECTION_SLUGS]).toEqual([
       "account",
       "integrations",
       "notifications",
+      "reminders",
       "layout",
       "dashboard",
       "insights",
