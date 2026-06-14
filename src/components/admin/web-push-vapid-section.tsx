@@ -1,12 +1,16 @@
 "use client";
 
 import { useState } from "react";
-import { BellRing, Loader2 } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
+import { BellRing, KeyRound, Loader2 } from "lucide-react";
 import { SettingsCardHeader } from "@/components/settings/_card-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useTranslations } from "@/lib/i18n/context";
+import { apiFetchRaw } from "@/lib/api/api-fetch";
+import { queryKeys } from "@/lib/query-keys";
 import {
   ConfiguredBadge,
   PasswordInput,
@@ -16,6 +20,7 @@ import {
 
 export function WebPushVapidSection() {
   const { t } = useTranslations();
+  const queryClient = useQueryClient();
   const { data: settings } = useAdminSettings();
   const updateSettings = useUpdateSettings();
   const [webPushVapidPublicKeyDraft, setWebPushVapidPublicKeyDraft] = useState<
@@ -26,6 +31,7 @@ export function WebPushVapidSection() {
   const [webPushVapidSubjectDraft, setWebPushVapidSubjectDraft] = useState<
     string | null
   >(null);
+  const [generating, setGenerating] = useState(false);
 
   const webPushVapidPublicKeyValue =
     webPushVapidPublicKeyDraft ?? settings?.webPushVapidPublicKey ?? "";
@@ -50,6 +56,53 @@ export function WebPushVapidSection() {
         setWebPushVapidSubjectDraft(null);
       },
     });
+  }
+
+  async function generateVapidKeys(force: boolean) {
+    setGenerating(true);
+    try {
+      const res = await apiFetchRaw(
+        "/api/admin/settings/web-push-vapid/generate",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(force ? { force: true } : {}),
+        },
+      );
+
+      if (res.status === 409) {
+        // Overwrite guard — existing keys would be replaced. Confirm with
+        // the operator (regenerating invalidates current subscriptions),
+        // then retry with force.
+        if (window.confirm(t("admin.webPushVapidGenerateConfirm"))) {
+          await generateVapidKeys(true);
+        }
+        return;
+      }
+
+      if (!res.ok) {
+        toast.error(t("admin.webPushVapidGenerateFailed"));
+        return;
+      }
+
+      const json = (await res.json()) as {
+        data: { webPushVapidPublicKey: string; webPushVapidSubject: string };
+      };
+      // The private key was minted and encrypted server-side; only the
+      // public key + subject come back. Populate the visible fields and
+      // leave the private-key input empty (it stays "configured").
+      setWebPushVapidPublicKeyDraft(json.data.webPushVapidPublicKey);
+      setWebPushVapidSubjectDraft(json.data.webPushVapidSubject);
+      setWebPushVapidPrivateKeyDraft("");
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.adminSettings(),
+      });
+      toast.success(t("admin.webPushVapidGenerated"));
+    } catch {
+      toast.error(t("admin.webPushVapidGenerateFailed"));
+    } finally {
+      setGenerating(false);
+    }
   }
 
   return (
@@ -122,6 +175,21 @@ export function WebPushVapidSection() {
       </div>
 
       <div className="mt-4 flex justify-end gap-2">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => void generateVapidKeys(false)}
+          disabled={generating || updateSettings.isPending}
+        >
+          {generating ? (
+            <Loader2 className="h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
+          ) : (
+            <KeyRound className="h-3.5 w-3.5" />
+          )}
+          {generating
+            ? t("admin.webPushVapidGenerating")
+            : t("admin.webPushVapidGenerate")}
+        </Button>
         <Button
           size="sm"
           onClick={saveWebPushVapidSettings}
