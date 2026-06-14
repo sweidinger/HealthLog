@@ -1634,6 +1634,9 @@ paths:
               - COMPUTED
               - WHOOP
               - FITBIT
+              - NIGHTSCOUT
+              - POLAR
+              - OURA
         - in: query
           name: groupBy
           schema:
@@ -2080,6 +2083,9 @@ paths:
                           - COMPUTED
                           - WHOOP
                           - FITBIT
+                          - NIGHTSCOUT
+                          - POLAR
+                          - OURA
                       externalId:
                         type: string
                         maxLength: 128
@@ -3083,6 +3089,9 @@ paths:
                       - COMPUTED
                       - WHOOP
                       - FITBIT
+                      - NIGHTSCOUT
+                      - POLAR
+                      - OURA
                 activeEnergy:
                   maxItems: 8
                   type: array
@@ -3096,6 +3105,9 @@ paths:
                       - COMPUTED
                       - WHOOP
                       - FITBIT
+                      - NIGHTSCOUT
+                      - POLAR
+                      - OURA
                 walkingRunningDistance:
                   maxItems: 8
                   type: array
@@ -3109,6 +3121,9 @@ paths:
                       - COMPUTED
                       - WHOOP
                       - FITBIT
+                      - NIGHTSCOUT
+                      - POLAR
+                      - OURA
                 flightsClimbed:
                   maxItems: 8
                   type: array
@@ -3122,6 +3137,9 @@ paths:
                       - COMPUTED
                       - WHOOP
                       - FITBIT
+                      - NIGHTSCOUT
+                      - POLAR
+                      - OURA
                 sleep:
                   maxItems: 8
                   type: array
@@ -3135,6 +3153,9 @@ paths:
                       - COMPUTED
                       - WHOOP
                       - FITBIT
+                      - NIGHTSCOUT
+                      - POLAR
+                      - OURA
                 weight:
                   maxItems: 8
                   type: array
@@ -3148,6 +3169,9 @@ paths:
                       - COMPUTED
                       - WHOOP
                       - FITBIT
+                      - NIGHTSCOUT
+                      - POLAR
+                      - OURA
                 bloodPressure:
                   maxItems: 8
                   type: array
@@ -3161,6 +3185,9 @@ paths:
                       - COMPUTED
                       - WHOOP
                       - FITBIT
+                      - NIGHTSCOUT
+                      - POLAR
+                      - OURA
                 pulse:
                   maxItems: 8
                   type: array
@@ -3174,6 +3201,9 @@ paths:
                       - COMPUTED
                       - WHOOP
                       - FITBIT
+                      - NIGHTSCOUT
+                      - POLAR
+                      - OURA
                 bodyFat:
                   maxItems: 8
                   type: array
@@ -3187,6 +3217,9 @@ paths:
                       - COMPUTED
                       - WHOOP
                       - FITBIT
+                      - NIGHTSCOUT
+                      - POLAR
+                      - OURA
                 bodyTemperature:
                   maxItems: 8
                   type: array
@@ -3200,6 +3233,9 @@ paths:
                       - COMPUTED
                       - WHOOP
                       - FITBIT
+                      - NIGHTSCOUT
+                      - POLAR
+                      - OURA
                 spo2:
                   maxItems: 8
                   type: array
@@ -3213,6 +3249,9 @@ paths:
                       - COMPUTED
                       - WHOOP
                       - FITBIT
+                      - NIGHTSCOUT
+                      - POLAR
+                      - OURA
                 hrv:
                   maxItems: 8
                   type: array
@@ -3226,6 +3265,9 @@ paths:
                       - COMPUTED
                       - WHOOP
                       - FITBIT
+                      - NIGHTSCOUT
+                      - POLAR
+                      - OURA
                 restingHeartRate:
                   maxItems: 8
                   type: array
@@ -3239,6 +3281,9 @@ paths:
                       - COMPUTED
                       - WHOOP
                       - FITBIT
+                      - NIGHTSCOUT
+                      - POLAR
+                      - OURA
                 vo2Max:
                   maxItems: 8
                   type: array
@@ -3252,6 +3297,9 @@ paths:
                       - COMPUTED
                       - WHOOP
                       - FITBIT
+                      - NIGHTSCOUT
+                      - POLAR
+                      - OURA
                 skinTemperature:
                   maxItems: 8
                   type: array
@@ -3265,6 +3313,9 @@ paths:
                       - COMPUTED
                       - WHOOP
                       - FITBIT
+                      - NIGHTSCOUT
+                      - POLAR
+                      - OURA
                 respiratoryRate:
                   maxItems: 8
                   type: array
@@ -3278,6 +3329,9 @@ paths:
                       - COMPUTED
                       - WHOOP
                       - FITBIT
+                      - NIGHTSCOUT
+                      - POLAR
+                      - OURA
                 recovery:
                   maxItems: 8
                   type: array
@@ -3291,6 +3345,9 @@ paths:
                       - COMPUTED
                       - WHOOP
                       - FITBIT
+                      - NIGHTSCOUT
+                      - POLAR
+                      - OURA
                 metricPriority:
                   type: object
                   properties:
@@ -3307,6 +3364,9 @@ paths:
                           - COMPUTED
                           - WHOOP
                           - FITBIT
+                          - NIGHTSCOUT
+                          - POLAR
+                          - OURA
                     activeEnergy:
                       maxItems: 8
                       type: array
@@ -3320,6 +3380,9 @@ paths:
                           - COMPUTED
                           - WHOOP
                           - FITBIT
+                          - NIGHTSCOUT
+                          - POLAR
+                          - OURA
                     walkingRunningDistance:
                       maxItems: 8
                       type: array
@@ -3333,6 +3396,9 @@ paths:
                           - COMPUTED
                           - WHOOP
                           - FITBIT
+                          - NIGHTSCOUT
+                          - POLAR
+                          - OURA
                     flightsClimbed:
                       maxItems: 8
                       type: array
@@ -3346,6 +3412,9 @@ paths:
                           - COMPUTED
                           - WHOOP
                           - FITBIT
+                          - NIGHTSCOUT
+                          - POLAR
+                          - OURA
                     sleep:
                       maxItems: 8
                       type: array
@@ -3359,6 +3428,9 @@ paths:
                           - COMPUTED
                           - WHOOP
                           - FITBIT
+                          - NIGHTSCOUT
+                          - POLAR
+                          - OURA
                     weight:
                       maxItems: 8
                       type: array
@@ -3372,6 +3444,9 @@ paths:
                           - COMPUTED
                           - WHOOP
                           - FITBIT
+                          - NIGHTSCOUT
+                          - POLAR
+                          - OURA
                     bloodPressure:
                       maxItems: 8
                       type: array
@@ -3385,6 +3460,9 @@ paths:
                           - COMPUTED
                           - WHOOP
                           - FITBIT
+                          - NIGHTSCOUT
+                          - POLAR
+                          - OURA
                     pulse:
                       maxItems: 8
                       type: array
@@ -3398,6 +3476,9 @@ paths:
                           - COMPUTED
                           - WHOOP
                           - FITBIT
+                          - NIGHTSCOUT
+                          - POLAR
+                          - OURA
                     bodyFat:
                       maxItems: 8
                       type: array
@@ -3411,6 +3492,9 @@ paths:
                           - COMPUTED
                           - WHOOP
                           - FITBIT
+                          - NIGHTSCOUT
+                          - POLAR
+                          - OURA
                     bodyTemperature:
                       maxItems: 8
                       type: array
@@ -3424,6 +3508,9 @@ paths:
                           - COMPUTED
                           - WHOOP
                           - FITBIT
+                          - NIGHTSCOUT
+                          - POLAR
+                          - OURA
                     spo2:
                       maxItems: 8
                       type: array
@@ -3437,6 +3524,9 @@ paths:
                           - COMPUTED
                           - WHOOP
                           - FITBIT
+                          - NIGHTSCOUT
+                          - POLAR
+                          - OURA
                     hrv:
                       maxItems: 8
                       type: array
@@ -3450,6 +3540,9 @@ paths:
                           - COMPUTED
                           - WHOOP
                           - FITBIT
+                          - NIGHTSCOUT
+                          - POLAR
+                          - OURA
                     restingHeartRate:
                       maxItems: 8
                       type: array
@@ -3463,6 +3556,9 @@ paths:
                           - COMPUTED
                           - WHOOP
                           - FITBIT
+                          - NIGHTSCOUT
+                          - POLAR
+                          - OURA
                     vo2Max:
                       maxItems: 8
                       type: array
@@ -3476,6 +3572,9 @@ paths:
                           - COMPUTED
                           - WHOOP
                           - FITBIT
+                          - NIGHTSCOUT
+                          - POLAR
+                          - OURA
                     skinTemperature:
                       maxItems: 8
                       type: array
@@ -3489,6 +3588,9 @@ paths:
                           - COMPUTED
                           - WHOOP
                           - FITBIT
+                          - NIGHTSCOUT
+                          - POLAR
+                          - OURA
                     respiratoryRate:
                       maxItems: 8
                       type: array
@@ -3502,6 +3604,9 @@ paths:
                           - COMPUTED
                           - WHOOP
                           - FITBIT
+                          - NIGHTSCOUT
+                          - POLAR
+                          - OURA
                     recovery:
                       maxItems: 8
                       type: array
@@ -3515,6 +3620,9 @@ paths:
                           - COMPUTED
                           - WHOOP
                           - FITBIT
+                          - NIGHTSCOUT
+                          - POLAR
+                          - OURA
                 deviceTypePriority:
                   type: object
                   properties:
@@ -8157,6 +8265,9 @@ components:
             - COMPUTED
             - WHOOP
             - FITBIT
+            - NIGHTSCOUT
+            - POLAR
+            - OURA
         notes:
           anyOf:
             - type: string
@@ -8583,6 +8694,9 @@ components:
             - COMPUTED
             - WHOOP
             - FITBIT
+            - NIGHTSCOUT
+            - POLAR
+            - OURA
         notes:
           anyOf:
             - type: string
@@ -8797,6 +8911,9 @@ components:
                         - COMPUTED
                         - WHOOP
                         - FITBIT
+                        - NIGHTSCOUT
+                        - POLAR
+                        - OURA
                     - type: "null"
                 start:
                   type: string
@@ -8914,6 +9031,9 @@ components:
                       - COMPUTED
                       - WHOOP
                       - FITBIT
+                      - NIGHTSCOUT
+                      - POLAR
+                      - OURA
                   - type: "null"
               start:
                 type: string
@@ -9120,6 +9240,9 @@ components:
             - COMPUTED
             - WHOOP
             - FITBIT
+            - NIGHTSCOUT
+            - POLAR
+            - OURA
         externalId:
           anyOf:
             - type: string
@@ -9225,6 +9348,9 @@ components:
             - COMPUTED
             - WHOOP
             - FITBIT
+            - NIGHTSCOUT
+            - POLAR
+            - OURA
         externalId:
           anyOf:
             - type: string
@@ -11176,6 +11302,9 @@ components:
                   - COMPUTED
                   - WHOOP
                   - FITBIT
+                  - NIGHTSCOUT
+                  - POLAR
+                  - OURA
             activeEnergy:
               maxItems: 8
               type: array
@@ -11189,6 +11318,9 @@ components:
                   - COMPUTED
                   - WHOOP
                   - FITBIT
+                  - NIGHTSCOUT
+                  - POLAR
+                  - OURA
             walkingRunningDistance:
               maxItems: 8
               type: array
@@ -11202,6 +11334,9 @@ components:
                   - COMPUTED
                   - WHOOP
                   - FITBIT
+                  - NIGHTSCOUT
+                  - POLAR
+                  - OURA
             flightsClimbed:
               maxItems: 8
               type: array
@@ -11215,6 +11350,9 @@ components:
                   - COMPUTED
                   - WHOOP
                   - FITBIT
+                  - NIGHTSCOUT
+                  - POLAR
+                  - OURA
             sleep:
               maxItems: 8
               type: array
@@ -11228,6 +11366,9 @@ components:
                   - COMPUTED
                   - WHOOP
                   - FITBIT
+                  - NIGHTSCOUT
+                  - POLAR
+                  - OURA
             weight:
               maxItems: 8
               type: array
@@ -11241,6 +11382,9 @@ components:
                   - COMPUTED
                   - WHOOP
                   - FITBIT
+                  - NIGHTSCOUT
+                  - POLAR
+                  - OURA
             bloodPressure:
               maxItems: 8
               type: array
@@ -11254,6 +11398,9 @@ components:
                   - COMPUTED
                   - WHOOP
                   - FITBIT
+                  - NIGHTSCOUT
+                  - POLAR
+                  - OURA
             pulse:
               maxItems: 8
               type: array
@@ -11267,6 +11414,9 @@ components:
                   - COMPUTED
                   - WHOOP
                   - FITBIT
+                  - NIGHTSCOUT
+                  - POLAR
+                  - OURA
             bodyFat:
               maxItems: 8
               type: array
@@ -11280,6 +11430,9 @@ components:
                   - COMPUTED
                   - WHOOP
                   - FITBIT
+                  - NIGHTSCOUT
+                  - POLAR
+                  - OURA
             bodyTemperature:
               maxItems: 8
               type: array
@@ -11293,6 +11446,9 @@ components:
                   - COMPUTED
                   - WHOOP
                   - FITBIT
+                  - NIGHTSCOUT
+                  - POLAR
+                  - OURA
             spo2:
               maxItems: 8
               type: array
@@ -11306,6 +11462,9 @@ components:
                   - COMPUTED
                   - WHOOP
                   - FITBIT
+                  - NIGHTSCOUT
+                  - POLAR
+                  - OURA
             hrv:
               maxItems: 8
               type: array
@@ -11319,6 +11478,9 @@ components:
                   - COMPUTED
                   - WHOOP
                   - FITBIT
+                  - NIGHTSCOUT
+                  - POLAR
+                  - OURA
             restingHeartRate:
               maxItems: 8
               type: array
@@ -11332,6 +11494,9 @@ components:
                   - COMPUTED
                   - WHOOP
                   - FITBIT
+                  - NIGHTSCOUT
+                  - POLAR
+                  - OURA
             vo2Max:
               maxItems: 8
               type: array
@@ -11345,6 +11510,9 @@ components:
                   - COMPUTED
                   - WHOOP
                   - FITBIT
+                  - NIGHTSCOUT
+                  - POLAR
+                  - OURA
             skinTemperature:
               maxItems: 8
               type: array
@@ -11358,6 +11526,9 @@ components:
                   - COMPUTED
                   - WHOOP
                   - FITBIT
+                  - NIGHTSCOUT
+                  - POLAR
+                  - OURA
             respiratoryRate:
               maxItems: 8
               type: array
@@ -11371,6 +11542,9 @@ components:
                   - COMPUTED
                   - WHOOP
                   - FITBIT
+                  - NIGHTSCOUT
+                  - POLAR
+                  - OURA
             recovery:
               maxItems: 8
               type: array
@@ -11384,6 +11558,9 @@ components:
                   - COMPUTED
                   - WHOOP
                   - FITBIT
+                  - NIGHTSCOUT
+                  - POLAR
+                  - OURA
             metricPriority:
               type: object
               properties:
@@ -11400,6 +11577,9 @@ components:
                       - COMPUTED
                       - WHOOP
                       - FITBIT
+                      - NIGHTSCOUT
+                      - POLAR
+                      - OURA
                 activeEnergy:
                   maxItems: 8
                   type: array
@@ -11413,6 +11593,9 @@ components:
                       - COMPUTED
                       - WHOOP
                       - FITBIT
+                      - NIGHTSCOUT
+                      - POLAR
+                      - OURA
                 walkingRunningDistance:
                   maxItems: 8
                   type: array
@@ -11426,6 +11609,9 @@ components:
                       - COMPUTED
                       - WHOOP
                       - FITBIT
+                      - NIGHTSCOUT
+                      - POLAR
+                      - OURA
                 flightsClimbed:
                   maxItems: 8
                   type: array
@@ -11439,6 +11625,9 @@ components:
                       - COMPUTED
                       - WHOOP
                       - FITBIT
+                      - NIGHTSCOUT
+                      - POLAR
+                      - OURA
                 sleep:
                   maxItems: 8
                   type: array
@@ -11452,6 +11641,9 @@ components:
                       - COMPUTED
                       - WHOOP
                       - FITBIT
+                      - NIGHTSCOUT
+                      - POLAR
+                      - OURA
                 weight:
                   maxItems: 8
                   type: array
@@ -11465,6 +11657,9 @@ components:
                       - COMPUTED
                       - WHOOP
                       - FITBIT
+                      - NIGHTSCOUT
+                      - POLAR
+                      - OURA
                 bloodPressure:
                   maxItems: 8
                   type: array
@@ -11478,6 +11673,9 @@ components:
                       - COMPUTED
                       - WHOOP
                       - FITBIT
+                      - NIGHTSCOUT
+                      - POLAR
+                      - OURA
                 pulse:
                   maxItems: 8
                   type: array
@@ -11491,6 +11689,9 @@ components:
                       - COMPUTED
                       - WHOOP
                       - FITBIT
+                      - NIGHTSCOUT
+                      - POLAR
+                      - OURA
                 bodyFat:
                   maxItems: 8
                   type: array
@@ -11504,6 +11705,9 @@ components:
                       - COMPUTED
                       - WHOOP
                       - FITBIT
+                      - NIGHTSCOUT
+                      - POLAR
+                      - OURA
                 bodyTemperature:
                   maxItems: 8
                   type: array
@@ -11517,6 +11721,9 @@ components:
                       - COMPUTED
                       - WHOOP
                       - FITBIT
+                      - NIGHTSCOUT
+                      - POLAR
+                      - OURA
                 spo2:
                   maxItems: 8
                   type: array
@@ -11530,6 +11737,9 @@ components:
                       - COMPUTED
                       - WHOOP
                       - FITBIT
+                      - NIGHTSCOUT
+                      - POLAR
+                      - OURA
                 hrv:
                   maxItems: 8
                   type: array
@@ -11543,6 +11753,9 @@ components:
                       - COMPUTED
                       - WHOOP
                       - FITBIT
+                      - NIGHTSCOUT
+                      - POLAR
+                      - OURA
                 restingHeartRate:
                   maxItems: 8
                   type: array
@@ -11556,6 +11769,9 @@ components:
                       - COMPUTED
                       - WHOOP
                       - FITBIT
+                      - NIGHTSCOUT
+                      - POLAR
+                      - OURA
                 vo2Max:
                   maxItems: 8
                   type: array
@@ -11569,6 +11785,9 @@ components:
                       - COMPUTED
                       - WHOOP
                       - FITBIT
+                      - NIGHTSCOUT
+                      - POLAR
+                      - OURA
                 skinTemperature:
                   maxItems: 8
                   type: array
@@ -11582,6 +11801,9 @@ components:
                       - COMPUTED
                       - WHOOP
                       - FITBIT
+                      - NIGHTSCOUT
+                      - POLAR
+                      - OURA
                 respiratoryRate:
                   maxItems: 8
                   type: array
@@ -11595,6 +11817,9 @@ components:
                       - COMPUTED
                       - WHOOP
                       - FITBIT
+                      - NIGHTSCOUT
+                      - POLAR
+                      - OURA
                 recovery:
                   maxItems: 8
                   type: array
@@ -11608,6 +11833,9 @@ components:
                       - COMPUTED
                       - WHOOP
                       - FITBIT
+                      - NIGHTSCOUT
+                      - POLAR
+                      - OURA
               additionalProperties: false
             deviceTypePriority:
               type: object
@@ -11670,6 +11898,9 @@ components:
                   - COMPUTED
                   - WHOOP
                   - FITBIT
+                  - NIGHTSCOUT
+                  - POLAR
+                  - OURA
             activeEnergy:
               maxItems: 8
               type: array
@@ -11683,6 +11914,9 @@ components:
                   - COMPUTED
                   - WHOOP
                   - FITBIT
+                  - NIGHTSCOUT
+                  - POLAR
+                  - OURA
             walkingRunningDistance:
               maxItems: 8
               type: array
@@ -11696,6 +11930,9 @@ components:
                   - COMPUTED
                   - WHOOP
                   - FITBIT
+                  - NIGHTSCOUT
+                  - POLAR
+                  - OURA
             flightsClimbed:
               maxItems: 8
               type: array
@@ -11709,6 +11946,9 @@ components:
                   - COMPUTED
                   - WHOOP
                   - FITBIT
+                  - NIGHTSCOUT
+                  - POLAR
+                  - OURA
             sleep:
               maxItems: 8
               type: array
@@ -11722,6 +11962,9 @@ components:
                   - COMPUTED
                   - WHOOP
                   - FITBIT
+                  - NIGHTSCOUT
+                  - POLAR
+                  - OURA
             weight:
               maxItems: 8
               type: array
@@ -11735,6 +11978,9 @@ components:
                   - COMPUTED
                   - WHOOP
                   - FITBIT
+                  - NIGHTSCOUT
+                  - POLAR
+                  - OURA
             bloodPressure:
               maxItems: 8
               type: array
@@ -11748,6 +11994,9 @@ components:
                   - COMPUTED
                   - WHOOP
                   - FITBIT
+                  - NIGHTSCOUT
+                  - POLAR
+                  - OURA
             pulse:
               maxItems: 8
               type: array
@@ -11761,6 +12010,9 @@ components:
                   - COMPUTED
                   - WHOOP
                   - FITBIT
+                  - NIGHTSCOUT
+                  - POLAR
+                  - OURA
             bodyFat:
               maxItems: 8
               type: array
@@ -11774,6 +12026,9 @@ components:
                   - COMPUTED
                   - WHOOP
                   - FITBIT
+                  - NIGHTSCOUT
+                  - POLAR
+                  - OURA
             bodyTemperature:
               maxItems: 8
               type: array
@@ -11787,6 +12042,9 @@ components:
                   - COMPUTED
                   - WHOOP
                   - FITBIT
+                  - NIGHTSCOUT
+                  - POLAR
+                  - OURA
             spo2:
               maxItems: 8
               type: array
@@ -11800,6 +12058,9 @@ components:
                   - COMPUTED
                   - WHOOP
                   - FITBIT
+                  - NIGHTSCOUT
+                  - POLAR
+                  - OURA
             hrv:
               maxItems: 8
               type: array
@@ -11813,6 +12074,9 @@ components:
                   - COMPUTED
                   - WHOOP
                   - FITBIT
+                  - NIGHTSCOUT
+                  - POLAR
+                  - OURA
             restingHeartRate:
               maxItems: 8
               type: array
@@ -11826,6 +12090,9 @@ components:
                   - COMPUTED
                   - WHOOP
                   - FITBIT
+                  - NIGHTSCOUT
+                  - POLAR
+                  - OURA
             vo2Max:
               maxItems: 8
               type: array
@@ -11839,6 +12106,9 @@ components:
                   - COMPUTED
                   - WHOOP
                   - FITBIT
+                  - NIGHTSCOUT
+                  - POLAR
+                  - OURA
             skinTemperature:
               maxItems: 8
               type: array
@@ -11852,6 +12122,9 @@ components:
                   - COMPUTED
                   - WHOOP
                   - FITBIT
+                  - NIGHTSCOUT
+                  - POLAR
+                  - OURA
             respiratoryRate:
               maxItems: 8
               type: array
@@ -11865,6 +12138,9 @@ components:
                   - COMPUTED
                   - WHOOP
                   - FITBIT
+                  - NIGHTSCOUT
+                  - POLAR
+                  - OURA
             recovery:
               maxItems: 8
               type: array
@@ -11878,6 +12154,9 @@ components:
                   - COMPUTED
                   - WHOOP
                   - FITBIT
+                  - NIGHTSCOUT
+                  - POLAR
+                  - OURA
             metricPriority:
               type: object
               properties:
@@ -11894,6 +12173,9 @@ components:
                       - COMPUTED
                       - WHOOP
                       - FITBIT
+                      - NIGHTSCOUT
+                      - POLAR
+                      - OURA
                 activeEnergy:
                   maxItems: 8
                   type: array
@@ -11907,6 +12189,9 @@ components:
                       - COMPUTED
                       - WHOOP
                       - FITBIT
+                      - NIGHTSCOUT
+                      - POLAR
+                      - OURA
                 walkingRunningDistance:
                   maxItems: 8
                   type: array
@@ -11920,6 +12205,9 @@ components:
                       - COMPUTED
                       - WHOOP
                       - FITBIT
+                      - NIGHTSCOUT
+                      - POLAR
+                      - OURA
                 flightsClimbed:
                   maxItems: 8
                   type: array
@@ -11933,6 +12221,9 @@ components:
                       - COMPUTED
                       - WHOOP
                       - FITBIT
+                      - NIGHTSCOUT
+                      - POLAR
+                      - OURA
                 sleep:
                   maxItems: 8
                   type: array
@@ -11946,6 +12237,9 @@ components:
                       - COMPUTED
                       - WHOOP
                       - FITBIT
+                      - NIGHTSCOUT
+                      - POLAR
+                      - OURA
                 weight:
                   maxItems: 8
                   type: array
@@ -11959,6 +12253,9 @@ components:
                       - COMPUTED
                       - WHOOP
                       - FITBIT
+                      - NIGHTSCOUT
+                      - POLAR
+                      - OURA
                 bloodPressure:
                   maxItems: 8
                   type: array
@@ -11972,6 +12269,9 @@ components:
                       - COMPUTED
                       - WHOOP
                       - FITBIT
+                      - NIGHTSCOUT
+                      - POLAR
+                      - OURA
                 pulse:
                   maxItems: 8
                   type: array
@@ -11985,6 +12285,9 @@ components:
                       - COMPUTED
                       - WHOOP
                       - FITBIT
+                      - NIGHTSCOUT
+                      - POLAR
+                      - OURA
                 bodyFat:
                   maxItems: 8
                   type: array
@@ -11998,6 +12301,9 @@ components:
                       - COMPUTED
                       - WHOOP
                       - FITBIT
+                      - NIGHTSCOUT
+                      - POLAR
+                      - OURA
                 bodyTemperature:
                   maxItems: 8
                   type: array
@@ -12011,6 +12317,9 @@ components:
                       - COMPUTED
                       - WHOOP
                       - FITBIT
+                      - NIGHTSCOUT
+                      - POLAR
+                      - OURA
                 spo2:
                   maxItems: 8
                   type: array
@@ -12024,6 +12333,9 @@ components:
                       - COMPUTED
                       - WHOOP
                       - FITBIT
+                      - NIGHTSCOUT
+                      - POLAR
+                      - OURA
                 hrv:
                   maxItems: 8
                   type: array
@@ -12037,6 +12349,9 @@ components:
                       - COMPUTED
                       - WHOOP
                       - FITBIT
+                      - NIGHTSCOUT
+                      - POLAR
+                      - OURA
                 restingHeartRate:
                   maxItems: 8
                   type: array
@@ -12050,6 +12365,9 @@ components:
                       - COMPUTED
                       - WHOOP
                       - FITBIT
+                      - NIGHTSCOUT
+                      - POLAR
+                      - OURA
                 vo2Max:
                   maxItems: 8
                   type: array
@@ -12063,6 +12381,9 @@ components:
                       - COMPUTED
                       - WHOOP
                       - FITBIT
+                      - NIGHTSCOUT
+                      - POLAR
+                      - OURA
                 skinTemperature:
                   maxItems: 8
                   type: array
@@ -12076,6 +12397,9 @@ components:
                       - COMPUTED
                       - WHOOP
                       - FITBIT
+                      - NIGHTSCOUT
+                      - POLAR
+                      - OURA
                 respiratoryRate:
                   maxItems: 8
                   type: array
@@ -12089,6 +12413,9 @@ components:
                       - COMPUTED
                       - WHOOP
                       - FITBIT
+                      - NIGHTSCOUT
+                      - POLAR
+                      - OURA
                 recovery:
                   maxItems: 8
                   type: array
@@ -12102,6 +12429,9 @@ components:
                       - COMPUTED
                       - WHOOP
                       - FITBIT
+                      - NIGHTSCOUT
+                      - POLAR
+                      - OURA
               additionalProperties: false
             deviceTypePriority:
               type: object

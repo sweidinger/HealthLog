@@ -109,6 +109,32 @@ model User {
   fitbitClientIdEncrypted     String? @map("fitbit_client_id_encrypted")
   fitbitClientSecretEncrypted String? @map("fitbit_client_secret_encrypted")
 
+  // v1.17.0 — Nightscout glucose integration (F1, per-user, encrypted at app
+  // level). A self-hoster points HealthLog at their own Nightscout instance:
+  // the base URL + the API token / secret are stored encrypted. By default
+  // the base URL must resolve to a public host (the SSRF floor); a self-hoster
+  // running Nightscout on a private/LAN network can flip
+  // `nightscoutAllowPrivateHost` to opt that instance past the public-host
+  // requirement explicitly.
+  nightscoutUrlEncrypted   String?  @map("nightscout_url_encrypted")
+  nightscoutTokenEncrypted String?  @map("nightscout_token_encrypted")
+  nightscoutAllowPrivateHost Boolean @default(false) @map("nightscout_allow_private_host")
+
+  // v1.17.0 — Polar OAuth credentials (F4, per-user, encrypted at app level).
+  // Mirrors the WHOOP credential columns: the per-app authorized-user cap on
+  // Polar AccessLink makes a single shared app unworkable for a multi-operator
+  // product, so each self-hoster registers their own Polar app and the OAuth
+  // tokens are stored encrypted.
+  polarAccessTokenEncrypted  String? @map("polar_access_token_encrypted")
+  polarRefreshTokenEncrypted String? @map("polar_refresh_token_encrypted")
+  polarUserIdEncrypted       String? @map("polar_user_id_encrypted")
+
+  // v1.17.0 — Oura OAuth credentials (F4, per-user, encrypted at app level).
+  // Mirrors the WHOOP credential columns; OAuth access/refresh tokens stored
+  // encrypted.
+  ouraAccessTokenEncrypted  String? @map("oura_access_token_encrypted")
+  ouraRefreshTokenEncrypted String? @map("oura_refresh_token_encrypted")
+
   // moodLog integration (per-user, encrypted)
   moodLogUrlEncrypted    String?   @map("mood_log_url_encrypted")
   moodLogApiKeyEncrypted String?   @map("mood_log_api_key_encrypted")
@@ -790,6 +816,19 @@ enum MeasurementSource {
   // (no client write path); rejected on batch + single POST like WITHINGS/WHOOP.
   // iOS DTO mirrors this exact spelling so /api/sync/changes decodes the rows.
   FITBIT
+  // v1.17.0 — Nightscout glucose integration (F1). Server-owned (no client
+  // write path); glucose rows ingest from the user's Nightscout instance.
+  // Rejected on batch + single POST like WITHINGS/WHOOP/FITBIT. iOS DTO
+  // mirrors this exact spelling so /api/sync/changes decodes the rows.
+  NIGHTSCOUT
+  // v1.17.0 — Polar OAuth integration (F4). Server-owned (no client write
+  // path); rejected on batch + single POST like WITHINGS/WHOOP/FITBIT. iOS
+  // DTO mirrors this exact spelling so /api/sync/changes decodes the rows.
+  POLAR
+  // v1.17.0 — Oura OAuth integration (F4). Server-owned (no client write
+  // path); rejected on batch + single POST like WITHINGS/WHOOP/FITBIT. iOS
+  // DTO mirrors this exact spelling so /api/sync/changes decodes the rows.
+  OURA
 
   @@map("measurement_source")
 }

@@ -217,11 +217,35 @@ describe("DEFAULT_SOURCE_PRIORITY", () => {
     }
   });
 
-  it("ranks WHOOP native recovery above the COMPUTED proxy (v1.11)", () => {
-    // v1.11.0 — native-vs-derived: the device-native Recovery outranks
+  it("ranks device-native recovery above the COMPUTED proxy (v1.11/v1.17)", () => {
+    // v1.11.0 — native-vs-derived: a device-native Recovery outranks
     // HealthLog's COMPUTED proxy when both exist, with the proxy as the
-    // fallback for users without a strap.
-    expect(DEFAULT_SOURCE_PRIORITY.recovery).toEqual(["WHOOP", "COMPUTED"]);
+    // fallback for users without a wearable. v1.17.0 — Oura readiness and
+    // Polar nightly recovery slot between WHOOP and the proxy.
+    expect(DEFAULT_SOURCE_PRIORITY.recovery).toEqual([
+      "WHOOP",
+      "OURA",
+      "POLAR",
+      "COMPUTED",
+    ]);
+    // The COMPUTED proxy stays the last resort regardless of how many
+    // native wearables precede it.
+    expect(DEFAULT_SOURCE_PRIORITY.recovery.at(-1)).toBe("COMPUTED");
+  });
+
+  it("slots Polar + Oura below the established wearables (v1.17)", () => {
+    // v1.17.0 — Polar / Oura are worn wearables in the same overnight class
+    // as WHOOP/Fitbit; they rank below the established straps but above the
+    // iPhone-relayed HealthKit summary and the Withings nightly summary on
+    // the recovery-input ladders.
+    for (const key of ["sleep", "hrv", "restingHeartRate"] as const) {
+      const ladder = DEFAULT_SOURCE_PRIORITY[key];
+      expect(ladder).toContain("OURA");
+      expect(ladder).toContain("POLAR");
+      expect(ladder.indexOf("OURA")).toBeLessThan(ladder.indexOf("APPLE_HEALTH"));
+      expect(ladder.indexOf("POLAR")).toBeLessThan(ladder.indexOf("APPLE_HEALTH"));
+      expect(ladder.indexOf("WHOOP")).toBeLessThan(ladder.indexOf("OURA"));
+    }
   });
 });
 
