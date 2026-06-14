@@ -30,8 +30,12 @@ interface SheetSectionProps {
   summary?: React.ReactNode;
   /** Optional leading icon (a Lucide component or any node). */
   icon?: React.ReactNode;
-  /** Whether the section starts expanded. Defaults to collapsed. */
+  /** Whether the section starts expanded (uncontrolled). Defaults to closed. */
   defaultOpen?: boolean;
+  /** Controlled open state. When set, pair with `onOpenChange`. */
+  open?: boolean;
+  /** Controlled open-state change handler. */
+  onOpenChange?: (open: boolean) => void;
   /** Optional className merged onto the section wrapper. */
   className?: string;
   children: React.ReactNode;
@@ -42,12 +46,15 @@ export function SheetSection({
   summary,
   icon,
   defaultOpen = false,
+  open,
+  onOpenChange,
   className,
   children,
 }: SheetSectionProps) {
   return (
     <CollapsiblePrimitive.Root
-      defaultOpen={defaultOpen}
+      // Controlled when `open` is provided, otherwise uncontrolled.
+      {...(open === undefined ? { defaultOpen } : { open, onOpenChange })}
       data-slot="sheet-section"
       className={cn("border-border/60 border-t pt-3", className)}
     >

@@ -720,7 +720,12 @@
       "iconGroupWeather": "Météo",
       "iconGroupPlaces": "Lieux",
       "iconGroupMisc": "Autres"
-    }
+    },
+    "sectionMoreTags": "Plus de tags",
+    "sectionFactors": "Facteurs",
+    "sectionNoteDetails": "Note et détails",
+    "quickTagsHelp": "Vos tags fréquents — en un geste",
+    "quickTagsExpand": "Plus"
   },
   "medications": {
     "title": "Médicaments",
