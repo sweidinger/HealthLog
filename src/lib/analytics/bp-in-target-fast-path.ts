@@ -76,6 +76,12 @@ import type { BpTargets } from "./bp-targets";
 export interface BpInTargetEnvelope {
   last7Days: { pct: number; pairs: number } | null;
   last30Days: { pct: number; pairs: number } | null;
+  /**
+   * v1.17 W1d — trailing-90-day window. Canonical window for the
+   * BD-Zielbereich headline, the Health-Score BP pillar and the coach
+   * grounding number. See `computeBpInTargetWindows` for the rationale.
+   */
+  last90Days: { pct: number; pairs: number } | null;
   allTime: { pct: number; pairs: number } | null;
   priorMonth: { pct: number; pairs: number } | null;
   priorYear: { pct: number; pairs: number } | null;
@@ -274,12 +280,15 @@ async function computeFromRollups(
 
   const sevenDaysAgo = new Date(now.getTime() - 7 * DAY_MS);
   const thirtyDaysAgo = new Date(now.getTime() - 30 * DAY_MS);
+  const ninetyDaysAgo = new Date(now.getTime() - 90 * DAY_MS);
   const sixtyDaysAgo = new Date(now.getTime() - 60 * DAY_MS);
   const threeSixtyFiveDaysAgo = new Date(now.getTime() - 365 * DAY_MS);
   const threeNinetyFiveDaysAgo = new Date(now.getTime() - 395 * DAY_MS);
 
   const last7 = bucketWindow(pairsByDay, sevenDaysAgo, now, targets);
   const last30 = bucketWindow(pairsByDay, thirtyDaysAgo, now, targets);
+  // v1.17 W1d — canonical headline / score / coach window.
+  const last90 = bucketWindow(pairsByDay, ninetyDaysAgo, now, targets);
   // All-time on the rollup path is bounded to the 395-day read window.
   // Documented above — same trade-off the per-event path makes when the
   // user's history extends beyond 365 days.
@@ -339,6 +348,7 @@ async function computeFromRollups(
   return {
     last7Days: last7,
     last30Days: last30,
+    last90Days: last90,
     allTime,
     priorMonth,
     priorYear,
@@ -453,6 +463,7 @@ async function computeFromLive(
   return {
     last7Days: windows.last7Days,
     last30Days: windows.last30Days,
+    last90Days: windows.last90Days,
     allTime: windows.allTime,
     priorMonth: windows.priorMonth,
     priorYear: windows.priorYear,

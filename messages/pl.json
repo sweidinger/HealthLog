@@ -326,6 +326,7 @@
     "stepsShort": "Kroki",
     "vo2MaxShort": "VO₂ max",
     "bpInTargetShort": "RR-cel",
+    "bpInTargetWindow90": "RR-cel · 90 d",
     "medications": "Leki",
     "quickAddMeasurement": "Zarejestruj pomiar",
     "quickAddMood": "Zarejestruj nastrój",

@@ -242,6 +242,8 @@ async function buildAnalyticsResponse(user: AuthedUser) {
   let bpInTargetPct: number | null = null;
   let bpInTargetPct7d: number | null = null;
   let bpInTargetPct30d: number | null = null;
+  // v1.17 W1d — the canonical 90-day window for the headline / score / coach.
+  let bpInTargetPct90d: number | null = null;
   let bpInTargetPctAllTime: number | null = null;
   /**
    * v1.4.22 W5 reconcile (Code-H2) — period-aligned prior-window
@@ -262,10 +264,11 @@ async function buildAnalyticsResponse(user: AuthedUser) {
    * the resulting `last30Days.pct`.
    */
   let bpInTargetPctPriorWeek: number | null = null;
-  // All-time prior-week BP pct — feeds the Health-Score delta so its BP
-  // pillar compares the same window on both ends (the tile headline keeps
-  // its 30-day scope; the score reads all-time per its documented contract).
-  let windowsPriorWeekAllTime: number | null = null;
+  // v1.17 W1d — prior-week 90-day BP pct. Feeds the Health-Score delta so
+  // its BP pillar compares the same 90-day window on both ends, identical
+  // to the headline scope. (Pre-v1.17 the score read all-time; W1d
+  // unifies headline + score + coach on 90 days.)
+  let windowsPriorWeekForScore: number | null = null;
   // v1.15.12 A1 — graded clinical-proximity BP score (recency-weighted
   // representative reading) for the Health-Score BP pillar value, plus
   // the prior-week run for the week-over-week delta.
@@ -315,20 +318,24 @@ async function buildAnalyticsResponse(user: AuthedUser) {
         userTz,
       }),
     ]);
-    bpInTargetPct = windows.last30Days?.pct ?? null;
+    // v1.17 W1d — the BD-Zielbereich headline standardises on the
+    // trailing-90-day window (labelled "· 90 T" in the tile). All-time
+    // remains carried below for the BP detail page's long view only.
+    bpInTargetPct = windows.last90Days?.pct ?? null;
     bpInTargetPct7d = windows.last7Days?.pct ?? null;
     bpInTargetPct30d = windows.last30Days?.pct ?? null;
+    bpInTargetPct90d = windows.last90Days?.pct ?? null;
     bpInTargetPctAllTime = windows.allTime?.pct ?? null;
     bpInTargetPctPriorMonth = windows.priorMonth?.pct ?? null;
     bpInTargetPctPriorYear = windows.priorYear?.pct ?? null;
-    bpInTargetPctPriorWeek = windowsPriorWeek.last30Days?.pct ?? null;
+    bpInTargetPctPriorWeek = windowsPriorWeek.last90Days?.pct ?? null;
     bpGradedScore = windows.gradedScore;
     bpGradedScorePriorWeek = windowsPriorWeek.gradedScore;
-    // The Health-Score BP pillar reads the all-time window (see the
-    // `bpInTargetPctForScore` derivation below). Capture the prior-week
-    // run's all-time pct too so the week-over-week delta compares the
+    // v1.17 W1d — the Health-Score BP pillar reads the same 90-day window
+    // as the headline (see `bpInTargetPctForScore` below). Capture the
+    // prior-week run's 90-day pct so the week-over-week delta compares the
     // same window on both ends.
-    windowsPriorWeekAllTime = windowsPriorWeek.allTime?.pct ?? null;
+    windowsPriorWeekForScore = windowsPriorWeek.last90Days?.pct ?? null;
   }
 
   // Per-context glucose summaries (canonical mg/dL).
@@ -396,9 +403,14 @@ async function buildAnalyticsResponse(user: AuthedUser) {
   // all-time rate, so route the all-time window through; fall back to the
   // 30-day window only when the all-time window is itself null (it never
   // is when 30-day has data), so a brand-new account is unaffected.
-  const bpInTargetPctForScore = bpInTargetPctAllTime ?? bpInTargetPct;
+  // v1.17 W1d — the Health-Score BP pillar reads the SAME 90-day window as
+  // the BD-Zielbereich tile headline, so the dashboard ring and the
+  // insights card grade the BP pillar off one number. Fall back to the
+  // all-time rate only when the 90-day window is itself null so a
+  // sparse-but-historical account still surfaces a BP pillar.
+  const bpInTargetPctForScore = bpInTargetPct90d ?? bpInTargetPctAllTime;
   const bpInTargetPctPriorWeekForScore =
-    windowsPriorWeekAllTime ?? bpInTargetPctPriorWeek;
+    windowsPriorWeekForScore ?? bpInTargetPctPriorWeek;
   const healthScore = await computeUserHealthScoreFastPath({
     userId: user.id,
     bpInTargetPct: bpInTargetPctForScore,

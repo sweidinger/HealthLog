@@ -142,6 +142,7 @@ describe("buildDashboardSnapshot — envelope shape", () => {
     computeBpInTargetFastPath.mockResolvedValue({
       last7Days: { pct: 70 },
       last30Days: { pct: 80 },
+      last90Days: { pct: 80 },
       allTime: { pct: 75 },
       priorMonth: { pct: 60 },
       priorYear: { pct: 50 },
@@ -182,6 +183,7 @@ describe("buildDashboardSnapshot — envelope shape", () => {
     computeBpInTargetFastPath.mockResolvedValue({
       last7Days: { pct: 70 },
       last30Days: { pct: 80 },
+      last90Days: { pct: 80 },
       allTime: { pct: 75 },
       priorMonth: { pct: 60 },
       priorYear: { pct: 50 },
@@ -238,6 +240,7 @@ describe("buildDashboardSnapshot — per-type thick-phase gate", () => {
     computeBpInTargetFastPath.mockResolvedValue({
       last7Days: { pct: 70 },
       last30Days: { pct: 80 },
+      last90Days: { pct: 80 },
       allTime: { pct: 75 },
       priorMonth: { pct: 60 },
       priorYear: { pct: 50 },
@@ -279,6 +282,7 @@ describe("buildDashboardSnapshot — per-type thick-phase gate", () => {
     computeBpInTargetFastPath.mockResolvedValue({
       last7Days: null,
       last30Days: null,
+      last90Days: null,
       allTime: null,
       priorMonth: null,
       priorYear: null,
@@ -364,6 +368,8 @@ describe("buildDashboardSnapshot — healthScore (warm phase only)", () => {
     computeBpInTargetFastPath.mockResolvedValue({
       last7Days: { pct: 70 },
       last30Days: { pct: 80 },
+      // v1.17 W1d — the BP pillar reads this 90-day window, NOT last30Days.
+      last90Days: { pct: 77 },
       allTime: { pct: 75 },
       priorMonth: { pct: 60 },
       priorYear: { pct: 50 },
@@ -392,7 +398,10 @@ describe("buildDashboardSnapshot — healthScore (warm phase only)", () => {
       coverage: unknown;
     };
     expect(arg.userId).toBe("user-1");
-    expect(arg.bpInTargetPct).toBe(80);
+    // v1.17 W1d — the BP pillar reads the 90-day window, identical to the
+    // analytics route, so dashboard ring and insights card score off one
+    // number. Previously this was last30Days (80).
+    expect(arg.bpInTargetPct).toBe(77);
     expect(arg.bpGradedScore).toBe(88);
     expect(arg.heightCm).toBe(180);
     expect(arg.coverage).toBe(coverageMap);
@@ -404,6 +413,7 @@ describe("buildDashboardSnapshot — healthScore (warm phase only)", () => {
     computeBpInTargetFastPath.mockResolvedValue({
       last7Days: null,
       last30Days: null,
+      last90Days: null,
       allTime: null,
       priorMonth: null,
       priorYear: null,
@@ -705,6 +715,7 @@ describe("buildDashboardSnapshot — additive proof", () => {
     computeBpInTargetFastPath.mockResolvedValue({
       last7Days: { pct: 70 },
       last30Days: { pct: 80 },
+      last90Days: { pct: 80 },
       allTime: { pct: 75 },
       priorMonth: { pct: 60 },
       priorYear: { pct: 50 },

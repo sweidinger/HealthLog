@@ -326,6 +326,7 @@
     "stepsShort": "Steps",
     "vo2MaxShort": "VO₂ max",
     "bpInTargetShort": "BP in Target",
+    "bpInTargetWindow90": "BP in Target · 90d",
     "medications": "Medications",
     "quickAddMeasurement": "Log measurement",
     "quickAddMood": "Log mood",

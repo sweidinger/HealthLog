@@ -326,6 +326,7 @@
     "stepsShort": "Schritte",
     "vo2MaxShort": "VO₂ max",
     "bpInTargetShort": "BD-Ziel",
+    "bpInTargetWindow90": "BD-Ziel · 90 T",
     "medications": "Medikamente",
     "quickAddMeasurement": "Messung erfassen",
     "quickAddMood": "Stimmung erfassen",

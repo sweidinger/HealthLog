@@ -1098,7 +1098,11 @@ export default function DashboardPage() {
             node: (
               <TrendCard
                 key="bpInTarget"
-                label={t("dashboard.bpInTargetShort")}
+                // v1.17 W1d — the headline is the trailing-90-day in-target
+                // rate; the label names the window so the tile never
+                // narrates an unlabelled scope. The `30T:` caption below
+                // still surfaces the 30-day figure for short-horizon context.
+                label={t("dashboard.bpInTargetWindow90")}
                 latest={data?.bpInTargetPct ?? null}
                 unit="%"
                 avg7={bp7}

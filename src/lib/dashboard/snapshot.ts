@@ -440,6 +440,8 @@ async function buildExtras(
   let bpInTargetPct: number | null = null;
   let bpInTargetPct7d: number | null = null;
   let bpInTargetPct30d: number | null = null;
+  // v1.17 W1d — canonical 90-day headline / score window.
+  let bpInTargetPct90d: number | null = null;
   let bpInTargetPctAllTime: number | null = null;
   let bpInTargetPctPriorMonth: number | null = null;
   let bpInTargetPctPriorYear: number | null = null;
@@ -454,9 +456,15 @@ async function buildExtras(
       coverage,
       userTz,
     });
-    bpInTargetPct = windows.last30Days?.pct ?? null;
+    // v1.17 W1d — the headline standardises on the trailing-90-day
+    // window (labelled "· 90 T" in the tile), identical to the analytics
+    // route, so the dashboard tile and the insights surface never narrate
+    // two windows for the same metric. All-time stays carried for the
+    // detail page's long view only.
+    bpInTargetPct = windows.last90Days?.pct ?? null;
     bpInTargetPct7d = windows.last7Days?.pct ?? null;
     bpInTargetPct30d = windows.last30Days?.pct ?? null;
+    bpInTargetPct90d = windows.last90Days?.pct ?? null;
     bpInTargetPctAllTime = windows.allTime?.pct ?? null;
     bpInTargetPctPriorMonth = windows.priorMonth?.pct ?? null;
     bpInTargetPctPriorYear = windows.priorYear?.pct ?? null;
@@ -466,10 +474,17 @@ async function buildExtras(
   // Health score — reuses the BP windows captured above plus the
   // already-probed coverage map (no second probe). Score + band +
   // delta only; the component breakdown stays off this wire.
+  //
+  // v1.17 W1b/W1d — the BP pillar reads the SAME 90-day window as the
+  // analytics route, so the dashboard ring and the insights card compute
+  // the score from identical inputs (closing the dashboard-vs-insights
+  // score divergence). Fall back to all-time only when the 90-day window
+  // is null so a sparse-but-historical account keeps its BP pillar.
+  const bpInTargetPctForScore = bpInTargetPct90d ?? bpInTargetPctAllTime;
   const scoreResult = await time("healthScore", () =>
     computeUserHealthScoreFastPath({
       userId: user.id,
-      bpInTargetPct,
+      bpInTargetPct: bpInTargetPctForScore,
       bpGradedScore,
       heightCm: user.heightCm,
       now,
