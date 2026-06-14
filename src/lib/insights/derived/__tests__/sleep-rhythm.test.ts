@@ -21,7 +21,12 @@ vi.mock("../baseline", () => ({
 import * as sleepDebtMod from "../sleep-debt";
 import * as chronotypeMod from "../chronotype";
 
-import { buildSleepRhythm, defaultDayType } from "../sleep-rhythm";
+import {
+  buildSleepRhythm,
+  computeSleepRhythmFromNights,
+  defaultDayType,
+  type RhythmNight,
+} from "../sleep-rhythm";
 
 /**
  * Build per-stage rows for one night: a single bare-ASLEEP block whose END is
@@ -41,11 +46,18 @@ function nightRows(wakeIso: string, asleepMinutes: number) {
 }
 
 describe("defaultDayType", () => {
-  it("tags weekend wake days free and weekdays work (UTC)", () => {
+  it("tags weekend wake days free and weekdays work from the date key alone", () => {
     // 2026-06-13 is a Saturday, 2026-06-14 a Sunday, 2026-06-15 a Monday.
-    expect(defaultDayType("2026-06-13", "UTC")).toBe("free");
-    expect(defaultDayType("2026-06-14", "UTC")).toBe("free");
-    expect(defaultDayType("2026-06-15", "UTC")).toBe("work");
+    expect(defaultDayType("2026-06-13")).toBe("free");
+    expect(defaultDayType("2026-06-14")).toBe("free");
+    expect(defaultDayType("2026-06-15")).toBe("work");
+  });
+
+  it("reads the weekday off the local date digits — correct for far-east zones", () => {
+    // The wake-day key is already local; the weekday must not shift for a
+    // UTC+14 user (the old noon-UTC anchor mislabelled a Friday as Saturday).
+    expect(defaultDayType("2026-06-12")).toBe("work"); // Friday
+    expect(defaultDayType("2026-06-13")).toBe("free"); // Saturday
   });
 });
 
@@ -106,5 +118,30 @@ describe("buildSleepRhythm", () => {
     expect(dto.chronotype.state).toBe("learning");
     expect(dto.chronotype.band).toBeNull();
     expect(dto.chronotype.msfMinutes).toBeNull();
+  });
+});
+
+describe("computeSleepRhythmFromNights window cap", () => {
+  /** Build N trailing nights ending 2026-06-30, midpoint 04:00, asleep 420. */
+  function trailingNights(count: number): RhythmNight[] {
+    const out: RhythmNight[] = [];
+    const end = Date.UTC(2026, 5, 30); // 2026-06-30
+    for (let i = count - 1; i >= 0; i--) {
+      const d = new Date(end - i * 86_400_000);
+      const key = d.toISOString().slice(0, 10);
+      out.push({ night: key, asleepMinutes: 420, midpoint: 4 * 60 });
+    }
+    return out;
+  }
+
+  it("yields the same chronotype DTO whether fed 42 or 365 nights (source-window-independent)", () => {
+    const need = 420;
+    const sixWeeks = computeSleepRhythmFromNights(trailingNights(42), need);
+    const oneYear = computeSleepRhythmFromNights(trailingNights(365), need);
+    // The most-recent 42 nights are identical in both inputs, so the chronotype
+    // (which the helper caps to the trailing window) must match exactly. This
+    // is the invariant the dashboard summary (365-day read) + the /api/sleep/
+    // rhythm route (42-day read) both depend on to render identical values.
+    expect(oneYear.chronotype).toEqual(sixWeeks.chronotype);
   });
 });

@@ -36,7 +36,6 @@
  */
 import type { MeasurementType } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db";
-import { wallClockInTz } from "@/lib/tz/wall-clock";
 import { resolveUserTimezone } from "@/lib/tz/resolver";
 import { loadUserSourcePriority } from "@/lib/rollups/measurement-read";
 import { loadBaselineProfile } from "./baseline";
@@ -100,15 +99,22 @@ export interface SleepRhythmDto {
 }
 
 /**
- * Day type of a night from its WAKE day's weekday in the user's timezone:
- * Saturday / Sunday → "free", else "work". The documented calendar default
- * (no work calendar exists). `night` is the YYYY-MM-DD wake-day key.
+ * Day type of a night from its WAKE day's weekday: Saturday / Sunday → "free",
+ * else "work". The documented calendar default (no work calendar exists).
+ *
+ * `night` is ALREADY the YYYY-MM-DD wake-day key in the user's timezone (the
+ * canonical engine keyed it with `userDayKey`), so its weekday is a pure
+ * property of those calendar digits — there is no second tz conversion to do.
+ * Parsing the digits and taking `getUTCDay()` is timezone-independent: a UTC
+ * instant at midnight of the same Y-M-D reads back the identical weekday in
+ * every zone, so this is correct for far-east (UTC+13/+14) users too — the
+ * earlier "noon-UTC instant + wallClockInTz" form shifted the weekday by a day
+ * there.
  */
-export function defaultDayType(night: string, tz: string): "work" | "free" {
-  // Anchor at local noon of the wake day so the weekday read is immune to the
-  // tz offset and DST — noon never crosses a day boundary in any zone.
-  const noon = new Date(`${night}T12:00:00Z`);
-  const weekday = wallClockInTz(noon, tz).weekday; // 0 = Sun … 6 = Sat
+export function defaultDayType(night: string): "work" | "free" {
+  const [y, m, d] = night.split("-").map(Number);
+  if (!y || !m || !d) return "work";
+  const weekday = new Date(Date.UTC(y, m - 1, d)).getUTCDay(); // 0 = Sun … 6 = Sat
   return weekday === 0 || weekday === 6 ? "free" : "work";
 }
 
@@ -152,10 +158,27 @@ export interface RhythmNight {
 }
 
 /**
+ * Chronotype look-back in nights. The helper caps its OWN chronotype input to
+ * the trailing `CHRONOTYPE_WINDOW_NIGHTS` so the result is a pure function of
+ * the most-recent N nights — NOT of however many nights a given caller happened
+ * to pass. Without this cap a caller that hands in a year of nights (the
+ * dashboard summary's 365-day read) would average MSF/MSFsc/social-jetlag over
+ * a different sample than a caller passing six weeks (the route), and the two
+ * surfaces would disagree. `computeSleepDebt` already self-caps to 14 nights,
+ * so the debt headline is source-window-independent for free; this brings the
+ * chronotype to the same guarantee. 42 nights (six weeks) gives ~12 weekend
+ * nights for a stable free-day MSF.
+ */
+const CHRONOTYPE_WINDOW_NIGHTS = 42;
+
+/**
  * Pure DTO assembler from already-reconstructed nights. The route reads + runs
  * the canonical reconstruction; the dashboard summary reuses its own loaded
  * rows. Both feed the SAME foundation modules here so the values are identical
- * — this is the one place the day-type default + the two `compute*` calls live.
+ * REGARDLESS of how many nights each caller passes — the helper owns the
+ * chronotype window cap, so a 42-night and a 365-night caller get the same DTO.
+ * This is the one place the window cap + day-type default + the two `compute*`
+ * calls live.
  *
  * `nights` must already be the canonical engine's output (asleep + midpoint);
  * this function does NOT reconstruct. `needMinutes` is the age-resolved need.
@@ -163,23 +186,31 @@ export interface RhythmNight {
 export function computeSleepRhythmFromNights(
   nights: readonly RhythmNight[],
   needMinutes: number,
-  tz: string,
 ): SleepRhythmDto {
-  const scorable = nights.filter((n) => n.asleepMinutes > 0);
+  // Sort ascending by wake-day key so "trailing N" is well-defined regardless
+  // of the caller's input order, then keep only scorable nights.
+  const scorable = [...nights]
+    .filter((n) => n.asleepMinutes > 0)
+    .sort((a, b) => (a.night < b.night ? -1 : a.night > b.night ? 1 : 0));
 
+  // Debt self-caps to its own 14-night window internally; pass every scorable
+  // night and let the module slice.
   const debtNights: SleepDebtNight[] = scorable.map((n) => ({
     night: n.night,
     asleepMinutes: n.asleepMinutes,
   }));
   const sleepDebt = computeSleepDebt(debtNights, needMinutes);
 
+  // Chronotype has no internal window — cap HERE to the trailing N nights so
+  // the value is a function of the recent rhythm, not the caller's read span.
   const chronoNights: ChronotypeNight[] = scorable
     .filter((n) => n.midpoint != null)
+    .slice(-CHRONOTYPE_WINDOW_NIGHTS)
     .map((n) => ({
       night: n.night,
       midpointMinutes: n.midpoint as number,
       asleepMinutes: n.asleepMinutes,
-      dayType: defaultDayType(n.night, tz),
+      dayType: defaultDayType(n.night),
     }));
   const chronotype = computeChronotype(chronoNights);
 
@@ -229,11 +260,10 @@ export async function buildSleepRhythm(
 
   // Canonical reconstruction (session-clustering, wake-day keying, writer
   // dedup) → per-night asleep total + wall-clock midpoint. Same engine as the
-  // Sleep Score; we never re-derive a midpoint here.
-  const nights = reconstructNights(rows, tz, priorityJson).filter(
-    (n) => n.asleepMinutes > 0,
-  );
+  // Sleep Score; we never re-derive a midpoint here. The helper owns the
+  // scorable-night filter + the window cap, so we hand it the raw output.
+  const nights = reconstructNights(rows, tz, priorityJson);
 
   const needMinutes = sleepNeedMinutes(profile.ageYears);
-  return computeSleepRhythmFromNights(nights, needMinutes, tz);
+  return computeSleepRhythmFromNights(nights, needMinutes);
 }

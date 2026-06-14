@@ -661,7 +661,6 @@ async function buildDashboardSummary(
       sleepPriorityJson,
     ),
     sleepNeedMinutes(sleepProfile.ageYears),
-    userTz,
   );
 
   const metrics: MetricCard[] = [];

@@ -5,42 +5,16 @@ import { useQuery } from "@tanstack/react-query";
 import { queryKeys } from "@/lib/query-keys";
 import { apiGet } from "@/lib/api/api-fetch";
 
-/**
- * v1.17.0 — sleep-debt DTO (mirrors the server `SleepDebtDto`). `partial` is
- * the calm "still learning" state below the night threshold; `ready` asserts
- * the cumulative deficit.
- */
-export interface SleepDebtDto {
-  state: "partial" | "ready";
-  debtMinutes: number;
-  needMinutes: number;
-  nightsCounted: number;
-  windowNights: number;
-  nightsUntilReady: number;
-}
+// v1.17.0 — the wire shape IS the server DTO. Import the type directly (erased
+// at build, so no server code reaches the client bundle) rather than keeping a
+// second hand-mirrored copy that silently drifts when the server shape changes.
+import type {
+  SleepDebtDto,
+  ChronotypeDto,
+  SleepRhythmDto,
+} from "@/lib/insights/derived/sleep-rhythm";
 
-/** v1.17.0 — chronotype DTO (mirrors the server `ChronotypeDto`). */
-export interface ChronotypeDto {
-  state: "learning" | "ready";
-  msfMinutes: number | null;
-  msfScMinutes: number | null;
-  band:
-    | "extreme_early"
-    | "early"
-    | "intermediate"
-    | "late"
-    | "extreme_late"
-    | null;
-  socialJetlagMinutes: number | null;
-  freeNightsCounted: number;
-  workNightsCounted: number;
-  freeNightsUntilReady: number;
-}
-
-export interface SleepRhythmDto {
-  sleepDebt: SleepDebtDto;
-  chronotype: ChronotypeDto;
-}
+export type { SleepDebtDto, ChronotypeDto, SleepRhythmDto };
 
 /**
  * Read the server-authoritative sleep-rhythm DTO. Gated on `enabled` so a
