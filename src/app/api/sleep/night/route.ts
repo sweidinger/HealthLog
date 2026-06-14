@@ -56,9 +56,13 @@ function serializeSession(s: SleepSession) {
     source: s.source,
     start: s.start.toISOString(),
     end: s.end.toISOString(),
-    asleepMinutes: s.asleepMinutes,
-    inBedMinutes: s.inBedMinutes,
-    awakeMinutes: s.awakeMinutes,
+    // iOS #18 — round to whole minutes; the underlying totals are summed from
+    // second-precision segments and otherwise serialise as e.g. 433.4999.
+    // `inBedMinutes` / `awakeMinutes` stay null when the night never saw that
+    // stage — rounding only the present values.
+    asleepMinutes: Math.round(s.asleepMinutes),
+    inBedMinutes: s.inBedMinutes === null ? null : Math.round(s.inBedMinutes),
+    awakeMinutes: s.awakeMinutes === null ? null : Math.round(s.awakeMinutes),
     awakenings: s.awakenings,
     stages: s.stages,
     segments: s.segments.map((seg) => ({

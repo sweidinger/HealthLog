@@ -103,6 +103,24 @@ describe("GET /api/sleep/night", () => {
     expect(core.end).toBe("2026-06-04T01:00:00.000Z");
   });
 
+  it("rounds asleep / awake minutes to whole numbers", async () => {
+    // iOS #18 — `asleepMinutesOf` / awake totals sum raw second-precision
+    // minute values, so a night sums to e.g. 433.4999; the serializer must
+    // emit whole minutes. CORE+DEEP = 433.4999 → 433; AWAKE 12.6 → 13.
+    vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
+    vi.mocked(prisma.measurement.findMany).mockResolvedValue([
+      stage("2026-06-04T03:00:00.000Z", "CORE", 300.25),
+      stage("2026-06-04T05:00:00.000Z", "DEEP", 133.2499),
+      stage("2026-06-04T05:10:00.000Z", "AWAKE", 12.6),
+    ] as never);
+    const res = await GET(req("date=2026-06-04"));
+    const body = await res.json();
+    expect(body.data.main.asleepMinutes).toBe(433);
+    expect(body.data.main.awakeMinutes).toBe(13);
+    expect(Number.isInteger(body.data.main.asleepMinutes)).toBe(true);
+    expect(Number.isInteger(body.data.main.awakeMinutes)).toBe(true);
+  });
+
   it("defaults to the most recent scorable night when date omitted", async () => {
     vi.mocked(getSession).mockResolvedValue(SESSION_OK as never);
     vi.mocked(prisma.measurement.findMany).mockResolvedValue([
