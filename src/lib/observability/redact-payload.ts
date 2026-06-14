@@ -65,6 +65,13 @@ export const SENSITIVE_KEY_PATTERNS: readonly RegExp[] = [
   /progesteronetest/i,
   /contraceptive/i,
   /cervicalmucus/i,
+  // v1.17.1 — the webhook shared secret. `headerValue` lives only inside the
+  // AES-GCM-encrypted `NotificationChannel.config` blob and the GET masks it
+  // to `hasHeaderValue`, so no current path excerpts it. Defence-in-depth: if
+  // a future change routes a webhook body through `buildPayloadDiagnostic`,
+  // the secret redacts instead of landing verbatim. The Live Activity push
+  // token is already covered by `/token/i`.
+  /headervalue/i,
 ];
 
 const REDACTED = "[redacted]";

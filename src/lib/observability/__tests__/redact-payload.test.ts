@@ -163,4 +163,18 @@ describe("redactSensitiveFields", () => {
       benignField: "kept",
     });
   });
+
+  it("redacts the webhook shared secret (headerValue) and the Live Activity token", () => {
+    const body = {
+      headerValue: "super-secret-webhook-key",
+      liveActivityPushToken: "abc123",
+      webhookUrl: "https://example.com/hook",
+    };
+    expect(redactSensitiveFields(body)).toEqual({
+      headerValue: "[redacted]",
+      // Covered by the existing /token/i pattern.
+      liveActivityPushToken: "[redacted]",
+      webhookUrl: "https://example.com/hook",
+    });
+  });
 });
