@@ -1,0 +1,115 @@
+import { describe, it, expect, vi, beforeEach } from "vitest";
+
+vi.mock("@/lib/api-handler", () => ({
+  apiHandler: <T extends (...args: unknown[]) => unknown>(fn: T) => fn,
+}));
+
+vi.mock("@/lib/db", () => ({
+  prisma: { user: { update: vi.fn() } },
+}));
+
+vi.mock("@/lib/auth/session", () => ({ getSession: vi.fn(async () => null) }));
+
+vi.mock("@/lib/logging/context", () => ({
+  annotate: vi.fn(),
+  getEvent: () => ({ setError: vi.fn(), setAuth: vi.fn() }),
+}));
+
+vi.mock("@/lib/auth/audit", () => ({ auditLog: vi.fn() }));
+vi.mock("@/lib/crypto", () => ({ encrypt: (s: string) => `enc:${s}` }));
+vi.mock("@/lib/integrations/status", () => ({ markReconnected: vi.fn() }));
+
+const { exchangeMock, getCredsMock, matchMock, verifyMock } = vi.hoisted(() => ({
+  exchangeMock: vi.fn(),
+  getCredsMock: vi.fn(),
+  matchMock: vi.fn(),
+  verifyMock: vi.fn(),
+}));
+
+vi.mock("@/lib/oura/client", () => ({ exchangeCode: exchangeMock }));
+vi.mock("@/lib/oura/credentials", () => ({
+  getOuraClientCredentials: getCredsMock,
+}));
+vi.mock("@/lib/oauth/signed-state", () => ({
+  oauthStateCookieName: (p: string) => `${p}_state`,
+  stateMatchesCookie: matchMock,
+  verifySignedState: verifyMock,
+}));
+
+import { GET } from "../route";
+import { prisma } from "@/lib/db";
+import { auditLog } from "@/lib/auth/audit";
+import { getSession } from "@/lib/auth/session";
+import type { NextRequest } from "next/server";
+
+const userUpdate = prisma.user.update as ReturnType<typeof vi.fn>;
+
+process.env.NEXT_PUBLIC_APP_URL = "https://app.example";
+
+function makeReq(opts: { code?: string; state?: string; cookie?: string }): NextRequest {
+  const params = new URLSearchParams();
+  if (opts.code) params.set("code", opts.code);
+  if (opts.state) params.set("state", opts.state);
+  return {
+    url: `https://app.example/api/oura/callback?${params}`,
+    cookies: {
+      get: (name: string) =>
+        name === "oura_state" && opts.cookie ? { value: opts.cookie } : undefined,
+    },
+  } as unknown as NextRequest;
+}
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  matchMock.mockReturnValue(true);
+  verifyMock.mockReturnValue({ userId: "u1" });
+  getCredsMock.mockResolvedValue({ clientId: "c", clientSecret: "s" });
+  exchangeMock.mockResolvedValue({ access_token: "at", refresh_token: "rt" });
+  userUpdate.mockResolvedValue({});
+  (getSession as ReturnType<typeof vi.fn>).mockResolvedValue(null);
+});
+
+describe("GET /api/oura/callback", () => {
+  it("rejects a cookie/state mismatch as csrf1 before any exchange", async () => {
+    matchMock.mockReturnValue(false);
+    const res = await GET(makeReq({ code: "c", state: "S", cookie: "X" }));
+    expect(res.headers.get("location")).toContain("reason=csrf1");
+    expect(exchangeMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects an unverifiable signed state", async () => {
+    verifyMock.mockReturnValue(null);
+    const res = await GET(makeReq({ code: "c", state: "S", cookie: "S" }));
+    expect(res.headers.get("location")).toContain("reason=state");
+    expect(exchangeMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects when the verified userId mismatches a live session (cross_user)", async () => {
+    (getSession as ReturnType<typeof vi.fn>).mockResolvedValue({
+      user: { id: "attacker" },
+    });
+    const res = await GET(makeReq({ code: "c", state: "S", cookie: "S" }));
+    expect(res.headers.get("location")).toContain("reason=cross_user");
+    expect(exchangeMock).not.toHaveBeenCalled();
+  });
+
+  it("falls back to nocreds when no BYO/env credentials resolve", async () => {
+    getCredsMock.mockResolvedValue(null);
+    const res = await GET(makeReq({ code: "c", state: "S", cookie: "S" }));
+    expect(res.headers.get("location")).toContain("reason=nocreds");
+    expect(exchangeMock).not.toHaveBeenCalled();
+  });
+
+  it("exchanges the code, persists encrypted tokens, and audits on success", async () => {
+    const res = await GET(makeReq({ code: "auth-code", state: "S", cookie: "S" }));
+    expect(exchangeMock).toHaveBeenCalledWith("auth-code", {
+      clientId: "c",
+      clientSecret: "s",
+    });
+    const data = userUpdate.mock.calls[0]![0].data;
+    expect(data.ouraAccessTokenEncrypted).toBe("enc:at");
+    expect(data.ouraRefreshTokenEncrypted).toBe("enc:rt");
+    expect(auditLog).toHaveBeenCalledWith("oura.connect", { userId: "u1" });
+    expect(res.headers.get("location")).toContain("oura=connected");
+  });
+});

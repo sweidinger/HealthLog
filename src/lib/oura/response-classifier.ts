@@ -19,20 +19,16 @@ import {
   type IntegrationClassification,
 } from "@/lib/integrations/http-status-classifier";
 
-export type OuraClassification = IntegrationClassification;
-
-export type ClassifiedOuraResponse = ClassifiedHttpResponse;
-
 export function classifyOuraResponse(
   httpStatus: number,
-): ClassifiedOuraResponse {
+): ClassifiedHttpResponse {
   return classifyHttpStatus(httpStatus);
 }
 
 export class OuraApiError extends IntegrationApiError {
   constructor(opts: {
     verb: string;
-    classification: OuraClassification;
+    classification: IntegrationClassification;
     httpStatus: number | undefined;
     reason: string;
     upstreamError?: string;
@@ -46,13 +42,13 @@ export class OuraApiError extends IntegrationApiError {
  * True when a caught error is an OAuth `invalid_grant` on the token endpoint —
  * the canonical revoked-refresh-token signal. Lifts a 400 carrying
  * `invalid_grant` from `persistent` to `reauth_required` so the connection
- * surfaces the reconnect prompt.
+ * surfaces the reconnect prompt. Internal to `classifyOuraError`.
  */
-export function isInvalidGrant(err: unknown): boolean {
+function isInvalidGrant(err: unknown): boolean {
   return isOAuthInvalidGrant(err, "Oura");
 }
 
-export function classifyOuraError(err: unknown): OuraClassification {
+export function classifyOuraError(err: unknown): IntegrationClassification {
   if (isInvalidGrant(err)) return "reauth_required";
   return classifyIntegrationError(err, "Oura");
 }

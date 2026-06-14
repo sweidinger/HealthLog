@@ -2,6 +2,8 @@ import { prisma } from "@/lib/db";
 import { apiHandler, requireAuth } from "@/lib/api-handler";
 import { apiSuccess, apiError, safeJson } from "@/lib/api-response";
 import { annotate } from "@/lib/logging/context";
+import { auditLog } from "@/lib/auth/audit";
+import { markDisconnected } from "@/lib/integrations/status";
 import {
   storeOuraClientCredentials,
   clearOuraClientCredentials,
@@ -63,10 +65,21 @@ export const PUT = apiHandler(async (request: NextRequest) => {
 
 /**
  * Delete Oura credentials and the active connection.
+ *
+ * Deleting the BYO credentials drops a live connection (a token minted against
+ * the deleted app is now orphaned), so when an access token was present this
+ * mirrors `/api/oura/disconnect`: audit the event and park the integration
+ * ledger at `disconnected` rather than leaving it stale at its last state.
  */
 export const DELETE = apiHandler(async () => {
   const { user } = await requireAuth();
   annotate({ action: { name: "oura.credentials.delete" } });
+
+  const dbUser = await prisma.user.findUnique({
+    where: { id: user.id },
+    select: { ouraAccessTokenEncrypted: true },
+  });
+  const wasConnected = !!dbUser?.ouraAccessTokenEncrypted;
 
   await prisma.user.update({
     where: { id: user.id },
@@ -76,6 +89,11 @@ export const DELETE = apiHandler(async () => {
     },
   });
   await clearOuraClientCredentials(user.id);
+
+  if (wasConnected) {
+    await auditLog("oura.credentials.delete", { userId: user.id });
+    await markDisconnected(user.id, "oura");
+  }
 
   return apiSuccess({ deleted: true });
 });
