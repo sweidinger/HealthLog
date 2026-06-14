@@ -4007,6 +4007,7 @@
         "import": {
           "heading": "Import",
           "description": "Importiere Daten aus einem Apple-Health-Export oder einer JSON-Datei. Bereits vorhandene Einträge werden übersprungen, ein erneuter Import ist also unbedenklich.",
+          "charCount": "{used} / {max} Zeichen",
           "appleHealth": {
             "title": "Apple Health",
             "description": "Lade die export.zip aus der Health-App auf dem iPhone hoch (Profil → Alle Gesundheitsdaten exportieren).",

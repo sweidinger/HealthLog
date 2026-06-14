@@ -26,6 +26,7 @@
  */
 
 import { useCallback, useId, useRef, useState } from "react";
+import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import {
   AlertCircle,
@@ -45,6 +46,14 @@ import { queryKeys } from "@/lib/query-keys";
 import { useTranslations } from "@/lib/i18n/context";
 import { cn } from "@/lib/utils";
 import { apiFetchRaw, apiGet } from "@/lib/api/api-fetch";
+import { CSV_EXAMPLE_COLUMNS } from "@/lib/import/csv-measurements";
+
+/**
+ * Upper bound for the paste textareas, mirroring the 16 MB server-side body
+ * ceiling on `/api/import` and `/api/import/csv`. Caps an accidental over-paste
+ * before it ever reaches the route and feeds the live character counter.
+ */
+const MAX_PASTE_CHARS = 16 * 1024 * 1024;
 
 // ─────────────────────────── Section wrapper ───────────────────────────
 
@@ -66,7 +75,7 @@ export function ImportPanel() {
           {t("settings.sections.export.import.description")}
         </p>
       </div>
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         <AppleHealthImportCard />
         <JsonImportCard />
         <CsvImportCard />
@@ -321,7 +330,7 @@ function AppleHealthImportCard() {
             className="text-foreground flex items-start gap-2 text-xs"
           >
             <CheckCircle2
-              className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-500"
+              className="text-success mt-0.5 h-3.5 w-3.5 shrink-0"
               aria-hidden="true"
             />
             <span>
@@ -535,10 +544,17 @@ function JsonImportCard() {
           value={text}
           onChange={(e) => setText(e.target.value)}
           rows={5}
+          maxLength={MAX_PASTE_CHARS}
           spellCheck={false}
           placeholder='{"measurements":[…],"moodEntries":[…]}'
           className="font-mono text-xs"
         />
+        <p className="text-muted-foreground text-right text-xs tabular-nums">
+          {t("settings.sections.export.import.charCount", {
+            used: text.length,
+            max: MAX_PASTE_CHARS,
+          })}
+        </p>
       </div>
 
       <input
@@ -552,12 +568,12 @@ function JsonImportCard() {
 
       <p className="text-muted-foreground text-xs">
         {t("settings.sections.export.import.json.schemaHint")}{" "}
-        <a
+        <Link
           href="/docs/integrations/data-import"
           className="text-primary underline underline-offset-2"
         >
           {t("settings.sections.export.import.json.docsLink")}
-        </a>
+        </Link>
       </p>
 
       <div aria-live="polite" className="space-y-2">
@@ -567,7 +583,7 @@ function JsonImportCard() {
             className="text-foreground flex items-start gap-2 text-xs"
           >
             <CheckCircle2
-              className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-500"
+              className="text-success mt-0.5 h-3.5 w-3.5 shrink-0"
               aria-hidden="true"
             />
             <span>
@@ -641,7 +657,7 @@ function JsonImportCard() {
  * drift. Exported so a test can assert it stays a valid header.
  */
 export const EXAMPLE_CSV = [
-  "type,value,unit,measuredAt,glucoseContext,notes,externalId",
+  CSV_EXAMPLE_COLUMNS.join(","),
   "WEIGHT,80.5,kg,2026-05-01T08:00:00Z,,morning,",
   "BLOOD_GLUCOSE,5.3,mmol/L,2026-05-01T08:05:00+02:00,FASTING,,meter-001",
   "BLOOD_PRESSURE_SYS,120,mmHg,2026-05-01T08:05:00+02:00,,,",
@@ -760,10 +776,17 @@ function CsvImportCard() {
           value={text}
           onChange={(e) => setText(e.target.value)}
           rows={5}
+          maxLength={MAX_PASTE_CHARS}
           spellCheck={false}
           placeholder="type,value,unit,measuredAt,…"
           className="font-mono text-xs"
         />
+        <p className="text-muted-foreground text-right text-xs tabular-nums">
+          {t("settings.sections.export.import.charCount", {
+            used: text.length,
+            max: MAX_PASTE_CHARS,
+          })}
+        </p>
       </div>
 
       <input
@@ -777,12 +800,12 @@ function CsvImportCard() {
 
       <p className="text-muted-foreground text-xs">
         {t("settings.sections.export.import.csv.schemaHint")}{" "}
-        <a
+        <Link
           href="/docs/integrations/data-import"
           className="text-primary underline underline-offset-2"
         >
           {t("settings.sections.export.import.csv.docsLink")}
-        </a>
+        </Link>
       </p>
 
       <div aria-live="polite" className="space-y-2">
@@ -790,7 +813,7 @@ function CsvImportCard() {
           <div data-testid="import-csv-result" className="space-y-1.5">
             <p className="text-foreground flex items-start gap-2 text-xs">
               <CheckCircle2
-                className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-500"
+                className="text-success mt-0.5 h-3.5 w-3.5 shrink-0"
                 aria-hidden="true"
               />
               <span>
@@ -863,6 +886,9 @@ function CsvImportCard() {
           onClick={() => void send(true)}
           data-testid="import-csv-preview"
         >
+          {busy && (
+            <Loader2 className="h-3.5 w-3.5 animate-spin motion-reduce:animate-none" />
+          )}
           {t("settings.sections.export.import.csv.preview")}
         </Button>
         <Button
