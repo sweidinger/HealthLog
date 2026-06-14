@@ -303,4 +303,43 @@ describe("IntegrationsSection — single-status-display contract (A5)", () => {
     // Fitbit / Google Health). The moodLog integration was removed.
     expect(count(html, 'data-testid="integration-card-divider"')).toBe(3);
   });
+
+  // v1.17.1 — every integration card carries the same discreet "Setup guide"
+  // doc-link pointing at its runbook under the single shared docs base. The
+  // affordance is one family across all six providers.
+  it("every integration card carries the shared Setup-guide doc-link", () => {
+    setIntegrationStatus({
+      threshold: 3,
+      integrations: [
+        {
+          integration: "withings",
+          state: "connected",
+          lastSuccessAt: "2026-05-09T18:00:00.000Z",
+          lastAttemptAt: "2026-05-09T18:00:00.000Z",
+          lastError: null,
+          connected: true,
+          configured: true,
+          legacyLastSyncedAt: "2026-05-09T18:00:00.000Z",
+          hasActivityScope: true,
+        },
+      ],
+    });
+
+    const html = render();
+    // One setup-guide link per card → six providers.
+    expect(count(html, 'data-slot="integration-setup-guide"')).toBe(6);
+    for (const provider of [
+      "withings",
+      "whoop",
+      "fitbit",
+      "polar",
+      "oura",
+      "nightscout",
+    ]) {
+      expect(html).toContain(`data-testid="${provider}-setup-guide"`);
+      expect(html).toContain(
+        `href="https://docs.healthlog.dev/integrations/${provider}"`,
+      );
+    }
+  });
 });

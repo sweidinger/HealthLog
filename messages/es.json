@@ -4087,6 +4087,36 @@
       "mood": {
         "title": "Etiquetas de ánimo",
         "description": "Grupos, etiquetas y orden del selector de ánimo."
+      },
+      "reminders": {
+        "title": "Recordatorios y notificaciones",
+        "description": "Un único lugar para cada recordatorio — qué se recuerda y cuándo — y los canales que lo entregan.",
+        "categoriesGroup": "Recordatorios",
+        "channelsGroup": "Canales de entrega",
+        "medication": {
+          "title": "Recordatorios de medicación",
+          "description": "Horas y ventanas de dosis, configuradas en cada medicamento."
+        },
+        "vorsorge": {
+          "title": "Cuidado preventivo",
+          "description": "Revisiones y mediciones periódicas, con el lugar al que acudir."
+        },
+        "mood": {
+          "title": "Registro de ánimo",
+          "description": "Un aviso diario para registrar cómo te sientes."
+        },
+        "lowStock": {
+          "title": "Margen por bajo stock",
+          "description": "Recibe un aviso antes de que se acabe un medicamento."
+        },
+        "coach": {
+          "title": "Sugerencia del coach",
+          "description": "Indicaciones proactivas del coach de IA."
+        },
+        "channels": {
+          "title": "Canales de notificación",
+          "description": "APNs, Telegram, ntfy, Web Push, Webhook y correo."
+        }
       }
     },
     "profile": "Perfil",
@@ -4773,7 +4803,8 @@
       "token": "El intercambio de token con Oura falló. Inicia la conexión de nuevo.",
       "rate_limited": "Demasiados intentos de conexión. Espera un momento e inténtalo de nuevo.",
       "generic": "Error desconocido al conectar. Inicia la conexión de nuevo."
-    }
+    },
+    "integrationSetupGuide": "Guía de configuración"
   },
   "admin": {
     "title": "Administration",

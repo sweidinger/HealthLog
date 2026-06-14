@@ -39,6 +39,7 @@ import { useTranslations } from "@/lib/i18n/context";
 import { invalidateKeys, measurementDependentKeys, queryKeys } from "@/lib/query-keys";
 
 import { IntegrationErrorMessage } from "./shared";
+import { IntegrationSetupGuideLink } from "./setup-guide-link";
 
 interface NightscoutStatus {
   connected: boolean;
@@ -366,6 +367,8 @@ export function NightscoutCard({ enabled = true }: { enabled?: boolean }) {
             </Link>
           </>
         )}
+
+        <IntegrationSetupGuideLink provider="nightscout" />
       </div>
     </div>
   );

@@ -14,6 +14,7 @@ import { LayoutSection } from "@/components/settings/layout-section";
 import { MedicationsSection } from "@/components/settings/medications-section";
 import { MoodSection } from "@/components/settings/mood-section";
 import { NotificationsSection } from "@/components/settings/notifications-section";
+import { RemindersSection } from "@/components/settings/reminders-section";
 import { SectionPlaceholder } from "@/components/settings/section-placeholder";
 // v1.8.7.1 — `thresholds` (Targets) and `sources` (Sources) are two
 // separate sections again. `ThresholdsSection` renders the target-range
@@ -52,6 +53,7 @@ const SECTION_COMPONENTS: Record<
   ai: AiSection,
   integrations: IntegrationsSection,
   notifications: NotificationsSection,
+  reminders: RemindersSection,
   layout: LayoutSection,
   dashboard: DashboardSection,
   insights: InsightsSection,

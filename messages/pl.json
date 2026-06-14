@@ -4087,6 +4087,36 @@
       "mood": {
         "title": "Tagi nastroju",
         "description": "Grupy, tagi i kolejność w wyborze nastroju."
+      },
+      "reminders": {
+        "title": "Przypomnienia i powiadomienia",
+        "description": "Jedno miejsce dla każdego przypomnienia — o czym i kiedy — oraz kanały, które je dostarczają.",
+        "categoriesGroup": "Przypomnienia",
+        "channelsGroup": "Kanały dostarczania",
+        "medication": {
+          "title": "Przypomnienia o lekach",
+          "description": "Godziny i okna dawek, ustawiane przy każdym leku."
+        },
+        "vorsorge": {
+          "title": "Profilaktyka",
+          "description": "Cykliczne badania i pomiary wraz z miejscem, gdzie się udać."
+        },
+        "mood": {
+          "title": "Zapis nastroju",
+          "description": "Codzienne przypomnienie, by zapisać samopoczucie."
+        },
+        "lowStock": {
+          "title": "Zapas na wyczerpaniu",
+          "description": "Otrzymaj ostrzeżenie, zanim lek się skończy."
+        },
+        "coach": {
+          "title": "Podpowiedź trenera",
+          "description": "Proaktywne wskazówki od trenera AI."
+        },
+        "channels": {
+          "title": "Kanały powiadomień",
+          "description": "APNs, Telegram, ntfy, Web Push, Webhook i e-mail."
+        }
       }
     },
     "profile": "Profil",
@@ -4773,7 +4803,8 @@
       "token": "Wymiana tokena z Oura nie powiodła się. Rozpocznij połączenie ponownie.",
       "rate_limited": "Zbyt wiele prób połączenia. Poczekaj chwilę i spróbuj ponownie.",
       "generic": "Nieznany błąd podczas łączenia. Rozpocznij połączenie ponownie."
-    }
+    },
+    "integrationSetupGuide": "Przewodnik konfiguracji"
   },
   "admin": {
     "title": "Administracja",

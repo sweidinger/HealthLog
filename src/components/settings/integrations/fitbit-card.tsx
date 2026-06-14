@@ -51,6 +51,7 @@ import {
   pillStateFor,
   type IntegrationStatusViewModel,
 } from "./shared";
+import { IntegrationSetupGuideLink } from "./setup-guide-link";
 
 export function FitbitCard({
   viewModel,
@@ -484,6 +485,8 @@ export function FitbitCard({
             {t("settings.fitbitNoCredentials")}
           </div>
         )}
+
+        <IntegrationSetupGuideLink provider="fitbit" />
       </div>
     </div>
   );
