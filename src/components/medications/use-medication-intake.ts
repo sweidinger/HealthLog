@@ -5,8 +5,32 @@ import { useQueryClient, type QueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
 import { useTranslations } from "@/lib/i18n/context";
-import { invalidateKeys, medicationDependentKeys } from "@/lib/query-keys";
+import {
+  invalidateKeys,
+  medicationDependentKeys,
+  queryKeys,
+} from "@/lib/query-keys";
 import { apiDelete, apiPost } from "@/lib/api/api-fetch";
+
+/**
+ * Invalidate every read that reflects a dose's taken/due state after an
+ * intake write. `invalidateKeys` invalidates with the default
+ * `refetchType: "active"`, which only refetches mounted queries — so the
+ * dashboard snapshot, inactive while the user is on the medication card or
+ * detail page, is marked stale but never refetched. On navigating back the
+ * snapshot remounts under `refetchOnMount: false`, so the pre-write cache is
+ * served and the "due" prompt lingers until a hard reload. Force the inactive
+ * snapshot to refetch so the dashboard clears as soon as the dose is recorded.
+ */
+async function invalidateMedicationReads(
+  queryClient: QueryClient,
+): Promise<void> {
+  await invalidateKeys(queryClient, medicationDependentKeys);
+  await queryClient.invalidateQueries({
+    queryKey: queryKeys.dashboardSnapshot(),
+    refetchType: "inactive",
+  });
+}
 
 type Translator = (
   key: string,
@@ -136,7 +160,7 @@ export async function runRecordIntake(deps: {
           }
         : undefined,
     );
-    await invalidateKeys(queryClient, medicationDependentKeys);
+    await invalidateMedicationReads(queryClient);
     onRecorded?.(eventId, skipped);
   } catch {
     toast.error(t("medications.intakeToastFailed", { name: medication.name }));
@@ -188,7 +212,7 @@ export async function runLogIntake(deps: {
     if (scheduledFor) body.scheduledFor = scheduledFor;
     if (!skipped && doseTaken) body.doseTaken = doseTaken;
     await apiPost(`/api/medications/${medication.id}/intake`, body);
-    await invalidateKeys(queryClient, medicationDependentKeys);
+    await invalidateMedicationReads(queryClient);
     toast.success(
       t(
         skipped
@@ -217,7 +241,7 @@ export async function runUndoIntake(deps: {
   const { medication, eventId, t, queryClient } = deps;
   try {
     await apiDelete(`/api/medications/${medication.id}/intake/${eventId}`);
-    await invalidateKeys(queryClient, medicationDependentKeys);
+    await invalidateMedicationReads(queryClient);
     toast.success(t("medications.intakeUndone"));
   } catch {
     toast.error(t("medications.intakeUndoFailed"));
