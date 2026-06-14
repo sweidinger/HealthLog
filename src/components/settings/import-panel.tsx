@@ -322,7 +322,7 @@ function AppleHealthImportCard() {
             className="text-foreground flex items-start gap-2 text-xs"
           >
             <CheckCircle2
-              className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-500"
+              className="text-success mt-0.5 h-3.5 w-3.5 shrink-0"
               aria-hidden="true"
             />
             <span>
@@ -568,7 +568,7 @@ function JsonImportCard() {
             className="text-foreground flex items-start gap-2 text-xs"
           >
             <CheckCircle2
-              className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-500"
+              className="text-success mt-0.5 h-3.5 w-3.5 shrink-0"
               aria-hidden="true"
             />
             <span>
@@ -791,7 +791,7 @@ function CsvImportCard() {
           <div data-testid="import-csv-result" className="space-y-1.5">
             <p className="text-foreground flex items-start gap-2 text-xs">
               <CheckCircle2
-                className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-500"
+                className="text-success mt-0.5 h-3.5 w-3.5 shrink-0"
                 aria-hidden="true"
               />
               <span>
