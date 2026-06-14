@@ -33,7 +33,7 @@ import { getEvent } from "@/lib/logging/context";
  */
 export interface PushAttemptRecord {
   userId: string;
-  channel: "APNS" | "WEB_PUSH" | "TELEGRAM" | "NTFY";
+  channel: "APNS" | "WEB_PUSH" | "TELEGRAM" | "NTFY" | "WEBHOOK" | "EMAIL";
   eventType: string;
   result: "ok" | "error" | "skipped";
   reason?: string | null;

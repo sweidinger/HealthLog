@@ -1,8 +1,15 @@
 "use client";
 
 import { useState } from "react";
-import { useMutation } from "@tanstack/react-query";
-import { Activity, Bell, CheckCircle2, Loader2, XCircle } from "lucide-react";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import {
+  Activity,
+  Bell,
+  CheckCircle2,
+  HeartPulse,
+  Loader2,
+  XCircle,
+} from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -10,8 +17,102 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { SettingsCardHeader } from "@/components/settings/_card-header";
 import { useTranslations } from "@/lib/i18n/context";
+import { queryKeys } from "@/lib/query-keys";
 import { useAdminSettings, useUpdateSettings } from "./_shared";
-import { apiPost } from "@/lib/api/api-fetch";
+import { apiGet, apiPost } from "@/lib/api/api-fetch";
+
+interface NotificationHealth {
+  windowHours: number;
+  since: string;
+  channels: Array<{
+    channel: string;
+    ok: number;
+    error: number;
+    skipped: number;
+    total: number;
+  }>;
+  autoDisabledChannels: Array<{ type: string; count: number }>;
+}
+
+/**
+ * v1.17.1 — operator-wide notification delivery-health panel. A single
+ * `groupBy(channel, result)` over the trailing 24h of `push_attempts` plus the
+ * count of auto-disabled channels across all users. Lets the operator answer
+ * "are anyone's pushes failing?" without DB shell.
+ */
+function NotificationHealthPanel() {
+  const { t } = useTranslations();
+  const windowHours = 24;
+
+  const { data, isLoading } = useQuery({
+    queryKey: queryKeys.adminNotificationHealth(windowHours),
+    queryFn: async () =>
+      apiGet<NotificationHealth>(
+        `/api/admin/notifications/health?hours=${windowHours}`,
+      ),
+  });
+
+  return (
+    <div className="bg-card border-border mt-6 rounded-xl border p-4 sm:p-6">
+      <SettingsCardHeader
+        icon={HeartPulse}
+        title={t("admin.notificationHealth.title")}
+        description={t("admin.notificationHealth.description")}
+      />
+
+      <div className="mt-4 pl-7">
+        {isLoading && (
+          <Loader2 className="text-muted-foreground h-4 w-4 animate-spin motion-reduce:animate-none" />
+        )}
+
+        {data && data.channels.length === 0 && (
+          <p className="text-muted-foreground text-sm">
+            {t("admin.notificationHealth.empty")}
+          </p>
+        )}
+
+        {data && data.channels.length > 0 && (
+          <div className="space-y-2">
+            {data.channels.map((c) => (
+              <div
+                key={c.channel}
+                className="flex items-center justify-between text-sm"
+              >
+                <span className="font-medium">{c.channel}</span>
+                <span className="flex items-center gap-3 text-xs">
+                  <span className="text-success dark:text-green-400">
+                    {t("admin.notificationHealth.ok")}: {c.ok}
+                  </span>
+                  <span className="text-destructive dark:text-red-400">
+                    {t("admin.notificationHealth.error")}: {c.error}
+                  </span>
+                  <span className="text-muted-foreground">
+                    {t("admin.notificationHealth.skipped")}: {c.skipped}
+                  </span>
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {data && data.autoDisabledChannels.length > 0 && (
+          <div className="mt-4 space-y-1">
+            <h2 className="text-sm font-medium">
+              {t("admin.notificationHealth.autoDisabled")}
+            </h2>
+            <div className="flex flex-wrap gap-2">
+              {data.autoDisabledChannels.map((d) => (
+                <Badge key={d.type} variant="secondary">
+                  {d.type} ({d.count})
+                </Badge>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
 
 export function RemindersSection() {
   const { t } = useTranslations();
@@ -92,6 +193,7 @@ export function RemindersSection() {
   });
 
   return (
+    <>
     <div className="bg-card border-border rounded-xl border p-4 sm:p-6">
       {/* v1.4.22 D / F-58 — icon swap so the section header matches
           the admin-shell nav tile (Bell). Clock now lives on the
@@ -295,5 +397,7 @@ export function RemindersSection() {
           </div>
         )}
     </div>
+    <NotificationHealthPanel />
+    </>
   );
 }

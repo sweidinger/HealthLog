@@ -138,6 +138,26 @@
       ]
     },
     {
+      "name": "SMTP (email channel)",
+      "description": "Operator SMTP transport for the email notification channel (v1.17.1). All of SMTP_HOST, SMTP_PORT, SMTP_FROM together enable the channel; SMTP_USER/SMTP_PASS are optional (unauthenticated relay). Missing any of the three core vars disables email silently — the channel is never offered and the Settings card hides itself.",
+      "required": false,
+      "allOrNone": true,
+      "variables": [
+        {
+          "name": "SMTP_HOST",
+          "purpose": "SMTP server hostname, e.g. smtp.example.com."
+        },
+        {
+          "name": "SMTP_PORT",
+          "purpose": "SMTP port. 587 for STARTTLS (SMTP_SECURE unset/false), 465 for implicit TLS (SMTP_SECURE=true)."
+        },
+        {
+          "name": "SMTP_FROM",
+          "purpose": "From address for outbound mail, e.g. \"HealthLog <noreply@example.com>\"."
+        }
+      ]
+    },
+    {
       "name": "Off-host backups",
       "description": "Required ALL-OR-NONE: any of these without the rest disables backups silently.",
       "required": false,

@@ -11,6 +11,10 @@ export const settingsKeys = {
 
   settingsGlobalServices: () => ["settings", "global-services"] as const,
   settingsNtfy: () => ["settings", "ntfy"] as const,
+  /** v1.17.1 — generic-webhook channel config. */
+  settingsWebhook: () => ["settings", "webhook"] as const,
+  /** v1.17.1 — SMTP / email channel config. */
+  settingsEmail: () => ["settings", "email"] as const,
   settingsReminderThresholds: () =>
     ["settings", "reminder-thresholds"] as const,
 

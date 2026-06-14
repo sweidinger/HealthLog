@@ -4,7 +4,25 @@
  * Events: medication reminders, anomalies, compliance, etc.
  */
 
-export const CHANNEL_TYPES = ["TELEGRAM", "NTFY", "WEB_PUSH", "APNS"] as const;
+export const CHANNEL_TYPES = [
+  "TELEGRAM",
+  "NTFY",
+  "WEB_PUSH",
+  "APNS",
+  // v1.17.1 — generic outbound webhook. The user supplies a public URL and an
+  // optional shared secret/header; the dispatcher POSTs a small JSON payload
+  // ({ title, message, eventType, ... }) through `safeFetch` with
+  // `requirePublicHost: true`, exactly like ntfy. One channel covers Gotify,
+  // Discord, Slack, Matrix (via a bridge), Home Assistant, and any homelab
+  // relay that accepts an inbound JSON POST.
+  "WEBHOOK",
+  // v1.17.1 — SMTP / email. Alerts + reminders over email — the channel every
+  // self-hoster already has. The SMTP transport is OPERATOR-configured via
+  // `SMTP_*` env (absent → channel never offered, like APNs today); the
+  // per-user config carries only the recipient address. Bodies stay plain text
+  // (no markdown library — hard rule).
+  "EMAIL",
+] as const;
 export type ChannelType = (typeof CHANNEL_TYPES)[number];
 
 export const EVENT_TYPES = [
@@ -140,6 +158,8 @@ export const CHANNEL_TYPE_LABELS: Record<ChannelType, string> = {
   NTFY: "ntfy",
   WEB_PUSH: "Web Push",
   APNS: "Apple Push (APNs)",
+  WEBHOOK: "Webhook",
+  EMAIL: "Email",
 };
 
 // ── Channel config shapes (stored as encrypted JSON) ──
@@ -153,6 +173,33 @@ export interface NtfyChannelConfig {
   serverUrl: string;
   topic: string;
   authToken?: string;
+}
+
+/**
+ * Generic-webhook channel config (v1.17.1). The user supplies a public URL and
+ * an OPTIONAL custom header (e.g. `Authorization: Bearer <token>` for Gotify,
+ * or a Discord/Slack incoming-webhook URL needs no header). The dispatcher
+ * POSTs a JSON body — see `sendViaWebhook` — through `safeFetch` with
+ * `requirePublicHost: true` so the SSRF floor + DNS-rebinding pin apply to the
+ * user-supplied host exactly as they do for ntfy.
+ */
+export interface WebhookChannelConfig {
+  url: string;
+  /** Optional header name to attach (e.g. "Authorization"). */
+  headerName?: string;
+  /** Optional header value (e.g. "Bearer <token>"). Encrypted at rest. */
+  headerValue?: string;
+}
+
+/**
+ * Email channel config (v1.17.1). The SMTP TRANSPORT (host/port/auth/from) is
+ * operator-supplied via `SMTP_*` env and loaded in `email-config.ts`; the only
+ * per-user value is the recipient address. Splitting it this way keeps SMTP
+ * credentials out of every user's encrypted channel blob — they live once in
+ * the operator's env, exactly like the APNs key.
+ */
+export interface EmailChannelConfig {
+  recipient: string;
 }
 
 // ── Notification payload ──
