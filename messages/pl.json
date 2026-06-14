@@ -75,6 +75,7 @@
     "colSkipped": "Pominięte",
     "colMissed": "Pominięte",
     "colTotal": "Razem",
+    "colExpected": "Oczekiwane",
     "colComplianceRate": "Wskaźnik przestrzegania",
     "moodTitle": "Przebieg nastroju",
     "moodSummary": "Średnia:{avg} / 5.0 · Entries: {count} · Range: {min}–{max}",

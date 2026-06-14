@@ -994,13 +994,15 @@ async function buildCoachSnapshotImpl(
     // denominator, and cross-source duplicate rows collapse onto one slot.
     const ledgerRows: DoseHistoryRow[] = [];
     // v1.17 W1c — the coach's headline adherence figure routes through the
-    // SAME `calculateCompliance(...).rate` authority the medication card
-    // shows (the ledger path, `medicationContext` supplied), so the coach
-    // can never quote a denominator the card doesn't use. We tally
-    // numerator (on-time + late takes) and denominator (taken + missed)
-    // across every compliance medication over the coach window, exactly the
-    // ledger arithmetic the card's per-med rate uses; the per-day / per-week
-    // timeline below stays as supplementary context.
+    // SAME `calculateCompliance(...).rate` ledger authority the medication
+    // card shows (the ledger path, `medicationContext` supplied), so the
+    // coach can never quote a denominator the card doesn't use. Per
+    // medication we take the ledger numerator (on-time + late takes) and
+    // denominator (taken + missed) and pool them across the user's
+    // scheduled medications: for a single medication the headline equals
+    // that med's card rate exactly; for several it is the dose-weighted
+    // overall adherence (the same pooling the cross-med timeline below
+    // already uses), never a per-day / per-week denominator of its own.
     let complianceTaken = 0;
     let complianceDenominator = 0;
     const windowDaysForRate = Math.max(
@@ -1092,10 +1094,13 @@ async function buildCoachSnapshotImpl(
         .sort((a, b) => a.weekISO.localeCompare(b.weekISO));
       snapshot.compliance = {
         // v1.17 W1c — headline adherence % from the SAME ledger authority
-        // (`calculateCompliance(...).rate`) the medication card shows, so the
-        // coach quotes the exact figure on the card rather than a per-day /
-        // per-week rate built off a different denominator. Integer 0-100 to
-        // match the card's rounding.
+        // (`calculateCompliance(...).rate`) the medication card shows: the
+        // dose-weighted pool of taken / (taken + missed) across the user's
+        // scheduled medications, so the coach quotes the card's figure
+        // (single med) or its honest overall adherence (several meds) rather
+        // than a per-day / per-week rate built off a different denominator.
+        // Integer 0-100 to match the card's rounding; null when no scheduled
+        // medication has any countable dose in the window.
         rate:
           complianceDenominator > 0
             ? Math.round((complianceTaken / complianceDenominator) * 100)

@@ -75,6 +75,7 @@
     "colSkipped": "Übersprungen",
     "colMissed": "Verpasst",
     "colTotal": "Gesamt",
+    "colExpected": "Erwartet",
     "colComplianceRate": "Therapietreue",
     "moodTitle": "Stimmungsverlauf",
     "moodSummary": "Durchschnitt: {avg} / 5,0 · Einträge: {count} · Bereich: {min}–{max}",

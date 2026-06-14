@@ -75,6 +75,7 @@
     "colSkipped": "Omitida",
     "colMissed": "Perdida",
     "colTotal": "Total",
+    "colExpected": "Esperadas",
     "colComplianceRate": "Tasa de cumplimiento",
     "moodTitle": "Evolución del estado de ánimo",
     "moodSummary": "Promedio:{avg} / 5.0 · Entries: {count} · Range: {min}–{max}",

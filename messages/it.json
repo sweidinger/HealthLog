@@ -75,6 +75,7 @@
     "colSkipped": "Saltata",
     "colMissed": "Persa",
     "colTotal": "Totale",
+    "colExpected": "Attese",
     "colComplianceRate": "Tasso di aderenza",
     "moodTitle": "Andamento dell’umore",
     "moodSummary": "Media:{avg} / 5.0 · Entries: {count} · Range: {min}–{max}",

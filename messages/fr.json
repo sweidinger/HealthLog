@@ -75,6 +75,7 @@
     "colSkipped": "Sauté",
     "colMissed": "Manqué",
     "colTotal": "Total",
+    "colExpected": "Attendues",
     "colComplianceRate": "Taux d'observance",
     "moodTitle": "Évolution de l’humeur",
     "moodSummary": "Moyenne:{avg} / 5.0 · Entries: {count} · Range: {min}–{max}",

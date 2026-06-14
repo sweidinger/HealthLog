@@ -75,6 +75,7 @@
     "colSkipped": "Skipped",
     "colMissed": "Missed",
     "colTotal": "Total",
+    "colExpected": "Expected",
     "colComplianceRate": "Adherence rate",
     "moodTitle": "Mood trajectory",
     "moodSummary": "Average: {avg} / 5.0 · Entries: {count} · Range: {min}–{max}",
