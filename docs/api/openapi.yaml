@@ -13879,6 +13879,18 @@ components:
                   anyOf:
                     - type: number
                     - type: "null"
+                bpInTargetCount90:
+                  anyOf:
+                    - type: integer
+                      minimum: -9007199254740991
+                      maximum: 9007199254740991
+                    - type: "null"
+                bpInTargetSpanDays90:
+                  anyOf:
+                    - type: integer
+                      minimum: -9007199254740991
+                      maximum: 9007199254740991
+                    - type: "null"
                 glucoseByContext:
                   type: object
                   propertyNames:
@@ -13893,6 +13905,8 @@ components:
                 - bpInTargetPctAllTime
                 - bpInTargetPctPriorMonth
                 - bpInTargetPctPriorYear
+                - bpInTargetCount90
+                - bpInTargetSpanDays90
                 - glucoseByContext
                 - glucoseClinical
               additionalProperties: false

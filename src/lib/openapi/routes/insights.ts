@@ -661,6 +661,8 @@ const dashboardSnapshotResponse = z
         bpInTargetPctAllTime: z.number().nullable(),
         bpInTargetPctPriorMonth: z.number().nullable(),
         bpInTargetPctPriorYear: z.number().nullable(),
+        bpInTargetCount90: z.number().int().nullable(),
+        bpInTargetSpanDays90: z.number().int().nullable(),
         glucoseByContext: dataSummaryRecord,
         glucoseClinical: glucoseClinicalSchema,
       })
