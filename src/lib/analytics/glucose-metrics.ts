@@ -424,7 +424,13 @@ export function computeGlucoseClinicalMetrics(
       (r) =>
         r.measuredAt.getTime() >= cutoff &&
         r.measuredAt.getTime() <= now.getTime() &&
-        Number.isFinite(r.mgdl),
+        Number.isFinite(r.mgdl) &&
+        // Non-positive glucose is non-physiological and ln-undefined (the
+        // Kovatchev symmetrization needs ln BG). Excluding it here keeps EVERY
+        // index — mean / SD / TIR / GMI / LBGI / HBGI — on one shared
+        // denominator rather than letting the risk indices drop a row the
+        // others kept.
+        r.mgdl > 0,
     )
     .sort((a, b) => a.measuredAt.getTime() - b.measuredAt.getTime());
 

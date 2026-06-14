@@ -82,6 +82,15 @@ const DAILY_TIMELINE_DAYS = 14;
 const DEFAULT_WINDOW: CoachScopeWindow = "last30days";
 
 /**
+ * v1.17.0 — the glucose clinical panel is a fixed trailing-30-day artifact,
+ * identical across the insights panel, the dashboard snapshot, the doctor
+ * report, and (here) the coach. Pinned independently of the coach's variable
+ * narration window so the coach's TIR/GMI/CV% always equals what the panel
+ * renders.
+ */
+const GLUCOSE_CLINICAL_WINDOW_DAYS = 30;
+
+/**
  * v1.7.0 — assembled-snapshot soft char cap. After the snapshot is
  * built we measure `JSON.stringify(snapshot).length` as a ~4-chars-per-
  * token proxy and, if it exceeds this cap, progressively degrade the
@@ -847,6 +856,29 @@ async function buildCoachSnapshotImpl(
         },
       })
     : null;
+  // v1.17.0 — the glucose CLINICAL panel is a fixed 30-day clinical artifact,
+  // identical to the one the insights panel + doctor report render. It must NOT
+  // ride the coach's variable narration window (7/30/90/365) or the
+  // multi-cluster timeline cap, or the coach would quote a TIR/GMI/CV% the panel
+  // never shows. So read the panel's own trailing-30-day glucose rows directly
+  // (one indexed query, only when glucose is active) and compute the clinical
+  // block off THOSE rows. The per-context narration timelines below keep using
+  // the coach-window rows — only the clinical summary is pinned to 30 days.
+  const glucoseClinicalCutoff = new Date(
+    now.getTime() - GLUCOSE_CLINICAL_WINDOW_DAYS * 24 * 60 * 60 * 1000,
+  );
+  const glucoseClinicalRowsPromise = sources.has("glucose")
+    ? prisma.measurement.findMany({
+        where: {
+          userId,
+          type: "BLOOD_GLUCOSE" as never,
+          measuredAt: { gte: glucoseClinicalCutoff },
+          deletedAt: null,
+        },
+        orderBy: { measuredAt: "asc" },
+        select: { value: true, measuredAt: true },
+      })
+    : null;
   const glp1BlockPromise = excludesMedications
     ? null
     : buildGlp1SnapshotBlock(userId, now);
@@ -880,6 +912,7 @@ async function buildCoachSnapshotImpl(
     complianceMeds,
     sleepRows,
     workoutRows,
+    glucoseClinicalRows,
     glp1Block,
     derivedBlock,
     trajectoryBlock,
@@ -890,6 +923,7 @@ async function buildCoachSnapshotImpl(
     complianceMedsPromise,
     sleepRowsPromise,
     workoutRowsPromise,
+    glucoseClinicalRowsPromise,
     glp1BlockPromise,
     derivedBlockPromise,
     trajectoryBlockPromise,
@@ -1345,18 +1379,22 @@ async function buildCoachSnapshotImpl(
         );
         contexts[ctx] = { recent, weekly };
       }
-      // v1.17.0 — clinical panel summary from the ONE literature-locked
-      // engine the insights panel + doctor report also consume, so the coach
-      // never quotes a TIR / GMI / CV% figure the panel doesn't show. Computed
-      // on canonical mg/dL over the resolved coach window; gated by
-      // `stillLearning` so a thin spot-data window is offered as a calm
-      // "still learning" note rather than asserted as a clinical AGP. The
-      // headline mean is converted ONCE to the user's display unit for parity
-      // with the per-context lines above; the unit-agnostic fractions / indices
+      // v1.17.0 — clinical panel summary from the ONE literature-locked engine
+      // the insights panel + doctor report also consume, computed over the SAME
+      // fixed trailing-30-day window + rows the panel uses (`glucoseClinicalRows`,
+      // not the coach-window / cap-trimmed `glucoseRows`), so the coach can never
+      // quote a TIR / GMI / CV% figure the panel doesn't show — true numeric
+      // parity, independent of the user's coach scope. Gated by `stillLearning`
+      // so a thin spot-data window is offered as a calm "still learning" note
+      // rather than asserted as a clinical AGP. The headline mean is converted
+      // ONCE to the user's display unit; the unit-agnostic fractions / indices
       // travel as-is.
       const clinicalRaw = computeGlucoseClinicalMetrics(
-        glucoseRows.map((r) => ({ measuredAt: r.measuredAt, mgdl: r.value })),
-        { windowDays: windowDays, now },
+        (glucoseClinicalRows ?? []).map((r) => ({
+          measuredAt: r.measuredAt,
+          mgdl: r.value,
+        })),
+        { windowDays: GLUCOSE_CLINICAL_WINDOW_DAYS, now },
       );
       const clinical = clinicalRaw.stillLearning
         ? {

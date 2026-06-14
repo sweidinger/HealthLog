@@ -202,6 +202,26 @@ describe("computeGlucoseClinicalMetrics — window + adequacy", () => {
     expect(m.readingCount).toBe(1);
   });
 
+  it("excludes non-positive readings so every index shares one denominator", () => {
+    // a 0 / negative glucose is non-physiological and ln-undefined; it must be
+    // dropped from readingCount AND from the risk-index denominator so the
+    // advanced indices never use a different N than mean / TIR.
+    const readings: GlucoseReading[] = [
+      { mgdl: 120, measuredAt: new Date(now.getTime() - 1 * DAY) },
+      { mgdl: 0, measuredAt: new Date(now.getTime() - 2 * DAY) },
+      { mgdl: -5, measuredAt: new Date(now.getTime() - 3 * DAY) },
+    ];
+    const m = computeGlucoseClinicalMetrics(readings, {
+      now,
+      minReadings: 1,
+      minSpanDays: 0,
+    });
+    expect(m.readingCount).toBe(1);
+    expect(m.meanMgdl).toBe(120);
+    // advanced indices resolve from the single usable reading
+    expect(m.advanced).not.toBeNull();
+  });
+
   it("always marks the result as a spot estimate", () => {
     const m = computeGlucoseClinicalMetrics(
       dailyReadings([100], now),
