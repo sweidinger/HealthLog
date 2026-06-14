@@ -13,6 +13,7 @@ import { MetricEmptyState } from "@/components/insights/metric-empty-state";
 import { MetricTargetSummary } from "@/components/insights/metric-target-summary";
 import { SleepOverview } from "@/components/insights/sleep-overview";
 import { SleepRhythmSection } from "@/components/insights/sleep/sleep-rhythm-section";
+import { SleepQualitySection } from "@/components/insights/sleep/sleep-quality-section";
 import { SubPageShell } from "@/components/insights/sub-page-shell";
 
 /**
@@ -88,6 +89,16 @@ export default function InsightsSchlafPage() {
         source-less account never fetches.
       */}
       <SleepRhythmSection enabled={!isEmpty} />
+
+      {/*
+        v1.17.1 — "Sleep quality" block. Surfaces the WHOOP / Oura nightly
+        sleep-quality scores (efficiency / performance / consistency / need /
+        disturbance count + the Oura sleep score) that were ingested but never
+        rendered. Each tile is data-gated, so the block is invisible for
+        non-wearable users and collapses metric-by-metric. Server-authoritative
+        — the tiles render stored values.
+      */}
+      <SleepQualitySection enabled={!isEmpty} />
 
       <MetricTargetSummary slug="sleep" />
 
