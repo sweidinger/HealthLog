@@ -4932,6 +4932,8 @@
     "webPushVapidGenerated": "Clés VAPID générées. Enregistrez le sujet pour terminer.",
     "webPushVapidGenerateFailed": "Impossible de générer les clés VAPID.",
     "webPushVapidGenerateConfirm": "Les clés VAPID sont déjà configurées. Générer une nouvelle paire invalide tous les abonnements push du navigateur — chaque appareil doit se réabonner. Continuer ?",
+    "webPushVapidGenerateConfirmTitle": "Régénérer les clés VAPID ?",
+    "webPushVapidRegenerate": "Régénérer",
     "configured": "Configuré",
     "monitoringTestSuccess": "Événement de test envoyé",
     "monitoringTestFailed": "Échec du test de surveillance",

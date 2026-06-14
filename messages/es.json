@@ -4932,6 +4932,8 @@
     "webPushVapidGenerated": "Claves VAPID generadas. Guarda el asunto para terminar.",
     "webPushVapidGenerateFailed": "No se pudieron generar las claves VAPID.",
     "webPushVapidGenerateConfirm": "Las claves VAPID ya están configuradas. Generar un par nuevo invalida todas las suscripciones push del navegador: cada dispositivo debe volver a suscribirse. ¿Continuar?",
+    "webPushVapidGenerateConfirmTitle": "¿Regenerar las claves VAPID?",
+    "webPushVapidRegenerate": "Regenerar",
     "configured": "Configurado",
     "monitoringTestSuccess": "Evento de prueba enviado",
     "monitoringTestFailed": "La prueba de monitorización falló",

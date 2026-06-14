@@ -4932,6 +4932,8 @@
     "webPushVapidGenerated": "VAPID-Schlüssel erzeugt. Betreff speichern, um abzuschließen.",
     "webPushVapidGenerateFailed": "VAPID-Schlüssel konnten nicht erzeugt werden.",
     "webPushVapidGenerateConfirm": "VAPID-Schlüssel sind bereits konfiguriert. Ein neues Schlüsselpaar macht alle Browser-Push-Abos ungültig — jedes Gerät muss sich neu anmelden. Fortfahren?",
+    "webPushVapidGenerateConfirmTitle": "VAPID-Schlüssel neu erzeugen?",
+    "webPushVapidRegenerate": "Neu erzeugen",
     "configured": "Konfiguriert",
     "monitoringTestSuccess": "Testevent wurde gesendet",
     "monitoringTestFailed": "Monitoring-Test fehlgeschlagen",

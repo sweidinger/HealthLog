@@ -6,6 +6,16 @@ import { toast } from "sonner";
 import { BellRing, KeyRound, Loader2 } from "lucide-react";
 import { SettingsCardHeader } from "@/components/settings/_card-header";
 import { Button } from "@/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useTranslations } from "@/lib/i18n/context";
@@ -32,6 +42,11 @@ export function WebPushVapidSection() {
     string | null
   >(null);
   const [generating, setGenerating] = useState(false);
+  // Overwrite guard: the first generate returns 409 when keys already exist;
+  // we surface the project's AlertDialog (not a native window.confirm) before
+  // retrying with force, since regenerating invalidates every live Web-Push
+  // subscription.
+  const [overwriteConfirmOpen, setOverwriteConfirmOpen] = useState(false);
 
   const webPushVapidPublicKeyValue =
     webPushVapidPublicKeyDraft ?? settings?.webPushVapidPublicKey ?? "";
@@ -71,12 +86,10 @@ export function WebPushVapidSection() {
       );
 
       if (res.status === 409) {
-        // Overwrite guard — existing keys would be replaced. Confirm with
-        // the operator (regenerating invalidates current subscriptions),
-        // then retry with force.
-        if (window.confirm(t("admin.webPushVapidGenerateConfirm"))) {
-          await generateVapidKeys(true);
-        }
+        // Overwrite guard — existing keys would be replaced. Surface the
+        // in-app confirm dialog (regenerating invalidates current
+        // subscriptions); the dialog action retries with force.
+        setOverwriteConfirmOpen(true);
         return;
       }
 
@@ -201,6 +214,31 @@ export function WebPushVapidSection() {
           {t("common.save")}
         </Button>
       </div>
+
+      <AlertDialog
+        open={overwriteConfirmOpen}
+        onOpenChange={setOverwriteConfirmOpen}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {t("admin.webPushVapidGenerateConfirmTitle")}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {t("admin.webPushVapidGenerateConfirm")}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              onClick={() => void generateVapidKeys(true)}
+            >
+              {t("admin.webPushVapidRegenerate")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
