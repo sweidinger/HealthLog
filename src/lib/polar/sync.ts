@@ -1,10 +1,11 @@
 /**
  * v1.17.0 (F4) — Polar AccessLink sync.
  *
- * Pulls Nightly Recharge (→ RECOVERY_SCORE / HRV / RHR / respiratory rate),
- * sleep (per-stage durations + sleep score), and daily activity (steps +
- * active energy) for one connected user, mapping each into `Measurement` rows
- * tagged `source = POLAR`.
+ * Pulls Nightly Recharge (→ RECOVERY_SCORE / ANS_CHARGE / HRV / RHR /
+ * respiratory rate), sleep (per-stage durations on a reconstructed END-instant
+ * timeline + sleep score), daily activity (steps + active energy + distance),
+ * Training Load Pro (→ CARDIO_LOAD), and SpO2 (→ OXYGEN_SATURATION) for one
+ * connected user, mapping each into `Measurement` rows tagged `source = POLAR`.
  *
  * Token model: Polar tokens do not expire and have no refresh path, so there is
  * no `getValidToken` refresh dance (the WHOOP shape). A revoked grant surfaces
@@ -36,11 +37,15 @@ import {
 import { invalidateStatusInsightsForTypes } from "@/lib/insights/comprehensive-generate";
 import {
   fetchActivities,
+  fetchCardioLoads,
   fetchNightlyRecharges,
   fetchSleeps,
+  fetchSpo2,
   mapActivity,
+  mapCardioLoad,
   mapNightlyRecharge,
   mapSleep,
+  mapSpo2,
   type MappedMeasurement,
 } from "./client";
 import { getPolarConnection } from "./credentials";
@@ -58,7 +63,7 @@ export interface PolarMeasurementUpsert {
   unit: string;
   measuredAt: Date;
   externalId: string;
-  sleepStage?: "CORE" | "DEEP" | "REM" | null;
+  sleepStage?: "CORE" | "DEEP" | "REM" | "AWAKE" | "IN_BED" | null;
 }
 
 function toUpsert(
@@ -70,8 +75,15 @@ function toUpsert(
     value: m.value,
     unit: m.unit,
     measuredAt: m.measuredAt,
+    // Reconstructed sleep segments supply their own indexed externalId so the
+    // several rows of one night stay distinct; everything else keys on
     // `<resource>:<date>:<fieldTag>` — stable across re-syncs of the same day.
-    externalId: `${resourcePrefix}:${m.measuredAt.toISOString().slice(0, 10)}:${m.fieldTag}`,
+    // The date is read off `measuredAt` for untimed rows (midnight-UTC
+    // anchored), so a mapper-supplied externalId is honoured verbatim to avoid
+    // the timed sleep instants drifting the date slice.
+    externalId:
+      m.externalId ??
+      `${resourcePrefix}:${m.measuredAt.toISOString().slice(0, 10)}:${m.fieldTag}`,
     sleepStage: m.sleepStage ?? null,
   }));
 }
@@ -87,11 +99,14 @@ export async function syncUserPolar(userId: string): Promise<number> {
 
   const readings: PolarMeasurementUpsert[] = [];
   try {
-    const [recharges, sleeps, activities] = await Promise.all([
-      fetchNightlyRecharges(conn.accessToken, conn.polarUserId),
-      fetchSleeps(conn.accessToken, conn.polarUserId),
-      fetchActivities(conn.accessToken, conn.polarUserId),
-    ]);
+    const [recharges, sleeps, activities, cardioLoads, spo2Tests] =
+      await Promise.all([
+        fetchNightlyRecharges(conn.accessToken, conn.polarUserId),
+        fetchSleeps(conn.accessToken, conn.polarUserId),
+        fetchActivities(conn.accessToken, conn.polarUserId),
+        fetchCardioLoads(conn.accessToken, conn.polarUserId),
+        fetchSpo2(conn.accessToken, conn.polarUserId),
+      ]);
     for (const r of recharges) {
       readings.push(...toUpsert(mapNightlyRecharge(r), "recharge"));
     }
@@ -100,6 +115,12 @@ export async function syncUserPolar(userId: string): Promise<number> {
     }
     for (const a of activities) {
       readings.push(...toUpsert(mapActivity(a), "activity"));
+    }
+    for (const c of cardioLoads) {
+      readings.push(...toUpsert(mapCardioLoad(c), "cardioload"));
+    }
+    for (const t of spo2Tests) {
+      readings.push(...toUpsert(mapSpo2(t), "spo2"));
     }
   } catch (err) {
     await recordSyncFailure({

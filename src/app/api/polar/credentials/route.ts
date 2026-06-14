@@ -1,7 +1,9 @@
 import { prisma } from "@/lib/db";
 import { apiHandler, requireAuth } from "@/lib/api-handler";
+import { auditLog } from "@/lib/auth/audit";
 import { apiSuccess, apiError, safeJson } from "@/lib/api-response";
 import { annotate } from "@/lib/logging/context";
+import { markDisconnected } from "@/lib/integrations/status";
 import {
   storePolarClientCredentials,
   clearPolarClientCredentials,
@@ -57,12 +59,18 @@ export const PUT = apiHandler(async (request: NextRequest) => {
     result.data.clientId,
     result.data.clientSecret,
   );
+  await auditLog("polar.credentials.update", { userId: user.id });
 
   return apiSuccess({ updated: true });
 });
 
 /**
  * Delete Polar credentials and the active connection.
+ *
+ * Removing the BYO client id/secret also drops the live grant: a token minted
+ * under the user's own AccessLink app would be orphaned once the keys are gone.
+ * Parks the integration ledger at `disconnected` for parity with the dedicated
+ * disconnect route so the status snapshot does not linger at a stale state.
  */
 export const DELETE = apiHandler(async () => {
   const { user } = await requireAuth();
@@ -76,6 +84,8 @@ export const DELETE = apiHandler(async () => {
     },
   });
   await clearPolarClientCredentials(user.id);
+  await auditLog("polar.credentials.delete", { userId: user.id });
+  await markDisconnected(user.id, "polar");
 
   return apiSuccess({ deleted: true });
 });

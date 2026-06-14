@@ -5,6 +5,8 @@ const {
   fetchRechargesMock,
   fetchSleepsMock,
   fetchActivitiesMock,
+  fetchCardioLoadsMock,
+  fetchSpo2Mock,
   upsertMock,
   recordSuccessMock,
   recordFailureMock,
@@ -15,6 +17,8 @@ const {
   fetchRechargesMock: vi.fn(),
   fetchSleepsMock: vi.fn(),
   fetchActivitiesMock: vi.fn(),
+  fetchCardioLoadsMock: vi.fn(),
+  fetchSpo2Mock: vi.fn(),
   upsertMock: vi.fn(),
   recordSuccessMock: vi.fn(),
   recordFailureMock: vi.fn(),
@@ -53,6 +57,8 @@ vi.mock("../client", async (importOriginal) => {
     fetchNightlyRecharges: fetchRechargesMock,
     fetchSleeps: fetchSleepsMock,
     fetchActivities: fetchActivitiesMock,
+    fetchCardioLoads: fetchCardioLoadsMock,
+    fetchSpo2: fetchSpo2Mock,
   };
 });
 
@@ -66,6 +72,8 @@ beforeEach(() => {
   fetchRechargesMock.mockReset();
   fetchSleepsMock.mockReset();
   fetchActivitiesMock.mockReset();
+  fetchCardioLoadsMock.mockReset();
+  fetchSpo2Mock.mockReset();
   upsertMock.mockReset().mockResolvedValue({});
   recordSuccessMock.mockReset().mockResolvedValue(undefined);
   recordFailureMock.mockReset().mockResolvedValue(undefined);
@@ -74,6 +82,8 @@ beforeEach(() => {
   fetchRechargesMock.mockResolvedValue([]);
   fetchSleepsMock.mockResolvedValue([]);
   fetchActivitiesMock.mockResolvedValue([]);
+  fetchCardioLoadsMock.mockResolvedValue([]);
+  fetchSpo2Mock.mockResolvedValue([]);
 });
 
 afterEach(() => vi.clearAllMocks());
@@ -103,6 +113,44 @@ describe("syncUserPolar", () => {
     expect(arg.create.source).toBe("POLAR");
     expect(arg.create.value).toBe(100);
     expect(recordSuccessMock).toHaveBeenCalledWith("u1", "polar");
+  });
+
+  it("maps a cardio-load row with source POLAR + stable externalId", async () => {
+    getConnMock.mockResolvedValue(CONN);
+    fetchCardioLoadsMock.mockResolvedValue([
+      { date: "2026-06-10", cardio_load: 123.45 },
+    ]);
+    const imported = await syncUserPolar("u1");
+    expect(imported).toBe(1);
+    const arg = upsertMock.mock.calls[0]![0];
+    expect(arg.where.userId_type_source_externalId).toMatchObject({
+      type: "CARDIO_LOAD",
+      source: "POLAR",
+      externalId: "cardioload:2026-06-10:cardio_load",
+    });
+    expect(arg.create.value).toBe(123.45);
+  });
+
+  it("keeps reconstructed sleep segments distinct under their indexed externalId", async () => {
+    getConnMock.mockResolvedValue(CONN);
+    fetchSleepsMock.mockResolvedValue([
+      {
+        date: "2026-06-10",
+        sleep_start_time: "2026-06-09T23:00:00+02:00",
+        sleep_end_time: "2026-06-10T07:00:00+02:00",
+        light_sleep: 3600,
+        deep_sleep: 1800,
+        rem_sleep: 5400,
+      },
+    ]);
+    await syncUserPolar("u1");
+    const externalIds = upsertMock.mock.calls.map(
+      (c) => c[0].where.userId_type_source_externalId.externalId,
+    );
+    expect(externalIds).toContain("sleep:2026-06-10:seg:sleep_core:0");
+    expect(externalIds).toContain("sleep:2026-06-10:seg:sleep_rem:2");
+    // The several segment rows stay distinct (no collision).
+    expect(new Set(externalIds).size).toBe(externalIds.length);
   });
 
   it("is idempotent — a re-sync upserts on the same externalId", async () => {

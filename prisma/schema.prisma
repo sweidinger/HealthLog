@@ -774,6 +774,17 @@ enum MeasurementType {
   MAX_HEART_RATE // bpm — WHOOP `cycle.score.max_heart_rate`. The day's whole-cycle peak heart rate.
   SLEEP_DISTURBANCE_COUNT // count — WHOOP `sleep.score.stage_summary.disturbance_count`. Per-night tally of sleep disturbances.
 
+  // ── v1.17.1 — Polar Nightly Recharge + Training Load Pro coverage (additive) ──
+  // Two native Polar signals with no existing home. ANS_CHARGE is the HRV-based
+  // autonomic-nervous-system charge component of Nightly Recharge — Polar's most
+  // differentiated recovery signal, distinct from the 1–6 recovery band that
+  // already maps to RECOVERY_SCORE. CARDIO_LOAD is Polar's Training Load Pro
+  // cardiovascular-strain figure (its WHOOP-day-strain analogue); kept distinct
+  // from DAY_STRAIN (WHOOP's 0–21 scale) and the COMPUTED STRAIN_SCORE proxy so
+  // each device-native value keeps its own bucket and native scale.
+  ANS_CHARGE // score — Polar Nightly Recharge `ans_charge`. The HRV-based autonomic-nervous-system charge (typically ~-10..+10 around the personal baseline; higher = more recovered). Descriptive, not a clinical assessment.
+  CARDIO_LOAD // score — Polar Training Load Pro `cardio_load`. The session/day cardiovascular load (TRIMP-lineage strain). Distinct from WHOOP DAY_STRAIN (0–21) and the COMPUTED STRAIN_SCORE so the device-native value never shares a bucket.
+
   @@map("measurement_type")
 }
 

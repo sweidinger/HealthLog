@@ -1569,6 +1569,8 @@ paths:
               - AVERAGE_HEART_RATE
               - MAX_HEART_RATE
               - SLEEP_DISTURBANCE_COUNT
+              - ANS_CHARGE
+              - CARDIO_LOAD
         - in: query
           name: from
           schema:
@@ -1743,6 +1745,8 @@ paths:
                     - AVERAGE_HEART_RATE
                     - MAX_HEART_RATE
                     - SLEEP_DISTURBANCE_COUNT
+                    - ANS_CHARGE
+                    - CARDIO_LOAD
                 value:
                   type: number
                 measuredAt:
@@ -4372,6 +4376,8 @@ paths:
               - AVERAGE_HEART_RATE
               - MAX_HEART_RATE
               - SLEEP_DISTURBANCE_COUNT
+              - ANS_CHARGE
+              - CARDIO_LOAD
             description: "The measurement type to read (single metric — no fan-out). Closed enum: an unknown type 422s."
           required: true
           description: "The measurement type to read (single metric — no fan-out). Closed enum: an unknown type 422s."
@@ -8841,6 +8847,8 @@ components:
             - AVERAGE_HEART_RATE
             - MAX_HEART_RATE
             - SLEEP_DISTURBANCE_COUNT
+            - ANS_CHARGE
+            - CARDIO_LOAD
         value:
           type: number
         unit:
@@ -9270,6 +9278,8 @@ components:
             - AVERAGE_HEART_RATE
             - MAX_HEART_RATE
             - SLEEP_DISTURBANCE_COUNT
+            - ANS_CHARGE
+            - CARDIO_LOAD
         value:
           type: number
         unit:

@@ -550,6 +550,8 @@
     "typeAverageHeartRate": "Durchschnittlicher Puls",
     "typeMaxHeartRate": "Maximaler Puls",
     "typeSleepDisturbanceCount": "Schlafstörungen",
+    "typeAnsCharge": "ANS-Ladung",
+    "typeCardioLoad": "Kardio-Belastung",
     "filterBySource": "Nach Quelle filtern",
     "sourceComputed": "Berechnet",
     "sourceWhoop": "WHOOP",

@@ -100,6 +100,13 @@ export const measurementTypeEnum = z.enum([
   "AVERAGE_HEART_RATE",
   "MAX_HEART_RATE",
   "SLEEP_DISTURBANCE_COUNT",
+  // v1.17.1 — Polar Nightly Recharge + Training Load Pro components ingested
+  // server-side as `source = POLAR`. ANS_CHARGE is the HRV-based autonomic
+  // charge (distinct from the 1–6 recovery band that maps to RECOVERY_SCORE);
+  // CARDIO_LOAD is Polar's device-native cardiovascular-strain figure (distinct
+  // from WHOOP DAY_STRAIN and the COMPUTED STRAIN_SCORE).
+  "ANS_CHARGE",
+  "CARDIO_LOAD",
 ]);
 
 /**
@@ -312,6 +319,9 @@ const unitMap: Record<string, string> = {
   MAX_HEART_RATE: "bpm",
   // Per-night sleep disturbance tally — a plain integer count.
   SLEEP_DISTURBANCE_COUNT: "count",
+  // ── v1.17.1 — Polar Nightly Recharge + Training Load Pro components ──
+  ANS_CHARGE: "score",
+  CARDIO_LOAD: "score",
 };
 
 export function getUnitForType(type: string): string {
@@ -487,6 +497,13 @@ const VALUE_RANGES: Record<string, { min: number; max: number }> = {
   // Per-night sleep disturbance count — 0 is an undisturbed night; 200 is a
   // generous ceiling over any plausible severely-fragmented night.
   SLEEP_DISTURBANCE_COUNT: { min: 0, max: 200 },
+  // ── v1.17.1 — Polar Nightly Recharge + Training Load Pro components ──
+  // ANS charge is a baseline-relative autonomic deviation that can run
+  // negative; a generous symmetric ±100 band covers any plausible reading.
+  // Cardio Load is a non-negative cumulative-strain figure; 1000 is a generous
+  // ceiling over any plausible single-day training load.
+  ANS_CHARGE: { min: -100, max: 100 },
+  CARDIO_LOAD: { min: 0, max: 1000 },
 };
 
 export function validateMeasurementRange(

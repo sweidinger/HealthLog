@@ -15,11 +15,12 @@ import { NextResponse } from "next/server";
 /**
  * v1.17.0 (F4) — redirect the user to the Polar AccessLink consent screen.
  *
- * Full OAuth from env: the shared client id/secret come from `POLAR_CLIENT_ID`
- * / `POLAR_CLIENT_SECRET` (not per-user BYO). The CSRF defence is a stateless
- * signed state (`src/lib/oauth/signed-state.ts`): the same token is the `state`
- * URL param AND an httpOnly cookie, and the callback enforces both signature
- * validity and a byte-exact cookie match.
+ * BYO-key OAuth: the client id/secret resolve DB-first then env via
+ * `getPolarClientCredentials` — a user's own AccessLink app when stored,
+ * otherwise the shared `POLAR_CLIENT_ID` / `POLAR_CLIENT_SECRET`. The CSRF
+ * defence is a stateless signed state (`src/lib/oauth/signed-state.ts`): the
+ * same token is the `state` URL param AND an httpOnly cookie, and the callback
+ * enforces both signature validity and a byte-exact cookie match.
  *
  * Rate-limited per user so a session can't spam the consent redirect.
  */

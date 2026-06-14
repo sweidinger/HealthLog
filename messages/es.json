@@ -550,6 +550,8 @@
     "typeAverageHeartRate": "Frecuencia cardíaca media",
     "typeMaxHeartRate": "Frecuencia cardíaca máxima",
     "typeSleepDisturbanceCount": "Interrupciones del sueño",
+    "typeAnsCharge": "Carga del SNA",
+    "typeCardioLoad": "Carga cardio",
     "filterBySource": "Filtrar por fuente",
     "sourceComputed": "Calculado",
     "sourceWhoop": "WHOOP",
