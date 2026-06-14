@@ -131,6 +131,28 @@ describe("<SidebarNav> targets deprecation (v1.8.6)", () => {
   });
 });
 
+describe("<SidebarNav> unified destination model (v1.17.1 F-1)", () => {
+  it("surfaces Workouts as a first-class sidebar destination", () => {
+    // Pre-unify the sidebar hid Workouts entirely while the mobile bar
+    // promoted it. Both now render the one shared model, so both carry it.
+    const html = render();
+    expect(html).toContain('href="/insights/workouts"');
+    expect(html).toContain("Workouts");
+  });
+
+  it("marks Workouts active without also marking Insights active", () => {
+    const html = render({ pathname: "/insights/workouts" });
+    // The Workouts link carries aria-current="page"; the Insights link,
+    // its less-specific sibling, must not (most-specific resolution).
+    const workouts = html.match(
+      /<a[^>]*href="\/insights\/workouts"[^>]*>/,
+    );
+    const insights = html.match(/<a[^>]*href="\/insights"[^>]*>/);
+    expect(workouts?.[0]).toMatch(/aria-current="page"/);
+    expect(insights?.[0]).not.toMatch(/aria-current="page"/);
+  });
+});
+
 describe("<SidebarNav> admin entry mirrors Settings (no sub-item expansion)", () => {
   // v1.4.16 A1: the maintainer reported the global sidebar expanding admin
   // sub-items on `/admin/*` was unwanted UX — the in-shell `<AdminShell>`
