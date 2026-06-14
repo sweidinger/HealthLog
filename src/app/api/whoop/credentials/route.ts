@@ -1,8 +1,10 @@
 import { prisma } from "@/lib/db";
 import { apiHandler, requireAuth } from "@/lib/api-handler";
+import { auditLog } from "@/lib/auth/audit";
 import { apiSuccess, apiError, safeJson } from "@/lib/api-response";
 import { annotate } from "@/lib/logging/context";
 import { encrypt } from "@/lib/crypto";
+import { markDisconnected } from "@/lib/integrations/status";
 import { whoopCredentialsSchema } from "@/lib/validations/whoop";
 import { NextRequest } from "next/server";
 import { z } from "zod/v4";
@@ -58,6 +60,10 @@ export const PUT = apiHandler(async (request: NextRequest) => {
 
 /**
  * Delete WHOOP credentials and the active connection.
+ *
+ * Audits the teardown and parks the integration ledger at `disconnected` for
+ * parity with the Polar / Oura credential-DELETE so a sensitive op leaves a
+ * uniform audit trail and the status snapshot does not linger at a stale state.
  */
 export const DELETE = apiHandler(async () => {
   const { user } = await requireAuth();
@@ -74,6 +80,8 @@ export const DELETE = apiHandler(async () => {
       whoopClientSecretEncrypted: null,
     },
   });
+  await auditLog("whoop.credentials.delete", { userId: user.id });
+  await markDisconnected(user.id, "whoop");
 
   return apiSuccess({ deleted: true });
 });
