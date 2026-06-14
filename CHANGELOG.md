@@ -2,6 +2,29 @@
 
 ## [Unreleased]
 
+## [1.16.15] — 2026-06-14 — an honest calendar that learns before it predicts
+
+A focused release on the cycle calendar: it leans on observed data, names its
+uncertainty plainly, and reads your charts the way the Sensiplan method does.
+No breaking changes.
+
+### Added
+
+- **Mark a reading as disturbed.** A temperature taken after a fever, a late night, or any off day can be flagged "disturbed" and is dropped from the evaluation, so a single skewed point no longer drags the curve.
+- **A positive ovulation test anchors the prediction.** When you log a positive test, it refines the predicted ovulation day — it sharpens the estimate but never overrides a temperature shift you have already confirmed.
+- **Choose your secondary fertility sign.** Advanced cycle settings now let you track either cervical mucus (the default) or cervix observation alongside temperature, so the symptothermal evaluation follows the sign you actually record.
+- **Warmer phase descriptions.** Each cycle phase gained a second paragraph of plain-language context, so the calendar explains what is happening, not just which phase you are in.
+
+### Changed
+
+- **The calendar learns before it predicts.** Below three logged cycles it shows a calm "still learning your cycle" state instead of a confident fertile-window or ovulation guess — and the same gate now applies on the API, so every client reads the same honest signal rather than painting a window the rest of the app holds back.
+- **Temperature evaluation no longer under-detects ovulation.** The symptothermal reading gained the two Sensiplan exception rules — the slow rise and the single fall-back day, each confirmed on a fourth reading — so a real shift is recognised in the patterns that the simple rule used to miss.
+- **The mucus peak settles before it is trusted.** A mucus peak is now confirmed only after three drier days follow it, so a stray late entry no longer shifts the peak backward.
+
+### Fixed
+
+- **Longer cycles are no longer clipped.** Cycles up to roughly sixty days are evaluated in full instead of being cut short, so a naturally long cycle reads correctly.
+
 ## [1.16.14] — 2026-06-14 — one number everywhere: the score, the coach, and the doctor-report agree
 
 ### Changed
