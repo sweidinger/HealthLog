@@ -91,8 +91,9 @@ const KIND_TO_TYPE: Record<z.infer<typeof kindEnum>, MeasurementType> = {
  *
  * v1.16.16 — `glucose` is the canonical-stored unit (mg/dL) here; it is
  * overridden at request time to the user's `glucoseUnit` preference and the
- * point values are converted to match, so the wire DTO reads in ONE unit
- * across dashboard, detail page, CSV, FHIR, and the iOS series chart.
+ * point values are converted to match, so this wire DTO reads in the SAME
+ * unit as the CSV + FHIR exports and the blood-glucose detail page (one
+ * number, one engine).
  */
 const SERIES_UNIT: Record<z.infer<typeof kindEnum>, string> = {
   weight: "kg",
@@ -312,7 +313,7 @@ export const GET = apiHandler(async (request: NextRequest) => {
       // coherent with the CSV + FHIR exports (one number, one engine). The
       // top-level `unit` token follows. mg/dL-preference users are unchanged
       // (convertGlucose rounds the integer); mmol/L users see 1-decimal
-      // values (100 → 5.6) and `unit: "mmol/L"`.
+      // values (100 → 5.5) and `unit: "mmol/L"`.
       const profile = await prisma.user.findUnique({
         where: { id: user.id },
         select: { glucoseUnit: true },
