@@ -8,7 +8,7 @@
  *   - `recordInviteConsumer` writes the `usedBy` stamp AND the
  *     redemption-ledger row in one transaction.
  */
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const findUnique = vi.fn();
 const updateMany = vi.fn();
@@ -31,6 +31,7 @@ vi.mock("@/lib/db", () => ({
 }));
 
 import {
+  buildInviteUrl,
   consumeInviteToken,
   generateInviteToken,
   looksLikeInviteToken,
@@ -127,5 +128,40 @@ describe("looksLikeInviteToken", () => {
     expect(looksLikeInviteToken("hlk_" + "a".repeat(64))).toBe(false);
     expect(looksLikeInviteToken("hlv_" + "a".repeat(63))).toBe(false);
     expect(looksLikeInviteToken("hlv_" + "G".repeat(64))).toBe(false);
+  });
+});
+
+describe("buildInviteUrl", () => {
+  const SAVED = {
+    APP_URL: process.env.APP_URL,
+    NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
+  };
+
+  beforeEach(() => {
+    delete process.env.APP_URL;
+    delete process.env.NEXT_PUBLIC_APP_URL;
+  });
+
+  afterEach(() => {
+    if (SAVED.APP_URL === undefined) delete process.env.APP_URL;
+    else process.env.APP_URL = SAVED.APP_URL;
+    if (SAVED.NEXT_PUBLIC_APP_URL === undefined)
+      delete process.env.NEXT_PUBLIC_APP_URL;
+    else process.env.NEXT_PUBLIC_APP_URL = SAVED.NEXT_PUBLIC_APP_URL;
+  });
+
+  it("encodes the invite universal-link path the iOS app intercepts", () => {
+    const token = generateInviteToken();
+    const url = buildInviteUrl(token, "https://health.example.com/api/x");
+    // The AASA-matched path shape — NOT the legacy ?invite query form.
+    expect(url).toBe(`https://health.example.com/invite/${token}`);
+    expect(new URL(url).pathname).toBe(`/invite/${token}`);
+  });
+
+  it("prefers the operator-configured origin over the request URL", () => {
+    process.env.APP_URL = "https://app.example.org";
+    const token = generateInviteToken();
+    const url = buildInviteUrl(token, "http://internal-host:3000/api/x");
+    expect(url).toBe(`https://app.example.org/invite/${token}`);
   });
 });

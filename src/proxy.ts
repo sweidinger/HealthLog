@@ -42,6 +42,12 @@ const PUBLIC_PATHS = [
   // by a session cookie, so it must reach the page without an auth gate.
   // The page renders a flat 404 for any unknown / revoked / expired token.
   "/c/",
+  // v1.17.0 — `/invite/<hlv_token>` is the invite universal-link landing
+  // (iOS #16). It is a thin shape-validated redirect onto
+  // `/auth/register?invite=…`, carries no session, touches no database,
+  // and is not an enumeration oracle — so it must reach the page without
+  // an auth gate, like the `/auth/` register surface it forwards to.
+  "/invite/",
   // `/onboarding` itself + its subroutes are matched exactly via
   // `isPublicPath()` so we don't admit `/onboarding-export` etc.
   "/robots.txt",

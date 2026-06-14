@@ -36,7 +36,16 @@ export function looksLikeInviteToken(value: string): boolean {
 }
 
 /**
- * Compose the registration deep link for a freshly minted invite.
+ * Compose the invite universal-link for a freshly minted invite.
+ *
+ * The URL is `https://<host>/invite/<hlv_token>` — a clean path the iOS
+ * scene delegate intercepts via the AASA `["*"]` matcher (issue #16): an
+ * installed app opens straight onto onboarding registration with the
+ * token prefilled; a browser hits the `/invite/<token>` web route, which
+ * is a thin redirect onto `/auth/register?invite=<token>`. The token is
+ * `hlv_` + 64 hex, so it is already path-safe; `encodeURIComponent`
+ * stays as a defensive belt against any future prefix change.
+ *
  * Origin precedence mirrors the passkey RP-origin resolution: the
  * operator-configured `APP_URL` / `NEXT_PUBLIC_APP_URL` win over the
  * request origin (which may be an internal hostname behind the proxy).
@@ -59,7 +68,7 @@ export function buildInviteUrl(rawToken: string, requestUrl: string): string {
       // try the next candidate
     }
   }
-  return `${origin}/auth/register?invite=${encodeURIComponent(rawToken)}`;
+  return `${origin}/invite/${encodeURIComponent(rawToken)}`;
 }
 
 export type InviteConsumeResult =
