@@ -432,34 +432,3 @@ export function mapActivity(a: PolarActivity): MappedMeasurement[] {
 }
 
 /** Field→Measurement reference table (mirror of the mappers above). */
-export const POLAR_FIELD_MAP: Record<
-  string,
-  { type: string; unit: string; note?: string }
-> = {
-  "nightly_recharge.nightly_recharge_status": {
-    type: "RECOVERY_SCORE",
-    unit: "score",
-    note: "1-6 band rescaled to 0-100; feeds recovery ladder below WHOOP",
-  },
-  "nightly_recharge.hrv_avg": { type: "HRV_RMSSD", unit: "ms" },
-  "nightly_recharge.heart_rate_avg": {
-    type: "RESTING_HEART_RATE",
-    unit: "bpm",
-  },
-  "nightly_recharge.breathing_rate_avg": {
-    type: "RESPIRATORY_RATE",
-    unit: "breaths/min",
-  },
-  "sleep.{light,deep,rem}_sleep": {
-    type: "SLEEP_DURATION",
-    unit: "minutes",
-    note: "s->min, one row per stage (light->CORE, deep->DEEP, rem->REM)",
-  },
-  "sleep.sleep_score": { type: "SLEEP_PERFORMANCE", unit: "%" },
-  "activity.active-steps": { type: "ACTIVITY_STEPS", unit: "steps" },
-  "activity.active-calories": {
-    type: "ACTIVE_ENERGY_BURNED",
-    unit: "kcal",
-    note: "active portion only (NOT total calories incl. BMR)",
-  },
-};

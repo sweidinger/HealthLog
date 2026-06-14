@@ -401,32 +401,3 @@ export function mapDailyActivity(a: OuraDailyActivity): MappedMeasurement[] {
   return out;
 }
 
-export const OURA_FIELD_MAP: Record<
-  string,
-  { type: string; unit: string; note?: string }
-> = {
-  "daily_readiness.score": {
-    type: "RECOVERY_SCORE",
-    unit: "score",
-    note: "0-100 readiness; feeds recovery ladder below WHOOP",
-  },
-  "sleep.{light,deep,rem}_sleep_duration": {
-    type: "SLEEP_DURATION",
-    unit: "minutes",
-    note: "s->min, one row per stage",
-  },
-  "sleep.awake_time": {
-    type: "SLEEP_DURATION",
-    unit: "minutes",
-    note: "AWAKE stage",
-  },
-  "sleep.efficiency": { type: "SLEEP_EFFICIENCY", unit: "%" },
-  "sleep.average_hrv": { type: "HRV_RMSSD", unit: "ms" },
-  "sleep.lowest_heart_rate": { type: "RESTING_HEART_RATE", unit: "bpm" },
-  "sleep.average_breath": { type: "RESPIRATORY_RATE", unit: "breaths/min" },
-  "daily_activity.steps": { type: "ACTIVITY_STEPS", unit: "steps" },
-  "daily_activity.active_calories": {
-    type: "ACTIVE_ENERGY_BURNED",
-    unit: "kcal",
-  },
-};

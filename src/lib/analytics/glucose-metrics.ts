@@ -146,40 +146,6 @@ export interface TimeInRangeDistribution {
   };
 }
 
-/**
- * Advanced glycaemic indices — the "advanced" disclosure tier of the panel.
- * Each is a single scalar over the in-window readings; all are derivable from
- * spot samples (unlike the dense-stream MAGE/CONGA/MODD family this module
- * deliberately defers). Surfaced behind a progressive disclosure because they
- * read as research-grade composites a casual user does not need up front.
- */
-export interface GlucoseAdvancedIndices {
-  /**
-   * J-index — a single number folding central tendency AND variability:
-   *   J = 0.001 × (mean + SD)²,   mean & SD in mg/dL.
-   * Reference bands (Wojcicki 1995): ~10–20 ideal/non-diabetic,
-   * 20–30 good control, 30–40 fair, > 40 poor. Reported here as an estimate
-   * over spot data, not a continuous-trace J.
-   * Wojcicki 1995, Horm Metab Res 27(1):41-42, DOI 10.1055/s-2007-979906.
-   */
-  jIndex: number;
-  /**
-   * Low Blood Glucose Index — Kovatchev hypoglycaemia risk. Mean of the
-   * left-branch risk values `rl(BG)` over all readings; higher = more / deeper
-   * lows. Interpretation bands (Kovatchev 2006): < 1.1 minimal, 1.1–2.5 low,
-   * 2.5–5 moderate, > 5 high hypo risk.
-   * Kovatchev 2006, Diabetes Care 29(11):2433-2438, DOI 10.2337/dc06-1085.
-   */
-  lbgi: number;
-  /**
-   * High Blood Glucose Index — Kovatchev hyperglycaemia risk. Mean of the
-   * right-branch risk values `rh(BG)`; higher = more / higher highs.
-   * Interpretation bands (Kovatchev 2006): < 4.5 low, 4.5–9 moderate,
-   * > 9 high hyper risk.
-   * Kovatchev 2006, Diabetes Care 29(11):2433-2438, DOI 10.2337/dc06-1085.
-   */
-  hbgi: number;
-}
 
 /** Variability summary: SD + CV% with the Monnier stability flag. */
 export interface GlucoseVariability {

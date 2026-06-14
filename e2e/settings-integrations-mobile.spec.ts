@@ -143,9 +143,8 @@ test.describe("/settings/integrations Pixel-5 layout", () => {
 
     // Wait for the pills to mount (queries resolve after first paint).
     const pills = page.locator('[data-testid="integration-status-pill"]');
-    // Three integration cards now (Withings, WHOOP, Google Health) → three
     // pills.
-    await expect(pills).toHaveCount(3, { timeout: 10_000 });
+    await expect(pills).toHaveCount(6, { timeout: 10_000 });
 
     // Withings is connected in this fixture; WHOOP is a BYO-keys card that
     // stays dormant until an operator adds credentials, so assert the one
