@@ -66,6 +66,16 @@ export const EVENT_TYPES = [
   // `notificationPrefs.measurementReminder.clientManaged` suppression.
   // NOT time-sensitive — a Vorsorge nudge is not a Focus-bypass case.
   "MEASUREMENT_REMINDER",
+  // v1.17.1 (#22) — silent medication-intake cross-device sync. Fired on a
+  // medication-intake mutation (single + bulk) to the user's OTHER iOS
+  // devices so a Live Activity / Home-Screen widget reconciles after a dose
+  // is logged on one device. APNs-ONLY by construction: it is a silent
+  // `apns-push-type: background` push (content-available, no alert) and has
+  // no Telegram / ntfy / Web Push semantics, so it never fans out to those
+  // channels (the dispatcher would have nothing meaningful to deliver and a
+  // user-visible Telegram message on every dose would be noise). Routed
+  // through the dedicated intake-sync sender, not the alert cascade.
+  "MEDICATION_INTAKE_SYNC",
 ] as const;
 export type EventType = (typeof EVENT_TYPES)[number];
 
@@ -117,6 +127,12 @@ export const EVENT_DEFAULT_ENABLED: Record<EventType, boolean> = {
   // suppression the cron reads. An explicit per-channel
   // `NotificationPreference` row still wins.
   MEASUREMENT_REMINDER: true,
+  // v1.17.1 (#22) — ON at the channel layer; an explicit per-channel
+  // `NotificationPreference` row (APNS, eventType MEDICATION_INTAKE_SYNC,
+  // enabled=false) still suppresses it. There is no second user-facing
+  // toggle: this is plumbing that keeps the user's own devices coherent,
+  // not a notification the user chooses to receive.
+  MEDICATION_INTAKE_SYNC: true,
 };
 
 export const CHANNEL_TYPE_LABELS: Record<ChannelType, string> = {

@@ -744,6 +744,120 @@ export async function sendViaApns(
   };
 }
 
+export interface ApnsRawSendInput {
+  deviceToken: string;
+  environment: "sandbox" | "production";
+  /**
+   * APNs `apns-push-type` header. `background` for a silent
+   * content-available push (no alert); `liveactivity` for an
+   * ActivityKit update / end push.
+   */
+  pushType: "background" | "liveactivity";
+  /**
+   * Custom JSON payload merged into the notification body. For a
+   * `background` push this is the app's userInfo; for a `liveactivity`
+   * push it carries the `aps` content-state / event / timestamp the iOS
+   * Activity reads. Sent verbatim (no alert / sound / badge enrichment).
+   */
+  payload: Record<string, unknown>;
+  /**
+   * APNs topic. The silent-sync push uses the app bundle id (default);
+   * the Live Activity push MUST use `<bundle>.push-type.liveactivity`.
+   */
+  topic?: string;
+  /** `apns-priority`. `5` for background (power-conserving) is required. */
+  priority?: 5 | 10;
+}
+
+/**
+ * v1.17.1 (#22) — send one raw APNs push (silent background or Live
+ * Activity) to one device. Unlike `sendApnsPush`, this sets NO
+ * `aps.alert` / `aps.sound` / `aps.badge`: a `background` push must be
+ * content-only or APNs rejects it, and a `liveactivity` push carries its
+ * own `aps` content-state in the supplied `payload`. The `rawPayload`
+ * escape hatch bypasses node-apn's convenience setters so the caller
+ * controls the exact wire body.
+ */
+export async function sendApnsRawPush(
+  input: ApnsRawSendInput,
+): Promise<ApnsSendResult> {
+  const config = loadApnsConfig();
+  if (!config) {
+    return {
+      ok: false,
+      reason: "apns_not_configured",
+      message: "APNs env vars are not set",
+    };
+  }
+
+  const provider = getProvider(config, input.environment);
+
+  const note = new apn.Notification();
+  note.topic = input.topic ?? config.bundleId;
+  note.pushType = input.pushType;
+  if (input.pushType === "background") {
+    // A silent push declares `content-available: 1` and carries no
+    // alert/sound/badge. Apple rejects a content-available-only push at
+    // priority 10, so default to the power-conserving 5.
+    note.contentAvailable = true;
+    note.priority = input.priority ?? 5;
+  } else {
+    note.priority = input.priority ?? 10;
+  }
+  // Bypass the convenience setters entirely so the body is exactly what
+  // the silent-sync / Live-Activity contract specifies — no injected
+  // `aps.alert` shell.
+  note.rawPayload = input.payload;
+
+  const start = performance.now();
+  let result: Awaited<ReturnType<apn.Provider["send"]>>;
+  try {
+    result = await provider.send(note, input.deviceToken);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "send_failed";
+    getEvent()?.addExternalCall({
+      service: "apns",
+      method: `send_${input.pushType}`,
+      duration_ms: Math.round(performance.now() - start),
+      error: message,
+    });
+    return { ok: false, reason: "apns_network_error", message };
+  }
+
+  const duration = Math.round(performance.now() - start);
+
+  if (result.sent.length > 0) {
+    getEvent()?.addExternalCall({
+      service: "apns",
+      method: `send_${input.pushType}`,
+      duration_ms: duration,
+      status: 200,
+    });
+    return { ok: true, status: 200 };
+  }
+
+  const failure = result.failed[0];
+  const reason = failure?.response?.reason ?? failure?.error?.message;
+  const status = failure?.status ? Number(failure.status) : undefined;
+  const shouldDisable = reason ? PERMANENT_APNS_REASONS.has(reason) : false;
+
+  getEvent()?.addExternalCall({
+    service: "apns",
+    method: `send_${input.pushType}`,
+    duration_ms: duration,
+    status: status ?? undefined,
+    error: reason ?? "all_failed",
+  });
+
+  return {
+    ok: false,
+    status,
+    reason: reason ?? "apns_unknown_failure",
+    shouldDisable,
+    message: failure?.error?.message,
+  };
+}
+
 function stripHtml(s: string): string {
   return s.replace(/<[^>]*>/g, "");
 }
