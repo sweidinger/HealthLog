@@ -24,10 +24,16 @@ const SW_SOURCE = readFileSync(
 );
 
 const ORIGIN = "https://app.example";
-// `importScripts` throws in the sandbox, so the literal fallback version
-// is active and the cache names are deterministic.
-const CURRENT_PAGE_CACHE = "healthlog-pages-v1.4.43";
-const CURRENT_STATIC_CACHE = "healthlog-static-v1.4.43";
+// `importScripts` throws in the sandbox, so the in-`sw.js` fallback literal
+// is active and the cache names are deterministic. The fallback is
+// re-anchored to `package.json` on every prebuild by
+// `scripts/generate-sw-version.mjs`; read it straight from the SW source so
+// this test never drifts from the literal it is exercising.
+const FALLBACK_VERSION = /\/\* @sw-version-fallback \*\/\s*"(v[^"]*)"/.exec(
+  SW_SOURCE,
+)![1];
+const CURRENT_PAGE_CACHE = `healthlog-pages-${FALLBACK_VERSION}`;
+const CURRENT_STATIC_CACHE = `healthlog-static-${FALLBACK_VERSION}`;
 
 class FakeCache {
   map = new Map<string, Response>();

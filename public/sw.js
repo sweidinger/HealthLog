@@ -27,8 +27,16 @@ try {
 } catch {
   // Fall through to the literal fallback below.
 }
+// The `|| "..."` fallback literal is the value used only when the
+// `importScripts('/sw-version.js')` above is absent (dev with no `prebuild`
+// step, or a 404 on the generated file). `scripts/generate-sw-version.mjs`
+// rewrites it to the current `package.json` version on every prebuild — the
+// marker below is the rewrite anchor — so in any shipped image the literal
+// matches the active release and can never drift stale the way it did across
+// v1.4.38.4 → v1.4.42. Do not hand-edit; bump `package.json` and rebuild.
 const CACHE_VERSION =
-  (typeof self !== "undefined" && self.__APP_VERSION__) || "v1.4.43";
+  (typeof self !== "undefined" && self.__APP_VERSION__) ||
+  /* @sw-version-fallback */ "v1.16.12";
 const STATIC_CACHE = `healthlog-static-${CACHE_VERSION}`;
 const PAGE_CACHE = `healthlog-pages-${CACHE_VERSION}`;
 const MAX_STATIC_ENTRIES = 150;
