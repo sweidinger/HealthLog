@@ -114,6 +114,9 @@ export const MEASUREMENT_TYPE_LABEL_KEYS: Record<string, string> = {
   AVERAGE_HEART_RATE: "measurements.typeAverageHeartRate",
   MAX_HEART_RATE: "measurements.typeMaxHeartRate",
   SLEEP_DISTURBANCE_COUNT: "measurements.typeSleepDisturbanceCount",
+  // ── v1.17.1 — Polar Nightly Recharge + Training Load Pro components ──
+  ANS_CHARGE: "measurements.typeAnsCharge",
+  CARDIO_LOAD: "measurements.typeCardioLoad",
 };
 
 export const MEASUREMENT_TYPE_ICONS: Record<string, LucideIcon> = {
@@ -225,6 +228,11 @@ export const MEASUREMENT_TYPE_ICONS: Record<string, LucideIcon> = {
   AVERAGE_HEART_RATE: HeartPulse,
   MAX_HEART_RATE: Heart,
   SLEEP_DISTURBANCE_COUNT: Waves,
+  // ── v1.17.1 — Polar Nightly Recharge + Training Load Pro components ──
+  // HeartPulse reads as the autonomic-charge signal; Gauge carries the
+  // cardio-load strain figure (same family as DAY_STRAIN).
+  ANS_CHARGE: HeartPulse,
+  CARDIO_LOAD: Gauge,
 };
 
 export const MEASUREMENT_TYPE_COLORS: Record<string, string> = {
@@ -326,4 +334,8 @@ export const MEASUREMENT_TYPE_COLORS: Record<string, string> = {
   AVERAGE_HEART_RATE: "bg-chart-3/20 text-chart-3",
   MAX_HEART_RATE: "bg-chart-3/20 text-chart-3",
   SLEEP_DISTURBANCE_COUNT: "bg-chart-2/20 text-chart-2",
+  // ── v1.17.1 — Polar Nightly Recharge + Training Load Pro components ──
+  // chart-1 (strain/score family) for both, matching DAY_STRAIN.
+  ANS_CHARGE: "bg-chart-1/20 text-chart-1",
+  CARDIO_LOAD: "bg-chart-1/20 text-chart-1",
 };

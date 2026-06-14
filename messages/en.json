@@ -550,6 +550,8 @@
     "typeAverageHeartRate": "Average heart rate",
     "typeMaxHeartRate": "Maximum heart rate",
     "typeSleepDisturbanceCount": "Sleep disturbances",
+    "typeAnsCharge": "ANS charge",
+    "typeCardioLoad": "Cardio load",
     "filterBySource": "Filter by source",
     "sourceComputed": "Computed",
     "sourceWhoop": "WHOOP",

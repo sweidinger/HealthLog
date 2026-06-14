@@ -188,6 +188,12 @@ export const MEASUREMENT_CATEGORIES: ReadonlyMap<
   ["AVERAGE_HEART_RATE", "cardiovascular"],
   ["MAX_HEART_RATE", "cardiovascular"],
   ["SLEEP_DISTURBANCE_COUNT", "sleep"],
+
+  // ── v1.17.1 — Polar Nightly Recharge + Training Load Pro components ──
+  // ANS charge + Cardio Load are device-native recovery / strain composites,
+  // so they join the scores cluster alongside DAY_STRAIN.
+  ["ANS_CHARGE", "scores"],
+  ["CARDIO_LOAD", "scores"],
 ]);
 
 /**

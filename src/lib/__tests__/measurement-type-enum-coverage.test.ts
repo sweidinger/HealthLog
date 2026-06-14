@@ -90,10 +90,13 @@ const EXPECTED_TYPES = [
   "AVERAGE_HEART_RATE",
   "MAX_HEART_RATE",
   "SLEEP_DISTURBANCE_COUNT",
+  // ── v1.17.1 — Polar Nightly Recharge + Training Load Pro components ──
+  "ANS_CHARGE",
+  "CARDIO_LOAD",
 ] as const;
 
 describe("measurementTypeEnum coverage", () => {
-  it("exposes the 63 canonical measurement types", () => {
+  it("exposes the 65 canonical measurement types", () => {
     expect([...measurementTypeEnum.options].sort()).toEqual(
       [...EXPECTED_TYPES].sort(),
     );
@@ -215,6 +218,13 @@ describe("measurementTypeEnum coverage", () => {
     "AVERAGE_HEART_RATE",
     "MAX_HEART_RATE",
     "SLEEP_DISTURBANCE_COUNT",
+    // v1.17.1 — Polar Nightly Recharge + Training Load Pro components. ANS
+    // charge and Cardio Load are device-derived recovery / strain composites,
+    // not measured clinical vitals; they surface on their own Insights cluster
+    // with a "descriptive, not clinical" framing and never belong in the
+    // clinical vitals PDF. See doctor-report-pdf-core.ts.
+    "ANS_CHARGE",
+    "CARDIO_LOAD",
   ]);
 
   it("doctor-report PDF vital types cover the canonical enum minus documented exclusions", () => {

@@ -115,6 +115,11 @@ export const ALLOWED_CHART_TOKENS = [
   "metric:AVERAGE_HEART_RATE",
   "metric:MAX_HEART_RATE",
   "metric:SLEEP_DISTURBANCE_COUNT",
+  // v1.17.1 — Polar-native recovery / strain components. Continuous daily
+  // series, so each carries a `metric:<TYPE>` token and renders through the
+  // generic chart renderer alongside the WHOOP-native score classes.
+  "metric:ANS_CHARGE",
+  "metric:CARDIO_LOAD",
 ] as const;
 
 export type ChartToken = (typeof ALLOWED_CHART_TOKENS)[number];
