@@ -4585,7 +4585,27 @@
     "nightscoutConnectFailed": "Impossible de se connecter à Nightscout.",
     "nightscoutDisconnect": "Déconnecter",
     "nightscoutDisconnectTitle": "Déconnecter Nightscout ?",
-    "nightscoutDisconnectDescription": "Les synchronisations futures s'arrêtent. Les mesures de glycémie déjà importées restent dans votre historique."
+    "nightscoutDisconnectDescription": "Les synchronisations futures s'arrêtent. Les mesures de glycémie déjà importées restent dans votre historique.",
+    "polar": "Polar",
+    "polarDescription": "Connectez votre compte Polar pour synchroniser la récupération Nightly Recharge, les phases de sommeil et l'activité quotidienne.",
+    "polarHelp": "Connectez-vous à Polar pour accorder l'accès. Les données sont récupérées en arrière-plan une fois par heure.",
+    "polarUnavailable": "Polar n'est pas configuré sur ce serveur. Demandez à votre administrateur d'ajouter les identifiants OAuth Polar.",
+    "polarConnect": "Connecter Polar",
+    "polarDisconnect": "Déconnecter",
+    "polarDisconnectTitle": "Déconnecter Polar ?",
+    "polarDisconnectDescription": "Les synchronisations futures s'arrêtent. Les mesures déjà importées restent dans votre historique.",
+    "polarOauthConnected": "Polar connecté — la première synchronisation démarre en arrière-plan.",
+    "polarOauthFailed": "Échec de la connexion à Polar",
+    "polarOauthError": {
+      "csrf1": "La vérification de sécurité a échoué car le cookie du navigateur était absent. Veuillez relancer la connexion dans le même navigateur.",
+      "state": "La réponse de Polar ne correspondait à aucune demande de connexion en cours. Veuillez relancer la connexion.",
+      "cross_user": "La réponse appartient à une demande d'un autre compte. Veuillez relancer la connexion depuis votre propre compte.",
+      "nocode": "Polar n'a pas renvoyé de code d'autorisation. Réessayez et autorisez l'accès dans la fenêtre Polar.",
+      "nocreds": "Polar n'est pas configuré sur ce serveur. Demandez à votre administrateur d'ajouter les identifiants OAuth Polar.",
+      "token": "L'échange de jeton avec Polar a échoué. Veuillez relancer la connexion.",
+      "rate_limited": "Trop de tentatives de connexion. Patientez un instant et réessayez.",
+      "generic": "Erreur inconnue lors de la connexion. Veuillez relancer la connexion."
+    }
   },
   "admin": {
     "title": "Administration",
