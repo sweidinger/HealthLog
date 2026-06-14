@@ -3354,6 +3354,14 @@ model ConsentReceipt {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, createdAt(sort: Desc)])
+  // `consent_receipts_user_id_kind_active_key` is a partial UNIQUE index
+  // over (user_id, kind) `WHERE revoked_at IS NULL` — see migration 0159.
+  // It enforces at most one *active* receipt per (user, kind) so two
+  // concurrent web-grant heals can't both mint an active row. Prisma can't
+  // express a partial-predicate unique in the schema language, so it's
+  // introduced via raw SQL and intentionally omitted here. The append-only
+  // history (revoked rows) stays unconstrained because revoked rows carry a
+  // non-NULL `revoked_at` and fall outside the predicate.
   @@map("consent_receipts")
 }
 

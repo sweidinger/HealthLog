@@ -21,7 +21,10 @@
  * timestamp + source, which is the GDPR Art. 7 audit signal the legal team
  * needs). It stays well under the 64 KB artefact cap.
  */
-import { createReceipt, latestActiveReceipt } from "@/lib/consent/receipts";
+import { prisma } from "@/lib/db";
+import { Prisma } from "@/generated/prisma/client";
+import { isP2002 } from "@/lib/prisma-errors";
+import { latestActiveReceipt } from "@/lib/consent/receipts";
 import type { ConsentReceipt } from "@/lib/consent/receipts";
 
 /** Outcome of an idempotent web-grant call. */
@@ -42,6 +45,9 @@ export async function ensureWebAiConsentReceipt(
   userId: string,
   now: Date = new Date(),
 ): Promise<WebConsentGrantResult> {
+  // Fast path: a cheap read outside the transaction short-circuits the
+  // common already-granted case (every mount after the first) without
+  // opening a transaction.
   const existing = await latestActiveReceipt(userId, "ai_full");
   if (existing) return { minted: false };
 
@@ -52,6 +58,32 @@ export async function ensureWebAiConsentReceipt(
     note: "In-app affirmative AI consent granted via the web client.",
   });
 
-  const receipt = await createReceipt(userId, "ai_full", artefact, now);
-  return { minted: true, receipt };
+  // Two web mounts can pass the fast-path read concurrently and both reach
+  // the mint. The transaction re-checks under a Serializable isolation so a
+  // second mint sees the first's row and no-ops; the partial unique index
+  // (migration 0159, `WHERE revoked_at IS NULL`) is the structural backstop
+  // if the re-check still races. A unique violation from the backstop means
+  // a concurrent grant already won — that is success-shaped (the user ends
+  // up with exactly one active receipt), so we map it to `{ minted: false }`.
+  try {
+    return await prisma.$transaction(
+      async (tx) => {
+        const inTx = await tx.consentReceipt.findFirst({
+          where: { userId, kind: "ai_full", revokedAt: null },
+          orderBy: { createdAt: "desc" },
+        });
+        if (inTx) return { minted: false } as const;
+
+        const receipt = await tx.consentReceipt.create({
+          data: { userId, kind: "ai_full", artefact, signedAt: now },
+        });
+        return { minted: true, receipt } as const;
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+    );
+  } catch (err) {
+    // Partial-unique violation — a concurrent grant landed first.
+    if (isP2002(err)) return { minted: false };
+    throw err;
+  }
 }

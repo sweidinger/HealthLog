@@ -1,15 +1,25 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-vi.mock("@/lib/db", () => ({
-  prisma: {
-    consentReceipt: {
-      create: vi.fn(),
-      findFirst: vi.fn(),
-      findMany: vi.fn(),
-      update: vi.fn(),
+// `createReceipt` + `revokeLatest` run their supersede/revoke logic inside
+// a transaction. Run the callback against the same mock proxy. The Prisma
+// `$transaction` signature is generic; the mock takes a loose callback.
+type TxFn = (tx: unknown) => unknown;
+
+vi.mock("@/lib/db", () => {
+  const consentReceipt = {
+    create: vi.fn(),
+    findFirst: vi.fn(),
+    findMany: vi.fn(),
+    update: vi.fn(),
+    updateMany: vi.fn(),
+  };
+  return {
+    prisma: {
+      consentReceipt,
+      $transaction: vi.fn((fn: TxFn) => fn({ consentReceipt })),
     },
-  },
-}));
+  };
+});
 
 import { prisma } from "@/lib/db";
 import {
@@ -19,8 +29,15 @@ import {
   revokeLatest,
 } from "../receipts";
 
+const $transaction = vi.mocked(prisma.$transaction) as unknown as {
+  mockImplementation: (impl: (fn: TxFn) => unknown) => void;
+};
+
 beforeEach(() => {
   vi.resetAllMocks();
+  $transaction.mockImplementation((fn: TxFn) =>
+    fn({ consentReceipt: prisma.consentReceipt }),
+  );
 });
 
 function row(overrides: Partial<Record<string, unknown>> = {}) {
@@ -37,12 +54,21 @@ function row(overrides: Partial<Record<string, unknown>> = {}) {
 }
 
 describe("createReceipt", () => {
-  it("inserts a row scoped to (userId, kind) with the artefact + signedAt", async () => {
+  it("supersedes any active row then inserts scoped to (userId, kind)", async () => {
+    vi.mocked(prisma.consentReceipt.updateMany).mockResolvedValue({
+      count: 0,
+    } as never);
     vi.mocked(prisma.consentReceipt.create).mockResolvedValue(row() as never);
 
     const signedAt = new Date("2026-05-18T10:00:00.000Z");
     const result = await createReceipt("user-1", "ai_full", "PDF…", signedAt);
 
+    // Revokes any currently-active receipt of the same kind first, so the
+    // fresh grant doesn't collide with the partial unique index.
+    expect(prisma.consentReceipt.updateMany).toHaveBeenCalledWith({
+      where: { userId: "user-1", kind: "ai_full", revokedAt: null },
+      data: { revokedAt: signedAt },
+    });
     expect(prisma.consentReceipt.create).toHaveBeenCalledWith({
       data: {
         userId: "user-1",
@@ -52,6 +78,8 @@ describe("createReceipt", () => {
       },
     });
     expect(result.id).toBe("rcpt-1");
+    // The whole mint runs in a transaction.
+    expect(prisma.$transaction).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -96,28 +124,37 @@ describe("latestActiveReceiptsByKind", () => {
 });
 
 describe("revokeLatest", () => {
-  it("flips revokedAt on the latest active row and returns the updated row", async () => {
-    vi.mocked(prisma.consentReceipt.findFirst).mockResolvedValue(row() as never);
-    vi.mocked(prisma.consentReceipt.update).mockResolvedValue(
-      row({ revokedAt: new Date("2026-05-18T11:00:00.000Z") }) as never,
+  it("atomically revokes the active row via updateMany and returns it", async () => {
+    const now = new Date("2026-05-18T11:00:00.000Z");
+    vi.mocked(prisma.consentReceipt.updateMany).mockResolvedValue({
+      count: 1,
+    } as never);
+    vi.mocked(prisma.consentReceipt.findFirst).mockResolvedValue(
+      row({ revokedAt: now }) as never,
     );
 
-    const now = new Date("2026-05-18T11:00:00.000Z");
     const result = await revokeLatest("user-1", "ai_full", now);
 
-    expect(prisma.consentReceipt.update).toHaveBeenCalledWith({
-      where: { id: "rcpt-1" },
+    expect(prisma.consentReceipt.updateMany).toHaveBeenCalledWith({
+      where: { userId: "user-1", kind: "ai_full", revokedAt: null },
       data: { revokedAt: now },
+    });
+    // Re-reads the just-revoked row so the audit log keeps the receipt id.
+    expect(prisma.consentReceipt.findFirst).toHaveBeenCalledWith({
+      where: { userId: "user-1", kind: "ai_full", revokedAt: now },
+      orderBy: { createdAt: "desc" },
     });
     expect(result?.revokedAt).toEqual(now);
   });
 
-  it("returns null without writing when no active receipt exists", async () => {
-    vi.mocked(prisma.consentReceipt.findFirst).mockResolvedValue(null);
+  it("returns null without re-reading when no active receipt exists", async () => {
+    vi.mocked(prisma.consentReceipt.updateMany).mockResolvedValue({
+      count: 0,
+    } as never);
 
     const result = await revokeLatest("user-1", "ai_full");
 
     expect(result).toBeNull();
-    expect(prisma.consentReceipt.update).not.toHaveBeenCalled();
+    expect(prisma.consentReceipt.findFirst).not.toHaveBeenCalled();
   });
 });
