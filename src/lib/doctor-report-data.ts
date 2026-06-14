@@ -1082,6 +1082,9 @@ export async function collectDoctorReportData(
     stats: filteredStats,
     glucoseStats,
     glucoseRanges,
+    // Surfaced by the insights glucose views; the doctor-PDF / FHIR rendering of
+    // these clinical metrics is staged for a later release, so no report
+    // consumer reads this field yet — it is forward-populated, not dead.
     glucoseClinical,
     glucoseUnit: resolveGlucoseUnit(userProfile?.glucoseUnit ?? null),
     bmi: filteredBmi,
