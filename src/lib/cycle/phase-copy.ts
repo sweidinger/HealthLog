@@ -21,3 +21,17 @@ export const PHASE_WHATS_HAPPENING_KEY: Record<CyclePhase, string> = {
   OVULATORY: "cycle.phaseEducation.whatsHappening.OVULATORY",
   LUTEAL: "cycle.phaseEducation.whatsHappening.LUTEAL",
 };
+
+/**
+ * The phase → i18n leaf for the second, deeper "context" line — what someone
+ * might notice (energy, sleep, basal temperature, mood) and a gentle framing of
+ * normal variation. Same descriptive-only constraint as above: no advice, no
+ * clinical claim, never prescriptive. Spelled out as literals for the same
+ * call-site-coverage reason.
+ */
+export const PHASE_CONTEXT_KEY: Record<CyclePhase, string> = {
+  MENSTRUAL: "cycle.phaseEducation.context.MENSTRUAL",
+  FOLLICULAR: "cycle.phaseEducation.context.FOLLICULAR",
+  OVULATORY: "cycle.phaseEducation.context.OVULATORY",
+  LUTEAL: "cycle.phaseEducation.context.LUTEAL",
+};

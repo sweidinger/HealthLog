@@ -5741,6 +5741,12 @@
         "OVULATORY": "Hacia la mitad del ciclo se libera un óvulo y la fertilidad alcanza su punto máximo durante una ventana corta. Esta fase es la más breve de las cuatro.",
         "LUTEAL": "Después de la ovulación, la progesterona sube y el cuerpo se asienta. En los días previos a la siguiente menstruación, algunas personas notan cambios premenstruales."
       },
+      "context": {
+        "MENSTRUAL": "Los niveles hormonales están en su punto más bajo, por eso estos días pueden sentirse como un reinicio tranquilo. Algunas personas notan cólicos, un sueño más ligero o ganas de bajar el ritmo; otras los atraviesan casi sin cambios. Todo ello entra dentro de lo normal, y cómo se siente puede variar de un ciclo a otro.",
+        "FOLLICULAR": "Con el estrógeno en aumento, muchas personas describen estos días como luminosos y abiertos: el sueño suele llegar con más facilidad y la mente se siente más despejada. La temperatura basal suele mantenerse en su franja más baja hasta justo antes de la ovulación. La duración de esta fase es la que más varía de una persona a otra y de un ciclo a otro.",
+        "OVULATORY": "El estrógeno alcanza su máximo justo antes de liberarse el óvulo, a menudo junto con un breve ánimo más alto y una ligera subida de la temperatura basal en el día o los dos días siguientes. El flujo cervical tiende a volverse más transparente y elástico en torno a esta ventana. Una breve punzada en un lado es algo que algunas personas notan; muchas no sienten nada, y ambas cosas son del todo normales.",
+        "LUTEAL": "La progesterona guía la segunda mitad y la temperatura basal suele asentarse algo más alta que al inicio del ciclo. Algunas personas notan cambios en el sueño, el apetito, el ánimo o la energía a medida que pasan los días, mientras que otras se sienten estables todo el tiempo. El patrón es personal y a menudo se ve distinto de un mes a otro."
+      },
       "commonHere": "Esto lo notas a menudo aquí",
       "trackNudge": "Registrar hoy",
       "stillLearning": "Aún estamos conociendo tu ciclo. Sigue registrando y esto se irá completando con patrones de tus propios días."

@@ -5741,6 +5741,12 @@
         "OVULATORY": "Around mid-cycle an egg is released and fertility peaks for a short window. This phase is the briefest of the four.",
         "LUTEAL": "After ovulation, progesterone rises and the body settles in. In the days before your next period some people notice premenstrual changes."
       },
+      "context": {
+        "MENSTRUAL": "Hormone levels are at their lowest, which is why these days can feel like a quiet reset. Some people notice cramps, lighter sleep or a wish to slow down; others sail through with little change. All of that sits within the normal range, and how it feels can shift from one cycle to the next.",
+        "FOLLICULAR": "With oestrogen on the rise, many people describe these days as bright and open — sleep often comes more easily and the mind feels clearer. Basal body temperature usually stays in its lower band until just before ovulation. The length of this phase varies most from person to person, and from cycle to cycle.",
+        "OVULATORY": "Oestrogen peaks just before the egg is released, often alongside a brief lift in mood and a small rise in basal body temperature in the day or two that follow. Cervical fluid tends to become clearer and more stretchy around this window. A short twinge on one side is something some people notice; many feel nothing at all, and both are perfectly normal.",
+        "LUTEAL": "Progesterone leads the second half and basal body temperature usually settles a little higher than earlier in the cycle. Some people notice shifts in sleep, appetite, mood or energy as the days go on, while others feel steady throughout. The pattern is personal, and it often looks different from one month to the next."
+      },
       "commonHere": "You often notice this here",
       "trackNudge": "Log today",
       "stillLearning": "Still learning your cycle. Keep logging and this fills in with patterns from your own days."
