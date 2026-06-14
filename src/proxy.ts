@@ -279,7 +279,12 @@ export function proxy(request: NextRequest) {
   //     the header, and the token must never reach a search index.
   //   - `Referrer-Policy: no-referrer` so the token-bearing URL is not
   //     leaked in the `Referer` of any outbound navigation from the page.
-  if (pathname.startsWith("/c/")) {
+  //
+  // v1.17.0 — `/invite/<hlv_token>` (iOS #16) carries an equally sensitive
+  // secret in the path, so it earns the same edge defence even though it is
+  // a pure server redirect: no shared proxy / CDN may cache it and no
+  // crawler may index the token-bearing URL.
+  if (pathname.startsWith("/c/") || pathname.startsWith("/invite/")) {
     response.headers.set(
       "Cache-Control",
       "no-store, no-cache, must-revalidate",

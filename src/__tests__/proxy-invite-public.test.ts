@@ -48,6 +48,17 @@ describe("proxy.ts /invite public-allowlist (v1.17.0)", () => {
     expect(res.headers.get("location")).toBeNull();
   });
 
+  it("hardens the token-in-path surface against cache / index / referrer leaks", () => {
+    // Mirror the `/c/<token>` edge defence — the secret rides in the path,
+    // so no CDN may cache it and no crawler may index the URL.
+    const res = proxy(makeRequest(`/invite/${VALID_TOKEN}`));
+    expect(res.headers.get("Cache-Control")).toBe(
+      "no-store, no-cache, must-revalidate",
+    );
+    expect(res.headers.get("X-Robots-Tag")).toBe("noindex, nofollow");
+    expect(res.headers.get("Referrer-Policy")).toBe("no-referrer");
+  });
+
   it("still redirects unauthenticated requests for protected pages", () => {
     // Negative check — confirms the fixture would catch a real
     // regression. `/insights` is not public.
