@@ -2791,6 +2791,7 @@
       "title": "Poziom glukozy",
       "description": "Twoje odczyty glukozy w czasie, w mg/dL.",
       "chartTitle": "Poziom glukozy",
+      "medianLabel": "Mediana glukozy (90 dni)",
       "emptyState": {
         "title": "Brak danych o glukozie",
         "description": "Odczyty glukozy pojawią się tutaj po zapisaniu jednego lub synchronizacji urządzenia."

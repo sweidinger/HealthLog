@@ -2791,6 +2791,7 @@
       "title": "Blutzucker",
       "description": "Deine Blutzuckerwerte im Zeitverlauf, in mg/dL.",
       "chartTitle": "Blutzucker",
+      "medianLabel": "Median Blutzucker (90 Tage)",
       "emptyState": {
         "title": "Noch keine Glukosedaten",
         "description": "Blutzuckerwerte erscheinen hier, sobald du einen erfasst oder ein Gerät synchronisiert."

@@ -128,6 +128,77 @@ describe("formatMeasurementsForExport", () => {
     });
   });
 
+  // v1.16.16 — glucose unit-at-source. BLOOD_GLUCOSE is stored mg/dL; the
+  // CSV export must convert to the user's display unit (matching FHIR) and
+  // emit that unit in the `unit` column. mg/dL-preference users unchanged.
+  it("keeps BLOOD_GLUCOSE in mg/dL when the user prefers mg/dL", () => {
+    const measurements = [
+      {
+        type: "BLOOD_GLUCOSE",
+        value: 100,
+        unit: "mg/dL",
+        measuredAt: new Date("2025-01-15T08:00:00Z"),
+        source: "MANUAL",
+        notes: null,
+        glucoseContext: "FASTING",
+      },
+    ];
+    const result = formatMeasurementsForExport(measurements, undefined, {
+      glucoseUnit: "mg/dL",
+    });
+    expect(result[0].value).toBe(100);
+    expect(result[0].unit).toBe("mg/dL");
+  });
+
+  it("converts BLOOD_GLUCOSE value + unit to mmol/L when the user prefers mmol/L", () => {
+    const measurements = [
+      {
+        type: "BLOOD_GLUCOSE",
+        value: 100,
+        unit: "mg/dL",
+        measuredAt: new Date("2025-01-15T08:00:00Z"),
+        source: "MANUAL",
+        notes: null,
+        glucoseContext: "FASTING",
+      },
+      {
+        type: "BLOOD_GLUCOSE",
+        value: 126,
+        unit: "mg/dL",
+        measuredAt: new Date("2025-01-16T08:00:00Z"),
+        source: "MANUAL",
+        notes: null,
+        glucoseContext: "FASTING",
+      },
+    ];
+    const result = formatMeasurementsForExport(measurements, undefined, {
+      glucoseUnit: "mmol/L",
+    });
+    // 100 mg/dL → 5.5 mmol/L, 126 mg/dL → 7.0 mmol/L.
+    expect(result[0].value).toBe(5.5);
+    expect(result[0].unit).toBe("mmol/L");
+    expect(result[1].value).toBe(7);
+    expect(result[1].unit).toBe("mmol/L");
+  });
+
+  it("does not touch non-glucose rows when a glucose unit is set", () => {
+    const measurements = [
+      {
+        type: "WEIGHT",
+        value: 80.4,
+        unit: "kg",
+        measuredAt: new Date("2025-01-15T08:00:00Z"),
+        source: "MANUAL",
+        notes: null,
+      },
+    ];
+    const result = formatMeasurementsForExport(measurements, undefined, {
+      glucoseUnit: "mmol/L",
+    });
+    expect(result[0].value).toBe(80.4);
+    expect(result[0].unit).toBe("kg");
+  });
+
   // v1.4.25 W7 — per-user timezone offset in exports (issue #167).
   it("emits ISO-8601 with user-tz offset when userTz is provided", () => {
     const measurements = [

@@ -25,6 +25,7 @@ import { checkRateLimit } from "@/lib/rate-limit";
 import { toCSV, formatMeasurementsForExport } from "@/lib/export";
 import { resolveUserTimezone } from "@/lib/tz/resolver";
 import { loadUserSourcePriority } from "@/lib/rollups/measurement-read";
+import { resolveGlucoseUnit } from "@/lib/glucose";
 import { NextRequest, NextResponse } from "next/server";
 
 export const GET = apiHandler(async (request: NextRequest) => {
@@ -45,20 +46,29 @@ export const GET = apiHandler(async (request: NextRequest) => {
       ? "raw"
       : "night";
 
-  const [measurements, userTz, sourcePriorityJson] = await Promise.all([
-    prisma.measurement.findMany({
-      where,
-      orderBy: { measuredAt: "desc" },
-    }),
-    resolveUserTimezone(user.id),
-    loadUserSourcePriority(user.id),
-  ]);
+  const [measurements, userTz, sourcePriorityJson, profile] =
+    await Promise.all([
+      prisma.measurement.findMany({
+        where,
+        orderBy: { measuredAt: "desc" },
+      }),
+      resolveUserTimezone(user.id),
+      loadUserSourcePriority(user.id),
+      // v1.16.16 — resolve the glucose display unit so BLOOD_GLUCOSE rows
+      // export in the user's unit (matching FHIR), not raw stored mg/dL.
+      prisma.user.findUnique({
+        where: { id: user.id },
+        select: { glucoseUnit: true },
+      }),
+    ]);
+  const glucoseUnit = resolveGlucoseUnit(profile?.glucoseUnit ?? null);
 
   const csv = toCSV(
     formatMeasurementsForExport(measurements, userTz, {
       granularity,
       sleepTz: userTz,
       sourcePriorityJson,
+      glucoseUnit,
     }),
   );
 

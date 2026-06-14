@@ -2791,6 +2791,7 @@
       "title": "Glicemia",
       "description": "Le tue letture di glicemia nel tempo, in mg/dL.",
       "chartTitle": "Glicemia",
+      "medianLabel": "Glicemia mediana (90 giorni)",
       "emptyState": {
         "title": "Nessun dato di glicemia",
         "description": "Le letture di glicemia appaiono qui quando ne registri una o un dispositivo si sincronizza."

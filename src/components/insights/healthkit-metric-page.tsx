@@ -142,6 +142,18 @@ export interface HealthKitMetricPageProps {
    * "no trend to project yet" state rather than a line.
    */
   forecast?: boolean;
+  /**
+   * v1.16.16 — decimal precision for the stat-strip values. Defaults to the
+   * strip's own default (1). Blood glucose passes 0 for mg/dL (integer
+   * readings) and 1 for mmol/L so the numbers and the unit agree.
+   */
+  statFractionDigits?: number;
+  /**
+   * v1.16.16 — optional override for the stat strip's "Median" label. Blood
+   * glucose passes a window- + context-declaring string so the trailing
+   * 90-day p50 is not read as an all-time central value.
+   */
+  statMedianLabel?: string;
 }
 
 export function HealthKitMetricPage({
@@ -162,6 +174,8 @@ export function HealthKitMetricPage({
   statusMetric,
   statIcon,
   forecast = false,
+  statFractionDigits,
+  statMedianLabel,
 }: HealthKitMetricPageProps) {
   const { user, isAuthenticated } = useAuth();
   const { t } = useTranslations();
@@ -289,9 +303,11 @@ export function HealthKitMetricPage({
         <MetricStatStrip
           summary={summary}
           unit={yAxisUnit ?? unit}
+          fractionDigits={statFractionDigits}
           seriesLabel={title}
           icon={statIcon}
           windowStats={statsByType?.[measurementType] ?? null}
+          medianLabel={statMedianLabel}
         />
       }
       diversityNudge={

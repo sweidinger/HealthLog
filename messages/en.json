@@ -2791,6 +2791,7 @@
       "title": "Blood Glucose",
       "description": "Your blood-glucose readings over time, in mg/dL.",
       "chartTitle": "Blood glucose",
+      "medianLabel": "Median glucose (90 days)",
       "emptyState": {
         "title": "No glucose data yet",
         "description": "Blood-glucose readings appear here once you log one or a connected device syncs."
