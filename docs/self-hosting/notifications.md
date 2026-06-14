@@ -34,35 +34,46 @@ mobile — even when the HealthLog tab is closed, as long as the browser
 or installed PWA is alive. It is the broadest-reach channel and the one
 to set up first.
 
-### 1. Generate a VAPID keypair
+### 1. Generate and store a VAPID keypair
 
 VAPID is the signing scheme that lets a push service trust your server.
-Generate a keypair once with the bundled `web-push` CLI:
+You also choose a **subject** — a `mailto:` address the push service can
+contact about your sender, e.g. `mailto:you@example.com`.
+
+The server loads VAPID config from the database first and falls back to
+environment variables (`src/lib/notifications/vapid-config.ts`). The admin
+panel is the easiest path because it survives without touching `.env`.
+
+**Admin panel — Generate keys (easiest).** Sign in as the admin user,
+open `/admin`, and find the **Web Push VAPID** card
+(`src/components/admin/web-push-vapid-section.tsx`). Click **Generate
+keys**: the server mints a fresh keypair, stores the private key encrypted
+at rest with your `ENCRYPTION_KEY`, seeds a placeholder subject, and fills
+in the public key. Edit the subject to your real `mailto:` address and
+save. The card shows a "configured" badge once all three fields are set —
+no shell, no copy-paste.
+
+> If a keypair already exists, **Generate keys** asks you to confirm before
+> replacing it. Regenerating invalidates every existing browser
+> subscription, so each device has to re-subscribe afterwards. Only
+> regenerate when you mean to.
+
+**Admin panel — paste an existing pair.** If you already have a keypair
+(e.g. copied from another deployment), paste the public key, the private
+key, and the subject into the same card and save instead of generating.
+
+**CLI — generate a pair yourself.** You can also mint one with the bundled
+`web-push` CLI and paste the result into the card or your `.env`:
 
 ```bash
 npx web-push generate-vapid-keys
 ```
 
-That prints a **public key** and a **private key** (both Base64URL). You
-also choose a **subject** — a `mailto:` address the push service can
-contact about your sender, e.g. `mailto:you@example.com`.
+That prints a **public key** and a **private key** (both Base64URL).
 
-### 2. Store the keys
+### 2. Store the keys via environment variables (alternative)
 
-The server loads VAPID config from the database first and falls back to
-environment variables (`src/lib/notifications/vapid-config.ts`). Either
-path works; the admin panel is the easier one because it survives without
-touching `.env`.
-
-**Admin panel (preferred).** Sign in as the admin user, open
-`/admin`, and find the **Web Push VAPID** card
-(`src/components/admin/web-push-vapid-section.tsx`). Paste the public key,
-the private key, and the subject, then save. The private key is encrypted
-at rest with your `ENCRYPTION_KEY`, exactly like the other secrets in the
-admin panel. The card shows a "configured" badge once all three fields
-are set.
-
-**Environment variables (alternative).** If you would rather keep
+If you would rather keep
 secrets out of the database, set them in `.env` / the compose
 `environment:` block instead:
 
@@ -178,6 +189,14 @@ Two gotchas worth knowing before you blame a stale token:
   on production (TestFlight / App Store) device tokens with
   `BadEnvironmentKeyInToken`. Confirm the key shows **Sandbox &
   Production**; a wrongly scoped key cannot be reconfigured — re-issue it.
+
+> **`clientManaged` is iOS-app-only.** The native iOS app can opt to run
+> its own local medication reminders and ask the server to stop sending
+> the duplicate `MEDICATION_REMINDER` push (the `clientManaged` flag on
+> `PATCH /api/auth/me/notification-prefs`). This is a native-app contract:
+> a web/PWA-only self-hoster never needs it and there is no toggle for it
+> in the web UI. If you only run the PWA, ignore it entirely — your
+> medication reminders come from the server cron over the channels above.
 
 ## Which channel should I pick?
 

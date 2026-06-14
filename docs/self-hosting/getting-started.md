@@ -175,3 +175,51 @@ NEXT_PUBLIC_DASHBOARD_SNAPSHOT=false pnpm build
 - **OAuth callbacks loop back to localhost.** Confirm `APP_URL` and
   `NEXT_PUBLIC_APP_URL` both point at the public hostname, not at
   `localhost`, and restart `app` after the change.
+- **An env var in `.env` seems ignored / a feature stays "off".** The
+  compose `environment:` block is a **whitelist** — a variable set in
+  `.env` only reaches the container if `docker-compose.yml` lists it
+  under `environment:`. Vars not listed never propagate, even with
+  `${VAR}` substitution at compose-up. If a setting looks configured but
+  is silently dead, check the var is in that block (add it if you run a
+  custom compose); the supported alternative for most secrets (VAPID,
+  GitHub token, GlitchTip DSN) is the **admin panel**, which stores them
+  in the database and sidesteps the whitelist entirely.
+- **A new image doesn't pick up / `:latest` looks stale.** `docker-compose.yml`
+  sets `pull_policy: always`, which is load-bearing: without it Docker
+  re-uses the cached `:latest` digest and silently skips the registry
+  round-trip on `compose up`. If you pin a custom compose, keep
+  `pull_policy: always` on the `app` service, and verify the running
+  build with `GET /api/version` (it returns `version` + `buildSha`).
+
+## Backup and restore
+
+Your database is the only stateful piece — back it up, and back up the
+key that decrypts it.
+
+**Local snapshot (the common single-box case).** Dump the `db` service
+with `pg_dump`:
+
+```bash
+# The bundled db service uses user `healthlog` and database `healthlog`.
+docker compose exec -T db pg_dump -U healthlog healthlog \
+  | gzip > healthlog-$(date +%F).sql.gz
+```
+
+Restore into a fresh database the same way:
+
+```bash
+gunzip -c healthlog-2026-01-01.sql.gz \
+  | docker compose exec -T db psql -U healthlog healthlog
+```
+
+> **Back up your `ENCRYPTION_KEYS` / `ENCRYPTION_KEY` alongside the dump.**
+> HealthLog encrypts sensitive columns at rest (AES-256-GCM). A database
+> dump **without the encryption key is unrecoverable** — the encrypted
+> data cannot be read back. Store the key (and any retired keys still in
+> the rotation map) somewhere separate from the dump but equally durable.
+> Losing the key means losing the encrypted data, full stop.
+
+For off-host encrypted backups to S3/R2/B2 see
+[`docs/ops/backup-restore.md`](../ops/backup-restore.md); for rotating the
+encryption key safely (keep the old key until zero rows remain on it) see
+[`docs/ops/encryption-key-rotation.md`](../ops/encryption-key-rotation.md).
