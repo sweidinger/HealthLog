@@ -1,0 +1,234 @@
+/**
+ * Known-value pins for the glucose clinical-metrics core.
+ *
+ * Worked examples are computed straight from the cited primary literature:
+ *   Battelino 2019 (TIR bands), Bergenstal 2018 (GMI), Nathan 2008 (eA1C),
+ *   Monnier 2017 (CV% 36% cutoff). The numbers below are the formulas applied
+ *   by hand, not back-derived from the implementation.
+ */
+import { describe, expect, it } from "vitest";
+import {
+  CV_INSTABILITY_THRESHOLD,
+  DEFAULT_WINDOW_DAYS,
+  computeGlucoseClinicalMetrics,
+  estimatedA1c,
+  glucoseSD,
+  glucoseVariability,
+  gmi,
+  timeInRange,
+  type GlucoseReading,
+} from "../glucose-metrics";
+
+const DAY = 24 * 60 * 60 * 1000;
+
+/** Build readings spaced one per day ending at `anchor`. */
+function dailyReadings(values: number[], anchor: Date): GlucoseReading[] {
+  return values.map((mgdl, i) => ({
+    mgdl,
+    // oldest first, newest = anchor
+    measuredAt: new Date(anchor.getTime() - (values.length - 1 - i) * DAY),
+  }));
+}
+
+describe("gmi (Bergenstal 2018)", () => {
+  it("maps a mean of 154 mg/dL to ~6.99%", () => {
+    // 3.31 + 0.02392 * 154 = 6.99368
+    expect(gmi(154)).toBeCloseTo(6.99368, 5);
+  });
+
+  it("maps a mean of 100 mg/dL to 5.702%", () => {
+    expect(gmi(100)).toBeCloseTo(5.702, 5);
+  });
+});
+
+describe("estimatedA1c (Nathan 2008 ADAG inverse)", () => {
+  it("maps a mean of 154 mg/dL to ~6.99%", () => {
+    // (154 + 46.7) / 28.7 = 6.99303...
+    expect(estimatedA1c(154)).toBeCloseTo(6.99303, 4);
+  });
+
+  it("maps a mean of 100 mg/dL to ~5.11%", () => {
+    // (100 + 46.7) / 28.7 = 5.11149...
+    expect(estimatedA1c(100)).toBeCloseTo(5.11149, 4);
+  });
+});
+
+describe("glucoseSD", () => {
+  it("returns null for fewer than two values", () => {
+    expect(glucoseSD([])).toBeNull();
+    expect(glucoseSD([120])).toBeNull();
+  });
+
+  it("computes the sample (n-1) standard deviation", () => {
+    // values 2,4,4,4,5,5,7,9 → mean 5, sample SD = sqrt(32/7) = 2.13809
+    expect(glucoseSD([2, 4, 4, 4, 5, 5, 7, 9])).toBeCloseTo(2.13809, 4);
+  });
+});
+
+describe("glucoseVariability (Monnier 2017 CV cutoff)", () => {
+  it("flags instability at CV ≥ 36%", () => {
+    // mean 100, SD 36 → CV exactly 36 → unstable (>=)
+    const v = glucoseVariability([136, 64, 100]);
+    // mean = 100; SD of {136,64,100} = sqrt(((36^2)+(36^2)+0)/2) = 36
+    expect(v).not.toBeNull();
+    expect(v!.cv).toBeCloseTo(36, 6);
+    expect(v!.unstable).toBe(true);
+    expect(CV_INSTABILITY_THRESHOLD).toBe(36);
+  });
+
+  it("does not flag a stable low-variability set", () => {
+    const v = glucoseVariability([100, 102, 98, 101, 99]);
+    expect(v!.unstable).toBe(false);
+    expect(v!.cv).toBeLessThan(36);
+  });
+});
+
+describe("timeInRange (Battelino 2019 bands)", () => {
+  it("returns null for an empty set", () => {
+    expect(timeInRange([])).toBeNull();
+  });
+
+  it("computes exact per-band fractions with nested level-2 sub-bands", () => {
+    // 10 readings:
+    //  40   → <54 and <70  (TBR2 + TBR1)
+    //  60   → <70 only     (TBR1)
+    //  70,120,150,180 → in range (4)
+    //  200,210 → >180 only (TAR1)
+    //  300   → >250 and >180 (TAR2 + TAR1)
+    const d = timeInRange([40, 60, 70, 120, 150, 180, 200, 210, 300, 90]);
+    expect(d).not.toBeNull();
+    // in range: 70,120,150,180,90 = 5
+    expect(d!.tir).toBeCloseTo(0.5, 10);
+    // <70: 40,60 = 2
+    expect(d!.tbrLevel1).toBeCloseTo(0.2, 10);
+    // <54: 40 = 1
+    expect(d!.tbrLevel2).toBeCloseTo(0.1, 10);
+    // >180: 200,210,300 = 3
+    expect(d!.tarLevel1).toBeCloseTo(0.3, 10);
+    // >250: 300 = 1
+    expect(d!.tarLevel2).toBeCloseTo(0.1, 10);
+  });
+
+  it("treats the band edges 70 and 180 as in range, 54 as below", () => {
+    const d = timeInRange([54, 70, 180, 181, 69]);
+    // in range: 70,180 = 2/5
+    expect(d!.tir).toBeCloseTo(0.4, 10);
+    // <70: 54,69 = 2/5
+    expect(d!.tbrLevel1).toBeCloseTo(0.4, 10);
+    // <54: none (54 is not < 54)
+    expect(d!.tbrLevel2).toBe(0);
+    // >180: 181 = 1/5
+    expect(d!.tarLevel1).toBeCloseTo(0.2, 10);
+  });
+
+  it("emits minutes-of-a-day equivalents (fraction × 1440)", () => {
+    const d = timeInRange([100, 100, 100, 300]); // 3 in range, 1 above
+    expect(d!.minutesEquivalent.tir).toBeCloseTo(0.75 * 1440, 6);
+    expect(d!.minutesEquivalent.tarLevel1).toBeCloseTo(0.25 * 1440, 6);
+  });
+});
+
+describe("computeGlucoseClinicalMetrics — window + adequacy", () => {
+  const now = new Date("2026-06-14T12:00:00Z");
+
+  it("defaults to a 14-day window", () => {
+    const m = computeGlucoseClinicalMetrics([], { now });
+    expect(m.windowDays).toBe(DEFAULT_WINDOW_DAYS);
+    expect(DEFAULT_WINDOW_DAYS).toBe(14);
+  });
+
+  it("excludes readings older than the window", () => {
+    const readings: GlucoseReading[] = [
+      { mgdl: 120, measuredAt: new Date(now.getTime() - 2 * DAY) },
+      { mgdl: 130, measuredAt: new Date(now.getTime() - 20 * DAY) }, // out
+    ];
+    const m = computeGlucoseClinicalMetrics(readings, { now });
+    expect(m.readingCount).toBe(1);
+  });
+
+  it("ignores non-finite values", () => {
+    const readings: GlucoseReading[] = [
+      { mgdl: 120, measuredAt: new Date(now.getTime() - 1 * DAY) },
+      { mgdl: NaN, measuredAt: new Date(now.getTime() - 2 * DAY) },
+    ];
+    const m = computeGlucoseClinicalMetrics(readings, { now });
+    expect(m.readingCount).toBe(1);
+  });
+
+  it("always marks the result as a spot estimate", () => {
+    const m = computeGlucoseClinicalMetrics(
+      dailyReadings([100], now),
+      { now },
+    );
+    expect(m.isSpotEstimate).toBe(true);
+  });
+
+  describe("learning gate", () => {
+    it("fires when there are no readings", () => {
+      const m = computeGlucoseClinicalMetrics([], { now });
+      expect(m.stillLearning).toBe(true);
+      expect(m.stillLearningReason).toMatch(/no glucose readings/i);
+      expect(m.meanMgdl).toBeNull();
+      expect(m.distribution).toBeNull();
+      expect(m.gmi).toBeNull();
+      expect(m.estimatedA1c).toBeNull();
+      expect(m.variability).toBeNull();
+    });
+
+    it("fires below the minimum reading count, reporting N and D", () => {
+      // 5 readings across 5 days — below the default 14-reading floor
+      const m = computeGlucoseClinicalMetrics(
+        dailyReadings([100, 110, 120, 130, 140], now),
+        { now },
+      );
+      expect(m.stillLearning).toBe(true);
+      expect(m.stillLearningReason).toMatch(/5 readings over 4 days/);
+      expect(m.readingCount).toBe(5);
+      // numbers are still populated for a calm preview
+      expect(m.meanMgdl).toBeCloseTo(120, 6);
+      expect(m.distribution).not.toBeNull();
+    });
+
+    it("fires when the span is too short even with enough readings", () => {
+      // 16 readings all within a single day → span < 7 days
+      const values = Array.from({ length: 16 }, (_, i) => 100 + i);
+      const readings: GlucoseReading[] = values.map((mgdl, i) => ({
+        mgdl,
+        measuredAt: new Date(now.getTime() - i * 60 * 60 * 1000), // hourly
+      }));
+      const m = computeGlucoseClinicalMetrics(readings, { now });
+      expect(m.readingCount).toBe(16);
+      expect(m.stillLearning).toBe(true);
+      expect(m.stillLearningReason).toMatch(/span only/i);
+    });
+
+    it("clears above both thresholds and asserts the panel", () => {
+      // 14 readings, one per day → 13-day span, count 14
+      const values = Array.from({ length: 14 }, () => 154);
+      const m = computeGlucoseClinicalMetrics(
+        dailyReadings(values, now),
+        { now },
+      );
+      expect(m.readingCount).toBe(14);
+      expect(m.actualSpanDays).toBeCloseTo(13, 6);
+      expect(m.stillLearning).toBe(false);
+      expect(m.stillLearningReason).toBeNull();
+      // mean 154 → GMI ~6.99, eA1C ~6.99
+      expect(m.meanMgdl).toBeCloseTo(154, 6);
+      expect(m.gmi).toBeCloseTo(6.99368, 5);
+      expect(m.estimatedA1c).toBeCloseTo(6.99303, 4);
+      expect(m.distribution!.tir).toBeCloseTo(1, 10); // all in range
+      expect(m.variability!.sd).toBe(0);
+      expect(m.variability!.unstable).toBe(false);
+    });
+
+    it("honours configurable thresholds", () => {
+      const m = computeGlucoseClinicalMetrics(
+        dailyReadings([100, 110, 120], now),
+        { now, minReadings: 3, minSpanDays: 2 },
+      );
+      // 3 readings over a 2-day span clears the lowered bars
+      expect(m.stillLearning).toBe(false);
+    });
+  });
+});
