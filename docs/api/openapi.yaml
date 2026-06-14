@@ -5202,6 +5202,54 @@ paths:
         "401": *a1
         "422": *a3
         "429": *a4
+  /api/import/csv:
+    post:
+      tags:
+        - Import
+      summary: Import measurements from CSV
+      description: "Bulk-import measurements from a CSV file (web cold-start escape hatch). Body is raw `text/csv` (≤ 16 MB, ≤
+        10 000 valid rows). Header (order-independent): `type,value,unit,measuredAt[,glucoseContext,notes,externalId]`.
+        `measuredAt` must carry an explicit ISO-8601 offset and is bounded (no future beyond a 5-min skew, no instant
+        before 1900). Glucose accepts `mmol/L` (converted to canonical `mg/dL`); weight accepts `lb` (converted to
+        `kg`). An `externalId` column makes re-upload idempotent (upsert on `(userId, type, source=IMPORT,
+        externalId)`); without it a re-upload duplicates. `?dryRun=1` validates + previews without writing. Shares the
+        5/hour `import:` rate bucket."
+      parameters:
+        - name: dryRun
+          in: query
+          required: false
+          schema:
+            type: string
+            enum:
+              - "1"
+              - "true"
+          description: When `1` / `true`, parse + validate + return the per-row envelope without writing.
+      requestBody:
+        required: true
+        content:
+          text/csv:
+            schema:
+              type: string
+              example: |-
+                type,value,unit,measuredAt,glucoseContext,notes,externalId
+                WEIGHT,80.5,kg,2026-05-01T08:00:00Z,,morning,
+                BLOOD_GLUCOSE,5.3,mmol/L,2026-05-01T08:05:00+02:00,FASTING,,meter-001
+      responses:
+        "200":
+          description: Per-row import outcome.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CsvImportResponseEnvelope"
+        "401": *a1
+        "413":
+          description: CSV exceeds the 16 MB limit.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CsvImportTooLargeEnvelope"
+        "422": *a3
+        "429": *a4
 components:
   schemas:
     PasskeyLoginVerifyRequest:
@@ -15582,6 +15630,98 @@ components:
         - kind
       additionalProperties: false
       description: Outcome of the idempotent web `ai_full` grant. Safe to call on every AI-settings mount.
+    CsvImportResponseEnvelope:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/CsvImportResponse"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    CsvImportResponse:
+      type: object
+      properties:
+        inserted:
+          type: integer
+          minimum: -9007199254740991
+          maximum: 9007199254740991
+        updated:
+          type: integer
+          minimum: -9007199254740991
+          maximum: 9007199254740991
+        skipped:
+          type: integer
+          minimum: -9007199254740991
+          maximum: 9007199254740991
+        total:
+          type: integer
+          minimum: -9007199254740991
+          maximum: 9007199254740991
+          description: Total data rows parsed (excludes header).
+        dryRun:
+          type: boolean
+        rows:
+          type: array
+          items:
+            $ref: "#/components/schemas/CsvImportRowResult"
+      required:
+        - inserted
+        - updated
+        - skipped
+        - total
+        - dryRun
+        - rows
+      additionalProperties: false
+      description: Per-row import outcome. Mirrors the batch-route per-entry envelope. In `dryRun` mode no write runs and
+        every valid row reports its projected `inserted` status.
+    CsvImportRowResult:
+      type: object
+      properties:
+        line:
+          type: integer
+          minimum: -9007199254740991
+          maximum: 9007199254740991
+          description: 1-based source line number (the header is line 1).
+        status:
+          type: string
+          enum:
+            - inserted
+            - updated
+            - skipped
+        reason:
+          description: Machine-readable reason for a non-inserted row (e.g. unknown_type, unknown_unit, missing_timezone_offset,
+            value_out_of_range, implausible_timestamp, duplicate).
+          type: string
+      required:
+        - line
+        - status
+      additionalProperties: false
+    CsvImportTooLargeEnvelope:
+      type: object
+      properties:
+        data:
+          type: "null"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
     MedicationScheduleOutput:
       type: object
       properties:

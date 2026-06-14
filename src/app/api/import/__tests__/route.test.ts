@@ -10,8 +10,8 @@ vi.mock("@/lib/api-handler", () => ({
 
 vi.mock("@/lib/db", () => ({
   prisma: {
-    measurement: { create: vi.fn() },
-    moodEntry: { create: vi.fn() },
+    measurement: { create: vi.fn(), upsert: vi.fn() },
+    moodEntry: { create: vi.fn(), upsert: vi.fn() },
   },
 }));
 
@@ -239,5 +239,147 @@ describe("POST /api/import — measurement rollup hook (v1.4.39.1)", () => {
     expect(response.status).toBeLessThan(400);
     // Every measurement raised a duplicate — no rollup fold needed.
     expect(recomputeBucketsForMeasurement).not.toHaveBeenCalled();
+  });
+});
+
+// v1.17.1 — two real bugs the data-portability audit found in the JSON
+// import. Regression guards so a future refactor can't silently re-open
+// them.
+describe("POST /api/import — entry-instant bound (v1.17.1)", () => {
+  beforeEach(() => {
+    vi.mocked(checkRateLimit).mockResolvedValue({
+      allowed: true,
+      remaining: 4,
+      resetAt: new Date(Date.now() + 1000),
+    } as never);
+    vi.mocked(prisma.measurement.create).mockResolvedValue({} as never);
+  });
+
+  it("rejects a future-dated measurement (previously accepted)", async () => {
+    const future = new Date(Date.now() + 60 * 60 * 1000).toISOString();
+    const response = await POST(
+      new NextRequest("http://localhost/api/import", {
+        method: "POST",
+        body: JSON.stringify({
+          measurements: [
+            { type: "WEIGHT", value: 80, unit: "kg", measuredAt: future },
+          ],
+        }),
+        headers: { "content-type": "application/json" },
+      }),
+    );
+    expect(response.status).toBe(422);
+    expect(vi.mocked(prisma.measurement.create)).not.toHaveBeenCalled();
+  });
+
+  it("rejects a pre-1900 measurement", async () => {
+    const response = await POST(
+      new NextRequest("http://localhost/api/import", {
+        method: "POST",
+        body: JSON.stringify({
+          measurements: [
+            {
+              type: "WEIGHT",
+              value: 80,
+              unit: "kg",
+              measuredAt: "1899-01-01T00:00:00.000Z",
+            },
+          ],
+        }),
+        headers: { "content-type": "application/json" },
+      }),
+    );
+    expect(response.status).toBe(422);
+  });
+
+  it("accepts a backdated (past) measurement", async () => {
+    const response = await POST(
+      new NextRequest("http://localhost/api/import", {
+        method: "POST",
+        body: JSON.stringify({
+          measurements: [
+            {
+              type: "WEIGHT",
+              value: 80,
+              unit: "kg",
+              measuredAt: "2020-01-01T08:00:00.000Z",
+            },
+          ],
+        }),
+        headers: { "content-type": "application/json" },
+      }),
+    );
+    expect(response.status).toBeLessThan(400);
+    expect(vi.mocked(prisma.measurement.create)).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("POST /api/import — measurement externalId dedup (v1.17.1)", () => {
+  beforeEach(() => {
+    vi.mocked(checkRateLimit).mockResolvedValue({
+      allowed: true,
+      remaining: 4,
+      resetAt: new Date(Date.now() + 1000),
+    } as never);
+  });
+
+  it("upserts (not creates) when a measurement carries an externalId", async () => {
+    vi.mocked(prisma.measurement.upsert).mockResolvedValue({} as never);
+
+    const response = await POST(
+      new NextRequest("http://localhost/api/import", {
+        method: "POST",
+        body: JSON.stringify({
+          measurements: [
+            {
+              type: "WEIGHT",
+              value: 80,
+              unit: "kg",
+              measuredAt: "2026-05-01T08:00:00.000Z",
+              externalId: "scale-row-42",
+            },
+          ],
+        }),
+        headers: { "content-type": "application/json" },
+      }),
+    );
+
+    expect(response.status).toBeLessThan(400);
+    expect(vi.mocked(prisma.measurement.upsert)).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(prisma.measurement.create)).not.toHaveBeenCalled();
+    const arg = vi.mocked(prisma.measurement.upsert).mock.calls[0][0];
+    expect(arg.where).toEqual({
+      userId_type_source_externalId: {
+        userId: "u-1",
+        type: "WEIGHT",
+        source: "IMPORT",
+        externalId: "scale-row-42",
+      },
+    });
+  });
+
+  it("still creates (first-write-wins) when no externalId is present", async () => {
+    vi.mocked(prisma.measurement.create).mockResolvedValue({} as never);
+
+    const response = await POST(
+      new NextRequest("http://localhost/api/import", {
+        method: "POST",
+        body: JSON.stringify({
+          measurements: [
+            {
+              type: "WEIGHT",
+              value: 80,
+              unit: "kg",
+              measuredAt: "2026-05-01T08:00:00.000Z",
+            },
+          ],
+        }),
+        headers: { "content-type": "application/json" },
+      }),
+    );
+
+    expect(response.status).toBeLessThan(400);
+    expect(vi.mocked(prisma.measurement.create)).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(prisma.measurement.upsert)).not.toHaveBeenCalled();
   });
 });

@@ -206,6 +206,26 @@ describe("measurement validation", () => {
         expect(parsed.data.deviceType).toBeUndefined();
       }
     });
+
+    // v1.17.1 — the `stats:`-prefix overwrite contract is deliberately
+    // batch-scoped. The single manual POST must never accept an
+    // `externalId`, which would open a client-controlled overwrite vector
+    // on the `(userId, type, source, externalId)` unique key. The schema
+    // strips it (no passthrough), so the parsed value never carries one.
+    it("does not surface an externalId on the manual create schema (overwrite contract)", () => {
+      const parsed = createMeasurementSchema.safeParse({
+        ...validBase,
+        type: "WEIGHT",
+        value: 82,
+        externalId: "stats:HKQuantityTypeIdentifierBodyMass:2026-04-27",
+      });
+      expect(parsed.success).toBe(true);
+      if (parsed.success) {
+        expect(
+          (parsed.data as Record<string, unknown>).externalId,
+        ).toBeUndefined();
+      }
+    });
   });
 
   // v1.4.37 W7c — list-view "one row per day" mode for cumulative

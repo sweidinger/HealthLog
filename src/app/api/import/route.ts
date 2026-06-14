@@ -17,6 +17,7 @@ import {
   measurementTypeEnum,
   glucoseContextEnum,
 } from "@/lib/validations/measurement";
+import { validateEntryInstant } from "@/lib/validations/entry-instant";
 import { recomputeUserMoodRollups } from "@/lib/rollups/mood-rollups";
 import {
   collapseToTypeDayKeys,
@@ -32,10 +33,23 @@ const measurementSchema = z
     type: measurementTypeEnum,
     value: z.number(),
     unit: z.string(),
-    measuredAt: z.string().datetime(),
+    // v1.17.1 — share the canonical entry-instant bound used by the single
+    // POST + edit paths (v1.17 W1b). Previously a bare `z.string().datetime()`
+    // with no ceiling, so a crafted JSON import could forward-date a reading.
+    // `validateEntryInstant` rejects any future instant beyond a 5-min skew
+    // tolerance and any instant before 1900; the field transforms to a `Date`.
+    measuredAt: validateEntryInstant(
+      z.iso.datetime({ offset: true }).transform((s) => new Date(s)),
+    ),
     glucoseContext: glucoseContextEnum.optional(),
     source: z.string().optional(),
     notes: z.string().optional(),
+    // v1.17.1 — optional source-stable id. When present, the import upserts on
+    // `(userId, type, source=IMPORT, externalId)` so a re-import of the same
+    // export is idempotent rather than minting a duplicate set — mirrors the
+    // mood path. Absent → first-write-wins create with a NULL externalId
+    // (distinct in the unique key), which DOES duplicate on re-import.
+    externalId: z.string().min(1).max(120).optional(),
   })
   .refine(
     (data) => validateMeasurementRange(data.type, data.value) === null,
@@ -47,7 +61,11 @@ const moodEntrySchema = z.object({
   mood: z.enum(["SUPER_GUT", "GUT", "OKAY", "SCHLECHT", "LAUSIG"]),
   score: z.number().int().min(1).max(5),
   tags: z.string().optional(),
-  loggedAt: z.string().datetime().optional(),
+  // v1.17.1 — same entry-instant bound as measurements; an imported mood
+  // log cannot be forward-dated. Optional + transforms to a `Date` when set.
+  loggedAt: validateEntryInstant(
+    z.iso.datetime({ offset: true }).transform((s) => new Date(s)),
+  ).optional(),
   // v1.12.1 — optional source-stable id (e.g. a Daylio row id). When
   // present, the import upserts on `(userId, source, externalId)` so a
   // re-import of the same export is idempotent rather than minting a
@@ -106,19 +124,55 @@ export const POST = apiHandler(async (request: NextRequest) => {
   if (data.measurements?.length) {
     for (const m of data.measurements) {
       try {
-        const measuredAt = new Date(m.measuredAt);
-        await prisma.measurement.create({
-          data: {
-            userId,
-            type: m.type,
-            value: m.value,
-            unit: m.unit,
-            source: "IMPORT",
-            measuredAt,
-            notes: m.notes || null,
-            glucoseContext: m.glucoseContext ?? null,
-          },
-        });
+        // `measuredAt` is already a `Date` (validateEntryInstant transform).
+        const measuredAt = m.measuredAt;
+        if (m.externalId) {
+          // v1.17.1 — idempotent re-import keyed on the source-stable id, so
+          // re-uploading the same export updates in place rather than minting
+          // a duplicate. Mirrors the mood path. The unique key already exists
+          // (`userId_type_source_externalId`, schema.prisma:942).
+          await prisma.measurement.upsert({
+            where: {
+              userId_type_source_externalId: {
+                userId,
+                type: m.type,
+                source: "IMPORT",
+                externalId: m.externalId,
+              },
+            },
+            update: {
+              value: m.value,
+              unit: m.unit,
+              measuredAt,
+              notes: m.notes || null,
+              glucoseContext: m.glucoseContext ?? null,
+            },
+            create: {
+              userId,
+              type: m.type,
+              value: m.value,
+              unit: m.unit,
+              source: "IMPORT",
+              externalId: m.externalId,
+              measuredAt,
+              notes: m.notes || null,
+              glucoseContext: m.glucoseContext ?? null,
+            },
+          });
+        } else {
+          await prisma.measurement.create({
+            data: {
+              userId,
+              type: m.type,
+              value: m.value,
+              unit: m.unit,
+              source: "IMPORT",
+              measuredAt,
+              notes: m.notes || null,
+              glucoseContext: m.glucoseContext ?? null,
+            },
+          });
+        }
         touchedMeasurements.push({
           type: m.type as MeasurementType,
           measuredAt,
@@ -135,7 +189,7 @@ export const POST = apiHandler(async (request: NextRequest) => {
   if (data.moodEntries?.length) {
     for (const e of data.moodEntries) {
       try {
-        const loggedAt = e.loggedAt ? new Date(e.loggedAt) : new Date();
+        const loggedAt = e.loggedAt ?? new Date();
         if (e.externalId) {
           // v1.12.1 — idempotent re-import keyed on the source-stable id.
           // A second import of the same export updates the row in place
