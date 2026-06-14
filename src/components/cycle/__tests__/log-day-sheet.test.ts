@@ -11,8 +11,12 @@ function blank(): DayLogFormState {
     flow: null,
     intermenstrual: false,
     bbt: "",
+    bbtDisturbed: false,
     opk: null,
     mucus: null,
+    cervixPosition: null,
+    cervixFirmness: null,
+    cervixOpening: null,
     intercourse: false,
     protectedSex: false,
     pregnancyTest: null,
@@ -89,5 +93,46 @@ describe("buildDayLogInput (new row → omit empties)", () => {
     );
     expect(input.flow).toBe("LIGHT");
     expect(input.basalBodyTempC).toBe(36.5);
+  });
+
+  it("carries the disturbed flag alongside a BBT reading", () => {
+    const input = buildDayLogInput(
+      { ...blank(), bbt: "36.5", bbtDisturbed: true },
+      "2026-06-06",
+    );
+    expect(input.basalBodyTempC).toBe(36.5);
+    expect(input.temperatureExcluded).toBe(true);
+    const patch = buildDayLogPatch({ ...blank(), bbt: "36.5", bbtDisturbed: true });
+    expect(patch.temperatureExcluded).toBe(true);
+  });
+
+  it("carries the cervix signs through both payload builders", () => {
+    const state = {
+      ...blank(),
+      cervixPosition: "HIGH" as const,
+      cervixFirmness: "SOFT" as const,
+      cervixOpening: "OPEN" as const,
+    };
+    const input = buildDayLogInput(state, "2026-06-06");
+    expect(input.cervixPosition).toBe("HIGH");
+    expect(input.cervixFirmness).toBe("SOFT");
+    expect(input.cervixOpening).toBe("OPEN");
+    // A blank edit nulls every cervix sign (clear semantics).
+    const patch = buildDayLogPatch(blank());
+    expect(patch.cervixPosition).toBeNull();
+    expect(patch.cervixFirmness).toBeNull();
+    expect(patch.cervixOpening).toBeNull();
+  });
+
+  it("never marks an absent BBT reading disturbed", () => {
+    // A disturbed flag with no temperature is meaningless — it must reset.
+    const patch = buildDayLogPatch({ ...blank(), bbt: "", bbtDisturbed: true });
+    expect(patch.basalBodyTempC).toBeNull();
+    expect(patch.temperatureExcluded).toBe(false);
+    const input = buildDayLogInput(
+      { ...blank(), bbt: "", bbtDisturbed: true },
+      "2026-06-06",
+    );
+    expect("temperatureExcluded" in input).toBe(false);
   });
 });

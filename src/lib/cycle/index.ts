@@ -17,6 +17,7 @@ export {
   detectMucusPeak,
   confirmSymptothermal,
   detectTemperatureTrend,
+  detectLhSurgeOvulation,
   median,
   mad,
   resolveLuteal,

@@ -5741,6 +5741,12 @@
         "OVULATORY": "W połowie cyklu uwalniana jest komórka jajowa, a płodność osiąga szczyt przez krótkie okno czasu. Ta faza jest najkrótsza z czterech.",
         "LUTEAL": "Po owulacji rośnie poziom progesteronu i organizm się wycisza. W dniach przed kolejną miesiączką niektóre osoby zauważają zmiany przedmiesiączkowe."
       },
+      "context": {
+        "MENSTRUAL": "Poziom hormonów jest teraz najniższy, dlatego te dni mogą sprawiać wrażenie spokojnego resetu. Niektóre osoby zauważają skurcze, lżejszy sen albo chęć zwolnienia tempa; inne przechodzą przez nie niemal bez zmian. To wszystko mieści się w normie, a odczucia potrafią zmieniać się z cyklu na cykl.",
+        "FOLLICULAR": "Wraz z rosnącym estrogenem wiele osób opisuje te dni jako jasne i pełne otwartości – sen często przychodzi łatwiej, a umysł wydaje się bardziej klarowny. Podstawowa temperatura ciała zwykle utrzymuje się w niższym zakresie aż do chwili tuż przed owulacją. Długość tej fazy różni się najbardziej – od osoby do osoby i od cyklu do cyklu.",
+        "OVULATORY": "Estrogen osiąga szczyt tuż przed uwolnieniem komórki jajowej, często z krótkim wzrostem nastroju i niewielkim podniesieniem podstawowej temperatury ciała w ciągu kolejnego dnia lub dwóch. Śluz szyjkowy w tym oknie zwykle staje się bardziej przejrzysty i ciągliwy. Krótkie ukłucie po jednej stronie niektóre osoby zauważają; wiele nie czuje nic, a oba warianty są zupełnie normalne.",
+        "LUTEAL": "Progesteron prowadzi przez drugą połowę cyklu, a podstawowa temperatura ciała zwykle ustala się nieco wyżej niż wcześniej. Niektóre osoby zauważają z dnia na dzień zmiany w śnie, apetycie, nastroju czy energii, podczas gdy inne czują się stabilnie przez cały czas. Ten wzorzec jest indywidualny i często wygląda inaczej z miesiąca na miesiąc."
+      },
       "commonHere": "To często zauważasz tutaj",
       "trackNudge": "Zapisz dziś",
       "stillLearning": "Wciąż poznajemy Twój cykl. Zapisuj dalej, a to wypełni się wzorcami z Twoich własnych dni."
@@ -5797,6 +5803,18 @@
       "EGG_WHITE": "Jak białko jaja",
       "label": "Śluz szyjkowy"
     },
+    "cervixPosition": {
+      "LOW": "Nisko",
+      "HIGH": "Wysoko"
+    },
+    "cervixFirmness": {
+      "FIRM": "Twarda",
+      "SOFT": "Miękka"
+    },
+    "cervixOpening": {
+      "CLOSED": "Zamknięta",
+      "OPEN": "Otwarta"
+    },
     "goal": {
       "GENERAL_HEALTH": "Ogólne zdrowie",
       "AVOID_PREGNANCY": "Unikanie ciąży",
@@ -5824,6 +5842,7 @@
       "nextMonth": "Następny miesiąc",
       "loading": "Ładowanie kalendarza…",
       "empty": "Zacznij zapisywać, aby wypełnić kalendarz.",
+      "learning": "Uczymy się Twojego cyklu — zapisz co najmniej trzy pełne cykle, a okno płodne, owulacja i fazy się uzupełnią. Do tego czasu kalendarz pokazuje tylko to, co zapisałaś.",
       "today": "Dziś",
       "dayAria": "{date}",
       "legendSymptom": "Objawy",
@@ -5881,8 +5900,14 @@
       "symptoms": "Objawy",
       "temperature": "Podstawowa temperatura ciała",
       "temperaturePlaceholder": "°C",
+      "temperatureDisturbed": "Oznacz pomiar jako zakłócony",
+      "temperatureDisturbedHint": "Gorączka, choroba, alkohol lub spóźniony pomiar — wykluczony z oceny temperatury.",
       "ovulationTest": "Test owulacyjny",
       "mucus": "Śluz szyjkowy",
+      "cervix": "Szyjka macicy",
+      "cervixPosition": "Położenie",
+      "cervixFirmness": "Twardość",
+      "cervixOpening": "Rozwarcie",
       "intercourse": "Współżycie",
       "protected": "Zabezpieczone",
       "note": "Notatka",
@@ -5912,6 +5937,12 @@
       "priorsDescription": "Te wartości pomagają prognozom, zanim zapiszesz wiele cykli. Zostaw puste, aby użyć wartości domyślnych.",
       "rawChartMode": "Tryb surowego wykresu",
       "rawChartModeDescription": "Pokazuj tylko zapisane dane, bez prognoz i interpretacji.",
+      "secondarySymptomLabel": "Drugi objaw płodności",
+      "secondarySymptomDescription": "Drugi objaw łączony z temperaturą w podwójnej kontroli objawowo-termicznej. Większość obserwuje śluz szyjkowy; przełącz na obserwację szyjki macicy, jeśli wolisz.",
+      "secondarySymptom": {
+        "MUCUS": "Śluz szyjkowy",
+        "CERVIX": "Szyjka macicy"
+      },
       "prediction": "Prognozy",
       "predictionDescription": "Prognozuj następną miesiączkę oraz, gdy to istotne, okno płodne.",
       "encryption": "Szyfruj wrażliwe wpisy",

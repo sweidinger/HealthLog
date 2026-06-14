@@ -68,6 +68,12 @@ export interface CalendarResponse {
     cyclesObserved: number;
   };
   prediction: CyclePrediction | null;
+  /**
+   * Cold-start gate (mirrors `prediction.stillLearning`): true while < 3 cycles
+   * are observed. When set, `days` carries no fertile window, ovulation dot, or
+   * phase band — render the calm "learning your cycle" state over the grid.
+   */
+  stillLearning: boolean;
   days: CalendarDay[];
   meta: { generatedAt: string };
 }
@@ -95,9 +101,18 @@ export interface CycleHistoryResponse {
   };
 }
 
+/** Symptothermal secondary symptom — mucus (default) or cervix observation. */
+export type SecondarySymptom = "MUCUS" | "CERVIX";
+
+/** The three Sensiplan cervix signs. */
+export type CervixPosition = "LOW" | "HIGH";
+export type CervixFirmness = "FIRM" | "SOFT";
+export type CervixOpening = "CLOSED" | "OPEN";
+
 export interface CycleProfileDTO {
   goal: CycleGoal;
   cycleTrackingEnabled: boolean;
+  secondarySymptom: SecondarySymptom;
   rawChartMode: boolean;
   predictionEnabled: boolean;
   discreetNotifications: boolean;
@@ -132,8 +147,12 @@ export interface CycleDayLogInput {
   flow?: FlowLevel;
   intermenstrualBleeding?: boolean;
   basalBodyTempC?: number;
+  temperatureExcluded?: boolean;
   ovulationTest?: OvulationTest;
   cervicalMucus?: CervicalMucus;
+  cervixPosition?: CervixPosition | null;
+  cervixFirmness?: CervixFirmness | null;
+  cervixOpening?: CervixOpening | null;
   sexualActivity?: boolean;
   protectedSex?: boolean | null;
   pregnancyTest?: HomeTestResult;
@@ -153,8 +172,12 @@ export interface CycleDayLogDTO {
   flow: FlowLevel | null;
   intermenstrualBleeding: boolean;
   basalBodyTempC: number | null;
+  temperatureExcluded: boolean;
   ovulationTest: OvulationTest | null;
   cervicalMucus: CervicalMucus | null;
+  cervixPosition: CervixPosition | null;
+  cervixFirmness: CervixFirmness | null;
+  cervixOpening: CervixOpening | null;
   sexualActivity: boolean;
   protectedSex: boolean | null;
   pregnancyTest: HomeTestResult | null;

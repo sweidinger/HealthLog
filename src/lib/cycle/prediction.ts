@@ -31,6 +31,7 @@ import {
   HARD_CYCLE_MAX,
   HARD_CYCLE_MIN,
   HISTORY_WINDOW_N,
+  LH_SURGE_TO_OVULATION_DAYS,
   LOG_SPARSITY_SCALE,
   LUTEAL_DEFAULT,
   LUTEAL_MAX,
@@ -56,6 +57,7 @@ import {
   type CycleProfileInput,
   type DayLogInput,
   type NightlyTempInput,
+  type SecondarySymptom,
   type PredictionMethod,
 } from "./types";
 
@@ -250,74 +252,265 @@ export function estimatePeriodLength(
 /* §4 — symptothermal + temperature-trend ovulation detection         */
 /* ------------------------------------------------------------------ */
 
+/** Which sensiplan temperature rule confirmed the shift (provenance). */
+export type TempShiftRule = 0 | 1 | 2;
+
 interface TempShiftResult {
   /** Confirmed ovulation day = day before the first of the 3 elevated readings. */
   ovulationDate: string;
+  /**
+   * Which rule confirmed the rise: 0 = the regular 3-over-6 rule (3rd reading
+   * ≥0.2°C above the cover line), 1 = the 1. Ausnahmeregel (slow/staircase rise,
+   * 4th reading required), 2 = the 2. Ausnahmeregel (one of the 3 falls back to
+   * the line, 4th reading required ≥0.2°C above).
+   */
+  rule: TempShiftRule;
+  /** Day the evaluation completed (evening of the 3rd or 4th high reading). */
+  evaluationCompleteDate: string;
 }
 
 /**
- * §4.2(a) — sensiplan 3-over-6 BBT rule on manual basal temperatures.
- * The first day of 3 consecutive temps each strictly above the highest of the
- * immediately preceding 6 temps, AND the 3rd is >= 0.2°C above that 6-day max.
- * Ovulation = the last low-temp day before the rise (the day BEFORE the first
- * elevated reading).
+ * §4.2(a) — sensiplan 3-over-6 BBT rule on manual basal temperatures, with both
+ * published Ausnahmeregeln (exception rules).
+ *
+ * Cover line (Hüllkurve) = the highest of the 6 measured low values immediately
+ * preceding the rise. Excluded (disturbed) readings are dropped before the cover
+ * line and the rise are evaluated, so a fever / late reading neither raises the
+ * cover line nor masks a true shift (Sensiplan: the line is drawn over the last
+ * six *unbracketed* values). Ovulation = the last low day before the rise (the
+ * day BEFORE the first elevated reading).
+ *
+ * Rules (Arbeitsgruppe NFP / Raith-Paula & Frank-Herrmann; myNFP "Temperatur­kurve
+ * auswerten"; Generation-Pille "Die wichtigsten NFP-Regeln"):
+ *  - **Regular rule (0):** 3 consecutive readings strictly above the cover line,
+ *    the 3rd ≥0.2°C above it. Evaluation completes on the 3rd high day.
+ *  - **1. Ausnahmeregel (1):** if the 3rd reading is not ≥0.2°C above the line,
+ *    await a 4th reading which need only be above the line. Completes on the 4th.
+ *  - **2. Ausnahmeregel (2):** if exactly one of the 3 readings falls back to/below
+ *    the line, it is discounted and a 4th reading is required which must again be
+ *    ≥0.2°C above the line. Completes on the 4th.
+ * The two exception rules are mutually exclusive by construction.
  */
 export function detectTempShift(
   dayLogs: readonly DayLogInput[],
   thresholdC: number,
 ): TempShiftResult | null {
   const temps = dayLogs
-    .filter((l) => l.basalBodyTempC != null)
+    .filter((l) => l.basalBodyTempC != null && l.temperatureExcluded !== true)
     .map((l) => ({ date: l.date, t: l.basalBodyTempC as number }))
     .sort((a, b) => dayDiff(a.date, b.date));
 
   // Need 6 baseline + 3 elevated = 9 readings minimum. Scan from the END and
   // return the LATEST qualifying shift — for a multi-cycle BBT series the most
   // recent rise is the one that belongs to the current cycle; the earliest
-  // match would confirm a months-old ovulation (QA: window scoping).
+  // match would confirm a months-old ovulation (QA: window scoping). When a 4th
+  // reading is needed (exception rules) the candidate's start index may run to
+  // temps.length - 4; the loop starts there and skips candidates without enough
+  // following readings for the rule that fires.
   for (let i = temps.length - 3; i >= 6; i--) {
     const baseline = temps.slice(i - 6, i);
     const sixMax = Math.max(...baseline.map((x) => x.t));
-    const rise = [temps[i], temps[i + 1], temps[i + 2]];
-    const allAbove = rise.every((r) => r.t > sixMax);
-    // The 3rd elevated reading must clear the 6-day max by the threshold.
-    const thirdClears = roundHalf(rise[2].t - sixMax, 2) >= thresholdC;
-    if (allAbove && thirdClears) {
-      // Ovulation = day before the first elevated reading.
-      return { ovulationDate: addDays(rise[0].date, -1) };
+    const r1 = temps[i];
+    const r2 = temps[i + 1];
+    const r3 = temps[i + 2];
+    const r4 = temps[i + 3]; // may be undefined (no 4th reading available)
+
+    const above = (t: number) => t > sixMax;
+    const clears = (t: number) => roundHalf(t - sixMax, 2) >= thresholdC;
+
+    // Regular rule (0): 3 above, 3rd clears the threshold.
+    if (above(r1.t) && above(r2.t) && above(r3.t) && clears(r3.t)) {
+      return {
+        ovulationDate: addDays(r1.date, -1),
+        rule: 0,
+        evaluationCompleteDate: r3.date,
+      };
+    }
+
+    // 1. Ausnahmeregel (1): all 3 above the line but the 3rd does not clear
+    // 0.2°C → require a 4th reading that is merely above the line.
+    if (
+      above(r1.t) &&
+      above(r2.t) &&
+      above(r3.t) &&
+      !clears(r3.t) &&
+      r4 != null &&
+      above(r4.t)
+    ) {
+      return {
+        ovulationDate: addDays(r1.date, -1),
+        rule: 1,
+        evaluationCompleteDate: r4.date,
+      };
+    }
+
+    // 2. Ausnahmeregel (2): the 1st is above the line and EXACTLY ONE of the
+    // 2nd/3rd falls back to/below the line → that value is discounted and a 4th
+    // reading is required which must again clear 0.2°C above the line. (The 1st
+    // high measurement itself must stay above the line — it anchors the rise.)
+    const oneFellBack = above(r1.t) && above(r2.t) !== above(r3.t);
+    if (oneFellBack && r4 != null && above(r4.t) && clears(r4.t)) {
+      return {
+        ovulationDate: addDays(r1.date, -1),
+        rule: 2,
+        evaluationCompleteDate: r4.date,
+      };
     }
   }
   return null;
 }
 
 /**
- * §4.2(b) — cervical-mucus peak: the LAST day of egg-white/watery mucus.
- * Infertile phase confirmed on peak+3; ovulation is taken at the peak day for
- * the agreement check.
+ * Mucus quality magnitude on the Sensiplan t/f/S/+S ladder (0 = driest,
+ * 4 = best/peak quality). EGG_WHITE/WATERY are the peak-quality (+S) classes;
+ * STICKY/CREAMY are lower fertile-mucus, DRY is t. A null reading is not a
+ * "drier day" — it is an unobserved day and does not count toward the post-peak
+ * run (the run is over observed mucus days only).
+ */
+function mucusQuality(m: DayLogInput["cervicalMucus"]): number {
+  switch (m) {
+    case "EGG_WHITE":
+      return 4;
+    case "WATERY":
+      return 3;
+    case "CREAMY":
+      return 2;
+    case "STICKY":
+      return 1;
+    case "DRY":
+      return 0;
+    default:
+      return -1; // not observed
+  }
+}
+
+/** Peak-quality mucus = the best (+S) classes: egg-white / watery. */
+const MUCUS_PEAK_QUALITY = 3;
+
+/**
+ * §4.2(b) — sensiplan mucus peak (Höhepunkt). The peak day is the LAST day of
+ * best-quality (egg-white / watery / spinnbar) mucus that is FOLLOWED by at
+ * least 3 consecutive drier observed days (each strictly lower quality than the
+ * peak). The peak is only confirmable retrospectively, after those 3 days — so a
+ * stray late egg-white entry that is NOT yet followed by 3 drier days cannot
+ * move an already-confirmed peak.
+ *
+ * Returns the confirmed peak day, or null when no best-quality day has yet been
+ * followed by 3 drier observed days.
+ *
+ * Citation: "Höhepunkt = the last day of best-quality (S+) mucus; evaluation
+ * completes on the evening of the 3rd day after the change to poorer quality."
+ * Arbeitsgruppe NFP / Raith-Paula & Frank-Herrmann; myNFP "Zervixschleim
+ * beobachten".
  */
 export function detectMucusPeak(
   dayLogs: readonly DayLogInput[],
 ): string | null {
-  const peakDays = dayLogs
-    .filter(
-      (l) => l.cervicalMucus === "EGG_WHITE" || l.cervicalMucus === "WATERY",
-    )
-    .map((l) => l.date)
-    .sort((a, b) => dayDiff(a, b));
-  return peakDays.length > 0 ? peakDays[peakDays.length - 1] : null;
+  // Observed mucus days only, oldest→newest. Unobserved days are skipped so a
+  // gap in logging doesn't break the 3-drier-day post-peak run.
+  const observed = dayLogs
+    .filter((l) => mucusQuality(l.cervicalMucus) >= 0)
+    .map((l) => ({ date: l.date, q: mucusQuality(l.cervicalMucus) }))
+    .sort((a, b) => dayDiff(a.date, b.date));
+
+  // Walk every best-quality day; a candidate peak is confirmed iff the next 3
+  // observed days are all strictly lower quality. Scan forward and keep the
+  // LATEST confirmed peak (a true later peak supersedes an earlier one).
+  let confirmedPeak: string | null = null;
+  for (let i = 0; i < observed.length; i++) {
+    if (observed[i].q < MUCUS_PEAK_QUALITY) continue;
+    const following = observed.slice(i + 1, i + 4);
+    if (following.length < 3) continue; // not yet evaluable
+    const allDrier = following.every((d) => d.q < observed[i].q);
+    if (allDrier) confirmedPeak = observed[i].date;
+  }
+  return confirmedPeak;
 }
 
 /**
- * §4.2 — symptothermal CONFIRMATION: ovulation is confirmed only when the
- * temp-shift day and the mucus-peak agree within ±2 days. Returns the
- * temp-derived ovulation day when confirmed, else null.
+ * §4.2(b') — sensiplan cervix peak (Höhepunkt), the CERVIX-secondary-symptom
+ * analogue of `detectMucusPeak`. The cervix is a fertile sign while it is HIGH,
+ * SOFT, or OPEN (any of the three Sensiplan cervix signs in its fertile state);
+ * it is infertile only when fully closed — LOW + FIRM + CLOSED. The peak day is
+ * the LAST fertile-cervix day FOLLOWED by at least 3 consecutive closed
+ * (infertile) observed days (the cervix-closure rule). Like the mucus peak it is
+ * only confirmable retrospectively, so a stray late fertile-cervix entry not yet
+ * followed by 3 closed days cannot move an already-confirmed peak.
+ *
+ * A cervix "day" counts as observed when at least one of the three signs is
+ * logged (an unlogged sign is treated as its fertile/uncertain state so a
+ * partial entry never fabricates a closure). Returns the confirmed peak day, or
+ * null when no fertile-cervix day has yet been followed by 3 closed days.
+ *
+ * Citation: cervix observation as a Sensiplan secondary sign — the cervix opens,
+ * softens and rises around ovulation and closes, firms and lowers afterward;
+ * evaluation follows the same "last fertile day + 3 confirming days" shape as
+ * mucus. Arbeitsgruppe NFP / Raith-Paula & Frank-Herrmann; myNFP "Den
+ * Gebärmutterhals beobachten".
+ */
+export function detectCervixPeak(
+  dayLogs: readonly DayLogInput[],
+): string | null {
+  // Observed cervix days only (at least one sign logged), oldest→newest.
+  const observed = dayLogs
+    .filter(
+      (l) =>
+        l.cervixPosition != null ||
+        l.cervixFirmness != null ||
+        l.cervixOpening != null,
+    )
+    .map((l) => ({ date: l.date, closed: isCervixClosed(l) }))
+    .sort((a, b) => dayDiff(a.date, b.date));
+
+  // Walk every fertile-cervix day; a candidate peak is confirmed iff the next 3
+  // observed cervix days are all closed (infertile). Scan forward and keep the
+  // LATEST confirmed peak (a true later peak supersedes an earlier one).
+  let confirmedPeak: string | null = null;
+  for (let i = 0; i < observed.length; i++) {
+    if (observed[i].closed) continue; // only a fertile-cervix day can be a peak
+    const following = observed.slice(i + 1, i + 4);
+    if (following.length < 3) continue; // not yet evaluable
+    if (following.every((d) => d.closed)) confirmedPeak = observed[i].date;
+  }
+  return confirmedPeak;
+}
+
+/**
+ * A cervix is in its infertile (closed) state only when ALL three signs read
+ * infertile: LOW + FIRM + CLOSED. Any fertile sign (HIGH / SOFT / OPEN) — or an
+ * unlogged sign, treated conservatively as not-yet-closed — keeps the day
+ * fertile, so a partial entry never fabricates a closure.
+ */
+function isCervixClosed(log: DayLogInput): boolean {
+  return (
+    log.cervixPosition === "LOW" &&
+    log.cervixFirmness === "FIRM" &&
+    log.cervixOpening === "CLOSED"
+  );
+}
+
+/**
+ * §4.2 — symptothermal CONFIRMATION (the Sensiplan double-check): ovulation is
+ * confirmed only when the temperature primary sign AND the chosen SECONDARY sign
+ * both confirm and agree within ±2 days. The secondary sign is the cervical
+ * mucus peak by default, or the cervix peak when `secondarySymptom` is `CERVIX`.
+ * Returns the temp-derived ovulation day when confirmed, else null.
+ *
+ * A single sign never confirms — no temperature shift returns null regardless of
+ * the secondary sign, and no secondary peak returns null regardless of the
+ * temperature. This is the honesty principle: the double-check requires two
+ * indicators, never one.
  */
 export function confirmSymptothermal(
   dayLogs: readonly DayLogInput[],
+  secondarySymptom: SecondarySymptom = "MUCUS",
 ): string | null {
   const shift = detectTempShift(dayLogs, TEMP_SHIFT_C_MANUAL);
   if (!shift) return null;
-  const peak = detectMucusPeak(dayLogs);
+  const peak =
+    secondarySymptom === "CERVIX"
+      ? detectCervixPeak(dayLogs)
+      : detectMucusPeak(dayLogs);
   if (!peak) return null;
   if (
     Math.abs(dayDiff(shift.ovulationDate, peak)) <= SYMPTOTHERMAL_AGREE_DAYS
@@ -351,6 +544,33 @@ export function detectTemperatureTrend(
     }
   }
   return null;
+}
+
+/**
+ * §4 — Marquette (Fehring) LH/OPK ovulation anchor. A positive urinary-LH surge
+ * precedes ovulation by ~24–36 h, so the estimated ovulation day is one day
+ * after the LAST positive LH test in the supplied logs (the surge can read
+ * positive across consecutive days; the last positive is closest to ovulation).
+ *
+ * This ANCHORS the ovulation estimate — it never confirms it. A single LH
+ * indicator is not the symptothermal double-check, so the caller folds this in
+ * as a refining signal that sharpens the estimate without flipping
+ * `ovulationConfirmed`. Returns the estimated ovulation day, or null when no
+ * positive LH test is present.
+ *
+ * Citation: Fehring R.J. — Marquette Method; urinary LH peaks ~1 day before
+ * ovulation.
+ */
+export function detectLhSurgeOvulation(
+  dayLogs: readonly DayLogInput[],
+): string | null {
+  const positives = dayLogs
+    .filter((l) => l.ovulationTest === "POSITIVE_LH_SURGE")
+    .map((l) => l.date)
+    .sort((a, b) => dayDiff(a, b));
+  if (positives.length === 0) return null;
+  const lastPositive = positives[positives.length - 1];
+  return addDays(lastPositive, LH_SURGE_TO_OVULATION_DAYS);
 }
 
 /* ------------------------------------------------------------------ */
@@ -453,7 +673,7 @@ export function resolveLuteal(
  * engine returns the window and the caller hides it).
  *
  * @param cycles    confirmed (non-predicted) cycles; order-independent.
- * @param dayLogs   all day logs the device holds (for period, symptothermal).
+ * @param dayLogs   all day logs the device holds (period, symptothermal, LH/OPK).
  * @param profile   user priors + mode flags.
  * @param today     `YYYY-MM-DD` reference day (for adherence density).
  * @param nights    optional nightly passive-temperature series (Apple Watch).
@@ -525,7 +745,10 @@ export function predictCycle(
     dayDiff(date, windowStart) >= 0 && dayDiff(today, date) >= 0;
   const currentDayLogs = dayLogs.filter((l) => isInCurrentWindow(l.date));
   const currentNights = nights.filter((n) => isInCurrentWindow(n.date));
-  const symptoOvulation = confirmSymptothermal(currentDayLogs);
+  const symptoOvulation = confirmSymptothermal(
+    currentDayLogs,
+    profile.secondarySymptom,
+  );
   const trendOvulation = symptoOvulation
     ? null
     : detectTemperatureTrend(currentNights);
@@ -549,6 +772,32 @@ export function predictCycle(
       ovulationConfirmed = true;
       confirmMultiplier = HALF_WIDTH_MULT_TEMP_TREND;
       method = lengths.length > 0 ? "BLENDED" : "TEMPERATURE_TREND";
+    }
+  }
+
+  // -------- §4 Marquette LH/OPK ANCHOR (refines, never confirms) --------
+  // A positive LH surge predicts ovulation ~24–36 h later (Marquette/Fehring).
+  // It is a single indicator, NOT the symptothermal double-check, so it only
+  // RE-ANCHORS the ovulation estimate — it never flips `ovulationConfirmed`.
+  // When the symptothermal or temperature-trend layer already confirmed, that
+  // stronger signal wins and the LH anchor is ignored. Otherwise the LH surge
+  // sharpens the still-estimated ovulation (and the derived next-start) over
+  // the calendar back-calculation — most valuable in the thin-data (<3 cycle)
+  // case where the median/luteal back-calc is weak. The still-learning gate and
+  // the un-confirmed status are both preserved (honesty principle).
+  if (!ovulationConfirmed) {
+    const lhOvulation = detectLhSurgeOvulation(currentDayLogs);
+    if (lhOvulation) {
+      const lhNextStart = addDays(lhOvulation, lutealLength);
+      // Only adopt a future-dated anchor (a positive-LH next-start in the past
+      // is a stale prior-cycle signal that slipped the window).
+      if (dayDiff(lhNextStart, today) >= 0) {
+        predictedOvulation = lhOvulation;
+        nextStart = lhNextStart;
+        // method records the mix but ovulationConfirmed stays FALSE — a single
+        // LH indicator never asserts confirmed ovulation.
+        method = "BLENDED";
+      }
     }
   }
 

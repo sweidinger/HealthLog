@@ -21,6 +21,7 @@ export interface CycleBackupSection {
     typicalCycleLength: number | null;
     typicalPeriodLength: number | null;
     lutealPhaseLength: number | null;
+    secondarySymptom: string;
     predictionEnabled: boolean;
     rawChartMode: boolean;
     discreetNotifications: boolean;
@@ -40,8 +41,12 @@ export interface CycleBackupSection {
     flow: string | null;
     intermenstrualBleeding: boolean;
     basalBodyTempC: number | null;
+    temperatureExcluded: boolean;
     ovulationTest: string | null;
     cervicalMucus: string | null;
+    cervixPosition: string | null;
+    cervixFirmness: string | null;
+    cervixOpening: string | null;
     sexualActivity: boolean;
     protectedSex: boolean | null;
     pregnancyTest: string | null;
@@ -88,6 +93,7 @@ export async function buildCycleBackupSection(
           typicalCycleLength: profile.typicalCycleLength,
           typicalPeriodLength: profile.typicalPeriodLength,
           lutealPhaseLength: profile.lutealPhaseLength,
+          secondarySymptom: profile.secondarySymptom,
           predictionEnabled: profile.predictionEnabled,
           rawChartMode: profile.rawChartMode,
           discreetNotifications: profile.discreetNotifications,
@@ -108,8 +114,12 @@ export async function buildCycleBackupSection(
       flow: d.flow,
       intermenstrualBleeding: d.intermenstrualBleeding,
       basalBodyTempC: d.basalBodyTempC,
+      temperatureExcluded: d.temperatureExcluded,
       ovulationTest: d.ovulationTest,
       cervicalMucus: d.cervicalMucus,
+      cervixPosition: d.cervixPosition,
+      cervixFirmness: d.cervixFirmness,
+      cervixOpening: d.cervixOpening,
       sexualActivity: d.sexualActivity,
       protectedSex: d.protectedSex,
       pregnancyTest: d.pregnancyTest,
@@ -154,6 +164,10 @@ const CERVICAL_MUCUS = new Set([
   "WATERY",
   "EGG_WHITE",
 ]);
+const SECONDARY_SYMPTOMS = new Set(["MUCUS", "CERVIX"]);
+const CERVIX_POSITIONS = new Set(["LOW", "HIGH"]);
+const CERVIX_FIRMNESSES = new Set(["FIRM", "SOFT"]);
+const CERVIX_OPENINGS = new Set(["CLOSED", "OPEN"]);
 const HOME_TESTS = new Set(["NEGATIVE", "POSITIVE", "INDETERMINATE"]);
 const CONTRACEPTIVES = new Set([
   "NONE",
@@ -219,6 +233,8 @@ export async function restoreCycleData(
         typicalCycleLength: p.typicalCycleLength ?? null,
         typicalPeriodLength: p.typicalPeriodLength ?? null,
         lutealPhaseLength: p.lutealPhaseLength ?? null,
+        secondarySymptom: (enumOrNull(p.secondarySymptom, SECONDARY_SYMPTOMS) ??
+          "MUCUS") as never,
         predictionEnabled: p.predictionEnabled ?? true,
         rawChartMode: p.rawChartMode ?? false,
         discreetNotifications: p.discreetNotifications ?? false,
@@ -289,8 +305,18 @@ export async function restoreCycleData(
         flow: enumOrNull(d.flow, FLOW_LEVELS) as never,
         intermenstrualBleeding: d.intermenstrualBleeding ?? false,
         basalBodyTempC: d.basalBodyTempC ?? null,
+        temperatureExcluded: d.temperatureExcluded ?? false,
         ovulationTest: enumOrNull(d.ovulationTest, OVULATION_TESTS) as never,
         cervicalMucus: enumOrNull(d.cervicalMucus, CERVICAL_MUCUS) as never,
+        cervixPosition: enumOrNull(
+          d.cervixPosition,
+          CERVIX_POSITIONS,
+        ) as never,
+        cervixFirmness: enumOrNull(
+          d.cervixFirmness,
+          CERVIX_FIRMNESSES,
+        ) as never,
+        cervixOpening: enumOrNull(d.cervixOpening, CERVIX_OPENINGS) as never,
         sexualActivity: d.sexualActivity ?? false,
         protectedSex: d.protectedSex ?? null,
         pregnancyTest: enumOrNull(d.pregnancyTest, HOME_TESTS) as never,

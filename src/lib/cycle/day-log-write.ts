@@ -140,8 +140,12 @@ type ExistingRow = {
   flow: string | null;
   intermenstrualBleeding: boolean;
   basalBodyTempC: number | null;
+  temperatureExcluded: boolean;
   ovulationTest: string | null;
   cervicalMucus: string | null;
+  cervixPosition: string | null;
+  cervixFirmness: string | null;
+  cervixOpening: string | null;
   sexualActivity: boolean;
   protectedSex: boolean | null;
   pregnancyTest: string | null;
@@ -158,8 +162,12 @@ const EXISTING_SELECT = {
   flow: true,
   intermenstrualBleeding: true,
   basalBodyTempC: true,
+  temperatureExcluded: true,
   ovulationTest: true,
   cervicalMucus: true,
+  cervixPosition: true,
+  cervixFirmness: true,
+  cervixOpening: true,
   sexualActivity: true,
   protectedSex: true,
   pregnancyTest: true,
@@ -309,6 +317,10 @@ async function writeDayLog(args: WriteArgs): Promise<DayLogWriteResult> {
     entry.basalBodyTempC !== undefined
       ? (entry.basalBodyTempC ?? null)
       : (existing?.basalBodyTempC ?? null);
+  const temperatureExcluded =
+    entry.temperatureExcluded !== undefined
+      ? entry.temperatureExcluded
+      : (existing?.temperatureExcluded ?? false);
   const ovulationTest =
     entry.ovulationTest !== undefined
       ? (entry.ovulationTest ?? null)
@@ -317,6 +329,18 @@ async function writeDayLog(args: WriteArgs): Promise<DayLogWriteResult> {
     entry.cervicalMucus !== undefined
       ? (entry.cervicalMucus ?? null)
       : (existing?.cervicalMucus ?? null);
+  const cervixPosition =
+    entry.cervixPosition !== undefined
+      ? (entry.cervixPosition ?? null)
+      : (existing?.cervixPosition ?? null);
+  const cervixFirmness =
+    entry.cervixFirmness !== undefined
+      ? (entry.cervixFirmness ?? null)
+      : (existing?.cervixFirmness ?? null);
+  const cervixOpening =
+    entry.cervixOpening !== undefined
+      ? (entry.cervixOpening ?? null)
+      : (existing?.cervixOpening ?? null);
 
   // Split the sensitive fields between plaintext columns and the envelope
   // depending on the flag. When encrypting, the plaintext columns are NULL
@@ -338,8 +362,12 @@ async function writeDayLog(args: WriteArgs): Promise<DayLogWriteResult> {
     flow: flow as never,
     intermenstrualBleeding,
     basalBodyTempC,
+    temperatureExcluded,
     ovulationTest: ovulationTest as never,
     cervicalMucus: cervicalMucus as never,
+    cervixPosition: cervixPosition as never,
+    cervixFirmness: cervixFirmness as never,
+    cervixOpening: cervixOpening as never,
     sexualActivity: sensitivePlaintext.sexualActivity,
     protectedSex: sensitivePlaintext.protectedSex,
     pregnancyTest: sensitivePlaintext.pregnancyTest as never,
@@ -357,8 +385,12 @@ async function writeDayLog(args: WriteArgs): Promise<DayLogWriteResult> {
       (existing.flow ?? null) !== flow ||
       existing.intermenstrualBleeding !== intermenstrualBleeding ||
       (existing.basalBodyTempC ?? null) !== basalBodyTempC ||
+      existing.temperatureExcluded !== temperatureExcluded ||
       (existing.ovulationTest ?? null) !== ovulationTest ||
       (existing.cervicalMucus ?? null) !== cervicalMucus ||
+      (existing.cervixPosition ?? null) !== cervixPosition ||
+      (existing.cervixFirmness ?? null) !== cervixFirmness ||
+      (existing.cervixOpening ?? null) !== cervixOpening ||
       storedSensitive.sexualActivity !== resolvedSensitive.sexualActivity ||
       storedSensitive.protectedSex !== resolvedSensitive.protectedSex ||
       storedSensitive.pregnancyTest !== resolvedSensitive.pregnancyTest ||
@@ -395,8 +427,12 @@ async function writeDayLog(args: WriteArgs): Promise<DayLogWriteResult> {
         flow: baseData.flow as never,
         intermenstrualBleeding: baseData.intermenstrualBleeding as never,
         basalBodyTempC: baseData.basalBodyTempC as never,
+        temperatureExcluded: baseData.temperatureExcluded as never,
         ovulationTest: baseData.ovulationTest as never,
         cervicalMucus: baseData.cervicalMucus as never,
+        cervixPosition: baseData.cervixPosition as never,
+        cervixFirmness: baseData.cervixFirmness as never,
+        cervixOpening: baseData.cervixOpening as never,
         sexualActivity: sensitivePlaintext.sexualActivity,
         protectedSex: sensitivePlaintext.protectedSex,
         pregnancyTest: sensitivePlaintext.pregnancyTest as never,

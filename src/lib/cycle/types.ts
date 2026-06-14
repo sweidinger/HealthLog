@@ -34,6 +34,22 @@ export type CervicalMucus =
   | "WATERY"
   | "EGG_WHITE";
 
+/**
+ * Which symptothermal SECONDARY sign pairs with the temperature primary sign
+ * for the Sensiplan double-check. `MUCUS` (cervical-mucus quality) is the
+ * default; `CERVIX` swaps in the cervix observation.
+ */
+export type SecondarySymptom = "MUCUS" | "CERVIX";
+
+/** Cervix vertical position — fertile = HIGH, infertile = LOW. */
+export type CervixPosition = "LOW" | "HIGH";
+
+/** Cervix firmness — fertile = SOFT, infertile = FIRM. */
+export type CervixFirmness = "FIRM" | "SOFT";
+
+/** Cervix os / opening — fertile = OPEN, infertile = CLOSED. */
+export type CervixOpening = "CLOSED" | "OPEN";
+
 export type CyclePhase = "MENSTRUAL" | "FOLLICULAR" | "OVULATORY" | "LUTEAL";
 
 export type PredictionMethod =
@@ -105,9 +121,23 @@ export const FERTILE_POST = 1;
 export const OUTLIER_K = 3.0;
 export const OUTLIER_K_PERIMENOPAUSE = 4.0;
 
-/** §5 — hard physiological cycle-length bounds (always outlier candidates). */
+/**
+ * §5 — hard physiological cycle-length bounds (always outlier candidates).
+ *
+ * The ceiling is a deliberately generous outlier *backstop*, not a clinical
+ * "normal" cap — the robust MAD fence + missed-log heuristic do the real
+ * outlier work. ACOG flags cycles > 35 d as oligomenorrhea, but such cycles are
+ * still genuine, and adolescents / perimenopausal users routinely run to ~50+ d.
+ * A hard cap of 45 force-excluded those legitimate long cycles, biasing the
+ * estimate toward the population middle for exactly the irregular users who most
+ * need an honest estimate. 60 d keeps the rare gross-error guard (a length this
+ * long is almost always a missed log, which the missed-log rule also catches)
+ * while letting real long cycles reach the MAD fence. The MAD fence is
+ * computed pre-exclusion, so raising the ceiling does not move the fence — it
+ * only stops the hard rule from pre-empting it on long but consistent cycles.
+ */
 export const HARD_CYCLE_MIN = 21;
-export const HARD_CYCLE_MAX = 45;
+export const HARD_CYCLE_MAX = 60;
 
 /** §5 — a single length ≥ this × median is treated as a probable missed-log. */
 export const MISSED_LOG_FACTOR = 1.75;
@@ -124,6 +154,18 @@ export const HALF_WIDTH_MULT_TEMP_TREND = 0.75;
 
 /** §4 — symptothermal agreement tolerance between temp-shift and mucus peak (days). */
 export const SYMPTOTHERMAL_AGREE_DAYS = 2;
+
+/**
+ * §4 — Marquette (Fehring) LH/OPK ovulation lag. A positive urinary-LH surge
+ * precedes ovulation by ~24–36 h, so ovulation is estimated one day after the
+ * (last) positive LH test. Used to ANCHOR — never to confirm — the ovulation
+ * estimate: a single LH indicator is not the symptothermal double-check, so it
+ * sharpens the estimate without asserting confirmed ovulation.
+ *
+ * Citation: Fehring R.J. — Marquette Method; urinary LH peaks ~1 day before
+ * ovulation. ESHRE/Wilcox fertile-window literature.
+ */
+export const LH_SURGE_TO_OVULATION_DAYS = 1;
 
 /**
  * §4 — trailing lookback (days) for the symptothermal / temperature-trend
@@ -178,8 +220,26 @@ export interface DayLogInput {
   flow: FlowLevel | null;
   /** Basal body temperature in °C, already rounded to 2 dp before input. */
   basalBodyTempC: number | null;
+  /**
+   * Whether this day's BBT is a disturbed/unreliable reading (fever, illness,
+   * alcohol, a late or short-sleep measurement) the user marked excluded. When
+   * true the engine drops the reading from the cover-line baseline AND the shift
+   * evaluation, so a spike neither fabricates nor masks a temperature rise
+   * (Sensiplan: the cover line is drawn over the last six *unbracketed* values).
+   * Optional for back-compat; treated as `false` when absent.
+   */
+  temperatureExcluded?: boolean | null;
   ovulationTest: OvulationTest | null;
   cervicalMucus: CervicalMucus | null;
+  /**
+   * Cervix observation — the three Sensiplan cervix signs. Used as the
+   * symptothermal SECONDARY indicator when the profile's `secondarySymptom`
+   * is `CERVIX`; ignored on the default (mucus) path. All optional for
+   * back-compat; an unobserved sign is `null`/absent.
+   */
+  cervixPosition?: CervixPosition | null;
+  cervixFirmness?: CervixFirmness | null;
+  cervixOpening?: CervixOpening | null;
 }
 
 /**
@@ -205,6 +265,13 @@ export interface CycleProfileInput {
   predictionEnabled: boolean;
   /** Read-Your-Body mode: suppress all interpretation. */
   rawChartMode: boolean;
+  /**
+   * Which symptothermal SECONDARY sign the double-check uses — `MUCUS`
+   * (default) or `CERVIX`. Optional for back-compat; the engine treats an
+   * absent value as `MUCUS`, so existing callers keep the mucus path
+   * unchanged.
+   */
+  secondarySymptom?: SecondarySymptom;
 }
 
 /* ------------------------------------------------------------------ */

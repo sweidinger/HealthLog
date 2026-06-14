@@ -51,6 +51,14 @@ export const cervicalMucusEnum = z.enum([
   "EGG_WHITE",
 ]);
 
+/** Symptothermal secondary-symptom choice (mirrors the Prisma enum). */
+export const secondarySymptomEnum = z.enum(["MUCUS", "CERVIX"]);
+
+/** The three Sensiplan cervix signs (mirror the Prisma enums). */
+export const cervixPositionEnum = z.enum(["LOW", "HIGH"]);
+export const cervixFirmnessEnum = z.enum(["FIRM", "SOFT"]);
+export const cervixOpeningEnum = z.enum(["CLOSED", "OPEN"]);
+
 export const homeTestResultEnum = z.enum([
   "NEGATIVE",
   "POSITIVE",
@@ -103,8 +111,16 @@ export const cycleDayLogInputSchema = z.object({
   flow: flowLevelEnum.optional(),
   intermenstrualBleeding: z.boolean().optional(),
   basalBodyTempC: z.number().min(30).max(45).optional(),
+  // Marks the day's BBT as disturbed (fever / illness / late reading): the
+  // symptothermal engine drops it from the cover line + shift evaluation.
+  temperatureExcluded: z.boolean().optional(),
   ovulationTest: ovulationTestEnum.optional(),
   cervicalMucus: cervicalMucusEnum.optional(),
+  // Cervix observation — the symptothermal secondary indicator when the
+  // profile's secondarySymptom is CERVIX.
+  cervixPosition: cervixPositionEnum.optional(),
+  cervixFirmness: cervixFirmnessEnum.optional(),
+  cervixOpening: cervixOpeningEnum.optional(),
   sexualActivity: z.boolean().optional(),
   protectedSex: z.boolean().nullable().optional(),
   pregnancyTest: homeTestResultEnum.optional(),
@@ -132,8 +148,12 @@ export const cycleDayLogPatchSchema = z.object({
   flow: flowLevelEnum.nullable().optional(),
   intermenstrualBleeding: z.boolean().optional(),
   basalBodyTempC: z.number().min(30).max(45).nullable().optional(),
+  temperatureExcluded: z.boolean().optional(),
   ovulationTest: ovulationTestEnum.nullable().optional(),
   cervicalMucus: cervicalMucusEnum.nullable().optional(),
+  cervixPosition: cervixPositionEnum.nullable().optional(),
+  cervixFirmness: cervixFirmnessEnum.nullable().optional(),
+  cervixOpening: cervixOpeningEnum.nullable().optional(),
   sexualActivity: z.boolean().optional(),
   protectedSex: z.boolean().nullable().optional(),
   pregnancyTest: homeTestResultEnum.nullable().optional(),
@@ -188,6 +208,9 @@ export const cyclePrefsSchema = z
   .object({
     enabled: z.boolean().optional(),
     goal: cycleTrackingGoalEnum.optional(),
+    // Symptothermal secondary symptom — advanced cycle setting (MUCUS default
+    // | CERVIX). Drives which second sign the double-check uses.
+    secondarySymptom: secondarySymptomEnum.optional(),
     rawChartMode: z.boolean().optional(),
     predictionEnabled: z.boolean().optional(),
     discreetNotifications: z.boolean().optional(),

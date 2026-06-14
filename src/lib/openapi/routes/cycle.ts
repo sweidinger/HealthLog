@@ -11,6 +11,10 @@ import {
   flowLevelEnum,
   ovulationTestEnum,
   cervicalMucusEnum,
+  secondarySymptomEnum,
+  cervixPositionEnum,
+  cervixFirmnessEnum,
+  cervixOpeningEnum,
   homeTestResultEnum,
   cycleTrackingGoalEnum,
   cycleDayLogInputSchema,
@@ -101,8 +105,12 @@ const cycleDayLogDto = z
     flow: flowLevelEnum.nullable(),
     intermenstrualBleeding: z.boolean(),
     basalBodyTempC: z.number().nullable(),
+    temperatureExcluded: z.boolean(),
     ovulationTest: ovulationTestEnum.nullable(),
     cervicalMucus: cervicalMucusEnum.nullable(),
+    cervixPosition: cervixPositionEnum.nullable(),
+    cervixFirmness: cervixFirmnessEnum.nullable(),
+    cervixOpening: cervixOpeningEnum.nullable(),
     sexualActivity: z.boolean(),
     protectedSex: z.boolean().nullable(),
     pregnancyTest: homeTestResultEnum.nullable(),
@@ -175,14 +183,19 @@ const cycleCalendarDayDto = z.object({
   // so the web BBT chart renders from the calendar read (the values are already
   // loaded server-side for the symptothermal layer; no extra query).
   basalBodyTempC: z.number().nullable(),
+  temperatureExcluded: z.boolean(),
   ovulationTest: ovulationTestEnum.nullable(),
   cervicalMucus: cervicalMucusEnum.nullable(),
+  cervixPosition: cervixPositionEnum.nullable(),
+  cervixFirmness: cervixFirmnessEnum.nullable(),
+  cervixOpening: cervixOpeningEnum.nullable(),
 });
 
 const cycleProfileDto = z
   .object({
     goal: cycleTrackingGoalEnum,
     cycleTrackingEnabled: z.boolean(),
+    secondarySymptom: secondarySymptomEnum,
     rawChartMode: z.boolean(),
     predictionEnabled: z.boolean(),
     discreetNotifications: z.boolean(),
@@ -205,6 +218,12 @@ const cycleCalendarResponse = z.object({
     cyclesObserved: z.number().int(),
   }),
   prediction: cyclePredictionDto.nullable(),
+  // Cold-start gate (mirrors `prediction.stillLearning`): true while < 3 cycles
+  // are observed. When set, the `days` grid carries no fertile window, no
+  // predicted-ovulation dot, and no phase band (those would rest on a
+  // population prior) — the client shows a calm "learning your cycle" state.
+  // Additive + back-compatible.
+  stillLearning: z.boolean(),
   days: z.array(cycleCalendarDayDto),
   meta: z.object({ generatedAt: z.iso.datetime({ offset: true }) }),
 });

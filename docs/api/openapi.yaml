@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: HealthLog API
-  version: 1.16.14
+  version: 1.16.15
   description: >-
     Self-hosted personal-health-tracking PWA — public API surface for the iOS native client and external ingest.
 
@@ -117,6 +117,8 @@ paths:
                   type: number
                   minimum: 30
                   maximum: 45
+                temperatureExcluded:
+                  type: boolean
                 ovulationTest:
                   type: string
                   enum:
@@ -132,6 +134,21 @@ paths:
                     - CREAMY
                     - WATERY
                     - EGG_WHITE
+                cervixPosition:
+                  type: string
+                  enum:
+                    - LOW
+                    - HIGH
+                cervixFirmness:
+                  type: string
+                  enum:
+                    - FIRM
+                    - SOFT
+                cervixOpening:
+                  type: string
+                  enum:
+                    - CLOSED
+                    - OPEN
                 sexualActivity:
                   type: boolean
                 protectedSex:
@@ -252,6 +269,8 @@ paths:
                       minimum: 30
                       maximum: 45
                     - type: "null"
+                temperatureExcluded:
+                  type: boolean
                 ovulationTest:
                   anyOf:
                     - type: string
@@ -270,6 +289,27 @@ paths:
                         - CREAMY
                         - WATERY
                         - EGG_WHITE
+                    - type: "null"
+                cervixPosition:
+                  anyOf:
+                    - type: string
+                      enum:
+                        - LOW
+                        - HIGH
+                    - type: "null"
+                cervixFirmness:
+                  anyOf:
+                    - type: string
+                      enum:
+                        - FIRM
+                        - SOFT
+                    - type: "null"
+                cervixOpening:
+                  anyOf:
+                    - type: string
+                      enum:
+                        - CLOSED
+                        - OPEN
                     - type: "null"
                 sexualActivity:
                   type: boolean
@@ -412,6 +452,8 @@ paths:
                         type: number
                         minimum: 30
                         maximum: 45
+                      temperatureExcluded:
+                        type: boolean
                       ovulationTest:
                         type: string
                         enum:
@@ -427,6 +469,21 @@ paths:
                           - CREAMY
                           - WATERY
                           - EGG_WHITE
+                      cervixPosition:
+                        type: string
+                        enum:
+                          - LOW
+                          - HIGH
+                      cervixFirmness:
+                        type: string
+                        enum:
+                          - FIRM
+                          - SOFT
+                      cervixOpening:
+                        type: string
+                        enum:
+                          - CLOSED
+                          - OPEN
                       sexualActivity:
                         type: boolean
                       protectedSex:
@@ -724,6 +781,11 @@ paths:
                     - TRYING_TO_CONCEIVE
                     - PERIMENOPAUSE
                     - OFF
+                secondarySymptom:
+                  type: string
+                  enum:
+                    - MUCUS
+                    - CERVIX
                 rawChartMode:
                   type: boolean
                 predictionEnabled:
@@ -6240,6 +6302,8 @@ components:
           anyOf:
             - type: number
             - type: "null"
+        temperatureExcluded:
+          type: boolean
         ovulationTest:
           anyOf:
             - type: string
@@ -6258,6 +6322,27 @@ components:
                 - CREAMY
                 - WATERY
                 - EGG_WHITE
+            - type: "null"
+        cervixPosition:
+          anyOf:
+            - type: string
+              enum:
+                - LOW
+                - HIGH
+            - type: "null"
+        cervixFirmness:
+          anyOf:
+            - type: string
+              enum:
+                - FIRM
+                - SOFT
+            - type: "null"
+        cervixOpening:
+          anyOf:
+            - type: string
+              enum:
+                - CLOSED
+                - OPEN
             - type: "null"
         sexualActivity:
           type: boolean
@@ -6333,8 +6418,12 @@ components:
         - flow
         - intermenstrualBleeding
         - basalBodyTempC
+        - temperatureExcluded
         - ovulationTest
         - cervicalMucus
+        - cervixPosition
+        - cervixFirmness
+        - cervixOpening
         - sexualActivity
         - protectedSex
         - pregnancyTest
@@ -6608,6 +6697,8 @@ components:
               anyOf:
                 - $ref: "#/components/schemas/CyclePredictionDTO"
                 - type: "null"
+            stillLearning:
+              type: boolean
             days:
               type: array
               items:
@@ -6645,6 +6736,8 @@ components:
                     anyOf:
                       - type: number
                       - type: "null"
+                  temperatureExcluded:
+                    type: boolean
                   ovulationTest:
                     anyOf:
                       - type: string
@@ -6664,6 +6757,27 @@ components:
                           - WATERY
                           - EGG_WHITE
                       - type: "null"
+                  cervixPosition:
+                    anyOf:
+                      - type: string
+                        enum:
+                          - LOW
+                          - HIGH
+                      - type: "null"
+                  cervixFirmness:
+                    anyOf:
+                      - type: string
+                        enum:
+                          - FIRM
+                          - SOFT
+                      - type: "null"
+                  cervixOpening:
+                    anyOf:
+                      - type: string
+                        enum:
+                          - CLOSED
+                          - OPEN
+                      - type: "null"
                 required:
                   - date
                   - phase
@@ -6675,8 +6789,12 @@ components:
                   - hasSymptoms
                   - confidence
                   - basalBodyTempC
+                  - temperatureExcluded
                   - ovulationTest
                   - cervicalMucus
+                  - cervixPosition
+                  - cervixFirmness
+                  - cervixOpening
                 additionalProperties: false
             meta:
               type: object
@@ -6691,6 +6809,7 @@ components:
           required:
             - profile
             - prediction
+            - stillLearning
             - days
             - meta
           additionalProperties: false
@@ -7141,6 +7260,11 @@ components:
             - OFF
         cycleTrackingEnabled:
           type: boolean
+        secondarySymptom:
+          type: string
+          enum:
+            - MUCUS
+            - CERVIX
         rawChartMode:
           type: boolean
         predictionEnabled:
@@ -7174,6 +7298,7 @@ components:
       required:
         - goal
         - cycleTrackingEnabled
+        - secondarySymptom
         - rawChartMode
         - predictionEnabled
         - discreetNotifications

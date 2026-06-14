@@ -29,8 +29,14 @@ export interface CycleDayLogDTO {
   flow: string | null;
   intermenstrualBleeding: boolean;
   basalBodyTempC: number | null;
+  /** Whether the day's BBT is marked disturbed (excluded from the engine). */
+  temperatureExcluded: boolean;
   ovulationTest: string | null;
   cervicalMucus: string | null;
+  /** Cervix observation signs (symptothermal secondary indicator). */
+  cervixPosition: string | null;
+  cervixFirmness: string | null;
+  cervixOpening: string | null;
   sexualActivity: boolean;
   protectedSex: boolean | null;
   pregnancyTest: string | null;
@@ -107,8 +113,12 @@ export function toCycleDayLogDTO(row: DayLogWithLinks): CycleDayLogDTO {
     flow: row.flow,
     intermenstrualBleeding: row.intermenstrualBleeding,
     basalBodyTempC: row.basalBodyTempC,
+    temperatureExcluded: row.temperatureExcluded,
     ovulationTest: row.ovulationTest,
     cervicalMucus: row.cervicalMucus,
+    cervixPosition: row.cervixPosition,
+    cervixFirmness: row.cervixFirmness,
+    cervixOpening: row.cervixOpening,
     sexualActivity: hasEnvelope
       ? (enc.sexualActivity ?? false)
       : row.sexualActivity,
@@ -188,9 +198,19 @@ export function toCyclePredictionDTO(
     nextPeriodStart: result.nextPeriodStart,
     nextPeriodStartLow: result.nextPeriodStartLow,
     nextPeriodStartHigh: result.nextPeriodStartHigh,
-    fertileWindowStart: goalAllowsFertile ? result.fertileWindowStart : null,
-    fertileWindowEnd: goalAllowsFertile ? result.fertileWindowEnd : null,
-    predictedOvulation: goalAllowsFertile ? result.predictedOvulation : null,
+    // Fertile-window + predicted ovulation are suppressed both when the goal
+    // forbids them AND while still learning (<3 cycles): below that we would be
+    // emitting a population-prior guess, not a data-grounded estimate. Making
+    // the gate structural here (not just in the web panels / calendar grid)
+    // means iOS — and any client reading `prediction.*` directly — cannot paint
+    // a fertile window the rest of the app refuses to show. `ovulationConfirmed`
+    // stays goal-gated only: a confirmed shift is observed data, not a prior.
+    fertileWindowStart:
+      goalAllowsFertile && !result.stillLearning ? result.fertileWindowStart : null,
+    fertileWindowEnd:
+      goalAllowsFertile && !result.stillLearning ? result.fertileWindowEnd : null,
+    predictedOvulation:
+      goalAllowsFertile && !result.stillLearning ? result.predictedOvulation : null,
     ovulationConfirmed: goalAllowsFertile ? result.ovulationConfirmed : false,
     confidence: result.confidence,
     cyclesObserved: result.cyclesObserved,
@@ -203,6 +223,8 @@ export function toCyclePredictionDTO(
 export interface CycleProfileDTO {
   goal: string;
   cycleTrackingEnabled: boolean;
+  /** Symptothermal secondary symptom — MUCUS (default) or CERVIX. */
+  secondarySymptom: string;
   rawChartMode: boolean;
   predictionEnabled: boolean;
   discreetNotifications: boolean;
@@ -220,6 +242,7 @@ export function toCycleProfileDTO(
   return {
     goal: row.goal,
     cycleTrackingEnabled,
+    secondarySymptom: row.secondarySymptom,
     rawChartMode: row.rawChartMode,
     predictionEnabled: row.predictionEnabled,
     discreetNotifications: row.discreetNotifications,
@@ -233,6 +256,7 @@ export function toCycleProfileDTO(
 
 type MenstrualCycleProfileRow = {
   goal: string;
+  secondarySymptom: string;
   rawChartMode: boolean;
   predictionEnabled: boolean;
   discreetNotifications: boolean;

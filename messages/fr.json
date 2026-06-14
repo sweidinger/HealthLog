@@ -5741,6 +5741,12 @@
         "OVULATORY": "Vers le milieu du cycle, un ovule est libéré et la fertilité culmine sur une courte fenêtre. Cette phase est la plus brève des quatre.",
         "LUTEAL": "Après l'ovulation, la progestérone augmente et le corps se pose. Dans les jours précédant les prochaines règles, certaines personnes remarquent des changements prémenstruels."
       },
+      "context": {
+        "MENSTRUAL": "Les taux hormonaux sont au plus bas, ce qui peut donner à ces jours des airs de remise à zéro tranquille. Certaines personnes remarquent des crampes, un sommeil plus léger ou l'envie de lever le pied ; d'autres les traversent presque sans changement. Tout cela reste dans la normale, et le ressenti peut varier d'un cycle à l'autre.",
+        "FOLLICULAR": "Avec l'œstrogène qui monte, beaucoup décrivent ces jours comme lumineux et ouverts : le sommeil vient souvent plus facilement et l'esprit semble plus clair. La température basale reste en général dans sa plage basse jusqu'à juste avant l'ovulation. La durée de cette phase est ce qui varie le plus d'une personne à l'autre, et d'un cycle à l'autre.",
+        "OVULATORY": "L'œstrogène culmine juste avant la libération de l'ovule, souvent accompagné d'un bref regain d'humeur et d'une légère hausse de la température basale dans le jour ou les deux qui suivent. La glaire cervicale tend à devenir plus claire et plus filante autour de cette fenêtre. Un bref tiraillement d'un côté, certaines personnes le remarquent ; beaucoup ne ressentent rien, et les deux sont tout à fait normaux.",
+        "LUTEAL": "La progestérone mène la seconde moitié et la température basale se stabilise en général un peu plus haut qu'au début du cycle. Certaines personnes remarquent des variations du sommeil, de l'appétit, de l'humeur ou de l'énergie au fil des jours, tandis que d'autres se sentent stables tout du long. Le schéma est personnel, et il se présente souvent différemment d'un mois à l'autre."
+      },
       "commonHere": "Tu le remarques souvent ici",
       "trackNudge": "Noter aujourd'hui",
       "stillLearning": "On apprend encore ton cycle. Continue à noter et cela se remplira avec les tendances de tes propres journées."
@@ -5797,6 +5803,18 @@
       "EGG_WHITE": "Blanc d'œuf",
       "label": "Glaire cervicale"
     },
+    "cervixPosition": {
+      "LOW": "Bas",
+      "HIGH": "Haut"
+    },
+    "cervixFirmness": {
+      "FIRM": "Ferme",
+      "SOFT": "Souple"
+    },
+    "cervixOpening": {
+      "CLOSED": "Fermé",
+      "OPEN": "Ouvert"
+    },
     "goal": {
       "GENERAL_HEALTH": "Santé générale",
       "AVOID_PREGNANCY": "Éviter une grossesse",
@@ -5824,6 +5842,7 @@
       "nextMonth": "Mois suivant",
       "loading": "Chargement de ton calendrier…",
       "empty": "Commence à enregistrer pour remplir ton calendrier.",
+      "learning": "Nous apprenons ton cycle — enregistre au moins trois cycles complets et la fenêtre fertile, l'ovulation et les phases se compléteront. D'ici là, le calendrier n'affiche que ce que tu as enregistré.",
       "today": "Aujourd'hui",
       "dayAria": "{date}",
       "legendSymptom": "Symptômes",
@@ -5881,8 +5900,14 @@
       "symptoms": "Symptômes",
       "temperature": "Température basale",
       "temperaturePlaceholder": "°C",
+      "temperatureDisturbed": "Marquer la mesure comme perturbée",
+      "temperatureDisturbedHint": "Fièvre, maladie, alcool ou mesure tardive — exclue de l'évaluation de la température.",
       "ovulationTest": "Test d'ovulation",
       "mucus": "Glaire cervicale",
+      "cervix": "Col de l'utérus",
+      "cervixPosition": "Position",
+      "cervixFirmness": "Fermeté",
+      "cervixOpening": "Ouverture",
       "intercourse": "Rapports",
       "protected": "Protégés",
       "note": "Note",
@@ -5912,6 +5937,12 @@
       "priorsDescription": "Ces valeurs aident tes prévisions avant d'avoir enregistré beaucoup de cycles. Laisse vide pour utiliser les valeurs par défaut.",
       "rawChartMode": "Mode graphique brut",
       "rawChartModeDescription": "Affiche uniquement tes données enregistrées, sans prévision ni interprétation.",
+      "secondarySymptomLabel": "Deuxième signe de fertilité",
+      "secondarySymptomDescription": "Le deuxième signe associé à ta température pour la double vérification sympto-thermique. La plupart des personnes observent la glaire cervicale ; passe à l'observation du col de l'utérus si tu préfères.",
+      "secondarySymptom": {
+        "MUCUS": "Glaire cervicale",
+        "CERVIX": "Col de l'utérus"
+      },
       "prediction": "Prévisions",
       "predictionDescription": "Prévois tes prochaines règles et, le cas échéant, ta fenêtre fertile.",
       "encryption": "Chiffrer les entrées sensibles",

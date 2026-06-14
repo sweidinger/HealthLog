@@ -37,6 +37,8 @@ export interface CalendarDayDTO {
   confidence: number;
   /** Logged basal body temperature (°C), or null. Feeds the web BBT chart. */
   basalBodyTempC: number | null;
+  /** Whether the day's BBT is marked disturbed (excluded from the engine). */
+  temperatureExcluded: boolean;
   /** Logged ovulation-test result, or null. */
   ovulationTest: string | null;
   /** Logged cervical-mucus quality, or null. */
@@ -46,7 +48,15 @@ export interface CalendarDayDTO {
 /** Rows the calendar needs from each day-log. */
 export type CalendarDayLogRow = Pick<
   CycleDayLog,
-  "date" | "flow" | "basalBodyTempC" | "ovulationTest" | "cervicalMucus"
+  | "date"
+  | "flow"
+  | "basalBodyTempC"
+  | "temperatureExcluded"
+  | "ovulationTest"
+  | "cervicalMucus"
+  | "cervixPosition"
+  | "cervixFirmness"
+  | "cervixOpening"
 > & { hasSymptoms: boolean };
 
 /** Map MenstrualCycle rows (oldest→newest) to engine `CycleInput`. */
@@ -73,15 +83,27 @@ export function toCycleInputs(
 export function toDayLogInputs(
   logs: readonly Pick<
     CycleDayLog,
-    "date" | "flow" | "basalBodyTempC" | "ovulationTest" | "cervicalMucus"
+    | "date"
+    | "flow"
+    | "basalBodyTempC"
+    | "temperatureExcluded"
+    | "ovulationTest"
+    | "cervicalMucus"
+    | "cervixPosition"
+    | "cervixFirmness"
+    | "cervixOpening"
   >[],
 ): DayLogInput[] {
   return logs.map((l) => ({
     date: l.date,
     flow: l.flow,
     basalBodyTempC: l.basalBodyTempC,
+    temperatureExcluded: l.temperatureExcluded,
     ovulationTest: l.ovulationTest,
     cervicalMucus: l.cervicalMucus,
+    cervixPosition: l.cervixPosition,
+    cervixFirmness: l.cervixFirmness,
+    cervixOpening: l.cervixOpening,
   }));
 }
 
@@ -94,6 +116,7 @@ export function toProfileInput(profile: CycleProfile): CycleProfileInput {
     lutealPhaseLength: profile.lutealPhaseLength,
     predictionEnabled: profile.predictionEnabled,
     rawChartMode: profile.rawChartMode,
+    secondarySymptom: profile.secondarySymptom,
   };
 }
 
@@ -214,6 +237,15 @@ export function buildPhaseDayMap(
 
 export interface CalendarBuildResult {
   prediction: CyclePredictionResult | null;
+  /**
+   * True while the engine is "still learning" the user's cycle (< 3 observed
+   * cycles, mirrors `prediction.stillLearning`). When set, the calendar grid
+   * does NOT assert a fertile window, an ovulation dot, or a population-framed
+   * phase band — those are population guesses the app has not yet earned the
+   * confidence to show as fact. The client renders a calm "learning your cycle"
+   * state instead. False when no prediction ran (raw-chart mode / disabled).
+   */
+  stillLearning: boolean;
   days: CalendarDayDTO[];
 }
 
@@ -226,6 +258,15 @@ export interface CalendarBuildResult {
  * (GENERAL_HEALTH / PERIMENOPAUSE) to suppress `isFertileWindow` +
  * `isPredictedOvulation` at the grid level (the prediction's own window
  * fields are nulled upstream by the engine for those goals).
+ *
+ * Cold-start honesty (C1): while the engine reports `stillLearning` (< 3
+ * observed cycles), the grid suppresses the fertile window, the predicted-
+ * ovulation dot, AND the phase band — all of which would otherwise be painted
+ * from a population 28/14 prior at ~0.20 confidence. The predicted-period bar
+ * is kept (the predictions panel shows it too while learning). This matches
+ * the `stillLearning` gate the predictions panel already applies, so the
+ * calendar grid never asserts "these are your fertile days" off a single
+ * logged cycle.
  */
 export function buildCalendar(
   profile: CycleProfile,
@@ -253,6 +294,11 @@ export function buildCalendar(
       nights,
     );
   }
+
+  // Cold-start gate: until ≥3 cycles are observed the engine's fertile/
+  // ovulation/phase output rests on a population prior, so the calendar must
+  // present it as a calm "learning" state rather than asserting it as fact.
+  const stillLearning = prediction?.stillLearning ?? false;
 
   const phaseCycles = buildPhaseCycles(
     cycles,
@@ -285,6 +331,7 @@ export function buildCalendar(
       isWithin(date, predictedPeriodStart, predictedPeriodEnd);
 
     const isFertileWindow =
+      !stillLearning &&
       goalAllowsFertile &&
       prediction?.fertileWindowStart != null &&
       prediction.fertileWindowEnd != null &&
@@ -295,13 +342,16 @@ export function buildCalendar(
       );
 
     const isPredictedOvulation =
+      !stillLearning &&
       goalAllowsFertile &&
       prediction?.predictedOvulation != null &&
       prediction.predictedOvulation === date;
 
     days.push({
       date,
-      phase: phaseAcross(date, phaseCycles),
+      // No asserted phase band while learning — a population-28 frame off a
+      // single cycle is not yet earned (Lower: single-cycle phase band).
+      phase: stillLearning ? null : phaseAcross(date, phaseCycles),
       isPredictedPeriod,
       isFertileWindow,
       isPredictedOvulation,
@@ -310,10 +360,11 @@ export function buildCalendar(
       hasSymptoms: log?.hasSymptoms ?? false,
       confidence: prediction?.confidence ?? 0,
       basalBodyTempC: log?.basalBodyTempC ?? null,
+      temperatureExcluded: log?.temperatureExcluded ?? false,
       ovulationTest: log?.ovulationTest ?? null,
       cervicalMucus: log?.cervicalMucus ?? null,
     });
   }
 
-  return { prediction, days };
+  return { prediction, stillLearning, days };
 }

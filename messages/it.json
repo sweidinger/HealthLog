@@ -5741,6 +5741,12 @@
         "OVULATORY": "Verso metà ciclo viene rilasciato un ovulo e la fertilità raggiunge il picco per una breve finestra. Questa fase è la più breve delle quattro.",
         "LUTEAL": "Dopo l'ovulazione il progesterone sale e il corpo si assesta. Nei giorni prima del ciclo successivo alcune persone notano cambiamenti premestruali."
       },
+      "context": {
+        "MENSTRUAL": "I livelli ormonali sono al minimo, ed è per questo che questi giorni possono sembrare un tranquillo ripartire da capo. Alcune persone notano crampi, un sonno più leggero o il desiderio di rallentare; altre li attraversano quasi senza cambiamenti. Tutto questo rientra nella norma, e come ci si sente può cambiare da un ciclo all'altro.",
+        "FOLLICULAR": "Con gli estrogeni in salita, molte persone descrivono questi giorni come luminosi e aperti: il sonno spesso arriva più facilmente e la mente sembra più limpida. La temperatura basale di solito resta nella sua fascia più bassa fino a poco prima dell'ovulazione. La durata di questa fase è ciò che varia di più da persona a persona e da ciclo a ciclo.",
+        "OVULATORY": "Gli estrogeni raggiungono il picco poco prima del rilascio dell'ovulo, spesso insieme a un breve rialzo dell'umore e a un leggero aumento della temperatura basale nel giorno o nei due successivi. Il muco cervicale tende a diventare più trasparente ed elastico intorno a questa finestra. Una breve fitta su un lato è qualcosa che alcune persone notano; molte non sentono nulla, ed entrambe le cose sono del tutto normali.",
+        "LUTEAL": "Il progesterone guida la seconda metà e la temperatura basale di solito si assesta un po' più in alto rispetto all'inizio del ciclo. Alcune persone notano cambiamenti nel sonno, nell'appetito, nell'umore o nell'energia con il passare dei giorni, mentre altre si sentono stabili per tutto il tempo. Lo schema è personale e spesso appare diverso da un mese all'altro."
+      },
       "commonHere": "Questo lo noti spesso qui",
       "trackNudge": "Registra oggi",
       "stillLearning": "Stiamo ancora imparando il tuo ciclo. Continua a registrare e questo si completerà con gli schemi delle tue giornate."
@@ -5797,6 +5803,18 @@
       "EGG_WHITE": "Albume",
       "label": "Muco cervicale"
     },
+    "cervixPosition": {
+      "LOW": "Basso",
+      "HIGH": "Alto"
+    },
+    "cervixFirmness": {
+      "FIRM": "Duro",
+      "SOFT": "Morbido"
+    },
+    "cervixOpening": {
+      "CLOSED": "Chiuso",
+      "OPEN": "Aperto"
+    },
     "goal": {
       "GENERAL_HEALTH": "Salute generale",
       "AVOID_PREGNANCY": "Evitare la gravidanza",
@@ -5824,6 +5842,7 @@
       "nextMonth": "Mese successivo",
       "loading": "Caricamento del calendario…",
       "empty": "Inizia a registrare per riempire il calendario.",
+      "learning": "Stiamo imparando il tuo ciclo: registra almeno tre cicli completi e si completeranno la finestra fertile, l'ovulazione e le fasi. Fino ad allora il calendario mostra solo ciò che hai registrato.",
       "today": "Oggi",
       "dayAria": "{date}",
       "legendSymptom": "Sintomi",
@@ -5881,8 +5900,14 @@
       "symptoms": "Sintomi",
       "temperature": "Temperatura basale",
       "temperaturePlaceholder": "°C",
+      "temperatureDisturbed": "Segna la misurazione come disturbata",
+      "temperatureDisturbedHint": "Febbre, malattia, alcol o una misurazione tardiva: esclusa dalla valutazione della temperatura.",
       "ovulationTest": "Test di ovulazione",
       "mucus": "Muco cervicale",
+      "cervix": "Cervice",
+      "cervixPosition": "Posizione",
+      "cervixFirmness": "Consistenza",
+      "cervixOpening": "Apertura",
       "intercourse": "Rapporti",
       "protected": "Protetti",
       "note": "Nota",
@@ -5912,6 +5937,12 @@
       "priorsDescription": "Questi valori aiutano le previsioni prima di aver registrato molti cicli. Lascia vuoto per usare i valori predefiniti.",
       "rawChartMode": "Modalità grafico grezzo",
       "rawChartModeDescription": "Mostra solo i tuoi dati registrati, senza previsioni né interpretazioni.",
+      "secondarySymptomLabel": "Secondo segno di fertilità",
+      "secondarySymptomDescription": "Il secondo segno abbinato alla tua temperatura per il doppio controllo sintotermico. La maggior parte osserva il muco cervicale; passa all'osservazione della cervice se preferisci.",
+      "secondarySymptom": {
+        "MUCUS": "Muco cervicale",
+        "CERVIX": "Cervice"
+      },
       "prediction": "Previsioni",
       "predictionDescription": "Prevedi il prossimo ciclo e, quando rilevante, la tua finestra fertile.",
       "encryption": "Cifra le voci sensibili",

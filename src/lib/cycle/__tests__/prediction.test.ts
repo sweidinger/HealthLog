@@ -4,6 +4,9 @@ import { addDays } from "../day-math";
 import {
   clampLuteal,
   confirmSymptothermal,
+  detectCervixPeak,
+  detectLhSurgeOvulation,
+  detectMucusPeak,
   detectTempShift,
   detectTemperatureTrend,
   estimateCycleLength,
@@ -13,9 +16,11 @@ import {
   predictCycle,
   resolveLuteal,
 } from "../prediction";
+import { toCyclePredictionDTO } from "../dto";
 import type {
   CycleInput,
   CycleProfileInput,
+  CyclePredictionResult,
   DayLogInput,
   NightlyTempInput,
 } from "../types";
@@ -86,6 +91,17 @@ describe("cycle/prediction — cycle-length estimator (§1, §5)", () => {
     const est = estimateCycleLength([28, 28, 14, 28, 29], "TRYING_TO_CONCEIVE");
     expect(est.cyclesObserved).toBe(4); // 14 excluded (< HARD_CYCLE_MIN 21)
     expect(est.lengthRounded).toBe(28);
+  });
+
+  it("keeps a legitimate long (oligomenorrhea) cycle inside the hard bound", () => {
+    // A run of long-but-real cycles (ACOG: > 35 d is oligomenorrhea, still a
+    // real cycle; perimenopause routinely runs longer). A 52-day length must
+    // not be force-excluded by the hard ceiling — only the MAD fence / missed-
+    // log heuristic should ever drop it. Here the whole run is long, so the
+    // robust median sits near 50 and 52 is well inside the fence.
+    const est = estimateCycleLength([48, 50, 52, 49, 51], "PERIMENOPAUSE");
+    expect(est.cyclesObserved).toBe(5); // none clipped by HARD_CYCLE_MAX
+    expect(est.lengthRounded).toBe(50);
   });
 
   it("perimenopause widens the fence (OUTLIER_K 4 keeps more)", () => {
@@ -284,6 +300,24 @@ describe("cycle/prediction — symptothermal confirmation (§4.2)", () => {
     return { date, flow: null, basalBodyTempC: t, ovulationTest: null, cervicalMucus: mucus };
   }
 
+  function cervixDay(
+    date: string,
+    cervixPosition: DayLogInput["cervixPosition"],
+    cervixFirmness: DayLogInput["cervixFirmness"],
+    cervixOpening: DayLogInput["cervixOpening"],
+  ): DayLogInput {
+    return {
+      date,
+      flow: null,
+      basalBodyTempC: null,
+      ovulationTest: null,
+      cervicalMucus: null,
+      cervixPosition,
+      cervixFirmness,
+      cervixOpening,
+    };
+  }
+
   it("detectTempShift: 3-over-6 with the 3rd reading >= 0.2°C over the 6-day max", () => {
     // 6 low baseline ~36.40, then 3 elevated clearing the max by 0.2.
     const logs: DayLogInput[] = [];
@@ -314,6 +348,176 @@ describe("cycle/prediction — symptothermal confirmation (§4.2)", () => {
     expect(detectTempShift(logs, 0.2)).toBeNull();
   });
 
+  it("detectTempShift rule 0: the regular rule reports rule:0 + evaluation on the 3rd day", () => {
+    const logs: DayLogInput[] = [];
+    const start = "2024-01-01";
+    [36.4, 36.42, 36.38, 36.41, 36.4, 36.39].forEach((t, i) =>
+      logs.push(bbtDay(addDays(start, i), t)),
+    );
+    logs.push(bbtDay(addDays(start, 6), 36.55));
+    logs.push(bbtDay(addDays(start, 7), 36.6));
+    logs.push(bbtDay(addDays(start, 8), 36.62)); // 3rd clears 0.2 over 36.42
+
+    const shift = detectTempShift(logs, 0.2);
+    expect(shift?.rule).toBe(0);
+    expect(shift?.ovulationDate).toBe(addDays(start, 5));
+    expect(shift?.evaluationCompleteDate).toBe(addDays(start, 8));
+  });
+
+  it("detectTempShift 1. Ausnahmeregel: slow/staircase rise confirms on the 4th reading", () => {
+    // 1. Ausnahmeregel: 3rd high reading is above the line but NOT 0.2°C above;
+    // a 4th reading above the line confirms (need only be above the line).
+    const logs: DayLogInput[] = [];
+    const start = "2024-01-01";
+    [36.4, 36.42, 36.38, 36.41, 36.4, 36.39].forEach((t, i) =>
+      logs.push(bbtDay(addDays(start, i), t)),
+    );
+    // cover line = 36.42. Staircase: all above the line, 3rd only +0.1.
+    logs.push(bbtDay(addDays(start, 6), 36.45));
+    logs.push(bbtDay(addDays(start, 7), 36.49));
+    logs.push(bbtDay(addDays(start, 8), 36.52)); // +0.1 → regular rule fails
+    // Without a 4th reading the strict + 1. rule cannot confirm.
+    expect(detectTempShift([...logs], 0.2)).toBeNull();
+    // 4th reading merely above the line (no 0.2 requirement) → confirmed by rule 1.
+    logs.push(bbtDay(addDays(start, 9), 36.5));
+    const shift = detectTempShift(logs, 0.2);
+    expect(shift?.rule).toBe(1);
+    expect(shift?.ovulationDate).toBe(addDays(start, 5));
+    expect(shift?.evaluationCompleteDate).toBe(addDays(start, 9));
+  });
+
+  it("detectTempShift 2. Ausnahmeregel: a single fall-back day confirms on a 4th ≥0.2°C reading", () => {
+    // 2. Ausnahmeregel: one of the 3 readings falls back to/below the line; it
+    // is discounted and a 4th reading is required that again clears 0.2°C.
+    const logs: DayLogInput[] = [];
+    const start = "2024-01-01";
+    [36.4, 36.42, 36.38, 36.41, 36.4, 36.39].forEach((t, i) =>
+      logs.push(bbtDay(addDays(start, i), t)),
+    );
+    // cover line = 36.42. 1st + 2nd above, 3rd falls back below the line.
+    logs.push(bbtDay(addDays(start, 6), 36.6));
+    logs.push(bbtDay(addDays(start, 7), 36.62));
+    logs.push(bbtDay(addDays(start, 8), 36.4)); // falls back below 36.42
+    // Without a 4th reading nothing confirms.
+    expect(detectTempShift([...logs], 0.2)).toBeNull();
+    // 4th reading that does NOT clear 0.2 must not confirm.
+    const tooLow = [...logs, bbtDay(addDays(start, 9), 36.5)]; // +0.08 only
+    expect(detectTempShift(tooLow, 0.2)).toBeNull();
+    // 4th reading ≥0.2°C above the line → confirmed by rule 2.
+    logs.push(bbtDay(addDays(start, 9), 36.63)); // +0.21 over 36.42
+    const shift = detectTempShift(logs, 0.2);
+    expect(shift?.rule).toBe(2);
+    expect(shift?.ovulationDate).toBe(addDays(start, 5));
+    expect(shift?.evaluationCompleteDate).toBe(addDays(start, 9));
+  });
+
+  it("detectTempShift: an excluded (disturbed) baseline spike no longer masks a true rise", () => {
+    const start = "2024-01-01";
+    // 6 baseline days; the LAST (immediately before the rise) is a fever spike,
+    // so it sits in the cover-line window. Unexcluded it raises the cover line
+    // and contaminates detection; excluded it is dropped and the remaining lows
+    // form the real (lower) cover line.
+    const baseline = [36.4, 36.42, 36.38, 36.41, 36.4, 37.5];
+    const extraLow = 36.39; // a 6th valid low so exclusion still leaves 6
+    const rise = [36.55, 36.6, 36.62];
+    const build = (excludeFever: boolean): DayLogInput[] => {
+      const logs: DayLogInput[] = [];
+      logs.push(bbtDay(addDays(start, 0), extraLow));
+      baseline.forEach((t, i) => {
+        const day = bbtDay(addDays(start, 1 + i), t);
+        if (i === 5 && excludeFever) day.temperatureExcluded = true;
+        logs.push(day);
+      });
+      rise.forEach((t, i) => logs.push(bbtDay(addDays(start, 7 + i), t)));
+      return logs;
+    };
+    // Fever NOT excluded: the 37.5 spike contaminates detection — it does NOT
+    // yield the correct shift (ovulation = day before the real rise).
+    const corrupted = detectTempShift(build(false), 0.2);
+    expect(corrupted?.ovulationDate).not.toBe(addDays(start, 6));
+    // Fever excluded: cover line falls to the real baseline max and the genuine
+    // rise confirms with ovulation the day before it (2024-01-07).
+    const shift = detectTempShift(build(true), 0.2);
+    expect(shift?.rule).toBe(0);
+    expect(shift?.ovulationDate).toBe(addDays(start, 6));
+  });
+
+  it("detectTempShift: an excluded fever spike inside the rise no longer fabricates a shift", () => {
+    const start = "2024-01-01";
+    const logs: DayLogInput[] = [];
+    [36.4, 36.4, 36.4, 36.4, 36.4, 36.4].forEach((t, i) =>
+      logs.push(bbtDay(addDays(start, i), t)),
+    );
+    const fever = bbtDay(addDays(start, 6), 38.0);
+    fever.temperatureExcluded = true;
+    logs.push(fever);
+    logs.push(bbtDay(addDays(start, 7), 36.41));
+    logs.push(bbtDay(addDays(start, 8), 36.4));
+    // The excluded fever is dropped; the remaining readings show no rise.
+    expect(detectTempShift(logs, 0.2)).toBeNull();
+  });
+
+  it("detectMucusPeak: confirms the last best-quality day followed by 3 drier days", () => {
+    const m = (date: string, q: DayLogInput["cervicalMucus"]): DayLogInput => ({
+      date,
+      flow: null,
+      basalBodyTempC: null,
+      ovulationTest: null,
+      cervicalMucus: q,
+    });
+    const start = "2024-01-01";
+    const logs = [
+      m(addDays(start, 0), "STICKY"),
+      m(addDays(start, 1), "CREAMY"),
+      m(addDays(start, 2), "EGG_WHITE"), // peak candidate
+      m(addDays(start, 3), "CREAMY"),
+      m(addDays(start, 4), "STICKY"),
+      m(addDays(start, 5), "DRY"),
+    ];
+    expect(detectMucusPeak(logs)).toBe(addDays(start, 2));
+  });
+
+  it("detectMucusPeak: returns null until 3 drier days follow the best-quality day", () => {
+    const m = (date: string, q: DayLogInput["cervicalMucus"]): DayLogInput => ({
+      date,
+      flow: null,
+      basalBodyTempC: null,
+      ovulationTest: null,
+      cervicalMucus: q,
+    });
+    const start = "2024-01-01";
+    // egg-white then only 2 drier observed days → not yet confirmable.
+    const logs = [
+      m(addDays(start, 0), "EGG_WHITE"),
+      m(addDays(start, 1), "CREAMY"),
+      m(addDays(start, 2), "DRY"),
+    ];
+    expect(detectMucusPeak(logs)).toBeNull();
+  });
+
+  it("detectMucusPeak: a stray late egg-white entry no longer moves a confirmed peak", () => {
+    const m = (date: string, q: DayLogInput["cervicalMucus"]): DayLogInput => ({
+      date,
+      flow: null,
+      basalBodyTempC: null,
+      ovulationTest: null,
+      cervicalMucus: q,
+    });
+    const start = "2024-01-01";
+    const logs = [
+      m(addDays(start, 0), "EGG_WHITE"), // true peak
+      m(addDays(start, 1), "CREAMY"),
+      m(addDays(start, 2), "STICKY"),
+      m(addDays(start, 3), "DRY"),
+      // a stray late egg-white with NO 3 drier days after it (only 1 logged
+      // day follows) — must not be confirmed as a new peak.
+      m(addDays(start, 8), "EGG_WHITE"),
+      m(addDays(start, 9), "DRY"),
+    ];
+    // The confirmed peak stays on the true (early) egg-white day, not the stray.
+    expect(detectMucusPeak(logs)).toBe(addDays(start, 0));
+  });
+
   it("confirmSymptothermal requires temp-shift and mucus-peak within ±2 days", () => {
     const logs: DayLogInput[] = [];
     const start = "2024-01-01";
@@ -323,15 +527,129 @@ describe("cycle/prediction — symptothermal confirmation (§4.2)", () => {
     logs.push(bbtDay(addDays(start, 6), 36.55));
     logs.push(bbtDay(addDays(start, 7), 36.6));
     logs.push(bbtDay(addDays(start, 8), 36.62));
-    // temp ovulation = 2024-01-06. Add a mucus peak (EGG_WHITE) on 2024-01-06.
-    logs.push({
-      date: "2024-01-06",
+    // temp ovulation = 2024-01-06. Add a mucus peak (EGG_WHITE) on 2024-01-06,
+    // confirmed by 3 drier days after it (Sensiplan post-peak count).
+    const mucusDay = (date: string, m: DayLogInput["cervicalMucus"]): DayLogInput => ({
+      date,
       flow: null,
       basalBodyTempC: null,
       ovulationTest: null,
-      cervicalMucus: "EGG_WHITE",
+      cervicalMucus: m,
     });
+    logs.push(mucusDay("2024-01-06", "EGG_WHITE"));
+    logs.push(mucusDay("2024-01-07", "STICKY"));
+    logs.push(mucusDay("2024-01-08", "DRY"));
+    logs.push(mucusDay("2024-01-09", "DRY"));
     expect(confirmSymptothermal(logs)).toBe("2024-01-06");
+  });
+
+  it("confirmSymptothermal defaults to the mucus secondary symptom (cervix ignored)", () => {
+    // A confirmed temp shift + a confirmed CERVIX peak but NO mucus must NOT
+    // confirm on the default (mucus) path — the default behaviour is unchanged.
+    const logs: DayLogInput[] = [];
+    const start = "2024-01-01";
+    [36.4, 36.42, 36.38, 36.41, 36.4, 36.39].forEach((t, i) =>
+      logs.push(bbtDay(addDays(start, i), t)),
+    );
+    logs.push(bbtDay(addDays(start, 6), 36.55));
+    logs.push(bbtDay(addDays(start, 7), 36.6));
+    logs.push(bbtDay(addDays(start, 8), 36.62));
+    // cervix peak on 2024-01-06, confirmed by 3 closed days — but no mucus.
+    logs.push(cervixDay("2024-01-06", "HIGH", "SOFT", "OPEN"));
+    logs.push(cervixDay("2024-01-07", "LOW", "FIRM", "CLOSED"));
+    logs.push(cervixDay("2024-01-08", "LOW", "FIRM", "CLOSED"));
+    logs.push(cervixDay("2024-01-09", "LOW", "FIRM", "CLOSED"));
+    // Default secondary = mucus → no mucus peak → no confirmation.
+    expect(confirmSymptothermal(logs)).toBeNull();
+  });
+
+  it("detectCervixPeak: confirms the last fertile-cervix day followed by 3 closed days", () => {
+    const start = "2024-01-01";
+    const logs = [
+      cervixDay(addDays(start, 0), "LOW", "FIRM", "CLOSED"),
+      cervixDay(addDays(start, 1), "HIGH", "SOFT", "OPEN"), // fertile peak
+      cervixDay(addDays(start, 2), "LOW", "FIRM", "CLOSED"),
+      cervixDay(addDays(start, 3), "LOW", "FIRM", "CLOSED"),
+      cervixDay(addDays(start, 4), "LOW", "FIRM", "CLOSED"),
+    ];
+    expect(detectCervixPeak(logs)).toBe(addDays(start, 1));
+  });
+
+  it("detectCervixPeak: returns null until 3 closed days follow the fertile peak", () => {
+    const start = "2024-01-01";
+    const logs = [
+      cervixDay(addDays(start, 0), "HIGH", "SOFT", "OPEN"),
+      cervixDay(addDays(start, 1), "LOW", "FIRM", "CLOSED"),
+      cervixDay(addDays(start, 2), "LOW", "FIRM", "CLOSED"),
+    ];
+    expect(detectCervixPeak(logs)).toBeNull();
+  });
+
+  it("confirmSymptothermal(CERVIX): a cervix peak + temp shift confirms like mucus does", () => {
+    const logs: DayLogInput[] = [];
+    const start = "2024-01-01";
+    [36.4, 36.42, 36.38, 36.41, 36.4, 36.39].forEach((t, i) =>
+      logs.push(bbtDay(addDays(start, i), t)),
+    );
+    logs.push(bbtDay(addDays(start, 6), 36.55));
+    logs.push(bbtDay(addDays(start, 7), 36.6));
+    logs.push(bbtDay(addDays(start, 8), 36.62));
+    // temp ovulation = 2024-01-06. Cervix peak on 2024-01-06, confirmed by 3
+    // closed days after it (cervix-closure rule).
+    logs.push(cervixDay("2024-01-06", "HIGH", "SOFT", "OPEN"));
+    logs.push(cervixDay("2024-01-07", "LOW", "FIRM", "CLOSED"));
+    logs.push(cervixDay("2024-01-08", "LOW", "FIRM", "CLOSED"));
+    logs.push(cervixDay("2024-01-09", "LOW", "FIRM", "CLOSED"));
+    expect(confirmSymptothermal(logs, "CERVIX")).toBe("2024-01-06");
+  });
+
+  it("confirmSymptothermal(CERVIX): a cervix sign alone (no temp shift) never confirms", () => {
+    const start = "2024-01-01";
+    // A confirmed cervix peak but a FLAT temperature series (no rise).
+    const logs: DayLogInput[] = [];
+    [36.4, 36.41, 36.39, 36.4, 36.42, 36.4, 36.41, 36.4, 36.39].forEach(
+      (t, i) => logs.push(bbtDay(addDays(start, i), t)),
+    );
+    logs.push(cervixDay(addDays(start, 4), "HIGH", "SOFT", "OPEN"));
+    logs.push(cervixDay(addDays(start, 5), "LOW", "FIRM", "CLOSED"));
+    logs.push(cervixDay(addDays(start, 6), "LOW", "FIRM", "CLOSED"));
+    logs.push(cervixDay(addDays(start, 7), "LOW", "FIRM", "CLOSED"));
+    // Single sign (cervix) without the temperature double-check → no confirmation.
+    expect(confirmSymptothermal(logs, "CERVIX")).toBeNull();
+  });
+
+  it("predictCycle(CERVIX): a cervix-peak + temp shift confirms the same boundary as mucus", () => {
+    const cervixProfile: CycleProfileInput = {
+      ...BASE_PROFILE,
+      secondarySymptom: "CERVIX",
+    };
+    const cycles = cyclesFromGaps("2024-01-01", [28, 28, 28]);
+    const lastStart = cycles[cycles.length - 1].startDate;
+    const logs: DayLogInput[] = [];
+    const ovDay = addDays(lastStart, 13);
+    const riseStart = addDays(ovDay, 1);
+    const baselineStart = addDays(riseStart, -6);
+    [36.4, 36.41, 36.39, 36.4, 36.42, 36.4].forEach((t, i) =>
+      logs.push(bbtDay(addDays(baselineStart, i), t)),
+    );
+    logs.push(bbtDay(riseStart, 36.6));
+    logs.push(bbtDay(addDays(riseStart, 1), 36.62));
+    logs.push(bbtDay(addDays(riseStart, 2), 36.63));
+    // cervix peak agreeing with the temp ovulation, confirmed by 3 closed days.
+    logs.push(cervixDay(ovDay, "HIGH", "SOFT", "OPEN"));
+    logs.push(cervixDay(addDays(ovDay, 1), "LOW", "FIRM", "CLOSED"));
+    logs.push(cervixDay(addDays(ovDay, 2), "LOW", "FIRM", "CLOSED"));
+    logs.push(cervixDay(addDays(ovDay, 3), "LOW", "FIRM", "CLOSED"));
+
+    const result = predictCycle(
+      cycles,
+      logs,
+      cervixProfile,
+      addDays(lastStart, 16),
+    );
+    expect(result.ovulationConfirmed).toBe(true);
+    expect(result.method).toBe("BLENDED");
+    expect(result.predictedOvulation).toBe(ovDay);
   });
 
   it("predictCycle: a confirmed symptothermal ovulation overrides next-start and tightens the band", () => {
@@ -351,14 +669,18 @@ describe("cycle/prediction — symptothermal confirmation (§4.2)", () => {
     logs.push(bbtDay(riseStart, 36.6));
     logs.push(bbtDay(addDays(riseStart, 1), 36.62));
     logs.push(bbtDay(addDays(riseStart, 2), 36.63));
-    // mucus peak agreeing with the temp ovulation.
-    logs.push({
-      date: ovDay,
+    // mucus peak agreeing with the temp ovulation, confirmed by 3 drier days.
+    const mucusDay = (date: string, m: DayLogInput["cervicalMucus"]): DayLogInput => ({
+      date,
       flow: null,
       basalBodyTempC: null,
       ovulationTest: null,
-      cervicalMucus: "EGG_WHITE",
+      cervicalMucus: m,
     });
+    logs.push(mucusDay(ovDay, "EGG_WHITE"));
+    logs.push(mucusDay(addDays(ovDay, 1), "STICKY"));
+    logs.push(mucusDay(addDays(ovDay, 2), "DRY"));
+    logs.push(mucusDay(addDays(ovDay, 3), "DRY"));
 
     const result = predictCycle(cycles, logs, BASE_PROFILE, addDays(lastStart, 16));
     expect(result.ovulationConfirmed).toBe(true);
@@ -366,6 +688,103 @@ describe("cycle/prediction — symptothermal confirmation (§4.2)", () => {
     expect(result.predictedOvulation).toBe(ovDay);
     // nextStart = confirmed ovulation + luteal(14).
     expect(result.nextPeriodStart).toBe(addDays(ovDay, 14));
+  });
+});
+
+describe("cycle/prediction — Marquette LH/OPK ovulation anchor (§4, C2)", () => {
+  function lhDay(date: string): DayLogInput {
+    return {
+      date,
+      flow: null,
+      basalBodyTempC: null,
+      ovulationTest: "POSITIVE_LH_SURGE",
+      cervicalMucus: null,
+    };
+  }
+
+  it("detectLhSurgeOvulation: anchors ovulation one day after the LAST positive LH", () => {
+    const logs = [lhDay("2024-01-10"), lhDay("2024-01-11")];
+    expect(detectLhSurgeOvulation(logs)).toBe("2024-01-12");
+    expect(detectLhSurgeOvulation([])).toBeNull();
+  });
+
+  it("predictCycle: a positive LH surge anchors ovulation on the surge, not nextStart−luteal", () => {
+    const cycles = cyclesFromGaps("2024-01-01", [28, 28, 28]);
+    const lastStart = cycles[cycles.length - 1].startDate; // 2024-03-25
+    // The calendar back-calc would place ovulation at nextStart−14. A positive
+    // LH on lastStart+16 should anchor ovulation to lastStart+17.
+    const lhDate = addDays(lastStart, 16);
+    const logs = [lhDay(lhDate)];
+    const today = addDays(lastStart, 18);
+
+    const calendarOnly = predictCycle(cycles, [], BASE_PROFILE, today);
+    const withLh = predictCycle(cycles, logs, BASE_PROFILE, today);
+
+    // The LH anchor moves the ovulation estimate off the calendar back-calc.
+    expect(withLh.predictedOvulation).toBe(addDays(lhDate, 1));
+    expect(withLh.predictedOvulation).not.toBe(calendarOnly.predictedOvulation);
+    // next-start = anchored ovulation + luteal(14).
+    expect(withLh.nextPeriodStart).toBe(addDays(lhDate, 1 + 14));
+    expect(withLh.method).toBe("BLENDED");
+    // A single LH indicator never asserts CONFIRMED ovulation.
+    expect(withLh.ovulationConfirmed).toBe(false);
+  });
+
+  it("predictCycle: LH sharpens the estimate in the thin-data (1-cycle) case", () => {
+    const cycles = cyclesFromGaps("2024-01-01", [28]); // one completed length
+    const lastStart = cycles[cycles.length - 1].startDate; // 2024-01-29
+    const lhDate = addDays(lastStart, 15);
+    const today = addDays(lastStart, 17);
+    const result = predictCycle(cycles, [lhDay(lhDate)], BASE_PROFILE, today);
+    expect(result.predictedOvulation).toBe(addDays(lhDate, 1));
+    expect(result.ovulationConfirmed).toBe(false);
+    // The still-learning gate is preserved (1 cycle < 3).
+    expect(result.stillLearning).toBe(true);
+  });
+
+  it("predictCycle: a confirmed symptothermal ovulation wins over the LH anchor", () => {
+    const cycles = cyclesFromGaps("2024-01-01", [28, 28, 28]);
+    const lastStart = cycles[cycles.length - 1].startDate;
+    const ovDay = addDays(lastStart, 13);
+    const riseStart = addDays(ovDay, 1);
+    const baselineStart = addDays(riseStart, -6);
+    const logs: DayLogInput[] = [];
+    [36.4, 36.41, 36.39, 36.4, 36.42, 36.4].forEach((t, i) =>
+      logs.push({
+        date: addDays(baselineStart, i),
+        flow: null,
+        basalBodyTempC: t,
+        ovulationTest: null,
+        cervicalMucus: null,
+      }),
+    );
+    const bbt = (date: string, t: number): DayLogInput => ({
+      date,
+      flow: null,
+      basalBodyTempC: t,
+      ovulationTest: null,
+      cervicalMucus: null,
+    });
+    logs.push(bbt(riseStart, 36.6));
+    logs.push(bbt(addDays(riseStart, 1), 36.62));
+    logs.push(bbt(addDays(riseStart, 2), 36.63));
+    const mucus = (date: string, m: DayLogInput["cervicalMucus"]): DayLogInput => ({
+      date,
+      flow: null,
+      basalBodyTempC: null,
+      ovulationTest: null,
+      cervicalMucus: m,
+    });
+    logs.push(mucus(ovDay, "EGG_WHITE"));
+    logs.push(mucus(addDays(ovDay, 1), "STICKY"));
+    logs.push(mucus(addDays(ovDay, 2), "DRY"));
+    logs.push(mucus(addDays(ovDay, 3), "DRY"));
+    // A contradicting LH surge far from the temp shift must NOT override it.
+    logs.push(lhDay(addDays(ovDay, 5)));
+
+    const result = predictCycle(cycles, logs, BASE_PROFILE, addDays(lastStart, 20));
+    expect(result.ovulationConfirmed).toBe(true);
+    expect(result.predictedOvulation).toBe(ovDay); // symptothermal wins
   });
 });
 
@@ -420,13 +839,18 @@ describe("cycle/prediction — multi-cycle window scoping (QA HIGH)", () => {
     logs.push(bbtDay(riseStart, 36.6));
     logs.push(bbtDay(addDays(riseStart, 1), 36.62));
     logs.push(bbtDay(addDays(riseStart, 2), 36.63));
-    logs.push({
-      date: ovDay,
+    const mucusDay = (date: string, m: DayLogInput["cervicalMucus"]): DayLogInput => ({
+      date,
       flow: null,
       basalBodyTempC: null,
       ovulationTest: null,
-      cervicalMucus: "EGG_WHITE",
+      cervicalMucus: m,
     });
+    // Peak on ovDay confirmed by 3 drier observed days (Sensiplan post-peak count).
+    logs.push(mucusDay(ovDay, "EGG_WHITE"));
+    logs.push(mucusDay(addDays(ovDay, 1), "STICKY"));
+    logs.push(mucusDay(addDays(ovDay, 2), "DRY"));
+    logs.push(mucusDay(addDays(ovDay, 3), "DRY"));
     return logs;
   }
 
@@ -512,5 +936,73 @@ describe("cycle/prediction — luteal clamp single source of truth (QA HIGH)", (
     const result = predictCycle(cycles, [], profile, addDays(lastStart, 5));
     // predictedOvulation = nextStart − clampedLuteal(10).
     expect(result.predictedOvulation).toBe(addDays(result.nextPeriodStart, -10));
+  });
+});
+
+describe("cycle/dto — toCyclePredictionDTO still-learning honesty gate (M-1)", () => {
+  /** A fully-populated engine result; `stillLearning` is overridden per case. */
+  function makeResult(
+    overrides: Partial<CyclePredictionResult> = {},
+  ): CyclePredictionResult {
+    return {
+      method: "CALENDAR",
+      nextPeriodStart: "2024-02-01",
+      nextPeriodStartLow: "2024-01-30",
+      nextPeriodStartHigh: "2024-02-03",
+      predictedPeriodLength: 5,
+      fertileWindowStart: "2024-01-14",
+      fertileWindowEnd: "2024-01-20",
+      predictedOvulation: "2024-01-18",
+      ovulationConfirmed: true,
+      confidence: 0.6,
+      confidenceLabel: "medium",
+      cyclesObserved: 5,
+      stillLearning: false,
+      estimatedCycleLength: 28,
+      estimatedCycleSd: 1.5,
+      ...overrides,
+    };
+  }
+
+  it("suppresses the fertile window + predicted ovulation on the wire while still learning (<3 cycles), even when the goal allows it", () => {
+    const result = makeResult({ stillLearning: true, cyclesObserved: 2 });
+    const dto = toCyclePredictionDTO(result, /* goalAllowsFertile */ true, "d");
+
+    expect(dto.fertileWindowStart).toBeNull();
+    expect(dto.fertileWindowEnd).toBeNull();
+    expect(dto.predictedOvulation).toBeNull();
+    // The honesty flag still reaches the client so it can paint the calm state.
+    expect(dto.stillLearning).toBe(true);
+  });
+
+  it("populates the fertile window + predicted ovulation once learning completes (>=3 cycles) and the goal allows it", () => {
+    const result = makeResult({ stillLearning: false, cyclesObserved: 3 });
+    const dto = toCyclePredictionDTO(result, /* goalAllowsFertile */ true, "d");
+
+    expect(dto.fertileWindowStart).toBe("2024-01-14");
+    expect(dto.fertileWindowEnd).toBe("2024-01-20");
+    expect(dto.predictedOvulation).toBe("2024-01-18");
+    expect(dto.stillLearning).toBe(false);
+  });
+
+  it("keeps ovulationConfirmed goal-gated only — unchanged by the still-learning gate", () => {
+    // Still learning but goal allows: a confirmed shift is observed data, not a
+    // prior, so it stays surfaced even while the predicted window is suppressed.
+    const learning = toCyclePredictionDTO(
+      makeResult({ stillLearning: true, ovulationConfirmed: true }),
+      true,
+      "d",
+    );
+    expect(learning.ovulationConfirmed).toBe(true);
+
+    // Goal forbids the fertile window → confirmation drops regardless of learning.
+    const goalGated = toCyclePredictionDTO(
+      makeResult({ stillLearning: false, ovulationConfirmed: true }),
+      false,
+      "d",
+    );
+    expect(goalGated.ovulationConfirmed).toBe(false);
+    expect(goalGated.fertileWindowStart).toBeNull();
+    expect(goalGated.predictedOvulation).toBeNull();
   });
 });

@@ -5741,6 +5741,12 @@
         "OVULATORY": "Etwa zur Zyklusmitte wird eine Eizelle freigesetzt und die Fruchtbarkeit erreicht für ein kurzes Fenster ihren Höhepunkt. Diese Phase ist die kürzeste der vier.",
         "LUTEAL": "Nach dem Eisprung steigt das Progesteron und der Körper kommt zur Ruhe. In den Tagen vor der nächsten Periode bemerken manche prämenstruelle Veränderungen."
       },
+      "context": {
+        "MENSTRUAL": "Die Hormonspiegel sind jetzt am niedrigsten, weshalb sich diese Tage wie ein ruhiger Neustart anfühlen können. Manche bemerken Krämpfe, leichteren Schlaf oder den Wunsch, einen Gang zurückzuschalten; andere kommen fast unverändert durch. All das liegt im normalen Rahmen, und wie es sich anfühlt, kann von Zyklus zu Zyklus wechseln.",
+        "FOLLICULAR": "Mit steigendem Östrogen beschreiben viele diese Tage als hell und offen – der Schlaf fällt oft leichter und der Kopf fühlt sich klarer an. Die Basaltemperatur bleibt meist im niedrigeren Bereich, bis kurz vor dem Eisprung. Die Länge dieser Phase schwankt am stärksten – von Person zu Person und von Zyklus zu Zyklus.",
+        "OVULATORY": "Das Östrogen erreicht kurz vor dem Eisprung seinen Höhepunkt, oft begleitet von einem kurzen Stimmungshoch und einem leichten Anstieg der Basaltemperatur in den ein, zwei Tagen danach. Der Zervixschleim wird in diesem Fenster meist klarer und dehnbarer. Ein kurzes Ziehen auf einer Seite bemerken manche; viele spüren gar nichts, und beides ist völlig normal.",
+        "LUTEAL": "Das Progesteron führt durch die zweite Zyklushälfte, und die Basaltemperatur liegt meist etwas höher als zuvor im Zyklus. Manche bemerken im Lauf der Tage Veränderungen bei Schlaf, Appetit, Stimmung oder Energie, während andere durchgehend ausgeglichen bleiben. Das Muster ist persönlich und sieht von Monat zu Monat oft anders aus."
+      },
       "commonHere": "Das bemerkst du hier oft",
       "trackNudge": "Heute eintragen",
       "stillLearning": "Lerne deinen Zyklus noch kennen. Trage weiter ein, dann füllt sich das mit Mustern aus deinen eigenen Tagen."
@@ -5797,6 +5803,18 @@
       "EGG_WHITE": "Eiweißartig",
       "label": "Zervixschleim"
     },
+    "cervixPosition": {
+      "LOW": "Tief",
+      "HIGH": "Hoch"
+    },
+    "cervixFirmness": {
+      "FIRM": "Fest",
+      "SOFT": "Weich"
+    },
+    "cervixOpening": {
+      "CLOSED": "Geschlossen",
+      "OPEN": "Geöffnet"
+    },
     "goal": {
       "GENERAL_HEALTH": "Allgemeine Gesundheit",
       "AVOID_PREGNANCY": "Verhütung",
@@ -5824,6 +5842,7 @@
       "nextMonth": "Nächster Monat",
       "loading": "Kalender wird geladen…",
       "empty": "Erfasse Daten, damit sich dein Kalender füllt.",
+      "learning": "Wir lernen deinen Zyklus – erfasse mindestens drei volle Zyklen, dann füllen sich fruchtbares Fenster, Eisprung und Phasen. Bis dahin zeigt der Kalender nur, was du erfasst hast.",
       "today": "Heute",
       "dayAria": "{date}",
       "legendSymptom": "Symptome",
@@ -5881,8 +5900,14 @@
       "symptoms": "Symptome",
       "temperature": "Basaltemperatur",
       "temperaturePlaceholder": "°C",
+      "temperatureDisturbed": "Messwert als gestört markieren",
+      "temperatureDisturbedHint": "Fieber, Krankheit, Alkohol oder eine späte Messung — wird von der Temperaturauswertung ausgeschlossen.",
       "ovulationTest": "Ovulationstest",
       "mucus": "Zervixschleim",
+      "cervix": "Gebärmutterhals",
+      "cervixPosition": "Position",
+      "cervixFirmness": "Festigkeit",
+      "cervixOpening": "Öffnung",
       "intercourse": "Geschlechtsverkehr",
       "protected": "Geschützt",
       "note": "Notiz",
@@ -5912,6 +5937,12 @@
       "priorsDescription": "Diese Vorgaben helfen deinen Prognosen, bevor du viele Zyklen erfasst hast. Leer lassen, um die Standardwerte zu nutzen.",
       "rawChartMode": "Roh-Diagramm-Modus",
       "rawChartModeDescription": "Zeige nur deine erfassten Daten, ohne Prognosen oder Deutung.",
+      "secondarySymptomLabel": "Zweites Fruchtbarkeitszeichen",
+      "secondarySymptomDescription": "Das zweite Zeichen, das für die symptothermale Doppelkontrolle mit deiner Temperatur kombiniert wird. Die meisten beobachten den Zervixschleim; wechsle zur Gebärmutterhals-Beobachtung, wenn du das bevorzugst.",
+      "secondarySymptom": {
+        "MUCUS": "Zervixschleim",
+        "CERVIX": "Gebärmutterhals"
+      },
       "prediction": "Prognosen",
       "predictionDescription": "Prognostiziere deine nächste Periode und, wenn relevant, dein fruchtbares Fenster.",
       "encryption": "Sensible Einträge verschlüsseln",

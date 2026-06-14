@@ -5,7 +5,10 @@ import { Sparkles } from "lucide-react";
 
 import { useTranslations } from "@/lib/i18n/context";
 import { cn } from "@/lib/utils";
-import { PHASE_WHATS_HAPPENING_KEY } from "@/lib/cycle/phase-copy";
+import {
+  PHASE_WHATS_HAPPENING_KEY,
+  PHASE_CONTEXT_KEY,
+} from "@/lib/cycle/phase-copy";
 import { PHASE_HUE } from "./phase-tokens";
 import { CYCLE_SYMPTOM_CATALOG } from "./symptom-catalog";
 import type { CyclePhase } from "./types";
@@ -146,9 +149,15 @@ export function PhaseEducationCard({
             {phaseName}
           </h3>
 
-          {/* Zone 2 — the curated, descriptive-only "what's happening" line. */}
+          {/* Zone 2 — the curated, descriptive-only "what's happening" line,
+              followed by a deeper "context" line (what someone might notice +
+              gentle framing of normal variation). Both stay descriptive, never
+              clinical advice / a medical claim. */}
           <p className="text-muted-foreground mt-1.5 text-sm leading-relaxed">
             {t(PHASE_WHATS_HAPPENING_KEY[phase as CyclePhase])}
+          </p>
+          <p className="text-muted-foreground mt-2 text-sm leading-relaxed">
+            {t(PHASE_CONTEXT_KEY[phase as CyclePhase])}
           </p>
 
           {/* Zone 3 — the user's OWN clustered symptoms for this phase

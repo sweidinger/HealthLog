@@ -99,8 +99,12 @@ export const GET = apiHandler(async (request: NextRequest) => {
         date: true,
         flow: true,
         basalBodyTempC: true,
+        temperatureExcluded: true,
         ovulationTest: true,
         cervicalMucus: true,
+        cervixPosition: true,
+        cervixFirmness: true,
+        cervixOpening: true,
         _count: { select: { symptomLinks: true } },
       },
     }),
@@ -125,8 +129,12 @@ export const GET = apiHandler(async (request: NextRequest) => {
     date: l.date,
     flow: l.flow,
     basalBodyTempC: l.basalBodyTempC,
+    temperatureExcluded: l.temperatureExcluded,
     ovulationTest: l.ovulationTest,
     cervicalMucus: l.cervicalMucus,
+    cervixPosition: l.cervixPosition,
+    cervixFirmness: l.cervixFirmness,
+    cervixOpening: l.cervixOpening,
     hasSymptoms: l._count.symptomLinks > 0,
   }));
 
@@ -137,7 +145,7 @@ export const GET = apiHandler(async (request: NextRequest) => {
 
   const goalAllowsFertile = goalAllowsFertileWindow(profile.goal);
 
-  const { prediction, days } = buildCalendar(
+  const { prediction, stillLearning, days } = buildCalendar(
     profile,
     cycles,
     dayLogs,
@@ -179,11 +187,21 @@ export const GET = apiHandler(async (request: NextRequest) => {
       goal: profile.goal,
       rawChartMode: profile.rawChartMode,
       predictionEnabled: profile.predictionEnabled,
+      // Single source of truth for the observed-cycle count: the engine's
+      // post-exclusion `cyclesObserved` (the same number the prediction and the
+      // `stillLearning` gate key off). The raw `cycles.length` fallback only
+      // applies when no prediction ran (raw-chart mode / prediction disabled),
+      // so a consumer never sees two divergent "cycles observed" values.
       cyclesObserved: prediction?.cyclesObserved ?? cycles.length,
     },
     prediction: prediction
       ? toCyclePredictionDTO(prediction, goalAllowsFertile, disclaimer)
       : null,
+    // Top-level cold-start flag (mirrors `prediction.stillLearning`): the
+    // calendar grid has suppressed fertile/ovulation/phase output, so the
+    // client renders a calm "learning your cycle" banner over the grid. Additive
+    // + back-compatible — older iOS builds ignore the field.
+    stillLearning,
     days,
     meta: { generatedAt },
   });
