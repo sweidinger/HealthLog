@@ -3,6 +3,7 @@ import {
   resolveCanonicalRecovery,
   type RecoveryRow,
 } from "../recovery-resolve";
+import { DEFAULT_SOURCE_PRIORITY } from "@/lib/validations/source-priority";
 
 function row(iso: string, value: number, source: string): RecoveryRow {
   return { value, measuredAt: new Date(iso), source: source as never };
@@ -115,5 +116,27 @@ describe("resolveCanonicalRecovery", () => {
 
   it("returns an empty list for no rows", () => {
     expect(resolveCanonicalRecovery([])).toEqual([]);
+  });
+
+  // The per-source authority is derived from `DEFAULT_SOURCE_PRIORITY.recovery`
+  // (one ordered ladder), not a second hardcoded rank map. For every adjacent
+  // pair on that ladder the earlier source must win the same night, proving the
+  // resolution order tracks the ladder rather than a copy of it.
+  it("resolves in the order of DEFAULT_SOURCE_PRIORITY.recovery", () => {
+    const ladder = DEFAULT_SOURCE_PRIORITY.recovery;
+    for (let i = 0; i < ladder.length - 1; i++) {
+      const higher = ladder[i];
+      const lower = ladder[i + 1];
+      // COMPUTED carries the day-that-ended stamp; everything else stamps the
+      // wake morning. Stamp both for the SAME wake day so they collide.
+      const stampFor = (src: string) =>
+        src === "COMPUTED" ? "2026-06-01T12:00:00Z" : "2026-06-02T06:00:00Z";
+      const resolved = resolveCanonicalRecovery([
+        row(stampFor(lower), 10, lower),
+        row(stampFor(higher), 90, higher),
+      ]);
+      expect(resolved).toHaveLength(1);
+      expect(resolved[0].source).toBe(higher);
+    }
   });
 });

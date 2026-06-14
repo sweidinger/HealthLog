@@ -36,7 +36,6 @@ export const POST = apiHandler(async () => {
     where: { id: user.id },
     data: {
       polarAccessTokenEncrypted: null,
-      polarRefreshTokenEncrypted: null,
       polarUserIdEncrypted: null,
     },
   });

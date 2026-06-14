@@ -126,7 +126,6 @@ model User {
   // product, so each self-hoster registers their own Polar app and the OAuth
   // tokens are stored encrypted.
   polarAccessTokenEncrypted  String? @map("polar_access_token_encrypted")
-  polarRefreshTokenEncrypted String? @map("polar_refresh_token_encrypted")
   polarUserIdEncrypted       String? @map("polar_user_id_encrypted")
 
   // v1.17.0 — Oura OAuth credentials (F4, per-user, encrypted at app level).

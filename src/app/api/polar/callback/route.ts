@@ -94,8 +94,7 @@ export const GET = apiHandler(async (request: NextRequest) => {
       where: { id: userId },
       data: {
         polarAccessTokenEncrypted: encrypt(tokens.access_token),
-        // Polar issues no refresh token; the column stays null.
-        polarRefreshTokenEncrypted: null,
+        // Polar issues no refresh token, so no refresh column is stored.
         polarUserIdEncrypted: encrypt(polarUserId),
       },
     });

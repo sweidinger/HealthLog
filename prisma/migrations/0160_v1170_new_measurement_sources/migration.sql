@@ -41,8 +41,6 @@ ALTER TABLE "users"
 ALTER TABLE "users"
     ADD COLUMN IF NOT EXISTS "polar_access_token_encrypted" TEXT;
 ALTER TABLE "users"
-    ADD COLUMN IF NOT EXISTS "polar_refresh_token_encrypted" TEXT;
-ALTER TABLE "users"
     ADD COLUMN IF NOT EXISTS "polar_user_id_encrypted" TEXT;
 
 -- ── 4. users — Oura OAuth credentials (encrypted at app level) ─────────
