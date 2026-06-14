@@ -4,6 +4,7 @@ import { addDays } from "../day-math";
 import {
   clampLuteal,
   confirmSymptothermal,
+  detectLhSurgeOvulation,
   detectMucusPeak,
   detectTempShift,
   detectTemperatureTrend,
@@ -557,6 +558,103 @@ describe("cycle/prediction — symptothermal confirmation (§4.2)", () => {
     expect(result.predictedOvulation).toBe(ovDay);
     // nextStart = confirmed ovulation + luteal(14).
     expect(result.nextPeriodStart).toBe(addDays(ovDay, 14));
+  });
+});
+
+describe("cycle/prediction — Marquette LH/OPK ovulation anchor (§4, C2)", () => {
+  function lhDay(date: string): DayLogInput {
+    return {
+      date,
+      flow: null,
+      basalBodyTempC: null,
+      ovulationTest: "POSITIVE_LH_SURGE",
+      cervicalMucus: null,
+    };
+  }
+
+  it("detectLhSurgeOvulation: anchors ovulation one day after the LAST positive LH", () => {
+    const logs = [lhDay("2024-01-10"), lhDay("2024-01-11")];
+    expect(detectLhSurgeOvulation(logs)).toBe("2024-01-12");
+    expect(detectLhSurgeOvulation([])).toBeNull();
+  });
+
+  it("predictCycle: a positive LH surge anchors ovulation on the surge, not nextStart−luteal", () => {
+    const cycles = cyclesFromGaps("2024-01-01", [28, 28, 28]);
+    const lastStart = cycles[cycles.length - 1].startDate; // 2024-03-25
+    // The calendar back-calc would place ovulation at nextStart−14. A positive
+    // LH on lastStart+16 should anchor ovulation to lastStart+17.
+    const lhDate = addDays(lastStart, 16);
+    const logs = [lhDay(lhDate)];
+    const today = addDays(lastStart, 18);
+
+    const calendarOnly = predictCycle(cycles, [], BASE_PROFILE, today);
+    const withLh = predictCycle(cycles, logs, BASE_PROFILE, today);
+
+    // The LH anchor moves the ovulation estimate off the calendar back-calc.
+    expect(withLh.predictedOvulation).toBe(addDays(lhDate, 1));
+    expect(withLh.predictedOvulation).not.toBe(calendarOnly.predictedOvulation);
+    // next-start = anchored ovulation + luteal(14).
+    expect(withLh.nextPeriodStart).toBe(addDays(lhDate, 1 + 14));
+    expect(withLh.method).toBe("BLENDED");
+    // A single LH indicator never asserts CONFIRMED ovulation.
+    expect(withLh.ovulationConfirmed).toBe(false);
+  });
+
+  it("predictCycle: LH sharpens the estimate in the thin-data (1-cycle) case", () => {
+    const cycles = cyclesFromGaps("2024-01-01", [28]); // one completed length
+    const lastStart = cycles[cycles.length - 1].startDate; // 2024-01-29
+    const lhDate = addDays(lastStart, 15);
+    const today = addDays(lastStart, 17);
+    const result = predictCycle(cycles, [lhDay(lhDate)], BASE_PROFILE, today);
+    expect(result.predictedOvulation).toBe(addDays(lhDate, 1));
+    expect(result.ovulationConfirmed).toBe(false);
+    // The still-learning gate is preserved (1 cycle < 3).
+    expect(result.stillLearning).toBe(true);
+  });
+
+  it("predictCycle: a confirmed symptothermal ovulation wins over the LH anchor", () => {
+    const cycles = cyclesFromGaps("2024-01-01", [28, 28, 28]);
+    const lastStart = cycles[cycles.length - 1].startDate;
+    const ovDay = addDays(lastStart, 13);
+    const riseStart = addDays(ovDay, 1);
+    const baselineStart = addDays(riseStart, -6);
+    const logs: DayLogInput[] = [];
+    [36.4, 36.41, 36.39, 36.4, 36.42, 36.4].forEach((t, i) =>
+      logs.push({
+        date: addDays(baselineStart, i),
+        flow: null,
+        basalBodyTempC: t,
+        ovulationTest: null,
+        cervicalMucus: null,
+      }),
+    );
+    const bbt = (date: string, t: number): DayLogInput => ({
+      date,
+      flow: null,
+      basalBodyTempC: t,
+      ovulationTest: null,
+      cervicalMucus: null,
+    });
+    logs.push(bbt(riseStart, 36.6));
+    logs.push(bbt(addDays(riseStart, 1), 36.62));
+    logs.push(bbt(addDays(riseStart, 2), 36.63));
+    const mucus = (date: string, m: DayLogInput["cervicalMucus"]): DayLogInput => ({
+      date,
+      flow: null,
+      basalBodyTempC: null,
+      ovulationTest: null,
+      cervicalMucus: m,
+    });
+    logs.push(mucus(ovDay, "EGG_WHITE"));
+    logs.push(mucus(addDays(ovDay, 1), "STICKY"));
+    logs.push(mucus(addDays(ovDay, 2), "DRY"));
+    logs.push(mucus(addDays(ovDay, 3), "DRY"));
+    // A contradicting LH surge far from the temp shift must NOT override it.
+    logs.push(lhDay(addDays(ovDay, 5)));
+
+    const result = predictCycle(cycles, logs, BASE_PROFILE, addDays(lastStart, 20));
+    expect(result.ovulationConfirmed).toBe(true);
+    expect(result.predictedOvulation).toBe(ovDay); // symptothermal wins
   });
 });
 

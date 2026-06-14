@@ -31,6 +31,7 @@ import {
   HARD_CYCLE_MAX,
   HARD_CYCLE_MIN,
   HISTORY_WINDOW_N,
+  LH_SURGE_TO_OVULATION_DAYS,
   LOG_SPARSITY_SCALE,
   LUTEAL_DEFAULT,
   LUTEAL_MAX,
@@ -471,6 +472,33 @@ export function detectTemperatureTrend(
   return null;
 }
 
+/**
+ * §4 — Marquette (Fehring) LH/OPK ovulation anchor. A positive urinary-LH surge
+ * precedes ovulation by ~24–36 h, so the estimated ovulation day is one day
+ * after the LAST positive LH test in the supplied logs (the surge can read
+ * positive across consecutive days; the last positive is closest to ovulation).
+ *
+ * This ANCHORS the ovulation estimate — it never confirms it. A single LH
+ * indicator is not the symptothermal double-check, so the caller folds this in
+ * as a refining signal that sharpens the estimate without flipping
+ * `ovulationConfirmed`. Returns the estimated ovulation day, or null when no
+ * positive LH test is present.
+ *
+ * Citation: Fehring R.J. — Marquette Method; urinary LH peaks ~1 day before
+ * ovulation.
+ */
+export function detectLhSurgeOvulation(
+  dayLogs: readonly DayLogInput[],
+): string | null {
+  const positives = dayLogs
+    .filter((l) => l.ovulationTest === "POSITIVE_LH_SURGE")
+    .map((l) => l.date)
+    .sort((a, b) => dayDiff(a, b));
+  if (positives.length === 0) return null;
+  const lastPositive = positives[positives.length - 1];
+  return addDays(lastPositive, LH_SURGE_TO_OVULATION_DAYS);
+}
+
 /* ------------------------------------------------------------------ */
 /* §3 — confidence + band                                             */
 /* ------------------------------------------------------------------ */
@@ -571,7 +599,7 @@ export function resolveLuteal(
  * engine returns the window and the caller hides it).
  *
  * @param cycles    confirmed (non-predicted) cycles; order-independent.
- * @param dayLogs   all day logs the device holds (for period, symptothermal).
+ * @param dayLogs   all day logs the device holds (period, symptothermal, LH/OPK).
  * @param profile   user priors + mode flags.
  * @param today     `YYYY-MM-DD` reference day (for adherence density).
  * @param nights    optional nightly passive-temperature series (Apple Watch).
@@ -667,6 +695,32 @@ export function predictCycle(
       ovulationConfirmed = true;
       confirmMultiplier = HALF_WIDTH_MULT_TEMP_TREND;
       method = lengths.length > 0 ? "BLENDED" : "TEMPERATURE_TREND";
+    }
+  }
+
+  // -------- §4 Marquette LH/OPK ANCHOR (refines, never confirms) --------
+  // A positive LH surge predicts ovulation ~24–36 h later (Marquette/Fehring).
+  // It is a single indicator, NOT the symptothermal double-check, so it only
+  // RE-ANCHORS the ovulation estimate — it never flips `ovulationConfirmed`.
+  // When the symptothermal or temperature-trend layer already confirmed, that
+  // stronger signal wins and the LH anchor is ignored. Otherwise the LH surge
+  // sharpens the still-estimated ovulation (and the derived next-start) over
+  // the calendar back-calculation — most valuable in the thin-data (<3 cycle)
+  // case where the median/luteal back-calc is weak. The still-learning gate and
+  // the un-confirmed status are both preserved (honesty principle).
+  if (!ovulationConfirmed) {
+    const lhOvulation = detectLhSurgeOvulation(currentDayLogs);
+    if (lhOvulation) {
+      const lhNextStart = addDays(lhOvulation, lutealLength);
+      // Only adopt a future-dated anchor (a positive-LH next-start in the past
+      // is a stale prior-cycle signal that slipped the window).
+      if (dayDiff(lhNextStart, today) >= 0) {
+        predictedOvulation = lhOvulation;
+        nextStart = lhNextStart;
+        // method records the mix but ovulationConfirmed stays FALSE — a single
+        // LH indicator never asserts confirmed ovulation.
+        method = "BLENDED";
+      }
     }
   }
 

@@ -140,6 +140,18 @@ export const HALF_WIDTH_MULT_TEMP_TREND = 0.75;
 export const SYMPTOTHERMAL_AGREE_DAYS = 2;
 
 /**
+ * §4 — Marquette (Fehring) LH/OPK ovulation lag. A positive urinary-LH surge
+ * precedes ovulation by ~24–36 h, so ovulation is estimated one day after the
+ * (last) positive LH test. Used to ANCHOR — never to confirm — the ovulation
+ * estimate: a single LH indicator is not the symptothermal double-check, so it
+ * sharpens the estimate without asserting confirmed ovulation.
+ *
+ * Citation: Fehring R.J. — Marquette Method; urinary LH peaks ~1 day before
+ * ovulation. ESHRE/Wilcox fertile-window literature.
+ */
+export const LH_SURGE_TO_OVULATION_DAYS = 1;
+
+/**
  * §4 — trailing lookback (days) for the symptothermal / temperature-trend
  * detectors. The 3-over-6 BBT rule needs 6 baseline readings before the rise,
  * so a current-cycle scan starting at lastConfirmedStart must reach back this
