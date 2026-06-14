@@ -4087,6 +4087,36 @@
       "mood": {
         "title": "Tag dell’umore",
         "description": "Gruppi, tag e ordine del selettore dell’umore."
+      },
+      "reminders": {
+        "title": "Promemoria e notifiche",
+        "description": "Un'unica sede per ogni promemoria — cosa ricordare e quando — e i canali che li recapitano.",
+        "categoriesGroup": "Promemoria",
+        "channelsGroup": "Canali di consegna",
+        "medication": {
+          "title": "Promemoria dei farmaci",
+          "description": "Orari e finestre delle dosi, impostati su ogni farmaco."
+        },
+        "vorsorge": {
+          "title": "Prevenzione",
+          "description": "Controlli e misurazioni ricorrenti, con il luogo dove recarsi."
+        },
+        "mood": {
+          "title": "Check-in dell'umore",
+          "description": "Un promemoria quotidiano per registrare come ti senti."
+        },
+        "lowStock": {
+          "title": "Autonomia scorte",
+          "description": "Ricevi un avviso prima che un farmaco finisca."
+        },
+        "coach": {
+          "title": "Suggerimento del coach",
+          "description": "Stimoli proattivi dal coach IA."
+        },
+        "channels": {
+          "title": "Canali di notifica",
+          "description": "APNs, Telegram, ntfy, Web Push, Webhook ed e-mail."
+        }
       }
     },
     "profile": "Profilo",
@@ -4773,7 +4803,8 @@
       "token": "Lo scambio del token con Oura è fallito. Riavvia la connessione.",
       "rate_limited": "Troppi tentativi di connessione. Attendi un momento e riprova.",
       "generic": "Errore sconosciuto durante la connessione. Riavvia la connessione."
-    }
+    },
+    "integrationSetupGuide": "Guida alla configurazione"
   },
   "admin": {
     "title": "Administration",

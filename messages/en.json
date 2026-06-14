@@ -4087,6 +4087,36 @@
       "mood": {
         "title": "Mood tags",
         "description": "Groups, tags, and order of the mood picker."
+      },
+      "reminders": {
+        "title": "Reminders & Notifications",
+        "description": "One home for every reminder — what gets reminded and when — plus the channels that deliver them.",
+        "categoriesGroup": "Reminders",
+        "channelsGroup": "Delivery channels",
+        "medication": {
+          "title": "Medication reminders",
+          "description": "Dose times and windows, configured on each medication."
+        },
+        "vorsorge": {
+          "title": "Preventive care",
+          "description": "Recurring check-ups and measurements, with where to go."
+        },
+        "mood": {
+          "title": "Mood check-in",
+          "description": "A daily nudge to log how you feel."
+        },
+        "lowStock": {
+          "title": "Low-stock runway",
+          "description": "Get warned before a medication runs out."
+        },
+        "coach": {
+          "title": "Coach nudge",
+          "description": "Proactive prompts from the AI coach."
+        },
+        "channels": {
+          "title": "Notification channels",
+          "description": "APNs, Telegram, ntfy, Web Push, Webhook, and Email."
+        }
       }
     },
     "profile": "Profile",
@@ -4773,7 +4803,8 @@
       "token": "The token exchange with Oura failed. Please start the connection again.",
       "rate_limited": "Too many connection attempts. Wait a moment and try again.",
       "generic": "Unknown error while connecting. Please start the connection again."
-    }
+    },
+    "integrationSetupGuide": "Setup guide"
   },
   "admin": {
     "title": "Administration",

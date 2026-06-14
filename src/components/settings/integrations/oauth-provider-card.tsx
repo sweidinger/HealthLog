@@ -37,6 +37,7 @@ import { TestConnectionButton } from "@/components/settings/test-connection-butt
 import { apiFetchRaw, apiGet, apiPost } from "@/lib/api/api-fetch";
 import { useTranslations } from "@/lib/i18n/context";
 import { invalidateKeys, measurementDependentKeys } from "@/lib/query-keys";
+import { IntegrationSetupGuideLink } from "./setup-guide-link";
 
 export interface OAuthProviderStatus {
   connected: boolean;
@@ -398,6 +399,8 @@ export function OAuthProviderCard({
             {msg}
           </p>
         )}
+
+        <IntegrationSetupGuideLink provider={provider} />
       </div>
     </div>
   );

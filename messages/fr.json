@@ -4087,6 +4087,36 @@
       "mood": {
         "title": "Étiquettes d’humeur",
         "description": "Groupes, étiquettes et ordre du sélecteur d’humeur."
+      },
+      "reminders": {
+        "title": "Rappels et notifications",
+        "description": "Un seul endroit pour chaque rappel — quoi et quand — ainsi que les canaux qui les délivrent.",
+        "categoriesGroup": "Rappels",
+        "channelsGroup": "Canaux de diffusion",
+        "medication": {
+          "title": "Rappels de médication",
+          "description": "Heures et fenêtres de prise, configurées sur chaque médicament."
+        },
+        "vorsorge": {
+          "title": "Prévention",
+          "description": "Bilans et mesures récurrents, avec le lieu où se rendre."
+        },
+        "mood": {
+          "title": "Suivi de l'humeur",
+          "description": "Un rappel quotidien pour noter votre ressenti."
+        },
+        "lowStock": {
+          "title": "Marge de stock faible",
+          "description": "Soyez averti avant qu'un médicament ne s'épuise."
+        },
+        "coach": {
+          "title": "Suggestion du coach",
+          "description": "Invitations proactives du coach IA."
+        },
+        "channels": {
+          "title": "Canaux de notification",
+          "description": "APNs, Telegram, ntfy, Web Push, Webhook et e-mail."
+        }
       }
     },
     "profile": "Profil",
@@ -4773,7 +4803,8 @@
       "token": "L'échange de jeton avec Oura a échoué. Veuillez relancer la connexion.",
       "rate_limited": "Trop de tentatives de connexion. Patientez un instant et réessayez.",
       "generic": "Erreur inconnue lors de la connexion. Veuillez relancer la connexion."
-    }
+    },
+    "integrationSetupGuide": "Guide de configuration"
   },
   "admin": {
     "title": "Administration",
