@@ -64,10 +64,12 @@ describe("createReceipt", () => {
     const result = await createReceipt("user-1", "ai_full", "PDF…", signedAt);
 
     // Revokes any currently-active receipt of the same kind first, so the
-    // fresh grant doesn't collide with the partial unique index.
+    // fresh grant doesn't collide with the partial unique index. The
+    // supersede marker uses a server clock (NOT the client `signedAt`) so a
+    // backdated grant can't invert the prior row's audit timestamps.
     expect(prisma.consentReceipt.updateMany).toHaveBeenCalledWith({
       where: { userId: "user-1", kind: "ai_full", revokedAt: null },
-      data: { revokedAt: signedAt },
+      data: { revokedAt: expect.any(Date) },
     });
     expect(prisma.consentReceipt.create).toHaveBeenCalledWith({
       data: {
@@ -80,6 +82,30 @@ describe("createReceipt", () => {
     expect(result.id).toBe("rcpt-1");
     // The whole mint runs in a transaction.
     expect(prisma.$transaction).toHaveBeenCalledTimes(1);
+  });
+
+  it("uses a server clock (not a backdated client signedAt) for the supersede marker", async () => {
+    vi.mocked(prisma.consentReceipt.updateMany).mockResolvedValue({
+      count: 1,
+    } as never);
+    vi.mocked(prisma.consentReceipt.create).mockResolvedValue(row() as never);
+
+    // A client backdates the grant well into the past.
+    const backdated = new Date("2000-01-01T00:00:00.000Z");
+    const before = Date.now();
+    await createReceipt("user-1", "ai_full", "PDF…", backdated);
+    const after = Date.now();
+
+    const supersedeArg = vi.mocked(prisma.consentReceipt.updateMany).mock
+      .calls[0][0] as { data: { revokedAt: Date } };
+    // The prior row's revocation must be stamped "now", never the backdated
+    // client value, so the audit chain can't be inverted.
+    expect(supersedeArg.data.revokedAt.getTime()).not.toBe(backdated.getTime());
+    expect(supersedeArg.data.revokedAt.getTime()).toBeGreaterThanOrEqual(before);
+    expect(supersedeArg.data.revokedAt.getTime()).toBeLessThanOrEqual(after);
+    // The new row still carries the client signedAt.
+    const createArg = vi.mocked(prisma.consentReceipt.create).mock.calls[0][0];
+    expect(createArg.data.signedAt).toEqual(backdated);
   });
 });
 

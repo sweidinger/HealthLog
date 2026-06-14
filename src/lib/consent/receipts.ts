@@ -37,13 +37,20 @@ export async function createReceipt(
   artefact: string,
   signedAt: Date,
 ): Promise<ConsentReceipt> {
+  // `signedAt` is the client-supplied wall-clock for the NEW grant and is
+  // only validated as well-formed ISO-8601 — it can legitimately be in the
+  // past or out of order with existing rows. The supersede marker on the
+  // PRIOR active row must NOT use it: a backdated `signedAt` would stamp the
+  // old row's `revoked_at` earlier than its own `signed_at`, inverting the
+  // audit chain. Use a server clock for the revocation instead.
+  const supersededAt = new Date();
   return prisma.$transaction(async (tx) => {
     // Supersede any currently-active receipt of this kind so the fresh
     // grant doesn't collide with the partial unique index. `updateMany`
     // over the active predicate is a no-op when none is active.
     await tx.consentReceipt.updateMany({
       where: { userId, kind, revokedAt: null },
-      data: { revokedAt: signedAt },
+      data: { revokedAt: supersededAt },
     });
     return tx.consentReceipt.create({
       data: {
