@@ -2150,6 +2150,13 @@ model WithingsConnection {
   /// has never re-authed since v1.4.25 — the UI surfaces a banner
   /// inviting them to reconnect.
   scope          String?   @map("scope")
+  /// v1.17.1 — one-shot marker for the sleep-stamp backfill. Pre-fix Withings
+  /// sleep rows were stamped with the segment START; the reader treats
+  /// `measuredAt` as the END, shifting every night one segment-length earlier.
+  /// The boot-time backfill deletes the affected WITHINGS / SLEEP_DURATION rows
+  /// and re-syncs with the corrected END stamp, then sets this so the discovery
+  /// query drops the connection. Null = backfill not yet run.
+  sleepTimelineBackfillAt DateTime? @map("sleep_timeline_backfill_at")
   createdAt      DateTime  @default(now()) @map("created_at")
   updatedAt      DateTime  @updatedAt @map("updated_at")
 
@@ -2226,6 +2233,13 @@ model WhoopConnection {
   /// Set once the self-converging history backfill walks every collection to
   /// completion. Null = backfill still in flight (or never started).
   backfillCompletedAt DateTime? @map("backfill_completed_at")
+  /// v1.17.1 — one-shot marker for the sleep-timeline backfill. Pre-fix WHOOP
+  /// sleep rows stamped all five stage totals on the one sleep-END instant, so
+  /// the hypnogram stacked them on the night's right edge. The boot-time
+  /// backfill deletes the legacy summary rows and re-syncs the reconstructed
+  /// per-segment timeline, then sets this so the discovery query drops the
+  /// connection. Null = backfill not yet run.
+  sleepTimelineBackfillAt DateTime? @map("sleep_timeline_backfill_at")
   /// Max heart rate from the WHOOP body-measurement profile — a profile
   /// constant, not a time series, so it lives here rather than as a
   /// Measurement row.
