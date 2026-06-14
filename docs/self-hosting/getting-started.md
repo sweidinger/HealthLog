@@ -147,6 +147,7 @@ NEXT_PUBLIC_DASHBOARD_SNAPSHOT=false pnpm build
 | Next step | File |
 | --------- | ---- |
 | TLS + reverse-proxy configuration | `docs/self-hosting/reverse-proxy.md` |
+| Push notifications — Web Push, Telegram, ntfy, APNs | `docs/self-hosting/notifications.md` |
 | Web/worker process split for horizontal scale | `docs/self-hosting/scaling.md` |
 | Off-host encrypted backups to S3/R2/B2 | `docs/ops/backup-restore.md` |
 | Encryption-key rotation procedure | `docs/ops/encryption-key-rotation.md` |
