@@ -39,6 +39,7 @@ tags:
   - name: Export
   - name: Sync
   - name: Cycle
+  - name: MeasurementReminders
   - name: Admin
   - name: Meta
 paths:
@@ -5202,6 +5203,148 @@ paths:
         "401": *a1
         "422": *a3
         "429": *a4
+  /api/measurement-reminders:
+    get:
+      tags:
+        - MeasurementReminders
+      summary: List Vorsorge reminders (v1.17.1)
+      description: Returns the owner's live (non-tombstoned) Vorsorge reminders, sorted by server-computed nextDueAt ascending
+        (nulls last). Each row carries the canonical nextDueAt the client renders without recomputing.
+      responses:
+        "200":
+          description: The owner's measurement reminders.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MeasurementReminderListEnvelope"
+        "401": *a1
+        "422": *a3
+        "429": *a4
+    post:
+      tags:
+        - MeasurementReminders
+      summary: Create a Vorsorge reminder (v1.17.1)
+      description: Creates a reminder and computes its server-authoritative nextDueAt. Exactly one of intervalDays (rolling)
+        or rrule (RFC-5545) is required. Wrapped in withIdempotency. 201 on insert.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MeasurementReminderCreate"
+      responses:
+        "201":
+          description: Reminder created.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MeasurementReminderCreatedEnvelope"
+        "401": *a1
+        "422": *a3
+        "429": *a4
+  /api/measurement-reminders/{id}:
+    get:
+      tags:
+        - MeasurementReminders
+      summary: Read a single Vorsorge reminder (v1.17.1)
+      description: Owner-scoped; a cross-user or tombstoned id 404s.
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+          required: true
+      responses:
+        "200":
+          description: The reminder.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MeasurementReminderEnvelope"
+        "401": *a1
+        "404": &a6
+          description: Measurement reminder not found / not owned.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "422": *a3
+        "429": *a4
+    patch:
+      tags:
+        - MeasurementReminders
+      summary: Edit a Vorsorge reminder (v1.17.1)
+      description: Partial edit; omitted fields are left untouched. nextDueAt is recomputed server-side after the cadence
+        merge. Owner-scoped.
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+          required: true
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MeasurementReminderUpdate"
+      responses:
+        "200":
+          description: Reminder updated.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MeasurementReminderPatchEnvelope"
+        "401": *a1
+        "404": *a6
+        "422": *a3
+        "429": *a4
+    delete:
+      tags:
+        - MeasurementReminders
+      summary: Soft-delete a Vorsorge reminder (v1.17.1)
+      description: Sets deletedAt (tombstone). Idempotent. Owner-scoped.
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+          required: true
+      responses:
+        "200":
+          description: Soft-deleted.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MeasurementReminderDeleteEnvelope"
+        "401": *a1
+        "404": *a6
+        "422": *a3
+        "429": *a4
+  /api/measurement-reminders/{id}/satisfy:
+    post:
+      tags:
+        - MeasurementReminders
+      summary: Mark a Vorsorge reminder done (v1.17.1)
+      description: "Manual 'Erledigt': stamps lastSatisfiedAt = now and recomputes nextDueAt past now. Free-text reminders
+        resolve only through this path; typed reminders also auto-resolve in the cron when a matching reading lands."
+      parameters:
+        - in: path
+          name: id
+          schema:
+            type: string
+          required: true
+      responses:
+        "200":
+          description: Reminder satisfied; next-due re-anchored.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MeasurementReminderSatisfyEnvelope"
+        "401": *a1
+        "404": *a6
+        "422": *a3
+        "429": *a4
 components:
   schemas:
     PasskeyLoginVerifyRequest:
@@ -6213,6 +6356,11 @@ components:
               enum:
                 - weekly
                 - biweekly
+        measurementReminder:
+          type: object
+          properties:
+            clientManaged:
+              type: boolean
       description: Partial per-user notification preferences. Every category and field is optional; the server deep-merges the
         supplied keys over the persisted row, so a PATCH touching only `medication` leaves the siblings intact.
         `medication.lowStockRunwayDays` (1–60, nullable) is the low-stock alert threshold in remaining runway days —
@@ -6365,6 +6513,107 @@ components:
       properties: {}
       description: No body fields. The user is taken from the session / Bearer and the locale from the session; the warm
         covers every assessment for that user.
+    MeasurementReminderCreate:
+      type: object
+      properties:
+        label:
+          type: string
+          minLength: 1
+          maxLength: 120
+        measurementType:
+          anyOf:
+            - $ref: "#/components/schemas/MeasurementReminderType"
+            - type: "null"
+        intervalDays:
+          anyOf:
+            - type: integer
+              minimum: 1
+              maximum: 3650
+            - type: "null"
+        rrule:
+          anyOf:
+            - type: string
+              minLength: 1
+              maxLength: 512
+            - type: "null"
+        anchorDate:
+          anyOf:
+            - type: string
+              format: date-time
+              pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
+            - type: "null"
+        notifyHour:
+          default: 9
+          type: integer
+          minimum: 0
+          maximum: 23
+        location:
+          anyOf:
+            - type: string
+              maxLength: 200
+            - type: "null"
+        enabled:
+          default: true
+          type: boolean
+      required:
+        - label
+      description: Create a Vorsorge reminder. Exactly one of intervalDays (rolling, every N days) or rrule (RFC-5545, e.g.
+        FREQ=YEARLY) is required. measurementType enables auto-resolve from an incoming reading; omit it for a free-text
+        checklist reminder.
+    MeasurementReminderType:
+      type: string
+      enum:
+        - WEIGHT
+        - BLOOD_PRESSURE_SYS
+        - PULSE
+        - BLOOD_GLUCOSE
+        - OXYGEN_SATURATION
+        - BODY_FAT
+        - BODY_TEMPERATURE
+      description: Auto-resolve target metric. BP resolves on BLOOD_PRESSURE_SYS (the SYS row is the 'a BP was measured'
+        sentinel). Omit for a free-text Vorsorge that resolves only on a manual satisfy.
+    MeasurementReminderUpdate:
+      type: object
+      properties:
+        label:
+          type: string
+          minLength: 1
+          maxLength: 120
+        measurementType:
+          anyOf:
+            - $ref: "#/components/schemas/MeasurementReminderType"
+            - type: "null"
+        intervalDays:
+          anyOf:
+            - type: integer
+              minimum: 1
+              maximum: 3650
+            - type: "null"
+        rrule:
+          anyOf:
+            - type: string
+              minLength: 1
+              maxLength: 512
+            - type: "null"
+        anchorDate:
+          anyOf:
+            - type: string
+              format: date-time
+              pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
+            - type: "null"
+        notifyHour:
+          type: integer
+          minimum: 0
+          maximum: 23
+        location:
+          anyOf:
+            - type: string
+              maxLength: 200
+            - type: "null"
+        enabled:
+          type: boolean
+      description: Partial edit of a Vorsorge reminder. Omitted fields are left untouched; nextDueAt is recomputed server-side
+        after the patch applies.
     MedicationTreatmentClass:
       type: string
       enum:
@@ -15570,6 +15819,190 @@ components:
         - kind
       additionalProperties: false
       description: Outcome of the idempotent web `ai_full` grant. Safe to call on every AI-settings mount.
+    MeasurementReminderListEnvelope:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/MeasurementReminderDTO"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    MeasurementReminderDTO:
+      type: object
+      properties:
+        id:
+          type: string
+        label:
+          type: string
+        measurementType:
+          anyOf:
+            - $ref: "#/components/schemas/MeasurementReminderType"
+            - type: "null"
+        intervalDays:
+          anyOf:
+            - type: integer
+              minimum: -9007199254740991
+              maximum: 9007199254740991
+            - type: "null"
+        rrule:
+          anyOf:
+            - type: string
+            - type: "null"
+        anchorDate:
+          anyOf:
+            - type: string
+              format: date-time
+              pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
+            - type: "null"
+        notifyHour:
+          type: integer
+          minimum: -9007199254740991
+          maximum: 9007199254740991
+        location:
+          anyOf:
+            - type: string
+            - type: "null"
+        nextDueAt:
+          anyOf:
+            - type: string
+              format: date-time
+              pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
+            - type: "null"
+        lastSatisfiedAt:
+          anyOf:
+            - type: string
+              format: date-time
+              pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
+            - type: "null"
+        enabled:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+          pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
+        updatedAt:
+          type: string
+          format: date-time
+          pattern: ^(?:(?:\d\d[2468][048]|\d\d[13579][26]|\d\d0[48]|[02468][048]00|[13579][26]00)-02-29|\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\d|30)|(?:02)-(?:0[1-9]|1\d|2[0-8])))T(?:(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d+)?)?(?:Z|([+-](?:[01]\d|2[0-3]):[0-5]\d)))$
+      required:
+        - id
+        - label
+        - measurementType
+        - intervalDays
+        - rrule
+        - anchorDate
+        - notifyHour
+        - location
+        - nextDueAt
+        - lastSatisfiedAt
+        - enabled
+        - createdAt
+        - updatedAt
+      additionalProperties: false
+      description: A Vorsorge reminder. nextDueAt is server-computed (server-authoritative). A free-text reminder carries
+        measurementType=null and resolves only on a manual satisfy.
+    MeasurementReminderCreatedEnvelope:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/MeasurementReminderDTO"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    MeasurementReminderEnvelope:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/MeasurementReminderDTO"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    MeasurementReminderPatchEnvelope:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/MeasurementReminderDTO"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    MeasurementReminderDeleteEnvelope:
+      type: object
+      properties:
+        data:
+          type: object
+          properties:
+            deleted:
+              type: boolean
+          required:
+            - deleted
+          additionalProperties: false
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
+    MeasurementReminderSatisfyEnvelope:
+      type: object
+      properties:
+        data:
+          $ref: "#/components/schemas/MeasurementReminderDTO"
+        error:
+          type: "null"
+        meta:
+          type: object
+          properties:
+            requestId:
+              type: string
+          additionalProperties: false
+      required:
+        - data
+        - error
+      additionalProperties: false
     MedicationScheduleOutput:
       type: object
       properties:
