@@ -24,10 +24,16 @@ const SW_SOURCE = readFileSync(
 );
 
 const ORIGIN = "https://app.example";
-// `importScripts` throws in the sandbox, so the literal fallback version
-// is active and the cache names are deterministic.
-const CURRENT_PAGE_CACHE = "healthlog-pages-v1.4.43";
-const CURRENT_STATIC_CACHE = "healthlog-static-v1.4.43";
+// `importScripts` throws in the sandbox, so the in-`sw.js` fallback literal
+// is active and the cache names are deterministic. The fallback is
+// re-anchored to `package.json` on every prebuild by
+// `scripts/generate-sw-version.mjs`; read it straight from the SW source so
+// this test never drifts from the literal it is exercising.
+const FALLBACK_VERSION = /\/\* @sw-version-fallback \*\/\s*"(v[^"]*)"/.exec(
+  SW_SOURCE,
+)![1];
+const CURRENT_PAGE_CACHE = `healthlog-pages-${FALLBACK_VERSION}`;
+const CURRENT_STATIC_CACHE = `healthlog-static-${FALLBACK_VERSION}`;
 
 class FakeCache {
   map = new Map<string, Response>();
@@ -235,6 +241,44 @@ describe("sw.js — networkFirst offline fallback", () => {
     // The preloaded response was cached under the current page cache.
     const pages = await harness.cacheStorage.open(CURRENT_PAGE_CACHE);
     expect(await pages.match(`${ORIGIN}/`)).toBeDefined();
+  });
+});
+
+describe("sw.js — networkFirst privacy gate", () => {
+  it("does not cache a navigation response that carries Cache-Control: no-store", async () => {
+    const harness = bootServiceWorker();
+    harness.context.fetch = async () =>
+      new Response("private shell", {
+        headers: { "Cache-Control": "no-store" },
+      });
+
+    const res = await dispatchNavigationFetch(harness, "/");
+    expect(await res.clone().text()).toBe("private shell");
+
+    const pages = await harness.cacheStorage.open(CURRENT_PAGE_CACHE);
+    expect(await pages.match(`${ORIGIN}/`)).toBeUndefined();
+  });
+
+  it("does not cache the /c/ clinician-share view even without no-store", async () => {
+    const harness = bootServiceWorker();
+    harness.context.fetch = async () => new Response("share shell");
+
+    const res = await dispatchNavigationFetch(harness, "/c/hls_abc123");
+    expect(await res.clone().text()).toBe("share shell");
+
+    const pages = await harness.cacheStorage.open(CURRENT_PAGE_CACHE);
+    expect(await pages.match(`${ORIGIN}/c/hls_abc123`)).toBeUndefined();
+  });
+
+  it("still caches an ordinary navigation response", async () => {
+    const harness = bootServiceWorker();
+    harness.context.fetch = async () => new Response("app shell");
+
+    const res = await dispatchNavigationFetch(harness, "/measurements");
+    expect(await res.clone().text()).toBe("app shell");
+
+    const pages = await harness.cacheStorage.open(CURRENT_PAGE_CACHE);
+    expect(await pages.match(`${ORIGIN}/measurements`)).toBeDefined();
   });
 });
 

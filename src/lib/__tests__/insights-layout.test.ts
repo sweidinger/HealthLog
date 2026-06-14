@@ -209,6 +209,86 @@ describe("serializeInsightsLayout — defaults + dense order", () => {
   });
 });
 
+describe("serializeInsightsLayout — stored-dimension preservation (v1.16.13)", () => {
+  it("keeps the stored sections when a PUT omits sections (tiles-only)", () => {
+    // The user previously customised sections (a hidden + reordered set).
+    const stored = serializeInsightsLayout({
+      version: 2,
+      sections: [
+        { id: "trends", visible: true, order: 0 },
+        { id: "vitals", visible: false, order: 1 },
+      ],
+      tiles: [{ id: "overview", visible: true, order: 0 }],
+    });
+
+    // An iOS tiles-only reorder PUT — no `sections` key.
+    const serialized = serializeInsightsLayout(
+      {
+        version: 1,
+        tiles: [
+          { id: "weight", visible: true, order: 0 },
+          { id: "overview", visible: true, order: 1 },
+        ],
+      },
+      stored,
+    );
+
+    // Stored sections survive verbatim instead of resetting to defaults.
+    expect(
+      serialized.sections.map((s) => ({
+        id: s.id,
+        visible: s.visible,
+        order: s.order,
+      })),
+    ).toEqual([
+      { id: "trends", visible: true, order: 0 },
+      { id: "vitals", visible: false, order: 1 },
+    ]);
+    // The PUT's tiles still apply.
+    expect(serialized.tiles.map((t) => t.id)).toEqual(["weight", "overview"]);
+  });
+
+  it("keeps the stored tiles when a PUT omits tiles (sections-only)", () => {
+    const stored = serializeInsightsLayout({
+      version: 2,
+      sections: [{ id: "vitals", visible: true, order: 0 }],
+      tiles: [
+        { id: "weight", visible: true, order: 0 },
+        { id: "bloodPressure", visible: false, order: 1 },
+      ],
+    });
+
+    const serialized = serializeInsightsLayout(
+      {
+        version: 2,
+        sections: [
+          { id: "trends", visible: true, order: 0 },
+          { id: "vitals", visible: false, order: 1 },
+        ],
+      },
+      stored,
+    );
+
+    // Stored tiles survive verbatim instead of resetting to defaults.
+    expect(
+      serialized.tiles.map((t) => ({ id: t.id, visible: t.visible })),
+    ).toEqual([
+      { id: "weight", visible: true },
+      { id: "bloodPressure", visible: false },
+    ]);
+    expect(serialized.sections.map((s) => s.id)).toEqual(["trends", "vitals"]);
+  });
+
+  it("falls back to defaults for an absent dimension when no stored layout is supplied", () => {
+    const serialized = serializeInsightsLayout({
+      version: 2,
+      tiles: [{ id: "overview", visible: true, order: 0 }],
+    });
+    // First-ever tiles-only PUT still persists a complete v2 blob.
+    expect(serialized.sections.length).toBe(INSIGHTS_SECTION_IDS.length);
+  });
+});
+
 describe("orderedVisibleSectionIds — W2 render-order helper", () => {
   it("returns every section in default order for the default layout", () => {
     expect(orderedVisibleSectionIds(DEFAULT_INSIGHTS_LAYOUT)).toEqual([

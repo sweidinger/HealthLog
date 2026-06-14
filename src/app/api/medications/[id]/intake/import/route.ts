@@ -10,6 +10,7 @@ import {
   sanitiseZodIssues,
 } from "@/lib/api-response";
 import { assertMedicationOwnership } from "@/lib/medications/route-guards";
+import { consumeForIntake } from "@/lib/medications/inventory/consumption";
 import { invalidateUserMedications } from "@/lib/cache/invalidate";
 import {
   recomputeMedicationComplianceForDay,
@@ -121,7 +122,7 @@ export const POST = apiHandler(
         continue;
       }
 
-      await prisma.medicationIntakeEvent.create({
+      const created = await prisma.medicationIntakeEvent.create({
         data: {
           userId: user.id,
           medicationId: id,
@@ -133,6 +134,19 @@ export const POST = apiHandler(
         },
       });
       imported++;
+      // v1.16.13 — CSV import was the one intake seam that recorded a taken
+      // dose without decrementing tracked stock, so runway / days-left
+      // overstated. Consume exactly like the other taken paths: the stamp on
+      // the freshly-created event makes it exactly-once, the duplicate skip
+      // above means a re-import never re-creates the row (no double-decrement),
+      // and `consumeForIntake` no-ops for as-needed / no-inventory medications.
+      await consumeForIntake({
+        client: prisma,
+        userId: user.id,
+        medicationId: id,
+        eventId: created.id,
+        intakeAt: created.takenAt ?? takenAt,
+      });
       touchedDays.add(dayKeyForScheduledFor(takenAt, user.timezone));
     }
 

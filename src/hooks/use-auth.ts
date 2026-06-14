@@ -156,6 +156,19 @@ export function useLogout() {
     onSuccess: () => {
       queryClient.setQueryData(queryKeys.authMe(), null);
       queryClient.invalidateQueries({ queryKey: queryKeys.auth() });
+      // Defense-in-depth at the session boundary: wipe the service-worker
+      // page cache so no cached navigation HTML survives a logout on a
+      // shared device. Scoped to `healthlog-pages-*` only — the static
+      // cache (hashed chunks, icons) carries no PII and dropping it would
+      // force a needless re-download on the next login. Best-effort; never
+      // blocks the redirect.
+      if (typeof caches !== "undefined") {
+        void caches.keys().then((keys) => {
+          for (const key of keys) {
+            if (key.startsWith("healthlog-pages-")) void caches.delete(key);
+          }
+        });
+      }
       router.push("/auth/login");
     },
     // v1.16.4 — a network-failed logout used to do nothing at all (the

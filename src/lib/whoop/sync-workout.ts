@@ -19,6 +19,7 @@ import {
   incrementalStart,
   handleCollectionFetchError,
   markSynced,
+  WHOOP_RECOVERY_SLEEP_OVERLAP_MS,
 } from "./sync";
 import { prisma } from "@/lib/db";
 import { getEvent } from "@/lib/logging/context";
@@ -44,8 +45,17 @@ export async function syncUserWorkout(
   });
   if (!connection) return 0;
 
+  // iOS #17 — the WHOOP `/activity/workout` collection filters on the
+  // workout's OWN time range, not on when it reached the cloud. A workout
+  // whose phone sync lands more than the overlap late then falls permanently
+  // before the cursor and is never ingested (operator-visible data loss). A
+  // 1 h overlap was far too tight for opportunistic phone sync; widen it to
+  // the same window recovery/sleep already use for their late re-scores. The
+  // `(userId, WHOOP, externalId)` upsert keeps the re-fetch idempotent and a
+  // handful of workouts/day keeps the page count down.
   const start = incrementalStart(connection.lastSyncedAt, {
     fullSync: opts.fullSync,
+    overlapMs: WHOOP_RECOVERY_SLEEP_OVERLAP_MS,
   });
 
   let records: Awaited<ReturnType<typeof fetchWorkouts>>;

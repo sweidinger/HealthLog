@@ -326,14 +326,14 @@ export default function MedicationsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="space-y-1">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0 space-y-1">
           <h1 className="text-2xl font-bold tracking-tight">
             {t("medications.title")}
           </h1>
           {/* v1.4.34 IW-G — subtitle stays visible on mobile so the
               H1 isn't an unframed label. */}
-          <p className="text-muted-foreground text-xs sm:text-sm">
+          <p className="text-muted-foreground truncate text-xs sm:text-sm">
             {t("medications.subtitle")}
           </p>
         </div>

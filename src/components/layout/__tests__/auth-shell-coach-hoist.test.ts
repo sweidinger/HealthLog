@@ -51,6 +51,14 @@ describe("v1.4.34 IW-B — CoachLaunchProvider hoist", () => {
     expect(source).toContain("<LayoutCoachFab />");
   });
 
+  it("gates the LayoutCoachFab on `!demoMode` so demo visitors can't hit the proxy-blocked send (v1.16.13)", () => {
+    const source = readFileSync(AUTH_SHELL_PATH, "utf8");
+    // `/api/insights/chat` is not in the proxy's DEMO_MUTATION_ALLOWLIST,
+    // so a tappable FAB in demo mode produces a raw 403 on send. The mount
+    // must be conditioned on the demo flag.
+    expect(source).toContain("{!demoMode && <LayoutCoachFab />}");
+  });
+
   it("no longer mounts any Coach surface in the routed insights layout", () => {
     const source = readFileSync(INSIGHTS_LAYOUT_PATH, "utf8");
     // The provider import drops; the drawer mount lives on the shell.

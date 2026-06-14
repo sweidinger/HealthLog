@@ -654,7 +654,8 @@
       "factorStress": "Stress",
       "factorConflict": "Konflikt",
       "factorFamily": "Familie",
-      "factorSadness": "Traurigkeit"
+      "factorSadness": "Traurigkeit",
+      "praise": "Lob"
     },
     "filterBySource": "Nach Quelle filtern",
     "sourceManual": "Manuell",

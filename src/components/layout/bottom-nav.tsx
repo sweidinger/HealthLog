@@ -255,7 +255,9 @@ export function BottomNav() {
                   )}
                 >
                   <item.icon className="h-5 w-5 shrink-0" aria-hidden="true" />
-                  <span className="text-sm font-medium">{t(item.tKey)}</span>
+                  <span className="min-w-0 text-sm font-medium leading-tight">
+                    {t(item.tKey)}
+                  </span>
                 </Link>
               );
             })}

@@ -261,6 +261,13 @@ export async function readLastGoodStatusText(args: {
  */
 export type ReadOnlyMissOutcome =
   | { kind: "no-provider" }
+  // v1.16.13 — a provider IS configured, but it resolves via the operator's
+  // server-managed key and the user has no active consent receipt, so the
+  // generation gate (`assertConsentForChain` / `runStatusCompletion`) would
+  // serve the no-key fallback. Distinct from `no-provider` so the status DTO
+  // can render an honest "consent required" signal instead of conflating it
+  // with "no AI configured at all".
+  | { kind: "consent-missing" }
   | {
       kind: "preparing";
       lastGood: LastGoodStatusHit | null;
@@ -290,6 +297,19 @@ export async function resolveReadOnlyStatusMiss(args: {
 }): Promise<ReadOnlyMissOutcome> {
   const hasProvider = await hasUsableStatusProvider(args.userId);
   if (!hasProvider) return { kind: "no-provider" };
+
+  // v1.16.13 — a provider is configured but the server-managed consent gate
+  // would block egress (no active receipt for the surface). Surface this as
+  // a distinct outcome so the card renders an honest "consent required"
+  // signal rather than the generic no-key fallback. Enqueuing here would be
+  // wasted work — the generator's own gate would short-circuit to `none`.
+  if (await statusConsentBlocksGeneration(args.userId, "insights")) {
+    annotate({
+      action: { name: "insights.status.consent_required" },
+      meta: { metric: args.metric, read_only_miss: true },
+    });
+    return { kind: "consent-missing" };
+  }
 
   const cacheAction = statusCacheAction(args.metric, args.locale);
 

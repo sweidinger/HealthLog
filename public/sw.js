@@ -27,8 +27,16 @@ try {
 } catch {
   // Fall through to the literal fallback below.
 }
+// The `|| "..."` fallback literal is the value used only when the
+// `importScripts('/sw-version.js')` above is absent (dev with no `prebuild`
+// step, or a 404 on the generated file). `scripts/generate-sw-version.mjs`
+// rewrites it to the current `package.json` version on every prebuild — the
+// marker below is the rewrite anchor — so in any shipped image the literal
+// matches the active release and can never drift stale the way it did across
+// v1.4.38.4 → v1.4.42. Do not hand-edit; bump `package.json` and rebuild.
 const CACHE_VERSION =
-  (typeof self !== "undefined" && self.__APP_VERSION__) || "v1.4.43";
+  (typeof self !== "undefined" && self.__APP_VERSION__) ||
+  /* @sw-version-fallback */ "v1.16.13";
 const STATIC_CACHE = `healthlog-static-${CACHE_VERSION}`;
 const PAGE_CACHE = `healthlog-pages-${CACHE_VERSION}`;
 const MAX_STATIC_ENTRIES = 150;
@@ -119,6 +127,32 @@ async function cacheFirst(request, cacheName) {
 }
 
 /**
+ * Privacy gate for the navigation page cache. Most app routes are
+ * client-fetch-only shells with no server-rendered PII (health JSON loads
+ * over `/api/*`, which is network-only here), so caching their HTML is
+ * safe. Two carve-outs:
+ *
+ *   1. A `Cache-Control: no-store` response opts itself out — the
+ *      principled, future-proof rule for any current/future server RSC
+ *      that renders user data and sets the header.
+ *   2. `/c/*` (the clinician-share view) renders health values + wellness
+ *      scores straight into the HTML and emits `no-store`; the explicit
+ *      path skip is belt-and-braces so a revoked share can never linger in
+ *      CacheStorage and render back offline.
+ */
+function isCacheableNavigation(request, response) {
+  const cacheControl = response.headers.get("Cache-Control") || "";
+  if (/no-store/i.test(cacheControl)) return false;
+  try {
+    const { pathname } = new URL(request.url);
+    if (pathname === "/c" || pathname.startsWith("/c/")) return false;
+  } catch {
+    // Unparseable URL — fall through; the no-store check already ran.
+  }
+  return true;
+}
+
+/**
  * Network-first: try network (preferring the navigation-preload response
  * when the browser already started it), fall back to cache.
  *
@@ -134,7 +168,7 @@ async function networkFirst(event, cacheName) {
     const response =
       (event.preloadResponse ? await event.preloadResponse : null) ||
       (await fetch(request));
-    if (response.ok) {
+    if (response.ok && isCacheableNavigation(request, response)) {
       const cache = await caches.open(cacheName);
       cache.put(request, response.clone());
       trimCache(cacheName, MAX_PAGE_ENTRIES);

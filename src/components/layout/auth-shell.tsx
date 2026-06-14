@@ -272,7 +272,12 @@ export function AuthShell({
         <BottomNav />
       </div>
       <LayoutCoachMount />
-      <LayoutCoachFab />
+      {/* v1.16.13 — the Coach FAB stays hidden in demo mode. Its send hits
+          `/api/insights/chat`, which is not in the proxy's
+          `DEMO_MUTATION_ALLOWLIST`, so a demo visitor who tapped it and sent
+          got a raw 403. Demo is read-only by design; the FAB has no job
+          here, so it's mounted only outside demo mode. */}
+      {!demoMode && <LayoutCoachFab />}
     </CoachLaunchProvider>
   );
 }

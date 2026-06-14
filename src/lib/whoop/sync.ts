@@ -17,8 +17,10 @@
  *
  * The incremental window starts from `lastSyncedAt - overlap`. WHOOP re-scores
  * recovery/sleep hours after the night, so the overlap must comfortably cover
- * the re-score lag — `WHOOP_RECOVERY_SLEEP_OVERLAP_MS` is 24 h; workout/cycle
- * use the smaller `WHOOP_DEFAULT_OVERLAP_MS`.
+ * the re-score lag — `WHOOP_RECOVERY_SLEEP_OVERLAP_MS` is 7 days, now shared by
+ * workout ingest too (a phone that syncs to the WHOOP cloud well after a
+ * workout would otherwise fall outside a narrow window and never land);
+ * `WHOOP_DEFAULT_OVERLAP_MS` stays the narrow fallback for other resources.
  */
 import { AsyncLocalStorage } from "node:async_hooks";
 import { prisma } from "@/lib/db";

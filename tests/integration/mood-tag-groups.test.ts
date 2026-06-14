@@ -210,7 +210,7 @@ describe("custom mood-tag groups (real Postgres)", () => {
     const layoutRes = await putLayout(
       jsonReq("http://localhost/api/mood/tags/layout", "PUT", {
         groupOrder: [groupKey, "feelings"],
-        placements: { [groupKey]: ["happy"] },
+        placements: { [groupKey]: ["grateful"] },
       }),
     );
     expect(layoutRes.status).toBe(200);
@@ -270,7 +270,7 @@ describe("custom mood-tag groups (real Postgres)", () => {
     // 1st PUT: placements only.
     await putLayout(
       jsonReq("http://localhost/api/mood/tags/layout", "PUT", {
-        placements: { [groupKey]: ["happy"] },
+        placements: { [groupKey]: ["grateful"] },
       }),
     );
     // 2nd PUT: groupOrder only — must keep the stored placements.
@@ -284,18 +284,18 @@ describe("custom mood-tag groups (real Postgres)", () => {
       data: { groupOrder: string[]; placements: Record<string, string[]> };
     };
     expect(layout.data.groupOrder[0]).toBe(groupKey);
-    expect(layout.data.placements).toEqual({ [groupKey]: ["happy"] });
+    expect(layout.data.placements).toEqual({ [groupKey]: ["grateful"] });
 
     // The effective tree leads with the group and carries the placed
     // catalogue tag inside it (placement, not a categoryId change).
     const tree = await readTree();
     expect(tree[0].key).toBe(groupKey);
-    expect(tree[0].tags.map((t) => t.key)).toContain("happy");
-    const happyRow = await getPrismaClient().moodTag.findUnique({
-      where: { key: "happy" },
+    expect(tree[0].tags.map((t) => t.key)).toContain("grateful");
+    const gratefulRow = await getPrismaClient().moodTag.findUnique({
+      where: { key: "grateful" },
       select: { category: { select: { key: true } } },
     });
-    expect(happyRow?.category.key).not.toBe(groupKey);
+    expect(gratefulRow?.category.key).not.toBe(groupKey);
   });
 
   it("include=archived surfaces an archived custom tag for restore", async () => {

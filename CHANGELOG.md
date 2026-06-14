@@ -2,6 +2,27 @@
 
 ## [Unreleased]
 
+## [1.16.13] — 2026-06-14 — installable and offline, doses that find the right day, and headers that hold their line
+
+### Added
+
+- **The app installs and works offline.** The service worker now registers for every visitor, not only after notifications are switched on, so the app installs to the home screen, its shell and assets are cached, and a lost connection shows an offline page instead of a dead tab. Authenticated pages are never cached — their data always loads live — the share-by-link page is kept out of the cache entirely, and signing out clears the page cache. The running app still heals itself across deploys, and the cached-version marker can no longer drift stale between releases.
+
+### Changed
+
+- **The default mood tags are curated.** The redundant `happy`, `excited`, water and music defaults step aside, `overtime` returns to the work picker, a new `praise` ("Lob") tag joins it, and the manual sleep-quality rating retires — a measured night already covers it. Tags already recorded against any of these keep resolving their labels; nothing on existing entries changes.
+- **Page headers hold one line on a phone.** The medications header no longer drops its actions to a second row, the insights "Ask the coach" action sits to the right where it belongs, and a long label in the more-menu stays inside its tile. The mood, measurements and dashboard headers get the same treatment so none of them can wrap either.
+
+### Fixed
+
+- **A historical dose edit credits the schedule that was live then.** Editing a past intake on a medication whose schedule has since changed now attributes it to the dosing era valid at the dose's own time rather than today's schedule — the same era the history and compliance already read it under.
+- **A CSV intake import moves the tracked stock.** It was the one path that recorded taken doses without decrementing the supply, so the runway read high; it now consumes exactly like every other path, once per dose, and a re-import never drains the shelf twice.
+- **A workout that reaches WHOOP late is no longer lost.** Workout ingest used a one-hour overlap window while recovery and sleep used a far wider one, so a phone that synced to the WHOOP cloud more than an hour after a session left the workout permanently outside the window. It now shares the wider window; the idempotent upsert keeps the widening from duplicating anything.
+- **Sleep night totals read as whole minutes** instead of a long fraction, matching the contract the clients decode.
+- **A tiles-only layout save no longer wipes section customization.** Reordering the navigation tiles without sending the section layout keeps the stored sections instead of resetting them to defaults, and the same holds the other way around.
+- **The web AI surfaces honour consent again.** The web client now records the consent receipt the server requires before any model call, so insights and the coach stop falling back to the empty no-provider state for people who have granted it, and the status reads "consent missing" honestly when it is genuinely absent.
+- **The coach button in the public demo no longer errors** — it steps aside there instead of offering a send the demo blocks.
+
 ## [1.16.12] — 2026-06-13 — split doses, steady cards, and a read that stays warm
 
 ### Added

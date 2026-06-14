@@ -23,6 +23,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = join(__dirname, "..");
 const pkgPath = join(repoRoot, "package.json");
 const outPath = join(repoRoot, "public", "sw-version.js");
+const swPath = join(repoRoot, "public", "sw.js");
 
 const pkg = JSON.parse(readFileSync(pkgPath, "utf8"));
 const version = `v${pkg.version}`;
@@ -33,5 +34,23 @@ const body = `self.__APP_VERSION__ = ${JSON.stringify(version)};\n`;
 
 writeFileSync(outPath, banner + body, "utf8");
 
+// Also re-anchor the in-`sw.js` fallback literal to the current version, so
+// the literal used when `/sw-version.js` is missing (dev, or a 404 on the
+// generated file) can never drift stale — it bit v1.4.38.4 → v1.4.42. The
+// `/* @sw-version-fallback */` marker is the rewrite anchor; the literal that
+// follows it is replaced in place. If the marker is gone the SW source has
+// been restructured and the build must surface that rather than silently skip
+// the re-anchor.
+const sw = readFileSync(swPath, "utf8");
+const fallbackPattern = /(\/\* @sw-version-fallback \*\/\s*)"v[^"]*"/;
+if (!fallbackPattern.test(sw)) {
+  process.stderr.write(
+    "generate-sw-version: @sw-version-fallback marker not found in public/sw.js\n",
+  );
+  process.exit(1);
+}
+const rewritten = sw.replace(fallbackPattern, `$1${JSON.stringify(version)}`);
+if (rewritten !== sw) writeFileSync(swPath, rewritten, "utf8");
+
 // One-line log so the build output shows the version we baked in.
-process.stdout.write(`sw-version.js → ${version}\n`);
+process.stdout.write(`sw-version.js → ${version} (sw.js fallback re-anchored)\n`);

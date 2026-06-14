@@ -82,7 +82,10 @@ export async function generateBmiStatusForUser(
       metric: "bmi",
       locale,
     });
-    if (outcome.kind === "no-provider") {
+    // v1.16.13 — `consent-missing` (provider configured but the
+    // server-managed consent gate blocks egress) serves the same no-key
+    // fallback; no enqueue happens for it (the resolver short-circuits).
+    if (outcome.kind === "no-provider" || outcome.kind === "consent-missing") {
       return {
         hasProvider: false,
         text: getNoKeyBmiStatusText(locale),
