@@ -9,12 +9,17 @@
  * sleep UUID (v2 recovery carries `sleep_id`, not a stable recovery id) so the
  * externalId is stable across re-scores.
  */
-import { fetchRecoveries, mapRecovery } from "./client";
+import {
+  fetchRecoveries,
+  fetchRecoveryByCycleId,
+  mapRecovery,
+} from "./client";
 import {
   getValidToken,
   incrementalStart,
   handleCollectionFetchError,
-  markSynced,
+  markResourceSynced,
+  resolveResourceCursor,
   upsertWhoopMeasurements,
   WHOOP_RECOVERY_SLEEP_OVERLAP_MS,
   type WhoopMeasurementUpsert,
@@ -30,14 +35,17 @@ export async function syncUserRecovery(
 
   const connection = await prisma.whoopConnection.findUnique({
     where: { userId },
-    select: { lastSyncedAt: true },
+    select: { lastSyncedAt: true, resourceCursors: true },
   });
   if (!connection) return 0;
 
-  const start = incrementalStart(connection.lastSyncedAt, {
-    fullSync: opts.fullSync,
-    overlapMs: WHOOP_RECOVERY_SLEEP_OVERLAP_MS,
-  });
+  const start = incrementalStart(
+    resolveResourceCursor(connection, "recovery"),
+    {
+      fullSync: opts.fullSync,
+      overlapMs: WHOOP_RECOVERY_SLEEP_OVERLAP_MS,
+    },
+  );
 
   let records: Awaited<ReturnType<typeof fetchRecoveries>>;
   try {
@@ -62,6 +70,43 @@ export async function syncUserRecovery(
   }
 
   const imported = await upsertWhoopMeasurements(userId, readings);
-  await markSynced(userId);
+  await markResourceSynced(userId, "recovery");
   return imported;
+}
+
+/**
+ * Webhook-driven targeted refresh: resolve ONE recovery by its cycle id and
+ * upsert its readings, instead of re-walking the whole collection. WHOOP v2
+ * reads a recovery through its cycle (`/v2/cycle/{cycleId}/recovery`), and the
+ * recovery webhook carries the cycle id. An unscored / since-deleted record
+ * yields nothing. Does NOT advance the resource cursor — a single-id refresh
+ * proves nothing about records between the cursor and now, so the cron/overlap
+ * path stays responsible for moving the cursor.
+ */
+export async function syncWhoopRecoveryById(
+  userId: string,
+  cycleId: string,
+): Promise<number> {
+  const tokenInfo = await getValidToken(userId);
+  if (!tokenInfo) return 0;
+
+  let record: Awaited<ReturnType<typeof fetchRecoveryByCycleId>>;
+  try {
+    record = await fetchRecoveryByCycleId(tokenInfo.accessToken, cycleId);
+  } catch (err) {
+    return handleCollectionFetchError("recovery", userId, err);
+  }
+
+  const readings: WhoopMeasurementUpsert[] = [];
+  for (const m of mapRecovery(record)) {
+    readings.push({
+      type: m.type,
+      value: m.value,
+      unit: m.unit,
+      measuredAt: m.measuredAt,
+      externalId: `${record.sleep_id}:${m.fieldTag}`,
+    });
+  }
+
+  return upsertWhoopMeasurements(userId, readings);
 }

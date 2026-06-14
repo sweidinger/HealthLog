@@ -6,6 +6,10 @@ import {
   WHOOP_PAGE_LIMIT,
   exchangeCode,
   fetchBodyMeasurement,
+  fetchRecoveryByCycleId,
+  fetchSleepById,
+  fetchWorkoutById,
+  fetchCycleById,
   fetchCycles,
   fetchProfile,
   fetchRecoveries,
@@ -195,6 +199,39 @@ describe("single-object endpoints", () => {
     await expect(fetchProfile("bad")).rejects.toMatchObject({
       classification: "reauth_required",
     });
+  });
+});
+
+describe("fetch-by-id (webhook-driven single-record refresh)", () => {
+  it("resolves one record at the documented v2 single-record path", async () => {
+    const cases: Array<[() => Promise<unknown>, string]> = [
+      [() => fetchSleepById("at", "s1"), "/v2/activity/sleep/s1"],
+      [() => fetchWorkoutById("at", "w1"), "/v2/activity/workout/w1"],
+      [() => fetchCycleById("at", "123"), "/v2/cycle/123"],
+      [() => fetchRecoveryByCycleId("at", "123"), "/v2/cycle/123/recovery"],
+    ];
+    for (const [call, path] of cases) {
+      const fetchMock = installFetchMock([{ status: 200, body: { id: "x" } }]);
+      await call();
+      const [url] = fetchMock.mock.calls[0] as unknown as [string];
+      expect(url).toContain(path);
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("returns the single record body (one workout by id)", async () => {
+    installFetchMock([
+      { status: 200, body: { id: "w1", start: "s", end: "e" } },
+    ]);
+    const w = await fetchWorkoutById("at", "w1");
+    expect(w.id).toBe("w1");
+  });
+
+  it("url-encodes a resource id with reserved characters", async () => {
+    const fetchMock = installFetchMock([{ status: 200, body: { id: "x" } }]);
+    await fetchWorkoutById("at", "a/b?c");
+    const [url] = fetchMock.mock.calls[0] as unknown as [string];
+    expect(url).toContain("/v2/activity/workout/a%2Fb%3Fc");
   });
 });
 

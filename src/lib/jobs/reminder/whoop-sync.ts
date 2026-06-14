@@ -7,10 +7,19 @@
 import { type Job } from "pg-boss";
 import { recordError } from "@/lib/jobs/worker-status";
 import { withBackgroundEvent } from "@/lib/logging/background";
-import { syncUserRecovery } from "@/lib/whoop/sync-recovery";
-import { syncUserSleep as syncWhoopSleep } from "@/lib/whoop/sync-sleep";
+import {
+  syncUserRecovery,
+  syncWhoopRecoveryById,
+} from "@/lib/whoop/sync-recovery";
+import {
+  syncUserSleep as syncWhoopSleep,
+  syncWhoopSleepById,
+} from "@/lib/whoop/sync-sleep";
 import { syncUserCycle } from "@/lib/whoop/sync-cycle";
-import { syncUserWorkout } from "@/lib/whoop/sync-workout";
+import {
+  syncUserWorkout,
+  syncWhoopWorkoutById,
+} from "@/lib/whoop/sync-workout";
 import { getWorkerPrisma } from "./shared";
 
 /**
@@ -18,34 +27,59 @@ import { getWorkerPrisma } from "./shared";
  * WHOOP sync queue:
  *
  *   1. Webhook (`recovery.updated` / `sleep.updated` / `workout.updated`) —
- *      payload carries `userId`, the handler syncs that one user.
+ *      payload carries `userId` and (v1.16.16) the `resourceId`; the handler
+ *      does a targeted fetch-by-id refresh of that single record.
  *   2. Cron — payload has no `userId`; the handler iterates every WHOOP
- *      connection and re-syncs each, catching dropped webhook deliveries.
- *      Cycle has no webhook, so its cron is the sole driver.
+ *      connection and re-syncs each collection, catching dropped webhook
+ *      deliveries. Cycle has no webhook, so its cron is the sole driver.
+ *
+ * A webhook job that carries a `userId` but no `resourceId` (a legacy in-flight
+ * job, or a delivery that omitted the id) falls back to the per-user collection
+ * walk rather than touching every connection.
  */
 export interface WhoopSyncPayload {
   userId?: string;
+  /** v1.16.16 — webhook resource id for a targeted fetch-by-id refresh. */
+  resourceId?: string;
 }
 
+/** A per-user collection walk (cron + the no-id webhook fallback). */
+type CollectionSync = (userId: string) => Promise<number>;
+/** A webhook-driven single-record refresh by resource id. */
+type ByIdSync = (userId: string, resourceId: string) => Promise<number>;
+
 /**
- * Shared driver for the per-resource WHOOP sync handlers. Resolves the target
- * set (per-user from the webhook payload, or every connection on the cron
- * tick) and runs `syncFn` per user. One user's parked-at-reauth state never
- * starves the rest of the cohort on the cron path.
+ * Shared driver for the per-resource WHOOP sync handlers.
+ *
+ *   - A webhook job with a `resourceId` runs the targeted `byIdFn` (when the
+ *     resource supports fetch-by-id) — landing the exact record immediately.
+ *   - A webhook job with a `userId` but no `resourceId` runs the per-user
+ *     collection `syncFn`.
+ *   - A cron tick (no `userId` on any job) walks every connection's collection.
+ *
+ * One user's parked-at-reauth state never starves the rest of the cohort.
  */
 export async function runWhoopResourceSync(
   taskName: string,
   jobs: Job<WhoopSyncPayload>[],
-  syncFn: (userId: string) => Promise<number>,
+  syncFn: CollectionSync,
+  byIdFn?: ByIdSync,
 ): Promise<void> {
   await withBackgroundEvent(taskName, async (evt) => {
     const prisma = getWorkerPrisma();
     try {
-      const targets: Array<{ userId: string }> = [];
+      // (userId, optional resourceId) work items from the webhook payloads.
+      const targets: Array<{ userId: string; resourceId?: string }> = [];
       for (const job of jobs) {
-        if (job.data?.userId) targets.push({ userId: job.data.userId });
+        if (job.data?.userId) {
+          targets.push({
+            userId: job.data.userId,
+            resourceId: job.data.resourceId,
+          });
+        }
       }
       if (targets.length === 0) {
+        // Cron tick — re-walk every connection's collection.
         const connections = await prisma.whoopConnection.findMany({
           select: { userId: true },
         });
@@ -55,9 +89,12 @@ export async function runWhoopResourceSync(
 
       let usersSynced = 0;
       let measurementsImported = 0;
-      for (const { userId } of targets) {
+      for (const { userId, resourceId } of targets) {
         try {
-          measurementsImported += await syncFn(userId);
+          measurementsImported +=
+            resourceId && byIdFn
+              ? await byIdFn(userId, resourceId)
+              : await syncFn(userId);
           usersSynced++;
         } catch (err) {
           evt.addWarning(`${taskName} failed for user ${userId}: ${err}`);
@@ -85,17 +122,29 @@ export function handleWhoopRecoverySync(jobs: Job<WhoopSyncPayload>[]) {
     "job.whoop_recovery_sync",
     jobs,
     syncUserRecovery,
+    syncWhoopRecoveryById,
   );
 }
 
 export function handleWhoopSleepSync(jobs: Job<WhoopSyncPayload>[]) {
-  return runWhoopResourceSync("job.whoop_sleep_sync", jobs, syncWhoopSleep);
+  return runWhoopResourceSync(
+    "job.whoop_sleep_sync",
+    jobs,
+    syncWhoopSleep,
+    syncWhoopSleepById,
+  );
 }
 
 export function handleWhoopWorkoutSync(jobs: Job<WhoopSyncPayload>[]) {
-  return runWhoopResourceSync("job.whoop_workout_sync", jobs, syncUserWorkout);
+  return runWhoopResourceSync(
+    "job.whoop_workout_sync",
+    jobs,
+    syncUserWorkout,
+    syncWhoopWorkoutById,
+  );
 }
 
 export function handleWhoopCycleSync(jobs: Job<WhoopSyncPayload>[]) {
+  // Cycle has no webhook (poll-only), so no fetch-by-id path.
   return runWhoopResourceSync("job.whoop_cycle_sync", jobs, syncUserCycle);
 }
