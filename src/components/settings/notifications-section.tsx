@@ -14,6 +14,8 @@ import { NotificationStatusCard } from "@/components/settings/notification-statu
 import { NtfyCard } from "@/components/settings/ntfy-card";
 import { TelegramCard } from "@/components/settings/telegram-card";
 import { WebPushCard } from "@/components/settings/web-push-card";
+import { WebhookCard } from "@/components/settings/webhook-card";
+import { EmailCard } from "@/components/settings/email-card";
 import { apiGet } from "@/lib/api/api-fetch";
 
 interface GlobalServiceAvailability {
@@ -105,6 +107,16 @@ export function NotificationsSection() {
           <WebPushCard />
         </div>
       )}
+      {/* v1.17.1 — generic outbound webhook (Gotify / Discord / Slack /
+          Matrix / Home Assistant in one channel). */}
+      <div id="webhook" className="scroll-mt-28">
+        <WebhookCard isAuthenticated={isAuthenticated} />
+      </div>
+      {/* v1.17.1 — SMTP / email. The card hides itself when the operator
+          hasn't configured SMTP_* env, so it never shows a dead toggle. */}
+      <div id="email" className="scroll-mt-28">
+        <EmailCard isAuthenticated={isAuthenticated} />
+      </div>
       <div id="mood-reminder" className="scroll-mt-28">
         <MoodReminderCard isAuthenticated={isAuthenticated} />
       </div>

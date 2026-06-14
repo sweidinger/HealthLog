@@ -63,6 +63,9 @@ export const adminKeys = {
 
   adminSettings: () => ["admin", "settings"] as const,
   adminStatus: () => ["admin", "status"] as const,
+  /** v1.17.1 — operator-wide notification delivery-health panel. */
+  adminNotificationHealth: (hours: number) =>
+    ["admin", "notification-health", hours] as const,
   adminUsers: () => ["admin", "users"] as const,
   adminTokens: () => ["admin", "tokens"] as const,
   adminAuditLog: (filter: unknown) => ["admin", "audit-log", filter] as const,
