@@ -23,6 +23,7 @@ import { getEvent } from "@/lib/logging/context";
 import {
   recordSyncFailure,
   recordSyncSuccess,
+  toFailureKind,
   type FailureKind,
 } from "@/lib/integrations/status";
 import {
@@ -50,10 +51,7 @@ import { OuraApiError, classifyOuraError } from "./response-classifier";
 export const OURA_SYNC_LOOKBACK_DAYS = 7;
 
 export function classifyOuraFailure(err: unknown): FailureKind {
-  const c = classifyOuraError(err);
-  if (c === "reauth_required") return "reauth_required";
-  if (c === "persistent") return "persistent";
-  return "transient";
+  return toFailureKind(classifyOuraError(err));
 }
 
 function ymd(d: Date): string {

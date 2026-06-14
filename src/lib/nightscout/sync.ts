@@ -25,8 +25,10 @@ import { getEvent } from "@/lib/logging/context";
 import {
   recordSyncFailure,
   recordSyncSuccess,
+  toFailureKind,
   type FailureKind,
 } from "@/lib/integrations/status";
+import type { IntegrationClassification } from "@/lib/integrations/http-status-classifier";
 import {
   collapseToTypeDayKeys,
   recomputeBucketsForMeasurement,
@@ -72,14 +74,18 @@ export function redactNightscoutSecret(message: string): string {
 
 /** Map a Nightscout HTTP status / network error onto the shared ledger kind. */
 export function classifyNightscoutFailure(err: unknown): FailureKind {
+  let classification: IntegrationClassification = "transient";
   if (err instanceof NightscoutApiError && err.status != null) {
     // Wrong / missing token, or a token whose role can't read SGV.
-    if (err.status === 401 || err.status === 403) return "reauth_required";
-    // 4xx other than auth = a contract / config problem worth surfacing.
-    if (err.status >= 400 && err.status < 500) return "persistent";
+    if (err.status === 401 || err.status === 403) {
+      classification = "reauth_required";
+    } else if (err.status >= 400 && err.status < 500) {
+      // 4xx other than auth = a contract / config problem worth surfacing.
+      classification = "persistent";
+    }
   }
-  // 5xx, timeout, DNS, connection refused — retry on the next tick.
-  return "transient";
+  // 5xx, timeout, DNS, connection refused stay `transient` — retry next tick.
+  return toFailureKind(classification);
 }
 
 /**

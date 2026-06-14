@@ -38,6 +38,7 @@ import { encrypt, decrypt } from "@/lib/crypto";
 import { auditLog } from "@/lib/auth/audit";
 import { getEvent } from "@/lib/logging/context";
 import { dispatchNotification } from "@/lib/notifications/dispatcher";
+import type { IntegrationClassification } from "@/lib/integrations/http-status-classifier";
 
 export type IntegrationKey =
   | "withings"
@@ -73,6 +74,23 @@ export type IntegrationKey =
  * kind so operations can filter.
  */
 export type FailureKind = "transient" | "reauth_required" | "persistent";
+
+/**
+ * Map a shared `IntegrationClassification` onto the ledger `FailureKind`.
+ *
+ * `success` never reaches a failure path, so it collapses into `transient`
+ * alongside the genuinely-retryable verdicts; `reauth_required` and
+ * `persistent` pass through unchanged. Lifted out of the per-vendor
+ * `classifyXFailure` adapters (Polar / Oura / Nightscout), which each carried a
+ * byte-identical copy of this mapping.
+ */
+export function toFailureKind(
+  classification: IntegrationClassification,
+): FailureKind {
+  if (classification === "reauth_required") return "reauth_required";
+  if (classification === "persistent") return "persistent";
+  return "transient";
+}
 
 /**
  * Recognised IntegrationStatus states.
