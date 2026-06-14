@@ -78,7 +78,7 @@ export function DashboardHeader({
         showGreeting && "sm:items-start",
       )}
     >
-      <div>
+      <div className="min-w-0">
         <h1 className="text-2xl font-bold tracking-tight">
           {t("dashboard.title")}
         </h1>
@@ -89,13 +89,13 @@ export function DashboardHeader({
              keeps the header from collapsing/growing around that swap. */
           <p
             data-slot="dashboard-header-greeting"
-            className="text-muted-foreground mt-1 min-h-5 text-sm"
+            className="text-muted-foreground mt-1 min-h-5 truncate text-sm"
           >
             {welcomeText}
           </p>
         ) : null}
       </div>
-      <div className="flex items-center gap-2">
+      <div className="flex shrink-0 items-center gap-2">
         {/* Customize shortcut to the dashboard-customization settings
             (the tile/layout editor at /settings/dashboard). Sits to
             the left of the add button as a monochrome ghost icon, with

@@ -109,18 +109,18 @@ export default function MeasurementsPage() {
     <div className="space-y-6">
       <PullToRefreshIndicator {...pull} />
       <div className="flex items-center justify-between">
-        <div>
+        <div className="min-w-0">
           <h1 className="text-2xl font-bold tracking-tight">
             {t("measurements.title")}
           </h1>
           {/* v1.4.34 IW-G — subtitle now stays visible on mobile so
               the H1 isn't an unframed label. `text-xs sm:text-sm`
               preserves the desktop hierarchy. */}
-          <p className="text-muted-foreground text-xs sm:text-sm">
+          <p className="text-muted-foreground truncate text-xs sm:text-sm">
             {t("measurements.subtitle")}
           </p>
         </div>
-        <Button onClick={() => setDialogOpen(true)}>
+        <Button className="shrink-0" onClick={() => setDialogOpen(true)}>
           <Plus className="h-4 w-4" />
           {t("measurements.addMeasurement")}
         </Button>
