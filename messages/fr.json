@@ -5824,6 +5824,7 @@
       "nextMonth": "Mois suivant",
       "loading": "Chargement de ton calendrier…",
       "empty": "Commence à enregistrer pour remplir ton calendrier.",
+      "learning": "Nous apprenons ton cycle — enregistre au moins trois cycles complets et la fenêtre fertile, l'ovulation et les phases se compléteront. D'ici là, le calendrier n'affiche que ce que tu as enregistré.",
       "today": "Aujourd'hui",
       "dayAria": "{date}",
       "legendSymptom": "Symptômes",

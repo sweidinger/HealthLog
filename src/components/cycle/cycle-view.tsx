@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { Loader2, Plus, RefreshCw } from "lucide-react";
+import { Loader2, Plus, RefreshCw, Sparkles } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -274,16 +274,35 @@ export function CycleView() {
                 ) : calendarError ? (
                   <TabError onRetry={() => void calendar.refetch()} />
                 ) : (
-                  <CycleCalendar
-                    days={calendar.data?.days ?? []}
-                    today={today}
-                    confirmedOvulation={
-                      calendar.data?.prediction?.ovulationConfirmed
-                        ? (calendar.data.prediction.predictedOvulation ?? null)
-                        : null
-                    }
-                    onSelectDay={openSheet}
-                  />
+                  <>
+                    {/* Cold start: the grid carries no fertile/ovulation/phase
+                        overlays yet (the server suppresses them while learning),
+                        so name the calm state rather than letting a bare grid
+                        imply a confident forecast. */}
+                    {calendar.data?.stillLearning ? (
+                      <div
+                        data-slot="cycle-calendar-learning"
+                        className="text-muted-foreground bg-muted/40 mb-3 flex items-start gap-2 rounded-lg p-3 text-sm"
+                      >
+                        <Sparkles
+                          className="text-primary mt-0.5 h-4 w-4 shrink-0"
+                          aria-hidden="true"
+                        />
+                        <span>{t("cycle.calendar.learning")}</span>
+                      </div>
+                    ) : null}
+                    <CycleCalendar
+                      days={calendar.data?.days ?? []}
+                      today={today}
+                      confirmedOvulation={
+                        calendar.data?.prediction?.ovulationConfirmed
+                          ? (calendar.data.prediction.predictedOvulation ??
+                            null)
+                          : null
+                      }
+                      onSelectDay={openSheet}
+                    />
+                  </>
                 )}
               </CardContent>
             </Card>

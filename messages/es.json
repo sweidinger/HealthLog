@@ -5824,6 +5824,7 @@
       "nextMonth": "Mes siguiente",
       "loading": "Cargando tu calendario…",
       "empty": "Empieza a registrar para ver tu calendario.",
+      "learning": "Estamos aprendiendo tu ciclo: registra al menos tres ciclos completos y se completarán la ventana fértil, la ovulación y las fases. Hasta entonces, el calendario solo muestra lo que has registrado.",
       "today": "Hoy",
       "dayAria": "{date}",
       "legendSymptom": "Síntomas",

@@ -5824,6 +5824,7 @@
       "nextMonth": "Nächster Monat",
       "loading": "Kalender wird geladen…",
       "empty": "Erfasse Daten, damit sich dein Kalender füllt.",
+      "learning": "Wir lernen deinen Zyklus – erfasse mindestens drei volle Zyklen, dann füllen sich fruchtbares Fenster, Eisprung und Phasen. Bis dahin zeigt der Kalender nur, was du erfasst hast.",
       "today": "Heute",
       "dayAria": "{date}",
       "legendSymptom": "Symptome",

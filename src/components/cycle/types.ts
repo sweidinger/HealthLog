@@ -68,6 +68,12 @@ export interface CalendarResponse {
     cyclesObserved: number;
   };
   prediction: CyclePrediction | null;
+  /**
+   * Cold-start gate (mirrors `prediction.stillLearning`): true while < 3 cycles
+   * are observed. When set, `days` carries no fertile window, ovulation dot, or
+   * phase band — render the calm "learning your cycle" state over the grid.
+   */
+  stillLearning: boolean;
   days: CalendarDay[];
   meta: { generatedAt: string };
 }

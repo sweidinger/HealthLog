@@ -6608,6 +6608,8 @@ components:
               anyOf:
                 - $ref: "#/components/schemas/CyclePredictionDTO"
                 - type: "null"
+            stillLearning:
+              type: boolean
             days:
               type: array
               items:
@@ -6691,6 +6693,7 @@ components:
           required:
             - profile
             - prediction
+            - stillLearning
             - days
             - meta
           additionalProperties: false

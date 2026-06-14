@@ -5824,6 +5824,7 @@
       "nextMonth": "Next month",
       "loading": "Loading your calendar…",
       "empty": "Start logging to see your calendar fill in.",
+      "learning": "Learning your cycle — log at least three full cycles and the fertile window, ovulation and phases fill in. Until then the calendar shows only what you've logged.",
       "today": "Today",
       "dayAria": "{date}",
       "legendSymptom": "Symptoms",

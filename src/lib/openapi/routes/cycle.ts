@@ -205,6 +205,12 @@ const cycleCalendarResponse = z.object({
     cyclesObserved: z.number().int(),
   }),
   prediction: cyclePredictionDto.nullable(),
+  // Cold-start gate (mirrors `prediction.stillLearning`): true while < 3 cycles
+  // are observed. When set, the `days` grid carries no fertile window, no
+  // predicted-ovulation dot, and no phase band (those would rest on a
+  // population prior) — the client shows a calm "learning your cycle" state.
+  // Additive + back-compatible.
+  stillLearning: z.boolean(),
   days: z.array(cycleCalendarDayDto),
   meta: z.object({ generatedAt: z.iso.datetime({ offset: true }) }),
 });
