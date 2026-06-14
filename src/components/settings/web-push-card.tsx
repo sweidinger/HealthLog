@@ -81,8 +81,12 @@ export function WebPushCard() {
       const vapidData = await vapidRes.json();
       const vapidPublicKey = vapidData.data.publicKey;
 
-      const registration = await navigator.serviceWorker.register("/sw.js");
-      await navigator.serviceWorker.ready;
+      // Defer to the app-wide registration (`<ServiceWorkerRegistrar>` in
+      // the root providers) rather than re-registering here — same scope,
+      // so a second `register("/sw.js")` would only return the existing
+      // worker. `ready` resolves with the active registration once it is
+      // controlling the page.
+      const registration = await navigator.serviceWorker.ready;
 
       const subscription = await registration.pushManager.subscribe({
         userVisibleOnly: true,
