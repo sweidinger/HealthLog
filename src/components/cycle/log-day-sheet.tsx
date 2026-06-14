@@ -50,6 +50,7 @@ import {
   useCreateCustomSymptom,
   useCustomSymptoms,
   useCycleDayLog,
+  useCycleProfile,
   useDeleteCustomSymptom,
   useDeleteDayLog,
   useEndPeriod,
@@ -63,6 +64,9 @@ import {
 } from "./use-cycle";
 import type {
   CervicalMucus,
+  CervixFirmness,
+  CervixOpening,
+  CervixPosition,
   ContraceptiveKind,
   CycleDayLogInput,
   CycleSymptomSelection,
@@ -98,6 +102,9 @@ const MUCUS_VALUES: CervicalMucus[] = [
   "WATERY",
   "EGG_WHITE",
 ];
+const CERVIX_POSITION_VALUES: CervixPosition[] = ["LOW", "HIGH"];
+const CERVIX_FIRMNESS_VALUES: CervixFirmness[] = ["FIRM", "SOFT"];
+const CERVIX_OPENING_VALUES: CervixOpening[] = ["CLOSED", "OPEN"];
 const TEST_RESULTS: HomeTestResult[] = [
   "POSITIVE",
   "NEGATIVE",
@@ -158,6 +165,9 @@ export interface DayLogFormState {
   bbtDisturbed: boolean;
   opk: OvulationTest | null;
   mucus: CervicalMucus | null;
+  cervixPosition: CervixPosition | null;
+  cervixFirmness: CervixFirmness | null;
+  cervixOpening: CervixOpening | null;
   intercourse: boolean;
   protectedSex: boolean;
   pregnancyTest: HomeTestResult | null;
@@ -195,6 +205,9 @@ export function buildDayLogPatch(s: DayLogFormState): CycleDayLogPatch {
     temperatureExcluded: resolveBbt(s.bbt) != null ? s.bbtDisturbed : false,
     ovulationTest: s.opk ?? null,
     cervicalMucus: s.mucus ?? null,
+    cervixPosition: s.cervixPosition ?? null,
+    cervixFirmness: s.cervixFirmness ?? null,
+    cervixOpening: s.cervixOpening ?? null,
     sexualActivity: s.intercourse,
     protectedSex: s.intercourse ? s.protectedSex : null,
     pregnancyTest: s.pregnancyTest ?? null,
@@ -223,6 +236,9 @@ export function buildDayLogInput(
       : {}),
     ...(s.opk ? { ovulationTest: s.opk } : {}),
     ...(s.mucus ? { cervicalMucus: s.mucus } : {}),
+    ...(s.cervixPosition ? { cervixPosition: s.cervixPosition } : {}),
+    ...(s.cervixFirmness ? { cervixFirmness: s.cervixFirmness } : {}),
+    ...(s.cervixOpening ? { cervixOpening: s.cervixOpening } : {}),
     sexualActivity: s.intercourse,
     protectedSex: s.intercourse ? s.protectedSex : null,
     ...(s.pregnancyTest ? { pregnancyTest: s.pregnancyTest } : {}),
@@ -274,6 +290,34 @@ function Chip({
   );
 }
 
+/** One labelled row of cervix-sign chips (position / firmness / opening). */
+function CervixRow<T extends string>({
+  label,
+  values,
+  current,
+  labelFor,
+  onToggle,
+}: {
+  label: string;
+  values: readonly T[];
+  current: T | null;
+  labelFor: (v: T) => string;
+  onToggle: (v: T) => void;
+}) {
+  return (
+    <div className="space-y-1.5">
+      <p className="text-muted-foreground text-xs font-medium">{label}</p>
+      <div className="flex flex-wrap gap-2">
+        {values.map((v) => (
+          <Chip key={v} active={current === v} onClick={() => onToggle(v)}>
+            {labelFor(v)}
+          </Chip>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export function LogDaySheet({
   open,
   onOpenChange,
@@ -291,6 +335,11 @@ export function LogDaySheet({
   const dayLog = useCycleDayLog(open ? date : null);
   // The caller's custom symptoms, merged into the seeded chip grid.
   const customSymptoms = useCustomSymptoms();
+  // Drives which symptothermal secondary sign the sheet offers — mucus (default)
+  // or the cervix pickers (progressive disclosure: cervix entry only appears
+  // when the user chose CERVIX in the advanced cycle settings).
+  const cycleProfile = useCycleProfile();
+  const showCervix = cycleProfile.data?.secondarySymptom === "CERVIX";
 
   const [flow, setFlow] = useState<FlowLevel | null>(null);
   const [intermenstrual, setIntermenstrual] = useState(false);
@@ -301,6 +350,13 @@ export function LogDaySheet({
   const [bbtDisturbed, setBbtDisturbed] = useState(false);
   const [opk, setOpk] = useState<OvulationTest | null>(null);
   const [mucus, setMucus] = useState<CervicalMucus | null>(null);
+  const [cervixPosition, setCervixPosition] = useState<CervixPosition | null>(
+    null,
+  );
+  const [cervixFirmness, setCervixFirmness] = useState<CervixFirmness | null>(
+    null,
+  );
+  const [cervixOpening, setCervixOpening] = useState<CervixOpening | null>(null);
   const [intercourse, setIntercourse] = useState(false);
   const [protectedSex, setProtectedSex] = useState(false);
   const [pregnancyTest, setPregnancyTest] = useState<HomeTestResult | null>(
@@ -334,6 +390,9 @@ export function LogDaySheet({
     setBbtDisturbed(dto?.temperatureExcluded ?? false);
     setOpk((dto?.ovulationTest ?? null) as OvulationTest | null);
     setMucus((dto?.cervicalMucus ?? null) as CervicalMucus | null);
+    setCervixPosition((dto?.cervixPosition ?? null) as CervixPosition | null);
+    setCervixFirmness((dto?.cervixFirmness ?? null) as CervixFirmness | null);
+    setCervixOpening((dto?.cervixOpening ?? null) as CervixOpening | null);
     setIntercourse(dto?.sexualActivity ?? false);
     setProtectedSex(dto?.protectedSex ?? false);
     setPregnancyTest(dto?.pregnancyTest ?? null);
@@ -370,6 +429,9 @@ export function LogDaySheet({
       bbtDisturbed,
       opk,
       mucus,
+      cervixPosition,
+      cervixFirmness,
+      cervixOpening,
       intercourse,
       protectedSex,
       pregnancyTest,
@@ -644,20 +706,56 @@ export function LogDaySheet({
         </div>
       </Field>
 
-      {/* Cervical mucus */}
-      <Field label={t("cycle.sheet.mucus")}>
-        <div className="flex flex-wrap gap-2">
-          {MUCUS_VALUES.map((v) => (
-            <Chip
-              key={v}
-              active={mucus === v}
-              onClick={() => setMucus((cur) => (cur === v ? null : v))}
-            >
-              {t(`cycle.mucus.${v}`)}
-            </Chip>
-          ))}
-        </div>
-      </Field>
+      {/* Symptothermal secondary symptom: cervical mucus (default) OR the
+          cervix observation, per the user's advanced-settings choice. Only one
+          of the two is offered so the log sheet never overwhelms. */}
+      {showCervix ? (
+        <Field label={t("cycle.sheet.cervix")}>
+          <div className="space-y-3">
+            <CervixRow
+              label={t("cycle.sheet.cervixPosition")}
+              values={CERVIX_POSITION_VALUES}
+              current={cervixPosition}
+              labelFor={(v) => t(`cycle.cervixPosition.${v}`)}
+              onToggle={(v) =>
+                setCervixPosition((cur) => (cur === v ? null : v))
+              }
+            />
+            <CervixRow
+              label={t("cycle.sheet.cervixFirmness")}
+              values={CERVIX_FIRMNESS_VALUES}
+              current={cervixFirmness}
+              labelFor={(v) => t(`cycle.cervixFirmness.${v}`)}
+              onToggle={(v) =>
+                setCervixFirmness((cur) => (cur === v ? null : v))
+              }
+            />
+            <CervixRow
+              label={t("cycle.sheet.cervixOpening")}
+              values={CERVIX_OPENING_VALUES}
+              current={cervixOpening}
+              labelFor={(v) => t(`cycle.cervixOpening.${v}`)}
+              onToggle={(v) =>
+                setCervixOpening((cur) => (cur === v ? null : v))
+              }
+            />
+          </div>
+        </Field>
+      ) : (
+        <Field label={t("cycle.sheet.mucus")}>
+          <div className="flex flex-wrap gap-2">
+            {MUCUS_VALUES.map((v) => (
+              <Chip
+                key={v}
+                active={mucus === v}
+                onClick={() => setMucus((cur) => (cur === v ? null : v))}
+              >
+                {t(`cycle.mucus.${v}`)}
+              </Chip>
+            ))}
+          </div>
+        </Field>
+      )}
 
       {/* Intercourse + protection */}
       <Field label={t("cycle.sheet.intercourse")}>

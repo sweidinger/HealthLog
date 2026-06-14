@@ -5797,6 +5797,18 @@
       "EGG_WHITE": "Jak białko jaja",
       "label": "Śluz szyjkowy"
     },
+    "cervixPosition": {
+      "LOW": "Nisko",
+      "HIGH": "Wysoko"
+    },
+    "cervixFirmness": {
+      "FIRM": "Twarda",
+      "SOFT": "Miękka"
+    },
+    "cervixOpening": {
+      "CLOSED": "Zamknięta",
+      "OPEN": "Otwarta"
+    },
     "goal": {
       "GENERAL_HEALTH": "Ogólne zdrowie",
       "AVOID_PREGNANCY": "Unikanie ciąży",
@@ -5886,6 +5898,10 @@
       "temperatureDisturbedHint": "Gorączka, choroba, alkohol lub spóźniony pomiar — wykluczony z oceny temperatury.",
       "ovulationTest": "Test owulacyjny",
       "mucus": "Śluz szyjkowy",
+      "cervix": "Szyjka macicy",
+      "cervixPosition": "Położenie",
+      "cervixFirmness": "Twardość",
+      "cervixOpening": "Rozwarcie",
       "intercourse": "Współżycie",
       "protected": "Zabezpieczone",
       "note": "Notatka",
@@ -5915,6 +5931,12 @@
       "priorsDescription": "Te wartości pomagają prognozom, zanim zapiszesz wiele cykli. Zostaw puste, aby użyć wartości domyślnych.",
       "rawChartMode": "Tryb surowego wykresu",
       "rawChartModeDescription": "Pokazuj tylko zapisane dane, bez prognoz i interpretacji.",
+      "secondarySymptomLabel": "Drugi objaw płodności",
+      "secondarySymptomDescription": "Drugi objaw łączony z temperaturą w podwójnej kontroli objawowo-termicznej. Większość obserwuje śluz szyjkowy; przełącz na obserwację szyjki macicy, jeśli wolisz.",
+      "secondarySymptom": {
+        "MUCUS": "Śluz szyjkowy",
+        "CERVIX": "Szyjka macicy"
+      },
       "prediction": "Prognozy",
       "predictionDescription": "Prognozuj następną miesiączkę oraz, gdy to istotne, okno płodne.",
       "encryption": "Szyfruj wrażliwe wpisy",

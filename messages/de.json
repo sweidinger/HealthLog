@@ -5797,6 +5797,18 @@
       "EGG_WHITE": "Eiweißartig",
       "label": "Zervixschleim"
     },
+    "cervixPosition": {
+      "LOW": "Tief",
+      "HIGH": "Hoch"
+    },
+    "cervixFirmness": {
+      "FIRM": "Fest",
+      "SOFT": "Weich"
+    },
+    "cervixOpening": {
+      "CLOSED": "Geschlossen",
+      "OPEN": "Geöffnet"
+    },
     "goal": {
       "GENERAL_HEALTH": "Allgemeine Gesundheit",
       "AVOID_PREGNANCY": "Verhütung",
@@ -5886,6 +5898,10 @@
       "temperatureDisturbedHint": "Fieber, Krankheit, Alkohol oder eine späte Messung — wird von der Temperaturauswertung ausgeschlossen.",
       "ovulationTest": "Ovulationstest",
       "mucus": "Zervixschleim",
+      "cervix": "Gebärmutterhals",
+      "cervixPosition": "Position",
+      "cervixFirmness": "Festigkeit",
+      "cervixOpening": "Öffnung",
       "intercourse": "Geschlechtsverkehr",
       "protected": "Geschützt",
       "note": "Notiz",
@@ -5915,6 +5931,12 @@
       "priorsDescription": "Diese Vorgaben helfen deinen Prognosen, bevor du viele Zyklen erfasst hast. Leer lassen, um die Standardwerte zu nutzen.",
       "rawChartMode": "Roh-Diagramm-Modus",
       "rawChartModeDescription": "Zeige nur deine erfassten Daten, ohne Prognosen oder Deutung.",
+      "secondarySymptomLabel": "Zweites Fruchtbarkeitszeichen",
+      "secondarySymptomDescription": "Das zweite Zeichen, das für die symptothermale Doppelkontrolle mit deiner Temperatur kombiniert wird. Die meisten beobachten den Zervixschleim; wechsle zur Gebärmutterhals-Beobachtung, wenn du das bevorzugst.",
+      "secondarySymptom": {
+        "MUCUS": "Zervixschleim",
+        "CERVIX": "Gebärmutterhals"
+      },
       "prediction": "Prognosen",
       "predictionDescription": "Prognostiziere deine nächste Periode und, wenn relevant, dein fruchtbares Fenster.",
       "encryption": "Sensible Einträge verschlüsseln",

@@ -5797,6 +5797,18 @@
       "EGG_WHITE": "Egg white",
       "label": "Cervical mucus"
     },
+    "cervixPosition": {
+      "LOW": "Low",
+      "HIGH": "High"
+    },
+    "cervixFirmness": {
+      "FIRM": "Firm",
+      "SOFT": "Soft"
+    },
+    "cervixOpening": {
+      "CLOSED": "Closed",
+      "OPEN": "Open"
+    },
     "goal": {
       "GENERAL_HEALTH": "General health",
       "AVOID_PREGNANCY": "Avoiding pregnancy",
@@ -5886,6 +5898,10 @@
       "temperatureDisturbedHint": "Fever, illness, alcohol or a late measurement — excluded from the temperature evaluation.",
       "ovulationTest": "Ovulation test",
       "mucus": "Cervical mucus",
+      "cervix": "Cervix",
+      "cervixPosition": "Position",
+      "cervixFirmness": "Firmness",
+      "cervixOpening": "Opening",
       "intercourse": "Intercourse",
       "protected": "Protected",
       "intermenstrualBleeding": "Spotting between periods",
@@ -5920,6 +5936,12 @@
       "priorsDescription": "These priors help your predictions before you have logged many cycles. Leave blank to use the defaults.",
       "rawChartMode": "Raw chart mode",
       "rawChartModeDescription": "Show only your logged data with no predictions or interpretation.",
+      "secondarySymptomLabel": "Secondary fertility sign",
+      "secondarySymptomDescription": "The second sign paired with your temperature for the symptothermal double-check. Most people track cervical mucus; switch to cervix observation if you prefer.",
+      "secondarySymptom": {
+        "MUCUS": "Cervical mucus",
+        "CERVIX": "Cervix observation"
+      },
       "prediction": "Predictions",
       "predictionDescription": "Forecast your next period and, when relevant, your fertile window.",
       "encryption": "Encrypt sensitive entries",

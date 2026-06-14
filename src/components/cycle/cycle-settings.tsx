@@ -17,7 +17,11 @@ import { Switch } from "@/components/ui/switch";
 import { NativeSelect } from "@/components/ui/native-select";
 import { Separator } from "@/components/ui/separator";
 import { useTranslations } from "@/lib/i18n/context";
-import type { CycleGoal, CycleProfileDTO } from "./types";
+import type {
+  CycleGoal,
+  CycleProfileDTO,
+  SecondarySymptom,
+} from "./types";
 import { useUpdateCyclePrefs } from "./use-cycle";
 
 /**
@@ -43,6 +47,8 @@ const GOALS: CycleGoal[] = [
   "OFF",
 ];
 
+const SECONDARY_SYMPTOMS: SecondarySymptom[] = ["MUCUS", "CERVIX"];
+
 function numOrEmpty(v: number | null): string {
   return v == null ? "" : String(v);
 }
@@ -60,6 +66,9 @@ export function CycleSettings({ profile }: { profile: CycleProfileDTO }) {
     profile.sensitiveCategoryEncryption,
   );
   const [discreet, setDiscreet] = useState(profile.discreetNotifications);
+  const [secondarySymptom, setSecondarySymptom] = useState<SecondarySymptom>(
+    profile.secondarySymptom,
+  );
   const [cycleLen, setCycleLen] = useState(
     numOrEmpty(profile.typicalCycleLength),
   );
@@ -78,6 +87,7 @@ export function CycleSettings({ profile }: { profile: CycleProfileDTO }) {
   async function handleSave() {
     await update.mutateAsync({
       goal,
+      secondarySymptom,
       rawChartMode,
       predictionEnabled,
       sensitiveCategoryEncryption: encryption,
@@ -163,6 +173,33 @@ export function CycleSettings({ profile }: { profile: CycleProfileDTO }) {
               max={16}
             />
           </div>
+        </div>
+
+        <Separator />
+
+        {/* Advanced — symptothermal secondary symptom. The default is mucus;
+            the choice never forces itself on a casual user (progressive
+            disclosure: it sits here in the advanced cycle settings). */}
+        <div className="space-y-2">
+          <Label htmlFor="cycle-secondary-symptom">
+            {t("cycle.settings.secondarySymptomLabel")}
+          </Label>
+          <NativeSelect
+            id="cycle-secondary-symptom"
+            value={secondarySymptom}
+            onChange={(e) =>
+              setSecondarySymptom(e.target.value as SecondarySymptom)
+            }
+          >
+            {SECONDARY_SYMPTOMS.map((s) => (
+              <option key={s} value={s}>
+                {t(`cycle.settings.secondarySymptom.${s}`)}
+              </option>
+            ))}
+          </NativeSelect>
+          <p className="text-muted-foreground text-sm">
+            {t("cycle.settings.secondarySymptomDescription")}
+          </p>
         </div>
 
         <Separator />

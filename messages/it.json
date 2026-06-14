@@ -5797,6 +5797,18 @@
       "EGG_WHITE": "Albume",
       "label": "Muco cervicale"
     },
+    "cervixPosition": {
+      "LOW": "Basso",
+      "HIGH": "Alto"
+    },
+    "cervixFirmness": {
+      "FIRM": "Duro",
+      "SOFT": "Morbido"
+    },
+    "cervixOpening": {
+      "CLOSED": "Chiuso",
+      "OPEN": "Aperto"
+    },
     "goal": {
       "GENERAL_HEALTH": "Salute generale",
       "AVOID_PREGNANCY": "Evitare la gravidanza",
@@ -5886,6 +5898,10 @@
       "temperatureDisturbedHint": "Febbre, malattia, alcol o una misurazione tardiva: esclusa dalla valutazione della temperatura.",
       "ovulationTest": "Test di ovulazione",
       "mucus": "Muco cervicale",
+      "cervix": "Cervice",
+      "cervixPosition": "Posizione",
+      "cervixFirmness": "Consistenza",
+      "cervixOpening": "Apertura",
       "intercourse": "Rapporti",
       "protected": "Protetti",
       "note": "Nota",
@@ -5915,6 +5931,12 @@
       "priorsDescription": "Questi valori aiutano le previsioni prima di aver registrato molti cicli. Lascia vuoto per usare i valori predefiniti.",
       "rawChartMode": "Modalità grafico grezzo",
       "rawChartModeDescription": "Mostra solo i tuoi dati registrati, senza previsioni né interpretazioni.",
+      "secondarySymptomLabel": "Secondo segno di fertilità",
+      "secondarySymptomDescription": "Il secondo segno abbinato alla tua temperatura per il doppio controllo sintotermico. La maggior parte osserva il muco cervicale; passa all'osservazione della cervice se preferisci.",
+      "secondarySymptom": {
+        "MUCUS": "Muco cervicale",
+        "CERVIX": "Cervice"
+      },
       "prediction": "Previsioni",
       "predictionDescription": "Prevedi il prossimo ciclo e, quando rilevante, la tua finestra fertile.",
       "encryption": "Cifra le voci sensibili",

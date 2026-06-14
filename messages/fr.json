@@ -5797,6 +5797,18 @@
       "EGG_WHITE": "Blanc d'œuf",
       "label": "Glaire cervicale"
     },
+    "cervixPosition": {
+      "LOW": "Bas",
+      "HIGH": "Haut"
+    },
+    "cervixFirmness": {
+      "FIRM": "Ferme",
+      "SOFT": "Souple"
+    },
+    "cervixOpening": {
+      "CLOSED": "Fermé",
+      "OPEN": "Ouvert"
+    },
     "goal": {
       "GENERAL_HEALTH": "Santé générale",
       "AVOID_PREGNANCY": "Éviter une grossesse",
@@ -5886,6 +5898,10 @@
       "temperatureDisturbedHint": "Fièvre, maladie, alcool ou mesure tardive — exclue de l'évaluation de la température.",
       "ovulationTest": "Test d'ovulation",
       "mucus": "Glaire cervicale",
+      "cervix": "Col de l'utérus",
+      "cervixPosition": "Position",
+      "cervixFirmness": "Fermeté",
+      "cervixOpening": "Ouverture",
       "intercourse": "Rapports",
       "protected": "Protégés",
       "note": "Note",
@@ -5915,6 +5931,12 @@
       "priorsDescription": "Ces valeurs aident tes prévisions avant d'avoir enregistré beaucoup de cycles. Laisse vide pour utiliser les valeurs par défaut.",
       "rawChartMode": "Mode graphique brut",
       "rawChartModeDescription": "Affiche uniquement tes données enregistrées, sans prévision ni interprétation.",
+      "secondarySymptomLabel": "Deuxième signe de fertilité",
+      "secondarySymptomDescription": "Le deuxième signe associé à ta température pour la double vérification sympto-thermique. La plupart des personnes observent la glaire cervicale ; passe à l'observation du col de l'utérus si tu préfères.",
+      "secondarySymptom": {
+        "MUCUS": "Glaire cervicale",
+        "CERVIX": "Col de l'utérus"
+      },
       "prediction": "Prévisions",
       "predictionDescription": "Prévois tes prochaines règles et, le cas échéant, ta fenêtre fertile.",
       "encryption": "Chiffrer les entrées sensibles",

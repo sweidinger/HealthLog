@@ -29,6 +29,9 @@ import {
 import type {
   CalendarResponse,
   CervicalMucus,
+  CervixFirmness,
+  CervixOpening,
+  CervixPosition,
   ContraceptiveKind,
   CycleDayLogDTO,
   CycleDayLogInput,
@@ -240,6 +243,9 @@ export interface CycleDayLogPatch {
   temperatureExcluded?: boolean;
   ovulationTest?: OvulationTest | null;
   cervicalMucus?: CervicalMucus | null;
+  cervixPosition?: CervixPosition | null;
+  cervixFirmness?: CervixFirmness | null;
+  cervixOpening?: CervixOpening | null;
   sexualActivity?: boolean;
   protectedSex?: boolean | null;
   pregnancyTest?: HomeTestResult | null;
@@ -317,6 +323,7 @@ export function useDeleteDayLog() {
 export interface CyclePrefsPatch {
   enabled?: boolean;
   goal?: CycleProfileDTO["goal"];
+  secondarySymptom?: CycleProfileDTO["secondarySymptom"];
   rawChartMode?: boolean;
   predictionEnabled?: boolean;
   discreetNotifications?: boolean;

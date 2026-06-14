@@ -101,9 +101,18 @@ export interface CycleHistoryResponse {
   };
 }
 
+/** Symptothermal secondary symptom — mucus (default) or cervix observation. */
+export type SecondarySymptom = "MUCUS" | "CERVIX";
+
+/** The three Sensiplan cervix signs. */
+export type CervixPosition = "LOW" | "HIGH";
+export type CervixFirmness = "FIRM" | "SOFT";
+export type CervixOpening = "CLOSED" | "OPEN";
+
 export interface CycleProfileDTO {
   goal: CycleGoal;
   cycleTrackingEnabled: boolean;
+  secondarySymptom: SecondarySymptom;
   rawChartMode: boolean;
   predictionEnabled: boolean;
   discreetNotifications: boolean;
@@ -141,6 +150,9 @@ export interface CycleDayLogInput {
   temperatureExcluded?: boolean;
   ovulationTest?: OvulationTest;
   cervicalMucus?: CervicalMucus;
+  cervixPosition?: CervixPosition | null;
+  cervixFirmness?: CervixFirmness | null;
+  cervixOpening?: CervixOpening | null;
   sexualActivity?: boolean;
   protectedSex?: boolean | null;
   pregnancyTest?: HomeTestResult;
@@ -163,6 +175,9 @@ export interface CycleDayLogDTO {
   temperatureExcluded: boolean;
   ovulationTest: OvulationTest | null;
   cervicalMucus: CervicalMucus | null;
+  cervixPosition: CervixPosition | null;
+  cervixFirmness: CervixFirmness | null;
+  cervixOpening: CervixOpening | null;
   sexualActivity: boolean;
   protectedSex: boolean | null;
   pregnancyTest: HomeTestResult | null;

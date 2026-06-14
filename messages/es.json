@@ -5797,6 +5797,18 @@
       "EGG_WHITE": "Clara de huevo",
       "label": "Moco cervical"
     },
+    "cervixPosition": {
+      "LOW": "Bajo",
+      "HIGH": "Alto"
+    },
+    "cervixFirmness": {
+      "FIRM": "Firme",
+      "SOFT": "Blando"
+    },
+    "cervixOpening": {
+      "CLOSED": "Cerrado",
+      "OPEN": "Abierto"
+    },
     "goal": {
       "GENERAL_HEALTH": "Salud general",
       "AVOID_PREGNANCY": "Evitar el embarazo",
@@ -5886,6 +5898,10 @@
       "temperatureDisturbedHint": "Fiebre, enfermedad, alcohol o una medición tardía: se excluye de la evaluación de temperatura.",
       "ovulationTest": "Test de ovulación",
       "mucus": "Moco cervical",
+      "cervix": "Cuello uterino",
+      "cervixPosition": "Posición",
+      "cervixFirmness": "Firmeza",
+      "cervixOpening": "Apertura",
       "intercourse": "Relaciones",
       "protected": "Protegidas",
       "note": "Nota",
@@ -5915,6 +5931,12 @@
       "priorsDescription": "Estos valores ayudan a tus predicciones antes de registrar muchos ciclos. Déjalos en blanco para usar los predeterminados.",
       "rawChartMode": "Modo de gráfico en bruto",
       "rawChartModeDescription": "Muestra solo tus datos registrados, sin predicciones ni interpretación.",
+      "secondarySymptomLabel": "Segundo signo de fertilidad",
+      "secondarySymptomDescription": "El segundo signo que se combina con tu temperatura para la doble comprobación sintotérmica. La mayoría observa el moco cervical; cambia a la observación del cuello uterino si lo prefieres.",
+      "secondarySymptom": {
+        "MUCUS": "Moco cervical",
+        "CERVIX": "Cuello uterino"
+      },
       "prediction": "Predicciones",
       "predictionDescription": "Pronostica tu próximo periodo y, cuando corresponda, tu ventana fértil.",
       "encryption": "Cifrar entradas sensibles",
