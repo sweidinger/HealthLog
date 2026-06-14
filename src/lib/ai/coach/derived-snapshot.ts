@@ -124,5 +124,18 @@ export async function buildDerivedSnapshotBlock(
     };
   }
 
+  // Recovery dedup (one number, one engine). The COMPUTED recovery proxy IS the
+  // readiness blend verbatim, so when no WHOOP-native row exists the resolved
+  // recovery equals readiness — feeding both labels would hand the model the
+  // identical score under two names. Drop the redundant recovery line in that
+  // case; a WHOOP-native recovery resolves to a DIFFERENT number and both stay.
+  if (
+    block.READINESS !== undefined &&
+    block.RECOVERY_SCORE !== undefined &&
+    block.RECOVERY_SCORE.value === block.READINESS.value
+  ) {
+    delete block.RECOVERY_SCORE;
+  }
+
   return Object.keys(block).length > 0 ? block : null;
 }

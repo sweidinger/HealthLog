@@ -122,7 +122,7 @@ describe("computeWellnessScore", () => {
 
   it("RECOVERY does not read the strain cache and carries a null anchor", async () => {
     findMany.mockResolvedValue([
-      { value: 72, measuredAt: new Date("2026-06-01T12:00:00Z") },
+      { value: 72, measuredAt: new Date("2026-06-01T12:00:00Z"), source: "COMPUTED" },
     ]);
     const r = await computeWellnessScore("RECOVERY_SCORE", "u1", PROFILE, {
       now: NOW,
@@ -132,5 +132,34 @@ describe("computeWellnessScore", () => {
     if (r.status === "ok") {
       expect((r.value as WellnessScoreValue).anchor).toBeNull();
     }
+  });
+
+  it("RECOVERY reads BOTH sources and resolves the WHOOP-native row when present", async () => {
+    // Same day written by both the COMPUTED proxy AND the WHOOP-native sync.
+    // The native row is canonical → the tile shows 80, not the proxy's 50.
+    findMany.mockResolvedValue([
+      { value: 50, measuredAt: new Date("2026-06-02T12:00:00Z"), source: "COMPUTED" },
+      { value: 80, measuredAt: new Date("2026-06-02T06:00:00Z"), source: "WHOOP" },
+    ]);
+    const r = await computeWellnessScore("RECOVERY_SCORE", "u1", PROFILE, {
+      now: NOW,
+    });
+    // The read must NOT hard-filter to COMPUTED — both sources reach the resolver.
+    const where = findMany.mock.calls[0][0].where as { source?: unknown };
+    expect(where.source).toBeUndefined();
+    expect(r.status).toBe("ok");
+    if (r.status === "ok") {
+      expect((r.value as WellnessScoreValue).score).toBe(80);
+      expect((r.value as WellnessScoreValue).band).toBe("green");
+    }
+  });
+
+  it("STRESS still hard-filters to the COMPUTED source", async () => {
+    findMany.mockResolvedValue([
+      { value: 30, measuredAt: new Date("2026-06-02T12:00:00Z"), source: "COMPUTED" },
+    ]);
+    await computeWellnessScore("STRESS_SCORE", "u1", PROFILE, { now: NOW });
+    const where = findMany.mock.calls[0][0].where as { source?: unknown };
+    expect(where.source).toBe("COMPUTED");
   });
 });

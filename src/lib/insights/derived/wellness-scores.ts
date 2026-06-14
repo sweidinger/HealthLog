@@ -13,10 +13,14 @@
  * Server-only — reads `@/lib/db`.
  */
 import { prisma } from "@/lib/db";
-import type { MeasurementType } from "@/generated/prisma/client";
+import type {
+  MeasurementSource,
+  MeasurementType,
+} from "@/generated/prisma/client";
 import { buildInsufficient, buildOk, nowProvenanceTimestamp } from "./coverage";
 import type { BaselineProfile } from "./baseline";
 import type { StrainAnchor } from "@/lib/insights/strain-score";
+import { resolveCanonicalRecovery } from "./recovery-resolve";
 import { SPARKLINE_MAX_POINTS, type Derived } from "./types";
 
 /** A 0–100 wellness score band. Higher is better for recovery; for stress a
@@ -106,17 +110,37 @@ export async function computeWellnessScore(
   const computedAt = nowProvenanceTimestamp(now);
   const measurementType = WELLNESS_SCORE_TYPES[type] as MeasurementType;
 
-  const rows = await prisma.measurement.findMany({
+  // RECOVERY_SCORE is written by TWO sources for the same day — the WHOOP
+  // native percentage and the COMPUTED proxy. The native row is canonical when
+  // present, so the read must NOT hard-filter to COMPUTED (that silently drops
+  // every ingested native row); read both sources and resolve per day below.
+  // STRESS / STRAIN are COMPUTED-only, so they keep the source filter.
+  const isRecovery = type === "RECOVERY_SCORE";
+  const rawRows = await prisma.measurement.findMany({
     where: {
       userId,
       type: measurementType,
-      source: "COMPUTED",
+      ...(isRecovery ? {} : { source: "COMPUTED" as MeasurementSource }),
       deletedAt: null,
       measuredAt: { gte: cutoff, lte: now },
     },
-    select: { value: true, measuredAt: true },
+    select: { value: true, measuredAt: true, source: true },
     orderBy: { measuredAt: "desc" },
   });
+
+  // Collapse a mixed-source recovery set to ONE canonical row per day (WHOOP
+  // wins over COMPUTED). Non-recovery sets are already single-source, so the
+  // resolver is recovery-only — the tile, doctor PDF, and iOS feed all read the
+  // SAME canonical value.
+  const rows = isRecovery
+    ? resolveCanonicalRecovery(
+        rawRows.map((r) => ({
+          value: r.value,
+          measuredAt: r.measuredAt,
+          source: r.source,
+        })),
+      )
+    : rawRows;
 
   if (rows.length === 0) {
     return buildInsufficient<WellnessScoreValue>({
