@@ -61,6 +61,32 @@ describe("buildDerivedSnapshotBlock", () => {
     ]);
   });
 
+  it("drops RECOVERY_SCORE when it mirrors READINESS (COMPUTED proxy, no native)", async () => {
+    // With no WHOOP-native recovery, the COMPUTED proxy IS the readiness blend
+    // verbatim — feeding both labels hands the model the same number twice.
+    compute.mockImplementation(async (args?: { metric?: string }) => {
+      if (args?.metric === "READINESS") return ok({ score: 64, band: "yellow" });
+      if (args?.metric === "RECOVERY_SCORE") return ok({ score: 64, band: "yellow" });
+      return insufficient;
+    });
+    const block = await buildDerivedSnapshotBlock("u1", PROFILE, NOW);
+    expect(block).not.toBeNull();
+    expect(block!.READINESS).toBeDefined();
+    // The redundant proxy is removed — readiness once, not twice.
+    expect(block!.RECOVERY_SCORE).toBeUndefined();
+  });
+
+  it("keeps RECOVERY_SCORE when the WHOOP-native value differs from READINESS", async () => {
+    compute.mockImplementation(async (args?: { metric?: string }) => {
+      if (args?.metric === "READINESS") return ok({ score: 64, band: "yellow" });
+      if (args?.metric === "RECOVERY_SCORE") return ok({ score: 80, band: "green" });
+      return insufficient;
+    });
+    const block = await buildDerivedSnapshotBlock("u1", PROFILE, NOW);
+    expect(block!.READINESS?.value).toBe(64);
+    expect(block!.RECOVERY_SCORE?.value).toBe(80);
+  });
+
   it("isolates a per-metric compute failure", async () => {
     compute.mockImplementation(async (args?: { metric?: string }) => {
       if (args?.metric === "READINESS") throw new Error("boom");

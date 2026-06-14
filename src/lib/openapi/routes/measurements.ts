@@ -200,7 +200,7 @@ const sleepSessionResource = z.object({
   inBedMinutes: z.number().int().nonnegative().nullable(),
   awakeMinutes: z.number().int().nonnegative().nullable(),
   awakenings: z.number().int().nonnegative(),
-  stages: z.record(sleepStageEnum, z.number()),
+  stages: z.record(sleepStageEnum, z.number().int().nonnegative()),
   segments: z.array(sleepSegmentResource),
 });
 

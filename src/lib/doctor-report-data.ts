@@ -18,7 +18,11 @@ import {
   thresholdMetricForContext,
   type GlucoseUnit,
 } from "@/lib/glucose";
-import type { GlucoseContext } from "@/generated/prisma/client";
+import type {
+  GlucoseContext,
+  MeasurementSource,
+} from "@/generated/prisma/client";
+import { resolveCanonicalRecovery } from "@/lib/insights/derived/recovery-resolve";
 import {
   DEFAULT_DOCTOR_REPORT_PREFS,
   type DoctorReportPrefs,
@@ -220,6 +224,59 @@ export const WELLNESS_SCORE_REPORT_TYPES = [
   "STRESS_SCORE",
   "STRAIN_SCORE",
 ] as const;
+
+/** One wellness-summary row (latest + range over the report window). */
+interface WellnessScoreSummary {
+  type: string;
+  latest: number;
+  avg: number;
+  min: number;
+  max: number;
+  count: number;
+  latestAt: string;
+}
+
+/** A measurement row as the doctor-report aggregator reads it (subset). */
+interface RecoveryMeasurementRow {
+  type: string;
+  value: number;
+  measuredAt: Date;
+  source: MeasurementSource;
+}
+
+/**
+ * Summarise RECOVERY_SCORE over the window from the CANONICAL row per day:
+ * a WHOOP-native row wins over the COMPUTED proxy for the same day, so the
+ * doctor PDF never blends the proxy and the native value into one min/avg/max.
+ * Returns null when no recovery row exists. Exported for unit tests.
+ */
+export function summariseCanonicalRecovery(
+  measurements: readonly RecoveryMeasurementRow[],
+): WellnessScoreSummary | null {
+  const recovery = measurements.filter((m) => m.type === "RECOVERY_SCORE");
+  if (recovery.length === 0) return null;
+  const canonical = resolveCanonicalRecovery(
+    recovery.map((m) => ({
+      value: m.value,
+      measuredAt: m.measuredAt,
+      source: m.source,
+    })),
+  );
+  if (canonical.length === 0) return null;
+  // `resolveCanonicalRecovery` returns rows newest-first; the report wants the
+  // latest value + the window range over the canonical set.
+  const values = canonical.map((r) => r.value);
+  const latestRow = canonical[0];
+  return {
+    type: "RECOVERY_SCORE",
+    latest: Math.round(latestRow.value),
+    avg: Math.round(values.reduce((a, b) => a + b, 0) / values.length),
+    min: Math.round(Math.min(...values)),
+    max: Math.round(Math.max(...values)),
+    count: values.length,
+    latestAt: latestRow.measuredAt.toISOString(),
+  };
+}
 
 const GLUCOSE_CONTEXTS: GlucoseContext[] = [
   "FASTING",
@@ -927,12 +984,21 @@ export async function collectDoctorReportData(
     };
   }
 
-  // v1.10.0 — wellness-score summary. The persisted COMPUTED `*_SCORE`
-  // rows are already in `byType`/`stats` (they're only filtered out of the
-  // clinical vitals table). Summarise each present score type for the
-  // separate "Wellness summary" section. Empty array → null so the renderer
-  // + FHIR builder skip the section entirely.
+  // v1.10.0 — wellness-score summary. The persisted `*_SCORE` rows are already
+  // in `byType`/`stats` (they're only filtered out of the clinical vitals
+  // table). Summarise each present score type for the separate "Wellness
+  // summary" section. Empty array → null so the renderer + FHIR builder skip
+  // the section entirely.
+  //
+  // RECOVERY_SCORE carries BOTH the WHOOP-native row and the COMPUTED proxy for
+  // the same day; mixing them into one min/avg/max would blend two distinct
+  // series. Resolve to the canonical row per day (WHOOP wins) so the PDF reads
+  // the SAME value the tile + iOS feed show — one number, one engine.
   const wellnessScoreSummaries = WELLNESS_SCORE_REPORT_TYPES.flatMap((type) => {
+    if (type === "RECOVERY_SCORE") {
+      const summary = summariseCanonicalRecovery(measurements);
+      return summary ? [summary] : [];
+    }
     const s = stats[type];
     const rows = byType[type];
     if (!s || !rows || rows.length === 0) return [];

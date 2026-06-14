@@ -4,6 +4,9 @@ vi.mock("@/lib/db", () => ({
   prisma: {
     measurement: { findMany: vi.fn().mockResolvedValue([]) },
     moodEntry: { findMany: vi.fn().mockResolvedValue([]) },
+    // The Sleep Score reads the user's source priority for the canonical
+    // writer-dedup ladder; default to no override.
+    user: { findUnique: vi.fn().mockResolvedValue(null) },
   },
 }));
 vi.mock("@/lib/rollups/measurement-coverage", () => ({
