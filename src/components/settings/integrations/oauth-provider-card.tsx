@@ -8,8 +8,9 @@
 // Mirrors the Nightscout card's self-contained status pattern.
 
 import { useState } from "react";
+import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Activity, Link2, Unlink } from "lucide-react";
+import { ArrowRight, Link2, Unlink, type LucideIcon } from "lucide-react";
 
 import {
   AlertDialog,
@@ -28,6 +29,7 @@ import {
   IntegrationStatusPill,
   type IntegrationPillState,
 } from "@/components/settings/integration-status-pill";
+import { TestConnectionButton } from "@/components/settings/test-connection-button";
 import { apiGet, apiPost } from "@/lib/api/api-fetch";
 import { useTranslations } from "@/lib/i18n/context";
 import { invalidateKeys, measurementDependentKeys } from "@/lib/query-keys";
@@ -68,6 +70,10 @@ export interface OAuthProviderCardProps {
   statusQueryKey: readonly unknown[];
   /** i18n key prefix (e.g. `settings.polar`). */
   i18nPrefix: string;
+  /** Distinct card glyph, kept in the same size/treatment as the other cards. */
+  icon: LucideIcon;
+  /** Where this provider's synced data surfaces (e.g. `/insights/sleep`). */
+  dataHref: string;
   enabled?: boolean;
 }
 
@@ -75,6 +81,8 @@ export function OAuthProviderCard({
   provider,
   statusQueryKey,
   i18nPrefix,
+  icon,
+  dataHref,
   enabled = true,
 }: OAuthProviderCardProps) {
   const { t } = useTranslations();
@@ -116,7 +124,7 @@ export function OAuthProviderCard({
       className="bg-card border-border rounded-xl border p-4 sm:p-6"
     >
       <SettingsCardHeader
-        icon={Activity}
+        icon={icon}
         title={t(`${i18nPrefix}`)}
         description={<p>{t(`${i18nPrefix}Description`)}</p>}
         status={
@@ -140,6 +148,36 @@ export function OAuthProviderCard({
           </p>
         )}
 
+        {/* Parked-integration resume CTA. Surfaces only when the row state
+            is `parked` (>24h of persistent failures). For an env-based OAuth
+            provider there are no stored BYO credentials to re-validate — the
+            grant itself has to be re-issued, so "reconnect" re-initiates the
+            existing connect flow (`/api/<provider>/connect`); a successful
+            callback clears the park. Markup matches the WHOOP card byte for
+            byte. */}
+        {pillState === "parked" && (
+          <div
+            data-testid={`${provider}-parked-banner`}
+            className="border-warning/30 bg-warning/10 flex flex-wrap items-center justify-between gap-2 rounded-md border px-3 py-2 text-sm"
+          >
+            <span className="text-warning min-w-0 text-xs break-words">
+              {t("settings.integrationPill.parkedReconnect")}
+            </span>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={handleConnect}
+              disabled={serverUnavailable}
+              data-testid={`${provider}-resume-button`}
+              className="min-h-11"
+            >
+              <Link2 className="h-3.5 w-3.5" />
+              {t("settings.integrationPill.resumeCta")}
+            </Button>
+          </div>
+        )}
+
         <p className="text-muted-foreground text-xs">
           {t(`${i18nPrefix}Help`)}
         </p>
@@ -154,40 +192,57 @@ export function OAuthProviderCard({
         )}
 
         {status?.connected ? (
-          <div className="flex flex-wrap items-start gap-2 [&>*]:min-w-[10rem] sm:[&>*]:min-w-0">
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="text-destructive min-h-11"
-                  data-testid={`${provider}-disconnect`}
-                >
-                  <Unlink className="h-3.5 w-3.5" />
-                  {t(`${i18nPrefix}Disconnect`)}
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>
-                    {t(`${i18nPrefix}DisconnectTitle`)}
-                  </AlertDialogTitle>
-                  <AlertDialogDescription>
-                    {t(`${i18nPrefix}DisconnectDescription`)}
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
-                  <AlertDialogAction
-                    variant="destructive"
-                    onClick={() => disconnect.mutate()}
+          <>
+            <div className="flex flex-wrap items-start gap-2 [&>*]:min-w-[10rem] sm:[&>*]:min-w-0">
+              <TestConnectionButton
+                endpoint={`/api/${provider}/test`}
+                disabled={!status?.connected}
+              />
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="text-destructive min-h-11"
+                    data-testid={`${provider}-disconnect`}
                   >
+                    <Unlink className="h-3.5 w-3.5" />
                     {t(`${i18nPrefix}Disconnect`)}
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-          </div>
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>
+                      {t(`${i18nPrefix}DisconnectTitle`)}
+                    </AlertDialogTitle>
+                    <AlertDialogDescription>
+                      {t(`${i18nPrefix}DisconnectDescription`)}
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
+                    <AlertDialogAction
+                      variant="destructive"
+                      onClick={() => disconnect.mutate()}
+                    >
+                      {t(`${i18nPrefix}Disconnect`)}
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </div>
+            {/* connect→data loop: a discreet link to where this provider's
+                readings now surface — doubles as the "your data is richer"
+                cue. */}
+            <Link
+              href={dataHref}
+              data-testid={`${provider}-data-link`}
+              className="text-primary inline-flex items-center gap-1 text-xs underline-offset-2 hover:underline"
+            >
+              {t(`${i18nPrefix}ViewData`)}
+              <ArrowRight className="h-3 w-3" />
+            </Link>
+          </>
         ) : (
           <Button
             type="button"
